@@ -76,7 +76,7 @@ void UBlueprintGeneratedClass::PostInitProperties()
 
 void UBlueprintGeneratedClass::PostLoad()
 {
-	Super::PostLoad();	
+	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
 	UPackage* Package = GetOutermost();
@@ -683,6 +683,11 @@ void UBlueprintGeneratedClass::InitArrayPropertyFromCustomList(const FArrayPrope
 
 		uint8* DstArrayItemValue = DstArrayValueHelper.GetRawPtr(ArrayIndex);
 		const uint8* SrcArrayItemValue = SrcArrayValueHelper.GetRawPtr(ArrayIndex);
+
+		if (DstArrayItemValue == nullptr && SrcArrayItemValue == nullptr)
+		{
+			continue;
+		}
 
 		if (const FStructProperty* InnerStructProperty = CastField<FStructProperty>(ArrayProperty->Inner))
 		{
@@ -1516,7 +1521,7 @@ void UBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties
 	Super::Link(Ar, bRelinkExistingProperties);
 
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
-	if (UsePersistentUberGraphFrame())
+	if(UsePersistentUberGraphFrame())
 	{
 		if (UberGraphFunction)
 		{
@@ -1818,12 +1823,12 @@ void FBlueprintCookedComponentInstancingData::BuildCachedPropertyDataFromTemplat
 	checkSlow(SourceTemplate != nullptr);
 	checkSlow(!SourceTemplate->HasAnyFlags(RF_NeedLoad));
 
-			// Cache source template attributes needed for instancing.
-			ComponentTemplateName = SourceTemplate->GetFName();
-			ComponentTemplateClass = SourceTemplate->GetClass();
-			ComponentTemplateFlags = SourceTemplate->GetFlags();
+	// Cache source template attributes needed for instancing.
+	ComponentTemplateName = SourceTemplate->GetFName();
+	ComponentTemplateClass = SourceTemplate->GetClass();
+	ComponentTemplateFlags = SourceTemplate->GetFlags();
 
-			// This will also load the cached property list, if necessary.
+	// This will also load the cached property list, if necessary.
 	const FCustomPropertyListNode* PropertyList = GetCachedPropertyList();
 
 	// Make sure we don't have any previously-built data.
@@ -1834,9 +1839,9 @@ void FBlueprintCookedComponentInstancingData::BuildCachedPropertyDataFromTemplat
 		CachedPropertyData.Empty();
 	}
 
-			// Write template data out to the "fast path" buffer. All dependencies will be loaded at this point.
+	// Write template data out to the "fast path" buffer. All dependencies will be loaded at this point.
 	FBlueprintComponentInstanceDataWriter InstanceDataWriter(CachedPropertyData, PropertyList);
-			SourceTemplate->Serialize(InstanceDataWriter);
+	SourceTemplate->Serialize(InstanceDataWriter);
 
 	INC_MEMORY_STAT_BY(STAT_BPCompInstancingFastPathMemory, CachedPropertyData.GetAllocatedSize());
 }

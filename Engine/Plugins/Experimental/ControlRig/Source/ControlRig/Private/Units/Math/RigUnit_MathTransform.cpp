@@ -80,7 +80,7 @@ FRigUnit_MathTransformClampSpatially_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FVector Position;
-	FRigUnit_MathVectorClampSpatially::StaticExecute(Value.GetTranslation(), Axis, Type, Minimum, Maximum, Space, bDrawDebug, DebugColor, DebugThickness, Position, RigUnitName, RigUnitStructName, ExecutionType, Context);
+	FRigUnit_MathVectorClampSpatially::StaticExecute(RigVMOperatorName, RigVMOperatorIndex, Value.GetTranslation(), Axis, Type, Minimum, Maximum, Space, bDrawDebug, DebugColor, DebugThickness, Position, Context);
 	Result = Value;
 	Result.SetTranslation(Position);
 }

@@ -7,11 +7,11 @@
 namespace
 {
 TAutoConsoleVariable<int32> CVarHalfResFFTBloom(
-	TEXT("r.Bloom.HalfResoluionFFT"),
+	TEXT("r.Bloom.HalfResolutionFFT"),
 	0,
 	TEXT("Experimental half-resolution FFT Bloom convolution. \n")
 	TEXT(" 0: Standard full resolution convolution bloom.")
-	TEXT(" 1: Half-resolution convoltuion that excludes the center of the kernel.\n"),
+	TEXT(" 1: Half-resolution convolution that excludes the center of the kernel.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 class FFFTShader : public FGlobalShader

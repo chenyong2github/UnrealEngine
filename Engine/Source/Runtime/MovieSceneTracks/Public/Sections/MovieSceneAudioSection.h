@@ -8,6 +8,7 @@
 #include "Runtime/Engine/Classes/Components/AudioComponent.h"
 #include "Sound/SoundAttenuation.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Sections/MovieSceneActorReferenceSection.h"
 #include "MovieSceneAudioSection.generated.h"
 
 class USoundBase;
@@ -103,19 +104,7 @@ public:
 		return AttenuationSettings;
 	}
 
-	/** Gets the attach binding for this Audio section */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
-	const FMovieSceneObjectBindingID& GetAttachBindingID() const
-	{
-		return AttachBindingID;
-	}
-
-	/** Sets the attach binding for this Audio section */
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
-	void SetAttachBindingID(const FMovieSceneObjectBindingID& InAttachBindingID)
-	{
-		AttachBindingID = InAttachBindingID;
-	}
+	const FMovieSceneActorReferenceData& GetAttachActorData() const { return AttachActorData; }
 
 	/** ~UObject interface */
 	virtual void PostLoad() override;
@@ -197,6 +186,9 @@ private:
 	UPROPERTY( )
 	FMovieSceneFloatChannel PitchMultiplier;
 
+	UPROPERTY()
+	FMovieSceneActorReferenceData AttachActorData;
+
 	UPROPERTY( EditAnywhere, Category="Audio" )
 	bool bSuppressSubtitles;
 
@@ -207,10 +199,6 @@ private:
 	/** The attenuation settings to use. */
 	UPROPERTY( EditAnywhere, Category="Attenuation" )
 	class USoundAttenuation* AttenuationSettings;
-
-	/** The object binding that this audio is attached to */
-	UPROPERTY(EditAnywhere, Category = "Audio")
-	FMovieSceneObjectBindingID AttachBindingID;
 
 	/** Called when subtitles are sent to the SubtitleManager.  Set this delegate if you want to hijack the subtitles for other purposes */
 	UPROPERTY()

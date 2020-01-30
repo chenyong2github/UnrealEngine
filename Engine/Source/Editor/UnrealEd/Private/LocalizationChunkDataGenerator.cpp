@@ -11,16 +11,24 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocalizationChunkDataGenerator, Log, All);
 
-FLocalizationChunkDataGenerator::FLocalizationChunkDataGenerator(TArray<FString> InLocalizationTargetsToChunk, TArray<FString> InAllCulturesToCook)
-	: LocalizationTargetsToChunk(MoveTemp(InLocalizationTargetsToChunk))
+FLocalizationChunkDataGenerator::FLocalizationChunkDataGenerator(const int32 InCatchAllChunkId, TArray<FString> InLocalizationTargetsToChunk, TArray<FString> InAllCulturesToCook)
+	: CatchAllChunkId(InCatchAllChunkId)
+	, LocalizationTargetsToChunk(MoveTemp(InLocalizationTargetsToChunk))
 	, AllCulturesToCook(MoveTemp(InAllCulturesToCook))
 {
 }
 
 void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunkId, const TSet<FName>& InPackagesInChunk, const FString& InPlatformName, FSandboxPlatformFile* InSandboxFile, TArray<FString>& OutChunkFilenames)
 {
-	// We can skip this chunk if it's empty
-	if (InPackagesInChunk.Num() == 0)
+	// The primary chunk doesn't gain a suffix to make it unique, as it is replacing the offline localization data that is usually staged verbatim
+	const bool bIsPrimaryChunk = InChunkId == 0;
+	
+	// The catch-all chunk is the only chunk that can contain non-asset localization data (this is chunk 0 by default)
+	const bool bIsCatchAllChunk = InChunkId == CatchAllChunkId;
+
+	// We can skip empty non-primary and non-catch-all chunks
+	const bool bCanSkipChunk = !bIsPrimaryChunk && !bIsCatchAllChunk;
+	if (bCanSkipChunk && InPackagesInChunk.Num() == 0)
 	{
 		return;
 	}
@@ -33,6 +41,9 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 		return;
 	}
 
+	const FString LocalizationContentRoot = (InSandboxFile->GetSandboxDirectory() / InSandboxFile->GetGameSandboxDirectoryName() / TEXT("Content") / TEXT("Localization")).Replace(TEXT("[Platform]"), *InPlatformName);
+	const FString LocalizationMetadataRoot = (InSandboxFile->GetSandboxDirectory() / InSandboxFile->GetGameSandboxDirectoryName() / TEXT("Metadata") / TEXT("Localization")).Replace(TEXT("[Platform]"), *InPlatformName);
+
 	for (const TSharedPtr<FLocTextHelper>& SourceLocTextHelper : CachedLocalizationTargetHelpers)
 	{
 		// If this target has no helper, then it was either an invalid target or failed to load when caching - skip it here
@@ -41,32 +52,27 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 			continue;
 		}
 
-		// Chunk 0 is the only chunk that can contain non-asset localization data, as it acts as the "catch-all" since it's always available
-		// It is also the only chunk that doesn't gain a suffix to make it unique (as it is replacing the offline localization data that is usually staged verbatim)
-		const bool bIsPrimaryChunk = InChunkId == 0;
-
 		// Prepare to produce the localization target for this chunk
 		const TArray<FString> AvailableCulturesToCook = SourceLocTextHelper->GetAllCultures();
 		const FString ChunkTargetName = TextLocalizationResourceUtil::GetLocalizationTargetNameForChunkId(SourceLocTextHelper->GetTargetName(), InChunkId);
-		const FString ChunkTargetRoot = (InSandboxFile->GetSandboxDirectory() / InSandboxFile->GetGameSandboxDirectoryName() / TEXT("Content") / TEXT("Localization") / ChunkTargetName).Replace(TEXT("[Platform]"), *InPlatformName);
+		const FString ChunkTargetContentRoot = LocalizationContentRoot / ChunkTargetName;
+		const FString ChunkTargetMetadataRoot = LocalizationMetadataRoot / ChunkTargetName;
 
 		// Produce a filtered set of data that can be used to produce the LocRes for each chunk
 		bool bChunkHasText = false;
-		FLocTextHelper ChunkLocTextHelper(ChunkTargetRoot, FString::Printf(TEXT("%s.manifest"), *ChunkTargetName), FString::Printf(TEXT("%s.archive"), *ChunkTargetName), SourceLocTextHelper->GetNativeCulture(), SourceLocTextHelper->GetForeignCultures(), nullptr);
+		FLocTextHelper ChunkLocTextHelper(ChunkTargetMetadataRoot, FString::Printf(TEXT("%s.manifest"), *ChunkTargetName), FString::Printf(TEXT("%s.archive"), *ChunkTargetName), SourceLocTextHelper->GetNativeCulture(), SourceLocTextHelper->GetForeignCultures(), nullptr);
 		ChunkLocTextHelper.LoadAll(ELocTextHelperLoadFlags::Create); // Create the in-memory manifest and archives
-		SourceLocTextHelper->EnumerateSourceTexts([bIsPrimaryChunk, SourceLocTextHelper, &bChunkHasText, &ChunkLocTextHelper, &InPackagesInChunk, &AvailableCulturesToCook](TSharedRef<FManifestEntry> InManifestEntry)
+		SourceLocTextHelper->EnumerateSourceTexts([bIsCatchAllChunk, SourceLocTextHelper, &bChunkHasText, &ChunkLocTextHelper, &InPackagesInChunk, &AvailableCulturesToCook](TSharedRef<FManifestEntry> InManifestEntry)
 		{
 			for (const FManifestContext& ManifestContext : InManifestEntry->Contexts)
 			{
-				bool bIncludeInChunk = false;
-				if (FPackageName::IsValidObjectPath(ManifestContext.SourceLocation))
+				bool bIncludeInChunk = bIsCatchAllChunk;
 				{
-					const FName SourcePackageName = *FPackageName::ObjectPathToPackageName(ManifestContext.SourceLocation);
-					bIncludeInChunk = InPackagesInChunk.Contains(SourcePackageName);
-				}
-				else
-				{
-					bIncludeInChunk = bIsPrimaryChunk;
+					const FString SourcePackageName = FPackageName::ObjectPathToPackageName(ManifestContext.SourceLocation);
+					if (FPackageName::IsValidLongPackageName(SourcePackageName))
+					{
+						bIncludeInChunk = InPackagesInChunk.Contains(*SourcePackageName);
+					}
 				}
 
 				if (bIncludeInChunk)
@@ -87,21 +93,19 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 			return true; // continue enumeration
 		}, false);
 
-		// If this chunk has no localization data then we can skip generating the LocRes (unless it's the primary chunk)
-		if (!bIsPrimaryChunk && !bChunkHasText)
+		// We can skip empty non-primary and non-catch-all chunks
+		if (bCanSkipChunk && !bChunkHasText)
 		{
 			continue;
 		}
 
-		// Save the manifest and archives for debug purposes, but don't add them to the build
-		// We don't care if this fails as it's only for debugging
-		
-		// Commenting out per Jamie.Dale for FORT-245482
-		// ChunkLocTextHelper.SaveAll();
+		// Save the manifest and archives for debug purposes within the metadata folder
+		// This won't add them to the build, and we don't care if this fails as it's only for debugging
+		ChunkLocTextHelper.SaveAll();
 
 		// Produce the LocMeta file for the chunk target
 		{
-			const FString ChunkLocMetaFilename = ChunkTargetRoot / FString::Printf(TEXT("%s.locmeta"), *ChunkTargetName);
+			const FString ChunkLocMetaFilename = ChunkTargetContentRoot / FString::Printf(TEXT("%s.locmeta"), *ChunkTargetName);
 			
 			FTextLocalizationMetaDataResource ChunkLocMeta;
 			if (FTextLocalizationResourceGenerator::GenerateLocMeta(ChunkLocTextHelper, FString::Printf(TEXT("%s.locres"), *ChunkTargetName), ChunkLocMeta) && ChunkLocMeta.SaveToFile(ChunkLocMetaFilename))
@@ -123,7 +127,7 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 				continue;
 			}
 
-			const FString ChunkLocResFilename = ChunkTargetRoot / CultureToCook / FString::Printf(TEXT("%s.locres"), *ChunkTargetName);
+			const FString ChunkLocResFilename = ChunkTargetContentRoot / CultureToCook / FString::Printf(TEXT("%s.locres"), *ChunkTargetName);
 
 			FTextLocalizationResource ChunkLocRes;
 			TMap<FName, TSharedRef<FTextLocalizationResource>> UnusedPerPlatformLocRes;

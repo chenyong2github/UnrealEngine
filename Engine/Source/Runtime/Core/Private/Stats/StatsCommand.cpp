@@ -656,7 +656,7 @@ void DumpCPUSummary(FStatsThreadState const& StatsData, int64 TargetFrame)
 }
 
 static int32 HitchIndex = 0;
-static float TotalHitchTime = 0.0f;
+static double TotalHitchTime = 0.0;
 
 static void DumpHitch(int64 Frame)
 {
@@ -674,14 +674,14 @@ static void DumpHitch(int64 Frame)
 	FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 	SCOPE_CYCLE_COUNTER(STAT_HitchScan);
 
-	const float GameThreadTime = FPlatformTime::ToSeconds(Stats.GetFastThreadFrameTime(Frame, EThreadType::Game));
-	const float RenderThreadTime = FPlatformTime::ToSeconds(Stats.GetFastThreadFrameTime(Frame, EThreadType::Renderer));
+	const double GameThreadTime = FPlatformTime::ToSeconds64(Stats.GetFastThreadFrameTime(Frame, EThreadType::Game));
+	const double RenderThreadTime = FPlatformTime::ToSeconds64(Stats.GetFastThreadFrameTime(Frame, EThreadType::Renderer));
 	const float HitchThresholdSecs = GHitchThresholdMS * 0.001f;
 
 	if ((GameThreadTime > HitchThresholdSecs) || (RenderThreadTime > HitchThresholdSecs))
 	{
 		HitchIndex++;
-		float ThisHitch = FMath::Max<float>(GameThreadTime, RenderThreadTime) * 1000.0f;
+		double ThisHitch = FMath::Max<double>(GameThreadTime, RenderThreadTime) * 1000.0;
 		TotalHitchTime += ThisHitch;
 		UE_LOG(LogStats, Log, TEXT("------------------Thread Hitch %d, Frame %lld  %6.1fms ---------------"), HitchIndex, Frame, ThisHitch);
 		FRawStatStackNode Stack;
@@ -1988,7 +1988,7 @@ static void StatCmd(FString InCmd, bool bStatCommand, FOutputDevice* Ar /*= null
 			{
 				StatsMasterEnableAdd();
 				HitchIndex = 0;
-				TotalHitchTime = 0.0f;
+				TotalHitchTime = 0.0;
 				DumpHitchDelegateHandle = Stats.NewFrameDelegate.AddStatic(&DumpHitch);
 			}
 			else

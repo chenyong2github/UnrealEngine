@@ -20,7 +20,7 @@ class FDerivedDataAnimationCompression : public FDerivedDataPluginInterface
 {
 private:
 	// The anim data to compress
-	TSharedPtr<FCompressibleAnimData> DataToCompressPtr;
+	FCompressibleAnimPtr DataToCompressPtr;
 
 	// The Type of anim data to compress (makes up part of DDC key)
 	const TCHAR* TypeName;
@@ -31,23 +31,21 @@ private:
 	// FAnimCompressContext to use during compression if we don't pull from the DDC
 	TSharedPtr<FAnimCompressContext> CompressContext;
 
-	// Size of the previous compressed data (for stat tracking)
-	int32 PreviousCompressedSize;
-
-	// Whether we should frame strip (remove every other frame from even frames animations)
-	bool bPerformStripping;
-
-	// Track if it is an even framed animation (when stripping odd framed animations will need to be resampled)
-	bool bIsEvenFramed;
-
 public:
-	FDerivedDataAnimationCompression(const TCHAR* InTypeName, const FString& InAssetDDCKey, TSharedPtr<FAnimCompressContext> InCompressContext, int32 InPreviousCompressedSize);
+	FDerivedDataAnimationCompression(const TCHAR* InTypeName, const FString& InAssetDDCKey, TSharedPtr<FAnimCompressContext> InCompressContext);
 	virtual ~FDerivedDataAnimationCompression();
 
-	void SetCompressibleData(TSharedRef<FCompressibleAnimData> InCompressibleAnimData)
+	void SetCompressibleData(FCompressibleAnimRef InCompressibleAnimData)
 	{
 		DataToCompressPtr = InCompressibleAnimData;
 		check(DataToCompressPtr->Skeleton != nullptr);
+	}
+
+	FCompressibleAnimPtr GetCompressibleData() const { return DataToCompressPtr; }
+
+	uint64 GetMemoryUsage() const
+	{
+		return DataToCompressPtr.IsValid() ? DataToCompressPtr->GetApproxRawSize() : 0;
 	}
 
 	virtual const TCHAR* GetPluginName() const override
@@ -65,7 +63,7 @@ public:
 
 	virtual bool IsBuildThreadsafe() const override
 	{
-		return false;
+		return true;
 	}
 
 	virtual bool Build( TArray<uint8>& OutDataArray) override;

@@ -161,11 +161,11 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 	INC_DWORD_STAT_BY(STAT_NiagaraMaxNumGPURenderers, MaxDrawIndirectArgs);
 }
 
-uint32 FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance)
+uint32 FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation)
 {
 	checkSlow(IsInRenderingThread());
 
-	const FArgGenTaskInfo Info(InstanceCountBufferOffset, NumIndicesPerInstance);
+	const FArgGenTaskInfo Info(InstanceCountBufferOffset, NumIndicesPerInstance, StartIndexLocation);
 
 	uint32& CachedOffset = DrawIndirectArgMap.FindOrAdd(Info, INDEX_NONE);
 	if (CachedOffset != INDEX_NONE)
@@ -196,7 +196,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 {
 	if (DrawIndirectArgGenTasks.Num() || InstanceCountClearTasks.Num())
 	{
-		if (NiagaraSupportsComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel]))
+		if (FNiagaraUtilities::AllowGPUParticles(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, CountBuffer.UAV);
 

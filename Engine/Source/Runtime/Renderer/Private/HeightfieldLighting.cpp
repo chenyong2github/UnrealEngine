@@ -956,7 +956,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, CulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 
 		SetShaderValue(RHICmdList, ShaderRHI, LightDirection, ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetDirection());
 

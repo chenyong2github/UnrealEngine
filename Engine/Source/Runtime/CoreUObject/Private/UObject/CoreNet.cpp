@@ -177,13 +177,13 @@ const FClassNetCache* FClassNetCacheMgr::GetClassNetCache( UClass* Class )
 
 		Result->Fields.Empty(Class->NetFields.Num());
 
-		TArray< FProperty* > Properties;
-		Properties.Empty( Class->NetProperties.Num() );
+		TArray<FProperty*> Properties;
+		Properties.Empty(Class->ClassReps.Num() - Class->FirstOwnedClassRep);
 
-		for (int32 i = 0; i < Class->NetProperties.Num(); i++)
+		for (int32 i = Class->FirstOwnedClassRep; i < Class->ClassReps.Num(); i++)
 		{
 			// Add each net field to cache, and assign index/checksum
-			FProperty* Property = CastField< FProperty >(Class->NetProperties[i]);
+			FProperty* Property = Class->ClassReps[i].Property;
 			check(Property);
 			Properties.Add(Property);
 

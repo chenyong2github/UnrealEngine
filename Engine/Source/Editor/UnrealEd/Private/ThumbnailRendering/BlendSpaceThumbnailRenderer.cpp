@@ -14,7 +14,7 @@ UBlendSpaceThumbnailRenderer::UBlendSpaceThumbnailRenderer(const FObjectInitiali
 	ThumbnailScene = nullptr;
 }
 
-void UBlendSpaceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas)
+void UBlendSpaceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(Object);
 	if (BlendSpace != nullptr)
@@ -27,7 +27,8 @@ void UBlendSpaceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 		if (ThumbnailScene->SetBlendSpace(BlendSpace))
 		{
 			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(RenderTarget, ThumbnailScene->GetScene(), FEngineShowFlags(ESFIM_Game))
-				.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime));
+				.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
+				.SetAdditionalViewFamily(bAdditionalViewFamily));
 
 			ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
 			ViewFamily.EngineShowFlags.MotionBlur = 0;

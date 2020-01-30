@@ -7,14 +7,17 @@
 #include "VulkanRHIPrivate.h"
 #include "VulkanQueue.h"
 #include "VulkanMemory.h"
+#include "VulkanContext.h"
 
 int32 GWaitForIdleOnSubmit = 0;
 FAutoConsoleVariableRef CVarVulkanWaitForIdleOnSubmit(
 	TEXT("r.Vulkan.WaitForIdleOnSubmit"),
 	GWaitForIdleOnSubmit,
-	TEXT("Waits for the GPU to be idle on every submit. Useful for tracking GPU hangs.\n")
+	TEXT("Waits for the GPU to be idle after submitting a command buffer. Useful for tracking GPU hangs.\n")
 	TEXT(" 0: Do not wait(default)\n")
-	TEXT(" 1: Wait"),
+	TEXT(" 1: Wait on every submit\n")
+	TEXT(" 2: Wait when submitting an upload buffer\n")
+	TEXT(" 3: Wait when submitting an active buffer (one that has gfx commands)\n"),
 	ECVF_Default
 	);
 
@@ -72,7 +75,31 @@ void FVulkanQueue::Submit(FVulkanCmdBuffer* CmdBuffer, uint32 NumSignalSemaphore
 	CmdBuffer->MarkSemaphoresAsSubmitted();
 	CmdBuffer->SubmittedFenceCounter = CmdBuffer->FenceSignaledCounter;
 
+	bool bShouldStall = false;
+
 	if (GWaitForIdleOnSubmit != 0)
+	{
+		FVulkanCommandBufferManager* CmdBufferMgr = Device->GetImmediateContext().GetCommandBufferManager();
+
+		switch(GWaitForIdleOnSubmit)
+		{
+			default:
+				// intentional fall-through
+			case 1:
+				bShouldStall = true;
+				break;
+
+			case 2:
+				bShouldStall = (CmdBufferMgr->HasPendingUploadCmdBuffer() && CmdBufferMgr->GetUploadCmdBuffer() == CmdBuffer);
+				break;
+
+			case 3:
+				bShouldStall = (CmdBufferMgr->HasPendingActiveCmdBuffer() && CmdBufferMgr->GetActiveCmdBufferDirect() == CmdBuffer);
+				break;
+		}
+	}
+
+	if (bShouldStall)
 	{
 		// 200 ms timeout
 		bool bSuccess = Device->GetFenceManager().WaitForFence(CmdBuffer->Fence, 200 * 1000 * 1000);

@@ -454,12 +454,14 @@ void UAnimSequenceBase::RefreshCacheData()
 
 		// Handle overlapping notifies
 		FAnimNotifyTrack* TrackToUse = nullptr;
+		int32 TrackIndexToUse = INDEX_NONE;
 		for (int32 TrackOffset = 0; TrackOffset < AnimNotifyTracks.Num(); ++TrackOffset)
 		{
 			const int32 TrackIndex = (Notify.TrackIndex + TrackOffset) % AnimNotifyTracks.Num();
 			if (CanNotifyUseTrack(AnimNotifyTracks[TrackIndex], Notify))
 			{
 				TrackToUse = &AnimNotifyTracks[TrackIndex];
+				TrackIndexToUse = TrackIndex;
 				break;
 			}
 		}
@@ -467,10 +469,13 @@ void UAnimSequenceBase::RefreshCacheData()
 		if (TrackToUse == nullptr)
 		{
 			TrackToUse = &AddNewTrack(AnimNotifyTracks);
+			TrackIndexToUse = AnimNotifyTracks.Num() - 1;
 		}
 
 		check(TrackToUse);
+		check(TrackIndexToUse != INDEX_NONE);
 
+		Notify.TrackIndex = TrackIndexToUse;
 		TrackToUse->Notifies.Add(&Notify);
 	}
 
@@ -520,7 +525,7 @@ int32 UAnimSequenceBase::GetNumberOfFrames() const
 {
 	static float DefaultSampleRateInterval = 1.f / DEFAULT_SAMPLERATE;
 	// because of float error, add small margin at the end, so it can clamp correctly
-	return (SequenceLength / DefaultSampleRateInterval + KINDA_SMALL_NUMBER);
+	return (int32)(SequenceLength / DefaultSampleRateInterval + KINDA_SMALL_NUMBER) + 1;
 }
 
 #if WITH_EDITOR

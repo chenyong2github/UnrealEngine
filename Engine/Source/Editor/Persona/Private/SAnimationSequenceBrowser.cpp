@@ -683,7 +683,7 @@ void SAnimationSequenceBrowser::OnApplyCompression(TArray<FAssetData> SelectedAs
 		}
 
 		FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
-		PersonaModule.ApplyCompression(AnimSequences);
+		PersonaModule.ApplyCompression(AnimSequences, true);
 	}
 }
 

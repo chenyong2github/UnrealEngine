@@ -38,7 +38,7 @@ public:
 
 	virtual void Compress(int32 Quality) override;
 	virtual void Reset() override;
-	virtual bool SetCompressed(const void* InCompressedData, int32 InCompressedSize) override;
+	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
 	virtual void Uncompress(const ERGBFormat InFormat, int32 InBitDepth) override;
 
 public:
@@ -74,7 +74,7 @@ protected:
 private:
 
 	/** The read offset into our array. */
-	int32 ReadOffset;
+	int64 ReadOffset;
 
 	/** The color type as defined in the header. */
 	int32 ColorType;

@@ -142,7 +142,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
@@ -305,7 +305,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		ObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
@@ -590,7 +590,8 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		SCOPED_DRAW_EVENT(RHICmdList, ConeTraceGlobal);
 
 		float ConeVisibilityClearValue = 1.0f;
-		ClearUAV(RHICmdList, ScreenGridResources->ScreenGridConeVisibility, *(uint32*)&ConeVisibilityClearValue);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, ScreenGridResources->ScreenGridConeVisibility.UAV);
+		RHICmdList.ClearUAVUint(ScreenGridResources->ScreenGridConeVisibility.UAV, FUintVector4(*(uint32*)&ConeVisibilityClearValue, 0, 0, 0)); // @todo - ScreenGridConeVisibility should probably be R32_FLOAT format.
 
 		const uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X / GAODownsampleFactor / GConeTraceDownsampleFactor, GConeTraceGlobalDFTileSize);
 		const uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor / GConeTraceDownsampleFactor, GConeTraceGlobalDFTileSize);

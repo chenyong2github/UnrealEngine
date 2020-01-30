@@ -75,7 +75,7 @@ void FDateTime::GetDate(int32& OutYear, int32& OutMonth, int32& OutDay) const
 
 	int32 i, j, k, l, n;
 
-	l = FMath::FloorToInt(GetJulianDay() + 0.5) + 68569;
+	l = FMath::FloorToInt((float)(GetJulianDay() + 0.5)) + 68569;
 	n = 4 * l / 146097;
 	l = l - (146097 * n + 3) / 4;
 	i = 4000 * (l + 1) / 1461001;
@@ -738,7 +738,7 @@ bool FDateTime::ParseIso8601(const TCHAR* DateTimeString, FDateTime& OutDateTime
 				return false;
 			}
 
-			for (int32 Digits = Next - Ptr; Digits < 3; ++Digits)
+			for (int32 Digits = UE_PTRDIFF_TO_INT32(Next - Ptr); Digits < 3; ++Digits)
 			{
 				Millisecond *= 10;
 			}

@@ -137,6 +137,7 @@ public:
 		, _HandleDirectionalNavigation(true)
 		, _AllowInvisibleItemSelection(false)
 		, _HighlightParentNodesForSelection(false)
+		, _ReturnFocusToSelection()
 		{
 			this->_Clipping = EWidgetClipping::ClipToBounds;
 		}
@@ -202,6 +203,8 @@ public:
 
 		SLATE_ARGUMENT(bool, HighlightParentNodesForSelection);
 
+		SLATE_ARGUMENT(bool, ReturnFocusToSelection)
+
 	SLATE_END_ARGS()
 
 		
@@ -247,6 +250,8 @@ public:
 		this->bHandleDirectionalNavigation = InArgs._HandleDirectionalNavigation;
 		this->bAllowInvisibleItemSelection = InArgs._AllowInvisibleItemSelection;
 		this->bHighlightParentNodesForSelection = InArgs._HighlightParentNodesForSelection;
+
+		this->bReturnFocusToSelection = InArgs._ReturnFocusToSelection;
 
 		// Check for any parameters that the coder forgot to specify.
 		FString ErrorString;

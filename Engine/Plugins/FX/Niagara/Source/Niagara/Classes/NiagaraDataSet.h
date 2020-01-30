@@ -133,7 +133,7 @@ public:
 	FORCEINLINE uint32 GetNumInstances()const { return NumInstances; }
 	FORCEINLINE uint32 GetNumInstancesAllocated()const { return NumInstancesAllocated; }
 
-	FORCEINLINE void SetNumInstances(uint32 InNumInstances) { NumInstances = InNumInstances; }
+	FORCEINLINE void SetNumInstances(uint32 InNumInstances) { check(InNumInstances <= NumInstancesAllocated); NumInstances = InNumInstances; }
 	FORCEINLINE uint32 GetSizeBytes()const { return FloatData.Num() + Int32Data.Num(); }
 	FORCEINLINE FRWBuffer& GetGPUBufferFloat() { return GPUBufferFloat; }
 	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt;	}
@@ -169,7 +169,7 @@ private:
 	{
 		//Round up to VECTOR_WIDTH_BYTES.
 		//Both aligns the component buffers to the vector width but also ensures their ops cannot stomp over one another.		
-		return RequiredSize + VECTOR_WIDTH_BYTES - (RequiredSize % VECTOR_WIDTH_BYTES) + VECTOR_WIDTH_BYTES;
+		return Align(RequiredSize, VECTOR_WIDTH_BYTES) + VECTOR_WIDTH_BYTES;
 	}
 
 	/** Back ptr to our owning data set. Used to access layout info for the buffer. */

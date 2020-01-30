@@ -67,7 +67,12 @@ static void FBlueprintMenuActionItemImpl::DirtyBlueprintFromNewNode(UEdGraphNode
 	
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(NodeGraph);
 	check(Blueprint != nullptr);
-	
+
+	if (SpawnedNode->GetSchema()->MarkBlueprintDirtyFromNewNode(Blueprint, SpawnedNode))
+	{
+		return;
+	}
+
 	UK2Node* K2Node = Cast<UK2Node>(SpawnedNode);
 	// see if we need to recompile skeleton after adding this node, or just mark
 	// it dirty (default to rebuilding the skel, since there is no way to if

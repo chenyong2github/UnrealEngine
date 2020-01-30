@@ -75,7 +75,10 @@ namespace Audio
 		while (TotalDurationRendered < TotalDesiredRender)
 		{
 			// RenderTimeAnalysis.Start();
-			OutputBuffers[CurrentBufferWriteIndex].MixNextBuffer();
+			if (OutputBuffers.IsValidIndex(CurrentBufferWriteIndex))
+			{
+				OutputBuffers[CurrentBufferWriteIndex].MixNextBuffer();
+			}
 			// RenderTimeAnalysis.End();
 
 			ReadNextBuffer();

@@ -18,7 +18,7 @@ void USubsurfaceProfileRenderer::GetThumbnailSize(UObject* Object, float Zoom, u
 	OutHeight = 128;
 }
 
-void USubsurfaceProfileRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas)
+void USubsurfaceProfileRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	USubsurfaceProfile* LocalSubsurfaceProfile = Cast<USubsurfaceProfile>(Object);
 	if (LocalSubsurfaceProfile)

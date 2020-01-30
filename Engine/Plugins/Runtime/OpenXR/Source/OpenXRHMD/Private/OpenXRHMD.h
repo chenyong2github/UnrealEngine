@@ -26,14 +26,15 @@ class FOpenXRRenderBridge;
 class FOpenXRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSceneViewExtensionBase
 {
 public:
-	class FActionSpace
+	class FDeviceSpace
 	{
 	public:
-		FActionSpace(XrAction InAction);
+		FDeviceSpace(XrAction InAction);
 
 		bool CreateSpace(XrSession InSession);
 		void DestroySpace();
 
+		XrReferenceSpaceType ReferenceSpaceType;
 		XrAction Action;
 		XrSpace Space;
 	};
@@ -225,13 +226,15 @@ private:
 	TArray<XrCompositionLayerProjectionView> ViewsRHI;
 	TArray<XrCompositionLayerDepthInfoKHR> DepthLayersRHI;
 
-	TArray<FActionSpace>	ActionSpaces;
+	TArray<FDeviceSpace>	DeviceSpaces;
 
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
 	IRendererModule*		RendererModule;
 
 	FXRSwapChainPtr			Swapchain;
 	FXRSwapChainPtr			DepthSwapchain;
+	uint8					LastRequestedSwapchainFormat;
+	uint8					LastRequestedDepthSwapchainFormat;
 
 	TArray<FHMDViewMesh>	HiddenAreaMeshes;
 	TArray<FHMDViewMesh>	VisibleAreaMeshes;

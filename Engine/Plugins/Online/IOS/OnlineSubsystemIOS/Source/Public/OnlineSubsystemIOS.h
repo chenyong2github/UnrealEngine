@@ -82,6 +82,12 @@ PACKAGE_SCOPE:
 	static bool IsInAppPurchasingEnabled();
 	
 	/**
+	 * Is GameCenter enabled
+	 * @return true if enabled, false otherwise
+	 */
+	static bool IsGameCenterEnabled();
+	
+	/**
 	 * Is CloudKit enabled
 	 * @return true if enabled, false otherwise
 	 */

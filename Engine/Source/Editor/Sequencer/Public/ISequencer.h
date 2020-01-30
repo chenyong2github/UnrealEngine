@@ -30,6 +30,7 @@ class UMovieSceneSubSection;
 class IDetailsView;
 class IKeyArea;
 enum class EMapChangeType : uint8;
+class FCurveModel;
 
 /**
  * Defines auto change modes.
@@ -142,7 +143,6 @@ enum class EMovieSceneDataChangeType
 	Unknown
 };
 
-
 /**
  * Interface for sequencers.
  */
@@ -166,6 +166,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChangedTracks, TArray<UMovieSceneTrack*> /*Tracks*/);
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChangedSections, TArray<UMovieSceneSection*> /*Sections*/);
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCurveDisplayChanged, FCurveModel* , bool /*displayed*/);
+
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCloseEvent, TSharedRef<ISequencer>);
 
@@ -474,6 +477,9 @@ public:
 	virtual FSequencerSelection& GetSelection() = 0;
 	virtual FSequencerSelectionPreview& GetSelectionPreview() = 0;
 
+	virtual void SuspendSelectionBroadcast() = 0;
+	virtual void ResumeSelectionBroadcast() = 0;
+
 	/** Gets the currently selected tracks. */
 	virtual void GetSelectedTracks(TArray<UMovieSceneTrack*>& OutSelectedTracks) = 0;
 
@@ -502,7 +508,10 @@ public:
 	virtual void SelectByPropertyPaths(const TArray<FString>& InPropertyPaths) = 0;
 
 	/** Selects nodes by key areas */
-	virtual void SelectByKeyAreas(const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect) = 0;
+	virtual void SelectByKeyAreas(UMovieSceneSection* Section, const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect) = 0;
+
+	/** Selects nodes by the nth category node under a section */
+	virtual void SelectByNthCategoryNode(UMovieSceneSection* Section, int Index, bool bSelect) = 0;
 
 	/** Empties the current selection. */
 	virtual void EmptySelection() = 0;
@@ -543,6 +552,9 @@ public:
 
 	/** Gets a multicast delegate with an array of UMovieSceneSections which is called when the outliner node selection changes. */
 	virtual FOnSelectionChangedSections& GetSelectionChangedSections() = 0;
+
+	/** Gets a multicast delegate when the curve edtior associated with this sequencer has it's selection change. */
+	virtual FOnCurveDisplayChanged& GetCurveDisplayChanged() = 0;
 
 	/** @return a numeric type interface that will parse and display numbers as frames and times correctly */
 	virtual TSharedRef<INumericTypeInterface<double>> GetNumericTypeInterface() const = 0;
@@ -610,7 +622,21 @@ public:
 	* @see SetSelectionRange, SetSelectionRangeEnd, SetSelectionRangeStart
 	*/
 	virtual TRange<FFrameNumber> GetSelectionRange() const = 0;
+public:
 
+	/**
+	* Specify that an object was implicitly added. We will notify the track editors that it was
+	@InObject Object that was added to be part of a track/binding but not the real binding
+	*/
+	virtual void ObjectImplicitlyAdded(UObject* InObject) const = 0;
+
+public:
+	/**
+	*    Turn on/off the filter with the specified name
+	* @InName The name of the of the filter
+	* @bOn   Whether or not the filter is on or off.
+	*/
+	virtual void SetFilterOn(const FText& InName, bool bOn) = 0;
 public:
 
 	/**

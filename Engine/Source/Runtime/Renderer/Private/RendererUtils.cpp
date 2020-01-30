@@ -2,6 +2,7 @@
 
 #include "RendererUtils.h"
 #include "RenderTargetPool.h"
+#include "VisualizeTexture.h"
 
 template <uint32 NumRenderTargets>
 class TRTWriteMaskDecodeCS : public FGlobalShader
@@ -103,6 +104,10 @@ void FRenderTargetWriteMask::Decode(FRHICommandListImmediate& RHICmdList, TShade
 		false,
 		1,
 		false));
+
+#if SUPPORTS_VISUALIZE_TEXTURE
+	MaskDesc.TargetableFlags |= TexCreate_ShaderResource;
+#endif
 
 	GRenderTargetPool.FindFreeElement(RHICmdList, MaskDesc, OutRTWriteMask, RTWriteMaskDebugName);
 	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, OutRTWriteMask->GetRenderTargetItem().UAV);

@@ -178,6 +178,7 @@ bool spirvToolsOptimize(spv_target_env env, std::vector<uint32_t> *module,
   if (flags.empty()) {
     optimizer.RegisterPerformancePasses();
     optimizer.RegisterPass(spvtools::CreateCompactIdsPass());
+    optimizer.RegisterPass(spvtools::CreateEliminateDeadMembersPass());
   } else {
     // Command line options use llvm::SmallVector and llvm::StringRef, whereas
     // SPIR-V optimizer uses std::vector and std::string.

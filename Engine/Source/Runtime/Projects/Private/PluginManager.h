@@ -96,6 +96,7 @@ public:
 
 	/** IPluginManager interface */
 	virtual void RefreshPluginsList() override;
+	virtual bool AddToPluginsList( const FString& PluginFilename ) override;
 	virtual bool LoadModulesForEnabledPlugins( const ELoadingPhase::Type LoadingPhase ) override;
 	virtual void GetLocalizationPathsForEnabledPlugins( TArray<FString>& OutLocResPaths ) override;
 	virtual void SetRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) override;

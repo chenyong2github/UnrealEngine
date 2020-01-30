@@ -26,7 +26,6 @@ public:
 
 	// Called once by bundle manager after constructing the bundle source
 	virtual void Init(
-		TSharedRef<FConfigFile> InstallBundleConfig, 
 		TSharedRef<InstallBundleUtil::FContentRequestStatsMap> InRequestStats,
 		TSharedPtr<IAnalyticsProviderET> AnalyticsProvider,
 		TSharedPtr<InstallBundleUtil::PersistentStats::FPersistentStatContainerBase> PersistentStatsContainer) = 0;

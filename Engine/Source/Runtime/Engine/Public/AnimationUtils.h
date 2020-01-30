@@ -9,17 +9,12 @@
 #include "CoreMinimal.h"
 #include "Animation/AnimSequence.h"
 
-class UAnimCompress;
-class UAnimSet;
-struct FAnimCompressContext;
-
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogMatinee, Warning, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAnimNotify, Warning, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAnimMontage, Warning, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAnimMarkerSync, Warning, All);
 
 // Forward declarations.
-class UAnimCompress;
 class UAnimSet;
 struct FTransform;
 
@@ -39,27 +34,7 @@ struct FAnimPerturbationError
 	float MaxErrorInScaleDueToScale;
 };
 
-/**
- * A set of error statistics for an animation, gathered by FAnimationUtils::ComputeCompressionError
- */
-struct AnimationErrorStats
-{
-	/** Average world-space translation error across all end-effectors **/
-	float AverageError;
-	/** The worst error encountered across all end effectors **/
-	float MaxError;
-	/** Time at which the worst error occurred */
-	float MaxErrorTime;
-	/** Bone on which the worst error occurred */
-	int32 MaxErrorBone;
-
-	AnimationErrorStats()
-		: AverageError(0.f)
-		, MaxError(0.f)
-		, MaxErrorTime(0.f)
-		, MaxErrorBone(0)
-	{}
-};
+using AnimationErrorStats = FAnimationErrorStats;
 
 /** Different ways to create an additive animation */
 enum EConvertToAdditive
@@ -89,7 +64,7 @@ public:
 												const TArray<FTransform>& BoneSpaceTransforms,
 												const TArray<FBoneData>& BoneData);
 
-	static void BuildSkeletonMetaData(USkeleton* Skeleton, TArray<FBoneData>& OutBoneData);
+	ENGINE_API static void BuildSkeletonMetaData(USkeleton* Skeleton, TArray<FBoneData>& OutBoneData);
 
 	static int32 GetAnimTrackIndexForSkeletonBone(const int32 InSkeletonBoneIndex, const TArray<FTrackToSkeletonMap>& TrackToSkelMap);
 
@@ -103,62 +78,8 @@ public:
 	 * @param	ErrorStats	Output structure containing the final compression error values
 	 * @return				None.
 	 */
-	static void ComputeCompressionError(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& CompressedData, AnimationErrorStats& ErrorStats);
+	ENGINE_API static void ComputeCompressionError(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& CompressedData, AnimationErrorStats& ErrorStats);
 #endif
-
-	/**
-	 * Utility function to compress an animation. If the animation is currently associated with a codec, it will be used to 
-	 * compress the animation. Otherwise, the default codec will be used. The CompressContext can specify whether an
-	 * alternative compression codec can be used. If the alternative codec produces better compression and the accuracy
-	 * of the compressed animation remains within tolerances, the alternative codec will be used. 
-	 * See GetAlternativeCompressionThreshold for information on the tolerance value used.
-	 *
-	 * @param	CompressibleAnimData	The animation data to compress.
-	 * @param	CompressContext			Context for applying compression, tracking memory saved etc
-	 * @return							The compressed animation data
-	 */
-	ENGINE_API static void CompressAnimSequence(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutCompressedData, FAnimCompressContext& CompressContext);
-
-	/**
-	 * Utility function to compress an animation. If the animation is currently associated with a codec, it will be used to
-	 * compress the animation. Otherwise, the default codec will be used. The CompressContext can specify whether an
-	 * alternative compression codec can be used. If the alternative codec produces better compression and the accuracy
-	 * of the compressed animation remains within tolerances, the alternative codec will be used.
-	 * See GetAlternativeCompressionThreshold for information on the tolerance value used.
-	 *
-	 * @param	CompressibleAnimData					The animation data to compress.
-	 * @param	OriginalCompressedData					The original compressed data (if it exists).
-	 * @param	CompressContext							Context for applying compression, tracking memory saved etc*
-	 * @param	MasterTolerance							The alternate error threshold (0.0 means don't try anything other than the current / default scheme)
-	 * @param	bFirstRecompressUsingCurrentOrDefault	If true, then the animation will be first recompressed with it's current compressor if non-NULL, or with the global default compressor (specified in the engine ini)
-	 * @param	bForceBelowThreshold					If true and the existing compression error is greater than MasterTolerance, then any compression technique (even one that increases the size) with a lower error will be used until it falls below the threshold
-	 * @param	bRaiseMaxErrorToExisting				If true and the existing compression error is greater than MasterTolerance, then MasterTolerance will be effectively raised to the existing error level
-	 * @param	bTryExhaustiveSearch					If true, then an exhaustive search is used otherwise only a short list of the best methods is tried
-	 *
-	 * @return											The compressed animation data
-	 */
-	static void CompressAnimSequenceExplicit(
-		const FCompressibleAnimData& CompressibleAnimData,
-		FCompressibleAnimDataResult& OutCompressedData,
-		FAnimCompressContext& CompressContext,
-		float MasterTolerance,
-		bool bFirstRecompressUsingCurrentOrDefault,
-		bool bForceBelowThreshold,
-		bool bRaiseMaxErrorToExisting,
-		bool bTryExhaustiveSearch,
-		bool bEnableSegmenting,
-		int32 IdealNumFramesPerSegment,
-		int32 MaxNumFramesPerSegment);
-
-	/**
-	 * Determines the current setting for world-space error tolerance in the animation compressor.
-	 * When requested, animation being compressed will also consider an alternative compression
-	 * method if the end result of that method produces less error than the AlternativeCompressionThreshold.
-	 * The default tolerance value is 0.0f (no alternatives allowed) but may be overridden using a field in the base engine INI file.
-	 *
-	 * @return				World-space error tolerance for considering an alternative compression method
-	 */
-	ENGINE_API static float GetAlternativeCompressionThreshold();
 	
 	/**
 	 * Determines the current setting for recompressing all animations upon load. The default value 
@@ -208,7 +129,7 @@ public:
 	 * Note: If there are as many times as frames, they are automatically assumed to be uniformly spaced.
 	 * Note: If there are two or fewer times, they are automatically assumed to be uniformly spaced.
 	 *
-	 * @param AnimSeq		The number of frames in the source animation data
+	 * @param NumFrames		The number of frames in the source animation data
 	 * @param Times			The array of key times
 	 *
 	 * @return				true if the keys are uniformly spaced (or one of the trivial conditions is detected).  false if any key spacing is greater than 1e-4 off.
@@ -226,18 +147,31 @@ public:
 		const FVector& ScaleNudge,
 		TArray<FAnimPerturbationError>& InducedErrors);
 
-	/**
-	 * @return		The default animation compression algorithm singleton, instantiating it if necessary.
-	 */
-	ENGINE_API static UAnimCompress* GetDefaultAnimationCompressionAlgorithm();
+	/** Returns the default animation bone compression settings, can never by null. */
+	ENGINE_API static UAnimBoneCompressionSettings* GetDefaultAnimationBoneCompressionSettings();
+
+	/** Returns the default animation bone compression settings for the FAnimRecorder, can never by null. */
+	ENGINE_API static UAnimBoneCompressionSettings* GetDefaultAnimationRecorderBoneCompressionSettings();
 
 	/** Returns the default animation curve compression settings, can never by null. */
 	ENGINE_API static UAnimCurveCompressionSettings* GetDefaultAnimationCurveCompressionSettings();
+
+	/** Makes sure that the animation sequence and all its dependencies required for compression are loaded. */
+	ENGINE_API static void EnsureAnimSequenceLoaded(UAnimSequence& AnimSeq);
 
 	static void ExtractTransformFromTrack(float Time, int32 NumFrames, float SequenceLength, const struct FRawAnimSequenceTrack& RawTrack, EAnimInterpolationType Interpolation, FTransform &OutAtom);
 
 #if WITH_EDITOR
 	static void ExtractTransformFromCompressionData(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& CompressedAnimData, float Time, int32 TrackIndex, bool bUseRawData, FTransform& OutBoneTransform);
+
+	/**
+	 * Compresses the animation bones within a sequence with the chosen settings.
+	 * Note: This modifies the sequence.
+	 *
+	 * @return		Returns true on success, false it we fail to compress
+	 */
+	ENGINE_API static bool CompressAnimBones(FCompressibleAnimData& AnimSeq, FCompressibleAnimDataResult& Target);
+
 	/**
 	 * Compresses the animation curves within a sequence with the chosen settings.
 	 * Note: This modifies the sequence.

@@ -340,6 +340,29 @@ struct FMetalCommandBufferStats : public IMetalStatsScope
 };
 
 /**
+ * Simple struct to hold sortable command buffer start and end timestamps.
+ */
+struct FMetalCommandBufferTiming
+{
+	CFTimeInterval StartTime;
+	CFTimeInterval EndTime;
+
+	bool operator<(const FMetalCommandBufferTiming& RHS) const
+	{
+		// Sort by start time and then by length if the commandbuffer started at the same time
+		if (this->StartTime < RHS.StartTime)
+		{
+			return true;
+		}
+		else if ((this->StartTime == RHS.StartTime) && (this->EndTime > RHS.EndTime))
+		{
+			return true;
+		}
+		return false;
+	}
+};
+
+/**
  * Encapsulates GPU profiling logic and data.
  * There's only one global instance of this struct so it should only contain global data, nothing specific to a frame.
  */
@@ -352,14 +375,7 @@ struct FMetalGPUProfiler : public FGPUProfiler
 	:	FGPUProfiler()
 	,	Context(InContext)
 	,   NumNestedFrames(0)
-	{
-		FMemory::Memzero((void*)&FrameStartGPUCycles[0], sizeof(FrameStartGPUCycles));
-		FMemory::Memzero((void*)&FrameEndGPUCycles[0], sizeof(FrameEndGPUCycles));
-		FMemory::Memzero((void*)&FrameGPUTimeCycles[0], sizeof(FrameGPUTimeCycles));
-		FMemory::Memzero((void*)&FrameIdleTimeCycles[0], sizeof(FrameIdleTimeCycles));
-		FMemory::Memzero((void*)&FramePresentTimeCycles[0], sizeof(FramePresentTimeCycles));
-		RunningFrameTimeSeconds = 0.0;
-	}
+	{}
 	
 	virtual ~FMetalGPUProfiler() {}
 	
@@ -376,26 +392,13 @@ struct FMetalGPUProfiler : public FGPUProfiler
 	// WARNING:
 	// These functions MUST be called from within Metal scheduled/completion handlers
 	// since they depend on libdispatch to enforce ordering.
-	static void RecordFrame();
+	static void RecordFrame(TArray<FMetalCommandBufferTiming>& CommandBufferTimings, FMetalCommandBufferTiming& LastPresentBufferTiming);
 	static void RecordPresent(const mtlpp::CommandBuffer& Buffer);
-	static void RecordCommandBuffer(const mtlpp::CommandBuffer& Buffer);
 	// END WARNING
-	
-#define MAX_FRAME_HISTORY 3
-	static int32 FrameTimeGPUIndex;
-	static int64 FrameStartGPUCycles[MAX_FRAME_HISTORY];
-	static int64 FrameEndGPUCycles[MAX_FRAME_HISTORY];
-	static int64 FrameGPUTimeCycles[MAX_FRAME_HISTORY];
-	static int64 FrameIdleTimeCycles[MAX_FRAME_HISTORY];
-	static int64 FramePresentTimeCycles[MAX_FRAME_HISTORY];
 	
 	FMetalGPUTiming TimingSupport;
 	FMetalContext* Context;
 	int32 NumNestedFrames;
-private:
-	// These must only be accessed from within Metal scheduled/completion handlers. See above.
-	static void IncrementFrameIndex();
-	static double RunningFrameTimeSeconds;
 };
 
 class FMetalProfiler : public FMetalGPUProfiler

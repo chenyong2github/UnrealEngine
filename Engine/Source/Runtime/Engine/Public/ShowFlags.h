@@ -396,6 +396,7 @@ private:
 		SetOcclusionMeshes(false);
 		SetPathTracing(false);
 		SetRayTracingDebug(false);
+		SetVisualizeSkyAtmosphere(false);
 	}
 
 

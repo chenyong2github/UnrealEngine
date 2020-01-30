@@ -440,7 +440,7 @@ uint32 FCrc::MemCrc32( const void* InData, int32 Length, uint32 CRC/*=0 */ )
 	const uint8* __restrict Data = (uint8*)InData;
 
 	// First we need to align to 32-bits
-	int32 InitBytes = Align(Data, 4) - Data;
+	int32 InitBytes = UE_PTRDIFF_TO_INT32(Align(Data, 4) - Data);
 
 	if (Length > InitBytes)
 	{
@@ -490,7 +490,7 @@ uint32 FCrc::MemCrc_DEPRECATED(const void* InData, int32 Length, uint32 CRC/*=0 
 	const uint8* __restrict Data = (uint8*)InData;
 
 	// First we need to align to 32-bits
-	int32 InitBytes = Align(Data, 4) - Data;
+	int32 InitBytes = UE_PTRDIFF_TO_INT32(Align(Data, 4) - Data);
 
 	if (Length > InitBytes)
 	{

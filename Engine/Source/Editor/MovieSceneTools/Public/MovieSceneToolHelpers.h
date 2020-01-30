@@ -15,6 +15,7 @@
 #include "MovieSceneTranslator.h"
 #include "MovieSceneCaptureSettings.h"
 #include "SEnumCombobox.h"
+#include "Animation/AnimSequence.h"
 
 
 class ISequencer;
@@ -343,6 +344,14 @@ public:
 	 * @return The exported camera anim asset
 	 */
 	static UObject* ExportToCameraAnim(UMovieScene* InMovieScene, FGuid& InObjectBinding);
+
+	/*
+	
+	
+	*/
+	static bool ExportToAnimSequence(UAnimSequence* AnimSequence, UMovieScene* MovieScene, IMovieScenePlayer* Player,
+		USkeletalMeshComponent* SkelMesh, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform);
+
 
 	/*
 	 * @return Whether this object class has hidden mobility and can't be animated

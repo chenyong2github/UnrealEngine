@@ -517,7 +517,7 @@ uint8* FGenericPlatformMallocCrash::AllocateFromSmallPool( uint32 AllocationSize
 uint32 FGenericPlatformMallocCrash::GetAllocationSize( void *Original )
 {
 	FPtrInfo* PtrInfo = (FPtrInfo*)((uint8*)Original-PER_ALLOC_OVERHEAD);
-	return PtrInfo->Size;
+	return (uint32)(PtrInfo->Size);
 }
 
 uint32 FGenericPlatformMallocCrash::SafePageSize()

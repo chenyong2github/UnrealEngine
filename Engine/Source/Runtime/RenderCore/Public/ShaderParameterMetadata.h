@@ -11,7 +11,6 @@
 #include "Containers/StaticArray.h"
 #include "RHI.h"
 
-
 namespace EShaderPrecisionModifier
 {
 	enum Type
@@ -33,6 +32,54 @@ struct FResourceTableEntry
 	uint16 ResourceIndex;
 };
 
+/** Simple class that registers a uniform buffer static slot in the constructor. */
+class RENDERCORE_API FUniformBufferStaticSlotRegistrar
+{
+public:
+	FUniformBufferStaticSlotRegistrar(const TCHAR* InName);
+};
+
+/** Registry for uniform buffer static slots. */
+class RENDERCORE_API FUniformBufferStaticSlotRegistry
+{
+public:
+	static FUniformBufferStaticSlotRegistry& Get();
+
+	void RegisterSlot(FName SlotName);
+
+	inline int32 GetSlotCount() const
+	{
+		return SlotNames.Num();
+	}
+
+	inline FString GetDebugDescription(FUniformBufferStaticSlot Slot) const
+	{
+		return FString::Printf(TEXT("[Name: %s, Slot: %u]"), *GetSlotName(Slot).ToString(), Slot);
+	}
+
+	inline FName GetSlotName(FUniformBufferStaticSlot Slot) const
+	{
+		checkf(Slot < SlotNames.Num(), TEXT("Requesting name for an invalid slot: %u."), Slot);
+		return SlotNames[Slot];
+	}
+
+	inline FUniformBufferStaticSlot FindSlotByName(FName SlotName) const
+	{
+		// Brute force linear search. The search space is small and the find operation should not be critical path.
+		for (int32 Index = 0; Index < SlotNames.Num(); ++Index)
+		{
+			if (SlotNames[Index] == SlotName)
+			{
+				return FUniformBufferStaticSlot(Index);
+			}
+		}
+		return MAX_UNIFORM_BUFFER_STATIC_SLOTS;
+	}
+
+private:
+	TArray<FName> SlotNames;
+};
+
 /** A uniform buffer struct. */
 class RENDERCORE_API FShaderParametersMetadata
 {
@@ -43,11 +90,11 @@ public:
 		/** Stand alone shader parameter struct used for render passes and shader parameters. */
 		ShaderParameterStruct,
 
-		/** Globally named shader parameter struct to be stored in uniform buffer. */
-		GlobalShaderParameterStruct,
+		/** Uniform buffer definition authored at compile-time. */
+		UniformBuffer,
 
-		/** Shader parameter struct generated from assets, such as material parameter collection or Niagara. */
-		DataDrivenShaderParameterStruct,
+		/** Uniform buffer generated from assets, such as material parameter collection or Niagara. */
+		DataDrivenUniformBuffer,
 	};
 
 	/** Shader binding name of the uniform buffer that contains the root shader parameters. */
@@ -141,6 +188,7 @@ public:
 		const FName& InLayoutName,
 		const TCHAR* InStructTypeName,
 		const TCHAR* InShaderVariableName,
+		const TCHAR* InStaticSlotName,
 		uint32 InSize,
 		const TArray<FMember>& InMembers);
 
@@ -148,10 +196,14 @@ public:
 
 	void GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const;
 
-	void AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, uint32>& ResourceTableLayoutHashes) const;
+	void AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, uint32>& ResourceTableLayoutHashes, TMap<FString, FString>& ResourceTableLayoutSlots) const;
 
 	const TCHAR* GetStructTypeName() const { return StructTypeName; }
 	const TCHAR* GetShaderVariableName() const { return ShaderVariableName; }
+	const TCHAR* GetStaticSlotName() const { return StaticSlotName; }
+
+	bool HasStaticSlot() const { return StaticSlotName != nullptr; }
+
 	uint32 GetSize() const { return Size; }
 	EUseCase GetUseCase() const { return UseCase; }
 	const FRHIUniformBufferLayout& GetLayout() const 
@@ -176,12 +228,12 @@ public:
 	static TMap<FName, FShaderParametersMetadata*>& GetNameStructMap();
 
 	/** Initialize all the global shader parameter structs. */
-	static void InitializeAllGlobalStructs();
+	static void InitializeAllUniformBufferStructs();
 
 	/** Returns a hash about the entire layout of the structure. */
 	uint32 GetLayoutHash() const
 	{
-		check(UseCase == EUseCase::ShaderParameterStruct || UseCase == EUseCase::GlobalShaderParameterStruct);
+		check(UseCase == EUseCase::ShaderParameterStruct || UseCase == EUseCase::UniformBuffer);
 		check(bLayoutInitialized);
 		return LayoutHash;	
 	}
@@ -192,6 +244,9 @@ private:
 
 	/** Name of the shader variable name for global shader parameter structs. */
 	const TCHAR* const ShaderVariableName;
+
+	/** Name of the static slot to use for the uniform buffer (or null). */
+	const TCHAR* const StaticSlotName;
 
 	/** Size of the entire struct in bytes. */
 	const uint32 Size;
@@ -218,4 +273,4 @@ private:
 	void InitializeLayout();
 
 	void AddResourceTableEntriesRecursive(const TCHAR* UniformBufferName, const TCHAR* Prefix, uint16& ResourceIndex, TMap<FString, FResourceTableEntry>& ResourceTableMap) const;
-}; // class FShaderParametersMetadata
+};

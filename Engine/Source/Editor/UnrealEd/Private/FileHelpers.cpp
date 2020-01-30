@@ -64,6 +64,10 @@
 #include "Engine/LevelStreaming.h"
 #include "AutoSaveUtils.h"
 #include "AssetRegistryModule.h"
+#include "Misc/BlacklistNames.h"
+#include "EngineAnalytics.h"
+#include "StudioAnalytics.h"
+#include "AnalyticsEventAttribute.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
@@ -2427,7 +2431,7 @@ static void NotifyBSPNeedsRebuild(const FString& PackageName)
  */
 bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, bool bShowProgress)
 {
-	double LoadStartTime = FPlatformTime::Seconds();
+	double LoadStartTime = FStudioAnalytics::GetAnalyticSeconds();
 	
 	if (GEditor->WarnIfLightingBuildIsCurrentlyRunning())
 	{
@@ -2536,7 +2540,10 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 	}
 
 	// Track time spent loading map.
-	UE_LOG(LogFileHelpers, Log, TEXT("Loading map '%s' took %.3f"), *FPaths::GetBaseFilename(Filename), FPlatformTime::Seconds() - LoadStartTime );
+	const double MapLoadTime = FStudioAnalytics::GetAnalyticSeconds() - LoadStartTime;
+	UE_LOG(LogFileHelpers, Log, TEXT("Loading map '%s' took %.3f"), *FPaths::GetBaseFilename(Filename), MapLoadTime);
+
+	FStudioAnalytics::FireEvent_Loading(TEXT("LoadMap"), MapLoadTime, { FAnalyticsEventAttribute(TEXT("MapName"), FPaths::GetBaseFilename(Filename)) });
 
 	if (GUnrealEd)
 	{
@@ -4028,11 +4035,17 @@ FString FEditorFileUtils::ExtractPackageName(const FString& ObjectPath)
 
 void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
+
 	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
 	{
 		UPackage* WorldPackage = WorldIt->GetOutermost();
 		if (!WorldPackage->HasAnyPackageFlags(PKG_PlayInEditor)
-			&& !WorldPackage->HasAnyFlags(RF_Transient))
+			&& !WorldPackage->HasAnyFlags(RF_Transient)
+			&& (!bHasWritableFolderFilter || WritableFolderFilter->PassesStartsWithFilter(WorldPackage->GetName()))
+			)
 		{
 			if (WorldPackage->IsDirty())
 			{
@@ -4068,6 +4081,10 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 
 void FEditorFileUtils::GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackages)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
+
 	// Make a list of all content packages that we should save
 	for (TObjectIterator<UPackage> It; It; ++It)
 	{
@@ -4093,8 +4110,19 @@ void FEditorFileUtils::GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackag
 			// Ignore map packages, they are caught above.
 			bShouldIgnorePackage |= bIsMapPackage;
 
-			// Ignore packages with long, invalid names. This culls out packages with paths in read-only roots such as /Temp.
-			bShouldIgnorePackage |= (!FPackageName::IsShortPackageName(Package->GetFName()) && !FPackageName::IsValidLongPackageName(Package->GetName(), /*bIncludeReadOnlyRoots=*/false));
+			if (!bShouldIgnorePackage)
+			{
+				FString PackageName = Package->GetName();
+
+				// Ignore packages with long, invalid names. This culls out packages with paths in read-only roots such as /Temp.
+				bShouldIgnorePackage |= (!FPackageName::IsShortPackageName(Package->GetFName()) && !FPackageName::IsValidLongPackageName(PackageName, /*bIncludeReadOnlyRoots=*/false));
+
+				// Ignore packages that cannot be saved due to a custom filter
+				if (!bShouldIgnorePackage && bHasWritableFolderFilter)
+				{
+					bShouldIgnorePackage |= (!WritableFolderFilter->PassesStartsWithFilter(PackageName));
+				}
+			}
 		}
 
 		if (!bShouldIgnorePackage)

@@ -58,7 +58,7 @@ void IControlRigManipulationLayer::AddManipulatableObject(IControlRigManipulatab
 			return;
 		}
 	}
-
+		
 	ManipulatableObjects.Add(TWeakObjectPtr<UObject>(ManipulatableUObject));
 }
 

@@ -225,12 +225,6 @@ void FIOSAudioSoundSource::Update(void)
 		Volume = WaveInstance->GetActualVolume();
 	}
 
-	if (SetStereoBleed())
-	{
-		// Emulate the bleed to rear speakers followed by stereo fold down
-		Volume *= 1.25f;
-	}
-
     SetFilterFrequency();
     
     SourceLPFFrequency = LPFFrequency / (((float) SampleRate) * 0.5f);

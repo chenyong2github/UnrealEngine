@@ -392,38 +392,6 @@ void UAISense_Sight::UnregisterSource(AActor& SourceActor)
 	}
 }
 
-void UAISense_Sight::CleanseInvalidSources()
-{
-	bool bInvalidSourcesFound = false;
-	int32 NumInvalidSourcesFound = 0;
-	for (FTargetsContainer::TIterator ItTarget(ObservedTargets); ItTarget; ++ItTarget)
-	{
-		if (ItTarget->Value.Target.IsValid() == false)
-		{
-			// remove affected queries
-			RemoveAllQueriesToTarget(ItTarget->Key, DontSort);
-			// remove target itself
-			ItTarget.RemoveCurrent();
-
-			bInvalidSourcesFound = true;
-			NumInvalidSourcesFound++;
-		}
-	}
-
-	UE_LOG(LogAIPerception, Verbose, TEXT("UAISense_Sight::CleanseInvalidSources called and removed %d invalid sources"), NumInvalidSourcesFound);
-
-	if (bInvalidSourcesFound)
-	{
-		// remove holes
-		ObservedTargets.Compact();
-		SortQueries();
-	}
-	else
-	{
-		UE_VLOG(GetPerceptionSystem(), LogAIPerception, Error, TEXT("UAISense_Sight::CleanseInvalidSources called and no invalid targets were found"));
-	}
-}
-
 bool UAISense_Sight::RegisterTarget(AActor& TargetActor, FQueriesOperationPostProcess PostProcess)
 {
 	return RegisterTarget(TargetActor, PostProcess, [](FAISightQuery& Query) {});

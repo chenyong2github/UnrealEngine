@@ -4,6 +4,7 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/Vector.h"
+#include "Chaos/Framework/PhysicsProxyBase.h"
 
 class UPhysicalMaterial;
 
@@ -28,6 +29,8 @@ namespace Chaos
 			, PenetrationDepth((T)0.0)
 			, Particle(nullptr)
 			, Levelset(nullptr)
+			, ParticleProxy(nullptr)
+		    , LevelsetProxy(nullptr)
 			, ParticleIndexMesh(INDEX_NONE)
 			, LevelsetIndexMesh(INDEX_NONE)
 		{}
@@ -44,6 +47,8 @@ namespace Chaos
 			, T InPenetrationDepth
 			, TGeometryParticle<T, d>* InParticle
 			, TGeometryParticle<T, d>* InLevelset
+			, IPhysicsProxyBase* InParticleProxy
+			, IPhysicsProxyBase* InLevelsetProxy
 			, int32 InParticleIndexMesh
 			, int32 InLevelsetIndexMesh)
 			: Location(InLocation)
@@ -58,9 +63,13 @@ namespace Chaos
 			, PenetrationDepth(InPenetrationDepth)
 			, Particle(InParticle)
 			, Levelset(InLevelset)
+			, ParticleProxy(InParticleProxy)
+		    , LevelsetProxy(InLevelsetProxy)
 			, ParticleIndexMesh(InParticleIndexMesh)
 			, LevelsetIndexMesh(InLevelsetIndexMesh)
 		{}
+
+		bool IsValid() { return (ParticleProxy && LevelsetProxy); }
 
 		TVector<T, d> Location;
 		TVector<T, d> AccumulatedImpulse;
@@ -71,6 +80,8 @@ namespace Chaos
 		T PenetrationDepth;
 		TGeometryParticle<T, d>* Particle;
 		TGeometryParticle<T, d>* Levelset;
+		IPhysicsProxyBase* ParticleProxy;
+		IPhysicsProxyBase* LevelsetProxy;
 		// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO
 		int32 ParticleIndexMesh, LevelsetIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 													// It is important to be able to get extra data from the component

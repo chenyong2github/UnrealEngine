@@ -10,6 +10,7 @@ class FExtender;
 class FMenuBuilder;
 class SWidget;
 class SWindow;
+class UToolMenu;
 
 class FPathContextMenu : public TSharedFromThis<FPathContextMenu>
 {
@@ -48,13 +49,13 @@ public:
 	TSharedRef<FExtender> MakePathViewContextMenuExtender(const TArray<FString>& InSelectedPaths);
 
 	/** Makes the asset tree context menu widget */
-	void MakePathViewContextMenu(FMenuBuilder& MenuBuilder);
+	void MakePathViewContextMenu(UToolMenu* Menu);
 
 	/** Handler to check to see if creating a new asset is allowed */
 	bool CanCreateAsset() const;
 
 	/** Makes the new asset submenu */
-	void MakeNewAssetSubMenu(FMenuBuilder& MenuBuilder);
+	void MakeNewAssetSubMenu(UToolMenu* Menu);
 
 	/** Handler for when "New Class" is selected */
 	void ExecuteCreateClass();
@@ -63,7 +64,7 @@ public:
 	bool CanCreateClass() const;
 
 	/** Makes the set color submenu */
-	void MakeSetColorSubMenu(FMenuBuilder& MenuBuilder);
+	void MakeSetColorSubMenu(UToolMenu* Menu);
 
 	/** Handler for when "Migrate Folder" is selected */
 	void ExecuteMigrateFolder();

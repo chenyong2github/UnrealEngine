@@ -1643,7 +1643,6 @@ void FVulkanTextureView::Destroy(FVulkanDevice& Device)
 FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType ResourceType, EPixelFormat InFormat, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 UEFlags, const FRHIResourceCreateInfo& CreateInfo)
 	: Surface(Device, ResourceType, InFormat, SizeX, SizeY, SizeZ, ArraySize, NumMips, NumSamples, UEFlags, CreateInfo)
 	, PartialView(nullptr)
-	, bIsAliased(false)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
 	const bool bArray = ResourceType == VK_IMAGE_VIEW_TYPE_1D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_2D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
@@ -1727,7 +1726,6 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 ArraySize, uint32 InNumMips, uint32 InNumSamples, VkImage InImage, VkDeviceMemory InMem, uint32 UEFlags, const FRHIResourceCreateInfo& CreateInfo)
 	: Surface(Device, ResourceType, Format, SizeX, SizeY, SizeZ, ArraySize, InNumMips, InNumSamples, InImage, UEFlags, CreateInfo)
 	, PartialView(nullptr)
-	, bIsAliased(false)
 {
 	check(InMem == VK_NULL_HANDLE);
 	const bool bArray = ResourceType == VK_IMAGE_VIEW_TYPE_1D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_2D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
@@ -1751,7 +1749,6 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, VkImage InImage, VkDeviceMemory InMem, FSamplerYcbcrConversionInitializer& ConversionInitializer, uint32 UEFlags, const FRHIResourceCreateInfo& CreateInfo)
 	: Surface(Device, ResourceType, Format, SizeX, SizeY, SizeZ, ArraySize, NumMips, NumSamples, InImage, UEFlags, CreateInfo)
 	, PartialView(nullptr)
-	, bIsAliased(false)
 {
 	check(InMem == VK_NULL_HANDLE);
 	const bool bArray = ResourceType == VK_IMAGE_VIEW_TYPE_1D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_2D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
@@ -1782,10 +1779,10 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 	InsertInitialImageLayout(Device, InImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-FVulkanTextureBase::FVulkanTextureBase(const FVulkanTextureBase* SrcTexture, VkImageViewType ResourceType, uint32 SizeX, uint32 SizeY, uint32 SizeZ)
+FVulkanTextureBase::FVulkanTextureBase(FTextureRHIRef& SrcTextureRHI, const FVulkanTextureBase* SrcTexture, VkImageViewType ResourceType, uint32 SizeX, uint32 SizeY, uint32 SizeZ)
 	: Surface(*SrcTexture->Surface.Device, ResourceType, SrcTexture->Surface.PixelFormat, SizeX, SizeY, SizeZ, SrcTexture->Surface.NumArrayLevels, SrcTexture->Surface.NumMips, SrcTexture->Surface.NumSamples, SrcTexture->Surface.Image, SrcTexture->Surface.UEFlags, FRHIResourceCreateInfo())
 	, PartialView(nullptr)
-	, bIsAliased(true)
+	, AliasedTexture(SrcTextureRHI)
 {
 	if (Surface.FullAspectMask == Surface.PartialAspectMask)
 	{
@@ -1796,7 +1793,8 @@ FVulkanTextureBase::FVulkanTextureBase(const FVulkanTextureBase* SrcTexture, VkI
 		PartialView = new FVulkanTextureView;
 		// Skip create, since we're aliasing.
 	}
-	AliasTextureResources(SrcTexture);
+
+	AliasTextureResources(SrcTextureRHI);
 }
 
 FVulkanTextureBase::~FVulkanTextureBase()
@@ -1809,9 +1807,11 @@ FVulkanTextureBase::~FVulkanTextureBase()
 	}
 }
 
-void FVulkanTextureBase::AliasTextureResources(const FVulkanTextureBase* SrcTexture)
+void FVulkanTextureBase::AliasTextureResources(FTextureRHIRef& SrcTextureRHI)
 {
 	DestroyViews();
+
+	FVulkanTextureBase* SrcTexture = (FVulkanTextureBase*)SrcTextureRHI->GetTextureBaseRHI();
 
 	Surface.Destroy();
 	Surface.Image = SrcTexture->Surface.Image;
@@ -1825,13 +1825,11 @@ void FVulkanTextureBase::AliasTextureResources(const FVulkanTextureBase* SrcText
 		PartialView->Image = SrcTexture->PartialView->Image;
 		PartialView->ViewId = SrcTexture->PartialView->ViewId;
 	}
-
-	bIsAliased = true;
 }
 
 void FVulkanTextureBase::DestroyViews()
 {
-	if (!bIsAliased)
+	if (AliasedTexture == nullptr)
 	{
 		DefaultView.Destroy(*Surface.Device);
 
@@ -1861,9 +1859,9 @@ FVulkanTexture2D::FVulkanTexture2D(FVulkanDevice& Device, EPixelFormat Format, u
 {
 }
 
-FVulkanTexture2D::FVulkanTexture2D(const FVulkanTexture2D* SrcTexture)
+FVulkanTexture2D::FVulkanTexture2D(FTextureRHIRef& SrcTextureRHI, const FVulkanTexture2D* SrcTexture)
 	: FRHITexture2D(SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->GetNumMips(), SrcTexture->GetNumSamples(), SrcTexture->GetFormat(), SrcTexture->GetFlags(), SrcTexture->GetClearBinding())
-	, FVulkanTextureBase(static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_2D, SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), 1)
+	, FVulkanTextureBase(SrcTextureRHI, static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_2D, SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), 1)
 {
 }
 
@@ -1887,9 +1885,9 @@ FVulkanTexture2DArray::FVulkanTexture2DArray(FVulkanDevice& Device, EPixelFormat
 {
 }
 
-FVulkanTexture2DArray::FVulkanTexture2DArray(const FVulkanTexture2DArray* SrcTexture)
+FVulkanTexture2DArray::FVulkanTexture2DArray(FTextureRHIRef& SrcTextureRHI, const FVulkanTexture2DArray* SrcTexture)
 	: FRHITexture2DArray(SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->GetSizeZ(), SrcTexture->GetNumMips(), SrcTexture->GetNumSamples(), SrcTexture->GetFormat(), SrcTexture->GetFlags(), SrcTexture->GetClearBinding())
-	, FVulkanTextureBase(static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_2D_ARRAY, SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->GetSizeZ())
+	, FVulkanTextureBase(SrcTextureRHI, static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_2D_ARRAY, SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->GetSizeZ())
 {
 }
 
@@ -1913,9 +1911,9 @@ FVulkanTextureCube::FVulkanTextureCube(FVulkanDevice& Device, EPixelFormat Forma
 {
 }
 
-FVulkanTextureCube::FVulkanTextureCube(const FVulkanTextureCube* SrcTexture)
+FVulkanTextureCube::FVulkanTextureCube(FTextureRHIRef& SrcTextureRHI, const FVulkanTextureCube* SrcTexture)
 	: FRHITextureCube(SrcTexture->GetSize(), SrcTexture->GetNumMips(), SrcTexture->GetFormat(), SrcTexture->GetFlags(), SrcTexture->GetClearBinding())
-	, FVulkanTextureBase(static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_CUBE, SrcTexture->GetSize(), SrcTexture->GetSize(), 1)
+	, FVulkanTextureBase(SrcTextureRHI, static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_CUBE, SrcTexture->GetSize(), SrcTexture->GetSize(), 1)
 {
 }
 

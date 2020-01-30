@@ -22,13 +22,13 @@ bool FPlatformFileReadStatsHandle::Read( uint8* Destination, int64 BytesToRead )
 {
 	double Timer = FPlatformTime::Seconds();
 	bool Result = FileHandle->Read(Destination, BytesToRead);
-	float Delta = FPlatformTime::Seconds()-Timer;
+	double Delta = FPlatformTime::Seconds()-Timer;
 	if (Delta > SMALL_NUMBER)
 	{
-		float BytesPerSec = (BytesToRead/1024.0f)/Delta;
-		FPlatformAtomics::InterlockedAdd(BytesPerSecCounter, (int32)(BytesPerSec));
+		const int32 BytesPerSec = (int32)((BytesToRead/1024.0f)/Delta);
+		FPlatformAtomics::InterlockedAdd(BytesPerSecCounter, BytesPerSec);
 	}
-	FPlatformAtomics::InterlockedAdd(BytesReadCounter, BytesToRead);
+	FPlatformAtomics::InterlockedAdd(BytesReadCounter, (int32)BytesToRead);
 	FPlatformAtomics::InterlockedIncrement(ReadsCounter);
 	return Result;
 }

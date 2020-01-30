@@ -172,6 +172,9 @@ private:
 	ECheckBoxState GetLockEdges() const;
 	void SetLockEdges(ECheckBoxState NewState);
 
+	ECheckBoxState GetLockColorBounaries() const;
+	void SetLockColorBounaries(ECheckBoxState NewState);
+
 	ECheckBoxState GetEnforceBoneBoundaries() const;
 	void SetEnforceBoneBoundaries(ECheckBoxState NewState);
 

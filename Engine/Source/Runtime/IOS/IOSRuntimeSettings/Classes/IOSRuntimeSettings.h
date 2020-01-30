@@ -372,8 +372,13 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = DeviceOrientations)
 	uint32 bSupportsLandscapeRightOrientation : 1;
 
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = FileSystem)
+	// Whether files created by the app will be accessible from the iTunes File Sharing feature
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = FileSystem, meta = (DisplayName = "Support iTunes File Sharing"))
 	uint32 bSupportsITunesFileSharing : 1;
+	
+	// Whether files created by the app will be accessible from within the device's Files app (requires iTunes File Sharing)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = FileSystem, meta = (DisplayName = "Support Files App", EditCondition = "bSupportsITunesFileSharing"))
+	uint32 bSupportsFilesApp : 1;
 	
 	// The Preferred Orientation will be used as the initial orientation at launch when both Landscape Left and Landscape Right orientations are to be supported.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = DeviceOrientations, meta = (DisplayName = "Preferred Landscape Orientation"))

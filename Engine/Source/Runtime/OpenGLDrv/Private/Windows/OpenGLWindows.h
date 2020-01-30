@@ -285,6 +285,7 @@
 	EnumMacro(PFNGLBINDVERTEXARRAYPROC,glBindVertexArray) \
 	EnumMacro(PFNGLCOPYBUFFERSUBDATAPROC,glCopyBufferSubData) \
 	EnumMacro(PFNGLTEXBUFFERPROC,glTexBuffer) \
+	EnumMacro(PFNGLTEXBUFFERRANGEPROC,glTexBufferRange) \
 	EnumMacro(PFNGLTEXIMAGE2DMULTISAMPLEPROC,glTexImage2DMultisample) \
 	EnumMacro(PFNGLQUERYCOUNTERPROC, glQueryCounter)\
 	EnumMacro(PFNGLISSYNCPROC, glIsSync)\
@@ -367,6 +368,7 @@
 	EnumMacro(PFNGLFRAMEBUFFERTEXTUREPROC,glFramebufferTextureEXT) \
 	EnumMacro(PFNGLCOPYIMAGESUBDATAPROC, glCopyImageSubDataEXT) \
 	EnumMacro(PFNGLTEXBUFFERPROC,glTexBufferEXT) \
+	EnumMacro(PFNGLTEXBUFFERRANGEPROC,glTexBufferRangeEXT) \
 	EnumMacro(PFNGLDEPTHRANGEFPROC,glDepthRangef) \
 	EnumMacro(PFNGLCLEARDEPTHFPROC,glClearDepthf) \
 	EnumMacro(PFNGLGETSHADERPRECISIONFORMATPROC, glGetShaderPrecisionFormat) \
@@ -599,7 +601,7 @@ struct FWindowsOpenGL : public FOpenGLESDeferred
 {
 	static FORCEINLINE EShaderPlatform GetShaderPlatform()
 	{
-		return bES2Fallback ? SP_OPENGL_PCES2 : SP_OPENGL_PCES3_1;
+		return SP_OPENGL_PCES3_1;
 	}
 
 	static FORCEINLINE void InitDebugContext()

@@ -1608,6 +1608,13 @@ bool FSteamVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32
 	MetalBridge* MetalBridgePtr = (MetalBridge*)pBridge.GetReference();
 #endif
 
+	if (pBridge != nullptr && pBridge->GetSwapChain() != nullptr && pBridge->GetSwapChain()->GetTexture2D() != nullptr && pBridge->GetSwapChain()->GetTexture2D()->GetSizeX() == SizeX && pBridge->GetSwapChain()->GetTexture2D()->GetSizeY() == SizeY)
+	{
+		OutTargetableTexture = (FTexture2DRHIRef&)pBridge->GetSwapChain()->GetTextureRef();
+		OutShaderResourceTexture = OutTargetableTexture;
+		return true;
+	}
+
 	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
 	{
 #if PLATFORM_MAC
@@ -1630,16 +1637,7 @@ bool FSteamVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32
 
 		if (BindingTexture == nullptr)
 		{
-			// For this iteration, create a temporary texture resource that will get stomped the first time we do our bind/alias
-			// pass on this object.
-			// Note, even though this is a wasted allocation, it never gets bound or used in any way, so should be minimally impactful.
-			FTexture2DRHIRef TempTargetableTexture, TempShaderResourceTexture;
-			RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_B8G8R8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, TempTargetableTexture, TempShaderResourceTexture, NumSamples);
-			check(TempTargetableTexture == TempShaderResourceTexture);
-			BindingTexture = TempTargetableTexture;
-
-			// Alias immediately.
-			GDynamicRHI->RHIAliasTextureResources(BindingTexture, TargetableTexture);
+			BindingTexture = GDynamicRHI->RHICreateAliasedTexture((FTextureRHIRef&)TargetableTexture);
 		}
 	}
 
@@ -1705,16 +1703,9 @@ bool FSteamVRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY,
 
 		SwapChainTextures.Add((FTextureRHIRef&)TargetableTexture);
 
-		// As above, create a temp, stompable texture to alias over.
 		if (BindingTexture == nullptr)
 		{
-			FTexture2DRHIRef TempTargetableTexture, TempShaderResourceTexture;
-			RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_DepthStencil, 1, Flags, TargetableTextureFlags, false, CreateInfo, TempTargetableTexture, TempShaderResourceTexture, 1);
-			check(TempTargetableTexture == TempShaderResourceTexture);
-			BindingTexture = TempTargetableTexture;
-
-			// Alias immediately.
-			GDynamicRHI->RHIAliasTextureResources(BindingTexture, TargetableTexture);
+			BindingTexture = GDynamicRHI->RHICreateAliasedTexture((FTextureRHIRef&)TargetableTexture);
 		}
 	}
 

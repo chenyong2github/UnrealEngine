@@ -57,6 +57,7 @@ public:
 	TOptional<FString> GetLocalValueString() const;
 	TOptional<FNiagaraVariable> GetLocalValueRapidIterationParameter() const;
 	TOptional<FNiagaraParameterHandle> GetLinkedValueHandle() const;
+	TOptional<FName> GetDataValueInputName() const;
 	UNiagaraDataInterface* GetDataValueObject() const;
 	TSharedPtr<FNiagaraStackFunctionMergeAdapter> GetDynamicValueFunction() const;
 	TOptional<FString> GetStaticSwitchValue() const;
@@ -74,6 +75,7 @@ private:
 	TOptional<FString> LocalValueString;
 	TOptional<FNiagaraVariable> LocalValueRapidIterationParameter;
 	TOptional<FNiagaraParameterHandle> LinkedValueHandle;
+	TOptional<FName> DataValueInputName;
 	UNiagaraDataInterface* DataValueObject;
 	TSharedPtr<FNiagaraStackFunctionMergeAdapter> DynamicValueFunction;
 	TOptional<FString> StaticSwitchValue;

@@ -316,6 +316,9 @@ public:
 	/** Sets the play time for the sequence but clamped by the working range. This is useful for cases where we can't clamp via the UI control. */
 	void SetPlayTimeClampedByWorkingRange(double Frame);
 
+	/** Set's the specified filter to be on or off*/
+	void SetFilterOn(const FText& InName, bool bOn);
+
 public:
 
 	// FNotifyHook overrides

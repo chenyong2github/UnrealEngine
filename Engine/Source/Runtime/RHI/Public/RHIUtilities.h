@@ -198,13 +198,51 @@ struct FRWBuffer
 		: NumBytes(0)
 	{}
 
+	FRWBuffer(FRWBuffer&& Other)
+		: Buffer(MoveTemp(Other.Buffer))
+		, UAV(MoveTemp(Other.UAV))
+		, SRV(MoveTemp(Other.SRV))
+		, NumBytes(Other.NumBytes)
+	{
+		Other.NumBytes = 0;
+	}
+
+	FRWBuffer(const FRWBuffer& Other)
+		: Buffer(Other.Buffer)
+		, UAV(Other.UAV)
+		, SRV(Other.SRV)
+		, NumBytes(Other.NumBytes)
+	{
+	}
+
+	FRWBuffer& operator=(FRWBuffer&& Other)
+	{
+		Buffer = MoveTemp(Other.Buffer);
+		UAV = MoveTemp(Other.UAV);
+		SRV = MoveTemp(Other.SRV);
+		NumBytes = Other.NumBytes;
+		Other.NumBytes = 0;
+
+		return *this;
+	}
+
+	FRWBuffer& operator=(const FRWBuffer& Other)
+	{
+		Buffer = Other.Buffer;
+		UAV = Other.UAV;
+		SRV = Other.SRV;
+		NumBytes = Other.NumBytes;
+
+		return *this;
+	}
+
 	~FRWBuffer()
 	{
 		Release();
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0,  const TCHAR* InDebugName = NULL, FResourceArrayInterface *InResourceArray = nullptr)	
+	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = NULL, FResourceArrayInterface *InResourceArray = nullptr)	
 	{
 		check( GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5 
 			|| IsVulkanPlatform(GMaxRHIShaderPlatform) 
@@ -257,11 +295,12 @@ struct FReadBuffer
 
 	FReadBuffer(): NumBytes(0) {}
 
-	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0)
+	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr)
 	{
 		check(GSupportsResourceView);
 		NumBytes = BytesPerElement * NumElements;
 		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.DebugName = InDebugName;
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | AdditionalUsage, CreateInfo);
 		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);
 	}
@@ -336,12 +375,13 @@ struct FByteAddressBuffer
 
 	FByteAddressBuffer(): NumBytes(0) {}
 
-	void Initialize(uint32 InNumBytes, uint32 AdditionalUsage = 0)
+	void Initialize(uint32 InNumBytes, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr)
 	{
 		NumBytes = InNumBytes;
 		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5);
 		check( NumBytes % 4 == 0 );
 		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.DebugName = InDebugName;
 		Buffer = RHICreateStructuredBuffer(4, NumBytes, BUF_ShaderResource | BUF_ByteAddressBuffer | AdditionalUsage, CreateInfo);
 		SRV = RHICreateShaderResourceView(Buffer);
 	}
@@ -359,9 +399,9 @@ struct FRWByteAddressBuffer : public FByteAddressBuffer
 {
 	FUnorderedAccessViewRHIRef UAV;
 
-	void Initialize(uint32 InNumBytes, uint32 AdditionalUsage = 0)
+	void Initialize(uint32 InNumBytes, uint32 AdditionalUsage = 0, const TCHAR* DebugName = nullptr)
 	{
-		FByteAddressBuffer::Initialize(InNumBytes, BUF_UnorderedAccess | AdditionalUsage);
+		FByteAddressBuffer::Initialize(InNumBytes, BUF_UnorderedAccess | AdditionalUsage, DebugName);
 		UAV = RHICreateUnorderedAccessView(Buffer, false, false);
 	}
 
@@ -530,7 +570,7 @@ inline void UnbindRenderTargets(FRHICommandList& RHICmdList)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
 	FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
-	RHICmdList.SetRenderTargets(1, &RTV, &DepthRTV, 0, nullptr);
+	RHICmdList.SetRenderTargets(1, &RTV, &DepthRTV);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -711,7 +751,7 @@ inline void RHICreateTargetableShaderResourceCube(
 	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
 
 	// ES2 doesn't support resolve operations.
-	bForceSeparateTargetAndShaderResource &= (GMaxRHIFeatureLevel > ERHIFeatureLevel::ES2);
+	bForceSeparateTargetAndShaderResource &= (GMaxRHIFeatureLevel >= ERHIFeatureLevel::ES3_1);
 
 	if(!bForceSeparateTargetAndShaderResource/* && GSupportsRenderDepthTargetableShaderResources*/)
 	{

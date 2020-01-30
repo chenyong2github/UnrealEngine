@@ -154,20 +154,29 @@ private:
 
 extern ENGINE_API TGlobalResource<FDistanceFieldVolumeTextureAtlas> GDistanceFieldVolumeTextureAtlas;
 
-class ENGINE_API FHeightFieldTextureAtlas : public FRenderResource
+class ENGINE_API FLandscapeTextureAtlas : public FRenderResource
 {
 public:
+	enum ESubAllocType
+	{
+		SAT_Height,
+		SAT_Visibility,
+		SAT_Num
+	};
+
+	FLandscapeTextureAtlas(ESubAllocType InSubAllocType);
+
 	void InitializeIfNeeded();
 
-	void AddAllocation(const UTexture2D* Texture);
+	void AddAllocation(UTexture2D* Texture, uint32 VisibilityChannel = 0);
 
-	void RemoveAllocation(const UTexture2D* Texture);
+	void RemoveAllocation(UTexture2D* Texture);
 
 	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
 
-	uint32 GetAllocationHandle(const UTexture2D* Texture) const;
+	uint32 GetAllocationHandle(UTexture2D* Texture) const;
 
-	FVector4 GetTileScaleBias(uint32 TileHandle) const;
+	FVector4 GetAllocationScaleBias(uint32 Handle) const;
 
 	FRHITexture2D* GetAtlasTexture() const
 	{
@@ -176,12 +185,12 @@ public:
 
 	uint32 GetSizeX() const
 	{
-		return TileAllocator.DimInTexels;
+		return AddrSpaceAllocator.DimInTexels;
 	}
 
 	uint32 GetSizeY() const
 	{
-		return TileAllocator.DimInTexels;
+		return AddrSpaceAllocator.DimInTexels;
 	}
 
 	uint32 GetGeneration() const
@@ -190,20 +199,29 @@ public:
 	}
 
 private:
+	uint32 CalculateDownSampleLevel(uint32 SizeX, uint32 SizeY) const;
+
 	class FSubAllocator
 	{
 	public:
 		void Init(uint32 InTileSize, uint32 InBorderSize, uint32 InDimInTiles);
 
-		uint32 AllocTile();
+		uint32 Alloc(uint32 SizeX, uint32 SizeY);
 
-		void FreeTile(uint32 TileIdx);
+		void Free(uint32 Handle);
 
-		bool CanAlloc() const;
+		FVector4 GetScaleBias(uint32 Handle) const;
 
-		FIntPoint GetTileCoord(uint32 TileIdx) const;
+		FIntPoint GetStartOffset(uint32 Handle) const;
 
 	private:
+		struct FSubAllocInfo
+		{
+			uint32 Level;
+			uint32 QuadIdx;
+			FVector4 UVScaleBias;
+		};
+		
 		uint32 TileSize;
 		uint32 BorderSize;
 		uint32 TileSizeWithBorder;
@@ -216,21 +234,25 @@ private:
 		float TexelSize;
 		float TileScale;
 
-		uint32 NextFreeTileIdx;
-		TArray<uint32> FreeTileIndices;
+		// 0: Free, 1: Allocated
+		TBitArray<> MarkerQuadTree;
+		TArray<uint32, TInlineAllocator<8>> LevelOffsets;
 
-		friend class FHeightFieldTextureAtlas;
+		TSparseArray<FSubAllocInfo> SubAllocInfos;
+
+		friend class FLandscapeTextureAtlas;
 	};
 
 	struct FAllocation
 	{
-		const UTexture2D* SourceTexture;
-		uint32 RefCount;
-		uint32 TileIdx;
+		UTexture2D* SourceTexture;
+		uint32 Handle;
+		uint32 VisibilityChannel : 2;
+		uint32 RefCount : 30;
 
 		FAllocation();
 
-		FAllocation(const UTexture2D* InTexture);
+		FAllocation(UTexture2D* InTexture, uint32 InVisibilityChannel = 0);
 
 		bool operator==(const FAllocation& Other) const
 		{
@@ -243,19 +265,39 @@ private:
 		}
 	};
 
-	FSubAllocator TileAllocator;
+	struct FPendingUpload
+	{
+		FRHITexture* SourceTexture;
+		FIntVector SizesAndMipBias;
+		uint32 VisibilityChannel : 2;
+		uint32 Handle : 30;
+
+		FPendingUpload(UTexture2D* Texture, uint32 SizeX, uint32 SizeY, uint32 MipBias, uint32 InHandle, uint32 Channel);
+
+		FIntPoint SetShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas) const;
+
+	private:
+		FIntPoint SetCommonShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas) const;
+	};
+
+	FSubAllocator AddrSpaceAllocator;
 
 	TSet<FAllocation> PendingAllocations;
 	TSet<FAllocation> FailedAllocations;
 	TSet<FAllocation> CurrentAllocations;
+	TArray<UTexture2D*> PendingStreamingTextures;
 
 	FTexture2DRHIRef AtlasTextureRHI;
 	FUnorderedAccessViewRHIRef AtlasUAVRHI;
 
+	uint32 MaxDownSampleLevel;
 	uint32 Generation;
+
+	const ESubAllocType SubAllocType;
 };
 
-extern ENGINE_API TGlobalResource<FHeightFieldTextureAtlas> GHeightFieldTextureAtlas;
+extern ENGINE_API TGlobalResource<FLandscapeTextureAtlas> GHeightFieldTextureAtlas;
+extern ENGINE_API TGlobalResource<FLandscapeTextureAtlas> GHFVisibilityTextureAtlas;
 
 /** Distance field data payload and output of the mesh build process. */
 class ENGINE_API FDistanceFieldVolumeData : public FDeferredCleanupInterface

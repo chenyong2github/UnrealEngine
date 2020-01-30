@@ -35,7 +35,6 @@ struct FNiagaraGPUSortInfo
 	int32 SortAttributeOffset = INDEX_NONE;
 	// The data buffer that holds the particle attributes.
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
-	uint32 FloatDataOffset = 0;
 	uint32 FloatDataStride = 0;
 	// The actual GPU sim particle count. Needed to get an exact match on the index list.
 	FShaderResourceViewRHIRef GPUParticleCountSRV;

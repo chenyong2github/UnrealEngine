@@ -92,6 +92,8 @@ public:
 private:
 #pragma mark - Private Member Variables -
 	FMetalCommandQueue& CommandQueue;
+	TSharedPtr<TArray<FMetalCommandBufferTiming>, ESPMode::ThreadSafe> FrameCommitedBufferTimings;
+	TSharedPtr<FMetalCommandBufferTiming, ESPMode::ThreadSafe> LastCompletedBufferTiming;
 	TArray<mtlpp::CommandBuffer> SubmittedBuffers;
 	uint32 Index;
 	uint32 Num;

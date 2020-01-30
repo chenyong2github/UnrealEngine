@@ -697,6 +697,7 @@ private:
 		float TargetVolumeDb;
 		float StartVolumeDb;
 		float CurrentVolumeDb;
+		float LastVolumeDb;
 
 		float CurrentTime;
 		float TargetFadeTime;
@@ -708,6 +709,7 @@ private:
 			: TargetVolumeDb(0.0f)
 			, StartVolumeDb(0.0f)
 			, CurrentVolumeDb(0.0f)
+			, LastVolumeDb(-1.0f)
 			, CurrentTime(0.0f)
 			, TargetFadeTime(0.0f)
 		{}

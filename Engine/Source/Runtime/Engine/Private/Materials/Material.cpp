@@ -915,7 +915,6 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bEnableCrackFreeDisplacement = false;
 	bEnableAdaptiveTessellation = true;
 	MaxDisplacement = 0.0f;
-	bOutputVelocityOnBasePass = true;
 	bEnableSeparateTranslucency = true;
 	bEnableMobileSeparateTranslucency = false;
 	bEnableResponsiveAA = false;
@@ -950,6 +949,9 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 
 	bIsPreviewMaterial = false;
 	bIsFunctionPreviewMaterial = false;
+
+	PhysMaterial = nullptr;
+	PhysMaterialMask = nullptr;
 }
 
 void UMaterial::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -2971,6 +2973,20 @@ UPhysicalMaterial* UMaterial::GetPhysicalMaterial() const
 	return nullptr;
 }
 
+UPhysicalMaterialMask* UMaterial::GetPhysicalMaterialMask() const
+{
+	return PhysMaterialMask;
+}
+
+UPhysicalMaterial* UMaterial::GetPhysicalMaterialFromMap(int32 Index) const
+{
+	if (Index >= 0 && Index < EPhysicalMaterialMaskColor::MAX)
+	{
+		return PhysicalMaterialMap[Index];
+	}
+	return nullptr;
+}
+
 /** Helper functions for text output of properties... */
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
@@ -4244,7 +4260,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 	{
 		FString PropertyName = InProperty->GetName();
 
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, PhysMaterial))
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, PhysMaterial) || PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, PhysMaterialMask))
 		{
 			return MaterialDomain == MD_Surface;
 		}
@@ -4437,7 +4453,7 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 	if( PropertyThatChanged ) 
 	{
 		// Don't recompile the material if we only changed the PhysMaterial property.
-		if (PropertyThatChanged->GetName() == TEXT("PhysMaterial"))
+		if (PropertyThatChanged->GetName() == TEXT("PhysMaterial") || PropertyThatChanged->GetName() == TEXT("PhysMaterialMask") || PropertyThatChanged->GetName() == TEXT("PhysicalMaterialMap"))
 		{
 			bRequiresCompilation = false;
 		}

@@ -37,7 +37,7 @@ public:
 			// Only serialize if we have the requested amount of data
 			if (Offset + Count <= Num())
 			{
-				FMemory::Memcpy(Data, &((*this)[Offset]), Count);
+				FMemory::Memcpy(Data, &((*this)[(int32)Offset]), Count);
 				Offset += Count;
 			}
 			else

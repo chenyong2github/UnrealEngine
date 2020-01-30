@@ -6,8 +6,7 @@
 
 namespace Audio {
 	FPlateReverbFastSettings::FPlateReverbFastSettings()
-		: Wetness(0.5f)
-		, QuadBehavior(EQuadBehavior::StereoOnly)
+		: QuadBehavior(EQuadBehavior::StereoOnly)
 	{}
 
 	bool FPlateReverbFastSettings::operator==(const FPlateReverbFastSettings& Other) const
@@ -15,7 +14,6 @@ namespace Audio {
 		bool bIsEqual = (
 			(Other.EarlyReflections == EarlyReflections) &&
 			(Other.LateReflections == LateReflections) &&
-			(Other.Wetness == Wetness) &&
 			(Other.QuadBehavior == QuadBehavior));
 		
 		return bIsEqual;
@@ -26,16 +24,10 @@ namespace Audio {
 		return !(*this == Other);
 	}
 
-
-	const float FPlateReverbFast::MaxWetness = 10.f;
-	const float FPlateReverbFast::MinWetness = 0.0f;
-
 	const FPlateReverbFastSettings FPlateReverbFast::DefaultSettings;
 
 	FPlateReverbFast::FPlateReverbFast(float InSampleRate, int32 InMaxInternalBufferSamples, const FPlateReverbFastSettings& InSettings)
 		: SampleRate(InSampleRate)
-		, LastWetness(0.0f)
-		, bProcessCallSinceWetnessChanged(false)
 		, EarlyReflections(InSampleRate, InMaxInternalBufferSamples)
 		, LateReflections(InSampleRate, InMaxInternalBufferSamples, InSettings.LateReflections)
 		, bEnableEarlyReflections(true)
@@ -49,13 +41,6 @@ namespace Audio {
 
 	void FPlateReverbFast::SetSettings(const FPlateReverbFastSettings& InSettings)
 	{
-		// Copy, clamp and apply settings
-		if (bProcessCallSinceWetnessChanged)
-		{
-			LastWetness = Settings.Wetness;
-			bProcessCallSinceWetnessChanged = false;
-		}
-
 		Settings = InSettings;
 		ClampSettings(Settings);
 		ApplySettings();
@@ -93,18 +78,6 @@ namespace Audio {
 
 		FMemory::Memcpy(ScaledInputBuffer.GetData(), InSamples.GetData(), InSamples.Num() * sizeof(float));
 
-		// Scale input by wetness (or fade to new wetness)
-		if (FMath::IsNearlyEqual(LastWetness, Settings.Wetness))
-		{
-			MultiplyBufferByConstantInPlace(ScaledInputBuffer.GetData(), InSamples.Num(), Settings.Wetness);
-		}
-		else
-		{
-			FadeBufferFast(ScaledInputBuffer, LastWetness, Settings.Wetness);
-			LastWetness = Settings.Wetness;
-		}
-
-
 		checkf((1 == InNumChannels) || (2 == InNumChannels), TEXT("FPlateReverbFast only supports 1 or 2 channel inputs."))
 		checkf(OutNumChannels >= 2, TEXT("FPlateReverbFast requires at least 2 output channels."))
 
@@ -125,9 +98,7 @@ namespace Audio {
 			const int32 OutNum = InNumFrames * OutNumChannels;
 
 			OutSamples.Reset(OutNum);
-			OutSamples.AddUninitialized(OutNum);
-
-			FMemory::Memset(OutSamples.GetData(), 0, sizeof(float) * OutNum);
+			OutSamples.AddZeroed(OutNum);
 			return;
 		}
 
@@ -172,70 +143,13 @@ namespace Audio {
 
 		// Interleave and upmix
 		InterleaveAndMixOutput(FrontLeftReverbSamples, FrontRightReverbSamples, OutSamples, OutNumChannels);
-		bProcessCallSinceWetnessChanged = true;
 	}
 
 	void FPlateReverbFast::ClampSettings(FPlateReverbFastSettings& InOutSettings)
 	{
 		// Clamp settings for this object and member objects.
-		InOutSettings.Wetness = FMath::Clamp(InOutSettings.Wetness, MinWetness, MaxWetness);
 		FLateReflectionsFast::ClampSettings(InOutSettings.LateReflections);
 		FEarlyReflectionsFast::ClampSettings(InOutSettings.EarlyReflections);
-	}
-
-	// Copy input samples to output samples. Remap channels if necessary.
-	void FPlateReverbFast::PassThroughAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels)
-	{
-		const int32 InNum = InSamples.Num();
-		const int32 InNumFrames = InNum / InNumChannels;
-		const int32 OutNum = OutNumChannels * InNumFrames;
-
-		// Resize output buffer
-		OutSamples.Reset(OutNum);
-		OutSamples.AddUninitialized(OutNum);
-		FMemory::Memset(OutSamples.GetData(), 0, sizeof(float) * OutNum);
-
-		if (InNum > 0)
-		{
-			if (InNumChannels == OutNumChannels)
-			{
-				FMemory::Memcpy(OutSamples.GetData(), InSamples.GetData(), sizeof(float) * InNum);
-			}
-			else
-			{
-				// InNumChannels can only be 1 or 2 channels so we have a limited number of 
-				// upmix situations.
-				FMemory::Memset(OutSamples.GetData(), 0, sizeof(float) * OutNum);
-				if (1 == InNumChannels)
-				{
-					// Upmix a mono signal
-					float* OutSampleData = OutSamples.GetData();
-					const float* InSampleData = InSamples.GetData();
-					int32 OutPos = 0;
-					for (int32 i = 0; i < InNumFrames; i++, OutPos += OutNumChannels)
-					{
-						// Scale to keep loudnes consistent.
-						float value = InSampleData[i] * 0.5f;	
-						OutSampleData[OutPos] = value;
-						OutSampleData[OutPos + 1] = value;
-					}
-				}
-				else if (2 == InNumChannels)
-				{
-					// Upmix a stereo signal by copying:
-					// 		FrontLeft  -> FrontLeft
-					//		FrontRight -> FrontRight
-					float* OutSampleData = OutSamples.GetData();
-					const float* InSampleData = InSamples.GetData();
-					int32 OutPos = 0;
-					for (int32 i = 0; i < InNum; i += InNumChannels, OutPos += OutNumChannels)
-					{
-						OutSampleData[OutPos] = InSampleData[i];
-						OutSampleData[OutPos + 1] = InSampleData[i + 1];
-					}
-				}
-			}
-		}
 	}
 
 	// Copy reverberated samples to interleaved output samples. Map channels according to internal settings.

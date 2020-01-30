@@ -14,6 +14,7 @@
 #include "EditorCategoryUtils.h"
 #include "BlueprintNodeSpawner.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "A3Nodes"
 

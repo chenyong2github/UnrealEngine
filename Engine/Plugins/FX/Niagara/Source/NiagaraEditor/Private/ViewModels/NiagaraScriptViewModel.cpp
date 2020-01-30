@@ -392,7 +392,9 @@ void FNiagaraScriptViewModel::CompileStandaloneScript(bool bForceCompile)
 ENiagaraScriptCompileStatus FNiagaraScriptViewModel::GetLatestCompileStatus()
 {
 	if (GraphViewModel->GetGraph() && IsGraphDirty())
+	{
 		return ENiagaraScriptCompileStatus::NCS_Dirty;
+	}
 	return LastCompileStatus;
 }
 

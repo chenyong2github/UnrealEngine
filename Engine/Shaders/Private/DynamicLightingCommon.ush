@@ -8,12 +8,15 @@
  * Returns a radial attenuation factor for a point light.  
  * WorldLightVector is the vector from the position being shaded to the light, divided by the radius of the light. 
  */
-float RadialAttenuation(float3 WorldLightVector, half FalloffExponent)
+float RadialAttenuationMask(float3 WorldLightVector)
 {
 	float NormalizeDistanceSquared = dot(WorldLightVector, WorldLightVector);
-
+	return 1.0f - saturate(NormalizeDistanceSquared);
+}
+float RadialAttenuation(float3 WorldLightVector, half FalloffExponent)
+{
 	// UE3 (fast, but now we not use the default of 2 which looks quite bad):
-	return pow(1.0f - saturate(NormalizeDistanceSquared), FalloffExponent); 
+	return pow(RadialAttenuationMask(WorldLightVector), FalloffExponent);
 
 	// new UE4 (more physically correct but slower and has a more noticable cutoff ring in the dark):
 	// AttenFunc(x) = 1 / (x * x + 1)
@@ -43,9 +46,13 @@ float RadialAttenuation(float3 WorldLightVector, half FalloffExponent)
  * SpotDirection is the direction of the spot light.
  * SpotAngles.x is CosOuterCone, SpotAngles.y is InvCosConeDifference. 
  */
+float SpotAttenuationMask(float3 L, float3 SpotDirection, float2 SpotAngles)
+{
+	return saturate((dot(L, -SpotDirection) - SpotAngles.x) * SpotAngles.y);
+}
 float SpotAttenuation(float3 L, float3 SpotDirection, float2 SpotAngles)
 {
-	float ConeAngleFalloff = Square(saturate((dot(L, -SpotDirection) - SpotAngles.x) * SpotAngles.y));
+	float ConeAngleFalloff = Square(SpotAttenuationMask(L, SpotDirection, SpotAngles));
 	return ConeAngleFalloff;
 }
 
@@ -94,8 +101,7 @@ float3 GetNormalizedLightVector(float3 WorldPosition)
 
 float GetLightInfluenceMask(float3 WorldPosition)
 {
-	float LightRadiusMask = 1;
-	float SpotFalloff = 1;
+	float LightMask = 1;
 
 	if (DeferredLightUniforms.InvRadius > 0)
 	{
@@ -105,18 +111,19 @@ float GetLightInfluenceMask(float3 WorldPosition)
 
 		if (DeferredLightUniforms.FalloffExponent == 0)
 		{
-			LightRadiusMask = Square(saturate( 1 - Square(DistanceSqr * Square(DeferredLightUniforms.InvRadius))));
+			LightMask = saturate(1 - Square(DistanceSqr * Square(DeferredLightUniforms.InvRadius)));
+			//LightRadiusMask = Square(LightRadiusMask); No need to square since we are only doing a binary comparison below (and a saturate is used)
 		}
 		else
 		{
-			LightRadiusMask = RadialAttenuation(ToLight * DeferredLightUniforms.InvRadius, DeferredLightUniforms.FalloffExponent);
+			LightMask = RadialAttenuationMask(ToLight * DeferredLightUniforms.InvRadius);
 		}
 
 		if (DeferredLightUniforms.SpotAngles.x > -2.0f)
 		{
-			SpotFalloff = SpotAttenuation(L, -DeferredLightUniforms.Direction, DeferredLightUniforms.SpotAngles);
+			LightMask *= SpotAttenuationMask(L, -DeferredLightUniforms.Direction, DeferredLightUniforms.SpotAngles);
 		}
 	}
 
-	return LightRadiusMask * SpotFalloff > 0.0f ? 1.0f : 0.0f;
+	return LightMask > 0.0f ? 1.0f : 0.0f;
 }

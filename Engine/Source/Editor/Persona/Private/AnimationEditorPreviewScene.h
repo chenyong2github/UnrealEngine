@@ -341,6 +341,18 @@ private:
 
 	TSharedPtr<class IEditableSkeleton> GetEditableSkeleton() const { return EditableSkeletonPtr.Pin(); }
 
+	/* setter/getter for can remove attach component */
+	virtual void SetRemoveAttachedComponentFilter(const FOnRemoveAttachedComponentFilter& Delegate) override
+	{
+		OnRemoveAttachedComponentFilter = Delegate;
+	}
+	virtual void ClearRemoveAttachedComponentFilter() override
+	{
+		if (OnRemoveAttachedComponentFilter.IsBound())
+		{
+			OnRemoveAttachedComponentFilter.Unbind();
+		}
+	}
 private:
 	/** The one and only actor we have */
 	AActor* Actor;
@@ -448,4 +460,7 @@ private:
 
 	/** Allow additional meshes to be selectable */
 	bool bAdditionalMeshesSelectable;
+
+	/** Delegate Remove attach component */
+	FOnRemoveAttachedComponentFilter OnRemoveAttachedComponentFilter;
 };

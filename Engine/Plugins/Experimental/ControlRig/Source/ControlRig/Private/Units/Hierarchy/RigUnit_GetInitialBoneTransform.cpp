@@ -19,6 +19,10 @@ FRigUnit_GetInitialBoneTransform_Execute()
 			case EControlRigState::Init:
 			{
 				CachedBoneIndex = Hierarchy->GetIndex(Bone);
+				if (CachedBoneIndex == INDEX_NONE)
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone is not set."));
+				}
 			}
 			case EControlRigState::Update:
 			{

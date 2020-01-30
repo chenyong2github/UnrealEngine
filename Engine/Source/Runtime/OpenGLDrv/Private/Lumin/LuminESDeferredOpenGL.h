@@ -164,6 +164,7 @@ GL_APICALL void GL_APIENTRY glGetVertexAttribLui64vNV(GLuint index, GLenum pname
 	EnumMacro(PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC,glRenderbufferStorageMultisample) \
 	EnumMacro(PFNGLSAMPLERPARAMETERIPROC,glSamplerParameteri) \
 	EnumMacro(PFNGLTEXBUFFEREXTPROC,glTexBufferEXT) \
+	EnumMacro(PFNGLTEXBUFFERRANGEEXTPROC,glTexBufferRangeEXT) \
 	EnumMacro(PFNGLTEXIMAGE3DPROC,glTexImage3D) \
 	EnumMacro(PFNGLTEXSUBIMAGE3DPROC,glTexSubImage3D) \
 	EnumMacro(PFNGLUNIFORM1UIVPROC,glUniform1uiv) \

@@ -12,8 +12,9 @@
 #include "UObject/LinkerLoad.h"
 #include "Animation/AnimCompressionDerivedData.h"
 #include "DerivedDataCacheInterface.h"
+#include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimCurveCompressionSettings.h"
-#include "Animation/AnimCompress.h"
+#include "Animation/AnimBoneCompressionCodec.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "BonePose.h"
 #include "ContentStreaming.h"
@@ -58,7 +59,7 @@ void FAnimStreamableChunk::Serialize(FArchive& Ar, UAnimStreamable* Owner, int32
 				check(!CompressedAnimSequence);
 				CompressedAnimSequence = new FCompressedAnimSequence();
 			}
-			CompressedAnimSequence->SerializeCompressedData(Ar, false, Owner, Owner->GetSkeleton(), Owner->CurveCompressionSettings, false);
+			CompressedAnimSequence->SerializeCompressedData(Ar, false, Owner, Owner->GetSkeleton(), Owner->BoneCompressionSettings, Owner->CurveCompressionSettings, false);
 		}
 		else
 		{
@@ -68,11 +69,11 @@ void FAnimStreamableChunk::Serialize(FArchive& Ar, UAnimStreamable* Owner, int32
 			{
 				//Need to pack compressed data into BulkData
 				TArray<uint8> TempBytes;
-				const int32 InitialSize = CompressedAnimSequence->CompressedDataStructure.GetApproxBoneCompressedSize();
+				const int32 InitialSize = CompressedAnimSequence->CompressedDataStructure->GetApproxCompressedSize();
 				TempBytes.Reset(InitialSize);
 
 				FMemoryWriter TempAr(TempBytes, true);
-				CompressedAnimSequence->SerializeCompressedData(TempAr, false, Owner, Owner->GetSkeleton(), Owner->CurveCompressionSettings, false);
+				CompressedAnimSequence->SerializeCompressedData(TempAr, false, Owner, Owner->GetSkeleton(), Owner->BoneCompressionSettings, Owner->CurveCompressionSettings, false);
 
 				BulkData.Lock(LOCK_READ_WRITE);
 				void* ChunkData = BulkData.Realloc(TempBytes.Num());
@@ -353,11 +354,6 @@ void UAnimStreamable::PostLoad()
 		NonConstSeq->ConditionalPostLoad();
 	}
 
-	if (SourceSequence)
-	{
-		CompressionScheme = DuplicateObject<UAnimCompress>(SourceSequence->CompressionScheme, this);
-	}
-
 	if (SourceSequence && (GenerateGuidFromRawAnimData(SourceSequence->GetRawAnimationData(), SourceSequence->RawCurveData) != RawDataGuid))
 	{
 		InitFrom(SourceSequence);
@@ -416,17 +412,14 @@ int32 UAnimStreamable::GetChunkIndexForTime(const TArray<FAnimStreamableChunk>& 
 }
 
 #if WITH_EDITOR
-float UAnimStreamable::GetAltCompressionErrorThreshold() const
-{
-	return SourceSequence ? SourceSequence->GetAltCompressionErrorThreshold() : FAnimationUtils::GetAlternativeCompressionThreshold();
-}
-
 void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 {
 	Modify();
 	SetSkeleton(InSourceSequence->GetSkeleton());
 	SourceSequence = InSourceSequence;
-	CompressionScheme = DuplicateObject<UAnimCompress>(SourceSequence->CompressionScheme, this);
+
+	BoneCompressionSettings = InSourceSequence->BoneCompressionSettings;
+	CurveCompressionSettings = InSourceSequence->CurveCompressionSettings;
 
 	RawAnimationData = InSourceSequence->GetRawAnimationData();
 	RawCurveData = InSourceSequence->RawCurveData;
@@ -502,9 +495,9 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 		IStreamingManager::Get().GetAnimationStreamingManager().RemoveStreamingAnim(this);
 	}
 
-	if (!CompressionScheme)
+	if (BoneCompressionSettings == nullptr || !BoneCompressionSettings->AreSettingsValid())
 	{
-		CompressionScheme = FAnimationUtils::GetDefaultAnimationCompressionAlgorithm();
+		BoneCompressionSettings = FAnimationUtils::GetDefaultAnimationBoneCompressionSettings();
 	}
 
 	if (CurveCompressionSettings == nullptr || !CurveCompressionSettings->AreSettingsValid())
@@ -538,7 +531,7 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 
 	PlatformData.Chunks.AddDefaulted(NumChunks);
 
-	const FString BaseDDCKey = GetBaseDDCKey(NumChunks, GetAltCompressionErrorThreshold());
+	const FString BaseDDCKey = GetBaseDDCKey(NumChunks);
 
 	const bool bInAllowAlternateCompressor = false;
 	const bool bInOutput				   = false;
@@ -605,7 +598,7 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 	TArray<uint8> OutData;
 	{
 		bool bNeedToCleanUpAnimCompressor = true;
-		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(TEXT("StreamAnim"), ChunkDDCKey, CompressContext, 0);
+		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(TEXT("StreamAnim"), ChunkDDCKey, CompressContext);
 
 		const FString FinalDDCKey = FDerivedDataCacheInterface::BuildCacheKey(AnimCompressor->GetPluginName(), AnimCompressor->GetVersionString(), *AnimCompressor->GetPluginSpecificCacheKeySuffix());
 
@@ -619,7 +612,7 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 
 		if (bSkipDDC || !GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData))
 		{
-			TSharedRef<FCompressibleAnimData> CompressibleData = MakeShared<FCompressibleAnimData>(CompressionScheme, CurveCompressionSettings, GetSkeleton(), Interpolation, Chunk.SequenceLength, ChunkNumFrames+1, GetAltCompressionErrorThreshold());
+			FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(BoneCompressionSettings, CurveCompressionSettings, GetSkeleton(), Interpolation, Chunk.SequenceLength, ChunkNumFrames+1);
 
 			CompressibleData->RawAnimationData.AddDefaulted(RawAnimationData.Num());
 
@@ -684,7 +677,7 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 		{
 			Chunk.CompressedAnimSequence = new FCompressedAnimSequence();
 		}
-		Chunk.CompressedAnimSequence->SerializeCompressedData(MemAr, true, this, this->GetSkeleton(), CurveCompressionSettings);
+		Chunk.CompressedAnimSequence->SerializeCompressedData(MemAr, true, this, this->GetSkeleton(), BoneCompressionSettings, CurveCompressionSettings);
 	}
 }
 
@@ -694,7 +687,7 @@ void UAnimStreamable::UpdateRawData()
 	RequestCompressedData();
 }
 
-FString UAnimStreamable::GetBaseDDCKey(uint32 NumChunks, float AltCompressionErrorThreshold) const
+FString UAnimStreamable::GetBaseDDCKey(uint32 NumChunks) const
 {
 	//Make up our content key consisting of:
 	//  * Streaming Anim Chunk logic version
@@ -707,8 +700,7 @@ FString UAnimStreamable::GetBaseDDCKey(uint32 NumChunks, float AltCompressionErr
 	FArcToHexString ArcToHexString;
 
 	ArcToHexString.Ar << NumChunks;
-	ArcToHexString.Ar << AltCompressionErrorThreshold;
-	CompressionScheme->PopulateDDCKeyArchive(ArcToHexString.Ar);
+	BoneCompressionSettings->PopulateDDCKey(ArcToHexString.Ar);
 	CurveCompressionSettings->PopulateDDCKey(ArcToHexString.Ar);
 
 	FString Ret = FString::Printf(TEXT("%s%s%s%s_%s"),

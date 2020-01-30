@@ -17,6 +17,8 @@ namespace InstallBundleUtil
 
 	INSTALLBUNDLEMANAGER_API const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags);
 
+	INSTALLBUNDLEMANAGER_API const FString& GetInstallBundleSectionPrefix();
+
 	// It would really be nice to have these in core
 	template<class EnumType>
 	constexpr auto& CastAsUnderlying(EnumType &Type)

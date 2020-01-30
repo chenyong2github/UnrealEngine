@@ -26,7 +26,7 @@ struct FClangPlatformMath : public FGenericPlatformMath
 			return 32;
 		}
 	
-		return __builtin_clz(Value);
+		return (uint32)__builtin_clz(Value);
 	}
 
 	/**
@@ -60,7 +60,7 @@ struct FClangPlatformMath : public FGenericPlatformMath
 			return 32;
 		}
 	
-		return __builtin_ctz(Value);
+		return (uint32)__builtin_ctz(Value);
 	}
 	
 	/**
@@ -77,6 +77,6 @@ struct FClangPlatformMath : public FGenericPlatformMath
 			return 64;
 		}
 	
-		return __builtin_ctzll(Value);
+		return (uint64)__builtin_ctzll(Value);
 	}
 };

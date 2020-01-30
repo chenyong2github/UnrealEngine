@@ -370,6 +370,9 @@ void UNiagaraParameterCollection::MakeNamespaceNameUnique()
 void UNiagaraParameterCollection::PostLoad()
 {
 	Super::PostLoad();
+
+	DefaultInstance->ConditionalPostLoad();
+
 	if (CompileId.IsValid() == false)
 	{
 		CompileId = FGuid::NewGuid();

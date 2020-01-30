@@ -47,6 +47,34 @@ uint ComputeAdvice(float3 HDRColor)
 	return 0;
 }
 
+float ComputePlaceInHistogram(float3 HDRColor)
+{
+	float LogLuminance = log2(dot(HDRColor,float3(1.0f,1.0f,1.0f))/3.0f);
+
+	float SumTotal = 0.0;
+	float SumBelow = 0.0f;
+
+	for(uint i = 0; i < HISTOGRAM_SIZE; ++i)
+	{
+		float Weight = GetHistogramBucket(HistogramTexture, i);
+
+		float LogLuminanceLow = ComputeLogLuminanceFromHistogramPosition(float(i) / (float)(HISTOGRAM_SIZE-1));
+		float LogLuminanceHigh = ComputeLogLuminanceFromHistogramPosition(float(i+1) / (float)(HISTOGRAM_SIZE-1));
+		
+		// if log luminace is greater than high, it's 1.0.
+		// if log luminace is lower than low, it's 0.0
+		// else it's a lerp between
+		float T = saturate((LogLuminance - LogLuminanceLow)/(LogLuminanceHigh - LogLuminanceLow));
+
+		SumBelow += Weight * T;
+		SumTotal += Weight;
+	}
+
+	float Percentile = SumBelow/SumTotal;
+
+	return Percentile;
+}
+
 uint ComputeAdviceUV(float2 UV)
 {
 	float3 HDRColor = Texture2DSample(HDRSceneColorTexture, HDRSceneColorSampler, UV).rgb;
@@ -109,6 +137,54 @@ float3 Colorize(float x)
 
 	return lerp(Middle, ColdHeat, abs(0.5f - x) * 2);
 }
+
+
+// for printf debugging in the shader, does not have to be positive
+// outputs a float number in the form: xx.yy
+// @param LeftTop - in pixels
+void PrintSmallFloatWithSign(int2 PixelPos, inout float3 OutColor, float3 FontColor, int2 LeftTop, float Number)
+{
+	int2 Cursor = LeftTop;
+
+	bool bHasSign = Number < 0;
+
+	// Minus Sign
+	Number = abs(Number) + 0.005; // Round up first digit
+
+	bool bIsGreater10 = Number >= 10;
+
+	FLATTEN
+	if (bHasSign && bIsGreater10)
+	{
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, _MINUS_);
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 10));
+		Number = abs(Number);
+	}
+	else if (bIsGreater10)
+	{
+		Cursor.x += 8;
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 10));
+	}
+	else if (bHasSign)
+	{
+		Cursor.x += 8;
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, _MINUS_);
+	}
+	else
+	{
+		Cursor.x += 2*8;
+	}
+
+	// we always print this character, so no ifs needed
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 1));
+	// period
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, _DOT_);
+	// after period
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.1));
+	// after period
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.01));
+}
+
 
 //
 void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
@@ -201,6 +277,8 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		}
 	}
 
+// removing this for now
+/*
 	// background is the scene color
 	float2 PIPTopLeft = float2(.6, .2);
 	float2 PIPBottomRight = float2(.9, .5);
@@ -221,14 +299,46 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	{
 		OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
 	}
+*/
+	if (EyeAdaptation_VisualizeDebugType == 0)
+	{
+		OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
+	}
+	else if (EyeAdaptation_VisualizeDebugType == 1)
+	{
+		float4 SceneColor = Texture2DSample(HDRSceneColorTexture, HDRSceneColorSampler, UV);
+	#if USE_PREEXPOSURE
+		SceneColor.xyz *= View.OneOverPreExposure;
+	#endif
+		float Percentile = ComputePlaceInHistogram(SceneColor.xyz);
+
+		OutColor.rgb = Percentile;
+		if (Percentile < EyeAdaptation_ExposureLowPercent)
+		{
+			OutColor.rgb = float3(.5,0,0);
+		}
+		else if (Percentile >= EyeAdaptation_ExposureHighPercent)
+		{
+			OutColor.rgb = float3(0,0,.5);
+		}
+	}
+	else // should never happen?
+	{
+		OutColor.rgb = float3(0,0,0);
+	}
 
 	// Compute and apply weight value at this location 
 	float WeightSlope = EyeAdaptation_WeightSlope;
 	float2 NdPos = Output_ViewportSizeInverse * (PixelPos.xy - Output_ViewportMin);
-	float weight = AdaptationWeight(NdPos.x, WeightSlope) * AdaptationWeight(NdPos.y, WeightSlope);
-	OutColor *= max(weight, 0.05f);  
+	//float weight = AdaptationWeight(NdPos.x, WeightSlope) * AdaptationWeight(NdPos.y, WeightSlope);
+	float weight = AdaptationWeightTexture(NdPos);
+
+	//OutColor *= max(weight, 0.05f);  
 
 	float2 IDAreaLocalUV = ViewLocalUV * 2 + float2(-1, 0);
+
+	// not fully functional yet
+	//	HighlightAdvice(OutColor.rgb, UV, PixelPos);
 
 	// left top of the border
 	const int2 HistogramLeftTop = int2(Output_ViewportMin.x + 64, Output_ViewportMax.y - 128 - 32);
@@ -263,12 +373,15 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 
 	float HistogramSum = ComputeHistogramSum(HistogramTexture);
 
-	if(InsetUV.x < ComputeHistogramPositionFromLuminance(EyeAdaptation_MinAverageLuminance))
+	float MinExposure = EyeAdaptation_MinAverageLuminance / 0.18;
+	float MaxExposure = EyeAdaptation_MaxAverageLuminance / 0.18;
+
+	if(InsetUV.x < ComputeHistogramPositionFromLuminance(MinExposure))
 	{
 		// < min: grey
 		OutColor.xyz = lerp(OutColor.xyz, float3(0.5f, 0.5f, 0.5f), 0.5f);
 	}
-	else if(InsetUV.x < ComputeHistogramPositionFromLuminance(EyeAdaptation_MaxAverageLuminance))
+	else if(InsetUV.x < ComputeHistogramPositionFromLuminance(MaxExposure))
 	{
 		// >= min && < max: green
 		OutColor.xyz = lerp(OutColor.xyz, float3(0.5f, 0.8f, 0.5f), 0.5f);
@@ -286,6 +399,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		OutColor.xyz = lerp(OutColor.xyz, Colorize(InsetUV.x), 0.5f);
 	}
 
+	//if (false)
 	{
 		// HDR luminance >0
 		float LuminanceVal = ComputeLuminanceFromHistogramPosition(InsetUV.x);
@@ -298,11 +412,29 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	}
 
 	{
-		float ValuePx = ComputeHistogramPositionFromLuminance(1.0f / EyeAdaptationTarget)  * HistogramSize.x ;
+		float ValuePx = ComputeHistogramPositionFromLuminance(EyeAdaptation_ExposureCompensation / EyeAdaptationTarget)  * HistogramSize.x ;
 		if(abs(InsetPx.x - ValuePx) < 3)
 		{
 			// blue line to show the clamped percentil
 			OutColor = lerp(OutColor, float4(0, 0, 1, 0), 0.5f);
+		}
+	}
+
+	// eye adaptation without bias
+	{
+		const float OneOverEyeAdaptationResult = EyeAdaptation_ExposureCompensation / EyeAdaptationResult;
+
+		const float EyeAdaptationValue = ComputeHistogramPositionFromLuminance(OneOverEyeAdaptationResult);
+		const float ValuePx = EyeAdaptationValue * HistogramSize.x;
+
+		const float EyeAdaptationEV100 = log2(OneOverEyeAdaptationResult/EyeAdaptation_LuminanceMax);
+
+		PrintSmallFloatWithSign(PixelPos, OutColor.xyz, float3(1.0, 0.0, 1.0), HistogramLeftTop + int2(ValuePx + - 6 * 8 - 3, 1), EyeAdaptationEV100);
+
+		if(abs(InsetPx.x - ValuePx) < 2 && PixelPos.y > HistogramLeftTop.y + 9)
+		{
+			// white line to show the smoothed exposure
+			OutColor = lerp(OutColor, float4(0.5, 0, .5, 0), 1.0f);
 		}
 	}
 
@@ -313,14 +445,17 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		const float EyeAdaptationValue = ComputeHistogramPositionFromLuminance(OneOverEyeAdaptationResult);
 		const float ValuePx = EyeAdaptationValue * HistogramSize.x;
 
-		const float EyeAdaptationEV100 = log2(OneOverEyeAdaptationResult / 1.2f);
+		const float EyeAdaptationEV100 = log2(OneOverEyeAdaptationResult/EyeAdaptation_LuminanceMax);
 
-		PrintSmallFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), HistogramLeftTop + int2(ValuePx + - 3 * 8 - 3, 1), EyeAdaptationEV100);
+		PrintSmallFloatWithSign(PixelPos, OutColor.xyz, float3(1, 1, 1), HistogramLeftTop + int2(ValuePx + - 6 * 8 - 3, 1), EyeAdaptationEV100);
 
-		if(abs(InsetPx.x - ValuePx) < 2 && PixelPos.y > HistogramLeftTop.y + 9)
+		if(abs(InsetPx.x - ValuePx) < 2 && PixelPos.y > HistogramLeftTop.y + 18)
 		{
 			// white line to show the smoothed exposure
 			OutColor = lerp(OutColor, float4(1, 1, 1, 0), 1.0f);
 		}
 	}
+
+	return;
+
 }

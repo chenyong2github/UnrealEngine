@@ -41,6 +41,8 @@ class FMemoryWriter;
 
 class UAnimCompress;
 class UAnimCurveCompressionSettings;
+class UAnimBoneCompressionSettings;
+class UAnimBoneCompressionCodec;
 class USkeleton;
 
 extern FGuid GenerateGuidFromRawAnimData(const TArray<FRawAnimSequenceTrack>& RawAnimationData, const FRawCurveTracks& RawCurveData);
@@ -101,6 +103,33 @@ struct ENGINE_API FCompressedOffsetDataBase
 	}
 };
 
+/**
+* A set of error statistics for an animation, gathered by FAnimationUtils::ComputeCompressionError
+*/
+USTRUCT()
+struct FAnimationErrorStats
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Average world-space translation error across all end-effectors **/
+	float AverageError;
+	/** The worst error encountered across all end effectors **/
+	float MaxError;
+	/** Time at which the worst error occurred */
+	float MaxErrorTime;
+	/** Bone on which the worst error occurred */
+	int32 MaxErrorBone;
+
+	FAnimationErrorStats()
+		: AverageError(0.f)
+		, MaxError(0.f)
+		, MaxErrorTime(0.f)
+		, MaxErrorBone(0)
+	{}
+};
+
+FArchive& operator<<(FArchive& Ar, FAnimationErrorStats& ErrorStats);
+
 // Helper for buiilding DDC keys of settings
 struct FArcToHexString
 {
@@ -131,65 +160,22 @@ public:
 
 struct FCompressedOffsetData : public FCompressedOffsetDataBase<TArray<int32>>
 {
-
 };
 
-
-/**
- * Represents a segment of the anim sequence that is compressed.
- */
-USTRUCT()
-struct ENGINE_API FCompressedSegment
-{
-	GENERATED_USTRUCT_BODY()
-
-	// Frame where the segment begins in the anim sequence
-	int32 StartFrame;
-
-	// Num of frames contained in the segment
-	int32 NumFrames;
-
-	// Segment data offset in CompressedByteStream
-	int32 ByteStreamOffset;
-
-	/** The compression format that was used to compress translation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> TranslationCompressionFormat;
-
-	/** The compression format that was used to compress rotation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> RotationCompressionFormat;
-
-	/** The compression format that was used to compress rotation tracks. */
-	TEnumAsByte<enum AnimationCompressionFormat> ScaleCompressionFormat;
-
-	FCompressedSegment()
-		: StartFrame(0)
-		, NumFrames(0)
-		, ByteStreamOffset(0)
-		, TranslationCompressionFormat(ACF_None)
-		, RotationCompressionFormat(ACF_None)
-		, ScaleCompressionFormat(ACF_None)
-	{
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FCompressedSegment &Segment)
-	{
-		return Ar << Segment.StartFrame << Segment.NumFrames << Segment.ByteStreamOffset
-			<< Segment.TranslationCompressionFormat << Segment.RotationCompressionFormat << Segment.ScaleCompressionFormat;
-	}
-};
+FArchive& operator<<(FArchive& Ar, FCompressedOffsetData& D);
 
 struct ENGINE_API FCompressibleAnimData
 {
 public:
 	FCompressibleAnimData();
 
-	FCompressibleAnimData(UAnimCompress* InRequestedCompressionScheme, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames, const float InAltCompressionErrorThreshold);
+	FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames);
 
-	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping, const float InAltCompressionErrorThreshold);
-
-	UAnimCompress* RequestedCompressionScheme;
+	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping);
 
 	UAnimCurveCompressionSettings* CurveCompressionSettings;
+
+	UAnimBoneCompressionSettings* BoneCompressionSettings;
 
 	USkeleton* Skeleton;
 
@@ -211,7 +197,7 @@ public:
 
 	bool bIsValidAdditive;
 
-	float AltCompressionErrorThreshold;
+	float ErrorThresholdScale;
 
 	//For Logging
 	FString Name;
@@ -250,9 +236,18 @@ public:
 
 	void Update(struct FCompressedAnimSequence& CompressedData) const;
 
+	void AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		Collector.AddReferencedObject(BoneCompressionSettings);
+		Collector.AddReferencedObject(CurveCompressionSettings);
+	}
+
 private:
 
 };
+
+typedef TSharedPtr<FCompressibleAnimData, ESPMode::ThreadSafe> FCompressibleAnimPtr;
+typedef TSharedRef<FCompressibleAnimData, ESPMode::ThreadSafe> FCompressibleAnimRef;
 
 // Wrapper Code
 template <typename T>
@@ -300,10 +295,6 @@ struct FCompressedAnimDataBase
 	 */
 	FCompressedOffsetDataBase<typename ContainerTypeMakerTemplate<int32>::Type>  CompressedScaleOffsets;
 
-	/**
-	 * ByteStream for compressed animation data.
-	 * The memory layout is dependent on the algorithm used to compress the anim sequence.
-	 */
 	typename ContainerTypeMakerTemplate<uint8>::Type CompressedByteStream;
 
 	/**
@@ -320,8 +311,6 @@ struct FCompressedAnimDataBase
 	AnimationCompressionFormat TranslationCompressionFormat;
 	AnimationCompressionFormat RotationCompressionFormat;
 	AnimationCompressionFormat ScaleCompressionFormat;
-
-	int32 CompressedNumberOfFrames;
 	
 	template <template <typename> class OtherContainerMaker>
 	explicit FCompressedAnimDataBase(FCompressedAnimDataBase<OtherContainerMaker>& InCompressedData)
@@ -336,8 +325,6 @@ struct FCompressedAnimDataBase
 		, TranslationCompressionFormat(InCompressedData.TranslationCompressionFormat)
 		, RotationCompressionFormat(InCompressedData.RotationCompressionFormat)
 		, ScaleCompressionFormat(InCompressedData.ScaleCompressionFormat)
-
-		, CompressedNumberOfFrames(InCompressedData.CompressedNumberOfFrames)
 	{
 		CompressedScaleOffsets.OffsetData = InCompressedData.CompressedScaleOffsets.OffsetData;
 		CompressedScaleOffsets.StripSize = InCompressedData.CompressedScaleOffsets.StripSize;
@@ -352,82 +339,48 @@ struct FCompressedAnimDataBase
 		, TranslationCompressionFormat((AnimationCompressionFormat)0)
 		, RotationCompressionFormat((AnimationCompressionFormat)0)
 		, ScaleCompressionFormat((AnimationCompressionFormat)0)
-
-		, CompressedNumberOfFrames(0)
 	{
-
-	}
-
-	template <template <typename> class OtherContainerMaker>
-	void CopyFromSettings(const FCompressedAnimDataBase<OtherContainerMaker>& Other)
-	{
-		TranslationCodec = Other.TranslationCodec;
-		RotationCodec = Other.RotationCodec;
-		ScaleCodec = Other.ScaleCodec;
-
-		KeyEncodingFormat = Other.KeyEncodingFormat;
-		TranslationCompressionFormat = Other.TranslationCompressionFormat;
-		RotationCompressionFormat = Other.RotationCompressionFormat;
-		ScaleCompressionFormat = Other.ScaleCompressionFormat;
-
-		CompressedNumberOfFrames = Other.CompressedNumberOfFrames;
-	}
-
-	int64 GetApproxBoneCompressedSize() const
-	{
-		return (int64)CompressedTrackOffsets.GetTypeSize()*(int64)CompressedTrackOffsets.Num() + (int64)CompressedByteStream.Num() + (int64)CompressedScaleOffsets.GetMemorySize();
-	}
-
-	bool IsCompressedDataValid() const
-	{
-		return CompressedByteStream.Num() > 0 || (TranslationCompressionFormat == ACF_Identity && RotationCompressionFormat == ACF_Identity && ScaleCompressionFormat == ACF_Identity);
 	}
 };
 
-struct ENGINE_API FCompressibleAnimDataResult : public FCompressedAnimDataBase<TArrayMaker>
+struct ENGINE_API ICompressedAnimData
 {
-	class UAnimCompress* CompressionScheme;
+	/* Common data */
+	int32 CompressedNumberOfFrames;
 
-	FCompressibleAnimDataResult()
-		: CompressionScheme(nullptr)
-	{
+#if WITH_EDITORONLY_DATA
+	/** The error stats from the current bone compression codec. */
+	FAnimationErrorStats BoneCompressionErrorStats;
+#endif
 
-	}
-
-	template <template <typename> class OtherContainerMaker>
-	explicit FCompressibleAnimDataResult(FCompressedAnimDataBase<OtherContainerMaker>& InCompressedData)
-		: FCompressedAnimDataBase(InCompressedData)
-	{}
-
-	void CopyFrom(const FCompressibleAnimDataResult& Other)
-	{
-		CompressedTrackOffsets = Other.CompressedTrackOffsets;
-		CompressedByteStream = Other.CompressedByteStream;
-		CompressedScaleOffsets.OffsetData = Other.CompressedScaleOffsets.OffsetData;
-		CompressedScaleOffsets.StripSize = Other.CompressedScaleOffsets.StripSize;
-
-		CopyFromSettings(Other);
-	}
-
-	FCompressibleAnimDataResult& operator=(const FCompressibleAnimDataResult& Other)
-	{
-		CopyFrom(Other);
-		CompressionScheme = Other.CompressionScheme;
-		return *this;
-	}
-
-	void BuildFinalBuffer(TArray<uint8>& OutBuffer);
-};
-
-struct ICompressedAnimData
-{
-public:
+	/* Virtual interface codecs must implement */
 	virtual ~ICompressedAnimData() {}
 
-	virtual void SerializeCompressedData(class FArchive& Ar) = 0;
+	virtual void SerializeCompressedData(class FArchive& Ar);
+	virtual void Bind(const TArrayView<uint8> BulkData) = 0;
 
-	virtual void ByteSwapIn(TArrayView<uint8> CompressedData, FMemoryReader& MemoryStream) = 0;
-	virtual void ByteSwapOut(TArrayView<uint8> CompressedData, FMemoryWriter& MemoryStream) = 0;
+	virtual int64 GetApproxCompressedSize() const = 0;
+	virtual FString GetDebugString() const { return FString(); }
+	virtual bool IsValid() const = 0;
+};
+
+struct ENGINE_API FCompressibleAnimDataResult
+{
+	TArray<uint8> CompressedByteStream;
+	TUniquePtr<ICompressedAnimData> AnimData;
+
+	UAnimBoneCompressionCodec* Codec;
+
+	// Give compression code a place to store some extra data during compression
+	// (Needed for PerTrackCompression)
+	void* CompressionUserData;
+
+	FCompressibleAnimDataResult()
+		: CompressedByteStream()
+		, AnimData()
+		, Codec(nullptr)
+		, CompressionUserData(nullptr)
+	{}
 };
 
 template<typename T>
@@ -442,30 +395,42 @@ TArrayView<T> RebaseTArrayView(const TArrayView<T>& ArrayView, const uint8* Orig
 	return ArrayView;
 }
 
-struct FUECompressedAnimData : public ICompressedAnimData, public FCompressedAnimDataBase<TNonConstArrayViewMaker>
+struct ENGINE_API FUECompressedAnimDataMutable : public ICompressedAnimData, public FCompressedAnimDataBase<TArrayMaker>
+{
+	FUECompressedAnimDataMutable() = default;
+
+	void BuildFinalBuffer(TArray<uint8>& OutCompressedByteStream);
+
+	// ICompressedAnimData implementation
+	virtual void Bind(const TArrayView<uint8> BulkData) {}
+	virtual int64 GetApproxCompressedSize() const override { return (int64)CompressedTrackOffsets.GetTypeSize() * (int64)CompressedTrackOffsets.Num() + (int64)CompressedByteStream.Num() + (int64)CompressedScaleOffsets.GetMemorySize(); }
+	virtual bool IsValid() const override { return CompressedByteStream.Num() > 0 || (TranslationCompressionFormat == ACF_Identity && RotationCompressionFormat == ACF_Identity && ScaleCompressionFormat == ACF_Identity); }
+};
+
+struct ENGINE_API FUECompressedAnimData : public ICompressedAnimData, public FCompressedAnimDataBase<TNonConstArrayViewMaker>
 {
 	FUECompressedAnimData() = default;
 
-	template <template <typename> class OtherContainerMaker>
-	explicit FUECompressedAnimData(FCompressedAnimDataBase<OtherContainerMaker>& InCompressedData)
-		: FCompressedAnimDataBase(InCompressedData)
+	explicit FUECompressedAnimData(FUECompressedAnimDataMutable& InCompressedData)
+		: ICompressedAnimData(InCompressedData)
+		, FCompressedAnimDataBase(InCompressedData)
 	{}
 
-	void Reset();
-
 	void InitViewsFromBuffer(const TArrayView<uint8> BulkData);
-
-#if WITH_EDITOR
-	void CopyFrom(const FCompressibleAnimDataResult& Other);
-#endif
-
-	virtual void SerializeCompressedData(class FArchive& Ar);
 
 	template<typename TArchive>
 	void ByteSwapData(TArrayView<uint8> CompresedData, TArchive& MemoryStream);
 
-	virtual void ByteSwapIn(TArrayView<uint8> CompressedData, FMemoryReader& MemoryStream) override { ByteSwapData(CompressedData, MemoryStream); }
-	virtual void ByteSwapOut(TArrayView<uint8> CompressedData, FMemoryWriter& MemoryStream) override { ByteSwapData(CompressedData, MemoryStream); }
+	void ByteSwapIn(TArrayView<uint8> CompressedData, FMemoryReader& MemoryStream) { ByteSwapData(CompressedData, MemoryStream); }
+	void ByteSwapOut(TArrayView<uint8> CompressedData, FMemoryWriter& MemoryStream) { ByteSwapData(CompressedData, MemoryStream); }
+
+	// ICompressedAnimData implementation
+	virtual void SerializeCompressedData(class FArchive& Ar) override;
+	virtual void Bind(const TArrayView<uint8> BulkData) override { InitViewsFromBuffer(BulkData); }
+
+	virtual int64 GetApproxCompressedSize() const override { return (int64)CompressedTrackOffsets.GetTypeSize() * (int64)CompressedTrackOffsets.Num() + (int64)CompressedByteStream.Num() + (int64)CompressedScaleOffsets.GetMemorySize(); }
+	virtual FString GetDebugString() const override;
+	virtual bool IsValid() const override { return CompressedByteStream.Num() > 0 || (TranslationCompressionFormat == ACF_Identity && RotationCompressionFormat == ACF_Identity && ScaleCompressionFormat == ACF_Identity); }
 };
 
 template<uint32 Alignment = DEFAULT_ALIGNMENT>
@@ -694,15 +659,25 @@ public:
 	/* Compressed curve data stream used by AnimCurveCompressionCodec */
 	TArray<uint8> CompressedCurveByteStream;
 
-	FUECompressedAnimData CompressedDataStructure;
+	/* Compressed bone data stream used by AnimBoneCompressionCodec */
+	TUniquePtr<ICompressedAnimData> CompressedDataStructure;
 
-	/** The codec used by the compressed data as determined by the compression settings. */
+	/** The codec used by the compressed data as determined by the bone compression settings. */
+	class UAnimBoneCompressionCodec* BoneCompressionCodec;
+
+	/** The codec used by the compressed data as determined by the curve compression settings. */
 	class UAnimCurveCompressionCodec* CurveCompressionCodec;
 
 	// The size of the raw data used to create the compressed data
 	int32 CompressedRawDataSize;
 
-	void SerializeCompressedData(FArchive& Ar, bool bDDCData, UObject* DataOwner, USkeleton* Skeleton, class UAnimCurveCompressionSettings* CurveCompressionSettings, bool bCanUseBulkData=true);
+	FCompressedAnimSequence()
+		: BoneCompressionCodec(nullptr)
+		, CurveCompressionCodec(nullptr)
+		, CompressedRawDataSize(0)
+	{}
+
+	void SerializeCompressedData(FArchive& Ar, bool bDDCData, UObject* DataOwner, USkeleton* Skeleton, UAnimBoneCompressionSettings* BoneCompressionSettings, UAnimCurveCompressionSettings* CurveCompressionSettings, bool bCanUseBulkData=true);
 
 	int32 GetSkeletonIndexFromTrackIndex(const int32 TrackIndex) const
 	{
@@ -711,6 +686,9 @@ public:
 
 	// Return the number of bytes used
 	SIZE_T GetMemorySize() const;
+
+	void ClearCompressedBoneData();
+	void ClearCompressedCurveData();
 };
 
 struct FRootMotionReset

@@ -52,6 +52,10 @@ OFFSCREEN_CreateWindow(_THIS, SDL_Window* window)
 
     if (window->flags & SDL_WINDOW_OPENGL) {
 
+        if (!_this->egl_data) {
+            return SDL_SetError("Cannot create an OPENGL window invalid egl_data");
+        }
+
         offscreen_window->egl_surface = SDL_EGL_CreateOffscreenSurface(_this, window->w, window->h);
 
         if (offscreen_window->egl_surface == EGL_NO_SURFACE) {

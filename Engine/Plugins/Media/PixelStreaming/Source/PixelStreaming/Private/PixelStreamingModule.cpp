@@ -393,7 +393,7 @@ void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rec
 	{
 		// Compress to a JPEG of the maximum possible quality.
 		int32 Quality = CVarFreezeFrameQuality.GetValueOnAnyThread();
-		const TArray<uint8>& JpegBytes = ImageWrapper->GetCompressed(Quality);
+		const TArray64<uint8>& JpegBytes = ImageWrapper->GetCompressed(Quality);
 		Streamer->SendFreezeFrame(JpegBytes);
 	}
 	else

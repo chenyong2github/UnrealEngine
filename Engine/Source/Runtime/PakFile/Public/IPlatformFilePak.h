@@ -547,7 +547,7 @@ class PAKFILE_API FPakFile : FNoncopyable
 	/** True if all filenames in memory for this pak file have been hashed to a 32-bit value. Wildcard traversal is impossible when true. */
 	bool bFilenamesRemoved;
 	/** ID for the chunk this pakfile is part of. INDEX_NONE if this isn't a pak chunk (derived from filename) */
-	int32 ChunkID;
+	int32 PakchunkIndex;
 	/** Flag to say we tried shrinking pak entries already */
 	bool bAttemptedPakEntryShrink;
 	/** Flag to say we tried unloading pak index filenames already */
@@ -1415,7 +1415,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 		FString Path;
 		uint32 ReadOrder;
 		FGuid EncryptionKeyGuid;
-		int32 ChunkID;
+		int32 PakchunkIndex;
 	};
 	
 	/** Wrapped file */
@@ -1565,9 +1565,9 @@ public:
 	static void SetMountStartupPaksWildCard(const FString& WildCard);
 
 	/**
-	* Determine location information for a given chunk ID. Will be DoesNotExist if the pak file wasn't detected, NotAvailable if it exists but hasn't been mounted due to a missing encryption key, or LocalFast if it exists and has been mounted
+	* Determine location information for a given pakchunk index. Will be DoesNotExist if the pak file wasn't detected, NotAvailable if it exists but hasn't been mounted due to a missing encryption key, or LocalFast if it exists and has been mounted
 	*/
-	EChunkLocation::Type GetPakChunkLocation(int32 InChunkID) const;
+	EChunkLocation::Type GetPakChunkLocation(int32 InPakchunkIndex) const;
 
 	/**
 	* Returns true if any of the mounted or pending pak files are chunks (filenames starting pakchunkN)

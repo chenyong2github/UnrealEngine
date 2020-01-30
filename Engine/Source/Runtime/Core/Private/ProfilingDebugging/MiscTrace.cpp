@@ -69,7 +69,7 @@ void FMiscTrace::OutputRegisterGameThread(uint32 Id)
 
 void FMiscTrace::OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priority)
 {
-	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
+	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(Misc, CreateThread, NameSize)
 		<< CreateThread.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< CreateThread.CreatedThreadId(Id)
@@ -79,7 +79,7 @@ void FMiscTrace::OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priorit
 
 void FMiscTrace::OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName)
 {
-	uint16 NameSize = strlen(GroupName) + 1;
+	uint16 NameSize = (uint16)(strlen(GroupName) + 1);
 	UE_TRACE_LOG(Misc, SetThreadGroup, NameSize)
 		<< SetThreadGroup.ThreadId(Id)
 		<< SetThreadGroup.Attachment(GroupName, NameSize);
@@ -87,7 +87,7 @@ void FMiscTrace::OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName)
 
 void FMiscTrace::OutputBeginThreadGroupScope(const ANSICHAR* GroupName)
 {
-	uint16 NameSize = strlen(GroupName) + 1;
+	uint16 NameSize = (uint16)(strlen(GroupName) + 1);
 	UE_TRACE_LOG(Misc, BeginThreadGroupScope, NameSize)
 		<< BeginThreadGroupScope.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< BeginThreadGroupScope.Attachment(GroupName, NameSize);
@@ -101,8 +101,8 @@ void FMiscTrace::OutputEndThreadGroupScope()
 
 void FMiscTrace::OutputBookmarkSpec(const void* BookmarkPoint, const ANSICHAR* File, int32 Line, const TCHAR* Format)
 {
-	uint16 FileNameSize = strlen(File) + 1;
-	uint16 FormatStringSize = (FCString::Strlen(Format) + 1) * sizeof(TCHAR);
+	uint16 FileNameSize = (uint16)(strlen(File) + 1);
+	uint16 FormatStringSize = (uint16)((FCString::Strlen(Format) + 1) * sizeof(TCHAR));
 	auto StringCopyFunc = [FileNameSize, FormatStringSize, File, Format](uint8* Out) {
 		memcpy(Out, File, FileNameSize);
 		memcpy(Out + FileNameSize, Format, FormatStringSize);
@@ -129,7 +129,7 @@ void FMiscTrace::OutputBeginFrame(ETraceFrameType FrameType)
 	uint8 Buffer[9];
 	uint8* BufferPtr = Buffer;
 	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
-	uint16 BufferSize = BufferPtr - Buffer;
+	uint16 BufferSize = (uint16)(BufferPtr - Buffer);
 	if (FrameType == TraceFrameType_Game)
 	{
 		UE_TRACE_LOG(Misc, BeginGameFrame, BufferSize)
@@ -150,7 +150,7 @@ void FMiscTrace::OutputEndFrame(ETraceFrameType FrameType)
 	uint8 Buffer[9];
 	uint8* BufferPtr = Buffer;
 	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
-	uint16 BufferSize = BufferPtr - Buffer;
+	uint16 BufferSize = (uint16)(BufferPtr - Buffer);
 	if (FrameType == TraceFrameType_Game)
 	{
 		UE_TRACE_LOG(Misc, EndGameFrame, BufferSize)

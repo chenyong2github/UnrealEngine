@@ -928,5 +928,31 @@ void FSequencerTrackNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& Out
 	}
 }
 
+FSlateFontInfo FSequencerTrackNode::GetDisplayNameFont() const
+{
+	bool bAllAnimated = false;
+	TSharedPtr<FSequencerSectionKeyAreaNode> TopLevelKeyArea = GetTopLevelKeyNode();
+	if (TopLevelKeyArea.IsValid())
+	{
+		for (const TSharedRef<IKeyArea>& KeyArea : TopLevelKeyArea->GetAllKeyAreas())
+		{
+			FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
+			if (!Channel || Channel->GetNumKeys() == 0)
+			{
+				return FSequencerDisplayNode::GetDisplayNameFont();
+			}
+			else
+			{
+				bAllAnimated = true;
+			}
+		}
+		if (bAllAnimated == true)
+		{
+			return FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
+		}
+	}
+	return FSequencerDisplayNode::GetDisplayNameFont();
+}
+
 
 #undef LOCTEXT_NAMESPACE

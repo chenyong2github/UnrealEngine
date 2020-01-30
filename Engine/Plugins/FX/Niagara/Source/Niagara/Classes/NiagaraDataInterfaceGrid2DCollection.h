@@ -91,16 +91,9 @@ struct FNiagaraDataInterfaceProxyGrid2DCollection : public FNiagaraDataInterface
 	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) override;
 	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) override;
 
-	virtual void DeferredDestroy() override;		
-	void DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);
-
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
 	TMap<FNiagaraSystemInstanceID, Grid2DCollectionRWInstanceData> SystemInstancesToProxyData;
-
-	/* List of proxy data to destroy later */
-	// #todo(dmp): this should all be refactored to avoid duplicate code
-	TSet<FNiagaraSystemInstanceID> DeferredDestroyList;
 };
 
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Grid2D Collection"), Blueprintable, BlueprintType)

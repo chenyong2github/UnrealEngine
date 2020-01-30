@@ -1643,6 +1643,9 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
 
+	ViewUniformShaderParameters.VirtualTextureParams = FVector4(ForceInitToZero);
+	ViewUniformShaderParameters.VirtualTextureFeedbackStride = SceneContext.VirtualTextureFeedback.GetFeedbackStride();
+	
 	if (UseGPUScene(GMaxRHIShaderPlatform, RHIFeatureLevel))
 	{
 		if (PrimitiveSceneDataOverrideSRV)
@@ -1684,6 +1687,9 @@ void FViewInfo::SetupUniformBufferParameters(
 		const bool bEnableMSAA = true;
 		SetUpViewHairRenderInfo(*this, bEnableMSAA, ViewUniformShaderParameters.HairRenderInfo);
 	}
+
+	ViewUniformShaderParameters.VTFeedbackBuffer = SceneContext.GetVirtualTextureFeedbackUAV();
+	ViewUniformShaderParameters.QuadOverdraw = SceneContext.GetQuadOverdrawBufferUAV();
 }
 
 void FViewInfo::InitRHIResources()
@@ -3579,6 +3585,9 @@ FRendererModule::FRendererModule()
 	static auto EarlyZPassVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPass"));
 	EarlyZPassVar->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
 
+	static auto CVarVertexDeformationOutputsVelocity = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VertexDeformationOutputsVelocity"));
+	CVarVertexDeformationOutputsVelocity->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void InitDebugViewModeInterfaces();
 	InitDebugViewModeInterfaces();
@@ -3592,7 +3601,7 @@ void FRendererModule::CreateAndInitSingleView(FRHICommandListImmediate& RHICmdLi
 	ViewFamily->Views.Add(NewView);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FRHIRenderTargetView RTV(ViewFamily->RenderTarget->GetRenderTargetTexture(), ERenderTargetLoadAction::EClear);
-	RHICmdList.SetRenderTargets(1, &RTV, nullptr, 0, nullptr);
+	RHICmdList.SetRenderTargets(1, &RTV, nullptr);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FViewInfo* View = (FViewInfo*)ViewFamily->Views[0];
 	View->ViewRect = View->UnscaledViewRect;

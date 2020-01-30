@@ -29,7 +29,6 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 
 	return SNew(SBox)
 		.MinDesiredWidth(150)
-		.MaxDesiredWidth(400)
 		[
 			SAssignNew(NameListComboBox, SControlRigGraphPinNameListValueWidget)
 				.Visibility(this, &SGraphPin::GetDefaultValueVisibility)

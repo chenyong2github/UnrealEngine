@@ -19,6 +19,9 @@ struct FRigUnit_AnimEasingType : public FRigUnit_AnimBase
 		Type = EControlRigAnimEasingType::CubicEaseInOut;
 	}
 
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
 	UPROPERTY(meta = (Input, Output))
 	EControlRigAnimEasingType Type;
 };

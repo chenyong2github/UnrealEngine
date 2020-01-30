@@ -259,6 +259,11 @@ public:
 		return RefSkeleton->GetRefBonePose();
 	}
 
+	const TArray<FCompactPoseBoneIndex>& GetCompactPoseParentBoneArray() const
+	{
+		return CompactPoseParentBones;
+	}
+
 	const FTransform& GetRefPoseTransform(const FCompactPoseBoneIndex& BoneIndex) const
 	{
 		return CompactPoseRefPoseBones[BoneIndex.GetInt()];

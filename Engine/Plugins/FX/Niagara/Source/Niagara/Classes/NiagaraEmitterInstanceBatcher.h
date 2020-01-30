@@ -66,16 +66,15 @@ public:
 	static const FName Name;
 	virtual FFXSystemInterface* GetInterface(const FName& InName) override;
 
+	/** Notification that the InstanceID has been removed. */
+	void InstanceDeallocated_RenderThread(const FNiagaraSystemInstanceID InstanceID);
+
 	// The batcher assumes ownership of the data here.
+
 	void GiveSystemTick_RenderThread(FNiagaraGPUSystemTick& Tick);
 
-	void GiveEmitterContextToDestroy_RenderThread(FNiagaraComputeExecutionContext* Context);
-	void GiveDataSetToDestroy_RenderThread(FNiagaraDataSet* DataSet);
-
-	void EnqueueDeferredDeletesForDI_RenderThread(TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy)
-	{
-		DIProxyDeferredDeletes_RT.Add(MoveTemp(Proxy));
-	}
+	/** Called to release GPU instance counts that the batcher is tracking. */
+	void ReleaseInstanceCounts_RenderThread(FNiagaraComputeExecutionContext* ExecContext, FNiagaraDataSet* DataSet);
 
 #if WITH_EDITOR
 	virtual void Suspend() override {}
@@ -210,12 +209,6 @@ private:
 	
 	TArray<FNiagaraGPUSystemTick> Ticks_RT;
 	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
-
-	// For deferred deletion of resources
-	TSet<FNiagaraComputeExecutionContext*> ContextsToDestroy_RT;
-	TSet<FNiagaraDataSet*> DataSetsToDestroy_RT;
-
-	TSet<TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>> DIProxyDeferredDeletes_RT;
 
 	/** A buffer used by the compute shader which determines the list of free particle IDs for each emitter. */
 	FRWBuffer FreeIDListSizesBuffer;

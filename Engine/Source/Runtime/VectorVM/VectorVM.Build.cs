@@ -9,15 +9,14 @@ public class VectorVM : ModuleRules
         PublicDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
-                "Engine"
+                "CoreUObject"
             }
         );
 
 		PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
-				"CoreUObject", 
-                "Engine"
+				"CoreUObject"
             }
         );
 

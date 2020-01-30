@@ -15,12 +15,15 @@
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Templates/UniquePtr.h"
-
+#if WITH_CHAOS
+#include "Physics/PhysicsInterfaceCore.h"
+#endif
 #include "Material.generated.h"
 
 class ITargetPlatform;
 class UMaterialExpressionComment;
 class UPhysicalMaterial;
+class UPhysicalMaterialMask;
 class USubsurfaceProfile;
 class UTexture;
 
@@ -343,6 +346,14 @@ class ENGINE_VTABLE UMaterial : public UMaterialInterface
 	/** Physical material to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, Category=PhysicalMaterial)
 	class UPhysicalMaterial* PhysMaterial;
+
+	/** Physical material mask to use for this graphics material. Used for sounds, effects etc.*/
+	UPROPERTY(EditAnywhere, Category = PhysicalMaterial)
+	class UPhysicalMaterialMask* PhysMaterialMask;
+
+	/** Physical material mask map to use for this graphics material. Used for sounds, effects etc.*/
+	UPROPERTY(EditAnywhere, Category = PhysicalMaterialMask)
+	class UPhysicalMaterial* PhysicalMaterialMap[EPhysicalMaterialMaskColor::MAX];
 
 	// Reflection.
 #if WITH_EDITORONLY_DATA
@@ -774,6 +785,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Mobile)
 	uint8 bUseLightmapDirectionality : 1;
 
+	/* Forward (including mobile) renderer: use preintegrated GF lut for simple IBL, but will use one more sampler. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ForwardShading, meta = (DisplayName = "PreintegratedGF For Simple IBL"))
+	uint32 bForwardRenderUsePreintegratedGFForSimpleIBL : 1;
+
 	/* 
 	 * Forward renderer: enables multiple parallax-corrected reflection captures that blend together.
 	 * Mobile renderer: blend between nearest 3 reflection captures, but reduces the number of samplers available to the material as two more samplers will be used for reflection cubemaps.
@@ -808,10 +823,6 @@ public:
 	/** Enables a wireframe view of the mesh the material is applied to.  */
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 Wireframe : 1;
-
-	/** Skips outputting velocity during the base pass. */
-	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay, meta=(DisplayName = "Support accurate velocities from Vertex Deformation"))
-	uint8 bOutputVelocityOnBasePass : 1;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -1027,6 +1038,8 @@ public:
 	ENGINE_API virtual bool GetRefractionSettings(float& OutBiasValue) const override;
 	ENGINE_API virtual FMaterialRenderProxy* GetRenderProxy() const override;
 	ENGINE_API virtual UPhysicalMaterial* GetPhysicalMaterial() const override;
+	ENGINE_API virtual UPhysicalMaterialMask* GetPhysicalMaterialMask() const override;
+	ENGINE_API virtual UPhysicalMaterial* GetPhysicalMaterialFromMap(int32 Index) const override;
 	ENGINE_API virtual void GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQualityLevel::Type QualityLevel, bool bAllQualityLevels, ERHIFeatureLevel::Type FeatureLevel, bool bAllFeatureLevels) const override;
 	ENGINE_API virtual void GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray< TArray<int32> >& OutIndices, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel) const override;
 	ENGINE_API virtual void OverrideTexture(const UTexture* InTextureToOverride, UTexture* OverrideTexture, ERHIFeatureLevel::Type InFeatureLevel) override;

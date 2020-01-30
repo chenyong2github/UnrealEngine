@@ -1457,6 +1457,12 @@ private:
 
 public:
 
+	enum class ENetFields_Private
+	{
+		NETFIELD_REP_START = 0,
+		NETFIELD_REP_END = -1
+	};
+
 	virtual void ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const {}	
 
 private:

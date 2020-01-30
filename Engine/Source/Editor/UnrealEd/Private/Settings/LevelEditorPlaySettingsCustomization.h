@@ -731,7 +731,7 @@ private:
 			Desc += LOCTEXT("MultiplayerDescription_OneProcess", "The following will all run under one UE4 instance:\n").ToString();
 			if (PlayNetMode == EPlayNetMode::PIE_Client)
 			{
-				Desc += LOCTEXT("MultiplayerDescription_DedicatedServer", "A hidden dedicated server instance will run in editor. ").ToString();
+				Desc += LOCTEXT("MultiplayerDescription_DedicatedServerHidden", "A hidden dedicated server instance will run in editor. ").ToString();
 				if (PlayNumberOfClients == 1)
 				{
 					Desc += LOCTEXT("MultiplayerDescription_EditorClient", "The editor will connect as a client. ").ToString();
@@ -802,7 +802,7 @@ private:
 			else
 			{
 				// Client requires additional dedicated server instance
-				Desc += LOCTEXT("MultiplayerDescription_DedicatedServer", "A dedicated server will open in a new window. ").ToString();
+				Desc += LOCTEXT("MultiplayerDescription_DedicatedServerNewWindow", "A dedicated server will open in a new window. ").ToString();
 				if (PlayNumberOfClients == 1)
 				{
 					Desc += LOCTEXT("MultiplayerDescription_EditorClient", "The editor will connect as a client. ").ToString();

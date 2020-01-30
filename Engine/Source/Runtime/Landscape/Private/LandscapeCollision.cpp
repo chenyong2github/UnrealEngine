@@ -513,6 +513,13 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				bool bImmediateAccelStructureInsertion = true;
 				PhysScene->AddActorsToScene_AssumesLocked(Actors, bImmediateAccelStructureInsertion);
 
+				PhysScene->AddToComponentMaps(this, PhysHandle->Proxy);
+				if (BodyInstance.bNotifyRigidBodyCollision)
+				{
+					FPhysScene_Chaos& Scene = PhysScene->GetScene();
+					Scene.RegisterForCollisionEvents(this);
+				}
+
 			}
 #endif // WITH_CHAOS
 		}
@@ -534,6 +541,22 @@ void ULandscapeHeightfieldCollisionComponent::OnDestroyPhysicsState()
 		PhysScene->Flush_AssumesLocked();
 	}
 #endif
+
+#if WITH_CHAOS
+	if (FPhysScene_ChaosInterface* PhysScene = GetWorld()->GetPhysicsScene())
+	{
+		FPhysicsActorHandle& ActorHandle = BodyInstance.GetPhysicsActorHandle();
+		if (FPhysicsInterface::IsValid(ActorHandle))
+		{
+			PhysScene->RemoveFromComponentMaps(ActorHandle->Proxy);
+		}
+		if (BodyInstance.bNotifyRigidBodyCollision)
+		{
+			FPhysScene_Chaos& Scene = PhysScene->GetScene();
+			Scene.UnRegisterForCollisionEvents(this);
+		}
+	}
+#endif // WITH_CHAOS
 }
 
 void ULandscapeHeightfieldCollisionComponent::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)

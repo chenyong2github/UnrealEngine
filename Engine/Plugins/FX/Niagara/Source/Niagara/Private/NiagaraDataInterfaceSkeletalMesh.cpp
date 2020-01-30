@@ -187,7 +187,55 @@ bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 
 	if (BoneMatrixUsers > 0)
 	{
-		SkelComp->CacheRefToLocalMatrices(CurrBoneRefToLocals());
+		TArray<FMatrix>& CurrBones = CurrBoneRefToLocals();
+		if ( USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get() )
+		{
+			const USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
+			const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
+			const int32 NumBones = MasterBoneMap.Num();
+
+			check(SkelMesh);
+			if ( NumBones == 0 )
+			{
+				// This case indicates an invalid master pose component (e.g. no skeletal mesh)
+				CurrBones.Empty(SkelMesh->RefSkeleton.GetNum());
+				CurrBones.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
+			}
+			else
+			{
+				CurrBones.SetNumUninitialized(NumBones);
+
+				const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
+				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+				{
+					bool bFoundMaster = false;
+					if (MasterBoneMap.IsValidIndex(BoneIndex))
+					{
+						const int32 MasterIndex = MasterBoneMap[BoneIndex];
+						if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
+						{
+							CurrBones[BoneIndex] = MasterTransforms[MasterIndex].ToMatrixWithScale();
+							bFoundMaster = true;
+						}
+					}
+
+					if ( !bFoundMaster )
+					{
+						const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
+
+						CurrBones[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex].ToMatrixWithScale();
+						if ( CurrBones.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex )
+						{
+							CurrBones[BoneIndex] = CurrBones[ParentIndex] * CurrBones[BoneIndex];
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			SkelComp->CacheRefToLocalMatrices(CurrBones);
+		}
 	}
 
 	//Prime the prev matrices if they're missing.
@@ -417,7 +465,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 
 	MeshColorBufferSrv = LODRenderData->StaticVertexBuffers.ColorVertexBuffer.GetColorComponentsSRV();
 
-	NumWeights = LODRenderData->SkinWeightVertexBuffer.HasExtraBoneInfluences() ? 8 : 4;
+	NumWeights = LODRenderData->SkinWeightVertexBuffer.GetMaxBoneInfluences();
 
 	uint32 SectionCount = LODRenderData->RenderSections.Num();
 
@@ -786,7 +834,14 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 			{
 				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
 			}
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, StaticBuffers->GetBufferColorSRV());
+			if (StaticBuffers->GetBufferColorSRV())
+			{
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, StaticBuffers->GetBufferColorSRV());
+			}
+			else
+			{
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloatBuffer().SRV);
+			}
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshTriangleCount, StaticBuffers->GetTriangleCount());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshVertexCount, StaticBuffers->GetVertexCount());
 			if (InstanceData->bIsGpuUniformlyDistributedSampling)
@@ -1355,8 +1410,8 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	//-TODO: We should find out if this DI is connected to a GPU emitter or not rather than a blanket accross the system
 	if ( SystemInstance->HasGPUEmitters() )
 	{
-		MeshWeightStrideByte = SkinWeightBuffer->GetStride();
-		MeshSkinWeightBufferSrv = SkinWeightBuffer->GetSRV();
+		MeshWeightStrideByte = SkinWeightBuffer->GetConstantInfluencesVertexStride();
+		MeshSkinWeightBufferSrv = SkinWeightBuffer->GetDataVertexBuffer()->GetSRV();
 		//check(MeshSkinWeightBufferSrv->IsValid()); // not available in this stream
 
 		FSkeletalMeshLODInfo* LODInfo = Mesh->GetLODInfo(LODIndex);
@@ -1366,7 +1421,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh %s has cloth asset on it: spawning from it might not work properly."), *Mesh->GetName());
 		}
-		if (LODData.DoesVertexBufferHaveExtraBoneInfluences())
+		if (LODData.GetVertexBufferMaxBoneInfluences() > MAX_INFLUENCES_PER_STREAM)
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh %s has bones extra influence: spawning from it might not work properly."), *Mesh->GetName());
 		}
@@ -1500,7 +1555,10 @@ void FNDISkeletalMesh_InstanceData::UpdateSpecificSocketTransforms()
 	{
 		for (int32 i = 0; i < SpecificSockets.Num(); ++i)
 		{
-			WriteBuffer[i] = SkelComp->GetSocketTransform(SpecificSockets[i], RTS_Component);
+			FTransform SocketTransform;
+			int32 BoneIdx;
+			SkelComp->GetSocketInfoByName(SpecificSockets[i], SocketTransform, BoneIdx);
+			WriteBuffer[i] = SocketTransform * SkelComp->GetBoneTransform(BoneIdx, FTransform::Identity);
 		}
 	}
 	else if ( Mesh != nullptr )
@@ -1572,7 +1630,7 @@ UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInit
 #endif
 	, ChangeId(0)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxySkeletalMesh, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxySkeletalMesh());
 }
 
 
@@ -1738,6 +1796,7 @@ void UNiagaraDataInterfaceSkeletalMesh::DestroyPerInstanceData(void* PerInstance
 		ENQUEUE_RENDER_COMMAND(FNiagaraDestroySkeletalMeshInstanceData) (
 			[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 			{
+				//check(ThisProxy->Contains(InstanceID));
 				ThisProxy->SystemInstancesToData.Remove(InstanceID);
 			}
 		);

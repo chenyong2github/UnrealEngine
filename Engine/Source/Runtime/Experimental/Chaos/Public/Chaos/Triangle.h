@@ -53,7 +53,7 @@ namespace Chaos
 			const float DotB = TVector<T, 3>::DotProduct(B, Direction);
 			const float DotC = TVector<T, 3>::DotProduct(C, Direction);
 
-			if(DotA > DotB && DotA > DotC)
+			if(DotA >= DotB && DotA >= DotC)
 			{
 				if(Thickness != 0)
 				{
@@ -61,7 +61,7 @@ namespace Chaos
 				}
 				return A;
 			}
-			else if(DotB > DotA && DotB > DotC)
+			else if(DotB >= DotA && DotB >= DotC)
 			{
 				if(Thickness != 0)
 				{
@@ -83,11 +83,11 @@ namespace Chaos
 			const float DotB = TVector<T, 3>::DotProduct(B, Direction);
 			const float DotC = TVector<T, 3>::DotProduct(C, Direction);
 
-			if (DotA > DotB && DotA > DotC)
+			if (DotA >= DotB && DotA >= DotC)
 			{
 				return A;
 			}
-			else if (DotB > DotA && DotB > DotC)
+			else if (DotB >= DotA && DotB >= DotC)
 			{
 				return B;
 			}

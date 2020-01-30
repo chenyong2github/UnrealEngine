@@ -8,15 +8,312 @@
 #include "Sequencer/ControlRigBindingTemplate.h"
 #include "Sequencer/MovieSceneControlRigInstanceData.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Sequencer/ControlRigSortedControls.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneControlParameterRigSection"
 
 #if WITH_EDITOR
 
-//mz todo need other types
+struct FParameterFloatChannelEditorData
+{
+	FParameterFloatChannelEditorData(UControlRig *InControlRig, const FName& InName, bool bEnabledOverride, const FText& GroupName, int SortStartIndex)
+	{
+		ControlRig = InControlRig;
+		ParameterName = InName;
+		FString NameAsString = InName.ToString();
+		FText Group = FText::FromString(NameAsString);
+		{
+			MetaData.SetIdentifiers(InName, FText::FromName(InName),FText());
+			MetaData.Group = Group;
+			MetaData.bEnabled = bEnabledOverride;
+			MetaData.SortOrder = SortStartIndex++;
+			MetaData.bCanCollapseToTrack = false;
+		}
+
+		ExternalValues.OnGetExternalValue = [InControlRig, InName](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return GetValue(InControlRig, InName,InObject, Bindings); };
+		
+		ExternalValues.OnGetCurrentValueAndWeight = [InName](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
+			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(InName, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
+		
+	}
+
+	static TOptional<float> GetValue(UControlRig* ControlRig, FName ParameterName, UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	{
+		if (ControlRig)
+		{
+			FRigControl* RigControl = ControlRig->FindControl(ParameterName);
+			if (RigControl)
+			{
+				float Val = RigControl->Value.Get<float>();
+				return Val;
+		
+			}
+		}
+		return TOptional<float>();
+	}
+	
+	static void GetChannelValueAndWeight(FName ParameterName, UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
+		float& OutValue, float& OutWeight)
+	{
+		OutValue = 0.0f;
+		OutWeight = 1.0f;
+
+		UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
+
+		if (Track)
+		{
+			FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+			FMovieSceneInterrogationData InterrogationData;
+			RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
+
+			FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, TickResolution));
+			EvalTrack.Interrogate(Context, InterrogationData, Object);
+
+			float Val = 0.0f;
+			for (const FFloatInterrogationData& InVector : InterrogationData.Iterate<FFloatInterrogationData>(UMovieSceneControlRigParameterSection::GetFloatInterrogationKey()))
+			{
+				if (InVector.ParameterName == ParameterName)
+				{
+					Val = InVector.Val;
+					break;
+				}
+			}
+			OutValue = Val;
+		}
+		OutWeight = MovieSceneHelpers::CalculateWeightForBlending(SectionToKey, KeyTime);
+	}
+
+	FText							GroupName;
+	FMovieSceneChannelMetaData      MetaData;
+	TMovieSceneExternalValue<float> ExternalValues;
+	FName ParameterName;
+	UControlRig *ControlRig;
+};
+
+//Set up with all 4 Channels so it can be used by all vector types.
+struct FParameterVectorChannelEditorData
+{
+	FParameterVectorChannelEditorData(UControlRig *InControlRig, const FName& InName, bool bEnabledOverride, const FText& GroupName, int SortStartIndex, int32 NumChannels)
+	{
+		ControlRig = InControlRig;
+		ParameterName = InName;
+		FString NameAsString = InName.ToString();
+		FString TotalName = NameAsString;
+		FText Group = FText::FromString(NameAsString);
+
+		{
+			TotalName += ".X";
+			MetaData[0].SetIdentifiers(FName(*TotalName), FCommonChannelData::ChannelX);
+			TotalName = NameAsString;
+			MetaData[0].Group = Group;
+			MetaData[0].bEnabled = bEnabledOverride;
+			MetaData[0].SortOrder = SortStartIndex++;
+			MetaData[0].bCanCollapseToTrack = false;
+		}
+		{
+			TotalName += ".Y";
+			MetaData[1].SetIdentifiers(FName(*TotalName), FCommonChannelData::ChannelY);
+			TotalName = NameAsString;
+			MetaData[1].Group = Group;
+			MetaData[1].bEnabled = bEnabledOverride;
+			MetaData[1].SortOrder = SortStartIndex++;
+			MetaData[1].bCanCollapseToTrack = false;
+		}
+		{
+			TotalName += ".Z";
+			MetaData[2].SetIdentifiers(FName(*TotalName), FCommonChannelData::ChannelZ);
+			TotalName = NameAsString;
+			MetaData[2].Group = Group;
+			MetaData[2].bEnabled = bEnabledOverride;
+			MetaData[2].SortOrder = SortStartIndex++;
+			MetaData[2].bCanCollapseToTrack = false;
+		}
+		{
+			TotalName += ".W";
+			MetaData[3].SetIdentifiers(FName(*TotalName), FCommonChannelData::ChannelW);
+			TotalName = NameAsString;
+			MetaData[3].Group = Group;
+			MetaData[3].bEnabled = bEnabledOverride;
+			MetaData[3].SortOrder = SortStartIndex++;
+			MetaData[3].bCanCollapseToTrack = false;
+		}
+
+		ExternalValues[0].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelX(InObject, Bindings, InControlRig, InName, NumChannels); };
+		ExternalValues[1].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelY(InObject, Bindings, InControlRig, InName, NumChannels); };
+		ExternalValues[2].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelZ(InObject, Bindings, InControlRig, InName, NumChannels); };
+		ExternalValues[3].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelW(InObject, Bindings,InControlRig, InName, NumChannels); };
+
+		ExternalValues[0].OnGetCurrentValueAndWeight = [InName, NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
+			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(InName, NumChannels, 0, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
+		ExternalValues[1].OnGetCurrentValueAndWeight = [InName, NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
+			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(InName, NumChannels, 1, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
+		ExternalValues[2].OnGetCurrentValueAndWeight = [InName, NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
+			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(InName, NumChannels, 2, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
+		ExternalValues[3].OnGetCurrentValueAndWeight = [InName, NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
+			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(InName, NumChannels, 3, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
+
+	}
+
+	static FVector4 GetPropertyValue(UControlRig* ControlRig, FName ParameterName, UObject& InObject, FTrackInstancePropertyBindings& Bindings, int32 NumChannels)
+	{
+		if (ControlRig)
+		{
+			FRigControl* RigControl = ControlRig->FindControl(ParameterName);
+			if (RigControl)
+			{
+		
+				if (NumChannels == 2)
+				{
+					FVector2D Vector = RigControl->Value.Get<FVector2D>();
+					return FVector4(Vector.X, Vector.Y, 0.f, 0.f);
+				}
+				else if (NumChannels == 3)
+				{
+					FVector Vector = RigControl->Value.Get<FVector>();
+					return FVector4(Vector.X, Vector.Y, Vector.Z, 0.f);
+				}
+				else
+				{
+					return RigControl->Value.Get<FVector4>();
+				}
+			}
+		}
+		return FVector4();
+	}
+
+	static TOptional<float> ExtractChannelX(UObject& InObject, FTrackInstancePropertyBindings* Bindings, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
+	{
+		return Bindings ? GetPropertyValue(ControlRig, ParameterName, InObject, *Bindings, NumChannels).X : TOptional<float>();
+	}
+	static TOptional<float> ExtractChannelY(UObject& InObject, FTrackInstancePropertyBindings* Bindings, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
+	{
+		return Bindings ? GetPropertyValue(ControlRig, ParameterName, InObject, *Bindings, NumChannels).Y : TOptional<float>();
+	}
+	static TOptional<float> ExtractChannelZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
+	{
+		return Bindings ? GetPropertyValue(ControlRig, ParameterName, InObject, *Bindings, NumChannels).Z : TOptional<float>();
+	}
+	static TOptional<float> ExtractChannelW(UObject& InObject, FTrackInstancePropertyBindings* Bindings, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
+	{
+		return Bindings ? GetPropertyValue(ControlRig, ParameterName, InObject, *Bindings, NumChannels).W : TOptional<float>();
+	}
+
+	static void GetChannelValueAndWeight(FName ParameterName, int32 NumChannels, int32 Index, UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
+		float& OutValue, float& OutWeight)
+	{
+		OutValue = 0.0f;
+		OutWeight = 1.0f;
+		if (Index >= NumChannels)
+		{
+			return;
+		}
+
+		UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
+
+		if (Track)
+		{
+			FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
+			FMovieSceneInterrogationData InterrogationData;
+			RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
+
+			FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, TickResolution));
+			EvalTrack.Interrogate(Context, InterrogationData, Object);
+
+			switch (NumChannels)
+			{
+			case 2:
+			{
+				FVector2D Val(0.0f, 0.0f);
+				for (const FVector2DInterrogationData& InVector : InterrogationData.Iterate<FVector2DInterrogationData>(UMovieSceneControlRigParameterSection::GetVector2DInterrogationKey()))
+				{
+					if (InVector.ParameterName == ParameterName)
+					{
+						Val = InVector.Val;
+						break;
+					}
+				}
+				switch (Index)
+				{
+				case 0:
+					OutValue = Val.X;
+					break;
+				case 1:
+					OutValue = Val.Y;
+					break;
+				}
+			}
+			break;
+			case 3:
+			{
+				FVector Val(0.0f, 0.0f, 0.0f);
+				for (const FVectorInterrogationData& InVector : InterrogationData.Iterate<FVectorInterrogationData>(UMovieSceneControlRigParameterSection::GetVectorInterrogationKey()))
+				{
+					if (InVector.ParameterName == ParameterName)
+					{
+						Val = InVector.Val;
+						break;
+					}
+				}
+				switch (Index)
+				{
+				case 0:
+					OutValue = Val.X;
+					break;
+				case 1:
+					OutValue = Val.Y;
+					break;
+				case 2:
+					OutValue = Val.Z;
+					break;
+				}
+			}
+			break;
+			case 4:
+			{
+				/* No Interrogation for Vector4, todo if we do add later
+				FVector4 Val(0.0f, 0.0f, 0.0f, 0.0f);
+				for (const FVector4InterrogationData& InVector : InterrogationData.Iterate<FVector4InterrogationData>(UMovieSceneControlRigParameterSection::GetVector4InterrogationKey()))
+				{
+					if (InVector.ParameterName == ParameterName)
+					{
+						Val = InVector.Val;
+						break;
+					}
+				}
+				switch (Index)
+				{
+				case 0:
+					OutValue = Val.X;
+					break;
+				case 1:
+					OutValue = Val.Y;
+					break;
+				case 2:
+					OutValue = Val.Z;
+					break;
+				case 3:
+					OutValue = Val.W;
+					break;
+				}
+				*/
+			}
+			
+			break;
+			}
+		}
+		OutWeight = MovieSceneHelpers::CalculateWeightForBlending(SectionToKey, KeyTime);
+	}
+	FText							GroupName;
+	FMovieSceneChannelMetaData      MetaData[4];
+	TMovieSceneExternalValue<float> ExternalValues[4];
+	FName ParameterName;
+	UControlRig *ControlRig;
+};
+
 struct FParameterTransformChannelEditorData
 {
-	FParameterTransformChannelEditorData(UControlRig *InControlRig, const FName& InName, bool bEnabledOverride, EMovieSceneTransformChannel Mask, const FText& GroupName)
+	FParameterTransformChannelEditorData(UControlRig *InControlRig, const FName& InName, bool bEnabledOverride, EMovieSceneTransformChannel Mask, 
+		const FText& GroupName, int SortStartIndex)
 	{
 		ControlRig = InControlRig;
 		ParameterName = InName;
@@ -36,7 +333,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[0].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::TranslationX);
 			MetaData[0].Color = FCommonChannelData::RedChannelColor;
-			MetaData[0].SortOrder = 0;
+			MetaData[0].SortOrder = SortStartIndex++;
 			MetaData[0].bCanCollapseToTrack = false;
 
 			//MetaData[1].SetIdentifiers("Location.Y", FCommonChannelData::ChannelY, LocationGroup);
@@ -46,7 +343,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[1].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::TranslationY);
 			MetaData[1].Color = FCommonChannelData::GreenChannelColor;
-			MetaData[1].SortOrder = 1;
+			MetaData[1].SortOrder = SortStartIndex++;
 			MetaData[1].bCanCollapseToTrack = false;
 
 			//MetaData[2].SetIdentifiers("Location.Z", FCommonChannelData::ChannelZ, LocationGroup);
@@ -56,7 +353,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[2].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::TranslationZ);
 			MetaData[2].Color = FCommonChannelData::BlueChannelColor;
-			MetaData[2].SortOrder = 2;
+			MetaData[2].SortOrder = SortStartIndex++;
 			MetaData[2].bCanCollapseToTrack = false;
 		}
 		{
@@ -67,7 +364,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[3].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::RotationX);
 			MetaData[3].Color = FCommonChannelData::RedChannelColor;
-			MetaData[3].SortOrder = 3;
+			MetaData[3].SortOrder = SortStartIndex++;
 			MetaData[3].bCanCollapseToTrack = false;
 
 			//MetaData[4].SetIdentifiers("Rotation.Y", NSLOCTEXT("MovieSceneTransformSection", "RotationY", "Pitch"), RotationGroup);
@@ -77,7 +374,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[4].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::RotationY);
 			MetaData[4].Color = FCommonChannelData::GreenChannelColor;
-			MetaData[4].SortOrder = 4;
+			MetaData[4].SortOrder = SortStartIndex++;
 			MetaData[4].bCanCollapseToTrack = false;
 
 			//MetaData[5].SetIdentifiers("Rotation.Z", NSLOCTEXT("MovieSceneTransformSection", "RotationZ", "Yaw"), RotationGroup);
@@ -87,7 +384,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[5].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::RotationZ);
 			MetaData[5].Color = FCommonChannelData::BlueChannelColor;
-			MetaData[5].SortOrder = 5;
+			MetaData[5].SortOrder = SortStartIndex++;
 			MetaData[5].bCanCollapseToTrack = false;
 		}
 		{
@@ -98,7 +395,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[6].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::ScaleX);
 			MetaData[6].Color = FCommonChannelData::RedChannelColor;
-			MetaData[6].SortOrder = 6;
+			MetaData[6].SortOrder = SortStartIndex++;
 			MetaData[6].bCanCollapseToTrack = false;
 
 			//MetaData[7].SetIdentifiers("Scale.Y", FCommonChannelData::ChannelY, ScaleGroup);
@@ -108,7 +405,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[7].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::ScaleY);
 			MetaData[7].Color = FCommonChannelData::GreenChannelColor;
-			MetaData[7].SortOrder = 7;
+			MetaData[7].SortOrder = SortStartIndex++;
 			MetaData[7].bCanCollapseToTrack = false;
 
 			//MetaData[8].SetIdentifiers("Scale.Z", FCommonChannelData::ChannelZ, ScaleGroup);
@@ -118,7 +415,7 @@ struct FParameterTransformChannelEditorData
 
 			MetaData[8].bEnabled = bEnabledOverride && EnumHasAllFlags(Mask, EMovieSceneTransformChannel::ScaleZ);
 			MetaData[8].Color = FCommonChannelData::BlueChannelColor;
-			MetaData[8].SortOrder = 8;
+			MetaData[8].SortOrder = SortStartIndex++;
 			MetaData[8].bCanCollapseToTrack = false;
 		}
 		{
@@ -228,8 +525,17 @@ struct FParameterTransformChannelEditorData
 			FRigControl* RigControl = ControlRig->FindControl(ParameterName);
 			if (RigControl)
 			{
-				FTransform Transform = RigControl->Value.Get<FTransform>();
-				return Transform.GetTranslation();
+				if (RigControl->ControlType == ERigControlType::Transform)
+				{
+					FTransform Transform = RigControl->Value.Get<FTransform>();
+					return Transform.GetTranslation();
+				}
+				else if  (RigControl->ControlType == ERigControlType::TransformNoScale)
+				{
+					FTransformNoScale NoScale = RigControl->Value.Get<FTransformNoScale>();
+					FTransform Transform = NoScale;
+					return Transform.GetTranslation();
+				}
 			}
 		}
 		return TOptional<FVector>();
@@ -243,11 +549,19 @@ struct FParameterTransformChannelEditorData
 			FRigControl* RigControl = ControlRig->FindControl(ParameterName);
 			if (RigControl)
 			{
-				FTransform Transform = RigControl->Value.Get<FTransform>();
-				return Transform.GetRotation().Rotator();
+				if (RigControl->ControlType == ERigControlType::Transform)
+				{
+					FTransform Transform = RigControl->Value.Get<FTransform>();
+					return Transform.GetRotation().Rotator();
+				}
+				else if (RigControl->ControlType == ERigControlType::TransformNoScale)
+				{
+					FTransformNoScale NoScale = RigControl->Value.Get<FTransformNoScale>();
+					FTransform Transform = NoScale;
+					return Transform.GetRotation().Rotator();
+				}
 			}
 		}
-
 		return TOptional<FRotator>();
 	}
 
@@ -333,9 +647,7 @@ public:
 	UControlRig *ControlRig;
 };
 
-
 #endif // WITH_EDITOR
-
 
 UMovieSceneControlRigParameterSection::UMovieSceneControlRigParameterSection() :bDoNotKey(false)
 {
@@ -368,11 +680,40 @@ void UMovieSceneControlRigParameterSection::PostEditImport()
 	Super::PostEditImport();
 }
 
+void UMovieSceneControlRigParameterSection::PostLoad()
+{
+	Super::PostLoad();
+
+}
 bool UMovieSceneControlRigParameterSection::HasScalarParameter(FName InParameterName) const
 {
 	for (const FScalarParameterNameAndCurve& ScalarParameterNameAndCurve : ScalarParameterNamesAndCurves)
 	{
 		if (ScalarParameterNameAndCurve.ParameterName == InParameterName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMovieSceneControlRigParameterSection::HasBoolParameter(FName InParameterName) const
+{
+	for (const FBoolParameterNameAndCurve& BoolParameterNameAndCurve : BoolParameterNamesAndCurves)
+	{
+		if (BoolParameterNameAndCurve.ParameterName == InParameterName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMovieSceneControlRigParameterSection::HasVector2DParameter(FName InParameterName) const
+{
+	for (const FVector2DParameterNameAndCurves& Vector2DParameterNameAndCurve : Vector2DParameterNamesAndCurves)
+	{
+		if (Vector2DParameterNameAndCurve.ParameterName == InParameterName)
 		{
 			return true;
 		}
@@ -416,8 +757,7 @@ bool UMovieSceneControlRigParameterSection::HasTransformParameter(FName InParame
 	return false;
 }
 
-
-void UMovieSceneControlRigParameterSection::AddScalarParameter(FName InParameterName, TOptional<float> DefaultValue)
+void UMovieSceneControlRigParameterSection::AddScalarParameter(FName InParameterName, TOptional<float> DefaultValue, bool bReconstructChannel)
 {
 	FMovieSceneFloatChannel* ExistingChannel = nullptr;
 	if (!HasScalarParameter(InParameterName))
@@ -432,11 +772,63 @@ void UMovieSceneControlRigParameterSection::AddScalarParameter(FName InParameter
 		{
 			ExistingChannel->SetDefault(0.0f);
 		}
-		ReconstructChannelProxy();
+		if (bReconstructChannel)
+		{
+			ReconstructChannelProxy(true);
+		}
 	}
 }
 
-void UMovieSceneControlRigParameterSection::AddVectorParameter(FName InParameterName, TOptional<FVector> DefaultValue)
+
+void UMovieSceneControlRigParameterSection::AddBoolParameter(FName InParameterName, TOptional<bool> DefaultValue, bool bReconstructChannel)
+{
+	FMovieSceneBoolChannel* ExistingChannel = nullptr;
+	if (!HasBoolParameter(InParameterName))
+	{
+		const int32 NewIndex = BoolParameterNamesAndCurves.Add(FBoolParameterNameAndCurve(InParameterName));
+		ExistingChannel = &BoolParameterNamesAndCurves[NewIndex].ParameterCurve;
+		if (DefaultValue.IsSet())
+		{
+			ExistingChannel->SetDefault(DefaultValue.GetValue());
+		}
+		else
+		{
+			ExistingChannel->SetDefault(false);
+		}
+		if (bReconstructChannel)
+		{
+			ReconstructChannelProxy(true);
+		}
+	}
+}
+
+
+void UMovieSceneControlRigParameterSection::AddVector2DParameter(FName InParameterName, TOptional<FVector2D> DefaultValue, bool bReconstructChannel)
+{
+	FVector2DParameterNameAndCurves* ExistingCurves = nullptr;
+
+	if (!HasVector2DParameter(InParameterName))
+	{
+		int32 NewIndex = Vector2DParameterNamesAndCurves.Add(FVector2DParameterNameAndCurves(InParameterName));
+		ExistingCurves = &Vector2DParameterNamesAndCurves[NewIndex];
+		if (DefaultValue.IsSet())
+		{
+			ExistingCurves->XCurve.SetDefault(DefaultValue.GetValue().X);
+			ExistingCurves->YCurve.SetDefault(DefaultValue.GetValue().Y);
+		}
+		else
+		{
+			ExistingCurves->XCurve.SetDefault(0.0f);
+			ExistingCurves->YCurve.SetDefault(0.0f);
+		}
+		if (bReconstructChannel)
+		{
+			ReconstructChannelProxy(true);
+		}
+	}
+}
+
+void UMovieSceneControlRigParameterSection::AddVectorParameter(FName InParameterName, TOptional<FVector> DefaultValue, bool bReconstructChannel)
 {
 	FVectorParameterNameAndCurves* ExistingCurves = nullptr;
 
@@ -457,11 +849,14 @@ void UMovieSceneControlRigParameterSection::AddVectorParameter(FName InParameter
 			ExistingCurves->YCurve.SetDefault(0.0f);
 			ExistingCurves->ZCurve.SetDefault(0.0f);
 		}
-		ReconstructChannelProxy();
+		if (bReconstructChannel)
+		{
+			ReconstructChannelProxy(true);
+		}
 	}
 }
 
-void UMovieSceneControlRigParameterSection::AddColorParameter(FName InParameterName, TOptional<FLinearColor> DefaultValue)
+void UMovieSceneControlRigParameterSection::AddColorParameter(FName InParameterName, TOptional<FLinearColor> DefaultValue, bool bReconstructChannel)
 {
 	FColorParameterNameAndCurves* ExistingCurves = nullptr;
 
@@ -483,11 +878,14 @@ void UMovieSceneControlRigParameterSection::AddColorParameter(FName InParameterN
 			ExistingCurves->BlueCurve.SetDefault(0.0f);
 			ExistingCurves->AlphaCurve.SetDefault(0.0f);
 		}
-		ReconstructChannelProxy();
+		if (bReconstructChannel)
+		{
+			ReconstructChannelProxy(true);
+		}
 	}
 }
 
-void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue)
+void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue, bool bReconstructChannel)
 {
 	FTransformParameterNameAndCurves* ExistingCurves = nullptr;
 
@@ -528,123 +926,308 @@ void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParame
 			ExistingCurves->Scale[1].SetDefault(0.0f);
 			ExistingCurves->Scale[2].SetDefault(0.0f);
 		}
-		ReconstructChannelProxy();
+		if(bReconstructChannel)
+		{
+			ReconstructChannelProxy(true);
+		}
 	}
 }
 
-void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
+
+void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 {
 	FMovieSceneChannelProxyData Channels;
-	/** Unserialized mask that defines the mask of the current channel proxy so we don't needlessly re-create it on post-undo */
-	EMovieSceneTransformChannel ProxyChannels = TransformMask.GetChannels();
+	if(bForce || ControlsMask!= OldControlsMask)
+	{
+		ControlChannelMap.Empty();
 
+		OldControlsMask = ControlsMask;
+		// Need to create the channels in sorted orders
+		if (ControlRig)
+		{
+			TArray<FRigControl> SortedControls;
+			FControlRigSortedControls::GetControlsInOrder(ControlRig, SortedControls);
+			int32 Index = 0;
+			int32 ChannelIndex = 0;
+			for (const FRigControl& RigControl : SortedControls)
+			{
 #if WITH_EDITOR
+				switch (RigControl.ControlType)
+				{
+				case ERigControlType::Float:
+				{
+					for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Scalar.ParameterName)
+						{
+							ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							bool bEnabled = ControlsMask[Index++];
+							FString ParameterString = Scalar.ParameterName.ToString();
+							FText Group = FText::FromString(ParameterString);
+							FParameterFloatChannelEditorData EditorData(ControlRig, Scalar.ParameterName, bEnabled, Group, ChannelIndex);
+							Channels.Add(Scalar.ParameterCurve, EditorData.MetaData, EditorData.ExternalValues);
+							ChannelIndex += 1;
+							break;
+						}
+					}
+					break;
+				}
+				case ERigControlType::Bool:
+				{
+					for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Bool.ParameterName)
+						{
+							ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							bool bEnabled = ControlsMask[Index++];
+							FMovieSceneChannelMetaData MetaData(Bool.ParameterName, FText::FromName(Bool.ParameterName), FText::FromName(Bool.ParameterName), bEnabled);
+							MetaData.SortOrder = ChannelIndex++;
+							// Prevent single channels from collapsing to the track node
+							MetaData.bCanCollapseToTrack = false;
+							Channels.Add(Bool.ParameterCurve, MetaData, TMovieSceneExternalValue<bool>());
+							break;
+						}
+					}
+					break;
+				}
+				case ERigControlType::Vector2D:
+				{
+					for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Vector2D.ParameterName)
+						{
+							ControlChannelMap.Add(Vector2D.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							bool bEnabled = ControlsMask[Index++];
+							FString ParameterString = Vector2D.ParameterName.ToString();
+							FText Group = FText::FromString(ParameterString);
+							FParameterVectorChannelEditorData EditorData(ControlRig, Vector2D.ParameterName, bEnabled, Group, ChannelIndex, 2);
+							Channels.Add(Vector2D.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
+							Channels.Add(Vector2D.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
+							ChannelIndex += 2;
+							break;
+						}
+					}
+					break;
+				}
+				case ERigControlType::Position:
+				case ERigControlType::Scale:
+				case ERigControlType::Rotator:
+				{
+					for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Vector.ParameterName)
+						{
+							ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							bool bEnabled = ControlsMask[Index++];
+							FString ParameterString = Vector.ParameterName.ToString();
+							FText Group = FText::FromString(ParameterString);
+							FParameterVectorChannelEditorData EditorData(ControlRig, Vector.ParameterName, bEnabled, Group, ChannelIndex, 3);
+							Channels.Add(Vector.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
+							Channels.Add(Vector.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
+							Channels.Add(Vector.ZCurve, EditorData.MetaData[2], EditorData.ExternalValues[2]);
+							ChannelIndex += 3;
+							break;
+						}
+					}
+					break;
+				}
+				/*No colors or Vector4's yet
+				case ERigControlType::Color:
+				{
+					for (FColorParameterNameAndCurves& Color : GetColorParameterNamesAndCurves())
+					{
+						if(RigControl.Name == Color.ParameterName)
+						{
+							ControlChannelMap.Add(Color.ParameterName, ChannelIndex);
 
-	int32 Index = 0;
-	for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
-	{
-		bool bEnabled = ControlsMask[Index++];
-		FMovieSceneChannelMetaData MetaData(Scalar.ParameterName, FText::FromName(Scalar.ParameterName), FText(), bEnabled);
-		// Prevent single channels from collapsing to the track node
-		MetaData.bCanCollapseToTrack = false;
-		Channels.Add(Scalar.ParameterCurve, MetaData, TMovieSceneExternalValue<float>());
-	}
-	for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
-	{
-		bool bEnabled = ControlsMask[Index++];
-		FString ParameterString = Vector.ParameterName.ToString();
-		FText Group = FText::FromString(ParameterString);
-		Channels.Add(Vector.XCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".X")), FCommonChannelData::ChannelX, Group, bEnabled), TMovieSceneExternalValue<float>());
-		Channels.Add(Vector.YCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Y")), FCommonChannelData::ChannelY, Group, bEnabled), TMovieSceneExternalValue<float>());
-		Channels.Add(Vector.ZCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Z")), FCommonChannelData::ChannelZ, Group, bEnabled), TMovieSceneExternalValue<float>());
-	}
-	for (FColorParameterNameAndCurves& Color : GetColorParameterNamesAndCurves())
-	{
-		bool bEnabled = ControlsMask[Index++];
-		FString ParameterString = Color.ParameterName.ToString();
-		FText Group = FText::FromString(ParameterString);
+							bool bEnabled = ControlsMask[Index++];
+							FString ParameterString = Color.ParameterName.ToString();
+							FText Group = FText::FromString(ParameterString);
 
-		FMovieSceneChannelMetaData MetaData_R(*(ParameterString + TEXT("R")), FCommonChannelData::ChannelR, Group, bEnabled);
-		MetaData_R.SortOrder = 0;
-		MetaData_R.Color = FCommonChannelData::RedChannelColor;
+							FMovieSceneChannelMetaData MetaData_R(*(ParameterString + TEXT("R")), FCommonChannelData::ChannelR, Group, bEnabled);
+							MetaData_R.SortOrder = ChannelIndex++;
+							MetaData_R.Color = FCommonChannelData::RedChannelColor;
 
-		FMovieSceneChannelMetaData MetaData_G(*(ParameterString + TEXT("G")), FCommonChannelData::ChannelG, Group, bEnabled);
-		MetaData_G.SortOrder = 1;
-		MetaData_G.Color = FCommonChannelData::GreenChannelColor;
+							FMovieSceneChannelMetaData MetaData_G(*(ParameterString + TEXT("G")), FCommonChannelData::ChannelG, Group, bEnabled);
+							MetaData_G.SortOrder = ChannelIndex++;
+							MetaData_G.Color = FCommonChannelData::GreenChannelColor;
 
-		FMovieSceneChannelMetaData MetaData_B(*(ParameterString + TEXT("B")), FCommonChannelData::ChannelB, Group, bEnabled);
-		MetaData_B.SortOrder = 2;
-		MetaData_B.Color = FCommonChannelData::BlueChannelColor;
+							FMovieSceneChannelMetaData MetaData_B(*(ParameterString + TEXT("B")), FCommonChannelData::ChannelB, Group, bEnabled);
+							MetaData_B.SortOrder = ChannelIndex++;
+							MetaData_B.Color = FCommonChannelData::BlueChannelColor;
 
-		FMovieSceneChannelMetaData MetaData_A(*(ParameterString + TEXT("A")), FCommonChannelData::ChannelA, Group, bEnabled);
-		MetaData_A.SortOrder = 3;
+							FMovieSceneChannelMetaData MetaData_A(*(ParameterString + TEXT("A")), FCommonChannelData::ChannelA, Group, bEnabled);
+							MetaData_A.SortOrder = ChannelIndex++;
 
-		Channels.Add(Color.RedCurve, MetaData_R, TMovieSceneExternalValue<float>());
-		Channels.Add(Color.GreenCurve, MetaData_G, TMovieSceneExternalValue<float>());
-		Channels.Add(Color.BlueCurve, MetaData_B, TMovieSceneExternalValue<float>());
-		Channels.Add(Color.AlphaCurve, MetaData_A, TMovieSceneExternalValue<float>());
-	}
+							Channels.Add(Color.RedCurve, MetaData_R, TMovieSceneExternalValue<float>());
+							Channels.Add(Color.GreenCurve, MetaData_G, TMovieSceneExternalValue<float>());
+							Channels.Add(Color.BlueCurve, MetaData_B, TMovieSceneExternalValue<float>());
+							Channels.Add(Color.AlphaCurve, MetaData_A, TMovieSceneExternalValue<float>());
+							break;
+						}
 
-	for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
-	{
-		bool bEnabled = ControlsMask[Index++];
-		FString ParameterString = Transform.ParameterName.ToString();
-		FText Group = FText::FromString(ParameterString);
+					}
+					break;
+				}
+				*/
+				case ERigControlType::TransformNoScale:
+				case ERigControlType::Transform:
+				{
+					for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Transform.ParameterName)
+						{
+							ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							bool bEnabled = ControlsMask[Index++];
+							FString ParameterString = Transform.ParameterName.ToString();
+							FText Group = FText::FromString(ParameterString);
 
-		FParameterTransformChannelEditorData EditorData(ControlRig, Transform.ParameterName, bEnabled, TransformMask.GetChannels(), Group);
+							FParameterTransformChannelEditorData EditorData(ControlRig, Transform.ParameterName, bEnabled, TransformMask.GetChannels(), Group, ChannelIndex);
 
-		Channels.Add(Transform.Translation[0], EditorData.MetaData[0], EditorData.ExternalValues[0]);
-		Channels.Add(Transform.Translation[1], EditorData.MetaData[1], EditorData.ExternalValues[1]);
-		Channels.Add(Transform.Translation[2], EditorData.MetaData[2], EditorData.ExternalValues[2]);
+							Channels.Add(Transform.Translation[0], EditorData.MetaData[0], EditorData.ExternalValues[0]);
+							Channels.Add(Transform.Translation[1], EditorData.MetaData[1], EditorData.ExternalValues[1]);
+							Channels.Add(Transform.Translation[2], EditorData.MetaData[2], EditorData.ExternalValues[2]);
 
-		Channels.Add(Transform.Rotation[0], EditorData.MetaData[3], EditorData.ExternalValues[3]);
-		Channels.Add(Transform.Rotation[1], EditorData.MetaData[4], EditorData.ExternalValues[4]);
-		Channels.Add(Transform.Rotation[2], EditorData.MetaData[5], EditorData.ExternalValues[5]);
+							Channels.Add(Transform.Rotation[0], EditorData.MetaData[3], EditorData.ExternalValues[3]);
+							Channels.Add(Transform.Rotation[1], EditorData.MetaData[4], EditorData.ExternalValues[4]);
+							Channels.Add(Transform.Rotation[2], EditorData.MetaData[5], EditorData.ExternalValues[5]);
 
-		Channels.Add(Transform.Scale[0], EditorData.MetaData[6], EditorData.ExternalValues[6]);
-		Channels.Add(Transform.Scale[1], EditorData.MetaData[7], EditorData.ExternalValues[7]);
-		Channels.Add(Transform.Scale[2], EditorData.MetaData[8], EditorData.ExternalValues[8]);
-
-	}
+							if (RigControl.ControlType == ERigControlType::Transform)
+							{
+								Channels.Add(Transform.Scale[0], EditorData.MetaData[6], EditorData.ExternalValues[6]);
+								Channels.Add(Transform.Scale[1], EditorData.MetaData[7], EditorData.ExternalValues[7]);
+								Channels.Add(Transform.Scale[2], EditorData.MetaData[8], EditorData.ExternalValues[8]);
+								ChannelIndex += 9;
+							}
+							else
+							{
+								ChannelIndex += 6;
+							}
+							break;
+						}
+					}
+				}
+				default:
+					break;
+				}
 #else
+				switch (RigControl.ControlType)
+				{
+				case ERigControlType::Float:
+				{
+					for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Scalar.ParameterName)
+						{
+							ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							Channels.Add(Scalar.ParameterCurve);
+							ChannelIndex += 1;
+							Index++;
+							break;
+						}
+					}
+					break;
+				}
+				case ERigControlType::Bool:
+				{
+					for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Bool.ParameterName)
+						{
+							ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							Channels.Add(Bool.ParameterCurve);
+							ChannelIndex += 1;
+							Index++;
+							break;
+						}
+					}
+					break;
+				}
+				case ERigControlType::Vector2D:
+				{
+					for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Vector2D.ParameterName)
+						{
+							ControlChannelMap.Add(Vector2D.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							Channels.Add(Vector2D.XCurve);
+							Channels.Add(Vector2D.YCurve);
+							ChannelIndex += 2;
+							Index++;
+							break;
+						}
+					}
+					break;
+				}
+				case ERigControlType::Position:
+				case ERigControlType::Scale:
+				case ERigControlType::Rotator:
+				{
+					for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Vector.ParameterName)
+						{
+							ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							Channels.Add(Vector.XCurve);
+							Channels.Add(Vector.YCurve);
+							Channels.Add(Vector.ZCurve);
+							ChannelIndex += 3;
+							Index++;
+							break;
+						}
+					}
+					break;
+				}
+				/*
+				for (FColorParameterNameAndCurves& Color : GetColorParameterNamesAndCurves())
+				{
+					Channels.Add(Color.RedCurve);
+					Channels.Add(Color.GreenCurve);
+					Channels.Add(Color.BlueCurve);
+					Channels.Add(Color.AlphaCurve);
+					break
+				}
+				*/
+				case ERigControlType::TransformNoScale:
+				case ERigControlType::Transform:
+				{
+					for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
+					{
+						if (RigControl.Name == Transform.ParameterName)
+						{
+							ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(Index, ChannelIndex));
+							Channels.Add(Transform.Translation[0]);
+							Channels.Add(Transform.Translation[1]);
+							Channels.Add(Transform.Translation[2]);
 
-	for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
-	{
-		Channels.Add(Scalar.ParameterCurve);
-	}
-	for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
-	{
-		Channels.Add(Vector.XCurve);
-		Channels.Add(Vector.YCurve);
-		Channels.Add(Vector.ZCurve);
-	}
-	for (FColorParameterNameAndCurves& Color : GetColorParameterNamesAndCurves())
-	{
-		Channels.Add(Color.RedCurve);
-		Channels.Add(Color.GreenCurve);
-		Channels.Add(Color.BlueCurve);
-		Channels.Add(Color.AlphaCurve);
-	}
+							Channels.Add(Transform.Rotation[0]);
+							Channels.Add(Transform.Rotation[1]);
+							Channels.Add(Transform.Rotation[2]);
 
-	for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
-	{
-		Channels.Add(Transform.Translation[0]);
-		Channels.Add(Transform.Translation[1]);
-		Channels.Add(Transform.Translation[2]);
+							if (RigControl.ControlType == ERigControlType::Transform)
+							{
+								Channels.Add(Transform.Scale[0]);
+								Channels.Add(Transform.Scale[1]);
+								Channels.Add(Transform.Scale[2]);
+								ChannelIndex += 9;
+							}
+							else
+							{
+								ChannelIndex += 6;
+							}
 
-		Channels.Add(Transform.Rotation[0]);
-		Channels.Add(Transform.Rotation[1]);
-		Channels.Add(Transform.Rotation[2]);
-
-		Channels.Add(Transform.Scale[0]);
-		Channels.Add(Transform.Scale[1]);
-		Channels.Add(Transform.Scale[2]);
-
-	}
-
+							Index++;
+							break;
+						}
+					}
+					break;
+				}
+				}
 #endif
-
-	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
+			}
+		}
+		ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
+	}
 }
 
 FMovieSceneInterrogationKey UMovieSceneControlRigParameterSection::GetFloatInterrogationKey()
@@ -653,7 +1236,19 @@ FMovieSceneInterrogationKey UMovieSceneControlRigParameterSection::GetFloatInter
 	return TypeID;
 }
 
+FMovieSceneInterrogationKey UMovieSceneControlRigParameterSection::GetVector2DInterrogationKey()
+{
+	static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
+	return TypeID;
+}
+
 FMovieSceneInterrogationKey UMovieSceneControlRigParameterSection::GetVectorInterrogationKey()
+{
+	static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
+	return TypeID;
+}
+
+FMovieSceneInterrogationKey UMovieSceneControlRigParameterSection::GetVector4InterrogationKey()
 {
 	static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
 	return TypeID;

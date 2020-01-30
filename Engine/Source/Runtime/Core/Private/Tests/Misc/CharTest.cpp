@@ -24,7 +24,7 @@ void RunCharTests(FAutomationTestBase& Test, uint32 MaxChar)
 {
 	for (uint32 I = 0; I < MaxChar; ++I)
 	{
-		CharType C(I);
+		CharType C = (CharType)I;
 		Test.TestEqual("TChar::ToLower()", TChar<CharType>::ToLower(C), crt::tolower(C));
 		Test.TestEqual("TChar::ToUpper()", TChar<CharType>::ToUpper(C), crt::toupper(C));
 	}

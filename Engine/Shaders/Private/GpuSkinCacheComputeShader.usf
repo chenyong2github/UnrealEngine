@@ -74,6 +74,7 @@ struct FVertexUnpacked
 	float4	TangentX;
 	float4	TangentZ;
 
+#if !GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	int4	BlendIndices;
 #if GPUSKIN_USE_EXTRA_INFLUENCES
 	int4	BlendIndices2;
@@ -82,6 +83,7 @@ struct FVertexUnpacked
 #if GPUSKIN_USE_EXTRA_INFLUENCES
 	float4	BlendWeights2;
 #endif
+#endif // GPUSKIN_UNLIMITED_BONE_INFLUENCE
 
 #if GPUSKIN_MORPH_BLEND
 	// morph target, added to the Position
@@ -118,8 +120,40 @@ struct FVertexFactoryIntermediates
 
 };
 
-FBoneMatrix CalcBoneMatrix( FVertexUnpacked VertexUnpacked )
+#if GPUSKIN_UNLIMITED_BONE_INFLUENCE
+uint InputWeightIndexSize; // bone index size: 1 - 8bit or 2 - 16bit
+Buffer<uint> InputWeightLookupStream;
+#endif
+Buffer<uint> InputWeightStream;
+
+FBoneMatrix CalcBoneMatrix( FVertexUnpacked VertexUnpacked, uint VertexIndex )
 {
+#if GPUSKIN_UNLIMITED_BONE_INFLUENCE
+	uint BlendOffsetCount = InputWeightLookupStream[VertexIndex];
+	int NumBoneInfluences = BlendOffsetCount & 0xff;
+	int StreamOffset = BlendOffsetCount >> 8;
+	int WeightsOffset = StreamOffset + (InputWeightIndexSize * NumBoneInfluences);
+
+	FBoneMatrix BoneMatrix = FBoneMatrix(float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0));
+	for (int InfluenceIdx = 0; InfluenceIdx < NumBoneInfluences; InfluenceIdx++)
+	{
+		int BoneIndexOffset = StreamOffset + (InputWeightIndexSize * InfluenceIdx);
+		int BoneIndex = InputWeightStream[BoneIndexOffset];
+		if (InputWeightIndexSize > 1)
+		{
+			BoneIndex = InputWeightStream[BoneIndexOffset + 1] << 8 | BoneIndex;
+			//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
+			float BoneWeight = float(InputWeightStream[WeightsOffset + InfluenceIdx]) / 255.0f;
+			BoneMatrix += BoneWeight * FBoneMatrix(BoneMatrices[BoneIndex*3], BoneMatrices[BoneIndex*3+1], BoneMatrices[BoneIndex*3+2]);
+		}
+		else
+		{
+			//@todo-lh: Workaround to fix issue in SPIRVEmitter of DXC; this block must be inside the if branch
+			float BoneWeight = float(InputWeightStream[WeightsOffset + InfluenceIdx]) / 255.0f;
+			BoneMatrix += BoneWeight * FBoneMatrix(BoneMatrices[BoneIndex*3], BoneMatrices[BoneIndex*3+1], BoneMatrices[BoneIndex*3+2]);
+		}
+	}
+#else // GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	FBoneMatrix BoneMatrix = VertexUnpacked.BlendWeights.x * FBoneMatrix(BoneMatrices[VertexUnpacked.BlendIndices.x*3], BoneMatrices[VertexUnpacked.BlendIndices.x*3+1], BoneMatrices[VertexUnpacked.BlendIndices.x*3+2]);
 	BoneMatrix += VertexUnpacked.BlendWeights.y * FBoneMatrix(BoneMatrices[VertexUnpacked.BlendIndices.y*3], BoneMatrices[VertexUnpacked.BlendIndices.y*3+1], BoneMatrices[VertexUnpacked.BlendIndices.y*3+2]);
 	BoneMatrix += VertexUnpacked.BlendWeights.z * FBoneMatrix(BoneMatrices[VertexUnpacked.BlendIndices.z*3], BoneMatrices[VertexUnpacked.BlendIndices.z*3+1], BoneMatrices[VertexUnpacked.BlendIndices.z*3+2]);
@@ -130,6 +164,7 @@ FBoneMatrix CalcBoneMatrix( FVertexUnpacked VertexUnpacked )
 	BoneMatrix += VertexUnpacked.BlendWeights2.z * FBoneMatrix(BoneMatrices[VertexUnpacked.BlendIndices2.z*3], BoneMatrices[VertexUnpacked.BlendIndices2.z*3+1], BoneMatrices[VertexUnpacked.BlendIndices2.z*3+2]);
 	BoneMatrix += VertexUnpacked.BlendWeights2.w * FBoneMatrix(BoneMatrices[VertexUnpacked.BlendIndices2.w*3], BoneMatrices[VertexUnpacked.BlendIndices2.w*3+1], BoneMatrices[VertexUnpacked.BlendIndices2.w*3+2]);
 #endif
+#endif // GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	return BoneMatrix;
 }
 
@@ -144,7 +179,6 @@ uint NumVertices;
 
 uint InputWeightStart;
 uint InputWeightStride;
-Buffer<uint> InputWeightStream;
 
 // see r.SkinCache.Debug, default is 1.0f
 float SkinCacheDebug;
@@ -156,7 +190,23 @@ FVertexUnpacked UnpackedVertex(uint MorphIndex, uint ClothIndex, uint VertexInde
 	Unpacked.TangentX = TangentBias_SkinCache(TangentInputBuffer[2 * VertexIndex + GPUSKIN_VB_OFFSET_TANGENT_X]);
 	Unpacked.TangentZ = TangentBias_SkinCache(TangentInputBuffer[2 * VertexIndex + GPUSKIN_VB_OFFSET_TANGENT_Z]);
 
+#if !GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	uint BlendIndices = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEBONES];
+#if GPUSKIN_BONE_INDEX_UINT16
+	Unpacked.BlendIndices.x = BlendIndices & 0xffff;
+	Unpacked.BlendIndices.y = BlendIndices >> 16 & 0xffff;
+	BlendIndices = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEBONES + 1];
+	Unpacked.BlendIndices.z = BlendIndices & 0xffff;
+	Unpacked.BlendIndices.w = BlendIndices >> 16 & 0xffff;
+#if GPUSKIN_USE_EXTRA_INFLUENCES
+	BlendIndices = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEBONES + 2];
+	Unpacked.BlendIndices2.x = BlendIndices & 0xffff;
+	Unpacked.BlendIndices2.y = BlendIndices >> 16 & 0xffff;
+	BlendIndices = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEBONES + 3];
+	Unpacked.BlendIndices2.z = BlendIndices & 0xffff;
+	Unpacked.BlendIndices2.w = BlendIndices >> 16 & 0xffff;
+#endif
+#else // GPUSKIN_BONE_INDEX_UINT16
 	Unpacked.BlendIndices.x = BlendIndices & 0xff;
 	Unpacked.BlendIndices.y = BlendIndices >> 8 & 0xff;
 	Unpacked.BlendIndices.z = BlendIndices >> 16 & 0xff;
@@ -168,6 +218,7 @@ FVertexUnpacked UnpackedVertex(uint MorphIndex, uint ClothIndex, uint VertexInde
 	Unpacked.BlendIndices2.z = BlendIndices >> 16 & 0xff;
 	Unpacked.BlendIndices2.w = BlendIndices >> 24 & 0xff;
 #endif
+#endif // GPUSKIN_BONE_INDEX_UINT16
 	uint BlendWeights = InputWeightStream[WeightOffset + GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS];
 	Unpacked.BlendWeights.x = float(BlendWeights & 0xff) / 255.0f;
 	Unpacked.BlendWeights.y = float(BlendWeights >> 8 & 0xff) / 255.0f;
@@ -180,6 +231,8 @@ FVertexUnpacked UnpackedVertex(uint MorphIndex, uint ClothIndex, uint VertexInde
 	Unpacked.BlendWeights2.z = float(BlendWeights >> 16 & 0xff) / 255.0f;
 	Unpacked.BlendWeights2.w = float(BlendWeights >> 24 & 0xff) / 255.0f;
 #endif
+#endif // GPUSKIN_UNLIMITED_BONE_INFLUENCE
+
 #if GPUSKIN_MORPH_BLEND
 	GetMorphBuffer(MorphIndex, Unpacked.DeltaPosition, Unpacked.DeltaTangentZ);
 #endif
@@ -235,7 +288,7 @@ void SkinCacheUpdateBatchCS(uint3 GroupID : SV_GroupID,
 	FVertexFactoryIntermediates	Intermediates = (FVertexFactoryIntermediates)0;
 	
 #if 1
-	Intermediates.BlendMatrix = CalcBoneMatrix(Unpacked);
+	Intermediates.BlendMatrix = CalcBoneMatrix(Unpacked, InputOffset);
 #else
 	// Test no blend mtx
 	Intermediates.BlendMatrix[0] = float4(1,0,0,0);

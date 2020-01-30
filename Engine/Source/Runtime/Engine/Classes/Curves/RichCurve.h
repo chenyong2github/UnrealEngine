@@ -205,6 +205,7 @@ public:
 	/** Functions for getting keys based on handles */
 	FRichCurveKey& GetKey(FKeyHandle KeyHandle);
 	FRichCurveKey GetKey(FKeyHandle KeyHandle) const;
+	const FRichCurveKey& GetKeyRef(FKeyHandle KeyHandle) const;
 	
 	/** Quick accessors for the first and last keys */
 	FRichCurveKey GetFirstKey() const;

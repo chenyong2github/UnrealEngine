@@ -47,7 +47,6 @@ public:
 		NiagaraParticleDataMaterialParam2.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam2"));
 		NiagaraParticleDataMaterialParam3.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam3"));
 
-		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraFloatDataOffset"));
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 	}
 
@@ -65,7 +64,6 @@ public:
 		Ar << NiagaraParticleDataMaterialParam1;
 		Ar << NiagaraParticleDataMaterialParam2;
 		Ar << NiagaraParticleDataMaterialParam3;
-		Ar << FloatDataOffset;
 		Ar << FloatDataStride;
 	}
 
@@ -95,7 +93,6 @@ public:
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam1, RibbonVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam2, RibbonVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam3, RibbonVF->GetParticleDataFloatSRV());
-		ShaderBindings.Add(FloatDataOffset, RibbonVF->GetFloatDataOffset());
 		ShaderBindings.Add(FloatDataStride, RibbonVF->GetFloatDataStride());
 	}
 
@@ -113,7 +110,6 @@ private:
 	FShaderResourceParameter NiagaraParticleDataMaterialParam2;
 	FShaderResourceParameter NiagaraParticleDataMaterialParam3;
 
-	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
 };
 

@@ -1453,34 +1453,34 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		static XYPair XYArray[] =
 		{		
 			// Test normal ranges
-			{ 0.0,	 1.0},
-			{ 1.5,	 1.0},
-			{ 2.8,	 0.3},
-			{-2.8,	 0.3},
-			{ 2.8,	-0.3},
-			{-2.8,	-0.3},
-			{-0.4,	 5.5},
-			{ 0.4,	-5.5},
-			{ 2.8,	 2.0 + KINDA_SMALL_NUMBER},
-			{-2.8,	 2.0 - KINDA_SMALL_NUMBER},
+			{ 0.0f,	 1.0f},
+			{ 1.5f,	 1.0f},
+			{ 2.8f,	 0.3f},
+			{-2.8f,	 0.3f},
+			{ 2.8f,	-0.3f},
+			{-2.8f,	-0.3f},
+			{-0.4f,	 5.5f},
+			{ 0.4f,	-5.5f},
+			{ 2.8f,	 2.0f + KINDA_SMALL_NUMBER},
+			{-2.8f,	 2.0f - KINDA_SMALL_NUMBER},
 
 			// Analytically should be zero but floating point precision can cause results close to Y (or erroneously negative) depending on the method used.
-			{55.8,	 9.3},
-			{1234.1234, 0.1234},
+			{55.8f,	 9.3f},
+			{1234.1234f, 0.1234f},
 
 			// Commonly used for FRotators and angles
-			{725.2,		360.0},
-			{179.9,		 90.0},
-			{ 5.3*PI,	2.*PI},
-			{-5.3*PI,	2.*PI},
+			{725.2f,		360.0f},
+			{179.9f,		 90.0f},
+			{ 5.3f*PI,	2.f*PI},
+			{-5.3f*PI,	2.f*PI},
 
 			// Test extreme ranges
-			{ 1.0,			 KINDA_SMALL_NUMBER},
-			{ 1.0,			-KINDA_SMALL_NUMBER},
+			{ 1.0f,			 KINDA_SMALL_NUMBER},
+			{ 1.0f,			-KINDA_SMALL_NUMBER},
 			{-SMALL_NUMBER,  SMALL_NUMBER},
 			{ SMALL_NUMBER, -SMALL_NUMBER},
-			{ 1.0,			 MIN_flt},
-			{ 1.0,			-MIN_flt},
+			{ 1.0f,			 MIN_flt},
+			{ 1.0f,			-MIN_flt},
 			{ MAX_flt,		 MIN_flt},
 			{ MAX_flt,		-MIN_flt},
 
@@ -1500,7 +1500,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			//UE_LOG(LogUnrealMathTest, Warning, TEXT("fmodf(%f, %f) Ours: %f Theirs: %f"), X, Y, Ours, Theirs);
 
 			// A compiler bug causes stock fmodf() to rarely return NaN for valid input, we don't want to report this as a fatal error.
-			if (Y != 0 && FMath::IsNaN(Theirs))
+			if (Y != 0.0f && FMath::IsNaN(Theirs))
 			{
 				UE_LOG(LogUnrealMathTest, Warning, TEXT("fmodf(%f, %f) with valid input resulted in NaN!"), X, Y);
 				continue;
@@ -1759,6 +1759,98 @@ bool FMathRoundHalfFromZeroTests::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("RoundHalfFromZero64-ZeroBitPrecision"), FMath::RoundHalfToZero(9007199254740991.0), 9007199254740991.0);
 	TestEqual(TEXT("RoundHalfFromZero64-NegZeroBitPrecision"), FMath::RoundHalfToZero(-9007199254740991.0), -9007199254740991.0);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FIsNearlyEqualByULPTest, "System.Core.Math.IsNearlyEqualByULP", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FIsNearlyEqualByULPTest::RunTest(const FString& Parameters)
+{
+	static float FloatNan = FMath::Sqrt(-1.0f);
+	static double DoubleNan = double(FloatNan);
+
+	static float FloatInf = 1.0f / 0.0f;
+	static double DoubleInf = 1.0 / 0.0;
+
+	float FloatTrueMin;
+	double DoubleTrueMin;
+
+	// Construct our own true minimum float constants (aka FLT_TRUE_MIN), bypassing any value parsing.
+	{
+		uint32 FloatTrueMinInt = 0x00000001U;
+		uint64 DoubleTrueMinInt = 0x0000000000000001ULL;
+
+		::memcpy(&FloatTrueMin, &FloatTrueMinInt, sizeof(FloatTrueMinInt));
+		::memcpy(&DoubleTrueMin, &DoubleTrueMinInt, sizeof(DoubleTrueMinInt));
+	}
+
+
+	static struct TestItem
+	{
+		const FString &Name;
+		bool Predicate;
+		struct 
+		{
+			float A;
+			float B;
+		} F;
+		struct
+		{
+			double A;
+			double B;
+		} D;
+
+		int ULP = 4;
+	} TestItems[] = {
+		{"ZeroEqual",		true, {0.0f, 0.0f}, {0.0, 0.0}},
+		{"OneEqual",		true, {1.0f, 1.0f}, {1.0, 1.0}},
+		{"MinusOneEqual",	true, {-1.0f, -1.0f}, {-1.0, -1.0}},
+		{"PlusMinusOneNotEqual", false, {-1.0f, 1.0f}, {-1.0, 1.0}},
+
+		{"NanEqualFail",	false, {FloatNan, FloatNan}, {DoubleNan, DoubleNan}},
+
+		// FLT_EPSILON is the smallest quantity that can be added to 1.0 and still be considered a distinct number
+		{"OneULPDistUp",	true, {1.0f, 1.0f + FLT_EPSILON}, {1.0, 1.0 + DBL_EPSILON}, 1},
+
+		// Going below one, we need to halve the epsilon, since the exponent has been lowered by one and hence the 
+		// numerical density doubles between 0.5 and 1.0.
+		{"OneULPDistDown",	true, {1.0f, 1.0f - (FLT_EPSILON / 2.0f)}, {1.0, 1.0 - (DBL_EPSILON / 2.0)}, 1},
+
+		// Make sure the ULP distance is computed correctly for double epsilon.
+		{"TwoULPDist",		true, {1.0f, 1.0f + 2 * FLT_EPSILON}, {1.0, 1.0 + 2 * DBL_EPSILON}, 2},
+		{"TwoULPDistFail",	false, {1.0f, 1.0f + 2 * FLT_EPSILON}, {1.0, 1.0 + 2 * DBL_EPSILON}, 1},
+
+		// Check if the same test works for higher exponents on both sides.
+		{"ONeULPDistEight",	true, {8.0f, 8.0f + 8.0f * FLT_EPSILON}, {8.0, 8.0 + 8.0 * DBL_EPSILON}, 1},
+		{"ONeULPDistFailEight",	false, {8.0f, 8.0f + 16.0f * FLT_EPSILON}, {8.0, 8.0 + 16.0 * DBL_EPSILON}, 1},
+
+		// Test for values around the zero point.
+		{"AroundZero",		true, {-FloatTrueMin, FloatTrueMin}, {-DoubleTrueMin, DoubleTrueMin}, 2},
+		{"AroundZeroFail",	false, {-FloatTrueMin, FloatTrueMin}, {-DoubleTrueMin, DoubleTrueMin}, 1},
+
+		// Test for values close to zero and zero.
+		{"PosNextToZero",	true, {0, FloatTrueMin}, {0, DoubleTrueMin}, 1},
+		{"NegNextToZero",	true, {-FloatTrueMin, 0}, {-DoubleTrueMin, 0}, 1},
+
+		// Should fail, even for maximum ULP distance.
+		{"InfAndMaxFail",	false, {FLT_MAX, FloatInf}, {DBL_MAX, DoubleInf}, INT32_MAX},
+		{"InfAndNegInfFail", false, {-FloatInf, FloatInf}, {-DoubleInf, DoubleInf}, INT32_MAX},
+
+		// Two infinities of the same sign should compare the same, regardless of ULP.
+		{"InfAndInf",		true, {FloatInf, FloatInf}, {DoubleInf, DoubleInf}, 0},
+
+	};
+
+	bool(FAutomationTestBase::*FuncTrue)(const FString &, bool) = &FAutomationTestBase::TestTrue;
+	bool(FAutomationTestBase::*FuncFalse)(const FString &, bool) = &FAutomationTestBase::TestFalse;
+
+	for (const TestItem& Item : TestItems)
+	{
+		auto Func = Item.Predicate ? FuncTrue : FuncFalse;
+
+		(this->*Func)(Item.Name + "-Float", FMath::IsNearlyEqualByULP(Item.F.A, Item.F.B, Item.ULP));
+		(this->*Func)(Item.Name + "-Double", FMath::IsNearlyEqualByULP(Item.D.A, Item.D.B, Item.ULP));
+	}
 
 	return true;
 }

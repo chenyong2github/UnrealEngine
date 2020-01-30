@@ -130,6 +130,9 @@ private:
 	void CheckForErrors();
 
 	void InitFastPathParameterBindingsInternal(const FNiagaraFastPathAttributeNames& SourceParameterNames, FNiagaraParameterStore& TargetParameterStore);
+	void BuildConstantBufferTable(
+		const FNiagaraScriptExecutionContext& ExecContext,
+		FScriptExecutionConstantBufferTable& ConstantBufferTable) const;
 
 	template<typename TBindingType, typename TVariableType>
 	static void AddBinding(FName ParameterName, TVariableType ParameterType, TBindingType* SourceValuePtr, FNiagaraParameterStore& TargetParameterStore, TArray<TNiagaraFastPathAttributeBinding<TBindingType>>& TargetBindings)
@@ -148,7 +151,7 @@ private:
 	int32 EmitterIdx;
 
 	/* The age of the emitter*/
-	float Age;
+	float EmitterAge;
 
 	int32 TickCount;
 
@@ -178,30 +181,9 @@ private:
 	FNiagaraParameterDirectBinding<float> InterpSpawnStartBinding;
 	FNiagaraParameterDirectBinding<int32> SpawnGroupBinding;
 
-	FNiagaraParameterDirectBinding<float> EmitterAgeBindingGPU;
-
-	FNiagaraParameterDirectBinding<float> SpawnEmitterAgeBinding;
-	FNiagaraParameterDirectBinding<float> UpdateEmitterAgeBinding;
-	TArray<FNiagaraParameterDirectBinding<float>> EventEmitterAgeBindings;
-
-	FNiagaraParameterDirectBinding<int32> SpawnRandomSeedBinding;
-	FNiagaraParameterDirectBinding<int32> UpdateRandomSeedBinding;
-	FNiagaraParameterDirectBinding<int32> GPURandomSeedBinding;
-	TArray<FNiagaraParameterDirectBinding<int>> EventRandomSeedBindings;
-
-	FNiagaraParameterDirectBinding<int32> SpawnTotalSpawnedParticlesBinding;
-	FNiagaraParameterDirectBinding<int32> UpdateTotalSpawnedParticlesBinding;
-	TArray<FNiagaraParameterDirectBinding<int32>> EventTotalSpawnedParticlesBindings;
-
 	FNiagaraParameterDirectBinding<int32> SpawnExecCountBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
 	TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
-
-	/*
-	FNiagaraParameterDirectBinding<int32> SpawnDeterminismBinding;
-	FNiagaraParameterDirectBinding<int32> UpdateDeterminismBinding;
-	FNiagaraParameterDirectBinding<int32> GPUDeterminismBinding;
-	*/
 	
 	/** particle simulation data. Must be a shared ref as various things on the RT can have direct ref to it. */
 	FNiagaraDataSet* ParticleDataSet;

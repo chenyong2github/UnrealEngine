@@ -484,6 +484,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bShowPathInColumnView = InArgs._ShowPathInColumnView;
 	bShowTypeInColumnView = InArgs._ShowTypeInColumnView;
 	bSortByPathInColumnView = bShowPathInColumnView & InArgs._SortByPathInColumnView;
+	bForceShowEngineContent = InArgs._ForceShowEngineContent;
 
 	bPendingUpdateThumbnails = false;
 	bShouldNotifyNextAssetSync = true;
@@ -1667,6 +1668,13 @@ FReply SAssetView::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 	{
 		// Note: We don't test IsAssetPathSelected here as we need to prevent dropping assets on class paths
 		const FString DestPath = SourcesData.PackagePaths[0].ToString();
+
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(DestPath))
+		{
+			AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+			return FReply::Handled();
+		}
 
 		// If the DragDrop event is validated, continue trying to dock it to the Widget
 		bool bUnused = false;
@@ -3316,7 +3324,7 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SAssetView::ToggleShowEngineContent ),
-				FCanExecuteAction(),
+				FCanExecuteAction::CreateSP( this, &SAssetView::IsToggleShowEngineContentAllowed),
 				FIsActionChecked::CreateSP( this, &SAssetView::IsShowingEngineContent )
 			),
 			EUserInterfaceActionType::ToggleButton
@@ -3560,7 +3568,7 @@ void SAssetView::ToggleShowEngineContent()
 
 bool SAssetView::IsShowingEngineContent() const
 {
-	return GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
+	return bForceShowEngineContent || GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
 }
 
 void SAssetView::ToggleShowDevelopersContent()
@@ -3584,6 +3592,11 @@ void SAssetView::ToggleShowDevelopersContent()
 bool SAssetView::IsToggleShowDevelopersContentAllowed() const
 {
 	return bCanShowDevelopersFolder;
+}
+
+bool SAssetView::IsToggleShowEngineContentAllowed() const
+{
+	return !bForceShowEngineContent;
 }
 
 bool SAssetView::IsShowingDevelopersContent() const

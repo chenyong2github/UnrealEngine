@@ -1436,9 +1436,6 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.iOS.Enabled" : "LevelEditor.PreviewMode.iOS.Disabled");
 					}
 					case SP_VULKAN_PCES3_1:
-					case SP_OPENGL_PCES2:
-					case SP_PCD3D_ES2:
-					case SP_METAL_MACES2:
 					case SP_OPENGL_ES2_WEBGL:
 					{
 						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.AndroidES2.Enabled" : "LevelEditor.PreviewMode.AndroidES2.Disabled");
@@ -1534,7 +1531,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 						FCanExecuteAction(),
 						FIsActionChecked(),
 						FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::CanShowSourceCodeActions)),
-					FNewToolMenuWidgetChoice(),
+					FNewToolMenuChoice(),
 					LOCTEXT("CompileCombo_Label", "Compile Options"),
 					LOCTEXT("CompileComboToolTip", "Compile options menu"),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
@@ -2319,7 +2316,10 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 
 		// Convert selection to BP
 		Section.AddMenuEntry(FLevelEditorCommands::Get().ConvertSelectionToBlueprintViaHarvest);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().ConvertSelectionToBlueprintViaSubclass);
+		Section.AddMenuEntry(
+			FLevelEditorCommands::Get().ConvertSelectionToBlueprintViaSubclass,
+			TAttribute<FText>::Create(FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassLabel),
+			TAttribute<FText>::Create(FLevelEditorActionCallbacks::GetConvertSelectedActorsIntoBlueprintClassTooltip));
 
 		// Open an existing Blueprint Class...
 		FSlateIcon OpenBPIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenClassBlueprint");

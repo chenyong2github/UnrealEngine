@@ -480,6 +480,42 @@ namespace ChaosTest
 
 			SpatialTestHelper(Spatial, Boxes.Get(), Box);
 		}
+
+		{
+			//too many boxes so reoptimize
+			TUniquePtr<TBox<T,3>> Box;
+			auto Boxes = BuildBoxes<T>(Box);
+			TAABBTree<int32,TBoundingVolume<int32,T,3>,T> Spatial(MakeParticleView(Boxes.Get()));
+
+			while(!Spatial.IsAsyncTimeSlicingComplete())
+			{
+				Spatial.ProgressAsyncTimeSlicing(false);
+			}
+
+			EXPECT_EQ(Spatial.NumDirtyElements(),0);
+
+			//fill up until dirty limit
+			int32 Count;
+			for(Count = 0; Count < 10; ++Count)
+			{
+				auto Boxes2 = BuildBoxes<T>(Box);
+				for(uint32 Idx = 0; Idx < Boxes2->Size(); ++Idx)
+				{
+					Spatial.UpdateElement(Idx + Boxes->Size() * Count,Boxes2->WorldSpaceInflatedBounds(Idx),true);
+				}
+
+				EXPECT_EQ(Spatial.NumDirtyElements(), (Count+1)*Boxes->Size());
+			}
+
+			//finally pass dirty limit so reset to 0 and then add the remaining new boxes
+			auto Boxes2 = BuildBoxes<T>(Box);
+			for(uint32 Idx = 0; Idx < Boxes2->Size(); ++Idx)
+			{
+				Spatial.UpdateElement(Idx + Boxes->Size() * Count,Boxes2->WorldSpaceInflatedBounds(Idx),true);
+			}
+
+			EXPECT_EQ(Spatial.NumDirtyElements(),Boxes->Size() - 1);
+		}
 	}
 	template void AABBTreeTest<float>();
 

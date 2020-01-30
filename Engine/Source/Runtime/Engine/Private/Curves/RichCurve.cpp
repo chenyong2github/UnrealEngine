@@ -161,6 +161,11 @@ FRichCurveKey FRichCurve::GetKey(FKeyHandle KeyHandle) const
 	return Keys[GetIndex(KeyHandle)];
 }
 
+const FRichCurveKey& FRichCurve::GetKeyRef(FKeyHandle KeyHandle) const
+{
+	EnsureAllIndicesHaveHandles();
+	return Keys[GetIndex(KeyHandle)];
+}
 
 FRichCurveKey FRichCurve::GetFirstKey() const
 {
@@ -1130,6 +1135,7 @@ static ERichCurveCompressionFormat FindRichCurveCompressionFormat(const FRichCur
 	switch (RefKey.InterpMode)
 	{
 	case RCIM_Constant:
+		return RCCF_Mixed;
 	case RCIM_None:
 	default:
 		return RCCF_Constant;

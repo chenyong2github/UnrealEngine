@@ -48,7 +48,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 extern TRACELOG_API uint32 volatile	GLogSerial;
-TRACELOG_API FWriteBuffer*			Writer_NextBuffer(uint16);
+TRACELOG_API FWriteBuffer*			Writer_NextBuffer(int32);
 TRACELOG_API FWriteBuffer*			Writer_GetBuffer();
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +77,7 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHas
 	using namespace Private;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	uint32 AllocSize = Size + sizeof(FEventHeader) + int(bMaybeHasAux);
+	int32 AllocSize = Size + sizeof(FEventHeader) + int(bMaybeHasAux);
 	Buffer->Cursor += AllocSize;
 	if (UNLIKELY(Buffer->Cursor > (uint8*)Buffer))
 	{

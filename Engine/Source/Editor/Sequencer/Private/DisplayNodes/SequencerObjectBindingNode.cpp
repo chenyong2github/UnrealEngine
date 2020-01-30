@@ -149,6 +149,7 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	ISequencerModule& SequencerModule = FModuleManager::GetModuleChecked<ISequencerModule>("Sequencer");
 
 	UObject* BoundObject = GetSequencer().FindSpawnedObjectOrTemplate(ObjectBinding);
+	const UClass* ObjectClass = GetClassForObjectBinding();
 
 	TSharedRef<FUICommandList> CommandList(new FUICommandList);
 	TSharedPtr<FExtender> Extender = SequencerModule.GetObjectBindingContextMenuExtensibilityManager()->GetAllExtenders(CommandList, TArrayBuilder<UObject*>().Add(BoundObject));
@@ -236,7 +237,6 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		}
 		else
 		{
-			const UClass* ObjectClass = GetClassForObjectBinding();
 			
 			if (ObjectClass->IsChildOf(AActor::StaticClass()))
 			{
@@ -290,6 +290,12 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 
 	GetSequencer().BuildCustomContextMenuForGuid(MenuBuilder, ObjectBinding);
+	TArray<FGuid> ObjectBindings;
+	ObjectBindings.Add(ObjectBinding);
+	for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : GetSequencer().GetTrackEditors())
+	{
+		TrackEditor->BuildObjectBindingContextMenu(MenuBuilder, ObjectBindings, ObjectClass);
+	}
 
 	FSequencerDisplayNode::BuildContextMenu(MenuBuilder);
 }

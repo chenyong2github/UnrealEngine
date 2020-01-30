@@ -1307,7 +1307,7 @@ void UPackageMapClient::ReceiveNetGUIDBunch( FInBunch &InBunch )
 
 TSharedPtr<FNetFieldExportGroup> UPackageMapClient::GetNetFieldExportGroup(const FString& PathName)
 {
-	return GuidCache->NetFieldExportGroupMap.FindRef(UWorld::RemovePIEPrefix(PathName));
+	return GuidCache->NetFieldExportGroupMap.FindRef(PathName);
 }
 
 void UPackageMapClient::AddNetFieldExportGroup( const FString& PathName, TSharedPtr< FNetFieldExportGroup > NewNetFieldExportGroup )

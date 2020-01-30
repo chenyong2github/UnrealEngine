@@ -116,7 +116,7 @@ public:
 	 *
 	 * @return number of bytes allocated by this container.
 	 */
-	FORCEINLINE uint32 GetAllocatedSize() const
+	FORCEINLINE SIZE_T GetAllocatedSize() const
 	{
 		return Pairs.GetAllocatedSize();
 	}

@@ -2,6 +2,7 @@
 
 #include "ChaosStats.h"
 
+DEFINE_STAT(STAT_ChaosTick);
 DEFINE_STAT(STAT_PhysicsAdvance);
 DEFINE_STAT(STAT_SolverAdvance);
 DEFINE_STAT(STAT_HandleSolverCommands);

@@ -33,10 +33,15 @@ UAIPerceptionSystem::UAIPerceptionSystem(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 	, PerceptionAgingRate(0.3f)
 	, bSomeListenersNeedUpdateDueToStimuliAging(false)
-	, bStimuliSourcesRefreshRequired(false)
 	, bHandlePawnNotification(false)
 	, CurrentTime(0.f)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+#if WITH_EDITORONLY_DATA
+	bStimuliSourcesRefreshRequired = false;
+#endif
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	StimuliSourceEndPlayDelegate.BindDynamic(this, &UAIPerceptionSystem::OnPerceptionStimuliSourceEndPlay);
 }
 
@@ -165,42 +170,13 @@ void UAIPerceptionSystem::Tick(float DeltaSeconds)
 	{
 		// cache it
 		CurrentTime = World->GetTimeSeconds();
-
-		bool bNeedsUpdate = false;
-
-		if (bStimuliSourcesRefreshRequired == true)
-		{
-			// this is a bit naive, but we don't get notifications from the engine which Actor ended play, 
-			// we just know one did. Let's just refresh the map removing all no-longer-valid instances
-			// @todo: we should be just calling senses directly here to unregister specific source
-			// but at this point source actor is invalid already so we can't really pin and use it
-			// this will go away once OnEndPlay broadcast passes in its instigator
-			FPerceptionChannelWhitelist SensesToUpdate;
-			for (auto It = RegisteredStimuliSources.CreateIterator(); It; ++It)
-			{
-				if (It->Value.SourceActor.IsValid() == false)
-				{
-					SensesToUpdate.MergeFilterIn(It->Value.RelevantSenses);
-					It.RemoveCurrent();
-				}
-			}
-
-			for (FPerceptionChannelWhitelist::FConstIterator It(SensesToUpdate); It && Senses.IsValidIndex(*It); ++It)
-			{
-				if (Senses[*It] != nullptr)
-				{
-					Senses[*It]->CleanseInvalidSources();
-				}
-			}
-
-			bStimuliSourcesRefreshRequired = false;
-		}
 		
 		if (SourcesToRegister.Num() > 0)
 		{
 			PerformSourceRegistration();
 		}
 
+		bool bNeedsUpdate = false;
 		for (UAISense* const SenseInstance : Senses)
 		{
 			bNeedsUpdate |= SenseInstance != nullptr && SenseInstance->ProgressTime(DeltaSeconds);
@@ -625,10 +601,7 @@ void UAIPerceptionSystem::RegisterSourceForSenseClass(TSubclassOf<UAISense> Sens
 
 void UAIPerceptionSystem::OnPerceptionStimuliSourceEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason)
 {
-	// this tells us just that _a_ source has been removed. We need to parse through all sources and find which one was it
-	// this is a fall-back behavior, if source gets unregistered manually this function won't get called 
-	// note, the actual work will be done on system's tick
-	bStimuliSourcesRefreshRequired = true;
+	UnregisterSource(*Actor);
 }
 
 TSubclassOf<UAISense> UAIPerceptionSystem::GetSenseClassForStimulus(UObject* WorldContextObject, const FAIStimulus& Stimulus)

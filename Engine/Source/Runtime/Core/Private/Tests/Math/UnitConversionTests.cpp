@@ -6,6 +6,8 @@
 #include "Misc/AutomationTest.h"
 #include "Math/UnitConversion.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnitUnitTests, "System.Core.Math.Unit Conversion", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
@@ -160,3 +162,5 @@ bool FParsingUnitTests::RunTest(const FString& Parameters)
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

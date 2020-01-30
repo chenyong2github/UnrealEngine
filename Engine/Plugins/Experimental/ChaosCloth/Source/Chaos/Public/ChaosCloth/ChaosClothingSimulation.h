@@ -13,6 +13,7 @@
 namespace Chaos
 {
 	typedef FClothingSimulationContextCommon ClothingSimulationContext;
+	template<class T, int d> class TPBDLongRangeConstraintsBase;
 
 	class ClothingSimulation : public FClothingSimulationCommon
 #if WITH_EDITOR
@@ -50,6 +51,8 @@ namespace Chaos
 		CHAOSCLOTH_API void DebugDrawBackstops(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 		CHAOSCLOTH_API void DebugDrawAnimDrive(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
+		CHAOSCLOTH_API void DebugDrawLongRangeConstraint(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
+		CHAOSCLOTH_API void DebugDrawWindDragForces(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const;
 #endif  // #if WITH_EDITOR
 
 	protected:
@@ -139,7 +142,23 @@ namespace Chaos
 		float Time;
 		float DeltaTime;
 
+		bool bOverrideGravity;
 		FVector Gravity;
+		FVector WindVelocity;
+
+		TArray<TSharedPtr<TPBDLongRangeConstraintsBase<float, 3>>> LongRangeConstraints;
+
+		// This is used to translate between world space and simulation space. Add this to simulation space coordinates to get world space coordinates
+		// The function of this is to help with floating point precision errors if the character is far away form the world origin
+		// and to decouple the simulation from character acceleration and velocities if it is desired
+		bool	bLocalSimSpaceEnabled;
+		FVector LocalSimSpaceOffset;  
+		FVector PrevLocalSimSpaceOffset;
+		FVector LocalSimSpaceVelocity;
+		FVector LocalSimSpaceCappedVelocity;
+		FVector PrevLocalSimSpaceVelocity;
+		FVector ComponentLinearAccScale;
+		FVector ComponentLinearAccClamp;
 
 #if WITH_EDITOR
 		// Visualization material

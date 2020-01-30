@@ -844,6 +844,15 @@ class FDefaultGameModuleImpl
 		} \
 	} GEncryptionKeyRegistration;
 
+#define IMPLEMENT_TARGET_NAME_REGISTRATION() \
+	struct FTargetNameRegistration \
+	{ \
+		FTargetNameRegistration() \
+		{ \
+			FPlatformMisc::SetUBTTargetName(TEXT(PREPROCESSOR_TO_STRING(UE_TARGET_NAME))); \
+		} \
+	} GTargetNameRegistration;
+
 #if IS_PROGRAM
 
 	#if IS_MONOLITHIC
@@ -895,6 +904,7 @@ class FDefaultGameModuleImpl
 			IMPLEMENT_LIVE_CODING_PROJECT() \
 			IMPLEMENT_SIGNING_KEY_REGISTRATION() \
 			IMPLEMENT_ENCRYPTION_KEY_REGISTRATION() \
+			IMPLEMENT_TARGET_NAME_REGISTRATION() \
 			IMPLEMENT_GAME_MODULE( ModuleImplClass, ModuleName ) \
 			PER_MODULE_BOILERPLATE
 
@@ -909,6 +919,7 @@ class FDefaultGameModuleImpl
 			IMPLEMENT_LIVE_CODING_PROJECT() \
 			IMPLEMENT_SIGNING_KEY_REGISTRATION() \
 			IMPLEMENT_ENCRYPTION_KEY_REGISTRATION() \
+			IMPLEMENT_TARGET_NAME_REGISTRATION() \
 			IMPLEMENT_GAME_MODULE( ModuleImplClass, ModuleName ) \
 			/* Implement the GIsGameAgnosticExe variable (See Core.h). */ \
 			bool GIsGameAgnosticExe = false;
@@ -919,6 +930,7 @@ class FDefaultGameModuleImpl
 
 	#define IMPLEMENT_PRIMARY_GAME_MODULE( ModuleImplClass, ModuleName, GameName ) \
 		/* Nothing special to do for modular builds.  The game name will be set via the command-line */ \
+		IMPLEMENT_TARGET_NAME_REGISTRATION() \
 		IMPLEMENT_GAME_MODULE( ModuleImplClass, ModuleName )
 #endif	//IS_MONOLITHIC
 

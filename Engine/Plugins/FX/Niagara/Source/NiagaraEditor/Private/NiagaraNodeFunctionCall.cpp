@@ -416,6 +416,39 @@ ENiagaraScriptUsage UNiagaraNodeFunctionCall::GetCalledUsage() const
 	return ENiagaraScriptUsage::Function;
 }
 
+static FText GetFormattedDeprecationMessage(const UNiagaraScript* FunctionScript, const FString& FunctionDisplayName)
+{
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("NodeName"), FText::FromString(FunctionDisplayName));
+
+	if (FunctionScript->DeprecationRecommendation != nullptr)
+	{
+		Args.Add(TEXT("Recommendation"), FText::FromString(FunctionScript->DeprecationRecommendation->GetPathName()));
+	}
+
+	if (FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+	{
+		Args.Add(TEXT("Message"), FunctionScript->DeprecationMessage);
+	}
+
+	FText FormatString = LOCTEXT("DeprecationErrorFmtUnknown", "Function call \"{NodeName}\" is deprecated. No recommendation was provided.");
+
+	if (FunctionScript->DeprecationRecommendation != nullptr && FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+	{
+		FormatString = LOCTEXT("DeprecationErrorFmtMessageAndRecommendation", "Function call \"{NodeName}\" is deprecated. Reason: {Message}. Please use {Recommendation} instead.");
+	}
+	else if (FunctionScript->DeprecationRecommendation != nullptr)
+	{
+		FormatString = LOCTEXT("DeprecationErrorFmtRecommendation", "Function call \"{NodeName}\" is deprecated. Please use {Recommendation} instead.");
+	}
+	else if (FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+	{
+		FormatString = LOCTEXT("DeprecationErrorFmtMessage", "Function call \"{NodeName}\" is deprecated. Reason: {Message} ");
+	}
+
+	return FText::Format(FormatString, Args);
+}
+
 void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {
 	TArray<int32> Inputs;
@@ -428,17 +461,9 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 	{
 		if (FunctionScript->bDeprecated && IsNodeEnabled())
 		{
-			if (FunctionScript->DeprecationRecommendation)
-			{
-				Translator->Warning(FText::Format(LOCTEXT("DeprecationErrorFmtRecommendation", "Function call \"{0}\" is deprecated. Please use {1} instead."), FText::FromString(FunctionDisplayName),
-					FText::FromString(FunctionScript->DeprecationRecommendation->GetPathName())),
-					this, nullptr);
-			}
-			else
-			{
-				Translator->Warning(FText::Format(LOCTEXT("DeprecationErrorFmtUnknown", "Function call \"{0}\" is deprecated. No recommendation was provided."), FText::FromString(FunctionDisplayName)),
-					this, nullptr);
-			}
+			FText DeprecationMessage = GetFormattedDeprecationMessage(FunctionScript, FunctionDisplayName);
+
+			Translator->Warning(DeprecationMessage, this, nullptr);
 		}
 
 		TArray<UEdGraphPin*> CallerInputPins;
@@ -615,16 +640,24 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 		{
 			UEdGraphNode::bHasCompilerMessage = true;
 			ErrorType = EMessageSeverity::Warning;
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("NodeName"), GetNodeTitle(ENodeTitleType::ListView));
-			Args.Add(TEXT("Recommendation"), FunctionScript->DeprecationRecommendation != nullptr ? FText::FromString(FunctionScript->DeprecationRecommendation->GetPathName()) : LOCTEXT("UnspecifiedName","Unspecified"));
-			UEdGraphNode::ErrorMsg = FText::Format(LOCTEXT("DeprecationWarning", "{NodeName} is deprecated. Suggested replacement: {Recommendation}"), Args).ToString();
+			
+			UEdGraphNode::ErrorMsg = GetFormattedDeprecationMessage(FunctionScript, FunctionDisplayName).ToString();
 		}
 		else if (FunctionScript->bExperimental)
 		{
 			UEdGraphNode::bHasCompilerMessage = true;
 			UEdGraphNode::ErrorType = EMessageSeverity::Info;
-			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+
+			if (FunctionScript->ExperimentalMessage.IsEmptyOrWhitespace())
+			{
+				UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+			}
+			else
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("Message"), FunctionScript->ExperimentalMessage);
+				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}."), Args);
+			}
 		}
 		else
 		{
@@ -638,7 +671,17 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 		{
 			UEdGraphNode::bHasCompilerMessage = true;
 			UEdGraphNode::ErrorType = EMessageSeverity::Info;
-			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+
+			if (Signature.ExperimentalMessage.IsEmptyOrWhitespace())
+			{
+				UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+			}
+			else
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("Message"), Signature.ExperimentalMessage);
+				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}"), Args);
+			}
 		}
 	}
 }

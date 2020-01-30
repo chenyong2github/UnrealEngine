@@ -199,6 +199,12 @@ struct FEventTriggerExecutionToken
 					EventContexts.Add(EventContext);
 				}
 			}
+
+			// If there aren't any bound objects (ie. spawnable hasn't been spawned), no need to trigger the event
+			if (EventContexts.Num() == 0)
+			{
+				return;
+			}
 		}
 
 		// If we have specified event receivers

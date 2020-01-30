@@ -137,7 +137,7 @@ void FControlRigSequencerAnimInstanceProxy::InitControlRigTrack(UControlRig* InC
 	}
 }
 
-bool FControlRigSequencerAnimInstanceProxy::UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, bool bUpdateInput, bool bExecute)
+bool FControlRigSequencerAnimInstanceProxy::UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, const FControlRigIOSettings& InputSettings, bool bExecute)
 {
 	bool bCreated = EnsureControlRigTrack(InControlRig, bAdditive, bApplyBoneFilter, BoneFilter, SequenceId);
 
@@ -153,7 +153,7 @@ bool FControlRigSequencerAnimInstanceProxy::UpdateControlRig(UControlRig* InCont
 		BlendNode.DesiredAlphas[PlayerState->PoseIndex] = Weight;
 	}
 
-	PlayerState->ControlRigNode.bUpdateInput = bUpdateInput;
+	PlayerState->ControlRigNode.InputSettings = InputSettings;
 	PlayerState->ControlRigNode.bExecute = bExecute;
 
 	return bCreated;

@@ -668,13 +668,14 @@ namespace Audio
 					check(ReverbPluginMixerSubmixPtr.IsValid());
 
 					const uint32 ReverbPluginId = Preset->GetUniqueID();
+					const TWeakObjectPtr<USoundSubmix> ReverbPluginSubmixPtr = ReverbPluginSubmix;
 					FMixerSubmixWeakPtr ReverbPluginMixerSubmixWeakPtr = ReverbPluginMixerSubmixPtr;
-					AudioRenderThreadCommand([ReverbPluginMixerSubmixWeakPtr, ReverbPluginEffectSubmix, ReverbPluginId]()
+					AudioRenderThreadCommand([ReverbPluginMixerSubmixWeakPtr, ReverbPluginSubmixPtr, ReverbPluginEffectSubmix, ReverbPluginId]()
 					{
 						FMixerSubmixPtr PluginSubmixPtr = ReverbPluginMixerSubmixWeakPtr.Pin();
-						if (PluginSubmixPtr.IsValid())
+						if (PluginSubmixPtr.IsValid() && ReverbPluginSubmixPtr.IsValid())
 						{
-							PluginSubmixPtr->AddSoundEffectSubmix(ReverbPluginId, ReverbPluginEffectSubmix);
+							PluginSubmixPtr->ReplaceSoundEffectSubmix(0, ReverbPluginId, ReverbPluginEffectSubmix);
 						}
 					});
 				}
@@ -1001,6 +1002,16 @@ namespace Audio
 
 		if (!bIsMasterSubmix)
 		{
+			// Ensure parent structure is registered prior to current submix if missing
+			if (InSoundSubmix->ParentSubmix)
+			{
+				FMixerSubmixPtr ParentSubmix = GetSubmixInstance(InSoundSubmix->ParentSubmix).Pin();
+				if (!ParentSubmix.IsValid())
+				{
+					RegisterSoundSubmix(InSoundSubmix->ParentSubmix, bInit);
+				}
+			}
+
 			LoadSoundSubmix(*InSoundSubmix);
 		}
 
@@ -1018,10 +1029,8 @@ namespace Audio
 
 	void FMixerDevice::LoadSoundSubmix(USoundSubmix& InSoundSubmix)
 	{
-		// Ensure submix not already registered by first checking master submixes and then additional mixes.
+		// If submix not already found, load it.
 		FMixerSubmixPtr MixerSubmix = GetSubmixInstance(&InSoundSubmix).Pin();
-
-		// If submix not already found, register it.
 		if (!MixerSubmix.IsValid())
 		{
 			MixerSubmix = MakeShared<FMixerSubmix, ESPMode::ThreadSafe>(this);

@@ -357,7 +357,7 @@ public:
 	{
 		IndexBufferRHI = CreateRHIBuffer_RenderThread();
 
-		if (IndexBufferRHI && IsSRVNeeded())
+		if (IndexBufferRHI && IsSRVNeeded() && Indices.Num())
 		{
 			SRVValue = RHICreateShaderResourceView(Indices.Num() ? IndexBufferRHI : nullptr);
 		}

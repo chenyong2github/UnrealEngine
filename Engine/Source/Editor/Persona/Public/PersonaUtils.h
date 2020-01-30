@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/SlateDelegates.h"
 
 class UAnimInstance;
 class USceneComponent;
 class UAnimBlueprint;
+class SWidget;
 
 namespace PersonaUtils
 {
@@ -57,5 +59,7 @@ PERSONA_API int32 CopyPropertiesToCDO(UAnimInstance* InAnimInstance, const FCopy
 
 /** Set the correct object to debug depending on whether we are running a sub-layer etc. */
 PERSONA_API void SetObjectBeingDebugged(UAnimBlueprint* InAnimBlueprint, UAnimInstance* InAnimInstance);
+/** Make an add button widget, as seen in the animation timeline */
+PERSONA_API TSharedRef<SWidget> MakeTrackButton(FText HoverText, FOnGetContent MenuContent, const TAttribute<bool>& HoverState);
 
 }

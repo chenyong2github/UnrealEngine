@@ -46,6 +46,12 @@ public:
 	/** Step backward */
 	TSharedPtr< FUICommandInfo > StepBackward;
 
+	/** Step forward */
+	TSharedPtr< FUICommandInfo > StepForward2;
+
+	/** Step backward */
+	TSharedPtr< FUICommandInfo > StepBackward2;
+
 	/** Step to next key */
 	TSharedPtr< FUICommandInfo > StepToNextKey;
 
@@ -354,6 +360,20 @@ public:
 
 	/** Toggle whether we should evaluate sub sequences in isolation */
 	TSharedPtr< FUICommandInfo > ToggleEvaluateSubSequencesInIsolation;
+
+	/** Sets a transform key at the current time for the selected actor */
+	TSharedPtr< FUICommandInfo > AddTransformKey;
+
+	/** Sets a translation key at the current time for the selected actor */
+	TSharedPtr< FUICommandInfo > AddTranslationKey;
+
+	/** Sets a rotation key at the current time for the selected actor */
+	TSharedPtr< FUICommandInfo > AddRotationKey;
+
+	/** Sets a scale key at the current time for the selected actor */
+	TSharedPtr< FUICommandInfo > AddScaleKey;
+
+
 
 	/**
 	 * Initialize commands

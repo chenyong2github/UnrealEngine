@@ -47,7 +47,7 @@ namespace Audio
 		uint16 BeatDivision;
 
 		FEventQuantizationSettings()
-			: SampleRate(90.0f)
+			: SampleRate(0.0f)
 			, NumChannels(2)
 			, BeatsPerMinute(90.0f)
 			, BeatsPerBar(4)

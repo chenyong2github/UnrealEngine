@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	MallocBinned.cpp: Binned memory allocator
-=============================================================================*/
-
 #include "HAL/MallocBinnedArena.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Logging/LogMacros.h"
@@ -1354,3 +1352,5 @@ void FMallocBinnedArena::DumpAllocatorStats(class FOutputDevice& Ar)
 	}
 }
 #endif
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

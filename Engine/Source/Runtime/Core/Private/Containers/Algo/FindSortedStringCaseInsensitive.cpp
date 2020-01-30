@@ -35,7 +35,7 @@ namespace Algo
 			// If the subarray is only 1 element, we can use Stricmp to finish the job
 			if (SubArray + 1 == SubArrayEnd)
 			{
-				return (FCString::Stricmp(*SubArray + CharIndex, Str + CharIndex) == 0) ? SubArray - SortedArray : -1;
+				return (FCString::Stricmp(*SubArray + CharIndex, Str + CharIndex) == 0) ? UE_PTRDIFF_TO_INT32(SubArray - SortedArray) : -1;
 			}
 
 			// Get the next char to binary search for
@@ -46,7 +46,7 @@ namespace Algo
 			{
 				// If the subarray's string is also at the end then we've found a match,
 				// otherwise we've only found a prefix, which is not a match
-				return ((*SubArray)[CharIndex] == TEXT('\0')) ? SubArray - SortedArray : -1;
+				return ((*SubArray)[CharIndex] == TEXT('\0')) ? UE_PTRDIFF_TO_INT32(SubArray - SortedArray) : -1;
 			}
 
 			// Now we try to find the equal_range of the character

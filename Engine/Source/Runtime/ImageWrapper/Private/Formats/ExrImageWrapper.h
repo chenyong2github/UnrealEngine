@@ -41,12 +41,12 @@ public:
 
 	virtual void Compress(int32 Quality) override;
 	virtual void Uncompress(const ERGBFormat InFormat, int32 InBitDepth) override;
-	virtual bool SetCompressed(const void* InCompressedData, int32 InCompressedSize) override;
+	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
 
 protected:
 
 	template <Imf::PixelType OutputFormat, typename sourcetype>
-	void WriteFrameBufferChannel(Imf::FrameBuffer& ImfFrameBuffer, const char* ChannelName, const sourcetype* SrcData, TArray<uint8>& ChannelBuffer);
+	void WriteFrameBufferChannel(Imf::FrameBuffer& ImfFrameBuffer, const char* ChannelName, const sourcetype* SrcData, TArray64<uint8>& ChannelBuffer);
 
 	template <Imf::PixelType OutputFormat, typename sourcetype>
 	void CompressRaw(const sourcetype* SrcData, bool bIgnoreAlpha);

@@ -274,6 +274,9 @@ public:
 	UFUNCTION(BlueprintSetter)
 	void SetGenerateOverlapEvents(bool bInGenerateOverlapEvents);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components")
+	void SetLightingChannels(bool bChannel0, bool bChannel1, bool bChannel2);
+
 private:
 	UPROPERTY(EditAnywhere, BlueprintGetter = GetGenerateOverlapEvents, BlueprintSetter = SetGenerateOverlapEvents, Category = Collision)
 	uint8 bGenerateOverlapEvents : 1;

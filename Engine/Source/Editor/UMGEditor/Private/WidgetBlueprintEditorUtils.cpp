@@ -712,7 +712,7 @@ void FWidgetBlueprintEditorUtils::BuildReplaceWithMenu(FMenuBuilder& Menu, TShar
 					{
 						Menu.AddMenuEntry(
 							FText::Format(LOCTEXT("ReplaceWithNamedSlot", "Replace With '{0}'"), SlotNameTxt),
-							FText::Format(LOCTEXT("ReplaceWithChildTooltip", "Remove this widget and insert '{0}' content into the parent."), SlotNameTxt),
+							FText::Format(LOCTEXT("ReplaceWithNamedSlotTooltip", "Remove this widget and insert '{0}' content into the parent."), SlotNameTxt),
 							FSlateIcon(),
 							FUIAction(
 								FExecuteAction::CreateStatic(&FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot, BlueprintEditor, BP, Widget, SlotName),

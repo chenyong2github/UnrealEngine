@@ -134,6 +134,7 @@ public:
 
 	NIAGARAEDITOR_API void GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData);
 
+	NIAGARAEDITOR_API void GetRendererEntries(TArray<UNiagaraStackEntry*>& InRenderingEntries);
 	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
 
 private:

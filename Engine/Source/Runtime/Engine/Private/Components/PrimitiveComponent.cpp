@@ -84,6 +84,13 @@ static FAutoConsoleVariableRef CVarHitDistanceTolerance(
 	TEXT("Hits that are less than this distance are ignored."),
 	ECVF_Default);
 
+static int32 AlwaysCreatePhysicsStateConversionHackCVar = 0;
+static FAutoConsoleVariableRef CVarAlwaysCreatePhysicsStateConversionHack(
+	TEXT("p.AlwaysCreatePhysicsStateConversionHack"),
+	AlwaysCreatePhysicsStateConversionHackCVar,
+	TEXT("Hack to convert actors with query and ignore all to always create physics."),
+	ECVF_Default);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 int32 CVarShowInitialOverlaps = 0;
 FAutoConsoleVariableRef CVarRefShowInitialOverlaps(
@@ -729,6 +736,16 @@ void UPrimitiveComponent::OnCreatePhysicsState()
 	if(!BodyInstance.IsValidBodyInstance())
 	{
 		//UE_LOG(LogPrimitiveComponent, Warning, TEXT("Creating Physics State (%s : %s)"), *GetNameSafe(GetOuter()),  *GetName());
+
+		if (AlwaysCreatePhysicsStateConversionHackCVar > 0)
+		{
+			static FCollisionResponseContainer IgnoreAll(ECR_Ignore);
+			if (BodyInstance.GetCollisionEnabled() == ECollisionEnabled::QueryOnly && BodyInstance.GetResponseToChannels() == IgnoreAll)
+			{
+				bAlwaysCreatePhysicsState = true;
+				BodyInstance.SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			}
+		}
 
 		UBodySetup* BodySetup = GetBodySetup();
 		if(BodySetup)
@@ -3273,6 +3290,22 @@ void UPrimitiveComponent::SetGenerateOverlapEvents(bool bInGenerateOverlapEvents
 	}
 }
 
+void UPrimitiveComponent::SetLightingChannels(bool bChannel0, bool bChannel1, bool bChannel2)
+{
+	if (bChannel0 != LightingChannels.bChannel0 ||
+		bChannel1 != LightingChannels.bChannel1 ||
+		bChannel2 != LightingChannels.bChannel2)
+	{
+		LightingChannels.bChannel0 = bChannel0;
+		LightingChannels.bChannel1 = bChannel1;
+		LightingChannels.bChannel2 = bChannel2;
+		if (SceneProxy)
+		{
+			SceneProxy->SetLightingChannels_GameThread(LightingChannels);
+		}
+	}
+}
+
 void UPrimitiveComponent::ClearComponentOverlaps(bool bDoNotifies, bool bSkipNotifySelf)
 {
 	if (OverlappingComponents.Num() > 0)
@@ -3618,13 +3651,9 @@ void UPrimitiveComponent::SetRenderCustomDepth(bool bValue)
 	if( bRenderCustomDepth != bValue )
 	{
 		bRenderCustomDepth = bValue;
-		if ( SceneProxy )
+		if (SceneProxy)
 		{
 			SceneProxy->SetCustomDepthEnabled_GameThread(bRenderCustomDepth);
-		}
-		else
-		{
-			MarkRenderStateDirty();
 		}
 	}
 }
@@ -3637,13 +3666,9 @@ void UPrimitiveComponent::SetCustomDepthStencilValue(int32 Value)
 	if (CustomDepthStencilValue != ClampedValue)
 	{
 		CustomDepthStencilValue = ClampedValue;
-		if ( SceneProxy )
+		if (SceneProxy)
 		{
 			SceneProxy->SetCustomDepthStencilValue_GameThread(CustomDepthStencilValue);
-		}
-		else
-		{
-			MarkRenderStateDirty();
 		}
 	}
 }

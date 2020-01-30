@@ -137,7 +137,7 @@ public:
 };
 
 
-class FModCurveEditorModel : public FRichCurveEditorModel
+class FModCurveEditorModel : public FRichCurveEditorModelRaw
 {
 public:
 

@@ -493,6 +493,7 @@ namespace Audio
 		if (CurrentBufferReadIndex == INDEX_NONE || CurrentBufferWriteIndex == INDEX_NONE)
 		{
 			SubmitBuffer(UnderrunBuffer.GetBufferData());
+			DeviceSwapCriticalSection.Unlock();
 			return;
 		}
 

@@ -45,7 +45,7 @@ void FImageWrapperBase::SetError(const TCHAR* ErrorMessage)
 /* IImageWrapper structors
  *****************************************************************************/
 
-const TArray<uint8>& FImageWrapperBase::GetCompressed(int32 Quality)
+const TArray64<uint8>& FImageWrapperBase::GetCompressed(int32 Quality)
 {
 	LastError.Empty();
 	Compress(Quality);
@@ -54,21 +54,21 @@ const TArray<uint8>& FImageWrapperBase::GetCompressed(int32 Quality)
 }
 
 
-bool FImageWrapperBase::GetRaw(const ERGBFormat InFormat, int32 InBitDepth, const TArray<uint8>*& OutRawData)
+bool FImageWrapperBase::GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData)
 {
 	LastError.Empty();
 	Uncompress(InFormat, InBitDepth);
 
 	if (LastError.IsEmpty())
 	{
-		OutRawData = &RawData;
+		OutRawData = MoveTemp(RawData);
 	}
 
 	return LastError.IsEmpty();
 }
 
 
-bool FImageWrapperBase::SetCompressed(const void* InCompressedData, int32 InCompressedSize)
+bool FImageWrapperBase::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
 {
 	if(InCompressedSize > 0 && InCompressedData != nullptr)
 	{
@@ -86,7 +86,7 @@ bool FImageWrapperBase::SetCompressed(const void* InCompressedData, int32 InComp
 }
 
 
-bool FImageWrapperBase::SetRaw(const void* InRawData, int32 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
+bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
 {
 	check(InRawData != NULL);
 	check(InRawSize > 0);

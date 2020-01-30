@@ -523,11 +523,6 @@ inline bool OpenGLShaderPlatformNeedsBindLocation(const EShaderPlatform InShader
 		case SP_OPENGL_PCES3_1:
 			return false;
 
-		case SP_OPENGL_SM4:
-#if PLATFORM_LUMINGL4
-			return false;
-#endif
-		case SP_OPENGL_PCES2:
 		case SP_OPENGL_ES2_ANDROID:
 		case SP_OPENGL_ES2_WEBGL:
 			return true;
@@ -544,7 +539,6 @@ inline bool OpenGLShaderPlatformSeparable(const EShaderPlatform InShaderPlatform
 	switch (InShaderPlatform)
 	{
 		case SP_OPENGL_SM5:
-		case SP_OPENGL_SM4:
 #if PLATFORM_LUMINGL4
 // Only desktop shader platforms can use separable shaders for now,
 // the generated code relies on macros supplied at runtime to determine whether
@@ -552,7 +546,6 @@ inline bool OpenGLShaderPlatformSeparable(const EShaderPlatform InShaderPlatform
 // although Lumin gl4 supports desktop gl feature level, it is not capable of compiling shaders.
 			return false;
 #endif		
-		case SP_OPENGL_PCES2:
 		case SP_OPENGL_PCES3_1:
 			return true;
 

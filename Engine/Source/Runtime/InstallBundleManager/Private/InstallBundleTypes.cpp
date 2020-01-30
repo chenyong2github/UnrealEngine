@@ -4,6 +4,7 @@
 #include "InstallBundleManagerPrivatePCH.h"
 
 #include "InstallBundleUtils.h"
+#include "Misc/CString.h"
 
 const TCHAR* LexToString(EInstallBundleSourceType Type)
 {
@@ -16,6 +17,21 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleSourceType::Count) == UE_ARRAY_COUNT(Strings), "");
 	return Strings[InstallBundleUtil::CastToUnderlying(Type)];
+}
+
+void LexFromString(EInstallBundleSourceType& OutType, const TCHAR* String)
+{
+	OutType = EInstallBundleSourceType::Count;
+
+	for (EInstallBundleSourceType SourceType : TEnumRange<EInstallBundleSourceType>())
+	{
+		const TCHAR* SourceStr = LexToString(SourceType);
+		if (FCString::Stricmp(SourceStr, String) == 0)
+		{
+			OutType = SourceType;
+			break;
+		}
+	}
 }
 
 const TCHAR* LexToString(EInstallBundleManagerInitResult Result)

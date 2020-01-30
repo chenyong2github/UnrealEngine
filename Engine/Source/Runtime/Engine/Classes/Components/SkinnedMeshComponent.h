@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GPUSkinPublicDefs.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
@@ -149,10 +150,10 @@ struct FSkelMeshSkinWeightInfo
 
 	/** Index of bones that influence this vertex */
 	UPROPERTY()
-	int32	Bones[8];
+	int32	Bones[MAX_TOTAL_INFLUENCES];
 	/** Influence of each bone on this vertex */
 	UPROPERTY()
-	uint8	Weights[8];
+	uint8	Weights[MAX_TOTAL_INFLUENCES];
 };
 
 /** LOD specific setup for the skeletal mesh component. */
@@ -1564,7 +1565,7 @@ public:
 
 
 /** Simple, CPU evaluation of a vertex's skinned position helper function */
-template <bool bExtraBoneInfluencesT, bool bCachedMatrices>
+template <bool bCachedMatrices>
 FVector GetTypedSkinnedVertexPosition(
 	const USkinnedMeshComponent* SkinnedComp,
 	const FSkelMeshRenderSection& Section,

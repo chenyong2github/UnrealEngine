@@ -12,7 +12,14 @@ template<class T, int d>
 class CHAOS_API TPBDLongRangeConstraintsBase
 {
   public:
-	TPBDLongRangeConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const T Stiffness = (T)1);
+	TPBDLongRangeConstraintsBase(
+		const TDynamicParticles<T, d>& InParticles,
+		const TMap<int32, TSet<uint32>>& PointToNeighbors,
+		const int32 NumberOfAttachments = 1,
+		const T Stiffness = (T)1,
+		const T LimitScale = (T)1,
+		const bool bUseGeodesicDistance = false);
+
 	virtual ~TPBDLongRangeConstraintsBase() {}
 
 	inline TVector<T, d> GetDelta(const TPBDParticles<T, d>& InParticles, const int32 i) const
@@ -49,13 +56,9 @@ class CHAOS_API TPBDLongRangeConstraintsBase
 		return Delta;
 	};
 
-  protected:
-	static TArray<TArray<uint32>> ComputeIslands(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const TArray<uint32>& KinematicParticles);
-	void ComputeEuclidianConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const int32 NumberOfAttachments);
-	void ComputeGeodesicConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const int32 NumberOfAttachments);
+	const TArray<TArray<uint32>>& GetConstraints() const { return MConstraints; }
+	const TArray<T>& GetDists() const { return MDists; }
 
-	static T ComputeDistance(const TParticles<T, d>& InParticles, const uint32 i, const uint32 j) { return (InParticles.X(i) - InParticles.X(j)).Size(); }
-	static T ComputeDistance(const TPBDParticles<T, d>& InParticles, const uint32 i, const uint32 j) { return (InParticles.P(i) - InParticles.P(j)).Size(); }
 	static T ComputeGeodesicDistance(const TParticles<T, d>& InParticles, const TArray<uint32>& Path)
 	{
 		T distance = 0;
@@ -74,6 +77,14 @@ class CHAOS_API TPBDLongRangeConstraintsBase
 		}
 		return distance;
 	}
+
+  protected:
+	static TArray<TArray<uint32>> ComputeIslands(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const TArray<uint32>& KinematicParticles);
+	void ComputeEuclidianConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const int32 NumberOfAttachments);
+	void ComputeGeodesicConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const int32 NumberOfAttachments);
+
+	static T ComputeDistance(const TParticles<T, d>& InParticles, const uint32 i, const uint32 j) { return (InParticles.X(i) - InParticles.X(j)).Size(); }
+	static T ComputeDistance(const TPBDParticles<T, d>& InParticles, const uint32 i, const uint32 j) { return (InParticles.P(i) - InParticles.P(j)).Size(); }
 
   protected:
 	TArray<TArray<uint32>> MConstraints;

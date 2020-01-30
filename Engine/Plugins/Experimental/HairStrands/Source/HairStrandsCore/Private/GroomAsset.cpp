@@ -976,5 +976,3 @@ bool UGroomAsset::CacheDerivedData(const FGroomBuildSettings* InBuildSettings)
 }
 
 #endif // WITH_EDITORONLY_DATA
-
-#undef LOCTEXT_NAMESPACE
