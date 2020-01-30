@@ -164,7 +164,6 @@ public:
 
 	virtual void RegisterSource(AActor& SourceActors) override;
 	virtual void UnregisterSource(AActor& SourceActor) override;
-	virtual void CleanseInvalidSources() override;
 	
 	virtual void OnListenerForgetsActor(const FPerceptionListener& Listener, AActor& ActorToForget) override;
 	virtual void OnListenerForgetsAll(const FPerceptionListener& Listener) override;
