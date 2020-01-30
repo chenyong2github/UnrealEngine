@@ -35,7 +35,7 @@ const TCHAR* FDerivedDataAnimationCompression::GetVersionString() const
 	// This is a version string that mimics the old versioning scheme. If you
 	// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 	// return it here. Ex.
-	return TEXT("A20FA6C92A4443CDAE897F0B63C32814");
+	return TEXT("0F1CECE507FE4F89A374B4C8E7B55052");
 }
 
 bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
@@ -168,6 +168,19 @@ void FAsyncCompressedAnimationsManagement::Tick(float DeltaTime)
 	}
 }
 
+void FAsyncCompressedAnimationsManagement::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (const FActiveAsyncCompressionTask& Task : ActiveAsyncCompressionTasks)
+	{
+		Task.DataToCompress->AddReferencedObjects(Collector);
+	}
+
+	for (const FQueuedAsyncCompressionWork QueuedTask : QueuedAsyncCompressionWork)
+	{
+		QueuedTask.Compressor.GetCompressibleData()->AddReferencedObjects(Collector);
+	}
+}
+
 TStatId FAsyncCompressedAnimationsManagement::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncCompressedAnimationsTracker, STATGROUP_Tickables);
@@ -213,8 +226,9 @@ bool FAsyncCompressedAnimationsManagement::RequestAsyncCompression(FDerivedDataA
 void FAsyncCompressedAnimationsManagement::StartAsyncWork(FDerivedDataAnimationCompression& Compressor, UAnimSequence* Anim, const uint64 NewTaskSize, const bool bPerformFrameStripping)
 {
 	const FString CacheKey = Compressor.GetPluginSpecificCacheKeySuffix();
+	FCompressibleAnimPtr SourceData = Compressor.GetCompressibleData();
 	uint32 AsyncHandle = GetDerivedDataCacheRef().GetAsynchronous(&Compressor);
-	ActiveAsyncCompressionTasks.Emplace(Anim, CacheKey, NewTaskSize, AsyncHandle, bPerformFrameStripping);
+	ActiveAsyncCompressionTasks.Emplace(Anim, SourceData, CacheKey, NewTaskSize, AsyncHandle, bPerformFrameStripping);
 }
 
 bool FAsyncCompressedAnimationsManagement::WaitOnActiveCompression(UAnimSequence* Anim)
