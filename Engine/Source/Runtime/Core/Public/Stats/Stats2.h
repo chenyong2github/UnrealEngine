@@ -1522,7 +1522,7 @@ class FCycleCounter
 {
 	/** Name of the stat, usually a short name **/
 	FName StatId;
-	bool bEmitsNamedEvents = false;
+	bool bEmittedNamedEvent = false;
 
 public:
 
@@ -1546,7 +1546,7 @@ public:
 #else
 			FPlatformMisc::BeginNamedEvent( FColor( 0 ), InStatId.GetStatDescriptionWIDE() );
 #endif // PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
-			bEmitedNamedEvent = true;
+			bEmittedNamedEvent = true;
 		}
 
 		if( (bAlways && FThreadStats::WillEverCollectData()) || FThreadStats::IsCollectingData() )
@@ -1562,10 +1562,10 @@ public:
 	 */
 	FORCEINLINE_STATS void Stop()
 	{
-		if ( bEmitsNamedEvents )
+		if ( bEmittedNamedEvent )
 		{
+			bEmittedNamedEvent = false;
 			FPlatformMisc::EndNamedEvent();
-			bEmitedNamedEvent = false;
 		}
 
 		if( !StatId.IsNone() )
