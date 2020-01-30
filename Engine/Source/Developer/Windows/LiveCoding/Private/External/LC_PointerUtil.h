@@ -126,7 +126,7 @@ namespace pointer
 		static_assert(std::is_pointer<T>::value == true, "Expected pointer type");
 
 		// enforce T being a pointer to const elements
-		static_assert(std::is_const<std::remove_pointer<T>::type>::value == true, "Wrong cv-qualifiers.");
+		static_assert(std::is_const<typename std::remove_pointer<T>::type>::value == true, "Wrong cv-qualifiers");
 
 		union
 		{

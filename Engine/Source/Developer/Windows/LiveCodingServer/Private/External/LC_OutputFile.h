@@ -12,7 +12,6 @@ public:
 	~OutputFile(void);
 
 	void Log(const char* msg);
-	void Log(const char* msg, int type);
 
 private:
 	void WriteToFile(const char* text);

@@ -627,7 +627,7 @@ namespace UnrealBuildTool
 		[Obsolete("bFasterWithoutUnity has been deprecated in favor of setting 'bUseUnity' on a per module basis in BuildConfiguration")]
 		public bool bFasterWithoutUnity
 		{
-			set { bUseUnity = value; }
+			set { bUseUnity = !value; }
 		}
 
 		private bool? bUseUnityOverride;

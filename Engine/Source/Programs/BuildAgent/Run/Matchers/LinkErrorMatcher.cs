@@ -17,7 +17,7 @@ namespace BuildAgent.Matchers
 		{
 			if(Input.IsMatch(@"error: linker command failed with exit code "))
 			{
-				int MinIdx = Input.MatchBackwards(0, ": In function |: undefined reference to ");
+				int MinIdx = Input.MatchBackwards(0, ": In function |: undefined reference to |[^a-zA-Z]ld: ");
 				return new ErrorMatch(ErrorSeverity.Error, ErrorPriority.Normal, "Link", Input, MinIdx, 0);
 			}
 			if (Input.IsMatch("Undefined symbols for architecture"))

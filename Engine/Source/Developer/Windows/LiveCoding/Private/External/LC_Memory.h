@@ -23,4 +23,12 @@ namespace memory
 		delete instance;
 		instance = nullptr;
 	}
+
+
+	template <typename T>
+	inline void DeleteAndNullArray(T*& instance)
+	{
+		delete[] instance;
+		instance = nullptr;
+	}
 }

@@ -261,6 +261,7 @@ namespace UnrealBuildTool
 		bool bEditorDependsOnShaderCompileWorker;
 		bool bBuildLiveCodingConsole;
 		string BuildToolOverride;
+		Dictionary<DirectoryReference, string> ModuleDirToForceIncludePaths = new Dictionary<DirectoryReference, string>();
 
 		/// This is the platform name that Visual Studio is always guaranteed to support.  We'll use this as
 		/// a platform for any project configurations where our actual platform is not supported by the
@@ -510,6 +511,37 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <inheritdoc/>
+		public override void AddModule(UEBuildModuleCPP Module, CppCompileEnvironment CompileEnvironment)
+		{
+			base.AddModule(Module, CompileEnvironment);
+
+			if (bUsePerFileIntellisense)
+			{
+				foreach (DirectoryReference ModuleDirectory in Module.ModuleDirectories)
+				{
+					List<string> ForceIncludePaths = new List<string>(CompileEnvironment.ForceIncludeFiles.Select(x => InsertPathVariables(x.Location)));
+					if (CompileEnvironment.PrecompiledHeaderIncludeFilename != null)
+					{
+						ForceIncludePaths.Add(InsertPathVariables(CompileEnvironment.PrecompiledHeaderIncludeFilename));
+					}
+					ModuleDirToForceIncludePaths[Module.ModuleDirectory] = String.Join(";", ForceIncludePaths);
+				}
+			}
+		}
+
+		static string InsertPathVariables(FileReference Location)
+		{
+			if (Location.IsUnderDirectory(ProjectFileGenerator.MasterProjectPath))
+			{
+				return String.Format("$(SolutionDir){0}", Location.MakeRelativeTo(ProjectFileGenerator.MasterProjectPath));
+			}
+			else
+			{
+				return Location.FullName;
+			}
+		}
+
 		WindowsCompiler GetCompilerForIntellisense()
 		{
 			switch(ProjectFileFormat)
@@ -520,6 +552,47 @@ namespace UnrealBuildTool
 					return WindowsCompiler.VisualStudio2017;
 				default:
 					return WindowsCompiler.VisualStudio2015_DEPRECATED;
+			}
+		}
+
+		/// <summary>
+		/// Gets highest C++ version which is used in this project
+		/// </summary>
+		public CppStandardVersion GetIntelliSenseCppVersion()
+		{
+			if (IntelliSenseCppVersion != CppStandardVersion.Default)
+			{
+				return IntelliSenseCppVersion;
+			}
+
+			var Version = CppStandardVersion.Default;
+			foreach (var Combination in ProjectConfigAndTargetCombinations)
+			{
+				if (Combination.ProjectTarget.TargetRules.CppStandard > Version)
+				{
+					Version = Combination.ProjectTarget.TargetRules.CppStandard;
+				}
+			}
+
+			return Version;
+		}
+		
+		/// <summary>
+		/// Gets compiler switch for specifying in AdditionalOptions in .vcxproj file for specific C++ version
+		/// </summary>
+		private static string GetIntelliSenseSwitchForCppVersion(CppStandardVersion Version)
+		{
+			switch (Version)
+			{
+				case CppStandardVersion.Default:
+				case CppStandardVersion.Cpp14:
+					return "/std:c++14";
+				case CppStandardVersion.Cpp17:
+					return "/std:c++17";
+				case CppStandardVersion.Latest:
+					return "/std:c++latest";
+				default:
+					throw new ArgumentOutOfRangeException(nameof(Version), Version, "Please update switch above with new C++ version");
 			}
 		}
 
@@ -873,6 +946,21 @@ namespace UnrealBuildTool
 				WriteConfiguration(ProjectName, Combination, VCProjectFileContent, PlatformProjectGenerators, bGenerateUserFileContent ? VCUserFileContent : null);
 			}
 
+			// Write IntelliSense info
+			{
+				// @todo projectfiles: Currently we are storing defines/include paths for ALL configurations rather than using ConditionString and storing
+				//      this data uniquely for each target configuration.  IntelliSense may behave better if we did that, but it will result in a LOT more
+				//      data being stored into the project file, and might make the IDE perform worse when switching configurations!
+				VCProjectFileContent.AppendLine("  <PropertyGroup>");
+				VCProjectFileContent.AppendLine("    <NMakePreprocessorDefinitions>$(NMakePreprocessorDefinitions){0}</NMakePreprocessorDefinitions>", (VCPreprocessorDefinitions.Length > 0 ? (";" + VCPreprocessorDefinitions) : ""));
+				VCProjectFileContent.AppendLine("    <NMakeIncludeSearchPath>$(NMakeIncludeSearchPath){0}</NMakeIncludeSearchPath>", (VCIncludeSearchPaths.Length > 0 ? (";" + VCIncludeSearchPaths) : ""));
+				VCProjectFileContent.AppendLine("    <NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>");
+				VCProjectFileContent.AppendLine("    <NMakeAssemblySearchPath>$(NMakeAssemblySearchPath)</NMakeAssemblySearchPath>");
+				VCProjectFileContent.AppendLine("    <AdditionalOptions>{0}</AdditionalOptions>",
+					GetIntelliSenseSwitchForCppVersion(GetIntelliSenseCppVersion()));
+				VCProjectFileContent.AppendLine("  </PropertyGroup>");
+			}
+
 			// Source folders and files
 			{
 				List<AliasedFile> LocalAliasedFiles = new List<AliasedFile>(AliasedFiles);
@@ -907,7 +995,7 @@ namespace UnrealBuildTool
 						FilterRelativeSourceDirectory = FilterRelativeSourceDirectory.Substring(0, LastSeparatorIdx);
 					}
 
-					LocalAliasedFiles.Add(new AliasedFile(ProjectRelativeSourceFile, FilterRelativeSourceDirectory));
+					LocalAliasedFiles.Add(new AliasedFile(CurFile.Reference, ProjectRelativeSourceFile, FilterRelativeSourceDirectory));
 				}
 
 				VCFiltersFileContent.AppendLine("  <ItemGroup>");
@@ -918,6 +1006,7 @@ namespace UnrealBuildTool
 				HashSet<string> FilterDirectories = new HashSet<string>();
 				UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform);
 
+				Dictionary<DirectoryReference, string> DirectoryToForceIncludePaths = new Dictionary<DirectoryReference, string>();
 				foreach (AliasedFile AliasedFile in LocalAliasedFiles)
 				{
 					// No need to add the root directory relative to the project (it would just be an empty string!)
@@ -926,8 +1015,32 @@ namespace UnrealBuildTool
 						FiltersFileIsNeeded = EnsureFilterPathExists(AliasedFile.ProjectPath, VCFiltersFileContent, FilterDirectories);
 					}
 
+					DirectoryReference Directory = AliasedFile.Location.Directory;
+
+					string ForceIncludePaths;
+					if (!DirectoryToForceIncludePaths.TryGetValue(Directory, out ForceIncludePaths))
+					{
+						for(DirectoryReference ParentDir = Directory; ParentDir != null; ParentDir = ParentDir.ParentDirectory)
+						{
+							if(ModuleDirToForceIncludePaths.TryGetValue(ParentDir, out ForceIncludePaths))
+							{
+								break;
+							}
+						}
+						DirectoryToForceIncludePaths[Directory] = ForceIncludePaths;
+					}
+
 					string VCFileType = GetVCFileType(AliasedFile.FileSystemPath);
-					VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\"/>", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
+					if (ForceIncludePaths == null)
+					{
+						VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\"/>", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
+					}
+					else
+					{
+						VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\">", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
+						VCProjectFileContent.AppendLine("      <ForcedIncludeFiles>$(NMakeForcedIncludes);{0}</ForcedIncludeFiles>", ForceIncludePaths);
+						VCProjectFileContent.AppendLine("    </{0}>", VCFileType);
+					}
 
 					if (!String.IsNullOrWhiteSpace(AliasedFile.ProjectPath))
 					{
@@ -963,19 +1076,6 @@ namespace UnrealBuildTool
 					}
 				}
 				VCProjectFileContent.AppendLine("</SourcePath>");
-				VCProjectFileContent.AppendLine("  </PropertyGroup>");
-			}
-
-			// Write IntelliSense info
-			{
-				// @todo projectfiles: Currently we are storing defines/include paths for ALL configurations rather than using ConditionString and storing
-				//      this data uniquely for each target configuration.  IntelliSense may behave better if we did that, but it will result in a LOT more
-				//      data being stored into the project file, and might make the IDE perform worse when switching configurations!
-				VCProjectFileContent.AppendLine("  <PropertyGroup>");
-				VCProjectFileContent.AppendLine("    <NMakePreprocessorDefinitions>$(NMakePreprocessorDefinitions){0}</NMakePreprocessorDefinitions>", (VCPreprocessorDefinitions.Length > 0 ? (";" + VCPreprocessorDefinitions) : ""));
-				VCProjectFileContent.AppendLine("    <NMakeIncludeSearchPath>$(NMakeIncludeSearchPath){0}</NMakeIncludeSearchPath>", (VCIncludeSearchPaths.Length > 0 ? (";" + VCIncludeSearchPaths) : ""));
-				VCProjectFileContent.AppendLine("    <NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>");
-				VCProjectFileContent.AppendLine("    <NMakeAssemblySearchPath>$(NMakeAssemblySearchPath)</NMakeAssemblySearchPath>");
 				VCProjectFileContent.AppendLine("  </PropertyGroup>");
 			}
 
@@ -1239,7 +1339,7 @@ namespace UnrealBuildTool
 			string UProjectPath = "";
 			if (IsForeignProject)
 			{
-				UProjectPath = "\"$(SolutionDir)$(ProjectName).uproject\"";
+				UProjectPath = String.Format("\"{0}\"", InsertPathVariables(Combination.ProjectTarget.UnrealProjectFilePath));
 			}
 
 			string ConditionString = "Condition=\"'$(Configuration)|$(Platform)'=='" + Combination.ProjectConfigurationAndPlatformName + "'\"";
@@ -1430,6 +1530,19 @@ namespace UnrealBuildTool
 					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0} {1}</NMakeReBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Rebuild.bat"))), BuildArguments.ToString());
 					VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>{0} {1}</NMakeCleanCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Clean.bat"))), BuildArguments.ToString());
 					VCProjectFileContent.AppendLine("    <NMakeOutput>{0}</NMakeOutput>", NormalizeProjectPath(NMakePath.FullName));
+
+					if (TargetRulesObject.CppStandard >= CppStandardVersion.Latest)
+					{
+						VCProjectFileContent.AppendLine("    <AdditionalOptions>/std:c++latest</AdditionalOptions>");
+					}
+					else if (TargetRulesObject.CppStandard >= CppStandardVersion.Cpp17)
+					{
+						VCProjectFileContent.AppendLine("    <AdditionalOptions>/std:c++17</AdditionalOptions>");
+					}
+					else if (TargetRulesObject.CppStandard >= CppStandardVersion.Cpp14)
+					{
+						VCProjectFileContent.AppendLine("    <AdditionalOptions>/std:c++14</AdditionalOptions>");
+					}
 
 					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client || TargetRulesObject.Type == TargetType.Server)
 					{

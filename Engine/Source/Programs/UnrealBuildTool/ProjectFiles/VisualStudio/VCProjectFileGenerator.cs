@@ -73,7 +73,7 @@ namespace UnrealBuildTool
 		/// Whether to generate per-file intellisense data.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		bool bUsePerFileIntellisense = false;
+		bool bUsePerFileIntellisense = true;
 
 		/// <summary>
 		/// Whether to include a dependency on ShaderCompileWorker when generating project files for the editor.
@@ -121,6 +121,11 @@ namespace UnrealBuildTool
 			{
 				BuildToolOverride = "-2019";
 			}
+		}
+
+		public override string[] GetTargetArguments(string[] Arguments)
+		{
+			return Arguments.Where(s => string.Equals(s, BuildToolOverride, StringComparison.InvariantCultureIgnoreCase)).ToArray();
 		}
 
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")

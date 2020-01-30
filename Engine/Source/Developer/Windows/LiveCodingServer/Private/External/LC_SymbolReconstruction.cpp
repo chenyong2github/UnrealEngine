@@ -26,12 +26,10 @@ void symbols::ReconstructFromExecutableCoff
 	const coff::CoffDB* coffDb,
 	const types::StringSet& strippedSymbols, 
 	const symbols::ObjPath& objPath,
-	const symbols::CompilandDB* compilandDb,
 	const symbols::ContributionDB* contributionDb,
 	const symbols::ThunkDB* thunkDb,
 	const symbols::ImageSectionDB* imageSectionDb,
-	symbols::SymbolDB* symbolDB,
-	DiaSymbolCache* diaSymbolCache
+	symbols::SymbolDB* symbolDB
 )
 {
 	const executable::PreferredBase imageBase = executable::GetPreferredBase(image);
@@ -161,7 +159,7 @@ walkOpenSymbols:
 			const symbols::Contribution* symbolContribution = symbols::FindContributionByRVA(contributionDb, srcSymbol->rva);
 			if (symbolContribution)
 			{
-				const ImmutableString& contributingCompiland = symbols::GetContributionCompilandName(compilandDb, contributionDb, symbolContribution);
+				const ImmutableString& contributingCompiland = symbols::GetContributionCompilandName(contributionDb, symbolContribution);
 				if (contributingCompiland != objPath)
 				{
 					LC_LOG_DEV("Not walking symbol %s from contribution in different file %s", srcSymbolName.c_str(), contributingCompiland.c_str());
@@ -453,9 +451,17 @@ walkOpenSymbols:
 	// if both match, we can finally check the symbol's names to ensure that we found the correct contribution.
 	// from there, we can calculate the symbol's section-relative offset and reconstruct its RVA.
 
-	// start by gathering all static functions and symbols which haven't been found already.
+	// start by gathering all static functions and symbols which haven't been found already
 	LC_LOG_DEV("Reconstructing symbol RVAs from executable contributions");
 	LC_LOG_INDENT_DEV;
+
+	// fetch all contributions for the .obj we're trying to reconstruct
+	const symbols::ContributionDB::ContributionsPerCompiland* contributionsForThisCompiland = symbols::GetContributionsForCompilandName(contributionDb, objPath);
+	if (!contributionsForThisCompiland)
+	{
+		LC_ERROR_DEV("Cannot find contributions for compiland %s", objPath.c_str());
+		return;
+	}
 
 	types::vector<const coff::Symbol*> missingSymbols;
 	missingSymbols.reserve(unknownSymbolsToFind);
@@ -464,8 +470,20 @@ walkOpenSymbols:
 		for (size_t i = 0u; i < count; ++i)
 		{
 			const coff::Symbol* symbol = coffDb->symbols[i];
-			const ImmutableString& symbolName = coff::GetSymbolName(coffDb, symbol);
 
+			// if we are in our second pass (or later), check whether we tried reconstructing this symbol already
+			if (pass > 0u)
+			{
+				const auto it = triedReconstructingAlready.find(symbol);
+				if (it != triedReconstructingAlready.end())
+				{
+					// tried already
+					continue;
+				}
+			}
+			triedReconstructingAlready.insert(symbol);
+
+			const ImmutableString& symbolName = coff::GetSymbolName(coffDb, symbol);
 			if (strippedSymbols.find(symbolName) != strippedSymbols.end())
 			{
 				// the missing symbol is one we stripped
@@ -524,25 +542,22 @@ walkOpenSymbols:
 		}
 	}
 
-	// next try finding the missing symbols
+	// next try finding the missing symbols.
+	// NOTE: this is carefully constructed to only run into O(N²) in rare edge cases, because the original O(N²) algorithm
+	// caused a 25-30s slowdown for some users.
 	const size_t missingSymbolCount = missingSymbols.size();
+
+	// TODO: we use uint64_t to store the RVA and whether the missing symbol is an exception clause.
+	// once we have our own PDB loading in place, we don't need this anymore and can use a set of uint32_t.
+	types::unordered_set<uint64_t> potentialContributionRVAsAcrossAllMissingSymbols;
+	potentialContributionRVAsAcrossAllMissingSymbols.reserve(contributionsForThisCompiland->size());
+
 	for (size_t i = 0u; i < missingSymbolCount; ++i)
 	{
 		const coff::Symbol* symbol = missingSymbols[i];
 
-		// if we are in our second pass (or later), check whether we tried reconstructing this symbol already
-		if (pass > 0u)
-		{
-			const auto it = triedReconstructingAlready.find(symbol);
-			if (it != triedReconstructingAlready.end())
-			{
-				// tried already
-				continue;
-			}
-		}
-		triedReconstructingAlready.insert(symbol);
-
 		const ImmutableString& missingSymbolName = coff::GetSymbolName(coffDb, symbol);
+		const uint64_t isExceptionClauseSymbol = symbols::IsExceptionClauseSymbol(missingSymbolName) ? (1ull << 32ull) : 0ull;
 
 		const coff::Section& coffSection = coffDb->sections[symbol->sectionIndex];
 
@@ -567,14 +582,9 @@ walkOpenSymbols:
 		const uint32_t startOfImageSection = imageSection->rva;
 		const uint32_t endOfImageSection = startOfImageSection + imageSection->size;
 
-		// walk all contributions that are part of the image section.
-		// fetch all potential contributions, they might be ambiguous at first because we delay
-		// costly checks as far as possible.
-		types::vector<const symbols::Contribution*> potentialContributions;
-		potentialContributions.reserve(1024u);
-
-		auto contributionIt = std::lower_bound(contributionDb->contributions.begin(), contributionDb->contributions.end(), startOfImageSection, &HasLowerRVA);
-		while (contributionIt != contributionDb->contributions.end())
+		// walk all contributions that are part of the image section and discard the ones that cannot match the symbol in question
+		auto contributionIt = std::lower_bound(contributionsForThisCompiland->begin(), contributionsForThisCompiland->end(), startOfImageSection, &HasLowerRVA);
+		while (contributionIt != contributionsForThisCompiland->end())
 		{
 			const symbols::Contribution* contribution = *contributionIt;
 			++contributionIt;
@@ -595,138 +605,60 @@ walkOpenSymbols:
 				// the symbol cannot be part of this contributing section because it is not large enough
 				continue;
 			}
-			else if (symbols::GetContributionCompilandName(compilandDb, contributionDb, contribution) != objPath)
-			{
-				// the section contribution originated from a different .obj file
-				continue;
-			}
 			else
 			{
 				// this is a potential contribution, store it for now
-				potentialContributions.push_back(contribution);
-			}
-		}
-
-		const symbols::Contribution* foundContribution = nullptr;
-		const size_t potentialContributionsCount = potentialContributions.size();
-
-		bool ambiguous = false;
-		if (potentialContributionsCount == 0u)
-		{
-			// absolutely no contribution found that matches file and size.
-			// this symbol/contribution has been stripped out by the linker, so don't report an error.
-			continue;
-		}
-		else
-		{
-			LC_LOG_DEV("Found %u candidate(s)", potentialContributionsCount);
-
-			// there are one or more potential contributions, filter them using the symbols' names.
-			// filtering is done by checking whether the undecorated name of the contribution's symbol is
-			// part of the undecorated name of the COFF symbol.
-			// note that we cannot do that with mangled names, because the PDB doesn't hold them for static symbols,
-			// and they cannot be generated from undecorated ones in all cases, e.g. for symbols in an anonymous namespace.
-			const std::string& coffUndecoratedName = symbols::UndecorateSymbolName(missingSymbolName);
-			for (auto it = potentialContributions.begin(); it != potentialContributions.end(); ++it)
-			{
-				const symbols::Contribution* contribution = *it;
-
-				// if there already is at least one symbol that spans the potential symbol's range,
-				// this contribution cannot be the correct one.
-				const Symbol* potentialSymbol = symbols::FindSymbolByRVA(symbolDB, contribution->rva);
-				if (potentialSymbol)
-				{
-					const uint32_t rangeStart = potentialSymbol->rva;
-
-					IDiaSymbol* diaSymbol = dia::FindSymbolByRVA(provider->diaSession, contribution->rva);
-					if (diaSymbol)
-					{
-						const uint32_t potentialSymbolSize = dia::GetSymbolSize(diaSymbol);
-						diaSymbol->Release();
-
-						const uint32_t rangeEnd = rangeStart + potentialSymbolSize;
-						const uint32_t potentialRva = contribution->rva + sectionRelativeAddress;
-
-						if (potentialRva >= rangeStart && potentialRva < rangeEnd)
-						{
-							// there already is a symbol that spans the potential RVA's range.
-							// however, for certain symbols such as exception clauses, this is OK.
-							if (!symbols::IsExceptionClauseSymbol(missingSymbolName))
-							{
-								continue;
-							}
-						}
-					}
-				}
-
 				const uint32_t rva = contribution->rva + sectionRelativeAddress;
-
-				// try to find the symbol in our local cache first
-				std::wstring diaName;
-				{
-					const auto diaSymbolIt = diaSymbolCache->find(rva);
-					if (diaSymbolIt == diaSymbolCache->end())
-					{
-						// the symbol could not be found in our cache, now try the PDB and store
-						// the lookup into the cache.
-						// exception clauses are labels stored as children of functions.
-						IDiaSymbol* diaSymbol = symbols::IsExceptionClauseSymbol(missingSymbolName)
-							? dia::FindLabelByRva(provider->diaSession, rva)
-							: dia::FindSymbolByRVA(provider->diaSession, rva);
-
-						if (diaSymbol)
-						{
-							const dia::SymbolName& diaSymbolName = dia::GetSymbolName(diaSymbol);
-							diaName = diaSymbolName.GetString();
-
-							diaSymbol->Release();
-						}
-
-						diaSymbolCache->insert(std::make_pair(rva, diaName));
-					}
-					else
-					{
-						// the symbol is in the cache, grab its name
-						diaName = diaSymbolIt->second;
-					}
-				}
-
-				if (diaName.length() == 0u)
-				{
-					// could not find the correct symbol, skip this contribution
-					continue;
-				}
-
-				if (!string::Contains(string::ToWideString(coffUndecoratedName).c_str(), diaName.c_str()))
-				{
-					// names don't match, skip this contribution
-					continue;
-				}
-
-				// possible candidate
-				if (foundContribution)
-				{
-					// there is already a candidate, which means that resolution was ambiguous
-					ambiguous = true;
-					break;
-				}
-
-				foundContribution = contribution;
+				potentialContributionRVAsAcrossAllMissingSymbols.insert(isExceptionClauseSymbol | rva);
 			}
 		}
+	}
 
-		if (ambiguous)
+	// populate a cache of all DIA names for all potential contributions once
+	types::StringMap<uint32_t> diaNameToRva;
+	diaNameToRva.reserve(potentialContributionRVAsAcrossAllMissingSymbols.size());
+
+	types::unordered_map<uint32_t, IDiaSymbol*> rvaToDiaSymbol;
+	rvaToDiaSymbol.reserve(potentialContributionRVAsAcrossAllMissingSymbols.size());
+
+	for (auto potentialContributionsIt : potentialContributionRVAsAcrossAllMissingSymbols)
+	{
+		const uint64_t setData = potentialContributionsIt;
+		const uint32_t rva = setData & 0x00000000FFFFFFFFull;
+		const bool isExceptionClauseSymbol = (setData & 0xFFFFFFFF00000000ull) != 0ull;
+
+		// TODO: no longer needs to be special-cased once our own loading of PDB files is in place
+		// exception clauses are labels stored as children of functions, so they need to be special-cased
+		IDiaSymbol* diaSymbol = isExceptionClauseSymbol
+			? dia::FindLabelByRva(provider->diaSession, rva)
+			: dia::FindSymbolByRVA(provider->diaSession, rva);
+
+		if (diaSymbol)
 		{
-			LC_ERROR_DEV("Contributions for symbol %s are ambiguous", missingSymbolName.c_str());
-			continue;
+			const std::wstring& diaName = dia::GetSymbolName(diaSymbol).GetString();
+			const ImmutableString& name = string::ToUtf8String(diaName);
+
+			diaNameToRva.insert(std::make_pair(name, rva));
+			rvaToDiaSymbol.insert(std::make_pair(rva, diaSymbol));
 		}
+	}
 
-		// did we find a match?
-		if (foundContribution)
+	// perform the actual lookup using the cache we just built
+	for (size_t i = 0u; i < missingSymbolCount; ++i)
+	{
+		const coff::Symbol* symbol = missingSymbols[i];
+
+		const ImmutableString& missingSymbolName = coff::GetSymbolName(coffDb, symbol);
+		const std::string& coffUndecoratedName = symbols::UndecorateSymbolName(missingSymbolName);
+
+		auto diaNameIt = diaNameToRva.find(ImmutableString(coffUndecoratedName.c_str()));
+		if (diaNameIt != diaNameToRva.end())
 		{
-			const uint32_t rva = foundContribution->rva + sectionRelativeAddress;
+			// fast path.
+			// there is a symbol that matches the exact name of the symbol in the .obj file
+			const uint32_t rva = diaNameIt->second;
 
-			LC_LOG_DEV("Found symbol %s at 0x%X", missingSymbolName.c_str(), rva);
+			LC_LOG_DEV("Fast path, found symbol %s at 0x%X", missingSymbolName.c_str(), rva);
 
 			symbols::Symbol* newSymbol = LC_NEW(&g_symbolAllocator, symbols::Symbol) { missingSymbolName, rva };
 
@@ -746,12 +678,149 @@ walkOpenSymbols:
 		}
 		else
 		{
-			// if we had potential candidates but could not find a symbol, there is still a possibility that the
-			// symbol has been stripped by the linker due to the /Gw option that puts data symbols into separate
-			// sections. this happens in ComplexClassGlobal.cpp in our test cases as well.
-			LC_WARNING_DEV("Could not find symbol %s in compiland %s, possibly stripped by linker",
-				coff::GetSymbolName(coffDb, symbol).c_str(),
-				objPath.c_str());
+			// slow path.
+			// unfortunately, there is no exact match, but there might be several symbols/contributions with
+			// a name that partially matches that of the symbol in the .obj file.
+			// in that case, we check all contributions for this symbol, check whether its name is contained in that of
+			// the .obj file, and check all its parents and their names as well.
+			// if we find a symbol that matches all of the above, we have a worthy candidate. we can only accept this
+			// symbol if it's the *only* candidate though. in case of several ambiguous contributions, we'd rather not
+			// make a wrong guess.
+			const std::wstring& wideCoffUndecoratedName = string::ToWideString(coffUndecoratedName);
+
+			types::unordered_set<const symbols::Contribution*> potentialContributions;
+			potentialContributions.reserve(contributionsForThisCompiland->size());
+
+			const coff::Section& coffSection = coffDb->sections[symbol->sectionIndex];
+			const uint32_t sectionRelativeAddress = symbol->rva - coffSection.rawDataRva;
+
+			// find this section in the image
+			const symbols::ImageSection* imageSection = symbols::FindImageSectionByName(imageSectionDb, coffSection.name);
+			if (!imageSection)
+			{
+				LC_ERROR_DEV("Cannot find image section %s", coffSection.name.c_str());
+				continue;
+			}
+
+			const uint32_t startOfImageSection = imageSection->rva;
+			const uint32_t endOfImageSection = startOfImageSection + imageSection->size;
+
+			// walk all contributions that are part of the image section and discard the ones that cannot match the symbol in question
+			auto contributionIt = std::lower_bound(contributionsForThisCompiland->begin(), contributionsForThisCompiland->end(), startOfImageSection, &HasLowerRVA);
+			while (contributionIt != contributionsForThisCompiland->end())
+			{
+				const symbols::Contribution* contribution = *contributionIt;
+				++contributionIt;
+
+				if (contribution->rva >= endOfImageSection)
+				{
+					// no more contributions that belong to this section
+					break;
+				}
+
+				if (contribution->size != coffSection.rawDataSize)
+				{
+					// section size does not match
+					continue;
+				}
+				else if (sectionRelativeAddress >= contribution->size)
+				{
+					// the symbol cannot be part of this contributing section because it is not large enough
+					continue;
+				}
+				else
+				{
+					// this is a potential contribution, store it for now
+					potentialContributions.emplace(contribution);
+				}
+			}
+
+			types::unordered_set<uint32_t> worthyCandidates;
+			worthyCandidates.reserve(potentialContributions.size());
+
+			for (auto it = potentialContributions.begin(); it != potentialContributions.end(); ++it)
+			{
+				const symbols::Contribution* contribution = *it;
+				const uint32_t rva = contribution->rva + sectionRelativeAddress;
+
+				// get the symbol name at the potential RVA from the DIA cache
+				{
+					auto cacheIt = rvaToDiaSymbol.find(rva);
+					if (cacheIt != rvaToDiaSymbol.end())
+					{
+						IDiaSymbol* diaSymbol = cacheIt->second;
+						const std::wstring& diaName = dia::GetSymbolName(diaSymbol).GetString();
+
+						if (string::Contains(wideCoffUndecoratedName.c_str(), diaName.c_str()))
+						{
+							// the name partially matches, now check all its parents
+							bool doAllParentsMatch = true;
+							IDiaSymbol* parent = dia::GetParent(diaSymbol);
+							while (parent)
+							{
+								// we are only interested in parents which are functions
+								if (!dia::IsFunction(parent))
+								{
+									break;
+								}
+
+								const std::wstring& parentName = dia::GetSymbolName(parent).GetString();
+								if (string::Contains(wideCoffUndecoratedName.c_str(), parentName.c_str()))
+								{
+									parent = dia::GetParent(parent);
+								}
+								else
+								{
+									doAllParentsMatch = false;
+									break;
+								}
+							}
+
+							if (doAllParentsMatch)
+							{
+								worthyCandidates.emplace(rva);
+							}
+						}
+					}
+				}
+			}
+
+			if (worthyCandidates.size() == 1u)
+			{
+				// there was only one worthy candidate
+				const uint32_t rva = *worthyCandidates.begin();
+
+				LC_LOG_DEV("Slow path, found symbol %s at 0x%X", missingSymbolName.c_str(), rva);
+
+				symbols::Symbol* newSymbol = LC_NEW(&g_symbolAllocator, symbols::Symbol) { missingSymbolName, rva };
+
+				symbolDB->symbolsByName.emplace(missingSymbolName, newSymbol);
+				symbolDB->symbolsByRva.emplace(rva, newSymbol);
+
+				openSymbols.push_back(symbol);
+
+				--unknownSymbolsToFind;
+
+				// did we already find all symbols?
+				if (unknownSymbolsToFind == 0u)
+				{
+					LC_LOG_DEV("All symbols known, exiting");
+					return;
+				}
+			}
+			else if (worthyCandidates.size() == 0u)
+			{
+				// if we had potential candidates but could not find a symbol, there is still a possibility that the
+				// symbol has been stripped by the linker due to the /Gw option that puts data symbols into separate
+				// sections. this happens in ComplexClassGlobal.cpp in our test cases as well.
+				LC_WARNING_DEV("Could not find symbol %s in compiland %s, possibly stripped by linker",
+					coff::GetSymbolName(coffDb, symbol).c_str(),
+					objPath.c_str());
+			}
+			else
+			{
+				LC_ERROR_DEV("Contributions for symbol %s are ambiguous", missingSymbolName.c_str());
+			}
 		}
 	}
 

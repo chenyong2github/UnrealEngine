@@ -11,133 +11,140 @@ using System.IO;
 using System.Diagnostics;
 using System.Xml;
 using System.Globalization;
+using Tools.DotNETCommon;
 
 namespace iPhonePackager
 {
-	/// <summary>
-	/// Represents the salient parts of a mobile provision, wrt. using it for code signing
-	/// </summary>
-	public class MobileProvision
-	{
-		public object Tag;
+    /// <summary>
+    /// Represents the salient parts of a mobile provision, wrt. using it for code signing
+    /// </summary>
+    public class MobileProvision
+    {
+        public object Tag;
 
-		public string ApplicationIdentifierPrefix = null;
-		public string ApplicationIdentifier = null;
-		public List<X509Certificate2> DeveloperCertificates = new List<X509Certificate2>();
-		public List<string> ProvisionedDeviceIDs;
-		public string ProvisionName;
-		public bool bDebug;
-		public Utilities.PListHelper Data;
-		public DateTime CreationDate;
-		public DateTime ExpirationDate;
+        public string ApplicationIdentifierPrefix = null;
+        public string ApplicationIdentifier = null;
+        public List<X509Certificate2> DeveloperCertificates = new List<X509Certificate2>();
+        public List<string> ProvisionedDeviceIDs;
+        public string ProvisionName;
+        public bool bDebug;
+        public Utilities.PListHelper Data;
+        public DateTime CreationDate;
+        public DateTime ExpirationDate;
         public string FileName;
         public string UUID;
         public string Platform;
 
-        public static string FindCompatibleProvision(string CFBundleIdentifier, out bool bNameMatch, bool bCheckCert = true, bool bCheckIdentifier = true, bool bCheckDistro = true)
-		{
-			bNameMatch = false;
-
-			// remap the gamename if necessary
-			string GameName = Program.GameName;
-			if (GameName == "UE4Game")
-			{
-				if (Config.ProjectFile.Length > 0)
-				{
-					GameName = Path.GetFileNameWithoutExtension(Config.ProjectFile);
-				}
-			}
-
-			// ensure the provision directory exists
-			if (!Directory.Exists(Config.ProvisionDirectory))
-			{
-				Directory.CreateDirectory(Config.ProvisionDirectory);
-			}
-
-            if (Config.bProvision)
-			{
-				if (File.Exists(Config.ProvisionDirectory + "/" + Config.Provision))
-				{
-					return Config.ProvisionDirectory + "/" + Config.Provision;
-				}
-			}
-
-			#region remove after we provide an install mechanism
-			// copy all of the provisions from the game directory to the library
-			if (!String.IsNullOrEmpty(Config.ProjectFile))
-			{
+        public static void CacheMobileProvisions()
+        {
+            // copy all of the provisions from the game directory to the library
+            if (!String.IsNullOrEmpty(Config.ProjectFile))
+            {
                 var ProjectFileBuildIOSPath = Path.GetDirectoryName(Config.ProjectFile) + "/Build/" + Config.OSString + "/";
                 if (Directory.Exists(ProjectFileBuildIOSPath))
-				{
-					foreach (string Provision in Directory.EnumerateFiles(ProjectFileBuildIOSPath, "*.mobileprovision", SearchOption.AllDirectories))
-					{
-						if (!File.Exists(Config.ProvisionDirectory + Path.GetFileName(Provision)) || File.GetLastWriteTime(Config.ProvisionDirectory + Path.GetFileName(Provision)) < File.GetLastWriteTime(Provision))
-						{
-							FileInfo DestFileInfo;
-							if (File.Exists(Config.ProvisionDirectory + Path.GetFileName(Provision)))
-							{
-								DestFileInfo = new FileInfo(Config.ProvisionDirectory + Path.GetFileName(Provision));
-								DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
-							}
-							File.Copy(Provision, Config.ProvisionDirectory + Path.GetFileName(Provision), true);
-							DestFileInfo = new FileInfo(Config.ProvisionDirectory + Path.GetFileName(Provision));
-							DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
-						}
-					}
-				}
-			}
+                {
+                    foreach (string Provision in Directory.EnumerateFiles(ProjectFileBuildIOSPath, "*.mobileprovision", SearchOption.AllDirectories))
+                    {
+                        if (!File.Exists(Config.ProvisionDirectory + Path.GetFileName(Provision)) || File.GetLastWriteTime(Config.ProvisionDirectory + Path.GetFileName(Provision)) < File.GetLastWriteTime(Provision))
+                        {
+                            FileInfo DestFileInfo;
+                            if (File.Exists(Config.ProvisionDirectory + Path.GetFileName(Provision)))
+                            {
+                                DestFileInfo = new FileInfo(Config.ProvisionDirectory + Path.GetFileName(Provision));
+                                DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
+                            }
+                            File.Copy(Provision, Config.ProvisionDirectory + Path.GetFileName(Provision), true);
+                            DestFileInfo = new FileInfo(Config.ProvisionDirectory + Path.GetFileName(Provision));
+                            DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
+                        }
+                    }
+                }
+            }
 
-			// copy all of the provisions from the engine directory to the library
-			{
-				if (Directory.Exists(Config.EngineBuildDirectory))
-				{
-					foreach (string Provision in Directory.EnumerateFiles(Config.EngineBuildDirectory, "*.mobileprovision", SearchOption.AllDirectories))
-					{
-						if (!File.Exists(Config.ProvisionDirectory + Path.GetFileName(Provision)) || File.GetLastWriteTime(Config.ProvisionDirectory + Path.GetFileName(Provision)) < File.GetLastWriteTime(Provision))
-						{
-							FileInfo DestFileInfo;
-							if (File.Exists(Config.ProvisionDirectory + Path.GetFileName(Provision)))
-							{
-								DestFileInfo = new FileInfo(Config.ProvisionDirectory + Path.GetFileName(Provision));
-								DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
-							}
-							File.Copy(Provision, Config.ProvisionDirectory + Path.GetFileName(Provision), true);
-							DestFileInfo = new FileInfo(Config.ProvisionDirectory + Path.GetFileName(Provision));
-							DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
-						}
-					}
-				}
-			}
-			#endregion
+            // copy all of the provisions from the engine directory to the library
+            {
+                string ProvisionDirectory = Environment.GetEnvironmentVariable("ProvisionDirectory") ?? Config.EngineBuildDirectory;
+                if (Directory.Exists(ProvisionDirectory))
+                {
+                    foreach (string Provision in Directory.EnumerateFiles(ProvisionDirectory, "*.mobileprovision", SearchOption.AllDirectories))
+                    {
+                        if (!File.Exists(Config.ProvisionDirectory + Path.GetFileName(Provision)) || File.GetLastWriteTime(Config.ProvisionDirectory + Path.GetFileName(Provision)) < File.GetLastWriteTime(Provision))
+                        {
+                            FileInfo DestFileInfo;
+                            if (File.Exists(Config.ProvisionDirectory + Path.GetFileName(Provision)))
+                            {
+                                DestFileInfo = new FileInfo(Config.ProvisionDirectory + Path.GetFileName(Provision));
+                                DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
+                            }
+                            File.Copy(Provision, Config.ProvisionDirectory + Path.GetFileName(Provision), true);
+                            DestFileInfo = new FileInfo(Config.ProvisionDirectory + Path.GetFileName(Provision));
+                            DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
+                        }
+                    }
+                }
+            }
+        }
 
-			// cache the provision library
-			Dictionary<string, MobileProvision> ProvisionLibrary = new Dictionary<string, MobileProvision>();
-			foreach (string Provision in Directory.EnumerateFiles(Config.ProvisionDirectory, "*.mobileprovision"))
-			{
-				MobileProvision p = MobileProvisionParser.ParseFile(Provision);
-				ProvisionLibrary.Add(Provision, p);
-                if (p.FileName.Contains(p.UUID) && !File.Exists(Path.Combine(Config.ProvisionDirectory, "UE4_"+p.UUID+".mobileprovision")))
+        public static string FindCompatibleProvision(string CFBundleIdentifier, out bool bNameMatch, bool bCheckCert = true, bool bCheckIdentifier = true, bool bCheckDistro = true)
+        {
+            bNameMatch = false;
+
+            // remap the gamename if necessary
+            string GameName = Program.GameName;
+            if (GameName == "UE4Game")
+            {
+                if (Config.ProjectFile.Length > 0)
+                {
+                    GameName = Path.GetFileNameWithoutExtension(Config.ProjectFile);
+                }
+            }
+
+            // ensure the provision directory exists
+            if (!Directory.Exists(Config.ProvisionDirectory))
+            {
+                Directory.CreateDirectory(Config.ProvisionDirectory);
+            }
+
+            if (Config.bProvision)
+            {
+                if (File.Exists(Config.ProvisionDirectory + "/" + Config.Provision))
+                {
+                    return Config.ProvisionDirectory + "/" + Config.Provision;
+                }
+            }
+
+            #region remove after we provide an install mechanism
+            CacheMobileProvisions();
+            #endregion
+
+            // cache the provision library
+            Dictionary<string, MobileProvision> ProvisionLibrary = new Dictionary<string, MobileProvision>();
+            foreach (string Provision in Directory.EnumerateFiles(Config.ProvisionDirectory, "*.mobileprovision"))
+            {
+                MobileProvision p = MobileProvisionParser.ParseFile(Provision);
+                ProvisionLibrary.Add(Provision, p);
+                if (p.FileName.Contains(p.UUID) && !File.Exists(Path.Combine(Config.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision")))
                 {
                     File.Copy(Provision, Path.Combine(Config.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"));
                     p = MobileProvisionParser.ParseFile(Path.Combine(Config.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"));
                     ProvisionLibrary.Add(Path.Combine(Config.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"), p);
                 }
-			}
+            }
 
-			Program.Log("Searching for mobile provisions that match the game '{0}' (distribution: {3}) with CFBundleIdentifier='{1}' in '{2}'", GameName, CFBundleIdentifier, Config.ProvisionDirectory, Config.bForDistribution);
+            Program.Log("Searching for mobile provisions that match the game '{0}' (distribution: {3}) with CFBundleIdentifier='{1}' in '{2}'", GameName, CFBundleIdentifier, Config.ProvisionDirectory, Config.bForDistribution);
 
-			// check the cache for a provision matching the app id (com.company.Game)
-			// First checking for a contains match and then for a wildcard match
-			for (int Phase = -1; Phase < 3; ++Phase)
-			{
+            // check the cache for a provision matching the app id (com.company.Game)
+            // First checking for a contains match and then for a wildcard match
+            for (int Phase = -1; Phase < 3; ++Phase)
+            {
                 if (Phase == -1 && string.IsNullOrEmpty(Config.ProvisionUUID))
                 {
                     continue;
                 }
-				foreach (KeyValuePair<string, MobileProvision> Pair in ProvisionLibrary)
-				{
-					string DebugName = Path.GetFileName(Pair.Key);
-					MobileProvision TestProvision = Pair.Value;
+                foreach (KeyValuePair<string, MobileProvision> Pair in ProvisionLibrary)
+                {
+                    string DebugName = Path.GetFileName(Pair.Key);
+                    MobileProvision TestProvision = Pair.Value;
 
                     // make sure the file is not managed by Xcode
                     if (Path.GetFileName(TestProvision.FileName).ToLower().Equals(TestProvision.UUID.ToLower() + ".mobileprovision"))
@@ -147,18 +154,18 @@ namespace iPhonePackager
 
                     Program.LogVerbose("  Phase {0} considering provision '{1}' named '{2}'", Phase, DebugName, TestProvision.ProvisionName);
 
-					if (TestProvision.ProvisionName == "iOS Team Provisioning Profile: " + CFBundleIdentifier)
-					{
-						Program.LogVerbose("  Failing as provisioning is automatic");
-						continue;
-					}
+                    if (TestProvision.ProvisionName == "iOS Team Provisioning Profile: " + CFBundleIdentifier)
+                    {
+                        Program.LogVerbose("  Failing as provisioning is automatic");
+                        continue;
+                    }
 
-					// check to see if the platform is the same as what we are looking for
-					if (!string.IsNullOrEmpty(TestProvision.Platform) && TestProvision.Platform != Config.OSString && !string.IsNullOrEmpty(Config.OSString))
-					{
-						//Program.LogVerbose("  Failing platform {0} Config: {1}", TestProvision.Platform, Config.OSString);
-						continue;
-					}
+                    // check to see if the platform is the same as what we are looking for
+                    if (!string.IsNullOrEmpty(TestProvision.Platform) && TestProvision.Platform != Config.OSString && !string.IsNullOrEmpty(Config.OSString))
+                    {
+                        //Program.LogVerbose("  Failing platform {0} Config: {1}", TestProvision.Platform, Config.OSString);
+                        continue;
+                    }
 
                     // Validate the name
                     bool bPassesNameCheck = false;
@@ -168,325 +175,325 @@ namespace iPhonePackager
                         bNameMatch = bPassesNameCheck;
                     }
                     else if (Phase == 0)
-					{
-						bPassesNameCheck = TestProvision.ApplicationIdentifier.Substring(TestProvision.ApplicationIdentifierPrefix.Length+1) == CFBundleIdentifier;
-						bNameMatch = bPassesNameCheck;
-					}
-					else if (Phase == 1)
-					{
-						if (TestProvision.ApplicationIdentifier.Contains("*"))
-						{
-							string CompanyName = TestProvision.ApplicationIdentifier.Substring(TestProvision.ApplicationIdentifierPrefix.Length + 1);
-							if (CompanyName != "*")
-							{
-								CompanyName = CompanyName.Substring(0, CompanyName.LastIndexOf("."));
-								bPassesNameCheck = CFBundleIdentifier.StartsWith(CompanyName);
-							}
-						}
-					}
-					else
-					{
-						if (TestProvision.ApplicationIdentifier.Contains("*"))
-						{
-							string CompanyName = TestProvision.ApplicationIdentifier.Substring(TestProvision.ApplicationIdentifierPrefix.Length + 1);
-							bPassesNameCheck = CompanyName == "*";
-						}
-					}
-					if (!bPassesNameCheck && bCheckIdentifier)
-					{
-						Program.LogVerbose("  .. Failed phase {0} name check (provision app ID was {1})", Phase, TestProvision.ApplicationIdentifier);
-						continue;
-					}
+                    {
+                        bPassesNameCheck = TestProvision.ApplicationIdentifier.Substring(TestProvision.ApplicationIdentifierPrefix.Length + 1) == CFBundleIdentifier;
+                        bNameMatch = bPassesNameCheck;
+                    }
+                    else if (Phase == 1)
+                    {
+                        if (TestProvision.ApplicationIdentifier.Contains("*"))
+                        {
+                            string CompanyName = TestProvision.ApplicationIdentifier.Substring(TestProvision.ApplicationIdentifierPrefix.Length + 1);
+                            if (CompanyName != "*")
+                            {
+                                CompanyName = CompanyName.Substring(0, CompanyName.LastIndexOf("."));
+                                bPassesNameCheck = CFBundleIdentifier.StartsWith(CompanyName);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (TestProvision.ApplicationIdentifier.Contains("*"))
+                        {
+                            string CompanyName = TestProvision.ApplicationIdentifier.Substring(TestProvision.ApplicationIdentifierPrefix.Length + 1);
+                            bPassesNameCheck = CompanyName == "*";
+                        }
+                    }
+                    if (!bPassesNameCheck && bCheckIdentifier)
+                    {
+                        Program.LogVerbose("  .. Failed phase {0} name check (provision app ID was {1})", Phase, TestProvision.ApplicationIdentifier);
+                        continue;
+                    }
 
-					if (Config.bForDistribution)
-					{
-						// check to see if this is a distribution provision
-						bool bDistroProv = (TestProvision.ProvisionedDeviceIDs.Count == 0) && !TestProvision.bDebug;
-						if (!bDistroProv)
-						{
-							Program.LogVerbose("  .. Failed distribution check (mode={0}, get-task-allow={1}, #devices={2})", Config.bForDistribution, TestProvision.bDebug, TestProvision.ProvisionedDeviceIDs.Count);
-							continue;
-						}
-					}
-					else
-					{
-						if (bCheckDistro)
-						{
-							bool bPassesDebugCheck = TestProvision.bDebug;
-							if (!bPassesDebugCheck)
-							{
-								Program.LogVerbose("  .. Failed debugging check (mode={0}, get-task-allow={1}, #devices={2})", Config.bForDistribution, TestProvision.bDebug, TestProvision.ProvisionedDeviceIDs.Count);
-								continue;
-							}
-						}
-						else
-						{
-							if (!TestProvision.bDebug)
-							{
-								Config.bForceStripSymbols = true;
-							}
-						}
-					}
+                    if (Config.bForDistribution)
+                    {
+                        // check to see if this is a distribution provision
+                        bool bDistroProv = (TestProvision.ProvisionedDeviceIDs.Count == 0) && !TestProvision.bDebug;
+                        if (!bDistroProv)
+                        {
+                            Program.LogVerbose("  .. Failed distribution check (mode={0}, get-task-allow={1}, #devices={2})", Config.bForDistribution, TestProvision.bDebug, TestProvision.ProvisionedDeviceIDs.Count);
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        if (bCheckDistro)
+                        {
+                            bool bPassesDebugCheck = TestProvision.bDebug;
+                            if (!bPassesDebugCheck)
+                            {
+                                Program.LogVerbose("  .. Failed debugging check (mode={0}, get-task-allow={1}, #devices={2})", Config.bForDistribution, TestProvision.bDebug, TestProvision.ProvisionedDeviceIDs.Count);
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            if (!TestProvision.bDebug)
+                            {
+                                Config.bForceStripSymbols = true;
+                            }
+                        }
+                    }
 
-					// Check to see if the provision is in date
-					DateTime CurrentUTCTime = DateTime.UtcNow;
-					bool bPassesDateCheck = (CurrentUTCTime >= TestProvision.CreationDate) && (CurrentUTCTime < TestProvision.ExpirationDate);
-					if (!bPassesDateCheck)
-					{
-						Program.LogVerbose("  .. Failed time period check (valid from {0} to {1}, but UTC time is now {2})", TestProvision.CreationDate, TestProvision.ExpirationDate, CurrentUTCTime);
-						continue;
-					}
+                    // Check to see if the provision is in date
+                    DateTime CurrentUTCTime = DateTime.UtcNow;
+                    bool bPassesDateCheck = (CurrentUTCTime >= TestProvision.CreationDate) && (CurrentUTCTime < TestProvision.ExpirationDate);
+                    if (!bPassesDateCheck)
+                    {
+                        Program.LogVerbose("  .. Failed time period check (valid from {0} to {1}, but UTC time is now {2})", TestProvision.CreationDate, TestProvision.ExpirationDate, CurrentUTCTime);
+                        continue;
+                    }
 
-					// check to see if we have a certificate for this provision
-					bool bPassesHasMatchingCertCheck = false;
-					if (bCheckCert)
-					{
-						X509Certificate2 Cert = CodeSignatureBuilder.FindCertificate(TestProvision);
-						bPassesHasMatchingCertCheck = (Cert != null);
-						if (bPassesHasMatchingCertCheck && Config.bCert)
-						{
-							bPassesHasMatchingCertCheck &= (CryptoAdapter.GetFriendlyNameFromCert(Cert) == Config.Certificate);
-						}
-					}
-					else
-					{
-						bPassesHasMatchingCertCheck = true;
-					}
+                    // check to see if we have a certificate for this provision
+                    bool bPassesHasMatchingCertCheck = false;
+                    if (bCheckCert)
+                    {
+                        X509Certificate2 Cert = CodeSignatureBuilder.FindCertificate(TestProvision);
+                        bPassesHasMatchingCertCheck = (Cert != null);
+                        if (bPassesHasMatchingCertCheck && Config.bCert)
+                        {
+                            bPassesHasMatchingCertCheck &= (CryptoAdapter.GetFriendlyNameFromCert(Cert) == Config.Certificate);
+                        }
+                    }
+                    else
+                    {
+                        bPassesHasMatchingCertCheck = true;
+                    }
 
-					if (!bPassesHasMatchingCertCheck)
-					{
-						Program.LogVerbose("  .. Failed to find a matching certificate that was in date");
-						continue;
-					}
+                    if (!bPassesHasMatchingCertCheck)
+                    {
+                        Program.LogVerbose("  .. Failed to find a matching certificate that was in date");
+                        continue;
+                    }
 
-					// Made it past all the tests
-					Program.LogVerbose("  Picked '{0}' with AppID '{1}' and Name '{2}' as a matching provision for the game '{3}'", DebugName, TestProvision.ApplicationIdentifier, TestProvision.ProvisionName, GameName);
-					return Pair.Key;
-				}
-			}
+                    // Made it past all the tests
+                    Program.LogVerbose("  Picked '{0}' with AppID '{1}' and Name '{2}' as a matching provision for the game '{3}'", DebugName, TestProvision.ApplicationIdentifier, TestProvision.ProvisionName, GameName);
+                    return Pair.Key;
+                }
+            }
 
-			// check to see if there is already an embedded provision
-			string EmbeddedMobileProvisionFilename = Path.Combine(Config.RepackageStagingDirectory, "embedded.mobileprovision");
+            // check to see if there is already an embedded provision
+            string EmbeddedMobileProvisionFilename = Path.Combine(Config.RepackageStagingDirectory, "embedded.mobileprovision");
 
-			Program.Warning("Failed to find a valid matching mobile provision, will attempt to use the embedded mobile provision instead if present");
-			return EmbeddedMobileProvisionFilename;
-		}
+            Program.Warning("Failed to find a valid matching mobile provision, will attempt to use the embedded mobile provision instead if present");
+            return EmbeddedMobileProvisionFilename;
+        }
 
-		/// <summary>
-		/// Extracts the dict values for the Entitlements key and creates a new full .plist file
-		/// from them (with outer plist and dict keys as well as doctype, etc...)
-		/// </summary>
-		public string GetEntitlementsString(string CFBundleIdentifier, out string TeamIdentifier)
-		{
-			Utilities.PListHelper XCentPList = null;
-			Data.ProcessValueForKey("Entitlements", "dict", delegate(XmlNode ValueNode)
-			{
-				XCentPList = Utilities.PListHelper.CloneDictionaryRootedAt(ValueNode);
-			});
+        /// <summary>
+        /// Extracts the dict values for the Entitlements key and creates a new full .plist file
+        /// from them (with outer plist and dict keys as well as doctype, etc...)
+        /// </summary>
+        public string GetEntitlementsString(string CFBundleIdentifier, out string TeamIdentifier)
+        {
+            Utilities.PListHelper XCentPList = null;
+            Data.ProcessValueForKey("Entitlements", "dict", delegate (XmlNode ValueNode)
+            {
+                XCentPList = Utilities.PListHelper.CloneDictionaryRootedAt(ValueNode);
+            });
 
-			// Modify the application-identifier to be fully qualified if needed
-			string CurrentApplicationIdentifier;
-			XCentPList.GetString("application-identifier", out CurrentApplicationIdentifier);
-			XCentPList.GetString("com.apple.developer.team-identifier", out TeamIdentifier);
+            // Modify the application-identifier to be fully qualified if needed
+            string CurrentApplicationIdentifier;
+            XCentPList.GetString("application-identifier", out CurrentApplicationIdentifier);
+            XCentPList.GetString("com.apple.developer.team-identifier", out TeamIdentifier);
 
-//			if (CurrentApplicationIdentifier.Contains("*"))
-			{
-				// Replace the application identifier
-				string NewApplicationIdentifier = String.Format("{0}.{1}", ApplicationIdentifierPrefix, CFBundleIdentifier);
-				XCentPList.SetString("application-identifier", NewApplicationIdentifier);
+            //			if (CurrentApplicationIdentifier.Contains("*"))
+            {
+                // Replace the application identifier
+                string NewApplicationIdentifier = String.Format("{0}.{1}", ApplicationIdentifierPrefix, CFBundleIdentifier);
+                XCentPList.SetString("application-identifier", NewApplicationIdentifier);
 
 
-				// Replace the keychain access groups
-				// Note: This isn't robust, it ignores the existing value in the wildcard and uses the same value for
-				// each entry.  If there is a legitimate need for more than one entry in the access group list, then
-				// don't use a wildcard!
-				List<string> KeyGroups = XCentPList.GetArray("keychain-access-groups", "string");
+                // Replace the keychain access groups
+                // Note: This isn't robust, it ignores the existing value in the wildcard and uses the same value for
+                // each entry.  If there is a legitimate need for more than one entry in the access group list, then
+                // don't use a wildcard!
+                List<string> KeyGroups = XCentPList.GetArray("keychain-access-groups", "string");
 
-				for (int i = 0; i < KeyGroups.Count; ++i)
-				{
-					string Entry = KeyGroups[i];
-					if (Entry.Contains("*"))
-					{
-						Entry = NewApplicationIdentifier;
-					}
-					KeyGroups[i] = Entry;
-				}
+                for (int i = 0; i < KeyGroups.Count; ++i)
+                {
+                    string Entry = KeyGroups[i];
+                    if (Entry.Contains("*"))
+                    {
+                        Entry = NewApplicationIdentifier;
+                    }
+                    KeyGroups[i] = Entry;
+                }
 
-				XCentPList.SetValueForKey("keychain-access-groups", KeyGroups);
-			}
+                XCentPList.SetValueForKey("keychain-access-groups", KeyGroups);
+            }
 
-			// must have CloudKit and CloudDocuments for com.apple.developer.icloud-services
-			// otherwise the game will not be listed in the Settings->iCloud apps menu on the device
-			{
-				// iOS only
-				if (Platform == "IOS" && XCentPList.HasKey("com.apple.developer.icloud-services"))
-				{
-					List<string> ServicesGroups = XCentPList.GetArray("com.apple.developer.icloud-services", "string");
-					ServicesGroups.Clear();
+            // must have CloudKit and CloudDocuments for com.apple.developer.icloud-services
+            // otherwise the game will not be listed in the Settings->iCloud apps menu on the device
+            {
+                // iOS only
+                if (Platform == "IOS" && XCentPList.HasKey("com.apple.developer.icloud-services"))
+                {
+                    List<string> ServicesGroups = XCentPList.GetArray("com.apple.developer.icloud-services", "string");
+                    ServicesGroups.Clear();
 
-					ServicesGroups.Add("CloudKit");
-					ServicesGroups.Add("CloudDocuments");
-					XCentPList.SetValueForKey("com.apple.developer.icloud-services", ServicesGroups);
-				}
+                    ServicesGroups.Add("CloudKit");
+                    ServicesGroups.Add("CloudDocuments");
+                    XCentPList.SetValueForKey("com.apple.developer.icloud-services", ServicesGroups);
+                }
 
-				// For distribution builds, the entitlements from mobileprovisioning have a modified syntax
-				if (Config.bForDistribution)
-				{
-					// remove the wildcards from the ubiquity-kvstore-identifier string
-					if (XCentPList.HasKey("com.apple.developer.ubiquity-kvstore-identifier"))
-					{
-						string UbiquityKvstoreString;
-						XCentPList.GetString("com.apple.developer.ubiquity-kvstore-identifier", out UbiquityKvstoreString);
+                // For distribution builds, the entitlements from mobileprovisioning have a modified syntax
+                if (Config.bForDistribution)
+                {
+                    // remove the wildcards from the ubiquity-kvstore-identifier string
+                    if (XCentPList.HasKey("com.apple.developer.ubiquity-kvstore-identifier"))
+                    {
+                        string UbiquityKvstoreString;
+                        XCentPList.GetString("com.apple.developer.ubiquity-kvstore-identifier", out UbiquityKvstoreString);
 
-						int DotPosition = UbiquityKvstoreString.LastIndexOf("*");
-						if (DotPosition >= 0)
-						{
-							string TeamPrefix = DotPosition > 1 ? UbiquityKvstoreString.Substring(0, DotPosition - 1) : TeamIdentifier;
-							string NewUbiquityKvstoreIdentifier = String.Format("{0}.{1}", TeamPrefix, CFBundleIdentifier);
-							XCentPList.SetValueForKey("com.apple.developer.ubiquity-kvstore-identifier", NewUbiquityKvstoreIdentifier);
-						}
-					}
+                        int DotPosition = UbiquityKvstoreString.LastIndexOf("*");
+                        if (DotPosition >= 0)
+                        {
+                            string TeamPrefix = DotPosition > 1 ? UbiquityKvstoreString.Substring(0, DotPosition - 1) : TeamIdentifier;
+                            string NewUbiquityKvstoreIdentifier = String.Format("{0}.{1}", TeamPrefix, CFBundleIdentifier);
+                            XCentPList.SetValueForKey("com.apple.developer.ubiquity-kvstore-identifier", NewUbiquityKvstoreIdentifier);
+                        }
+                    }
 
-					// remove the wildcards from the ubiquity-container-identifiers array
-					if (XCentPList.HasKey("com.apple.developer.ubiquity-container-identifiers"))
-					{
-						List<string> UbiquityContainerIdentifiersGroups = XCentPList.GetArray("com.apple.developer.ubiquity-container-identifiers", "string");
+                    // remove the wildcards from the ubiquity-container-identifiers array
+                    if (XCentPList.HasKey("com.apple.developer.ubiquity-container-identifiers"))
+                    {
+                        List<string> UbiquityContainerIdentifiersGroups = XCentPList.GetArray("com.apple.developer.ubiquity-container-identifiers", "string");
 
-						for (int i = 0; i < UbiquityContainerIdentifiersGroups.Count; i++)
-						{
-							int DotPosition = UbiquityContainerIdentifiersGroups[i].LastIndexOf("*");
-							if (DotPosition >= 0)
-							{
-								string TeamPrefix = DotPosition > 1 ? UbiquityContainerIdentifiersGroups[i].Substring(0, DotPosition - 1) : TeamIdentifier;
-								string NewUbiquityContainerIdentifier = String.Format("{0}.{1}", TeamPrefix, CFBundleIdentifier);
-								UbiquityContainerIdentifiersGroups[i] = NewUbiquityContainerIdentifier;
-							}
-						}
+                        for (int i = 0; i < UbiquityContainerIdentifiersGroups.Count; i++)
+                        {
+                            int DotPosition = UbiquityContainerIdentifiersGroups[i].LastIndexOf("*");
+                            if (DotPosition >= 0)
+                            {
+                                string TeamPrefix = DotPosition > 1 ? UbiquityContainerIdentifiersGroups[i].Substring(0, DotPosition - 1) : TeamIdentifier;
+                                string NewUbiquityContainerIdentifier = String.Format("{0}.{1}", TeamPrefix, CFBundleIdentifier);
+                                UbiquityContainerIdentifiersGroups[i] = NewUbiquityContainerIdentifier;
+                            }
+                        }
 
-						if (UbiquityContainerIdentifiersGroups.Count == 0)
-						{
-							string NewUbiquityKvstoreIdentifier = String.Format("{0}.{1}", TeamIdentifier, CFBundleIdentifier);
-							UbiquityContainerIdentifiersGroups.Add(NewUbiquityKvstoreIdentifier);
-						}
+                        if (UbiquityContainerIdentifiersGroups.Count == 0)
+                        {
+                            string NewUbiquityKvstoreIdentifier = String.Format("{0}.{1}", TeamIdentifier, CFBundleIdentifier);
+                            UbiquityContainerIdentifiersGroups.Add(NewUbiquityKvstoreIdentifier);
+                        }
 
-						XCentPList.SetValueForKey("com.apple.developer.ubiquity-container-identifiers", UbiquityContainerIdentifiersGroups);
-					}
+                        XCentPList.SetValueForKey("com.apple.developer.ubiquity-container-identifiers", UbiquityContainerIdentifiersGroups);
+                    }
 
-					// remove the wildcards from the developer.associated-domains array or string
-					if (XCentPList.HasKey("com.apple.developer.associated-domains"))
-					{
-						string AssociatedDomainsString;
-						XCentPList.GetString("com.apple.developer.associated-domains", out AssociatedDomainsString);
+                    // remove the wildcards from the developer.associated-domains array or string
+                    if (XCentPList.HasKey("com.apple.developer.associated-domains"))
+                    {
+                        string AssociatedDomainsString;
+                        XCentPList.GetString("com.apple.developer.associated-domains", out AssociatedDomainsString);
 
-						//check if the value is string
-						if (AssociatedDomainsString != null && AssociatedDomainsString.Contains("*"))
-						{
-							XCentPList.RemoveKeyValue("com.apple.developer.associated-domains");
-						}
-						else
-						{
-							//check if the value is an array
-							List<string> AssociatedDomainsGroup = XCentPList.GetArray("com.apple.developer.associated-domains", "string");
-							
-							if (AssociatedDomainsGroup.Count == 1 && AssociatedDomainsGroup[0].Contains("*"))
-							{
-								XCentPList.RemoveKeyValue("com.apple.developer.associated-domains");
-							}
-						}
-					}
+                        //check if the value is string
+                        if (AssociatedDomainsString != null && AssociatedDomainsString.Contains("*"))
+                        {
+                            XCentPList.RemoveKeyValue("com.apple.developer.associated-domains");
+                        }
+                        else
+                        {
+                            //check if the value is an array
+                            List<string> AssociatedDomainsGroup = XCentPList.GetArray("com.apple.developer.associated-domains", "string");
 
-					// remove development keys - generated when the cloudkit container is in development mode
-					XCentPList.RemoveKeyValue("com.apple.developer.icloud-container-development-container-identifiers");
-				}
+                            if (AssociatedDomainsGroup.Count == 1 && AssociatedDomainsGroup[0].Contains("*"))
+                            {
+                                XCentPList.RemoveKeyValue("com.apple.developer.associated-domains");
+                            }
+                        }
+                    }
 
-				// set the icloud-container-environment according to the project settings
-				if (XCentPList.HasKey("com.apple.developer.icloud-container-environment"))
-				{
-					List<string> ContainerEnvironmentGroup = XCentPList.GetArray("com.apple.developer.icloud-container-environment", "string");
+                    // remove development keys - generated when the cloudkit container is in development mode
+                    XCentPList.RemoveKeyValue("com.apple.developer.icloud-container-development-container-identifiers");
+                }
 
-					if (ContainerEnvironmentGroup.Count != 0)
-					{
-						ContainerEnvironmentGroup.Clear();
-						
-						// The new value is a string, not an array
-						string NewContainerEnvironment = Config.bForDistribution ? "Production" : "Development";
-						XCentPList.SetValueForKey("com.apple.developer.icloud-container-environment", NewContainerEnvironment);
-					}
-				}
-			}
+                // set the icloud-container-environment according to the project settings
+                if (XCentPList.HasKey("com.apple.developer.icloud-container-environment"))
+                {
+                    List<string> ContainerEnvironmentGroup = XCentPList.GetArray("com.apple.developer.icloud-container-environment", "string");
 
-			return XCentPList.SaveToString();
-		}
+                    if (ContainerEnvironmentGroup.Count != 0)
+                    {
+                        ContainerEnvironmentGroup.Clear();
 
-		/// <summary>
-		/// Constructs a MobileProvision from an xml blob extracted from the real ASN.1 file
-		/// </summary>
-		public MobileProvision(string EmbeddedPListText)
-		{
-			Data = new Utilities.PListHelper(EmbeddedPListText);
+                        // The new value is a string, not an array
+                        string NewContainerEnvironment = Config.bForDistribution ? "Production" : "Development";
+                        XCentPList.SetValueForKey("com.apple.developer.icloud-container-environment", NewContainerEnvironment);
+                    }
+                }
+            }
 
-			// Now extract things
+            return XCentPList.SaveToString();
+        }
 
-			// Key: ApplicationIdentifierPrefix, Array<String>
-			List<string> PrefixList = Data.GetArray("ApplicationIdentifierPrefix", "string");
-			if (PrefixList.Count > 1)
-			{
-				Program.Warning("Found more than one entry for ApplicationIdentifierPrefix in the .mobileprovision, using the first one found");
-			}
+        /// <summary>
+        /// Constructs a MobileProvision from an xml blob extracted from the real ASN.1 file
+        /// </summary>
+        public MobileProvision(string EmbeddedPListText)
+        {
+            Data = new Utilities.PListHelper(EmbeddedPListText);
 
-			if (PrefixList.Count > 0)
-			{
-				ApplicationIdentifierPrefix = PrefixList[0];
-			}
+            // Now extract things
 
-			// Example date string from the XML: "2014-06-30T20:45:55Z";
-			DateTimeStyles AppleDateStyle = DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+            // Key: ApplicationIdentifierPrefix, Array<String>
+            List<string> PrefixList = Data.GetArray("ApplicationIdentifierPrefix", "string");
+            if (PrefixList.Count > 1)
+            {
+                Program.Warning("Found more than one entry for ApplicationIdentifierPrefix in the .mobileprovision, using the first one found");
+            }
 
-			string CreationDateString;
-			if (Data.GetDate("CreationDate", out CreationDateString))
-			{
-				CreationDate = DateTime.Parse(CreationDateString, CultureInfo.InvariantCulture, AppleDateStyle);
-			}
+            if (PrefixList.Count > 0)
+            {
+                ApplicationIdentifierPrefix = PrefixList[0];
+            }
 
-			string ExpirationDateString;
-			if (Data.GetDate("ExpirationDate", out ExpirationDateString))
-			{
-				ExpirationDate = DateTime.Parse(ExpirationDateString, CultureInfo.InvariantCulture, AppleDateStyle);
-			}
+            // Example date string from the XML: "2014-06-30T20:45:55Z";
+            DateTimeStyles AppleDateStyle = DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
 
-			// Key: DeveloperCertificates, Array<Data> (uuencoded)
-			string CertificatePassword = "";
-			List<string> CertificateList = Data.GetArray("DeveloperCertificates", "data");
-			foreach (string EncodedCert in CertificateList)
-			{
-				byte[] RawCert = Convert.FromBase64String(EncodedCert);
-				DeveloperCertificates.Add(new X509Certificate2(RawCert, CertificatePassword));
-			}
+            string CreationDateString;
+            if (Data.GetDate("CreationDate", out CreationDateString))
+            {
+                CreationDate = DateTime.Parse(CreationDateString, CultureInfo.InvariantCulture, AppleDateStyle);
+            }
 
-			// Key: Name, String
-			if (!Data.GetString("Name", out ProvisionName))
-			{
-				ProvisionName = "(unknown)";
-			}
+            string ExpirationDateString;
+            if (Data.GetDate("ExpirationDate", out ExpirationDateString))
+            {
+                ExpirationDate = DateTime.Parse(ExpirationDateString, CultureInfo.InvariantCulture, AppleDateStyle);
+            }
 
-			// Key: ProvisionedDevices, Array<String>
-			ProvisionedDeviceIDs = Data.GetArray("ProvisionedDevices", "string");
+            // Key: DeveloperCertificates, Array<Data> (uuencoded)
+            string CertificatePassword = "";
+            List<string> CertificateList = Data.GetArray("DeveloperCertificates", "data");
+            foreach (string EncodedCert in CertificateList)
+            {
+                byte[] RawCert = Convert.FromBase64String(EncodedCert);
+                DeveloperCertificates.Add(new X509Certificate2(RawCert, CertificatePassword));
+            }
 
-			// Key: application-identifier, Array<String>
-			Utilities.PListHelper XCentPList = null;
-			Data.ProcessValueForKey("Entitlements", "dict", delegate(XmlNode ValueNode)
-			{
-				XCentPList = Utilities.PListHelper.CloneDictionaryRootedAt(ValueNode);
-			});
+            // Key: Name, String
+            if (!Data.GetString("Name", out ProvisionName))
+            {
+                ProvisionName = "(unknown)";
+            }
 
-			// Modify the application-identifier to be fully qualified if needed
-			if (!XCentPList.GetString("application-identifier", out ApplicationIdentifier))
-			{
-				ApplicationIdentifier = "(unknown)";
-			}
+            // Key: ProvisionedDevices, Array<String>
+            ProvisionedDeviceIDs = Data.GetArray("ProvisionedDevices", "string");
 
-			// check for get-task-allow
-			bDebug = XCentPList.GetBool("get-task-allow");
+            // Key: application-identifier, Array<String>
+            Utilities.PListHelper XCentPList = null;
+            Data.ProcessValueForKey("Entitlements", "dict", delegate (XmlNode ValueNode)
+            {
+                XCentPList = Utilities.PListHelper.CloneDictionaryRootedAt(ValueNode);
+            });
+
+            // Modify the application-identifier to be fully qualified if needed
+            if (!XCentPList.GetString("application-identifier", out ApplicationIdentifier))
+            {
+                ApplicationIdentifier = "(unknown)";
+            }
+
+            // check for get-task-allow
+            bDebug = XCentPList.GetBool("get-task-allow");
 
             if (!Data.GetString("UUID", out UUID))
             {
@@ -512,117 +519,117 @@ namespace iPhonePackager
         /// Does this provision contain the specified UDID?
         /// </summary>
         public bool ContainsUDID(string UDID)
-		{
-			bool bFound = false;
-			foreach (string TestUDID in ProvisionedDeviceIDs)
-			{
-				if (TestUDID.Equals(UDID, StringComparison.InvariantCultureIgnoreCase))
-				{
-					bFound = true;
-					break;
-				}
-			}
+        {
+            bool bFound = false;
+            foreach (string TestUDID in ProvisionedDeviceIDs)
+            {
+                if (TestUDID.Equals(UDID, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    bFound = true;
+                    break;
+                }
+            }
 
-			return bFound;
-		}
-	}
+            return bFound;
+        }
+    }
 
-	/// <summary>
-	/// This class understands how to get the embedded plist in a .mobileprovision file.  It doesn't
-	/// understand the full format and is not capable of writing a new one out or anything similar.
-	/// </summary>
-	public class MobileProvisionParser
-	{
-		private static int StrStrByteArray(byte[] Haystack, int Offset, string Needle)
-		{
-			byte[] NeedleBytes = Encoding.UTF8.GetBytes(Needle);
+    /// <summary>
+    /// This class understands how to get the embedded plist in a .mobileprovision file.  It doesn't
+    /// understand the full format and is not capable of writing a new one out or anything similar.
+    /// </summary>
+    public class MobileProvisionParser
+    {
+        private static int StrStrByteArray(byte[] Haystack, int Offset, string Needle)
+        {
+            byte[] NeedleBytes = Encoding.UTF8.GetBytes(Needle);
 
-			//@TODO: Is there anything better in .NET? That's going to be pretty slow on large files
-			for(int i = Offset; i < Haystack.Length - NeedleBytes.Length; ++i)
-			{
-				bool bMatch = true;
+            //@TODO: Is there anything better in .NET? That's going to be pretty slow on large files
+            for (int i = Offset; i < Haystack.Length - NeedleBytes.Length; ++i)
+            {
+                bool bMatch = true;
 
-				for(int j = 0; j < NeedleBytes.Length; ++j)
-				{
-					if( Haystack[i + j] != NeedleBytes[j] )
-					{
-						bMatch = false;
-						break;
-					}
-				}
+                for (int j = 0; j < NeedleBytes.Length; ++j)
+                {
+                    if (Haystack[i + j] != NeedleBytes[j])
+                    {
+                        bMatch = false;
+                        break;
+                    }
+                }
 
-				if( bMatch )
-				{
-					return i;
-				}
-			}
+                if (bMatch)
+                {
+                    return i;
+                }
+            }
 
-			return -1;
-		}
+            return -1;
+        }
 
-		public static MobileProvision ParseFile(byte[] RawData)
-		{
-			//@TODO: This file is just an ASN.1 stream, should find or make a raw ASN1 parser and use
-			// that instead of this (theoretically fragile) code (particularly the length extraction)
+        public static MobileProvision ParseFile(byte[] RawData)
+        {
+            //@TODO: This file is just an ASN.1 stream, should find or make a raw ASN1 parser and use
+            // that instead of this (theoretically fragile) code (particularly the length extraction)
 
-			string StartPattern = "<?xml";
-			string EndPattern = "</plist>";
+            string StartPattern = "<?xml";
+            string EndPattern = "</plist>";
 
-			// Search the start pattern
-			int StartPos = StrStrByteArray(RawData, 0, StartPattern);
-			if( StartPos != -1 )
-			{
-				// Search the end pattern
-				int EndPos = StrStrByteArray(RawData, StartPos, EndPattern);
-				if( EndPos != -1 )
-				{
-					// Offset the end position to take in account the end pattern
-					EndPos += EndPattern.Length;
+            // Search the start pattern
+            int StartPos = StrStrByteArray(RawData, 0, StartPattern);
+            if (StartPos != -1)
+            {
+                // Search the end pattern
+                int EndPos = StrStrByteArray(RawData, StartPos, EndPattern);
+                if (EndPos != -1)
+                {
+                    // Offset the end position to take in account the end pattern
+                    EndPos += EndPattern.Length;
 
-					// Convert the data to a string
-					string PlistText = Encoding.UTF8.GetString(RawData, StartPos, EndPos - StartPos);
+                    // Convert the data to a string
+                    string PlistText = Encoding.UTF8.GetString(RawData, StartPos, EndPos - StartPos);
 
-					// Return the constructed 'mobile provision'
-					return new MobileProvision(PlistText);
-				}
-			}
+                    // Return the constructed 'mobile provision'
+                    return new MobileProvision(PlistText);
+                }
+            }
 
-			// Unable to find the start of the plist data
-			Program.Error("Failed to find embedded plist in .mobileprovision file");
-			return null;
-		}
+            // Unable to find the start of the plist data
+            Program.Error("Failed to find embedded plist in .mobileprovision file");
+            return null;
+        }
 
-		public static MobileProvision ParseFile(Stream InputStream)
-		{
-			// Read in the entire file
-			int NumBytes = (int)InputStream.Length;
-			byte[] RawData = new byte[NumBytes];
-			InputStream.Read(RawData, 0, NumBytes);
+        public static MobileProvision ParseFile(Stream InputStream)
+        {
+            // Read in the entire file
+            int NumBytes = (int)InputStream.Length;
+            byte[] RawData = new byte[NumBytes];
+            InputStream.Read(RawData, 0, NumBytes);
 
-			return ParseFile(RawData);
-		}
+            return ParseFile(RawData);
+        }
 
 
-		public static MobileProvision ParseFile(string Filename)
-		{
-			FileStream InputStream = File.OpenRead(Filename);
-			MobileProvision Result = ParseFile(InputStream);
-			InputStream.Close();
+        public static MobileProvision ParseFile(string Filename)
+        {
+            FileStream InputStream = File.OpenRead(Filename);
+            MobileProvision Result = ParseFile(InputStream);
+            InputStream.Close();
             Result.FileName = Filename;
 
             return Result;
-		}
+        }
 
-		/// <summary>
-		/// Opens embedded.mobileprovision from within an IPA
-		/// </summary>
-		public static MobileProvision ParseIPA(string Filename)
-		{
-			FileOperations.ReadOnlyZipFileSystem FileSystem = new FileOperations.ReadOnlyZipFileSystem(Filename);
-			MobileProvision Result = ParseFile(FileSystem.ReadAllBytes("embedded.mobileprovision"));
-			FileSystem.Close();
+        /// <summary>
+        /// Opens embedded.mobileprovision from within an IPA
+        /// </summary>
+        public static MobileProvision ParseIPA(string Filename)
+        {
+            FileOperations.ReadOnlyZipFileSystem FileSystem = new FileOperations.ReadOnlyZipFileSystem(Filename);
+            MobileProvision Result = ParseFile(FileSystem.ReadAllBytes("embedded.mobileprovision"));
+            FileSystem.Close();
 
-			return Result;
-		}
-	}
+            return Result;
+        }
+    }
 }

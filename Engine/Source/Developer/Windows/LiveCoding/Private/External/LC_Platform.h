@@ -25,6 +25,9 @@
 #define LC_DISABLE_ASSIGNMENT(_name)			_name& operator=(const _name&) = delete
 #define LC_DISABLE_MOVE_ASSIGNMENT(_name)		_name& operator=(_name&&) = delete
 
+#define LC_ALWAYS_INLINE						__forceinline
+#define LC_NEVER_INLINE							__declspec(noinline)
+
 #if PLATFORM_64BITS
 #	define LC_64_BIT 1
 #	define LC_32_BIT 0
