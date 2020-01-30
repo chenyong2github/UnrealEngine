@@ -2,6 +2,7 @@
 
 #include "LiveLinkTimedDataInput.h"
 
+#include "HAL/IConsoleManager.h"
 #include "ILiveLinkModule.h"
 #include "ITimeManagementModule.h"
 #include "LiveLinkClient.h"
