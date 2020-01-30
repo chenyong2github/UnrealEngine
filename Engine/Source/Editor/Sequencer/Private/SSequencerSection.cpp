@@ -1411,7 +1411,7 @@ void SSequencerSection::PaintKeys( FSequencerSectionPainter& InPainter, const FW
 			// Generate the hull of frame numbers that contribute to this key so we can draw it enabled/disabled depending on whether it is outside of the valid range or not
 			TRange<FFrameNumber> KeyRange = TRange<FFrameNumber>::Empty();
 
-			float AverageKeyTime = 0.f;
+			double AverageKeyTime = 0.f;
 			int32 NumKeyTimes = 0;
 			int32 NumOverlaps = 0;
 

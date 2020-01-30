@@ -11,6 +11,7 @@
 #include "Misc/Guid.h"
 #include "MovieScene.h"
 #include "TrackRecorders/IMovieSceneTrackRecorderFactory.h"
+#include "MovieScene/MovieSceneLiveLinkSection.h"
 
 #include "MovieSceneLiveLinkTrackRecorder.generated.h"
 
@@ -35,6 +36,7 @@ public:
 	virtual void RecordSampleImpl(const FQualifiedFrameTime& CurrentTime) override;
 	virtual void FinalizeTrackImpl() override;
 	virtual void SetSectionStartTimecodeImpl(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame) override;
+	virtual UMovieSceneSection* GetMovieSceneSection() const override { return Cast<UMovieSceneSection>(MovieSceneSection.Get()); }
 	virtual void StopRecordingImpl() override;
 	virtual void SetSavedRecordingDirectory(const FString& InDirectory)
 	{
