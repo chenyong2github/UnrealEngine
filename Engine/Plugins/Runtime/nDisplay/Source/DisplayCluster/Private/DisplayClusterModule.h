@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -70,10 +70,10 @@ public:
 	virtual FDisplayClusterEndSessionEvent& OnDisplayClusterEndSession() override
 	{ return DisplayClusterEndSessionEvent; }
 
-	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame(uint64 FrameNum) override
+	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame() override
 	{ return DisplayClusterStartFrameEvent; }
 
-	virtual FDisplayClusterEndFrameEvent& OnDisplayClusterEndFrame(uint64 FrameNum) override
+	virtual FDisplayClusterEndFrameEvent& OnDisplayClusterEndFrame() override
 	{ return DisplayClusterEndFrameEvent; }
 
 	virtual FDisplayClusterPreTickEvent& OnDisplayClusterPreTick() override

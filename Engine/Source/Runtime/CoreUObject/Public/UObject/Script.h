@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Script.h: Blueprint bytecode execution engine.
@@ -271,6 +271,7 @@ enum EExprToken
 	EX_InstrumentationEvent	= 0x6A, // Instrumentation event
 	EX_ArrayGetByRef		= 0x6B,
 	EX_ClassSparseDataVariable = 0x6C, // Sparse data variable
+	EX_FieldPathConst		= 0x6D,
 	EX_Max					= 0x100,
 };
 

@@ -1,10 +1,27 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetSearchBoxUtilPersona.h"
 #include "ReferenceSkeleton.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "Editor.h"
+
+SAssetSearchBoxForBones::SAssetSearchBoxForBones()
+{
+	if(GEditor)
+	{
+		GEditor->RegisterForUndo(this);
+	}
+}
+
+SAssetSearchBoxForBones::~SAssetSearchBoxForBones()
+{
+	if(GEditor)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
+}
 
 void SAssetSearchBoxForBones::Construct( const FArguments& InArgs, const class UObject* Outer, TSharedPtr<class IPropertyHandle> BoneNameProperty )
 {
@@ -79,32 +96,59 @@ FText SAssetSearchBoxForBones::GetBoneName() const
 	return CurValue.IsNone() ? FText::GetEmpty() : FText::FromName(CurValue);
 }
 
+SAssetSearchBoxForCurves::SAssetSearchBoxForCurves()
+{
+	if(GEditor)
+	{
+		GEditor->RegisterForUndo(this);
+	}
+}
+
+SAssetSearchBoxForCurves::~SAssetSearchBoxForCurves()
+{
+	if(GEditor)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
+}
+
 void SAssetSearchBoxForCurves::Construct(const FArguments& InArgs, const class USkeleton* InSkeleton, TSharedPtr<class IPropertyHandle> CurveNameProperty)
 {
 	check(InSkeleton);
 
-	// get the currently chosen curve, if any
-	const FText PropertyName = CurveNameProperty->GetPropertyDisplayName();
-	FString CurValue;
-	CurveNameProperty->GetValue(CurValue);
-	if (CurValue == FString("None"))
-	{
-		CurValue.Empty();
-	}
+	CurveNamePropertyHandle = CurveNameProperty;
 
 	Skeleton = MakeWeakObjectPtr(const_cast<USkeleton*>(InSkeleton));
 	
 	// create the asset search box
 	ChildSlot
 		[
-			SNew(SAssetSearchBox)
-			.InitialText(FText::FromString(CurValue))
+			SAssignNew(SearchBox, SAssetSearchBox)
+			.InitialText(GetCurveName())
 			.HintText(InArgs._HintText)
 			.OnTextCommitted(InArgs._OnTextCommitted)
 			.PossibleSuggestions(this, &SAssetSearchBoxForCurves::GetCurveSearchSuggestions)
 			.DelayChangeNotificationsWhileTyping(true)
 			.MustMatchPossibleSuggestions(InArgs._MustMatchPossibleSuggestions)
 		];
+}
+
+FText SAssetSearchBoxForCurves::GetCurveName() const
+{
+	FName CurValue;
+	if (CurveNamePropertyHandle.IsValid())
+	{
+		CurveNamePropertyHandle->GetValue(CurValue);
+	}
+	return CurValue.IsNone() ? FText::GetEmpty() : FText::FromName(CurValue);
+}
+
+void SAssetSearchBoxForCurves::RefreshName()
+{
+	if (SearchBox.IsValid())
+	{
+		SearchBox->SetText(GetCurveName());
+	}
 }
 
 TArray<FAssetSearchBoxSuggestion> SAssetSearchBoxForCurves::GetCurveSearchSuggestions() const

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "Algo/Copy.h"
@@ -926,6 +926,32 @@ void FSequencerTrackNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& Out
 	{
 		KeyAreaNode->CreateCurveModels(OutCurveModels);
 	}
+}
+
+FSlateFontInfo FSequencerTrackNode::GetDisplayNameFont() const
+{
+	bool bAllAnimated = false;
+	TSharedPtr<FSequencerSectionKeyAreaNode> TopLevelKeyArea = GetTopLevelKeyNode();
+	if (TopLevelKeyArea.IsValid())
+	{
+		for (const TSharedRef<IKeyArea>& KeyArea : TopLevelKeyArea->GetAllKeyAreas())
+		{
+			FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
+			if (!Channel || Channel->GetNumKeys() == 0)
+			{
+				return FSequencerDisplayNode::GetDisplayNameFont();
+			}
+			else
+			{
+				bAllAnimated = true;
+			}
+		}
+		if (bAllAnimated == true)
+		{
+			return FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
+		}
+	}
+	return FSequencerDisplayNode::GetDisplayNameFont();
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -617,10 +617,10 @@ protected:
 	/** Ordered list functions to invoke when the Broadcast function is called */
 	mutable FInvocationList InvocationList;		// Mutable so that we can housekeep list even with 'const' broadcasts
 
-	// Declare ourselves as a friend of UMulticastDelegateProperty so that it can access our function list
-	friend class UMulticastDelegateProperty;
-	friend class UMulticastInlineDelegateProperty;
-	friend class UMulticastSparseDelegateProperty;
+	// Declare ourselves as a friend of FMulticastDelegateProperty so that it can access our function list
+	friend class FMulticastDelegateProperty;
+	friend class FMulticastInlineDelegateProperty;
+	friend class FMulticastSparseDelegateProperty;
 
 	// 
 	friend class FCallDelegateHelper;

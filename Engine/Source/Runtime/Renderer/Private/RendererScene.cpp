@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Scene.cpp: Scene manager implementation.
@@ -370,13 +370,18 @@ bool FPixelInspectorData::AddPixelInspectorRequest(FPixelInspectorRequest *Pixel
 
 FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform) 
 	: NumObjectsInBuffer(0)
+	, NumHeightFieldObjectsInBuffer(0)
 	, ObjectBufferIndex(0)
 	, SurfelBuffers(NULL)
 	, InstancedSurfelBuffers(NULL)
 	, AtlasGeneration(0)
+	, HeightFieldAtlasGeneration(0)
+	, HFVisibilityAtlasGenerattion(0)
 {
 	ObjectBuffers[0] = nullptr;
 	ObjectBuffers[1] = nullptr;
+
+	HeightFieldObjectBuffers = nullptr;
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
@@ -393,7 +398,7 @@ FDistanceFieldSceneData::~FDistanceFieldSceneData()
 
 void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
-	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
+	FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
 	if ((bTrackAllPrimitives || Proxy->CastsDynamicIndirectShadow())
 		&& Proxy->CastsDynamicShadow()
@@ -401,10 +406,22 @@ void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 	{
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
-			HeightfieldPrimitives.Add(InPrimitive);
-			FBoxSphereBounds PrimitiveBounds = Proxy->GetBounds();
-			FGlobalDFCacheType CacheType = Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
-			PrimitiveModifiedBounds[CacheType].Add(FVector4(PrimitiveBounds.Origin, PrimitiveBounds.SphereRadius));
+			UTexture2D* HeightAndNormal;
+			UTexture2D* DiffuseColor;
+			UTexture2D* Visibility;
+			FHeightfieldComponentDescription Desc(FMatrix::Identity);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
+			GHeightFieldTextureAtlas.AddAllocation(HeightAndNormal);
+
+			if (Visibility)
+			{
+				check(Desc.VisibilityChannel >= 0 && Desc.VisibilityChannel < 4);
+				GHFVisibilityTextureAtlas.AddAllocation(Visibility, Desc.VisibilityChannel);
+			}
+
+			checkSlow(!PendingHeightFieldAddOps.Contains(InPrimitive));
+			checkSlow(!PendingHeightFieldUpdateOps.Contains(InPrimitive));
+			PendingHeightFieldAddOps.Add(InPrimitive);
 		}
 
 		if (Proxy->SupportsDistanceFieldRepresentation())
@@ -436,7 +453,7 @@ void FDistanceFieldSceneData::UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
-	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
+	FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
 	if ((bTrackAllPrimitives || Proxy->CastsDynamicIndirectShadow()) 
 		&& Proxy->AffectsDistanceFieldLighting())
@@ -457,11 +474,27 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
-			HeightfieldPrimitives.Remove(InPrimitive);
+			UTexture2D* HeightAndNormal;
+			UTexture2D* DiffuseColor;
+			UTexture2D* Visibility;
+			FHeightfieldComponentDescription Desc(FMatrix::Identity);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
+			GHeightFieldTextureAtlas.RemoveAllocation(HeightAndNormal);
 
-			FBoxSphereBounds PrimitiveBounds = Proxy->GetBounds();
-			FGlobalDFCacheType CacheType = Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
-			PrimitiveModifiedBounds[CacheType].Add(FVector4(PrimitiveBounds.Origin, PrimitiveBounds.SphereRadius));
+			if (Visibility)
+			{
+				GHFVisibilityTextureAtlas.RemoveAllocation(Visibility);
+			}
+
+			PendingHeightFieldAddOps.Remove(InPrimitive);
+			PendingHeightFieldUpdateOps.Remove(InPrimitive);
+
+			if (InPrimitive->DistanceFieldInstanceIndices.Num() > 0)
+			{
+				PendingHeightFieldRemoveOps.Add(FHeightFieldPrimitiveRemoveInfo(InPrimitive));
+			}
+
+			InPrimitive->DistanceFieldInstanceIndices.Empty();
 		}
 	}
 }
@@ -1131,7 +1164,7 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = new FPrimitiveSceneInfo(Primitive, this);
 	PrimitiveSceneProxy->PrimitiveSceneInfo = PrimitiveSceneInfo;
 
-	// Cache the primitive's initial transform.
+	// Cache the primitives initial transform.
 	FMatrix RenderMatrix = Primitive->GetRenderMatrix();
 	FVector AttachmentRootPosition(0);
 
@@ -1611,7 +1644,7 @@ void FScene::AddLight(ULightComponent* Light)
 		Light->SceneProxy = Proxy;
 
 		// Update the light's transform and position.
-		Proxy->SetTransform(Light->GetComponentTransform().ToMatrixNoScale(),Light->GetLightPosition());
+		Proxy->SetTransform(Light->GetComponentTransform().ToMatrixNoScale(), Light->GetLightPosition());
 
 		// Create the light scene info.
 		Proxy->LightSceneInfo = new FLightSceneInfo(Proxy, true);
@@ -3633,6 +3666,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AddPrimitiveSceneInfos);
 		SCOPED_NAMED_EVENT(FScene_AddPrimitiveSceneInfos, FColor::Green);
 		SCOPE_CYCLE_COUNTER(STAT_AddScenePrimitiveRenderThreadTime);
 		if (AddedLocalPrimitiveSceneInfos.Num())
@@ -3824,6 +3858,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdatePrimitiveTransform);
 		SCOPED_NAMED_EVENT(FScene_AddPrimitiveSceneInfos, FColor::Yellow);
 		SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveTransformRenderThreadTime);
 

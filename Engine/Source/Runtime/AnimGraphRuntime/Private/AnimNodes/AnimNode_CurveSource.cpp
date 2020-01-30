@@ -1,8 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_CurveSource.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 FAnimNode_CurveSource::FAnimNode_CurveSource()
 	: SourceBinding(ICurveSourceInterface::DefaultBinding)
@@ -42,9 +43,9 @@ void FAnimNode_CurveSource::PreUpdate(const UAnimInstance* AnimInstance)
 				return;
 			}
 
-			for (TFieldIterator<UObjectProperty> PropertyIt(Actor->GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FObjectProperty> PropertyIt(Actor->GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 			{
-				UObjectProperty* ObjProp = *PropertyIt;
+				FObjectProperty* ObjProp = *PropertyIt;
 				UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(Actor)));
 				if (IsSpecifiedCurveSource(ActorComponent, SourceBinding, CurveSource))
 				{
@@ -90,7 +91,10 @@ void FAnimNode_CurveSource::Evaluate_AnyThread(FPoseContext& Output)
 			{
 				const float CurrentValue = Output.Curve.Get(NameUID);
 				const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-				Output.Curve.Set(NameUID, FMath::Lerp(CurrentValue, NamedValue.Value, ClampedAlpha));
+				const float LerpedValue = FMath::Lerp(CurrentValue, NamedValue.Value, ClampedAlpha);
+				Output.Curve.Set(NameUID, LerpedValue);
+
+				TRACE_ANIM_NODE_VALUE(Output, *NamedValue.Name.ToString(), LerpedValue);
 			}
 		}
 	}

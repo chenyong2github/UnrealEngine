@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -61,8 +61,8 @@ public:
 	/** Returns true if this resource must be skinned on the CPU for the given feature level. */
 	ENGINE_API bool RequiresCPUSkinning(ERHIFeatureLevel::Type FeatureLevel) const;
 
-	/** Returns true if there are more than MAX_INFLUENCES_PER_STREAM influences per vertex. */
-	bool HasExtraBoneInfluences() const;
+	/** Returns the number of bone influences per vertex. */
+	uint32 GetNumBoneInfluences() const;
 
 	/**
 	* Computes the maximum number of bones per section used to render this mesh.

@@ -1,6 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/CastingUtilities.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Transform.h"
@@ -19,29 +20,6 @@
 
 namespace Chaos
 {
-	template <typename Lambda>
-	FORCEINLINE_DEBUGGABLE auto CastHelper(const FImplicitObject& Geom, const Lambda& Func)
-	{
-		const EImplicitObjectType Type = Geom.GetType(true);
-		switch (Type)
-		{
-		case ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>());
-		case ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked<TBox<FReal, 3>>());
-		case ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked<TCapsule<FReal>>());
-		case ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked<FConvex>());
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TImplicitObjectScaled<TSphere<FReal, 3>>>());
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TBox<FReal, 3>>>());
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>());
-		case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FConvex>>());
-		case ImplicitObjectType::Transformed:
-			ensure(false); // We are drilling down to concrete implicit inside transformed, this is disregarding transform data. Caller must specially handle transform.
-			// TODO: Refactor Transformed implicit to use same structure as scaled.
-			return CastHelper(*(Geom.template GetObjectChecked<TImplicitObjectTransformed<FReal, 3>>().GetTransformedObject()), Func);
-
-		default: check(false);
-		}
-		return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>());	//needed for return type
-	}
 
 	struct FMTDInfo
 	{
@@ -77,13 +55,21 @@ namespace Chaos
 			const FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();
 			if (OutMTD)
 			{
-				FVec3 ClosestA;
-				FVec3 ClosestB;
-				return CastHelper(A, [&](const auto& AConcrete) { return GJKPenetration<FReal>(AConcrete, B, BToATM, OutMTD->Penetration, ClosestA, ClosestB, OutMTD->Normal, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
+				return Utilities::CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM)
+				{
+					FVec3 LocalA,LocalB,LocalNormal;
+					if(GJKPenetration<false, FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,Thickness,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
+					{
+						OutMTD->Normal = ATM.TransformVectorNoScale(LocalNormal);
+						return true;
+					}
+
+					return false;
+				});
 			}
 			else
 			{
-				return CastHelper(A, [&](const auto& AConcrete) { return GJKIntersection<FReal>(AConcrete, B, BToATM, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
+				return Utilities::CastHelper(A, BToATM, [&](const auto& AConcrete, const auto& BToAFullTM) { return GJKIntersection<FReal>(AConcrete, B, BToAFullTM, Thickness, Offset.SizeSquared() < 1e-4 ? FVec3(1, 0, 0) : Offset); });
 			}
 		}
 		else
@@ -93,18 +79,23 @@ namespace Chaos
 			case ImplicitObjectType::HeightField:
 			{
 				const THeightField<FReal>& AHeightField = static_cast<const THeightField<FReal>&>(A);
-				return AHeightField.OverlapGeom(B, BToATM, Thickness);
+				return AHeightField.OverlapGeom(B, BToATM, Thickness, OutMTD);
 			}
 			case ImplicitObjectType::TriangleMesh:
 			{
-				const TTriangleMeshImplicitObject<FReal>& ATriangleMesh = static_cast<const TTriangleMeshImplicitObject<FReal>&>(A);
-				return ATriangleMesh.OverlapGeom(B, BToATM, Thickness);
+				const FTriangleMeshImplicitObject& ATriangleMesh = static_cast<const FTriangleMeshImplicitObject&>(A);
+				return ATriangleMesh.OverlapGeom(B, BToATM, Thickness, OutMTD);
 			}
 			default:
 				if (IsScaled(AType))
 				{
-					const auto& AScaled = TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>::AsScaledChecked(A);
-					return AScaled.LowLevelOverlapGeom(B, BToATM, Thickness);
+					const auto& AScaled = TImplicitObjectScaled<FTriangleMeshImplicitObject>::AsScaledChecked(A);
+					return AScaled.LowLevelOverlapGeom(B, BToATM, Thickness, OutMTD);
+				}
+				else if(IsInstanced(AType))
+				{
+					const auto& AInstanced = TImplicitObjectInstanced<FTriangleMeshImplicitObject>::AsInstancedChecked(A);
+					return AInstanced.LowLevelOverlapGeom(B,BToATM,Thickness, OutMTD);
 				}
 				else
 				{
@@ -176,7 +167,7 @@ namespace Chaos
 			}
 
 			const FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();
-			bResult = CastHelper(A, [&](const auto& ADowncast) { return GJKRaycast2(ADowncast, B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness); });
+			bResult = Utilities::CastHelper(A, BToATM, [&](const auto& ADowncast, const auto& BToAFullTM){ return GJKRaycast2(ADowncast, B, BToAFullTM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness); });
 			if (AType == ImplicitObjectType::Convex)
 			{
 				//todo: find face index
@@ -200,15 +191,21 @@ namespace Chaos
 			}
 			case ImplicitObjectType::TriangleMesh:
 			{
-				const auto& ATriangleMesh = static_cast<const TTriangleMeshImplicitObject<FReal>&>(A);
+				const auto& ATriangleMesh = static_cast<const FTriangleMeshImplicitObject&>(A);
 				bResult = ATriangleMesh.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
 				break;
 			}
 			default:
 				if (IsScaled(AType))
 				{
-					const auto& AScaled = TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>::AsScaledChecked(A);
+					const auto& AScaled = TImplicitObjectScaled<FTriangleMeshImplicitObject>::AsScaledChecked(A);
 					bResult = AScaled.LowLevelSweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
+					break;
+				}
+				else if(IsInstanced(AType))
+				{
+					const auto& Instanced = TImplicitObjectInstanced<FTriangleMeshImplicitObject>::AsInstancedChecked(A);
+					bResult = Instanced.LowLevelSweepGeom(B,BToATM,LocalDir,Length,OutTime,LocalPosition,LocalNormal,OutFaceIndex,Thickness,bComputeMTD);
 					break;
 				}
 				else

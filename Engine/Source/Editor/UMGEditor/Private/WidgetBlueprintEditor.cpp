@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WidgetBlueprintEditor.h"
 #include "MovieSceneBinding.h"
@@ -599,9 +599,9 @@ void FWidgetBlueprintEditor::Tick(float DeltaTime)
 	}
 }
 
-static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObject, FEditPropertyChain::TDoubleLinkedListNode* PropertyChainNode, UProperty* MemberProperty, bool bIsModify)
+static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObject, FEditPropertyChain::TDoubleLinkedListNode* PropertyChainNode, FProperty* MemberProperty, bool bIsModify)
 {
-	UProperty* CurrentProperty = PropertyChainNode->GetValue();
+	FProperty* CurrentProperty = PropertyChainNode->GetValue();
 	FEditPropertyChain::TDoubleLinkedListNode* NextNode = PropertyChainNode->GetNextNode();
 
 	if ( !ensure(SourceObject && DestinationObject) )
@@ -612,12 +612,12 @@ static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObje
 	ensure(SourceObject->GetClass() == DestinationObject->GetClass());
 
 	// If the current property is an array, map or set, short-circuit current progress so that we copy the whole container.
-	if ( Cast<UArrayProperty>(CurrentProperty) || Cast<UMapProperty>(CurrentProperty) || Cast<USetProperty>(CurrentProperty) )
+	if ( CastField<FArrayProperty>(CurrentProperty) || CastField<FMapProperty>(CurrentProperty) || CastField<FSetProperty>(CurrentProperty) )
 	{
 		NextNode = nullptr;
 	}
 
-	if ( UObjectProperty* CurrentObjectProperty = Cast<UObjectProperty>(CurrentProperty) )
+	if ( FObjectProperty* CurrentObjectProperty = CastField<FObjectProperty>(CurrentProperty) )
 	{
 		UObject* NewSourceObject = CurrentObjectProperty->GetObjectPropertyValue_InContainer(SourceObject);
 		UObject* NewDestionationObject = CurrentObjectProperty->GetObjectPropertyValue_InContainer(DestinationObject);
@@ -642,7 +642,7 @@ static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObje
 		{
 			// Check to see if there's an edit condition property we also need to migrate.
 			bool bDummyNegate = false;
-			UBoolProperty* EditConditionProperty = PropertyCustomizationHelpers::GetEditConditionProperty(MemberProperty, bDummyNegate);
+			FBoolProperty* EditConditionProperty = PropertyCustomizationHelpers::GetEditConditionProperty(MemberProperty, bDummyNegate);
 			if ( EditConditionProperty != nullptr )
 			{
 				FObjectEditorUtils::MigratePropertyValue(SourceObject, EditConditionProperty, DestinationObject, EditConditionProperty);
@@ -652,7 +652,7 @@ static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObje
 		}
 	}
 
-	if ( UObjectProperty* CurrentObjectProperty = Cast<UObjectProperty>(CurrentProperty) )
+	if ( FObjectProperty* CurrentObjectProperty = CastField<FObjectProperty>(CurrentProperty) )
 	{
 		UObject* NewSourceObject = CurrentObjectProperty->GetObjectPropertyValue_InContainer(SourceObject);
 		UObject* NewDestionationObject = CurrentObjectProperty->GetObjectPropertyValue_InContainer(DestinationObject);
@@ -1616,7 +1616,7 @@ void FWidgetBlueprintEditor::AddSlotTrack( UPanelSlot* Slot )
 	GetSequencer()->GetHandleToObject( Slot );
 }
 
-void FWidgetBlueprintEditor::AddMaterialTrack( UWidget* Widget, TArray<UProperty*> MaterialPropertyPath, FText MaterialPropertyDisplayName )
+void FWidgetBlueprintEditor::AddMaterialTrack( UWidget* Widget, TArray<FProperty*> MaterialPropertyPath, FText MaterialPropertyDisplayName )
 {
 	FGuid WidgetHandle = Sequencer->GetHandleToObject( Widget );
 	if ( WidgetHandle.IsValid() )
@@ -1629,7 +1629,7 @@ void FWidgetBlueprintEditor::AddMaterialTrack( UWidget* Widget, TArray<UProperty
 		}
 
 		TArray<FName> MaterialPropertyNamePath;
-		for ( UProperty* Property : MaterialPropertyPath )
+		for ( FProperty* Property : MaterialPropertyPath )
 		{
 			MaterialPropertyNamePath.Add( Property->GetFName() );
 		}

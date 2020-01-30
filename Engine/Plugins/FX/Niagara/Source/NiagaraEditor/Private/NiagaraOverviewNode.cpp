@@ -1,15 +1,20 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorStyle.h"
+#include "NiagaraEditorUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
-
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "Modules/ModuleManager.h"
 #include "ToolMenuSection.h"
 #include "ToolMenu.h"
 #include "GraphEditorActions.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewNodeStackItem"
 
@@ -22,7 +27,9 @@ FLinearColor UNiagaraOverviewNode::NotIsolatedColor;
 UNiagaraOverviewNode::UNiagaraOverviewNode()
 	: OwningSystem(nullptr)
 	, EmitterHandleGuid(FGuid())
+	, bRenamePending(false)
 {
+	UEdGraphNode::bCanRenameNode = true;
 };
 
 void UNiagaraOverviewNode::Initialize(UNiagaraSystem* InOwningSystem)
@@ -41,15 +48,16 @@ const FGuid UNiagaraOverviewNode::GetEmitterHandleGuid() const
 	return EmitterHandleGuid;
 }
 
-static const FNiagaraEmitterHandle* FindEmitterHandleByID(const UNiagaraSystem* System, const FGuid& Guid)
+static FNiagaraEmitterHandle* FindEmitterHandleByID(UNiagaraSystem* System, const FGuid& Guid)
 {
 	check(System != nullptr);
 
-	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+	for (int Idx = 0; Idx < System->GetNumEmitters(); ++Idx)
 	{
-		if (Handle.GetId() == Guid)
+		FNiagaraEmitterHandle& EmitterHandle = System->GetEmitterHandle(Idx);
+		if (EmitterHandle.GetId() == Guid)
 		{
-			return &Handle;
+			return &EmitterHandle;
 		}
 	}
 
@@ -102,9 +110,29 @@ FLinearColor UNiagaraOverviewNode::GetNodeTitleColor() const
 	return EmitterHandleGuid.IsValid() ? EmitterColor : SystemColor;
 }
 
+static bool IsSystemAsset(UNiagaraSystem* System)
+{
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModel = NiagaraEditorModule.GetExistingViewModelForSystem(System);
+	if (OwningSystemViewModel.IsValid())
+	{
+		if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UNiagaraOverviewNode::GetCanRenameNode() const
+{
+	return IsSystemAsset(OwningSystem) && EmitterHandleGuid.IsValid();
+}
+
 bool UNiagaraOverviewNode::CanUserDeleteNode() const
 {
-	return EmitterHandleGuid.IsValid();
+	return IsSystemAsset(OwningSystem) && EmitterHandleGuid.IsValid();
 }
 
 bool UNiagaraOverviewNode::CanDuplicateNode() const
@@ -113,28 +141,133 @@ bool UNiagaraOverviewNode::CanDuplicateNode() const
 	return HasAnyFlags(RF_ClassDefaultObject) || EmitterHandleGuid.IsValid();
 }
 
+void UNiagaraOverviewNode::OnRenameNode(const FString& NewName)
+{
+	bRenamePending = false;
+
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModel = NiagaraEditorModule.GetExistingViewModelForSystem(OwningSystem);
+	if (OwningSystemViewModel.IsValid())
+	{
+		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelPtr = OwningSystemViewModel->GetEmitterHandleViewModelById(EmitterHandleGuid);
+		if (EmitterHandleViewModelPtr.IsValid())
+		{
+			EmitterHandleViewModelPtr->SetName(*NewName);
+		}
+	}
+}
+
 void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
-	FToolMenuSection& Section = Menu->AddSection("Alignment");
-	Section.AddSubMenu(
-		"Alignment",
-		LOCTEXT("AlignmentHeader", "Alignment"),
-		FText(),
-		FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModel = NiagaraEditorModule.GetExistingViewModelForSystem(OwningSystem);
+	if (OwningSystemViewModel.IsValid())
 	{
-		{
-			FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
-			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
-			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
-			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
-		}
+		FToolMenuSection& Section = Menu->AddSection("Emitter Actions", LOCTEXT("EmitterActions", "Emitter Actions"));
 
+		bool bSingleSelection = OwningSystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() == 1;
+
+		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelPtr = OwningSystemViewModel->GetEmitterHandleViewModelById(EmitterHandleGuid);
+		if (EmitterHandleViewModelPtr.IsValid())
 		{
-			FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
-			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
-			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+			TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelPtr.ToSharedRef();
+			TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel->GetEmitterViewModel();
+			{
+				if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+				{
+					Section.AddMenuEntry(
+						"ToggleEmittersEnabled",
+						LOCTEXT("ToggleEmittersEnabled", "Enabled"),
+						LOCTEXT("ToggleEmittersEnabledToolTip", "Toggle whether or not the selected emitters are enabled."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersEnabled, OwningSystemViewModel.ToSharedRef()),
+							FCanExecuteAction(),
+							FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState, OwningSystemViewModel.ToSharedRef())
+						),
+						EUserInterfaceActionType::ToggleButton
+					);
+
+					Section.AddMenuEntry(
+						"ToggleEmittersIsolated",
+						LOCTEXT("ToggleEmittersIsolated", "Isolated"),
+						LOCTEXT("ToggleEmittersIsolatedToolTip", "Toggle whether or not the selected emitters are isolated."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersIsolated, OwningSystemViewModel.ToSharedRef()),
+							FCanExecuteAction(),
+							FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersIsolatedCheckState, OwningSystemViewModel.ToSharedRef())
+						),
+						EUserInterfaceActionType::ToggleButton
+					);
+				}
+
+				Section.AddMenuEntry(
+					"RemoveParentEmitter",
+					LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
+					LOCTEXT("RemoveParentEmitterToolTip", "Removes this emitter's parent, preventing inheritance of any further changes."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
+						FCanExecuteAction::CreateLambda(
+							[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+							{
+								return bSingleSelection && bHasParent;
+							}
+						)
+					)
+				);
+
+				Section.AddMenuEntry(
+					"ShowEmitterInContentBrowser",
+					LOCTEXT("ShowEmitterInContentBrowser", "Show in Content Browser"),
+					LOCTEXT("ShowEmitterInContentBrowserToolTip", "Show the selected emitter in the Content Browser."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
+						FCanExecuteAction::CreateLambda(
+							[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+							{
+								return bSingleSelection && bHasParent;
+							}
+						)
+					)
+				);
+			}
 		}
-	}));
+	}
+	
+	{
+		FToolMenuSection& EditSection = Menu->AddSection("EmitterEdit", LOCTEXT("Edit", "Edit"));
+
+		EditSection.AddMenuEntry(FGenericCommands::Get().Cut);
+		EditSection.AddMenuEntry(FGenericCommands::Get().Copy);
+		EditSection.AddMenuEntry(FGenericCommands::Get().Delete);
+		EditSection.AddMenuEntry(FGenericCommands::Get().Rename);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("Alignment", LOCTEXT("Alignment", "Alignment"));
+		Section.AddSubMenu(
+			"Alignment",
+			LOCTEXT("AlignmentHeader", "Alignment"),
+			FText(),
+			FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			{
+				FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+			}
+
+			{
+				FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+				SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+			}
+		}));
+	}
 }
 
 UNiagaraSystem* UNiagaraOverviewNode::GetOwningSystem()

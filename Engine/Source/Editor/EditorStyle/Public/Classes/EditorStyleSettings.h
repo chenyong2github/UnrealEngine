@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -197,6 +197,10 @@ public:
 	/** Should editor tabs be colorized according to the asset type */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface)
 	uint32 bEnableColorizedEditorTabs : 1;
+
+	/** If enabled, the modes tab will revert to the previous mode UI */
+	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = UserInterface, meta=(ConfigRestartRequired = true))
+	uint32 bEnableLegacyEditorModeUI : 1;
 
 public:
 

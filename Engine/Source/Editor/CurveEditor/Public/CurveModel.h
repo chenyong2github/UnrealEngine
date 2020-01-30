@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@
 #include "Curves/RichCurve.h"
 #include "CurveEditorTypes.h"
 #include "Math/TransformCalculus2D.h"
+#include "Misc/Attribute.h"
 
 #include "IBufferedCurveModel.h"
 
@@ -38,7 +39,7 @@ public:
 
 	FCurveModel()
 		: Color(FLinearColor::White)
-		, bKeyDrawEnabled(1)
+		, bKeyDrawEnabled(true)
 		, SupportedViews(ECurveEditorViewID::ANY_BUILT_IN)
 	{}
 
@@ -106,7 +107,7 @@ public:
 	 * @param InKeys                 Array of key handles to set positions for
 	 * @param InKeyPositions         Array of desired key positions to be applied to each of the corresponding key handles
 	 */
-	virtual void SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions) = 0;
+	virtual void SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified) = 0;
 
 	/**
 	 * Populate the specified draw info structure with data describing how to draw the specified point type
@@ -169,7 +170,7 @@ public:
 	 * @param InKeys                 Array of key handles to set attributes for
 	 * @param InAttributes           Array of desired key attributes to be applied to each of the corresponding key handles
 	 */
-	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes)
+	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified)
 	{}
 
 	/**
@@ -232,16 +233,31 @@ public:
 	{
 		return false;
 	}
-
+	/**
+	* Get the UObject that owns this CurveModel, for example for Sequencer this would be the UMovieSceneSection
+	*/
+	virtual UObject* GetOwningObject() const
+	{
+		return nullptr;
+	}
 	/**
 	 * Helper function for assigning a the same attributes to a number of keys
 	 */
-	void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InAttributes);
+	void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InAttributes, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified);
 
 	/**
 	 * Helper function for adding a single key to this curve
 	 */
 	TOptional<FKeyHandle> AddKey(const FKeyPosition& NewKeyPosition, const FKeyAttributes& InAttributes);
+
+
+	/**
+	 * Get a multicast delegate, fired when modifications are made to this curve
+	 */
+	FORCEINLINE FSimpleMulticastDelegate& OnCurveModified()
+	{
+		return CurveModifiedDelegate;
+	}
 
 public:
 
@@ -325,15 +341,15 @@ public:
  */
 	FORCEINLINE bool IsKeyDrawEnabled() const
 	{
-		return bKeyDrawEnabled != 0;
+		return bKeyDrawEnabled.Get();
 	}
 
 	/**
 	 * Assign whether or not to disable drawing keys
 	 */
-	FORCEINLINE void SetIsKeyDrawEnabled(bool bInKeyDrawEnabled)
+	FORCEINLINE void SetIsKeyDrawEnabled(TAttribute<bool> bInKeyDrawEnabled)
 	{
-		bKeyDrawEnabled = bInKeyDrawEnabled ? 1 : 0;
+		bKeyDrawEnabled = bInKeyDrawEnabled;
 	}
 
 	/**
@@ -359,8 +375,11 @@ protected:
 	FLinearColor Color;
 
 	/** Whether or not to draw curve's keys */
-	uint8 bKeyDrawEnabled : 1;
+	TAttribute<bool> bKeyDrawEnabled;
 
 	/** A set of views supported by this curve */
 	ECurveEditorViewID SupportedViews;
+
+	/** Multicast delegate broadcast on curve modification */
+	FSimpleMulticastDelegate CurveModifiedDelegate;
 };

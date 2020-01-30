@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StructSerializer.h"
 #include "UObject/UnrealType.h"
@@ -18,11 +18,11 @@ namespace StructSerializer
 	 * @param Property A pointer to the property.
 	 * @return A pointer to the property's value, or nullptr if it couldn't be found.
 	 */
-	template<typename UPropertyType, typename PropertyType>
-	PropertyType* GetPropertyValue( const FStructSerializerState& State, UProperty* Property )
+	template<typename FPropertyType, typename PropertyType>
+	PropertyType* GetPropertyValue( const FStructSerializerState& State, FProperty* Property )
 	{
 		PropertyType* ValuePtr = nullptr;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(State.ValueProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(State.ValueProperty);
 
 		if (ArrayProperty)
 		{
@@ -35,7 +35,7 @@ namespace StructSerializer
 		}
 		else
 		{
-			UPropertyType* TypedProperty = Cast<UPropertyType>(Property);
+			FPropertyType* TypedProperty = CastField<FPropertyType>(Property);
 			check(TypedProperty != nullptr);
 
 			ValuePtr = TypedProperty->template ContainerPtrToValuePtr<PropertyType>(State.ValueData);
@@ -49,7 +49,7 @@ namespace StructSerializer
 /* FStructSerializer static interface
  *****************************************************************************/
 
-void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStructSerializerBackend& Backend, const FStructSerializerPolicies& Policies )
+void FStructSerializer::Serialize(const void* Struct, UStruct& TypeInfo, IStructSerializerBackend& Backend, const FStructSerializerPolicies& Policies)
 {
 	using namespace StructSerializer;
 
@@ -77,7 +77,7 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 		FStructSerializerState CurrentState = StateStack.Pop(/*bAllowShrinking=*/ false);
 
 		// structures
-		if ((CurrentState.ValueProperty == nullptr) || (CurrentState.ValueType == UStructProperty::StaticClass()))
+		if ((CurrentState.ValueProperty == nullptr) || CastField<FStructProperty>(CurrentState.ValueProperty))
 		{
 			if (!CurrentState.HasBeenProcessed)
 			{
@@ -86,9 +86,9 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 				// write object start
 				if (CurrentState.ValueProperty != nullptr)
 				{
-					UObject* Outer = CurrentState.ValueProperty->GetOuter();
+					FFieldVariant Outer = CurrentState.ValueProperty->GetOwnerVariant();
 
-					if ((Outer == nullptr) || (Outer->GetClass() != UArrayProperty::StaticClass()))
+					if ((Outer.ToField() == nullptr) || (Outer.ToField()->GetClass() != FArrayProperty::StaticClass()))
 					{
 						ValueData = CurrentState.ValueProperty->ContainerPtrToValuePtr<void>(CurrentState.ValueData);
 					}
@@ -102,7 +102,7 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 				// serialize fields
 				if (CurrentState.ValueProperty != nullptr)
 				{
-					UStructProperty* StructProperty = Cast<UStructProperty>(CurrentState.ValueProperty);
+					FStructProperty* StructProperty = CastField<FStructProperty>(CurrentState.ValueProperty);
 
 					if (StructProperty != nullptr)
 					{
@@ -110,7 +110,7 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 					}
 					else
 					{
-						UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(CurrentState.ValueProperty);
+						FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(CurrentState.ValueProperty);
 
 						if (ObjectProperty != nullptr)
 						{
@@ -121,25 +121,29 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 
 				TArray<FStructSerializerState> NewStates;
 
-				for (TFieldIterator<UProperty> It(CurrentState.ValueType, EFieldIteratorFlags::IncludeSuper); It; ++It)
+				if (CurrentState.ValueType)
 				{
-					// Skip property if the filter function is set and rejects it.
-					if (Policies.PropertyFilter && !Policies.PropertyFilter(*It, CurrentState.ValueProperty))
+					for (TFieldIterator<FProperty> It(CurrentState.ValueType, EFieldIteratorFlags::IncludeSuper); It; ++It)
 					{
-						continue;
-					}
+						// Skip property if the filter function is set and rejects it.
+						if (Policies.PropertyFilter && !Policies.PropertyFilter(*It, CurrentState.ValueProperty))
+						{
+							continue;
+						}
 
-					FStructSerializerState NewState;
-					{
-						NewState.HasBeenProcessed = false;
-						NewState.KeyData = nullptr;
-						NewState.KeyProperty = nullptr;
-						NewState.ValueData = ValueData;
-						NewState.ValueProperty = *It;
-						NewState.ValueType = It->GetClass();
-					}
+						FStructSerializerState NewState;
+						{
+							NewState.HasBeenProcessed = false;
+							NewState.KeyData = nullptr;
+							NewState.KeyProperty = nullptr;
+							NewState.ValueData = ValueData;
+							NewState.ValueProperty = *It;
+							NewState.ValueType = nullptr;
+							NewState.FieldType = It->GetClass();
+						}
 
-					NewStates.Add(NewState);
+						NewStates.Add(NewState);
+					}
 				}
 
 				// push child properties on stack (in reverse order)
@@ -155,7 +159,7 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 		}
 
 		// dynamic arrays
-		else if (CurrentState.ValueType == UArrayProperty::StaticClass())
+		else if (CastField<FArrayProperty>(CurrentState.ValueProperty))
 		{
 			if (!CurrentState.HasBeenProcessed)
 			{
@@ -164,9 +168,9 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 				CurrentState.HasBeenProcessed = true;
 				StateStack.Push(CurrentState);
 
-				UArrayProperty* ArrayProperty = Cast<UArrayProperty>(CurrentState.ValueProperty);
+				FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CurrentState.ValueProperty);
 				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(CurrentState.ValueData));
-				UProperty* ValueProperty = ArrayProperty->Inner;
+				FProperty* ValueProperty = ArrayProperty->Inner;
 
 				// push elements on stack (in reverse order)
 				for (int Index = ArrayHelper.Num() - 1; Index >= 0; --Index)
@@ -178,7 +182,8 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 						NewState.KeyProperty = nullptr;
 						NewState.ValueData = ArrayHelper.GetRawPtr(Index);
 						NewState.ValueProperty = ValueProperty;
-						NewState.ValueType = ValueProperty->GetClass();
+						NewState.ValueType = nullptr;
+						NewState.FieldType = ValueProperty->GetClass();
 					}
 
 					StateStack.Push(NewState);
@@ -191,7 +196,7 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 		}
 
 		// maps
-		else if (CurrentState.ValueType == UMapProperty::StaticClass())
+		else if (CastField<FMapProperty>(CurrentState.ValueProperty))
 		{
 			if (!CurrentState.HasBeenProcessed)
 			{
@@ -200,10 +205,10 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 				CurrentState.HasBeenProcessed = true;
 				StateStack.Push(CurrentState);
 
-				UMapProperty* MapProperty = Cast<UMapProperty>(CurrentState.ValueProperty);
+				FMapProperty* MapProperty = CastField<FMapProperty>(CurrentState.ValueProperty);
 				FScriptMapHelper MapHelper(MapProperty, MapProperty->ContainerPtrToValuePtr<void>(CurrentState.ValueData));
-				UProperty* ValueProperty = MapProperty->ValueProp;
-				
+				FProperty* ValueProperty = MapProperty->ValueProp;
+
 				// push key-value pairs on stack (in reverse order)
 				for (int Index = MapHelper.GetMaxIndex() - 1; Index >= 0; --Index)
 				{
@@ -218,7 +223,8 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 							NewState.KeyProperty = MapProperty->KeyProp;
 							NewState.ValueData = PairPtr;
 							NewState.ValueProperty = ValueProperty;
-							NewState.ValueType = ValueProperty->GetClass();
+							NewState.ValueType = nullptr;
+							NewState.FieldType = ValueProperty->GetClass();
 						}
 
 						StateStack.Push(NewState);
@@ -232,7 +238,7 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 		}
 
 		// sets
-		else if (CurrentState.ValueType == USetProperty::StaticClass())
+		else if (CastField<FSetProperty>(CurrentState.ValueProperty))
 		{
 			if (!CurrentState.HasBeenProcessed)
 			{
@@ -241,9 +247,9 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 				CurrentState.HasBeenProcessed = true;
 				StateStack.Push(CurrentState);
 
-				USetProperty* SetProperty = CastChecked<USetProperty>(CurrentState.ValueProperty);
+				FSetProperty* SetProperty = CastFieldChecked<FSetProperty>(CurrentState.ValueProperty);
 				FScriptSetHelper SetHelper(SetProperty, SetProperty->ContainerPtrToValuePtr<void>(CurrentState.ValueData));
-				UProperty* ValueProperty = SetProperty->ElementProp;
+				FProperty* ValueProperty = SetProperty->ElementProp;
 
 				// push elements on stack
 				for (int Index = SetHelper.GetMaxIndex() - 1; Index >= 0; --Index)
@@ -257,7 +263,8 @@ void FStructSerializer::Serialize( const void* Struct, UStruct& TypeInfo, IStruc
 							NewState.KeyProperty = nullptr;
 							NewState.ValueData = SetHelper.GetElementPtr(Index);
 							NewState.ValueProperty = ValueProperty;
-							NewState.ValueType = ValueProperty->GetClass();
+							NewState.ValueType = nullptr;
+							NewState.FieldType = ValueProperty->GetClass();
 						}
 
 						StateStack.Push(NewState);

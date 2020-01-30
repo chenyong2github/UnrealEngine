@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_AssignDelegate.h"
 #include "EdGraphSchema_K2.h"
@@ -25,7 +25,7 @@ FText UK2Node_AssignDelegate::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		if (CachedListTitle.IsOutOfDate(this))
 		{
 			FText PropertyName;
-			if (UProperty* Property = GetProperty())
+			if (FProperty* Property = GetProperty())
 			{
 				bool const bShowFriendlyNames = GetDefault<UEditorStyleSettings>()->bShowFriendlyNames;
 				PropertyName = FText::FromString(bShowFriendlyNames ? UEditorEngine::GetFriendlyName(Property) : Property->GetName());
@@ -48,7 +48,7 @@ FText UK2Node_AssignDelegate::GetNodeTitle(ENodeTitleType::Type TitleType) const
 FText UK2Node_AssignDelegate::GetMenuCategory() const
 {
 	FText MenuCategory = FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Delegates);
-	if (UProperty* Property = GetProperty())
+	if (FProperty* Property = GetProperty())
 	{
 		MenuCategory = FText::FromString(FObjectEditorUtils::GetCategory(Property));
 	}
@@ -78,7 +78,7 @@ void UK2Node_AssignDelegate::PostPlacedNewNode()
 	UEdGraphPin* InDelegatePin = GetDelegatePin();
 	if (InDelegatePin->LinkedTo.Num() == 0)
 	{
-		if (UMulticastDelegateProperty* DelegateProp = Cast<UMulticastDelegateProperty>(GetProperty()))
+		if (FMulticastDelegateProperty* DelegateProp = CastField<FMulticastDelegateProperty>(GetProperty()))
 		{
 			FVector2D const LocationOffset(-150.f, +150.f);
 

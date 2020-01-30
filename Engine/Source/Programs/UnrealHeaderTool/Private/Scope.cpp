@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Scope.h"
 #include "UnrealHeaderTool.h"
@@ -66,9 +66,9 @@ void DispatchType(UField* Type, TArray<UEnum*> &Enums, TArray<UScriptStruct*> &S
 
 void FScope::SplitTypesIntoArrays(TArray<UEnum*>& Enums, TArray<UScriptStruct*>& Structs, TArray<UDelegateFunction*>& DelegateFunctions)
 {
-	for (auto& TypePair : TypeMap)
+	for (TPair<FName, UField*>& TypePair : TypeMap)
 	{
-		auto* Type = TypePair.Value;
+		UField* Type = TypePair.Value;
 		DispatchType(Type, Enums, Structs, DelegateFunctions);
 	}
 }
@@ -96,14 +96,17 @@ TSharedRef<FScope> FScope::AddTypeScope(UStruct* Type, FScope* ParentScope)
 
 UField* FScope::FindTypeByName(FName Name)
 {
-	auto TypeIterator = TDeepScopeTypeIterator<UField, false>(this);
-
-	while (TypeIterator.MoveNext())
+	if (!Name.IsNone())
 	{
-		auto* Type = *TypeIterator;
-		if (Type->GetFName() == Name)
+		TDeepScopeTypeIterator<UField, false> TypeIterator(this);
+
+		while (TypeIterator.MoveNext())
 		{
-			return Type;
+			UField* Type = *TypeIterator;
+			if (Type->GetFName() == Name)
+			{
+				return Type;
+			}
 		}
 	}
 
@@ -112,14 +115,17 @@ UField* FScope::FindTypeByName(FName Name)
 
 const UField* FScope::FindTypeByName(FName Name) const
 {
-	auto TypeIterator = GetTypeIterator();
-
-	while (TypeIterator.MoveNext())
+	if (!Name.IsNone())
 	{
-		auto* Type = *TypeIterator;
-		if (Type->GetFName() == Name)
+		TScopeTypeIterator<UField, true> TypeIterator = GetTypeIterator();
+
+		while (TypeIterator.MoveNext())
 		{
-			return Type;
+			UField* Type = *TypeIterator;
+			if (Type->GetFName() == Name)
+			{
+				return Type;
+			}
 		}
 	}
 

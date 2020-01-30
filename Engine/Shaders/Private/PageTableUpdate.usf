@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Common.ush"
 
@@ -83,7 +83,24 @@ void PageTableUpdateVS(
 	OutColor = Page;
 }
 
-void PageTableUpdatePS(
+void PageTableUpdatePS_1(
+	nointerpolation uint InColor : TEXCOORD0,
+	out uint OutColor : SV_Target0
+	)
+{
+	OutColor = InColor; 
+}
+
+void PageTableUpdatePS_2(
+	nointerpolation uint InColor : TEXCOORD0,
+	out uint2 OutColor : SV_Target0
+	)
+{
+	// splat output to RGBA channels, color write mask will be configured to write to the correct channel
+	OutColor = InColor.xx;
+}
+
+void PageTableUpdatePS_4(
 	nointerpolation uint InColor : TEXCOORD0,
 	out uint4 OutColor : SV_Target0
 	)

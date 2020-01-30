@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -68,8 +68,12 @@ public:
 	void NotifyTargetChanged();
 	/** Get current weight of this target in preview */
 	float GetTargetWeight() const;
+
 	/** Get index of target this represents on pose driver */
 	int32 GetTargetIndex() const;
+
+	/** If we should enable the display of override controls */
+	bool IsOverrideEnabled() const;
 
 	int32 GetTransRotWidgetIndex() const;
 	TOptional<float> GetTranslation(int32 BoneIndex, EAxis::Type Axis) const;

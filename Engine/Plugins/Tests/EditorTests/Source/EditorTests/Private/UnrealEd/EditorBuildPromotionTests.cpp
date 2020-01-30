@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "HAL/PlatformFilemanager.h"
@@ -377,7 +377,7 @@ namespace EditorBuildPromotionTestUtils
 	*/
 	static FString GetPropertyByName(UObject* TargetObject, const FString& InVariableName)
 	{
-		UProperty* FoundProperty = FindField<UProperty>(TargetObject->GetClass(), *InVariableName);
+		FProperty* FoundProperty = FindField<FProperty>(TargetObject->GetClass(), *InVariableName);
 		if (FoundProperty)
 		{
 			FString ValueString;
@@ -395,8 +395,15 @@ namespace EditorBuildPromotionTestUtils
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TSharedPtr<class IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+		
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+		if (bSimulateInEditor)
+		{
+			SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+		}
 
-		GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+		GUnrealEd->RequestPlaySession(SessionParams);
 	}
 
 	/**

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //////////////////////////////////////////////////////////////////////////
 // Proxy object for displaying notifies in the details panel with
@@ -19,19 +19,12 @@ class UEditorNotifyObject : public UEditorAnimBaseObj
 	GENERATED_UCLASS_BODY()
 
 	/** Set up the editor object
-	 *	@param TrackIdx Index of the track the notify belongs to
-	 *	@param NotifyIndex index of the notify within the track
+	 *	@param InNotify		The notify to modify
 	 */
-	virtual void InitialiseNotify(int32 TrackIdx, int32 NotifyIndex);
+	virtual void InitialiseNotify(const FAnimNotifyEvent& InNotify);
 	
 	/** Copy changes made to the event object back to the montage asset */
 	virtual bool ApplyChangesToMontage() override;
-
-	/** Index of the notify within it's track */
-	int32 NotifyIndex;
-
-	/** Index of the track the notify is in */
-	int32 TrackIndex;
 
 	/** The notify event to modify */
 	UPROPERTY(EditAnywhere, Category=Event)

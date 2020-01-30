@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_SetFieldsInStruct.h"
 #include "UObject/StructOnScope.h"
@@ -207,7 +207,7 @@ void UK2Node_SetFieldsInStruct::ValidateNodeDuringCompilation(FCompilerResultsLo
 		BackTracePinPath(SourceStructOutputPin, [&MessageLog](UEdGraphPin* LinkedStructSourcePin) {
 			if (UK2Node_VariableGet* GetterNode = Cast<UK2Node_VariableGet>(LinkedStructSourcePin->GetOwningNode()))
 			{
-				if (UProperty* BoundProperty = GetterNode->GetPropertyForVariable())
+				if (FProperty* BoundProperty = GetterNode->GetPropertyForVariable())
 				{
 					if (BoundProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly))
 					{
@@ -333,7 +333,7 @@ void UK2Node_SetFieldsInStruct::RestoreAllPins()
 	}
 }
 
-void UK2Node_SetFieldsInStruct::FSetFieldsInStructPinManager::GetRecordDefaults(UProperty* TestProperty, FOptionalPinFromProperty& Record) const
+void UK2Node_SetFieldsInStruct::FSetFieldsInStructPinManager::GetRecordDefaults(FProperty* TestProperty, FOptionalPinFromProperty& Record) const
 {
 	FMakeStructPinManager::GetRecordDefaults(TestProperty, Record);
 

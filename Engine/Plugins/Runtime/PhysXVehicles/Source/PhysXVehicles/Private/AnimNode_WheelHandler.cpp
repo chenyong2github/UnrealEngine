@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNode_WheelHandler.h"
 #include "AnimationRuntime.h"
@@ -78,6 +78,22 @@ void FAnimNode_WheelHandler::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 			OutBoneTransforms.Add(FBoneTransform(WheelSimBoneIndex, NewBoneTM));
 		}
 	}
+
+#if ANIM_TRACE_ENABLED
+	for (const FWheelLookupData& Wheel : Wheels)
+	{
+		if (Wheel.BoneReference.BoneIndex != INDEX_NONE)
+		{
+			TRACE_ANIM_NODE_VALUE(Output, *FString::Printf(TEXT("Wheel %d Name"), Wheel.WheelIndex), *Wheel.BoneReference.BoneName.ToString());
+			TRACE_ANIM_NODE_VALUE(Output, *FString::Printf(TEXT("Wheel %d Rotation Offset"), Wheel.WheelIndex), WheelAnimData[Wheel.WheelIndex].RotOffset);
+			TRACE_ANIM_NODE_VALUE(Output, *FString::Printf(TEXT("Wheel %d Location Offset"), Wheel.WheelIndex), WheelAnimData[Wheel.WheelIndex].LocOffset);
+		}
+		else
+		{
+			TRACE_ANIM_NODE_VALUE(Output, *FString::Printf(TEXT("Wheel %d Name"), Wheel.WheelIndex), *FString::Printf(TEXT("%s (invalid)"), *Wheel.BoneReference.BoneName.ToString()));
+		}
+	}
+#endif
 }
 
 bool FAnimNode_WheelHandler::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) 

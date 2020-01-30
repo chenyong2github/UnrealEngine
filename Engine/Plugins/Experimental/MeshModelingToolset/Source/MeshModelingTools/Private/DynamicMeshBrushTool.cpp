@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMeshBrushTool.h"
 #include "InteractiveToolManager.h"
@@ -23,10 +23,10 @@ void UDynamicMeshBrushTool::Setup()
 	PreviewMesh->bBuildSpatialDataStructure = true;
 	PreviewMesh->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), FTransform::Identity);
 	PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
-	if (ComponentTarget->GetMaterial(0) != nullptr)
-	{
-		PreviewMesh->SetMaterial(ComponentTarget->GetMaterial(0));
-	}
+
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	PreviewMesh->SetMaterials(MaterialSet.Materials);
 
 	// initialize from LOD-0 MeshDescription
 	PreviewMesh->InitializeMesh(ComponentTarget->GetMesh());

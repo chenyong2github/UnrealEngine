@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Debugging/SKismetDebuggingView.h"
@@ -321,7 +321,7 @@ FText FWatchLineItem::GetDisplayName() const
 	{
 		if (UBlueprint* Blueprint = GetBlueprintForObject(ParentObjectRef.Get()))
 		{
-			if (UProperty* Property = FKismetDebugUtilities::FindClassPropertyForPin(Blueprint, PinToWatch))
+			if (FProperty* Property = FKismetDebugUtilities::FindClassPropertyForPin(Blueprint, PinToWatch))
 			{
 				return FText::FromString(UEditorEngine::GetFriendlyName(Property));
 			}

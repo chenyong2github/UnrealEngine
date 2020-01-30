@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PhysicsAsset.cpp
@@ -20,6 +20,16 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "PhysicsAsset"
+
+FSolverIterations::FSolverIterations()
+	: SolverIterations(3)
+	, JointIterations(1)
+	, CollisionIterations(1)
+	, SolverPushOutIterations(1)
+	, JointPushOutIterations(1)
+	, CollisionPushOutIterations(2)
+{
+}
 
 ///////////////////////////////////////	
 //////////// UPhysicsAsset ////////////
@@ -581,7 +591,7 @@ void UPhysicsAsset::PostEditUndo()
 	UpdateBoundsBodiesArray();
 }
 
-void UPhysicsAsset::PreEditChange(UProperty* PropertyThatWillChange)
+void UPhysicsAsset::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
@@ -658,7 +668,7 @@ void SanitizeProfilesHelper(const TArray<T*>& SetupInstances, const TArray<FName
 
 void UPhysicsAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if(UProperty* Property = PropertyChangedEvent.Property)
+	if(FProperty* Property = PropertyChangedEvent.Property)
 	{
 		const FName PropertyName = Property->GetFName();
 		if(PropertyName == GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PhysicalAnimationProfiles))

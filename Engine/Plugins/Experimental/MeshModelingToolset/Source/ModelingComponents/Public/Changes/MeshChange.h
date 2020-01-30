@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -16,7 +16,7 @@
 
 /**
  * FMeshChange represents an undoable change to a FDynamicMesh3.
- * Currently only valid to call Apply/Revert when the Object is a USimpleDynamicMeshComponent
+ * Currently only valid to call Apply/Revert when the Object is a one of several components backed by FDynamicMesh: USimpleDynamicMeshComponent, UOctreeDynamicMeshComponent, UPreviewMesh
  */
 class MODELINGCOMPONENTS_API FMeshChange : public FToolCommandChange
 {

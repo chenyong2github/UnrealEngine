@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
+#include "UObject/PackageId.h"
 #include "Misc/Guid.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Misc/OutputDeviceError.h"
@@ -13,6 +14,7 @@
 #include "Serialization/CustomVersion.h"
 #include "Templates/UniquePtr.h"
 #include "Misc/SecureHash.h"
+#include "Async/Future.h"
 
 class Error;
 
@@ -58,13 +60,13 @@ struct FSavePackageResultStruct
 	int64 TotalFileSize;
 
 	/** MD5 hash of the cooked data */
-	FMD5Hash CookedHash;
+	TFuture<FMD5Hash> CookedHash;
 
 	/** Constructors, it will implicitly construct from the result enum */
 	FSavePackageResultStruct() : Result(ESavePackageResult::Error), TotalFileSize(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult) : Result(InResult), TotalFileSize(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize) : Result(InResult), TotalFileSize(InTotalFileSize) {}
-	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, FMD5Hash InHash) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(InHash) {}
+	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)) {}
 
 	bool operator==(const FSavePackageResultStruct& Other) const
 	{
@@ -188,14 +190,14 @@ private:
 	uint32	PackageFlagsPrivate;
 	
 	/** Globally unique id used to address I/O chunks within the package */
-	uint32 GlobalPackageId = ~uint32(0); 
+	FPackageId PackageId;
 public:
 
 	/** Editor only: PIE instance ID this package belongs to, INDEX_NONE otherwise */
 	int32 PIEInstanceID;		// TODO: strip from runtime?
 
 	/** The name of the file that this package was loaded from */
-	FName	FileName;			// TODO: strip from runtime?
+	FName	FileName;
 
 	/** Linker load associated with this package */
 	class FLinkerLoad* LinkerLoad;
@@ -233,8 +235,6 @@ public:
 
 	/** Serializer */
 	virtual void Serialize( FArchive& Ar ) override;
-
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/** Packages are never assets */
 	virtual bool IsAsset() const override { return false; }
@@ -514,16 +514,16 @@ public:
 		ChunkIDs = InChunkIDs;
 	}
 
-	/** returns the globally unique package id */
-	FORCEINLINE uint32 GetGlobalPackageId() const
+	/** returns the unique package id */
+	FORCEINLINE FPackageId GetPackageId() const
 	{
-		return GlobalPackageId;
+		return PackageId;
 	}
 
-	/** sets the globally unique package id */
-	FORCEINLINE void SetGlobalPackageId(uint32 InGlobalPackageId)
+	/** sets the unique package id */
+	FORCEINLINE void SetPackageId(FPackageId InPackageId)
 	{
-		GlobalPackageId = InGlobalPackageId;
+		PackageId = InPackageId;
 	}
 
 	////////////////////////////////////////////////////////

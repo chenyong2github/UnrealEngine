@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneSequencePlayer.h"
 #include "MovieScene.h"
@@ -665,6 +665,11 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		StartTimeWithOffset = StartTime + StartingTimeOffset;
 
 		ClockToUse = MovieScene->GetClockSource();
+
+		if (ClockToUse == EUpdateClockSource::Custom)
+		{
+			TimeController = MovieScene->MakeCustomTimeController(GetPlaybackContext());
+		}
 	}
 
 	if (!TimeController.IsValid())
@@ -675,6 +680,11 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>(); break;
 		case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>(); break;
 		default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();          break;
+		}
+
+		if (!ensureMsgf(TimeController.IsValid(), TEXT("No time controller specified for sequence playback. Falling back to Engine Tick clock source.")))
+		{
+			TimeController = MakeShared<FMovieSceneTimeController_Tick>();
 		}
 	}
 
@@ -995,7 +1005,7 @@ void UMovieSceneSequencePlayer::RPC_ExplicitServerUpdateEvent_Implementation(EUp
 
 #if !NO_LOGGING
 	// Log the sync event if necessary
-	if (UE_LOG_ACTIVE(LogMovieSceneRepl, Verbose))
+	if (UE_LOG_ACTIVE(LogMovieScene, Verbose))
 	{
 		FFrameTime   CurrentTime     = PlayPosition.GetCurrentPosition();
 		FString      SequenceName    = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root)->GetName();
@@ -1006,7 +1016,7 @@ void UMovieSceneSequencePlayer::RPC_ExplicitServerUpdateEvent_Implementation(EUp
 			SequenceName += FString::Printf(TEXT(" (client %d)"), GPlayInEditorID - 1);
 		}
 
-		UE_LOG(LogMovieSceneRepl, Verbose, TEXT("Explicit update event for sequence %s %s @ frame %d, subframe %f. Server has moved to frame %d, subframe %f with EUpdatePositionMethod::%s."),
+		UE_LOG(LogMovieScene, Verbose, TEXT("Explicit update event for sequence %s %s @ frame %d, subframe %f. Server has moved to frame %d, subframe %f with EUpdatePositionMethod::%s."),
 			*SequenceName, *UEnum::GetValueAsString(TEXT("MovieScene.EMovieScenePlayerStatus"), Status.GetValue()), CurrentTime.FrameNumber.Value, CurrentTime.GetSubFrame(),
 			NetSyncProps.LastKnownPosition.FrameNumber.Value, NetSyncProps.LastKnownPosition.GetSubFrame(), *UEnum::GetValueAsString(TEXT("MovieScene.EUpdatePositionMethod"), NetSyncProps.LastKnownStatus.GetValue()));
 	}
@@ -1094,6 +1104,8 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 	const bool bHasChangedTime    = NetSyncProps.LastKnownPosition != PlayPosition.GetCurrentPosition();
 
 	const FFrameTime PingLag      = (PingMs/1000.f) * PlayPosition.GetInputRate();
+	//const FFrameTime LagThreshold = 0.2f * PlayPosition.GetInputRate();
+	//const FFrameTime LagDisparity = FMath::Abs(PlayPosition.GetCurrentPosition() - NetSyncProps.LastKnownPosition);
 	const FFrameTime LagThreshold = (GSequencerNetSyncThresholdMS * 0.001f) * PlayPosition.GetInputRate();
 
 	if (!bHasChangedStatus && !bHasChangedTime)

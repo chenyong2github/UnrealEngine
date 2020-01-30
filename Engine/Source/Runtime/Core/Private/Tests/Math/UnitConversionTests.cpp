@@ -1,10 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
 #include "Misc/AutomationTest.h"
 #include "Math/UnitConversion.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -160,3 +162,5 @@ bool FParsingUnitTests::RunTest(const FString& Parameters)
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

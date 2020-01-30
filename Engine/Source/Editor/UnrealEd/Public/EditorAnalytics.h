@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -88,7 +88,7 @@ public:
 	* @param PlatformName - name of the platform being used
 	* @param ExtraParams - extra data needed by the event
 	*/
-	UNREALED_API static void ReportEvent(FString EventName, FString PlatformName, bool bHasCode, TArray<FAnalyticsEventAttribute>& ExtraParams);
+	UNREALED_API static void ReportEvent(FString EventName, FString PlatformName, bool bHasCode, const TArray<FAnalyticsEventAttribute>& ExtraParams);
 
 	/**
 	* Reports an event to the analytics system if it is enabled with some extra parameters with an error code

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SBlueprintEditorToolbar.h"
@@ -33,6 +33,8 @@
 #include "FindInBlueprintManager.h"
 #include "ISourceCodeAccessor.h"
 #include "ISourceCodeAccessModule.h"
+#include "ToolMenus.h"
+#include "BlueprintEditorContext.h"
 
 #define LOCTEXT_NAMESPACE "KismetToolbar"
 

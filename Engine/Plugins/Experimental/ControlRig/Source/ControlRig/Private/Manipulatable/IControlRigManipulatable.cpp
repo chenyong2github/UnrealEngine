@@ -1,22 +1,18 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Manipulatable/IControlRigManipulatable.h"
+
+UControlRigManipulatable::UControlRigManipulatable(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
 
 IControlRigManipulatable::IControlRigManipulatable()
 {
 	bManipulationEnabled = false;
 }
 
-IControlRigManipulatable::~IControlRigManipulatable()
-{
-	OnFilterControl.Clear();
-	OnControlModified.Clear();
-#if WITH_EDITOR
-	OnControlSelected.Clear();
-#endif
-}
-
-bool IControlRigManipulatable::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
+bool IControlRigManipulatable::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, EControlRigSetKey InSetKey)
 {
 	FRigControlValue Value = GetControlValueFromGlobalTransform(InControlName, InGlobalTransform);
 	if (OnFilterControl.IsBound())
@@ -27,6 +23,6 @@ bool IControlRigManipulatable::SetControlGlobalTransform(const FName& InControlN
 			OnFilterControl.Broadcast(this, *Control, Value);
 		}
 	}
-	SetControlValue(InControlName, Value, true /* notify */);
+	SetControlValue(InControlName, Value, true /* notify */, InSetKey);
 	return true;
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	RHIDefinitions.h: Render Hardware Interface definitions
@@ -1169,6 +1169,14 @@ inline bool IsHlslccShaderPlatform(const EShaderPlatform Platform)
 	return IsMetalPlatform(Platform) || IsVulkanPlatform(Platform) || IsSwitchPlatform(Platform) || IsOpenGLPlatform(Platform);
 }
 
+inline bool IsDeprecatedShaderPlatform(const EShaderPlatform ShaderPlatform)
+{
+	return ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4_REMOVED || ShaderPlatform == SP_OPENGL_ES2_IOS_REMOVED ||
+		ShaderPlatform == SP_PCD3D_ES2_DEPRECATED || ShaderPlatform == SP_METAL_MACES2_DEPRECATED || ShaderPlatform == SP_OPENGL_PCES2_DEPRECATED ||
+		ShaderPlatform == SP_OPENGL_ES2_ANDROID || ShaderPlatform == SP_OPENGL_ES2_WEBGL ||
+		ShaderPlatform == SP_VULKAN_SM4_REMOVED;
+}
+
 inline ERHIFeatureLevel::Type GetMaxSupportedFeatureLevel(EShaderPlatform InShaderPlatform)
 {
 	switch (InShaderPlatform)
@@ -1336,7 +1344,7 @@ inline int32 GetFeatureLevelMaxNumberOfBones(ERHIFeatureLevel::Type FeatureLevel
 	case ERHIFeatureLevel::ES3_1:
 		return 75;	
 	case ERHIFeatureLevel::SM5:
-		return 256;
+		return 65536; // supports uint16
 	default:
 		checkf(0, TEXT("Unknown FeatureLevel %d"), (int32)FeatureLevel);
 	}

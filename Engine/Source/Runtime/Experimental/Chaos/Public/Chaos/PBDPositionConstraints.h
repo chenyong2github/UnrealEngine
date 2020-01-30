@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Array.h"
@@ -162,6 +162,14 @@ namespace Chaos
 		//
 		// Island Rule API
 		//
+
+		void PrepareConstraints(FReal Dt)
+		{
+		}
+
+		void UnprepareConstraints(FReal Dt)
+		{
+		}
 
 		void UpdatePositionBasedState(const T Dt)
 		{

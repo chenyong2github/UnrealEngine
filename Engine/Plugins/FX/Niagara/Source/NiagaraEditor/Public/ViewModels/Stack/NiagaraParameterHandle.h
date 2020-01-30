@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,6 +52,10 @@ public:
 	bool IsModuleHandle() const;
 
 	bool IsParameterCollectionHandle() const;
+
+	bool IsReadOnlyHandle() const;
+
+	bool IsTransientHandle() const;
 
 public:
 	static const FName UserNamespace;

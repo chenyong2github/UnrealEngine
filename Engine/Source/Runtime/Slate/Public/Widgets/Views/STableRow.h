@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -424,7 +424,7 @@ public:
 	{
 		TSharedRef< ITypedTableView<ItemType> > OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
 
-		// Requires #include "Widgets/Views/STableViewBase.h"
+		// Requires #include "Widgets/Views/SListView.h" in your header (not done in STableRow.h to avoid circular reference).
 		TSharedRef< STableViewBase > OwnerTableViewBase = StaticCastSharedRef< SListView<ItemType> >(OwnerTable);
 
 		if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )

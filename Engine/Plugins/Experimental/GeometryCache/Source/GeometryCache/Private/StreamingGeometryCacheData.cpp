@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StreamingGeometryCacheData.h"
 #include "Async/AsyncFileHandle.h"
@@ -91,7 +91,7 @@ void FStreamingGeometryCacheData::RemoveResidentChunk(FResidentChunk& LoadedChun
 /**
 This is called from some random thread when reading is complete.
 */
-void FStreamingGeometryCacheData::OnAsyncReadComplete(int32 LoadedChunkIndex, IAsyncReadRequest* ReadRequest)
+void FStreamingGeometryCacheData::OnAsyncReadComplete(int32 LoadedChunkIndex, IBulkDataIORequest* ReadRequest)
 {
 	// We should do the least amount of work possible here as to not stall the async io threads.
 	// We also cannot take the critical section here as this would lead to a deadlock between the
@@ -228,7 +228,7 @@ void FStreamingGeometryCacheData::UpdateStreamingStatus()
 				// Kick of a load
 				check(Chunk.BulkData.GetBulkDataSize() == ResidentChunk.DataSize);
 
-				FAsyncFileCallBack AsyncFileCallBack = [this, NeededIndex](bool bWasCancelled, IAsyncReadRequest* Req)
+				FBulkDataIORequestCallBack AsyncFileCallBack = [this, NeededIndex](bool bWasCancelled, IBulkDataIORequest* Req)
 				{
 					this->OnAsyncReadComplete(NeededIndex, Req);
 				};

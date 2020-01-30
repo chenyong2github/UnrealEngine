@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequencePlaybackController.h"
 
@@ -26,14 +26,6 @@ ULevelSequencePlaybackController::ULevelSequencePlaybackController(const FObject
 	, ActiveLevelSequence(nullptr)
 {
 
-}
-
-void ULevelSequencePlaybackController::ResumeLevelSequencePlay()
-{
-	if (ActiveLevelSequence)
-	{
-		PlayLevelSequence();
-	}
 }
 
 void ULevelSequencePlaybackController::GetLevelSequences(TArray<FLevelSequenceData>& OutLevelSequenceNames)
@@ -343,15 +335,6 @@ void ULevelSequencePlaybackController::ClearActiveLevelSequence()
 #if WITH_EDITOR
 		WeakSequencer = nullptr;
 #endif
-	}
-}
-
-void ULevelSequencePlaybackController::PlayFromBeginning()
-{
-	if (ActiveLevelSequence)
-	{
-		JumpToPlaybackPosition(GetCurrentSequencePlaybackStart());
-		PlayLevelSequence();
 	}
 }
 

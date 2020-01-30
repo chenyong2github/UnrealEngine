@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 #include "Input/Reply.h"
 #include "Layout/Geometry.h"
 #include "Rendering/RenderingCommon.h"
+#include "Styling/SlateTypes.h"
 #include "TraceServices/Model/NetProfiler.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -50,6 +51,12 @@ struct FNetworkPacketEventRef
 		Event = Other.Event;
 		bIsValid = Other.bIsValid;
 		return *this;
+	}
+
+	void Set(const FNetworkPacketEvent& InEvent)
+	{
+		Event = InEvent;
+		bIsValid = true;
 	}
 
 	void Reset()
@@ -125,10 +132,48 @@ public:
 
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	//virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 	void ResetPacket();
 	void SetPacket(uint32 InGameInstanceIndex, uint32 InConnectionIndex, Trace::ENetProfilerConnectionMode InConnectionMode, uint32 InPacketIndex, int64 InPacketBitSize);
 
+	bool IsFilterByNetIdEnabled() const { return bFilterByNetId; }
+	uint32 GetFilterNetId() const { return FilterNetId; }
+	void SetFilterNetId(const uint32 InNetId);
+
+	bool IsFilterByEventTypeEnabled() const { return bFilterByEventType; }
+	uint32 GetFilterEventTypeIndex() const { return FilterEventTypeIndex; }
+	const FText& GetFilterEventName() const { return FilterEventName; }
+	void SetFilterEventType(const uint32 InEventTypeIndex, const FText& InEventName);
+	void EnableFilterEventType(const uint32 InEventTypeIndex);
+	void DisableFilterEventType();
+
+	FReply FindFirstEvent();
+	FReply FindPreviousEvent();
+	FReply FindNextEvent();
+	FReply FindLastEvent();
+
 private:
+	FReply FindPreviousPacket_OnClicked();
+	FReply FindNextPacket_OnClicked();
+
+	FText GetPacketText() const;
+	void Packet_OnTextCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
+
+	ECheckBoxState FilterByNetId_IsChecked() const;
+	void FilterByNetId_OnCheckStateChanged(ECheckBoxState NewState);
+	FText GetFilterNetIdText() const;
+	void FilterNetId_OnTextCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
+
+	ECheckBoxState FilterByEventType_IsChecked() const;
+	void FilterByEventType_OnCheckStateChanged(ECheckBoxState NewState);
+	FText GetFilterEventTypeText() const { return FilterEventName; }
+
+	ECheckBoxState HighlightFilteredEvents_IsChecked() const;
+	void HighlightFilteredEvents_OnCheckStateChanged(ECheckBoxState NewState);
+
 	//void ShowContextMenu(const FPointerEvent& MouseEvent);
 
 	/** Binds our UI commands to delegates. */
@@ -144,6 +189,8 @@ private:
 	void UpdateHorizontalScrollBar();
 
 	void ZoomHorizontally(const float Delta, const float X);
+	void BringIntoView(const float X1, const float X2);
+	void BringEventIntoView(const FNetworkPacketEventRef& EventRef);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -162,15 +209,28 @@ private:
 	FPacketContentViewport Viewport;
 	bool bIsViewportDirty;
 
+	float NetEventsOffsetY;
+
 	uint32 GameInstanceIndex;
 	uint32 ConnectionIndex;
 	Trace::ENetProfilerConnectionMode ConnectionMode;
 	uint32 PacketIndex;
 	int64 PacketBitSize; // total number of bits; [bit]
 
-	/** Cached draw state of the packet content (i.e. all it needs to render). */
+	bool bFilterByEventType;
+	uint32 FilterEventTypeIndex;
+	FText FilterEventName;
+
+	bool bFilterByNetId;
+	uint32 FilterNetId;
+
+	bool bHighlightFilteredEvents;
+
+	/** Cached draw state of the packet content. */
 	TSharedRef<FPacketContentViewDrawState> DrawState;
+	TSharedRef<FPacketContentViewDrawState> FilteredDrawState;
 	bool bIsStateDirty;
+
 	//////////////////////////////////////////////////
 
 	TSharedPtr<SScrollBar> HorizontalScrollBar;

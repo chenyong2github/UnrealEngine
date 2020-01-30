@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -36,6 +36,7 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				"MeshSolverUtilities",
 				"GeometryAlgorithms", // required for constrained Delaunay triangulation
                 "ProxyLODMeshReduction", // currently required to be public due to IVoxelBasedCSG API
+				"MeshUtilitiesCommon", // required by uvlayoutop
 				// ... add other public dependencies that you statically link with here ...
 			}
             );

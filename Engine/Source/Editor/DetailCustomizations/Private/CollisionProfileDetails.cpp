@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CollisionProfileDetails.h"
 #include "Misc/MessageDialog.h"
@@ -1258,7 +1258,7 @@ TSharedRef<SWidget> SProfileListItem::GenerateWidgetForColumn(const FName& Colum
 				[
 					SNew(SImage)
 					.Image(FEditorStyle::GetBrush("SettingsEditor.Collision_Game"))
-					.ToolTipText(LOCTEXT("CanModify_Tooltip", "This is your custom project profie"))
+					.ToolTipText(LOCTEXT("CanModify_Tooltip", "This is your custom project profile"))
 				];
 		}
 	}

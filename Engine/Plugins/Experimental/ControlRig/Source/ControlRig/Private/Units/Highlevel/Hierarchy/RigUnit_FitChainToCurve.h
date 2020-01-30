@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -27,13 +27,13 @@ struct FRigUnit_FitChainToCurve_Rotation
 	/**
 	 * The rotation to be applied
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input), Category = "Rotation")
 	FQuat Rotation;
 
 	/**
 	 * The ratio of where this rotation sits along the chain
 	 */
-	UPROPERTY(meta = (Input, Constant))
+	UPROPERTY(EditAnywhere, meta = (Input, Constant), Category = "Rotation")
 	float Ratio;
 };
 
@@ -54,31 +54,31 @@ struct FRigUnit_FitChainToCurve_DebugSettings
 	/**
 	 * If enabled debug information will be drawn
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input), Category = "DebugSettings")
 	bool bEnabled;
 
 	/**
 	 * The size of the debug drawing information
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	float Scale;
 
 	/**
 	 * The color to use for debug drawing
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	FLinearColor CurveColor;
 
 	/**
 	 * The color to use for debug drawing
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	FLinearColor SegmentsColor;
 
 	/**
 	 * The offset at which to draw the debug information in the world
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	FTransform WorldOffset;
 };
 
@@ -153,13 +153,13 @@ struct FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMutable
 	/** 
 	 * The name of the first bone to align
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName StartBone;
 
 	/** 
 	 * The name of the last bone to align
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName EndBone;
 
 	/** 
@@ -229,7 +229,7 @@ struct FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMutable
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
 	UPROPERTY(meta = (Input))

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -124,7 +124,7 @@ SLATE_SCOPE:
 	
 	FORCEINLINE bool HasValidFocusPath() const { return WeakFocusPath.IsValid(); }
 	FORCEINLINE const FWeakWidgetPath& GetWeakFocusPath() const { return WeakFocusPath; }
-
+	
 	FORCEINLINE TSharedRef<FWidgetPath> GetFocusPath() const
 	{
 		if (!StrongFocusPath.IsValid())
@@ -154,6 +154,9 @@ SLATE_SCOPE:
 	void FinishFrame();
 	void NotifyWindowDestroyed(TSharedRef<SWindow> DestroyedWindow);
 
+	bool IsTouchPointerActive(int32 TouchPointerIndex) const;
+
+	void NotifyTouchStarted(const FPointerEvent& TouchEvent);
 	void NotifyPointerMoveBegin(const FPointerEvent& PointerEvent);
 	void NotifyPointerMoveComplete(const FPointerEvent& PointerEvent, const FWidgetPath& WidgetsUnderPointer);
 	void NotifyPointerReleased(const FPointerEvent& PointerEvent, const FWidgetPath& WidgetsUnderCursor, TSharedPtr<FDragDropOperation> DroppedContent, bool bWasHandled);

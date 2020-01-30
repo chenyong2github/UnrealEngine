@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
 using Tools.DotNETCommon;
@@ -21,24 +21,21 @@ namespace UnrealBuildTool.Rules
 					"DatasmithExporter",
 					"Engine",
 					"Json",
-					"MainFrame",
 					"MeshDescription",
 					"MeshDescriptionOperations",
-					"MeshUtilities",
 					"MessageLog",
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
 					"UEOpenExr",
-					"UnrealEd",
-				}
+                }
 			);
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"DatasmithContent",
-					"DatasmithImporter"
+					"DatasmithTranslator"
 				}
 			);
 

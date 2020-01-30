@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveEditorPanel.h"
 #include "Templates/Tuple.h"
@@ -232,13 +232,13 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 			.PhysicalSplitterHandleSize(2.0f)
 
 			+ SSplitter::Slot()
-			.Value(0.30f)
+			.Value(InArgs._TreeSplitterWidth)
 			[
 				InArgs._TreeContent.Widget
 			]
 
 			+ SSplitter::Slot()
-			.Value(0.7f)
+			.Value(InArgs._ContentSplitterWidth)
 			[
 				MainContent
 			]
@@ -684,12 +684,14 @@ void SCurveEditorPanel::UpdateEditBox()
 	for (TTuple<FCurveModelID, TMap<FKeyHandle, UObject*>>& OuterPair : EditObjects->CurveIDToKeyProxies)
 	{
 		const FKeyHandleSet* SelectedKeys = Selection.FindForCurve(OuterPair.Key);
-
-		for (TTuple<FKeyHandle, UObject*>& InnerPair : OuterPair.Value)
+		if(SelectedKeys)
 		{
-			if (ICurveEditorKeyProxy* Proxy = Cast<ICurveEditorKeyProxy>(InnerPair.Value))
+			for (TTuple<FKeyHandle, UObject*>& InnerPair : OuterPair.Value)
 			{
-				Proxy->UpdateValuesFromRawData();
+				if (ICurveEditorKeyProxy* Proxy = Cast<ICurveEditorKeyProxy>(InnerPair.Value))
+				{
+					Proxy->UpdateValuesFromRawData();
+				}
 			}
 		}
 	}

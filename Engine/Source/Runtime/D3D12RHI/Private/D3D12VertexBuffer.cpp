@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D12VertexBuffer.cpp: D3D vertex buffer RHI implementation.
@@ -48,9 +48,14 @@ void FD3D12VertexBuffer::Rename(FD3D12ResourceLocation& NewLocation)
 {
 	FD3D12ResourceLocation::TransferOwnership(ResourceLocation, NewLocation);
 
-	if (DynamicSRV != nullptr)
+	FScopeLock Lock(&DynamicSRVsCS);
+	for (FD3D12BaseShaderResourceView* DynamicSRVBase : DynamicSRVs)
 	{
-		DynamicSRV->Rename(ResourceLocation);
+		FD3D12ShaderResourceView* DynamicSRV = static_cast<FD3D12ShaderResourceView*>(DynamicSRVBase);
+		if (DynamicSRV->IsValid())
+		{
+			DynamicSRV->Rename(ResourceLocation);
+		}
 	}
 }
 
@@ -70,9 +75,14 @@ void FD3D12VertexBuffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 		{
 			FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
 
-			if (NextBuffer->DynamicSRV)
+			FScopeLock Lock(&NextBuffer->DynamicSRVsCS);
+			for (FD3D12BaseShaderResourceView* DynamicSRVBase : NextBuffer->DynamicSRVs)
 			{
-				NextBuffer->DynamicSRV->Rename(NextBuffer->ResourceLocation);
+				FD3D12ShaderResourceView* DynamicSRV = static_cast<FD3D12ShaderResourceView*>(DynamicSRVBase);
+				if (DynamicSRV->IsValid())
+				{
+					DynamicSRV->Rename(NextBuffer->ResourceLocation);
+				}
 			}
 		}
 	}
@@ -85,7 +95,6 @@ void FD3D12VertexBuffer::Swap(FD3D12VertexBuffer& Other)
 	FD3D12BaseShaderResource::Swap(Other);
 	FD3D12TransientResource::Swap(Other);
 	FD3D12LinkedAdapterObject<FD3D12VertexBuffer>::Swap(Other);
-	::Swap(DynamicSRV, Other.DynamicSRV);
 }
 
 void FD3D12VertexBuffer::ReleaseUnderlyingResource()

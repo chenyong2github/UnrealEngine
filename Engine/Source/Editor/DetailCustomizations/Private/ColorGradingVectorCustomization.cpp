@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "ColorGradingVectorCustomization.h"
 #include "IPropertyUtilities.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -40,7 +40,7 @@ EColorGradingModes FColorGradingVectorCustomizationBase::GetColorGradingMode() c
 	if (ColorGradingPropertyHandle.IsValid())
 	{
 		//Query all meta data we need
-		UProperty* Property = ColorGradingPropertyHandle.Pin()->GetProperty();
+		FProperty* Property = ColorGradingPropertyHandle.Pin()->GetProperty();
 		const FString& ColorGradingModeString = Property->GetMetaData(TEXT("ColorGradingMode"));
 
 		if (ColorGradingModeString.Len() > 0)

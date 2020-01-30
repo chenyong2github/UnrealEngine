@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
@@ -10,9 +10,12 @@
 #include "PhysicsAssetEditorSharedData.h"
 #include "PhysicsAssetEditorHitProxies.h"
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
+#include "PhysicsAssetEditorAnimInstance.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Chaos/Core.h"
 #include "SkeletalMeshTypes.h"
+#include "AnimPreviewInstance.h"
 #include "UObject/Package.h"
 #include "EditorStyleSet.h"
 
@@ -495,5 +498,53 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RefreshBoneTransforms(FActorCompo
 		bNeedToFlipSpaceBaseBuffers = true;
 		FinalizeBoneTransform();
 		bNeedToFlipSpaceBaseBuffers = true;
+	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
+{
+#if !WITH_CHAOS
+	Super::AddImpulseAtLocation(Impulse, Location, BoneName);
+#else
+	if (PreviewInstance != nullptr)
+	{
+		PreviewInstance->AddImpulseAtLocation(Impulse, Location, BoneName);
+	}
+#endif
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::Grab(FName InBoneName, const FVector& Location, const FRotator& Rotation, bool bRotationConstrained)
+{
+	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
+	if (PhatPreviewInstance != nullptr)
+	{
+		PhatPreviewInstance->Grab(InBoneName, Location, Rotation, bRotationConstrained);
+	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::Ungrab()
+{
+	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
+	if (PhatPreviewInstance != nullptr)
+	{
+		PhatPreviewInstance->Ungrab();
+	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::UpdateHandleTransform(const FTransform& NewTransform)
+{
+	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
+	if (PhatPreviewInstance != nullptr)
+	{
+		PhatPreviewInstance->UpdateHandleTransform(NewTransform);
+	}
+}
+
+void UPhysicsAssetEditorSkeletalMeshComponent::UpdateDriveSettings(bool bLinearSoft, float LinearStiffness, float LinearDamping)
+{
+	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
+	if (PhatPreviewInstance != nullptr)
+	{
+		PhatPreviewInstance->UpdateDriveSettings(bLinearSoft, LinearStiffness, LinearDamping);
 	}
 }

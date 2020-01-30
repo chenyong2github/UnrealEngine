@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorModeActorPicker.h"
 #include "Framework/Application/SlateApplication.h"
@@ -11,12 +11,13 @@
 
 FEdModeActorPicker::FEdModeActorPicker()
 {
-	PickState = EPickState::NotOverViewport;
-	HoveredActor.Reset();
 }
 
-void FEdModeActorPicker::Initialize()
+void FEdModeActorPicker::Enter()
 {
+	FEdMode::Enter();
+	PickState = EPickState::NotOverViewport;
+	HoveredActor.Reset();
 	CursorDecoratorWindow = SWindow::MakeCursorDecorator();
 	FSlateApplication::Get().AddWindow(CursorDecoratorWindow.ToSharedRef(), true);
 	CursorDecoratorWindow->SetContent(

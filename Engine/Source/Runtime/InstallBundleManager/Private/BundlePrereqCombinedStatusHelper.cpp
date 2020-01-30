@@ -1,21 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BundlePrereqCombinedStatusHelper.h"
 #include "Containers/Ticker.h"
 #include "InstallBundleManagerPrivatePCH.h"
 
-//PRAGMA_DISABLE_OPTIMIZATION
-
 FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper()
-: DownloadWeight(1.f)
-, InstallWeight(1.f)
-, RequiredBundleNames()
-, BundleStatusCache()
-, CachedBundleWeights()
-, CurrentCombinedStatus()
-, bBundleNeedsUpdate(false)
-, InstallBundleManager(nullptr)
-, TickHandle()
 {
 	SetupDelegates();
 }
@@ -40,8 +29,6 @@ FBundlePrereqCombinedStatusHelper& FBundlePrereqCombinedStatusHelper::operator=(
 	if (this != &Other)
 	{
 		//Just copy all this data
-		DownloadWeight = Other.DownloadWeight;
-		InstallWeight = Other.InstallWeight;
 		RequiredBundleNames = Other.RequiredBundleNames;
 		BundleStatusCache = Other.BundleStatusCache;
 		CachedBundleWeights = Other.CachedBundleWeights;
@@ -61,8 +48,6 @@ FBundlePrereqCombinedStatusHelper& FBundlePrereqCombinedStatusHelper::operator=(
 	if (this != &Other)
 	{
 		//Just copy small data
-		DownloadWeight = Other.DownloadWeight;
-		InstallWeight = Other.InstallWeight;
 		CurrentCombinedStatus = Other.CurrentCombinedStatus;
 		bBundleNeedsUpdate = Other.bBundleNeedsUpdate;
 		InstallBundleManager = Other.InstallBundleManager;
@@ -87,12 +72,14 @@ void FBundlePrereqCombinedStatusHelper::SetupDelegates()
 	CleanUpDelegates();
 	
 	IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete);
+	IInstallBundleManager::PausedBundleDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallPauseChanged);
 	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FBundlePrereqCombinedStatusHelper::Tick));
 }
 
 void FBundlePrereqCombinedStatusHelper::CleanUpDelegates()
 {
 	IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+	IInstallBundleManager::PausedBundleDelegate.RemoveAll(this);
 	if (TickHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
@@ -159,13 +146,12 @@ void FBundlePrereqCombinedStatusHelper::UpdateBundleCache()
 	{
 		for (FName& BundleName : RequiredBundleNames)
 		{
-			TOptional<FInstallBundleStatus> BundleProgress = InstallBundleManager->GetBundleProgress(BundleName);
+			TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager->GetBundleProgress(BundleName);
 			
 			//Copy progress to the cache as long as we have progress to copy.
 			if (BundleProgress.IsSet())
 			{
-				FInstallBundleStatus& CachedStatus = BundleStatusCache.FindOrAdd(BundleName);
-				CachedStatus = BundleProgress.GetValue();
+				BundleStatusCache.Add(BundleName, BundleProgress.GetValue());
 			}
 		}
 	}
@@ -190,11 +176,11 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	if ((BundleStatusCache.Num() < RequiredBundleNames.Num())
 		&& (BundleStatusCache.Num() > 0))
 	{
-		EarliestBundleState = EInstallBundleStatus::Downloading;
+		EarliestBundleState = EInstallBundleStatus::Updating;
 	}
 	
 	float EarliestFinishingPercent = 1.0f;
-	for (const TPair<FName,FInstallBundleStatus>& BundlePair : BundleStatusCache)
+	for (const TPair<FName,FInstallBundleProgress>& BundlePair : BundleStatusCache)
 	{
 		if (BundlePair.Value.Status < EarliestBundleState)
 		{
@@ -213,7 +199,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	
 	//if we have any paused bundles, and we have any bundle that isn't finished installed, we are Paused
 	//if everything is installed ignore the pause flags as we completed after pausing the bundles
-	CurrentCombinedStatus.bIsPaused = (bIsAnythingPaused && (EarliestBundleState < EInstallBundleStatus::Installed));
+	CurrentCombinedStatus.bIsPaused = (bIsAnythingPaused && (EarliestBundleState < EInstallBundleStatus::Ready));
 	if(CurrentCombinedStatus.bIsPaused)
 	{
 		CurrentCombinedStatus.CombinedPauseFlags = CombinedPauseFlags;
@@ -231,7 +217,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Initializing;
 	}
-	else if (EarliestBundleState <= EInstallBundleStatus::Installing)
+	else if (EarliestBundleState <= EInstallBundleStatus::Updating)
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Updating;
 	}
@@ -249,7 +235,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 			CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Updating;
 		}
 	}
-	else if (EarliestBundleState == EInstallBundleStatus::Installed)
+	else if (EarliestBundleState == EInstallBundleStatus::Ready)
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Finished;
 		CurrentCombinedStatus.bDoesCurrentStateSupportPausing = false;
@@ -266,69 +252,17 @@ float FBundlePrereqCombinedStatusHelper::GetCombinedProgressPercent() const
 	
 	ensureAlwaysMsgf((CachedBundleWeights.Num() >= BundleStatusCache.Num()), TEXT("Missing Cache Entries for BundleWeights!Any missing bundles will have 0 for their progress!"));
 	
-	for (const TPair<FName,FInstallBundleStatus>& BundleStatusPair : BundleStatusCache)
+	for (const TPair<FName,FInstallBundleProgress>& BundleStatusPair : BundleStatusCache)
 	{
 		const float* FoundWeight = CachedBundleWeights.Find(BundleStatusPair.Key);
 		if (ensureAlwaysMsgf((nullptr != FoundWeight), TEXT("Found missing entry for BundleWeight! Bundle %s does not have a weight entry!"), *(BundleStatusPair.Key.ToString())))
 		{
-			AllBundleProgressPercent += ((*FoundWeight) * GetIndividualWeightedProgressPercent(BundleStatusPair.Value));
+			AllBundleProgressPercent += ((*FoundWeight) * BundleStatusPair.Value.Install_Percent);
 		}
 	}
 	
 	FMath::Clamp(AllBundleProgressPercent, 0.f, 1.0f);
 	return AllBundleProgressPercent;
-}
-
-float FBundlePrereqCombinedStatusHelper::GetIndividualWeightedProgressPercent(const FInstallBundleStatus& BundleStatus) const
-{
-	const float TotalWeight = DownloadWeight + InstallWeight;
-	float CombinedOverallProgressPercent = 0.f;
-	
-	//If we are done installing then lets just coung our progress as 1.0f. Finishing progress is handled in UpdateCombinedStatus
-	if (BundleStatus.Status > EInstallBundleStatus::Installing)
-	{
-		CombinedOverallProgressPercent = 1.0f;
-	}
-	else
-	{
-		if (ensureAlwaysMsgf((TotalWeight > 0), TEXT("Invalid Weights for FBundleStatusTracker! Need to have weights > 0.f!")))
-		{
-			float DownloadWeightedPercent = 0.f;
-			bool bDidHaveBackgroundDownloadProgress = false;
-			
-			if (DownloadWeight > 0.f)
-			{
-				//Skip background downloads from contributing to progress if they aren't in use
-				bDidHaveBackgroundDownloadProgress = (BundleStatus.BackgroundDownloadProgress.IsSet() && (BundleStatus.BackgroundDownloadProgress->BytesDownloaded > 0));
-				if (bDidHaveBackgroundDownloadProgress)
-				{
-					const float AppliedDownloadWeight = DownloadWeight / TotalWeight;
-					
-					if (BundleStatus.Status > EInstallBundleStatus::Downloading)
-					{
-						//if we have moved past the download phase, just consider these
-						//downloads as having finished
-						DownloadWeightedPercent = 1.0f * AppliedDownloadWeight;
-					}
-					else
-					{
-						DownloadWeightedPercent = BundleStatus.BackgroundDownloadProgress->PercentComplete * AppliedDownloadWeight;
-					}
-				}
-			}
-			
-			float InstallWeightedPercent = 0.f;
-			
-			//If we didn't have background download progress, just use our InstallWeight as we don't have Download Progress to use
-			const float AppliedInstallWeight = bDidHaveBackgroundDownloadProgress ? (InstallWeight / TotalWeight) : 1.0f;
-			InstallWeightedPercent = BundleStatus.Install_Percent * AppliedInstallWeight;
-			
-			CombinedOverallProgressPercent = DownloadWeightedPercent + InstallWeightedPercent;
-			FMath::Clamp(CombinedOverallProgressPercent, 0.f, 1.0f);
-		}
-	}
-	
-	return CombinedOverallProgressPercent;
 }
 
 bool FBundlePrereqCombinedStatusHelper::Tick(float dt)
@@ -354,10 +288,10 @@ void FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete(FInstallBundleRe
 	if (bBundleCompletedSuccessfully && bWasRequiredBundle)
 	{
 		//Make sure our BundleCache shows this as finished all the way
-		FInstallBundleStatus& BundleCacheInfo = BundleStatusCache.FindOrAdd(CompletedBundleName);
-		BundleCacheInfo.Status = EInstallBundleStatus::Installed;
+		FInstallBundleProgress& BundleCacheInfo = BundleStatusCache.FindOrAdd(CompletedBundleName);
+		BundleCacheInfo.Status = EInstallBundleStatus::Ready;
 		
-		TOptional<FInstallBundleStatus> BundleProgress = InstallBundleManager->GetBundleProgress(CompletedBundleName);
+		TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager->GetBundleProgress(CompletedBundleName);
 		if (ensureAlwaysMsgf(BundleProgress.IsSet(), TEXT("Expected to find BundleProgress for completed bundle, but did not. Leaving old progress values")))
 		{
 			BundleCacheInfo = BundleProgress.GetValue();
@@ -365,4 +299,14 @@ void FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete(FInstallBundleRe
 	}
 }
 
-//PRAGMA_ENABLE_OPTIMIZATION
+// It's not really necessary to have this, but it allows for a fallback if GetBundleProgress() returns null.
+// Normally that shouldn't happen, but right now its handy while I refactor bundle progress.
+void FBundlePrereqCombinedStatusHelper::OnBundleInstallPauseChanged(FInstallBundlePauseInfo PauseInfo)
+{
+	const bool bWasRequiredBundle = RequiredBundleNames.Contains(PauseInfo.BundleName);
+	if (bWasRequiredBundle)
+	{
+		FInstallBundleProgress& BundleCacheInfo = BundleStatusCache.FindOrAdd(PauseInfo.BundleName);
+		BundleCacheInfo.PauseFlags = PauseInfo.PauseFlags;
+	}
+}

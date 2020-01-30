@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNode_ControlRigBase.h"
 #include "ControlRig.h"
@@ -9,7 +9,8 @@
 
 FAnimNode_ControlRigBase::FAnimNode_ControlRigBase()
 	: FAnimNode_CustomProperty()
-	, bUpdateInput(true)
+	, InputSettings(FControlRigIOSettings())
+	, OutputSettings(FControlRigIOSettings())
 	, bExecute(true)
 	, InternalBlendAlpha (1.f)
 {
@@ -33,6 +34,8 @@ void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy
 			// node mapping container will be saved on the initialization part
 			NodeMappingContainer = Component->SkeletalMesh->GetNodeMappingContainer(Blueprint);
 		}
+		// register skeletalmesh component for now
+		ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, InAnimInstance->GetOwningComponent());
 	}
 }
 
@@ -45,8 +48,7 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 
 	if (UControlRig* ControlRig = GetControlRig())
 	{
-		ControlRig->Initialize();
-
+		//Don't Inititialize the Control Rig here it may have the wrong VM on the CDO
 		SetTargetInstance(ControlRig);
 	}
 }
@@ -79,36 +81,42 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	const FBoneContainer& RequiredBones = InOutput.Pose.GetBoneContainer();
-
-	// get component pose from control rig
-	FCSPose<FCompactPose> MeshPoses;
-	// first I need to convert to local pose
-	MeshPoses.InitPose(InOutput.Pose);
-
-	// @re-think - now control rig contains init pose from their default hierarchy and current pose from this instance.
-	// we may need this init pose somewhere (instance refpose)
-	for (auto Iter = ControlRigBoneMapping.CreateConstIterator(); Iter; ++Iter)
+	if (InputSettings.bUpdatePose)
 	{
-		const FName& Name = Iter.Key();
-		const uint16 Index = Iter.Value();
+		const FBoneContainer& RequiredBones = InOutput.Pose.GetBoneContainer();
 
-		FTransform ComponentTransform = MeshPoses.GetComponentSpaceTransform(FCompactPoseBoneIndex(Index));
-		if (NodeMappingContainer.IsValid())
+		// get component pose from control rig
+		FCSPose<FCompactPose> MeshPoses;
+		// first I need to convert to local pose
+		MeshPoses.InitPose(InOutput.Pose);
+
+		// @re-think - now control rig contains init pose from their default hierarchy and current pose from this instance.
+		// we may need this init pose somewhere (instance refpose)
+		for (auto Iter = ControlRigBoneMapping.CreateConstIterator(); Iter; ++Iter)
 		{
-			ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(Name).GetRelativeTransformReverse(ComponentTransform);
-		}
+			const FName& Name = Iter.Key();
+			const uint16 Index = Iter.Value();
 
-		ControlRig->SetGlobalTransform(Name, ComponentTransform, false);
+			FTransform ComponentTransform = MeshPoses.GetComponentSpaceTransform(FCompactPoseBoneIndex(Index));
+			if (NodeMappingContainer.IsValid())
+			{
+				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(Name).GetRelativeTransformReverse(ComponentTransform);
+			}
+
+			ControlRig->SetGlobalTransform(Name, ComponentTransform, false);
+		}
 	}
 
-	// we just do name mapping 
-	for (auto Iter = ControlRigCurveMapping.CreateConstIterator(); Iter; ++Iter)
+	if (InputSettings.bUpdateCurves)
 	{
-		const FName& Name = Iter.Key();
-		const uint16 Index = Iter.Value();
+		// we just do name mapping 
+		for (auto Iter = ControlRigCurveMapping.CreateConstIterator(); Iter; ++Iter)
+		{
+			const FName& Name = Iter.Key();
+			const uint16 Index = Iter.Value();
 
-		ControlRig->SetCurveValue(Name, InOutput.Curve.Get(Index));
+			ControlRig->SetCurveValue(Name, InOutput.Curve.Get(Index));
+		}
 	}
 }
 
@@ -116,38 +124,44 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	// copy output of the rig
-	const FBoneContainer& RequiredBones = InOutput.Pose.GetBoneContainer();
-
-	// get component pose from control rig
-	FCSPose<FCompactPose> MeshPoses;
-	MeshPoses.InitPose(InOutput.Pose);
-
-	for (auto Iter = ControlRigBoneMapping.CreateConstIterator(); Iter; ++Iter)
+	if (OutputSettings.bUpdatePose)
 	{
-		const FName& Name = Iter.Key();
-		const uint16 Index = Iter.Value();
+		// copy output of the rig
+		const FBoneContainer& RequiredBones = InOutput.Pose.GetBoneContainer();
 
-		FCompactPoseBoneIndex CompactPoseIndex(Index);
-		FTransform ComponentTransform = ControlRig->GetGlobalTransform(Name);
-		if (NodeMappingContainer.IsValid())
+		// get component pose from control rig
+		FCSPose<FCompactPose> MeshPoses;
+		MeshPoses.InitPose(InOutput.Pose);
+
+		for (auto Iter = ControlRigBoneMapping.CreateConstIterator(); Iter; ++Iter)
 		{
-			ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(Name) * ComponentTransform;
+			const FName& Name = Iter.Key();
+			const uint16 Index = Iter.Value();
+
+			FCompactPoseBoneIndex CompactPoseIndex(Index);
+			FTransform ComponentTransform = ControlRig->GetGlobalTransform(Name);
+			if (NodeMappingContainer.IsValid())
+			{
+				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(Name) * ComponentTransform;
+			}
+
+			MeshPoses.SetComponentSpaceTransform(CompactPoseIndex, ComponentTransform);
 		}
 
-		MeshPoses.SetComponentSpaceTransform(CompactPoseIndex, ComponentTransform);
+		FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MeshPoses, InOutput.Pose);
 	}
 
-	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MeshPoses, InOutput.Pose);
-
-	// update curve
-	for (auto Iter = ControlRigCurveMapping.CreateConstIterator(); Iter; ++Iter)
+	if (OutputSettings.bUpdateCurves)
 	{
-		const FName& Name = Iter.Key();
-		const uint16 Index = Iter.Value();
+		// update curve
+		for (auto Iter = ControlRigCurveMapping.CreateConstIterator(); Iter; ++Iter)
+		{
+			const FName& Name = Iter.Key();
+			const uint16 Index = Iter.Value();
 
-		const float Value = ControlRig->GetCurveValue(Name);
-		InOutput.Curve.Set(Index, Value);
+			const float Value = ControlRig->GetCurveValue(Name);
+			InOutput.Curve.Set(Index, Value);
+		}
 	}
 }
 
@@ -200,11 +214,8 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 {
 	if (UControlRig* ControlRig = GetControlRig())
 	{
-		if (bUpdateInput)
-		{
-			// first update input to the system
-			UpdateInput(ControlRig, InOutput);
-		}
+		// first update input to the system
+		UpdateInput(ControlRig, InOutput);
 
 		if (bExecute)
 		{

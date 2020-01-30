@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //
 // Ip endpoint based implementation of the net driver
@@ -224,6 +224,9 @@ private:
 
 		/** Running flag. The Run() function will return shortly after setting this to false. */
 		TAtomic<bool> bIsRunning;
+
+	private:
+		bool DispatchPacket(FReceivedPacket&& IncomingPacket, int32 NbBytesRead);
 
 	private:
 		UIpNetDriver* OwningNetDriver;

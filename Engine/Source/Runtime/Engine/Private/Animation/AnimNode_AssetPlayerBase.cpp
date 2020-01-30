@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimInstanceProxy.h"
@@ -49,14 +49,16 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 	{
 		SyncGroup->TestTickRecordForLeadership(GroupRole);
 	}
+
+	TRACE_ANIM_TICK_RECORD(Context, TickRecord);
 }
 
-float FAnimNode_AssetPlayerBase::GetCachedBlendWeight()
+float FAnimNode_AssetPlayerBase::GetCachedBlendWeight() const
 {
 	return BlendWeight;
 }
 
-float FAnimNode_AssetPlayerBase::GetAccumulatedTime()
+float FAnimNode_AssetPlayerBase::GetAccumulatedTime() const
 {
 	return InternalTimeAccumulator;
 }

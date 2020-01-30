@@ -1,11 +1,13 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationBlueprintLibrary.h" 
 
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimationAsset.h"
+#include "Animation/AnimBoneCompressionSettings.h"
+#include "Animation/AnimCurveCompressionSettings.h"
 #include "Animation/AnimMetaData.h"
-#include "Animation/AnimNotifies/AnimNotifyState.h" 
+#include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "BonePose.h" 
@@ -132,27 +134,60 @@ const FRawAnimSequenceTrack&  UAnimationBlueprintLibrary::GetRawAnimationTrackBy
 	return AnimationSequence->GetRawAnimationTrack(TrackIndex);	
 }
 
-void UAnimationBlueprintLibrary::GetCompressionScheme(const UAnimSequence* AnimationSequence, UAnimCompress*& CompressionScheme)
+void UAnimationBlueprintLibrary::GetBoneCompressionSettings(const UAnimSequence* AnimationSequence, UAnimBoneCompressionSettings*& CompressionSettings)
 {
-	if (AnimationSequence)
+	if (AnimationSequence == nullptr)
 	{
-		CompressionScheme = AnimationSequence->CompressionScheme;
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetBoneCompressionSettings"));
+		return;
 	}
-	else
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetCompressionScheme"));
-	}
+
+	CompressionSettings = AnimationSequence->BoneCompressionSettings;
 }
 
-void UAnimationBlueprintLibrary::SetCompressionScheme(UAnimSequence* AnimationSequence, UAnimCompress* CompressionScheme)
+void UAnimationBlueprintLibrary::SetBoneCompressionSettings(UAnimSequence* AnimationSequence, UAnimBoneCompressionSettings* CompressionSettings)
 {
-	if (AnimationSequence)
+	if (AnimationSequence == nullptr)
 	{
-		AnimationSequence->CompressionScheme = CompressionScheme;
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for SetBoneCompressionSettings"));
+		return;
 	}
+
+	if (CompressionSettings == nullptr || !CompressionSettings->AreSettingsValid())
 	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for SetCompressionScheme"));
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Bone Compression Settings supplied for SetBoneCompressionSettings"));
+		return;
 	}
+
+	AnimationSequence->BoneCompressionSettings = CompressionSettings;
+}
+
+void UAnimationBlueprintLibrary::GetCurveCompressionSettings(const UAnimSequence* AnimationSequence, UAnimCurveCompressionSettings*& CompressionSettings)
+{
+	if (AnimationSequence == nullptr)
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetCurveCompressionSettings"));
+		return;
+	}
+
+	CompressionSettings = AnimationSequence->CurveCompressionSettings;
+}
+
+void UAnimationBlueprintLibrary::SetCurveCompressionSettings(UAnimSequence* AnimationSequence, UAnimCurveCompressionSettings* CompressionSettings)
+{
+	if (AnimationSequence == nullptr)
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for SetCurveCompressionSettings"));
+		return;
+	}
+
+	if (CompressionSettings == nullptr || !CompressionSettings->AreSettingsValid())
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Bone Compression Settings supplied for SetCurveCompressionSettings"));
+		return;
+	}
+
+	AnimationSequence->CurveCompressionSettings = CompressionSettings;
 }
 
 void UAnimationBlueprintLibrary::GetAdditiveAnimationType(const UAnimSequence* AnimationSequence, TEnumAsByte<enum EAdditiveAnimationType>& AdditiveAnimationType)

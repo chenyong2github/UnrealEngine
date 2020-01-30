@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -290,9 +290,9 @@ public:
 	}
 
 	/** @return a reference to the list of selected graph nodes */
-	virtual const TSet<class UObject*>& GetSelectedNodes() const
+	virtual const FGraphPanelSelectionSet& GetSelectedNodes() const
 	{
-		static TSet<class UObject*> NoSelection;
+		static FGraphPanelSelectionSet NoSelection;
 
 		if (Implementation.IsValid())
 		{

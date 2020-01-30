@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -80,7 +80,7 @@ public:
 	FName AssetClass;
 	/** The map of values for properties that were marked AssetRegistrySearchable or added by GetAssetRegistryTags */
 	FAssetDataTagMapSharedView TagsAndValues;
-	/** The IDs of the chunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
+	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
 	TArray<int32> ChunkIDs;
 	/** Asset package flags */
 	uint32 PackageFlags;
@@ -92,20 +92,15 @@ public:
 
 	/** Constructor */
 	FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0)
-		: PackageName(InPackageName)
+		: ObjectPath(*FString::Format(TEXT("{0}.{1}"), { InPackageName.ToString(), InAssetName.ToString() }))
+		, PackageName(InPackageName)
 		, PackagePath(InPackagePath)
 		, AssetName(InAssetName)
 		, AssetClass(InAssetClass)
 		, TagsAndValues(MoveTemp(InTags))
 		, ChunkIDs(MoveTemp(InChunkIDs))
 		, PackageFlags(InPackageFlags)
-	{
-		FString ObjectPathStr = PackageName.ToString() + TEXT(".");
-
-		ObjectPathStr += AssetName.ToString();
-
-		ObjectPath = FName(*ObjectPathStr);
-	}
+	{}
 
 	/** Constructor taking a UObject. By default trying to create one for a blueprint class will create one for the UBlueprint instead, but this can be overridden */
 	FAssetData(const UObject* InAsset, bool bAllowBlueprintClass = false)
@@ -120,7 +115,6 @@ public:
 			}
 
 			const UPackage* Outermost = InAsset->GetOutermost();
-			const UObject* Outer = InAsset->GetOuter();
 
 			PackageName = Outermost->GetFName();
 			PackagePath = FName(*FPackageName::GetLongPackagePath(Outermost->GetName()));

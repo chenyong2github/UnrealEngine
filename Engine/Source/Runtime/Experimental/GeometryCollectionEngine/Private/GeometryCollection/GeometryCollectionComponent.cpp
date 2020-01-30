@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
@@ -158,7 +158,9 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
 {
 #if INCLUDE_CHAOS
-	return GeometryCollectionComponent.ChaosSolverActor != nullptr ? GeometryCollectionComponent.ChaosSolverActor->GetSolver() : GeometryCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
+	return GeometryCollectionComponent.ChaosSolverActor != nullptr ? 
+		GeometryCollectionComponent.ChaosSolverActor->GetSolver() : 
+		GeometryCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
 #else
 	return nullptr;
 #endif
@@ -214,20 +216,25 @@ void UGeometryCollectionComponent::BeginPlay()
 	// ---------- });
 	//////////////////////////////////////////////////////////////////////////
 
-	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-	if (ChaosModule != nullptr)
+	if (PhysicsProxy != nullptr)
 	{
-		Chaos::FPhysicsSolver* Solver = GetSolver(*this);
-		if (Solver != nullptr)
+		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		if (ChaosModule != nullptr)
 		{
-			if (PhysicsProxy != nullptr)
+			Chaos::FPhysicsSolver* Solver = nullptr;
+			if (ChaosSolverActor != nullptr)
+			{
+				Solver = ChaosSolverActor->GetSolver();
+			}
+			else if (FPhysScene_Chaos* Scene = GetPhysicsScene())
+			{
+				Solver = Scene->GetSolver();
+			}
+			if (Solver != nullptr)
 			{
 				ChaosModule->GetDispatcher()->EnqueueCommandImmediate(Solver, [&InPhysicsProxy = PhysicsProxy](Chaos::FPhysicsSolver* InSolver)
 				{
-					if (InPhysicsProxy)
-					{
-						InPhysicsProxy->ActivateBodies();
-					}
+					InPhysicsProxy->ActivateBodies();
 				});
 			}
 		}
@@ -1295,7 +1302,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 
 							if (EditorComponent)
 							{
-								EditorComponent->PreEditChange(FindField<UProperty>(EditorComponent->GetClass(), GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, CacheParameters)));
+								EditorComponent->PreEditChange(FindField<FProperty>(EditorComponent->GetClass(), GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, CacheParameters)));
 								EditorComponent->Modify();
 
 								EditorComponent->CacheParameters.TargetCache = CacheParameters.TargetCache;

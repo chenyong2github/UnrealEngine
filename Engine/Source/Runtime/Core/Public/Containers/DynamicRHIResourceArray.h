@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -118,9 +118,9 @@ public:
 	*
 	* @param Ar	FArchive to bulk serialize this TArray to/from
 	*/
-	void BulkSerialize(FArchive& Ar)
+	void BulkSerialize(FArchive& Ar, bool bForcePerElementSerialization = false)
 	{
-		Super::BulkSerialize(Ar);
+		Super::BulkSerialize(Ar, bForcePerElementSerialization);
 	}
 
 	/**

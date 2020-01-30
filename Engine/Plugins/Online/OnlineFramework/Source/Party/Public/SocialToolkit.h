@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -38,7 +38,7 @@ class PARTY_API USocialToolkit : public UObject
 
 public:
 	template <typename ToolkitT = USocialToolkit>
-	static ToolkitT* GetToolkitForPlayer(ULocalPlayer* LocalPlayer)
+	static ToolkitT* GetToolkitForPlayer(const ULocalPlayer* LocalPlayer)
 	{
 		static_assert(TIsDerivedFrom<ToolkitT, USocialToolkit>::IsDerived, "GetToolkitForPlayer only supports getting USocialToolkit type objects");
 		return Cast<ToolkitT>(GetToolkitForPlayerInternal(LocalPlayer));
@@ -110,6 +110,10 @@ public:
 	DECLARE_EVENT(USocialToolkit, FBasicToolkitEvent);
 	FBasicToolkitEvent& OnToolkitReset() const { return OnToolkitResetEvent; }
 
+#if WITH_EDITOR
+	bool Debug_IsRandomlyChangingPresence() { return bDebug_IsRandomlyChangingUserPresence; }
+#endif
+
 PARTY_SCOPE:
 	void NotifySubsystemIdEstablished(USocialUser& SocialUser, ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	TSubclassOf<USocialChatManager> GetChatManagerClass() { return ChatManagerClass; }
@@ -132,6 +136,12 @@ protected:
 	
 	virtual void OnSendFriendInviteComplete(const FUniqueNetId& InvitedUserId, const FString& InviteeName, bool bInviteSuceeded, const FString& InviteError) {}
 	virtual void OnAcceptFriendInviteComplete(const FUniqueNetId& InviterUserId, bool bInviteSucceeded, const FString& InviteError) {}
+	virtual void OnReadFriendsListComplete(int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType) {}
+	virtual void OnQueryBlockedPlayersComplete(const FUniqueNetId& UserId, bool bWasSuccessful, const FString& ErrorStr, ESocialSubsystem SubsystemType) {}
+	virtual void OnQueryRecentPlayersComplete(const FUniqueNetId& UserId, const FString& Namespace, bool bWasSuccessful, const FString& ErrorStr, ESocialSubsystem SubsystemType) {}
+	virtual void OnDeleteFriendComplete(int32 LocalPlayer, bool bWasSuccessful, const FUniqueNetId& FormerFriendId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType) {}
+	virtual void OnBlockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& BlockedPlayerID, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType) {}
+	virtual void OnUnblockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UnblockedPlayerID, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType) {}
 
 	void QueryFriendsLists();
 	void QueryBlockedPlayers();
@@ -215,9 +225,18 @@ private:	// Handlers
 
 	void HandleExistingPartyInvites(ESocialSubsystem SubsystemType);
 
+#if WITH_EDITOR
+	void Debug_OnStartRandomizeUserPresence(uint8 NumRandomUser, float TickerTimer);
+	void Debug_OnStopRandomizeUserPresence(bool bClearGeneratedPresence);
+	bool Debug_HandleRandomizeUserPresenceTick(float DeltaTime, uint8 NumRandomUser);
+	void Debug_ChangeRandomUserPresence(uint8 NumRandomUser);
+	bool bDebug_IsRandomlyChangingUserPresence = false;
+	FDelegateHandle Debug_PresenceTickerHandle;
+#endif
+
 private:
-	static USocialToolkit* GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer);
-	static TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
+	static USocialToolkit* GetToolkitForPlayerInternal(const ULocalPlayer* LocalPlayer);
+	static TMap<TWeakObjectPtr<const ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
 
 	UPROPERTY()
 	USocialUser* LocalUser;

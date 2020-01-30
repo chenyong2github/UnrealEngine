@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Prefix.usf: USF file automatically included by shader preprocessor.
@@ -462,7 +462,7 @@
 
 #endif // SM5_PROFILE || COMPILER_SUPPORTS_ATTRIBUTES
 
-#if SM5_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || METAL_SM5_NOTESS_PROFILE
+#if SM5_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || METAL_SM5_NOTESS_PROFILE || ES3_1_PROFILE
 #define EARLYDEPTHSTENCIL [earlydepthstencil]
 #endif
 

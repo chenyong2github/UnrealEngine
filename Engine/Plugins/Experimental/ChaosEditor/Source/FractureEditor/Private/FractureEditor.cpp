@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FractureEditor.h"
 #include "FractureEditorMode.h"
@@ -19,7 +19,7 @@ void FFractureEditorModule::StartupModule()
 
 	FEditorModeRegistry::Get().RegisterMode<FFractureEditorMode>(
 		FFractureEditorMode::EM_FractureEditorModeId, 
-		LOCTEXT("FractureEditorModeName", "FractureEditorMode"), 
+		LOCTEXT("FractureEditorModeName", "Fracture"), 
 		FSlateIcon("FractureEditorStyle", "LevelEditor.FractureMode", "LevelEditor.FractureMode.Small"),
 		true
 		);

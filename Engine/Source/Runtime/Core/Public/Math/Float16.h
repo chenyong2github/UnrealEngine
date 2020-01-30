@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -205,7 +205,7 @@ FORCEINLINE float FFloat16::GetFloat() const
 		else
 		{
 			// Denormal.
-			uint32 MantissaShift = 10 - (uint32)FMath::TruncToInt(FMath::Log2(Mantissa));
+			uint32 MantissaShift = 10 - (uint32)FMath::TruncToInt(FMath::Log2((float)Mantissa));
 			Result.Components.Exponent = 127 - (15 - 1) - MantissaShift;
 			Result.Components.Mantissa = Mantissa << (MantissaShift + 23 - 10);
 		}

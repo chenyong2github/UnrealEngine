@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentQuery/EnvQueryNode.h"
 #include "UObject/UnrealType.h"
@@ -36,7 +36,7 @@ void UEnvQueryNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	if (PropertyName == NAME_DataBinding)
 	{
 		// populate ParamName value
-		UStructProperty* TestStruct = Cast<UStructProperty>(PropertyChangedEvent.MemberProperty);
+		FStructProperty* TestStruct = CastField<FStructProperty>(PropertyChangedEvent.MemberProperty);
 		if (TestStruct != nullptr)
 		{
 			const FString TypeDesc = TestStruct->GetCPPType(nullptr, CPPF_None);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -267,7 +267,10 @@ private:
 
 public:
 	/** Pointer to the constant table. */
-	uint8 const* RESTRICT ConstantTable;
+	const uint8* const* RESTRICT ConstantTable;
+	const int32* ConstantTableSizes;
+	int32 ConstantTableCount;
+
 	/** Num temp registers required by this script. */
 	int32 NumTempRegisters;
 
@@ -313,7 +316,9 @@ public:
 
 	void PrepareForExec(
 		int32 InNumTempRegisters,
-		const uint8* InConstantTable,
+		int32 ConstantTableCount,
+		const uint8* const* InConstantTables,
+		const int32* InConstantTableSizes,
 		FVMExternalFunction* InExternalFunctionTable,
 		void** InUserPtrTable,
 		TArrayView<FDataSetMeta> InDataSetMetaTable,
@@ -389,6 +394,28 @@ public:
 	{
 		return bIsParallelExecution;
 	}
+
+	template<typename T = uint8>
+	FORCEINLINE const T* GetConstant(int32 TableIndex, int32 TableOffset) const
+	{
+		check(TableIndex < ConstantTableCount);
+		return reinterpret_cast<const T*>(ConstantTable[TableIndex] + TableOffset);
+	}
+
+	template<typename T = uint8>
+	FORCEINLINE const T* GetConstant(int32 Offset) const
+	{
+		int32 TableIndex = 0;
+
+		while (Offset >= ConstantTableSizes[TableIndex])
+		{
+			Offset -= ConstantTableSizes[TableIndex];
+			++TableIndex;
+		}
+
+		check(Offset < ConstantTableSizes[TableIndex]);
+		return reinterpret_cast<const T*>(ConstantTable[TableIndex] + Offset);
+	}
 };
 
 namespace VectorVM
@@ -410,7 +437,9 @@ namespace VectorVM
 		uint8 const* ByteCode,
 		uint8 const* OptimizedByteCode,
 		int32 NumTempRegisters,
-		uint8 const* ConstantTable,
+		int32 ConstantTableCount,
+		const uint8* const* ConstantTable,
+		const int32* ConstantTableSizes,
 		TArrayView<FDataSetMeta> DataSetMetaTable,
 		FVMExternalFunction* ExternalFunctionTable,
 		void** UserPtrTable,
@@ -433,11 +462,17 @@ namespace VectorVM
 		int32 UserPtrIdx;
 		T* Ptr;
 		FUserPtrHandler(FVectorVMContext& Context)
-			: UserPtrIdx(*(int32*)(Context.ConstantTable + (Context.DecodeU16())))
-			, Ptr((T*)Context.UserPtrTable[UserPtrIdx])
 		{
+			const uint16 VariableOffset = Context.DecodeU16();
+			check(!(VariableOffset & VVM_EXT_FUNC_INPUT_LOC_BIT));
+
+			const uint16 ConstantTableOffset = VariableOffset & VVM_EXT_FUNC_INPUT_LOC_MASK;
+			UserPtrIdx = *Context.GetConstant<int32>(ConstantTableOffset);
 			check(UserPtrIdx != INDEX_NONE);
+
+			Ptr = reinterpret_cast<T*>(Context.UserPtrTable[UserPtrIdx]);
 		}
+
 		FORCEINLINE T* Get() { return Ptr; }
 		FORCEINLINE T* operator->() { return Ptr; }
 		FORCEINLINE operator T*() { return Ptr; }
@@ -450,7 +485,7 @@ namespace VectorVM
 	private:
 		/** Either byte offset into constant table or offset into register table deepening on VVM_INPUT_LOCATION_BIT */
 		int32 InputOffset;
-		T* RESTRICT InputPtr;
+		const T* RESTRICT InputPtr;
 		int32 AdvanceOffset;
 
 	public:
@@ -468,7 +503,9 @@ namespace VectorVM
 		void Init(FVectorVMContext& Context)
 		{
 			InputOffset = Context.DecodeU16();
-			InputPtr = IsConstant() ? (T*)(Context.ConstantTable + GetOffset()) : (T*)Context.GetTempRegister(GetOffset());
+
+			const int32 Offset = GetOffset();
+			InputPtr = IsConstant() ? Context.GetConstant<T>(Offset) : reinterpret_cast<T*>(Context.GetTempRegister(Offset));
 			AdvanceOffset = IsConstant() ? 0 : 1;
 		}
 
@@ -477,17 +514,17 @@ namespace VectorVM
 		FORCEINLINE int32 GetOffset()const { return InputOffset & VVM_EXT_FUNC_INPUT_LOC_MASK; }
 
 		FORCEINLINE const T Get() { return *InputPtr; }
-		FORCEINLINE T* GetDest() { return InputPtr; }
+		FORCEINLINE const T* GetDest() { return InputPtr; }
 		FORCEINLINE void Advance() { InputPtr += AdvanceOffset; }
 		FORCEINLINE const T GetAndAdvance()
 		{
-			T* Ret = InputPtr;
+			const T* Ret = InputPtr;
 			InputPtr += AdvanceOffset;
 			return *Ret;
 		}
-		FORCEINLINE T* GetDestAndAdvance()
+		FORCEINLINE const T* GetDestAndAdvance()
 		{
-			T* Ret = InputPtr;
+			const T* Ret = InputPtr;
 			InputPtr += AdvanceOffset;
 			return Ret;
 		}
@@ -543,7 +580,7 @@ namespace VectorVM
 		T Constant;
 		FExternalFuncConstHandler(FVectorVMContext& Context)
 			: ConstantIndex(Context.DecodeU16() & VVM_EXT_FUNC_INPUT_LOC_MASK)
-			, Constant(*((T*)(Context.ConstantTable + ConstantIndex)))
+			, Constant(*Context.GetConstant<T>(ConstantIndex))
 		{}
 		FORCEINLINE const T& Get() { return Constant; }
 		FORCEINLINE const T& GetAndAdvance() { return Constant; }

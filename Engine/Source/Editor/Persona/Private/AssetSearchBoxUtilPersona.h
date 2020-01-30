@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,10 +8,11 @@
 #include "Framework/SlateDelegates.h"
 #include "PropertyHandle.h"
 #include "SAssetSearchBox.h"
+#include "EditorUndoClient.h"
 
 class USkeleton;
 
-class SAssetSearchBoxForBones : public SCompoundWidget
+class SAssetSearchBoxForBones : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SAssetSearchBoxForBones)
@@ -38,19 +39,28 @@ public:
 
 		SLATE_END_ARGS()
 
+		SAssetSearchBoxForBones();
+		~SAssetSearchBoxForBones();
+
 		/** Constructs this widget with InArgs */
 		void Construct( const FArguments& InArgs, const class UObject* Outer, TSharedPtr<class IPropertyHandle> ParentBoneProperty );
 
 		/** Refresh bone name */
 		void RefreshName();
+
+		virtual void PostUndo( bool bSuccess ) { RefreshName(); };
+		virtual void PostRedo( bool bSuccess ) { RefreshName(); };
+
 private:
 		TSharedPtr<IPropertyHandle>	BonePropertyHandle;
 		TSharedPtr<SAssetSearchBox>			SearchBox;
+
+		/** Get the bone name to display */
 		FText GetBoneName() const;
 };
 
 
-class SAssetSearchBoxForCurves : public SCompoundWidget
+class SAssetSearchBoxForCurves : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SAssetSearchBoxForCurves)
@@ -77,12 +87,26 @@ public:
 
 	SLATE_END_ARGS()
 
+	SAssetSearchBoxForCurves();
+	~SAssetSearchBoxForCurves();
+
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const class USkeleton* InSkeleton, TSharedPtr<class IPropertyHandle> ParentCurveProperty);
 
+	/** Refresh curve name */
+	void RefreshName();
+
+	virtual void PostUndo( bool bSuccess ) { RefreshName(); };
+	virtual void PostRedo( bool bSuccess ) { RefreshName(); };
+
 private:
+	TSharedPtr<IPropertyHandle>	CurveNamePropertyHandle;
 	TWeakObjectPtr<USkeleton> Skeleton;
+	TSharedPtr<SAssetSearchBox>			SearchBox;
 
 	/** Get the search suggestions */
 	TArray<FAssetSearchBoxSuggestion> GetCurveSearchSuggestions() const;
+
+	/** Get the curve name to display */
+	FText GetCurveName() const;
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -68,5 +68,5 @@ private:
 	 *
 	 * @todo - not yet implemented
 	 */
-//	TMap< T*, TMultiMap<UObject*, UProperty*> >		ReferenceProperties;
+//	TMap< T*, TMultiMap<UObject*, FProperty*> >		ReferenceProperties;
 };

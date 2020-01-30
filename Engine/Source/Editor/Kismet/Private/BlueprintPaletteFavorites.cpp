@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintPaletteFavorites.h"
 #include "UObject/UnrealType.h"
@@ -50,7 +50,7 @@ namespace BlueprintPaletteFavoritesImpl
 static FBlueprintNodeSignature BlueprintPaletteFavoritesImpl::ConstructLegacySignature(TSharedPtr<FEdGraphSchemaAction> InPaletteAction)
 {
 	TSubclassOf<UEdGraphNode> SignatureNodeClass;
-	UObject const* SignatureSubObject = nullptr;
+	FFieldVariant SignatureSubObject;
 	FName SignatureSubObjName;
 
 	FName const ActionId = InPaletteAction->GetTypeId();
@@ -60,7 +60,7 @@ static FBlueprintNodeSignature BlueprintPaletteFavoritesImpl::ConstructLegacySig
 		checkSlow(AddComponentAction->NodeTemplate != nullptr);
 
 		SignatureNodeClass = AddComponentAction->NodeTemplate->GetClass();
-		SignatureSubObject = AddComponentAction->ComponentClass;
+		SignatureSubObject = AddComponentAction->ComponentClass.Get();
 	}
 	else if (ActionId == FEdGraphSchemaAction_K2AddComment::StaticGetTypeId())
 	{
@@ -85,7 +85,7 @@ static FBlueprintNodeSignature BlueprintPaletteFavoritesImpl::ConstructLegacySig
 		if (UK2Node_CallFunction const* CallFuncNode = Cast<UK2Node_CallFunction const>(NodeTemplate))
 		{
 			SignatureSubObject = CallFuncNode->FunctionReference.ResolveMember<UFunction>(CallFuncNode->GetBlueprintClassFromNode());
-			bIsSupported = (SignatureSubObject != nullptr);
+			bIsSupported = SignatureSubObject.IsValid();
 		}
 		else if (UK2Node_InputAxisEvent const* InputAxisEventNode = Cast<UK2Node_InputAxisEvent const>(NodeTemplate))
 		{
@@ -95,12 +95,12 @@ static FBlueprintNodeSignature BlueprintPaletteFavoritesImpl::ConstructLegacySig
 		else if (UK2Node_Event const* EventNode = Cast<UK2Node_Event const>(NodeTemplate))
 		{
 			SignatureSubObject = EventNode->EventReference.ResolveMember<UFunction>(EventNode->GetBlueprintClassFromNode());
-			bIsSupported = (SignatureSubObject != nullptr);
+			bIsSupported = SignatureSubObject.IsValid();
 		}
 		else if (UK2Node_MacroInstance const* MacroNode = Cast<UK2Node_MacroInstance const>(NodeTemplate))
 		{
 			SignatureSubObject = MacroNode->GetMacroGraph();
-			bIsSupported = (SignatureSubObject != nullptr);
+			bIsSupported = SignatureSubObject.IsValid();
 		}
 		else if (UK2Node_InputKey const* InputKeyNode = Cast<UK2Node_InputKey const>(NodeTemplate))
 		{
@@ -132,7 +132,7 @@ static FBlueprintNodeSignature BlueprintPaletteFavoritesImpl::ConstructLegacySig
 	if (SignatureNodeClass != nullptr)
 	{
 		LegacySignatureSet.SetNodeClass(SignatureNodeClass);
-		if (SignatureSubObject != nullptr)
+		if (SignatureSubObject.IsValid())
 		{
 			LegacySignatureSet.AddSubObject(SignatureSubObject);
 		}
@@ -401,7 +401,7 @@ void UBlueprintPaletteFavorites::RemoveFavorites(TArray< TSharedPtr<FEdGraphSche
 //------------------------------------------------------------------------------
 void UBlueprintPaletteFavorites::LoadProfile(FString const& ProfileName)
 {
-	PreEditChange(FindField<UProperty>(GetClass(), TEXT("CurrentProfile")));
+	PreEditChange(FindField<FProperty>(GetClass(), TEXT("CurrentProfile")));
 	{
 		CurrentProfile = ProfileName;
 		LoadSetProfile();
@@ -490,7 +490,7 @@ void UBlueprintPaletteFavorites::LoadCustomFavorites()
 //------------------------------------------------------------------------------
 void UBlueprintPaletteFavorites::SetProfile(FString const& ProfileName)
 {
-	PreEditChange(FindField<UProperty>(GetClass(), TEXT("CurrentProfile")));
+	PreEditChange(FindField<FProperty>(GetClass(), TEXT("CurrentProfile")));
 	{
 		CurrentProfile = ProfileName;
 	}

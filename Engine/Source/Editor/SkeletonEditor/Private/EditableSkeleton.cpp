@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditableSkeleton.h"
 #include "Editor.h"
@@ -298,8 +298,7 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 						{
 							SequencesToRecompress.Add(Seq);
 
-							Seq->CompressedData.CompressedCurveByteStream.Empty();
-							Seq->CompressedData.CurveCompressionCodec = nullptr;
+							Seq->ClearCompressedCurveData();
 						}
 					}
 				}
@@ -1595,11 +1594,27 @@ void FEditableSkeleton::UpdateSkeletonReferencePose(USkeletalMesh* InSkeletalMes
 	Skeleton->UpdateReferencePoseFromMesh(InSkeletalMesh);
 }
 
+void FEditableSkeleton::RegisterSlotNode(const FName& InSlotName)
+{
+	if(!Skeleton->ContainsSlotName(InSlotName))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("RegisterSlotNode", "Register Slot Node"));
+		Skeleton->Modify();
+
+		if(Skeleton->RegisterSlotNode(InSlotName))
+		{
+			OnSlotsChanged.Broadcast();
+		}
+	}
+}
+
 bool FEditableSkeleton::AddSlotGroupName(const FName& InSlotName)
 {
 	const FScopedTransaction Transaction(LOCTEXT("AddSlotGroupName", "Add Slot Group Name"));
 	Skeleton->Modify();
-	return Skeleton->AddSlotGroupName(InSlotName);
+	bool bResult = Skeleton->AddSlotGroupName(InSlotName);
+	OnSlotsChanged.Broadcast();
+	return bResult;
 }
 
 void FEditableSkeleton::SetSlotGroupName(const FName& InSlotName, const FName& InGroupName)
@@ -1607,6 +1622,8 @@ void FEditableSkeleton::SetSlotGroupName(const FName& InSlotName, const FName& I
 	const FScopedTransaction Transaction(LOCTEXT("SetSlotGroupName", "Set Slot Group Name"));
 	Skeleton->Modify();
 	Skeleton->SetSlotGroupName(InSlotName, InGroupName);
+
+	OnSlotsChanged.Broadcast();
 }
 
 void FEditableSkeleton::DeleteSlotName(const FName& InSlotName)
@@ -1614,6 +1631,8 @@ void FEditableSkeleton::DeleteSlotName(const FName& InSlotName)
 	const FScopedTransaction Transaction(LOCTEXT("DeleteSlotName", "Delete Slot Name"));
 	Skeleton->Modify();
 	Skeleton->RemoveSlotName(InSlotName);
+
+	OnSlotsChanged.Broadcast();
 }
 
 void FEditableSkeleton::DeleteSlotGroup(const FName& InGroupName)
@@ -1621,6 +1640,8 @@ void FEditableSkeleton::DeleteSlotGroup(const FName& InGroupName)
 	const FScopedTransaction Transaction(LOCTEXT("DeleteSlotGroup", "Delete Slot Group"));
 	Skeleton->Modify();
 	Skeleton->RemoveSlotGroup(InGroupName);
+
+	OnSlotsChanged.Broadcast();
 }
 
 void FEditableSkeleton::RenameSlotName(const FName InOldSlotName, const FName InNewSlotName)
@@ -1628,6 +1649,8 @@ void FEditableSkeleton::RenameSlotName(const FName InOldSlotName, const FName In
 	const FScopedTransaction Transaction(LOCTEXT("RenameSlotName", "Rename Slot Name"));
 	Skeleton->Modify();
 	Skeleton->RenameSlotName(InOldSlotName, InNewSlotName);
+
+	OnSlotsChanged.Broadcast();
 }
 
 FDelegateHandle FEditableSkeleton::RegisterOnSmartNameChanged(const FOnSmartNameChanged::FDelegate& InOnSmartNameChanged)
@@ -1638,6 +1661,16 @@ FDelegateHandle FEditableSkeleton::RegisterOnSmartNameChanged(const FOnSmartName
 void FEditableSkeleton::UnregisterOnSmartNameChanged(FDelegateHandle InHandle)
 {
 	OnSmartNameChanged.Remove(InHandle);
+}
+
+FDelegateHandle FEditableSkeleton::RegisterOnSlotsChanged(const FSimpleMulticastDelegate::FDelegate& InOnSlotsChanged)
+{
+	return OnSlotsChanged.Add(InOnSlotsChanged);
+}
+
+void FEditableSkeleton::UnregisterOnSlotsChanged(FDelegateHandle InHandle)
+{
+	OnSlotsChanged.Remove(InHandle);
 }
 
 #undef LOCTEXT_NAMESPACE

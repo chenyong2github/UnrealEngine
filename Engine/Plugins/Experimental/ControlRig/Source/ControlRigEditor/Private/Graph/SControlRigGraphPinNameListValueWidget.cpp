@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reservekd.
+// Copyright Epic Games, Inc. All Rights Reservekd.
 
 #include "SControlRigGraphPinNameListValueWidget.h"
 #include "DetailLayoutBuilder.h"
@@ -17,6 +17,7 @@ void SControlRigGraphPinNameListValueWidget::Construct(const FArguments& InArgs)
 
 	TSharedRef<SWidget> ComboBoxMenuContent =
 		SNew(SBox)
+		.MinDesiredWidth(150.0f)
 		.MaxDesiredHeight(InArgs._MaxListHeight)
 		[
 			SNew(SVerticalBox)

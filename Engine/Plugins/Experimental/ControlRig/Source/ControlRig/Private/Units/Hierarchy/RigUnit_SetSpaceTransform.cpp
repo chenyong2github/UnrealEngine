@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_SetSpaceTransform.h"
 #include "Units/RigUnitContext.h"
+#include "Math/ControlRigMathLibrary.h"
 
 FString FRigUnit_SetSpaceTransform::GetUnitLabel() const
 {
@@ -29,12 +30,28 @@ FRigUnit_SetSpaceTransform_Execute()
 					{
 						case EBoneGetterSetterMode::GlobalSpace:
 						{
-							Hierarchy->SetGlobalTransform(CachedSpaceIndex, Transform);
+							if(FMath::IsNearlyEqual(Weight, 1.f))
+							{
+								Hierarchy->SetGlobalTransform(CachedSpaceIndex, Transform);
+							}
+							else
+							{
+								FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedSpaceIndex);
+								Hierarchy->SetGlobalTransform(CachedSpaceIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)));
+							}
 							break;
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
-							Hierarchy->SetLocalTransform(CachedSpaceIndex, Transform);
+							if(FMath::IsNearlyEqual(Weight, 1.f))
+							{
+								Hierarchy->SetLocalTransform(CachedSpaceIndex, Transform);
+							}
+							else
+							{
+								FTransform PreviousTransform = Hierarchy->GetLocalTransform(CachedSpaceIndex);
+								Hierarchy->SetLocalTransform(CachedSpaceIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)));
+							}
 							break;
 						}
 						default:

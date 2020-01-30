@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigDeveloper.h"
 #include "ControlRigBlueprint.h"
@@ -7,6 +7,8 @@
 #include "Developer/MessageLog/Public/MessageLogModule.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigDeveloperModule"
+
+DEFINE_LOG_CATEGORY(LogControlRigDeveloper);
 
 class FControlRigDeveloperModule : public IControlRigDeveloperModule
 {

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // ActorComponent.cpp: Actor component implementation.
 
 #include "Components/ActorComponent.h"
@@ -30,6 +30,7 @@
 #include "ComponentUtils.h"
 #include "Engine/Engine.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
@@ -631,7 +632,7 @@ bool UActorComponent::Modify( bool bAlwaysMarkDirty/*=true*/ )
 	return Super::Modify(bAlwaysMarkDirty);
 }
 
-void UActorComponent::PreEditChange(UProperty* PropertyThatWillChange)
+void UActorComponent::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
@@ -1748,13 +1749,13 @@ void UActorComponent::SetIsReplicated(bool bShouldReplicate)
 {
 	if (GetIsReplicated() != bShouldReplicate)
 	{
-		ensureMsgf(!NeedsInitialization(), TEXT("SetReplicatedByDefault is preferred during Component Construction."));
+		ensureMsgf(!NeedsInitialization(), TEXT("SetIsReplicatedByDefault is preferred during Component Construction."));
 
 		if (GetComponentClassCanReplicate())
 		{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			bReplicates = bShouldReplicate;
-			// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
+			MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			if (AActor* MyOwner = GetOwner())
@@ -1802,10 +1803,11 @@ void UActorComponent::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & 
 		BPClass->GetLifetimeBlueprintReplicationList(OutLifetimeProps);
 	}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DOREPLIFETIME( UActorComponent, bIsActive );
-	DOREPLIFETIME( UActorComponent, bReplicates );
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FDoRepLifetimeParams SharedParams;
+	SharedParams.bIsPushBased = true;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(UActorComponent, bIsActive, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UActorComponent, bReplicates, SharedParams);
 }
 
 void UActorComponent::OnRep_IsActive()
@@ -1814,7 +1816,7 @@ void UActorComponent::OnRep_IsActive()
 }
 
 #if WITH_EDITOR
-bool UActorComponent::CanEditChange(const UProperty* InProperty) const
+bool UActorComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (Super::CanEditChange(InProperty))
 	{
@@ -1866,7 +1868,7 @@ void UActorComponent::DetermineUCSModifiedProperties()
 				ArPortFlags |= PPF_ForceTaggedSerialization;
 			}
 
-			virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+			virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 			{
 				static const FName MD_SkipUCSModifiedProperties(TEXT("SkipUCSModifiedProperties"));
 				return (InProperty->HasAnyPropertyFlags(CPF_Transient)
@@ -1881,9 +1883,9 @@ void UActorComponent::DetermineUCSModifiedProperties()
 		UClass* ComponentClass = GetClass();
 		UObject* ComponentArchetype = GetArchetype();
 
-		for (TFieldIterator<UProperty> It(ComponentClass); It; ++It)
+		for (TFieldIterator<FProperty> It(ComponentClass); It; ++It)
 		{
-			UProperty* Property = *It;
+			FProperty* Property = *It;
 			if( Property->ShouldSerializeValue(PropertySkipper) )
 			{
 				for( int32 Idx=0; Idx<Property->ArrayDim; Idx++ )
@@ -1893,7 +1895,7 @@ void UActorComponent::DetermineUCSModifiedProperties()
 					if (!Property->Identical( DataPtr, DefaultValue))
 					{
 						UCSModifiedProperties.Add(FSimpleMemberReference());
-						FMemberReference::FillSimpleMemberReference<UProperty>(Property, UCSModifiedProperties.Last());
+						FMemberReference::FillSimpleMemberReference<FProperty>(Property, UCSModifiedProperties.Last());
 						break;
 					}
 				}
@@ -1902,20 +1904,20 @@ void UActorComponent::DetermineUCSModifiedProperties()
 	}
 }
 
-void UActorComponent::GetUCSModifiedProperties(TSet<const UProperty*>& ModifiedProperties) const
+void UActorComponent::GetUCSModifiedProperties(TSet<const FProperty*>& ModifiedProperties) const
 {
 	for (const FSimpleMemberReference& MemberReference : UCSModifiedProperties)
 	{
-		ModifiedProperties.Add(FMemberReference::ResolveSimpleMemberReference<UProperty>(MemberReference));
+		ModifiedProperties.Add(FMemberReference::ResolveSimpleMemberReference<FProperty>(MemberReference));
 	}
 }
 
-void UActorComponent::RemoveUCSModifiedProperties(const TArray<UProperty*>& Properties)
+void UActorComponent::RemoveUCSModifiedProperties(const TArray<FProperty*>& Properties)
 {
-	for (UProperty* Property : Properties)
+	for (FProperty* Property : Properties)
 	{
 		FSimpleMemberReference MemberReference;
-		FMemberReference::FillSimpleMemberReference<UProperty>(Property, MemberReference);
+		FMemberReference::FillSimpleMemberReference<FProperty>(Property, MemberReference);
 		UCSModifiedProperties.RemoveSwap(MemberReference);
 	}
 }
@@ -1971,7 +1973,7 @@ void UActorComponent::SetIsReplicatedByDefault(const bool bNewReplicates)
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bReplicates = bNewReplicates;
-		// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
@@ -1985,7 +1987,7 @@ void UActorComponent::SetActiveFlag(const bool bNewIsActive)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsActive = bNewIsActive;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bIsActive, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bIsActive, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 

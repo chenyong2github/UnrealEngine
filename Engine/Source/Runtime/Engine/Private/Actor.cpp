@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/Actor.h"
 #include "EngineDefines.h"
@@ -41,6 +41,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "ObjectTrace.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -268,11 +269,11 @@ void AActor::ResetOwnedComponents()
 			if (Component && Component->CreationMethod == EComponentCreationMethod::Native)
 			{
 				// Find the property or properties that previously referenced the natively-constructed component.
-				TArray<UObjectProperty*> Properties;
+				TArray<FObjectProperty*> Properties;
 				NativeConstructedComponentToPropertyMap.MultiFind(Component->GetFName(), Properties);
 
 				// Determine if the property or properties are no longer valid references (either it got serialized out that way or something failed during load)
-				for (UObjectProperty* ObjProp : Properties)
+				for (FObjectProperty* ObjProp : Properties)
 				{
 					check(ObjProp != nullptr);
 					UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue_InContainer(this));
@@ -621,9 +622,9 @@ void AActor::Serialize(FArchive& Ar)
 		{
 			NativeConstructedComponentToPropertyMap.Reset();
 			NativeConstructedComponentToPropertyMap.Reserve(OwnedComponents.Num());
-			for(TFieldIterator<UObjectProperty> PropertyIt(BPGC, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+			for(TFieldIterator<FObjectProperty> PropertyIt(BPGC, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 			{
-				UObjectProperty* ObjProp = *PropertyIt;
+				FObjectProperty* ObjProp = *PropertyIt;
 
 				// Ignore transient properties since they won't be serialized
 				if(!ObjProp->HasAnyPropertyFlags(CPF_Transient))
@@ -1061,6 +1062,11 @@ bool AActor::ShouldTickIfViewportsOnly() const
 
 void AActor::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 {
+#if WITH_PUSH_MODEL
+	const AActor* const OldAttachParent = AttachmentReplication.AttachParent;
+	const UActorComponent* const OldAttachComponent = AttachmentReplication.AttachComponent;
+#endif
+
 	// Attachment replication gets filled in by GatherCurrentMovement(), but in the case of a detached root we need to trigger remote detachment.
 	AttachmentReplication.AttachParent = nullptr;
 	AttachmentReplication.AttachComponent = nullptr;
@@ -1073,6 +1079,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Don't need to replicate AttachmentReplication if the root component replicates, because it already handles it.
 	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, AttachmentReplication, RootComponent && !RootComponent->GetIsReplicated());
+
+
+#if WITH_PUSH_MODEL
+	if (UNLIKELY(OldAttachParent != AttachmentReplication.AttachParent || OldAttachComponent != AttachmentReplication.AttachComponent))
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
+	}
+#endif
 
 	UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(GetClass());
 	if (BPClass != nullptr)
@@ -1129,12 +1143,12 @@ void AActor::PostActorCreated()
 	// nothing at the moment
 }
 
-void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& OutCollisionHalfHeight, bool bNonColliding) const
+void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& OutCollisionHalfHeight, bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	bool bIgnoreRegistration = false;
 
 #if WITH_EDITOR
-	if(IsTemplate())
+	if (IsTemplate())
 	{
 		// Editor code calls this function on default objects when placing them in the viewport, so no components will be registered in those cases.
 		UWorld* MyWorld = GetWorld();
@@ -1154,29 +1168,21 @@ void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& Out
 	}
 #endif
 
-	float Radius = 0.f;
-	float HalfHeight = 0.f;
+	OutCollisionRadius = 0.f;
+	OutCollisionHalfHeight = 0.f;
 
-	for (const UActorComponent* ActorComponent : GetComponents())
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>(ActorComponent);
-		if (PrimComp)
+		// Only use collidable components to find collision bounding cylinder
+		if ((bIgnoreRegistration || InPrimComp->IsRegistered()) && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if ((bIgnoreRegistration || PrimComp->IsRegistered()) && (bNonColliding || PrimComp->IsCollisionEnabled()))
-			{
-				float TestRadius, TestHalfHeight;
-				PrimComp->CalcBoundingCylinder(TestRadius, TestHalfHeight);
-				Radius = FMath::Max(Radius, TestRadius);
-				HalfHeight = FMath::Max(HalfHeight, TestHalfHeight);
-			}
+			float TestRadius, TestHalfHeight;
+			InPrimComp->CalcBoundingCylinder(TestRadius, TestHalfHeight);
+			OutCollisionRadius = FMath::Max(OutCollisionRadius, TestRadius);
+			OutCollisionHalfHeight = FMath::Max(OutCollisionHalfHeight, TestHalfHeight);
 		}
-	}
-
-	OutCollisionRadius = Radius;
-	OutCollisionHalfHeight = HalfHeight;
+	});
 }
-
 
 void AActor::GetSimpleCollisionCylinder(float& CollisionRadius, float& CollisionHalfHeight) const
 {
@@ -1215,12 +1221,12 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	// Any properties that reference a blueprint constructed component needs to avoid creating a reference to the component from the transaction
 	// buffer, so we temporarily switch the property to non-transactional while the modify occurs
-	TArray<UObjectProperty*> TemporarilyNonTransactionalProperties;
+	TArray<FObjectProperty*> TemporarilyNonTransactionalProperties;
 	if (GUndo)
 	{
-		for (TFieldIterator<UObjectProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FObjectProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UObjectProperty* ObjProp = *PropertyIt;
+			FObjectProperty* ObjProp = *PropertyIt;
 			if (!ObjProp->HasAllPropertyFlags(CPF_NonTransactional))
 			{
 				UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(this)));
@@ -1235,7 +1241,7 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	bool bSavedToTransactionBuffer = UObject::Modify( bAlwaysMarkDirty );
 
-	for (UObjectProperty* ObjProp : TemporarilyNonTransactionalProperties)
+	for (FObjectProperty* ObjProp : TemporarilyNonTransactionalProperties)
 	{
 		ObjProp->ClearPropertyFlags(CPF_NonTransactional);
 	}
@@ -1250,48 +1256,37 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 }
 #endif
 
-FBox AActor::GetComponentsBoundingBox(bool bNonColliding) const
+FBox AActor::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box(ForceInit);
 
-	for (const UActorComponent* ActorComponent : GetComponents())
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>(ActorComponent);
-		if (PrimComp)
+		// Only use collidable components to find collision bounding box.
+		if (InPrimComp->IsRegistered() && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if (PrimComp->IsRegistered() && (bNonColliding || PrimComp->IsCollisionEnabled()))
-			{
-				Box += PrimComp->Bounds.GetBox();
-			}
+			Box += InPrimComp->Bounds.GetBox();
 		}
-	}
+	});
 
 	return Box;
 }
 
-FBox AActor::CalculateComponentsBoundingBoxInLocalSpace( bool bNonColliding ) const
+FBox AActor::CalculateComponentsBoundingBoxInLocalSpace(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box(ForceInit);
-
 	const FTransform& ActorToWorld = GetTransform();
 	const FTransform WorldToActor = ActorToWorld.Inverse();
 
-	for( const UActorComponent* ActorComponent : GetComponents() )
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>( ActorComponent );
-		if( PrimComp )
+		// Only use collidable components to find collision bounding box.
+		if (InPrimComp->IsRegistered() && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if( PrimComp->IsRegistered() && ( bNonColliding || PrimComp->IsCollisionEnabled() ) )
-			{
-				const FTransform ComponentToActor = PrimComp->GetComponentTransform() * WorldToActor;
-				FBoxSphereBounds ActorSpaceComponentBounds = PrimComp->CalcBounds( ComponentToActor );
-
-				Box += ActorSpaceComponentBounds.GetBox();
-			}
+			const FTransform ComponentToActor = InPrimComp->GetComponentTransform() * WorldToActor;
+			Box += InPrimComp->CalcBounds(ComponentToActor).GetBox();
 		}
-	}
+	});
 
 	return Box;
 }
@@ -1605,7 +1600,7 @@ void AActor::SetOwner(AActor* NewOwner)
 		}
 
 		Owner = NewOwner;
-		// MARK_PROPERTY_DIRTY_BY_NAME(AActor, Owner, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Owner, this);
 
 		if (Owner != nullptr)
 		{
@@ -1783,7 +1778,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Clear AttachmentReplication struct
 		AttachmentReplication = FRepAttachment();
-		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
 	}
 }
 
@@ -2240,7 +2235,7 @@ void AActor::TearOff()
 	if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
 	{
 		bTearOff = true;
-		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bTearOff, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bTearOff, this);
 		
 		FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld());
 		if (Context != nullptr)
@@ -3284,7 +3279,7 @@ void AActor::SetReplicates(bool bInReplicates)
 			}
 		}
 
-		// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 	}
 	else
 	{
@@ -3307,7 +3302,12 @@ void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllow
 
 		if (bAllowForcePropertyCompare && RemoteRole != OldRemoteRole)
 		{
-			// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+			// We intentionally only mark RemoteRole dirty after this check, because Networking Code
+			// for swapping roles will call SetAutonomousProxy to downgrade RemoteRole.
+			// However, that's the only code that should pass bAllowForcePropertyCompare=false.
+			// Everywhere else should use bAllowForcePropertyCompare=true.
+			// TODO: Maybe split these methods up to make it clearer.
+			MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 
 			// We have to do this so the role change above will replicate (turn off shadow state sharing for a frame)
 			// This is because RemoteRole is special since it will change between connections, so we have to special case
@@ -3323,7 +3323,7 @@ void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllow
 void AActor::CopyRemoteRoleFrom(const AActor* CopyFromActor)
 {
 	RemoteRole = CopyFromActor->GetRemoteRole();
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 
 	if (RemoteRole != ROLE_None)
 	{
@@ -3372,8 +3372,8 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Swap(Role, RemoteRole);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
 
 	ForcePropertyCompare();
 }
@@ -3952,9 +3952,9 @@ bool AActor::SetRootComponent(class USceneComponent* NewRootComponent)
 	return false;
 }
 
-void AActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent) const
+void AActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
 {
-	const FBox Bounds = GetComponentsBoundingBox(!bOnlyCollidingComponents);
+	const FBox Bounds = GetComponentsBoundingBox(!bOnlyCollidingComponents, bIncludeFromChildActors);
 
 	// To keep consistency with the other GetBounds functions, transform our result into an origin / extent formatting
 	Bounds.GetCenterAndExtents(Origin, BoxExtent);
@@ -4983,19 +4983,19 @@ void AActor::PostRename(UObject* OldOuter, const FName OldName)
 
 void AActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance)
 {
-	if (InLODParent)
+	if (InLODParent && InLODParent->MinDrawDistance != InParentDrawDistance)
 	{
 		InLODParent->MinDrawDistance = InParentDrawDistance;
 		InLODParent->MarkRenderStateDirty();
 	}
 
-	TArray<UPrimitiveComponent*> ComponentsToBeReplaced;
-	GetComponents(ComponentsToBeReplaced);
-
-	for (UPrimitiveComponent* Component : ComponentsToBeReplaced)
+	for (UActorComponent* Component : GetComponents())
 	{
-		// parent primitive will be null if no LOD parent is selected
-		Component->SetLODParentPrimitive(InLODParent);
+		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component))
+		{
+			// parent primitive will be null if no LOD parent is selected
+			PrimitiveComponent->SetLODParentPrimitive(InLODParent);
+		}
 	}
 }
 
@@ -5004,7 +5004,7 @@ void AActor::SetHidden(bool bInHidden)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bHidden = bInHidden;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bHidden, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bHidden, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -5012,7 +5012,7 @@ void AActor::SetReplicatingMovement(bool bInReplicateMovement)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bReplicateMovement = bInReplicateMovement;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bReplicateMovement, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bReplicateMovement, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -5020,7 +5020,7 @@ void AActor::SetCanBeDamaged(bool bInCanBeDamaged)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bCanBeDamaged = bInCanBeDamaged;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bCanBeDamaged, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bCanBeDamaged, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -5028,14 +5028,14 @@ void AActor::SetRole(ENetRole InRole)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Role = InRole;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Role, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FRepMovement& AActor::GetReplicatedMovement_Mutable()
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, ReplicatedMovement, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, ReplicatedMovement, this);
 	return ReplicatedMovement;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
@@ -5049,7 +5049,7 @@ void AActor::SetInstigator(APawn* InInstigator)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Instigator = InInstigator;
-	// MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Instigator, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Instigator, this);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 

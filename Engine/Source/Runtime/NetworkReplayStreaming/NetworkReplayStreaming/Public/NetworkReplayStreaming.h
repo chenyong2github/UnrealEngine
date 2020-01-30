@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -692,6 +692,10 @@ public:
 	// Gets the configured value for whether or not we should use FDateTime::Now as the automatic replay postfix.
 	// If false, it's up to the streamer to determine a proper postfix.
 	static NETWORKREPLAYSTREAMING_API bool UseDateTimeAsAutomaticReplayPostfix();
+
+	// Gets the file extension for replay streamers to use when recording replay files to the local file system.
+	// Includes the "." prefix
+	static NETWORKREPLAYSTREAMING_API FString GetReplayFileExtension();
 
 	// FSelfRegisteringExec interface
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;

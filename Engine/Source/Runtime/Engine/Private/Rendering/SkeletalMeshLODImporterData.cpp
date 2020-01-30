@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_EDITOR
 
@@ -15,7 +15,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshLODImporterData, Log, All);
 
 void FSkeletalMeshImportData::CopyDataNeedByMorphTargetImport(FSkeletalMeshImportData& Other) const
 {
+	//The points array is the only data we need to compute the morph target in the skeletalmesh build
 	Other.Points = Points;
+	//PointToRawMap should not be save when saving morph target data, we only need it temporary to gather the point from the fbx shape
 	Other.PointToRawMap = PointToRawMap;
 	Other.bDiffPose = bDiffPose;
 	Other.bUseT0AsRefPose = bUseT0AsRefPose;
@@ -135,7 +137,7 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(const USkele
 
 	//Load the original skeletal mesh import data
 	FSkeletalMeshImportData OriginalSkeletalMeshImportData;
-	SkeletalMeshLODModel.RawSkeletalMeshBulkData.LoadRawMesh(OriginalSkeletalMeshImportData);
+	SkeletalMesh->LoadLODImportedData(LodIndex, OriginalSkeletalMeshImportData);
 
 	//Backup the new geometry and rig to be able to apply the rig to the old geometry
 	FSkeletalMeshImportData NewGeometryAndRigData = *ImportData;
@@ -150,6 +152,9 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(const USkele
 	ImportData->Faces.Reset();
 	ImportData->Wedges.Reset();
 	ImportData->PointToRawMap.Reset();
+	ImportData->MorphTargetNames.Reset();
+	ImportData->MorphTargets.Reset();
+	ImportData->MorphTargetModifiedPoints.Reset();
 
 	//Material is a special case since we cannot serialize the UMaterialInstance when saving the RawSkeletalMeshBulkData
 	//So it has to be reconstructed.
@@ -169,6 +174,9 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(const USkele
 	ImportData->Faces += OriginalSkeletalMeshImportData.Faces;
 	ImportData->Wedges += OriginalSkeletalMeshImportData.Wedges;
 	ImportData->PointToRawMap += OriginalSkeletalMeshImportData.PointToRawMap;
+	ImportData->MorphTargetNames += OriginalSkeletalMeshImportData.MorphTargetNames;
+	ImportData->MorphTargets += OriginalSkeletalMeshImportData.MorphTargets;
+	ImportData->MorphTargetModifiedPoints += OriginalSkeletalMeshImportData.MorphTargetModifiedPoints;
 
 	return ImportData->ApplyRigToGeo(NewGeometryAndRigData);
 }
@@ -184,13 +192,12 @@ bool FSkeletalMeshImportData::ReplaceSkeletalMeshRigImportData(const USkeletalMe
 
 	//Load the original skeletal mesh import data
 	FSkeletalMeshImportData OriginalSkeletalMeshImportData;
-	SkeletalMeshLODModel.RawSkeletalMeshBulkData.LoadRawMesh(OriginalSkeletalMeshImportData);
+	SkeletalMesh->LoadLODImportedData(LodIndex, OriginalSkeletalMeshImportData);
 
 	ImportData->bDiffPose = OriginalSkeletalMeshImportData.bDiffPose;
 	ImportData->bUseT0AsRefPose = OriginalSkeletalMeshImportData.bUseT0AsRefPose;
 
 	ImportData->RefBonesBinary.Reset();
-
 	ImportData->RefBonesBinary += OriginalSkeletalMeshImportData.RefBonesBinary;
 
 	//Fix the old rig to match the new geometry
@@ -206,9 +213,6 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 	FWedgePosition::FillWedgePosition(OldGeoOverlappingPosition, Other.Points, Other.Wedges, THRESH_POINTS_ARE_SAME);
 	FOctreeQueryHelper OctreeQueryHelper(OldGeoOverlappingPosition.GetOctree());
 
-	int32 NewWedgesNum = Wedges.Num();
-	int32 OldWedgesNum = Other.Wedges.Num();
-
 	//////////////////////////////////////////////////////////////////////////
 	// Found the Remapping between old vertex index and new vertex index
 	// The old vertex index are the key, the index of the first array
@@ -219,7 +223,8 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 	// new vertex will have correct bone weight apply to them.
 	TArray<TArray<int32>> OldToNewRemap;
 	OldToNewRemap.AddDefaulted(Other.Points.Num());
-	for (int32 WedgeIndex = 0; WedgeIndex < NewWedgesNum; ++WedgeIndex)
+
+	for (int32 WedgeIndex = 0, NewWedgesNum = Wedges.Num(); WedgeIndex < NewWedgesNum; ++WedgeIndex)
 	{
 		const FVector2D& CurWedgeUV = Wedges[WedgeIndex].UVs[0];
 		int32 NewVertexIndex = (int32)(Wedges[WedgeIndex].VertexIndex);
@@ -650,6 +655,34 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 	}
 
 	return Ar;
+}
+
+void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, TArray<FRawSkeletalMeshBulkData>& RawSkeltalMeshBulkDatas, UObject* Owner)
+{
+	Ar.CountBytes(RawSkeltalMeshBulkDatas.Num() * sizeof(FRawSkeletalMeshBulkData), RawSkeltalMeshBulkDatas.Num() * sizeof(FRawSkeletalMeshBulkData));
+	if (Ar.IsLoading())
+	{
+		// Load array.
+		int32 NewNum;
+		Ar << NewNum;
+		RawSkeltalMeshBulkDatas.Empty(NewNum);
+		for (int32 Index = 0; Index < NewNum; Index++)
+		{
+			int32 NewEntryIndex = RawSkeltalMeshBulkDatas.AddDefaulted();
+			check(NewEntryIndex == Index);
+			RawSkeltalMeshBulkDatas[Index].Serialize(Ar, Owner);
+		}
+	}
+	else
+	{
+		// Save array.
+		int32 Num = RawSkeltalMeshBulkDatas.Num();
+		Ar << Num;
+		for (int32 Index = 0; Index < Num; Index++)
+		{
+			RawSkeltalMeshBulkDatas[Index].Serialize(Ar, Owner);
+		}
+	}
 }
 
 void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)

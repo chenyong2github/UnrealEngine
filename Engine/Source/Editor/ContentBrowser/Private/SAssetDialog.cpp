@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetDialog.h"
 #include "Misc/MessageDialog.h"
@@ -176,6 +176,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 				[
 					SNew(STextBlock)
 					.Text( this, &SAssetDialog::GetNameErrorLabelText )
+					.ToolTipText(this, &SAssetDialog::GetNameErrorLabelText)
 					.TextStyle( FEditorStyle::Get(), "AssetDialog.ErrorLabelFont" )
 				]
 			]

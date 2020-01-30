@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/PhysicsTickTask.h"
 
@@ -7,6 +7,7 @@
 #include "ChaosStats.h"
 #include "PhysicsSolver.h"
 #include "PhysicsCoreTypes.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 FAutoConsoleTaskPriority CPrio_FPhysicsTickTask(
 	TEXT("TaskGraph.TaskPriorities.PhysicsTickTask"),
@@ -16,9 +17,10 @@ FAutoConsoleTaskPriority CPrio_FPhysicsTickTask(
 	ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 );
 
-FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, float InDt)
+FPhysicsTickTask::FPhysicsTickTask(FGraphEventRef& InCompletionEvent, Chaos::FPhysicsSolver* InPhysicsSolver, float InDt)
 	: CompletionEvent(InCompletionEvent)
 	, Module(nullptr)
+	, PhysicsSolver(InPhysicsSolver)
 	, Dt(InDt)
 {
 	Module = FChaosSolversModule::GetModule();
@@ -50,7 +52,12 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 	// per-solver commands and the solver advance
 	FGraphEventRef CommandsTask = TGraphTask<FPhysicsCommandsTask>::CreateTask().ConstructAndDispatchWhenReady();
 
-	const TArray<FPhysicsSolver*>& SolverList = Module->GetSolvers();
+	// Otherwise get a full list of solvers from the solvers module.
+	const TArray<FPhysicsSolver*>& SolverList
+		= (PhysicsSolver == nullptr)
+		? Module->GetSolvers()
+		: [&]() { TArray<FPhysicsSolver*> Solvers; Solvers.Init(PhysicsSolver, 1); return Solvers; }();
+
 
 	// List of active solvers (assume all are active for single alloc)
 	TArray<FPhysicsSolver*> ActiveSolvers;
@@ -118,7 +125,16 @@ void FPhysicsCommandsTask::DoTask(ENamedThreads::Type CurrentThread, const FGrap
 {
 	using namespace Chaos;
 
+	ensureAlways(Dispatcher == Module->GetDispatcher());
+	check(Dispatcher);
+
+	Dispatcher = Module->GetDispatcher();
+	check(Dispatcher->GetMode() == EChaosThreadingMode::TaskGraph);
+
+	//static FCriticalSection DispatcherExecutionSection;
+	//DispatcherExecutionSection.Lock();
 	Dispatcher->Execute();
+	//DispatcherExecutionSection.Unlock();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -148,6 +164,9 @@ ESubsequentsMode::Type FPhysicsSolverAdvanceTask::GetSubsequentsMode()
 
 void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
+
 	StepSolver(Solver, Dt);
 }
 

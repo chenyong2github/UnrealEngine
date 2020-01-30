@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,21 @@
 
 namespace Audio
 {
+	struct SIGNALPROCESSING_API FWetDry
+	{
+		// Level of wet signal
+		float WetLevel;
+
+		// Level of dry signal
+		float DryLevel;
+
+		FWetDry(float InWetLevel = 1.0f, float InDryLevel = 0.0f)
+			: WetLevel(InWetLevel)
+			, DryLevel(InDryLevel)
+		{
+		}
+	};
+
 	// Class which manages scaling audio input and performing panning operations
 	class SIGNALPROCESSING_API FAmp
 	{

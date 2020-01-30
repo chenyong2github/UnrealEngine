@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "PersonaModule.h"
@@ -47,7 +47,7 @@
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "Logging/MessageLog.h"
-#include "AnimationCompressionPanel.h"
+#include "AnimationEditorUtils.h"
 #include "DesktopPlatformModule.h"
 #include "FbxAnimUtils.h"
 #include "PersonaAssetFamilyManager.h"
@@ -70,6 +70,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "Animation/AnimBoneCompressionSettings.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -86,6 +87,10 @@
 #include "AnimPreviewInstance.h"
 #include "ISequenceRecorder.h"
 #include "SkinWeightProfileCustomization.h"
+#include "SAnimationBlendSpaceGridWidget.h"
+#include "SAnimSequenceCurveEditor.h"
+#include "AnimSequenceTimelineCommands.h"
+#include "SAnimMontageSectionsPanel.h"
 
 IMPLEMENT_MODULE( FPersonaModule, Persona );
 
@@ -155,6 +160,7 @@ void FPersonaModule::StartupModule()
 	FEditorModeRegistry::Get().RegisterMode<FSkeletonSelectionEditMode>(FPersonaEditModes::SkeletonSelection, LOCTEXT("SkeletonSelectionEditMode", "Skeleton Selection"), FSlateIcon(), false);
 
 	FPersonaCommonCommands::Register();
+	FAnimSequenceTimelineCommands::Register();
 
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(this, UAnimNotify::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateRaw(this, &FPersonaModule::HandleNewAnimNotifyBlueprintCreated));
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(this, UAnimNotifyState::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateRaw(this, &FPersonaModule::HandleNewAnimNotifyStateBlueprintCreated));
@@ -343,45 +349,83 @@ TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateSkeletonSlotNamesTab
 	return MakeShareable(new FSkeletonSlotNamesSummoner(InHostingApp, InEditableSkeleton, InOnPostUndo, InOnObjectSelected));
 }
 
-TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, UObject* InAnimAsset, const FAnimDocumentArgs& InArgs, FString& OutDocumentLink)
+TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition) const
+{
+	return
+		SNew(SBlendSpaceGridWidget)
+		.Cursor(EMouseCursor::Crosshairs)
+		.BlendSpaceBase(InBlendSpace)
+		.Position(InPosition)
+		.ReadOnly(true)
+		.ShowAxisLabels(false)
+		.ShowSettingsButtons(false);
+}
+
+TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateAnimMontageSectionsTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IPersonaToolkit>& InPersonaToolkit, FSimpleMulticastDelegate& InOnSectionsChanged) const
+{
+	return MakeShareable(new FAnimMontageSectionsSummoner(InHostingApp, InPersonaToolkit, InOnSectionsChanged));
+}
+
+TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSharedRef<IAnimationEditor>& InHostingApp, UObject* InAnimAsset, const FAnimDocumentArgs& InArgs, FString& OutDocumentLink)
 {
 	TSharedPtr<SWidget> Result = SNullWidget::NullWidget;
 	if (InAnimAsset)
 	{
+		TWeakPtr<IAnimationEditor> WeakHostingApp = InHostingApp;
+		auto OnEditCurves = [WeakHostingApp](UAnimSequenceBase* InAnimSequence, const TArray<IAnimationEditor::FCurveEditInfo>& InCurveInfo, const TSharedPtr<ITimeSliderController>& InExternalTimeSliderController)
+		{ 
+			WeakHostingApp.Pin()->EditCurves(InAnimSequence, InCurveInfo, InExternalTimeSliderController);
+		};
+
+		auto OnStopEditingCurves = [WeakHostingApp](const TArray<IAnimationEditor::FCurveEditInfo>& InCurveInfo)
+		{ 
+			WeakHostingApp.Pin()->StopEditingCurves(InCurveInfo);
+		};
+
 		if (UAnimSequence* Sequence = Cast<UAnimSequence>(InAnimAsset))
 		{
-			Result = SNew(SSequenceEditor, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef())
+			Result = SNew(SSequenceEditor, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef(), InHostingApp->GetToolkitCommands())
 				.Sequence(Sequence)
 				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected)
-				.OnInvokeTab(InArgs.OnDespatchInvokeTab);
+				.OnInvokeTab(InArgs.OnDespatchInvokeTab)
+				.OnEditCurves_Lambda(OnEditCurves)
+				.OnStopEditingCurves_Lambda(OnStopEditingCurves);
 
 			OutDocumentLink = TEXT("Engine/Animation/Sequences");
 		}
 		else if (UAnimComposite* Composite = Cast<UAnimComposite>(InAnimAsset))
 		{
-			Result = SNew(SAnimCompositeEditor, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef())
+			Result = SNew(SAnimCompositeEditor, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef(), InHostingApp->GetToolkitCommands())
 				.Composite(Composite)
 				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected)
-				.OnInvokeTab(InArgs.OnDespatchInvokeTab);
+				.OnInvokeTab(InArgs.OnDespatchInvokeTab)
+				.OnEditCurves_Lambda(OnEditCurves)
+				.OnStopEditingCurves_Lambda(OnStopEditingCurves);
 
 			OutDocumentLink = TEXT("Engine/Animation/AnimationComposite");
 		}
 		else if (UAnimMontage* Montage = Cast<UAnimMontage>(InAnimAsset))
 		{
-			FMontageEditorRequiredArgs RequiredArgs(InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef(), InArgs.OnSectionsChanged);
+			FMontageEditorRequiredArgs RequiredArgs(InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef(), InArgs.OnSectionsChanged, InHostingApp->GetToolkitCommands());
 
 			Result = SNew(SMontageEditor, RequiredArgs)
 				.Montage(Montage)
 				.OnSectionsChanged(InArgs.OnDespatchSectionsChanged)
 				.OnInvokeTab(InArgs.OnDespatchInvokeTab)
-				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected);
+				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected)
+				.OnEditCurves_Lambda(OnEditCurves)
+				.OnStopEditingCurves_Lambda(OnStopEditingCurves);
 
 			OutDocumentLink = TEXT("Engine/Animation/AnimMontage");
 		}
 		else if (UAnimStreamable* StreamableAnim = Cast<UAnimStreamable>(InAnimAsset))
 		{
-			Result = SNew(SAnimStreamableEditor, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef())
-				.StreamableAnim(StreamableAnim);
+			Result = SNew(SAnimStreamableEditor, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.EditableSkeleton.Pin().ToSharedRef(), InHostingApp->GetToolkitCommands())
+				.StreamableAnim(StreamableAnim)
+				.OnObjectsSelected(InArgs.OnDespatchObjectsSelected)
+				.OnInvokeTab(InArgs.OnDespatchInvokeTab)
+				.OnEditCurves_Lambda(OnEditCurves)
+				.OnStopEditingCurves_Lambda(OnStopEditingCurves);
 
 			OutDocumentLink = TEXT("Engine/Animation/Sequences");
 		}
@@ -428,6 +472,13 @@ TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSha
 	}
 
 	return Result.ToSharedRef();
+}
+
+TSharedRef<IAnimSequenceCurveEditor> FPersonaModule::CreateCurveWidgetForAnimDocument(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, UAnimSequenceBase* InAnimSequence, const TSharedPtr<ITimeSliderController>& InExternalTimeSliderController, const TSharedPtr<FTabManager>& InTabManager)
+{
+	return SNew(SAnimSequenceCurveEditor, InPreviewScene, InAnimSequence)
+		.ExternalTimeSliderController(InExternalTimeSliderController)
+		.TabManager(InTabManager);
 }
 
 void FPersonaModule::CustomizeMeshDetails(const TSharedRef<IDetailsView>& InDetailsView, const TSharedRef<IPersonaToolkit>& InPersonaToolkit)
@@ -586,10 +637,51 @@ void FPersonaModule::TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkel
 	}
 }
 
-void FPersonaModule::ApplyCompression(TArray<TWeakObjectPtr<UAnimSequence>>& AnimSequences)
+void FPersonaModule::ApplyCompression(TArray<TWeakObjectPtr<UAnimSequence>>& AnimSequences, bool bPickBoneSettingsOverride)
 {
-	FDlgAnimCompression AnimCompressionDialog(AnimSequences);
-	AnimCompressionDialog.ShowModal();
+	UAnimBoneCompressionSettings* OverrideSettings = nullptr;
+	if (bPickBoneSettingsOverride)
+	{
+		FAnimationCompressionSelectionDialogConfig DialogConfig;
+
+		UAnimBoneCompressionSettings* CurrentSettings = nullptr;
+		if (AnimSequences.Num() != 0)
+		{
+			CurrentSettings = AnimSequences[0]->BoneCompressionSettings;
+			for (TWeakObjectPtr<UAnimSequence>& AnimSeq : AnimSequences)
+			{
+				if (CurrentSettings != AnimSeq->BoneCompressionSettings)
+				{
+					// One of the sequences in the list has a different settings asset, use the default behavior
+					CurrentSettings = nullptr;
+					break;
+				}
+			}
+		}
+
+		DialogConfig.DefaultSelectedAsset = CurrentSettings;
+
+		FAssetData AssetData = AnimationEditorUtils::CreateModalAnimationCompressionSelectionDialog(DialogConfig);
+		if (AssetData.IsValid())
+		{
+			OverrideSettings = Cast<UAnimBoneCompressionSettings>(AssetData.GetAsset());
+		}
+		else
+		{
+			// No asset selected but we need an override, do nothing
+			return;
+		}
+	}
+
+	TArray<UAnimSequence*> AnimSequencePtrs;
+	AnimSequencePtrs.Reserve(AnimSequences.Num());
+
+	for (TWeakObjectPtr<UAnimSequence>& AnimSeq : AnimSequences)
+	{
+		AnimSequencePtrs.Add(AnimSeq.Get());
+	}
+
+	AnimationEditorUtils::ApplyCompressionAlgorithm(AnimSequencePtrs, OverrideSettings);
 }
 
 bool FPersonaModule::ExportToFBX(TArray<TWeakObjectPtr<UAnimSequence>>& AnimSequences, USkeletalMesh* SkeletalMesh)

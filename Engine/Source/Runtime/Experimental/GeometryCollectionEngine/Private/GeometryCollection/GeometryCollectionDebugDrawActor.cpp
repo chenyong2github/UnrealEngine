@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
 
@@ -638,7 +638,7 @@ void AGeometryCollectionDebugDrawActor::PostEditChangeProperty(FPropertyChangedE
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool AGeometryCollectionDebugDrawActor::CanEditChange(const UProperty* InProperty) const
+bool AGeometryCollectionDebugDrawActor::CanEditChange(const FProperty* InProperty) const
 {
 	const FName PropertyName = InProperty->GetFName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawWholeCollection) ||

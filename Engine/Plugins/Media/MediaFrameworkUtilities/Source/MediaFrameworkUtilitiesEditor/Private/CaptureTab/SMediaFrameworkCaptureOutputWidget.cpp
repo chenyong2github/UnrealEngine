@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CaptureTab/SMediaFrameworkCaptureOutputWidget.h"
 
@@ -25,6 +25,7 @@
 #include "Widgets/SViewport.h"
 #include "Widgets/Text/STextBlock.h"
 
+#include "Modules/ModuleManager.h"
 #include "Editor.h"
 #include "IAssetViewport.h"
 #include "LevelEditor.h"

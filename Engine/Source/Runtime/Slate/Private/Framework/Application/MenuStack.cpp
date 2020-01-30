@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Application/MenuStack.h"
 #include "Layout/LayoutUtils.h"
@@ -800,13 +800,6 @@ bool FMenuStack::GetToolTipForceFieldRect(const TSharedRef<IMenu>& InMenu, const
 		}
 	}
 	return bWasSolutionFound;
-}
-
-FSlateRect FMenuStack::GetToolTipForceFieldRect(TSharedRef<IMenu> InMenu, const FWidgetPath& PathContainingMenu) const
-{
-	FSlateRect ForceFieldRect(0, 0, 0, 0);
-	GetToolTipForceFieldRect(InMenu, PathContainingMenu, ForceFieldRect);
-	return ForceFieldRect;
 }
 
 bool FMenuStack::HasMenus() const

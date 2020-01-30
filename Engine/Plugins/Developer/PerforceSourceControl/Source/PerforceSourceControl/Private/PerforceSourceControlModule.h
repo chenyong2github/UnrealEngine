@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,6 +37,9 @@ public:
 	{
 		return FModuleManager::LoadModuleChecked< FPerforceSourceControlModule >("PerforceSourceControl");
 	}
+
+	/** Set list of error messages that occurred after last perforce command */
+	static void SetLastErrors(const TArray<FText>& InErrors);
 
 private:
 	/** The one and only Perforce source control provider */

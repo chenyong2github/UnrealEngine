@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -697,6 +697,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FLinearColor, SkyLightColor) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, SkyIrradianceEnvironmentMap, [7]) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MobilePreviewMode) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, IsMobileMSAA) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, HMDEyePaddingOffset) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, ReflectionCubemapMaxMip, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, ShowDecalsMask) \
@@ -726,6 +727,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, WorldToVirtualTexture) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, VirtualTextureParams) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, XRPassthroughCameraUVs, [2]) \
+	VIEW_UNIFORM_BUFFER_MEMBER(uint32, VirtualTextureFeedbackStride) \
 	VIEW_UNIFORM_BUFFER_MEMBER(int32, FarShadowStaticMeshLODBias) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MinRoughness) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4, HairRenderInfo) \
@@ -940,6 +942,9 @@ public:
 	FVector4 NormalOverrideParameter;
 	FVector2D RoughnessOverrideParameter;
 
+	/** Mip bias to apply in material's samplers. */
+	float MaterialTextureMipBias;
+
 	/** The primitives which are hidden for this view. */
 	TSet<FPrimitiveComponentId> HiddenPrimitives;
 
@@ -993,6 +998,9 @@ public:
 	/** Whether this view is being used to render a planar reflection. */
 	bool bIsPlanarReflection;
 
+	/** Whether this view is being used to render a high quality offline render */
+	bool bIsOfflineRender;
+
 	/** Whether to force two sided rendering for this view. */
 	bool bRenderSceneTwoSided;
 
@@ -1020,6 +1028,14 @@ public:
 	/** True if we need to bind the instanced view uniform buffer parameters. */
 	bool bShouldBindInstancedViewUB;
 
+	/** How far below the water surface this view is. -1 means the view is out of water. */
+	float UnderwaterDepth;
+
+	/** True if we need to force the camera to discard previous frames occlusion. Necessary for overlapped tile rendering
+	 * where we discard previous frame occlusion because the projection matrix changes.
+	 */
+	bool bForceCameraVisibilityReset;
+
 	/** Global clipping plane being applied to the scene, or all 0's if disabled.  This is used when rendering the planar reflection pass. */
 	FPlane GlobalClippingPlane;
 
@@ -1035,6 +1051,16 @@ public:
 	/** Translucent sort mode */
 	TEnumAsByte<ETranslucentSortPolicy::Type> TranslucentSortPolicy;
 	
+	/** The frame index to override, useful for keeping determinism when rendering sequences. **/
+	TOptional<uint32> OverrideFrameIndexValue;
+
+	/** In some cases, the principal point of the lens is not at the center of the screen, especially for overlapped tile
+	 *  rendering. So given a UV in [-1,1] viewport space, convert it to the [-1,1] viewport space of the lens using
+	 *  LensUV = LensPrincipalPointOffsetScale.xy ScreenUV * LensPrincipalPointOffsetScale.zw;
+	 *  This value is FVector4(0,0,1,1) unless overridden.
+	 */
+	FVector4 LensPrincipalPointOffsetScale;
+
 #if WITH_EDITOR
 	/** The set of (the first 64) groups' visibility info for this view */
 	uint64 EditorViewBitflag;
@@ -1176,6 +1202,8 @@ public:
 
 	/** @return true:perspective, false:orthographic */
 	inline bool IsPerspectiveProjection() const { return ViewMatrices.IsPerspectiveProjection(); }
+
+	bool IsUnderwater() const { return UnderwaterDepth > 0.0f; }
 
 	/** Returns the location used as the origin for LOD computations
 	 * @param Index, 0 or 1, which LOD origin to return

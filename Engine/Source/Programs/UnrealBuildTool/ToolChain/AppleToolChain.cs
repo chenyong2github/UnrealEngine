@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -154,7 +154,7 @@ namespace UnrealBuildTool
 		}
 	}
 
-	abstract class AppleToolChain : UEToolChain
+	abstract class AppleToolChain : ISPCToolChain
 	{
 		protected FileReference ProjectFile;
 

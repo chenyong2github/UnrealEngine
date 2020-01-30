@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,6 +17,14 @@ class MODELINGCOMPONENTS_API FRaySpatialSnapSolver : public FBasePositionSnapSol
 {
 public:
 	FRaySpatialSnapSolver();
+
+	/**
+	 * Optional function that will be used to project potential snap points onto constraints.
+	 * Note that Line/Curve constraints are still respected, so eg if this projects to a 3D grid,
+	 * then when calculating possible line-snap positions, the 3D grid point will be projected back 
+	 * onto the line targets.
+	 */
+	TFunction<FVector3d(const FVector3d&)> PointConstraintFunc = nullptr;
 
 	//
 	// solving

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,6 +8,7 @@
 #include "RigCurveContainer.generated.h"
 
 class UControlRig;
+class USkeleton;
 
 USTRUCT(BlueprintType)
 struct FRigCurve : public FRigElement
@@ -21,7 +22,7 @@ struct FRigCurve : public FRigElement
 	}
 	virtual ~FRigCurve() {}
 
-	UPROPERTY(VisibleAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = FRigElement)
 	float Value;
 
 	FORCEINLINE virtual ERigElementType GetElementType() const override
@@ -30,7 +31,7 @@ struct FRigCurve : public FRigElement
 	}
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigCurveContainer
 {
 	GENERATED_BODY()
@@ -112,6 +113,8 @@ public:
 	FRigElementRenamed OnCurveRenamed;
 	FRigElementSelected OnCurveSelected;
 
+	TArray<FRigElementKey> ImportCurvesFromSkeleton(const USkeleton* InSkeleton, const FName& InNameSpace, bool bRemoveObsoleteCurves, bool bSelectCurves, bool bNotify);
+
 #endif
 
 private:
@@ -134,6 +137,9 @@ private:
 
 	void RefreshMapping();
 
+	bool bSuspendNotifications;
+
 	friend struct FRigHierarchyContainer;
+	friend class UControlRigHierarchyModifier;
 };
 

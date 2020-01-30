@@ -1,11 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "OpenModelUtils.h"
 
 #ifdef USE_OPENMODEL
 
 #include "CADOptions.h"
 #include "DatasmithUtils.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
+#include "IDatasmithSceneElements.h"
 
 #include "AlDagNode.h"
 #include "AlMesh.h"
@@ -1577,7 +1578,7 @@ void OpenModelUtils::SetActorTransform(const TSharedPtr< IDatasmithActorElement 
 		FTransform LocalUETransform = FDatasmithUtils::ConvertTransform(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, LocalTransform);
 		FQuat Quat;
 		
-		FDatasmithTransformUtils::GetRotation(LocalUETransform, Quat);
+		FDatasmithTransformUtils::GetSafeRotation(LocalUETransform, Quat);
 
 		ActorElement->SetTranslation(LocalUETransform.GetTranslation());
 		ActorElement->SetScale(LocalUETransform.GetScale3D());

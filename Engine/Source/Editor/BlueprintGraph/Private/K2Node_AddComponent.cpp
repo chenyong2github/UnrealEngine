@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "K2Node_AddComponent.h"
@@ -94,10 +94,10 @@ void UK2Node_AddComponent::AllocatePinsForExposedVariables()
 	{
 		const UObject* ClassDefaultObject = ComponentClass->ClassDefaultObject;
 
-		for (TFieldIterator<UProperty> PropertyIt(ComponentClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(ComponentClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
-			const bool bNotDelegate = !Property->IsA(UMulticastDelegateProperty::StaticClass());
+			FProperty* Property = *PropertyIt;
+			const bool bNotDelegate = !Property->IsA(FMulticastDelegateProperty::StaticClass());
 			const bool bIsExposedToSpawn = UEdGraphSchema_K2::IsPropertyExposedOnSpawn(Property);
 			const bool bIsVisible = Property->HasAllPropertyFlags(CPF_BlueprintVisible);
 			const bool bNotParam = !Property->HasAllPropertyFlags(CPF_Parm);

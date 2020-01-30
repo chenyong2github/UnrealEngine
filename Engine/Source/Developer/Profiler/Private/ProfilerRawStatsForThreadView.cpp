@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilerRawStatsForThreadView.h"
 #include "HAL/FileManager.h"
@@ -190,6 +190,7 @@ void FRawProfilerSession::PrepareLoading()
 		// !!CAUTION!! Frame number in the raw stats is pointless, because it is time based, not frame based.
 		// Background threads usually execute time consuming operations, so the frame number won't be valid.
 		// Needs to be combined by the thread and the time, not by the frame number.
+		if (Stream.FramesInfo.Num() > 0)
 		{
 			int64 FrameOffset0 = Stream.FramesInfo[0].FrameFileOffset;
 			FileReader->Seek( FrameOffset0 );

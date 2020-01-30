@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,7 +52,7 @@ private:
 		uint32 ConnectionIndex;
 
 		// Current packet data
-		uint32 CurrentPacketStartIndex;
+		uint32 CurrentPacketStartIndex[Trace::ENetProfilerConnectionMode::Count];
 		Trace::ENetProfilerConnectionMode ConnectionMode;
 	};
 

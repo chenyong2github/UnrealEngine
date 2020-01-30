@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/FileHelper.h"
 #include "Containers/StringConv.h"
@@ -42,7 +42,7 @@ bool FFileHelper::LoadFileToArray( TArray<uint8>& Result, const TCHAR* Filename,
 		}
 		return false;
 	}
-	int64 TotalSize = Reader->TotalSize();
+	int32 TotalSize = (int32)Reader->TotalSize();
 	// Allocate slightly larger than file size to avoid re-allocation when caller null terminates file buffer
 	Result.Reset( TotalSize + 2 );
 	Result.AddUninitialized( TotalSize );
@@ -146,7 +146,7 @@ bool FFileHelper::LoadFileToString(FString& Result, FArchive& Reader, EHashOptio
 {
 	FScopedLoadingState ScopedLoadingState(*Reader.GetArchiveName());
 
-	int32 Size = Reader.TotalSize();
+	int64 Size = Reader.TotalSize();
 	if (!Size)
 	{
 		Result.Empty();
@@ -163,7 +163,7 @@ bool FFileHelper::LoadFileToString(FString& Result, FArchive& Reader, EHashOptio
 	Reader.Serialize(Ch, Size);
 	bool Success = Reader.Close();
 
-	BufferToString(Result, Ch, Size);
+	BufferToString(Result, Ch, (int32)Size);
 
 	// handle SHA verify of the file
 	if (EnumHasAnyFlags(VerifyFlags, EHashOptions::EnableVerify) && (EnumHasAnyFlags(VerifyFlags, EHashOptions::ErrorMissingHash) || FSHA1::GetFileSHAHash(*Reader.GetArchiveName(), nullptr)))
@@ -239,7 +239,7 @@ bool FFileHelper::LoadFileToStringArray( TArray<FString>& Result, const TCHAR* F
 			Pos++;
 		}
 
-		Result.Emplace(Pos - LineStart, LineStart);
+		Result.Emplace((int32)(Pos - LineStart), LineStart);
 
 		if(*Pos == '\r')
 		{
@@ -272,7 +272,7 @@ bool FFileHelper::LoadFileToStringArrayWithPredicate(TArray<FString>& Result, co
 			Pos++;
 		}
 
-		FString Line(Pos - LineStart, LineStart);
+		FString Line(UE_PTRDIFF_TO_INT32(Pos - LineStart), LineStart);
 		if (Invoke(Predicate, Line))
 		{
 			Result.Add(MoveTemp(Line));
@@ -471,10 +471,11 @@ void FFileHelper::GenerateDateTimeBasedBitmapFilename(const FString& Pattern, co
  * @param SubRectangle optional, specifies a sub-rectangle of the source image to save out. If NULL, the whole bitmap is saved
  * @param FileManager must not be 0
  * @param OutFilename optional, if specified filename will be output
+ * @param ChannelMask optional, specifies a specific channel to write out (will be written out to all channels gray scale).
  *
  * @return true if success
  */
-bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 SourceHeight, const FColor* Data, struct FIntRect* SubRectangle, IFileManager* FileManager /*= &IFileManager::Get()*/, FString* OutFilename /*= NULL*/, bool bInWriteAlpha /*= false*/ )
+bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 SourceHeight, const FColor* Data, struct FIntRect* SubRectangle, IFileManager* FileManager /*= &IFileManager::Get()*/, FString* OutFilename /*= NULL*/, bool bInWriteAlpha /*= false*/, EChannelMask ChannelMask /*= All */ )
 {
 #if ALLOW_DEBUG_FILES
 	FIntRect Src(0, 0, SourceWidth, SourceHeight);
@@ -606,14 +607,51 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 		{
 			for( int32 j = SubRectangle->Min.X; j < SubRectangle->Max.X; j++ )
 			{
-				Ar->Serialize( (void *)&Data[i*SourceWidth+j].B, 1 );
-				Ar->Serialize( (void *)&Data[i*SourceWidth+j].G, 1 );
-				Ar->Serialize( (void *)&Data[i*SourceWidth+j].R, 1 );
-
-				if (bInWriteAlpha)
+				if (ChannelMask == EChannelMask::All)
 				{
-					Ar->Serialize( (void *)&Data[i * SourceWidth + j].A, 1 );
+					Ar->Serialize((void*)&Data[i * SourceWidth + j].B, 1);
+					Ar->Serialize((void*)&Data[i * SourceWidth + j].G, 1);
+					Ar->Serialize((void*)&Data[i * SourceWidth + j].R, 1);
+
+					if (bInWriteAlpha)
+					{
+						Ar->Serialize((void*)&Data[i * SourceWidth + j].A, 1);
+					}
 				}
+				else
+				{
+					const uint8 Max = 255;
+					uint8 ChannelValue = 0;
+					// When using Channel mask write the masked channel to all channels (except alpha).
+					switch (ChannelMask)
+					{
+					case EChannelMask::B:
+						ChannelValue = Data[i * SourceWidth + j].B;
+						break;
+					case EChannelMask::G:
+						ChannelValue = Data[i * SourceWidth + j].G;
+						break;
+					case EChannelMask::R:
+						ChannelValue = Data[i * SourceWidth + j].R;
+						break;
+					case EChannelMask::A:
+						ChannelValue = Data[i * SourceWidth + j].A;
+						break;
+					}
+										
+					// replicate Channel in B, G, R
+					Ar->Serialize((void*)&ChannelValue, 1);
+					Ar->Serialize((void*)&ChannelValue, 1);
+					Ar->Serialize((void*)&ChannelValue, 1);
+
+					// if write alpha write max value in there (we don't want transparency)
+					if (bInWriteAlpha)
+					{
+						Ar->Serialize((void*)&Max, 1);
+					}
+				}
+
+				
 			}
 
 			// Pad each row's length to be a multiple of 4 bytes.
@@ -661,7 +699,7 @@ bool FFileHelper::LoadANSITextFileToStrings(const TCHAR* InFilename, IFileManage
 	if (TextFile != NULL)
 	{
 		// get the size of the file
-		int32 Size = TextFile->TotalSize();
+		int32 Size = (int32)TextFile->TotalSize();
 		// read the file
 		TArray<uint8> Buffer;
 		Buffer.Empty(Size + 1);
@@ -785,8 +823,8 @@ bool FFileHelper::IsFilenameValidForSaving(const FString& Filename, FText& OutEr
 		}
 		else
 		{
-			OutError = FText::Format(NSLOCTEXT("UnrealEd", "Error_FilenameIsTooLongForCooking", "Filename '{0}' is too long; this may interfere with cooking for consoles.  Unreal filenames should be no longer than {1} characters."),
-				FText::FromString(BaseFilename), FText::AsNumber(FPlatformMisc::GetMaxPathLength()));
+			OutError = FText::Format(NSLOCTEXT("UnrealEd", "Error_FilenameIsTooLongForCooking", "Filename is too long ({0} characters); this may interfere with cooking for consoles. Unreal filenames should be no longer than {1} characters. Filename value: {2}"),
+				FText::AsNumber(BaseFilename.Len()), FText::AsNumber(FPlatformMisc::GetMaxPathLength()), FText::FromString(BaseFilename));
 		}
 	}
 	else

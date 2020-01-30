@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGLVertexBuffer.cpp: OpenGL texture RHI implementation.
@@ -429,7 +429,7 @@ void FOpenGLDynamicRHI::InitializeGLTexture(FRHITexture* Texture, uint32 SizeX, 
 			}
 		}
 		glTexParameteri(Target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(Target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(Target, GL_TEXTURE_MIN_FILTER, NumMips > 1 ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST);
 		if( FOpenGL::SupportsTextureFilterAnisotropic() )
 		{
 			glTexParameteri(Target, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1);
@@ -2434,7 +2434,7 @@ void FOpenGLDynamicRHI::InvalidateTextureResourceInCache(GLuint Resource)
 
 void FOpenGLDynamicRHI::InvalidateUAVResourceInCache(GLuint Resource)
 {
-	for (int32 UAVIndex = 0; UAVIndex < OGL_MAX_COMPUTE_STAGE_UAV_UNITS; ++UAVIndex)
+	for (int32 UAVIndex = 0; UAVIndex < FOpenGL::GetMaxCombinedUAVUnits(); ++UAVIndex)
 	{
 		if (SharedContextState.UAVs[UAVIndex].Resource == Resource)
 		{
@@ -2574,7 +2574,7 @@ void FOpenGLDynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTextureRHI,
 	ContextState.Framebuffer = (GLuint)-1;
 }
 
-/*
+
 void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
 {
 	VERIFY_GL_SCOPE();
@@ -2611,7 +2611,12 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 	{
 		Width = CopyInfo.Size.X;
 		Height = CopyInfo.Size.Y;
-		Depth = (SourceTexture->Target == GL_TEXTURE_3D) ? CopyInfo.Size.Z : 1;
+		switch (SourceTexture->Target)
+		{
+			case GL_TEXTURE_3D:			Depth = CopyInfo.Size.Z; break;
+			case GL_TEXTURE_CUBE_MAP:	Depth = CopyInfo.NumSlices; break;
+			default:					Depth = 1; break;
+		}
 	}
 
 	GLint SrcMip = CopyInfo.SourceMipIndex;
@@ -2692,22 +2697,28 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 
 			switch (DestTexture->Target)
 			{
-			case GL_TEXTURE_1D:
-				FOpenGL::CopyTexSubImage1D(DestTexture->Target, DestMip, XOffset, X, 0, Width);
-				break;
-			case GL_TEXTURE_1D_ARRAY:
-				FOpenGL::CopyTexSubImage2D(DestTexture->Target, DestMip, XOffset, CopyInfo.DestSliceIndex + SliceIndex, X, 0, Width, 1);
-				break;
-			case GL_TEXTURE_2D:
-			case GL_TEXTURE_RECTANGLE:
-				FOpenGL::CopyTexSubImage2D(DestTexture->Target, DestMip, XOffset, YOffset, X, Y, Width, Height);
-				break;
-			case GL_TEXTURE_2D_ARRAY:
-				FOpenGL::CopyTexSubImage3D(DestTexture->Target, DestMip, XOffset, YOffset, CopyInfo.DestSliceIndex + SliceIndex, X, Y, Width, Height);
-				break;
-			case GL_TEXTURE_3D:
-				FOpenGL::CopyTexSubImage3D(DestTexture->Target, DestMip, XOffset, YOffset, ZOffset, X, Y, Width, Height);
-				break;
+				case GL_TEXTURE_1D:
+					FOpenGL::CopyTexSubImage1D(DestTexture->Target, DestMip, XOffset, X, 0, Width);
+					break;
+				case GL_TEXTURE_1D_ARRAY:
+					FOpenGL::CopyTexSubImage2D(DestTexture->Target, DestMip, XOffset, CopyInfo.DestSliceIndex + SliceIndex, X, 0, Width, 1);
+					break;
+				case GL_TEXTURE_2D:
+				case GL_TEXTURE_RECTANGLE:
+					FOpenGL::CopyTexSubImage2D(DestTexture->Target, DestMip, XOffset, YOffset, X, Y, Width, Height);
+					break;
+				case GL_TEXTURE_2D_ARRAY:
+					FOpenGL::CopyTexSubImage3D(DestTexture->Target, DestMip, XOffset, YOffset, CopyInfo.DestSliceIndex + SliceIndex, X, Y, Width, Height);
+					break;
+				case GL_TEXTURE_3D:
+					FOpenGL::CopyTexSubImage3D(DestTexture->Target, DestMip, XOffset, YOffset, ZOffset, X, Y, Width, Height);
+					break;
+				case GL_TEXTURE_CUBE_MAP:
+					for (int32 FaceIndex = FMath::Min((int32)CopyInfo.NumSlices, 6) - 1; FaceIndex >= 0; FaceIndex--)
+					{
+						FOpenGL::CopyTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + (uint32)FaceIndex, CopyInfo.DestMipIndex, XOffset, YOffset, X, Y, Width, Height);
+					}					
+					break;
 			}
 		}
 
@@ -2720,7 +2731,7 @@ void FOpenGLDynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITextur
 
 	ContextState.Framebuffer = (GLuint)-1;
 }
-*/
+
 
 FTexture2DRHIRef FOpenGLDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, uint32 TexCreateFlags)
 {

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DragOperations/CurveEditorDragOperation_MoveKeys.h"
 #include "CurveEditorScreenSpace.h"
@@ -34,6 +34,7 @@ void FCurveEditorDragOperation_MoveKeys::OnBeginDrag(FVector2D InitialPosition, 
 
 			KeyData.StartKeyPositions.SetNumZeroed(KeyData.Handles.Num());
 			Curve->GetKeyPositions(KeyData.Handles, KeyData.StartKeyPositions);
+			KeyData.LastDraggedKeyPositions = KeyData.StartKeyPositions;
 		}
 	}
 
@@ -45,7 +46,7 @@ void FCurveEditorDragOperation_MoveKeys::OnDrag(FVector2D InitialPosition, FVect
 	TArray<FKeyPosition> NewKeyPositionScratch;
 	FVector2D MousePosition = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialPosition, CurrentPosition, MouseEvent, SnappingState);
 
-	for (const FKeyData& KeyData : KeysByCurve)
+	for (FKeyData& KeyData : KeysByCurve)
 	{
 		const SCurveEditorView* View = CurveEditor->FindFirstInteractiveView(KeyData.CurveID);
 		if (!View)
@@ -80,7 +81,8 @@ void FCurveEditorDragOperation_MoveKeys::OnDrag(FVector2D InitialPosition, FVect
 			NewKeyPositionScratch.Add(StartPosition);
 		}
 
-		Curve->SetKeyPositions(KeyData.Handles, NewKeyPositionScratch);
+		Curve->SetKeyPositions(KeyData.Handles, NewKeyPositionScratch, EPropertyChangeType::Interactive);
+		KeyData.LastDraggedKeyPositions = NewKeyPositionScratch;
 	}
 }
 
@@ -92,7 +94,7 @@ void FCurveEditorDragOperation_MoveKeys::OnCancelDrag()
 	{
 		if (FCurveModel* Curve = CurveEditor->FindCurve(KeyData.CurveID))
 		{
-			Curve->SetKeyPositions(KeyData.Handles, KeyData.StartKeyPositions);
+			Curve->SetKeyPositions(KeyData.Handles, KeyData.StartKeyPositions, EPropertyChangeType::ValueSet);
 		}
 	}
 
@@ -102,5 +104,14 @@ void FCurveEditorDragOperation_MoveKeys::OnCancelDrag()
 void FCurveEditorDragOperation_MoveKeys::OnEndDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {
 	ICurveEditorKeyDragOperation::OnEndDrag(InitialPosition, CurrentPosition, MouseEvent);
+
+	for (const FKeyData& KeyData : KeysByCurve)
+	{
+		if (FCurveModel* Curve = CurveEditor->FindCurve(KeyData.CurveID))
+		{
+			Curve->SetKeyPositions(KeyData.Handles, KeyData.LastDraggedKeyPositions, EPropertyChangeType::ValueSet);
+		}
+	}
+
 	CurveEditor->SuppressBoundTransformUpdates(false);
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Lightmass.h: lightmass import/export implementation.
@@ -55,6 +55,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "EditorLevelUtils.h"
 #include "Misc/MessageDialog.h"
+#include "Modules/ModuleManager.h"
 
 extern FSwarmDebugOptions GSwarmDebugOptions;
 

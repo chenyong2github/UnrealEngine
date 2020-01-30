@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -32,14 +32,32 @@ struct FTimeRangeArgs
 		TSharedRef<INumericTypeInterface<double>> InNumericTypeInterface
 		)
 		: ShowRanges(InShowRanges)
+		, EnableRanges(InShowRanges)
 		, Controller(InController)
 		, VisibilityDelegate(InVisibilityDelegate)
 		, NumericTypeInterface(InNumericTypeInterface)
 	{
 	}
-	
+
+	FTimeRangeArgs(
+		EShowRange InShowRanges,
+		EShowRange InEnableRanges,
+		TSharedRef<ITimeSliderController> InController,
+		TAttribute<EVisibility> InVisibilityDelegate,
+		TSharedRef<INumericTypeInterface<double>> InNumericTypeInterface
+		)
+		: ShowRanges(InShowRanges)
+		, EnableRanges(InEnableRanges)
+		, Controller(InController)
+		, VisibilityDelegate(InVisibilityDelegate)
+		, NumericTypeInterface(InNumericTypeInterface)
+	{
+	}
+
 	/** Which ranges to show */
 	EShowRange ShowRanges;
+	/** Which ranges to enable editing on */
+	EShowRange EnableRanges;
 	/** A time slider controller */
 	TSharedRef<ITimeSliderController> Controller;
 	/** Visibility delegate */

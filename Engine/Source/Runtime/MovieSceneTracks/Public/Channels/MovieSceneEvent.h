@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -38,7 +38,7 @@ struct FMovieSceneEventPtrs
 	UFunction* Function;
 
 	UPROPERTY()
-	UProperty* BoundObjectProperty;
+	TFieldPath<FProperty> BoundObjectProperty;
 };
 
 USTRUCT(BlueprintType)

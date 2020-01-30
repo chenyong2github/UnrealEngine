@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 Texture2D PostprocessInput0;
 SamplerState PostprocessInput0Sampler;

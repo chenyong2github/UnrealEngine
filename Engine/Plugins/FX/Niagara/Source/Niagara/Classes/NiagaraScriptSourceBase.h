@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -117,7 +117,7 @@ class UNiagaraScriptSourceBase : public UObject
 
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
-	virtual void InvalidateCachedCompileIds() {}
+	virtual void ForceGraphToRecompileOnNextCheck() {}
 
 	virtual void RefreshFromExternalChanges() {}
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -28,7 +28,7 @@ public:
 	virtual FString GetDebugString() const override;
 	virtual const FString& GetLastErrorMessage() const override;
 	virtual bool GetNextToken(EStructDeserializerBackendTokens& OutToken) override;
-	virtual bool ReadProperty(UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex) override;
+	virtual bool ReadProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex) override;
 	virtual void SkipArray() override;
 	virtual void SkipStructure() override;
 
@@ -41,4 +41,10 @@ private:
 
 	/** Holds the last map key. */
 	FString LastMapKey;
+
+	/** The index of the next byte to copy from the CBOR byte stream into the corresponding TArray<uint8>/TArray<int8> property. */
+	int32 DeserializingByteArrayIndex = 0;
+
+	/** Whether a TArray<uint8>/TArray<int8> property is being deserialized. */
+	bool bDeserializingByteArray = false;
 };

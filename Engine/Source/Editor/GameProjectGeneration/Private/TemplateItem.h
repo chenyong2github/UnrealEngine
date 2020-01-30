@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,10 +23,12 @@ struct FTemplateItem
 	FString		AssetTypes;
 
 	FString		CodeProjectFile;
+	UTemplateProjectDefs* CodeTemplateDefs = nullptr;
 	FString		BlueprintProjectFile;
+	UTemplateProjectDefs* BlueprintTemplateDefs = nullptr;
 
 	TArray<ETemplateSetting> HiddenSettings;
 
-	bool		bIsEnterprise;
-	bool		bIsBlankTemplate;
+	bool		bIsEnterprise = false;
+	bool		bIsBlankTemplate = false;
 };

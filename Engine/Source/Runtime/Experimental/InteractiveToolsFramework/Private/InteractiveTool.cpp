@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "InteractiveTool.h"
@@ -53,7 +53,7 @@ void UInteractiveTool::AddToolPropertySource(UInteractiveToolPropertySet* Proper
 	check(ToolPropertyObjects.Contains(PropertySet) == false);
 	ToolPropertyObjects.Add(PropertySet);
 	// @todo do we need to create a lambda every time for this?
-	PropertySet->GetOnModified().AddLambda([this](UObject* PropertySetArg, UProperty* PropertyArg)
+	PropertySet->GetOnModified().AddLambda([this](UObject* PropertySetArg, FProperty* PropertyArg)
 	{
 		OnPropertyModified(PropertySetArg, PropertyArg);
 	});

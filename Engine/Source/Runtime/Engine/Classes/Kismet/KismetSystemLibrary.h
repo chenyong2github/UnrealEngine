@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,6 +12,7 @@
 #include "UObject/Interface.h"
 #include "UObject/TextProperty.h"
 #include "UObject/SoftObjectPtr.h"
+#include "UObject/PropertyAccessUtil.h"
 #include "Engine/LatentActionManager.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Engine/CollisionProfile.h"
@@ -801,12 +802,16 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, CustomThunk, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "Value"))
 	static void SetCollisionProfileNameProperty(UObject* Object, FName PropertyName, const FCollisionProfileName& Value);
 
+	/** Set a SOFTOBJECT property by name */
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "Value"))
+	static void SetFieldPathPropertyByName(UObject* Object, FName PropertyName, const TFieldPath<FField>& Value);
+
 	DECLARE_FUNCTION(execSetCollisionProfileNameProperty)
 	{
 		P_GET_OBJECT(UObject, OwnerObject);
-		P_GET_PROPERTY(UNameProperty, StructPropertyName);
+		P_GET_PROPERTY(FNameProperty, StructPropertyName);
 
-		Stack.StepCompiledIn<UStructProperty>(NULL);
+		Stack.StepCompiledIn<FStructProperty>(NULL);
 		void* SrcStructAddr = Stack.MostRecentPropertyAddress;
 
 		P_FINISH;
@@ -825,9 +830,9 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	DECLARE_FUNCTION(execSetStructurePropertyByName)
 	{
 		P_GET_OBJECT(UObject, OwnerObject);
-		P_GET_PROPERTY(UNameProperty, StructPropertyName);
+		P_GET_PROPERTY(FNameProperty, StructPropertyName);
 
-		Stack.StepCompiledIn<UStructProperty>(NULL);
+		Stack.StepCompiledIn<FStructProperty>(NULL);
 		void* SrcStructAddr = Stack.MostRecentPropertyAddress;
 
 		P_FINISH;
@@ -1623,6 +1628,12 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	static bool GetVolumeButtonsHandledBySystem();
 
 	/**
+	 * Sets whether attached gamepads will block feedback from the device itself (Mobile only).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Platform")
+	static void SetGamepadsBlockDeviceFeedback(bool bBlock);
+
+	/**
 	 * Resets the gamepad to player controller id assignments (Android and iOS only)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Utilities|Platform")
@@ -1736,16 +1747,33 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	// --- Property Access ---------------------------
 
 #if WITH_EDITOR
-	/** Read the value of a named property on the given object to the given value pointer */
-    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Properties", meta=(CustomStructureParam="ValuePtr", BlueprintInternalUseOnly="true"))
-    static bool GetEditorProperty(UObject* Object, const FName PropertyName, int32& ValuePtr);
-	static bool Generic_GetEditorProperty(const UObject* Object, const UProperty* Property, void* ValuePtr);
+	/**
+	 * Attempts to retrieve the value of a named property from the given object.
+	 *
+	 * @param Object The object you want to retrieve a property value from.
+	 * @param PropertyName The name of the object property to retrieve the value from.
+	 * @param PropertyValue The retrieved property value, if found.
+	 *
+	 * @return Whether the property value was found and correctly retrieved.
+	 */
+    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Utilities", meta=(CustomStructureParam="PropertyValue", BlueprintInternalUseOnly="true"))
+    static bool GetEditorProperty(UObject* Object, const FName PropertyName, int32& PropertyValue);
+	static bool Generic_GetEditorProperty(const UObject* Object, const FProperty* ObjectProp, void* ValuePtr, const FProperty* ValueProp);
 	DECLARE_FUNCTION(execGetEditorProperty);
 
-	/** Write the value of the given value pointer to a named property on the given object */
-    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Properties", meta=(CustomStructureParam="ValuePtr", BlueprintInternalUseOnly="true"))
-    static bool SetEditorProperty(UObject* Object, const FName PropertyName, const int32& ValuePtr);
-	static bool Generic_SetEditorProperty(UObject* Object, const UProperty* Property, const void* ValuePtr);
+	/**
+	 * Attempts to set the value of a named property on the given object.
+	 *
+	 * @param Object The object you want to set a property value on.
+	 * @param PropertyName The name of the object property to set the value of.
+	 * @param PropertyValue The property value to set.
+	 * @param ChangeNotifyMode When to emit property change notifications.
+	 *
+	 * @return Whether the property value was found and correctly set.
+	 */
+    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Utilities", meta=(CustomStructureParam="PropertyValue", AdvancedDisplay="ChangeNotifyMode", BlueprintInternalUseOnly="true"))
+    static bool SetEditorProperty(UObject* Object, const FName PropertyName, const int32& PropertyValue, const EPropertyAccessChangeNotifyMode ChangeNotifyMode);
+	static bool Generic_SetEditorProperty(UObject* Object, const FProperty* ObjectProp, const void* ValuePtr, const FProperty* ValueProp, const EPropertyAccessChangeNotifyMode ChangeNotifyMode);
 	DECLARE_FUNCTION(execSetEditorProperty);
 #endif
 

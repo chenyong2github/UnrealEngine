@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/EditToolDragOperations.h"
 #include "ISequencer.h"
@@ -138,7 +138,7 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 	// Construct a snap field of unselected sections
 	TSet<FSequencerSelectedKey> EmptyKeySet;
 	FInvalidKeyAndSectionSnappingCandidates SnapCandidates(EmptyKeySet, Sections);
-	SnapField = FSequencerSnapField(Sequencer, SnapCandidates, ESequencerEntity::Section);
+	SnapField = FSequencerSnapField(Sequencer, SnapCandidates, ESequencerEntity::Section | ESequencerEntity::Key);
 
 	SectionInitTimes.Empty();
 
@@ -174,7 +174,14 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 		}
 		else if (TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(Section))
 		{
-			SectionHandle->GetSectionInterface()->BeginResizeSection();
+			if (bIsSlipping)
+			{
+				SectionHandle->GetSectionInterface()->BeginSlipSection();
+			}
+			else
+			{
+				SectionHandle->GetSectionInterface()->BeginResizeSection();
+			}
 		}
 
 		SectionInitTimes.Add(Section, bDraggingByEnd ? Section->GetExclusiveEndFrame() : Section->GetInclusiveStartFrame());

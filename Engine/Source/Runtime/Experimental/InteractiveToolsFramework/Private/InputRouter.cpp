@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "InputRouter.h"
@@ -47,6 +47,11 @@ void UInputRouter::DeregisterSource(IInputBehaviorSource* Source)
 	ActiveInputBehaviors->RemoveBySource(Source);
 }
 
+
+void UInputRouter::RegisterBehavior(UInputBehavior* Behavior, void* Source, const FString& GroupName)
+{
+	ActiveInputBehaviors->Add(Behavior, Source, GroupName);
+}
 
 
 void UInputRouter::PostInputEvent(const FInputDeviceState& Input)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Operations/GroupTopologyDeformer.h"
 #include "DynamicMesh3.h"
@@ -35,18 +35,29 @@ void FGroupTopologyDeformer::SetActiveHandleFaces(const TArray<int>& FaceGroupID
 {
 	Reset();
 
-	check(FaceGroupIDs.Num() == 1);   // multi-face not supported yet
-	int GroupID = FaceGroupIDs[0];
-
-	// find set of vertices in handle 
-	Topology->CollectGroupVertices(GroupID, HandleVertices);
-	Topology->CollectGroupBoundaryVertices(GroupID, HandleBoundaryVertices);
+	// is this right? some HandleBoundaryVertices may also be interior if we do it per-face...
+	for (int GroupID : FaceGroupIDs)
+	{
+		Topology->CollectGroupVertices(GroupID, HandleVertices);
+		Topology->CollectGroupBoundaryVertices(GroupID, HandleBoundaryVertices);
+	}
 	ModifiedVertices = HandleVertices;
 
 	// find neighbour group set
 	TArray<int> HandleGroups = FaceGroupIDs;
-	const TArray<int>& GroupNbrGroups = Topology->GetGroupNbrGroups(GroupID);
-	CalculateROI(HandleGroups, GroupNbrGroups);
+	TArray<int> AllGroupNbrGroups;
+	for (int GroupID : FaceGroupIDs)
+	{
+		const TArray<int>& CurGroupNbrGroups = Topology->GetGroupNbrGroups(GroupID);
+		for (int NbrGroupID : CurGroupNbrGroups)
+		{
+			if (HandleGroups.Contains(NbrGroupID) == false)
+			{
+				AllGroupNbrGroups.AddUnique(NbrGroupID);
+			}
+		}
+	}
+	CalculateROI(HandleGroups, AllGroupNbrGroups);
 
 	SaveInitialPositions();
 

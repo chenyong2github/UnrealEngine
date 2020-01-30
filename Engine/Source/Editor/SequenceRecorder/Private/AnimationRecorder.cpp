@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationRecorder.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -70,16 +70,18 @@ void FAnimationRecorder::SetSampleRateAndLength(float SampleRateHz, float Length
 	}
 }
 
-bool FAnimationRecorder::SetAnimCompressionScheme(TSubclassOf<UAnimCompress> SchemeClass)
+bool FAnimationRecorder::SetAnimCompressionScheme(UAnimBoneCompressionSettings* Settings)
 {
 	if (AnimationObject)
 	{
-		UAnimCompress* const SchemeObject = NewObject<UAnimCompress>(GetTransientPackage(), SchemeClass);
-		if (SchemeObject)
+		if (Settings == nullptr)
 		{
-			AnimationObject->CompressionScheme = SchemeObject;
-			return true;
+			// The caller has not supplied a settings asset, use our default value
+			Settings = FAnimationUtils::GetDefaultAnimationRecorderBoneCompressionSettings();
 		}
+
+		AnimationObject->BoneCompressionSettings = Settings;
+		return true;
 	}
 
 	return false;
@@ -216,6 +218,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	AnimationObject = InAnimationObject;
 
 	AnimationObject->RecycleAnimSequence();
+	AnimationObject->BoneCompressionSettings = FAnimationUtils::GetDefaultAnimationRecorderBoneCompressionSettings();
 
 	GetBoneTransforms(Component, PreviousSpacesBases);
 	PreviousAnimCurves = Component->GetAnimationCurves();
@@ -815,7 +818,6 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 	Recorder->bRecordLocalToWorld = Settings.bRecordInWorldSpace;
 	Recorder->InterpMode = Settings.InterpMode;
 	Recorder->TangentMode = Settings.TangentMode;
-	Recorder->SetAnimCompressionScheme(UAnimCompress_BitwiseCompressOnly::StaticClass());
 	Recorder->bAutoSaveAsset = Settings.bAutoSaveAsset;
 	Recorder->bRemoveRootTransform = Settings.bRemoveRootAnimation;
 	Recorder->bCheckDeltaTimeAtBeginning = Settings.bCheckDeltaTimeAtBeginning;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /*=============================================================================================
@@ -38,4 +38,9 @@ struct APPLICATIONCORE_API FGenericPlatformRHIFramePacer
 	 * The pace we are running at (30 = 30fps, 0 = unpaced)
 	 */
 	static uint32 GetFramePace() { return 0; };
+
+	/**
+	 * The maximum refresh rate the pacer supports
+	 */
+	static uint32 GetMaxRefreshRate() { return 60; }
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StreamingLevels/StreamingLevelModel.h"
 #include "UObject/UnrealType.h"
@@ -96,7 +96,7 @@ void FStreamingLevelModel::SetLevelColor(FLinearColor InColor)
 {
 	if (LevelStreaming.IsValid())
 	{
-		UProperty* DrawColorProperty = FindField<UProperty>(LevelStreaming->GetClass(), "LevelColor");
+		FProperty* DrawColorProperty = FindField<FProperty>(LevelStreaming->GetClass(), "LevelColor");
 		LevelStreaming->PreEditChange(DrawColorProperty);
 
 		LevelStreaming.Get()->LevelColor = InColor;

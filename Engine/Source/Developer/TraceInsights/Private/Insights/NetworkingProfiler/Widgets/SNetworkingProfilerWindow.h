@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -134,7 +134,7 @@ public:
 
 	void SetSelectedPacket(uint32 StartIndex, uint32 EndIndex, uint32 SinglePacketBitSize = 0);
 	void SetSelectedBitRange(uint32 StartPos, uint32 EndPos);
-	void SetSelectedEventType(uint64 EventTypeId);
+	void SetSelectedEventTypeIndex(uint32 InEventTypeIndex);
 
 private:
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
@@ -300,11 +300,12 @@ private:
 
 	uint32 SelectedPacketStartIndex;
 	uint32 SelectedPacketEndIndex;
+
 	uint32 SelectionStartPosition;
 	uint32 SelectionEndPosition;
 
-	static const uint64 InvalidEventTypeId = uint64(-1);
-	uint64 SelectedEventTypeId;
+	static const uint32 InvalidEventTypeIndex = uint32(-1);
+	uint32 SelectedEventTypeIndex;
 
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "CoreMinimal.h"
@@ -17,10 +17,8 @@ struct FRigUnit_ConvertTransform : public FRigUnit
 	UPROPERTY(meta=(Output))
 	FEulerTransform Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result.FromFTransform(Input);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToTransform", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -34,10 +32,8 @@ struct FRigUnit_ConvertEulerTransform : public FRigUnit
 	UPROPERTY(meta=(Output))
 	FTransform Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Input.ToFTransform();
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToQuaternion", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -51,10 +47,8 @@ struct FRigUnit_ConvertRotation : public FRigUnit
 	UPROPERTY(meta = (Output))
 	FQuat	Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Input.Quaternion();
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToQuaternionDeprecated", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -74,10 +68,8 @@ struct FRigUnit_ConvertQuaternion: public FRigUnit
 	UPROPERTY(meta = (Output))
 	FRotator	Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Input.Rotator();
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertVectorToRotation", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -91,10 +83,8 @@ struct FRigUnit_ConvertVectorToRotation: public FRigUnit
 	UPROPERTY(meta = (Output))
 	FRotator	Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Input.Rotation();
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertVectorToQuaternion", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -108,11 +98,8 @@ struct FRigUnit_ConvertVectorToQuaternion: public FRigUnit
 	UPROPERTY(meta = (Output))
 	FQuat	Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Input.Rotation().Quaternion();
-		Result.Normalize();
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 
@@ -127,10 +114,8 @@ struct FRigUnit_ConvertRotationToVector: public FRigUnit
 	UPROPERTY(meta = (Output))
 	FVector Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Input.RotateVector(FVector(1.f, 0.f, 0.f));
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertQuaternionToVector", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -144,10 +129,8 @@ struct FRigUnit_ConvertQuaternionToVector: public FRigUnit
 	UPROPERTY(meta = (Output))
 	FVector Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Input.RotateVector(FVector(1.f, 0.f, 0.f));
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "ToSwingAndTwist", Category = "Math|Transform", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -175,12 +158,6 @@ struct FRigUnit_ToSwingAndTwist : public FRigUnit
 	{
 	}
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		if (!TwistAxis.IsZero())
-		{
-			FVector NormalizedAxis = TwistAxis.GetSafeNormal();
-			Input.ToSwingTwist(TwistAxis, Swing, Twist);
-		}
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };

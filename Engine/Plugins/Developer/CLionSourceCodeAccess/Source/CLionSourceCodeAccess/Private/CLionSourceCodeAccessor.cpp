@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CLionSourceCodeAccessor.h"
 #include "HAL/PlatformProcess.h"
@@ -185,7 +185,7 @@ FString FCLionSourceCodeAccessor::FindExecutablePath()
 	// Search from JetBrainsToolbox folder
 	FString ToolboxBinPath;
 
-	if (FWindowsPlatformMisc::QueryRegKey(HKEY_CURRENT_USER, TEXT("Software\\JetBrains s.r.o.\\JetBrainsToolbox\\"), TEXT(""), ToolboxBinPath))
+	if (FWindowsPlatformMisc::QueryRegKey(HKEY_CURRENT_USER, TEXT("Software\\JetBrains\\Toolbox\\"), TEXT(""), ToolboxBinPath))
 	{
 		FPaths::NormalizeDirectoryName(ToolboxBinPath);
 		FString PatternString(TEXT("(.*)/bin"));

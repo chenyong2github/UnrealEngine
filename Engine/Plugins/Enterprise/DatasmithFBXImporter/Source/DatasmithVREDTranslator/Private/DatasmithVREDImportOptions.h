@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,9 +19,6 @@ class UDatasmithVREDImportOptions : public UDatasmithFBXImportOptions
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=Processing, meta=(ToolTip="Finds duplicated scene nodes which could be replaced with a single instance"))
-	bool bOptimizeDuplicatedNodes;
-
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category= AssetImporting, meta=(DisplayName="Import materials file", ToolTip="Uses the *.mats file saved alongside the exported FBX for a more accurate material reproduction"))
 	bool bImportMats;
 
@@ -51,14 +48,4 @@ public:
 
 public:
 	void ResetPaths(const FString& InFBXFilename, bool bJustEmptyPaths=true);
-
-	/**
-	 * Overwrites our data with data from a UDatasmithVREDSceneImportData object
-	 */
-	virtual void FromSceneImportData(UDatasmithFBXSceneImportData* InImportData) override;
-
-	/**
-	 * Places our data into a UDatasmithVREDSceneImportData object
-	 */
-	virtual void ToSceneImportData(UDatasmithFBXSceneImportData* OutImportData) override;
 };

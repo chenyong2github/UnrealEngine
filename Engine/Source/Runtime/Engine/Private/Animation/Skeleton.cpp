@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Skeleton.cpp: Skeleton features
@@ -89,14 +89,19 @@ const TCHAR* SkipPrefix(const FString& InName)
 	return &InName[PrefixLength];
 }
 
-FString VirtualBoneNameHelpers::AddVirtualBonePrefix(const FString& InName)
+namespace VirtualBoneNameHelpers
 {
-	return VirtualBoneNameHelpers::VirtualBonePrefix + InName;
-}
+	const FString VirtualBonePrefix(TEXT("VB "));
 
-FName VirtualBoneNameHelpers::RemoveVirtualBonePrefix(const FString& InName)
-{
-	return FName(SkipPrefix(InName));
+	FString AddVirtualBonePrefix(const FString& InName)
+	{
+		return VirtualBonePrefix + InName;
+	}
+
+	FName RemoveVirtualBonePrefix(const FString& InName)
+	{
+		return FName(SkipPrefix(InName));
+	}
 }
 
 USkeleton::USkeleton(const FObjectInitializer& ObjectInitializer)
@@ -1152,13 +1157,16 @@ bool USkeleton::ContainsSlotName(const FName& InSlotName) const
 	return SlotToGroupNameMap.Contains(InSlotName);
 }
 
-void USkeleton::RegisterSlotNode(const FName& InSlotName)
+bool USkeleton::RegisterSlotNode(const FName& InSlotName)
 {
 	// verify the slot name exists, if not create it in the default group.
 	if (!ContainsSlotName(InSlotName))
 	{
 		SetSlotGroupName(InSlotName, FAnimSlotGroup::DefaultGroupName);
+		return true;
 	}
+
+	return false;
 }
 
 void USkeleton::SetSlotGroupName(const FName& InSlotName, const FName& InGroupName)

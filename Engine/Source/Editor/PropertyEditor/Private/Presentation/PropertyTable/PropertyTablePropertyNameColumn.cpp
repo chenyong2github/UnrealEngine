@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Presentation/PropertyTable/PropertyTablePropertyNameColumn.h"
 #include "Editor/EditorEngine.h"
@@ -87,7 +87,7 @@ void FPropertyTablePropertyNameColumn::Sort( TArray<TSharedRef<class IPropertyTa
 }
 
 
-TSharedPtr<struct FCompareRowByColumnBase> FPropertyTablePropertyNameColumn::GetPropertySorter(UProperty* Property, EColumnSortMode::Type SortMode)
+TSharedPtr<struct FCompareRowByColumnBase> FPropertyTablePropertyNameColumn::GetPropertySorter(FProperty* Property, EColumnSortMode::Type SortMode)
 {
 	// Does not sort properties
 	return nullptr;
@@ -98,7 +98,7 @@ FString FPropertyTablePropertyNameColumn::GetPropertyNameAsString( const TShared
 	FString PropertyName;
 	if( Row->GetDataSource()->AsPropertyPath().IsValid() )
 	{
-		const TWeakObjectPtr< UProperty > Property = Row->GetDataSource()->AsPropertyPath()->GetLeafMostProperty().Property;
+		const TWeakFieldPtr< FProperty > Property = Row->GetDataSource()->AsPropertyPath()->GetLeafMostProperty().Property;
 		PropertyName = UEditorEngine::GetFriendlyName( Property.Get() );
 	}
 	return PropertyName;

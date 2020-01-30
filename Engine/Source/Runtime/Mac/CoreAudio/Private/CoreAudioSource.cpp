@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
  	CoreAudioSource.cpp: Unreal CoreAudio source interface object.
@@ -338,12 +338,6 @@ void FCoreAudioSoundSource::Update( void )
 		float Azimuth = 0.0f;
 		float Elevation = 0.0f;
 
-		if( SetStereoBleed() )
-		{
-			// Emulate the bleed to rear speakers followed by stereo fold down
-			Volume *= 1.25f;
-		}
-		
 		// apply global multiplier (ie to disable sound when not the foreground app)
 		Volume = FMath::Clamp<float>( Volume, 0.0f, MAX_VOLUME );
 		
@@ -851,7 +845,7 @@ bool FCoreAudioSoundSource::AttachToAUGraph()
 	bool bNeedReverbFilter = false;
 
 #if CORE_AUDIO_EQ_ENABLED
-	bNeedEQFilter = IsEQFilterApplied();
+	bNeedEQFilter = WaveInstance->SoundClass ? WaveInstance->SoundClass->Properties.bApplyEffects : false;
 #endif
 
 #if CORE_AUDIO_RADIO_ENABLED

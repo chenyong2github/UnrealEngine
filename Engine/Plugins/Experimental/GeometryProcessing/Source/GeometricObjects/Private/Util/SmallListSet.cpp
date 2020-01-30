@@ -1,29 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Util/SmallListSet.h"
 
 const int32 FSmallListSet::NullValue = -1;
-
-
-FSmallListSet::FSmallListSet()
-{
-	ListHeads = TDynamicVector<int32>();
-	LinkedListElements = TDynamicVector<int32>();
-	FreeHeadIndex = NullValue;
-	ListBlocks = TDynamicVector<int32>();
-	FreeBlocks = TDynamicVector<int32>();
-}
-
-
-FSmallListSet::FSmallListSet(const FSmallListSet& copy)
-{
-	LinkedListElements = TDynamicVector<int32>(copy.LinkedListElements);
-	FreeHeadIndex = copy.FreeHeadIndex;
-	ListHeads = TDynamicVector<int32>(copy.ListHeads);
-	ListBlocks = TDynamicVector<int32>(copy.ListBlocks);
-	FreeBlocks = TDynamicVector<int32>(copy.FreeBlocks);
-}
-
 
 void FSmallListSet::Resize(int32 NewSize)
 {

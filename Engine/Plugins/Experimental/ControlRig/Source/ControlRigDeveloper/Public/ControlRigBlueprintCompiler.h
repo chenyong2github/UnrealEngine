@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -29,21 +29,25 @@ public:
 	}
 
 	// FKismetCompilerContext interface
-	virtual void MergeUbergraphPagesIn(UEdGraph* Ubergraph) override;
+	virtual void ValidateLink(const UEdGraphPin* PinA, const UEdGraphPin* PinB) const override {}
+	virtual void ValidatePin(const UEdGraphPin* Pin) const override {}
+	virtual void ValidateNode(const UEdGraphNode* Node) const override {}
+	virtual bool CanIgnoreNode(const UEdGraphNode* Node) const override { return true; }
+	virtual bool ShouldForceKeepNode(const UEdGraphNode* Node) const override { return false; }
+	virtual void PrecompileFunction(FKismetFunctionContext& Context, EInternalCompilerFlags InternalFlags) override {}
 	virtual void PostCompile() override;
 	virtual void CopyTermDefaultsToDefaultObject(UObject* DefaultObject) override;
 	virtual void EnsureProperGeneratedClass(UClass*& TargetUClass) override;
 	virtual void SpawnNewClass(const FString& NewClassName) override;
 	virtual void OnNewClassSet(UBlueprintGeneratedClass* ClassToUse) override;
+	virtual void PruneIsolatedNodes(const TArray<UEdGraphNode*>& RootSet, TArray<UEdGraphNode*>& GraphNodes) override {}
 	virtual void CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO) override;
+	virtual void MergeUbergraphPagesIn(UEdGraph* Ubergraph) override {};
 
 private:
 
 	// used to fail a compilation and mark the blueprint in error
 	void MarkCompilationFailed(const FString& Message);
-
-	// utility function to build property links from the ubergraphs
-	void BuildPropertyLinks();
 
 private:
 	/** the new class we are generating */

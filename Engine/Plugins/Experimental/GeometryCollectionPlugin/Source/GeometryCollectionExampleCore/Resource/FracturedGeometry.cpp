@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollectionExampleCore/Resource/FracturedGeometry.h"
 #include "Chaos/Box.h"
@@ -1954,7 +1954,7 @@ GlobalFracturedGeometry::GlobalFracturedGeometry()
 	}
 
 	// Measure the extent of the second point set.
-	Chaos::TBox<float, 3> BBox(
+	Chaos::TAABB<float, 3> BBox(
 		Chaos::TVector<float, 3>(
 			RawVertexArray[NumOrigFractured + 0],
 			RawVertexArray[NumOrigFractured + 1],

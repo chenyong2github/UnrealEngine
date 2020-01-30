@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithVREDImporterMaterialSelector.h"
 
@@ -88,12 +88,8 @@ void FDatasmithVREDImporterMaterialSelector::FinalizeMaterialInstance(const TSha
 		((OpacityProperty.IsValid() && GetFloat(OpacityProperty, Opacity) && Opacity < 1.0f) ||
 		(TransparencyTextureProperty.IsValid() && GetBool(TransparencyTextureProperty, bTransparencyActive) && bTransparencyActive)))
 	{
-		// Commented out due to this strange bug where if we enable these overrides, having either a transparency texture or a
-		// bump texture assigned to the material (even if disabled) will cause it to crash. It was either disabling this functionality
-		// or completely discarding the imported information on those textures. At least like this the user can manually switch the blend mode
-		// override later with no consequence
-		//MaterialInstance->BasePropertyOverrides.bOverride_BlendMode = true;
-		//MaterialInstance->BasePropertyOverrides.BlendMode = EBlendMode::BLEND_Translucent;
+		MaterialInstance->BasePropertyOverrides.bOverride_BlendMode = true;
+		MaterialInstance->BasePropertyOverrides.BlendMode = EBlendMode::BLEND_Translucent;
 	}
 }
 

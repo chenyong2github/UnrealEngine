@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,7 +18,7 @@
 class UAIPerceptionComponent;
 class UAISenseEvent;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogAIPerception, Warning, All);
+AIMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogAIPerception, Warning, All);
 
 class APawn;
 

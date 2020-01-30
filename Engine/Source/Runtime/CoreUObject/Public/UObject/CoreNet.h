@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,6 +12,7 @@
 #include "Misc/NetworkGuid.h"
 #include "UObject/CoreNetTypes.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/Field.h"
 
 class FOutBunch;
 class INetDeltaBaseState;
@@ -26,14 +27,14 @@ class FOutBunch;
 class COREUOBJECT_API FFieldNetCache
 {
 public:
-	UField*			Field;
+	FFieldVariant			Field;
 	int32			FieldNetIndex;
 	uint32			FieldChecksum;
 	mutable bool	bIncompatible;
 
 	FFieldNetCache()
 	{}
-	FFieldNetCache( UField* InField, int32 InFieldNetIndex, uint32 InFieldChecksum )
+	FFieldNetCache(FFieldVariant InField, int32 InFieldNetIndex, uint32 InFieldChecksum )
 		: Field(InField), FieldNetIndex(InFieldNetIndex), FieldChecksum(InFieldChecksum), bIncompatible(false)
 	{}
 };
@@ -53,13 +54,13 @@ public:
 		return FieldsBase + Fields.Num();
 	}
 
-	const FFieldNetCache* GetFromField( const UObject* Field ) const
+	const FFieldNetCache* GetFromField( FFieldVariant Field ) const
 	{
 		FFieldNetCache* Result = NULL;
 
 		for ( const FClassNetCache* C= this; C; C = C->Super )
 		{
-			if ( ( Result = C->FieldMap.FindRef( Field ) ) != NULL )
+			if ( ( Result = C->FieldMap.FindRef( Field.GetRawPointer() ) ) != NULL )
 			{
 				break;
 			}
@@ -106,7 +107,7 @@ private:
 	TWeakObjectPtr< const UClass >		Class;
 	uint32								ClassChecksum;
 	TArray< FFieldNetCache >			Fields;
-	TMap< UObject*, FFieldNetCache* >	FieldMap;
+	TMap< void*, FFieldNetCache* >	FieldMap;
 	TMap< uint32, FFieldNetCache* >		FieldChecksumMap;
 };
 
@@ -121,9 +122,9 @@ public:
 	const FClassNetCache*	GetClassNetCache( UClass* Class );
 	void					ClearClassNetCache();
 
-	void				SortProperties( TArray< UProperty* >& Properties ) const;
+	void				SortProperties( TArray< FProperty* >& Properties ) const;
 	uint32				SortedStructFieldsChecksum( const UStruct* Struct, uint32 Checksum ) const;
-	uint32				GetPropertyChecksum( const UProperty* Property, uint32 Checksum, const bool bIncludeChildren ) const;
+	uint32				GetPropertyChecksum( const FProperty* Property, uint32 Checksum, const bool bIncludeChildren ) const;
 	uint32				GetFunctionChecksum( const UFunction* Function, uint32 Checksum ) const;
 	uint32				GetFieldChecksum( const UField* Field, uint32 Checksum ) const;
 
@@ -246,20 +247,46 @@ struct FPropertyRetirement
 class FLifetimeProperty
 {
 public:
-	uint16				RepIndex;
-	ELifetimeCondition	Condition;
+
+	uint16 RepIndex;
+	ELifetimeCondition Condition;
 	ELifetimeRepNotifyCondition RepNotifyCondition;
+	bool bIsPushBased;
 
-	FLifetimeProperty() : RepIndex( 0 ), Condition( COND_None ), RepNotifyCondition(REPNOTIFY_OnChanged) {}
-	FLifetimeProperty( int32 InRepIndex ) : RepIndex( InRepIndex ), Condition( COND_None ), RepNotifyCondition(REPNOTIFY_OnChanged) { check( InRepIndex <= 65535 ); }
-	FLifetimeProperty(int32 InRepIndex, ELifetimeCondition InCondition, ELifetimeRepNotifyCondition InRepNotifyCondition=REPNOTIFY_OnChanged) : RepIndex(InRepIndex), Condition(InCondition), RepNotifyCondition(InRepNotifyCondition) { check(InRepIndex <= 65535); }
-
-	inline bool operator==( const FLifetimeProperty& Other ) const
+	FLifetimeProperty()
+		: RepIndex(0)
+		, Condition(COND_None)
+		, RepNotifyCondition(REPNOTIFY_OnChanged)
+		, bIsPushBased(false)
 	{
-		if ( RepIndex == Other.RepIndex )
+	}
+
+	FLifetimeProperty(int32 InRepIndex)
+		: RepIndex(InRepIndex)
+		, Condition(COND_None)
+		, RepNotifyCondition(REPNOTIFY_OnChanged)
+		, bIsPushBased(false)
+	{
+		check(InRepIndex <= 65535);
+	}
+
+	FLifetimeProperty(int32 InRepIndex, ELifetimeCondition InCondition, ELifetimeRepNotifyCondition InRepNotifyCondition=REPNOTIFY_OnChanged, bool bInIsPushBased=false)
+		: RepIndex(InRepIndex)
+		, Condition(InCondition)
+		, RepNotifyCondition(InRepNotifyCondition)
+		, bIsPushBased(bInIsPushBased)
+	{
+		check(InRepIndex <= 65535);
+	}
+
+	inline bool operator==(const FLifetimeProperty& Other) const
+	{
+		if (RepIndex == Other.RepIndex)
 		{
-			check( Condition == Other.Condition );		// Can't have different conditions if the RepIndex matches, doesn't make sense
-			check( RepNotifyCondition == Other.RepNotifyCondition);
+			// Can't have different conditions if the RepIndex matches, doesn't make sense
+			check(Condition == Other.Condition);
+			check(RepNotifyCondition == Other.RepNotifyCondition);
+			check(bIsPushBased == Other.bIsPushBased);
 			return true;
 		}
 
@@ -431,9 +458,12 @@ class IRepChangedPropertyTracker
 public:
 	IRepChangedPropertyTracker() { }
 
-	virtual void SetCustomIsActiveOverride( const uint16 RepIndex, const bool bIsActive ) = 0;
+	virtual void SetCustomIsActiveOverride(
+		UObject* OwningObject,
+		const uint16 RepIndex,
+		const bool bIsActive) = 0;
 
-	virtual void SetExternalData( const uint8* Src, const int32 NumBits ) = 0;
+	virtual void SetExternalData(const uint8* Src, const int32 NumBits) = 0;
 
 	virtual bool IsReplay() const = 0;
 

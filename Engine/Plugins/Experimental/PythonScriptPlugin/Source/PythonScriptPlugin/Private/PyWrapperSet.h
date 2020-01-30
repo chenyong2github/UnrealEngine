@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,7 +21,7 @@ struct FPyWrapperSet : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the set */
-	const USetProperty* SetProp;
+	PyUtil::FConstSetPropOnScope SetProp;
 
 	/** Wrapped set instance */
 	void* SetInstance;
@@ -36,7 +36,7 @@ struct FPyWrapperSet : public FPyWrapperBase
 	static int Init(FPyWrapperSet* InSelf, const PyUtil::FPropertyDef& InElementDef);
 
 	/** Initialize this wrapper instance to the given value (called via tp_init for Python, or directly in C++) */
-	static int Init(FPyWrapperSet* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const USetProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod);
+	static int Init(FPyWrapperSet* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const FSetProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod);
 
 	/** Deinitialize this wrapper instance (called via Init and Free to restore the instance to its New state) */
 	static void Deinit(FPyWrapperSet* InSelf);

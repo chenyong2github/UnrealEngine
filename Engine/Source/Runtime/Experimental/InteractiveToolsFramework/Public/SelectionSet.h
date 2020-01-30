@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -34,7 +34,7 @@ public:
 		return OnModified;
 	}
 
-	/** posts a message to the OnModified delegate with the modified UProperty */
+	/** posts a message to the OnModified delegate with the modified FProperty */
 	void NotifySelectionSetModified()
 	{
 		OnModified.Broadcast(this);

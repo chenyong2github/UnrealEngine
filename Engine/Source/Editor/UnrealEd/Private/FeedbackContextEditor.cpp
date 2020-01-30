@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "FeedbackContextEditor.h"
@@ -18,6 +18,8 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Engine/Engine.h"
+#include "StudioAnalytics.h"
+#include "AnalyticsEventAttribute.h"
 
 /** Called to cancel the slow task activity */
 DECLARE_DELEGATE( FOnCancelClickedDelegate );
@@ -383,15 +385,17 @@ void FFeedbackContextEditor::StartSlowTask( const FText& Task, bool bShowCancelB
 {
 	FFeedbackContext::StartSlowTask( Task, bShowCancelButton );
 
-	TSharedPtr<SWindow> ParentWindow;
 	if (GEditor)
-	{		
+	{
+		// reset the cancellation flag
+		HasTaskBeenCancelled = false;
+
 		// If there is a pie window and it is active attempt to parent any slow task dialogs to it to prevent the game window from falling behind due to a slowtask window opening.
+		TSharedPtr<SWindow> ParentWindow;
 		if (FWorldContext* PieWorldContext = GEditor->GetPIEWorldContext())
 		{
 			FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(PieWorldContext->ContextHandle);
 	
-
 			if (SlatePlayInEditorSession && SlatePlayInEditorSession->SlatePlayInEditorWindow.IsValid())
 			{
 				if (FSlateApplication::Get().GetActiveTopLevelWindow() == SlatePlayInEditorSession->SlatePlayInEditorWindow)
@@ -400,69 +404,68 @@ void FFeedbackContextEditor::StartSlowTask( const FText& Task, bool bShowCancelB
 				}
 			}
 		}
-	}
 
-	// Attempt to parent the slow task window to the slate main frame
-	if(!ParentWindow.IsValid() && FModuleManager::Get().IsModuleLoaded( "MainFrame" ) )
-	{
-		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
-		ParentWindow = MainFrame.GetParentWindow();
-	}
-
-	if (GIsEditor && ParentWindow.IsValid())
-	{
-		GSlowTaskOccurred = GIsSlowTask;
-
-		// Don't show the progress dialog if the Build Progress dialog is already visible
-		bool bProgressWindowShown = BuildProgressWidget.IsValid();
-
-		// Don't show the progress dialog if a Slate menu is currently open
-		const bool bHaveOpenMenu = FSlateApplication::Get().AnyMenusVisible();
-
-		if( bHaveOpenMenu )
+		// Attempt to parent the slow task window to the slate main frame
+		if (!ParentWindow.IsValid() && FModuleManager::Get().IsModuleLoaded("MainFrame"))
 		{
-			UE_LOG(LogSlate, Log, TEXT("Prevented a slow task dialog from being summoned while a context menu was open") );
+			IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+			ParentWindow = MainFrame.GetParentWindow();
 		}
 
-		// reset the cancellation flag
-		HasTaskBeenCancelled = false;
-
-		if (!bProgressWindowShown && !bHaveOpenMenu && FSlateApplication::Get().CanDisplayWindows())
+		if (ParentWindow.IsValid())
 		{
-			FOnCancelClickedDelegate OnCancelClicked;
-			if ( bShowCancelButton )
+			GSlowTaskOccurred = GIsSlowTask;
+
+			// Don't show the progress dialog if the Build Progress dialog is already visible
+			bool bProgressWindowShown = BuildProgressWidget.IsValid();
+
+			// Don't show the progress dialog if a Slate menu is currently open
+			const bool bHaveOpenMenu = FSlateApplication::Get().AnyMenusVisible();
+
+			if (bHaveOpenMenu)
 			{
-				// The cancel button is only displayed if a delegate is bound to it.
-				OnCancelClicked = FOnCancelClickedDelegate::CreateRaw(this, &FFeedbackContextEditor::OnUserCancel);
+				UE_LOG(LogSlate, Log, TEXT("Prevented a slow task dialog from being summoned while a context menu was open"));
 			}
 
-			const bool bFocusAndActivate = FPlatformApplicationMisc::IsThisApplicationForeground();
+			if (!bProgressWindowShown && !bHaveOpenMenu && FSlateApplication::Get().CanDisplayWindows())
+			{
+				FOnCancelClickedDelegate OnCancelClicked;
+				if (bShowCancelButton)
+				{
+					// The cancel button is only displayed if a delegate is bound to it.
+					OnCancelClicked = FOnCancelClickedDelegate::CreateRaw(this, &FFeedbackContextEditor::OnUserCancel);
+				}
 
-			TSharedRef<SWindow> SlowTaskWindowRef = SNew(SWindow)
-				.SizingRule(ESizingRule::Autosized)
-				.AutoCenter(EAutoCenter::PreferredWorkArea)
-				.IsPopupWindow(true)
-				.CreateTitleBar(true)
-				.ActivationPolicy(bFocusAndActivate ? EWindowActivationPolicy::Always : EWindowActivationPolicy::Never)
-				.FocusWhenFirstShown(bFocusAndActivate);
+				const bool bFocusAndActivate = FPlatformApplicationMisc::IsThisApplicationForeground();
 
-			SlowTaskWindowRef->SetContent(
-				SNew(SSlowTaskWidget)
-				.ScopeStack(GetScopeStackSharedPtr())
-				.OnCancelClickedDelegate( OnCancelClicked )
-			);
+				TSharedRef<SWindow> SlowTaskWindowRef = SNew(SWindow)
+					.SizingRule(ESizingRule::Autosized)
+					.AutoCenter(EAutoCenter::PreferredWorkArea)
+					.IsPopupWindow(true)
+					.CreateTitleBar(true)
+					.ActivationPolicy(bFocusAndActivate ? EWindowActivationPolicy::Always : EWindowActivationPolicy::Never)
+					.FocusWhenFirstShown(bFocusAndActivate);
 
-			SlowTaskWindow = SlowTaskWindowRef;
+				SlowTaskWindowRef->SetContent(
+					SNew(SSlowTaskWidget)
+					.ScopeStack(GetScopeStackSharedPtr())
+					.OnCancelClickedDelegate(OnCancelClicked)
+				);
 
-			const bool bSlowTask = true;
-			FSlateApplication::Get().AddModalWindow( SlowTaskWindowRef, ParentWindow, bSlowTask );
+				SlowTaskWindow = SlowTaskWindowRef;
 
-			SlowTaskWindowRef->ShowWindow();
+				const bool bSlowTask = true;
+				FSlateApplication::Get().AddModalWindow(SlowTaskWindowRef, ParentWindow, bSlowTask);
 
-			TickSlate(SlowTaskWindow.Pin());
+				SlowTaskWindowRef->ShowWindow();
+
+				SlowTaskStartTime = FStudioAnalytics::GetAnalyticSeconds();
+
+				TickSlate(SlowTaskWindow.Pin());
+			}
+
+			FPlatformSplash::SetSplashText(SplashTextType::StartupProgress, *Task.ToString());
 		}
-
-		FPlatformSplash::SetSplashText( SplashTextType::StartupProgress, *Task.ToString() );
 	}
 }
 
@@ -471,6 +474,11 @@ void FFeedbackContextEditor::FinalizeSlowTask()
 	auto Window = SlowTaskWindow.Pin();
 	if (Window.IsValid())
 	{
+		const double SlowTaskDialogTime = FStudioAnalytics::GetAnalyticSeconds() - SlowTaskStartTime;
+		
+		const FText TaskName = ScopeStack.Num() > 0 ? ScopeStack[0]->DefaultMessage : FText::GetEmpty();
+		FStudioAnalytics::FireEvent_Loading(TEXT("SlowTaskDialog"), SlowTaskDialogTime, { FAnalyticsEventAttribute(TEXT("Task"), TaskName.ToString()) });
+
 		Window->SetContent(SNullWidget::NullWidget);
 		Window->RequestDestroyWindow();
 		SlowTaskWindow.Reset();
@@ -560,7 +568,7 @@ void FFeedbackContextEditor::ProgressReported( const float TotalProgressInterp, 
 				else
 				{
 					NewDisplayMessage.AppendChar( TCHAR( ' ' ) );
-				}				
+				}
 			}
 			NewDisplayMessage.Append( FString::Printf( TEXT( " %i%%" ), int(TotalProgressInterp * 100.f) ) );
 			DisplayMessage = FText::FromString( NewDisplayMessage );
@@ -570,12 +578,9 @@ void FFeedbackContextEditor::ProgressReported( const float TotalProgressInterp, 
 	}
 }
 
-/** Whether or not the user has canceled out of this dialog */
 bool FFeedbackContextEditor::ReceivedUserCancel( void )
 {
-	const bool res = HasTaskBeenCancelled;
-	HasTaskBeenCancelled = false;
-	return res;
+	return HasTaskBeenCancelled;
 }
 
 void FFeedbackContextEditor::OnUserCancel()

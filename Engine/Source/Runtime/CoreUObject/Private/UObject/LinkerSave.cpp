@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/LinkerSave.h"
 #include "HAL/FileManager.h"
@@ -295,7 +295,7 @@ FArchive& FLinkerSave::operator<<( FName& InName )
 		*InName.ToString(),
 		*GetArchiveName(),
 		*GetSerializeContext()->SerializedObject->GetFullName(),
-		*GetSerializedProperty()->GetFullName());
+		*GetFullNameSafe(GetSerializedProperty()));
 
 	int32 Number = InName.GetNumber();
 	FArchive& Ar = *this;

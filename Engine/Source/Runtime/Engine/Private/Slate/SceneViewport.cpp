@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Slate/SceneViewport.h"
@@ -23,6 +23,8 @@
 #include "StereoRenderTargetManager.h"
 
 extern EWindowMode::Type GetWindowModeType(EWindowMode::Type WindowMode);
+
+const FName NAME_SceneViewport = FName(TEXT("SceneViewport"));
 
 FSceneViewport::FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SViewport> InViewportWidget )
 	: FViewport( InViewportClient )
@@ -53,6 +55,7 @@ FSceneViewport::FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SV
 	, NumTouches(0)
 {
 	bIsSlateViewport = true;
+	ViewportType = NAME_SceneViewport;
 	RenderThreadSlateTexture = new FSlateRenderTargetRHI(nullptr, 0, 0);
 
 	if (InViewportClient)
@@ -210,11 +213,14 @@ void FSceneViewport::ProcessInput( float DeltaTime )
 
 void FSceneViewport::UpdateCachedCursorPos( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent )
 {
-	FVector2D LocalPixelMousePos = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
-	LocalPixelMousePos.X *= CachedGeometry.Scale;
-	LocalPixelMousePos.Y *= CachedGeometry.Scale;
+	if (InMouseEvent.GetUserIndex() == FSlateApplication::CursorUserIndex)
+	{
+		FVector2D LocalPixelMousePos = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+		LocalPixelMousePos.X *= CachedGeometry.Scale;
+		LocalPixelMousePos.Y *= CachedGeometry.Scale;
 
-	CachedCursorPos = LocalPixelMousePos.IntPoint();
+		CachedCursorPos = LocalPixelMousePos.IntPoint();
+	}
 }
 
 void FSceneViewport::UpdateCachedGeometry( const FGeometry& InGeometry )
@@ -1223,7 +1229,7 @@ void FSceneViewport::PaintDebugCanvas(const FGeometry& AllottedGeometry, FSlateW
 void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, EWindowMode::Type NewWindowMode)
 {
 	// Resizing the window directly is only supported in the game
-	if( FApp::IsGame() && NewWindowSizeX > 0 && NewWindowSizeY > 0 )
+	if( FApp::IsGame() && FApp::CanEverRender() && NewWindowSizeX > 0 && NewWindowSizeY > 0 )
 	{		
 		TSharedPtr<SWindow> WindowToResize = FSlateApplication::Get().FindWidgetWindow( ViewportWidget.Pin().ToSharedRef());
 

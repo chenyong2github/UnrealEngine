@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCache.h"
 #include "EditorFramework/AssetImportData.h"
@@ -128,7 +128,7 @@ bool UGeometryCache::IsReadyForFinishDestroy()
 }
 
 #if WITH_EDITOR
-void UGeometryCache::PreEditChange(UProperty* PropertyAboutToChange)
+void UGeometryCache::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	// Flush the resource release commands to the rendering thread to ensure that the edit change doesn't occur while a resource is still allocated
 	ReleaseResourcesFence.Wait();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Network/DisplayClusterClient.h"
 #include "Common/TcpSocketBuilder.h"
@@ -67,9 +67,9 @@ void FDisplayClusterClient::Disconnect()
 	}
 }
 
-FSocket* FDisplayClusterClient::CreateSocket(const FString& InName, const int32 BuffSize)
+FSocket* FDisplayClusterClient::CreateSocket(const FString& InName)
 {
-	FSocket* pSock = FTcpSocketBuilder(*InName).AsBlocking().WithReceiveBufferSize(BuffSize).WithSendBufferSize(BuffSize);
+	FSocket* pSock = FTcpSocketBuilder(*InName).AsBlocking();
 	check(pSock);
 	return pSock;
 }

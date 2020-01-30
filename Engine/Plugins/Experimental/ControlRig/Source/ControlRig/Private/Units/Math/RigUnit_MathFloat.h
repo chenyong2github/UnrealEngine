@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,7 +21,7 @@ struct FRigUnit_MathFloatConstant : public FRigUnit_MathFloatBase
 		Value = 0.f;
 	}
 
-	UPROPERTY(meta=(Output, Constant))
+	UPROPERTY(meta=(Output))
 	float Value;
 };
 
@@ -70,10 +70,8 @@ struct FRigUnit_MathFloatConstPi : public FRigUnit_MathFloatConstant
 {
 	GENERATED_BODY()
 	
-	FRigUnit_MathFloatConstPi()
-	{
-		Value = PI;
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 /**
@@ -84,10 +82,8 @@ struct FRigUnit_MathFloatConstHalfPi : public FRigUnit_MathFloatConstant
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatConstHalfPi()
-	{
-		Value = HALF_PI;
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 /**
@@ -97,11 +93,9 @@ USTRUCT(meta=(DisplayName="Two Pi"))
 struct FRigUnit_MathFloatConstTwoPi : public FRigUnit_MathFloatConstant
 {
 	GENERATED_BODY()
-	
-	FRigUnit_MathFloatConstTwoPi()
-	{
-		Value = PI * 2.f;
-	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 /**

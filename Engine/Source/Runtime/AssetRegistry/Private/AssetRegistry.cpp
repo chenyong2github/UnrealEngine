@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistry.h"
 #include "Misc/CommandLine.h"
@@ -133,8 +133,8 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 				const FString& RootPath = *RootPathIt;
 				const FString& ContentFolder = FPackageName::LongPackageNameToFilename(RootPath);
 
-				// This could be due to a plugin that specifies it contains content, yet has no content yet. PluginManager
-				// Mounts these folders anyway which results in then being returned from QueryRootContentPaths
+				// A missing directory here could be due to a plugin that specifies it contains content, yet has no content yet. PluginManager
+				// Mounts these folders anyway which results in them being returned from QueryRootContentPaths
 				if (IFileManager::Get().DirectoryExists(*ContentFolder))
 				{
 					FDelegateHandle NewHandle;
@@ -1356,9 +1356,9 @@ EAssetAvailability::Type UAssetRegistryImpl::GetAssetAvailability(const FAssetDa
 	EChunkLocation::Type BestLocation = EChunkLocation::DoesNotExist;
 
 	// check all chunks to see which has the best locality
-	for (int32 ChunkId : AssetData.ChunkIDs)
+	for (int32 PakchunkId : AssetData.ChunkIDs)
 	{
-		EChunkLocation::Type ChunkLocation = ChunkInstall->GetChunkLocation(ChunkId);
+		EChunkLocation::Type ChunkLocation = ChunkInstall->GetPakchunkLocation(PakchunkId);
 
 		// if we find one in the best location, early out
 		if (ChunkLocation == EChunkLocation::BestLocation)
@@ -1400,9 +1400,9 @@ float UAssetRegistryImpl::GetAssetAvailabilityProgress(const FAssetData& AssetDa
 	float BestProgress = MAX_FLT;
 
 	// check all chunks to see which has the best time remaining
-	for (int32 ChunkId : AssetData.ChunkIDs)
+	for (int32 PakchunkID : AssetData.ChunkIDs)
 	{
-		float Progress = ChunkInstall->GetChunkProgress(ChunkId, ChunkReportType);
+		float Progress = ChunkInstall->GetChunkProgress(PakchunkID, ChunkReportType);
 
 		// need to flip percentage completes for the comparison
 		if (IsPercentageComplete)
@@ -1445,7 +1445,7 @@ void UAssetRegistryImpl::PrioritizeAssetInstall(const FAssetData& AssetData) con
 		return;
 	}
 
-	ChunkInstall->PrioritizeChunk(AssetData.ChunkIDs[0], EChunkPriority::Immediate);
+	ChunkInstall->PrioritizePakchunk(AssetData.ChunkIDs[0], EChunkPriority::Immediate);
 }
 
 bool UAssetRegistryImpl::AddPath(const FString& PathToAdd)
@@ -2133,27 +2133,29 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 			FName PackageName;
 
 			// Find object and package name from linker
-			for (FPackageIndex LinkerIndex = SearchableNameList.Key; !LinkerIndex.IsNull();)
+			FPackageIndex LinkerIndex = SearchableNameList.Key;
+			if (LinkerIndex.IsExport())
 			{
-				if (LinkerIndex.IsExport())
+				// Package name has to be this package, take a guess at object name
+				PackageName = Result.PackageName;
+				ObjectName = FName(*FPackageName::GetLongPackageAssetName(Result.PackageName.ToString()));
+			}
+			else if (LinkerIndex.IsImport())
+			{
+				FObjectResource* Resource = &Result.ImpExp(LinkerIndex);
+				FPackageIndex OuterLinkerIndex = Resource->OuterIndex;
+				check(OuterLinkerIndex.IsNull() || OuterLinkerIndex.IsImport());
+				if (!OuterLinkerIndex.IsNull())
 				{
-					// Package name has to be this package, take a guess at object name
-					PackageName = Result.PackageName;
-					ObjectName = FName(*FPackageName::GetLongPackageAssetName(Result.PackageName.ToString()));
-
-					break;
+					ObjectName = Resource->ObjectName;
+					while (!OuterLinkerIndex.IsNull())
+					{
+						Resource = &Result.ImpExp(OuterLinkerIndex);
+						OuterLinkerIndex = Resource->OuterIndex;
+						check(OuterLinkerIndex.IsNull() || OuterLinkerIndex.IsImport());
+					}
 				}
-
-				FObjectResource& Resource = Result.ImpExp(LinkerIndex);
-				LinkerIndex = Resource.OuterIndex;
-				if (ObjectName.IsNone() && !LinkerIndex.IsNull())
-				{
-					ObjectName = Resource.ObjectName;
-				}
-				else if (LinkerIndex.IsNull())
-				{
-					PackageName = Resource.ObjectName;
-				}
+				PackageName = Resource->ObjectName;
 			}
 
 			for (FName NameReference : SearchableNameList.Value)
@@ -2220,7 +2222,8 @@ void UAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(const double
 	// Add the found assets
 	while (CookedPackageNamesWithoutAssetDataResults.Num() > 0)
 	{
-		// If this data is cooked and it we couldn't find any asset in its export table then try load the entire package 
+		// If this data is cooked and it we couldn't find any asset in its export table then try to load the entire package 
+		// Loading the entire package will make all of its assets searchable through the in-memory scanning performed by GetAsseets
 		const FString& BackgroundResult = CookedPackageNamesWithoutAssetDataResults.Pop();
 		LoadPackage(nullptr, *BackgroundResult, 0);
 
@@ -2769,6 +2772,11 @@ void UAssetRegistryImpl::SetTemporaryCachingMode(bool bEnable)
 		bTempCachingEnabled = false;
 		ClearTemporaryCaches();
 	}
+}
+
+bool UAssetRegistryImpl::GetTemporaryCachingMode() const
+{
+	return bTempCachingEnabled;
 }
 
 void UAssetRegistryImpl::ClearTemporaryCaches() const

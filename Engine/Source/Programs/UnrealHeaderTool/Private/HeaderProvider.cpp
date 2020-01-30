@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HeaderProvider.h"
 #include "UnrealHeaderTool.h"
@@ -52,5 +52,5 @@ const FString& FHeaderProvider::GetId() const
 
 bool operator==(const FHeaderProvider& A, const FHeaderProvider& B)
 {
-	return A.Id == B.Id && A.Type == B.Type;
+	return A.Type == B.Type && A.Id == B.Id;
 }

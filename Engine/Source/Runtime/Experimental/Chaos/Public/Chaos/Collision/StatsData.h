@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ChaosPerfTest.h"
@@ -104,7 +104,7 @@ namespace Chaos
 				++SimulatedParticles;
 			}
 
-			void RecordBoundsData(const TBox <float, 3>& Box1)
+			void RecordBoundsData(const TAABB <float, 3>& Box1)
 			{
 				BoundsDistribution.Record(Box1.Extents().GetMax());
 			}
@@ -213,7 +213,7 @@ namespace Chaos
 				CHAOS_COLLISION_STAT({ if (IsEnabled()) { StatImp->IncrementSimulatedParticles(); } });
 			}
 
-			FORCEINLINE void RecordBoundsData(const TBox<FReal, 3>& Box1)
+			FORCEINLINE void RecordBoundsData(const TAABB<FReal, 3>& Box1)
 			{
 				CHAOS_COLLISION_STAT({ if (IsEnabled()) { StatImp->RecordBoundsData(Box1); } });
 			}

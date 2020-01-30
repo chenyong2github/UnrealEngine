@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Port of geometry3Sharp DistLine3Segment3
 // which was ported from WildMagic 5 

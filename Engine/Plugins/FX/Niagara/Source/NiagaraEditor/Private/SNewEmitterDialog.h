@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,7 +9,7 @@
 #include "AssetData.h"
 #include "ContentBrowserDelegates.h"
 
-class SNiagaraTemplateAssetPicker;
+class SNiagaraAssetPickerList;
 
 /** A modal dialog to collect information needed to create a new niagara system. */
 class SNewEmitterDialog : public SNiagaraNewAssetDialog
@@ -28,22 +28,16 @@ public:
 private:
 	void GetSelectedEmitterTemplateAssets(TArray<FAssetData>& OutSelectedAssets);
 
+	void GetSelectedParentEmitterAssets(TArray<FAssetData>& OutSelectedAssets);
+
 	void GetSelectedProjectEmiterAssets(TArray<FAssetData>& OutSelectedAssets);
-
-	void OnTemplateAssetActivated(const FAssetData& InActivatedTemplateAsset);
-
-	void OnEmitterAssetsActivated(const TArray<FAssetData>& ActivatedAssets, EAssetTypeActivationMethod::Type ActivationMethod);
 
 	void InheritanceOptionConfirmed();
 
 private:
-	TSharedPtr<SNiagaraTemplateAssetPicker> TemplateAssetPicker;
-
-	FGetCurrentSelectionDelegate GetSelectedEmitterAssetsFromPicker;
-
-	FAssetData ActivatedTemplateAsset;
-
-	FAssetData ActivatedProjectAsset;
+	TSharedPtr<SNiagaraAssetPickerList> TemplateAssetPicker;
+	TSharedPtr<SNiagaraAssetPickerList> InheritAssetPicker;
+	TSharedPtr<SNiagaraAssetPickerList> CopyAssetPicker;
 
 	bool bUseInheritance;
 };

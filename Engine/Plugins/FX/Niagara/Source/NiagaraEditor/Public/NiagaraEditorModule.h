@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -133,6 +133,7 @@ private:
 	}
 
 	void TestCompileScriptFromConsole(const TArray<FString>& Arguments);
+	void ReinitializeStyle();
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -184,5 +185,8 @@ private:
 	bool bThumbnailRenderersRegistered;
 
 	TSharedRef<FNiagaraClipboard> Clipboard;
+
+	IConsoleCommand* ReinitializeStyleCommand;
+
 	TMap<int32, TSharedPtr<FHlslNiagaraCompiler>> ActiveCompilations;
 };

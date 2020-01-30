@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SRigCurveContainer.h"
@@ -17,6 +17,7 @@
 #include "ControlRigBlueprint.h"
 #include "ScopedTransaction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "SRigCurveContainer"
 
@@ -484,6 +485,9 @@ void SRigCurveContainer::OnSelectionChanged(FDisplayedRigCurveInfoPtr Selection,
 
 	if (Container)
 	{
+
+		FScopedTransaction ScopedTransaction(LOCTEXT("SelectCurveTransaction", "Select Curve"), !GIsTransacting);
+
 		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 
 		TArray<FName> OldSelection = Container->CurrentSelection();
@@ -574,6 +578,7 @@ void SRigCurveContainer::CreateImportMenu(FMenuBuilder& MenuBuilder)
 		.Padding(3)
 		[
 			SNew(SObjectPropertyEntryBox)
+			//.ObjectPath_UObject(this, &SRigCurveContainer::GetCurrentHierarchy)
 			.OnShouldFilterAsset(this, &SRigCurveContainer::ShouldFilterOnImport)
 			.OnObjectChanged(this, &SRigCurveContainer::ImportCurve)
 		]
@@ -607,25 +612,12 @@ void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)
 
 		if (Skeleton)
 		{
+			TGuardValue<bool> GuardReentry(bIsChangingRigHierarchy, true);
+
 			FScopedTransaction Transaction(LOCTEXT("CurveImport", "Import Curve"));
 			ControlRigBlueprint->Modify();
-				
-			const FSmartNameMapping* SmartNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-
 			Container->ClearSelection();
-
-			TArray<FName> NameArray;
-			SmartNameMapping->FillNameArray(NameArray);
-			for (int32 Index = 0; Index < NameArray.Num() ; ++Index)
-			{
-				TGuardValue<bool> GuardReentry(bIsChangingRigHierarchy, true);
-				Container->Add(NameArray[Index]);
-			}
-
-			for (int32 Index = 0; Index < NameArray.Num(); ++Index)
-			{
-				Container->Select(NameArray[Index]);
-			}
+			Container->ImportCurvesFromSkeleton(Skeleton, NAME_None, false, false, false /* notify */);
 
 			FSlateApplication::Get().DismissAllMenus();
 			RefreshCurveList();

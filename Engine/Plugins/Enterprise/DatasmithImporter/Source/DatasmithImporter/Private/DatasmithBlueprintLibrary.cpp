@@ -1,17 +1,17 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithBlueprintLibrary.h"
 
 #include "DatasmithImportFactory.h"
 #include "DatasmithImportOptions.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
 #include "DatasmithStaticMeshImporter.h"
+#include "DatasmithTranslatableSource.h"
 #include "ObjectElements/DatasmithUSceneElement.h"
-#include "Translators/DatasmithTranslatableSource.h"
 #include "Utility/DatasmithImporterUtils.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "Async/ParallelFor.h"
 #include "Editor.h"

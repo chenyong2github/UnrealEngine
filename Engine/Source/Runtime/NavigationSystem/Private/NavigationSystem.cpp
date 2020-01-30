@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavigationSystem.h"
 #include "NavigationDataHandler.h"
@@ -783,6 +783,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 					if (NavData != NULL)
 					{
 						const ERegistrationResult Result = RegisterNavData(NavData);
+						LogNavDataRegistrationResult(Result);
 
 						if (Result == RegistrationSuccessful)
 						{
@@ -1577,7 +1578,11 @@ ANavigationData* UNavigationSystemV1::GetDefaultNavDataInstance(FNavigationSyste
 #endif // WITH_RECAST
 		// either way make sure it's registered. Registration stores unique
 		// navmeshes, so we have nothing to lose
-		RegisterNavData(MainNavData);
+		if (MainNavData != nullptr)
+		{
+			const ERegistrationResult Result = RegisterNavData(MainNavData);
+			LogNavDataRegistrationResult(Result);
+		}
 	}
 
 	return MainNavData;
@@ -1804,6 +1809,7 @@ void UNavigationSystemV1::ProcessRegistrationCandidates()
 		if (OwningLevel && OwningLevel->bIsVisible)
 		{
 			const ERegistrationResult Result = RegisterNavData(NavDataPtr);
+			LogNavDataRegistrationResult(Result);
 
 			if (Result != RegistrationSuccessful && Result != RegistrationFailed_DataPendingKill)
 			{
@@ -2268,8 +2274,8 @@ void UNavigationSystemV1::DescribeFilterFlags(const TArray<FString>& FlagsDesc) 
 #endif
 
 	// setup properties
-	UStructProperty* StructProp1 = FindField<UStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("IncludeFlags"));
-	UStructProperty* StructProp2 = FindField<UStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("ExcludeFlags"));
+	FStructProperty* StructProp1 = FindField<FStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("IncludeFlags"));
+	FStructProperty* StructProp2 = FindField<FStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("ExcludeFlags"));
 	check(StructProp1);
 	check(StructProp2);
 
@@ -2281,7 +2287,7 @@ void UNavigationSystemV1::DescribeFilterFlags(const TArray<FString>& FlagsDesc) 
 		for (int32 FlagIndex = 0; FlagIndex < MaxFlags; FlagIndex++)
 		{
 			FString PropName = FString::Printf(TEXT("bNavFlag%d"), FlagIndex);
-			UProperty* Prop = FindField<UProperty>(Structs[StructIndex], *PropName);
+			FProperty* Prop = FindField<FProperty>(Structs[StructIndex], *PropName);
 			check(Prop);
 
 			if (UseDesc[FlagIndex].Len())
@@ -2977,6 +2983,17 @@ void UNavigationSystemV1::GatherNavigationBounds()
 
 void UNavigationSystemV1::Build()
 {
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("UNavigationSystemV1::Build started..."));
+#if PHYSICS_INTERFACE_PHYSX
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building navigation data using PHYSICS_INTERFACE_PHYSX."));
+#endif
+#if WITH_PHYSX
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building navigation data using WITH_PHYSX."));
+#endif
+#if WITH_CHAOS
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building navigation data using WITH_CHAOS."));
+#endif
+
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -3031,7 +3048,8 @@ void UNavigationSystemV1::Build()
 	DefaultDirtyAreasController.bDirtyAreasReportedWhileAccumulationLocked = false;
 #endif // !UE_BUILD_SHIPPING
 
-	UE_LOG(LogNavigation, Display, TEXT("UNavigationSystemV1::Build total execution time: %.5f"), float(FPlatformTime::Seconds() - BuildStartTime));
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("UNavigationSystemV1::Build total execution time: %.2fs"), float(FPlatformTime::Seconds() - BuildStartTime));
+	UE_LOG(LogNavigation, Display, TEXT("UNavigationSystemV1::Build total execution time: %.5fs"), float(FPlatformTime::Seconds() - BuildStartTime));
 }
 
 void UNavigationSystemV1::CancelBuild()
@@ -3272,6 +3290,8 @@ void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 				
 		if (NavData && (!bIsLoadTime || NavData->NeedsRebuildOnLoad()) && (!bIsInGame || NavData->SupportsRuntimeGeneration()))
 		{
+			UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building NavData:  %s."), *NavData->GetConfig().GetDescription());
+
 			NavData->RebuildAll();
 		}
 	}
@@ -3621,6 +3641,34 @@ ERuntimeGenerationType UNavigationSystemV1::GetRuntimeGenerationType() const
 	}
 	
 	return RuntimeGenerationType;
+}
+
+void UNavigationSystemV1::LogNavDataRegistrationResult(ERegistrationResult InResult)
+{
+	switch (InResult)
+	{
+	case UNavigationSystemV1::RegistrationError:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationError, could not be registered."));
+		break;
+	case UNavigationSystemV1::RegistrationFailed_DataPendingKill:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationFailed_DataPendingKill."));
+		break;
+	case UNavigationSystemV1::RegistrationFailed_AgentAlreadySupported:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationFailed_AgentAlreadySupported, specified agent type already has its navmesh implemented."));
+		break;
+	case UNavigationSystemV1::RegistrationFailed_AgentNotValid:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationFailed_AgentNotValid, NavData instance contains navmesh that doesn't support any of expected agent types."));
+		break;
+	case UNavigationSystemV1::RegistrationFailed_NotSuitable:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("NavData RegistrationFailed_NotSuitable."));
+		break;
+	case UNavigationSystemV1::RegistrationSuccessful:
+		UE_VLOG_UELOG(this, LogNavigation, Verbose, TEXT("NavData RegistrationSuccessful."));
+		break;
+	default:
+		UE_VLOG_UELOG(this, LogNavigation, Warning, TEXT("Registration not successful default warning."));
+		break;
+	}
 }
 
 //----------------------------------------------------------------------//
@@ -4226,8 +4274,7 @@ INavigationDataInterface* UNavigationSystemV1::GetNavDataForActor(const AActor& 
 		NavData = NavSys->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
 	}
 
-	//  Only RecastNavMesh supported
-	return (INavigationDataInterface*)(Cast<ARecastNavMesh>(NavData));
+	return NavData;
 }
 
 int UNavigationSystemV1::GetNavigationBoundsForNavData(const ANavigationData& NavData, TArray<FBox>& OutBounds, ULevel* InLevel) const

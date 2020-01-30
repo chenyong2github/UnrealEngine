@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -578,7 +578,8 @@ private:
 								return false;
 							}
 
-							HexNum += HexDigit * FMath::Pow(16, Radix);
+							//@TODO: FLOATPRECISION: this is gross
+							HexNum += HexDigit * (int32)FMath::Pow(16, (float)Radix);
 						}
 
 						String += (FString::ElementType)HexNum;

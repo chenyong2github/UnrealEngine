@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IMeshPaintGeometryAdapter.h"
 
@@ -55,7 +55,8 @@ void IMeshPaintGeometryAdapter::DefaultQueryPaintableTextures(int32 MaterialInde
 			if (TextureBase != NULL &&
 				TextureBase->Texture != NULL &&
 				!TextureBase->Texture->IsNormalMap() && 
-				!TextureBase->Texture->VirtualTextureStreaming )
+				!TextureBase->Texture->VirtualTextureStreaming &&
+				!TextureBase->Texture->HasHDRSource()) // Currently HDR textures are not supported to paint on 
 			{
 				// Default UV channel to index 0. 
 				PaintableTexture = FPaintableTexture(TextureBase->Texture, 0);

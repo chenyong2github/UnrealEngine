@@ -1,10 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigConnectionDrawingPolicy.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "ControlRigBlueprint.h"
-#include "ControlRigController.h"
+#include "RigVMModel/RigVMController.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 void FControlRigConnectionDrawingPolicy::SetIncompatiblePinDrawState(const TSharedPtr<SGraphPin>& StartPin, const TSet< TSharedRef<SWidget> >& VisiblePins)
@@ -12,13 +12,13 @@ void FControlRigConnectionDrawingPolicy::SetIncompatiblePinDrawState(const TShar
 	UEdGraphPin* Pin = StartPin->GetPinObj();
 	if (Pin != nullptr)
 	{
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin->GetOwningNode());
-		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-		if (RigBlueprint != nullptr)
+		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Pin->GetOwningNode());
+		if(RigNode)
 		{
-			FString Left, Right;
-			RigBlueprint->Model->SplitPinPath(Pin->GetName(), Left, Right);
-			RigBlueprint->ModelController->PrepareCycleCheckingForPin(*Left, *Right, Pin->Direction == EGPD_Input);
+			if(URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(Pin->GetName()))
+			{
+				ModelPin->GetGraph()->PrepareCycleChecking(ModelPin->GetPinForLink(), Pin->Direction == EGPD_Input);
+			}
 		}
 	}
 	FKismetConnectionDrawingPolicy::SetIncompatiblePinDrawState(StartPin, VisiblePins);
@@ -37,7 +37,7 @@ void FControlRigConnectionDrawingPolicy::ResetIncompatiblePinDrawState(const TSe
 			UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 			if (RigBlueprint != nullptr)
 			{
-				RigBlueprint->ModelController->ResetCycleCheck();
+				RigBlueprint->Model->PrepareCycleChecking(nullptr, true);
 			}
 		}
 	}
@@ -140,5 +140,53 @@ void FControlRigConnectionDrawingPolicy::DetermineLinkGeometry(
 	if (TSharedPtr<SGraphPin>* pInputWidget = PinToPinWidgetMap.Find(InputPin))
 	{
 		EndWidgetGeometry = PinGeometries->Find((*pInputWidget).ToSharedRef());
+	}
+}
+
+void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params)
+{
+	FKismetConnectionDrawingPolicy::DetermineWiringStyle(OutputPin, InputPin, Params);
+	if (OutputPin == nullptr || InputPin == nullptr)
+	{
+		return;
+	}
+
+	UControlRigGraphNode* OutputNode = Cast<UControlRigGraphNode>(OutputPin->GetOwningNode());
+	UControlRigGraphNode* InputNode = Cast<UControlRigGraphNode>(InputPin->GetOwningNode());
+	if (OutputNode && InputNode)
+	{
+		bool bInjectionIsSelected = false;
+		if (URigVMPin* OutputModelPin = OutputNode->GetModelPinFromPinPath(OutputPin->GetName()))
+		{
+			OutputModelPin = OutputModelPin->GetPinForLink();
+			if (URigVMInjectionInfo* OutputInjection = OutputModelPin->GetNode()->GetInjectionInfo())
+			{
+				if (OutputModelPin->GetNode()->IsSelected())
+				{
+					bInjectionIsSelected = true;
+				}
+			}
+		}
+
+		if (!bInjectionIsSelected)
+		{
+			if (URigVMPin* InputModelPin = InputNode->GetModelPinFromPinPath(InputPin->GetName()))
+			{
+				InputModelPin = InputModelPin->GetPinForLink();
+				if (URigVMInjectionInfo* InputInjection = InputModelPin->GetNode()->GetInjectionInfo())
+				{
+					if (InputModelPin->GetNode()->IsSelected())
+					{
+						bInjectionIsSelected = true;
+					}
+				}
+			}
+		}
+
+		if (bInjectionIsSelected)
+		{
+			Params.WireThickness = Settings->TraceAttackWireThickness;
+			Params.WireColor = Settings->TraceAttackColor;
+		}
 	}
 }

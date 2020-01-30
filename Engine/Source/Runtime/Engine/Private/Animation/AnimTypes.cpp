@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimationAsset.h"
 #include "AnimationUtils.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "UObject/AnimObjectVersion.h"
 
 #define NOTIFY_TRIGGER_OFFSET KINDA_SMALL_NUMBER;
 
@@ -38,6 +39,28 @@ float GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::Type OffsetType)
 
 /////////////////////////////////////////////////////
 // FAnimNotifyEvent
+
+#if WITH_EDITORONLY_DATA
+
+bool FAnimNotifyEvent::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	return false;
+}
+
+void FAnimNotifyEvent::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		if (!Guid.IsValid())
+		{
+			// Create a new Guid if this one is invalid
+			Guid = FGuid::NewGuid();
+		}
+	}
+}
+
+#endif
 
 void FAnimNotifyEvent::RefreshTriggerOffset(EAnimEventTriggerOffsets::Type PredictedOffsetType)
 {
@@ -109,6 +132,37 @@ FName FAnimNotifyEvent::GetNotifyEventName() const
 
 	return NAME_None;
 }
+
+////////////////////////////
+//
+// FAnimSyncMarker
+// 
+////////////////////////////
+
+#if WITH_EDITORONLY_DATA
+bool FAnimSyncMarker::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	
+	UScriptStruct* Struct = FAnimSyncMarker::StaticStruct();
+	
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
+
+	if (Ar.IsLoading())
+	{
+		if(!Guid.IsValid())
+		{
+			// Create a new Guid if this one is invalid
+			Guid = FGuid::NewGuid();
+		}
+	}
+
+	return true;
+}
+#endif
 
 ////////////////////////////
 //

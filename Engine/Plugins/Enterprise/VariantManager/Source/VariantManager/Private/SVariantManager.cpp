@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SVariantManager.h"
 
@@ -174,6 +174,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 	OnObjectPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &SVariantManager::OnObjectPropertyChanged);
 	OnBeginPieHandle = FEditorDelegates::BeginPIE.AddRaw(this, &SVariantManager::OnPieEvent);
 	OnEndPieHandle = FEditorDelegates::EndPIE.AddRaw(this, &SVariantManager::OnPieEvent);
+	OnEditorSelectionChangedHandle = USelection::SelectionChangedEvent.AddRaw(this, &SVariantManager::OnEditorSelectionChanged);
 
 	// Do this so that if we recompile a function caller changing a function name we'll rebuild our nodes to display the
 	// new names
@@ -388,6 +389,9 @@ SVariantManager::~SVariantManager()
 	FEditorDelegates::EndPIE.Remove(OnEndPieHandle);
 	OnEndPieHandle.Reset();
 
+	USelection::SelectionChangedEvent.Remove(OnEditorSelectionChangedHandle);
+	OnEditorSelectionChangedHandle.Reset();
+
 	if (FModuleManager::Get().IsModuleLoaded(TEXT("LevelEditor")))
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
@@ -540,6 +544,18 @@ void SVariantManager::CreateCommandBindings()
 		FVariantManagerEditorCommands::Get().AddFunction,
 		FExecuteAction::CreateSP(this, &SVariantManager::AddFunctionCaller),
 		FCanExecuteAction::CreateSP(this, &SVariantManager::CanAddFunctionCaller)
+	);
+
+	ActorListCommandBindings->MapAction(
+		FVariantManagerEditorCommands::Get().RebindActorDisabled,
+		FExecuteAction::CreateLambda([](){}),
+		FCanExecuteAction::CreateLambda([](){ return false; })
+	);
+
+	ActorListCommandBindings->MapAction(
+		FVariantManagerEditorCommands::Get().RebindToSelected,
+		FExecuteAction::CreateSP(this, &SVariantManager::RebindToSelectedActor),
+		FCanExecuteAction::CreateSP(this, &SVariantManager::CanRebindToSelectedActor)
 	);
 
 	ActorListCommandBindings->MapAction(
@@ -1310,6 +1326,83 @@ bool SVariantManager::CanAddFunctionCaller()
 	return SelectedActorNodes.Num() > 0;
 }
 
+void SVariantManager::GetSelectedBindingAndEditorActor(UVariantObjectBinding*& OutSelectedBinding, UObject*& OutSelectedObject)
+{
+	TSharedPtr<FVariantManager> PinnedVariantManager = VariantManagerPtr.Pin();
+	if (!PinnedVariantManager.IsValid())
+	{
+		return;
+	}
+
+	FVariantManagerSelection& Selection = PinnedVariantManager->GetSelection();
+	TSet<TSharedRef<FVariantManagerActorNode>>& SelectedActorNodes = Selection.GetSelectedActorNodes();
+	if (SelectedActorNodes.Num() != 1)
+	{
+		return;
+	}
+
+	TSharedRef<FVariantManagerActorNode> SelectedNode = *SelectedActorNodes.CreateIterator();
+	TWeakObjectPtr<UVariantObjectBinding> SelectedBinding = SelectedNode->GetObjectBinding();
+	if (!SelectedBinding.IsValid())
+	{
+		return;
+	}
+	OutSelectedBinding = SelectedBinding.Get();
+
+	// Cache all actors bound to the selected actor node's Variant
+	TSet<UObject*> BoundObjects;
+	UVariant* ParentVariant = SelectedBinding->GetParent();
+	for (const UVariantObjectBinding* Binding : ParentVariant->GetBindings())
+	{
+		BoundObjects.Add(Binding->GetObject());
+	}
+
+	// See if any of the selected actors can be bound to that variant
+	USelection* EditorSelection = GEditor->GetSelectedActors();
+	for (FSelectionIterator SelectedObjectIter(*EditorSelection); SelectedObjectIter; ++SelectedObjectIter)
+	{
+		UObject* EditorSelectedObject = *SelectedObjectIter;
+		if (EditorSelectedObject && !BoundObjects.Contains(EditorSelectedObject))
+		{
+			OutSelectedObject = EditorSelectedObject;
+			return;
+		}
+	}
+}
+
+void SVariantManager::RebindToSelectedActor()
+{
+	UVariantObjectBinding* SelectedBinding = nullptr;
+	UObject* SelectedObject = nullptr;
+	GetSelectedBindingAndEditorActor(SelectedBinding, SelectedObject);
+
+	AActor* SelectedActor = Cast<AActor>(SelectedObject);
+
+	if (SelectedBinding && SelectedActor)
+	{
+		FScopedTransaction Transaction(FText::Format(
+			LOCTEXT("RebindToSelectedTransaction", "Rebind variant to selected actor '{0}'"),
+			FText::FromString(SelectedActor->GetActorLabel())
+		));
+
+		SelectedBinding->SetObject(SelectedObject);
+	}
+}
+
+bool SVariantManager::CanRebindToSelectedActor()
+{
+	UVariantObjectBinding* SelectedBinding = nullptr;
+	UObject* SelectedActor = nullptr;
+	GetSelectedBindingAndEditorActor(SelectedBinding, SelectedActor);
+
+	if (SelectedBinding && SelectedActor)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 void SVariantManager::RemoveActorBindings()
 {
 	TSharedPtr<FVariantManager> PinnedVariantManager = VariantManagerPtr.Pin();
@@ -1751,6 +1844,9 @@ void SVariantManager::OnActorNodeSelectionChanged()
 	TSharedPtr<FVariantManager> PinnedVariantManager = VariantManagerPtr.Pin();
 	if (PinnedVariantManager.IsValid())
 	{
+		// Prevent OnEditorSelectionChanged from firing when we update this selection
+		TGuardValue<bool> Guard(bRespondToEditorSelectionEvents, false);
+
 		const TSet<TSharedRef<FVariantManagerActorNode>>& SelectedActorNodes = PinnedVariantManager->GetSelection().GetSelectedActorNodes();
 
 		GEditor->SelectNone(true, true);
@@ -1952,89 +2048,163 @@ void SVariantManager::RefreshActorList()
 	RefreshPropertyList();
 }
 
+namespace SVariantManagerUtils
+{
+	enum class ERowType : uint8
+	{
+		None = 0,
+		PropertyValue = 1,
+		FunctionCaller = 2,
+	};
+
+	struct FPropertyPanelRow
+	{
+		FPropertyPanelRow(ERowType InRowType, TArray<UPropertyValue*>&& InPropertyValues)
+			: PropertyValues(InPropertyValues)
+			, FunctionCaller(nullptr)
+			, Binding(nullptr)
+			, RowType(InRowType)
+			, DisplayOrder(UINT32_MAX)
+		{
+			ensure(RowType == ERowType::PropertyValue);
+
+			for (UPropertyValue* PropertyValue : PropertyValues)
+			{
+				DisplayOrder = FMath::Min(DisplayOrder, PropertyValue->GetDisplayOrder());
+			}
+		}
+
+		FPropertyPanelRow(ERowType InRowType, FFunctionCaller* InFunctionCaller, UVariantObjectBinding* InBinding)
+			: FunctionCaller(InFunctionCaller)
+			, Binding(InBinding)
+			, RowType(InRowType)
+			, DisplayOrder(UINT32_MAX)
+		{
+			ensure(RowType == ERowType::FunctionCaller);
+
+			DisplayOrder = FunctionCaller->GetDisplayOrder();
+		}
+
+		FName GetName() const
+		{
+			if (RowType == ERowType::PropertyValue && PropertyValues.Num() > 0)
+			{
+				return *PropertyValues[0]->GetFullDisplayString();
+			}
+			else if (RowType == ERowType::FunctionCaller && FunctionCaller)
+			{
+				return FunctionCaller->FunctionName;
+			}
+
+			return NAME_None;
+		}
+
+		TArray<UPropertyValue*> PropertyValues;
+
+		FFunctionCaller* FunctionCaller;
+		UVariantObjectBinding* Binding;
+
+		ERowType RowType;
+		uint32 DisplayOrder;
+	};
+}
+
 void SVariantManager::RefreshPropertyList()
 {
 	FVariantManagerSelection& Selection = VariantManagerPtr.Pin()->GetSelection();
 
-	TArray<UPropertyValue*> NewCapturedProps;
-	TArray<UVariantObjectBinding*> SelectedBindings;
+	TArray<UPropertyValue*> Properties;
+
+	TArray<SVariantManagerUtils::FPropertyPanelRow> Rows;
 
 	for (const TSharedRef<FVariantManagerActorNode>& Node : Selection.GetSelectedActorNodes())
 	{
-		// Ignore unresolved actor bindings
 		UVariantObjectBinding* Binding = Node->GetObjectBinding().Get();
 		if (Binding == nullptr || Binding->GetObject() == nullptr)
 		{
 			continue;
 		}
 
-		NewCapturedProps.Append(Binding->GetCapturedProperties());
-		SelectedBindings.Add(Binding);
+		Properties.Append(Binding->GetCapturedProperties());
+
+		// Add function caller rows first as we need the bindings
+		for (FFunctionCaller& Caller : Binding->GetFunctionCallers())
+		{
+			Rows.Emplace(SVariantManagerUtils::ERowType::FunctionCaller, &Caller, Binding);
+		}
 	}
 
-	// Group properties by PathHash
+	// Group properties with the same hash, to show a "multiple object" type of property editor
 	TMap<uint32, TArray<UPropertyValue*>> PropsByHash;
-	for (UPropertyValue* NewCapturedProp : NewCapturedProps)
+	for (UPropertyValue* Property : Properties)
 	{
-		uint32 Hash = NewCapturedProp->GetPropertyPathHash();
-		TArray<UPropertyValue*>& Props = PropsByHash.FindOrAdd(Hash);
-
-		Props.Add(NewCapturedProp);
-	}
-
-	DisplayedPropertyNodes.Empty();
-	for (auto HashToPropArray : PropsByHash)
-	{
-		TArray<UPropertyValue*>& Props = HashToPropArray.Value;
-		if (Props.Num() < 1)
+		if (!Property)
 		{
 			continue;
 		}
 
-		UPropertyValue* FirstProp = Props[0];
-
-		// Attempts to resolve first so that we can fetch the objects below
-		FirstProp->Resolve();
-
-		UStruct* Struct = FirstProp->GetStructPropertyStruct();
-		UEnum* Enum = FirstProp->GetEnumPropertyEnum();
-
-		if (Struct)
-		{
-			DisplayedPropertyNodes.Add(MakeShareable(new FVariantManagerStructPropertyNode(Props, VariantManagerPtr)));
-		}
-		else if (Enum)
-		{
-			DisplayedPropertyNodes.Add(MakeShareable(new FVariantManagerEnumPropertyNode(Props, VariantManagerPtr)));
-		}
-		else if (FirstProp->GetPropertyClass()->IsChildOf(UStrProperty::StaticClass()) ||
-				 FirstProp->GetPropertyClass()->IsChildOf(UNameProperty::StaticClass()) ||
-				 FirstProp->GetPropertyClass()->IsChildOf(UTextProperty::StaticClass()))
-		{
-			DisplayedPropertyNodes.Add(MakeShareable(new FVariantManagerStringPropertyNode(Props, VariantManagerPtr)));
-		}
-		else if (FirstProp->GetPropCategory() == EPropertyValueCategory::Option)
-		{
-			DisplayedPropertyNodes.Add(MakeShareable(new FVariantManagerOptionPropertyNode(Props, VariantManagerPtr)));
-		}
-		else
-		{
-			DisplayedPropertyNodes.Add(MakeShareable(new FVariantManagerPropertyNode(Props, VariantManagerPtr)));
-		}
+		uint32 Hash = Property->GetPropertyPathHash();
+		PropsByHash.FindOrAdd(Hash).Add(Property);
 	}
 
-	//TODO @Speed
-	DisplayedPropertyNodes.Sort([](const TSharedPtr<FVariantManagerPropertyNode>& A, const TSharedPtr<FVariantManagerPropertyNode>& B)
+	// Add the grouped property rows
+	for (TTuple<uint32, TArray<UPropertyValue*>>& HashToPropArray : PropsByHash)
 	{
-		return A->GetDisplayName().ToString() < B->GetDisplayName().ToString();
+		Rows.Emplace(SVariantManagerUtils::ERowType::PropertyValue, MoveTemp(HashToPropArray.Value));
+	}
+	PropsByHash.Reset();
+
+	Rows.Sort([](const SVariantManagerUtils::FPropertyPanelRow& Left, const SVariantManagerUtils::FPropertyPanelRow& Right)
+	{
+		if (Left.DisplayOrder == Right.DisplayOrder)
+		{
+			return Left.GetName().LexicalLess(Right.GetName());
+		}
+
+		return Left.DisplayOrder < Right.DisplayOrder;
 	});
 
-	// Add a node for each function caller
-	for (UVariantObjectBinding* Binding : SelectedBindings)
+	DisplayedPropertyNodes.Empty();
+	for(SVariantManagerUtils::FPropertyPanelRow& Row : Rows)
 	{
-		for (FFunctionCaller& Caller : Binding->GetFunctionCallers())
+		if (Row.RowType == SVariantManagerUtils::ERowType::PropertyValue)
 		{
-			DisplayedPropertyNodes.Add(MakeShareable(new FVariantManagerFunctionPropertyNode(Binding, Caller, VariantManagerPtr)));
+			TArray<UPropertyValue*>& Props = Row.PropertyValues;
+			if (Props.Num() < 1)
+			{
+				continue;
+			}
+
+			// Attempts to resolve first so that we can fetch the objects below
+			UPropertyValue* FirstProp = Props[0];
+			FirstProp->Resolve();
+
+			if (FirstProp->GetStructPropertyStruct())
+			{
+				DisplayedPropertyNodes.Add(MakeShared<FVariantManagerStructPropertyNode>(Props, VariantManagerPtr));
+			}
+			else if (FirstProp->GetEnumPropertyEnum())
+			{
+				DisplayedPropertyNodes.Add(MakeShared<FVariantManagerEnumPropertyNode>(Props, VariantManagerPtr));
+			}
+			else if (FirstProp->GetPropertyClass()->IsChildOf(FStrProperty::StaticClass()) ||
+					 FirstProp->GetPropertyClass()->IsChildOf(FNameProperty::StaticClass()) ||
+					 FirstProp->GetPropertyClass()->IsChildOf(FTextProperty::StaticClass()))
+			{
+				DisplayedPropertyNodes.Add(MakeShared<FVariantManagerStringPropertyNode>(Props, VariantManagerPtr));
+			}
+			else if (FirstProp->GetPropCategory() == EPropertyValueCategory::Option)
+			{
+				DisplayedPropertyNodes.Add(MakeShared<FVariantManagerOptionPropertyNode>(Props, VariantManagerPtr));
+			}
+			else
+			{
+				DisplayedPropertyNodes.Add(MakeShared<FVariantManagerPropertyNode>(Props, VariantManagerPtr));
+			}
+		}
+		else if (Row.RowType == SVariantManagerUtils::ERowType::FunctionCaller && Row.Binding && Row.FunctionCaller)
+		{
+			DisplayedPropertyNodes.Add(MakeShared<FVariantManagerFunctionPropertyNode>(Row.Binding, *Row.FunctionCaller, VariantManagerPtr));
 		}
 	}
 
@@ -2189,7 +2359,7 @@ FReply SVariantManager::OnAddVariantSetClicked()
 
 // Tries capturing and recording new data for the property at PropertyPath for TargetActor, into whatever Variants we have selected.
 // Will return true if it created or updated a UPropertyValue
-bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FString& PropertyPath, const UProperty* Property)
+bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FString& PropertyPath, const FProperty* Property)
 {
 	// Transient actors are generated temporarily while dragging actors into the level. Once the
 	// mouse is released, another non-transient actor is instantiated
@@ -2222,8 +2392,8 @@ bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FSt
 
 	// UPropertyValue always contains the Inner for array properties, but the event that
 	// calls this function only provides the outer
-	UProperty* FilterProperty = const_cast<UProperty*>(Property);
-	if (const UArrayProperty* ArrayProp = Cast<UArrayProperty>(Property))
+	FProperty* FilterProperty = const_cast<FProperty*>(Property);
+	if (const FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property))
 	{
 		FilterProperty = ArrayProp->Inner;
 	}
@@ -2440,12 +2610,12 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	AActor* TargetActor = nullptr;
 	FString PropertyPath;
 
-	bool bIsStructProperty = Event.MemberProperty && Event.MemberProperty->IsA(UStructProperty::StaticClass());
+	bool bIsStructProperty = Event.MemberProperty && Event.MemberProperty->IsA(FStructProperty::StaticClass());
 	bool bIsBuiltIn = bIsStructProperty && FVariantManagerUtils::IsBuiltInStructProperty(Event.MemberProperty);
 
 	// We don't want to capture just the X component of a RelativeLocation property, but we want to capture
 	// the ISO property of a FPostProcessSettings StructProperty
-	UProperty* Prop = bIsBuiltIn? Event.MemberProperty : Event.Property;
+	FProperty* Prop = bIsBuiltIn? Event.MemberProperty : Event.Property;
 
 	// Fetch TargetActor
 	USceneComponent* ObjAsSceneComp = Cast<USceneComponent>(Object);
@@ -2527,7 +2697,7 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	static const TSet<FString> ProxyPropertyPaths{ TEXT("Relative Location"), TEXT("Relative Rotation"), TEXT("Relative Scale 3D") };
 
 	// We capture as just 'Materials' in the Variant Manager UI, instead of 'Override Materials'
-	// Override Materials doesn't work like a regular UArrayProperty, we need to use GetNumMaterials
+	// Override Materials doesn't work like a regular FArrayProperty, we need to use GetNumMaterials
 	if (Prop == FVariantManagerUtils::GetOverrideMaterialsProperty())
 	{
 		if (UStaticMeshComponent* ObjAsComp = Cast<UStaticMeshComponent>(Object))
@@ -2541,7 +2711,7 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	}
 	// Generate one path for each array position. Because the event doesn't tell us which array
 	// element that fired it, we must capture all positions of the array
-	else if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop))
+	else if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop))
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(Object));
 		for (int32 Index = 0; Index < ArrayHelper.Num(); ++Index)
@@ -2606,6 +2776,89 @@ void SVariantManager::OnPieEvent(bool bIsSimulating)
 	}
 
 	CachedAllActorPaths.Empty();
+	RefreshActorList();
+}
+
+void SVariantManager::ReorderPropertyNodes(const TArray<TSharedPtr<FVariantManagerPropertyNode>>& TheseNodes, TSharedPtr<FVariantManagerPropertyNode> Pivot, EItemDropZone RelativePosition)
+{
+	FScopedTransaction Transaction(LOCTEXT("ReorderedPropertyTransaction", "Reorder property or function captures"));
+
+	// Remove them from their current position
+	for (const TSharedPtr<FVariantManagerPropertyNode>& ThisNode : TheseNodes)
+	{
+		DisplayedPropertyNodes.Remove(ThisNode);
+	}
+
+	// Insert them into their new position
+	int32 Index = DisplayedPropertyNodes.IndexOfByKey(Pivot);
+	Index += RelativePosition == EItemDropZone::BelowItem ? 1 : 0;
+	DisplayedPropertyNodes.Insert(TheseNodes, Index);
+
+	// Normalize the DisplayOrder to an increasing count
+	uint32 Order = 0;
+	for (TSharedPtr<FVariantManagerPropertyNode>& DisplayedNode : DisplayedPropertyNodes)
+	{
+		if (DisplayedNode.IsValid())
+		{
+			DisplayedNode->SetDisplayOrder(Order++);
+		}
+	}
+
+	RefreshPropertyList();
+}
+
+void SVariantManager::OnEditorSelectionChanged(UObject* NewSelection)
+{
+	if (!bRespondToEditorSelectionEvents)
+	{
+		return;
+	}
+
+	USelection* Selection = Cast<USelection>(NewSelection);
+	if (!Selection)
+	{
+		return;
+	}
+
+	TSharedPtr<FVariantManager> PinnedVariantManager = VariantManagerPtr.Pin();
+	if (!PinnedVariantManager.IsValid())
+	{
+		return;
+	}
+
+	FVariantManagerSelection& VariantSelection = PinnedVariantManager->GetSelection();
+
+	TArray<UObject*> SelectedActors;
+	Selection->GetSelectedObjects(AActor::StaticClass(), SelectedActors);
+	TSet<UObject*> SelectedActorsSet{SelectedActors};
+
+	VariantSelection.SuspendBroadcast();
+	for (TSharedRef<FVariantManagerDisplayNode>& DisplayedActor : DisplayedActors)
+	{
+		if (DisplayedActor->GetType() != EVariantManagerNodeType::Actor)
+		{
+			continue;
+		}
+
+		TSharedRef<FVariantManagerActorNode> ActorNode = StaticCastSharedRef<FVariantManagerActorNode>(DisplayedActor);
+		TWeakObjectPtr<UVariantObjectBinding> ObjectBinding = ActorNode->GetObjectBinding();
+		if (!ObjectBinding.IsValid())
+		{
+			continue;
+		}
+
+		UObject* BindingObject = ObjectBinding->GetObject();
+		if (BindingObject && SelectedActorsSet.Contains(BindingObject))
+		{
+			VariantSelection.AddActorNodeToSelection(ActorNode);
+		}
+		else
+		{
+			VariantSelection.RemoveActorNodeFromSelection(ActorNode);
+		}
+	}
+	VariantSelection.ResumeBroadcast();
+
 	RefreshActorList();
 }
 

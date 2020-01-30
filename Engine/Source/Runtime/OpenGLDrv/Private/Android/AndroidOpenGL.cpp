@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Android/AndroidPlatform.h"
@@ -67,6 +67,7 @@ PFNGLDRAWARRAYSINSTANCEDPROC			glDrawArraysInstanced = NULL;
 PFNGLGENVERTEXARRAYSPROC 				glGenVertexArrays = NULL;
 PFNGLBINDVERTEXARRAYPROC 				glBindVertexArray = NULL;
 PFNGLMAPBUFFERRANGEPROC					glMapBufferRange = NULL;
+PFNGLUNMAPBUFFERPROC					glUnmapBuffer = NULL;
 PFNGLCOPYBUFFERSUBDATAPROC				glCopyBufferSubData = NULL;
 PFNGLDRAWARRAYSINDIRECTPROC				glDrawArraysIndirect = NULL;
 PFNGLDRAWELEMENTSINDIRECTPROC			glDrawElementsIndirect = NULL;
@@ -83,8 +84,10 @@ PFNGLCLEARBUFFERFIPROC					glClearBufferfi = NULL;
 PFNGLCLEARBUFFERFVPROC					glClearBufferfv = NULL;
 PFNGLCLEARBUFFERIVPROC					glClearBufferiv = NULL;
 PFNGLCLEARBUFFERUIVPROC					glClearBufferuiv = NULL;
+PFNGLREADBUFFERPROC						glReadBuffer = NULL;
 PFNGLDRAWBUFFERSPROC					glDrawBuffers = NULL;
 PFNGLTEXBUFFEREXTPROC					glTexBufferEXT = NULL;
+PFNGLTEXBUFFERRANGEEXTPROC				glTexBufferRangeEXT = NULL;
 PFNGLCOPYIMAGESUBDATAPROC				glCopyImageSubData = nullptr;
 
 PFNGLGETPROGRAMBINARYOESPROC            glGetProgramBinary = NULL;
@@ -108,6 +111,10 @@ PFNGLDISPATCHCOMPUTEPROC				glDispatchCompute = NULL;
 PFNGLDISPATCHCOMPUTEINDIRECTPROC		glDispatchComputeIndirect = NULL;
 PFNGLBINDIMAGETEXTUREPROC				glBindImageTexture = NULL;
 
+PFNGLDELETESYNCPROC						glDeleteSync = NULL;
+PFNGLFENCESYNCPROC						glFenceSync = NULL;
+PFNGLISSYNCPROC							glIsSync = NULL;
+PFNGLCLIENTWAITSYNCPROC					glClientWaitSync = NULL;
 
 PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC glFramebufferTextureMultiviewOVR = NULL;
 PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC glFramebufferTextureMultisampleMultiviewOVR = NULL;
@@ -127,6 +134,11 @@ int32 FAndroidOpenGL::GLMinorVersion = 0;
 
 GLint FAndroidOpenGL::MaxComputeTextureImageUnits = -1;
 GLint FAndroidOpenGL::MaxComputeUniformComponents = -1;
+
+GLint FAndroidOpenGL::MaxComputeUAVUnits = -1;
+GLint FAndroidOpenGL::MaxPixelUAVUnits = -1;
+GLint FAndroidOpenGL::MaxCombinedUAVUnits = 0;
+
 
 static TAutoConsoleVariable<int32> CVarEnableAdrenoTilingHint(
 	TEXT("r.Android.EnableAdrenoTilingHint"),
@@ -998,6 +1010,15 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	{
 		GET_GL_INT(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, 0, MaxComputeTextureImageUnits);
 		GET_GL_INT(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, 0, MaxComputeUniformComponents);
+		
+		LOG_AND_GET_GL_INT(GL_MAX_COMBINED_IMAGE_UNIFORMS, 0, MaxCombinedUAVUnits);
+		LOG_AND_GET_GL_INT(GL_MAX_COMPUTE_IMAGE_UNIFORMS, 0, MaxComputeUAVUnits);
+		LOG_AND_GET_GL_INT(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, 0, MaxPixelUAVUnits);
+
+		// clamp UAV units to a sensible limit
+		MaxCombinedUAVUnits = FMath::Min(MaxCombinedUAVUnits, 8);
+		MaxComputeUAVUnits = FMath::Min(MaxComputeUAVUnits, MaxCombinedUAVUnits);
+		MaxPixelUAVUnits = FMath::Min(MaxPixelUAVUnits, MaxCombinedUAVUnits);
 	}
 
 	bSupportsETC2 = bES30Support;
@@ -1123,8 +1144,6 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 
 	if (bES30Support)
 	{
-		glMapBufferRange = (PFNGLMAPBUFFERRANGEPROC)((void*)eglGetProcAddress("glMapBufferRange"));
-		glCopyBufferSubData = (PFNGLCOPYBUFFERSUBDATAPROC)((void*)eglGetProcAddress("glCopyBufferSubData"));
 		glDrawElementsInstanced = (PFNGLDRAWELEMENTSINSTANCEDPROC)((void*)eglGetProcAddress("glDrawElementsInstanced"));
 		glDrawArraysInstanced = (PFNGLDRAWARRAYSINSTANCEDPROC)((void*)eglGetProcAddress("glDrawArraysInstanced"));
 		glVertexAttribDivisor = (PFNGLVERTEXATTRIBDIVISORPROC)((void*)eglGetProcAddress("glVertexAttribDivisor"));
@@ -1139,8 +1158,11 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		glClearBufferiv = (PFNGLCLEARBUFFERIVPROC)((void*)eglGetProcAddress("glClearBufferiv"));
 		glClearBufferuiv = (PFNGLCLEARBUFFERUIVPROC)((void*)eglGetProcAddress("glClearBufferuiv"));
 		glDrawBuffers = (PFNGLDRAWBUFFERSPROC)((void*)eglGetProcAddress("glDrawBuffers"));
+		glReadBuffer = (PFNGLREADBUFFERPROC)((void*)eglGetProcAddress("glReadBuffer"));
 
-
+		glMapBufferRange = (PFNGLMAPBUFFERRANGEPROC)((void*)eglGetProcAddress("glMapBufferRange"));
+		glCopyBufferSubData = (PFNGLCOPYBUFFERSUBDATAPROC)((void*)eglGetProcAddress("glCopyBufferSubData"));
+		glUnmapBuffer = (PFNGLUNMAPBUFFERPROC)((void*)eglGetProcAddress("glUnmapBuffer"));
 		glBindBufferRange = (PFNGLBINDBUFFERRANGEPROC)((void*)eglGetProcAddress("glBindBufferRange"));
 		glBindBufferBase = (PFNGLBINDBUFFERBASEPROC)((void*)eglGetProcAddress("glBindBufferBase"));
 		glGetUniformBlockIndex = (PFNGLGETUNIFORMBLOCKINDEXPROC)((void*)eglGetProcAddress("glGetUniformBlockIndex"));
@@ -1156,6 +1178,11 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 
 		glTexStorage3D = (PFNGLTEXSTORAGE3DPROC)((void*)eglGetProcAddress("glTexStorage3D"));
 		
+		glDeleteSync = (PFNGLDELETESYNCPROC)((void*)eglGetProcAddress("glDeleteSync"));
+		glFenceSync = (PFNGLFENCESYNCPROC)((void*)eglGetProcAddress("glFenceSync"));
+		glIsSync = (PFNGLISSYNCPROC)((void*)eglGetProcAddress("glIsSync"));
+		glClientWaitSync = (PFNGLCLIENTWAITSYNCPROC)((void*)eglGetProcAddress("glClientWaitSync"));
+
 		// Required by the ES3 spec
 		bSupportsTextureFloat = true;
 		bSupportsTextureHalfFloat = true;
@@ -1198,6 +1225,7 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		if (bSupportsTextureBuffer)
 		{
 			glTexBufferEXT = (PFNGLTEXBUFFEREXTPROC)((void*)eglGetProcAddress("glTexBufferEXT"));
+			glTexBufferRangeEXT = (PFNGLTEXBUFFERRANGEEXTPROC)((void*)eglGetProcAddress("glTexBufferRangeEXT"));
 		}
 
 		GSupportsDepthRenderTargetWithoutColorRenderTarget = true;
@@ -1231,30 +1259,12 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		glBlitFramebufferNV = (PFNBLITFRAMEBUFFERNVPROC)((void*)eglGetProcAddress("glBlitFramebufferNV"));
 	}
 
-	glMapBufferOESa = (PFNGLMAPBUFFEROESPROC)((void*)eglGetProcAddress("glMapBufferOES"));
-	glUnmapBufferOESa = (PFNGLUNMAPBUFFEROESPROC)((void*)eglGetProcAddress("glUnmapBufferOES"));
-
 	//On Android, there are problems compiling shaders with textureCubeLodEXT calls in the glsl code,
 	// so we set this to false to modify the glsl manually at compile-time.
 	bSupportsTextureCubeLodEXT = false;
 
-	if (bSupportsBGRA8888)
-	{
-		// Check whether device supports BGRA as color attachment
-		GLuint FrameBuffer;
-		glGenFramebuffers(1, &FrameBuffer);
-		glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
-		GLuint BGRA8888Texture;
-		glGenTextures(1, &BGRA8888Texture);
-		glBindTexture(GL_TEXTURE_2D, BGRA8888Texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, 256, 256, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, BGRA8888Texture, 0);
-
-		bSupportsBGRA8888RenderTarget = (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-		glDeleteTextures(1, &BGRA8888Texture);
-		glDeleteFramebuffers(1, &FrameBuffer);
-	}
+	// disable swizzled render targets on Android
+	bSupportsBGRA8888RenderTarget = false;
 
 	if (IsES31Usable())
 	{

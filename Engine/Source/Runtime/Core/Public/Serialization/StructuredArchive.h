@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -623,6 +623,9 @@ class CORE_API FStructuredArchiveFromArchive
 {
 	UE_NONCOPYABLE(FStructuredArchiveFromArchive)
 
+	static constexpr uint32 ImplSize      = 400;
+	static constexpr uint32 ImplAlignment = 8;
+
 	struct FImpl;
 
 public:
@@ -632,8 +635,8 @@ public:
 	FStructuredArchiveSlot GetSlot();
 
 private:
-	// Implmented as a pimpl in order to reduce dependencies
-	TUniqueObj<FImpl> Pimpl;
+	// Implmented as a pimpl in order to reduce dependencies, but an inline one to avoid heap allocations
+	alignas(ImplAlignment) uint8 ImplStorage[ImplSize];
 };
 
 #if WITH_TEXT_ARCHIVE_SUPPORT

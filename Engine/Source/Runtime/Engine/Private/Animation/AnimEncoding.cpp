@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AnimEncoding.cpp: Skeletal mesh animation functions.
@@ -176,89 +176,6 @@ void PadMemoryReader(FMemoryReader* MemoryReader, uint8*& TrackData, const int32
 	const int32 Pad = static_cast<int32>( Align( ByteStreamLoc, Alignment ) - ByteStreamLoc );
 	MemoryReader->Serialize( TrackData, Pad );
 	TrackData += Pad;
-}
-
-/**
- * Extracts a single BoneAtom from an Animation Sequence.
- *
- * @param	OutAtom			The BoneAtom to fill with the extracted result.
- * @param	DecompContext	The decompression context to use.
- * @param	TrackIndex		The index of the track desired in the Animation Sequence.
- */
-void AnimationFormat_GetBoneAtom(
-	FTransform& OutAtom,
-	FAnimSequenceDecompressionContext& DecompContext,
-	int32 TrackIndex)
-{
-	checkSlow(DecompContext.GetRotationCodec() != nullptr);
-	DecompContext.GetRotationCodec()->GetBoneAtom(OutAtom, DecompContext, TrackIndex);
-}
-
-#if USE_ANIMATION_CODEC_BATCH_SOLVER
-
-/**
- * Extracts an array of BoneAtoms from an Animation Sequence representing an entire pose of the skeleton.
- *
- * @param	Atoms				The BoneAtoms to fill with the extracted result.
- * @param	RotationTracks		A BoneTrackArray element for each bone requesting rotation data.
- * @param	TranslationTracks	A BoneTrackArray element for each bone requesting translation data.
- * @param	ScaleTracks			A BoneTrackArray element for each bone requesting scale data.
- * @param	DecompContext		The decompression context to use.
- */
-void AnimationFormat_GetAnimationPose(
-	FTransformArray& Atoms,
-	const BoneTrackArray& RotationPairs,
-	const BoneTrackArray& TranslationPairs,
-	const BoneTrackArray& ScalePairs,
-	FAnimSequenceDecompressionContext& DecompContext)
-{
-	// decompress the translation component using the proper method
-	checkSlow(DecompContext.GetTranslationCodec() != nullptr);
-	if (TranslationPairs.Num() > 0)
-	{
-		DecompContext.GetTranslationCodec()->GetPoseTranslations(Atoms, TranslationPairs, DecompContext);
-	}
-
-	// decompress the rotation component using the proper method
-	checkSlow(DecompContext.GetRotationCodec() != nullptr);
-	DecompContext.GetRotationCodec()->GetPoseRotations(Atoms, RotationPairs, DecompContext);
-
-	checkSlow(DecompContext.GetScaleCodec() != nullptr);
-	// we allow scale key to be empty
-	if (DecompContext.bHasScale)
-	{
-		DecompContext.GetScaleCodec()->GetPoseScales(Atoms, ScalePairs, DecompContext);
-	}
-}
-#endif
-
-/**
- * Extracts a single BoneAtom from an Animation Sequence.
- *
- * @param	OutAtom			The BoneAtom to fill with the extracted result.
- * @param	DecompContext	The decompression context to use.
- * @param	TrackIndex		The index of the track desired in the Animation Sequence.
- */
-void AnimEncodingLegacyBase::GetBoneAtom(FTransform& OutAtom, FAnimSequenceDecompressionContext& DecompContext, int32 TrackIndex)
-{
-	// Initialize to identity to set the scale and in case of a missing rotation or translation codec
-	OutAtom.SetIdentity();
-
-	// decompress the translation component using the proper method
-	checkSlow(DecompContext.GetTranslationCodec() != nullptr);
-	((AnimEncodingLegacyBase*)DecompContext.GetTranslationCodec())->GetBoneAtomTranslation(OutAtom, DecompContext, TrackIndex);
-
-	// decompress the rotation component using the proper method
-	checkSlow(DecompContext.GetRotationCodec() != nullptr);
-	((AnimEncodingLegacyBase*)DecompContext.GetRotationCodec())->GetBoneAtomRotation(OutAtom, DecompContext, TrackIndex);
-
-	// we assume scale keys can be empty, so only extract if we have valid keys
-	if (DecompContext.bHasScale)
-	{
-		// decompress the rotation component using the proper method
-		checkSlow(DecompContext.GetScaleCodec() != nullptr);
-		((AnimEncodingLegacyBase*)DecompContext.GetScaleCodec())->GetBoneAtomScale(OutAtom, DecompContext, TrackIndex);
-	}
 }
 
 /**
@@ -860,4 +777,4 @@ void AnimationFormat_SetInterfaceLinks(CompressedDataType& CompressedData)
 }
 
 template void AnimationFormat_SetInterfaceLinks(FUECompressedAnimData& CompressedData);
-template void AnimationFormat_SetInterfaceLinks(FCompressibleAnimDataResult& CompressedData);
+template void AnimationFormat_SetInterfaceLinks(FUECompressedAnimDataMutable& CompressedData);

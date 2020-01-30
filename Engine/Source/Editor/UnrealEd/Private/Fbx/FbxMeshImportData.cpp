@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxMeshImportData.h"
 #include "UObject/UnrealType.h"
@@ -13,7 +13,7 @@ UFbxMeshImportData::UFbxMeshImportData(const FObjectInitializer& ObjectInitializ
 	bReorderMaterialToFbxOrder = true;
 }
 
-bool UFbxMeshImportData::CanEditChange(const UProperty* InProperty) const
+bool UFbxMeshImportData::CanEditChange(const FProperty* InProperty) const
 {
 	bool bMutable = Super::CanEditChange(InProperty);
 	UObject* Outer = GetOuter();

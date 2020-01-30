@@ -1,0 +1,81 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#define HAIR_AABB_PRECISION_SCALE 1000.f
+
+struct FHairAABB
+{
+	float3 Min;
+	float3 Max;
+};
+
+FHairAABB InitHairAABB()
+{
+	FHairAABB O;
+	O.Min = float3(2147483647, 2147483647, 2147483647);
+	O.Max = float3(-2147483647, -2147483647, -2147483647);
+	return O;
+}
+
+FHairAABB ReadHairAABB(uint Index, RWBuffer<int> InBuffer)
+{
+	const uint Index6 = Index * 6;
+	FHairAABB O;
+	O.Min.x = InBuffer[Index6 + 0] / HAIR_AABB_PRECISION_SCALE;
+	O.Min.y = InBuffer[Index6 + 1] / HAIR_AABB_PRECISION_SCALE;
+	O.Min.z = InBuffer[Index6 + 2] / HAIR_AABB_PRECISION_SCALE;
+
+	O.Max.x = InBuffer[Index6 + 3] / HAIR_AABB_PRECISION_SCALE;
+	O.Max.y = InBuffer[Index6 + 4] / HAIR_AABB_PRECISION_SCALE;
+	O.Max.z = InBuffer[Index6 + 5] / HAIR_AABB_PRECISION_SCALE;
+	return O;
+}
+
+FHairAABB ReadHairAABB(uint Index, Buffer<int> InBuffer)
+{
+	const uint Index6 = Index * 6;
+	FHairAABB O;
+	O.Min.x = InBuffer[Index6 + 0] / HAIR_AABB_PRECISION_SCALE;
+	O.Min.y = InBuffer[Index6 + 1] / HAIR_AABB_PRECISION_SCALE;
+	O.Min.z = InBuffer[Index6 + 2] / HAIR_AABB_PRECISION_SCALE;
+
+	O.Max.x = InBuffer[Index6 + 3] / HAIR_AABB_PRECISION_SCALE;
+	O.Max.y = InBuffer[Index6 + 4] / HAIR_AABB_PRECISION_SCALE;
+	O.Max.z = InBuffer[Index6 + 5] / HAIR_AABB_PRECISION_SCALE;
+	return O;
+}
+
+void WriteHairAABB(uint Index, FHairAABB In, RWBuffer<int> OutBuffer)
+{
+	const uint Index6 = Index * 6;
+	OutBuffer[Index6 + 0] = In.Min.x * HAIR_AABB_PRECISION_SCALE;
+	OutBuffer[Index6 + 1] = In.Min.y * HAIR_AABB_PRECISION_SCALE;
+	OutBuffer[Index6 + 2] = In.Min.z * HAIR_AABB_PRECISION_SCALE;
+
+	OutBuffer[Index6 + 3] = In.Max.x * HAIR_AABB_PRECISION_SCALE;
+	OutBuffer[Index6 + 4] = In.Max.y * HAIR_AABB_PRECISION_SCALE;
+	OutBuffer[Index6 + 5] = In.Max.z * HAIR_AABB_PRECISION_SCALE;
+}
+
+FHairAABB UnionHairAABB(FHairAABB A, FHairAABB B)
+{
+	FHairAABB O;
+	O.Min.x = min(A.Min.x, B.Min.x);
+	O.Min.y = min(A.Min.y, B.Min.y);
+	O.Min.z = min(A.Min.z, B.Min.z);
+
+	O.Max.x = max(A.Max.x, B.Max.x);
+	O.Max.y = max(A.Max.y, B.Max.y);
+	O.Max.z = max(A.Max.z, B.Max.z);
+	return O;
+}
+
+void InterlockHairAABB(uint Index, FHairAABB In, RWBuffer<int> OutBuffer)
+{
+	const uint Index6 = Index * 6;
+	InterlockedMin(OutBuffer[Index6 + 0], int(In.Min.x * HAIR_AABB_PRECISION_SCALE));
+	InterlockedMin(OutBuffer[Index6 + 1], int(In.Min.y * HAIR_AABB_PRECISION_SCALE));
+	InterlockedMin(OutBuffer[Index6 + 2], int(In.Min.z * HAIR_AABB_PRECISION_SCALE));
+	InterlockedMax(OutBuffer[Index6 + 3], int(In.Max.x * HAIR_AABB_PRECISION_SCALE));
+	InterlockedMax(OutBuffer[Index6 + 4], int(In.Max.y * HAIR_AABB_PRECISION_SCALE));
+	InterlockedMax(OutBuffer[Index6 + 5], int(In.Max.z * HAIR_AABB_PRECISION_SCALE));
+}

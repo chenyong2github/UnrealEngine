@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -78,7 +78,7 @@ struct TChar : TCharBase<CharType, sizeof(CharType)>
 	*/
 	static CharType ToUpper(CharType Char)
 	{
-		return ToUnsigned(Char) - ((uint32(Char) - 'a' < 26u) << 5);
+		return (CharType)(ToUnsigned(Char) - ((uint32(Char) - 'a' < 26u) << 5));
 	}
 
 	/**
@@ -86,7 +86,7 @@ struct TChar : TCharBase<CharType, sizeof(CharType)>
 	*/
 	static CharType ToLower(CharType Char)
 	{
-		return ToUnsigned(Char) + ((uint32(Char) - 'A' < 26u) << 5);
+		return (CharType)(ToUnsigned(Char) + ((uint32(Char) - 'A' < 26u) << 5));
 	}
 
 	static bool IsUpper(CharType Char);

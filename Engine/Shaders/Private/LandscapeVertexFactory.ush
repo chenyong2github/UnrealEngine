@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LandscapeVertexFactory.usf: Landscape vertex factory.
@@ -623,10 +623,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	Intermediates.InputPosition = Input.Position;
 #else
-	Intermediates.InputPosition = Input.PackedPosition * 255.f;
-	float2 SubXY = frac((Intermediates.InputPosition.zw) * .5f) * 2.f;
-	float2 LOD45 = (Intermediates.InputPosition.zw - SubXY) / 255.f;
-	Intermediates.InputPosition.zw = SubXY;
+	Intermediates.InputPosition.xy = Input.PackedPosition.xy * 255.f;
+	float SubX = (float)((uint)(Input.PackedPosition.z * 255.f) >> 4);
+	float SubY = (float)((uint)(Input.PackedPosition.z * 255.f) & 0xf);
+	Intermediates.InputPosition.zw = float2(SubX, SubY);
+	float HoleMaxLod = (float)((uint)(Input.PackedPosition.w * 255.f) >> 4);
+	float HoleVertexLod = (float)((uint)(Input.PackedPosition.w * 255.f) & 0xf);
 #endif
 
 	float2 xy = Intermediates.InputPosition.xy * LodValues.w;
@@ -646,12 +648,19 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - LodValues.x)));
 	float InvLODScaleFactor = pow(2, -LodValue);
 #else
-	float3 HeightData = (LodValue < 1 ? float3(1.0, Input.LODHeights[1][0], Input.LODHeights[1][1]) :
-						(LodValue < 2 ? float3(0.5, Input.LODHeights[1][1], Input.LODHeights[1][2]) :
-						(LodValue < 3 ? float3(0.25, Input.LODHeights[1][2], Input.LODHeights[1][3]) :
-						(LodValue < 4 ? float3(0.125, Input.LODHeights[1][3], LOD45[0]) :
-						(LodValue < 5 ? float3(0.0625, LOD45[0], LOD45[1]) :
-						(float3(0.03125, LOD45[1], LOD45[1])))))));
+
+	// Clamp lod values around holes until we reach HoleMaxLod. Kill morphing when clamped.
+	bool bMorph = LodValue < HoleVertexLod || HoleMaxLod <= LodValue;
+	MorphAlpha = bMorph ? MorphAlpha : 0;
+	bool bClampLodForHole = HoleVertexLod < LodValue && LodValue < HoleMaxLod;
+	LodValue = bClampLodForHole ? HoleVertexLod : LodValue;
+
+	float3 HeightData = (LodValue < 1 ? float3(1.0, Input.LODHeights[0][2], Input.LODHeights[0][3]) :
+						(LodValue < 2 ? float3(0.5, Input.LODHeights[0][3], Input.LODHeights[1][0]) :
+						(LodValue < 3 ? float3(0.25, Input.LODHeights[1][0], Input.LODHeights[1][1]) :
+						(LodValue < 4 ? float3(0.125, Input.LODHeights[1][1], Input.LODHeights[1][2]) :
+						(LodValue < 5 ? float3(0.0625, Input.LODHeights[1][2], Input.LODHeights[1][3]) :
+						(float3(0.03125, Input.LODHeights[1][3], Input.LODHeights[1][3])))))));
 
 	// we can hardcode InvLODScaleFactor
 	float InvLODScaleFactor = HeightData.x;
@@ -659,8 +668,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float InputHeight = HeightData.y;
 	float InputHeightNextLOD = HeightData.z;
 
-	float MinHeight = DecodePackedHeight(Input.LODHeights[0].xy);
-	float MaxHeight = DecodePackedHeight(Input.LODHeights[0].zw);
+	float MinHeight = DecodePackedHeight(float2(Input.LODHeights[0].x, 0));
+	float MaxHeight = DecodePackedHeight(float2(Input.LODHeights[0].y, 0));
 
 	float Height = lerp(MinHeight, MaxHeight, InputHeight);
 	float HeightNextLOD = lerp(MinHeight, MaxHeight, InputHeightNextLOD);

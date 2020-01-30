@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorModes.h"
 #include "EdMode.h"
@@ -27,7 +27,7 @@ const FEditorModeID FBuiltinEditorModes::EM_SceneDepthPicker(TEXT("EM_SceneDepth
 
 FEdModeDefault::FEdModeDefault()
 {
-	bDrawGrid = false;
+	bDrawGrid = true;
 	bDrawPivot = false;
 	bDrawBaseInfo = false;
 	bDrawWorldBox = false;

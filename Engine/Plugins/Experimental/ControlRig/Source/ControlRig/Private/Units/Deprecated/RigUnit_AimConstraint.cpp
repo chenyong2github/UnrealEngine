@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_AimConstraint.h"
 #include "Units/RigUnitContext.h"
@@ -36,10 +36,6 @@ void FRigUnit_AimConstraint::Execute(const FRigUnitContext& Context)
 					}
 				}
 			}
-		}
-		else
-		{
-			UnitLogHelpers::PrintMissingHierarchy(RigUnitName);
 		}
 	}
 	else if (Context.State == EControlRigState::Update)

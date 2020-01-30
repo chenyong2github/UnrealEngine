@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreTypes.h"
@@ -303,6 +303,7 @@ extern CORE_API FString GInputIni;
 extern CORE_API FString GGameIni;
 extern CORE_API FString GGameUserSettingsIni;
 extern CORE_API FString GRuntimeOptionsIni;
+extern CORE_API FString GInstallBundleIni;
 
 extern CORE_API float GNearClippingPlane;
 
@@ -346,6 +347,7 @@ extern CORE_API bool GIsPlayInEditorWorld;
 extern CORE_API int32 GPlayInEditorID;
 
 /** Whether or not PIE was attempting to play from PlayerStart */
+UE_DEPRECATED(4.25, "This variable is no longer set. Use !GEditor->GetPlayInEditorSessionInfo()->OriginalRequestParams.HasPlayWorldPlacement() instead.")
 extern CORE_API bool GIsPIEUsingPlayerStart;
 
 /** true if the runtime needs textures to be powers of two */

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -731,7 +731,7 @@ private:
 					for( auto ExtensionIter = TypeToProperties.CreateConstKeyIterator( *TypeIter ); ExtensionIter; ++ExtensionIter )
 					{
 						const FPropertyInfo& PropInfo = ExtensionIter.Value();
-						const TWeakObjectPtr< UProperty > Property = PropInfo.Property;
+						const TWeakFieldPtr< FProperty > Property = PropInfo.Property;
 						const FText PropName = FText::FromString( UEditorEngine::GetFriendlyName(Property.Get()) );
 						MenuBuilder.AddMenuEntry( PropName, PropName, FSlateIcon(), FUIAction( FExecuteAction::CreateSP( this, &SPropertyTable::SetRootPath, RootPath->ExtendPath( PropInfo ) ) ) );
 					}

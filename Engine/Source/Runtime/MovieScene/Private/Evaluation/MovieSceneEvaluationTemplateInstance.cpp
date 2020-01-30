@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Containers/SortedMap.h"
@@ -305,7 +305,9 @@ const FMovieSceneEvaluationGroup* FMovieSceneRootEvaluationTemplateInstance::Set
 		OverrideRootTemplate = &TemplateStore->AccessTemplate(*OverrideRootSequence);
 		if (const FMovieSceneSubSequenceData* OverrideSubData = GetHierarchy().FindSubData(InOverrideRootID))
 		{
-			*InOutContext = InOutContext->Transform(OverrideSubData->RootToSequenceTransform, OverrideSubData->TickResolution);
+			*InOutContext = InOutContext->Transform(
+					OverrideSubData->RootToSequenceTransform, 
+					OverrideSubData->TickResolution);
 		}
 	}
 
@@ -384,7 +386,9 @@ void FMovieSceneRootEvaluationTemplateInstance::EvaluateGroup(const FMovieSceneE
 				SubContext = Context;
 				if (EvalPtrs.SubData)
 				{
-					SubContext = Context.Transform(EvalPtrs.SubData->RootToSequenceTransform, EvalPtrs.SubData->TickResolution);
+					SubContext = Context.Transform(
+							EvalPtrs.SubData->RootToSequenceTransform, 
+							EvalPtrs.SubData->TickResolution);
 
 					// Hittest against the sequence's pre and postroll ranges
 					SubContext.ReportOuterSectionRanges(EvalPtrs.SubData->PreRollRange.Value, EvalPtrs.SubData->PostRollRange.Value);
@@ -426,7 +430,9 @@ void FMovieSceneRootEvaluationTemplateInstance::EvaluateGroup(const FMovieSceneE
 				SubContext = Context;
 				if (EvalPtrs.SubData)
 				{
-					SubContext = Context.Transform(EvalPtrs.SubData->RootToSequenceTransform, EvalPtrs.SubData->TickResolution);
+					SubContext = Context.Transform(
+							EvalPtrs.SubData->RootToSequenceTransform, 
+							EvalPtrs.SubData->TickResolution);
 
 					// Hittest against the sequence's pre and postroll ranges
 					SubContext.ReportOuterSectionRanges(EvalPtrs.SubData->PreRollRange.Value, EvalPtrs.SubData->PostRollRange.Value);

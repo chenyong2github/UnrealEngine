@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEmitterFactoryNew.h"
 #include "NiagaraEmitter.h"
@@ -129,7 +129,7 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 		else
 		{
 			NewEmitter = Cast<UNiagaraEmitter>(StaticDuplicateObject(EmitterToCopy, InParent, Name, Flags, Class));
-			NewEmitter->SetUniqueEmitterName(Name.ToString());
+			NewEmitter->SetUniqueEmitterName(Name.GetPlainNameString());
 		}
 
 		NewEmitter->bIsTemplateAsset = false;

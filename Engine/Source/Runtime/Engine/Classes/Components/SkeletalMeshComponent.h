@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,6 +23,7 @@
 #include "ClothingSystemRuntimeTypes.h"
 #include "ClothingSimulationInterface.h"
 #include "ClothingSimulationFactory.h"
+#include "ClothCollisionPrim.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
 #include "SkeletalMeshComponent.generated.h"
@@ -297,6 +298,7 @@ class ENGINE_API USkeletalMeshComponent : public USkinnedMeshComponent, public I
 	friend class UAnimInstance;
 	friend struct FAnimNode_LinkedAnimGraph;
 	friend struct FAnimNode_LinkedAnimLayer;
+	friend struct FLinkedInstancesAdapter;
 
 	/**
 	 * Animation 
@@ -1009,7 +1011,7 @@ public:
 	 * Get/Set the max distance scale of clothing mesh vertices
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
-	float GetClothMaxDistanceScale();
+	float GetClothMaxDistanceScale() const;
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
 	void SetClothMaxDistanceScale(float Scale);
 
@@ -1693,7 +1695,7 @@ public:
 
 	FOnBoneTransformsFinalized OnBoneTransformsFinalized;
 
-	void GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx);
+	void GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx) const;
 
 	// Conditions used to gate when post process events happen
 	bool ShouldUpdatePostProcessInstance() const;
@@ -2143,7 +2145,7 @@ private:
 	/** See UpdateClothTransform for documentation. */
 	void UpdateClothTransformImp();
 
-	friend class FClothingSimulationBase;
+	friend class FClothingSimulationContextCommon;
 
 	friend class FTickClothingTask;
 
@@ -2249,4 +2251,31 @@ public:
 
 	// Are we currently within PostAnimEvaluation
 	bool IsPostEvaluatingAnimation() const { return bPostEvaluatingAnimation; }
+};
+
+struct FLinkedInstancesAdapter
+{
+	static void AddLinkedInstance(USkeletalMeshComponent* InComponent, UAnimInstance* InAnimInstance)
+	{
+		if (InComponent && InAnimInstance)
+		{
+			InComponent->LinkedInstances.Add(InAnimInstance);
+		}
+	}
+
+	static void RemoveLinkedInstance(USkeletalMeshComponent* InComponent, UAnimInstance* InAnimInstance)
+	{
+		if (InComponent && InAnimInstance)
+		{
+			InComponent->LinkedInstances.Remove(InAnimInstance);
+		}
+	}
+
+	static void ResetLinkedInstance(USkeletalMeshComponent* InComponent)
+	{
+		if (InComponent)
+		{
+			InComponent->LinkedInstances.Reset();
+		}
+	}
 };

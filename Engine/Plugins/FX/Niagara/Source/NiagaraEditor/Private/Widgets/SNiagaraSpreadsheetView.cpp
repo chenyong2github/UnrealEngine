@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraSpreadsheetView.h"
 #include "Textures/SlateIcon.h"
@@ -1128,18 +1128,18 @@ void SNiagaraSpreadsheetView::ResetEntries(EUITab Tab)
 
 void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout, const UScriptStruct* Struct, const UEnum* Enum,  FName BaseName, TArray<FName>& PropertyNames, TArray<SNiagaraSpreadsheetView::FieldInfo>& FieldInfo)
 {
-	TFieldIterator<UProperty> PropertyCountIt(Struct, EFieldIteratorFlags::IncludeSuper);
+	TFieldIterator<FProperty> PropertyCountIt(Struct, EFieldIteratorFlags::IncludeSuper);
 	int32 NumProperties = 0;
 	for (; PropertyCountIt; ++PropertyCountIt)
 	{
 		NumProperties++;
 	}
 	
-	for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 		FName PropertyName = (NumProperties == 1) ? *(BaseName.ToString()) : *(BaseName.ToString() + "." + Property->GetName());
-		if (Property->IsA(UFloatProperty::StaticClass()))
+		if (Property->IsA(FFloatProperty::StaticClass()))
 		{
 			SNiagaraSpreadsheetView::FieldInfo Info;
 			Info.bFloat = true;
@@ -1153,11 +1153,11 @@ void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout,
 			Layout.FloatComponentByteOffsets.Add(Property->GetOffset_ForInternal());
 			PropertyNames.Add(PropertyName);
 		}
-		else if (Property->IsA(UIntProperty::StaticClass()) || Property->IsA(UBoolProperty::StaticClass()))
+		else if (Property->IsA(FIntProperty::StaticClass()) || Property->IsA(FBoolProperty::StaticClass()))
 		{
 			SNiagaraSpreadsheetView::FieldInfo Info;
 			Info.bFloat = false;
-			Info.bBoolean = Property->IsA(UBoolProperty::StaticClass());
+			Info.bBoolean = Property->IsA(FBoolProperty::StaticClass());
 			Info.FloatStartOffset = UINT_MAX;
 			Info.IntStartOffset = Layout.Int32ComponentRegisterOffsets.Num();
 			Info.GlobalStartOffset = sizeof(float) * Layout.FloatComponentRegisterOffsets.Num() + sizeof(int32) * Layout.Int32ComponentByteOffsets.Num();
@@ -1168,14 +1168,14 @@ void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout,
 			Layout.Int32ComponentByteOffsets.Add(Property->GetOffset_ForInternal());
 			PropertyNames.Add(PropertyName);
 		}
-		else if (Property->IsA(UEnumProperty::StaticClass()))
+		else if (Property->IsA(FEnumProperty::StaticClass()))
 		{
-			UEnumProperty* EnumProp = CastChecked<UEnumProperty>(Property);
+			FEnumProperty* EnumProp = CastFieldChecked<FEnumProperty>(Property);
 			GenerateLayoutInfo(Layout, FNiagaraTypeDefinition::GetIntStruct(), EnumProp->GetEnum(), PropertyName, PropertyNames, FieldInfo);
 		}
-		else if (Property->IsA(UStructProperty::StaticClass()))
+		else if (Property->IsA(FStructProperty::StaticClass()))
 		{
-			UStructProperty* StructProp = CastChecked<UStructProperty>(Property);
+			FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property);
 			GenerateLayoutInfo(Layout, StructProp->Struct, nullptr, PropertyName, PropertyNames, FieldInfo);
 		}
 		else

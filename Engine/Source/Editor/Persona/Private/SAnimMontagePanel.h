@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -19,6 +19,8 @@ class FMenuBuilder;
 class SBorder;
 class SImage;
 class STextBlock;
+class FAnimModel_AnimMontage;
+class UAnimPreviewInstance;
 
 DECLARE_DELEGATE( FOnMontageLengthChange )
 DECLARE_DELEGATE( FOnMontagePropertyChanged )
@@ -34,12 +36,11 @@ DECLARE_DELEGATE_OneParam( FOnMontageSetPreviewSlot, int32)
 //
 //////////////////////////////////////////////////////////////////////////
 
-class SAnimMontagePanel : public SAnimTrackPanel
+class SAnimMontagePanel : public SAnimTrackPanel, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS( SAnimMontagePanel )
 		: _Montage()
-		, _MontageEditor()
 		, _CurrentPosition()
 		, _ViewInputMin()
 		, _ViewInputMax()
@@ -53,7 +54,6 @@ public:
 	{}
 
 	SLATE_ARGUMENT( class UAnimMontage*, Montage)
-	SLATE_ARGUMENT( TWeakPtr<class SMontageEditor>, MontageEditor)
 	SLATE_ARGUMENT( float, WidgetWidth )
 	SLATE_ATTRIBUTE( float, CurrentPosition )
 	SLATE_ATTRIBUTE( float, ViewInputMin )
@@ -69,13 +69,21 @@ public:
 	SLATE_ARGUMENT(bool, bChildAnimMontage)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FSimpleMulticastDelegate& OnSectionsChanged);
+	~SAnimMontagePanel();
 
-	void SetMontage(class UAnimMontage * InMontage);
+	void Construct(const FArguments& InArgs, const TSharedRef<FAnimModel_AnimMontage>& InModel);
+
+	/** Handler for when the preview slot is changed */
+	void OnSetMontagePreviewSlot(int32 SlotIndex);
 
 	// SWidget interface
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 
+	void RestartPreview();
+	void RestartPreviewFromSection(int32 FromSectionIdx = INDEX_NONE);
+	void RestartPreviewPlayAllSections();
+
+	/** This is the main function that creates the UI widgets for the montage tool.*/
 	void Update();
 
 	// Functions used as delegates that build the context menus for the montage tracks
@@ -103,8 +111,8 @@ public:
 	FText GetMontageSlotName(int32 SlotIndex) const;
 	
 	// Handlers for preview slot checkbox UI
-	ECheckBoxState IsSlotPreviewed(int32 SlotIndex) const;
-	void OnSlotPreviewedChanged(ECheckBoxState NewState, int32 SlotIndex);
+	bool IsSlotPreviewed(int32 SlotIndex) const;
+	void OnSlotPreviewedChanged(int32 SlotIndex);
 
 	// Context menu callback to set all elements in the montage to a given link method
 	void OnSetElementsToLinkMode(EAnimLinkMethod::Type NewLinkMethod);
@@ -118,8 +126,94 @@ public:
 	// Clears the name track of timing nodes and rebuilds them
 	void RefreshTimingNodes();
 
+	/** Sort Composite Sections by Start Time */
+	void SortSections();
+
+	/** Ensure there is at least one section in the montage and that the first section starts at T=0.f */
+	void EnsureStartingSection();
+
+	/** Ensure there is at least one slot node track */
+	void EnsureSlotNode();
+
+	/** Sort Segments by starting time */
+	void SortAnimSegments();
+
+	void SortAndUpdateMontage();
+	void CollapseMontage();
+
+	bool ClampToEndTime(float NewEndTime);
+
+	/** FEditorUndoClient interface */
+	virtual void PostUndo( bool bSuccess ) override;
+	virtual void PostRedo( bool bSuccess ) override;
+
+	void PostRedoUndo();
+	
+	bool GetSectionTime( int32 SectionIndex, float &OutTime ) const;
+
+	bool ValidIndexes(int32 AnimSlotIndex, int32 AnimSegmentIndex) const;
+	bool ValidSection(int32 SectionIndex) const;
+
+	/** Updates Notify trigger offsets to take into account current montage state */
+	void RefreshNotifyTriggerOffsets();
+
+	/** Handle notifies changing, so we rebuild timing */
+	void HandleNotifiesChanged();
+
+	/** One-off active timer to trigger a montage panel rebuild */
+	EActiveTimerReturnType TriggerRebuildMontagePanel(double InCurrentTime, float InDeltaTime);
+
+	/** Rebuilds the montage panel */
+	void RebuildMontagePanel(bool bNotifyAsset=true);
+
+	UAnimPreviewInstance* GetPreviewInstance() const;
+
+public:
+
+	/** These are meant to be callbacks used by the montage editing UI widgets */
+	void					OnMontageChange(class UObject *EditorAnimBaseObj, bool Rebuild);
+
+	void					SetSectionTime(int32 SectionIndex, float NewTime);
+
+	TArray<float>			GetSectionStartTimes() const;
+	TArray<FTrackMarkerBar>	GetMarkerBarInformation() const;
+	TArray<FString>			GetSectionNames() const;
+	TArray<float>			GetAnimSegmentStartTimes() const;
+
+	void					AddNewSection(float StartTime, FString SectionName);
+	void					RemoveSection(int32 SectionIndex);
+	FString					GetSectionName(int32 SectionIndex) const;
+
+	void					RenameSlotNode(int32 SlotIndex, FString NewSlotName);
+
+	// UI Slot Action handlers
+	void					AddNewMontageSlot(FName NewSlotName);
+	void					RemoveMontageSlot(int32 AnimSlotIndex);
+	bool					CanRemoveMontageSlot(int32 AnimSlotIndex);
+	void					DuplicateMontageSlot(int32 AnimSlotIndex);
+
+	void					MakeDefaultSequentialSections();
+	void					ClearSquenceOrdering();
+
+	/** Delegete handlers for when the editor UI is changing the montage */
+	void			PreAnimUpdate();
+	void			PostAnimUpdate();
+	void			OnMontageModified();
+	void			ReplaceAnimationMapping(FName SlotName, int32 SegmentIdx, UAnimSequenceBase* OldSequenceBase, UAnimSequenceBase* NewSequenceBase);
+	bool			IsDiffererentFromParent(FName SlotName, int32 SegmentIdx, const FAnimSegment& Segment);
+
+	/** Delegate fired when montage sections have changed */
+	FSimpleDelegate			OnSectionsChanged;
+
+	FReply	OnFindParentClassInContentBrowserClicked();
+	FReply	OnEditParentClassClicked();
+
+	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
+
+	void OnOpenAnimSlotManager();
+
 private:
-	TWeakPtr<SMontageEditor>	MontageEditor;
+	TWeakPtr<FAnimModel_AnimMontage> WeakModel;
 	TSharedPtr<SBorder> PanelArea;
 	class UAnimMontage* Montage;
 	TAttribute<float> CurrentPosition;
@@ -143,14 +237,28 @@ private:
 
 	/** Member data to allow use to set preview slot from editor */
 	int32					 CurrentPreviewSlot;
-	FOnMontageSetPreviewSlot OnSetMontagePreviewSlot;
+
+	/** If previewing section, it is section used to restart previewing when play button is pushed */
+	int32 PreviewingStartSectionIdx;
+
+	/** Recursion guard for selection */
+	bool bIsSelecting;
+
+	/** If currently previewing all or selected section */
+	bool bPreviewingAllSections : 1;
+
+	/** If currently previewing tracks instead of sections */
+	bool bPreviewingTracks : 1;
+
+	/** If the active timer to trigger a montage panel rebuild is currently registered */
+	bool bIsActiveTimerRegistered : 1;
 
   	/* 
 	 * Child Anim Montage: Child Anim Montage only can replace name of animations, and no other meaningful edits 
 	 * as it will derive every data from Parent. There might be some other data that will allow to be replaced, but for now, it is
 	 * not. 
 	 */
-	bool bChildAnimMontage;
+	bool bChildAnimMontage : 1;
 
 	/************************************************************************/
 	/* Status Bar                                                           */
@@ -160,9 +268,8 @@ private:
 
 	void OnSlotNameChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo, int32 AnimSlotIndex);
 	void OnSlotListOpening(int32 AnimSlotIndex);
-	FReply OnOpenAnimSlotManager();
+
 	void RefreshComboLists(bool bOnlyRefreshIfDifferent = false);
-	void UpdateSlotGroupWarningVisibility();
 	
 	void CreateNewSlot(const FText& NewSlotName, ETextCommit::Type CommitInfo);
 	void CreateNewSection(const FText& NewSectionName, ETextCommit::Type CommitInfo, float StartTime);

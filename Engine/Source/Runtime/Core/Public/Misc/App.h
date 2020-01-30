@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -104,9 +104,6 @@ public:
 		return GInternalProjectName;
 	}
 
-	UE_DEPRECATED(4.18, "GetGameName() has been superseded by GetProjectName().")
-	FORCEINLINE static const TCHAR* GetGameName() { return GetProjectName(); }
-
 	/**
 	 * Gets the name of the application, i.e. "UE4" or "Rocket".
 	 *
@@ -142,9 +139,6 @@ public:
 		return (IsProjectNameEmpty() == false) && (FCString::Stricmp(GInternalProjectName, TEXT("None")) != 0);
 	}
 
-	UE_DEPRECATED(4.18, "HasGameName() has been superseded by HasProjectName().")
-	FORCEINLINE static bool HasGameName() { return HasProjectName(); }
-
 	/**
 	 * Checks whether this application is a game.
 	 *
@@ -173,9 +167,6 @@ public:
 		return (GInternalProjectName[0] == 0);
 	}
 
-	UE_DEPRECATED(4.18, "IsGameNameEmpty() has been superseded by IsProjectNameEmpty().")
-	FORCEINLINE static bool IsGameNameEmpty() { return IsProjectNameEmpty(); }
-
 	/**
 	* Sets the name of the current project.
 	*
@@ -188,9 +179,6 @@ public:
 		// And make sure the ProjectName string is null terminated.
 		GInternalProjectName[UE_ARRAY_COUNT(GInternalProjectName) - 1] = 0;
 	}
-
-	UE_DEPRECATED(4.18, "SetGameName() has been superseded by SetProjectName().")
-	FORCEINLINE static void SetGameName(const TCHAR* InGameName) { SetProjectName(InGameName); }
 
 public:
 
@@ -616,13 +604,6 @@ public:
 		return TimecodeFrameRate;
 	}
 	
-	UE_DEPRECATED(4.21, "Please use the version of SetTimecodeAndFrameRate")
-	static void SetTimecode(FTimecode InTimecode)
-	{
-		Timecode = InTimecode;
-		TimecodeFrameRate = FFrameRate(60, 1);
-	}
-
 	/**
 	 * Sets the current timecode, and the frame rate to which it's relative.
 	 *

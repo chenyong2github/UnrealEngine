@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/FrameRate.h"
 #include "Algo/BinarySearch.h"
@@ -7,6 +7,8 @@
 #include "Math/BasicMathExpressionEvaluator.h"
 
 #define LOCTEXT_NAMESPACE "FFrameRate"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 namespace
 {
@@ -200,7 +202,7 @@ bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInter
 
 		// Showing hours, minutes or seconds
 		static const int32 DesirableBases[]  = { 1, 2, 5, 10, 30, 60 };
-		static const int32 NumDesirableBases = UE_ARRAY_COUNT(DesirableBases);
+		static const SIZE_T NumDesirableBases = UE_ARRAY_COUNT(DesirableBases);
 
 		const int32 Scale     = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond / TimeOrder);
 		const int32 BaseIndex = FMath::Min(Algo::LowerBound(DesirableBases, Scale), NumDesirableBases-1);
@@ -255,7 +257,7 @@ bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInter
 		OutMajorInterval  = MajorIntervalFrames * AsInterval();
 
 		// Find the lowest number of divisions we can show that's larger than the minimum tick size
-		OutMinorDivisions = 0;
+		OutMinorDivisions = MajorIntervalFrames;
 		for (int32 DivIndex = 0; DivIndex < BaseIndex; ++DivIndex)
 		{
 			if (Base % CommonBases[DivIndex] == 0)
@@ -301,5 +303,7 @@ bool TryParseString(FFrameRate& OutFrameRate, const TCHAR* InString)
 
 	return false;
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

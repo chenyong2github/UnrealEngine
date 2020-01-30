@@ -1,6 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PhysicalMaterials.h"
+#include "HAL/LowLevelMemTracker.h"
 
 namespace Chaos
 {
@@ -58,6 +59,8 @@ namespace Chaos
 
 	FMaterialHandle FPhysicalMaterialManager::Create()
 	{
+		LLM_SCOPE(ELLMTag::Chaos);
+
 		check(IsInGameThread());
 		FMaterialHandle OutHandle;
 		OutHandle.InnerHandle = Materials.Create();
@@ -70,6 +73,8 @@ namespace Chaos
 
 	void FPhysicalMaterialManager::Destroy(FMaterialHandle InHandle)
 	{
+		LLM_SCOPE(ELLMTag::Chaos);
+
 		check(IsInGameThread());
 		if(InHandle.InnerHandle.IsValid())
 		{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterpolationProcessor/LiveLinkBasicFrameInterpolateProcessor.h"
 #include "Roles/LiveLinkBasicRole.h"
@@ -35,7 +35,7 @@ TSubclassOf<ULiveLinkRole> ULiveLinkBasicFrameInterpolationProcessor::FLiveLinkB
 namespace LiveLinkInterpolation
 {
 	void Interpolate(const UStruct* InStruct, bool bCheckForInterpFlag, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData);
-	void InterpolateProperty(UProperty* Property, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData);
+	void InterpolateProperty(FProperty* Property, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData);
 
 	template<class T>
 	T BlendValue(const T& A, const T& B, float InBlendWeight)
@@ -56,7 +56,7 @@ namespace LiveLinkInterpolation
 	}
 
 	template<class T>
-	void Interpolate(const UStructProperty* StructProperty, float InBlendWeight, const void* DataA, const void* DataB, void* DataResult)
+	void Interpolate(const FStructProperty* StructProperty, float InBlendWeight, const void* DataA, const void* DataB, void* DataResult)
 	{
 		for (int32 ArrayIndex = 0; ArrayIndex < StructProperty->ArrayDim; ++ArrayIndex)
 		{
@@ -71,12 +71,12 @@ namespace LiveLinkInterpolation
 
 	void Interpolate(const UStruct* InStruct, bool bCheckForInterpFlag, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData)
 	{
-		for (TFieldIterator<UProperty> Itt(InStruct); Itt; ++Itt)
+		for (TFieldIterator<FProperty> Itt(InStruct); Itt; ++Itt)
 		{
-			UProperty* Property = *Itt;
+			FProperty* Property = *Itt;
 			if (!bCheckForInterpFlag || Property->HasAnyPropertyFlags(CPF_Interp))
 			{
-				if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+				if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 				{
 					for (int32 DimIndex = 0; DimIndex < ArrayProperty->ArrayDim; ++DimIndex)
 					{
@@ -103,9 +103,9 @@ namespace LiveLinkInterpolation
 		}
 	}
 
-	void InterpolateProperty(UProperty* Property, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData)
+	void InterpolateProperty(FProperty* Property, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData)
 	{
-		if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			if (StructProperty->Struct->GetFName() == NAME_Vector)
 			{
@@ -142,7 +142,7 @@ namespace LiveLinkInterpolation
 				}
 			}
 		}
-		else if (UNumericProperty* NumericProperty = Cast<UNumericProperty>(Property))
+		else if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
 		{
 			if (NumericProperty->IsFloatingPoint())
 			{

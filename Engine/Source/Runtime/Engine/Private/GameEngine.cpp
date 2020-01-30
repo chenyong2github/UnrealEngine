@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	GameEngine.cpp: Unreal game engine.
@@ -52,6 +52,7 @@
 #include "Misc/EmbeddedCommunication.h"
 #include "Engine/CoreSettings.h"
 #include "EngineAnalytics.h"
+#include "StudioAnalytics.h"
 #include "Engine/DemoNetDriver.h"
 
 #include "Tickable.h"
@@ -738,8 +739,6 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 		}
 	}
 	#endif
-
-	DefaultTimecodeFrameRate = FFrameRate(30, 1);
 }
 
 
@@ -1621,6 +1620,11 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	{
 		SCOPE_TIME_GUARD(TEXT("UGameEngine::Tick - Analytics"));
 		FEngineAnalytics::Tick(DeltaSeconds);
+	}
+
+	{
+		SCOPE_TIME_GUARD(TEXT("UGameEngine::Tick - Studio Analytics"));
+		FStudioAnalytics::Tick(DeltaSeconds);
 	}
 
 	// -----------------------------------------------------

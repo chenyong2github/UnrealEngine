@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -58,10 +58,34 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 		: BaseTransformSpace(ETransformSpaceMode::GlobalSpace)
 	{}
 
+	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("Targets")))
+		{
+			if (BaseTransformSpace == ETransformSpaceMode::BaseJoint)
+			{
+				return BaseBone;
+			}
+
+			if (BaseTransformSpace == ETransformSpaceMode::LocalSpace)
+			{
+				if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+				{
+					int32 BoneIndex = Container->BoneHierarchy.GetIndex(Bone);
+					if (BoneIndex != INDEX_NONE)
+					{
+						return Container->BoneHierarchy[BoneIndex].ParentName;
+					}
+				}
+			}
+		}
+		return NAME_None;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
-	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, BoneName))
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Bone;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
@@ -72,7 +96,7 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 	FTransform BaseTransform;
 
 	// Transform op option. Use if ETransformSpace is BaseJoint
-	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, BoneName))
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName BaseBone;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))

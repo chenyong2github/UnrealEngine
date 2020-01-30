@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "MaterialUtilities.h"
 #include "EngineDefines.h"
 #include "ShowFlags.h"
@@ -451,7 +451,7 @@ public:
 			break;
 		};
 		
-		CacheShaders(ResourceId, StaticParamSet, GMaxRHIShaderPlatform);
+		CacheShaders(ResourceId, &StaticParamSet, GMaxRHIShaderPlatform);
 	}
 
 	virtual bool IsUsedWithStaticLighting() const { return true; }

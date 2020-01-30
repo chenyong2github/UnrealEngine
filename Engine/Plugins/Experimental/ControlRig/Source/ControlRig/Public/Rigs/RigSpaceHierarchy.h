@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,7 +8,7 @@
 
 class UControlRig;
 
-UENUM()
+UENUM(BlueprintType)
 enum class ERigSpaceType : uint8
 {
 	/** Not attached to anything */
@@ -24,7 +24,7 @@ enum class ERigSpaceType : uint8
 	Space
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigSpace : public FRigElement
 {
 	GENERATED_BODY()
@@ -40,19 +40,19 @@ struct CONTROLRIG_API FRigSpace : public FRigElement
 	}
 	virtual ~FRigSpace() {}
 
-	UPROPERTY(VisibleAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = FRigElement)
 	ERigSpaceType SpaceType;
 
-	UPROPERTY(VisibleAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = FRigElement)
 	FName ParentName;
 
-	UPROPERTY(transient)
+	UPROPERTY(BlueprintReadOnly, transient, Category = FRigElement)
 	int32 ParentIndex;
 
-	UPROPERTY(EditAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = FRigElement)
 	FTransform InitialTransform;
 
-	UPROPERTY(transient, EditAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, transient, EditAnywhere, Category = FRigElement)
 	FTransform LocalTransform;
 
 	FORCEINLINE virtual ERigElementType GetElementType() const override
@@ -85,7 +85,7 @@ struct CONTROLRIG_API FRigSpace : public FRigElement
 	}
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigSpaceHierarchy
 {
 	GENERATED_BODY()
@@ -171,7 +171,7 @@ struct CONTROLRIG_API FRigSpaceHierarchy
 	FTransform GetInitialGlobalTransform(int32 InIndex) const;
 
 	// updates all of the internal caches
-	void Initialize();
+	void Initialize(bool bResetTransforms = true);
 
 	// clears the hierarchy and removes all content
 	void Reset();
@@ -223,4 +223,5 @@ private:
 	void RefreshMapping();
 
 	friend struct FRigHierarchyContainer;
+	friend class UControlRigHierarchyModifier;
 };

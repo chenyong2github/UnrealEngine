@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SStaticMeshEditorViewport.h"
 #include "SStaticMeshEditorViewportToolBar.h"
@@ -468,7 +468,7 @@ EVisibility SStaticMeshEditorViewport::OnGetViewportContentVisibility() const
 
 void SStaticMeshEditorViewport::BindCommands()
 {
-	SEditorViewport::BindCommands();
+	SAssetEditorViewport::BindCommands();
 
 	const FStaticMeshEditorCommands& Commands = FStaticMeshEditorCommands::Get();
 

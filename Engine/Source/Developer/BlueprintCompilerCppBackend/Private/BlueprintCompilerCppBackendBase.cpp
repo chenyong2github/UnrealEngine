@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintCompilerCppBackendBase.h"
 #include "UObject/UnrealType.h"
@@ -68,9 +68,9 @@ TArray<class UFunction*> IBlueprintCompilerCppBackendModule::CollectBoundFunctio
 void FBlueprintCompilerCppBackendBase::EmitStructProperties(FEmitterLocalContext& EmitterContext, UStruct* SourceClass)
 {
 	// Emit class variables
-	for (TFieldIterator<UProperty> It(SourceClass, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+	for (TFieldIterator<FProperty> It(SourceClass, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 	{
-		UProperty* Property = *It;
+		FProperty* Property = *It;
 		check(Property);
 		FString PropertyMacro(TEXT("UPROPERTY("));
 		{
@@ -100,15 +100,15 @@ void FBlueprintCompilerCppBackendBase::DeclareDelegates(FEmitterLocalContext& Em
 
 	// GATHER ALL SC DELEGATES
 	{
-		TArray<UDelegateProperty*> Delegates;
-		for (TFieldIterator<UDelegateProperty> It(EmitterContext.GetCurrentlyGeneratedClass(), EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		TArray<FDelegateProperty*> Delegates;
+		for (TFieldIterator<FDelegateProperty> It(EmitterContext.GetCurrentlyGeneratedClass(), EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
 			Delegates.Add(*It);
 		}
 
 		for (auto& FuncContext : Functions)
 		{
-			for (TFieldIterator<UDelegateProperty> It(FuncContext.Function, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+			for (TFieldIterator<FDelegateProperty> It(FuncContext.Function, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 			{
 				Delegates.Add(*It);
 			}
@@ -381,7 +381,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateCodeFromClass(UClass* SourceCl
 			EmitterContext.Header.AddLine(FString::Printf(TEXT("UCLASS(%s%s%s)")
 				, *DefinedConfigName
 				, (!SourceClass->IsChildOf<UBlueprintFunctionLibrary>()) ? TEXT("Blueprintable, BlueprintType, ") : TEXT("")
-				, *FEmitHelper::HandleMetaData(nullptr, false, &AdditionalMD)));
+				, *FEmitHelper::HandleMetaData(FFieldVariant(), false, &AdditionalMD)));
 
 			UClass* SuperClass = SourceClass->GetSuperClass();
 			FString ClassDefinition = FString::Printf(TEXT("class %s : public %s"), *CppClassName, *FEmitHelper::GetCppName(SuperClass));
@@ -411,9 +411,9 @@ FString FBlueprintCompilerCppBackendBase::GenerateCodeFromClass(UClass* SourceCl
 			TSharedPtr<FNativizationSummary> NativizationSummary = BackEndModule.NativizationSummary();
 			if (NativizationSummary.IsValid())
 			{
-				for (TFieldIterator<UProperty> It(SourceClass, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+				for (TFieldIterator<FProperty> It(SourceClass, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 				{
-					UProperty* Property = *It;
+					FProperty* Property = *It;
 					if (Property && Property->HasAllPropertyFlags(CPF_Transient | CPF_DuplicateTransient))
 					{
 						NativizationSummary->MemberVariablesFromGraph++;
@@ -494,7 +494,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateCodeFromClass(UClass* SourceCl
 	return EmitterContext.Header.Result;
 }
 
-static void PropertiesUsedByStatement(FBlueprintCompiledStatement* Statement, TSet<UProperty*>& Properties)
+static void PropertiesUsedByStatement(FBlueprintCompiledStatement* Statement, TSet<FProperty*>& Properties)
 {
 	if (Statement)
 	{
@@ -522,10 +522,10 @@ static void PropertiesUsedByStatement(FBlueprintCompiledStatement* Statement, TS
 }
 
 /** Emits local variable declarations for a function */
-static void DeclareLocalVariables(FEmitterLocalContext& EmitterContext, TArray<UProperty*>& LocalVariables, FKismetFunctionContext& FunctionContext, int32 ExecutionGroup)
+static void DeclareLocalVariables(FEmitterLocalContext& EmitterContext, TArray<FProperty*>& LocalVariables, FKismetFunctionContext& FunctionContext, int32 ExecutionGroup)
 {
 	const bool bUseExecutionGroup = ExecutionGroup >= 0;
-	TSet<UProperty*> PropertiesUsedByCurrentExecutionGroup;
+	TSet<FProperty*> PropertiesUsedByCurrentExecutionGroup;
 	if (bUseExecutionGroup)
 	{
 		for (UEdGraphNode* Node : FunctionContext.UnsortedSeparateExecutionGroups[ExecutionGroup])
@@ -543,11 +543,11 @@ static void DeclareLocalVariables(FEmitterLocalContext& EmitterContext, TArray<U
 
 	for (int32 i = 0; i < LocalVariables.Num(); ++i)
 	{
-		UProperty* LocalVariable = LocalVariables[i];
+		FProperty* LocalVariable = LocalVariables[i];
 		if (!bUseExecutionGroup || PropertiesUsedByCurrentExecutionGroup.Contains(LocalVariable))
 		{
 			const FString CppDeclaration = EmitterContext.ExportCppDeclaration(LocalVariable, EExportedDeclaration::Local, EPropertyExportCPPFlags::CPPF_CustomTypeName | EPropertyExportCPPFlags::CPPF_BlueprintCppBackend | EPropertyExportCPPFlags::CPPF_NoConst);
-			UStructProperty* StructProperty = Cast<UStructProperty>(LocalVariable);
+			FStructProperty* StructProperty = CastField<FStructProperty>(LocalVariable);
 			const TCHAR* EmptyDefaultConstructor = FEmitHelper::EmptyDefaultConstructor(StructProperty ? StructProperty->Struct : nullptr);
 			EmitterContext.AddLine(CppDeclaration + EmptyDefaultConstructor + TEXT(";"));
 		}
@@ -561,13 +561,13 @@ void FBlueprintCompilerCppBackendBase::ConstructFunction(FKismetFunctionContext&
 		return;
 	}
 
-	TArray<UProperty*> LocalVariables;
-	TArray<UProperty*> ArgumentList;
+	TArray<FProperty*> LocalVariables;
+	TArray<FProperty*> ArgumentList;
 	// Split the function property list into arguments, a return value (if any), and local variable declarations
-	for (UProperty* Property : TFieldRange<UProperty>(FunctionContext.Function))
+	for (FProperty* Property : TFieldRange<FProperty>(FunctionContext.Function))
 	{
 		const bool bNeedLocalVariable = !Property->HasAnyPropertyFlags(CPF_Parm) || Property->HasAnyPropertyFlags(CPF_ReturnParm);
-		TArray<UProperty*>& PropertyDest = bNeedLocalVariable ? LocalVariables : ArgumentList;
+		TArray<FProperty*>& PropertyDest = bNeedLocalVariable ? LocalVariables : ArgumentList;
 		PropertyDest.Add(Property);
 	}
 
@@ -630,7 +630,7 @@ void FBlueprintCompilerCppBackendBase::ConstructFunction(FKismetFunctionContext&
 		EmitterContext.IncreaseIndent();
 		if (!bGenerateStubOnly)
 		{
-			for (UProperty* Property : ArgumentList)
+			for (FProperty* Property : ArgumentList)
 			{
 				if (FEmitHelper::PropertyForConstCast(Property))
 				{
@@ -648,7 +648,7 @@ void FBlueprintCompilerCppBackendBase::ConstructFunction(FKismetFunctionContext&
 			ConstructFunctionBody(EmitterContext, FunctionContext, ExecutionGroup);
 		}
 
-		if (UProperty* ReturnValue = FunctionContext.Function->GetReturnProperty())
+		if (FProperty* ReturnValue = FunctionContext.Function->GetReturnProperty())
 		{
 			EmitterContext.AddLine(FString::Printf(TEXT("return %s;"), *FEmitHelper::GetCppName(ReturnValue)));
 		}
@@ -663,7 +663,7 @@ void FBlueprintCompilerCppBackendBase::ConstructFunction(FKismetFunctionContext&
 	}
 }
 
-TArray<FString> FBlueprintCompilerCppBackendBase::ConstructFunctionDeclaration(FEmitterLocalContext &EmitterContext, FKismetFunctionContext &FunctionContext, TArray<UProperty*> &ArgumentList)
+TArray<FString> FBlueprintCompilerCppBackendBase::ConstructFunctionDeclaration(FEmitterLocalContext &EmitterContext, FKismetFunctionContext &FunctionContext, TArray<FProperty*> &ArgumentList)
 {
 	FString FunctionHeaderName = FEmitHelper::GetCppName(FunctionContext.Function);
 	FString FunctionBodyName = FunctionHeaderName;
@@ -770,7 +770,7 @@ TArray<FString> FBlueprintCompilerCppBackendBase::ConstructFunctionDeclaration(F
 		auto IsFunctionUsedByReplication = [](UFunction* InFunction)
 		{
 			check(InFunction);
-			for (UProperty* Prop : TFieldRange<UProperty>(InFunction->GetOwnerClass(), EFieldIteratorFlags::ExcludeSuper))
+			for (FProperty* Prop : TFieldRange<FProperty>(InFunction->GetOwnerClass(), EFieldIteratorFlags::ExcludeSuper))
 			{
 				if (Prop && FEmitHelper::HasAllFlags(Prop->PropertyFlags, CPF_Net | CPF_RepNotify) && (Prop->RepNotifyFunc == InFunction->GetFName()))
 				{
@@ -853,12 +853,12 @@ TArray<FString> FBlueprintCompilerCppBackendBase::ConstructFunctionDeclaration(F
 	return Result;
 }
 
-FString FBlueprintCompilerCppBackendBase::GenerateArgList(const FEmitterLocalContext &EmitterContext, const TArray<UProperty*> &ArgumentList, bool bOnlyParamName)
+FString FBlueprintCompilerCppBackendBase::GenerateArgList(const FEmitterLocalContext &EmitterContext, const TArray<FProperty*> &ArgumentList, bool bOnlyParamName)
 {
 	FString ArgListStr = TEXT("(");
 	for (int32 i = 0; i < ArgumentList.Num(); ++i)
 	{
-		UProperty* ArgProperty = ArgumentList[i];
+		FProperty* ArgProperty = ArgumentList[i];
 
 		if (i > 0)
 		{
@@ -890,7 +890,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateArgList(const FEmitterLocalCon
 
 FString FBlueprintCompilerCppBackendBase::GenerateReturnType(const FEmitterLocalContext &EmitterContext, const UFunction* Function)
 {
-	UProperty* ReturnValue = Function->GetReturnProperty();
+	FProperty* ReturnValue = Function->GetReturnProperty();
 	if (ReturnValue)
 	{
 		const uint32 LocalExportCPPFlags = EPropertyExportCPPFlags::CPPF_CustomTypeName
@@ -1117,8 +1117,8 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 		FunctionsToGenerate.Add(Func);
 	}
 
-	TArray<UMulticastDelegateProperty*> MCDelegateProperties;
-	for (auto MCDelegateProp : TFieldRange<UMulticastDelegateProperty>(SourceClass, EFieldIteratorFlags::ExcludeSuper))
+	TArray<FMulticastDelegateProperty*> MCDelegateProperties;
+	for (auto MCDelegateProp : TFieldRange<FMulticastDelegateProperty>(SourceClass, EFieldIteratorFlags::ExcludeSuper))
 	{
 		MCDelegateProperties.Add(MCDelegateProp);
 	}
@@ -1174,7 +1174,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 
 		// DELEGATES
 		const FString DelegatesClassName = FString::Printf(TEXT("U__Delegates__%s"), *FEmitHelper::GetCppName(SourceClass));
-		auto GenerateMulticastDelegateTypeName = [](UMulticastDelegateProperty* MCDelegateProp) -> FString
+		auto GenerateMulticastDelegateTypeName = [](FMulticastDelegateProperty* MCDelegateProp) -> FString
 		{
 			return FString::Printf(TEXT("F__MulticastDelegate__%s"), *FEmitHelper::GetCppName(MCDelegateProp));
 		};
@@ -1210,7 +1210,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 		const bool bUseStaticVariables = UseStaticVariables;
 
 		// PROPERTIES:
-		for (auto Property : TFieldRange<UProperty>(SourceClass, EFieldIteratorFlags::ExcludeSuper))
+		for (auto Property : TFieldRange<FProperty>(SourceClass, EFieldIteratorFlags::ExcludeSuper))
 		{
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
 			if (BPGC && (Property == BPGC->UberGraphFramePointerProperty))
@@ -1222,7 +1222,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 			if (Cast<UAnimBlueprintGeneratedClass>(BPGC))
 			{
 				// Dont generate Getters for inner properties
-				UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+				FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 				UScriptStruct* InnerStruct = StructProperty ? StructProperty->Struct : nullptr;
 				if (InnerStruct && InnerStruct->IsChildOf(FAnimNode_Base::StaticStruct()))
 				{
@@ -1231,8 +1231,8 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 			}
 
 			//TODO: check if the property is really used?
-			const FString TypeDeclaration = Property->IsA<UMulticastDelegateProperty>()
-				? FString::Printf(TEXT("%s::%s"), *DelegatesClassName, *GenerateMulticastDelegateTypeName(CastChecked<UMulticastDelegateProperty>(Property)))
+			const FString TypeDeclaration = Property->IsA<FMulticastDelegateProperty>()
+				? FString::Printf(TEXT("%s::%s"), *DelegatesClassName, *GenerateMulticastDelegateTypeName(CastFieldChecked<FMulticastDelegateProperty>(Property)))
 				: EmitterContext.ExportCppDeclaration(Property
 					, EExportedDeclaration::Parameter
 					, EPropertyExportCPPFlags::CPPF_CustomTypeName | EPropertyExportCPPFlags::CPPF_BlueprintCppBackend | EPropertyExportCPPFlags::CPPF_NoRef | EPropertyExportCPPFlags::CPPF_NoConst
@@ -1242,8 +1242,8 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 			EmitterContext.Header.IncreaseIndent();
 			if (bUseStaticVariables)
 			{
-				EmitterContext.Header.AddLine(TEXT("static TWeakObjectPtr<const UProperty> __PropertyPtr{};"));
-				EmitterContext.Header.AddLine(TEXT("const UProperty* __Property = __PropertyPtr.Get();"));
+				EmitterContext.Header.AddLine(TEXT("static TWeakFieldPtr<const FProperty> __PropertyPtr{};"));
+				EmitterContext.Header.AddLine(TEXT("const FProperty* __Property = __PropertyPtr.Get();"));
 				EmitterContext.Header.AddLine(TEXT("if (nullptr == __Property)"));
 				EmitterContext.Header.AddLine(TEXT("{"));
 				EmitterContext.Header.IncreaseIndent();
@@ -1255,7 +1255,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 			}
 			else
 			{
-				EmitterContext.Header.AddLine(FString::Printf(TEXT("const UProperty* __Property = GetClass()->%s(FName(TEXT(\"%s\")));"), GET_FUNCTION_NAME_STRING_CHECKED(UClass, FindPropertyByName), *Property->GetName()));
+				EmitterContext.Header.AddLine(FString::Printf(TEXT("const FProperty* __Property = GetClass()->%s(FName(TEXT(\"%s\")));"), GET_FUNCTION_NAME_STRING_CHECKED(UClass, FindPropertyByName), *Property->GetName()));
 			}
 			EmitterContext.Header.AddLine(FString::Printf(TEXT("return *(__Property->ContainerPtrToValuePtr<%s>(__Object));"), *TypeDeclaration));
 			EmitterContext.Header.DecreaseIndent();
@@ -1272,9 +1272,9 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 			FString RawParameterList;
 			{
 				bool bFirst = true;
-				for (TFieldIterator<UProperty> It(Func); It; ++It)
+				for (TFieldIterator<FProperty> It(Func); It; ++It)
 				{
-					UProperty* Property = *It;
+					FProperty* Property = *It;
 					if (!Property || !Property->HasAnyPropertyFlags(CPF_Parm))
 					{
 						continue;
@@ -1299,9 +1299,9 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 					FString ParamAsStructMember;
 
 					{	// copied from FNativeClassHeaderGenerator::ExportEventParm
-						bool bEmitConst = Property->HasAnyPropertyFlags(CPF_ConstParm) && Property->IsA<UObjectProperty>();
-						const bool bIsConstParam = (Property->IsA(UInterfaceProperty::StaticClass()) && !Property->HasAllPropertyFlags(CPF_OutParm));
-						const bool bIsOnConstClass = (Property->IsA(UObjectProperty::StaticClass()) && ((UObjectProperty*)Property)->PropertyClass != NULL && ((UObjectProperty*)Property)->PropertyClass->HasAnyClassFlags(CLASS_Const));
+						bool bEmitConst = Property->HasAnyPropertyFlags(CPF_ConstParm) && Property->IsA<FObjectProperty>();
+						const bool bIsConstParam = (Property->IsA(FInterfaceProperty::StaticClass()) && !Property->HasAllPropertyFlags(CPF_OutParm));
+						const bool bIsOnConstClass = (Property->IsA(FObjectProperty::StaticClass()) && ((FObjectProperty*)Property)->PropertyClass != NULL && ((FObjectProperty*)Property)->PropertyClass->HasAnyClassFlags(CLASS_Const));
 						if (bIsConstParam || bIsOnConstClass)
 						{
 							bEmitConst = false; // ExportCppDeclaration will do it for us

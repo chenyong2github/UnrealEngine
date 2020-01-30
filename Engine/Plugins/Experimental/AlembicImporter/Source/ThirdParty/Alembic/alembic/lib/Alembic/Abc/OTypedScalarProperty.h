@@ -230,11 +230,11 @@ private:
 typedef OTypedScalarProperty<BooleanTPTraits>         OBoolProperty;
 typedef OTypedScalarProperty<Uint8TPTraits>           OUcharProperty;
 typedef OTypedScalarProperty<Int8TPTraits>            OCharProperty;
-typedef OTypedScalarProperty<Uint16TPTraits>          OUInt16Property;
+typedef OTypedScalarProperty<Uint16TPTraits>          OFInt16Property;
 typedef OTypedScalarProperty<Int16TPTraits>           OInt16Property;
 typedef OTypedScalarProperty<Uint32TPTraits>          OUInt32Property;
 typedef OTypedScalarProperty<Int32TPTraits>           OInt32Property;
-typedef OTypedScalarProperty<Uint64TPTraits>          OUInt64Property;
+typedef OTypedScalarProperty<Uint64TPTraits>          OFInt64Property;
 typedef OTypedScalarProperty<Int64TPTraits>           OInt64Property;
 typedef OTypedScalarProperty<Float16TPTraits>         OHalfProperty;
 typedef OTypedScalarProperty<Float32TPTraits>         OFloatProperty;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOS/IOSAppDelegate.h"
 #include "IOS/IOSCommandLineHelper.h"
@@ -314,6 +314,11 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 	FAppEntry::Init();
 
+	// check for update on app store if cvar is enabled
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[[IOSAppDelegate GetDelegate] DoUpdateCheck];
+	});
+	
 	// now that GConfig has been loaded, load the EnabledAudioFeatures from ini
 	TArray<FString> EnabledAudioFeatures;
 	GConfig->GetArray(TEXT("Audio"), TEXT("EnabledAudioFeatures"), EnabledAudioFeatures, GEngineIni);
@@ -1284,6 +1289,61 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	}
 }
 #endif
+
+// checking for update on the app store
+-(void)DoUpdateCheck
+{
+	static bool bInit = false;
+	static NSString* CurrentVersion = [[NSBundle mainBundle] infoDictionary][@"CFBundleShortVersionString"];
+	static NSString* BundleID = [[NSBundle mainBundle] infoDictionary][@"CFBundleIdentifier"];
+	bool bEnableUpdateCheck = NO;
+	if (!bInit)
+	{
+		bool bReadData = GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bEnableUpdateCheck"), bEnableUpdateCheck, GEngineIni);
+		self.bUpdateAvailable = false;
+		bInit = bReadData;
+	}
+	if (bEnableUpdateCheck && bInit)
+	{
+		// kick off a check on the app store for an update
+		NSLocale* Locale = [NSLocale autoupdatingCurrentLocale];
+		NSURL* StoreURL = [NSURL URLWithString: [NSString stringWithFormat: @"http://itunes.apple.com/%@/lookup?bundleId=%@", Locale.countryCode, BundleID]];
+		
+		// kick off an NSURLSession to read the data
+		NSURLSession* Session = [NSURLSession sharedSession];
+		NSURLSessionDataTask* SessionTask = [Session dataTaskWithRequest: [NSURLRequest requestWithURL: StoreURL] completionHandler:^(NSData* _Nullable data, NSURLResponse* _Nullable response, NSError* _Nullable error) {
+			NSDictionary* StoreDictionary = [NSJSONSerialization JSONObjectWithData: data options: 0 error: nil];
+			
+			if ([StoreDictionary[@"resultCount"] integerValue] == 1)
+			{
+				// get the store version
+				NSString* StoreVersion = StoreDictionary[@"results"][0][@"version"];
+				if ([StoreVersion compare: CurrentVersion options: NSNumericSearch] == NSOrderedDescending)
+				{
+					self.bUpdateAvailable = true;
+				}
+				else
+				{
+					self.bUpdateAvailable = false;
+				}
+			}
+			else
+			{
+				self.bUpdateAvailable = false;
+			}
+		}];
+		
+		[SessionTask resume];
+	}
+}
+
+-(bool)IsUpdateAvailable
+{
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[[IOSAppDelegate GetDelegate] DoUpdateCheck];
+	});
+	return self.bUpdateAvailable;
+}
 
 - (void) StartGameThread
 {

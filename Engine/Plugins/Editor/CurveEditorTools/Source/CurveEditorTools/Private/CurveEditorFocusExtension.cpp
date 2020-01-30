@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorFocusExtension.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -71,10 +71,28 @@ void FCurveEditorFocusExtension::FocusPlaybackTime()
 
 			const FFrameTime ScrubFrameTime = TimeSliderController->GetScrubPosition();
 
+			// We cant move outside clamp range, so take that into account
+			FAnimatedRange ClampRange = TimeSliderController->GetClampRange();
+
 			// Now center it around the Time Slider.
 			double PlaybackPosition = ScrubFrameTime / TimeSliderController->GetTickResolution();
 			InTime = PlaybackPosition - (ViewRange / 2.0);
-			OutTime = PlaybackPosition + (ViewRange / 2.0);
+
+			// Take clamp range into account
+			if(InTime < ClampRange.GetLowerBoundValue())
+			{
+				InTime = ClampRange.GetLowerBoundValue();
+				OutTime = InTime + ViewRange;
+			}
+			else
+			{
+				OutTime = PlaybackPosition + (ViewRange / 2.0);
+				if(OutTime > ClampRange.GetUpperBoundValue())
+				{
+					OutTime = ClampRange.GetUpperBoundValue();
+					InTime = OutTime - ViewRange;
+				}
+			}
 
 			CurveEditor->GetBounds().SetInputBounds(InTime, OutTime);
 		}

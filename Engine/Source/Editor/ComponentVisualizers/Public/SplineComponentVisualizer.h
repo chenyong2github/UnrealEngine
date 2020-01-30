@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -269,7 +269,7 @@ protected:
 	    selected spline point's X, Y, or Z value when fix is not equal to none. */
 	EAxis::Type AddKeyLockedAxis;
 
-	UProperty* SplineCurvesProperty;
+	FProperty* SplineCurvesProperty;
 
 private:
 	TSharedPtr<SSplineGeneratorPanel> SplineGeneratorPanel;

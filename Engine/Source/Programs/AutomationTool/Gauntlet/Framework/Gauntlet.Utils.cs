@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -1145,7 +1145,18 @@ namespace Gauntlet
 
 									// Break out of loop with warning
 									Copied = true;
-									Log.Warning("Long path file copy failed with {0}.  Please verify that this file is not required.", ex.Message, LongPathMessage);
+
+									// Filter out some known unneeded files which can cause this warning, and log the message instead
+									string[] Blacklist = new string[]{ "UE4CC-XboxOne" };
+									string Message = string.Format("Long path file copy failed with {0}.  Please verify that this file is not required.", ex.Message);
+									if ( Blacklist.FirstOrDefault(B => { return SourcePath.IndexOf(B, StringComparison.OrdinalIgnoreCase) >= 0; }) == null)
+									{
+										Log.Warning(Message); 
+									}
+									else
+									{
+										Log.Info(Message);
+									}
 								}
 							}
 						}
@@ -1438,7 +1449,12 @@ namespace Gauntlet
 	{
 		public static bool MatchAndApplyGroups(string InContent, string RegEx, Action<string[]> InFunc)
 		{
-			Match M = Regex.Match(InContent, RegEx, RegexOptions.IgnoreCase);
+			return MatchAndApplyGroups(InContent, RegEx, RegexOptions.IgnoreCase, InFunc);
+		}
+
+		public static bool MatchAndApplyGroups(string InContent, string RegEx, RegexOptions Options, Action<string[]> InFunc)
+		{
+			Match M = Regex.Match(InContent, RegEx, Options);
 
 			IEnumerable<string> StringMatches = null;
 
@@ -1451,4 +1467,24 @@ namespace Gauntlet
 			return M.Success;
 		}
 	}
+
+	public static class DirectoryUtils
+	{
+		/// <summary>
+		/// Enumerate files from a given directory that pass the specified regex
+		/// </summary>
+		/// <param name="BaseDir">Base directory to search in</param>
+		/// <param name="Pattern">Pattern for matching files</param>
+		/// <param name="Option">Options for the search</param>
+		/// <returns>Sequence of file references</returns>
+		public static IEnumerable<string> FindFiles(string BaseDir, Regex Pattern)
+		{
+			IEnumerable<string> Files = System.IO.Directory.EnumerateFiles(BaseDir, "*");
+
+			Files = Files.Where(F => Pattern.IsMatch(F));
+
+			return Files.ToArray();
+		}
+	}
+
 }

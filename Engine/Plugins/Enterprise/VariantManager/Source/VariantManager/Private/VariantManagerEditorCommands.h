@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -25,6 +25,8 @@ public:
 	TSharedPtr<FUICommandInfo> ClearThumbnailVariantCommand;
 	TSharedPtr<FUICommandInfo> AddPropertyCaptures;
 	TSharedPtr<FUICommandInfo> AddFunction;
+	TSharedPtr<FUICommandInfo> RebindActorDisabled;
+	TSharedPtr<FUICommandInfo> RebindToSelected;
 	TSharedPtr<FUICommandInfo> RemoveActorBindings;
 	TSharedPtr<FUICommandInfo> ApplyProperty;
 	TSharedPtr<FUICommandInfo> RecordProperty;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeParameterMapSet.h"
 #include "EdGraphSchema_Niagara.h"
@@ -105,13 +105,6 @@ void UNiagaraNodeParameterMapSet::OnPinRenamed(UEdGraphPin* RenamedPin, const FS
 {
 	UNiagaraNodeParameterMapBase::OnPinRenamed(RenamedPin, OldName);
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
-}
-
-void UNiagaraNodeParameterMapSet::SetPinName(UEdGraphPin* InPin, const FName& InName)
-{
-	FName OldName = InPin->PinName;
-	InPin->PinName = InName;
-	OnPinRenamed(InPin, OldName.ToString());
 }
 
 bool UNiagaraNodeParameterMapSet::CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj)

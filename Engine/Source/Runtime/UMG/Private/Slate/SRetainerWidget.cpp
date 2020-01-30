@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Slate/SRetainerWidget.h"
 #include "Misc/App.h"
@@ -399,8 +399,9 @@ bool SRetainerWidget::PaintRetainedContent(const FSlateInvalidationContext& Cont
 		LastTickedFrame = GFrameCounter;
 		const double TimeSinceLastDraw = FApp::GetCurrentTime() - LastDrawTime;
 
-		const uint32 RenderTargetWidth  = FMath::RoundToInt(RenderSize.X);
-		const uint32 RenderTargetHeight = FMath::RoundToInt(RenderSize.Y);
+		// Size must be a positive integer to allocate the RenderTarget
+		const uint32 RenderTargetWidth  = FMath::RoundToInt(FMath::Abs(RenderSize.X));
+		const uint32 RenderTargetHeight = FMath::RoundToInt(FMath::Abs(RenderSize.Y));
 
 		const FVector2D ViewOffset = PaintGeometry.DrawPosition.RoundToVector();
 

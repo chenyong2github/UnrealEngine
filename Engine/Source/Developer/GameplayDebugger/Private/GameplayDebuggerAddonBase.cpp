@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayDebuggerAddonBase.h"
 #include "GameplayDebuggerCategoryReplicator.h"
@@ -36,7 +36,10 @@ bool FGameplayDebuggerAddonBase::IsSimulateInEditor()
 {
 #if WITH_EDITOR
 	extern UNREALED_API UEditorEngine* GEditor;
-	return GIsEditor && (GEditor->bIsSimulateInEditorQueued || GEditor->bIsSimulatingInEditor);
+	if (GEditor)
+	{
+		return GEditor->IsSimulateInEditorInProgress();
+	}
 #endif
 	return false;
 }

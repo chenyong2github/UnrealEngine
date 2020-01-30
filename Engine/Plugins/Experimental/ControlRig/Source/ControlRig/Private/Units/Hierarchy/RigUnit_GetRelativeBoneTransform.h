@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,19 +19,29 @@ struct FRigUnit_GetRelativeBoneTransform : public FRigUnit
 	{}
 
 	virtual FString GetUnitLabel() const override;
+
+	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("Transform")))
+		{
+			return Space;
+		}
+		return NAME_None;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**
 	 * The name of the Bone to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, BoneName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
 	FName Bone;
 
 	/**
 	 * The name of the Bone to retrieve the transform relative within.
 	 */
-	UPROPERTY(meta = (Input, BoneName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
 	FName Space;
 
 	// The current transform of the given bone - or identity in case it wasn't found.

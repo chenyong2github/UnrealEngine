@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -33,6 +33,7 @@ public:
 	virtual FString GetRegion() const = 0;
 	virtual FString GetScript() const = 0;
 	virtual FString GetVariant() const = 0;
+	virtual bool IsRightToLeft() const = 0;
 	virtual const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules() = 0;
 	virtual const FDecimalNumberFormattingRules& GetPercentFormattingRules() = 0;
 	virtual const FDecimalNumberFormattingRules& GetCurrencyFormattingRules(const FString& InCurrencyCode) = 0;

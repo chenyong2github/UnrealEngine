@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterface.h"
 #include "Curves/CurveVector.h"
@@ -27,6 +27,12 @@ UNiagaraDataInterface::~UNiagaraDataInterface()
 		);
 		check(Proxy.IsValid() == false);
 	}
+}
+
+bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+
+	return true;
 }
 
 void UNiagaraDataInterface::PostLoad()
@@ -98,3 +104,4 @@ void UNiagaraDataInterface::ValidateFunction(const FNiagaraFunctionSignature& Fu
 #endif
 
 #undef LOCTEXT_NAMESPACE
+

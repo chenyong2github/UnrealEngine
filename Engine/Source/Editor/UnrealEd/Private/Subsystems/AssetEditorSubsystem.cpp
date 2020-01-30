@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AssetEditorMessages.h"
@@ -22,6 +22,8 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/BlacklistNames.h"
+#include "StudioAnalytics.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetEditorSubsystem"
@@ -264,18 +266,36 @@ bool UAssetEditorSubsystem::CloseAllAssetEditors()
 
 bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor, const bool bShowProgressWindow)
 {
+	const double OpenAssetStartTime = FStudioAnalytics::GetAnalyticSeconds();
+
+	if (!Asset)
+	{
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editor failed because asset is null"));
+		return false;
+	}
+
+	// Fix static analysis warning
 	check(Asset);
+
 	// @todo toolkit minor: When "Edit Here" happens in a different level editor from the one that an asset is already
 	//    being edited within, we should decide whether to disallow "Edit Here" in that case, or to close the old asset
 	//    editor and summon it in the new level editor, or to just foreground the old level editor (current behavior)
 
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
 	const bool bBringToFrontIfOpen = true;
 
-	// Don't open asset editors for cooked packages
 	if (UPackage* Package = Asset->GetOutermost())
 	{
+		// Don't open asset editors for cooked packages
 		if (Package->bIsCookedForEditor)
 		{
+			return false;
+		}
+
+		if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(Package->GetName()))
+		{
+			AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
 			return false;
 		}
 	}
@@ -296,8 +316,6 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 	}
 
 	UE_LOG(LogAssetEditorSubsystem, Log, TEXT("Opening Asset editor for %s"), *Asset->GetFullName());
-
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 	TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Asset->GetClass());
 
@@ -368,12 +386,43 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 			RecentlyOpenedAssets->AddMRUItem(AssetPath);
 		}
 	}
+
+	const double OpenTime = FStudioAnalytics::GetAnalyticSeconds() - OpenAssetStartTime;
+	FStudioAnalytics::FireEvent_Loading(TEXT("OpenAssetEditor"), OpenTime, {
+		FAnalyticsEventAttribute(TEXT("AssetPath"), Asset->GetFullName()),
+		FAnalyticsEventAttribute(TEXT("AssetType"), Asset->GetClass()->GetName())
+	});
+
 	return true;
 }
 
 
-bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* >& Assets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
+bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* >& InAssets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
 {
+	TArray<UObject*> Assets;
+	Assets.Reserve(InAssets.Num());
+	int32 NumNullAssets = 0;
+	for (UObject* Asset : InAssets)
+	{
+		if (Asset)
+		{
+			Assets.AddUnique(Asset);
+		}
+		else
+		{
+			++NumNullAssets;
+		}
+	}
+
+	if (NumNullAssets > 1)
+	{
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editors failed because of null assets"));
+	}
+	else if (NumNullAssets > 0)
+	{
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editor failed because of null asset"));
+	}
+
 	if (Assets.Num() == 1)
 	{
 		return OpenEditorForAsset(Assets[0], ToolkitMode, OpenedFromLevelEditor);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BPVariableDragDropAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -39,7 +39,7 @@ UBlueprint* FKismetVariableDragDropAction::GetSourceBlueprint() const
 	return UBlueprint::GetBlueprintFromClass(VariableSourceClass);
 }
 
-void FKismetVariableDragDropAction::GetLinksThatWillBreak(	UEdGraphNode* Node, UProperty* NewVariableProperty, 
+void FKismetVariableDragDropAction::GetLinksThatWillBreak(	UEdGraphNode* Node, FProperty* NewVariableProperty, 
 						   TArray<class UEdGraphPin*>& OutBroken)
 {
 	if(UK2Node_Variable* VarNodeUnderCursor = Cast<UK2Node_Variable>(Node))
@@ -65,7 +65,7 @@ void FKismetVariableDragDropAction::GetLinksThatWillBreak(	UEdGraphNode* Node, U
 
 void FKismetVariableDragDropAction::HoverTargetChanged()
 {
-	UProperty* VariableProperty = GetVariableProperty();
+	FProperty* VariableProperty = GetVariableProperty();
 	if (VariableProperty == nullptr)
 	{
 		return;
@@ -93,7 +93,7 @@ void FKismetVariableDragDropAction::HoverTargetChanged()
 			bBadGraph = true;
 		}
 
-		UStruct* Outer = CastChecked<UStruct>(VariableProperty->GetOuter());
+		UStruct* Outer = VariableProperty->GetOwnerChecked<UStruct>();
 
 		FNodeConstructionParams NewNodeParams;
 		NewNodeParams.VariableName = VariableName;
@@ -116,7 +116,7 @@ void FKismetVariableDragDropAction::HoverTargetChanged()
 		Args.Add(TEXT("VariableName"), FText::FromString(VariableString));
 		Args.Add(TEXT("Scope"), FText::FromString(TheHoveredGraph->GetName()));
 
-		if (IsFromBlueprint(FBlueprintEditorUtils::FindBlueprintForGraph(TheHoveredGraph)) && VariableProperty->GetOuter()->IsA(UFunction::StaticClass()))
+		if (IsFromBlueprint(FBlueprintEditorUtils::FindBlueprintForGraph(TheHoveredGraph)) && VariableProperty->GetOwner<UFunction>())
 		{
 			SetFeedbackMessageError(FText::Format( LOCTEXT("IncorrectGraphForLocalVariable_Error", "Cannot place local variable '{VariableName}' in external scope '{Scope}'"), Args));
 		}
@@ -233,7 +233,7 @@ FReply FKismetVariableDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVe
 			{
 				const bool bIsExecPin = Schema->IsExecPin(*TargetPin);
 
-				UProperty* VariableProperty = GetVariableProperty();
+				FProperty* VariableProperty = GetVariableProperty();
 
 				if (CanVariableBeDropped(VariableProperty, *TargetPin->GetOwningNode()->GetGraph()))
 				{
@@ -274,7 +274,7 @@ FReply FKismetVariableDragDropAction::DroppedOnNode(FVector2D ScreenPosition, FV
 	{
 		const FScopedTransaction Transaction( LOCTEXT("ReplacePinVariable", "Replace Pin Variable") );
 
-		UProperty* VariableProperty = GetVariableProperty();
+		FProperty* VariableProperty = GetVariableProperty();
 
 		if(CanVariableBeDropped(VariableProperty, *TargetNode->GetGraph()))
 		{
@@ -347,7 +347,7 @@ void FKismetVariableDragDropAction::MakeSetter(FNodeConstructionParams InParams)
 	}
 }
 
-bool FKismetVariableDragDropAction::CanExecuteMakeSetter(FNodeConstructionParams InParams, UProperty* InVariableProperty)
+bool FKismetVariableDragDropAction::CanExecuteMakeSetter(FNodeConstructionParams InParams, FProperty* InVariableProperty)
 {
 	check(InVariableProperty);
 	check(InParams.VariableSource.Get());
@@ -367,10 +367,10 @@ FReply FKismetVariableDragDropAction::DroppedOnPanel( const TSharedRef< SWidget 
 {	
 	if (Graph.GetSchema()->IsA<UEdGraphSchema_K2>())
 	{
-		UProperty* VariableProperty = GetVariableProperty();
+		FProperty* VariableProperty = GetVariableProperty();
 		if (VariableProperty && CanVariableBeDropped(VariableProperty, Graph))
 		{
-			UStruct* Outer = CastChecked<UStruct>(VariableProperty->GetOuter());
+			UStruct* Outer = VariableProperty->GetOwnerChecked<UStruct>();
 			
 			FNodeConstructionParams NewNodeParams;
 			NewNodeParams.VariableName = VariableName;
@@ -442,21 +442,19 @@ FReply FKismetVariableDragDropAction::DroppedOnPanel( const TSharedRef< SWidget 
 	return FReply::Handled();
 }
 
-bool FKismetVariableDragDropAction::CanVariableBeDropped(const UProperty* InVariableProperty, const UEdGraph& InGraph) const
+bool FKismetVariableDragDropAction::CanVariableBeDropped(const FProperty* InVariableProperty, const UEdGraph& InGraph) const
 {
 	bool bCanVariableBeDropped = false;
 	if (InVariableProperty)
 	{
-		UObject* Outer = InVariableProperty->GetOuter();
-
 		// Only allow variables to be placed within the same blueprint (otherwise the self context on the dropped node will be invalid)
 		bCanVariableBeDropped = IsFromBlueprint(FBlueprintEditorUtils::FindBlueprintForGraph(&InGraph));
 
 		// Local variables have some special conditions for being allowed to be placed
-		if (bCanVariableBeDropped && Outer->IsA(UFunction::StaticClass()))
+		if (bCanVariableBeDropped && InVariableProperty->GetOwner<UFunction>())
 		{
 			// Check if the top level graph has the same name as the function, if they do not then the variable cannot be placed in the graph
-			if (FBlueprintEditorUtils::GetTopLevelGraph(&InGraph)->GetFName() != Outer->GetFName())
+			if (FBlueprintEditorUtils::GetTopLevelGraph(&InGraph)->GetFName() != InVariableProperty->GetOwner<UFunction>()->GetFName())
 			{
 				bCanVariableBeDropped = false;
 			}

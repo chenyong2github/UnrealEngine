@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,4 +23,5 @@ public:
 	UEdGraphPin* InputPin,
 	/*out*/ FArrangedWidget*& StartWidgetGeometry,
 	/*out*/ FArrangedWidget*& EndWidgetGeometry) override;
+	virtual void DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params) override;
 };

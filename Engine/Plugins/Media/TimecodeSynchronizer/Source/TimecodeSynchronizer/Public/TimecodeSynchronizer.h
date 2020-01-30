@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -259,7 +259,7 @@ public:
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
 #if WITH_EDITOR
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface
@@ -392,6 +392,9 @@ private:
 			return FString::Printf(TEXT("Invalid State %d"), static_cast<int32>(InState));
 		}
 	}
+
+	/** Callback when the engine's TimecodeProvider changed. */
+	void OnTimecodeProviderChanged();
 
 	/** Registers asset to MediaModule tick */
 	void SetTickEnabled(bool bEnabled);
@@ -530,7 +533,10 @@ private:
 	UFixedFrameRateCustomTimeStep* RegisteredCustomTimeStep;
 
 	UPROPERTY(Transient)
-	const UTimecodeProvider* CachedTimecodeProvider;
+	UTimecodeProvider* CachedPreviousTimecodeProvider;
+
+	UPROPERTY(Transient)
+	UTimecodeProvider* CachedProxiedTimecodeProvider;
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, Category = "Synchronization")
 	int32 ActualFrameOffset;
@@ -568,4 +574,5 @@ private:
 
 	bool bFailGuard;
 	bool bAddSourcesGuard;
+	bool bShouldResetTimecodeProvider;
 };

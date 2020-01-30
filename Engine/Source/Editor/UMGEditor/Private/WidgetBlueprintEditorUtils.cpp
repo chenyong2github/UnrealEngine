@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WidgetBlueprintEditorUtils.h"
 #include "Components/PanelSlot.h"
@@ -36,6 +36,7 @@
 #include "Blueprint/WidgetNavigation.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "UObject/ScriptInterface.h"
+#include "Components/NamedSlotInterface.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -148,7 +149,7 @@ bool FWidgetBlueprintEditorUtils::VerifyWidgetRename(TSharedRef<class FWidgetBlu
 		}
 	}
 
-	UProperty* Property = Blueprint->ParentClass->FindPropertyByName( NewNameSlug );
+	FProperty* Property = Blueprint->ParentClass->FindPropertyByName( NewNameSlug );
 	if ( Property && FWidgetBlueprintEditorUtils::IsBindWidgetProperty(Property))
 	{
 		return true;
@@ -193,7 +194,7 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 	// Get the new FName slug from the given display name
 	const FName NewFName = MakeObjectNameFromDisplayLabel(NewDisplayName, Widget->GetFName());
 
-	UObjectPropertyBase* ExistingProperty = Cast<UObjectPropertyBase>(ParentClass->FindPropertyByName(NewFName));
+	FObjectPropertyBase* ExistingProperty = CastField<FObjectPropertyBase>(ParentClass->FindPropertyByName(NewFName));
 	const bool bBindWidget = ExistingProperty && FWidgetBlueprintEditorUtils::IsBindWidgetProperty(ExistingProperty) && Widget->IsA(ExistingProperty->PropertyClass);
 
 	// NewName should be already validated. But one must make sure that NewTemplateName is also unique.
@@ -699,6 +700,27 @@ void FWidgetBlueprintEditorUtils::BuildReplaceWithMenu(FMenuBuilder& Menu, TShar
 					));
 
 				Menu.AddMenuSeparator();
+			}			
+			if (TScriptInterface<INamedSlotInterface> NamedSlotHost = TScriptInterface<INamedSlotInterface>(Widget.GetTemplate()))
+			{								
+				TArray<FName> SlotNames;
+				NamedSlotHost->GetSlotNames(SlotNames);
+				for (const FName SlotName : SlotNames)
+				{
+					const FText SlotNameTxt = FText::FromString(SlotName.ToString());
+					if (UWidget* Content = NamedSlotHost->GetContentForSlot(SlotName))
+					{
+						Menu.AddMenuEntry(
+							FText::Format(LOCTEXT("ReplaceWithNamedSlot", "Replace With '{0}'"), SlotNameTxt),
+							FText::Format(LOCTEXT("ReplaceWithNamedSlotTooltip", "Remove this widget and insert '{0}' content into the parent."), SlotNameTxt),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateStatic(&FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot, BlueprintEditor, BP, Widget, SlotName),
+								FCanExecuteAction()
+							));
+					}
+				}
+				Menu.AddMenuSeparator();
 			}
 		}
 
@@ -910,6 +932,49 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithChildren(TSharedRef<FWidgetBl
 
 		// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
 		ExistingPanelTemplate->Rename(nullptr, nullptr);
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
+	}
+}
+
+void FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, FWidgetReference Widget, FName NamedSlot)
+{
+	UWidget* WidgetTemplate = Widget.GetTemplate();
+	if (INamedSlotInterface* ExistingNamedSlotContainerTemplate = Cast<INamedSlotInterface>(WidgetTemplate))
+	{
+		UWidget* NamedSlotContentTemplate = ExistingNamedSlotContainerTemplate->GetContentForSlot(NamedSlot);
+
+		FScopedTransaction Transaction(LOCTEXT("ReplaceWidgets", "Replace Widgets"));
+
+		WidgetTemplate->Modify();
+		NamedSlotContentTemplate->Modify();
+
+		if (UPanelWidget* PanelParentTemplate = WidgetTemplate->GetParent())
+		{
+			PanelParentTemplate->Modify();
+
+			NamedSlotContentTemplate->RemoveFromParent();
+			PanelParentTemplate->ReplaceChild(WidgetTemplate, NamedSlotContentTemplate);
+		}
+		else if (WidgetTemplate == BP->WidgetTree->RootWidget)
+		{
+			NamedSlotContentTemplate->RemoveFromParent();
+
+			BP->WidgetTree->Modify();
+			BP->WidgetTree->RootWidget = NamedSlotContentTemplate;
+		}
+		else if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(WidgetTemplate, BP->WidgetTree))
+		{
+			ReplaceNamedSlotHostContent(WidgetTemplate, NamedSlotHost, NamedSlotContentTemplate);
+		}
+		else
+		{
+			Transaction.Cancel();
+			return;
+		}
+
+		// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
+		WidgetTemplate->Rename(nullptr, nullptr);
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	}
@@ -1427,12 +1492,12 @@ void FWidgetBlueprintEditorUtils::ExportPropertiesToText(UObject* Object, TMap<F
 {
 	if ( Object )
 	{
-		for ( TFieldIterator<UProperty> PropertyIt(Object->GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt )
+		for ( TFieldIterator<FProperty> PropertyIt(Object->GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt )
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 
 			// Don't serialize out object properties, we just want value data.
-			if ( !Property->IsA<UObjectProperty>() )
+			if ( !Property->IsA<FObjectProperty>() )
 			{
 				FString ValueText;
 				if ( Property->ExportText_InContainer(0, ValueText, Object, Object, Object, PPF_IncludeTransient) )
@@ -1450,7 +1515,7 @@ void FWidgetBlueprintEditorUtils::ImportPropertiesFromText(UObject* Object, cons
 	{
 		for ( const auto& Entry : ExportedProperties )
 		{
-			if ( UProperty* Property = FindField<UProperty>(Object->GetClass(), Entry.Key) )
+			if ( FProperty* Property = FindField<FProperty>(Object->GetClass(), Entry.Key) )
 			{
 				FEditPropertyChain PropertyChain;
 				PropertyChain.AddHead(Property);
@@ -1465,13 +1530,13 @@ void FWidgetBlueprintEditorUtils::ImportPropertiesFromText(UObject* Object, cons
 	}
 }
 
-bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(UProperty* InProperty)
+bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(FProperty* InProperty)
 {
 	bool bIsOptional;
 	return IsBindWidgetProperty(InProperty, bIsOptional);
 }
 
-bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(UProperty* InProperty, bool& bIsOptional)
+bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(FProperty* InProperty, bool& bIsOptional)
 {
 	if ( InProperty )
 	{
@@ -1484,13 +1549,13 @@ bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(UProperty* InProperty, bo
 	return false;
 }
 
-bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(UProperty* InProperty)
+bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(FProperty* InProperty)
 {
 	bool bIsOptional;
 	return IsBindWidgetAnimProperty(InProperty, bIsOptional);
 }
 
-bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(UProperty* InProperty, bool& bIsOptional)
+bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(FProperty* InProperty, bool& bIsOptional)
 {
 	if (InProperty)
 	{

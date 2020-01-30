@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Import data and options used when importing a static mesh from fbx
@@ -59,7 +59,7 @@ class UFbxStaticMeshImportData : public UFbxMeshImportData
 	/** Gets or creates fbx import data for the specified static mesh */
 	static UFbxStaticMeshImportData* GetImportDataForStaticMesh(UStaticMesh* StaticMesh, UFbxStaticMeshImportData* TemplateForCreation);
 
-	bool CanEditChange( const UProperty* InProperty ) const override;
+	bool CanEditChange( const FProperty* InProperty ) const override;
 };
 
 

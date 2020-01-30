@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
 #include "Evaluation/MovieSceneCameraCutTemplate.h"
@@ -8,6 +8,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Runtime/AnimGraphRuntime/Public/AnimSequencerInstance.h"
+#include "AnimCustomInstanceHelper.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"
 #include "UObject/ObjectKey.h"
@@ -31,7 +32,30 @@ bool CanPlayAnimation(USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequen
 
 void ResetAnimSequencerInstance(UObject& ObjectToRestore, IMovieScenePlayer& Player)
 {
-	CastChecked<UAnimSequencerInstance>(&ObjectToRestore)->ResetNodes();
+	CastChecked<ISequencerAnimationSupport>(&ObjectToRestore)->ResetNodes();
+}
+
+UAnimSequencerInstance* GetAnimSequencerInstance(USkeletalMeshComponent* SkeletalMeshComponent) 
+{
+	ISequencerAnimationSupport* SeqInterface = Cast<ISequencerAnimationSupport>(SkeletalMeshComponent->GetAnimInstance());
+	if (SeqInterface)
+	{
+		return Cast<UAnimSequencerInstance>(SeqInterface->GetSourceAnimInstance());
+	}
+
+	return nullptr;
+}
+
+UAnimInstance* GetSourceAnimInstance(USkeletalMeshComponent* SkeletalMeshComponent) 
+{
+	UAnimInstance* SkelAnimInstance = SkeletalMeshComponent->GetAnimInstance();
+	ISequencerAnimationSupport* SeqInterface = Cast<ISequencerAnimationSupport>(SkelAnimInstance);
+	if (SeqInterface)
+	{
+		return SeqInterface->GetSourceAnimInstance();
+	}
+
+	return SkelAnimInstance;
 }
 
 struct FStopPlayingMontageTokenProducer : IMovieScenePreAnimatedTokenProducer
@@ -94,14 +118,14 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 			{
 				USkeletalMeshComponent* Component = CastChecked<USkeletalMeshComponent>(&ObjectToRestore);
 
-				UAnimSequencerInstance* SequencerInst = Cast<UAnimSequencerInstance>(Component->GetAnimInstance());
+				ISequencerAnimationSupport* SequencerInst = Cast<ISequencerAnimationSupport>(GetAnimSequencerInstance(Component));
 				if (SequencerInst)
 				{
 					SequencerInst->ResetPose();
 					SequencerInst->ResetNodes();
 				}
 
-				UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(Component);
+				FAnimCustomInstanceHelper::UnbindFromSkeletalMeshComponent<UAnimSequencerInstance>(Component);
 
 				// Reset the mesh component update flag and animation mode to what they were before we animated the object
 				Component->VisibilityBasedAnimTickOption = VisibilityBasedAnimTickOption;
@@ -243,9 +267,9 @@ namespace MovieScene
 			}
 			OriginalStack.SavePreAnimatedState(Player, *SkeletalMeshComponent, GetAnimControlTypeID(), FPreAnimatedAnimationTokenProducer());
 
-			UAnimInstance* ExistingAnimInstance = SkeletalMeshComponent->GetAnimInstance();
+			UAnimInstance* ExistingAnimInstance = GetSourceAnimInstance(SkeletalMeshComponent);
 			bool bWasCreated = false;
-			UAnimSequencerInstance* SequencerInstance = UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimSequencerInstance>(SkeletalMeshComponent,bWasCreated);
+			ISequencerAnimationSupport* SequencerInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UAnimSequencerInstance>(SkeletalMeshComponent,bWasCreated);
 			if (SequencerInstance && bWasCreated)
 			{
 				SequencerInstance->SavePose();
@@ -372,7 +396,7 @@ namespace MovieScene
 				}
 			}
 		}
-
+		
 		void SetAnimPosition(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, USkeletalMeshComponent* SkeletalMeshComponent, FName SlotName, FObjectKey Section, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bPlaying, bool bFireNotifies, bool bForceCustomMode)
 		{
 			static const bool bLooping = false;
@@ -385,7 +409,7 @@ namespace MovieScene
 			{
 				SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationCustomMode);
 			}
-			UAnimSequencerInstance* SequencerInst = Cast<UAnimSequencerInstance>(SkeletalMeshComponent->GetAnimInstance());
+			UAnimSequencerInstance* SequencerInst = GetAnimSequencerInstance(SkeletalMeshComponent);
 			if (SequencerInst)
 			{
 				FMovieSceneAnimTypeID AnimTypeID = SectionToAnimationIDs.GetAnimTypeID(Section);
@@ -395,14 +419,14 @@ namespace MovieScene
 				// Set position and weight
 				SequencerInst->UpdateAnimTrack(InAnimSequence, GetTypeHash(AnimTypeID), InFromPosition, InToPosition, Weight, bFireNotifies);
 			}
-			else if (UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance())
+			else if (UAnimInstance* AnimInst = GetSourceAnimInstance(SkeletalMeshComponent))
 			{
 				FMontagePlayerPerSectionData* SectionData = MontageData.Find(Section);
 
 				int32 InstanceId = (SectionData) ? SectionData->MontageInstanceId : INDEX_NONE;
 
 				const float AssetPlayRate = FMath::IsNearlyZero(InAnimSequence->RateScale) ? 1.0f : InAnimSequence->RateScale;
-				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::SetSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InFromPosition / AssetPlayRate, InToPosition / AssetPlayRate, Weight, bLooping, bPlaying);
+				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::SetSequencerMontagePosition(SlotName, AnimInst, InstanceId, InAnimSequence, InFromPosition / AssetPlayRate, InToPosition / AssetPlayRate, Weight, bLooping, bPlaying);
 
 				if (Montage.IsValid())
 				{
@@ -432,7 +456,7 @@ namespace MovieScene
 			{
 				SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationCustomMode);
 			}
-			UAnimSequencerInstance* SequencerInst = Cast<UAnimSequencerInstance>(SkeletalMeshComponent->GetAnimInstance());
+			UAnimSequencerInstance* SequencerInst = GetAnimSequencerInstance(SkeletalMeshComponent);
 			if (SequencerInst)
 			{
 				// Unique anim type ID per slot
@@ -442,14 +466,14 @@ namespace MovieScene
 				// Set position and weight
 				SequencerInst->UpdateAnimTrack(InAnimSequence, GetTypeHash(AnimTypeID), InFromPosition, InToPosition, Weight, bFireNotifies);
 			}
-			else if (UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance())
+			else if (UAnimInstance* AnimInst = GetSourceAnimInstance(SkeletalMeshComponent))
 			{
 				FMontagePlayerPerSectionData* SectionData = MontageData.Find(Section);
 
 				int32 InstanceId = (SectionData)? SectionData->MontageInstanceId : INDEX_NONE;
 
 				const float AssetPlayRate = FMath::IsNearlyZero(InAnimSequence->RateScale) ? 1.0f : InAnimSequence->RateScale;
-				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::PreviewSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InFromPosition / AssetPlayRate, InToPosition / AssetPlayRate, Weight, bLooping, bFireNotifies, bPlaying);
+				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::PreviewSequencerMontagePosition(SlotName, SkeletalMeshComponent, AnimInst, InstanceId, InAnimSequence, InFromPosition / AssetPlayRate, InToPosition / AssetPlayRate, Weight, bLooping, bFireNotifies, bPlaying);
 
 				if (Montage.IsValid())
 				{

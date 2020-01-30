@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -33,7 +33,7 @@ public:
 	 * @return	the number of references to TargetObject which were encountered when PotentialReferencer
 	 *			was serialized.
 	 */
-	COREUOBJECT_API int32 GetReferenceCount( class UObject* TargetObject, TArray<class UProperty*>* out_ReferencingProperties=NULL ) const;
+	COREUOBJECT_API int32 GetReferenceCount( class UObject* TargetObject, TArray<class FProperty*>* out_ReferencingProperties=NULL ) const;
 
 	/**
 	 * Retrieves the number of references from PotentialReferencer list of TargetObjects
@@ -52,7 +52,7 @@ public:
 	 *
 	 * @return	the number of objects which were referenced by PotentialReferencer.
 	 */
-	COREUOBJECT_API int32 GetReferenceCounts( TMap<class UObject*, int32>& out_ReferenceCounts, TMultiMap<class UObject*,class UProperty*>& out_ReferencingProperties ) const;
+	COREUOBJECT_API int32 GetReferenceCounts( TMap<class UObject*, int32>& out_ReferenceCounts, TMultiMap<class UObject*,class FProperty*>& out_ReferencingProperties ) const;
 
 	/**
 	 * Returns the name of the Archive.  Useful for getting the name of the package a struct or object
@@ -177,7 +177,7 @@ protected:
 	FTargetObjectContainer TargetObjects;
 
 	/** a mapping of target object => the properties in PotentialReferencer that hold the reference to target object */
-	TMultiMap<class UObject*,class UProperty*> ReferenceMap;
+	TMultiMap<class UObject*,class FProperty*> ReferenceMap;
 
 	/** The potential referencer we ignore */
 	class UObject* PotentialReferencer;

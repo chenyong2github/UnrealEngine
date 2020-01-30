@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #ifdef CAD_LIBRARY
@@ -47,8 +47,6 @@ namespace CADLibrary
 			CTKIO_AskUnit(unit);
 		}
 	};
-
-	uint32 GetSize(CT_TESS_DATA_TYPE type);
 
 	CADLIBRARY_API bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription);
 

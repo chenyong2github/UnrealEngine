@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,7 +18,7 @@ enum class ERigUnitDebugPointMode : uint8
 	Max UMETA(Hidden),
 };
 
-USTRUCT(meta=(DisplayName="Draw Point In Place", Keywords="Draw Vector"))
+USTRUCT(meta=(DisplayName="Draw Point In Place", Keywords="Draw Vector", Deprecated = "4.25.0"))
 struct FRigUnit_DebugPoint : public FRigUnit_DebugBase
 {
 	GENERATED_BODY()
@@ -52,17 +52,17 @@ struct FRigUnit_DebugPoint : public FRigUnit_DebugBase
 	UPROPERTY(meta = (Input))
 	float Thickness;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
 };
 
-USTRUCT(meta=(DisplayName="Draw Point", Keywords="Draw Vector"))
+USTRUCT(meta=(DisplayName="Draw Point", Keywords="Draw Vector", Deprecated = "4.25.0"))
 struct FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
@@ -96,12 +96,12 @@ struct FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	float Thickness;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -68,19 +68,28 @@ struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 		bPropagateToChildren = false;
 	}
 
+	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("Rotations")))
+		{
+			return StartBone;
+		}
+		return NAME_None;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** 
 	 * The name of the first bone to align
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName StartBone;
 
 	/** 
 	 * The name of the last bone to align
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName EndBone;
 
 	/** 
@@ -100,7 +109,7 @@ struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
 	UPROPERTY(transient)

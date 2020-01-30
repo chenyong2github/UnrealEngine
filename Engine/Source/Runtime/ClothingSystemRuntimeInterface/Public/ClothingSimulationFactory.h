@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -68,14 +68,13 @@ public:
 	// Creates the runtime interactor object for a clothing simulation. This object will
 	// receive events allowing it to write data to the simulation context in a safe manner
 	virtual UClothingSimulationInteractor* CreateInteractor()
-	{
-		return nullptr;
-	}
+	PURE_VIRTUAL(UClothingSimulationFactory::CreateInteractor, return nullptr;);
 
-	// Creates a default cloth configuration during construction of the clothing Asset
-	// TBC: This may be removed after we have a specialized ChaosClothingAsset
-	virtual UClothConfigBase* CreateDefaultClothConfig(const FObjectInitializer& ObjectInitializer, UObject* Outer)
-	{
-		return nullptr;
-	}
+	// Return the cloth config type for this cloth factory
+	virtual TArrayView<const TSubclassOf<UClothConfigBase>> GetClothConfigClasses() const
+	PURE_VIRTUAL(UClothingSimulationFactory::GetClothConfigClasses, return TArrayView<const TSubclassOf<UClothConfigBase>>(););
+
+	// Return an enum of the weight map targets that can be used with this simulation.
+	virtual const UEnum* GetWeightMapTargetEnum() const
+	PURE_VIRTUAL(UClothingSimulationFactory::GetWeightMapTargetEnum, return nullptr;);
 };

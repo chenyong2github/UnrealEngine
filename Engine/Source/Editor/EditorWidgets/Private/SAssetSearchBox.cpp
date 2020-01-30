@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetSearchBox.h"
 #include "Layout/WidgetPath.h"
@@ -348,7 +348,7 @@ void SAssetSearchBox::UpdateSuggestionList()
 		}
 	}
 
-	if (Suggestions.Num() > 0)
+	if (Suggestions.Num() > 0 && HasKeyboardFocus())
 	{
 		// At least one suggestion was found, open the menu
 		SuggestionBox->SetIsOpen(true, false);

@@ -1,17 +1,17 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "SlateFwd.h"
 #include "Misc/Attribute.h"
-#include "Misc/NamedBlacklist.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Docking/WorkspaceItem.h"
 
 class FJsonObject;
 class FMenuBuilder;
+class FBlacklistNames;
 class FMultiBox;
 class FProxyTabmanager;
 class SDockingArea;
@@ -803,7 +803,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		TSharedPtr<SDockTab> GetOwnerTab() { return OwnerTabPtr.Pin(); }
 
 		/** Returns filter for additional control over available tabs */
-		FNamedBlacklist& GetTabBlacklist();
+		TSharedRef<FBlacklistNames>& GetTabBlacklist();
 
 	protected:
 		void InvokeTabForMenu( FName TabId );
@@ -972,7 +972,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		bool bCanDoDragOperation;
 
 		/** Allow systems to dynamically hide tabs */
-		FNamedBlacklist TabBlacklist;
+		TSharedRef<FBlacklistNames> TabBlacklist;
 };
 
 

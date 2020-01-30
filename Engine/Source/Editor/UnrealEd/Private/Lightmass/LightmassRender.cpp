@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LightmassRender.cpp: lightmass rendering-related implementation.
@@ -263,7 +263,7 @@ public:
 
 				// Override with a special usage so we won't re-use the shader map used by the material for rendering
 				ResourceId.Usage = GetShaderMapUsage();
-				CacheShaders(ResourceId, StaticParamSet, GMaxRHIShaderPlatform);
+				CacheShaders(ResourceId, &StaticParamSet, GMaxRHIShaderPlatform);
 			}
 		}
 	}

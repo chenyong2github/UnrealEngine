@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -199,9 +199,14 @@ public:
 		return StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
 	}
 
-	bool DoesVertexBufferHaveExtraBoneInfluences() const
+	uint32 GetVertexBufferMaxBoneInfluences() const
 	{
-		return SkinWeightVertexBuffer.HasExtraBoneInfluences();
+		return SkinWeightVertexBuffer.GetMaxBoneInfluences();
+	}
+
+	bool DoesVertexBufferUse16BitBoneIndex() const
+	{
+		return SkinWeightVertexBuffer.Use16BitBoneIndex();
 	}
 
 	uint32 GetNumTexCoords() const

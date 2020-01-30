@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 NiagaraSortingGPU.h: Niagara sorting shaders
@@ -69,7 +69,6 @@ public:
 private:
 
 	FShaderResourceParameter NiagaraParticleDataFloat;
-	FShaderParameter FloatDataOffset;
 	FShaderParameter FloatDataStride;
 	FShaderResourceParameter GPUParticleCountBuffer;
 	FShaderParameter ParticleCountParams;

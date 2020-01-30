@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Serialization/BulkData.h"
@@ -411,6 +411,11 @@ bool FUntypedBulkData::CanLoadFromDisk() const
 	}
 	return bCanLoadFromDisk;
 #endif // WITH_EDITOR
+}
+
+bool FUntypedBulkData::DoesExist() const
+{
+	return IFileManager::Get().FileExists(*Filename);
 }
 
 /**
@@ -1589,14 +1594,14 @@ void FUntypedBulkData::SerializeBulkData( FArchive& Ar, void* Data )
 	}
 }
 
-IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	const int64 DataSize = GetBulkDataSize();
 
 	return CreateStreamingRequest(0, DataSize, Priority, CompleteCallback, UserSuppliedMemory);
 }
 
-IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
+IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	check(Filename.IsEmpty() == false);
 
@@ -1628,14 +1633,15 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 
 	const int64 OffsetInFile = AdjustedBulkDataOffsetInFile + OffsetInBulkData;
 
-	IAsyncReadRequest* ReadRequest = IORequestHandle->ReadRequest(OffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory);
-	if (ReadRequest != nullptr)
+	FBulkDataIORequest* IORequest = new FBulkDataIORequest(IORequestHandle);
+
+	if (IORequest->MakeReadRequest(OffsetInFile, BytesToRead, Priority, CompleteCallback, UserSuppliedMemory))
 	{
-		return new FBulkDataIORequest(IORequestHandle, ReadRequest, BytesToRead);
+		return IORequest;
 	}
 	else
 	{
-		delete IORequestHandle;
+		delete IORequest;
 		return nullptr;
 	}
 }
@@ -1653,7 +1659,7 @@ FBulkDataStreamingToken FUntypedBulkData::CreateStreamingToken() const
 	return FBulkDataStreamingToken((uint32)GetBulkDataOffsetInFile(), (uint32)GetBulkDataSize());
 }
 
-IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback)
+IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
 {
 	check(Filename.IsEmpty() == false);
 	check(RangeArray.Num() > 0);
@@ -1677,24 +1683,60 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FStri
 
 	check(ReadSize > 0);
 
-	IAsyncReadRequest* ReadRequest = IORequestHandle->ReadRequest(ReadOffset, ReadSize, Priority, CompleteCallback, nullptr);
-	if (ReadRequest != nullptr)
+	FBulkDataIORequest* IORequest = new FBulkDataIORequest(IORequestHandle);
+
+	if (IORequest->MakeReadRequest(ReadOffset, ReadSize, Priority, CompleteCallback, nullptr))
 	{
-		return new FBulkDataIORequest(IORequestHandle, ReadRequest, ReadSize);
+		return IORequest;
 	}
 	else
 	{
-		delete IORequestHandle;
+		delete IORequest;
 		return nullptr;
 	}
 }
 
 #endif
 
+FBulkDataIORequest::FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle)
+	: FileHandle(InFileHandle)
+	, ReadRequest(nullptr)
+	, Size(INDEX_NONE)
+{
+}
+
 FBulkDataIORequest::~FBulkDataIORequest()
 {
 	delete ReadRequest;
 	delete FileHandle;
+}
+
+bool FBulkDataIORequest::MakeReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory)
+{
+	check(ReadRequest == nullptr);
+
+	FBulkDataIORequestCallBack LocalCallback = *CompleteCallback;
+	FAsyncFileCallBack AsyncFileCallBack = [LocalCallback, BytesToRead, this](bool bWasCancelled, IAsyncReadRequest* InRequest)
+	{
+		// In some cases the call to ReadRequest can invoke the callback immediately (if the requested data is cached 
+		// in the pak file system for example) which means that FBulkDataIORequest::ReadRequest might not actually be
+		// set correctly, so we need to make sure it is assigned before we invoke LocalCallback!
+		ReadRequest = InRequest;
+
+		Size = BytesToRead;
+		LocalCallback(bWasCancelled, this);
+	};
+
+	ReadRequest = FileHandle->ReadRequest(Offset, BytesToRead, PriorityAndFlags, &AsyncFileCallBack, UserSuppliedMemory);
+	
+	if (ReadRequest != nullptr)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 bool FBulkDataIORequest::PollCompletion() const
@@ -1714,14 +1756,7 @@ uint8* FBulkDataIORequest::GetReadResults()
 
 int64 FBulkDataIORequest::GetSize() const
 {
-	if (ReadRequest->PollCompletion())
-	{
-		return Size;
-	}
-	else
-	{
-		return -1;
-	}
+	return Size;
 }
 
 void FBulkDataIORequest::Cancel()

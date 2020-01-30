@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "BoneIndices.h"
 #include "BonePose.h"
 #include "BoneControllers/AnimNode_RotationMultiplier.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_RotationMultiplier
@@ -162,6 +163,10 @@ void FAnimNode_RotationMultiplier::EvaluateSkeletalControl_AnyThread(FComponentS
 			OutBoneTransforms.Add( FBoneTransform(TargetBoneIndex, NewLocalTransform) );
 		}
 	}
+
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Source Bone"), SourceBone.BoneName);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Target Bone"), TargetBone.BoneName);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Multiplier"), Multiplier);
 }
 
 bool FAnimNode_RotationMultiplier::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) 

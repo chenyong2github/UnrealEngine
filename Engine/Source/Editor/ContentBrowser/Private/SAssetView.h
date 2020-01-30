@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,8 +22,10 @@
 #include "Editor/ContentBrowser/Private/AssetViewSortManager.h"
 #include "AssetViewTypes.h"
 #include "HistoryManager.h"
+#include "Misc/BlacklistNames.h"
 
 class FMenuBuilder;
+class FBlacklistPaths;
 class FWeakWidgetPath;
 class FWidgetPath;
 class SAssetColumnView;
@@ -59,6 +61,7 @@ public:
 		, _CanShowRealTimeThumbnails(false)
 		, _CanShowDevelopersFolder(false)
 		, _CanShowFavorites(false)
+		, _CanDockCollections(false)
 		, _PreloadAssetsForContextMenu(true)
 		, _SelectionMode( ESelectionMode::Multi )
 		, _AllowDragging(true)
@@ -165,6 +168,9 @@ public:
 		/** Indicates if the 'Show Favorites' option should be enabled or disabled */
 		SLATE_ARGUMENT(bool, CanShowFavorites)
 
+		/** Indicates if the 'Dock Collections' option should be enabled or disabled */
+		SLATE_ARGUMENT(bool, CanDockCollections)
+
 		/** Indicates if the context menu is going to load the assets, and if so to preload before the context menu is shown, and warn about the pending load. */
 		SLATE_ARGUMENT( bool, PreloadAssetsForContextMenu )
 
@@ -188,6 +194,9 @@ public:
 
 		/** Sort by path in the column view. Only works if the initial view type is Column */
 		SLATE_ARGUMENT(bool, SortByPathInColumnView)
+
+		/** Should always show engine content */
+		SLATE_ARGUMENT(bool, ForceShowEngineContent)
 
 		/** Called to check if an asset tag should be display in details view. */
 		SLATE_EVENT( FOnShouldDisplayAssetTag, OnAssetTagWantsToBeDisplayed )
@@ -438,6 +447,9 @@ private:
 	/** Removes asset data items from the given array that don't pass all applied backend (asset registry) filters */
 	void RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const;
 
+	/** Removes asset data items from the given array that don't pass all blacklist filters */
+	void RunAssetsThroughBlacklists(TArray<FAssetData>& InOutAssetDataList) const;
+
 	/** Returns true if the current filters deem that the asset view should be filtered recursively (overriding folder view) */
 	bool ShouldFilterRecursively() const;
 
@@ -452,6 +464,12 @@ private:
 
 	/** Handler for when the view combo button is clicked */
 	TSharedRef<SWidget> GetViewButtonContent();
+
+	/** Register menu for when the view combo button is clicked */
+	static void RegisterGetViewButtonMenu();
+
+	/** Fill in menu content for when the view combo button is clicked */
+	void PopulateViewButtonMenu(class UToolMenu* Menu);
 
 	/** Toggle whether folders should be shown or not */
 	void ToggleShowFolders();
@@ -507,6 +525,9 @@ private:
 	/** Whether or not it's possible to toggle developers content */
 	bool IsToggleShowDevelopersContentAllowed() const;
 
+	/** Whether or not it's possible to toggle engine content */
+	bool IsToggleShowEngineContentAllowed() const;
+
 	/** @return true when we are showing the developers content */
 	bool IsShowingDevelopersContent() const;
 
@@ -518,6 +539,15 @@ private:
 
 	/** @return true when we are showing favorites */
 	bool IsShowingFavorites() const;
+
+	/** Toggle whether the collections view should be docked under the paths view */
+	void ToggleDockCollections();
+
+	/** Whether or not it's possible to dock the collections view */
+	bool IsToggleDockCollectionsAllowed() const;
+
+	/** @return true when the collections view is docked */
+	bool HasDockedCollections() const;
 
 	/** Toggle whether C++ content should be shown or not */
 	void ToggleShowCppContent();
@@ -829,7 +859,8 @@ private:
 	/** The current base source filter for the view */
 	FSourcesData SourcesData;
 	FARFilter BackendFilter;
-	FARFilter SupportedFilter;
+	TSharedPtr<FBlacklistNames> AssetClassBlacklist;
+	TSharedPtr<FBlacklistPaths> FolderBlacklist;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
 	/** If true, the source items will be refreshed next frame. Very slow. */
@@ -980,6 +1011,9 @@ private:
 	/** Indicates if the 'Show Favorites' option should be enabled or disabled */
 	bool bCanShowFavorites;
 
+	/** Indicates if the 'Dock Collections' option should be enabled or disabled */
+	bool bCanDockCollections;
+
 	/** Indicates if the context menu is going to load the assets, and if so to preload before the context menu is shown, and warn about the pending load. */
 	bool bPreloadAssetsForContextMenu;
 
@@ -991,6 +1025,9 @@ private:
 
 	/** If true, it sorts by path and then name */
 	bool bSortByPathInColumnView;
+
+	/** If true, engine content is always shown */
+	bool bForceShowEngineContent;
 
 	/** The current selection mode used by the asset view */
 	ESelectionMode::Type SelectionMode;

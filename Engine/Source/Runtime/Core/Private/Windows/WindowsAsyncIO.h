@@ -1,8 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "ProfilingDebugging/PlatformFileTrace.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 class FWindowsReadRequest;
 class FWindowsAsyncReadFileHandle;
@@ -489,3 +491,5 @@ const TCHAR* FWindowsReadRequest::GetFileNameForErrorMessagesAndPanicRetry()
 {
 	return *Owner->FileNameForErrorMessagesAndPanicRetry;
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

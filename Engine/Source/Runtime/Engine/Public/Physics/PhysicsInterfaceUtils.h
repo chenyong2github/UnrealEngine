@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,9 +6,9 @@
 #include "Containers/Union.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsInterfaceUtilsCore.h"
-#include "PhysicsEngine/ConstraintInstance.h"
 
 class FPhysScene_PhysX;
+struct FConstraintInstance;
 
 // FILTER DATA
 

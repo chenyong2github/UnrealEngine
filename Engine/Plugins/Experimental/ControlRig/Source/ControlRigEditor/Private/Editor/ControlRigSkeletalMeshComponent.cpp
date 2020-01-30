@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigSkeletalMeshComponent.h"
-#include "Sequencer/ControlRigSequencerAnimInstance.h"
+#include "Sequencer/ControlRigLayerInstance.h" 
 #include "SkeletalDebugRendering.h"
 #include "ControlRig.h"
+#include "AnimPreviewInstance.h"
 
 UControlRigSkeletalMeshComponent::UControlRigSkeletalMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -15,11 +16,21 @@ UControlRigSkeletalMeshComponent::UControlRigSkeletalMeshComponent(const FObject
 void UControlRigSkeletalMeshComponent::InitAnim(bool bForceReinit)
 {
 	// skip preview init entirely, just init the super class
-	USkeletalMeshComponent::InitAnim(bForceReinit);
+	Super::InitAnim(bForceReinit);
+
+	UControlRigLayerInstance* ControlRigInstance = Cast<UControlRigLayerInstance>(GetAnimInstance());
+	if (ControlRigInstance)
+	{
+		ControlRigInstance->SetSourceAnimInstance(PreviewInstance);
+	}
 
 	RebuildDebugDrawSkeleton();
 }
 
+bool UControlRigSkeletalMeshComponent::IsPreviewOn() const
+{
+	return (PreviewInstance != nullptr);
+}
 
 void UControlRigSkeletalMeshComponent::SetCustomDefaultPose()
 {
@@ -28,54 +39,59 @@ void UControlRigSkeletalMeshComponent::SetCustomDefaultPose()
 
 void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 {
-	UControlRigSequencerAnimInstance* ControlRigInstance = Cast<UControlRigSequencerAnimInstance>(GetAnimInstance());
+	UControlRigLayerInstance* ControlRigInstance = Cast<UControlRigLayerInstance>(GetAnimInstance());
 
-	if (ControlRigInstance && ControlRigInstance->CachedControlRig.IsValid())
+	if (ControlRigInstance)
 	{
-		UControlRig* ControlRig = ControlRigInstance->CachedControlRig.Get();
-		// just copy it because this is not thread safe
-		const FRigBoneHierarchy& BaseHiearchy = ControlRig->GetBoneHierarchy();
+		UControlRig* ControlRig = ControlRigInstance->GetFirstAvailableControlRig();
+		if (ControlRig)
+		{
+			// just copy it because this is not thread safe
+			const FRigBoneHierarchy& BaseHiearchy = ControlRig->GetBoneHierarchy();
 
-		DebugDrawSkeleton.Empty();
-		DebugDrawBones.Reset();
+			DebugDrawSkeleton.Empty();
+			DebugDrawBones.Reset();
 
-		// create ref modifier
- 		FReferenceSkeletonModifier RefSkelModifier(DebugDrawSkeleton, nullptr);
- 
- 		for (int32 Index = 0; Index < BaseHiearchy.Num(); Index++)
- 		{
-			FMeshBoneInfo NewMeshBoneInfo;
-			NewMeshBoneInfo.Name = BaseHiearchy.GetName(Index);
-			NewMeshBoneInfo.ParentIndex = BaseHiearchy[Index].ParentIndex;
-			// give ref pose here
-			RefSkelModifier.Add(NewMeshBoneInfo, BaseHiearchy.GetInitialTransform(Index));
+			// create ref modifier
+			FReferenceSkeletonModifier RefSkelModifier(DebugDrawSkeleton, nullptr);
 
-			DebugDrawBones.Add(Index);
+			for (int32 Index = 0; Index < BaseHiearchy.Num(); Index++)
+			{
+				FMeshBoneInfo NewMeshBoneInfo;
+				NewMeshBoneInfo.Name = BaseHiearchy.GetName(Index);
+				NewMeshBoneInfo.ParentIndex = BaseHiearchy[Index].ParentIndex;
+				// give ref pose here
+				RefSkelModifier.Add(NewMeshBoneInfo, BaseHiearchy.GetInitialTransform(Index));
+
+				DebugDrawBones.Add(Index);
+			}
 		}
 	}
 }
 
 FTransform UControlRigSkeletalMeshComponent::GetDrawTransform(int32 BoneIndex) const
 {
-	UControlRigSequencerAnimInstance* ControlRigInstance = Cast<UControlRigSequencerAnimInstance>(GetAnimInstance());
+	UControlRigLayerInstance* ControlRigInstance = Cast<UControlRigLayerInstance>(GetAnimInstance());
 
-	if (ControlRigInstance && ControlRigInstance->CachedControlRig.IsValid())
+	if (ControlRigInstance)
 	{
-		UControlRig* ControlRig = ControlRigInstance->CachedControlRig.Get();
-		// just copy it because this is not thread safe
-		const FRigBoneHierarchy& BaseHiearchy = ControlRig->GetBoneHierarchy();
-		return BaseHiearchy.GetGlobalTransform(BoneIndex);
+		UControlRig* ControlRig = ControlRigInstance->GetFirstAvailableControlRig();
+		if (ControlRig)
+		{
+			// just copy it because this is not thread safe
+			const FRigBoneHierarchy& BaseHiearchy = ControlRig->GetBoneHierarchy();
+			return BaseHiearchy.GetGlobalTransform(BoneIndex);
+		}
 	}
 
 	return FTransform::Identity;
 }
 
+
 void UControlRigSkeletalMeshComponent::EnablePreview(bool bEnable, UAnimationAsset* PreviewAsset)
 {
-	UControlRigSequencerAnimInstance* ControlRigInstance = Cast<UControlRigSequencerAnimInstance>(GetAnimInstance());
-
-	if (ControlRigInstance && ControlRigInstance->CachedControlRig.IsValid())
+	if (PreviewInstance)
 	{
-		ControlRigInstance->SetAnimationAsset(PreviewAsset);
+		PreviewInstance->SetAnimationAsset(PreviewAsset);
 	}
 }

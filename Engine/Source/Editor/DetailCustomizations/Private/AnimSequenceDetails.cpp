@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimSequenceDetails.h"
 #include "Animation/AnimSequence.h"
@@ -15,7 +15,6 @@
 #include "AnimMontageSegmentDetails.h"
 #include "AnimPreviewInstance.h"
 #include "Slate/SceneViewport.h"
-#include "AnimationCompressionPanel.h"
 
 #define LOCTEXT_NAMESPACE	"AnimSequenceDetails"
 
@@ -161,38 +160,6 @@ void FAnimSequenceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	];
 
 	CreateOverridenProperty(DetailBuilder, AdditiveSettingsCategory, RefFrameIndexHandle, TAttribute<EVisibility>( this, &FAnimSequenceDetails::ShouldShowRefFrameIndex ));
-
-	/////////////////////////////////////////////////////////////////
-	//  compression category!
-	///////////////////////////////////////////////////////////////
-	// add Apply button Compression
-	IDetailCategoryBuilder& CompressionCategory = DetailBuilder.EditCategory("Compression");
-
-	TArray<TSharedRef<IPropertyHandle>> CompressionProperties;
-
-	CompressionCategory.GetDefaultProperties( CompressionProperties );
-
-	for (auto& Property : CompressionProperties)
-	{
-		CompressionCategory.AddProperty(Property);
-	}
-
-	FDetailWidgetRow& CustomRow = CompressionCategory.AddCustomRow(LOCTEXT("ApplyCompressionLabel", "Apply"))
-		.WholeRowContent()
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f, 0.0f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("EditCompressionButton_Label", "Edit Compression Settings"))
-				.ToolTipText(LOCTEXT("EditCompressionButton_Tooltip", "Click to view and edit the Compression Settings"))
-				.OnClicked(this, &FAnimSequenceDetails::OnEditCompression)
-			]
-		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -340,12 +307,6 @@ TSharedPtr<FString> FAnimSequenceDetails::GetRetargetSourceString(FName Retarget
 	return RetargetSourceComboList[0];
 }
 
-FReply FAnimSequenceDetails::OnEditCompression()
-{
-	FDlgAnimCompression AnimCompressionDialog(SelectedAnimSequences);
-	AnimCompressionDialog.ShowModal();
-	return FReply::Handled();
-}
 ////////////////////////////////////////////////
 // based on SAnimationSegmentViewport
 SAnimationRefPoseViewport::~SAnimationRefPoseViewport()

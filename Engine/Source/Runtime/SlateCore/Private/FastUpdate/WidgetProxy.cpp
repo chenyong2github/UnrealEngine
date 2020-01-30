@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FastUpdate/WidgetProxy.h"
 #include "Widgets/SWidget.h"
@@ -7,11 +7,12 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Types/ReflectionMetadata.h"
 #include "Input/HittestGrid.h"
+#include "Widgets/SWidgetUtils.h"
 
 const FSlateWidgetPersistentState FSlateWidgetPersistentState::NoState;
 
-FWidgetProxy::FWidgetProxy(SWidget* InWidget)
-	: Widget(InWidget)
+FWidgetProxy::FWidgetProxy(SWidget& InWidget)
+	: Widget(&InWidget)
 	, Index(INDEX_NONE)
 	, ParentIndex(INDEX_NONE)
 	, NumChildren(0)
@@ -25,7 +26,6 @@ FWidgetProxy::FWidgetProxy(SWidget* InWidget)
 	, bInvisibleDueToParentOrSelfVisibility(false)
 	, bChildOrderInvalid(false)
 {
-	check(Widget != nullptr);
 }
 
 int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWindowElementList& OutDrawElements)
@@ -64,6 +64,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 	bool bWidgetNeedsRepaint = false;
 	if (!bInvisibleDueToParentOrSelfVisibility && ParentIndex != INDEX_NONE && !Widget->PrepassLayoutScaleMultiplier.IsSet())
 	{
+		SCOPE_CYCLE_SWIDGET(Widget);
 		// If this widget has never been prepassed make sure the parent prepasses it to set the correct multiplier
 		FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
 		if (ParentProxy.Widget)
@@ -77,6 +78,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 	}
 	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::RenderTransform | EInvalidateWidget::Layout | EInvalidateWidget::Visibility | EInvalidateWidget::ChildOrder))
 	{
+		SCOPE_CYCLE_SWIDGET(Widget);
 		// When layout changes compute a new desired size for this widget
 		FVector2D CurrentDesiredSize = Widget->GetDesiredSize();
 		FVector2D NewDesiredSize = FVector2D::ZeroVector;
@@ -131,6 +133,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 	}
 	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Paint) && !Widget->IsVolatileIndirectly())
 	{
+		SCOPE_CYCLE_SWIDGET(Widget);
 		UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
 
 		bWidgetNeedsRepaint = true;

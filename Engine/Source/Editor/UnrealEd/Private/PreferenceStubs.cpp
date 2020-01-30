@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "CoreMinimal.h"
@@ -10,6 +10,7 @@
 #include "Preferences/AnimationBlueprintEditorOptions.h"
 #include "Preferences/PhysicsAssetEditorOptions.h"
 #include "Preferences/MaterialStatsOptions.h"
+#include "FrameNumberDisplayFormat.h"
 
 // @todo find a better place for all of this, preferably in the appropriate modules
 // though this would require the classes to be relocated as well
@@ -123,8 +124,8 @@ UPersonaOptions::UPersonaOptions(const FObjectInitializer& ObjectInitializer)
 		EditorOptions.SetViewportConfigsToDefault();
 	}
 
-	SectionTimingNodeColor = FLinearColor(0.0f, 1.0f, 0.0f);
-	NotifyTimingNodeColor = FLinearColor(1.0f, 0.0f, 0.0f);
+	SectionTimingNodeColor = FLinearColor(0.39f, 0.39f, 1.0f, 0.75f);
+	NotifyTimingNodeColor = FLinearColor(0.8f, 0.1f, 0.1f);
 	BranchingPointTimingNodeColor = FLinearColor(0.5f, 1.0f, 1.0f);
 
 	bAutoAlignFloorToMesh = true;
@@ -132,6 +133,18 @@ UPersonaOptions::UPersonaOptions(const FObjectInitializer& ObjectInitializer)
 	NumFolderFiltersInAssetBrowser = 2;
 
 	bUseAudioAttenuation = true;
+
+	CurveEditorSnapInterval = 0.01f;
+
+	// Default to millisecond resolution
+	TimelineScrubSnapValue = 1000;
+
+	TimelineDisplayFormat = EFrameNumberDisplayFormats::Frames;
+
+	bTimelineDisplayPercentage = true;
+	bTimelineDisplayFormatSecondary = true;
+
+	bTimelineDisplayCurveKeys = false;
 }
 
 void UPersonaOptions::SetShowGrid( bool bInShowGrid )

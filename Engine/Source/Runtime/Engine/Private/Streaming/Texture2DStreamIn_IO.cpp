@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming files.
@@ -69,7 +69,7 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 			TEXTURE2DMIPMAP_PARAM(IOFilename) // Only used if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA is enabled
 			0,
 			MipMap.BulkData.GetBulkDataSize(),
-			bPrioritizedIORequest ? AIOP_BelowNormal : AIOP_Low,
+			bPrioritizedIORequest ? (AIOP_FLAG_DONTCACHE|AIOP_BelowNormal) : (AIOP_FLAG_DONTCACHE|AIOP_Low),
 			&AsyncFileCallBack,
 			(uint8*)MipData[MipIndex]);
 	}
@@ -113,7 +113,7 @@ void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 
 void FTexture2DStreamIn_IO::SetAsyncFileCallback()
 {
-	AsyncFileCallBack = [this](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallBack = [this](bool bWasCancelled, IBulkDataIORequest*)
 	{
 		// At this point task synchronization would hold the number of pending requests.
 		TaskSynchronization.Decrement();

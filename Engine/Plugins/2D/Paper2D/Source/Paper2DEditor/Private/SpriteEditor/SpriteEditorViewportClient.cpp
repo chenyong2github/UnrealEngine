@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteEditor/SpriteEditorViewportClient.h"
 #include "Modules/ModuleManager.h"
@@ -693,7 +693,7 @@ void FSpriteEditorViewportClient::UpdateRelatedSpritesList()
 	{
 		FARFilter Filter;
 		Filter.ClassNames.Add(UPaperSprite::StaticClass()->GetFName());
-		const FString TextureString = FAssetData(Texture).GetExportTextName();
+		const FString TextureString = TSoftObjectPtr<UTexture2D>(Texture).ToString();
 		const FName SourceTexturePropName(TEXT("SourceTexture"));
 		Filter.TagsAndValues.Add(SourceTexturePropName, TextureString);
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");

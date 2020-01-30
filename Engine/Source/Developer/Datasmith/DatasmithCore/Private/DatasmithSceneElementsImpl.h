@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "IDatasmithSceneElements.h"
@@ -861,10 +861,14 @@ public:
 	virtual float GetRGBCurve() const override;
 	virtual void SetRGBCurve(float InRGBCurve) override;
 
+	virtual EDatasmithColorSpace GetSRGB() const override;
+	virtual void SetSRGB(EDatasmithColorSpace Option) override;
+
 private:
 	FString File;
 	FMD5Hash FileHash;
 	float RGBCurve;
+	EDatasmithColorSpace ColorSpace;
 	EDatasmithTextureMode TextureMode;
 	EDatasmithTextureFilter TextureFilter;
 	EDatasmithTextureAddress TextureAddressX;

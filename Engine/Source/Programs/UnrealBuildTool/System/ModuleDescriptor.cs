@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -508,6 +508,7 @@ namespace UnrealBuildTool
                 case ModuleHostType.ServerOnly:
                     return TargetType != TargetType.Program && TargetType != TargetType.Client;
                 case ModuleHostType.ClientOnly:
+                case ModuleHostType.ClientOnlyNoCommandlet:
                     return TargetType != TargetType.Program && TargetType != TargetType.Server;
             }
 

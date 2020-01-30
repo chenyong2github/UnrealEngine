@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VivoxVoiceChat.h" 
 
@@ -991,7 +991,11 @@ bool FVivoxVoiceChatUser::IsInitialized()
 
 bool FVivoxVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
+#if NO_LOGGING
+#define VIVOX_EXEC_LOG(...)
+#else
 #define VIVOX_EXEC_LOG(Fmt, ...) Ar.CategorizedLogf(LogVivoxVoiceChat.GetCategoryName(), ELogVerbosity::Log, Fmt, ##__VA_ARGS__)
+#endif
 
 	if (FParse::Command(&Cmd, TEXT("INFO")))
 	{
@@ -2250,7 +2254,11 @@ void FVivoxVoiceChatUser::ApplyAudioOutputDevicePolicy()
 
 bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
+#if NO_LOGGING
+#define VIVOX_EXEC_LOG(...)
+#else
 #define VIVOX_EXEC_LOG(Fmt, ...) Ar.CategorizedLogf(LogVivoxVoiceChat.GetCategoryName(), ELogVerbosity::Log, Fmt, ##__VA_ARGS__)
+#endif
 
 	if (FParse::Command(&Cmd, TEXT("VIVOX")))
 	{

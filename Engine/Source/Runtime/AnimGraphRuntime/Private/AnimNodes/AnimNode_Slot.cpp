@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_Slot.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_Slot
@@ -43,6 +44,14 @@ void FAnimNode_Slot::Update_AnyThread(const FAnimationUpdateContext& Context)
 		const float SourceWeight = FMath::Max(FAnimWeight::GetSmallestRelevantWeight(), WeightData.SourceWeight);
 		Source.Update(Context.FractionalWeight(SourceWeight));
 	}
+
+#if ANIM_TRACE_ENABLED
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Slot Name"), SlotName);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Weight"), WeightData.SlotNodeWeight);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Pose Source"), (WeightData.SourceWeight <= ZERO_ANIMWEIGHT_THRESH));
+
+	Context.AnimInstanceProxy->TraceMontageEvaluationData(Context, SlotName);
+#endif
 }
 
 void FAnimNode_Slot::Evaluate_AnyThread(FPoseContext & Output)

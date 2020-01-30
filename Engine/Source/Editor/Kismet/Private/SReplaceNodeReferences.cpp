@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SReplaceNodeReferences.h"
 #include "UObject/UObjectHash.h"
@@ -102,7 +102,7 @@ public:
 	/** Variable reference for this item */
 	FMemberReference VariableReference;
 
-	/** Pin type representing the UProperty of this item */
+	/** Pin type representing the FProperty of this item */
 	FEdGraphPinType PinType;
 };
 
@@ -246,7 +246,7 @@ void SReplaceNodeReferences::Refresh()
 	GatherAllAvailableBlueprintVariables(TargetClass);
 }
 
-void SReplaceNodeReferences::SetSourceVariable(UProperty* InProperty)
+void SReplaceNodeReferences::SetSourceVariable(FProperty* InProperty)
 {
 	if (InProperty)
 	{
@@ -296,9 +296,9 @@ void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTarg
 
 	UObject* PathObject = InTargetClass->ClassGeneratedBy? InTargetClass->ClassGeneratedBy : InTargetClass;
 	TSharedPtr< FTargetCategoryReplaceReferences > BlueprintCategory = MakeShareable(new FTargetCategoryReplaceReferences(FText::FromString(PathObject->GetPathName())));
-	for (TFieldIterator<UProperty> PropertyIt(InTargetClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(InTargetClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 
 		if (Property == SourceProperty)
 		{
@@ -307,12 +307,12 @@ void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTarg
 		FName PropName = Property->GetFName();
 
 		// Don't show delegate properties, there is special handling for these
-		const bool bMulticastDelegateProp = Property->IsA(UMulticastDelegateProperty::StaticClass());
-		const bool bDelegateProp = (Property->IsA(UDelegateProperty::StaticClass()) || bMulticastDelegateProp);
+		const bool bMulticastDelegateProp = Property->IsA(FMulticastDelegateProperty::StaticClass());
+		const bool bDelegateProp = (Property->IsA(FDelegateProperty::StaticClass()) || bMulticastDelegateProp);
 		const bool bShouldShowAsVar = (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintVisible)) && !bDelegateProp;
 		const bool bShouldShowAsDelegate = !Property->HasAnyPropertyFlags(CPF_Parm) && bMulticastDelegateProp 
 			&& Property->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable);
-		UObjectPropertyBase* Obj = Cast<UObjectPropertyBase>(Property);
+		FObjectPropertyBase* Obj = CastField<FObjectPropertyBase>(Property);
 		if(!bShouldShowAsVar && !bShouldShowAsDelegate)
 		{
 			continue;
@@ -359,7 +359,7 @@ void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTarg
 			}
 
 			TSharedPtr< FTargetVariableReplaceReferences > VariableItem = MakeShareable(new FTargetVariableReplaceReferences);
-			VariableItem->VariableReference.SetFromField<UProperty>(Property, true, InTargetClass);
+			VariableItem->VariableReference.SetFromField<FProperty>(Property, true, InTargetClass);
 
 			FEdGraphPinType Type;
 			K2Schema->ConvertPropertyToPinType(Property, VariableItem->PinType);
@@ -436,7 +436,7 @@ void SReplaceNodeReferences::OnSubmitSearchQuery(bool bFindAndReplace)
 	FString SearchTerm;
 
 	FMemberReference SourceVariableReference;
-	SourceVariableReference.SetFromField<UProperty>(SourceProperty, true, SourceProperty->GetOwnerClass());
+	SourceVariableReference.SetFromField<FProperty>(SourceProperty, true, SourceProperty->GetOwnerClass());
 	SearchTerm = SourceVariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass());
 
 	FOnSearchComplete OnSearchComplete;
@@ -478,7 +478,7 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 					else
 					{
 						UBlueprint* Blueprint = BlueprintEditor.Pin()->GetBlueprintObj();
-						VariableNode->VariableReference.SetFromField<UProperty>(VariableReference.ResolveMember<UProperty>(Blueprint), Blueprint->GeneratedClass);
+						VariableNode->VariableReference.SetFromField<FProperty>(VariableReference.ResolveMember<FProperty>(Blueprint), Blueprint->GeneratedClass);
 					}
 					VariableNode->ReconstructNode();
 				}

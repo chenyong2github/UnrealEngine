@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkReplayStreaming.h"
 #include "Misc/CommandLine.h"
@@ -74,6 +74,11 @@ static TAutoConsoleVariable<int32> CVarReplayStreamerAutoDemoUseDateTimePostfix(
 FString FNetworkReplayStreaming::GetAutomaticReplayPrefix()
 {
 	return CVarReplayStreamerAutoDemoPrefix.GetValueOnAnyThread();
+}
+
+FString FNetworkReplayStreaming::GetReplayFileExtension()
+{
+	return TEXT(".replay");
 }
 
 bool FNetworkReplayStreaming::UseDateTimeAsAutomaticReplayPostfix()

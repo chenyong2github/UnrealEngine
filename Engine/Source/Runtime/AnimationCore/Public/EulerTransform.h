@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,18 +15,37 @@ struct ANIMATIONCORE_API FEulerTransform
 	 */
 	static const FEulerTransform Identity;
 
-	FEulerTransform()
+	FORCEINLINE FEulerTransform()
 		: Location(ForceInitToZero)
 		, Rotation(ForceInitToZero)
 		, Scale(ForceInitToZero)
 	{
 	}
 
-	FEulerTransform(const FVector& InLocation, const FRotator& InRotation, const FVector& InScale)
+	FORCEINLINE FEulerTransform(const FVector& InLocation, const FRotator& InRotation, const FVector& InScale)
 		: Location(InLocation)
 		, Rotation(InRotation)
 		, Scale(InScale)
 	{
+	}
+
+	FORCEINLINE FEulerTransform(const FTransform& InTransform)
+		: Location(InTransform.GetLocation())
+		, Rotation(InTransform.GetRotation().Rotator())
+		, Scale(InTransform.GetScale3D())
+	{
+
+	}
+
+	FORCEINLINE FEulerTransform& operator =(const FTransform& InTransform)
+	{
+		FromFTransform(InTransform);
+		return *this;
+	}
+
+	FORCEINLINE operator FTransform() const
+	{
+		return ToFTransform();
 	}
 
 	/** The translation of this transform */
@@ -42,13 +61,13 @@ struct ANIMATIONCORE_API FEulerTransform
 	FVector Scale;
 
 	/** Convert to an FTransform */
-	FTransform ToFTransform() const
+	FORCEINLINE FTransform ToFTransform() const
 	{
 		return FTransform(Rotation.Quaternion(), Location, Scale);
 	}
 
 	/** Convert from an FTransform */
-	void FromFTransform(const FTransform& InTransform)
+	FORCEINLINE void FromFTransform(const FTransform& InTransform)
 	{
 		Location = InTransform.GetLocation();
 		Rotation = InTransform.GetRotation().Rotator();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualTextureSystem.h"
 
@@ -1017,7 +1017,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 						{
 							Params.UniquePageList = new(MemStack) FUniquePageList;
 						}
-						Params.FeedbackBuffer = FeedbackBuffer.Buffer + (Rect.Min.Y + CurrentRow) * FeedbackBuffer.Pitch + Rect.Min.X;
+						Params.FeedbackBuffer = FeedbackBuffer.Buffer.GetData() + (Rect.Min.Y + CurrentRow) * FeedbackBuffer.Pitch + Rect.Min.X;
 						Params.FeedbackWidth = Rect.Size().X;
 						Params.FeedbackHeight = CurrentHeight;
 						Params.FeedbackPitch = FeedbackBuffer.Pitch;
@@ -1057,11 +1057,6 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 
 				FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks, ENamedThreads::GetRenderThread_Local());
 			}
-		}
-
-		for (uint32 i = 0; i < FeedbackBufferCount; ++i)
-		{
-			SceneContext.VirtualTextureFeedback.Unmap(RHICmdList, MappedFeedbackBuffers[i].MapHandle);
 		}
 
 		if(NumFeedbackTasks > 1u)

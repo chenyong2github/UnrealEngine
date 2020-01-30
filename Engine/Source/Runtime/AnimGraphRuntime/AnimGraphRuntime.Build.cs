@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.IO;
@@ -18,7 +18,18 @@ public class AnimGraphRuntime : ModuleRules
 			}
 		);
 
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"TraceLog",
+			}
+		);
+
         SetupModulePhysicsSupport(Target);
+
+		// External users of this library do not need to know about Eigen.
+        AddEngineThirdPartyPrivateStaticDependencies(Target,
+                "Eigen"
+                );
 
         if (Target.bCompileChaos || Target.bUseChaos)
         {

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,7 +21,7 @@ public:
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForObject() const override;
 
 	// Visibility is based on a different property for components and actors, and they're not marked as interp
-	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class UProperty* InPropertyToRecord) const override;
+	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const override;
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForProperty(UObject* InObjectToRecord, const FName& InPropertyToRecord) const override { return nullptr; }
 
 	virtual FText GetDisplayName() const override { return NSLOCTEXT("MovieSceneVisibilityTrackRecorderFactory", "DisplayName", "Visibility Track"); }

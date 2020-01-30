@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelEditorSequencerIntegration.h"
 #include "SequencerEdMode.h"
@@ -102,7 +102,7 @@ public:
 				if (ObjectHandle.IsValid()) 
 				{
 					UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-					UProperty* Property = PropertyHandle.GetProperty();
+					FProperty* Property = PropertyHandle.GetProperty();
 					TSharedRef<FPropertyPath> PropertyPath = FPropertyPath::CreateEmpty();
 					PropertyPath->AddProperty(FPropertyInfo(Property));
 					FName PropertyName(*PropertyPath->ToString(TEXT(".")));

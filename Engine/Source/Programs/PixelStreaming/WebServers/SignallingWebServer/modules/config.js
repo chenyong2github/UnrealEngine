@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //-- Provides configuration information from file and combines it with default values and command line arguments --//
 //-- Hierachy of values: Default Values < Config File < Command Line arguments --//

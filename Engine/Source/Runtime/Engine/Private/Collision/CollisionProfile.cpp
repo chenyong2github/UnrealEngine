@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/CollisionProfile.h"
 #include "Misc/ConfigCacheIni.h"
@@ -70,7 +70,7 @@ UCollisionProfile* UCollisionProfile::Get()
 	return CollisionProfile;
 }
 
-void UCollisionProfile::PostReloadConfig(UProperty* PropertyThatWasLoaded)
+void UCollisionProfile::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -327,7 +327,7 @@ void UCollisionProfile::LoadProfileConfig(bool bForceInit)
 		{
 			// verify if the Struct name matches
 			// this is to avoid situations where they mismatch and causes random bugs
-			UField* Field = FindField<UField>(Struct, DisplayName);
+			FField* Field = FindField<FField>(Struct, DisplayName);
 
 			if (!Field)
 			{
@@ -451,7 +451,7 @@ void UCollisionProfile::LoadProfileConfig(bool bForceInit)
 				}
 #if WITH_EDITOR
 				// now enum is fixed, so find member variable for the field
-				UField* Field = FindField<UField>(Struct, FName(*VariableName));
+				FField* Field = FindField<FField>(Struct, FName(*VariableName));
 				// I verified up in the class, this can't happen
 				check (Field);
 				Field->SetMetaData(*DisplayNameKey, *DisplayValue);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "K2Node_CustomEvent.h"
@@ -410,29 +410,29 @@ void UK2Node_CustomEvent::SetDelegateSignature(const UFunction* DelegateSignatur
 
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 	
-	UserDefinedPins.Empty();
-	for (TFieldIterator<UProperty> PropIt(DelegateSignature); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
-	{
-		const UProperty* Param = *PropIt;
-		if (!Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm))
+		UserDefinedPins.Empty();
+		for (TFieldIterator<FProperty> PropIt(DelegateSignature); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			FEdGraphPinType PinType;
-			K2Schema->ConvertPropertyToPinType(Param, /*out*/ PinType);
-
-			FName NewPinName = Param->GetFName();
-			int32 Index = 1;
-			while ((DelegateOutputName == NewPinName) || (UEdGraphSchema_K2::PN_Then == NewPinName))
+			const FProperty* Param = *PropIt;
+			if (!Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm))
 			{
-				++Index;
-				NewPinName = *FString::Printf(TEXT("%s%d"), *NewPinName.ToString(), Index);
-			}
+				FEdGraphPinType PinType;
+				K2Schema->ConvertPropertyToPinType(Param, /*out*/ PinType);
+
+				FName NewPinName = Param->GetFName();
+				int32 Index = 1;
+				while ((DelegateOutputName == NewPinName) || (UEdGraphSchema_K2::PN_Then == NewPinName))
+				{
+					++Index;
+					NewPinName = *FString::Printf(TEXT("%s%d"), *NewPinName.ToString(), Index);
+				}
 			TSharedPtr<FUserPinInfo> NewPinInfo = MakeShareable(new FUserPinInfo());
-			NewPinInfo->PinName = NewPinName;
-			NewPinInfo->PinType = PinType;
-			NewPinInfo->DesiredPinDirection = EGPD_Output;
-			UserDefinedPins.Add(NewPinInfo);
+				NewPinInfo->PinName = NewPinName;
+				NewPinInfo->PinType = PinType;
+				NewPinInfo->DesiredPinDirection = EGPD_Output;
+				UserDefinedPins.Add(NewPinInfo);
+			}
 		}
-	}
 }
 
 UK2Node_CustomEvent* UK2Node_CustomEvent::CreateFromFunction(FVector2D GraphPosition, UEdGraph* ParentGraph, const FString& Name, const UFunction* Function, bool bSelectNewNode/* = true*/)
@@ -450,9 +450,9 @@ UK2Node_CustomEvent* UK2Node_CustomEvent::CreateFromFunction(FVector2D GraphPosi
 		CustomEventNode->AllocateDefaultPins();
 
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-		for (TFieldIterator<UProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			const UProperty* Param = *PropIt;
+			const FProperty* Param = *PropIt;
 			if (!Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm))
 			{
 				FEdGraphPinType PinType;

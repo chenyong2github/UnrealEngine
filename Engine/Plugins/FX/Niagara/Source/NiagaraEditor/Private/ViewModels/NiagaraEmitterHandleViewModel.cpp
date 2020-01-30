@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "NiagaraSystem.h"
@@ -18,7 +18,10 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include "ScopedTransaction.h"
-
+#include "NiagaraRendererProperties.h"
+#include "ViewModels/Stack/NiagaraStackRoot.h"
+#include "ViewModels/Stack/NiagaraStackRenderItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackRendererItem.h"
 
 #define LOCTEXT_NAMESPACE "EmitterHandleViewModel"
 
@@ -42,6 +45,31 @@ void FNiagaraEmitterHandleViewModel::Cleanup()
 	{
 		EmitterStackViewModel->Finalize();
 		EmitterStackViewModel = nullptr;
+	}
+}
+
+void FNiagaraEmitterHandleViewModel::GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData)
+{
+	InRendererPreviewData.Empty();
+	UNiagaraEmitter* Emitter = GetEmitterHandle()->GetInstance();
+	UNiagaraStackRoot* StackRoot = Cast<UNiagaraStackRoot>(EmitterStackViewModel->GetRootEntry());
+	if (StackRoot)
+	{
+		TArray<UNiagaraStackEntry*> Children;
+		StackRoot->GetRenderGroup()->GetUnfilteredChildren(Children);
+		for (UNiagaraStackEntry* Child : Children)
+		{
+			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(Child))
+			{
+				TArray<UMaterialInterface*> Materials;
+				FNiagaraEmitterInstance* InInstance = GetEmitterViewModel()->GetSimulation().IsValid() ? GetEmitterViewModel()->GetSimulation().Pin().Get() : nullptr;
+				RendererItem->GetRendererProperties()->GetUsedMaterials(InInstance, Materials);
+				for (UMaterialInterface* Material : Materials)
+				{
+					InRendererPreviewData.Add(new FRendererPreviewData(Child, Material));
+				}
+			}
+		}
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //~=============================================================================
 // GroupActor: Collects a group of actors, allowing for management and universal transformation.

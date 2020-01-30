@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -120,7 +120,6 @@ private:
 	// Sync events - data
 	FClusterEventsContainer                      ClusterEventsPoolMain;
 	mutable FClusterEventsContainer              ClusterEventsPoolOut;
-	mutable FDisplayClusterMessage::DataType     ClusterEventsCacheOut;
 	mutable FCriticalSection                     ClusterEventsCritSec;
 	FOnClusterEvent                              OnClusterEvent;
 	TArray<TScriptInterface<IDisplayClusterClusterEventListener>> ClusterEventListeners;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/UniformGrid.h"
 
 #include "Chaos/ArrayFaceND.h"
@@ -259,5 +259,6 @@ bool Chaos::TUniformGrid<T, 3>::IsValid(const TVector<int32, 3>& X) const
 
 template class Chaos::TUniformGridBase<float, 3>;
 template class Chaos::TUniformGrid<float, 3>;
+template class Chaos::TUniformGrid<float, 2>;
 template TVector<float, 3> Chaos::TUniformGridBase<float, 3>::LinearlyInterpolate<TVector<float, 3>>(const TArrayND<TVector<float, 3>, 3>&, const TVector<float, 3>&) const;
 template CHAOS_API float Chaos::TUniformGridBase<float, 3>::LinearlyInterpolate<float>(const TArrayND<float, 3>&, const TVector<float, 3>&) const;

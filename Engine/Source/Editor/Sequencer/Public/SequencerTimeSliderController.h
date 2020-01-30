@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -252,8 +252,8 @@ private:
 	FFrameTime ComputeFrameTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen, bool CheckSnapping = true) const;
 
 	void AddMarkAtFrame(FFrameNumber FrameNumber);
-	void ClearMarkAtFrame(FFrameNumber FrameNumber);
-	void ClearAllMarks();
+	void DeleteMarkAtIndex(int32 InMarkIndex);
+	void DeleteAllMarks();
 
 private:
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	HairStrandsTransmittance.h: Hair strands transmittance evaluation.
@@ -29,4 +29,5 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
 	const class FLightSceneInfo* LightSceneInfo,
-	const struct FHairStrandsDatas* Hairdatas);
+	const struct FHairStrandsDatas* Hairdatas,
+	TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskSubPixelTexture);

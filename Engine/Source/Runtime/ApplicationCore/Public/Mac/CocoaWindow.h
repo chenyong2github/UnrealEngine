@@ -1,8 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "GenericPlatform/GenericWindow.h"
+#if WITH_ACCESSIBILITY
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
+#endif
+
 
 /**
  * Custom window class used for input handling
@@ -23,6 +27,13 @@
 
 @property (assign) EWindowMode::Type TargetWindowMode;
 
+#if WITH_ACCESSIBILITY
+/** Adds the accessible element representing this window to the content view and exposes the window to accessibility interactions */
+- (void)UpdateAccessibilityView:(AccessibleWidgetId) InAccessibilityWindowId;
+
+/** removes the accessible element representing this window from the content view and prevents accessibility interactions being performed on the window */
+- (void)ClearAccessibilityView;
+#endif
 /** Get the frame filled by a child OpenGL view, which may cover the window or fill the content view depending upon the window style.
  @return The NSRect for a child OpenGL view. */
 - (NSRect)openGLFrame;

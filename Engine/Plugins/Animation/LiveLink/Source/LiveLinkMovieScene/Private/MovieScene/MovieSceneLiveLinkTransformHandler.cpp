@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieScene/MovieSceneLiveLinkTransformHandler.h"
 
@@ -77,17 +77,17 @@ void FMovieSceneLiveLinkTransformHandler::InitializeFromExistingChannels(const U
 	ElementCount = PropertyStorage->FloatChannel.Num() / 9;
 	check(ElementCount > 0);
 
-	UProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
+	FProperty* FoundProperty = PropertyBinding.GetProperty(InStruct);
 	if (FoundProperty)
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(FoundProperty))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(FoundProperty))
 		{
-			UStructProperty* ArrayStructProperty = CastChecked<UStructProperty>(ArrayProperty->Inner);
+			FStructProperty* ArrayStructProperty = CastFieldChecked<FStructProperty>(ArrayProperty->Inner);
 			check(ArrayStructProperty->Struct->GetFName() == NAME_Transform);
 		}
 		else
 		{
-			UStructProperty* StructProperty = CastChecked<UStructProperty>(FoundProperty);
+			FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(FoundProperty);
 			check(StructProperty->Struct->GetFName() == NAME_Transform);
 		}
 	}
@@ -117,17 +117,17 @@ void FMovieSceneLiveLinkTransformHandler::FillFrameInterpolated(const FFrameTime
 
 void FMovieSceneLiveLinkTransformHandler::CreateChannels(const UScriptStruct& InStruct, int32 InElementCount)
 {
-	UProperty* Property = PropertyBinding.GetProperty(InStruct);
+	FProperty* Property = PropertyBinding.GetProperty(InStruct);
 	check(InElementCount > 0);
 
-	if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 	{
-		UStructProperty* ArrayInnerProperty = CastChecked<UStructProperty>(ArrayProperty->Inner);
+		FStructProperty* ArrayInnerProperty = CastFieldChecked<FStructProperty>(ArrayProperty->Inner);
 		check(ArrayInnerProperty->Struct->GetFName() == NAME_Transform);
 	}
 	else
 	{
-		UStructProperty* StructProperty = CastChecked<UStructProperty>(Property);
+		FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Property);
 		check(StructProperty->Struct->GetFName() == NAME_Transform);
 	}
 

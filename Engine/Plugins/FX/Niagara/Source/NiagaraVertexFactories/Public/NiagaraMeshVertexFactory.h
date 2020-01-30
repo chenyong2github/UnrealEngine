@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 ParticleVertexFactory.h: Particle vertex factory definitions.
@@ -41,6 +41,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(int, ScaleDataOffset)
 	SHADER_PARAMETER(int, SizeDataOffset)
 	SHADER_PARAMETER(uint32, MaterialParamValidMask)
+	SHADER_PARAMETER(int, SubImageDataOffset)
 	SHADER_PARAMETER(int, MaterialParamDataOffset)
 	SHADER_PARAMETER(int, MaterialParam1DataOffset)
 	SHADER_PARAMETER(int, MaterialParam2DataOffset)
@@ -48,6 +49,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(int, NormalizedAgeDataOffset)
 	SHADER_PARAMETER(int, MaterialRandomDataOffset)
 	SHADER_PARAMETER(FVector4, DefaultPos)
+	SHADER_PARAMETER(int, SubImageBlendMode)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FNiagaraMeshUniformParameters> FNiagaraMeshUniformBufferRef;
@@ -69,7 +71,6 @@ public:
 		, LODIndex(-1)
 		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
-		, FloatDataOffset(0)
 		, FloatDataStride(0)
 		, SortedIndicesOffset(0)
 	{}
@@ -79,7 +80,6 @@ public:
 		, LODIndex(-1)
 		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
-		, FloatDataOffset(0)
 		, FloatDataStride(0)
 		, SortedIndicesOffset(0)
 	{}
@@ -103,10 +103,9 @@ public:
 		OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_INSTANCED"), TEXT("1"));
 	}
 
-	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataOffset, uint32 InFloatDataStride)
+	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataStride)
 	{
 		ParticleDataFloatSRV = InParticleDataFloatSRV;
-		FloatDataOffset = InFloatDataOffset;
 		FloatDataStride = InFloatDataStride;
 	}
 
@@ -119,11 +118,6 @@ public:
 	FORCEINLINE FRHIShaderResourceView* GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
-	}
-
-	FORCEINLINE int32 GetFloatDataOffset()
-	{
-		return FloatDataOffset;
 	}
 
 	FORCEINLINE int32 GetFloatDataStride()
@@ -197,7 +191,6 @@ protected:
 	FNiagaraMeshInstanceVertices* InstanceVerticesCPU;
 
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
-	uint32 FloatDataOffset;
 	uint32 FloatDataStride;
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;

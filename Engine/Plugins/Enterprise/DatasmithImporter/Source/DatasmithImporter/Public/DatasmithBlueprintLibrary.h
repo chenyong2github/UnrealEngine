@@ -1,10 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "DatasmithImportContext.h"
+#include "DatasmithTranslatableSource.h"
 #include "ObjectElements/DatasmithUSceneElement.h"
-#include "Translators/DatasmithTranslatableSource.h"
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 

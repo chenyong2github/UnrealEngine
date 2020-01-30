@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -77,12 +77,13 @@ struct FBTTreeStartInfo
 	bool HasPendingInitialize() const { return bPendingInitialize && IsSet(); }
 };
 
-UCLASS()
+UCLASS(ClassGroup = AI, meta = (BlueprintSpawnableComponent))
 class AIMODULE_API UBehaviorTreeComponent : public UBrainComponent
 {
 	GENERATED_UCLASS_BODY()
 
 	// Begin UBrainComponent overrides
+	virtual void StartLogic() override;
 	virtual void RestartLogic() override;
 	virtual void StopLogic(const FString& Reason) override;
 	virtual void PauseLogic(const FString& Reason) override;
@@ -391,6 +392,11 @@ protected:
 	friend FBehaviorTreeDebugger;
 	friend FBehaviorTreeInstance;
 	friend FScopedBehaviorTreeLock;
+
+protected:
+	/** data asset defining the tree */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AI)
+	UBehaviorTree* DefaultBehaviorTreeAsset;
 };
 
 //////////////////////////////////////////////////////////////////////////

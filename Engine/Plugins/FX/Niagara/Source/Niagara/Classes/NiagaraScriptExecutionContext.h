@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 NiagaraEmitterInstance.h: Niagara emitter simulation class
@@ -120,6 +120,31 @@ struct FNiagaraDataSetExecutionInfo
 	bool bUpdateInstanceCount;
 };
 
+struct FScriptExecutionConstantBufferTable
+{
+	TArray<const uint8*, TInlineAllocator<12>> Buffers;
+	TArray<int32, TInlineAllocator<12>> BufferSizes;
+
+	void Reset(int32 ResetSize)
+	{
+		Buffers.Reset(ResetSize);
+		BufferSizes.Reset(ResetSize);
+	}
+
+	template<typename T>
+	void AddTypedBuffer(const T& Buffer)
+	{
+		Buffers.Add(reinterpret_cast<const uint8*>(&Buffer));
+		BufferSizes.Add(sizeof(T));
+	}
+
+	void AddRawBuffer(const uint8* BufferData, int32 BufferSize)
+	{
+		Buffers.Add(BufferData);
+		BufferSizes.Add(BufferSize);
+	}
+};
+
 struct FNiagaraScriptExecutionContext
 {
 	UNiagaraScript* Script;
@@ -139,6 +164,8 @@ struct FNiagaraScriptExecutionContext
 
 	static uint32 TickCounter;
 
+	int32 HasInterpolationParameters : 1;
+
 	FNiagaraScriptExecutionContext();
 	~FNiagaraScriptExecutionContext();
 
@@ -149,7 +176,7 @@ struct FNiagaraScriptExecutionContext
 
 	void BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts);
 	void BindData(int32 Index, FNiagaraDataBuffer* Input, int32 StartInstance, bool bUpdateInstanceCounts);
-	bool Execute(uint32 NumInstances);
+	bool Execute(uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable);
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return Parameters.GetDataInterfaces(); }
 
@@ -208,7 +235,13 @@ public:
 	class FNiagaraDataSet *MainDataSet;
 	UNiagaraScript* GPUScript;
 	class FNiagaraShaderScript*  GPUScript_RT;
-	FRHIUniformBufferLayout CBufferLayout; // Persistent layouts used to create Compute Sim CBuffer
+
+	// persistent layouts used to create the constant buffers for the compute sim shader
+	FRHIUniformBufferLayout GlobalCBufferLayout;
+	FRHIUniformBufferLayout SystemCBufferLayout;
+	FRHIUniformBufferLayout OwnerCBufferLayout;
+	FRHIUniformBufferLayout EmitterCBufferLayout;
+	FRHIUniformBufferLayout ExternalCBufferLayout;
 
 	//Dynamic state updated either from GT via RT commands or from the RT side sim code itself.
 	//TArray<uint8, TAlignedHeapAllocator<16>> ParamData_RT;		// RT side copy of the parameter data
@@ -228,6 +261,8 @@ public:
 	uint32 DefaultShaderStageIndex;
 	uint32 MaxUpdateIterations;
 	TSet<uint32> SpawnStages;
+
+	bool HasInterpolationParameters;
 
 	/** Temp data used in NiagaraEmitterInstanceBatcher::ExecuteAll() to avoid creating a map per FNiagaraComputeExecutionContext */
 	mutable int32 ScratchIndex = INDEX_NONE;
@@ -262,21 +297,18 @@ struct FNiagaraDataInterfaceInstanceData
 struct FNiagaraComputeInstanceData
 {
 	FNiagaraGpuSpawnInfo SpawnInfo;
-	uint8* ParamData;
-	FNiagaraComputeExecutionContext* Context;
+	uint8* GlobalParamData = nullptr;
+	uint8* SystemParamData = nullptr;
+	uint8* OwnerParamData = nullptr;
+	uint8* EmitterParamData = nullptr;
+	uint8* ExternalParamData = nullptr;
+	FNiagaraComputeExecutionContext* Context = nullptr;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
 
 	//Buffer containing current state that this tick will read from. Initialized at the start of processing this tick on the RT.
-	FNiagaraDataBuffer* CurrentData;
+	FNiagaraDataBuffer* CurrentData = nullptr;
 	//Buffer into which we'll write the new simulation state. Initialized at the start of processing this tick on the RT.
-	FNiagaraDataBuffer* DestinationData;
-
-	FNiagaraComputeInstanceData()
-		: ParamData(nullptr)
-		, Context(nullptr)
-		, CurrentData(nullptr)
-		, DestinationData(nullptr)
-	{}
+	FNiagaraDataBuffer* DestinationData = nullptr;
 };
 
 /*
@@ -313,7 +345,9 @@ public:
 	FNiagaraSystemInstanceID SystemInstanceID;
 	FNiagaraDataInterfaceInstanceData* DIInstanceData;
 	uint8* InstanceData_ParamData_Packed;
-	bool bRequiredDistanceFieldData = false;
+	bool bRequiresDistanceFieldData = false;
+	bool bRequiresDepthBuffer = false;
+	bool bRequiresEarlyViewData = false;
 	bool bNeedsReset = false;
 	bool bIsFinalTick = false;
 };

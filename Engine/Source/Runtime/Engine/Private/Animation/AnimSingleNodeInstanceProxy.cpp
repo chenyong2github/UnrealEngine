@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimSingleNodeInstanceProxy.h"
 #include "AnimationRuntime.h"
@@ -8,6 +8,7 @@
 #include "Animation/AnimStreamable.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "AnimEncoding.h"
+#include "Animation/AnimTrace.h"
 
 FAnimSingleNodeInstanceProxy::~FAnimSingleNodeInstanceProxy()
 {
@@ -478,6 +479,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 	}
 	else
 	{
+		Output.ResetToRefPose();
 #if WITH_EDITORONLY_DATA
 		// even if you don't have any asset curve, we want to output this curve values
 		Proxy->PropagatePreviewCurve(Output);
@@ -503,6 +505,8 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		{
 			FAnimTickRecord& TickRecord = Proxy->CreateUninitializedTickRecord(INDEX_NONE, /*out*/ SyncGroup);
 			Proxy->MakeBlendSpaceTickRecord(TickRecord, BlendSpace, Proxy->BlendSpaceInput, Proxy->BlendSampleData, Proxy->BlendFilter, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+
+			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
 #if WITH_EDITORONLY_DATA
 			PreviewBasePose = BlendSpace->PreviewBasePose;
 #endif
@@ -511,6 +515,9 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		{
 			FAnimTickRecord& TickRecord = Proxy->CreateUninitializedTickRecord(INDEX_NONE, /*out*/ SyncGroup);
 			Proxy->MakeSequenceTickRecord(TickRecord, Sequence, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+
+			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
+
 			// if it's not looping, just set play to be false when reached to end
 			if (!Proxy->bLooping)
 			{
@@ -525,6 +532,9 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		{
 			FAnimTickRecord& TickRecord = Proxy->CreateUninitializedTickRecord(INDEX_NONE, /*out*/ SyncGroup);
 			Proxy->MakeSequenceTickRecord(TickRecord, Streamable, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+
+			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
+
 			// if it's not looping, just set play to be false when reached to end
 			if (!Proxy->bLooping)
 			{
@@ -539,6 +549,9 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		{
 			FAnimTickRecord& TickRecord = Proxy->CreateUninitializedTickRecord(INDEX_NONE, /*out*/ SyncGroup);
 			Proxy->MakeSequenceTickRecord(TickRecord, Composite, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+
+			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
+
 			// if it's not looping, just set play to be false when reached to end
 			if (!Proxy->bLooping)
 			{
@@ -575,6 +588,8 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 		{
 			FAnimTickRecord& TickRecord = Proxy->CreateUninitializedTickRecord(INDEX_NONE, /*out*/ SyncGroup);
 			Proxy->MakePoseAssetTickRecord(TickRecord, PoseAsset, 1.f);
+
+			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
 		}
 	}
 

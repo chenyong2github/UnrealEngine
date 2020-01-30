@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshDescriptionBuilder.h"
 #include "StaticMeshAttributes.h"
@@ -267,5 +267,5 @@ FBox FMeshDescriptionBuilder::ComputeBoundingBox() const
 	{
 		bounds.Contain(VertexPositions.Get(VertexID));
 	}
-	return bounds;
+	return (FBox)bounds;
 }

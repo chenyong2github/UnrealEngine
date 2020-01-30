@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationEditorUtils.h"
 #include "Framework/Commands/UIAction.h"
@@ -25,6 +25,7 @@
 #include "Factories/AimOffsetBlendSpaceFactoryNew.h"
 #include "Engine/PoseWatch.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimCompress.h"
 #include "Animation/BlendSpace.h"
@@ -40,8 +41,8 @@
 #include "AnimationStateMachineGraph.h"
 #include "K2Node_Composite.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Animation/AnimCompress_Automatic.h"
 #include "AssetRegistryModule.h"
+#include "Interfaces/IMainFrameModule.h"
 
 #define LOCTEXT_NAMESPACE "AnimationEditorUtils"
 
@@ -243,11 +244,213 @@ FString SCreateAnimationAssetDlg::GetFullAssetPath()
 /////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////
+// Dialog to prompt user to select an animation compression settings asset.
+/////////////////////////////////////////////////////
+
+SAnimationCompressionSelectionDialog::SAnimationCompressionSelectionDialog()
+	: bValidAssetChosen(false)
+{}
+
+SAnimationCompressionSelectionDialog::~SAnimationCompressionSelectionDialog()
+{}
+
+void SAnimationCompressionSelectionDialog::SetOnAssetSelected(const FOnAssetSelected& InHandler)
+{
+	OnAssetSelectedHandler = InHandler;
+}
+
+void SAnimationCompressionSelectionDialog::DoSelectAsset(const FAssetData& SelectedAsset)
+{
+	bValidAssetChosen = true;
+	OnAssetSelectedHandler.ExecuteIfBound(SelectedAsset);
+
+	CloseDialog();
+}
+
+FReply SAnimationCompressionSelectionDialog::OnConfirmClicked()
+{
+	TArray<FAssetData> SelectedAssets = GetCurrentSelectionDelegate.Execute();
+	if (SelectedAssets.Num() > 0)
+	{
+		DoSelectAsset(SelectedAssets[0]);
+	}
+
+	return FReply::Handled();
+}
+
+FReply SAnimationCompressionSelectionDialog::OnCancelClicked()
+{
+	CloseDialog();
+
+	return FReply::Handled();
+}
+
+void SAnimationCompressionSelectionDialog::CloseDialog()
+{
+	TSharedPtr<SWindow> ContainingWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+
+	if (ContainingWindow.IsValid())
+	{
+		ContainingWindow->RequestDestroyWindow();
+	}
+}
+
+void SAnimationCompressionSelectionDialog::OnAssetSelected(const FAssetData& AssetData)
+{
+	CurrentlySelectedAssets = GetCurrentSelectionDelegate.Execute();
+}
+
+void SAnimationCompressionSelectionDialog::OnAssetsActivated(const TArray<FAssetData>& SelectedAssets, EAssetTypeActivationMethod::Type ActivationType)
+{
+	const bool bCorrectActivationMethod = ActivationType == EAssetTypeActivationMethod::DoubleClicked || ActivationType == EAssetTypeActivationMethod::Opened;
+	if (SelectedAssets.Num() > 0 && bCorrectActivationMethod)
+	{
+		DoSelectAsset(SelectedAssets[0]);
+	}
+}
+
+bool SAnimationCompressionSelectionDialog::IsConfirmButtonEnabled() const
+{
+	return CurrentlySelectedAssets.Num() > 0;
+}
+
+void SAnimationCompressionSelectionDialog::Construct(const FArguments& InArgs, const FAnimationCompressionSelectionDialogConfig& InConfig)
+{
+	FAssetPickerConfig AssetPickerConfig;
+	AssetPickerConfig.Filter.ClassNames.Push(UAnimBoneCompressionSettings::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.bRecursiveClasses = true;
+	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAnimationCompressionSelectionDialog::OnAssetSelected);
+	AssetPickerConfig.OnAssetsActivated = FOnAssetsActivated::CreateSP(this, &SAnimationCompressionSelectionDialog::OnAssetsActivated);
+	AssetPickerConfig.GetCurrentSelectionDelegates.Add(&GetCurrentSelectionDelegate);
+	AssetPickerConfig.SaveSettingsName = TEXT("AnimationCompressionSelectionDialog");
+	AssetPickerConfig.bCanShowFolders = false;
+	AssetPickerConfig.bCanShowDevelopersFolder = true;
+	AssetPickerConfig.bAllowNullSelection = false;
+	AssetPickerConfig.bAllowDragging = false;
+	AssetPickerConfig.SelectionMode = ESelectionMode::Single;
+	AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
+	AssetPickerConfig.InitialAssetSelection = InConfig.DefaultSelectedAsset != nullptr ? InConfig.DefaultSelectedAsset : FAnimationUtils::GetDefaultAnimationBoneCompressionSettings();
+	AssetPickerConfig.bForceShowEngineContent = true;
+
+	if (AssetPickerConfig.InitialAssetSelection.IsValid())
+	{
+		CurrentlySelectedAssets.Add(AssetPickerConfig.InitialAssetSelection);
+	}
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	AssetPicker = ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig);
+
+	// The root widget in this dialog.
+	TSharedRef<SVerticalBox> MainVerticalBox = SNew(SVerticalBox);
+
+	// Asset view
+	MainVerticalBox->AddSlot()
+		.FillHeight(1)
+		.Padding(0, 0, 0, 4)
+		[
+			SNew(SSplitter)
+
+			+ SSplitter::Slot()
+			.Value(0.75f)
+			[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				[
+					AssetPicker.ToSharedRef()
+				]
+			]
+		];
+
+	// Buttons and asset name
+	TSharedRef<SHorizontalBox> ButtonsAndNameBox = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Bottom)
+		.Padding(4, 3)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("AnimationCompressionSelectionDialogSelectButton", "Select"))
+			.ContentPadding(FMargin(8, 2, 8, 2))
+			.IsEnabled(this, &SAnimationCompressionSelectionDialog::IsConfirmButtonEnabled)
+			.OnClicked(this, &SAnimationCompressionSelectionDialog::OnConfirmClicked)
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Bottom)
+		.Padding(4, 3)
+		[
+			SNew(SButton)
+			.ContentPadding(FMargin(8, 2, 8, 2))
+			.Text(LOCTEXT("AnimationCompressionSelectionDialogCancelButton", "Cancel"))
+			.OnClicked(this, &SAnimationCompressionSelectionDialog::OnCancelClicked)
+		];
+
+	MainVerticalBox->AddSlot()
+		.AutoHeight()
+		.HAlign(HAlign_Right)
+		.Padding(0)
+		[
+			ButtonsAndNameBox
+		];
+
+	ChildSlot
+		[
+			MainVerticalBox
+		];
+}
+
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////
 // Animation editor utility functions
 /////////////////////////////////////////////////////
 
 namespace AnimationEditorUtils
 {
+	FAssetData CreateModalAnimationCompressionSelectionDialog(const FAnimationCompressionSelectionDialogConfig& InConfig)
+	{
+		struct FModalResult
+		{
+			void OnAssetSelected(const FAssetData& SelectedAsset)
+			{
+				SavedResult = SelectedAsset;
+			}
+
+			FAssetData SavedResult;
+		};
+
+		FModalResult ModalWindowResult;
+		auto OnAssetSelectedDelegate = SAnimationCompressionSelectionDialog::FOnAssetSelected::CreateRaw(&ModalWindowResult, &FModalResult::OnAssetSelected);
+
+		TSharedRef<SAnimationCompressionSelectionDialog> Dialog = SNew(SAnimationCompressionSelectionDialog, InConfig);
+		Dialog->SetOnAssetSelected(OnAssetSelectedDelegate);
+
+		const FVector2D DefaultWindowSize(400.0f, 500.0f);
+		const FVector2D WindowSize = InConfig.WindowSizeOverride.IsZero() ? DefaultWindowSize : InConfig.WindowSizeOverride;
+		const FText WindowTitle = InConfig.DialogTitleOverride.IsEmpty() ? LOCTEXT("GenericAnimationCompressionSelectionDialogWindowHeader", "Select compression settings") : InConfig.DialogTitleOverride;
+
+		TSharedRef<SWindow> DialogWindow =
+			SNew(SWindow)
+			.Title(WindowTitle)
+			.ClientSize(WindowSize);
+
+		DialogWindow->SetContent(Dialog);
+
+		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+		const TSharedPtr<SWindow>& MainFrameParentWindow = MainFrameModule.GetParentWindow();
+		if (MainFrameParentWindow.IsValid())
+		{
+			FSlateApplication::Get().AddModalWindow(DialogWindow, MainFrameParentWindow.ToSharedRef());
+		}
+
+		return ModalWindowResult.SavedResult;
+	}
+
 	/** Creates a unique package and asset name taking the form InBasePackageName+InSuffix */
 	void CreateUniqueAssetName(const FString& InBasePackageName, const FString& InSuffix, FString& OutPackageName, FString& OutAssetName) 
 	{
@@ -521,38 +724,34 @@ namespace AnimationEditorUtils
 		MenuBuilder.EndSection();
 	}
 
-	bool ApplyCompressionAlgorithm(TArray<UAnimSequence*>& AnimSequencePtrs, UAnimCompress* Algorithm)
+	bool ApplyCompressionAlgorithm(TArray<UAnimSequence*>& AnimSequencePtrs, UAnimBoneCompressionSettings* OverrideSettings)
 	{
-		if(Algorithm)
+		const bool bProceed = (AnimSequencePtrs.Num() > 1)? EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo,
+			FText::Format(NSLOCTEXT("UnrealEd", "AboutToCompressAnimations_F", "About to compress {0} animations.  Proceed?"), FText::AsNumber(AnimSequencePtrs.Num()))) : true;
+		if(bProceed)
 		{
-			const bool bProceed = (AnimSequencePtrs.Num() > 1)? EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo,
-				FText::Format(NSLOCTEXT("UnrealEd", "AboutToCompressAnimations_F", "About to compress {0} animations.  Proceed?"), FText::AsNumber(AnimSequencePtrs.Num()))) : true;
-			if(bProceed)
+			GWarn->BeginSlowTask(LOCTEXT("AnimCompressing", "Compressing"), true);
+
 			{
-				GWarn->BeginSlowTask(LOCTEXT("AnimCompressing", "Compressing"), true);
+				TSharedPtr<FAnimCompressContext> CompressContext = MakeShareable(new FAnimCompressContext(false, true, AnimSequencePtrs.Num()));
 
+				for (UAnimSequence* AnimSeq : AnimSequencePtrs)
 				{
-					TSharedPtr<FAnimCompressContext> CompressContext = MakeShareable(new FAnimCompressContext(false, true, AnimSequencePtrs.Num()));
-
-					for (UAnimSequence* AnimSeq : AnimSequencePtrs)
+					if (OverrideSettings != nullptr)
 					{
-						// If we are not compressing with 'Auto', then clear CompressCommandletVersion
-						// So we can recompress these animations later.
-						const bool bIsAutoCompressor = Algorithm->IsA(UAnimCompress_Automatic::StaticClass());
-						if (!bIsAutoCompressor)
-						{
-							AnimSeq->CompressCommandletVersion = 0;
-						}
-						AnimSeq->CompressionScheme = static_cast<UAnimCompress*>(StaticDuplicateObject(Algorithm, AnimSeq));
-						AnimSeq->RequestAnimCompression(FRequestAnimCompressionParams(false, CompressContext));
-						++CompressContext->AnimIndex;
+						AnimSeq->BoneCompressionSettings = OverrideSettings;
 					}
-				}
-				
-				GWarn->EndSlowTask();
 
-				return true;
+					// Clear CompressCommandletVersion so we can recompress these animations later.
+					AnimSeq->CompressCommandletVersion = 0;
+					AnimSeq->RequestAnimCompression(FRequestAnimCompressionParams(false, CompressContext));
+					++CompressContext->AnimIndex;
+				}
 			}
+
+			GWarn->EndSlowTask();
+
+			return true;
 		}
 
 		return false;

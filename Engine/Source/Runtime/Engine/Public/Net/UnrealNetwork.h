@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnrealNetwork.h: Unreal networking.
@@ -73,13 +73,16 @@ struct ENGINE_API FDoRepLifetimeParams
 	 * properly set up to handle RepNotifies.
 	 */
 	ELifetimeRepNotifyCondition RepNotifyCondition = REPNOTIFY_OnChanged;
+	
+	/** Whether or not this property uses Push Model. See PushModel.h */
+	bool bIsPushBased = false;
 };
 
 namespace NetworkingPrivate
 {
 	struct ENGINE_API FRepPropertyDescriptor
 	{
-		FRepPropertyDescriptor(const UProperty* Property)
+		FRepPropertyDescriptor(const FProperty* Property)
 			: PropertyName(VerifyPropertyAndGetName(Property))
 			, RepIndex(Property->RepIndex)
 			, ArrayDim(Property->ArrayDim)
@@ -99,7 +102,7 @@ namespace NetworkingPrivate
 
 	private:
 
-		static const TCHAR* VerifyPropertyAndGetName(const UProperty* Property)
+		static const TCHAR* VerifyPropertyAndGetName(const FProperty* Property)
 		{
 			check(Property);
 			return *(Property->GetName());
@@ -153,11 +156,11 @@ static bool ValidateReplicatedClassInheritance(const UClass* CallingClass, const
 }
 
 /** wrapper to find replicated properties that also makes sure they're valid */
-static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass* PropClass, const FName& PropName)
+static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass* PropClass, const FName& PropName)
 {
 	ValidateReplicatedClassInheritance(CallingClass, PropClass, *PropName.ToString());
 
-	UProperty* TheProperty = FindFieldChecked<UProperty>(PropClass, PropName);
+	FProperty* TheProperty = FindFieldChecked<FProperty>(PropClass, PropName);
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (!(TheProperty->PropertyFlags & CPF_Net))
 	{
@@ -171,13 +174,21 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 { \
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
 	const TCHAR* DoRepPropertyName_##c_##v(TEXT(#v)); \
-	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, NetworkingPrivate::Net_##c::NETFIELD_##v, NetworkingPrivate::Net_##c::ARRAYDIM_##v); \
+	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, (int32)c::ENetFields_Private::v, 1); \
+	RegisterReplicatedLifetimeProperty(PropertyDescriptor_##c_##v, OutLifetimeProps, params); \
+}
+
+#define DOREPLIFETIME_WITH_PARAMS_FAST_STATIC_ARRAY(c,v,params) \
+{ \
+	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
+	const TCHAR* DoRepPropertyName_##c_##v(TEXT(#v)); \
+	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, (int32)c::ENetFields_Private::v##_STATIC_ARRAY, (int32)c::EArrayDims_Private::v); \
 	RegisterReplicatedLifetimeProperty(PropertyDescriptor_##c_##v, OutLifetimeProps, params); \
 }
 
 #define DOREPLIFETIME_WITH_PARAMS(c,v,params) \
 { \
-	UProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
+	FProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
 	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, params); \
 }
 
@@ -186,8 +197,8 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 /** This macro is used by nativized code (DynamicClasses), so the Property may be recreated. */
 #define DOREPLIFETIME_DIFFNAMES(c,v, n) \
 { \
-	static TWeakObjectPtr<UProperty> __swp##v{};							\
-	const UProperty* sp##v = __swp##v.Get();								\
+	static TWeakFieldPtr<FProperty> __swp##v{};							\
+	const FProperty* sp##v = __swp##v.Get();								\
 	if (nullptr == sp##v)													\
 	{																		\
 		sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(), n);	\
@@ -219,41 +230,47 @@ static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 #define DOREPLIFETIME_ACTIVE_OVERRIDE_FAST(c,v,active) \
 { \
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
-	for (int32 i = 0; i < NetworkingPrivate::Net_##c::ARRAYDIM_##v; i++) \
+	ChangedPropertyTracker.SetCustomIsActiveOverride((int32)c::ENetFields_Private::v, active); \
+}
+
+#define DOREPLIFETIME_ACTIVE_OVERRIDE_FAST_STATIC_ARRAY(c,v,active) \
+{ \
+	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
+	for (int32 i = 0; i < (int32)c::EArrayDims_Private::v; ++i) \
 	{ \
-		ChangedPropertyTracker.SetCustomIsActiveOverride(NetworkingPrivate::Net_##c::NETFIELD_##v + i, active); \
+		ChangedPropertyTracker.SetCustomIsActiveOverride((int32)c::ENetFields_Private::v##_STATIC_ARRAY + i, active); \
 	} \
 }
 
-#define DOREPLIFETIME_ACTIVE_OVERRIDE(c,v,active)	\
-{													\
-	static UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
-	for ( int32 i = 0; i < sp##v->ArrayDim; i++ )											\
-	{																						\
-		ChangedPropertyTracker.SetCustomIsActiveOverride( sp##v->RepIndex + i, active );	\
-	}																						\
+#define DOREPLIFETIME_ACTIVE_OVERRIDE(c,v,active) \
+{ \
+	static FProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
+	for (int32 i = 0; i < sp##v->ArrayDim; i++) \
+	{ \
+		ChangedPropertyTracker.SetCustomIsActiveOverride(this, sp##v->RepIndex + i, active); \
+	} \
 }
 
 UE_DEPRECATED(4.24, "Please use the RESET_REPLIFETIME_CONDITION macro")
-ENGINE_API void DeprecatedChangeCondition(UProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition);
+ENGINE_API void DeprecatedChangeCondition(FProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition);
 
 
 //~ This is already using a deprecated method, don't bother updating it.
 #define DOREPLIFETIME_CHANGE_CONDITION(c,v,cond) \
 { \
-	UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v));			\
+	FProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v));			\
 	DeprecatedChangeCondition(sp##v, OutLifetimeProps, cond);														\
 }
 
 UE_DEPRECATED(4.24, "Use RegisterReplicatedLifetimeProperty that takes FDoRepLifetimeParams.")
 ENGINE_API void RegisterReplicatedLifetimeProperty(
-	const UProperty* ReplicatedProperty,
+	const FProperty* ReplicatedProperty,
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	ELifetimeCondition InCondition,
 	ELifetimeRepNotifyCondition InRepNotifyCondition = REPNOTIFY_OnChanged);
 
 ENGINE_API void RegisterReplicatedLifetimeProperty(
-	const UProperty* ReplicatedProperty,
+	const FProperty* ReplicatedProperty,
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	const FDoRepLifetimeParams& Params);
 
@@ -277,7 +294,15 @@ DisableReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NA
 { \
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
 	const TCHAR* DoRepPropertyName_##c_##v(TEXT(#v)); \
-	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, NetworkingPrivate::Net_##c::NETFIELD_##v, NetworkingPrivate::Net_##c::ARRAYDIM_##v); \
+	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, (int32)c::ENetFields_Private::v, 1); \
+	DisableReplicatedLifetimeProperty(PropertyDescriptor_##c_##v, OutLifetimeProps); \
+}
+
+#define DISABLE_REPLICATED_PROPERTY_FAST_STATIC_ARRAY(c,v) \
+{ \
+	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
+	const TCHAR* DoRepPropertyName_##c_##v(TEXT(#v)); \
+	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, (int32)c::ENetFields_Private::v##_STATIC_ARRAY, (int32)c::EArrayDims_Private::v); \
 	DisableReplicatedLifetimeProperty(PropertyDescriptor_##c_##v, OutLifetimeProps); \
 }
 
@@ -291,7 +316,7 @@ DisableAllReplicatedPropertiesOfClass(StaticClass(), c::StaticClass(), SuperClas
 { \
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT("DISABLE_ALL_CLASS_REPLICATED_PROPERTIES")); \
 	const TCHAR* DoRepPropertyName_##c(TEXT(#c)); \
-	const NetworkingPrivate::FRepClassDescriptor ClassDescriptor_##c(DoRepPropertyName_##c, NetworkingPrivate::Net_##c::NETFIELD_REP_START, NetworkingPrivate::Net_##c::NETFIELD_REP_END); \
+	const NetworkingPrivate::FRepClassDescriptor ClassDescriptor_##c(DoRepPropertyName_##c, (int32)c::ENetFields_Private::NETFIELD_REP_START, (int32)c::ENetFields_Private::NETFIELD_REP_END); \
 	DisableAllReplicatedPropertiesOfClass(StaticClass(), c::StaticClass(), SuperClassBehavior, OutLifetimeProps); \
 }	
 
@@ -314,11 +339,20 @@ ENGINE_API void DisableAllReplicatedPropertiesOfClass(const NetworkingPrivate::F
 { \
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
 	const TCHAR* DoRepPropertyName_##c_##v(TEXT(#v)); \
-	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, NetworkingPrivate::Net_##c::NETFIELD_##v, NetworkingPrivate::Net_##c::ARRAYDIM_##v); \
+	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, (int32)c::ENetFields_Private::v, 1); \
+	ResetReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NAME_CHECKED(c,v), cond, OutLifetimeProps); \
+}
+
+#define RESET_REPLIFETIME_CONDITION_FAST_STATIC_ARRAY(c,v,cond) \
+{ \
+	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
+	const TCHAR* DoRepPropertyName_##c_##v(TEXT(#v)); \
+	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, (int32)c::ENetFields_Private::v##_STATIC_ARRAY, (int32)c::EArrayDims_Private::v); \
 	ResetReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NAME_CHECKED(c,v), cond, OutLifetimeProps); \
 }
 
 #define RESET_REPLIFETIME_FAST(c,v) RESET_REPLIFETIME_CONDITION_FAST(c, v, COND_None)
+#define RESET_REPLIFETIME_FAST_STATIC_ARRAY(c,v) RESET_REPLIFETIME_FAST_STATIC_ARRAY(c, v, COND_None)
 
 ENGINE_API void ResetReplicatedLifetimeProperty(
 	const UClass* ThisClass,

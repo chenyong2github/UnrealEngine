@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SContentBrowser.h"
@@ -61,7 +61,8 @@
 #include "GameProjectGenerationModule.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-
+#include "ContentBrowserMenuContexts.h"
+#include "ToolMenus.h"
 
 #include "Brushes/SlateColorBrush.h"
 
@@ -129,9 +130,18 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	SourcesSearch->Initialize();
 	SourcesSearch->SetHintText(MakeAttributeSP(this, &SContentBrowser::GetSourcesSearchHintText));
 
+	CollectionViewPtr = SNew(SCollectionView)
+		.OnCollectionSelected(this, &SContentBrowser::CollectionSelected)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserCollections")))
+		.AllowCollapsing(false)
+		.AllowCollectionDrag(true)
+		.AllowQuickAssetManagement(true)
+		.ExternalSearch(SourcesSearch);
+
 	static const FName DefaultForegroundName("DefaultForeground");
 
 	BindCommands();
+	UContentBrowserSettings::OnSettingChanged().AddSP(this, &SContentBrowser::OnContentBrowserSettingsChanged);
 
 	ChildSlot
 	[
@@ -510,6 +520,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						.Padding(2, 0, 0, 0)
 						[
 							SNew(SButton)
+							.Visibility(this, &SContentBrowser::GetSourcesSwitcherVisibility)
 							.VAlign(EVerticalAlignment::VAlign_Center)
 							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
 							.ToolTipText(this, &SContentBrowser::GetSourcesSwitcherToolTipText)
@@ -533,11 +544,14 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						+SWidgetSwitcher::Slot()
 						[
 							SAssignNew(PathFavoriteSplitterPtr, SSplitter)
+							.Style(FEditorStyle::Get(), "ContentBrowser.Splitter")
+							.PhysicalSplitterHandleSize(2.0f)
 							.Orientation(EOrientation::Orient_Vertical)
 							.MinimumSlotHeight(70.0f)
 							.Visibility( this, &SContentBrowser::GetSourcesViewVisibility )
-							+ SSplitter::Slot()
-							.Value(.2f)
+							
+							+SSplitter::Slot()
+							.Value(0.2f)
 							[
 								SNew(SBox)
 								.Visibility(this, &SContentBrowser::GetFavoriteFolderVisibility)
@@ -586,7 +600,8 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 									]
 								]
 							]
-							+ SSplitter::Slot()
+							
+							+SSplitter::Slot()
 							.Value(0.8f)
 							[
 								SNew(SBox)
@@ -604,6 +619,16 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 									.ExternalSearch(SourcesSearch)
 								]
 							]
+
+							+SSplitter::Slot()
+							.Value(0.4f)
+							[
+								SNew(SBox)
+								.Visibility(this, &SContentBrowser::GetDockedCollectionsVisibility)
+								[
+									CollectionViewPtr.ToSharedRef()
+								]
+							]
 						]
 
 						// Collections View
@@ -612,13 +637,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 							SNew(SBox)
 							.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
 							[
-								SAssignNew(CollectionViewPtr, SCollectionView)
-								.OnCollectionSelected(this, &SContentBrowser::CollectionSelected)
-								.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserCollections")))
-								.AllowCollapsing(false)
-								.AllowCollectionDrag(true)
-								.AllowQuickAssetManagement(true)
-								.ExternalSearch(SourcesSearch)
+								CollectionViewPtr.ToSharedRef()
 							]
 						]
 					]
@@ -784,6 +803,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						.CanShowRealTimeThumbnails( Config != nullptr ? Config->bCanShowRealTimeThumbnails : true)
 						.CanShowDevelopersFolder( Config != nullptr ? Config->bCanShowDevelopersFolder : true)
 						.CanShowFavorites(true)
+						.CanDockCollections(true)
 						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserAssets")))
 						.OnSearchOptionsChanged(this, &SContentBrowser::HandleAssetViewSearchOptionsChanged)
 					]
@@ -861,7 +881,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	IAddContentDialogModule& AddContentDialogModule = FModuleManager::LoadModuleChecked<IAddContentDialogModule>("AddContentDialog");
 
 	// Update the breadcrumb trail path
-	UpdatePath();
+	OnContentBrowserSettingsChanged(NAME_None);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -924,6 +944,11 @@ void SContentBrowser::BindCommands()
 EVisibility SContentBrowser::GetFavoriteFolderVisibility() const
 {
 	return GetDefault<UContentBrowserSettings>()->GetDisplayFavorites() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SContentBrowser::GetDockedCollectionsVisibility() const
+{
+	return GetDefault<UContentBrowserSettings>()->GetDockCollections() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SContentBrowser::ToggleFolderFavorite(const TArray<FString>& FolderPaths)
@@ -1729,7 +1754,7 @@ FReply SContentBrowser::OnSaveSearchButtonClicked()
 	{
 		SourcesViewExpandClicked();
 	}
-	if (ActiveSourcesWidgetIndex != ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView)
+	if (!GetDefault<UContentBrowserSettings>()->GetDockCollections() && ActiveSourcesWidgetIndex != ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView)
 	{
 		ActiveSourcesWidgetIndex = ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView;
 		SourcesWidgetSwitcher->SetActiveWidgetIndex(ActiveSourcesWidgetIndex);
@@ -1944,6 +1969,16 @@ TSharedRef<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
 			AssetRegistry.GetSubPaths( CrumbData, SubPaths, bRecurse );
+
+			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+			TSharedRef<FBlacklistPaths> FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
+			if (FolderBlacklist->HasFiltering())
+			{
+				SubPaths.RemoveAll([FolderBlacklist](const FString& SubPath)
+				{
+					return !FolderBlacklist->PassesStartsWithFilter(SubPath);
+				});
+			}
 		}
 
 		if( SubPaths.Num() > 0 )
@@ -2038,6 +2073,19 @@ FString SContentBrowser::GetCurrentPath() const
 
 TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(bool bShowGetContent, bool bShowImport)
 {
+	if (!UToolMenus::Get()->IsMenuRegistered("ContentBrowser.AddNewContextMenu"))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("ContentBrowser.AddNewContextMenu");
+		Menu->AddDynamicSection("DynamicSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			UContentBrowserAddNewContextMenuContext* Context = InMenu->FindContext<UContentBrowserAddNewContextMenuContext>();
+			if (Context && Context->ContentBrowser.IsValid())
+			{
+				Context->ContentBrowser.Pin()->PopulateAddNewContextMenu(InMenu, Context->bShowGetContent, Context->bShowImport, Context->NumAssetPaths);
+			}
+		}));
+	}
+
 	const FSourcesData& SourcesData = AssetViewPtr->GetSourcesData();
 
 	int32 NumAssetPaths, NumClassPaths;
@@ -2064,7 +2112,33 @@ TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(bool bShowGetContent,
 	}
 	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(Extenders);
 
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, NULL, MenuExtender);
+	UContentBrowserAddNewContextMenuContext* ContextObject = NewObject<UContentBrowserAddNewContextMenuContext>();
+	ContextObject->ContentBrowser = SharedThis(this);
+	ContextObject->NumAssetPaths = NumAssetPaths;
+	ContextObject->bShowGetContent = bShowGetContent;
+	ContextObject->bShowImport = bShowImport;
+	FToolMenuContext ToolMenuContext(nullptr, MenuExtender, ContextObject);
+
+	FDisplayMetrics DisplayMetrics;
+	FSlateApplication::Get().GetCachedDisplayMetrics( DisplayMetrics );
+
+	const FVector2D DisplaySize(
+		DisplayMetrics.PrimaryDisplayWorkAreaRect.Right - DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
+		DisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - DisplayMetrics.PrimaryDisplayWorkAreaRect.Top );
+
+	return 
+		SNew(SVerticalBox)
+
+		+SVerticalBox::Slot()
+		.MaxHeight(DisplaySize.Y * 0.9)
+		[
+			UToolMenus::Get()->GenerateWidget("ContentBrowser.AddNewContextMenu", ToolMenuContext)
+		];
+}
+
+void SContentBrowser::PopulateAddNewContextMenu(class UToolMenu* Menu, bool bShowGetContent, bool bShowImport, const int32 NumAssetPaths)
+{
+	const FSourcesData& SourcesData = AssetViewPtr->GetSourcesData();
 
 	// Only add "New Folder" item if we do not have a collection selected
 	FNewAssetOrClassContextMenu::FOnNewFolderRequested OnNewFolderRequested;
@@ -2097,7 +2171,7 @@ TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(bool bShowGetContent,
 	FNewAssetOrClassContextMenu::FOnNewClassRequested OnNewClassRequested = FNewAssetOrClassContextMenu::FOnNewClassRequested::CreateSP(this, &SContentBrowser::NewClassRequested);
 
 	FNewAssetOrClassContextMenu::MakeContextMenu(
-		MenuBuilder, 
+		Menu,
 		SourcesData.PackagePaths, 
 		OnNewAssetRequested,
 		OnNewClassRequested,
@@ -2105,22 +2179,6 @@ TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(bool bShowGetContent,
 		OnImportAssetRequested,
 		OnGetContentRequested
 		);
-
-	FDisplayMetrics DisplayMetrics;
-	FSlateApplication::Get().GetCachedDisplayMetrics( DisplayMetrics );
-
-	const FVector2D DisplaySize(
-		DisplayMetrics.PrimaryDisplayWorkAreaRect.Right - DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
-		DisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - DisplayMetrics.PrimaryDisplayWorkAreaRect.Top );
-
-	return 
-		SNew(SVerticalBox)
-
-		+SVerticalBox::Slot()
-		.MaxHeight(DisplaySize.Y * 0.9)
-		[
-			MenuBuilder.MakeWidget()
-		];
 }
 
 bool SContentBrowser::IsAddNewEnabled() const
@@ -2336,6 +2394,11 @@ EVisibility SContentBrowser::GetPathExpanderVisibility() const
 	return bSourcesViewExpanded ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
+EVisibility SContentBrowser::GetSourcesSwitcherVisibility() const
+{
+	return GetDefault<UContentBrowserSettings>()->GetDockCollections() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
 const FSlateBrush* SContentBrowser::GetSourcesSwitcherIcon() const
 {
 	switch (ActiveSourcesWidgetIndex)
@@ -2388,6 +2451,19 @@ FText SContentBrowser::GetSourcesSearchHintText() const
 	}
 	check(false);
 	return FText();
+}
+
+void SContentBrowser::OnContentBrowserSettingsChanged(FName PropertyName)
+{
+	const FName NAME_DockCollections = "DockCollections";//GET_MEMBER_NAME_CHECKED(UContentBrowserSettings, DockCollections); // Doesn't work as DockCollections is private :(
+	if (PropertyName.IsNone() || PropertyName == NAME_DockCollections)
+	{
+		// Ensure the omni-search is enabled correctly
+		CollectionViewPtr->SetAllowExternalSearch(!GetDefault<UContentBrowserSettings>()->GetDockCollections());
+
+		// Ensure the path is set to the correct view mode
+		UpdatePath();
+	}
 }
 
 FReply SContentBrowser::BackClicked()
@@ -2693,7 +2769,7 @@ void SContentBrowser::UpdatePath()
 	}
 	else if ( SourcesData.HasCollections() )
 	{
-		NewSourcesWidgetIndex = ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView;
+		NewSourcesWidgetIndex = GetDefault<UContentBrowserSettings>()->GetDockCollections() ? ContentBrowserSourcesWidgetSwitcherIndex::PathView : ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView;
 
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 		TArray<FCollectionNameType> CollectionPathItems;
@@ -3125,9 +3201,39 @@ TSharedPtr<SWidget> SContentBrowser::GetFolderContextMenu(const TArray<FString>&
 		Extender = InMenuExtender.Execute(SelectedPaths);
 	}
 
-	const bool bInShouldCloseWindowAfterSelection = true;
-	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterSelection, Commands, Extender, true);
-	
+	if (!UToolMenus::Get()->IsMenuRegistered("ContentBrowser.FolderContextMenu"))
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("ContentBrowser.FolderContextMenu");
+		Menu->bCloseSelfOnly = true;
+		Menu->AddDynamicSection("Section", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			UContentBrowserFolderContext* Context = InMenu->FindContext<UContentBrowserFolderContext>();
+			if (Context && Context->ContentBrowser.IsValid())
+			{
+				Context->ContentBrowser.Pin()->PopulateFolderContextMenu(InMenu);
+			}
+		}));
+	}
+
+	UContentBrowserFolderContext* Context = NewObject<UContentBrowserFolderContext>();
+	Context->ContentBrowser = SharedThis(this);
+	Context->OnCreateNewFolder = InOnCreateNewFolder;
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	Context->bCanBeModified = AssetToolsModule.Get().AllPassWritableFolderFilter(SelectedPaths);
+
+	FToolMenuContext MenuContext(Commands, Extender, Context);
+
+	return UToolMenus::Get()->GenerateWidget("ContentBrowser.FolderContextMenu", MenuContext);
+}
+
+void SContentBrowser::PopulateFolderContextMenu(UToolMenu* Menu)
+{
+	UContentBrowserFolderContext* Context = Menu->FindContext<UContentBrowserFolderContext>();
+	check(Context);
+
+	const TArray<FString>& SelectedPaths = PathContextMenu->GetSelectedPaths();
+
 	// We can only create folders when we have a single path selected
 	const bool bCanCreateNewFolder = SelectedPaths.Num() == 1 && ContentBrowserUtils::IsValidPathToCreateNewFolder(SelectedPaths[0]);
 
@@ -3148,26 +3254,34 @@ TSharedPtr<SWidget> SContentBrowser::GetFolderContextMenu(const TArray<FString>&
 		NewFolderToolTip = LOCTEXT("NewFolderTooltip_InvalidNumberOfPaths", "Can only create folders when there is a single path selected.");
 	}
 
-	// New Folder
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("NewFolder", "New Folder"),
-		NewFolderToolTip,
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
-		FUIAction(
-			FExecuteAction::CreateSP( this, &SContentBrowser::CreateNewFolder, SelectedPaths.Num() > 0 ? SelectedPaths[0] : FString(), InOnCreateNewFolder ),
-			FCanExecuteAction::CreateLambda( [bCanCreateNewFolder] { return bCanCreateNewFolder; } )
-			)
+	{
+		FToolMenuSection& Section = Menu->AddSection("Section");
+
+		if (Context->bCanBeModified)
+		{
+			// New Folder
+			Section.AddMenuEntry(
+				"NewFolder",
+				LOCTEXT("NewFolder", "New Folder"),
+				NewFolderToolTip,
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SContentBrowser::CreateNewFolder, SelectedPaths.Num() > 0 ? SelectedPaths[0] : FString(), Context->OnCreateNewFolder),
+					FCanExecuteAction::CreateLambda([bCanCreateNewFolder] { return bCanCreateNewFolder; })
+				)
+			);
+		}
+
+		Section.AddMenuEntry(
+			"FolderContext",
+			LOCTEXT("ShowInNewContentBrowser", "Show in New Content Browser"),
+			LOCTEXT("ShowInNewContentBrowserTooltip", "Opens a new Content Browser at this folder location (at least 1 Content Browser window needs to be locked)"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SContentBrowser::OpenNewContentBrowser))
 		);
+	}
 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowInNewContentBrowser", "Show in New Content Browser"),
-		LOCTEXT("ShowInNewContentBrowserTooltip", "Opens a new Content Browser at this folder location (at least 1 Content Browser window needs to be locked)"),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateSP(this, &SContentBrowser::OpenNewContentBrowser)),
-		"FolderContext"
-	);
-
-	return MenuBuilder.MakeWidget();
+	PathContextMenu->MakePathViewContextMenu(Menu);
 }
 
 void SContentBrowser::CreateNewFolder(FString FolderPath, FOnCreateNewFolder InOnCreateNewFolder)

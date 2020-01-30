@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GPUSkinPublicDefs.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
@@ -149,10 +150,10 @@ struct FSkelMeshSkinWeightInfo
 
 	/** Index of bones that influence this vertex */
 	UPROPERTY()
-	int32	Bones[8];
+	int32	Bones[MAX_TOTAL_INFLUENCES];
 	/** Influence of each bone on this vertex */
 	UPROPERTY()
-	uint8	Weights[8];
+	uint8	Weights[MAX_TOTAL_INFLUENCES];
 };
 
 /** LOD specific setup for the skeletal mesh component. */
@@ -659,6 +660,7 @@ public:
 	/** Object responsible for sending bone transforms, morph target state etc. to render thread. */
 	class FSkeletalMeshObject*	MeshObject;
 	FSkeletalMeshObjectCallbackData MeshObjectCallbackData;
+	void SetMeshObjectCallbackData(FSkeletalMeshObjectCallbackData& MeshObjectCallbackData);
 
 	/** Gets the skeletal mesh resource used for rendering the component. */
 	FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const;
@@ -805,7 +807,7 @@ public:
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual FString GetDetailedInfoInternal() const override;
 #if WITH_EDITOR
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
@@ -1563,7 +1565,7 @@ public:
 
 
 /** Simple, CPU evaluation of a vertex's skinned position helper function */
-template <bool bExtraBoneInfluencesT, bool bCachedMatrices>
+template <bool bCachedMatrices>
 FVector GetTypedSkinnedVertexPosition(
 	const USkinnedMeshComponent* SkinnedComp,
 	const FSkelMeshRenderSection& Section,

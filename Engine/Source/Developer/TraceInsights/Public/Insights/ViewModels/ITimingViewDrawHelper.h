@@ -1,10 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 
-class FTimingEventsTrack;
+class FBaseTimingTrack;
 struct FSlateBrush;
 struct FSlateFontInfo;
 
@@ -15,7 +15,7 @@ public:
 	virtual const FSlateBrush* GetWhiteBrush() const = 0;
 	virtual const FSlateFontInfo& GetEventFont() const = 0;
 	virtual FLinearColor GetEdgeColor() const = 0;
-	virtual FLinearColor GetTrackNameTextColor(const FTimingEventsTrack& Track) const = 0;
+	virtual FLinearColor GetTrackNameTextColor(const FBaseTimingTrack& Track) const = 0;
 	virtual int32 GetHeaderBackgroundLayerId() const = 0;
 	virtual int32 GetHeaderTextLayerId() const = 0;
 };

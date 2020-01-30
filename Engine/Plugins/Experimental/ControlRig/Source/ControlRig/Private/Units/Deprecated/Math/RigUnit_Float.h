@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -27,10 +27,8 @@ struct FRigUnit_Multiply_FloatFloat : public FRigUnit_BinaryFloatOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FRigMathLibrary::Multiply(Argument0, Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta=(DisplayName="Add", Category="Math|Float", Keywords = "+,Sum", Deprecated="4.23.0"))
@@ -38,10 +36,8 @@ struct FRigUnit_Add_FloatFloat : public FRigUnit_BinaryFloatOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FRigMathLibrary::Add(Argument0, Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta=(DisplayName="Subtract", Category="Math|Float", Keywords = "-", Deprecated="4.23.0"))
@@ -49,10 +45,8 @@ struct FRigUnit_Subtract_FloatFloat : public FRigUnit_BinaryFloatOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FRigMathLibrary::Subtract(Argument0, Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta=(DisplayName="Divide", Category="Math|Float", Keywords = "/", Deprecated="4.23.0"))
@@ -60,10 +54,8 @@ struct FRigUnit_Divide_FloatFloat : public FRigUnit_BinaryFloatOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FRigMathLibrary::Divide(Argument0, Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 /** Two args and a result of float type */
@@ -84,10 +76,8 @@ struct FRigUnit_Clamp_Float: public FRigUnit
 	UPROPERTY(meta = (Output))
 	float Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FMath::Clamp(Value, Min, Max);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 /** Two args and a result of float type */
@@ -114,8 +104,6 @@ struct FRigUnit_MapRange_Float: public FRigUnit
 	UPROPERTY(meta = (Output))
 	float Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FMath::GetMappedRangeValueClamped(FVector2D(MinIn, MaxIn), FVector2D(MinOut, MaxOut), Value);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_StateMachine.h"
 #include "Animation/AnimInstanceProxy.h"
@@ -9,6 +9,12 @@
 #include "Animation/BlendProfile.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimTrace.h"
+
+#if WITH_EDITORONLY_DATA
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimBlueprint.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AnimNode_StateMachine"
 
@@ -544,10 +550,25 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 	if (ActiveTransitionArray.Num() == 0 && !IsAConduitState(CurrentState) && !StatesUpdated.Contains(CurrentState))
 	{
 		StatePoseLinks[CurrentState].Update(Context);
-		Context.AnimInstanceProxy->RecordStateWeight(StateMachineIndexInClass, CurrentState, GetStateWeight(CurrentState));
+
+		const float StateWeight = GetStateWeight(CurrentState);
+		const float CurrentStateElapsedTime = GetCurrentStateElapsedTime();
+		Context.AnimInstanceProxy->RecordStateWeight(StateMachineIndexInClass, CurrentState, StateWeight, CurrentStateElapsedTime);
+
+		TRACE_ANIM_STATE_MACHINE_STATE(Context, StateMachineIndexInClass, CurrentState, StateWeight, CurrentStateElapsedTime);
 	}
 
 	ElapsedTime += Context.GetDeltaTime();
+
+#if ANIM_TRACE_ENABLED
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("State Machine Name"), GetMachineDescription()->MachineName);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Current State"), GetStateInfo().StateName);
+	for (int32 PoseIndex = 0; PoseIndex < StatePoseLinks.Num(); ++PoseIndex)
+	{
+		const FString StateName = FString::Printf(TEXT("State %s Weight"), *GetStateInfo(PoseIndex).StateName.ToString());
+		TRACE_ANIM_NODE_VALUE(Context, *StateName, GetStateWeight(PoseIndex));
+	}
+#endif
 }
 
 FAnimNode_AssetPlayerBase* FAnimNode_StateMachine::GetRelevantAssetPlayerFromState(const FAnimationUpdateContext& Context, const FBakedAnimationState& StateInfo)
@@ -1057,7 +1078,11 @@ void FAnimNode_StateMachine::UpdateState(int32 StateIndex, const FAnimationUpdat
 		StatesUpdated.Add(StateIndex);
 		StatePoseLinks[StateIndex].Update(Context);
 
-		Context.AnimInstanceProxy->RecordStateWeight(StateMachineIndexInClass, StateIndex, GetStateWeight(StateIndex));
+		const float StateWeight = GetStateWeight(StateIndex);
+		const float CurrentStateElapsedTime = StateIndex == CurrentState ? GetCurrentStateElapsedTime() : 0.0f;
+		Context.AnimInstanceProxy->RecordStateWeight(StateMachineIndexInClass, StateIndex, StateWeight, CurrentStateElapsedTime);
+
+		TRACE_ANIM_STATE_MACHINE_STATE(Context, StateMachineIndexInClass, StateIndex, StateWeight, CurrentStateElapsedTime);
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertSettings.h"
 #include "ConcertSyncServerLoop.h"
@@ -112,6 +112,18 @@ static CommandLineArguments GSavedCommandLine;
 	//install the custom quit event handler
 	NSAppleEventManager* appleEventManager = [NSAppleEventManager sharedAppleEventManager];
 	[appleEventManager setEventHandler:self andSelector:@selector(handleQuitEvent:withReplyEvent:) forEventClass:kCoreEventClass andEventID:kAEQuitApplication];
+
+	// Add a menu bar to the application.
+	id menubar = [[NSMenu new] autorelease];
+	id appMenuItem = [[NSMenuItem new] autorelease];
+	[menubar addItem:appMenuItem];
+	[NSApp setMainMenu:menubar];
+
+	// Populate the menu bar.
+	id appMenu = [[NSMenu new] autorelease];
+	id quitMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLOCTEXT("UMUS_Quit", "QuitApp", "Quit").ToString().GetNSString() action:@selector(terminate:) keyEquivalent:@"q"] autorelease];
+	[appMenu addItem:quitMenuItem];
+	[appMenuItem setSubmenu:appMenu];
 
 	RunGameThread(self, @selector(runGameThread:));
 }

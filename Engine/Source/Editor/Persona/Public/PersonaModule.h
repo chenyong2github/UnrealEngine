@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,6 +23,9 @@ class IPinnedCommandList;
 class FWorkflowAllowedTabSet;
 class IAssetFamily;
 class FWorkflowTabFactory;
+class UBlendSpaceBase;
+class IAnimSequenceCurveEditor;
+class IAnimationEditor;
 
 extern const FName PersonaAppName;
 
@@ -244,8 +247,17 @@ public:
 	/** Create a tab factory for editing slot names and groups */
 	virtual TSharedRef<FWorkflowTabFactory> CreateSkeletonSlotNamesTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, FSimpleMulticastDelegate& InOnPostUndo, FOnObjectSelected InOnObjectSelected) const;
 
+	/** Create a widget to preview a blendspace */
+	virtual TSharedRef<SWidget> CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition) const;
+
+	/** Create a tab factory for editing montage sections */
+	virtual TSharedRef<FWorkflowTabFactory> CreateAnimMontageSectionsTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IPersonaToolkit>& InPersonaToolkit, FSimpleMulticastDelegate& InOnSectionsChanged) const;
+
 	/** Create a widget that acts as a document for an animation asset */
-	virtual TSharedRef<SWidget> CreateEditorWidgetForAnimDocument(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, UObject* InAnimAsset, const FAnimDocumentArgs& InArgs, FString& OutDocumentLink);
+	virtual TSharedRef<SWidget> CreateEditorWidgetForAnimDocument(const TSharedRef<IAnimationEditor>& InHostingApp, UObject* InAnimAsset, const FAnimDocumentArgs& InArgs, FString& OutDocumentLink);
+
+	/** Create a widget that acts as a curve document for an animation asset */
+	virtual TSharedRef<IAnimSequenceCurveEditor> CreateCurveWidgetForAnimDocument(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, UAnimSequenceBase* InAnimSequence, const TSharedPtr<ITimeSliderController>& InExternalTimeSliderController, const TSharedPtr<FTabManager>& InTabManager);
 
 	/** Customize a skeletal mesh details panel */
 	virtual void CustomizeMeshDetails(const TSharedRef<IDetailsView>& InDetailsView, const TSharedRef<IPersonaToolkit>& InPersonaToolkit);
@@ -260,8 +272,8 @@ public:
 	/** Check all animations & skeletal meshes for curve usage */
 	virtual void TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkeleton>& InEditableSkeleton) const;
 
-	/** Apply Compression to list of animations */
-	virtual void ApplyCompression(TArray<TWeakObjectPtr<class UAnimSequence>>& AnimSequences);
+	/** Apply Compression to list of animations and optionally asks to pick an overrides to the bone compression settings */
+	virtual void ApplyCompression(TArray<TWeakObjectPtr<class UAnimSequence>>& AnimSequences, bool bPickBoneSettingsOverride);
 
 	/** Export to FBX files of the list of animations */
 	virtual bool ExportToFBX(TArray<TWeakObjectPtr<class UAnimSequence>>& AnimSequences, USkeletalMesh* SkeletalMesh);
@@ -279,19 +291,19 @@ public:
 	virtual class IPersonaEditorModeManager* CreatePersonaEditorModeManager();
 
 	/** Delegate used to query whether recording is active */
-	FIsRecordingActive& OnIsRecordingActive() { return IsRecordingActiveDelegate; }
+	virtual FIsRecordingActive& OnIsRecordingActive() { return IsRecordingActiveDelegate; }
 
 	/** Delegate used to start recording animation */
-	FRecord& OnRecord() { return RecordDelegate; }
+	virtual FRecord& OnRecord() { return RecordDelegate; }
 
 	/** Delegate used to stop recording animation */
-	FStopRecording& OnStopRecording() { return StopRecordingDelegate; }
+	virtual FStopRecording& OnStopRecording() { return StopRecordingDelegate; }
 
 	/** Delegate used to get the currently recording animation */
-	FGetCurrentRecording& OnGetCurrentRecording() { return GetCurrentRecordingDelegate; }
+	virtual FGetCurrentRecording& OnGetCurrentRecording() { return GetCurrentRecordingDelegate; }
 
 	/** Delegate used to get the currently recording animation time */
-	FGetCurrentRecordingTime& OnGetCurrentRecordingTime() { return GetCurrentRecordingTimeDelegate; }
+	virtual FGetCurrentRecordingTime& OnGetCurrentRecordingTime() { return GetCurrentRecordingTimeDelegate; }
 
 	/** Delegate broadcast when a preview scene is created */
 	virtual FOnPreviewSceneCreated& OnPreviewSceneCreated() { return OnPreviewSceneCreatedDelegate; }

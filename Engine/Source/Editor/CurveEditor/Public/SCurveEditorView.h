@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,6 +13,7 @@
 class FCurveEditor;
 class SCurveEditorPanel;
 class FSlateRect;
+struct FCurveDrawParams;
 
 /**
  * This is the base widget type for all views that exist on a curve editor panel. A view may contain 0 or more curves (stored in CurveInfoByID).
@@ -177,6 +178,9 @@ public:
 	virtual void GetGridLinesY(TSharedRef<const FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels = nullptr) const {}
 
 protected:
+
+	/** Gets info about the curves being drawn. Converts actual curves into an abstract series of lines/points/handles/etc. */
+	void GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const;
 
 	// ~SWidget interface
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;

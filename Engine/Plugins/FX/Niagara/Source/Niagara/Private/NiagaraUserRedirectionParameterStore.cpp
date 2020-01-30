@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraStats.h"
@@ -99,6 +99,8 @@ bool FNiagaraUserRedirectionParameterStore::SerializeFromMismatchedTag(const FPr
 	{
 		FNiagaraParameterStore OldStore;
 		FNiagaraParameterStore::StaticStruct()->SerializeItem(Slot, &OldStore, nullptr);
+		// Call PostLoad() to convert the serialized ParameterOffsets to SortedParameterOffsets.
+		OldStore.PostLoad();
 		*this = OldStore;
 		return true;
 	}

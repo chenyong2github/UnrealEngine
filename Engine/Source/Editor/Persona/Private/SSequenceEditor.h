@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -10,9 +10,11 @@
 #include "SAnimationScrubPanel.h"
 #include "SAnimEditorBase.h"
 #include "EditorUndoClient.h"
+#include "Animation/AnimSequence.h"
 
 class SAnimNotifyPanel;
 class SAnimTrackCurvePanel;
+class FAnimModel_AnimSequenceBase;
 
 //////////////////////////////////////////////////////////////////////////
 // SSequenceEditor
@@ -28,17 +30,16 @@ public:
 		SLATE_ARGUMENT(UAnimSequenceBase*, Sequence)
 		SLATE_EVENT(FOnObjectsSelected, OnObjectsSelected)
 		SLATE_EVENT(FOnInvokeTab, OnInvokeTab)
+		SLATE_EVENT(FOnEditCurves, OnEditCurves)
+		SLATE_EVENT(FOnStopEditingCurves, OnStopEditingCurves)
 
 	SLATE_END_ARGS()
 
 private:
-	TSharedPtr<class SAnimNotifyPanel>	AnimNotifyPanel;
-	TSharedPtr<class SAnimCurvePanel>	AnimCurvePanel;
-	TSharedPtr<class SAnimTrackCurvePanel>	AnimTrackCurvePanel;
-	TSharedPtr<class SAnimationScrubPanel> AnimScrubPanel;
 	TWeakPtr<class IPersonaPreviewScene> PreviewScenePtr;
+	TSharedPtr<FAnimModel_AnimSequenceBase> AnimModel;
 public:
-	void Construct(const FArguments& InArgs, TSharedRef<class IPersonaPreviewScene> InPreviewScene, TSharedRef<class IEditableSkeleton> InEditableSkeleton);
+	void Construct(const FArguments& InArgs, TSharedRef<class IPersonaPreviewScene> InPreviewScene, TSharedRef<class IEditableSkeleton> InEditableSkeleton, const TSharedRef<FUICommandList>& InCommandList);
 
 	~SSequenceEditor();
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -161,6 +161,9 @@ public:
 	/** Create RefLocalPoses from InSkeletalMesh */
 	virtual void UpdateSkeletonReferencePose(class USkeletalMesh* InSkeletalMesh) = 0;
 
+	/** Register a slot node */
+	virtual void RegisterSlotNode(const FName& InSlotName) = 0;
+
 	/** Add a slot group name */
 	virtual bool AddSlotGroupName(const FName& InSlotName) = 0;
 
@@ -187,6 +190,12 @@ public:
 
 	/** Unregister a delegate to be called when this skeletons notifies are changed */
 	virtual void UnregisterOnNotifiesChanged(void* Thing) = 0;
+
+	/** Register a delegate to be called when this skeletons slots are changed */
+	virtual FDelegateHandle RegisterOnSlotsChanged(const FSimpleMulticastDelegate::FDelegate& InDelegate) = 0;
+
+	/** Unregister a delegate to be called when this skeletons slots are changed */
+	virtual void UnregisterOnSlotsChanged(FDelegateHandle InHandle) = 0;
 
 	/** Wrap USkeleton::SetBoneTranslationRetargetingMode */
 	virtual void SetBoneTranslationRetargetingMode(FName InBoneName, EBoneTranslationRetargetingMode::Type NewRetargetingMode) = 0;

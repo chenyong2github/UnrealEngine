@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmoothingOps/IterativeSmoothingOp.h"
 #include "Async/ParallelFor.h"
@@ -44,7 +44,7 @@ void FIterativeSmoothingOp::Smooth()
 	for (int k = 0; k < SmoothIterations; ++k)
 	{
 		ParallelFor(NV, [=](int vid) {
-			if (ResultMesh->IsVertex(vid) == false)
+			if (ResultMesh->IsReferencedVertex(vid) == false)
 			{
 				return;
 			}

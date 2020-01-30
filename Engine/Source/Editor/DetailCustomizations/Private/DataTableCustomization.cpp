@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataTableCustomization.h"
 #include "DataTableRowUtlis.h"
@@ -271,8 +271,9 @@ bool FDataTableCustomizationLayout::ShouldFilterAsset(const struct FAssetData& A
 {
 	if (!RowTypeFilter.IsNone())
 	{
-		const UDataTable* DataTable = Cast<UDataTable>(AssetData.GetAsset());
-		if (DataTable->RowStruct && DataTable->RowStruct->GetFName() == RowTypeFilter)
+		static const FName RowStructureTagName("RowStructure");
+		FName RowStructure;
+		if (AssetData.GetTagValue<FName>(RowStructureTagName, RowStructure) && RowStructure == RowTypeFilter)
 		{
 			return false;
 		}

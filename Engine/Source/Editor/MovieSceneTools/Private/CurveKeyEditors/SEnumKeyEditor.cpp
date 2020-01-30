@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveKeyEditors/SEnumKeyEditor.h"
 #include "MovieSceneToolHelpers.h"
@@ -16,7 +16,7 @@ void SEnumCurveKeyEditor::Construct(const FArguments& InArgs, const TSequencerKe
 		MovieSceneToolHelpers::MakeEnumComboBox(
 			Enum,
 			TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateSP(this, &SEnumCurveKeyEditor::OnGetCurrentValueAsInt)),
-			FOnEnumSelectionChanged::CreateSP(this, &SEnumCurveKeyEditor::OnChangeKey)
+			SEnumCombobox::FOnEnumSelectionChanged::CreateSP(this, &SEnumCurveKeyEditor::OnChangeKey)
 		)
 	];
 }

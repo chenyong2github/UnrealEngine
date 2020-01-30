@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DiffPackagesCommandlet.cpp: Commandlet used for comparing two packages.
@@ -104,14 +104,14 @@ struct FPropertyComparison
 	{}
 
 	/** the property that was compared */
-	UProperty* Prop;
+	FProperty* Prop;
 
 	/**
 	 * The comparison result type for this property comparison.
 	 */
 	EObjectDiff DiffType;
 
-	/** The name of the property that was compared; only used when comparing native property data (which will have no corresponding UProperty) */
+	/** The name of the property that was compared; only used when comparing native property data (which will have no corresponding FProperty) */
 	FString PropText;
 
 	/**
@@ -1003,7 +1003,7 @@ EObjectDiff UDiffPackagesCommandlet::DiffObjects(UObject* ObjA, UObject* ObjB, U
 
 	// @todo: don't make this ongoing, make this one for each different property
 	EObjectDiff OverallDiffType = OD_None;
-	for ( UProperty* Prop = ComparisonClass->PropertyLink; Prop; Prop = Prop->PropertyLinkNext )
+	for ( FProperty* Prop = ComparisonClass->PropertyLink; Prop; Prop = Prop->PropertyLinkNext )
 	{
 		// if this is not an editable property and -most or -full was not specified, then skip this property
 		if ( !bDiffNonEditProps && (Prop->PropertyFlags & CPF_Edit) == 0 )

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -26,7 +26,7 @@ struct FRigUnit_SetCurveValue : public FRigUnitMutable
 	/**
 	 * The name of the Curve to set the Value for.
 	 */
-	UPROPERTY(meta = (Input, CurveName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "CurveName", Constant))
 	FName Curve;
 
 	/**

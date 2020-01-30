@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SPropertyTreeViewImpl.h"
@@ -546,7 +546,7 @@ void SPropertyTreeViewImpl::SetFromExistingTree( TSharedPtr<FObjectPropertyNode>
 	RootPropertyNode = RootNode;
 
 	TSharedPtr<FPropertyNode> ParentPropertyNode = PropertyToView->GetParentNodeSharedPtr();
-	if( ParentPropertyNode.IsValid() && ParentPropertyNode->GetProperty() && ParentPropertyNode->GetProperty()->IsA( UArrayProperty::StaticClass() ) )
+	if( ParentPropertyNode.IsValid() && ParentPropertyNode->GetProperty() && ParentPropertyNode->GetProperty()->IsA( FArrayProperty::StaticClass() ) )
 	{
 		// Force arrays to display so that deletion,insertion and removal work correctly.
 		UpdateTopLevelPropertyNodes( ParentPropertyNode );
@@ -683,7 +683,7 @@ void SPropertyTreeViewImpl::OnGetChildrenForPropertyNode( TSharedPtr<FPropertyNo
 		FObjectPropertyNode* ObjNode = ChildNode->AsObjectNode();
 
 		bool bPropertyVisible = true;
-		UProperty* Property = ChildNode->GetProperty();
+		FProperty* Property = ChildNode->GetProperty();
 		if(Property != NULL && IsPropertyVisible.IsBound())
 		{
 			TArray< TWeakObjectPtr<UObject> > Objects;
@@ -1208,7 +1208,7 @@ void SPropertyTreeViewImpl::CreateColorPickerWindow(const TSharedRef< class FPro
 	ColorPropertyNode = &PropertyNode.Get();
 
 	check(ColorPropertyNode);
-	UProperty* Property = ColorPropertyNode->GetProperty();
+	FProperty* Property = ColorPropertyNode->GetProperty();
 	check(Property);
 
 	FReadAddressList ReadAddresses;
@@ -1221,13 +1221,13 @@ void SPropertyTreeViewImpl::CreateColorPickerWindow(const TSharedRef< class FPro
 		const uint8* Addr = ReadAddresses.GetAddress(0);
 		if( Addr )
 		{
-			if( Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_Color )
+			if( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color )
 			{
 				DWORDColor.Add((FColor*)Addr);
 			}
 			else
 			{
-				check( Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
+				check( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
 				LinearColor.Add((FLinearColor*)Addr);
 			}
 		}
@@ -1273,7 +1273,7 @@ void SPropertyTreeViewImpl::SetIsPropertyVisible(FIsPropertyVisible IsPropertyVi
 void SPropertyTreeViewImpl::SetColor(FLinearColor NewColor)
 {
 	check(ColorPropertyNode);
-	UProperty* NodeProperty = ColorPropertyNode->GetProperty();
+	FProperty* NodeProperty = ColorPropertyNode->GetProperty();
 	check(NodeProperty);
 	FObjectPropertyNode* ObjectNode = ColorPropertyNode->FindObjectItemParent();
 	
@@ -1333,7 +1333,7 @@ bool SPropertyTreeViewImpl::IsPropertyOrChildrenSelected( const FString& InName,
 	{
 		bool bMatch = true;
 
-		UProperty *Prop = PropNode->GetProperty();
+		FProperty *Prop = PropNode->GetProperty();
 		int32 Index = PropNode->GetArrayIndex();
 		if( Prop )
 		{
@@ -1343,7 +1343,7 @@ bool SPropertyTreeViewImpl::IsPropertyOrChildrenSelected( const FString& InName,
 				FPropertyNode* ParentPropNode = PropNode->GetParentNode();
 				if( ParentPropNode )
 				{
-					UProperty* ParentProp = ParentPropNode->GetProperty();
+					FProperty* ParentProp = ParentPropNode->GetProperty();
 					if( ParentProp )
 					{
 						Name = ParentProp->GetName();

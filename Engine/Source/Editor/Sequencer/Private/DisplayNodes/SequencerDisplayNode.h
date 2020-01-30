@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,6 +15,7 @@ class FSequencer;
 class FSequencerNodeTree;
 class FSequencerDisplayNodeDragDropOp;
 class FSequencerObjectBindingNode;
+class FSequencerTrackNode;
 class IKeyArea;
 class ISequencerTrackEditor;
 class SSequencerTreeViewRow;
@@ -108,6 +109,13 @@ public:
 	 */
 	TSharedPtr<FSequencerObjectBindingNode> FindParentObjectBindingNode() const;
 
+	/**
+	 * Finds any track node above this node in the hierarchy
+	 *
+	 * @return the parent track node, or nullptr if no track nodeis found
+	 */
+	TSharedPtr<FSequencerTrackNode> FindParentTrackNode() const;
+
 	/** 
 	 * Finds this display node's closest parent object binding GUID, or an empty FGuid if it there is none
 	 */
@@ -169,6 +177,11 @@ public:
 	* @return the color used to draw the display name.
 	*/
 	virtual FLinearColor GetDisplayNameColor() const;
+
+	/**
+	*@return The font used to draw the display name.
+	*/
+	virtual FSlateFontInfo GetDisplayNameFont() const;
 
 	/**
 	 * @return the text to display for the tool tip for the display name. 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================================
 	IOSPlatformMisc.h: iOS platform misc functions
@@ -101,6 +101,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	
 	static void RequestStoreReview();
 
+	static bool IsUpdateAvailable();
+	
 	// Possible iOS devices
 	enum EIOSDevice
 	{

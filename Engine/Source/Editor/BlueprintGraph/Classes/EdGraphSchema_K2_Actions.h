@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -515,9 +515,9 @@ public:
 		return VariableSource.Get();
 	}
 
-	UProperty* GetProperty() const
+	FProperty* GetProperty() const
 	{
-		return FindField<UProperty>(GetVariableScope(), VarName);
+		return FindField<FProperty>(GetVariableScope(), VarName);
 	}
 	
 	// FEdGraphSchemaAction interface
@@ -779,9 +779,9 @@ public:
 		return GetVariableClass();
 	}
 
-	UMulticastDelegateProperty* GetDelegateProperty() const
+	FMulticastDelegateProperty* GetDelegateProperty() const
 	{
-		return FindField<UMulticastDelegateProperty>(GetVariableClass(), GetVariableName());
+		return FindField<FMulticastDelegateProperty>(GetVariableClass(), GetVariableName());
 	}
 };
 

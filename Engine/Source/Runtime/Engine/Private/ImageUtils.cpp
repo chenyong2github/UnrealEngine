@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 ImageUtils.cpp: Image utility functions.
@@ -221,12 +221,17 @@ UTexture2D* FImageUtils::CreateTexture2D(int32 SrcWidth, int32 SrcHeight, const 
 
 	// Set compression options.
 	Tex2D->SRGB = InParams.bSRGB;
-	Tex2D->CompressionSettings	= InParams.CompressionSettings;
+	Tex2D->CompressionSettings = InParams.CompressionSettings;
+	Tex2D->MipGenSettings = InParams.MipGenSettings;
 	if( !InParams.bUseAlpha )
 	{
 		Tex2D->CompressionNoAlpha = true;
 	}
 	Tex2D->DeferCompression	= InParams.bDeferCompression;
+	if (InParams.TextureGroup != TEXTUREGROUP_MAX)
+	{
+		Tex2D->LODGroup = InParams.TextureGroup;
+	}
 
 	Tex2D->PostEditChange();
 	return Tex2D;

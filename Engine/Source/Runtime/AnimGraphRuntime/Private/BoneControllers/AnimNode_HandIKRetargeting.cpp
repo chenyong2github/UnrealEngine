@@ -1,6 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_HandIKRetargeting.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_HandIKRetargeting
@@ -94,6 +95,14 @@ void FAnimNode_HandIKRetargeting::EvaluateSkeletalControl_AnyThread(FComponentSp
 			OutBoneTransforms.Sort(FCompareBoneTransformIndex());
 		}
 	}
+
+#if ANIM_TRACE_ENABLED
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Hand FK Weight"), HandFKWeight);
+	for (int32 BoneIndex = 0; BoneIndex < IKBonesToMove.Num(); BoneIndex++)
+	{
+		TRACE_ANIM_NODE_VALUE(Output, *FString::Printf(TEXT("Bone %d"), BoneIndex), IKBonesToMove[BoneIndex].BoneName);
+	}
+#endif
 }
 
 bool FAnimNode_HandIKRetargeting::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)

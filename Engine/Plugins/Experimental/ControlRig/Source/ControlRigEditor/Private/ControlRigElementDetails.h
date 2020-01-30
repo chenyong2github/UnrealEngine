@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,8 +8,38 @@
 #include "Rigs/RigHierarchyContainer.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
+#include "Graph/ControlRigGraph.h"
+#include "Graph/SControlRigGraphPinNameListValueWidget.h"
+#include "Styling/SlateTypes.h"
+#include "IPropertyUtilities.h"
 
 class IPropertyHandle;
+
+class FRigUnitDetails : public IDetailCustomization
+{
+public:
+
+	static TSharedRef<IDetailCustomization> MakeInstance()
+	{
+		return MakeShareable(new FRigUnitDetails);
+	}
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+protected:
+
+	TSharedRef<SWidget> MakeNameListItemWidget(TSharedPtr<FString> InItem);
+	FText GetNameListText(TSharedPtr<FStructOnScope> InStructOnScope, FNameProperty* InProperty) const;
+	TSharedPtr<FString> GetCurrentlySelectedItem(TSharedPtr<FStructOnScope> InStructOnScope, FNameProperty* InProperty, const TArray<TSharedPtr<FString>>* InNameList) const;
+	void SetNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/, TSharedPtr<FStructOnScope> InStructOnScope, FNameProperty* InProperty, TSharedRef<IPropertyUtilities> PropertyUtilities);
+	void OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo, TSharedPtr<FStructOnScope> InStructOnScope, FNameProperty* InProperty, TSharedRef<IPropertyUtilities> PropertyUtilities);
+	void OnNameListComboBox(TSharedPtr<FStructOnScope> InStructOnScope, FNameProperty* InProperty, const TArray<TSharedPtr<FString>>* InNameList);
+
+	UControlRigBlueprint* BlueprintBeingCustomized;
+	UControlRigGraph* GraphBeingCustomized;
+	TMap<FName, TSharedPtr<SControlRigGraphPinNameListValueWidget>> NameListWidgets;
+};
 
 UENUM()
 enum class ERigElementDetailsTransformComponent : uint8
@@ -74,13 +104,20 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
-	TOptional<float> GetComponentValue(bool bInitial, ERigElementDetailsTransformComponent Component) const;
-	void SetComponentValue(float InNewValue, ETextCommit::Type InCommitType, bool bInitial, ERigElementDetailsTransformComponent Component);
+	ECheckBoxState GetComponentValueBool(bool bInitial) const;
+	void SetComponentValueBool(ECheckBoxState InNewValue, bool bInitial);
+	TOptional<float> GetComponentValueFloat(ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component) const;
+	void SetComponentValueFloat(float InNewValue, ETextCommit::Type InCommitType, ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component);
+	void SetComponentValueFloat(float InNewValue, ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component);
+	bool IsGizmoEnabled() const;
+	bool IsEnabled(ERigControlValueType InValueType) const;
 
 	const TArray<TSharedPtr<FString>>& GetGizmoNameList() const;
+	const TArray<TSharedPtr<FString>>& GetControlTypeList() const;
 
 private:
 	TArray<TSharedPtr<FString>> GizmoNameList;
+	static TArray<TSharedPtr<FString>> ControlTypeList;
 };
 
 class FRigSpaceDetails : public FRigElementDetails

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -83,7 +83,7 @@ struct FMicrosoftPlatformString : public FGenericPlatformString
 
 	static FORCEINLINE float Atof(const WIDECHAR* String)
 	{
-		return _tstof( String );
+		return (float)_tstof( String );
 	}
 
 	static FORCEINLINE double Atod(const WIDECHAR* String)

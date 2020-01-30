@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackTableRow.h"
 #include "NiagaraEditorWidgetsStyle.h"
@@ -8,6 +8,7 @@
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraEditorWidgetsUtilities.h"
+#include "NiagaraStackCommandContext.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
@@ -18,7 +19,7 @@
 
 const float IndentSize = 12;
 
-void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel, UNiagaraStackEntry* InStackEntry, const TSharedRef<STreeView<UNiagaraStackEntry*>>& InOwnerTree)
+void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel, UNiagaraStackEntry* InStackEntry, TSharedRef<FNiagaraStackCommandContext> InStackCommandContext, const TSharedRef<STreeView<UNiagaraStackEntry*>>& InOwnerTree)
 {
 	ContentPadding = InArgs._ContentPadding;
 	bIsCategoryIconHighlighted = InArgs._IsCategoryIconHighlighted;
@@ -31,14 +32,14 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 	RowPadding = InArgs._RowPadding;
 	StackViewModel = InStackViewModel;
 	StackEntry = InStackEntry;
+	StackCommandContext = InStackCommandContext;
 	OwnerTree = InOwnerTree;
 
 	ExpandedImage = FCoreStyle::Get().GetBrush("TreeArrow_Expanded");
 	CollapsedImage = FCoreStyle::Get().GetBrush("TreeArrow_Collapsed");
 
-	InactiveItemBackgroundColor = InArgs._ItemBackgroundColor;
-	ActiveItemBackgroundColor = InactiveItemBackgroundColor + FLinearColor(.05f, .05f, .05f, 0.0f);
-	DisabledItemBackgroundColor = InactiveItemBackgroundColor + FLinearColor(.02f, .02f, .02f, 0.0f);
+	ItemBackgroundColor = InArgs._ItemBackgroundColor;
+	DisabledItemBackgroundColor = ItemBackgroundColor + FLinearColor(.02f, .02f, .02f, 0.0f);
 	ForegroundColor = InArgs._ItemForegroundColor;
 
 	ExecutionCategoryToolTipText = InStackEntry->GetExecutionSubcategoryName() != NAME_None
@@ -212,64 +213,58 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 	FLinearColor AccentColor = AccentColorName != NAME_None ? FNiagaraEditorWidgetsStyle::Get().GetColor(AccentColorName) : FLinearColor::Transparent;
 	ChildSlot
 	[
-		SNew(SOverlay)
-		+ SOverlay::Slot()
+		SNew(SHorizontalBox)
+		.Visibility(this, &SNiagaraStackTableRow::GetRowVisibility)
+		// Accent color.
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(1, 0, 6, 0)
 		[
-			SNew(SHorizontalBox)
-			.Visibility(this, &SNiagaraStackTableRow::GetRowVisibility)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(1, 0, 6, 0)
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(AccentColor)
+			.Padding(0)
+			[
+				SNew(SBox)
+				.WidthOverride(4)
+			]
+		]
+		// Content
+		+ SHorizontalBox::Slot()
+		[
+			// Row content
+			SNew(SBox)
+			.Padding(RowPadding)
 			[
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(AccentColor)
+				.BorderBackgroundColor(this, &SNiagaraStackTableRow::GetItemBackgroundColor)
+				.ForegroundColor(ForegroundColor)
 				.Padding(0)
 				[
-					SNew(SBox)
-					.WidthOverride(4)
-				]
-			]
-			+ SHorizontalBox::Slot()
-			[
-				SNew(SBox)
-				.Padding(RowPadding)
-				[
 					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-					.BorderBackgroundColor(this, &SNiagaraStackTableRow::GetItemBackgroundColor)
-					.ForegroundColor(ForegroundColor)
+					.BorderImage(this, &SNiagaraStackTableRow::GetSearchResultBorderBrush)
+					.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.SearchHighlightColor"))
 					.Padding(0)
 					[
-						ChildContent.ToSharedRef()
+						SNew(SBorder)
+						.BorderImage(this, &SNiagaraStackTableRow::GetSelectionBorderBrush)
+						.Padding(0)
+						[
+							ChildContent.ToSharedRef()
+						]
 					]
 				]
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(3, 0, 0, 0)
-			[
-				SNew(SNiagaraStackIssueIcon, StackViewModel, StackEntry)
-				.Visibility(IssueIconVisibility)
-			]
 		]
-		+ SOverlay::Slot()
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(3, 0, 0, 0)
 		[
-			SNew(SBorder)
-			.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.SearchResult"))
-			.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.SearchHighlightColor"))
-			.Visibility(this, &SNiagaraStackTableRow::GetSearchResultBorderVisibility)
-			.Padding(FMargin(0))
-			[
-				SNullWidget::NullWidget
-			]
+			SNew(SNiagaraStackIssueIcon, StackViewModel, StackEntry)
+			.Visibility(IssueIconVisibility)
 		]
 	];
-}
-
-bool SNiagaraStackTableRow::GetIsRowActive() const
-{
-	return IsHovered();
 }
 
 void SNiagaraStackTableRow::AddFillRowContextMenuHandler(FOnFillRowContextMenu FillRowContextMenuHandler)
@@ -286,14 +281,25 @@ FReply SNiagaraStackTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		FMenuBuilder MenuBuilder(true, nullptr);
+		TSharedPtr<ITypedTableView<UNiagaraStackEntry*>> OwnerTable = OwnerTablePtr.Pin();
+		if (OwnerTable.IsValid())
+		{
+			if (OwnerTable->GetSelectedItems().Contains(StackEntry) == false)
+			{
+				OwnerTable->Private_ClearSelection();
+				OwnerTable->Private_SetItemSelection(StackEntry, true, true);
+				OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
+			}
+		}
+
+		FMenuBuilder MenuBuilder(true, StackCommandContext->GetCommands());
 		for (FOnFillRowContextMenu& OnFillRowContextMenuHandler : OnFillRowContextMenuHanders)
 		{
 			OnFillRowContextMenuHandler.ExecuteIfBound(MenuBuilder);
 		}
 
 		FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(MenuBuilder, *StackEntry);
-		FNiagaraStackEditorWidgetsUtilities::AddStackEntryContextMenuActions(MenuBuilder, *StackEntry);
+		StackCommandContext->AddEditMenuItems(MenuBuilder);
 
 		TArray<UNiagaraStackEntry*> EntriesToProcess;
 		TArray<UNiagaraStackEntry*> NavigationEntries;
@@ -345,6 +351,12 @@ FReply SNiagaraStackTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 		return FReply::Handled();
 	}
 	return STableRow<UNiagaraStackEntry*>::OnMouseButtonUp(MyGeometry, MouseEvent);
+}
+
+const FSlateBrush* SNiagaraStackTableRow::GetBorder() const
+{
+	// Return no brush here so that the background doesn't change.  The border color changing will be handled by an internal border.
+	return FEditorStyle::GetBrush("NoBrush");
 }
 
 void SNiagaraStackTableRow::CollapseChildren()
@@ -451,21 +463,21 @@ void SNiagaraStackTableRow::OnValueColumnWidthChanged(float Width)
 
 FSlateColor SNiagaraStackTableRow::GetItemBackgroundColor() const
 {
-	if (StackEntry->GetIsEnabled() && StackEntry->GetOwnerIsEnabled())
-	{
-		return GetIsRowActive() ? ActiveItemBackgroundColor : InactiveItemBackgroundColor;
-	}
-	else
-	{
-		return DisabledItemBackgroundColor;
-	}
+	return StackEntry->GetIsEnabledAndOwnerIsEnabled() 
+		? ItemBackgroundColor 
+		: DisabledItemBackgroundColor;
 }
 
-EVisibility SNiagaraStackTableRow::GetSearchResultBorderVisibility() const
+const FSlateBrush* SNiagaraStackTableRow::GetSelectionBorderBrush() const
+{
+	return STableRow<UNiagaraStackEntry*>::GetBorder();
+}
+
+const FSlateBrush* SNiagaraStackTableRow::GetSearchResultBorderBrush() const
 {
 	return StackViewModel->GetCurrentFocusedEntry() == StackEntry
-		? EVisibility::HitTestInvisible
-		: EVisibility::Hidden;
+		? FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.SearchResult")
+		: FEditorStyle::GetBrush("NoBrush");
 }
 
 void SNiagaraStackTableRow::NavigateTo(UNiagaraStackEntry* Item)

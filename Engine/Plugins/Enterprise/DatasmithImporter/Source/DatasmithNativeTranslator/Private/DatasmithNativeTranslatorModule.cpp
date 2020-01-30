@@ -1,8 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithNativeTranslatorModule.h"
 
 #include "DatasmithNativeTranslator.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"

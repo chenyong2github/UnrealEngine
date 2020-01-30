@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,7 +18,7 @@ public:
 	FControlRigEditModeToolkit(FControlRigEditMode& InEditMode)
 		: EditMode(InEditMode)
 	{
-		SAssignNew(ModeTools, SControlRigEditModeTools, EditMode.GetWorld());
+		SAssignNew(ModeTools, SControlRigEditModeTools, EditMode, EditMode.GetWorld());
 	}
 
 	/** IToolkit interface */

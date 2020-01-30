@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieScenePreAnimatedState.h"
 #include "GameFramework/Actor.h"
@@ -174,6 +174,35 @@ void TMovieSceneSavedTokens<TokenType>::OnPreAnimated(ECapturePreAnimatedState C
 		AnimatedEntities.Add(EntityAndTypeID);
 	}
 }
+
+template<typename TokenType>
+void TMovieSceneSavedTokens<TokenType>::CopyFrom(TMovieSceneSavedTokens& OtherTokens)
+{
+	for (const FMovieSceneEntityAndAnimTypeID& Entity : OtherTokens.AnimatedEntities)
+	{
+		if (!AnimatedEntities.Contains(Entity))
+		{
+			AnimatedEntities.Add(Entity);
+		}
+	}
+
+	for (int32 OtherIndex = 0; OtherIndex < OtherTokens.AllAnimatedTypeIDs.Num(); ++OtherIndex)
+	{
+		FMovieSceneAnimTypeID OtherTypeID = OtherTokens.AllAnimatedTypeIDs[OtherIndex];
+
+		const int32 ExistingIndex = AllAnimatedTypeIDs.IndexOfByKey(OtherTypeID);
+		if (ExistingIndex != INDEX_NONE)
+		{
+			PreAnimatedTokens[ExistingIndex] = MoveTemp(OtherTokens.PreAnimatedTokens[OtherIndex]);
+		}
+		else
+		{
+			AllAnimatedTypeIDs.Add(OtherTypeID);
+			PreAnimatedTokens.Add(MoveTemp(OtherTokens.PreAnimatedTokens[OtherIndex]));
+		}
+	}
+}
+
 
 template<typename TokenType>
 void TMovieSceneSavedTokens<TokenType>::Restore(IMovieScenePlayer& Player)
@@ -412,24 +441,34 @@ void FMovieScenePreAnimatedState::OnObjectsReplaced(const TMap<UObject*, UObject
 	{
 		UObject* OldObject = Iter->Key;
 		UObject* NewObject = Iter->Value;
+		if (!OldObject || !NewObject)
+		{
+			continue;
+		}
 
 		FObjectKey OldKey = FObjectKey(OldObject);
-		if (OldObject && NewObject && ObjectTokens.Contains(OldKey))
+		if (!ObjectTokens.Contains(OldKey))
 		{
-			FObjectKey NewKey = FObjectKey(NewObject);
+			continue;
+		}
 
-			ObjectTokens.Add(NewKey, MoveTemp(ObjectTokens[OldKey]));
-			ObjectTokens[NewKey].SetPayload(NewObject);
+		FObjectKey NewKey = FObjectKey(NewObject);
 
+		{
+			TMovieSceneSavedTokens<IMovieScenePreAnimatedTokenPtr>& NewTokens = ObjectTokens.FindOrAdd(NewKey, TMovieSceneSavedTokens<IMovieScenePreAnimatedTokenPtr>(NewObject));
+			TMovieSceneSavedTokens<IMovieScenePreAnimatedTokenPtr>& OldTokens = ObjectTokens.FindChecked(OldKey);
+
+			NewTokens.CopyFrom(OldTokens);
 			ObjectTokens.Remove(OldKey);
+			// NewTokens is not invalid
+		}
 
-			for (auto& Pair : EntityToAnimatedObjects)
+		for (auto& Pair : EntityToAnimatedObjects)
+		{
+			if (Pair.Value.Contains(OldKey))
 			{
-				if (Pair.Value.Contains(OldKey))
-				{
-					Pair.Value.Add(NewKey);
-					Pair.Value.Remove(OldKey);
-				}
+				Pair.Value.AddUnique(NewKey);
+				Pair.Value.Remove(OldKey);
 			}
 		}
 	}

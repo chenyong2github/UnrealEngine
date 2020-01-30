@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/UMGDetailCustomizations.h"
 #include "Widgets/Images/SImage.h"
@@ -90,9 +90,9 @@ private:
 	TSharedPtr<FEdGraphSchemaAction> Action;
 };
 
-void FBlueprintWidgetCustomization::CreateEventCustomization( IDetailLayoutBuilder& DetailLayout, UDelegateProperty* Property, UWidget* Widget )
+void FBlueprintWidgetCustomization::CreateEventCustomization( IDetailLayoutBuilder& DetailLayout, FDelegateProperty* Property, UWidget* Widget )
 {
-	TSharedRef<IPropertyHandle> DelegatePropertyHandle = DetailLayout.GetProperty(Property->GetFName(), CastChecked<UClass>(Property->GetOuter()));
+	TSharedRef<IPropertyHandle> DelegatePropertyHandle = DetailLayout.GetProperty(Property->GetFName(), Property->GetOwnerChecked<UClass>());
 
 	const bool bHasValidHandle = DelegatePropertyHandle->IsValidHandle();
 	if(!bHasValidHandle)
@@ -167,7 +167,7 @@ FReply FBlueprintWidgetCustomization::HandleAddOrViewEventForVariable(const FNam
 	UBlueprint* BlueprintObj = Blueprint;
 
 	// Find the corresponding variable property in the Blueprint
-	UObjectProperty* VariableProperty = FindField<UObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
+	FObjectProperty* VariableProperty = FindField<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
 
 	if (VariableProperty)
 	{
@@ -200,7 +200,7 @@ int32 FBlueprintWidgetCustomization::HandleAddOrViewIndexForButton(const FName E
 	return 1; // Add
 }
 
-void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLayoutBuilder& DetailLayout, FName ThisComponentName, UClass* PropertyClass, UMulticastDelegateProperty* DelegateProperty)
+void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLayoutBuilder& DetailLayout, FName ThisComponentName, UClass* PropertyClass, FMulticastDelegateProperty* DelegateProperty)
 {
 	const FString AddString = FString(TEXT("Add "));
 	const FString ViewString = FString(TEXT("View "));
@@ -218,7 +218,7 @@ void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLay
 		PropertyTooltip = FText::FromString(DelegateProperty->GetName());
 	}
 
-	UObjectProperty* ComponentProperty = FindField<UObjectProperty>(Blueprint->SkeletonGeneratedClass, ThisComponentName);
+	FObjectProperty* ComponentProperty = FindField<FObjectProperty>(Blueprint->SkeletonGeneratedClass, ThisComponentName);
 
 	if ( !ComponentProperty )
 	{
@@ -325,11 +325,11 @@ void FBlueprintWidgetCustomization::PerformBindingCustomization(IDetailLayoutBui
 		UWidget* Widget = Cast<UWidget>(OutObjects[0].Get());
 		UClass* PropertyClass = OutObjects[0].Get()->GetClass();
 
-		for ( TFieldIterator<UProperty> PropertyIt(PropertyClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt )
+		for ( TFieldIterator<FProperty> PropertyIt(PropertyClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt )
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 
-			if ( UDelegateProperty* DelegateProperty = Cast<UDelegateProperty>(*PropertyIt) )
+			if ( FDelegateProperty* DelegateProperty = CastField<FDelegateProperty>(*PropertyIt) )
 			{
 				//TODO Remove the code to use ones that end with "Event".  Prefer metadata flag.
 				if ( DelegateProperty->HasMetaData(IsBindableEventName) || DelegateProperty->GetName().EndsWith(TEXT("Event")) )
@@ -337,7 +337,7 @@ void FBlueprintWidgetCustomization::PerformBindingCustomization(IDetailLayoutBui
 					CreateEventCustomization(DetailLayout, DelegateProperty, Widget);
 				}
 			}
-			else if ( UMulticastDelegateProperty* MulticastDelegateProperty = Cast<UMulticastDelegateProperty>(Property) )
+			else if ( FMulticastDelegateProperty* MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(Property) )
 			{
 				CreateMulticastEventCustomization(DetailLayout, OutObjects[0].Get()->GetFName(), PropertyClass, MulticastDelegateProperty);
 			}
@@ -362,7 +362,7 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 
 	TSharedRef<IPropertyHandle> AccessibleTextPropertyHandle = DetailLayout.GetProperty(TextPropertyName);
 	const FName DelegateName(*(TextPropertyName.ToString() + "Delegate"));
-	UDelegateProperty* AccessibleTextDelegateProperty = FindFieldChecked<UDelegateProperty>(CastChecked<UClass>(AccessibleTextPropertyHandle->GetProperty()->GetOuter()), DelegateName);
+	FDelegateProperty* AccessibleTextDelegateProperty = FindFieldChecked<FDelegateProperty>(CastChecked<UClass>(AccessibleTextPropertyHandle->GetProperty()->GetOwner<UObject>()), DelegateName);
 	// Make sure the old AccessibleText properties are hidden so we don't get duplicate widgets
 	DetailLayout.HideProperty(AccessibleTextPropertyHandle);
 

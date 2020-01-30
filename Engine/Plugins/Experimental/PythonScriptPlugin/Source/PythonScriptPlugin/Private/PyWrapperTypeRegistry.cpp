@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperTypeRegistry.h"
 #include "PyWrapperOwnerContext.h"
@@ -244,7 +244,7 @@ FPyWrapperArray* FPyWrapperArrayFactory::FindInstance(void* InUnrealInstance) co
 	return FindInstanceInternal(InUnrealInstance, &PyWrapperArrayType);
 }
 
-FPyWrapperArray* FPyWrapperArrayFactory::CreateInstance(void* InUnrealInstance, const UArrayProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
+FPyWrapperArray* FPyWrapperArrayFactory::CreateInstance(void* InUnrealInstance, const FArrayProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
 {
 	if (!InUnrealInstance)
 	{
@@ -274,7 +274,7 @@ FPyWrapperFixedArray* FPyWrapperFixedArrayFactory::FindInstance(void* InUnrealIn
 	return FindInstanceInternal(InUnrealInstance, &PyWrapperFixedArrayType);
 }
 
-FPyWrapperFixedArray* FPyWrapperFixedArrayFactory::CreateInstance(void* InUnrealInstance, const UProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
+FPyWrapperFixedArray* FPyWrapperFixedArrayFactory::CreateInstance(void* InUnrealInstance, const FProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
 {
 	if (!InUnrealInstance)
 	{
@@ -304,7 +304,7 @@ FPyWrapperSet* FPyWrapperSetFactory::FindInstance(void* InUnrealInstance) const
 	return FindInstanceInternal(InUnrealInstance, &PyWrapperSetType);
 }
 
-FPyWrapperSet* FPyWrapperSetFactory::CreateInstance(void* InUnrealInstance, const USetProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
+FPyWrapperSet* FPyWrapperSetFactory::CreateInstance(void* InUnrealInstance, const FSetProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
 {
 	if (!InUnrealInstance)
 	{
@@ -334,7 +334,7 @@ FPyWrapperMap* FPyWrapperMapFactory::FindInstance(void* InUnrealInstance) const
 	return FindInstanceInternal(InUnrealInstance, &PyWrapperMapType);
 }
 
-FPyWrapperMap* FPyWrapperMapFactory::CreateInstance(void* InUnrealInstance, const UMapProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
+FPyWrapperMap* FPyWrapperMapFactory::CreateInstance(void* InUnrealInstance, const FMapProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
 {
 	if (!InUnrealInstance)
 	{
@@ -522,6 +522,8 @@ void FPyWrapperTypeRegistry::OrphanWrappedTypesForModule(const FName ModuleName)
 
 void FPyWrapperTypeRegistry::GenerateWrappedTypesForReferences(const FGeneratedWrappedTypeReferences& InGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules)
 {
+	static const EPyTypeGenerationFlags ReferenceGenerationFlags = EPyTypeGenerationFlags::ForceShouldExport | EPyTypeGenerationFlags::IncludeBlueprintGeneratedTypes;
+
 	if (!InGeneratedWrappedTypeReferences.HasReferences())
 	{
 		return;
@@ -531,23 +533,23 @@ void FPyWrapperTypeRegistry::GenerateWrappedTypesForReferences(const FGeneratedW
 
 	for (const UClass* Class : InGeneratedWrappedTypeReferences.ClassReferences)
 	{
-		GenerateWrappedClassType(Class, GeneratedWrappedTypeReferences, OutDirtyModules, true);
+		GenerateWrappedClassType(Class, GeneratedWrappedTypeReferences, OutDirtyModules, ReferenceGenerationFlags);
 	}
 
 	for (const UScriptStruct* Struct : InGeneratedWrappedTypeReferences.StructReferences)
 	{
-		GenerateWrappedStructType(Struct, GeneratedWrappedTypeReferences, OutDirtyModules, true);
+		GenerateWrappedStructType(Struct, GeneratedWrappedTypeReferences, OutDirtyModules, ReferenceGenerationFlags);
 	}
 
 	for (const UEnum* Enum : InGeneratedWrappedTypeReferences.EnumReferences)
 	{
-		GenerateWrappedEnumType(Enum, GeneratedWrappedTypeReferences, OutDirtyModules, true);
+		GenerateWrappedEnumType(Enum, GeneratedWrappedTypeReferences, OutDirtyModules, ReferenceGenerationFlags);
 	}
 
 	for (const UFunction* DelegateSignature : InGeneratedWrappedTypeReferences.DelegateReferences)
 	{
 		check(DelegateSignature->HasAnyFunctionFlags(FUNC_Delegate));
-		GenerateWrappedDelegateType(DelegateSignature, GeneratedWrappedTypeReferences, OutDirtyModules, true);
+		GenerateWrappedDelegateType(DelegateSignature, GeneratedWrappedTypeReferences, OutDirtyModules, ReferenceGenerationFlags);
 	}
 
 	GenerateWrappedTypesForReferences(GeneratedWrappedTypeReferences, OutDirtyModules);
@@ -562,53 +564,191 @@ void FPyWrapperTypeRegistry::NotifyModulesDirtied(const TSet<FName>& InDirtyModu
 	}
 }
 
-PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedTypeForObject(const UObject* InObj, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate)
+void FPyWrapperTypeRegistry::UpdateGenerateWrappedTypeForRename(const FName InOldName, const UObject* InObj)
+{
+	FName TypeRegistryName;
+	{
+		if (const UClass* Class = Cast<const UClass>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Class);
+		}
+
+		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Struct);
+		}
+
+		if (const UEnum* Enum = Cast<const UEnum>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Enum);
+		}
+
+		if (const UFunction* Func = Cast<const UFunction>(InObj))
+		{
+			if (Func->HasAnyFunctionFlags(FUNC_Delegate))
+			{
+				TypeRegistryName = PyGenUtil::GetTypeRegistryName(Func);
+			}
+		}
+	}
+
+	TSharedPtr<PyGenUtil::FGeneratedWrappedType> GeneratedWrappedType = GeneratedWrappedTypes.FindAndRemoveChecked(InOldName);
+	check(!TypeRegistryName.IsNone() && !GeneratedWrappedTypes.Contains(TypeRegistryName));
+	GeneratedWrappedTypes.Add(TypeRegistryName, GeneratedWrappedType);
+}
+
+void FPyWrapperTypeRegistry::RemoveGenerateWrappedTypeForDelete(const UObject* InObj)
+{
+	FName TypeRegistryName;
+	FString PythonTypeName;
+	{
+		if (const UClass* Class = Cast<const UClass>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Class);
+			PythonTypeName = PyGenUtil::GetClassPythonName(Class);
+		}
+
+		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Struct);
+			PythonTypeName = PyGenUtil::GetStructPythonName(Struct);
+		}
+
+		if (const UEnum* Enum = Cast<const UEnum>(InObj))
+		{
+			TypeRegistryName = PyGenUtil::GetTypeRegistryName(Enum);
+			PythonTypeName = PyGenUtil::GetEnumPythonName(Enum);
+		}
+
+		if (const UFunction* Func = Cast<const UFunction>(InObj))
+		{
+			if (Func->HasAnyFunctionFlags(FUNC_Delegate))
+			{
+				TypeRegistryName = PyGenUtil::GetTypeRegistryName(Func);
+				PythonTypeName = PyGenUtil::GetDelegatePythonName(Func);
+			}
+		}
+	}
+
+	TSharedPtr<PyGenUtil::FGeneratedWrappedType> GeneratedWrappedType = GeneratedWrappedTypes.FindRef(TypeRegistryName);
+	GeneratedWrappedType->Reset();
+
+	// Fill the type with dummy information and re-finalize it as an empty stub
+	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*FString::Printf(TEXT("%s_DELETED"), *PythonTypeName));
+	GeneratedWrappedType->TypeDoc = PyGenUtil::TCHARToUTF8Buffer(*FString::Printf(TEXT("%s was deleted!"), *InObj->GetPathName()));
+	GeneratedWrappedType->Finalize();
+}
+
+PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedTypeForObject(const UObject* InObj, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags)
 {
 	if (const UClass* Class = Cast<const UClass>(InObj))
 	{
-		return GenerateWrappedClassType(Class, OutGeneratedWrappedTypeReferences, OutDirtyModules, bForceGenerate);
+		return GenerateWrappedClassType(Class, OutGeneratedWrappedTypeReferences, OutDirtyModules, InGenerationFlags);
 	}
 
 	if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InObj))
 	{
-		return GenerateWrappedStructType(Struct, OutGeneratedWrappedTypeReferences, OutDirtyModules, bForceGenerate);
+		return GenerateWrappedStructType(Struct, OutGeneratedWrappedTypeReferences, OutDirtyModules, InGenerationFlags);
 	}
 
 	if (const UEnum* Enum = Cast<const UEnum>(InObj))
 	{
-		return GenerateWrappedEnumType(Enum, OutGeneratedWrappedTypeReferences, OutDirtyModules, bForceGenerate);
+		return GenerateWrappedEnumType(Enum, OutGeneratedWrappedTypeReferences, OutDirtyModules, InGenerationFlags);
 	}
 
 	if (const UFunction* Func = Cast<const UFunction>(InObj))
 	{
 		if (Func->HasAnyFunctionFlags(FUNC_Delegate))
 		{
-			return GenerateWrappedDelegateType(Func, OutGeneratedWrappedTypeReferences, OutDirtyModules, bForceGenerate);
+			return GenerateWrappedDelegateType(Func, OutGeneratedWrappedTypeReferences, OutDirtyModules, InGenerationFlags);
 		}
 	}
 
 	return nullptr;
 }
 
-PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InClass, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate)
+bool FPyWrapperTypeRegistry::HasWrappedTypeForObject(const UObject* InObj) const
+{
+	if (const UClass* Class = Cast<const UClass>(InObj))
+	{
+		return HasWrappedClassType(Class);
+	}
+
+	if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InObj))
+	{
+		return HasWrappedStructType(Struct);
+	}
+
+	if (const UEnum* Enum = Cast<const UEnum>(InObj))
+	{
+		return HasWrappedEnumType(Enum);
+	}
+
+	if (const UFunction* Func = Cast<const UFunction>(InObj))
+	{
+		if (Func->HasAnyFunctionFlags(FUNC_Delegate))
+		{
+			return HasWrappedDelegateType(Func);
+		}
+	}
+
+	return false;
+}
+
+bool FPyWrapperTypeRegistry::HasWrappedTypeForObjectName(const FName InName) const
+{
+	return GeneratedWrappedTypes.Contains(InName);
+}
+
+PyTypeObject* FPyWrapperTypeRegistry::GetWrappedTypeForObject(const UObject* InObj) const
+{
+	if (const UClass* Class = Cast<const UClass>(InObj))
+	{
+		return GetWrappedClassType(Class);
+	}
+
+	if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InObj))
+	{
+		return GetWrappedStructType(Struct);
+	}
+
+	if (const UEnum* Enum = Cast<const UEnum>(InObj))
+	{
+		return GetWrappedEnumType(Enum);
+	}
+
+	if (const UFunction* Func = Cast<const UFunction>(InObj))
+	{
+		if (Func->HasAnyFunctionFlags(FUNC_Delegate))
+		{
+			return GetWrappedDelegateType(Func);
+		}
+	}
+
+	return nullptr;
+}
+
+PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InClass, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags)
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_GenerateWrappedClassTotalTime);
 	INC_DWORD_STAT(STAT_GenerateWrappedClassCallCount);
 
 	// Already processed? Nothing more to do
-	if (PyTypeObject* ExistingPyType = PythonWrappedClasses.FindRef(InClass->GetFName()))
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InClass);
+	if (PyTypeObject* ExistingPyType = PythonWrappedClasses.FindRef(TypeRegistryName))
 	{
 		return ExistingPyType;
 	}
 
 	// todo: allow generation of Blueprint generated classes
-	if (PyGenUtil::IsBlueprintGeneratedClass(InClass))
+	const bool bIsBlueprintGeneratedType = PyGenUtil::IsBlueprintGeneratedClass(InClass);
+	if (bIsBlueprintGeneratedType)
 	{
 		return nullptr;
 	}
 
 	// Should this type be exported?
-	if (!bForceGenerate && !PyGenUtil::ShouldExportClass(InClass))
+	if (!EnumHasAnyFlags(InGenerationFlags, EPyTypeGenerationFlags::ForceShouldExport) && !PyGenUtil::ShouldExportClass(InClass))
 	{
 		return nullptr;
 	}
@@ -617,21 +757,21 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 	PyTypeObject* SuperPyType = nullptr;
 	if (const UClass* SuperClass = InClass->GetSuperClass())
 	{
-		SuperPyType = GenerateWrappedClassType(SuperClass, OutGeneratedWrappedTypeReferences, OutDirtyModules, true);
+		SuperPyType = GenerateWrappedClassType(SuperClass, OutGeneratedWrappedTypeReferences, OutDirtyModules, InGenerationFlags | EPyTypeGenerationFlags::ForceShouldExport);
 	}
 
 	INC_DWORD_STAT(STAT_GenerateWrappedClassObjCount);
 
-	check(!GeneratedWrappedTypes.Contains(InClass->GetFName()));
+	check(!GeneratedWrappedTypes.Contains(TypeRegistryName));
 	TSharedRef<PyGenUtil::FGeneratedWrappedClassType> GeneratedWrappedType = MakeShared<PyGenUtil::FGeneratedWrappedClassType>();
-	GeneratedWrappedTypes.Add(InClass->GetFName(), GeneratedWrappedType);
+	GeneratedWrappedTypes.Add(TypeRegistryName, GeneratedWrappedType);
 
 	TMap<FName, FName> PythonProperties;
 	TMap<FName, FString> PythonDeprecatedProperties;
 	TMap<FName, FName> PythonMethods;
 	TMap<FName, FString> PythonDeprecatedMethods;
 
-	auto GenerateWrappedProperty = [this, InClass, &PythonProperties, &PythonDeprecatedProperties, &GeneratedWrappedType, &OutGeneratedWrappedTypeReferences](const UProperty* InProp)
+	auto GenerateWrappedProperty = [this, InClass, &PythonProperties, &PythonDeprecatedProperties, &GeneratedWrappedType, &OutGeneratedWrappedTypeReferences](const FProperty* InProp)
 	{
 		const bool bExportPropertyToScript = PyGenUtil::ShouldExportProperty(InProp);
 		const bool bExportPropertyToEditor = PyGenUtil::ShouldExportEditorOnlyProperty(InProp);
@@ -709,7 +849,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			return;
 		}
 
-		static auto IsStructOrObjectProperty = [](const UProperty* InProp) { return InProp && (InProp->IsA<UStructProperty>() || InProp->IsA<UObjectPropertyBase>()); };
+		static auto IsStructOrObjectProperty = [](const FProperty* InProp) { return InProp && (InProp->IsA<FStructProperty>() || InProp->IsA<FObjectPropertyBase>()); };
 
 		// Get the type to hoist this method to (this should be the first parameter)
 		PyGenUtil::FGeneratedWrappedMethodParameter SelfParam;
@@ -720,10 +860,10 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 		if (!SelfParam.ParamProp)
 		{
 			// Hint that UPRAM(ref) may be missing on first parameter
-			const UProperty* PropertyPossiblyMissingMacro = nullptr;
-			for (TFieldIterator<const UProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
+			const FProperty* PropertyPossiblyMissingMacro = nullptr;
+			for (TFieldIterator<const FProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
 			{
-				const UProperty* Param = *ParamIt;
+				const FProperty* Param = *ParamIt;
 				if (PyUtil::IsOutputParameter(Param) && !PyUtil::IsInputParameter(Param) && !Param->HasAnyPropertyFlags(CPF_ReturnParm) && IsStructOrObjectProperty(Param))
 				{
 					PropertyPossiblyMissingMacro = Param;
@@ -734,7 +874,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethod' but doesn't contain a valid struct or object as its first argument.%s"), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName(), PropertyPossiblyMissingMacro ? TEXT(" UPARAM(ref) may be missing on the first argument.") : TEXT(""));
 			return;
 		}
-		if (const UObjectPropertyBase* SelfPropObj = Cast<UObjectPropertyBase>(SelfParam.ParamProp))
+		if (const FObjectPropertyBase* SelfPropObj = CastField<FObjectPropertyBase>(SelfParam.ParamProp))
 		{
 			if (SelfPropObj->PropertyClass->IsChildOf(InFunc->GetOwnerClass()))
 			{
@@ -785,17 +925,17 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodSelfReturn' but has no return value."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
 				return;
 			}
-			else if (!SelfParam.ParamProp->IsA<UStructProperty>())
+			else if (!SelfParam.ParamProp->IsA<FStructProperty>())
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodSelfReturn' but the 'self' argument is not a struct."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
 				return;
 			}
-			else if (!GeneratedWrappedDynamicMethod.MethodFunc.OutputParams[0].ParamProp->IsA<UStructProperty>())
+			else if (!GeneratedWrappedDynamicMethod.MethodFunc.OutputParams[0].ParamProp->IsA<FStructProperty>())
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodSelfReturn' but the return value is not a struct."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
 				return;
 			}
-			else if (CastChecked<UStructProperty>(GeneratedWrappedDynamicMethod.MethodFunc.OutputParams[0].ParamProp)->Struct != CastChecked<UStructProperty>(SelfParam.ParamProp)->Struct)
+			else if (CastFieldChecked<const FStructProperty>(GeneratedWrappedDynamicMethod.MethodFunc.OutputParams[0].ParamProp)->Struct != CastFieldChecked<const FStructProperty>(SelfParam.ParamProp)->Struct)
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodSelfReturn' but the return value is not the same type as the 'self' argument."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
 				return;
@@ -823,11 +963,11 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 
 		// Set the correct function pointer for calling this function and inject the 'self' argument
 		GeneratedWrappedDynamicMethod.MethodCallback = nullptr;
-		if (SelfParam.ParamProp->IsA<UObjectPropertyBase>())
+		if (SelfParam.ParamProp->IsA<FObjectPropertyBase>())
 		{
 			GeneratedWrappedDynamicMethod.MethodCallback = GeneratedWrappedDynamicMethod.MethodFunc.InputParams.Num() > 0 ? PyCFunctionWithClosureCast(&FPyWrapperObject::CallDynamicMethodWithArgs_Impl) : PyCFunctionWithClosureCast(&FPyWrapperObject::CallDynamicMethodNoArgs_Impl);
 		}
-		else if (SelfParam.ParamProp->IsA<UStructProperty>())
+		else if (SelfParam.ParamProp->IsA<FStructProperty>())
 		{
 			GeneratedWrappedDynamicMethod.MethodCallback = GeneratedWrappedDynamicMethod.MethodFunc.InputParams.Num() > 0 ? PyCFunctionWithClosureCast(&FPyWrapperStruct::CallDynamicMethodWithArgs_Impl) : PyCFunctionWithClosureCast(&FPyWrapperStruct::CallDynamicMethodNoArgs_Impl);
 		}
@@ -846,17 +986,17 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 		}
 
 		// Add the dynamic method to either the owner type
-		if (SelfParam.ParamProp->IsA<UObjectPropertyBase>())
+		if (SelfParam.ParamProp->IsA<FObjectPropertyBase>())
 		{
 			// Ensure that we've generated a finalized Python type for this class since we'll be adding this function as a dynamic method on that type
-			const UClass* HostedClass = CastChecked<UObjectPropertyBase>(SelfParam.ParamProp)->PropertyClass;
-			if (!GenerateWrappedClassType(HostedClass, OutGeneratedWrappedTypeReferences, OutDirtyModules, true))
+			const UClass* HostedClass = CastFieldChecked<const FObjectPropertyBase>(SelfParam.ParamProp)->PropertyClass;
+			if (!GenerateWrappedClassType(HostedClass, OutGeneratedWrappedTypeReferences, OutDirtyModules, EPyTypeGenerationFlags::ForceShouldExport))
 			{
 				return;
 			}
 
 			// Find the wrapped type for the class as that's what we'll actually add the dynamic method to
-			TSharedPtr<PyGenUtil::FGeneratedWrappedClassType> HostedClassGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedClassType>(GeneratedWrappedTypes.FindRef(HostedClass->GetFName()));
+			TSharedPtr<PyGenUtil::FGeneratedWrappedClassType> HostedClassGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedClassType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(HostedClass)));
 			check(HostedClassGeneratedWrappedType.IsValid());
 
 			// Add the dynamic methods to the class
@@ -866,17 +1006,17 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 				HostedClassGeneratedWrappedType->AddDynamicMethod(MoveTemp(GeneratedWrappedDynamicMethodToAdd.Get()));
 			}
 		}
-		else if (SelfParam.ParamProp->IsA<UStructProperty>())
+		else if (SelfParam.ParamProp->IsA<FStructProperty>())
 		{
 			// Ensure that we've generated a finalized Python type for this struct since we'll be adding this function as a dynamic method on that type
-			const UScriptStruct* HostedStruct = CastChecked<UStructProperty>(SelfParam.ParamProp)->Struct;
-			if (!GenerateWrappedStructType(HostedStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, true))
+			const UScriptStruct* HostedStruct = CastFieldChecked<const FStructProperty>(SelfParam.ParamProp)->Struct;
+			if (!GenerateWrappedStructType(HostedStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, EPyTypeGenerationFlags::ForceShouldExport))
 			{
 				return;
 			}
 
 			// Find the wrapped type for the struct as that's what we'll actually add the dynamic method to
-			TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> HostedStructGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(HostedStruct->GetFName()));
+			TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> HostedStructGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(HostedStruct)));
 			check(HostedStructGeneratedWrappedType.IsValid());
 
 			// Add the dynamic methods to the struct
@@ -929,11 +1069,11 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			}
 
 			// Ensure that we've generated a finalized Python type for this struct since we'll be adding this function as a operator on that type
-			const UScriptStruct* HostedStruct = CastChecked<UStructProperty>(OpFunc.SelfParam.ParamProp)->Struct;
-			if (GenerateWrappedStructType(HostedStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, true))
+			const UScriptStruct* HostedStruct = CastFieldChecked<const FStructProperty>(OpFunc.SelfParam.ParamProp)->Struct;
+			if (GenerateWrappedStructType(HostedStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, EPyTypeGenerationFlags::ForceShouldExport))
 			{
 				// Find the wrapped type for the struct as that's what we'll actually add the operator to (via its meta-data)
-				TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> HostedStructGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(HostedStruct->GetFName()));
+				TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> HostedStructGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(HostedStruct)));
 				check(HostedStructGeneratedWrappedType.IsValid());
 				StaticCastSharedPtr<FPyWrapperStructMetaData>(HostedStructGeneratedWrappedType->MetaData)->OpStacks[(int32)OpSignature.OpType].Funcs.Add(MoveTemp(OpFunc));
 			}
@@ -1012,13 +1152,13 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 				const UClass* HostClass = CastChecked<UClass>(HostType);
 
 				// Ensure that we've generated a finalized Python type for this class since we'll be adding this constant to that type
-				if (!GenerateWrappedClassType(HostClass, OutGeneratedWrappedTypeReferences, OutDirtyModules, true))
+				if (!GenerateWrappedClassType(HostClass, OutGeneratedWrappedTypeReferences, OutDirtyModules, EPyTypeGenerationFlags::ForceShouldExport))
 				{
 					return;
 				}
 
 				// Find the wrapped type for the class as that's what we'll actually add the constant to
-				TSharedPtr<PyGenUtil::FGeneratedWrappedClassType> HostedClassGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedClassType>(GeneratedWrappedTypes.FindRef(HostClass->GetFName()));
+				TSharedPtr<PyGenUtil::FGeneratedWrappedClassType> HostedClassGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedClassType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(HostClass)));
 				check(HostedClassGeneratedWrappedType.IsValid());
 
 				// Add the dynamic constants to the struct
@@ -1033,13 +1173,13 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 				const UScriptStruct* HostStruct = CastChecked<UScriptStruct>(HostType);
 
 				// Ensure that we've generated a finalized Python type for this struct since we'll be adding this constant to that type
-				if (!GenerateWrappedStructType(HostStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, true))
+				if (!GenerateWrappedStructType(HostStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, EPyTypeGenerationFlags::ForceShouldExport))
 				{
 					return;
 				}
 
 				// Find the wrapped type for the struct as that's what we'll actually add the constant to
-				TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> HostedStructGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(HostStruct->GetFName()));
+				TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> HostedStructGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(HostStruct)));
 				check(HostedStructGeneratedWrappedType.IsValid());
 
 				// Add the dynamic constants to the struct
@@ -1072,9 +1212,9 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			return;
 		}
 
-		for (TFieldIterator<const UProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
+		for (TFieldIterator<const FProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
 		{
-			const UProperty* Param = *ParamIt;
+			const FProperty* Param = *ParamIt;
 			GatherWrappedTypesForPropertyReferences(Param, OutGeneratedWrappedTypeReferences);
 		}
 
@@ -1151,14 +1291,16 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 	const FString PythonClassName = PyGenUtil::GetClassPythonName(InClass);
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*PythonClassName);
 
-	for (TFieldIterator<const UField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
+	for (TFieldIterator<const FField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
 	{
-		if (const UProperty* Prop = Cast<const UProperty>(*FieldIt))
+		if (const FProperty* Prop = CastField<const FProperty>(*FieldIt))
 		{
 			GenerateWrappedProperty(Prop);
 			continue;
 		}
-
+	}
+	for (TFieldIterator<const UField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
+	{
 		if (const UFunction* Func = Cast<const UFunction>(*FieldIt))
 		{
 			GenerateWrappedMethod(Func);
@@ -1169,14 +1311,14 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::GetFieldTooltip(InClass));
 	if (const UClass* SuperClass = InClass->GetSuperClass())
 	{
-		TSharedPtr<PyGenUtil::FGeneratedWrappedClassType> SuperGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedClassType>(GeneratedWrappedTypes.FindRef(SuperClass->GetFName()));
+		TSharedPtr<PyGenUtil::FGeneratedWrappedClassType> SuperGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedClassType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(SuperClass)));
 		if (SuperGeneratedWrappedType.IsValid())
 		{
 			GeneratedWrappedType->PropertyDocs.Append(SuperGeneratedWrappedType->PropertyDocs);
 		}
 	}
 	GeneratedWrappedType->PropertyDocs.Sort(&PyGenUtil::FGeneratedWrappedPropertyDoc::SortPredicate);
-	PyGenUtil::AppendCppSourceInformationDocString(InClass, TypeDocString);
+	PyGenUtil::AppendSourceInformationDocString(InClass, TypeDocString);
 	PyGenUtil::FGeneratedWrappedPropertyDoc::AppendDocString(GeneratedWrappedType->PropertyDocs, TypeDocString);
 	GeneratedWrappedType->TypeDoc = PyGenUtil::TCHARToUTF8Buffer(*TypeDocString);
 
@@ -1201,22 +1343,24 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 
 	if (GeneratedWrappedType->Finalize())
 	{
-		const FName UnrealModuleName = *PyGenUtil::GetFieldModule(InClass);
-		GeneratedWrappedTypesForModule.Add(UnrealModuleName, InClass->GetFName());
-		OutDirtyModules.Add(UnrealModuleName);
-
-		const FString PyModuleName = PyGenUtil::GetModulePythonName(UnrealModuleName);
 		PyObject* PyModule = nullptr;
-		// Execute Python code within this block
+		const FName UnrealModuleName = *PyGenUtil::GetFieldModule(InClass);
+		if (!UnrealModuleName.IsNone())
 		{
-			FPyScopedGIL GIL;
+			GeneratedWrappedTypesForModule.Add(UnrealModuleName, TypeRegistryName);
+			OutDirtyModules.Add(UnrealModuleName);
 
-			PyModule = PyImport_AddModule(TCHAR_TO_UTF8(*PyModuleName));
+			const FString PyModuleName = PyGenUtil::GetModulePythonName(UnrealModuleName);
+			// Execute Python code within this block
+			{
+				FPyScopedGIL GIL;
+				PyModule = PyImport_AddModule(TCHAR_TO_UTF8(*PyModuleName));
 
-			Py_INCREF(&GeneratedWrappedType->PyType);
-			PyModule_AddObject(PyModule, GeneratedWrappedType->PyType.tp_name, (PyObject*)&GeneratedWrappedType->PyType);
+				Py_INCREF(&GeneratedWrappedType->PyType);
+				PyModule_AddObject(PyModule, GeneratedWrappedType->PyType.tp_name, (PyObject*)&GeneratedWrappedType->PyType);
+			}
 		}
-		RegisterWrappedClassType(InClass->GetFName(), &GeneratedWrappedType->PyType);
+		RegisterWrappedClassType(TypeRegistryName, &GeneratedWrappedType->PyType, !bIsBlueprintGeneratedType);
 
 		// Also generate and register any deprecated aliases for this type
 		const TArray<FString> DeprecatedPythonClassNames = PyGenUtil::GetDeprecatedClassPythonNames(InClass);
@@ -1246,15 +1390,19 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 
 			if (DeprecatedGeneratedWrappedType->Finalize())
 			{
-				GeneratedWrappedTypesForModule.Add(UnrealModuleName, DeprecatedClassName);
-				// Execute Python code within this block
+				if (!UnrealModuleName.IsNone())
 				{
-					FPyScopedGIL GIL;
+					GeneratedWrappedTypesForModule.Add(UnrealModuleName, DeprecatedClassName);
+					// Execute Python code within this block
+					{
+						FPyScopedGIL GIL;
+						check(PyModule);
 
-					Py_INCREF(&DeprecatedGeneratedWrappedType->PyType);
-					PyModule_AddObject(PyModule, DeprecatedGeneratedWrappedType->PyType.tp_name, (PyObject*)&DeprecatedGeneratedWrappedType->PyType);
+						Py_INCREF(&DeprecatedGeneratedWrappedType->PyType);
+						PyModule_AddObject(PyModule, DeprecatedGeneratedWrappedType->PyType.tp_name, (PyObject*)&DeprecatedGeneratedWrappedType->PyType);
+					}
 				}
-				RegisterWrappedClassType(DeprecatedClassName, &DeprecatedGeneratedWrappedType->PyType);
+				RegisterWrappedClassType(DeprecatedClassName, &DeprecatedGeneratedWrappedType->PyType, !bIsBlueprintGeneratedType);
 			}
 			else
 			{
@@ -1272,7 +1420,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 void FPyWrapperTypeRegistry::RegisterWrappedClassType(const FName ClassName, PyTypeObject* PyType, const bool InDetectNameConflicts)
 {
 	if (InDetectNameConflicts)
-	{
+{
 		RegisterPythonTypeName(UTF8_TO_TCHAR(PyType->tp_name), ClassName);
 	}
 	PythonWrappedClasses.Add(ClassName, PyType);
@@ -1286,7 +1434,8 @@ void FPyWrapperTypeRegistry::UnregisterWrappedClassType(const FName ClassName, P
 
 bool FPyWrapperTypeRegistry::HasWrappedClassType(const UClass* InClass) const
 {
-	return PythonWrappedClasses.Contains(InClass->GetFName());
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InClass);
+	return PythonWrappedClasses.Contains(TypeRegistryName);
 }
 
 PyTypeObject* FPyWrapperTypeRegistry::GetWrappedClassType(const UClass* InClass) const
@@ -1295,7 +1444,8 @@ PyTypeObject* FPyWrapperTypeRegistry::GetWrappedClassType(const UClass* InClass)
 
 	for (const UClass* Class = InClass; Class; Class = Class->GetSuperClass())
 	{
-		if (PyTypeObject* ClassPyType = PythonWrappedClasses.FindRef(Class->GetFName()))
+		const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(Class);
+		if (PyTypeObject* ClassPyType = PythonWrappedClasses.FindRef(TypeRegistryName))
 		{
 			PyType = ClassPyType;
 			break;
@@ -1305,7 +1455,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GetWrappedClassType(const UClass* InClass)
 	return PyType;
 }
 
-PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStruct* InStruct, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate)
+PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStruct* InStruct, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags)
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_GenerateWrappedStructTotalTime);
 	INC_DWORD_STAT(STAT_GenerateWrappedStructCallCount);
@@ -1328,19 +1478,21 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 	};
 
 	// Already processed? Nothing more to do
-	if (PyTypeObject* ExistingPyType = PythonWrappedStructs.FindRef(InStruct->GetFName()))
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InStruct);
+	if (PyTypeObject* ExistingPyType = PythonWrappedStructs.FindRef(TypeRegistryName))
 	{
 		return ExistingPyType;
 	}
 
 	// todo: allow generation of Blueprint generated structs
-	if (PyGenUtil::IsBlueprintGeneratedStruct(InStruct))
+	const bool bIsBlueprintGeneratedType = PyGenUtil::IsBlueprintGeneratedStruct(InStruct);
+	if (bIsBlueprintGeneratedType)
 	{
 		return nullptr;
 	}
 
 	// Should this type be exported?
-	if (!bForceGenerate && !PyGenUtil::ShouldExportStruct(InStruct))
+	if (!EnumHasAnyFlags(InGenerationFlags, EPyTypeGenerationFlags::ForceShouldExport) && !PyGenUtil::ShouldExportStruct(InStruct))
 	{
 		return nullptr;
 	}
@@ -1349,19 +1501,19 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 	PyTypeObject* SuperPyType = nullptr;
 	if (const UScriptStruct* SuperStruct = Cast<UScriptStruct>(InStruct->GetSuperStruct()))
 	{
-		SuperPyType = GenerateWrappedStructType(SuperStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, true);
+		SuperPyType = GenerateWrappedStructType(SuperStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, InGenerationFlags | EPyTypeGenerationFlags::ForceShouldExport);
 	}
 
 	INC_DWORD_STAT(STAT_GenerateWrappedStructObjCount);
 
-	check(!GeneratedWrappedTypes.Contains(InStruct->GetFName()));
+	check(!GeneratedWrappedTypes.Contains(TypeRegistryName));
 	TSharedRef<PyGenUtil::FGeneratedWrappedStructType> GeneratedWrappedType = MakeShared<PyGenUtil::FGeneratedWrappedStructType>();
-	GeneratedWrappedTypes.Add(InStruct->GetFName(), GeneratedWrappedType);
+	GeneratedWrappedTypes.Add(TypeRegistryName, GeneratedWrappedType);
 
 	TMap<FName, FName> PythonProperties;
 	TMap<FName, FString> PythonDeprecatedProperties;
 
-	auto GenerateWrappedProperty = [this, &PythonProperties, &PythonDeprecatedProperties, &GeneratedWrappedType, &OutGeneratedWrappedTypeReferences](const UProperty* InProp)
+	auto GenerateWrappedProperty = [this, &PythonProperties, &PythonDeprecatedProperties, &GeneratedWrappedType, &OutGeneratedWrappedTypeReferences](const FProperty* InProp)
 	{
 		const bool bExportPropertyToScript = PyGenUtil::ShouldExportProperty(InProp);
 		const bool bExportPropertyToEditor = PyGenUtil::ShouldExportEditorOnlyProperty(InProp);
@@ -1416,28 +1568,28 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 	const FString PythonStructName = PyGenUtil::GetStructPythonName(InStruct);
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*PythonStructName);
 
-	for (TFieldIterator<const UProperty> PropIt(InStruct, EFieldIteratorFlags::ExcludeSuper); PropIt; ++PropIt)
+	for (TFieldIterator<const FProperty> PropIt(InStruct, EFieldIteratorFlags::ExcludeSuper); PropIt; ++PropIt)
 	{
-		const UProperty* Prop = *PropIt;
+		const FProperty* Prop = *PropIt;
 		GenerateWrappedProperty(Prop);
 	}
 
 	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::GetFieldTooltip(InStruct));
 	if (const UScriptStruct* SuperStruct = Cast<UScriptStruct>(InStruct->GetSuperStruct()))
 	{
-		TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> SuperGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(SuperStruct->GetFName()));
+		TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> SuperGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(SuperStruct)));
 		if (SuperGeneratedWrappedType.IsValid())
 		{
 			GeneratedWrappedType->PropertyDocs.Append(SuperGeneratedWrappedType->PropertyDocs);
 		}
 	}
 	GeneratedWrappedType->PropertyDocs.Sort(&PyGenUtil::FGeneratedWrappedPropertyDoc::SortPredicate);
-	PyGenUtil::AppendCppSourceInformationDocString(InStruct, TypeDocString);
+	PyGenUtil::AppendSourceInformationDocString(InStruct, TypeDocString);
 	PyGenUtil::FGeneratedWrappedPropertyDoc::AppendDocString(GeneratedWrappedType->PropertyDocs, TypeDocString);
 	GeneratedWrappedType->TypeDoc = PyGenUtil::TCHARToUTF8Buffer(*TypeDocString);
 
 	int32 WrappedStructSizeBytes = sizeof(FPyWrapperStruct);
-	if (const IPyWrapperInlineStructFactory* InlineStructFactory = GetInlineStructFactory(InStruct->GetFName()))
+	if (const IPyWrapperInlineStructFactory* InlineStructFactory = GetInlineStructFactory(TypeRegistryName))
 	{
 		WrappedStructSizeBytes = InlineStructFactory->GetPythonObjectSizeBytes();
 	}
@@ -1468,7 +1620,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 		MakeFunc.SetFunction(FindMakeBreakFunction(PyGenUtil::HasNativeMakeMetaDataKey));
 		if (MakeFunc.Func)
 		{
-			const bool bHasValidReturn = MakeFunc.OutputParams.Num() == 1 && MakeFunc.OutputParams[0].ParamProp->IsA<UStructProperty>() && CastChecked<UStructProperty>(MakeFunc.OutputParams[0].ParamProp)->Struct == InStruct;
+			const bool bHasValidReturn = MakeFunc.OutputParams.Num() == 1 && MakeFunc.OutputParams[0].ParamProp->IsA<FStructProperty>() && CastFieldChecked<const FStructProperty>(MakeFunc.OutputParams[0].ParamProp)->Struct == InStruct;
 			if (!bHasValidReturn)
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Struct '%s' is marked as 'HasNativeMake' but the function '%s' does not return the struct type."), *InStruct->GetName(), *MakeFunc.Func->GetPathName());
@@ -1492,7 +1644,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 		BreakFunc.SetFunction(FindMakeBreakFunction(PyGenUtil::HasNativeBreakMetaDataKey));
 		if (BreakFunc.Func)
 		{
-			const bool bHasValidInput = BreakFunc.InputParams.Num() == 1 && BreakFunc.InputParams[0].ParamProp->IsA<UStructProperty>() && CastChecked<UStructProperty>(BreakFunc.InputParams[0].ParamProp)->Struct == InStruct;
+			const bool bHasValidInput = BreakFunc.InputParams.Num() == 1 && BreakFunc.InputParams[0].ParamProp->IsA<FStructProperty>() && CastFieldChecked<const FStructProperty>(BreakFunc.InputParams[0].ParamProp)->Struct == InStruct;
 			if (!bHasValidInput)
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Struct '%s' is marked as 'HasNativeBreak' but the function '%s' does not have the struct type as its only input argument."), *InStruct->GetName(), *BreakFunc.Func->GetPathName());
@@ -1531,22 +1683,24 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 
 	if (GeneratedWrappedType->Finalize())
 	{
-		const FName UnrealModuleName = *PyGenUtil::GetFieldModule(InStruct);
-		GeneratedWrappedTypesForModule.Add(UnrealModuleName, InStruct->GetFName());
-		OutDirtyModules.Add(UnrealModuleName);
-
-		const FString PyModuleName = PyGenUtil::GetModulePythonName(UnrealModuleName);
 		PyObject* PyModule = nullptr;
-		// Execute Python code within this block
+		const FName UnrealModuleName = *PyGenUtil::GetFieldModule(InStruct);
+		if (!UnrealModuleName.IsNone())
 		{
-			FPyScopedGIL GIL;
+			GeneratedWrappedTypesForModule.Add(UnrealModuleName, TypeRegistryName);
+			OutDirtyModules.Add(UnrealModuleName);
 
-			PyModule = PyImport_AddModule(TCHAR_TO_UTF8(*PyModuleName));
+			const FString PyModuleName = PyGenUtil::GetModulePythonName(UnrealModuleName);
+			// Execute Python code within this block
+			{
+				FPyScopedGIL GIL;
+				PyModule = PyImport_AddModule(TCHAR_TO_UTF8(*PyModuleName));
 
-			Py_INCREF(&GeneratedWrappedType->PyType);
-			PyModule_AddObject(PyModule, GeneratedWrappedType->PyType.tp_name, (PyObject*)&GeneratedWrappedType->PyType);
+				Py_INCREF(&GeneratedWrappedType->PyType);
+				PyModule_AddObject(PyModule, GeneratedWrappedType->PyType.tp_name, (PyObject*)&GeneratedWrappedType->PyType);
+			}
 		}
-		RegisterWrappedStructType(InStruct->GetFName(), &GeneratedWrappedType->PyType);
+		RegisterWrappedStructType(TypeRegistryName, &GeneratedWrappedType->PyType, !bIsBlueprintGeneratedType);
 
 		// Also generate and register any deprecated aliases for this type
 		const TArray<FString> DeprecatedPythonStructNames = PyGenUtil::GetDeprecatedStructPythonNames(InStruct);
@@ -1576,15 +1730,19 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 
 			if (DeprecatedGeneratedWrappedType->Finalize())
 			{
-				GeneratedWrappedTypesForModule.Add(UnrealModuleName, DeprecatedStructName);
-				// Execute Python code within this block
+				if (!UnrealModuleName.IsNone())
 				{
-					FPyScopedGIL GIL;
+					GeneratedWrappedTypesForModule.Add(UnrealModuleName, DeprecatedStructName);
+					// Execute Python code within this block
+					{
+						FPyScopedGIL GIL;
+						check(PyModule);
 
-					Py_INCREF(&DeprecatedGeneratedWrappedType->PyType);
-					PyModule_AddObject(PyModule, DeprecatedGeneratedWrappedType->PyType.tp_name, (PyObject*)&DeprecatedGeneratedWrappedType->PyType);
+						Py_INCREF(&DeprecatedGeneratedWrappedType->PyType);
+						PyModule_AddObject(PyModule, DeprecatedGeneratedWrappedType->PyType.tp_name, (PyObject*)&DeprecatedGeneratedWrappedType->PyType);
+					}
 				}
-				RegisterWrappedStructType(DeprecatedStructName, &DeprecatedGeneratedWrappedType->PyType);
+				RegisterWrappedStructType(DeprecatedStructName, &DeprecatedGeneratedWrappedType->PyType, !bIsBlueprintGeneratedType);
 			}
 			else
 			{
@@ -1616,7 +1774,8 @@ void FPyWrapperTypeRegistry::UnregisterWrappedStructType(const FName StructName,
 
 bool FPyWrapperTypeRegistry::HasWrappedStructType(const UScriptStruct* InStruct) const
 {
-	return PythonWrappedStructs.Contains(InStruct->GetFName());
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InStruct);
+	return PythonWrappedStructs.Contains(TypeRegistryName);
 }
 
 PyTypeObject* FPyWrapperTypeRegistry::GetWrappedStructType(const UScriptStruct* InStruct) const
@@ -1625,7 +1784,8 @@ PyTypeObject* FPyWrapperTypeRegistry::GetWrappedStructType(const UScriptStruct* 
 
 	for (const UScriptStruct* Struct = InStruct; Struct; Struct = Cast<UScriptStruct>(Struct->GetSuperStruct()))
 	{
-		if (PyTypeObject* StructPyType = PythonWrappedStructs.FindRef(Struct->GetFName()))
+		const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(Struct);
+		if (PyTypeObject* StructPyType = PythonWrappedStructs.FindRef(TypeRegistryName))
 		{
 			PyType = StructPyType;
 			break;
@@ -1635,37 +1795,54 @@ PyTypeObject* FPyWrapperTypeRegistry::GetWrappedStructType(const UScriptStruct* 
 	return PyType;
 }
 
-PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedEnumType(const UEnum* InEnum, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate)
+PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedEnumType(const UEnum* InEnum, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags)
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_GenerateWrappedEnumTotalTime);
 	INC_DWORD_STAT(STAT_GenerateWrappedEnumCallCount);
 
+	bool bIsNewType = true;
+
 	// Already processed? Nothing more to do
-	if (PyTypeObject* ExistingPyType = PythonWrappedEnums.FindRef(InEnum->GetFName()))
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InEnum);
+	if (PyTypeObject* ExistingPyType = PythonWrappedEnums.FindRef(TypeRegistryName))
 	{
-		return ExistingPyType;
+		if (!EnumHasAnyFlags(InGenerationFlags, EPyTypeGenerationFlags::OverwriteExisting))
+		{
+			return ExistingPyType;
+		}
+		bIsNewType = false;
 	}
 
-	// todo: allow generation of Blueprint generated enums
-	if (PyGenUtil::IsBlueprintGeneratedEnum(InEnum))
+	// Should we allow Blueprint generated enums?
+	const bool bIsBlueprintGeneratedType = PyGenUtil::IsBlueprintGeneratedEnum(InEnum);
+	if (!EnumHasAnyFlags(InGenerationFlags, EPyTypeGenerationFlags::IncludeBlueprintGeneratedTypes) && bIsBlueprintGeneratedType)
 	{
 		return nullptr;
 	}
 
 	// Should this type be exported?
-	if (!bForceGenerate && !PyGenUtil::ShouldExportEnum(InEnum))
+	if (!EnumHasAnyFlags(InGenerationFlags, EPyTypeGenerationFlags::ForceShouldExport) && !PyGenUtil::ShouldExportEnum(InEnum))
 	{
 		return nullptr;
 	}
 
 	INC_DWORD_STAT(STAT_GenerateWrappedEnumObjCount);
 
-	check(!GeneratedWrappedTypes.Contains(InEnum->GetFName()));
-	TSharedRef<PyGenUtil::FGeneratedWrappedEnumType> GeneratedWrappedType = MakeShared<PyGenUtil::FGeneratedWrappedEnumType>();
-	GeneratedWrappedTypes.Add(InEnum->GetFName(), GeneratedWrappedType);
+	TSharedPtr<PyGenUtil::FGeneratedWrappedEnumType> GeneratedWrappedType;
+	if (bIsNewType)
+	{
+		check(!GeneratedWrappedTypes.Contains(TypeRegistryName));
+		GeneratedWrappedType = MakeShared<PyGenUtil::FGeneratedWrappedEnumType>();
+		GeneratedWrappedTypes.Add(TypeRegistryName, GeneratedWrappedType);
+	}
+	else
+	{
+		GeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedEnumType>(GeneratedWrappedTypes.FindChecked(TypeRegistryName));
+		GeneratedWrappedType->Reset();
+	}
 
 	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::GetFieldTooltip(InEnum));
-	PyGenUtil::AppendCppSourceInformationDocString(InEnum, TypeDocString);
+	PyGenUtil::AppendSourceInformationDocString(InEnum, TypeDocString);
 
 	const FString PythonEnumName = PyGenUtil::GetEnumPythonName(InEnum);
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*PythonEnumName);
@@ -1682,65 +1859,74 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedEnumType(const UEnum* InEnu
 
 	if (GeneratedWrappedType->Finalize())
 	{
-		const FName UnrealModuleName = *PyGenUtil::GetFieldModule(InEnum);
-		GeneratedWrappedTypesForModule.Add(UnrealModuleName, InEnum->GetFName());
-		OutDirtyModules.Add(UnrealModuleName);
-
-		const FString PyModuleName = PyGenUtil::GetModulePythonName(UnrealModuleName);
-		PyObject* PyModule = nullptr;
-		// Execute Python code within this block
+		if (bIsNewType)
 		{
-			FPyScopedGIL GIL;
-
-			PyModule = PyImport_AddModule(TCHAR_TO_UTF8(*PyModuleName));
-
-			Py_INCREF(&GeneratedWrappedType->PyType);
-			PyModule_AddObject(PyModule, GeneratedWrappedType->PyType.tp_name, (PyObject*)&GeneratedWrappedType->PyType);
-		}
-		RegisterWrappedEnumType(InEnum->GetFName(), &GeneratedWrappedType->PyType);
-
-		// Also generate and register any deprecated aliases for this type
-		const TArray<FString> DeprecatedPythonEnumNames = PyGenUtil::GetDeprecatedEnumPythonNames(InEnum);
-		for (const FString& DeprecatedPythonEnumName : DeprecatedPythonEnumNames)
-		{
-			const FName DeprecatedEnumName = *DeprecatedPythonEnumName;
-			FString DeprecationMessage = FString::Printf(TEXT("'%s' was renamed to '%s'."), *DeprecatedPythonEnumName, *PythonEnumName);
-
-			if (GeneratedWrappedTypes.Contains(DeprecatedEnumName))
+			PyObject* PyModule = nullptr;
+			const FName UnrealModuleName = *PyGenUtil::GetFieldModule(InEnum);
+			if (!UnrealModuleName.IsNone())
 			{
-				REPORT_PYTHON_GENERATION_ISSUE(Warning, TEXT("Deprecated enum name '%s' conflicted with an existing type!"), *DeprecatedPythonEnumName);
-				continue;
-			}
+				GeneratedWrappedTypesForModule.Add(UnrealModuleName, TypeRegistryName);
+				OutDirtyModules.Add(UnrealModuleName);
 
-			TSharedRef<PyGenUtil::FGeneratedWrappedEnumType> DeprecatedGeneratedWrappedType = MakeShared<PyGenUtil::FGeneratedWrappedEnumType>();
-			GeneratedWrappedTypes.Add(DeprecatedEnumName, DeprecatedGeneratedWrappedType);
-
-			DeprecatedGeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*DeprecatedPythonEnumName);
-			DeprecatedGeneratedWrappedType->TypeDoc = PyGenUtil::TCHARToUTF8Buffer(*FString::Printf(TEXT("deprecated: %s"), *DeprecationMessage));
-			DeprecatedGeneratedWrappedType->EnumEntries = GeneratedWrappedType->EnumEntries;
-			DeprecatedGeneratedWrappedType->PyType.tp_basicsize = sizeof(FPyWrapperEnum);
-			DeprecatedGeneratedWrappedType->PyType.tp_base = &PyWrapperEnumType;
-			DeprecatedGeneratedWrappedType->PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-
-			TSharedRef<FPyWrapperEnumMetaData> DeprecatedEnumMetaData = MakeShared<FPyWrapperEnumMetaData>(*EnumMetaData);
-			DeprecatedEnumMetaData->DeprecationMessage = MoveTemp(DeprecationMessage);
-			DeprecatedGeneratedWrappedType->MetaData = DeprecatedEnumMetaData;
-
-			if (DeprecatedGeneratedWrappedType->Finalize())
-			{
-				GeneratedWrappedTypesForModule.Add(UnrealModuleName, DeprecatedEnumName);
+				const FString PyModuleName = PyGenUtil::GetModulePythonName(UnrealModuleName);
 				// Execute Python code within this block
 				{
 					FPyScopedGIL GIL;
+					PyModule = PyImport_AddModule(TCHAR_TO_UTF8(*PyModuleName));
 
-					Py_INCREF(&DeprecatedGeneratedWrappedType->PyType);
-					PyModule_AddObject(PyModule, DeprecatedGeneratedWrappedType->PyType.tp_name, (PyObject*)&DeprecatedGeneratedWrappedType->PyType);
+					Py_INCREF(&GeneratedWrappedType->PyType);
+					PyModule_AddObject(PyModule, GeneratedWrappedType->PyType.tp_name, (PyObject*)&GeneratedWrappedType->PyType);
 				}
-				RegisterWrappedEnumType(DeprecatedEnumName, &DeprecatedGeneratedWrappedType->PyType);
 			}
-			else
+			RegisterWrappedEnumType(TypeRegistryName, &GeneratedWrappedType->PyType, !bIsBlueprintGeneratedType);
+
+			// Also generate and register any deprecated aliases for this type
+			const TArray<FString> DeprecatedPythonEnumNames = PyGenUtil::GetDeprecatedEnumPythonNames(InEnum);
+			for (const FString& DeprecatedPythonEnumName : DeprecatedPythonEnumNames)
 			{
-				REPORT_PYTHON_GENERATION_ISSUE(Fatal, TEXT("Failed to generate Python glue code for deprecated enum '%s'!"), *DeprecatedPythonEnumName);
+				const FName DeprecatedEnumName = *DeprecatedPythonEnumName;
+				FString DeprecationMessage = FString::Printf(TEXT("'%s' was renamed to '%s'."), *DeprecatedPythonEnumName, *PythonEnumName);
+
+				if (GeneratedWrappedTypes.Contains(DeprecatedEnumName))
+				{
+					REPORT_PYTHON_GENERATION_ISSUE(Warning, TEXT("Deprecated enum name '%s' conflicted with an existing type!"), *DeprecatedPythonEnumName);
+					continue;
+				}
+
+				TSharedRef<PyGenUtil::FGeneratedWrappedEnumType> DeprecatedGeneratedWrappedType = MakeShared<PyGenUtil::FGeneratedWrappedEnumType>();
+				GeneratedWrappedTypes.Add(DeprecatedEnumName, DeprecatedGeneratedWrappedType);
+
+				DeprecatedGeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*DeprecatedPythonEnumName);
+				DeprecatedGeneratedWrappedType->TypeDoc = PyGenUtil::TCHARToUTF8Buffer(*FString::Printf(TEXT("deprecated: %s"), *DeprecationMessage));
+				DeprecatedGeneratedWrappedType->EnumEntries = GeneratedWrappedType->EnumEntries;
+				DeprecatedGeneratedWrappedType->PyType.tp_basicsize = sizeof(FPyWrapperEnum);
+				DeprecatedGeneratedWrappedType->PyType.tp_base = &PyWrapperEnumType;
+				DeprecatedGeneratedWrappedType->PyType.tp_flags = Py_TPFLAGS_DEFAULT;
+
+				TSharedRef<FPyWrapperEnumMetaData> DeprecatedEnumMetaData = MakeShared<FPyWrapperEnumMetaData>(*EnumMetaData);
+				DeprecatedEnumMetaData->DeprecationMessage = MoveTemp(DeprecationMessage);
+				DeprecatedGeneratedWrappedType->MetaData = DeprecatedEnumMetaData;
+
+				if (DeprecatedGeneratedWrappedType->Finalize())
+				{
+					if (!UnrealModuleName.IsNone())
+					{
+						GeneratedWrappedTypesForModule.Add(UnrealModuleName, DeprecatedEnumName);
+						// Execute Python code within this block
+						{
+							FPyScopedGIL GIL;
+							check(PyModule);
+
+							Py_INCREF(&DeprecatedGeneratedWrappedType->PyType);
+							PyModule_AddObject(PyModule, DeprecatedGeneratedWrappedType->PyType.tp_name, (PyObject*)&DeprecatedGeneratedWrappedType->PyType);
+						}
+					}
+					RegisterWrappedEnumType(DeprecatedEnumName, &DeprecatedGeneratedWrappedType->PyType, !bIsBlueprintGeneratedType);
+				}
+				else
+				{
+					REPORT_PYTHON_GENERATION_ISSUE(Fatal, TEXT("Failed to generate Python glue code for deprecated enum '%s'!"), *DeprecatedPythonEnumName);
+				}
 			}
 		}
 
@@ -1754,7 +1940,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedEnumType(const UEnum* InEnu
 void FPyWrapperTypeRegistry::RegisterWrappedEnumType(const FName EnumName, PyTypeObject* PyType, const bool InDetectNameConflicts)
 {
 	if (InDetectNameConflicts)
-	{
+{
 		RegisterPythonTypeName(UTF8_TO_TCHAR(PyType->tp_name), EnumName);
 	}
 	PythonWrappedEnums.Add(EnumName, PyType);
@@ -1768,14 +1954,16 @@ void FPyWrapperTypeRegistry::UnregisterWrappedEnumType(const FName EnumName, PyT
 
 bool FPyWrapperTypeRegistry::HasWrappedEnumType(const UEnum* InEnum) const
 {
-	return PythonWrappedEnums.Contains(InEnum->GetFName());
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InEnum);
+	return PythonWrappedEnums.Contains(TypeRegistryName);
 }
 
 PyTypeObject* FPyWrapperTypeRegistry::GetWrappedEnumType(const UEnum* InEnum) const
 {
 	PyTypeObject* PyType = &PyWrapperEnumType;
 
-	if (PyTypeObject* EnumPyType = PythonWrappedEnums.FindRef(InEnum->GetFName()))
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InEnum);
+	if (PyTypeObject* EnumPyType = PythonWrappedEnums.FindRef(TypeRegistryName))
 	{
 		PyType = EnumPyType;
 	}
@@ -1783,13 +1971,14 @@ PyTypeObject* FPyWrapperTypeRegistry::GetWrappedEnumType(const UEnum* InEnum) co
 	return PyType;
 }
 
-PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedDelegateType(const UFunction* InDelegateSignature, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const bool bForceGenerate)
+PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedDelegateType(const UFunction* InDelegateSignature, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences, TSet<FName>& OutDirtyModules, const EPyTypeGenerationFlags InGenerationFlags)
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_GenerateWrappedDelegateTotalTime);
 	INC_DWORD_STAT(STAT_GenerateWrappedDelegateCallCount);
 
 	// Already processed? Nothing more to do
-	if (PyTypeObject* ExistingPyType = PythonWrappedDelegates.FindRef(InDelegateSignature->GetFName()))
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InDelegateSignature);
+	if (PyTypeObject* ExistingPyType = PythonWrappedDelegates.FindRef(TypeRegistryName))
 	{
 		return ExistingPyType;
 	}
@@ -1802,18 +1991,18 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedDelegateType(const UFunctio
 
 	INC_DWORD_STAT(STAT_GenerateWrappedDelegateObjCount);
 
-	check(!GeneratedWrappedTypes.Contains(InDelegateSignature->GetFName()));
+	check(!GeneratedWrappedTypes.Contains(TypeRegistryName));
 	TSharedRef<PyGenUtil::FGeneratedWrappedType> GeneratedWrappedType = MakeShared<PyGenUtil::FGeneratedWrappedType>();
-	GeneratedWrappedTypes.Add(InDelegateSignature->GetFName(), GeneratedWrappedType);
+	GeneratedWrappedTypes.Add(TypeRegistryName, GeneratedWrappedType);
 
-	for (TFieldIterator<const UProperty> ParamIt(InDelegateSignature); ParamIt; ++ParamIt)
+	for (TFieldIterator<const FProperty> ParamIt(InDelegateSignature); ParamIt; ++ParamIt)
 	{
-		const UProperty* Param = *ParamIt;
+		const FProperty* Param = *ParamIt;
 		GatherWrappedTypesForPropertyReferences(Param, OutGeneratedWrappedTypeReferences);
 	}
 
 	FString TypeDocString = PyGenUtil::PythonizeFunctionTooltip(PyGenUtil::GetFieldTooltip(InDelegateSignature), InDelegateSignature);
-	PyGenUtil::AppendCppSourceInformationDocString(InDelegateSignature, TypeDocString);
+	PyGenUtil::AppendSourceInformationDocString(InDelegateSignature, TypeDocString);
 
 	const FString DelegateBaseTypename = PyGenUtil::GetDelegatePythonName(InDelegateSignature);
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*DelegateBaseTypename);
@@ -1867,20 +2056,22 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedDelegateType(const UFunctio
 	if (GeneratedWrappedType->Finalize())
 	{
 		const FName UnrealModuleName = *PyGenUtil::GetFieldModule(InDelegateSignature);
-		GeneratedWrappedTypesForModule.Add(UnrealModuleName, InDelegateSignature->GetFName());
-		OutDirtyModules.Add(UnrealModuleName);
-
-		const FString PyModuleName = PyGenUtil::GetModulePythonName(UnrealModuleName);
-		// Execute Python code within this block
+		if (!UnrealModuleName.IsNone())
 		{
-			FPyScopedGIL GIL;
+			GeneratedWrappedTypesForModule.Add(UnrealModuleName, TypeRegistryName);
+			OutDirtyModules.Add(UnrealModuleName);
 
-			PyObject* PyModule = PyImport_AddModule(TCHAR_TO_UTF8(*PyModuleName));
+			const FString PyModuleName = PyGenUtil::GetModulePythonName(UnrealModuleName);
+			// Execute Python code within this block
+			{
+				FPyScopedGIL GIL;
+				PyObject* PyModule = PyImport_AddModule(TCHAR_TO_UTF8(*PyModuleName));
 
-			Py_INCREF(&GeneratedWrappedType->PyType);
-			PyModule_AddObject(PyModule, GeneratedWrappedType->PyType.tp_name, (PyObject*)&GeneratedWrappedType->PyType);
+				Py_INCREF(&GeneratedWrappedType->PyType);
+				PyModule_AddObject(PyModule, GeneratedWrappedType->PyType.tp_name, (PyObject*)&GeneratedWrappedType->PyType);
+			}
 		}
-		RegisterWrappedDelegateType(InDelegateSignature->GetFName(), &GeneratedWrappedType->PyType);
+		RegisterWrappedDelegateType(TypeRegistryName, &GeneratedWrappedType->PyType);
 
 		return &GeneratedWrappedType->PyType;
 	}
@@ -1906,14 +2097,16 @@ void FPyWrapperTypeRegistry::UnregisterWrappedDelegateType(const FName DelegateN
 
 bool FPyWrapperTypeRegistry::HasWrappedDelegateType(const UFunction* InDelegateSignature) const
 {
-	return PythonWrappedDelegates.Contains(InDelegateSignature->GetFName());
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InDelegateSignature);
+	return PythonWrappedDelegates.Contains(TypeRegistryName);
 }
 
 PyTypeObject* FPyWrapperTypeRegistry::GetWrappedDelegateType(const UFunction* InDelegateSignature) const
 {
 	PyTypeObject* PyType = InDelegateSignature->HasAnyFunctionFlags(FUNC_MulticastDelegate) ? &PyWrapperMulticastDelegateType : &PyWrapperDelegateType;
 
-	if (PyTypeObject* DelegatePyType = PythonWrappedDelegates.FindRef(InDelegateSignature->GetFName()))
+	const FName TypeRegistryName = PyGenUtil::GetTypeRegistryName(InDelegateSignature);
+	if (PyTypeObject* DelegatePyType = PythonWrappedDelegates.FindRef(TypeRegistryName))
 	{
 		PyType = DelegatePyType;
 	}
@@ -1921,40 +2114,40 @@ PyTypeObject* FPyWrapperTypeRegistry::GetWrappedDelegateType(const UFunction* In
 	return PyType;
 }
 
-void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProperty* InProp, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences) const
+void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const FProperty* InProp, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences) const
 {
-	if (const UObjectProperty* ObjProp = Cast<const UObjectProperty>(InProp))
+	if (const FObjectProperty* ObjProp = CastField<const FObjectProperty>(InProp))
 	{
-		if (ObjProp->PropertyClass && !PythonWrappedClasses.Contains(ObjProp->PropertyClass->GetFName()))
+		if (ObjProp->PropertyClass && !PythonWrappedClasses.Contains(PyGenUtil::GetTypeRegistryName(ObjProp->PropertyClass)))
 		{
 			OutGeneratedWrappedTypeReferences.ClassReferences.Add(ObjProp->PropertyClass);
 		}
 		return;
 	}
 
-	if (const UStructProperty* StructProp = Cast<const UStructProperty>(InProp))
+	if (const FStructProperty* StructProp = CastField<const FStructProperty>(InProp))
 	{
-		if (!PythonWrappedStructs.Contains(StructProp->Struct->GetFName()))
+		if (!PythonWrappedStructs.Contains(PyGenUtil::GetTypeRegistryName(StructProp->Struct)))
 		{
 			OutGeneratedWrappedTypeReferences.StructReferences.Add(StructProp->Struct);
 		}
 		return;
 	}
 
-	if (const UEnumProperty* EnumProp = Cast<const UEnumProperty>(InProp))
+	if (const FEnumProperty* EnumProp = CastField<const FEnumProperty>(InProp))
 	{
-		if (!PythonWrappedStructs.Contains(EnumProp->GetEnum()->GetFName()))
+		if (!PythonWrappedStructs.Contains(PyGenUtil::GetTypeRegistryName(EnumProp->GetEnum())))
 		{
 			OutGeneratedWrappedTypeReferences.EnumReferences.Add(EnumProp->GetEnum());
 		}
 		return;
 	}
 
-	if (const UByteProperty* ByteProp = Cast<const UByteProperty>(InProp))
+	if (const FByteProperty* ByteProp = CastField<const FByteProperty>(InProp))
 	{
 		if (ByteProp->Enum)
 		{
-			if (!PythonWrappedStructs.Contains(ByteProp->Enum->GetFName()))
+			if (!PythonWrappedStructs.Contains(PyGenUtil::GetTypeRegistryName(ByteProp->Enum)))
 			{
 				OutGeneratedWrappedTypeReferences.EnumReferences.Add(ByteProp->Enum);
 			}
@@ -1962,37 +2155,37 @@ void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProp
 		return;
 	}
 
-	if (const UDelegateProperty* DelegateProp = Cast<const UDelegateProperty>(InProp))
+	if (const FDelegateProperty* DelegateProp = CastField<const FDelegateProperty>(InProp))
 	{
-		if (!PythonWrappedStructs.Contains(DelegateProp->SignatureFunction->GetFName()))
+		if (!PythonWrappedStructs.Contains(PyGenUtil::GetTypeRegistryName(DelegateProp->SignatureFunction)))
 		{
 			OutGeneratedWrappedTypeReferences.DelegateReferences.Add(DelegateProp->SignatureFunction);
 		}
 		return;
 	}
 
-	if (const UMulticastDelegateProperty* DelegateProp = Cast<const UMulticastDelegateProperty>(InProp))
+	if (const FMulticastDelegateProperty* DelegateProp = CastField<const FMulticastDelegateProperty>(InProp))
 	{
-		if (!PythonWrappedStructs.Contains(DelegateProp->SignatureFunction->GetFName()))
+		if (!PythonWrappedStructs.Contains(PyGenUtil::GetTypeRegistryName(DelegateProp->SignatureFunction)))
 		{
 			OutGeneratedWrappedTypeReferences.DelegateReferences.Add(DelegateProp->SignatureFunction);
 		}
 		return;
 	}
 
-	if (const UArrayProperty* ArrayProp = Cast<const UArrayProperty>(InProp))
+	if (const FArrayProperty* ArrayProp = CastField<const FArrayProperty>(InProp))
 	{
 		GatherWrappedTypesForPropertyReferences(ArrayProp->Inner, OutGeneratedWrappedTypeReferences);
 		return;
 	}
 
-	if (const USetProperty* SetProp = Cast<const USetProperty>(InProp))
+	if (const FSetProperty* SetProp = CastField<const FSetProperty>(InProp))
 	{
 		GatherWrappedTypesForPropertyReferences(SetProp->ElementProp, OutGeneratedWrappedTypeReferences);
 		return;
 	}
 
-	if (const UMapProperty* MapProp = Cast<const UMapProperty>(InProp))
+	if (const FMapProperty* MapProp = CastField<const FMapProperty>(InProp))
 	{
 		GatherWrappedTypesForPropertyReferences(MapProp->KeyProp, OutGeneratedWrappedTypeReferences);
 		GatherWrappedTypesForPropertyReferences(MapProp->ValueProp, OutGeneratedWrappedTypeReferences);
@@ -2273,7 +2466,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 
 		// If we have multiple return values and the main return value is a bool, skip it (to mimic PyGenUtils::PackReturnValues)
 		int32 ReturnPropIndex = 0;
-		if (InOutputParams.Num() > 1 && InOutputParams[0].ParamProp->HasAnyPropertyFlags(CPF_ReturnParm) && InOutputParams[0].ParamProp->IsA<UBoolProperty>())
+		if (InOutputParams.Num() > 1 && InOutputParams[0].ParamProp->HasAnyPropertyFlags(CPF_ReturnParm) && InOutputParams[0].ParamProp->IsA<FBoolProperty>())
 		{
 			ReturnPropIndex = 1; // Start packing at the 1st out value
 		}

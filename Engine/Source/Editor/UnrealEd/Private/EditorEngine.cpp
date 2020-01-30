@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Editor/EditorEngine.h"
 #include "Misc/MessageDialog.h"
@@ -75,6 +75,7 @@
 #include "FileHelpers.h"
 #include "EditorModeInterpolation.h"
 #include "Dialogs/Dialogs.h"
+#include "Dialogs/DialogsPrivate.h"
 #include "UnrealEdGlobals.h"
 #include "Matinee/MatineeActor.h"
 #include "InteractiveFoliageActor.h"
@@ -216,6 +217,7 @@
 #include "ToolMenus.h"
 #include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "StudioAnalytics.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
@@ -344,13 +346,10 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	}
 
 	DetailMode = DM_MAX;
-	PlayInEditorViewportIndex = -1;
 	CurrentPlayWorldDestination = -1;
 	bDisableDeltaModification = false;
-	bPlayOnLocalPcSession = false;
 	bAllowMultiplePIEWorlds = true;
 	bIsEndingPlay = false;
-	NumOnlinePIEInstances = 0;
 	DefaultWorldFeatureLevel = GMaxRHIFeatureLevel;
 	PreviewPlatform = FPreviewPlatformInfo(DefaultWorldFeatureLevel);
 
@@ -955,12 +954,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 
 	LoadEditorFeatureLevel();
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// ILayers (GEditor->Layers) has been deprecated, use ULayersSubsystem (GEditor->GetEditorSubsystem<ULayersSubsystem>()) instead.
-	// We temporaily assign Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>(), but we will remove Layers in future releases.
-	Layers = MakeShareable(GetEditorSubsystem<ULayersSubsystem>(), [](ULayersSubsystem*) {});
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 
 	// Init transactioning.
 	Trans = CreateTrans();
@@ -1348,6 +1341,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	}
 
 	FEngineAnalytics::Tick(DeltaSeconds);
+	FStudioAnalytics::Tick(DeltaSeconds);
 
 	// Look for realtime flags.
 	bool IsRealtime = false;
@@ -1595,10 +1589,10 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		}
 	}
 
-	// kick off a "Play From Here" if we got one
-	if (bIsPlayWorldQueued)
+	// Kick off a Play Session request if one was queued up during the last frame.
+	if (PlaySessionRequest.IsSet())
 	{
-		StartQueuedPlayMapRequest();
+		StartQueuedPlaySessionRequest();
 	}
 	else if( bIsToggleBetweenPIEandSIEQueued )
 	{
@@ -1831,7 +1825,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 					continue;
 				}
 
-				if ( ViewportClient->IsVisible() && (!bAllWindowsHidden || ViewportClient->WantsDrawWhenAppIsHidden()) )
+				if (ViewportClient->IsVisible() && (!bAllWindowsHidden || ViewportClient->WantsDrawWhenAppIsHidden()) && ViewportClient->GetScene())
 				{
 					// Only update ortho viewports if that mode is turned on, the viewport client we are about to update is orthographic and the current editing viewport is orthographic and tracking mouse movement.
 					bUpdateLinkedOrthoViewports = GetDefault<ULevelEditorViewportSettings>()->bUseLinkedOrthographicViewports && ViewportClient->IsOrtho() && GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsOrtho() && GCurrentLevelEditingViewportClient->IsTracking();
@@ -1970,7 +1964,7 @@ float UEditorEngine::GetMaxTickRate( float DeltaTime, bool bAllowFrameRateSmooth
 	if( !ShouldThrottleCPUUsage() )
 	{
 		// do not limit fps in VR Preview mode
-		if (bUseVRPreviewForPlayWorld)
+		if (IsVRPreviewActive())
 		{
 			return 0.0f;
 		}
@@ -2068,7 +2062,10 @@ bool UEditorEngine::UpdateSingleViewportClient(FEditorViewportClient* InViewport
 		// Add view information for perspective viewports.
 		if( InViewportClient->IsPerspective() )
 		{
-			InViewportClient->GetWorld()->ViewLocationsRenderedLastFrame.Add(InViewportClient->GetViewLocation());
+			if (UWorld* ViewportClientWorld = InViewportClient->GetWorld())
+			{
+				ViewportClientWorld->ViewLocationsRenderedLastFrame.Add(InViewportClient->GetViewLocation());
+			}
 	
 			// If we're currently simulating in editor, then we'll need to make sure that sub-levels are streamed in.
 			// When using PIE, this normally happens by UGameViewportClient::Draw().  But for SIE, we need to do
@@ -3457,7 +3454,8 @@ struct FConvertStaticMeshActorInfo
 
 	bool PropsDiffer(const TCHAR* PropertyPath, UObject* Obj)
 	{
-		const UProperty* PartsProp = FindObjectChecked<UProperty>( ANY_PACKAGE, PropertyPath );
+		const FProperty* PartsProp = FindField<FProperty>( PropertyPath );
+		check(PartsProp);
 
 		uint8* ClassDefaults = (uint8*)Obj->GetClass()->GetDefaultObject();
 		check( ClassDefaults );
@@ -4295,6 +4293,12 @@ bool UEditorEngine::IsPackageValidForAutoAdding(UPackage* InPackage, const FStri
 
 bool UEditorEngine::IsPackageOKToSave(UPackage* InPackage, const FString& InFilename, FOutputDevice* Error)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (InPackage && !AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPackage->GetName()))
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -4397,6 +4401,8 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 				 uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
 				 FSavePackageContext* SavePackageContext)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::Save);
+
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 
 	UObject* Base = InBase;
@@ -4440,7 +4446,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 	SlowTask.EnterProgressFrame(70);
 
 	UPackage::PreSavePackageEvent.Broadcast(InOuter);
-	const FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap, SavePackageContext);
+	FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap, SavePackageContext);
 
 	SlowTask.EnterProgressFrame(10);
 
@@ -4497,6 +4503,8 @@ bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags
 	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
 	uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::SavePackage);
+
 	// Workaround to avoid function signature change while keeping both bool and ESavePackageResult versions of SavePackage
 	const FSavePackageResultStruct Result = Save(InOuter, InBase, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping,
 		bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask);
@@ -4509,6 +4517,8 @@ void UEditorEngine::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
 	{
 		return;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine_OnPreSaveWorld);
 
 	check(World->PersistentLevel);
 
@@ -4691,7 +4701,7 @@ EAppReturnType::Type UEditorEngine::OnModalMessageDialog(EAppMsgType::Type InMes
 {
 	if( IsInGameThread() && FSlateApplication::IsInitialized() && FSlateApplication::Get().CanAddModalWindow() )
 	{
-		return OpenMsgDlgInt(InMessage, InText, InTitle);
+		return OpenMessageDialog_Internal(InMessage, InText, InTitle);
 	}
 	else
 	{
@@ -4730,7 +4740,7 @@ TSharedPtr<SViewport> UEditorEngine::GetGameViewportWidget() const
 	return NULL;
 }
 
-FString UEditorEngine::GetFriendlyName( const UProperty* Property, UStruct* OwnerStruct/* = NULL*/ )
+FString UEditorEngine::GetFriendlyName( const FProperty* Property, UStruct* OwnerStruct/* = NULL*/ )
 {
 	// first, try to pull the friendly name from the loc file
 	check( Property );
@@ -4757,7 +4767,7 @@ FString UEditorEngine::GetFriendlyName( const UProperty* Property, UStruct* Owne
 		const FString& DefaultFriendlyName = Property->GetMetaData(TEXT("DisplayName"));
 		if ( DefaultFriendlyName.IsEmpty() )
 		{
-			const bool bIsBool = Cast<const UBoolProperty>(Property) != NULL;
+			const bool bIsBool = CastField<const FBoolProperty>(Property) != NULL;
 			return FName::NameToDisplayString( Property->GetName(), bIsBool );
 		}
 		return DefaultFriendlyName;
@@ -5275,21 +5285,21 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 	{
 		FArchiveReplaceObjectRef<AActor> Ar(Referencer, ConvertedMap, false, true, false);
 
-		for (const auto& MapItem : Ar.GetReplacedReferences())
+	for (const auto& MapItem : Ar.GetReplacedReferences())
+	{
+		UObject* ModifiedObject = MapItem.Key;
+
+		if (!ModifiedObject->HasAnyFlags(RF_Transient) && ModifiedObject->GetOutermost() != GetTransientPackage() && !ModifiedObject->RootPackageHasAnyFlags(PKG_CompiledIn))
 		{
-			UObject* ModifiedObject = MapItem.Key;
-
-			if (!ModifiedObject->HasAnyFlags(RF_Transient) && ModifiedObject->GetOutermost() != GetTransientPackage() && !ModifiedObject->RootPackageHasAnyFlags(PKG_CompiledIn))
-			{
-				ModifiedObject->MarkPackageDirty();
-			}
-
-			for (UProperty* Property : MapItem.Value)
-			{
-				FPropertyChangedEvent PropertyEvent(Property);
-				ModifiedObject->PostEditChangeProperty(PropertyEvent);
-			}
+			ModifiedObject->MarkPackageDirty();
 		}
+
+		for (FProperty* Property : MapItem.Value)
+		{
+			FPropertyChangedEvent PropertyEvent(Property);
+			ModifiedObject->PostEditChangeProperty(PropertyEvent);
+		}
+	}
 	}
 
 	RedrawLevelEditingViewports();
@@ -5368,8 +5378,8 @@ static void CopyLightComponentProperties( const AActor& InOldActor, AActor& InNe
 		// Find and copy the lightmass settings directly as they need to be examined and copied individually and not by the entire light mass settings struct
 		const FString LightmassPropertyName = TEXT("LightmassSettings");
 
-		UProperty* PropertyToCopy = NULL;
-		for( UProperty* Property = CompToCopyClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
+		FProperty* PropertyToCopy = NULL;
+		for( FProperty* Property = CompToCopyClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
 		{
 			if( Property->GetName() == LightmassPropertyName )
 			{
@@ -5384,12 +5394,12 @@ static void CopyLightComponentProperties( const AActor& InOldActor, AActor& InNe
 			void* PropertyToCopyBaseLightComponentToCopy = PropertyToCopy->ContainerPtrToValuePtr<void>(LightComponentToCopy);
 			void* PropertyToCopyBaseDefaultLightComponent = PropertyToCopy->ContainerPtrToValuePtr<void>(DefaultLightComponent);
 			// Find the location of the lightmass settings in the new actor (if any)
-			for( UProperty* NewProperty = NewActorLightComponent->GetClass()->PropertyLink; NewProperty != NULL; NewProperty = NewProperty->PropertyLinkNext )
+			for( FProperty* NewProperty = NewActorLightComponent->GetClass()->PropertyLink; NewProperty != NULL; NewProperty = NewProperty->PropertyLinkNext )
 			{
 				if( NewProperty->GetName() == LightmassPropertyName )
 				{
-					UStructProperty* OldLightmassProperty = Cast<UStructProperty>(PropertyToCopy);
-					UStructProperty* NewLightmassProperty = Cast<UStructProperty>(NewProperty);
+					FStructProperty* OldLightmassProperty = CastField<FStructProperty>(PropertyToCopy);
+					FStructProperty* NewLightmassProperty = CastField<FStructProperty>(NewProperty);
 
 					void* NewPropertyBaseNewActorLightComponent = NewProperty->ContainerPtrToValuePtr<void>(NewActorLightComponent);
 					// The lightmass settings are a struct property so the cast should never fail.
@@ -5397,17 +5407,17 @@ static void CopyLightComponentProperties( const AActor& InOldActor, AActor& InNe
 					check(NewLightmassProperty);
 
 					// Iterate through each property field in the lightmass settings struct that we are copying from...
-					for( TFieldIterator<UProperty> OldIt(OldLightmassProperty->Struct); OldIt; ++OldIt)
+					for( TFieldIterator<FProperty> OldIt(OldLightmassProperty->Struct); OldIt; ++OldIt)
 					{
-						UProperty* OldLightmassField = *OldIt;
+						FProperty* OldLightmassField = *OldIt;
 
 						// And search for the same field in the lightmass settings struct we are copying to.
 						// We should only copy to fields that exist in both structs.
 						// Even though their offsets match the structs may be different depending on what type of light we are converting to
 						bool bPropertyFieldFound = false;
-						for( TFieldIterator<UProperty> NewIt(NewLightmassProperty->Struct); NewIt; ++NewIt)
+						for( TFieldIterator<FProperty> NewIt(NewLightmassProperty->Struct); NewIt; ++NewIt)
 						{
-							UProperty* NewLightmassField = *NewIt;
+							FProperty* NewLightmassField = *NewIt;
 							if( OldLightmassField->GetName() == NewLightmassField->GetName() )
 							{
 								// The field is in both structs.  Ok to copy
@@ -5431,7 +5441,7 @@ static void CopyLightComponentProperties( const AActor& InOldActor, AActor& InNe
 
 
 		// Now Copy the light component properties.
-		for( UProperty* Property = CommonLightComponentClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
+		for( FProperty* Property = CommonLightComponentClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
 		{
 			bool bIsTransient = !!(Property->PropertyFlags & (CPF_Transient | CPF_DuplicateTransient | CPF_NonPIEDuplicateTransient));
 			// Properties are identical if they have not changed from the light component on the default source actor
@@ -5662,7 +5672,7 @@ void CopyActorComponentProperties( const AActor* SourceActor, AActor* DestActor,
 					{
 						// Iterate through the properties, only copying those which are non-native, non-transient, non-component, and not identical
 						// to the values in the default component
-						for ( UProperty* Property = CommonBaseClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
+						for ( FProperty* Property = CommonBaseClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
 						{
 							const bool bIsTransient = !!( Property->PropertyFlags & CPF_Transient );
 							const bool bIsIdentical = Property->Identical_InContainer(*SourceComponent, *DefaultComponent);
@@ -6007,7 +6017,7 @@ void UEditorEngine::DoConvertActors( const TArray<AActor*>& ActorsToConvert, UCl
 					if (NewActor)
 					{
 						// Copy non component properties from the old actor to the new actor
-						for( UProperty* Property = CommonBaseClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
+						for( FProperty* Property = CommonBaseClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
 						{
 							const bool bIsTransient = !!(Property->PropertyFlags & CPF_Transient);
 							const bool bIsComponentProp = !!(Property->PropertyFlags & (CPF_InstancedReference | CPF_ContainsInstancedReference));
@@ -6184,9 +6194,11 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 {
 	bool bShouldThrottle = false;
 
-	bool bIsForeground = FPlatformApplicationMisc::IsThisApplicationForeground();
+	const bool bRunningCommandlet = IsRunningCommandlet();
 
-	if( !bIsForeground )
+	const bool bIsForeground = FPlatformApplicationMisc::IsThisApplicationForeground();
+
+	if( !bIsForeground && !bRunningCommandlet )
 	{
 		const UEditorPerformanceSettings* Settings = GetDefault<UEditorPerformanceSettings>();
 		bShouldThrottle = Settings->bThrottleCPUWhenNotForeground;
@@ -6215,7 +6227,7 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 		}
 	}
 
-	return bShouldThrottle && !IsRunningCommandlet();
+	return bShouldThrottle;
 }
 
 bool UEditorEngine::AreAllWindowsHidden() const
@@ -7325,10 +7337,18 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
 		UE_LOG(LogEditor, Log, TEXT("Starting PIE for the automation tests for world, %s"), *GWorld->GetMapName());
 
 		FFailedGameStartHandler FailHandler;
-		FPlayInEditorOverrides Overrides;
-		Overrides.bDedicatedServer = false;
-		Overrides.NumberOfClients = 1;
-		PlayInEditor(GWorld, /*bInSimulateInEditor=*/false, Overrides);
+
+		FRequestPlaySessionParams RequestParams;
+		ULevelEditorPlaySettings* EditorPlaySettings = NewObject<ULevelEditorPlaySettings>();
+		EditorPlaySettings->SetPlayNumberOfClients(1);
+		EditorPlaySettings->bLaunchSeparateServer = false;
+		RequestParams.EditorPlaySettings = EditorPlaySettings;
+
+		RequestPlaySession(RequestParams);
+
+		// Immediately launch the session 
+		StartQueuedPlaySessionRequest();
+
 		if (!FailHandler.CanProceed())
 		{
 			*OutError = TEXT("Error encountered.");
@@ -7345,7 +7365,7 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
 bool UEditorEngine::IsHMDTrackingAllowed() const
 {
 	// @todo vreditor: Added GEnableVREditorHacks check below to allow head movement in non-PIE editor; needs revisit
-	return GEnableVREditorHacks || (PlayWorld && (bUseVRPreviewForPlayWorld || GetDefault<ULevelEditorPlaySettings>()->ViewportGetsHMDControl));
+	return GEnableVREditorHacks || (PlayWorld && (IsVRPreviewActive() || GetDefault<ULevelEditorPlaySettings>()->ViewportGetsHMDControl));
 }
 
 void UEditorEngine::OnModuleCompileStarted(bool bIsAsyncCompile)
@@ -7522,5 +7542,14 @@ void UEditorEngine::SaveEditorFeatureLevel()
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
 	Settings->PostEditChange();
 }
+
+void UEditorEngine::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (PlayInEditorSessionInfo.IsSet())
+	{
+		Collector.AddReferencedObject(PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings, this);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE 

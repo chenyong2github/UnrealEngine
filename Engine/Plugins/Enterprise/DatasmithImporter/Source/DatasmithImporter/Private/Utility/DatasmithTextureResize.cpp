@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utility/DatasmithTextureResize.h"
 
@@ -13,6 +13,10 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
 
 THIRD_PARTY_INCLUDES_START
 	#include "FreeImage.h"
@@ -686,5 +690,9 @@ void FFreeImageWrapper::FreeImage_Initialise()
 		::FreeImage_Initialise();
 	}
 }
+
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 #endif // WITH_FREEIMAGE_LIB

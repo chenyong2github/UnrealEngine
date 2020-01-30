@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
 
@@ -164,6 +164,9 @@ bool FDisplayClusterClusterNodeCtrlSlave::StartClients()
 		UE_LOG(LogDisplayClusterCluster, Error, TEXT("No master node configuration data found"));
 		return false;
 	}
+
+	// Allow children to override master's address
+	OverrideMasterAddr(MasterCfg.Addr);
 
 	const FDisplayClusterConfigNetwork CfgNetwork = GDisplayCluster->GetPrivateConfigMgr()->GetConfigNetwork();
 

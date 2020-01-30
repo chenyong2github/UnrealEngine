@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 ActorFactory.cpp: 
@@ -275,8 +275,11 @@ AActor* UActorFactory::CreateActor( UObject* Asset, ULevel* InLevel, FTransform 
 		{
 			PostSpawnActor(Asset, NewActor);
 
-			// Only do this if the actor wasn't already given a name
-			if (Name == NAME_None && Asset)
+			// Only do this if the actor wasn't already given a name.
+			// We also want to skip this if a toolchain during PostSpawn
+			// already adjusted the name.
+			if (Name == NAME_None && Asset && 
+				!NewActor->GetName().StartsWith(Asset->GetName()))
 			{
 				FActorLabelUtilities::SetActorLabelUnique(NewActor, Asset->GetName());
 			}
@@ -874,7 +877,7 @@ bool UActorFactoryAnimationAsset::CanCreateActorFrom( const FAssetData& AssetDat
 	return true;
 }
 
-USkeletalMesh* UActorFactoryAnimationAsset::GetSkeletalMeshFromAsset( UObject* Asset ) const
+USkeletalMesh* UActorFactoryAnimationAsset::GetSkeletalMeshFromAsset( UObject* Asset )
 {
 	USkeletalMesh* SkeletalMesh = NULL;
 	
@@ -952,25 +955,22 @@ void UActorFactoryAnimationAsset::PostCreateBlueprint( UObject* Asset,  AActor* 
 /*-----------------------------------------------------------------------------
 UActorFactorySkeletalMesh
 -----------------------------------------------------------------------------*/
+
+// static storage
+TMap<UClass*, FGetSkeletalMeshFromAssetDelegate> UActorFactorySkeletalMesh::GetSkeletalMeshDelegates;
+TMap<UClass*, FPostSkeletalMeshActorSpawnedDelegate> UActorFactorySkeletalMesh::PostSkeletalMeshActorSpawnedDelegates;
+
 UActorFactorySkeletalMesh::UActorFactorySkeletalMesh(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 { 
 	DisplayName = LOCTEXT("SkeletalMeshDisplayName", "Skeletal Mesh");
 	NewActorClass = ASkeletalMeshActor::StaticClass();
 	bUseSurfaceOrientation = true;
+	ClassUsedForDelegate = nullptr;
 }
 
 bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {	
-	if ( !AssetData.IsValid() || 
-		( !AssetData.GetClass()->IsChildOf( USkeletalMesh::StaticClass() ) && 
-		  !AssetData.GetClass()->IsChildOf( UAnimBlueprint::StaticClass() ) && 
-		  !AssetData.GetClass()->IsChildOf( USkeleton::StaticClass() ) ) )
-	{
-		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoAnimSeq", "A valid anim sequence must be specified.");
-		return false;
-	}
-
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 	FAssetData SkeletalMeshData;
@@ -1035,9 +1035,16 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 				return false;
 			}
 		}
-		else
+	}
+
+	if (!SkeletalMeshData.IsValid())
+	{
+		for (const auto& Pair : UActorFactorySkeletalMesh::GetSkeletalMeshDelegates)
 		{
-			OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoSkelMeshTargetSkeleton", "SkeletalMesh must have a valid Target Skeleton.");
+			if (Pair.Value.Execute(AssetData.GetAsset()) != nullptr)
+			{
+				return true;
+			}
 		}
 	}
 
@@ -1058,7 +1065,7 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 	return true;
 }
 
-USkeletalMesh* UActorFactorySkeletalMesh::GetSkeletalMeshFromAsset( UObject* Asset ) const
+USkeletalMesh* UActorFactorySkeletalMesh::GetSkeletalMeshFromAsset( UObject* Asset )
 {
 	USkeletalMesh*SkeletalMesh = Cast<USkeletalMesh>( Asset );
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>( Asset );
@@ -1073,6 +1080,19 @@ USkeletalMesh* UActorFactorySkeletalMesh::GetSkeletalMeshFromAsset( UObject* Ass
 	if( SkeletalMesh == NULL && Skeleton != NULL )
 	{
 		SkeletalMesh = Skeleton->GetPreviewMesh(true);
+	}
+
+	if (SkeletalMesh == NULL)
+	{
+		for (const auto& Pair : UActorFactorySkeletalMesh::GetSkeletalMeshDelegates)
+		{
+			if (USkeletalMesh* SkeletalMeshFromDelegate = Pair.Value.Execute(Asset))
+			{
+				ClassUsedForDelegate = Pair.Key;
+				SkeletalMesh = SkeletalMeshFromDelegate;
+				break;
+			}
+		}
 	}
 
 	check( SkeletalMesh != NULL );
@@ -1103,6 +1123,12 @@ void UActorFactorySkeletalMesh::PostSpawnActor( UObject* Asset, AActor* NewActor
 	{
 		NewSMActor->GetSkeletalMeshComponent()->SetAnimInstanceClass(AnimBlueprint->GeneratedClass);
 	}
+
+	if (ClassUsedForDelegate != NULL)
+	{
+		UActorFactorySkeletalMesh::PostSkeletalMeshActorSpawnedDelegates.FindChecked(ClassUsedForDelegate).Execute(NewSMActor, Asset);
+	}
+
 }
 
 void UActorFactorySkeletalMesh::PostCreateBlueprint( UObject* Asset, AActor* CDO )
@@ -1123,6 +1149,23 @@ FQuat UActorFactorySkeletalMesh::AlignObjectToSurfaceNormal(const FVector& InSur
 	// Meshes align the Z (up) axis with the surface normal
 	return FindActorAlignmentRotation(ActorRotation, FVector(0.f, 0.f, 1.f), InSurfaceNormal);
 }
+
+void UActorFactorySkeletalMesh::RegisterDelegatesForAssetClass(
+	UClass* InAssetClass,
+	FGetSkeletalMeshFromAssetDelegate GetSkeletalMeshFromAssetDelegate,
+	FPostSkeletalMeshActorSpawnedDelegate PostSkeletalMeshActorSpawnedDelegate
+)
+{
+	UActorFactorySkeletalMesh::GetSkeletalMeshDelegates.Add(InAssetClass, GetSkeletalMeshFromAssetDelegate);
+	UActorFactorySkeletalMesh::PostSkeletalMeshActorSpawnedDelegates.Add(InAssetClass, PostSkeletalMeshActorSpawnedDelegate);
+}
+
+void UActorFactorySkeletalMesh::UnregisterDelegatesForAssetClass(UClass* InAssetClass)
+{
+	UActorFactorySkeletalMesh::GetSkeletalMeshDelegates.Remove(InAssetClass);
+	UActorFactorySkeletalMesh::PostSkeletalMeshActorSpawnedDelegates.Remove(InAssetClass);
+}
+
 
 /*-----------------------------------------------------------------------------
 UActorFactoryCameraActor

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	RenderCore.h: Render core module implementation.
@@ -147,6 +147,7 @@ DEFINE_STAT(STAT_PerObjectShadows);
 DEFINE_STAT(STAT_PreShadows);
 DEFINE_STAT(STAT_CachedPreShadows);
 DEFINE_STAT(STAT_ShadowDynamicPathDrawCalls);
+DEFINE_STAT(STAT_AddSubjectPrimitive);
 
 DEFINE_STAT(STAT_TranslucentInjectTime);
 DEFINE_STAT(STAT_DirectLightRenderingTime);

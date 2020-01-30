@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	InstancedStaticMesh.h: Instanced static mesh header
@@ -153,6 +153,7 @@ struct FInstancingUserData
 	bool bRenderSelected;
 	bool bRenderUnselected;
 	FVector AverageInstancesScale;
+	FVector InstancingOffset;
 };
 
 struct FInstancedStaticMeshDataType
@@ -301,6 +302,7 @@ class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFac
 		InstancingViewZCompareZeroParameter.Bind(ParameterMap, TEXT("InstancingViewZCompareZero"));
 		InstancingViewZCompareOneParameter.Bind(ParameterMap, TEXT("InstancingViewZCompareOne"));
 		InstancingViewZConstantParameter.Bind(ParameterMap, TEXT("InstancingViewZConstant"));
+		InstancingOffsetParameter.Bind(ParameterMap, TEXT("InstancingOffset"));
 		InstancingWorldViewOriginZeroParameter.Bind(ParameterMap, TEXT("InstancingWorldViewOriginZero"));
 		InstancingWorldViewOriginOneParameter.Bind(ParameterMap, TEXT("InstancingWorldViewOriginOne"));
 		CPUInstanceOrigin.Bind(ParameterMap, TEXT("CPUInstanceOrigin"));
@@ -331,6 +333,7 @@ class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFac
 		Ar << InstancingViewZCompareZeroParameter;
 		Ar << InstancingViewZCompareOneParameter;
 		Ar << InstancingViewZConstantParameter;
+		Ar << InstancingOffsetParameter;
 		Ar << InstancingWorldViewOriginZeroParameter;
 		Ar << InstancingWorldViewOriginOneParameter;
 		Ar << CPUInstanceOrigin;
@@ -349,6 +352,7 @@ private:
 	FShaderParameter InstancingViewZCompareZeroParameter;
 	FShaderParameter InstancingViewZCompareOneParameter;
 	FShaderParameter InstancingViewZConstantParameter;
+	FShaderParameter InstancingOffsetParameter;
 	FShaderParameter InstancingWorldViewOriginZeroParameter;
 	FShaderParameter InstancingWorldViewOriginOneParameter;
 
@@ -492,8 +496,6 @@ public:
 
 	~FInstancedStaticMeshSceneProxy()
 	{
-		InstancedRenderData.ReleaseResources(&GetScene( ), StaticMesh);
-
 #if RHI_RAYTRACING
 		for (int32 i = 0; i < RayTracingCullClusterInstances.Num(); ++i)
 		{
@@ -503,7 +505,9 @@ public:
 	}
 
 	// FPrimitiveSceneProxy interface.
-	
+
+	virtual void DestroyRenderThreadResources() override;
+
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
 		FPrimitiveViewRelevance Result;

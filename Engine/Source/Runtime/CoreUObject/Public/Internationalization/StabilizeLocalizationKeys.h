@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,7 +13,7 @@ namespace StabilizeLocalizationKeys
  * Convert any text that has been initialized from a raw string to have a deterministic key based on the given key root and the property name.
  * @note This function will recurse into arrays, sets, maps, and sub-structures.
  */
-COREUOBJECT_API void StabilizeLocalizationKeysForProperty(UProperty* InProp, void* InPropData, const FString& InNamespace, const FString& InKeyRoot, const bool bAppendPropertyNameToKey = true);
+COREUOBJECT_API void StabilizeLocalizationKeysForProperty(FProperty* InProp, void* InPropData, const FString& InNamespace, const FString& InKeyRoot, const bool bAppendPropertyNameToKey = true);
 
 /**
  * Walk through the struct and convert any text that has been initialized from a raw string to have a deterministic key based on the given key root and the property name.

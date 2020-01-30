@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraScalabilityManager.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
@@ -20,6 +20,42 @@ FNiagaraScalabilityManager::FNiagaraScalabilityManager()
 
 }
 
+FNiagaraScalabilityManager::~FNiagaraScalabilityManager()
+{
+	for(UNiagaraComponent* Component : ManagedComponents)
+	{
+		if (Component)
+		{
+			Component->ScalabilityManagerHandle = INDEX_NONE;
+		}
+	}
+	ManagedComponents.Empty();
+}
+
+void FNiagaraScalabilityManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(EffectType);
+	Collector.AddReferencedObjects(ManagedComponents);
+}
+
+
+void FNiagaraScalabilityManager::PreGarbageCollectBeginDestroy()
+{
+	//After the GC has potentially nulled out references to the components we were tracking we clear them out here.
+	//This should only be in the case where MarkPendingKill() is called directly. Typical component destruction will unregister in OnComponentDestroyed().
+	//Components then just clear their handle in BeginDestroy knowing they've already been removed from the manager.
+	//I would prefer some pre BeginDestroy() callback into the component in which I could cleanly unregister with the manager in all cases but I don't think that's possible.
+	int32 CompIdx = ManagedComponents.Num();
+	while (--CompIdx >= 0)
+	{
+		if (ManagedComponents[CompIdx] == nullptr)
+		{
+			//UE_LOG(LogNiagara, Warning, TEXT("Unregister from PreGCBeginDestroy @%d/%d - %s"), CompIdx, ManagedComponents.Num(), *EffectType->GetName());
+			UnregisterAt(CompIdx);
+		}
+	}
+}
+
 void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 {
 	check(Component->ScalabilityManagerHandle == INDEX_NONE);
@@ -27,27 +63,54 @@ void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 
 	Component->ScalabilityManagerHandle = ManagedComponents.Add(Component);
 	State.AddDefaulted();
+
+	//UE_LOG(LogNiagara, Warning, TEXT("Registered Component %0xP at index %d"), Component, Component->ScalabilityManagerHandle);
 }
 
 void FNiagaraScalabilityManager::Unregister(UNiagaraComponent* Component)
 {
 	check(Component->ScalabilityManagerHandle != INDEX_NONE);
-	check(ManagedComponents.Num() == State.Num());
 
 	int32 IndexToRemove = Component->ScalabilityManagerHandle;
 	Component->ScalabilityManagerHandle = INDEX_NONE;
-	ManagedComponents.RemoveAtSwap(IndexToRemove);
-	State.RemoveAtSwap(IndexToRemove);
+	UnregisterAt(IndexToRemove);
+}
 
+void FNiagaraScalabilityManager::UnregisterAt(int32 IndexToRemove)
+{
+	//UE_LOG(LogNiagara, Warning, TEXT("Unregistering Component %0xP at index %d (Replaced with %0xP)"), ManagedComponents[IndexToRemove], IndexToRemove, ManagedComponents.Num() > 1 ? ManagedComponents.Last() : nullptr);
+
+	check(ManagedComponents.Num() == State.Num());
 	if (ManagedComponents.IsValidIndex(IndexToRemove))
 	{
-		check(ManagedComponents[IndexToRemove] != nullptr);
-		ManagedComponents[IndexToRemove]->ScalabilityManagerHandle = IndexToRemove;
+		ManagedComponents.RemoveAtSwap(IndexToRemove);
+		State.RemoveAtSwap(IndexToRemove);
+	}
+	else
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Attempting to unregister an invalid index from the Scalability Manager. Index: %d - Num: %d"), IndexToRemove, ManagedComponents.Num());
+	}
+
+	//Redirect the component that is now at IndexToRemove to the correct index.
+	if (ManagedComponents.IsValidIndex(IndexToRemove))
+	{
+		if ((ManagedComponents[IndexToRemove] != nullptr))//Possible this has been GCd. It will be removed later if so.
+		{
+			ManagedComponents[IndexToRemove]->ScalabilityManagerHandle = IndexToRemove;
+		}
 	}
 }
 
 void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 {
+	//Paranoia code in case the EffectType is GCd from under us.
+	if (EffectType == nullptr)
+	{
+		ManagedComponents.Empty();
+		State.Empty();
+		LastUpdateTime = 0.0f;
+	}
+
 	float WorldTime = WorldMan->GetWorld()->GetTimeSeconds();
 	bool bShouldUpdateScalabilityStates = false;
 	switch (EffectType->UpdateFrequency)
@@ -65,22 +128,33 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 
 	LastUpdateTime = WorldTime;
 
+	//Belt and braces paranoia code to ensure we're safe if a component or System is GCd but the component isn't unregistered for whatever reason.
 	int32 CompIdx = 0;
-#if WITH_EDITOR
-	//In cases such as undo/redo we can get components and system asset references pulled from under us.
+	check(State.Num() == ManagedComponents.Num());
 	while (CompIdx < ManagedComponents.Num())
 	{
 		UNiagaraComponent* Component = ManagedComponents[CompIdx];
-		if (Component && Component->GetAsset())
+		if (Component)
 		{
-			++CompIdx;
+			//Belt and braces GC safety. If someone calls MarkPendingKill() directly and we get here before we clear these out in the post GC callback.
+			if (Component->IsPendingKill())
+			{
+				//UE_LOG(LogNiagara, Warning, TEXT("Unregisteded a pending kill Niagara component from the scalability manager. \nComponent: 0x%P - %s\nEffectType: 0x%P - %s"),
+				//	Component, *Component->GetName(), EffectType, *EffectType->GetName());
+				Unregister(Component);
+				continue;
+			}
+			if (Component->GetAsset() == nullptr)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: 0x%P - %s\nEffectType: 0x%P - %s"),
+					Component, *Component->GetName(), EffectType, *EffectType->GetName());
+				Unregister(Component);
+				continue;
+			}
 		}
-		else
-		{
-			Unregister(Component);
-		}
+
+		++CompIdx;
 	}
-#endif
 
 	bool bNeedSortedSignificanceCull = false;
 	SignificanceSortedIndices.Reset(ManagedComponents.Num());
@@ -91,6 +165,13 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 	for (int32 i = 0; i < ManagedComponents.Num(); ++i)
 	{
 		UNiagaraComponent* Component = ManagedComponents[i];
+		
+		//The GC can pull this ref from underneath us before the component unregisters itself during BeginDestroy().
+		if(!Component)
+		{
+			continue;
+		}
+
 		FNiagaraScalabilityState& CompState = State[i];
 #if DEBUG_SCALABILITY_STATE
 		CompState.bCulledByInstanceCount = false;
@@ -138,10 +219,11 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 		while (CompIdx < ManagedComponents.Num())
 		{
 			FNiagaraScalabilityState& CompState = State[CompIdx];
+			UNiagaraComponent* Component = ManagedComponents[CompIdx];
 			bool bRepeatIndex = false;
-			if (CompState.bDirty)
+			if (Component && CompState.bDirty)
 			{
-				UNiagaraComponent* Component = ManagedComponents[CompIdx];
+				CompState.bDirty = false;
 				if (CompState.bCulled)
 				{
 					switch (EffectType->CullReaction)

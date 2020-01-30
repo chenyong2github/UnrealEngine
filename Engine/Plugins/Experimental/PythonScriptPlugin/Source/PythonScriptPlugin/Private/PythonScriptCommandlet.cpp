@@ -1,8 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PythonScriptCommandlet.h"
 #include "IPythonScriptPlugin.h"
 #include "Logging/LogMacros.h"
+#include "Containers/Ticker.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPythonScriptCommandlet, Log, All);
 
@@ -34,6 +35,9 @@ int32 UPythonScriptCommandlet::Main(const FString& Params)
 
 #if WITH_PYTHON
 	{
+		// Tick once to ensure that any start-up scripts have been run
+		FTicker::GetCoreTicker().Tick(0.0f);
+
 		UE_LOG(LogPythonScriptCommandlet, Display, TEXT("Running Python script: %s"), *PythonScript);
 
 		FPythonCommandEx PythonCommand;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshImporter.h"
 #include "USDImporter.h"
@@ -110,13 +110,28 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 			MaterialIndex = PolygonGroupID.GetValue();
 		}
 
+		if ( !Materials.IsValidIndex( MaterialIndex ) )
+		{
+			Materials.AddDefaulted( Materials.Num() - MaterialIndex + 1 );
+			Materials[ MaterialIndex ].Name = ImportedMaterialSlotNameString;
+		}
+
 		UMaterialInterface* Material = nullptr;
 		if (Materials.IsValidIndex(MaterialIndex))
 		{
 			Material = Materials[MaterialIndex].UnrealMaterial;
 			if (Material == nullptr)
 			{
-				const FString& MaterialFullName = Materials[MaterialIndex].Name;
+				FString MaterialFullName = Materials[MaterialIndex].Name;
+
+				// Only keep material name without prim path when searching for a UMaterial
+				FString MaterialPath;
+				FString MaterialName;
+				if ( MaterialFullName.Split( FString( TEXT("/") ), &MaterialPath, &MaterialName, ESearchCase::IgnoreCase, ESearchDir::FromEnd ) )
+				{
+					MaterialFullName = MaterialName;
+				}
+
 				FString MaterialBasePackageName = BasePackageName;
 				MaterialBasePackageName += TEXT("/");
 				MaterialBasePackageName += MaterialFullName;
@@ -164,7 +179,9 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 {
 	const pxr::UsdPrim& Prim = *PrimToImport.Prim;
 
-	FTransform PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? UsdToUnreal::ConvertMatrix(ImportContext.Stage.Get(), IUsdPrim::GetLocalTransform( Prim )) : FTransform::Identity;
+	const pxr::TfToken StageUpAxis = UsdUtils::GetUsdStageAxis( ImportContext.Stage.Get() );
+
+	FTransform PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? UsdToUnreal::ConvertMatrix(StageUpAxis, IUsdPrim::GetLocalTransform( Prim )) : FTransform::Identity;
 
 	FTransform FinalTransform = PrimToWorld;
 	if (ImportContext.ImportOptions->Scale != 1.0f)

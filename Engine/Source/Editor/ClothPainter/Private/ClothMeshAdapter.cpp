@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClothMeshAdapter.h"
 
@@ -234,11 +234,10 @@ bool FClothMeshPaintAdapter::InitializeVertexData()
 			{
 				UClothingAssetCommon* ConcreteAsset = CastChecked<UClothingAssetCommon>(SelectedAsset);
 				const UClothLODDataCommon* LODData = ConcreteAsset->ClothLodData[PaintingClothLODIndex];
-				check(LODData->PhysicalMeshData);
-				const UClothPhysicalMeshDataBase* MeshData = LODData->PhysicalMeshData;
+				const FClothPhysicalMeshData& MeshData = LODData->ClothPhysicalMeshData;
 
 				MeshVertices.Append(DebugComponent->SkinnedSelectedClothingPositions);
-				MeshIndices.Append(MeshData->Indices);
+				MeshIndices.Append(MeshData.Indices);
 
 				for(int32 Index = IndexOffset; Index < MeshIndices.Num(); ++Index)
 				{
@@ -249,8 +248,8 @@ bool FClothMeshPaintAdapter::InitializeVertexData()
 				Info.IndexStart = IndexOffset;
 				Info.VertexStart = VertexOffset;
 
-				IndexOffset += MeshData->Indices.Num();
-				VertexOffset += MeshData->Vertices.Num();
+				IndexOffset += MeshData.Indices.Num();
+				VertexOffset += MeshData.Vertices.Num();
 
 				Info.IndexEnd = IndexOffset;
 				Info.VertexEnd = VertexOffset;

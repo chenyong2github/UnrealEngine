@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MeshDrawShaderBindings.h: 
@@ -320,7 +320,7 @@ private:
 		if (FoundIndex >= 0)
 		{
 			uint32 TypeByteIndex = FoundIndex / 8;
-			uint32 TypeBitIndex = FoundIndex - TypeByteIndex;
+			uint32 TypeBitIndex = FoundIndex % 8;
 			GetSRVTypeStart()[TypeByteIndex] |= 1 << TypeBitIndex;
 			GetSRVStart()[FoundIndex] = Value;
 		}

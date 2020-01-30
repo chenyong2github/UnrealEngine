@@ -1,16 +1,15 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
-
-class UMaterialInterface;
+#include "Materials/MaterialInterface.h"
 
 class FBufferVisualizationData
 {
 public:
-	
+
 	FBufferVisualizationData()
-	: bIsInitialized(false)
+		: bIsInitialized(false)
 	{
 
 	}
@@ -23,6 +22,12 @@ public:
 
 	/** Get a named material from the available material map **/
 	ENGINE_API UMaterialInterface* GetMaterial(FName InMaterialName);
+
+	/** Get the display name of a named material from the available material map **/
+	ENGINE_API FText GetMaterialDisplayName(FName InMaterialName) const;
+
+	/** Get the default display name if no material is used and the Overview window is being used **/
+	ENGINE_API static FText GetMaterialDefaultDisplayName();
 
 	/** We cache the overview material name list from the console command here, so all dynamically created views can re-use the existing cached list of materials */
 	void SetCurrentOverviewMaterialNames(const FString& InNameList);
@@ -62,13 +67,16 @@ private:
 
 	/** The name->material mapping table */
 	TMaterialMap MaterialMap;
-	
+
+	/** The UMaterial.name->material mapping table */
+	TMaterialMap MaterialMapFromMaterialName;
+
 	/** List of material names to use in the buffer visualization overview */
 	FString CurrentOverviewMaterialNames;
 
 	/** List of material currently in use by the buffer visualization overview */
 	TArray<UMaterialInterface*> OverviewMaterials;
-	
+
 	/** Storage for console variable documentation strings **/
 	FString ConsoleDocumentationVisualizationMode;
 	FString ConsoleDocumentationOverviewTargets;

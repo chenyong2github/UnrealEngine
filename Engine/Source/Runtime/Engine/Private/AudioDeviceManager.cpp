@@ -1,7 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioDeviceManager.h"
 
+#include "Audio.h"
 #include "Audio/AudioDebug.h"
+#include "AudioDefines.h"
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "Sound/AudioSettings.h"
@@ -619,6 +621,16 @@ FAudioDevice* FAudioDeviceManager::GetAudioDevice(Audio::FDeviceId Handle)
 	FAudioDevice* AudioDevice = Devices[Index];
 	check(AudioDevice != nullptr);
 	return AudioDevice;
+}
+
+FAudioDeviceManager* FAudioDeviceManager::Get()
+{
+	if (GEngine)
+	{
+		return GEngine->GetAudioDeviceManager();
+	}
+
+	return nullptr;
 }
 
 FAudioDevice* FAudioDeviceManager::GetActiveAudioDevice()

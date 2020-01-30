@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -79,6 +79,7 @@ public:
 	virtual void ResetLightColor(int32 ControllerId) override {}
 
 	void SetGamepadsAllowed(bool bAllowed) { bAllowControllers = bAllowed; }
+	void SetGamepadsBlockDeviceFeedback(bool bBlock) { bControllersBlockDeviceFeedback = bBlock; }
 	bool IsControllerAssignedToGamepad(int32 ControllerId) const;
 	bool IsGamepadAttached() const;
 
@@ -117,10 +118,10 @@ private:
 	/** Game controller objects (per user)*/
 	struct FUserController
 	{
-		GCGamepadSnapshot* PreviousGamepad;
-		GCExtendedGamepadSnapshot* PreviousExtendedGamepad;
+        GCController* Controller;
+		GCExtendedGamepad* PreviousExtendedGamepad;
 #if PLATFORM_TVOS
-		GCMicroGamepadSnapshot* PreviousMicroGamepad;
+		GCMicroGamepad* PreviousMicroGamepad;
 #endif
 		FQuat ReferenceAttitude;
 		bool bNeedsReferenceAttitude;
@@ -128,6 +129,9 @@ private:
 		bool bIsGamepadConnected;
 		bool bIsRemoteConnected;
 		bool bPauseWasPressed;
+        // Tracked outside the gamepads to allow us to support thumbsticks on more devices.
+        bool bRightThumbstickWasPressed;
+        bool bLeftThumbstickWasPressed;
 	};
 	// there is a hardcoded limit of 4 controllers in the API
 	FUserController Controllers[4];
@@ -146,6 +150,9 @@ private:
 	
 	// should we allow controllers to send input
 	bool bAllowControllers;
+
+	// bluetooth connected controllers will block force feedback.
+	bool bControllersBlockDeviceFeedback;
 	
 	/** Is motion paused or not? */
 	bool bPauseMotion;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGLShaders.cpp: OpenGL shader RHI implementation.
@@ -1396,13 +1396,16 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	if (FOpenGL::SupportsClipControl())
+	if (TypeEnum != GL_COMPUTE_SHADER)
 	{
-		AppendCString(GlslCode, "#define HLSLCC_DX11ClipSpace 0 \n");
-	}
-	else
-	{
-		AppendCString(GlslCode, "#define HLSLCC_DX11ClipSpace 1 \n");
+		if (FOpenGL::SupportsClipControl())
+		{
+			AppendCString(GlslCode, "#define HLSLCC_DX11ClipSpace 0 \n");
+		}
+		else
+		{
+			AppendCString(GlslCode, "#define HLSLCC_DX11ClipSpace 1 \n");
+		}
 	}
 
 	// Append the possibly edited shader to the one we will compile.
@@ -1706,6 +1709,7 @@ public:
 
 	int32		MaxTextureStage;
 	TBitArray<>	TextureStageNeeds;
+	int32		MaxUAVUnitUsed;
 	TBitArray<>	UAVStageNeeds;
 
 	TArray<FOpenGLBindlessSamplerInfo> Samplers;
@@ -1726,10 +1730,10 @@ public:
 
 private:
 	FOpenGLLinkedProgram()
-	: Program(0), bUsingTessellation(false), bDrawn(false), bConfigIsInitalized(false), MaxTextureStage(-1)
+	: Program(0), bUsingTessellation(false), bDrawn(false), bConfigIsInitalized(false), MaxTextureStage(-1), MaxUAVUnitUsed(-1)
 	{
 		TextureStageNeeds.Init( false, FOpenGL::GetMaxCombinedTextureImageUnits() );
-		UAVStageNeeds.Init( false, OGL_MAX_COMPUTE_STAGE_UAV_UNITS );
+		UAVStageNeeds.Init( false, FOpenGL::GetMaxCombinedUAVUnits() );
 	}
 
 public:
@@ -2619,15 +2623,15 @@ void FOpenGLLinkedProgram::ConfigureShaderStage( int Stage, uint32 FirstUniformB
 	static const GLint FirstUAVUnit[CrossCompiler::NUM_SHADER_STAGES] =
 	{
 		OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT,
-		OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT,
+		FOpenGL::GetFirstPixelUAVUnit(),
 		OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT,
 		OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT,
 		OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT,
 		FOpenGL::GetFirstComputeUAVUnit()
 	};
 	
-	// verify that only CS uses UAVs
-	check((Stage != CrossCompiler::SHADER_STAGE_COMPUTE) ? (CountSetBits(UAVStageNeeds) == 0) : true);
+	// verify that only CS and PS uses UAVs
+	check(!(Stage == CrossCompiler::SHADER_STAGE_COMPUTE || Stage == CrossCompiler::SHADER_STAGE_PIXEL) ? (CountSetBits(UAVStageNeeds) == 0) : true);
 
 	SCOPE_CYCLE_COUNTER(STAT_OpenGLShaderBindParameterTime);
 	VERIFY_GL_SCOPE();
@@ -2780,6 +2784,7 @@ void FOpenGLLinkedProgram::ConfigureShaderStage( int Stage, uint32 FirstUniformB
 			// glUniform1i(Location, FirstUAVUnit[Stage] + UAVIndex);
 			
 			UAVStageNeeds[ FirstUAVUnit[Stage] + UAVIndex ] = true;
+			MaxUAVUnitUsed = FMath::Max(MaxUAVUnitUsed, FirstUAVUnit[Stage] + UAVIndex);
 		}
 	}
 
@@ -4065,6 +4070,12 @@ const TBitArray<>& FOpenGLBoundShaderState::GetTextureNeeds(int32& OutMaxTexture
 	return LinkedProgram->TextureStageNeeds;
 }
 
+const TBitArray<>& FOpenGLBoundShaderState::GetUAVNeeds(int32& OutMaxUAVUnitUsed) const
+{
+	OutMaxUAVUnitUsed = LinkedProgram->MaxUAVUnitUsed;
+	return LinkedProgram->UAVStageNeeds;
+}
+
 void FOpenGLBoundShaderState::GetNumUniformBuffers(int32 NumUniformBuffers[SF_Compute])
 {
 	if (IsRunningRHIInSeparateThread())
@@ -4113,6 +4124,12 @@ const TBitArray<>& FOpenGLComputeShader::GetTextureNeeds(int32& OutMaxTextureSta
 {
 	OutMaxTextureStageUsed = LinkedProgram->MaxTextureStage;
 	return LinkedProgram->TextureStageNeeds;
+}
+
+const TBitArray<>& FOpenGLComputeShader::GetUAVNeeds(int32& OutMaxUAVUnitUsed) const
+{
+	OutMaxUAVUnitUsed = LinkedProgram->MaxUAVUnitUsed;
+	return LinkedProgram->UAVStageNeeds;
 }
 
 bool FOpenGLComputeShader::NeedsUAVStage(int32 UAVStageIndex) const

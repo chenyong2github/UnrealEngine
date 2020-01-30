@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneToolHelpers.h"
 #include "MovieSceneToolsModule.h"
@@ -60,7 +60,8 @@
 #include "FbxExporter.h"
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
-
+#include "AnimationRecorder.h"
+#include "Components/SkeletalMeshComponent.h"
 
 /* MovieSceneToolHelpers
  *****************************************************************************/
@@ -521,105 +522,7 @@ int32 MovieSceneToolHelpers::FindAvailableRowIndex(UMovieSceneTrack* InTrack, UM
 	return InTrack->GetMaxRowIndex() + 1;
 }
 
-class SEnumCombobox : public SComboBox<TSharedPtr<int32>>
-{
-public:
-	SLATE_BEGIN_ARGS(SEnumCombobox) {}
-
-	SLATE_ATTRIBUTE(int32, CurrentValue)
-	SLATE_ARGUMENT(FOnEnumSelectionChanged, OnEnumSelectionChanged)
-
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, const UEnum* InEnum)
-	{
-		Enum = InEnum;
-		CurrentValue = InArgs._CurrentValue;
-		check(CurrentValue.IsBound());
-		OnEnumSelectionChangedDelegate = InArgs._OnEnumSelectionChanged;
-
-		bUpdatingSelectionInternally = false;
-
-		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
-		{
-			if (Enum->HasMetaData( TEXT("Hidden"), i ) == false)
-			{
-				VisibleEnumNameIndices.Add(MakeShareable(new int32(i)));
-			}
-		}
-
-		SComboBox::Construct(SComboBox<TSharedPtr<int32>>::FArguments()
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
-			.OptionsSource(&VisibleEnumNameIndices)
-			.OnGenerateWidget_Lambda([this](TSharedPtr<int32> InItem)
-			{
-				return SNew(STextBlock)
-					.Text(Enum->GetDisplayNameTextByIndex(*InItem));
-			})
-			.OnSelectionChanged(this, &SEnumCombobox::OnComboSelectionChanged)
-			.OnComboBoxOpening(this, &SEnumCombobox::OnComboMenuOpening)
-			.ContentPadding(FMargin(2, 0))
-			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-				.Text(this, &SEnumCombobox::GetCurrentValue)
-			]);
-	}
-
-private:
-	FText GetCurrentValue() const
-	{
-		int32 CurrentNameIndex = Enum->GetIndexByValue(CurrentValue.Get());
-		return Enum->GetDisplayNameTextByIndex(CurrentNameIndex);
-	}
-
-	TSharedRef<SWidget> OnGenerateWidget(TSharedPtr<int32> InItem)
-	{
-		return SNew(STextBlock)
-			.Text(Enum->GetDisplayNameTextByIndex(*InItem));
-	}
-
-	void OnComboSelectionChanged(TSharedPtr<int32> InSelectedItem, ESelectInfo::Type SelectInfo)
-	{
-		if (bUpdatingSelectionInternally == false)
-		{
-			OnEnumSelectionChangedDelegate.ExecuteIfBound(*InSelectedItem, SelectInfo);
-		}
-	}
-
-	void OnComboMenuOpening()
-	{
-		int32 CurrentNameIndex = Enum->GetIndexByValue(CurrentValue.Get());
-		TSharedPtr<int32> FoundNameIndexItem;
-		for ( int32 i = 0; i < VisibleEnumNameIndices.Num(); i++ )
-		{
-			if ( *VisibleEnumNameIndices[i] == CurrentNameIndex )
-			{
-				FoundNameIndexItem = VisibleEnumNameIndices[i];
-				break;
-			}
-		}
-		if ( FoundNameIndexItem.IsValid() )
-		{
-			bUpdatingSelectionInternally = true;
-			SetSelectedItem(FoundNameIndexItem);
-			bUpdatingSelectionInternally = false;
-		}
-	}	
-
-private:
-	const UEnum* Enum;
-
-	TAttribute<int32> CurrentValue;
-
-	TArray<TSharedPtr<int32>> VisibleEnumNameIndices;
-
-	bool bUpdatingSelectionInternally;
-
-	FOnEnumSelectionChanged OnEnumSelectionChangedDelegate;
-};
-
-TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum, TAttribute<int32> InCurrentValue, FOnEnumSelectionChanged InOnSelectionChanged)
+TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum, TAttribute<int32> InCurrentValue, SEnumCombobox::FOnEnumSelectionChanged InOnSelectionChanged)
 {
 	return SNew(SEnumCombobox, InEnum)
 		.CurrentValue(InCurrentValue)
@@ -2136,10 +2039,78 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 	{
 		TArray<UMovieSceneTrack*> Tracks;
 		Tracks.Add(MasterTrack);
-		Exporter->ExportLevelSequenceTracks(MovieScene, Player, nullptr, nullptr, Tracks, RootToLocalTransform);
+		Exporter->ExportLevelSequenceTracks(MovieScene, Player, Template, nullptr, nullptr, Tracks, RootToLocalTransform);
 	}
 	// Save to disk
 	Exporter->WriteToFile(*InFBXFileName);
 
 	return true;
 }
+
+
+
+bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UMovieScene* MovieScene, IMovieScenePlayer* Player,
+	USkeletalMeshComponent* SkelMeshComp, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform)
+{
+	//if we have no allocated bone space transforms something wrong so try to recalc them
+	if (SkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
+	{
+		SkelMeshComp->RecalcRequiredBones(0);
+		if (SkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
+		{
+
+			UE_LOG(LogMovieScene, Error, TEXT("Error Animation Anim Sequence Export, No Bone Transforms."));
+			return false;
+		}
+	}
+
+	UnFbx::FLevelSequenceAnimTrackAdapter AnimTrackAdapter(Player, MovieScene, RootToLocalTransform);
+
+	FFrameRate SampleRate = MovieScene->GetDisplayRate();
+
+	FAnimRecorderInstance AnimationRecorder;
+	FAnimationRecordingSettings RecordingSettings;
+	RecordingSettings.SampleRate = SampleRate.AsDecimal();
+	RecordingSettings.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+	RecordingSettings.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+	RecordingSettings.Length = 0;
+	RecordingSettings.bRecordInWorldSpace = true;
+	RecordingSettings.bRemoveRootAnimation = false;
+	RecordingSettings.bCheckDeltaTimeAtBeginning = false;
+	AnimationRecorder.Init(SkelMeshComp, AnimSequence, nullptr, RecordingSettings);
+	AnimationRecorder.BeginRecording();
+
+
+	int32 LocalStartFrame = AnimTrackAdapter.GetLocalStartFrame();
+	int32 StartFrame = AnimTrackAdapter.GetStartFrame();
+	int32 AnimationLength = AnimTrackAdapter.GetLength();
+	float FrameRate = AnimTrackAdapter.GetFrameRate();
+	float DeltaTime = 1.0f / FrameRate;
+	for (int32 FrameCount = 0; FrameCount <= AnimationLength; ++FrameCount)
+	{
+
+		int32 LocalFrame = LocalStartFrame + FrameCount;
+
+		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
+		AnimTrackAdapter.UpdateAnimation(LocalFrame);
+
+		// Update space bases so new animation position has an effect.
+		// @todo - hack - this will be removed at some point (this comment is all over the place by the way in fbx export code).
+		SkelMeshComp->TickAnimation(0.03f, false);
+
+		SkelMeshComp->RefreshBoneTransforms();
+		SkelMeshComp->RefreshSlaveComponents();
+		SkelMeshComp->UpdateComponentToWorld();
+		SkelMeshComp->FinalizeBoneTransform();
+		SkelMeshComp->MarkRenderTransformDirty();
+		SkelMeshComp->MarkRenderDynamicDataDirty();
+
+		AnimationRecorder.Update(DeltaTime);
+	}
+
+	const bool bShowAnimationAssetCreatedToast = false;
+	AnimationRecorder.FinishRecording(bShowAnimationAssetCreatedToast);
+
+	return true;
+}
+

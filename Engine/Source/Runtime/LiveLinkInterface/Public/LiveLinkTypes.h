@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -354,6 +354,11 @@ public:
 			return Other.GetBaseData() == nullptr; // same struct and both uninitialized
 		}
 		return false;
+	}
+
+	bool operator!=(const FLiveLinkBaseDataStruct& Other) const
+	{
+		return !(*this == Other);
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FLiveLinkBaseDataStruct& InStruct)

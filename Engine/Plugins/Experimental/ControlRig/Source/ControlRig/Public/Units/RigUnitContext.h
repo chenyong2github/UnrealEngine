@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -26,6 +26,7 @@ struct FRigUnitContext
 	/** default constructor */
 	FRigUnitContext()
 		: DrawInterface(nullptr)
+		, DrawContainer(nullptr)
 		, DataSourceRegistry(nullptr)
 		, DeltaTime(0.f)
 		, State(EControlRigState::Invalid)
@@ -34,11 +35,13 @@ struct FRigUnitContext
 		, Log(nullptr)
 #endif
 	{
-
 	}
 
 	/** The draw interface for the units to use */
 	FControlRigDrawInterface* DrawInterface;
+
+	/** The auxiliary draw container for the units to use */
+	FControlRigDrawContainer* DrawContainer;
 
 	/** The registry to access data source */
 	const UAnimationDataSourceRegistry* DataSourceRegistry;
@@ -114,7 +117,7 @@ struct FRigUnitContext
 #define UE_CONTROLRIG_RIGUNIT_REPORT(Severity, Format, ...) \
 if(Context.Log != nullptr) \
 { \
-	Context.Log->Report(EMessageSeverity::Severity, RigUnitName, FString::Printf((Format), ##__VA_ARGS__)); \
+	Context.Log->Report(EMessageSeverity::Severity, RigVMOperatorName, RigVMOperatorIndex, FString::Printf((Format), ##__VA_ARGS__)); \
 }
 #define UE_CONTROLRIG_RIGUNIT_LOG_MESSAGE(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Info, (Format), ##__VA_ARGS__)
 #define UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Warning, (Format), ##__VA_ARGS__)

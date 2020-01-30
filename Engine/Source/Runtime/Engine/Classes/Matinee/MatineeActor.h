@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //  AActor  used to controll matinee's and to replicate activation, playback, and other relevant flags to net clients
 
@@ -356,7 +356,7 @@ public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override; 
-	virtual bool CanEditChange( const UProperty* Property ) const override;
+	virtual bool CanEditChange( const FProperty* Property ) const override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 

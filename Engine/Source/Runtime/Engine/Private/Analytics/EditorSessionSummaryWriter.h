@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,6 +17,7 @@ public:
 
 	void Initialize();
 	void Tick(float DeltaTime);
+	void LowDriveSpaceDetected();
 	void Shutdown();
 
 private:
@@ -31,6 +32,7 @@ private:
 
 	FString GetUserActivityString() const;
 	void UpdateTimestamps();
+	void TrySaveCurrentSession();
 
 private:
 	FEditorAnalyticsSession* CurrentSession;

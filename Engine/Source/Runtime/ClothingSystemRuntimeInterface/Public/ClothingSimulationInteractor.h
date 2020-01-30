@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,7 +14,7 @@ class IClothingSimulationContext;
  * Only write to the simulation and context during the call to Sync, as that is
  * guaranteed to be a safe place to access this data.
  */
-UCLASS(Abstract)
+UCLASS(Abstract, BlueprintType)
 class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingSimulationInteractor : public UObject
 {
 	GENERATED_BODY()
@@ -41,6 +41,21 @@ public:
 	// written in a way to pick up these changes on the next update
 	virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext)
 	PURE_VIRTUAL(UClothingSimulationInteractor::Sync, );
+
+	// Set the stiffness of the spring force for the animation drive
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual void SetAnimDriveSpringStiffness(float InStiffness)
+	PURE_VIRTUAL(UClothingSimulationInteractor::SetAnimDriveSpringStiffness, );
+
+	// Set a new gravity override and enable the override
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual void EnableGravityOverride(const FVector& InVector)
+	PURE_VIRTUAL(UClothingSimulationInteractor::EnableGravityOverride, );
+
+	// Disable any currently set gravity override
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual void DisableGravityOverride()
+	PURE_VIRTUAL(UClothingSimulationInteractor::DisableGravityOverride, );
 
 protected:
 

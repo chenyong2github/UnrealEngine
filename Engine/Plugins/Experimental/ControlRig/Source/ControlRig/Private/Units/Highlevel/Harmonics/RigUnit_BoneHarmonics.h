@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,7 +20,7 @@ struct FRigUnit_BoneHarmonics_BoneTarget
 	/**
 	 * The name of the bone to drive
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Bone;
 
 	/**
@@ -110,7 +110,7 @@ struct FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMutable
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
 	UPROPERTY(transient)

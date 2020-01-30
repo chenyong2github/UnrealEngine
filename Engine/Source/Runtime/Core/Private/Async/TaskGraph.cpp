@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "CoreTypes.h"
@@ -29,6 +29,7 @@
 #include "HAL/ThreadHeartBeat.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTaskGraph, Log, All);
 
@@ -1599,7 +1600,7 @@ private:
 		if (TLSPointer)
 		{
 			checkThreadGraph(TLSPointer - WorkerThreads >= 0 && TLSPointer - WorkerThreads < NumThreads);
-			int32 ThreadIndex = TLSPointer - WorkerThreads;
+			int32 ThreadIndex = UE_PTRDIFF_TO_INT32(TLSPointer - WorkerThreads);
 			checkThreadGraph(Thread(ThreadIndex).GetThreadId() == ThreadIndex);
 			if (ThreadIndex < NumNamedThreads)
 			{
@@ -1820,10 +1821,10 @@ public:
 	void FORCEINLINE DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		{
-			float ThisTime = FPlatformTime::Seconds() - StartTime;
-			if (ThisTime > 0.02f)
+			const double ThisTime = FPlatformTime::Seconds() - StartTime;
+			if (ThisTime > 0.02)
 			{
-				UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast."), ThisTime * 1000.0f, Name);
+				UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast."), ThisTime * 1000.0, Name);
 			}
 		}
 
@@ -1832,23 +1833,26 @@ public:
 			Function(CurrentThread);
 		}
 		{
-			float ThisTime = FPlatformTime::Seconds() - StartTime;
-			if (ThisTime > 0.02f)
+			const double ThisTime = FPlatformTime::Seconds() - StartTime;
+			if (ThisTime > 0.02)
 			{
-				UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast and do processing."), ThisTime * 1000.0f, Name);
+				UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast and do processing."), ThisTime * 1000.0, Name);
 			}
 		}
 		if (StallForTaskThread)
 		{
 			if (StallForTaskThread->Decrement())
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_Broadcast_WaitForOthers);
-				TaskEvent->Wait();
+				if (TaskEvent)
 				{
-					float ThisTime = FPlatformTime::Seconds() - StartTime;
-					if (ThisTime > 0.02f)
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_Broadcast_WaitForOthers);
+					TaskEvent->Wait();
 					{
-						UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast do processing and wait for other task threads."), ThisTime * 1000.0f, Name);
+						const double ThisTime = FPlatformTime::Seconds() - StartTime;
+						if (ThisTime > 0.02)
+						{
+							UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast do processing and wait for other task threads."), ThisTime * 1000.0f, Name);
+						}
 					}
 				}
 			}
@@ -1856,10 +1860,10 @@ public:
 			{
 				CallerEvent->Trigger();
 				{
-					float ThisTime = FPlatformTime::Seconds() - StartTime;
-					if (ThisTime > 0.02f)
+					const double ThisTime = FPlatformTime::Seconds() - StartTime;
+					if (ThisTime > 0.02)
 					{
-						UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast do processing and trigger other task threads."), ThisTime * 1000.0f, Name);
+						UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast do processing and trigger other task threads."), ThisTime * 1000.0, Name);
 					}
 				}
 			}
@@ -1969,14 +1973,14 @@ void FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(bool bDoTaskTh
 			TaskEvent->Trigger();
 		}
 		{
-			double StartTimeInner = FPlatformTime::Seconds();
+			const double StartTimeInner = FPlatformTime::Seconds();
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_Broadcast_WaitForTaskThreads);
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(TaskThreadTasks, ENamedThreads::GameThread_Local);
 			{
-				float ThisTime = FPlatformTime::Seconds() - StartTimeInner;
-				if (ThisTime > 0.02f)
+				const double ThisTime = FPlatformTime::Seconds() - StartTimeInner;
+				if (ThisTime > 0.02)
 				{
-					UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms to wait for task thread broadcast."), ThisTime * 1000.0f);
+					UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms to wait for task thread broadcast."), ThisTime * 1000.0);
 				}
 			}
 		}
@@ -2005,10 +2009,10 @@ void FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(bool bDoTaskTh
 			FPlatformMisc::PumpMessagesOutsideMainLoop();
 		}
 		
-		float EndTimeInner = FPlatformTime::Seconds() - StartTimeInner;
-		if (EndTimeInner > 0.02f)
+		const double EndTimeInner = FPlatformTime::Seconds() - StartTimeInner;
+		if (EndTimeInner > 0.02)
 		{
-			UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms to wait for named thread broadcast."), EndTimeInner * 1000.0f);
+			UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms to wait for named thread broadcast."), EndTimeInner * 1000.0);
 		}
 	}
 	for (FEvent* TaskEvent : TaskEvents)
@@ -2020,10 +2024,10 @@ void FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(bool bDoTaskTh
 		FPlatformProcess::ReturnSynchEventToPool(MyEvent);
 	}
 	{
-		float ThisTime = FPlatformTime::Seconds() - StartTime;
-		if (ThisTime > 0.02f)
+		const double ThisTime = FPlatformTime::Seconds() - StartTime;
+		if (ThisTime > 0.02)
 		{
-			UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms to broadcast."), ThisTime * 1000.0f);
+			UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms to broadcast."), ThisTime * 1000.0);
 		}
 	}
 }
@@ -2505,6 +2509,36 @@ static void TestLockFree(int32 OuterIters = 3)
 		return;
 	}
 
+	const int32 NumWorkers = FTaskGraphInterface::Get().GetNumWorkerThreads();
+	// If we have too many threads active at once, they become too slow due to contention.  Set a reasonable maximum for how many are required to guarantee correctness of our LockFreePointers.
+	const int32 MaxWorkersForTest = 5; 
+	const int32 MinWorkersForTest = 2; // With less than two threads we're not testing threading at all, so the test is pointless.
+	if (NumWorkers < MinWorkersForTest)
+	{
+		UE_LOG(LogConsoleResponse, Display, TEXT("WARNING: TestLockFree disabled for current machine because of not enough worker threads.  Need %d, have %d."), MinWorkersForTest, NumWorkers);
+		return;
+	}
+
+	FScopedDurationTimeLogger DurationLogger(TEXT("TestLockFree Runtime"));
+	const uint32 NumWorkersForTest = static_cast<uint32>(FMath::Clamp(NumWorkers, MinWorkersForTest, MaxWorkersForTest));
+	auto RunWorkersSynchronous = [NumWorkersForTest](const TFunction<void(uint32)>& WorkerTask)
+	{
+		const bool bIsManualReset = true;
+		FEvent* AllDoneEvent = FPlatformProcess::GetSynchEventFromPool(bIsManualReset);
+		FThreadSafeCounter UnfinishedWorkers;
+		FGraphEventArray Tasks;
+		const double StartTime = FPlatformTime::Seconds();
+		UnfinishedWorkers.Add(NumWorkersForTest);
+		for (uint32 Index = 0; Index < NumWorkersForTest; Index++)
+		{
+			TFunction<void(ENamedThreads::Type)> WorkerTaskWithIndex{ [Index, &WorkerTask](ENamedThreads::Type CurrentThread) { WorkerTask(Index); } };
+			Tasks.Add(TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(WorkerTaskWithIndex, StartTime,
+				TEXT("TestLockFreeWorker"), ENamedThreads::AnyNormalThreadHiPriTask, &UnfinishedWorkers, nullptr, AllDoneEvent));
+		}
+		AllDoneEvent->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(AllDoneEvent);
+	};
+
 	for (int32 Iter = 0; Iter < OuterIters; Iter++)
 	{
 		{
@@ -2514,15 +2548,15 @@ static void TestLockFree(int32 OuterIters = 3)
 			{
 				Rig.Test1.Push(new FTestStruct(Index));
 			}
-			TFunction<void(ENamedThreads::Type CurrentThread)> Broadcast =
-				[&Rig](ENamedThreads::Type MyThread)
+			TFunction<void(uint32)> Broadcast =
+				[&Rig](uint32 WorkerIndex)
 			{
-				FRandomStream Stream(((int32)MyThread) * 7 + 13);
+				FRandomStream Stream(((int32)WorkerIndex) * 7 + 13);
 				for (int32 Index = 0; Index < 1000000; Index++)
 				{
 					if (Index % 200000 == 1)
 					{
-						//UE_LOG(LogTemp, Log, TEXT("%8d iters thread=%d"), Index, int32(MyThread));
+						//UE_LOG(LogTemp, Log, TEXT("%8d iters thread=%d"), Index, int32(WorkerIndex));
 					}
 					if (Stream.FRand() < .03f)
 					{
@@ -2596,7 +2630,7 @@ static void TestLockFree(int32 OuterIters = 3)
 					}
 				}
 			};
-			FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(true, false, Broadcast);
+			RunWorkersSynchronous(Broadcast);
 
 			TArray<FTestStruct*> Items;
 			Rig.Test1.PopAll(Items);
@@ -2633,15 +2667,15 @@ static void TestLockFree(int32 OuterIters = 3)
 			{
 				Rig.Test1.Push(new FTestStruct(Index));
 			}
-			TFunction<void(ENamedThreads::Type CurrentThread)> Broadcast =
-				[&Rig](ENamedThreads::Type MyThread)
+			TFunction<void(uint32)> Broadcast =
+				[&Rig](uint32 WorkerIndex)
 			{
-				FRandomStream Stream(((int32)MyThread) * 7 + 13);
+				FRandomStream Stream(((int32)WorkerIndex) * 7 + 13);
 				for (int32 Index = 0; Index < 1000000; Index++)
 				{
 					if (Index % 200000 == 1)
 					{
-						//UE_LOG(LogTemp, Log, TEXT("%8d iters thread=%d"), Index, int32(MyThread));
+						//UE_LOG(LogTemp, Log, TEXT("%8d iters thread=%d"), Index, int32(WorkerIndex));
 					}
 					if (Stream.FRand() < .03f)
 					{
@@ -2715,7 +2749,7 @@ static void TestLockFree(int32 OuterIters = 3)
 					}
 				}
 			};
-			FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(true, false, Broadcast);
+			RunWorkersSynchronous(Broadcast);
 
 			TArray<FTestStruct*> Items;
 			Rig.Test1.PopAll(Items);

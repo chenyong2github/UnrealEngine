@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SignificanceManager.h"
 #include "EngineGlobals.h"
@@ -145,21 +145,6 @@ void USignificanceManager::BeginDestroy()
 UWorld* USignificanceManager::GetWorld()const
 {
 	return CastChecked<UWorld>(GetOuter());
-}
-
-void USignificanceManager::RegisterObject(UObject* Object, const FName Tag, FSignificanceFunction SignificanceFunction, USignificanceManager::EPostSignificanceType PostSignificanceType, FPostSignificanceFunction PostSignificanceFunction)
-{
-	FManagedObjectSignificanceFunction ManagedObjectSignificanceFunctionWrapper = [SignificanceFunction](const FManagedObjectInfo* ObjectInfo, const FTransform& Viewpoint)
-	{
-		return SignificanceFunction(ObjectInfo->GetObject(), Viewpoint);
-	};
-
-	FManagedObjectPostSignificanceFunction ManagedObjectPostSignficanceFunctionWrapper = [PostSignificanceFunction](const FManagedObjectInfo* ObjectInfo, const float OldSignificance, const float NewSignificance, const bool bFinal)
-	{
-		PostSignificanceFunction(ObjectInfo->GetObject(), OldSignificance, NewSignificance, bFinal);
-	};
-
-	USignificanceManager::RegisterObject(Object, Tag, ManagedObjectSignificanceFunctionWrapper, PostSignificanceType, ManagedObjectPostSignficanceFunctionWrapper);
 }
 
 void USignificanceManager::RegisterObject(UObject* Object, const FName Tag, FManagedObjectSignificanceFunction SignificanceFunction, USignificanceManager::EPostSignificanceType PostSignificanceType, FManagedObjectPostSignificanceFunction PostSignificanceFunction)

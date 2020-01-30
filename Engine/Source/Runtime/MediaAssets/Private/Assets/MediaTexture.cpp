@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaTexture.h"
 #include "MediaAssetsPrivate.h"
@@ -252,7 +252,7 @@ void UMediaTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	static const FName ClearColorName = GET_MEMBER_NAME_CHECKED(UMediaTexture, ClearColor);
 	static const FName MediaPlayerName = GET_MEMBER_NAME_CHECKED(UMediaTexture, MediaPlayer);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	
 	if (PropertyThatChanged == nullptr)
 	{

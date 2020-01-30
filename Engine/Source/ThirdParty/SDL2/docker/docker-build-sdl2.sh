@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Unreal Engine 4 Build script for SDL2
-## Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+## Copyright Epic Games, Inc. All Rights Reserved.
 
 # Should be run in docker image, launched something like this (see RunMe.sh script):
 #   docker run --name ${ImageName} -v ${SCRIPT_DIR}/../../Vulkan:/Vulkan -v ${SDL_DIR}:/SDL-gui-backend -v ${SCRIPT_DIR}:/src ${Image} /src/docker-build-sdl2.sh
@@ -15,7 +15,7 @@
 if [ $UID -eq 0 ]; then
   # Centos 7
   yum install -y cmake make gcc-c++
-  yum install -y libXcursor-devel libXinerama-devel libxi-dev libXrandr-devel libXScrnSaver-devel libXi-devel mesa-libGL-devel mesa-libEGL-devel pulseaudio-libs-devel wayland-protocols-devel wayland-devel libxkbcommon-devel mesa-libwayland-egl-devel alsa-lib-devel
+  yum install -y libXcursor-devel libXinerama-devel libxi-dev libXrandr-devel libXScrnSaver-devel libXi-devel mesa-libGL-devel mesa-libEGL-devel pulseaudio-libs-devel wayland-protocols-devel wayland-devel libxkbcommon-devel mesa-libwayland-egl-devel alsa-lib-devel libudev-devel
 
   # Create non-privileged user and workspace
   adduser buildmaster

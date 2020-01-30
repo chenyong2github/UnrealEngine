@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CustomFontColumn.h"
 #include "Modules/ModuleManager.h"
@@ -19,7 +19,7 @@ bool FCustomFontColumn::Supports( const TSharedRef< IPropertyTableColumn >& Colu
 		if( PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0 )
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-			UProperty* Property = PropertyInfo.Property.Get();
+			FProperty* Property = PropertyInfo.Property.Get();
 			if (SupportedProperties.Contains(Property))
 			{
 				IsSupported = true;

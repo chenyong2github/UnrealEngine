@@ -1,18 +1,18 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithWireTranslator.h"
 
 #include "Containers/List.h"
 #include "DatasmithImportOptions.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
 #include "DatasmithWireTranslatorModule.h"
 #include "IDatasmithSceneElements.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "OpenModelUtils.h"
-#include "Translators\DatasmithTranslator.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -550,7 +550,6 @@
 #include "Curves/CurveBase.h"
 #include "Curves/CurveOwnerInterface.h"
 #include "Camera/CameraTypes.h"
-#include "Sound/SoundClass.h"
 #include "Curves/CurveFloat.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Animation/Skeleton.h"

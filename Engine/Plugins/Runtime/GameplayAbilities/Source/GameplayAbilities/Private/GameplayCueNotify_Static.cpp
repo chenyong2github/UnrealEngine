@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayCueNotify_Static.h"
 #include "Engine/Blueprint.h"
@@ -23,7 +23,7 @@ UGameplayCueNotify_Static::UGameplayCueNotify_Static(const FObjectInitializer& P
 #if WITH_EDITOR
 void UGameplayCueNotify_Static::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	const FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(GetClass());
 
 	if (PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UGameplayCueNotify_Static, GameplayCueTag))

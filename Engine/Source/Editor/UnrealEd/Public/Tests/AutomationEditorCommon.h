@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -50,7 +50,7 @@ public:
 	* Applies settings to an object by finding UProperties by name and calling ImportText
 	*
 	* @param InObject - The object to search for matching properties
-	* @param PropertyChain - The list UProperty names recursively to search through
+	* @param PropertyChain - The list FProperty names recursively to search through
 	* @param Value - The value to import on the found property
 	*/
 	static void ApplyCustomFactorySetting(UObject* InObject, TArray<FString>& PropertyChain, const FString& Value);

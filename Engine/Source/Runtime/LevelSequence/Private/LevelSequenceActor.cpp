@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceActor.h"
 #include "UObject/ConstructorHelpers.h"
@@ -84,6 +84,14 @@ void ALevelSequenceActor::PostInitProperties()
 	// Have to initialize this here as any properties set on default subobjects inside the constructor
 	// Get stomped by the CDO's properties when the constructor exits.
 	SequencePlayer->SetPlaybackClient(this);
+}
+
+void ALevelSequenceActor::RewindForReplay()
+{
+	if (SequencePlayer)
+	{
+		SequencePlayer->RewindForReplay();
+	}
 }
 
 bool ALevelSequenceActor::RetrieveBindingOverrides(const FGuid& InBindingId, FMovieSceneSequenceID InSequenceID, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const

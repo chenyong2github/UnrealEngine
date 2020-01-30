@@ -1,11 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_ACCESSIBILITY
 
 #include "IOS/Accessibility/IOSAccessibilityElement.h"
 
 #include "Async/TaskGraphInterfaces.h"
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #include "IOS/Accessibility/IOSAccessibilityCache.h"
 #include "IOS/IOSApplication.h"
 #include "IOS/IOSAppDelegate.h"

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_RigidBody.h"
 #include "AnimationRuntime.h"
@@ -36,6 +36,7 @@ FAutoConsoleVariableRef CVarRigidBodyNodeEnableTimeBasedReset(TEXT("p.RigidBodyN
 FAnimNode_RigidBody::FAnimNode_RigidBody():
 	QueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId())
 {
+	AccumulatedDeltaTime = 0.0f;
 	ResetSimulatedTeleportType = ETeleportType::None;
 	PhysicsSimulation = nullptr;
 	OverridePhysicsAsset = nullptr;
@@ -50,6 +51,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	OverrideWorldGravity = FVector::ZeroVector;
 	TotalMass = 0.f;
 	CachedBounds.W = 0;
+	PhysScene = nullptr;
 	UnsafeWorld = nullptr;
 	bSimulationStarted = false;
 	bCheckForBodyTransformInit = false;
@@ -58,6 +60,13 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	bTransferBoneVelocities = false;
 	bFreezeIncomingPoseOnStart = false;
 	bClampLinearTranslationLimitToRefPose = false;
+
+	OverrideSolverIterations.SolverIterations = -1;
+	OverrideSolverIterations.JointIterations = -1;
+	OverrideSolverIterations.CollisionIterations = -1;
+	OverrideSolverIterations.SolverPushOutIterations = -1;
+	OverrideSolverIterations.JointPushOutIterations = -1;
+	OverrideSolverIterations.CollisionPushOutIterations = -1;
 
 	PreviousTransform = CurrentTransform = FTransform::Identity;
 	PreviousComponentLinearVelocity = FVector::ZeroVector;	
@@ -494,6 +503,22 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				PhysicsSimulation->Simulate_AssumesLocked(StepDeltaTime, SimSpaceGravity);
 			}
 #else
+			PhysicsSimulation->SetSolverIterations(
+				SolverIterations.SolverIterations,
+				SolverIterations.JointIterations,
+				SolverIterations.CollisionIterations,
+				SolverIterations.SolverPushOutIterations,
+				SolverIterations.JointPushOutIterations,
+				SolverIterations.CollisionPushOutIterations
+			);
+			PhysicsSimulation->SetSolverIterations(
+				OverrideSolverIterations.SolverIterations, 
+				OverrideSolverIterations.JointIterations, 
+				OverrideSolverIterations.CollisionIterations, 
+				OverrideSolverIterations.SolverPushOutIterations, 
+				OverrideSolverIterations.JointPushOutIterations, 
+				OverrideSolverIterations.CollisionPushOutIterations);
+
 			PhysicsSimulation->Simulate_AssumesLocked(DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
 #endif
 		}
@@ -727,6 +752,10 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 					{
 						IgnoreCollisionActors.Add(NewBodyHandle);
 					}
+
+#if WITH_CHAOS
+					NewBodyHandle->SetName(BodySetup->BoneName);
+#endif
 				}
 			}
 		}
@@ -834,6 +863,18 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 
 		PhysicsSimulation->SetIgnoreCollisionPairTable(IgnorePairs);
 		PhysicsSimulation->SetIgnoreCollisionActors(IgnoreCollisionActors);
+
+#if WITH_CHAOS
+		SolverIterations = UsePhysicsAsset->SolverIterations;
+		PhysicsSimulation->SetSolverIterations(
+			SolverIterations.SolverIterations,
+			SolverIterations.JointIterations,
+			SolverIterations.CollisionIterations,
+			SolverIterations.SolverPushOutIterations,
+			SolverIterations.JointPushOutIterations,
+			SolverIterations.CollisionPushOutIterations
+		);
+#endif
 	}
 }
 
@@ -1141,6 +1182,22 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 		CapturedFrozenCurves.Empty();
 	}
 }
+
+void FAnimNode_RigidBody::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
+{
+#if WITH_CHAOS
+	// Find the body. This is currently only used in the editor and will need optimizing if used in game
+	for (int32 BodyIndex = 0; BodyIndex < Bodies.Num(); ++BodyIndex)
+	{
+		ImmediatePhysics::FActorHandle* Body = Bodies[BodyIndex];
+		if (Body->GetName() == BoneName)
+		{
+			Body->AddImpulseAtLocation(Impulse, Location);
+		}
+	}
+#endif
+}
+
 
 void FAnimNode_RigidBody::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {

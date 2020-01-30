@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationEditorPreviewScene.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -24,6 +24,7 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "Factories/PreviewMeshCollectionFactory.h"
 #include "AnimPreviewAttacheInstance.h"
+#include "AnimCustomInstanceHelper.h"
 #include "Animation/PreviewCollectionInterface.h"
 #include "ScopedTransaction.h"
 #include "Preferences/PersonaOptions.h"
@@ -329,9 +330,9 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 	for (USkeletalMeshComponent* Component : AdditionalMeshes)
 	{
 		const UAnimInstance* AnimInst = Component->GetAnimInstance();
-		if (AnimInst && AnimInst->IsA(UAnimCustomInstance::StaticClass()))
+		if (AnimInst && AnimInst->IsA(UAnimPreviewAttacheInstance::StaticClass()))
 		{
-			UAnimCustomInstance::UnbindFromSkeletalMeshComponent(Component);
+			FAnimCustomInstanceHelper::UnbindFromSkeletalMeshComponent<UAnimPreviewAttacheInstance>(Component);
 		}
 		
 		RemoveComponent(Component);
@@ -387,7 +388,7 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 						else
 						{
 							bool bWasCreated = false;
-							UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimPreviewAttacheInstance>(NewComp,bWasCreated);
+							FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UAnimPreviewAttacheInstance>(NewComp,bWasCreated);
 						}
 						AdditionalMeshes.Add(NewComp);
 					}
@@ -552,6 +553,12 @@ void FAnimationEditorPreviewScene::RemoveAttachedComponent( bool bRemovePreviewA
 
 			// if this component is added by additional meshes, do not remove it. 
 			if (AdditionalMeshes.Contains(ChildComponent))
+			{
+				bRemove = false;
+			}
+
+			// you can use delegate to avoid being removed
+			if (OnRemoveAttachedComponentFilter.IsBound() && !OnRemoveAttachedComponentFilter.Execute(ChildComponent))
 			{
 				bRemove = false;
 			}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*-----------------------------------------------------------------------------
 	FPropertyTag.
@@ -15,15 +15,15 @@
 struct FPropertyTag
 {
 	// Transient.
-	UProperty* Prop = nullptr;
+	FProperty* Prop = nullptr;
 
 	// Variables.
 	FName	Type;		// Type of property
 	uint8	BoolVal = 0;// a boolean property's value (never need to serialize data for bool properties except here)
 	FName	Name;		// Name of property.
-	FName	StructName;	// Struct name if UStructProperty.
-	FName	EnumName;	// Enum name if UByteProperty or UEnumProperty
-	FName	InnerType;	// Inner type if UArrayProperty, USetProperty, or UMapProperty
+	FName	StructName;	// Struct name if FStructProperty.
+	FName	EnumName;	// Enum name if FByteProperty or FEnumProperty
+	FName	InnerType;	// Inner type if FArrayProperty, FSetProperty, or FMapProperty
 	FName	ValueType;	// Value type if UMapPropery
 	int32	Size = 0;   // Property size.
 	int32	ArrayIndex = INDEX_NONE; // Index if an array; else 0.
@@ -34,16 +34,16 @@ struct FPropertyTag
 
 	// Constructors.
 	FPropertyTag() {}
-	FPropertyTag( FArchive& InSaveAr, UProperty* Property, int32 InIndex, uint8* Value, uint8* Defaults );
+	FPropertyTag( FArchive& InSaveAr, FProperty* Property, int32 InIndex, uint8* Value, uint8* Defaults );
 
 	// Set optional property guid
 	void SetPropertyGuid(const FGuid& InPropertyGuid);
 
 	// Serializer.
-	friend FArchive& operator<<(FArchive& Ar, FPropertyTag& Tag);
+	friend FArchive& operator<<( FArchive& Ar, FPropertyTag& Tag );
 	friend void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag);
 
 	// Property serializer.
-	void SerializeTaggedProperty(FArchive& Ar, UProperty* Property, uint8* Value, uint8* Defaults) const;
-	void SerializeTaggedProperty(FStructuredArchive::FSlot Slot, UProperty* Property, uint8* Value, uint8* Defaults) const;
+	void SerializeTaggedProperty( FArchive& Ar, FProperty* Property, uint8* Value, uint8* Defaults ) const;
+	void SerializeTaggedProperty(FStructuredArchive::FSlot Slot, FProperty* Property, uint8* Value, uint8* Defaults) const;
 };

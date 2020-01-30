@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProceduralMeshBridge.h"
 
@@ -40,6 +40,6 @@ FProceduralMeshComponentTarget::GetMesh()
 void
 FProceduralMeshComponentTarget::CommitMesh( const FCommitter& ModifyFunc )
 {
-	ModifyFunc(MeshDescription.Get());
+	ModifyFunc({MeshDescription.Get()});
 	MeshDescriptionToProcMesh( *MeshDescription, Cast<UProceduralMeshComponent>(Component) );
 }

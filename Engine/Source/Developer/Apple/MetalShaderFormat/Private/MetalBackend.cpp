@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // .
 
 #include "MetalBackend.h"
@@ -6201,6 +6201,7 @@ bool FMetalCodeBackend::GenerateMain(EHlslShaderFrequency Frequency, const char*
 	MainSig->wg_size_x = EntryPointSig->wg_size_x;
 	MainSig->wg_size_y = EntryPointSig->wg_size_y;
 	MainSig->wg_size_z = EntryPointSig->wg_size_z;
+	MainSig->is_early_depth_stencil = EntryPointSig->is_early_depth_stencil;
 	// NOTE: ParseState->tessellation has been modified since EntryPointSig->tessellation was used...
 	MainSig->tessellation = ParseState->tessellation;
 

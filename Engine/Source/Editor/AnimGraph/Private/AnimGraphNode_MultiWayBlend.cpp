@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_MultiWayBlend.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -75,7 +75,7 @@ void UAnimGraphNode_MultiWayBlend::RemovePinFromBlendNode(UEdGraphPin* Pin)
 	FScopedTransaction Transaction(LOCTEXT("RemoveBlendMultiPin", "RemoveBlendMultiPin"));
 	Modify();
 
-	UProperty* AssociatedProperty;
+	FProperty* AssociatedProperty;
 	int32 ArrayIndex;
 	GetPinAssociatedProperty(GetFNodeType(), Pin, /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
 

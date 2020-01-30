@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditor/PreviewMaterial.h"
 #include "Modules/ModuleManager.h"
@@ -107,8 +107,9 @@ public:
 				bool bSkinCache = IsGPUSkinCacheAvailable(Platform) && (VertexFactoryType == FindVertexFactoryType(FName(TEXT("FGPUSkinPassthroughVertexFactory"), FNAME_Find)));
 					
 				if (
-					VertexFactoryType != FindVertexFactoryType(FName(TEXT("TGPUSkinVertexFactoryfalse"), FNAME_Find)) &&
-					VertexFactoryType != FindVertexFactoryType(FName(TEXT("TGPUSkinVertexFactorytrue"), FNAME_Find)) &&
+					VertexFactoryType != FindVertexFactoryType(FName(TEXT("TGPUSkinVertexFactoryDefault"), FNAME_Find)) &&
+					VertexFactoryType != FindVertexFactoryType(FName(TEXT("TGPUSkinVertexFactoryExtra"), FNAME_Find)) &&
+					VertexFactoryType != FindVertexFactoryType(FName(TEXT("TGPUSkinVertexFactoryUnlimited"), FNAME_Find)) &&
 					!bSkinCache
 					)
 				{
@@ -275,7 +276,7 @@ void UMaterialEditorPreviewParameters::PostEditChangeProperty(FPropertyChangedEv
 {
 	if (PreviewMaterial && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+		FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 		if (OriginalFunction == nullptr)
 		{
 			CopyToSourceInstance();
@@ -851,7 +852,7 @@ void UMaterialEditorInstanceConstant::PostEditChangeProperty(FPropertyChangedEve
 {
 	if (SourceInstance)
 	{
-		UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+		FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 		bool bLayersParameterChanged = false;
 
 		FNavigationLockContext NavUpdateLock(ENavigationLockReason::MaterialUpdate);
@@ -1679,24 +1680,21 @@ void UMaterialEditorInstanceConstant::CopyBasePropertiesFromParent()
 #if WITH_EDITOR
 void UMaterialEditorInstanceConstant::PostEditUndo()
 {
-	if (bIsFunctionPreviewMaterial)
+	Super::PostEditUndo();
+
+	if (bIsFunctionPreviewMaterial && SourceFunction)
 	{
 		bIsFunctionInstanceDirty = true;
 		ApplySourceFunctionChanges();
 	}
-	else
+	else if (SourceInstance)
 	{
 		FMaterialUpdateContext Context;
 
 		UpdateSourceInstanceParent();
 
 		Context.AddMaterialInstance(SourceInstance);
-
-		// Fully update static parameters before recreating render state for all components
-		SetSourceInstance(SourceInstance);
 	}
-
-	Super::PostEditUndo();
 }
 #endif
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimSequenceBase.h"
 #include "AnimationUtils.h"
@@ -454,12 +454,14 @@ void UAnimSequenceBase::RefreshCacheData()
 
 		// Handle overlapping notifies
 		FAnimNotifyTrack* TrackToUse = nullptr;
+		int32 TrackIndexToUse = INDEX_NONE;
 		for (int32 TrackOffset = 0; TrackOffset < AnimNotifyTracks.Num(); ++TrackOffset)
 		{
 			const int32 TrackIndex = (Notify.TrackIndex + TrackOffset) % AnimNotifyTracks.Num();
 			if (CanNotifyUseTrack(AnimNotifyTracks[TrackIndex], Notify))
 			{
 				TrackToUse = &AnimNotifyTracks[TrackIndex];
+				TrackIndexToUse = TrackIndex;
 				break;
 			}
 		}
@@ -467,10 +469,13 @@ void UAnimSequenceBase::RefreshCacheData()
 		if (TrackToUse == nullptr)
 		{
 			TrackToUse = &AddNewTrack(AnimNotifyTracks);
+			TrackIndexToUse = AnimNotifyTracks.Num() - 1;
 		}
 
 		check(TrackToUse);
+		check(TrackIndexToUse != INDEX_NONE);
 
+		Notify.TrackIndex = TrackIndexToUse;
 		TrackToUse->Notifies.Add(&Notify);
 	}
 
@@ -520,7 +525,7 @@ int32 UAnimSequenceBase::GetNumberOfFrames() const
 {
 	static float DefaultSampleRateInterval = 1.f / DEFAULT_SAMPLERATE;
 	// because of float error, add small margin at the end, so it can clamp correctly
-	return (SequenceLength / DefaultSampleRateInterval + KINDA_SMALL_NUMBER);
+	return (int32)(SequenceLength / DefaultSampleRateInterval + KINDA_SMALL_NUMBER) + 1;
 }
 
 #if WITH_EDITOR
@@ -621,7 +626,7 @@ void UAnimSequenceBase::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)
 	OutTags.Add(FAssetRegistryTag(USkeleton::CurveNameTag, CurveNameList, FAssetRegistryTag::TT_Hidden));
 }
 
-uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, UArrayProperty*& ArrayProperty)
+uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, FArrayProperty*& ArrayProperty)
 {
 	// initialize to NULL
 	ArrayProperty = NULL;
@@ -633,19 +638,19 @@ uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, UArrayProper
 	return NULL;
 }
 
-uint8* UAnimSequenceBase::FindArrayProperty(const TCHAR* PropName, UArrayProperty*& ArrayProperty, int32 ArrayIndex)
+uint8* UAnimSequenceBase::FindArrayProperty(const TCHAR* PropName, FArrayProperty*& ArrayProperty, int32 ArrayIndex)
 {
 	// find Notifies property start point
-	UProperty* Property = FindField<UProperty>(GetClass(), PropName);
+	FProperty* Property = FindField<FProperty>(GetClass(), PropName);
 
 	// found it and if it is array
-	if (Property && Property->IsA(UArrayProperty::StaticClass()))
+	if (Property && Property->IsA(FArrayProperty::StaticClass()))
 	{
 		// find Property Value from UObject we got
 		uint8* PropertyValue = Property->ContainerPtrToValuePtr<uint8>(this);
 
 		// it is array, so now get ArrayHelper and find the raw ptr of the data
-		ArrayProperty = CastChecked<UArrayProperty>(Property);
+		ArrayProperty = CastFieldChecked<FArrayProperty>(Property);
 		FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyValue);
 
 		if (ArrayProperty->Inner && ArrayIndex < ArrayHelper.Num())

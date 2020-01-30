@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UVProjectionTool.h"
 #include "InteractiveToolManager.h"
@@ -164,12 +164,14 @@ void UUVProjectionTool::UpdateNumPreviews()
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
-			Preview->ConfigureMaterials(
-				ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTargets[PreviewIdx]->GetMaterial(0)),
+
+			FComponentMaterialSet MaterialSet;
+			ComponentTargets[PreviewIdx]->GetMaterialSet(MaterialSet);
+			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
-			Preview->SetVisibility(true);
 
+			Preview->SetVisibility(true);
 
 			UTransformProxy* TransformProxy = TransformProxies.Add_GetRef(NewObject<UTransformProxy>(this));
 			TransformProxy->SetTransform(LocalXF * ComponentTargets[PreviewIdx]->GetWorldTransform());
@@ -192,7 +194,7 @@ void UUVProjectionTool::Shutdown(EToolShutdownType ShutdownType)
 		ComponentTarget->SetOwnerVisibility(true);
 	}
 
-	TArray<TUniquePtr<FDynamicMeshOpResult>> Results;
+	TArray<FDynamicMeshOpResult> Results;
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Results.Emplace(Preview->Shutdown());
@@ -211,9 +213,9 @@ void UUVProjectionTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
-TSharedPtr<FDynamicMeshOperator> UUVProjectionOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UUVProjectionOperatorFactory::MakeNewOperator()
 {
-	TSharedPtr<FUVProjectionOp> Op = MakeShared<FUVProjectionOp>();
+	TUniquePtr<FUVProjectionOp> Op = MakeUnique<FUVProjectionOp>();
 	Op->ProjectionMethod = Tool->BasicProperties->UVProjectionMethod;
 
 	// TODO: de-dupe this logic (it's also in Render, below)
@@ -221,8 +223,8 @@ TSharedPtr<FDynamicMeshOperator> UUVProjectionOperatorFactory::MakeNewOperator()
 	LocalScale.SetScale3D(Tool->BasicProperties->ProjectionPrimitiveScale);
 	Op->ProjectionTransform = LocalScale * Tool->TransformProxies[ComponentIndex]->GetTransform();
 	Op->CylinderProjectToTopOrBottomAngleThreshold = Tool->BasicProperties->CylinderProjectToTopOrBottomAngleThreshold;
-	Op->UVScale = Tool->BasicProperties->UVScale;
-	Op->UVOffset = Tool->BasicProperties->UVOffset;
+	Op->UVScale = (FVector2f)Tool->BasicProperties->UVScale;
+	Op->UVOffset = (FVector2f)Tool->BasicProperties->UVOffset;
 	Op->bWorldSpaceUVScale = Tool->BasicProperties->bWorldSpaceUVScale;
 
 	FTransform LocalToWorld = Tool->ComponentTargets[ComponentIndex]->GetWorldTransform();
@@ -283,17 +285,14 @@ void UUVProjectionTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 }
 #endif
 
-void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	// if we don't know what changed, or we know checker density changed, update checker material
 	MaterialSettings->UpdateMaterials();
 	for (int PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
 	{
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[PreviewIdx];
-		MaterialSettings->SetMaterialIfChanged(ComponentTargets[PreviewIdx]->GetMaterial(0), Preview->StandardMaterial, [&Preview, this](UMaterialInterface* Material)
-		{
-			Preview->ConfigureMaterials(ToolSetupUtil::GetDefaultMaterial(GetToolManager(), Material), Preview->WorkingMaterial);
-		});
+		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	}
 	
 	UpdateNumPreviews();
@@ -332,7 +331,7 @@ bool UUVProjectionTool::CanAccept() const
 }
 
 
-void UUVProjectionTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResult>>& Results)
+void UUVProjectionTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("UVProjectionToolTransactionName", "UV Projection Tool"));
 
@@ -340,14 +339,14 @@ void UUVProjectionTool::GenerateAsset(const TArray<TUniquePtr<FDynamicMeshOpResu
 	
 	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
-		check(Results[ComponentIdx]->Mesh.Get() != nullptr);
-		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](FMeshDescription* MeshDescription)
+		check(Results[ComponentIdx].Mesh.Get() != nullptr);
+		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
 			//if (??) // TODO check if UV topology changed?  or remove all traces of this if statement (may be safe to assume it almost always changes w/ a uv projection op)
 			{
 				// full conversion if topology changed
-				Converter.Convert(Results[ComponentIdx]->Mesh.Get(), *MeshDescription);
+				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription);
 			}
 			//else
 			//{

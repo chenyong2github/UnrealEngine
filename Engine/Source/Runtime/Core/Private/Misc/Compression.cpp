@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Compression.h"
 #include "Misc/AssertionMacros.h"
@@ -22,6 +22,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogCompression, Log, All);
 DEFINE_LOG_CATEGORY(LogCompression);
 
 DECLARE_STATS_GROUP( TEXT( "Compression" ), STATGROUP_Compression, STATCAT_Advanced );
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 TMap<FName, struct ICompressionFormat*> FCompression::CompressionFormats;
 FCriticalSection FCompression::CompressionFormatsCriticalSection;
@@ -793,54 +795,4 @@ bool FCompression::VerifyCompressionFlagsValid(int32 InCompressionFlags)
 /***********************
   Deprecated functions
 ***********************/
-
-int32 FCompression::CompressMemoryBound(ECompressionFlags Flags, int32 UncompressedSize, int32 BitWindow)
-{
-	switch (Flags & COMPRESS_DeprecatedFormatFlagsMask)
-	{
-		case COMPRESS_ZLIB:
-			return CompressMemoryBound(NAME_Zlib, UncompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask), BitWindow);
-		case COMPRESS_GZIP:
-			return CompressMemoryBound(NAME_Gzip, UncompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask));
-		case COMPRESS_Custom:
-			return CompressMemoryBound(TEXT("Oodle"), UncompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask));
-	}
-
-	return 0;
-}
-
-bool FCompression::CompressMemory(ECompressionFlags Flags, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize, int32 BitWindow)
-{
-	switch (Flags & COMPRESS_DeprecatedFormatFlagsMask)
-	{
-		case COMPRESS_ZLIB:
-			return CompressMemory(NAME_Zlib, CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask), BitWindow);
-		case COMPRESS_GZIP:
-			return CompressMemory(NAME_Gzip, CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask));
-		case COMPRESS_Custom:
-			return CompressMemory(TEXT("Oodle"), CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask));
-	}
-
-	return false;
-}
-
-bool FCompression::UncompressMemory(ECompressionFlags Flags, void* UncompressedBuffer, int32 UncompressedSize, const void* CompressedBuffer, int32 CompressedSize, bool bIsSourcePadded, int32 BitWindow)
-{
-	if (bIsSourcePadded)
-	{
-		Flags = (ECompressionFlags)(Flags | COMPRESS_SourceIsPadded);
-	}
-
-	switch (Flags & COMPRESS_DeprecatedFormatFlagsMask)
-	{
-		case COMPRESS_ZLIB:
-			return UncompressMemory(NAME_Zlib, UncompressedBuffer, UncompressedSize, CompressedBuffer, CompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask), BitWindow);
-		case COMPRESS_GZIP:
-			return UncompressMemory(NAME_Gzip, UncompressedBuffer, UncompressedSize, CompressedBuffer, CompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask));
-		case COMPRESS_Custom:
-			return UncompressMemory(TEXT("Oodle"), UncompressedBuffer, UncompressedSize, CompressedBuffer, CompressedSize, (ECompressionFlags)(Flags & COMPRESS_OptionsFlagsMask));
-	}
-
-	return false;
-}
-
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
  
@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakFieldPtr.h"
 #include "ConfigPropertyHelper.generated.h"
 
 UENUM()
@@ -22,14 +23,14 @@ class UPropertyConfigFileDisplayRow : public UObject
 	GENERATED_BODY()
 public:
 
-	void InitWithConfigAndProperty(const FString& InConfigFileName, UProperty* InEditProperty);
+	void InitWithConfigAndProperty(const FString& InConfigFileName, FProperty* InEditProperty);
 
 public:
 	UPROPERTY(Transient, Category = Helper, VisibleAnywhere)
 	FString ConfigFileName;
 
 	UPROPERTY(Transient, Category = Helper, EditAnywhere, meta=(EditCondition="bIsFileWritable"))
-	UProperty* ExternalProperty;
+	TFieldPath<FProperty> ExternalProperty;
 
 	UPROPERTY(Transient, Category = Helper, VisibleAnywhere)
 	bool bIsFileWritable;
@@ -43,7 +44,7 @@ class UConfigHierarchyPropertyView : public UObject
 
 public:
 	UPROPERTY(Transient, Category=Helper, EditAnywhere)
-	TWeakObjectPtr<UProperty> EditProperty;
+	TFieldPath<FProperty> EditProperty;
 
 	UPROPERTY(Transient, Category = Helper, EditAnywhere)
 	TArray<UPropertyConfigFileDisplayRow*> ConfigFilePropertyObjects;

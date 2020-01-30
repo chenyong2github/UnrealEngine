@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,7 +19,7 @@
 
 class FMenuBuilder;
 class UAnimBlueprint;
-class UAnimCompress;
+class UAnimBoneCompressionSettings;
 class UAnimSequence;
 class UEdGraph;
 class UPoseWatch;
@@ -69,18 +69,80 @@ protected:
 	static FText LastUsedAssetPath;
 };
 
+/** A struct containing the settings to control the SAnimationCompressionSelectionDialog creation. */
+struct FAnimationCompressionSelectionDialogConfig
+{
+	FText DialogTitleOverride;
+	FVector2D WindowSizeOverride;
+
+	UAnimBoneCompressionSettings* DefaultSelectedAsset;
+
+	FAnimationCompressionSelectionDialogConfig()
+		: WindowSizeOverride(ForceInitToZero)
+		, DefaultSelectedAsset(nullptr)
+	{}
+};
+
+/** Dialog to prompt user to select an animation compression settings asset. */
+class UNREALED_API SAnimationCompressionSelectionDialog : public SCompoundWidget
+{
+public:
+	/** Called from the Dialog when an asset has been selected. */
+	DECLARE_DELEGATE_OneParam(FOnAssetSelected, const FAssetData& /*SelectedAsset*/);
+
+	SLATE_BEGIN_ARGS(SAnimationCompressionSelectionDialog) {}
+
+	SLATE_END_ARGS()
+
+	SAnimationCompressionSelectionDialog();
+	virtual ~SAnimationCompressionSelectionDialog();
+
+	virtual void Construct(const FArguments& InArgs, const FAnimationCompressionSelectionDialogConfig& InConfig);
+
+	/** Sets the delegate handler for when an open operation is committed */
+	void SetOnAssetSelected(const FOnAssetSelected& InHandler);
+
+private:
+	void DoSelectAsset(const FAssetData& SelectedAsset);
+	FReply OnConfirmClicked();
+	FReply OnCancelClicked();
+	void CloseDialog();
+	void OnAssetSelected(const FAssetData& AssetData);
+	void OnAssetsActivated(const TArray<FAssetData>& SelectedAssets, EAssetTypeActivationMethod::Type ActivationType);
+	bool IsConfirmButtonEnabled() const;
+
+	/** Asset Picker used by the dialog */
+	TSharedPtr<SWidget> AssetPicker;
+
+	/** The assets that are currently selected in the asset picker */
+	TArray<FAssetData> CurrentlySelectedAssets;
+
+	/** Used to specify that a valid asset was chosen */
+	bool bValidAssetChosen;
+
+	/** Fired when assets are chosen for open. Only fired in open dialogs. */
+	FOnAssetSelected OnAssetSelectedHandler;
+
+	/** Used to get the currently selected assets */
+	FGetCurrentSelectionDelegate GetCurrentSelectionDelegate;
+};
+
 /** Defines FCanExecuteAction delegate interface. Returns false to force the caller to delete the just created assets*/
 DECLARE_DELEGATE_RetVal_OneParam(bool, FAnimAssetCreated, TArray<class UObject*>);
 
 //Animation editor utility functions
 namespace AnimationEditorUtils
 {
+	UNREALED_API FAssetData CreateModalAnimationCompressionSelectionDialog(const FAnimationCompressionSelectionDialogConfig& InConfig);
+
 	UNREALED_API void CreateAnimationAssets(const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, TSubclassOf<UAnimationAsset> AssetClass, const FString& InPrefix, FAnimAssetCreated AssetCreated, UObject* NameBaseObject = nullptr, bool bDoNotShowNameDialog = false);
 	
 	UNREALED_API void CreateNewAnimBlueprint(TArray<TWeakObjectPtr<UObject>> SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser);
 	UNREALED_API void FillCreateAssetMenu(FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser=true);
 	UNREALED_API void CreateUniqueAssetName(const FString& InBasePackageName, const FString& InSuffix, FString& OutPackageName, FString& OutAssetName);
-	UNREALED_API bool ApplyCompressionAlgorithm(TArray<UAnimSequence*>& AnimSequencePtrs, UAnimCompress* Algorithm);
+
+	/** Applies the animation compression codecs to the sequence list with optional override settings */
+	UNREALED_API bool ApplyCompressionAlgorithm(TArray<UAnimSequence*>& AnimSequencePtrs, UAnimBoneCompressionSettings* OverrideSettings);
 
 	// template version of simple creating animation asset
 	template< class T >

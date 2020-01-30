@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/StructScriptLoader.h"
 #include "HAL/ThreadSingleton.h"
@@ -6,6 +6,7 @@
 #include "UObject/LinkerLoad.h"
 #include "Serialization/ArchiveScriptReferenceCollector.h"
 #include "UObject/Package.h"
+#include "UObject/PropertyProxyArchive.h"
 
 /*******************************************************************************
  * FDeferredScriptTracker
@@ -264,9 +265,16 @@ bool FStructScriptLoader::LoadStructWithScript(UStruct* DestScriptContainer, FAr
 	DestScriptContainer->Script.AddUninitialized(BytecodeBufferSize);
 
 	int32 BytecodeIndex = 0;
-	while (BytecodeIndex < BytecodeBufferSize)
 	{
-		DestScriptContainer->SerializeExpr(BytecodeIndex, Ar);
+		DestScriptContainer->UnresolvedScriptProperties.Empty();
+
+		FPropertyProxyArchive PropertyAr(Ar, BytecodeIndex, DestScriptContainer);
+		while (BytecodeIndex < BytecodeBufferSize)
+		{
+			DestScriptContainer->SerializeExpr(BytecodeIndex, PropertyAr);
+		}
+
+		DestScriptContainer->UnresolvedScriptProperties = MoveTemp(PropertyAr.UnresolvedProperties);
 	}
 	ensure(ScriptEndOffset == Ar.Tell());
 	checkf(BytecodeIndex == BytecodeBufferSize, TEXT("'%s' script expression-count mismatch; Expected: %i, Got: %i"), *DestScriptContainer->GetName(), BytecodeBufferSize, BytecodeIndex);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Factories.h: Unreal Engine factory types.
@@ -55,6 +55,9 @@ protected:
 
 	/** Post handling of constructed objects by the factory */
 	virtual void PostProcessConstructedObjects() {};
+
+	/** Provide the opportunity to change the name during import */
+	virtual void UpdateObjectName(UClass* ObjectClass, FName& InOutObjName) {};
 
 	/** Util to ensure that InName is a valid name for a new object within InParent. Will rename any existing object within InParent if it is called InName. */
 	static void ClearObjectNameUsage(UObject* InParent, FName InName);

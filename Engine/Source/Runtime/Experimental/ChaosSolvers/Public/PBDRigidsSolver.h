@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Defines.h"
@@ -39,7 +39,6 @@ namespace Chaos
 {
 	class AdvanceOneTimeStepTask;
 	class FPersistentPhysicsTask;
-	class FPhysicsCommand;
 	class FChaosArchive;
 	class FPBDRigidsSolver;
 
@@ -299,20 +298,27 @@ namespace Chaos
 		template<typename ParticleType>
 		void FlipBuffer(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->FlipBuffer();
+			((ParticleType*)(GetProxy(Handle)))->FlipBuffer();
 		}
 
 		template<typename ParticleType>
 		void PullFromPhysicsState(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->PullFromPhysicsState();
+			((ParticleType*)(GetProxy(Handle)))->PullFromPhysicsState();
 		}
 
 		template<typename ParticleType>
 		void BufferPhysicsResults(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
-			((ParticleType*)(Handle->GTGeometryParticle()->Proxy))->BufferPhysicsResults();
+			((ParticleType*)(GetProxy(Handle)))->BufferPhysicsResults();
 		}
+
+		IPhysicsProxyBase* GetProxy(const Chaos::TGeometryParticleHandle<float, 3>* Handle) const
+		{
+			IPhysicsProxyBase* const* PhysicsProxyPtr = MParticleToProxy.Find(Handle);
+			return PhysicsProxyPtr ? *PhysicsProxyPtr : nullptr;
+		}
+		
 
 		//
 		// Solver Data
@@ -333,6 +339,7 @@ namespace Chaos
 		TUniquePtr<FEventManager> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FActiveParticlesBuffer> MActiveParticlesBuffer;
+		TMap<const Chaos::TGeometryParticleHandle<float, 3>*, IPhysicsProxyBase*> MParticleToProxy;
 
 		//
 		// Commands

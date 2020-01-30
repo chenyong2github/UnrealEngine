@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -27,7 +27,7 @@ public:
 	{
 		return Count;
 	}
-	int32 GetCount( TArray<const UProperty*>& Properties )
+	int32 GetCount( TArray<const FProperty*>& Properties )
 	{
 		Properties = Referencers;
 		return Count;
@@ -45,7 +45,7 @@ protected:
 	UObject*			Find;
 	int32					Count;
 	bool				PretendSaving;
-	class TArray<const UProperty*>	Referencers;
+	class TArray<const FProperty*>	Referencers;
 
 private:
 	COREUOBJECT_API FArchive& operator<<( class UObject*& Obj );

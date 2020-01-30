@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -131,14 +131,6 @@ public:
 	FOutputDevice& operator=(const FOutputDevice&) = default;
 
 	virtual ~FOutputDevice() = default;
-
-	// static helpers
-	UE_DEPRECATED(4.12, "Please use FOutputDeviceHelper::VerbosityToString.")
-	static const TCHAR* VerbosityToString(ELogVerbosity::Type Verbosity);
-
-	UE_DEPRECATED(4.12, "Please use FOutputDeviceHelper::FormatLogLine.")
-	static FString FormatLogLine(ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, const double Time = -1.0);
-
 
 	// FOutputDevice interface.
 	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category ) = 0;

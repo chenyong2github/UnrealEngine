@@ -144,6 +144,15 @@ dependencies {
     </if>
   </gameActivityClassAdditions>
 
+	<gameActivityAllowedRemoteNotificationsAdditions>
+		<if condition="GCMEnabled">
+			<true>
+				<insert>		bPluginEnabled = true;</insert>
+				<insertNewline/>
+			</true>
+		</if>
+	</gameActivityAllowedRemoteNotificationsAdditions>
+
   <!-- optional additions to GameActivity onCreate metadata reading in GameActivity.java
 	<gameActivityReadMetadataAdditions>
 	</gameActivityReadMetadataAdditions>

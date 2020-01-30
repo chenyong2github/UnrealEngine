@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,8 +11,8 @@
 
 namespace AlgoImpl
 {
-	template <typename T, typename ProjectionType, typename PredType>
-	bool IsSortedBy(const T* Range, int32 RangeSize, ProjectionType Proj, PredType Pred)
+	template <typename T, typename IndexType, typename ProjectionType, typename PredType>
+	bool IsSortedBy(const T* Range, IndexType RangeSize, ProjectionType Proj, PredType Pred)
 	{
 		if (RangeSize == 0)
 		{

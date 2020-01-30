@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -57,8 +57,29 @@ class ENGINE_API UChildActorComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
+	/**
+	 * Sets the class to use for the child actor. 
+	 * If called on a template component (owned by a CDO), the properties of any existing child actor template will be copied as best possible to the template. 
+	 * If called on a component instance in a world (and the class is changing), the created ChildActor will use the class defaults as template.
+	 * @param InClass The Actor subclass to spawn as a child actor
+	 */
 	UFUNCTION(BlueprintCallable, Category=ChildActorComponent)
-	void SetChildActorClass(TSubclassOf<AActor> InClass);
+	void SetChildActorClass(TSubclassOf<AActor> InClass)
+	{
+		SetChildActorClass(InClass, nullptr);
+	}
+
+	/**
+	 * Sets then class to use for the child actor providing an optional Actor to use as the template.
+	 * If called on a template component (owned by a CDO) and NewChildActorTemplate is not null, the new child actor template will be created using the supplied Actor as template.
+	 * If called on a template component and NewChildActorTemplate is null, the properties of any existing child actor template will be copied as best possible to the template.
+	 * If called on a component instance in a world with NewChildActorTemplate not null, then if registered a new child actor will be created using the supplied Actor as template, 
+	 *    otherwise if not registered it will ensure. If the class also changed, then future ChildActors created by this component the class defaults will be used.
+	 * If called on a component instance in a world with NewChildActorTemplate null and the class is changing, the created ChildActor will use the class defaults as template.
+	 * @param InClass                 The Actor subclass to spawn as a child actor
+	 * @param NewChildActorTemplate   An Actor to use as the template when spawning a child actor using this component (per the rules listed above)
+	 */
+	void SetChildActorClass(TSubclassOf<AActor> InClass, AActor* NewChildActorTemplate);
 
 	TSubclassOf<AActor> GetChildActorClass() const { return ChildActorClass; }
 

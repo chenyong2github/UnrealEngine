@@ -1,10 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_BlendTransform.h"
 #include "Units/RigUnitContext.h"
 #include "AnimationRuntime.h"
 
-void FRigUnit_BlendTransform::Execute(const FRigUnitContext& Context)
+FRigUnit_BlendTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Targets.Num() > 0)

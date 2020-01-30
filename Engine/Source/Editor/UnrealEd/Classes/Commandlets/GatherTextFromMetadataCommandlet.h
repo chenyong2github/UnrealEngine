@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once 
 
@@ -20,7 +20,6 @@ public:
 	virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 
-private:
 	struct FGatherParameters
 	{
 		TArray<FString> InputKeys;
@@ -31,7 +30,17 @@ private:
 private:
 	void GatherTextFromUObjects(const TArray<FString>& IncludePaths, const TArray<FString>& ExcludePaths, const FGatherParameters& Arguments);
 	void GatherTextFromUObject(UField* const Field, const FGatherParameters& Arguments, const FName InPlatformName);
+	void GatherTextFromField(FField* const Field, const FGatherParameters& Arguments, const FName InPlatformName);
+	bool ShouldGatherFromField(const UField* Field);
 
 private:
 	bool ShouldGatherFromEditorOnlyData;
+
+	/** Array of field types (eg, UProperty, UFunction, UScriptStruct, etc) that should be included or excluded in the current gather */
+	TArray<const UClass*> FieldTypesToInclude;
+	TArray<const UClass*> FieldTypesToExclude;
+
+	/** Array of field owner types (eg, UMyClass, FMyStruct, etc) that should have fields within them included or excluded in the current gather */
+	TArray<const UStruct*> FieldOwnerTypesToInclude;
+	TArray<const UStruct*> FieldOwnerTypesToExclude;
 };

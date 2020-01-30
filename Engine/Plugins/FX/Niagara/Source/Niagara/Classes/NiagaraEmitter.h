@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -16,6 +16,7 @@ class UMaterial;
 class UNiagaraEmitter;
 class UNiagaraEventReceiverEmitterAction;
 class UNiagaraRendererProperties;
+class UNiagaraShaderStageBase;
 
 //TODO: Event action that spawns other whole Systems?
 //One that calls a BP exposed delegate?
@@ -236,13 +237,15 @@ public:
 
 public:
 #if WITH_EDITOR
-	/** Creates a new emitter with the supplied emitter as a parent emitter and the supplied system as it's owner. */
+	/** Creates a new emitter with the supplied emitter as a parent emitter and the supplied system as its owner. */
 	NIAGARA_API static UNiagaraEmitter* CreateWithParentAndOwner(UNiagaraEmitter& InParentEmitter, UObject* InOwner, FName InName, EObjectFlags FlagMask);
 
-	/** Creates a new emitter by duplicating an existing emitter.  The new emitter  will reference the same parent emitter if one is available. */
+	/** Creates a new emitter by duplicating an existing emitter. The new emitter will reference the same parent emitter if one is available. */
 	static UNiagaraEmitter* CreateAsDuplicate(const UNiagaraEmitter& InEmitterToDuplicate, FName InDuplicateName, UNiagaraSystem& InDuplicateOwnerSystem);
 
 	//Begin UObject Interface
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
@@ -392,6 +395,10 @@ public:
 	UPROPERTY()
 	uint32 ThumbnailImageOutOfDate : 1;
 
+	/* If this emitter is exposed to the library. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	bool bExposeToLibrary;
+
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	bool bIsTemplateAsset;
 
@@ -448,6 +455,16 @@ public:
 
 	void NIAGARA_API RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId);
 
+	NIAGARA_API const TArray<UNiagaraShaderStageBase*>& GetShaderStages() const { return ShaderStages; }
+
+	NIAGARA_API UNiagaraShaderStageBase* GetShaderStageById(FGuid ScriptUsageId) const;
+
+	void NIAGARA_API AddShaderStage(UNiagaraShaderStageBase* ShaderStage);
+
+	void NIAGARA_API RemoveShaderStage(UNiagaraShaderStageBase* ShaderStage);
+
+	void NIAGARA_API MoveShaderStageToIndex(UNiagaraShaderStageBase* ShaderStage, int32 TargetIndex);
+
 	/* Gets whether or not the supplied event generator id matches an event generator which is shared between the particle spawn and update scrips. */
 	bool IsEventGeneratorShared(FName EventGeneratorId) const;
 
@@ -463,6 +480,8 @@ public:
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
 	NIAGARA_API void RemoveParent();
+
+	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
 #endif
 
 	void InitFastPathAttributeNames();
@@ -501,6 +520,8 @@ private:
 
 	void ScriptRapidIterationParameterChanged();
 
+	void ShaderStageChanged();
+
 	void RendererChanged();
 
 	void GraphSourceChanged();
@@ -522,6 +543,9 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Events", meta=(NiagaraNoMerge))
 	TArray<FNiagaraEventScriptProperties> EventHandlerScriptProps;
+
+	UPROPERTY(meta = (NiagaraNoMerge))
+	TArray<UNiagaraShaderStageBase*> ShaderStages;
 
 	UPROPERTY()
 	UNiagaraScript* GPUComputeScript;

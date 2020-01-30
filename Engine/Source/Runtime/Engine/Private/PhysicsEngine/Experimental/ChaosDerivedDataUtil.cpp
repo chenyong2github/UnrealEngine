@@ -1,12 +1,25 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosDerivedDataUtil.h"
 #include "CoreMinimal.h"
 
 #include "ChaosLog.h"
+#include "ChaosCheck.h"
+#include "Chaos/AABBTree.h"
 
 namespace Chaos
 {
+
+	struct FCleanMeshWrapper
+	{
+		FVector Vert;
+
+		template <typename TPayloadType>
+		TPayloadType GetPayload(int32 Idx) const { return Idx; }
+
+		bool HasBoundingBox() const { return true; }
+		TAABB<FReal, 3> BoundingBox() const { return TAABB<FReal, 3>(Vert, Vert); }
+	};
 
 	void CleanTrimesh(TArray<FVector>& InOutVertices, TArray<int32>& InOutIndices, TArray<int32>* OutOptFaceRemap)
 	{
@@ -58,38 +71,42 @@ namespace Chaos
 
 		float WeldThresholdSq = 0.0f;// SMALL_NUMBER * SMALL_NUMBER;
 
+		TArray<FCleanMeshWrapper> WrapperVerts;
+
+		for (int i = 0; i < LocalSourceVerts.Num(); ++i)
+		{
+			WrapperVerts.Add(FCleanMeshWrapper{LocalSourceVerts[i] });
+		}
+
+		TAABBTree<int32, TAABBTreeLeafArray<int32, FReal>, FReal> Accel(WrapperVerts);
+		TSet<int32> NonUnique;
+
 		for(int32 SourceVertIndex = 0; SourceVertIndex < NumSourceVerts; ++SourceVertIndex)
 		{
+			if (NonUnique.Contains(SourceVertIndex))
+			{
+				continue;
+			}
+
 			const FVector& SourceVert = LocalSourceVerts[SourceVertIndex];
 
-			bool bUnique = true; // assume the vertex is unique until we find otherwise
-			int32 RemapIndex = INDEX_NONE; // if the vertex isn't unique this will be set
+			TArray<int32> Duplicates = Accel.FindAllIntersections(TAABB<FReal, 3>(SourceVert - WeldThresholdSq, SourceVert + WeldThresholdSq));
+			ensure(Duplicates.Num() > 0);	//Should always find at least original vert
 
-			const int32 NumUniqueVerts = LocalUniqueVerts.Num();
-			for(int32 UniqueVertIndex = 0; UniqueVertIndex < NumUniqueVerts; ++UniqueVertIndex)
+			//first index is always considered unique
+			LocalUniqueVerts.Add(SourceVert);
+			LocalUniqueToSourceIndices.Add(SourceVertIndex);
+			LocalVertexRemap[SourceVertIndex] = LocalUniqueVerts.Num() - 1;
+
+
+			for (int32 Idx : Duplicates)
 			{
-				const FVector& UniqueVert = LocalUniqueVerts[UniqueVertIndex];
-
-				if((UniqueVert - SourceVert).SizeSquared() <= WeldThresholdSq)
+				if (Idx != SourceVertIndex)
 				{
-					//This vertex isn't unique and needs to be merged with the unique one we found
-					bUnique = false;
-					RemapIndex = UniqueVertIndex;
-
-					// Done searching
-					break;
+					ensure(Idx > SourceVertIndex);	//shouldn't be here if a smaller idx already found these duplicates
+					NonUnique.Add(Idx);
+					LocalVertexRemap[Idx] = LocalVertexRemap[SourceVertIndex];
 				}
-			}
-
-			if(bUnique)
-			{
-				LocalUniqueVerts.Add(SourceVert);
-				LocalUniqueToSourceIndices.Add(SourceVertIndex);
-				LocalVertexRemap[SourceVertIndex] = LocalUniqueVerts.Num() - 1;
-			}
-			else
-			{
-				LocalVertexRemap[SourceVertIndex] = RemapIndex;
 			}
 		}
 
@@ -151,8 +168,8 @@ namespace Chaos
 			}
 		}
 
-		UE_CLOG(NumDiscardedTriangles_Welded > 0, LogChaos, Warning, TEXT("Discarded %d welded triangles when cooking trimesh."), NumDiscardedTriangles_Welded);
-		UE_CLOG(NumDiscardedTriangles_Area > 0, LogChaos, Warning, TEXT("Discarded %d small triangles when cooking trimesh."), NumDiscardedTriangles_Area);
+		CHAOS_CLOG(NumDiscardedTriangles_Welded > 0, LogChaos, Warning, TEXT("Discarded %d welded triangles when cooking trimesh."), NumDiscardedTriangles_Welded);
+		CHAOS_CLOG(NumDiscardedTriangles_Area > 0, LogChaos, Warning, TEXT("Discarded %d small triangles when cooking trimesh."), NumDiscardedTriangles_Area);
 
 		InOutVertices = LocalUniqueVerts;
 		InOutIndices = LocalUniqueIndices;

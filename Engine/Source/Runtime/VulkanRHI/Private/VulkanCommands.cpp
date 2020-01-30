@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VulkanCommands.cpp: Vulkan RHI commands implementation.
@@ -425,38 +425,6 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 		const FVulkanShaderHeader::FUBResourceInfo& ResourceInfo = HeaderUBInfo.ResourceEntries[Index];
 		switch (ResourceInfo.UBBaseType)
 		{
-		case UBMT_UAV:
-		{
-			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
-			
-			FVulkanUnorderedAccessView* UAV = (FVulkanUnorderedAccessView*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
-			if (UAV)
-			{
-				ensure(DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-				FRHITexture* SourceTexture = UAV->SourceTexture.GetReference();
-				if(SourceTexture)
-				{
-					const FVulkanTextureBase* BaseTexture = FVulkanTextureBase::Cast(SourceTexture);
-					VkImageLayout Layout = Context->GetLayoutForDescriptor(BaseTexture->Surface);
-					State->SetUAVForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, UAV);
-					SourceTexture->SetLastRenderTime(CurrentTime);
-				}
-				else
-				{
-					checkNoEntry();
-				}
-			}
-			else
-			{
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table for shader '%s'"), *Shader->GetDebugName());
-#else
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table"));
-#endif
-				checkNoEntry();
-			}
-		}
-		break;
 		case UBMT_SAMPLER:
 		{
 			uint16 CombinedAlias = GlobalInfos[ResourceInfo.GlobalIndex].CombinedSamplerStateAliasIndex;
@@ -506,7 +474,10 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 		case UBMT_SRV:
 		{
 			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
-			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER || DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER || DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER 
+				|| DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+				|| DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
+				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 			FRHIShaderResourceView* CurrentSRV = (FRHIShaderResourceView*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
 			if (CurrentSRV)
 			{
@@ -523,6 +494,29 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 			}
 		}
 		break;
+		case UBMT_UAV:
+		{
+			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
+			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER);
+			FRHIUnorderedAccessView* CurrentUAV = (FRHIUnorderedAccessView*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
+			if (CurrentUAV)
+			{
+				FVulkanUnorderedAccessView* UAV = ResourceCast(CurrentUAV);
+				State->SetUAVForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, UAV);
+			}
+			else
+			{
+#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table for shader '%s'"), *Shader->GetDebugName());
+#else
+				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table"));
+#endif
+			}
+		}
+		break;
+
 		default:
 			check(0);
 			break;

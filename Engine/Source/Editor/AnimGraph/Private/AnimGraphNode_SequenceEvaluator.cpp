@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_SequenceEvaluator.h"
 #include "ToolMenus.h"
@@ -6,6 +6,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "GraphEditorActions.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimSequence.h"
 #include "AnimGraphNode_SequenceEvaluator.h"
 
 /////////////////////////////////////////////////////

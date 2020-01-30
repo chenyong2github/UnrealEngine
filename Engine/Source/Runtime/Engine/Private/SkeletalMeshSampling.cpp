@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/SkeletalMeshSampling.h"
 #include "Engine/SkeletalMesh.h"
@@ -221,16 +221,13 @@ bool FSkeletalMeshSamplingRegion::IsMaterialAllowed(FName MaterialName)
 
 #if WITH_EDITORONLY_DATA
 
-template<bool bExtraBoneInfluencesT>
 FORCEINLINE_DEBUGGABLE void GetRegionValidData(USkeletalMesh* SkeletalMesh, FSkeletalMeshSamplingRegion& SamplingRegion,
 	FSkeletalMeshLODRenderData& LODData, FReferenceSkeleton& RefSkel, FSkinWeightVertexBuffer* SkinWeightBuffer,
 	TArray<int32>& IncludedBoneIndices, TArray<int32>& ExcludedBoneIndices, TArray<int32>& OutValidTris, TArray<int32>& OutValidVerts)
 {
-	int32 MaxBoneInfluences = bExtraBoneInfluencesT ? MAX_TOTAL_INFLUENCES : MAX_INFLUENCES_PER_STREAM;
+	int32 MaxBoneInfluences = SkinWeightBuffer->GetMaxBoneInfluences();
 	auto VertIsValid = [&](FSkelMeshRenderSection& Section, int32 VertexIdx)
 	{
-		const TSkinWeightInfo<bExtraBoneInfluencesT>* SrcSkinWeights = SkinWeightBuffer->GetSkinWeightPtr<bExtraBoneInfluencesT>(VertexIdx);
-
 #if !PLATFORM_LITTLE_ENDIAN
 		// uint8[] elements in LOD.VertexBufferGPUSkin have been swapped for VET_UBYTE4 vertex stream use
 		for (int32 InfluenceIndex = MAX_INFLUENCES - 1; InfluenceIndex >= MAX_INFLUENCES - Section.MaxBoneInfluences; InfluenceIndex--)
@@ -238,7 +235,7 @@ FORCEINLINE_DEBUGGABLE void GetRegionValidData(USkeletalMesh* SkeletalMesh, FSke
 		for (int32 InfluenceIndex = 0; InfluenceIndex < MaxBoneInfluences; InfluenceIndex++)
 #endif
 		{
-			int32 BoneIndex = Section.BoneMap[SrcSkinWeights->InfluenceBones[InfluenceIndex]];
+			int32 BoneIndex = Section.BoneMap[SkinWeightBuffer->GetBoneIndex(VertexIdx, InfluenceIndex)];
 
 			if (IncludedBoneIndices.Contains(BoneIndex) && !ExcludedBoneIndices.Contains(BoneIndex))
 			{
@@ -329,14 +326,7 @@ void FSkeletalMeshSamplingInfo::BuildRegions(USkeletalMesh* SkeletalMesh)
 
 		RegionBuiltData.BoneIndices = IncludedBoneIndices;
 
-		if (SkinWeightBuffer->HasExtraBoneInfluences())
-		{
-			GetRegionValidData<true>(SkeletalMesh, Region, LODData, RefSkel, SkinWeightBuffer, IncludedBoneIndices, ExcludedBoneIndices, RegionBuiltData.TriangleIndices, RegionBuiltData.Vertices);
-		}
-		else
-		{
-			GetRegionValidData<false>(SkeletalMesh, Region, LODData, RefSkel, SkinWeightBuffer, IncludedBoneIndices, ExcludedBoneIndices, RegionBuiltData.TriangleIndices, RegionBuiltData.Vertices);
-		}
+		GetRegionValidData(SkeletalMesh, Region, LODData, RefSkel, SkinWeightBuffer, IncludedBoneIndices, ExcludedBoneIndices, RegionBuiltData.TriangleIndices, RegionBuiltData.Vertices);
 
 		if (Region.bSupportUniformlyDistributedSampling)
 		{

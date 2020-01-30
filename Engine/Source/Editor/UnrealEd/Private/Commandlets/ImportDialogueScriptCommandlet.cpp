@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/ImportDialogueScriptCommandlet.h"
 #include "UObject/UnrealType.h"
@@ -173,8 +173,8 @@ bool UImportDialogueScriptCommandlet::ImportDialogueScriptForCulture(FLocTextHel
 		return false;
 	}
 
-	const UProperty* SpokenDialogueProperty = FDialogueScriptEntry::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FDialogueScriptEntry, SpokenDialogue));
-	const UProperty* LocalizationKeysProperty = FDialogueScriptEntry::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FDialogueScriptEntry, LocalizationKeys));
+	const FProperty* SpokenDialogueProperty = FDialogueScriptEntry::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FDialogueScriptEntry, SpokenDialogue));
+	const FProperty* LocalizationKeysProperty = FDialogueScriptEntry::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FDialogueScriptEntry, LocalizationKeys));
 
 	// We need the SpokenDialogue and LocalizationKeys properties in order to perform the import, so find their respective columns in the CSV data
 	int32 SpokenDialogueColumnIndex = INDEX_NONE;

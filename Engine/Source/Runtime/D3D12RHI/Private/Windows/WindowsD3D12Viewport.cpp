@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D12Viewport.cpp: D3D viewport RHI implementation.
@@ -252,7 +252,17 @@ void FD3D12Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 				}
 				else if (Result != DXGI_ERROR_NOT_CURRENTLY_AVAILABLE && Result != DXGI_STATUS_MODE_CHANGE_IN_PROGRESS)
 				{
-					UE_LOG(LogD3D12RHI, Error, TEXT("IDXGISwapChain::SetFullscreenState returned %08x, unknown error status."), Result);
+					const TCHAR* Name = nullptr;
+					switch (Result)
+					{
+#define CASE_ERROR_NAME(x)	case x: Name = TEXT(#x); break
+						EMBED_DXGI_ERROR_LIST(CASE_ERROR_NAME, ;)
+#undef CASE_ERROR_NAME
+					default:
+						Name = TEXT("unknown error status");
+						break;
+					}
+					UE_LOG(LogD3D12RHI, Error, TEXT("IDXGISwapChain::SetFullscreenState returned 0x%08x, %s."), Result, Name);
 				}
 			}
 		}

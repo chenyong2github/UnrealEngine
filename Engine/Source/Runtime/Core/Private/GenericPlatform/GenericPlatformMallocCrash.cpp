@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformMallocCrash.h"
 #include "HAL/PlatformProcess.h"
@@ -517,7 +517,7 @@ uint8* FGenericPlatformMallocCrash::AllocateFromSmallPool( uint32 AllocationSize
 uint32 FGenericPlatformMallocCrash::GetAllocationSize( void *Original )
 {
 	FPtrInfo* PtrInfo = (FPtrInfo*)((uint8*)Original-PER_ALLOC_OVERHEAD);
-	return PtrInfo->Size;
+	return (uint32)(PtrInfo->Size);
 }
 
 uint32 FGenericPlatformMallocCrash::SafePageSize()

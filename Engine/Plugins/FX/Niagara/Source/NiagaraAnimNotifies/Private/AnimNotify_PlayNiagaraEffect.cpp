@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNotify_PlayNiagaraEffect.h"
 
@@ -75,8 +75,13 @@ void UAnimNotify_PlayNiagaraEffect::ValidateAssociatedAssets()
 
 void UAnimNotify_PlayNiagaraEffect::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
 {
-	// Don't call super to avoid unnecessary call in to blueprints
-	SpawnEffect(MeshComp, Animation);
+	//Store the spawned effect in a protected variable
+	SpawnedEffect = SpawnEffect(MeshComp, Animation);
+	
+	//Call to BP to allows setting of Niagara User Variables
+	Super::Notify(MeshComp, Animation);
+	
+	
 }
 
 FString UAnimNotify_PlayNiagaraEffect::GetNotifyName_Implementation() const
@@ -112,8 +117,16 @@ UFXSystemComponent* UAnimNotify_PlayNiagaraEffect::SpawnEffect(USkeletalMeshComp
 			ReturnComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(MeshComp->GetWorld(), Template, MeshTransform.TransformPosition(LocationOffset), (MeshTransform.GetRotation() * RotationOffsetQuat).Rotator(), FVector(1.0f),true);
 		}
 
-		ReturnComp->SetRelativeScale3D_Direct(Scale);
+		if (ReturnComp != nullptr)
+		{
+			ReturnComp->SetRelativeScale3D_Direct(Scale);
+		}
 	}
 
 	return ReturnComp;
+}
+
+UFXSystemComponent* UAnimNotify_PlayNiagaraEffect::GetSpawnedEffect() 
+{
+	return SpawnedEffect;
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CEF/CEFJSStructDeserializerBackend.h"
 #if WITH_CEF3
@@ -81,11 +81,11 @@ namespace {
 	 * @return A pointer to the object represented by the property, null otherwise..
 	 * @see ClearPropertyValue
 	 */
-	void* GetPropertyValuePtr( UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex )
+	void* GetPropertyValuePtr( FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex )
 	{
 		check(Property);
 
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Outer))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Outer))
 		{
 			if (ArrayProperty->Inner != Property)
 			{
@@ -117,7 +117,7 @@ namespace {
 	 * @see ClearPropertyValue
 	 */
 	template<typename PropertyType, typename ValueType>
-	bool SetPropertyValue( PropertyType* Property, UProperty* Outer, void* Data, int32 ArrayIndex, const ValueType& Value )
+	bool SetPropertyValue( PropertyType* Property, FProperty* Outer, void* Data, int32 ArrayIndex, const ValueType& Value )
 	{
 		if (void* Ptr = GetPropertyValuePtr(Property, Outer, Data, ArrayIndex))
 		{
@@ -129,10 +129,10 @@ namespace {
 	}
 
 	template<typename PropertyType, typename ContainerType, typename KeyType>
-	bool ReadNumericProperty(UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
+	bool ReadNumericProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
 	{
 		typedef typename PropertyType::TCppType TCppType;
-		if (PropertyType* TypedProperty = Cast<PropertyType>(Property))
+		if (PropertyType* TypedProperty = CastField<PropertyType>(Property))
 		{
 			return SetPropertyValue(TypedProperty, Outer, Data, ArrayIndex, GetNumeric<TCppType>(Container, Key));
 		}
@@ -143,9 +143,9 @@ namespace {
 	}
 
 	template<typename ContainerType, typename KeyType>
-	bool ReadBoolProperty(UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
+	bool ReadBoolProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
 	{
-		if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+		if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 		{
 			return SetPropertyValue(BoolProperty, Outer, Data, ArrayIndex, GetNumeric<int>(Container, Key)!=0);
 		}
@@ -154,14 +154,14 @@ namespace {
 	}
 
 	template<typename ContainerType, typename KeyType>
-	bool ReadJSFunctionProperty(TSharedPtr<FCEFJSScripting> Scripting, UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
+	bool ReadJSFunctionProperty(TSharedPtr<FCEFJSScripting> Scripting, FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
 	{
-		if (Container->GetType(Key) != VTYPE_DICTIONARY || !Property->IsA<UStructProperty>())
+		if (Container->GetType(Key) != VTYPE_DICTIONARY || !Property->IsA<FStructProperty>())
 		{
 			return false;
 		}
 		CefRefPtr<CefDictionaryValue> Dictionary = Container->GetDictionary(Key);
-		UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+		FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 
 		if ( !StructProperty || StructProperty->Struct != FWebJSFunction::StaticStruct())
 		{
@@ -179,28 +179,28 @@ namespace {
 	}
 
 	template<typename ContainerType, typename KeyType>
-	bool ReadStringProperty(UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
+	bool ReadStringProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
 	{
 		if (Container->GetType(Key) == VTYPE_STRING)
 		{
 			FString StringValue = WCHAR_TO_TCHAR(Container->GetString(Key).ToWString().c_str());
 
-			if (UStrProperty* StrProperty = Cast<UStrProperty>(Property))
+			if (FStrProperty* StrProperty = CastField<FStrProperty>(Property))
 			{
 				return SetPropertyValue(StrProperty, Outer, Data, ArrayIndex, StringValue);
 			}
 
-			if (UNameProperty* NameProperty = Cast<UNameProperty>(Property))
+			if (FNameProperty* NameProperty = CastField<FNameProperty>(Property))
 			{
 				return SetPropertyValue(NameProperty, Outer, Data, ArrayIndex, FName(*StringValue));
 			}
 
-			if (UTextProperty* TextProperty = Cast<UTextProperty>(Property))
+			if (FTextProperty* TextProperty = CastField<FTextProperty>(Property))
 			{
 				return SetPropertyValue(TextProperty, Outer, Data, ArrayIndex, FText::FromString(StringValue));
 			}
 
-			if (UByteProperty* ByteProperty = Cast<UByteProperty>(Property))
+			if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
 			{
 				if (!ByteProperty->Enum)
 				{
@@ -216,7 +216,7 @@ namespace {
 				return SetPropertyValue(ByteProperty, Outer, Data, ArrayIndex, (uint8)ByteProperty->Enum->GetValueByIndex(Index));
 			}
 
-			if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+			if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 			{
 				int32 Index = EnumProperty->GetEnum()->GetIndexByNameString(StringValue);
 				if (Index == INDEX_NONE)
@@ -238,20 +238,20 @@ namespace {
 	}
 
 	template<typename ContainerType, typename KeyType>
-	bool ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
+	bool ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex, CefRefPtr<ContainerType> Container, KeyType Key )
 	{
 		return ReadBoolProperty(Property, Outer, Data, ArrayIndex, Container, Key)
 			|| ReadStringProperty(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UByteProperty>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UInt8Property>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UInt16Property>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UIntProperty>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UInt64Property>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UUInt16Property>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UUInt32Property>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UUInt64Property>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UFloatProperty>(Property, Outer, Data, ArrayIndex, Container, Key)
-			|| ReadNumericProperty<UDoubleProperty>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FByteProperty>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FInt8Property>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FInt16Property>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FIntProperty>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FInt64Property>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FUInt16Property>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FUInt32Property>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FUInt64Property>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FFloatProperty>(Property, Outer, Data, ArrayIndex, Container, Key)
+			|| ReadNumericProperty<FDoubleProperty>(Property, Outer, Data, ArrayIndex, Container, Key)
 			|| ReadJSFunctionProperty(Scripting, Property, Outer, Data, ArrayIndex, Container, Key);
 	}
 }
@@ -277,7 +277,7 @@ TSharedPtr<ICefContainerWalker> FCefListValueWalker::GetNextToken(EStructDeseria
 	return Retval;
 }
 
-bool FCefListValueWalker::ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex)
+bool FCefListValueWalker::ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex)
 {
 	return ::ReadProperty(Scripting, Property, Outer, Data, ArrayIndex, List, Index);
 }
@@ -303,7 +303,7 @@ TSharedPtr<ICefContainerWalker> FCefDictionaryValueWalker::GetNextToken(EStructD
 	return Retval;
 }
 
-bool FCefDictionaryValueWalker::ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex)
+bool FCefDictionaryValueWalker::ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex)
 {
 	return ::ReadProperty(Scripting, Property, Outer, Data, ArrayIndex, Dictionary, Keys[Index]);
 }
@@ -346,7 +346,7 @@ bool FCEFJSStructDeserializerBackend::GetNextToken( EStructDeserializerBackendTo
 }
 
 
-bool FCEFJSStructDeserializerBackend::ReadProperty( UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex )
+bool FCEFJSStructDeserializerBackend::ReadProperty( FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex )
 {
 	return Walker->ReadProperty(Scripting, Property, Outer, Data, ArrayIndex);
 }

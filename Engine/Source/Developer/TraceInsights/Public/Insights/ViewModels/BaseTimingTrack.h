@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,6 +15,7 @@ class FTimingTrackViewport;
 class ITimingViewDrawHelper;
 class FTooltipDrawState;
 class ITimingEvent;
+class ITimingEventFilter;
 
 struct FDrawContext;
 
@@ -27,6 +28,7 @@ public:
 	virtual const FVector2D& GetMousePosition() const = 0;
 	virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const = 0;
 	virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const = 0;
+	virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const = 0;
 	virtual double GetCurrentTime() const = 0;
 	virtual float GetDeltaTime() const = 0;
 };
@@ -40,6 +42,7 @@ public:
 	virtual const FVector2D& GetMousePosition() const = 0;
 	virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const = 0;
 	virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const = 0;
+	virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const = 0;
 	virtual FDrawContext& GetDrawContext() const = 0;
 	virtual const ITimingViewDrawHelper& GetHelper() const = 0;
 };
@@ -193,6 +196,9 @@ public:
 
 	// Search for an event using custom parameters.
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const { return nullptr; }
+
+	// Get the filter object for filtering all events similar with a specified event. Used when double clicked on an event.
+	virtual TSharedPtr<ITimingEventFilter> GetFilterByEvent(const TSharedPtr<const ITimingEvent> InTimingEvent) const { return nullptr; }
 
 	// Allows tracks to update event stats that are slower to compute (called at a lower frequency than GetEventAtPosition or Search or SearchTimingEvent).
 	virtual void UpdateEventStats(ITimingEvent& InOutEvent) const {}

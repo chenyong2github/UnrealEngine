@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -30,12 +30,12 @@ struct FRigUnit_DebugLineStrip : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	float Thickness;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 	
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
 };

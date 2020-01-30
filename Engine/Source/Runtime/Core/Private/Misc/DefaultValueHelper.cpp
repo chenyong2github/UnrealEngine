@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/DefaultValueHelper.h"
 #include "Math/Color.h"
@@ -672,11 +672,11 @@ bool FDefaultValueHelper::ParseColor(const FString& Source, FColor& OutVal)
 		return OutVal.InitFromString(Source);
 	}
 
-	const uint8 Alpha = ( NULL != ThirdComma ) ? FCString::Atoi( ThirdComma + 1 ) : 255;
+	const uint8 Alpha = ( NULL != ThirdComma ) ? (uint8)FCString::Atoi( ThirdComma + 1 ) : 255;
 	OutVal = FColor( 
-		FCString::Atoi( Start ), 
-		FCString::Atoi( FirstComma + 1 ), 
-		FCString::Atoi( SecondComma + 1 ),
+		(uint8)FCString::Atoi( Start ), 
+		(uint8)FCString::Atoi( FirstComma + 1 ),
+		(uint8)FCString::Atoi( SecondComma + 1 ),
 		Alpha );
 	
 	return true;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -74,19 +74,20 @@ ENUM_CLASS_FLAGS(EPropertyLocalizationGathererResultFlags);
 class COREUOBJECT_API FPropertyLocalizationDataGatherer
 {
 public:
+	typedef TFunction<void(const UObject* const, FPropertyLocalizationDataGatherer&, const EPropertyLocalizationGathererTextFlags)> FLocalizationDataGatheringCallback;
+	typedef TMap<const UClass*, FLocalizationDataGatheringCallback> FLocalizationDataGatheringCallbackMap;
+
 	struct FGatherableFieldsForType
 	{
-		TArray<const UProperty*> Properties;
+		TArray<const FProperty*> Properties;
 		TArray<const UFunction*> Functions;
+		const FLocalizationDataGatheringCallback* CustomCallback = nullptr;
 
 		bool HasFields() const
 		{
 			return Properties.Num() > 0 || Functions.Num() > 0;
 		}
 	};
-
-	typedef TFunction<void(const UObject* const, FPropertyLocalizationDataGatherer&, const EPropertyLocalizationGathererTextFlags)> FLocalizationDataGatheringCallback;
-	typedef TMap<const UClass*, FLocalizationDataGatheringCallback> FLocalizationDataGatheringCallbackMap;
 
 	FPropertyLocalizationDataGatherer(TArray<FGatherableTextData>& InOutGatherableTextDataArray, const UPackage* const InPackage, EPropertyLocalizationGathererResultFlags& OutResultFlags);
 
@@ -98,7 +99,7 @@ public:
 	void GatherLocalizationDataFromObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	void GatherLocalizationDataFromObjectFields(const FString& PathToParent, const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	void GatherLocalizationDataFromStructFields(const FString& PathToParent, const UStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
-	void GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const UProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	void GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const FProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 
 	void GatherTextInstance(const FText& Text, const FString& Description, const bool bIsEditorOnly);
 	void GatherScriptBytecode(const FString& PathToScript, const TArray<uint8>& ScriptData, const bool bIsEditorOnly);
@@ -127,7 +128,7 @@ public:
 
 private:
 	const FGatherableFieldsForType& CacheGatherableFieldsForType(const UStruct* InType);
-	bool CanGatherFromInnerProperty(const UProperty* InInnerProperty);
+	bool CanGatherFromInnerProperty(const FProperty* InInnerProperty);
 
 	struct FObjectAndGatherFlags
 	{

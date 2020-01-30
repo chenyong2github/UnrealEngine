@@ -1,6 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/StringBuilder.h"
+
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
@@ -23,12 +24,14 @@ template<typename C>
 TStringBuilderImpl<C>::~TStringBuilderImpl()
 {
 	if (bIsDynamic)
-		FreeBuffer(Base, End - Base);
+	{
+		FreeBuffer(Base, UE_PTRDIFF_TO_INT32(End - Base));
+	}
 }
 
 template<typename C>
 void
-TStringBuilderImpl<C>::Extend(int32 ExtraCapacity)
+TStringBuilderImpl<C>::Extend(SIZE_T ExtraCapacity)
 {
 	check(bIsExtendable);
 
@@ -53,16 +56,41 @@ TStringBuilderImpl<C>::Extend(int32 ExtraCapacity)
 
 template<typename C>
 void*
-TStringBuilderImpl<C>::AllocBuffer(int32 ByteCount)
+TStringBuilderImpl<C>::AllocBuffer(SIZE_T ByteCount)
 {
 	return FMemory::Malloc(ByteCount * sizeof(C));
 }
 
 template<typename C>
 void
-TStringBuilderImpl<C>::FreeBuffer(void* Buffer, int32 ByteCount)
+TStringBuilderImpl<C>::FreeBuffer(void* Buffer, SIZE_T ByteCount)
 {
 	FMemory::Free(Buffer);
+}
+
+template<typename C>
+typename TStringBuilderImpl<C>::BuilderType&
+TStringBuilderImpl<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
+{
+	for (;;)
+	{
+		va_list ArgPack;
+		va_start(ArgPack, Fmt);
+		const int32 RemainingSize = UE_PTRDIFF_TO_INT32(Self.End - Self.CurPos);
+		const int32 Result = TCString<C>::GetVarArgs(Self.CurPos, RemainingSize, Fmt, ArgPack);
+		va_end(ArgPack);
+
+		if (Result >= 0 && Result < RemainingSize)
+		{
+			Self.CurPos += Result;
+			return Self;
+		}
+		else
+		{
+			// Total size will be rounded up to the next power of two. Start with at least 64.
+			Self.Extend(64);
+		}
+	}
 }
 
 // Instantiate templates once

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -227,6 +227,9 @@ public:
 	FTextRevisionChangedEvent OnTextRevisionChangedEvent;
 
 private:
+	/** Callback for when a PAK file is loaded. Loads any chunk specific localization resources. */
+	void OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId);
+
 	/** Callback for changes in culture. Loads the new culture's localization resources. */
 	void OnCultureChanged();
 
@@ -250,6 +253,9 @@ private:
 
 	/** Array of registered localized text sources, sorted by priority (@see RegisterTextSource) */
 	TArray<TSharedPtr<ILocalizedTextSource>> LocalizedTextSources;
+
+	/** The LocRes text source (this is also added to LocalizedTextSources, but we keep a pointer to it directly so we can patch in chunked LocRes data at runtime) */
+	TSharedPtr<class FLocalizationResourceTextSource> LocResTextSource;
 
 	/** The polyglot text source (this is also added to LocalizedTextSources, but we keep a pointer to it directly so we can add new polyglot data to it at runtime) */
 	TSharedPtr<class FPolyglotTextSource> PolyglotTextSource;

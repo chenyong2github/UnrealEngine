@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/ICUCulture.h"
 #include "Internationalization/Cultures/LeetCulture.h"
@@ -616,6 +616,15 @@ FString FICUCultureImplementation::GetScript() const
 FString FICUCultureImplementation::GetVariant() const
 {
 	return ICULocale.getVariant();
+}
+
+bool FICUCultureImplementation::IsRightToLeft() const
+{
+#if WITH_ICU_V64
+	return ICULocale.isRightToLeft() != 0;
+#else
+	return false;
+#endif
 }
 
 TSharedRef<const icu::BreakIterator> FICUCultureImplementation::GetBreakIterator(const EBreakIteratorType Type)

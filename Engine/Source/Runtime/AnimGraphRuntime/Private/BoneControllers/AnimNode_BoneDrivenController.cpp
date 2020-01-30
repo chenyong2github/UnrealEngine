@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_BoneDrivenController.h"
 
 #include "Curves/CurveFloat.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_BoneDrivenController
@@ -169,6 +170,18 @@ void FAnimNode_BoneDrivenController::EvaluateSkeletalControl_AnyThread(FComponen
 	{
 		OutBoneTransforms.Add(FBoneTransform(TargetBoneIndex, ModifiedLocalTM));
 	}
+
+#if ANIM_TRACE_ENABLED
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Driving Bone"), SourceBone.BoneName);
+	if (DestinationMode == EDrivenDestinationMode::Bone)
+	{
+		TRACE_ANIM_NODE_VALUE(Output, TEXT("Driven Bone"), TargetBone.BoneName);
+	}
+	else
+	{
+		TRACE_ANIM_NODE_VALUE(Output, TEXT("Driven Parameter"), ParameterName);
+	}
+#endif
 }
 
 void FAnimNode_BoneDrivenController::EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context)

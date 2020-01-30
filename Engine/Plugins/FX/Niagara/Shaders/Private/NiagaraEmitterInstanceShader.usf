@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 NiagaraSimulationShader.usf: 
@@ -90,20 +90,52 @@ float Reciprocal(float x){ return 1.0f/x; }
 	static float Emitter_InterpSpawnStartDt;
 	static int Emitter_SpawnGroup;
 
-	void GetEmitterSpawnInfoForParticle(int ParticleIndex)
+	static int Engine_ExecutionCount;
+	static int GGPUExecIndex;
+
+	static uint GSpawnStartInstance;
+	uint SpawnedInstances;
+	uint UpdateStartInstance;
+
+	void SetupExecIndexForGPU()
 	{
+		GGPUExecIndex = UpdateStartInstance + GDispatchThreadId.x;
+		Engine_ExecutionCount = GSpawnStartInstance;
+	}
+
+	void SetupExecIndexAndSpawnInfoForGPU()
+	{
+		GGPUExecIndex = UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
+
 		int SpawnInfoIndex = 0;
 		UNROLL
 		for ( int i=0; i < NIAGARA_MAX_GPU_SPAWN_INFOS_V4; ++i )
 		{
-			SpawnInfoIndex += (int)dot(1.0f, ParticleIndex >= EmitterSpawnInfoOffsets[i]);
+			SpawnInfoIndex += (int)dot(1.0f, GGPUExecIndex >= EmitterSpawnInfoOffsets[i]);
 		}
 
 		Emitter_SpawnInterval		= EmitterSpawnInfoParams[SpawnInfoIndex].x;
 		Emitter_InterpSpawnStartDt	= EmitterSpawnInfoParams[SpawnInfoIndex].y;
 		Emitter_SpawnGroup			= asint(EmitterSpawnInfoParams[SpawnInfoIndex].z);
 
-		GInterpSpawnIndex		= ParticleIndex - asint(EmitterSpawnInfoParams[SpawnInfoIndex].w);
+		int GroupSpawnStartIndex    = asint(EmitterSpawnInfoParams[SpawnInfoIndex].w);
+		GGPUExecIndex		        = GGPUExecIndex - GroupSpawnStartIndex;
+		if ( SpawnInfoIndex == (NIAGARA_MAX_GPU_SPAWN_INFOS - 1) )
+		{
+			Engine_ExecutionCount   = int(SpawnedInstances) - GroupSpawnStartIndex;
+		}
+		else
+		{
+			int NextGroupSpawnStartIndex = asint(EmitterSpawnInfoParams[SpawnInfoIndex + 1].w);
+			Engine_ExecutionCount       = NextGroupSpawnStartIndex - GroupSpawnStartIndex;
+		}
+	}
+
+	/* Returns the current instance index relative to the operation (spawn/update)
+	 */
+	int ExecIndex()
+	{
+		return GGPUExecIndex;
 	}
 #endif
 
@@ -257,6 +289,9 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	}
 #else
 	// Old unseeded, passthrough to FRandomStream
+
+	float rand(float x); // Invokes EVectorVMOp::random
+
 	float2 rand(float2 x)
 	{
 		return float2(rand(x.x), rand(x.y));
@@ -272,10 +307,65 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 		return float4(rand(x.x), rand(x.y), rand(x.z), rand(x.w));
 	}
 	
-	// NOTE(mv): Where's rand(float)? Seems to work regardless..
-	int rand(int x);
+	int rand(int x); // Invokes EVectorVMOp::randomi and is semi-open. This is inconsistent with the rest of the functions above. As a result this function and the ones above should be deprecated in favor of the functions below
 #endif
 
+// Explicit non-deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes
+float rand_float(float x)
+{
+	return rand(x.x);
+}
+
+float2 rand_float(float2 x)
+{
+	return float2(rand_float(x.x), rand_float(x.y));
+}
+
+float3 rand_float(float3 x)
+{
+	return float3(rand_float(x.x), rand_float(x.y), rand_float(x.z));
+}
+
+float4 rand_float(float4 x) 
+{
+	return float4(rand_float(x.x), rand_float(x.y), rand_float(x.z), rand_float(x.w));
+}
+
+int rand_int(int x)
+{
+	// Going through the float function also give us a better distribution than using modulo 
+	// to get an integer range.
+	// This will not include the upper range as rand_float returns [0, max), not [0, max].
+	return rand_float(x.x);
+}
+
+// Explicit deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes
+float rand_float(float x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x.x, Seed1, Seed2, Seed3);
+}
+
+float2 rand_float(float2 x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+float3 rand_float(float3 x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+float4 rand_float(float4 x, int Seed1, int Seed2, int Seed3) 
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+int rand_int(int x, int Seed1, int Seed2, int Seed3)
+{
+	// This will not include the upper range as rand_float returns [0, max), not [0, max]
+	// The deterministic rand call will include the upper range, so we subtract a one to compensate
+	return rand(x.x-1, Seed1, Seed2, Seed3);
+}
 
 /* -----------------------------------------------------------------
  * VM simulation function declarations
@@ -324,12 +414,6 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
  * -----------------------------------------------------------------
  */
 #if GPU_SIMULATION
-	static uint GSpawnStartInstance;
-		
-	/* Parameters for spawning and simulations
-	 */
-	uint UpdateStartInstance;
-	
 	/*
 	 * declared as int instead of uint to avoid compiler warnings because we can't expose uint on Niagara module parameters.  
 	 * This is still declared as a uint in the corresponding C++ classes
@@ -337,9 +421,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	int DefaultShaderStageIndex;
 	int ShaderStageIndex;
 
-
 	int IterationInterfaceCount;
-	uint SpawnedInstances;
 
 	uint ComponentBufferSizeRead;
 	uint ComponentBufferSizeWrite;
@@ -360,26 +442,35 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	uint ReadInstanceCountOffset;
 	uint WriteInstanceCountOffset;
 
-	//TODO: IDs for GPU
-//	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag);
-// 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex);
+	Buffer<int> FreeIDList;
+	RWBuffer<int> RWIDToIndexTable;
 
-	/* Returns the current instance index relative to the operation (spawn/update)
-	 */
-	int ExecIndex()
+	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag)
 	{
-		if (GCurrentPhase == 0)
-		{
-			return UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
-		}
-		else 
-		{
-			return UpdateStartInstance + GDispatchThreadId.x;
-		}
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		// This is the same as ExecIndex() right now, but that function may change in the future to accommodate multiple
+		// spawn infos. Revisit this computation if the change affects the meaning of UpdateStartInstance or GSpawnStartInstance.
+		int SpawnIndex = UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
+		IDIndex = FreeIDList[SpawnIndex];
+		IDAcquireTag = EmitterTickCounter;
+	}
+
+ 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex)
+	{
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		RWIDToIndexTable[IDIndex] = InstanceIndex;
 	}
 
 #define USE_WAVE_INTRISICS (PS4_PROFILE || XBOXONE_PROFILE)
-#define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32)  && !USE_WAVE_INTRISICS)
+#define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32)  && !USE_WAVE_INTRISICS && !VULKAN_PROFILE_SM5 && !VULKAN_PROFILE)
 
 #if USE_GROUP_SHARED
 	#if THREADGROUP_SIZE == 64
@@ -637,13 +728,15 @@ void SimulateMainComputeCS(
 	const float RandomSeedInitialisation = NiagaraInternalNoise(InstanceID*16384, 0 * 8196, (bRunPhase1 ? 4096 : 0) + EmitterTickCounter);	// initialise the random state seed
 
 	FSimulationContext Context = (FSimulationContext)0;
-	InitConstants(Context);
 
 	BRANCH
 	if (bRunPhase1)
 	{
 		GCurrentPhase = 1;
 
+		SetupExecIndexForGPU();
+
+		InitConstants(Context);
 		LoadUpdateVariables(Context, InstanceID);
 		ReadDataSets(Context);
 
@@ -654,8 +747,9 @@ void SimulateMainComputeCS(
 	{
 		GCurrentPhase = 0;
 
-		GetEmitterSpawnInfoForParticle(ExecIndex());
+		SetupExecIndexAndSpawnInfoForGPU();
 
+		InitConstants(Context);
 		InitSpawnVariables(Context);
 		ReadDataSets(Context);
 

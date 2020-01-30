@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -33,11 +33,8 @@ struct FRigUnit_MultiplyQuaternion : public FRigUnit_BinaryQuaternionOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
- 	{
- 		Result = Argument0*Argument1;
- 		Result.Normalize();
- 	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 /** Two args and a result of Quaternion type */
@@ -58,11 +55,8 @@ struct FRigUnit_InverseQuaterion: public FRigUnit_UnaryQuaternionOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Argument.Inverse();
-		Result.Normalize();
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "To Axis And Angle(Quaternion)", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
@@ -79,12 +73,8 @@ struct FRigUnit_QuaternionToAxisAndAngle : public FRigUnit
 	UPROPERTY(meta = (Output))
 	float Angle;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		FVector NewAxis = Axis.GetSafeNormal();
-		Argument.ToAxisAndAngle(NewAxis, Angle);
-		Angle = FMath::RadiansToDegrees(Angle);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "From Axis And Angle(Quaternion)", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
@@ -107,11 +97,8 @@ struct FRigUnit_QuaternionFromAxisAndAngle : public FRigUnit
 	UPROPERTY(meta = (Output))
 	FQuat Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		FVector NewAxis = Axis.GetSafeNormal();
-		Result = FQuat(NewAxis, FMath::DegreesToRadians(Angle));
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "Get Angle Around Axis", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
@@ -134,6 +121,7 @@ struct FRigUnit_QuaternionToAngle : public FRigUnit
 	UPROPERTY(meta = (Output))
 	float Angle;
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,7 +22,10 @@ class ISkeletonTree;
 class UAnimationAsset;
 class USkeletalMeshComponent;
 class UAnimSequence;
+class UAnimSequenceBase;
 class ISkeletonTreeItem;
+class IAnimSequenceCurveEditor;
+struct FRichCurve;
 
 namespace AnimationEditorModes
 {
@@ -38,10 +41,12 @@ namespace AnimationEditorTabs
 	extern const FName ViewportTab;
 	extern const FName AdvancedPreviewTab;
 	extern const FName DocumentTab;
+	extern const FName CurveEditorTab;
 	extern const FName AssetBrowserTab;
 	extern const FName AssetDetailsTab;
 	extern const FName CurveNamesTab;
 	extern const FName SlotNamesTab;
+	extern const FName AnimMontageSectionsTab;
 }
 
 class FAnimationEditor : public IAnimationEditor, public FGCObject, public FEditorUndoClient, public FTickableEditorObject
@@ -57,6 +62,8 @@ public:
 	/** IAnimationEditor interface */
 	virtual void SetAnimationAsset(UAnimationAsset* AnimAsset) override;
 	virtual IAnimationSequenceBrowser* GetAssetBrowser() const override;
+	virtual void EditCurves(UAnimSequenceBase* InAnimSequence, const TArray<FCurveEditInfo>& InCurveInfo, const TSharedPtr<ITimeSliderController>& InExternalTimeSliderController) override;
+	virtual void StopEditingCurves(const TArray<FCurveEditInfo>& InCurveInfo) override;
 
 	/** IHasPersonaToolkit interface */
 	virtual TSharedRef<class IPersonaToolkit> GetPersonaToolkit() const override { return PersonaToolkit.ToSharedRef(); }
@@ -196,6 +203,12 @@ private:
 	/** The animation document currently being edited */
 	TWeakPtr<SDockTab> SharedAnimDocumentTab;
 
+	/** The animation document's curves that are currently being edited */
+	TWeakPtr<SDockTab> AnimCurveDocumentTab;
+
 	/** Sequence Browser **/
 	TWeakPtr<class IAnimationSequenceBrowser> SequenceBrowser;
+
+	/** The anim sequence curve editor */
+	TWeakPtr<IAnimSequenceCurveEditor> CurveEditor;
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "XmppStrophe/XmppMessagesStrophe.h"
 #include "XmppStrophe/XmppConnectionStrophe.h"
@@ -51,7 +51,7 @@ bool FXmppMessagesStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 		return false;
 	}
 
-	const TOptional<const FStropheStanza> ErrorStanza = IncomingStanza.GetChild(Strophe::SN_ERROR);
+	const TOptional<const FStropheStanza> ErrorStanza = IncomingStanza.GetChildStropheStanza(Strophe::SN_ERROR);
 	if (ErrorStanza.IsSet())
 	{
 		return HandleMessageErrorStanza(ErrorStanza.GetValue());

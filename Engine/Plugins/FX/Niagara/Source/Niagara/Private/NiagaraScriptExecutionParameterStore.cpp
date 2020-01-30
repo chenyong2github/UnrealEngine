@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraStats.h"
@@ -36,7 +36,7 @@ uint32 OffsetAlign(uint32 SrcOffset, uint32 Size)
 	}
 }
 
-void FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset)
+uint32 FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset)
 {
 	uint32 VectorPaddedSize = (TShaderParameterTypeInfo<FVector4>::NumRows * TShaderParameterTypeInfo<FVector4>::NumColumns) * sizeof(float);
 
@@ -87,26 +87,26 @@ void FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FN
 	{
 		NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT); // New structs should be aligned to the head..
 
-		for (TFieldIterator<UProperty> PropertyIt(InSrcStruct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(InSrcStruct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			const UStruct* Struct = nullptr;
 
 			// First determine what struct type we're dealing with...
-			if (Property->IsA(UFloatProperty::StaticClass()))
+			if (Property->IsA(FFloatProperty::StaticClass()))
 			{
 				Struct = FNiagaraTypeDefinition::GetFloatStruct();
 			}
-			else if (Property->IsA(UIntProperty::StaticClass()))
+			else if (Property->IsA(FIntProperty::StaticClass()))
 			{
 				Struct = FNiagaraTypeDefinition::GetIntStruct();
 			}
-			else if (Property->IsA(UBoolProperty::StaticClass()))
+			else if (Property->IsA(FBoolProperty::StaticClass()))
 			{
 				Struct = FNiagaraTypeDefinition::GetBoolStruct();
 			}
 			//Should be able to support double easily enough
-			else if (UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
+			else if (FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property))
 			{
 				Struct = StructProp->Struct;
 			}
@@ -115,10 +115,11 @@ void FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FN
 				check(false);
 			}
 
-			GenerateLayoutInfoInternal(Members, NextMemberOffset, Struct, InSrcOffset);
+			InSrcOffset = GenerateLayoutInfoInternal(Members, NextMemberOffset, Struct, InSrcOffset);
 		}
 	}
 
+	return InSrcOffset;
 }
 
 void FNiagaraScriptExecutionParameterStore::AddPaddedParamSize(const FNiagaraTypeDefinition& InParamType, uint32 InOffset)
@@ -146,6 +147,20 @@ void FNiagaraScriptExecutionParameterStore::AddPaddedParamSize(const FNiagaraTyp
 	}
 }
 
+void FNiagaraScriptExecutionParameterStore::AddAlignmentPadding()
+{
+	if (PaddingInfo.Num())
+	{
+		const auto& LastEntry = PaddingInfo.Last();
+		const uint32 CurrentOffset = LastEntry.DestOffset + LastEntry.DestSize;
+		const uint32 AlignedOffset = Align(CurrentOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+		if (CurrentOffset != AlignedOffset)
+		{
+			PaddingInfo.Emplace(GetParameterDataArray().Num(), CurrentOffset, 0, AlignedOffset - CurrentOffset);
+		}
+	}
+}
 
 void FNiagaraScriptExecutionParameterStore::InitFromOwningScript(UNiagaraScript* Script, ENiagaraSimTarget SimTarget, bool bNotifyAsDirty)
 {
@@ -223,11 +238,15 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 	DebugName = FString::Printf(TEXT("ScriptExecParamStore %s %p"), *Script->GetFullName(), this);
 #endif
 	
+	ParameterSize = GetParameterDataArray().Num();
+
 	//Add previous frame values if we're interpolated spawn.
 	bool bIsInterpolatedSpawn = Script->GetVMExecutableDataCompilationId().HasInterpolatedParameters();
 
 	if (bIsInterpolatedSpawn)
 	{
+		AddAlignmentPadding();
+
 		for (FNiagaraVariable& Param : Script->GetVMExecutableData().Parameters.Parameters)
 		{
 			FNiagaraVariable PrevParam(Param.GetType(), FName(*(INTERPOLATED_PARAMETER_PREFIX + Param.GetName().ToString())));
@@ -235,7 +254,6 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 		}
 	}
 	
-	ParameterSize = GetParameterDataArray().Num();
 	if (bIsInterpolatedSpawn)
 	{
 		CopyCurrToPrev();
@@ -280,8 +298,8 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 
 void FNiagaraScriptExecutionParameterStore::CopyCurrToPrev()
 {
-	int32 ParamStart = ParameterSize / 2;
-	checkSlow(FMath::Frac((float)ParameterSize / 2) == 0.0f);
+	int32 ParamStart = ParameterSize;
+	checkSlow(FMath::Frac((float)ParameterSize) == 0.0f);
 
 	FMemory::Memcpy(GetParameterData_Internal(ParamStart), GetParameterData(0), ParamStart);
 }
@@ -295,8 +313,8 @@ void FNiagaraScriptExecutionParameterStore::CopyParameterDataToPaddedBuffer(uint
 	const uint8* SrcData = GetParameterDataArray().GetData();
 	for (int32 i = 0; i < PaddingInfo.Num(); i++)
 	{
-		check((PaddingInfo[i].DestOffset + PaddingInfo[i].DestSize) <= InTargetBufferSizeInBytes);
-		check((PaddingInfo[i].SrcOffset + PaddingInfo[i].SrcSize) <= (uint32)GetParameterDataArray().Num());
+		check(uint32(PaddingInfo[i].DestOffset + PaddingInfo[i].DestSize) <= InTargetBufferSizeInBytes);
+		check(uint32(PaddingInfo[i].SrcOffset + PaddingInfo[i].SrcSize) <= (uint32)GetParameterDataArray().Num());
 		FMemory::Memcpy(InTargetBuffer + PaddingInfo[i].DestOffset, SrcData + PaddingInfo[i].SrcOffset, PaddingInfo[i].SrcSize);
 	}
 }

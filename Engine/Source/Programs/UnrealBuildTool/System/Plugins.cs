@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -109,18 +109,22 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Determines whether the plugin should be enabled by default
 		/// </summary>
-		public bool EnabledByDefault
+		public bool IsEnabledByDefault(bool bAllowEnginePluginsEnabledByDefault)
 		{
-			get
+			if (Descriptor.bEnabledByDefault.HasValue)
 			{
-				if(Descriptor.bEnabledByDefault.HasValue)
+				if (Descriptor.bEnabledByDefault.Value)
 				{
-					return Descriptor.bEnabledByDefault.Value;
+					return (LoadedFrom == PluginLoadedFrom.Project ? true : bAllowEnginePluginsEnabledByDefault);
 				}
 				else
 				{
-					return (LoadedFrom == PluginLoadedFrom.Project);
+					return false;
 				}
+			}
+			else
+			{
+				return (LoadedFrom == PluginLoadedFrom.Project);
 			}
 		}
 
@@ -550,7 +554,8 @@ namespace UnrealBuildTool
 				return false;
 			}
 
-			bool bEnabled = Plugin.EnabledByDefault;
+			bool bAllowEnginePluginsEnabledByDefault = (Project == null ? true : !Project.DisableEnginePluginsByDefault);
+			bool bEnabled = Plugin.IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault);
 			if (Project != null && Project.Plugins != null)
 			{
 				foreach (PluginReferenceDescriptor PluginReference in Project.Plugins)

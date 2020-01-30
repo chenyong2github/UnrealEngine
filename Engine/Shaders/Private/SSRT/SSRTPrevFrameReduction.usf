@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #define CONFIG_COLOR_TILE_CLASSIFICATION 0
 
@@ -192,6 +192,8 @@ void MainCS(
 			PrevColor = float4(PrevSceneColor.SampleLevel(PrevSceneColorSampler, PrevFrameUV, 0).rgb, 1.0);
 		}
 		#endif
+
+		PrevColor = -min(-PrevColor, 0.0);
 
 		#if CONFIG_COLOR_TILE_CLASSIFICATION
 		{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerPlatformNonRealtime.h"
 #include "AudioMixer.h"
@@ -57,7 +57,7 @@ namespace Audio
 
 	void FMixerPlatformNonRealtime::RenderAudio(double NumSecondsToRender)
 	{
-		if (!bIsInitialized || !bIsDeviceOpen)
+		if (!bIsInitialized || !bIsDeviceOpen || OutputBuffers.Num() == 0)
 		{
 			return;
 		}
@@ -73,7 +73,10 @@ namespace Audio
 		while (SecondsRendered < TotalDurationRendered)
 		{
 			// RenderTimeAnalysis.Start();
-			OutputBuffers[CurrentBufferWriteIndex].MixNextBuffer();
+			if (OutputBuffers.IsValidIndex(CurrentBufferWriteIndex))
+			{
+				OutputBuffers[CurrentBufferWriteIndex].MixNextBuffer();
+			}
 			// RenderTimeAnalysis.End();
 
 			ReadNextBuffer();

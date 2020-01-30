@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewportTabContent.h"
 #include "Misc/ConfigCacheIni.h"
@@ -13,4 +13,22 @@ bool FViewportTabContent::BelongsToTab(TSharedRef<class SDockTab> InParentTab) c
 {
 	TSharedPtr<SDockTab> ParentTabPinned = ParentTab.Pin();
 	return ParentTabPinned == InParentTab;
+}
+
+bool FViewportTabContent::IsViewportConfigurationSet(const FName& ConfigurationName) const
+{
+	if (ActiveViewportLayout.IsValid())
+	{
+		return ActiveViewportLayout->GetLayoutTypeName() == ConfigurationName;
+	}
+	return false;
+}
+
+void FViewportTabContent::PerformActionOnViewports(TFunction<void(FName Name, TSharedPtr<IEditorViewportLayoutEntity>)> &TFuncPtr)
+{
+	const TMap< FName, TSharedPtr<IEditorViewportLayoutEntity> >& Entities = ActiveViewportLayout->GetViewports();
+	for (auto& Entity : Entities)
+	{
+		TFuncPtr(Entity.Key, Entity.Value);
+	}
 }

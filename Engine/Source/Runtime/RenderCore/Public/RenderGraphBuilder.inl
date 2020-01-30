@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,6 +52,18 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 
 	FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, Flags);
 	OutBuffer->PooledBuffer = ExternalPooledBuffer;
+	switch (OutBuffer->Desc.UnderlyingType)
+	{
+	case FRDGBufferDesc::EUnderlyingType::VertexBuffer:
+		OutBuffer->ResourceRHI = ExternalPooledBuffer->VertexBuffer;
+		break;
+	case FRDGBufferDesc::EUnderlyingType::IndexBuffer:
+		OutBuffer->ResourceRHI = ExternalPooledBuffer->IndexBuffer;
+		break;
+	case FRDGBufferDesc::EUnderlyingType::StructuredBuffer:
+		OutBuffer->ResourceRHI = ExternalPooledBuffer->StructuredBuffer;
+		break;
+	}
 	AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
 
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalBuffer(OutBuffer));

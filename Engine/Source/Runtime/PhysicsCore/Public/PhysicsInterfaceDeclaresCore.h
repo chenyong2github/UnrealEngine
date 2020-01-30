@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,56 +14,7 @@
 #define WITH_IMMEDIATE_PHYSX 0
 #endif
 
-#if PHYSICS_INTERFACE_PHYSX
-
-namespace physx
-{
-	struct PxLocationHit;
-	struct PxSweepHit;
-	struct PxRaycastHit;
-	struct PxOverlapHit;
-	struct PxQueryHit;
-
-	class PxTransform;
-	class PxShape;
-	class PxGeometry;
-	class PxCapsuleGeometry;
-	class PxMaterial;
-	class PxRigidActor;
-
-	template<typename T>
-	struct PxHitBuffer;
-	
-	template<typename T>
-	struct PxHitCallback;
-}
-
-namespace PhysXInterface
-{
-	struct FDummyPhysType {};
-}
-
-using FHitLocation = physx::PxLocationHit;
-using FHitSweep = physx::PxSweepHit;
-using FHitRaycast = physx::PxRaycastHit;
-using FHitOverlap = physx::PxOverlapHit;
-using FPhysicsQueryHit = physx::PxQueryHit;
-
-using FPhysicsTransform = physx::PxTransform;
-using FPhysTypeDummy = PhysXInterface::FDummyPhysType;
-
-using FPhysicsShape = physx::PxShape;
-using FPhysicsGeometry = physx::PxGeometry;
-using FPhysicsCapsuleGeometry = physx::PxCapsuleGeometry;
-using FPhysicsMaterial = physx::PxMaterial;
-using FPhysicsActor = physx::PxRigidActor;
-
-template <typename T>
-using FPhysicsHitCallback = physx::PxHitCallback<T>;
-
-struct FQueryDebugParams {};
-
-#elif WITH_CHAOS
+#if WITH_CHAOS
 
 #include "ChaosSQTypes.h"
 
@@ -127,6 +78,55 @@ using FSingleHitBuffer = ChaosInterface::FSQSingleHitBuffer<T>;
 
 template <typename T>
 using FDynamicHitBuffer = ChaosInterface::FSQHitBuffer<T>;
+
+#elif PHYSICS_INTERFACE_PHYSX
+
+namespace physx
+{
+	struct PxLocationHit;
+	struct PxSweepHit;
+	struct PxRaycastHit;
+	struct PxOverlapHit;
+	struct PxQueryHit;
+
+	class PxTransform;
+	class PxShape;
+	class PxGeometry;
+	class PxCapsuleGeometry;
+	class PxMaterial;
+	class PxRigidActor;
+
+	template<typename T>
+	struct PxHitBuffer;
+	
+	template<typename T>
+	struct PxHitCallback;
+}
+
+namespace PhysXInterface
+{
+	struct FDummyPhysType {};
+}
+
+using FHitLocation = physx::PxLocationHit;
+using FHitSweep = physx::PxSweepHit;
+using FHitRaycast = physx::PxRaycastHit;
+using FHitOverlap = physx::PxOverlapHit;
+using FPhysicsQueryHit = physx::PxQueryHit;
+
+using FPhysicsTransform = physx::PxTransform;
+using FPhysTypeDummy = PhysXInterface::FDummyPhysType;
+
+using FPhysicsShape = physx::PxShape;
+using FPhysicsGeometry = physx::PxGeometry;
+using FPhysicsCapsuleGeometry = physx::PxCapsuleGeometry;
+using FPhysicsMaterial = physx::PxMaterial;
+using FPhysicsActor = physx::PxRigidActor;
+
+template <typename T>
+using FPhysicsHitCallback = physx::PxHitCallback<T>;
+
+struct FQueryDebugParams {};
 
 #else
 

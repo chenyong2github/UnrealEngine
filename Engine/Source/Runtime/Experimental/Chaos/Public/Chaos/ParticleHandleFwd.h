@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 // Use to define out code blocks that need to be adapted to use Particle Handles in a searchable way (better than #if 0)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneNiagaraEmitterTrack.h"
 #include "NiagaraEmitterHandle.h"
@@ -14,6 +14,7 @@
 #include "NiagaraScriptSource.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraEditorStyle.h"
+#include "Sections/MovieSceneNiagaraEmitterSection.h"
 
 #include "ISequencerSection.h"
 #include "SequencerSectionPainter.h"
@@ -170,6 +171,11 @@ void UMovieSceneNiagaraEmitterTrack::AddSection(UMovieSceneSection& Section)
 {
 	Sections.Add(&Section);
 	bSectionsWereModified = true;
+}
+
+bool UMovieSceneNiagaraEmitterTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
+{
+	return SectionClass == UMovieSceneNiagaraEmitterSection::StaticClass();
 }
 
 void UMovieSceneNiagaraEmitterTrack::RemoveSection(UMovieSceneSection& Section)

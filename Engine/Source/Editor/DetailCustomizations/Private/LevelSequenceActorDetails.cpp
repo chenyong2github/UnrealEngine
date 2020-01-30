@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceActorDetails.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -30,7 +30,7 @@ void AddAllSubObjectProperties(TArray<UObject*>& SubObjects, IDetailCategoryBuil
 		return;
 	}
 
-	for (const UProperty* TestProperty : TFieldRange<UProperty>(SubObjects[0]->GetClass()))
+	for (const FProperty* TestProperty : TFieldRange<FProperty>(SubObjects[0]->GetClass()))
 	{
 		if (TestProperty->HasAnyPropertyFlags(CPF_Edit))
 		{

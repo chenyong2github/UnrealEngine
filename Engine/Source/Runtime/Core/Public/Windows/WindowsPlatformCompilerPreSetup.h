@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -74,6 +74,17 @@
 			__pragma(warning(pop))
 	#endif // PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 
+	#ifndef PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+		#define PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS \
+			__pragma (warning(push)) \
+			__pragma (warning(disable: 4244)) /* 'argument': conversion from 'type1' to 'type2', possible loss of data */
+	#endif // PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
+	#ifndef PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+		#define PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS \
+			__pragma(warning(pop))
+	#endif // PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+
 	#ifndef PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS
 		#define PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS \
 			__pragma(warning(push)) \
@@ -106,6 +117,17 @@
 		#define PRAGMA_ENABLE_REORDER_WARNINGS \
 			__pragma(warning(pop))
 	#endif // PRAGMA_ENABLE_REORDER_WARNINGS
+
+	#ifndef PRAGMA_DISABLE_REGISTER_WARNINGS
+		#define PRAGMA_DISABLE_REGISTER_WARNINGS \
+			__pragma(warning(push)) \
+			__pragma(warning(disable: 5033)) /* 'register' is no longer a supported storage class */
+	#endif // PRAGMA_DISABLE_REGISTER_WARNINGS
+
+	#ifndef PRAGMA_ENABLE_REGISTER_WARNINGS
+		#define PRAGMA_ENABLE_REGISTER_WARNINGS \
+			__pragma(warning(pop))
+	#endif // PRAGMA_ENABLE_REGISTER_WARNINGS
 
 	#ifndef PRAGMA_POP
 		#define PRAGMA_POP \

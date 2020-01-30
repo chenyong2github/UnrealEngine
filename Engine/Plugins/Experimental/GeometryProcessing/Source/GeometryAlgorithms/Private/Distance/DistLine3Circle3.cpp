@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Distance/DistLine3Circle3.h"
 #include "ThirdParty/GTEngine/Mathematics/GteDistLine3Circle3.h"

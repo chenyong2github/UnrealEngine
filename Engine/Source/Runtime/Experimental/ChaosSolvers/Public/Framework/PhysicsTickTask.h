@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,7 +17,7 @@ class CHAOSSOLVERS_API FPhysicsTickTask
 {
 public:
 
-	FPhysicsTickTask(FGraphEventRef& InCompletionEvent, float InDt);
+	FPhysicsTickTask(FGraphEventRef& InCompletionEvent, Chaos::FPhysicsSolver* InPhysicsSolver, float InDt);
 
 	TStatId GetStatId() const;
 	static ENamedThreads::Type GetDesiredThread();
@@ -28,6 +28,7 @@ private:
 
 	FGraphEventRef CompletionEvent;
 	FChaosSolversModule* Module;
+	Chaos::FPhysicsSolver* PhysicsSolver;
 	float Dt;
 };
 

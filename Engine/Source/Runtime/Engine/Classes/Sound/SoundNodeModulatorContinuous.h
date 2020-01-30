@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -71,7 +71,7 @@ struct FModulatorContinuousParams
 /**
  * Allows named parameter based manipulation of pitch and volume
  */
-UCLASS(hidecategories=Object, editinlinenew, meta=( DisplayName="Continuous Modulator" ))
+UCLASS(hidecategories=Object, editinlinenew, MinimalAPI, meta=( DisplayName="Continuous Modulator" ))
 class USoundNodeModulatorContinuous : public USoundNode
 {
 	GENERATED_UCLASS_BODY()

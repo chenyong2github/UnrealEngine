@@ -1,18 +1,46 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+
 #include "AudioDefines.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+
 #include "SoundMix.generated.h"
 
 class USoundClass;
 struct FPropertyChangedEvent;
 
 USTRUCT()
-struct FAudioEQEffect
+struct ENGINE_API FAudioEffectParameters
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	FAudioEffectParameters()
+	{
+	}
+
+	virtual ~FAudioEffectParameters()
+	{
+	}
+
+	// Interpolates between one set of parameters and another and stores result in local copy
+	virtual bool Interpolate(const FAudioEffectParameters& InStart, const FAudioEffectParameters& InEnd)
+	{
+		return false;
+	}
+
+	// Prints effect parameters
+	virtual void PrintSettings() const
+	{
+	}
+};
+
+USTRUCT()
+struct FAudioEQEffect : public FAudioEffectParameters
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -84,15 +112,16 @@ struct FAudioEQEffect
 	{}
 
 	/** 
-	* Interpolate EQ settings based on time
-	*/
-	void Interpolate( float InterpValue, const FAudioEQEffect& Start, const FAudioEQEffect& End );
+	 * Interpolates between Start and End EQ effect settings, storing results locally and returning if interpolation is complete
+	 */
+	bool Interpolate(const FAudioEffectParameters& InStart, const FAudioEffectParameters& InEnd) override;
 		
 	/** 
 	* Clamp all settings in range
 	*/
 	void ClampValues();
 
+	virtual void PrintSettings() const override;
 };
 
 /**

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -75,6 +75,11 @@ protected:
 	 * @param OriginalColor Original color of the property
 	 */
 	void OnColorPickerCancelled(FLinearColor OriginalColor);
+
+	/**
+	 * Called when the color picker window is clsoed
+	 */
+	void OnColorPickerWindowClosed(const TSharedRef<SWindow>& Window);
 
 	/**
 	 * Called when the user enters an interactive color change (dragging something in the picker)

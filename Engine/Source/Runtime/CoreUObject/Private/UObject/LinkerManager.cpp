@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LinkerManager.h: Unreal object linker manager
@@ -149,6 +149,24 @@ void FLinkerManager::ResetLoaders(UObject* InPkg)
 			Linker->Detach();
 			RemoveLinker(Linker);
 		}
+	}
+}
+
+void FLinkerManager::EnsureLoadingComplete(UPackage* Package)
+{
+	if (!Package)
+	{
+		return;
+	}
+	FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
+	if (!Linker)
+	{
+		return;
+	}
+
+	if (!Package->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	{
+		Linker->SerializeThumbnails();
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Module includes
 #include "DeviceProfileTextureLODSettingsColumn.h"
@@ -135,8 +135,8 @@ bool FDeviceProfileTextureLODSettingsColumn::Supports(const TSharedRef< IPropert
 		if( PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0 )
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-			UProperty* Property = PropertyInfo.Property.Get();
-			if (Property->GetName() == TEXT("TextureLODGroups") && Property->IsA(UArrayProperty::StaticClass()))
+			FProperty* Property = PropertyInfo.Property.Get();
+			if (Property->GetName() == TEXT("TextureLODGroups") && Property->IsA(FArrayProperty::StaticClass()))
 			{
 				return true;
 			}

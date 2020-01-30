@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -54,6 +54,11 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_RigidBody : public FAnimNode_SkeletalContr
 	virtual void ResetDynamics(ETeleportType InTeleportType) override;
 	virtual int32 GetLODThreshold() const override;
 	// End of FAnimNode_SkeletalControlBase interface
+
+	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None);
+
+	// TEMP: Exposed for use in PhAt as a quick way to get drag handles working with Chaos
+	virtual ImmediatePhysics::FSimulation* GetSimulation() { return PhysicsSimulation; }
 
 public:
 	/** Physics asset to use. If empty use the skeletal mesh's default physics asset */
@@ -144,6 +149,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	uint8 bClampLinearTranslationLimitToRefPose : 1;
 
+	/**
+	 * Solver iteration settings overrides (defaults are set in the Physics Asset).
+	 * These can be varied in the runtime and set through blueprint (e.g., to increase
+	 * iterations during difficult movements).
+	 * Set to -1 to leave an individual iteration value at its Physics Asset value.
+	 */
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
+	FSolverIterations OverrideSolverIterations;
+
 private:
 	uint8 bEnabled : 1;
 	uint8 bSimulationStarted : 1;
@@ -178,6 +192,7 @@ private:
 	TWeakObjectPtr<USkeletalMeshComponent> SkelMeshCompWeakPtr;
 
 	ImmediatePhysics::FSimulation* PhysicsSimulation;
+	FSolverIterations SolverIterations;
 
 	struct FOutputBoneData
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreTypes.h"
@@ -39,7 +39,7 @@ struct CORE_API FEditorObjectVersion
 		StableUserDefinedEnumDisplayNames,
 		// Added "Inline" option to UFontFace assets
 		AddedInlineFontFaceAssets,
-		// Fix a serialization issue with static mesh FMeshSectionInfoMap UProperty
+		// Fix a serialization issue with static mesh FMeshSectionInfoMap FProperty
 		UPropertryForMeshSectionSerialize,
 		// Adding a version bump for the new fast widget construction in case of problems.
 		FastWidgetTemplates,
@@ -85,6 +85,8 @@ struct CORE_API FEditorObjectVersion
 		ComputeWeightedNormals,
 		// SkeletalMesh now can be rebuild in editor, no more need to re-import
 		SkeletalMeshBuildRefactor,
+		// Move all SkeletalMesh source data into a private uasset in the same package has the skeletalmesh
+		SkeletalMeshMoveEditorSourceDataToPrivateAsset,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/PackageMapClient.h"
 #include "HAL/IConsoleManager.h"
@@ -1307,7 +1307,7 @@ void UPackageMapClient::ReceiveNetGUIDBunch( FInBunch &InBunch )
 
 TSharedPtr<FNetFieldExportGroup> UPackageMapClient::GetNetFieldExportGroup(const FString& PathName)
 {
-	return GuidCache->NetFieldExportGroupMap.FindRef(UWorld::RemovePIEPrefix(PathName));
+	return GuidCache->NetFieldExportGroupMap.FindRef(PathName);
 }
 
 void UPackageMapClient::AddNetFieldExportGroup( const FString& PathName, TSharedPtr< FNetFieldExportGroup > NewNetFieldExportGroup )
@@ -1327,8 +1327,17 @@ void UPackageMapClient::AddNetFieldExportGroup( const FString& PathName, TShared
 void UPackageMapClient::TrackNetFieldExport( FNetFieldExportGroup* NetFieldExportGroup, const int32 NetFieldExportHandle )
 {
 	check(Connection->InternalAck);
-	check( NetFieldExportHandle >= 0 );
-	check( NetFieldExportGroup->NetFieldExports[NetFieldExportHandle].Handle == NetFieldExportHandle );
+	check(NetFieldExportGroup);
+
+	checkf(NetFieldExportGroup->NetFieldExports.IsValidIndex(NetFieldExportHandle),
+		TEXT("Invalid NetFieldExportHandle. GroupPath = %s, NumExports = %d, ExportHandle = %d"),
+		*(NetFieldExportGroup->PathName), NetFieldExportGroup->NetFieldExports.Num(), NetFieldExportHandle);
+
+	checkf(NetFieldExportGroup->NetFieldExports[NetFieldExportHandle].Handle == NetFieldExportHandle,
+		TEXT("NetFieldExportHandle Mismatch. GroupPath = %s, NumExports = %d, ExportHandle = %d, Expected Handle = %d"),
+		*(NetFieldExportGroup->PathName), NetFieldExportGroup->NetFieldExports.Num(), NetFieldExportHandle, NetFieldExportGroup->NetFieldExports[NetFieldExportHandle].Handle);
+
+
 	NetFieldExportGroup->NetFieldExports[NetFieldExportHandle].bExported = true;
 
 	const uint64 CmdHandle = ( ( uint64 )NetFieldExportGroup->PathNameIndex ) << 32 | ( uint64 )NetFieldExportHandle;

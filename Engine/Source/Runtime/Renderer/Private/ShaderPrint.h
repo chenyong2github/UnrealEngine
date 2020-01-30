@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Use ShaderPrint to debug print from any shader type.
 // Call BeginView() at the start of a view to init the debug output buffer.

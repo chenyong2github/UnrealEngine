@@ -1,9 +1,86 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BonePose.h"
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
 #include "HAL/ThreadSingleton.h"
+#if INTEL_ISPC
+#include "BonePose.ispc.generated.h"
+#endif
+
+// Normalizes all rotations in this pose
+void FCompactPose::NormalizeRotations()
+{
+	if (INTEL_ISPC)
+	{
+#if INTEL_ISPC
+		ispc::NormalizeRotations((ispc::FTransform*)this->Bones.GetData(), this->Bones.Num());
+#endif
+	}
+	else
+	{
+		for (FTransform& Bone : this->Bones)
+		{
+			Bone.NormalizeRotation();
+		}
+	}
+}
+
+// Sets every bone transform to Identity
+void FCompactPose::ResetToAdditiveIdentity()
+{
+	if (INTEL_ISPC)
+	{
+#if INTEL_ISPC
+		ispc::ResetToAdditiveIdentity((ispc::FTransform*)this->Bones.GetData(), this->Bones.Num());
+#endif
+	}
+	else
+	{
+		for (FTransform& Bone : this->Bones)
+		{
+			Bone.SetIdentity();
+			Bone.SetScale3D(FVector::ZeroVector);
+		}
+	}
+}
+
+// Normalizes all rotations in this pose
+void FCompactHeapPose::NormalizeRotations()
+{
+	if (INTEL_ISPC)
+	{
+#if INTEL_ISPC
+		ispc::NormalizeRotations((ispc::FTransform*)this->Bones.GetData(), this->Bones.Num());
+#endif
+	}
+	else
+	{
+		for (FTransform& Bone : this->Bones)
+		{
+			Bone.NormalizeRotation();
+		}
+	}
+}
+
+// Sets every bone transform to Identity
+void FCompactHeapPose::ResetToAdditiveIdentity()
+{
+	if (INTEL_ISPC)
+	{
+#if INTEL_ISPC
+		ispc::ResetToAdditiveIdentity((ispc::FTransform*)this->Bones.GetData(), this->Bones.Num());
+#endif
+	}
+	else
+	{
+		for (FTransform& Bone : this->Bones)
+		{
+			Bone.SetIdentity();
+			Bone.SetScale3D(FVector::ZeroVector);
+		}
+	}
+}
 
 void FMeshPose::ResetToRefPose()
 {

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/UnrealMemory.h"
 #include "Math/UnrealMathUtility.h"
@@ -24,6 +24,7 @@
 #include "HAL/MallocLeakDetectionProxy.h"
 #include "HAL/PlatformMallocCrash.h"
 #include "HAL/MallocPoisonProxy.h"
+#include "HAL/MallocDoubleFreeFinder.h"
 
 #if MALLOC_GT_HOOKS
 
@@ -118,7 +119,7 @@ public:
 			verify(GetAllocationSize(Ptr, Size) && Size);
 			FMemory::Memset(Ptr, uint8(PURGATORY_STOMP_CHECKS_CANARYBYTE), Size);
 			Purgatory[GFrameNumber % PURGATORY_STOMP_CHECKS_FRAMES].Push(Ptr);
-			OutstandingSizeInKB.Add((Size + 1023) / 1024);
+			OutstandingSizeInKB.Add((int32)((Size + 1023) / 1024));
 		}
 		FPlatformMisc::MemoryBarrier();
 		uint32 LocalLastCheckFrame = LastCheckFrame;
@@ -150,7 +151,7 @@ public:
 						}
 					}
 					UsedMalloc->Free(Pop);
-					OutstandingSizeInKB.Subtract((Size + 1023) / 1024);
+					OutstandingSizeInKB.Subtract((int32)((Size + 1023) / 1024));
 				}
 			}
 		}
@@ -382,6 +383,7 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 	UE_LOG(LogMemory, Display, TEXT("Used memory before allocating anything was %.2fMB"), SizeInMb);
 #endif
 
+	GMalloc = FMallocDoubleFreeFinder::OverrideIfEnabled(GMalloc);
 	return 0;
 }
 
@@ -631,13 +633,12 @@ void FMemory::RegisterPersistentAuxiliary(void* InMemory, SIZE_T InSize)
 	GPersistentAuxiliary = (uint8 *)InMemory;
 	GPersistentAuxiliaryEnd = GPersistentAuxiliary + InSize;
 }
-void* FMemory::MallocPersistentAuxiliary(SIZE_T InSize, SIZE_T InAlignment)
+void* FMemory::MallocPersistentAuxiliary(SIZE_T InSize, uint32 InAlignment)
 {
 	if (GPersistentAuxiliary != nullptr && GPersistentAuxiliaryEnabled)
 	{
-		SIZE_T Alignment = FMath::Max(InAlignment, (SIZE_T)16);
-		Alignment = FMath::Max(Alignment, (SIZE_T)16);
-		SIZE_T AlignedSize = Align(InSize, Alignment);
+		const uint32 Alignment = FMath::Max<uint32>(InAlignment, 16u);
+		const SIZE_T AlignedSize = Align(InSize, Alignment);
 		// 1st check if there is room, this is atomic but could still fail when actually incrementing the offset.
 		if (GPersistentAuxiliaryCurrentOffset + AlignedSize <= GPersistentAuxiliarySize)
 		{

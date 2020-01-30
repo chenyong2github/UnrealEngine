@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,11 +17,11 @@ struct FClothVertBoneData
 		FMemory::Memset(BoneWeights, 0, sizeof(BoneWeights));
 	}
 
-	// MAX_TOTAL_INFLUENCES = 8 is defined in GPUSkinPublicDefs.h, but that would 
+	// MAX_TOTAL_INFLUENCES = 12 is defined in GPUSkinPublicDefs.h, but that would 
 	// require a dependency on Engine, which we can't have here.  Until that can
 	// be migrated elsewhere (not to mention if), we make a redundant variable
 	// with an 8 in it, that needs to stay in sync with MAX_TOTAL_INFLUENCES.
-	static const int8 MaxTotalInfluences = 8;
+	static const int8 MaxTotalInfluences = 12;
 
 	// Number of influences for this vertex.
 	UPROPERTY()

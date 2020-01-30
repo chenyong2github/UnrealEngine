@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/AutomationEditorPromotionCommon.h"
 #include "Misc/AutomationTest.h"
@@ -193,7 +193,7 @@ void FEditorPromotionTestUtilities::SendCommandToCurrentEditor(const FInputChord
 */
 FString FEditorPromotionTestUtilities::GetPropertyByName(UObject* TargetObject, const FString& InVariableName)
 {
-	UProperty* FoundProperty = FindField<UProperty>(TargetObject->GetClass(), *InVariableName);
+	FProperty* FoundProperty = FindField<FProperty>(TargetObject->GetClass(), *InVariableName);
 	if (FoundProperty)
 	{
 		FString ValueString;
@@ -213,7 +213,7 @@ FString FEditorPromotionTestUtilities::GetPropertyByName(UObject* TargetObject, 
 */
 void FEditorPromotionTestUtilities::SetPropertyByName(UObject* TargetObject, const FString& InVariableName, const FString& NewValueString)
 {
-	UProperty* FoundProperty = FindField<UProperty>(TargetObject->GetClass(), *InVariableName);
+	FProperty* FoundProperty = FindField<FProperty>(TargetObject->GetClass(), *InVariableName);
 	if (FoundProperty)
 	{
 		const FScopedTransaction PropertyChanged(LOCTEXT("PropertyChanged", "Object Property Change"));
@@ -235,7 +235,14 @@ void FEditorPromotionTestUtilities::StartPIE(bool bSimulateInEditor)
 	FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	TSharedPtr<class IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 
-	GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+	FRequestPlaySessionParams SessionParams;
+	SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+	if (bSimulateInEditor)
+	{
+		SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+	}
+
+	GUnrealEd->RequestPlaySession(SessionParams);
 }
 
 /**

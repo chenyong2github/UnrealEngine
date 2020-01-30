@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,7 +7,7 @@
 
 
 /**
- * SetSpaceTransform is used to perform a change in the hierarchy by setting a single bone's transform.
+ * SetSpaceTransform is used to perform a change in the hierarchy by setting a single space's transform.
  */
 USTRUCT(meta=(DisplayName="Set Space", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetSpaceTransform"))
 struct FRigUnit_SetSpaceTransform : public FRigUnitMutable
@@ -15,7 +15,8 @@ struct FRigUnit_SetSpaceTransform : public FRigUnitMutable
 	GENERATED_BODY()
 
 	FRigUnit_SetSpaceTransform()
-		: SpaceType(EBoneGetterSetterMode::LocalSpace)
+		: Weight(1.f)
+		, SpaceType(EBoneGetterSetterMode::GlobalSpace)
 		, CachedSpaceIndex(INDEX_NONE)
 	{}
 
@@ -27,8 +28,14 @@ struct FRigUnit_SetSpaceTransform : public FRigUnitMutable
 	/**
 	 * The name of the Space to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, SpaceName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "SpaceName", Constant))
 	FName Space;
+
+	/**
+	 * The weight of the change - how much the change should be applied
+	 */
+	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
+	float Weight;
 
 	/**
 	 * The transform value to set for the given Space.

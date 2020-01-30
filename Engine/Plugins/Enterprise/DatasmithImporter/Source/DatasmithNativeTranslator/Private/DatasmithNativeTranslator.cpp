@@ -1,14 +1,14 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithNativeTranslator.h"
 
 #include "DatasmithAnimationElements.h"
 #include "DatasmithAnimationSerializer.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithMeshUObject.h"
 #include "DatasmithSceneSource.h"
 #include "DatasmithSceneXmlReader.h"
 #include "IDatasmithSceneElements.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "HAL/FileManager.h"
 #include "MeshDescriptionOperations.h"
@@ -16,7 +16,6 @@
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/StrongObjectPtr.h"
-
 
 
 void FDatasmithNativeTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -41,7 +41,7 @@ inline uint32 PointerHash(const void* Key,uint32 C = 0)
 	auto PtrInt = reinterpret_cast<UPTRINT>(Key);
 #endif
 
-	return HashCombine(PtrInt, C);
+	return HashCombine((uint32)PtrInt, C);
 }
 
 

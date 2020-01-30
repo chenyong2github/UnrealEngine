@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxAssetImportData.h"
 
@@ -32,7 +32,7 @@ void UFbxAssetImportData::LoadOptions()
 {
 	int32 PortFlags = 0;
 
-	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (!Property->HasAnyPropertyFlags(CPF_Config))
 		{
@@ -46,7 +46,7 @@ void UFbxAssetImportData::LoadOptions()
 
 		const FString& PropFileName = GEditorPerProjectIni;
 
-		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
+		FArrayProperty* Array = CastField<FArrayProperty>(Property);
 		if (Array)
 		{
 			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, 0, 1, *GEditorPerProjectIni);
@@ -126,7 +126,7 @@ void UFbxAssetImportData::SaveOptions()
 {
 	int32 PortFlags = 0;
 
-	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (!Property->HasAnyPropertyFlags(CPF_Config))
 		{
@@ -138,7 +138,7 @@ void UFbxAssetImportData::SaveOptions()
 		const bool bIsPropertyInherited = Property->GetOwnerClass() != GetClass();
 		UObject* SuperClassDefaultObject = GetClass()->GetSuperClass()->GetDefaultObject();
 
-		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
+		FArrayProperty* Array = CastField<FArrayProperty>(Property);
 		if (Array)
 		{
 			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, 1, 0, *GEditorPerProjectIni);

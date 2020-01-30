@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,8 +19,6 @@ namespace EActorCreateMode
 		/** Replace the actor that was last clicked on */
 		Replace,
 
-		/** Temp actor is attached to cursor & placed on click */
-		Placement,
 	};
 }
 

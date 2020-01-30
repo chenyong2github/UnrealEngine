@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Engine.h: Unreal engine public header file.
@@ -295,7 +295,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Engine/SkeletalMeshSocket.h"
 #include "Animation/Skeleton.h"
 #include "Sound/DialogueSoundWaveProxy.h"
-#include "Sound/SoundClass.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundGroups.h"
 #include "Sound/SoundMix.h"

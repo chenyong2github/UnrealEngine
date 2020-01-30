@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDConstraintContainer.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "Framework/BufferedData.h"
 
 #include <memory>
@@ -12,10 +13,25 @@
 #include "BoundingVolume.h"
 #include "AABBTree.h"
 
+// @todo(chaos): optimize and re-enable persistent constraints if we want it
+#define CHAOS_COLLISION_PERSISTENCE_ENABLED 0
+
 namespace Chaos
 {
 template<typename T, int d>
 class TPBDCollisionConstraints;
+
+template <typename T, int d>
+class TPBDCollisionConstraintHandle;
+
+template <typename T, int d>
+class TCollisionConstraintBase;
+
+template <typename T, int d>
+class TRigidBodyPointContactConstraint;
+
+template <typename T, int d>
+class TRigidBodyMultiPointContactConstraint;
 
 template <typename T, int d>
 class TRigidTransform;
@@ -26,7 +42,7 @@ template <typename T, int d>
 class TBVHParticles;
 
 template <typename T, int d>
-class TBox;
+class TAABB;
 
 template<class T>
 class TChaosPhysicsMaterial;
@@ -43,6 +59,9 @@ using TRigidBodyContactConstraintsPostApplyCallback = TFunction<void(const T Dt,
 template<typename T, int d>
 using TRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(const T Dt, const TArray<TPBDCollisionConstraintHandle<T, d>*>&, bool)>;
 
+template <typename T, int d>
+using TCollisionModifierCallback = TFunction<ECollisionModifierResult(const TPBDCollisionConstraintHandle<T, d>*)>;
+
 /**
  * A container and solver for collision constraints.
  */
@@ -57,26 +76,29 @@ public:
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintBase = TCollisionConstraintBase<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
-	using FIterativeContactConstraint = TRigidBodyIterativeContactConstraint<T, d>;
+	using FMultiPointContactConstraint = TRigidBodyMultiPointContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
 	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
+	using FCollisionModifier = TCollisionModifierCallback<T, d>;
 
 	TPBDCollisionConstraints(const TPBDRigidsSOAs<T,d>& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, 
-		const int32 ApplyPairIterations = 1, const int32 ApplyPushOutPairIterations = 1, const T Thickness = (T)0);
+		const int32 ApplyPairIterations = 1, const int32 ApplyPushOutPairIterations = 1, const T CullDistance = (T)0, const T ShapePadding = (T)0);
 
 	virtual ~TPBDCollisionConstraints() {}
 
 	/**
 	*  Add the constraint to the container. 
 	*
-	*  @todo(chaos) : Update to use a custom allocator. 
+	*  @todo(chaos) : Collision Constraints 
+	*  Update to use a custom allocator. 
 	*  The InConstraint should be a point to unmanaged, raw memory. 
 	*  This function will make a deep copy of the constraint and 
 	*  then delete the InConstraint. 
 	*/
-	void AddConstraint(FConstraintBase* InConstraint);
+	void AddConstraint(const TRigidBodyPointContactConstraint<FReal, 3>& InConstraint);
+	void AddConstraint(const TRigidBodyMultiPointContactConstraint<FReal, 3>& InConstraint);
 
 	/**
 	*  Reset the constraint frame. 
@@ -88,7 +110,7 @@ public:
 	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop,
 	 * so you don't have to worry about constraint iterator/indices changing.
 	 */
-	void ApplyCollisionModifier(const TFunction<ECollisionModifierResult(const FConstraintContainerHandle* Handle)>& CollisionModifier);
+	void ApplyCollisionModifier(const FCollisionModifier& CollisionModifier);
 
 
 	/**
@@ -125,6 +147,10 @@ public:
 	//
 	// General Rule API
 	//
+
+	void PrepareConstraints(FReal Dt) {}
+
+	void UnprepareConstraints(FReal Dt) {}
 
 	/**
 	 * Generate all contact constraints.
@@ -169,12 +195,37 @@ public:
 
 	bool Contains(const FConstraintBase* Base) const 
 	{
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
 		return Manifolds.Contains(FConstraintContainerHandle::MakeKey(Base));
+#else
+		return false;
+#endif
 	}
 
-	void SetThickness(T InThickness)
+	// @todo(chaos): remove
+	//void SetThickness(T InThickness)
+	//{
+	//	MCullDistance = InThickness;
+	//}
+
+	void SetCullDistance(T InCullDistance)
 	{
-		MThickness = InThickness;
+		MCullDistance = InCullDistance;
+	}
+
+	FReal GetCullDistance() const
+	{
+		return MCullDistance;
+	}
+
+	void SetShapePadding(T InShapePadding)
+	{
+		MShapePadding = InShapePadding;
+	}
+
+	FReal GetShapePadding() const
+	{
+		return MShapePadding;
 	}
 
 	void SetPairIterations(int32 InPairIterations)
@@ -213,17 +264,21 @@ public:
 
 
 protected:
-		using Base::GetConstraintIndex;
-		using Base::SetConstraintIndex;
+	using Base::GetConstraintIndex;
+	using Base::SetConstraintIndex;
+
+	void UpdateConstraintMaterialProperties(FConstraintBase& Contact);
 
 private:
 
 	const TPBDRigidsSOAs<T,d>& Particles;
 
 	TArray<FPointContactConstraint> PointConstraints;
-	TArray<FIterativeContactConstraint> IterativeConstraints;
+	TArray<FMultiPointContactConstraint> IterativeConstraints;
 
+#if CHAOS_COLLISION_PERSISTENCE_ENABLED
 	TMap< FConstraintContainerHandleKey, FConstraintContainerHandle* > Manifolds;
+#endif
 	TArray<FConstraintContainerHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
 
@@ -231,10 +286,12 @@ private:
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
 	int32 MApplyPairIterations;
 	int32 MApplyPushOutPairIterations;
-	T MThickness;	// @todo(ccaulfield) - COLLISION thickness - this should be used as shape padding (as opposed to broad/narrowphase thickness which is for speculative creation of constraints)
+	T MCullDistance;
+	T MShapePadding;
 	T MAngularFriction;
 	bool bUseCCD;
 	bool bEnableCollisions;
+	bool bEnableParallelFor;
 
 	int32 LifespanCounter;
 

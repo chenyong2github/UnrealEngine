@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,7 +22,7 @@ class UDisplayClusterEditorEngine
 public:
 	virtual void Init(IEngineLoop* InEngineLoop) override;
 	virtual void PreExit() override;
-	virtual void PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides = FPlayInEditorOverrides()) override;
+	virtual void StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams) override;
 	virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
 
 private:

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Vector.h"
@@ -264,7 +264,7 @@ namespace Chaos
 		 */
 		static TVector<float, 3> CalculateAngularVelocity(const TRotation<float, 3>& InR0, const TRotation<float, 3>& InR1, const float InDt)
 		{
-			return CalculateAngularVelocity2(InR0, InR1, InDt);
+			return CalculateAngularVelocity1(InR0, InR1, InDt);
 		}
 
 		/**

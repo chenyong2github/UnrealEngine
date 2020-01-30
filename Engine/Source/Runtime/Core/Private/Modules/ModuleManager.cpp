@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Modules/ModuleManager.h"
 #include "Misc/DateTime.h"
@@ -12,6 +12,9 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogModuleManager, Log, All);
 
@@ -71,8 +74,29 @@ FModuleManager& FModuleManager::Get()
 
 FModuleManager::FModuleManager()
 	: bCanProcessNewlyLoadedObjects(false)
+	, bExtraBinarySearchPathsAdded(false)
 {
 	check(IsInGameThread());
+
+#if !IS_MONOLITHIC
+	// Modules bootstrapping is useful to avoid costly directory enumeration by reloading
+	// a serialized state of the module manager. Can only be used when run in the exact
+	// same context multiple times (i.e. starting multiple shader compile workers)
+	FString ModulesBootstrapFilename;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ModulesBootstrap="), ModulesBootstrapFilename))
+	{
+		TArray<uint8> FileContent;
+		if (FFileHelper::LoadFileToArray(FileContent, *ModulesBootstrapFilename, FILEREAD_Silent))
+		{
+			FMemoryReader MemoryReader(FileContent, true);
+			SerializeStateForBootstrap_Impl(MemoryReader);
+		}
+		else
+		{
+			UE_LOG(LogModuleManager, Display, TEXT("Unable to bootstrap from archive %s, will fallback on normal initialization"), *ModulesBootstrapFilename);
+		}
+	}
+#endif
 }
 
 FModuleManager::~FModuleManager()
@@ -195,7 +219,7 @@ bool FindNewestModuleFile(TArray<FString>& FilesToSearch, const FDateTime& Newer
 
 		// Check the time stamp for this file
 		const FDateTime FoundFileTime = IFileManager::Get().GetTimeStamp(*FoundFilePath);
-		if (ensure(FoundFileTime != -1.0))
+		if (ensure(FoundFileTime != FDateTime::MinValue()))
 		{
 			// Was this file modified more recently than our others?
 			if (FoundFileTime > NewestFoundFileTime)
@@ -908,6 +932,60 @@ bool FModuleManager::HasAnyOverridenModuleFilename() const
 	}
 	return false;
 }
+
+void FModuleManager::SaveCurrentStateForBootstrap(const TCHAR* Filename)
+{
+	TArray<uint8> FileContent;
+	{
+		// Use FMemoryWriter because FileManager::CreateFileWriter doesn't serialize FName as string and is not overridable
+		FMemoryWriter MemoryWriter(FileContent, true);
+		FModuleManager::Get().SerializeStateForBootstrap_Impl(MemoryWriter);
+	}
+
+	FFileHelper::SaveArrayToFile(FileContent, Filename);
+}
+
+FArchive& operator<<(FArchive& Ar, FModuleManager& ModuleManager)
+{
+	Ar << ModuleManager.ModulePathsCache;
+	Ar << ModuleManager.PendingEngineBinariesDirectories;
+	Ar << ModuleManager.PendingGameBinariesDirectories;
+	Ar << ModuleManager.EngineBinariesDirectories;
+	Ar << ModuleManager.GameBinariesDirectories;
+	Ar << ModuleManager.bExtraBinarySearchPathsAdded;
+	Ar << ModuleManager.BuildId;
+	return Ar;
+}
+
+void FModuleManager::SerializeStateForBootstrap_Impl(FArchive& Ar)
+{
+	// This implementation is meant to stay private and be used for 
+	// bootstrapping another processes' module manager with a serialized state.
+	// It doesn't include any versioning as it is used with the
+	// the same binary executable for both the parent and 
+	// children processes. It also takes care or saving/restoring
+	// additional dll search directories.
+	TArray<FString> DllDirectories;
+	if (Ar.IsSaving())
+	{
+		TMap<FName, FString> OutModulePaths;
+		// Force any pending paths to be processed
+		FindModulePaths(TEXT("*"), OutModulePaths);
+
+		FPlatformProcess::GetDllDirectories(DllDirectories);
+	}
+
+	Ar << *this;
+	Ar << DllDirectories;
+
+	if (Ar.IsLoading())
+	{
+		for (const FString& DllDirectory : DllDirectories)
+		{
+			FPlatformProcess::AddDllDirectory(*DllDirectory);
+		}
+	}
+}
 #endif
 
 void FModuleManager::ResetModulePathsCache()
@@ -1084,8 +1162,7 @@ bool FModuleManager::LoadModuleWithCallback( const FName InModuleName, FOutputDe
 
 void FModuleManager::AddExtraBinarySearchPaths()
 {
-	static bool bAdded = false;
-	if (!bAdded)
+	if (!bExtraBinarySearchPathsAdded)
 	{
 		// Ensure that dependency dlls can be found in restricted sub directories
 		TArray<FString> RestrictedFolderNames = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist") };
@@ -1101,7 +1178,7 @@ void FModuleManager::AddExtraBinarySearchPaths()
 			}
 		}
 
-		bAdded = true;
+		bExtraBinarySearchPathsAdded = true;
 	}
 }
 

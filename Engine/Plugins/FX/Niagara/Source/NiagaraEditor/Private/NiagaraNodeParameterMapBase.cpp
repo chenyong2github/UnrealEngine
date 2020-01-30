@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeParameterMapBase.h"
 #include "EdGraphSchema_Niagara.h"
@@ -188,6 +188,13 @@ void UNiagaraNodeParameterMapBase::GetPinHoverText(const UEdGraphPin& Pin, FStri
 			}
 		}
 	}
+}
+
+void UNiagaraNodeParameterMapBase::SetPinName(UEdGraphPin* InPin, const FName& InName)
+{
+	FName OldName = InPin->PinName;
+	InPin->PinName = InName;
+	OnPinRenamed(InPin, OldName.ToString());
 }
 
 void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName)

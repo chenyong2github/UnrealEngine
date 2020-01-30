@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsSettingsDetails.h"
 #include "Misc/MessageDialog.h"
@@ -254,6 +254,7 @@ private:
 			}
 
 			PhysicsSettings->UpdateDefaultConfigFile();
+			PhysicsSettings->LoadSurfaceType();
 
 			PhysicalSurfacesProperty->NotifyPostChange();
 		}

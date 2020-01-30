@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -41,7 +41,7 @@ public:
 	FStringToken() : TokenStart(nullptr), TokenEnd(nullptr), LineNumber(0), CharacterIndex(0) {}
 
 	/** Get the string representation of this token */
-	FString GetString() const { return FString(TokenEnd - TokenStart, TokenStart); }
+	FString GetString() const { return FString((int32)(TokenEnd - TokenStart), TokenStart); }
 
 	/** Check if this token is valid */
 	bool IsValid() const { return TokenEnd != TokenStart; }

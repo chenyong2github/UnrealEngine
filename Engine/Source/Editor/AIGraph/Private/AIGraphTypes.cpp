@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AIGraphTypes.h"
 #include "UObject/Object.h"
@@ -12,6 +12,7 @@
 #include "Engine/Blueprint.h"
 #include "AssetData.h"
 #include "Editor.h"
+#include "ObjectEditorUtils.h"
 #include "Logging/MessageLog.h"
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
@@ -86,7 +87,7 @@ FString FGraphNodeClassData::GetDisplayName() const
 
 FText FGraphNodeClassData::GetCategory() const
 {
-	return Class.IsValid() ? Class->GetMetaDataText(TEXT("Category"), TEXT("UObjectCategory"), Class->GetFullGroupName(false)) : Category;
+	return Class.IsValid() ? FObjectEditorUtils::GetCategoryText(Class.Get()) : Category;
 }
 
 bool FGraphNodeClassData::IsAbstract() const

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNotifies/AnimNotifyState_TimedParticleEffect.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -103,7 +103,7 @@ FString UAnimNotifyState_TimedParticleEffect::GetNotifyName_Implementation() con
 }
 
 #if WITH_EDITOR
-void UAnimNotifyState_TimedParticleEffect::PreEditChange(UProperty* PropertyAboutToChange)
+void UAnimNotifyState_TimedParticleEffect::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if(PropertyAboutToChange)
 	{

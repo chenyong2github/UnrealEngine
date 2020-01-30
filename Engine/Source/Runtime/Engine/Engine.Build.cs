@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.IO;
@@ -20,6 +20,7 @@ public class Engine : ModuleRules
 				"Developer/DerivedDataCache/Public",
 				"Runtime/SynthBenchmark/Public",
 				"Runtime/Engine/Private",
+				"Runtime/Net/Core/Private/Net/Core/PushModel/Types"
 			}
 		);
 
@@ -108,6 +109,7 @@ public class Engine : ModuleRules
 				"AudioMixerCore",
 				"SignalProcessing",
 				"CrunchCompression",
+				"IntelISPC",
 				"TraceLog",
             }
 		);
@@ -253,6 +255,11 @@ public class Engine : ModuleRules
 				}
 			);
 
+			if (Target.bWithLiveCoding)
+			{
+				PrivateDependencyModuleNames.Add("LiveCoding");
+			}
+
 			PrivateDependencyModuleNames.Add("CollisionAnalyzer");
 			CircularlyReferencedDependentModules.Add("CollisionAnalyzer");
 
@@ -311,11 +318,6 @@ public class Engine : ModuleRules
 				"Advertising"
 			}
 		);
-
-		if(Target.bWithLiveCoding)
-		{
-			DynamicallyLoadedModuleNames.Add("LiveCoding");
-		}
 
 		if (Target.Type != TargetType.Server)
 		{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubmixEffects/AudioMixerSubmixEffectReverb.h"
 #include "AudioMixerEffectsManager.h"
@@ -98,7 +98,7 @@ void FSubmixEffectReverb::OnPresetChanged()
 
 	DryLevel = Settings.DryLevel;
 
-	SetEffectParameters(ReverbEffect);
+	SetParameters(ReverbEffect);
 }
 
 void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
@@ -171,26 +171,28 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 	}
 }
 
-void FSubmixEffectReverb::SetEffectParameters(const FAudioReverbEffect& InParams)
+bool FSubmixEffectReverb::SetParameters(const FAudioEffectParameters& InEffectParameters)
 {
 	LLM_SCOPE(ELLMTag::AudioMixer);
 
+	const FAudioReverbEffect& ReverbParams = static_cast<const FAudioReverbEffect&>(InEffectParameters);
+
 	Audio::FPlateReverbSettings NewSettings;
 
-	NewSettings.EarlyReflections.Gain = FMath::GetMappedRangeValueClamped({ 0.0f, 3.16f }, { 0.0f, 1.0f }, InParams.ReflectionsGain);
-	NewSettings.EarlyReflections.PreDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.3f }, { 0.0f, 300.0f }, InParams.ReflectionsDelay);
-	NewSettings.EarlyReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, InParams.GainHF);
+	NewSettings.EarlyReflections.Gain = FMath::GetMappedRangeValueClamped({ 0.0f, 3.16f }, { 0.0f, 1.0f }, ReverbParams.ReflectionsGain);
+	NewSettings.EarlyReflections.PreDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.3f }, { 0.0f, 300.0f }, ReverbParams.ReflectionsDelay);
+	NewSettings.EarlyReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, ReverbParams.GainHF);
 
-	NewSettings.LateDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.1f }, { 0.0f, 100.0f }, InParams.LateDelay);
-	NewSettings.LateGain = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, InParams.Gain);
-	NewSettings.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.2f, 0.999f }, InParams.AirAbsorptionGainHF);
-	NewSettings.Diffusion = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, InParams.Diffusion);
-	NewSettings.Dampening = FMath::GetMappedRangeValueClamped({ 0.1f, 2.0f }, { 0.0f, 0.999f }, InParams.DecayHFRatio);
-	NewSettings.Density = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.01f, 1.0f }, InParams.Density);
-	NewSettings.Wetness = FMath::GetMappedRangeValueClamped({ 0.0f, 10.0f }, { 0.0f, 10.0f }, InParams.Volume);
+	NewSettings.LateDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.1f }, { 0.0f, 100.0f }, ReverbParams.LateDelay);
+	NewSettings.LateGain = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, ReverbParams.Gain);
+	NewSettings.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.2f, 0.999f }, ReverbParams.AirAbsorptionGainHF);
+	NewSettings.Diffusion = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, ReverbParams.Diffusion);
+	NewSettings.Dampening = FMath::GetMappedRangeValueClamped({ 0.1f, 2.0f }, { 0.0f, 0.999f }, ReverbParams.DecayHFRatio);
+	NewSettings.Density = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.01f, 1.0f }, ReverbParams.Density);
+	NewSettings.Wetness = FMath::GetMappedRangeValueClamped({ 0.0f, 10.0f }, { 0.0f, 10.0f }, ReverbParams.Volume);
 
 	// Use mapping function to get decay time in seconds to internal linear decay scale value
-	const float DecayValue = DecayCurve.Eval(InParams.DecayTime);
+	const float DecayValue = DecayCurve.Eval(ReverbParams.DecayTime);
 	NewSettings.Decay = DecayValue;
 
 	// Convert to db
@@ -200,6 +202,8 @@ void FSubmixEffectReverb::SetEffectParameters(const FAudioReverbEffect& InParams
 	Params.SetParams(NewSettings);
 
 	bIsEnabled = true;
+
+	return true;
 }
 
 void FSubmixEffectReverb::UpdateParameters()

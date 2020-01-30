@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Components/PrimitiveComponent.h"
@@ -279,9 +279,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 						int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
 						Chaos::TCollisionData<float, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
-						const Chaos::TGeometryParticle<float, 3>* Particle1 = bSwapOrder ? CollisionDataItem.Particle : CollisionDataItem.Levelset;
-						UPrimitiveComponent* NewComp1 = Cast<UPrimitiveComponent>(Particle1->Proxy->GetOwner());
-						IPhysicsProxyBase* const PhysicsProxy1 = NewComp1 ? Scene->GetOwnedPhysicsProxy(NewComp1) : nullptr;
+						IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
 
 						if (HandlerSet.bLegacyComponentNotify)
 						{

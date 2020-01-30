@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -99,11 +99,11 @@ class UFoliageType : public UObject
 	virtual void SetSource(UObject* InSource) PURE_VIRTUAL(UFoliageType::SetSource, );
 	virtual void UpdateBounds() {}
 	/* Lets subclasses decide if the InstancedFoliageActor should reallocate its instances if the specified property change event occurs */
-	virtual bool IsFoliageReallocationRequiredForPropertyChange(const UProperty* Property) const { return true; }
+	virtual bool IsFoliageReallocationRequiredForPropertyChange(const FProperty* Property) const { return true; }
 
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool IsSourcePropertyChange(const UProperty* Property) const { return false; }
+	virtual bool IsSourcePropertyChange(const FProperty* Property) const { return false; }
 
 	/* Notifies all relevant foliage actors that HiddenEditorView mask has been changed */
 	FOLIAGE_API void OnHiddenEditorViewMaskChanged(UWorld* InWorld);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -170,6 +170,12 @@ struct CORE_API FGenericPlatformProcess
 
 	/** Unsets a directory to look for DLL files. The same directory must be passed in as the Push call to validate */
 	FORCEINLINE static void PopDllDirectory(const TCHAR* Directory)
+	{
+
+	}
+
+	/** Get the list of registered directories to search in when resolving implicitly loaded or filename-only DLLs. **/
+	FORCEINLINE static void GetDllDirectories(TArray<FString>& OutDllDirectories)
 	{
 
 	}

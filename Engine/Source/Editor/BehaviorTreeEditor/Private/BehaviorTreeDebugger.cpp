@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeDebugger.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 #include "EngineGlobals.h"
+#include "EdGraph/EdGraph.h"
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
 #include "BehaviorTree/BTNode.h"
@@ -28,6 +29,7 @@ FBehaviorTreeDebugger::FBehaviorTreeDebugger()
 	TreeAsset = NULL;
 	bIsPIEActive = false;
 	bIsCurrentSubtree = false;
+	StoppedOnBreakpointExecutionIndex = INDEX_NONE;
 	StepForwardIntoIdx = INDEX_NONE;
 	StepForwardOverIdx = INDEX_NONE;
 	StepBackIntoIdx = INDEX_NONE;
@@ -83,7 +85,7 @@ void FBehaviorTreeDebugger::Setup(UBehaviorTree* InTreeAsset, TSharedRef<FBehavi
 	TreeAsset = InTreeAsset;
 	DebuggerInstanceIndex = INDEX_NONE;
 	ActiveStepIndex = 0;
-	LastValidStepId = INDEX_NONE;
+	LastValidExecutionStepId = FBehaviorTreeExecutionStep::InvalidExecutionId;
 	ActiveBreakpoints.Reset();
 	KnownInstances.Reset();
 
@@ -118,12 +120,13 @@ void FBehaviorTreeDebugger::Refresh()
 				UpdateDebuggerViewOnStepChange();
 				UpdateDebuggerViewOnTick();
 
-				const FBehaviorTreeDebuggerInstance& ShowInstance = TreeInstance->DebuggerSteps[ActiveStepIndex].InstanceStack[DebuggerInstanceIndex];
+				FBehaviorTreeExecutionStep& ExecutionStep = TreeInstance->DebuggerSteps[ActiveStepIndex];
+				const FBehaviorTreeDebuggerInstance& ShowInstance = ExecutionStep.InstanceStack[DebuggerInstanceIndex];
 				OnActiveNodeChanged(ShowInstance.ActivePath, HasContinuousPrevStep() ?
 					TreeInstance->DebuggerSteps[ActiveStepIndex - 1].InstanceStack[DebuggerInstanceIndex].ActivePath :
 					TArray<uint16>());
 
-				UpdateAssetFlags(ShowInstance, RootNode.Get(), ActiveStepIndex);
+				UpdateAssetFlags(ShowInstance, RootNode.Get(), ExecutionStep.ExecutionStepId);
 			}
 		}
 	}
@@ -151,27 +154,39 @@ void FBehaviorTreeDebugger::Tick(float DeltaTime)
 	TArray<uint16> EmptyPath;
 
 	int32 TestStepIndex = 0;
-	for (int32 Idx = TreeInstance->DebuggerSteps.Num() - 1; Idx >= 0; Idx--)
+
+	if (LastValidExecutionStepId != FBehaviorTreeExecutionStep::InvalidExecutionId)
 	{
-		const FBehaviorTreeExecutionStep& Step = TreeInstance->DebuggerSteps[Idx];
-		if (Step.StepIndex == LastValidStepId)
+		for (int32 Idx = TreeInstance->DebuggerSteps.Num() - 1; Idx >= 0; Idx--)
 		{
-			TestStepIndex = Idx;
-			break;
+			const FBehaviorTreeExecutionStep& Step = TreeInstance->DebuggerSteps[Idx];
+			if (Step.ExecutionStepId == LastValidExecutionStepId)
+			{
+				TestStepIndex = Idx;
+				break;
+			}
 		}
 	}
+
+	// Keep track if an update of the debugger instance is required after processing changes from displayed step to latest step
+	// since it is possible the current instance gets invalidated (e.g. subtree) and that resets the current index. In such case
+	// we need to wait for the next tick to recompute ActiveStepIndex and LastValidExecutionStepId.
+	bool bDebuggerInstanceUpdateRequired = true;
 
 	// find index of previously displayed state and notify about all changes in between to give breakpoints a chance to trigger
 	for (int32 i = TestStepIndex; i < TreeInstance->DebuggerSteps.Num(); i++)
 	{
 		const FBehaviorTreeExecutionStep& Step = TreeInstance->DebuggerSteps[i];
-		if (Step.StepIndex > DisplayedStepIndex)
+
+		if (Step.ExecutionStepId > DisplayedExecutionStepId)
 		{
 			ActiveStepIndex = i;
-			LastValidStepId = Step.StepIndex;
+			LastValidExecutionStepId = Step.ExecutionStepId;
 
 			UpdateDebuggerInstance();
 			UpdateAvailableActions();
+
+			bDebuggerInstanceUpdateRequired = false;
 
 			if (DebuggerInstanceIndex != INDEX_NONE)
 			{
@@ -191,21 +206,31 @@ void FBehaviorTreeDebugger::Tick(float DeltaTime)
 		}
 	}
 
-	UpdateDebuggerInstance();
+	if (bDebuggerInstanceUpdateRequired)
+	{
+		UpdateDebuggerInstance();
+	}
+
 	if (DebuggerInstanceIndex != INDEX_NONE)
 	{
-		const FBehaviorTreeDebuggerInstance& ShowInstance = TreeInstance->DebuggerSteps[ActiveStepIndex].InstanceStack[DebuggerInstanceIndex];
+		FBehaviorTreeExecutionStep& ExecutionStep = TreeInstance->DebuggerSteps[ActiveStepIndex];
+		const FBehaviorTreeDebuggerInstance& ShowInstance = ExecutionStep.InstanceStack[DebuggerInstanceIndex];
 
-		if (DisplayedStepIndex != TreeInstance->DebuggerSteps[ActiveStepIndex].StepIndex)
+		if (DisplayedExecutionStepId != ExecutionStep.ExecutionStepId)
 		{
-			UpdateAssetFlags(ShowInstance, RootNode.Get(), ActiveStepIndex);
+			UpdateAssetFlags(ShowInstance, RootNode.Get(), ExecutionStep.ExecutionStepId);
 		}
+		
+		// Collect current runtime descriptions for every node when displaying the most recent step.
+		// Otherwise we keep the descriptions from the displayed debugger step that were updated by UpdateAssetFlags.
+		int32 LatestStepIndex = TreeInstance->DebuggerSteps.Num() - 1;
+		if (ActiveStepIndex == LatestStepIndex)
+		{
+			TArray<FString> RuntimeDescriptions;
+			TreeInstance->StoreDebuggerRuntimeValues(RuntimeDescriptions, ShowInstance.RootNode, DebuggerInstanceIndex);
 
-		// collect current runtime descriptions for every node
-		TArray<FString> RuntimeDescriptions;
-		TreeInstance->StoreDebuggerRuntimeValues(RuntimeDescriptions, ShowInstance.RootNode, DebuggerInstanceIndex);
-	
-		UpdateAssetRuntimeDescription(RuntimeDescriptions, RootNode.Get());
+			UpdateAssetRuntimeDescription(RuntimeDescriptions, RootNode.Get());
+		}
 	}
 
 	UpdateDebuggerViewOnTick();
@@ -258,7 +283,7 @@ void FBehaviorTreeDebugger::OnEndPIE(const bool bIsSimulating)
 	ActiveBreakpoints.Reset();
 
 	FBehaviorTreeDebuggerInstance EmptyData;
-	UpdateAssetFlags(EmptyData, RootNode.Get(), INDEX_NONE);
+	UpdateAssetFlags(EmptyData, RootNode.Get(), FBehaviorTreeExecutionStep::InvalidExecutionId);
 	UpdateDebuggerViewOnInstanceChange();
 }
 
@@ -324,16 +349,16 @@ void FBehaviorTreeDebugger::OnTreeStarted(const UBehaviorTreeComponent& OwnerCom
 
 void FBehaviorTreeDebugger::ClearDebuggerState(bool bKeepSubtree)
 {
-	LastValidStepId = bKeepSubtree ? LastValidStepId : INDEX_NONE;
+	LastValidExecutionStepId = bKeepSubtree ? LastValidExecutionStepId : FBehaviorTreeExecutionStep::InvalidExecutionId;
+	DisplayedExecutionStepId = FBehaviorTreeExecutionStep::InvalidExecutionId;
 
 	DebuggerInstanceIndex = INDEX_NONE;
 	ActiveStepIndex = 0;
-	DisplayedStepIndex = INDEX_NONE;
 
 	if (TreeAsset && RootNode.IsValid())
 	{
 		FBehaviorTreeDebuggerInstance EmptyData;
-		UpdateAssetFlags(EmptyData, RootNode.Get(), INDEX_NONE);
+		UpdateAssetFlags(EmptyData, RootNode.Get(), FBehaviorTreeExecutionStep::InvalidExecutionId);
 	}
 }
 
@@ -374,7 +399,7 @@ void FBehaviorTreeDebugger::SetNodeFlags(const struct FBehaviorTreeDebuggerInsta
 	const bool bIsNodeActive = bIsNodeActivePath || bIsNodeActiveAdditional;
 	const bool bIsShowingCurrentState = IsShowingCurrentState();
 
-	Node->DebuggerUpdateCounter = DisplayedStepIndex;
+	Node->DebuggerUpdateCounter = DisplayedExecutionStepId;
 	Node->bDebuggerMarkCurrentlyActive = bIsNodeActive && bIsShowingCurrentState;
 	Node->bDebuggerMarkPreviouslyActive = bIsNodeActive && !bIsShowingCurrentState;
 	
@@ -436,7 +461,7 @@ void FBehaviorTreeDebugger::SetCompositeDecoratorFlags(const struct FBehaviorTre
 		}
 	}	
 	
-	Node->DebuggerUpdateCounter = DisplayedStepIndex;
+	Node->DebuggerUpdateCounter = DisplayedExecutionStepId;
 	Node->bDebuggerMarkCurrentlyActive = bIsNodeActive && bIsShowingCurrentState;
 	Node->bDebuggerMarkPreviouslyActive = bIsNodeActive && !bIsShowingCurrentState;
 
@@ -474,7 +499,7 @@ void FBehaviorTreeDebugger::SetCompositeDecoratorFlags(const struct FBehaviorTre
 	Node->DebuggerSearchPathSize = Data.PathFromPrevious.Num() - NumTriggers;
 }
 
-void FBehaviorTreeDebugger::UpdateAssetFlags(const struct FBehaviorTreeDebuggerInstance& Data, class UBehaviorTreeGraphNode* Node, int32 StepIdx)
+void FBehaviorTreeDebugger::UpdateAssetFlags(const struct FBehaviorTreeDebuggerInstance& Data, class UBehaviorTreeGraphNode* Node, int32 ExecutionStepId)
 {
 	if (Node == NULL)
 	{
@@ -484,12 +509,12 @@ void FBehaviorTreeDebugger::UpdateAssetFlags(const struct FBehaviorTreeDebuggerI
 	// special case for marking root when out of nodes
 	if (Node == RootNode.Get())
 	{
-		const bool bIsNodeActive = (Data.ActivePath.Num() == 0) && (StepIdx >= 0);
+		const bool bIsNodeActive = (Data.ActivePath.Num() == 0) && (ExecutionStepId != FBehaviorTreeExecutionStep::InvalidExecutionId);
 		const bool bIsShowingCurrentState = IsShowingCurrentState();
 
 		Node->bDebuggerMarkCurrentlyActive = bIsNodeActive && bIsShowingCurrentState;
 		Node->bDebuggerMarkPreviouslyActive = bIsNodeActive && !bIsShowingCurrentState;
-		DisplayedStepIndex = StepIdx;
+		DisplayedExecutionStepId = ExecutionStepId;
 	}
 
 	for (int32 PinIdx = 0; PinIdx < Node->Pins.Num(); PinIdx++)
@@ -549,7 +574,7 @@ void FBehaviorTreeDebugger::UpdateAssetFlags(const struct FBehaviorTreeDebuggerI
 					}
 				}
 
-				UpdateAssetFlags(Data, LinkedNode, StepIdx);
+				UpdateAssetFlags(Data, LinkedNode, ExecutionStepId);
 			}
 		}
 	}
@@ -940,14 +965,14 @@ void FBehaviorTreeDebugger::UpdateCurrentStep(int32 PrevStepIdx, int32 NewStepId
 		if (NewStepInfo.InstanceStack.IsValidIndex(DebuggerInstanceIndex))
 		{
 			const FBehaviorTreeDebuggerInstance& ShowInstance = NewStepInfo.InstanceStack[DebuggerInstanceIndex];
-			UpdateAssetFlags(ShowInstance, RootNode.Get(), ActiveStepIndex);
+			UpdateAssetFlags(ShowInstance, RootNode.Get(), NewStepInfo.ExecutionStepId);
 		}
 		else
 		{
 			ActiveStepIndex = INDEX_NONE;
 
 			FBehaviorTreeDebuggerInstance EmptyData;
-			UpdateAssetFlags(EmptyData, RootNode.Get(), INDEX_NONE);
+			UpdateAssetFlags(EmptyData, RootNode.Get(), FBehaviorTreeExecutionStep::InvalidExecutionId);
 		}
 
 		UpdateDebuggerViewOnStepChange();
@@ -996,8 +1021,13 @@ bool FBehaviorTreeDebugger::HasContinuousPrevStep() const
 
 void FBehaviorTreeDebugger::OnActiveNodeChanged(const TArray<uint16>& ActivePath, const TArray<uint16>& PrevStepPath)
 {
+	StoppedOnBreakpointExecutionIndex = INDEX_NONE;
+	if (ActiveBreakpoints.Num() == 0)
+	{
+		return;
+	}
+
 	bool bShouldPause = false;
-	StoppedOnBreakpointExecutionIndex = MAX_uint16;
 	
 	// breakpoints: check only nodes, that have changed from previous state
 	// (e.g. breakpoint on sequence, it would break multiple times for every child
@@ -1300,11 +1330,14 @@ void FBehaviorTreeDebugger::InitializeFromParent(class FBehaviorTreeDebugger* Pa
 	UpdateAvailableActions();
 
 	if (TreeInstance.IsValid() &&
-		TreeInstance->DebuggerSteps.IsValidIndex(ActiveStepIndex) &&
-		TreeInstance->DebuggerSteps[ActiveStepIndex].InstanceStack.IsValidIndex(DebuggerInstanceIndex))
+		TreeInstance->DebuggerSteps.IsValidIndex(ActiveStepIndex))
 	{
-		const FBehaviorTreeDebuggerInstance& ShowInstance = TreeInstance->DebuggerSteps[ActiveStepIndex].InstanceStack[DebuggerInstanceIndex];
-		UpdateAssetFlags(ShowInstance, RootNode.Get(), ActiveStepIndex);
+		FBehaviorTreeExecutionStep& ExecutionStep = TreeInstance->DebuggerSteps[ActiveStepIndex];
+		if (ExecutionStep.InstanceStack.IsValidIndex(DebuggerInstanceIndex))
+		{
+			const FBehaviorTreeDebuggerInstance& ShowInstance = ExecutionStep.InstanceStack[DebuggerInstanceIndex];
+			UpdateAssetFlags(ShowInstance, RootNode.Get(), ExecutionStep.ExecutionStepId);
+		}
 	}
 #endif
 }

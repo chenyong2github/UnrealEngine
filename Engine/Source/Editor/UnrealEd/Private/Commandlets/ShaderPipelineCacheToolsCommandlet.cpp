@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/ShaderPipelineCacheToolsCommandlet.h"
 #include "Misc/Paths.h"
@@ -9,6 +9,7 @@
 #include "ShaderPipelineCache.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "HAL/PlatformFilemanager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogShaderPipelineCacheTools, Log, All);
 
@@ -16,8 +17,16 @@ const TCHAR* STABLE_CSV_EXT = TEXT("stablepc.csv");
 const TCHAR* STABLE_CSV_COMPRESSED_EXT = TEXT("stablepc.csv.compressed");
 const TCHAR* STABLE_COMPRESSED_EXT = TEXT(".compressed");
 const int32  STABLE_COMPRESSED_EXT_LEN = 11; // len of ".compressed";
-const int32  STABLE_COMPRESSED_VER = 1;
+const int32  STABLE_COMPRESSED_VER = 2;
+const int64  STABLE_MAX_CHUNK_SIZE = MAX_int32 - 100 * 1024 * 1024;
 
+struct FSCDataChunk
+{
+	FSCDataChunk() : UncomressedOutputLines(), OutputLinesAr(UncomressedOutputLines) {}
+
+	TArray<uint8> UncomressedOutputLines;
+	FMemoryWriter OutputLinesAr;
+};
 
 void ExpandWildcards(TArray<FString>& Parts)
 {
@@ -56,7 +65,7 @@ void ExpandWildcards(TArray<FString>& Parts)
 }
 
 
-void LoadStableSCL(TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap, const FString& Filename)
+void LoadStableSCL(TMultiMap<int32, FSHAHash>& StableMap, TArray<FStableShaderKeyAndValue>& StableArray, const FString& Filename)
 {
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loading %s...."), *Filename);
 	TArray<FString> SourceFileContents;
@@ -70,7 +79,8 @@ void LoadStableSCL(TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap, con
 			FMemory::Memzero(Item);
 			Item.ParseFromString(SourceFileContents[Index]);
 			check(!(Item.OutputHash == FSHAHash()));
-			StableMap.AddUnique(Item, Item.OutputHash);
+			int32 ItemIndex = StableArray.Add(Item);
+			StableMap.AddUnique(ItemIndex, Item.OutputHash);
 		}
 	}
 	if (SourceFileContents.Num() < 1)
@@ -81,7 +91,7 @@ void LoadStableSCL(TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap, con
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loaded %d shader info lines"), SourceFileContents.Num() - 1);
 }
 
-static bool LoadAndDecompressStableCSV(const FString& Filename, TArray<uint8>& UncompressedData)
+static bool LoadAndDecompressStableCSV(const FString& Filename, TArray<FString>& OutputLines)
 {
 	bool bResult = false;
 	FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename);
@@ -90,22 +100,41 @@ static bool LoadAndDecompressStableCSV(const FString& Filename, TArray<uint8>& U
 		if (Ar->TotalSize() > 8)
 		{
 			int32 CompressedVersion = 0;
-			int32 UncompressedSize = 0;
-			int32 CompressedSize = 0;
+			int32 NumChunks = 1;
 			
 			Ar->Serialize(&CompressedVersion, sizeof(int32));
-			Ar->Serialize(&UncompressedSize, sizeof(int32));
-			Ar->Serialize(&CompressedSize, sizeof(int32));
-			
-			TArray<uint8> CompressedData;
-			CompressedData.SetNumUninitialized(CompressedSize);
-			Ar->Serialize(CompressedData.GetData(), CompressedSize);
-
-			UncompressedData.SetNumUninitialized(UncompressedSize);
-			bResult = FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedSize, CompressedData.GetData(), CompressedSize);
-			if (!bResult)
+			if (CompressedVersion > 1)
 			{
-				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Failed to decompress file %s"), *Filename);
+				Ar->Serialize(&NumChunks, sizeof(int32));
+			}
+
+			for (int32 Index = 0; Index < NumChunks; ++Index)
+			{
+				int32 UncompressedSize = 0;
+				int32 CompressedSize = 0;
+
+				Ar->Serialize(&UncompressedSize, sizeof(int32));
+				Ar->Serialize(&CompressedSize, sizeof(int32));
+
+				TArray<uint8> CompressedData;
+				CompressedData.SetNumUninitialized(CompressedSize);
+				Ar->Serialize(CompressedData.GetData(), CompressedSize);
+
+				TArray<uint8> UncompressedData;
+				UncompressedData.SetNumUninitialized(UncompressedSize);
+				bResult = FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedSize, CompressedData.GetData(), CompressedSize);
+				if (!bResult)
+				{
+					UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Failed to decompress file %s"), *Filename);
+				}
+
+				FMemoryReader MemArchive(UncompressedData);
+				FString LineCSV;
+				while (!MemArchive.AtEnd())
+				{
+					MemArchive << LineCSV;
+					OutputLines.Add(LineCSV);
+				}
 			}
 		}
 		else
@@ -128,16 +157,8 @@ static bool LoadStableCSV(const FString& Filename, TArray<FString>& OutputLines)
 	bool bResult = false;
 	if (Filename.EndsWith(STABLE_CSV_COMPRESSED_EXT))
 	{
-		TArray<uint8> DecompressedData;
-		if (LoadAndDecompressStableCSV(Filename, DecompressedData))
+		if (LoadAndDecompressStableCSV(Filename, OutputLines))
 		{
-			FMemoryReader MemArchive(DecompressedData);
-			FString LineCSV;
-			while (!MemArchive.AtEnd())
-			{
-				MemArchive << LineCSV;
-				OutputLines.Add(LineCSV);
-			}
 			bResult = true;
 		}
 	}
@@ -149,42 +170,69 @@ static bool LoadStableCSV(const FString& Filename, TArray<FString>& OutputLines)
 	return bResult;
 }
 
-static int64 SaveStableCSV(const FString& Filename, const TArray<uint8>& UncompressedData)
+static int64 SaveStableCSV(const FString& Filename, const FSCDataChunk* DataChunks, int32 NumChunks)
 {
 	if (Filename.EndsWith(STABLE_CSV_COMPRESSED_EXT))
 	{
-		int32 UncompressedSize = UncompressedData.Num();
-		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Compressing output, size = %.1fKB"), UncompressedSize/1024.f);
-		int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, UncompressedSize);
-		TArray<uint8> CompressedData;
-		CompressedData.SetNumZeroed(CompressedSize);
+		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Compressing output, %d chunks"), NumChunks);
 
-		if (FCompression::CompressMemory(NAME_Zlib, CompressedData.GetData(), CompressedSize, UncompressedData.GetData(), UncompressedSize))
+		struct FSCCompressedChunk
 		{
-			FArchive* Ar = IFileManager::Get().CreateFileWriter(*Filename);
-			if (!Ar)
+			FSCCompressedChunk(int32 UncompressedSize)
 			{
-				UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to open %s"), *Filename);
-				return -1;
+				CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, UncompressedSize);
+				CompressedData.SetNumZeroed(CompressedSize);
 			}
-			
-			int32 CompressedVersion = STABLE_COMPRESSED_VER;
-			
-			Ar->Serialize(&CompressedVersion, sizeof(int32));
-			Ar->Serialize(&UncompressedSize, sizeof(int32));
-			Ar->Serialize(&CompressedSize, sizeof(int32));
-			Ar->Serialize(CompressedData.GetData(), CompressedSize);
-			delete Ar;
-		}
-		else
+
+			TArray<uint8> CompressedData;
+			int32 CompressedSize;
+		};
+
+		TArray<FSCCompressedChunk> CompressedChunks;
+
+		for (int32 Index = 0; Index < NumChunks; ++Index)
 		{
-			UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to compress (%.1f KB)"), UncompressedSize/1024.f);
+			const FSCDataChunk& Chunk = DataChunks[Index];
+			CompressedChunks.Add(FSCCompressedChunk(Chunk.UncomressedOutputLines.Num()));
+
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Compressing chunk %d, size = %.1fKB"), Index, Chunk.UncomressedOutputLines.Num() / 1024.f);
+			if (FCompression::CompressMemory(NAME_Zlib, CompressedChunks[Index].CompressedData.GetData(), CompressedChunks[Index].CompressedSize, Chunk.UncomressedOutputLines.GetData(), Chunk.UncomressedOutputLines.Num()) == false)
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to compress chunk %d (%.1f KB)"), Index, Chunk.UncomressedOutputLines.Num() / 1024.f);
+			}
+		}
+
+		FArchive* Ar = IFileManager::Get().CreateFileWriter(*Filename);
+		if (!Ar)
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to open %s"), *Filename);
 			return -1;
 		}
+			
+		int32 CompressedVersion = STABLE_COMPRESSED_VER;
+			
+		Ar->Serialize(&CompressedVersion, sizeof(int32));
+		Ar->Serialize(&NumChunks, sizeof(int32));
+
+		for (int32 Index = 0; Index < NumChunks; ++Index)
+		{
+			int32 UncompressedSize = DataChunks[Index].UncomressedOutputLines.Num();
+			int32 CompressedSize = CompressedChunks[Index].CompressedSize;
+			Ar->Serialize(&UncompressedSize, sizeof(int32));
+			Ar->Serialize(&CompressedSize, sizeof(int32));
+			Ar->Serialize(CompressedChunks[Index].CompressedData.GetData(), CompressedSize);
+		}
+
+		delete Ar;
 	}
 	else
 	{
-		FMemoryReader MemArchive(UncompressedData);
+		if (NumChunks > 1)
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("SaveStableCSV does not support saving uncompressed files larger than 2GB."));
+		}
+
+		FMemoryReader MemArchive(DataChunks[0].UncomressedOutputLines);
 		FString CombinedCSV;
 		FString LineCSV;
 		while (!MemArchive.AtEnd())
@@ -293,7 +341,7 @@ int32 DumpPSOSC(FString& Token)
 	return 0;
 }
 
-static void PrintShaders(const TMap<FSHAHash, TArray<FStableShaderKeyAndValue>>& InverseMap, const FSHAHash& Shader, const TCHAR *Label)
+static void PrintShaders(const TMap<FSHAHash, TArray<int32>>& InverseMap, TArray<FStableShaderKeyAndValue>& StableArray, const FSHAHash& Shader, const TCHAR *Label)
 {
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT(" -- %s"), Label);
 
@@ -302,25 +350,25 @@ static void PrintShaders(const TMap<FSHAHash, TArray<FStableShaderKeyAndValue>>&
 		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    null"));
 		return;
 	}
-	const TArray<FStableShaderKeyAndValue>* Out = InverseMap.Find(Shader);
+	const TArray<int32>* Out = InverseMap.Find(Shader);
 	if (!Out)
 	{
 		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    No shaders found with hash %s"), *Shader.ToString());
 		return;
 	}
-	for (const FStableShaderKeyAndValue& Item : *Out)
+	for (const int32& Item : *Out)
 	{
-		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    %s"), *Item.ToString());
+		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    %s"), *StableArray[Item].ToString());
 	}
 }
 
-static bool GetStableShadersAndZeroHash(const TMap<FSHAHash, TArray<FStableShaderKeyAndValue>>& InverseMap, const FSHAHash& Shader, TArray<FStableShaderKeyAndValue>& StableShaders, bool& bOutAnyActiveButMissing)
+static bool GetStableShadersAndZeroHash(const TMap<FSHAHash, TArray<int32>>& InverseMap, TArray<FStableShaderKeyAndValue>& StableArray, const FSHAHash& Shader, TArray<int32>& StableShaders, bool& bOutAnyActiveButMissing)
 {
 	if (Shader == FSHAHash())
 	{
 		return false;
 	}
-	const TArray<FStableShaderKeyAndValue>* Out = InverseMap.Find(Shader);
+	const TArray<int32>* Out = InverseMap.Find(Shader);
 	if (!Out)
 	{
 		UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("No shaders found with hash %s"), *Shader.ToString());
@@ -329,17 +377,17 @@ static bool GetStableShadersAndZeroHash(const TMap<FSHAHash, TArray<FStableShade
 		return false;
 	}
 	StableShaders.Reserve(Out->Num());
-	for (const FStableShaderKeyAndValue& Item : *Out)
+	for (const int32& Item : *Out)
 	{
-		FStableShaderKeyAndValue Temp = Item;
+		FStableShaderKeyAndValue Temp = StableArray[Item];
 		Temp.OutputHash = FSHAHash();
-		if (StableShaders.Contains(Temp))
+		if (StableShaders.Contains(Item))
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Duplicate stable shader. This is bad because it means our stable key is not exhaustive."));
-			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT(" %s"), *Item.ToString());
+			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT(" %s"), *Temp.ToString());
 			continue;
 		}
-		StableShaders.Add(Temp);
+		StableShaders.Add(Item);
 	}
 	return true;
 }
@@ -389,13 +437,13 @@ bool CouldBeUsedTogether(const FStableShaderKeyAndValue& A, const FStableShaderK
 
 int32 DumpSCLCSV(const FString& Token)
 {
-
-	TMultiMap<FStableShaderKeyAndValue, FSHAHash> StableMap;
-	LoadStableSCL(StableMap, Token);
+	TArray<FStableShaderKeyAndValue> StableArray;
+	TMultiMap<int32, FSHAHash> StableMap;
+	LoadStableSCL(StableMap, StableArray, Token);
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    %s"), *FStableShaderKeyAndValue::HeaderLine());
 	for (const auto& Pair : StableMap)
 	{
-		FStableShaderKeyAndValue Temp(Pair.Key);
+		FStableShaderKeyAndValue Temp(StableArray[Pair.Key]);
 		Temp.OutputHash = Pair.Value;
 		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("    %s"), *Temp.ToString());
 	}
@@ -419,7 +467,7 @@ struct FPermuation
 	FStableShaderKeyAndValue Slots[SF_NumFrequencies];
 };
 
-void GeneratePermuations(TArray<FPermuation>& Permutations, FPermuation& WorkingPerm, int32 SlotIndex , const TArray<FStableShaderKeyAndValue> StableShadersPerSlot[SF_NumFrequencies], const bool ActivePerSlot[SF_NumFrequencies])
+void GeneratePermuations(TArray<FPermuation>& Permutations, FPermuation& WorkingPerm, int32 SlotIndex , const TArray<int32> StableShadersPerSlot[SF_NumFrequencies], const TArray<FStableShaderKeyAndValue>& StableArray, const bool ActivePerSlot[SF_NumFrequencies])
 {
 	check(SlotIndex >= 0 && SlotIndex <= SF_NumFrequencies);
 	while (SlotIndex < SF_NumFrequencies && !ActivePerSlot[SlotIndex])
@@ -442,7 +490,7 @@ void GeneratePermuations(TArray<FPermuation>& Permutations, FPermuation& Working
 				continue;
 			}
 			check(SlotIndex != SF_Compute && SlotIndexInner != SF_Compute); // there is never any matching with compute shaders
-			if (!CouldBeUsedTogether(StableShadersPerSlot[SlotIndex][StableIndex], WorkingPerm.Slots[SlotIndexInner]))
+			if (!CouldBeUsedTogether(StableArray[StableShadersPerSlot[SlotIndex][StableIndex]], WorkingPerm.Slots[SlotIndexInner]))
 			{
 				bKeep = false;
 				break;
@@ -452,20 +500,21 @@ void GeneratePermuations(TArray<FPermuation>& Permutations, FPermuation& Working
 		{
 			continue;
 		}
-		WorkingPerm.Slots[SlotIndex] = StableShadersPerSlot[SlotIndex][StableIndex];
-		GeneratePermuations(Permutations, WorkingPerm, SlotIndex + 1, StableShadersPerSlot, ActivePerSlot);
+		WorkingPerm.Slots[SlotIndex] = StableArray[StableShadersPerSlot[SlotIndex][StableIndex]];
+		GeneratePermuations(Permutations, WorkingPerm, SlotIndex + 1, StableShadersPerSlot, StableArray, ActivePerSlot);
 	}
 }
 
 int32 ExpandPSOSC(const TArray<FString>& Tokens)
 {
-	TMultiMap<FStableShaderKeyAndValue, FSHAHash> StableMap;
+	TArray<FStableShaderKeyAndValue> StableArray;
+	TMultiMap<int32, FSHAHash> StableMap;
 	check(Tokens.Last().EndsWith(STABLE_CSV_EXT) || Tokens.Last().EndsWith(STABLE_CSV_COMPRESSED_EXT));
 	for (int32 Index = 0; Index < Tokens.Num() - 1; Index++)
 	{
 		if (Tokens[Index].EndsWith(TEXT(".scl.csv")))
 		{
-			LoadStableSCL(StableMap, Tokens[Index]);
+			LoadStableSCL(StableMap, StableArray, Tokens[Index]);
 		}
 	}
 	if (!StableMap.Num())
@@ -478,7 +527,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("    %s"), *FStableShaderKeyAndValue::HeaderLine());
 		for (const auto& Pair : StableMap)
 		{
-			FStableShaderKeyAndValue Temp(Pair.Key);
+			FStableShaderKeyAndValue Temp(StableArray[Pair.Key]);
 			Temp.OutputHash = Pair.Value;
 			UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("    %s"), *Temp.ToString());
 		}
@@ -486,7 +535,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 	//self test
 	for (const auto& Pair : StableMap)
 	{
-		FStableShaderKeyAndValue Item(Pair.Key);
+		FStableShaderKeyAndValue Item(StableArray[Pair.Key]);
 		Item.OutputHash = Pair.Value;
 		check(Pair.Value != FSHAHash());
 		FString TestString = Item.ToString();
@@ -568,7 +617,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 
 		for (const auto& Pair : StableMap)
 		{
-			FStableShaderKeyAndValue Temp(Pair.Key);
+			FStableShaderKeyAndValue Temp(StableArray[Pair.Key]);
 			Temp.OutputHash = Pair.Value;
 			InverseMap.FindOrAdd(Pair.Value).Add(Temp.ToString());
 		}
@@ -595,13 +644,12 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			}
 		}
 	}
-	TMap<FSHAHash, TArray<FStableShaderKeyAndValue>> InverseMap;
+
+	TMap<FSHAHash, TArray<int32>> InverseMap;
 
 	for (const auto& Pair : StableMap)
 	{
-		FStableShaderKeyAndValue Item(Pair.Key);
-		Item.OutputHash = Pair.Value;
-		InverseMap.FindOrAdd(Item.OutputHash).AddUnique(Item);
+		InverseMap.FindOrAdd(Pair.Value).AddUnique(Pair.Key);
 	}
 
 	int32 TotalStablePSOs = 0;
@@ -631,22 +679,22 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 	{ 
 		NumExamined++;
 		check(SF_Vertex == 0 && SF_Compute == 5);
-		TArray<FStableShaderKeyAndValue> StableShadersPerSlot[SF_NumFrequencies];
+		TArray<int32> StableShadersPerSlot[SF_NumFrequencies];
 		bool ActivePerSlot[SF_NumFrequencies] = { false };
 
 		bool OutAnyActiveButMissing = false;
 
 		if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute)
 		{
-			ActivePerSlot[SF_Compute] = GetStableShadersAndZeroHash(InverseMap, Item.ComputeDesc.ComputeShader, StableShadersPerSlot[SF_Compute], OutAnyActiveButMissing);
+			ActivePerSlot[SF_Compute] = GetStableShadersAndZeroHash(InverseMap, StableArray, Item.ComputeDesc.ComputeShader, StableShadersPerSlot[SF_Compute], OutAnyActiveButMissing);
 		}
 		else
 		{
-			ActivePerSlot[SF_Vertex] = GetStableShadersAndZeroHash(InverseMap, Item.GraphicsDesc.VertexShader, StableShadersPerSlot[SF_Vertex], OutAnyActiveButMissing);
-			ActivePerSlot[SF_Pixel] = GetStableShadersAndZeroHash(InverseMap, Item.GraphicsDesc.FragmentShader, StableShadersPerSlot[SF_Pixel], OutAnyActiveButMissing);
-			ActivePerSlot[SF_Geometry] = GetStableShadersAndZeroHash(InverseMap, Item.GraphicsDesc.GeometryShader, StableShadersPerSlot[SF_Geometry], OutAnyActiveButMissing);
-			ActivePerSlot[SF_Hull] = GetStableShadersAndZeroHash(InverseMap, Item.GraphicsDesc.HullShader, StableShadersPerSlot[SF_Hull], OutAnyActiveButMissing);
-			ActivePerSlot[SF_Domain] = GetStableShadersAndZeroHash(InverseMap, Item.GraphicsDesc.DomainShader, StableShadersPerSlot[SF_Domain], OutAnyActiveButMissing);
+			ActivePerSlot[SF_Vertex] = GetStableShadersAndZeroHash(InverseMap, StableArray, Item.GraphicsDesc.VertexShader, StableShadersPerSlot[SF_Vertex], OutAnyActiveButMissing);
+			ActivePerSlot[SF_Pixel] = GetStableShadersAndZeroHash(InverseMap, StableArray, Item.GraphicsDesc.FragmentShader, StableShadersPerSlot[SF_Pixel], OutAnyActiveButMissing);
+			ActivePerSlot[SF_Geometry] = GetStableShadersAndZeroHash(InverseMap, StableArray, Item.GraphicsDesc.GeometryShader, StableShadersPerSlot[SF_Geometry], OutAnyActiveButMissing);
+			ActivePerSlot[SF_Hull] = GetStableShadersAndZeroHash(InverseMap, StableArray, Item.GraphicsDesc.HullShader, StableShadersPerSlot[SF_Hull], OutAnyActiveButMissing);
+			ActivePerSlot[SF_Domain] = GetStableShadersAndZeroHash(InverseMap, StableArray, Item.GraphicsDesc.DomainShader, StableShadersPerSlot[SF_Domain], OutAnyActiveButMissing);
 		}
 
 
@@ -655,16 +703,16 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("PSO had an active shader slot that did not match any current shaders, ignored."));
 			if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute)
 			{
-				PrintShaders(InverseMap, Item.ComputeDesc.ComputeShader, TEXT("ComputeShader"));
+				PrintShaders(InverseMap, StableArray, Item.ComputeDesc.ComputeShader, TEXT("ComputeShader"));
 			}
 			else
 			{
 				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("   %s"), *Item.GraphicsDesc.StateToString());
-				PrintShaders(InverseMap, Item.GraphicsDesc.VertexShader, TEXT("VertexShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.FragmentShader, TEXT("FragmentShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.GeometryShader, TEXT("GeometryShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.HullShader, TEXT("HullShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.DomainShader, TEXT("DomainShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.VertexShader, TEXT("VertexShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.FragmentShader, TEXT("FragmentShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.GeometryShader, TEXT("GeometryShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.HullShader, TEXT("HullShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.DomainShader, TEXT("DomainShader"));
 			}
 			continue;
 		}
@@ -694,7 +742,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 						bool bFoundCompat = false;
 						for (int32 StableIndexInner = 0; StableIndexInner < StableShadersPerSlot[SlotIndexInner].Num(); StableIndexInner++)
 						{
-							if (CouldBeUsedTogether(StableShadersPerSlot[SlotIndex][StableIndex], StableShadersPerSlot[SlotIndexInner][StableIndexInner]))
+							if (CouldBeUsedTogether(StableArray[StableShadersPerSlot[SlotIndex][StableIndex]], StableArray[StableShadersPerSlot[SlotIndexInner][StableIndexInner]]))
 							{
 								bFoundCompat = true;
 								break;
@@ -728,11 +776,11 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("PSO did not create any stable PSOs! (no cross shader slot compatibility)"));
 				UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("   %s"), *Item.GraphicsDesc.StateToString());
 
-				PrintShaders(InverseMap, Item.GraphicsDesc.VertexShader, TEXT("VertexShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.FragmentShader, TEXT("FragmentShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.GeometryShader, TEXT("GeometryShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.HullShader, TEXT("HullShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.DomainShader, TEXT("DomainShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.VertexShader, TEXT("VertexShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.FragmentShader, TEXT("FragmentShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.GeometryShader, TEXT("GeometryShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.HullShader, TEXT("HullShader"));
+				PrintShaders(InverseMap, StableArray, Item.GraphicsDesc.DomainShader, TEXT("DomainShader"));
 
 				continue;
 			}
@@ -750,7 +798,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 
 		TArray<FPermuation>& Permutations(Current.Permutations);
 		FPermuation WorkingPerm;
-		GeneratePermuations(Permutations, WorkingPerm, 0, StableShadersPerSlot, ActivePerSlot);
+		GeneratePermuations(Permutations, WorkingPerm, 0, StableShadersPerSlot, StableArray, ActivePerSlot);
 		if (!Permutations.Num())
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("PSO did not create any stable PSOs! (somehow)"));
@@ -770,10 +818,11 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		return 1;
 	}
 
+
 	int32 NumLines = 0;
-	TArray<uint8> UncomressedOutputLines;
-	FMemoryWriter OutputLinesAr(UncomressedOutputLines);
-	TSet<FString> DeDup;
+	FSCDataChunk DataChunks[16];
+	int32 CurrentChunk = 0;
+	TSet<uint32> DeDup;
 
 	{
 		FString PSOLine = FString::Printf(TEXT("\"%s\""), *FPipelineCacheFileFormatPSO::CommonHeaderLine());
@@ -783,7 +832,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			PSOLine += FString::Printf(TEXT(",\"shaderslot%d: %s\""), SlotIndex, *FStableShaderKeyAndValue::HeaderLine());
 		}
 
-		OutputLinesAr << PSOLine;
+		DataChunks[CurrentChunk].OutputLinesAr << PSOLine;
 		NumLines++;
 	}
 
@@ -853,11 +902,15 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				}
 			}
 
-
-			if (!DeDup.Contains(PSOLine))
+			const uint32 PSOLineHash = FCrc::MemCrc32(PSOLine.GetCharArray().GetData(), sizeof(TCHAR) * PSOLine.Len());
+			if (!DeDup.Contains(PSOLineHash))
 			{
-				DeDup.Add(PSOLine);
-				OutputLinesAr << PSOLine;
+				DeDup.Add(PSOLineHash);
+				if (DataChunks[CurrentChunk].OutputLinesAr.TotalSize() + (int64)((PSOLine.Len() + 1) * sizeof(TCHAR)) >= STABLE_MAX_CHUNK_SIZE)
+				{
+					++CurrentChunk;
+				}
+				DataChunks[CurrentChunk].OutputLinesAr << PSOLine;
 				NumLines++;
 			}
 		}
@@ -897,7 +950,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		}
 	}
 
-	int64 FileSize = SaveStableCSV(OutputFilename, UncomressedOutputLines);
+	int64 FileSize = SaveStableCSV(OutputFilename, DataChunks, CurrentChunk + 1);
 	if (FileSize < 1)
 	{
 		return 1;
@@ -966,14 +1019,15 @@ void BuildDateSortedListOfFiles(const TArray<FString>& TokenList, FilenameFilter
 
 int32 BuildPSOSC(const TArray<FString>& Tokens)
 {
-	TMultiMap<FStableShaderKeyAndValue, FSHAHash> StableMap;
+	TArray<FStableShaderKeyAndValue> StableArray;
+	TMultiMap<int32, FSHAHash> StableMap;
 	check(Tokens.Last().EndsWith(TEXT(".upipelinecache")));
 
 	for (int32 Index = 0; Index < Tokens.Num() - 1; Index++)
 	{
 		if (Tokens[Index].EndsWith(TEXT(".scl.csv")))
 		{
-			LoadStableSCL(StableMap, Tokens[Index]);
+			LoadStableSCL(StableMap, StableArray, Tokens[Index]);
 		}
 	}
 	if (UE_LOG_ACTIVE(LogShaderPipelineCacheTools, Verbose))
@@ -981,7 +1035,7 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 		UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("    %s"), *FStableShaderKeyAndValue::HeaderLine());
 		for (const auto& Pair : StableMap)
 		{
-			FStableShaderKeyAndValue Temp(Pair.Key);
+			FStableShaderKeyAndValue Temp(StableArray[Pair.Key]);
 			Temp.OutputHash = Pair.Value;
 			UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("    %s"), *Temp.ToString());
 		}
@@ -989,7 +1043,7 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 	//self test
 	for (const auto& Pair : StableMap)
 	{
-		FStableShaderKeyAndValue Item(Pair.Key);
+		FStableShaderKeyAndValue Item(StableArray[Pair.Key]);
 		Item.OutputHash = Pair.Value;
 		check(Pair.Value != FSHAHash());
 		FString TestString = Item.ToString();
@@ -1089,19 +1143,21 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 
 				FSHAHash Match;
 				int32 Count = 0;
-				for (auto Iter = StableMap.CreateConstKeyIterator(Shader); Iter; ++Iter)
+				for (auto Iter : StableArray)
 				{
-					check(Iter.Value() != FSHAHash());
-					Match = Iter.Value();
-					if (TargetPlatform == NAME_None)
+					if (Iter == Shader)
 					{
-						TargetPlatform = Iter.Key().TargetPlatform;
+						Match = Iter.OutputHash;
+						if (TargetPlatform == NAME_None)
+						{
+							TargetPlatform = Iter.TargetPlatform;
+						}
+						else
+						{
+							check(TargetPlatform == Iter.TargetPlatform);
+						}
+						Count++;
 					}
-					else
-					{
-						check(TargetPlatform == Iter.Key().TargetPlatform);
-					}
-					Count++;
 				}
 
 				if (!Count)
@@ -1404,7 +1460,7 @@ int32 DiffStable(const TArray<FString>& Tokens)
 
 int32 DecompressCSV(const TArray<FString>& Tokens)
 {
-	TArray<uint8> DecompressedData;
+	TArray<FString> DecompressedData;
 	for (int32 TokenIndex = 0; TokenIndex < Tokens.Num(); TokenIndex++)
 	{
 		const FString& CompressedFilename = Tokens[TokenIndex];
@@ -1417,17 +1473,22 @@ int32 DecompressCSV(const TArray<FString>& Tokens)
 		DecompressedData.Reset();
 		if (LoadAndDecompressStableCSV(CompressedFilename, DecompressedData))
 		{
-			FMemoryReader MemArchive(DecompressedData);
-			FString LineCSV;
-			while (!MemArchive.AtEnd())
+			FString FilenameCSV = CompressedFilename.LeftChop(STABLE_COMPRESSED_EXT_LEN);
+			FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*FilenameCSV);
+
+			for (const FString& LineCSV : DecompressedData)
 			{
-				MemArchive << LineCSV;
 				CombinedCSV.Append(LineCSV);
 				CombinedCSV.Append(LINE_TERMINATOR);
+
+				if ((int64)(CombinedCSV.Len() * sizeof(TCHAR)) >= (int64)(MAX_int32 - 1024 * 1024))
+				{
+					FFileHelper::SaveStringToFile(CombinedCSV, *FilenameCSV, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
+					CombinedCSV.Empty();
+				}
 			}
 
-			FString FilenameCSV = CompressedFilename.LeftChop(STABLE_COMPRESSED_EXT_LEN);
-			FFileHelper::SaveStringToFile(CombinedCSV, *FilenameCSV);
+			FFileHelper::SaveStringToFile(CombinedCSV, *FilenameCSV, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
 		}
 	}
 

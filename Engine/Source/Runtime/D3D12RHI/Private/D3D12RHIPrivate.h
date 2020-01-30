@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D12RHIPrivate.h: Private D3D RHI definitions.
@@ -297,6 +297,7 @@ public:
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIIndexBuffer* IndexBuffer, uint8 Format) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIStructuredBuffer* StructuredBuffer) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) final override;
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIIndexBuffer* Buffer) final override;
 	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) final override;
 	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer) final override;
@@ -437,9 +438,11 @@ public:
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint8 Format);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format);
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D);
 
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format);
+	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer);
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer);
 	virtual FTextureCubeRHIRef RHICreateTextureCube_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo);
 	virtual FTextureCubeRHIRef RHICreateTextureCubeArray_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo);
@@ -1177,5 +1180,26 @@ private:
 #define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
 
 #endif
+
+
+#define EMBED_DXGI_ERROR_LIST(PerEntry, Terminator)	\
+	PerEntry(DXGI_ERROR_UNSUPPORTED) Terminator \
+	PerEntry(DXGI_ERROR_NOT_CURRENT) Terminator \
+	PerEntry(DXGI_ERROR_MORE_DATA) Terminator \
+	PerEntry(DXGI_ERROR_MODE_CHANGE_IN_PROGRESS) Terminator \
+	PerEntry(DXGI_ERROR_ALREADY_EXISTS) Terminator \
+	PerEntry(DXGI_ERROR_SESSION_DISCONNECTED) Terminator \
+	PerEntry(DXGI_ERROR_ACCESS_DENIED) Terminator \
+	PerEntry(DXGI_ERROR_NON_COMPOSITED_UI) Terminator \
+	PerEntry(DXGI_ERROR_CACHE_FULL) Terminator \
+	PerEntry(DXGI_ERROR_NOT_CURRENTLY_AVAILABLE) Terminator \
+	PerEntry(DXGI_ERROR_CACHE_CORRUPT) Terminator \
+	PerEntry(DXGI_ERROR_WAIT_TIMEOUT) Terminator \
+	PerEntry(DXGI_ERROR_FRAME_STATISTICS_DISJOINT) Terminator \
+	PerEntry(DXGI_ERROR_DYNAMIC_CODE_POLICY_VIOLATION) Terminator \
+	PerEntry(DXGI_ERROR_REMOTE_OUTOFMEMORY) Terminator \
+	PerEntry(DXGI_ERROR_ACCESS_LOST) Terminator
+
+
 
 #endif //!PLATFORM_XBOXONE

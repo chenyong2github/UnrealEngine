@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -32,7 +32,7 @@ class BLUEPRINTGRAPH_API UBlueprintVariableNodeSpawner : public UBlueprintFieldN
 public:
 	/**
 	 * Creates a new UBlueprintVariableNodeSpawner, charged with spawning 
-	 * a member-variable node (for a variable that has an associated UProperty) 
+	 * a member-variable node (for a variable that has an associated FProperty) 
 	 * 
 	 * @param  NodeClass	The node type that you want the spawner to spawn.
 	 * @param  VarProperty	The property that represents the member-variable you want nodes spawned for.
@@ -40,7 +40,7 @@ public:
 	 * @param  OwnerClass	The class that the variable is a member of or the class it is associated with if it is in a sidecar data structure.
 	 * @return A newly allocated instance of this class.
 	 */
-	static UBlueprintVariableNodeSpawner* CreateFromMemberOrParam(TSubclassOf<UK2Node_Variable> NodeClass, UProperty const* VarProperty, UEdGraph* VarContext = nullptr, UClass* OwnerClass = nullptr);
+	static UBlueprintVariableNodeSpawner* CreateFromMemberOrParam(TSubclassOf<UK2Node_Variable> NodeClass, FProperty const* VarProperty, UEdGraph* VarContext = nullptr, UClass* OwnerClass = nullptr);
 
 	/**
 	 * Creates a new UBlueprintVariableNodeSpawner, charged with spawning
@@ -53,7 +53,7 @@ public:
 	 * @param  Outer		Optional outer for the new spawner (if left null, the transient package will be used).
 	 * @return A newly allocated instance of this class.
 	 */
-	static UBlueprintVariableNodeSpawner* CreateFromLocal(TSubclassOf<UK2Node_Variable> NodeClass, UEdGraph* VarContext, FBPVariableDescription const& VarDesc, UProperty* VarProperty, UObject* Outer = nullptr);
+	static UBlueprintVariableNodeSpawner* CreateFromLocal(TSubclassOf<UK2Node_Variable> NodeClass, UEdGraph* VarContext, FBPVariableDescription const& VarDesc, FProperty* VarProperty, UObject* Outer = nullptr);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -82,7 +82,7 @@ public:
 	 * 
 	 * @return Null if the variable is no longer valid, otherwise an object pointer to the variable's owner.
 	 */
-	UObject const* GetVarOuter() const;
+	FFieldVariant GetVarOuter() const;
 
 	/**
 	 * Accessor to the variable's property. Will be null if this is for a local 
@@ -90,12 +90,12 @@ public:
 	 * 
 	 * @return Null if this wraps a local variable (or if the variable property is stale), otherwise the property this was initialized with. 
 	 */
-	UProperty const* GetVarProperty() const;
+	FProperty const* GetVarProperty() const;
 
 	/**
 	 * Utility function for easily accessing the variable's type (needs to pull
 	 * the information differently if it is a local variable as opposed to a
-	 * member variable with a UProperty).
+	 * member variable with a FProperty).
 	 * 
 	 * @return A struct detailing the wrapped variable's type.
 	 */
@@ -105,7 +105,7 @@ private:
 	/**
 	 * Utility function for easily accessing the variable's name (needs to pull
 	 * the information differently if it is a local variable as opposed to a
-	 * member variable with a UProperty).
+	 * member variable with a FProperty).
 	 * 
 	 * @return A friendly, user presentable, name for the variable that this wraps. 
 	 */

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -10,7 +10,7 @@
 #			define UE_TRACE_ENABLED	1
 #		endif
 #	endif
-#endif // !IS_PROGRAM
+#endif
 
 #if !defined(UE_TRACE_ENABLED)
 #	define UE_TRACE_ENABLED 0

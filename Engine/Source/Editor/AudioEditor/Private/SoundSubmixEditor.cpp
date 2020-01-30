@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundSubmixEditor.h"
 
@@ -131,11 +131,11 @@ void FSoundSubmixEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<IT
 		FGenericCommands::Get().Redo,
 		FExecuteAction::CreateSP(this, &FSoundSubmixEditor::RedoGraphAction));
 
-	USoundSubmixGraph* SoundSubmixGraph = CastChecked<USoundSubmixGraph>(FBlueprintEditorUtils::CreateNewGraph(SoundSubmix, NAME_None, USoundSubmixGraph::StaticClass(), USoundSubmixGraphSchema::StaticClass()));
-	SoundSubmixGraph->SetRootSoundSubmix(SoundSubmix);
+		USoundSubmixGraph* SoundSubmixGraph = CastChecked<USoundSubmixGraph>(FBlueprintEditorUtils::CreateNewGraph(SoundSubmix, NAME_None, USoundSubmixGraph::StaticClass(), USoundSubmixGraphSchema::StaticClass()));
+		SoundSubmixGraph->SetRootSoundSubmix(SoundSubmix);
 
-	SoundSubmix->SoundSubmixGraph = SoundSubmixGraph;
-	SoundSubmixGraph->RebuildGraph();
+		SoundSubmix->SoundSubmixGraph = SoundSubmixGraph;
+		SoundSubmixGraph->RebuildGraph();
 
 	CreateInternalWidgets(SoundSubmix);
 
@@ -466,23 +466,23 @@ void FSoundSubmixEditor::AddMissingEditableSubmixes()
 	if (UEdGraph* Graph = GraphEditor->GetCurrentGraph())
 	{
 		bool bChanged = false;
-		if (Graph->Nodes.Num() > GetEditingObjects().Num())
+	if (Graph->Nodes.Num() > GetEditingObjects().Num())
+	{
+		for (UEdGraphNode* Node : Graph->Nodes)
 		{
-			for (UEdGraphNode* Node : Graph->Nodes)
+			USoundSubmixGraphNode* GraphNode = CastChecked<USoundSubmixGraphNode>(Node);
+			USoundSubmix* UntrackedSubmix = GraphNode->SoundSubmix;
+			if (UntrackedSubmix && !GetEditingObjects().Contains(UntrackedSubmix))
 			{
-				USoundSubmixGraphNode* GraphNode = CastChecked<USoundSubmixGraphNode>(Node);
-				USoundSubmix* UntrackedSubmix = GraphNode->SoundSubmix;
-				if (UntrackedSubmix && !GetEditingObjects().Contains(UntrackedSubmix))
-				{
 					bChanged = true;
-					AddEditingObject(UntrackedSubmix);
-				}
+				AddEditingObject(UntrackedSubmix);
 			}
 		}
+	}
 
 		if (bChanged)
 		{
-			GraphEditor->NotifyGraphChanged();
+	GraphEditor->NotifyGraphChanged();
 		}
 	}
 }

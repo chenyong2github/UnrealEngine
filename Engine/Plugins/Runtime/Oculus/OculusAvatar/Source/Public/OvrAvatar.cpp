@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OvrAvatar.h"
 #include "OvrAvatarManager.h"
@@ -1406,7 +1406,7 @@ void UOvrAvatar::LoadMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMeshAssetD
 	LodRenderData->Sections.SetNumUninitialized(SubmeshCount);
 #else
 	TArray<FColor> ColorArray;
-	TArray<TSkinWeightInfo<true>> InWeights;
+	TArray<FSkinWeightInfo> InWeights;
 	InWeights.AddUninitialized(data->vertexCount);
 	TMap<int32, TArray<int32>> OverlappingVertices;
 
@@ -1612,7 +1612,7 @@ void UOvrAvatar::LoadMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMeshAssetD
 	}
 #else
 	LodRenderData->StaticVertexBuffers.ColorVertexBuffer.InitFromColorArray(ColorArray);
-	LodRenderData->SkinWeightVertexBuffer.SetHasExtraBoneInfluences(true);
+	LodRenderData->SkinWeightVertexBuffer.SetMaxBoneInfluences(EXTRA_BONE_INFLUENCES);
 	LodRenderData->SkinWeightVertexBuffer = InWeights;
 	LodRenderData->MultiSizeIndexContainer.CreateIndexBuffer(sizeof(uint16_t));
 
@@ -2458,7 +2458,7 @@ void UOvrAvatar::LoadCombinedMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMe
 	UE_LOG(LogAvatars, Display, TEXT("[Mesh] - Submesh Count: %d"), SubmeshCount);
 
 	TArray<FColor> ColorArray;
-	TArray<TSkinWeightInfo<true>> InWeights;
+	TArray<FSkinWeightInfo> InWeights;
 	InWeights.AddUninitialized(TotalVertCount);
 	TMap<int32, TArray<int32>> OverlappingVertices;
 	bool SumMeshVertexOffsetFlag = false;
@@ -2583,7 +2583,7 @@ void UOvrAvatar::LoadCombinedMesh(USkeletalMesh* SkeletalMesh, const ovrAvatarMe
 	UE_LOG(LogAvatars, Display, TEXT("[Mesh] Loading Indicies"));
 
 	LodRenderData->StaticVertexBuffers.ColorVertexBuffer.InitFromColorArray(ColorArray);
-	LodRenderData->SkinWeightVertexBuffer.SetHasExtraBoneInfluences(true);
+	LodRenderData->SkinWeightVertexBuffer.SetMaxBoneInfluences(EXTRA_BONE_INFLUENCES);
 	LodRenderData->SkinWeightVertexBuffer = InWeights;
 	LodRenderData->MultiSizeIndexContainer.CreateIndexBuffer(sizeof(uint16_t));
 

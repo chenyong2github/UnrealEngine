@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -32,4 +32,15 @@ public:
 	{
 		return A.IsValid() && B.IsValid() && (*A).Equals(*B);
 	}
+};
+
+class TRACEINSIGHTS_API ITimingEventFilter
+{
+public:
+	virtual const FName& GetTypeName() const = 0;
+
+	virtual bool FilterTrack(const FBaseTimingTrack& InTrack) const = 0;
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName = nullptr, uint64 InEventType = 0, uint32 InEventColor = 0) const = 0;
+
+	virtual uint32 GetChangeNumber() const = 0;
 };

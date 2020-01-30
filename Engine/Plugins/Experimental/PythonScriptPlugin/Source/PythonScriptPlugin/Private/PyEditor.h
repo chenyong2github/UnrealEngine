@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,6 +43,7 @@ typedef TPyPtr<FPyScopedEditorTransaction> FPyScopedEditorTransactionPtr;
 namespace PyEditor
 {
 	void InitializeModule();
+	void ShutdownModule();
 }
 
 #endif	// WITH_EDITOR

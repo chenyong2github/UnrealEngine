@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	IOSPlatformMisc.mm: iOS implementations of misc functions
@@ -844,6 +844,11 @@ void FIOSPlatformMisc::RequestStoreReview()
 		[SKStoreReviewController requestReview];
 	}
 #endif
+}
+
+bool FIOSPlatformMisc::IsUpdateAvailable()
+{
+	return [[IOSAppDelegate GetDelegate] IsUpdateAvailable];
 }
 
 /**

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,14 +20,6 @@ public:
     
     FIOSChunkInstall();
     virtual ~FIOSChunkInstall();
-    
-    /**
-     * Get the current location of a chunk.
-     *
-     * @param ChunkID The id of the chunk to check.
-     * @return Enum specifying whether the chunk is available to use, waiting to install, or does not exist.
-     */
-    virtual EChunkLocation::Type GetChunkLocation( uint32 ChunkID ) override;
     
     /**
      * Check if a given reporting type is supported.
@@ -79,6 +71,14 @@ public:
     virtual bool DebugStartNextChunk( ) override;
 
 private:
+
+	/**
+	 * Get the current location of a chunk.
+	 *
+	 * @param ChunkID The id of the chunk to check.
+	 * @return Enum specifying whether the chunk is available to use, waiting to install, or does not exist.
+	 */
+	virtual EChunkLocation::Type GetChunkLocation(uint32 ChunkID) override;
     
     /**
      * Get the current location of a chunk.

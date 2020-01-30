@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Serialization/MemoryWriter.h"
@@ -22,8 +22,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTextPropertyTest, "System.Engine.International
 bool FTextPropertyTest::RunTest (const FString& Parameters)
 {
 	UClass* const TextPropertyTestObjectClass = UTextPropertyTestObject::StaticClass();
-	UTextProperty* const DefaultedTextProperty = FindField<UTextProperty>(TextPropertyTestObjectClass, "DefaultedText");
-	UTextProperty* const UndefaultedTextProperty = FindField<UTextProperty>(TextPropertyTestObjectClass, "UndefaultedText");
+	FTextProperty* const DefaultedTextProperty = FindField<FTextProperty>(TextPropertyTestObjectClass, "DefaultedText");
+	FTextProperty* const UndefaultedTextProperty = FindField<FTextProperty>(TextPropertyTestObjectClass, "UndefaultedText");
 	UTextPropertyTestObject* const TextPropertyTestCDO = Cast<UTextPropertyTestObject>( TextPropertyTestObjectClass->ClassDefaultObject );
 
 	{
@@ -34,7 +34,7 @@ bool FTextPropertyTest::RunTest (const FString& Parameters)
 			||
 			(UndefaultedTextProperty->Identical(&(NewUObject->UndefaultedText), &(TextPropertyTestCDO->UndefaultedText), 0) != true))
 		{
-			AddError(TEXT("UTextProperty::Identical failed to return true comparing a newly constructed object and the class default object."));
+			AddError(TEXT("FTextProperty::Identical failed to return true comparing a newly constructed object and the class default object."));
 		}
 
 		// Test ExportText - Export text should provide the localized form of the text.
@@ -45,7 +45,7 @@ bool FTextPropertyTest::RunTest (const FString& Parameters)
 			FTextStringHelper::ReadFromBuffer(*ExportedStringValue, ExportedTextValue);
 			if (ExportedTextValue.ToString() != NewUObject->DefaultedText.ToString())
 			{
-				AddError(TEXT("UTextProperty::ExportTextItem failed to provide the display string."));
+				AddError(TEXT("FTextProperty::ExportTextItem failed to provide the display string."));
 			}
 		}
 
@@ -56,7 +56,7 @@ bool FTextPropertyTest::RunTest (const FString& Parameters)
 			const FString* const SourceString = FTextInspector::GetSourceString(NewUObject->DefaultedText);
 			if( !SourceString || ImportedStringValue != *SourceString )
 			{
-				AddError(TEXT("UTextProperty::ImportText failed to alter the source string to the provided value."));
+				AddError(TEXT("FTextProperty::ImportText failed to alter the source string to the provided value."));
 			}
 		}
 	}
@@ -73,7 +73,7 @@ bool FTextPropertyTest::RunTest (const FString& Parameters)
 			UndefaultedTextProperty->Identical(&(NewUObject->UndefaultedText), &(TextPropertyTestCDO->UndefaultedText), 0)
 		  )
 		{
-			AddError(TEXT("UTextProperty::Identical failed to return false comparing a modified object and the class default object."));
+			AddError(TEXT("FTextProperty::Identical failed to return false comparing a modified object and the class default object."));
 		}
 	}
 
@@ -90,7 +90,7 @@ bool FTextPropertyTest::RunTest (const FString& Parameters)
 		// Test Identical - Text properties with the same source as class default object properties should be considered identical. 
 		if( !( DefaultedTextProperty->Identical(&(SavedObject->DefaultedText), &(TextPropertyTestCDO->DefaultedText), 0) ) )
 		{
-			AddError(TEXT("UTextProperty::Identical failed to return true comparing an FText with an identical source string to the class default object."));
+			AddError(TEXT("FTextProperty::Identical failed to return true comparing an FText with an identical source string to the class default object."));
 		}
 
 		// Save.
@@ -120,7 +120,7 @@ bool FTextPropertyTest::RunTest (const FString& Parameters)
 		// Test Identical - Text properties with the same source as the class default object property should save and load as the class default object property.
 		if( !( DefaultedTextProperty->Identical(&(LoadedObject->DefaultedText), &(TextPropertyTestCDO->DefaultedText), 0) ) )
 		{
-			AddError(TEXT("UTextProperty::Identical failed to collapse identical source strings into the same namespace and key during serialization."));
+			AddError(TEXT("FTextProperty::Identical failed to collapse identical source strings into the same namespace and key during serialization."));
 		}
 
 		// Test Transient - Transient text properties should save out an error message instead of their actual string value

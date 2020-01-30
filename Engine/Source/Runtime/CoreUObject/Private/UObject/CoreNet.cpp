@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnCoreNet.cpp: Core networking support.
@@ -22,12 +22,12 @@ FClassNetCache::FClassNetCache( const UClass* InClass ) : Class( InClass )
 {
 }
 
-void FClassNetCacheMgr::SortProperties( TArray< UProperty* >& Properties ) const
+void FClassNetCacheMgr::SortProperties( TArray< FProperty* >& Properties ) const
 {
 	// Sort NetProperties so that their ClassReps are sorted by memory offset
 	struct FCompareUFieldOffsets
 	{
-		FORCEINLINE bool operator()( UProperty & A, UProperty & B ) const
+		FORCEINLINE bool operator()( FProperty & A, FProperty & B ) const
 		{
 			// Ensure stable sort
 			if ( A.GetOffset_ForGC() == B.GetOffset_ForGC() )
@@ -45,9 +45,9 @@ void FClassNetCacheMgr::SortProperties( TArray< UProperty* >& Properties ) const
 uint32 FClassNetCacheMgr::SortedStructFieldsChecksum( const UStruct* Struct, uint32 Checksum ) const
 {
 	// Generate a list that we can sort, to make sure we process these deterministically
-	TArray< UProperty * > Fields;
+	TArray< FProperty * > Fields;
 
-	for ( TFieldIterator< UProperty > It( Struct ); It; ++It )
+	for ( TFieldIterator< FProperty > It( Struct ); It; ++It )
 	{
 		if ( It->PropertyFlags & CPF_RepSkip )
 		{
@@ -69,7 +69,7 @@ uint32 FClassNetCacheMgr::SortedStructFieldsChecksum( const UStruct* Struct, uin
 	return Checksum;
 }
 
-uint32 FClassNetCacheMgr::GetPropertyChecksum( const UProperty* Property, uint32 Checksum, const bool bIncludeChildren ) const
+uint32 FClassNetCacheMgr::GetPropertyChecksum( const FProperty* Property, uint32 Checksum, const bool bIncludeChildren ) const
 {
 	if ( bDebugChecksum )
 	{
@@ -82,7 +82,7 @@ uint32 FClassNetCacheMgr::GetPropertyChecksum( const UProperty* Property, uint32
 
 	if ( bIncludeChildren )
 	{
-		const UArrayProperty* ArrayProperty = Cast< UArrayProperty >( Property );
+		const FArrayProperty* ArrayProperty = CastField< FArrayProperty >( Property );
 
 		// Evolve checksum on array inner
 		if ( ArrayProperty != NULL )
@@ -90,7 +90,7 @@ uint32 FClassNetCacheMgr::GetPropertyChecksum( const UProperty* Property, uint32
 			return GetPropertyChecksum( ArrayProperty->Inner, Checksum, bIncludeChildren );
 		}
 
-		const UStructProperty* StructProperty = Cast< UStructProperty >( Property );
+		const FStructProperty* StructProperty = CastField< FStructProperty >( Property );
 
 		// Evolve checksum on property struct fields
 		if ( StructProperty != NULL )
@@ -123,9 +123,9 @@ uint32 FClassNetCacheMgr::GetFunctionChecksum( const UFunction* Function, uint32
 	Checksum = FCrc::StrCrc32( *FString::Printf( TEXT( "%u" ), (uint32)Function->FunctionFlags ), Checksum );
 
 #if 0	// This is disabled now that we have backwards compatibility for RPC parameters working in replays 
-	TArray< UProperty * > Parms;
+	TArray< FProperty * > Parms;
 
-	for ( TFieldIterator< UProperty > It( Function ); It && ( It->PropertyFlags & ( CPF_Parm | CPF_ReturnParm ) ) == CPF_Parm; ++It )
+	for ( TFieldIterator< FProperty > It( Function ); It && ( It->PropertyFlags & ( CPF_Parm | CPF_ReturnParm ) ) == CPF_Parm; ++It )
 	{
 		Parms.Add( *It );
 	}
@@ -134,7 +134,7 @@ uint32 FClassNetCacheMgr::GetFunctionChecksum( const UFunction* Function, uint32
 	SortProperties( Parms );
 
 	// Evolve checksum on sorted function parameters
-	for ( UProperty* Parm : Parms )
+	for ( FProperty* Parm : Parms )
 	{
 		Checksum = GetPropertyChecksum( Parm, Checksum, true );
 	}
@@ -145,11 +145,7 @@ uint32 FClassNetCacheMgr::GetFunctionChecksum( const UFunction* Function, uint32
 
 uint32 FClassNetCacheMgr::GetFieldChecksum( const UField* Field, uint32 Checksum ) const
 {
-	if ( Cast< UProperty >( Field ) != NULL )
-	{
-		return GetPropertyChecksum( (UProperty*)Field, Checksum, false );
-	}
-	else if ( Cast< UFunction >( Field ) != NULL )
+	if ( Cast< UFunction >( Field ) != NULL )
 	{
 		return GetFunctionChecksum( (UFunction*)Field, Checksum );
 	}
@@ -179,22 +175,32 @@ const FClassNetCache* FClassNetCacheMgr::GetClassNetCache( UClass* Class )
 			Result->ClassChecksum	= Result->Super->ClassChecksum;
 		}
 
-		Result->Fields.Empty( Class->NetFields.Num() );
+		Result->Fields.Empty(Class->NetFields.Num());
 
-		TArray< UProperty* > Properties;
-		Properties.Empty( Class->NetFields.Num() );
+		TArray< FProperty* > Properties;
+		Properties.Empty( Class->NetProperties.Num() );
+
+		for (int32 i = 0; i < Class->NetProperties.Num(); i++)
+		{
+			// Add each net field to cache, and assign index/checksum
+			FProperty* Property = CastField< FProperty >(Class->NetProperties[i]);
+			check(Property);
+			Properties.Add(Property);
+
+			// Get individual checksum
+			const uint32 Checksum = GetPropertyChecksum(Property, 0, false);
+
+			// Get index
+			const int32 ThisIndex = Result->GetMaxIndex();
+
+			// Add to cached fields on this class
+			Result->Fields.Add(FFieldNetCache(Property, ThisIndex, Checksum));
+		}
 
 		for( int32 i = 0; i < Class->NetFields.Num(); i++ )
 		{
 			// Add each net field to cache, and assign index/checksum
 			UField* Field = Class->NetFields[i];
-
-			UProperty* Property = Cast< UProperty >( Field );
-			
-			if ( Property != NULL )
-			{
-				Properties.Add( Property );
-			}
 
 			// Get individual checksum
 			const uint32 Checksum = GetFieldChecksum( Field, 0 );
@@ -211,11 +217,11 @@ const FClassNetCache* FClassNetCacheMgr::GetClassNetCache( UClass* Class )
 		// Add fields to the appropriate hash maps
 		for ( TArray< FFieldNetCache >::TIterator It( Result->Fields ); It; ++It )
 		{
-			Result->FieldMap.Add( It->Field, &*It );
+			Result->FieldMap.Add( It->Field.GetRawPointer(), &*It );
 
 			if ( Result->FieldChecksumMap.Contains( It->FieldChecksum ) )
 			{
-				UE_LOG( LogCoreNet, Error, TEXT ( "Duplicate checksum: %s, %u" ), *It->Field->GetName(), It->FieldChecksum );
+				UE_LOG( LogCoreNet, Error, TEXT ( "Duplicate checksum: %s, %u" ), *It->Field.GetFullName(), It->FieldChecksum );
 			}
 
 			Result->FieldChecksumMap.Add( It->FieldChecksum, &*It );

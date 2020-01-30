@@ -1,11 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Deprecated/RigUnit_TwoBoneIKFK.h"
 #include "Units/RigUnitContext.h"
 #include "HelperUtil.h"
 #include "TwoBoneIK.h"
 
-void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
+FRigUnit_TwoBoneIKFK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
@@ -51,10 +51,6 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 				}
 			}
 		}
-		else
-		{
-			UnitLogHelpers::PrintMissingHierarchy(RigUnitName);
-		}
 	}
 	else  if (Context.State == EControlRigState::Update)
 	{
@@ -82,7 +78,8 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 				MidJointIKTransform = Hierarchy->GetGlobalTransform(MidJointIndex);
 				EndJointIKTransform = Hierarchy->GetGlobalTransform(EndJointIndex);
 
-				SolveIK();
+				AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
+				EndJointIKTransform.SetRotation(EndEffector.GetRotation());
 
 				StartJointTransform = StartJointIKTransform;
 				MidJointTransform = MidJointIKTransform;
@@ -98,7 +95,8 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 				MidJointIKTransform = Hierarchy->GetGlobalTransform(MidJointIndex);
 				EndJointIKTransform = Hierarchy->GetGlobalTransform(EndJointIndex);
 
-				SolveIK();
+				AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
+				EndJointIKTransform.SetRotation(EndEffector.GetRotation());
 
 				StartJointTransform.Blend(StartJointFKTransform, StartJointIKTransform, IKBlend);
 				MidJointTransform.Blend(MidJointFKTransform, MidJointIKTransform, IKBlend);
@@ -114,12 +112,5 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 			PreviousFKIKBlend = IKBlend;
 		}
 	}
-}
-
-void FRigUnit_TwoBoneIKFK::SolveIK()
-{
-	AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
-	// set end effector rotation to current rotation
-	EndJointIKTransform.SetRotation(EndEffector.GetRotation());
 }
 

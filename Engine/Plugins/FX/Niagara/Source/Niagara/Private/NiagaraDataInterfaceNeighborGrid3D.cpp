@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceNeighborGrid3D.h"
 #include "NiagaraShader.h"
 #include "ShaderParameterUtils.h"
@@ -85,13 +85,13 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 			if (ParticleNeighborsGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodBuffer.UAV);
-				RHICmdList.SetShaderResourceViewParameter(Context.Shader->GetComputeShader(), ParticleNeighborsGridParam.GetBaseIndex(), ProxyData->NeighborhoodBuffer.SRV);
+				SetSRVParameter(RHICmdList, Context.Shader->GetComputeShader(), ParticleNeighborsGridParam, ProxyData->NeighborhoodBuffer.SRV);
 			}
 
 			if (ParticleNeighborCountGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodCountBuffer.UAV);
-				RHICmdList.SetShaderResourceViewParameter(Context.Shader->GetComputeShader(), ParticleNeighborCountGridParam.GetBaseIndex(), ProxyData->NeighborhoodCountBuffer.SRV);
+				SetSRVParameter(RHICmdList, Context.Shader->GetComputeShader(), ParticleNeighborCountGridParam, ProxyData->NeighborhoodCountBuffer.SRV);
 			}
 		}
 		else
@@ -99,13 +99,13 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 			if (OutputParticleNeighborsGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodBuffer.UAV);
-				RHICmdList.SetUAVParameter(Context.Shader->GetComputeShader(), OutputParticleNeighborsGridParam.GetUAVIndex(), ProxyData->NeighborhoodBuffer.UAV);
+				OutputParticleNeighborsGridParam.SetBuffer(RHICmdList, Context.Shader->GetComputeShader(), ProxyData->NeighborhoodBuffer);
 			}
 
 			if (OutputParticleNeighborCountGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodCountBuffer.UAV);
-				RHICmdList.SetUAVParameter(Context.Shader->GetComputeShader(), OutputParticleNeighborCountGridParam.GetUAVIndex(), ProxyData->NeighborhoodCountBuffer.UAV);
+				OutputParticleNeighborCountGridParam.SetBuffer(RHICmdList, Context.Shader->GetComputeShader(), ProxyData->NeighborhoodCountBuffer);
 			}
 		}
 		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
@@ -140,7 +140,7 @@ UNiagaraDataInterfaceNeighborGrid3D::UNiagaraDataInterfaceNeighborGrid3D(FObject
 	: Super(ObjectInitializer)
 	, MaxNeighborsPerVoxel(8)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyNeighborGrid3D, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyNeighborGrid3D());
 	PushToRenderThread();
 }
 
@@ -272,7 +272,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::Equals(const UNiagaraDataInterface* Ot
 	return OtherTyped->MaxNeighborsPerVoxel == MaxNeighborsPerVoxel;
 }
 
-void UNiagaraDataInterfaceNeighborGrid3D::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceNeighborGrid3D::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
@@ -293,13 +293,13 @@ void UNiagaraDataInterfaceNeighborGrid3D::GetParameterDefinitionHLSL(FNiagaraDat
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
-bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	bool ParentRet = Super::GetFunctionHLSL(DefinitionFunctionName, InstanceFunctionName, ParamInfo, OutHLSL);
+	bool ParentRet = Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL);
 	if (ParentRet)
 	{
 		return true;
-	} else if (DefinitionFunctionName == MaxNeighborsPerVoxelFunctionName)
+	} else if (FunctionInfo.DefinitionName == MaxNeighborsPerVoxelFunctionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_MaxNeighborsPerVoxel)
@@ -308,14 +308,14 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsSample = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("MaxNeighborsPerVoxelName"), MaxNeighborsPerVoxelName + ParamInfo.DataInterfaceHLSLSymbol},
 
 		};
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == NeighborGridIndexToLinearFunctionName)
+	else if (FunctionInfo.DefinitionName == NeighborGridIndexToLinearFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, int In_Neighbor, out int Out_Linear)
@@ -324,14 +324,14 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("MaxNeighborsPerVoxelName"), MaxNeighborsPerVoxelName + ParamInfo.DataInterfaceHLSLSymbol},
 			{TEXT("NumVoxelsName"), NumVoxelsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetParticleNeighborFunctionName)
+	else if (FunctionInfo.DefinitionName == GetParticleNeighborFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_Index, out int Out_ParticleNeighborIndex)
@@ -340,13 +340,13 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("ParticleNeighbors"), ParticleNeighborsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetParticleNeighborFunctionName)
+	else if (FunctionInfo.DefinitionName == SetParticleNeighborFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_Index, int In_ParticleNeighborIndex, out int Out_Ignore)
@@ -356,13 +356,13 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("OutputParticleNeighbors"), OutputParticleNeighborsName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetParticleNeighborCountFunctionName)
+	else if (FunctionInfo.DefinitionName == GetParticleNeighborCountFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_Index, out int Out_ParticleNeighborIndex)
@@ -371,13 +371,13 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("ParticleNeighborCount"), ParticleNeighborCountName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetParticleNeighborCountFunctionName)
+	else if (FunctionInfo.DefinitionName == SetParticleNeighborCountFunctionName)
 	{
 		static const TCHAR *FormatBounds = TEXT(R"(
 			void {FunctionName}(int In_Index, int In_Increment, out int PreviousNeighborCount)
@@ -386,7 +386,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::GetFunctionHLSL(const FName& Definitio
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
-			{TEXT("FunctionName"), InstanceFunctionName},
+			{TEXT("FunctionName"), FunctionInfo.InstanceName},
 			{TEXT("OutputParticleNeighborCount"), OutputParticleNeighborCountName + ParamInfo.DataInterfaceHLSLSymbol},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
@@ -438,15 +438,8 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
 		[RT_Proxy, RT_NumVoxels, RT_MaxNeighborsPerVoxel, RT_WorldBBoxSize, RT_OutputShaderStages, RT_IterationShaderStages, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
 	{
-		NeighborGrid3DRWInstanceData* TargetData = RT_Proxy->SystemInstancesToProxyData.Find(InstanceID);
-		if (TargetData != nullptr)
-		{
-			RT_Proxy->DeferredDestroyList.Remove(InstanceID);
-		}
-		else
-		{
-			TargetData = &RT_Proxy->SystemInstancesToProxyData.Add(InstanceID);
-		}
+		check(!RT_Proxy->SystemInstancesToProxyData.Contains(InstanceID));
+		NeighborGrid3DRWInstanceData* TargetData = &RT_Proxy->SystemInstancesToProxyData.Add(InstanceID);
 
 		TargetData->NumVoxels = RT_NumVoxels;
 		TargetData->MaxNeighborsPerVoxel = RT_MaxNeighborsPerVoxel;		
@@ -476,7 +469,8 @@ void UNiagaraDataInterfaceNeighborGrid3D::DestroyPerInstanceData(void* PerInstan
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
 		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 	{
-		ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
+		//check(ThisProxy->SystemInstancesToProxyData.Contains(InstanceID));
+		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
 	}
 	);
 }
@@ -490,26 +484,6 @@ void FNiagaraDataInterfaceProxyNeighborGrid3D::PreStage(FRHICommandList& RHICmdL
 		RHICmdList.ClearUAVUint(ProxyData->NeighborhoodBuffer.UAV, FUintVector4((uint32)-1, (uint32)-1, (uint32)-1, (uint32)-1));
 		RHICmdList.ClearUAVUint(ProxyData->NeighborhoodCountBuffer.UAV, FUintVector4(0, 0, 0 ,0));
 	}
-}
-
-// #todo(dmp): move these to super class
-void FNiagaraDataInterfaceProxyNeighborGrid3D::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
-{
-	check(IsInRenderingThread());
-
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
-}
-
-// #todo(dmp): move these to super class
-void FNiagaraDataInterfaceProxyNeighborGrid3D::DeferredDestroy()
-{
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToProxyData.Remove(Sys);
-	}
-
-	DeferredDestroyList.Empty();
 }
 
 bool UNiagaraDataInterfaceNeighborGrid3D::CopyToInternal(UNiagaraDataInterface* Destination) const

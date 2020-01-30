@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VariantManagerSelection.h"
 
@@ -12,12 +12,12 @@ FVariantManagerSelection::FVariantManagerSelection()
 {
 }
 
-const TSet<TSharedRef<FVariantManagerDisplayNode>>& FVariantManagerSelection::GetSelectedOutlinerNodes() const
+TSet<TSharedRef<FVariantManagerDisplayNode>>& FVariantManagerSelection::GetSelectedOutlinerNodes()
 {
 	return SelectedOutlinerNodes;
 }
 
-const TSet<TSharedRef<FVariantManagerActorNode>>& FVariantManagerSelection::GetSelectedActorNodes() const
+TSet<TSharedRef<FVariantManagerActorNode>>& FVariantManagerSelection::GetSelectedActorNodes()
 {
 	return SelectedActorNodes;
 }

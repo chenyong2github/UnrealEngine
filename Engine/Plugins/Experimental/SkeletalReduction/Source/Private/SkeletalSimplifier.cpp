@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletalSimplifier.h"
 
@@ -72,6 +72,28 @@ void SkeletalSimplifier::FMeshSimplifier::SetSparseAttributeWeights(const Sparse
 void SkeletalSimplifier::FMeshSimplifier::SetBoundaryLocked()
 {
 	MeshManager.FlagBoundary(ESimpElementFlags::SIMP_LOCKED);
+
+}
+
+void SkeletalSimplifier::FMeshSimplifier::SetColorEdgeLocked(float ColorDistThreshold)
+{
+
+	auto IsDifferntColor = [ColorDistThreshold](const SimpVertType* ASimpVert, const SimpVertType* BSimpVert)->bool
+	{
+		bool Result = true;
+		if (ASimpVert!=nullptr && BSimpVert != nullptr)
+		{ 
+			const FLinearColor& AColor = ASimpVert->vert.BasicAttributes.Color;
+			const FLinearColor& BColor = BSimpVert->vert.BasicAttributes.Color;
+
+		
+			Result = (FLinearColor::Dist(AColor, BColor) > ColorDistThreshold);
+		}
+		return Result;
+	};
+
+	MeshManager.FlagEdges(IsDifferntColor, ESimpElementFlags::SIMP_LOCKED);
+
 
 }
 

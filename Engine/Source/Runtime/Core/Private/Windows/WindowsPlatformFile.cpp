@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Windows/WindowsPlatformFile.h"
 #include "CoreTypes.h"
@@ -95,13 +95,13 @@ namespace
 		// This roundabout conversion clamps the precision of the returned time value to match that of time_t (1 second precision)
 		// This avoids issues when sending files over the network via cook-on-the-fly
 		SYSTEMTIME SysTime;
-		SysTime.wYear = InDateTime.GetYear();
-		SysTime.wMonth = InDateTime.GetMonth();
-		SysTime.wDay = InDateTime.GetDay();
-		SysTime.wDayOfWeek = UEDayOfWeekToWindowsSystemTimeDayOfWeek(InDateTime.GetDayOfWeek());
-		SysTime.wHour = InDateTime.GetHour();
-		SysTime.wMinute = InDateTime.GetMinute();
-		SysTime.wSecond = InDateTime.GetSecond();
+		SysTime.wYear = (WORD)InDateTime.GetYear();
+		SysTime.wMonth = (WORD)InDateTime.GetMonth();
+		SysTime.wDay = (WORD)InDateTime.GetDay();
+		SysTime.wDayOfWeek = (WORD)UEDayOfWeekToWindowsSystemTimeDayOfWeek(InDateTime.GetDayOfWeek());
+		SysTime.wHour = (WORD)InDateTime.GetHour();
+		SysTime.wMinute = (WORD)InDateTime.GetMinute();
+		SysTime.wSecond = (WORD)InDateTime.GetSecond();
 		SysTime.wMilliseconds = 0;
 
 		FILETIME FileTime;
@@ -348,7 +348,7 @@ public:
 		if (bWithinSerializeBuffer)
 		{
 			// Still within the serialize buffer so just update the position
-			SerializePos += PosDelta;
+			SerializePos += (int32)PosDelta;
 		}
 		else
 		{
@@ -421,7 +421,7 @@ public:
 				FMemory::Memcpy(Dest, &Buffers[SerializeBuffer][SerializePos], NumToCopy);
 
 				// Update the internal positions
-				SerializePos += NumToCopy;
+				SerializePos += (int32)NumToCopy;
 				check(SerializePos <= BufferSize);
 				FilePos += NumToCopy;
 				check(FilePos <= FileSize);
@@ -562,7 +562,7 @@ public:
 		int64 TotalNumRead = 0;
 		do
 		{
-			uint32 BytesToRead32 = FMath::Min(BytesToRead, int64(UINT32_MAX));
+			uint32 BytesToRead32 = (uint32)FMath::Min<int64>(BytesToRead, int64(UINT32_MAX));
 			uint32 NumRead = 0;
 
 			if (!ReadFile(FileHandle, Destination, BytesToRead32, (::DWORD*)&NumRead, &OverlappedIO))
@@ -590,6 +590,13 @@ public:
 			// Update where we are in the file
 			FilePos += NumRead;
 			UpdateOverlappedPos();
+			
+			// Early out as a failure case if we did not read all of the bytes that we expected to read
+			if (BytesToRead32 != NumRead)
+			{
+				return false; 
+			}	
+					
 		} while (BytesToRead > 0);
 		TRACE_PLATFORMFILE_END_READ(&OverlappedIO, TotalNumRead);
 		return true;
@@ -603,7 +610,7 @@ public:
 		int64 TotalNumWritten = 0;
 		do
 		{
-			uint32 BytesToWrite32 = FMath::Min(BytesToWrite - TotalNumWritten, int64(UINT32_MAX));
+			uint32 BytesToWrite32 = (uint32)FMath::Min<int64>(BytesToWrite - TotalNumWritten, int64(UINT32_MAX));
 			uint32 NumWritten = 0;
 			// Now kick off an async write
 			if (!WriteFile(FileHandle, Source, BytesToWrite32, (::DWORD*)&NumWritten, &OverlappedIO))
@@ -624,6 +631,7 @@ public:
 					return false;
 				}
 			}
+	
 			BytesToWrite -= BytesToWrite32;
 			Source += BytesToWrite32;
 			TotalNumWritten += NumWritten;
@@ -631,6 +639,13 @@ public:
 			FilePos += NumWritten;
 			UpdateOverlappedPos();
 			FileSize = FMath::Max(FilePos, FileSize);
+			
+			// Early out as a failure case if we didn't write all of the data we expected
+			if (BytesToWrite32 != NumWritten)
+			{
+				return false;
+			}
+			
 		} while (BytesToWrite > 0);
 
 		TRACE_PLATFORMFILE_END_WRITE(this, TotalNumWritten);
@@ -1036,7 +1051,13 @@ public:
 	virtual bool DeleteDirectory(const TCHAR* Directory) override
 	{
 		RemoveDirectoryW(*NormalizeDirectory(Directory));
-		return !DirectoryExists(Directory);
+		uint32 LastError = GetLastError();
+		const bool bSucceeded = !DirectoryExists(Directory);
+		if (!bSucceeded)
+		{
+			SetLastError(LastError);
+		}
+		return bSucceeded;
 	}
 	virtual FFileStatData GetStatData(const TCHAR* FilenameOrDirectory) override
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationEditorMode.h"
 #include "Modules/ModuleManager.h"
@@ -35,8 +35,9 @@ FAnimationEditorMode::FAnimationEditorMode(TSharedRef<FWorkflowCentricApplicatio
 	TabFactories.RegisterFactory(PersonaModule.CreateCurveViewerTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), AnimationEditor->GetPersonaToolkit()->GetPreviewScene(), AnimationEditor->OnPostUndo, OnObjectsSelected));
 	TabFactories.RegisterFactory(PersonaModule.CreateSkeletonSlotNamesTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), AnimationEditor->OnPostUndo, FOnObjectSelected::CreateSP(&AnimationEditor.Get(), &FAnimationEditor::HandleObjectSelected)));
 	TabFactories.RegisterFactory(PersonaModule.CreateAnimNotifiesTabFactory(InHostingApp, InSkeletonTree->GetEditableSkeleton(), OnObjectsSelected));
+	TabFactories.RegisterFactory(PersonaModule.CreateAnimMontageSectionsTabFactory(InHostingApp, AnimationEditor->GetPersonaToolkit(), AnimationEditor->OnSectionsChanged));
 
-	TabLayout = FTabManager::NewLayout("Standalone_AnimationEditor_Layout_v1.2")
+	TabLayout = FTabManager::NewLayout("Standalone_AnimationEditor_Layout_v1.3")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -84,6 +85,8 @@ FAnimationEditorMode::FAnimationEditorMode(TSharedRef<FWorkflowCentricApplicatio
 						->SetSizeCoefficient(0.4f)
 						->SetHideTabWell(true)
 						->AddTab(AnimationEditorTabs::DocumentTab, ETabState::ClosedTab)
+						->AddTab(AnimationEditorTabs::CurveEditorTab, ETabState::ClosedTab)
+						->SetForegroundTab(AnimationEditorTabs::DocumentTab)
 					)
 				)
 				->Split
@@ -106,6 +109,7 @@ FAnimationEditorMode::FAnimationEditorMode(TSharedRef<FWorkflowCentricApplicatio
 						->SetSizeCoefficient(0.4f)
 						->SetHideTabWell(false)
 						->AddTab(AnimationEditorTabs::AssetBrowserTab, ETabState::OpenedTab)
+						->AddTab(AnimationEditorTabs::AnimMontageSectionsTab, ETabState::ClosedTab)
 						->AddTab(AnimationEditorTabs::CurveNamesTab, ETabState::ClosedTab)
 						->AddTab(AnimationEditorTabs::SlotNamesTab, ETabState::ClosedTab)
 					)

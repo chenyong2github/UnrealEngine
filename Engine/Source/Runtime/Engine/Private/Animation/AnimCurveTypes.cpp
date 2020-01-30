@@ -1,7 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimCurveTypes.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/AnimObjectVersion.h"
+#include "Math/RandomStream.h"
 
 DECLARE_CYCLE_STAT(TEXT("EvalRawCurveData"), STAT_EvalRawCurveData, STATGROUP_Anim);
 
@@ -12,8 +14,9 @@ void FAnimCurveBase::PostSerialize(FArchive& Ar)
 {
 	SmartName::UID_Type CurveUid = SmartName::MaxUID;
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
-	if ((Ar.IsLoading()))
+	if (Ar.IsLoading())
 	{
 		if (Ar.CustomVer(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::SmartNameRefactor)
 		{
@@ -29,6 +32,13 @@ void FAnimCurveBase::PostSerialize(FArchive& Ar)
 				Name.DisplayName = LastObservedName_DEPRECATED;
 			}
 		}
+
+#if WITH_EDITORONLY_DATA
+		if(Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::AnimSequenceCurveColors)
+		{
+			Color = MakeColor();
+		}
+#endif
 	}
 }
 
@@ -65,6 +75,16 @@ int32 FAnimCurveBase::GetCurveTypeFlags() const
 {
 	return CurveTypeFlags;
 }
+
+#if WITH_EDITORONLY_DATA
+FLinearColor FAnimCurveBase::MakeColor()
+{
+	// Create a color based on the hash of the name
+	FRandomStream Stream(GetTypeHash(Name.DisplayName));
+	const uint8 Hue = (uint8)(Stream.FRand() * 255.0f);
+	return FLinearColor::MakeFromHSV8(Hue, 196, 196);
+}
+#endif
 
 ////////////////////////////////////////////////////
 //  FFloatCurve

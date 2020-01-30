@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraStackEditorData.h"
 
@@ -83,6 +83,16 @@ bool UNiagaraStackEditorData::GetShowLinkedInputs() const
 void UNiagaraStackEditorData::SetShowLinkedInputs(bool bInShowLinkedInputs)
 {
 	bShowLinkedInputs = bInShowLinkedInputs;
+}
+
+bool UNiagaraStackEditorData::GetShowOnlyIssues() const
+{
+	return bShowOnlyIssues;
+}
+
+void UNiagaraStackEditorData::SetShowOnlyIssues(bool bInShowOnlyIssues)
+{
+	bShowOnlyIssues = bInShowOnlyIssues;
 }
 
 double UNiagaraStackEditorData::GetLastScrollPosition() const

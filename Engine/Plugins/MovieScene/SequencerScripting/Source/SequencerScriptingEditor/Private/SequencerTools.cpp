@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTools.h"
 #include "SequencerScriptingEditor.h"
@@ -16,6 +16,8 @@
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 #include "MovieSceneCommonHelpers.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequenceBase.h"
 
 #define LOCTEXT_NAMESPACE "SequencerTools"
 
@@ -103,8 +105,6 @@ void USequencerToolsFunctionLibrary::CancelMovieRender()
 
 bool USequencerToolsFunctionLibrary::ExportFBX(UWorld* World, ULevelSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions, const FString& InFBXFileName)
 {
-	
-	
 	UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
 	//Show the fbx export dialog options
 	Exporter->SetExportOptionsOverride(OverrideOptions);
@@ -131,6 +131,60 @@ bool USequencerToolsFunctionLibrary::ExportFBX(UWorld* World, ULevelSequence* Se
 	bool bDidExport = MovieSceneToolHelpers::ExportFBX(World, MovieScene, Player, Bindings, NodeNameAdapter, Template, InFBXFileName, RootToLocalTransform);
 	Exporter->SetExportOptionsOverride(nullptr);
 	return bDidExport;
+}
+
+static USkeletalMeshComponent* GetSkelMeshComponent(IMovieScenePlayer* Player, const FSequencerBindingProxy& Binding)
+{
+	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
+	for (TWeakObjectPtr<UObject> RuntimeObject : Player->FindBoundObjects(Binding.BindingID, Template))
+	{
+
+		if (AActor* Actor = Cast<AActor>(RuntimeObject.Get()))
+		{
+			for (UActorComponent* Component : Actor->GetComponents())
+			{
+				if (USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Component))
+				{
+					return SkeletalMeshComp;
+				}
+			}
+		}
+		else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RuntimeObject.Get()))
+		{
+			if (SkeletalMeshComponent->SkeletalMesh)
+			{
+				return SkeletalMeshComponent;
+			}
+		}
+	}
+	return nullptr;
+}
+
+bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, const FSequencerBindingProxy& Binding)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (Binding.Sequence != Sequence || !AnimSequence)
+	{
+		return false;
+	}
+	INodeNameAdapter NodeNameAdapter;
+	ALevelSequenceActor* OutActor;
+	FMovieSceneSequencePlaybackSettings Settings;
+	FLevelSequenceCameraSettings CameraSettings;
+	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
+	FMovieSceneSequenceTransform RootToLocalTransform;
+	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, Settings, OutActor);
+	Player->Initialize(Sequence, World->PersistentLevel, Settings, CameraSettings);
+	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
+
+	bool bResult = false;
+	USkeletalMeshComponent* SkeletalMeshComp =  GetSkelMeshComponent(Player, Binding);
+	if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->Skeleton)
+	{
+		AnimSequence->SetSkeleton(SkeletalMeshComp->SkeletalMesh->Skeleton);
+		bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform);
+	}
+	return bResult;
 }
 
 

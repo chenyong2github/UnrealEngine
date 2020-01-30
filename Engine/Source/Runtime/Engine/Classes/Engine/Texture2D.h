@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -130,7 +130,8 @@ public:
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override { return CalcTextureMemorySize(NumLODs); }
 
 	virtual bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const final override;
-
+	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
+	
 	/**
 	* Returns whether the texture is ready for streaming aka whether it has had InitRHI called on it.
 	*

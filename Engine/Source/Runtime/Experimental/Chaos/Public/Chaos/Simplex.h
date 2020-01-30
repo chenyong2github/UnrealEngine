@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/Transform.h"
 
@@ -25,7 +25,7 @@ namespace Chaos
 
 		const T X0ToX1Squared = X0ToX1.SizeSquared();
 
-		if (X0ToX1Squared < Dot || X0ToX1Squared <= std::numeric_limits<float>::min())	//if dividing gives 1+ or the line is degenerate
+		if (X0ToX1Squared < Dot || X0ToX1Squared <= std::numeric_limits<T>::min())	//if dividing gives 1+ or the line is degenerate
 		{
 			NumVerts = 1;
 			Idxs[0] = Idxs[1];
@@ -177,7 +177,7 @@ namespace Chaos
 		bool bSignMatch[3];
 		FSimplex SubSimplices[3] = { {Idx1,Idx2}, {Idx0,Idx2}, {Idx0,Idx1} };
 		TVector<T, 3> ClosestPointSub[3];
-		T SubBarycentric[3][3];
+		T SubBarycentric[3][4];
 		int32 ClosestSubIdx = INDEX_NONE;
 		T MinSubDist2 = 0;	//not needed
 		bool bInside = true;
@@ -214,6 +214,9 @@ namespace Chaos
 		}
 		else
 		{
+			check(Idx0 >= 0 && Idx0 < 4);
+			check(Idx1 >= 0 && Idx1 < 4);
+			check(Idx2 >= 0 && Idx2 < 4);
 			Idxs = SubSimplices[ClosestSubIdx];
 			OutBarycentric[Idx0] = SubBarycentric[ClosestSubIdx][Idx0];
 			OutBarycentric[Idx1] = SubBarycentric[ClosestSubIdx][Idx1];
@@ -315,7 +318,7 @@ namespace Chaos
 		switch (Idxs.NumVerts)
 		{
 		case 1:
-			OutBarycentric[0] = 1;
+			OutBarycentric[Idxs[0]] = 1;
 			ClosestPoint = Simplex[Idxs[0]]; break;
 		case 2:
 		{

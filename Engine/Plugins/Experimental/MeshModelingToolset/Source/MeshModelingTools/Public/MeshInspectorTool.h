@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,12 +9,12 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "PreviewMesh.h"
 #include "MeshInspectorTool.generated.h"
 
 
 // predeclarations
 struct FMeshDescription;
-class USimpleDynamicMeshComponent;
 class UMaterialInstanceDynamic;
 
 /**
@@ -107,7 +107,7 @@ public:
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 public:
 
@@ -127,7 +127,7 @@ protected:
 
 protected:
 	UPROPERTY()
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
+	UPreviewMesh* PreviewMesh;
 
 	UPROPERTY()
 	UMaterialInterface* DefaultMaterial = nullptr;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimationSettings.h"
 #include "Animation/AnimCompress_BitwiseCompressOnly.h"
@@ -10,7 +10,6 @@ UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializ
 	, RotationCompressionFormat(ACF_Float96NoW)
 	, TranslationCompressionFormat(ACF_None)
 	, MaxCurveError(0.f)
-	, AlternativeCompressionThreshold(1.f)
 	, ForceRecompression(false)
 	, bOnlyCheckForMissingSkeletalMeshes(false)
 	, bForceBelowThreshold(false)

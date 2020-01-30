@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Console/SSessionConsole.h"
 #include "DesktopPlatformModule.h"
@@ -500,12 +500,18 @@ void SSessionConsole::HandleSessionManagerInstanceSelectionChanged(const TShared
 
 void SSessionConsole::HandleSessionManagerLogReceived(const TSharedRef<ISessionInfo>& Session, const TSharedRef<ISessionInstanceInfo>& Instance, const TSharedRef<FSessionLogMessage>& Message)
 {
-	if (!SessionManager->IsInstanceSelected(Instance) || !FilterBar->FilterLogMessage(Message))
+	if (!SessionManager->IsInstanceSelected(Instance))
 	{
 		return;
 	}
 
+	// Adds the log to the available messages even if it is filtered out, so that it cannot be lost
 	AvailableLogs.Add(Message);
+	if (!FilterBar->FilterLogMessage(Message))
+	{
+		return;
+	}
+
 	LogMessages.Add(Message);
 
 	LogListView->RequestListRefresh();

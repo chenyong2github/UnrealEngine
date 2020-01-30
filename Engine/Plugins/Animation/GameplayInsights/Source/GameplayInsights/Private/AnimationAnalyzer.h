@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,6 +22,19 @@ private:
 		RouteId_TickRecord,
 		RouteId_SkeletalMesh,
 		RouteId_SkeletalMeshComponent,
+		RouteId_SkeletalMeshFrame,
+		RouteId_AnimGraph,
+		RouteId_AnimNodeStart,
+		RouteId_AnimNodeValueBool,
+		RouteId_AnimNodeValueInt,
+		RouteId_AnimNodeValueFloat,
+		RouteId_AnimNodeValueVector,
+		RouteId_AnimNodeValueString,
+		RouteId_AnimNodeValueObject,
+		RouteId_AnimNodeValueClass,
+		RouteId_AnimSequencePlayer,
+		RouteId_BlendSpacePlayer,
+		RouteId_StateMachineState,
 		RouteId_Name,
 	};
 

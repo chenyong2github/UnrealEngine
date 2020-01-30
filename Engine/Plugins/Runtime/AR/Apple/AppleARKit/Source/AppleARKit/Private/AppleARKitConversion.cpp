@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AppleARKitConversion.h"
 #include "AppleARKitModule.h"
@@ -312,6 +312,17 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 				WorldTrackingConfiguration.detectionObjects = ToARReferenceObjectSet(SessionConfig->GetCandidateObjectList(), CandidateObjects);
 			}
 #endif
+			
+#if SUPPORTS_ARKIT_3_0
+			if (FAppleARKitAvailability::SupportsARKit30())
+			{
+				// Disable HDR environment texturing as the engine doesn't support it yet
+				// See FARMetalResource in AppleARKitTextures.cpp
+				// TODO: Add HDR support later
+				WorldTrackingConfiguration.wantsHDREnvironmentTextures = NO;
+			}
+#endif
+			
 			SessionConfiguration = WorldTrackingConfiguration;
 			break;
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HoloLensWebSocket.h"
 
@@ -129,6 +129,7 @@ void FHoloLensWebSocket::Send(const FString& Data)
 		{
 			Writer->WriteString(ref new Platform::String(*Data));
 			SendOperations.Add(Writer->StoreAsync());
+			OnMessageSent().Broadcast(Data);
 		}
 		catch (Platform::Exception^ Ex)
 		{

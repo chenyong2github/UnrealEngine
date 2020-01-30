@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HoloLensARSystem.h"
 #include "HoloLensModule.h"
@@ -117,7 +117,7 @@ void FHoloLensARSystem::SetInterop(WindowsMixedReality::MixedRealityInterop* InW
 			OnStopARSession();
 
 #if WITH_EDITOR
-			if (GEditor && GEditor->bUseVRPreviewForPlayWorld)
+			if (GEditor && GEditor->IsVRPreviewActive())
 			{
 				GEditor->RequestEndPlayMap();
 			}

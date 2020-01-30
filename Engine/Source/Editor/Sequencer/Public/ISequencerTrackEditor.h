@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "ISequencerSection.h"
 #include "MovieSceneTrack.h"
+#include "Sections/MovieScene3DTransformSection.h"
 
 class FExtender;
 class FMenuBuilder;
@@ -91,6 +92,17 @@ public:
 	 * @param ObjectClass The class of the object this is for.
 	 */
 	virtual void ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) { }
+
+
+	/**
+	 * Builds up the object binding cpmtext menu for the outliner.
+	 *
+	 * @param MenuBuilder The menu builder to change.
+	 * @param ObjectBinding The object binding this is for.
+	 * @param ObjectClass The class of the object this is for.
+	 */
+	virtual void BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) {}
+
 
 	/**
 	 * Builds an edit widget for the outliner nodes which represent tracks which are edited by this editor.
@@ -206,6 +218,34 @@ public:
 	{
 		return false;
 	}
+
+	/**
+	 * @return If it supports supports transform key bindings for setting keys.
+	 */
+	virtual bool HasTransformKeyBindings() const { return false; }
+
+	/** Whether or not we can add a transform key for a selected object
+	* @return Returns true if we can.
+	**/
+	virtual bool CanAddTransformKeysForSelectedObjects() const { return false; }
+
+	/**
+	* Adds transform tracks and keys to the selected objects in the level.
+	*
+	* @param Channel The transform channel to add keys for.
+	*/
+	virtual void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel) {};
+
+	/**
+	* If true this track has priority when setting transform keys and should be the only one to set them
+	*
+	*/
+	virtual bool HasTransformKeyOverridePriority() const { return false; }
+
+	/**
+	* Handle this object being implicitly added
+	*/
+	virtual void ObjectImplicitlyAdded(UObject* InObject)  {}
 
 public:
 

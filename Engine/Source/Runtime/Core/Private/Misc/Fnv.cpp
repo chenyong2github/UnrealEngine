@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Fnv.h"
 /** Algorithm implementation from http://tools.ietf.org/html/draft-eastlake-fnv-16 */

@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/UObjectBase.h"
 #include "UObject/GCObject.h"
+#include "UObject/FieldPath.h"
 
 class ITableRow;
 struct FSparseItemInfo;
@@ -78,6 +79,14 @@ struct TIsValidListItem<TWeakObjectPtr<T>>
 		Value = true
 	};
 };
+template <typename T>
+struct TIsValidListItem<TFieldPath<T>>
+{
+	enum
+	{
+		Value = true
+	};
+};
 
 /**
  * Furthermore, ListViews of TSharedPtr<> work differently from lists of UObject*.
@@ -86,7 +95,7 @@ struct TIsValidListItem<TWeakObjectPtr<T>>
  */
 template <typename T, typename Enable=void> struct TListTypeTraits
 {
-	static_assert(TIsValidListItem<T>::Value, "Item type T must be a UObjectBase pointer, TSharedRef, or TSharedPtr.");
+	static_assert(TIsValidListItem<T>::Value, "Item type T must be a UObjectBase pointer, TFieldPath, TSharedRef, or TSharedPtr.");
 };
 
 
@@ -422,4 +431,80 @@ public:
 	}
 
 	typedef FGCObject SerializerType;
+};
+
+
+/**
+ * Pointer-related functionality (e.g. setting to null, testing for null) specialized for TFieldPaths.
+ */
+template <typename T> struct TListTypeTraits< TFieldPath<T> >
+{
+public:
+	typedef TFieldPath<T> NullableType;
+
+	using MapKeyFuncs = TDefaultMapHashableKeyFuncs<TFieldPath<T>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TFieldPath<T>, FSparseItemInfo, false>;
+	using SetKeyFuncs = DefaultKeyFuncs< TFieldPath<T> >;
+
+	template<typename U>
+	static void AddReferencedObjects(FReferenceCollector& Collector,
+		TArray< TFieldPath<T> >& ItemsWithGeneratedWidgets,
+		TSet< TFieldPath<T> >& SelectedItems,
+		TMap< const U*, TFieldPath<T> >& WidgetToItemMap)
+	{
+		for (TFieldPath<T>& Item : ItemsWithGeneratedWidgets)
+		{
+			if (Item != nullptr)
+			{
+				Item->AddReferencedObjects(Collector);
+			}
+		}
+
+		// Serialize the map Value. We only do it for the WidgetToItemMap because we know that both maps are updated at the same time and contains the same objects
+		// Also, we cannot AddReferencedObject to the Keys of the ItemToWidgetMap or we end up with keys being set to 0 when the UObject is destroyed which generate an invalid id in the map.
+		for (auto& It : WidgetToItemMap)
+		{
+			if (It.Value != nullptr)
+			{
+				It.Value->AddReferencedObjects(Collector);
+			}
+		}
+
+		// Serialize the selected items
+		for (TFieldPath<T>& Item : SelectedItems)
+		{
+			if (Item != nullptr)
+			{
+				Item->AddReferencedObjects(Collector);
+			}
+		}
+	}
+
+	static bool IsPtrValid(const TFieldPath<T>& InPtr)
+	{
+		return !!InPtr.Get();
+	}
+
+	static void ResetPtr(TFieldPath<T>& InPtr)
+	{
+		InPtr.Reset();
+	}
+
+	static TFieldPath<T> MakeNullPtr()
+	{
+		return nullptr;
+	}
+
+	static TFieldPath<T> NullableItemTypeConvertToItemType(const TFieldPath<T>& InPtr)
+	{
+		return InPtr;
+	}
+
+	static FString DebugDump(TFieldPath<T> InPtr)
+	{
+		T* ObjPtr = InPtr.Get();
+		return ObjPtr ? FString::Printf(TEXT("0x%08x [%s]"), ObjPtr, *ObjPtr->GetName()) : FString(TEXT("nullptr"));
+	}
+
+	class SerializerType {};
 };

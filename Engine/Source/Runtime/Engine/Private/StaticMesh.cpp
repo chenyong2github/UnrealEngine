@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	StaticMesh.cpp: Static mesh class implementation.
@@ -621,6 +621,13 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 
 	Ar << Sections;
 	Ar << MaxDeviation;
+
+#if WITH_EDITORONLY_DATA
+	if ((!Ar.IsCooking() && !Ar.IsFilterEditorOnly()) || (Ar.IsCooking() && Ar.CookingTarget()->HasEditorOnlyData()))
+	{
+		Ar << WedgeMap;
+	}
+#endif // #if WITH_EDITORONLY_DATA
 
 	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData);
 	bool bIsLODCookedOut = IsLODCookedOut(Ar.CookingTarget(), OwnerStaticMesh, bIsBelowMinLOD);
@@ -1337,7 +1344,6 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITORONLY_DATA
 	if (!bCooked)
 	{
-		Ar << WedgeMap;
 		Ar << MaterialIndexToImportIndex;
 	}
 
@@ -1513,6 +1519,8 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 
 void FStaticMeshRenderData::ReleaseResources()
 {
+	bIsInitialized = false;
+
 	for (int32 LODIndex = 0; LODIndex < LODResources.Num(); ++LODIndex)
 	{
 		if (LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
@@ -2070,7 +2078,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define STATICMESH_DERIVEDDATA_VER TEXT("53BA98FFA4BB4140869BB9E158CB0601")
+#define STATICMESH_DERIVEDDATA_VER TEXT("AC59C886D91E43A1A5EC4DC250ED0E6A")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2928,7 +2936,7 @@ void UStaticMesh::ReleaseResources()
 }
 
 #if WITH_EDITOR
-void UStaticMesh::PreEditChange(UProperty* PropertyAboutToChange)
+void UStaticMesh::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PreEditChange);
 
@@ -2946,7 +2954,7 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostEditChangeProperty);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LODGroup))
@@ -3072,22 +3080,22 @@ void UStaticMesh::SetLODGroup(FName NewGroup, bool bRebuildImmediately)
 			
 			if (LODIndex != 0)
 			{
-				//Reset the section info map
-				if (bResetSectionInfoMap)
+			//Reset the section info map
+			if (bResetSectionInfoMap)
+			{
+				for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
 				{
-					for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
-					{
 						GetSectionInfoMap().Remove(LODIndex, SectionIndex);
-					}
-				}
-				//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
-				if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
-				{
-					FRawMesh EmptyRawMesh;
-					SourceModel.SaveRawMesh(EmptyRawMesh);
-					SourceModel.SourceImportFilename = FString();
 				}
 			}
+			//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
+			if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
+			{
+				FRawMesh EmptyRawMesh;
+				SourceModel.SaveRawMesh(EmptyRawMesh);
+				SourceModel.SourceImportFilename = FString();
+			}
+		}
 		}
 		LightMapResolution = GroupSettings.GetDefaultLightMapResolution();
 
@@ -3899,8 +3907,8 @@ bool UStaticMesh::IsMeshDescriptionValid(int32 LodIndex) const
 	// If there is a valid MeshDescriptionBulkData, we know this implies a valid mesh description.
 	// If not, then it's a legacy asset which will have a mesh description built from the RawMeshBulkData, if non-empty.
 	return SourceModel.MeshDescription.IsValid() ||
-		SourceModel.MeshDescriptionBulkData.IsValid() ||
-		!SourceModel.RawMeshBulkData->IsEmpty();
+		   SourceModel.MeshDescriptionBulkData.IsValid() ||
+		   !SourceModel.RawMeshBulkData->IsEmpty();
 }
 
 
@@ -3927,7 +3935,7 @@ FMeshDescription* UStaticMesh::CreateMeshDescription(int32 LodIndex, FMeshDescri
 }
 
 
-void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams & Params)
+void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescriptionParams& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::CommitMeshDescription);
 
@@ -3946,42 +3954,20 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescrip
 			SourceModel.MeshDescriptionBulkData = MakeUnique<FMeshDescriptionBulkData>();
 		}
 
-		// Handle ConvertToRawMesh and SaveMeshDescription in parallel
-		// Something like ParallelInvoke would be cleaner here, but we need the ParallelFor ability to join work on the current thread
-		ParallelFor(2,
-			[this, &SourceModel, &Params](int32 Num)
-			{
-				if (Num == 0)
-				{
-					TMap<FName, int32> MaterialMap;
-					for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
-					{
-						MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
-					}
-
-					FRawMesh TempRawMesh;
-					FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
-					SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
-				}
-				else
-				{
-					SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
-
-					if (Params.bUseHashAsGuid)
-					{
-						SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
-					}
-				}
-			}
-		);
+		SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
+		if (Params.bUseHashAsGuid)
+		{
+			SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
+		}
 	}
 	else
 	{
 		SourceModel.MeshDescriptionBulkData.Reset();
-
-		// Mesh description is null, remove the rawmesh data
-		SourceModel.RawMeshBulkData->Empty();
 	}
+
+	// Clear RawMeshBulkData and mark as invalid.
+	// If any legacy tool needs the RawMesh at this point, it will do a conversion from MD at that moment.
+	SourceModel.RawMeshBulkData->Empty();
 
 	// This part is not thread-safe, so we give the caller the option of calling it manually from the mainthread
 	if (Params.bMarkPackageDirty)
@@ -4771,10 +4757,10 @@ void UStaticMesh::PostLoad()
 		}
 		else
 		{
-			// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
-			// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
-			// is then released, and can be reloaded on demand.
-			CacheDerivedData();
+		// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
+		// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
+		// is then released, and can be reloaded on demand.
+		CacheDerivedData();
 		}
 
 		//Fix up the material to remove redundant material, this is needed since the material refactor where we do not have anymore copy of the materials
@@ -5019,6 +5005,12 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	// Fill vertex buffers
 
 	int32 NumVertexInstances = MeshDescription.VertexInstances().GetArraySize();
+	int32 NumTriangles = MeshDescription.Triangles().Num();
+
+	if (NumVertexInstances == 0 || NumTriangles == 0)
+	{
+		return;
+	}
 
 	TArray<FStaticMeshBuildVertex> StaticMeshBuildVertices;
 	StaticMeshBuildVertices.SetNum(NumVertexInstances);
@@ -5078,7 +5070,6 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	// Fill index buffer and sections array
 
 	int32 NumPolygonGroups = MeshDescription.PolygonGroups().Num();
-	int32 NumTriangles = MeshDescription.Triangles().Num();
 
 	TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
 
@@ -5381,6 +5372,18 @@ bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataF
 	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < MinLOD.Default ? TEXT(".uptnl") : TEXT(".ubulk"));
 	check(MipIndex < MinLOD.Default || IFileManager::Get().FileExists(*OutBulkDataFilename));
 	return true;
+}
+
+bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
+{
+	check(MipIndex < MinLOD.Default);
+
+#if !USE_BULKDATA_STREAMING_TOKEN	
+	return RenderData->LODResources[MipIndex].StreamingBulkData.DoesExist();
+#else
+	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
+	return false;
+#endif
 }
 
 bool UStaticMesh::IsReadyForStreaming() const
@@ -5960,7 +5963,7 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 	// Legacy content may contain a lightmap resolution of 0, which was valid when vertex lightmaps were supported, but not anymore with only texture lightmaps
 	LightMapResolution = FMath::Max(LightMapResolution, 4);
 
-	// Lightmass only supports 4 UVs
+	// Lightmass only supports 4 UVs from Lightmass::MAX_TEXCOORDS
 	int32 NumUVs = 4;
 
 #if !WITH_EDITORONLY_DATA
@@ -5995,28 +5998,35 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 	{
 		for (int32 LODIndex = 0; LODIndex < GetNumSourceModels(); ++LODIndex)
 		{
-			if (const FMeshDescription* MeshDescription = GetMeshDescription(LODIndex))
-			{
-				const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			//If the LOD is generated we validate the BaseLODModel instead as the generated LOD is not available before the build and has the same UV properties as its base LOD.
+			const bool bIsGeneratedLOD = !IsMeshDescriptionValid(LODIndex) || IsReductionActive(LODIndex);
+			const int32 SourceLOD = bIsGeneratedLOD ? GetSourceModel(LODIndex).ReductionSettings.BaseLODModel : LODIndex;
 
-				// skip empty LODs
-				if (UVChannels.GetNumElements() > 0)
+			if (!bIsGeneratedLOD || LODIndex == SourceLOD)
+			{
+				if (const FMeshDescription* MeshDescription = GetMeshDescription(SourceLOD))
 				{
-					int NumChannelsInLOD = UVChannels.GetNumIndices();
-					const FStaticMeshSourceModel& SourceModel = GetSourceModel(LODIndex);
+					const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
-					if (SourceModel.BuildSettings.bGenerateLightmapUVs)
+					// skip empty/stripped LODs
+					if (UVChannels.GetNumElements() > 0)
 					{
-						NumChannelsInLOD = FMath::Max(NumChannelsInLOD, SourceModel.BuildSettings.DstLightmapIndex + 1);
-					}
+						int NumChannelsInLOD = UVChannels.GetNumIndices();
+						const FStaticMeshSourceModel& SourceModel = GetSourceModel(SourceLOD);
 
-					NumUVs = FMath::Min(NumChannelsInLOD, NumUVs);
+						if (SourceModel.BuildSettings.bGenerateLightmapUVs)
+						{
+							NumChannelsInLOD = FMath::Max(NumChannelsInLOD, SourceModel.BuildSettings.DstLightmapIndex + 1);
+						}
+
+						NumUVs = FMath::Min(NumChannelsInLOD, NumUVs);
+					}
 				}
-			}
-			else
-			{
-				NumUVs = 1;
-				break;
+				else
+				{
+					NumUVs = 1;
+					break;
+				}
 			}
 		}
 
@@ -6352,7 +6362,7 @@ void UStaticMesh::SetMaterial(int32 MaterialIndex, UMaterialInterface* NewMateri
 		FScopedTransaction ScopeTransaction(LOCTEXT("StaticMeshMaterialChanged", "StaticMesh: Material changed"));
 
 		// flag the property (Materials) we're modifying so that not all of the object is rebuilt.
-		UProperty* ChangedProperty = FindField<UProperty>(UStaticMesh::StaticClass(), NAME_StaticMaterials);
+		FProperty* ChangedProperty = FindField<FProperty>(UStaticMesh::StaticClass(), NAME_StaticMaterials);
 		check(ChangedProperty);
 		PreEditChange(ChangedProperty);
 		UMaterialInterface* CancelOldMaterial = StaticMaterials[MaterialIndex].MaterialInterface;

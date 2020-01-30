@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/SkeletalAnimationTrackEditor.h"
 #include "Rendering/DrawElements.h"
@@ -54,6 +54,8 @@
 #include "DetailWidgetRow.h"
 #include "PropertyCustomizationHelpers.h"
 #include "IPropertyUtilities.h"
+#include "Factories/AnimSequenceFactory.h"
+#include "MovieSceneToolHelpers.h"
 
 
 namespace SkeletalAnimationEditorConstants
@@ -426,9 +428,9 @@ void FSkeletalAnimationSection::SlipSection(FFrameNumber SlipTime)
 	ISequencerSection::SlipSection(SlipTime);
 }
 
-bool FSkeletalAnimationSection::CreatePoseAsset(const TArray<UObject*> NewAssets, FGuid InObjectBinding)
+bool FSkeletalAnimationTrackEditor::CreatePoseAsset(const TArray<UObject*> NewAssets, FGuid InObjectBinding)
 {
-	USkeletalMeshComponent* SkeletalMeshComponent = AcquireSkeletalMeshFromObjectGuid(InObjectBinding, Sequencer.Pin());
+	USkeletalMeshComponent* SkeletalMeshComponent = AcquireSkeletalMeshFromObjectGuid(InObjectBinding, GetSequencer());
 
 	bool bResult = false;
 	if (NewAssets.Num() > 0)
@@ -480,32 +482,17 @@ bool FSkeletalAnimationSection::CreatePoseAsset(const TArray<UObject*> NewAssets
 }
 
 
-void FSkeletalAnimationSection::HandleCreatePoseAsset(FGuid InObjectBinding)
+void FSkeletalAnimationTrackEditor::HandleCreatePoseAsset(FGuid InObjectBinding)
 {
-	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(InObjectBinding, Sequencer.Pin());
+	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(InObjectBinding, GetSequencer());
 	if (Skeleton)
 	{
 		TArray<TWeakObjectPtr<UObject>> Skeletons;
 		Skeletons.Add(Skeleton);
-		AnimationEditorUtils::ExecuteNewAnimAsset<UPoseAssetFactory, UPoseAsset>(Skeletons, FString("_PoseAsset"), FAnimAssetCreated::CreateSP(this, &FSkeletalAnimationSection::CreatePoseAsset, InObjectBinding), false);
+		AnimationEditorUtils::ExecuteNewAnimAsset<UPoseAssetFactory, UPoseAsset>(Skeletons, FString("_PoseAsset"), FAnimAssetCreated::CreateSP(this, &FSkeletalAnimationTrackEditor::CreatePoseAsset, InObjectBinding), false);
 	}
 }
 
-
-void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& InObjectBinding)
-{
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("SkeletonMenuText", "Skeleton"));
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("CreatePoseAsset", "Create Pose Asset"), 
-		LOCTEXT("CreatePoseAsset_ToolTip", "Create Animation from current pose"),
-		FSlateIcon(), 
-		FUIAction(FExecuteAction::CreateRaw(this, &FSkeletalAnimationSection::HandleCreatePoseAsset, InObjectBinding)),
-		NAME_None, 
-		EUserInterfaceActionType::Button);
-
-	MenuBuilder.EndSection();
-}
 
 void FSkeletalAnimationSection::CustomizePropertiesDetailsView(TSharedRef<IDetailsView> DetailsView, const FSequencerSectionPropertyDetailsViewCustomizationParams& InParams) const
 {
@@ -601,6 +588,118 @@ bool FSkeletalAnimationTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid
 	return false;
 }
 
+void FSkeletalAnimationTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
+{
+	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) || ObjectClass->IsChildOf(AActor::StaticClass()) || ObjectClass->IsChildOf(UChildActorComponent::StaticClass()))
+	{
+		ConstructObjectBindingTrackMenu(MenuBuilder, ObjectBindings);
+	}
+}
+
+bool FSkeletalAnimationTrackEditor::CreateAnimationSequence(const TArray<UObject*> NewAssets, USkeletalMeshComponent* SkelMeshComp)
+{
+	bool bResult = false;
+	if (NewAssets.Num() > 0)
+	{
+		for (UObject* NewAsset : NewAssets)
+		{
+			UAnimSequence* AnimSequence = Cast<UAnimSequence>(NewAsset);
+			if (AnimSequence)
+			{
+				const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
+				UMovieScene* MovieScene = ParentSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+				FMovieSceneSequenceIDRef Template = ParentSequencer->GetFocusedTemplateID();
+				FMovieSceneSequenceTransform RootToLocalTransform;
+				bResult  = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, MovieScene, ParentSequencer.Get(), SkelMeshComp, Template, RootToLocalTransform);
+			}
+		}
+
+		// if it contains error, warn them
+		if (bResult)
+		{
+			FText NotificationText;
+			if (NewAssets.Num() == 1)
+			{
+				NotificationText = FText::Format(LOCTEXT("NumAnimSequenceAssetsCreated", "{0} Anim Sequence  assets created."), NewAssets.Num());
+			}
+			else
+			{
+				NotificationText = FText::Format(LOCTEXT("AnimSequenceAssetsCreated", "Anim Sequence asset created: '{0}'."), FText::FromString(NewAssets[0]->GetName()));
+			}
+
+			FNotificationInfo Info(NotificationText);
+			Info.ExpireDuration = 8.0f;
+			Info.bUseLargeFont = false;
+			Info.Hyperlink = FSimpleDelegate::CreateLambda([NewAssets]()
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(NewAssets);
+			});
+			Info.HyperlinkText = FText::Format(LOCTEXT("OpenNewPoseAssetHyperlink", "Open {0}"), FText::FromString(NewAssets[0]->GetName()));
+
+			TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+			if (Notification.IsValid())
+			{
+				Notification->SetCompletionState(SNotificationItem::CS_Success);
+			}
+		}
+		else
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FailedToCreateAsset", "Failed to create asset"));
+		}
+	}
+	return bResult;
+}
+
+void FSkeletalAnimationTrackEditor::HandleCreateAnimationSequence(USkeletalMeshComponent* SkelMeshComp, USkeleton* Skeleton)
+{
+	if (SkelMeshComp)
+	{
+		TArray<TWeakObjectPtr<UObject>> Skels;
+		if (SkelMeshComp->SkeletalMesh)
+		{
+			Skels.Add(SkelMeshComp->SkeletalMesh);
+		}
+		else
+		{
+			Skels.Add(Skeleton);
+		}
+		AnimationEditorUtils::ExecuteNewAnimAsset<UAnimSequenceFactory, UAnimSequence>(Skels, FString("_Sequence"), FAnimAssetCreated::CreateSP(this, &FSkeletalAnimationTrackEditor::CreateAnimationSequence, SkelMeshComp), false);
+	}
+}
+
+void FSkeletalAnimationTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
+{
+	if(ObjectBindings.Num() > 0)
+	{
+		USkeletalMeshComponent* SkelMeshComp =  AcquireSkeletalMeshFromObjectGuid(ObjectBindings[0], GetSequencer());
+
+		if (SkelMeshComp)
+		{
+
+			MenuBuilder.BeginSection("Create Animation Assets", LOCTEXT("CreateAnimationAssetsName", "Create Animation Assets"));
+
+			USkeleton* Skeleton = GetSkeletonFromComponent(SkelMeshComp);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateAnimSequence", "Create Animation Sequence"),
+				LOCTEXT("PasteCreateAnimSequenceTooltip", "Create Animation Sequence for this Skeletal Mesh. Note it will create it based upon the Sequencer Display Range and Display Frame Rate"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateRaw(this, &FSkeletalAnimationTrackEditor::HandleCreateAnimationSequence, SkelMeshComp,Skeleton)),
+				NAME_None,
+				EUserInterfaceActionType::Button);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreatePoseAsset", "Create Pose Asset"),
+				LOCTEXT("CreatePoseAsset_ToolTip", "Create Animation from current Pose"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateRaw(this, &FSkeletalAnimationTrackEditor::HandleCreatePoseAsset, ObjectBindings[0])),
+				NAME_None,
+				EUserInterfaceActionType::Button);
+
+			MenuBuilder.EndSection();
+		}
+	}
+}
 
 void FSkeletalAnimationTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {

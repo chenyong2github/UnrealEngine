@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
@@ -6,6 +6,9 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "Stack/SNiagaraStackItemGroupAddMenu.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "NiagaraEditorCommon.h"
+#include "NiagaraClipboard.h"
+#include "NiagaraEditorModule.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -61,6 +64,10 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		{
 			return "NiagaraEditor.Stack.EventIconHighlighted";
 		}
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::ShaderStage)
+		{
+			return "NiagaraEditor.Stack.ShaderStageIconHighlighted";
+		}
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
 		{
 			return "NiagaraEditor.Stack.RenderIconHighlighted";
@@ -83,6 +90,10 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Event)
 		{
 			return "NiagaraEditor.Stack.EventIcon";
+		}
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::ShaderStage)
+		{
+			return "NiagaraEditor.Stack.ShaderStageIcon";
 		}
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
 		{
@@ -161,73 +172,6 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(F
 	return false;
 }
 
-void CopyEntry(TWeakObjectPtr<UNiagaraStackEntry> StackEntryWeak)
-{
-	UNiagaraStackEntry* StackEntry = StackEntryWeak.Get();
-	if (StackEntry != nullptr)
-	{
-		StackEntry->Copy();
-	}
-}
-
-void PasteEntry(TWeakObjectPtr<UNiagaraStackEntry> StackEntryWeak)
-{
-	UNiagaraStackEntry* StackEntry = StackEntryWeak.Get();
-	if (StackEntry != nullptr)
-	{
-		StackEntry->Paste();
-	}
-}
-
-bool FNiagaraStackEditorWidgetsUtilities::AddStackEntryContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackEntry& StackEntry)
-{
-	if (StackEntry.SupportsCut() || StackEntry.SupportsCopy() || StackEntry.SupportsPaste())
-	{
-		MenuBuilder.BeginSection("EntryEdit", LOCTEXT("EntryEditActions", "Edit"));
-		{
-			if (StackEntry.SupportsCut())
-			{
-				FText CutMessage;
-				bool bCanCut = StackEntry.TestCanCutWithMessage(CutMessage);
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CutAction", "Cut"),
-					CutMessage,
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateUObject(&StackEntry, &UNiagaraStackEntry::Cut),
-						FCanExecuteAction::CreateLambda([bCanCut]() { return bCanCut; })));
-			}
-			if (StackEntry.SupportsCopy())
-			{
-				FText CopyMessage;
-				bool bCanCopy = StackEntry.TestCanCopyWithMessage(CopyMessage);
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CopyAction", "Copy"),
-					CopyMessage,
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateStatic(&CopyEntry, TWeakObjectPtr<UNiagaraStackEntry>(&StackEntry)),
-						FCanExecuteAction::CreateLambda([bCanCopy]() { return bCanCopy; })));
-			}
-			if (StackEntry.SupportsPaste())
-			{
-				FText PasteMessage;
-				bool bCanPaste = StackEntry.TestCanPasteWithMessage(PasteMessage);
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("PasteAction", "Paste"),
-					PasteMessage,
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateStatic(&PasteEntry, TWeakObjectPtr<UNiagaraStackEntry>(&StackEntry)),
-						FCanExecuteAction::CreateLambda([bCanPaste]() { return bCanPaste; })));
-			}
-		}
-		MenuBuilder.EndSection();
-		return true;
-	}
-	return false;
-}
-
 void DeleteItem(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
 {
 	UNiagaraStackItem* StackItem = StackItemWeak.Get();
@@ -249,7 +193,7 @@ void ToggleEnabledState(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
 
 bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackItem& StackItem)
 {
-	if (StackItem.SupportsDelete() || StackItem.SupportsChangeEnabled())
+	if (StackItem.SupportsChangeEnabled())
 	{
 		MenuBuilder.BeginSection("ItemActions", LOCTEXT("ItemActions", "Item Actions"));
 		{
@@ -265,20 +209,6 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBu
 					Action,
 					NAME_None,
 					EUserInterfaceActionType::Check);
-			}
-
-			if (StackItem.SupportsDelete())
-			{
-				FText CanDeleteMessage;
-				bool bCanDelete = StackItem.TestCanDeleteWithMessage(CanDeleteMessage);
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("DeleteModule", "Delete Item"),
-					CanDeleteMessage,
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateStatic(&DeleteItem, TWeakObjectPtr<UNiagaraStackItem>(&StackItem)),
-						FCanExecuteAction::CreateLambda([=]() { return bCanDelete; })));
-
 			}
 		}
 		MenuBuilder.EndSection();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -31,7 +31,7 @@ public:
 	 * @param  Outer		Optional outer for the new spawner (if left null, the transient package will be used).
 	 * @return A newly allocated instance of this class.
 	 */
-	static UBlueprintDelegateNodeSpawner* Create(TSubclassOf<UK2Node_BaseMCDelegate> NodeClass, UMulticastDelegateProperty const* const Property, UObject* Outer = nullptr);
+	static UBlueprintDelegateNodeSpawner* Create(TSubclassOf<UK2Node_BaseMCDelegate> NodeClass, FMulticastDelegateProperty const* const Property, UObject* Outer = nullptr);
 
 	/**
 	 * Accessor to the delegate property that this spawner wraps (the delegate
@@ -39,5 +39,5 @@ public:
 	 *
 	 * @return The delegate property that this was initialized with.
 	 */
-	UMulticastDelegateProperty const* GetDelegateProperty() const;
+	FMulticastDelegateProperty const* GetDelegateProperty() const;
 };

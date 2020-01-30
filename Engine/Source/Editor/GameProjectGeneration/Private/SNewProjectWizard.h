@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -204,6 +204,9 @@ private:
 	void HandleTemplateListViewSelectionChanged( TSharedPtr<FTemplateItem> TemplateItem, ESelectInfo::Type SelectInfo );
 
 	TSharedRef<SWidget> MakeProjectSettingsOptionsBox();
+
+	/** Create a project information struct from the currently selected settings. */
+	struct FProjectInformation CreateProjectInfo() const;
 
 private:
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PersonaUtils.h"
 #include "UObject/ObjectMacros.h"
@@ -10,6 +10,12 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimBlueprint.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Styling/CoreStyle.h"
+#include "Widgets/Input/SComboButton.h"
+#include "EditorStyleSet.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Images/SImage.h"
 
 namespace PersonaUtils
 {
@@ -45,12 +51,12 @@ int32 CopyPropertiesToCDO(UAnimInstance* InAnimInstance, const FCopyOptions& Opt
 
 	// Copy properties from the instance to the CDO
 	TSet<UObject*> ModifiedObjects;
-	for( UProperty* Property = AnimInstanceClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext )
+	for( FProperty* Property = AnimInstanceClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext )
 	{
 		const bool bIsTransient = !!( Property->PropertyFlags & CPF_Transient );
 		const bool bIsBlueprintReadonly = !!(Options.Flags & ECopyOptions::FilterBlueprintReadOnly) && !!( Property->PropertyFlags & CPF_BlueprintReadOnly );
 		const bool bIsIdentical = Property->Identical_InContainer(SourceInstance, TargetInstance);
-		const bool bIsAnimGraphNodeProperty = Property->IsA<UStructProperty>() && Cast<UStructProperty>(Property)->Struct->IsChildOf(FAnimNode_Base::StaticStruct());
+		const bool bIsAnimGraphNodeProperty = Property->IsA<FStructProperty>() && CastField<FStructProperty>(Property)->Struct->IsChildOf(FAnimNode_Base::StaticStruct());
 
 		if( !bIsAnimGraphNodeProperty && !bIsTransient && !bIsIdentical && !bIsBlueprintReadonly)
 		{
@@ -121,6 +127,66 @@ void SetObjectBeingDebugged(UAnimBlueprint* InAnimBlueprint, UAnimInstance* InAn
 		// Make sure the object being debugged is the preview instance
 		InAnimBlueprint->SetObjectBeingDebugged(InAnimInstance);
 	}
+}
+
+TSharedRef<SWidget> MakeTrackButton(FText HoverText, FOnGetContent MenuContent, const TAttribute<bool>& HoverState)
+{
+	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+
+	TSharedRef<STextBlock> ComboButtonText = SNew(STextBlock)
+		.Text(HoverText)
+		.Font(SmallLayoutFont)
+		.ColorAndOpacity( FSlateColor::UseForeground() );
+
+	TSharedRef<SComboButton> ComboButton =
+
+		SNew(SComboButton)
+		.HasDownArrow(false)
+		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ForegroundColor( FSlateColor::UseForeground() )
+		.OnGetMenuContent(MenuContent)
+		.ContentPadding(FMargin(5, 2))
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ButtonContent()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0,0,2,0))
+			[
+				SNew(SImage)
+				.ColorAndOpacity( FSlateColor::UseForeground() )
+				.Image(FEditorStyle::GetBrush("ComboButton.Arrow"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				ComboButtonText
+			]
+		];
+
+	auto GetRolloverVisibility = [WeakComboButton = TWeakPtr<SComboButton>(ComboButton), HoverState]()
+	{
+		TSharedPtr<SComboButton> ComboButton = WeakComboButton.Pin();
+		if (HoverState.Get() || ComboButton->IsOpen())
+		{
+			return EVisibility::SelfHitTestInvisible;
+		}
+		else
+		{
+			return EVisibility::Collapsed;
+		}
+	};
+
+	TAttribute<EVisibility> Visibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda(GetRolloverVisibility));
+	ComboButtonText->SetVisibility(Visibility);
+
+	return ComboButton;
 }
 
 }

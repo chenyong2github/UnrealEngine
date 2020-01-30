@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -40,7 +40,11 @@ protected:
 public:
 	ILiveLinkClient* GetClient() const { return LiveLinkClient; }
 	const TArray<FLiveLinkSubjectName>& GetSubjects() const { return Subjects; }
+	const TArray<ULiveLinkFrameTranslator*>& GetTranslators() const { return FrameTranslators; }
 	virtual bool DependsOnSubject(FName SubjectName) const;
+
+protected:
+	void UpdateTranslatorsForThisFrame();
 
 protected:
 	/** The role the subject was build with. */

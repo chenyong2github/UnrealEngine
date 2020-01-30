@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,7 +15,7 @@
 #include "DSP/SpectrumAnalyzer.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/EnvelopeFollower.h"
-
+#include "Sound/SoundClass.h"
 
 #include "MediaSoundComponent.generated.h"
 
@@ -24,7 +24,6 @@ class FMediaPlayerFacade;
 class IMediaAudioSample;
 class IMediaPlayer;
 class UMediaPlayer;
-class USoundClass;
 
 
 /**
@@ -269,10 +268,6 @@ private:
 	/** Audio sample queue. */
 	TSharedPtr<FMediaAudioSampleQueue, ESPMode::ThreadSafe> SampleQueue;
 
-	/** Handle SampleQueue running dry. Ensure audio resumes playback at correct position. */
-	int32 FrameSyncOffset;
-
-
 	/* Time of last sample played. */
 	TAtomic<FTimespan> LastPlaySampleTime;
 
@@ -294,12 +289,6 @@ private:
 
 	/** Scratch buffer to mix in source audio to from decoder */
 	Audio::AlignedFloatBuffer AudioScratchBuffer;
-
-	/**
-	 * Sync forward after input audio buffer runs dry due to a hitch or decoder not being able to keep up
-	 * Without this audio will resume playing exactly where it last left off (far behind current player time)
-	 */
-	bool bSyncAudioAfterDropouts;
 
 	/** Whether or not spectral analysis is enabled. */
 	bool bSpectralAnalysisEnabled;

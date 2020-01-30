@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -147,7 +147,7 @@ struct MOVIESCENE_API TMovieSceneSavedTokens
 	 */
 	void Reset();
 
-	void SetPayload(PayloadType&& InPayload) { Payload = MoveTemp(InPayload); }
+	void CopyFrom(TMovieSceneSavedTokens& Other);
 
 private:
 

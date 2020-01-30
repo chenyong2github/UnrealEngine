@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -52,7 +52,9 @@ public class ModelingToolsEditorMode : ModuleRules
 				"MeshModelingTools",
 				"MeshModelingToolsEditorOnly",
 
-                "ViewportInteraction"
+                "ViewportInteraction",
+
+				"StylusInput"
 
 				// ... add private dependencies that you statically link with here ...	
 			}

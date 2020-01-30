@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "XmppModule.h"
 #include "Misc/CommandLine.h"
@@ -734,7 +734,11 @@ TSharedRef<IXmppConnection> FXmppModule::CreateConnection(const FString& UserId)
 			Connection = FXmppNull::CreateConnection();
 		}
 
-		return ActiveConnections.Add(UserId, Connection.ToSharedRef());
+		TSharedRef<IXmppConnection> ConnectionRef = Connection.ToSharedRef();
+		ActiveConnections.Add(UserId, ConnectionRef);
+		OnXmppConnectionCreated.Broadcast(ConnectionRef);
+		
+		return ConnectionRef;
 	}
 }
 

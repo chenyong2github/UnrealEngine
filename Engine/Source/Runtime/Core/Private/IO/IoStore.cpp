@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IO/IoStore.h"
 #include "Containers/Map.h"
@@ -8,6 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 constexpr char FIoStoreTocHeader::TocMagicImg[];
+constexpr uint32 IoChunkAlignment = 16;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -15,13 +16,19 @@ FIoStoreEnvironment::FIoStoreEnvironment()
 {
 }
 
+FIoStoreEnvironment::FIoStoreEnvironment(const FIoStoreEnvironment& BaseEnvironment, FStringView InPartitionName)
+{
+	BasePath = BaseEnvironment.BasePath;
+	PartitionName = InPartitionName;
+}
+
 FIoStoreEnvironment::~FIoStoreEnvironment()
 {
 }
 
-void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InRootPath)
+void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InBasePath)
 {
-	RootPath = InRootPath;
+	BasePath = InBasePath;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -38,19 +45,15 @@ public:
 	{
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 
-		const FString& RootPath = Environment.GetRootPath();
-		Ipf.CreateDirectoryTree(*RootPath);
+		FString PartitionName = Environment.GetPartitionName();
+		if (PartitionName.IsEmpty())
+		{
+			PartitionName = TEXT("global");
+		}
+		FString TocFilePath = Environment.GetBasePath() / PartitionName + TEXT(".utoc");
+		FString ContainerFilePath = Environment.GetBasePath() / PartitionName + TEXT(".ucas");
 
-		TStringBuilder<256> ContainerFilePath;
-		ContainerFilePath.Append(RootPath);
-		if (ContainerFilePath.LastChar() != '/')
-			ContainerFilePath.Append(TEXT('/'));
-
-		TStringBuilder<256> TocFilePath;
-		TocFilePath.Append(ContainerFilePath);
-
-		ContainerFilePath.Append(TEXT("Container.ucas"));
-		TocFilePath.Append(TEXT("Container.utoc"));
+		Ipf.CreateDirectoryTree(*Environment.GetBasePath());
 
 		ContainerFileHandle.Reset(Ipf.OpenWrite(*ContainerFilePath, /* append */ false, /* allowread */ true));
 
@@ -88,13 +91,22 @@ public:
 
 		FIoStoreTocEntry TocEntry;
 
+		check(ContainerFileHandle->Tell() % IoChunkAlignment == 0);
+
 		TocEntry.SetOffset(ContainerFileHandle->Tell());
 		TocEntry.SetLength(Chunk.DataSize());
 		TocEntry.ChunkId = ChunkId;
 
 		IsMetadataDirty = true;
 
-		const bool Success = ContainerFileHandle->Write(Chunk.Data(), Chunk.DataSize());
+		bool Success = ContainerFileHandle->Write(Chunk.Data(), Chunk.DataSize());
+
+		if (uint32 UnpaddedBytes = Chunk.DataSize() % IoChunkAlignment)
+		{
+			static constexpr uint8 Zeroes[IoChunkAlignment] = {};
+			uint32 Padding = (IoChunkAlignment - UnpaddedBytes) % IoChunkAlignment;
+			Success &= ContainerFileHandle->Write(Zeroes, Padding);
+		}
 
 		if (Success)
 		{

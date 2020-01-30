@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -442,16 +442,16 @@ namespace UnrealBuildTool
 			// Add include paths to the argument list.
 			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 			{
-				VCToolChain.AddIncludePath(SharedArguments, IncludePath, Target.HoloLensPlatform.Compiler);
+				VCToolChain.AddIncludePath(SharedArguments, IncludePath, Target.HoloLensPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
 			}
 			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
 			{
-				VCToolChain.AddIncludePath(SharedArguments, IncludePath, Target.HoloLensPlatform.Compiler);
+				VCToolChain.AddIncludePath(SharedArguments, IncludePath, Target.HoloLensPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
 			}
 
 			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
 			{
-				VCToolChain.AddIncludePath(SharedArguments, IncludePath, Target.HoloLensPlatform.Compiler);
+				VCToolChain.AddIncludePath(SharedArguments, IncludePath, Target.HoloLensPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
 			}
 
 			// Add preprocessor definitions to the argument list.

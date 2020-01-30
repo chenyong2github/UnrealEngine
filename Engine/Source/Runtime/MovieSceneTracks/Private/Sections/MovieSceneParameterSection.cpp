@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneParameterSection.h"
 #include "UObject/SequencerObjectVersion.h"
@@ -9,7 +9,17 @@ FScalarParameterNameAndCurve::FScalarParameterNameAndCurve( FName InParameterNam
 	ParameterName = InParameterName;
 }
 
-FVectorParameterNameAndCurves::FVectorParameterNameAndCurves( FName InParameterName )
+FBoolParameterNameAndCurve::FBoolParameterNameAndCurve(FName InParameterName)
+{
+	ParameterName = InParameterName;
+}
+
+FVector2DParameterNameAndCurves::FVector2DParameterNameAndCurves( FName InParameterName )
+{
+	ParameterName = InParameterName;
+}
+
+FVectorParameterNameAndCurves::FVectorParameterNameAndCurves(FName InParameterName)
 {
 	ParameterName = InParameterName;
 }
@@ -42,7 +52,8 @@ void UMovieSceneParameterSection::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		ReconstructChannelProxy();
+		//Don't force if transacting, since it may not be a channel creation/deletion change
+		ReconstructChannelProxy(!Ar.IsTransacting());
 	}
 }
 
@@ -50,12 +61,13 @@ void UMovieSceneParameterSection::PostEditImport()
 {
 	Super::PostEditImport();
 
-	ReconstructChannelProxy();
+	ReconstructChannelProxy(true);
 }
 
 
-void UMovieSceneParameterSection::ReconstructChannelProxy()
+void UMovieSceneParameterSection::ReconstructChannelProxy(bool bForce)
 {
+
 	FMovieSceneChannelProxyData Channels;
 
 #if WITH_EDITOR
@@ -66,6 +78,22 @@ void UMovieSceneParameterSection::ReconstructChannelProxy()
 		// Prevent single channels from collapsing to the track node
 		MetaData.bCanCollapseToTrack = false;
 		Channels.Add(Scalar.ParameterCurve, MetaData, TMovieSceneExternalValue<float>());
+	}
+
+	for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
+	{
+		FMovieSceneChannelMetaData MetaData(Bool.ParameterName, FText::FromName(Bool.ParameterName));
+		// Prevent single channels from collapsing to the track node
+		MetaData.bCanCollapseToTrack = false;
+		Channels.Add(Bool.ParameterCurve, MetaData, TMovieSceneExternalValue<bool>());
+	}
+	for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
+	{
+		FString ParameterString = Vector2D.ParameterName.ToString();
+		FText Group = FText::FromString(ParameterString);
+
+		Channels.Add(Vector2D.XCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".X")), FCommonChannelData::ChannelX, Group), TMovieSceneExternalValue<float>());
+		Channels.Add(Vector2D.YCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Y")), FCommonChannelData::ChannelY, Group), TMovieSceneExternalValue<float>());
 	}
 	for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
 	{
@@ -126,11 +154,14 @@ void UMovieSceneParameterSection::ReconstructChannelProxy()
 	{
 		Channels.Add(Scalar.ParameterCurve);
 	}
-	for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
+	for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
 	{
-		Channels.Add(Vector.XCurve);
-		Channels.Add(Vector.YCurve);
-		Channels.Add(Vector.ZCurve);
+		Channels.Add(Bool.ParameterCurve);
+	}
+	for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
+	{
+		Channels.Add(Vector2D.XCurve);
+		Channels.Add(Vector2D.YCurve);
 	}
 	for (FColorParameterNameAndCurves& Color : GetColorParameterNamesAndCurves())
 	{
@@ -159,6 +190,7 @@ void UMovieSceneParameterSection::ReconstructChannelProxy()
 #endif
 
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
+	
 }
 
 void UMovieSceneParameterSection::AddScalarParameterKey( FName InParameterName, FFrameNumber InTime, float InValue )
@@ -177,10 +209,66 @@ void UMovieSceneParameterSection::AddScalarParameterKey( FName InParameterName, 
 		const int32 NewIndex = ScalarParameterNamesAndCurves.Add( FScalarParameterNameAndCurve( InParameterName ) );
 		ExistingChannel = &ScalarParameterNamesAndCurves[NewIndex].ParameterCurve;
 
-		ReconstructChannelProxy();
+		ReconstructChannelProxy(true);
 	}
 
 	ExistingChannel->AddCubicKey(InTime, InValue);
+
+	if (TryModify())
+	{
+		SetRange(TRange<FFrameNumber>::Hull(TRange<FFrameNumber>(InTime), GetRange()));
+	}
+}
+
+void UMovieSceneParameterSection::AddBoolParameterKey(FName InParameterName, FFrameNumber InTime, bool InValue)
+{
+	FMovieSceneBoolChannel* ExistingChannel = nullptr;
+	for (FBoolParameterNameAndCurve& BoolParameterNameAndCurve : BoolParameterNamesAndCurves)
+	{
+		if (BoolParameterNameAndCurve.ParameterName == InParameterName)
+		{
+			ExistingChannel = &BoolParameterNameAndCurve.ParameterCurve;
+			break;
+		}
+	}
+	if (ExistingChannel == nullptr)
+	{
+		const int32 NewIndex = BoolParameterNamesAndCurves.Add(FBoolParameterNameAndCurve(InParameterName));
+		ExistingChannel = &BoolParameterNamesAndCurves[NewIndex].ParameterCurve;
+
+		ReconstructChannelProxy(true);
+	}
+
+	ExistingChannel->GetData().UpdateOrAddKey(InTime, InValue);
+
+	if (TryModify())
+	{
+		SetRange(TRange<FFrameNumber>::Hull(TRange<FFrameNumber>(InTime), GetRange()));
+	}
+}
+
+
+void UMovieSceneParameterSection::AddVector2DParameterKey(FName InParameterName, FFrameNumber InTime, FVector2D InValue)
+{
+	FVector2DParameterNameAndCurves* ExistingCurves = nullptr;
+	for (FVector2DParameterNameAndCurves& VectorParameterNameAndCurve : Vector2DParameterNamesAndCurves)
+	{
+		if (VectorParameterNameAndCurve.ParameterName == InParameterName)
+		{
+			ExistingCurves = &VectorParameterNameAndCurve;
+			break;
+		}
+	}
+	if (ExistingCurves == nullptr)
+	{
+		int32 NewIndex = Vector2DParameterNamesAndCurves.Add(FVector2DParameterNameAndCurves(InParameterName));
+		ExistingCurves = &Vector2DParameterNamesAndCurves[NewIndex];
+
+		ReconstructChannelProxy(true);
+	}
+
+	ExistingCurves->XCurve.AddCubicKey(InTime, InValue.X);
+	ExistingCurves->YCurve.AddCubicKey(InTime, InValue.Y);
 
 	if (TryModify())
 	{
@@ -204,7 +292,7 @@ void UMovieSceneParameterSection::AddVectorParameterKey( FName InParameterName, 
 		int32 NewIndex = VectorParameterNamesAndCurves.Add( FVectorParameterNameAndCurves( InParameterName ) );
 		ExistingCurves = &VectorParameterNamesAndCurves[NewIndex];
 
-		ReconstructChannelProxy();
+		ReconstructChannelProxy(true);
 	}
 
 	ExistingCurves->XCurve.AddCubicKey(InTime, InValue.X);
@@ -233,7 +321,7 @@ void UMovieSceneParameterSection::AddColorParameterKey( FName InParameterName, F
 		int32 NewIndex = ColorParameterNamesAndCurves.Add( FColorParameterNameAndCurves( InParameterName ) );
 		ExistingCurves = &ColorParameterNamesAndCurves[NewIndex];
 
-		ReconstructChannelProxy();
+		ReconstructChannelProxy(true);
 	}
 
 	ExistingCurves->RedCurve.AddCubicKey(   InTime, InValue.R );
@@ -263,7 +351,7 @@ void UMovieSceneParameterSection::AddTransformParameterKey(FName InParameterName
 		int32 NewIndex = TransformParameterNamesAndCurves.Add(FTransformParameterNameAndCurves(InParameterName));
 		ExistingCurves = &TransformParameterNamesAndCurves[NewIndex];
 
-		ReconstructChannelProxy();
+		ReconstructChannelProxy(true);
 	}
 	FVector Translation = InValue.GetTranslation();
 	FRotator Rotator = InValue.GetRotation().Rotator();
@@ -293,7 +381,35 @@ bool UMovieSceneParameterSection::RemoveScalarParameter( FName InParameterName )
 		if ( ScalarParameterNamesAndCurves[i].ParameterName == InParameterName )
 		{
 			ScalarParameterNamesAndCurves.RemoveAt(i);
-			ReconstructChannelProxy();
+			ReconstructChannelProxy(true);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMovieSceneParameterSection::RemoveBoolParameter(FName InParameterName)
+{
+	for (int32 i = 0; i < BoolParameterNamesAndCurves.Num(); i++)
+	{
+		if (BoolParameterNamesAndCurves[i].ParameterName == InParameterName)
+		{
+			BoolParameterNamesAndCurves.RemoveAt(i);
+			ReconstructChannelProxy(true);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMovieSceneParameterSection::RemoveVector2DParameter(FName InParameterName)
+{
+	for (int32 i = 0; i < Vector2DParameterNamesAndCurves.Num(); i++)
+	{
+		if (Vector2DParameterNamesAndCurves[i].ParameterName == InParameterName)
+		{
+			Vector2DParameterNamesAndCurves.RemoveAt(i);
+			ReconstructChannelProxy(true);
 			return true;
 		}
 	}
@@ -307,7 +423,7 @@ bool UMovieSceneParameterSection::RemoveVectorParameter( FName InParameterName )
 		if ( VectorParameterNamesAndCurves[i].ParameterName == InParameterName )
 		{
 			VectorParameterNamesAndCurves.RemoveAt( i );
-			ReconstructChannelProxy();
+			ReconstructChannelProxy(true);
 			return true;
 		}
 	}
@@ -321,7 +437,7 @@ bool UMovieSceneParameterSection::RemoveColorParameter( FName InParameterName )
 		if ( ColorParameterNamesAndCurves[i].ParameterName == InParameterName )
 		{
 			ColorParameterNamesAndCurves.RemoveAt( i );
-			ReconstructChannelProxy();
+			ReconstructChannelProxy(true);
 			return true;
 		}
 	}
@@ -335,7 +451,7 @@ bool UMovieSceneParameterSection::RemoveTransformParameter(FName InParameterName
 		if (TransformParameterNamesAndCurves[i].ParameterName == InParameterName)
 		{
 			TransformParameterNamesAndCurves.RemoveAt(i);
-			ReconstructChannelProxy();
+			ReconstructChannelProxy(true);
 			return true;
 		}
 	}
@@ -352,7 +468,27 @@ const TArray<FScalarParameterNameAndCurve>& UMovieSceneParameterSection::GetScal
 	return ScalarParameterNamesAndCurves;
 }
 
-TArray<FVectorParameterNameAndCurves>& UMovieSceneParameterSection::GetVectorParameterNamesAndCurves()
+TArray<FBoolParameterNameAndCurve>& UMovieSceneParameterSection::GetBoolParameterNamesAndCurves() 
+{
+	return BoolParameterNamesAndCurves;
+}
+
+const TArray<FBoolParameterNameAndCurve>& UMovieSceneParameterSection::GetBoolParameterNamesAndCurves() const
+{
+	return BoolParameterNamesAndCurves;
+}
+
+TArray<FVector2DParameterNameAndCurves>& UMovieSceneParameterSection::GetVector2DParameterNamesAndCurves()
+{
+	return Vector2DParameterNamesAndCurves;
+}
+
+const TArray<FVector2DParameterNameAndCurves>& UMovieSceneParameterSection::GetVector2DParameterNamesAndCurves() const
+{
+	return Vector2DParameterNamesAndCurves;
+}
+
+TArray<FVectorParameterNameAndCurves>& UMovieSceneParameterSection::GetVectorParameterNamesAndCurves() 
 {
 	return VectorParameterNamesAndCurves;
 }

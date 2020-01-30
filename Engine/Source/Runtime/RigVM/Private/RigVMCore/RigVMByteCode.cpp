@@ -1,6 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMByteCode.h"
+#include "UObject/AnimObjectVersion.h"
 
 FRigVMInstructionArray::FRigVMInstructionArray()
 {
@@ -22,13 +23,36 @@ void FRigVMInstructionArray::Reset()
 	Instructions.Reset();
 }
 
+void FRigVMInstructionArray::Empty()
+{
+	Instructions.Empty();
+}
+
 FRigVMByteCode::FRigVMByteCode()
 {
+}
+
+bool FRigVMByteCode::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+
+	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
+	{
+		return false;
+	}
+
+	Ar << ByteCode;
+	return true;
 }
 
 void FRigVMByteCode::Reset()
 {
 	ByteCode.Reset();
+}
+
+void FRigVMByteCode::Empty()
+{
+	ByteCode.Empty();
 }
 
 uint64 FRigVMByteCode::Num() const
@@ -181,18 +205,21 @@ uint64 FRigVMByteCode::AddTrueOp(const FRigVMOperand& InArg)
 
 uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
 {
+	ensure(InTarget.GetMemoryType() != ERigVMMemoryType::Literal);
 	FRigVMCopyOp Op(InSource, InTarget);
 	return AddOp(Op);
 }
 
 uint64 FRigVMByteCode::AddIncrementOp(const FRigVMOperand& InArg)
 {
+	ensure(InArg.GetMemoryType() != ERigVMMemoryType::Literal);
 	FRigVMUnaryOp Op(ERigVMOpCode::Increment, InArg);
 	return AddOp(Op);
 }
 
 uint64 FRigVMByteCode::AddDecrementOp(const FRigVMOperand& InArg)
 {
+	ensure(InArg.GetMemoryType() != ERigVMMemoryType::Literal);
 	FRigVMUnaryOp Op(ERigVMOpCode::Decrement, InArg);
 	return AddOp(Op);
 }

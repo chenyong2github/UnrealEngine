@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -156,6 +156,11 @@ protected:
 
 	/** Handle for efficient management of the UpdateServerTimeSeconds timer */
 	FTimerHandle TimerHandle_UpdateServerTimeSeconds;
+
+	/** Cumulative sum of computed server world time deltas for smoothed-averaging */
+	double SumServerWorldTimeSecondsDelta;
+	/** The number of server world time deltas accumulated in SumServerWorldTimeSecondsDelta - used for computing the mean */
+	uint32 NumServerWorldTimeSecondsDeltas;
 
 private:
 	// Hidden functions that don't make sense to use on this class.

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Bitwise animation compression only; performs no key reduction.
@@ -21,7 +21,7 @@ class UAnimCompress_BitwiseCompressOnly : public UAnimCompress
 protected:
 	//~ Begin UAnimCompress Interface
 #if WITH_EDITOR
-	virtual void DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) override;
+	virtual bool DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) override;
 #endif // WITH_EDITOR
 	//~ Begin UAnimCompress Interface
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ApexClothingUtils.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -158,6 +158,12 @@ void RestoreAllClothingSections(USkeletalMesh* SkelMesh, uint32 LODIndex, uint32
 				if(Section.HasClothingData())
 				{
 					ClothingAssetUtils::ClearSectionClothingData(Section);
+					if (FSkelMeshSourceSectionUserData* UserSectionData = LodModel.UserSectionsData.Find(Section.OriginalDataSectionIndex))
+					{
+						UserSectionData->CorrespondClothAssetIndex = INDEX_NONE;
+						UserSectionData->ClothingData.AssetLodIndex = INDEX_NONE;
+						UserSectionData->ClothingData.AssetGuid = FGuid();
+					}
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,11 +19,31 @@ struct ENGINE_API FAnimNode_ApplyMeshSpaceAdditive : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links)
 	FPoseLink Additive;
 
+	/** The data type used to control the alpha blending of the additive pose.
+		Note: Changing this value will disconnect alpha input pins.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	EAnimAlphaInputType AlphaInputType;
+
+	/** The float value that controls the alpha blending when the alpha input type is set to 'Float' */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault))
 	float Alpha;
 
+	/** The boolean value that controls the alpha blending when the alpha input type is set to 'Bool' */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault, DisplayName = "bEnabled"))
+	uint8 bAlphaBoolEnabled : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (DisplayName = "Blend Settings"))
+	FInputAlphaBoolBlend AlphaBoolBlend;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault))
+	FName AlphaCurveName;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FInputScaleBias AlphaScaleBias;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	FInputScaleBiasClamp AlphaScaleBiasClamp;
 
 	/*
 	* Max LOD that this node is allowed to run

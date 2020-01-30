@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsActorHandle_Chaos.h"
 
@@ -11,6 +11,7 @@
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/Utilities.h"
 
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 
@@ -25,51 +26,53 @@ namespace ImmediatePhysics_Chaos
 	// Utils
 	//
 
-	template<typename T, int d>
-	Chaos::PMatrix<T, d, d> CalculateInertia_Solid(const T Mass, const FKSphereElem& SphereElem)
+	// @todo(ccaulfield): Max mass conditioning an option (or push it into the constraint which is where it is really needed)
+	const FReal Chaos_MaxDimensionRatio = 5.0f;
+
+	Chaos::FMatrix33 CalculateInertia_Solid(const FReal Mass, const FKSphereElem& SphereElem)
 	{
-		return Chaos::PMatrix<T, d, d>(
-			((T)2 / (T)5) * Mass * SphereElem.Radius * SphereElem.Radius,
-			((T)2 / (T)5) * Mass * SphereElem.Radius * SphereElem.Radius,
-			((T)2 / (T)5) * Mass * SphereElem.Radius * SphereElem.Radius
-			);
+		return Chaos::TSphere<FReal, 3>::GetInertiaTensor(Mass, SphereElem.Radius);
 	}
 
-	template<typename T, int d>
-	Chaos::PMatrix<T, d, d> CalculateInertia_Solid(const T Mass, const FKSphylElem& SphylElem)
+	Chaos::FMatrix33 CalculateInertia_Solid(const FReal Mass, const FKSphylElem& SphylElem)
 	{
-		return Chaos::PMatrix<T, d, d>(
-			((T)1 / (T)12) * Mass * ((T)3 * SphylElem.Radius * SphylElem.Radius + SphylElem.Length * SphylElem.Length),
-			((T)1 / (T)12) * Mass * ((T)3 * SphylElem.Radius * SphylElem.Radius + SphylElem.Length * SphylElem.Length),
-			((T)1 / (T)2) * Mass * SphylElem.Radius * SphylElem.Radius
-			);
+		float Len = SphylElem.Length;
+		float Rad = SphylElem.Radius;
+		if (Len > Chaos_MaxDimensionRatio * Rad)
+		{
+			Rad = Len / Chaos_MaxDimensionRatio;
+		}
+		return Chaos::TCapsule<FReal>::GetInertiaTensor(Mass, Len, Rad);
 	}
 
-	template<typename T, int d>
-	Chaos::PMatrix<T, d, d> CalculateInertia_Solid(const T Mass, const FKBoxElem& BoxElem)
+	Chaos::FMatrix33 CalculateInertia_Solid(const FReal Mass, const FKBoxElem& BoxElem)
 	{
-		return Chaos::PMatrix<T, d, d>(
-			((T)1 / (T)12) * Mass * (BoxElem.Y * BoxElem.Y + BoxElem.Z * BoxElem.Z),
-			((T)1 / (T)12) * Mass * (BoxElem.Z * BoxElem.Z + BoxElem.X * BoxElem.X),
-			((T)1 / (T)12) * Mass * (BoxElem.X * BoxElem.X + BoxElem.Y * BoxElem.Y)
-			);
+		FVector Dim = FVector(BoxElem.X, BoxElem.Y, BoxElem.Z);
+		float MaxDim = Dim.GetAbsMax();
+		float MinDim = Dim.GetAbsMin();
+		if (MaxDim > Chaos_MaxDimensionRatio* MinDim)
+		{
+			Dim.X = FMath::Lerp(MinDim, MaxDim, (Dim.X - MinDim) / (MaxDim - MinDim));
+			Dim.Y = FMath::Lerp(MinDim, MaxDim, (Dim.Y - MinDim) / (MaxDim - MinDim));
+			Dim.Z = FMath::Lerp(MinDim, MaxDim, (Dim.Z - MinDim) / (MaxDim - MinDim));
+		}
+		return Chaos::TBox<FReal, 3>::GetInertiaTensor(Mass, Dim);
 	}
 
-	template<typename T, int d>
-	void CalculateMassProperties(const FVector& Scale, const FTransform& LocalTransform, const FKAggregateGeom& AggGeom, Chaos::TMassProperties<T, d>& OutMassProperties)
+	void CalculateMassProperties(const FVector& Scale, const FTransform& LocalTransform, const FKAggregateGeom& AggGeom, Chaos::TMassProperties<FReal, 3>& OutMassProperties)
 	{
 		using namespace Chaos;
-		TArray<TMassProperties<T, d>> AllMassProperties;
+		TArray<TMassProperties<FReal, 3>> AllMassProperties;
 
 		for (uint32 i = 0; i < static_cast<uint32>(AggGeom.SphereElems.Num()); ++i)
 		{
 			const FKSphereElem ScaledSphereElem = AggGeom.SphereElems[i].GetFinalScaled(Scale, LocalTransform);
 
-			TMassProperties<T, d> MassProperties;
+			TMassProperties<FReal, 3> MassProperties;
 			MassProperties.CenterOfMass = LocalTransform.GetTranslation() + ScaledSphereElem.Center;
-			MassProperties.RotationOfMass = TRotation<T, d>::FromIdentity();
+			MassProperties.RotationOfMass = FRotation3::FromIdentity();
 			MassProperties.Volume = ScaledSphereElem.GetVolume(FVector::OneVector);
-			MassProperties.InertiaTensor = CalculateInertia_Solid<T, d>(MassProperties.Volume, ScaledSphereElem);
+			MassProperties.InertiaTensor = CalculateInertia_Solid(MassProperties.Volume, ScaledSphereElem);
 
 			AllMassProperties.Add(MassProperties);
 		}
@@ -77,11 +80,11 @@ namespace ImmediatePhysics_Chaos
 		{
 			const auto& BoxElem = AggGeom.BoxElems[i];
 
-			TMassProperties<T, d> MassProperties;
+			TMassProperties<FReal, 3> MassProperties;
 			MassProperties.CenterOfMass = LocalTransform.GetTranslation() + BoxElem.Center;
-			MassProperties.RotationOfMass = LocalTransform.GetRotation() * TRotation<T, d>(FQuat(BoxElem.Rotation));
+			MassProperties.RotationOfMass = LocalTransform.GetRotation() * FRotation3(FQuat(BoxElem.Rotation));
 			MassProperties.Volume = BoxElem.GetVolume(Scale);
-			MassProperties.InertiaTensor = CalculateInertia_Solid<T, d>(MassProperties.Volume, BoxElem);
+			MassProperties.InertiaTensor = CalculateInertia_Solid(MassProperties.Volume, BoxElem);
 
 			AllMassProperties.Add(MassProperties);
 		}
@@ -96,21 +99,21 @@ namespace ImmediatePhysics_Chaos
 				//not a capsule just use a sphere
 				const FKSphereElem ScaledSphereElem = FKSphereElem(Radius);
 
-				TMassProperties<T, d> MassProperties;
+				TMassProperties<FReal, 3> MassProperties;
 				MassProperties.CenterOfMass = LocalTransform.GetTranslation() + ScaledSphereElem.Center;
-				MassProperties.RotationOfMass = TRotation<T, d>::FromIdentity();
+				MassProperties.RotationOfMass = FRotation3::FromIdentity();
 				MassProperties.Volume = ScaledSphereElem.GetVolume(FVector::OneVector);
-				MassProperties.InertiaTensor = CalculateInertia_Solid<T, d>(MassProperties.Volume, ScaledSphereElem);
+				MassProperties.InertiaTensor = CalculateInertia_Solid(MassProperties.Volume, ScaledSphereElem);
 
 				AllMassProperties.Add(MassProperties);
 			}
 			else
 			{
-				TMassProperties<T, d> MassProperties;
+				TMassProperties<FReal, 3> MassProperties;
 				MassProperties.CenterOfMass = LocalTransform.GetTranslation() + ScaledSphylElem.Center;
-				MassProperties.RotationOfMass = LocalTransform.GetRotation() * TRotation<T, d>(FQuat(ScaledSphylElem.Rotation));
+				MassProperties.RotationOfMass = LocalTransform.GetRotation() * FRotation3(FQuat(ScaledSphylElem.Rotation));
 				MassProperties.Volume = ScaledSphylElem.GetVolume(FVector::OneVector);
-				MassProperties.InertiaTensor = CalculateInertia_Solid<T, d>(MassProperties.Volume, ScaledSphylElem);
+				MassProperties.InertiaTensor = CalculateInertia_Solid(MassProperties.Volume, ScaledSphylElem);
 
 				AllMassProperties.Add(MassProperties);
 			}
@@ -136,26 +139,72 @@ namespace ImmediatePhysics_Chaos
 			bModeThanOne = true;
 		}
 
-		OutMassProperties = Combine(AllMassProperties);
+		if (CHAOS_ENSURE(AllMassProperties.Num() > 0))
+		{
+			OutMassProperties = Combine(AllMassProperties);
+		}
+		else 
+		{
+			// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
+			OutMassProperties.CenterOfMass = FVec3(0.0f);
+			OutMassProperties.Mass = 523.f;
+			OutMassProperties.Volume = 5.24e5;
+			OutMassProperties.RotationOfMass = TRotation<FReal, 3>::FromIdentity();
+			OutMassProperties.InertiaTensor = PMatrix<FReal, 3, 3>(5.24e5, 5.24e5, 5.24e5);
+		}
 	}
 
+	bool CreateDefaultGeometry(const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>>& OutShapes)
+	{
+		using namespace Chaos;
+
+		const FReal Mass = 1.0f;
+		const FReal Radius = 1.0f * Scale.GetMax();
+
+		auto ImplicitSphere = MakeUnique<Chaos::TSphere<float, 3>>(FVec3(0), Radius);
+		auto NewShape = Chaos::TPerShapeData<float, 3>::CreatePerShapeData();
+		NewShape->Geometry = MakeSerializable(ImplicitSphere);
+		NewShape->UpdateShapeBounds(FTransform::Identity);
+		NewShape->UserData = 0;
+		NewShape->bSimulate = false;
+
+		OutMass = Mass;
+		OutInertia = TSphere<FReal, 3>::GetInertiaTensor(Mass, Radius).GetDiagonal();
+		OutCoMTransform = FTransform::Identity;
+		OutShapes.Emplace(MoveTemp(NewShape));
+		OutGeom = MoveTemp(ImplicitSphere);
+
+		return true;
+	}
 
 	bool CreateGeometry(FBodyInstance* BodyInstance, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>>& OutShapes)
 	{
+		using namespace Chaos;
+
+		if (BodyInstance == nullptr)
+		{
+			return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
+		}
+
 		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();
 
 #if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
-		float Density = 1.e-3f;	// 1g/cm3
-		Chaos::TMassProperties<float, 3> MassProperties;
-		CalculateMassProperties<float, 3>(Scale, FTransform::Identity, BodySetup->AggGeom, MassProperties);
-		OutMass = Density * MassProperties.Volume;
-		OutInertia = Density * Chaos::TVector<float, 3>(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1], MassProperties.InertiaTensor.M[2][2]);
-		OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass);
+		TMassProperties<float, 3> MassProperties;
+		CalculateMassProperties(Scale, FTransform::Identity, BodySetup->AggGeom, MassProperties);
+		float Density = 1.e-3f;	// 1g/cm3	@todo(ccaulfield): should come from material
+		if (BodyInstance->bOverrideMass)
+		{
+			Density = BodyInstance->GetMassOverride() / MassProperties.Volume;
+		}
+		OutMass = Density * BodyInstance->MassScale * MassProperties.Volume;
+		OutInertia = Utilities::ScaleInertia(Density * TVector<float, 3>(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1], MassProperties.InertiaTensor.M[2][2]), BodyInstance->InertiaTensorScale, true);	// bScaleMass true to match legacy, but not correct
+		OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass + BodyInstance->COMNudge);
 #else
 		OutMass = BodyInstance->GetBodyMass();
 		OutInertia = BodyInstance->GetBodyInertiaTensor();
 		OutCoMTransform = BodyInstance->GetMassSpaceLocal();
 #endif
+
 
 		FBodyCollisionData BodyCollisionData;
 		BodyInstance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
@@ -171,7 +220,7 @@ namespace ImmediatePhysics_Chaos
 #if CHAOS_PARTICLE_ACTORTRANSFORM
 		AddParams.LocalTransform = FTransform::Identity;
 #else
-		AddParams.LocalTransform = Chaos::TRigidTransform<float, 3>(OutCoMTransform.GetRotation().Inverse() * -OutCoMTransform.GetTranslation(), OutCoMTransform.GetRotation().Inverse());
+		AddParams.LocalTransform = TRigidTransform<float, 3>(OutCoMTransform.GetRotation().Inverse() * -OutCoMTransform.GetTranslation(), OutCoMTransform.GetRotation().Inverse());
 #endif
 		AddParams.WorldTransform = BodyInstance->GetUnrealWorldTransform();
 		AddParams.Geometry = &BodySetup->AggGeom;
@@ -182,8 +231,8 @@ namespace ImmediatePhysics_Chaos
 		AddParams.ChaosTriMeshes = MakeArrayView(BodySetup->ChaosTriMeshes);
 #endif
 
-		TArray<TUniquePtr<Chaos::FImplicitObject>> Geoms;
-		TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>, TInlineAllocator<1>> Shapes;
+		TArray<TUniquePtr<FImplicitObject>> Geoms;
+		TArray<TUniquePtr<TPerShapeData<float, 3>>, TInlineAllocator<1>> Shapes;
 		ChaosInterface::CreateGeometry(AddParams, Geoms, Shapes);
 
 		if (Geoms.Num() == 0)
@@ -197,7 +246,7 @@ namespace ImmediatePhysics_Chaos
 		}
 		else
 		{
-			OutGeom = MakeUnique<Chaos::TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms));
+			OutGeom = MakeUnique<FImplicitObjectUnion>(MoveTemp(Geoms));
 		}
 
 		for (auto& Shape : Shapes)
@@ -227,13 +276,13 @@ namespace ImmediatePhysics_Chaos
 			switch (ActorType)
 			{
 			case EActorType::StaticActor:
-				ParticleHandle = Particles.CreateStaticParticles(1, TGeometryParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateStaticParticles(1, nullptr, TGeometryParticleParameters<FReal, Dimensions>())[0];
 				break;
 			case EActorType::KinematicActor:
-				ParticleHandle = Particles.CreateKinematicParticles(1, TKinematicGeometryParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateKinematicParticles(1, nullptr, TKinematicGeometryParticleParameters<FReal, Dimensions>())[0];
 				break;
 			case EActorType::DynamicActor:
-				ParticleHandle = Particles.CreateDynamicParticles(1, TPBDRigidParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateDynamicParticles(1, nullptr, TPBDRigidParticleParameters<FReal, Dimensions>())[0];
 				break;
 			}
 
@@ -247,7 +296,7 @@ namespace ImmediatePhysics_Chaos
 				{
 					ParticleHandle->SetHasBounds(true);
 					ParticleHandle->SetLocalBounds(Geometry->BoundingBox());
-					ParticleHandle->SetWorldSpaceInflatedBounds(Geometry->BoundingBox().TransformedBox(TRigidTransform<float, 3>(ParticleHandle->X(), ParticleHandle->R())));
+					ParticleHandle->SetWorldSpaceInflatedBounds(Geometry->BoundingBox().TransformedAABB(TRigidTransform<float, 3>(ParticleHandle->X(), ParticleHandle->R())));
 				}
 
 				if (auto* Kinematic = ParticleHandle->CastToKinematicParticle())
@@ -267,6 +316,11 @@ namespace ImmediatePhysics_Chaos
 					Dynamic->SetInvM(MassInv);
 					Dynamic->SetI({ Inertia.X, Inertia.Y, Inertia.Z });
 					Dynamic->SetInvI({ InertiaInv.X, InertiaInv.Y, InertiaInv.Z });
+					if (BodyInstance != nullptr)
+					{
+						Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
+						Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
+					}
 					Dynamic->Disabled() = true;
 				}
 			}
@@ -410,39 +464,101 @@ namespace ImmediatePhysics_Chaos
 
 	void FActorHandle::AddForce(const FVector& Force)
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-#endif
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
+		{
+			Rigid->F() += Force;
+		}
 	}
 
 	void FActorHandle::AddRadialForce(const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType)
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-#endif
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
+		{
+			const FRigidTransform3& PCOMTransform = FParticleUtilities::GetCoMWorldTransform(Rigid);
+			FVec3 Delta = PCOMTransform.GetTranslation() - Origin;
+
+			const float Mag = Delta.Size();
+			if (Mag > Radius)
+			{
+				return;
+			}
+			Delta.Normalize();
+
+			float ImpulseMag = Strength;
+			if (Falloff == RIF_Linear)
+			{
+				ImpulseMag *= (1.0f - (Mag / Radius));
+			}
+
+			const FVec3 PImpulse = Delta * ImpulseMag;
+			const FVec3 ApplyDelta = (ForceType == EForceType::AddAcceleration || ForceType == EForceType::AddVelocity) ? PImpulse : PImpulse * Rigid->InvM();
+
+			if (ForceType == EForceType::AddImpulse || ForceType == EForceType::AddVelocity)
+			{
+				Rigid->V() += ApplyDelta;
+			}
+			else
+			{
+				Rigid->F() += ApplyDelta;
+			}
+		}
+	}
+
+	void FActorHandle::AddImpulseAtLocation(FVector Impulse, FVector Location)
+	{
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
+		{
+			FVector CoM = FParticleUtilities::GetCoMWorldPosition(Rigid);
+			Rigid->LinearImpulse() += Impulse;
+			Rigid->AngularImpulse() += FVector::CrossProduct(Location - CoM, Impulse);
+		}
 	}
 
 	void FActorHandle::SetLinearDamping(float NewLinearDamping)
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-#endif
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
+		{
+			Rigid->LinearEtherDrag() = NewLinearDamping;
+		}
 	}
 
 	float FActorHandle::GetLinearDamping() const
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-#endif
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
+		{
+			return Rigid->LinearEtherDrag();
+		}
 		return 0.0f;
 	}
 
 	void FActorHandle::SetAngularDamping(float NewAngularDamping)
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-#endif
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
+		{
+			Rigid->AngularEtherDrag() = NewAngularDamping;
+		}
 	}
 
 	float FActorHandle::GetAngularDamping() const
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-#endif
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
+		{
+			return Rigid->AngularEtherDrag();
+		}
 		return 0.0f;
 	}
 
@@ -490,6 +606,11 @@ namespace ImmediatePhysics_Chaos
 		return Handle()->InvM();
 	}
 
+	float FActorHandle::GetMass() const
+	{
+		return Handle()->M();
+	}
+
 	void FActorHandle::SetInverseInertia(const FVector& NewInverseInertia)
 	{
 		using namespace Chaos;
@@ -511,8 +632,16 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		PMatrix<float, 3, 3> InvI = Handle()->InvI();
+		const PMatrix<float, 3, 3>& InvI = Handle()->InvI();
 		return { InvI.M[0][0], InvI.M[1][1], InvI.M[2][2] };
+	}
+
+	FVector FActorHandle::GetInertia() const
+	{
+		using namespace Chaos;
+
+		const PMatrix<float, 3, 3>& I = Handle()->I();
+		return { I.M[0][0], I.M[1][1], I.M[2][2] };
 	}
 
 	void FActorHandle::SetMaxDepenetrationVelocity(float NewMaxDepenetrationVelocity)
@@ -555,5 +684,4 @@ namespace ImmediatePhysics_Chaos
 	{
 		Level = InLevel;
 	}
-
 }

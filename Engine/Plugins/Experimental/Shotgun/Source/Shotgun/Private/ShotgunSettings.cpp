@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShotgunSettings.h"
 
@@ -45,7 +45,7 @@ void UShotgunSettings::ClearMetaDataTagsSettings()
 	}
 }
 
-void UShotgunSettings::PreEditChange(UProperty* PropertyAboutToChange)
+void UShotgunSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

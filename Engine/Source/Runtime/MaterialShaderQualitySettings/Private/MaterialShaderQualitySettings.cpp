@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialShaderQualitySettings.h"
 #include "UObject/Package.h"
@@ -136,6 +136,13 @@ void UShaderPlatformQualitySettings::AppendToHashState(EMaterialQualityLevel::Ty
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+bool FMaterialQualityOverrides::CanOverride(EShaderPlatform ShaderPlatform) const
+{
+	// Only mobile renderer can lower the quality of a shader even without quality level nodes in the material (see TMobileBasePassPSPolicyParamType<>::ModifyCompilationEnvironmentForQualityLevel).
+	// Whitelist the platforms here that are going to use it.
+	return IsMobilePlatform(ShaderPlatform);
+}
 
 bool FMaterialQualityOverrides::HasAnyOverridesSet() const
 {

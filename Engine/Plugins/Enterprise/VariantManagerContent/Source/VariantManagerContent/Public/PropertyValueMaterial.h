@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -27,14 +27,14 @@ public:
 	// that shouldn't be used by themselves
 	virtual bool Resolve(UObject* OnObject = nullptr) override;
 
-	virtual bool ContainsProperty(const UProperty* Prop) const override;
+	virtual bool ContainsProperty(const FProperty* Prop) const override;
 
 	virtual UStruct* GetPropertyParentContainerClass() const override;
 
 	virtual TArray<uint8> GetDataFromResolvedObject() const override;
 	virtual void ApplyDataToResolvedObject() override;
 
-	virtual UClass* GetPropertyClass() const override;
+	virtual FFieldClass* GetPropertyClass() const override;
 	virtual UClass* GetObjectPropertyObjectClass() const override;
 
 	virtual int32 GetValueSizeInBytes() const override;
@@ -43,5 +43,5 @@ public:
 
 private:
 
-	static UProperty* OverrideMaterialsProperty;
+	static FProperty* OverrideMaterialsProperty;
 };

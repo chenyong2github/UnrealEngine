@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
@@ -8,7 +8,6 @@
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraComponent.h"
-#include "Modules/ModuleManager.h"
 #include "UObject/StructOnScope.h"
 #include "NiagaraGraph.h"
 #include "NiagaraSystem.h"
@@ -16,6 +15,7 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraScript.h"
 #include "NiagaraNodeOutput.h"
+#include "NiagaraOverviewNode.h"
 #include "EdGraphUtilities.h"
 #include "NiagaraConstants.h"
 #include "Widgets/SWidget.h"
@@ -27,6 +27,9 @@
 #include "EditorStyleSet.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraOverviewGraphViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "AssetRegistryModule.h"
 #include "Misc/FeedbackContext.h"
@@ -41,6 +44,14 @@
 #include "NiagaraParameterMapHistory.h"
 #include "ScopedTransaction.h"
 #include "NiagaraStackEditorData.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+#include "Modules/ModuleManager.h"
+#include "AssetToolsModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "UObject/TextProperty.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -320,6 +331,293 @@ void FNiagaraEditorUtilities::WriteTextFileToDisk(FString SaveDirectory, FString
 
 		}
 	}
+}
+
+
+bool FNiagaraEditorUtilities::PODPropertyAppendCompileHash(const void* Container, FProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) 
+{
+	if (Property->IsA(FFloatProperty::StaticClass()))
+	{
+		FFloatProperty* CastProp = CastFieldChecked<FFloatProperty>(Property);
+		float Value = CastProp->GetPropertyValue_InContainer(Container, 0);
+		InVisitor->UpdatePOD(*PropertyName, Value);
+		return true;
+	}
+	else if (Property->IsA(FIntProperty::StaticClass()))
+	{
+		FIntProperty* CastProp = CastFieldChecked<FIntProperty>(Property);
+		int32 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
+		InVisitor->UpdatePOD(*PropertyName, Value);
+		return true;
+	}
+	else if (Property->IsA(FInt16Property::StaticClass()))
+	{
+		FInt16Property* CastProp = CastFieldChecked<FInt16Property>(Property);
+		int16 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
+		InVisitor->UpdatePOD(*PropertyName, Value);
+		return true;
+	}
+	else if (Property->IsA(FUInt32Property::StaticClass()))
+	{
+		FUInt32Property* CastProp = CastFieldChecked<FUInt32Property>(Property);
+		uint32 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
+		InVisitor->UpdatePOD(*PropertyName, Value);
+		return true;
+	}
+	else if (Property->IsA(FInt16Property::StaticClass()))
+	{
+		FInt16Property* CastProp = CastFieldChecked<FInt16Property>(Property);
+		uint16 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
+		InVisitor->UpdatePOD(*PropertyName, Value);
+		return true;
+	}
+	else if (Property->IsA(FByteProperty::StaticClass()))
+	{
+		FByteProperty* CastProp = CastFieldChecked<FByteProperty>(Property);
+		uint8 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
+		InVisitor->UpdatePOD(*PropertyName, Value);
+		return true;
+	}
+	else if (Property->IsA(FBoolProperty::StaticClass()))
+	{
+		FBoolProperty* CastProp = CastFieldChecked<FBoolProperty>(Property);
+		bool Value = CastProp->GetPropertyValue_InContainer(Container, 0);
+		InVisitor->UpdatePOD(*PropertyName, Value);
+		return true;
+	}
+	else if (Property->IsA(FNameProperty::StaticClass()))
+	{
+		FNameProperty* CastProp = CastFieldChecked<FNameProperty>(Property);
+		FName Value = CastProp->GetPropertyValue_InContainer(Container);
+		InVisitor->UpdateString(*PropertyName, Value.ToString());
+		return true;
+	}
+	else if (Property->IsA(FStrProperty::StaticClass()))
+	{
+		FStrProperty* CastProp = CastFieldChecked<FStrProperty>(Property);
+		FString Value = CastProp->GetPropertyValue_InContainer(Container);
+		InVisitor->UpdateString(*PropertyName, Value);
+		return true;
+	}
+	return false;
+}
+
+bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Container, const UStruct* Struct, EFieldIteratorFlags::SuperClassFlags IteratorFlags, const FString& BaseName, FNiagaraCompileHashVisitor* InVisitor) 
+{
+	// We special case FNiagaraTypeDefinitions here because they need to write out a lot more than just their standalone uproperties.
+	if (Struct == FNiagaraTypeDefinition::StaticStruct())
+	{
+		FNiagaraTypeDefinition* TypeDef = (FNiagaraTypeDefinition*)Container;
+		if (TypeDef)
+		{
+			TypeDef->AppendCompileHash(InVisitor);
+			return true;
+		}
+	}
+
+	TFieldIterator<FProperty> PropertyCountIt(Struct, IteratorFlags);
+	int32 NumProperties = 0;
+	for (; PropertyCountIt; ++PropertyCountIt)
+	{
+		NumProperties++;
+	}
+
+	for (TFieldIterator<FProperty> PropertyIt(Struct, IteratorFlags); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+
+		static FName SkipMeta = TEXT("SkipForCompileHash");
+		if (Property->HasMetaData(SkipMeta))
+		{
+			continue;
+		}
+
+		FString PropertyName = (NumProperties == 1) ? (BaseName) : (BaseName + "." + Property->GetName());
+
+		if (PODPropertyAppendCompileHash(Container, Property, PropertyName, InVisitor))
+		{
+			continue;
+		}
+		else if (Property->IsA(FMapProperty::StaticClass()))
+		{
+			FMapProperty* CastProp = CastFieldChecked<FMapProperty>(Property);
+			FScriptMapHelper MapHelper(CastProp, CastProp->ContainerPtrToValuePtr<void>(Container));
+			InVisitor->UpdatePOD(*PropertyName, MapHelper.Num());
+			if (MapHelper.GetKeyProperty())
+			{
+				InVisitor->UpdateString(TEXT("KeyPathname"), MapHelper.GetKeyProperty()->GetPathName());
+				InVisitor->UpdateString(TEXT("ValuePathname"), MapHelper.GetValueProperty()->GetPathName());
+
+				// We currently only support maps with keys of FNames. Anything else should generate a warning.
+				if (MapHelper.GetKeyProperty()->GetClass() == FNameProperty::StaticClass())
+				{
+					// To be safe, let's gather up all the keys and sort them lexicographically so that this is stable across application runs.
+					TArray<FName> Names;
+					Names.AddUninitialized(MapHelper.Num());
+					for (int32 i = 0; i < MapHelper.Num(); i++)
+					{
+						FName* KeyPtr = (FName*)(MapHelper.GetKeyPtr(i));
+						if (KeyPtr)
+						{
+							Names[i] = *KeyPtr;
+						}
+						else
+						{
+							Names[i] = FName();
+							UE_LOG(LogNiagaraEditor, Warning, TEXT("Bad key in %s at %d"), *Property->GetName(), i);
+						}
+					}
+					// Sort stably over runs
+					Names.Sort(FNameLexicalLess());
+
+					// Now hash out the values directly.
+					// We support map values of POD types or map values of structs with POD types internally. Anything else we should generate a warning on.
+					if (MapHelper.GetValueProperty()->IsA(FStructProperty::StaticClass()))
+					{
+						bool bPassed = true;
+						FStructProperty* StructProp = CastFieldChecked<FStructProperty>(MapHelper.GetValueProperty());
+
+						for (int32 ArrayIdx = 0; ArrayIdx < MapHelper.Num(); ArrayIdx++)
+						{
+							InVisitor->UpdateString(*FString::Printf(TEXT("Key[%d]"), ArrayIdx), Names[ArrayIdx].ToString());
+							if (!NestedPropertiesAppendCompileHash(MapHelper.GetValuePtr(ArrayIdx), StructProp->Struct, EFieldIteratorFlags::IncludeSuper, FString::Printf(TEXT("Value[%d]"), ArrayIdx), InVisitor))
+							{
+								UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is an map value property of unsupported underlying type, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
+								bPassed = false;
+								continue;
+							}
+						}
+						if (bPassed)
+						{
+							continue;
+						}
+					}
+					else
+					{
+						bool bPassed = true;
+						for (int32 ArrayIdx = 0; ArrayIdx < MapHelper.Num(); ArrayIdx++)
+						{
+							InVisitor->UpdateString(*FString::Printf(TEXT("Key[%d]"), ArrayIdx), Names[ArrayIdx].ToString());
+							if (!PODPropertyAppendCompileHash(MapHelper.GetValuePtr(ArrayIdx), MapHelper.GetValueProperty(), FString::Printf(TEXT("Value[%d]"), ArrayIdx), InVisitor))
+							{
+								UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is an map value property of unsupported underlying type, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
+								bPassed = false;
+								continue;
+							}
+						}
+						if (bPassed)
+						{
+							continue;
+						}
+					}
+				}
+				else
+				{
+					UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is a map property, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
+				}
+			}
+			continue;
+		}
+		else if (Property->IsA(FArrayProperty::StaticClass()))
+		{
+			FArrayProperty* CastProp = CastFieldChecked<FArrayProperty>(Property);
+
+			FScriptArrayHelper ArrayHelper(CastProp, CastProp->ContainerPtrToValuePtr<void>(Container));
+			InVisitor->UpdatePOD(*PropertyName, ArrayHelper.Num());
+			InVisitor->UpdateString(TEXT("InnerPathname"), CastProp->Inner->GetPathName());
+
+			// We support arrays of POD types or arrays of structs with POD types internally. Anything else we should generate a warning on.
+			if (CastProp->Inner->IsA(FStructProperty::StaticClass()))
+			{
+				bool bPassed = true;
+				FStructProperty* StructProp = CastFieldChecked<FStructProperty>(CastProp->Inner);
+
+				for (int32 ArrayIdx = 0; ArrayIdx < ArrayHelper.Num(); ArrayIdx++)
+				{
+					if (!NestedPropertiesAppendCompileHash(ArrayHelper.GetRawPtr(ArrayIdx), StructProp->Struct, EFieldIteratorFlags::IncludeSuper, PropertyName, InVisitor))
+					{
+						UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is an array property of unsupported underlying type, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
+						bPassed = false;
+						continue;
+					}
+				}
+				if (bPassed)
+				{
+					continue;
+				}
+			}
+			else
+			{
+				bool bPassed = true;
+				for (int32 ArrayIdx = 0; ArrayIdx < ArrayHelper.Num(); ArrayIdx++)
+				{
+					if (!PODPropertyAppendCompileHash(ArrayHelper.GetRawPtr(ArrayIdx), CastProp->Inner, PropertyName, InVisitor))
+					{
+						if (bPassed)
+						{
+							UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is an array property of unsupported underlying type, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
+						}
+						bPassed = false;
+						continue;
+					}
+				}
+				if (bPassed)
+				{
+					continue;
+				}
+			}
+
+			UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is an array property, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
+			continue;
+		}
+		else if (Property->IsA(FTextProperty::StaticClass()))
+		{
+			FTextProperty* CastProp = CastFieldChecked<FTextProperty>(Property);
+			UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is a UText property, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
+			return true;
+		}
+		else if (Property->IsA(FEnumProperty::StaticClass()))
+		{
+			FEnumProperty* CastProp = CastFieldChecked<FEnumProperty>(Property);
+			const void* EnumContainer = Property->ContainerPtrToValuePtr<uint8>(Container);
+			if (PODPropertyAppendCompileHash(EnumContainer, CastProp->GetUnderlyingProperty(), PropertyName, InVisitor))
+			{
+				continue;
+			}
+			check(false);
+			return false;
+		}
+		else if (Property->IsA(FObjectProperty::StaticClass()))
+		{
+			FObjectProperty* CastProp = CastFieldChecked<FObjectProperty>(Property);
+			UObject* Obj = CastProp->GetObjectPropertyValue_InContainer(Container);
+			if (Obj != nullptr)
+			{
+				// We just do name here as sometimes things will be in a transient package or something tricky.
+				// Because we do nested id's for each called graph, it should work out in the end to have a different
+				// value in the compile array if the scripts are the same name but different locations.
+				InVisitor->UpdateString(*PropertyName, Obj->GetName());
+			}
+			else
+			{
+				InVisitor->UpdateString(*PropertyName, TEXT("nullptr"));
+			}
+			continue;
+		}
+		else if (Property->IsA(FStructProperty::StaticClass()))
+		{
+			FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property);
+			const void* StructContainer = Property->ContainerPtrToValuePtr<uint8>(Container);
+			NestedPropertiesAppendCompileHash(StructContainer, StructProp->Struct, EFieldIteratorFlags::IncludeSuper, PropertyName, InVisitor);
+			continue;
+		}
+		else
+		{
+			check(false);
+			return false;
+		}
+	}
+	return true;
 }
 
 void FNiagaraEditorUtilities::GatherChangeIds(UNiagaraEmitter& Emitter, TMap<FGuid, FGuid>& ChangeIds, const FString& InDebugName, bool bWriteToLogDir)
@@ -1261,6 +1559,293 @@ bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariabl
 		StackEditorData.SetModuleInputIsRenamePending(NewParameterVariable.GetName().ToString(), true);
 	}
 	return bSuccess;
+}
+
+void FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser(TSharedRef<FNiagaraEmitterViewModel> Emitter)
+{
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	ContentBrowserModule.Get().SyncBrowserToAssets(TArray<FAssetData> { FAssetData(Emitter->GetParentEmitter()) });
+}
+
+ECheckBoxState FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	bool bFirst = true;
+	ECheckBoxState CurrentState = ECheckBoxState::Undetermined;
+
+	const TArray<FGuid>& SelectedHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandle : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		if (SelectedHandleIds.Contains(EmitterHandle->GetId()))
+		{
+			ECheckBoxState EmitterState = EmitterHandle->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			if (bFirst)
+			{
+				CurrentState = EmitterState;
+				bFirst = false;
+				continue;
+			}
+
+			if (CurrentState != EmitterState)
+			{
+				return ECheckBoxState::Undetermined;
+			}
+		}
+	}
+
+	return CurrentState;
+}
+
+void FNiagaraEditorUtilities::ToggleSelectedEmittersEnabled(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	bool bEnabled = GetSelectedEmittersEnabledCheckState(SystemViewModel) != ECheckBoxState::Checked;
+
+	const TArray<FGuid>& SelectedHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (const FGuid& HandleId : SelectedHandleIds)
+	{
+		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = SystemViewModel->GetEmitterHandleViewModelById(HandleId);
+		if (EmitterHandleViewModel.IsValid())
+		{
+			EmitterHandleViewModel->SetIsEnabled(bEnabled);
+		}
+	}
+}
+
+ECheckBoxState FNiagaraEditorUtilities::GetSelectedEmittersIsolatedCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	bool bFirst = true;
+	ECheckBoxState CurrentState = ECheckBoxState::Undetermined;
+
+	const TArray<FGuid>& SelectedHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandle : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		if (SelectedHandleIds.Contains(EmitterHandle->GetId()))
+		{
+			ECheckBoxState EmitterState = EmitterHandle->GetIsIsolated() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			if (bFirst)
+			{
+				CurrentState = EmitterState;
+				bFirst = false;
+				continue;
+			}
+
+			if (CurrentState != EmitterState)
+			{
+				return ECheckBoxState::Undetermined;
+			}
+		}
+	}
+
+	return CurrentState;
+}
+
+void FNiagaraEditorUtilities::ToggleSelectedEmittersIsolated(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	bool bIsolated = GetSelectedEmittersIsolatedCheckState(SystemViewModel) != ECheckBoxState::Checked;
+
+	TArray<FGuid> EmittersToIsolate;
+	for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandle : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		if (EmitterHandle->GetIsIsolated())
+		{
+			EmittersToIsolate.Add(EmitterHandle->GetId());
+		}
+	}
+
+	const TArray<FGuid>& SelectedHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (const FGuid& HandleId : SelectedHandleIds)
+	{
+		if (bIsolated)
+		{
+			EmittersToIsolate.Add(HandleId);
+		}
+		else
+		{
+			EmittersToIsolate.Remove(HandleId);
+		}
+	}
+
+	SystemViewModel->IsolateEmitters(EmittersToIsolate);
+}
+
+
+void FNiagaraEditorUtilities::CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel)
+{
+	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = EmitterHandleViewModel->GetOwningSystemViewModel();
+	if (SystemViewModel->GetEditMode() != ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		return;
+	}
+
+	UNiagaraEmitter* EmitterToCopy = EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter();
+	const FString PackagePath = FPackageName::GetLongPackagePath(EmitterToCopy->GetOutermost()->GetName());
+	const FName EmitterName = EmitterToCopy->GetFName();
+	
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	UNiagaraEmitter* CreatedAsset = Cast<UNiagaraEmitter>(AssetToolsModule.Get().DuplicateAssetWithDialogAndTitle(EmitterName.GetPlainNameString(), PackagePath, EmitterToCopy, LOCTEXT("CreateEmitterAssetDialogTitle", "Create Emitter As")));
+	if (CreatedAsset != nullptr)
+	{
+		CreatedAsset->SetFlags(RF_Standalone | RF_Public);
+
+		CreatedAsset->SetUniqueEmitterName(CreatedAsset->GetName());
+
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CreatedAsset);
+
+		// find the existing overview node to store the position
+		UEdGraph* OverviewGraph = SystemViewModel->GetOverviewGraphViewModel()->GetGraph();
+		
+		TArray<UNiagaraOverviewNode*> OverviewNodes;
+		OverviewGraph->GetNodesOfClass<UNiagaraOverviewNode>(OverviewNodes);
+
+		const UNiagaraOverviewNode* CurrentNode = *OverviewNodes.FindByPredicate(
+			[Guid = EmitterHandleViewModel->GetId()](const UNiagaraOverviewNode* Node)
+			{
+				return Node->GetEmitterHandleGuid() == Guid;
+			});
+
+		int32 CurrentX = CurrentNode->NodePosX;
+		int32 CurrentY = CurrentNode->NodePosY;
+		FString CurrentComment = CurrentNode->NodeComment;
+		bool bCommentBubbleVisible = CurrentNode->bCommentBubbleVisible;
+		bool bCommentBubblePinned = CurrentNode->bCommentBubblePinned;
+
+		CurrentNode = nullptr;
+
+		FScopedTransaction ScopedTransaction(LOCTEXT("CreateAssetFromEmitter", "Create asset from emitter"));
+		SystemViewModel->GetSystem().Modify();
+
+		// Replace existing emitter
+		SystemViewModel->DeleteEmitters(TSet<FGuid> { EmitterHandleViewModel->GetId() });
+		TSharedPtr<FNiagaraEmitterHandleViewModel> NewEmitterHandleViewModel = SystemViewModel->AddEmitter(*CreatedAsset);
+
+		NewEmitterHandleViewModel->SetName(EmitterName);
+
+		OverviewGraph->GetNodesOfClass<UNiagaraOverviewNode>(OverviewNodes);
+
+		UNiagaraOverviewNode* NewNode = *OverviewNodes.FindByPredicate(
+			[Guid = NewEmitterHandleViewModel->GetId()](const UNiagaraOverviewNode* Node)
+			{
+				return Node->GetEmitterHandleGuid() == Guid;
+			});
+
+		NewNode->NodePosX = CurrentX;
+		NewNode->NodePosY = CurrentY;
+		NewNode->NodeComment = CurrentComment;
+		NewNode->bCommentBubbleVisible = bCommentBubbleVisible;
+		NewNode->bCommentBubblePinned = bCommentBubblePinned;
+	}
+}
+
+bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBuilder, const TSharedPtr<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModelPtr)
+{
+	if (EmitterHandleViewModelPtr.IsValid())
+	{
+		TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelPtr.ToSharedRef();
+		TSharedRef<FNiagaraSystemViewModel> OwningSystemViewModel = EmitterHandleViewModel->GetOwningSystemViewModel();
+
+		bool bSingleSelection = OwningSystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() == 1;
+
+		MenuBuilder.BeginSection("EmitterActions", LOCTEXT("EmitterActions", "Emitter Actions"));
+		{
+			TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel->GetEmitterViewModel();
+
+			if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ToggleEmittersEnabled", "Enabled"),
+					LOCTEXT("ToggleEmittersEnabledToolTip", "Toggle whether or not the selected emitters are enabled."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersEnabled, OwningSystemViewModel),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState, OwningSystemViewModel)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ToggleEmittersIsolated", "Isolated"),
+					LOCTEXT("ToggleEmittersIsolatedToolTip", "Toggle whether or not the selected emitters are isolated."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersIsolated, OwningSystemViewModel),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersIsolatedCheckState, OwningSystemViewModel)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("RenameEmitter", "Rename Emitter"),
+					LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(EmitterHandleViewModel, &FNiagaraEmitterHandleViewModel::SetIsRenamePending, true)
+					)
+				);
+			}
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
+				LOCTEXT("RemoveParentEmitterToolTip", "Remove this emitter's parent, preventing inheritance of any further changes."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+						{
+							return bSingleSelection && bHasParent;
+						}
+					)
+				)
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ShowEmitterInContentBrowser", "Show in Content Browser"),
+				LOCTEXT("ShowEmitterInContentBrowserToolTip", "Show the selected emitter in the Content Browser."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+						{
+							return bSingleSelection && bHasParent;
+						}
+					)
+				)
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateAssetFromThisEmitter", "Create Asset From This"),
+				LOCTEXT("CreateAssetFromThisEmitterToolTip", "Create an emitter asset from this emitter."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::CreateAssetFromEmitter, EmitterHandleViewModel),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, EmitterHandleViewModel]()
+						{
+							return bSingleSelection && EmitterHandleViewModel->GetOwningSystemEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
+						}
+					)
+				)
+			);
+		}
+		MenuBuilder.EndSection();
+
+		MenuBuilder.BeginSection("EmitterEditSection", LOCTEXT("Edit", "Edit"));
+
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
+
+		MenuBuilder.EndSection();
+
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

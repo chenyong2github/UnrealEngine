@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollection/GeometryCollectionSQAccelerator.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
@@ -302,7 +302,7 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 				}
 				if (Object && !UseSlowSQ && Object->IsUnderlyingUnion())
 				{
-					const TImplicitObjectUnion<float, 3>* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
+					const FImplicitObjectUnion* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
 					//hack: this is terrible because we have no buffered transform so could be off, but most of the time these things are static
 
 					{
@@ -442,7 +442,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 
 		Chaos::TCapsule<float> Capsule;
 		Chaos::TSphere<float, 3> Sphere;
-		Chaos::TBox<float, 3> Box;
+		Chaos::TAABB<float, 3> Box;
 	};
 	FLocalImplicitStorage ImplicitStorage;
 	Chaos::FImplicitObject* Implicit = nullptr;
@@ -510,7 +510,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 		Chaos::TVector<float, 3> x1(-P2UVector(PxBox.halfExtents));
 		Chaos::TVector<float, 3> x2(-x1);
 
-		Chaos::TBox<float, 3> Box(x1, x2);
+		Chaos::TAABB<float, 3> Box(x1, x2);
 		ImplicitStorage.Box = MoveTemp(Box);
 		Implicit = &ImplicitStorage.Box;
 
@@ -567,7 +567,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 				}
 				if (Object && !UseSlowSQ && Object->IsUnderlyingUnion())
 				{
-					const TImplicitObjectUnion<float, 3>* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
+					const FImplicitObjectUnion* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
 					//hack: this is terrible because we have no buffered transform so could be off, but most of the time these things are static
 
 					{
@@ -716,7 +716,7 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 
 		Chaos::TCapsule<float> Capsule;
 		Chaos::TSphere<float, 3> Sphere;
-		Chaos::TBox<float, 3> Box;
+		Chaos::TAABB<float, 3> Box;
 	};
 	FLocalImplicitStorage ImplicitStorage;
 
@@ -749,7 +749,7 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 		physx::PxBoxGeometry& PxBox = Holder.box();
 		Chaos::TVector<float, 3> x1(-P2UVector(PxBox.halfExtents));
 		Chaos::TVector<float, 3> x2(-x1);
-		Chaos::TBox<float, 3> Box(x1, x2);
+		Chaos::TAABB<float, 3> Box(x1, x2);
 		ImplicitStorage.Box = MoveTemp(Box);
 		Implicit = &ImplicitStorage.Box;
 	}

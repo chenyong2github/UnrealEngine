@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Particles/ParticleSystemManager.h"
 #include "Particles/ParticleSystemComponent.h"
@@ -146,6 +146,9 @@ void FParticleSystemWorldManager::OnStartup()
 	FWorldDelegates::OnPostWorldCleanup.AddStatic(&OnWorldCleanup);
 	FWorldDelegates::OnPreWorldFinishDestroy.AddStatic(&OnPreWorldFinishDestroy);
 	FWorldDelegates::OnWorldBeginTearDown.AddStatic(&OnWorldBeginTearDown);
+#if WITH_PARTICLE_PERF_STATS
+	FParticlePerfStats::OnStartup();
+#endif
 }
 
 void FParticleSystemWorldManager::OnShutdown()
@@ -158,6 +161,9 @@ void FParticleSystemWorldManager::OnShutdown()
 		}
 	}
 	WorldManagers.Empty();
+#if WITH_PARTICLE_PERF_STATS
+	FParticlePerfStats::OnShutdown();
+#endif
 }
 
 void FParticleSystemWorldManager::OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS)

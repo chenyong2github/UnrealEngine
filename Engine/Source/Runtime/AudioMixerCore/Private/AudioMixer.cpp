@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixer.h"
 #include "DSP/BufferVectorOperations.h"
@@ -422,8 +422,8 @@ namespace Audio
 	{
 		if (bIsUsingNullDevice)
 		{
-			CurrentBufferReadIndex = INDEX_NONE;
-			CurrentBufferWriteIndex = INDEX_NONE;
+			CurrentBufferReadIndex = 0;
+			CurrentBufferWriteIndex = 1;
 		}
 		if (NullDeviceCallback.IsValid())
 		{
@@ -479,6 +479,7 @@ namespace Audio
 		if (CurrentBufferReadIndex == INDEX_NONE || CurrentBufferWriteIndex == INDEX_NONE)
 		{
 			SubmitBuffer(UnderrunBuffer.GetBufferData());
+			DeviceSwapCriticalSection.Unlock();
 			return;
 		}
 
@@ -541,7 +542,10 @@ namespace Audio
 		DeviceSwapCriticalSection.Unlock();
 
 		// Kick off rendering of the next set of buffers
-		AudioRenderEvent->Trigger();
+		if (AudioRenderEvent)
+		{
+			AudioRenderEvent->Trigger();
+		}
 	}
 
 	void IAudioMixerPlatformInterface::BeginGeneratingAudio()

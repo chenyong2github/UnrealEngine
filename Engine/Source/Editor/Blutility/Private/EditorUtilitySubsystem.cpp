@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorUtilitySubsystem.h"
 #include "EditorUtilityCommon.h"
@@ -104,9 +104,22 @@ void UEditorUtilitySubsystem::ReleaseInstanceOfAsset(UObject* Asset)
 	ObjectInstances.Remove(Asset);
 }
 
-UEditorUtilityWidget* UEditorUtilitySubsystem::SpawnAndRegisterTab(UEditorUtilityWidgetBlueprint* InBlueprint)
+UEditorUtilityWidget* UEditorUtilitySubsystem::SpawnAndRegisterTabAndGetID(UEditorUtilityWidgetBlueprint* InBlueprint, FName& NewTabID)
 {
+	RegisterTabAndGetID(InBlueprint, NewTabID);
+	SpawnRegisteredTabByID(NewTabID);
+	return FindUtilityWidgetFromBlueprint(InBlueprint);
+}
 
+
+UEditorUtilityWidget* UEditorUtilitySubsystem::SpawnAndRegisterTab(class UEditorUtilityWidgetBlueprint* InBlueprint)
+{
+	FName InTabID;
+	return SpawnAndRegisterTabAndGetID(InBlueprint, InTabID);
+}
+
+void UEditorUtilitySubsystem::RegisterTabAndGetID(class UEditorUtilityWidgetBlueprint* InBlueprint, FName& NewTabID)
+{
 	if (InBlueprint && !IsRunningCommandlet())
 	{
 		FName RegistrationName = FName(*(InBlueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
@@ -122,12 +135,62 @@ UEditorUtilityWidget* UEditorUtilitySubsystem::SpawnAndRegisterTab(UEditorUtilit
 			InBlueprint->SetRegistrationName(RegistrationName);
 			BlutilityModule->AddLoadedScriptUI(InBlueprint);
 		}
-		TSharedRef<SDockTab> NewDockTab = LevelEditorTabManager->InvokeTab(RegistrationName);
-		return InBlueprint->GetCreatedWidget();
+		NewTabID = RegistrationName;
 	}
 
-	return nullptr;
 }
 
+bool UEditorUtilitySubsystem::SpawnRegisteredTabByID(FName NewTabID)
+{
+	if (!IsRunningCommandlet())
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		if (!LevelEditorTabManager->HasTabSpawner(NewTabID))
+		{
+			TSharedRef<SDockTab> NewDockTab = LevelEditorTabManager->InvokeTab(NewTabID);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UEditorUtilitySubsystem::DoesTabExist(FName NewTabID)
+{
+	if (!IsRunningCommandlet())
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		TSharedPtr<SDockTab> FoundTab = LevelEditorTabManager->FindExistingLiveTab(NewTabID);
+		if (FoundTab)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UEditorUtilitySubsystem::CloseTabByID(FName NewTabID)
+{
+	if (!IsRunningCommandlet())
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		TSharedPtr<SDockTab> FoundTab = LevelEditorTabManager->FindExistingLiveTab(NewTabID);
+		if (FoundTab)
+		{
+			FoundTab->RequestCloseTab();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+UEditorUtilityWidget* UEditorUtilitySubsystem::FindUtilityWidgetFromBlueprint(class UEditorUtilityWidgetBlueprint* InBlueprint)
+{
+	return InBlueprint->GetCreatedWidget();
+}
 
 #undef LOCTEXT_NAMESPACE

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DelegateNodeHandlers.h"
 #include "EdGraphSchema_K2.h"
@@ -19,7 +19,7 @@ struct FKCHandlerDelegateHelper
 		FKismetCompilerUtilities::DetectValuesReturnedByRef(SignatureFunc, DelegateNode, MessageLog);
 	}
 
-	static UMulticastDelegateProperty* FindAndCheckDelegateProperty(FKismetFunctionContext& Context, UK2Node_BaseMCDelegate * DelegateNode, FCompilerResultsLog& MessageLog, const UEdGraphSchema_K2* Schema)
+	static FMulticastDelegateProperty* FindAndCheckDelegateProperty(FKismetFunctionContext& Context, UK2Node_BaseMCDelegate * DelegateNode, FCompilerResultsLog& MessageLog, const UEdGraphSchema_K2* Schema)
 	{
 		check(NULL != DelegateNode);
 
@@ -35,10 +35,10 @@ struct FKCHandlerDelegateHelper
 
 		// Don't use DelegateNode->GetProperty(), because we don't want any property from skeletal class
 		UClass* PropertyOwnerClass = CastChecked<UClass>(DelegateScope);
-		UMulticastDelegateProperty* BoundProperty = NULL;
-		for (TFieldIterator<UMulticastDelegateProperty> It(PropertyOwnerClass); It; ++It)
+		FMulticastDelegateProperty* BoundProperty = NULL;
+		for (TFieldIterator<FMulticastDelegateProperty> It(PropertyOwnerClass); It; ++It)
 		{
-			UMulticastDelegateProperty* Prop = *It;
+			FMulticastDelegateProperty* Prop = *It;
 			if (DelegateNode->GetPropertyName() == Prop->GetFName())
 			{
 				BoundProperty = Prop;
@@ -77,7 +77,7 @@ struct FKCHandlerDelegateHelper
 		return BoundProperty;
 	}
 
-	static FBPTerminal* CreateInnerTerm(FKismetFunctionContext& Context, UEdGraphPin* SelfPin, UEdGraphPin* NetPin, UMulticastDelegateProperty* BoundProperty, UK2Node_BaseMCDelegate * DelegateNode, FCompilerResultsLog& MessageLog)
+	static FBPTerminal* CreateInnerTerm(FKismetFunctionContext& Context, UEdGraphPin* SelfPin, UEdGraphPin* NetPin, FMulticastDelegateProperty* BoundProperty, UK2Node_BaseMCDelegate * DelegateNode, FCompilerResultsLog& MessageLog)
 	{
 		check(SelfPin && NetPin && BoundProperty && DelegateNode);
 
@@ -112,7 +112,7 @@ struct FKCHandlerDelegateHelper
 	{
 		if (DelegateNode && Schema)
 		{
-			UMulticastDelegateProperty* BoundProperty = FindAndCheckDelegateProperty(Context, DelegateNode, MessageLog, Schema);
+			FMulticastDelegateProperty* BoundProperty = FindAndCheckDelegateProperty(Context, DelegateNode, MessageLog, Schema);
 			if (BoundProperty)
 			{
 				UEdGraphPin* SelfPin = Schema->FindSelfPin(*DelegateNode, EEdGraphPinDirection::EGPD_Input);

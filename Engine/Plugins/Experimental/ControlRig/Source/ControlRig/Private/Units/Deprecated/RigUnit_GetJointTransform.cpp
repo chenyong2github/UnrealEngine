@@ -1,10 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_GetJointTransform.h"
 #include "Units/RigUnitContext.h"
 #include "HelperUtil.h"
 
-void FRigUnit_GetJointTransform::Execute(const FRigUnitContext& Context)
+FRigUnit_GetJointTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
@@ -19,38 +19,22 @@ void FRigUnit_GetJointTransform::Execute(const FRigUnitContext& Context)
 			{
 			case ETransformGetterType::Current:
 				{
-					Output = Hierarchy->GetGlobalTransform(Index).GetRelativeTransform(GetBaseTransform(Index, Hierarchy, false));
+					FTransform ComputedBaseTransform = UtilityHelpers::GetBaseTransformByMode(TransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
+					(*Hierarchy)[Index].ParentName, BaseJoint, BaseTransform);
+
+					Output = Hierarchy->GetGlobalTransform(Index).GetRelativeTransform(ComputedBaseTransform);
 					break;
 				}
 			case ETransformGetterType::Initial:
 			default:
 				{
-					Output = Hierarchy->GetInitialTransform(Index).GetRelativeTransform(GetBaseTransform(Index, Hierarchy, true));
+				FTransform ComputedBaseTransform = UtilityHelpers::GetBaseTransformByMode(TransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetInitialTransform(JointName); },
+					(*Hierarchy)[Index].ParentName, BaseJoint, BaseTransform);
+
+					Output = Hierarchy->GetInitialTransform(Index).GetRelativeTransform(ComputedBaseTransform);
 					break;
 				}
 			}
 		}
 	}
-	else
-	{
-		if (Context.State == EControlRigState::Init)
-		{
-			UnitLogHelpers::PrintMissingHierarchy(RigUnitName);
-		}
-	}
-}
-
-FTransform FRigUnit_GetJointTransform::GetBaseTransform(int32 JointIndex, const FRigBoneHierarchy* CurrentHierarchy, bool bUseInitial) const
-{
-	if (bUseInitial)
-	{
-		return UtilityHelpers::GetBaseTransformByMode(TransformSpace, [CurrentHierarchy](const FName& JointName) { return CurrentHierarchy->GetInitialTransform(JointName); },
-			(*CurrentHierarchy)[JointIndex].ParentName, BaseJoint, BaseTransform);
-	}
-	else
-	{
-		return UtilityHelpers::GetBaseTransformByMode(TransformSpace, [CurrentHierarchy](const FName& JointName) { return CurrentHierarchy->GetGlobalTransform(JointName); },
-			(*CurrentHierarchy)[JointIndex].ParentName, BaseJoint, BaseTransform);
-	}
-
 }

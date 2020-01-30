@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -41,7 +41,7 @@ struct FFormatArgsTrace
 		uint8* PayloadBufferPtr = TypeCodesBufferPtr + FormatArgsCount;
 		EncodeArgumentsInternal(TypeCodesBufferPtr, PayloadBufferPtr, FormatArgs...);
 		check(PayloadBufferPtr - Buffer == FormatArgsSize);
-		return FormatArgsSize;
+		return (uint16)FormatArgsSize;
 	}
 
 private:

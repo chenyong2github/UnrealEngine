@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -422,6 +422,9 @@ class ENGINE_API UAnimInstance : public UObject
 
 	/** Flag to check back on the game thread that indicates we need to run PostUpdateAnimation() in the post-eval call */
 	uint8 bNeedsUpdate : 1;
+
+	/** Flag to check if created by LinkedAnimGraph in ReinitializeLinkedAnimInstance */
+	uint8 bCreatedByLinkedAnimGraph : 1;
 
 private:
 	/** True when Montages are being ticked, and Montage Events should be queued. 
@@ -1254,7 +1257,7 @@ public:
 	void AddCurveValue(const FName& CurveName, float Value);
 
 	/** Given a machine and state index, record a state weight for this frame */
-	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight);
+	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight, const float InElapsedTime);
 
 protected:
 #if WITH_EDITORONLY_DATA
@@ -1327,22 +1330,36 @@ protected:
 	/** Override point for derived classes to destroy their own proxy objects (allows custom allocation) */
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy);
 
+	/** Access the proxy but block if a task is currently in progress as it wouldn't be safe to access it 
+	 *	This is protected static member for allowing derived to access
+	 */
+	template <typename T /*= FAnimInstanceProxy*/>	// @TODO: Cant default parameters to this function on Xbox One until we move off the VS2012 compiler
+	FORCEINLINE static T* GetProxyOnGameThreadStatic(UAnimInstance* InAnimInstance)
+	{
+		if (InAnimInstance)
+		{
+			check(IsInGameThread());
+			UObject* OuterObj = InAnimInstance->GetOuter();
+			if (OuterObj && OuterObj->IsA<USkeletalMeshComponent>())
+			{
+				bool bBlockOnTask = true;
+				bool bPerformPostAnimEvaluation = true;
+				InAnimInstance->GetSkelMeshComponent()->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
+			}
+			if (InAnimInstance->AnimInstanceProxy == nullptr)
+			{
+				InAnimInstance->AnimInstanceProxy = InAnimInstance->CreateAnimInstanceProxy();
+			}
+			return static_cast<T*>(InAnimInstance->AnimInstanceProxy);
+		}
+
+		return nullptr;
+	}
 	/** Access the proxy but block if a task is currently in progress as it wouldn't be safe to access it */
 	template <typename T /*= FAnimInstanceProxy*/>	// @TODO: Cant default parameters to this function on Xbox One until we move off the VS2012 compiler
 	FORCEINLINE T& GetProxyOnGameThread()
 	{
-		check(IsInGameThread());
-		if(GetOuter() && GetOuter()->IsA<USkeletalMeshComponent>())
-		{
-			bool bBlockOnTask = true;
-			bool bPerformPostAnimEvaluation = true;
-			GetSkelMeshComponent()->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
-		}
-		if(AnimInstanceProxy == nullptr)
-		{
-			AnimInstanceProxy = CreateAnimInstanceProxy();
-		}
-		return *static_cast<T*>(AnimInstanceProxy);
+		return *GetProxyOnGameThreadStatic<T>(this);
 	}
 
 	/** Access the proxy but block if a task is currently in progress as it wouldn't be safe to access it */

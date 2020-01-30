@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "CurveEditorKeyProxy.h"
 #include "Curves/RichCurve.h"
+#include "RichCurveEditorModel.h"
 
 #include "RichCurveKeyProxy.generated.h"
 
@@ -19,16 +20,22 @@ public:
 	/**
 	 * Initialize this key proxy object by caching the underlying key object, and retrieving the time/value each tick
 	 */
-	void Initialize(FKeyHandle InKeyHandle, FRichCurve* InRichCurve, TWeakObjectPtr<UObject> InWeakOwner)
+	void Initialize(FKeyHandle InKeyHandle, FRichCurveEditorModel* InModel, TWeakObjectPtr<UObject> InWeakOwner)
 	{
 		KeyHandle  = InKeyHandle;
-		RichCurve  = InRichCurve;
 		WeakOwner  = InWeakOwner;
+		Model      = InModel;
 
-		UObject* Owner = WeakOwner.Get();
-		if (Owner && RichCurve->IsKeyHandleValid(KeyHandle))
+		if(UObject* Owner = WeakOwner.Get())
 		{
-			Value = RichCurve->GetKey(KeyHandle);
+			if(Model->IsValid())
+			{
+				const FRichCurve& RichCurve = Model->GetReadOnlyRichCurve();
+				if (RichCurve.IsKeyHandleValid(KeyHandle))
+				{
+					Value = RichCurve.GetKey(KeyHandle);
+				}
+			}
 		}
 	}
 
@@ -38,32 +45,46 @@ private:
 	{
 		Super::PostEditChangeProperty(PropertyChangedEvent);
 
-		UObject* Owner = WeakOwner.Get();
-		if (Owner && RichCurve->IsKeyHandleValid(KeyHandle))
+		if(UObject* Owner = WeakOwner.Get())
 		{
-			Owner->Modify();
-
-			FRichCurveKey& ActualKey = RichCurve->GetKey(KeyHandle);
-
-			const float PreviousTime = ActualKey.Time;
-			const float NewTime      = Value.Time;
-
-			// Copy the key properties
-			ActualKey = Value;
-			ActualKey.Time = PreviousTime;
-			if (PreviousTime != NewTime)
+			if(Model->IsValid())
 			{
-				RichCurve->SetKeyTime(KeyHandle, NewTime);
+				FRichCurve& RichCurve = Model->GetRichCurve();
+				if(RichCurve.IsKeyHandleValid(KeyHandle))
+				{
+					Owner->Modify();
+
+					FRichCurveKey& ActualKey = RichCurve.GetKey(KeyHandle);
+
+					const float PreviousTime = ActualKey.Time;
+					const float NewTime      = Value.Time;
+
+					// Copy the key properties
+					ActualKey = Value;
+					ActualKey.Time = PreviousTime;
+					if (PreviousTime != NewTime)
+					{
+						RichCurve.SetKeyTime(KeyHandle, NewTime);
+					}
+
+					Model->OnCurveModified().Broadcast();
+				}
 			}
-		}
+		}	
 	}
 
 	virtual void UpdateValuesFromRawData() override
 	{
-		UObject* Owner = WeakOwner.Get();
-		if (Owner && RichCurve->IsKeyHandleValid(KeyHandle))
+		if(UObject* Owner = WeakOwner.Get())
 		{
-			Value = RichCurve->GetKey(KeyHandle);
+			if(Model->IsValid())
+			{
+				const FRichCurve& RichCurve = Model->GetReadOnlyRichCurve();
+				if (RichCurve.IsKeyHandleValid(KeyHandle))
+				{
+					Value = RichCurve.GetKey(KeyHandle);
+				}
+			}
 		}
 	}
 
@@ -77,8 +98,8 @@ private:
 
 	/** Cached key handle that this key proxy relates to */
 	FKeyHandle KeyHandle;
-	/** Cached curve in which the key resides */
-	FRichCurve* RichCurve;
+	/** Cached model that created this proxy */
+	FRichCurveEditorModel* Model;
 	/** Cached owner in which the raw curve resides */
 	TWeakObjectPtr<UObject> WeakOwner;
 };

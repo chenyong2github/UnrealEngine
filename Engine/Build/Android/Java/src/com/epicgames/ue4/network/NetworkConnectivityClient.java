@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 package com.epicgames.ue4.network;
 
@@ -33,4 +33,9 @@ public interface NetworkConnectivityClient {
 	 * @return Whether the change listener was removed. Will be false if not currently registered.
 	 */
 	boolean removeListener(Listener listener);
+	
+	/**
+	 * Check for network connectivity
+	 */
+	void checkConnectivity();
 }

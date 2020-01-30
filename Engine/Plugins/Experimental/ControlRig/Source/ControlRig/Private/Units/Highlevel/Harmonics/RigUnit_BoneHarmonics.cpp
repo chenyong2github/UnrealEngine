@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Highlevel/Harmonics/RigUnit_BoneHarmonics.h"
 #include "Units/RigUnitContext.h"
@@ -24,7 +24,12 @@ FRigUnit_BoneHarmonics_Execute()
 		{
 			for (const FRigUnit_BoneHarmonics_BoneTarget& Bone : Bones)
 			{
-				BoneIndices.Add(Hierarchy->GetIndex(Bone.Bone));
+				int32 BoneIndex = Hierarchy->GetIndex(Bone.Bone);
+				if(BoneIndex == INDEX_NONE)
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone not found."));
+				}
+				BoneIndices.Add(BoneIndex);
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -713,6 +713,14 @@ public:
 	/** Set texture gamma <= 0 for auto */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
 	void SetRGBCurve(float InRGBCurve);
+
+	/** Gets the color space of the texture */
+	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
+	EDatasmithColorSpace GetColorSpace() const;
+
+	/** Sets the color space of the texture */
+	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
+	void SetColorSpace(EDatasmithColorSpace Option);
 
 public:
 	TWeakPtr<IDatasmithTextureElement> GetDatasmithTextureElement() const { return TextureElemement; }

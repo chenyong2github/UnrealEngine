@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
@@ -38,7 +38,7 @@ UK2Node_BaseMCDelegate::UK2Node_BaseMCDelegate(const FObjectInitializer& ObjectI
 void UK2Node_BaseMCDelegate::ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const
 {
 	Super::ValidateNodeDuringCompilation(MessageLog);
-	if(UProperty* Property = GetProperty())
+	if(FProperty* Property = GetProperty())
 	{
 		if(!Property->HasAllPropertyFlags(CPF_BlueprintAssignable))
 		{
@@ -112,7 +112,7 @@ UFunction* UK2Node_BaseMCDelegate::GetDelegateSignature(bool bForceNotFromSkelCl
 	FMemberReference ReferenceToUse;
 	ReferenceToUse.SetDirect(DelegateReference.GetMemberName(), DelegateReference.GetMemberGuid(), OwnerClass, /*bIsConsideredSelfContext =*/false);
 
-	UMulticastDelegateProperty* DelegateProperty = ReferenceToUse.ResolveMember<UMulticastDelegateProperty>();
+	FMulticastDelegateProperty* DelegateProperty = ReferenceToUse.ResolveMember<FMulticastDelegateProperty>();
 	return (DelegateProperty != nullptr) ? DelegateProperty->SignatureFunction : nullptr;
 }
 
@@ -185,7 +185,7 @@ void UK2Node_BaseMCDelegate::ExpandNode(class FKismetCompilerContext& CompilerCo
 
 bool UK2Node_BaseMCDelegate::IsAuthorityOnly() const
 {
-	const UMulticastDelegateProperty* DelegateProperty = DelegateReference.ResolveMember<UMulticastDelegateProperty>(GetBlueprintClassFromNode());
+	const FMulticastDelegateProperty* DelegateProperty = DelegateReference.ResolveMember<FMulticastDelegateProperty>(GetBlueprintClassFromNode());
 	return DelegateProperty && DelegateProperty->HasAnyPropertyFlags(CPF_BlueprintAuthorityOnly);
 
 }
@@ -194,7 +194,7 @@ bool UK2Node_BaseMCDelegate::HasExternalDependencies(TArray<class UStruct*>* Opt
 {
 	const UBlueprint* SourceBlueprint = GetBlueprint();
 
-	UProperty* MCProperty = GetProperty();
+	FProperty* MCProperty = GetProperty();
 	UClass* PropertySourceClass = MCProperty ? MCProperty->GetOwnerClass() : nullptr;
 	const bool bPropertyResult = (PropertySourceClass != NULL) && (PropertySourceClass->ClassGeneratedBy != SourceBlueprint);
 	if (bPropertyResult && OptionalOutput)
@@ -235,7 +235,7 @@ void UK2Node_BaseMCDelegate::AutowireNewNode(UEdGraphPin* FromPin)
 		{
 			if (FromPin->PinType.PinSubCategoryObject.IsValid() && FromPin->PinType.PinSubCategoryObject->IsA(UClass::StaticClass()))
 			{
-				UProperty* DelegateProperty = DelegateReference.ResolveMember<UMulticastDelegateProperty>(GetBlueprintClassFromNode());
+				FProperty* DelegateProperty = DelegateReference.ResolveMember<FMulticastDelegateProperty>(GetBlueprintClassFromNode());
 				if (DelegateProperty)
 				{
 					UClass* DelegateOwner = DelegateProperty->GetOwnerClass();
@@ -252,7 +252,7 @@ void UK2Node_BaseMCDelegate::AutowireNewNode(UEdGraphPin* FromPin)
 						{
 							bConnected = true;
 
-							DelegateReference.SetFromField<UProperty>(DelegateProperty, false);
+							DelegateReference.SetFromField<FProperty>(DelegateProperty, false);
 							TargetPin->bHidden = false;
 							FromPin->GetOwningNode()->NodeConnectionListChanged();
 							this->NodeConnectionListChanged();
@@ -281,7 +281,7 @@ FEdGraphNodeDeprecationResponse UK2Node_BaseMCDelegate::GetDeprecationResponse(E
 	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
 	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
 	{
-		if (UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
+		if (FProperty* DelegateProperty = DelegateReference.ResolveMember<FProperty>(GetBlueprintClassFromNode()))
 		{
 			FString DetailedMessage = DelegateProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
 			Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetPropertyDisplayName(), FText::FromString(DetailedMessage));
@@ -411,9 +411,9 @@ bool UK2Node_CallDelegate::CreatePinsForFunctionInputs(const UFunction* Function
 
 	// Create the inputs and outputs
 	bool bAllPinsGood = true;
-	for (TFieldIterator<UProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 	{
-		UProperty* Param = *PropIt;
+		FProperty* Param = *PropIt;
 		const bool bIsFunctionInput = !Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm);
 		if (bIsFunctionInput)
 		{
@@ -449,7 +449,7 @@ FText UK2Node_CallDelegate::GetNodeTitle(ENodeTitleType::Type TitleType) const
 void UK2Node_CallDelegate::ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const
 {
 	UK2Node::ValidateNodeDuringCompilation(MessageLog);
-	if(UProperty* Property = GetProperty())
+	if(FProperty* Property = GetProperty())
 	{
 		if(!Property->HasAllPropertyFlags(CPF_BlueprintCallable))
 		{

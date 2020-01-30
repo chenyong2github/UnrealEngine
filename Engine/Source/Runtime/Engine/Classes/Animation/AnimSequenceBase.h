@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -130,10 +130,10 @@ class ENGINE_API UAnimSequenceBase : public UAnimationAsset
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	
 	// Get a pointer to the data for a given Anim Notify
-	uint8* FindNotifyPropertyData(int32 NotifyIndex, UArrayProperty*& ArrayProperty);
+	uint8* FindNotifyPropertyData(int32 NotifyIndex, FArrayProperty*& ArrayProperty);
 
 	// Get a pointer to the data for a given array property item
-	uint8* FindArrayProperty(const TCHAR* PropName, UArrayProperty*& ArrayProperty, int32 ArrayIndex);
+	uint8* FindArrayProperty(const TCHAR* PropName, FArrayProperty*& ArrayProperty, int32 ArrayIndex);
 
 protected:
 	virtual void RefreshParentAssetData() override;

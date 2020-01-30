@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Parse.h"
 #include "Misc/DateTime.h"
@@ -474,7 +474,7 @@ bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCha
 
 	if (OutNumCharsRead)
 	{
-		*OutNumCharsRead = (Buffer - Start);
+		*OutNumCharsRead = UE_PTRDIFF_TO_INT32(Buffer - Start);
 	}
 
 	return true;
@@ -590,7 +590,7 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, int8& Value )
 	if( Temp==NULL )
 		return false;
 	Temp += FCString::Strlen( Match );
-	Value = FCString::Atoi( Temp );
+	Value = (int8)FCString::Atoi( Temp );
 	return Value!=0 || FChar::IsDigit(Temp[0]);
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,6 +18,7 @@ struct FRigUnit_GetJointTransform : public FRigUnitMutable
 		, TransformSpace(ETransformSpaceMode::GlobalSpace)
 	{}
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -40,7 +41,4 @@ struct FRigUnit_GetJointTransform : public FRigUnitMutable
 	// possibly space, relative transform so on can be input
 	UPROPERTY(meta=(Output))
 	FTransform Output;
-
-private:
-	FTransform GetBaseTransform(int32 JointIndex, const FRigBoneHierarchy* CurrentHierarchy, bool bUseInitial) const;
 };

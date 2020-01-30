@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameplayAttributeGraphPin.h"
 #include "Widgets/SBoxPanel.h"
@@ -37,7 +37,7 @@ TSharedRef<SWidget>	SGameplayAttributeGraphPin::GetDefaultValueWidget()
 		];
 }
 
-void SGameplayAttributeGraphPin::OnAttributeChanged(UProperty* SelectedAttribute)
+void SGameplayAttributeGraphPin::OnAttributeChanged(FProperty* SelectedAttribute)
 {
 	FString FinalValue;
 	FGameplayAttribute NewAttributeStruct;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPathView.h"
 #include "HAL/FileManager.h"
@@ -25,6 +25,7 @@
 #include "NativeClassHierarchy.h"
 #include "EmptyFolderVisibilityManager.h"
 #include "ContentBrowserModule.h"
+#include "Misc/BlacklistNames.h"
 
 #include "Application/SlateApplicationBase.h"
 
@@ -75,7 +76,8 @@ void SPathView::Construct( const FArguments& InArgs )
 		RegisterActiveTimer( 0.f, FWidgetActiveTimerDelegate::CreateSP( this, &SPathView::SetFocusPostConstruct ) );
 	}
 
-	ContentBrowserSingleton = &FContentBrowserSingleton::Get();
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
 
 	// Listen for when view settings are changed
 	UContentBrowserSettings::OnSettingChanged().AddSP(this, &SPathView::HandleSettingChanged);
@@ -338,7 +340,7 @@ TSharedPtr<FTreeItem> SPathView::AddPath(const FString& Path, bool bUserNamed)
 		return TSharedPtr<FTreeItem>();
 	}
 
-	if (!ContentBrowserSingleton->PathViewPathPassesFilter(Path))
+	if (FolderBlacklist.IsValid() && !FolderBlacklist->PassesStartsWithFilter(Path))
 	{
 		return TSharedPtr<FTreeItem>();
 	}
@@ -1863,7 +1865,7 @@ TSharedPtr<FTreeItem> SFavoritePathView::AddPath(const FString& Path, bool bUser
 		return TSharedPtr<FTreeItem>();
 	}
 
-	if (!ContentBrowserSingleton->PathViewPathPassesFilter(Path))
+	if (FolderBlacklist.IsValid() && !FolderBlacklist->PassesStartsWithFilter(Path))
 	{
 		return TSharedPtr<FTreeItem>();
 	}

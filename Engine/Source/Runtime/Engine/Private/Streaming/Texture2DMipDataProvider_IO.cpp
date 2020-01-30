@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.FTexture2DMipDataProvider_IO
+// Copyright Epic Games, Inc. All Rights Reserved.FTexture2DMipDataProvider_IO
 
 /*=============================================================================
 Texture2DMipDataProvider_IO.cpp : Implementation of FTextureMipDataProvider using cooked file IO.

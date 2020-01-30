@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/Delay.h"
 #include "DSP/Dsp.h"
@@ -47,7 +47,7 @@ namespace Audio
 	{
 		if (AudioBuffer)
 		{
-			FMemory::Memzero(AudioBuffer, sizeof(float)*AudioBufferSize);
+			FMemory::Memzero(AudioBuffer, sizeof(float) * AudioBufferSize);
 		}
 
 		WriteIndex = 0;
@@ -59,8 +59,8 @@ namespace Audio
 	void FDelay::SetDelayMsec(const float InDelayMsec)
 	{
 		// Directly set the delay
-		DelayInSamples = InDelayMsec * SampleRate * 0.001f;
-		check(DelayInSamples < AudioBufferSize);
+		const float NewDelayInSamples = InDelayMsec * SampleRate * 0.001f;
+		DelayInSamples = FMath::Min(NewDelayInSamples, static_cast<float>(AudioBufferSize));
 		Update(true);
 	}
 
@@ -75,7 +75,8 @@ namespace Audio
 		EaseDelayMsec.SetValue(InDelayMsec, bIsInit);
 		if (bIsInit)
 		{
-			DelayInSamples = InDelayMsec * SampleRate * 0.001f;
+			const float NewDelayInSamples = InDelayMsec * SampleRate * 0.001f;
+			DelayInSamples = FMath::Min(NewDelayInSamples, static_cast<float>(AudioBufferSize));
 		}
 		Update(bIsInit);
 	}

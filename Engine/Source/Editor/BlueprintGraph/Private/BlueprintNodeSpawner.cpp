@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintNodeSpawner.h"
 #include "EdGraph/EdGraph.h"
@@ -74,8 +74,10 @@ void UBlueprintNodeSpawner::Prime()
 {
 	if (FBlueprintNodeSpawnerUtils::IsStaleFieldAction(this))
 	{
-		UField const* AssociatedField = FBlueprintNodeSpawnerUtils::GetAssociatedField(this);
-		ensureMsgf(false, TEXT("Priming invalid BlueprintActionDatabase entry (for %s). Was the database properly updated when this class was compiled?"), *AssociatedField->GetPathName());
+		const UFunction* AssociatedFunction = FBlueprintNodeSpawnerUtils::GetAssociatedFunction(this);
+		const FProperty* AssociatedProperty = FBlueprintNodeSpawnerUtils::GetAssociatedProperty(this);
+		ensureMsgf(false, TEXT("Priming invalid BlueprintActionDatabase entry (for %s). Was the database properly updated when this class was compiled?"), 
+			AssociatedFunction ? *AssociatedFunction->GetPathName() : *AssociatedProperty->GetPathName());
 		return;
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 function skipVerify() {
     addOnBeforeUnload('Leaving this page will abort the skip action')
     let queryParams = processQueryParameters(['bot', 'branch', 'cl'], ["reason"])

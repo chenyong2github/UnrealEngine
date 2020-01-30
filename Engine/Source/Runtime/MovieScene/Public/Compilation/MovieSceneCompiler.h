@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -86,7 +86,9 @@ private:
 
 	static void GatherCompileOnTheFlyData(UMovieSceneSequence& InSequence, const FGatherParameters& Params, FMovieSceneGatheredCompilerData& OutData);
 
-	static void GatherCompileDataForSubSection(const UMovieSceneSubSection& SubSection, const FGuid& InObjectBindingId, const FGatherParameters& Params, FMovieSceneGatheredCompilerData& OutData);
+	static void GatherCompileDataForSubSection(const UMovieSceneSequence& InOuterSequence, const UMovieSceneSubSection& SubSection, const FGuid& InObjectBindingId, const FGatherParameters& Params, FMovieSceneGatheredCompilerData& OutData);
+
+	static TOptional<FFrameNumber> GetLoopingSubSectionEndTime(const UMovieSceneSequence& InRootSequence, const UMovieSceneSubSection& SubSection, const FGatherParameters& Params);
 
 	static void GatherCompileDataForTrack(FMovieSceneEvaluationTrack& Track, FMovieSceneTrackIdentifier TrackID, const FGatherParameters& Params, FMovieSceneGatheredCompilerData& OutData);
 

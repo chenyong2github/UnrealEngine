@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNotifyDetails.h"
 #include "Widgets/Text/STextBlock.h"
@@ -109,7 +109,7 @@ void FAnimNotifyDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
 			for(uint32 ChildIdx = 0 ; ChildIdx < NumChildren ; ++ChildIdx)
 			{
 				TSharedPtr<IPropertyHandle> NotifyProperty = BaseHandle->GetChildHandle(ChildIdx);
-				UProperty* Prop = NotifyProperty->GetProperty();
+				FProperty* Prop = NotifyProperty->GetProperty();
 				
 				if(Prop && !Prop->HasAnyPropertyFlags(CPF_DisableEditOnInstance))
 				{
@@ -268,7 +268,7 @@ void FAnimNotifyDetails::CustomizeLinkProperties(IDetailLayoutBuilder& Builder, 
 		for(uint32 ChildIdx = 0 ; ChildIdx < NumChildProperties ; ++ChildIdx)
 		{
 			TSharedPtr<IPropertyHandle> ChildHandle = NotifyProperty->GetChildHandle(ChildIdx);
-			FString OuterFieldType = ChildHandle->GetProperty()->GetOuterUField()->GetName();
+			FString OuterFieldType = ChildHandle->GetProperty()->GetOwnerVariant().GetName();
 
 			if(ChildHandle->GetProperty()->GetName() == GET_MEMBER_NAME_CHECKED(FAnimNotifyEvent, EndLink).ToString()
 			   || OuterFieldType == FString(TEXT("AnimLinkableElement")))
@@ -314,7 +314,7 @@ void FAnimNotifyDetails::HideLinkProperties(IDetailLayoutBuilder& Builder, TShar
 		for(uint32 ChildIdx = 0 ; ChildIdx < NumChildProperties ; ++ChildIdx)
 		{
 			TSharedPtr<IPropertyHandle> ChildHandle = NotifyProperty->GetChildHandle(ChildIdx);
-			FString OuterFieldType = ChildHandle->GetProperty()->GetOuterUField()->GetName();
+			FString OuterFieldType = ChildHandle->GetProperty()->GetOwnerVariant().GetName();
 			if(ChildHandle->GetProperty()->GetName() == GET_MEMBER_NAME_CHECKED(FAnimNotifyEvent, EndLink).ToString()
 			   || OuterFieldType == FString(TEXT("AnimLinkableElement")))
 			{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "NiagaraNodeFunctionCall.h"
@@ -132,4 +132,25 @@ bool FNiagaraParameterHandle::IsModuleHandle() const
 bool FNiagaraParameterHandle::IsParameterCollectionHandle() const
 {
 	return Namespace == ParameterCollectionNamespace;
+}
+
+bool FNiagaraParameterHandle::IsReadOnlyHandle() const
+{
+	return
+		Namespace == UserNamespace ||
+		Namespace == EngineNamespace ||
+		Namespace == ParameterCollectionNamespace ||
+		Namespace == ModuleNamespace;
+}
+
+bool FNiagaraParameterHandle::IsTransientHandle() const
+{
+	return
+		Namespace != UserNamespace &&
+		Namespace != EngineNamespace &&
+		Namespace != SystemNamespace &&
+		Namespace != EmitterNamespace &&
+		Namespace != ParticleAttributeNamespace &&
+		Namespace != ModuleNamespace &&
+		Namespace != ParameterCollectionNamespace;
 }

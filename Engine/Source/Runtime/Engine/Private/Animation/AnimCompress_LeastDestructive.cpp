@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AnimCompress_LeastDestructive.cpp: Uses the Bitwise compressor with really light settings
@@ -12,16 +12,5 @@ UAnimCompress_LeastDestructive::UAnimCompress_LeastDestructive(const FObjectInit
 {
 	Description = TEXT("Least Destructive");
 	TranslationCompressionFormat = ACF_None;
-	RotationCompressionFormat = ACF_None;
+	RotationCompressionFormat = ACF_Float96NoW;
 }
-
-
-#if WITH_EDITOR
-void UAnimCompress_LeastDestructive::DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult)
-{
-	UAnimCompress* BitwiseCompressor = NewObject<UAnimCompress_BitwiseCompressOnly>();
-	BitwiseCompressor->RotationCompressionFormat = ACF_Float96NoW;
-	BitwiseCompressor->TranslationCompressionFormat = ACF_None;
-	BitwiseCompressor->Reduce(CompressibleAnimData, OutResult);
-}
-#endif // WITH_EDITOR

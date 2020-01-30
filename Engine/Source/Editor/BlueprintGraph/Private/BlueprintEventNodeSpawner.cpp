@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintEventNodeSpawner.h"
 #include "EdGraphSchema_K2.h"
@@ -128,7 +128,7 @@ FBlueprintNodeSignature UBlueprintEventNodeSpawner::GetSpawnerSignature() const
 	}
 	else
 	{
-		SpawnerSignature.AddSubObject(EventFunc);
+		SpawnerSignature.AddSubObject(const_cast<UFunction*>(EventFunc));
 	}
 	return SpawnerSignature;
 }

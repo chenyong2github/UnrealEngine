@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -396,7 +396,7 @@ private:
 	ECheckBoxState IsSectionIsolatedEnabled(int32 SectionIndex) const;
 	void OnSectionIsolatedChanged(ECheckBoxState NewState, int32 SectionIndex);
 
-	void CallPostEditChange(UProperty* PropertyChanged=nullptr);
+	void CallPostEditChange(FProperty* PropertyChanged=nullptr);
 	void UpdateLODCategoryVisibility();
 
 	IStaticMeshEditor& StaticMeshEditor;
@@ -480,7 +480,7 @@ private:
 
 	SVerticalBox::FSlot& GetUVDensitySlot(int32 SlotIndex, int32 UVChannelIndex) const;
 
-	void CallPostEditChange(UProperty* PropertyChanged = nullptr);
+	void CallPostEditChange(FProperty* PropertyChanged = nullptr);
 
 	void OnCopyMaterialList();
 	bool OnCanCopyMaterialList() const;

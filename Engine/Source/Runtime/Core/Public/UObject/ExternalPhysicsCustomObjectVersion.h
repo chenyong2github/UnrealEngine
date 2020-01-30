@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreTypes.h"
@@ -83,7 +83,40 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Add damping to rigid particles
 		AddDampingToRigids,
-		
+
+		//Replace TBox with TAABB in many places
+		TBoxReplacedWithTAABB,
+
+		// Serialize bSimulate on PerShapeData
+		SerializePerShapeDataSimulateFlag,
+
+		// Serialize whether or not an AABBTree is immutable
+		ImmutableAABBTree,
+
+		// Trimeshes can now use small indices
+		TrimeshCanUseSmallIndices,
+
+		// Union objects can avoid allocating a full hierarchy
+		UnionObjectsCanAvoidHierarchy,
+
+		// Capsules no longer have a union inside them or stored aabbs
+		CapsulesNoUnionOrAABBs,
+
+		// Convexes use concrete planes
+		ConvexUsesTPlaneConcrete,
+
+		// Heightfield uses uint16 heights directly
+		HeightfieldUsesHeightsDirectly,
+
+		// TriangleMesh has map from internal face indices to external.
+		TriangleMeshHasFaceIndexMap,
+
+		// Acceleration structures use unique payload idx
+		UniquePayloadIdx,
+	
+		// Added serialization for the collision type in the shape
+		SerializeCollisionTraceType,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

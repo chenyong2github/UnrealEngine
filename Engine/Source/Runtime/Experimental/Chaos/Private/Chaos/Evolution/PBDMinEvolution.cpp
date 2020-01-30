@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/Collision/CollisionDetector.h"
@@ -7,6 +7,7 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "Chaos/PerParticleAddImpulses.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleGravity.h"
@@ -21,17 +22,20 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::AdvanceOneTimeStep"), STAT_MinEvolution_AdvanceOneTimeStep, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::Integrate"), STAT_MinEvolution_Integrate, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::KinematicTargets"), STAT_MinEvolution_KinematicTargets, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::PrepareConstraints"), STAT_MinEvolution_PrepareConstraints, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UnprepareConstraints"), STAT_MinEvolution_UnprepareConstraints, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::ApplyConstraints"), STAT_MinEvolution_ApplyConstraints, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::ApplyPushOut"), STAT_MinEvolution_ApplyPushOut, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_Chaos);
 
-	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector)
+	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
 		: Particles(InParticles)
 		, CollisionDetector(InCollisionDetector)
 		, NumApplyIterations(0)
 		, NumApplyPushOutIterations(0)
+		, BoundsExtension(InBoundsExtension)
 		, Gravity(FVec3(0))
 	{
 	}
@@ -41,30 +45,33 @@ namespace Chaos
 		ConstraintRules.Add(Rule);
 	}
 
-	// @todo(ccaulfield): dedupe (PBDRigidsEvolutionGBF)
-	void FPBDMinEvolution::Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps)
+	void FPBDMinEvolution::Advance(const FReal StepDt, const int32 NumSteps)
 	{
-		// Determine how many steps we would like to take
-		int32 NumSteps = FMath::CeilToInt(Dt / MaxStepDt);
-		if (NumSteps > 0)
+		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
 		{
-			// Determine the step time
-			const FReal StepDt = Dt / (FReal)NumSteps;
-
-			// Limit the number of steps
-			// NOTE: This is after step time calculation so sim will appear to slow down for large Dt
-			// but that is preferable to blowing up from a large timestep.
-			NumSteps = FMath::Clamp(NumSteps, 1, MaxSteps);
-
-			for (int32 Step = 0; Step < NumSteps; ++Step)
+			if (Particle.ObjectState() == EObjectStateType::Dynamic)
 			{
-				// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
-				// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
-				const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
+				Particle.F() += Particle.M() * Gravity;
+			}
+		}
 
-				UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
+		for (int32 Step = 0; Step < NumSteps; ++Step)
+		{
+			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
+			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
+			const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
 
-				AdvanceOneTimeStep(StepDt, StepFraction);
+			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
+
+			AdvanceOneTimeStep(StepDt, StepFraction);
+		}
+
+		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
+		{
+			if (Particle.ObjectState() == EObjectStateType::Dynamic)
+			{
+				Particle.F() = FVec3(0);
+				Particle.Torque() = FVec3(0);
 			}
 		}
 	}
@@ -91,6 +98,8 @@ namespace Chaos
 
 		if (Dt > 0)
 		{
+			PrepareConstraints(Dt);
+
 			ApplyConstraints(Dt);
 
 			if (PostApplyCallback != nullptr)
@@ -107,6 +116,8 @@ namespace Chaos
 				PostApplyPushOutCallback();
 			}
 
+			UnprepareConstraints(Dt);
+
 			UpdatePositions(Dt);
 		}
 	}
@@ -117,7 +128,8 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Integrate);
 
 		TPerParticleEulerStepVelocity<FReal, 3> EulerStepVelocityRule;
-		//TPerParticleEtherDrag<FReal, 3> EtherDragRule(HackLinearDrag, HackAngularDrag);
+		TPerParticleAddImpulses<FReal, 3> AddImpulsesRule;
+		TPerParticleEtherDrag<FReal, 3> EtherDragRule;
 		TPerParticlePBDEulerStep<FReal, 3> EulerStepPositionRule;
 
 		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
@@ -127,21 +139,27 @@ namespace Chaos
 				Particle.PreV() = Particle.V();
 				Particle.PreW() = Particle.W();
 
-				Particle.F() = Particle.ExternalForce() + Particle.M() * Gravity;
-				Particle.Torque() = Particle.ExternalTorque();
-
 				EulerStepVelocityRule.Apply(Particle, Dt);
-				//EtherDragRule.Apply(Particle, Dt);
+
+				AddImpulsesRule.Apply(Particle, Dt);
+				Particle.LinearImpulse() = FVec3(0);
+				Particle.AngularImpulse() = FVec3(0);
+
+				EtherDragRule.Apply(Particle, Dt);
 
 				EulerStepPositionRule.Apply(Particle, Dt);
 
+
 				if (Particle.HasBounds())
 				{
-					const FReal BoundsThickness = 1.0f;
-					const FReal BoundsThicknessVelocityInflation = 2.0f;
-					const TBox<FReal, 3>& LocalBounds = Particle.LocalBounds();
-					TBox<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedBox(FRigidTransform3(Particle.P(), Particle.Q()));
-					WorldSpaceBounds.ThickenSymmetrically(FVec3(BoundsThickness) + BoundsThicknessVelocityInflation * Particle.V().GetAbs() * Dt);
+					const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
+					
+					TAABB<FReal, 3> NextWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
+					NextWorldSpaceBounds.ThickenSymmetrically(NextWorldSpaceBounds.Extents() * BoundsExtension);
+
+					TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+					WorldSpaceBounds.GrowToInclude(NextWorldSpaceBounds);
+
 					Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 				}
 			}
@@ -161,6 +179,9 @@ namespace Chaos
 		const FReal MinDt = 1e-6f;
 		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
 		{
+			const FVec3 PrevX = Particle.X();
+			const FRotation3 PrevR = Particle.R();
+
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
 			switch (KinematicTarget.GetMode())
 			{
@@ -212,12 +233,30 @@ namespace Chaos
 				break;
 			}
 			}
+
+			// Update world space bouunds
+			if (Particle.HasBounds())
+			{
+				const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
+				
+				TAABB<FReal, 3> NextWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+				NextWorldSpaceBounds.ThickenSymmetrically(NextWorldSpaceBounds.Extents() * BoundsExtension);
+
+				TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(PrevX, PrevR));
+				WorldSpaceBounds.GrowToInclude(NextWorldSpaceBounds);
+
+				Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
+			}
 		}
 	}
 
 	void FPBDMinEvolution::DetectCollisions(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_DetectCollisions);
+
+		// @todo(ccaulfield): doesn't need to be every frame
+		PrioritizedConstraintRules = ConstraintRules;
+		PrioritizedConstraintRules.StableSort();
 
 		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
 		{
@@ -227,13 +266,29 @@ namespace Chaos
 		CollisionDetector.DetectCollisions(Dt);
 	}
 
+	void FPBDMinEvolution::PrepareConstraints(FReal Dt)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareConstraints);
+
+		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
+		{
+			ConstraintRule->PrepareConstraints(Dt);
+		}
+	}
+
+	void FPBDMinEvolution::UnprepareConstraints(FReal Dt)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareConstraints);
+
+		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
+		{
+			ConstraintRule->UnprepareConstraints(Dt);
+		}
+	}
+
 	void FPBDMinEvolution::ApplyConstraints(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraints);
-
-		// @todo(ccaulfield): doesn't need to be every frame
-		PrioritizedConstraintRules = ConstraintRules;
-		PrioritizedConstraintRules.StableSort();
 
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int32 i = 0; i < NumApplyIterations; ++i)

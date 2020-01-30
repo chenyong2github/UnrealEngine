@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericScriptCodeGenerator.h"
 #include "UObject/UnrealType.h"
@@ -22,10 +22,10 @@ FString FGenericScriptCodeGenerator::GenerateWrapperFunctionDeclaration(const FS
 	return FString::Printf(TEXT("int32 %s_%s(void* InScriptContext)"), *Class->GetName(), *FunctionName);
 }
 
-FString FGenericScriptCodeGenerator::GenerateFunctionParamDeclaration(const FString& ClassNameCPP, UClass* Class, UFunction* Function, UProperty* Param)
+FString FGenericScriptCodeGenerator::GenerateFunctionParamDeclaration(const FString& ClassNameCPP, UClass* Class, UFunction* Function, FProperty* Param)
 {
 	FString ParamDecl;
-	if (Param->IsA(UObjectPropertyBase::StaticClass()) || Param->IsA(UClassProperty::StaticClass()))
+	if (Param->IsA(FObjectPropertyBase::StaticClass()) || Param->IsA(FClassProperty::StaticClass()))
 	{
 		ParamDecl = FString::Printf(TEXT("UObject* %s = nullptr;"), *Param->GetName());
 	}
@@ -41,7 +41,7 @@ FString FGenericScriptCodeGenerator::GenerateObjectDeclarationFromContext(const 
 	return FString::Printf(TEXT("UObject* Obj = (UObject*)InScriptContext;"));
 }
 
-FString FGenericScriptCodeGenerator::GenerateReturnValueHandler(const FString& ClassNameCPP, UClass* Class, UFunction* Function, UProperty* ReturnValue)
+FString FGenericScriptCodeGenerator::GenerateReturnValueHandler(const FString& ClassNameCPP, UClass* Class, UFunction* Function, FProperty* ReturnValue)
 {
 	return TEXT("return 0;");
 }
@@ -51,7 +51,7 @@ FString FGenericScriptCodeGenerator::ExportFunction(const FString& ClassNameCPP,
 	FString GeneratedGlue = GenerateWrapperFunctionDeclaration(ClassNameCPP, Class, Function);
 	GeneratedGlue += TEXT("\r\n{\r\n");
 
-	UProperty* ReturnValue = NULL;
+	FProperty* ReturnValue = NULL;
 	UClass* FuncSuper = NULL;
 	
 	if (Function->GetOwnerClass() != Class)
@@ -71,9 +71,9 @@ FString FGenericScriptCodeGenerator::ExportFunction(const FString& ClassNameCPP,
 
 		FString FunctionCallArguments;
 		FString ReturnValueDeclaration;
-		for (TFieldIterator<UProperty> ParamIt(Function); !ReturnValue && ParamIt; ++ParamIt)
+		for (TFieldIterator<FProperty> ParamIt(Function); !ReturnValue && ParamIt; ++ParamIt)
 		{
-			UProperty* Param = *ParamIt;
+			FProperty* Param = *ParamIt;
 			if (Param->GetPropertyFlags() & CPF_ReturnParm)
 			{
 				ReturnValue = Param;
@@ -92,10 +92,10 @@ FString FGenericScriptCodeGenerator::ExportFunction(const FString& ClassNameCPP,
 	return GeneratedGlue;
 }
 
-FString FGenericScriptCodeGenerator::ExportProperty(const FString& ClassNameCPP, UClass* Class, UProperty* Property, int32 PropertyIndex)
+FString FGenericScriptCodeGenerator::ExportProperty(const FString& ClassNameCPP, UClass* Class, FProperty* Property, int32 PropertyIndex)
 {
 	FString PropertyName = Property->GetName();
-	UProperty* ReturnValue = NULL;
+	FProperty* ReturnValue = NULL;
 	UClass* PropertySuper = NULL;
 
 	if (Property->GetOwnerClass() != Class)
@@ -115,7 +115,7 @@ FString FGenericScriptCodeGenerator::ExportProperty(const FString& ClassNameCPP,
 	if (PropertySuper == NULL)
 	{
 		FunctionBody += FString::Printf(TEXT("\t%s\r\n"), *GenerateObjectDeclarationFromContext(ClassNameCPP, Class));
-		FunctionBody += FString::Printf(TEXT("\tstatic UProperty* Property = FindScriptPropertyHelper(%s::StaticClass(), TEXT(\"%s\"));\r\n"), *ClassNameCPP, *Property->GetName());
+		FunctionBody += FString::Printf(TEXT("\tstatic FProperty* Property = FindScriptPropertyHelper(%s::StaticClass(), TEXT(\"%s\"));\r\n"), *ClassNameCPP, *Property->GetName());
 		FunctionBody += FString::Printf(TEXT("\t%s\r\n"), *GenerateFunctionParamDeclaration(ClassNameCPP, Class, NULL, Property));
 		FunctionBody += FString::Printf(TEXT("\tProperty->CopyCompleteValue(&%s, Property->ContainerPtrToValuePtr<void>(Obj));\r\n"), *Property->GetName());
 		FunctionBody += FString::Printf(TEXT("\t// @todo: handle property value here\r\n"));
@@ -136,7 +136,7 @@ FString FGenericScriptCodeGenerator::ExportProperty(const FString& ClassNameCPP,
 	if (PropertySuper == NULL)
 	{
 		FunctionBody += FString::Printf(TEXT("\t%s\r\n"), *GenerateObjectDeclarationFromContext(ClassNameCPP, Class));
-		FunctionBody += FString::Printf(TEXT("\tstatic UProperty* Property = FindScriptPropertyHelper(%s::StaticClass(), TEXT(\"%s\"));\r\n"), *ClassNameCPP, *Property->GetName());
+		FunctionBody += FString::Printf(TEXT("\tstatic FProperty* Property = FindScriptPropertyHelper(%s::StaticClass(), TEXT(\"%s\"));\r\n"), *ClassNameCPP, *Property->GetName());
 		FunctionBody += FString::Printf(TEXT("\t%s\r\n"), *GenerateFunctionParamDeclaration(ClassNameCPP, Class, NULL, Property));
 		FunctionBody += FString::Printf(TEXT("\tProperty->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(Obj), &%s);\r\n"), *Property->GetName());
 		FunctionBody += TEXT("\treturn 0;\r\n");
@@ -200,9 +200,9 @@ bool FGenericScriptCodeGenerator::CanExportClass(UClass* Class)
 		// Check properties too
 		if (!bHasMembersToExport)
 		{
-			for (TFieldIterator<UProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); !bHasMembersToExport && PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); !bHasMembersToExport && PropertyIt; ++PropertyIt)
 			{
-				UProperty* Property = *PropertyIt;
+				FProperty* Property = *PropertyIt;
 				if (CanExportProperty(ClassNameCPP, Class, Property))
 				{
 					bHasMembersToExport = true;
@@ -243,9 +243,9 @@ void FGenericScriptCodeGenerator::ExportClass(UClass* Class, const FString& Sour
 	}
 
 	int32 PropertyIndex = 0;
-	for (TFieldIterator<UProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt, ++PropertyIndex)
+	for (TFieldIterator<FProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt, ++PropertyIndex)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 		if (CanExportProperty(ClassNameCPP, Class, Property))
 		{
 			UE_LOG(LogScriptGenerator, Log, TEXT("  %s %s"), *Property->GetClass()->GetName(), *Property->GetName());

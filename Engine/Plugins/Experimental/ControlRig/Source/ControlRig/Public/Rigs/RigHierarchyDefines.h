@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,7 +11,7 @@ struct FRigHierarchyContainer;
  * This is rig element types that we support
  * This can be used as a mask so supported as a bitfield
  */
-UENUM()
+UENUM(BlueprintType)
 enum class ERigElementType : uint8
 {
 	None UMETA(Hidden),
@@ -48,9 +48,15 @@ namespace FRigElementTypeHelper
 	}
 }
 
+USTRUCT(BlueprintType)
 struct FRigElementKey
 {
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Hierarchy")
 	FName Name;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Hierarchy")
 	ERigElementType Type;
 
 	FRigElementKey()
@@ -118,10 +124,10 @@ struct CONTROLRIG_API FRigElement
 	{}
 	virtual ~FRigElement() {}
 	
-	UPROPERTY(EditAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = FRigElement)
 	FName Name;
 
-	UPROPERTY(VisibleAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = FRigElement)
 	int32 Index;
 
 	virtual ERigElementType GetElementType() const

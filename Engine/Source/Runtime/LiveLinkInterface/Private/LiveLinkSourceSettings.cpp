@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkSourceSettings.h"
 #include "UObject/EnterpriseObjectVersion.h"
@@ -11,7 +11,7 @@ void ULiveLinkSourceSettings::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
-bool ULiveLinkSourceSettings::CanEditChange(const UProperty* InProperty) const
+bool ULiveLinkSourceSettings::CanEditChange(const FProperty* InProperty) const
 {
 	if (Super::CanEditChange(InProperty))
 	{

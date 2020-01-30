@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,25 +22,25 @@ struct FRigUnit_SpringIK_DebugSettings
 	/**
 	 * If enabled debug information will be drawn 
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input), Category = "DebugSettings")
 	bool bEnabled;
 
 	/**
 	 * The size of the debug drawing information
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	float Scale;
 
 	/**
 	 * The color to use for debug drawing
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	FLinearColor Color;
 
 	/**
 	 * The offset at which to draw the debug information in the world
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	FTransform WorldOffset;
 };
 
@@ -96,19 +96,29 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 		DebugSettings = FRigUnit_SpringIK_DebugSettings();
 	}
 
+
+	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("PoleVector")))
+		{
+			return PoleVectorSpace;
+		}
+		return NAME_None;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** 
 	 * The name of the first bone to solve
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName StartBone;
 
 	/**
 	 * The name of the second bone to solve
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName EndBone;
 
 	/**
@@ -171,7 +181,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	/**
 	 * The space in which the pole vector is expressed
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName PoleVectorSpace;
 
 	/**
@@ -211,7 +221,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
 	/** The debug setting for the node */

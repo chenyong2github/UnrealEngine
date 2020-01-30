@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraTypeCustomizations.h"
 #include "CoreMinimal.h"
@@ -44,7 +44,7 @@ void FNiagaraNumericCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> P
 			ValueHandle.IsValid()
 			? ValueHandle->CreatePropertyValueWidget()
 			: SNew(STextBlock)
-			  .Text(FText::FromString(FName::NameToDisplayString(Cast<UStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
+			  .Text(FText::FromString(FName::NameToDisplayString(CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
 			  .Font(IDetailLayoutBuilder::GetDetailFont())
 		];
 }
@@ -295,7 +295,7 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 			.MaxDesiredWidth(200.f)
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(FName::NameToDisplayString(Cast<UStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
+				.Text(FText::FromString(FName::NameToDisplayString(CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 	}
@@ -473,7 +473,7 @@ void FNiagaraUserParameterBindingCustomization::CustomizeHeader(TSharedRef<IProp
 			.MaxDesiredWidth(200.f)
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(FName::NameToDisplayString(Cast<UStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
+				.Text(FText::FromString(FName::NameToDisplayString(CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 	}
@@ -695,7 +695,7 @@ void FNiagaraScriptVariableBindingCustomization::CustomizeHeader(TSharedRef<IPro
 			.MaxDesiredWidth(200.f)
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(FName::NameToDisplayString(Cast<UStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
+				.Text(FText::FromString(FName::NameToDisplayString(CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 	}

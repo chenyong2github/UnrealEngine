@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaintModePainter.h"
 
@@ -813,9 +813,16 @@ void FPaintModePainter::FinishPainting()
 	IMeshPainter::FinishPainting();	
 	FinishPaintingTexture();	
 
-	if (PaintSettings->PaintMode == EPaintMode::Vertices && !PaintSettings->VertexPaintSettings.bPaintOnSpecificLOD)
+	if (PaintSettings->PaintMode == EPaintMode::Vertices)
 	{
-		PropagateVertexColorsToLODs();
+		if (!PaintSettings->VertexPaintSettings.bPaintOnSpecificLOD)
+		{
+			PropagateVertexColorsToLODs();
+		}
+		else
+		{
+			Refresh();
+		}
 	}
 
 	UpdateCachedVertexDataSize();

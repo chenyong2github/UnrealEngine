@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -348,7 +348,7 @@ public:
 				Carry = Product >> BitsPerWord;
 				ResultBits[WordIndexA + WordIndexB] = (uint32)(Product & (Base - 1));
 			}
-			ResultBits[WordIndexA + NumWordsB] += Carry;
+			ResultBits[WordIndexA + NumWordsB] += (uint32)Carry;
 		}
 
 		for (int32 WordIndex = 0; WordIndex < NumWords; ++WordIndex)
@@ -1246,10 +1246,12 @@ TEncryptionInt FEncryption::ModularPow(TEncryptionInt Base, TEncryptionInt Expon
 
 /// @endcond
 
-template <class TYPE>
+template <class InDataType>
 struct FSignatureBase
 {
-	TYPE Data;
+	typedef InDataType DataType;
+
+	DataType Data;
 
 	FSignatureBase()
 	{
@@ -1263,7 +1265,7 @@ struct FSignatureBase
 
 	static int64 Size()
 	{
-		return sizeof(TYPE);
+		return sizeof(InDataType);
 	}
 
 	bool IsValid() const
@@ -1310,7 +1312,7 @@ namespace FEncryption
 
 	static void DecryptSignature(const FEncryptedSignature& InEncryptedSignature, FDecryptedSignature& OutUnencryptedSignature, const FEncryptionKey& EncryptionKey)
 	{
-		OutUnencryptedSignature.Data = FEncryption::ModularPow(TEncryptionInt(InEncryptedSignature.Data), EncryptionKey.Exponent, EncryptionKey.Modulus).ToInt();
+		OutUnencryptedSignature.Data = (FDecryptedSignature::DataType)FEncryption::ModularPow(TEncryptionInt(InEncryptedSignature.Data), EncryptionKey.Exponent, EncryptionKey.Modulus).ToInt();
 	}
 }
 

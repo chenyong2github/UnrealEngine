@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -39,7 +39,7 @@ public:
 
 protected:
 	// Creates client socket
-	FSocket* CreateSocket(const FString& InName, const int32 BuffSize = DisplayClusterConstants::net::SocketBufferSize);
+	FSocket* CreateSocket(const FString& InName);
 
 private:
 	// Client name

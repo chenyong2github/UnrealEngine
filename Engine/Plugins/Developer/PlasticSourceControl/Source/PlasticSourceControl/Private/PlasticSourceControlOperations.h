@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Specialization of classes defineds in Engine\Source\Developer\SourceControl\Public\SourceControlOperations.h
 

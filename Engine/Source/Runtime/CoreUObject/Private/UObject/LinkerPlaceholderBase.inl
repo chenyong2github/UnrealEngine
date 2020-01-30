@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -81,7 +81,7 @@ bool TLinkerImportPlaceholder<PlaceholderType>::HasKnownReferences() const
 
 //------------------------------------------------------------------------------
 template<class PlaceholderType>
-void TLinkerImportPlaceholder<PlaceholderType>::AddReferencingProperty(UProperty* ReferencingProperty)
+void TLinkerImportPlaceholder<PlaceholderType>::AddReferencingProperty(FFieldVariant ReferencingProperty)
 {
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 	UObject* ThisAsObject = GetPlaceholderAsUObject();
@@ -127,7 +127,7 @@ void TLinkerImportPlaceholder<PlaceholderType>::AddDerivedFunction(UStruct* Deri
 
 //------------------------------------------------------------------------------
 template<class PlaceholderType>
-void TLinkerImportPlaceholder<PlaceholderType>::RemoveReferencingProperty(UProperty* ReferencingProperty)
+void TLinkerImportPlaceholder<PlaceholderType>::RemoveReferencingProperty(FFieldVariant ReferencingProperty)
 {
 	ReferencingProperties.Remove(ReferencingProperty);
 }

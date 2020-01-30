@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/TextProperty.h"
 #include "Internationalization/ITextData.h"
@@ -10,7 +10,9 @@
 #include "Internationalization/StringTableCore.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 
-EConvertFromTypeResult UTextProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+IMPLEMENT_FIELD(FTextProperty)
+
+EConvertFromTypeResult FTextProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
 {
 	// Convert serialized string to text.
 	if (Tag.Type==NAME_StrProperty)
@@ -38,7 +40,7 @@ EConvertFromTypeResult UTextProperty::ConvertFromType(const FPropertyTag& Tag, F
 	return EConvertFromTypeResult::UseSerializeItem;
 }
 
-bool UTextProperty::Identical_Implementation(const FText& ValueA, const FText& ValueB, uint32 PortFlags)
+bool FTextProperty::Identical_Implementation(const FText& ValueA, const FText& ValueB, uint32 PortFlags)
 {
 	// A culture variant text is never equal to a culture invariant text
 	// A transient text is never equal to a non-transient text
@@ -86,7 +88,7 @@ bool UTextProperty::Identical_Implementation(const FText& ValueA, const FText& V
 	return false;
 }
 
-bool UTextProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
+bool FTextProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
 	const TCppType ValueA = GetPropertyValue(A);
 	if ( B )
@@ -98,13 +100,13 @@ bool UTextProperty::Identical( const void* A, const void* B, uint32 PortFlags ) 
 	return FTextInspector::GetDisplayString(ValueA).IsEmpty();
 }
 
-void UTextProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
+void FTextProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
 	TCppType* TextPtr = GetPropertyValuePtr(Value);
 	Slot << *TextPtr;
 }
 
-void UTextProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FTextProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	const FText& TextValue = GetPropertyValue(PropertyValue);
 
@@ -131,7 +133,7 @@ void UTextProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue
 	}
 }
 
-const TCHAR* UTextProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FTextProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
 {
 	FText* TextPtr = GetPropertyValuePtr(Data);
 
@@ -174,7 +176,7 @@ const TCHAR* UTextProperty::ImportText_Internal( const TCHAR* Buffer, void* Data
 	return FTextStringHelper::ReadFromBuffer(Buffer, *TextPtr, *TextNamespace, *PackageNamespace, !!(PortFlags & PPF_Delimited));
 }
 
-FString UTextProperty::GenerateCppCodeForTextValue(const FText& InValue, const FString& Indent)
+FString FTextProperty::GenerateCppCodeForTextValue(const FText& InValue, const FString& Indent)
 {
 	FString CppCode;
 
@@ -188,7 +190,7 @@ FString UTextProperty::GenerateCppCodeForTextValue(const FText& InValue, const F
 
 		// Produces FText::AsCultureInvariant(TEXT("..."))
 		CppCode += TEXT("FText::AsCultureInvariant(\n");
-		CppCode += UStrProperty::ExportCppHardcodedText(StringValue, Indent + TEXT("\t\t"));
+		CppCode += FStrProperty::ExportCppHardcodedText(StringValue, Indent + TEXT("\t\t"));
 		CppCode += TEXT("\t)");
 	}
 	else
@@ -200,7 +202,7 @@ FString UTextProperty::GenerateCppCodeForTextValue(const FText& InValue, const F
 		{
 			// Produces FTextStringHelper::CreateFromBuffer(TEXT("..."))
 			CppCode += TEXT("FTextStringHelper::CreateFromBuffer(\n");
-			CppCode += UStrProperty::ExportCppHardcodedText(ExportedText, Indent + TEXT("\t\t"));
+			CppCode += FStrProperty::ExportCppHardcodedText(ExportedText, Indent + TEXT("\t\t"));
 			CppCode += Indent;
 			CppCode += TEXT("\t)");
 		}
@@ -208,7 +210,7 @@ FString UTextProperty::GenerateCppCodeForTextValue(const FText& InValue, const F
 		{
 			// Produces FText::FromString(TEXT("..."))
 			CppCode += TEXT("FText::FromString(\n");
-			CppCode += UStrProperty::ExportCppHardcodedText(ExportedText, Indent + TEXT("\t\t"));
+			CppCode += FStrProperty::ExportCppHardcodedText(ExportedText, Indent + TEXT("\t\t"));
 			CppCode += TEXT("\t)");
 		}
 	}
@@ -216,12 +218,7 @@ FString UTextProperty::GenerateCppCodeForTextValue(const FText& InValue, const F
 	return CppCode;
 }
 
-FString UTextProperty::GetCPPTypeForwardDeclaration() const
+FString FTextProperty::GetCPPTypeForwardDeclaration() const
 {
 	return FString();
 }
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UTextProperty, UProperty,
-{
-}
-);

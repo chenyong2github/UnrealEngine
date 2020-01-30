@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "CsvProfilerTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
 #include "TraceServices/Model/Counters.h"
@@ -402,7 +402,7 @@ void FCsvProfilerAnalyzer::HandleEventEvent(const FOnEventContext& Context)
 
 uint32 FCsvProfilerAnalyzer::GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const
 {
-	const TArray<double>& FrameStartTimes = FrameProvider.GetFrameStartTimes(FrameType);
+	const TArray64<double>& FrameStartTimes = FrameProvider.GetFrameStartTimes(FrameType);
 
 	if (FrameStartTimes.Num() == 0 || Timestamp < FrameStartTimes[0])
 	{

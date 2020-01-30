@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintHelpers.h"
 
@@ -50,6 +50,8 @@
 
 #include "Async/ParallelFor.h"
 #include "Rendering/SkeletalMeshModel.h"
+
+extern void PropagateVertexPaintToAsset(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
 void MeshPaintHelpers::RemoveInstanceVertexColors(UObject* Obj)
 {
@@ -106,7 +108,7 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 	FStaticMeshRenderData& RenderData = *StaticMesh->RenderData;
 	FStaticMeshLODResources& RenderModel = RenderData.LODResources[LODIndex];
 	FColorVertexBuffer& ColorVertexBuffer = *ComponentLODInfo.OverrideVertexColors;
-	if (RenderData.WedgeMap.Num() > 0 && ColorVertexBuffer.GetNumVertices() == RenderModel.GetNumVertices())
+	if (RenderModel.WedgeMap.Num() > 0 && ColorVertexBuffer.GetNumVertices() == RenderModel.GetNumVertices())
 	{
 		// Use the wedge map if it is available as it is lossless.
 		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
@@ -119,14 +121,14 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 
 		FStaticMeshAttributes Attributes(*MeshDescription);
 		int32 NumWedges = MeshDescription->VertexInstances().Num();
-		if (RenderData.WedgeMap.Num() == NumWedges)
+		if (RenderModel.WedgeMap.Num() == NumWedges)
 		{
 			TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
 			int32 VertexInstanceIndex = 0;
 			for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 			{
 				FLinearColor WedgeColor = FLinearColor::White;
-				int32 Index = RenderData.WedgeMap[VertexInstanceIndex];
+				int32 Index = RenderModel.WedgeMap[VertexInstanceIndex];
 				if (Index != INDEX_NONE)
 				{
 					WedgeColor = FLinearColor(ColorVertexBuffer.VertexColor(Index));
@@ -160,7 +162,7 @@ bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 L
 		int32 VertexIndex = 0;
 		for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 		{
-			VertexPositionsDup[VertexIndex] = VertexPositions[VertexID];
+			VertexPositionsDup[VertexIndex++] = VertexPositions[VertexID];
 		}
 		TempPositionVertexBuffer.Init(VertexPositionsDup);
 		RemapPaintedVertexColors(
@@ -912,6 +914,7 @@ void MeshPaintHelpers::FillSkeletalMeshVertexColors(USkeletalMeshComponent* Mesh
 			for (LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 			{
 				MeshPaintHelpers::SetColorDataForLOD(Mesh, LODIndex, FillColor, MaskColor);
+				PropagateVertexPaintToAsset(Mesh, LODIndex);
 			}
 			Mesh->InitResources();
 		}
@@ -1775,6 +1778,8 @@ void MeshPaintHelpers::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& Geo
 				const FSkeletalMeshLODRenderData& BaseLOD = Resource->LODRenderData[0];
 				GeometryInfo.PreEdit();				
 
+				PropagateVertexPaintToAsset(Mesh, 0);
+
 				FBox BaseBounds(ForceInitToZero);
 
 				TArray<FPaintedMeshVertex> PaintedVertices;
@@ -1916,8 +1921,8 @@ void MeshPaintHelpers::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& Geo
 							SrcLOD.Sections[SectionIndex].SoftVertices[SectionVertexIndex].Color = PointsToConsider[BestVertexIndex].Color;
 						}
 					}
+					PropagateVertexPaintToAsset(Mesh, LODIndex);
 				}
-				
 				GeometryInfo.PostEdit();
 			}
 		}

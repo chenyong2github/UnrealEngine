@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Interfaces/IHttpRequest.h"
@@ -20,6 +20,12 @@ namespace BuildPatchServices
 		{
 			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::GetURL");
 			return FString();
+		}
+
+		virtual FHttpRequestWillRetryDelegate& OnRequestWillRetry() override
+		{
+			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::OnRequestWillRetry");
+			return HttpRequestWillRetryDelegate;
 		}
 
 		virtual FString GetURLParameter(const FString& ParameterName) const override
@@ -160,6 +166,7 @@ namespace BuildPatchServices
 		FHttpRequestProgressDelegate HttpRequestProgressDelegate;
 		FHttpRequestCompleteDelegate HttpRequestCompleteDelegate;
 		FHttpRequestHeaderReceivedDelegate HttpHeaderReceivedDelegate;
+		FHttpRequestWillRetryDelegate HttpRequestWillRetryDelegate;
 
 		TArray<FRxSetVerb> RxSetVerb;
 		TArray<FRxSetURL> RxSetURL;

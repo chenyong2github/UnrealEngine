@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SStaticMeshEditorViewportToolBar.h"
 #include "SStaticMeshEditorViewport.h"
@@ -56,7 +56,7 @@ TSharedRef<SWidget> SStaticMeshEditorViewportToolbar::GenerateShowMenu() const
 
 		ShowMenuBuilder.AddMenuSeparator();
 
-		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNormals);
+ 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNormals);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowTangents);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowBinormals);
 

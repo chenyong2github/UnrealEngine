@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -264,10 +264,10 @@ public:
 	void DetermineUCSModifiedProperties();
 
 	/** Returns the list of properties that are modified by the UserConstructionScript */
-	void GetUCSModifiedProperties(TSet<const UProperty*>& ModifiedProperties) const;
+	void GetUCSModifiedProperties(TSet<const FProperty*>& ModifiedProperties) const;
 
 	/** Removes specified properties from the list of UCS-modified properties */
-	void RemoveUCSModifiedProperties(const TArray<UProperty*>& Properties);
+	void RemoveUCSModifiedProperties(const TArray<FProperty*>& Properties);
 
 	/** True if this component can be modified when it was inherited from a parent actor class */
 	bool IsEditableWhenInherited() const;
@@ -802,8 +802,8 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	virtual bool Modify( bool bAlwaysMarkDirty = true ) override;
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty( FPropertyChangedChainEvent& PropertyChangedEvent ) override;
 	virtual void PreEditUndo() override;

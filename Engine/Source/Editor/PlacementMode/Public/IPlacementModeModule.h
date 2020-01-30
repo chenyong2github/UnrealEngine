@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -249,6 +249,10 @@ public:
 	virtual FOnStoppedPlacingEvent& OnStoppedPlacing() = 0;
 	virtual void BroadcastStoppedPlacing( bool bWasSuccessfullyPlaced ) = 0;
 
+	/**
+	 * Creates the placement browser widget
+	 */
+	virtual TSharedRef<SWidget> CreatePlacementModeBrowser() = 0;
 public:
 
 	/**
@@ -321,4 +325,3 @@ public:
 	 */
 	virtual void RegenerateItemsForCategory(FName Category) = 0;
 };
-

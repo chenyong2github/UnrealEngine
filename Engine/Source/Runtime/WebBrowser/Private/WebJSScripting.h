@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -33,9 +33,9 @@ public:
 		return bJSBindingToLoweringEnabled ? Name.ToLower() : Name;
 	}
 
-	FString GetBindingName(const UField* Property) const
+	FString GetBindingName(const FFieldVariant& Property) const
 	{
-		return bJSBindingToLoweringEnabled ? Property->GetName().ToLower() : Property->GetName();
+		return bJSBindingToLoweringEnabled ? Property.GetName().ToLower() : Property.GetName();
 	}
 
 public:

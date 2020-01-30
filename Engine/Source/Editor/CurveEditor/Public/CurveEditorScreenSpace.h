@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,7 +20,7 @@ struct FCurveEditorScreenSpaceH
 		: PixelWidth(FMath::Max(InPixelWidth, 1.f))
 		, InputMin(InInputMin), InputMax(InInputMax)
 	{
-		if (!ensure(InputMax > InputMin))
+		if (InputMax <= InputMin)
 		{
 			InputMax = InputMin + KINDA_SMALL_NUMBER;
 		}

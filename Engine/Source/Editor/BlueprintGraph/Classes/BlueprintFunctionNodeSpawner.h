@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -55,9 +55,9 @@ public:
 	// End UBlueprintNodeSpawner interface
 
 	// IBlueprintNodeBinder interface
-	virtual bool IsBindingCompatible(UObject const* BindingCandidate) const override;
+	virtual bool IsBindingCompatible(FBindingObject BindingCandidate) const override;
 	virtual bool CanBindMultipleObjects() const override;
-	virtual bool BindToNode(UEdGraphNode* Node, UObject* Binding) const override;
+	virtual bool BindToNode(UEdGraphNode* Node, FBindingObject Binding) const override;
 	// End IBlueprintNodeBinder interface
 
 	/**

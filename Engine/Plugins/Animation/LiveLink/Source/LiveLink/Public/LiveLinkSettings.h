@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,6 +15,8 @@
 
 #include "LiveLinkSettings.generated.h"
 
+
+class ULiveLinkPreset;
 
 /**
  * Settings for LiveLinkRole.
@@ -65,7 +67,11 @@ public:
 	/** The interpolation class to use for new Subjects if no specific settings we set for the Subject's role. */
 	UPROPERTY(config)
 	TSubclassOf<ULiveLinkFrameInterpolationProcessor> FrameInterpolationProcessor;
-	
+
+	/** The default preset that should be applied */
+	UPROPERTY(config, EditAnywhere, Category = "LiveLink")
+	TSoftObjectPtr<ULiveLinkPreset> DefaultLiveLinkPreset;
+
 	/** The default location in which to save take presets */
 	UPROPERTY(config, EditAnywhere, Category="LiveLink", meta=(DisplayName="Preset Save Location"))
 	FDirectoryPath PresetSaveDir;

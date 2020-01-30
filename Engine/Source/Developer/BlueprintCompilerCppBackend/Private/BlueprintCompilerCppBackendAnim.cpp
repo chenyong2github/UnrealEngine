@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
@@ -28,7 +28,7 @@ void FBackendHelperAnim::CreateAnimClassData(FEmitterLocalContext& Context)
 		AnimClassData->CopyFrom(AnimClass);
 
 		UObject* ObjectArchetype = AnimClassData->GetArchetype();
-		for (const UProperty* Property : TFieldRange<const UProperty>(UAnimClassData::StaticClass()))
+		for (const FProperty* Property : TFieldRange<const FProperty>(UAnimClassData::StaticClass()))
 		{
 			FEmitDefaultValueHelper::OuterGenerate(Context, Property, LocalNativeName
 				, reinterpret_cast<const uint8*>(AnimClassData)
@@ -41,9 +41,9 @@ void FBackendHelperAnim::CreateAnimClassData(FEmitterLocalContext& Context)
 	}
 }
 
-bool FBackendHelperAnim::ShouldAddAnimNodeInitializationFunctionCall(FEmitterLocalContext& Context, const UProperty* InProperty)
+bool FBackendHelperAnim::ShouldAddAnimNodeInitializationFunctionCall(FEmitterLocalContext& Context, const FProperty* InProperty)
 {
-	if(const UStructProperty* StructProperty = Cast<const UStructProperty>(InProperty))
+	if(const FStructProperty* StructProperty = CastField<const FStructProperty>(InProperty))
 	{
 		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 		{
@@ -54,9 +54,9 @@ bool FBackendHelperAnim::ShouldAddAnimNodeInitializationFunctionCall(FEmitterLoc
 	return false;
 }
 
-void FBackendHelperAnim::AddAnimNodeInitializationFunctionCall(FEmitterLocalContext& Context, const UProperty* InProperty)
+void FBackendHelperAnim::AddAnimNodeInitializationFunctionCall(FEmitterLocalContext& Context, const FProperty* InProperty)
 {
-	if(const UStructProperty* StructProperty = Cast<const UStructProperty>(InProperty))
+	if(const FStructProperty* StructProperty = CastField<const FStructProperty>(InProperty))
 	{
 		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 		{
@@ -65,9 +65,9 @@ void FBackendHelperAnim::AddAnimNodeInitializationFunctionCall(FEmitterLocalCont
 	}
 }
 
-void FBackendHelperAnim::AddAnimNodeInitializationFunction(FEmitterLocalContext& Context, const FString& InCppClassName, const UProperty* InProperty, bool bInNewProperty, UObject* InCDO, UObject* InParentCDO)
+void FBackendHelperAnim::AddAnimNodeInitializationFunction(FEmitterLocalContext& Context, const FString& InCppClassName, const FProperty* InProperty, bool bInNewProperty, UObject* InCDO, UObject* InParentCDO)
 {
-	if(const UStructProperty* StructProperty = Cast<const UStructProperty>(InProperty))
+	if(const FStructProperty* StructProperty = CastField<const FStructProperty>(InProperty))
 	{
 		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 		{
@@ -87,7 +87,7 @@ void FBackendHelperAnim::AddAnimNodeInitializationFunction(FEmitterLocalContext&
 					if (AnimClass->EvaluateGraphExposedInputs[i].ValueHandlerNodeProperty == InProperty)
 					{
 						const FString ClassName = FEmitHelper::GetCppName(Context.GetCurrentlyGeneratedClass());
-						const FString MemberName = FEmitHelper::GetCppName(InProperty);
+						const FString MemberName = FEmitHelper::GetCppName(const_cast<FProperty*>(InProperty));
 						Context.Body.AddLine(FString::Printf(TEXT("%s.SetExposedValueHandler(&CastChecked<UAnimClassData>(CastChecked<UDynamicClass>(%s::StaticClass())->%s)->GetExposedValueHandlers()[%d]);"), *MemberName, *ClassName, GET_MEMBER_NAME_STRING_CHECKED(UDynamicClass, AnimClassImplementation), i));
 
 						break;
@@ -101,7 +101,7 @@ void FBackendHelperAnim::AddAnimNodeInitializationFunction(FEmitterLocalContext&
 	}
 }
 
-void FBackendHelperAnim::AddAllAnimNodesInitializationFunction(FEmitterLocalContext& Context, const FString& InCppClassName, const TArray<const UProperty*>& InAnimProperties)
+void FBackendHelperAnim::AddAllAnimNodesInitializationFunction(FEmitterLocalContext& Context, const FString& InCppClassName, const TArray<const FProperty*>& InAnimProperties)
 {
 	Context.Header.AddLine(TEXT("void __InitAllAnimNodes();"));
 
@@ -109,7 +109,7 @@ void FBackendHelperAnim::AddAllAnimNodesInitializationFunction(FEmitterLocalCont
 	Context.Body.AddLine(TEXT("{"));
 	Context.Body.IncreaseIndent();
 
-	for(const UProperty* Property : InAnimProperties)
+	for(const FProperty* Property : InAnimProperties)
 	{
 		Context.Body.AddLine(FString::Printf(TEXT("__InitAnimNode__%s();"), *Property->GetName()));
 	}

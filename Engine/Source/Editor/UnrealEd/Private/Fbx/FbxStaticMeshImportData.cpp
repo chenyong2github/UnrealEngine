@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxStaticMeshImportData.h"
 #include "Engine/StaticMesh.h"
@@ -39,7 +39,7 @@ UFbxStaticMeshImportData* UFbxStaticMeshImportData::GetImportDataForStaticMesh(U
 	return ImportData;
 }
 
-bool UFbxStaticMeshImportData::CanEditChange(const UProperty* InProperty) const
+bool UFbxStaticMeshImportData::CanEditChange(const FProperty* InProperty) const
 {
 	bool bMutable = Super::CanEditChange(InProperty);
 	UObject* Outer = GetOuter();

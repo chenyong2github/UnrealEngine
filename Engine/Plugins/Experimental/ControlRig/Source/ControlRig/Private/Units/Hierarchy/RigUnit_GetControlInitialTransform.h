@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -26,7 +26,7 @@ struct FRigUnit_GetControlInitialTransform : public FRigUnit
 	/**
 	 * The name of the Control to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, ControlName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
 	FName Control;
 
 	/**

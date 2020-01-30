@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Templates/Casts.h"
@@ -11,12 +11,12 @@
 /**
  * Sets the ActivePropertyNode to the node associated with the property specified.
  *
- * @param	NewActiveProperty	the UProperty that is currently being evaluated by Pre/PostEditChange
+ * @param	NewActiveProperty	the FProperty that is currently being evaluated by Pre/PostEditChange
  *
  * @return	true if the ActivePropertyNode was successfully changed to the node associated with the property
  *			specified.  false if there was no node corresponding to that property.
  */
-bool FEditPropertyChain::SetActivePropertyNode( UProperty* NewActiveProperty )
+bool FEditPropertyChain::SetActivePropertyNode( FProperty* NewActiveProperty )
 {
 	bool bResult = false;
 
@@ -33,13 +33,13 @@ bool FEditPropertyChain::SetActivePropertyNode( UProperty* NewActiveProperty )
 /**
  * Sets the ActiveMemberPropertyNode to the node associated with the property specified.
  *
- * @param	NewActiveMemberProperty		the member UProperty which contains the property currently being evaluated
+ * @param	NewActiveMemberProperty		the member FProperty which contains the property currently being evaluated
  *										by Pre/PostEditChange
  *
  * @return	true if the ActiveMemberPropertyNode was successfully changed to the node associated with the
  *			property specified.  false if there was no node corresponding to that property.
  */
-bool FEditPropertyChain::SetActiveMemberPropertyNode( UProperty* NewActiveMemberProperty )
+bool FEditPropertyChain::SetActiveMemberPropertyNode( FProperty* NewActiveMemberProperty )
 {
 	bool bResult = false;
 
@@ -82,7 +82,7 @@ FEditPropertyChain::TDoubleLinkedListNode* FEditPropertyChain::GetActiveMemberNo
 void FEditPropertyChain::SetListSize( int32 NewListSize )
 {
 	int32 PreviousListSize = Num();
-	TDoubleLinkedList<UProperty*>::SetListSize(NewListSize);
+	TDoubleLinkedList<FProperty*>::SetListSize(NewListSize);
 
 	if ( Num() == 0 )
 	{
@@ -108,7 +108,7 @@ void FEditPropertyChain::SetListSize( int32 NewListSize )
 			for ( TIterator It(PropertyNode); It; --It )
 			{
 				// if we've found the member property, we can stop here
-				if ( dynamic_cast<UClass*>(It->GetOuter()) != NULL )
+				if (It->GetOwner<UClass>() != nullptr)
 				{
 					PropertyNode = It.GetNode();
 					break;

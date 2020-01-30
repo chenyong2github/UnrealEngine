@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -67,7 +67,13 @@ namespace EAudioMixerChannel
 		TopBackCenter,
 		TopBackRight,
 		Unknown,
-		ChannelTypeCount
+		ChannelTypeCount,
+
+		// Alias Values
+		Ambisonics_W = FrontLeft,
+		Ambisonics_X = FrontRight,
+		Ambisonics_Y = FrontCenter,
+		Ambisonics_Z = LowFrequency,
 	};
 
 	static const int32 MaxSupportedChannel = EAudioMixerChannel::TopCenter;
@@ -492,9 +498,6 @@ namespace Audio
 
 		/** Start a fadeout. Prevents pops during shutdown. */
 		void FadeOut();
-
-		/** Sets the mater volume of the audio device. This attenuates all audio, used for muting, etc. */
-		void SetMasterVolume(const float InVolume);
 
 		/** Returns the last error generated. */
 		FString GetLastError() const { return LastError; }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraShader.h"
 #include "NiagaraShared.h"
@@ -117,7 +117,7 @@ void FNiagaraShaderMapId::Serialize(FArchive& Ar)
 		Ar << CompilerVersionID;
 	}
 
-	Ar << BaseScriptID;
+	Ar << BaseScriptID_DEPRECATED;
 	Ar << (int32&)FeatureLevel;
 
 	if (Ar.IsLoading() && NiagaraVer < FNiagaraCustomVersion::RemoveGraphUsageCompileIds)
@@ -153,7 +153,7 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 	FSHA1 HashState;
 
 	HashState.Update((const uint8*)&CompilerVersionID, sizeof(CompilerVersionID));
-	HashState.Update((const uint8*)&BaseScriptID, sizeof(BaseScriptID));
+	//HashState.Update((const uint8*)&BaseScriptID, sizeof(BaseScriptID));
 	HashState.Update(BaseCompileHash.GetData(), FNiagaraCompileHash::HashSize);
 	HashState.Update((const uint8*)&FeatureLevel, sizeof(FeatureLevel));
 		
@@ -181,8 +181,8 @@ void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
 */
 bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) const
 {
-	if (BaseScriptID != ReferenceSet.BaseScriptID 
-		|| BaseCompileHash != ReferenceSet.BaseCompileHash
+	if (/*BaseScriptID != ReferenceSet.BaseScriptID 
+		|| */BaseCompileHash != ReferenceSet.BaseCompileHash
 		|| FeatureLevel != ReferenceSet.FeatureLevel
 		|| CompilerVersionID != ReferenceSet.CompilerVersionID 
 		|| DetailLevelMask != ReferenceSet.DetailLevelMask 
@@ -242,8 +242,8 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 
 void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 {
-	KeyString += BaseScriptID.ToString();
-	KeyString += TEXT("_");
+	//KeyString += BaseScriptID.ToString();
+	//KeyString += TEXT("_");
 
 	KeyString += BaseCompileHash.ToString();
 	KeyString += TEXT("_");
@@ -483,7 +483,7 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 */
 FNiagaraShaderMap* FNiagaraShaderMap::FindId(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform InPlatform)
 {
-	check(ShaderMapId.BaseScriptID != FGuid());
+	check(ShaderMapId.BaseCompileHash.IsValid());
 	return GIdToNiagaraShaderMap[InPlatform].FindRef(ShaderMapId);
 }
 
@@ -1281,7 +1281,6 @@ const FNiagaraShaderMap* FNiagaraShaderMap::GetShaderMapBeingCompiled(const FNia
 
 FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer)
 	: FShader(Initializer)
-	, CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
 	, DebugDescription(Initializer.DebugDescription)
 {
 	check(!DebugDescription.IsEmpty());
@@ -1308,6 +1307,9 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	InstanceCountsParam.Bind(ParameterMap, TEXT("InstanceCounts"));
 	ReadInstanceCountOffsetParam.Bind(ParameterMap, TEXT("ReadInstanceCountOffset"));
 	WriteInstanceCountOffsetParam.Bind(ParameterMap, TEXT("WriteInstanceCountOffset"));
+
+	FreeIDBufferParam.Bind(ParameterMap, TEXT("FreeIDList"));
+	IDToIndexBufferParam.Bind(ParameterMap, TEXT("IDToIndexTable"));
 	
 	SimStartParam.Bind(ParameterMap, TEXT("SimStart"));
 	EmitterTickCounterParam.Bind(ParameterMap, TEXT("EmitterTickCounter"));
@@ -1326,8 +1328,19 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	ComponentBufferSizeReadParam.Bind(ParameterMap, TEXT("ComponentBufferSizeRead"));
 	ComponentBufferSizeWriteParam.Bind(ParameterMap, TEXT("ComponentBufferSizeWrite"));
-	EmitterConstantBufferParam.Bind(ParameterMap, TEXT("FEmitterParameters"));
 	ViewUniformBufferParam.Bind(ParameterMap, TEXT("View"));
+
+	GlobalConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraGlobalParameters"));
+	SystemConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraSystemParameters"));
+	OwnerConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraOwnerParameters"));
+	EmitterConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraEmitterParameters"));
+	ExternalConstantBufferParam[0].Bind(ParameterMap, TEXT("FNiagaraExternalParameters"));
+
+	GlobalConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraGlobalParameters"));
+	SystemConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraSystemParameters"));
+	OwnerConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraOwnerParameters"));
+	EmitterConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraEmitterParameters"));
+	ExternalConstantBufferParam[1].Bind(ParameterMap, TEXT("PREV_FNiagaraExternalParameters"));
 
 	// params for event buffers
 	// this is horrendous; need to do this in a uniform buffer instead.
@@ -1381,6 +1394,9 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << ReadInstanceCountOffsetParam;
 	Ar << WriteInstanceCountOffsetParam;
 
+	Ar << FreeIDBufferParam;
+	Ar << IDToIndexBufferParam;
+
 	Ar << SimStartParam;
 	Ar << EmitterTickCounterParam;
 	Ar << EmitterSpawnInfoOffsetsParam;
@@ -1404,7 +1420,18 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 
 	Ar << DataInterfaceParameters;
 
-	Ar << EmitterConstantBufferParam;
+	Ar << GlobalConstantBufferParam[0];
+	Ar << SystemConstantBufferParam[0];
+	Ar << OwnerConstantBufferParam[0];
+	Ar << EmitterConstantBufferParam[0];
+	Ar << ExternalConstantBufferParam[0];
+
+	Ar << GlobalConstantBufferParam[1];
+	Ar << SystemConstantBufferParam[1];
+	Ar << OwnerConstantBufferParam[1];
+	Ar << EmitterConstantBufferParam[1];
+	Ar << ExternalConstantBufferParam[1];
+
 	Ar << DataInterfaceUniformBufferParam;
 	Ar << NumEventsPerParticleParam;
 	Ar << NumParticlesPerEventParam;
@@ -1478,7 +1505,7 @@ void FNiagaraDataInterfaceParamRef::Bind(const class FShaderParameterMap& Parame
 	}
 }
 
-bool operator<<(FArchive &Ar, FNiagaraDataInterfaceParamRef& ParamRef)
+bool operator<<(FArchive& Ar, FNiagaraDataInterfaceParamRef& ParamRef)
 {
 	ParamRef.ParameterInfo.Serialize(Ar);
 
@@ -1496,9 +1523,37 @@ bool operator<<(FArchive &Ar, FNiagaraDataInterfaceParamRef& ParamRef)
 	return true;
 }
 
+bool FNiagaraDataInterfaceGeneratedFunction::Serialize(FArchive& Ar)
+{
+	Ar << DefinitionName;
+	Ar << InstanceName;
+	Ar << Specifiers;
+	return true;
+}
+
+bool operator<<(FArchive& Ar, FNiagaraDataInterfaceGeneratedFunction& DIFunction)
+{
+	return DIFunction.Serialize(Ar);
+}
+
 bool FNiagaraDataInterfaceGPUParamInfo::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVer = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
 	Ar << DataInterfaceHLSLSymbol;
 	Ar << DIClassName;
+
+	// If FNiagaraDataInterfaceGPUParamInfo was only included in the DI parameters of FNiagaraShader, we wouldn't need to worry about
+	// custom versions, because bumping FNiagaraCustomVersion::LatestScriptCompileVersion is enough to cause all shaders to be
+	// rebuilt and things to be serialized correctly. However, there's a property of type FNiagaraVMExecutableData inside UNiagaraScript,
+	// which in turn contains an array of FNiagaraDataInterfaceGPUParamInfo, so we must check the version in order to be able to load
+	// UNiagaraScript objects saved before GeneratedFunctions was introduced.
+	const bool SkipGeneratedFunctions = Ar.IsLoading() && (NiagaraVer < FNiagaraCustomVersion::AddGeneratedFunctionsToGPUParamInfo);
+	if (!SkipGeneratedFunctions)
+	{
+		Ar << GeneratedFunctions;
+	}
+
 	return true;
 }

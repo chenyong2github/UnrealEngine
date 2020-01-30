@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -94,9 +94,9 @@ public:
 	* @param Ar - archive to serialize to
 	* @param B - data to serialize
 	*/
-	void Serialize(FArchive& Ar) override
+	void Serialize(FArchive& Ar, bool bForcePerElementSerialization = false) override
 	{
-		Data.TResourceArray<VertexDataType, VERTEXBUFFER_ALIGNMENT>::BulkSerialize(Ar);
+		Data.TResourceArray<VertexDataType, VERTEXBUFFER_ALIGNMENT>::BulkSerialize(Ar, bForcePerElementSerialization);
 	}
 	/**
 	* Assignment. This is currently the only method which allows for 

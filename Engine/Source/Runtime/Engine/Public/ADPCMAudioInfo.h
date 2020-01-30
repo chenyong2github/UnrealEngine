@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ADPCMAudioInfo.h: Unreal audio ADPCM decompression interface object.
@@ -139,6 +139,8 @@ private:
 	// If a non-zero chunk is requested, this function also aquires a reference to that chunk
 	// until we move on to a different chunk.
 	const uint8* GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
+
+	int32 NumConsecutiveReadFailiures;
 
 	FWaveModInfo WaveInfo;
 	const uint8*	SrcBufferData;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseDriverDetails.h"
 #include "AnimGraphNode_PoseDriver.h"
@@ -257,6 +257,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 							.OptionsSource(&DistanceMethodOptions)
 							.OnGenerateWidget(this, &SPDD_TargetRow::MakeDrivenNameWidget)
 							.OnSelectionChanged(this, &SPDD_TargetRow::OnDistanceMethodChanged)
+							.IsEnabled_Lambda([this]() { return IsOverrideEnabled(); })
 							.Content()
 							[
 								SNew(STextBlock)
@@ -274,6 +275,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 							.OptionsSource(&FunctionTypeOptions)
 							.OnGenerateWidget(this, &SPDD_TargetRow::MakeDrivenNameWidget)
 							.OnSelectionChanged(this, &SPDD_TargetRow::OnFunctionTypeChanged)
+							.IsEnabled_Lambda([this]() { return IsOverrideEnabled(); })
 							.Content()
 							[
 								SNew(STextBlock)
@@ -316,6 +318,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 					[
 						SNew(SBox)
 						.Visibility_Lambda([=]() { return IsCustomCurveEnabled() ? EVisibility::Visible : EVisibility::Collapsed;  })
+						.IsEnabled_Lambda([this]() { return IsOverrideEnabled(); })
 						.Content()
 						[
 							SAssignNew(CurveEditor, SCurveEditor)
@@ -435,6 +438,18 @@ int32 SPDD_TargetRow::GetTargetIndex() const
 {
 	TSharedPtr<FPDD_TargetInfo> TargetInfo = TargetInfoPtr.Pin();
 	return TargetInfo->TargetIndex;
+}
+
+bool SPDD_TargetRow::IsOverrideEnabled() const
+{
+	bool bOverrideEnabled = true;
+	UAnimGraphNode_PoseDriver* Driver = GetPoseDriverGraphNode();
+	if (Driver)
+	{
+		bOverrideEnabled = Driver->Node.RBFParams.SolverType == ERBFSolverType::Additive;
+	}
+
+	return bOverrideEnabled;
 }
 
 float SPDD_TargetRow::GetTargetWeight() const

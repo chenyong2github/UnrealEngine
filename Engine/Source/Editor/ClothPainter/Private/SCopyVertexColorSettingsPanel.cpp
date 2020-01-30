@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCopyVertexColorSettingsPanel.h"
 #include "PropertyEditorModule.h"
@@ -114,13 +114,13 @@ FReply SCopyVertexColorSettingsPanel::OnCopyClicked()
 	{
 		UClothLODDataCommon* ClothLODData = Asset->ClothLodData[SelectedLOD];
 
-		check(ClothLODData->PhysicalMeshData->Vertices.Num() == ClothLODData->PhysicalMeshData->VertexColors.Num());
-		int32 NumVerts = ClothLODData->PhysicalMeshData->Vertices.Num();
+		check(ClothLODData->ClothPhysicalMeshData.Vertices.Num() == ClothLODData->ClothPhysicalMeshData.VertexColors.Num());
+		int32 NumVerts = ClothLODData->ClothPhysicalMeshData.Vertices.Num();
 		check(SelectedMask->Values.Num() == NumVerts);
 
 		for (int32 VertIdx = 0; VertIdx < NumVerts; VertIdx++)
 		{
-			const FColor VertColor = ClothLODData->PhysicalMeshData->VertexColors[VertIdx];
+			const FColor VertColor = ClothLODData->ClothPhysicalMeshData.VertexColors[VertIdx];
 			SelectedMask->Values[VertIdx] = GetColorChannelAsFloat(VertColor, CopyParams.ColorChannel, CopyParams.ScalingFactor);
 		}
 	}

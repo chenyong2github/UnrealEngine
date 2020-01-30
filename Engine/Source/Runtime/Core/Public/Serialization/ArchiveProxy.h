@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -58,6 +58,12 @@ public:
 	}
 
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override
+	{
+		InnerArchive << Value;
+		return *this;
+	}
+
+	virtual FArchive& operator<<(FField*& Value) override
 	{
 		InnerArchive << Value;
 		return *this;
@@ -200,7 +206,7 @@ public:
 		return InnerArchive.AttachExternalReadDependency(ReadCallback);
 	}
 
-	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
 		return InnerArchive.ShouldSkipProperty(InProperty);
 	}
@@ -236,26 +242,26 @@ public:
 	}
 #endif
 
-	FORCEINLINE void SetSerializedProperty(UProperty* InProperty) override
+	FORCEINLINE void SetSerializedProperty(FProperty* InProperty) override
 	{
 		FArchive::SetSerializedProperty(InProperty);
 		InnerArchive.SetSerializedProperty(InProperty);
 	}
 
-	void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class UProperty* InSerializedPropertyOverride = nullptr) override
+	void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class FProperty* InSerializedPropertyOverride = nullptr) override
 	{
 		FArchive::SetSerializedPropertyChain(InSerializedPropertyChain, InSerializedPropertyOverride);
 		InnerArchive.SetSerializedPropertyChain(InSerializedPropertyChain, InSerializedPropertyOverride);
 	}
 
 	/** Pushes editor-only marker to the stack of currently serialized properties */
-	virtual FORCEINLINE void PushSerializedProperty(class UProperty* InProperty, const bool bIsEditorOnlyProperty)
+	virtual FORCEINLINE void PushSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty)
 	{
 		FArchive::PushSerializedProperty(InProperty, bIsEditorOnlyProperty);
 		InnerArchive.PushSerializedProperty(InProperty, bIsEditorOnlyProperty);
 	}
 	/** Pops editor-only marker from the stack of currently serialized properties */
-	virtual FORCEINLINE void PopSerializedProperty(class UProperty* InProperty, const bool bIsEditorOnlyProperty)
+	virtual FORCEINLINE void PopSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty)
 	{
 		FArchive::PopSerializedProperty(InProperty, bIsEditorOnlyProperty);
 		InnerArchive.PopSerializedProperty(InProperty, bIsEditorOnlyProperty);

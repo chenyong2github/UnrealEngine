@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ToolBuilderUtil.h"
 #include "CoreMinimal.h"
@@ -35,16 +35,20 @@ UActorComponent* ToolBuilderUtil::FindFirstComponent(const FToolBuilderState& In
 {
 	if (InputState.SelectedComponents.Num() > 0)
 	{
-		return *InputState.SelectedComponents.FindByPredicate(Predicate);
+		UActorComponent* const* ComponentPtr = InputState.SelectedComponents.FindByPredicate(Predicate);
+		if (ComponentPtr)
+		{
+			return *ComponentPtr;
+		}
 	}
 	else
 	{
 		for ( AActor* Actor : InputState.SelectedActors )
 		{
-			UActorComponent* Component = *Algo::FindByPredicate(Actor->GetComponents(), Predicate);
-			if ( Component )
+			UActorComponent* const* ComponentPtr = Algo::FindByPredicate(Actor->GetComponents(), Predicate);
+			if (ComponentPtr)
 			{
-				return Component;
+				return *ComponentPtr;
 			}
 		}
 	}

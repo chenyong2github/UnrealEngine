@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OpenCVLensDistortionParameters.h"
 
@@ -100,7 +100,7 @@ UTexture2D* FOpenCVLensDistortionParameters::CreateUndistortUVDisplacementMap(co
 
 	// Lock the texture so it can be modified
 	FTexture2DMipMap& Mip = Result->PlatformData->Mips[0];
-	uint16* MipData = static_cast<uint16*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+	uint16* MipData = reinterpret_cast<uint16*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
 	check(MipData);
 
 	// Go through each pixel and change to normalized displacement value

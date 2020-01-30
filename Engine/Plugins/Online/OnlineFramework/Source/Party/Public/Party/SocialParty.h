@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -153,7 +153,10 @@ public:
 		PartyMembers.Reserve(PartyMembersById.Num());
 		for (const auto& IdMemberPair : PartyMembersById)
 		{
-			PartyMembers.Add(Cast<MemberT>(IdMemberPair.Value));
+			if (MemberT* PartyMember = Cast<MemberT>(IdMemberPair.Value))
+			{
+				PartyMembers.Add(PartyMember);
+			}
 		}
 		return PartyMembers;
 	}

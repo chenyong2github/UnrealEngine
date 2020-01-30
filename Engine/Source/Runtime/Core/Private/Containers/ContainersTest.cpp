@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
@@ -47,7 +47,7 @@ namespace
 
 		int32 Num() const
 		{
-			return End - ConstructedIDs;
+			return UE_PTRDIFF_TO_INT32(End - ConstructedIDs);
 		}
 
 		int32 Add()

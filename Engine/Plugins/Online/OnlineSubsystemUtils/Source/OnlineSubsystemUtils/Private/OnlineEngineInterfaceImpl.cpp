@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineEngineInterfaceImpl.h"
 #include "OnlineSubsystem.h"
@@ -627,7 +627,7 @@ void UOnlineEngineInterfaceImpl::LoginPIEInstance(FName OnlineIdentifier, int32 
 		}
 		else
 		{ 
-			ErrorStr = TEXT("Invalid credentials for PIE login");
+			ErrorStr = FString::Printf(TEXT("Invalid credential index for PIE login. Index: %d NumLogins: %d"), PIELoginNum, PIELogins.Num());
 		}
 	}
 	else

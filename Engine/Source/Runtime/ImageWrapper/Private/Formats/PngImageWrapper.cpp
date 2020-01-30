@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PngImageWrapper.h"
 #include "ImageWrapperPrivate.h"
@@ -120,6 +120,8 @@ FPngImageWrapper::FPngImageWrapper()
 
 void FPngImageWrapper::Compress(int32 Quality)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPngImageWrapper::Compress)
+
 	if (!CompressedData.Num())
 	{
 		//Preserve old single thread code on some platform in relation to a type incompatibility at compile time.

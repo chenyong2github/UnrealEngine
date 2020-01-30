@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -10,6 +10,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/ScriptMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "KismetArrayLibrary.generated.h"
 
 class AActor;
@@ -210,27 +211,27 @@ class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 	static bool Array_IsValidIndex(const TArray<int32>& TargetArray, int32 IndexToTest);
 
 	// Native functions that will be called by the below custom thunk layers, which read off the property address, and call the appropriate native handler
-	static int32 GenericArray_Add(void* TargetArray, const UArrayProperty* ArrayProp, const void* NewItem);
-	static int32 GenericArray_AddUnique(void* TargetArray, const UArrayProperty* ArrayProp, const void* NewItem);
-	static void GenericArray_Shuffle(void* TargetArray, const UArrayProperty* ArrayProp);
-	static bool GenericArray_Identical(void* ArrayA, const UArrayProperty* ArrayAProp, void* ArrayB, const UArrayProperty* ArrayBProperty);
-	static void GenericArray_Append(void* TargetArray, const UArrayProperty* TargetArrayProp, void* SourceArray, const UArrayProperty* SourceArrayProperty);
-	static void GenericArray_Insert(void* TargetArray, const UArrayProperty* ArrayProp, const void* NewItem, int32 Index);
-	static void GenericArray_Remove(void* TargetArray, const UArrayProperty* ArrayProp, int32 IndexToRemove);
-	static bool GenericArray_RemoveItem(void* TargetArray, const UArrayProperty* ArrayProp, const void* Item);
-	static void GenericArray_Clear(void* TargetArray, const UArrayProperty* ArrayProp);
-	static void GenericArray_Resize(void* TargetArray, const UArrayProperty* ArrayProp, int32 Size);
-	static int32 GenericArray_Length(const void* TargetArray, const UArrayProperty* ArrayProp);
-	static int32 GenericArray_LastIndex(const void* TargetArray, const UArrayProperty* ArrayProp);
-	static void GenericArray_Get(void* TargetArray, const UArrayProperty* ArrayProp, int32 Index, void* Item);
-	static void GenericArray_Set(void* TargetArray, const UArrayProperty* ArrayProp, int32 Index, const void* NewItem, bool bSizeToFit);
-	static void GenericArray_Swap(const void* TargetArray, const UArrayProperty* ArrayProp, int32 First, int32 Second);
-	static int32 GenericArray_Find(const void* TargetArray, const UArrayProperty* ArrayProperty, const void* ItemToFind);
+	static int32 GenericArray_Add(void* TargetArray, const FArrayProperty* ArrayProp, const void* NewItem);
+	static int32 GenericArray_AddUnique(void* TargetArray, const FArrayProperty* ArrayProp, const void* NewItem);
+	static void GenericArray_Shuffle(void* TargetArray, const FArrayProperty* ArrayProp);
+	static bool GenericArray_Identical(void* ArrayA, const FArrayProperty* ArrayAProp, void* ArrayB, const FArrayProperty* ArrayBProperty);
+	static void GenericArray_Append(void* TargetArray, const FArrayProperty* TargetArrayProp, void* SourceArray, const FArrayProperty* SourceArrayProperty);
+	static void GenericArray_Insert(void* TargetArray, const FArrayProperty* ArrayProp, const void* NewItem, int32 Index);
+	static void GenericArray_Remove(void* TargetArray, const FArrayProperty* ArrayProp, int32 IndexToRemove);
+	static bool GenericArray_RemoveItem(void* TargetArray, const FArrayProperty* ArrayProp, const void* Item);
+	static void GenericArray_Clear(void* TargetArray, const FArrayProperty* ArrayProp);
+	static void GenericArray_Resize(void* TargetArray, const FArrayProperty* ArrayProp, int32 Size);
+	static int32 GenericArray_Length(const void* TargetArray, const FArrayProperty* ArrayProp);
+	static int32 GenericArray_LastIndex(const void* TargetArray, const FArrayProperty* ArrayProp);
+	static void GenericArray_Get(void* TargetArray, const FArrayProperty* ArrayProp, int32 Index, void* Item);
+	static void GenericArray_Set(void* TargetArray, const FArrayProperty* ArrayProp, int32 Index, const void* NewItem, bool bSizeToFit);
+	static void GenericArray_Swap(const void* TargetArray, const FArrayProperty* ArrayProp, int32 First, int32 Second);
+	static int32 GenericArray_Find(const void* TargetArray, const FArrayProperty* ArrayProperty, const void* ItemToFind);
 	static void GenericArray_SetArrayPropertyByName(UObject* OwnerObject, FName ArrayPropertyName, const void* SrcArrayAddr);
-	static bool GenericArray_IsValidIndex(const void* TargetArray, const UArrayProperty* ArrayProp, int32 IndexToTest);
+	static bool GenericArray_IsValidIndex(const void* TargetArray, const FArrayProperty* ArrayProp, int32 IndexToTest);
 	
 private:
-	static void GenericArray_HandleBool(const UProperty* Property, void* ItemPtr);
+	static void GenericArray_HandleBool(const FProperty* Property, void* ItemPtr);
 
 public:
 	// Helper function to get the last valid index of the array for error reporting, or 0 if the array is empty
@@ -243,9 +244,9 @@ public:
 	DECLARE_FUNCTION(execArray_Add)
 	{
 		Stack.MostRecentProperty = nullptr;
- 		Stack.StepCompiledIn<UArrayProperty>(NULL);
+ 		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -253,16 +254,17 @@ public:
 		}
  
  		// Since NewItem isn't really an int, step the stack manually
- 		const UProperty* InnerProp = ArrayProperty->Inner;
+ 		const FProperty* InnerProp = ArrayProperty->Inner;
  		const int32 PropertySize = InnerProp->ElementSize * InnerProp->ArrayDim;
  		void* StorageSpace = FMemory_Alloca(PropertySize);
  		InnerProp->InitializeValue(StorageSpace);
  
  		Stack.MostRecentPropertyAddress = NULL;
- 		Stack.StepCompiledIn<UProperty>(StorageSpace);
+ 		Stack.StepCompiledIn<FProperty>(StorageSpace);
  
  		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		*(int32*)RESULT_PARAM = GenericArray_Add(ArrayAddr, ArrayProperty, StorageSpace);
 		P_NATIVE_END;
 		InnerProp->DestroyValue(StorageSpace);
@@ -271,9 +273,9 @@ public:
 	DECLARE_FUNCTION(execArray_AddUnique)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -281,16 +283,17 @@ public:
 		}
 
 		// Since NewItem isn't really an int, step the stack manually
-		const UProperty* InnerProp = ArrayProperty->Inner;
+		const FProperty* InnerProp = ArrayProperty->Inner;
 		const int32 PropertySize = InnerProp->ElementSize * InnerProp->ArrayDim;
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(StorageSpace);
+		Stack.StepCompiledIn<FProperty>(StorageSpace);
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		*(int32*)RESULT_PARAM = GenericArray_AddUnique(ArrayAddr, ArrayProperty, StorageSpace);
 		P_NATIVE_END;
 		InnerProp->DestroyValue(StorageSpace);
@@ -299,9 +302,9 @@ public:
 	DECLARE_FUNCTION(execArray_Shuffle)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -310,6 +313,7 @@ public:
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Shuffle(ArrayAddr, ArrayProperty);
 		P_NATIVE_END;
 	}
@@ -318,9 +322,9 @@ public:
 	{
 		// Retrieve the first array
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayAProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayAProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayAProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -328,9 +332,9 @@ public:
 		}
 		// Retrieve the second array
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayBAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayBProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayBProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayBProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -347,9 +351,9 @@ public:
 	{
 		// Retrieve the target array
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* TargetArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* TargetArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* TargetArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!TargetArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -357,9 +361,9 @@ public:
 		}
 		// Retrieve the source array
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* SourceArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* SourceArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* SourceArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!SourceArrayProperty )
 		{
 			Stack.bArrayContextFailed = true;
@@ -368,6 +372,7 @@ public:
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, TargetArrayProperty);
 		GenericArray_Append(TargetArrayAddr, TargetArrayProperty, SourceArrayAddr, SourceArrayProperty);
 		P_NATIVE_END;
 	}
@@ -375,9 +380,9 @@ public:
 	DECLARE_FUNCTION(execArray_Insert)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -385,17 +390,18 @@ public:
 		}
 
 		// Since NewItem isn't really an int, step the stack manually
-		const UProperty* InnerProp = ArrayProperty->Inner;
+		const FProperty* InnerProp = ArrayProperty->Inner;
 		const int32 PropertySize = InnerProp->ElementSize * InnerProp->ArrayDim;
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(StorageSpace);
+		Stack.StepCompiledIn<FProperty>(StorageSpace);
 
-		P_GET_PROPERTY(UIntProperty, Index);
+		P_GET_PROPERTY(FIntProperty, Index);
 		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Insert(ArrayAddr, ArrayProperty, StorageSpace, Index);
 		P_NATIVE_END;
 		InnerProp->DestroyValue(StorageSpace);
@@ -404,18 +410,19 @@ public:
 	DECLARE_FUNCTION(execArray_Remove)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
 
-		P_GET_PROPERTY(UIntProperty, Index);
+		P_GET_PROPERTY(FIntProperty, Index);
 		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Remove(ArrayAddr, ArrayProperty, Index);
 		P_NATIVE_END;
 	}
@@ -423,22 +430,22 @@ public:
 	DECLARE_FUNCTION(execArray_RemoveItem)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
 		// Since Item isn't really an int, step the stack manually
-		const UProperty* InnerProp = ArrayProperty->Inner;
+		const FProperty* InnerProp = ArrayProperty->Inner;
 		const int32 PropertySize = InnerProp->ElementSize * InnerProp->ArrayDim;
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(StorageSpace);
+		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemPtr = StorageSpace;
 
 		P_FINISH;
@@ -446,6 +453,7 @@ public:
 		// Bools need to be processed internally by the property so that C++ bool value is properly set.
 		GenericArray_HandleBool(InnerProp, ItemPtr);
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		*(bool*)RESULT_PARAM = GenericArray_RemoveItem(ArrayAddr, ArrayProperty, ItemPtr);
 		P_NATIVE_END;
 
@@ -455,9 +463,9 @@ public:
 	DECLARE_FUNCTION(execArray_Clear)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -465,6 +473,7 @@ public:
 		}
 		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Clear(ArrayAddr, ArrayProperty);
 		P_NATIVE_END;
 	}
@@ -472,17 +481,18 @@ public:
 	DECLARE_FUNCTION(execArray_Resize)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
-		P_GET_PROPERTY(UIntProperty, Size);
+		P_GET_PROPERTY(FIntProperty, Size);
 		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Resize(ArrayAddr, ArrayProperty, Size);
 		P_NATIVE_END;
 	}
@@ -490,9 +500,9 @@ public:
 	DECLARE_FUNCTION(execArray_Length)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -507,9 +517,9 @@ public:
 	DECLARE_FUNCTION(execArray_LastIndex)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -524,24 +534,24 @@ public:
 	DECLARE_FUNCTION(execArray_Get)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
-		P_GET_PROPERTY(UIntProperty, Index);
+		P_GET_PROPERTY(FIntProperty, Index);
 
 		// Since Item isn't really an int, step the stack manually
-		const UProperty* InnerProp = ArrayProperty->Inner;
+		const FProperty* InnerProp = ArrayProperty->Inner;
 		const int32 PropertySize = InnerProp->ElementSize * InnerProp->ArrayDim;
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(StorageSpace);
+		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemPtr = (Stack.MostRecentPropertyAddress != NULL && Stack.MostRecentProperty->GetClass() == InnerProp->GetClass()) ? Stack.MostRecentPropertyAddress : StorageSpace;
 
 		P_FINISH;
@@ -554,30 +564,31 @@ public:
 	DECLARE_FUNCTION(execArray_Set)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
-		P_GET_PROPERTY(UIntProperty, Index);
+		P_GET_PROPERTY(FIntProperty, Index);
 
 		// Since NewItem isn't really an int, step the stack manually
-		const UProperty* InnerProp = ArrayProperty->Inner;
+		const FProperty* InnerProp = ArrayProperty->Inner;
 		const int32 PropertySize = InnerProp->ElementSize * InnerProp->ArrayDim;
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(StorageSpace);
+		Stack.StepCompiledIn<FProperty>(StorageSpace);
 
 		P_GET_UBOOL(bSizeToFit);
 
 		P_FINISH;
 
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Set(ArrayAddr, ArrayProperty, Index, StorageSpace, bSizeToFit);
 		P_NATIVE_END;
 		InnerProp->DestroyValue(StorageSpace);
@@ -587,20 +598,21 @@ public:
 	DECLARE_FUNCTION(execArray_Swap)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(nullptr);
+		Stack.StepCompiledIn<FArrayProperty>(nullptr);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
 
-		P_GET_PROPERTY(UIntProperty, First);
-		P_GET_PROPERTY(UIntProperty, Second);
+		P_GET_PROPERTY(FIntProperty, First);
+		P_GET_PROPERTY(FIntProperty, Second);
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, ArrayProperty);
 		GenericArray_Swap(ArrayAddr, ArrayProperty, First, Second);
 		P_NATIVE_END;
 	}
@@ -608,22 +620,22 @@ public:
 	DECLARE_FUNCTION(execArray_Find)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
 		// Since ItemToFind isn't really an int, step the stack manually
-		const UProperty* InnerProp = ArrayProperty->Inner;
+		const FProperty* InnerProp = ArrayProperty->Inner;
 		const int32 PropertySize = InnerProp->ElementSize * InnerProp->ArrayDim;
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(StorageSpace);
+		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemToFindPtr = StorageSpace;
 
 		P_FINISH;
@@ -642,22 +654,22 @@ public:
 	DECLARE_FUNCTION(execArray_Contains)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
 		// Since ItemToFind isn't really an int, step the stack manually
-		const UProperty* InnerProp = ArrayProperty->Inner;
+		const FProperty* InnerProp = ArrayProperty->Inner;
 		const int32 PropertySize = InnerProp->ElementSize * InnerProp->ArrayDim;
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(StorageSpace);
+		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemToFindPtr = StorageSpace;
 
 		P_FINISH;
@@ -676,14 +688,15 @@ public:
 	DECLARE_FUNCTION(execSetArrayPropertyByName)
 	{
 		P_GET_OBJECT(UObject, OwnerObject);
-		P_GET_PROPERTY(UNameProperty, ArrayPropertyName);
+		P_GET_PROPERTY(FNameProperty, ArrayPropertyName);
 
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* SrcArrayAddr = Stack.MostRecentPropertyAddress;
 
 		P_FINISH;
 
 		P_NATIVE_BEGIN;
+		MARK_PROPERTY_DIRTY(Stack.Object, Stack.MostRecentProperty);
 		GenericArray_SetArrayPropertyByName(OwnerObject, ArrayPropertyName, SrcArrayAddr);
 		P_NATIVE_END;
 	}
@@ -691,16 +704,16 @@ public:
 	DECLARE_FUNCTION(execArray_IsValidIndex)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
 			return;
 		}
 
-		P_GET_PROPERTY(UIntProperty, IndexToTest);
+		P_GET_PROPERTY(FIntProperty, IndexToTest);
 
 		P_FINISH;
 

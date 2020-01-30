@@ -1,7 +1,7 @@
 /*
   Simple DirectMedia Layer
   Copyright (C) 1997-2014 Sam Lantinga <slouken@libsdl.org>
-  Copyright (C) 2016-2019 Epic Games, Inc.
+  Copyright (C) Epic Games, Inc.
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -51,6 +51,10 @@ OFFSCREEN_CreateWindow(_THIS, SDL_Window* window)
     offscreen_window->sdl_window = window;
 
     if (window->flags & SDL_WINDOW_OPENGL) {
+
+        if (!_this->egl_data) {
+            return SDL_SetError("Cannot create an OPENGL window invalid egl_data");
+        }
 
         offscreen_window->egl_surface = SDL_EGL_CreateOffscreenSurface(_this, window->w, window->h);
 

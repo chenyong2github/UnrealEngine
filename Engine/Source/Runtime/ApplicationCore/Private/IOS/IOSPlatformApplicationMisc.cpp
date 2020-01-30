@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOS/IOSPlatformApplicationMisc.h"
 
@@ -188,6 +188,14 @@ void FIOSPlatformApplicationMisc::SetGamepadsAllowed(bool bAllowed)
 	if (FIOSInputInterface* InputInterface = (FIOSInputInterface*)CachedApplication->GetInputInterface())
 	{
 		InputInterface->SetGamepadsAllowed(bAllowed);
+	}
+}
+
+void FIOSPlatformApplicationMisc::SetGamepadsBlockDeviceFeedback(bool bBlock)
+{
+	if (FIOSInputInterface* InputInterface = (FIOSInputInterface*)CachedApplication->GetInputInterface())
+	{
+		InputInterface->SetGamepadsBlockDeviceFeedback(bBlock);
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -44,13 +44,13 @@ struct FRigUnit_ModifyBoneTransforms_PerBone
 	/**
 	 * The name of the Bone to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, BoneName, Constant))
+	UPROPERTY(EditAnywhere, meta = (Input, CustomWidget = "BoneName", Constant), Category = FRigUnit_ModifyBoneTransforms_PerBone)
 	FName Bone;
 
 	/**
 	 * The transform value to set for the given Bone.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input), Category = FRigUnit_ModifyBoneTransforms_PerBone)
 	FTransform Transform;
 };
 
@@ -64,7 +64,7 @@ struct FRigUnit_ModifyBoneTransforms_WorkData
 };
 
 /**
- * SetBoneTransform is used to perform a change in the hierarchy by setting a single bone's transform.
+ * ModifyBonetransforms is used to perform a change in the hierarchy by setting one or more bones' transforms.
  */
 USTRUCT(meta=(DisplayName="Modify Transforms", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "ModifyBone"))
 struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
@@ -76,7 +76,46 @@ struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 		, WeightMinimum(0.f)
 		, WeightMaximum(1.f)
 		, Mode(EControlRigModifyBoneMode::AdditiveLocal)
-	{}
+	{
+		BoneToModify.Add(FRigUnit_ModifyBoneTransforms_PerBone());
+	}
+
+	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("BoneToModify")))
+		{
+			int32 Index = INDEX_NONE;
+			FString Left, Middle, Right;
+			if (InPinPath.Replace(TEXT("["), TEXT(".")).Split(TEXT("."), &Left, &Middle))
+			{
+				if (Middle.Replace(TEXT("]"), TEXT(".")).Split(TEXT("."), &Left, &Right))
+				{
+					Index = FCString::Atoi(*Left);
+				}
+			}
+
+			if (BoneToModify.IsValidIndex(Index))
+			{
+				if (Mode == EControlRigModifyBoneMode::AdditiveLocal)
+				{
+					return BoneToModify[Index].Bone;
+				}
+
+				if (Mode == EControlRigModifyBoneMode::OverrideLocal)
+				{
+					if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+					{
+						int32 BoneIndex = Container->BoneHierarchy.GetIndex(BoneToModify[Index].Bone);
+						if (BoneIndex != INDEX_NONE)
+						{
+							return Container->BoneHierarchy[BoneIndex].ParentName;
+						}
+					}
+				}
+			}
+		}
+		return NAME_None;
+	}
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;

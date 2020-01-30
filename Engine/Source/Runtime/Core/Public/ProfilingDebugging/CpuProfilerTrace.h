@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -73,7 +73,7 @@ struct FCpuProfilerTrace
 	FCpuProfilerTrace::Shutdown();
 
 #define TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, Group) \
-	static uint16 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
+	static uint32 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
 	if (PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) == 0) { \
 		PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) = FCpuProfilerTrace::OutputEventType(#Name, Group); \
 	} \

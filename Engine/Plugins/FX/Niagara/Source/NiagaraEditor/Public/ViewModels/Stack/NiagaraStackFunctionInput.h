@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -78,6 +78,9 @@ public:
 	/** Gets the function call node which owns this input. */
 	const UNiagaraNodeFunctionCall& GetInputFunctionCallNode() const;
 
+	/** Gets the script that the function call node was referencing when this input was initialized. */
+	UNiagaraScript* GetInputFunctionCallInitialScript() const;
+
 	/** Gets the current value mode */
 	EValueMode GetValueMode();
 
@@ -91,13 +94,16 @@ public:
 	virtual UObject* GetExternalAsset() const override;
 	virtual bool SupportsCut() const override { return true; }
 	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
-	virtual void Cut() override;
+	virtual FText GetCutTransactionText() const override;
+	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void RemoveForCut() override;
 	virtual bool SupportsCopy() const override { return true; }
 	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
-	virtual void Copy() const override;
+	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
 	virtual bool SupportsPaste() const override { return true; }
-	virtual bool TestCanPasteWithMessage(FText& OutMessage) const override;
-	virtual void Paste() override;
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
 
 	FText GetTooltipText(EValueMode InValueMode) const;
 
@@ -123,7 +129,7 @@ public:
 	void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs = false);
 
 	/** Sets the dynamic input script for this input. */
-	void SetDynamicInput(UNiagaraScript* DynamicInput);
+	void SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName = FString());
 
 	/** Gets the expression providing the value for this input, if one is available. */
 	FText GetCustomExpressionText() const;
@@ -383,8 +389,6 @@ private:
 
 	FNiagaraVariable CreateRapidIterationVariable(const FName& InName);
 
-	void PrepareFunctionInputForNewValue();
-
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
 		call, it may be an input to a dynamic input function call which is owned by the module. */
@@ -392,6 +396,9 @@ private:
 
 	/** The function call which this entry is an input to. NOTE: This node can be a module function call node or a dynamic input node. */
 	TWeakObjectPtr<UNiagaraNodeFunctionCall> OwningFunctionCallNode;
+
+	/** The script which the owning function call is referencing. */
+	TWeakObjectPtr<UNiagaraScript> OwningFunctionCallInitialScript;
 
 	/** The assignment node which owns this input.  This is only valid for inputs of assignment modules. */
 	TWeakObjectPtr<UNiagaraNodeAssignment> OwningAssignmentNode;

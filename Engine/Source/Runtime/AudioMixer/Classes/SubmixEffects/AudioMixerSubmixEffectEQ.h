@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -57,7 +57,12 @@ public:
 	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
 
 	// Sets the effect parameters using the old audio engine preset setting object
-	void SetEffectParameters(const FAudioEQEffect& InEQEffectParameters);
+	virtual bool SetParameters(const FAudioEffectParameters& InParameters) override;
+
+	virtual bool SupportsDefaultEQ() const override
+	{
+		return true;
+	}
 
 	// Called when an audio effect preset is changed
 	virtual void OnPresetChanged() override;

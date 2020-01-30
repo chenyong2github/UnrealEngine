@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationEditorViewportClient.h"
 #include "Modules/ModuleManager.h"
@@ -1481,16 +1481,6 @@ void FAnimationViewportClient::DrawSockets(const UDebugSkelMeshComponent* InPrev
 
 FSphere FAnimationViewportClient::GetCameraTarget()
 {
-	const FSphere DefaultSphere(FVector(0,0,0), 100.0f);
-
-	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
-	if( !PreviewMeshComponent )
-	{
-		return DefaultSphere;
-	}
-
-	PreviewMeshComponent->CalcBounds(PreviewMeshComponent->GetComponentTransform());
-
 	// give the editor mode a chance to give us a camera target
 	if (GetPersonaModeManager())
 	{
@@ -1500,6 +1490,16 @@ FSphere FAnimationViewportClient::GetCameraTarget()
 			return Target;
 		}
 	}
+
+	const FSphere DefaultSphere(FVector(0,0,0), 100.0f);
+
+	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
+	if( !PreviewMeshComponent )
+	{
+		return DefaultSphere;
+	}
+
+	PreviewMeshComponent->CalcBounds(PreviewMeshComponent->GetComponentTransform());
 
 	FBoxSphereBounds Bounds = PreviewMeshComponent->CalcBounds(FTransform::Identity);
 	return Bounds.GetSphere();
@@ -1629,41 +1629,35 @@ void FAnimationViewportClient::FocusViewportOnPreviewMesh(bool bUseCustomCamera)
 		return;
 	}
 
-	UDebugSkelMeshComponent* const PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
-	if ( !PreviewMeshComponent )
+	if (UDebugSkelMeshComponent* const PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent())
 	{
-		return;
-	}
-
-	USkeletalMesh* const SkelMesh = PreviewMeshComponent->SkeletalMesh;
-	if (!SkelMesh)
-	{
-		return;
-	}
-
-	if (bUseCustomCamera && SkelMesh->bHasCustomDefaultEditorCamera)
-	{
-		FViewportCameraTransform& ViewTransform = GetViewTransform();
-
-		ViewTransform.SetLocation(SkelMesh->DefaultEditorCameraLocation);
-		ViewTransform.SetRotation(SkelMesh->DefaultEditorCameraRotation);
-		ViewTransform.SetLookAt(SkelMesh->DefaultEditorCameraLookAt);
-		ViewTransform.SetOrthoZoom(SkelMesh->DefaultEditorCameraOrthoZoom);
-
-		Invalidate();
-		return;
-	}
-
-	if (PreviewMeshComponent->GetSelectedEditorSection() != INDEX_NONE )
-	{
-		const FBox SelectedSectionBounds = ComputeBoundingBoxForSelectedEditorSection();
-		
-		if ( SelectedSectionBounds.IsValid )
+		if (USkeletalMesh* const SkelMesh = PreviewMeshComponent->SkeletalMesh)
 		{
-			FocusViewportOnBox(SelectedSectionBounds);
-		}
+			if (bUseCustomCamera && SkelMesh->bHasCustomDefaultEditorCamera)
+			{
+				FViewportCameraTransform& ViewTransform = GetViewTransform();
 
-		return;
+				ViewTransform.SetLocation(SkelMesh->DefaultEditorCameraLocation);
+				ViewTransform.SetRotation(SkelMesh->DefaultEditorCameraRotation);
+				ViewTransform.SetLookAt(SkelMesh->DefaultEditorCameraLookAt);
+				ViewTransform.SetOrthoZoom(SkelMesh->DefaultEditorCameraOrthoZoom);
+
+				Invalidate();
+				return;
+			}
+
+			if (PreviewMeshComponent->GetSelectedEditorSection() != INDEX_NONE)
+			{
+				const FBox SelectedSectionBounds = ComputeBoundingBoxForSelectedEditorSection();
+
+				if (SelectedSectionBounds.IsValid)
+				{
+					FocusViewportOnBox(SelectedSectionBounds);
+				}
+
+				return;
+			}
+		}
 	}
 
 	FSphere Sphere = GetCameraTarget();

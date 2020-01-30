@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Port of geometry3cpp MeshRegionBoundaryLoops
 
@@ -51,9 +51,7 @@ public:
 
 protected:
 
-
-	// TODO: C# code used IndexFlagSet here, which is sparse if region size << mesh size
-	// list of included triangles and edges
+	// sets of included triangles and edges
 	FIndexFlagSet Triangles;
 	FIndexFlagSet Edges;
 	TArray<int> edges_roi;

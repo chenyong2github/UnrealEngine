@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,6 +23,10 @@ public:
 
 	/** Toggle Execute the Graph */
 	TSharedPtr< FUICommandInfo > ExecuteGraph;
+
+	/** Toggle Auto Compilation in the Graph */
+	TSharedPtr< FUICommandInfo > AutoCompileGraph;
+
 	/**
 	 * Initialize commands
 	 */

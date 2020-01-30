@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -703,6 +703,8 @@ private:
 	FLinearColor ClearColor;
 	EPixelFormat Format;
 	int32 TargetSizeX,TargetSizeY;
+	/** cached params etc. for use with mip generator */
+	TSharedPtr<FGenerateMipsStruct> CachedMipsGenParams;
 };
 
 /**

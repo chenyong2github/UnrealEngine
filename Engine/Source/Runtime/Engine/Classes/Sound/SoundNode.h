@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -73,6 +73,8 @@ class ENGINE_API USoundNode : public UObject
 	/** Stream of random numbers to be used by this instance of USoundNode */
 	FRandomStream RandomStream;
 
+	bool bIsRetainingAudio;
+
 public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
@@ -83,6 +85,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual bool CanBeClusterRoot() const override;
 	virtual bool CanBeInCluster() const override;
+	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 	//
@@ -199,5 +202,17 @@ public:
 	 * @param bRecurse when true, this will cause all children of child nodes to be primed as well.
 	 */
 	virtual void PrimeChildWavePlayers(bool bRecurse);
+
+	/**
+	 * When this is called and stream caching is enabled,
+	 * any wave player sound nodes childed off of this node
+	 * will have their audio retained into the cache.
+	 *
+	 * @param bRecurse when true, this will cause all children of child nodes to be primed as well.
+	 */
+	virtual void RetainChildWavePlayers(bool bRecurse);
+
+	virtual void ReleaseRetainerOnChildWavePlayers(bool bRecurse);
+
 };
 

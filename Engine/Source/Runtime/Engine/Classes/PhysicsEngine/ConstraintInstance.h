@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -134,8 +134,8 @@ struct ENGINE_API FConstraintInstance
 
 	///////////////////////////// Body1 ref frame
 	
-	/** Location of constraint in Body1 reference frame. */
-	UPROPERTY()
+	/** Location of constraint in Body1 reference frame (usually the "child" body for skeletal meshes). */
+	UPROPERTY(EditAnywhere, Category=Constraint)
 	FVector Pos1;
 
 	/** Primary (twist) axis in Body1 reference frame. */
@@ -148,8 +148,8 @@ struct ENGINE_API FConstraintInstance
 
 	///////////////////////////// Body2 ref frame
 	
-	/** Location of constraint in Body2 reference frame. */
-	UPROPERTY()
+	/** Location of constraint in Body2 reference frame (usually the "parent" body for skeletal meshes). */
+	UPROPERTY(EditAnywhere, Category=Constraint)
 	FVector Pos2;
 
 	/** Primary (twist) axis in Body2 reference frame. */

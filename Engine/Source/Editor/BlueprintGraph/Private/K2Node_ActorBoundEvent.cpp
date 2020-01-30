@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_ActorBoundEvent.h"
 #include "Engine/Level.h"
@@ -51,12 +51,12 @@ FNodeHandlingFunctor* UK2Node_ActorBoundEvent::CreateNodeHandler(FKismetCompiler
 void UK2Node_ActorBoundEvent::ReconstructNode()
 {
 	// We need to fixup our event reference as it may have changed or been redirected
-	UMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
+	FMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
 
 	// If we couldn't find the target delegate, then try to find it in the property remap table
 	if (!TargetDelegateProp)
 	{
-		UMulticastDelegateProperty* NewProperty = FMemberReference::FindRemappedField<UMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
+		FMulticastDelegateProperty* NewProperty = FMemberReference::FindRemappedField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
 		if (NewProperty)
 		{
 			// Found a remapped property, update the node
@@ -91,7 +91,7 @@ void UK2Node_ActorBoundEvent::DestroyNode()
 				Delegate.BindUFunction(LSA, CustomFunctionName);
 
 				// Attempt to remove it from the target's MC delegate
-				if (UMulticastDelegateProperty* TargetDelegate = GetTargetDelegateProperty())
+				if (FMulticastDelegateProperty* TargetDelegate = GetTargetDelegateProperty())
 				{
 					TargetDelegate->RemoveDelegate(Delegate, EventOwner);
 				}
@@ -150,7 +150,7 @@ FText UK2Node_ActorBoundEvent::GetNodeTitle(ENodeTitleType::Type TitleType) cons
 
 FText UK2Node_ActorBoundEvent::GetTooltipText() const
 {
-	UMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
+	FMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
 	if (TargetDelegateProp)
 	{
 		return TargetDelegateProp->GetToolTipText();
@@ -214,13 +214,13 @@ void UK2Node_ActorBoundEvent::ValidateNodeDuringCompilation(class FCompilerResul
 	}
 }
 
-void UK2Node_ActorBoundEvent::InitializeActorBoundEventParams(AActor* InEventOwner, const UMulticastDelegateProperty* InDelegateProperty)
+void UK2Node_ActorBoundEvent::InitializeActorBoundEventParams(AActor* InEventOwner, const FMulticastDelegateProperty* InDelegateProperty)
 {
 	if (InEventOwner && InDelegateProperty)
 	{
 		EventOwner = InEventOwner;
 		DelegatePropertyName = InDelegateProperty->GetFName();
-		DelegateOwnerClass = CastChecked<UClass>(InDelegateProperty->GetOuter())->GetAuthoritativeClass();
+		DelegateOwnerClass = CastChecked<UClass>(InDelegateProperty->GetOwner<UObject>())->GetAuthoritativeClass();
 		EventReference.SetFromField<UFunction>(InDelegateProperty->SignatureFunction, false);
 		CustomFunctionName = FName(*FString::Printf(TEXT("BndEvt__%s_%s_%s"), *InEventOwner->GetName(), *GetName(), *EventReference.GetMemberName().ToString()));
 		bOverrideFunction = false;
@@ -229,19 +229,19 @@ void UK2Node_ActorBoundEvent::InitializeActorBoundEventParams(AActor* InEventOwn
 	}
 }
 
-UMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegateProperty() const
+FMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegateProperty() const
 {
-	return FindField<UMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
+	return FindField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
 }
 
-UMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegatePropertyFromSkel() const
+FMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegatePropertyFromSkel() const
 {
-	return FindField<UMulticastDelegateProperty>(FBlueprintEditorUtils::GetMostUpToDateClass(DelegateOwnerClass), DelegatePropertyName);
+	return FindField<FMulticastDelegateProperty>(FBlueprintEditorUtils::GetMostUpToDateClass(DelegateOwnerClass), DelegatePropertyName);
 }
 
 bool UK2Node_ActorBoundEvent::IsUsedByAuthorityOnlyDelegate() const
 {
-	const UMulticastDelegateProperty* TargetDelegateProp = FindField<UMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
+	const FMulticastDelegateProperty* TargetDelegateProp = FindField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
 	return (TargetDelegateProp && TargetDelegateProp->HasAnyPropertyFlags(CPF_BlueprintAuthorityOnly));
 }
 

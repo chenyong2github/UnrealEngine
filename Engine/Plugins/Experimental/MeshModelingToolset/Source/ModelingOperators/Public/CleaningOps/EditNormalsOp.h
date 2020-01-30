@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,6 +18,14 @@ enum class ENormalCalculationMethod : uint8
 };
 
 
+UENUM()
+enum class ESplitNormalMethod : uint8
+{
+	UseExistingTopology,
+	FaceNormalThreshold,
+	FaceGroupID
+};
+
 
 class MODELINGOPERATORS_API FEditNormalsOp : public FDynamicMeshOperator
 {
@@ -31,7 +39,7 @@ public:
 	bool bInvertNormals;
 	bool bRecomputeNormals;
 	ENormalCalculationMethod NormalCalculationMethod;
-	bool bSplitNormals;
+	ESplitNormalMethod SplitNormalMethod;
 	bool bAllowSharpVertices;
 	float NormalSplitThreshold;
 

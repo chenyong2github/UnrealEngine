@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -73,7 +73,6 @@ private:
 	// cache all anim sequences that are selected
 	// but I need to know them before compress
 	TArray< TWeakObjectPtr<UAnimSequence> > SelectedAnimSequences;
-	FReply OnEditCompression();
 };
 
 ///////////////////////////////////////////////////

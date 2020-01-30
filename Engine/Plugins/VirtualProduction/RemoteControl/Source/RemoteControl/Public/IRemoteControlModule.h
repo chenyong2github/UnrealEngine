@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma  once
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/StructOnScope.h"
+#include "UObject/WeakFieldPtr.h"
 
 REMOTECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControl, Log, All);
 
@@ -74,7 +75,7 @@ struct FRCObjectReference
 
 	ERCAccess Access;
 	TWeakObjectPtr<UObject> Object;
-	TWeakObjectPtr<UProperty> Property;
+	TWeakFieldPtr<FProperty> Property;
 };
 
 /**

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tree/CurveEditorTree.h"
 #include "Tree/ICurveEditorTreeItem.h"
@@ -25,6 +25,17 @@ TArrayView<const FCurveModelID> FCurveEditorTreeItem::GetOrCreateCurves(FCurveEd
 			{
 				FCurveModelID NewModelID = CurveEditor->AddCurveForTreeItem(MoveTemp(NewCurve), ThisID);
 				Curves.Add(NewModelID);
+			}
+		}
+	}
+	else
+	{
+		for (const FCurveModelID& ID : Curves)
+		{
+			FCurveModel* CurveModel = CurveEditor->FindCurve(ID);
+			if (CurveModel)
+			{
+				CurveEditor->BroadcastCurveChanged(CurveModel);
 			}
 		}
 	}
@@ -428,6 +439,7 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 			GetItem(NewItem.Key).GetOrCreateCurves(InCurveEditor);
 		}
 	}
+
 
 	if (!PreviousSelection.OrderIndependentCompareEqual(Selection))
 	{

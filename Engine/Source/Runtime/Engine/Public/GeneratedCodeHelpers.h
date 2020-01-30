@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 
 // Common includes
 #include "UObject/Stack.h"
+#include "UObject/WeakFieldPtr.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/UserDefinedStruct.h"
@@ -172,7 +173,7 @@ public:
 	{
 		return TargetArray.IndexOfByPredicate([&](const FText& Element) -> bool
 		{
-			return UTextProperty::Identical_Implementation(Element, ItemToFind, 0);
+			return FTextProperty::Identical_Implementation(Element, ItemToFind, 0);
 		});
 	}
 
@@ -196,7 +197,7 @@ public:
 	{
 		return TargetArray.ContainsByPredicate([&](const FText& Element) -> bool
 		{
-			return UTextProperty::Identical_Implementation(Element, ItemToFind, 0);
+			return FTextProperty::Identical_Implementation(Element, ItemToFind, 0);
 		});
 	}
 
@@ -251,7 +252,7 @@ public:
 
 		return const_cast<TArray<FText>*>(&TargetArray)->RemoveAll([&](const FText& Element) -> bool
 		{
-			return UTextProperty::Identical_Implementation(Element, Item, 0);
+			return FTextProperty::Identical_Implementation(Element, Item, 0);
 		}) != 0;
 	}
 

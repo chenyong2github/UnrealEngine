@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorRecordingDetailsCustomization.h"
 #include "UObject/UnrealType.h"
@@ -25,7 +25,7 @@ void FActorRecordingDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 		{
 			TArray<UObject*> ObjectArray;
 			ObjectArray.Add(SettingsObject);
-			for (TFieldIterator<UProperty> PropertyIt(SettingsObject->GetClass()); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FProperty> PropertyIt(SettingsObject->GetClass()); PropertyIt; ++PropertyIt)
 			{
 				IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FObjectEditorUtils::GetCategoryFName(*PropertyIt));
 				CategoryBuilder.AddExternalObjectProperty(ObjectArray, PropertyIt->GetFName());

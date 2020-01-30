@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DirectionalLightComponent.cpp: DirectionalLightComponent implementation.
@@ -412,7 +412,9 @@ public:
 	virtual bool ShouldCreateRayTracedCascade(ERHIFeatureLevel::Type InFeatureLevel, bool bPrecomputedLightingIsValid, int32 MaxNearCascades) const override
 	{
 		static auto CVarDistanceFieldShadowing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFieldShadowing"));
-		if (CVarDistanceFieldShadowing != nullptr && CVarDistanceFieldShadowing->GetInt() == 0)
+		static IConsoleVariable* CVarHFShadowing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HeightFieldShadowing"));
+
+		if (CVarDistanceFieldShadowing != nullptr && CVarDistanceFieldShadowing->GetInt() == 0 && (!CVarHFShadowing || !CVarHFShadowing->GetInt()))
 		{
 			return false;
 		}
@@ -878,7 +880,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 /**
  * Called after property has changed via e.g. property window or set command.
  *
- * @param	PropertyThatChanged	UProperty that has been changed, NULL if unknown
+ * @param	PropertyThatChanged	FProperty that has been changed, NULL if unknown
  */
 void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -903,7 +905,7 @@ void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UDirectionalLightComponent::CanEditChange(const UProperty* InProperty) const
+bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

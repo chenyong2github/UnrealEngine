@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PostprocessAmbientOcclusion.usf: To generate ambient occlusion as a postprocess
@@ -30,6 +30,11 @@
 // This define enables the thickness heuristic which assu
 #define GTAO_THICKNESS_HEURISTIC 1
 
+// Define to Use Cosine Weighted Integral
+#define GTAO_PROJECTED_NORMAL_WEIGHTING 0
+
+// Define to Use Cosine Weighted Integral
+#define GTAO_COSINE_WEIGHTED_INTEGRAL 1
 
 // 0: classic with weighted sample, 1: don't normalize and adjust the formula to be simpler and faster - can look better and is cheaper (Alchemy like?)
 #define OPTIMIZATION_O1 1
@@ -921,13 +926,13 @@ void MainSSAOSmoothCS(
 
 #if SHADER_QUALITY == 0
 	// very low
-	#define GTAO_NUMTAPS 4
+	#define GTAO_NUMTAPS 6
 #elif SHADER_QUALITY == 1
 	// low
-	#define GTAO_NUMTAPS 7
+	#define GTAO_NUMTAPS 8
 #elif SHADER_QUALITY == 2
 	// medium
-	#define GTAO_NUMTAPS 12
+	#define GTAO_NUMTAPS 10
 #elif SHADER_QUALITY == 3
 	// high
 	#define GTAO_NUMTAPS 20
@@ -975,18 +980,25 @@ FalloffParams ComputeFalloffParams(float ZDist)
 
 #if COMPUTE_SHADER
 RWTexture2D<float2> HorizonOutTexture;
-RWTexture2D<float> DepthOutTexture;
+RWTexture2D<float>	DepthOutTexture;
+RWTexture2D<float2> VelocityOutTexture;
 RWTexture2D<float> DepthsTexture;
 #endif
 
 Texture2D		HistoryTexture;
 SamplerState	HistoryTextureSampler;
 
-Texture2D		DepthHistoryTexture;
-SamplerState	DepthHistoryTextureSampler;
-
 Texture2D		ZReadTexture;
 SamplerState	ZReadTextureSampler;
+
+Texture2D		ZCurrTexture;
+SamplerState	ZCurrTextureSampler;
+
+Texture2D		ZPrevTexture;
+SamplerState	ZPrevTextureSampler;
+
+Texture2D		VelocityPrevTexture;
+SamplerState	VelocityPrevTextureSampler;
 
 float4 PrevScreenPositionScaleBias;
 float4 FilterParams;
@@ -1199,11 +1211,22 @@ float ComputeInnerIntegral(float2 Angles, float3 ScreenDir, float3 ViewDir, floa
 	Angles.x = Gamma + max(-Angles.x - Gamma, -(PI_HALF) );
 	Angles.y = Gamma + min( Angles.y - Gamma,  (PI_HALF) );
 
+#if GTAO_PROJECTED_NORMAL_WEIGHTING==0
+	LenProjNormal = 1;
+#endif
+
+
+#if GTAO_COSINE_WEIGHTED_INTEGRAL
 	float AO = ( LenProjNormal *  0.25 * 
 					    ( (Angles.x * SinGamma + CosGamma - cos((2.0 * Angles.x) - Gamma)) +
 				  	      (Angles.y * SinGamma + CosGamma - cos((2.0 * Angles.y) - Gamma)) ));
-
 	AO = saturate(AO / PI_HALF);
+#else
+	// Uniform weighted AO
+	float AO =  2 - (cos(Angles.x) + cos(Angles.y));
+	AO = saturate(AO / 2.0 * PI_HALF);
+#endif
+
 
 	// Fade out based on user defined distance
 	float Mul = ScreenSpaceAOParams[4].x;
@@ -1228,8 +1251,8 @@ float3 GetRandomVector(float2 UV )
 
 	// Rotate the random Vec
 	RandomVec.x = dot(RandomTexVec.xy, float2(TemporalCos, -TemporalSin ));
-	RandomVec.y = dot(RandomTexVec.xy, float2(TemporalSin, TemporalCos ));
-	RandomVec.z =RandomTexVec.z;
+    RandomVec.y = dot(RandomTexVec.xy, float2(TemporalSin, TemporalCos ));
+	RandomVec.z = RandomTexVec.z;
 
 	return RandomVec;
 }
@@ -1260,6 +1283,8 @@ void GTAOCombinedPSandCS(in float2 UV, out float4 OutColor, inout float OutDepth
 	float3 RandomAndOffset	= GetRandomVector(UV);
 	float2 RandomVec		= RandomAndOffset.xy;
 	float  Offset			= RandomAndOffset.z;
+	Offset += GTAOParams[0].z;
+
 	float3 ViewSpacePos		= ScreenToViewPos(UV,SceneDepth);
 
 	// Get Normal and transform into viewspace
@@ -1275,7 +1300,7 @@ void GTAOCombinedPSandCS(in float2 UV, out float4 OutColor, inout float OutDepth
 
 	// Given the depth determine how many pixels away we are guranteed to be outside of the falloff distance.
 	float InvTanHalfFov			= ScreenSpaceAOParams[3].w;
-	float ScreenPixelsToCutoff  = (GTAOParams[2].x * InvTanHalfFov * 7)  / ViewSpacePos.z ; 
+	float ScreenPixelsToCutoff  = (GTAOParams[2].x * InvTanHalfFov * 9)  / ViewSpacePos.z ; 
 	float Scale = ScreenPixelsToCutoff /  GTAO_NUMTAPS;
 
 	// Clamp the scale. Too small and it won't be jumping by more than 1 pixel. Too much and it'll thrash the cache
@@ -1305,7 +1330,7 @@ void GTAOCombinedPSandCS(in float2 UV, out float4 OutColor, inout float OutDepth
 	Sum = Sum   / (float)GTAO_NUMROTS;
 
 	OutColor.r	= Sum ;
-	OutDepth	= SceneDepth;
+	OutDepth	= DeviceZ;
 
 	return;
 }
@@ -1335,7 +1360,7 @@ void GTAOCombinedCS(
 	GTAOCombinedPSandCS(BufferUV , OutColor, OutDepth);
 
 	OutTexture[PixelPos]		= OutColor.r;
-	DepthOutTexture[PixelPos]   = 1.0f/OutDepth;
+	DepthOutTexture[PixelPos]   = OutDepth;
 }
 #endif
 
@@ -1450,7 +1475,7 @@ float2 HorizonSearchPSandCS(in float2 UV, inout float OutDepth)
 
 	// Given the depth determine how many pixels away we are guranteed to be outside of the falloff distance.
 	float InvTanHalfFov			= ScreenSpaceAOParams[3].w;
-	float ScreenPixelsToCutoff  = (GTAOParams[2].x * InvTanHalfFov * 7)  / ViewSpacePos.z ; 
+	float ScreenPixelsToCutoff  = (GTAOParams[2].x * InvTanHalfFov * 13)  / ViewSpacePos.z ; 
 	float Scale = ScreenPixelsToCutoff /  GTAO_NUMTAPS;
 
 	// Clamp the scale. Too small and it won't be jumping by more than 1 pixel. Too much and it'll thrash the cache
@@ -1501,15 +1526,15 @@ void HorizonSearchCS(
 Texture2D SceneVelocityTexture;
 SamplerState SceneVelocityTextureSampler;
 float4 BlendParams;
-float2 ReprojectPos(float2 UV, float Depth)
+float3 ReprojectPos(float2 UV, float Depth)
 {
 	// Given a UV reproject where this was in the previous frame
 	// Camera motion for pixel (in ScreenPos space).
 	float2 ThisScreen = (UV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+
 	float4 ThisClip = float4( ThisScreen, Depth, 1 );
 	float4 PrevClip = mul( ThisClip, View.ClipToPrevClip );
 	float2 PrevScreen = PrevClip.xy / PrevClip.w;
-
 
 	float2 Velocity	=  Texture2DSampleLevel(SceneVelocityTexture, SceneVelocityTextureSampler, UV,0).rg;
 	if( Velocity.x > 0.0 )
@@ -1518,8 +1543,9 @@ float2 ReprojectPos(float2 UV, float Depth)
 	}
 	
 	float2 PrevUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
-	return PrevUV;
+	return float3(PrevUV, PrevClip.z/ PrevClip.w);
 }
+
 
 float ReadHistory(float2 UV, float CurrDepth, float CurrAO, inout float WeightSum)
 {
@@ -1548,24 +1574,60 @@ float ReadHistory(float2 UV, float CurrDepth, float CurrAO, inout float WeightSu
 	HistoryAO[2] = Texture2DSample(HistoryTexture, HistoryTextureSampler, UV + float2(    0, dUV.y)).r;
 	HistoryAO[3] = Texture2DSample(HistoryTexture, HistoryTextureSampler, UV + float2(dUV.x, dUV.y)).r;
 
-	PrevDepth[0] = Texture2DSample(DepthHistoryTexture, DepthHistoryTextureSampler, UV + float2(    0,     0)).r;
-	PrevDepth[1] = Texture2DSample(DepthHistoryTexture, DepthHistoryTextureSampler, UV + float2(dUV.x,     0)).r;
-	PrevDepth[2] = Texture2DSample(DepthHistoryTexture, DepthHistoryTextureSampler, UV + float2(    0, dUV.y)).r;
-	PrevDepth[3] = Texture2DSample(DepthHistoryTexture, DepthHistoryTextureSampler, UV + float2(dUV.x, dUV.y)).r;
+	PrevDepth[0] = Texture2DSample(ZPrevTexture, ZPrevTextureSampler, UV + float2(    0,     0)).r;
+	PrevDepth[1] = Texture2DSample(ZPrevTexture, ZPrevTextureSampler, UV + float2(dUV.x,     0)).r;
+	PrevDepth[2] = Texture2DSample(ZPrevTexture, ZPrevTextureSampler, UV + float2(    0, dUV.y)).r;
+	PrevDepth[3] = Texture2DSample(ZPrevTexture, ZPrevTextureSampler, UV + float2(dUV.x, dUV.y)).r;
 
-	const float DepthScale =0.1;
+	const float DepthScale = 0.01;
 	float VisHistory = 0;
 	for(int i=0; i<4; i++)
 	{
-		float BilateralWeight = saturate( 1- (DepthScale * (CurrDepth - PrevDepth[i])) );
-		WeightSum  += BilateralWeight;
-		VisHistory += BilinearWeights[i] * lerp( CurrAO, HistoryAO[i], BilateralWeight);
+		float DepthWeight = saturate( 1- (DepthScale * abs(CurrDepth - PrevDepth[i])) );
+		WeightSum  += DepthWeight * BilinearWeights[i];
+		VisHistory += BilinearWeights[i] * lerp( CurrAO, HistoryAO[i], DepthWeight);
 	}
 
-	WeightSum/=4;
+
 	return VisHistory;
 }
 
+float ReadHistoryClamp(float2 UV, float MinAO, float MaxAO)
+{
+	float	BilinearWeights[4];
+	float4 SizeInvSize = PostprocessInput0Size.xyzw;
+
+	float2 PixUV   = (UV * SizeInvSize.xy)-0.5;
+	float2 FloorUV = floor(PixUV);
+	float2 FracUV  = (PixUV - FloorUV); 
+	UV			   = (FloorUV * SizeInvSize.zw) + (SizeInvSize.zw*0.5);
+
+	BilinearWeights[0] = (1.0 -	FracUV.x) * ( 1.0 -	FracUV.y);
+	BilinearWeights[1] = (		FracUV.x) * ( 1.0 -	FracUV.y);
+	BilinearWeights[2] = (1.0 -	FracUV.x) * (       FracUV.y);
+	BilinearWeights[3] = (		FracUV.x) * (       FracUV.y);
+
+	// Read the 4 previous depths and History
+	float HistoryAO[4];
+
+	float2 dUV = SizeInvSize.zw;
+
+	// TODO - Use GatherR when available
+	HistoryAO[0] = Texture2DSample(HistoryTexture, HistoryTextureSampler, UV + float2(	  0,     0)).r;
+	HistoryAO[1] = Texture2DSample(HistoryTexture, HistoryTextureSampler, UV + float2(dUV.x,     0)).r;
+	HistoryAO[2] = Texture2DSample(HistoryTexture, HistoryTextureSampler, UV + float2(    0, dUV.y)).r;
+	HistoryAO[3] = Texture2DSample(HistoryTexture, HistoryTextureSampler, UV + float2(dUV.x, dUV.y)).r;
+
+	float VisHistory = 0;
+	for(int i=0; i<4; i++)
+	{
+		HistoryAO[i] = clamp(HistoryAO[i], MinAO, MaxAO);
+		VisHistory += BilinearWeights[i] * HistoryAO[i];
+	}
+
+
+	return VisHistory;
+}
 
 void NeighbourhoodClamp(float2 UV, float BaseAO, inout float MinAO, inout float MaxAO)
 {
@@ -1580,23 +1642,91 @@ void NeighbourhoodClamp(float2 UV, float BaseAO, inout float MinAO, inout float 
 }
 
 
-void GTAOTemporalFilterPSAndCS(float2 UV, inout float OutAO, inout float OutDepth)
+float CompareVeloc(float2 V1, float2 V2)
+{
+	float2 V12 = V1-V2;
+	return 1-saturate( abs(V12.x + V12.y) * 100);
+
+}
+
+void GTAOTemporalFilterPSAndCS(float2 UV, inout float OutAO, inout float OutDepth, inout float2 OutVelocity)
+{
+	float NewAO					= Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).r;
+
+	// Current depth of the rendered Scene
+	float CurrDepthDeviceZ		= Texture2DSample(ZCurrTexture, ZCurrTextureSampler, UV).r;
+	float CurrDepth				= ConvertFromDeviceZ( CurrDepthDeviceZ);
+
+	// Previous UV value
+	float3 PrevUVDepth			= ReprojectPos( UV,  CurrDepthDeviceZ);
+	float  CurrDepthReproject	= ConvertFromDeviceZ(PrevUVDepth.z);
+	float2 PrevUV				= PrevUVDepth.xy;
+
+	float2 PixVelocity			= UV - PrevUV;
+	float  VelocityMag			= saturate(length(PixVelocity)*100);
+	
+	// Compare velocities 
+	float2 DestVeloc=0;
+	{
+		float DestDeviceZ		= Texture2DSample(ZCurrTexture, ZCurrTextureSampler, PrevUVDepth.xy).r;
+		float3 Reproj			= ReprojectPos( PrevUVDepth.xy,  DestDeviceZ); 
+		DestVeloc				= PrevUVDepth - Reproj.xy;
+	}
+
+	float VelocCompare			= CompareVeloc(PixVelocity, DestVeloc);
+
+	// Get an acceptable range of values we care about from the current AO
+	float RangeVal	   = lerp(0.1, 0.00, VelocityMag);
+	float MinAO = saturate(NewAO - RangeVal);
+	float MaxAO = saturate(NewAO + RangeVal);
+
+	// Simple history value
+	float HistoryPrevUV				= ReadHistoryClamp(PrevUV, MinAO, MaxAO);
+	float HistoryThisUV				= Texture2DSample(HistoryTexture, HistoryTextureSampler, UV ).r;
+	HistoryThisUV = clamp(HistoryThisUV, MinAO, MaxAO);
+
+	float History = HistoryPrevUV;
+
+	History = lerp(HistoryThisUV, HistoryPrevUV, VelocCompare);
+	OutAO				= lerp(History, NewAO, 0.2);
+	OutDepth			= CurrDepth;
+	OutVelocity			= UV - PrevUV;
+}
+
+
+void GTAOTemporalFilterPSAndCS2(float2 UV, inout float OutAO, inout float OutDepth, inout float2 OutVelocity)
 {
 	float NewAO			= Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).r;
 
-	float SceneDepth	= GetDepthFromAOInput(UV);	// FIXME - Get from HZB Buffer
-	float DeviceZ		= LookupDeviceZ( UV);
+	// Current depth of the rendered Scene
+	float CurrDepthDeviceZ		= Texture2DSample(ZCurrTexture, ZCurrTextureSampler, UV).r;
+	float CurrDepth				= ConvertFromDeviceZ( CurrDepthDeviceZ);
+	
+	// 
+	float3 PrevUVDepth			= ReprojectPos( UV,  CurrDepthDeviceZ);
+	float  CurrDepthReproject	= ConvertFromDeviceZ(PrevUVDepth.z);
+	float2 PrevUV				= PrevUVDepth.xy;
 
-	float2 PrevUV		= ReprojectPos( UV,  DeviceZ);
+
+	float2 ThisVeloc = UV-PrevUVDepth.xy;
+	float2 DestVeloc=0;
+	{
+		float DestDeviceZ		= Texture2DSample(ZCurrTexture, ZCurrTextureSampler, PrevUVDepth.xy).r;
+		float3 Blah				= ReprojectPos( PrevUVDepth.xy,  DestDeviceZ); 
+		DestVeloc				= PrevUVDepth-Blah.xy;
+	}
+
+	// Compare velocities 
+	float VelocCompare			= CompareVeloc(ThisVeloc, DestVeloc);
+
 	float WeightSum=0;
-	float CurrDepth		= SceneDepth;
+	float ReprojectDepth	= ConvertFromDeviceZ( PrevUVDepth.z);
+	float HistoryAO			= ReadHistory(PrevUV, CurrDepthReproject, NewAO, WeightSum );
 
-	float HistoryAO		= ReadHistory(PrevUV, SceneDepth, NewAO, WeightSum );
+	HistoryAO			= lerp(NewAO, HistoryAO, VelocCompare);
 
-	float PrevDepth		= Texture2DSample(DepthHistoryTexture, DepthHistoryTextureSampler, PrevUV).r;
-
-	float Blend			= 0.15;//lerp(1,0.15, WeightSum);
-
+	float PrevDepth		= Texture2DSample(ZPrevTexture, ZPrevTextureSampler, PrevUV).r;
+	float Blend			= lerp(1,0.15, WeightSum);
 
 	if((PrevUV.x <= 0.0) || (PrevUV.y <= 0.0) || (PrevUV.x >= 1.0) || (PrevUV.y >= 1.0))
 	{
@@ -1612,28 +1742,35 @@ void GTAOTemporalFilterPSAndCS(float2 UV, inout float OutAO, inout float OutDept
 	float MidAO  = (MinAO + HalfAO);
 
 	// Ensure the HalfAO is at least some minimum ammount. This helps with the history clamp.
-	HalfAO = max(HalfAO,0.05);
+	HalfAO = max(HalfAO,0.05*VelocCompare);
 	MinAO = saturate(MidAO - HalfAO);
 	MaxAO = saturate(MidAO + HalfAO);
 
 	OutAO = (NewAO*Blend) + (HistoryAO* (1-Blend));
+
+
 	OutAO = clamp(OutAO, MinAO, MaxAO);
 
+	// If a camera cut then Use current data
 	if(BlendParams.x > 0.5 )
 	{
 		OutAO = NewAO;
 	}
 
-	OutDepth = CurrDepth;
+	OutDepth	= CurrDepthReproject;
+	OutVelocity = UV - PrevUV;
 }
 
-void GTAOTemporalFilterPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0, out float4 OutColor1 : SV_Target1)
+void GTAOTemporalFilterPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0, out float4 OutColor1 : SV_Target1, out float4 OutColor2 : SV_Target2)
 {
-	float OutAO, OutDepth;
+	float OutAO = 0;
+	float OutDepth = 0;
+	float2 OutVelocity = 0;
 	
-	GTAOTemporalFilterPSAndCS(UVAndScreenPos.xy, OutAO, OutDepth);
+	GTAOTemporalFilterPSAndCS(UVAndScreenPos.xy, OutAO, OutDepth, OutVelocity);
 	OutColor	= OutAO;
-	OutColor1 = OutDepth;
+	OutColor1  = OutDepth;
+	OutColor2  = float4((OutVelocity*0.5) + 0.5,0,0);
 }
 
 #if COMPUTE_SHADER
@@ -1645,14 +1782,17 @@ void GTAOTemporalFilterCS(
 {
 	float OutColor		= 0;
 	float OutDepth		= 0;
+	float2 OutVelocity  = 0;
+
 	int2   PixelPos		= DispatchThreadId + ScreenSpaceAOParams[5].zw; 
 	float2 PixelCenter	= (float2)PixelPos + float2(0.5, 0.5);
 	float2 BufferUV		= PixelCenter.xy * PostprocessInput0Size.zw;
 
-	GTAOTemporalFilterPSAndCS(BufferUV, OutColor, OutDepth);
+	GTAOTemporalFilterPSAndCS(BufferUV, OutColor, OutDepth, OutVelocity);
 
-	OutTexture[PixelPos]		= OutColor;
-	DepthOutTexture[PixelPos]   = OutDepth;
+	OutTexture[PixelPos]			= OutColor;
+	DepthOutTexture[PixelPos]		= OutDepth;
+	VelocityOutTexture[PixelPos]	= (OutVelocity*0.5) + 0.5;
 }
 
 #endif
@@ -1761,9 +1901,14 @@ void GTAOUpsampleCS(
 
 float4 GTAOUpsamplePSAndCS(float2 UV)
 {
-//	UV += PostprocessInput0Size.zw * -0.5;
+	float2 Offset = PostprocessInput0Size.zw * 0.25;
 
-	float AO = saturate( Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).r);
+	float AO0 = saturate( Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV + float2(-Offset.x, -Offset.y)) .r);
+	float AO1 = saturate( Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV + float2(Offset.x,  -Offset.y)) .r);
+	float AO2 = saturate( Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV + float2(-Offset.x, Offset.y)) .r);
+	float AO3 = saturate( Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV + float2(Offset.x, Offset.y)) .r);
+
+	float AO = min(min(AO0, AO1), min(AO2, AO3))  ;
 	return float4(AO,0,0,0);
 }
 
@@ -1890,7 +2035,7 @@ void GTAOSpatialFilterCS(
 				SampleZDiff -= XDiff * DiffZ_X;
 				SampleZDiff -= YDiff * DiffZ_Y;
 			
-				const float SpatialFilterWeight = 100000;
+				const float SpatialFilterWeight = 1000;
 				Weight = 1.0f - saturate(SampleZDiff*SpatialFilterWeight );
 			}
 

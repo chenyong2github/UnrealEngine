@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -112,6 +112,13 @@ public:
 	 * @return The delegate.
 	 */
 	virtual FOnMessageRpcNoHandler& OnNoHandler() = 0;
+
+
+	/** 
+	 * Set if the server sends progress updates
+	 * @param InSendProgress if the server send rpc progress update
+	 */
+	virtual void SetSendProgressUpdate(bool InSendProgress) = 0;
 
 public:
 

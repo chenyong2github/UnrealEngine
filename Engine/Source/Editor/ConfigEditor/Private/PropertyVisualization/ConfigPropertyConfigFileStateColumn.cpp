@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyVisualization/ConfigPropertyConfigFileStateColumn.h"
 #include "Widgets/SBoxPanel.h"
@@ -83,7 +83,7 @@ bool FConfigPropertyConfigFileStateCustomColumn::Supports(const TSharedRef< IPro
 		if (PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0)
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-			UProperty* Property = PropertyInfo.Property.Get();
+			FProperty* Property = PropertyInfo.Property.Get();
 			if (SupportedProperty == Property)
 			{
 				IsSupported = true;

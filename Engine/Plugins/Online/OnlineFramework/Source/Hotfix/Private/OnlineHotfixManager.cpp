@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineHotfixManager.h"
 #include "OnlineSubsystemUtils.h"
@@ -22,6 +22,10 @@
 #include "Engine/DataTable.h"
 #include "Curves/CurveFloat.h"
 #include "Engine/BlueprintGeneratedClass.h"
+
+#ifdef WITH_ONLINETRACING
+#include "OnlineTracingModule.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogHotfixManager);
 
@@ -856,6 +860,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	bool bUpdateLogSuppression = false;
 	bool bUpdateConsoleVariables = false;
 	bool bUpdateHttpConfigs = false;
+	bool bUpdateOnlineTracing = false;
 	TSet<FString> OnlineSubSections;
 	// Find the set of object classes that were affected
 	while (StartIndex >= 0 && StartIndex < IniData.Len() && EndIndex >= StartIndex)
@@ -913,6 +918,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 					const TCHAR* ConsoleVariableSection = TEXT("[ConsoleVariables]");
 					const TCHAR* HttpSection = TEXT("[HTTP"); // note "]" omitted on purpose since we want a partial match
 					const TCHAR* OnlineSubSectionKey = TEXT("[OnlineSubsystem"); // note "]" omitted on purpose since we want a partial match
+					const TCHAR* OnlineTracingSection = TEXT("[OnlineTracing]");
 					if (!bUpdateLogSuppression && FCString::Strnicmp(*IniData + StartIndex, LogConfigSection, FCString::Strlen(LogConfigSection)) == 0)
 					{
 						bUpdateLogSuppression = true;
@@ -924,6 +930,10 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 					else if (!bUpdateHttpConfigs &&	FCString::Strnicmp(*IniData + StartIndex, HttpSection, FCString::Strlen(HttpSection)) == 0)
 					{
 						bUpdateHttpConfigs = true;
+					}
+					else if (!bUpdateOnlineTracing && FCString::Strnicmp(*IniData + StartIndex, OnlineTracingSection, FCString::Strlen(OnlineTracingSection)) == 0)
+					{
+						bUpdateOnlineTracing = true;
 					}
 					else if (FCString::Strnicmp(*IniData + StartIndex, OnlineSubSectionKey, FCString::Strlen(OnlineSubSectionKey)) == 0)
 					{
@@ -1044,6 +1054,15 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	{
 		FHttpModule::Get().UpdateConfigs();
 	}
+
+	// Reload configs for tracing system, this may init or tear it down if enable is toggled
+#ifdef WITH_ONLINETRACING
+	if (bUpdateOnlineTracing && 
+		FOnlineTracingModule::IsAvailable())
+	{
+		FOnlineTracingModule::Get().UpdateConfig();
+	}
+#endif
 
 	// Reload configs relevant to OSS config sections that were updated
 	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(OSSName.Len() ? FName(*OSSName, FNAME_Find) : NAME_None);
@@ -1515,14 +1534,14 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 	{
 		// Edit the row with the new value.
 		bool bWasDataTableChanged = false;
-		UProperty* DataTableRowProperty = DataTable->GetRowStruct()->FindPropertyByName(FName(*ColumnName));
+		FProperty* DataTableRowProperty = DataTable->GetRowStruct()->FindPropertyByName(FName(*ColumnName));
 		if (DataTableRowProperty)
 		{
 			// See what type of property this is.
-			UNumericProperty* NumProp = Cast<UNumericProperty>(DataTableRowProperty);
-			UStrProperty* StrProp = Cast<UStrProperty>(DataTableRowProperty);
-			UNameProperty* NameProp = Cast<UNameProperty>(DataTableRowProperty);
-			USoftObjectProperty* SoftObjProp = Cast<USoftObjectProperty>(DataTableRowProperty);
+			FNumericProperty* NumProp = CastField<FNumericProperty>(DataTableRowProperty);
+			FStrProperty* StrProp = CastField<FStrProperty>(DataTableRowProperty);
+			FNameProperty* NameProp = CastField<FNameProperty>(DataTableRowProperty);
+			FSoftObjectProperty* SoftObjProp = CastField<FSoftObjectProperty>(DataTableRowProperty);
 
 			// Get the row data by name.
 			static const FString Context = FString(TEXT("UOnlineHotfixManager::PatchAssetsFromIniFiles"));
@@ -1598,7 +1617,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 
 						if (Error.Len() > 0)
 						{
-							const FString Problem(FString::Printf(TEXT("The data table row property named %s is not a UNumericProperty, UStrProperty, UNameProperty, or USoftObjectProperty and it should be."), *ColumnName));
+							const FString Problem(FString::Printf(TEXT("The data table row property named %s is not a FNumericProperty, FStrProperty, FNameProperty, or FSoftObjectProperty and it should be."), *ColumnName));
 							ProblemStrings.Add(Problem);
 							ProblemStrings.Add(FString::Printf(TEXT("%s"), *Error));
 						}

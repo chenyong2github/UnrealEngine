@@ -103,11 +103,11 @@ void register_otypedscalarproperty()
     register_<Abc::OBoolProperty>   ( "OBoolProperty" );
     register_<Abc::OUcharProperty>  ( "OUcharProperty" );
     register_<Abc::OCharProperty>   ( "OCharProperty" );
-    register_<Abc::OUInt16Property> ( "OUInt16Property" );
+    register_<Abc::OFInt16Property> ( "OFInt16Property" );
     register_<Abc::OInt16Property>  ( "OInt16Property" );
     register_<Abc::OUInt32Property> ( "OUInt32Property" );
     register_<Abc::OInt32Property>  ( "OInt32Property" );
-    register_<Abc::OUInt64Property> ( "OUInt64Property" );
+    register_<Abc::OFInt64Property> ( "OFInt64Property" );
     register_<Abc::OInt64Property>  ( "OInt64Property" );
     register_<Abc::OHalfProperty>   ( "OHalfProperty" );
     register_<Abc::OFloatProperty>  ( "OFloatProperty" );

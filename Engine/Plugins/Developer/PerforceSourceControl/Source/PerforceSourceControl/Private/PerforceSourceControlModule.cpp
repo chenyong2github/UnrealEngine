@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PerforceSourceControlModule.h"
 #include "Misc/App.h"
@@ -57,6 +57,15 @@ void FPerforceSourceControlModule::SaveSettings()
 	}
 
 	PerforceSourceControlSettings.SaveSettings();
+}
+
+void FPerforceSourceControlModule::SetLastErrors(const TArray<FText>& InErrors)
+{
+	FPerforceSourceControlModule* Module = FModuleManager::GetModulePtr<FPerforceSourceControlModule>("PerforceSourceControl");
+	if (Module)
+	{
+		Module->GetProvider().SetLastErrors(InErrors);
+	}
 }
 
 IMPLEMENT_MODULE(FPerforceSourceControlModule, PerforceSourceControl);

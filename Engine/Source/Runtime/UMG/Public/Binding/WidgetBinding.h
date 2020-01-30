@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,8 +19,8 @@ public:
 
 	UWidgetBinding();
 
-	virtual bool IsSupportedSource(UProperty* Property) const override;
-	virtual bool IsSupportedDestination(UProperty* Property) const override;
+	virtual bool IsSupportedSource(FProperty* Property) const override;
+	virtual bool IsSupportedDestination(FProperty* Property) const override;
 
 	UFUNCTION()
 	UWidget* GetValue() const;

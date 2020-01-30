@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayNodes/SequencerSectionCategoryNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -68,3 +68,33 @@ void FSequencerSectionCategoryNode::SetDisplayName(const FText& NewDisplayName)
 {
 	check(false);
 }
+
+FSlateFontInfo FSequencerSectionCategoryNode::GetDisplayNameFont() const
+{
+	bool bAllAnimated = false;
+	for (TSharedRef<FSequencerDisplayNode> ChildNode : GetChildNodes())
+	{
+		if (ChildNode->GetType() == ESequencerNode::KeyArea)
+		{
+			const FSequencerSectionKeyAreaNode KeyAreaNode = static_cast<const FSequencerSectionKeyAreaNode&>(ChildNode.Get());
+			for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNode.GetAllKeyAreas())
+			{
+				FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
+				if (!Channel || Channel->GetNumKeys() == 0)
+				{
+					return FSequencerDisplayNode::GetDisplayNameFont();
+				}
+				else
+				{
+					bAllAnimated = true;
+				}
+			}
+		}
+	}
+	if (bAllAnimated == true)
+	{
+		return FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
+	}
+	return FSequencerDisplayNode::GetDisplayNameFont();
+}
+

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraph/EdGraphSchema.h"
 #include "UObject/MetaData.h"
@@ -504,7 +504,7 @@ bool UEdGraphSchema::DoesDefaultValueMatch(const UEdGraphPin& InPin, const FStri
 	FText ValueAsText;
 	if (!InPin.DefaultTextValue.IsEmpty() && FTextStringHelper::ReadFromBuffer(*InValue, ValueAsText))
 	{
-		return UTextProperty::Identical_Implementation(ValueAsText, InPin.DefaultTextValue, 0);
+		return FTextProperty::Identical_Implementation(ValueAsText, InPin.DefaultTextValue, 0);
 	}
 	else
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved..
+// Copyright Epic Games, Inc. All Rights Reserved..
 
 /*=============================================================================
 	VulkanPendingState.cpp: Private VulkanPendingState function definitions.
@@ -402,15 +402,11 @@ void FVulkanPendingComputeState::PrepareForDispatch(FVulkanCmdBuffer* InCmdBuffe
 
 FVulkanPendingGfxState::~FVulkanPendingGfxState()
 {
-	TArray<FVulkanGraphicsPipelineDescriptorState*> DescriptorStates;
-
-	for (auto& Pair : PipelineStates)
+	TMap<FVulkanRHIGraphicsPipelineState*, FVulkanGraphicsPipelineDescriptorState*> Temp;
+	Swap(Temp, PipelineStates);
+	for (auto& Pair : Temp)
 	{
 		FVulkanGraphicsPipelineDescriptorState* State = Pair.Value;
-		DescriptorStates.Push(State);
-	}
-	for(FVulkanGraphicsPipelineDescriptorState* State : DescriptorStates)
-	{
 		delete State;
 	}
 }

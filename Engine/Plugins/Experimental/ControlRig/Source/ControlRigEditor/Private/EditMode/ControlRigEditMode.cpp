@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigEditMode.h"
 #include "ControlRigEditModeToolkit.h"
@@ -31,14 +31,15 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Drawing/ControlRigDrawInterface.h"
 #include "ControlRigBlueprint.h"
-#include "ControlRigController.h"
 #include "ControlRigGizmoActor.h"
 #include "DefaultControlRigManipulationLayer.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SEditorViewport.h"
-
+#include "ControlRigControlsProxy.h"
+#include "ScopedTransaction.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "RigVMModel/RigVMController.h"
 
 FName FControlRigEditMode::ModeName("EditMode.ControlRig");
 
@@ -64,12 +65,11 @@ FControlRigEditMode::FControlRigEditMode()
 	, bRecreateManipulationLayerRequired(false)
 	, ManipulationLayer(nullptr)
 	, CurrentViewportClient(nullptr)
+	, bIsChangingCoordSystem(false)
 {
 	Settings = NewObject<UControlRigEditModeSettings>(GetTransientPackage(), TEXT("Settings"));
-	
-	// @todo: thinking of removing this, but for now leaving it. 
-	// it indicates, execution is stopped, and you can modify default bone transform or controls if set to be true
-	bEnableRigElementDefaultPoseEditing = false;
+	ControlProxy = NewObject<UControlRigDetailPanelControlProxies>(GetTransientPackage(), TEXT("Controls"));
+	ControlProxy->SetFlags(RF_Transactional);
 
 	CommandBindings = MakeShareable(new FUICommandList);
 	BindCommands();
@@ -83,16 +83,19 @@ FControlRigEditMode::~FControlRigEditMode()
 {	
 	CommandBindings = nullptr;
 
+	GLevelEditorModeTools().OnWidgetModeChanged().RemoveAll(this);
+	GLevelEditorModeTools().OnCoordSystemChanged().RemoveAll(this);
+
 #if WITH_EDITOR
 	GEditor->OnObjectsReplaced().RemoveAll(this);
 #endif
 }
 
-void FControlRigEditMode::SetObjects(const TWeakObjectPtr<>& InSelectedObject, const FGuid& InObjectBinding, UObject* BindingObject)
+void FControlRigEditMode::SetObjects(const TWeakObjectPtr<>& InSelectedObject, const FGuid& InObjectBinding, UObject* BindingObject, TWeakPtr<ISequencer> InSequencer)
 {
 	WeakControlRigEditing = Cast<UControlRig>(InSelectedObject.Get());
 	ControlRigGuid = InObjectBinding;
-
+	WeakSequencer = InSequencer;
 	// if we get binding object, set it to control rig binding object
 	if (BindingObject)
 	{
@@ -108,17 +111,34 @@ void FControlRigEditMode::SetObjects(const TWeakObjectPtr<>& InSelectedObject, c
 		}
 
 	}
-
+	if (UsesToolkits() && Toolkit.IsValid())
+	{
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetControlRig(WeakControlRigEditing.Get());
+	}
 	SetObjects_Internal();
+}
+
+void FControlRigEditMode::SetUpDetailPanel()
+{
+	if (IsInLevelEditor())
+	{
+		TArray<TWeakObjectPtr<>> SelectedObjects;
+		if (WeakControlRigEditing.IsValid())
+		{
+			const TArray<UControlRigControlsProxy*>& Proxies = ControlProxy->GetSelectedProxies();
+			for (UControlRigControlsProxy* Proxy : Proxies)
+			{
+				SelectedObjects.Add(Proxy);
+			}
+			SelectedObjects.Add(Settings);
+		}
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSequencer(WeakSequencer.Pin());
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetDetailsObjects(SelectedObjects);
+	}
 }
 
 void FControlRigEditMode::SetObjects_Internal()
 {
-	TArray<TWeakObjectPtr<>> SelectedObjects;
-	if(IsInLevelEditor())
-	{
-		SelectedObjects.Add(Settings);
-	}
 
 	if (WeakControlRigEditing.IsValid())
 	{
@@ -126,19 +146,19 @@ void FControlRigEditMode::SetObjects_Internal()
 		WeakControlRigEditing.Get()->DrawInterface = &DrawInterface;
 		if (IsInLevelEditor())
 		{
+			WeakControlRigEditing->Hierarchy.OnElementSelected.RemoveAll(this);
+			WeakControlRigEditing->ControlModified().RemoveAll(this);
+
 			WeakControlRigEditing->Hierarchy.OnElementSelected.AddSP(this, &FControlRigEditMode::OnRigElementSelected);
-		}
-
-
-		if (UsesToolkits())
-		{
-			StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetDetailsObjects(SelectedObjects);
+			WeakControlRigEditing->ControlModified().AddSP(this, &FControlRigEditMode::OnControlModified);
 		}
 
 		// create default manipulation layer
 		RecreateManipulationLayer();
 		HandleSelectionChanged();
 	}
+	SetUpDetailPanel();
+
 }
 
 bool FControlRigEditMode::UsesToolkits() const
@@ -159,6 +179,21 @@ void FControlRigEditMode::Enter()
 		}
 
 		Toolkit->Init(Owner->GetToolkitHost());
+
+		bIsChangingCoordSystem = false;
+		if (CoordSystemPerWidgetMode.Num() < (FWidget::WM_Max))
+		{
+			CoordSystemPerWidgetMode.SetNum(FWidget::WM_Max);
+			ECoordSystem CoordSystem = GLevelEditorModeTools().GetCoordSystem();
+			for (int32 i = 0; i < FWidget::WM_Max; ++i)
+			{
+				CoordSystemPerWidgetMode[i] = CoordSystem;
+			}
+		}
+	
+		GLevelEditorModeTools().OnWidgetModeChanged().AddSP(this, &FControlRigEditMode::OnWidgetModeChanged);
+		GLevelEditorModeTools().OnCoordSystemChanged().AddSP(this, &FControlRigEditMode::OnCoordSystemChanged);
+
 	}
 
 	SetObjects_Internal();
@@ -195,6 +230,14 @@ void FControlRigEditMode::Exit()
 	}
 	//clear actors
 	GizmoActors.SetNum(0);
+
+	//clear delegates
+	GLevelEditorModeTools().OnWidgetModeChanged().RemoveAll(this);
+	GLevelEditorModeTools().OnCoordSystemChanged().RemoveAll(this);
+
+	//clear proxies
+	ControlProxy->RemoveAllProxies();
+
 	// Call parent implementation
 	FEdMode::Exit();
 }
@@ -223,8 +266,21 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 				{
 					GizmoActor->SetSelected(true);
 				}
+
+				if (WeakControlRigEditing.IsValid())
+				{
+					FRigControl* Control = WeakControlRigEditing->FindControl(SelectedKey.Name);
+					if (Control)
+					{
+						if (!WeakControlRigEditing->IsCurveControl(Control))
+						{
+							ControlProxy->AddProxy(SelectedKey.Name, WeakControlRigEditing.Get(), Control);
+						}
+					}
+				}
 			}
 		}
+		SetUpDetailPanel();
 		HandleSelectionChanged();
 		bRecreateManipulationLayerRequired = false;
 	}
@@ -233,7 +289,44 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 	// might have changed the transform of the Control
 	if (ManipulationLayer)
 	{
-		ManipulationLayer->TickManipulatableObjects(DeltaTime);
+		if (WeakControlRigEditing.IsValid())
+		{
+			const FWidget::EWidgetMode CurrentWidgetMode = ViewportClient->GetWidgetMode();
+			for (FRigElementKey SelectedRigElement : SelectedRigElements)
+			{
+				if (AControlRigGizmoActor* GizmoActor = GetGizmoFromControlName(SelectedRigElement.Name))
+				{
+					if (!ManipulationLayer->ModeSupportedByGizmoActor(GizmoActor, CurrentWidgetMode))
+					{
+						if (FRigControl* Control = WeakControlRigEditing->FindControl(SelectedRigElement.Name))
+						{
+							switch (Control->ControlType)
+							{
+								case ERigControlType::Float:
+								case ERigControlType::Vector2D:
+								case ERigControlType::Position:
+								case ERigControlType::Transform:
+								case ERigControlType::TransformNoScale:
+								{
+									ViewportClient->SetWidgetMode(FWidget::WM_Translate);
+									break;
+								}
+								case ERigControlType::Rotator:
+								{
+									ViewportClient->SetWidgetMode(FWidget::WM_Rotate);
+									break;
+								}
+								case ERigControlType::Scale:
+								{
+									ViewportClient->SetWidgetMode(FWidget::WM_Scale);
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -241,7 +334,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 {	
 	if (!WeakControlRigEditing.IsValid() || ManipulationLayer == nullptr)
 	{
-		DrawInterface.DrawInstructions.Reset();
+		DrawInterface.Instructions.Reset();
 		return;
 	}
 
@@ -284,6 +377,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 			UControlRig* ControlRig = WeakControlRigEditing.Get();
 			const FRigHierarchyContainer* Hierarchy = ControlRig->GetHierarchy();
 			const float Scale = Settings->AxisScale;
+			PDI->AddReserveLines(SDPG_Foreground, SelectedRigElements.Num() * 3);
 
 			for (const FRigElementKey& SelectedElement : SelectedRigElements)
 			{
@@ -295,40 +389,44 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				PDI->DrawLine(ElementTransform.GetTranslation(), ElementTransform.TransformPosition(FVector(0.f, 0.f, Scale)), FLinearColor::Blue, SDPG_Foreground);
 			}
 		}
-		for (const FControlRigDrawInterface::FDrawIntruction& Instruction : DrawInterface.DrawInstructions)
+		for (const FControlRigDrawInstruction& Instruction : DrawInterface)
 		{
 			if (Instruction.Positions.Num() == 0)
 			{
 				continue;
 			}
-			switch (Instruction.DrawType)
+
+			FTransform InstructionTransform = Instruction.Transform * ComponentTransform;
+			switch (Instruction.PrimitiveType)
 			{
-			case FControlRigDrawInterface::EDrawType_Point:
-			{
-				for (const FVector& Point : Instruction.Positions)
+				case EControlRigDrawSettings::Points:
 				{
-					PDI->DrawPoint(ComponentTransform.TransformPosition(Point), Instruction.Color, Instruction.Thickness, SDPG_Foreground);
+					for (const FVector& Point : Instruction.Positions)
+					{
+						PDI->DrawPoint(InstructionTransform.TransformPosition(Point), Instruction.Color, Instruction.Thickness, SDPG_Foreground);
+					}
+					break;
 				}
-				break;
-			}
-			case FControlRigDrawInterface::EDrawType_Lines:
-			{
-				const TArray<FVector>& Points = Instruction.Positions;
-				for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
+				case EControlRigDrawSettings::Lines:
 				{
-					PDI->DrawLine(ComponentTransform.TransformPosition(Points[PointIndex]), ComponentTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+					const TArray<FVector>& Points = Instruction.Positions;
+					PDI->AddReserveLines(SDPG_Foreground, Points.Num() / 2, false, Instruction.Thickness > SMALL_NUMBER);
+					for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
+					{
+						PDI->DrawLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+					}
+					break;
 				}
-				break;
-			}
-			case FControlRigDrawInterface::EDrawType_LineStrip:
-			{
-				const TArray<FVector>& Points = Instruction.Positions;
-				for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
+				case EControlRigDrawSettings::LineStrip:
 				{
-					PDI->DrawLine(ComponentTransform.TransformPosition(Points[PointIndex]), ComponentTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+					const TArray<FVector>& Points = Instruction.Positions;
+					PDI->AddReserveLines(SDPG_Foreground, Points.Num() - 1, false, Instruction.Thickness > SMALL_NUMBER);
+					for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
+					{
+						PDI->DrawLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+					}
+					break;
 				}
-				break;
-			}
 			}
 		}
 	}
@@ -344,9 +442,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 		}
 	}
 
-	//draw debug info
-	
-	DrawInterface.DrawInstructions.Reset();
+	DrawInterface.Reset();
 }
 
 bool FControlRigEditMode::InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent)
@@ -379,12 +475,19 @@ bool FControlRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, F
 					GizmoActor->SetManipulating(false);
 				}
 			}
+
+			bManipulatorMadeChange = false;
+			GEditor->EndTransaction();
+
 		}
 
-		ManipulationLayer->EndTransaction();
-		GEditor->EndTransaction();
+		if (ManipulationLayer)
+		{
+			ManipulationLayer->EndTransaction();
+		}
+
+
 		bIsTransacting = false;
-		bManipulatorMadeChange = false;
 		return true;
 	}
 
@@ -397,7 +500,6 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 {
 	if (!bIsTransacting)
 	{
-		GEditor->BeginTransaction(LOCTEXT("MoveControlTransaction", "Move Control"));
 
 		if (ManipulationLayer != nullptr)
 		{
@@ -493,6 +595,8 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 				if (ControlData)
 				{
+					FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
+
 					const FName& ControlName = ControlData->ControlName;
 					if (Click.IsShiftDown() || Click.IsControlDown())
 					{
@@ -524,6 +628,12 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 		OpenContextMenu(InViewportClient);
 		return true;
 	}
+
+	if (Settings  &&  Settings->bOnlySelectRigControls)
+	{
+		return true;
+	}
+	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
 
 	// clear selected controls
 	ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
@@ -666,6 +776,10 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 				if (GizmoActor->IsSelected())
 				{
 					// test local vs global
+					if (bManipulatorMadeChange == false)
+					{
+						GEditor->BeginTransaction(LOCTEXT("MoveControlTransaction", "Move Control"));
+					}
 					ManipulationLayer->MoveGizmo(GizmoActor, bDoTranslation, InDrag, bDoRotation, InRot, bDoScale, InScale, ComponentTransform);
 					bManipulatorMadeChange = true;
 				}
@@ -689,7 +803,7 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 			{
 				const ERigElementType SelectedRigElementType = SelectedRigElements[Index].Type;
 
-				if (SelectedRigElementType == ERigElementType::Bone || SelectedRigElementType == ERigElementType::Control)
+				if (SelectedRigElementType == ERigElementType::Control)
 				{
 					FTransform NewWorldTransform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false) * ComponentTransform;
 					bool bTransformChanged = false;
@@ -719,6 +833,10 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 
 					if (bTransformChanged)
 					{
+						if (bManipulatorMadeChange == false)
+						{
+							GEditor->BeginTransaction(LOCTEXT("MoveControlTransaction", "Move Control"));
+						}
 						FTransform NewComponentTransform = NewWorldTransform.GetRelativeTransform(ComponentTransform);
 						OnSetRigElementTransformDelegate.Execute(SelectedRigElements[Index], NewComponentTransform, false);
 						bManipulatorMadeChange = true;
@@ -769,8 +887,11 @@ void FControlRigEditMode::AddReferencedObjects( FReferenceCollector& Collector )
 			Collector.AddReferencedObject(GizmoActor);
 		}
 	}
+	if (ControlProxy)
+	{
+		Collector.AddReferencedObject(ControlProxy);
+	}
 }
-
 
 void FControlRigEditMode::ClearRigElementSelection(uint32 InTypes)
 {
@@ -784,7 +905,7 @@ void FControlRigEditMode::ClearRigElementSelection(uint32 InTypes)
 	{
 		Blueprint->HierarchyContainer.ClearSelection();
 	}
-	if(IsInLevelEditor())
+	if (IsInLevelEditor())
 	{
 		WeakControlRigEditing->Hierarchy.ClearSelection();
 	}
@@ -803,7 +924,7 @@ void FControlRigEditMode::SetRigElementSelectionInternal(ERigElementType Type, c
 	{
 		Blueprint->HierarchyContainer.Select(FRigElementKey(InRigElementName, Type), bSelected);
 	}
-	if(IsInLevelEditor())
+	if (IsInLevelEditor())
 	{
 		WeakControlRigEditing->Hierarchy.Select(FRigElementKey(InRigElementName, Type), bSelected);
 	}
@@ -881,16 +1002,29 @@ void FControlRigEditMode::RefreshObjects()
 	SetObjects_Internal();
 }
 
-void FControlRigEditMode::EnableRigElementEditing(bool bEnabled)
+bool FControlRigEditMode::CanRemoveFromPreviewScene(const USceneComponent* InComponent)
 {
-	bEnableRigElementDefaultPoseEditing = bEnabled;
-	RecalcPivotTransform();
+	for (AControlRigGizmoActor* GizmoActor : GizmoActors)
+	{
+		TInlineComponentArray<USceneComponent*> SceneComponents;
+		GizmoActor->GetComponents(SceneComponents, true);
+		if (SceneComponents.Contains(InComponent))
+		{
+			return false;
+		}
+	}
+
+	// we don't need it 
+	return true;
 }
 
 void FControlRigEditMode::RecalcPivotTransform()
 {
 	PivotTransform = FTransform::Identity;
-
+	if (!ManipulationLayer)
+	{
+		return;
+	}
 	// @todo: support bones also
 	if(AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
 	{
@@ -913,7 +1047,7 @@ void FControlRigEditMode::RecalcPivotTransform()
 			}
 		}
 
-		PivotLocation /= (float)NumSelectedControls;
+		PivotLocation /= (float)FMath::Max(1, NumSelectedControls);
 		PivotTransform.SetLocation(PivotLocation);
 		
 		if (NumSelectedControls == 1)
@@ -939,7 +1073,7 @@ void FControlRigEditMode::RecalcPivotTransform()
 		FTransform LastTransform = FTransform::Identity;
 		for (int32 Index = 0; Index < SelectedRigElements.Num(); ++Index)
 		{
-			if (SelectedRigElements[Index].Type == ERigElementType::Control || SelectedRigElements[Index].Type == ERigElementType::Bone)
+			if (SelectedRigElements[Index].Type == ERigElementType::Control)
 			{
 				LastTransform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false);
 				PivotLocation += LastTransform.GetLocation();
@@ -947,7 +1081,7 @@ void FControlRigEditMode::RecalcPivotTransform()
 			}
 		}
 
-		PivotLocation /= (float)NumSelection;
+		PivotLocation /= (float)FMath::Max(1, NumSelection);
 		PivotTransform.SetLocation(PivotLocation);
 
 		if (NumSelection == 1)
@@ -996,13 +1130,6 @@ bool FControlRigEditMode::IsControlSelected() const
 	static uint32 TypeFlag = (uint32)ERigElementType::Control;
 	return (AreRigElementsSelected(TypeFlag));
 }
-
-bool FControlRigEditMode::IsControlOrSpaceOrBoneSelected() const
-{
-	static uint32 TypeFlag = (uint32)ERigElementType::Bone | (uint32)ERigElementType::Control | (uint32)ERigElementType::Space;
-	return (AreRigElementsSelected(TypeFlag));
-}
-
 
 bool FControlRigEditMode::GetRigElementGlobalTransform(const FRigElementKey& InElement, FTransform& OutGlobalTransform) const
 {
@@ -1075,15 +1202,25 @@ void FControlRigEditMode::RecreateManipulationLayer()
 {
 	if (ManipulationLayer)
 	{
+		if (AnimInitDelegateHandle.IsValid())
+		{
+			ManipulationLayer->OnAnimSystemInitialized.Remove(AnimInitDelegateHandle);
+			AnimInitDelegateHandle.Reset();
+		}
+
 		ManipulationLayer->DestroyLayer();
 	}
-
+	if (ControlProxy)
+	{
+		ControlProxy->RemoveAllProxies();
+	}
 	if (UControlRig* ControlRig = WeakControlRigEditing.Get())
 	{
 		ManipulationLayer = NewObject<UDefaultControlRigManipulationLayer>();
-		
+
 		// create layer
 		ManipulationLayer->CreateLayer();
+		AnimInitDelegateHandle = ManipulationLayer->OnAnimSystemInitialized.Add(OnAnimSystemInitializedDelegate);
 
 		// default manipulation layer can support any control rig
 		ManipulationLayer->AddManipulatableObject(ControlRig);
@@ -1111,14 +1248,12 @@ void FControlRigEditMode::RecreateManipulationLayer()
 				}
 			}
 		}
+		if (ControlProxy)
+		{
+			ControlProxy->RecreateAllProxies(ControlRig);
+		}
 	}
 }
-
-void RequestToRecreateManipulationLayer()
-{
-
-}
-
 
 FControlRigEditMode* FControlRigEditMode::GetEditModeFromWorldContext(UWorld* InWorldContext)
 {
@@ -1127,11 +1262,15 @@ FControlRigEditMode* FControlRigEditMode::GetEditModeFromWorldContext(UWorld* In
 
 bool FControlRigEditMode::GizmoSelectionOverride(const UPrimitiveComponent* InComponent) const
 {
-	AControlRigGizmoActor* OwnerActor = Cast<AControlRigGizmoActor>(InComponent->GetOwner());
-	if (OwnerActor)
+    //Think we only want to do this in regular editor, in the level editor we are driving selection
+	if (!IsInLevelEditor())
 	{
-		// See if the actor is in a selected unit proxy
-		return OwnerActor->IsSelected();
+		AControlRigGizmoActor* OwnerActor = Cast<AControlRigGizmoActor>(InComponent->GetOwner());
+		if (OwnerActor)
+		{
+			// See if the actor is in a selected unit proxy
+			return OwnerActor->IsSelected();
+		}
 	}
 
 	return false;
@@ -1160,12 +1299,6 @@ bool FControlRigEditMode::IsTransformDelegateAvailable() const
 bool FControlRigEditMode::AreRigElementSelectedAndMovable() const
 {
 	if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
-	{
-		return true;
-	}
-
-	// if bone, we want to make sure execution is stopped
-	if (bEnableRigElementDefaultPoseEditing && AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Bone)))
 	{
 		return true;
 	}
@@ -1220,6 +1353,8 @@ void FControlRigEditMode::OnRigElementSelected(FRigHierarchyContainer* Container
 			// if it's control
 			if (InKey.Type == ERigElementType::Control)
 			{
+				FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting );
+				ControlProxy->Modify();
 				// users may select gizmo and control rig units, so we have to let them go through both of them if they do
 				// first go through gizmo actor
 				AControlRigGizmoActor* GizmoActor = GetGizmoFromControlName(InKey.Name);
@@ -1227,14 +1362,28 @@ void FControlRigEditMode::OnRigElementSelected(FRigHierarchyContainer* Container
 				{
 					GizmoActor->SetSelected(bSelected);
 				}
+				if (bSelected)
+				{
+					if (WeakControlRigEditing.IsValid())
+					{
+						FRigControl* Control = WeakControlRigEditing->FindControl(InKey.Name);
+						if (Control)
+						{
+							ControlProxy->SelectProxy(InKey.Name, true);
+						}
+					}
+				}
+				else
+				{
+					ControlProxy->SelectProxy(InKey.Name, false);
+				}
 			}
-
+			SetUpDetailPanel();
 			HandleSelectionChanged();
 			break;
 		}
 		default:
 		{
-			// todo
 			ensureMsgf(false, TEXT("Unsupported Type of RigElement: %d"), InKey.Type);
 			break;
 		}
@@ -1249,6 +1398,17 @@ void FControlRigEditMode::OnRigElementChanged(FRigHierarchyContainer* Container,
 	}
 }
 
+void FControlRigEditMode::OnControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey)
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("MoveControlTransaction", "Modify Control"),!GIsTransacting && InSetKey != EControlRigSetKey::Never);
+	ControlProxy->Modify();
+	ControlProxy->ProxyChanged(Control.Name);
+	RecalcPivotTransform();
+}
+
+void FControlRigEditMode::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
+{
+}
 
 void FControlRigEditMode::OnControlUISettingChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
 {
@@ -1259,5 +1419,26 @@ AControlRigGizmoActor* FControlRigEditMode::GetGizmoFromControlName(const FName&
 {
 	return ManipulationLayer ? ManipulationLayer->GetGizmoFromControlName(InControlName) : nullptr;
 }
+
+void FControlRigEditMode::OnWidgetModeChanged(FWidget::EWidgetMode InWidgetMode)
+{
+	if (Settings && Settings->bCoordSystemPerWidgetMode)
+	{
+		TGuardValue<bool> ReentrantGuardSelf(bIsChangingCoordSystem, true);
+
+		int32 WidgetMode = (int32)GLevelEditorModeTools().GetWidgetMode();
+		GLevelEditorModeTools().SetCoordSystem(CoordSystemPerWidgetMode[WidgetMode]);
+	}
+}
+
+void FControlRigEditMode::OnCoordSystemChanged(ECoordSystem InCoordSystem)
+{
+	TGuardValue<bool> ReentrantGuardSelf(bIsChangingCoordSystem, true);
+
+	int32 WidgetMode = (int32)GLevelEditorModeTools().GetWidgetMode();
+	ECoordSystem CoordSystem = GLevelEditorModeTools().GetCoordSystem();
+	CoordSystemPerWidgetMode[WidgetMode] = CoordSystem;
+}
+
 
 #undef LOCTEXT_NAMESPACE

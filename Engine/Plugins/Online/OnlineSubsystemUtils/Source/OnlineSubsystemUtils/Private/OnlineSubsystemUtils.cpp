@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemUtils.h"
 #include "Logging/LogScopedVerbosityOverride.h"
@@ -168,11 +168,7 @@ UVoipListenerSynthComponent* CreateVoiceSynthComponent(uint32 SampleRate)
 				SynthComponentPtr->SoundClass = LoadObject<USoundClass>(nullptr, *VoiPSoundClassName.ToString());
 			}
 
-			if (CvarAlwaysPlayVoipComponent)
-			{
-				SynthComponentPtr->bAlwaysPlay = true;
-			}
-
+			SynthComponentPtr->bAlwaysPlay = CvarAlwaysPlayVoipComponent;
 			SynthComponentPtr->Initialize(SampleRate);
 		}
 		else
@@ -202,11 +198,7 @@ UVoipListenerSynthComponent* CreateVoiceSynthComponent(UWorld* World, uint32 Sam
 					SynthComponentPtr->SoundClass = LoadObject<USoundClass>(nullptr, *VoiPSoundClassName.ToString());
 				}
 
-				if (CvarAlwaysPlayVoipComponent)
-				{
-					SynthComponentPtr->bAlwaysPlay = true;
-				}
-
+				SynthComponentPtr->bAlwaysPlay = CvarAlwaysPlayVoipComponent;
 				SynthComponentPtr->RegisterComponentWithWorld(World);
 				SynthComponentPtr->Initialize(SampleRate);
 			}

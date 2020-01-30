@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	
@@ -953,7 +953,7 @@ void UReflectionCaptureComponent::UpdatePreviewShape()
 }
 
 #if WITH_EDITOR
-bool UReflectionCaptureComponent::CanEditChange(const UProperty* Property) const
+bool UReflectionCaptureComponent::CanEditChange(const FProperty* Property) const
 {
 	bool bCanEditChange = Super::CanEditChange(Property);
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -42,17 +42,14 @@ public:
 	/** Paste the selected items. */
 	TSharedPtr< FUICommandInfo > PasteItems;
 
-	/** Paste Local Xfo", "Paste the local transforms. */
+	/** Paste Local Transform", "Paste the local transforms. */
 	TSharedPtr< FUICommandInfo > PasteLocalTransforms;
 
-	/** Paste Global Xfo", "Paste the global transforms. */
+	/** Paste Global Transform", "Paste the global transforms. */
 	TSharedPtr< FUICommandInfo > PasteGlobalTransforms;
 
 	/* Reset transform */
 	TSharedPtr<FUICommandInfo> ResetTransform;
-
-	/* Reset initial transform */
-	TSharedPtr<FUICommandInfo> ResetInitialTransform;
 
 	/* Reset space */
 	TSharedPtr<FUICommandInfo> ResetSpace;
@@ -65,6 +62,12 @@ public:
 
 	/* frames the selection in the tree */
 	TSharedPtr<FUICommandInfo> FrameSelection;
+
+	/* sets the bone transform using a gizmo */
+	TSharedPtr<FUICommandInfo> ControlBoneTransform;
+
+	/* sets the space transform using a gizmo */
+	TSharedPtr<FUICommandInfo> ControlSpaceTransform;
 
 	/**
 	 * Initialize commands

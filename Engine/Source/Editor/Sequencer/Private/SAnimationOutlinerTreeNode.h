@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -88,6 +88,11 @@ private:
 	 * @return The color used to draw the display name.
 	 */
 	FSlateColor GetDisplayNameColor() const;
+
+	/**
+	*@return The font used to draw the display name.
+	*/
+	FSlateFontInfo GetDisplayNameFont() const;
 
 	/**
 	 * @return The text displayed for the tool tip for the diplay name label. 

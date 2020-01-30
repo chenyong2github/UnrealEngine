@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -126,7 +126,8 @@ struct FVulkanCodeBackend : public FCodeBackend
 						FVulkanBindingTable& InBindingTable,
 						EHlslCompileTarget InTarget) :
 		FCodeBackend(InHlslCompileFlags, InTarget),
-		BindingTable(InBindingTable)
+		BindingTable(InBindingTable),
+		bExplicitDepthWrites(false)
 	{
 	}
 
@@ -154,6 +155,7 @@ struct FVulkanCodeBackend : public FCodeBackend
 	ir_function_signature* FindPatchConstantFunction(exec_list* Instructions, _mesa_glsl_parse_state* ParseState);
 
 	FVulkanBindingTable& BindingTable;
+	bool bExplicitDepthWrites;
 };
 
 // Intrinsic name

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MallocLeakDetection.cpp: Helper class to track memory allocations
@@ -449,8 +449,8 @@ void FMallocLeakDetection::Malloc(void* Ptr, SIZE_T Size)
 				bRecursive = true;
 				FCallstackTrack Callstack;
 				FPlatformStackWalk::CaptureStackBackTrace(Callstack.CallStack, FCallstackTrack::Depth);
-				Callstack.FirstFrame = GFrameCounter;
-				Callstack.LastFrame = GFrameCounter;
+				Callstack.FirstFrame = (uint32)GFrameCounter;
+				Callstack.LastFrame = (uint32)GFrameCounter;
 				Callstack.Size = Size;
 				AddCallstack(Callstack);
 				OpenPointers.Add(Ptr, Callstack);

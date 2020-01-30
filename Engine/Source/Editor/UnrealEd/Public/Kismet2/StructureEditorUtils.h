@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -91,9 +91,9 @@ public:
 
 	static FString GetVariableFriendlyName(const UUserDefinedStruct* Struct, FGuid VarGuid);
 
-	static FString GetVariableFriendlyNameForProperty(const UUserDefinedStruct* Struct, const UProperty* Property);
+	static FString GetVariableFriendlyNameForProperty(const UUserDefinedStruct* Struct, const FProperty* Property);
 
-	static UProperty* GetPropertyByFriendlyName(const UUserDefinedStruct* Struct, FString DisplayName);
+	static FProperty* GetPropertyByFriendlyName(const UUserDefinedStruct* Struct, FString DisplayName);
 
 	static FString GetVariableTooltip(const UUserDefinedStruct* Struct, FGuid VarGuid);
 	
@@ -137,9 +137,9 @@ public:
 
 	static const FStructVariableDescription* GetVarDescByGuid(const UUserDefinedStruct* Struct, FGuid VarGuid);
 
-	static FGuid GetGuidForProperty(const UProperty* Property);
+	static FGuid GetGuidForProperty(const FProperty* Property);
 
-	static UProperty* GetPropertyByGuid(const UUserDefinedStruct* Struct, FGuid VarGuid);
+	static FProperty* GetPropertyByGuid(const UUserDefinedStruct* Struct, FGuid VarGuid);
 
 	static FGuid GetGuidFromPropertyName(FName Name);
 

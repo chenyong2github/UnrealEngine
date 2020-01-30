@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,7 +9,7 @@
 
 class UControlRig;
 
-UENUM()
+UENUM(BlueprintType)
 enum class ERigBoneType : uint8
 {
 	Imported,
@@ -34,20 +34,20 @@ struct CONTROLRIG_API FRigBone: public FRigElement
 	}
 	virtual ~FRigBone() {}
 
-	UPROPERTY(VisibleAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = FRigElement)
 	FName ParentName;
 
 	UPROPERTY(transient)
 	int32 ParentIndex;
 
 	/* Initial global transform that is saved in this rig */
-	UPROPERTY(EditAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = FRigElement)
 	FTransform InitialTransform;
 
-	UPROPERTY(transient, VisibleAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, transient, EditAnywhere, Category = FRigElement)
 	FTransform GlobalTransform;
 
-	UPROPERTY(transient, VisibleAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadOnly, transient, EditAnywhere, Category = FRigElement)
 	FTransform LocalTransform;
 
 	/** dependent list - direct dependent for child or anything that needs to update due to this */
@@ -55,7 +55,7 @@ struct CONTROLRIG_API FRigBone: public FRigElement
 	TArray<int32> Dependents;
 
 	/** the source of the bone to differentiate procedurally generated, imported etc */
-	UPROPERTY(VisibleAnywhere, Category = FRigElement)
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = FRigElement)
 	ERigBoneType Type;
 
 	FORCEINLINE virtual ERigElementType GetElementType() const override
@@ -69,7 +69,7 @@ struct CONTROLRIG_API FRigBone: public FRigElement
 	}
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigBoneHierarchy
 {
 	GENERATED_BODY()
@@ -152,7 +152,7 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	FTransform GetInitialTransform(int32 InIndex) const;
 
 	// updates all of the internal caches
-	void Initialize();
+	void Initialize(bool bResetTransforms = true);
 
 	// clears the hierarchy and removes all content
 	void Reset();
@@ -160,14 +160,15 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	// resets all of the transforms back to the initial transform
 	void ResetTransforms();
 
+	// import skeleton
+	TArray<FRigElementKey> ImportSkeleton(const FReferenceSkeleton& InSkeleton, const FName& InNameSpace, bool bReplaceExistingBones, bool bRemoveObsoleteBones, bool bSelectBones, bool bNotify);
+
 #if WITH_EDITOR
 
 	bool Select(const FName& InName, bool bSelect = true);
 	bool ClearSelection();
 	TArray<FName> CurrentSelection() const;
 	bool IsSelected(const FName& InName) const;
-
-	TArray<FRigElementKey> ImportSkeleton(const FReferenceSkeleton& InSkeleton, const FName& InNameSpace, bool bReplaceExistingBones, bool bRemoveObsoleteBones, bool bSelectBones);
 
 	FRigElementAdded OnBoneAdded;
 	FRigElementRemoved OnBoneRemoved;
@@ -209,6 +210,9 @@ private:
 	int32 GetChildrenRecursive(const int32 InIndex, TArray<int32>& OutChildren, bool bRecursively) const;
 
 	void PropagateTransform(int32 InIndex);
-	
+
+	bool bSuspendNotifications;
+
 	friend struct FRigHierarchyContainer;
+	friend class UControlRigHierarchyModifier;
 };

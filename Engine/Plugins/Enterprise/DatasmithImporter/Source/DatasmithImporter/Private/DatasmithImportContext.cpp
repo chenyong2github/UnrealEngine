@@ -1,14 +1,14 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithImportContext.h"
 
 #include "DatasmithActorImporter.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
 #include "UI/DatasmithImportOptionsWindow.h"
 #include "Utility/DatasmithImporterUtils.h"
-#include "Translators/DatasmithTranslator.h"
 
 #include "Misc/FeedbackContext.h"
 #include "PackageTools.h"
@@ -103,7 +103,7 @@ void FDatasmithImportOptionHelper::LoadOptions(const TArray<UObject*>& ImportOpt
 		const TSharedPtr<FJsonObject>& OptionDataJsonObject = ImportSettingsJson->GetObjectField(Object->GetName());
 		if (OptionDataJsonObject.IsValid())
 		{
-			for (TFieldIterator<UProperty> It(Object->GetClass()); It; ++It)
+			for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
 			{
 				if (OptionDataJsonObject->HasField((*It)->GetNameCPP()))
 				{
@@ -136,7 +136,7 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 	, bUserCancelled(false)
 	, bIsAReimport(false)
 	, bImportedViaScript(false)
-	, Warn(nullptr)
+	, FeedbackContext(nullptr)
 	, AssetsContext(*this)
 	, ContextExtension(nullptr)
 	, Logger(LoggerName, LoggerLabel)
@@ -303,7 +303,7 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 		}
 	}
 
-	Warn = InWarn;
+	FeedbackContext = InWarn;
 	Scene = InScene;
 
 	// Initialize the filtered scene as a copy of the original scene. We will use it to then filter out items to import.
@@ -331,7 +331,7 @@ void FDatasmithImportContext::DisplayMessages()
 
 void FDatasmithImportContext::SetupBaseOptionsVisibility()
 {
-	if ( UProperty* ReimportOptionsProperty = FindField< UProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) ) )
+	if ( FProperty* ReimportOptionsProperty = FindField< FProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) ) )
 	{
 		if ( bIsAReimport )
 		{
@@ -348,7 +348,7 @@ void FDatasmithImportContext::SetupBaseOptionsVisibility()
 
 void FDatasmithImportContext::ResetBaseOptionsVisibility()
 {
-	UProperty* ReimportOptionsProperty = FindField< UProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) );
+	FProperty* ReimportOptionsProperty = FindField< FProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) );
 
 	if ( ReimportOptionsProperty )
 	{

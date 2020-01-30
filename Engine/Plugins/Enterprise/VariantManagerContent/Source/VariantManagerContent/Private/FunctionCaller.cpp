@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FunctionCaller.h"
 
@@ -48,6 +48,16 @@ bool FFunctionCaller::IsValidFunction(UK2Node_FunctionEntry* Function)
 	return PinCategory == UEdGraphSchema_K2::PC_Object || PinCategory == UEdGraphSchema_K2::PC_Interface;
 }
 
+uint32 FFunctionCaller::GetDisplayOrder() const
+{
+	return DisplayOrder;
+}
+
+void FFunctionCaller::SetDisplayOrder(uint32 InDisplayOrder)
+{
+	DisplayOrder = InDisplayOrder;
+}
+
 void FFunctionCaller::CacheFunctionName()
 {
 	UK2Node_FunctionEntry* Node = GetFunctionEntry();
@@ -94,5 +104,5 @@ bool FFunctionCaller::IsValidFunction(UFunction* Function)
 	}
 
 	// Parameter must be an object or interface property
-	return Function->PropertyLink->IsA<UObjectProperty>() || Function->PropertyLink->IsA<UInterfaceProperty>();
+	return Function->PropertyLink->IsA<FObjectProperty>() || Function->PropertyLink->IsA<FInterfaceProperty>();
 }

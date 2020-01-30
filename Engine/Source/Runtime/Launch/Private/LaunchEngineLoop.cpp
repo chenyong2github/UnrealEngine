@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LaunchEngineLoop.h"
 
@@ -879,10 +879,20 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 void LaunchCheckForCommandLineAliases(bool& bChanged)
 {
 	bChanged = false;
-	if (FPaths::IsProjectFilePathSet())
+	if (FPaths::ProjectDir().Len() > 0)
 	{
+		// Pass GeneratedConfigDir as nullptr instead of FPaths::GeneratedConfigDir() so that saved directory is not cached before -saveddir argument can be added
+		const TCHAR* GeneratedConfigDir = nullptr;
+
 		FConfigFile Config;
-		if (FConfigCacheIni::LoadExternalIniFile(Config, TEXT("CommandLineAliases"), nullptr, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Config")), false))
+		if (FConfigCacheIni::LoadExternalIniFile(Config, TEXT("CommandLineAliases"), nullptr, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Config")),
+			/*bIsBaseIniName=*/ false,
+			/*Platform=*/ nullptr,
+			/*bForceReload=*/ false,
+			/*bWriteDestIni=*/ false,
+			/*bAllowGeneratedIniWhenCooked=*/ true,
+			GeneratedConfigDir
+			))
 		{
 			if (FConfigSection* Section = Config.Find(TEXT("CommandLineAliases")))
 			{
@@ -937,12 +947,26 @@ void LaunchCheckForCmdLineFile(const TCHAR* CmdLine, bool& bChanged)
 				FString FileCmds;
 				if (FFileHelper::LoadFileToString(FileCmds, *InFilePath))
 				{
-					FileCmds = FString(TEXT(" ")) + FileCmds.TrimStartAndEnd();
-					if (FileCmds.Len() > 1)
+					FileCmds = FileCmds.TrimStartAndEnd();
+					if (FileCmds.Len() > 0)
 					{
-						UE_LOG(LogInit, Log, TEXT("Appending commandline from file: %s, %s"), *InFilePath, *FileCmds);
-						FCommandLine::Append(*FileCmds);
-						bChanged = true;
+						UE_LOG(LogInit, Log, TEXT("Inserting commandline from file: %s, %s"), *InFilePath, *FileCmds);
+						FString NewCommandLine = FCommandLine::Get();
+						FString Left;
+						FString Right;
+						if (NewCommandLine.Split(TEXT("-CmdLineFile="), &Left, &Right))
+						{
+							FString NextToken;
+							const TCHAR* Stream = *Right;
+							if (FParse::Token(Stream, NextToken, /*bUseEscape=*/ false))
+							{
+								Right = FString(Stream);
+							}
+
+							NewCommandLine = Left + TEXT(" ") + FileCmds + TEXT(" ") + Right;
+							FCommandLine::Set(*NewCommandLine);
+							bChanged = true;
+						}
 					}
 
 					return true;
@@ -952,7 +976,7 @@ void LaunchCheckForCmdLineFile(const TCHAR* CmdLine, bool& bChanged)
 			};
 
 			bool bFoundFile = TryProcessFile(CmdLineFile);
-			if (!bFoundFile && FPaths::IsProjectFilePathSet())
+			if (!bFoundFile && FPaths::ProjectDir().Len() > 0)
 			{
 				const FString ProjectDir = FPaths::ProjectDir();
 				bFoundFile = TryProcessFile(ProjectDir + CmdLineFile);
@@ -1381,6 +1405,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 
 	{
+		SCOPED_BOOT_TIMING("InitTrace")
+
 		FString Parameter;
 		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
 		{
@@ -1392,7 +1418,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			Trace::WriteTo(*Parameter);
 		}
 
-#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
 		else
 		{
 			// If we can detect a named event then we can try and auto-connect to UnrealInsights.
@@ -1572,7 +1598,10 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	// 
 #if PLATFORM_DESKTOP && !IS_MONOLITHIC
-	FModuleManager::Get().AddExtraBinarySearchPaths();
+	{
+		SCOPED_BOOT_TIMING("AddExtraBinarySearchPaths");
+		FModuleManager::Get().AddExtraBinarySearchPaths();
+	}
 #endif
 
 	// Initialize file manager
@@ -1580,14 +1609,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		SCOPED_BOOT_TIMING("IFileManager::Get().ProcessCommandLineOptions");
 		IFileManager::Get().ProcessCommandLineOptions();
 	}
-
-#if !(IS_PROGRAM || WITH_EDITOR)
-	// Initialize I/O dispatcher when using the new package loader
-	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
-	{
-		FIoDispatcher::Initialize(FPaths::ProjectDir());
-	}
-#endif
 
 	if (GIsGameAgnosticExe)
 	{
@@ -4096,6 +4117,8 @@ void FEngineLoop::Exit()
 	FModuleManager::Get().UnloadModulesAtShutdown();
 #endif // !ANDROID
 
+	IStreamingManager::Shutdown();
+
 	// Tear down the RHI.
 	RHIExitAndStopRHIThread();
 
@@ -4107,7 +4130,6 @@ void FEngineLoop::Exit()
 #endif
 
 	FTaskGraphInterface::Shutdown();
-	IStreamingManager::Shutdown();
 
 	FPlatformMisc::ShutdownTaggedStorage();
 
@@ -4140,13 +4162,16 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 						APlayerController* PlayerController = Iterator->Get();
 						if (PlayerController)
 						{
-							ULocalPlayer* LocalPlayer = Cast< ULocalPlayer >(PlayerController->Player);
-							if (LocalPlayer)
+							if (ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(PlayerController->Player))
 							{
-								FReply& TheReply = LocalPlayer->GetSlateOperations();
-								SlateApp.ProcessExternalReply(PathToWidget, TheReply, LocalPlayer->GetControllerId());
+								TOptional<int32> UserIndex = SlateApp.GetUserIndexForController(LocalPlayer->GetControllerId());
+								if (UserIndex.IsSet())
+								{
+									FReply& TheReply = LocalPlayer->GetSlateOperations();
+									SlateApp.ProcessExternalReply(PathToWidget, TheReply, UserIndex.GetValue());
 
-								TheReply = FReply::Unhandled();
+									TheReply = FReply::Unhandled();
+								}
 							}
 						}
 					}
@@ -5487,6 +5512,22 @@ bool FEngineLoop::AppInit( )
 
 	FEmbeddedCommunication::ForceTick(18);
 
+#if !(IS_PROGRAM || WITH_EDITOR)
+	// Initialize I/O dispatcher if available
+	if (!FParse::Param(FCommandLine::Get(), TEXT("noiodispatcher")))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
+
+		FIoStoreEnvironment IoStoreEnvironment;
+		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("Content") / TEXT("Containers"));
+		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
+		{
+			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize(IoStoreEnvironment);
+			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
+		}
+	}
+#endif
+
 	// Init other systems.
 	{
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnInit.Broadcast");
@@ -5564,6 +5605,10 @@ void FEngineLoop::AppPreExit( )
 
 void FEngineLoop::AppExit( )
 {
+#if !(IS_PROGRAM || WITH_EDITOR)
+	FIoDispatcher::Shutdown();
+#endif
+
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();

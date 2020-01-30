@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailItemNode.h"
 #include "DetailCategoryGroupNode.h"
@@ -129,9 +129,9 @@ void FDetailItemNode::GetFilterStrings(TArray<FString>& OutFilterStrings) const
 
 void FDetailItemNode::InitPropertyEditor()
 {
-	UProperty* NodeProperty = Customization.GetPropertyNode()->GetProperty();
+	FProperty* NodeProperty = Customization.GetPropertyNode()->GetProperty();
 
-	if( NodeProperty && (NodeProperty->IsA<UArrayProperty>() || NodeProperty->IsA<USetProperty>() || NodeProperty->IsA<UMapProperty>() ))
+	if( NodeProperty && (NodeProperty->IsA<FArrayProperty>() || NodeProperty->IsA<FSetProperty>() || NodeProperty->IsA<FMapProperty>() ))
 	{
 		const bool bUpdateFilteredNodes = false;
 		FSimpleDelegate OnRegenerateChildren = FSimpleDelegate::CreateSP( this, &FDetailItemNode::GenerateChildren, bUpdateFilteredNodes );

@@ -1,10 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Rigs/RigHierarchyContainer.h"
 #include "Math/Simulation/CRSimPointContainer.h"
+#include "Drawing/ControlRigDrawInstruction.h"
+#include "Drawing/ControlRigDrawContainer.h"
 #include "ControlRigDrawInterface.generated.h"
 
 UENUM()
@@ -20,9 +22,12 @@ namespace EControlRigDrawHierarchyMode
 	};
 }
 
-struct CONTROLRIG_API FControlRigDrawInterface
+USTRUCT()
+struct CONTROLRIG_API FControlRigDrawInterface : public FControlRigDrawContainer
 {
 public:
+
+	GENERATED_BODY()
 
 	FControlRigDrawInterface() {}
 	virtual ~FControlRigDrawInterface() {}
@@ -42,35 +47,6 @@ public:
 	void DrawPointSimulation(const FTransform& WorldOffset, const FCRSimPointContainer& Simulation, const FLinearColor& Color, float Thickness, float PrimitiveSize = 0.f, bool bDrawPointsAsSphere = false);
 
 private:
-
-	enum EDrawType
-	{
-		EDrawType_Point,
-		EDrawType_Lines,
-		EDrawType_LineStrip
-	};
-
-	struct FDrawIntruction
-	{
-		EDrawType DrawType;
-		TArray<FVector> Positions;
-		FLinearColor Color;
-		float Thickness;
-
-		FDrawIntruction()
-			: DrawType(EDrawType_Lines)
-			, Color(FLinearColor::Red)
-			, Thickness(0.f)
-		{}
-
-		FDrawIntruction(EDrawType InDrawType, const FLinearColor& InColor, float InThickness = 0.f)
-			: DrawType(InDrawType)
-			, Color(InColor)
-			, Thickness(InThickness)
-		{}
-	};
-
-	TArray<FDrawIntruction> DrawInstructions;
 
 	friend class FControlRigEditMode;
 	friend class UControlRig;

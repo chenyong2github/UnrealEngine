@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditorDetailCustomization.h"
 #include "Widgets/Text/STextBlock.h"
@@ -755,7 +755,7 @@ void FMaterialDetailCustomization::CustomizeDetails( IDetailLayoutBuilder& Detai
 
 		for( TSharedRef<IPropertyHandle>& PropertyHandle : AllProperties )
 		{
-			UProperty* Property = PropertyHandle->GetProperty();
+			FProperty* Property = PropertyHandle->GetProperty();
 			FName PropertyName = Property->GetFName();
 
 			if (bUIMaterial)
@@ -800,7 +800,7 @@ void FMaterialDetailCustomization::CustomizeDetails( IDetailLayoutBuilder& Detai
 
 			for (TSharedRef<IPropertyHandle>& PropertyHandle : AllProperties)
 			{
-				UProperty* Property = PropertyHandle->GetProperty();
+				FProperty* Property = PropertyHandle->GetProperty();
 				FName PropertyName = Property->GetFName();
 
 				if (PropertyName != GET_MEMBER_NAME_CHECKED(UMaterial, bUseFullPrecision)) 

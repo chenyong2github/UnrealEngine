@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,7 +13,7 @@ class STimeRange : public ITimeSlider
 {
 public:
 	SLATE_BEGIN_ARGS(STimeRange)
-		: _ShowWorkingRange(true), _ShowViewRange(false), _ShowPlaybackRange(false)
+		: _ShowWorkingRange(true), _ShowViewRange(false), _ShowPlaybackRange(true)
 	{}
 		/** Whether to show the working range */
 		SLATE_ARGUMENT( bool, ShowWorkingRange )
@@ -21,6 +21,12 @@ public:
 		SLATE_ARGUMENT( bool, ShowViewRange )
 		/** Whether to show the playback range */
 		SLATE_ARGUMENT( bool, ShowPlaybackRange )
+		/** Whether to enable the working range */
+		SLATE_ARGUMENT( bool, EnableWorkingRange )
+		/** Whether to enable the view range */
+		SLATE_ARGUMENT( bool, EnableViewRange )
+		/** Whether to enable the playback range */
+		SLATE_ARGUMENT( bool, EnablePlaybackRange )
 		/* Content to display inside the time range */
 		SLATE_DEFAULT_SLOT( FArguments, CenterContent )
 	SLATE_END_ARGS()

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Particles/ParticleSystem.h"
+#include "Particles/ParticlePerfStats.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraEmitterInstance.h"
@@ -62,21 +63,54 @@ struct FNiagaraEmitterCompiledData
 };
 
 USTRUCT()
+struct FNiagaraParameterDataSetBinding
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	int32 ParameterOffset;
+
+	UPROPERTY()
+	int32 DataSetComponentOffset;
+};
+
+USTRUCT()
+struct FNiagaraParameterDataSetBindingCollection
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBinding> FloatOffsets;
+
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBinding> Int32Offsets;
+
+#if WITH_EDITORONLY_DATA
+	template<typename BufferType>
+	void Build(const FNiagaraDataSetCompiledData& DataSet)
+	{
+		BuildInternal(BufferType::GetVariables(), DataSet, TEXT(""), TEXT(""));
+	}
+
+	template<typename BufferType>
+	void Build(const FNiagaraDataSetCompiledData& DataSet, const FString& NamespaceBase, const FString& NamespaceReplacement)
+	{
+		BuildInternal(BufferType::GetVariables(), DataSet, NamespaceBase, NamespaceReplacement);
+	}
+
+protected:
+	void BuildInternal(const TArray<FNiagaraVariable>& ParameterVars, const FNiagaraDataSetCompiledData& DataSet, const FString& NamespaceBase, const FString& NamespaceReplacement);
+
+#endif
+};
+
+USTRUCT()
 struct FNiagaraSystemCompiledData
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	TArray<FNiagaraVariable> NumParticleVars;
-
-	UPROPERTY()
-	TArray<FNiagaraVariable> TotalSpawnedParticlesVars;
-
-	UPROPERTY()
 	FNiagaraParameterStore InstanceParamStore;
-
-	UPROPERTY()
-	TArray<FNiagaraVariable> SpawnCountScaleVars;
 
 	UPROPERTY()
 	FNiagaraDataSetCompiledData DataSetCompiledData;
@@ -86,6 +120,24 @@ struct FNiagaraSystemCompiledData
 
 	UPROPERTY()
 	FNiagaraDataSetCompiledData UpdateInstanceParamsDataSetCompiledData;
+
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceGlobalBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceSystemBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceOwnerBinding;
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBindingCollection> SpawnInstanceEmitterBindings;
+
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceGlobalBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceSystemBinding;
+	UPROPERTY()
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceOwnerBinding;
+	UPROPERTY()
+	TArray<FNiagaraParameterDataSetBindingCollection> UpdateInstanceEmitterBindings;
 };
 
 USTRUCT()
@@ -137,7 +189,7 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void PreSave(const class ITargetPlatform * TargetPlatform) override;
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyThatWillChange)override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
 #endif
@@ -241,6 +293,10 @@ public:
 	UPROPERTY()
 	uint32 ThumbnailImageOutOfDate : 1;
 
+	/* If this system is exposed to the library. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	bool bExposeToLibrary;
+
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	bool bIsTemplateAsset;
 
@@ -249,6 +305,9 @@ public:
 
 	bool GetIsolateEnabled() const;
 	void SetIsolateEnabled(bool bIsolate);
+	
+	UPROPERTY(transient)
+	FNiagaraSystemUpdateContext UpdateContext;
 #endif
 
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
@@ -262,7 +321,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	bool UsesEmitter(const UNiagaraEmitter* Emitter) const;
 	bool UsesScript(const UNiagaraScript* Script)const; 
-	void InvalidateCachedCompileIds();
+	void ForceGraphToRecompileOnNextCheck();
 
 	static void RequestCompileForEmitter(UNiagaraEmitter* InEmitter);
 
@@ -346,7 +405,6 @@ private:
 	void UpdatePostCompileDIInfo();
 
 protected:
-
 	UPROPERTY(EditAnywhere, Category = "System")
 	UNiagaraEffectType* EffectType;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EventDefaults.h"
 #include "EventsData.h"
@@ -72,8 +72,42 @@ namespace Chaos
 
 						// Since Clustered GCs can be unioned the particleIndex representing the union 
 						// is not associated with a PhysicsProxy
-						if (Constraint.Particle[0]->Handle()->GTGeometryParticle()->Proxy != nullptr)
+						IPhysicsProxyBase* Proxy = Solver->GetProxy(Constraint.Particle[0]->Handle());
+						if (Proxy != nullptr)
 
+						{
+							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+							{
+								TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+								TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
+								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
+
+								// presently when a rigidbody or kinematic hits static geometry then Body1 is null
+								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
+
+								if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
+								{
+									if (ensure(!Constraint.GetLocation().ContainsNaN() &&
+										!Constraint.GetNormal().ContainsNaN()) &&
+										!Body0->V().ContainsNaN() &&
+										!Body0->W().ContainsNaN() &&
+										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
+									{
+										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+										NumValidCollisions++;
+									}
+								}
+							}
+						}
+					}
+					else if (ContactHandle->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::MultiPoint)
+					{
+						const TRigidBodyMultiPointContactConstraint<float, 3>& Constraint = ContactHandle->GetMultiPointContact();
+
+						// Since Clustered GCs can be unioned the particleIndex representing the union 
+						// is not associated with a PhysicsProxy
+						IPhysicsProxyBase* Proxy = Solver->GetProxy(Constraint.Particle[0]->Handle());
+						if (Proxy != nullptr)
 						{
 							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 							{
@@ -105,76 +139,153 @@ namespace Chaos
 
 				if(ValidCollisionHandles.Num() > 0)
 				{
-					for(int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
+					for (int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
 					{
-						Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
-
-						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
-						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-
-						TCollisionData<float, 3> Data;
-						Data.Location = Constraint.GetLocation();
-						Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
-						Data.Normal = Constraint.GetNormal();
-						Data.PenetrationDepth = Constraint.GetPhi();
-						Data.Particle = Particle0->Handle()->GTGeometryParticle();
-						Data.Levelset = Particle1->Handle()->GTGeometryParticle();
-
-						// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
-						// do we still need these now we have pointers to particles returned?
-						TPBDRigidParticleHandle<float, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
-						if(PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
+						if (ValidCollisionHandles[IdxCollision]->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::SinglePoint)
 						{
-							Data.Velocity1 = PBDRigid0->V();
-							Data.AngularVelocity1 = PBDRigid0->W();
-							Data.Mass1 = PBDRigid0->M();
-						}
+							Chaos::TPBDCollisionConstraints<float, 3>::FPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetPointContact();
 
-						TPBDRigidParticleHandle<float, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
-						if(PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
-						{
-							Data.Velocity2 = PBDRigid1->V();
-							Data.AngularVelocity2 = PBDRigid1->W();
-							Data.Mass2 = PBDRigid1->M();
-						}
+							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
 
-						IPhysicsProxyBase* const PhysicsProxy = Data.Particle->Proxy;
-						IPhysicsProxyBase* const OtherPhysicsProxy = Data.Levelset->Proxy;
-						//Data.Material1 = nullptr; // #todo: provide UPhysicalMaterial for Particle
-						//Data.Material2 = nullptr; // #todo: provide UPhysicalMaterial for Levelset
+							TCollisionData<float, 3> Data;
+							Data.Location = Constraint.GetLocation();
+							Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
+							Data.Normal = Constraint.GetNormal();
+							Data.PenetrationDepth = Constraint.GetPhi();
+							Data.ParticleProxy = Solver->GetProxy(Particle0->Handle());
+							Data.LevelsetProxy = Solver->GetProxy(Particle1->Handle());
 
-						const FSolverCollisionEventFilter* SolverCollisionEventFilter = Solver->GetEventFilters()->GetCollisionFilter();
-						if(!SolverCollisionEventFilter->Enabled() || SolverCollisionEventFilter->Pass(Data))
+							// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
+							// do we still need these now we have pointers to particles returned?
+							TPBDRigidParticleHandle<float, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+							if (PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
+							{
+								Data.Velocity1 = PBDRigid0->V();
+								Data.AngularVelocity1 = PBDRigid0->W();
+								Data.Mass1 = PBDRigid0->M();
+							}
 
-						{
-							const int32 NewIdx = AllCollisionsDataArray.Add(TCollisionData<float, 3>());
-							TCollisionData<float, 3>& CollisionDataArrayItem = AllCollisionsDataArray[NewIdx];
+							TPBDRigidParticleHandle<float, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+							if (PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
+							{
+								Data.Velocity2 = PBDRigid1->V();
+								Data.AngularVelocity2 = PBDRigid1->W();
+								Data.Mass2 = PBDRigid1->M();
+							}
 
-							CollisionDataArrayItem = Data;
+							IPhysicsProxyBase* const PhysicsProxy = Data.ParticleProxy;
+							IPhysicsProxyBase* const OtherPhysicsProxy = Data.LevelsetProxy;
+							//Data.Material1 = nullptr; // #todo: provide UPhysicalMaterial for Particle
+							//Data.Material2 = nullptr; // #todo: provide UPhysicalMaterial for Levelset
+
+							const FSolverCollisionEventFilter* SolverCollisionEventFilter = Solver->GetEventFilters()->GetCollisionFilter();
+							if (!SolverCollisionEventFilter->Enabled() || SolverCollisionEventFilter->Pass(Data))
+
+							{
+								const int32 NewIdx = AllCollisionsDataArray.Add(TCollisionData<float, 3>());
+								TCollisionData<float, 3>& CollisionDataArrayItem = AllCollisionsDataArray[NewIdx];
+
+								CollisionDataArrayItem = Data;
 
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
-							// If Constraint.ParticleIndex is a cluster store an index for a mesh in this cluster
-							if(ClusterIdsArray[Constraint.ParticleIndex].NumChildren > 0)
-							{
-								int32 ParticleIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.ParticleIndex);
-								ensure(ParticleIndexMesh != INDEX_NONE);
-								CollisionDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
-							}
-							// If Constraint.LevelsetIndex is a cluster store an index for a mesh in this cluster
-							if(ClusterIdsArray[Constraint.LevelsetIndex].NumChildren > 0)
-							{
-								int32 LevelsetIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.LevelsetIndex);
-								ensure(LevelsetIndexMesh != INDEX_NONE);
-								CollisionDataArrayItem.LevelsetIndexMesh = LevelsetIndexMesh;
-							}
+								// If Constraint.ParticleIndex is a cluster store an index for a mesh in this cluster
+								if (ClusterIdsArray[Constraint.ParticleIndex].NumChildren > 0)
+								{
+									int32 ParticleIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.ParticleIndex);
+									ensure(ParticleIndexMesh != INDEX_NONE);
+									CollisionDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
+								}
+								// If Constraint.LevelsetIndex is a cluster store an index for a mesh in this cluster
+								if (ClusterIdsArray[Constraint.LevelsetIndex].NumChildren > 0)
+								{
+									int32 LevelsetIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.LevelsetIndex);
+									ensure(LevelsetIndexMesh != INDEX_NONE);
+									CollisionDataArrayItem.LevelsetIndexMesh = LevelsetIndexMesh;
+								}
 #endif
 
-							// Add to AllCollisionsIndicesByPhysicsProxy
-							AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
+								// Add to AllCollisionsIndicesByPhysicsProxy
+								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
 
-							if(OtherPhysicsProxy && OtherPhysicsProxy != PhysicsProxy)
+								if (OtherPhysicsProxy && OtherPhysicsProxy != PhysicsProxy)
+								{
+									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, true));
+								}
+							}
+						}
+
+						else if (ValidCollisionHandles[IdxCollision]->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::MultiPoint)
+						{
+							Chaos::TPBDCollisionConstraints<float, 3>::FMultiPointContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetMultiPointContact();
+
+							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
+
+							TCollisionData<float, 3> Data;
+							Data.Location = Constraint.GetLocation();
+							Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
+							Data.Normal = Constraint.GetNormal();
+							Data.PenetrationDepth = Constraint.GetPhi();
+							Data.ParticleProxy = Solver->GetProxy(Particle0->Handle());
+							Data.LevelsetProxy = Solver->GetProxy(Particle1->Handle());
+
+							// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
+							// do we still need these now we have pointers to particles returned?
+							TPBDRigidParticleHandle<float, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+							if (PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
 							{
-								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, true));
+								Data.Velocity1 = PBDRigid0->V();
+								Data.AngularVelocity1 = PBDRigid0->W();
+								Data.Mass1 = PBDRigid0->M();
+							}
+
+							TPBDRigidParticleHandle<float, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+							if (PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
+							{
+								Data.Velocity2 = PBDRigid1->V();
+								Data.AngularVelocity2 = PBDRigid1->W();
+								Data.Mass2 = PBDRigid1->M();
+							}
+
+							IPhysicsProxyBase* const PhysicsProxy = Data.ParticleProxy;
+							IPhysicsProxyBase* const OtherPhysicsProxy = Data.LevelsetProxy;
+							//Data.Material1 = nullptr; // #todo: provide UPhysicalMaterial for Particle
+							//Data.Material2 = nullptr; // #todo: provide UPhysicalMaterial for Levelset
+
+							const FSolverCollisionEventFilter* SolverCollisionEventFilter = Solver->GetEventFilters()->GetCollisionFilter();
+							if (!SolverCollisionEventFilter->Enabled() || SolverCollisionEventFilter->Pass(Data))
+
+							{
+								const int32 NewIdx = AllCollisionsDataArray.Add(TCollisionData<float, 3>());
+								TCollisionData<float, 3>& CollisionDataArrayItem = AllCollisionsDataArray[NewIdx];
+
+								CollisionDataArrayItem = Data;
+
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+								// If Constraint.ParticleIndex is a cluster store an index for a mesh in this cluster
+								if (ClusterIdsArray[Constraint.ParticleIndex].NumChildren > 0)
+								{
+									int32 ParticleIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.ParticleIndex);
+									ensure(ParticleIndexMesh != INDEX_NONE);
+									CollisionDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
+								}
+								// If Constraint.LevelsetIndex is a cluster store an index for a mesh in this cluster
+								if (ClusterIdsArray[Constraint.LevelsetIndex].NumChildren > 0)
+								{
+									int32 LevelsetIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.LevelsetIndex);
+									ensure(LevelsetIndexMesh != INDEX_NONE);
+									CollisionDataArrayItem.LevelsetIndexMesh = LevelsetIndexMesh;
+								}
+#endif
+
+								// Add to AllCollisionsIndicesByPhysicsProxy
+								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
+
+								if (OtherPhysicsProxy && OtherPhysicsProxy != PhysicsProxy)
+								{
+									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, true));
+								}
 							}
 						}
 					}
@@ -364,27 +475,32 @@ namespace Chaos
 			AllSleepIndicesByPhysicsProxy.Reset();
 
 			Chaos::FPBDRigidsSolver* NonConstSolver = (Chaos::FPBDRigidsSolver*)(Solver);
+
+			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadLock();
 			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
-			TSleepData<float, 3> SleepData;
-			while(SolverSleepingData.Dequeue(SleepData))
+			for(const TSleepData<float, 3>& SleepData : SolverSleepingData)
 			{
 				if(SleepData.Particle)
 				{
+					IPhysicsProxyBase* PhysicsProxy = NonConstSolver->GetProxy(SleepData.Particle);
+
 					TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
-					if(Particle->Proxy != nullptr)
+					if(Particle != nullptr && PhysicsProxy != nullptr)
 					{
 						int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
 						TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
 						SleepingDataArrayItem.Particle = Particle;
 						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 
-						IPhysicsProxyBase* PhysicsProxy = Particle->Proxy;
 						AllSleepIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(NewIdx);
 					}
 				}
 			}
+			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadUnlock();
+
+			NonConstSolver->Particles.GetDynamicParticles().ClearSleepData();
+
 
 		});
 	}
-
 }

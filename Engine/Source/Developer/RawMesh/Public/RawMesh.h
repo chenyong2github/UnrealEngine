@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -110,7 +110,6 @@ public:
 	/** Default constructor. */
 	RAWMESH_API FRawMeshBulkData();
 
-#if WITH_EDITORONLY_DATA
 	/** Serialization. */
 	RAWMESH_API void Serialize(class FArchive& Ar, class UObject* Owner);
 
@@ -133,5 +132,4 @@ public:
 
 	/** Returns true if no bulk data is available for this mesh. */
 	RAWMESH_API void Empty();
-#endif // #if WITH_EDITORONLY_DATA
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CEF/CEFJSStructSerializerBackend.h"
 #if WITH_CEF3
@@ -8,7 +8,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Misc/CommandLine.h"
 
-static FString GetBindingName(const TSharedPtr<FCEFJSScripting>& Scripting, const UProperty* ValueProperty)
+static FString GetBindingName(const TSharedPtr<FCEFJSScripting>& Scripting, const FProperty* ValueProperty)
 {
 	//@todo samz - HACK
 	static const bool bIsKairos = FParse::Param(FCommandLine::Get(), TEXT("KairosOnly"));
@@ -195,21 +195,21 @@ void FCEFJSStructSerializerBackend::WriteComment(const FString& Comment)
 void FCEFJSStructSerializerBackend::WriteProperty(const FStructSerializerState& State, int32 ArrayIndex)
 {
 	// booleans
-	if (State.ValueType == UBoolProperty::StaticClass())
+	if (State.FieldType == FBoolProperty::StaticClass())
 	{
-		Add(State, CastChecked<UBoolProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, CastFieldChecked<FBoolProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// unsigned bytes & enumerations
-	else if (State.ValueType == UEnumProperty::StaticClass())
+	else if (State.FieldType == FEnumProperty::StaticClass())
 	{
-		UEnumProperty* EnumProperty = CastChecked<UEnumProperty>(State.ValueProperty);
+		FEnumProperty* EnumProperty = CastFieldChecked<FEnumProperty>(State.ValueProperty);
 
 		Add(State, EnumProperty->GetEnum()->GetNameStringByValue(EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(EnumProperty->ContainerPtrToValuePtr<void>(State.ValueData, ArrayIndex))));
 	}
-	else if (State.ValueType == UByteProperty::StaticClass())
+	else if (State.FieldType == FByteProperty::StaticClass())
 	{
-		UByteProperty* ByteProperty = CastChecked<UByteProperty>(State.ValueProperty);
+		FByteProperty* ByteProperty = CastFieldChecked<FByteProperty>(State.ValueProperty);
 
 		if (ByteProperty->IsEnum())
 		{
@@ -222,69 +222,69 @@ void FCEFJSStructSerializerBackend::WriteProperty(const FStructSerializerState& 
 	}
 
 	// floating point numbers
-	else if (State.ValueType == UDoubleProperty::StaticClass())
+	else if (State.FieldType == FDoubleProperty::StaticClass())
 	{
-		Add(State, CastChecked<UDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, CastFieldChecked<FDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UFloatProperty::StaticClass())
+	else if (State.FieldType == FFloatProperty::StaticClass())
 	{
-		Add(State, CastChecked<UFloatProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, CastFieldChecked<FFloatProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// signed integers
-	else if (State.ValueType == UIntProperty::StaticClass())
+	else if (State.FieldType == FIntProperty::StaticClass())
 	{
-		Add(State, (int32)CastChecked<UIntProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, (int32)CastFieldChecked<FIntProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UInt8Property::StaticClass())
+	else if (State.FieldType == FInt8Property::StaticClass())
 	{
-		Add(State, (int32)CastChecked<UInt8Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, (int32)CastFieldChecked<FInt8Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UInt16Property::StaticClass())
+	else if (State.FieldType == FInt16Property::StaticClass())
 	{
-		Add(State, (int32)CastChecked<UInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, (int32)CastFieldChecked<FInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UInt64Property::StaticClass())
+	else if (State.FieldType == FInt64Property::StaticClass())
 	{
-		Add(State, (double)CastChecked<UInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, (double)CastFieldChecked<FInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// unsigned integers
-	else if (State.ValueType == UUInt16Property::StaticClass())
+	else if (State.FieldType == FUInt16Property::StaticClass())
 	{
-		Add(State, (int32)CastChecked<UUInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, (int32)CastFieldChecked<FUInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UUInt32Property::StaticClass())
+	else if (State.FieldType == FUInt32Property::StaticClass())
 	{
-		Add(State, (double)CastChecked<UUInt32Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, (double)CastFieldChecked<FUInt32Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UUInt64Property::StaticClass())
+	else if (State.FieldType == FUInt64Property::StaticClass())
 	{
-		Add(State, (double)CastChecked<UUInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, (double)CastFieldChecked<FUInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// names & strings
-	else if (State.ValueType == UNameProperty::StaticClass())
+	else if (State.FieldType == FNameProperty::StaticClass())
 	{
-		Add(State, CastChecked<UNameProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex).ToString());
+		Add(State, CastFieldChecked<FNameProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex).ToString());
 	}
-	else if (State.ValueType == UStrProperty::StaticClass())
+	else if (State.FieldType == FStrProperty::StaticClass())
 	{
-		Add(State, CastChecked<UStrProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, CastFieldChecked<FStrProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UTextProperty::StaticClass())
+	else if (State.FieldType == FTextProperty::StaticClass())
 	{
-		Add(State, CastChecked<UTextProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex).ToString());
+		Add(State, CastFieldChecked<FTextProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex).ToString());
 	}
 
 	// classes & objects
-	else if (State.ValueType == UClassProperty::StaticClass())
+	else if (State.FieldType == FClassProperty::StaticClass())
 	{
-		Add(State, CastChecked<UClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex)->GetPathName());
+		Add(State, CastFieldChecked<FClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex)->GetPathName());
 	}
-	else if (State.ValueType == UObjectProperty::StaticClass())
+	else if (State.FieldType == FObjectProperty::StaticClass())
 	{
-		Add(State, CastChecked<UObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, CastFieldChecked<FObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// unsupported property type

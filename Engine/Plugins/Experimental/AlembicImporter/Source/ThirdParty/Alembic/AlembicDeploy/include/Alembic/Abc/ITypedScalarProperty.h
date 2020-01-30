@@ -215,11 +215,11 @@ public:
 typedef ITypedScalarProperty<BooleanTPTraits>         IBoolProperty;
 typedef ITypedScalarProperty<Uint8TPTraits>           IUcharProperty;
 typedef ITypedScalarProperty<Int8TPTraits>            ICharProperty;
-typedef ITypedScalarProperty<Uint16TPTraits>          IUInt16Property;
+typedef ITypedScalarProperty<Uint16TPTraits>          IFInt16Property;
 typedef ITypedScalarProperty<Int16TPTraits>           IInt16Property;
 typedef ITypedScalarProperty<Uint32TPTraits>          IUInt32Property;
 typedef ITypedScalarProperty<Int32TPTraits>           IInt32Property;
-typedef ITypedScalarProperty<Uint64TPTraits>          IUInt64Property;
+typedef ITypedScalarProperty<Uint64TPTraits>          IFInt64Property;
 typedef ITypedScalarProperty<Int64TPTraits>           IInt64Property;
 typedef ITypedScalarProperty<Float16TPTraits>         IHalfProperty;
 typedef ITypedScalarProperty<Float32TPTraits>         IFloatProperty;

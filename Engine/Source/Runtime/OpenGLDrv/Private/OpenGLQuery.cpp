@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGLQuery.cpp: OpenGL query RHI implementation.
@@ -1146,17 +1146,11 @@ void FOpenGLDisjointTimeStampQuery::ReleaseResources()
 
 FGPUFenceRHIRef FOpenGLDynamicRHI::RHICreateGPUFence(const FName &Name)
 {
-#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	return new FOpenGLGPUFence(Name);
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Fences are only available in OpenGL3 or later"));
-	return nullptr;
-#endif
 }
 
 FOpenGLGPUFence::~FOpenGLGPUFence()
 {
-#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	if (bValidSync)
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -1165,15 +1159,10 @@ FOpenGLGPUFence::~FOpenGLGPUFence()
 		FOpenGL::DeleteSync(Fence);
 		RHITHREAD_GLCOMMAND_EPILOGUE_NORETURN();
 	}
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Fences are only available in OpenGL3 or later"));
-#endif
 }
 
 void FOpenGLGPUFence::Clear()
 {
-#if OPENGL_GL3 || USE_ANDROID_OPENGL
-
 	if (bValidSync)
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -1183,13 +1172,9 @@ void FOpenGLGPUFence::Clear()
 		bValidSync = false;
 		RHITHREAD_GLCOMMAND_EPILOGUE();
 	}
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Fences are only available in OpenGL3 or later"));
-#endif
 }
 bool FOpenGLGPUFence::Poll() const
 {
-#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	if (!bValidSync)
 	{
 		return false;
@@ -1203,15 +1188,10 @@ bool FOpenGLGPUFence::Poll() const
 	return (Result == FOpenGLBase::FR_AlreadySignaled || Result == FOpenGLBase::FR_ConditionSatisfied);
 
 	RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(bool);
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Fences are only available in OpenGL3 or later"));
-	return false;
-#endif
 }
 
 void FOpenGLGPUFence::WriteInternal()
 {
-#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
@@ -1225,7 +1205,4 @@ void FOpenGLGPUFence::WriteInternal()
 	Fence = FOpenGL::FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 	bValidSync = true;
 	RHITHREAD_GLCOMMAND_EPILOGUE();
-#else
-	UE_LOG(LogRHI, Fatal, TEXT("Fences are only available in OpenGL3 or later"));
-#endif
 }

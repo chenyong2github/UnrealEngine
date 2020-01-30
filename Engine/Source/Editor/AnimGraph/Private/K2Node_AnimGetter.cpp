@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_AnimGetter.h"
 #include "Animation/AnimBlueprint.h"
@@ -343,9 +343,9 @@ bool UK2Node_AnimGetter::GetterRequiresParameter(const UFunction* Getter, FStrin
 {
 	bool bRequiresParameter = false;
 
-	for(TFieldIterator<UProperty> PropIt(Getter); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	for(TFieldIterator<FProperty> PropIt(Getter); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 	{
-		UProperty* Prop = *PropIt;
+		FProperty* Prop = *PropIt;
 		
 		if(Prop->GetName() == ParamName)
 		{

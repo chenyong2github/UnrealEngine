@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -127,6 +127,13 @@ public:
 	 * @param InLevelFileName  Full level filename from which the base name will be stripped and used to make the window title
 	 */
 	virtual void SetLevelNameForWindowTitle(const FString& InLevelFileName) = 0;
+
+	/**
+	 * Overrides the title of the application that's displayed in the title bar area and other locations
+	 *
+	 * @param	NewOverriddenApplicationTitle	The text to be displayed in the window title, or empty to use the application's default text
+	 */
+	virtual void SetApplicationTitleOverride(const FText& NewOverriddenApplicationTitle) = 0;
 
 	/**
 	 * Returns a friendly string name for the currently loaded persistent level.

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceHairStrands.h"
 #include "NiagaraShader.h"
@@ -19,7 +19,7 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceHairStrands"
 
-static const int32 MaxDelay = 8;
+static const int32 MaxDelay = 5;
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -95,6 +95,10 @@ static const FName ProjectBendRodMaterialName(TEXT("ProjectBendRodMaterial"));
 
 static const FName SolveStaticCollisionConstraintName(TEXT("SolveStaticCollisionConstraint"));
 static const FName ProjectStaticCollisionConstraintName(TEXT("ProjectStaticCollisionConstraint"));
+
+static const FName SetupSoftCollisionConstraintName(TEXT("SetupSoftCollisionConstraint"));
+static const FName SolveSoftCollisionConstraintName(TEXT("SolveSoftCollisionConstraint"));
+static const FName ProjectSoftCollisionConstraintName(TEXT("ProjectSoftCollisionConstraint"));
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -226,7 +230,7 @@ class FCopyBoundingBoxCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, NumElements)
-		SHADER_PARAMETER_SRV(Buffer, BoundingBoxBuffer)
+		SHADER_PARAMETER_UAV(RWBuffer, BoundingBoxBuffer)
 		SHADER_PARAMETER_UAV(RWBuffer, OutNodeBoundBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -243,61 +247,11 @@ public:
 	}
 };
 
-class FResetBoundingBoxCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FResetBoundingBoxCS);
-	SHADER_USE_PARAMETER_STRUCT(FResetBoundingBoxCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, NumElements)
-		SHADER_PARAMETER_UAV(RWBuffer, OutBoundingBoxBuffer)
-		END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
-	}
-};
-
-
-IMPLEMENT_GLOBAL_SHADER(FResetBoundingBoxCS, "/Plugin/Experimental/HairStrands/Private/NiagaraResetBoundingBox.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FCopyBoundingBoxCS, "/Plugin/Experimental/HairStrands/Private/NiagaraCopyBoundingBox.usf", "MainCS", SF_Compute);
-
-static void AddResetBoundingBoxPass(
-	FRDGBuilder& GraphBuilder,
-	FRHIUnorderedAccessView* OutBoundingBoxBuffer)
-{
-	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
-	const uint32 NumElements = 1;
-
-	FResetBoundingBoxCS::FParameters* Parameters = GraphBuilder.AllocParameters<FResetBoundingBoxCS::FParameters>();
-	Parameters->OutBoundingBoxBuffer = OutBoundingBoxBuffer;
-	Parameters->NumElements = NumElements;
-	
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-
-	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
-	check(DispatchCount <= 65535);
-
-	TShaderMapRef<FResetBoundingBoxCS> ComputeShader(ShaderMap);
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("ResetBoundingBox"),
-		*ComputeShader,
-		Parameters,
-		FIntVector(DispatchCount, 1, 1));
-}
 
 static void AddCopyBoundingBoxPass(
 	FRDGBuilder& GraphBuilder,
-	FRHIShaderResourceView* BoundingBoxBuffer,
+	FRHIUnorderedAccessView* BoundingBoxBuffer,
 	FRHIUnorderedAccessView* OutNodeBoundBuffer)
 {
 	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
@@ -311,7 +265,6 @@ static void AddCopyBoundingBoxPass(
 	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
-	check(DispatchCount <= 65535);
 
 	TShaderMapRef<FCopyBoundingBoxCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
@@ -324,52 +277,158 @@ static void AddCopyBoundingBoxPass(
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIHairStrandsBuffer::SetHairAsset(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource* HairStrandsRestResource, 
+class FDirectCopyBoundingBoxCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FDirectCopyBoundingBoxCS, Global);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
+	}
+
+	/** Default constructor. */
+	FDirectCopyBoundingBoxCS() {}
+
+	/** Initialization constructor. */
+	explicit FDirectCopyBoundingBoxCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
+
+	/** Serialization. */
+	virtual bool Serialize(FArchive& Ar) override;
+
+	/**
+	 * Set parameters.
+	 */
+	void SetParameters(
+		FRHICommandList& RHICmdList,
+		FRHIUnorderedAccessView* InputBoundingBox,
+		FRHIUnorderedAccessView* OutputBoundingBox,
+		int32 NumElements);
+
+	/**
+	 * Unbinds any buffers that have been bound.
+	 */
+	void UnbindBuffers(FRHICommandList& RHICmdList);
+
+private:
+
+	FShaderParameter NumElements;
+	FShaderResourceParameter InputBoundingBox;
+	FShaderResourceParameter OutputBoundingBox;
+};
+
+IMPLEMENT_SHADER_TYPE(, FDirectCopyBoundingBoxCS, TEXT("/Plugin/Experimental/HairStrands/Private/NiagaraCopyBoundingBox.usf"), TEXT("MainCS"), SF_Compute);
+
+FDirectCopyBoundingBoxCS::FDirectCopyBoundingBoxCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FGlobalShader(Initializer)
+{
+	NumElements.Bind(Initializer.ParameterMap, TEXT("NumElements"));
+	InputBoundingBox.Bind(Initializer.ParameterMap, TEXT("BoundingBoxBuffer"));
+	OutputBoundingBox.Bind(Initializer.ParameterMap, TEXT("OutNodeBoundBuffer"));
+}
+
+bool FDirectCopyBoundingBoxCS::Serialize(FArchive& Ar)
+{
+	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+	Ar << NumElements;
+	Ar << InputBoundingBox;
+	Ar << OutputBoundingBox;
+	return bShaderHasOutdatedParameters;
+}
+
+void FDirectCopyBoundingBoxCS::SetParameters(
+	FRHICommandList& RHICmdList,
+	FRHIUnorderedAccessView* InInputBoundingBox,
+	FRHIUnorderedAccessView* InOutputBoundingBox,
+	int32 InNumElements)
+{
+	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, InInputBoundingBox);
+	SetUAVParameter(RHICmdList, ComputeShaderRHI, InputBoundingBox, InInputBoundingBox);
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, InOutputBoundingBox);
+	SetUAVParameter(RHICmdList, ComputeShaderRHI, OutputBoundingBox, InOutputBoundingBox);
+
+	SetShaderValue(RHICmdList, ComputeShaderRHI, NumElements, InNumElements); 
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, InInputBoundingBox);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, InOutputBoundingBox);
+}
+
+void FDirectCopyBoundingBoxCS::UnbindBuffers(FRHICommandList& RHICmdList)
+{
+	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+	SetUAVParameter(RHICmdList, ComputeShaderRHI, InputBoundingBox, nullptr);
+	SetUAVParameter(RHICmdList, ComputeShaderRHI, OutputBoundingBox, nullptr);
+}
+
+static void AddDirectCopyBoundingBoxPass(
+	FRHICommandListImmediate& RHICmdList,
+	FRHIUnorderedAccessView* BoundingBoxBuffer,
+	FRHIUnorderedAccessView* OutNodeBoundBuffer)
+{
+	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
+	const uint32 NumElements = 1;
+
+	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
+
+	TShaderMapRef<FDirectCopyBoundingBoxCS> ComputeShader(ShaderMap);
+	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+
+	ComputeShader->SetParameters(RHICmdList, BoundingBoxBuffer, OutNodeBoundBuffer, NumElements);
+
+	DispatchComputeShader(RHICmdList, *ComputeShader, DispatchCount, 1, 1);
+	ComputeShader->UnbindBuffers(RHICmdList);
+}
+
+//------------------------------------------------------------------------------------------------------------
+
+inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIHairStrandsBuffer* HairStrandsBuffer)
+{
+	FRHIUnorderedAccessView* BoundingBoxBufferUAV = HairStrandsBuffer->BoundingBoxBuffer.UAV;
+	FRHIShaderResourceView* BoundingBoxBufferSRV = HairStrandsBuffer->BoundingBoxBuffer.SRV;
+	FRHIUnorderedAccessView* NodeBoundBufferUAV = HairStrandsBuffer->NodeBoundBuffer.UAV;
+
+	if (BoundingBoxBufferUAV != nullptr && BoundingBoxBufferSRV != nullptr && NodeBoundBufferUAV != nullptr)
+	{
+		ENQUEUE_RENDER_COMMAND(FNDIHairStrandsCopyBoundingBox)(
+			[BoundingBoxBufferUAV, NodeBoundBufferUAV, BoundingBoxBufferSRV, HairStrandsBuffer]
+		(FRHICommandListImmediate& RHICmdListImm)
+		{
+		/*	FRDGBuilder GraphBuilder(RHICmdListImm);
+
+			RHICmdListImm.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, BoundingBoxBufferUAV);
+			RHICmdListImm.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, NodeBoundBufferUAV);
+
+			AddCopyBoundingBoxPass(
+				GraphBuilder,
+				BoundingBoxBufferUAV, NodeBoundBufferUAV);
+
+			GraphBuilder.Execute();*/
+
+			AddDirectCopyBoundingBoxPass(RHICmdListImm, HairStrandsBuffer->BoundingBoxBuffer.UAV, HairStrandsBuffer->NodeBoundBuffer.UAV);
+		});
+	}
+}
+
+//------------------------------------------------------------------------------------------------------------
+
+void FNDIHairStrandsBuffer::Initialize(const FHairStrandsDatas*  HairStrandsDatas, const FHairStrandsRestResource* HairStrandsRestResource, 
 	const FHairStrandsDeformedResource*  HairStrandsDeformedResource, const FHairStrandsRootResource* HairStrandsRootResource)
 {
 	SourceDatas = HairStrandsDatas;
 	SourceRestResources = HairStrandsRestResource;
 	SourceDeformedResources = HairStrandsDeformedResource;
 	SourceRootResources = HairStrandsRootResource;
-}
-
-void FNDIHairStrandsBuffer::ClearBuffer(FRHICommandList& RHICmdList)
-{
-	FRHIUnorderedAccessView* BoundingBoxBufferUAV = BoundingBoxBuffer.UAV;
-	FRHIShaderResourceView* BoundingBoxBufferSRV = BoundingBoxBuffer.SRV;
-	FRHIUnorderedAccessView* NodeBoundBufferUAV = NodeBoundBuffer.UAV;
-
-	ENQUEUE_RENDER_COMMAND(FNDIHairStrandsCopyBoundingBox)(
-		[BoundingBoxBufferUAV, NodeBoundBufferUAV, BoundingBoxBufferSRV]
-	(FRHICommandListImmediate& RHICmdListImm)
-	{
-		FRDGBuilder GraphBuilder(RHICmdListImm);
-
-		RHICmdListImm.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, BoundingBoxBufferUAV);
-		RHICmdListImm.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, NodeBoundBufferUAV);
-
-		AddCopyBoundingBoxPass(
-			GraphBuilder,
-			BoundingBoxBufferSRV, NodeBoundBufferUAV);
-
-		GraphBuilder.Execute();
-	});
-
-	ENQUEUE_RENDER_COMMAND(FNDIHairStrandsResetBoundingBox)(
-		[BoundingBoxBufferUAV, NodeBoundBufferUAV, BoundingBoxBufferSRV]
-	(FRHICommandListImmediate& RHICmdListImm)
-	{
-		FRDGBuilder GraphBuilder(RHICmdListImm);
-
-		RHICmdListImm.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, BoundingBoxBufferUAV);
-		RHICmdListImm.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, NodeBoundBufferUAV);
-
-		AddResetBoundingBoxPass(
-			GraphBuilder,
-			BoundingBoxBufferUAV);
-
-		GraphBuilder.Execute();
-	});
 }
 
 void FNDIHairStrandsBuffer::InitRHI()
@@ -387,7 +446,7 @@ void FNDIHairStrandsBuffer::InitRHI()
 			RHIUnlockVertexBuffer(CurvesOffsetsBuffer.Buffer);
 		}
 		{
-			static const TArray<uint32> ZeroData = {UINT_MAX,UINT_MAX,UINT_MAX,0,0,0};
+			static const TArray<uint32> ZeroData = { UINT_MAX,UINT_MAX,UINT_MAX,0,0,0 };
 
 			const uint32 BoundCount = 6;
 			const uint32 BoundBytes = sizeof(uint32)*BoundCount;
@@ -400,7 +459,7 @@ void FNDIHairStrandsBuffer::InitRHI()
 		}
 
 		{
-			static const TArray<uint32> ZeroData = { UINT_MAX,UINT_MAX,UINT_MAX,0,0,0};
+			static const TArray<uint32> ZeroData = { UINT_MAX,UINT_MAX,UINT_MAX,0,0,0 };
 
 			const uint32 BoundCount = 6;
 			const uint32 BoundBytes = sizeof(uint32)*BoundCount;
@@ -416,19 +475,6 @@ void FNDIHairStrandsBuffer::InitRHI()
 			const uint32 PositionsCount = SourceDatas->GetNumPoints();
 			DeformedPositionBuffer.Initialize(FHairStrandsPositionFormat::SizeInByte, PositionsCount, FHairStrandsPositionFormat::Format, BUF_Static);
 		}
-		if (SourceRootResources == nullptr)
-		{
-			const uint32 PositionsCount = SourceDatas->GetNumCurves();
-			RestTrianglePositionABuffer.Initialize(FHairStrandsMeshTrianglePositionFormat::SizeInByte, PositionsCount, FHairStrandsMeshTrianglePositionFormat::Format, BUF_Static);
-			RestTrianglePositionBBuffer.Initialize(FHairStrandsMeshTrianglePositionFormat::SizeInByte, PositionsCount, FHairStrandsMeshTrianglePositionFormat::Format, BUF_Static);
-			RestTrianglePositionCBuffer.Initialize(FHairStrandsMeshTrianglePositionFormat::SizeInByte, PositionsCount, FHairStrandsMeshTrianglePositionFormat::Format, BUF_Static);
-
-			DeformedTrianglePositionABuffer.Initialize(FHairStrandsMeshTrianglePositionFormat::SizeInByte, PositionsCount, FHairStrandsMeshTrianglePositionFormat::Format, BUF_Static);
-			DeformedTrianglePositionBBuffer.Initialize(FHairStrandsMeshTrianglePositionFormat::SizeInByte, PositionsCount, FHairStrandsMeshTrianglePositionFormat::Format, BUF_Static);
-			DeformedTrianglePositionCBuffer.Initialize(FHairStrandsMeshTrianglePositionFormat::SizeInByte, PositionsCount, FHairStrandsMeshTrianglePositionFormat::Format, BUF_Static);
-
-			RootBarycentricCoordinatesBuffer.Initialize(FHairStrandsCurveTriangleBarycentricFormat::SizeInByte, PositionsCount, FHairStrandsCurveTriangleBarycentricFormat::Format, BUF_Static);
-		}
 	}
 }
 
@@ -436,18 +482,69 @@ void FNDIHairStrandsBuffer::ReleaseRHI()
 {
 	CurvesOffsetsBuffer.Release();
 	DeformedPositionBuffer.Release();
-
-	RestTrianglePositionABuffer.Release();
-	RestTrianglePositionBBuffer.Release();
-	RestTrianglePositionCBuffer.Release();
-
-	DeformedTrianglePositionABuffer.Release();
-	DeformedTrianglePositionBBuffer.Release();
-	DeformedTrianglePositionCBuffer.Release();
-
-	RootBarycentricCoordinatesBuffer.Release();
 	BoundingBoxBuffer.Release();
 	NodeBoundBuffer.Release();
+}
+
+//------------------------------------------------------------------------------------------------------------
+
+void FNDIHairStrandsData::Release()
+{
+	if (HairStrandsBuffer)
+	{
+		BeginReleaseResource(HairStrandsBuffer);
+		ENQUEUE_RENDER_COMMAND(DeleteResource)(
+			[ParamPointerToRelease = HairStrandsBuffer](FRHICommandListImmediate& RHICmdList)
+		{
+			delete ParamPointerToRelease;
+		});
+		HairStrandsBuffer = nullptr;
+	}
+}
+
+bool FNDIHairStrandsData::Init(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance)
+{
+	HairStrandsBuffer = nullptr;
+
+	if (Interface != nullptr && SystemInstance != nullptr)
+	{
+		FHairStrandsDatas* StrandsDatas = nullptr;
+		FHairStrandsRestResource* StrandsRestResource = nullptr;
+		FHairStrandsDeformedResource* StrandsDeformedResource = nullptr;
+		FHairStrandsRootResource* StrandsRootResource = nullptr;
+
+		{
+			Interface->ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
+
+			HairStrandsBuffer = new FNDIHairStrandsBuffer();
+			HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
+			BeginInitResource(HairStrandsBuffer);
+
+			WorldTransform = Interface->IsComponentValid() ? Interface->SourceComponent->GetComponentToWorld() :
+				SystemInstance->GetComponent()->GetComponentToWorld();
+			StrandSize = static_cast<uint8>(Interface->StrandSize);
+
+			if (StrandsDatas != nullptr)
+			{
+				const FBox& StrandsBox = StrandsDatas->BoundingBox;
+
+				NumStrands = StrandsDatas->GetNumCurves();
+				BoxCenter = StrandsBox.GetCenter();
+				BoxExtent = StrandsBox.GetExtent();
+			}
+			else
+			{
+				NumStrands = 0;
+				BoxCenter = FVector(0, 0, 0);
+				BoxExtent = FVector(0, 0, 0);
+			}
+			TickCount = 0;
+			ForceReset = true;
+			ResetTick = MaxDelay;
+		}
+	}
+
+	return true;
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -590,63 +687,52 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			static_cast<FNDIHairStrandsProxy*>(Context.DataInterface);
 		FNDIHairStrandsData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
-		ensure(ProxyData);
 
-		if (ProxyData != nullptr)
+		const bool IsHairValid = ProxyData != nullptr && ProxyData->HairStrandsBuffer != nullptr && ProxyData->HairStrandsBuffer->IsInitialized();
+		const bool IsRootValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceRootResources != nullptr && ProxyData->HairStrandsBuffer->SourceRootResources->IsInitialized();
+		const bool IsRestValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceRestResources != nullptr && ProxyData->HairStrandsBuffer->SourceRestResources->IsInitialized();
+		const bool IsDeformedValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedResources != nullptr && ProxyData->HairStrandsBuffer->SourceDeformedResources->IsInitialized();
+
+		if (IsHairValid && IsRestValid)
 		{
 			FNDIHairStrandsBuffer* HairStrandsBuffer = ProxyData->HairStrandsBuffer;
 
-			FUnorderedAccessViewRHIRef PointPositionsUAV = (HairStrandsBuffer->SourceDeformedResources != nullptr) ? HairStrandsBuffer->SourceDeformedResources->DeformedPositionBuffer[0].UAV : 
-				HairStrandsBuffer->DeformedPositionBuffer.UAV;
+			FUnorderedAccessViewRHIRef PointPositionsUAV = IsDeformedValid ?
+				HairStrandsBuffer->SourceDeformedResources->DeformedPositionBuffer[0].UAV : HairStrandsBuffer->DeformedPositionBuffer.UAV;
 
-			FShaderResourceViewRHIRef RestTrianglePositionASRV = HairStrandsBuffer->RestTrianglePositionABuffer.SRV;
-			FShaderResourceViewRHIRef RestTrianglePositionBSRV = HairStrandsBuffer->RestTrianglePositionBBuffer.SRV;
-			FShaderResourceViewRHIRef RestTrianglePositionCSRV = HairStrandsBuffer->RestTrianglePositionCBuffer.SRV;
+			const int32 HasRootAttachedValue = (IsRootValid && HairStrandsBuffer->SourceRootResources->MeshProjectionLODs.Num() > 0 && 
+				HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].Status == FHairStrandsProjectionHairData::LODData::EStatus::Completed);
 
-			FShaderResourceViewRHIRef DeformedTrianglePositionASRV = HairStrandsBuffer->DeformedTrianglePositionABuffer.SRV;
-			FShaderResourceViewRHIRef DeformedTrianglePositionBSRV = HairStrandsBuffer->DeformedTrianglePositionBBuffer.SRV;
-			FShaderResourceViewRHIRef DeformedTrianglePositionCSRV = HairStrandsBuffer->DeformedTrianglePositionCBuffer.SRV;
+			const FHairStrandsRootResource::FMeshProjectionLOD* MeshProjection = (HasRootAttachedValue == 1) ? &(HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0]) : nullptr;
 
-			FShaderResourceViewRHIRef RootBarycentricCoordinatesSRV = HairStrandsBuffer->RootBarycentricCoordinatesBuffer.SRV;
+			FShaderResourceViewRHIRef RestTrianglePositionASRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->RestRootTrianglePosition0Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+			FShaderResourceViewRHIRef RestTrianglePositionBSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->RestRootTrianglePosition1Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+			FShaderResourceViewRHIRef RestTrianglePositionCSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->RestRootTrianglePosition2Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
 
-			int32 HasRootAttachedValue = 0;
+			FShaderResourceViewRHIRef DeformedTrianglePositionASRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->DeformedRootTrianglePosition0Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+			FShaderResourceViewRHIRef DeformedTrianglePositionBSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->DeformedRootTrianglePosition1Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+			FShaderResourceViewRHIRef DeformedTrianglePositionCSRV = (HasRootAttachedValue == 1) ?
+				MeshProjection->DeformedRootTrianglePosition2Buffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+
+			FShaderResourceViewRHIRef RootBarycentricCoordinatesSRV = (HasRootAttachedValue == 1) ? 
+				MeshProjection->RootTriangleBarycentricBuffer.SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV;
+
 			int32 bNeedSimReset = (ProxyData->TickCount <= ProxyData->ResetTick ? 1 : 0);
-			FVector RestRootOffsetValue = FVector(0, 0, 0);
-			FVector DeformedRootOffsetValue = FVector(0, 0, 0);
-			FVector DeformedPositionOffsetValue = HairStrandsBuffer->SourceRestResources->PositionOffset;
+			FVector RestRootOffsetValue = (HasRootAttachedValue == 1) ? MeshProjection->RestRootOffset : FVector(0, 0, 0);
+			FVector DeformedRootOffsetValue = (HasRootAttachedValue == 1) ? MeshProjection->DeformedRootOffset : FVector(0, 0, 0);
+			FVector DeformedPositionOffsetValue = IsDeformedValid ? HairStrandsBuffer->SourceDeformedResources->PositionOffset :
+																	HairStrandsBuffer->SourceRestResources->PositionOffset;
 			FVector RestPositionOffsetValue = HairStrandsBuffer->SourceRestResources->PositionOffset;
 
-			//UE_LOG(LogHairStrands, Log, TEXT("Need Reset = %d %d %d"), bNeedSimReset, ProxyData->TickCount, ProxyData->ResetTick);
-
-			if (HairStrandsBuffer->SourceRootResources != nullptr && HairStrandsBuffer->SourceRootResources->MeshProjectionLODs.Num() > 0)
-			{
-				RestTrianglePositionASRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].RestRootTrianglePosition0Buffer.SRV;
-				RestTrianglePositionBSRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].RestRootTrianglePosition1Buffer.SRV;
-				RestTrianglePositionCSRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].RestRootTrianglePosition2Buffer.SRV;
-
-				DeformedTrianglePositionASRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].DeformedRootTrianglePosition0Buffer.SRV;
-				DeformedTrianglePositionBSRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].DeformedRootTrianglePosition1Buffer.SRV;
-				DeformedTrianglePositionCSRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].DeformedRootTrianglePosition2Buffer.SRV;
-
-				RootBarycentricCoordinatesSRV = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].RootTriangleBarycentricBuffer.SRV;
-
-				HasRootAttachedValue = 1;
-				//NeedSimReset = (HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].Status != FHairStrandsRootResource::FMeshProjectionLOD::EStatus::Completed);
-				RestRootOffsetValue = HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].RestRootOffset;
-				DeformedRootOffsetValue = ProxyData->HairStrandsBuffer->SourceRootResources->MeshProjectionLODs[0].DeformedRootOffset;
-			}
-			if (HairStrandsBuffer->SourceDeformedResources != nullptr)
-			{
-				DeformedPositionOffsetValue = HairStrandsBuffer->SourceDeformedResources->PositionOffset;
-			}
-
-			//UE_LOG(LogHairStrands, Log, TEXT("Root Offset = %f %f %f | %f %f %f | %f %f %f"), RestRootOffsetValue[0], RestRootOffsetValue[1], RestRootOffsetValue[2],
-			//	DeformedRootOffsetValue[0], DeformedRootOffsetValue[1], DeformedRootOffsetValue[2], DeformedPositionOffsetValue[0], DeformedPositionOffsetValue[1], DeformedPositionOffsetValue[2]);
-
 			SetUAVParameter(RHICmdList, ComputeShaderRHI, DeformedPositionBuffer, PointPositionsUAV);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, HairStrandsBuffer->BoundingBoxBuffer.UAV);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, HairStrandsBuffer->BoundingBoxBuffer.UAV);
 			SetUAVParameter(RHICmdList, ComputeShaderRHI, BoundingBoxBuffer, HairStrandsBuffer->BoundingBoxBuffer.UAV);
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, HairStrandsBuffer->NodeBoundBuffer.UAV);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, HairStrandsBuffer->NodeBoundBuffer.UAV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, NodeBoundBuffer, HairStrandsBuffer->NodeBoundBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurvesOffsetsBuffer, HairStrandsBuffer->CurvesOffsetsBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestPositionBuffer, HairStrandsBuffer->SourceRestResources->RestPositionBuffer.SRV);
@@ -757,20 +843,10 @@ private:
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIHairStrandsProxy::DeferredDestroy()
-{
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToProxyData.Remove(Sys);
-	}
-
-	DeferredDestroyList.Empty();
-}
-
 void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
 	FNDIHairStrandsData* SourceData = static_cast<FNDIHairStrandsData*>(PerInstanceData);
-	FNDIHairStrandsData* TargetData = SystemInstancesToProxyData.Find(Instance);
+	FNDIHairStrandsData* TargetData = &(SystemInstancesToProxyData.FindOrAdd(Instance));
 
 	ensure(TargetData);
 	if (TargetData)
@@ -791,37 +867,19 @@ void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanc
 	}
 }
 
-void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* HairStrandsBuffer, 
-	const uint32 NumStrands, const uint8 StrandSize, const FVector& BoxCenter, const FVector& BoxExtent, const FTransform& WorldTransform)
+void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 
 	FNDIHairStrandsData* TargetData = SystemInstancesToProxyData.Find(SystemInstance);
-	if (TargetData != nullptr)
-	{
-		DeferredDestroyList.Remove(SystemInstance);
-	}
-	else
-	{
-		TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
-	}
-	TargetData->HairStrandsBuffer = HairStrandsBuffer;
-	TargetData->NumStrands = NumStrands;
-	TargetData->StrandSize = StrandSize;
-	TargetData->BoxCenter = BoxCenter;
-	TargetData->BoxExtent = BoxExtent;
-	TargetData->TickCount = 0;
-	TargetData->ResetTick = MaxDelay;
-	TargetData->ForceReset = true;
-	TargetData->WorldTransform = WorldTransform;
+	TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
 }
 
 void FNDIHairStrandsProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
-
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
+	//check(SystemInstancesToProxyData.Contains(SystemInstance));
+	SystemInstancesToProxyData.Remove(SystemInstance);
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -835,7 +893,7 @@ UNiagaraDataInterfaceHairStrands::UNiagaraDataInterfaceHairStrands(FObjectInitia
 	, GroupIndex(0)
 {
 
-	Proxy = MakeShared<FNDIHairStrandsProxy, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNDIHairStrandsProxy());
 }
 
 bool UNiagaraDataInterfaceHairStrands::IsComponentValid() const
@@ -843,7 +901,7 @@ bool UNiagaraDataInterfaceHairStrands::IsComponentValid() const
 	return (SourceComponent.IsValid() && SourceComponent != nullptr);
 }
 
-void UNiagaraDataInterfaceHairStrands::UpdateSourceComponent(FNiagaraSystemInstance* SystemInstance)
+void UNiagaraDataInterfaceHairStrands::ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance)
 {
 	SourceComponent = nullptr;
 	if (SourceActor)
@@ -890,7 +948,7 @@ void UNiagaraDataInterfaceHairStrands::UpdateSourceComponent(FNiagaraSystemInsta
 void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(FNiagaraSystemInstance* SystemInstance,FHairStrandsDatas*& OutStrandsDatas, 
 	FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource, FHairStrandsRootResource*& OutStrandsRootResource)
 {
-	UpdateSourceComponent(SystemInstance);
+	ExtractSourceComponent(SystemInstance);
 
 	OutStrandsDatas = nullptr;
 	OutStrandsRestResource = nullptr;
@@ -916,80 +974,35 @@ bool UNiagaraDataInterfaceHairStrands::InitPerInstanceData(void* PerInstanceData
 	FNDIHairStrandsData* InstanceData = new (PerInstanceData) FNDIHairStrandsData();
 	check(InstanceData);
 
-	FHairStrandsDatas* StrandsDatas =  nullptr;
-	FHairStrandsRestResource* StrandsRestResource = nullptr;
-	FHairStrandsDeformedResource* StrandsDeformedResource = nullptr;
-	FHairStrandsRootResource* StrandsRootResource = nullptr;
-
-	ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
-
-	if (StrandsDatas == nullptr || StrandsRestResource == nullptr)
+	/*FNDIHairStrandsProxy* ThisProxy = GetProxyAs<FNDIHairStrandsProxy>();
+	ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
+		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 	{
-		UE_LOG(LogHairStrands, Log, TEXT("Hair Strands data interface has no valid asset. Failed InitPerInstanceData - %s %d"), *GetFullName(), DefaultSource);
-		return false;
+		ThisProxy->InitializePerInstanceData(InstanceID);
 	}
-	else
-	{ 
-		FNDIHairStrandsBuffer* HairStrandsBuffer = new FNDIHairStrandsBuffer;
-		HairStrandsBuffer->SetHairAsset(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
+	);*/
 
-		// Push instance data to RT
-		{
-			const uint32 NumStrands = StrandsDatas->GetNumCurves();
-			const uint8 StrandsSize = static_cast<uint8>(StrandSize);
-			const FBox& StrandsBox = StrandsDatas->BoundingBox;
+	//UE_LOG(LogHairStrands, Warning, TEXT("Init Strand Size : %d"), StrandSize);
 
-			const FVector BoxExtent = StrandsBox.GetExtent();
-			const FVector BoxCenter = StrandsBox.GetCenter(); 
 
-			const FTransform WorldTransform = IsComponentValid() ? SourceComponent->GetComponentToWorld():
-				SystemInstance->GetComponent()->GetComponentToWorld();
-
-			InstanceData->WorldTransform = WorldTransform;
-			InstanceData->StrandSize = StrandsSize;
-			InstanceData->NumStrands = NumStrands;
-			InstanceData->HairStrandsBuffer = HairStrandsBuffer;
-			InstanceData->BoxCenter = BoxCenter;
-			InstanceData->BoxExtent = BoxExtent;
-			InstanceData->TickCount = 0;
-			InstanceData->ForceReset = true;
-			InstanceData->ResetTick = MaxDelay;
-
-			//UE_LOG(LogHairStrands, Log, TEXT("Num Strands = %d | Strand Size = %d | Num Vertices = %d | Min = %f %f %f | Max = %f %f %f | Transform = %s"), NumStrands, StrandSize,
-			//	StrandsDatas->GetNumPoints(), StrandsBox.Min[0], StrandsBox.Min[1], StrandsBox.Min[2], StrandsBox.Max[0], StrandsBox.Max[1], StrandsBox.Max[2], *InstanceData->WorldTransform.ToString());
-
-			FNDIHairStrandsProxy* ThisProxy = GetProxyAs<FNDIHairStrandsProxy>();
-			ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
-				[ThisProxy, InstanceID = SystemInstance->GetId(), HairStrandsBuffer, NumStrands, StrandsSize, BoxCenter, BoxExtent, WorldTransform](FRHICommandListImmediate& CmdList)
-			{
-				HairStrandsBuffer->InitResource();
-				ThisProxy->InitializePerInstanceData(InstanceID, HairStrandsBuffer, NumStrands, StrandsSize, BoxCenter, BoxExtent, WorldTransform);
-			}
-			);
-		}
-	}
-	return true;
+	return InstanceData->Init(this, SystemInstance);
 }
 
 void UNiagaraDataInterfaceHairStrands::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
 	FNDIHairStrandsData* InstanceData = static_cast<FNDIHairStrandsData*>(PerInstanceData);
+
+	InstanceData->Release();
 	InstanceData->~FNDIHairStrandsData();
 
-	if (InstanceData->HairStrandsBuffer)
+	FNDIHairStrandsProxy* ThisProxy = GetProxyAs<FNDIHairStrandsProxy>();
+	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
+		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 	{
-		FNDIHairStrandsProxy* ThisProxy = GetProxyAs<FNDIHairStrandsProxy>();
-		FNDIHairStrandsBuffer* HairStrandsBuffer = InstanceData->HairStrandsBuffer;
-		ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
-			[ThisProxy, HairStrandsBuffer, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
-		{
-			HairStrandsBuffer->ReleaseResource();
-			ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
-			delete HairStrandsBuffer;
-		}
-		);
-		InstanceData->HairStrandsBuffer = nullptr;
+		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
+		//ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
 	}
+	);
 }
 
 bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds)
@@ -1003,7 +1016,7 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 	InstanceData->TickCount = FMath::Min(MaxDelay+1,InstanceData->TickCount+1);
 
 	ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
-	InstanceData->HairStrandsBuffer->SetHairAsset(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
+	InstanceData->HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRootResource);
 
 	if (SourceComponent != nullptr)
 	{
@@ -1011,6 +1024,17 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 		{
 			InstanceData->ResetTick = FMath::Min(MaxDelay, InstanceData->TickCount+1);
 		}
+
+		//if (!InstanceData->ForceReset && !SourceComponent->bResetSimulation)
+		if (!SourceComponent->bResetSimulation)
+		{
+			InstanceData->TickCount = FMath::Min(MaxDelay + 1, InstanceData->TickCount + 1);
+		}
+		else
+		{
+			InstanceData->TickCount = 0;
+		}
+		InstanceData->ResetTick = MaxDelay;
 		//UE_LOG(LogHairStrands, Warning, TEXT("Reset Simulation : %d %d %d %d"), InstanceData->ForceReset, SourceComponent->bResetSimulation, InstanceData->TickCount, InstanceData->ResetTick);
 		InstanceData->ForceReset = SourceComponent->bResetSimulation;
 	}
@@ -1419,6 +1443,7 @@ void UNiagaraDataInterfaceHairStrands::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enable Constraint")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Rest Length")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Node Offset")));
@@ -1468,6 +1493,7 @@ void UNiagaraDataInterfaceHairStrands::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enable Constraint")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Rest Length")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Rest Direction")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
@@ -1595,6 +1621,7 @@ void UNiagaraDataInterfaceHairStrands::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enable Constraint")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Penetration Depth")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Position")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Velocity")));
@@ -1619,6 +1646,64 @@ void UNiagaraDataInterfaceHairStrands::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Normal")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Static Friction")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Kinetic Friction")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Previous Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = SetupSoftCollisionConstraintName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Collision Stiffness")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Material Damping")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Material Compliance")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Material Weight")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Material Multiplier")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = SolveSoftCollisionConstraintName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enable Constraint")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Penetration Depth")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Velocity")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Normal")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Static Friction")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Kinetic Friction")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Material Damping")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Material Compliance")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Material Weight")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Material Multiplier")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Material Multiplier")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = ProjectSoftCollisionConstraintName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Collision Stiffness")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Penetration Depth")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Position")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Velocity")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Collision Normal")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Static Friction")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Kinetic Friction")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Node Mass")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Delta Time")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Previous Position")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
@@ -1725,6 +1810,10 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ProjectBendRodMa
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, SolveStaticCollisionConstraint);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ProjectStaticCollisionConstraint);
+
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, SetupSoftCollisionConstraint);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ProjectSoftCollisionConstraint);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, SolveSoftCollisionConstraint);
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ComputeRestDirection);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, UpdateNodeOrientation);
@@ -1870,7 +1959,7 @@ void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFu
 	}
 	else if (BindingInfo.Name == SolveDistanceSpringMaterialName)
 	{
-		check(BindingInfo.GetNumInputs() == 8 && BindingInfo.GetNumOutputs() == 1);
+		check(BindingInfo.GetNumInputs() == 9 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, SolveDistanceSpringMaterial)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == ProjectDistanceSpringMaterialName)
@@ -1885,7 +1974,7 @@ void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFu
 	}
 	else if (BindingInfo.Name == SolveAngularSpringMaterialName)
 	{
-		check(BindingInfo.GetNumInputs() == 12 && BindingInfo.GetNumOutputs() == 3);
+		check(BindingInfo.GetNumInputs() == 13 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, SolveAngularSpringMaterial)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == ProjectAngularSpringMaterialName)
@@ -1925,13 +2014,28 @@ void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFu
 	}
 	else if (BindingInfo.Name == SolveStaticCollisionConstraintName)
 	{
-		check(BindingInfo.GetNumInputs() == 17 && BindingInfo.GetNumOutputs() == 3);
+		check(BindingInfo.GetNumInputs() == 18 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, SolveStaticCollisionConstraint)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == ProjectStaticCollisionConstraintName)
 	{
 		check(BindingInfo.GetNumInputs() == 20 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ProjectStaticCollisionConstraint)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == SolveSoftCollisionConstraintName)
+	{
+		check(BindingInfo.GetNumInputs() == 21 && BindingInfo.GetNumOutputs() == 3);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, SolveSoftCollisionConstraint)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == ProjectSoftCollisionConstraintName)
+	{
+		check(BindingInfo.GetNumInputs() == 22 && BindingInfo.GetNumOutputs() == 3);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ProjectSoftCollisionConstraint)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == SetupSoftCollisionConstraintName)
+	{
+		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 5);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, SetupSoftCollisionConstraint)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == ComputeRestDirectionName)
 	{
@@ -2242,6 +2346,20 @@ void UNiagaraDataInterfaceHairStrands::ProjectStaticCollisionConstraint(FVectorV
 	// @todo : implement function for cpu 
 }
 
+void UNiagaraDataInterfaceHairStrands::SolveSoftCollisionConstraint(FVectorVMContext& Context)
+{
+	// @todo : implement function for cpu 
+}
+
+void UNiagaraDataInterfaceHairStrands::ProjectSoftCollisionConstraint(FVectorVMContext& Context)
+{
+	// @todo : implement function for cpu 
+}
+void UNiagaraDataInterfaceHairStrands::SetupSoftCollisionConstraint(FVectorVMContext& Context)
+{
+	// @todo : implement function for cpu 
+}
+
 void UNiagaraDataInterfaceHairStrands::ComputeAirDragForce(FVectorVMContext& Context)
 {
 	// @todo : implement function for cpu 
@@ -2252,12 +2370,12 @@ void UNiagaraDataInterfaceHairStrands::NeedSimulationReset(FVectorVMContext& Con
 	// @todo : implement function for cpu 
 }
 
-bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	FNDIHairStrandsParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
 
 	TMap<FString, FStringFormatArg> ArgsSample = {
-		{TEXT("InstanceFunctionName"), InstanceFunctionName},
+		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
 		{TEXT("NumStrandsName"), ParamNames.NumStrandsName},
 		{TEXT("StrandSizeName"), ParamNames.StrandSizeName},
 		{TEXT("WorldTransformName"), ParamNames.WorldTransformName},
@@ -2271,7 +2389,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		{TEXT("HairStrandsContextName"), TEXT("DIHAIRSTRANDS_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
 	};
 
-	if (DefinitionFunctionName == GetStrandSizeName)
+	if (FunctionInfo.DefinitionName == GetStrandSizeName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(out int OutStrandSize)
@@ -2282,7 +2400,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetNumStrandsName)
+	else if (FunctionInfo.DefinitionName == GetNumStrandsName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(out int OutNumStrands)
@@ -2293,7 +2411,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetWorldTransformName)
+	else if (FunctionInfo.DefinitionName == GetWorldTransformName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(out float4x4 OutWorldTransform)
@@ -2304,7 +2422,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetWorldInverseName)
+	else if (FunctionInfo.DefinitionName == GetWorldInverseName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 		void {InstanceFunctionName}(out float4x4 OutWorldInverse)
@@ -2315,7 +2433,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetPointPositionName)
+	else if (FunctionInfo.DefinitionName == GetPointPositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int PointIndex, out float3 OutPointPosition)
@@ -2326,7 +2444,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeNodePositionName)
+	else if (FunctionInfo.DefinitionName == ComputeNodePositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, in float SmoothingFilter, out float3 OutNodePosition)
@@ -2338,7 +2456,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeNodeOrientationName)
+	else if (FunctionInfo.DefinitionName == ComputeNodeOrientationName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, in float3 NodePosition, out float4 OutNodeOrientation)
@@ -2349,7 +2467,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeNodeMassName)
+	else if (FunctionInfo.DefinitionName == ComputeNodeMassName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, in float StrandsDensity, in float RootThickness, in float TipThickness, out float OutNodeMass)
@@ -2360,7 +2478,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeNodeInertiaName)
+	else if (FunctionInfo.DefinitionName == ComputeNodeInertiaName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, in float StrandsDensity, in float RootThickness, in float TipThickness, out float3 OutNodeInertia)
@@ -2371,18 +2489,26 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeEdgeLengthName)
+	else if (FunctionInfo.DefinitionName == ComputeEdgeLengthName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, in float3 NodePosition, in int NodeOffset, out float OutEdgeLength)
 			{
-				{HairStrandsContextName} DIHairStrands_ComputeEdgeLength(DIContext,NodeIndex,NodePosition,NodeOffset,OutEdgeLength);
+				{HairStrandsContextName} 
+				if(NodeOffset == 2)
+				{
+					DIHairStrands_ComputeEdgeVolume(DIContext,NodeIndex,NodePosition,OutEdgeLength);
+				}
+				else
+				{
+					DIHairStrands_ComputeEdgeLength(DIContext,NodeIndex,NodePosition,NodeOffset,OutEdgeLength);
+				}
 			}
 			)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeEdgeRotationName)
+	else if (FunctionInfo.DefinitionName == ComputeEdgeRotationName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, in float4 NodeOrientation, out float4 OutEdgeRotation)
@@ -2393,7 +2519,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeRestPositionName)
+	else if (FunctionInfo.DefinitionName == ComputeRestPositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in float3 NodePosition, out float3 OutRestPosition)
@@ -2404,7 +2530,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeRestOrientationName)
+	else if (FunctionInfo.DefinitionName == ComputeRestOrientationName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in float4 NodeOrientation, out float4 OutRestOrientation)
@@ -2415,7 +2541,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeLocalStateName)
+	else if (FunctionInfo.DefinitionName == ComputeLocalStateName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, in float3 RestPosition, in float4 RestOrientation, out float3 LocalPosition, out float4 LocalOrientation)
@@ -2426,7 +2552,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == AttachNodePositionName)
+	else if (FunctionInfo.DefinitionName == AttachNodePositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in float3 RestPosition, out float3 NodePosition)
@@ -2437,7 +2563,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == AttachNodeOrientationName)
+	else if (FunctionInfo.DefinitionName == AttachNodeOrientationName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in float4 RestOrientation, out float4 NodeOrientation)
@@ -2448,7 +2574,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}	
-	else if (DefinitionFunctionName == AttachNodeStateName)
+	else if (FunctionInfo.DefinitionName == AttachNodeStateName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in int NodeIndex, in float3 LocalPosition, in float4 LocalOrientation, out float3 NodePosition, out float4 NodeOrientation)
@@ -2459,7 +2585,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == UpdatePointPositionName)
+	else if (FunctionInfo.DefinitionName == UpdatePointPositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, in float3 NodeDisplace, out bool OutReportStatus)
@@ -2470,7 +2596,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ResetPointPositionName)
+	else if (FunctionInfo.DefinitionName == ResetPointPositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int NodeIndex, out bool OutReportStatus)
@@ -2481,7 +2607,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == AdvectNodePositionName)
+	else if (FunctionInfo.DefinitionName == AdvectNodePositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in float NodeMass, in bool IsPositionMobile, in float3 ExternalForce, in float3 ForceGradient, in float DeltaTime, 
@@ -2495,7 +2621,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == AdvectNodeOrientationName)
+	else if (FunctionInfo.DefinitionName == AdvectNodeOrientationName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in float3 NodeInertia, in bool IsOrientationMobile, in float3 ExternalTorque, in float3 TorqueGradient, in float DeltaTime, 
@@ -2509,7 +2635,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == UpdateLinearVelocityName)
+	else if (FunctionInfo.DefinitionName == UpdateLinearVelocityName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in float3 PreviousPosition, in float3 NodePosition, in float DeltaTime, out float3 OutLinearVelocity)
@@ -2520,7 +2646,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == UpdateAngularVelocityName)
+	else if (FunctionInfo.DefinitionName == UpdateAngularVelocityName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in float4 PreviousOrientation, in float4 NodeOrientation, in float DeltaTime, out float3 OutAngularVelocity)
@@ -2531,7 +2657,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetBoxExtentName)
+	else if (FunctionInfo.DefinitionName == GetBoxExtentName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (out float3 OutBoxExtent)
@@ -2542,7 +2668,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == GetBoxCenterName)
+	else if (FunctionInfo.DefinitionName == GetBoxCenterName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (out float3 OutBoxCenter)
@@ -2553,7 +2679,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == BuildBoundingBoxName)
+	else if (FunctionInfo.DefinitionName == BuildBoundingBoxName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in float3 NodePosition, out bool OutBuildStatus, out float3 OutBoundMin, out float3 OutBoundMax)
@@ -2564,7 +2690,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FName& DefinitionFu
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetupDistanceSpringMaterialName)
+	else if (FunctionInfo.DefinitionName == SetupDistanceSpringMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in float YoungModulus, in float RodThickness, 
@@ -2581,38 +2707,40 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 					}
 					else if( NodeOffset == 2)
 					{
-						SetupTwistSpringMaterial(DIContext.StrandSize,YoungModulus,RodThickness,RestLength,DeltaTime,false,MaterialDamping,OutMaterialCompliance,OutMaterialWeight,OutMaterialMultiplier);
+						//SetupTwistSpringMaterial(DIContext.StrandSize,YoungModulus,RodThickness,RestLength,DeltaTime,false,MaterialDamping,OutMaterialCompliance,OutMaterialWeight,OutMaterialMultiplier);
+						SetupVolumeSpringMaterial(DIContext.StrandSize,YoungModulus,RestLength,DeltaTime,false,MaterialDamping,OutMaterialCompliance,OutMaterialWeight,OutMaterialMultiplier);
 					}
 				}
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SolveDistanceSpringMaterialName)
+	else if (FunctionInfo.DefinitionName == SolveDistanceSpringMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-				void {InstanceFunctionName} (in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDamping, 
+				void {InstanceFunctionName} (in bool EnableConstraint, in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDamping, 
 		in float MaterialCompliance, in float MaterialWeight, in float MaterialMultiplier, out float OutMaterialMultiplier)
 				{
 					{HairStrandsContextName} 
 					if(NodeOffset == 0)
 					{
-						SolveStretchSpringMaterial(DIContext.StrandSize,RestLength,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
+						SolveStretchSpringMaterial(EnableConstraint,DIContext.StrandSize,RestLength,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
 					}
 					else if(NodeOffset == 1)
 					{
-						SolveBendSpringMaterial(DIContext.StrandSize,RestLength,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
+						SolveBendSpringMaterial(EnableConstraint,DIContext.StrandSize,RestLength,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
 					}
 					else if(NodeOffset == 2)
 					{
-						SolveTwistSpringMaterial(DIContext.StrandSize,RestLength,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
+						//SolveTwistSpringMaterial(EnableConstraint,DIContext.StrandSize,RestLength,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
+						SolveVolumeSpringMaterial(EnableConstraint,DIContext.StrandSize,RestLength,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
 					}
 				}
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ProjectDistanceSpringMaterialName)
+	else if (FunctionInfo.DefinitionName == ProjectDistanceSpringMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in float YoungModulus, in float RodThickness, in float RestLength, in float NodeMass, in float DeltaTime, in int NodeOffset, in float3 NodePosition, out float3 OutNodePosition)
@@ -2635,7 +2763,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetupAngularSpringMaterialName)
+	else if (FunctionInfo.DefinitionName == SetupAngularSpringMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in float YoungModulus, in float RodThickness, 
@@ -2647,19 +2775,19 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SolveAngularSpringMaterialName)
+	else if (FunctionInfo.DefinitionName == SolveAngularSpringMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in float RestLength, in float3 RestDirection, in float DeltaTime, in float MaterialDamping, 
+					void {InstanceFunctionName} (in bool EnableConstraint, in float RestLength, in float3 RestDirection, in float DeltaTime, in float MaterialDamping, 
 			in float MaterialCompliance, in float MaterialWeight, in float3 MaterialMultiplier, out float3 OutMaterialMultiplier)
 					{
-						{HairStrandsContextName} SolveAngularSpringMaterial(DIContext.StrandSize,RestLength, RestDirection,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
+						{HairStrandsContextName} SolveAngularSpringMaterial(EnableConstraint,DIContext.StrandSize,RestLength, RestDirection,DeltaTime,MaterialDamping,MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
 					}
 					)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ProjectAngularSpringMaterialName)
+	else if (FunctionInfo.DefinitionName == ProjectAngularSpringMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in float YoungModulus, in float RodThickness, in float RestLength, in float3 RestDirection, in float NodeMass, in float DeltaTime, in float3 NodePosition, out float3 OutNodePosition)
@@ -2670,7 +2798,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetupStretchRodMaterialName)
+	else if (FunctionInfo.DefinitionName == SetupStretchRodMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in float YoungModulus, in float RodThickness, 
@@ -2682,7 +2810,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SolveStretchRodMaterialName)
+	else if (FunctionInfo.DefinitionName == SolveStretchRodMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in float RestLength, in float DeltaTime, in float MaterialDamping, 
@@ -2694,7 +2822,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ProjectStretchRodMaterialName)
+	else if (FunctionInfo.DefinitionName == ProjectStretchRodMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in float YoungModulus, in float RodThickness, in float RestLength, in float DeltaTime, out float3 OutMaterialMultiplier)
@@ -2705,7 +2833,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SetupBendRodMaterialName)
+	else if (FunctionInfo.DefinitionName == SetupBendRodMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 						void {InstanceFunctionName} (in float YoungModulus, in float RodThickness, 
@@ -2717,7 +2845,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SolveBendRodMaterialName)
+	else if (FunctionInfo.DefinitionName == SolveBendRodMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 						void {InstanceFunctionName} (in float RestLength, in float4 RestDarboux, in float DeltaTime, in float MaterialDamping, 
@@ -2729,7 +2857,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ProjectBendRodMaterialName)
+	else if (FunctionInfo.DefinitionName == ProjectBendRodMaterialName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 						void {InstanceFunctionName} (in float YoungModulus, in float RodThickness, in float RestLength, in float4 RestDarboux, in float DeltaTime, out float3 OutMaterialMultiplier)
@@ -2740,35 +2868,74 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == SolveStaticCollisionConstraintName)
+	else if (FunctionInfo.DefinitionName == SolveStaticCollisionConstraintName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-							void {InstanceFunctionName} (in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
+							void {InstanceFunctionName} (in bool EnableConstraint, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
 				in float StaticFriction, in float KineticFriction, in float DeltaTime, in float3 PreviousPosition, out float3 OutMaterialMultiplier )
 							{
 								OutMaterialMultiplier = float3(0,0,0);
-								{HairStrandsContextName} SolveStaticCollisionConstraint(DIContext.StrandSize,PenetrationDepth,
+								{HairStrandsContextName} SolveStaticCollisionConstraint(EnableConstraint,DIContext.StrandSize,PenetrationDepth,
 									CollisionPosition,CollisionVelocity,CollisionNormal,StaticFriction,KineticFriction,DeltaTime,false,PreviousPosition,SharedNodePosition[GGroupThreadId.x]);
 							}
 							)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ProjectStaticCollisionConstraintName)
+	else if (FunctionInfo.DefinitionName == ProjectStaticCollisionConstraintName)
 	{
 			static const TCHAR *FormatSample = TEXT(R"(
 						void {InstanceFunctionName} (in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
 			in float StaticFriction, in float KineticFriction, in float DeltaTime, in float3 PreviousPosition, in float3 NodePosition, out float3 OutNodePosition )
 						{
 							OutNodePosition = NodePosition;
-							{HairStrandsContextName} SolveStaticCollisionConstraint(DIContext.StrandSize,PenetrationDepth,
+							{HairStrandsContextName} SolveStaticCollisionConstraint(true,DIContext.StrandSize,PenetrationDepth,
 								CollisionPosition,CollisionVelocity,CollisionNormal,StaticFriction,KineticFriction,DeltaTime,true,PreviousPosition,OutNodePosition);
 						}
 						)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeRestDirectionName)
+	else if (FunctionInfo.DefinitionName == SolveSoftCollisionConstraintName)
+	{
+		static const TCHAR *FormatSample = TEXT(R"(
+								void {InstanceFunctionName} (in bool EnableConstraint, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
+					in float StaticFriction, in float KineticFriction, in float DeltaTime, in float MaterialDamping, 
+			in float MaterialCompliance, in float MaterialWeight, in float3 MaterialMultiplier, out float3 OutMaterialMultiplier )
+								{
+									{HairStrandsContextName} SolveSoftCollisionConstraint(EnableConstraint,DIContext.StrandSize,PenetrationDepth,
+										CollisionPosition,CollisionVelocity,CollisionNormal,StaticFriction,KineticFriction,DeltaTime,MaterialDamping,
+											MaterialCompliance,MaterialWeight,MaterialMultiplier,OutMaterialMultiplier);
+								}
+								)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == ProjectSoftCollisionConstraintName)
+	{
+		static const TCHAR *FormatSample = TEXT(R"(
+							void {InstanceFunctionName} (in float ConstraintStiffness, in float PenetrationDepth, in float3 CollisionPosition, in float3 CollisionVelocity, in float3 CollisionNormal, 
+					in float StaticFriction, in float KineticFriction, in float NodeMass, in float DeltaTime, in float3 PreviousPosition, in float3 NodePosition, out float3 OutNodePosition  )
+							{
+								{HairStrandsContextName} ProjectSoftCollisionConstraint(DIContext.StrandSize,ConstraintStiffness,PenetrationDepth,
+									CollisionPosition,CollisionVelocity,CollisionNormal,StaticFriction,KineticFriction,NodeMass,DeltaTime,PreviousPosition,NodePosition,OutNodePosition);
+							}
+							)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == SetupSoftCollisionConstraintName)
+	{
+		static const TCHAR *FormatSample = TEXT(R"(
+								void {InstanceFunctionName} (in float ConstraintStiffness, in float DeltaTime, in float MaterialDamping, out float OutMaterialCompliance, out float OutMaterialWeight, out float3 OutMaterialMultiplier )
+								{
+									{HairStrandsContextName} SetupSoftCollisionConstraint(DIContext.StrandSize,ConstraintStiffness,DeltaTime,MaterialDamping,OutMaterialCompliance,OutMaterialWeight,OutMaterialMultiplier);
+								}
+								)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == ComputeRestDirectionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 							void {InstanceFunctionName} (in float3 NodePosition, in float4 NodeOrientation, out float3 OutRestDirection)
@@ -2779,7 +2946,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == UpdateNodeOrientationName)
+	else if (FunctionInfo.DefinitionName == UpdateNodeOrientationName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 					void {InstanceFunctionName} ( out bool OutUpdateStatus)
@@ -2791,7 +2958,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == ComputeAirDragForceName)
+	else if (FunctionInfo.DefinitionName == ComputeAirDragForceName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 						void {InstanceFunctionName} ( in float AirDensity, in float AirViscosity, in float AirDrag, 
@@ -2803,7 +2970,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	else if (DefinitionFunctionName == NeedSimulationResetName)
+	else if (FunctionInfo.DefinitionName == NeedSimulationResetName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} ( out bool ResetSimulation)
@@ -2829,7 +2996,7 @@ void UNiagaraDataInterfaceHairStrands::GetCommonHLSL(FString& OutHLSL)
 	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraDataInterfaceHairStrands.ush\"\n");
 }
 
-void UNiagaraDataInterfaceHairStrands::GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+void UNiagaraDataInterfaceHairStrands::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	OutHLSL += TEXT("DIHAIRSTRANDS_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
@@ -2860,6 +3027,11 @@ UNiagaraDataInterfaceHairStrands::ConstructComputeParameters() const
 
 void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
 {
+}
+	
+
+void FNDIHairStrandsProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
 	if (Context.ShaderStageIndex == 0)
 	{
 		FNDIHairStrandsData* ProxyData =
@@ -2867,13 +3039,10 @@ void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraD
 
 		if (ProxyData != nullptr && ProxyData->HairStrandsBuffer != nullptr)
 		{
-			ProxyData->HairStrandsBuffer->ClearBuffer(RHICmdList);
+			ClearBuffer(RHICmdList, ProxyData->HairStrandsBuffer);
 		}
 	}
 }
-
-void FNDIHairStrandsProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{}
 
 void FNDIHairStrandsProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
 {}

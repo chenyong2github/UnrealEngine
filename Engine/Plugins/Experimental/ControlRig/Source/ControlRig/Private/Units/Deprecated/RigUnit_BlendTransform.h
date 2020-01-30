@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -35,5 +35,6 @@ struct FRigUnit_BlendTransform : public FRigUnit
 	UPROPERTY(meta = (Output))
 	FTransform Result;
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };

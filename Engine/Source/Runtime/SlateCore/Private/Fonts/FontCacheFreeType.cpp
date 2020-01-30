@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Fonts/FontCacheFreeType.h"
 #include "SlateGlobals.h"
@@ -170,7 +170,9 @@ void ApplySizeAndScale(FT_Face InFace, const int32 InFontSize, const float InFon
 
 FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
 {
+#if WITH_VERY_VERBOSE_SLATE_STATS
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FreetypeLoadGlyph);
+#endif
 	ApplySizeAndScale(InFace, InFontSize, InFontScale);
 	return FT_Load_Glyph(InFace, InGlyphIndex, InLoadFlags);
 }
@@ -634,7 +636,7 @@ bool FFreeTypeAdvanceCache::FindOrCache(FT_Face InFace, const uint32 InGlyphInde
 	FT_Error Error = FT_Get_Advance(InFace, InGlyphIndex, InLoadFlags, &OutCachedAdvance);
 	if (Error == 0)
 	{
-		if (FT_HAS_FIXED_SIZES(InFace))
+		if (!FT_IS_SCALABLE(InFace) && FT_HAS_FIXED_SIZES(InFace))
 		{
 			// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
 			OutCachedAdvance = FT_MulFix(OutCachedAdvance, ((InLoadFlags & FT_LOAD_VERTICAL_LAYOUT) ? InFace->size->metrics.y_scale : InFace->size->metrics.x_scale));
@@ -689,7 +691,7 @@ bool FFreeTypeKerningPairCache::FindOrCache(FT_Face InFace, const FKerningPair& 
 	{
 		if (InKerningFlags != FT_KERNING_UNSCALED)
 		{
-			if (FT_HAS_FIXED_SIZES(InFace))
+			if (!FT_IS_SCALABLE(InFace) && FT_HAS_FIXED_SIZES(InFace))
 			{
 				// Fixed size fonts don't support scaling, but we calculated the scale to use for the glyph in ApplySizeAndScale
 				OutKerning.x = FT_MulFix(OutKerning.x, InFace->size->metrics.x_scale);

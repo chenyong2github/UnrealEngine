@@ -1,10 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_ACCESSIBILITY
 
 #include "Windows/Accessibility/WindowsUIAPropertyGetters.h"
 
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #include "Misc/Variant.h"
 
 namespace WindowsUIAPropertyGetters

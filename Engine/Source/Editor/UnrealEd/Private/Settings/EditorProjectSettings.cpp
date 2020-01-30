@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Settings/EditorProjectSettings.h"
 #include "UObject/UnrealType.h"
@@ -78,7 +78,7 @@ void UEditorProjectAppearanceSettings::PostEditChangeProperty( struct FPropertyC
 
 void SetupEnumMetaData(UClass* Class, const FName& MemberName, const TCHAR* Values)
 {
-	UArrayProperty* Array = Cast<UArrayProperty>(Class->FindPropertyByName(MemberName));
+	FArrayProperty* Array = CastField<FArrayProperty>(Class->FindPropertyByName(MemberName));
 	if (Array && Array->Inner)
 	{
 		Array->Inner->SetMetaData(TEXT("ValidEnumValues"), Values);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreTypes.h"
@@ -170,6 +170,20 @@ enum class EDatasmithTextureFormat
 {
 	PNG,
 	JPEG
+};
+
+/**
+ * Texture color space.
+ * Default: Leave at whatever is default for the texture mode
+ * sRGB: Enable the sRGB boolean regardless of texture mode
+ * Linear: Disable the sRGB boolean regardless of texture mode
+ */
+UENUM()
+enum class EDatasmithColorSpace : uint8
+{
+	Default,
+	sRGB,
+	Linear,
 };
 
 /**

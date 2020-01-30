@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigSpaceHierarchy.h"
 #include "ControlRig.h"
@@ -428,18 +428,21 @@ void FRigSpaceHierarchy::RefreshMapping()
 	}
 }
 
-void FRigSpaceHierarchy::Initialize()
+void FRigSpaceHierarchy::Initialize(bool bResetTransforms)
 {
 	RefreshMapping();
 
 	// initialize transform
 	for (int32 Index = 0; Index < Spaces.Num(); ++Index)
 	{
+		if (bResetTransforms)
+		{
+			Spaces[Index].LocalTransform = Spaces[Index].InitialTransform;
+		}
 		if (Container)
 		{
 			Spaces[Index].ParentIndex = Container->GetIndex(Spaces[Index].GetParentElementKey());
 		}
-		Spaces[Index].LocalTransform = Spaces[Index].InitialTransform;
 	}
 }
 

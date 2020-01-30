@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PluginManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -105,11 +105,11 @@ FString FPlugin::GetMountedAssetPath() const
 	return Path;
 }
 
-bool FPlugin::IsEnabledByDefault() const
+bool FPlugin::IsEnabledByDefault(const bool bAllowEnginePluginsEnabledByDefault) const
 {
 	if (Descriptor.EnabledByDefault == EPluginEnabledByDefault::Enabled)
 	{
-		return true;
+		return (GetLoadedFrom() == EPluginLoadedFrom::Project ? true : bAllowEnginePluginsEnabledByDefault);
 	}
 	else if (Descriptor.EnabledByDefault == EPluginEnabledByDefault::Disabled)
 	{
@@ -198,6 +198,65 @@ void FPluginManager::RefreshPluginsList()
 			AllPlugins.Add(NewPlugin->GetName(), NewPlugin);
 		}
 	}
+}
+
+bool FPluginManager::AddToPluginsList(const FString& PluginFilename)
+{
+#if (WITH_ENGINE && !IS_PROGRAM) || WITH_PLUGIN_SUPPORT
+	// No need to readd if it already exists
+	FString PluginName = FPaths::GetBaseFilename(PluginFilename);
+	if (AllPlugins.Contains(PluginName))
+	{
+		return true;
+	}
+
+	// Read the plugin and load it
+	FPluginDescriptor Descriptor;
+	FText FailureReason;
+	if (Descriptor.Load(PluginFilename, FailureReason))
+	{
+		// Determine the plugin type
+		EPluginType PluginType = EPluginType::External;
+		if (PluginFilename.StartsWith(FPaths::EngineDir()) || PluginFilename.StartsWith(FPaths::EnginePlatformExtensionsDir()))
+		{
+			PluginType = EPluginType::Engine;
+		}
+		else if (PluginFilename.StartsWith(FPaths::EnterpriseDir()))
+		{
+			PluginType = EPluginType::Enterprise;
+		}
+		else if (PluginFilename.StartsWith(FPaths::ProjectModsDir()))
+		{
+			PluginType = EPluginType::Mod;
+		}
+		else if (PluginFilename.StartsWith(FPaths::GetPath(FPaths::GetProjectFilePath())))
+		{
+			PluginType = EPluginType::Project;
+		}
+
+		// Create the plugin
+		TMap<FString, TSharedRef<FPlugin>> NewPlugins;
+		TArray<TSharedRef<FPlugin>> ChildPlugins;
+		CreatePluginObject(PluginFilename, Descriptor, PluginType, NewPlugins, ChildPlugins);
+		ensureMsgf(ChildPlugins.Num() == 0, TEXT("AddToPluginsList does not allow plugins with bIsPluginExtension set to true. Plugin: %s"), *PluginFilename);
+		ensure(NewPlugins.Num() == 1);
+		
+		// Add the loaded plugin
+		TSharedRef<FPlugin>* NewPlugin = NewPlugins.Find(PluginName);
+		if (ensure(NewPlugin))
+		{
+			AllPlugins.Add(PluginName, *NewPlugin);
+		}
+
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogPluginManager, Warning, TEXT("AddToPluginsList failed to load plugin %s. Reason: %s"), *PluginFilename, *FailureReason.ToString());
+	}
+#endif
+
+	return false;
 }
 
 void FPluginManager::DiscoverAllPlugins()
@@ -587,10 +646,13 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				}
 			}
 
+			bool bAllowEnginePluginsEnabledByDefault = true;
 			// Find all the plugin references in the project file
 			const FProjectDescriptor* ProjectDescriptor = IProjectManager::Get().GetCurrentProject();
 			if (ProjectDescriptor != nullptr)
 			{
+				bAllowEnginePluginsEnabledByDefault = !ProjectDescriptor->bDisableEnginePluginsByDefault;
+
 				// Copy the plugin references, since we may modify the project if any plugins are missing
 				TArray<FPluginReferenceDescriptor> PluginReferences(ProjectDescriptor->Plugins);
 				for (const FPluginReferenceDescriptor& PluginReference : PluginReferences)
@@ -609,7 +671,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 			// Add the plugins which are enabled by default
 			for (const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
 			{
-				if(PluginPair.Value->IsEnabledByDefault() && !ConfiguredPluginNames.Contains(PluginPair.Key))
+				if (PluginPair.Value->IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault) && !ConfiguredPluginNames.Contains(PluginPair.Key))
 				{
 					if (!ConfigureEnabledPluginForCurrentTarget(FPluginReferenceDescriptor(PluginPair.Key, true), EnabledPlugins))
 					{
@@ -837,8 +899,11 @@ bool FPluginManager::GetCodePluginsForProject(const FProjectDescriptor* ProjectD
 	TSet<FString> ConfiguredPluginNames;
 
 	// Find all the plugin references in the project file
+	bool bAllowEnginePluginsEnabledByDefault = true;
 	if (ProjectDescriptor != nullptr)
 	{
+		bAllowEnginePluginsEnabledByDefault = !ProjectDescriptor->bDisableEnginePluginsByDefault;
+
 		// Copy the plugin references, since we may modify the project if any plugins are missing
 		TArray<FPluginReferenceDescriptor> PluginReferences(ProjectDescriptor->Plugins);
 		for (const FPluginReferenceDescriptor& PluginReference : PluginReferences)
@@ -857,7 +922,7 @@ bool FPluginManager::GetCodePluginsForProject(const FProjectDescriptor* ProjectD
 	// Add the plugins which are enabled by default
 	for (const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
 	{
-		if(PluginPair.Value->IsEnabledByDefault() && !ConfiguredPluginNames.Contains(PluginPair.Key))
+		if (PluginPair.Value->IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault) && !ConfiguredPluginNames.Contains(PluginPair.Key))
 		{
 			if (!ConfigureEnabledPluginForTarget(FPluginReferenceDescriptor(PluginPair.Key, true), ProjectDescriptor, FString(), Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, OutMissingPlugin))
 			{

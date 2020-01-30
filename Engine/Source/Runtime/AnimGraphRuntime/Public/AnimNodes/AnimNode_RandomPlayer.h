@@ -1,51 +1,20 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Math/RandomStream.h"
-#include "Animation/AnimationAsset.h"
-#include "Animation/AnimSequenceDecompressionContext.h"
 #include "AlphaBlend.h"
 #include "Animation/AnimNodeBase.h"
+#include "Animation/AnimationAsset.h"
+#include "CoreMinimal.h"
+#include "Math/RandomStream.h"
+#include "UObject/ObjectMacros.h"
+
 #include "AnimNode_RandomPlayer.generated.h"
 
 enum class ERandomDataIndexType
 {
 	Current,
 	Next,
-};
-
-struct FRandomAnimPlayData
-{
-	FRandomAnimPlayData()
-		: PreviousTimeAccumulator(0.0f)
-		, InternalTimeAccumulator(0.0f)
-		, PlayRate(1.0f)
-		, BlendWeight(0.0f)
-		, RemainingLoops(0)
-	{
-
-	}
-
-	// Prev time, used to track loops (prev > current)
-	float PreviousTimeAccumulator;
-
-	// Current time through the sequence
-	float InternalTimeAccumulator;
-
-	// Calculated play rate 
-	float PlayRate;
-
-	// Current blend weight
-	float BlendWeight;
-
-	// Calculated loops remaining
-	int32 RemainingLoops;
-
-	// Marker tick record for this play through
-	FMarkerTickRecord MarkerTickRecord;
 };
 
 /** The random player node holds a list of sequences and parameter ranges which will be played continuously
@@ -57,14 +26,13 @@ struct FRandomPlayerSequenceEntry
 	GENERATED_BODY()
 
 	FRandomPlayerSequenceEntry()
-	: Sequence(nullptr)
-	, ChanceToPlay(1.0f)
-	, MinLoopCount(0)
-	, MaxLoopCount(0)
-	, MinPlayRate(1.0f)
-	, MaxPlayRate(1.0f)
+	    : Sequence(nullptr)
+	    , ChanceToPlay(1.0f)
+	    , MinLoopCount(0)
+	    , MaxLoopCount(0)
+	    , MinPlayRate(1.0f)
+	    , MaxPlayRate(1.0f)
 	{
-
 	}
 
 	/** Sequence to play when this entry is picked */
@@ -72,28 +40,56 @@ struct FRandomPlayerSequenceEntry
 	UAnimSequence* Sequence;
 
 	/** When not in shuffle mode, this is the chance this entry will play (normalized against all other sample chances) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (UIMin = "0", ClampMin = "0"))
 	float ChanceToPlay;
 
 	/** Minimum number of times this entry will loop before ending */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta=(UIMin="0", ClampMin="0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (UIMin = "0", ClampMin = "0"))
 	int32 MinLoopCount;
 
 	/** Maximum number of times this entry will loop before ending */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta=(UIMin="0", ClampMin="0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (UIMin = "0", ClampMin = "0"))
 	int32 MaxLoopCount;
 
 	/** Minimum playrate for this entry */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta=(UIMin="0", ClampMin="0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (UIMin = "0", ClampMin = "0"))
 	float MinPlayRate;
 
 	/** Maximum playrate for this entry */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta=(UIMin="0", ClampMin="0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (UIMin = "0", ClampMin = "0"))
 	float MaxPlayRate;
 
 	/** Blending properties used when this entry is blending in ontop of another entry */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FAlphaBlend BlendIn;
+};
+
+struct FRandomAnimPlayData
+{
+	// Index into the real sequence entry list, not the valid entry list.
+	FRandomPlayerSequenceEntry* Entry = nullptr;
+
+	// The time at which the animation started playing. Used to initialize
+	// the play for this animation and detect when a loop has occurred.
+	float PlayStartTime = 0.0f;
+
+	// The time at which the animation is currently playing.
+	float CurrentPlayTime = 0.0f;
+
+	// The previous tick's update time.
+	float PreviousPlayTime = 0.0f;
+
+	// Calculated play rate
+	float PlayRate = 0.0f;
+
+	// Current blend weight
+	float BlendWeight = 0.0f;
+
+	// Calculated loops remaining
+	int32 RemainingLoops = 0;
+
+	// Marker tick record for this play through
+	FMarkerTickRecord MarkerTickRecord;
 };
 
 USTRUCT(BlueprintInternalUseOnly)
@@ -116,13 +112,30 @@ public:
 	// End of FAnimNode_Base interface
 
 private:
+	// Return the index of the next FRandomPlayerSequenceEntry to play, from the list
+	// of valid playable entries (ValidEntries).
+	int32 GetNextValidEntryIndex();
 
-	int32 GetNextEntryIndex();
-	int32 GetDataIndex(const ERandomDataIndexType& Type);
+	// Return the play data for either the currently playing animation or the next
+	// animation to blend into.
+	FRandomAnimPlayData& GetPlayData(ERandomDataIndexType Type);
 
-	void SwitchNextToCurrent();
+	// Initialize the play data with the given index into the ValidEntries array and
+	// a specific blend weight. All other member data will be reset to their default values.
+	void InitPlayData(FRandomAnimPlayData& Data, int32 ValidEntryIndex, float BlendWeight);
 
-	void BuildShuffleList();
+	// Advance to the next playable sequence. This is only called once a sequence is fully
+	// blended or there's a hard switch to the same playable entry.
+	void AdvanceToNextSequence();
+
+	// Build a new ShuffleList array, which is a shuffled index list of all the valid
+	// playable entries in ValidEntries. The LastEntry can be set to a valid entry index to
+	// ensure that the top/last item in the shuffle list will be a different value from it;
+	// pass in INDEX_NONE to disable the check.
+	void BuildShuffleList(int32 LastEntry);
+
+	// List of valid sequence entries
+	TArray<FRandomPlayerSequenceEntry*> ValidEntries;
 
 	// Normalized list of play chances when we aren't using shuffle mode
 	TArray<float> NormalizedPlayChances;
@@ -130,18 +143,11 @@ private:
 	// Play data for the current and next sequence
 	TArray<FRandomAnimPlayData> PlayData;
 
+	// Index of the 'current' data set in the PlayData array.
+	int32 CurrentPlayDataIndex;
+
 	// List to store transient shuffle stack in shuffle mode.
 	TArray<int32> ShuffleList;
-
-	// The currently playing entry in the entries list
-	int32 CurrentEntry;
-
-	// The next entry to play, we need this early so we can handle the crossfade correctly as entries
-	// can all have different blend in times.
-	int32 NextEntry;
-
-	// Index of the 'current' data set in the PlayData array
-	int32 CurrentDataIndex;
 
 	// Random number source
 	FRandomStream RandomStream;

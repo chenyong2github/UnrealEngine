@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Highlevel/Hierarchy/RigUnit_AimBone.h"
 #include "Units/RigUnitContext.h"
@@ -24,7 +24,7 @@ FRigUnit_AimBone_Execute()
 		return;
 	}
 
-	if (Primary.Weight <= SMALL_NUMBER && Secondary.Weight <= SMALL_NUMBER)
+	if ((Weight <= SMALL_NUMBER) || (Primary.Weight <= SMALL_NUMBER && Secondary.Weight <= SMALL_NUMBER))
 	{
 		return;
 	}
@@ -83,9 +83,10 @@ FRigUnit_AimBone_Execute()
 		{
 			Target = Target.GetSafeNormal();
 			FVector Axis = Transform.TransformVectorNoScale(Primary.Axis).GetSafeNormal();
-			if (Primary.Weight < 1.f - SMALL_NUMBER)
+			float T = Primary.Weight * Weight;
+			if (T < 1.f - SMALL_NUMBER)
 			{
-				Target = FMath::Lerp<FVector>(Axis, Target, Primary.Weight).GetSafeNormal();
+				Target = FMath::Lerp<FVector>(Axis, Target, T).GetSafeNormal();
 			}
 			FQuat Rotation = FQuat::FindBetweenNormals(Axis, Target);
 			Transform.SetRotation((Rotation * Transform.GetRotation()).GetNormalized());
@@ -156,9 +157,10 @@ FRigUnit_AimBone_Execute()
 			Target = Target.GetSafeNormal();
 
 			FVector Axis = Transform.TransformVectorNoScale(Secondary.Axis).GetSafeNormal();
-			if (Secondary.Weight < 1.f - SMALL_NUMBER)
+			float T = Secondary.Weight * Weight;
+			if (T < 1.f - SMALL_NUMBER)
 			{
-				Target = FMath::Lerp<FVector>(Axis, Target, Secondary.Weight).GetSafeNormal();
+				Target = FMath::Lerp<FVector>(Axis, Target, T).GetSafeNormal();
 			}
 			FQuat Rotation = FQuat::FindBetweenNormals(Axis, Target);
 			Transform.SetRotation((Rotation * Transform.GetRotation()).GetNormalized());

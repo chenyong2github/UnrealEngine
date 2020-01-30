@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/GameViewportClient.h"
 #include "HAL/FileManager.h"
@@ -326,12 +326,20 @@ void UGameViewportClient::DetachViewportClient()
 
 FSceneViewport* UGameViewportClient::GetGameViewport()
 {
-	return static_cast<FSceneViewport*>(Viewport);
+	if (Viewport && Viewport->GetViewportType() == NAME_SceneViewport)
+	{
+		return static_cast<FSceneViewport*>(Viewport);
+	}
+	return nullptr;
 }
 
 const FSceneViewport* UGameViewportClient::GetGameViewport() const
 {
-	return static_cast<FSceneViewport*>(Viewport);
+	if (Viewport && Viewport->GetViewportType() == NAME_SceneViewport)
+	{
+		return static_cast<FSceneViewport*>(Viewport);
+	}
+	return nullptr;
 }
 
 
@@ -412,6 +420,14 @@ void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance
 		}
 	}
 	MouseLockMode = GetDefault<UInputSettings>()->DefaultViewportMouseLockMode;
+
+	// Don't capture mouse when headless
+	if(!FApp::CanEverRender())
+	{
+		MouseCaptureMode = EMouseCaptureMode::NoCapture;
+		MouseLockMode = EMouseLockMode::DoNotLock;
+	}
+
 	// In off-screen rendering mode don't lock mouse to the viewport, as we don't want mouse to lock to an invisible window
 	if (FSlateApplication::Get().IsRenderingOffScreen()) {
 		MouseLockMode = EMouseLockMode::DoNotLock;
@@ -2615,7 +2631,8 @@ void UGameViewportClient::VerifyPathRenderingComponents()
 
 bool UGameViewportClient::CaptureMouseOnLaunch()
 {
-	return GetDefault<UInputSettings>()->bCaptureMouseOnLaunch;
+	// Capture mouse unless headless
+	return !FApp::CanEverRender() ? false : GetDefault<UInputSettings>()->bCaptureMouseOnLaunch;
 }
 
 bool UGameViewportClient::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
@@ -2944,7 +2961,7 @@ void UGameViewportClient::ToggleShowCollision()
 	if (World != nullptr)
 	{
 		// Tell engine to create proxies for hidden components, so we can still draw collision
-		World->bCreateRenderStateForHiddenComponents = bIsShowingCollision;
+		World->bCreateRenderStateForHiddenComponentsWithCollsion = bIsShowingCollision;
 
 		// Need to recreate scene proxies when this flag changes.
 		FGlobalComponentRecreateRenderStateContext Recreate;
@@ -3455,7 +3472,7 @@ bool UGameViewportClient::HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice&
 		if (Obj != nullptr)
 		{
 			FName PropertyName(PropStr, FNAME_Find);
-			if (PropertyName != NAME_None && FindField<UProperty>(Obj->GetClass(), PropertyName) != nullptr)
+			if (PropertyName != NAME_None && FindField<FProperty>(Obj->GetClass(), PropertyName) != nullptr)
 			{
 				AddDebugDisplayProperty(Obj, nullptr, PropertyName);
 			}
@@ -3507,7 +3524,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 			if (Cls != nullptr)
 			{
 				FName PropertyName(PropStr, FNAME_Find);
-				UProperty* Prop = PropertyName != NAME_None ? FindField<UProperty>(Cls, PropertyName) : nullptr;
+				FProperty* Prop = PropertyName != NAME_None ? FindField<FProperty>(Cls, PropertyName) : nullptr;
 				{
 					// add all un-GCable things immediately as that list is static
 					// so then we only have to iterate over dynamic things each frame

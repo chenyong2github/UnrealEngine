@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneRenderTargets.cpp: Scene render target implementation.
@@ -318,7 +318,6 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	SnapshotArray(TranslucencyLightingVolumeAmbient, SnapshotSource.TranslucencyLightingVolumeAmbient);
 	SnapshotArray(TranslucencyLightingVolumeDirectional, SnapshotSource.TranslucencyLightingVolumeDirectional);
 	SnapshotArray(OptionalShadowDepthColor, SnapshotSource.OptionalShadowDepthColor);
-	VirtualTextureFeedback.MakeSnapshot(SnapshotSource.VirtualTextureFeedback);
 }
 
 inline const TCHAR* GetSceneColorTargetName(EShadingPath ShadingPath)
@@ -870,13 +869,12 @@ FUnorderedAccessViewRHIRef FSceneRenderTargets::GetQuadOverdrawBufferUAV()
 
 FUnorderedAccessViewRHIRef FSceneRenderTargets::GetVirtualTextureFeedbackUAV()
 {
-	TRefCountPtr< IPooledRenderTarget > RenderTarget = VirtualTextureFeedback.FeedbackTextureGPU;
-	if(!RenderTarget)
+	if (!VirtualTextureFeedback.FeedbackBufferUAV)
 	{
 		return GBlackTextureWithUAV->UnorderedAccessViewRHI;
 	}
 	
-	return RenderTarget->GetRenderTargetItem().UAV;
+	return VirtualTextureFeedback.FeedbackBufferUAV;
 }
 
 void FSceneRenderTargets::BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo)
@@ -2065,7 +2063,7 @@ void FSceneRenderTargets::SetSeparateTranslucencyBufferSize(bool bAnyViewWantsDo
 	SeparateTranslucencyScale = EffectiveScale;
 }
 
-void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdList)
+void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& RHICmdList)
 {
 	// on ES2 we don't do on demand allocation of SceneColor yet (in non ES2 it's released in the Tonemapper Process())
 	AllocSceneColor(RHICmdList);
@@ -2106,6 +2104,12 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdLis
 	else
 	{
 		SceneAlphaCopy = GSystemTextures.MaxFP16Depth;
+	}
+	
+	if (UseVirtualTexturing(CurrentFeatureLevel))
+	{
+		FIntPoint FeedbackSize = FIntPoint::DivideAndRoundUp(BufferSize, FMath::Max(GVirtualTextureFeedbackFactor, 1));
+		VirtualTextureFeedback.CreateResourceGPU(RHICmdList, FeedbackSize);
 	}
 }
 
@@ -2319,9 +2323,10 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 	}
 }
 
-void FSceneRenderTargets::AllocateScreenShadowMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture)
+void FSceneRenderTargets::AllocateScreenShadowMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture, bool bCreateShaderResourceView)
 {
-	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetBufferSizeXY(), PF_B8G8R8A8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+	ETextureCreateFlags TargetableFlags = ETextureCreateFlags(TexCreate_RenderTargetable | TexCreate_ShaderResource | (bCreateShaderResourceView ? TexCreate_ShaderResource : TexCreate_None));
+	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetBufferSizeXY(), PF_B8G8R8A8, FClearValueBinding::White, TexCreate_None, TargetableFlags, false));
 	Desc.Flags |= GFastVRamConfig.ScreenSpaceShadowMask;
 	Desc.NumSamples = GetNumSceneColorMSAASamples(GetCurrentFeatureLevel());
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ScreenShadowMaskTexture, TEXT("ScreenShadowMaskTexture"));
@@ -3236,6 +3241,15 @@ void SetupMobileSceneTextureUniformParameters(
 
 	SceneTextureParameters.MobileCustomStencilTexture = MobileCustomStencil;
 	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	
+	if (SceneContext.VirtualTextureFeedback.FeedbackBufferUAV.IsValid())
+	{
+		SceneTextureParameters.VirtualTextureFeedbackUAV = SceneContext.VirtualTextureFeedback.FeedbackBufferUAV;
+	}
+	else
+	{
+		SceneTextureParameters.VirtualTextureFeedbackUAV = GVirtualTextureFeedbackDummyResource.UAV;
+	}
 }
 
 template< typename TRHICmdList >

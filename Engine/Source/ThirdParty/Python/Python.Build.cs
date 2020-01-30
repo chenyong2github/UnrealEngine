@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.IO;
 using System.Diagnostics;
@@ -44,8 +44,8 @@ public class Python : ModuleRules
 
 				PotentialSDKs.AddRange(
 					new PythonSDKPaths[] {
-						new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, PlatformDir), new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "include") }, Path.Combine(PythonSourceTPSDir, PlatformDir, "libs"), "python27.lib"),
-						//DiscoverPythonSDK("C:/Program Files/Python36"),
+						new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, PlatformDir), new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "include") }, new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "libs", "python27.lib") }),
+						//DiscoverPythonSDK("C:/Program Files/Python37"),
 						DiscoverPythonSDK("C:/Python27"),
 					}
 				);
@@ -54,7 +54,7 @@ public class Python : ModuleRules
 			{
 				PotentialSDKs.AddRange(
 					new PythonSDKPaths[] {
-						new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, "Mac"), new List<string>() { Path.Combine(PythonSourceTPSDir, "Mac", "include") }, Path.Combine(PythonBinaryTPSDir, "Mac"), "libpython2.7.dylib")
+						new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, "Mac"), new List<string>() { Path.Combine(PythonSourceTPSDir, "Mac", "include") }, new List<string>() { Path.Combine(PythonBinaryTPSDir, "Mac", "libpython2.7.dylib") }),
 					}
 				);
 			}
@@ -72,7 +72,7 @@ public class Python : ModuleRules
 									Path.Combine(PythonSourceTPSDir, PlatformDir, "include", "python2.7"),
 									Path.Combine(PythonSourceTPSDir, PlatformDir, "include", Target.Architecture)
 								},
-								Path.Combine(PythonSourceTPSDir, PlatformDir, "lib"), "libpython2.7.a"),
+								new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "lib", "libpython2.7.a") }),
 					});
 					PublicSystemLibraries.Add("util");	// part of libc
 				}
@@ -115,7 +115,8 @@ public class Python : ModuleRules
 		{
 			// If the Python install we're using is within the Engine directory, make the path relative so that it's portable
 			string EngineRelativePythonRoot = PythonSDK.PythonRoot;
-			if (EngineRelativePythonRoot.StartsWith(EngineDir))
+			var IsEnginePython = EngineRelativePythonRoot.StartsWith(EngineDir);
+			if (IsEnginePython)
 			{
 				// Strip the Engine directory and then combine the path with the placeholder to ensure the path is delimited correctly
 				EngineRelativePythonRoot = EngineRelativePythonRoot.Remove(0, EngineDir.Length);
@@ -138,19 +139,11 @@ public class Python : ModuleRules
 				PublicDefinitions.Add("HAVE_ROUND=1");
 			}
 
-			PublicSystemIncludePaths.AddRange(PythonSDK.PythonIncludePath);
-			if (Target.Platform == UnrealTargetPlatform.Mac)
+			PublicSystemIncludePaths.AddRange(PythonSDK.PythonIncludePaths);
+			PublicAdditionalLibraries.AddRange(PythonSDK.PythonLibs);
+			if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PythonSDK.PythonLibPath, PythonSDK.PythonLibName));
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(PythonSDK.PythonLibPath, PythonSDK.PythonLibName));
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python/Linux/lib/libpython2.7.so.1.0");
-			}
-			else
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(PythonSDK.PythonLibPath, PythonSDK.PythonLibName));
 			}
 		}
 	}
@@ -183,14 +176,13 @@ public class Python : ModuleRules
 	private PythonSDKPaths DiscoverPythonSDK(string InPythonRoot)
 	{
 		string PythonRoot = InPythonRoot;
-		string PythonIncludePath = null;
-		string PythonLibPath = null;
-		string PythonLibName = null;
+		List<string> PythonIncludePaths = null;
+		List<string> PythonLibs = null;
 
 		// Work out the include path
 		if (PythonRoot != null)
 		{
-			PythonIncludePath = Path.Combine(PythonRoot, "include");
+			var PythonIncludePath = Path.Combine(PythonRoot, "include");
 			if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				// On Mac the actual headers are inside a "pythonxy" directory, where x and y are the version number
@@ -203,7 +195,11 @@ public class Python : ModuleRules
 					}
 				}
 			}
-			if (!Directory.Exists(PythonIncludePath))
+			if (Directory.Exists(PythonIncludePath))
+			{
+				PythonIncludePaths = new List<string> { PythonIncludePath };
+			}
+			else
 			{
 				PythonRoot = null;
 			}
@@ -232,35 +228,38 @@ public class Python : ModuleRules
 
 			if (LibFolder != null && LibNamePattern != null)
 			{
-				PythonLibPath = Path.Combine(PythonRoot, LibFolder);
+				var PythonLibPath = Path.Combine(PythonRoot, LibFolder);
 
 				if (Directory.Exists(PythonLibPath))
 				{
 					string[] MatchingLibFiles = Directory.GetFiles(PythonLibPath, LibNamePattern);
 					if (MatchingLibFiles.Length > 0)
 					{
-						PythonLibName = Path.GetFileName(MatchingLibFiles[0]);
+						PythonLibs = new List<string>();
+						foreach (var MatchingLibFile in MatchingLibFiles)
+						{
+							PythonLibs.Add(MatchingLibFile);
+						}
 					}
 				}
 			}
 
-			if (PythonLibPath == null || PythonLibName == null)
+			if (PythonLibs == null)
 			{
 				PythonRoot = null;
 			}
 		}
 
-		return new PythonSDKPaths(PythonRoot, new List<string>() { PythonIncludePath }, PythonLibPath, PythonLibName);
+		return new PythonSDKPaths(PythonRoot, PythonIncludePaths, PythonLibs);
 	}
 
 	private class PythonSDKPaths
 	{
-		public PythonSDKPaths(string InPythonRoot, List<string> InPythonIncludePath, string InPythonLibPath, string InPythonLibName)
+		public PythonSDKPaths(string InPythonRoot, List<string> InPythonIncludePaths, List<string> InPythonLibs)
 		{
 			PythonRoot = InPythonRoot;
-			PythonIncludePath = InPythonIncludePath;
-			PythonLibPath = InPythonLibPath;
-			PythonLibName = InPythonLibName;
+			PythonIncludePaths = InPythonIncludePaths;
+			PythonLibs = InPythonLibs;
 		}
 
 		public bool IsValid()
@@ -269,8 +268,7 @@ public class Python : ModuleRules
 		}
 
 		public string PythonRoot;
-		public List<string> PythonIncludePath;
-		public string PythonLibPath;
-		public string PythonLibName;
+		public List<string> PythonIncludePaths;
+		public List<string> PythonLibs;
 	};
 }

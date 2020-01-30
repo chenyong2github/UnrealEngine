@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "Engine/SkeletalMesh.h"
@@ -49,7 +49,7 @@ UFbxSkeletalMeshImportData* UFbxSkeletalMeshImportData::GetImportDataForSkeletal
 	return ImportData;
 }
 
-bool UFbxSkeletalMeshImportData::CanEditChange(const UProperty* InProperty) const
+bool UFbxSkeletalMeshImportData::CanEditChange(const FProperty* InProperty) const
 {
 	bool bMutable = Super::CanEditChange(InProperty);
 	UObject* Outer = GetOuter();

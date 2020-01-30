@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,8 +37,8 @@ public:
 	void UpdateOpenInstances();
 
 	//~ FNotifyHook interface
-	virtual void NotifyPreChange(UProperty* PropertyAboutToChange)override;
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)override;
+	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)override;
 
 	/** Rebuilds the parameter view models. */
 	virtual void RefreshParameterViewModels() override;

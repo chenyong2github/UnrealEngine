@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -16,6 +16,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKFK : public FRigUnitMutable
 {
 	GENERATED_BODY()
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_TwoBoneIKFK()
@@ -52,33 +53,44 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKFK : public FRigUnitMutable
 	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (Input, ClampMin = "0", AllowSourceAccess))
 	float IKBlend; 
 
+private:
+
 	// Transform : Start Joint FK Transform         # Transform for the Start Joint when in FK mode
 	// Transform: Mid Joint FK Transform           # Transform for the Mid Joint when in FK mode
 	// Transform : End Joint FK Transform          # Transform for the End Joint when in FK mode
-	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (Input, AllowSourceAccess))
+	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (AllowSourceAccess))
 	FTransform StartJointFKTransform;
 
-	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (Input, AllowSourceAccess))
+	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (AllowSourceAccess))
 	FTransform MidJointFKTransform;
 
-	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (Input, AllowSourceAccess))
+	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (AllowSourceAccess))
 	FTransform EndJointFKTransform;
 
-private:
+	UPROPERTY(transient)
 	float PreviousFKIKBlend;
 
+	UPROPERTY(transient)
 	FTransform StartJointIKTransform;
+	
+	UPROPERTY(transient)
 	FTransform MidJointIKTransform;
+
+	UPROPERTY(transient)
 	FTransform EndJointIKTransform;
 
+	UPROPERTY(transient)
 	int32 StartJointIndex;
+
+	UPROPERTY(transient)
 	int32 MidJointIndex;
+
+	UPROPERTY(transient)
 	int32 EndJointIndex;
 
+	UPROPERTY(transient)
 	float UpperLimbLength;
+	
+	UPROPERTY(transient)
 	float LowerLimbLength;
-
-	void SolveIK();
-
-	friend class URigUnitEditor_TwoBoneIKFK;
 };

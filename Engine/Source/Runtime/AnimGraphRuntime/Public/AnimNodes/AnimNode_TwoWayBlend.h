@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,9 +21,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Links)
 	FPoseLink B;
 
+	/** The data type used to control the alpha blending between the A and B poses. 
+		Note: Changing this value will disconnect alpha input pins. 
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	EAnimAlphaInputType AlphaInputType;
 
+	/** The boolean value that controls the alpha blending when the alpha input type is set to 'Bool' */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault, DisplayName = "bEnabled", DisplayAfter="AlphaScaleBias"))
 	uint8 bAlphaBoolEnabled:1;
 
@@ -37,6 +41,7 @@ protected:
 	uint8 bResetChildOnActivation:1;
 
 public:
+	/** The float value that controls the alpha blending when the alpha input type is set to 'Float' */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	float Alpha;
 
@@ -46,6 +51,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (DisplayName = "Blend Settings"))
 	FInputAlphaBoolBlend AlphaBoolBlend;
 
+	/** The animation curve that controls the alpha blending when the alpha input type is set to 'Curve' */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault))
 	FName AlphaCurveName;
 

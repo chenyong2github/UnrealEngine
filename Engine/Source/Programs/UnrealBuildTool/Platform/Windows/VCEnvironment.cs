@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -83,11 +83,6 @@ namespace UnrealBuildTool
 		public readonly FileReference ResourceCompilerPath;
 
 		/// <summary>
-		/// Path to the ISPC compiler
-		/// </summary>
-		public readonly FileReference ISPCCompilerPath;
-
-		/// <summary>
 		/// The default system include paths
 		/// </summary>
 		public readonly List<DirectoryReference> IncludePaths = new List<DirectoryReference>();
@@ -135,9 +130,6 @@ namespace UnrealBuildTool
 
 			// Get the resource compiler path from the Windows SDK
 			ResourceCompilerPath = GetResourceCompilerToolPath(Platform, WindowsSdkDir, WindowsSdkVersion);
-
-			// Get the ISPC compiler bundled with the engine
-			ISPCCompilerPath = GetISPCCompilerToolPath(Platform);
 
 			// Get all the system include paths
 			SetupEnvironment(Platform);
@@ -377,21 +369,6 @@ namespace UnrealBuildTool
 				}
 			}
 			throw new BuildException("Unable to find path to the Windows resource compiler under {0} (version {1})", WindowsSdkDir, WindowsSdkVersion);
-		}
-
-		/// <summary>
-		/// Gets the path to the ISPC compiler's ispc.exe for the specified platform.
-		/// </summary>
-		static FileReference GetISPCCompilerToolPath(UnrealTargetPlatform Platform)
-		{
-			FileReference ISPCCompilerPath = FileReference.Combine(UnrealBuildTool.EngineSourceThirdPartyDirectory, "IntelISPC", "bin", "Windows", "ispc.exe");
-
-			if(FileReference.Exists(ISPCCompilerPath))
-			{
-				return ISPCCompilerPath;
-			}
-
-			throw new BuildException("Unable to find ISPC compiler path under {0}", ISPCCompilerPath);
 		}
 
 		/// <summary>

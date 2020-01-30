@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/TransformTrackEditor.h"
 #include "GameFramework/Actor.h"
@@ -47,51 +47,6 @@ void GetActorAndSceneComponentFromObject( UObject* Object, AActor*& OutActor, US
 }
 
 
-class F3DTransformTrackCommands
-	: public TCommands<F3DTransformTrackCommands>
-{
-public:
-
-	F3DTransformTrackCommands()
-		: TCommands<F3DTransformTrackCommands>
-	(
-		"3DTransformTrack",
-		NSLOCTEXT("Contexts", "3DTransformTrack", "3DTransformTrack"),
-		NAME_None, // "MainFrame" // @todo Fix this crash
-		FEditorStyle::GetStyleSetName() // Icon Style Set
-	)
-		, BindingCount(0)
-	{ }
-		
-	/** Sets a transform key at the current time for the selected actor */
-	TSharedPtr< FUICommandInfo > AddTransformKey;
-
-	/** Sets a translation key at the current time for the selected actor */
-	TSharedPtr< FUICommandInfo > AddTranslationKey;
-
-	/** Sets a rotation key at the current time for the selected actor */
-	TSharedPtr< FUICommandInfo > AddRotationKey;
-
-	/** Sets a scale key at the current time for the selected actor */
-	TSharedPtr< FUICommandInfo > AddScaleKey;
-
-	/**
-	 * Initialize commands
-	 */
-	virtual void RegisterCommands() override;
-
-	mutable uint32 BindingCount;
-};
-
-
-void F3DTransformTrackCommands::RegisterCommands()
-{
-	UI_COMMAND( AddTransformKey, "Add Transform Key", "Add a transform key at the current time for the selected actor.", EUserInterfaceActionType::Button, FInputChord(EKeys::S) );
-	UI_COMMAND( AddTranslationKey, "Add Translation Key", "Add a translation key at the current time for the selected actor.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::W) );
-	UI_COMMAND( AddRotationKey, "Add Rotation Key", "Add a rotation key at the current time for the selected actor.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::E) );
-	UI_COMMAND( AddScaleKey, "Add Scale Key", "Add a scale key at the current time for the selected actor.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::R) );
-}
-
 FName F3DTransformTrackEditor::TransformPropertyName("Transform");
 
 F3DTransformTrackEditor::F3DTransformTrackEditor( TSharedRef<ISequencer> InSequencer )
@@ -100,8 +55,6 @@ F3DTransformTrackEditor::F3DTransformTrackEditor( TSharedRef<ISequencer> InSeque
 	// Listen for actor/component movement
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.AddRaw(this, &F3DTransformTrackEditor::OnPrePropertyChanged);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &F3DTransformTrackEditor::OnPostPropertyChanged);
-
-	F3DTransformTrackCommands::Register();
 }
 
 
@@ -113,14 +66,6 @@ void F3DTransformTrackEditor::OnRelease()
 {
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-
-	const F3DTransformTrackCommands& Commands = F3DTransformTrackCommands::Get();
-	Commands.BindingCount--;
-	
-	if (Commands.BindingCount < 1)
-	{
-		F3DTransformTrackCommands::Unregister();
-	}
 
 	for(FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
@@ -362,7 +307,7 @@ void F3DTransformTrackEditor::OnTransformChanged( UObject& InObject )
 
 void F3DTransformTrackEditor::OnPrePropertyChanged(UObject* InObject, const FEditPropertyChain& InPropertyChain)
 {
-	UProperty* PropertyAboutToChange = InPropertyChain.GetActiveMemberNode()->GetValue();
+	FProperty* PropertyAboutToChange = InPropertyChain.GetActiveMemberNode()->GetValue();
 	const FName MemberPropertyName = PropertyAboutToChange != nullptr ? PropertyAboutToChange->GetFName() : NAME_None;
 	const bool bTransformationToChange =
 		(MemberPropertyName == USceneComponent::GetRelativeLocationPropertyName() ||
@@ -451,40 +396,6 @@ void F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects( EMovieSceneT
 		AddTransformKeysForObject(*It, Channel, ESequencerKeyMode::ManualKeyForced);
 	}
 }
-
-
-void F3DTransformTrackEditor::BindCommands(TSharedRef<FUICommandList> SequencerCommandBindings)
-{
-	const F3DTransformTrackCommands& Commands = F3DTransformTrackCommands::Get();
-
-	CommandBindings = MakeShared<FUICommandList>();
-	CommandBindings->MapAction(
-		Commands.AddTransformKey,
-		FExecuteAction::CreateSP(this, &F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::All),
-		FCanExecuteAction::CreateSP(this, &F3DTransformTrackEditor::CanAddTransformKeysForSelectedObjects));
-		
-
-	CommandBindings->MapAction(
-		Commands.AddTranslationKey,
-		FExecuteAction::CreateSP( this, &F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Translation ),
-		FCanExecuteAction::CreateSP(this, &F3DTransformTrackEditor::CanAddTransformKeysForSelectedObjects));
-	CommandBindings->MapAction(
-		Commands.AddRotationKey,
-		FExecuteAction::CreateSP( this, &F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Rotation ),
-		FCanExecuteAction::CreateSP(this, &F3DTransformTrackEditor::CanAddTransformKeysForSelectedObjects));
-	CommandBindings->MapAction(
-		Commands.AddScaleKey,
-		FExecuteAction::CreateSP( this, &F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Scale ),
-		FCanExecuteAction::CreateSP(this, &F3DTransformTrackEditor::CanAddTransformKeysForSelectedObjects));
-	Commands.BindingCount++;
-
-	// Add these bindings to Sequencer
-	SequencerCommandBindings->Append(CommandBindings.ToSharedRef());
-	
-	// Also add them to the Curve Editor 
-	GetSequencer()->GetCommandBindings(ESequencerCommandBindings::CurveEditor)->Append(CommandBindings.ToSharedRef());
-}
-
 
 void F3DTransformTrackEditor::BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBox, const FGuid& ObjectGuid, const UClass* ObjectClass)
 {
@@ -875,7 +786,7 @@ void F3DTransformTrackEditor::AddTransformKeys( UObject* ObjectToKey, const TOpt
 
 	auto OnKeyProperty = [=](FFrameNumber Time) -> FKeyPropertyResult
 	{
-		return this->AddKeysToObjects({ ObjectToKey }, Time, *GeneratedKeys,  KeyMode, UMovieScene3DTransformTrack::StaticClass(), TransformPropertyName, InitializeNewTrack);
+		return this->AddKeysToObjects(MakeArrayView(&ObjectToKey, 1), Time, *GeneratedKeys,  KeyMode, UMovieScene3DTransformTrack::StaticClass(), TransformPropertyName, InitializeNewTrack);
 	};
 
 	AnimatablePropertyChanged( FOnKeyProperty::CreateLambda(OnKeyProperty) );

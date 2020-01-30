@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,8 +6,6 @@
 #include "SLiveLinkMessageBusSourceFactory.h"
 #include "LiveLinkMessageBusSourceFactory.generated.h"
 
-
-class SLiveLinkMessageBusSourceEditor;
 
 UCLASS()
 class ULiveLinkMessageBusSourceFactory : public ULiveLinkSourceFactory

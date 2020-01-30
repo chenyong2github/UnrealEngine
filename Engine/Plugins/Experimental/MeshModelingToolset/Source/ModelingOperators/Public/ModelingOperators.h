@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -65,7 +65,7 @@ class IDynamicMeshOperatorFactory
 public:
 	virtual ~IDynamicMeshOperatorFactory() {}
 
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() = 0;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() = 0;
 };
 
 

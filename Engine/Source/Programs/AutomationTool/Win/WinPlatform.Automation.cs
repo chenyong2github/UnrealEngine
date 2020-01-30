@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -395,6 +395,8 @@ public abstract class BaseWinPlatform : Platform
 		{
 			DateTime Start = DateTime.Now;
 			DirectoryReference TempSymStoreDir = DirectoryReference.Combine(RootDirectory, "Saved", "SymStore");
+			DirectoryReference.CreateDirectory(TempSymStoreDir);
+			DeleteDirectoryContents(TempSymStoreDir);
 
 			string TempFileName = Path.GetTempFileName();
 			try

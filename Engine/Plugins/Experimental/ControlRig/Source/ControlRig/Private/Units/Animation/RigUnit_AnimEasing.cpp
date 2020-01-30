@@ -1,7 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Animation/RigUnit_AnimEasing.h"
 #include "Units/RigUnitContext.h"
+
+FRigUnit_AnimEasingType_Execute()
+{
+}
 
 FRigUnit_AnimEasing_Execute()
 {

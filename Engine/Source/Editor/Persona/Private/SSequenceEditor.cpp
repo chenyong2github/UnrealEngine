@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SSequenceEditor.h"
@@ -8,76 +8,40 @@
 #include "SAnimTrackCurvePanel.h"
 #include "AnimPreviewInstance.h"
 #include "Editor.h"
+#include "AnimModel_AnimSequenceBase.h"
+#include "SAnimTimeline.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceEditor"
 
 //////////////////////////////////////////////////////////////////////////
 // SSequenceEditor
 
-void SSequenceEditor::Construct(const FArguments& InArgs, TSharedRef<class IPersonaPreviewScene> InPreviewScene, TSharedRef<class IEditableSkeleton> InEditableSkeleton)
+void SSequenceEditor::Construct(const FArguments& InArgs, TSharedRef<class IPersonaPreviewScene> InPreviewScene, TSharedRef<class IEditableSkeleton> InEditableSkeleton, const TSharedRef<FUICommandList>& InCommandList)
 {
 	SequenceObj = InArgs._Sequence;
 	check(SequenceObj);
 	PreviewScenePtr = InPreviewScene;
 
+	AnimModel = MakeShared<FAnimModel_AnimSequenceBase>(InPreviewScene, InEditableSkeleton, InCommandList, SequenceObj);
+
+	AnimModel->OnEditCurves = FOnEditCurves::CreateLambda([this, InOnEditCurves = InArgs._OnEditCurves](UAnimSequenceBase* InAnimSequence, const TArray<IAnimationEditor::FCurveEditInfo>& InCurveInfo, const TSharedPtr<ITimeSliderController>& InExternalTimeSliderController)
+	{
+		InOnEditCurves.ExecuteIfBound(InAnimSequence, InCurveInfo, TimelineWidget->GetTimeSliderController());
+	});
+
+	AnimModel->OnStopEditingCurves = InArgs._OnStopEditingCurves;
+	AnimModel->OnSelectObjects = FOnObjectsSelected::CreateSP(this, &SAnimEditorBase::OnSelectionChanged);
+	AnimModel->OnInvokeTab = InArgs._OnInvokeTab;
+	AnimModel->Initialize();
+
 	SAnimEditorBase::Construct( SAnimEditorBase::FArguments()
-		.OnObjectsSelected(InArgs._OnObjectsSelected), 
-		InPreviewScene );
+		.OnObjectsSelected(InArgs._OnObjectsSelected)
+		.AnimModel(AnimModel), 
+		InPreviewScene);
 
 	if(GEditor)
 	{
 		GEditor->RegisterForUndo(this);
-	}
-
-	EditorPanels->AddSlot()
-	.AutoHeight()
-	.Padding(0, 10)
-	[
-		SAssignNew( AnimNotifyPanel, SAnimNotifyPanel, InEditableSkeleton )
-		.Sequence(SequenceObj)
-		.WidgetWidth(S2ColumnWidget::DEFAULT_RIGHT_COLUMN_WIDTH)
-		.ViewInputMin(this, &SAnimEditorBase::GetViewMinInput)
-		.ViewInputMax(this, &SAnimEditorBase::GetViewMaxInput)
-		.InputMin(this, &SAnimEditorBase::GetMinInput)
-		.InputMax(this, &SAnimEditorBase::GetMaxInput)
-		.OnSetInputViewRange(this, &SAnimEditorBase::SetInputViewRange)
-		.OnGetScrubValue(this, &SAnimEditorBase::GetScrubValue)
-		.OnSelectionChanged(this, &SAnimEditorBase::OnSelectionChanged)
-		.OnInvokeTab(InArgs._OnInvokeTab)
-	];
-
-	EditorPanels->AddSlot()
-	.AutoHeight()
-	.Padding(0, 10)
-	[
-		SAssignNew( AnimCurvePanel, SAnimCurvePanel, InEditableSkeleton )
-		.Sequence(SequenceObj)
-		.WidgetWidth(S2ColumnWidget::DEFAULT_RIGHT_COLUMN_WIDTH)
-		.ViewInputMin(this, &SAnimEditorBase::GetViewMinInput)
-		.ViewInputMax(this, &SAnimEditorBase::GetViewMaxInput)
-		.InputMin(this, &SAnimEditorBase::GetMinInput)
-		.InputMax(this, &SAnimEditorBase::GetMaxInput)
-		.OnSetInputViewRange(this, &SAnimEditorBase::SetInputViewRange)
-		.OnGetScrubValue(this, &SAnimEditorBase::GetScrubValue)
-	];
-
-	UAnimSequence * AnimSeq = Cast<UAnimSequence>(SequenceObj);
-	if (AnimSeq)
-	{
-		EditorPanels->AddSlot()
-		.AutoHeight()
-		.Padding(0, 10)
-		[
-			SAssignNew(AnimTrackCurvePanel, SAnimTrackCurvePanel, InPreviewScene)
-			.Sequence(AnimSeq)
-			.WidgetWidth(S2ColumnWidget::DEFAULT_RIGHT_COLUMN_WIDTH)
-			.ViewInputMin(this, &SAnimEditorBase::GetViewMinInput)
-			.ViewInputMax(this, &SAnimEditorBase::GetViewMaxInput)
-			.InputMin(this, &SAnimEditorBase::GetMinInput)
-			.InputMax(this, &SAnimEditorBase::GetMaxInput)
-			.OnSetInputViewRange(this, &SAnimEditorBase::SetInputViewRange)
-			.OnGetScrubValue(this, &SAnimEditorBase::GetScrubValue)
-		];
 	}
 }
 
@@ -103,17 +67,7 @@ void SSequenceEditor::PostUndoRedo()
 {
 	GetPreviewScene()->SetPreviewAnimationAsset(SequenceObj);
 
-	if( SequenceObj )
-	{
-		SetInputViewRange(0, SequenceObj->SequenceLength);
-
-		AnimNotifyPanel->Update();
-		AnimCurvePanel->UpdatePanel();
-		if (AnimTrackCurvePanel.IsValid())
-		{
-			AnimTrackCurvePanel->UpdatePanel();
-		}
-	}
+	AnimModel->RefreshTracks();
 }
 
 #undef LOCTEXT_NAMESPACE

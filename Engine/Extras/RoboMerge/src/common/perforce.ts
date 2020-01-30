@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 import {execFile, ExecFileOptions} from 'child_process';
 import * as util from 'util';
 import * as path from 'path';

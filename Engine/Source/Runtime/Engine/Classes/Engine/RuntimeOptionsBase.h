@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,7 +43,7 @@ public:
 
 	//~UObject interface
 	virtual void PostInitProperties() override;
-	virtual void PostReloadConfig(UProperty* PropertyThatWasLoaded) override;
+	virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
 	//~End of UObject interface
 
 	// Returns the runtime options for the specified type, typically you will make a non-templated overload of Get in your subclass

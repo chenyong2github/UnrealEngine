@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,6 +18,9 @@ struct FRigUnit_AnimEasingType : public FRigUnit_AnimBase
 	{
 		Type = EControlRigAnimEasingType::CubicEaseInOut;
 	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input, Output))
 	EControlRigAnimEasingType Type;

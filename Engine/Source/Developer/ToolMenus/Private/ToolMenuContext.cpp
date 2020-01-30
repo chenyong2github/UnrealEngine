@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
@@ -119,7 +119,7 @@ void FToolMenuContext::AddExtender(const TSharedPtr<FExtender>& InExtender)
 	Extenders.AddUnique(InExtender);
 }
 
-TSharedPtr<FExtender> FToolMenuContext::GetAllExtenders()
+TSharedPtr<FExtender> FToolMenuContext::GetAllExtenders() const
 {
 	return FExtender::Combine(Extenders);
 }

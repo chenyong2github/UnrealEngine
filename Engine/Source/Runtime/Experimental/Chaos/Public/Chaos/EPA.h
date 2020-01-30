@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/Simplex.h"
 #include <queue>
@@ -122,9 +122,8 @@ struct TEPAEntry
 };
 
 template <typename T, typename SupportALambda, typename SupportBLambda >
-TArray<TEPAEntry<T>> InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const SupportALambda& SupportA, const SupportBLambda& SupportB)
+bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const SupportALambda& SupportA, const SupportBLambda& SupportB, TArray<TEPAEntry<T>>& OutEntries, TVec3<T>& OutTouchNormal)
 {
-	TArray<TEPAEntry<T>> Entries;
 	const int32 NumVerts = VertsA.Num();
 	check(VertsB.Num() == NumVerts);
 
@@ -154,7 +153,8 @@ TArray<TEPAEntry<T>> InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& V
 		}
 	};
 
-	Entries.AddUninitialized(4);
+	OutEntries.AddUninitialized(4);
+	OutTouchNormal = TVec3<T>(0,0,1);
 
 	bool bValid = false;
 
@@ -163,7 +163,7 @@ TArray<TEPAEntry<T>> InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& V
 		case 1:
 		{
 			//assuming it's a touching hit at origin
-			break;
+			return false;
 		}
 		case 2:
 		{
@@ -192,35 +192,47 @@ TArray<TEPAEntry<T>> InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& V
 				AddFartherPoint(Orthog);
 				AddFartherPoint(Orthog2);
 
-				bValid = Entries[0].Initialize(VertsA.GetData(), VertsB.GetData(), 1, 2, 3, { 3, 1, 2 }, { 1,1, 1 });
-				bValid &= Entries[1].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 3, 2, { 2,0,3 }, { 2, 1, 0 });
-				bValid &= Entries[2].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 1, 3, { 3,0, 1 }, { 2,2,0 });
-				bValid &= Entries[3].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 2, 1, { 1,0,2 }, { 2,0,0 });
+				bValid = OutEntries[0].Initialize(VertsA.GetData(), VertsB.GetData(), 1, 2, 3, { 3, 1, 2 }, { 1,1, 1 });
+				bValid &= OutEntries[1].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 3, 2, { 2,0,3 }, { 2, 1, 0 });
+				bValid &= OutEntries[2].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 1, 3, { 3,0, 1 }, { 2,2,0 });
+				bValid &= OutEntries[3].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 2, 1, { 1,0,2 }, { 2,0,0 });
+
+				if(!bValid)
+				{
+					OutTouchNormal = Orthog.GetUnsafeNormal();
+					return false;
+				}
 			}
 			break;
 		}
 		case 3:
 		{
 			//triangle, add farthest point along normal
-			bValid = Entries[3].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 2, 1, { 1,0,2 }, { 2,0,0 });	
+			bValid = OutEntries[3].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 2, 1, { 1,0,2 }, { 2,0,0 });	
 			if (ensure(bValid)) //input verts must form a valid triangle
 			{
-				const TEPAEntry<T>& Base = Entries[3];
+				const TEPAEntry<T>& Base = OutEntries[3];
 
 				AddFartherPoint(Base.PlaneNormal);
 
-				bValid = Entries[0].Initialize(VertsA.GetData(), VertsB.GetData(), 1, 2, 3, { 3, 1, 2 }, { 1,1, 1 });
-				bValid &= Entries[1].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 3, 2, { 2,0,3 }, { 2, 1, 0 });
-				bValid &= Entries[2].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 1, 3, { 3,0, 1 }, { 2,2,0 });
+				bValid = OutEntries[0].Initialize(VertsA.GetData(), VertsB.GetData(), 1, 2, 3, { 3, 1, 2 }, { 1,1, 1 });
+				bValid &= OutEntries[1].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 3, 2, { 2,0,3 }, { 2, 1, 0 });
+				bValid &= OutEntries[2].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 1, 3, { 3,0, 1 }, { 2,2,0 });
+
+				if(!bValid)
+				{
+					OutTouchNormal = Base.PlaneNormal;
+					return false;
+				}
 			}
 			break;
 		}
 		case 4:
 		{
-			bValid = Entries[0].Initialize(VertsA.GetData(), VertsB.GetData(), 1, 2, 3, { 3, 1, 2 }, { 1,1, 1 });
-			bValid &= Entries[1].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 3, 2, { 2,0,3 }, { 2, 1, 0 });
-			bValid &= Entries[2].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 1, 3, { 3,0, 1 }, { 2,2,0 });
-			bValid &= Entries[3].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 2, 1, { 1,0,2 }, { 2,0,0 });
+			bValid = OutEntries[0].Initialize(VertsA.GetData(), VertsB.GetData(), 1, 2, 3, { 3, 1, 2 }, { 1,1, 1 });
+			bValid &= OutEntries[1].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 3, 2, { 2,0,3 }, { 2, 1, 0 });
+			bValid &= OutEntries[2].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 1, 3, { 3,0, 1 }, { 2,2,0 });
+			bValid &= OutEntries[3].Initialize(VertsA.GetData(), VertsB.GetData(), 0, 2, 1, { 1,0,2 }, { 2,0,0 });
 			ensure(bValid);	//expect user to give us valid tetrahedron
 			break;
 		}
@@ -231,20 +243,16 @@ TArray<TEPAEntry<T>> InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& V
 	if (bValid)
 	{
 		//make sure normals are pointing out of tetrahedron
-		if (TVec3<T>::DotProduct(Entries[0].PlaneNormal, MinkowskiVert(VertsA.GetData(), VertsB.GetData(), 0)) > 0)
+		if (TVec3<T>::DotProduct(OutEntries[0].PlaneNormal, MinkowskiVert(VertsA.GetData(), VertsB.GetData(), 0)) > 0)
 		{
-			for (TEPAEntry<T>& Entry : Entries)
+			for (TEPAEntry<T>& Entry : OutEntries)
 			{
-				Entry.SwapWinding(Entries.GetData());
+				Entry.SwapWinding(OutEntries.GetData());
 			}
 		}
 	}
-	else
-	{
-		Entries.SetNum(0);
-	}
-
-	return Entries;
+	
+	return bValid;
 }
 
 struct FEPAFloodEntry
@@ -352,18 +360,15 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 
 	constexpr T Eps = 1e-2;
 
-	TArray<TEPAEntry<T>> Entries = InitializeEPA(VertsABuffer, VertsBBuffer, SupportA, SupportB);
-
-	if (Entries.Num() < 4)
+	TArray<TEPAEntry<T>> Entries;
+	if(!InitializeEPA(VertsABuffer,VertsBBuffer,SupportA,SupportB, Entries, OutDir))
 	{
 		//either degenerate or a touching hit. Either way return penetration 0
 		OutPenetration = 0;
-		OutDir = TVec3<T>(0, 0, 1);
 		WitnessA = TVec3<T>(0);
 		WitnessB = TVec3<T>(0);
 		return EPAResult::BadInitialSimplex;
 	}
-
 
 #if DEBUG_EPA
 	TArray<TVec3<T>> VertsWBuffer;
@@ -387,7 +392,7 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 	//TEPAEntry<T> BestEntry;
 	//BestEntry.Distance = 0;
 
-	TEPAEntry<T> LastEntry = Entries[0];
+	TEPAEntry<T> LastEntry = Queue.size() > 0 ? Entries[Queue.top().Idx] : Entries[0];
 
 	TArray<FEPAFloodEntry> VisibilityBorder;
 	int32 Iteration = 0;
@@ -407,7 +412,6 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 			continue;
 		}
 
-		LastEntry = Entry;
 
 
 		const TVec3<T> ASupport = SupportA(Entry.PlaneNormal);
@@ -426,12 +430,21 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 		LowerBound = Entry.Distance;
 
 		//It's possible the origin is not contained by the CSO. In this case the upper bound will be negative, at which point we should just exit. Maybe return a different enum value?
-		if ((UpperBound - LowerBound) <= FMath::Abs(Eps * LowerBound))
+		if (FMath::Abs(UpperBound - LowerBound) <= FMath::Abs(Eps * LowerBound))
 		{
 			//UE_LOG(LogChaos, Warning, TEXT("Iteration:%d"), Iteration);
 			ComputeEPAResults(VertsABuffer.GetData(), VertsBBuffer.GetData(), Entry, OutPenetration, OutDir, WitnessA, WitnessB);
 			return EPAResult::Ok;
 		}
+
+		if (UpperBound < LowerBound)
+		{
+			//we cannot get any better than what we saw, so just return previous face
+			break;
+		}
+
+		LastEntry = Entry;
+
 
 		const int32 NewVertIdx = VertsABuffer.Add(ASupport);
 		VertsBBuffer.Add(BSupport);

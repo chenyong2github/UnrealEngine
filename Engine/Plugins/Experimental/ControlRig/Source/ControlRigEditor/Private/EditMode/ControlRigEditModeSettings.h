@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,10 +6,6 @@
 #include "UObject/Object.h"
 #include "UObject/LazyObjectPtr.h"
 #include "ControlRigEditModeSettings.generated.h"
-
-class AActor;
-class UControlRig;
-class UControlRigSequence;
 
 /** Settings object used to show useful information in the details panel */
 UCLASS()
@@ -22,10 +18,12 @@ class UControlRigEditModeSettings : public UObject
 		, bHideManipulators(false)
 		, bDisplayAxesOnSelection(true)
 		, AxisScale(10.f)
+		, bCoordSystemPerWidgetMode(true)
+		, bOnlySelectRigControls(false)
 	{}
 
 	// UObject interface
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 public:
@@ -46,4 +44,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
 	float AxisScale;
 
+	/** If true we restore the coordinate space when changing Widget Modes in the Viewport*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	bool bCoordSystemPerWidgetMode;
+
+	/** If true we can only select Rig Controls in the scene not other Actors. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Animation")
+	bool bOnlySelectRigControls;
+	
 };

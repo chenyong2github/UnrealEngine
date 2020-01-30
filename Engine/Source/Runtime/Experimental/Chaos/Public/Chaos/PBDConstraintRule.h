@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Declares.h"
@@ -31,6 +31,12 @@ namespace Chaos
 			return L.GetPriority() < R.GetPriority();
 		}
 
+		/** Called once per frame before Apply. Can be used to prepare caches etc. */
+		virtual void PrepareConstraints(FReal Dt) {}
+
+		/** Called once per frame after Apply. Should be used to release any transient stores created in PrepareConstraints. */
+		virtual void UnprepareConstraints(FReal Dt) {}
+
 	protected:
 		int32 Priority;
 	};
@@ -58,6 +64,16 @@ namespace Chaos
 			: FSimpleConstraintRule(InPriority)
 			, Constraints(InConstraints)
 		{
+		}
+
+		virtual void PrepareConstraints(FReal Dt) override
+		{
+			Constraints.PrepareConstraints(Dt);
+		}
+
+		virtual void UnprepareConstraints(FReal Dt) override
+		{
+			Constraints.UnprepareConstraints(Dt);
 		}
 
 		virtual void UpdatePositionBasedState(const FReal Dt) override
@@ -132,6 +148,16 @@ namespace Chaos
 		typedef T_CONSTRAINTS FConstraints;
 
 		TPBDConstraintGraphRuleImpl(FConstraints& InConstraints, int32 InPriority);
+
+		virtual void PrepareConstraints(FReal Dt) override
+		{
+			Constraints.PrepareConstraints(Dt);
+		}
+
+		virtual void UnprepareConstraints(FReal Dt) override
+		{
+			Constraints.UnprepareConstraints(Dt);
+		}
 
 		virtual void BindToGraph(FPBDConstraintGraph& InContactGraph, uint32 InContainerId) override;
 

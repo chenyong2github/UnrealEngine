@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
 * Here are a number of profiling helper functions so we do not have to duplicate a lot of the glue
@@ -109,7 +109,7 @@ const TCHAR* FABTest::TickAndGetCommand()
 	}
 	else if (bABTestActive)
 	{
-		float Delta;
+		double Delta;
 		if (bABScopeTestActive)
 		{
 			Delta = TotalScopeTimeInFrame;
@@ -117,7 +117,7 @@ const TCHAR* FABTest::TickAndGetCommand()
 		else
 		{
 			Delta = FPlatformTime::Seconds() - LastTime;
-			check(Delta > 0);
+			check(Delta > 0.0);
 		}
 
 		FSample* Sample = nullptr;

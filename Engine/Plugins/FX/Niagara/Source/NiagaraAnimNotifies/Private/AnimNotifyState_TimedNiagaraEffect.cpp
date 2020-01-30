@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNotifyState_TimedNiagaraEffect.h"
 
@@ -113,7 +113,7 @@ FString UAnimNotifyState_TimedNiagaraEffect::GetNotifyName_Implementation() cons
 }
 
 #if WITH_EDITOR
-void UAnimNotifyState_TimedNiagaraEffect::PreEditChange(UProperty* PropertyAboutToChange)
+void UAnimNotifyState_TimedNiagaraEffect::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange)
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -35,6 +35,8 @@ public:
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
 
+	virtual FOnGetCustomDebugObjects& OnGetCustomDebugObjects() override { return OnGetCustomDebugObjectsDelegate; }
+
 private:
 	/** When a new AnimBlueprint is created, this will handle post creation work such as adding non-event default nodes */
 	void OnNewBlueprintCreated(class UBlueprint* InBlueprint);
@@ -48,4 +50,6 @@ private:
 	TSharedPtr<FAnimationGraphNodeFactory> AnimGraphNodeFactory;
 	TSharedPtr<FAnimationGraphPinFactory> AnimGraphPinFactory;
 	TSharedPtr<FAnimationGraphPinConnectionFactory> AnimGraphPinConnectionFactory;
+
+	FOnGetCustomDebugObjects OnGetCustomDebugObjectsDelegate;
 };

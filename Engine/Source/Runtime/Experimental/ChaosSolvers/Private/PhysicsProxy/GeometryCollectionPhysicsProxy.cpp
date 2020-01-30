@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
@@ -3589,7 +3589,7 @@ void FGeometryCollectionPhysicsProxy::UpdateTrailingData(const FParticlesType& P
 									!Particles.W(IdxParticle).ContainsNaN() &&
 									FMath::IsFinite(Particles.M(IdxParticle)))
 								{
-									Chaos::TBox<float, 3> BoundingBox = Particles.Geometry(IdxParticle)->BoundingBox();
+									Chaos::TAABB<float, 3> BoundingBox = Particles.Geometry(IdxParticle)->BoundingBox();
 									Chaos::TVector<float, 3> Extents = BoundingBox.Extents();
 									float Volume = Extents[0] * Extents[1] * Extents[2];
 									float SpeedSquared = Particles.V(IdxParticle).SizeSquared();
@@ -3865,7 +3865,7 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 			{
 				Handle->SetHasBounds(true);
 				Handle->SetLocalBounds(Handle->Geometry()->BoundingBox());
-				Handle->SetWorldSpaceInflatedBounds(Handle->Geometry()->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(ParticleTransform)));
+				Handle->SetWorldSpaceInflatedBounds(Handle->Geometry()->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(ParticleTransform)));
 			}
 		}
 	}

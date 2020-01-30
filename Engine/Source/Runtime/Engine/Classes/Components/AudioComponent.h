@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Components/SceneComponent.h"
@@ -212,9 +212,6 @@ class ENGINE_API UAudioComponent : public USceneComponent
 
 	/** If true, this sound will not be stopped when flushing the audio device. */
 	uint8 bIgnoreForFlushing:1;
-
-	/** Whether audio effects are applied */
-	uint8 bEQFilterApplied:1;
 
 	/** Whether to artificially prioritize the component to play */
 	uint8 bAlwaysPlay:1;

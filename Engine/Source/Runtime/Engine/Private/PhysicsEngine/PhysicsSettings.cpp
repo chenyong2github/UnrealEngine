@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "GameFramework/MovementComponent.h"
@@ -94,7 +94,7 @@ void UPhysicsSettings::PostInitProperties()
 }
 
 #if WITH_EDITOR
-bool UPhysicsSettings::CanEditChange(const UProperty* Property) const
+bool UPhysicsSettings::CanEditChange(const FProperty* Property) const
 {
 	bool bIsEditable = Super::CanEditChange(Property);
 	if(bIsEditable && Property != NULL)

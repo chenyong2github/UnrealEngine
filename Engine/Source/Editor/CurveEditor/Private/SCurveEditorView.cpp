@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveEditorView.h"
 #include "ICurveEditorBounds.h"
@@ -8,6 +8,8 @@
 #include "CurveModel.h"
 #include "CurveEditorSnapMetrics.h"
 #include "SCurveEditorPanel.h"
+#include "CurveEditorSettings.h"
+#include "CurveEditorHelpers.h"
 
 SCurveEditorView::SCurveEditorView()
 	: bPinned(0)
@@ -32,7 +34,7 @@ void SCurveEditorView::GetInputBounds(double& OutInputMin, double& OutInputMax) 
 
 		// This code assumes no scaling between the container and the view (which is a pretty safe assumption to make)
 		const FGeometry& ViewGeometry      = GetCachedGeometry();
-		const FGeometry& ContainerGeometry = CurveEditor->GetPanel()->GetViewContainerGeometry();
+		const FGeometry ContainerGeometry = CurveEditor->GetPanel().IsValid() ? CurveEditor->GetPanel()->GetViewContainerGeometry() : ViewGeometry;
 
 		const float ContainerWidth = ContainerGeometry.GetLocalSize().X;
 		const float ViewWidth      = ViewGeometry.GetLocalSize().X;
@@ -125,5 +127,165 @@ void SCurveEditorView::ZoomAround(const FVector2D& Amount, double InputOrigin, d
 	{
 		OutputMin = OutputOrigin - (OutputOrigin - OutputMin) * Amount.Y;
 		OutputMax = OutputOrigin + (OutputMax - OutputOrigin) * Amount.Y;
+	}
+}
+
+void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (!CurveEditor)
+	{
+		return;
+	}
+
+	// Get the Min/Max values on the X axis, for Time
+	double InputMin = 0, InputMax = 1;
+	GetInputBounds(InputMin, InputMax);
+
+	ECurveEditorTangentVisibility TangentVisibility = CurveEditor->GetSettings()->GetTangentVisibility();
+	OutDrawParams.Reserve(CurveInfoByID.Num());
+
+	for (const TTuple<FCurveModelID, FCurveInfo>& Pair : CurveInfoByID)
+	{
+		FCurveModel* CurveModel = CurveEditor->FindCurve(Pair.Key);
+		if (!ensureAlways(CurveModel))
+		{
+			continue;
+		}
+
+		FCurveEditorScreenSpace CurveSpace = GetCurveSpace(Pair.Key);
+
+		const float DisplayRatio = (CurveSpace.PixelsPerOutput() / CurveSpace.PixelsPerInput());
+
+		const FKeyHandleSet* SelectedKeys = CurveEditor->GetSelection().GetAll().Find(Pair.Key);
+
+		// Create a new set of Curve Drawing Parameters to represent this particular Curve
+		FCurveDrawParams Params(Pair.Key);
+		Params.Color = CurveModel->GetColor();
+		Params.bKeyDrawEnabled = CurveModel->IsKeyDrawEnabled();
+
+		// Gather the display metrics to use for each key type. This allows a Curve Model to override
+		// whether or not the curve supports Keys, Arrive/Leave Tangents, etc. If the Curve Model doesn't
+		// support a particular capability we can skip drawing them.
+		CurveModel->GetKeyDrawInfo(ECurvePointType::ArriveTangent, FKeyHandle::Invalid(), Params.ArriveTangentDrawInfo);
+		CurveModel->GetKeyDrawInfo(ECurvePointType::LeaveTangent, FKeyHandle::Invalid(), Params.LeaveTangentDrawInfo);
+
+		// Gather the interpolating points in input/output space
+		TArray<TTuple<double, double>> InterpolatingPoints;
+
+		CurveModel->DrawCurve(*CurveEditor, CurveSpace, InterpolatingPoints);
+		Params.InterpolatingPoints.Reserve(InterpolatingPoints.Num());
+
+		// An Input Offset allows for a fixed offset to all keys, such as displaying them in the middle of a frame instead of at the start.
+		double InputOffset = CurveModel->GetInputDisplayOffset();
+
+		// Convert the interpolating points to screen space
+		for (TTuple<double, double> Point : InterpolatingPoints)
+		{
+			Params.InterpolatingPoints.Add(
+				FVector2D(
+					CurveSpace.SecondsToScreen(Point.Get<0>() + InputOffset),
+					CurveSpace.ValueToScreen(Point.Get<1>())
+				)
+			);
+		}
+
+		TArray<FKeyHandle> VisibleKeys;
+		CurveModel->GetKeys(*CurveEditor, InputMin, InputMax, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), VisibleKeys);
+
+		if (VisibleKeys.Num())
+		{
+			TArray<FKeyPosition> AllKeyPositions;
+			TArray<FKeyAttributes> AllKeyAttributes;
+
+			AllKeyPositions.SetNum(VisibleKeys.Num());
+			AllKeyAttributes.SetNum(VisibleKeys.Num());
+
+			CurveModel->GetKeyPositions(VisibleKeys, AllKeyPositions);
+			CurveModel->GetKeyAttributes(VisibleKeys, AllKeyAttributes);
+
+			for (int32 Index = 0; Index < VisibleKeys.Num(); ++Index)
+			{
+				const FKeyHandle      KeyHandle = VisibleKeys[Index];
+				const FKeyPosition&   KeyPosition = AllKeyPositions[Index];
+				const FKeyAttributes& Attributes = AllKeyAttributes[Index];
+
+				bool bShowTangents = TangentVisibility == ECurveEditorTangentVisibility::AllTangents || (TangentVisibility == ECurveEditorTangentVisibility::SelectedKeys && SelectedKeys && SelectedKeys->Contains(VisibleKeys[Index]));
+
+				float TimeScreenPos = CurveSpace.SecondsToScreen(KeyPosition.InputValue + InputOffset);
+				float ValueScreenPos = CurveSpace.ValueToScreen(KeyPosition.OutputValue);
+
+				// Add this key
+				FCurvePointInfo Key(KeyHandle);
+				Key.ScreenPosition = FVector2D(TimeScreenPos, ValueScreenPos);
+				Key.LayerBias = 2;
+
+				// Add draw info for the specific key
+				CurveModel->GetKeyDrawInfo(ECurvePointType::Key, KeyHandle, /*Out*/ Key.DrawInfo);
+				Params.Points.Add(Key);
+
+				if (bShowTangents && Attributes.HasArriveTangent())
+				{
+					float ArriveTangent = Attributes.GetArriveTangent();
+
+					FCurvePointInfo ArriveTangentPoint(KeyHandle);
+					ArriveTangentPoint.Type = ECurvePointType::ArriveTangent;
+
+
+					if (Attributes.HasTangentWeightMode() && Attributes.HasArriveTangentWeight() &&
+						(Attributes.GetTangentWeightMode() == RCTWM_WeightedBoth || Attributes.GetTangentWeightMode() == RCTWM_WeightedArrive))
+					{
+						FVector2D TangentOffset = CurveEditor::ComputeScreenSpaceTangentOffset(CurveSpace, ArriveTangent, -Attributes.GetArriveTangentWeight());
+						ArriveTangentPoint.ScreenPosition = Key.ScreenPosition + TangentOffset;
+					}
+					else
+					{
+						float PixelLength = 60.0f;
+						ArriveTangentPoint.ScreenPosition = Key.ScreenPosition + CurveEditor::GetVectorFromSlopeAndLength(ArriveTangent * -DisplayRatio, -PixelLength);
+					}
+					ArriveTangentPoint.LineDelta = Key.ScreenPosition - ArriveTangentPoint.ScreenPosition;
+					ArriveTangentPoint.LayerBias = 1;
+
+					// Add draw info for the specific tangent
+					FKeyDrawInfo TangentDrawInfo;
+					CurveModel->GetKeyDrawInfo(ECurvePointType::ArriveTangent, KeyHandle, /*Out*/ ArriveTangentPoint.DrawInfo);
+
+					Params.Points.Add(ArriveTangentPoint);
+				}
+
+				if (bShowTangents && Attributes.HasLeaveTangent())
+				{
+					float LeaveTangent = Attributes.GetLeaveTangent();
+
+					FCurvePointInfo LeaveTangentPoint(KeyHandle);
+					LeaveTangentPoint.Type = ECurvePointType::LeaveTangent;
+
+					if (Attributes.HasTangentWeightMode() && Attributes.HasLeaveTangentWeight() &&
+						(Attributes.GetTangentWeightMode() == RCTWM_WeightedBoth || Attributes.GetTangentWeightMode() == RCTWM_WeightedLeave))
+					{
+						FVector2D TangentOffset = CurveEditor::ComputeScreenSpaceTangentOffset(CurveSpace, LeaveTangent, Attributes.GetLeaveTangentWeight());
+
+						LeaveTangentPoint.ScreenPosition = Key.ScreenPosition + TangentOffset;
+					}
+					else
+					{
+						float PixelLength = 60.0f;
+						LeaveTangentPoint.ScreenPosition = Key.ScreenPosition + CurveEditor::GetVectorFromSlopeAndLength(LeaveTangent * -DisplayRatio, PixelLength);
+
+					}
+
+					LeaveTangentPoint.LineDelta = Key.ScreenPosition - LeaveTangentPoint.ScreenPosition;
+					LeaveTangentPoint.LayerBias = 1;
+
+					// Add draw info for the specific tangent
+					FKeyDrawInfo TangentDrawInfo;
+					CurveModel->GetKeyDrawInfo(ECurvePointType::LeaveTangent, KeyHandle, /*Out*/ LeaveTangentPoint.DrawInfo);
+
+					Params.Points.Add(LeaveTangentPoint);
+				}
+			}
+		}
+
+		OutDrawParams.Add(MoveTemp(Params));
 	}
 }

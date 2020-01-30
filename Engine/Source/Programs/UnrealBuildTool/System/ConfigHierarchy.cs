@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -44,6 +44,11 @@ namespace UnrealBuildTool
 		/// BaseEditorSettings.ini, DefaultEditorSettings.ini, etc...
 		/// </summary>
 		EditorSettings,
+
+		/// <summary>
+		/// BaseInstallBundle.ini, DefaultInstallBundle.ini, etc...
+		/// </summary>
+		InstallBundle,
 	}
 
 	/// <summary>

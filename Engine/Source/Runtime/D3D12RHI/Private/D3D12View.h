@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 D3D12View.h: D3D12 Resource Views
@@ -793,7 +793,7 @@ public:
 };
 
 /** Shader resource view class. */
-class FD3D12ShaderResourceView : public FRHIShaderResourceView, public FD3D12View<D3D12_SHADER_RESOURCE_VIEW_DESC>, public FD3D12LinkedAdapterObject<FD3D12ShaderResourceView>
+class FD3D12ShaderResourceView : public FD3D12BaseShaderResourceView, public FRHIShaderResourceView, public FD3D12View<D3D12_SHADER_RESOURCE_VIEW_DESC>, public FD3D12LinkedAdapterObject<FD3D12ShaderResourceView>
 {
 	bool bContainsDepthPlane;
 	bool bContainsStencilPlane;
@@ -814,6 +814,12 @@ public:
 		Initialize(InDesc, InResourceLocation, InStride, InSkipFastClearFinalize);
 	}
 
+	~FD3D12ShaderResourceView()
+	{
+		check(bInitialized);
+		FD3D12BaseShaderResourceView::Remove();
+	}
+
 	void Initialize(D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation, uint32 InStride, bool InSkipFastClearFinalize = false)
 	{
 		Stride = InStride;
@@ -831,7 +837,7 @@ public:
 
 		if (InDesc.ViewDimension == D3D12_SRV_DIMENSION_BUFFER)
 		{
-			check(InResourceLocation.GetOffsetFromBaseOfResource() == InDesc.Buffer.FirstElement * Stride);
+			//check(InResourceLocation.GetOffsetFromBaseOfResource() == InDesc.Buffer.FirstElement * Stride);
 		}
 #endif
 

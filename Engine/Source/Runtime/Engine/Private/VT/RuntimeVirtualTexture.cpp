@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VT/RuntimeVirtualTexture.h"
 
@@ -282,6 +282,16 @@ int32 URuntimeVirtualTexture::GetLayerCount() const
 	return GetLayerCount(MaterialType);
 }
 
+static EPixelFormat PlatformCompressedRVTFormat(EPixelFormat Format)
+{
+	if (IsMobilePlatform(GMaxRHIShaderPlatform))
+	{
+		return PF_B8G8R8A8;
+	}
+	
+	return Format;
+}
+
 EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 {
 	if (LayerIndex == 0)
@@ -289,11 +299,11 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		switch (MaterialType)
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor:
-			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
+			return bCompressTextures ? PlatformCompressedRVTFormat(PF_DXT1) : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
-			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
+			return bCompressTextures ? PlatformCompressedRVTFormat(PF_DXT5) : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::WorldHeight:
 			return PF_G16;
 		default:
@@ -305,10 +315,10 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		switch (MaterialType)
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
-			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
+			return bCompressTextures ? PlatformCompressedRVTFormat(PF_DXT5) : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
-			return bCompressTextures ? PF_BC5 : PF_B8G8R8A8;
+			return bCompressTextures ? PlatformCompressedRVTFormat(PF_BC5) : PF_B8G8R8A8;
 		default:
 			break;
 		}
@@ -318,9 +328,9 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		switch (MaterialType)
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
-			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
+			return bCompressTextures ? PlatformCompressedRVTFormat(PF_DXT1) : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
-			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
+			return bCompressTextures ? PlatformCompressedRVTFormat(PF_DXT5) : PF_B8G8R8A8;
 		default:
 			break;
 		}

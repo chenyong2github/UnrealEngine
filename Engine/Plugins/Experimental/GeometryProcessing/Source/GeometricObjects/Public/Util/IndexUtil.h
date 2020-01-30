@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Port of geometry3cpp index_util.h
 
@@ -256,7 +256,22 @@ namespace IndexUtil
 	{
 		return FVector3<T>(MapFunc[Val[0]], MapFunc[Val[1]], MapFunc[Val[2]]);
 	}
-
+	
+	/**
+	 * @return false if CheckFn returns false on any element of ToCheck, true otherwise
+	 */
+	template<typename T, typename Func>
+	bool ArrayCheck(const TArray<T>& ToCheck, Func CheckFn)
+	{
+		for (const T& Value : ToCheck)
+		{
+			if (!CheckFn(Value))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
 
 
 	/**

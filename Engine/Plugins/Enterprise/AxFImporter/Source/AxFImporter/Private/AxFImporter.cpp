@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AxFImporter.h"
 
@@ -2164,7 +2164,7 @@ private:
 // 					}
 					else if (TextureName == AXF_SVBRDF_TEXTURE_NAME_ANISO_ROTATION)
 					{
-						Log.Warn(TEXT("Anisotropic AxF materials are supported yet - will use isotropic approximation."));
+						Log.Warn(TEXT("Anisotropic AxF materials are not supported yet - will use isotropic approximation."));
 					}
 					else
 					{

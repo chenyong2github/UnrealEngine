@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -317,6 +317,9 @@ private:
 	/** Handle on callback when edited static mesh is re-imported */
 	FDelegateHandle OnObjectReimportedHandle;
 
-	/** Flag to indicate if the undo transaction buffer has to be cleared */
-	bool bClearUndoTransactions;
+	/**
+	 * True if mesh editing operations have been executed on the static mesh
+	 * If true when the static mesh editor closes, a warning message will be logged about loss of mesh editing operations
+	 */
+	bool bTransactionsRecorded;
 };

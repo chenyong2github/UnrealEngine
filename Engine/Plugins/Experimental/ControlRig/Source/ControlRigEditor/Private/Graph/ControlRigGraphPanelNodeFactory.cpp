@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigGraphPanelNodeFactory.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -7,11 +7,21 @@
 #include "SControlRigGraphNode.h"
 #include "SControlRigGraphNodeComment.h"
 #include "Graph/ControlRigGraphSchema.h"
+#include "SGraphNodeKnot.h"
+#include "RigVMModel/RigVMNode.h"
+#include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
 TSharedPtr<SGraphNode> FControlRigGraphPanelNodeFactory::CreateNode(UEdGraphNode* Node) const
 {
 	if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Node))
 	{
+		int32 InputPin = 0, OutputPin = 0;
+		if (Node->ShouldDrawNodeAsControlPointOnly(InputPin, OutputPin))
+		{
+			TSharedRef<SGraphNode> GraphNode = SNew(SGraphNodeKnot, Node);
+			return GraphNode;
+		}
+
 		TSharedRef<SGraphNode> GraphNode = 
 			SNew(SControlRigGraphNode)
 			.GraphNodeObj(ControlRigGraphNode);

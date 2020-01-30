@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "CoreMinimal.h"
@@ -49,7 +49,6 @@
 #include "EditorLevelUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
 #include "Layers/LayersSubsystem.h"
 #include "ActorEditorUtils.h"
 #include "Particles/ParticleSystemComponent.h"

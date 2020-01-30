@@ -1,17 +1,20 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "IDetailKeyframeHandler.h"
-#include "ControlRigModel.h"
+#include "RigVMModel/RigVMGraph.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FControlRigEditMode;
 class IDetailsView;
 class ISequencer;
 class SControlPicker;
 class SExpandableArea;
+class SControlHierarchy;
+class UControlRig;
 
 class SControlRigEditModeTools : public SCompoundWidget, public IDetailKeyframeHandler
 {
@@ -19,13 +22,16 @@ public:
 	SLATE_BEGIN_ARGS(SControlRigEditModeTools) {}
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UWorld* InWorld);
+	void Construct(const FArguments& InArgs, FControlRigEditMode& InEditMode, UWorld* InWorld);
 
 	/** Set the objects to be displayed in the details panel */
 	void SetDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
 
 	/** Set the sequencer we are bound to */
-	void SetSequencer(TSharedPtr<ISequencer> InSequencer);
+	void SetSequencer(TWeakPtr<ISequencer> InSequencer);
+
+	/** Set The Control Rig we are using*/
+	void SetControlRig(UControlRig* ControlRig);
 
 	// IDetailKeyframeHandler interface
 	virtual bool IsPropertyKeyable(UClass* InObjectClass, const class IPropertyHandle& PropertyHandle) const override;
@@ -39,9 +45,11 @@ private:
 	/** The details view we do most of our work within */
 	TSharedPtr<IDetailsView> DetailsView;
 
-	/** Special picker for controls */
-	TSharedPtr<SControlPicker> ControlPicker;
+	/** Hierarchy picker for controls*/
+	TSharedPtr<SControlHierarchy> ControlHierarchy;
 
+	/** Special picker for controls, no longer used */
+	TSharedPtr<SControlPicker> ControlPicker;
 	TSharedPtr<SExpandableArea> PickerExpander;
 
 	/** Display or edit set up for property */
@@ -50,4 +58,6 @@ private:
 
 	/** Called when a manipulator is selected in the picker */
 	void OnManipulatorsPicked(const TArray<FName>& Manipulators);
+
+	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 };

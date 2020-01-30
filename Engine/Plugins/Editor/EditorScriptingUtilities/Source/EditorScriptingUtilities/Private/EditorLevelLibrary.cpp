@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorLevelLibrary.h"
 
@@ -178,6 +178,7 @@ void UEditorLevelLibrary::SetSelectedLevelActors(const TArray<class AActor*>& Ac
 		return;
 	}
 
+	GEditor->GetSelectedActors()->Modify();
 	if (ActorsToSelect.Num() > 0)
 	{
 		GEditor->SelectNone(false, true, false);
@@ -283,17 +284,20 @@ void UEditorLevelLibrary::SetLevelViewportCameraInfo(FVector CameraLocation, FRo
 
 void UEditorLevelLibrary::ClearActorSelectionSet()
 {
+	GEditor->GetSelectedActors()->Modify();
 	GEditor->GetSelectedActors()->DeselectAll();
 	GEditor->NoteSelectionChange();
 }
 
 void UEditorLevelLibrary::SelectNothing()
 {
+	GEditor->GetSelectedActors()->Modify();
 	GEditor->SelectNone(true, true, false);
 }
 
 void UEditorLevelLibrary::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
 {
+	GEditor->GetSelectedActors()->Modify();
 	GEditor->SelectActor(Actor, bShouldBeSelected, /*bNotify=*/ false);
 }
 
@@ -323,8 +327,11 @@ void UEditorLevelLibrary::EditorPlaySimulate()
 	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
 	if (ActiveLevelViewport.IsValid())
 	{
-		const bool bSimulateInEditor = true;
-		GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+
+		GUnrealEd->RequestPlaySession(SessionParams);
 	}
 }
 
@@ -798,7 +805,7 @@ namespace InternalEditorLevelLibrary
 	int32 ReplaceMaterials(ArrayType& Array, UMaterialInterface* MaterialToBeReplaced, UMaterialInterface* NewMaterial)
 	{
 		//Would use FObjectEditorUtils::SetPropertyValue, but Material are a special case. They need a lock and we need to use the SetMaterial function
-		UProperty* MaterialProperty = FindFieldChecked<UProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials));
+		FProperty* MaterialProperty = FindFieldChecked<FProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials));
 		TArray<UObject*, TInlineAllocator<16>> ObjectsThatChanged;
 		int32 NumberOfChanges = 0;
 
@@ -898,7 +905,7 @@ namespace InternalEditorLevelLibrary
 	int32 ReplaceMeshes(const ArrayType& Array, UStaticMesh* MeshToBeReplaced, UStaticMesh* NewMesh)
 	{
 		//Would use FObjectEditorUtils::SetPropertyValue, but meshes are a special case. They need a lock and we need to use the SetMesh function
-		UProperty* StaticMeshProperty = FindFieldChecked<UProperty>(UStaticMeshComponent::StaticClass(), "StaticMesh");
+		FProperty* StaticMeshProperty = FindFieldChecked<FProperty>(UStaticMeshComponent::StaticClass(), "StaticMesh");
 		TArray<UObject*, TInlineAllocator<16>> ObjectsThatChanged;
 		int32 NumberOfChanges = 0;
 

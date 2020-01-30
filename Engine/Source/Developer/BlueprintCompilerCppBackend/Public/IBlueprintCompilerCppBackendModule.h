@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,7 +11,7 @@ struct FCompilerNativizationOptions;
 
 struct FNativizationSummary
 {
-	TMap<FSoftObjectPath, int32> InaccessiblePropertyStat;
+	TMap<FString, int32> InaccessiblePropertyStat;
 
 	struct FAnimBlueprintDetails
 	{

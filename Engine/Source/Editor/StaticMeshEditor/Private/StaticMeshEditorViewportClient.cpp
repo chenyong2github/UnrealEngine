@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshEditorViewportClient.h"
 #include "EditorModeManager.h"
@@ -175,11 +175,11 @@ bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, E
 			UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket();
 			if(SelectedSocket)
 			{
-				UProperty* ChangedProperty = NULL;
+				FProperty* ChangedProperty = NULL;
 				const FWidget::EWidgetMode MoveMode = GetWidgetMode();
 				if(MoveMode == FWidget::WM_Rotate)
 				{
-					ChangedProperty = FindField<UProperty>( UStaticMeshSocket::StaticClass(), "RelativeRotation" );
+					ChangedProperty = FindField<FProperty>( UStaticMeshSocket::StaticClass(), "RelativeRotation" );
 					SelectedSocket->PreEditChange(ChangedProperty);
 
 					FRotator CurrentRot = SelectedSocket->RelativeRotation;
@@ -198,7 +198,7 @@ bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, E
 				}
 				else if(MoveMode == FWidget::WM_Translate)
 				{
-					ChangedProperty = FindField<UProperty>( UStaticMeshSocket::StaticClass(), "RelativeLocation" );
+					ChangedProperty = FindField<FProperty>( UStaticMeshSocket::StaticClass(), "RelativeLocation" );
 					SelectedSocket->PreEditChange(ChangedProperty);
 
 					//FRotationMatrix SocketRotTM( SelectedSocket->RelativeRotation );
@@ -1405,6 +1405,126 @@ void FStaticMeshEditorViewportClient::SetPreviewMesh(UStaticMesh* InStaticMesh, 
 	}
 }
 
+void FStaticMeshEditorViewportClient::ToggleShowNormals()
+{
+	bDrawNormals = !bDrawNormals;
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawNormals"), bDrawNormals ? TEXT("True") : TEXT("False"));
+	}
+	Invalidate();
+}
+
+
+void FStaticMeshEditorViewportClient::SetShowNormals(bool bShowOn)
+{
+	bDrawNormals = bShowOn;
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawNormals"), bDrawNormals ? TEXT("True") : TEXT("False"));
+	}
+	Invalidate();
+}
+
+void FStaticMeshEditorViewportClient::SetShowTangents(bool bShowOn)
+{
+	bDrawTangents = bShowOn;
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawTangents"), bDrawTangents ? TEXT("True") : TEXT("False"));
+	}
+	Invalidate();
+}
+
+void FStaticMeshEditorViewportClient::SetShowBinormals(bool bShowOn)
+{
+	bDrawBinormals = bShowOn;
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawBinormals"), bDrawBinormals ? TEXT("True") : TEXT("False"));
+	}
+	Invalidate();
+}
+
+void FStaticMeshEditorViewportClient::SetShowSimpleCollisions(bool bShowOn)
+{
+	// ToggleShowSimpleCollision() does more that just flipping a flag so we allow it to do its thing if needed.
+	if (bShowSimpleCollision != bShowOn)
+	{
+		ToggleShowSimpleCollision();
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bShowComplexCollision"), bShowPivot ? TEXT("True") : TEXT("False"));
+		}
+		Invalidate();
+	}
+
+
+	bShowSimpleCollision = bShowOn;
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bShowSimpleCollision"), bShowPivot ? TEXT("True") : TEXT("False"));
+	}
+	Invalidate();
+}
+
+void FStaticMeshEditorViewportClient::SetShowComplexCollisions(bool bShowOn)
+{
+	// ToggleShowComplexCollision() does more that just flipping a flag so we allow it to do its thing if needed.
+	if (bShowComplexCollision != bShowOn)
+	{
+		ToggleShowComplexCollision();
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bShowComplexCollision"), bShowPivot ? TEXT("True") : TEXT("False"));
+		}
+		Invalidate();
+	}
+}
+
+void FStaticMeshEditorViewportClient::SetShowPivots(bool bShowOn)
+{
+	bShowPivot = bShowOn;
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bShowPivot"), bShowPivot ? TEXT("True") : TEXT("False"));
+	}
+	Invalidate();
+}
+
+void FStaticMeshEditorViewportClient::SetShowGrids(bool bShowOn)
+{
+	DrawHelper.bDrawGrid = bShowOn;
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawGrids"), bDrawVertices ? TEXT("True") : TEXT("False"));
+	}
+	Invalidate();
+}
+
+void FStaticMeshEditorViewportClient::SetShowVertices(bool bShowOn)
+{
+	bDrawVertices = bShowOn;
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawVertices"), bDrawVertices ? TEXT("True") : TEXT("False"));
+	}
+	Invalidate();
+}
+
+
+void FStaticMeshEditorViewportClient::SetShowWireframes(bool bShowOn)
+{
+
+}
+
+
+void FStaticMeshEditorViewportClient::SetShowVertexColors(bool bShowOn)
+{
+
+}
+
+
 void FStaticMeshEditorViewportClient::ToggleDrawUVOverlay()
 {
 	SetDrawUVOverlay(!bDrawUVs);
@@ -1423,16 +1543,6 @@ void FStaticMeshEditorViewportClient::SetDrawUVOverlay(bool bShouldDraw)
 bool FStaticMeshEditorViewportClient::IsDrawUVOverlayChecked() const
 {
 	return bDrawUVs;
-}
-
-void FStaticMeshEditorViewportClient::ToggleShowNormals()
-{
-	bDrawNormals = !bDrawNormals;
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bDrawNormals"), bDrawNormals ? TEXT("True") : TEXT("False"));
-	}
-	Invalidate();
 }
 
 bool FStaticMeshEditorViewportClient::IsShowNormalsChecked() const

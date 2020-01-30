@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Sections/MovieSceneStringChannel.h"
+#include "UObject/WeakFieldPtr.h"
 #include "LiveLinkTypes.h"
 
 
@@ -28,12 +29,12 @@ public:
 	void CacheBinding(const UScriptStruct& InStruct);
 
 	/**
-	 * Gets the UProperty that is bound to the container
+	 * Gets the FProperty that is bound to the container
 	 *
 	 * @param InContainer	The Struct that owns the property
 	 * @return				The property on the Struct if it exists
 	 */
-	UProperty* GetProperty(const UScriptStruct& InStruct) const;
+	FProperty* GetProperty(const UScriptStruct& InStruct) const;
 
 	/**
 	 * Gets the current value of a property on a UStruct
@@ -62,9 +63,9 @@ public:
 	{
 		FPropertyWrapper FoundProperty = FindOrAdd(InStruct);
 
-		if (UProperty* Property = FoundProperty.GetProperty())
+		if (FProperty* Property = FoundProperty.GetProperty())
 		{
-			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 			{
 				const ValueType* BaseAddr = FoundProperty.GetPropertyAddress<ValueType>(InSourceAddress, 0);
 				FScriptArrayHelper ArrayHelper(ArrayProperty, BaseAddr);
@@ -133,9 +134,9 @@ public:
 	{
 		FPropertyWrapper FoundProperty = FindOrAdd(InStruct);
 
-		if (UProperty* Property = FoundProperty.GetProperty())
+		if (FProperty* Property = FoundProperty.GetProperty())
 		{
-			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 			{
 				ValueType* BaseAddr = FoundProperty.GetPropertyAddress<ValueType>(InSourceAddress, 0);
 				FScriptArrayHelper ArrayHelper(ArrayProperty, BaseAddr);
@@ -216,12 +217,12 @@ private:
 
 	struct FPropertyWrapper
 	{
-		TWeakObjectPtr<UProperty> Property;
+		TWeakFieldPtr<FProperty> Property;
 		int64 DeltaAddress;
 
-		UProperty* GetProperty() const
+		FProperty* GetProperty() const
 		{
-			UProperty* PropertyPtr = Property.Get();
+			FProperty* PropertyPtr = Property.Get();
 			if (PropertyPtr && !PropertyPtr->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
 			{
 				return PropertyPtr;
@@ -232,7 +233,7 @@ private:
 		template<typename ValueType>
 		ValueType* GetPropertyAddress(void* BaseContainerAddress, int32 Index) const
 		{
-			UProperty* PropertyPtr = GetProperty();
+			FProperty* PropertyPtr = GetProperty();
 			const PTRINT NewAddress = (PTRINT)BaseContainerAddress + DeltaAddress;
 			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<ValueType>((void*)NewAddress, Index) : nullptr;
 		}
@@ -240,7 +241,7 @@ private:
 		template<typename ValueType>
 		const ValueType* GetPropertyAddress(const void* BaseContainerAddress, int32 Index) const
 		{
-			UProperty* PropertyPtr = GetProperty();
+			FProperty* PropertyPtr = GetProperty();
 			const PTRINT NewAddress = (PTRINT)BaseContainerAddress + DeltaAddress;
 			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<const ValueType>((void*)NewAddress, Index) : nullptr;
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -777,13 +777,13 @@ int32 TCString<T>::Strspn( const CharType* String, const CharType* Mask )
 			}
 		}
 
-		return StringIt - String;
+		return UE_PTRDIFF_TO_INT32(StringIt - String);
 
 	NextChar:
 		++StringIt;
 	}
 
-	return StringIt - String;
+	return UE_PTRDIFF_TO_INT32(StringIt - String);
 }
 
 template <typename T> FORCEINLINE

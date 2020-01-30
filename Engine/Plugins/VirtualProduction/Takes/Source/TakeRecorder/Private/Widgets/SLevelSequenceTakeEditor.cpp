@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SLevelSequenceTakeEditor.h"
 #include "Widgets/TakeRecorderWidgetConstants.h"
@@ -735,7 +735,7 @@ class FRecorderSourceObjectCustomization : public IDetailCustomization
 			UClass* BaseClass = DetailBuilder.GetBaseClass();
 			while (BaseClass)
 			{
-				for (UProperty* Property : TFieldRange<UProperty>(BaseClass, EFieldIteratorFlags::ExcludeSuper))
+				for (FProperty* Property : TFieldRange<FProperty>(BaseClass, EFieldIteratorFlags::ExcludeSuper))
 				{
 					CategoryBuilder.AddProperty(Property->GetFName(), BaseClass);
 				}
@@ -778,11 +778,23 @@ void SLevelSequenceTakeEditor::UpdateDetails()
 	FDetailsViewArgs DetailsViewArgs(false, false, false, FDetailsViewArgs::HideNameArea, true);
 	DetailsViewArgs.bShowScrollBar = false;
 
+	TSortedMap<const UClass*, TArray<UObject*>> ClassToSources;
+
+	// External settings objects should be displayed after selected sources, 
+	// so add them to the sorted map first, since the details views will be displayed in reverse order
+	for (TWeakObjectPtr<> WeakExternalObj : ExternalSettingsObjects)
+	{
+		UObject* Object = WeakExternalObj.Get();
+		if (Object)
+		{
+			ClassToSources.FindOrAdd(Object->GetClass()).Add(Object);
+		}
+	}
+
 	TArray<UTakeRecorderSource*> SelectedSources;
 	SourcesWidget->GetSelectedSources(SelectedSources);
 
 	// Create 1 details panel per source class type
-	TSortedMap<const UClass*, TArray<UObject*>> ClassToSources;
 	for (UTakeRecorderSource* Source : SelectedSources)
 	{
 		ClassToSources.FindOrAdd(Source->GetClass()).Add(Source);
@@ -796,17 +808,21 @@ void SLevelSequenceTakeEditor::UpdateDetails()
 		}
 	}
 
-	for (TWeakObjectPtr<> WeakExternalObj : ExternalSettingsObjects)
-	{
-		UObject* Object = WeakExternalObj.Get();
-		if (Object)
-		{
-			ClassToSources.FindOrAdd(Object->GetClass()).Add(Object);
-		}
-	}
-
 	TArray<FObjectKey> PreviousClasses;
 	ClassToDetailsView.GenerateKeyArray(PreviousClasses);
+
+	// Clear all existing details views if there are external settings objects, so that they can be displayed last
+	if (ExternalSettingsObjects.Num())
+	{
+		for (FObjectKey StaleClass : PreviousClasses)
+		{
+			TSharedPtr<IDetailsView> Details = ClassToDetailsView.FindRef(StaleClass);
+			DetailsBox->RemoveSlot(Details.ToSharedRef());
+			ClassToDetailsView.Remove(StaleClass);
+		}
+
+		PreviousClasses.Empty();
+	}
 
 	for (auto& Pair : ClassToSources)
 	{

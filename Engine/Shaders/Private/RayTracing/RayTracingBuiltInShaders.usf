@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #ifdef PLATFORM_RAY_TRACING_BUILTIN_SHADERS_USH
 #include "/Platform/Private/RayTracingBuiltInShaders.usf"

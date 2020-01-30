@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -111,6 +111,13 @@ public:
 	 * @return pointer to Tool instance active on that Side, or nullptr if no such Tool exists
 	 */
 	virtual UInteractiveTool* GetActiveTool(EToolSide Side);
+
+	/**
+	 * Get pointer to active Tool Builder on a given side
+	 * @param Side which Side is being requested
+	 * @return pointer to Tool Builder instance active on that Side, or nullptr if no such ToolBuilder exists
+	 */
+	virtual UInteractiveToolBuilder* GetActiveToolBuilder(EToolSide Side);
 
 
 	/**

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackModuleItemOutputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutput.h"
@@ -48,38 +48,28 @@ void UNiagaraStackModuleItemOutputCollection::RefreshChildrenInternal(const TArr
 	UEdGraphPin* OutputParameterMapPin = FNiagaraStackGraphUtilities::GetParameterMapOutputPin(*FunctionCallNode);
 	if (ensureMsgf(OutputParameterMapPin != nullptr, TEXT("Invalid Stack Graph - Function call node has no output pin.")))
 	{
-		FNiagaraParameterMapHistoryBuilder Builder;
-		Builder.SetIgnoreDisabled(false);
-		Builder.ConstantResolver = GetEmitterViewModel().IsValid()
+		TArray<FNiagaraVariable> OutputVariables;
+		TArray<FNiagaraVariable> Unused;
+		FCompileConstantResolver ConstantResolver = GetEmitterViewModel().IsValid()
 			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter())
 			: FCompileConstantResolver();
-		FunctionCallNode->BuildParameterMapHistory(Builder, false);
-
-		if (ensureMsgf(Builder.Histories.Num() == 1, TEXT("Invalid Stack Graph - Function call node has invalid history count!")))
+		FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(*FunctionCallNode, ConstantResolver, OutputVariables, Unused);
+		
+		for(int32 OutputIndex = 0; OutputIndex < OutputVariables.Num(); OutputIndex++)
 		{
-			for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); i++)
+			FNiagaraVariable& Variable = OutputVariables[OutputIndex];
+
+			UNiagaraStackModuleItemOutput* Output = FindCurrentChildOfTypeByPredicate<UNiagaraStackModuleItemOutput>(CurrentChildren,
+				[&](UNiagaraStackModuleItemOutput* CurrentOutput) { return CurrentOutput->GetOutputParameterHandle().GetParameterHandleString() == Variable.GetName(); });
+
+			if (Output == nullptr)
 			{
-				FNiagaraVariable& Variable = Builder.Histories[0].Variables[i];
-				TArray<const UEdGraphPin*>& WriteHistory = Builder.Histories[0].PerVariableWriteHistory[i];
-
-				for (const UEdGraphPin* WritePin : WriteHistory)
-				{
-					if (Cast<UNiagaraNodeParameterMapSet>(WritePin->GetOwningNode()) != nullptr)
-					{
-						UNiagaraStackModuleItemOutput* Output = FindCurrentChildOfTypeByPredicate<UNiagaraStackModuleItemOutput>(CurrentChildren,
-							[&](UNiagaraStackModuleItemOutput* CurrentOutput) { return CurrentOutput->GetOutputParameterHandle().GetParameterHandleString() == Variable.GetName(); });
-
-						if (Output == nullptr)
-						{
-							Output = NewObject<UNiagaraStackModuleItemOutput>(this);
-							Output->Initialize(CreateDefaultChildRequiredData(), *FunctionCallNode, Variable.GetName(), Variable.GetType());
-						}
-
-						NewChildren.Add(Output);
-						break;
-					}
-				}
+				Output = NewObject<UNiagaraStackModuleItemOutput>(this);
+				Output->Initialize(CreateDefaultChildRequiredData(), *FunctionCallNode, Variable.GetName(), Variable.GetType());
 			}
+
+			NewChildren.Add(Output);
+			break;
 		}
 	}
 }

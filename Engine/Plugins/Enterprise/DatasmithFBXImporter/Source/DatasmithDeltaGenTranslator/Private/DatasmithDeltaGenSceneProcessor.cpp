@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithDeltaGenSceneProcessor.h"
 
@@ -54,7 +54,7 @@ namespace FDeltaGenProcessorImpl
 				NewAnimation->TargetNode = *Dummy->Name;
 				NewAnimation->Tracks = MoveTemp(NewTracks);
 
-				Dummy->MarkMovableNode();
+				Dummy->KeepNode();
 			}
 		}
 	}

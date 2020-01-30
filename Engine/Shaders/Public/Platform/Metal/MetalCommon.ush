@@ -1,11 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MetalCommon.usf: Common Metal shader code
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Metal only shaders
-// GUID = 616bd504-f38f-4c3a-83a8-fbb074511c78
+// GUID = 4FFD74E0-C6C3-4B23-B175-CA3B200566AB
 
 #pragma once
 

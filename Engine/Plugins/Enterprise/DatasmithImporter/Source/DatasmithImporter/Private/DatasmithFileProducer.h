@@ -1,16 +1,16 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 
-#include "DataPrepContentProducer.h"
+#include "DataprepContentProducer.h"
 
 #include "DatasmithContentEditorModule.h"
 #include "DatasmithImportContext.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithScene.h"
-#include "Translators/DatasmithTranslatableSource.h"
+#include "DatasmithTranslatableSource.h"
 
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"

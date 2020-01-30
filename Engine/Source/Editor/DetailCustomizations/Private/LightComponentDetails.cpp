@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LightComponentDetails.h"
 #include "Components/SceneComponent.h"
@@ -89,7 +89,7 @@ void FLightComponentDetails::SetComponentIntensity(ULightComponent* Component, f
 {
 	check(Component);
 
-	UProperty* IntensityProperty = FindFieldChecked<UProperty>(ULightComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(ULightComponent, Intensity));
+	FProperty* IntensityProperty = FindFieldChecked<FProperty>(ULightComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(ULightComponent, Intensity));
 	FPropertyChangedEvent PropertyChangedEvent(IntensityProperty);
 
 	const float PreviousIntensity = Component->Intensity;

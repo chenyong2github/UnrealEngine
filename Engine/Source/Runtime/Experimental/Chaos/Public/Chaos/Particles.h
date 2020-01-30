@@ -1,10 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ArrayCollection.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Vector.h"
 #include "ChaosArchive.h"
+#include "HAL/LowLevelMemTracker.h"
+
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #define PARTICLE_ITERATOR_RANGED_FOR_CHECK 1

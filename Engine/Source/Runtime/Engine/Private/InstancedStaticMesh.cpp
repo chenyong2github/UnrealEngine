@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	InstancedStaticMesh.cpp: Static mesh rendering code.
@@ -51,7 +51,8 @@ IMPLEMENT_HIT_PROXY(HInstancedStaticMeshInstance, HHitProxy);
 TAutoConsoleVariable<int32> CVarMinLOD(
 	TEXT("foliage.MinLOD"),
 	-1,
-	TEXT("Used to discard the top LODs for performance evaluation. -1: Disable all effects of this cvar."));
+	TEXT("Used to discard the top LODs for performance evaluation. -1: Disable all effects of this cvar."),
+	ECVF_Scalability | ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarRayTracingRenderInstances(
 	TEXT("r.RayTracing.InstancedStaticMeshes"),
@@ -868,6 +869,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_AllInstances.MeshRenderData = InComponent->GetStaticMesh()->RenderData.Get();
 	UserData_AllInstances.StartCullDistance = InComponent->InstanceStartCullDistance;
 	UserData_AllInstances.EndCullDistance = InComponent->InstanceEndCullDistance;
+	UserData_AllInstances.InstancingOffset = InComponent->GetStaticMesh()->GetBoundingBox().GetCenter();
 	UserData_AllInstances.MinLOD = ClampedMinLOD;
 	UserData_AllInstances.bRenderSelected = true;
 	UserData_AllInstances.bRenderUnselected = true;
@@ -886,6 +888,12 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	// unselected only
 	UserData_DeselectedInstances = UserData_AllInstances;
 	UserData_DeselectedInstances.bRenderSelected = false;
+}
+
+void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
+{
+	InstancedRenderData.ReleaseResources(&GetScene(), StaticMesh);
+	FStaticMeshSceneProxy::DestroyRenderThreadResources();
 }
 
 void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const
@@ -1897,7 +1905,7 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 		{
 			uint64 RenderDataPos = Ar.Tell();
 
-			if (PerInstanceSMData.Num() > 0)
+			if (PerInstanceSMData.Num() > 0 && PerInstanceRenderData.IsValid())
 			{
 				check(PerInstanceRenderData.IsValid());
 
@@ -2916,6 +2924,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		FVector4 InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
 		FVector4 InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
 		FVector4 InstancingViewZConstant(ForceInit);
+		FVector4 InstancingOffset(ForceInit);
 		FVector4 InstancingWorldViewOriginZero(ForceInit);
 		FVector4 InstancingWorldViewOriginOne(ForceInit);
 		InstancingWorldViewOriginOne.W = 1.0f;
@@ -2997,7 +3006,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 				}
 			}
 
-
+			InstancingOffset = InstancingUserData->InstancingOffset;
 			InstancingWorldViewOriginZero = View->GetTemporalLODOrigin(0);
 			InstancingWorldViewOriginOne = View->GetTemporalLODOrigin(1);
 
@@ -3011,6 +3020,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		ShaderBindings.Add(InstancingViewZCompareZeroParameter, InstancingViewZCompareZero);
 		ShaderBindings.Add(InstancingViewZCompareOneParameter, InstancingViewZCompareOne);
 		ShaderBindings.Add(InstancingViewZConstantParameter, InstancingViewZConstant);
+		ShaderBindings.Add(InstancingOffsetParameter, InstancingOffset);
 		ShaderBindings.Add(InstancingWorldViewOriginZeroParameter, InstancingWorldViewOriginZero);
 		ShaderBindings.Add(InstancingWorldViewOriginOneParameter, InstancingWorldViewOriginOne);
 	}

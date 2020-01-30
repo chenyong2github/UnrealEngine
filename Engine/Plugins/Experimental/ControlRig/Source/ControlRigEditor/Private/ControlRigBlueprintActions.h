@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,6 +9,8 @@
 
 class FMenuBuilder;
 class UFactory;
+class USkeletalMesh;
+class AActor;
 
 class FControlRigBlueprintActions : public FAssetTypeActions_Blueprint
 {
@@ -23,4 +25,13 @@ public:
 
 	// FAssetTypeActions_Blueprint interface
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override;
+
+	static void ExtendSketalMeshToolMenu();
+	static void ExecuteCreateControlRigFromSkeletalMesh(UObject* InSelectedObject);
+
+	static USkeletalMesh* GetSkeletalMeshFromControlRigBlueprint(UObject* InAsset);
+	static void PostSpawningSkeletalMeshActor(AActor* InSpawnedActor, UObject* InAsset);
+	static void OnSpawnedSkeletalMeshActorChanged(UObject* InObject, FPropertyChangedEvent& InEvent, UObject* InAsset);
+
+	static FDelegateHandle OnSpawnedSkeletalMeshActorChangedHandle;
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ParticleSpriteVertexFactory.hlsl: Particle vertex factory shader code.
@@ -302,7 +302,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 float3 SafeNormalize(float3 V)
 {
-	return V * rsqrt(max(dot(V,V),0.01));
+	return V * rsqrt(max(dot(V,V),0.00000001));
 }
 
 void GetTangents(FVertexFactoryInput Input, float3 WorldPosition, float3 OldWorldPosition, out float3 OutRight, out float3 OutUp)

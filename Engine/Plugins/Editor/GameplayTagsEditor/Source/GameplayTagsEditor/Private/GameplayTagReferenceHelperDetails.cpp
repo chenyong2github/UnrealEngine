@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagReferenceHelperDetails.h"
 #include "AssetRegistryModule.h"
@@ -43,7 +43,7 @@ void FGameplayTagReferenceHelperDetails::CustomizeHeader( TSharedRef<IPropertyHa
 		// an update has to happen, since this thing is not tied directly to a tag uproperty. (E.g, a data table row where the row's key name is the tag tag name)
 
 		void* OwnerStructRawData = nullptr;
-		if (UProperty* MyProperty = PropertyHandle->GetProperty())
+		if (FProperty* MyProperty = PropertyHandle->GetProperty())
 		{
 			if (UStruct* OwnerStruct = MyProperty->GetOwnerStruct())
 			{				

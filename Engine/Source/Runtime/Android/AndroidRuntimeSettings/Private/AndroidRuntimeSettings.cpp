@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AndroidRuntimeSettings.h"
 #include "Modules/ModuleManager.h"
@@ -46,7 +46,7 @@ UAndroidRuntimeSettings::UAndroidRuntimeSettings(const FObjectInitializer& Objec
 	bBuildForES2 = !bBuildForES2 && !bBuildForES31 && !bSupportsVulkan;
 }
 
-void UAndroidRuntimeSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
+void UAndroidRuntimeSettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 

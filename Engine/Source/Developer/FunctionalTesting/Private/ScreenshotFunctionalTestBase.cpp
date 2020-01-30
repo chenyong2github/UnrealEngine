@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScreenshotFunctionalTestBase.h"
 
@@ -202,7 +202,7 @@ void AScreenshotFunctionalTestBase::RestoreViewSettings()
 
 #if WITH_EDITOR
 
-bool AScreenshotFunctionalTestBase::CanEditChange(const UProperty* InProperty) const
+bool AScreenshotFunctionalTestBase::CanEditChange(const FProperty* InProperty) const
 {
 	bool bIsEditable = Super::CanEditChange(InProperty);
 	if (bIsEditable && InProperty)

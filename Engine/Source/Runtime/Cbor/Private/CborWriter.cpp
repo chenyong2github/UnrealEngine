@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CborWriter.h"
 
@@ -120,6 +120,12 @@ void FCborWriter::WriteValue(const char* CString, uint64 Length)
 	// Write c string header
 	WriteUIntValue(ECborCode::ByteString, *Stream, Length);
 	Stream->Serialize(const_cast<char*>(CString), Length);
+}
+
+void FCborWriter::WriteValue(const uint8* Bytes, uint64 Length)
+{
+	static_assert(sizeof(uint8) == sizeof(char), "Expected char type to be 1 byte");
+	WriteValue(reinterpret_cast<const char*>(Bytes), Length);
 }
 
 FCborHeader FCborWriter::WriteUIntValue(FCborHeader Header, FArchive& Ar, uint64 Value)

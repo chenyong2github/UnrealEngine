@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STimeRange.h"
 #include "Widgets/SBoxPanel.h"
@@ -20,6 +20,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 	if (InArgs._ShowWorkingRange)
 	{
 		WorkingRangeStart = SNew(SSpinBox<double>)
+		.IsEnabled(InArgs._EnableWorkingRange)
 		.Value(this, &STimeRange::WorkingStartTime)
 		.ToolTipText(LOCTEXT("WorkingRangeStart", "Working Range Start"))
 		.OnValueCommitted(this, &STimeRange::OnWorkingStartTimeCommitted)
@@ -33,6 +34,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.LinearDeltaSensitivity(25);
 
 		WorkingRangeEnd = SNew(SSpinBox<double>)
+		.IsEnabled(InArgs._EnableWorkingRange)
 		.Value(this, &STimeRange::WorkingEndTime)
 		.ToolTipText(LOCTEXT("WorkingRangeEnd", "Working Range End"))
 		.OnValueCommitted( this, &STimeRange::OnWorkingEndTimeCommitted )
@@ -50,6 +52,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 	if (InArgs._ShowViewRange)
 	{
 		ViewRangeStart = SNew(SSpinBox<double>)
+		.IsEnabled(InArgs._EnableViewRange)
 		.Value(this, &STimeRange::ViewStartTime)
 		.ToolTipText(LOCTEXT("ViewStartTimeTooltip", "View Range Start Time"))
 		.OnValueCommitted( this, &STimeRange::OnViewStartTimeCommitted )
@@ -64,6 +67,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 
 
 		ViewRangeEnd = SNew(SSpinBox<double>)
+		.IsEnabled(InArgs._EnableViewRange)
 		.Value(this, &STimeRange::ViewEndTime)
 		.ToolTipText(LOCTEXT("ViewEndTimeTooltip", "View Range End Time"))
 		.OnValueCommitted( this, &STimeRange::OnViewEndTimeCommitted )
@@ -78,8 +82,10 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 	}
 
 	TSharedRef<SWidget> PlaybackRangeStart = SNullWidget::NullWidget, PlaybackRangeEnd = SNullWidget::NullWidget;
+	if (InArgs._ShowPlaybackRange)
 	{
 		PlaybackRangeStart = SNew(SSpinBox<double>)
+		.IsEnabled(InArgs._EnablePlaybackRange)
 		.Value(this, &STimeRange::PlayStartTime)
 		.ToolTipText(LOCTEXT("PlayStartTimeTooltip", "Playback Range Start Time"))
 		.OnValueCommitted(this, &STimeRange::OnPlayStartTimeCommitted)
@@ -94,6 +100,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 
 
 		PlaybackRangeEnd = SNew(SSpinBox<double>)
+		.IsEnabled(InArgs._EnablePlaybackRange)
 		.Value(this, &STimeRange::PlayEndTime)
 		.ToolTipText(LOCTEXT("PlayEndTimeTooltip", "Playback Range Stop Time"))
 		.OnValueCommitted( this, &STimeRange::OnPlayEndTimeCommitted )

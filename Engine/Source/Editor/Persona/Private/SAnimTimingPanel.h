@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,6 +13,8 @@
 class SBorder;
 class UAnimMontage;
 class UAnimSequenceBase;
+class FAnimModel;
+class FAnimModel_AnimMontage;
 
 //////////////////////////////////////////////////////////////////////////
 // FTimingRelevantElement - data object holding timing data
@@ -122,6 +124,7 @@ class SAnimTimingNode : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SAnimTimingNode)
 		: _InElement()
+		, _bUseTooltip(true)
 	{}
 
 	SLATE_ARGUMENT(TSharedPtr<FTimingRelevantElementBase>, InElement)
@@ -145,6 +148,7 @@ class SAnimTimingTrackNode : public STrackNode
 {
 public:
 	SLATE_BEGIN_ARGS(SAnimTimingTrackNode)
+		: _bUseTooltip(true)
 	{}
 
 	SLATE_ATTRIBUTE(float, ViewInputMin)
@@ -193,7 +197,7 @@ public:
 
 	// Construct the panel
 	// @param InArgs - Slate arguments
-	void Construct(const FArguments& InArgs, FSimpleMulticastDelegate& OnSectionsChanged);
+	void Construct(const FArguments& InArgs, const TSharedRef<FAnimModel_AnimMontage>& InModel);
 
 	// Updates panel widgets
 	void Update();
@@ -205,9 +209,8 @@ public:
 	EVisibility IsElementDisplayVisible(ETimingElementType::Type ElementType) const;
 
 	// Callback from slate when element display flag changes
-	// @param State - New state
 	// @param ElementType - Flag to set
-	void OnElementDisplayEnabledChanged(ECheckBoxState State, ETimingElementType::Type ElementType);
+	void OnElementDisplayEnabledChanged(ETimingElementType::Type ElementType);
 
 	// Inspects the provided sequence, collect and sorts the requested elements
 	// @param Sequence - Sequence to inspect
@@ -216,15 +219,14 @@ public:
 
 protected:
 
-	// Context summon callback
-	FReply OnContextMenu();
-
 	// Tick the panel state
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	// Clears the timing track and rebuilds the nodes
 	void RefreshTrackNodes();
 
+	// The model for our data
+	TWeakPtr<FAnimModel_AnimMontage> WeakModel;
 	// Observed timing elements
 	TArray<TSharedPtr<FTimingRelevantElementBase>> Elements;
 	// Anim sequence that contains the timing elements we are observing
@@ -233,7 +235,4 @@ protected:
 	TSharedPtr<SBorder> PanelArea;
 	// The track to place timing nodes on
 	TSharedPtr<STrack> Track;
-
-	// Display flags for other panels
-	bool bElementNodeDisplayFlags[ETimingElementType::Max];
 };

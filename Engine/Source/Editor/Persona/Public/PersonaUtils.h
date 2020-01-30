@@ -1,12 +1,14 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/SlateDelegates.h"
 
 class UAnimInstance;
 class USceneComponent;
 class UAnimBlueprint;
+class SWidget;
 
 namespace PersonaUtils
 {
@@ -40,7 +42,7 @@ struct FCopyOptions
 	FCopyOptions(const ECopyOptions InFlags) : Flags(InFlags) {}
 
 	/** Check whether we can copy the specified property */
-	bool CanCopyProperty(UProperty& Property, UObject& Object) const
+	bool CanCopyProperty(FProperty& Property, UObject& Object) const
 	{
 		return !PropertyFilter || PropertyFilter(Property, Object);
 	}
@@ -49,7 +51,7 @@ struct FCopyOptions
 	ECopyOptions Flags;
 
 	/** User-specified custom property filter predicate */
-	TFunction<bool(UProperty&, UObject&)> PropertyFilter;
+	TFunction<bool(FProperty&, UObject&)> PropertyFilter;
 };
 
 /** Copy modified properties from the specified anim instance back to its CDO */
@@ -57,5 +59,7 @@ PERSONA_API int32 CopyPropertiesToCDO(UAnimInstance* InAnimInstance, const FCopy
 
 /** Set the correct object to debug depending on whether we are running a sub-layer etc. */
 PERSONA_API void SetObjectBeingDebugged(UAnimBlueprint* InAnimBlueprint, UAnimInstance* InAnimInstance);
+/** Make an add button widget, as seen in the animation timeline */
+PERSONA_API TSharedRef<SWidget> MakeTrackButton(FText HoverText, FOnGetContent MenuContent, const TAttribute<bool>& HoverState);
 
 }

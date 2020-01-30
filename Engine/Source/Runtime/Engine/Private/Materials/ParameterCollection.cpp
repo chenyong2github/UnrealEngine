@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ParameterCollection.h"
 #include "UObject/UObjectHash.h"
@@ -160,7 +160,7 @@ void SanitizeParameters(TArray<ParameterType>& Parameters)
 int32 PreviousNumScalarParameters = 0;
 int32 PreviousNumVectorParameters = 0;
 
-void UMaterialParameterCollection::PreEditChange(UProperty* PropertyThatWillChange)
+void UMaterialParameterCollection::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

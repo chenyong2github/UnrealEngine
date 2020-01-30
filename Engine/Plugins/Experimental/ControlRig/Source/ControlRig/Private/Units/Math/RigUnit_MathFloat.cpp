@@ -1,7 +1,22 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Math/RigUnit_MathFloat.h"
 #include "Units/RigUnitContext.h"
+
+FRigUnit_MathFloatConstPi_Execute()
+{
+	Value = PI;
+}
+
+FRigUnit_MathFloatConstHalfPi_Execute()
+{
+	Value = HALF_PI;
+}
+
+FRigUnit_MathFloatConstTwoPi_Execute()
+{
+	Value = PI * 2.f;
+}
 
 FRigUnit_MathFloatAdd_Execute()
 {

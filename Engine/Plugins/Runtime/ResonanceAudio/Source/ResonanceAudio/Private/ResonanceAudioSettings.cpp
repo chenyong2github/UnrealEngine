@@ -8,4 +8,5 @@ UResonanceAudioSettings::UResonanceAudioSettings()
 	: QualityMode(ERaQualityMode::BINAURAL_HIGH)
 	, GlobalReverbPreset(nullptr)
 {
+	OutputSubmix = FString(TEXT("/ResonanceAudio/ResonanceSubmixDefault.ResonanceSubmixDefault"));
 }

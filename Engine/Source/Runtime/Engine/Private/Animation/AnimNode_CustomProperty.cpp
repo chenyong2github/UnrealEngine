@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_CustomProperty.h"
 #include "Animation/AnimClassInterface.h"
@@ -28,8 +28,8 @@ void FAnimNode_CustomProperty::PropagateInputProperties(const UObject* InSourceI
 		check(SourceProperties.Num() == DestProperties.Num());
 		for(int32 PropIdx = 0; PropIdx < SourceProperties.Num(); ++PropIdx)
 		{
-			UProperty* CallerProperty = SourceProperties[PropIdx];
-			UProperty* SubProperty = DestProperties[PropIdx];
+			FProperty* CallerProperty = SourceProperties[PropIdx];
+			FProperty* SubProperty = DestProperties[PropIdx];
 
 			check(CallerProperty && SubProperty);
 
@@ -76,8 +76,8 @@ void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInsta
 			const FName& SourceName = SourcePropertyNames[Idx];
 			const FName& DestName = DestPropertyNames[Idx];
 
-			UProperty* SourceProperty = FindField<UProperty>(SourceClass, SourceName);
-			UProperty* DestProperty = FindField<UProperty>(InTargetClass, DestName);
+			FProperty* SourceProperty = FindField<FProperty>(SourceClass, SourceName);
+			FProperty* DestProperty = FindField<FProperty>(InTargetClass, DestName);
 
 			if (SourceProperty && DestProperty
 #if WITH_EDITOR

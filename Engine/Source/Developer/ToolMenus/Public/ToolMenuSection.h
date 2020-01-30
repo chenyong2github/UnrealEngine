@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -64,8 +64,6 @@ private:
 
 	int32 IndexOfBlock(const FName InName) const;
 	int32 FindBlockInsertIndex(const FToolMenuEntry& InBlock) const;
-
-	void AssembleBlock(const FToolMenuEntry& InBlock);
 
 	bool IsNonLegacyDynamic() const;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LinkerManager.h: Unreal object linker manager
@@ -112,6 +112,9 @@ public:
 
 	/** Empty the loaders */
 	void ResetLoaders(UObject* InPkg);
+
+	/** Complete all loading (thumbnails/bulkdata) for the given Package */
+	void EnsureLoadingComplete(UPackage* Package);
 
 	/**
 	* Dissociates all linker import and forced export object references. This currently needs to

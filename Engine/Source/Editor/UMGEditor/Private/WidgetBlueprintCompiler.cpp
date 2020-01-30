@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WidgetBlueprintCompiler.h"
 #include "Components/SlateWrapperTypes.h"
@@ -120,7 +120,7 @@ void FWidgetBlueprintCompilerContext::CreateFunctionList()
 		{
 			const FName PropertyName = EditorBinding.SourceProperty;
 
-			UProperty* Property = FindField<UProperty>(Blueprint->SkeletonGeneratedClass, PropertyName);
+			FProperty* Property = FindField<FProperty>(Blueprint->SkeletonGeneratedClass, PropertyName);
 			if ( Property )
 			{
 				// Create the function graph.
@@ -335,7 +335,7 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		}
 
 		// Look in the Parent class properties to find a property with the BindWidget meta tag of the same name and Type.
-		UObjectPropertyBase* ExistingProperty = Cast<UObjectPropertyBase>(ParentClass->FindPropertyByName(Widget->GetFName()));
+		FObjectPropertyBase* ExistingProperty = CastField<FObjectPropertyBase>(ParentClass->FindPropertyByName(Widget->GetFName()));
 		if (ExistingProperty && 
 			FWidgetBlueprintEditorUtils::IsBindWidgetProperty(ExistingProperty) && 
 			Widget->IsA(ExistingProperty->PropertyClass))
@@ -359,7 +359,7 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		FEdGraphPinType WidgetPinType(UEdGraphSchema_K2::PC_Object, NAME_None, WidgetClass, EPinContainerType::None, false, FEdGraphTerminalType());
 		
 		// Always name the variable according to the underlying FName of the widget object
-		UProperty* WidgetProperty = CreateVariable(Widget->GetFName(), WidgetPinType);
+		FProperty* WidgetProperty = CreateVariable(Widget->GetFName(), WidgetPinType);
 		if ( WidgetProperty != nullptr )
 		{
 			const FString DisplayName = Widget->IsGeneratedName() ? Widget->GetName() : Widget->GetLabelText().ToString();
@@ -386,7 +386,7 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 	// Add movie scenes variables here
 	for (UWidgetAnimation* Animation : WidgetBP->Animations)
 	{
-		UObjectPropertyBase* ExistingProperty = Cast<UObjectPropertyBase>(ParentClass->FindPropertyByName(Animation->GetFName()));
+		FObjectPropertyBase* ExistingProperty = CastField<FObjectPropertyBase>(ParentClass->FindPropertyByName(Animation->GetFName()));
 		if (ExistingProperty &&
 			FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(ExistingProperty) &&
 			ExistingProperty->PropertyClass->IsChildOf(UWidgetAnimation::StaticClass()))
@@ -396,7 +396,7 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		}
 
 		FEdGraphPinType WidgetPinType(UEdGraphSchema_K2::PC_Object, NAME_None, Animation->GetClass(), EPinContainerType::None, true, FEdGraphTerminalType());
-		UProperty* AnimationProperty = CreateVariable(Animation->GetFName(), WidgetPinType);
+		FProperty* AnimationProperty = CreateVariable(Animation->GetFName(), WidgetPinType);
 
 		if ( AnimationProperty != nullptr )
 		{
@@ -739,7 +739,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 		bool bCanCallPreConstruct = true;
 
 		// Check that all BindWidget properties are present and of the appropriate type
-		for (TUObjectPropertyBase<UWidget*>* WidgetProperty : TFieldRange<TUObjectPropertyBase<UWidget*>>(ParentClass))
+		for (TFObjectPropertyBase<UWidget*>* WidgetProperty : TFieldRange<TFObjectPropertyBase<UWidget*>>(ParentClass))
 		{
 			bool bIsOptional = false;
 
@@ -789,7 +789,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 		}
 
 		// Check that all BindWidgetAnim properties are present
-		for (TUObjectPropertyBase<UWidgetAnimation*>* WidgetAnimProperty : TFieldRange<TUObjectPropertyBase<UWidgetAnimation*>>(ParentClass))
+		for (TFObjectPropertyBase<UWidgetAnimation*>* WidgetAnimProperty : TFieldRange<TFObjectPropertyBase<UWidgetAnimation*>>(ParentClass))
 		{
 			bool bIsOptional = false;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -10,21 +10,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimCompress.h"
+#include "Animation/AnimCompress_BitwiseCompressOnly.h"
 #include "AnimCompress_LeastDestructive.generated.h"
 
 UCLASS()
-class UAnimCompress_LeastDestructive : public UAnimCompress
+class UAnimCompress_LeastDestructive : public UAnimCompress_BitwiseCompressOnly
 {
 	GENERATED_UCLASS_BODY()
-
-
-protected:
-	//~ Begin UAnimCompress Interface
-#if WITH_EDITOR
-	virtual void DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) override;
-#endif // WITH_EDITOR
-	//~ Begin UAnimCompress Interface
 };
-
-
-

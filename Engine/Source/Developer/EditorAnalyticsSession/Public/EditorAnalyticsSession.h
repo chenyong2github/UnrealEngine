@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -57,6 +57,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool bIsInPIE : 1;
 	bool bIsInEnterprise : 1;
 	bool bIsInVRMode : 1;
+	bool bIsLowDriveSpace : 1;
 
 	FEditorAnalyticsSession();
 

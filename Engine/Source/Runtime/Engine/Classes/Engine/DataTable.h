@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -263,7 +263,7 @@ public:
 	}
 
 	/** Returns the column property where PropertyName matches the name of the column property. Returns nullptr if no match is found or the match is not a supported table property */
-	ENGINE_API UProperty* FindTableProperty(const FName& PropertyName) const;
+	ENGINE_API FProperty* FindTableProperty(const FName& PropertyName) const;
 
 	uint8* FindRowUnchecked(FName RowName, bool MustExist=false) const
 	{
@@ -317,13 +317,16 @@ public:
 	ENGINE_API FString GetTableAsJSON(const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
 
 	/** Output entire contents of table as JSON */
-	ENGINE_API bool WriteTableAsJSON(const TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
+	template<typename CharType = TCHAR>
+	ENGINE_API bool WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
 
 	/** Output entire contents of table as a JSON Object*/
-	ENGINE_API bool WriteTableAsJSONObject(const TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
+	template<typename CharType = TCHAR>
+	ENGINE_API bool WriteTableAsJSONObject(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
 
 	/** Output the fields from a particular row (use RowMap to get RowData) to an existing JsonWriter */
-	ENGINE_API bool WriteRowAsJSON(const TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR> > >& JsonWriter, const void* RowData, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
+	template<typename CharType = TCHAR>
+	ENGINE_API bool WriteRowAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const void* RowData, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
 
 	/** Copies all the import options from another table, this does not copy row dawta */
 	ENGINE_API bool CopyImportOptions(UDataTable* SourceTable);
@@ -343,7 +346,7 @@ public:
 	ENGINE_API TArray<FString> CreateTableFromJSONString(const FString& InString);
 
 	/** Get array of UProperties that corresponds to columns in the table */
-	TArray<UProperty*> GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* RowStruct, TArray<FString>& OutProblems, int32 KeyColumn = 0);
+	TArray<FProperty*> GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* RowStruct, TArray<FString>& OutProblems, int32 KeyColumn = 0);
 	
 	/** 
 	 *	Create table from another Data Table
@@ -504,7 +507,7 @@ struct ENGINE_API FDataTableCategoryHandle
 		}
 
 		// Find the property that matches the desired column (ColumnName)
-		UProperty* Property = DataTable->FindTableProperty(ColumnName);
+		FProperty* Property = DataTable->FindTableProperty(ColumnName);
 		if (Property == nullptr)
 		{
 			return;

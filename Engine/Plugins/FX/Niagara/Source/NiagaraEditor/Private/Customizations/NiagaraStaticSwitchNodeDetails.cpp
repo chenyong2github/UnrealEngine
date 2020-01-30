@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraStaticSwitchNodeDetails.h"
 #include "UObject/WeakObjectPtr.h"
@@ -361,7 +361,7 @@ void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<ConstantDrop
 	// in case of an enum constant we also need the enum type
 	if (SelectedDropdownItem == DropdownOptions[4])
 	{
-		Node->SwitchTypeData.Enum = NewValue->Constant.GetType().Enum;
+		Node->SwitchTypeData.Enum = NewValue->Constant.GetType().GetEnum();
 	}
 	else
 	{

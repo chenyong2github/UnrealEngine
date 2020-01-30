@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -85,7 +85,7 @@ private:
 	TSharedPtr<SWidget> OnContextMenuOpening();
 
 	/** FNotifyHook interface */
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged ) override;
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) override;
 
 	/** Post undo */
 	void PostUndo();
@@ -100,7 +100,7 @@ private:
 	void RemovePropertyChangeListenerFromSockets();
 
 	/** Called when a socket property has changed. */
-	void OnSocketPropertyChanged( const UStaticMeshSocket* Socket, const UProperty* ChangedProperty );
+	void OnSocketPropertyChanged( const UStaticMeshSocket* Socket, const FProperty* ChangedProperty );
 
 	/** Called when socket selection changes */
 	FSimpleDelegate OnSocketSelectionChanged;

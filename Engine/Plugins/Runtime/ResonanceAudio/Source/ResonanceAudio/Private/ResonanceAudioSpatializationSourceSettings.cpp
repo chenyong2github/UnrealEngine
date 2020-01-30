@@ -44,7 +44,7 @@ bool UResonanceAudioSpatializationSourceSettings::DoesAudioComponentReferenceThi
 	}
 }
 
-bool UResonanceAudioSpatializationSourceSettings::CanEditChange(const UProperty* InProperty) const
+bool UResonanceAudioSpatializationSourceSettings::CanEditChange(const FProperty* InProperty) const
 {
 	const bool ParentVal = Super::CanEditChange(InProperty);
 

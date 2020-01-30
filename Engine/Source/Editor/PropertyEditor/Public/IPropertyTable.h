@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,6 +7,7 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "Framework/Views/ITypedTableView.h"
 #include "IPropertyTableUtilities.h"
+#include "UObject/WeakFieldPtr.h"
 
 class FPropertyPath;
 class IPropertyTableCell;
@@ -53,13 +54,13 @@ public:
 	virtual void RequestRefresh() = 0;
 
 	virtual void AddColumn( const TWeakObjectPtr< class UObject >& Object ) = 0;
-	virtual void AddColumn( const TWeakObjectPtr< class UProperty >& Property ) = 0;
+	virtual void AddColumn( const TWeakFieldPtr< class FProperty >& Property ) = 0;
 	virtual void AddColumn( const TSharedRef< class FPropertyPath >& PropertyPath ) = 0;
 	virtual void AddColumn( const TSharedRef< class IPropertyTableColumn >& Column ) = 0;
 	virtual void RemoveColumn( const TSharedRef< class IPropertyTableColumn >& Column ) = 0;
 
 	virtual void AddRow( const TWeakObjectPtr< UObject >& Object ) = 0;
-	virtual void AddRow( const TWeakObjectPtr< UProperty >& Property ) = 0;
+	virtual void AddRow( const TWeakFieldPtr< FProperty >& Property ) = 0;
 	virtual void AddRow( const TSharedRef< FPropertyPath >& PropertyPath ) = 0;
 	virtual void AddRow( const TSharedRef< class IPropertyTableRow >& Row ) = 0;
 	virtual void RemoveRow( const TSharedRef< class IPropertyTableRow >& Row ) = 0;

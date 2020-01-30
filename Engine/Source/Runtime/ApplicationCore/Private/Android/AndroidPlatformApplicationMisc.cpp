@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Android/AndroidPlatformApplicationMisc.h"
 
@@ -83,6 +83,15 @@ void FAndroidApplicationMisc::SetGamepadsAllowed(bool bAllowed)
 	if (FAndroidInputInterface* InputInterface = (FAndroidInputInterface*)FAndroidApplication::Get()->GetInputInterface())
 	{
 		InputInterface->SetGamepadsAllowed(bAllowed);
+	}
+}
+
+
+void FAndroidApplicationMisc::SetGamepadsBlockDeviceFeedback(bool bBlock)
+{
+	if (FAndroidInputInterface* InputInterface = (FAndroidInputInterface*)FAndroidApplication::Get()->GetInputInterface())
+	{
+		InputInterface->SetGamepadsBlockDeviceFeedback(bBlock);
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,7 +21,7 @@ enum class ERigUnitDebugTransformMode : uint8
 	Max UMETA(Hidden),
 };
 
-USTRUCT(meta=(DisplayName="Draw Transform In Place"))
+USTRUCT(meta=(DisplayName="Draw Transform In Place", Deprecated = "4.25.0"))
 struct FRigUnit_DebugTransform : public FRigUnit_DebugBase
 {
 	GENERATED_BODY()
@@ -54,17 +54,17 @@ struct FRigUnit_DebugTransform : public FRigUnit_DebugBase
 	UPROPERTY(meta = (Input))
 	float Scale;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
 };
 
-USTRUCT(meta=(DisplayName="Draw Transform"))
+USTRUCT(meta=(DisplayName="Draw Transform", Deprecated = "4.25.0"))
 struct FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
@@ -97,13 +97,13 @@ struct FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	float Scale;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
 };
 
@@ -116,7 +116,7 @@ struct FRigUnit_DebugTransformArrayMutable_WorkData
 	TArray<FTransform> DrawTransforms;
 };
 
-USTRUCT(meta=(DisplayName="Draw Transform Array"))
+USTRUCT(meta=(DisplayName="Draw Transform Array", Deprecated = "4.25.0"))
 struct FRigUnit_DebugTransformArrayMutable : public FRigUnit_DebugBaseMutable
 {
  	GENERATED_BODY()
@@ -149,13 +149,13 @@ struct FRigUnit_DebugTransformArrayMutable : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	float Scale;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Space;
 
 	UPROPERTY(meta = (Input))
 	FTransform WorldOffset;
 
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
 
 	UPROPERTY(transient)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*================================================================================
 	AndroidPlatform.h: Setup for the Android platform
@@ -60,6 +60,7 @@ typedef FAndroidTypes FPlatformTypes;
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK		1 // movies will start before engine is initalized
 #define PLATFORM_SUPPORTS_GEOMETRY_SHADERS			0
 #define PLATFORM_SUPPORTS_TESSELLATION_SHADERS		0
+#define PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING	1
 
 #define PLATFORM_CODE_SECTION(Name)					__attribute__((section(Name)))
 

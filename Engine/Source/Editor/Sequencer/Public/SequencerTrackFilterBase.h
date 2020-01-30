@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,6 +11,8 @@
 class FMenuBuilder;
 
 typedef const UObject* FTrackFilterType;
+
+struct FMovieSceneChannel;
 
 class FSequencerTrackFilter : public IFilter<FTrackFilterType>
 {
@@ -37,6 +39,14 @@ public:
 	// IFilter implementation
 	DECLARE_DERIVED_EVENT(FSequencerTrackFilter, IFilter<FTrackFilterType>::FChangedEvent, FChangedEvent);
 	virtual FChangedEvent& OnChanged() override { return ChangedEvent; }
+
+	/** Returns whether the specified Item passes the Filter's restrictions */
+	virtual bool PassesFilterWithDisplayName(FTrackFilterType InItem, const FText& InText) const 
+	{
+		return PassesFilter(InItem);
+	}
+
+	virtual bool PassesFilterChannel(FMovieSceneChannel* InMovieSceneChannel) const { return false; }
 
 protected:
 	void BroadcastChangedEvent() const { ChangedEvent.Broadcast(); }

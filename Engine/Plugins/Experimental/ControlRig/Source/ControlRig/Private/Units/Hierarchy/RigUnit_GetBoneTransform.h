@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,18 +14,36 @@ struct FRigUnit_GetBoneTransform : public FRigUnit
 	GENERATED_BODY()
 
 	FRigUnit_GetBoneTransform()
-		: Space(EBoneGetterSetterMode::LocalSpace)
+		: Space(EBoneGetterSetterMode::GlobalSpace)
 		, CachedBoneIndex(INDEX_NONE)
 	{}
 
 	virtual FString GetUnitLabel() const override;
+
+	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("Transform")) && Space == EBoneGetterSetterMode::LocalSpace)
+		{
+			if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+			{
+				int32 BoneIndex = Container->BoneHierarchy.GetIndex(Bone);
+				if (BoneIndex != INDEX_NONE)
+				{
+					return Container->BoneHierarchy[BoneIndex].ParentName;
+				}
+
+			}
+		}
+		return NAME_None;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**
 	 * The name of the Bone to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, BoneName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
 	FName Bone;
 
 	/**

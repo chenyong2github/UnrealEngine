@@ -1,6 +1,6 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigUnit_AddBoneTransform.h"
+#include "Units/Hierarchy/RigUnit_AddBoneTransform.h"
 #include "Units/RigUnitContext.h"
 
 FString FRigUnit_AddBoneTransform::GetUnitLabel() const
@@ -19,6 +19,10 @@ FRigUnit_AddBoneTransform_Execute()
 			case EControlRigState::Init:
 			{
 				CachedBoneIndex = Hierarchy->GetIndex(Bone);
+				if (CachedBoneIndex == INDEX_NONE)
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone is not set."));
+				}
 				break;
 			}
 			case EControlRigState::Update:

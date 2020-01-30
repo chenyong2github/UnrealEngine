@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/MovieSceneFloatChannel.h"
 #include "MovieSceneFwd.h"
@@ -27,7 +27,7 @@ bool FMovieSceneTangentData::Serialize(FArchive& Ar)
 		return false;
 	}
 
-	// Serialization is handled manually to avoid the extra size overhead of UProperty tagging.
+	// Serialization is handled manually to avoid the extra size overhead of FProperty tagging.
 	// Otherwise with many keys in a FMovieSceneTangentData the size can become quite large.
 	Ar << ArriveTangent;
 	Ar << LeaveTangent;
@@ -56,7 +56,7 @@ bool FMovieSceneFloatValue::Serialize(FArchive& Ar)
 		return false;
 	}
 
-	// Serialization is handled manually to avoid the extra size overhead of UProperty tagging.
+	// Serialization is handled manually to avoid the extra size overhead of FProperty tagging.
 	// Otherwise with many keys in a FMovieSceneFloatValue the size can become quite large.
 	Ar << Value;
 	Ar << InterpMode;

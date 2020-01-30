@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 #include "UObject/GCObject.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraScriptExecutionContext.h"
+#include "NiagaraSystem.h"
 
 class UNiagaraEffectType;
 class UWorld;
@@ -96,7 +97,7 @@ struct FNiagaraParameterStoreToDataSetBinding
 		ParameterStore.OnParameterChange();
 	}
 
-	FORCEINLINE_DEBUGGABLE void ParameterStoreToDataSet(FNiagaraParameterStore& ParameterStore, FNiagaraDataSet& DataSet, int32 DataSetInstanceIndex)
+	FORCEINLINE_DEBUGGABLE void ParameterStoreToDataSet(const FNiagaraParameterStore& ParameterStore, FNiagaraDataSet& DataSet, int32 DataSetInstanceIndex)
 	{
 		FNiagaraDataBuffer& CurrBuffer = DataSet.GetDestinationDataChecked();
 		const uint8* ParameterData = ParameterStore.GetParameterDataArray().GetData();
@@ -123,6 +124,29 @@ struct FNiagaraParameterStoreToDataSetBinding
 #endif
 	}
 };
+
+#if 1
+struct FNiagaraConstantBufferToDataSetBinding
+{
+	void Init(const FNiagaraSystemCompiledData& CompiledData);
+
+	void CopyToDataSets(const FNiagaraSystemInstance& SystemInstance, FNiagaraDataSet& SpawnDataSet, FNiagaraDataSet& UpdateDataSet, int32 DataSetInstanceIndex) const;
+	
+
+protected:
+	void ApplyOffsets(const FNiagaraParameterDataSetBindingCollection& Offsets, const uint8* SourceData, FNiagaraDataSet& DataSet, int32 DataSetInstanceIndex) const;
+
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceGlobalBinding;
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceSystemBinding;
+	FNiagaraParameterDataSetBindingCollection SpawnInstanceOwnerBinding;
+	TArray<FNiagaraParameterDataSetBindingCollection> SpawnInstanceEmitterBindings;
+
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceGlobalBinding;
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceSystemBinding;
+	FNiagaraParameterDataSetBindingCollection UpdateInstanceOwnerBinding;
+	TArray<FNiagaraParameterDataSetBindingCollection> UpdateInstanceEmitterBindings;
+};
+#endif
 
 struct FNiagaraSystemSimulationTickContext
 {
@@ -211,6 +235,9 @@ public:
 	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
 
 protected:
+	/** Sets constant parameter values */
+	void SetupParameters_GameThread(float DeltaSeconds);
+
 	/** Does any prep work for system simulation such as pulling instance parameters into a dataset. */
 	void PrepareForSystemSimulate(FNiagaraSystemSimulationTickContext& Context);
 	/** Runs the system spawn script for new system instances. */
@@ -219,6 +246,11 @@ protected:
 	void UpdateSystemInstances(FNiagaraSystemSimulationTickContext& Context);
 	/** Transfers the results of the system simulation into the emitter instances. */
 	void TransferSystemSimResults(FNiagaraSystemSimulationTickContext& Context);
+	/** Builds the constant buffer table for a given script execution */
+	void BuildConstantBufferTable(
+		const FNiagaraGlobalParameters& GlobalParameters,
+		FNiagaraScriptExecutionContext& ExecContext,
+		FScriptExecutionConstantBufferTable& ConstantBufferTable) const;
 
 	/** Should we push the system sim tick off the game thread. */
 	FORCEINLINE bool ShouldTickAsync(const FNiagaraSystemSimulationTickContext& Context);
@@ -263,6 +295,8 @@ protected:
 	/** Bindings that pull per component parameters into the update parameter dataset. */
 	FNiagaraParameterStoreToDataSetBinding UpdateInstanceParameterToDataSetBinding;
 
+	FNiagaraConstantBufferToDataSetBinding ConstantBufferToDataSetBinding;
+
 	/** Binding to push system attributes into each emitter spawn parameters. */
 	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterSpawnParameters;
 	/** Binding to push system attributes into each emitter update parameters. */
@@ -271,15 +305,6 @@ protected:
 	TArray<TArray<FNiagaraParameterStoreToDataSetBinding>> DataSetToEmitterEventParameters;
 
 	/** Direct bindings for Engine variables in System Spawn and Update scripts. */
-	FNiagaraParameterDirectBinding<float> SpawnTimeParam;
-	FNiagaraParameterDirectBinding<float> UpdateTimeParam;
-
-	FNiagaraParameterDirectBinding<float> SpawnDeltaTimeParam;
-	FNiagaraParameterDirectBinding<float> UpdateDeltaTimeParam;
-
-	FNiagaraParameterDirectBinding<float> SpawnInvDeltaTimeParam;
-	FNiagaraParameterDirectBinding<float> UpdateInvDeltaTimeParam;
-	
 	FNiagaraParameterDirectBinding<int32> SpawnNumSystemInstancesParam;
 	FNiagaraParameterDirectBinding<int32> UpdateNumSystemInstancesParam;
 
@@ -313,7 +338,6 @@ protected:
 	uint32 bBindingsInitialized : 1;
 	uint32 bInSpawnPhase : 1;
 	uint32 bIsSolo : 1;
-	uint32 bHasEverTicked : 1;
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -176,6 +176,12 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	* Set whether gamepads are allowed at the platform level.
 	*/
 	static void SetGamepadsAllowed(bool bAllowed)
+	{}
+
+	/*
+	* Set whether gamepads are allowed at the platform level.
+	*/
+	static void SetGamepadsBlockDeviceFeedback(bool bAllowed)
 	{}
 
 	/*

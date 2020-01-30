@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -55,7 +55,8 @@ struct SHADERFORMATOPENGL_API FGlslCodeBackend : public FCodeBackend
 {
 	FGlslCodeBackend(unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, bool bInIsWebGL) :
 		FCodeBackend(InHlslCompileFlags, InTarget),
-		bIsWebGL(bInIsWebGL)
+		bIsWebGL(bInIsWebGL),
+		bExplicitDepthWrites(false)
 	{
 	}
 
@@ -98,6 +99,7 @@ struct SHADERFORMATOPENGL_API FGlslCodeBackend : public FCodeBackend
 	}
 
 	bool bIsWebGL;
+	bool bExplicitDepthWrites;
 };
 
 

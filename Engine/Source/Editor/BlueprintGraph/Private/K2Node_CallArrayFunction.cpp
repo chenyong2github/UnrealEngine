@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_CallArrayFunction.h"
 #include "EdGraphSchema_K2.h"
@@ -222,7 +222,7 @@ void UK2Node_CallArrayFunction::GetArrayPins(TArray< FArrayPropertyPinCombo >& O
 	}
 }
 
-bool UK2Node_CallArrayFunction::IsWildcardProperty(UFunction* InArrayFunction, const UProperty* InProperty)
+bool UK2Node_CallArrayFunction::IsWildcardProperty(UFunction* InArrayFunction, const FProperty* InProperty)
 {
 	if(InArrayFunction && InProperty)
 	{

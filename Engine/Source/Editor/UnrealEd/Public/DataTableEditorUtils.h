@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -18,8 +18,8 @@ struct FDataTableEditorColumnHeaderData
 	/** The calculated width of this column taking into account the cell data for each row */
 	float DesiredColumnWidth;
 
-	/** The UProperty for the variable in this column */
-	const UProperty* Property;
+	/** The FProperty for the variable in this column */
+	const FProperty* Property;
 };
 
 struct FDataTableEditorRowListViewData

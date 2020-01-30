@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "ScriptPluginLog.h"
@@ -6,11 +6,11 @@
 #include "IScriptPlugin.h"
 #include "UObject/UnrealType.h"
 
-UProperty* FindScriptPropertyHelper(UClass* Class, FName PropertyName)
+FProperty* FindScriptPropertyHelper(UClass* Class, FName PropertyName)
 {
-	for (TFieldIterator<UProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 		if (Property->GetFName() == PropertyName)
 		{
 			return Property;

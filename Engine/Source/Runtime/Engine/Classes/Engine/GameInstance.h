@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,6 +14,10 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
 
+#if WITH_EDITOR
+#include "Settings/LevelEditorPlaySettings.h"
+#endif 
+
 #include "GameInstance.generated.h"
 
 class AGameModeBase;
@@ -24,6 +28,7 @@ class FUniqueNetId;
 class ULocalPlayer;
 class UOnlineSession;
 struct FLatentActionManager;
+class ULevelEditorPlaySettings;
 
 // 
 // 	EWelcomeScreen, 	//initial screen.  Used for platforms where we may not have a signed in user yet.
@@ -90,6 +95,16 @@ private:
 //@TODO: Some of these are really mutually exclusive and should be refactored (put into a struct to make this easier in the future)
 struct FGameInstancePIEParameters
 {
+	FGameInstancePIEParameters()
+		: bSimulateInEditor(false)
+		, bAnyBlueprintErrors(false)
+		, bStartInSpectatorMode(false)
+		, bRunAsDedicated(false)
+		, WorldFeatureLevel(ERHIFeatureLevel::Num)
+		, EditorPlaySettings(nullptr)
+		, NetMode(EPlayNetMode::PIE_Standalone)
+	{}
+
 	// Are we doing SIE instead of PIE?
 	bool bSimulateInEditor;
 
@@ -102,11 +117,25 @@ struct FGameInstancePIEParameters
 	// Is this a dedicated server instance for PIE?
 	bool bRunAsDedicated;
 
+	// What time did we start PIE in the editor?
+	double PIEStartTime = 0;
+
 	// The feature level that PIE world should use
-	ERHIFeatureLevel::Type WorldFeatureLevel = ERHIFeatureLevel::Num;
+	ERHIFeatureLevel::Type WorldFeatureLevel;
+
+	// Kept alive externally.
+	ULevelEditorPlaySettings* EditorPlaySettings;
+
+	// Which net mode should this PIE instance start in? Affects which maps are loaded.
+	EPlayNetMode NetMode;
+
+	// The map we should force the game to load instead of the one currently running in the editor. Blank for no override
+	FString OverrideMapURL;
 };
 
 #endif
+
+DECLARE_EVENT_OneParam(UGameInstance, FOnLocalPlayerEvent, ULocalPlayer*);
 
 /**
  * GameInstance: high-level manager object for an instance of the running game.
@@ -157,6 +186,9 @@ protected:
 public:
 
 	FString PIEMapName;
+#if WITH_EDITOR
+	double PIEStartTime = 0;
+#endif
 
 	//~ Begin FExec Interface
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out = *GLog) override;
@@ -232,6 +264,9 @@ public:
 
 	/** Local player access */
 
+	FOnLocalPlayerEvent OnLocalPlayerAddedEvent;
+	FOnLocalPlayerEvent OnLocalPlayerRemovedEvent;
+
 	/**
 	 * Debug console command to create a player.
 	 * @param ControllerId - The controller ID the player should accept input from.
@@ -265,7 +300,6 @@ public:
 	 */
 	virtual int32			AddLocalPlayer(ULocalPlayer* NewPlayer, int32 ControllerId);
 
-
 	/**
 	 * Removes a player.
 	 * @param Player - The player to remove.
@@ -275,7 +309,7 @@ public:
 
 	int32					GetNumLocalPlayers() const;
 	ULocalPlayer*			GetLocalPlayerByIndex(const int32 Index) const;
-	APlayerController*		GetFirstLocalPlayerController(UWorld* World = nullptr) const;
+	APlayerController*		GetFirstLocalPlayerController(const UWorld* World = nullptr) const;
 	ULocalPlayer*			FindLocalPlayerFromControllerId(const int32 ControllerId) const;
 	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(TSharedPtr<const FUniqueNetId> UniqueNetId) const;
 	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(const FUniqueNetId& UniqueNetId) const;

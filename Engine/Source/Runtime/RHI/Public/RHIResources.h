@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -725,7 +725,6 @@ public:
 	bool IsMultisampled() const { return NumSamples > 1; }		
 
 	FRHIResourceInfo ResourceInfo;
-	TSharedPtr<FGenerateMipsStruct> GenMipsStruct;
 
 	/** sets the last time this texture was cached in a resource table. */
 	FORCEINLINE_DEBUGGABLE void SetLastRenderTime(float InLastRenderTime)

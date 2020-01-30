@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/ExportDialogueScriptCommandlet.h"
 #include "UObject/UnrealType.h"
@@ -330,7 +330,7 @@ FString UExportDialogueScriptCommandlet::GenerateCSVHeader()
 {
 	FString CSVHeader;
 	
-	for (TFieldIterator<const UProperty> PropertyIt(FDialogueScriptEntry::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<const FProperty> PropertyIt(FDialogueScriptEntry::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
 	{
 		if (!CSVHeader.IsEmpty())
 		{
@@ -351,7 +351,7 @@ FString UExportDialogueScriptCommandlet::GenerateCSVRow(const FDialogueScriptEnt
 {
 	FString CSVRow;
 
-	for (TFieldIterator<const UProperty> PropertyIt(FDialogueScriptEntry::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<const FProperty> PropertyIt(FDialogueScriptEntry::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
 	{
 		if (!CSVRow.IsEmpty())
 		{

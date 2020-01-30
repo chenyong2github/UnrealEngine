@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDestructibleMeshEditorViewport.h"
 #include "Misc/Paths.h"
@@ -663,19 +663,19 @@ bool SDestructibleMeshEditorViewport::IsVisible() const
 void SDestructibleMeshEditorViewport::SetPreviewDepth(uint32 InPreviewDepth)
 {
 	uint32 DepthCount = 0;
+	uint32 NewPreviewDepth = 0;
 
 #if WITH_APEX
-	if (DestructibleMesh != NULL && DestructibleMesh->ApexDestructibleAsset != NULL)
+	if (DestructibleMesh && DestructibleMesh->ApexDestructibleAsset)
 	{
 		DepthCount = DestructibleMesh->ApexDestructibleAsset->getDepthCount();
+
+		if (DepthCount > 0)
+		{
+			NewPreviewDepth = FMath::Clamp(InPreviewDepth, (uint32)0, DepthCount-1);
+		}
 	}
 #endif // WITH_APEX
-
-	uint32 NewPreviewDepth = 0;
-	if (DepthCount > 0)
-	{
-		NewPreviewDepth = FMath::Clamp(InPreviewDepth, (uint32)0, DepthCount-1);
-	}
 
 	if (NewPreviewDepth != PreviewDepth)
 	{

@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraParameterCollection.h"
 #include "NiagaraDataInterface.h"
+#include "Misc/SecureHash.h"
 #if WITH_EDITORONLY_DATA
 	#include "IAssetTools.h"
 #endif
@@ -11,8 +12,8 @@
 
 UNiagaraParameterCollectionInstance::UNiagaraParameterCollectionInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, ParameterStorage(this)
 {
+	ParameterStorage.SetOwner(this);
 	//Bind(ParameterStorage);
 }
 
@@ -297,7 +298,7 @@ FNiagaraCompileHash UNiagaraParameterCollection::GetCompileHash() const
 	CompileHash.Final();
 
 	TArray<uint8> DataHash;
-	DataHash.AddUninitialized(20);
+	DataHash.AddUninitialized(FSHA1::DigestSize);
 	CompileHash.GetHash(DataHash.GetData());
 
 	return FNiagaraCompileHash(DataHash);

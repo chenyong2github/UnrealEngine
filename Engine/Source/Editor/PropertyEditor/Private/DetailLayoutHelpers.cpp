@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailLayoutHelpers.h"
 #include "DetailLayoutBuilderImpl.h"
@@ -20,8 +20,8 @@ namespace DetailLayoutHelpers
 		FDetailLayoutData& LayoutData = *InUpdateArgs.LayoutData;
 		FDetailLayoutBuilderImpl& DetailLayout = *LayoutData.DetailLayout;
 
-		UProperty* ParentProperty = InNode.GetProperty();
-		UStructProperty* ParentStructProp = Cast<UStructProperty>(ParentProperty);
+		FProperty* ParentProperty = InNode.GetProperty();
+		FStructProperty* ParentStructProp = CastField<FStructProperty>(ParentProperty);
 		for (int32 ChildIndex = 0; ChildIndex < InNode.GetNumChildNodes(); ++ChildIndex)
 		{
 			//Use the original value for each child
@@ -32,7 +32,7 @@ namespace DetailLayoutHelpers
 
 			TSharedPtr<FPropertyNode> ChildNodePtr = InNode.GetChildNode(ChildIndex);
 			FPropertyNode& ChildNode = *ChildNodePtr;
-			UProperty* Property = ChildNode.GetProperty();
+			FProperty* Property = ChildNode.GetProperty();
 
 			{
 				FObjectPropertyNode* ObjNode = ChildNode.AsObjectNode();
@@ -68,7 +68,7 @@ namespace DetailLayoutHelpers
 					bool bVisibleByDefault = PropertyEditorHelpers::IsVisibleStandaloneProperty(ChildNode, InNode);
 
 					// Whether or not the property is a struct
-					UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+					FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 
 					bool bIsStruct = StructProperty != NULL;
 
@@ -181,24 +181,6 @@ namespace DetailLayoutHelpers
 
 							// Add a property to the default category
 							FDetailCategoryImpl& CategoryImpl = DetailLayout.DefaultCategory(CategoryName);
-							{
-								FText CategoryDisplayName = CategoryImpl.GetDisplayName();
-								if (CategoryDisplayName.IsEmpty() || CategoryDisplayName.IsCultureInvariant())
-								{
-									const FString CategorySourceText = CategoryName.ToString();
-									const FString CategoryKey = Property->GetFullGroupName(false);
-
-									if (FText::FindText(TEXT("UObjectCategory"), CategoryKey, /*OUT*/CategoryDisplayName, &CategorySourceText))
-									{
-										// Category names in English are typically gathered in their non-pretty form (eg "UserInterface" rather than "User Interface"), so skip 
-										// applying the localized variant if the text matches the raw category name, as in this case the pretty printer will do a better job
-										if (!CategorySourceText.Equals(CategoryDisplayName.ToString(), ESearchCase::CaseSensitive))
-										{
-											CategoryImpl.SetDisplayName(CategoryName, CategoryDisplayName);
-										}
-									}
-								}
-							}
 							CategoryImpl.AddPropertyNode(ChildNodePtr.ToSharedRef(), InstanceName);
 						}
 

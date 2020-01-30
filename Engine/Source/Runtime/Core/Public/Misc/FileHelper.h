@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 #include "HAL/FileManager.h"
 #include "Containers/ArrayView.h"
 #include "Misc/EnumClassFlags.h"
+#include "Math/Color.h"
 
 /*-----------------------------------------------------------------------------
 	FFileHelper
@@ -29,6 +30,15 @@ struct CORE_API FFileHelper
 		ForceUnicode,
 		ForceUTF8,
 		ForceUTF8WithoutBOM
+	};
+
+	enum class EChannelMask
+	{
+		R = STRUCT_OFFSET(FColor, R),
+		G = STRUCT_OFFSET(FColor, G),
+		B = STRUCT_OFFSET(FColor, B),
+		A = STRUCT_OFFSET(FColor, A),
+		All = R|G|B|A
 	};
 
 	/**
@@ -135,10 +145,11 @@ struct CORE_API FFileHelper
 	 * @param FileManager must not be 0
 	 * @param OutFilename optional, if specified filename will be output
 	 * @param bInWriteAlpha optional, specifies whether to write out the alpha channel. Will force BMP V4 format.
+	 * @param ChannelMask optional, specifies a specific channel to write out (will be written out to all channels gray scale).
 	 *
 	 * @return true if success
 	 */
-	static bool CreateBitmap( const TCHAR* Pattern, int32 DataWidth, int32 DataHeight, const struct FColor* Data, struct FIntRect* SubRectangle = NULL, IFileManager* FileManager = &IFileManager::Get(), FString* OutFilename = NULL, bool bInWriteAlpha = false );
+	static bool CreateBitmap( const TCHAR* Pattern, int32 DataWidth, int32 DataHeight, const struct FColor* Data, struct FIntRect* SubRectangle = NULL, IFileManager* FileManager = &IFileManager::Get(), FString* OutFilename = NULL, bool bInWriteAlpha = false, EChannelMask ChannelMask = EChannelMask::All );
 
 	/**
 	 * Generates the next unique bitmap filename with a specified extension

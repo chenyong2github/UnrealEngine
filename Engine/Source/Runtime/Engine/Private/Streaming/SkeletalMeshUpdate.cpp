@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
@@ -89,7 +89,8 @@ void FSkeletalMeshStreamIn::FIntermediateBuffers::SafeRelease()
 	TexCoordVertexBuffer.SafeRelease();
 	PositionVertexBuffer.SafeRelease();
 	ColorVertexBuffer.SafeRelease();
-	SkinWeightVertexBuffer.SafeRelease();
+	SkinWeightVertexBuffer.DataVertexBufferRHI.SafeRelease();
+	SkinWeightVertexBuffer.LookupVertexBufferRHI.SafeRelease();
 	ClothVertexBuffer.SafeRelease();
 	IndexBuffer.SafeRelease();
 	AdjacencyIndexBuffer.SafeRelease();
@@ -117,7 +118,8 @@ void FSkeletalMeshStreamIn::FIntermediateBuffers::CheckIsNull() const
 		&& !TexCoordVertexBuffer
 		&& !PositionVertexBuffer
 		&& !ColorVertexBuffer
-		&& !SkinWeightVertexBuffer
+		&& !SkinWeightVertexBuffer.DataVertexBufferRHI
+		&& !SkinWeightVertexBuffer.LookupVertexBufferRHI
 		&& !ClothVertexBuffer
 		&& !IndexBuffer
 		&& !AdjacencyIndexBuffer
@@ -362,7 +364,7 @@ FString FSkeletalMeshStreamIn_IO::GetIOFilename(const FContext& Context)
 
 void FSkeletalMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 {
-	AsyncFileCallback = [this, Context](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallback = [this, Context](bool bWasCancelled, IBulkDataIORequest*)
 	{
 		// At this point task synchronization would hold the number of pending requests.
 		TaskSynchronization.Decrement();

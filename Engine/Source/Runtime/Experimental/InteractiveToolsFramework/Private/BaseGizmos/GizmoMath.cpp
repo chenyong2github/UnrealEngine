@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseGizmos/GizmoMath.h"
 
@@ -205,4 +205,33 @@ FVector2D GizmoMath::ComputeCoordinatesInPlane(
 	float X = FVector::DotProduct(LocalPoint, PlaneAxis1);
 	float Y = FVector::DotProduct(LocalPoint, PlaneAxis2);
 	return FVector2D(X, Y);
+}
+
+
+FVector GizmoMath::ProjectPointOntoPlane(
+	const FVector& Point,
+	const FVector& PlaneOrigin, const FVector& PlaneNormal)
+{
+	FVector LocalPoint = Point - PlaneOrigin;
+	float NormalDot = FVector::DotProduct(LocalPoint, PlaneNormal);
+	return Point - NormalDot * PlaneNormal;
+}
+
+
+
+float GizmoMath::SnapToIncrement(float Value, float Increment)
+{
+	if (!FMath::IsFinite(Value))
+	{
+		return 0;
+	}
+	float Sign = FMath::Sign(Value);
+	Value = FMath::Abs(Value);
+	int IntIncrement = (int)(Value / Increment);
+	float Remainder = (float)fmod(Value, Increment);
+	if (Remainder > IntIncrement / 2)
+	{
+		++IntIncrement;
+	}
+	return Sign * (float)IntIncrement * Increment;
 }

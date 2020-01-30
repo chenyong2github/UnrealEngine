@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceCurveDetails.h"
 #include "NiagaraCurveOwner.h"
@@ -281,6 +281,34 @@ private:
 			ViewMaxInput = 1;
 			ViewMinOutput = 0;
 			ViewMaxOutput = 1;
+		}
+
+		if (FMath::IsNearlyEqual(ViewMinInput, ViewMaxInput))
+		{
+			if (FMath::IsWithinInclusive(ViewMinInput, 0.0f, 1.0f))
+			{
+				ViewMinInput = 0;
+				ViewMaxInput = 1;
+			}
+			else
+			{
+				ViewMinInput -= 0.5f;
+				ViewMaxInput += 0.5f;
+			}
+		}
+
+		if (FMath::IsNearlyEqual(ViewMinOutput, ViewMaxOutput))
+		{
+			if (FMath::IsWithinInclusive(ViewMinOutput, 0.0f, 1.0f))
+			{
+				ViewMinOutput = 0;
+				ViewMaxOutput = 1;
+			}
+			else
+			{
+				ViewMinOutput -= 0.5f;
+				ViewMaxOutput += 0.5f;
+			}
 		}
 
 		float ViewInputRange = ViewMaxInput - ViewMinInput;

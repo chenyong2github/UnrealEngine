@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_Root.h"
 #include "GraphEditorSettings.h"
@@ -15,7 +15,7 @@ void FPoseLinkMappingRecord::PatchLinkIndex(uint8* DestinationPtr, int32 LinkID,
 	
 	if (ChildPropertyIndex != INDEX_NONE)
 	{
-		UArrayProperty* ArrayProperty = CastChecked<UArrayProperty>(ChildProperty);
+		FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ChildProperty);
 
 		FScriptArrayHelper ArrayHelper(ArrayProperty, DestinationPtr);
 		check(ArrayHelper.IsValidIndex(ChildPropertyIndex));

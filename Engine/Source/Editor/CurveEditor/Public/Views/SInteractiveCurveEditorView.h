@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -107,9 +107,6 @@ protected:
 	FText GetCurveCaption() const;
 
 private:
-
-	/** Gets info about the curves being drawn. Converts actual curves into an abstract series of lines/points/handles/etc. */
-	void GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const;
 
 	void CreateContextMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 

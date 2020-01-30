@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SAnimTrackCurvePanel.h"
@@ -544,7 +544,7 @@ void SAnimTrackCurvePanel::Construct(const FArguments& InArgs, const TSharedRef<
 
 	if (InPreviewScene->GetPreviewMeshComponent()->PreviewInstance)
 	{
-		InPreviewScene->GetPreviewMeshComponent()->PreviewInstance->SetKeyCompleteDelegate(FSimpleDelegate::CreateSP(this, &SAnimTrackCurvePanel::HandleKeyComplete));
+		InPreviewScene->GetPreviewMeshComponent()->PreviewInstance->AddKeyCompleteDelegate(FSimpleDelegate::CreateSP(this, &SAnimTrackCurvePanel::HandleKeyComplete));
 	}
 
 	Sequence->RegisterOnAnimTrackCurvesChanged(UAnimSequenceBase::FOnAnimTrackCurvesChanged::CreateSP(this, &SAnimTrackCurvePanel::UpdatePanel));

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -69,6 +69,9 @@ public:
 
 	/** Removes all filters in the list */
 	void RemoveAllFilters();
+
+	/** Removes all filters in the list except the given one. */
+	void RemoveAllButThis(const TSharedRef<SFilter>& FilterToKeep);
 
 	/** Disables any active filters that would hide the supplied assets */
 	void DisableFiltersThatHideAssets(const TArray<FAssetData>& AssetDataList);

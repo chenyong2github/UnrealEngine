@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Presentation/PropertyTable/PropertyTable.h"
 #include "Misc/FeedbackContext.h"
@@ -133,7 +133,7 @@ void FPropertyTable::AddColumn( const TWeakObjectPtr< UObject >& Object )
 	AddColumn( CreateColumn( Object ) );
 }
 
-void FPropertyTable::AddColumn( const TWeakObjectPtr< UProperty >& Property )
+void FPropertyTable::AddColumn( const TWeakFieldPtr< FProperty >& Property )
 {
 	AddColumn( CreateColumn( Property ) );
 }
@@ -154,7 +154,7 @@ void FPropertyTable::AddRow( const TWeakObjectPtr< UObject >& Object )
 	AddRow( CreateRow( Object ) );
 }
 
-void FPropertyTable::AddRow( const TWeakObjectPtr< UProperty >& Property )
+void FPropertyTable::AddRow( const TWeakFieldPtr< FProperty >& Property )
 {
 	AddRow( CreateRow( Property ) );
 }
@@ -296,8 +296,8 @@ TArray< FPropertyInfo > FPropertyTable::GetPossibleExtensionsForPath( const TSha
 			const FPropertyInfo& Info = *ExtensionIter;
 
 			if ( Info.ArrayIndex == INDEX_NONE && Info.Property.IsValid() && 
-				 ( Info.Property->IsA( UStructProperty::StaticClass() ) ||
-				   Info.Property->IsA( UArrayProperty::StaticClass() ) ) )
+				 ( Info.Property->IsA( FStructProperty::StaticClass() ) ||
+				   Info.Property->IsA( FArrayProperty::StaticClass() ) ) )
 			{
 				bool AlreadyExists = false;
 				for( auto ValidExtensionIter = ValidExtensions.CreateConstIterator(); ValidExtensionIter; ++ValidExtensionIter )
@@ -448,8 +448,8 @@ void SetCellValue( const TSharedRef< IPropertyTableCell >& Cell, FString Value )
 	TSharedPtr<FPropertyNode> PropertyNode = Cell->GetNode();
 	if (PropertyNode.IsValid())
 	{
-		UProperty* NodeProperty = PropertyNode->GetProperty();
-		if (NodeProperty->IsA(UNameProperty::StaticClass()))
+		FProperty* NodeProperty = PropertyNode->GetProperty();
+		if (NodeProperty->IsA(FNameProperty::StaticClass()))
 		{
 			// Remove any pre-existing return characters
 			Value = Value.TrimQuotes().Replace(LINE_TERMINATOR, TEXT(""));
@@ -1129,7 +1129,7 @@ TSharedRef< IPropertyTableColumn > FPropertyTable::CreateColumn( const TWeakObje
 	return MakeShareable( new FPropertyTableColumn( SharedThis( this ), Object ) );
 }
 
-TSharedRef< IPropertyTableColumn > FPropertyTable::CreateColumn( const TWeakObjectPtr< UProperty >& Property )
+TSharedRef< IPropertyTableColumn > FPropertyTable::CreateColumn( const TWeakFieldPtr< FProperty >& Property )
 {
 	return MakeShareable( new FPropertyTableColumn( SharedThis( this ), FPropertyPath::Create( Property ) ) );
 }
@@ -1144,7 +1144,7 @@ TSharedRef< IPropertyTableRow > FPropertyTable::CreateRow( const TWeakObjectPtr<
 	return MakeShareable( new FPropertyTableRow( SharedThis( this ), Object ) );
 }
 
-TSharedRef< IPropertyTableRow > FPropertyTable::CreateRow( const TWeakObjectPtr< UProperty >& Property )
+TSharedRef< IPropertyTableRow > FPropertyTable::CreateRow( const TWeakFieldPtr< FProperty >& Property )
 {
 	return MakeShareable( new FPropertyTableRow( SharedThis( this ), FPropertyPath::Create( Property ) ) );
 }
@@ -1178,9 +1178,9 @@ void FPropertyTable::UpdateRows()
 				//@todo This system will need to change in order to properly support arrays [11/30/2012 Justin.Sargent]
 				if ( PropertyNode.IsValid() )
 				{
-					UProperty* Property = PropertyNode->GetProperty();
+					FProperty* Property = PropertyNode->GetProperty();
 
-					if ( Property != NULL && Property->IsA( UArrayProperty::StaticClass() ) )
+					if ( Property != NULL && Property->IsA( FArrayProperty::StaticClass() ) )
 					{
 						for (int ChildIdx = 0; ChildIdx < PropertyNode->GetNumChildNodes(); ChildIdx++)
 						{
@@ -1251,7 +1251,7 @@ void FPropertyTable::UpdateColumns()
 {
 	if( Orientation == EPropertyTableOrientation::AlignPropertiesInColumns)
 	{
-		TMultiMap< UProperty*, TSharedRef< IPropertyTableColumn > > ColumnsMap;
+		TMultiMap< FProperty*, TSharedRef< IPropertyTableColumn > > ColumnsMap;
 		for (int ColumnIdx = 0; ColumnIdx < Columns.Num(); ++ColumnIdx)
 		{
 			TSharedRef< IDataSource > DataSource = Columns[ColumnIdx]->GetDataSource();
@@ -1305,14 +1305,14 @@ void FPropertyTable::UpdateColumns()
 					continue;
 				}
 
-				const TWeakObjectPtr< UProperty > Property = PropertyNode->GetProperty();
+				const TWeakFieldPtr< FProperty > Property = PropertyNode->GetProperty();
 
-				if ( !Property.IsValid() || !Property->IsA( UStructProperty::StaticClass() ) )
+				if ( !Property.IsValid() || !Property->IsA( FStructProperty::StaticClass() ) )
 				{
 					continue;
 				}
 
-				UStructProperty* StructProperty = Cast< UStructProperty >( Property.Get() );
+				FStructProperty* StructProperty = CastField< FStructProperty >( Property.Get() );
 				Type = StructProperty->Struct;
 			}
 
@@ -1347,9 +1347,9 @@ void FPropertyTable::UpdateColumns()
 
 			TWeakObjectPtr< UStruct > PrimaryType = UniqueTypes[ HighestCountIndex ];
 
-			for (TFieldIterator<UProperty> PropertyIter( PrimaryType.Get(), EFieldIteratorFlags::IncludeSuper); PropertyIter; ++PropertyIter)
+			for (TFieldIterator<FProperty> PropertyIter( PrimaryType.Get(), EFieldIteratorFlags::IncludeSuper); PropertyIter; ++PropertyIter)
 			{
-				TWeakObjectPtr< UProperty > Property = *PropertyIter;
+				TWeakFieldPtr< FProperty > Property = *PropertyIter;
 
 				// Don't expose CPF_NativeAccessSpecifierProtected and CPF_NativeAccessSpecifierPrivate properties
 				if ( PropertyIter->HasAllPropertyFlags(CPF_NativeAccessSpecifierPublic | CPF_AssetRegistrySearchable) )
@@ -1393,8 +1393,8 @@ void FPropertyTable::UpdateColumns()
 					const TSharedRef< FObjectPropertyNode > ObjectNode = GetObjectPropertyNode( Object );
 					const TSharedPtr< FPropertyNode > PropertyNode = FPropertyNode::FindPropertyNodeByPath( RootPath, ObjectNode );
 
-					UProperty* Property = PropertyNode->GetProperty();
-					if ( Property != NULL && Property->IsA( UArrayProperty::StaticClass() ) )
+					FProperty* Property = PropertyNode->GetProperty();
+					if ( Property != NULL && Property->IsA( FArrayProperty::StaticClass() ) )
 					{
 						for (int ChildIdx = 0; ChildIdx < PropertyNode->GetNumChildNodes(); ChildIdx++)
 						{

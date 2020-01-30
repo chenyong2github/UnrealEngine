@@ -1,11 +1,13 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClothLODData.h"
-
+#include "ClothPhysicalMeshData.h"
 
 UClothLODDataCommon::UClothLODDataCommon(const FObjectInitializer& Init)
-	: PhysicalMeshData(nullptr)
-{}
+	: Super(Init)
+	, PhysicalMeshData_DEPRECATED(nullptr)
+{
+}
 
 UClothLODDataCommon::~UClothLODDataCommon()
 {}
@@ -45,21 +47,27 @@ void UClothLODDataCommon::Serialize(FArchive& Ar)
 	   << TransitionDownSkinData;
 }
 
+void UClothLODDataCommon::PostLoad()
+{
+	Super::PostLoad();
+
+	if (PhysicalMeshData_DEPRECATED)
+	{
+		ClothPhysicalMeshData.MigrateFrom(PhysicalMeshData_DEPRECATED);
+		PhysicalMeshData_DEPRECATED = nullptr;
+	}
+}
+
 #if WITH_EDITOR
 void UClothLODDataCommon::PushWeightsToMesh()
 {
-	if (PhysicalMeshData)
+	ClothPhysicalMeshData.ClearWeightMaps();
+	for (const FPointWeightMap& Weights : ParameterMasks)
 	{
-		PhysicalMeshData->ClearParticleParameters();
-		for (const FPointWeightMap &Weights : ParameterMasks)
+		if (Weights.bEnabled)
 		{
-			if (Weights.bEnabled)
-			{
-				if (TArray<float>* TargetArray = PhysicalMeshData->GetFloatArray(Weights.CurrentTarget))
-				{
-					*TargetArray = Weights.GetValueArray();
-				}
-			}
+			FPointWeightMap& TargetWeightMap = ClothPhysicalMeshData.FindOrAddWeightMap(Weights.CurrentTarget);
+			TargetWeightMap.Values = Weights.Values;
 		}
 	}
 }

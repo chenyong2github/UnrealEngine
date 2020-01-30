@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,42 +14,42 @@ public:
 	static void RegisterForHotReload();
 	static void UnregisterForHotReload();
 
-	// Returns true if Property is a UStructProperty with a Struct
+	// Returns true if Property is a FStructProperty with a Struct
 	// of type FVector, FColor, FRotator, FQuat, etc
-	static bool IsBuiltInStructProperty(const UProperty* Property);
+	static bool IsBuiltInStructProperty(const FProperty* Property);
 
 	// Returns the OverrideMaterials property of the UMeshComponent class
-	static UArrayProperty* GetOverrideMaterialsProperty();
+	static FArrayProperty* GetOverrideMaterialsProperty();
 
 	// Returns the RelativeLocation property of the USceneComponent class
-	static UStructProperty* GetRelativeLocationProperty();
+	static FStructProperty* GetRelativeLocationProperty();
 
 	// Returns the RelativeRotation property of the USceneComponent class
-	static UStructProperty* GetRelativeRotationProperty();
+	static FStructProperty* GetRelativeRotationProperty();
 
 	// Returns the RelativeScale3D property of the USceneComponent class
-	static UStructProperty* GetRelativeScale3DProperty();
+	static FStructProperty* GetRelativeScale3DProperty();
 
 	// Returns the bVisible property of the USceneComponent class
-	static UBoolProperty* GetVisibilityProperty();
+	static FBoolProperty* GetVisibilityProperty();
 
 	// Returns the LightColor property of the ULightComponent class
-	static UStructProperty* GetLightColorProperty();
+	static FStructProperty* GetLightColorProperty();
 
 	// Returns the DefaultLightColor property of the UAtmosphericFogComponent class
-	static UStructProperty* GetDefaultLightColorProperty();
+	static FStructProperty* GetDefaultLightColorProperty();
 
 private:
-	// Invalidates all of our cached UProperty pointers
+	// Invalidates all of our cached FProperty pointers
 	static void InvalidateCache(UClass* OldClass, UClass* NewClass, EHotReloadedClassFlags Flags);
 
-	static UArrayProperty* OverrideMaterialsProperty;
-	static UStructProperty* RelativeLocationProperty;
-	static UStructProperty* RelativeRotationProperty;
-	static UStructProperty* RelativeScale3DProperty;
-	static UBoolProperty* VisiblityProperty;
-	static UStructProperty* LightColorProperty;
-	static UStructProperty* DefaultLightColorProperty;
+	static FArrayProperty* OverrideMaterialsProperty;
+	static FStructProperty* RelativeLocationProperty;
+	static FStructProperty* RelativeRotationProperty;
+	static FStructProperty* RelativeScale3DProperty;
+	static FBoolProperty* VisiblityProperty;
+	static FStructProperty* LightColorProperty;
+	static FStructProperty* DefaultLightColorProperty;
 
 	static FDelegateHandle OnHotReloadHandle;
 };

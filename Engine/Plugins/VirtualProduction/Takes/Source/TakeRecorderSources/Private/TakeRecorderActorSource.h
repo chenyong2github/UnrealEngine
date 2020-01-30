@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -146,7 +146,7 @@ protected:
 	* particular Actor/Component.
 	*/
 	void RebuildRecordedPropertyMap();
-	void RebuildRecordedPropertyMapRecursive(UObject* InObject, UActorRecorderPropertyMap* PropertyMap, const FString& OuterStructPath = FString());
+	void RebuildRecordedPropertyMapRecursive(const FFieldVariant& InObject, UActorRecorderPropertyMap* PropertyMap, const FString& OuterStructPath = FString());
 	
 	/**
 	* Looks at the given component and determines what the parent of this component is. For the root component and Actor Components the

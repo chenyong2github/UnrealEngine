@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,6 +37,7 @@
 #include "AcquiredResources.h"
 #include "SequencerSettings.h"
 #include "Curves/RichCurve.h"
+#include "Sections/MovieScene3DTransformSection.h"
 
 class AActor;
 class ACameraActor;
@@ -277,11 +278,15 @@ protected:
 
 	/**
 	 * @param	FrameNumber The FrameNumber in Ticks
-	 * @param	bSetMark  true to set the mark, false to clear the mark
 	 */
-	void OnMarkedFrameChanged(FFrameNumber FrameNumber, bool bSetMark);
+	void AddMarkedFrame(FFrameNumber FrameNumber);
 
-	void ClearAllMarkedFrames();
+	/**
+	 * @param InMarkIndex The marked frame index to delete
+     */
+	void DeleteMarkedFrame(int32 InMarkIndex);
+
+	void DeleteAllMarkedFrames();
 
 public:
 
@@ -426,6 +431,9 @@ public:
 	FReply SetPlaybackStart();
 	FReply JumpToPreviousKey();
 	FReply JumpToNextKey();
+
+	bool CanAddTransformKeysForSelectedObjects() const;
+	void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel);
 
 	/** Get the visibility of the record button */
 	EVisibility GetRecordButtonVisibility() const;
@@ -689,6 +697,7 @@ public:
 	virtual bool GetAutoSetTrackDefaults() const override;
 	virtual FQualifiedFrameTime GetLocalTime() const override;
 	virtual FQualifiedFrameTime GetGlobalTime() const override;
+	virtual uint32 GetLocalLoopIndex() const override;
 	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None) override;
 	virtual void SetLocalTimeDirectly(FFrameTime NewTime) override;
 	virtual void SetGlobalTime(FFrameTime Time) override;
@@ -715,6 +724,8 @@ public:
 	virtual void KeyProperty(FKeyPropertyParams KeyPropertyParams) override;
 	virtual FSequencerSelection& GetSelection() override;
 	virtual FSequencerSelectionPreview& GetSelectionPreview() override;
+	virtual void SuspendSelectionBroadcast() override;
+	virtual void ResumeSelectionBroadcast() override;
 	virtual void GetSelectedTracks(TArray<UMovieSceneTrack*>& OutSelectedTracks) override;
 	virtual void GetSelectedSections(TArray<UMovieSceneSection*>& OutSelectedSections) override;
 	virtual void GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders) override;
@@ -724,7 +735,8 @@ public:
 	virtual void SelectTrack(UMovieSceneTrack* Track) override;
 	virtual void SelectSection(UMovieSceneSection* Section) override;
 	virtual void SelectByPropertyPaths(const TArray<FString>& InPropertyPaths) override;
-	virtual void SelectByKeyAreas(const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect) override;
+	virtual void SelectByKeyAreas(UMovieSceneSection* Section, const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect) override;
+	virtual void SelectByNthCategoryNode(UMovieSceneSection* Section, int Index, bool bSelect) override;
 	virtual void EmptySelection() override;
 	virtual void ThrobKeySelection() override;
 	virtual void ThrobSectionSelection() override;
@@ -738,10 +750,11 @@ public:
 	virtual FOnMovieSceneBindingsPasted& OnMovieSceneBindingsPasted() override { return OnMovieSceneBindingsPastedDelegate; }
 	virtual FOnSelectionChangedObjectGuids& GetSelectionChangedObjectGuids() override { return OnSelectionChangedObjectGuidsDelegate; }
 	virtual FOnSelectionChangedTracks& GetSelectionChangedTracks() override { return OnSelectionChangedTracksDelegate; }
+	virtual FOnCurveDisplayChanged& GetCurveDisplayChanged() override { return OnCurveDisplayChanged; }
 	virtual FOnSelectionChangedSections& GetSelectionChangedSections() override { return OnSelectionChangedSectionsDelegate; }
 	virtual FGuid CreateBinding(UObject& InObject, const FString& InName) override;
 	virtual UObject* GetPlaybackContext() const override;
-	virtual TArray<UObject*> GetEventContexts() const override;
+	virtual TArray<UObject*> GetEventContexts() const override; 
 	virtual FOnActorAddedToSequencer& OnActorAddedToSequencer() override;
 	virtual FOnPreSave& OnPreSave() override;
 	virtual FOnPostSave& OnPostSave() override;
@@ -756,11 +769,14 @@ public:
 	virtual FGuid MakeNewSpawnable(UObject& SourceObject, UActorFactory* ActorFactory = nullptr, bool bSetupDefaults = true) override;
 	virtual bool IsReadOnly() const override;
 	virtual void ExternalSelectionHasChanged() override { SynchronizeSequencerSelectionWithExternalSelection(); }
+	virtual void ObjectImplicitlyAdded(UObject* InObject) const override;
 	/** Access the user-supplied settings object */
 	virtual USequencerSettings* GetSequencerSettings() override { return Settings; }
 	virtual void SetSequencerSettings(USequencerSettings* InSettings) override { Settings = InSettings; }
 	virtual TSharedPtr<class ITimeSlider> GetTopTimeSliderWidget() const override;
 	virtual void ResetTimeController() override;
+	virtual void SetFilterOn(const FText& InName, bool bOn) override;
+
 
 public:
 
@@ -1039,6 +1055,7 @@ public:
 		return ScrubStyle;
 	}
 
+
 private:
 
 	/** Update the time bases for the current movie scene */
@@ -1089,7 +1106,11 @@ private:
 	 */
 	TArray<bool> ActiveTemplateStates;
 
+	/** Time transformation from the root sequence to the currently edited sequence. */
 	FMovieSceneSequenceTransform RootToLocalTransform;
+
+	/** Current loop of the current sub-sequence, if we are in a looping sub-sequence. */
+	FMovieSceneWarpCounter RootToLocalLoopCounter;
 
 	/** The time range target to be viewed */
 	TRange<double> TargetViewRange;
@@ -1132,6 +1153,12 @@ private:
 
 	/** Current play position */
 	FMovieScenePlaybackPosition PlayPosition;
+
+	/** Local loop index at the time we began scrubbing */
+	uint32 LocalLoopIndexOnBeginScrubbing;
+
+	/** Local loop index to add for the purposes of displaying it in the UI */
+	uint32 LocalLoopIndexOffsetDuringScrubbing;
 
 	/** The playback speed */
 	float PlaybackSpeed;
@@ -1202,6 +1229,9 @@ private:
 	/** A delegate which is called any time the sequencer selection changes. */
 	FOnSelectionChangedTracks OnSelectionChangedTracksDelegate;
 
+	/** A delegate which is called any time the sequencers curve eidtor selection changes. */
+	FOnCurveDisplayChanged OnCurveDisplayChanged;
+
 	/** A delegate which is called any time the sequencer selection changes. */
 	FOnSelectionChangedSections OnSelectionChangedSectionsDelegate;
 
@@ -1210,6 +1240,9 @@ private:
 	FOnPreSave OnPreSaveEvent;
 	FOnPostSave OnPostSaveEvent;
 	FOnActivateSequence OnActivateSequenceEvent;
+
+	/** Delegate for Curve Display Changed Event from the Curve Editor, which we than pass to the FOnCurveDisplayChanged delegate */
+	void OnCurveModelDisplayChanged(FCurveModel *InCurveModel, bool bDisplayed);
 
 	int32 SilentModeCount;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LevelTextureManager.cpp: Implementation of content streaming classes.
@@ -8,6 +8,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+
+DECLARE_CYCLE_STAT(TEXT("Render Asset Incremental Update"), FStaticComponentRenderAssetManager_IncrementalUpdate, STATGROUP_StreamingDetailsVerbose);
 
 FLevelRenderAssetManager::FLevelRenderAssetManager(ULevel* InLevel, RenderAssetInstanceTask::FDoWorkTask& AsyncTask)
 	: Level(InLevel)
@@ -270,7 +272,7 @@ void FLevelRenderAssetManager::IncrementalUpdate(
 	float Percentage, 
 	bool bUseDynamicStreaming) 
 {
-	QUICK_SCOPE_CYCLE_COUNTER(FStaticComponentRenderAssetManager_IncrementalUpdate);
+	SCOPE_CYCLE_COUNTER(FStaticComponentRenderAssetManager_IncrementalUpdate);
 
 	check(Level);
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConfigPropertyHelper.h"
 #include "HAL/FileManager.h"
@@ -6,7 +6,7 @@
 #include "ISourceControlState.h"
 #include "ISourceControlModule.h"
 
-void UPropertyConfigFileDisplayRow::InitWithConfigAndProperty(const FString& InConfigFileName, UProperty* InEditProperty)
+void UPropertyConfigFileDisplayRow::InitWithConfigAndProperty(const FString& InConfigFileName, FProperty* InEditProperty)
 {
 	ConfigFileName = FPaths::ConvertRelativePathToFull(InConfigFileName);
 	ExternalProperty = InEditProperty;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,31 +22,31 @@ struct FRigUnit_AimBone_Target
 	/**
 	 * The amount of aim rotation to apply on this target.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input), Category = "AimTarget")
 	float Weight;
 
 	/**
 	 * The axis to align with the aim on this target
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "Weight > 0.0"), Category = "AimTarget")
 	FVector Axis;
 
 	/**
 	 * The target to aim at - can be a direction or location based on the Kind setting
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "Weight > 0.0"), Category = "AimTarget")
 	FVector Target;
 
 	/**
 	 * The kind of target this is representing - can be a direction or a location
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "Weight > 0.0"), Category = "AimTarget")
 	EControlRigVectorKind Kind;
 
 	/**
 	 * The space in which the target is expressed
 	 */
-	UPROPERTY(meta = (Input, BoneName, Constant))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "Weight > 0.0", CustomWidget = "BoneName", Constant), Category = "AimTarget")
 	FName Space;
 };
 
@@ -65,19 +65,19 @@ struct FRigUnit_AimBone_DebugSettings
 	/**
 	 * If enabled debug information will be drawn 
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input), Category = "DebugSettings")
 	bool bEnabled;
 
 	/**
 	 * The size of the debug drawing information
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	float Scale;
 
 	/**
 	 * The offset at which to draw the debug information in the world
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	FTransform WorldOffset;
 };
 
@@ -97,6 +97,7 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 		Secondary = FRigUnit_AimBone_Target();
 		Primary.Axis = FVector(1.f, 0.f, 0.f);
 		Secondary.Axis = FVector(0.f, 0.f, 1.f);
+		Weight = 1.f;
 		bPropagateToChildren = false;
 		DebugSettings = FRigUnit_AimBone_DebugSettings();
 		BoneIndex = INDEX_NONE;
@@ -106,13 +107,26 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 		SecondaryCachedSpaceIndex = INDEX_NONE;
 	}
 
+	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("Primary.Target")))
+		{
+			return Primary.Space;
+		}
+		if (InPinPath.StartsWith(TEXT("Secondary.Target")))
+		{
+			return Secondary.Space;
+		}
+		return NAME_None;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** 
 	 * The name of the bone to align
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Bone;
 
 	/**
@@ -128,11 +142,17 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 	FRigUnit_AimBone_Target Secondary;
 
 	/**
+	 * The weight of the change - how much the change should be applied
+	 */
+	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
+	float Weight;
+
+	/**
 	 * If set to true all of the global transforms of the children
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
 	/** The debug setting for the node */

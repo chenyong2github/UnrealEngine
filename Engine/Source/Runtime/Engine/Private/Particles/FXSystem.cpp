@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	FXSystem.cpp: Implementation of the effects system.
@@ -364,11 +364,36 @@ void FFXSystem::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGP
 	}
 }
 
+void FFXSystem::PostInitViews(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
+{
+	// nothing to do here
+}
+
 bool FFXSystem::UsesGlobalDistanceField() const
 {
 	if (RHISupportsGPUParticles())
 	{
 		return UsesGlobalDistanceFieldInternal();
+	}
+
+	return false;
+}
+
+bool FFXSystem::UsesDepthBuffer() const
+{
+	if (RHISupportsGPUParticles())
+	{
+		return UsesDepthBufferInternal();
+	}
+
+	return false;
+}
+
+bool FFXSystem::RequiresEarlyViewUniformBuffer() const
+{
+	if (RHISupportsGPUParticles())
+	{
+		return RequiresEarlyViewUniformBufferInternal();
 	}
 
 	return false;
@@ -405,7 +430,7 @@ void FFXSystem::PreRender(FRHICommandListImmediate& RHICmdList, const FGlobalDis
 
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender_SimulateCDF));
 			SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::CollisionDistanceField, nullptr, GlobalDistanceFieldParameterData, nullptr, nullptr);
-			//particles rendered during basepass may need to read pos/velocity buffers.  must finalize unless we know for sure that nothingin base pass will read.
+			//particles rendered during basepass may need to read pos/velocity buffers; must finalize unless we know for sure that nothing in base pass will read it.
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender_FinalizeCDF));
 			FinalizeGPUSimulation(RHICmdList);
 		}

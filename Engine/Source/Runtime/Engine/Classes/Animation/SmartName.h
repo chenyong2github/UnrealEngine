@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -170,6 +170,11 @@ private:
 #endif
 
 	TMap<FName, FCurveMetaData> CurveMetaDataMap;
+
+#if WITH_EDITORONLY_DATA
+	// Editor copy of the data we loaded, used to preserve determinism during cooking
+	TMap<FName, FCurveMetaData> LoadDataCurveMetaDataMap;
+#endif
 };
 
 USTRUCT()

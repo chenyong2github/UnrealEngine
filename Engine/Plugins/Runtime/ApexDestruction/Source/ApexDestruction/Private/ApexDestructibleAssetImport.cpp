@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ApexDestructibleAssetImport.cpp:
@@ -765,6 +765,8 @@ apex::DestructibleAsset* CreateApexDestructibleAssetFromFile(const FString& File
 bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::DestructibleAsset& ApexDestructibleAsset, FSkeletalMeshImportData* OutData, EDestructibleImportOptions::Type Options)
 {
 	DestructibleMesh.PreEditChange(NULL);
+
+	DestructibleMesh.InvalidateDeriveDataCacheGUID();
 
 	ExistingDestMeshData * ExistDestMeshDataPtr = nullptr;
 	if(Options & EDestructibleImportOptions::PreserveSettings)

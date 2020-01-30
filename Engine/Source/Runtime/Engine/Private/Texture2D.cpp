@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Texture2D.cpp: Implementation of UTexture2D.
@@ -549,6 +549,23 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 			return true;
 		}
 	}
+	return false;
+}
+
+bool UTexture2D::DoesMipDataExist(const int32 MipIndex) const
+{
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA == 0
+	if (PlatformData)
+	{
+		if (MipIndex < PlatformData->Mips.Num() && MipIndex >= 0)
+		{
+			return PlatformData->Mips[MipIndex].BulkData.DoesExist();
+		}
+	}
+#else
+	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA should be disabled!"));
+#endif
+
 	return false;
 }
 

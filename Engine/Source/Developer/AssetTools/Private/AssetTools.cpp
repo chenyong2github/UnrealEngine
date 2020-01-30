@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTools.h"
 #include "Factories/Factory.h"
@@ -38,6 +38,7 @@
 #include "AssetTypeActions/AssetTypeActions_VectorField.h"
 #include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprint.h"
+#include "AssetTypeActions/AssetTypeActions_AnimBoneCompressionSettings.h"
 #include "AssetTypeActions/AssetTypeActions_AnimComposite.h"
 #include "AssetTypeActions/AssetTypeActions_AnimStreamable.h"
 #include "AssetTypeActions/AssetTypeActions_AnimCurveCompressionSettings.h"
@@ -131,6 +132,8 @@
 #include "AssetToolsSettings.h"
 #include "AssetVtConversion.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/BlacklistNames.h"
+
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
@@ -153,14 +156,19 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, AssetRenameManager(MakeShareable(new FAssetRenameManager))
 	, AssetFixUpRedirectors(MakeShareable(new FAssetFixUpRedirectors))
 	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
+	, AssetClassBlacklist(MakeShared<FBlacklistNames>())
+	, FolderBlacklist(MakeShared<FBlacklistPaths>())
+	, WritableFolderBlacklist(MakeShared<FBlacklistPaths>())
 {
 	TArray<FString> SupportedTypesArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
 
 	for (const FString& Type : SupportedTypesArray)
 	{
-		SupportedAssetTypes.Add(*Type);
+		AssetClassBlacklist->AddWhitelistItem("AssetToolsConfigFile", *Type);
 	}
+
+	AssetClassBlacklist->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassBlacklistChanged);
 
 	// Register the built-in advanced categories
 	AllocatedCategoryBits.Add(TEXT("_BuiltIn_0"), FAdvancedAssetCategory(EAssetTypeCategories::Animation, LOCTEXT("AnimationAssetCategory", "Animation")));
@@ -179,6 +187,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	// Register the built-in asset type actions
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimationAsset));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBlueprint));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBoneCompressionSettings));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimComposite));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimStreamable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimCurveCompressionSettings));
@@ -261,22 +270,8 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions)
 {
-	if (SupportedAssetTypes.Num() > 0)
-	{
-		const UClass* SupportedClass = NewActions->GetSupportedClass();
-		if (SupportedClass != nullptr)
-		{
-			const FName ClassName = SupportedClass->GetFName();
-			if (!SupportedAssetTypes.Contains(ClassName))
-			{
-				NewActions->SetSupported(false);
-			}
-		}
-		else
-		{
-			NewActions->SetSupported(false);
-		}
-	}
+	const UClass* SupportedClass = NewActions->GetSupportedClass();
+	NewActions->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
 
 	AssetTypeActionsList.Add(NewActions);
 }
@@ -557,8 +552,13 @@ UObject* UAssetToolsImpl::CreateAssetWithDialog(const FString& AssetName, const 
 
 UObject* UAssetToolsImpl::DuplicateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject)
 {
+	return DuplicateAssetWithDialogAndTitle(AssetName, PackagePath, OriginalObject, LOCTEXT("DuplicateAssetDialogTitle", "Duplicate Asset As"));
+}
+
+UObject* UAssetToolsImpl::DuplicateAssetWithDialogAndTitle(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, FText DialogTitle)
+{
 	FSaveAssetDialogConfig SaveAssetDialogConfig;
-	SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("DuplicateAssetDialogTitle", "Duplicate Asset As");
+	SaveAssetDialogConfig.DialogTitleOverride = DialogTitle;
 	SaveAssetDialogConfig.DefaultPath = PackagePath;
 	SaveAssetDialogConfig.DefaultAssetName = AssetName;
 	SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
@@ -1023,6 +1023,12 @@ TArray<UObject*> UAssetToolsImpl::ImportAssets(const FString& DestinationPath)
 
 TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialog(const FString& DestinationPath)
 {
+	if (!GetWritableFolderBlacklist()->PassesStartsWithFilter(DestinationPath))
+	{
+		NotifyBlockedByWritableFolderFilter();
+		return TArray<UObject*>();
+	}
+
 	TArray<UObject*> ReturnObjects;
 	FString FileTypes, AllExtensions;
 	TArray<UFactory*> Factories;
@@ -2576,7 +2582,12 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 			if ( !AllPackageNamesToMove.Contains(*PackageIt) )
 			{
 				AllPackageNamesToMove.Add(*PackageIt);
-				RecursiveGetDependencies(*PackageIt, AllPackageNamesToMove);
+				FString Path = (*PackageIt).ToString();
+				FString OriginalRootString;
+				Path.RemoveFromStart(TEXT("/"));
+				Path.Split("/", &OriginalRootString, &Path, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+				OriginalRootString = TEXT("/") + OriginalRootString;
+				RecursiveGetDependencies(*PackageIt, AllPackageNamesToMove, OriginalRootString);
 			}
 		}
 	}
@@ -2833,7 +2844,7 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 	MigrateLog.Notify(LogMessage, Severity, true);
 }
 
-void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies) const
+void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies, const FString& OriginalRoot) const
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FName> Dependencies;
@@ -2843,13 +2854,14 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 	{
 		if ( !AllDependencies.Contains(*DependsIt) )
 		{
-			// @todo Make this skip all packages whose root is different than the source package list root. For now we just skip engine content.
 			const bool bIsEnginePackage = (*DependsIt).ToString().StartsWith(TEXT("/Engine"));
 			const bool bIsScriptPackage = (*DependsIt).ToString().StartsWith(TEXT("/Script"));
-			if ( !bIsEnginePackage && !bIsScriptPackage )
+			// Skip all packages whose root is different than the source package list root
+			const bool bIsInSamePackage = (*DependsIt).ToString().StartsWith(OriginalRoot);
+			if ( !bIsEnginePackage && !bIsScriptPackage && bIsInSamePackage )
 			{
 				AllDependencies.Add(*DependsIt);
-				RecursiveGetDependencies(*DependsIt, AllDependencies);
+				RecursiveGetDependencies(*DependsIt, AllDependencies, OriginalRoot);
 			}
 		}
 	}
@@ -3141,6 +3153,51 @@ TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
 	}
 
 	return MoveTemp(Factories);
+}
+
+TSharedRef<FBlacklistNames>& UAssetToolsImpl::GetAssetClassBlacklist()
+{
+	return AssetClassBlacklist;
+}
+
+void UAssetToolsImpl::AssetClassBlacklistChanged()
+{
+	for (TSharedRef<IAssetTypeActions>& ActionsIt : AssetTypeActionsList)
+	{
+		const UClass* SupportedClass = ActionsIt->GetSupportedClass();
+		ActionsIt->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
+	}
+}
+
+TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetFolderBlacklist()
+{
+	return FolderBlacklist;
+}
+
+TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetWritableFolderBlacklist()
+{
+	return WritableFolderBlacklist;
+}
+
+bool UAssetToolsImpl::AllPassWritableFolderFilter(const TArray<FString>& InPaths) const
+{
+	if (WritableFolderBlacklist->HasFiltering())
+	{
+		for (const FString& Path : InPaths)
+		{
+			if (!WritableFolderBlacklist->PassesStartsWithFilter(Path))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void UAssetToolsImpl::NotifyBlockedByWritableFolderFilter() const
+{
+	FSlateNotificationManager::Get().AddNotification(FNotificationInfo(LOCTEXT("NotifyBlockedByWritableFolderFilter", "Folder is locked")));
 }
 
 #undef LOCTEXT_NAMESPACE

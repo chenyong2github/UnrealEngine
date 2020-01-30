@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComponentTreeItem.h"
 #include "Templates/SharedPointer.h"
@@ -37,7 +37,7 @@ FComponentTreeItem::FComponentTreeItem(UActorComponent* InComponent)
 	bExistsInCurrentWorldAndPIE = GEditor->ObjectsThatExistInEditorWorld.Get(OwningActor);
 
 	const FName VariableName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(InComponent);
-	const bool bIsArrayVariable = !VariableName.IsNone() && InComponent->GetOwner() != nullptr && FindField<UArrayProperty>(InComponent->GetOwner()->GetClass(), VariableName);
+	const bool bIsArrayVariable = !VariableName.IsNone() && InComponent->GetOwner() != nullptr && FindField<FArrayProperty>(InComponent->GetOwner()->GetClass(), VariableName);
 
 	if (!VariableName.IsNone() && !bIsArrayVariable)
 	{

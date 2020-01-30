@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 import * as util from 'util';
 import {execFile, ExecFileOptions} from 'child_process';
 import {Workspace} from '../common/perforce'

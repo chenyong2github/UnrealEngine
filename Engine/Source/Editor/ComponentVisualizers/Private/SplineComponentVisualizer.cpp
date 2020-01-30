@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SplineComponentVisualizer.h"
 #include "CoreMinimal.h"
@@ -163,7 +163,7 @@ FSplineComponentVisualizer::FSplineComponentVisualizer()
 
 	SplineComponentVisualizerActions = MakeShareable(new FUICommandList);
 
-	SplineCurvesProperty = FindField<UProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
+	SplineCurvesProperty = FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
 }
 
 void FSplineComponentVisualizer::OnRegister()
@@ -2348,7 +2348,7 @@ void FSplineComponentVisualizer::OnSetVisualizeRollAndScale()
 
 	SplineComp->bShouldVisualizeScale = !SplineComp->bShouldVisualizeScale;
 
-	NotifyPropertyModified(SplineComp, FindField<UProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, bShouldVisualizeScale)));
+	NotifyPropertyModified(SplineComp, FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, bShouldVisualizeScale)));
 
 	GEditor->RedrawLevelEditingViewports(true);
 }
@@ -2384,9 +2384,9 @@ void FSplineComponentVisualizer::OnSetDiscontinuousSpline()
 		}
 	}
 
-	TArray<UProperty*> Properties;
+	TArray<FProperty*> Properties;
 	Properties.Add(SplineCurvesProperty);
-	Properties.Add(FindField<UProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, bAllowDiscontinuousSpline)));
+	Properties.Add(FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, bAllowDiscontinuousSpline)));
 	NotifyPropertiesModified(SplineComp, Properties);
 
 	GEditor->RedrawLevelEditingViewports(true);

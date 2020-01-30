@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SEditorViewport.h"
 #include "Misc/Paths.h"
@@ -629,6 +629,12 @@ bool SEditorViewport::IsCoordSystemActive(ECoordSystem CoordSystem) const
 void SEditorViewport::OnCycleWidgetMode()
 {
 	FWidget::EWidgetMode WidgetMode = Client->GetWidgetMode();
+
+	// Can't cycle the widget mode if we don't currently have a widget
+	if (WidgetMode == FWidget::WM_None)
+	{
+		return;
+	}
 
 	int32 WidgetModeAsInt = WidgetMode;
 

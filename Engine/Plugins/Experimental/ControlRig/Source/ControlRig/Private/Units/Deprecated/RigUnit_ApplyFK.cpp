@@ -1,20 +1,16 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_ApplyFK.h"
 #include "Units/RigUnitContext.h"
 #include "HelperUtil.h"
 
-void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
+FRigUnit_ApplyFK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	
 	if (Context.State == EControlRigState::Init)
 	{
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
-		if (!Hierarchy)
-		{
-			UnitLogHelpers::PrintMissingHierarchy(RigUnitName);
-		}
+		return;
 	}
 	else if (Context.State == EControlRigState::Update)
 	{
@@ -28,12 +24,19 @@ void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 				FTransform InputTransform = Transform;
 				Filter.FilterTransform(InputTransform);
 
+				FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(
+					ApplyTransformSpace,
+					[Hierarchy](const FName& BoneName) { return Hierarchy->GetGlobalTransform(BoneName); },
+					(*Hierarchy)[Index].ParentName,
+					BaseJoint,
+					BaseTransform
+				);
+
 				// now get override or additive
 				// whether I'd like to apply whole thing or not
 				if (ApplyTransformMode == EApplyTransformMode::Override)
 				{
 					// get base transform
-					FTransform InputBaseTransform = GetBaseTransform(Index, Hierarchy);
 					FTransform ApplyTransform = InputTransform * InputBaseTransform;
 					Hierarchy->SetGlobalTransform(Index, ApplyTransform);
 				}
@@ -41,7 +44,6 @@ void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 				{
 					// if additive, we get current transform and calculate base transform and apply in their local space
 					FTransform CurrentTransform = Hierarchy->GetGlobalTransform(Index);
-					FTransform InputBaseTransform = GetBaseTransform(Index, Hierarchy);
 					FTransform LocalTransform = InputTransform * CurrentTransform.GetRelativeTransform(InputBaseTransform);
 					// apply additive
 					Hierarchy->SetGlobalTransform(Index, LocalTransform * InputBaseTransform);
@@ -49,12 +51,6 @@ void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 			}
 		}
 	}
-}
-
-FTransform FRigUnit_ApplyFK::GetBaseTransform(int32 BoneIndex, const FRigBoneHierarchy* CurrentHierarchy) const
-{
-	return UtilityHelpers::GetBaseTransformByMode(ApplyTransformSpace, [CurrentHierarchy](const FName& BoneName) { return CurrentHierarchy->GetGlobalTransform(BoneName); },
-		(*CurrentHierarchy)[BoneIndex].ParentName, BaseJoint, BaseTransform);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS

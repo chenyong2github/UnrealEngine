@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetFamilyShortcutBar.h"
 #include "Styling/SlateTypes.h"
@@ -192,9 +192,16 @@ public:
 	{
 		if(AssetData.IsValid())
 		{
-			TArray<UObject*> Assets;
-			Assets.Add(AssetData.GetAsset());
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(Assets);
+			if (UObject* AssetObject = AssetData.GetAsset())
+			{
+				TArray<UObject*> Assets;
+				Assets.Add(AssetObject);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(Assets);
+			}
+			else
+			{
+				UE_LOG(LogAnimation, Error, TEXT("Asset cannot be opened: %s"), *AssetData.ObjectPath.ToString());
+			}
 		}
 	}
 

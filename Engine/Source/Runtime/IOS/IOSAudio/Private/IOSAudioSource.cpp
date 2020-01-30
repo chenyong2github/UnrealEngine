@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	IOSAudioSource.cpp: Unreal IOSAudio source interface object.
@@ -223,12 +223,6 @@ void FIOSAudioSoundSource::Update(void)
 	if (!AudioDevice->IsAudioDeviceMuted())
 	{
 		Volume = WaveInstance->GetActualVolume();
-	}
-
-	if (SetStereoBleed())
-	{
-		// Emulate the bleed to rear speakers followed by stereo fold down
-		Volume *= 1.25f;
 	}
 
     SetFilterFrequency();

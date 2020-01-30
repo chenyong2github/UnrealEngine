@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 // Includes.
@@ -27,10 +27,10 @@ UEngine* Engine;
 	Editor hook exec.
 -----------------------------------------------------------------------------*/
 
-void UUnrealEdEngine::NotifyPreChange(UProperty* PropertyAboutToChange)
+void UUnrealEdEngine::NotifyPreChange(FProperty* PropertyAboutToChange)
 {
 }
-void UUnrealEdEngine::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void UUnrealEdEngine::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	// Notify all active modes of actor property changes.
 	GLevelEditorModeTools().ActorPropChangeNotify();

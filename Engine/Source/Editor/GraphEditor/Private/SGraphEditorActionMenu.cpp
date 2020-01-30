@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGraphEditorActionMenu.h"
 #include "EdGraph/EdGraph.h"
@@ -14,6 +14,8 @@ SGraphEditorActionMenu::~SGraphEditorActionMenu()
 
 void SGraphEditorActionMenu::Construct( const FArguments& InArgs )
 {
+
+
 	this->GraphObj = InArgs._GraphObj;
 	this->DraggedFromPins = InArgs._DraggedFromPins;
 	this->NewNodePosition = InArgs._NewNodePosition;

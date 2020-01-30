@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShaderParameterStruct.cpp: Shader parameter struct implementations.
@@ -201,12 +201,18 @@ struct FShaderParameterStructBindingContext
 
 					if (BoundSize != 1)
 					{
-						UE_LOG(LogShaders, Fatal, 
-							TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
-							TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
-							TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
-							Shader->GetType()->GetName(), Shader->GetPermutationId(),
-							*ElementShaderBindingName, BoundSize, *CppName);
+						// Switch shader compiler does not yet support this validation on RHIResouces, see UE-86533
+						const EShaderPlatform& ShaderPlatform = Shader->GetShaderPlatform();
+						const bool bIsSwitchShader = ShaderPlatform == SP_SWITCH || ShaderPlatform == SP_SWITCH_FORWARD;
+						if (bIsSwitchShader && !bIsRHIResource)
+						{
+							UE_LOG(LogShaders, Fatal,
+								TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
+								TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
+								TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
+								Shader->GetType()->GetName(), Shader->GetPermutationId(),
+								*ElementShaderBindingName, BoundSize, *CppName);
+						}
 					}
 
 					if (BaseType == UBMT_TEXTURE)

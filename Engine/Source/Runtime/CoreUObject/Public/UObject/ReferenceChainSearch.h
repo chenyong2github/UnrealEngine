@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -248,4 +248,3 @@ private:
 	/** Writes a reference chain to a string */
 	static void WriteChain(FReferenceChain* Chain, FString& OutString);
 };
-

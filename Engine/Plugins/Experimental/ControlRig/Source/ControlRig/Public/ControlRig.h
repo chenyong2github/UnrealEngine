@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "UObject/Object.h"
@@ -14,26 +14,30 @@
 #include "Units/RigUnit.h"
 #include "Units/Control/RigUnit_Control.h"
 #include "Manipulatable/IControlRigManipulatable.h"
+#include "RigVMCore/RigVM.h"
+
+#if WITH_EDITOR
+#include "RigVMModel/RigVMPin.h"
+#endif
+
+#if WITH_EDITOR
+#include "AnimPreviewInstance.h"
+#endif 
+
 #include "ControlRig.generated.h"
 
 class IControlRigObjectBinding;
 class UScriptStruct;
 struct FRigUnit;
-struct FControlRigIOVariable;
+struct FRigControl;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogControlRig, Log, All);
-
-/** Delegate used to optionally gather inputs before evaluating a ControlRig */
-DECLARE_DELEGATE_OneParam(FPreEvaluateGatherInput, UControlRig*);
-DECLARE_DELEGATE_OneParam(FPostEvaluateQueryOutput, UControlRig*);
-
-#define DEBUG_CONTROLRIG_PROPERTYCHANGE !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 /** Runs logic for mapping input data to transforms (the "Rig") */
 UCLASS(Blueprintable, Abstract, editinlinenew)
 class CONTROLRIG_API UControlRig : public UObject, public INodeMappingProviderInterface, public IControlRigManipulatable
 {
-	GENERATED_BODY()
+	GENERATED_UCLASS_BODY()
 
 	friend class UControlRigComponent;
 	friend class SControlRigStackView;
@@ -47,19 +51,17 @@ public:
 	static const FName DisplayNameMetaName;
 	static const FName MenuDescSuffixMetaName;
 	static const FName ShowVariableNameInTitleMetaName;
-	static const FName BoneNameMetaName;
-	static const FName ControlNameMetaName;
-	static const FName SpaceNameMetaName;
-	static const FName CurveNameMetaName;
+	static const FName CustomWidgetMetaName;
 	static const FName ConstantMetaName;
 	static const FName TitleColorMetaName;
 	static const FName NodeColorMetaName;
 	static const FName KeywordsMetaName;
 	static const FName PrototypeNameMetaName;
-	static const FName AnimationInputMetaName;
-	static const FName AnimationOutputMetaName;
 	static const FName ExpandPinByDefaultMetaName;
 	static const FName DefaultArraySizeMetaName;
+
+	static const FName OwnerComponent;
+
 
 private:
 	/** Current delta time */
@@ -73,10 +75,6 @@ public:
 	virtual void PostEditUndo() override;
 #endif
 	
-	/** Get the current delta time */
-	UFUNCTION(BlueprintPure, Category = "Animation")
-	float GetDeltaTime() const;
-
 	/** Set the current delta time */
 	void SetDeltaTime(float InDeltaTime);
 
@@ -85,7 +83,7 @@ public:
 	virtual FText GetCategory() const;
 
 	/** Get the tooltip text to display for this node (displayed in graphs and from context menus) */
-	virtual FText GetTooltipText() const;
+	virtual FText GetToolTipText() const;
 #endif
 
 	/** UObject interface */
@@ -96,6 +94,22 @@ public:
 
 	/** Evaluate at Any Thread */
 	virtual void Evaluate_AnyThread();
+
+	/** input output handling */
+	FORCEINLINE const TArray<FRigVMParameter>& GetParameters() const
+	{
+		return VM->GetParameters();
+	}
+	template<class T>
+	FORCEINLINE T GetParameterValue(const FName& InParameterName)
+	{
+		return VM->GetParameterValue<T>(InParameterName);
+	}
+	template<class T>
+	FORCEINLINE void SetParameterValue(const FName& InParameterName, const T& InValue)
+	{
+		VM->SetParameterValue<T>(InParameterName, InValue);
+	}
 
 	/** Setup bindings to a runtime object (or clear by passing in nullptr). */
 	virtual void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding) override
@@ -164,37 +178,8 @@ public:
 	/** Evaluate another animation ControlRig */
 	void SetCurveValue(const int32 CurveIndex, const float CurveValue);
 
-	/* 
-	 * Query input output variables
-	 *
-	 * @param bInput - True if it's input. False if you want to query Output
-	 * @param OutVars - Output array of variables
-	 */
-	void QueryIOVariables(bool bInput, TArray<FControlRigIOVariable>& OutVars) const;
-	/*
-	 * Return true if the PropertyName is in IO
-	 *
-	 * @param bInput - True if it's input. False if you want to query Output
-	 * @return true if it's valid
-	 */
-	bool IsValidIOVariables(bool bInput, const FName& PropertyName) const;
-
-	/*
-	 * Get IO property path
-	 *
-	 * @param bInput - True if it's input. False if you want to query Output
-	 * @param InPropertyPath - Property path to query
-	 * @param OutCachedPath - output of cached path
-	 * @return true if succeed
-	 */
-	bool GetInOutPropertyPath(bool bInput, const FName& InPropertyPath, FCachedPropertyPath& OutCachedPath);
-
 #if WITH_EDITOR
-	// get class name of rig unit that is owned by this rig
-	FName GetRigClassNameFromRigUnit(const FRigUnit* InRigUnit) const;
-	FRigUnit_Control* GetControlRigUnitFromName(const FName& PropertyName);
-	FRigUnit* GetRigUnitFromName(const FName& PropertyName);
-	
+
 	// called after post reinstance when compilng blueprint by Sequencer
 	void PostReinstanceCallback(const UControlRig* Old);
 
@@ -208,11 +193,22 @@ public:
 	UPROPERTY(transient)
 	ERigExecutionType ExecutionType;
 
-	/** Execute the rig unit */
+	/** Execute */
 	void Execute(const EControlRigState State);
+
+	/** ExecuteUnits */
+	virtual void ExecuteUnits(FRigUnitContext& InOutContext);
+
+	/** Requests to perform an init during the next execution */
+	void RequestInit() { bRequiresInitExecution = true;  }
+
+	URigVM* GetVM();
 
 	/** INodeMappingInterface implementation */
 	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const override;
+
+	/** Data Source Registry Getter */
+	UAnimationDataSourceRegistry* GetDataSourceRegistry() { return DataSourceRegistry; }
 
 	// BEGIN IControlRigManipulatable interface
 	virtual const TArray<FRigSpace>& AvailableSpaces() const override;
@@ -225,6 +221,9 @@ public:
 	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform) override;
 	virtual bool SetControlSpace(const FName& InControlName, const FName& InSpaceName) override;
 	virtual UControlRigGizmoLibrary* GetGizmoLibrary() const override;
+	virtual void CreateRigControlsForCurveContainer() override;
+
+
 #if WITH_EDITOR
 	virtual void SelectControl(const FName& InControlName, bool bSelect = true) override;
 	virtual bool ClearControlSelection() override;
@@ -233,27 +232,20 @@ public:
 #endif
 	// END IControlRigManipulatable interface
 
+	// Not in IControlRigManipulatable *, but maybe should
+	bool IsCurveControl(const FRigControl* InRigControl) const;
+
 	DECLARE_EVENT_TwoParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState);
-	FControlRigExecuteEvent& OnInitialized() { return InitializedEvent; }
-	FControlRigExecuteEvent& OnExecuted() { return ExecutedEvent; }
+	FControlRigExecuteEvent& OnInitialized_AnyThread() { return InitializedEvent; }
+	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
 
 private:
+
+	UPROPERTY(VisibleAnywhere, Category = "VM")
+	URigVM* VM;
+
 	UPROPERTY(VisibleDefaultsOnly, Category = "Hierarchy")
 	FRigHierarchyContainer Hierarchy;
-
-#if WITH_EDITORONLY_DATA
-	/** The properties of source accessible <target, source local path> when source -> target
-	 * For example, if you have property RigUnitA.B->RigUnitB.C, this will save as <RigUnitB.C, RigUnitA.B> */
-	UPROPERTY()
-	TMap<FName, FString> AllowSourceAccessProperties;
-
-	/** Cached editor object reference by rig unit */
-	TMap<FRigUnit*, UObject*> RigUnitEditorObjects;
-#endif // WITH_EDITOR
-
-	/** list of operators. */
-	UPROPERTY(Transient)
-	TArray<FControlRigOperator> Operators;
 
 	UPROPERTY()
 	TAssetPtr<UControlRigGizmoLibrary> GizmoLibrary;
@@ -265,14 +257,23 @@ private:
 	FControlRigLog* ControlRigLog;
 	bool bEnableControlRigLogging;
 #endif
+
 	// you either go Input or Output, currently if you put it in both place, Output will override
 	UPROPERTY()
-	TMap<FName, FCachedPropertyPath> InputProperties;
+	TMap<FName, FCachedPropertyPath> InputProperties_DEPRECATED;
 
 	UPROPERTY()
-	TMap<FName, FCachedPropertyPath> OutputProperties;
+	TMap<FName, FCachedPropertyPath> OutputProperties_DEPRECATED;
 
 private:
+	// Controls for the container
+	void HandleOnControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey);
+
+
+private:
+
+	UPROPERTY()
+	FControlRigDrawContainer DrawContainer;
 
 	/** The draw interface for the units to use */
 	FControlRigDrawInterface* DrawInterface;
@@ -281,30 +282,9 @@ private:
 	UPROPERTY(transient)
 	UAnimationDataSourceRegistry* DataSourceRegistry;
 
-#if DEBUG_CONTROLRIG_PROPERTYCHANGE
-	// This is to debug class size when constructed and destroyed to verify match
-	// if this size changes, that implies more problem, where properties have been changed and layout has been modified
-	// also it caches if destructor and property has been chagned
-	// the name can be destroyed but we should make sure we have proper properties size/offset is linked
-	int32 DebugClassSize;
-	TArray<UScriptStruct*> Destructors;
-	struct FPropertyData
-	{
-		int32 Offset;
-		int32 Size;
-		FName PropertyName;
-	};
-	TArray<FPropertyData> PropertyData;
-	void ValidateDebugClassData();
-	void CacheDebugClassData();
-#endif // 	DEBUG_CONTROLRIG_PROPERTYCHANGE
-
-	/** Copy the operators from the generated class */
-	void InstantiateOperatorsFromGeneratedClass();
+	/** Copy the VM from the default object */
+	void InstantiateVMFromCDO();
 	
-	/** Re-resolve operator property paths */
-	void ResolvePropertyPaths();
-
 	/** Broadcasts a notification whenever the controlrig is initialized. */
 	FControlRigExecuteEvent InitializedEvent;
 
@@ -314,15 +294,44 @@ private:
 #if WITH_EDITOR
 	/** Handle a Control Being Selected */
 	void HandleOnControlSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);
+
+	/** Update the available controls within the control rig editor */
+	void UpdateAvailableControls();
+
+	/** Remove a transient / temporary control used to interact with a pin */
+	FName AddTransientControl(URigVMPin* InPin, FName InSpaceName = NAME_None);
+
+	/** Sets the value of a transient control based on a pin */
+	bool SetTransientControlValue(URigVMPin* InPin);
+
+	/** Remove a transient / temporary control used to interact with a pin */
+	FName RemoveTransientControl(URigVMPin* InPin);
+
+	FName AddTransientControl(const FRigElementKey& InElement);
+
+	/** Sets the value of a transient control based on a bone */
+	bool SetTransientControlValue(const FRigElementKey& InElement);
+
+	/** Remove a transient / temporary control used to interact with a bone */
+	FName RemoveTransientControl(const FRigElementKey& InElement);
+
+	/** Removes all  transient / temporary control used to interact with pins */
+	void ClearTransientControls();
+
+	TArray<FRigControl> AvailableControlsOverride;
+	TArray<FRigControl> TransientControls;
+	UAnimPreviewInstance* PreviewInstance;
+
 #endif
-	void ResolveInputOutputProperties();
 
 	void InitializeFromCDO();
 
+	static FName GetNameForTransientControl(const FRigElementKey& InElement);
+
+	bool bRequiresInitExecution;
+
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;
-	friend class UControlRigEditorLibrary;
-	friend class URigUnitEditor_Base;
 	friend class FControlRigEditor;
 	friend class SRigCurveContainer;
 	friend class SRigHierarchy;
@@ -330,4 +339,5 @@ private:
  	friend class FControlRigEditMode;
 	friend class FControlRigIOHelper;
 	friend class UControlRigBlueprint;
+	friend class UControlRigBlueprintGeneratedClass;
 };

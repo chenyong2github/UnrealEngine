@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -53,6 +53,9 @@ namespace Chaos
 
 	template <typename T>
 	class TCapsule;
+
+	template <typename T, int>
+	class TAABB;
 
 	template <typename T, int>
 	class TBox;
@@ -147,7 +150,7 @@ struct ENGINE_API FPhysicsGeometryCollection_Chaos
 	const Chaos::TSphere<float, 3>&  GetSphereGeometry() const;
 	const Chaos::TCapsule<float>&  GetCapsuleGeometry() const;
 	const Chaos::FConvex& GetConvexGeometry() const;
-	const Chaos::TTriangleMeshImplicitObject<float>& GetTriMeshGeometry() const;
+	const Chaos::FTriangleMeshImplicitObject& GetTriMeshGeometry() const;
 
 private:
 	friend class FPhysInterface_Chaos;
@@ -444,10 +447,7 @@ FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* Wor
 
 Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex);
 
-inline uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
-{
-	return GetInvalidPhysicsFaceIndex();
-}
+uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex);
 
 inline void GetShapes(const FPhysActorDummy& RigidActor, FPhysTypeDummy** ShapesBuffer, uint32 NumShapes)
 {

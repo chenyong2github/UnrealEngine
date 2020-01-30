@@ -1,8 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosCloth/ChaosClothingSimulationFactory.h"
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
+#include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothingSimulationInteractor.h"
 
 IClothingSimulation* UChaosClothingSimulationFactory::CreateSimulation()
@@ -31,7 +32,17 @@ UClothingSimulationInteractor* UChaosClothingSimulationFactory::CreateInteractor
 	return NewObject<UChaosClothingSimulationInteractor>(GetTransientPackage());
 }
 
-UClothConfigBase* UChaosClothingSimulationFactory::CreateDefaultClothConfig(const FObjectInitializer& ObjectInitializer, UObject* Outer)
+TArrayView<const TSubclassOf<UClothConfigBase>> UChaosClothingSimulationFactory::GetClothConfigClasses() const
 {
-	return ObjectInitializer.CreateDefaultSubobject<UChaosClothConfig>(Outer, UChaosClothConfig::StaticClass()->GetFName());
+	static const TArray<TSubclassOf<UClothConfigBase>> ClothConfigClasses(
+		{
+			TSubclassOf<UClothConfigBase>(UChaosClothConfig::StaticClass()),
+			TSubclassOf<UClothConfigBase>(UChaosClothSharedSimConfig::StaticClass())
+		});
+	return ClothConfigClasses;
+}
+
+const UEnum* UChaosClothingSimulationFactory::GetWeightMapTargetEnum() const
+{
+	return StaticEnum<EChaosWeightMapTarget>();
 }

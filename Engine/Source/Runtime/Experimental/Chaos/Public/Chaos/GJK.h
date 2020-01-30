@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Simplex.h"
@@ -6,6 +6,8 @@
 #include "Chaos/Box.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/EPA.h"
+#include "ChaosCheck.h"
+#include "ChaosLog.h"
 
 namespace Chaos
 {
@@ -81,10 +83,13 @@ namespace Chaos
 		} while (!bTerminate);
 
 		return bNearZero;
+		
 	}
 
-	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0)
+	
+	// This function will be faster if bNegativePenetrationSupport is false, so don't use the feature if not required
+	template <bool bNegativePenetrationSupport = false, typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, int32* OutNumIterations = nullptr)
 	{
 		auto SupportAFunc = [&A](const TVec3<T>& V)
 		{
@@ -134,7 +139,7 @@ namespace Chaos
 			const TVector<T, 3> SupportB = SupportBFunc(V);
 			const TVector<T, 3> W = SupportA - SupportB;
 
-			if (TVector<T, 3>::DotProduct(V, W) > Inflation)
+			if (!bNegativePenetrationSupport && TVector<T, 3>::DotProduct(V, W) > Inflation)
 			{
 				return false;
 			}
@@ -163,6 +168,11 @@ namespace Chaos
 
 		} while (!bTerminate);
 
+		if (OutNumIterations != nullptr)
+		{
+			*OutNumIterations = NumIterations;
+		}
+
 		if (PrevDist2 > Eps2)
 		{
 			//generally this happens when shapes are inflated.
@@ -178,7 +188,11 @@ namespace Chaos
 			
 			const T PreDist = FMath::Sqrt(PrevDist2);
 			OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//question: should we just use PreDist2?
-			const T Penetration = ThicknessA + ThicknessB - PreDist;
+			T Penetration = ThicknessA + ThicknessB - PreDist;
+			if (!bNegativePenetrationSupport)
+			{
+				Penetration = FMath::Clamp<T>(Penetration, 0, TNumericLimits<T>::Max());
+			}
 			OutPenetration = Penetration;
 			OutClosestA = ClosestA + OutNormal * ThicknessA;
 			OutClosestB = ClosestBInA - OutNormal * ThicknessB;
@@ -221,10 +235,10 @@ namespace Chaos
 				}
 
 				OutPenetration = ThicknessA + ThicknessB;
-				OutNormal = { 0,0,1 };
+				OutNormal = MTD;
 				OutClosestA = ClosestA + OutNormal * ThicknessA;
 				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
-				return false;
+				return OutPenetration > Eps2;
 			}
 		}
 
@@ -450,6 +464,8 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 
+			V = V.GetUnsafeNormal();
+
 			SupportA = SupportAFunc(V);
 			SupportB = SupportBFunc(-V);
 			const TVector<T, 3> P = SupportA - SupportB;
@@ -457,8 +473,6 @@ namespace Chaos
 			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;	//is this needed?
 			As[SimplexIDs.NumVerts] = SupportA;
 			Bs[SimplexIDs.NumVerts] = SupportB;
-
-			V = V.GetUnsafeNormal();
 
 			const T VDotW = TVector<T, 3>::DotProduct(V, W);
 
@@ -516,7 +530,7 @@ namespace Chaos
 				InGJKPreDist2 = NewDist2;
 
 
-				if (bComputeMTD && bCloseEnough && Lambda == 0 && Inflation2 > 1e-6 && SimplexIDs.NumVerts < 4)
+				if (bComputeMTD && bCloseEnough && Lambda == 0 && InGJKPreDist2 > 1e-6 && Inflation2 > 1e-6 && SimplexIDs.NumVerts < 4)
 				{
 					//For mtd of inflated shapes we have to find the closest point, so we have to keep going
 					bCloseEnough = false;
@@ -550,7 +564,7 @@ namespace Chaos
 		{
 			if (InGJKPreDist2 > 1e-6 && InGJKPreDist2 < TNumericLimits<T>::Max())
 			{
-				ensure(Inflation > 0);	//shouldn't end up here if there is no inflation
+				CHAOS_ENSURE(Inflation > 0);	//shouldn't end up here if there is no inflation
 				OutNormal = Normal;
 				TVector<T, 3> ClosestA(0);
 				TVector<T, 3> ClosestB(0);
@@ -573,7 +587,7 @@ namespace Chaos
 				const TVec3<T> ClosestBInA = StartTM.TransformPosition(ClosestB);
 				const T InGJKPreDist = FMath::Sqrt(InGJKPreDist2);
 				OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//question: should we just use InGJKPreDist2?
-				const T Penetration = ThicknessA + ThicknessB - InGJKPreDist;
+				const T Penetration = FMath::Clamp<T>(ThicknessA + ThicknessB - InGJKPreDist, 0, TNumericLimits<T>::Max());
 				const TVector<T, 3> ClosestLocal = ClosestB - OutNormal * ThicknessB;
 
 				OutPosition = StartPoint + ClosestLocal + OutNormal * Penetration;
@@ -617,7 +631,7 @@ namespace Chaos
 					{
 						//assume touching hit
 						OutTime = -Inflation;
-						OutNormal = { 0,0,1 };
+						OutNormal = MTD;
 						OutPosition = As[0] + OutNormal * ThicknessA;
 					}
 				}

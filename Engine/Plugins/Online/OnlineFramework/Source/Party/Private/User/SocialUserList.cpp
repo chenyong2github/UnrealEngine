@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "User/SocialUserList.h"
 #include "User/SocialUser.h"
@@ -105,6 +105,11 @@ void FSocialUserList::SetAllowAutoUpdate(bool bIsEnabled)
 	{
 		UpdateTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FSocialUserList::HandleAutoUpdateList), AutoUpdatePeriod);
 	}
+}
+
+void FSocialUserList::SetAllowSortDuringUpdate(bool bIsEnabled)
+{
+	ListConfig.bSortDuringUpdate = bIsEnabled;
 }
 
 bool FSocialUserList::HasPresenceFilters() const
@@ -399,6 +404,14 @@ bool FSocialUserList::EvaluateUserPresence(const USocialUser& User, ESocialSubsy
 			{
 				bInSameParty = CurrentParty->ContainsUser(User);
 			}
+
+#if WITH_EDITOR
+			if (OwnerToolkit->Debug_IsRandomlyChangingPresence())
+			{
+				bIsOnline = User.GetOnlineStatus() != EOnlinePresenceState::Offline;
+				bIsPlayingThisGame = bIsOnline;
+			}
+#endif
 		}
 
 		return EvaluatePresenceFlag(bIsOnline, ESocialUserStateFlags::Online)
@@ -510,10 +523,10 @@ void FSocialUserList::UpdateListInternal()
 	UsersWithDirtyPresence.Reset();
 
 	// Update the users in the list
-	bool bListChanged = false;
+	bool bListUpdated = false;
 	if (PendingRemovals.Num() > 0)
 	{
-		bListChanged = true;
+		bListUpdated = true;
 
 		Users.RemoveAllSwap(
 			[this] (USocialUser* User)
@@ -533,7 +546,7 @@ void FSocialUserList::UpdateListInternal()
 
 	if (PendingAdds.Num() > 0)
 	{
-		bListChanged = true;
+		bListUpdated = true;
 		Users.Append(PendingAdds);
 
 		for (USocialUser* User : PendingAdds)
@@ -543,28 +556,46 @@ void FSocialUserList::UpdateListInternal()
 		PendingAdds.Reset();
 	}
 
-	if (bListChanged || bNeedsSort)
+	if (bListUpdated || bNeedsSort)
 	{
-		bNeedsSort = false;
-
-		const int32 NumUsers = Users.Num();
-		TArray<FUserSortData> SortedData;
-		SortedData.Reserve(NumUsers);
-
-		Algo::Transform(Users, SortedData, [](USocialUser* const User) -> FUserSortData
+		if (ListConfig.bSortDuringUpdate)
 		{
-			return FUserSortData(User, User->GetOnlineStatus(), User->IsPlayingThisGame(), User->GetDisplayName(), User->GetCustomSortValuePrimary(), User->GetCustomSortValueSecondary());
-		});
+			bNeedsSort = false;
+			bListUpdated = true;
 
-		Algo::Sort(SortedData);
+			const int32 NumUsers = Users.Num();
+			if (NumUsers > 1)
+			{
+				SCOPED_NAMED_EVENT(STAT_SocialUserList_Sort, FColor::Orange);
 
-		// replace contents of Users from SortedData array
-		for (int Index = 0; Index < NumUsers; Index++)
-		{
-			Users[Index] = SortedData[Index].User;
+				UE_LOG(LogParty, Verbose, TEXT("%s sorting list of [%d] users"), ANSI_TO_TCHAR(__FUNCTION__), NumUsers);
+
+				TArray<FUserSortData> SortedData;
+				SortedData.Reserve(NumUsers);
+
+				Algo::Transform(Users, SortedData, [](USocialUser* const User) -> FUserSortData
+				{
+					return FUserSortData(User, User->GetOnlineStatus(), User->IsPlayingThisGame(), User->GetDisplayName(), User->GetCustomSortValuePrimary(), User->GetCustomSortValueSecondary());
+				});
+
+				Algo::Sort(SortedData);
+
+				// replace contents of Users from SortedData array
+				for (int Index = 0; Index < NumUsers; Index++)
+				{
+					Users[Index] = SortedData[Index].User;
+				}
+			}
 		}
-		
-		OnUpdateComplete().Broadcast();
+		else
+		{
+			bNeedsSort = true;
+		}
+
+		if (bListUpdated)
+		{
+			OnUpdateComplete().Broadcast();
+		}
 	}
 }
 

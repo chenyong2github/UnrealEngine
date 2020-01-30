@@ -1,11 +1,14 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IAnimationEditor.h"
 
 class SAnimationEditorViewportTabBody;
 struct FTabId;
+class UAnimSequenceBase;
+class ITimeSliderController;
 
 // Called when a blend profile is selected in the blend profile tab
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectBlendProfile, class UBlendProfile*);
@@ -27,3 +30,9 @@ DECLARE_DELEGATE_OneParam(FOnOpenNewAsset, UObject* /* InAsset */);
 
 // Called to get an object (used by the asset details panel)
 DECLARE_DELEGATE_RetVal(UObject*, FOnGetAsset);
+
+// Called to invoke the curve editor
+DECLARE_DELEGATE_ThreeParams(FOnEditCurves, UAnimSequenceBase* /*InAnimSequence*/, const TArray<IAnimationEditor::FCurveEditInfo>& /*InCurveInfo*/, const TSharedPtr<ITimeSliderController>& /*InTimeSliderController*/);
+
+// Called to stop editing curves in the curve editor
+DECLARE_DELEGATE_OneParam(FOnStopEditingCurves, const TArray<IAnimationEditor::FCurveEditInfo>& /*InCurveInfo*/);

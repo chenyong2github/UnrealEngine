@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,10 +6,11 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SGraphNode.h"
 #include "Widgets/Views/STreeView.h"
+#include "Widgets/Images/SImage.h"
+#include "RigVMModel/RigVMPin.h"
 
 class UControlRigGraphNode;
 class STableViewBase;
-class FControlRigField;
 class SOverlay;
 class SGraphPin;
 class UEdGraphPin;
@@ -42,7 +43,9 @@ public:
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	virtual TSharedPtr<SGraphPin> GetHoveredPin( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) const override;
 	virtual void GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGraphInformationPopupInfo>& Popups) const override;
+	virtual TArray<FOverlayWidgetInfo> GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const override;
 
+	virtual void RefreshErrorInfo() override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
@@ -61,35 +64,35 @@ private:
 
 	EVisibility GetOutputTreeVisibility() const;
 
-	TSharedRef<ITableRow> MakeTableRowWidget(TSharedRef<FControlRigField> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> MakeTableRowWidget(URigVMPin* InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
-	void HandleGetChildrenForTree(TSharedRef<FControlRigField> InItem, TArray<TSharedRef<FControlRigField>>& OutChildren);
+	void HandleGetChildrenForTree(URigVMPin* InItem, TArray<URigVMPin*>& OutChildren);
 
-	void HandleExpansionChanged(TSharedRef<FControlRigField> InItem, bool bExpanded);
+	void HandleExpansionChanged(URigVMPin* InItem, bool bExpanded);
 
 	FText GetPinLabel(TWeakPtr<SGraphPin> GraphPin) const;
 
 	FSlateColor GetPinTextColor(TWeakPtr<SGraphPin> GraphPin) const;
 
-	TSharedRef<SWidget> AddContainerPinContent(TSharedRef<FControlRigField> InItem, FText InTooltipText);
+	TSharedRef<SWidget> AddContainerPinContent(URigVMPin* InItem, FText InTooltipText);
 
-	FReply HandleAddArrayElement(TWeakPtr<FControlRigField> InWeakItem);
+	FReply HandleAddArrayElement(URigVMPin* InItem);
 
 private:
 	/** Cached widget title area */
 	TSharedPtr<SOverlay> TitleAreaWidget;
 
 	/** Widget representing collapsible execution pins */
-	TSharedPtr<STreeView<TSharedRef<FControlRigField>>> ExecutionTree;
+	TSharedPtr<STreeView<URigVMPin*>> ExecutionTree;
 
 	/** Widget representing collapsible input pins */
-	TSharedPtr<STreeView<TSharedRef<FControlRigField>>> InputTree;
+	TSharedPtr<STreeView<URigVMPin*>> InputTree;
 
 	/** Widget representing collapsible input-output pins */
-	TSharedPtr<STreeView<TSharedRef<FControlRigField>>> InputOutputTree;
+	TSharedPtr<STreeView<URigVMPin*>> InputOutputTree;
 
 	/** Widget representing collapsible output pins */
-	TSharedPtr<STreeView<TSharedRef<FControlRigField>>> OutputTree;
+	TSharedPtr<STreeView<URigVMPin*>> OutputTree;
 
 	/** Dummy scrollbar, as we cant create a tree view without one! */
 	TSharedPtr<SScrollBar> ScrollBar;
@@ -99,4 +102,8 @@ private:
 
 	/** Map of pin widgets to extra pin widgets */
 	TMap<TSharedRef<SWidget>, TSharedRef<SGraphPin>> ExtraWidgetToPinMap;
+
+	int32 NodeErrorType;
+
+	TSharedPtr<SImage> VisualDebugIndicatorWidget;
 };

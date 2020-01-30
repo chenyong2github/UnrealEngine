@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Application/SlateApplicationBase.h"
 #include "Widgets/SWindow.h"
@@ -154,9 +154,9 @@ bool FSlateApplicationBase::IsSlateAsleep()
 
 void FSlateApplicationBase::ToggleGlobalInvalidation(bool bIsGlobalInvalidationEnabled)
 {
-	if ((!!GSlateEnableGlobalInvalidation) != bIsGlobalInvalidationEnabled)
+	if (GSlateEnableGlobalInvalidation != bIsGlobalInvalidationEnabled)
 	{
-		GSlateEnableGlobalInvalidation = bIsGlobalInvalidationEnabled ? 1 : 0;
+		GSlateEnableGlobalInvalidation = bIsGlobalInvalidationEnabled;
 		OnGlobalInvalidationToggledEvent.Broadcast(bIsGlobalInvalidationEnabled);
 	}
 }

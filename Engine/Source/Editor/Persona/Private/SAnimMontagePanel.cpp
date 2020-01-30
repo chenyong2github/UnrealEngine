@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimMontagePanel.h"
 #include "Widgets/Layout/SBorder.h"
@@ -12,24 +12,30 @@
 #include "Widgets/Input/SButton.h"
 #include "Animation/EditorAnimSegment.h"
 #include "SAnimSegmentsPanel.h"
-#include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "SAnimTimingPanel.h"
 #include "TabSpawners.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Styling/CoreStyle.h"
-#include "ISkeletonEditorModule.h"
-#include "Modules/ModuleManager.h"
 #include "IEditableSkeleton.h"
 #include "Editor.h"
+#include "AnimModel.h"
+#include "AnimPreviewInstance.h"
+#include "ScopedTransaction.h"
+#include "Misc/MessageDialog.h"
+#include "Animation/EditorAnimCompositeSegment.h"
+#include "Factories/AnimMontageFactory.h"
+#include "Animation/EditorCompositeSection.h"
+#include "AnimModel_AnimMontage.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AnimMontagePanel"
 
 //////////////////////////////////////////////////////////////////////////
 // SAnimMontagePanel
 
-void SAnimMontagePanel::Construct(const FArguments& InArgs, FSimpleMulticastDelegate& OnSectionsChanged)
+void SAnimMontagePanel::Construct(const FArguments& InArgs, const TSharedRef<FAnimModel_AnimMontage>& InModel)
 {
 	SAnimTrackPanel::Construct( SAnimTrackPanel::FArguments()
 		.WidgetWidth(InArgs._WidgetWidth)
@@ -39,137 +45,570 @@ void SAnimMontagePanel::Construct(const FArguments& InArgs, FSimpleMulticastDele
 		.InputMax(InArgs._InputMax)
 		.OnSetInputViewRange(InArgs._OnSetInputViewRange));
 
+	WeakModel = InModel;
 	Montage = InArgs._Montage;
 	OnInvokeTab = InArgs._OnInvokeTab;
-	MontageEditor = InArgs._MontageEditor;
 	SectionTimingNodeVisibility = InArgs._SectionTimingNodeVisibility;
-	OnSetMontagePreviewSlot = InArgs._OnSetMontagePreviewSlot;
 	CurrentPreviewSlot = 0;
+	bIsSelecting = false;
+
+	InModel->OnHandleObjectsSelected().AddSP(this, &SAnimMontagePanel::HandleObjectsSelected);
 
 	bChildAnimMontage = InArgs._bChildAnimMontage;
 
 	//TrackStyle = TRACK_Double;
 	CurrentPosition = InArgs._CurrentPosition;
 
+	bIsActiveTimerRegistered = false;
+
+	EnsureStartingSection();
+	EnsureSlotNode();
+
+	if(GEditor)
+	{
+		GEditor->RegisterForUndo(this);
+	}
+
 	this->ChildSlot
 	[
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.FillHeight(1)
-		[
-			SNew( SExpandableArea )
-			.AreaTitle( LOCTEXT("Montage", "Montage") )
-			.BodyContent()
-			[
-				SAssignNew( PanelArea, SBorder )
-				.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-				.Padding( FMargin(2.0f, 2.0f) )
-				.ColorAndOpacity( FLinearColor::White )
-			]
-		]
+		SAssignNew( PanelArea, SBorder )
+		.Padding(0.0f)
+		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.ColorAndOpacity( FLinearColor::White )
 	];
 
-	ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::LoadModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
-	TSharedPtr<IEditableSkeleton> EditableSkeleton = SkeletonEditorModule.CreateEditableSkeleton(Montage->GetSkeleton());
-	EditableSkeleton->RegisterOnNotifiesChanged(FSimpleDelegate::CreateSP(this, &SAnimMontagePanel::Update));
+	InModel->GetEditableSkeleton()->RegisterOnNotifiesChanged(FSimpleDelegate::CreateSP(this, &SAnimMontagePanel::Update));
+	InModel->OnTracksChanged().Add(FSimpleDelegate::CreateSP(this, &SAnimMontagePanel::Update));
 
-	OnSectionsChanged.Add(FSimpleDelegate::CreateSP(this, &SAnimMontagePanel::Update));
+	CollapseMontage();
 
 	Update();
 }
 
-/** This is the main function that creates the UI widgets for the montage tool.*/
+SAnimMontagePanel::~SAnimMontagePanel()
+{
+	if(GEditor)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
+}
+
+UAnimPreviewInstance* SAnimMontagePanel::GetPreviewInstance() const
+{
+	UDebugSkelMeshComponent* PreviewMeshComponent = WeakModel.Pin()->GetPreviewScene()->GetPreviewMeshComponent();
+	return PreviewMeshComponent && PreviewMeshComponent->IsPreviewOn()? PreviewMeshComponent->PreviewInstance : nullptr;
+}
+
+FReply SAnimMontagePanel::OnFindParentClassInContentBrowserClicked()
+{
+	if (Montage != nullptr)
+	{
+		UObject* ParentClass = Montage->ParentAsset;
+		if (ParentClass != nullptr)
+		{
+			TArray< UObject* > ParentObjectList;
+			ParentObjectList.Add(ParentClass);
+			GEditor->SyncBrowserToObjects(ParentObjectList);
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply SAnimMontagePanel::OnEditParentClassClicked()
+{
+	if (Montage != nullptr)
+	{
+		UObject* ParentClass = Montage->ParentAsset;
+		if (ParentClass != nullptr)
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentClass);
+		}
+	}
+
+	return FReply::Handled();
+}
+
+void SAnimMontagePanel::OnSetMontagePreviewSlot(int32 SlotIndex)
+{
+	UAnimSingleNodeInstance * PreviewInstance = GetPreviewInstance();
+	if (PreviewInstance && Montage->SlotAnimTracks.IsValidIndex(SlotIndex))
+	{
+		const FName SlotName = Montage->SlotAnimTracks[SlotIndex].SlotName;
+		PreviewInstance->SetMontagePreviewSlot(SlotName);
+	}
+}
+
+bool SAnimMontagePanel::ValidIndexes(int32 AnimSlotIndex, int32 AnimSegmentIndex) const
+{
+	return (Montage != nullptr && Montage->SlotAnimTracks.IsValidIndex(AnimSlotIndex) && Montage->SlotAnimTracks[AnimSlotIndex].AnimTrack.AnimSegments.IsValidIndex(AnimSegmentIndex) );
+}
+
+bool SAnimMontagePanel::ValidSection(int32 SectionIndex) const
+{
+	return (Montage != nullptr && Montage->CompositeSections.IsValidIndex(SectionIndex));
+}
+
+void SAnimMontagePanel::HandleNotifiesChanged()
+{
+	WeakModel.Pin()->OnTracksChanged().Broadcast();
+}
+
+
+bool SAnimMontagePanel::GetSectionTime( int32 SectionIndex, float &OutTime ) const
+{
+	if (Montage != nullptr && Montage->CompositeSections.IsValidIndex(SectionIndex))
+	{
+		OutTime = Montage->CompositeSections[SectionIndex].GetTime();
+		return true;
+	}
+
+	return false;
+}
+
+TArray<FString>	SAnimMontagePanel::GetSectionNames() const
+{
+	TArray<FString> Names;
+	if (Montage != nullptr)
+	{
+		for( int32 I=0; I < Montage->CompositeSections.Num(); I++)
+		{
+			Names.Add(Montage->CompositeSections[I].SectionName.ToString());
+		}
+	}
+	return Names;
+}
+
+TArray<float> SAnimMontagePanel::GetSectionStartTimes() const
+{
+	TArray<float>	Times;
+	if (Montage != nullptr)
+	{
+		for( int32 I=0; I < Montage->CompositeSections.Num(); I++)
+		{
+			Times.Add(Montage->CompositeSections[I].GetTime());
+		}
+	}
+	return Times;
+}
+
+TArray<FTrackMarkerBar> SAnimMontagePanel::GetMarkerBarInformation() const
+{
+	TArray<FTrackMarkerBar> MarkerBars;
+	if (Montage != nullptr)
+	{
+		for( int32 I=0; I < Montage->CompositeSections.Num(); I++)
+		{
+			FTrackMarkerBar Bar;
+			Bar.Time = Montage->CompositeSections[I].GetTime();
+			Bar.DrawColour = FLinearColor(0.f,1.f,0.f);
+			MarkerBars.Add(Bar);
+		}
+	}
+	return MarkerBars;
+}
+
+TArray<float> SAnimMontagePanel::GetAnimSegmentStartTimes() const
+{
+	TArray<float>	Times;
+	if (Montage != nullptr)
+	{
+		for ( int32 i=0; i < Montage->SlotAnimTracks.Num(); i++)
+		{
+			for (int32 j=0; j < Montage->SlotAnimTracks[i].AnimTrack.AnimSegments.Num(); j++)
+			{
+				Times.Add( Montage->SlotAnimTracks[i].AnimTrack.AnimSegments[j].StartPos );
+			}
+		}
+	}
+	return Times;
+}
+
+void SAnimMontagePanel::PreAnimUpdate()
+{
+	Montage->Modify();
+}
+
+void SAnimMontagePanel::OnMontageModified()
+{
+	Montage->PostEditChange();
+	Montage->MarkPackageDirty();
+}
+
+void SAnimMontagePanel::PostAnimUpdate()
+{
+	SortAndUpdateMontage();
+	OnMontageModified();
+}
+
+bool SAnimMontagePanel::IsDiffererentFromParent(FName SlotName, int32 SegmentIdx, const FAnimSegment& Segment)
+{
+	// if it doesn't hare parent asset, no reason to come here
+	if (Montage && ensureAlways(Montage->ParentAsset))
+	{
+		// find correct source asset from parent
+		UAnimMontage* ParentMontage = Cast<UAnimMontage>(Montage->ParentAsset);
+		if (ParentMontage->IsValidSlot(SlotName))
+		{
+			const FAnimTrack* ParentTrack = ParentMontage->GetAnimationData(SlotName);
+
+			if (ParentTrack && ParentTrack->AnimSegments.IsValidIndex(SegmentIdx))
+			{
+				UAnimSequenceBase* SourceAsset = ParentTrack->AnimSegments[SegmentIdx].AnimReference;
+				return (SourceAsset != Segment.AnimReference);
+			}
+		}
+	}
+
+	// if something doesn't match, we assume they're different, so default feedback  is to return true
+	return true;
+}
+
+void SAnimMontagePanel::ReplaceAnimationMapping(FName SlotName, int32 SegmentIdx, UAnimSequenceBase* OldSequenceBase, UAnimSequenceBase* NewSequenceBase)
+{
+	// if it doesn't hare parent asset, no reason to come here
+	if (Montage && ensureAlways(Montage->ParentAsset))
+	{
+		// find correct source asset from parent
+		UAnimMontage* ParentMontage = Cast<UAnimMontage>(Montage->ParentAsset);
+		if (ParentMontage->IsValidSlot(SlotName))
+		{
+			const FAnimTrack* ParentTrack = ParentMontage->GetAnimationData(SlotName);
+
+			if (ParentTrack && ParentTrack->AnimSegments.IsValidIndex(SegmentIdx))
+			{
+				UAnimSequenceBase* SourceAsset = ParentTrack->AnimSegments[SegmentIdx].AnimReference;
+				if (Montage->RemapAsset(SourceAsset, NewSequenceBase))
+				{
+					// success
+					return;
+				}
+			}
+		}
+	}
+
+	// failed to do the process, check if the animation is correct or if the same type of animation
+	// print error
+	FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FailedToRemap", "Make sure the target animation is valid. If source is additive, target animation has to be additive also."));
+}
+
+void SAnimMontagePanel::RebuildMontagePanel(bool bNotifyAsset /*= true*/)
+{
+	SortAndUpdateMontage();
+	WeakModel.Pin()->OnSectionsChanged.Execute();
+
+	if (bNotifyAsset)
+	{
+		OnMontageModified();
+	}
+}
+
+
+/** This will remove empty spaces in the montage's anim segment but not resort. e.g. - all cached indexes remains valid. UI IS NOT REBUILT after this */
+void SAnimMontagePanel::CollapseMontage()
+{
+	if (Montage==nullptr)
+	{
+		return;
+	}
+
+	for (int32 i=0; i < Montage->SlotAnimTracks.Num(); i++)
+	{
+		Montage->SlotAnimTracks[i].AnimTrack.CollapseAnimSegments();
+	}
+
+	Montage->UpdateLinkableElements();
+
+	WeakModel.Pin()->RecalculateSequenceLength();
+}
+
+/** This will sort all components of the montage and update (recreate) the UI */
+void SAnimMontagePanel::SortAndUpdateMontage()
+{
+	if (Montage==nullptr)
+	{
+		return;
+	}
+	
+	SortAnimSegments();
+
+	Montage->UpdateLinkableElements();
+
+	WeakModel.Pin()->RecalculateSequenceLength();
+
+	SortSections();
+
+	StaticCastSharedPtr<FAnimModel_AnimMontage>(WeakModel.Pin())->RefreshNotifyTriggerOffsets();
+
+	// Update view (this will recreate everything)
+// 	AnimMontagePanel->Update();
+// 	AnimMontageSectionsPanel->Update();
+// 	AnimTimingPanel->Update();
+
+	WeakModel.Pin()->RefreshTracks();
+
+	// Restart the preview instance of the montage
+	RestartPreview();
+}
+
+
+/** Make sure all Sections and Notifies are clamped to NewEndTime (called before NewEndTime is set to SequenceLength) */
+bool SAnimMontagePanel::ClampToEndTime(float NewEndTime)
+{
+	float SequenceLength = GetSequenceLength();
+
+	bool bClampingNeeded = (SequenceLength > 0.f && NewEndTime < SequenceLength);
+	if(bClampingNeeded)
+	{
+		float ratio = NewEndTime / Montage->SequenceLength;
+
+		for(int32 i=0; i < Montage->CompositeSections.Num(); i++)
+		{
+			if(Montage->CompositeSections[i].GetTime() > NewEndTime)
+			{
+				float CurrentTime = Montage->CompositeSections[i].GetTime();
+				Montage->CompositeSections[i].SetTime(CurrentTime * ratio);
+			}
+		}
+
+		for(int32 i=0; i < Montage->Notifies.Num(); i++)
+		{
+			FAnimNotifyEvent& Notify = Montage->Notifies[i];
+			float NotifyTime = Notify.GetTime();
+
+			if(NotifyTime >= NewEndTime)
+			{
+				Notify.SetTime(NotifyTime * ratio);
+				Notify.TriggerTimeOffset = GetTriggerTimeOffsetForType(Montage->CalculateOffsetForNotify(Notify.GetTime()));
+			}
+		}
+	}
+
+	return bClampingNeeded;
+}
+
+void SAnimMontagePanel::AddNewSection(float StartTime, FString SectionName)
+{
+	if ( Montage != nullptr )
+	{
+		const FScopedTransaction Transaction( LOCTEXT("AddNewSection", "Add New Section") );
+		Montage->Modify();
+
+		if (Montage->AddAnimCompositeSection(FName(*SectionName), StartTime) != INDEX_NONE)
+		{
+			RebuildMontagePanel();
+		}
+		OnMontageModified();
+		WeakModel.Pin()->OnSectionsChanged.Execute();
+	}
+}
+
+void SAnimMontagePanel::RemoveSection(int32 SectionIndex)
+{
+	if(ValidSection(SectionIndex))
+	{
+		const FScopedTransaction Transaction( LOCTEXT("DeleteSection", "Delete Section") );
+		Montage->Modify();
+
+		Montage->CompositeSections.RemoveAt(SectionIndex);
+		EnsureStartingSection();
+		OnMontageModified();
+		WeakModel.Pin()->RefreshTracks();
+		WeakModel.Pin()->OnSectionsChanged.Execute();
+		RestartPreview();
+	}
+}
+
+FString	SAnimMontagePanel::GetSectionName(int32 SectionIndex) const
+{
+	if (ValidSection(SectionIndex))
+	{
+		return Montage->GetSectionName(SectionIndex).ToString();
+	}
+	return FString();
+}
+
+void SAnimMontagePanel::RenameSlotNode(int32 SlotIndex, FString NewSlotName)
+{
+	if(Montage->SlotAnimTracks.IsValidIndex(SlotIndex))
+	{
+		FName NewName(*NewSlotName);
+		if(Montage->SlotAnimTracks[SlotIndex].SlotName != NewName)
+		{
+			const FScopedTransaction Transaction( LOCTEXT("RenameSlot", "Rename Slot") );
+			WeakModel.Pin()->GetEditableSkeleton()->RegisterSlotNode(NewName);
+
+			Montage->Modify();
+
+			Montage->SlotAnimTracks[SlotIndex].SlotName = NewName;
+			OnMontageModified();
+		}
+	}
+}
+
+void SAnimMontagePanel::AddNewMontageSlot( FName NewSlotName )
+{
+	if ( Montage != nullptr )
+	{
+		const FScopedTransaction Transaction( LOCTEXT("AddSlot", "Add Slot") );
+
+		WeakModel.Pin()->GetEditableSkeleton()->RegisterSlotNode(NewSlotName);
+
+		Montage->Modify();
+
+		Montage->AddSlot(NewSlotName);
+
+		OnMontageModified();
+
+		Update();
+
+		WeakModel.Pin()->RefreshTracks();
+	}
+}
+
+FText SAnimMontagePanel::GetMontageSlotName(int32 SlotIndex) const
+{
+	if(Montage->SlotAnimTracks.IsValidIndex(SlotIndex) && Montage->SlotAnimTracks[SlotIndex].SlotName != NAME_None)
+	{
+		return FText::FromName( Montage->SlotAnimTracks[SlotIndex].SlotName );
+	}	
+	return FText::GetEmpty();
+}
+
+void SAnimMontagePanel::RemoveMontageSlot(int32 AnimSlotIndex)
+{
+	if ( Montage != nullptr && Montage->SlotAnimTracks.IsValidIndex( AnimSlotIndex ) )
+	{
+		const FScopedTransaction Transaction( LOCTEXT("RemoveSlot", "Remove Slot") );
+		Montage->Modify();
+
+		Montage->SlotAnimTracks.RemoveAt(AnimSlotIndex);
+		OnMontageModified();
+		Update();
+
+		// Iterate the notifies and relink anything that is now invalid
+		for(FAnimNotifyEvent& Event : Montage->Notifies)
+		{
+			Event.ConditionalRelink();
+		}
+
+		// Do the same for sections
+		for(FCompositeSection& Section : Montage->CompositeSections)
+		{
+			Section.ConditionalRelink();
+		}
+
+		WeakModel.Pin()->RefreshTracks();
+	}
+}
+
+bool SAnimMontagePanel::CanRemoveMontageSlot(int32 AnimSlotIndex)
+{
+	return (Montage != nullptr) && (Montage->SlotAnimTracks.Num()) > 1;
+}
+
+void SAnimMontagePanel::DuplicateMontageSlot(int32 AnimSlotIndex)
+{
+	if (Montage != nullptr && Montage->SlotAnimTracks.IsValidIndex(AnimSlotIndex))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("DuplicateSlot", "Duplicate Slot"));
+		Montage->Modify();
+
+		FSlotAnimationTrack& NewTrack = Montage->AddSlot(FAnimSlotGroup::DefaultSlotName); 
+		NewTrack.AnimTrack = Montage->SlotAnimTracks[AnimSlotIndex].AnimTrack;
+
+		OnMontageModified();
+
+		Update();
+
+		WeakModel.Pin()->RefreshTracks();
+	}
+}
+
+void SAnimMontagePanel::RestartPreview()
+{
+	if (UDebugSkelMeshComponent* MeshComponent = WeakModel.Pin()->GetPreviewScene()->GetPreviewMeshComponent())
+	{
+		if (UAnimPreviewInstance* Preview = MeshComponent->PreviewInstance)
+		{
+			Preview->MontagePreview_PreviewNormal(INDEX_NONE, Preview->IsPlaying());
+		}
+	}
+}
+
+void SAnimMontagePanel::RestartPreviewPlayAllSections()
+{
+	if (UDebugSkelMeshComponent* MeshComponent = WeakModel.Pin()->GetPreviewScene()->GetPreviewMeshComponent())
+	{
+		if (UAnimPreviewInstance* Preview = MeshComponent->PreviewInstance)
+		{
+			Preview->MontagePreview_PreviewAllSections(Preview->IsPlaying());
+		}
+	}
+}
+
+void SAnimMontagePanel::MakeDefaultSequentialSections()
+{
+	check( Montage != nullptr );
+	SortSections();
+	for(int32 SectionIdx=0; SectionIdx < Montage->CompositeSections.Num(); SectionIdx++)
+	{
+		Montage->CompositeSections[SectionIdx].NextSectionName = Montage->CompositeSections.IsValidIndex(SectionIdx+1) ? Montage->CompositeSections[SectionIdx+1].SectionName : NAME_None;
+	}
+	RestartPreview();
+}
+
+void SAnimMontagePanel::ClearSquenceOrdering()
+{
+	check( Montage != nullptr );
+	SortSections();
+	for(int32 SectionIdx=0; SectionIdx < Montage->CompositeSections.Num(); SectionIdx++)
+	{
+		Montage->CompositeSections[SectionIdx].NextSectionName = NAME_None;
+	}
+	RestartPreview();
+}
+
+void SAnimMontagePanel::PostUndo( bool bSuccess )
+{
+	PostRedoUndo();
+}
+
+void SAnimMontagePanel::PostRedo( bool bSuccess )
+{
+	PostRedoUndo();
+}
+
+void SAnimMontagePanel::PostRedoUndo()
+{
+	// when undo or redo happens, we still have to recalculate length, so we can't rely on sequence length changes or not
+	if (Montage->SequenceLength)
+	{
+		Montage->SequenceLength = 0.f;
+	}
+
+	RebuildMontagePanel(); //Rebuild here, undoing adds can cause slate to crash later on if we don't (using dummy args since they aren't used by the method
+}
+
 void SAnimMontagePanel::Update()
 {
-	if ( Montage != NULL )
+	if ( Montage != nullptr )
 	{
 		CurrentPreviewSlot = FMath::Clamp(CurrentPreviewSlot, 0, Montage->SlotAnimTracks.Num() - 1);
-		OnSetMontagePreviewSlot.ExecuteIfBound(CurrentPreviewSlot);
+		OnSetMontagePreviewSlot(CurrentPreviewSlot);
 
-		SMontageEditor * Editor = MontageEditor.Pin().Get();
 		int32 ColorIdx=0;
-		//FLinearColor Colors[] = { FLinearColor(0.9f, 0.9f, 0.9f, 0.9f), FLinearColor(0.5f, 0.5f, 0.5f) };
 		
-		TSharedPtr<FTrackColorTracker> ColourTracker = MakeShareable(new FTrackColorTracker);
-		ColourTracker->AddColor(FLinearColor(0.9f, 0.9f, 0.9f, 0.9f));
-		ColourTracker->AddColor(FLinearColor(0.5f, 0.5f, 0.5f));
-
 		FLinearColor NodeColor = FLinearColor(0.f, 0.5f, 0.0f, 0.5f);
-		//FLinearColor SelectedColor = FLinearColor(1.0f,0.65,0.0f);
 
 		TSharedPtr<SVerticalBox> MontageSlots;
 		PanelArea->SetContent(
 			SAssignNew( MontageSlots, SVerticalBox )
 			);
 
-		/************************************************************************/
-		/* Status Bar                                                                     */
-		/************************************************************************/
-		{
-			MontageSlots->AddSlot()
-				.AutoHeight()
-				[
-					// Header, shows name of timeline we are editing
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
-					.HAlign(HAlign_Center)
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.FillWidth(3.f)
-						.HAlign(HAlign_Right)
-						.VAlign(VAlign_Center)
-						[
-							SAssignNew(StatusBarWarningImage, SImage)
-							.Image(FEditorStyle::GetBrush("AnimSlotManager.Warning"))
-							.Visibility(EVisibility::Hidden)
-						]
+		MontageSlots->ClearChildren();
 
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						[
-							SAssignNew(StatusBarTextBlock, STextBlock)
-							.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
-							.ColorAndOpacity(FLinearColor(1, 1, 1, 0.5))
-						]
-					]
-				];
-		}
-
-		// ===================================
-		// Section Name Track
-		// ===================================
-		{
-			TSharedRef<S2ColumnWidget> SectionTrack = Create2ColumnWidget(MontageSlots.ToSharedRef());
-
-			SectionTrack->LeftColumn->ClearChildren();
-			SectionTrack->LeftColumn->AddSlot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding( FMargin(0.5f, 0.5f) )
-				[
-					SAssignNew(SectionNameTrack, STrack)
-					.IsEnabled(!bChildAnimMontage)
-					.ViewInputMin(ViewInputMin)
-					.ViewInputMax(ViewInputMax)
-					.TrackColor( ColourTracker->GetNextColor() )
-					.OnBarDrag(Editor, &SMontageEditor::OnEditSectionTime)
-					.OnBarDrop(Editor, &SMontageEditor::OnEditSectionTimeFinish)
-					.OnBarClicked(SharedThis(this), &SAnimMontagePanel::ShowSectionInDetailsView)
-					.DraggableBars(Editor, &SMontageEditor::GetSectionStartTimes)
-					.DraggableBarSnapPositions(Editor, &SMontageEditor::GetAnimSegmentStartTimes)
-					.DraggableBarLabels(Editor, &SMontageEditor::GetSectionNames)
-					.TrackMaxValue(this, &SAnimMontagePanel::GetSequenceLength)
-					.TrackNumDiscreteValues(Montage->GetNumberOfFrames())
-					.OnTrackRightClickContextMenu( this, &SAnimMontagePanel::SummonTrackContextMenu, static_cast<int>(INDEX_NONE))
-					.ScrubPosition( Editor, &SMontageEditor::GetScrubValue )
-				];
-
-			RefreshTimingNodes();
-		}
+		RefreshTimingNodes();
 
 		// ===================================
 		// Anim Segment Tracks
@@ -189,88 +628,13 @@ void SAnimMontagePanel::Update()
 			check(SlotNameComboSelectedNames.Num() == NumAnimTracks);
 
 			for (int32 SlotAnimIdx = 0; SlotAnimIdx < NumAnimTracks; SlotAnimIdx++)
-			{
-				TSharedRef<S2ColumnWidget> SectionTrack = Create2ColumnWidget(MontageSlots.ToSharedRef());
-				
+			{			
 				int32 FoundIndex = SlotNameList.Find(SlotNameComboSelectedNames[SlotAnimIdx]);
 				TSharedPtr<FString> ComboItem = SlotNameComboListItems[FoundIndex];
 
-				// Right column
-				SectionTrack->RightColumn->AddSlot()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Fill)
-				.FillHeight(1)
-				[
-					SNew(SVerticalBox)
-
-					+ SVerticalBox::Slot()
-					.HAlign(HAlign_Fill)
-					[
-						SAssignNew(SlotNameComboBoxes[SlotAnimIdx], STextComboBox)
-						.OptionsSource(&SlotNameComboListItems)
-						.OnSelectionChanged(this, &SAnimMontagePanel::OnSlotNameChanged, SlotAnimIdx)
-						.OnComboBoxOpening(this, &SAnimMontagePanel::OnSlotListOpening, SlotAnimIdx)
-						.InitiallySelectedItem(ComboItem)
-						.ContentPadding(2)
-						.ToolTipText(FText::FromString(*ComboItem))
-					]
-
-					+ SVerticalBox::Slot()
-						.HAlign(HAlign_Left)
-						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.HAlign(HAlign_Left)
-							[
-								SNew(SButton)
-								.Text(LOCTEXT("AnimSlotNode_DetailPanelManageButtonLabel", "Anim Slot Manager"))
-								.ToolTipText(LOCTEXT("AnimSlotNode_DetailPanelManageButtonToolTipText", "Open Anim Slot Manager to edit Slots and Groups."))
-								.OnClicked(this, &SAnimMontagePanel::OnOpenAnimSlotManager)
-								.Content()
-								[
-									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("MeshPaint.FindInCB"))
-								]
-							]
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.HAlign(HAlign_Left)
-							.VAlign(VAlign_Center)
-							[
-								SNew(SCheckBox)
-								.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
-								.ToolTipText(LOCTEXT("DetailPanelPreviewToolTipText", "Preview this slot in the editor"))
-								.IsChecked(this, &SAnimMontagePanel::IsSlotPreviewed, SlotAnimIdx)
-								.OnCheckStateChanged(this, &SAnimMontagePanel::OnSlotPreviewedChanged, SlotAnimIdx)
-								[
-									SNew(SBox)
-									.VAlign(VAlign_Center)
-									.HAlign(HAlign_Center)
-									.Padding(FMargin(4.0, 2.0))
-									[
-										SNew(STextBlock)
-										.Text(LOCTEXT("DetailPanelPreview", "Preview"))
-									]
-								]
-							]
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.FillWidth(2.f)
-							.HAlign(HAlign_Left)
-							.VAlign(VAlign_Center)
-							[
-								SAssignNew(SlotWarningImages[SlotAnimIdx], SImage)
-								.Image(FEditorStyle::GetBrush("AnimSlotManager.Warning"))
-								.Visibility(EVisibility::Hidden)
-							]
-						]
-				];
-
-				SectionTrack->RightColumn->SetEnabled(!bChildAnimMontage);
 				if (bChildAnimMontage)
 				{
-					SectionTrack->LeftColumn->AddSlot()
+					MontageSlots->AddSlot()
 					.AutoHeight()
 					.VAlign(VAlign_Center)
 					[
@@ -280,14 +644,12 @@ void SAnimMontagePanel::Update()
 						.NodeSelectionSet(&SelectionSet)
 						.ViewInputMin(ViewInputMin)
 						.ViewInputMax(ViewInputMax)
-						.ColorTracker(ColourTracker)
 						.bChildAnimMontage(bChildAnimMontage)
-						.NodeColor(NodeColor)
-						.OnPreAnimUpdate(Editor, &SMontageEditor::PreAnimUpdate)
-						.OnPostAnimUpdate(Editor, &SMontageEditor::PostAnimUpdate)
-						.OnAnimReplaceMapping(Editor, &SMontageEditor::ReplaceAnimationMapping)
-						.OnDiffFromParentAsset(Editor, &SMontageEditor::IsDiffererentFromParent)
-						.ScrubPosition(Editor, &SMontageEditor::GetScrubValue)
+						.OnGetNodeColor_Lambda([NodeColor](const FAnimSegment& InSegment){ return NodeColor; })
+						.OnPreAnimUpdate(this, &SAnimMontagePanel::PreAnimUpdate)
+						.OnPostAnimUpdate(this, &SAnimMontagePanel::PostAnimUpdate)
+						.OnAnimReplaceMapping(this, &SAnimMontagePanel::ReplaceAnimationMapping)
+						.OnDiffFromParentAsset(this, &SAnimMontagePanel::IsDiffererentFromParent)
 						.TrackMaxValue(this, &SAnimMontagePanel::GetSequenceLength)
 						.TrackNumDiscreteValues(Montage->GetNumberOfFrames())
 					];
@@ -295,7 +657,7 @@ void SAnimMontagePanel::Update()
 				}
 				else
 				{
-					SectionTrack->LeftColumn->AddSlot()
+					MontageSlots->AddSlot()
 					.AutoHeight()
 					.VAlign(VAlign_Center)
 					[
@@ -305,37 +667,19 @@ void SAnimMontagePanel::Update()
 						.NodeSelectionSet(&SelectionSet)
 						.ViewInputMin(ViewInputMin)
 						.ViewInputMax(ViewInputMax)
-						.ColorTracker(ColourTracker)
 						.bChildAnimMontage(bChildAnimMontage)
-						.NodeColor(NodeColor)
-						.DraggableBars(Editor, &SMontageEditor::GetSectionStartTimes)
-						.DraggableBarSnapPositions(Editor, &SMontageEditor::GetAnimSegmentStartTimes)
-						.ScrubPosition(Editor, &SMontageEditor::GetScrubValue)
+						.OnGetNodeColor_Lambda([NodeColor](const FAnimSegment& InSegment){ return NodeColor; })
 						.TrackMaxValue(this, &SAnimMontagePanel::GetSequenceLength)
 						.TrackNumDiscreteValues(Montage->GetNumberOfFrames())
 						.OnAnimSegmentNodeClicked(this, &SAnimMontagePanel::ShowSegmentInDetailsView, SlotAnimIdx)
-						.OnPreAnimUpdate(Editor, &SMontageEditor::PreAnimUpdate)
-						.OnPostAnimUpdate(Editor, &SMontageEditor::PostAnimUpdate)
+						.OnPreAnimUpdate(this, &SAnimMontagePanel::PreAnimUpdate)
+						.OnPostAnimUpdate(this, &SAnimMontagePanel::PostAnimUpdate)
 						.OnAnimSegmentRemoved(this, &SAnimMontagePanel::OnAnimSegmentRemoved, SlotAnimIdx)
-						.OnBarDrag(Editor, &SMontageEditor::OnEditSectionTime)
-						.OnBarDrop(Editor, &SMontageEditor::OnEditSectionTimeFinish)
-						.OnBarClicked(SharedThis(this), &SAnimMontagePanel::ShowSectionInDetailsView)
 						.OnTrackRightClickContextMenu(this, &SAnimMontagePanel::SummonTrackContextMenu, static_cast<int>(SlotAnimIdx))
 					];
 				}
 			}
 		}
-	}
-
-	UpdateSlotGroupWarningVisibility();
-}
-
-void SAnimMontagePanel::SetMontage(class UAnimMontage * InMontage)
-{
-	if (InMontage != Montage)
-	{
-		Montage = InMontage;
-		Update();
 	}
 }
 
@@ -359,77 +703,7 @@ void SAnimMontagePanel::SummonTrackContextMenu( FMenuBuilder& MenuBuilder, float
 		UIAction.ExecuteAction.BindRaw(this, &SAnimMontagePanel::OnNewSectionClicked, static_cast<float>(DataPosX));
 		UIAction.CanExecuteAction.BindRaw(this, &SAnimMontagePanel::CanAddNewSection);
 		MenuBuilder.AddMenuEntry(LOCTEXT("NewMontageSection", "New Montage Section"), LOCTEXT("NewMontageSectionToolTip", "Adds a new Montage Section"), FSlateIcon(), UIAction);
-	
 		UIAction.CanExecuteAction.Unbind();
-
-		if (SectionIndex != INDEX_NONE && Montage->CompositeSections.Num() > 1) // Can't delete the last section!
-		{
-			UIAction.ExecuteAction.BindRaw(MontageEditor.Pin().Get(), &SMontageEditor::RemoveSection, SectionIndex);
-			MenuBuilder.AddMenuEntry(LOCTEXT("DeleteMontageSection", "Delete Montage Section"), LOCTEXT("DeleteMontageSectionToolTip", "Deletes Montage Section"), FSlateIcon(), UIAction);
-
-			FCompositeSection& Section = Montage->CompositeSections[SectionIndex];
-
-			// Add item to directly set section time
-			TSharedRef<SWidget> TimeWidget = 
-				SNew( SBox )
-				.HAlign( HAlign_Right )
-				.ToolTipText(LOCTEXT("SetSectionTimeToolTip", "Set the time of this section directly"))
-				[
-					SNew(SBox)
-					.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-					.WidthOverride(100.0f)
-					[
-						SNew(SNumericEntryBox<float>)
-						.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-						.MinValue(0.0f)
-						.MaxValue(Montage->SequenceLength)
-						.Value(Section.GetTime())
-						.AllowSpin(true)
-						.OnValueCommitted_Lambda([this, SectionIndex](float InValue, ETextCommit::Type InCommitType)
-						{
-							if (Montage->CompositeSections.IsValidIndex(SectionIndex))
-							{
-								MontageEditor.Pin()->SetSectionTime(SectionIndex, InValue);
-							}
-
-							FSlateApplication::Get().DismissAllMenus();
-						})
-					]
-				];
-
-			MenuBuilder.AddWidget(TimeWidget, LOCTEXT("SectionTimeMenuText", "Section Time"));
-
-			// Add item to directly set section frame
-			TSharedRef<SWidget> FrameWidget = 
-				SNew( SBox )
-				.HAlign( HAlign_Right )
-				.ToolTipText(LOCTEXT("SetFrameToolTip", "Set the frame of this section directly"))
-				[
-					SNew(SBox)
-					.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-					.WidthOverride(100.0f)
-					[
-						SNew(SNumericEntryBox<int32>)
-						.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-						.MinValue(0)
-						.MaxValue(Montage->GetNumberOfFrames())
-						.Value(Montage->GetFrameAtTime(Section.GetTime()))
-						.AllowSpin(true)						
-						.OnValueCommitted_Lambda([this, SectionIndex](int32 InValue, ETextCommit::Type InCommitType)
-						{
-							if (Montage->CompositeSections.IsValidIndex(SectionIndex))
-							{
-								float NewTime = FMath::Clamp(Montage->GetTimeAtFrame(InValue), 0.0f, Montage->SequenceLength);
-								MontageEditor.Pin()->SetSectionTime(SectionIndex, NewTime);
-							}
-
-							FSlateApplication::Get().DismissAllMenus();
-						})
-					]
-				];
-
-			MenuBuilder.AddWidget(FrameWidget, LOCTEXT("SectionFrameMenuText", "Section Frame"));
-		}
 	}
 	MenuBuilder.EndSection();
 
@@ -441,12 +715,12 @@ void SAnimMontagePanel::SummonTrackContextMenu( FMenuBuilder& MenuBuilder, float
 
 		if(AnimSlotIndex != INDEX_NONE)
 		{
-			UIAction.ExecuteAction.BindRaw(MontageEditor.Pin().Get(), &SMontageEditor::RemoveMontageSlot, AnimSlotIndex);
-			UIAction.CanExecuteAction.BindRaw(MontageEditor.Pin().Get(), &SMontageEditor::CanRemoveMontageSlot, AnimSlotIndex);
+			UIAction.ExecuteAction.BindRaw(this, &SAnimMontagePanel::RemoveMontageSlot, AnimSlotIndex);
+			UIAction.CanExecuteAction.BindRaw(this, &SAnimMontagePanel::CanRemoveMontageSlot, AnimSlotIndex);
 			MenuBuilder.AddMenuEntry(LOCTEXT("DeleteSlot", "Delete Slot"), LOCTEXT("DeleteSlotToolTip", "Deletes Slot"), FSlateIcon(), UIAction);
 			UIAction.CanExecuteAction.Unbind();
 
-			UIAction.ExecuteAction.BindRaw(MontageEditor.Pin().Get(), &SMontageEditor::DuplicateMontageSlot, AnimSlotIndex);
+			UIAction.ExecuteAction.BindRaw(this, &SAnimMontagePanel::DuplicateMontageSlot, AnimSlotIndex);
 			MenuBuilder.AddMenuEntry(LOCTEXT("DuplicateSlot", "Duplicate Slot"), LOCTEXT("DuplicateSlotToolTip", "Duplicates the slected slot"), FSlateIcon(), UIAction);
 		}
 	}
@@ -485,14 +759,14 @@ void SAnimMontagePanel::FillSlotSubMenu(FMenuBuilder& Menubuilder)
 /** Slots */
 void SAnimMontagePanel::OnNewSlotClicked()
 {
-	MontageEditor.Pin()->AddNewMontageSlot(FAnimSlotGroup::DefaultSlotName);
+	AddNewMontageSlot(FAnimSlotGroup::DefaultSlotName);
 }
 
 void SAnimMontagePanel::CreateNewSlot(const FText& NewSlotName, ETextCommit::Type CommitInfo)
 {
 	if (CommitInfo == ETextCommit::OnEnter)
 	{
-		MontageEditor.Pin()->AddNewMontageSlot(*NewSlotName.ToString());
+		AddNewMontageSlot(*NewSlotName.ToString());
 	}
 
 	FSlateApplication::Get().DismissAllMenus();
@@ -528,29 +802,70 @@ void SAnimMontagePanel::CreateNewSection(const FText& NewSectionName, ETextCommi
 {
 	if (CommitInfo == ETextCommit::OnEnter)
 	{
-		MontageEditor.Pin()->AddNewSection(StartTime,NewSectionName.ToString());
+		AddNewSection(StartTime,NewSectionName.ToString());
 	}
 	FSlateApplication::Get().DismissAllMenus();
 }
 
 void SAnimMontagePanel::ShowSegmentInDetailsView(int32 AnimSegmentIndex, int32 AnimSlotIndex)
 {
-	UEditorAnimSegment *Obj = Cast<UEditorAnimSegment>(MontageEditor.Pin()->ShowInDetailsView(UEditorAnimSegment::StaticClass()));
-	if(Obj != NULL)
+	if(!bIsSelecting)
 	{
-		Obj->InitAnimSegment(AnimSlotIndex,AnimSegmentIndex);
+		TGuardValue<bool> GuardValue(bIsSelecting, true);
+
+		UEditorAnimSegment *Obj = Cast<UEditorAnimSegment>(WeakModel.Pin()->ShowInDetailsView(UEditorAnimSegment::StaticClass()));
+		if(Obj != nullptr)
+		{
+			Obj->InitFromAnim(Montage, FOnAnimObjectChange::CreateSP(this, &SAnimMontagePanel::OnMontageChange));
+			Obj->InitAnimSegment(AnimSlotIndex,AnimSegmentIndex);
+		}
 	}
 }
 
-void SAnimMontagePanel::ShowSectionInDetailsView(int32 SectionIndex)
+EActiveTimerReturnType SAnimMontagePanel::TriggerRebuildMontagePanel(double InCurrentTime, float InDeltaTime)
 {
-	MontageEditor.Pin()->ShowSectionInDetailsView(SectionIndex);
+	RebuildMontagePanel();
+
+	bIsActiveTimerRegistered = false;
+	return EActiveTimerReturnType::Stop;
+}
+
+void SAnimMontagePanel::OnMontageChange(UObject* EditorAnimBaseObj, bool bRebuild)
+{
+	if ( Montage != nullptr )
+	{
+		float PreviousSeqLength = GetSequenceLength();
+
+		if(bRebuild && !bIsActiveTimerRegistered)
+		{
+			bIsActiveTimerRegistered = true;
+			RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SAnimMontagePanel::TriggerRebuildMontagePanel));
+		} 
+		else
+		{
+			CollapseMontage();
+		}
+
+		// if animation length changed, we might be out of range, let's restart
+		if (GetSequenceLength() != PreviousSeqLength)
+		{
+			// this might not be safe
+			RestartPreview();
+		}
+
+		OnMontageModified();
+	}
 }
 
 void SAnimMontagePanel::ClearSelected()
 {
-	SelectionSet.Empty();
-	MontageEditor.Pin()->ClearDetailsView();
+	if(!bIsSelecting)
+	{
+		TGuardValue<bool> GuardValue(bIsSelecting, true);
+
+		SelectionSet.Empty();
+		WeakModel.Pin()->ClearDetailsView();
+	}
 }
 
 void SAnimMontagePanel::OnSlotNameChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo, int32 AnimSlotIndex)
@@ -571,29 +886,24 @@ void SAnimMontagePanel::OnSlotNameChanged(TSharedPtr<FString> NewSelection, ESel
 
 			if (Montage->GetSkeleton()->ContainsSlotName(NewSlotName))
 			{
-				MontageEditor.Pin()->RenameSlotNode(AnimSlotIndex, NewSlotName.ToString());
+				RenameSlotNode(AnimSlotIndex, NewSlotName.ToString());
 			}
 			
-			UpdateSlotGroupWarningVisibility();
-
 			// Clear selection, so Details panel for AnimNotifies doesn't show outdated information.
 			ClearSelected();
 		}
 	}
 }
 
-ECheckBoxState SAnimMontagePanel::IsSlotPreviewed(int32 SlotIndex) const
+bool SAnimMontagePanel::IsSlotPreviewed(int32 SlotIndex) const
 {
-	return (SlotIndex == CurrentPreviewSlot) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return (SlotIndex == CurrentPreviewSlot);
 }
 
-void SAnimMontagePanel::OnSlotPreviewedChanged(ECheckBoxState NewState, int32 SlotIndex)
+void SAnimMontagePanel::OnSlotPreviewedChanged(int32 SlotIndex)
 {
-	if (NewState == ECheckBoxState::Checked)
-	{
-		CurrentPreviewSlot = SlotIndex;
-		OnSetMontagePreviewSlot.ExecuteIfBound(CurrentPreviewSlot);
-	}
+	CurrentPreviewSlot = SlotIndex;
+	OnSetMontagePreviewSlot(CurrentPreviewSlot);
 }
 
 void SAnimMontagePanel::OnSlotListOpening(int32 AnimSlotIndex)
@@ -602,11 +912,9 @@ void SAnimMontagePanel::OnSlotListOpening(int32 AnimSlotIndex)
 	RefreshComboLists(true);
 }
 
-FReply SAnimMontagePanel::OnOpenAnimSlotManager()
+void SAnimMontagePanel::OnOpenAnimSlotManager()
 {
 	OnInvokeTab.ExecuteIfBound(FPersonaTabs::SkeletonSlotNamesID);
-
-	return FReply::Handled();
 }
 
 void SAnimMontagePanel::RefreshComboLists(bool bOnlyRefreshIfDifferent /*= false*/)
@@ -616,7 +924,7 @@ void SAnimMontagePanel::RefreshComboLists(bool bOnlyRefreshIfDifferent /*= false
 	for (int32 TrackIndex = 0; TrackIndex < NumAnimTracks; TrackIndex++)
 	{
 		FName TrackSlotName = Montage->SlotAnimTracks[TrackIndex].SlotName;
-		Montage->GetSkeleton()->RegisterSlotNode(TrackSlotName);
+		WeakModel.Pin()->GetEditableSkeleton()->RegisterSlotNode(TrackSlotName);
 		SlotNameComboSelectedNames[TrackIndex] = TrackSlotName;
 	}
 
@@ -667,67 +975,6 @@ void SAnimMontagePanel::RefreshComboLists(bool bOnlyRefreshIfDifferent /*= false
 				}
 			}
 		}
-	}
-}
-
-void SAnimMontagePanel::UpdateSlotGroupWarningVisibility()
-{
-	bool bShowStatusBarWarning = false;
-	FName MontageGroupName = Montage->GetGroupName();
-
-	int32 NumAnimTracks = Montage->SlotAnimTracks.Num();
-	if (NumAnimTracks > 0)
-	{
-		TArray<FName> UniqueSlotNameList;
-		for (int32 TrackIndex = 0; TrackIndex < NumAnimTracks; TrackIndex++)
-		{
-			FName CurrentSlotName = SlotNameComboSelectedNames[TrackIndex];
-			FName CurrentSlotGroupName = Montage->GetSkeleton()->GetSlotGroupName(CurrentSlotName);
-
-			int32 SlotNameCount = 0;
-			for (int32 Index = 0; Index < NumAnimTracks; Index++)
-			{
-				if (CurrentSlotName == SlotNameComboSelectedNames[Index])
-				{
-					SlotNameCount++;
-				}
-			}
-			
-			// Verify that slot names are unique.
-			bool bSlotNameAlreadyInUse = UniqueSlotNameList.Contains(CurrentSlotName);
-			if (!bSlotNameAlreadyInUse)
-			{
-				UniqueSlotNameList.Add(CurrentSlotName);
-			}
-
-			bool bDifferentGroupName = (CurrentSlotGroupName != MontageGroupName);
-			bool bShowWarning = bDifferentGroupName || bSlotNameAlreadyInUse;
-			bShowStatusBarWarning = bShowStatusBarWarning || bShowWarning;
-
-			SlotWarningImages[TrackIndex]->SetVisibility(bShowWarning ? EVisibility::Visible : EVisibility::Hidden);
-			if (bDifferentGroupName)
-			{
-				FText WarningText = FText::Format(LOCTEXT("AnimMontagePanel_SlotGroupMismatchToolTipText", "Slot's group '{0}' is different than the Montage's group '{1}'. All slots must belong to the same group."), FText::FromName(CurrentSlotGroupName), FText::FromName(MontageGroupName));
-				SlotWarningImages[TrackIndex]->SetToolTipText(WarningText);
-				StatusBarTextBlock->SetText(WarningText);
-				StatusBarTextBlock->SetToolTipText(WarningText);
-			}
-			if (bSlotNameAlreadyInUse)
-			{
-				FText WarningText = FText::Format(LOCTEXT("AnimMontagePanel_SlotNameAlreadyInUseToolTipText", "Slot named '{0}' is already used in this Montage. All slots must be unique"), FText::FromName(CurrentSlotName));
-				SlotWarningImages[TrackIndex]->SetToolTipText(WarningText);
-				StatusBarTextBlock->SetText(WarningText);
-				StatusBarTextBlock->SetToolTipText(WarningText);
-			}
-		}
-	}
-
-	// Update Status bar
-	StatusBarWarningImage->SetVisibility(bShowStatusBarWarning ? EVisibility::Visible : EVisibility::Hidden);
-	if (!bShowStatusBarWarning)
-	{
-		StatusBarTextBlock->SetText(FText::Format(LOCTEXT("AnimMontagePanel_StatusBarText", "Montage Group: '{0}'"), FText::FromName(MontageGroupName)));
-		StatusBarTextBlock->SetToolTipText(LOCTEXT("AnimMontagePanel_StatusBarToolTipText", "The Montage Group is set by the first slot's group."));
 	}
 }
 
@@ -854,7 +1101,7 @@ void SAnimMontagePanel::RefreshTimingNodes()
 					.ViewInputMax(ViewInputMax)
 					.DataStartPos(Element->GetElementTime())
 					.Element(Element)
-					.bUseTooltip(false);
+					.bUseTooltip(true);
 
 				Node->SetVisibility(SectionTimingNodeVisibility);
 
@@ -864,6 +1111,56 @@ void SAnimMontagePanel::RefreshTimingNodes()
 				);
 			}
 		}
+	}
+}
+
+void SAnimMontagePanel::SortSections()
+{
+	StaticCastSharedPtr<FAnimModel_AnimMontage>(WeakModel.Pin())->SortSections();
+}
+
+void SAnimMontagePanel::EnsureStartingSection()
+{
+	StaticCastSharedPtr<FAnimModel_AnimMontage>(WeakModel.Pin())->EnsureStartingSection();
+}
+
+void SAnimMontagePanel::EnsureSlotNode()
+{
+	if (Montage && Montage->SlotAnimTracks.Num() == 0)
+	{
+		AddNewMontageSlot(FAnimSlotGroup::DefaultSlotName);
+		OnMontageModified();
+	}
+}
+
+void SAnimMontagePanel::SortAnimSegments()
+{
+	for (int32 I=0; I < Montage->SlotAnimTracks.Num(); I++)
+	{
+		Montage->SlotAnimTracks[I].AnimTrack.SortAnimSegments();
+	}
+}
+
+void SAnimMontagePanel::HandleObjectsSelected(const TArray<UObject*>& InObjects)
+{
+	if(!bIsSelecting)
+	{
+		ClearSelected();
+	}
+}
+
+void SAnimMontagePanel::SetSectionTime(int32 SectionIndex, float NewTime)
+{
+	if(Montage && Montage->CompositeSections.IsValidIndex(SectionIndex))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("EditSection", "Edit Section Start Time"));
+		Montage->Modify();
+	
+		FCompositeSection& Section = Montage->CompositeSections[SectionIndex];
+		Section.SetTime(NewTime);
+		Section.LinkMontage(Montage, NewTime);
+
+		SortAndUpdateMontage();
 	}
 }
 

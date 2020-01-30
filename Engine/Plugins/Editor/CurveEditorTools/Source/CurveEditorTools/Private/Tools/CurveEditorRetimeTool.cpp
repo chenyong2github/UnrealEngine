@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorRetimeTool.h"
 #include "CurveEditorToolCommands.h"
@@ -481,6 +481,7 @@ void FCurveEditorRetimeTool::OnDragStart()
 			// Get all Key Positions for those Handles.
 			ChannelData.FrameNumbers.SetNumUninitialized(ChannelData.Handles.Num());
 			CurveModel->GetKeyPositions(ChannelData.Handles, ChannelData.FrameNumbers);
+			ChannelData.LastDraggedFrameNumbers = ChannelData.FrameNumbers;
 		}
 
 		// Store our new data for use in OnDrag
@@ -594,7 +595,8 @@ void FCurveEditorRetimeTool::OnDrag(const FVector2D& InStartPosition, const FVec
 				NewPosition.InputValue = View->IsTimeSnapEnabled() ? CurveEditor->GetCurveSnapMetrics(ChannelData.CurveID).SnapInputSeconds(NewKeyValue) : NewKeyValue;
 
 				// Update our Curve Model with our updated data.
-				Curve->SetKeyPositions(MakeArrayView(&ChannelData.Handles[KeyIndex], 1), MakeArrayView(&NewPosition, 1));
+				Curve->SetKeyPositions(MakeArrayView(&ChannelData.Handles[KeyIndex], 1), MakeArrayView(&NewPosition, 1), EPropertyChangeType::Interactive);
+				ChannelData.LastDraggedFrameNumbers[KeyIndex] = NewPosition;
 			}
 		}
 	}
@@ -605,6 +607,22 @@ void FCurveEditorRetimeTool::OnDrag(const FVector2D& InStartPosition, const FVec
 
 void FCurveEditorRetimeTool::OnDragEnd()
 {
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	// For each curve we're affecting.
+	for (FPreDragChannelData& ChannelData : PreDragCurveData->CurveChannels)
+	{
+		for (int32 KeyIndex = 0; KeyIndex < ChannelData.Handles.Num(); KeyIndex++)
+		{
+			if (CurveEditor)
+			{
+				FCurveModel* Curve = CurveEditor->FindCurve(ChannelData.CurveID);
+				if (Curve)
+				{
+					Curve->SetKeyPositions(MakeArrayView(&ChannelData.Handles[KeyIndex], 1), MakeArrayView(&ChannelData.LastDraggedFrameNumbers[KeyIndex], 1), EPropertyChangeType::ValueSet);
+				}
+			}
+		}
+	}
 	// This finalizes the transaction
 	ActiveTransaction.Reset();
 	PreDragCurveData.Reset();

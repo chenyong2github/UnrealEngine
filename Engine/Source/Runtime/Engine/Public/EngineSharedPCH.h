@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -560,7 +560,6 @@
 #include "Math/GenericOctreePublic.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "Audio.h"
-#include "Sound/SoundClass.h"
 #include "Sound/SoundAttenuation.h"
 #include "IAudioExtensionPlugin.h"
 #include "Tickable.h"

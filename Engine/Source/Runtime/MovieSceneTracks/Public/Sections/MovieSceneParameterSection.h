@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,6 +8,7 @@
 #include "Curves/RichCurve.h"
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneBoolChannel.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "MovieSceneParameterSection.generated.h"
 
@@ -34,6 +35,44 @@ struct FScalarParameterNameAndValue
 };
 
 /**
+ * Structure representing the value of a bool parameter.
+ */
+struct FBoolParameterNameAndValue
+{
+	/** Creates a new FScalarParameterAndValue with a parameter name and a value. */
+	FBoolParameterNameAndValue(FName InParameterName, bool InValue)
+	{
+		ParameterName = InParameterName;
+		Value = InValue;
+	}
+
+	/** The name of the bool parameter. */
+	FName ParameterName;
+
+	/** The value of the bool parameter. */
+	bool Value;
+};
+
+/**
+ * Structure representing the animated value of a vector2D parameter.
+ */
+struct FVector2DParameterNameAndValue
+{
+	/** Creates a new FVectorParameterAndValue with a parameter name and a value. */
+	FVector2DParameterNameAndValue(FName InParameterName, FVector2D InValue)
+	{
+		ParameterName = InParameterName;
+		Value = InValue;
+	}
+
+	/** The name of the vector parameter. */
+	FName ParameterName;
+
+	/** The animated value of the vector parameter. */
+	FVector2D Value;
+};
+
+/**
  * Structure representing the animated value of a vector parameter.
  */
 struct FVectorParameterNameAndValue
@@ -51,7 +90,6 @@ struct FVectorParameterNameAndValue
 	/** The animated value of the vector parameter. */
 	FVector Value;
 };
-
 
 /**
  * Structure representing the animated value of a color parameter.
@@ -93,6 +131,29 @@ struct FTransformParameterNameAndValue
 };
 
 /**
+ * Structure representing an bool  parameter and it's associated animation curve.
+ */
+USTRUCT()
+struct MOVIESCENETRACKS_API FBoolParameterNameAndCurve
+{
+	GENERATED_USTRUCT_BODY()
+
+	FBoolParameterNameAndCurve()
+	{}
+
+	/** Creates a new FScalarParameterNameAndCurve for a specific scalar parameter. */
+	FBoolParameterNameAndCurve(FName InParameterName);
+
+	/** The name of the scalar parameter which is being animated. */
+	UPROPERTY()
+	FName ParameterName;
+
+	/** The curve which contains the animation data for the scalar parameter. */
+	UPROPERTY()
+	FMovieSceneBoolChannel ParameterCurve;
+};
+
+/**
  * Structure representing an animated scalar parameter and it's associated animation curve.
  */
 USTRUCT()
@@ -113,6 +174,34 @@ struct MOVIESCENETRACKS_API FScalarParameterNameAndCurve
 	/** The curve which contains the animation data for the scalar parameter. */
 	UPROPERTY()
 	FMovieSceneFloatChannel ParameterCurve;
+};
+
+/**
+ * Structure representing an animated vector2D parameter and it's associated animation curve.
+ */
+USTRUCT()
+struct MOVIESCENETRACKS_API FVector2DParameterNameAndCurves
+{
+	GENERATED_USTRUCT_BODY()
+
+	FVector2DParameterNameAndCurves()
+	{}
+
+	/** Creates a new FVectorParameterNameAndCurve for a specific vector parameter. */
+	FVector2DParameterNameAndCurves(FName InParameterName);
+
+	/** The name of the vector parameter which is being animated. */
+	UPROPERTY()
+	FName ParameterName;
+
+	/** The curve which contains the animation data for the x component of the vector parameter. */
+	UPROPERTY()
+	FMovieSceneFloatChannel XCurve;
+
+	/** The curve which contains the animation data for the y component of the vector parameter. */
+	UPROPERTY()
+	FMovieSceneFloatChannel YCurve;
+
 };
 
 
@@ -224,7 +313,13 @@ class MOVIESCENETRACKS_API UMovieSceneParameterSection
 
 public:
 	/** Adds a a key for a specific scalar parameter at the specified time with the specified value. */
-	 void AddScalarParameterKey(FName InParameterName, FFrameNumber InTime, float InValue);
+	void AddScalarParameterKey(FName InParameterName, FFrameNumber InTime, float InValue);
+
+	/** Adds a a key for a specific bool parameter at the specified time with the specified value. */
+	void AddBoolParameterKey(FName InParameterName, FFrameNumber InTime, bool InValue);
+
+	 /** Adds a a key for a specific vector2D parameter at the specified time with the specified value. */
+	 void AddVector2DParameterKey(FName InParameterName, FFrameNumber InTime, FVector2D InValue);
 
 	/** Adds a a key for a specific vector parameter at the specified time with the specified value. */
 	 void AddVectorParameterKey(FName InParameterName, FFrameNumber InTime, FVector InValue);
@@ -243,12 +338,28 @@ public:
 	 */
 	 bool RemoveScalarParameter(FName InParameterName);
 
+	 /**
+	  * Removes a bool parameter from this section.
+	  *
+	  * @param InParameterName The name of the bool parameter to remove.
+	  * @returns True if a parameter with that name was found and removed, otherwise false.
+	  */
+	 bool RemoveBoolParameter(FName InParameterName);
+
 	/**
-	 * Removes a vector parameter from this section.
+	 * Removes a vector2D parameter from this section.
 	 *
-	 * @param InParameterName The name of the vector parameter to remove.
+	 * @param InParameterName The name of the vector2D parameter to remove.
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
+	 bool RemoveVector2DParameter(FName InParameterName);
+
+	 /**
+  * Removes a vector parameter from this section.
+  *
+  * @param InParameterName The name of the vector parameter to remove.
+  * @returns True if a parameter with that name was found and removed, otherwise false.
+  */
 	 bool RemoveVectorParameter(FName InParameterName);
 
 	/**
@@ -271,6 +382,14 @@ public:
 	 TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves();
 	 const TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves() const;
 
+	 /** Gets the animated bool parameters and their associated curves. */
+	 TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves();
+	 const TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves() const;
+
+	 /** Gets the animated vector2D parameters and their associated curves. */
+	 TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves();
+	 const TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves() const;
+
 	/** Gets the animated vector parameters and their associated curves. */
 	 TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves();
 	 const TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves() const;
@@ -291,23 +410,30 @@ protected:
 	//~ UMovieSceneSection interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
-	virtual void ReconstructChannelProxy();
+	virtual void ReconstructChannelProxy(bool bForce);
 
 protected:
+	/** The bool parameter names and their associated curves. */
+	UPROPERTY()
+	TArray<FBoolParameterNameAndCurve> BoolParameterNamesAndCurves;
 
 	/** The scalar parameter names and their associated curves. */
 	UPROPERTY()
 	TArray<FScalarParameterNameAndCurve> ScalarParameterNamesAndCurves;
 
+	/** The vector3D parameter names and their associated curves. */
+	UPROPERTY()
+	TArray<FVector2DParameterNameAndCurves> Vector2DParameterNamesAndCurves;
+
 	/** The vector parameter names and their associated curves. */
 	UPROPERTY()
 	TArray<FVectorParameterNameAndCurves> VectorParameterNamesAndCurves;
 
-	/** The vector parameter names and their associated curves. */
+	/** The color parameter names and their associated curves. */
 	UPROPERTY()
 	TArray<FColorParameterNameAndCurves> ColorParameterNamesAndCurves;
 
-	/** The vector parameter names and their associated curves. */
+	/** The transform  parameter names and their associated curves. */
 	UPROPERTY()
 	TArray<FTransformParameterNameAndCurves> TransformParameterNamesAndCurves;
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AI/NavigationModifier.h"
 #include "UObject/UnrealType.h"
@@ -18,7 +18,7 @@ static const float CONVEX_HULL_POINTS_MIN_DISTANCE_SQ = 4.0f * 4.0f;
 // FNavigationLinkBase
 //----------------------------------------------------------------------//
 FNavigationLinkBase::FNavigationLinkBase() 
-	: LeftProjectHeight(0.0f), MaxFallDownLength(1000.0f), UserId(0), SnapRadius(30.f), SnapHeight(50.0f),
+	: LeftProjectHeight(0.0f), MaxFallDownLength(1000.0f), UserId(InvalidUserId), SnapRadius(30.f), SnapHeight(50.0f),
 	  Direction(ENavLinkDirection::BothWays), bUseSnapHeight(false), bSnapToCheapestArea(true),
 	  bCustomFlag0(false), bCustomFlag1(false), bCustomFlag2(false), bCustomFlag3(false), bCustomFlag4(false),
 	  bCustomFlag5(false), bCustomFlag6(false), bCustomFlag7(false)
@@ -92,12 +92,12 @@ void FNavigationLinkBase::DescribeCustomFlags(const TArray<FString>& EditableFla
 	const int32 MaxFlags = FMath::Min(8, EditableFlagNames.Num());
 	const FString CustomNameMeta = TEXT("DisplayName");
 
-	for (TFieldIterator<UProperty> PropertyIt(NavLinkPropertiesOwnerClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(NavLinkPropertiesOwnerClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Prop = *PropertyIt;
+		FProperty* Prop = *PropertyIt;
 
-		UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop);
-		UStructProperty* StructProp = Cast<UStructProperty>(ArrayProp ? ArrayProp->Inner : Prop);
+		FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
+		FStructProperty* StructProp = CastField<FStructProperty>(ArrayProp ? ArrayProp->Inner : Prop);
 
 		if (StructProp)
 		{
@@ -110,7 +110,7 @@ void FNavigationLinkBase::DescribeCustomFlags(const TArray<FString>& EditableFla
 						FString PropName(TEXT("bCustomFlag"));
 						PropName += TTypeToString<int32>::ToString(Idx);
 
-						UProperty* FlagProp = FindField<UProperty>(StructIt, *PropName);
+						FProperty* FlagProp = FindField<FProperty>(StructIt, *PropName);
 						if (FlagProp)
 						{
 							if (Idx < MaxFlags)

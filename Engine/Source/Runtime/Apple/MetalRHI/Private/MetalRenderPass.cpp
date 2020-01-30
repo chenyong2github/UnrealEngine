@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MetalRenderPass.cpp: Metal command pass wrapper.
@@ -1181,17 +1181,17 @@ void FMetalRenderPass::Dispatch(uint32 ThreadGroupCountX, uint32 ThreadGroupCoun
 		CurrentEncoder.GetComputeCommandEncoder().DispatchThreadgroups(Threadgroups, ThreadgroupCounts);
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CurrentEncoder.GetComputeCommandEncoderDebugging().DispatchThreadgroups(Threadgroups, ThreadgroupCounts));
 		
-	if (GMetalCommandBufferDebuggingEnabled)
-	{
-		FMetalCommandData Data;
-		Data.CommandType = FMetalCommandData::Type::Dispatch;
-		Data.Dispatch.threadgroupsPerGrid[0] = ThreadGroupCountX;
-		Data.Dispatch.threadgroupsPerGrid[1] = ThreadGroupCountY;
-		Data.Dispatch.threadgroupsPerGrid[2] = ThreadGroupCountZ;
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+			FMetalCommandData Data;
+			Data.CommandType = FMetalCommandData::Type::Dispatch;
+			Data.Dispatch.threadgroupsPerGrid[0] = ThreadGroupCountX;
+			Data.Dispatch.threadgroupsPerGrid[1] = ThreadGroupCountY;
+			Data.Dispatch.threadgroupsPerGrid[2] = ThreadGroupCountZ;
+			
+			InsertDebugDispatch(Data);
+		}
 		
-		InsertDebugDispatch(Data);
-	}
-	
 		ConditionalSubmit();
 	}
 }

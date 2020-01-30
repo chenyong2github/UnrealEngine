@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -126,7 +126,7 @@ public:
 	 *
 	 * @return True if the plugin is currently enabled by default.
 	 */
-	virtual bool IsEnabledByDefault() const = 0;
+	virtual bool IsEnabledByDefault(bool bAllowEnginePluginsEnabledByDefault) const = 0;
 
 	/**
 	 * Determines if the plugin is should be displayed in-editor for the user to enable/disable freely.
@@ -178,6 +178,13 @@ public:
 	 * Updates the list of plugins.
 	 */
 	virtual void RefreshPluginsList() = 0;
+
+	/**
+	 * Adds a single plugin to the list of plugins. Faster than refreshing all plugins with RefreshPluginsList() when you only want to add one. Does nothing if already in the list.
+	 * 
+	 * @return True if the plugin was added or already in the list. False if it failed to load.
+	 */
+	virtual bool AddToPluginsList( const FString& PluginFilename ) = 0;
 
 	/**
 	 * Loads all plug-ins

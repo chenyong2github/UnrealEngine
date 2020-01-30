@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reservekd.
+// Copyright Epic Games, Inc. All Rights Reservekd.
 
 #include "PoseAssetDetails.h"
 #include "Misc/MessageDialog.h"

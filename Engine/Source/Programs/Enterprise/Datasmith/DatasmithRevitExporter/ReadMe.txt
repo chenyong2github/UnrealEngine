@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 Since the Datasmith Revit Exporter is programmed in C#, the standard build process just runs a post-build step to build
 in batch the release configuration of Visual Studio C# project file DatasmithRevit<year>\DatasmithRevit<year>.csproj.

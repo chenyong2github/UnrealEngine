@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
 #include "Widgets/SBoxPanel.h"
@@ -200,6 +200,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 
 			// Label text
 			+ SVerticalBox::Slot().AutoHeight()
+			.Padding(StyleSet->GetMargin(ISlateStyle::Join( StyleName, ".Label.Padding" )))
 			.HAlign( HAlign_Center )	// Center the label text horizontally
 			[
 				SNew( STextBlock )

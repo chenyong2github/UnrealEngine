@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmoothMeshTool.h"
 #include "InteractiveToolManager.h"
@@ -85,15 +85,14 @@ void USmoothMeshTool::Setup()
 		Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 		Preview->Setup(this->TargetWorld, this); // Adds the actual functional tool in the Preview object
 
-		Preview->PreviewMesh->UpdatePreview(&SrcDynamicMesh);
-		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
-
-	auto Material = ComponentTarget->GetMaterial(0);
-
-		Preview->ConfigureMaterials(
-			ToolSetupUtil::GetDefaultMaterial(GetToolManager(), Material),
+		FComponentMaterialSet MaterialSet;
+		ComponentTarget->GetMaterialSet(MaterialSet);
+		Preview->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
+
+		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+		Preview->PreviewMesh->UpdatePreview(&SrcDynamicMesh);
 	}
 
 	// show the preview mesh
@@ -114,19 +113,19 @@ void USmoothMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (Preview != nullptr)
 	{
-		TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
+		FDynamicMeshOpResult Result = Preview->Shutdown();
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
 			
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("SmoothMeshToolTransactionName", "Smooth Mesh"));
 
-			FDynamicMesh3* DynamicMeshResult = Result->Mesh.Get();
+			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 			check(DynamicMeshResult != nullptr);
 
-			ComponentTarget->CommitMesh([DynamicMeshResult](FMeshDescription* MeshDescription)
+			ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 			{
 				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMeshResult, *MeshDescription);
+				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
 			});
 
 
@@ -149,7 +148,7 @@ void USmoothMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 }
 #endif
 
-void USmoothMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void USmoothMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 	bResultValid = false;
@@ -165,8 +164,8 @@ void USmoothMeshTool::UpdateResult()
 {
 	if (bResultValid) 
 	{
-		return;
-	}
+				return;
+			}
 
 	bResultValid = Preview->HaveValidResult();
 }
@@ -181,18 +180,18 @@ bool USmoothMeshTool::CanAccept() const
 	return bResultValid;
 }
 
-TSharedPtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> USmoothMeshTool::MakeNewOperator()
 {
-	TSharedPtr<FSmoothingOpBase> MeshOp;
+	TUniquePtr<FSmoothingOpBase> MeshOp;
 	switch (SmoothType)
 	{
 	default:
 	case ESmoothMeshToolSmoothType::Iterative:
-		MeshOp = MakeShared<FIterativeSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
+		MeshOp = MakeUnique<FIterativeSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
 		break;
 
 	case ESmoothMeshToolSmoothType::BiHarmonic_Cotan:
-		MeshOp = MakeShared<FCotanSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
+		MeshOp = MakeUnique<FCotanSmoothingOp>(&SrcDynamicMesh, SmoothSpeed, SmoothIterations);
 		break;
 /**
 	case ESmoothMeshToolSmoothType::BiHarmonic_MVW:

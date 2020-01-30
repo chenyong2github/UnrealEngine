@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ControlRigSettings.h: Declares the ControlRigSettings class.
@@ -23,8 +23,10 @@ class CONTROLRIG_API UControlRigSettings : public UDeveloperSettings
 
 public:
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, config, Category = DefaultGizmo)
 	TAssetPtr<UControlRigGizmoLibrary> DefaultGizmoLibrary;
+#endif
 
 	static UControlRigSettings * Get() { return CastChecked<UControlRigSettings>(UControlRigSettings::StaticClass()->GetDefaultObject()); }
 };

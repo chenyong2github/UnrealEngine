@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -53,6 +53,8 @@ public:
 	virtual FOnXmppLoginComplete& OnLoginComplete() override { return OnXmppLoginCompleteDelegate; }
 	virtual FOnXmppLoginChanged& OnLoginChanged() override { return OnXmppLoginChangedDelegate; }
 	virtual FOnXmppLogoutComplete& OnLogoutComplete() override { return OnXmppLogoutCompleteDelegate; }
+	virtual FOnXmppStanzaSent& OnStanzaSent() override { return OnXmppStanzaSentDelegate; }
+	virtual FOnXmppStanzaReceived& OnStanzaReceived() override { return OnXmppStanzaReceivedDelegate; }
 
 	virtual IXmppMessagesPtr Messages() override;
 	virtual IXmppMultiUserChatPtr MultiUserChat() override;
@@ -120,6 +122,10 @@ protected:
 	FOnXmppLoginComplete OnXmppLoginCompleteDelegate;
 	FOnXmppLoginChanged OnXmppLoginChangedDelegate;
 	FOnXmppLogoutComplete OnXmppLogoutCompleteDelegate;
+
+	/** Message Status delegates */
+	FOnXmppStanzaReceived OnXmppStanzaReceivedDelegate;
+	FOnXmppStanzaSent OnXmppStanzaSentDelegate;
 
 	/** XMPP Implementation Shared Pointers */
 	FXmppMessagesStrophePtr MessagesStrophe;

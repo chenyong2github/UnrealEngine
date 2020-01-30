@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 //
 #include "MotionControllerComponent.h"
 #include "GameFramework/Pawn.h"
@@ -268,7 +268,7 @@ void UMotionControllerComponent::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 //=============================================================================
-void UMotionControllerComponent::PreEditChange(UProperty* PropertyAboutToChange)
+void UMotionControllerComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	PreEditMaterialCount = DisplayMeshMaterialOverrides.Num();
 	Super::PreEditChange(PropertyAboutToChange);
@@ -279,7 +279,7 @@ void UMotionControllerComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = (PropertyThatChanged != nullptr) ? PropertyThatChanged->GetFName() : NAME_None;
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UMotionControllerComponent, bDisplayDeviceModel))

@@ -1,9 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ParserClass.h"
 #include "UnrealHeaderTool.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
+
+const FName FClass::NAME_ReplaceConverted(TEXT("ReplaceConverted"));
 
 FString FClass::GetNameWithPrefix(EEnforceInterfacePrefix::Type EnforceInterfacePrefix) const
 {
@@ -60,7 +62,7 @@ FClass* FClass::GetClassWithin() const
 TArray<FClass*> FClass::GetInterfaceTypes() const
 {
 	TArray<FClass*> Result;
-	for (auto& i : Interfaces)
+	for (const FImplementedInterface& i : Interfaces)
 	{
 		Result.Add((FClass*)i.Class);
 	}
@@ -69,38 +71,29 @@ TArray<FClass*> FClass::GetInterfaceTypes() const
 
 void FClass::GetHideCategories(TArray<FString>& OutHideCategories) const
 {
-	static const FName NAME_HideCategories(TEXT("HideCategories"));
-	if (HasMetaData(NAME_HideCategories))
+	if (HasMetaData(FHeaderParserNames::NAME_HideCategories))
 	{
-		const FString& HideCategories = GetMetaData(NAME_HideCategories);
+		const FString& HideCategories = GetMetaData(FHeaderParserNames::NAME_HideCategories);
 		HideCategories.ParseIntoArray(OutHideCategories, TEXT(" "), true);
 	}
 }
 
 void FClass::GetShowCategories(TArray<FString>& OutShowCategories) const
 {
-	static const FName NAME_ShowCategories(TEXT("ShowCategories"));
-	if (HasMetaData(NAME_ShowCategories))
+	if (HasMetaData(FHeaderParserNames::NAME_ShowCategories))
 	{
-		const FString& ShowCategories = GetMetaData(NAME_ShowCategories);
+		const FString& ShowCategories = GetMetaData(FHeaderParserNames::NAME_ShowCategories);
 		ShowCategories.ParseIntoArray(OutShowCategories, TEXT(" "), true);
 	}
 }
 
 void FClass::GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const
 {
-	static const FName NAME_SparseClassDataTypes(TEXT("SparseClassDataTypes"));
-	if (HasMetaData(NAME_SparseClassDataTypes))
+	if (HasMetaData(FHeaderParserNames::NAME_SparseClassDataTypes))
 	{
-		const FString& SparseClassDataTypes = GetMetaData(NAME_SparseClassDataTypes);
+		const FString& SparseClassDataTypes = GetMetaData(FHeaderParserNames::NAME_SparseClassDataTypes);
 		SparseClassDataTypes.ParseIntoArray(OutSparseClassDataTypes, TEXT(" "), true);
 	}
-}
-
-bool FClass::IsDynamic(const UField* Field)
-{
-	static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
-	return Field->HasMetaData(NAME_ReplaceConverted);
 }
 
 bool FClass::IsOwnedByDynamicType(const UField* Field)
@@ -115,22 +108,67 @@ bool FClass::IsOwnedByDynamicType(const UField* Field)
 	return false;
 }
 
-FString FClass::GetTypePackageName(const UField* Field)
+bool FClass::IsOwnedByDynamicType(const FField* Field)
 {
-	static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
-	FString PackageName = Field->GetMetaData(NAME_ReplaceConverted);
-	if (PackageName.Len())
+	for (FFieldVariant Owner = Field->GetOwnerVariant(); Owner.IsValid(); Owner = Owner.GetOwnerVariant())
 	{
-		int32 ObjectDotIndex = INDEX_NONE;
-		// Strip the object name
-		if (PackageName.FindChar(TEXT('.'), ObjectDotIndex))
+		if (Owner.IsUObject())
 		{
-			PackageName = PackageName.Mid(0, ObjectDotIndex);
+			return IsOwnedByDynamicType(Cast<const UField>(Owner.ToUObject()));
+		}
+		else if (IsDynamic(Owner.ToField()))
+		{
+			return true;
 		}
 	}
-	else
+	return false;
+}
+
+static TMap<const UField*, TUniquePtr<FString>> UFieldTypePackageNames;
+static TMap<const FField*, TUniquePtr<FString>> FFieldTypePackageNames;
+
+template <typename T>
+const FString& GetTypePackageName_Inner(const T* Field, TMap<const T*, TUniquePtr<FString>>& TypePackageNames)
+{
+	static FRWLock Lock;
+	FRWScopeLock TypeNameLock(Lock, SLT_ReadOnly);
+
+	TUniquePtr<FString>* TypePackageName = TypePackageNames.Find(Field);
+	if (TypePackageName == nullptr)
 	{
-		PackageName = Field->GetOutermost()->GetName();
+		FString PackageName = Field->GetMetaData(FClass::NAME_ReplaceConverted);
+		if (PackageName.Len())
+		{
+			int32 ObjectDotIndex = INDEX_NONE;
+			// Strip the object name
+			if (PackageName.FindChar(TEXT('.'), ObjectDotIndex))
+			{
+				PackageName.MidInline(0, ObjectDotIndex, false);
+			}
+		}
+		else
+		{
+			PackageName = Field->GetOutermost()->GetName();
+		}
+
+		TypeNameLock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+
+		// Check the map again in case another thread had also been waiting on writing this data and got the write lock first
+		TypePackageName = TypePackageNames.Find(Field);
+		if (TypePackageName == nullptr)
+		{
+			TypePackageName = &TypePackageNames.Add(Field, MakeUnique<FString>(MoveTemp(PackageName)));
+		}
 	}
-	return PackageName;
+	return **TypePackageName;
+}
+
+const FString& FClass::GetTypePackageName(const UField* Field)
+{
+	return GetTypePackageName_Inner(Field, UFieldTypePackageNames);
+}
+
+const FString& FClass::GetTypePackageName(const FField* Field)
+{
+	return GetTypePackageName_Inner(Field, FFieldTypePackageNames);
 }

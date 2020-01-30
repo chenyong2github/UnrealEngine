@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AnimMontage.cpp: Montage classes that contains slots
@@ -2495,11 +2495,11 @@ void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarke
 	}
 }
 
-UAnimMontage* FAnimMontageInstance::InitializeMatineeControl(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequenceBase* InAnimSequence, bool bLooping)
+UAnimMontage* FAnimMontageInstance::InitializeMatineeControl(FName SlotName, UAnimInstance* AnimInstance, UAnimSequenceBase* InAnimSequence, bool bLooping)
 {
 	UAnimMontage* MontageToPlay = Cast<UAnimMontage>(InAnimSequence);
 
-	if (UAnimSingleNodeInstance* SingleNodeInst = SkeletalMeshComponent->GetSingleNodeInstance())
+	if (UAnimSingleNodeInstance* SingleNodeInst = Cast<UAnimSingleNodeInstance>(AnimInstance))
 	{
 		// Single node anim instance
 		if (SingleNodeInst->GetCurrentAsset() != InAnimSequence)
@@ -2515,7 +2515,7 @@ UAnimMontage* FAnimMontageInstance::InitializeMatineeControl(FName SlotName, USk
 
 		return MontageToPlay;
 	}
-	else if (UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance())
+	else if (UAnimInstance* AnimInst = AnimInstance)
 	{
 		UAnimMontage* PreviousMontage = nullptr;
 
@@ -2566,9 +2566,19 @@ UAnimMontage* FAnimMontageInstance::InitializeMatineeControl(FName SlotName, USk
 
 UAnimMontage* FAnimMontageInstance::SetMatineeAnimPositionInner(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequenceBase* InAnimSequence, float InPosition, bool bLooping)
 {
-	UAnimMontage* PlayingMontage = InitializeMatineeControl(SlotName, SkeletalMeshComponent, InAnimSequence, bLooping);
-	UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
-	if (UAnimSingleNodeInstance* SingleNodeInst = SkeletalMeshComponent->GetSingleNodeInstance())
+	if (SkeletalMeshComponent)
+	{
+		return SetMatineeAnimPositionInner(SlotName, SkeletalMeshComponent->GetAnimInstance(), InAnimSequence, InPosition, bLooping);
+	}
+
+	return nullptr;
+}
+
+UAnimMontage* FAnimMontageInstance::SetMatineeAnimPositionInner(FName SlotName, UAnimInstance* AnimInstance, UAnimSequenceBase* InAnimSequence, float InPosition, bool bLooping)
+{
+	UAnimMontage* PlayingMontage = InitializeMatineeControl(SlotName, AnimInstance, InAnimSequence, bLooping);
+	UAnimInstance* AnimInst = AnimInstance;
+	if (UAnimSingleNodeInstance* SingleNodeInst = Cast<UAnimSingleNodeInstance>(AnimInst))
 	{
 		if (SingleNodeInst->GetCurrentTime() != InPosition)
 		{
@@ -2600,15 +2610,35 @@ UAnimMontage* FAnimMontageInstance::SetMatineeAnimPositionInner(FName SlotName, 
 
 UAnimMontage* FAnimMontageInstance::PreviewMatineeSetAnimPositionInner(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequenceBase* InAnimSequence, float InPosition, bool bLooping, bool bFireNotifies, float DeltaTime)
 {
-	// Codepath for updating an animation when the skeletal mesh component is not going to be ticked (ie in editor)
-	UAnimMontage* PlayingMontage = InitializeMatineeControl(SlotName, SkeletalMeshComponent, InAnimSequence, bLooping);
+	if (SkeletalMeshComponent)
+	{
+		return PreviewMatineeSetAnimPositionInner(SlotName, SkeletalMeshComponent, SkeletalMeshComponent->GetAnimInstance(), InAnimSequence, InPosition, bLooping, bFireNotifies, DeltaTime);
+	}
 
-	UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
+	return nullptr;
+}
+
+UAnimMontage* FAnimMontageInstance::PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bPlaying)
+{
+	if (SkeletalMeshComponent)
+	{
+		return PreviewSequencerMontagePosition(SlotName, SkeletalMeshComponent, SkeletalMeshComponent->GetAnimInstance(), InOutInstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bFireNotifies, bPlaying);
+	}
+
+	return nullptr;
+}
+
+UAnimMontage* FAnimMontageInstance::PreviewMatineeSetAnimPositionInner(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimInstance* AnimInstance, UAnimSequenceBase* InAnimSequence, float InPosition, bool bLooping, bool bFireNotifies, float DeltaTime)
+{
+	// Codepath for updating an animation when the skeletal mesh component is not going to be ticked (ie in editor)
+	UAnimMontage* PlayingMontage = InitializeMatineeControl(SlotName, AnimInstance, InAnimSequence, bLooping);
+
+	UAnimInstance* AnimInst = AnimInstance;
 
 	FAnimMontageInstance* MontageInstanceToUpdate = AnimInst && PlayingMontage ? AnimInst->GetActiveInstanceForMontage(PlayingMontage) : nullptr;
 	float PreviousPosition = InPosition;
 
-	if (UAnimSingleNodeInstance* SingleNodeInst = SkeletalMeshComponent->GetSingleNodeInstance())
+	if (UAnimSingleNodeInstance* SingleNodeInst = Cast<UAnimSingleNodeInstance>(AnimInst))
 	{
 		PreviousPosition = SingleNodeInst->GetCurrentTime();
 
@@ -2673,9 +2703,19 @@ UAnimMontage* FAnimMontageInstance::PreviewMatineeSetAnimPositionInner(FName Slo
 	return PlayingMontage;
 }
 
-UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bInPlaying)
+UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bPlaying)
 {
-	UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
+	if (SkeletalMeshComponent)
+	{
+		return SetSequencerMontagePosition(SlotName, SkeletalMeshComponent->GetAnimInstance(), InOutInstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bPlaying);
+	}
+
+	return nullptr;
+}
+
+UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, UAnimInstance* AnimInstance, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bInPlaying)
+{
+	UAnimInstance* AnimInst = AnimInstance;
 	if (AnimInst)
 	{
 		UAnimMontage* PlayingMontage = nullptr;
@@ -2722,14 +2762,14 @@ UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, 
 	return nullptr;
 }
 
-UAnimMontage* FAnimMontageInstance::PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bInPlaying)
+UAnimMontage* FAnimMontageInstance::PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimInstance* AnimInstance, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bInPlaying)
 {
-	UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
+	UAnimInstance* AnimInst = AnimInstance;
 	if (AnimInst)
 	{
 		FAnimMontageInstance* MontageInstanceToUpdate = AnimInst->GetMontageInstanceForID(InOutInstanceId);
 
-		UAnimMontage* PlayingMontage = SetSequencerMontagePosition(SlotName, SkeletalMeshComponent, InOutInstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bInPlaying);
+		UAnimMontage* PlayingMontage = SetSequencerMontagePosition(SlotName, AnimInst, InOutInstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bInPlaying);
 		if (PlayingMontage)
 		{
 			// we have to get it again in case if this is new

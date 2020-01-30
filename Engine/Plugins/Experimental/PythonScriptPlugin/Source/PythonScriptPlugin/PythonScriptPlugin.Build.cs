@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using UnrealBuildTool;
 
 namespace UnrealBuildTool.Rules
@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Analytics",
+					"AssetRegistry",
 					"Projects",
 					"Python",
 					"Slate",
@@ -45,6 +46,7 @@ namespace UnrealBuildTool.Rules
 						"UnrealEd",
 						"EditorSubsystem",
 						"BlueprintGraph",
+						"KismetCompiler",
 					}
 				);
 			}

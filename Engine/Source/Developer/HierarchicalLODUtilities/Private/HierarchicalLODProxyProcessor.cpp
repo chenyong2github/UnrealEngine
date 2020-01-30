@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HierarchicalLODProxyProcessor.h"
 #include "Misc/ScopeLock.h"
@@ -8,6 +8,7 @@
 #include "HierarchicalLODUtilitiesModule.h"
 #include "Editor.h"
 
+#include "Modules/ModuleManager.h"
 #include "Interfaces/IProjectManager.h"
 #include "StaticMeshResources.h"
 #include "Logging/TokenizedMessage.h"

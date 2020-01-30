@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -74,4 +74,12 @@ public:
 	/** Whether to treat log warnings as test errors (default=false) */
 	UPROPERTY(Config)
 	bool bTreatLogWarningsAsTestErrors;
+	
+	/** How long to wait between test updates (default=1sec)*/
+	UPROPERTY(Config)
+	float CheckTestIntervalSeconds;
+	
+	/** The maximum response wait time for detecting a lost game instance (default=300sec)*/
+	UPROPERTY(Config)
+	float GameInstanceLostTimerSeconds;
 };

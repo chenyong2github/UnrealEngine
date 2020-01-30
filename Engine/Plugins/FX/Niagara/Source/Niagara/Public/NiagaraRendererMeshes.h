@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 NiagaraRenderer.h: Base class for Niagara render modules
@@ -43,6 +43,9 @@ private:
 	ENiagaraMeshFacingMode FacingMode;
 	uint32 bOverrideMaterials : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
+
+	uint32 bSubImageBlend : 1;
+	FVector2D SubImageSize;
 
 	uint32 MaterialParamValidMask;
 

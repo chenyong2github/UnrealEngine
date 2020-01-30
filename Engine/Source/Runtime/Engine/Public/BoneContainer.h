@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -257,6 +257,11 @@ public:
 	const TArray<FTransform>& GetRefPoseArray() const
 	{
 		return RefSkeleton->GetRefBonePose();
+	}
+
+	const TArray<FCompactPoseBoneIndex>& GetCompactPoseParentBoneArray() const
+	{
+		return CompactPoseParentBones;
 	}
 
 	const FTransform& GetRefPoseTransform(const FCompactPoseBoneIndex& BoneIndex) const

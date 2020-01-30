@@ -1,11 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #ifndef VirtualTextureCommon_ush__
 #define VirtualTextureCommon_ush__
-
-#if (FEATURE_LEVEL != FEATURE_LEVEL_SM5)
-	#error Virtual textures require shader model 5.0 or higher!
-#endif
 
 #include "Common.ush"
 #include "Random.ush"
@@ -65,14 +61,16 @@ void StoreVirtualTextureFeedback(in out FVirtualTextureFeedbackParams Params, ui
 /*
 	This should be called at the end of the pixel shader to write out the gathered VT feedback info to the OutputBuffer.
 */
-void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, float4 SvPosition, float Opacity, uint FrameNumber, RWTexture2D<uint> OutputBuffer)
+void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, float4 SvPosition, float Opacity, uint FrameNumber, RWBuffer<uint> OutputBuffer)
 {
 	uint2 PixelPos = SvPosition.xy;	
+	uint FeedbackPos = 0;
 	// This code will only run every few pixels...
 	[branch] if (((PixelPos.x | PixelPos.y) & (VIRTUAL_TEXTURE_FEEDBACK_FACTOR-1)) == 0)
 	{
 		// TODO use append buffer ?
 		PixelPos /= VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
+		FeedbackPos = PixelPos.y*View.VirtualTextureFeedbackStride + PixelPos.x;
 
 		// When using DBuffer, feedback buffer is blending using decal opacity for opaque objects
 		// This way we avoid overwriting values already written to feedback buffer while rendering dbuffer decals
@@ -97,10 +95,10 @@ void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, flo
         // that means more opaque surfaces get more pixels in the feedback buffer which is what we want
         [branch] if (Alpha > AlphaThreshold)				
         {
-            OutputBuffer[PixelPos] = Params.Request;
+            OutputBuffer[FeedbackPos] = Params.Request;
         }     
 #else	
-		OutputBuffer[PixelPos] = Params.Request;
+		OutputBuffer[FeedbackPos] = Params.Request;
 #endif
 	}	
 }

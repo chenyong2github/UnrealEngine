@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigHierarchyContainer.h"
 #include "ControlRig.h"
@@ -23,7 +23,7 @@ FRigHierarchyContainer& FRigHierarchyContainer::operator= (const FRigHierarchyCo
 	return *this;
 }
 
-void FRigHierarchyContainer::Initialize()
+void FRigHierarchyContainer::Initialize(bool bResetTransforms)
 {
 	BoneHierarchy.Container = this;
 	SpaceHierarchy.Container = this;
@@ -90,12 +90,15 @@ void FRigHierarchyContainer::Initialize()
 
 #endif
 
-	BoneHierarchy.Initialize();
-	SpaceHierarchy.Initialize();
-	ControlHierarchy.Initialize();
+	BoneHierarchy.Initialize(bResetTransforms);
+	SpaceHierarchy.Initialize(bResetTransforms);
+	ControlHierarchy.Initialize(bResetTransforms);
 	CurveContainer.Initialize();
 
-	ResetTransforms();
+	if (bResetTransforms)
+	{
+		ResetTransforms();
+	}
 }
 
 void FRigHierarchyContainer::Reset()
@@ -712,6 +715,18 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 						}
 
 						FRigControl& NewElement = ControlHierarchy.Add(Element.Name, Element.ControlType, ParentName, SpaceName, Element.InitialValue, Element.GizmoName, Element.GizmoTransform, Element.GizmoColor);
+
+						// copy additional members
+						NewElement.bAnimatable = Element.bAnimatable;
+						NewElement.PrimaryAxis = Element.PrimaryAxis;
+						NewElement.bLimitTranslation = Element.bLimitTranslation;
+						NewElement.bLimitRotation = Element.bLimitRotation;
+						NewElement.bLimitScale= Element.bLimitScale;
+						NewElement.MinimumValue = Element.MinimumValue;
+						NewElement.MaximumValue = Element.MaximumValue;
+						NewElement.bDrawLimits = Element.bDrawLimits;
+						NewElement.bGizmoEnabled = Element.bGizmoEnabled;
+
 						ElementMap.FindOrAdd(Element.GetElementKey()) = NewElement.GetElementKey();
 						PastedKeys.Add(NewElement.GetElementKey());
 
@@ -771,11 +786,21 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 				{
 					Data.LocalTransforms[Index].NormalizeRotation();
 					SetLocalTransform(Selection[Index], Data.LocalTransforms[Index]);
+
+					if (Selection[Index].Type == ERigElementType::Space)
+					{
+						SpaceHierarchy.SetInitialTransform(Selection[Index].Name, Data.LocalTransforms[Index]);
+					}
 				}
 				else
 				{
 					Data.GlobalTransforms[Index].NormalizeRotation();
 					SetGlobalTransform(Selection[Index], Data.GlobalTransforms[Index]);
+
+					if (Selection[Index].Type == ERigElementType::Space)
+					{
+						SpaceHierarchy.SetInitialGlobalTransform(Selection[Index].Name, Data.GlobalTransforms[Index]);
+					}
 				}
 				PastedKeys.Add(Selection[Index]);
 			}

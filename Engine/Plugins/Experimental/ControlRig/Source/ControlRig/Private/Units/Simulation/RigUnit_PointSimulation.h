@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -29,37 +29,37 @@ struct FRigUnit_PointSimulation_DebugSettings
 	/**
 	 * If enabled debug information will be drawn 
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input), Category = "DebugSettings")
 	bool bEnabled;
 
 	/**
 	 * The size of the debug drawing information
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	float Scale;
 
 	/**
      * The size of the debug drawing information
      */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	float CollisionScale;
 
 	/**
 	 * If set to true points will be drawn as spheres with their sizes reflected
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	bool bDrawPointsAsSpheres;
 
 	/**
 	 * The color to use for debug drawing
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	FLinearColor Color;
 
 	/**
 	 * The offset at which to draw the debug information in the world
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(EditAnywhere, meta = (Input, EditCondition = "bEnabled"), Category = "DebugSettings")
 	FTransform WorldOffset;
 };
 
@@ -77,27 +77,27 @@ struct FRigUnit_PointSimulation_BoneTarget
 	/**
 	 * The name of the bone to map
 	 */
-	UPROPERTY(meta = (Input, Constant, BoneName))
+	UPROPERTY(EditAnywhere, meta = (Input, Constant, CustomWidget = "BoneName"), Category = "BoneTarget")
 	FName Bone;
 
 	/**
 	 * The index of the point to use for translation
 	 */
-	UPROPERTY(meta = (Input, Constant))
+	UPROPERTY(EditAnywhere, meta = (Input, Constant), Category = "BoneTarget")
 	int32 TranslationPoint;
 
 	/**
 	 * The index of the point to use for aiming the primary axis.
 	 * Use -1 to indicate that you don't want to aim the bone.
 	 */
-	UPROPERTY(meta = (Input, Constant))
+	UPROPERTY(EditAnywhere, meta = (Input, Constant), Category = "BoneTarget")
 	int32 PrimaryAimPoint;
 
 	/**
 	 * The index of the point to use for aiming the secondary axis.
 	 * Use -1 to indicate that you don't want to aim the bone.
 	 */
-	UPROPERTY(meta = (Input, Constant))
+	UPROPERTY(EditAnywhere, meta = (Input, Constant), Category = "BoneTarget")
 	int32 SecondaryAimPoint;
 };
 
@@ -182,7 +182,7 @@ struct FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
 	/** The primary axis to use for the aim */

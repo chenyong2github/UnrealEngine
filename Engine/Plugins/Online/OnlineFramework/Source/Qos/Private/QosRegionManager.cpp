@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "QosRegionManager.h"
 #include "Misc/CommandLine.h"
@@ -82,7 +82,7 @@ UQosRegionManager::UQosRegionManager(const FObjectInitializer& ObjectInitializer
 	}
 }
 
-void UQosRegionManager::PostReloadConfig(UProperty* PropertyThatWasLoaded)
+void UQosRegionManager::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{

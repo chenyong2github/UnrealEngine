@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshBoneReduction.h"
 #include "Modules/ModuleManager.h"
@@ -132,7 +132,9 @@ public:
 	{
 		// now you have list of bones, remove them from vertex influences
 		{
-			TMap<uint8, uint8> BoneMapRemapTable;
+			// FBoneIndexType/uint16 max range
+			const int32 FBoneIndexTypeMax = 65536;
+			TMap<FBoneIndexType, FBoneIndexType> BoneMapRemapTable;
 			// first go through bone map and see if this contains BonesToRemove
 			int32 BoneMapSize = Section.BoneMap.Num();
 			int32 AdjustIndex=0;
@@ -172,7 +174,7 @@ public:
 					// first fix up all indices of BoneMapRemapTable for the indices higher than BoneMapIndex, since BoneMapIndex is being removed
 					for (auto Iter = BoneMapRemapTable.CreateIterator(); Iter; ++Iter)
 					{
-						uint8& Value = Iter.Value();
+						FBoneIndexType& Value = Iter.Value();
 
 						check (Value != BoneMapIndex);
 						if (Value > BoneMapIndex)
@@ -186,10 +188,10 @@ public:
 					// you still have to add no matter what even if same since indices might change after added
 					{
 						// add to remap table
-						check (OldIndex < 256 && OldIndex >= 0);
-						check (NewIndex < 256 && NewIndex >= 0);
-						check (BoneMapRemapTable.Contains((uint8)OldIndex) == false);
-						BoneMapRemapTable.Add((uint8)OldIndex, (uint8)NewIndex);
+						check (OldIndex < FBoneIndexTypeMax && OldIndex >= 0);
+						check (NewIndex < FBoneIndexTypeMax && NewIndex >= 0);
+						check (BoneMapRemapTable.Contains((FBoneIndexType)OldIndex) == false);
+						BoneMapRemapTable.Add((FBoneIndexType)OldIndex, (FBoneIndexType)NewIndex);
 					}
 
 					// reduce index since the item is removed
@@ -203,11 +205,10 @@ public:
 				{
 					int32 OldIndex = BoneMapIndex+AdjustIndex;
 					int32 NewIndex = BoneMapIndex;
-
-					check (OldIndex < 256 && OldIndex >= 0);
-					check (NewIndex < 256 && NewIndex >= 0);
-					check (BoneMapRemapTable.Contains((uint8)OldIndex) == false);
-					BoneMapRemapTable.Add((uint8)OldIndex, (uint8)NewIndex);
+					check (OldIndex < FBoneIndexTypeMax && OldIndex >= 0);
+					check (NewIndex < FBoneIndexTypeMax && NewIndex >= 0);
+					check (BoneMapRemapTable.Contains((FBoneIndexType)OldIndex) == false);
+					BoneMapRemapTable.Add((FBoneIndexType)OldIndex, (FBoneIndexType)NewIndex);
 				}
 			}
 
@@ -219,13 +220,13 @@ public:
 				{
 					FSoftSkinVertex & Vert = Section.SoftVertices[VertIndex];
 
-					auto RemapBoneInfluenceVertexIndex = [&BoneMapRemapTable](uint8 InfluenceBones[MAX_TOTAL_INFLUENCES], uint8 InfluenceWeights[MAX_TOTAL_INFLUENCES])
+					auto RemapBoneInfluenceVertexIndex = [&BoneMapRemapTable](FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES], uint8 InfluenceWeights[MAX_TOTAL_INFLUENCES])
 					{
 						bool ShouldRenormalize = false;
 
 						for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; InfluenceIndex++)
 						{
-							uint8 *RemappedBone = BoneMapRemapTable.Find(InfluenceBones[InfluenceIndex]);
+							FBoneIndexType *RemappedBone = BoneMapRemapTable.Find(InfluenceBones[InfluenceIndex]);
 							if (RemappedBone)
 							{
 								InfluenceBones[InfluenceIndex] = *RemappedBone;

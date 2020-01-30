@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SControlRigGraphNodeComment.h"
 #include "EdGraphNode_Comment.h"
@@ -7,7 +7,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"
-#include "ControlRigController.h"
+#include "RigVMModel/RigVMController.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -34,10 +34,10 @@ FReply SControlRigGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry,
 				{
 					FVector2D Position(CommentNode->NodePosX, CommentNode->NodePosY);
 					FVector2D Size(CommentNode->NodeWidth, CommentNode->NodeHeight);
-					Blueprint->ModelController->OpenUndoBracket(TEXT("Resize Comment Box"));
-					Blueprint->ModelController->SetNodePosition(CommentNode->GetFName(), Position, true);
-					Blueprint->ModelController->SetNodeSize(CommentNode->GetFName(), Size, true);
-					Blueprint->ModelController->CloseUndoBracket();
+					Blueprint->Controller->OpenUndoBracket(TEXT("Resize Comment Box"));
+					Blueprint->Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true);
+					Blueprint->Controller->SetNodeSizeByName(CommentNode->GetFName(), Size, true);
+					Blueprint->Controller->CloseUndoBracket();
 				}
 			}
 		}
@@ -63,36 +63,31 @@ void SControlRigGraphNodeComment::EndUserInteraction() const
 			{
 				if (CommentNode->MoveMode == ECommentBoxMode::GroupMovement)
 				{
-					Blueprint->ModelController->OpenUndoBracket(TEXT("Move Comment Box"));
+					Blueprint->Controller->OpenUndoBracket(TEXT("Move Comment Box"));
 
 					for (FCommentNodeSet::TConstIterator NodeIt(CommentNode->GetNodesUnderComment()); NodeIt; ++NodeIt)
 					{
 						if (UEdGraphNode* EdNode = Cast<UEdGraphNode>(*NodeIt))
 						{
 							FName NodeName = EdNode->GetFName();
-							if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+							if (URigVMNode* ModelNode = Blueprint->Model->FindNodeByName(NodeName))
 							{
-								NodeName = RigNode->GetPropertyName();
-							}
-
-							if (const FControlRigModelNode* ModelNode = Blueprint->Model->FindNode(NodeName))
-							{
-								if (!Blueprint->Model->IsNodeSelected(ModelNode->Name))
+								if (!ModelNode->IsSelected())
 								{
 									FVector2D Position(EdNode->NodePosX, EdNode->NodePosY);
-									Blueprint->ModelController->SetNodePosition(ModelNode->Name, Position, true);
+									Blueprint->Controller->SetNodePositionByName(NodeName, Position, true);
 								}
 							}
 						}
 					}
 					FVector2D Position(CommentNode->NodePosX, CommentNode->NodePosY);
-					Blueprint->ModelController->SetNodePosition(CommentNode->GetFName(), Position, true);
-					Blueprint->ModelController->CloseUndoBracket();
+					Blueprint->Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true);
+					Blueprint->Controller->CloseUndoBracket();
 				}
 				else
 				{
 					FVector2D Position(CommentNode->NodePosX, CommentNode->NodePosY);
-					Blueprint->ModelController->SetNodePosition(CommentNode->GetFName(), Position, true);
+					Blueprint->Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true);
 				}
 			}
 		}
@@ -115,7 +110,7 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 			{
 				if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
 				{
-					Blueprint->ModelController->SetCommentText(CommentNode->GetFName(), CurrentCommentTitle, true);
+					Blueprint->Controller->SetCommentTextByName(CommentNode->GetFName(), CurrentCommentTitle, true);
 				}
 			}
 		}
@@ -134,7 +129,7 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 					if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
 					{
 						// for now we won't use our undo for this kind of change
-						Blueprint->ModelController->SetNodeColor(GraphNode->GetFName(), CurrentNodeCommentColor, false);
+						Blueprint->Controller->SetNodeColorByName(GraphNode->GetFName(), CurrentNodeCommentColor, false, true);
 						CachedNodeCommentColor = CurrentNodeCommentColor;
 					}
 				}

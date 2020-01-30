@@ -1,7 +1,7 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundEffectSubmix.h"
+#include "Sound/SoundMix.h"
 
 USoundEffectSubmixPreset::USoundEffectSubmixPreset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

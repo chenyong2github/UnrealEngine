@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CallFunctionHandler.h"
 #include "UObject/MetaData.h"
@@ -6,18 +6,26 @@
 #include "K2Node_Event.h"
 #include "K2Node_CallParentFunction.h"
 #include "K2Node_ExecutionSequence.h"
+#include "K2Node_Self.h"
+#include "K2Node_VariableGet.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "K2Node_CallFunction.h"
 
 #include "EdGraphUtilities.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "KismetCompiler.h"
+#include "Net/Core/PushModel/PushModelMacros.h"
+
+#if WITH_PUSH_MODEL
+#include "Net/NetPushModelHelpers.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "CallFunctionHandler"
 
 //////////////////////////////////////////////////////////////////////////
 // FImportTextErrorContext
 
-// Support class to pipe logs from UProperty->ImportText (for struct literals) to the message log as warnings
+// Support class to pipe logs from FProperty->ImportText (for struct literals) to the message log as warnings
 class FImportTextErrorContext : public FOutputDevice
 {
 protected:
@@ -72,13 +80,14 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 		// Make sure the pin mapping is sound (all pins wire up to a matching function parameter, and all function parameters match a pin)
 
 		// Remaining unmatched pins
+		// Note: Should maintain a stable order for variadic arguments
 		TArray<UEdGraphPin*> RemainingPins;
 		RemainingPins.Append(Node->Pins);
 
 		const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
 
 		// Remove expected exec and self pins
-		RemainingPins.RemoveAllSwap([Schema](UEdGraphPin* Pin) { return (Pin->bOrphanedPin || Schema->IsMetaPin(*Pin)); }, false);
+		RemainingPins.RemoveAll([Schema](UEdGraphPin* Pin) { return (Pin->bOrphanedPin || Schema->IsMetaPin(*Pin)); });
 
 		// Check for magic pins
 		const bool bIsLatent = Function->HasMetaData(FBlueprintMetadata::MD_Latent);
@@ -140,9 +149,9 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 
 		// Check each property
 		bool bMatchedAllParams = true;
-		for (TFieldIterator<UProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
+		for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
 		{
-			UProperty* Property = *It;
+			FProperty* Property = *It;
 
 			bool bFoundParam = false;
 			for (int32 i = 0; !bFoundParam && (i < RemainingPins.Num()); ++i)
@@ -151,7 +160,8 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 				if (Property->GetFName() == PinMatch->PinName)
 				{
 					// Found a corresponding pin, does it match in type and direction?
-					if (FKismetCompilerUtilities::IsTypeCompatibleWithProperty(PinMatch, Property, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass))
+					if (UK2Node_CallFunction::IsStructureWildcardProperty(Function, Property->GetFName()) ||
+						FKismetCompilerUtilities::IsTypeCompatibleWithProperty(PinMatch, Property, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass))
 					{
 						UEdGraphPin* PinToTry = FEdGraphUtilities::GetNetFromPin(PinMatch);
 
@@ -160,7 +170,7 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 							// For literal structs, we have to verify the default here to make sure that it has valid formatting
 							if( (*Term)->bIsLiteral && (PinMatch != LatentInfoPin))
 							{
-								UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+								FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 								if( StructProperty )
 								{
 									UScriptStruct* Struct = StructProperty->Struct;
@@ -271,7 +281,7 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 					}
 
 					bFoundParam = true;
-					RemainingPins.RemoveAtSwap(i);
+					RemainingPins.RemoveAt(i);
 				}
 			}
 
@@ -282,10 +292,43 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 			}
 		}
 
-		// At this point, we should have consumed all pins.  If not, there are extras that need to be removed.
-		for (int32 i = 0; i < RemainingPins.Num(); ++i)
+		// If we have pins remaining then it's either an error, or extra variadic terms that need to be emitted
+		if (RemainingPins.Num() > 0)
 		{
-			CompilerContext.MessageLog.Error(*FText::Format(LOCTEXT("PinMismatchParameter_ErrorFmt", "Pin @@ named {0} doesn't match any parameters of function {1}"), FText::FromName(RemainingPins[i]->PinName), FText::FromString(Function->GetName())).ToString(), RemainingPins[i]);
+			const bool bIsVariadic = Function->HasMetaData(FBlueprintMetadata::MD_Variadic);
+			if (bIsVariadic)
+			{
+				// Add a RHS term for every remaining pin
+				for (UEdGraphPin* RemainingPin : RemainingPins)
+				{
+					// Variadic pins are assumed to be wildcard pins that have been connected to something else
+					if (RemainingPin->LinkedTo.Num() == 0)
+					{
+						CompilerContext.MessageLog.Error(*LOCTEXT("UnlinkedVariadicPin_Error", "The variadic pin @@ must be connected. Connect something to @@.").ToString(), RemainingPin, RemainingPin->GetOwningNodeUnchecked());
+						continue;
+					}
+
+					UEdGraphPin* PinToTry = FEdGraphUtilities::GetNetFromPin(RemainingPin);
+					if (FBPTerminal** Term = Context.NetMap.Find(PinToTry))
+					{
+						FBPTerminal* RHSTerm = *Term;
+						RHSTerms.Add(RHSTerm);
+					}
+					else
+					{
+						CompilerContext.MessageLog.Error(*LOCTEXT("ResolveTermVariadic_Error", "Failed to resolve variadic term passed into @@").ToString(), RemainingPin);
+						bMatchedAllParams = false;
+					}
+				}
+			}
+			else
+			{
+				// At this point, we should have consumed all pins.  If not, there are extras that need to be removed.
+				for (const UEdGraphPin* RemainingPin : RemainingPins)
+				{
+					CompilerContext.MessageLog.Error(*FText::Format(LOCTEXT("PinMismatchParameter_ErrorFmt", "Pin @@ named {0} doesn't match any parameters of function {1}"), FText::FromName(RemainingPin->PinName), FText::FromString(Function->GetName())).ToString(), RemainingPin);
+				}
+			}
 		}
 
 		if (NumErrorsAtStart == CompilerContext.MessageLog.NumErrors)
@@ -600,7 +643,15 @@ void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGrap
 {
 	// Add an object reference pin for this call
 
-	if (IsCalledFunctionPure(Node))
+	
+	UK2Node_CallFunction* CallFuncNode = Cast<UK2Node_CallFunction>(Node);
+	if (!CallFuncNode)
+	{
+		return;
+	}
+
+	bool bIsPureAndNoUsedOutputs = false;
+	if (CallFuncNode->bIsPureFunc)
 	{
 		// Flag for removal if pure and there are no consumers of the outputs
 		//@TODO: This isn't recursive (and shouldn't be here), it'll just catch the last node in a line of pure junk
@@ -618,44 +669,208 @@ void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGrap
 		if (!bAnyOutputsUsed)
 		{
 			//@TODO: Remove this node, not just warn about it
-
+			bIsPureAndNoUsedOutputs = true;
 		}
 	}
 
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
 	// Find the function, starting at the parent class
-	UFunction* Function = FindFunction(Context, Node);
-	if ((Function != NULL) && (Function->HasMetaData(FBlueprintMetadata::MD_Latent)))
+	if (UFunction* Function = FindFunction(Context, Node))
 	{
-		UK2Node_CallFunction* CallFuncNode = CastChecked<UK2Node_CallFunction>(Node);
-		UEdGraphPin* OldOutPin = K2Schema->FindExecutionPin(*CallFuncNode, EGPD_Output);
-
-		if ((OldOutPin != NULL) && (OldOutPin->LinkedTo.Num() > 0))
+		if (Function->HasMetaData(FBlueprintMetadata::MD_Latent))
 		{
-			// Create a dummy execution sequence that will be the target of the return call from the latent action
-			UK2Node_ExecutionSequence* DummyNode = CompilerContext.SpawnIntermediateNode<UK2Node_ExecutionSequence>(CallFuncNode);
-			DummyNode->AllocateDefaultPins();
+			UEdGraphPin* OldOutPin = K2Schema->FindExecutionPin(*CallFuncNode, EGPD_Output);
 
-			// Wire in the dummy node
-			UEdGraphPin* NewInPin = K2Schema->FindExecutionPin(*DummyNode, EGPD_Input);
-			UEdGraphPin* NewOutPin = K2Schema->FindExecutionPin(*DummyNode, EGPD_Output);
-
-			if ((NewInPin != NULL) && (NewOutPin != NULL))
+			if ((OldOutPin != NULL) && (OldOutPin->LinkedTo.Num() > 0))
 			{
-				CompilerContext.MessageLog.NotifyIntermediatePinCreation(NewOutPin, OldOutPin);
+				// Create a dummy execution sequence that will be the target of the return call from the latent action
+				UK2Node_ExecutionSequence* DummyNode = CompilerContext.SpawnIntermediateNode<UK2Node_ExecutionSequence>(CallFuncNode);
+				DummyNode->AllocateDefaultPins();
 
-				while (OldOutPin->LinkedTo.Num() > 0)
+				// Wire in the dummy node
+				UEdGraphPin* NewInPin = K2Schema->FindExecutionPin(*DummyNode, EGPD_Input);
+				UEdGraphPin* NewOutPin = K2Schema->FindExecutionPin(*DummyNode, EGPD_Output);
+
+				if ((NewInPin != NULL) && (NewOutPin != NULL))
 				{
-					UEdGraphPin* LinkedPin = OldOutPin->LinkedTo[0];
+					CompilerContext.MessageLog.NotifyIntermediatePinCreation(NewOutPin, OldOutPin);
 
-					LinkedPin->BreakLinkTo(OldOutPin);
-					LinkedPin->MakeLinkTo(NewOutPin);
+					while (OldOutPin->LinkedTo.Num() > 0)
+					{
+						UEdGraphPin* LinkedPin = OldOutPin->LinkedTo[0];
+
+						LinkedPin->BreakLinkTo(OldOutPin);
+						LinkedPin->MakeLinkTo(NewOutPin);
+					}
+
+					OldOutPin->MakeLinkTo(NewInPin);
 				}
-
-				OldOutPin->MakeLinkTo(NewInPin);
 			}
 		}
+
+#if WITH_PUSH_MODEL
+
+		/**
+		 * Warning!! Similar code exists in VariableSetHandler.cpp
+		 *
+		 * This code is for property dirty tracking.
+		 * It works by injecting in extra nodes while compiling that will call UNetPushModelHelpers::MarkPropertyDirtyFromRepIndex.
+		 *
+		 * That function will be called with the Owner of the property, and the RepIndex of the property.
+		 * One of these nodes needs to be added for ever Net Property that is passed by (out) reference to the function.
+		 *
+		 *
+		 * Note, this assumes that there's no way that a native class can add or remove replicated properties without also
+		 * recompiling the blueprint. The only scenario that seems possible is cooked games with custom built binaries,
+		 * but that still seems unsafe.
+		 *
+		 * If that can happen, we can instead switch to using the property name and resorting to a FindField call at runtime,
+		 * but that will be more expensive.
+		 */
+
+		// If the function is pure but won't actually be evaluated, if there are no out params,
+		// or there are no input pins, then we don't need to worry about any extra generation
+		// because there will either be no way to reference a NetProperty, or the node won't
+		// have any effect.
+		if (!bIsPureAndNoUsedOutputs && Function->NumParms > 0 && Function->HasAllFunctionFlags(FUNC_HasOutParms))
+		{
+			static const FName MarkPropertyDirtyFuncName(TEXT("MarkPropertyDirtyFromRepIndex"));
+			static const FName ObjectPinName(TEXT("Object"));
+			static const FName RepIndexPinName(TEXT("RepIndex"));
+			static const FName PropertyNamePinName(TEXT("PropertyName"));
+
+			TArray<UEdGraphPin*> RemainingPins(Node->Pins);
+			UEdGraphPin* OldThenPin = CallFuncNode->GetThenPin();
+
+			// Note: This feels like it's going to be a very hot path during compilation as it will be hit for every
+			// CallFunction node. Any optimizations that can be made here are probably worth it to not terribly regress
+			// BP Compile time for cooked games.
+
+			// Iterate the properties looking for Out Params that are tied to Net Properties.
+			// This is similar to the loop in CreateCallFunction
+			for (TFieldIterator<UProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
+			{
+				UProperty* Property = *It;
+				if (Property->HasAllPropertyFlags(CPF_OutParm | CPF_ReferenceParm))
+				{
+					for (int32 i = 0; i < RemainingPins.Num(); ++i)
+					{
+						if (Property->GetFName() == RemainingPins[i]->PinName)
+						{
+							UEdGraphPin* ParamPin = RemainingPins[i];
+							if (UEdGraphPin * PinToTry = FEdGraphUtilities::GetNetFromPin(ParamPin))
+							{
+								if (UK2Node_VariableGet* GetPropertyNode = Cast<UK2Node_VariableGet>(PinToTry->GetOwningNode()))
+								{
+									UProperty* ToCheck = GetPropertyNode->GetPropertyForVariable();
+
+									// We only need to do this work if we actually found a net property.
+									if (UNLIKELY(ToCheck->HasAnyPropertyFlags(CPF_Net)))
+									{
+										if (OldThenPin == nullptr)
+										{
+											// TODO: Unfortunately, we don't have an efficient way to determine whether or not a property
+											//			uses push model at this point. That is only known from a call to "GetLifetimeRepProperties"
+											//			on a given object, and even then that is a user defined function that could do any number
+											//			of things.
+											//			We *might* be able to use something like Object Annotations to cache off the results of these
+											//			calls and clear the cache post compile, but that seems hacky and prone to error.
+											CompilerContext.MessageLog.Warning(TEXT("Passing net properties as Out Parameters with Push Model Enabled is not supported. Function=%s, Param=%s, Property=%s"),
+												*Function->GetName(), *Property->GetName(), *ToCheck->GetName());
+										}
+										else if (UClass * OwningClass = ToCheck->GetTypedOuter<UClass>())
+										{
+											// TODO: As of CL-10376545 in //UE4/Main, we no longer sort Native Replicated Properties by GC Offset.
+											//			This this chunk of code can probably be removed.
+
+											// We need to make sure this class already has its property offsets setup, otherwise
+											// the order of our replicated properties won't match, meaning the RepIndex will be
+											// invalid.
+											if (ToCheck->GetOffset_ForGC() == 0)
+											{
+												if (UBlueprint * Blueprint = Cast<UBlueprint>(OwningClass->ClassGeneratedBy))
+												{
+													if (UClass * UseClass = Blueprint->GeneratedClass)
+													{
+														OwningClass = UseClass;
+														ToCheck = FindFieldChecked<UProperty>(OwningClass, ToCheck->GetFName());
+													}
+												}
+											}
+
+											ensureAlwaysMsgf(ToCheck->GetOffset_ForGC() != 0,
+												TEXT("Class does not have Property Offsets setup. This will cause issues with Push Model. Blueprint=%s, Class=%s, Property=%s"),
+												*Context.Blueprint->GetPathName(), *OwningClass->GetPathName(), *ToCheck->GetName());
+
+											if (!OwningClass->HasAnyClassFlags(CLASS_ReplicationDataIsSetUp))
+											{
+												OwningClass->SetUpRuntimeReplicationData();
+											}
+
+											// Actually insert the nodes.
+											// TODO: I don't expect this to be a very frequent occurence, but we could be more clever about this.
+											//			Instead of inserting a new node per Out Ref Net Property, we might be able to create
+											//			A separate node that takes in lists of Objects, RepIndices, and Names.
+											//			Ideally, this would work like the String Append node where we could specify the values
+											//			directly on the node.
+											{
+												// Create the node that will call MarkPropertyDirty.
+												UK2Node_CallFunction* MarkPropertyDirtyNode = Node->GetGraph()->CreateIntermediateNode<UK2Node_CallFunction>();
+												MarkPropertyDirtyNode->FunctionReference.SetExternalMember(MarkPropertyDirtyFuncName, UNetPushModelHelpers::StaticClass());
+												MarkPropertyDirtyNode->AllocateDefaultPins();
+
+												// Create the Pins for RepIndex, PropertyName, and Object.
+												UEdGraphPin* RepIndexPin = MarkPropertyDirtyNode->FindPinChecked(RepIndexPinName);
+												RepIndexPin->DefaultValue = FString::FromInt(Property->RepIndex);
+
+												UEdGraphPin* PropertyNamePin = MarkPropertyDirtyNode->FindPinChecked(PropertyNamePinName);
+												PropertyNamePin->DefaultValue = Property->GetFName().ToString();
+
+												UEdGraphPin* ObjectPin = MarkPropertyDirtyNode->FindPinChecked(ObjectPinName);
+												UEdGraphPin* PropertyOwnerPin = GetPropertyNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+
+												// If the property is linked to some other object, go ahead and grab that.
+												// Otherwise, create an intermediate self Pin and use that.
+												if (PropertyOwnerPin->LinkedTo.Num() > 0)
+												{
+													PropertyOwnerPin = PropertyOwnerPin->LinkedTo[0];
+												}
+												else
+												{
+													UK2Node_Self* SelfNode = Node->GetGraph()->CreateIntermediateNode<UK2Node_Self>();
+													SelfNode->AllocateDefaultPins();
+													PropertyOwnerPin = SelfNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+												}
+
+												ObjectPin->MakeLinkTo(PropertyOwnerPin);
+
+												UEdGraphPin* NewThenPin = MarkPropertyDirtyNode->GetThenPin();
+												if (ensure(NewThenPin))
+												{
+													NewThenPin->CopyPersistentDataFromOldPin(*OldThenPin);
+													OldThenPin->BreakAllPinLinks();
+													OldThenPin->MakeLinkTo(MarkPropertyDirtyNode->GetExecPin());
+
+													// Now that the connection is established, go ahead and set our OldThenPin to
+													// the NewThenPin. If we find another NetProperty later, this will save us from
+													// doing a lookup.
+													OldThenPin = NewThenPin;
+												}
+											}
+										}
+									}
+								}
+							}
+
+							RemainingPins.RemoveAtSwap(i);
+							break;
+						}
+					}
+				}
+			}
+		}
+#endif
 	}
 }
 

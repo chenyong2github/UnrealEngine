@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollection/GeometryCollectionCollisionStructureManager.h"
 #include "ChaosLog.h"
@@ -177,7 +177,7 @@ void FCollisionStructureManager::UpdateImplicitFlags(FImplicit* Implicit, EColli
 {
 	if (Implicit && (CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric))
 	{
-		Implicit->IgnoreAnalyticCollisions();
+		Implicit->SetDoCollide(false);
 		Implicit->SetConvex(false);
 	}
 }
@@ -292,7 +292,7 @@ FCollisionStructureManager::CalculateUnitMassInertiaTensor(
 	if (ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 	{
 		const Chaos::TVector<float, 3> Size = Bounds.GetSize();
-		const Chaos::PMatrix<float, 3, 3> I = Chaos::TBox<float, 3>::GetInertiaTensor(1.0, Size);
+		const Chaos::PMatrix<float, 3, 3> I = Chaos::TAABB<float, 3>::GetInertiaTensor(1.0, Size);
 		Tensor = { I.M[0][0], I.M[1][1], I.M[2][2] };
 	}
 	else if (ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)

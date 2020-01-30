@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageTypeDetails.h"
 #include "Layout/Visibility.h"
@@ -21,7 +21,7 @@ void CustomizePropertyRowVisibility(IDetailLayoutBuilder& LayoutBuilder, const T
 {
 	// Properties with a HideBehind property specified should only be shown if that property is true, non-zero, or not empty
 	static const FName HideBehindName("HideBehind");
-	if (UProperty* Property = PropertyHandle->GetProperty())
+	if (FProperty* Property = PropertyHandle->GetProperty())
 	{
 		if (Property->HasMetaData(HideBehindName))
 		{
@@ -49,7 +49,7 @@ void AddSubcategoryProperties(IDetailLayoutBuilder& LayoutBuilder, const FName C
 	TMap<FString, TArray<TSharedRef<IPropertyHandle>> > SubcategoryPropertiesMap;
 	for (auto& PropertyHandle : CategoryProperties)
 	{
-		if (UProperty* Property = PropertyHandle->GetProperty())
+		if (FProperty* Property = PropertyHandle->GetProperty())
 		{
 			if (Property->HasMetaData(SubcategoryName))
 			{

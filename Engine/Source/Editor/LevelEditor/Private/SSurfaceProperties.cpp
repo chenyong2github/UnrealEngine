@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSurfaceProperties.h"
 #include "Widgets/Text/STextBlock.h"
@@ -798,7 +798,7 @@ void SSurfaceProperties::OnLightmapResolutionCommitted(float NewValue, ETextComm
 	}
 }
 
-void SSurfaceProperties::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged )
+void SSurfaceProperties::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
 	// update any selected lightmass settings with the new information
 	if (SelectedLightmassSettingsObjects.Num() > 0)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -110,7 +110,7 @@ private:
 #if WITH_EDITOR
 	UTexture2D* TextureBeforeEdit;
 public:
-	void PreEditChange(UProperty* PropertyAboutToChange) override;
+	void PreEditChange(FProperty* PropertyAboutToChange) override;
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

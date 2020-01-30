@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -86,12 +86,12 @@ public:
 	static void ExtractComponents(const ALODActor* LODActor, TArray<UPrimitiveComponent*>& InOutComponents);
 
 	/** Build a unique key for the LOD actor, used to determine if the actor needs rebuilding */
-	static FName GenerateKeyForActor(const ALODActor* LODActor);
+	static FName GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoLevelTransform = true);
 
 	static uint32 GetCRC(UMaterialInterface* InMaterialInterface, uint32 InCRC = 0);
 	static uint32 GetCRC(UTexture* InTexture, uint32 InCRC = 0);
 	static uint32 GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC = 0);
-	static uint32 GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC = 0);
+	static uint32 GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC = 0, const FTransform& TransformComponents = FTransform::Identity);
 
 #endif
 

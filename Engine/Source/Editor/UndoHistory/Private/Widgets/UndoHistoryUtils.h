@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -32,18 +32,18 @@ public:
 			return Properties;
 		}
 
-		for (TFieldIterator<UProperty> Property(InObjectClass); Property; ++Property)
+		for (TFieldIterator<FProperty> Property(InObjectClass); Property; ++Property)
 		{
 			if (!InChangedProperties.Contains(FName(*Property->GetName())))
 			{
 				continue;
 			}
 
-			if (Property->GetClass() == UObjectProperty::StaticClass() || Property->GetClass() == UStructProperty::StaticClass() || Property->GetClass() == UEnumProperty::StaticClass())
+			if (Property->GetClass() == FObjectProperty::StaticClass() || Property->GetClass() == FStructProperty::StaticClass() || Property->GetClass() == FEnumProperty::StaticClass())
 			{
 				Property->GetCPPMacroType(ClassName);
 			}
-			else if (Property->GetClass() == UArrayProperty::StaticClass())
+			else if (Property->GetClass() == FArrayProperty::StaticClass())
 			{
 				Property->GetCPPMacroType(ClassName);
 				ClassName = FString::Printf(TEXT("TArray<%s>"), *ClassName);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSessionInterfaceOculus.h"
 #include "OnlineSubsystemOculusPrivate.h"
@@ -1336,16 +1336,18 @@ void FOnlineSessionOculus::OnRoomInviteAccepted(ovrMessageHandle Message, bool b
 
 		auto Room = ovr_Message_GetRoom(InMessage);
 		auto Session = CreateSessionFromRoom(Room);
-		LocalSearchResult.Session = Session.Get();
 		
 		// check if there's a delegate bound, if not save this session for later.
 		if (!OnSessionUserInviteAcceptedDelegates.IsBound())
 		{
 			// No delegates are bound, just save this for later
-			PendingInviteAcceptedSessions.Add(MakeShareable(&LocalSearchResult));
+			TSharedRef<FOnlineSessionSearchResult> SearchResultPtr = MakeShareable(new FOnlineSessionSearchResult());
+			SearchResultPtr->Session = Session.Get();
+			PendingInviteAcceptedSessions.Add(SearchResultPtr);
 			return;
 		}
 
+		LocalSearchResult.Session = Session.Get();
 		TriggerOnSessionUserInviteAcceptedDelegates(true, 0, PlayerId, LocalSearchResult);
 	}));
 }

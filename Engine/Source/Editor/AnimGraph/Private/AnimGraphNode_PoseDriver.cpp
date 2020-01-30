@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_PoseDriver.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -118,6 +118,18 @@ void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* For
 		MessageLog.Warning(*LOCTEXT("SourceBoneNotFound", "@@ - Entry in SourceBones not found").ToString(), this);
 	}
 
+	TArray<FRBFTarget> RBFTargets;
+	Node.GetRBFTargets(RBFTargets);
+	TArray<int> InvalidTargets;
+	if (!FRBFSolver::ValidateTargets(Node.RBFParams, RBFTargets, InvalidTargets))
+	{
+		for (int TargetIdx: InvalidTargets)
+		{
+			MessageLog.Error(*LOCTEXT("PoseDriver_InvalidTarget", "@@ - '@@' is an invalid or duplicate target.").ToString(),
+				this, GetData(Node.PoseTargets[TargetIdx].DrivenName.ToString()));
+		}
+	}
+
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 }
 
@@ -209,6 +221,7 @@ void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPrev
 {
 	FAnimNode_PoseDriver* PreviewPoseDriver = static_cast<FAnimNode_PoseDriver*>(InPreviewNode);
 
+	PreviewPoseDriver->RBFParams.SolverType = Node.RBFParams.SolverType;
 	PreviewPoseDriver->RBFParams.Radius = Node.RBFParams.Radius;
 	PreviewPoseDriver->RBFParams.Function = Node.RBFParams.Function;
 	PreviewPoseDriver->RBFParams.DistanceMethod = Node.RBFParams.DistanceMethod;

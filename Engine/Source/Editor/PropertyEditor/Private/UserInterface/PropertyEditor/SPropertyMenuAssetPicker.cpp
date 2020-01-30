@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyMenuAssetPicker.h"
 #include "Factories/Factory.h"
@@ -30,6 +30,8 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 	OnShouldFilterAsset = InArgs._OnShouldFilterAsset;
 	OnSet = InArgs._OnSet;
 	OnClose = InArgs._OnClose;
+
+	const bool bForceShowEngineContent = PropertyHandle ? PropertyHandle->HasMetaData(TEXT("ForceShowEngineContent")) : false;
 
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	const bool bCloseSelfOnly = true;
@@ -149,6 +151,8 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 		AssetPickerConfig.PropertyHandle = PropertyHandle;
 		// Populate the additional referencing assets with the Owner asset data
 		AssetPickerConfig.AdditionalReferencingAssets = OwnerAssetArray;
+		// Force show engine content if meta data says so
+		AssetPickerConfig.bForceShowEngineContent = bForceShowEngineContent;
 
 		MenuContent =
 			SNew(SBox)

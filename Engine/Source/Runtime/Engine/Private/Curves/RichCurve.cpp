@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Curves/RichCurve.h"
 #include "Templates/Function.h"
@@ -97,7 +97,7 @@ bool FRichCurveKey::Serialize(FArchive& Ar)
 		return false;
 	}
 
-	// Serialization is handled manually to avoid the extra size overhead of UProperty tagging.
+	// Serialization is handled manually to avoid the extra size overhead of FProperty tagging.
 	// Otherwise with many keys in a rich curve the size can become quite large.
 	Ar << InterpMode;
 	Ar << TangentMode;
@@ -161,6 +161,11 @@ FRichCurveKey FRichCurve::GetKey(FKeyHandle KeyHandle) const
 	return Keys[GetIndex(KeyHandle)];
 }
 
+const FRichCurveKey& FRichCurve::GetKeyRef(FKeyHandle KeyHandle) const
+{
+	EnsureAllIndicesHaveHandles();
+	return Keys[GetIndex(KeyHandle)];
+}
 
 FRichCurveKey FRichCurve::GetFirstKey() const
 {
@@ -1130,6 +1135,7 @@ static ERichCurveCompressionFormat FindRichCurveCompressionFormat(const FRichCur
 	switch (RefKey.InterpMode)
 	{
 	case RCIM_Constant:
+		return RCCF_Mixed;
 	case RCIM_None:
 	default:
 		return RCCF_Constant;

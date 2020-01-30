@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailCustomizations/BlackboardSelectorDetails.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -57,18 +57,25 @@ void FBlackboardSelectorDetails::CustomizeChildren( TSharedRef<class IPropertyHa
 {
 }
 
-const UBlackboardData* FBlackboardSelectorDetails::FindBlackboardAsset(UObject* InObj)
+void FBlackboardSelectorDetails::FindBlackboardAsset(const UObject* InObj, const UObject*& OutBlackboardOwner, UBlackboardData*& OutBlackboardAsset) const
 {
-	for (UObject* TestOb = InObj; TestOb; TestOb = TestOb->GetOuter())
+	OutBlackboardOwner = nullptr;
+	OutBlackboardAsset = nullptr;
+
+	// Find first blackboard provider and return its' data.
+	// The data might be null if no blackboard is set up yet by the provider.
+	// It is important to always return the same provider so that the invalidate check
+	// in OnBlackboardOwnerChanged works consistently.
+	for (const UObject* TestOb = InObj; TestOb; TestOb = TestOb->GetOuter())
 	{
-		IBlackboardAssetProvider* Provider = Cast<IBlackboardAssetProvider>(TestOb);
+		const IBlackboardAssetProvider* Provider = Cast<IBlackboardAssetProvider>(TestOb);
 		if (Provider)
 		{
-			return Provider->GetBlackboardAsset();
+			OutBlackboardOwner = TestOb;
+			OutBlackboardAsset = Provider->GetBlackboardAsset();
+			break;
 		}
 	}
-
-	return NULL;
 }
 
 void FBlackboardSelectorDetails::CacheBlackboardData()
@@ -108,10 +115,13 @@ void FBlackboardSelectorDetails::CacheBlackboardData()
 	MyStructProperty->GetOuterObjects(MyObjects);
 	for (int32 ObjectIdx = 0; ObjectIdx < MyObjects.Num(); ObjectIdx++)
 	{
-		UBlackboardData* BlackboardAsset = const_cast<UBlackboardData*>(FindBlackboardAsset(MyObjects[ObjectIdx]));
+		const UObject* BlackboardOwner = nullptr;
+		UBlackboardData* BlackboardAsset = nullptr;
+		FindBlackboardAsset(MyObjects[ObjectIdx], BlackboardOwner, BlackboardAsset);
+
 		if (BlackboardAsset)
 		{
-			CachedBlackboardAssetOwner = MyObjects[ObjectIdx];
+			CachedBlackboardAssetOwner = BlackboardOwner;
 			CachedBlackboardAsset = BlackboardAsset;
 
 			TArray<FName> ProcessedNames;
@@ -179,7 +189,7 @@ void FBlackboardSelectorDetails::OnBlackboardDataChanged(UBlackboardData* Asset)
 
 void FBlackboardSelectorDetails::OnBlackboardOwnerChanged(UObject* Owner, UBlackboardData* Asset)
 {
-	UObject* CachedAssetOwner = CachedBlackboardAssetOwner.Get();
+	const UObject* CachedAssetOwner = CachedBlackboardAssetOwner.Get();
 	if (CachedAssetOwner == nullptr || CachedAssetOwner == Owner)
 	{
 		CacheBlackboardData();

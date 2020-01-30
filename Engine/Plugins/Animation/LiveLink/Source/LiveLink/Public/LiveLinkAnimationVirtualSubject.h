@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,4 +43,10 @@ protected:
 	// Tests to see if current ref skeleton is up to data
 	bool DoesSkeletonNeedRebuilding() const;
 	bool bInvalidate;
+
+public:
+
+	//Whether to append SubjectName to each bones part of the virtual hierarchy
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bAppendSubjectNameToBones;
 };

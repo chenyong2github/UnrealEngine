@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TextureCompressorModule.h"
 #include "Math/RandomStream.h"
@@ -1780,6 +1780,8 @@ public:
 	 */
 	void DoWork()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CompressImage);
+
 		bCompressionResults = TextureFormat.CompressImageEx(
 			SourceImages,
 			NumImages,
@@ -1831,6 +1833,8 @@ static bool CompressMipChain(
 	uint32& OutNumMipsInTail,
 	uint32& OutExtData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CompressMipChain)
+
 	// now call the Ex version now that we have the proper MipChain
 	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0]);
 	OutNumMipsInTail = CompressorCaps.NumMipsInTail;
@@ -2079,14 +2083,29 @@ private:
 
 		// Determine the number of mips required by BuildSettings.
 		int32 NumOutputMips = (BuildSettings.MipGenSettings == TMGS_NoMipmaps) ? 1 : MaxSourceMipCount;
-		NumOutputMips = FMath::Min(NumOutputMips, MaxDestMipCount);
 
 		int32 NumSourceMips = InSourceMips.Num();
 
+		// See if the smallest provided mip image is still too large for the current compressor.
+		int32 LevelsToUsableSource = FMath::Max(0, MaxSourceMipCount - MaxDestMipCount);
+		int32 StartMip = FMath::Max(0, LevelsToUsableSource);
+
 		if (BuildSettings.MipGenSettings == TMGS_LeaveExistingMips)
 		{
-			NumOutputMips = InSourceMips.Num();
+			NumOutputMips = InSourceMips.Num() - StartMip;
+			if (NumOutputMips <= 0)
+			{
+				// We can't generate 0 mip maps
+				UE_LOG(LogTextureCompressor, Warning,
+					TEXT("The source image has %d mips while the first mip would be %d. Please verify the maximun texture size or change the mips gen settings."),
+					NumSourceMips,
+					StartMip);
+				return false;
+			}
 		}
+
+		NumOutputMips = FMath::Min(NumOutputMips, MaxDestMipCount);
+
 
 		if (BuildSettings.MipGenSettings != TMGS_LeaveExistingMips || bLongLatCubemap)
 		{
@@ -2186,9 +2205,6 @@ private:
 
 		const TArray<FImage>& PostOptionalUpscaleSourceMips = (PaddedSourceMips.Num() > 0) ? PaddedSourceMips : InSourceMips;
 
-		// See if the smallest provided mip image is still too large for the current compressor.
-		int32 LevelsToUsableSource = FMath::Max(0, MaxSourceMipCount - MaxDestMipCount);
-		int32 StartMip = FMath::Max(0, LevelsToUsableSource);
 		bool bBuildSourceImage = StartMip > (NumSourceMips - 1);
 
 		TArray<FImage> GeneratedSourceMips;

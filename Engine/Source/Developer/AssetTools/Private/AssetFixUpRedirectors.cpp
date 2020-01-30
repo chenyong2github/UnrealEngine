@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "AssetFixUpRedirectors.h"
@@ -22,6 +22,7 @@
 #include "ObjectTools.h"
 #include "Logging/MessageLog.h"
 #include "AssetTools.h"
+#include "Engine/Blueprint.h"
 
 #define LOCTEXT_NAMESPACE "AssetFixUpRedirectors"
 

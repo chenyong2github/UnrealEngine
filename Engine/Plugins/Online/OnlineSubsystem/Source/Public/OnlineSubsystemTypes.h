@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1041,6 +1041,11 @@ public:
 	bool IsValidRange() const
 	{
 		return Start >= 0 && Count >= 0;
+	}
+
+	bool operator==(const FPagedQuery& Other) const
+	{
+		return Other.Start == Start && Other.Count == Count;
 	}
 
 	/** first entry to fetch */

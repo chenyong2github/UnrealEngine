@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VulkanSwapChain.h: Vulkan viewport RHI definitions.
@@ -12,7 +12,12 @@
 #include "IHeadMountedDisplayVulkanExtensions.h"
 
 
+#if PLATFORM_ANDROID
+// this path crashes within libvulkan during vkDestroySwapchainKHR on some versions of Android. See FORT-250079
+int32 GVulkanKeepSwapChain = 0;
+#else
 int32 GVulkanKeepSwapChain = 1;
+#endif
 static FAutoConsoleVariableRef CVarVulkanKeepSwapChain(
 	TEXT("r.Vulkan.KeepSwapChain"),
 	GVulkanKeepSwapChain,
@@ -412,11 +417,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 	SwapChainInfo.imageColorSpace = CurrFormat.colorSpace;
 	SwapChainInfo.imageExtent.width = SizeX;
 	SwapChainInfo.imageExtent.height = SizeY;
-	SwapChainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-	if (GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire)
-	{
-		SwapChainInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	}
+	SwapChainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	SwapChainInfo.preTransform = PreTransform;
 	SwapChainInfo.imageArrayLayers = 1;
 	SwapChainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;

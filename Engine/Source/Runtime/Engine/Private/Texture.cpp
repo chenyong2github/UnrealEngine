@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/Texture.h"
 #include "Misc/App.h"
@@ -35,6 +35,12 @@ static TAutoConsoleVariable<int32> CVarVirtualTextures(
 	TEXT("Is virtual texture streaming enabled?"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarMobileVirtualTextures(
+	TEXT("r.Mobile.VirtualTextures"),
+	0,
+	TEXT("Whether virtual texture streaming is enabled on mobile platforms. Requires r.VirtualTextures enabled as well. \n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
 
 DEFINE_LOG_CATEGORY(LogTexture);
 
@@ -135,7 +141,7 @@ bool UTexture::IsPostLoadThreadSafe() const
 }
 
 #if WITH_EDITOR
-bool UTexture::CanEditChange(const UProperty* InProperty) const
+bool UTexture::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -167,7 +173,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	bool RequiresNotifyMaterials = false;
 	bool DeferCompressionWasEnabled = false;
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if( PropertyThatChanged )
 	{
 		static const FName CompressionSettingsName = GET_MEMBER_NAME_CHECKED(UTexture, CompressionSettings);

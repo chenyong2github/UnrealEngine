@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,7 +12,7 @@ void ProjectHairStrandsOntoMesh(
 	FRHICommandListImmediate& RHICmdList, 
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
-	FHairStrandsProjectionMeshData& ProjectionMeshData, 
+	const FHairStrandsProjectionMeshData& ProjectionMeshData, 
 	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);
 
 enum class HairStrandsTriangleType
@@ -27,5 +27,5 @@ void UpdateHairStrandsMeshTriangles(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
-	FHairStrandsProjectionMeshData& ProjectionMeshData,
+	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
 	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);

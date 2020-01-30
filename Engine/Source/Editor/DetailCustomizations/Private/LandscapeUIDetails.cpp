@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeUIDetails.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -37,8 +37,8 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 
 	if (EditingObjects.Num() == 1)
 	{
-		ALandscape* Landscape = Cast<ALandscape>(EditingObjects[0].Get());
-		if (Landscape == nullptr)
+		TWeakObjectPtr<ALandscape> Landscape(Cast<ALandscape>(EditingObjects[0].Get()));
+		if (!Landscape.IsValid())
 		{
 			return;
 		}
@@ -65,14 +65,14 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 			.Type(ESlateCheckBoxType::CheckBox)
 			.IsChecked_Lambda([=]()
 			{
-				return Landscape->CanHaveLayersContent() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				return Landscape.IsValid() && Landscape->CanHaveLayersContent() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 			})
 			.OnCheckStateChanged_Lambda([=](ECheckBoxState NewState)
 			{
 				bool bChecked = (NewState == ECheckBoxState::Checked);
-				if (Landscape->CanHaveLayersContent() != bChecked)
+				if (Landscape.IsValid() && (Landscape->CanHaveLayersContent() != bChecked))
 				{
-					ToggleCanHaveLayersContent(Landscape);
+					ToggleCanHaveLayersContent(Landscape.Get());
 				}
 			})
 		];

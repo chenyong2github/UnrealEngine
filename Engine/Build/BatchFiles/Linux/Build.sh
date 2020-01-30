@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+# Copyright Epic Games, Inc. All Rights Reserved.
 # This script gets can be used to build clean individual projects using UnrealBuildTool
 
 set -e

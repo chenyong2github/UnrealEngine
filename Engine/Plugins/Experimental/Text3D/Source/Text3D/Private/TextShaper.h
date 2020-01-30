@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "Text3DPrivate.h"
@@ -36,7 +36,7 @@ struct FShapedGlyphLine
 	}
 };
 
-class FTextShaper
+class FTextShaper final
 {
 public:
 	static FTextShaper * Get()							{ return Instance; }

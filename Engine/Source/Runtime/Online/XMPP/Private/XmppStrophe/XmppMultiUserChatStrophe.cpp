@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "XmppStrophe/XmppMultiUserChatStrophe.h"
 #include "XmppStrophe/XmppConnectionStrophe.h"
@@ -120,7 +120,7 @@ bool FXmppMultiUserChatStrophe::HandlePresenceStanza(const FStropheStanza& Incom
 	TOptional<const FStropheStanza> UserStanza = IncomingStanza.GetChildByNameAndNamespace(Strophe::SN_X, Strophe::SNS_MUC_USER);
 	if (UserStanza.IsSet())
 	{
-		TOptional<const FStropheStanza> UserItemStanza = UserStanza->GetChild(Strophe::SN_ITEM);
+		TOptional<const FStropheStanza> UserItemStanza = UserStanza->GetChildStropheStanza(Strophe::SN_ITEM);
 		if (UserItemStanza.IsSet())
 		{
 			Presence.MemberJid = FXmppStrophe::JidFromString(UserItemStanza->GetAttribute(Strophe::SA_JID));
@@ -139,7 +139,7 @@ bool FXmppMultiUserChatStrophe::HandlePresenceErrorStanza(const FStropheStanza& 
 	FXmppStropheErrorPair OutError;
 	OutError.RoomId = IncomingStanza.GetFrom().Id;
 
-	TOptional<const FStropheStanza> Error = IncomingStanza.GetChild(Strophe::SN_ERROR);
+	TOptional<const FStropheStanza> Error = IncomingStanza.GetChildStropheStanza(Strophe::SN_ERROR);
 	if (Error.IsSet())
 	{
 		const TArray<FStropheStanza> ErrorList = Error->GetChildren();
@@ -205,7 +205,7 @@ bool FXmppMultiUserChatStrophe::HandlePresenceErrorStanza(const FStropheStanza& 
 
 bool FXmppMultiUserChatStrophe::HandleGroupChatStanza(const FStropheStanza& IncomingStanza)
 {
-	TOptional<const FStropheStanza> SubjectStanza = IncomingStanza.GetChild(Strophe::SN_SUBJECT);
+	TOptional<const FStropheStanza> SubjectStanza = IncomingStanza.GetChildStropheStanza(Strophe::SN_SUBJECT);
 	if (SubjectStanza.IsSet())
 	{
 		FXmppStropheSubjectUpdate SubjectUpdate;
@@ -253,7 +253,7 @@ bool FXmppMultiUserChatStrophe::HandleGroupChatStanza(const FStropheStanza& Inco
 	ChatMessage.Body = MoveTemp(BodyText.GetValue());
 
 	// Parse Timezone
-	TOptional<const FStropheStanza> StanzaDelay = IncomingStanza.GetChild(Strophe::SN_DELAY);
+	TOptional<const FStropheStanza> StanzaDelay = IncomingStanza.GetChildStropheStanza(Strophe::SN_DELAY);
 	if (StanzaDelay.IsSet())
 	{
 		if (StanzaDelay->HasAttribute(Strophe::SA_STAMP))
@@ -277,7 +277,7 @@ bool FXmppMultiUserChatStrophe::HandleGroupChatErrorStanza(const FStropheStanza&
 {
 	FString ErrorMessage;
 
-	TOptional<const FStropheStanza> Error = IncomingStanza.GetChild(Strophe::SN_ERROR);
+	TOptional<const FStropheStanza> Error = IncomingStanza.GetChildStropheStanza(Strophe::SN_ERROR);
 	if (Error.IsSet())
 	{
 		const TArray<FStropheStanza> ErrorList = Error->GetChildren();
@@ -328,7 +328,7 @@ bool FXmppMultiUserChatStrophe::HandleRoomConfigStanza(const FStropheStanza& Inc
 	//    means the channel already exists and we're querying the options for it
 
 	// Check for config write case (No Query child)
-	TOptional<const FStropheStanza> QueryStanza = IncomingStanza.GetChild(Strophe::SN_QUERY);
+	TOptional<const FStropheStanza> QueryStanza = IncomingStanza.GetChildStropheStanza(Strophe::SN_QUERY);
 	if (!QueryStanza.IsSet())
 	{
 		FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
@@ -348,7 +348,7 @@ bool FXmppMultiUserChatStrophe::HandleRoomConfigErrorStanza(const FStropheStanza
 	FXmppStropheErrorPair OutError;
 	OutError.RoomId = IncomingStanza.GetFrom().Id;
 
-	TOptional<const FStropheStanza> ErrorStanza = IncomingStanza.GetChild(Strophe::SN_ERROR);
+	TOptional<const FStropheStanza> ErrorStanza = IncomingStanza.GetChildStropheStanza(Strophe::SN_ERROR);
 	if (ErrorStanza.IsSet())
 	{
 		const FString ErrorType = ErrorStanza->GetType();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Physics engine integration utilities
 
@@ -19,6 +19,7 @@
 #include "PhysicsSolver.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/ChaosArchive.h"
+#include "Chaos/TrackedGeometryManager.h"
 
 /** Returns false if ModelToHulls operation should halt because of vertex count overflow. */
 static bool AddConvexPrim(FKAggregateGeom* OutGeom, TArray<FPlane> &Planes, UModel* InModel)
@@ -107,7 +108,7 @@ static bool ModelToHullsWorker(FKAggregateGeom* outGeom,
 	return true;
 }
 
-void UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
+bool UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
 {
 	if ( bRemoveExisting )
 	{
@@ -116,10 +117,12 @@ void UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
 
 	const int32 NumHullsAtStart = AggGeom.ConvexElems.Num();
 	
+	bool bSuccess = false;
+
 	if( InModel != NULL && InModel->Nodes.Num() > 0)
 	{
 		TArray<FPlane>	Planes;
-		bool bSuccess = ModelToHullsWorker(&AggGeom, InModel, 0, InModel->RootOutside, Planes);
+		bSuccess = ModelToHullsWorker(&AggGeom, InModel, 0, InModel->RootOutside, Planes);
 		if ( !bSuccess )
 		{
 			// ModelToHullsWorker failed.  Clear out anything that may have been created.
@@ -129,6 +132,7 @@ void UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
 
 	// Create new GUID
 	InvalidatePhysicsData();
+	return bSuccess;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -473,7 +477,11 @@ bool FPhysScene::ExecApexVis(const TCHAR* Cmd, FOutputDevice* Ar)
 #if WITH_CHAOS
 bool FPhysicsInterface::ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* OutputDevice, UWorld* InWorld)
 {
-
+	if (FParse::Command(&Cmd, TEXT("ChaosGeometryMemory")))
+	{
+		Chaos::FTrackedGeometryManager::Get().DumpMemoryUsage(OutputDevice);
+		return true;
+	}
 #if CHAOS_MEMORY_TRACKING
 	if (FParse::Command(&Cmd, TEXT("ChaosMemoryDistribution")))
 	{

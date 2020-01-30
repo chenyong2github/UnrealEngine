@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Matrix.h"
@@ -34,8 +34,13 @@ namespace Chaos
 				MVcm += InParticles.V(Index) * InParticles.M(Index);
 				Mcm += InParticles.M(Index);
 			}
-			MXcm /= Mcm;
-			MVcm /= Mcm;
+
+			if (Mcm != 0.0f)
+			{
+				MXcm /= Mcm;
+				MVcm /= Mcm;
+			}
+
 			TVector<T, d> L = TVector<T, d>(0.f, 0.f, 0.f);
 			PMatrix<T, d, d> I(0);
 			for (const int32 Index : InActiveIndices)
@@ -81,15 +86,6 @@ namespace Chaos
 
 			UpdatePositionBasedState(InParticles, ActiveIndices);
 		}
-
-		template<class T_PARTICLES>
-		inline void ApplyHelper(T_PARTICLES& InParticles, const T Dt, const int32 Index) const
-		{
-			TVector<T, d> R = InParticles.X(Index) - MXcm;
-			TVector<T, d> Dv = MVcm - InParticles.V(Index) + TVector<T, d>::CrossProduct(R, MOmega);
-			InParticles.V(Index) += MCoefficient * Dv;
-		}
-
 		inline void Apply(TDynamicParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
 		{
 			if (InParticles.InvM(Index) == 0)
@@ -108,9 +104,20 @@ namespace Chaos
 			ApplyHelper(InParticles, Dt, Index);
 		}
 
+	protected:
+		template<class T_PARTICLES>
+		inline void ApplyHelper(T_PARTICLES& InParticles, const T Dt, const int32 Index) const
+		{
+			TVector<T, d> R = InParticles.X(Index) - MXcm;
+			TVector<T, d> Dv = MVcm - InParticles.V(Index) + TVector<T, d>::CrossProduct(R, MOmega);
+			InParticles.V(Index) += MCoefficient * Dv;
+		}
+
+	protected:
+		mutable T MCoefficient;  // The mutable allows to be modified in derived classes Apply const functions
+
 	private:
 		TArray<int32> ActiveIndices;
 		TVector<T, d> MXcm, MVcm, MOmega;
-		T MCoefficient;
 	};
 }

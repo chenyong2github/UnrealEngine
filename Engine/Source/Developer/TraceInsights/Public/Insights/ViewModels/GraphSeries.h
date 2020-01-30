@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,6 +52,14 @@ public:
 	{
 		Color = InColor;
 		BorderColor = InBorderColor;
+		FillColor = InColor;
+	}
+
+	void SetColor(FLinearColor InColor, FLinearColor InBorderColor, FLinearColor InFillColor)
+	{
+		Color = InColor;
+		BorderColor = InBorderColor;
+		FillColor = InFillColor;
 	}
 
 	/**
@@ -65,7 +73,7 @@ public:
 	 * @return The scale between Value units and viewport units; in pixels (Slate units) / Value unit.
 	 */
 	double GetScaleY() const { return ScaleY; }
-	void SetScaleY(const double InScaleY) { ScaleY = InScaleY; }
+	void SetScaleY(const double InScaleY) { ScaleY = FMath::Max(InScaleY, (double)KINDA_SMALL_NUMBER); }
 
 	/**
 	 * @param Value a value; in Value units
@@ -94,18 +102,6 @@ public:
 	bool IsAutoZoomEnabled() const { return bAutoZoom; }
 	void EnableAutoZoom() { bAutoZoom = true; }
 
-	/** Target low value of auto zoom interval (corresponding to bottom of the track) */
-	double GetTargetAutoZoomLowValue() const { return TargetAutoZoomLowValue; }
-	/** Target high value of auto zoom interval (corresponding to top of the track) */
-	double GetTargetAutoZoomHighValue() const { return TargetAutoZoomHighValue; }
-	void SetTargetAutoZoomRange(double LowValue, double HighValue) { TargetAutoZoomLowValue = LowValue; TargetAutoZoomHighValue = HighValue; }
-
-	/** Current auto zoom low value */
-	double GetAutoZoomLowValue() const { return AutoZoomLowValue; }
-	/** Current auto zoom high value */
-	double GetAutoZoomHighValue() const { return AutoZoomHighValue; }
-	void SetAutoZoomRange(double LowValue, double HighValue) { AutoZoomLowValue = LowValue; AutoZoomHighValue = HighValue; }
-
 	/**
 	 * Compute BaselineY and ScaleY so the [Low, High] Value range will correspond to [Top, Bottom] Y position range.
 	 * GetYForValue(InHighValue) == InTopY
@@ -114,7 +110,7 @@ public:
 	void ComputeBaselineAndScale(const double InLowValue, const double InHighValue, const float InTopY, const float InBottomY, double& OutBaselineY, double& OutScaleY) const
 	{
 		ensure(InLowValue < InHighValue);
-		ensure(InTopY < InBottomY);
+		ensure(InTopY <= InBottomY);
 		const double InvRange = 1.0 / (InHighValue - InLowValue);
 		OutScaleY = static_cast<double>(InBottomY - InTopY) * InvRange;
 		//OutBaselineY = (InHighValue * static_cast<double>(InBottomY) - InLowValue * static_cast<double>(InTopY)) * InvRange;
@@ -132,6 +128,9 @@ public:
 	 */
 	const FGraphSeriesEvent* GetEvent(const float PosX, const float PosY, const FTimingTrackViewport& Viewport, bool bCheckLine, bool bCheckBox) const;
 
+	/** Update the track's auto-zoom. Does nothing if IsAutoZoomEnabled() is false. */
+	void UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue);
+
 	virtual FString FormatValue(double Value) const;
 
 private:
@@ -142,21 +141,18 @@ private:
 	bool bIsDirty;
 
 	bool bAutoZoom;
-	double TargetAutoZoomLowValue; // target low value of auto zoom interval (corresponding to bottom of the track)
-	double TargetAutoZoomHighValue; // target high value of auto zoom interval (corresponding to top of the track)
-	double AutoZoomLowValue; // current auto zoom low value
-	double AutoZoomHighValue; // current auto zoom high value
 
 	double BaselineY; // Y position (in viewport local space) of the baseline (with Value == 0); in pixels (Slate units)
 	double ScaleY; // scale between Value units and viewport units; in pixels (Slate units) / Value unit
 
 	FLinearColor Color;
+	FLinearColor FillColor;
 	FLinearColor BorderColor;
 
 protected:
 	TArray<FGraphSeriesEvent> Events; // reduced list of events; used to identify an event at a certain screen position (ex.: the event hovered by mouse)
 	TArray<FVector2D> Points; // reduced list of points; for drawing points
-	TArray<FVector2D> LinePoints; // reduced list of points; for drawing the connected line and filled polygon
+	TArray<TArray<FVector2D>> LinePoints;	// reduced list of points; for drawing the connected line and filled polygon, split into disconnected batches
 	TArray<FBox> Boxes; // reduced list of boxes; for drawing boxes
 };
 

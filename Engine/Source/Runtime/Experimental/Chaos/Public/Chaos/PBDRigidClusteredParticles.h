@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ArrayCollectionArray.h"
@@ -7,8 +7,7 @@
 
 namespace Chaos
 {
-template<class T, int d>
-class TImplicitObjectUnion; 
+	class FImplicitObjectUnionClustered;
 
 // ClusterId 
 //    Used within the clustering system to describe the clustering hierarchy. The ID will
@@ -160,7 +159,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	  TArrayCollectionArray<TRigidTransform<T, d>> MChildToParent;
 	  TArrayCollectionArray<int32> MClusterGroupIndex;
 	  TArrayCollectionArray<bool> MInternalCluster;
-	  TArrayCollectionArray<TUniquePtr<TImplicitObjectUnion<T, d>>> MChildrenSpatial;
+	  TArrayCollectionArray<TUniquePtr<FImplicitObjectUnionClustered>> MChildrenSpatial;
 	  TArrayCollectionArray<FMultiChildProxyId> MMultiChildProxyId;
 	  TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>> MMultiChildProxyData;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -102,6 +102,7 @@ private:
 	friend FFrameTime& operator+=(FFrameTime& LHS, FFrameTime RHS);
 	friend FFrameTime  operator+(FFrameTime A, FFrameTime B);
 	friend FFrameTime  operator-(FFrameTime A, FFrameTime B);
+	friend FFrameTime  operator%(FFrameTime A, FFrameTime B);
 
 	friend FFrameTime  operator-(FFrameTime A);
 
@@ -220,6 +221,26 @@ FORCEINLINE_DEBUGGABLE FFrameTime operator-(FFrameTime A, FFrameTime B)
 }
 
 
+FORCEINLINE_DEBUGGABLE FFrameTime operator%(FFrameTime A, FFrameTime B)
+{
+	check(B.FrameNumber.Value != 0 || B.GetSubFrame() != 0.f);
+
+	if (A.SubFrame == 0.f && B.SubFrame == 0.f)
+	{
+		return FFrameTime(A.FrameNumber % B.FrameNumber);
+	}
+	else
+	{
+		FFrameTime Result = A;
+		while (Result >= B)
+		{
+			Result = Result - B;
+		}
+		return Result;
+	}
+}
+
+
 FORCEINLINE_DEBUGGABLE FFrameTime operator-(FFrameTime A)
 {
 	return A.GetSubFrame() == 0.f
@@ -269,7 +290,7 @@ FORCEINLINE_DEBUGGABLE FFrameTime FFrameTime::FromDecimal(double InDecimalFrame)
 
 	// Ensure fractional parts above the highest sub frame float precision do not round to 0.0
 	double Fraction = InDecimalFrame - FMath::FloorToDouble(InDecimalFrame);
-	return FFrameTime(NewFrame, FMath::Clamp(Fraction, 0.0, (double)MaxSubframe));
+	return FFrameTime(NewFrame, FMath::Clamp((float)Fraction, 0.0f, MaxSubframe));
 }
 
 /** Convert a FFrameTime into a string */

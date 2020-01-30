@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CollectionReferenceStructCustomization.h"
 #include "Misc/PackageName.h"
@@ -72,6 +72,8 @@ FReply FCollectionReferenceStructCustomization::OnPickContent(TSharedRef<IProper
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	FCollectionPickerConfig PickerConfig;
+	PickerConfig.AllowCollectionButtons = false;
+	PickerConfig.AllowRightClickMenu = false;
 	PickerConfig.OnCollectionSelected = FOnCollectionSelected::CreateSP(this, &FCollectionReferenceStructCustomization::OnCollectionPicked, PropertyHandle);
 	
 	FMenuBuilder MenuBuilder(true, NULL);

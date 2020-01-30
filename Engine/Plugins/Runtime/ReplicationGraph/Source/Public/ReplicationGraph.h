@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /*=============================================================================
@@ -62,6 +62,8 @@ UReplicationGraph::InitConnectionGraphNodes
 #include "ReplicationGraphTypes.h"
 
 #include "ReplicationGraph.generated.h"
+
+struct FReplicationGraphDestructionSettings;
 
 #define DO_ENABLE_REPGRAPH_DEBUG_ACTOR !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
@@ -842,6 +844,9 @@ public:
 
 	void SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKBytesPerSec);
 
+	/** Sets the global and connection-specific cull distance setting of this actor */
+	void SetAllCullDistanceSettingsForActor(const FActorRepListType& Actor, float CullDistanceSquared);
+
 	// --------------------------------------------------------------
 
 	/** Creates a new node for the graph. This and UReplicationNode::CreateChildNode should be the only things that create the graph node UObjects */
@@ -910,6 +915,8 @@ public:
 	void UpdateActorChannelCloseFrameNum(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, const FGlobalActorReplicationInfo& GlobalData, const uint32 FrameNum, UNetConnection* NetConnection) const;
 
 	void NotifyConnectionSaturated(class UNetReplicationGraphConnection& Connection);
+
+	void SetActorDestructionInfoToIgnoreDistanceCulling(AActor* DestroyedActor);
 
 	uint16 GetReplicationPeriodFrameForFrequency(float NetUpdateFrequency) const
 	{
@@ -1018,14 +1025,17 @@ struct FLastLocationGatherInfo
 {
 	GENERATED_BODY()
 
-	FLastLocationGatherInfo() : Connection(nullptr), LastLocation(FVector(ForceInitToZero)) {}
-	FLastLocationGatherInfo(const UNetConnection* InConnection, FVector InLastLocation) : Connection(InConnection), LastLocation(InLastLocation) {}
+	FLastLocationGatherInfo() : Connection(nullptr), LastLocation(ForceInitToZero), LastOutOfRangeLocationCheck(ForceInitToZero) {}
+	FLastLocationGatherInfo(const UNetConnection* InConnection, FVector InLastLocation) : Connection(InConnection), LastLocation(InLastLocation), LastOutOfRangeLocationCheck(InLastLocation)  {}
 
 	UPROPERTY()
 	const UNetConnection* Connection;
 
 	UPROPERTY()
 	FVector LastLocation;
+
+	UPROPERTY()
+	FVector LastOutOfRangeLocationCheck;
 
 	bool operator==(UNetConnection* Other) const
 	{
@@ -1084,8 +1094,6 @@ public:
 	/** Returns connection graph nodes. This is const so that you do not mutate the array itself. You should use AddConnectionGraphNode/RemoveConnectionGraphNode.  */
 	const TArray<UReplicationGraphNode*>& GetConnectionGraphNodes() const { return ConnectionGraphNodes; }
 
-	virtual void NotifyAddDormantDestructionInfo(AActor* Actor) override;
-
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
@@ -1107,8 +1115,12 @@ public:
 
 	virtual void NotifyRemoveDestructionInfo(FActorDestructionInfo* DestructInfo) override;
 
+	virtual void NotifyAddDormantDestructionInfo(AActor* Actor) override;
+
 	virtual void NotifyResetDestructionInfo() override;
 	//~ End UReplicationConnectionDriver Interface
+
+	virtual void NotifyResetAllNetworkActors();
 
 	/** Generates a set of all the visible level names for this connection and its subconnections (if any) */
 	virtual void GetClientVisibleLevelNames(TSet<FName>& OutLevelNames) const;
@@ -1137,6 +1149,12 @@ private:
 	
 	int64 ReplicateDormantDestructionInfos();
 
+	/** Update the last location for viewers on a connection */
+	void UpdateGatherLocationsForConnection(const FNetViewerArray& ConnectionViewers, const FReplicationGraphDestructionSettings& DestructionSettings);
+
+    /** Update the location info of a specific viewer */
+	void OnUpdateViewerLocation(FLastLocationGatherInfo* LocationInfo, const FNetViewer& Viewer, const FReplicationGraphDestructionSettings& DestructionSettings);
+
 	UPROPERTY()
 	TArray<UReplicationGraphNode*> ConnectionGraphNodes;
 
@@ -1147,6 +1165,7 @@ private:
 	struct FCachedDestructInfo
 	{
 		FCachedDestructInfo(FActorDestructionInfo* InDestructInfo) : DestructionInfo(InDestructInfo), CachedPosition(InDestructInfo->DestroyedPosition) {}
+		bool operator==(const FCachedDestructInfo& rhs) const { return DestructionInfo == rhs.DestructionInfo; };
 		bool operator==(const FActorDestructionInfo* InDestructInfo) const { return InDestructInfo == DestructionInfo; };
 		
 		FActorDestructionInfo* DestructionInfo;
@@ -1162,8 +1181,17 @@ private:
 		}
 	};
 
+	/** 
+	* List of destroyed actors that were too far from the connection to be relevant.
+	* Is periodically evaluated when the viewer crosses a specific distance.
+	*/
+	TArray<FCachedDestructInfo> OutOfRangeDestroyedActors;
+
+	/** List of destroyed actors that need to be replicated */
 	TArray<FCachedDestructInfo> PendingDestructInfoList;
-	TSet<FActorDestructionInfo*> TrackedDestructionInfoPtrs; // Set used to guard against double adds into PendingDestructInfoList
+
+	/** Set used to guard against double adds into PendingDestructInfoList */
+	TSet<FActorDestructionInfo*> TrackedDestructionInfoPtrs;
 
 	struct FCachedDormantDestructInfo
 	{
@@ -1173,6 +1201,7 @@ private:
 		FString PathName;
 	};
 
+	/** List of dormant actors that should be removed from the client */
 	TArray<FCachedDormantDestructInfo> PendingDormantDestructList;
 };
 
@@ -1237,4 +1266,18 @@ public:
 	UNetReplicationGraphConnection* ConnectionManager;
 
 	virtual UNetConnection* GetNetConnection() const override;
+};
+
+// --------------------------------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------------------------------
+struct FReplicationGraphDestructionSettings
+{
+	FReplicationGraphDestructionSettings(float InDestructInfoMaxDistanceSquared, float InOutOfRangeDistanceCheckThresholdSquared)
+		: DestructInfoMaxDistanceSquared(InDestructInfoMaxDistanceSquared)
+		, OutOfRangeDistanceCheckThresholdSquared(InOutOfRangeDistanceCheckThresholdSquared)
+	{ }
+
+	float DestructInfoMaxDistanceSquared;
+	float OutOfRangeDistanceCheckThresholdSquared;
 };

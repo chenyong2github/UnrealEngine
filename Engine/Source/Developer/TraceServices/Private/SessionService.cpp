@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/SessionService.h"
 #include "SessionServicePrivate.h"
@@ -28,10 +28,10 @@ struct FDiagnosticsSessionAnalyzer
 {
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override
 	{
-		if (Context.SessionContext.Version < 2)
-		{
-			return;
-		}
+		//if (Context.SessionContext.Version < 2)
+		//{
+		//	return;
+		//}
 
 		Context.InterfaceBuilder.RouteEvent(0, "Diagnostics", "Session");
 	}
@@ -331,7 +331,7 @@ void FSessionService::UpdateSessionContext(FStoreSessionHandle StoreHandle, FSes
 	{
 		virtual int32 Read(void* Data, uint32 Size) override
 		{
-			if (BytesRead >= 32768)
+			if (BytesRead >= 48 * 1024)
 			{
 				return 0;
 			}

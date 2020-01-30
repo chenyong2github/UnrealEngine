@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MeshPassProcessor.cpp: 
@@ -149,7 +149,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(ShaderBindingState.SRVs));
 
 		uint32 TypeByteIndex = SRVIndex / 8;
-		uint32 TypeBitIndex = SRVIndex - TypeByteIndex;
+		uint32 TypeBitIndex = SRVIndex % 8;
 
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
@@ -234,7 +234,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		FShaderParameterInfo Parameter = SRVParameters[SRVIndex];
 
 		uint32 TypeByteIndex = SRVIndex / 8;
-		uint32 TypeBitIndex = SRVIndex - TypeByteIndex;
+		uint32 TypeBitIndex = SRVIndex % 8;
 
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
@@ -626,7 +626,7 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 			FShaderParameterInfo Parameter = SRVParameters[SRVIndex];
 
 			uint32 TypeByteIndex = SRVIndex / 8;
-			uint32 TypeBitIndex = SRVIndex - TypeByteIndex;
+			uint32 TypeBitIndex = SRVIndex % 8;
 
 			if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 			{
@@ -1008,11 +1008,20 @@ void FMeshDrawCommand::SubmitDraw(
 	}
 	else
 	{
-		RHICmdList.DrawPrimitive(
-			MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
-			MeshDrawCommand.NumPrimitives,
-			MeshDrawCommand.NumInstances * InstanceFactor
-		);
+		if (MeshDrawCommand.NumPrimitives > 0)
+		{
+			RHICmdList.DrawPrimitive(
+				MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
+				MeshDrawCommand.NumPrimitives,
+				MeshDrawCommand.NumInstances * InstanceFactor);
+		}
+		else
+		{
+			RHICmdList.DrawPrimitiveIndirect(
+				MeshDrawCommand.IndirectArgs.Buffer,
+				MeshDrawCommand.IndirectArgs.Offset
+			);
+		}
 	}
 }
 #if MESH_DRAW_COMMAND_DEBUG_DATA

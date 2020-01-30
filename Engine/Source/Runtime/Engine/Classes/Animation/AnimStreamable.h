@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Animation that can be streamed instead of being loaded completely
@@ -109,12 +109,6 @@ public:
 	UPROPERTY()
 	const UAnimSequence* SourceSequence;
 
-	/**
-	 * The compression scheme that was most recently used to compress this animation.
-	 */
-	UPROPERTY(Category = Compression, VisibleAnywhere)
-	class UAnimCompress* CompressionScheme;
-
 	UPROPERTY()
 	FGuid RawDataGuid;
 
@@ -176,6 +170,10 @@ public:
 #endif
 	}
 
+	/** The bone compression settings used to compress bones in this sequence. */
+	UPROPERTY(Category = Compression, EditAnywhere)
+	class UAnimBoneCompressionSettings* BoneCompressionSettings;
+
 	/** The curve compression settings used to compress curves in this sequence. */
 	UPROPERTY(Category = Compression, EditAnywhere)
 	class UAnimCurveCompressionSettings* CurveCompressionSettings;
@@ -221,13 +219,11 @@ public:
 	private:
 
 #if WITH_EDITOR
-	float GetAltCompressionErrorThreshold() const;
-
 	ENGINE_API void RequestCompressedData(const  ITargetPlatform* Platform=nullptr);
 
 	void UpdateRawData();
 
-	FString GetBaseDDCKey(uint32 NumChunks, float AltCompressionErrorThreshold) const;
+	FString GetBaseDDCKey(uint32 NumChunks) const;
 
 	void RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const int32 ChunkIndex, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext);
 #endif

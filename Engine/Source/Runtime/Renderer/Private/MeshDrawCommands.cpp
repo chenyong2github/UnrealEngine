@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 MeshDrawCommandSetup.cpp: Mesh draw command setup.
@@ -1130,7 +1130,7 @@ public:
 
 		// Recompute draw range.
 		const int32 DrawNum = VisibleMeshDrawCommands.Num();
-		const int32 NumDrawsPerTask = FMath::DivideAndRoundUp(DrawNum, TaskNum);
+		const int32 NumDrawsPerTask = TaskIndex < DrawNum ? FMath::DivideAndRoundUp(DrawNum, TaskNum) : 0;
 		const int32 StartIndex = TaskIndex * NumDrawsPerTask;
 		const int32 NumDraws = FMath::Min(NumDrawsPerTask, DrawNum - StartIndex);
 

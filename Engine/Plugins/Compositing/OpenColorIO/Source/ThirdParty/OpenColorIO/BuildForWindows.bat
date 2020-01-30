@@ -1,6 +1,6 @@
 @echo off
 
-rem Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+rem Copyright Epic Games, Inc. All Rights Reserved.
 
 rem Setup part
 setlocal

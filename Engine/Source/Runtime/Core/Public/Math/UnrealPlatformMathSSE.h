@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 
 // Code including this header is responsible for including the correct platform-specific header for SSE intrinsics.
 
+#define PLATFORM_ENABLE_SSE4_MATH 0 // Temporarily disable the intrinsics on all platforms to fix the build
 
 namespace UnrealPlatformMathSSE
 {
@@ -67,5 +68,99 @@ namespace UnrealPlatformMathSSE
 
 		_mm_store_ss(&temp, X1);
 		return temp;
+	}
+
+	static FORCEINLINE int32 TruncToInt(float F)
+	{
+		return _mm_cvtt_ss2si(_mm_set_ss(F));
+	}
+
+	static FORCEINLINE float TruncToFloat(float F)
+	{
+#if PLATFORM_ENABLE_SSE4_MATH
+		return _mm_cvtss_f32(_mm_round_ps(_mm_set_ss(F), 3));
+#else
+		return truncf(F);
+#endif
+	}
+
+	static FORCEINLINE double TruncToDouble(double F)
+	{
+#if PLATFORM_ENABLE_SSE4_MATH
+		return _mm_cvtsd_f64(_mm_round_pd(_mm_set_sd(F), 3));
+#else
+		return trunc(F);
+#endif
+	}
+
+	static FORCEINLINE int32 FloorToInt(float F)
+	{
+		// Note: unlike the Generic solution and the float solution, we implement FloorToInt using a rounding instruction, rather than implementing RoundToInt using a floor instruction.  
+		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
+		return _mm_cvt_ss2si(_mm_set_ss(F + F - 0.5f)) >> 1;
+	}
+
+	static FORCEINLINE float FloorToFloat(float F)
+	{
+#if PLATFORM_ENABLE_SSE4_MATH
+		return _mm_cvtss_f32(_mm_floor_ps(_mm_set_ss(F)));
+#else
+		return floorf(F);
+#endif
+	}
+
+	static FORCEINLINE double FloorToDouble(double F)
+	{
+#if PLATFORM_ENABLE_SSE4_MATH
+		return _mm_cvtsd_f64(_mm_floor_pd(_mm_set_sd(F)));
+#else
+		return floor(F);
+#endif
+	}
+
+	static FORCEINLINE int32 RoundToInt(float F)
+	{
+		// Note: the times-2 is to remove the rounding-to-nearest-even-number behavior that mm_cvt_ss2si uses when the fraction is .5
+		// The formula we uses causes the round instruction to always be applied to a an odd integer when the original value was 0.5, and eliminates the rounding-to-nearest-even-number behavior
+		// Input -> multiply by two and add .5 -> Round to nearest whole -> divide by two and truncate
+		// N -> (2N) + .5 -> 2N (or possibly 2N+1) -> N
+		// N + .5 -> 2N + 1.5 -> (round towards even now always means round up) -> 2N + 2 -> N + 1
+		return _mm_cvt_ss2si(_mm_set_ss(F + F + 0.5f)) >> 1;
+	}
+
+	static FORCEINLINE float RoundToFloat(float F)
+	{
+		return FloorToFloat(F + 0.5f);
+	}
+
+	static FORCEINLINE double RoundToDouble(double F)
+	{
+		return FloorToDouble(F + 0.5);
+	}
+
+	static FORCEINLINE int32 CeilToInt(float F)
+	{
+		// Note: unlike the Generic solution and the float solution, we implement CeilToInt using a rounding instruction, rather than a dedicated ceil instruction
+		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
+		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
+	}
+
+	static FORCEINLINE float CeilToFloat(float F)
+	{
+#if PLATFORM_ENABLE_SSE4_MATH
+		return _mm_cvtss_f32(_mm_ceil_ps(_mm_set_ss(F)));
+#else
+		return ceilf(F);
+#endif
+
+	}
+
+	static FORCEINLINE double CeilToDouble(double F)
+	{
+#if PLATFORM_ENABLE_SSE4_MATH
+		return _mm_cvtsd_f64(_mm_ceil_pd(_mm_set_sd(F)));
+#else
+		return ceil(F);
+#endif
 	}
 }

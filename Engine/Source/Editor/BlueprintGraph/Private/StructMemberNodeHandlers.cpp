@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StructMemberNodeHandlers.h"
 #include "UObject/UnrealType.h"
@@ -21,7 +21,7 @@ static FBPTerminal* RegisterStructVar(FCompilerResultsLog& MessageLog, FKismetFu
 
 	// Now find the variable
 	bool bIsSparseProperty;
-	if (UProperty* BoundProperty = FKismetCompilerUtilities::FindNamedPropertyInScope(SearchScope, MemberSetNode->GetVarName(), bIsSparseProperty))
+	if (FProperty* BoundProperty = FKismetCompilerUtilities::FindNamedPropertyInScope(SearchScope, MemberSetNode->GetVarName(), bIsSparseProperty))
 	{
 		// Create the term in the list
 		FBPTerminal* Term = new FBPTerminal();
@@ -60,7 +60,7 @@ static FBPTerminal* RegisterStructVar(FCompilerResultsLog& MessageLog, FKismetFu
 static void ResolveAndRegisterScopedStructTerm(FCompilerResultsLog& MessageLog, FKismetFunctionContext& Context, UScriptStruct* StructType, UEdGraphPin* Net, FBPTerminal* ContextTerm)
 {
 	// Find the property for the struct
-	if (UProperty* BoundProperty = FindField<UProperty>(StructType, Net->PinName))
+	if (FProperty* BoundProperty = FindField<FProperty>(StructType, Net->PinName))
 	{
 		// Create the term in the list
 		FBPTerminal* Term = new FBPTerminal();

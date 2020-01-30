@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosStats.h"
 
+DEFINE_STAT(STAT_ChaosTick);
 DEFINE_STAT(STAT_PhysicsAdvance);
 DEFINE_STAT(STAT_SolverAdvance);
 DEFINE_STAT(STAT_HandleSolverCommands);

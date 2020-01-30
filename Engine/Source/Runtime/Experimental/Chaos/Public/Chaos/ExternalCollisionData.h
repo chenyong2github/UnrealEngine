@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Box.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/Vector.h"
+#include "Chaos/Framework/PhysicsProxyBase.h"
 
 class UPhysicalMaterial;
 
@@ -28,6 +29,8 @@ namespace Chaos
 			, PenetrationDepth((T)0.0)
 			, Particle(nullptr)
 			, Levelset(nullptr)
+			, ParticleProxy(nullptr)
+		    , LevelsetProxy(nullptr)
 			, ParticleIndexMesh(INDEX_NONE)
 			, LevelsetIndexMesh(INDEX_NONE)
 		{}
@@ -44,6 +47,8 @@ namespace Chaos
 			, T InPenetrationDepth
 			, TGeometryParticle<T, d>* InParticle
 			, TGeometryParticle<T, d>* InLevelset
+			, IPhysicsProxyBase* InParticleProxy
+			, IPhysicsProxyBase* InLevelsetProxy
 			, int32 InParticleIndexMesh
 			, int32 InLevelsetIndexMesh)
 			: Location(InLocation)
@@ -58,6 +63,8 @@ namespace Chaos
 			, PenetrationDepth(InPenetrationDepth)
 			, Particle(InParticle)
 			, Levelset(InLevelset)
+			, ParticleProxy(InParticleProxy)
+		    , LevelsetProxy(InLevelsetProxy)
 			, ParticleIndexMesh(InParticleIndexMesh)
 			, LevelsetIndexMesh(InLevelsetIndexMesh)
 		{}
@@ -71,6 +78,8 @@ namespace Chaos
 		T PenetrationDepth;
 		TGeometryParticle<T, d>* Particle;
 		TGeometryParticle<T, d>* Levelset;
+		IPhysicsProxyBase* ParticleProxy;
+		IPhysicsProxyBase* LevelsetProxy;
 		// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO
 		int32 ParticleIndexMesh, LevelsetIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 													// It is important to be able to get extra data from the component
@@ -188,7 +197,7 @@ namespace Chaos
 			, Particle(nullptr)
 			, ParticleIndex(INDEX_NONE)
 			, ParticleIndexMesh(INDEX_NONE)
-			, BoundingBox(TBox<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
+			, BoundingBox(TAABB<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
 		{}
 
 		TVector<T, d> Location;
@@ -199,7 +208,7 @@ namespace Chaos
 		int32 ParticleIndex; //#todo: remove this in favor of TGeometryParticle?
 		int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 								 // It is important to be able to get extra data from the component
-		Chaos::TBox<T, d> BoundingBox;
+		Chaos::TAABB<T, d> BoundingBox;
 	};
 
 
@@ -294,7 +303,7 @@ namespace Chaos
 			, Mass((T)0.0)
 			, Particle(nullptr)
 			, ParticleIndexMesh(INDEX_NONE)
-			, BoundingBox(TBox<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
+			, BoundingBox(TAABB<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
 		{}
 
 		TTrailingData(TVector<T, d> InLocation
@@ -307,7 +316,7 @@ namespace Chaos
 			, float InBoundingboxExtentMin
 			, float InBoundingboxExtentMax
 			, int32 InSurfaceType
-			, Chaos::TBox<T, d>& InBoundingBox)
+			, Chaos::TAABB<T, d>& InBoundingBox)
 			: Location(InLocation)
 			, Velocity(InVelocity)
 			, AngularVelocity(InAngularVelocity)
@@ -324,7 +333,7 @@ namespace Chaos
 		TGeometryParticle<T, d>* Particle;
 		int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 								 // It is important to be able to get extra data from the component
-		Chaos::TBox<T, d> BoundingBox;
+		Chaos::TAABB<T, d> BoundingBox;
 
 		friend inline uint32 GetTypeHash(const TTrailingData& Other)
 		{

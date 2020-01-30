@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -29,6 +29,8 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SCurveEditorPanel)
 		: _GridLineTint(FLinearColor(0.1f, 0.1f, 0.1f, 1.f))
+		, _TreeSplitterWidth(0.3f)
+		, _ContentSplitterWidth(0.7f)
 	{}
 
 		/** Color to draw grid lines */
@@ -45,6 +47,12 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 
 		/** Widget slot for the tree content */
 		SLATE_NAMED_SLOT(FArguments, TreeContent)
+
+		/** The width of the splitter slot for the tree */
+		SLATE_ARGUMENT(float, TreeSplitterWidth)
+
+		/** The width of the splitter slot for the main content */
+		SLATE_ARGUMENT(float, ContentSplitterWidth)
 
 	SLATE_END_ARGS()
 

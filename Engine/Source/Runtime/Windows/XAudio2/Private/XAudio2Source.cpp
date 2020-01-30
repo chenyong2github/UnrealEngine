@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	XeAudioDevice.cpp: Unreal XAudio2 Audio interface object.
@@ -388,7 +388,8 @@ bool FXAudio2SoundSource::CreateSource( void )
 	// EQFilter Causes some sound devices to lag and starve important game threads. Hack disable until a long term solution is put into place.
 
 	const bool bIsEQDisabled = GetDefault<UAudioSettings>()->bDisableMasterEQ;
-	if (!bIsEQDisabled && IsEQFilterApplied())
+	const bool bIsEQFilterApplied = WaveInstance->SoundClass ? WaveInstance->SoundClass->Properties.bApplyEffects : false;
+	if (!bIsEQDisabled && bIsEQFilterApplied)
 	{
 		Destinations[NumSends].pOutputVoice = Effects->EQPremasterVoice;
 	}
@@ -869,8 +870,8 @@ void FXAudio2SoundSource::GetStereoChannelVolumes(float ChannelVolumes[CHANNEL_M
 		// but only if this is not an HRTF-spatialized mono sound
 		if (!IsUsingHrtfSpatializer() && FXAudioDeviceProperties::NumSpeakers == 6)
 		{
-			ChannelVolumes[CHANNELOUT_LEFTSURROUND] = AttenuatedVolume * StereoBleed;
-			ChannelVolumes[CHANNELOUT_RIGHTSURROUND] = AttenuatedVolume * StereoBleed;
+			ChannelVolumes[CHANNELOUT_LEFTSURROUND] = AttenuatedVolume;
+			ChannelVolumes[CHANNELOUT_RIGHTSURROUND] = AttenuatedVolume;
 
 			ChannelVolumes[CHANNELOUT_LOWFREQUENCY] = AttenuatedVolume * LFEBleed * 0.5f;
 		}
@@ -1374,9 +1375,6 @@ void FXAudio2SoundSource::Update()
 			// Set the pitch on the xaudio2 source
 		AudioDevice->ValidateAPICall( TEXT( "SetFrequencyRatio" ),
 			Source->SetFrequencyRatio( Pitch) );
-
-		// Set whether to bleed to the rear speakers
-		SetStereoBleed();
 
 		// Set the amount to bleed to the LFE speaker
 		SetLFEBleed();

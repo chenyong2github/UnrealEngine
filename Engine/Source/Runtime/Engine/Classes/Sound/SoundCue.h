@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -131,6 +131,7 @@ private:
 	uint8 bHasAttenuationNodeInitialized : 1;
 	uint8 bShouldApplyInteriorVolumes : 1;
 	uint8 bShouldApplyInteriorVolumesCached : 1;
+	uint8 bIsRetainingAudio : 1;
 
 public:
 
@@ -145,6 +146,7 @@ public:
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	virtual bool CanBeClusterRoot() const override;
 	virtual bool CanBeInCluster() const override;
+	virtual void BeginDestroy() override;
 	//~ End UObject Interface.
 
 	//~ Begin USoundBase Interface.
@@ -246,6 +248,10 @@ public:
 	/** Call this when stream caching is enabled to prime all SoundWave assets referenced by this Sound Cue. */
 	void PrimeSoundCue();
 
+	/** Call this when stream caching is enabled to retain all soundwave assets referenced by this sound cue. */
+	void RetainSoundCue();
+	void ReleaseRetainedAudio();
+
 protected:
 	bool RecursiveFindPathToNode(USoundNode* CurrentNode, const UPTRINT CurrentHash, const UPTRINT NodeHashToFind, TArray<USoundNode*>& OutPath) const;
 
@@ -257,6 +263,8 @@ private:
 
 	FDelegateHandle OnPostEngineInitHandle;
 	static int32 CachedQualityLevel;
+
+	void ApplySoundClassLoadingBehaviorToSoundWaves();
 
 public:
 

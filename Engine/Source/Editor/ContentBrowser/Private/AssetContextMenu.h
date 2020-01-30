@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -118,6 +118,9 @@ private:
 
 private:
 
+	/** Is allowed to modify files or folders under this path */
+	bool CanModifyPath(const FString& InPath) const;
+
 	/** Registers all unregistered menus in the hierarchy for a class */
 	static void RegisterMenuHierarchy(UClass* InClass);
 
@@ -165,9 +168,6 @@ private:
 
 	/** Adds asset reference menu options to a menu builder. Returns true if any options were added. */
 	bool AddReferenceMenuOptions(UToolMenu* Menu);
-
-	/** Adds copy file path menu options to a menu builder. Returns true if any options were added. */
-	bool AddCopyFilePathMenuOptions(UToolMenu* Menu);
 
 	/** Adds asset documentation menu options to a menu builder. Returns true if any options were added. */
 	bool AddDocumentationMenuOptions(UToolMenu* Menu);

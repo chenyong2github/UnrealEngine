@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // port of geometry3Sharp Ray3
 
@@ -98,14 +98,14 @@ public:
 
 	// conversion operators
 
-	inline operator FRay() const
+	explicit inline operator FRay() const
 	{
 		return FRay((FVector)Origin, (FVector)Direction);
 	}
 	inline TRay3(const FRay & RayIn)
 	{
-		Origin = (FVector3<RealType>)RayIn.Origin;
-		Direction = (FVector3<RealType>)RayIn.Direction;
+		Origin = FVector3<RealType>(RayIn.Origin);
+		Direction = FVector3<RealType>(RayIn.Direction);
 	}
 
 

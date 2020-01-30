@@ -1,45 +1,78 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_ApplyMeshSpaceAdditive.h"
+#include "Animation/AnimInstanceProxy.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_ApplyMeshSpaceAdditive
 
 void FAnimNode_ApplyMeshSpaceAdditive::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	Base.Initialize(Context);
 	Additive.Initialize(Context);
+
+	AlphaBoolBlend.Reinitialize();
+	AlphaScaleBiasClamp.Reinitialize();
 }
 
 void FAnimNode_ApplyMeshSpaceAdditive::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	Base.CacheBones(Context);
 	Additive.CacheBones(Context);
 }
 
 void FAnimNode_ApplyMeshSpaceAdditive::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FAnimNode_ApplyMeshSpaceAdditive_Update);
+
 	Base.Update(Context);
 
-	ActualAlpha = 0.f;
-	if (IsLODEnabled(Context.AnimInstanceProxy))
+	if (!IsLODEnabled(Context.AnimInstanceProxy))
 	{
-		// @note: If you derive this class, and if you have input that you rely on for base
-		// this is not going to work	
-		GetEvaluateGraphExposedInputs().Execute(Context);
-		ActualAlpha = AlphaScaleBias.ApplyTo(Alpha);
-		if (FAnimWeight::IsRelevant(ActualAlpha))
-		{
-			Additive.Update(Context.FractionalWeight(ActualAlpha));
-		}
+		// Avoid doing work if we're not even going to be used.
+		return;
 	}
+
+	GetEvaluateGraphExposedInputs().Execute(Context);
+
+	ActualAlpha = 0.f;
+	switch (AlphaInputType)
+	{
+	case EAnimAlphaInputType::Float:
+		ActualAlpha = AlphaScaleBiasClamp.ApplyTo(AlphaScaleBias.ApplyTo(Alpha), Context.GetDeltaTime());
+		break;
+	case EAnimAlphaInputType::Bool:
+		ActualAlpha = AlphaBoolBlend.ApplyTo(bAlphaBoolEnabled, Context.GetDeltaTime());
+		break;
+	case EAnimAlphaInputType::Curve:
+		if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(Context.AnimInstanceProxy->GetAnimInstanceObject()))
+		{
+			ActualAlpha = AlphaScaleBiasClamp.ApplyTo(AnimInstance->GetCurveValue(AlphaCurveName), Context.GetDeltaTime());
+		}
+		break;
+	}
+
+	ActualAlpha = FMath::Clamp(ActualAlpha, 0.0f, 1.0f);
+
+	if (FAnimWeight::IsRelevant(ActualAlpha))
+	{
+		Additive.Update(Context.FractionalWeight(ActualAlpha));
+	}
+	
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), ActualAlpha);
 }
 
 void FAnimNode_ApplyMeshSpaceAdditive::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+
 	//@TODO: Could evaluate Base into Output and save a copy
 	if (FAnimWeight::IsRelevant(ActualAlpha))
 	{
@@ -59,7 +92,10 @@ void FAnimNode_ApplyMeshSpaceAdditive::Evaluate_AnyThread(FPoseContext& Output)
 }
 
 FAnimNode_ApplyMeshSpaceAdditive::FAnimNode_ApplyMeshSpaceAdditive()
-	: Alpha(1.0f)
+	: AlphaInputType(EAnimAlphaInputType::Float)
+	, Alpha(1.0f)
+	, bAlphaBoolEnabled(true)
+	, AlphaCurveName(NAME_None)
 	, LODThreshold(INDEX_NONE)
 	, ActualAlpha(0.f)
 {

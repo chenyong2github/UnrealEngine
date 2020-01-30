@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UploadingVirtualTexture.h"
 #include "VirtualTextureChunkManager.h"
@@ -27,6 +27,32 @@ static TAutoConsoleVariable<int32> CVarVTCodecNumThreshold(
 	TEXT("Once number of VT codecs exceeds this number, attempt to retire codecs that haven't been recently used"),
 	ECVF_RenderThreadSafe);
 
+int32 GVirtualTextureIOPriority_NormalPagePri = (int32)AIOP_Low;
+static FAutoConsoleVariableRef CVarVirtualTextureIOPriority_NormalPagePri(
+	TEXT("r.VT.IOPriority_NormalPagePri"),
+	GVirtualTextureIOPriority_NormalPagePri,
+	TEXT("Priority of default priority VT I/O requests"),
+	ECVF_Default
+);
+
+int32 GVirtualTextureIOPriority_HighPagePri = (int32)AIOP_BelowNormal;
+static FAutoConsoleVariableRef CVarVirtualTextureIOPriority_HighPagePri(
+	TEXT("r.VT.IOPriority_HighPagePri"),
+	GVirtualTextureIOPriority_HighPagePri,
+	TEXT("Priority of high priority VT I/O requests"),
+	ECVF_Default
+);
+
+static EAsyncIOPriorityAndFlags GetAsyncIOPriority(EVTRequestPagePriority Priority)
+{
+	switch (Priority)
+	{
+	case EVTRequestPagePriority::High: return (EAsyncIOPriorityAndFlags)GVirtualTextureIOPriority_HighPagePri | EAsyncIOPriorityAndFlags::AIOP_FLAG_DONTCACHE;
+	case EVTRequestPagePriority::Normal: return (EAsyncIOPriorityAndFlags)GVirtualTextureIOPriority_NormalPagePri | EAsyncIOPriorityAndFlags::AIOP_FLAG_DONTCACHE;
+	default: check(false); return (EAsyncIOPriorityAndFlags)GVirtualTextureIOPriority_NormalPagePri | EAsyncIOPriorityAndFlags::AIOP_FLAG_DONTCACHE;
+	}
+}
+
 FVirtualTextureCodec* FVirtualTextureCodec::ListHead = nullptr;
 FVirtualTextureCodec FVirtualTextureCodec::ListTail;
 uint32 FVirtualTextureCodec::NumCodecs = 0u;
@@ -38,6 +64,7 @@ FUploadingVirtualTexture::FUploadingVirtualTexture(FVirtualTextureBuiltData* InD
 	HandlePerChunk.AddDefaulted(InData->Chunks.Num());
 	CodecPerChunk.AddDefaulted(InData->Chunks.Num());
 	InvalidChunks.Init(false, InData->Chunks.Num());
+	StreamingManager = FVirtualTextureChunkStreamingManager::AddRef();
 
 	INC_MEMORY_STAT_BY(STAT_TotalHeaderSize, InData->GetMemoryFootprint());
 	INC_MEMORY_STAT_BY(STAT_TileHeaderSize, InData->GetTileMemoryFootprint());
@@ -55,7 +82,8 @@ FUploadingVirtualTexture::~FUploadingVirtualTexture()
 	DEC_DWORD_STAT_BY(STAT_NumTileHeaders, Data->GetNumTileHeaders());
 
 	// Complete all open transcode requests before deleting IFileCacheHandle objects
-	FVirtualTextureChunkStreamingManager::Get().WaitTasksFinished();
+	StreamingManager->WaitTasksFinished();
+	FVirtualTextureChunkStreamingManager::DecRef();
 
 	for (TUniquePtr<FVirtualTextureCodec>& Codec : CodecPerChunk)
 	{
@@ -97,7 +125,7 @@ uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress) 
 
 FVTRequestPageResult FUploadingVirtualTexture::RequestPageData(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress, EVTRequestPagePriority Priority)
 {
-	return FVirtualTextureChunkStreamingManager::Get().RequestTile(this, ProducerHandle, LayerMask, FirstMipOffset + vLevel, vAddress, Priority);
+	return StreamingManager->RequestTile(this, ProducerHandle, LayerMask, FirstMipOffset + vLevel, vAddress, Priority);
 }
 
 IVirtualTextureFinalizer* FUploadingVirtualTexture::ProducePageData(FRHICommandListImmediate& RHICmdList,
@@ -110,7 +138,7 @@ IVirtualTextureFinalizer* FUploadingVirtualTexture::ProducePageData(FRHICommandL
 	INC_DWORD_STAT(STAT_VTP_NumUploads);
 
 	const uint32 SkipBorderSize = (Flags & EVTProducePageFlags::SkipPageBorders) != EVTProducePageFlags::None ? Data->TileBorderSize : 0;
-	return FVirtualTextureChunkStreamingManager::Get().ProduceTile(RHICmdList, SkipBorderSize, Data->GetNumLayers(), LayerMask, RequestHandle, TargetLayers);
+	return StreamingManager->ProduceTile(RHICmdList, SkipBorderSize, Data->GetNumLayers(), LayerMask, RequestHandle, TargetLayers);
 }
 
 void FVirtualTextureCodec::RetireOldCodecs()
@@ -262,7 +290,7 @@ struct FCreateCodecTask
 	}
 };
 
-FVTCodecAndStatus FUploadingVirtualTexture::GetCodecForChunk(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, EAsyncIOPriorityAndFlags Priority)
+FVTCodecAndStatus FUploadingVirtualTexture::GetCodecForChunk(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, EVTRequestPagePriority Priority)
 {
 	const FVirtualTextureDataChunk& Chunk = Data->Chunks[ChunkIndex];
 	if (Chunk.CodecPayloadSize == 0u)
@@ -306,7 +334,7 @@ FVTCodecAndStatus FUploadingVirtualTexture::GetCodecForChunk(FGraphEventArray& O
 	return FVTCodecAndStatus(EVTRequestPageStatus::Pending, Codec.Get());
 }
 
-FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, size_t Offset, size_t Size, EAsyncIOPriorityAndFlags Priority)
+FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, size_t Offset, size_t Size, EVTRequestPagePriority Priority)
 {
 	FVirtualTextureDataChunk& Chunk = Data->Chunks[ChunkIndex];
 	FByteBulkData& BulkData = Chunk.BulkData;
@@ -343,7 +371,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		// This way we can service these high priority tasks immediately
 		// Would be better to have DCC cache return a task event handle, which could be used to chain a subsequent read operation,
 		// but that would be more complicated, and this should generally not be a critical runtime path
-		const bool bAsyncDCC = (Priority & AIOP_PRIORITY_MASK) < AIOP_High;
+		const bool bAsyncDCC = (Priority == EVTRequestPagePriority::Normal);
 
 		const bool Available = GetVirtualTextureChunkDDCCache()->MakeChunkAvailable(&Data->Chunks[ChunkIndex], ChunkFileNameDCC, bAsyncDCC);
 		if (!Available)
@@ -383,7 +411,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		SET_MEMORY_STAT(STAT_FileCacheSize, IFileCacheHandle::GetFileCacheSize());
 	}
 
-	IMemoryReadStreamRef ReadData = Handle->ReadData(OutCompletionEvents, ChunkOffsetInFile + Offset, Size, Priority);
+	IMemoryReadStreamRef ReadData = Handle->ReadData(OutCompletionEvents, ChunkOffsetInFile + Offset, Size, GetAsyncIOPriority(Priority));
 	if (!ReadData)
 	{
 		return EVTRequestPageStatus::Saturated;

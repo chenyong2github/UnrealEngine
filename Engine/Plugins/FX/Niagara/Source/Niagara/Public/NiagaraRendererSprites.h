@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 NiagaraRendererSprites.h: Renderer for rendering Niagara particles as sprites.
@@ -60,7 +60,6 @@ private:
 	//Cached data from the properties struct.
 	ENiagaraSpriteAlignment Alignment;
 	ENiagaraSpriteFacingMode FacingMode;
-	FVector CustomFacingVectorMask;
 	FVector2D PivotInUVSpace;
 	ENiagaraSortMode SortMode;
 	FVector2D SubImageSize;

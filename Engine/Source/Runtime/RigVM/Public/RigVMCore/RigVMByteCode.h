@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "RigVMRegistry.h"
+#include "RigVMStatistics.h"
 #include "RigVMByteCode.generated.h"
 
 struct FRigVMByteCode;
@@ -324,8 +325,11 @@ public:
 
 	FRigVMInstructionArray();
 
-	// Resets the data structure and removes all storage.
+	// Resets the data structure and maintains all storage.
 	void Reset();
+
+	// Resets the data structure and removes all storage.
+	void Empty();
 
 	// Returns true if a given instruction index is valid.
 	FORCEINLINE bool IsValidIndex(int32 InIndex) const { return Instructions.IsValidIndex(InIndex); }
@@ -362,8 +366,18 @@ public:
 
 	FRigVMByteCode();
 
-	// resets the container and removes all memory
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMByteCode& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+
+	// resets the container and maintains all memory
 	void Reset();
+
+	// resets the container and removes all memory
+	void Empty();
 
 	// returns the number of instructions in this container
 	uint64 Num() const;
@@ -464,6 +478,15 @@ public:
 	{
 		const uint8* Data = ByteCode.GetData();
 		return TArrayView<uint8>((uint8*)Data, ByteCode.Num());
+	}
+
+	// returns the statistics information
+	FRigVMByteCodeStatistics GetStatistics() const
+	{
+		FRigVMByteCodeStatistics Statistics;
+		Statistics.InstructionCount = GetInstructions().Num();
+		Statistics.DataBytes = ByteCode.GetAllocatedSize();
+		return Statistics;
 	}
 
 private:

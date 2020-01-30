@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeEditor.h"
 #include "Widgets/Text/STextBlock.h"
@@ -129,7 +129,7 @@ void FBehaviorTreeEditor::PostRedo(bool bSuccess)
 	FAIGraphEditor::PostRedo(bSuccess);
 }
 
-void FBehaviorTreeEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged )
+void FBehaviorTreeEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
 	if(PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{

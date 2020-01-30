@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayEffectExecutionScopedModifierInfoDetails.h"
 #include "Widgets/Layout/SBorder.h"
@@ -262,7 +262,7 @@ void FGameplayEffectExecutionScopedModifierInfoDetails::CustomizeChildren(TShare
 	ScopedModifierStructPropertyHandle = StructPropertyHandle;
 
 	TSharedPtr<IPropertyHandle> ParentArrayHandle = StructPropertyHandle->GetParentHandle();
-	const bool bIsExecutionDefAttribute = (ParentArrayHandle.IsValid() && ParentArrayHandle->GetProperty()->GetOuter() == FGameplayEffectExecutionDefinition::StaticStruct());
+	const bool bIsExecutionDefAttribute = (ParentArrayHandle.IsValid() && ParentArrayHandle->GetProperty()->GetOwner<UObject>() == FGameplayEffectExecutionDefinition::StaticStruct());
 	
 	if (bIsExecutionDefAttribute)
 	{

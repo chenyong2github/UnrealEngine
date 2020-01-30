@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -188,6 +188,8 @@ APPLICATIONCORE_API
 @property (assign) bool bBatteryState;
 @property (assign) int BatteryLevel;
 
+@property (assign) bool bUpdateAvailable;
+
 /**
  * @return the single app delegate object
  */
@@ -208,6 +210,8 @@ APPLICATIONCORE_API
 -(void)CheckForZoomAccessibility;
 -(float)GetBackgroundingMainThreadBlockTime;
 -(void)OverrideBackgroundingMainThreadBlockTime:(float)BlockTime;
+
+-(bool)IsUpdateAvailable;
 
 @property (assign) bool bAudioSessionInitialized;
 

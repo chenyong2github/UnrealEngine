@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DefaultControlRigManipulationLayer.h"
 #include "Manipulatable/IControlRigManipulatable.h"
@@ -8,8 +8,15 @@
 #include "ControlRigGizmoLibrary.h"
 #include "IControlRigObjectBinding.h"
 
+#if WITH_EDITOR
+#include "ControlRigBlueprint.h"
+#endif
+
+#define LOCTEXT_NAMESPACE "ControlRigDefaultManipulationLayer"
+
 UDefaultControlRigManipulationLayer::UDefaultControlRigManipulationLayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, InteractionTransaction(nullptr)
 {
 }
 
@@ -19,6 +26,7 @@ void UDefaultControlRigManipulationLayer::CreateLayer()
 
 void UDefaultControlRigManipulationLayer::DestroyLayer()
 {
+	EndTransaction();
 	IControlRigManipulationLayer::DestroyLayer();
 }
 
@@ -27,8 +35,10 @@ void UDefaultControlRigManipulationLayer::AddManipulatableObject(IControlRigMani
 	if (InObject)
 	{
 		IControlRigManipulationLayer::AddManipulatableObject(InObject);
-
-		OnControlRigAdded(static_cast<UControlRig*>(InObject));
+		if (UControlRig* ControlRig = Cast<UControlRig>(InObject))
+		{
+			OnControlRigAdded(ControlRig);
+		}
 	}
 }
 
@@ -36,12 +46,13 @@ void UDefaultControlRigManipulationLayer::RemoveManipulatableObject(IControlRigM
 {
 	if (InObject)
 	{
-		OnControlRigRemoved(static_cast<UControlRig*>(InObject));
-
+		if (UControlRig* ControlRig = Cast<UControlRig>(InObject))
+		{
+			OnControlRigRemoved(ControlRig);
+		}
 		IControlRigManipulationLayer::RemoveManipulatableObject(InObject);
 	}
 }
-
 
 void UDefaultControlRigManipulationLayer::OnControlRigAdded(UControlRig* InControlRig)
 {
@@ -61,6 +72,7 @@ void UDefaultControlRigManipulationLayer::OnControlRigAdded(UControlRig* InContr
 	if (MeshComponent)
 	{
 		MeshComponent->OnBoneTransformsFinalized.AddDynamic(this, &UDefaultControlRigManipulationLayer::PostPoseUpdate);
+		MeshComponent->OnAnimInitialized.AddDynamic(this, &UDefaultControlRigManipulationLayer::OnPoseInitialized);
 	}
 }
 
@@ -79,6 +91,7 @@ void UDefaultControlRigManipulationLayer::OnControlRigRemoved(UControlRig* InCon
 			if (MeshComponent)
 			{
 				MeshComponent->OnBoneTransformsFinalized.RemoveDynamic(this, &UDefaultControlRigManipulationLayer::PostPoseUpdate);
+				MeshComponent->OnAnimInitialized.RemoveDynamic(this, &UDefaultControlRigManipulationLayer::OnPoseInitialized);
 			}
 		}
 
@@ -146,7 +159,17 @@ void UDefaultControlRigManipulationLayer::MoveGizmo(AControlRigGizmoActor* Gizmo
 			FTransform NewTransform = CurrentTransform.GetRelativeTransform(ToWorldTransform);
 			Manip->ManipObject->SetControlGlobalTransform(Manip->ControlName, NewTransform);
 			// assumes it's attached to actor
-			GizmoActor->SetGlobalTransform(NewTransform);
+			GizmoActor->SetGlobalTransform(CurrentTransform);
+
+#if WITH_EDITOR
+			if (UControlRig* ControlRig = Cast<UControlRig>(Manip->ManipObject))
+			{
+				if(UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(ControlRig->GetClass()->ClassGeneratedBy))
+				{
+					Blueprint->PropagatePoseFromInstanceToBP(ControlRig);
+				}
+			}
+#endif
 		}
 	}
 }
@@ -156,12 +179,20 @@ bool IsSupportedControlType(const ERigControlType ControlType)
 {
 	switch (ControlType)
 	{
-	case ERigControlType::Position:
-	case ERigControlType::Scale:
-	case ERigControlType::Quat:
-	case ERigControlType::Rotator:
-	case ERigControlType::Transform:
-		return true;
+		case ERigControlType::Float:
+		case ERigControlType::Vector2D:
+		case ERigControlType::Position:
+		case ERigControlType::Scale:
+		case ERigControlType::Rotator:
+		case ERigControlType::Transform:
+		case ERigControlType::TransformNoScale:
+		{
+			return true;
+		}
+		default:
+		{
+			break;
+		}
 	}
 
 	return false;
@@ -172,19 +203,35 @@ void UDefaultControlRigManipulationLayer::GetGizmoCreationParams(TArray<FGizmoAc
 	OutCreationParams.Reset();
 
 	// for now we only support FTransform
-	for (IControlRigManipulatable* ManipObject : ManipulatableObjects)
+	for (TWeakObjectPtr<UObject> ManipObject : ManipulatableObjects)
 	{
-		const TArray<FRigControl>& Controls = ManipObject->AvailableControls();
-		UControlRigGizmoLibrary* GizmoLibrary = ManipObject->GetGizmoLibrary();
+		if (!ManipObject.IsValid())
+		{
+			continue;
+		}
+
+		IControlRigManipulatable* Manipulatable = Cast<IControlRigManipulatable>(ManipObject.Get());
+		if (Manipulatable == nullptr)
+		{
+			checkNoEntry();
+			continue;
+		}
+
+		const TArray<FRigControl>& Controls = Manipulatable->AvailableControls();
+		UControlRigGizmoLibrary* GizmoLibrary = Manipulatable->GetGizmoLibrary();
 
 		for (const FRigControl& Control : Controls)
 		{
+			if(!Control.bGizmoEnabled)
+			{
+				continue;
+			}
 			if (IsSupportedControlType(Control.ControlType))
 			{
 				FGizmoActorCreationParam Param;
-				Param.ManipObj = ManipObject;
+				Param.ManipObj = Manipulatable;
 				Param.ControlName = Control.Name;
-				Param.SpawnTransform = ManipObject->GetControlGlobalTransform(Control.Name);
+				Param.SpawnTransform = Manipulatable->GetControlGlobalTransform(Control.Name);
 				Param.GizmoTransform = Control.GizmoTransform;
 
 				if (GizmoLibrary)
@@ -213,10 +260,83 @@ bool UDefaultControlRigManipulationLayer::ModeSupportedByGizmoActor(const AContr
 		const FRigControl* RigControl = Control->ManipObject->FindControl(Control->ControlName);
 		if (RigControl)
 		{
-			return IsSupportedControlType(RigControl->ControlType);
+			if (IsSupportedControlType(RigControl->ControlType))
+			{
+				switch (InMode)
+				{
+					case FWidget::WM_Rotate:
+					{
+						switch (RigControl->ControlType)
+						{
+							case ERigControlType::Rotator:
+							case ERigControlType::Transform:
+							case ERigControlType::TransformNoScale:
+							{
+								return true;
+							}
+							default:
+							{
+								break;
+							}
+						}
+						break;
+					}
+					case FWidget::WM_Translate:
+					{
+						switch (RigControl->ControlType)
+						{
+							case ERigControlType::Float:
+							case ERigControlType::Vector2D:
+							case ERigControlType::Position:
+							case ERigControlType::Transform:
+							case ERigControlType::TransformNoScale:
+							{
+								return true;
+							}
+							default:
+							{
+								break;
+							}
+						}
+						break;
+					}
+					case FWidget::WM_Scale:
+					{
+						switch (RigControl->ControlType)
+						{
+							case ERigControlType::Scale:
+							case ERigControlType::Transform:
+							{
+								return true;
+							}
+							default:
+							{
+								break;
+							}
+						}
+						break;
+					}
+					case FWidget::WM_TranslateRotateZ:
+					{
+						switch (RigControl->ControlType)
+						{
+							case ERigControlType::Transform:
+							case ERigControlType::TransformNoScale:
+							{
+								return true;
+							}
+							default:
+							{
+								break;
+							}
+						}
+						break;
+					}
+				}
+			}
 		}
 	}
-	return true;
+	return false;
 }
 
 void UDefaultControlRigManipulationLayer::TickGizmo(AControlRigGizmoActor* GizmoActor, const FTransform& ComponentTransform)
@@ -228,6 +348,11 @@ void UDefaultControlRigManipulationLayer::TickGizmo(AControlRigGizmoActor* Gizmo
 		{
 			FTransform Transform = DataPtr->ManipObject->GetControlGlobalTransform(DataPtr->ControlName);
 			GizmoActor->SetActorTransform(Transform * ComponentTransform);
+
+			if (FRigControl* Control = DataPtr->ManipObject->FindControl(DataPtr->ControlName))
+			{
+				GizmoActor->SetGizmoColor(Control->GizmoColor);
+			}
 		}
 	}
 }
@@ -273,6 +398,8 @@ void UDefaultControlRigManipulationLayer::TickManipulatableObjects(float DeltaTi
 		SkeletalMeshComponent->MarkRenderTransformDirty();
 		SkeletalMeshComponent->MarkRenderDynamicDataDirty();
 	}
+
+	PostPoseUpdate();
 }
 
 bool UDefaultControlRigManipulationLayer::GetGlobalTransform(AControlRigGizmoActor* GizmoActor, const FName& ControlName, FTransform& OutTransform) const
@@ -358,13 +485,13 @@ void UDefaultControlRigManipulationLayer::DestroyGizmosActors()
 	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupHandle);
 }
 
-void UDefaultControlRigManipulationLayer::OnControlModified(IControlRigManipulatable* InManipulatable, const FRigControl& InControl)
+void UDefaultControlRigManipulationLayer::OnControlModified(IControlRigManipulatable* InManipulatable, const FRigControl& InControl, EControlRigSetKey InSetKey)
 {
 	if (UControlRig* ControlRig = static_cast<UControlRig*>(InManipulatable))
 	{
+		FTransform ComponentTransform = GetSkeletalMeshComponentTransform();
 		if (AControlRigGizmoActor* const* Actor = GizmoToControlMap.FindKey(InControl.Index))
 		{
-			FTransform ComponentTransform = GetSkeletalMeshComponentTransform();
 			TickGizmo(*Actor, ComponentTransform);
 		}
 	}
@@ -372,10 +499,9 @@ void UDefaultControlRigManipulationLayer::OnControlModified(IControlRigManipulat
 
 TSharedPtr<IControlRigObjectBinding> UDefaultControlRigManipulationLayer::GetObjectBinding() const
 {
-	for (IControlRigManipulatable* Manip : ManipulatableObjects)
+	for (TWeakObjectPtr<UObject> Manip : ManipulatableObjects)
 	{
-		UControlRig* ControlRig = static_cast<UControlRig*>(Manip);
-		if (ControlRig)
+		if(UControlRig* ControlRig = Cast<UControlRig>(Manip))
 		{
 			return ControlRig->GetObjectBinding();
 		}
@@ -386,10 +512,9 @@ TSharedPtr<IControlRigObjectBinding> UDefaultControlRigManipulationLayer::GetObj
 
 void UDefaultControlRigManipulationLayer::SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding)
 {
-	for (IControlRigManipulatable* Manip : ManipulatableObjects)
+	for (TWeakObjectPtr<UObject> Manip : ManipulatableObjects)
 	{
-		UControlRig* ControlRig = static_cast<UControlRig*>(Manip);
-		if (ControlRig)
+		if (UControlRig* ControlRig = Cast<UControlRig>(Manip))
 		{
 			ControlRig->SetObjectBinding(InObjectBinding);
 		}
@@ -415,16 +540,37 @@ FTransform	UDefaultControlRigManipulationLayer::GetSkeletalMeshComponentTransfor
 
 void UDefaultControlRigManipulationLayer::BeginTransaction()
 {
-	for (IControlRigManipulatable* Manip : ManipulatableObjects)
+	if (InteractionTransaction != nullptr)
 	{
-		UControlRig* ControlRig = static_cast<UControlRig*>(Manip);
-		ControlRig->SetFlags(RF_Transactional);
-		ControlRig->Modify();
+		EndTransaction();
+	}
+
+	InteractionTransaction = new FScopedTransaction(LOCTEXT("TransformGizmo", "Transform Gizmo"));
+
+	for (TWeakObjectPtr<UObject> Manip : ManipulatableObjects)
+	{
+		if (UControlRig* ControlRig = Cast<UControlRig>(Manip))
+		{
+			UObject* Blueprint = ControlRig->GetClass()->ClassGeneratedBy;
+			if (Blueprint)
+			{
+				Blueprint->SetFlags(RF_Transactional);
+				Blueprint->Modify();
+			}
+
+			ControlRig->SetFlags(RF_Transactional);
+			ControlRig->Modify();
+		}
 	}
 }
 
 void UDefaultControlRigManipulationLayer::EndTransaction()
 {
+	if (InteractionTransaction != nullptr)
+	{
+		delete InteractionTransaction;
+		InteractionTransaction = nullptr;
+	}
 }
 
 void UDefaultControlRigManipulationLayer::PostPoseUpdate()
@@ -436,3 +582,11 @@ void UDefaultControlRigManipulationLayer::PostPoseUpdate()
 		TickGizmo(Iter.Key(), ComponentTransform);
 	}
 }
+
+void UDefaultControlRigManipulationLayer::OnPoseInitialized()
+{
+	// broadcast delegates
+	OnAnimSystemInitialized.Broadcast();
+}
+
+#undef LOCTEXT_NAMESPACE

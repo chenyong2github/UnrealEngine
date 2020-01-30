@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Profile/MediaProfileSettingsCustomization.h"
 
@@ -245,7 +245,7 @@ void FMediaProfileSettingsCustomization::Configure(const FMediaProfileSettingsCu
 	{
 		TArray<UPackage*> PackagesToSave;
 
-		FScopedSlowTask Progress(100.0f, LOCTEXT("StartWork", "Configure Medie Profile"));
+		FScopedSlowTask Progress(100.0f, LOCTEXT("StartWork", "Configure Media Profile"));
 		Progress.MakeDialog(true);
 
 		// Create the sources proxies at the location

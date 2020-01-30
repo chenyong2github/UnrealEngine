@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraphToken.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -21,6 +21,11 @@ void FEdGraphToken::Create(const UEdGraphPin* InPin, FCompilerResultsLog* Log, F
 void FEdGraphToken::Create(const TCHAR* String, FCompilerResultsLog* Log, FTokenizedMessage &OutMessage, TArray<UEdGraphNode*>& OutSourceNode)
 {
 	OutMessage.AddToken( FTextToken::Create(FText::FromString(FString(String))) );
+}
+
+void FEdGraphToken::Create(const FField* InField, FCompilerResultsLog* Log, FTokenizedMessage &OutMessage, TArray<UEdGraphNode*>& OutSourceNodes)
+{
+	Create(*InField->GetPathName(), Log, OutMessage, OutSourceNodes);
 }
 
 const UEdGraphPin* FEdGraphToken::GetPin() const

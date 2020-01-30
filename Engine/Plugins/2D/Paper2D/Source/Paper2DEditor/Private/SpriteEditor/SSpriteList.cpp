@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpriteEditor/SSpriteList.h"
 #include "IContentBrowserSingleton.h"
@@ -33,7 +33,7 @@ void SSpriteList::RebuildWidget(UTexture2D* NewTextureFilter)
 
 	if (NewTextureFilter != nullptr)
 	{
-		const FString TextureString = FAssetData(NewTextureFilter).GetExportTextName();
+		const FString TextureString = TSoftObjectPtr<UTexture2D>(NewTextureFilter).ToString();
 		const FName SourceTexturePropName(TEXT("SourceTexture")); //@TODO: Protected: GET_MEMBER_NAME_CHECKED(UPaperSprite, SourceTexture);
 		Config.Filter.TagsAndValues.Add(SourceTexturePropName, TextureString);
 

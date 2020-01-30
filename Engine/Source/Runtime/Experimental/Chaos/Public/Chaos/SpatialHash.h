@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Box.h"
@@ -66,7 +66,7 @@ private:
 private:
 	TArray<TVector<T, 3>> MParticles;
 	T MCellSize;
-	TBox<T, 3> MBoundingBox;
+	TAABB<T, 3> MBoundingBox;
 	int32 MNumberOfCellsX, MNumberOfCellsY, MNumberOfCellsZ;
 	TMap<int32, TArray<int32>> MHashTable;
 };

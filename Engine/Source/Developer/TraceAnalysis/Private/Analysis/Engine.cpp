@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine.h"
 #include "Containers/ArrayView.h"
@@ -35,8 +35,31 @@ private:
 
 
 ////////////////////////////////////////////////////////////////////////////////
+struct FAuxData
+{
+	const uint8*	Data;
+	uint32			DataSize;
+	uint16			FieldIndex;
+	int16			FieldSizeAndType;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+struct FAnalysisEngine::FAuxDataCollector
+	: public TArray<FAuxData>
+{
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FDispatch
 {
+	enum
+	{
+		Flag_Important		= 1 << 0,
+		Flag_MaybeHasAux	= 1 << 1,
+	};
+
 	struct FField
 	{
 		uint32		Hash;
@@ -44,17 +67,37 @@ struct FAnalysisEngine::FDispatch
 		uint16		Size;
 		uint16		NameOffset;			// From FField ptr
 		int16		SizeAndType;		// value == byte_size, sign == float < 0 < int
+		bool		bIsArray;
 	};
 
+	uint32			GetFieldIndex(const ANSICHAR* Name) const;
 	uint32			Hash				= 0;
 	uint16			Uid					= 0;
 	uint16			FirstRoute			= ~uint16(0);
-	uint16			FieldCount			= 0;
+	uint8			FieldCount			= 0;
+	uint8			Flags				= 0;
 	uint16			EventSize			= 0;
 	uint16			LoggerNameOffset	= 0;	// From FDispatch ptr
 	uint16			EventNameOffset		= 0;	// From FDispatch ptr
 	FField			Fields[];
 };
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FAnalysisEngine::FDispatch::GetFieldIndex(const ANSICHAR* Name) const
+{
+	FFnv1aHash NameHash;
+	NameHash.Add(Name);
+
+	for (int i = 0, n = FieldCount; i < n; ++i)
+	{
+		if (Fields[i].Hash == NameHash.Get())
+		{
+			return i;
+		}
+	}
+
+	return FieldCount;
+}
 
 
 
@@ -62,17 +105,19 @@ struct FAnalysisEngine::FDispatch
 class FAnalysisEngine::FDispatchBuilder
 {
 public:
-					FDispatchBuilder();
-	void			SetUid(uint16 Uid);
-	void			SetLoggerName(const ANSICHAR* Name, int32 NameSize=-1);
-	void			SetEventName(const ANSICHAR* Name, int32 NameSize=-1);
-	void			AddField(const ANSICHAR* Name, int32 NameSize, uint16 Offset, uint16 Size, FEventFieldInfo::EType TypeId, uint16 TypeSize);
-	FDispatch*		Finalize();
+						FDispatchBuilder();
+	void				SetUid(uint16 Uid);
+	void				SetLoggerName(const ANSICHAR* Name, int32 NameSize=-1);
+	void				SetEventName(const ANSICHAR* Name, int32 NameSize=-1);
+	void				SetImportant();
+	void				SetMaybeHasAux();
+	FDispatch::FField&	AddField(const ANSICHAR* Name, int32 NameSize, uint16 Size);
+	FDispatch*			Finalize();
 
 private:
-	uint32			AppendName(const ANSICHAR* Name, int32 NameSize);
-	TArray<uint8>	Buffer;
-	TArray<uint8>	NameBuffer;
+	uint32				AppendName(const ANSICHAR* Name, int32 NameSize);
+	TArray<uint8>		Buffer;
+	TArray<uint8>		NameBuffer;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,10 +136,6 @@ FAnalysisEngine::FDispatch* FAnalysisEngine::FDispatchBuilder::Finalize()
 	auto* Dispatch = (FDispatch*)FMemory::Malloc(Size);
 	memcpy(Dispatch, Buffer.GetData(), Buffer.Num());
 	memcpy(Dispatch->Fields + Dispatch->FieldCount, NameBuffer.GetData(), NameBuffer.Num());
-
-	// Sort by hash so we can binary search when looking up.
-	TArrayView<FDispatch::FField> Fields(Dispatch->Fields, Dispatch->FieldCount);
-	Algo::SortBy(Fields, [] (const auto& Field) { return Field.Hash; });
 
 	// Fix up name offsets
 	for (int i = 0, n = Dispatch->FieldCount; i < n; ++i)
@@ -140,18 +181,26 @@ void FAnalysisEngine::FDispatchBuilder::SetEventName(const ANSICHAR* Name, int32
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::FDispatchBuilder::AddField(const ANSICHAR* Name, int32 NameSize, uint16 Offset, uint16 Size, FEventFieldInfo::EType TypeId, uint16 TypeSize)
+void FAnalysisEngine::FDispatchBuilder::SetImportant()
+{
+	auto* Dispatch = (FDispatch*)(Buffer.GetData());
+	Dispatch->Flags |= FDispatch::Flag_Important;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::FDispatchBuilder::SetMaybeHasAux()
+{
+	auto* Dispatch = (FDispatch*)(Buffer.GetData());
+	Dispatch->Flags |= FDispatch::Flag_MaybeHasAux;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FAnalysisEngine::FDispatch::FField& FAnalysisEngine::FDispatchBuilder::AddField(const ANSICHAR* Name, int32 NameSize, uint16 Size)
 {
 	int32 Bufoff = Buffer.AddUninitialized(sizeof(FDispatch::FField));
 	auto* Field = (FDispatch::FField*)(Buffer.GetData() + Bufoff);
 	Field->NameOffset = AppendName(Name, NameSize);
-	Field->Offset = Offset;
 	Field->Size = Size;
-	Field->SizeAndType = TypeSize;
-	if (TypeId == FEventFieldInfo::EType::Float)
-	{
-		Field->SizeAndType *= -1;
-	}
 
 	FFnv1aHash Hash;
 	Hash.Add((const uint8*)Name, NameSize);
@@ -160,6 +209,8 @@ void FAnalysisEngine::FDispatchBuilder::AddField(const ANSICHAR* Name, int32 Nam
 	auto* Dispatch = (FDispatch*)(Buffer.GetData());
 	Dispatch->FieldCount++;
 	Dispatch->EventSize += Field->Size;
+
+	return *Field;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -266,12 +317,46 @@ IAnalyzer::FEventFieldInfo::EType IAnalyzer::FEventFieldInfo::GetType() const
 	return EType::None;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool IAnalyzer::FEventFieldInfo::IsArray() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch::FField*)this;
+	return Inner->bIsArray;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FArrayReader::Num() const
+{
+	const auto* Inner = (const FAuxData*)this;
+	int32 SizeAndType = Inner->FieldSizeAndType;
+	SizeAndType = (SizeAndType < 0) ? -SizeAndType : SizeAndType;
+	return Inner->DataSize / SizeAndType;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const void* IAnalyzer::FArrayReader::GetImpl(uint32 Index, int16& SizeAndType) const
+{
+	const auto* Inner = (const FAuxData*)this;
+	SizeAndType = Inner->FieldSizeAndType;
+	uint32 Count = Num();
+	if (Index >= Count)
+	{
+		return nullptr;
+	}
+
+	SizeAndType = (SizeAndType < 0) ? -SizeAndType : SizeAndType;
+	return Inner->Data + (Index * SizeAndType);
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FAnalysisEngine::FEventDataInfo
 {
 	const FDispatch&	Dispatch;
+	FAuxDataCollector*	AuxCollector;
 	const uint8*		Ptr;
 	uint16				Size;
 };
@@ -284,25 +369,48 @@ const IAnalyzer::FEventTypeInfo& IAnalyzer::FEventData::GetTypeInfo() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const
+const IAnalyzer::FArrayReader* IAnalyzer::FEventData::GetArrayImpl(const ANSICHAR* FieldName) const
 {
+	static const FAuxData EmptyAuxData = {};
+
 	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
-
-	FFnv1aHash Hash;
-	Hash.Add(FieldName);
-	uint32 NameHash = Hash.Get();
-
-	for (int i = 0, n = Info->Dispatch.FieldCount; i < n; ++i)
+	if (Info->AuxCollector == nullptr)
 	{
-		const auto& Field = Info->Dispatch.Fields[i];
-		if (Field.Hash == NameHash)
+		return (IAnalyzer::FArrayReader*)&EmptyAuxData;
+	}
+
+	uint32 Index = Info->Dispatch.GetFieldIndex(FieldName);
+	if (Index >= Info->Dispatch.FieldCount)
+	{
+		return (IAnalyzer::FArrayReader*)&EmptyAuxData;
+	}
+	for (FAuxData& Data : *(Info->AuxCollector))
+	{
+		if (Data.FieldIndex == Index)
 		{
-			SizeAndType = Field.SizeAndType;
-			return (Info->Ptr + Field.Offset);
+			Data.FieldSizeAndType = Info->Dispatch.Fields[Index].SizeAndType;
+			return (IAnalyzer::FArrayReader*)&Data;
 		}
 	}
 
-	return nullptr;
+	return (IAnalyzer::FArrayReader*)&EmptyAuxData;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const
+{
+	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
+	const auto& Dispatch = Info->Dispatch;
+
+	uint32 Index = Dispatch.GetFieldIndex(FieldName);
+	if (Index >= Dispatch.FieldCount)
+	{
+		return nullptr;
+	}
+
+	const auto& Field = Dispatch.Fields[Index];
+	SizeAndType = Field.SizeAndType;
+	return (Info->Ptr + Field.Offset);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -544,8 +652,14 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 	FDispatchBuilder Builder;
 	switch (ProtocolVersion)
 	{
-	case Protocol0::EProtocol::Id: OnNewEventProtocol0(Builder, EventData.Ptr); break;
-	case Protocol1::EProtocol::Id: OnNewEventProtocol1(Builder, EventData.Ptr); break;
+	case Protocol0::EProtocol::Id:
+		OnNewEventProtocol0(Builder, EventData.Ptr);
+		break;
+
+	case Protocol1::EProtocol::Id:
+	case Protocol2::EProtocol::Id:
+		OnNewEventProtocol1(Builder, EventData.Ptr);
+		break;
 	}
 
 	// Get the dispatch and add it into the dispatch table. Fail gently if there
@@ -619,14 +733,15 @@ void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void*
 		const auto& Field = NewEvent.Fields[i];
 
 		uint16 TypeSize = 1 << (Field.TypeInfo & Protocol0::Field_Pow2SizeMask);
-
-		auto TypeId = FEventFieldInfo::EType::Integer;
-		if ((Field.TypeInfo & Protocol0::Field_CategoryMask) == Protocol0::Field_Float)
+		if (Field.TypeInfo & Protocol0::Field_Float)
 		{
-			TypeId = FEventFieldInfo::EType::Float;
+			TypeSize = -TypeSize;
 		}
 
-		Builder.AddField(NameCursor, Field.NameSize, Field.Offset, Field.Size, TypeId, TypeSize);
+		auto& OutField = Builder.AddField(NameCursor, Field.NameSize, Field.Size);
+		OutField.Offset = Field.Offset;
+		OutField.SizeAndType = TypeSize;
+		OutField.bIsArray = (Field.TypeInfo & Protocol0::Field_Array) != 0;
 
 		NameCursor += Field.NameSize;
 	}
@@ -635,7 +750,19 @@ void FAnalysisEngine::OnNewEventProtocol0(FDispatchBuilder& Builder, const void*
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewEventProtocol1(FDispatchBuilder& Builder, const void* EventData)
 {
-	return OnNewEventProtocol0(Builder, EventData);
+	OnNewEventProtocol0(Builder, EventData);
+
+	const auto& NewEvent = *(Protocol1::FNewEventEvent*)(EventData);
+
+	if (NewEvent.Flags & int(Protocol1::EEventFlags::Important))
+	{
+		Builder.SetImportant();
+	}
+
+	if (NewEvent.Flags & int(Protocol1::EEventFlags::MaybeHasAux))
+	{
+		Builder.SetMaybeHasAux();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -687,16 +814,17 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
 		{
 			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::FNewEventEvent::Uid));
+			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
 			AddDispatch(Builder.Finalize());
 		}
 		break;
 
 	case Protocol1::EProtocol::Id:
-		ProtocolHandler = &FAnalysisEngine::OnDataProtocol1;
+	case Protocol2::EProtocol::Id:
+		ProtocolHandler = &FAnalysisEngine::OnDataProtocol2;
 		{
 			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::FNewEventEvent::Uid));
+			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
 			AddDispatch(Builder.Finalize());
 		}
 		break;
@@ -760,7 +888,7 @@ bool FAnalysisEngine::OnDataProtocol0()
 			break;
 		}
 
-		uint16 Uid = uint16(Header->Uid & ((1 << 14) - 1));
+		uint16 Uid = uint16(Header->Uid) & uint16(Protocol0::EKnownEventUids::UidMask);
 		if (Uid >= Dispatches.Num())
 		{
 			return false;
@@ -772,12 +900,17 @@ bool FAnalysisEngine::OnDataProtocol0()
 			return false;
 		}
 
-		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
+		FEventDataInfo EventDataInfo = {
+			*Dispatch,
+			nullptr,
+			Header->EventData,
+			Header->Size
+		};
 		const FEventData& EventData = (FEventData&)EventDataInfo;
 
 		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData }))
+			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ~0u }))
 			{
 				RetireAnalyzer(Analyzer);
 			}
@@ -790,7 +923,7 @@ bool FAnalysisEngine::OnDataProtocol0()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FAnalysisEngine::OnDataProtocol1()
+bool FAnalysisEngine::OnDataProtocol2()
 {
 	auto* InnerTransport = (FTidPacketTransport*)Transport;
 	InnerTransport->Update();
@@ -802,7 +935,8 @@ bool FAnalysisEngine::OnDataProtocol1()
 		FTidPacketTransport::ThreadIter Iter = InnerTransport->ReadThreads();
 		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
 		{
-			int32 ThreadEventCount = OnDataProtocol1(*Reader);
+			uint32 ThreadId = InnerTransport->GetThreadId(Iter);
+			int32 ThreadEventCount = OnDataProtocol2(ThreadId, *Reader);
 			if (ThreadEventCount < 0)
 			{
 				return false;
@@ -817,30 +951,20 @@ bool FAnalysisEngine::OnDataProtocol1()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
+int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 {
 	int32 EventCount = 0;
 	while (!Reader.IsEmpty())
 	{
-		const auto* Header = Reader.GetPointer<Protocol1::FEventHeader>();
+		auto Mark = Reader.SaveMark();
+
+		const auto* Header = Reader.GetPointer<Protocol2::FEventHeader>();
 		if (Header == nullptr)
 		{
 			break;
 		}
 
-		// Make sure we consume events in the correct order
-		if (Header->Serial != uint16(NextLogSerial))
-		{
-			break;
-		}
-
-		uint32 BlockSize = Header->Size + sizeof(Protocol1::FEventHeader);
-		if (Reader.GetPointer(BlockSize) == nullptr)
-		{
-			break;
-		}
-
-		uint16 Uid = uint16(Header->Uid & 0x3fff);
+		uint16 Uid = Header->Uid & uint16(Protocol2::EKnownEventUids::UidMask);
 		if (Uid >= Dispatches.Num())
 		{
 			return -1;
@@ -852,24 +976,121 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 			return -1;
 		}
 
+		uint32 BlockSize = Header->Size;
+		
+		switch (ProtocolVersion)
+		{
+			case Protocol1::EProtocol::Id:
+				{
+					const auto* HeaderV1 = (Protocol1::FEventHeader*)Header;
+					if (HeaderV1->Serial != uint16(NextLogSerial))
+					{
+						return EventCount;
+					}
+					BlockSize += sizeof(*HeaderV1);
+				}
+				break;
+
+			case Protocol2::EProtocol::Id:
+				{
+					uint32 EventSerial = Header->SerialLow|(uint32(Header->SerialHigh) << 16);
+					if (EventSerial != (NextLogSerial & 0x00ffffff))
+					{
+						return EventCount;
+					}
+					BlockSize += sizeof(*Header);
+				}
+				break;
+		}
+
+		if (Reader.GetPointer(BlockSize) == nullptr)
+		{
+			break;
+		}
+
+		Reader.Advance(BlockSize);
+
+		FAuxDataCollector AuxCollector;
+		if (Dispatch->Flags & FDispatch::Flag_MaybeHasAux)
+		{
+			int AuxStatus = OnDataProtocol2Aux(Reader, AuxCollector);
+			if (AuxStatus == 0)
+			{
+				Reader.RestoreMark(Mark);
+				break;
+			}
+			else if (AuxStatus < 0)
+			{
+				return -1;
+			}
+		}
+
 		++NextLogSerial;
 
-		FEventDataInfo EventDataInfo = { *Dispatch, Header->EventData, Header->Size };
+		FEventDataInfo EventDataInfo = {
+			*Dispatch,
+			&AuxCollector,
+			(const uint8*)Header + BlockSize - Header->Size,
+			Header->Size,
+		};
 		const FEventData& EventData = (FEventData&)EventDataInfo;
 
 		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData }))
+			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ThreadId }))
 			{
 				RetireAnalyzer(Analyzer);
 			}
 		});
 
-		Reader.Advance(BlockSize);
 		++EventCount;
 	}
 
 	return EventCount;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollector& Collector)
+{
+	while (true)
+	{
+		const uint8* NextByte = Reader.GetPointer<uint8>();
+		if (NextByte == nullptr)
+		{
+			return 0;
+		}
+
+		// Is the following sequence a blob of auxilary data or the null
+		// terminator byte?
+		if (NextByte[0] == 0)
+		{
+			Reader.Advance(1);
+			return 1;
+		}
+
+		// Get header and the auxilary blob's size
+		const auto* Header = Reader.GetPointer<Protocol1::FAuxHeader>();
+		if (Header == nullptr)
+		{
+			return 0;
+		}
+
+		// Check it exists
+		uint32 BlockSize = (Header->Size >> 8) + sizeof(*Header);
+		if (Reader.GetPointer(BlockSize) == nullptr)
+		{
+			return 0;
+		}
+
+		// Attach to event
+		FAuxData AuxData;
+		AuxData.Data = Header->Data;
+		AuxData.DataSize = uint32(BlockSize - sizeof(*Header));
+		AuxData.FieldIndex = uint16(Header->FieldIndex & Protocol1::FAuxHeader::FieldMask);
+		Collector.Push(AuxData);
+
+		Reader.Advance(BlockSize);
+	}
 }
 
 } // namespace Trace

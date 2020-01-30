@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "XmppStrophe/XmppPresenceStrophe.h"
 #include "XmppStrophe/XmppConnectionStrophe.h"
@@ -78,7 +78,7 @@ bool FXmppPresenceStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 	{
 		Presence.bIsAvailable = true;
 
-		TOptional<const FStropheStanza> StatusTextStanza = IncomingStanza.GetChild(Strophe::SN_STATUS);
+		TOptional<const FStropheStanza> StatusTextStanza = IncomingStanza.GetChildStropheStanza(Strophe::SN_STATUS);
 		if (StatusTextStanza.IsSet())
 		{
 			Presence.StatusStr = StatusTextStanza->GetText();
@@ -86,7 +86,7 @@ bool FXmppPresenceStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 
 		Presence.Status = EXmppPresenceStatus::Online;
 
-		TOptional<const FStropheStanza> StatusEnumStanza = IncomingStanza.GetChild(Strophe::SN_SHOW);
+		TOptional<const FStropheStanza> StatusEnumStanza = IncomingStanza.GetChildStropheStanza(Strophe::SN_SHOW);
 		if (StatusEnumStanza.IsSet())
 		{
 			FString StatusEnum(StatusEnumStanza->GetText());
@@ -108,7 +108,7 @@ bool FXmppPresenceStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 			}
 		}
 
-		TOptional<const FStropheStanza> TimestampStanza = IncomingStanza.GetChild(Strophe::SN_DELAY);
+		TOptional<const FStropheStanza> TimestampStanza = IncomingStanza.GetChildStropheStanza(Strophe::SN_DELAY);
 		if (TimestampStanza.IsSet())
 		{
 			FDateTime::ParseIso8601(*TimestampStanza->GetAttribute(Strophe::SA_STAMP), Presence.SentTime);

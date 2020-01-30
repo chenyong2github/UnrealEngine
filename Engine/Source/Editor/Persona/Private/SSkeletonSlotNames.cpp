@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SSkeletonSlotNames.h"
@@ -130,6 +130,8 @@ void SSkeletonSlotNames::Construct(const FArguments& InArgs, const TSharedRef<IE
 {
 	EditableSkeletonPtr = InEditableSkeleton;
 	OnObjectSelected = InArgs._OnObjectSelected;
+
+	InEditableSkeleton->RegisterOnSlotsChanged(FSimpleMulticastDelegate::FDelegate::CreateSP(this, &SSkeletonSlotNames::RefreshSlotNameListWithFilter));
 
 	InOnPostUndo.Add(FSimpleDelegate::CreateSP( this, &SSkeletonSlotNames::PostUndo ) );
 

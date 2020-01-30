@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,7 +15,7 @@ public:
 	/**
 	 * Creates a config hierarchy editor for the given property 
 	 */
-	virtual void CreateHierarchyEditor(UProperty* EditProperty) = 0;
+	virtual void CreateHierarchyEditor(FProperty* EditProperty) = 0;
 
 	/**
 	 * Maintain a reference to a value widget used in the config editor for the current property.

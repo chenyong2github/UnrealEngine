@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "D3D12RHIPrivate.h"
 #include "D3D12View.h"
@@ -78,9 +78,14 @@ void FD3D12StructuredBuffer::Rename(FD3D12ResourceLocation& NewLocation)
 {
 	FD3D12ResourceLocation::TransferOwnership(ResourceLocation, NewLocation);
 
-	if (DynamicSRV != nullptr)
+	FScopeLock Lock(&DynamicSRVsCS);
+	for(FD3D12BaseShaderResourceView* DynamicSRVBase : DynamicSRVs)
 	{
-		DynamicSRV->Rename(ResourceLocation);
+		FD3D12ShaderResourceView* DynamicSRV = static_cast<FD3D12ShaderResourceView*>(DynamicSRVBase);
+		if (DynamicSRV->IsValid())
+		{
+			DynamicSRV->Rename(ResourceLocation);
+		}
 	}
 }
 
@@ -101,9 +106,14 @@ void FD3D12StructuredBuffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 		{
 			FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
 
-			if (NextBuffer->DynamicSRV)
+			FScopeLock Lock(&NextBuffer->DynamicSRVsCS);
+			for (FD3D12BaseShaderResourceView* DynamicSRVBase : NextBuffer->DynamicSRVs)
 			{
-				NextBuffer->DynamicSRV->Rename(NextBuffer->ResourceLocation);
+				FD3D12ShaderResourceView* DynamicSRV = static_cast<FD3D12ShaderResourceView*>(DynamicSRVBase);
+				if (DynamicSRV->IsValid())
+				{
+					DynamicSRV->Rename(NextBuffer->ResourceLocation);
+				}
 			}
 		}
 	}

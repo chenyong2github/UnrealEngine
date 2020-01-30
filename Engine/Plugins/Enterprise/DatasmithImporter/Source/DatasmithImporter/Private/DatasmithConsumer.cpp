@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithConsumer.h"
 
@@ -306,6 +306,9 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 		LogError( Message );
 		return false;
 	}
+
+	// Set the feedback context
+	ImportContextPtr->FeedbackContext = Context.ProgressReporterPtr ? Context.ProgressReporterPtr->GetFeedbackContext() : nullptr;
 
 	// Update ImportContext's package data
 	ImportContextPtr->AssetsContext.RootFolderPath = TargetContentFolder;

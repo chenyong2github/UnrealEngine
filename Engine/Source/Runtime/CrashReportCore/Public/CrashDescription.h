@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -430,7 +430,12 @@ struct FPrimaryCrashProperties
 	 * Whether we were in the background when the crash happened
 	 */
 	bool bInBackground;
-	
+
+	/**
+	 * Whether we crashed during shutdown
+	 */
+	bool bIsRequestingExit;
+
 protected:
 	/** Default constructor. */
 	FPrimaryCrashProperties();

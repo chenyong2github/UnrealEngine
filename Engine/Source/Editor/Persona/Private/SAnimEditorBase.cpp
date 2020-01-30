@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SAnimEditorBase.h"
@@ -12,6 +12,8 @@
 
 #include "AnimPreviewInstance.h"
 #include "Animation/BlendSpaceBase.h"
+#include "AnimModel.h"
+#include "SAnimTimeline.h"
 
 #define LOCTEXT_NAMESPACE "AnimEditorBase"
 
@@ -32,141 +34,50 @@ void SAnimEditorBase::Construct(const FArguments& InArgs, const TSharedRef<class
 
 	TSharedPtr<SVerticalBox> AnimVerticalBox;
 
-	this->ChildSlot
+	TSharedPtr<SWidget> TimelineToUse;
+	if (InArgs._DisplayAnimTimeline)
+	{
+		check(InArgs._AnimModel.IsValid());
+		TimelineToUse = SAssignNew(TimelineWidget, SAnimTimeline, InArgs._AnimModel.ToSharedRef());
+	}
+	else
+	{
+		TimelineToUse = SNullWidget::NullWidget;
+	}
+
+	ChildSlot
 	[
 		SAssignNew(AnimVerticalBox, SVerticalBox)
 		+SVerticalBox::Slot()
 		.FillHeight(1)
 		[
-			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
+			SNew(SOverlay)
+			+SOverlay::Slot()
 			[
-				SNew(SOverlay)
-				+SOverlay::Slot()
-				[
-					SAssignNew(NonScrollEditorPanels, SVerticalBox)
-				]
-				+SOverlay::Slot()
-				[
-					SNew( SScrollBox )
-					.Visibility(EVisibility::SelfHitTestInvisible)
-					+SScrollBox::Slot() 
-					[
-						SAssignNew (EditorPanels, SVerticalBox)
-					]
-				]
+				SAssignNew(NonScrollEditorPanels, SVerticalBox)
+			]
+			+SOverlay::Slot()
+			[
+				TimelineToUse.ToSharedRef()
 			]
 		]
 	];
 
-	// If we want to create anim info bar, display that now
-	if (InArgs._DisplayAnimInfoBar)
+	if (InArgs._DisplayAnimScrubBar)
 	{
+		// If we are an anim sequence, add scrub panel as well
 		AnimVerticalBox->AddSlot()
 		.AutoHeight()
-		.VAlign(VAlign_Center)
+		.VAlign(VAlign_Bottom)
 		[
-			// this is *temporary* information to display stuff
-			SNew( SBorder )
-			.Padding(FMargin(4))
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.FillWidth(1)
 			[
-				SNew( SHorizontalBox )
-				+SHorizontalBox::Slot()
-				.FillWidth(1)
-				[
-					SNew( SHorizontalBox )
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(FMargin(4,4,0,0))
-					[
-						SNew( STextBlock )
-						.Text(LOCTEXT("Animation", "Animation : "))
-					]
-
-					+SHorizontalBox::Slot()
-					.FillWidth(1)
-					.Padding(FMargin(4,4,0,0))
-					[
-						SNew( STextBlock )
-						.Text(this, &SAnimEditorBase::GetEditorObjectName)
-					]
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew( SHorizontalBox )
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(FMargin(4,4,0,0))
-					[
-						SNew( STextBlock )
-						.Text(LOCTEXT("Percentage", "Percentage: "))
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1)
-					.Padding(FMargin(4,4,0,0))
-					[
-						SNew( STextBlock )
-						.Text(this, &SAnimEditorBase::GetCurrentPercentage)
-					]
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew( SHorizontalBox )
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(FMargin(4,4,0,0))
-					[
-						SNew( STextBlock )
-						.Text(LOCTEXT("CurrentTime", "CurrentTime: "))
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1)
-					.Padding(FMargin(4,4,0,0))
-					[
-						SNew( STextBlock )
-						.Text(this, &SAnimEditorBase::GetCurrentSequenceTime)
-					]
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew( SHorizontalBox )
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(FMargin(4,4,0,0))
-					[
-						SNew( STextBlock )
-						.Text(LOCTEXT("CurrentFrame", "Current Frame: "))
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1)
-					.Padding(FMargin(4,4,0,0))
-					[
-						SNew( STextBlock )
-						.Text(this, &SAnimEditorBase::GetCurrentFrame)
-					]
-				]
+				ConstructAnimScrubPanel()
 			]
 		];
-
 	}
-
-	// If we are an anim sequence, add scrub panel as well
-	AnimVerticalBox->AddSlot()
-	.AutoHeight()
-	.VAlign(VAlign_Bottom)
-	[
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.FillWidth(1)
-		[
-			ConstructAnimScrubPanel()
-		]
-	];
 }
 
 TSharedRef<class SAnimationScrubPanel> SAnimEditorBase::ConstructAnimScrubPanel()

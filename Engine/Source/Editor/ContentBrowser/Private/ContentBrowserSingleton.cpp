@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "ContentBrowserSingleton.h"
@@ -38,6 +38,9 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 	, CollectionAssetRegistryBridge(MakeShared<FCollectionAssetRegistryBridge>())
 	, SettingsStringID(0)
 {
+	// We're going to call a static function in the editor style module, so we need to make sure the module has actually been loaded
+	FModuleManager::Get().LoadModuleChecked("EditorStyle");
+
 	// Register the tab spawners for all content browsers
 	const FSlateIcon ContentBrowserIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.TabIcon");
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
@@ -719,20 +722,6 @@ void FContentBrowserSingleton::ForceShowPluginContent(bool bEnginePlugin)
 	{
 		PrimaryContentBrowser.Pin()->ForceShowPluginContent(bEnginePlugin);
 	}
-}
-
-bool FContentBrowserSingleton::PathViewPathPassesFilter(const FString& InPath) const
-{
-	static FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	for (const auto& It : ContentBrowserModule.GetDirectoryPathFilteredDelegates())
-	{
-		if (It.IsBound() && It.Execute(InPath))
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 void FContentBrowserSingleton::PopulateConfigValues()

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
 
@@ -11,6 +11,7 @@
 #include "ToolMenus.h"
 
 #include "ScopedTransaction.h"
+#include "Sound/AudioSettings.h"
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixGraph/SoundSubmixGraphNode.h"
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
@@ -104,6 +105,23 @@ bool USoundSubmixGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, 
 {
 	USoundSubmixGraphNode* InputNode = CastChecked<USoundSubmixGraphNode>(InputPin->GetOwningNode());
 	USoundSubmixGraphNode* OutputNode = CastChecked<USoundSubmixGraphNode>(OutputPin->GetOwningNode());
+
+	// Master Submix cannot be an input as it would create an inferred loop for submixes without an explicit parent
+	if (const UAudioSettings* Settings = GetDefault<UAudioSettings>())
+	{
+		if (USoundSubmix* MasterSubmix = Cast<USoundSubmix>(Settings->MasterSubmix.TryLoad()))
+		{
+			if (OutputNode->SoundSubmix == MasterSubmix)
+			{
+				return true;
+			}
+
+			if (OutputNode->SoundSubmix->RecurseCheckChild(MasterSubmix))
+			{
+				return true;
+			}
+		}
+	}
 
 	return OutputNode->SoundSubmix->RecurseCheckChild(InputNode->SoundSubmix);
 }

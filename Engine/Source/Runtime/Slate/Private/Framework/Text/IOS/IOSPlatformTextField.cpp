@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Text/IOS/IOSPlatformTextField.h"
 #include "IOS/IOSAppDelegate.h"
@@ -127,14 +127,14 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
 
 -(void)hide
 {
-    if(!TextWidget.IsValid())
-    {
-        return;
-    }
-    
     if(AlertController != nil)
     {
         [AlertController dismissViewControllerAnimated: YES completion: nil];
+    }
+
+    if(!TextWidget.IsValid())
+    {
+        return;
     }
     
     TextWidget = nullptr;

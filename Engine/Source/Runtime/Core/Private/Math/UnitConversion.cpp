@@ -1,10 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Math/UnitConversion.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/ExpressionParserTypes.h"
 #include "Misc/ExpressionParser.h"
 #include "Math/BasicMathExpressionEvaluator.h"
+
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #define LOCTEXT_NAMESPACE "UnitConversion"
 
@@ -775,3 +777,5 @@ namespace UnitConversion
 }	// namespace UnitConversion
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

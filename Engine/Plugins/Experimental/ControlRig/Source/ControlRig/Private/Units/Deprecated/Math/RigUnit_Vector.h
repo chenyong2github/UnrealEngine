@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -27,10 +27,8 @@ struct FRigUnit_Multiply_VectorVector : public FRigUnit_BinaryVectorOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FRigMathLibrary::Multiply(Argument0, Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta=(DisplayName="Add(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
@@ -38,10 +36,8 @@ struct FRigUnit_Add_VectorVector : public FRigUnit_BinaryVectorOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FRigMathLibrary::Add(Argument0, Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta=(DisplayName="Subtract(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
@@ -49,10 +45,8 @@ struct FRigUnit_Subtract_VectorVector : public FRigUnit_BinaryVectorOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FRigMathLibrary::Subtract(Argument0, Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta=(DisplayName="Divide(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
@@ -60,10 +54,8 @@ struct FRigUnit_Divide_VectorVector : public FRigUnit_BinaryVectorOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = FRigMathLibrary::Divide(Argument0, Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "Distance", Category = "Math|Vector", Deprecated="4.23.0", NodeColor = "0.1 0.7 0.1"))
@@ -80,8 +72,6 @@ struct FRigUnit_Distance_VectorVector : public FRigUnit
 	UPROPERTY(meta=(Output))
 	float Result;
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = (Argument0 - Argument1).Size();
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };

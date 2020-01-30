@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/StaticMeshComponent.h"
 #include "Modules/ModuleManager.h"
@@ -1252,6 +1252,11 @@ void UStaticMeshComponent::PrivateFixupOverrideColors()
 
 	const uint32 NumLODs = GetStaticMesh()->RenderData->LODResources.Num();
 
+	if (NumLODs == 0)
+	{
+		return;
+	}
+
 	// Initialize override vertex colors on any new LODs which have just been created
 	SetLODDataCount(NumLODs, LODData.Num());
 	bool UpdateStaticMeshDeriveDataKey = false;
@@ -1553,7 +1558,7 @@ void UStaticMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	// Ensure that OverriddenLightMapRes is a factor of 4
 	OverriddenLightMapRes = FMath::Max(OverriddenLightMapRes + 3 & ~3,4);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
 		if (((PropertyThatChanged->GetName().Contains(TEXT("OverriddenLightMapRes")) ) && (bOverrideLightMapRes == true)) ||
@@ -1609,7 +1614,7 @@ void UStaticMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UStaticMeshComponent::CanEditChange(const UProperty* InProperty) const
+bool UStaticMeshComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

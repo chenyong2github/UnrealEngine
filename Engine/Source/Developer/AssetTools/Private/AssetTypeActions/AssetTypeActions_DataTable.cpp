@@ -1,10 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_DataTable.h"
 #include "ToolMenus.h"
 #include "Misc/FileHelper.h"
 #include "EditorFramework/AssetImportData.h"
-#include "Dialogs/Dialogs.h"
+#include "Misc/MessageDialog.h"
 #include "Framework/Application/SlateApplication.h"
 
 #include "Editor/DataTableEditor/Public/DataTableEditorModule.h"
@@ -165,10 +165,11 @@ void FAssetTypeActions_DataTable::OpenAssetEditor( const TArray<UObject*>& InObj
 			DataTablesListText.AppendLineFormat(LOCTEXT("DataTable_MissingRowStructListEntry", "* {0} (Row Structure: {1})"), FText::FromString(Table->GetName()), FText::FromName(ResolvedRowStructName));
 		}
 
-		const EAppReturnType::Type DlgResult = OpenMsgDlgInt(
+		FText Title = LOCTEXT("DataTable_MissingRowStructTitle", "Continue?");
+		const EAppReturnType::Type DlgResult = FMessageDialog::Open(
 			EAppMsgType::YesNoCancel, 
 			FText::Format(LOCTEXT("DataTable_MissingRowStructMsg", "The following Data Tables are missing their row structure and will not be editable.\n\n{0}\n\nDo you want to open these data tables?"), DataTablesListText.ToText()), 
-			LOCTEXT("DataTable_MissingRowStructTitle", "Continue?")
+			&Title
 			);
 
 		switch(DlgResult)

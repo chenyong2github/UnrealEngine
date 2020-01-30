@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/Granulator.h"
 
@@ -423,7 +423,7 @@ namespace Audio
 		DynamicsProcessor.SetKneeBandwidth(10.0f);
 		DynamicsProcessor.SetInputGain(0.0f);
 		DynamicsProcessor.SetOutputGain(0.0f);
-		DynamicsProcessor.SetChannelLinked(true);
+		DynamicsProcessor.SetChannelLinkMode(EDynamicsProcessorChannelLinkMode::Average);
 		DynamicsProcessor.SetAnalogMode(true);
 		DynamicsProcessor.SetPeakMode(EPeakMode::Peak);
 		DynamicsProcessor.SetProcessingMode(EDynamicsProcessingMode::Compressor);

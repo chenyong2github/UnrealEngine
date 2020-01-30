@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -30,7 +30,7 @@ class BLUEPRINTGRAPH_API UK2Node_Variable : public UK2Node
 	GENERATED_UCLASS_BODY()
 
 	/** Reference to variable we want to set/get */
-	UPROPERTY(meta=(BlueprintSearchable="true", BlueprintSearchableHiddenExplicit="true"))
+	UPROPERTY(meta=(BlueprintSearchable="true", BlueprintSearchableHiddenExplicit="true", BlueprintSearchableFormatVersion="FIB_VER_VARIABLE_REFERENCE"))
 	FMemberReference	VariableReference;
 
 	UPROPERTY()
@@ -89,8 +89,8 @@ public:
 	virtual bool ReferencesVariable(const FName& InVarName, const UStruct* InScope) const override;
 	//~ End K2Node Interface
 
-	/** Set up this variable node from the supplied UProperty */
-	void SetFromProperty(const UProperty* Property, bool bSelfContext, UClass* OwnerClass);
+	/** Set up this variable node from the supplied FProperty */
+	void SetFromProperty(const FProperty* Property, bool bSelfContext, UClass* OwnerClass);
 
 	/** Util to get variable name as a string */
 	FString GetVarNameString() const
@@ -137,9 +137,9 @@ public:
 	/** Get the class to look for this variable in */
 	UClass* GetVariableSourceClass() const;
 
-	/** Get the UProperty for this variable node */
-	UProperty* GetPropertyForVariable() const;
-	UProperty* GetPropertyForVariableFromSkeleton() const;
+	/** Get the FProperty for this variable node */
+	FProperty* GetPropertyForVariable() const;
+	FProperty* GetPropertyForVariableFromSkeleton() const;
 
 	/** Returns true if the variable names match, this looks for redirectors */
 	static bool DoesRenamedVariableMatch(FName OldVariableName, FName NewVariableName, UStruct* StructType);
@@ -148,7 +148,7 @@ private:
 	/** 
 	 * Gets the property for the variable on the owning class or on the owning class's sparse class data structure.
 	 */
-	UProperty* GetPropertyForVariable_Internal(UClass* OwningClass) const;
+	FProperty* GetPropertyForVariable_Internal(UClass* OwningClass) const;
 
 public:
 

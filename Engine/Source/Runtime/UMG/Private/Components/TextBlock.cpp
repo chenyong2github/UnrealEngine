@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/TextBlock.h"
 #include "UObject/ConstructorHelpers.h"
@@ -339,7 +339,7 @@ void UTextBlock::OnCreationFromPalette()
 	Text = LOCTEXT("TextBlockDefaultValue", "Text Block");
 }
 
-bool UTextBlock::CanEditChange(const UProperty* InProperty) const
+bool UTextBlock::CanEditChange(const FProperty* InProperty) const
 {
 	if (bSimpleTextMode && InProperty)
 	{

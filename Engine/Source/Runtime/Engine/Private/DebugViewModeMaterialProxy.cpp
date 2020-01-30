@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 DebugViewModeMaterialProxy.cpp : Contains definitions the debug view mode material shaders.
@@ -84,7 +84,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 
 		ResourceId.Usage = Usage;
 
-		CacheShaders(ResourceId, StaticParamSet, ShaderPlatform);
+		CacheShaders(ResourceId, &StaticParamSet, ShaderPlatform);
 	}
 	else
 	{

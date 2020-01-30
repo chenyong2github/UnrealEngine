@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -126,6 +126,9 @@ class CADINTERFACES_API FArchiveMockUp
 public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveMockUp& C);
 
+	void SerializeMockUp(const TCHAR* Filename);
+	void DeserializeMockUpFile(const TCHAR* Filename);
+
 public:
 	FString CADFile;
 	FString SceneGraphArchive;
@@ -146,8 +149,6 @@ public:
 	TMap<CadId, int32> CADIdToInstanceIndex;
 };
 
-CADINTERFACES_API void SerializeMockUp(FArchiveMockUp& Object, const TCHAR* Filename);
-CADINTERFACES_API void DeserializeMockUpFile(const TCHAR* Filename, FArchiveMockUp& MockUp);
 
 }
 

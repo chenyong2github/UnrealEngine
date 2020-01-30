@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1064,7 +1064,7 @@ public:
 
 #if !UE_BUILD_SHIPPING
 	/** If TRUE, 'hidden' components will still create render proxy, so can draw info (see USceneComponent::ShouldRender) */
-	uint8 bCreateRenderStateForHiddenComponents:1;
+	uint8 bCreateRenderStateForHiddenComponentsWithCollsion:1;
 #endif // !UE_BUILD_SHIPPING
 
 #if WITH_EDITOR
@@ -1469,7 +1469,7 @@ public:
 #endif
 
 	/** Called when the world computes how post process volumes contribute to the scene. */
-	DECLARE_EVENT_OneParam(UWorld, FOnBeginPostProcessSettings, FVector);
+	DECLARE_EVENT_TwoParams(UWorld, FOnBeginPostProcessSettings, FVector, FSceneView*);
 	FOnBeginPostProcessSettings OnBeginPostProcessSettings;
 
 	/** Inserts a post process volume into the world in priority order */
@@ -3218,15 +3218,22 @@ private:
 	/** Private version without inlining that does *not* check Dedicated server build flags (which should already have been done). */
 	ENetMode InternalGetNetMode() const;
 
-#if WITH_EDITOR
-	/** Attempts to derive the net mode from PlayInSettings for PIE*/
-	ENetMode AttemptDeriveFromPlayInSettings() const;
-#endif
-
 	/** Attempts to derive the net mode from URL */
 	ENetMode AttemptDeriveFromURL() const;
 
 	APhysicsVolume* InternalGetDefaultPhysicsVolume() const;
+
+#if WITH_EDITOR
+public:
+	void SetPlayInEditorInitialNetMode(ENetMode InNetMode)
+	{
+		PlayInEditorNetMode = InNetMode;
+	}
+
+private:
+	/** In PIE, what Net Mode was this world started in? Fallback for not having a NetDriver */
+	ENetMode PlayInEditorNetMode;
+#endif
 
 public:
 

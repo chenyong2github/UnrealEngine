@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImageWriteTask.h"
 #include "ImageWriteQueue.h"
@@ -109,7 +109,7 @@ void FImageWriteTask::OnAbandoned()
 bool FImageWriteTask::InitializeWrapper(IImageWrapper* InWrapper, EImageFormat WrapperFormat)
 {
 	const void* RawPtr = nullptr;
-	int32 SizeBytes = 0;
+	int64 SizeBytes = 0;
 
 	if (PixelData->GetRawData(RawPtr, SizeBytes))
 	{
@@ -135,7 +135,7 @@ bool FImageWriteTask::WriteBitmap()
 	}
 
 	const void* RawPtr = nullptr;
-	int32 SizeBytes = 0;
+	int64 SizeBytes = 0;
 
 	if (PixelData->GetRawData(RawPtr, SizeBytes))
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayCueInterface.h"
 #include "AbilitySystemStats.h"
@@ -25,13 +25,13 @@ UGameplayCueInterface::UGameplayCueInterface(const FObjectInitializer& ObjectIni
 {
 }
 
-void IGameplayCueInterface::DispatchBlueprintCustomHandler(AActor* Actor, UFunction* Func, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+void IGameplayCueInterface::DispatchBlueprintCustomHandler(UObject* Object, UFunction* Func, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
 {
-	GameplayCueInterface_eventBlueprintCustomHandler_Parms Parms;
-	Parms.EventType = EventType;
-	Parms.Parameters = Parameters;
+	GameplayCueInterface_eventBlueprintCustomHandler_Parms Params;
+	Params.EventType = EventType;
+	Params.Parameters = Parameters;
 
-	Actor->ProcessEvent(Func, &Parms);
+	Object->ProcessEvent(Func, &Params);
 }
 
 void IGameplayCueInterface::ClearTagToFunctionMap()
@@ -41,18 +41,33 @@ void IGameplayCueInterface::ClearTagToFunctionMap()
 
 void IGameplayCueInterface::HandleGameplayCues(AActor *Self, const FGameplayTagContainer& GameplayCueTags, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
 {
-	for (auto TagIt = GameplayCueTags.CreateConstIterator(); TagIt; ++TagIt)
+	HandleGameplayCues((UObject*)Self, GameplayCueTags, EventType, Parameters);
+}
+
+void IGameplayCueInterface::HandleGameplayCues(UObject* Self, const FGameplayTagContainer& GameplayCueTags, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+{
+	for (FGameplayTag CueTag : GameplayCueTags)
 	{
-		HandleGameplayCue(Self, *TagIt, EventType, Parameters);
+		HandleGameplayCue(Self, CueTag, EventType, Parameters);
 	}
 }
 
 bool IGameplayCueInterface::ShouldAcceptGameplayCue(AActor *Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
 {
+	return ShouldAcceptGameplayCue((UObject*)Self, GameplayCueTag, EventType, Parameters);
+}
+
+bool IGameplayCueInterface::ShouldAcceptGameplayCue(UObject* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+{
 	return true;
 }
 
 void IGameplayCueInterface::HandleGameplayCue(AActor *Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+{
+	HandleGameplayCue((UObject*)Self, GameplayCueTag, EventType, Parameters);
+}
+
+void IGameplayCueInterface::HandleGameplayCue(UObject* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
 {
 	SCOPE_CYCLE_COUNTER(STAT_GameplayCueInterface_HandleGameplayCue);
 
@@ -128,14 +143,17 @@ void IGameplayCueInterface::HandleGameplayCue(AActor *Self, FGameplayTag Gamepla
 
 	if (bShouldContinue)
 	{
-		TArray<UGameplayCueSet*> Sets;
-		GetGameplayCueSets(Sets);
-		for (UGameplayCueSet* Set : Sets)
+		if (AActor* SelfActor = Cast<AActor>(Self))
 		{
-			bShouldContinue = Set->HandleGameplayCue(Self, GameplayCueTag, EventType, Parameters);
-			if (!bShouldContinue)
+			TArray<UGameplayCueSet*> Sets;
+			GetGameplayCueSets(Sets);
+			for (UGameplayCueSet* Set : Sets)
 			{
-				break;
+				bShouldContinue = Set->HandleGameplayCue(SelfActor, GameplayCueTag, EventType, Parameters);
+				if (!bShouldContinue)
+				{
+					break;
+				}
 			}
 		}
 	}

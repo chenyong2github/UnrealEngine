@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -217,11 +217,11 @@ protected:
 	}
 
 	template <typename T>
-	static TArray<T> GetTypedObjectPtrs(const TArray<UObject*>& InObjects)
+	static TArray<T*> GetTypedObjectPtrs(const TArray<UObject*>& InObjects)
 	{
 		check(InObjects.Num() > 0);
 
-		TArray<T> TypedObjects;
+		TArray<T*> TypedObjects;
 		for (UObject* ObjIt : InObjects)
 		{
 			TypedObjects.Add(CastChecked<T>(ObjIt));

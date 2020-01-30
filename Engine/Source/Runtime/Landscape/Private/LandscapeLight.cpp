@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 LandscapeLight.cpp: Static lighting for LandscapeComponents
@@ -752,9 +752,6 @@ void ULandscapeComponent::GetLightAndShadowMapMemoryUsage( int32& LightMapMemory
 void ULandscapeComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly)
 {
 	Modify();
-
-	// Block until the RT processes the unregister before modifying variables that it may need to access
-	FlushRenderingCommands();
 
 	FComponentReregisterContext ReregisterContext(this);
 

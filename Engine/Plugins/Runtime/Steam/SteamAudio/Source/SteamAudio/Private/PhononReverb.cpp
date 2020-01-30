@@ -391,12 +391,78 @@ namespace SteamAudio
 		bListenerInitialized = true;
 	}
 
-	FSoundEffectSubmix* FPhononReverb::GetEffectSubmix(USoundSubmix* Submix)
+	FSoundEffectSubmixPtr FPhononReverb::GetEffectSubmix()
 	{
-		USubmixEffectReverbPluginPreset* ReverbPluginPreset = NewObject<USubmixEffectReverbPluginPreset>(Submix, TEXT("Master Reverb Plugin Effect Preset"));
-		auto Effect = static_cast<FSubmixEffectReverbPlugin*>(ReverbPluginPreset->CreateNewEffect());
-		Effect->SetPhononReverbPlugin(this);
-		return static_cast<FSoundEffectSubmix*>(Effect);
+		if (!SubmixEffect.IsValid())
+		{
+			USubmixEffectReverbPluginPreset* ReverbPluginPreset = nullptr;
+			USoundSubmix* Submix = GetSubmix();
+			if (Submix->SubmixEffectChain.Num() > 0)
+			{
+				if (USubmixEffectReverbPluginPreset* CurrentPreset = Cast<USubmixEffectReverbPluginPreset>(Submix->SubmixEffectChain[0]))
+				{
+					ReverbPluginPreset = CurrentPreset;
+				}
+			}
+
+			if (!ReverbPluginPreset)
+			{
+				ReverbPluginPreset = NewObject<USubmixEffectReverbPluginPreset>(Submix, TEXT("Reverb Plugin Effect Preset"));
+			}
+
+			FSubmixEffectReverbPlugin* ReverbSubmixEffect = static_cast<FSubmixEffectReverbPlugin*>(ReverbPluginPreset->CreateNewEffect());
+			ReverbSubmixEffect->SetPreset(ReverbPluginPreset);
+			ReverbSubmixEffect->SetPhononReverbPlugin(this);
+
+			ReverbSubmixEffect->SetEnabled(true);
+
+			SubmixEffect = MakeShareable(static_cast<FSoundEffectSubmix*>(ReverbSubmixEffect));
+		}
+
+		return SubmixEffect;
+	}
+
+	USoundSubmix* FPhononReverb::GetSubmix()
+	{
+		const USteamAudioSettings* Settings = GetDefault<USteamAudioSettings>();
+		check(Settings);
+		
+		if (!ReverbSubmix.IsValid())
+		{
+			ReverbSubmix = Cast<USoundSubmix>(Settings->OutputSubmix.TryLoad());
+		}
+
+		if (!ReverbSubmix.IsValid())
+		{
+			static const FString DefaultSubmixName = TEXT("Phonon Reverb Submix");
+			UE_LOG(LogSteamAudio, Error, TEXT("Failed to load Phonon Reverb Submix from object path '%s' in PhononSettings. Creating '%s' as stub."),
+				*Settings->OutputSubmix.GetAssetPathString(),
+				*DefaultSubmixName);
+
+			ReverbSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), *DefaultSubmixName);
+			ReverbSubmix->bMuteWhenBackgrounded = true;
+		}
+
+		bool bFoundPreset = false;
+		for (USoundEffectSubmixPreset* Preset : ReverbSubmix->SubmixEffectChain)
+		{
+			if (USubmixEffectReverbPluginPreset* PluginPreset = Cast<USubmixEffectReverbPluginPreset>(Preset))
+			{
+				bFoundPreset = true;
+				break;
+			}
+		}
+
+		if (!bFoundPreset)
+		{
+			static const FString DefaultPresetName = TEXT("PhononReverbDefault_0");
+			UE_LOG(LogSteamAudio, Error, TEXT("Failed to find Phonon USubmixEffectReverbPluginPreset on default Phonon Reverb Submix. Creating stub '%s'."),
+				*Settings->OutputSubmix.GetAssetPathString(),
+				*DefaultPresetName);
+			ReverbSubmix->SubmixEffectChain.Add(NewObject<USubmixEffectReverbPluginPreset>(USubmixEffectReverbPluginPreset::StaticClass(), *DefaultPresetName));
+		}
+
+		return ReverbSubmix.Get();
 	}
 
 	//==============================================================================================================================================
@@ -421,7 +487,7 @@ FSubmixEffectReverbPlugin::FSubmixEffectReverbPlugin()
 	: PhononReverbPlugin(nullptr)
 {}
 
-void FSubmixEffectReverbPlugin::Init(const FSoundEffectSubmixInitData& InSampleRate)
+void FSubmixEffectReverbPlugin::Init(const FSoundEffectSubmixInitData& InInitData)
 {
 }
 
@@ -436,7 +502,10 @@ uint32 FSubmixEffectReverbPlugin::GetDesiredInputChannelCountOverride() const
 
 void FSubmixEffectReverbPlugin::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
 {
-	PhononReverbPlugin->ProcessMixedAudio(InData, OutData);
+	if (PhononReverbPlugin)
+	{
+		PhononReverbPlugin->ProcessMixedAudio(InData, OutData);
+	}
 }
 
 void FSubmixEffectReverbPlugin::SetPhononReverbPlugin(SteamAudio::FPhononReverb* InPhononReverbPlugin)

@@ -1,11 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "AnimGraphNode_CustomProperty.h"
 #include "AnimNode_ControlRig.h"
 #include "SSearchableComboBox.h"
-#include "ControlRigVariables.h"
 #include "AnimGraphNode_ControlRig.generated.h"
 
 struct FVariableMappingInfo;
@@ -31,17 +30,18 @@ private:
 	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
 
 	// property related things
-	void GetIOProperties(bool bInput, TMap<FName, FControlRigIOVariable>& OutVars) const;
+	void GetIOParameters(bool bInput, TMap<FName, FRigVMParameter>& OutParameters) const;
+
+	TMap<FName, FRigVMParameter> InputParameters;
+	TMap<FName, FRigVMParameter> OutputParameters;
+
 	// we have to override both of it
 	// Rebuild is about rebuilding internal data structre
 	// Getter is about getting only properties, so that it can reconstruct node
-	virtual void GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const override;
+	virtual void GetExposableProperties(TArray<FProperty*>& OutExposableProperties) const override {}
 	virtual void RebuildExposedProperties() override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
-
-	TMap<FName, FControlRigIOVariable> InputVariables;
-	TMap<FName, FControlRigIOVariable> OutputVariables;
 
 	// pin option related
 	bool IsPropertyExposeEnabled(FName PropertyName) const;

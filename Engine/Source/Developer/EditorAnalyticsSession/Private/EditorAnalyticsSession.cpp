@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorAnalyticsSession.h"
 #include "Modules/ModuleManager.h"
@@ -252,6 +252,7 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	bIsInEnterprise = false;
 	bIsInVRMode = false;
 	bAlreadySaved = false;
+	bIsLowDriveSpace = false;
 }
 
 bool FEditorAnalyticsSession::Lock(FTimespan Timeout)

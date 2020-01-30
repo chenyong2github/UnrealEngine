@@ -1,16 +1,15 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ClothPhysicalMeshDataBase.h"
-
+#include "ClothPhysicalMeshData.h"
+#include "ClothPhysicalMeshDataBase_Legacy.h"
 #include "ClothCollisionData.h"
 #include "PointWeightMap.h"
-
 #include "SkeletalMeshTypes.h"
 
 #include "ClothLODData.generated.h"
 
-/** */
+/** Common Cloth LOD representation for all clothing assets. */
 UCLASS()
 class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothLODDataCommon : public UObject
 {
@@ -19,9 +18,13 @@ public:
 	UClothLODDataCommon(const FObjectInitializer& Init);
 	virtual ~UClothLODDataCommon();
 
+	// Deprecated, use ClothPhysicalMeshData instead
+	UPROPERTY()
+	UClothPhysicalMeshDataBase_Legacy* PhysicalMeshData_DEPRECATED;
+
 	// Raw phys mesh data
 	UPROPERTY(EditAnywhere, Category = SimMesh)
-	UClothPhysicalMeshDataBase* PhysicalMeshData;
+	FClothPhysicalMeshData ClothPhysicalMeshData;
 
 	// Collision primitive and covex data for clothing collisions
 	UPROPERTY(EditAnywhere, Category = Collision)
@@ -33,11 +36,10 @@ public:
 	TArray<FPointWeightMap> ParameterMasks;
 
 	// Get all available parameter masks for the specified target
-	//void GetParameterMasksForTarget(const MaskTarget_PhysMesh& InTarget, TArray<FPointWeightMap*>& OutMasks);
 	void GetParameterMasksForTarget(const uint8 InTarget, TArray<FPointWeightMap*>& OutMasks);
 #endif // WITH_EDITORONLY_DATA
 #if WITH_EDITOR
-	/** Copy \c ParameterMasks to corresponding targets in \c PhysicalMeshData. */
+	/** Copy \c ParameterMasks to corresponding targets in \c ClothPhysicalMeshData. */
 	void PushWeightsToMesh();
 #endif
 	// Skinning data for transitioning from a higher detail LOD to this one
@@ -46,5 +48,9 @@ public:
 	// Skinning data for transitioning from a lower detail LOD to this one
 	TArray<FMeshToMeshVertData> TransitionDownSkinData;
 
+	// Custom serialize for transition
 	virtual void Serialize(FArchive& Ar) override;
+
+	// Migrate deprecated properties
+	virtual void PostLoad() override;
 };

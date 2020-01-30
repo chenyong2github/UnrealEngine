@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,9 +21,9 @@ struct FAssetData;
 DECLARE_LOG_CATEGORY_EXTERN(LogContentValidation, Log, All);
 
 /**
-* Implements the settings for VR Mode.
+* Implements the settings for Data Validation 
 */
-UCLASS(config = EditorSettings)
+UCLASS(config = Editor)
 class DATAVALIDATION_API UDataValidationSettings : public UObject
 {
 	GENERATED_BODY()
@@ -32,7 +32,7 @@ public:
 	/** Default constructor that sets up CDO properties */
 	UDataValidationSettings();
 
-	/** Display a progress bar while scaling that shows your current scale */
+	/** Whether or not to validate assets on save */
 	UPROPERTY(EditAnywhere, config, Category = "Validation Scenarios")
 	uint32 bValidateOnSave : 1;
 };

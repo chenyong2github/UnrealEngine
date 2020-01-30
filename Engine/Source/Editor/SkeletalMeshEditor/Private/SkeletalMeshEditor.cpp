@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletalMeshEditor.h"
 #include "Modules/ModuleManager.h"
@@ -88,8 +88,7 @@ bool IsReductionParentBaseLODUseSkeletalMeshBuildWorkflow(USkeletalMesh* Skeleta
 	{
 		return false;
 	}
-
-	if (SkeletalMesh->GetImportedModel()->LODModels[TestLODIndex].RawSkeletalMeshBulkData.IsBuildDataAvailable())
+	if (SkeletalMesh->IsLODImportedDataBuildAvailable(TestLODIndex))
 	{
 		return true;
 	}
@@ -120,7 +119,7 @@ bool FSkeletalMeshEditor::OnRequestClose()
 			}
 			
 			//Do not prevent exiting if we are not using the skeletal mesh build workflow
-			if (!SkeletalMesh->GetImportedModel()->LODModels[LODIndex].RawSkeletalMeshBulkData.IsBuildDataAvailable())
+			if (!SkeletalMesh->IsLODImportedDataBuildAvailable(LODIndex))
 			{
 				if (!LODInfo->bHasBeenSimplified && !SkeletalMesh->IsReductionActive(LODIndex))
 				{

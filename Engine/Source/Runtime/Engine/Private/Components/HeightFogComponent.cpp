@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	HeightFogComponent.cpp: Height fog implementation.
@@ -77,7 +77,7 @@ void UExponentialHeightFogComponent::DestroyRenderState_Concurrent()
 
 #if WITH_EDITOR
 
-bool UExponentialHeightFogComponent::CanEditChange(const UProperty* InProperty) const
+bool UExponentialHeightFogComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -119,7 +119,7 @@ void UExponentialHeightFogComponent::PostEditChangeProperty(FPropertyChangedEven
 }
 #endif // WITH_EDITOR
 
-void UExponentialHeightFogComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void UExponentialHeightFogComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	Super::PostInterpChange(PropertyThatChanged);
 

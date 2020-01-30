@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/ControlRigGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
@@ -20,6 +20,9 @@
 #include "UObject/PropertyPortFlags.h"
 #include "ControlRigBlueprintUtils.h"
 #include "Curves/CurveFloat.h"
+#include "RigVMCore/RigVMExecuteContext.h"
+#include "ControlRigDeveloper.h"
+#include "ControlRigObjectVersion.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -29,57 +32,48 @@
 
 UControlRigGraphNode::UControlRigGraphNode()
 : Dimensions(0.0f, 0.0f)
-, NodeTitleFull(FText::GetEmpty())
 , NodeTitle(FText::GetEmpty())
 , CachedTitleColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
 , CachedNodeColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
 {
 	bHasCompilerMessage = false;
 	ErrorType = (int32)EMessageSeverity::Info + 1;
-	ParameterType = (int32)EControlRigModelParameterType::None;
 }
 
 FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	if(NodeTitle.IsEmpty() || NodeTitleFull.IsEmpty())
+	if(NodeTitle.IsEmpty())
 	{
-		UScriptStruct* ScriptStruct = GetUnitScriptStruct();
-		if(ScriptStruct && ScriptStruct->HasMetaData(UControlRig::DisplayNameMetaName))
+		if(URigVMNode* ModelNode = GetModelNode())
 		{
-			if(ScriptStruct->HasMetaData(UControlRig::ShowVariableNameInTitleMetaName))
-			{
-				NodeTitleFull = FText::Format(LOCTEXT("NodeFullTitleFormat", "{0}\n{1}"), FText::FromName(PropertyName), FText::FromString(ScriptStruct->GetMetaData(UControlRig::DisplayNameMetaName)));
-				NodeTitle = FText::FromName(PropertyName);
-			}
-			else
-			{
-				NodeTitle = NodeTitleFull = FText::FromString(ScriptStruct->GetMetaData(UControlRig::DisplayNameMetaName));
-			}
-		}
-		else
-		{
-			NodeTitle = NodeTitleFull = FText::FromName(PropertyName);
+			NodeTitle = FText::FromString(ModelNode->GetNodeTitle());
 		}
 	}
 
-	if(TitleType == ENodeTitleType::FullTitle)
-	{
-		return NodeTitleFull;
-	}
-	else
-	{
-		return NodeTitle;
-	}
+	return NodeTitle;
 }
 
 void UControlRigGraphNode::ReconstructNode()
 {
+	ReconstructNode_Internal();
+}
+
+void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
+{
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetGraph());
-	if (RigGraph)
+	if (RigGraph && !bForce)
 	{
 		if (RigGraph->bIsTemporaryGraphForCopyPaste)
+		{
+			return;
+		}
+
+		// if this node has been saved prior to our custom version,
+		// don't reset the node
+		int32 LinkerVersion = RigGraph->GetLinkerCustomVersion(FControlRigObjectVersion::GUID);
+		if (LinkerVersion < FControlRigObjectVersion::SwitchedToRigVM)
 		{
 			return;
 		}
@@ -95,6 +89,8 @@ void UControlRigGraphNode::ReconstructNode()
 	Pins.Reset();
 
 	// Recreate the new pins
+	CachedPins.Reset();
+	CachedModelPins.Reset();
 	ReallocatePinsDuringReconstruction(OldPins);
 	RewireOldPinsToNewPins(OldPins, Pins);
 
@@ -102,85 +98,23 @@ void UControlRigGraphNode::ReconstructNode()
 	PostReconstructNode();
 
 	GetGraph()->NotifyGraphChanged();
-
-	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
-	if (ScriptStruct)
-	{
-		StructPath = ScriptStruct->GetPathName();
-	}
-}
-
-void UControlRigGraphNode::CacheHierarchyRefConnectionsOnPostLoad()
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	if (HierarchyRefOutputConnections.Num() > 0)
-	{
-		return;
-	}
-	for (UEdGraphPin* Pin : Pins)
-	{
-		if (Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Struct)
-		{
-			continue;
-		}
-		if (Pin->PinType.PinSubCategoryObject != FRigHierarchyRef::StaticStruct())
-		{
-			continue;
-		}
-		if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
-		{
-			for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
-			{
-				HierarchyRefOutputConnections.Add(LinkedPin->GetOwningNode());
-			}
-		}
-		else if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
-		{
-			for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
-			{
-				UControlRigGraphNode* LinkedNode = Cast<UControlRigGraphNode>(LinkedPin->GetOwningNode());
-				if (LinkedNode)
-				{
-					LinkedNode->HierarchyRefOutputConnections.Add(this);
-				}
-			}
-		}
-	}
-}
-
-void UControlRigGraphNode::PrepareForCopying()
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	// cache the data we need for paste to work
-	// we fill up struct for rig unit
-	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
-	if (ScriptStruct)
-	{
-		StructPath = ScriptStruct->GetPathName();
-	}
-	// or property
-	UProperty* Property = GetProperty();
-	if (Property)
-	{
-		FString PropertyPath = Property->GetPathName();
-
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();	
-		Schema->ConvertPropertyToPinType(Property, PinType);
-	}
 }
 
 bool UControlRigGraphNode::IsDeprecated() const
 {
-	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
-	if (ScriptStruct)
+	if(URigVMNode* ModelNode = GetModelNode())
 	{
-		FString DeprecatedMetadata;
-		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
-		if (!DeprecatedMetadata.IsEmpty())
+		if(URigVMStructNode* StructModelNode = Cast<URigVMStructNode>(ModelNode))
 		{
-			return true;
+			if (UScriptStruct* ScriptStruct = StructModelNode->GetScriptStruct())
+			{
+				FString DeprecatedMetadata;
+				ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
+				if (!DeprecatedMetadata.IsEmpty())
+				{
+					return true;
+				}
+			}
 		}
 	}
 	return Super::IsDeprecated();
@@ -190,16 +124,21 @@ FEdGraphNodeDeprecationResponse UControlRigGraphNode::GetDeprecationResponse(EEd
 {
 	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
 
-	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
-	if (ScriptStruct)
+	if(URigVMNode* ModelNode = GetModelNode())
 	{
-		FString DeprecatedMetadata;
-		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
-		if (!DeprecatedMetadata.IsEmpty())
+		if(URigVMStructNode* StructModelNode = Cast<URigVMStructNode>(ModelNode))
 		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("DeprecatedMetadata"), FText::FromString(DeprecatedMetadata));
-			Response.MessageText = FText::Format(LOCTEXT("ControlRigGraphNodeDeprecationMessage", "Warning: This node is deprecated from: {DeprecatedMetadata}"), Args);
+			if (UScriptStruct* ScriptStruct = StructModelNode->GetScriptStruct())
+			{
+				FString DeprecatedMetadata;
+				ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
+				if (!DeprecatedMetadata.IsEmpty())
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("DeprecatedMetadata"), FText::FromString(DeprecatedMetadata));
+					Response.MessageText = FText::Format(LOCTEXT("ControlRigGraphNodeDeprecationMessage", "Warning: This node is deprecated from: {DeprecatedMetadata}"), Args);
+				}
+			}
 		}
 	}
 
@@ -257,21 +196,14 @@ void UControlRigGraphNode::PostReconstructNode()
 
 	for (UEdGraphPin* Pin : Pins)
 	{
-		SetupPinDefaultsFromCDO(Pin);
+		SetupPinDefaultsFromModel(Pin);
 	}
 
 	bCanRenameNode = false;
 
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
-	if (Blueprint)
+	if(URigVMNode* ModelNode = GetModelNode())
 	{
-		if (Blueprint->Model)
-		{
-			if (const FControlRigModelNode* ModelNode = Blueprint->Model->FindNode(PropertyName))
-			{
-				SetColorFromModel(ModelNode->Color);
-			}
-		}
+		SetColorFromModel(ModelNode->GetNodeColor());
 	}
 }
 
@@ -282,292 +214,251 @@ void UControlRigGraphNode::SetColorFromModel(const FLinearColor& InColor)
 	CachedTitleColor = InColor;
 }
 
-#if WITH_EDITORONLY_DATA
-void UControlRigGraphNode::PostLoad()
-{
-	Super::PostLoad();
-	HierarchyRefOutputConnections.Reset();
-}
-#endif
-
-void UControlRigGraphNode::CreateVariablePins(bool bAlwaysCreatePins)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	CacheVariableInfo();
-	CreateExecutionPins(bAlwaysCreatePins);
-	CreateInputPins(bAlwaysCreatePins);
-	CreateInputOutputPins(bAlwaysCreatePins);
-	CreateOutputPins(bAlwaysCreatePins);
-}
-
-void UControlRigGraphNode::HandleClearArray(FString InPropertyPath)
+void UControlRigGraphNode::HandleClearArray(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
 	if (Blueprint)
 	{
-		if (Blueprint->ModelController && Blueprint->Model)
-		{
-			FString Left, Right;
-			Blueprint->Model->SplitPinPath(InPropertyPath, Left, Right);
-			Blueprint->ModelController->ClearArrayPin(*Left, *Right);
-		}
+		Blueprint->Controller->ClearArrayPin(InPinPath);
 	}
 }
 
-void UControlRigGraphNode::HandleAddArrayElement(FString InPropertyPath)
+void UControlRigGraphNode::HandleAddArrayElement(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
 	if (Blueprint)
 	{
-		if (Blueprint->ModelController && Blueprint->Model)
-		{
-			FString Left, Right;
-			Blueprint->Model->SplitPinPath(InPropertyPath, Left, Right);
-			Blueprint->ModelController->AddArrayPin(*Left, *Right, FString());
-		}
+		Blueprint->Controller->OpenUndoBracket(TEXT("Add Array Pin"));
+		FString PinPath = Blueprint->Controller->AddArrayPin(InPinPath);
+		Blueprint->Controller->SetPinExpansion(InPinPath, true);
+		Blueprint->Controller->SetPinExpansion(PinPath, true);
+		Blueprint->Controller->CloseUndoBracket();
 	}
 }
 
-void UControlRigGraphNode::HandleRemoveArrayElement(FString InPropertyPath)
+void UControlRigGraphNode::HandleRemoveArrayElement(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
 	if (Blueprint)
 	{
-		if (Blueprint->ModelController && Blueprint->Model)
+		Blueprint->Controller->RemoveArrayPin(InPinPath);
+	}
+}
+
+void UControlRigGraphNode::HandleInsertArrayElement(FString InPinPath)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
+	if (Blueprint)
+	{
+		if (URigVMPin* ArrayElementPin = GetModelPinFromPinPath(InPinPath))
 		{
-			const FControlRigModelPin* ChildPin = Blueprint->Model->FindPinFromPath(*InPropertyPath);
-			if (ChildPin)
+			if (URigVMPin* ArrayPin = ArrayElementPin->GetParentPin())
 			{
-				const FControlRigModelPin* ParentPin = Blueprint->Model->GetParentPin(ChildPin->GetPair());
-				if (ParentPin)
-				{
-					FString ParentPinPath = Blueprint->Model->GetPinPath(ParentPin->GetPair());
-					FString Left, Right;
-					Blueprint->Model->SplitPinPath(ParentPinPath, Left, Right);
-					// todo: really should be remove at index
-					Blueprint->ModelController->PopArrayPin(*Left, *Right);
-				}
+				Blueprint->Controller->OpenUndoBracket(TEXT("Add Array Pin"));
+				FString PinPath = Blueprint->Controller->InsertArrayPin(InPinPath, ArrayElementPin->GetPinIndex() + 1, FString());
+				Blueprint->Controller->SetPinExpansion(InPinPath, true);
+				Blueprint->Controller->SetPinExpansion(PinPath, true);
+				Blueprint->Controller->CloseUndoBracket();
 			}
 		}
 	}
 }
 
-void UControlRigGraphNode::HandleInsertArrayElement(FString InPropertyPath)
-{
-	// todo: really should be insert
-	HandleAddArrayElement(InPropertyPath);
-}
-
 void UControlRigGraphNode::AllocateDefaultPins()
 {
-	CreateVariablePins(true);
-}
+	ExecutePins.Reset();
+	InputPins.Reset();
+	InputOutputPins.Reset();
+	OutputPins.Reset();
 
-/** Helper function to check whether this is a struct reference pin */
-static bool IsStructReference(const TSharedPtr<FControlRigField>& InputInfo)
-{
-	if(UStructProperty* StructProperty = Cast<UStructProperty>(InputInfo->GetField()))
+	if (URigVMNode* ModelNode = GetModelNode())
 	{
-		return StructProperty->Struct->IsChildOf(FStructReference::StaticStruct());
+		for (URigVMPin* ModelPin : ModelNode->GetPins())
+		{
+			if (ModelPin->GetDirection() == ERigVMPinDirection::IO)
+			{
+				if (ModelPin->IsStruct())
+				{
+					if (ModelPin->GetScriptStruct()->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+					{
+						ExecutePins.Add(ModelPin);
+						continue;
+					}
+				}
+				InputOutputPins.Add(ModelPin);
+			}
+			else if (ModelPin->GetDirection() == ERigVMPinDirection::Input || 
+				ModelPin->GetDirection() == ERigVMPinDirection::Visible)
+			{
+				InputPins.Add(ModelPin);
+			}
+			else if (ModelPin->GetDirection() == ERigVMPinDirection::Output)
+			{
+				OutputPins.Add(ModelPin);
+			}
+		}
 	}
 
-	return false;
+	CreateExecutionPins();
+	CreateInputPins();
+	CreateInputOutputPins();
+	CreateOutputPins();
 }
 
-void UControlRigGraphNode::CreateExecutionPins(bool bAlwaysCreatePins)
+void UControlRigGraphNode::CreateExecutionPins()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	const TArray<TSharedRef<FControlRigField>>& LocalExecutionInfos = GetExecutionVariableInfo();
-
-	for (const TSharedRef<FControlRigField>& ExecutionInfo : LocalExecutionInfos)
+	const TArray<URigVMPin*> ModelPins = ExecutePins;
+	for (URigVMPin* ModelPin : ModelPins)
 	{
-		if (bAlwaysCreatePins || ExecutionInfo->InputPin == nullptr)
+		PinPair& Pair = CachedPins.FindOrAdd(ModelPin);
+		if (Pair.InputPin == nullptr)
 		{
-			ExecutionInfo->InputPin = CreatePin(EGPD_Input, ExecutionInfo->GetPinType(), FName(*ExecutionInfo->GetPinPath()));
-			ExecutionInfo->InputPin->PinFriendlyName = ExecutionInfo->GetDisplayNameText();
-			ExecutionInfo->InputPin->PinType.bIsReference = IsStructReference(ExecutionInfo);
-			ExecutionInfo->InputPin->DefaultValue = ExecutionInfo->GetPin()->DefaultValue;
+			Pair.InputPin = CreatePin(EGPD_Input, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
+			if (Pair.InputPin != nullptr)
+			{
+				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+				Pair.InputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
+			}
 		}
-
-		if (bAlwaysCreatePins || ExecutionInfo->OutputPin == nullptr)
+		if (Pair.OutputPin == nullptr)
 		{
-			ExecutionInfo->OutputPin = CreatePin(EGPD_Output, ExecutionInfo->GetPinType(), FName(*ExecutionInfo->GetPinPath()));
+			Pair.OutputPin = CreatePin(EGPD_Output, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
+			if (Pair.OutputPin != nullptr)
+			{
+				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+				Pair.OutputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
+			}
 		}
-
 		// note: no recursion for execution pins
 	}
 }
 
-void UControlRigGraphNode::CreateInputPins_Recursive(const TSharedPtr<FControlRigField>& InputInfo, bool bAlwaysCreatePins)
-{
-	for (const TSharedPtr<FControlRigField>& ChildInfo : InputInfo->Children)
-	{
-		if (bAlwaysCreatePins || ChildInfo->InputPin == nullptr)
-		{
-			ChildInfo->InputPin = CreatePin(EGPD_Input, ChildInfo->GetPinType(), FName(*ChildInfo->GetPinPath()));
-			ChildInfo->InputPin->PinFriendlyName = ChildInfo->GetDisplayNameText();
-			ChildInfo->InputPin->PinType.bIsReference = IsStructReference(ChildInfo);
-			ChildInfo->InputPin->ParentPin = InputInfo->InputPin;
-			ChildInfo->InputPin->DefaultValue = ChildInfo->GetPin()->DefaultValue;
-			ChildInfo->OutputPin = nullptr;
-			InputInfo->InputPin->SubPins.Add(ChildInfo->InputPin);
-		}
-	}
-
-	for (const TSharedPtr<FControlRigField>& ChildInfo : InputInfo->Children)
-	{
-		CreateInputPins_Recursive(ChildInfo, bAlwaysCreatePins);
-	}
-}
-
-void UControlRigGraphNode::CreateInputPins(bool bAlwaysCreatePins)
+void UControlRigGraphNode::CreateInputPins(URigVMPin* InParentPin)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	const TArray<TSharedRef<FControlRigField>>& LocalInputInfos = GetInputVariableInfo();
-
-	for (const TSharedRef<FControlRigField>& InputInfo : LocalInputInfos)
+	const TArray<URigVMPin*> ModelPins = InParentPin == nullptr ? InputPins : InParentPin->GetSubPins();
+	for (URigVMPin* ModelPin : ModelPins)
 	{
-		if (bAlwaysCreatePins || InputInfo->InputPin == nullptr)
+		PinPair& Pair = CachedPins.FindOrAdd(ModelPin);
+		if (Pair.InputPin == nullptr)
 		{
-			InputInfo->InputPin = CreatePin(EGPD_Input, InputInfo->GetPinType(), FName(*InputInfo->GetPinPath()));
-			InputInfo->InputPin->PinFriendlyName = InputInfo->GetDisplayNameText();
-			InputInfo->InputPin->PinType.bIsReference = IsStructReference(InputInfo);
-			InputInfo->InputPin->DefaultValue = InputInfo->GetPin()->DefaultValue;
-			InputInfo->OutputPin = nullptr;
-		}
-		else
-		{
-			InputInfo->InputPin->DefaultValue = InputInfo->GetPin()->DefaultValue;
-		}
+			Pair.InputPin = CreatePin(EGPD_Input, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
+			if (Pair.InputPin != nullptr)
+			{
+				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+				Pair.InputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::Input;
+				Pair.InputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
 
-		CreateInputPins_Recursive(InputInfo, bAlwaysCreatePins);
+				SetupPinDefaultsFromModel(Pair.InputPin);
+
+				if (InParentPin != nullptr)
+				{
+					PinPair& ParentPair = CachedPins.FindChecked(InParentPin);
+					ParentPair.InputPin->SubPins.Add(Pair.InputPin);
+					Pair.InputPin->ParentPin = ParentPair.InputPin;
+				}
+			}
+		}
+		CreateInputPins(ModelPin);
 	}
 }
 
-void UControlRigGraphNode::CreateInputOutputPins_Recursive(const TSharedPtr<FControlRigField>& InputOutputInfo, bool bAlwaysCreatePins)
-{
-	for (const TSharedPtr<FControlRigField>& ChildInfo : InputOutputInfo->Children)
-	{
-		if (bAlwaysCreatePins || ChildInfo->InputPin == nullptr)
-		{
-			ChildInfo->InputPin = CreatePin(EGPD_Input, ChildInfo->GetPinType(), FName(*ChildInfo->GetPinPath()));
-			ChildInfo->InputPin->PinFriendlyName = ChildInfo->GetDisplayNameText();
-			ChildInfo->InputPin->PinType.bIsReference = IsStructReference(ChildInfo);
-			ChildInfo->InputPin->DefaultValue = ChildInfo->GetPin()->DefaultValue;
-			ChildInfo->InputPin->ParentPin = InputOutputInfo->InputPin;
-			InputOutputInfo->InputPin->SubPins.Add(ChildInfo->InputPin);
-		}
-		else
-		{
-			ChildInfo->InputPin->DefaultValue = ChildInfo->GetPin()->DefaultValue;
-		}
-
-		if (bAlwaysCreatePins || ChildInfo->OutputPin == nullptr)
-		{
-			ChildInfo->OutputPin = CreatePin(EGPD_Output, ChildInfo->GetPinType(), FName(*ChildInfo->GetPinPath()));
-			ChildInfo->OutputPin->PinFriendlyName = ChildInfo->GetDisplayNameText();
-			ChildInfo->OutputPin->ParentPin = InputOutputInfo->OutputPin;
-			ChildInfo->OutputPin->PinType.bIsReference = IsStructReference(ChildInfo);
-			InputOutputInfo->OutputPin->SubPins.Add(ChildInfo->OutputPin);
-		}
-	}
-
-	for (const TSharedPtr<FControlRigField>& ChildInfo : InputOutputInfo->Children)
-	{
-		CreateInputOutputPins_Recursive(ChildInfo, bAlwaysCreatePins);
-	}
-}
-
-void UControlRigGraphNode::CreateInputOutputPins(bool bAlwaysCreatePins)
+void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	const TArray<TSharedRef<FControlRigField>>& LocalInputOutputInfos = GetInputOutputVariableInfo();
-
-	for (const TSharedRef<FControlRigField>& InputOutputInfo : LocalInputOutputInfos)
+	const TArray<URigVMPin*> ModelPins = InParentPin == nullptr ? InputOutputPins : InParentPin->GetSubPins();
+	for (URigVMPin* ModelPin : ModelPins)
 	{
-		if (bAlwaysCreatePins || InputOutputInfo->InputPin == nullptr)
+		PinPair& Pair = CachedPins.FindOrAdd(ModelPin);
+		if (Pair.InputPin == nullptr)
 		{
-			InputOutputInfo->InputPin = CreatePin(EGPD_Input, InputOutputInfo->GetPinType(), FName(*InputOutputInfo->GetPinPath()));
-			InputOutputInfo->InputPin->PinFriendlyName = InputOutputInfo->GetDisplayNameText();
-			InputOutputInfo->InputPin->PinType.bIsReference = IsStructReference(InputOutputInfo);
-			InputOutputInfo->InputPin->DefaultValue = InputOutputInfo->GetPin()->DefaultValue;
+			Pair.InputPin = CreatePin(EGPD_Input, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
+			if (Pair.InputPin != nullptr)
+			{
+				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+				Pair.InputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::IO;
+				Pair.InputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
+
+				SetupPinDefaultsFromModel(Pair.InputPin);
+
+				if (InParentPin != nullptr)
+				{
+					PinPair& ParentPair = CachedPins.FindChecked(InParentPin);
+					ParentPair.InputPin->SubPins.Add(Pair.InputPin);
+					Pair.InputPin->ParentPin = ParentPair.InputPin;
+				}
+			}
+		}
+		if (Pair.OutputPin == nullptr)
+		{
+			Pair.OutputPin = CreatePin(EGPD_Output, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
+			if (Pair.OutputPin != nullptr)
+			{
+				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+				Pair.OutputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::IO;
+				Pair.OutputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
+
+				if (InParentPin != nullptr)
+				{
+					PinPair& ParentPair = CachedPins.FindChecked(InParentPin);
+					ParentPair.OutputPin->SubPins.Add(Pair.OutputPin);
+					Pair.OutputPin->ParentPin = ParentPair.OutputPin;
+				}
+			}
 		}
 
-		if (bAlwaysCreatePins || InputOutputInfo->OutputPin == nullptr)
+		// don't recurse on knot / compact reroute nodes
+		if(URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(GetModelNode()))
 		{
-			InputOutputInfo->OutputPin = CreatePin(EGPD_Output, InputOutputInfo->GetPinType(), FName(*InputOutputInfo->GetPinPath()));
+			if (!RerouteNode->GetShowsAsFullNode())
+			{
+				continue;
+			}
 		}
 
-		CreateInputOutputPins_Recursive(InputOutputInfo, bAlwaysCreatePins);
+		CreateInputOutputPins(ModelPin);
 	}
 }
 
-void UControlRigGraphNode::CreateOutputPins_Recursive(const TSharedPtr<FControlRigField>& OutputInfo, bool bAlwaysCreatePins)
-{
-	for (const TSharedPtr<FControlRigField>& ChildInfo : OutputInfo->Children)
-	{
-		if (bAlwaysCreatePins || ChildInfo->OutputPin == nullptr)
-		{
-			ChildInfo->OutputPin = CreatePin(EGPD_Output, ChildInfo->GetPinType(), FName(*ChildInfo->GetPinPath()));
-			ChildInfo->OutputPin->PinFriendlyName = ChildInfo->GetDisplayNameText();
-			ChildInfo->OutputPin->PinType.bIsReference = IsStructReference(ChildInfo);
-			ChildInfo->OutputPin->ParentPin = OutputInfo->OutputPin;
-			ChildInfo->InputPin = nullptr;
-			OutputInfo->OutputPin->SubPins.Add(ChildInfo->OutputPin);
-		}
-	}
-
-	for (const TSharedPtr<FControlRigField>& ChildInfo : OutputInfo->Children)
-	{
-		CreateOutputPins_Recursive(ChildInfo, bAlwaysCreatePins);
-	}
-}
-
-void UControlRigGraphNode::CreateOutputPins(bool bAlwaysCreatePins)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	const TArray<TSharedRef<FControlRigField>>& LocalOutputInfos = GetOutputVariableInfo();
-
-	for (const TSharedRef<FControlRigField>& OutputInfo : LocalOutputInfos)
-	{
-		if (bAlwaysCreatePins || OutputInfo->OutputPin == nullptr)
-		{
-			OutputInfo->OutputPin = CreatePin(EGPD_Output, OutputInfo->GetPinType(), FName(*OutputInfo->GetPinPath()));
-			OutputInfo->OutputPin->PinFriendlyName = OutputInfo->GetDisplayNameText();
-			OutputInfo->OutputPin->PinType.bIsReference = IsStructReference(OutputInfo);
-			OutputInfo->InputPin = nullptr;
-		}
-
-		CreateOutputPins_Recursive(OutputInfo, bAlwaysCreatePins);
-	}
-}
-
-void UControlRigGraphNode::CacheVariableInfo()
+void UControlRigGraphNode::CreateOutputPins(URigVMPin* InParentPin)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	ExecutionInfos.Reset();
-	GetExecutionFields(ExecutionInfos);
+	const TArray<URigVMPin*> ModelPins = InParentPin == nullptr ? OutputPins : InParentPin->GetSubPins();
+	for (URigVMPin* ModelPin : ModelPins)
+	{
+		PinPair& Pair = CachedPins.FindOrAdd(ModelPin);
+		if (Pair.OutputPin == nullptr)
+		{
+			Pair.OutputPin = CreatePin(EGPD_Output, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
+			if (Pair.OutputPin != nullptr)
+			{
+				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
+				Pair.OutputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::Output;
+				Pair.OutputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
 
-	InputInfos.Reset();
-	GetInputFields(InputInfos);
-
-	OutputInfos.Reset();
-	GetOutputFields(OutputInfos);
-
-	InputOutputInfos.Reset();
-	GetInputOutputFields(InputOutputInfos);
+				if (InParentPin != nullptr)
+				{
+					PinPair& ParentPair = CachedPins.FindChecked(InParentPin);
+					ParentPair.OutputPin->SubPins.Add(Pair.OutputPin);
+					Pair.OutputPin->ParentPin = ParentPair.OutputPin;
+				}
+			}
+		}
+		CreateOutputPins(ModelPin);
+	}
 }
 
 UClass* UControlRigGraphNode::GetControlRigGeneratedClass() const
@@ -599,15 +490,31 @@ UClass* UControlRigGraphNode::GetControlRigSkeletonGeneratedClass() const
 	return nullptr;
 }
 
+FLinearColor UControlRigGraphNode::GetNodeOpacityColor() const
+{
+	if (URigVMNode* ModelNode = GetModelNode())
+	{
+		if (Cast<URigVMParameterNode>(ModelNode) || Cast<URigVMVariableNode>(ModelNode))
+		{
+			return FLinearColor::White;
+		}
+		if (ModelNode->GetInstructionIndex() == INDEX_NONE)
+		{
+			return FLinearColor(0.35f, 0.35f, 0.35f, 0.35f);
+		}
+	}
+	return FLinearColor::White;
+}
+
 FLinearColor UControlRigGraphNode::GetNodeTitleColor() const
 {
 	// return a darkened version of the default node's color
-	return CachedTitleColor;
+	return CachedTitleColor * GetNodeOpacityColor();
 }
 
 FLinearColor UControlRigGraphNode::GetNodeBodyTintColor() const
 {
-	return CachedNodeColor;
+	return CachedNodeColor * GetNodeOpacityColor();
 }
 
 FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
@@ -617,252 +524,21 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 	return Icon;
 }
 
-// bool UControlRigGraphNode::ReferencesVariable(const FName& InVarName, const UStruct* InScope) const
-// {
-// 	return InVarName == PropertyName;
-// }
-
-TSharedPtr<FControlRigField> UControlRigGraphNode::CreateControlRigField(const FControlRigModelPin* InPin, const FString& InPinPath, int32 InArrayIndex) const
-{
-	TSharedPtr<FControlRigField> NewField = MakeShareable(new FControlRigPin(InPin, InPinPath, InArrayIndex));
-	NewField->DisplayNameText = InPin->DisplayNameText;
-	NewField->TooltipText = InPin->TooltipText;
-	NewField->InputPin = FindPin(InPinPath, EGPD_Input);
-	NewField->OutputPin = FindPin(InPinPath, EGPD_Output);
-	return NewField;
-}
-
-void UControlRigGraphNode::GetExecutionFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	GetFields([](const FControlRigModelPin* InPin, const FControlRigModelNode* InNode)
-	{
-		FString PinPath = InNode->GetPinPath(InPin->Index, false);
-		return InPin->Direction == EGPD_Output &&
-			InNode->FindPin(*PinPath, true) != nullptr &&
-			InPin->Type.PinSubCategoryObject == FControlRigExecuteContext::StaticStruct();
-	}, OutFields);
-}
-
-void UControlRigGraphNode::GetInputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	GetFields([](const FControlRigModelPin* InPin, const FControlRigModelNode* InNode)
-	{
-		FString PinPath = InNode->GetPinPath(InPin->Index, false);
-		if (InPin->Direction != EGPD_Input)
-		{
-			return false;
-		}
-
-		if (InNode->IsParameter() && InNode->ParameterType == EControlRigModelParameterType::Output)
-		{
-			return true;
-		}
-
-		return InNode->FindPin(*PinPath, false) == nullptr;
-	}, OutFields);
-}
-
-void UControlRigGraphNode::GetOutputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	GetFields([](const FControlRigModelPin* InPin, const FControlRigModelNode* InNode)
-	{
-		FString PinPath = InNode->GetPinPath(InPin->Index, false);
-		if (InPin->Direction != EGPD_Output)
-		{
-			return false;
-		}
-		
-		if (InNode->IsParameter() && InNode->ParameterType == EControlRigModelParameterType::Input)
-		{
-			return true;
-		}
-		
-		return InNode->FindPin(*PinPath, true) == nullptr;
-	}, OutFields);
-}
-
-void UControlRigGraphNode::GetInputOutputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	GetFields([](const FControlRigModelPin* InPin, const FControlRigModelNode* InNode)
-	{
-		if (InNode->IsParameter())
-		{
-			return false;
-		}
-		FString PinPath = InNode->GetPinPath(InPin->Index, false);
-		return InPin->Direction == EGPD_Input && 
-			InNode->FindPin(*PinPath, false) != nullptr &&
-			InPin->Type.PinSubCategoryObject != FControlRigExecuteContext::StaticStruct();
-	}, OutFields);
-}
-
-void UControlRigGraphNode::GetFields(TFunction<bool(const FControlRigModelPin*, const FControlRigModelNode*)> InPinCheckFunction, TArray<TSharedRef<FControlRigField>>& OutFields) const
-{
-	OutFields.Reset();
-
-	FControlRigModelNode Node;
-
-	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprint()))
-	{
-		if (RigBlueprint->Model)
-		{
-			const FControlRigModelNode* FoundNode = RigBlueprint->Model->FindNode(GetPropertyName());
-			if (FoundNode != nullptr)
-			{
-				Node = *FoundNode;
-			}
-		}
-	}
-
-	if (!Node.IsValid())
-	{
-		if (IsVariable())
-		{
-			FName DataType = PinType.PinCategory;
-			if (UStruct* Struct = Cast<UStruct>(PinType.PinSubCategoryObject))
-			{
-				DataType = Struct->GetFName();
-			}
-			UControlRigController::ConstructPreviewParameter(DataType, EControlRigModelParameterType::Input, Node);
-		}
-		else
-		{
-			if (UStruct* Struct = GetUnitScriptStruct())
-			{
-				FName FunctionName = Struct->GetFName();
-				UControlRigController::ConstructPreviewNode(FunctionName, Node);
-			}
-		}
-	}
-
-	if (!Node.IsValid())
-	{
-		return;
-	}
-
-	Node.Name = GetPropertyName();
-
-	TMap<int32, TSharedRef<FControlRigField>> AllFields;
-	for(int32 PinIndex=0;PinIndex < Node.Pins.Num(); PinIndex++)
-	{
-		const FControlRigModelPin& Pin = Node.Pins[PinIndex];
-		if (InPinCheckFunction(&Pin, &Node))
-		{
-			FString PinPath = Node.GetPinPath(Pin.Index, true);
-			TSharedPtr<FControlRigField> NewField = CreateControlRigField(&Pin, PinPath);
-			if (NewField.IsValid())
-			{
-				TSharedRef<FControlRigField> NewFieldRef = NewField.ToSharedRef();
-				AllFields.Add(Pin.Index, NewFieldRef);
-
-				TSharedRef<FControlRigField>* ParentField = AllFields.Find(Pin.ParentIndex);
-				if (ParentField)
-				{
-					(*ParentField)->Children.Add(NewFieldRef);
-				}
-				else
-				{
-					OutFields.Add(NewFieldRef);
-				}
-			}
-		}
-	}
-}
-
-UStructProperty* UControlRigGraphNode::GetUnitProperty() const
-{
-	UProperty* ClassProperty = GetProperty();
-	if(ClassProperty)
-	{
-		// Check if this is a unit struct and if so extract the pins we want to display...
-		if(UStructProperty* StructProperty = Cast<UStructProperty>(ClassProperty))
-		{
-			if(StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
-			{
-				return StructProperty;
-			}
-		}
-	}
-
-	return nullptr;
-}
-
-UScriptStruct* UControlRigGraphNode::GetUnitScriptStruct() const
-{
-	if(UStructProperty* StructProperty = GetUnitProperty())
-	{
-		if(StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
-		{
-			return StructProperty->Struct;
-		}
-	}
-	else 
-	{
-		// Assume that the property name we have is the name of the struct type
-		UScriptStruct* Struct = FindObject<UScriptStruct>(ANY_PACKAGE, *PropertyName.ToString());
-		if(Struct && Struct->IsChildOf(FRigUnit::StaticStruct()))
-		{
-			return Struct;
-		}
-
-		// if this doesn't work we can still fall back on the struct path
-		FString Prefix, StructName;
-		if (StructPath.Split(TEXT("."), &Prefix, &StructName))
-		{
-			Struct = FindObject<UScriptStruct>(ANY_PACKAGE, *StructName);
-			if (Struct && Struct->IsChildOf(FRigUnit::StaticStruct()))
-			{
-				return Struct;
-			}
-		}
-	}
-	return nullptr;
-}
-
-UProperty* UControlRigGraphNode::GetProperty() const
-{
-	if (UClass* MyControlRigClass = GetControlRigSkeletonGeneratedClass())
-	{
-		return MyControlRigClass->FindPropertyByName(PropertyName);
-	}
-	return nullptr;
-}
-
-void UControlRigGraphNode::PinConnectionListChanged(UEdGraphPin* Pin) 
-{
-
-}
-
-void UControlRigGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
+void UControlRigGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
 #if WITH_EDITOR
-	IControlRigEditorModule::Get().GetNodeContextMenuActions(this, Menu, Context);
+	const UControlRigGraphSchema* Schema = Cast<UControlRigGraphSchema>(GetSchema());
+	IControlRigEditorModule::Get().GetContextMenuActions(Schema, Menu, Context);
 #endif
 }
 
-void UControlRigGraphNode::SetPinExpansion(const FString& InPinPropertyPath, bool bExpanded)
+bool UControlRigGraphNode::IsPinExpanded(const FString& InPinPath)
 {
-	if(bExpanded)
+	if (URigVMPin* ModelPin = GetModelPinFromPinPath(InPinPath))
 	{
-		ExpandedPins.AddUnique(InPinPropertyPath);
+		return ModelPin->IsExpanded();
 	}
-	else
-	{
-		ExpandedPins.Remove(InPinPropertyPath);
-	}
-}
-
-bool UControlRigGraphNode::IsPinExpanded(const FString& InPinPropertyPath) const
-{
-	return ExpandedPins.Contains(InPinPropertyPath);
+	return false;
 }
 
 void UControlRigGraphNode::DestroyNode()
@@ -875,7 +551,10 @@ void UControlRigGraphNode::DestroyNode()
 		if(ControlRigBlueprint)
 		{
 			BreakAllNodeLinks();
-			FControlRigBlueprintUtils::RemoveMemberVariableIfNotUsed(ControlRigBlueprint, PropertyName, this);
+			if(PropertyName_DEPRECATED.IsValid())
+			{
+				FControlRigBlueprintUtils::RemoveMemberVariableIfNotUsed(ControlRigBlueprint, PropertyName_DEPRECATED, this);
+			}
 		}
 	}
 
@@ -887,36 +566,32 @@ void UControlRigGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 	CopyPinDefaultsToModel(Pin, true);
 }
 
-TSharedPtr<INameValidatorInterface> UControlRigGraphNode::MakeNameValidator() const
-{
-	return MakeShared<FKismetNameValidator>(GetBlueprint(), PropertyName);
-}
-
 void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-
-	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	if (Pin->Direction != EGPD_Input)
 	{
-		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Graph->GetOuter());
-		if(ControlRigBlueprint)
+		return;
+	}
+
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	if (URigVMPin* ModelPin = GetModelPinFromPinPath(Pin->GetName()))
+	{
+		if (ModelPin->GetSubPins().Num() > 0)
 		{
-			if (ControlRigBlueprint->Model)
-			{
-				if (Pin->Direction == EGPD_Input)
-				{
-					FString DefaultValue = Pin->DefaultValue;
-					FString Left, Right;
-					ControlRigBlueprint->Model->SplitPinPath(Pin->GetName(), Left, Right);
-					if (DefaultValue.IsEmpty() && Pin->DefaultObject != nullptr)
-					{
-						DefaultValue = Pin->DefaultObject->GetPathName();
-					}
-					ControlRigBlueprint->ModelController->SetPinDefaultValue(*Left, *Right, DefaultValue, false, bUndo);
-				}
-			}
+			return;
+		}
+
+		FString DefaultValue = Pin->DefaultValue;
+		if (DefaultValue == FName(NAME_None).ToString() && Pin->PinType.PinSubCategory == UEdGraphSchema_K2::PC_Name)
+		{
+			DefaultValue = FString();
+		}
+
+		if (ModelPin->GetDefaultValue() != DefaultValue)
+		{
+			GetBlueprint()->Controller->SetPinDefaultValue(ModelPin->GetPinPath(), DefaultValue, false, true, false);
 		}
 	}
 }
@@ -930,51 +605,102 @@ UControlRigBlueprint* UControlRigGraphNode::GetBlueprint() const
 	return nullptr;
 }
 
-void UControlRigGraphNode::SetupPinDefaultsFromCDO(UEdGraphPin* Pin)
+URigVMNode* UControlRigGraphNode::GetModelNode() const
+{
+	if (CachedModelNode)
+	{
+		return CachedModelNode;
+	}
+
+	UControlRigGraphNode* MutableThis = (UControlRigGraphNode*)this;
+	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	{
+#if WITH_EDITOR
+
+		if (Graph->TemplateModel != nullptr)
+		{
+			return MutableThis->CachedModelNode = Graph->TemplateModel->FindNode(ModelNodePath);
+		}
+
+#endif
+
+		if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter()))
+		{
+			return MutableThis->CachedModelNode = Blueprint->Model->FindNode(ModelNodePath);
+		}
+	}
+
+	return nullptr;
+}
+
+FName UControlRigGraphNode::GetModelNodeName() const
+{
+	if (URigVMNode* ModelNode = GetModelNode())
+	{
+		return ModelNode->GetFName();
+	}
+	return NAME_None;
+}
+
+URigVMPin* UControlRigGraphNode::GetModelPinFromPinPath(const FString& InPinPath) const
+{
+	if (URigVMPin*const* CachedModelPin = CachedModelPins.Find(InPinPath))
+	{
+		return (URigVMPin*)*CachedModelPin;
+	}
+
+	if (URigVMNode* ModelNode = GetModelNode())
+	{
+		FString PinPath = InPinPath.RightChop(ModelNode->GetNodePath().Len() + 1);
+		URigVMPin* ModelPin = ModelNode->FindPin(PinPath);
+		if (ModelPin)
+		{
+			UControlRigGraphNode* MutableThis = (UControlRigGraphNode*)this;
+			MutableThis->CachedModelPins.Add(InPinPath, ModelPin);
+		}
+		return ModelPin;
+	}
+	
+	return nullptr;
+}
+
+void UControlRigGraphNode::SetupPinDefaultsFromModel(UEdGraphPin* Pin)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-
-	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	if (Pin->Direction != EGPD_Input)
 	{
-		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Graph->GetOuter());
-		if(ControlRigBlueprint)
+		return;
+	}
+
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	if (URigVMPin* ModelPin = GetModelPinFromPinPath(Pin->GetName()))
+	{
+		if (ModelPin->GetSubPins().Num() > 0)
 		{
-			// Note we need the actual generated class here
-			if (UClass* MyControlRigClass = GetControlRigGeneratedClass())
-			{
-				if(UObject* DefaultObject = MyControlRigClass->GetDefaultObject(false))
-				{
-					FString DefaultValueString;
-					FCachedPropertyPath PropertyPath(Pin->PinName.ToString());
-					if(PropertyPathHelpers::GetPropertyValueAsString(DefaultObject, PropertyPath, DefaultValueString))
-					{
-						K2Schema->GetPinDefaultValuesFromString(Pin->PinType, Pin->GetOwningNodeUnchecked(), DefaultValueString, Pin->DefaultValue, Pin->DefaultObject, Pin->DefaultTextValue);
-					}
-				}
-			}
+			return;
 		}
+
+		FString DefaultValueString = ModelPin->GetDefaultValue();
+		if (DefaultValueString.IsEmpty() && ModelPin->GetCPPType() == TEXT("FName"))
+		{
+			DefaultValueString = FName(NAME_None).ToString();
+		}
+		K2Schema->GetPinDefaultValuesFromString(Pin->PinType, Pin->GetOwningNodeUnchecked(), DefaultValueString, Pin->DefaultValue, Pin->DefaultObject, Pin->DefaultTextValue);
 	}
 }
 
 FText UControlRigGraphNode::GetTooltipText() const
 {
-	if(GetUnitScriptStruct())
+	if(URigVMNode* ModelNode = GetModelNode())
 	{
-		return GetUnitScriptStruct()->GetToolTipText();
+		return ModelNode->GetToolTipText();
 	}
-	else if(GetUnitProperty())
-	{
-		return GetUnitProperty()->GetToolTipText();
-	}
-
-	return FText::FromName(PropertyName);
+	return FText::FromString(ModelNodePath);
 }
 
 void UControlRigGraphNode::InvalidateNodeTitle() const
 {
-	NodeTitleFull = FText();
 	NodeTitle = FText();
 }
 
@@ -1001,65 +727,90 @@ void UControlRigGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 		FPinConnectionResponse ConnectResponse = Schema->CanCreateConnection(FromPin, Pin);
 		if(ConnectResponse.Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
 		{
-			if(Schema->TryCreateConnection(FromPin, Pin))
+			if (Schema->TryCreateConnection(FromPin, Pin))
 			{
-				// expand any sub-pins so the connection is visible
-				if(UControlRigGraphNode* OuterNode = Cast<UControlRigGraphNode>(Pin->GetOwningNode()))
-				{
-					UEdGraphPin* ParentPin = Pin->ParentPin;
-					while(ParentPin != nullptr)
-					{
-						OuterNode->SetPinExpansion(ParentPin->PinName.ToString(), true);
-						ParentPin = ParentPin->ParentPin;
-					}
-				}
-				return;
+				break;
 			}
 		}
 	}
 }
 
-void ReplacePropertyName(TArray<TSharedRef<FControlRigField>>& InArray, const FString& OldPropName, const FString& NewPropName)
+bool UControlRigGraphNode::IsSelectedInEditor() const
 {
-	for (int32 Index = 0; Index < InArray.Num(); ++Index)
+	URigVMNode* ModelNode = GetModelNode();
+	if (ModelNode)
 	{
-		InArray[Index]->PinPath = InArray[Index]->PinPath.Replace(*OldPropName, *NewPropName);
-		ReplacePropertyName(InArray[Index]->Children, OldPropName, NewPropName);
+		return ModelNode->IsSelected();
 	}
-};
-
-void UControlRigGraphNode::SetPropertyName(const FName& InPropertyName, bool bReplaceInnerProperties/*=false*/)
-{ 
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	const FString OldPropertyName = PropertyName.ToString();
-	const FString NewPropertyName = InPropertyName.ToString();
-	PropertyName = InPropertyName;
-
-	if (bReplaceInnerProperties && InPropertyName != NAME_None)
-	{
-		ReplacePropertyName(InputInfos, OldPropertyName, NewPropertyName);
-		ReplacePropertyName(InputOutputInfos, OldPropertyName, NewPropertyName);
-		ReplacePropertyName(OutputInfos, OldPropertyName, NewPropertyName);
-
-		// now change pins
-		for (int32 Index = 0; Index < Pins.Num(); ++Index)
-		{
-			FString PinString = Pins[Index]->PinName.ToString();
-			Pins[Index]->PinName = FName(*PinString.Replace(*OldPropertyName, *NewPropertyName));
-		}
-
-		for (int32 Index = 0; Index < ExpandedPins.Num(); ++Index)
-		{
-			FString& PinString = ExpandedPins[Index];
-			PinString = PinString.Replace(*OldPropertyName, *NewPropertyName);
-		}
-	}
+	return false;
 }
 
-bool UControlRigGraphNode::IsVariable() const
+bool UControlRigGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIndex, int32& OutOutputPinIndex) const
 {
-	return GetUnitScriptStruct() == nullptr;
+	if (URigVMRerouteNode* Reroute = Cast<URigVMRerouteNode>(GetModelNode()))
+	{
+		if (!Reroute->GetShowsAsFullNode())
+		{
+			if (Pins.Num() == 2)
+			{
+				OutInputPinIndex = 0;
+				OutOutputPinIndex = 1;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPin)
+{
+	FEdGraphPinType PinType;
+	PinType.ResetToDefaults();
+
+	FName ModelPinCPPType = InModelPin->IsArray() ? *InModelPin->GetArrayElementCppType() : *InModelPin->GetCPPType();
+	if (ModelPinCPPType == TEXT("bool"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
+	}
+	else if (ModelPinCPPType == TEXT("int32"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
+	}
+	else if (ModelPinCPPType == TEXT("float"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
+	}
+	else if (ModelPinCPPType == TEXT("FName"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
+	}
+	else if (ModelPinCPPType == TEXT("FString"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
+	}
+	else if (InModelPin->GetScriptStruct() != nullptr)
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
+		PinType.PinSubCategoryObject = InModelPin->GetScriptStruct();
+	}
+	else if (InModelPin->GetEnum() != nullptr)
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Byte;
+		PinType.PinSubCategoryObject = InModelPin->GetEnum();
+	}
+
+	if (InModelPin->IsArray())
+	{
+		PinType.ContainerType = EPinContainerType::Array;
+	}
+	else
+	{
+		PinType.ContainerType = EPinContainerType::None;
+	}
+
+	PinType.bIsConst = InModelPin->IsConstant();
+
+	return PinType;
 }
 
 #undef LOCTEXT_NAMESPACE

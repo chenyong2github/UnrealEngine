@@ -1,8 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_LayeredBoneBlend.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 #define DEFAULT_SOURCEINDEX 0xFF
 /////////////////////////////////////////////////////
@@ -200,6 +201,8 @@ void FAnimNode_LayeredBoneBlend::Update_AnyThread(const FAnimationUpdateContext&
 	{
 		BasePose.Update(Context);
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Num Poses"), BlendPoses.Num());
 }
 
 void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)

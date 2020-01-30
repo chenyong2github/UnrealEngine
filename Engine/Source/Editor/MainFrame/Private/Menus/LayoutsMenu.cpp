@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_EDITOR
 
@@ -386,8 +386,10 @@ bool IsLayoutCheckedInternal(const FString& InLayoutFullPath, const bool bCheckT
 
 void MakeXLayoutsMenuInternal(UToolMenu* InToolMenu, const TArray<TSharedPtr<FUICommandInfo>>& InXLayoutCommands, const TArray<TSharedPtr<FUICommandInfo>>& InXUserLayoutCommands, const bool bDisplayDefaultLayouts)
 {
+#if !PLATFORM_MAC // On Mac, each time a key is pressed, all menus are re-generated, stalling the Editor given that SaveLayout is slow on Mac because it does not caches as in Windows.
 	// Update GEditorLayoutIni file. Otherwise, we could not track the changes the user did since the layout was loaded
 	FLayoutsMenuSave::SaveLayout();
+#endif
 	// UE Default Layouts
 	if (bDisplayDefaultLayouts)
 	{
@@ -522,9 +524,9 @@ bool CheckAskUserAndClosePIESIEAndAssetEditors(const FText& InitialMessage)
 		IfYesText = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfYesBodyEditorAssets", "If \"Yes\", all open Asset Editors will be closed. Any unsaved changes in those will also be lost.");
 	}
 	// FMessageDialog
-	const FText IfNoText = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfNoBody", "If \"No\" or \"Cancel\", you can manually reload the layout from the \"User Layouts\" section later.");
+	const FText IfNoText = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfNoBody", "If \"No\", you can manually reload the layout from the \"User Layouts\" section later.");
 	const FText TextBody = FText::Format(LOCTEXT("ClosePIESIEAssetEditorsBody", "{0}\n\n{1}{2}\n\n{3}"), InitialMessage, IfYesText, OpenedEditorAssets, IfNoText);
-	if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNoCancel, TextBody, &TextTitle))
+	if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, TextBody, &TextTitle))
 	{
 		return false;
 	}
@@ -1122,16 +1124,24 @@ bool FLayoutsMenuBase::IsThereUserLayouts()
 
 bool FLayoutsMenuBase::IsLayoutChecked(const int32 InLayoutIndex)
 {
+#if PLATFORM_MAC // On Mac, each time a key is pressed, all menus are re-generated, stalling the Editor given that SaveLayout is slow on Mac because it does not caches as in Windows.
+	return false;
+#else
 	// Check if the desired layout file matches the one currently loaded
 	const bool bCheckTempFileToo = true;
 	return IsLayoutCheckedInternal(GetLayout(InLayoutIndex), bCheckTempFileToo);
+#endif
 }
 
 bool FLayoutsMenuBase::IsUserLayoutChecked(const int32 InLayoutIndex)
 {
+#if PLATFORM_MAC // On Mac, each time a key is pressed, all menus are re-generated, stalling the Editor given that SaveLayout is slow on Mac because it does not caches as in Windows.
+	return false;
+#else
 	// Check if the desired layout file matches the one currently loaded
 	const bool bCheckTempFileToo = true;
 	return IsLayoutCheckedInternal(GetUserLayout(InLayoutIndex), bCheckTempFileToo);
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

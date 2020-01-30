@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,7 +7,7 @@
 #include "Math/Color.h"
 
 // Insights
-#include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Insights/ViewModels/TimingEventsTrack.h" // for ITimingEventsTrackDrawStateBuilder
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,7 +121,6 @@ private:
 
 private:
 	FTimingEventsTrackDrawState& DrawState; // cached draw state to build
-
 	const FTimingTrackViewport& Viewport;
 
 	int32 MaxDepth;
@@ -164,7 +163,7 @@ public:
 	virtual const FSlateBrush* GetWhiteBrush() const override { return WhiteBrush; }
 	virtual const FSlateFontInfo& GetEventFont() const override { return EventFont; }
 	virtual FLinearColor GetEdgeColor() const override { return EdgeColor; }
-	virtual FLinearColor GetTrackNameTextColor(const FTimingEventsTrack& Track) const override;
+	virtual FLinearColor GetTrackNameTextColor(const FBaseTimingTrack& Track) const override;
 	virtual int32 GetHeaderBackgroundLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
 	virtual int32 GetHeaderTextLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }
 
@@ -173,15 +172,22 @@ public:
 
 	void DrawBackground() const;
 
+	//////////////////////////////////////////////////
+
 	void BeginDrawTracks() const;
+
 	// OffsetY = 1.0f is for the top horizontal line (which separates the timelines) added by DrawTrackHeader.
 	void DrawEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY = 1.0f) const;
+
+	void DrawFadedEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY = 1.0f, const float Opacity = 0.1f) const;
+
 	void DrawTrackHeader(const FTimingEventsTrack& Track) const;
+
 	void EndDrawTracks() const;
 
-	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EDrawEventMode Mode) const;
+	//////////////////////////////////////////////////
 
-	void SetHighlightedEventTypeId(uint64 InHighlightedEventTypeId) { HighlightedEventTypeId = InHighlightedEventTypeId; }
+	void DrawTimingEventHighlight(double StartTime, double EndTime, float Y, EDrawEventMode Mode) const;
 
 	int32 GetNumEvents() const { return NumEvents; }
 	int32 GetNumMergedBoxes() const { return NumMergedBoxes; }
@@ -207,8 +213,6 @@ private:
 
 	mutable float ValidAreaX;
 	mutable float ValidAreaW;
-
-	uint64 HighlightedEventTypeId;
 
 	mutable int32 NumEvents;
 	mutable int32 NumMergedBoxes;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithSceneXmlWriter.h"
 
@@ -1453,6 +1453,7 @@ void FDatasmithSceneXmlWriterImpl::WriteTextureElement(const TSharedPtr< IDatasm
 		+ FString::Printf( TEXT("\" textureaddressx=\"%i"), (int)TextureElement->GetTextureAddressX() )
 		+ FString::Printf( TEXT("\" textureaddressy=\"%i"), (int)TextureElement->GetTextureAddressY() )
 		+ FString::Printf(TEXT("\" rgbcurve=\"%f"), TextureElement->GetRGBCurve())
+		+ FString::Printf(TEXT("\" srgb=\"%i"), (int)TextureElement->GetSRGB())
 		+ TEXT("\" file=\"") + FString( TextureElement->GetFile() ) + TEXT("\">") + LINE_TERMINATOR;
 
 	SerializeToArchive( Archive, XmlString );

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -121,8 +121,10 @@ public:
 	>
 	FORCEINLINE TArrayView(OtherRangeType&& Other)
 		: DataPtr(ArrayViewPrivate::GetDataHelper(Forward<OtherRangeType>(Other)))
-		, ArrayNum(GetNum(Forward<OtherRangeType>(Other)))
 	{
+		const auto InCount = GetNum(Forward<OtherRangeType>(Other));
+		check((InCount >= 0) && ((sizeof(InCount) < sizeof(int32)) || (InCount <= static_cast<decltype(InCount)>(TNumericLimits<int32>::Max()))));
+		ArrayNum = (int32)InCount;
 	}
 
 	/**

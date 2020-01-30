@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,9 +23,6 @@ public:
 	virtual EStackRowStyle GetStackRowStyle() const override;
 	virtual FText GetTooltipText() const override;
 
-	virtual bool CanDelete() const { return false; }
-	virtual bool Delete() { return false; }
-
 	virtual bool GetIsEnabled() const override;
 
 	INiagaraStackItemGroupAddUtilities* GetAddUtilities() const;
@@ -41,6 +38,9 @@ protected:
 	virtual int32 GetChildIndentLevel() const override;
 
 	virtual void ChlildStructureChangedInternal() override;
+
+private:
+	bool FilterChildrenWithIssues(const UNiagaraStackEntry& Child) const;
 
 private:
 	UPROPERTY()

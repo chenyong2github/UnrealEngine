@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyEditorSet.h"
 #include "UObject/UnrealType.h"
@@ -30,10 +30,10 @@ void SPropertyEditorSet::Construct( const FArguments& InArgs, const TSharedRef< 
 bool SPropertyEditorSet::Supports( const TSharedRef< FPropertyEditor >& InPropertyEditor)
 {
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	const UProperty* Property = InPropertyEditor->GetProperty();
+	const FProperty* Property = InPropertyEditor->GetProperty();
 
 	if (!PropertyNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew)
-		&& Property->IsA<USetProperty>())
+		&& Property->IsA<FSetProperty>())
 	{
 		return true;
 	}

@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
+#include "UObject/Field.h"
 
 /**
  * Flags controlling the behavior of struct serializer backends.
@@ -22,14 +23,19 @@ enum class EStructSerializerBackendFlags
 	WriteTextAsComplexString = 1<<0,
 
 	/**
+	 * Write TArray<uint8>/TArray<int> as byte string if possible (CBOR), starting at 4.25.
+	 */
+	WriteByteArrayAsByteStream = 1<<1,
+
+	/**
 	 * Legacy settings for backwards compatibility with code compiled prior to 4.22.
 	 */
 	Legacy = None,
 
 	/**
-	 * Default settings for code compiled for 4.22 onwards.
+	 * Default settings for code compiled for 4.25 onwards.
 	 */
-	Default = WriteTextAsComplexString,
+	Default = WriteTextAsComplexString | WriteByteArrayAsByteStream,
 };
 ENUM_CLASS_FLAGS(EStructSerializerBackendFlags);
 
@@ -46,16 +52,19 @@ struct FStructSerializerState
 	const void* KeyData = nullptr;
 
 	/** Holds the key property's meta data (only used for TMap). */
-	UProperty* KeyProperty = nullptr;
+	FProperty* KeyProperty = nullptr;
 
 	/** Holds a pointer to the property value's data. */
 	const void* ValueData = nullptr;
 
 	/** Holds the property value's meta data. */
-	UProperty* ValueProperty = nullptr;
+	FProperty* ValueProperty = nullptr;
 
 	/** Holds a pointer to the UStruct describing the data. */
 	UStruct* ValueType = nullptr;
+
+	/** Holds a pointer to the field type describing the data. */
+	FFieldClass* FieldType = nullptr;
 };
 
 

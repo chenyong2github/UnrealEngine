@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -182,13 +182,13 @@ public:
 	 * @param	InStruct				The type of the variable to create the customization for
 	 * @param	InOnGetDetailCustomization	The delegate used to create customization instances
 	 */
-	virtual void RegisterVariableCustomization(UStruct* InStruct, FOnGetVariableCustomizationInstance InOnGetVariableCustomization);
+	virtual void RegisterVariableCustomization(FFieldClass* InFieldClass, FOnGetVariableCustomizationInstance InOnGetVariableCustomization);
 
 	/** 
 	 * Unregister a previously registered customization for BP variables
 	 * @param	InStruct				The type to create the customization for
 	 */
-	virtual void UnregisterVariableCustomization(UStruct* InStruct);
+	virtual void UnregisterVariableCustomization(FFieldClass* InFieldClass);
 
 	/** 
 	 * Register a customization for for Blueprint graphs
@@ -209,7 +209,7 @@ public:
 	 * @param	InStruct				The type to create the customization for
 	 * @param	InBlueprintEditor		The Blueprint Editor the customization will be created for
 	 */
-	virtual TArray<TSharedPtr<IDetailCustomization>> CustomizeVariable(UStruct* InStruct, TSharedPtr<IBlueprintEditor> InBlueprintEditor);
+	virtual TArray<TSharedPtr<IDetailCustomization>> CustomizeVariable(FFieldClass* InFieldClass, TSharedPtr<IBlueprintEditor> InBlueprintEditor);
 
 	/** 
 	 * Build a set of details customizations for graphs with the passed-in schema, if possible.
@@ -250,7 +250,7 @@ private:
 	TMap<FName, FSCSEditorCustomizationBuilder> SCSEditorCustomizations;
 
 	/** Customizations for Blueprint variables */
-	TMap<UStruct*, FOnGetVariableCustomizationInstance> VariableCustomizations;
+	TMap<FFieldClass*, FOnGetVariableCustomizationInstance> VariableCustomizations;
 
 	/** Customizations for Blueprint graphs */
 	TMap<const UEdGraphSchema*, FOnGetGraphCustomizationInstance> GraphCustomizations;

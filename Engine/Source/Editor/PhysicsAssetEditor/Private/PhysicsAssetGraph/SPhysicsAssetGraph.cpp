@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPhysicsAssetGraph.h"
 #include "GraphEditor.h"
@@ -147,17 +147,17 @@ void SPhysicsAssetGraph::HandleSelectionChanged(const FGraphPanelSelectionSet& S
 
 		TArray<UObject*> Objects;
 		Algo::TransformIf(SelectionSet, Objects, 
-		[](UObject* InItem)
+		[](const FFieldVariant& InItem)
 		{ 
-			return InItem && (InItem->IsA<UPhysicsAssetGraphNode_Bone>() || InItem->IsA<UPhysicsAssetGraphNode_Constraint>());
+			return InItem && (InItem.IsA<UPhysicsAssetGraphNode_Bone>() || InItem.IsA<UPhysicsAssetGraphNode_Constraint>());
 		},
-		[](UObject* InItem) -> UObject*
+		[](const FFieldVariant& InItem) -> UObject*
 		{ 
-			if (UPhysicsAssetGraphNode_Bone* BoneNode = Cast<UPhysicsAssetGraphNode_Bone>(InItem))
+			if (UPhysicsAssetGraphNode_Bone* BoneNode = InItem.Get<UPhysicsAssetGraphNode_Bone>())
 			{
 				return BoneNode->BodySetup;
 			}
-			else if (UPhysicsAssetGraphNode_Constraint* ConstraintNode = Cast<UPhysicsAssetGraphNode_Constraint>(InItem))
+			else if (UPhysicsAssetGraphNode_Constraint* ConstraintNode = InItem.Get<UPhysicsAssetGraphNode_Constraint>())
 			{
 				return ConstraintNode->Constraint;
 			}

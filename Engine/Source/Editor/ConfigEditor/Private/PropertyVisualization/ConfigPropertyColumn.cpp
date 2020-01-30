@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyVisualization/ConfigPropertyColumn.h"
 #include "Widgets/Text/STextBlock.h"
@@ -21,7 +21,7 @@ bool FConfigPropertyCustomColumn::Supports(const TSharedRef< IPropertyTableColum
 		if (PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0)
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-			UProperty* Property = PropertyInfo.Property.Get();
+			FProperty* Property = PropertyInfo.Property.Get();
 			IsSupported = Property->GetFName() == TEXT("ExternalProperty");
 		}
 	}

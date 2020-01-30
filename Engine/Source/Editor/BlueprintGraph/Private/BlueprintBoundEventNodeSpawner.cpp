@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintBoundEventNodeSpawner.h"
 #include "GameFramework/Actor.h"
@@ -19,12 +19,12 @@
 
 namespace BlueprintBoundEventNodeSpawnerImpl
 {
-	static FText GetDefaultMenuName(UMulticastDelegateProperty const* Delegate);
-	static FText GetDefaultMenuCategory(UMulticastDelegateProperty const* Delegate);
+	static FText GetDefaultMenuName(FMulticastDelegateProperty const* Delegate);
+	static FText GetDefaultMenuCategory(FMulticastDelegateProperty const* Delegate);
 }
 
 //------------------------------------------------------------------------------
-static FText BlueprintBoundEventNodeSpawnerImpl::GetDefaultMenuName(UMulticastDelegateProperty const* Delegate)
+static FText BlueprintBoundEventNodeSpawnerImpl::GetDefaultMenuName(FMulticastDelegateProperty const* Delegate)
 {
 	bool const bShowFriendlyNames = GetDefault<UEditorStyleSettings>()->bShowFriendlyNames;
 	FText const DelegateName = bShowFriendlyNames ? FText::FromString(UEditorEngine::GetFriendlyName(Delegate)) : FText::FromName(Delegate->GetFName());
@@ -33,7 +33,7 @@ static FText BlueprintBoundEventNodeSpawnerImpl::GetDefaultMenuName(UMulticastDe
 }
 
 //------------------------------------------------------------------------------
-static FText BlueprintBoundEventNodeSpawnerImpl::GetDefaultMenuCategory(UMulticastDelegateProperty const* Delegate)
+static FText BlueprintBoundEventNodeSpawnerImpl::GetDefaultMenuCategory(FMulticastDelegateProperty const* Delegate)
 {
 	FText DelegateCategory = FText::FromString(FObjectEditorUtils::GetCategory(Delegate));
 	if (DelegateCategory.IsEmpty())
@@ -48,7 +48,7 @@ static FText BlueprintBoundEventNodeSpawnerImpl::GetDefaultMenuCategory(UMultica
  ******************************************************************************/
 
 //------------------------------------------------------------------------------
-UBlueprintBoundEventNodeSpawner* UBlueprintBoundEventNodeSpawner::Create(TSubclassOf<UK2Node_Event> NodeClass, UMulticastDelegateProperty* EventDelegate, UObject* Outer/* = nullptr*/)
+UBlueprintBoundEventNodeSpawner* UBlueprintBoundEventNodeSpawner::Create(TSubclassOf<UK2Node_Event> NodeClass, FMulticastDelegateProperty* EventDelegate, UObject* Outer/* = nullptr*/)
 {
 	if (Outer == nullptr)
 	{
@@ -101,41 +101,41 @@ UK2Node_Event const* UBlueprintBoundEventNodeSpawner::FindPreExistingEvent(UBlue
 {
 	UK2Node_Event const* PreExistingEvent = nullptr;
 
-	UObject const* BoundObject = nullptr;
+	FBindingObject BoundObject;
 	if (Bindings.Num() > 0)
 	{
-		BoundObject = Bindings.CreateConstIterator()->Get();
+		BoundObject = *Bindings.CreateConstIterator();
 	}
 
 	if (BoundObject != nullptr)
 	{
 		if (NodeClass->IsChildOf<UK2Node_ComponentBoundEvent>())
 		{
-			PreExistingEvent = FKismetEditorUtilities::FindBoundEventForComponent(Blueprint, EventDelegate->GetFName(), BoundObject->GetFName());
+			PreExistingEvent = FKismetEditorUtilities::FindBoundEventForComponent(Blueprint, EventDelegate->GetFName(), BoundObject.GetFName());
 		}
 		else if (NodeClass->IsChildOf<UK2Node_ActorBoundEvent>())
 		{
-			PreExistingEvent = FKismetEditorUtilities::FindBoundEventForActor(CastChecked<AActor>(BoundObject), EventDelegate->GetFName());
+			PreExistingEvent = FKismetEditorUtilities::FindBoundEventForActor(CastChecked<AActor>(BoundObject.Get<UObject>()), EventDelegate->GetFName());
 		}
 	}
 	return PreExistingEvent;
 }
 
 //------------------------------------------------------------------------------
-bool UBlueprintBoundEventNodeSpawner::IsBindingCompatible(UObject const* BindingCandidate) const
+bool UBlueprintBoundEventNodeSpawner::IsBindingCompatible(FBindingObject BindingCandidate) const
 {
 	bool bMatchesNodeType = false;
 	if (NodeClass->IsChildOf<UK2Node_ComponentBoundEvent>())
 	{
-		UObjectProperty const* BindingProperty = Cast<UObjectProperty>(BindingCandidate);
+		FObjectProperty const* BindingProperty = BindingCandidate.Get<FObjectProperty>();
 		bMatchesNodeType = (BindingProperty != nullptr);
 	}
 	else if (NodeClass->IsChildOf<UK2Node_ActorBoundEvent>())
 	{
-		bMatchesNodeType = BindingCandidate->IsA<AActor>();
+		bMatchesNodeType = BindingCandidate.IsA<AActor>();
 	}
 
-	const UMulticastDelegateProperty* Delegate = GetEventDelegate();
+	const FMulticastDelegateProperty* Delegate = GetEventDelegate();
 
 	if ( !ensureMsgf(!FBlueprintNodeSpawnerUtils::IsStaleFieldAction(this), 
 			TEXT("Invalid BlueprintBoundEventNodeSpawner (for %s). Was the action database properly updated when this class was compiled?"), 
@@ -151,23 +151,23 @@ bool UBlueprintBoundEventNodeSpawner::IsBindingCompatible(UObject const* Binding
 }
 
 //------------------------------------------------------------------------------
-bool UBlueprintBoundEventNodeSpawner::BindToNode(UEdGraphNode* Node, UObject* Binding) const
+bool UBlueprintBoundEventNodeSpawner::BindToNode(UEdGraphNode* Node, FBindingObject Binding) const
 {
 	bool bWasBound = false;
 	if (UK2Node_ComponentBoundEvent* ComponentEventNode = Cast<UK2Node_ComponentBoundEvent>(Node))
 	{
-		if (UObjectProperty const* BoundProperty = Cast<UObjectProperty>(Binding))
+		if (FObjectProperty const* BoundProperty = Binding.Get<FObjectProperty>())
 		{
-			ComponentEventNode->InitializeComponentBoundEventParams(BoundProperty, EventDelegate);
+			ComponentEventNode->InitializeComponentBoundEventParams(BoundProperty, EventDelegate.Get());
 			bWasBound = true;
 			Node->ReconstructNode();
 		}
 	}
 	else if (UK2Node_ActorBoundEvent* ActorEventNode = CastChecked<UK2Node_ActorBoundEvent>(Node))
 	{
-		if (AActor* BoundActor = Cast<AActor>(Binding))
+		if (AActor* BoundActor = Binding.Get<AActor>())
 		{
-			ActorEventNode->InitializeActorBoundEventParams(BoundActor, EventDelegate);
+			ActorEventNode->InitializeActorBoundEventParams(BoundActor, EventDelegate.Get());
 			bWasBound = true;
 			Node->ReconstructNode();
 		}
@@ -176,9 +176,9 @@ bool UBlueprintBoundEventNodeSpawner::BindToNode(UEdGraphNode* Node, UObject* Bi
 }
 
 //------------------------------------------------------------------------------
-UMulticastDelegateProperty const* UBlueprintBoundEventNodeSpawner::GetEventDelegate() const
+FMulticastDelegateProperty const* UBlueprintBoundEventNodeSpawner::GetEventDelegate() const
 {
-	return EventDelegate;
+	return EventDelegate.Get();
 }
 
 #undef LOCTEXT_NAMESPACE

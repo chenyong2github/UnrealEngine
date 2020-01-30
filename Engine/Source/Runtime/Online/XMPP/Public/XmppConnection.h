@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@ class IXmppMessages;
 class IXmppMultiUserChat;
 class IXmppPresence;
 class IXmppPubSub;
+class IXmppStanza;
 
 /** Possible XMPP login states */
 namespace EXmppLoginStatus
@@ -291,6 +292,19 @@ public:
 
 	/** Alias for old typo, remove in 4.24 */
 	using FOnXmppLogingChanged UE_DEPRECATED(4.23, "Please update usages of 'FOnXmppLogingChanged' to 'FOnXmppLoginChanged'") = FOnXmppLoginChanged;
+	/**
+	* Delegate called when a message is received (ONLY STROPHE)
+	*
+	* @param reference to stanza
+	*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnXmppStanzaReceived, const IXmppStanza& /* Stanza */);
+
+	/**
+	* Delegate called when a message is sent (ONLY STROPHE)
+	*
+	* @param reference to stanza
+	*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnXmppStanzaSent, const IXmppStanza& /* Stanza */);
 
 	/** @return login complete delegate */
 	virtual FOnXmppLoginComplete& OnLoginComplete() = 0;
@@ -298,6 +312,10 @@ public:
 	virtual FOnXmppLoginChanged& OnLoginChanged() = 0;
 	/** @return logout complete delegate */
 	virtual FOnXmppLogoutComplete& OnLogoutComplete() = 0;
+	/** @return Stanza sent delegate */
+	virtual FOnXmppStanzaSent& OnStanzaSent() = 0;
+	/** @return Stanza received delegate */
+	virtual FOnXmppStanzaReceived& OnStanzaReceived() = 0;
 
 	/** @return Presence interface if available. NULL otherwise */
 	virtual IXmppPresencePtr Presence() = 0;

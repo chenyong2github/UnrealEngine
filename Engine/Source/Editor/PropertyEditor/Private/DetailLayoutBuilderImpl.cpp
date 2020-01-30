@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailLayoutBuilderImpl.h"
 #include "ObjectPropertyNode.h"
@@ -94,8 +94,8 @@ void FDetailLayoutBuilderImpl::GetCategoryNames(TArray<FName>& OutCategoryNames)
 
 IDetailPropertyRow& FDetailLayoutBuilderImpl::AddPropertyToCategory(TSharedPtr<IPropertyHandle> InPropertyHandle)
 {
-	// Get the UProperty itself
-	UProperty* Property = InPropertyHandle->GetProperty();
+	// Get the FProperty itself
+	FProperty* Property = InPropertyHandle->GetProperty();
 
 	// Get the property's category name
 	FName CategoryFName = FObjectEditorUtils::GetCategoryFName(Property);
@@ -109,8 +109,8 @@ IDetailPropertyRow& FDetailLayoutBuilderImpl::AddPropertyToCategory(TSharedPtr<I
 
 FDetailWidgetRow& FDetailLayoutBuilderImpl::AddCustomRowToCategory(TSharedPtr<IPropertyHandle> InPropertyHandle, const FText& CustomSearchString, bool bForAdvanced)
 {
-	// Get the UProperty itself
-	UProperty* Property = InPropertyHandle->GetProperty();
+	// Get the FProperty itself
+	FProperty* Property = InPropertyHandle->GetProperty();
 
 	// Get the property's category name
 	FName CategoryFName = FObjectEditorUtils::GetCategoryFName(Property);
@@ -129,7 +129,7 @@ IDetailPropertyRow* FDetailLayoutBuilderImpl::EditDefaultProperty(TSharedPtr<IPr
 		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode(InPropertyHandle);
 		if (PropertyNode.IsValid())
 		{
-			UProperty* Property = InPropertyHandle->GetProperty();
+			FProperty* Property = InPropertyHandle->GetProperty();
 
 			// Get the property's category name
 			FName CategoryFName = FObjectEditorUtils::GetCategoryFName(Property);
@@ -415,7 +415,7 @@ static TSharedPtr<FPropertyNode> FindChildPropertyNode( FPropertyNode& InParentN
 	for( int32 ChildIndex = 0; ChildIndex < InParentNode.GetNumChildNodes(); ++ChildIndex )
 	{
 		TSharedPtr<FPropertyNode>& ChildNode = InParentNode.GetChildNode(ChildIndex);
-		UProperty* Property = ChildNode->GetProperty();
+		FProperty* Property = ChildNode->GetProperty();
 		if( Property && Property->GetFName() == *PropertyName )
 		{
 			FoundNode = ChildNode;

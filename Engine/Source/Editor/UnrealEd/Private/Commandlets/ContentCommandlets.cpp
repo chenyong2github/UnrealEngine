@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UCContentCommandlets.cpp: Various commmandlets.
@@ -766,7 +766,9 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 							*Filename,Linker->Summary.GetFileVersionUE4(), Linker->Summary.GetFileVersionLicenseeUE4(), GPackageFileUE4Version, VER_LATEST_ENGINE_LICENSEEUE4 );
 					}
 
-					if( SavePackageHelper(Package, Filename) )
+					const static bool bKeepPackageGUIDOnSave = FParse::Param(FCommandLine::Get(), TEXT("KeepPackageGUIDOnSave"));
+					ESaveFlags SaveFlags = bKeepPackageGUIDOnSave ? SAVE_KeepGUID : SAVE_None;
+					if( SavePackageHelper(Package, Filename, RF_Standalone, GWarn, nullptr, SaveFlags) )
 					{
 						if (Verbosity == VERY_VERBOSE)
 						{
@@ -1647,6 +1649,16 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					Builder.PreviewBuild();
 				}
 
+				// Get the list of packages that needs to be saved after cluster rebuilding.
+				TSet<UPackage*> PackagesToSave;
+				for (ULevel* Level : World->GetLevels())
+				{
+					if (Level->bIsVisible)
+					{
+						PackagesToSave.Add(Level->GetOutermost());
+					}
+				}
+
 				if (bGenerateMeshProxies || bForceProxyGeneration)
 				{
 					Builder.BuildMeshesForLODActors(bForceProxyGeneration);
@@ -1669,8 +1681,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					GShaderCompilingManager->ProcessAsyncResults(false, false);
 				}
 
-				// Get the list of packages needs to be saved.
-				TSet<UPackage*> PackagesToSave;
+				// Get the list of packages needs to be saved after proxy mesh generation.
 				for(ULevel* Level : World->GetLevels())
 				{
 					if(Level->bIsVisible)
@@ -1702,7 +1713,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				for (TActorIterator<ANavigationData> It(World); It; ++It)
 				{
 					UPackage* Package = It->GetOutermost();
-					if (Package != nullptr && Package->IsDirty())
+					if (Package != nullptr && Package->IsDirty() && !Package->HasAnyFlags(RF_Transient))
 					{
 						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
 					}

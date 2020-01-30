@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DiaphragmDOF/DOFBokehLUT.usf: Generate LUT according to bokeh shape.
@@ -77,7 +77,7 @@ float DiaphragmBladeCenterOffset;
 float ComputeCocRadiusToBokehEdgeFactor(float PixelAngle)
 {
 	float EdgeId = floor(PixelAngle * rcp(2 * PI) * float(BladeCount));
-	float EdgeAngle = (EdgeId + 0.5) * (2 * PI) * rcp(BladeCount);
+	float EdgeAngle = (EdgeId + 0.5) * (2 * PI) * rcp(float(BladeCount));
 	
 	float Alpha = PixelAngle - EdgeAngle;
 

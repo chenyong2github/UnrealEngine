@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NewAssetOrClassContextMenu.h"
 #include "UObject/UObjectHash.h"
@@ -24,6 +24,7 @@
 #include "IDocumentation.h"
 #include "ClassIconFinder.h"
 #include "AssetToolsModule.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -180,7 +181,7 @@ public:
 };
 
 void FNewAssetOrClassContextMenu::MakeContextMenu(
-	FMenuBuilder& MenuBuilder, 
+	UToolMenu* Menu, 
 	const TArray<FName>& InSelectedPaths,
 	const FOnNewAssetRequested& InOnNewAssetRequested, 
 	const FOnNewClassRequested& InOnNewClassRequested, 
@@ -196,11 +197,11 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 		SelectedStringPaths.Add(Path.ToString());
 	}
 
-	MakeContextMenu(MenuBuilder, SelectedStringPaths, InOnNewAssetRequested, InOnNewClassRequested, InOnNewFolderRequested, InOnImportAssetRequested, InOnGetContentRequested);
+	MakeContextMenu(Menu, SelectedStringPaths, InOnNewAssetRequested, InOnNewClassRequested, InOnNewFolderRequested, InOnImportAssetRequested, InOnGetContentRequested);
 }
 
 void FNewAssetOrClassContextMenu::MakeContextMenu(
-	FMenuBuilder& MenuBuilder, 
+	UToolMenu* Menu, 
 	const TArray<FString>& InSelectedPaths,
 	const FOnNewAssetRequested& InOnNewAssetRequested, 
 	const FOnNewClassRequested& InOnNewClassRequested, 
@@ -216,6 +217,9 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 	const bool bIsValidNewClassPath = ContentBrowserUtils::IsValidPathToCreateNewClass(FirstSelectedPath);
 	const bool bIsValidNewFolderPath = ContentBrowserUtils::IsValidPathToCreateNewFolder(FirstSelectedPath);
 	const bool bHasSinglePathSelected = InSelectedPaths.Num() == 1;
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	bool bCanBeModified = AssetToolsModule.Get().AllPassWritableFolderFilter(InSelectedPaths);
 
 	auto CanExecuteFolderActions = [NumAssetPaths, NumClassPaths, bIsValidNewFolderPath]() -> bool
 	{
@@ -242,23 +246,23 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 	// Get Content
 	if ( InOnGetContentRequested.IsBound() )
 	{
-		MenuBuilder.BeginSection( "ContentBrowserGetContent", LOCTEXT( "GetContentMenuHeading", "Content" ) );
 		{
-			MenuBuilder.AddMenuEntry(
+			FToolMenuSection& Section = Menu->AddSection( "ContentBrowserGetContent", LOCTEXT( "GetContentMenuHeading", "Content" ) );
+			Section.AddMenuEntry(
+				"GetContent",
 				LOCTEXT( "GetContentText", "Add Feature or Content Pack..." ),
 				LOCTEXT( "GetContentTooltip", "Add features and content packs to the project." ),
 				FSlateIcon( FEditorStyle::GetStyleSetName(), "ContentBrowser.AddContent" ),
 				FUIAction( FExecuteAction::CreateStatic( &FNewAssetOrClassContextMenu::ExecuteGetContent, InOnGetContentRequested ) )
 				);
 		}
-		MenuBuilder.EndSection();
 	}
 
 	// New Folder
 	if(InOnNewFolderRequested.IsBound() && GetDefault<UContentBrowserSettings>()->DisplayFolders)
 	{
-		MenuBuilder.BeginSection("ContentBrowserNewFolder", LOCTEXT("FolderMenuHeading", "Folder") );
 		{
+			FToolMenuSection& Section = Menu->AddSection("ContentBrowserNewFolder", LOCTEXT("FolderMenuHeading", "Folder") );
 			FText NewFolderToolTip;
 			if(bHasSinglePathSelected)
 			{
@@ -276,7 +280,8 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 				NewFolderToolTip = LOCTEXT("NewFolderTooltip_InvalidNumberOfPaths", "Can only create folders when there is a single path selected.");
 			}
 
-			MenuBuilder.AddMenuEntry(
+			Section.AddMenuEntry(
+				"NewFolder",
 				LOCTEXT("NewFolderLabel", "New Folder"),
 				NewFolderToolTip,
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.NewFolderIcon"),
@@ -286,11 +291,10 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 					)
 				);
 		}
-		MenuBuilder.EndSection(); //ContentBrowserNewFolder
 	}
 
 	// Add Class
-	if(InOnNewClassRequested.IsBound())
+	if(InOnNewClassRequested.IsBound() && bCanBeModified)
 	{
 		FString ClassCreationPath = FirstSelectedPath;
 		FText NewClassToolTip;
@@ -311,9 +315,10 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 			NewClassToolTip = LOCTEXT("NewClassTooltip_InvalidNumberOfPaths", "Can only create classes when there is a single path selected.");
 		}
 
-		MenuBuilder.BeginSection("ContentBrowserNewClass", LOCTEXT("ClassMenuHeading", "C++ Class") );
 		{
-			MenuBuilder.AddMenuEntry(
+			FToolMenuSection& Section = Menu->AddSection("ContentBrowserNewClass", LOCTEXT("ClassMenuHeading", "C++ Class"));
+			Section.AddMenuEntry(
+				"NewClass",
 				LOCTEXT("NewClassLabel", "New C++ Class..."),
 				NewClassToolTip,
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.AddCodeToProject"),
@@ -323,15 +328,15 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 					)
 				);
 		}
-		MenuBuilder.EndSection(); //ContentBrowserNewClass
 	}
 
 	// Import
-	if (InOnImportAssetRequested.IsBound() && !FirstSelectedPath.IsEmpty())
+	if (InOnImportAssetRequested.IsBound() && !FirstSelectedPath.IsEmpty() && bCanBeModified)
 	{
-		MenuBuilder.BeginSection( "ContentBrowserImportAsset", LOCTEXT( "ImportAssetMenuHeading", "Import Asset" ) );
 		{
-			MenuBuilder.AddMenuEntry(
+			FToolMenuSection& Section = Menu->AddSection("ContentBrowserImportAsset", LOCTEXT( "ImportAssetMenuHeading", "Import Asset" ));
+			Section.AddMenuEntry(
+				"ImportAsset",
 				FText::Format( LOCTEXT( "ImportAsset", "Import to {0}..." ), FText::FromString( FirstSelectedPath ) ),
 				LOCTEXT( "ImportAssetTooltip_NewAssetOrClass", "Imports an asset from file to this folder." ),
 				FSlateIcon( FEditorStyle::GetStyleSetName(), "ContentBrowser.ImportIcon" ),
@@ -341,29 +346,27 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 					)
 				);
 		}
-		MenuBuilder.EndSection();
 	}
 
 	
-	if (InOnNewAssetRequested.IsBound())
+	if (InOnNewAssetRequested.IsBound() && bCanBeModified)
 	{
 		// Add Basic Asset
-		MenuBuilder.BeginSection("ContentBrowserNewBasicAsset", LOCTEXT("CreateBasicAssetsMenuHeading", "Create Basic Asset") );
 		{
+			FToolMenuSection& Section = Menu->AddSection("ContentBrowserNewBasicAsset", LOCTEXT("CreateBasicAssetsMenuHeading", "Create Basic Asset"));
 			CreateNewAssetMenuCategory(
-				MenuBuilder, 
+				Menu,
+				"ContentBrowserNewBasicAsset",
 				EAssetTypeCategories::Basic, 
 				FirstSelectedPath, 
 				InOnNewAssetRequested, 
 				CanExecuteAssetActionsDelegate
 				);
 		}
-		MenuBuilder.EndSection(); //ContentBrowserNewBasicAsset
 
 		// Add Advanced Asset
-		MenuBuilder.BeginSection("ContentBrowserNewAdvancedAsset", LOCTEXT("CreateAdvancedAssetsMenuHeading", "Create Advanced Asset"));
 		{
-			FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
+			FToolMenuSection& Section = Menu->AddSection("ContentBrowserNewAdvancedAsset", LOCTEXT("CreateAdvancedAssetsMenuHeading", "Create Advanced Asset"));
 
 			TArray<FAdvancedAssetCategory> AdvancedAssetCategories;
 			AssetToolsModule.Get().GetAllAdvancedAssetCategories(/*out*/ AdvancedAssetCategories);
@@ -376,11 +379,13 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 				TArray<FFactoryItem> Factories = FindFactoriesInCategory(AdvancedAssetCategory.CategoryType);
 				if (Factories.Num() > 0)
 				{
-					MenuBuilder.AddSubMenu(
+					Section.AddSubMenu(
+						NAME_None,
 						AdvancedAssetCategory.CategoryName,
 						FText::GetEmpty(),
-						FNewMenuDelegate::CreateStatic(
+						FNewToolMenuDelegate::CreateStatic(
 							&FNewAssetOrClassContextMenu::CreateNewAssetMenuCategory, 
+							FName("Section"),
 							AdvancedAssetCategory.CategoryType, 
 							FirstSelectedPath, 
 							InOnNewAssetRequested, 
@@ -390,17 +395,15 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 							FExecuteAction(),
 							CanExecuteAssetActionsDelegate
 						),
-						NAME_None,
 						EUserInterfaceActionType::Button
 						);
 				}
 			}
 		}
-		MenuBuilder.EndSection(); //ContentBrowserNewAdvancedAsset
 	}
 }
 
-void FNewAssetOrClassContextMenu::CreateNewAssetMenuCategory(FMenuBuilder& MenuBuilder, EAssetTypeCategories::Type AssetTypeCategory, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction)
+void FNewAssetOrClassContextMenu::CreateNewAssetMenuCategory(UToolMenu* Menu, FName SectionName, EAssetTypeCategories::Type AssetTypeCategory, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction)
 {
 	// Find UFactory classes that can create new objects in this category.
 	TArray<FFactoryItem> FactoriesInThisCategory = FindFactoriesInCategory(AssetTypeCategory);
@@ -433,22 +436,23 @@ void FNewAssetOrClassContextMenu::CreateNewAssetMenuCategory(FMenuBuilder& MenuB
 		SubMenu->Factories.Add(Item);
 	}
 	ParentMenuData->SortSubMenus();
-	CreateNewAssetMenus(MenuBuilder, ParentMenuData, InPath, InOnNewAssetRequested, InCanExecuteAction);
+	CreateNewAssetMenus(Menu, SectionName, ParentMenuData, InPath, InOnNewAssetRequested, InCanExecuteAction);
 }
 
-void FNewAssetOrClassContextMenu::CreateNewAssetMenus(FMenuBuilder& MenuBuilder, TSharedPtr<FCategorySubMenuItem> SubMenuData, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction)
+void FNewAssetOrClassContextMenu::CreateNewAssetMenus(UToolMenu* Menu, FName SectionName, TSharedPtr<FCategorySubMenuItem> SubMenuData, FString InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction)
 {
+	FToolMenuSection& Section = Menu->FindOrAddSection(SectionName);
 	for (const FFactoryItem& FactoryItem : SubMenuData->Factories)
 	{
 		TWeakObjectPtr<UClass> WeakFactoryClass = FactoryItem.Factory->GetClass();
 
-		MenuBuilder.AddMenuEntry(
+		Section.AddEntry(FToolMenuEntry::InitMenuEntry(
+			NAME_None, 
 			FUIAction(
 				FExecuteAction::CreateStatic(&FNewAssetOrClassContextMenu::ExecuteNewAsset, InPath, WeakFactoryClass, InOnNewAssetRequested),
 				InCanExecuteAction
 			),
-			SNew(SFactoryMenuEntry, FactoryItem.Factory)
-		);
+			SNew(SFactoryMenuEntry, FactoryItem.Factory)));
 	}
 
 	if (SubMenuData->Children.Num() == 0)
@@ -456,7 +460,7 @@ void FNewAssetOrClassContextMenu::CreateNewAssetMenus(FMenuBuilder& MenuBuilder,
 		return;
 	}
 
-	MenuBuilder.AddMenuSeparator();
+	Section.AddMenuSeparator(NAME_None);
 
 	TArray<TSharedPtr<FCategorySubMenuItem>> SortedMenus;
 	SubMenuData->Children.GenerateValueArray(SortedMenus);
@@ -469,11 +473,13 @@ void FNewAssetOrClassContextMenu::CreateNewAssetMenus(FMenuBuilder& MenuBuilder,
 	{
 		check(ChildMenuData.IsValid());
 
-		MenuBuilder.AddSubMenu(
+		Section.AddSubMenu(
+			NAME_None,
 			ChildMenuData->Name,
 			FText::GetEmpty(),
-			FNewMenuDelegate::CreateStatic(
+			FNewToolMenuDelegate::CreateStatic(
 				&FNewAssetOrClassContextMenu::CreateNewAssetMenus,
+				FName("Section"),
 				ChildMenuData,
 				InPath,
 				InOnNewAssetRequested,
@@ -483,7 +489,6 @@ void FNewAssetOrClassContextMenu::CreateNewAssetMenus(FMenuBuilder& MenuBuilder,
 				FExecuteAction(),
 				InCanExecuteAction
 			),
-			NAME_None,
 			EUserInterfaceActionType::Button
 		);
 	}

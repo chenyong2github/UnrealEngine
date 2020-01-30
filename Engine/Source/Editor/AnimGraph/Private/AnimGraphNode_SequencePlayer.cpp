@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_SequencePlayer.h"
 #include "EdGraphSchema_K2_Actions.h"
@@ -14,6 +14,7 @@
 #include "EditorCategoryUtils.h"
 #include "BlueprintNodeSpawner.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "A3Nodes"
 

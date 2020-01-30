@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperSpriteComponent.h"
 #include "RenderingThread.h"
@@ -76,7 +76,13 @@ FPrimitiveSceneProxy* UPaperSpriteComponent::CreateSceneProxy()
 		FSpriteDrawCallRecord DrawCall;
 		DrawCall.BuildFromSprite(SourceSprite);
 		DrawCall.Color = SpriteColor.ToFColor(/*bSRGB=*/ false);
-		NewProxy->SetSprite_RenderThread(DrawCall, SourceSprite->AlternateMaterialSplitIndex);
+
+		FPaperSpriteSceneProxy* InSceneProxy = (FPaperSpriteSceneProxy*)NewProxy;
+		ENQUEUE_RENDER_COMMAND(FCreatePaperSpriteProxy_SetSprite)(
+			[InSceneProxy, DrawCall, SplitIndex = SourceSprite->AlternateMaterialSplitIndex](FRHICommandListImmediate& RHICmdList)
+		{
+			InSceneProxy->SetSprite_RenderThread(DrawCall, SplitIndex);
+		});
 	}
 	return NewProxy;
 }

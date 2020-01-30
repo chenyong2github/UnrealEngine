@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundCue.h"
 #include "Misc/App.h"
@@ -9,6 +9,7 @@
 #include "Components/AudioComponent.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
+#include "Sound/SoundClass.h"
 #include "Sound/SoundNode.h"
 #include "Sound/SoundNodeAssetReferencer.h"
 #include "Sound/SoundNodeMixer.h"
@@ -48,6 +49,8 @@ USoundCue::USoundCue(const FObjectInitializer& ObjectInitializer)
 	VolumeMultiplier = 0.75f;
 	PitchMultiplier = 1.0f;
 	SubtitlePriority = DEFAULT_SUBTITLE_PRIORITY;
+
+	bIsRetainingAudio = false;
 }
 
 #if WITH_EDITOR
@@ -93,6 +96,25 @@ void USoundCue::PrimeSoundCue()
 	{
 		FirstNode->PrimeChildWavePlayers(true);
 	}
+}
+
+void USoundCue::RetainSoundCue()
+{
+	if (FirstNode)
+	{
+		FirstNode->RetainChildWavePlayers(true);
+	}
+	bIsRetainingAudio = true;
+}
+
+void USoundCue::ReleaseRetainedAudio()
+{
+	if (FirstNode)
+	{
+		FirstNode->ReleaseRetainerOnChildWavePlayers(true);
+	}
+
+	bIsRetainingAudio = false;
 }
 
 void USoundCue::Serialize(FStructuredArchive::FRecord Record)
@@ -162,9 +184,24 @@ void USoundCue::PostLoad()
 
 	CacheAggregateValues();
 	
-	if (bPrimeOnLoad && FirstNode != nullptr)
+	ESoundWaveLoadingBehavior SoundClassLoadingBehavior = ESoundWaveLoadingBehavior::Inherited;
+
+	USoundClass* CurrentSoundClass = SoundClassObject;
+
+	// Recurse through this sound class's parents until we find an override.
+	while (SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::Inherited && CurrentSoundClass != nullptr)
 	{
-		FirstNode->PrimeChildWavePlayers(true);
+		SoundClassLoadingBehavior = CurrentSoundClass->Properties.LoadingBehavior;
+		CurrentSoundClass = CurrentSoundClass->ParentClass;
+	}
+
+	if (SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::RetainOnLoad)
+	{
+		RetainSoundCue();
+	}
+	else if (bPrimeOnLoad || SoundClassLoadingBehavior == ESoundWaveLoadingBehavior::PrimeOnLoad)
+	{
+		PrimeSoundCue();
 	}
 }
 
@@ -394,6 +431,16 @@ void USoundCue::AudioQualityChanged()
 	// Now re-evaluate the nodes to reassign the references to any objects that are still legitimately
 	// referenced and load any new assets that are now referenced that were not previously
 	EvaluateNodes(false);
+}
+
+void USoundCue::BeginDestroy()
+{
+	Super::BeginDestroy();
+	
+	if (bIsRetainingAudio)
+	{
+		ReleaseRetainedAudio();
+	}
 }
 
 FString USoundCue::GetDesc()

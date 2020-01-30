@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/ArchiveTraceRoute.h"
 #include "UObject/UObjectGlobals.h"
@@ -10,7 +10,7 @@
 	FArchiveTraceRoute
 ----------------------------------------------------------------------------*/
 
-TMap<UObject*,UProperty*> FArchiveTraceRoute::FindShortestRootPath( UObject* Obj, bool bIncludeTransients, EObjectFlags KeepFlags )
+TMap<UObject*,FProperty*> FArchiveTraceRoute::FindShortestRootPath( UObject* Obj, bool bIncludeTransients, EObjectFlags KeepFlags )
 {
 	// Take snapshot of object flags that will be restored once marker goes out of scope.
 	FScopedObjectFlagMarker ObjectFlagMarker;
@@ -18,7 +18,7 @@ TMap<UObject*,UProperty*> FArchiveTraceRoute::FindShortestRootPath( UObject* Obj
 	TMap<UObject*,FTraceRouteRecord> Routes;
 	FArchiveTraceRoute Rt( Obj, Routes, bIncludeTransients, KeepFlags );
 
-	TMap<UObject*,UProperty*> Result;
+	TMap<UObject*,FProperty*> Result;
 
 	// No routes are reported if the object wasn't rooted.
 	if ( Routes.Num() > 0 || Obj->HasAnyFlags(KeepFlags) )
@@ -72,13 +72,13 @@ TMap<UObject*,UProperty*> FArchiveTraceRoute::FindShortestRootPath( UObject* Obj
  * @param Route			route to print to log.
  * @param String of root path
  */
-FString FArchiveTraceRoute::PrintRootPath( const TMap<UObject*,UProperty*>& Route, const UObject* TargetObject )
+FString FArchiveTraceRoute::PrintRootPath( const TMap<UObject*,FProperty*>& Route, const UObject* TargetObject )
 {
 	FString RouteString;
-	for( TMap<UObject*,UProperty*>::TConstIterator MapIt(Route); MapIt; ++MapIt )
+	for( TMap<UObject*,FProperty*>::TConstIterator MapIt(Route); MapIt; ++MapIt )
 	{
 		UObject*	Object		= MapIt.Key();
-		UProperty*	Property	= MapIt.Value();
+		FProperty*	Property	= MapIt.Value();
 
 		FString	ObjectReachability;
 		

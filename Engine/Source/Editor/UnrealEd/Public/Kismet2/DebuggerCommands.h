@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -91,7 +91,6 @@ public:
 	TSharedPtr<FUICommandInfo> PlayInDefaultPlayerStart;
 	TSharedPtr<FUICommandInfo> PlayInSettings;
 	TSharedPtr<FUICommandInfo> PlayInNetworkSettings;
-	TSharedPtr<FUICommandInfo> PlayInNetworkDedicatedServer;
 
 	TArray< TSharedPtr< FUICommandInfo > > PlayInTargetedMobilePreviewDevices;
 

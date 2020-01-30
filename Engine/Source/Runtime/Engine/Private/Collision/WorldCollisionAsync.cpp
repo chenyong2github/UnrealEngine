@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	WorldCollisionAsync.cpp: UWorld async collision implementation
@@ -318,6 +318,9 @@ namespace
 	template <typename DatumType>
 	FTraceHandle StartNewTrace(FWorldAsyncTraceState& State, const DatumType& Val)
 	{
+		// Using async traces outside of the game thread can cause memory corruption
+		check(IsInGameThread());
+
 		// Get the buffer for the current frame
 		AsyncTraceData& DataBuffer = State.GetBufferForCurrentFrame();
 

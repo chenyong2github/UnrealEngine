@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PythonScriptPlugin.h"
 #include "PythonScriptPluginSettings.h"
@@ -15,6 +15,9 @@
 #include "PyWrapperTypeRegistry.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/PackageReload.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
@@ -565,6 +568,15 @@ bool FPythonScriptPlugin::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 	return false;
 }
 
+void FPythonScriptPlugin::PreChange(const UUserDefinedEnum* Enum, FEnumEditorUtils::EEnumEditorChangeInfo Info)
+{
+}
+
+void FPythonScriptPlugin::PostChange(const UUserDefinedEnum* Enum, FEnumEditorUtils::EEnumEditorChangeInfo Info)
+{
+	OnAssetUpdated(Enum);
+}
+
 #if WITH_PYTHON
 
 void FPythonScriptPlugin::InitializePython()
@@ -684,6 +696,11 @@ void FPythonScriptPlugin::InitializePython()
 
 		FPackageName::OnContentPathMounted().AddRaw(this, &FPythonScriptPlugin::OnContentPathMounted);
 		FPackageName::OnContentPathDismounted().AddRaw(this, &FPythonScriptPlugin::OnContentPathDismounted);
+		FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FPythonScriptPlugin::OnAssetReload);
+
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FPythonScriptPlugin::OnAssetRenamed);
+		AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FPythonScriptPlugin::OnAssetRemoved);
 	}
 
 	// Initialize the Unreal Python module
@@ -725,9 +742,6 @@ void FPythonScriptPlugin::InitializePython()
 			return true;
 		}));
 	}
-
-	// Notify any external listeners
-	OnPythonInitializedDelegate.Broadcast();
 }
 
 void FPythonScriptPlugin::ShutdownPython()
@@ -751,12 +765,26 @@ void FPythonScriptPlugin::ShutdownPython()
 
 	FPackageName::OnContentPathMounted().RemoveAll(this);
 	FPackageName::OnContentPathDismounted().RemoveAll(this);
+	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+
+	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
+	{
+		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
+	}
 
 #if WITH_EDITOR
 	FEditorSupportDelegates::PrepareToCleanseEditorObject.RemoveAll(this);
 #endif	// WITH_EDITOR
 
 	FPyReferenceCollector::Get().PurgeUnrealGeneratedTypes();
+
+#if WITH_EDITOR
+	PyEditor::ShutdownModule();
+#endif	// WITH_EDITOR
+	PyEngine::ShutdownModule();
+	PySlate::ShutdownModule();
+	PyCore::ShutdownModule();
 
 	PyUnrealModule.Reset();
 	PyDefaultGlobalDict.Reset();
@@ -844,6 +872,9 @@ void FPythonScriptPlugin::Tick(const float InDeltaTime)
 		{
 			ExecPythonCommand(*StartupScript);
 		}
+
+		// Notify any external listeners
+		OnPythonInitializedDelegate.Broadcast();
 
 #if WITH_EDITOR
 		// Register to generate stub code after a short delay
@@ -1143,6 +1174,68 @@ void FPythonScriptPlugin::OnContentPathDismounted(const FString& InAssetPath, co
 {
 	FPyScopedGIL GIL;
 	PyUtil::RemoveSystemPath(FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python")));
+}
+
+void FPythonScriptPlugin::OnAssetRenamed(const FAssetData& Data, const FString& OldName)
+{
+	const FName OldPackageName = *FPackageName::ObjectPathToPackageName(OldName);
+	const UObject* AssetPtr = PyGenUtil::GetTypeRegistryType(Data.GetAsset());
+	if (AssetPtr)
+	{
+		// If this asset has an associated Python type, then we need to rename it
+		FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
+		if (PyWrapperTypeRegistry.HasWrappedTypeForObjectName(OldPackageName))
+		{
+			PyWrapperTypeRegistry.UpdateGenerateWrappedTypeForRename(OldPackageName, AssetPtr);
+			OnAssetUpdated(AssetPtr);
+		}
+	}
+}
+
+void FPythonScriptPlugin::OnAssetRemoved(const FAssetData& Data)
+{
+	const UObject* AssetPtr = PyGenUtil::GetTypeRegistryType(Data.GetAsset());
+	if (AssetPtr)
+	{
+		// If this asset has an associated Python type, then we need to remove it
+		FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
+		if (PyWrapperTypeRegistry.HasWrappedTypeForObject(AssetPtr))
+		{
+			PyWrapperTypeRegistry.RemoveGenerateWrappedTypeForDelete(AssetPtr);
+		}
+	}
+}
+
+void FPythonScriptPlugin::OnAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
+{
+	if (InPackageReloadPhase == EPackageReloadPhase::PostPackageFixup)
+	{
+		// Get the primary asset in this package
+		// Use the new package as it has the correct name
+		const UPackage* NewPackage = InPackageReloadedEvent->GetNewPackage();
+		const UObject* NewAsset = StaticFindObject(UObject::StaticClass(), (UPackage*)NewPackage, *FPackageName::GetLongPackageAssetName(NewPackage->GetName()));
+		OnAssetUpdated(NewAsset);
+	}
+}
+
+void FPythonScriptPlugin::OnAssetUpdated(const UObject* InObj)
+{
+	const UObject* AssetPtr = PyGenUtil::GetTypeRegistryType(InObj);
+	if (AssetPtr)
+	{
+		// If this asset has an associated Python type, then we need to re-generate it
+		FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
+		if (PyWrapperTypeRegistry.HasWrappedTypeForObject(AssetPtr))
+		{
+			FPyWrapperTypeRegistry::FGeneratedWrappedTypeReferences GeneratedWrappedTypeReferences;
+			TSet<FName> DirtyModules;
+
+			PyWrapperTypeRegistry.GenerateWrappedTypeForObject(AssetPtr, GeneratedWrappedTypeReferences, DirtyModules, EPyTypeGenerationFlags::IncludeBlueprintGeneratedTypes | EPyTypeGenerationFlags::OverwriteExisting);
+
+			PyWrapperTypeRegistry.GenerateWrappedTypesForReferences(GeneratedWrappedTypeReferences, DirtyModules);
+			PyWrapperTypeRegistry.NotifyModulesDirtied(DirtyModules);
+		}
+	}
 }
 
 #if WITH_EDITOR

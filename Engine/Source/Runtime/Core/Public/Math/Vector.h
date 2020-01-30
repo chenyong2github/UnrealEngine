@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1253,13 +1253,13 @@ FORCEINLINE FVector::FVector(const FLinearColor& InColor)
 }
 
 FORCEINLINE FVector::FVector(FIntVector InVector)
-	: X(InVector.X), Y(InVector.Y), Z(InVector.Z)
+	: X((float)InVector.X), Y((float)InVector.Y), Z((float)InVector.Z)
 {
 	DiagnosticCheckNaN();
 }
 
 FORCEINLINE FVector::FVector(FIntPoint A)
-	: X(A.X), Y(A.Y), Z(0.f)
+	: X((float)A.X), Y((float)A.Y), Z(0.f)
 {
 	DiagnosticCheckNaN();
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1000,6 +1000,8 @@ protected:
 	 *  Depends on runtime generation settings of each navigation data, always ERuntimeGenerationType::Dynamic in the editor world
 	 */
 	ERuntimeGenerationType GetRuntimeGenerationType() const;
+
+	void LogNavDataRegistrationResult(ERegistrationResult);
 	
 	//----------------------------------------------------------------------//
 	// new stuff

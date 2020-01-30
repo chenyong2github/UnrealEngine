@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,9 +21,9 @@ struct StructDeserializerBackendUtilities
 	* @return true on success, false otherwise.
 	* @see SetPropertyValue
 	*/
-	static bool ClearPropertyValue(UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex)
+	static bool ClearPropertyValue(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex)
 	{
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Outer);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Outer);
 
 		if (ArrayProperty != nullptr)
 		{
@@ -52,11 +52,11 @@ struct StructDeserializerBackendUtilities
 	* @return A pointer to the object represented by the property, null otherwise..
 	* @see ClearPropertyValue
 	*/
-	static void* GetPropertyValuePtr(UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex)
+	static void* GetPropertyValuePtr(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex)
 	{
 		check(Property);
 
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Outer))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Outer))
 		{
 			if (ArrayProperty->Inner != Property)
 			{
@@ -88,7 +88,7 @@ struct StructDeserializerBackendUtilities
 	* @see ClearPropertyValue
 	*/
 	template<typename PropertyType, typename ValueType>
-	static bool SetPropertyValue(PropertyType* Property, UProperty* Outer, void* Data, int32 ArrayIndex, const ValueType& Value)
+	static bool SetPropertyValue(PropertyType* Property, FProperty* Outer, void* Data, int32 ArrayIndex, const ValueType& Value)
 	{
 		if (void* Ptr = GetPropertyValuePtr(Property, Outer, Data, ArrayIndex))
 		{

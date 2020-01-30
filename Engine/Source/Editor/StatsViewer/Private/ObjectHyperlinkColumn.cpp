@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectHyperlinkColumn.h"
 #include "UObject/UnrealType.h"
@@ -138,10 +138,10 @@ bool FObjectHyperlinkColumn::Supports( const TSharedRef< IPropertyTableColumn >&
 		if( PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0 )
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-			UProperty* Property = PropertyInfo.Property.Get();
-			if( Property->IsA( UWeakObjectProperty::StaticClass() ) )
+			FProperty* Property = PropertyInfo.Property.Get();
+			if( Property->IsA( FWeakObjectProperty::StaticClass() ) )
 			{
-				const UClass* PropertyClass = Cast<UWeakObjectProperty>(Property)->PropertyClass;
+				const UClass* PropertyClass = CastField<FWeakObjectProperty>(Property)->PropertyClass;
 				if(OnIsClassSupported.Execute(PropertyClass))
 				{
 					return true;

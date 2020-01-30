@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,18 +15,20 @@ public:
 #if WITH_EDITOR
 	struct FLogEntry
 	{
-		FLogEntry(EMessageSeverity::Type InSeverity, const FName& InUnit, const FString& InMessage)
+		FLogEntry(EMessageSeverity::Type InSeverity, const FName& InOperatorName, int32 InInstructionIndex, const FString& InMessage)
 		: Severity(InSeverity)
-		, Unit(InUnit)
+		, OperatorName(InOperatorName)
+		, InstructionIndex(InInstructionIndex)
 		, Message(InMessage)
 		{}
 		
 		EMessageSeverity::Type Severity;
-		FName Unit;
+		FName OperatorName;
+		int32 InstructionIndex;
 		FString Message;
 	};
 	TArray<FLogEntry> Entries;
 #endif
 
-	virtual void Report(EMessageSeverity::Type InSeverity, const FName& InUnit, const FString& InMessage);
+	virtual void Report(EMessageSeverity::Type InSeverity, const FName& InOperatorName, int32 InInstructionIndex, const FString& InMessage);
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -53,6 +53,10 @@ class UFbxSceneImportOptionsSkeletalMesh : public UObject
 	/** Threshold to compare UV equality. */
 	UPROPERTY(EditAnywhere, config, Category = "SkeletalMesh|Thresholds", meta = (NoSpinbox = "true", ClampMin = "0.0", ClampMax = "1.0"))
 	float ThresholdUV;
+
+	/** Threshold to compare vertex position equality when computing morph target deltas. */
+	UPROPERTY(EditAnywhere, config, Category = "SkeletalMesh|Thresholds", meta = (NoSpinbox = "true", ClampMin = "0.0"))
+	float MorphThresholdPosition;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Animation section

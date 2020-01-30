@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -94,7 +94,7 @@ class USkeletalMeshSocket : public UObject
 
 #if WITH_EDITOR
 	/** Broadcasts a notification whenever the socket property has changed. */
-	DECLARE_EVENT_TwoParams(USkeletalMeshSocket, FSocketChangedEvent, const class USkeletalMeshSocket*, const class UProperty*);
+	DECLARE_EVENT_TwoParams(USkeletalMeshSocket, FSocketChangedEvent, const class USkeletalMeshSocket*, const class FProperty*);
 	FSocketChangedEvent& OnPropertyChanged() { return ChangedEvent; }
 
 	//~ Begin UObject Interface

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/PBDCollisionConstraints.h"
@@ -132,8 +132,8 @@ public:
 	bool HasBounds(const int32 Idx) const { return MHasBoundingBoxes[Idx]; }
 	bool& HasBounds(const int32 Idx) { return MHasBoundingBoxes[Idx]; }
 
-	const TBox<T,d>& Bounds(const int32 Idx) const { return MBounds[Idx]; }
-	TBox<T, d>& Bounds(const int32 Idx) { return MBounds[Idx]; }
+	const TAABB<T,d>& Bounds(const int32 Idx) const { return MBounds[Idx]; }
+	TAABB<T, d>& Bounds(const int32 Idx) { return MBounds[Idx]; }
 
 	const TAccelerationStructureHandle<T, d>& Payload(const int32 Idx) const { return MPayloads[Idx]; }
 	TAccelerationStructureHandle<T, d>& Payload(const int32 Idx) { return MPayloads[Idx]; }
@@ -147,7 +147,7 @@ private:
 	}
 
 	TArrayCollectionArray<bool> MHasBoundingBoxes;
-	TArrayCollectionArray<TBox<T, d>> MBounds;
+	TArrayCollectionArray<TAABB<T, d>> MBounds;
 	TArrayCollectionArray<TAccelerationStructureHandle<T, d>> MPayloads;
 
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK
@@ -178,7 +178,7 @@ struct TSpatialAccelerationCacheHandle
 		return Cache->HasBounds(EntryIdx);
 	}
 
-	const TBox<T, d>& BoundingBox() const
+	const TAABB<T, d>& BoundingBox() const
 	{
 		return Cache->Bounds(EntryIdx);
 	}
@@ -228,9 +228,9 @@ class TPBDRigidsEvolutionBase
 	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
 	CHAOS_API virtual ~TPBDRigidsEvolutionBase();
 
-	CHAOS_API TArray<TGeometryParticleHandle<T, d>*> CreateStaticParticles(int32 NumParticles, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
+	CHAOS_API TArray<TGeometryParticleHandle<T, d>*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
 	{
-		auto NewParticles = Particles.CreateStaticParticles(NumParticles, Params);
+		auto NewParticles = Particles.CreateStaticParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
 		{
 			DirtyParticle(*Particle);
@@ -238,9 +238,9 @@ class TPBDRigidsEvolutionBase
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<TKinematicGeometryParticleHandle<T, d>*> CreateKinematicParticles(int32 NumParticles, const TKinematicGeometryParticleParameters<T, d>& Params = TKinematicGeometryParticleParameters<T, d>())
+	CHAOS_API TArray<TKinematicGeometryParticleHandle<T, d>*> CreateKinematicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TKinematicGeometryParticleParameters<T, d>& Params = TKinematicGeometryParticleParameters<T, d>())
 	{
-		auto NewParticles = Particles.CreateKinematicParticles(NumParticles, Params);
+		auto NewParticles = Particles.CreateKinematicParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
 		{
 			DirtyParticle(*Particle);
@@ -248,9 +248,9 @@ class TPBDRigidsEvolutionBase
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<TPBDRigidParticleHandle<T, d>*> CreateDynamicParticles(int32 NumParticles, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	CHAOS_API TArray<TPBDRigidParticleHandle<T, d>*> CreateDynamicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
 	{
-		auto NewParticles = Particles.CreateDynamicParticles(NumParticles, Params);
+		auto NewParticles = Particles.CreateDynamicParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
 		{
 			DirtyParticle(*Particle);
@@ -258,9 +258,9 @@ class TPBDRigidsEvolutionBase
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<TPBDRigidClusteredParticleHandle<T, d>*> CreateClusteredParticles(int32 NumParticles, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	CHAOS_API TArray<TPBDRigidClusteredParticleHandle<T, d>*> CreateClusteredParticles(int32 NumParticles,const FUniqueIdx* ExistingIndices = nullptr,  const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
 	{
-		auto NewParticles = Particles.CreateClusteredParticles(NumParticles, Params);
+		auto NewParticles = Particles.CreateClusteredParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
 		{
 			DirtyParticle(*Particle);
@@ -269,6 +269,7 @@ class TPBDRigidsEvolutionBase
 	}
 
 	CHAOS_API void AddForceFunction(FForceRule ForceFunction) { ForceRules.Add(ForceFunction); }
+	CHAOS_API void AddImpulseFunction(FForceRule ImpulseFunction) { ImpulseRules.Add(ImpulseFunction); }
 	CHAOS_API void SetParticleUpdateVelocityFunction(FUpdateVelocityRule ParticleUpdate) { ParticleUpdateVelocity = ParticleUpdate; }
 	CHAOS_API void SetParticleUpdatePositionFunction(FUpdatePositionRule ParticleUpdate) { ParticleUpdatePosition = ParticleUpdate; }
 
@@ -413,6 +414,22 @@ class TPBDRigidsEvolutionBase
 		}
 	}
 
+	void PrepareConstraints(const T Dt)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->PrepareConstraints(Dt);
+		}
+	}
+
+	void UnprepareConstraints(const T Dt)
+	{
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->UnprepareConstraints(Dt);
+		}
+	}
+
 	void UpdateAccelerationStructures(int32 Island)
 	{
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
@@ -520,6 +537,12 @@ class TPBDRigidsEvolutionBase
 
 	void Serialize(FChaosArchive& Ar);
 
+	FUniqueIdx GenerateUniqueIdx()
+	{
+		//NOTE: this should be thread safe since evolution has already been initialized on GT
+		return Particles.GetUniqueIndices().GenerateUniqueIdx();
+	}
+
 protected:
 	int32 NumConstraints() const
 	{
@@ -623,6 +646,7 @@ protected:
 	void WaitOnAccelerationStructure();
 
 	TArray<FForceRule> ForceRules;
+	TArray<FForceRule> ImpulseRules;
 	FUpdateVelocityRule ParticleUpdateVelocity;
 	FUpdatePositionRule ParticleUpdatePosition;
 	FKinematicUpdateRule KinematicUpdate;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/FixConflictingLocalizationKeys.h"
 #include "Commandlets/GatherTextCommandletBase.h"
@@ -106,20 +106,20 @@ bool ReKeyTextProperty(UStruct* InOuterType, void* InAddrToUpdate, const TArray<
 
 	const FString& PathPart = InConflictingSourceParts[InPartIndex];
 
-	UTextProperty* TextPropToUpdate = nullptr;
+	FTextProperty* TextPropToUpdate = nullptr;
 	void* AddrToUpdate = InAddrToUpdate;
 
 	// First check using the name we were given (which may be mangled)
-	if (UProperty* UnmangedPropToUpdate = InOuterType->FindPropertyByName(*PathPart))
+	if (FProperty* UnmangedPropToUpdate = InOuterType->FindPropertyByName(*PathPart))
 	{
 		// Is this a complex property? If so, we need to recurse into it
-		if (UStructProperty* StructProp = Cast<UStructProperty>(UnmangedPropToUpdate))
+		if (FStructProperty* StructProp = CastField<FStructProperty>(UnmangedPropToUpdate))
 		{
 			return ReKeyTextProperty(StructProp->Struct, StructProp->ContainerPtrToValuePtr<void>(AddrToUpdate), InConflictingSourceParts, InPartIndex + 1);
 		}
 
 		// Is this a text property?
-		TextPropToUpdate = Cast<UTextProperty>(UnmangedPropToUpdate);
+		TextPropToUpdate = CastField<FTextProperty>(UnmangedPropToUpdate);
 	}
 	else
 	{
@@ -129,7 +129,7 @@ bool ReKeyTextProperty(UStruct* InOuterType, void* InAddrToUpdate, const TArray<
 		int32 ContainerIndex;
 		if (UnmanglePropertyName(PathPart, PropertyName, PropertyContainerType, ContainerIndex))
 		{
-			if (UProperty* MangledPropToUpdate = InOuterType->FindPropertyByName(*PropertyName))
+			if (FProperty* MangledPropToUpdate = InOuterType->FindPropertyByName(*PropertyName))
 			{
 				switch (PropertyContainerType)
 				{
@@ -139,18 +139,18 @@ bool ReKeyTextProperty(UStruct* InOuterType, void* InAddrToUpdate, const TArray<
 						AddrToUpdate = MangledPropToUpdate->ContainerPtrToValuePtr<void>(AddrToUpdate, ContainerIndex);
 
 						// Is this a complex property? If so, we need to recurse into it
-						if (UStructProperty* StructProp = Cast<UStructProperty>(MangledPropToUpdate))
+						if (FStructProperty* StructProp = CastField<FStructProperty>(MangledPropToUpdate))
 						{
 							return ReKeyTextProperty(StructProp->Struct, AddrToUpdate, InConflictingSourceParts, InPartIndex + 1);
 						}
 
 						// Is this a text property?
-						TextPropToUpdate = Cast<UTextProperty>(MangledPropToUpdate);
+						TextPropToUpdate = CastField<FTextProperty>(MangledPropToUpdate);
 					}
 					break;
 
 				case EMangledPropertyContainerType::Dynamic:
-					if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(MangledPropToUpdate))
+					if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(MangledPropToUpdate))
 					{
 						AddrToUpdate = MangledPropToUpdate->ContainerPtrToValuePtr<void>(AddrToUpdate);
 
@@ -160,16 +160,16 @@ bool ReKeyTextProperty(UStruct* InOuterType, void* InAddrToUpdate, const TArray<
 							AddrToUpdate = ScriptArrayHelper.GetRawPtr(ContainerIndex);
 
 							// Is this a complex property? If so, we need to recurse into it
-							if (UStructProperty* StructProp = Cast<UStructProperty>(ArrayProp->Inner))
+							if (FStructProperty* StructProp = CastField<FStructProperty>(ArrayProp->Inner))
 							{
 								return ReKeyTextProperty(StructProp->Struct, AddrToUpdate, InConflictingSourceParts, InPartIndex + 2); // +2 because dynamic container properties double up their name in the path
 							}
 
 							// Is this a text property?
-							TextPropToUpdate = Cast<UTextProperty>(ArrayProp->Inner);
+							TextPropToUpdate = CastField<FTextProperty>(ArrayProp->Inner);
 						}
 					}
-					else if (UMapProperty* MapProp = Cast<UMapProperty>(MangledPropToUpdate))
+					else if (FMapProperty* MapProp = CastField<FMapProperty>(MangledPropToUpdate))
 					{
 						AddrToUpdate = MangledPropToUpdate->ContainerPtrToValuePtr<void>(AddrToUpdate);
 
@@ -197,16 +197,16 @@ bool ReKeyTextProperty(UStruct* InOuterType, void* InAddrToUpdate, const TArray<
 							AddrToUpdate = ScriptMapHelper.GetPairPtr(SparseIndex) + MapProp->MapLayout.ValueOffset;
 
 							// Is this a complex property? If so, we need to recurse into it
-							if (UStructProperty* StructProp = Cast<UStructProperty>(MapProp->ValueProp))
+							if (FStructProperty* StructProp = CastField<FStructProperty>(MapProp->ValueProp))
 							{
 								return ReKeyTextProperty(StructProp->Struct, AddrToUpdate, InConflictingSourceParts, InPartIndex + 2); // +2 because dynamic container properties double up their name in the path
 							}
 
 							// Is this a text property?
-							TextPropToUpdate = Cast<UTextProperty>(MapProp->ValueProp);
+							TextPropToUpdate = CastField<FTextProperty>(MapProp->ValueProp);
 						}
 					}
-					else if (USetProperty* SetProp = Cast<USetProperty>(MangledPropToUpdate))
+					else if (FSetProperty* SetProp = CastField<FSetProperty>(MangledPropToUpdate))
 					{
 						AddrToUpdate = MangledPropToUpdate->ContainerPtrToValuePtr<void>(AddrToUpdate);
 
@@ -234,19 +234,19 @@ bool ReKeyTextProperty(UStruct* InOuterType, void* InAddrToUpdate, const TArray<
 							AddrToUpdate = ScriptSetHelper.GetElementPtr(SparseIndex);
 
 							// Is this a complex property? If so, we need to recurse into it
-							if (UStructProperty* StructProp = Cast<UStructProperty>(SetProp->ElementProp))
+							if (FStructProperty* StructProp = CastField<FStructProperty>(SetProp->ElementProp))
 							{
 								return ReKeyTextProperty(StructProp->Struct, AddrToUpdate, InConflictingSourceParts, InPartIndex + 2); // +2 because dynamic container properties double up their name in the path
 							}
 
 							// Is this a text property?
-							TextPropToUpdate = Cast<UTextProperty>(SetProp->ElementProp);
+							TextPropToUpdate = CastField<FTextProperty>(SetProp->ElementProp);
 						}
 					}
 					break;
 
 				case EMangledPropertyContainerType::DynamicKey:
-					if (UMapProperty* MapProp = Cast<UMapProperty>(MangledPropToUpdate))
+					if (FMapProperty* MapProp = CastField<FMapProperty>(MangledPropToUpdate))
 					{
 						AddrToUpdate = MangledPropToUpdate->ContainerPtrToValuePtr<void>(AddrToUpdate);
 
@@ -256,13 +256,13 @@ bool ReKeyTextProperty(UStruct* InOuterType, void* InAddrToUpdate, const TArray<
 							AddrToUpdate = ScriptMapHelper.GetPairPtr(ContainerIndex);
 
 							// Is this a complex property? If so, we need to recurse into it
-							if (UStructProperty* StructProp = Cast<UStructProperty>(MapProp->KeyProp))
+							if (FStructProperty* StructProp = CastField<FStructProperty>(MapProp->KeyProp))
 							{
 								return ReKeyTextProperty(StructProp->Struct, AddrToUpdate, InConflictingSourceParts, InPartIndex + 2); // +2 because dynamic container properties double up their name in the path
 							}
 
 							// Is this a text property?
-							TextPropToUpdate = Cast<UTextProperty>(MapProp->KeyProp);
+							TextPropToUpdate = CastField<FTextProperty>(MapProp->KeyProp);
 						}
 					}
 					break;

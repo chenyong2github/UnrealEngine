@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundWaveDecoder.h"
 #include "Engine/Public/AudioThread.h"
@@ -314,6 +314,7 @@ namespace Audio
 		else
 		{
 			static AlignedFloatBuffer ScratchBuffer;
+			ScratchBuffer.Reset();
 			ScratchBuffer.AddZeroed(InNumFrames * SourceInfo.NumSourceChannels);
 
 			GetAudioBufferInternal(InNumFrames, InNumChannels, ScratchBuffer);
@@ -411,7 +412,8 @@ namespace Audio
 			{
 				DecodingSources.Add(InitData.Handle.Id, DecodingSoundWaveDataPtr);
 
-				UE_LOG(LogTemp, Log, TEXT("Decoding sources size %d."), DecodingSources.Num());
+				UE_LOG(LogAudioMixer, Verbose, TEXT("Decoding SoundWave '%s' (Num Decoding: %d)"),
+					*InitData.Handle.SoundWaveName.ToString(), DecodingSources.Num());
 			});
 
 			return true;
@@ -452,13 +454,7 @@ namespace Audio
 
 		// Start the soundwave precache
 		const ESoundWavePrecacheState PrecacheState = InitData.SoundWave->GetPrecacheState();
-		if (PrecacheState == ESoundWavePrecacheState::NotStarted)
-		{
-			AudioDevice->Precache(InitData.SoundWave);
-			PrecachingSources.Add(InitData.Handle.Id, InitData);
-			return true;
-		}
-		else if (PrecacheState != ESoundWavePrecacheState::Done)
+		if (PrecacheState == ESoundWavePrecacheState::InProgress)
 		{
 			if (!PrecachingSources.Contains(InitData.Handle.Id))
 			{
@@ -468,6 +464,11 @@ namespace Audio
 		}
 		else
 		{
+			if (PrecacheState == ESoundWavePrecacheState::NotStarted)
+			{
+				AudioDevice->Precache(InitData.SoundWave, true);
+			}
+			check(InitData.SoundWave->GetPrecacheState() == ESoundWavePrecacheState::Done);
 			return InitDecodingSourceInternal(InitData);
 		}
 
@@ -477,6 +478,15 @@ namespace Audio
 	void FSoundSourceDecoder::RemoveDecodingSource(const FDecodingSoundSourceHandle& Handle)
 	{
 		DecodingSources.Remove(Handle.Id);
+	}
+
+	void FSoundSourceDecoder::Reset()
+	{
+		PumpDecoderCommandQueue();
+
+		DecodingSources.Reset();
+		InitializingDecodingSources.Reset();
+		PrecachingSources.Reset();
 	}
 
 	void FSoundSourceDecoder::SetSourcePitchScale(const FDecodingSoundSourceHandle& Handle, float InPitchScale)

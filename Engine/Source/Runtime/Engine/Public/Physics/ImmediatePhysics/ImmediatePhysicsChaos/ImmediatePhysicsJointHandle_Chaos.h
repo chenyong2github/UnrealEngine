@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -28,6 +28,8 @@ namespace ImmediatePhysics_Chaos
 		const Chaos::TVector<const FActorHandle*, 2>& GetActorHandles() const;
 
 		void UpdateLevels();
+
+		void SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping);
 
 	private:
 		Chaos::TVector<FActorHandle*, 2> ActorHandles;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Roughness remapping functions of each term of the hair BSDF to the default lit model (GGX based)
 // This remapping is done based on the hair longitudinal component. This means it does not take into 

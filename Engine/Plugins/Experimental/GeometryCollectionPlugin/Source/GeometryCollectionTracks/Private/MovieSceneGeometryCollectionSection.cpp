@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneGeometryCollectionSection.h"
 #include "MovieSceneGeometryCollectionTemplate.h"
@@ -136,7 +136,7 @@ float UMovieSceneGeometryCollectionSection::MapTimeToAnimation(FFrameTime InPosi
 
 
 #if WITH_EDITOR
-void UMovieSceneGeometryCollectionSection::PreEditChange(UProperty* PropertyAboutToChange)
+void UMovieSceneGeometryCollectionSection::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	// Store the current play rate so that we can compute the amount to compensate the section end time when the play rate changes
 	PreviousPlayRate = Params.PlayRate;

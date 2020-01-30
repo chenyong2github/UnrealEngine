@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,10 +21,10 @@ class UMG_API UPropertyBinding : public UObject
 public:
 	UPropertyBinding();
 
-	virtual bool IsSupportedSource(UProperty* Property) const;
-	virtual bool IsSupportedDestination(UProperty* Property) const;
+	virtual bool IsSupportedSource(FProperty* Property) const;
+	virtual bool IsSupportedDestination(FProperty* Property) const;
 
-	virtual void Bind(UProperty* Property, FScriptDelegate* Delegate);
+	virtual void Bind(FProperty* Property, FScriptDelegate* Delegate);
 
 public:
 	/** The source object to use as the initial container to resolve the Source Property Path on. */

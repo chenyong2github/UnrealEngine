@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryModeModule.h"
 #include "Modules/ModuleManager.h"
@@ -16,7 +16,7 @@ void FGeometryModeModule::StartupModule()
 {
 	FEditorModeRegistry::Get().RegisterMode<FEdModeGeometry>(
 		FGeometryEditingModes::EM_Geometry,
-		NSLOCTEXT("EditorModes", "GeometryMode", "Geometry Editing"),
+		NSLOCTEXT("EditorModes", "GeometryMode", "Brush Editing"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.BspMode", "LevelEditor.BspMode.Small"),
 		true, 500
 	);

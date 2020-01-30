@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -157,6 +157,8 @@ namespace UnrealBuildTool
 			Target.bDeployAfterCompile = true;
 
 			Target.bCheckSystemHeadersForModification = BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac;
+
+			Target.bCompileISPC = true;
 		}
 
 		/// <summary>

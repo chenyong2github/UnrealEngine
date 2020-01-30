@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HierarchicalLOD.h"
 #include "Engine/World.h"
@@ -16,6 +16,7 @@
 
 #include "Algo/Transform.h"
 #include "EditorLevelUtils.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 #include "Engine/LODActor.h"
@@ -213,6 +214,7 @@ void FHierarchicalLODBuilder::BuildClusters(ULevel* InLevel)
 						}
 
 						ALODActor* LODActor = CreateLODActor(PreviousActorCluster, InLevel, LODId);
+						LODActor->SetLODActorTag(PreviousLODActor->GetLODActorTag());
 						LODLevelLODActors[LODId].Add(LODActor);
 
 						ValidStaticMeshActorsInLevel.RemoveAll([PreviousActorCluster](AActor* InActor) { return PreviousActorCluster.Actors.Contains(InActor); });
@@ -301,6 +303,7 @@ int32 HashLODActorForClusterComparison(ALODActor* LODActor)
 
 	HashValue = HashCombine(HashValue, LODActor->LODLevel);
 	HashValue = HashCombine(HashValue, LODActor->SubActors.Num());
+	HashValue = HashCombine(HashValue, GetTypeHash(LODActor->GetLODActorTag()));
 
 	TArray<AActor*> Actors = LODActor->SubActors;
 	Actors.Sort();
@@ -435,6 +438,7 @@ void FHierarchicalLODBuilder::GenerateAsSingleCluster(const int32 NumHLODLevels,
 		if (LevelCluster.IsValid())
 		{
 			ALODActor* LODActor = CreateLODActor(LevelCluster, InLevel, LODId);
+			LODActor->SetLODActorTag("SingleCluster");
 			PreviousLevelActor = LODActor;
 		}
 	}
@@ -810,27 +814,32 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 					UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(LevelIter, LODIndex);
 					UPackage* AssetsOuter = Proxy->GetOutermost();
 					checkf(AssetsOuter != nullptr, TEXT("Failed to created outer for generated HLOD assets"));
-					AssetsOuter->Modify();
 
-					int32 CurrentLODLevel = LODIndex;
-					int32 LODActorIndex = 0;
-					TArray<ALODActor*>& LODLevel = LODLevelActors[CurrentLODLevel];
-					for (ALODActor* Actor : LODLevel)
+					if (AssetsOuter)
 					{
-						SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {1} of {2} (LOD Level {0})"), FText::AsNumber(LODIndex + 1), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[CurrentLODLevel].Num())));
-
-						bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[CurrentLODLevel], BaseMaterial);
-
-						// Report an error if the build failed
-						if (!bBuildSuccessful)
+						int32 LODActorIndex = 0;
+						TArray<ALODActor*>& LODLevel = LODLevelActors[LODIndex];
+						for (ALODActor* Actor : LODLevel)
 						{
-							FMessageLog("HLODResults").Error()
-								->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
-								->AddToken(FUObjectToken::Create(Actor))
-								->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
-						}
+							SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {0} of {1} (LOD Level {2})"), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[LODIndex].Num()), FText::AsNumber(LODIndex + 1)));
 
-						++LODActorIndex;
+							bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[LODIndex], BaseMaterial);
+
+							// Report an error if the build failed
+							if (!bBuildSuccessful)
+							{
+								FMessageLog("HLODResults").Error()
+									->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
+									->AddToken(FUObjectToken::Create(Actor))
+									->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
+							}
+							else
+							{
+								AssetsOuter->Modify();
+							}
+
+							++LODActorIndex;
+						}
 					}
 				}
 			}
@@ -1141,6 +1150,7 @@ void FHierarchicalLODBuilder::MergeClustersAndBuildActors(ULevel* InLevel, const
 							if (AHierarchicalLODVolume* const* Volume = HLODVolumeClusters.FindKey(Cluster))
 							{
 								HLODVolumeActors.Add(LODActor, *Volume);
+								LODActor->SetLODActorTag((*Volume)->GetName());
 							}
 						}
 

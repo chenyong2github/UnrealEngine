@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_ObserveBone.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -55,10 +55,10 @@ void SGraphNodeObserveBone::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<
 	// Display the observed bone transform status bubble
  	if (UObject* ActiveObject = K2Context->ActiveObjectBeingDebugged)
  	{
-		UProperty* NodeProperty = FKismetDebugUtilities::FindClassPropertyForNode(K2Context->SourceBlueprint, GraphNode);
-		if (UStructProperty* StructProperty = Cast<UStructProperty>(NodeProperty))
+		FProperty* NodeProperty = FKismetDebugUtilities::FindClassPropertyForNode(K2Context->SourceBlueprint, GraphNode);
+		if (FStructProperty* StructProperty = CastField<FStructProperty>(NodeProperty))
  		{
- 			UClass* ContainingClass = StructProperty->GetTypedOuter<UClass>();
+ 			UClass* ContainingClass = StructProperty->GetTypedOwner<UClass>();
  			if (ActiveObject->IsA(ContainingClass) && (StructProperty->Struct == FAnimNode_ObserveBone::StaticStruct()))
  			{
 				FAnimNode_ObserveBone* ObserveBone = StructProperty->ContainerPtrToValuePtr<FAnimNode_ObserveBone>(ActiveObject);

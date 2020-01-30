@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -11,6 +11,7 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "Serializers/MovieSceneAnimationSerialization.h"
 
+class UAnimBoneCompressionSettings;
 class UAnimNotify;
 class UAnimNotifyState;
 class UAnimSequence;
@@ -74,7 +75,7 @@ public:
 	/** Sets a new sample rate & max length for this recorder. Don't call while recording. */
 	void SetSampleRateAndLength(float SampleRateHz, float LengthInMinutes);
 
-	bool SetAnimCompressionScheme(TSubclassOf<class UAnimCompress> SchemeClass);
+	bool SetAnimCompressionScheme(UAnimBoneCompressionSettings* Settings);
 
 	const FTransform& GetInitialRootTransform() const { return InitialRootTransform; }
 

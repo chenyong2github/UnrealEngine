@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 NiagaraGPUSortInfo.h: GPU particle sorting helper
@@ -35,7 +35,6 @@ struct FNiagaraGPUSortInfo
 	int32 SortAttributeOffset = INDEX_NONE;
 	// The data buffer that holds the particle attributes.
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
-	uint32 FloatDataOffset = 0;
 	uint32 FloatDataStride = 0;
 	// The actual GPU sim particle count. Needed to get an exact match on the index list.
 	FShaderResourceViewRHIRef GPUParticleCountSRV;

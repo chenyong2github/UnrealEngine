@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -807,6 +807,12 @@ public:
 
 	/** Set texture gamma <= 0 for auto */
 	virtual void SetRGBCurve(const float InRGBCurve) = 0;
+
+	/** Gets the color space of the texture */
+	virtual EDatasmithColorSpace GetSRGB() const = 0;
+
+	/** Sets the color space of the texture */
+	virtual void SetSRGB(EDatasmithColorSpace Option) = 0;
 };
 
 class DATASMITHCORE_API IDatasmithShaderElement : public IDatasmithElement

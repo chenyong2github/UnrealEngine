@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -29,6 +29,9 @@ public:
 
 	/** Customizations to use for this details tab */
 	SLATE_ARGUMENT(TArray<FAdvancedPreviewSceneModule::FPropertyTypeCustomizationInfo>, PropertyTypeCustomizations)
+
+	/** Delegates to use for this details tab */
+	SLATE_ARGUMENT(TArray<FAdvancedPreviewSceneModule::FDetailDelegates>, Delegates)
 
 	SLATE_END_ARGS()
 
@@ -63,6 +66,8 @@ protected:
 	TArray<TSharedPtr<FString>> ProfileNames;
 	int32 ProfileIndex;
 
+	void OnPreviewSceneChanged(TSharedRef<FAdvancedPreviewScene> PreviewScene);
+
 	FDelegateHandle RefreshDelegate;
 	FDelegateHandle AddRemoveProfileDelegate;
 	FDelegateHandle PostUndoDelegate;
@@ -72,4 +77,6 @@ protected:
 	TArray<FAdvancedPreviewSceneModule::FDetailCustomizationInfo> DetailCustomizations;
 
 	TArray<FAdvancedPreviewSceneModule::FPropertyTypeCustomizationInfo> PropertyTypeCustomizations;
+
+	TArray<FAdvancedPreviewSceneModule::FDetailDelegates> Delegates;
 };

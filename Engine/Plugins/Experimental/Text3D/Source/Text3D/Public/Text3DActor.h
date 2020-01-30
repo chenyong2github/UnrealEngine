@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,7 +9,7 @@
 class UText3DComponent;
 
 UCLASS(Meta = (DisplayName = "Text 3D", ComponentWrapperClass))
-class TEXT3D_API AText3DActor : public AActor
+class TEXT3D_API AText3DActor final : public AActor
 {
 	GENERATED_BODY()
 

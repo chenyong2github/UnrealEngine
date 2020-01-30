@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -135,7 +135,7 @@ struct FSubsurfaceProfileStruct
 		SurfaceAlbedo = FLinearColor(0, 0, 0);
 		MeanFreePathColor = FLinearColor(0, 0, 0);
 		MeanFreePathDistance = 0.0f;
-		WorldUnitScale = 0.0f;
+		WorldUnitScale = 0.1f;
 		TransmissionTintColor = FLinearColor(0, 0, 0);
 	}
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "SlateGlobals.h"
@@ -32,7 +32,7 @@ FAutoConsoleVariableRef CVarSlateFastWidgetPath(
 );
 
 
-int32 GSlateEnableGlobalInvalidation = 0;
+bool GSlateEnableGlobalInvalidation = 0;
 static FAutoConsoleVariableRef CVarSlateNewUpdateMethod(
 	TEXT("Slate.EnableGlobalInvalidation"), 
 	GSlateEnableGlobalInvalidation, 

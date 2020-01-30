@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -35,6 +35,9 @@ struct ENGINE_API FNavigationLinkBase
 	/** if greater than 0 nav system will attempt to project navlink's end point on geometry below */
 	UPROPERTY(EditAnywhere, Category=Default, meta=(ClampMin = "0.0", DisplayName="Right Project Height"))
 	float MaxFallDownLength;
+
+	/** Needs to be 0 for recast data generator */
+	static constexpr int32 InvalidUserId = 0;
 
 	/** ID passed to navigation data generator */
 	int32 UserId;

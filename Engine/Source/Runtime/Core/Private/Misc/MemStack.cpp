@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/MemStack.h"
 #include "Misc/Parse.h"
@@ -282,7 +282,7 @@ int32 FMemStackBase::GetByteCount() const
 		}
 		else
 		{
-			Count += Top - Chunk->Data();
+			Count += UE_PTRDIFF_TO_INT32(Top - Chunk->Data());
 		}
 	}
 	return Count;

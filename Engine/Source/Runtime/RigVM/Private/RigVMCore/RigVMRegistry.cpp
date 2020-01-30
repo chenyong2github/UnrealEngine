@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMRegistry.h"
 #include "UObject/UObjectIterator.h"
@@ -14,13 +14,13 @@ void FRigVMRegistry::Refresh()
 {
 }
 
-void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr)
+void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct)
 {
 	if (Find(InName) != nullptr)
 	{
 		return;
 	}
-	Functions.Add(FRigVMFunction(InName, InFunctionPtr));
+	Functions.Add(FRigVMFunction(InName, InFunctionPtr, InStruct));
 }
 
 FRigVMFunctionPtr FRigVMRegistry::Find(const TCHAR* InName) const
@@ -35,3 +35,9 @@ FRigVMFunctionPtr FRigVMRegistry::Find(const TCHAR* InName) const
 
 	return nullptr;
 }
+
+const TArray<FRigVMFunction>& FRigVMRegistry::GetFunctions() const
+{
+	return Functions;
+}
+

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSocketManager.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -140,7 +140,7 @@ private:
 			{
 				FScopedTransaction Transaction( LOCTEXT("SetSocketName", "Set Socket Name") );
 				
-				UProperty* ChangedProperty = FindField<UProperty>( UStaticMeshSocket::StaticClass(), "SocketName" );
+				FProperty* ChangedProperty = FindField<FProperty>( UStaticMeshSocket::StaticClass(), "SocketName" );
 				
 				// Pre edit, calls modify on the object
 				SelectedSocket->PreEditChange(ChangedProperty);
@@ -621,7 +621,7 @@ TSharedPtr<SWidget> SSocketManager::OnContextMenuOpening()
 	return MenuBuilder.MakeWidget();
 }
 
-void SSocketManager::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged )
+void SSocketManager::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
 	TArray< TSharedPtr< SocketListItem > > SelectedList = SocketListView->GetSelectedItems();
 	if(SelectedList.Num())
@@ -663,7 +663,7 @@ void SSocketManager::RemovePropertyChangeListenerFromSockets()
 	}
 }
 
-void SSocketManager::OnSocketPropertyChanged( const UStaticMeshSocket* Socket, const UProperty* ChangedProperty )
+void SSocketManager::OnSocketPropertyChanged( const UStaticMeshSocket* Socket, const FProperty* ChangedProperty )
 {
 	static FName RelativeRotationName(TEXT("RelativeRotation"));
 	static FName RelativeLocationName(TEXT("RelativeLocation"));

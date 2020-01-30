@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneToolsProjectSettings.h"
 
@@ -11,7 +11,7 @@ UMovieSceneToolsProjectSettings::UMovieSceneToolsProjectSettings()
 	, FirstShotNumber(10)
 	, ShotIncrement(10)
 	, ShotNumDigits(4)
-	, TakeNumDigits(3)
+	, TakeNumDigits(2)
 	, FirstTakeNumber(1)
 	, TakeSeparator(TEXT("_"))
 	, SubSequenceSeparator(TEXT("_"))

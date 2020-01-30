@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Render/DisplayClusterRenderManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
@@ -476,7 +476,6 @@ void FDisplayClusterRenderManager::SetViewportCamera(const FString& InCameraId /
 bool FDisplayClusterRenderManager::GetViewportRect(const FString& InViewportID, FIntRect& Rect)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	check(IsInGameThread());
 
 	if (!RenderDevicePtr)
 	{

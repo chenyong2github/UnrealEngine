@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimationOutlinerTreeNode.h"
 #include "Fonts/SlateFontInfo.h"
@@ -61,11 +61,9 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 
 	TableRowStyle = &FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 
-	FSlateFontInfo NodeFont = FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
-
 	EditableLabel = SNew(SInlineEditableTextBlock)
 		.IsReadOnly(this, &SAnimationOutlinerTreeNode::IsNodeLabelReadOnly)
-		.Font(NodeFont)
+		.Font(this, &SAnimationOutlinerTreeNode::GetDisplayNameFont)
 		.ColorAndOpacity(this, &SAnimationOutlinerTreeNode::GetDisplayNameColor)
 		.OnVerifyTextChanged(this, &SAnimationOutlinerTreeNode::VerifyNodeTextChanged)
 		.OnTextCommitted(this, &SAnimationOutlinerTreeNode::HandleNodeLabelTextCommitted)
@@ -429,6 +427,10 @@ FSlateColor SAnimationOutlinerTreeNode::GetDisplayNameColor() const
 	return DisplayNode->GetDisplayNameColor();
 }
 
+FSlateFontInfo SAnimationOutlinerTreeNode::GetDisplayNameFont() const
+{
+	return DisplayNode->GetDisplayNameFont();
+}
 
 FText SAnimationOutlinerTreeNode::GetDisplayNameToolTipText() const
 {

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsAssetEditorEditMode.h"
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
@@ -14,7 +14,7 @@
 #include "IPersonaPreviewScene.h"
 #include "PhysicsAssetEditor.h"
 #include "PhysicsAssetEditorHitProxies.h"
-#include "PhysicsEngine/PhysicsHandleComponent.h"
+#include "PhysicsAssetEditorPhysicsHandleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "SEditorViewport.h"
 #include "IPersonaToolkit.h"

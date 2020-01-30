@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -381,6 +381,7 @@ struct FDrawElementStatTracker
 		DEC_DWORD_STAT_BY(STAT_SlateCachedDrawElementMemory, SizeBytes);
 	}
 };
+
 template<typename StatTracker>
 class FSlateStatTrackingMemoryAllocator : public FDefaultAllocator
 {
@@ -417,7 +418,6 @@ public:
 			if (AllocatedSize)
 			{
 				StatTracker::MemoryFreed(AllocatedSize);
-
 			}
 		}
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,6 +12,8 @@
 struct FRawAnimSequenceTrack;
 class UAnimCompress;
 class USkeleton;
+class UAnimBoneCompressionSettings;
+class UAnimCurveCompressionSettings;
 
 UENUM()
 enum class ESmartNameContainerType : uint8
@@ -66,13 +68,21 @@ public:
 
 	// Compression
 
-	/** Retrieves the Compression Scheme for the given Animation Sequence */
+	/** Retrieves the Bone Compression Settings for the given Animation Sequence */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Compression")
-	static void GetCompressionScheme(const UAnimSequence* AnimationSequence, UAnimCompress*& CompressionScheme);
+	static void GetBoneCompressionSettings(const UAnimSequence* AnimationSequence, UAnimBoneCompressionSettings*& CompressionSettings);
 
-	/** Sets the Compression Scheme for the given Animation Sequence */
+	/** Sets the Bone Compression Settings for the given Animation Sequence */
 	UFUNCTION(BlueprintCallable, Category = "AnimationBlueprintLibrary|Compression")
-	static void SetCompressionScheme(UAnimSequence* AnimationSequence, UAnimCompress* CompressionScheme);
+	static void SetBoneCompressionSettings(UAnimSequence* AnimationSequence, UAnimBoneCompressionSettings* CompressionSettings);
+
+	/** Retrieves the Curve Compression Settings for the given Animation Sequence */
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Compression")
+	static void GetCurveCompressionSettings(const UAnimSequence* AnimationSequence, UAnimCurveCompressionSettings*& CompressionSettings);
+
+	/** Sets the Curve Compression Settings for the given Animation Sequence */
+	UFUNCTION(BlueprintCallable, Category = "AnimationBlueprintLibrary|Compression")
+	static void SetCurveCompressionSettings(UAnimSequence* AnimationSequence, UAnimCurveCompressionSettings* CompressionSettings);
 
 	// Additive 
 	/** Retrieves the Additive Animation type for the given Animation Sequence */

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	HairStrandsDebug.h: Hair strands debug display.
@@ -12,4 +12,5 @@
 void RenderHairStrandsDebugInfo(
 	FRHICommandListImmediate& RHICmdList,
 	TArray<FViewInfo>& Views,
-	const struct FHairStrandsDatas* HairDatas);
+	const struct FHairStrandsDatas* HairDatas,
+	const struct FHairStrandClusterData& HairClusterData);

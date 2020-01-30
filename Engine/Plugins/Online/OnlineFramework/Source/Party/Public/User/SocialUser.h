@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -148,6 +148,12 @@ PARTY_SCOPE:
 	void EstablishOssInfo(const TSharedRef<FOnlineFriend>& FriendInfo, ESocialSubsystem SubsystemType);
 	void EstablishOssInfo(const TSharedRef<FOnlineBlockedPlayer>& BlockedPlayerInfo, ESocialSubsystem SubsystemType);
 	void EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& RecentPlayerInfo, ESocialSubsystem SubsystemType);
+
+#if WITH_EDITOR
+	void Debug_RandomizePresence();
+	bool bDebug_IsPresenceArtificial = false;
+	EOnlinePresenceState::Type Debug_RandomPresence;
+#endif
 
 protected:
 	virtual void OnPresenceChangedInternal(ESocialSubsystem SubsystemType);

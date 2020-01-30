@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,29 +52,29 @@ struct FPropertyFileHeader
 		return Ar;
 	}
 
-	void SetProperty(const UProperty* Property, const FName& InPropertyName)
+	void SetProperty(const FProperty* Property, const FName& InPropertyName)
 	{
 		if (Property != nullptr)
 		{
 			PropertyName = InPropertyName;
 			TrackDisplayName = *Property->GetDisplayNameText().ToString();
-			if (Property->IsA<UBoolProperty>())
+			if (Property->IsA<FBoolProperty>())
 			{
 				PropertyType = (ESerializedPropertyType::BoolType);
 			}
-			else if (Property->IsA<UByteProperty>())
+			else if (Property->IsA<FByteProperty>())
 			{
 				PropertyType = (ESerializedPropertyType::ByteType);
 			}
-			else if (Property->IsA<UEnumProperty>())
+			else if (Property->IsA<FEnumProperty>())
 			{
 				PropertyType = (ESerializedPropertyType::EnumType);
 			}
-			else if (Property->IsA<UFloatProperty>())
+			else if (Property->IsA<FFloatProperty>())
 			{
 				PropertyType = (ESerializedPropertyType::FloatType);
 			}
-			else if (const UStructProperty* StructProperty = Cast<const UStructProperty>(Property))
+			else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
 			{
 				if (StructProperty->Struct->GetFName() == NAME_Vector)
 				{
@@ -85,11 +85,11 @@ struct FPropertyFileHeader
 					PropertyType = (ESerializedPropertyType::ColorType);
 				}
 			}
-			else if (Property->IsA<UIntProperty>())
+			else if (Property->IsA<FIntProperty>())
 			{
 				PropertyType = (ESerializedPropertyType::IntegerType);
 			}
-			else if (Property->IsA<UStrProperty>())
+			else if (Property->IsA<FStrProperty>())
 			{
 				PropertyType = (ESerializedPropertyType::StringType);
 			}

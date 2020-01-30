@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectTrace.h"
 
@@ -12,6 +12,8 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/CommandLine.h"
+#include "HAL/IConsoleManager.h"
+#include "Engine/World.h"
 
 UE_TRACE_EVENT_BEGIN(Object, Class, Important)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
@@ -32,12 +34,22 @@ UE_TRACE_EVENT_BEGIN(Object, ObjectEvent)
 	UE_TRACE_EVENT_FIELD(uint8, Event)
 UE_TRACE_EVENT_END()
 
+TAutoConsoleVariable<int32> CVarRecordAllWorldTypes(
+	TEXT("Insights.RecordAllWorldTypes"),
+	0,
+	TEXT("Gameplay Insights recording by default only records Game and PIE worlds.")
+	TEXT("Toggle this value to 1 to record other world types."));
+
 // Object annotations used for tracing
 struct FTracedObjectAnnotation
 {
 	FTracedObjectAnnotation()
-		: bTraced(false)
+		: Id(0)
+		, bTraced(false)
 	{}
+
+	// Object ID
+	uint64 Id;
 
 	// Whether this object has been traced this session
 	bool bTraced;
@@ -45,12 +57,22 @@ struct FTracedObjectAnnotation
 	/** Determine if this annotation is default - required for annotations */
 	FORCEINLINE bool IsDefault() const
 	{
-		return !bTraced;
+		return bTraced == false && Id == 0;
 	}
 };
 
 // Object annotations used for tracing
 FUObjectAnnotationSparse<FTracedObjectAnnotation, true> GObjectTraceAnnotations;
+
+static bool ShouldTraceObjectsWorld(const  UObject* InObject)
+{
+	UWorld* World = InObject->GetWorld();
+	return 
+		CVarRecordAllWorldTypes.GetValueOnAnyThread() != 0 ||
+		World == nullptr || 
+		World->WorldType == EWorldType::Game ||
+		World->WorldType == EWorldType::PIE;
+}
 
 void FObjectTrace::Init()
 {
@@ -65,23 +87,37 @@ void FObjectTrace::Init()
 
 uint64 FObjectTrace::GetObjectId(const UObject* InObject)
 {
-	// An object ID uses a combination of its own and its outer's hash
+	// An object ID uses a combination of its own and its outer's index
 	// We do this to represent objects that get renamed into different outers 
 	// as distinct traces (we don't attempt to link them).
-	// We use a weak object ptr hash to take into account object name-recycling, 
-	// and represent the new object as a distinct entry
-	uint64 ObjectHash = 0;
-	uint64 OuterHash = 0;
-	if(InObject != nullptr)
+
+	auto GetObjectIdInner = [](const UObject* InObjectInner)
 	{
-		ObjectHash = GetTypeHash(TWeakObjectPtr<const UObject>(InObject));
-		if(UObject* Outer = InObject->GetOuter())
+		static uint64 CurrentId = 1;
+
+		FTracedObjectAnnotation Annotation = GObjectTraceAnnotations.GetAnnotation(InObjectInner);
+		if(Annotation.Id == 0)
 		{
-			OuterHash = GetTypeHash(TWeakObjectPtr<UObject>(Outer));
+			Annotation.Id = CurrentId++;
+			GObjectTraceAnnotations.AddAnnotation(InObjectInner, Annotation);
+		}
+
+		return Annotation.Id;
+	};
+
+	uint64 Id = 0;
+	uint64 OuterId = 0;
+	if(InObject)
+	{
+		Id = GetObjectIdInner(InObject);
+
+		if(const UObject* Outer = InObject->GetOuter())
+		{
+			OuterId = GetObjectIdInner(Outer);
 		}
 	}
 
-	return ObjectHash | (OuterHash << 32);
+	return Id | (OuterId << 32);
 }
 
 void FObjectTrace::OutputClass(const UClass* InClass)
@@ -141,6 +177,11 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 	Annotation.bTraced = true;
 	GObjectTraceAnnotations.AddAnnotation(InObject, Annotation);
 
+	if(!ShouldTraceObjectsWorld(InObject))
+	{
+		return;
+	}
+
 	// Trace the object's class first
 	TRACE_CLASS(InObject->GetClass());
 
@@ -170,6 +211,11 @@ void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEve
 	}
 
 	if(InObject->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	if(!ShouldTraceObjectsWorld(InObject))
 	{
 		return;
 	}

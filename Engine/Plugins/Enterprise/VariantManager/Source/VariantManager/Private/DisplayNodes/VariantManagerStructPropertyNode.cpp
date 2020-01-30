@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayNodes/VariantManagerStructPropertyNode.h"
 
@@ -20,7 +20,7 @@
 #define LOCTEXT_NAMESPACE "FVariantManagerStructPropertyNode"
 
 // Makes small, colored "X" or "R" or etc labels to place inside the numeric entry boxes
-TSharedRef<SWidget> GetLabel(const UNumericProperty* InProp)
+TSharedRef<SWidget> GetLabel(const FNumericProperty* InProp)
 {
 	FString PropName = InProp->GetName();
 
@@ -54,7 +54,7 @@ TSharedRef<SWidget> GetLabel(const UNumericProperty* InProp)
 }
 
 template<typename NumericType>
-void ExtractNumericMetadata(UProperty* Property, TOptional<NumericType>& MinValue, TOptional<NumericType>& MaxValue, TOptional<NumericType>& SliderMinValue, TOptional<NumericType>& SliderMaxValue, NumericType& SliderExponent, NumericType& Delta, int32 &ShiftMouseMovePixelPerDelta, bool& SupportDynamicSliderMaxValue, bool& SupportDynamicSliderMinValue)
+void ExtractNumericMetadata(FProperty* Property, TOptional<NumericType>& MinValue, TOptional<NumericType>& MaxValue, TOptional<NumericType>& SliderMinValue, TOptional<NumericType>& SliderMaxValue, NumericType& SliderExponent, NumericType& Delta, int32 &ShiftMouseMovePixelPerDelta, bool& SupportDynamicSliderMaxValue, bool& SupportDynamicSliderMinValue)
 {
 	const FString& MetaUIMinString = Property->GetMetaData(TEXT("UIMin"));
 	const FString& MetaUIMaxString = Property->GetMetaData(TEXT("UIMax"));
@@ -129,7 +129,7 @@ void ExtractNumericMetadata(UProperty* Property, TOptional<NumericType>& MinValu
 #define GET_OR_EMPTY(Optional, type) Optional.IsSet()? static_cast<type>(Optional.GetValue()) : TOptional<type>()
 
 template <typename F>
-TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(UNumericProperty* Prop, int32 Offset)
+TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(FNumericProperty* Prop, int32 Offset)
 {
 	TOptional<F> MinValue, MaxValue, SliderMinValue, SliderMaxValue;
 	F SliderExponent, Delta;
@@ -164,7 +164,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(UNu
 }
 
 template <typename S>
-TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateSignedEntryBox(UNumericProperty* Prop, int32 Offset)
+TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateSignedEntryBox(FNumericProperty* Prop, int32 Offset)
 {
 	TOptional<S> MinValue, MaxValue, SliderMinValue, SliderMaxValue;
 	S SliderExponent, Delta;
@@ -199,7 +199,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateSignedEntryBox(UN
 }
 
 template <typename U>
-TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateUnsignedEntryBox(UNumericProperty* Prop, int32 Offset)
+TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateUnsignedEntryBox(FNumericProperty* Prop, int32 Offset)
 {
 	TOptional<U> MinValue, MaxValue, SliderMinValue, SliderMaxValue;
 	U SliderExponent, Delta;
@@ -329,15 +329,15 @@ TSharedPtr<SWidget> FVariantManagerStructPropertyNode::GetPropertyValueWidget()
 	FMargin LastMargin = CommonMargin;
 	LastMargin.Right = 0.0f;
 
-	UNumericProperty* LastProp = nullptr;
-	for (TFieldIterator<UNumericProperty> NumPropIter(StructClassToEdit); NumPropIter; ++NumPropIter)
+	FNumericProperty* LastProp = nullptr;
+	for (TFieldIterator<FNumericProperty> NumPropIter(StructClassToEdit); NumPropIter; ++NumPropIter)
 	{
 		LastProp = *NumPropIter;
 	}
 
-	for (TFieldIterator<UNumericProperty> NumPropIter(StructClassToEdit); NumPropIter; ++NumPropIter)
+	for (TFieldIterator<FNumericProperty> NumPropIter(StructClassToEdit); NumPropIter; ++NumPropIter)
 	{
-		UNumericProperty* Prop = *NumPropIter;
+		FNumericProperty* Prop = *NumPropIter;
 
 		// Check if we have the same value on all UPropertyValue, for each separate child property
 		int32 Size = Prop->ElementSize;
@@ -472,7 +472,7 @@ TSharedPtr<SWidget> FVariantManagerStructPropertyNode::GetPropertyValueWidget()
 			];
 }
 
-void FVariantManagerStructPropertyNode::OnFloatPropCommitted(double InValue, ETextCommit::Type InCommitType, UNumericProperty* Prop, int32 Offset)
+void FVariantManagerStructPropertyNode::OnFloatPropCommitted(double InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 Offset)
 {
 	if (!Prop || PropertyValues.Num() < 1 || !PropertyValues[0].IsValid())
 	{
@@ -530,7 +530,7 @@ void FVariantManagerStructPropertyNode::OnFloatPropCommitted(double InValue, ETe
 	ResetButton->SetVisibility(GetResetButtonVisibility());
 }
 
-void FVariantManagerStructPropertyNode::OnSignedPropCommitted(int64 InValue, ETextCommit::Type InCommitType, UNumericProperty* Prop, int32 Offset)
+void FVariantManagerStructPropertyNode::OnSignedPropCommitted(int64 InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 Offset)
 {
 	if (!Prop || PropertyValues.Num() < 1 || !PropertyValues[0].IsValid())
 	{
@@ -599,7 +599,7 @@ void FVariantManagerStructPropertyNode::OnSignedPropCommitted(int64 InValue, ETe
 	ResetButton->SetVisibility(GetResetButtonVisibility());
 }
 
-void FVariantManagerStructPropertyNode::OnUnsignedPropCommitted(uint64 InValue, ETextCommit::Type InCommitType, UNumericProperty* Prop, int32 Offset)
+void FVariantManagerStructPropertyNode::OnUnsignedPropCommitted(uint64 InValue, ETextCommit::Type InCommitType, FNumericProperty* Prop, int32 Offset)
 {
 	if (!Prop || PropertyValues.Num() < 1 || !PropertyValues[0].IsValid())
 	{
@@ -668,7 +668,7 @@ void FVariantManagerStructPropertyNode::OnUnsignedPropCommitted(uint64 InValue, 
 	ResetButton->SetVisibility(GetResetButtonVisibility());
 }
 
-TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromPropertyValue(UNumericProperty* Prop, int32 Offset) const
+TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromPropertyValue(FNumericProperty* Prop, int32 Offset) const
 {
 	int32 NumPropVals = PropertyValues.Num();
 	if (Prop == nullptr || NumPropVals < 1)
@@ -722,7 +722,7 @@ TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromPropertyVa
 	}
 }
 
-TOptional<int64> FVariantManagerStructPropertyNode::GetSignedValueFromPropertyValue(UNumericProperty* Prop, int32 Offset) const
+TOptional<int64> FVariantManagerStructPropertyNode::GetSignedValueFromPropertyValue(FNumericProperty* Prop, int32 Offset) const
 {
 	int32 NumPropVals = PropertyValues.Num();
 	if (Prop == nullptr || NumPropVals < 1)
@@ -776,7 +776,7 @@ TOptional<int64> FVariantManagerStructPropertyNode::GetSignedValueFromPropertyVa
 	}
 }
 
-TOptional<uint64> FVariantManagerStructPropertyNode::GetUnsignedValueFromPropertyValue(UNumericProperty* Prop, int32 Offset) const
+TOptional<uint64> FVariantManagerStructPropertyNode::GetUnsignedValueFromPropertyValue(FNumericProperty* Prop, int32 Offset) const
 {
 	int32 NumPropVals = PropertyValues.Num();
 	if (Prop == nullptr || NumPropVals < 1)
@@ -830,7 +830,7 @@ TOptional<uint64> FVariantManagerStructPropertyNode::GetUnsignedValueFromPropert
 	}
 }
 
-TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromCache(UNumericProperty* Prop) const
+TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromCache(FNumericProperty* Prop) const
 {
 	if (const TOptional<double>* FoundValue = FloatValues.Find(Prop))
 	{
@@ -840,7 +840,7 @@ TOptional<double> FVariantManagerStructPropertyNode::GetFloatValueFromCache(UNum
 	return TOptional<double>();
 }
 
-TOptional<int64> FVariantManagerStructPropertyNode::GetSignedValueFromCache(UNumericProperty* Prop) const
+TOptional<int64> FVariantManagerStructPropertyNode::GetSignedValueFromCache(FNumericProperty* Prop) const
 {
 	if (const TOptional<int64>* FoundValue = SignedValues.Find(Prop))
 	{
@@ -850,7 +850,7 @@ TOptional<int64> FVariantManagerStructPropertyNode::GetSignedValueFromCache(UNum
 	return TOptional<int64>();
 }
 
-TOptional<uint64> FVariantManagerStructPropertyNode::GetUnsignedValueFromCache(UNumericProperty* Prop) const
+TOptional<uint64> FVariantManagerStructPropertyNode::GetUnsignedValueFromCache(FNumericProperty* Prop) const
 {
 	if (const TOptional<uint64>* FoundValue = UnsignedValues.Find(Prop))
 	{
@@ -860,30 +860,30 @@ TOptional<uint64> FVariantManagerStructPropertyNode::GetUnsignedValueFromCache(U
 	return TOptional<uint64>();
 }
 
-void FVariantManagerStructPropertyNode::OnBeginSliderMovement(UNumericProperty* Prop)
+void FVariantManagerStructPropertyNode::OnBeginSliderMovement(FNumericProperty* Prop)
 {
 	bIsUsingSlider = true;
 }
 
-void FVariantManagerStructPropertyNode::OnFloatEndSliderMovement(double LastValue, UNumericProperty* Prop, int32 Offset)
+void FVariantManagerStructPropertyNode::OnFloatEndSliderMovement(double LastValue, FNumericProperty* Prop, int32 Offset)
 {
 	bIsUsingSlider = false;
 	OnFloatPropCommitted(LastValue, ETextCommit::Type::Default, Prop, Offset);
 }
 
-void FVariantManagerStructPropertyNode::OnSignedEndSliderMovement(int64 LastValue, UNumericProperty* Prop, int32 Offset)
+void FVariantManagerStructPropertyNode::OnSignedEndSliderMovement(int64 LastValue, FNumericProperty* Prop, int32 Offset)
 {
 	bIsUsingSlider = false;
 	OnSignedPropCommitted(LastValue, ETextCommit::Type::Default, Prop, Offset);
 }
 
-void FVariantManagerStructPropertyNode::OnUnsignedEndSliderMovement(uint64 LastValue, UNumericProperty* Prop, int32 Offset)
+void FVariantManagerStructPropertyNode::OnUnsignedEndSliderMovement(uint64 LastValue, FNumericProperty* Prop, int32 Offset)
 {
 	bIsUsingSlider = false;
 	OnUnsignedPropCommitted(LastValue, ETextCommit::Type::Default, Prop, Offset);
 }
 
-void FVariantManagerStructPropertyNode::OnFloatValueChanged(double NewValue, UNumericProperty* Prop)
+void FVariantManagerStructPropertyNode::OnFloatValueChanged(double NewValue, FNumericProperty* Prop)
 {
 	if (!bIsUsingSlider)
 	{
@@ -894,7 +894,7 @@ void FVariantManagerStructPropertyNode::OnFloatValueChanged(double NewValue, UNu
 	StoredVal = NewValue;
 }
 
-void FVariantManagerStructPropertyNode::OnSignedValueChanged(int64 NewValue, UNumericProperty* Prop)
+void FVariantManagerStructPropertyNode::OnSignedValueChanged(int64 NewValue, FNumericProperty* Prop)
 {
 	if (!bIsUsingSlider)
 	{
@@ -905,7 +905,7 @@ void FVariantManagerStructPropertyNode::OnSignedValueChanged(int64 NewValue, UNu
 	StoredVal = NewValue;
 }
 
-void FVariantManagerStructPropertyNode::OnUnsignedValueChanged(uint64 NewValue, UNumericProperty* Prop)
+void FVariantManagerStructPropertyNode::OnUnsignedValueChanged(uint64 NewValue, FNumericProperty* Prop)
 {
 	if (!bIsUsingSlider)
 	{

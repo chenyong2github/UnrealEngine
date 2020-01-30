@@ -1,10 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "SequencerTrackFilterBase.h"
 #include "Misc/IFilter.h"
-#include "Misc/FilterCollection.h"
 #include "CollectionManagerTypes.h"
 #include "Styling/SlateIconFinder.h"
 #include "EditorStyleSet.h"
@@ -21,25 +20,28 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Particles/ParticleSystem.h"
 
+#include "Channels/MovieSceneChannel.h"
+
 class UWorld;
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
-class FSequencerTrackFilterCollection : public TFilterCollection<FTrackFilterType>
+class FSequencerTrackFilterCollection : public TSharedFromThis<FSequencerTrackFilterCollection>
 {
 public:
 	/**
 	 *	Returns whether the specified Item passes any of the filters in the collection
 	 *
 	 *	@param	InItem	The Item to check against all child filter restrictions
+	 *  @param  InText  The Items Displayed Name
 	 *	@return			Whether the Item passed any child filter restrictions
 	 */
 	 // @todo Maybe this should get moved in to TFilterCollection
-	bool PassesAnyFilters(/*ItemType*/ FTrackFilterType InItem) const
+	bool PassesAnyFilters(/*ItemType*/ FTrackFilterType InItem, const FText& InText) const
 	{
-		for (int Index = 0; Index < ChildFilters.Num(); Index++)
+		for (int32 Index = 0; Index < ChildFilters.Num(); Index++)
 		{
-			if (ChildFilters[Index]->PassesFilter(InItem))
+			if (ChildFilters[Index]->PassesFilterWithDisplayName(InItem, InText))
 			{
 				return true;
 			}
@@ -47,11 +49,27 @@ public:
 
 		return false;
 	}
-
-	// @todo Maybe this should get moved in to TFilterCollection
-	bool Contains(const TSharedPtr< IFilter< FTrackFilterType > >& InItem) const
+	/**
+ *	Returns whether the specified MovieSceneChannel  passes any of the filters in the collection
+ *
+ *	@param	InChannel	The Item to check against all child filter restrictions
+ *	@return			Whether the Item passed any child filter restrictions
+ */
+	bool PassesAnyFilters(FMovieSceneChannel* InChannel) const
 	{
-		for (const TSharedPtr<IFilter<FTrackFilterType>>& Filter : ChildFilters)
+		for (int32 Index = 0; Index < ChildFilters.Num(); Index++)
+		{
+			if (ChildFilters[Index]->PassesFilterChannel(InChannel))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+	// @todo Maybe this should get moved in to TFilterCollection
+	bool Contains(const TSharedPtr< FSequencerTrackFilter >& InItem) const
+	{
+		for (const TSharedPtr<FSequencerTrackFilter>& Filter : ChildFilters)
 		{
 			if (InItem == Filter)
 			{
@@ -66,7 +84,7 @@ public:
 	{
 		for (auto Iterator = ChildFilters.CreateIterator(); Iterator; ++Iterator)
 		{
-			const TSharedPtr< IFilter< FTrackFilterType > >& Filter = *Iterator;
+			const TSharedPtr< FSequencerTrackFilter >& Filter = *Iterator;
 
 			if (Filter.IsValid())
 			{
@@ -78,6 +96,112 @@ public:
 
 		ChangedEvent.Broadcast();
 	}
+
+	/**
+	 * TFilterCollection destructor. Unregisters from all child filter changed delegates.
+	 */
+	~FSequencerTrackFilterCollection()
+	{
+		for (auto Iterator = ChildFilters.CreateIterator(); Iterator; ++Iterator)
+		{
+			const TSharedPtr< FSequencerTrackFilter>& Filter = *Iterator;
+
+			if (Filter.IsValid())
+			{
+				Filter->OnChanged().RemoveAll(this);
+			}
+		}
+	}
+
+	/**
+	 *	Adds the specified Filter to the collection
+	 *
+	 *	@param	Filter	The filter object to add to the collection
+	 *	@return			The index in the collection at which the filter was added
+	 */
+	int32 Add(const TSharedPtr<FSequencerTrackFilter >& Filter)
+	{
+		int32 ExistingIdx;
+		if (ChildFilters.Find(Filter, ExistingIdx))
+		{
+			// The filter already exists, don't add a new one but return the index where it was found.
+			return ExistingIdx;
+		}
+
+		if (Filter.IsValid())
+		{
+			Filter->OnChanged().AddSP(this, &FSequencerTrackFilterCollection::OnChildFilterChanged);
+		}
+
+		int32 Result = ChildFilters.Add(Filter);
+		ChangedEvent.Broadcast();
+
+		return Result;
+	}
+
+	/**
+	 *	Removes as many instances of the specified Filter as there are in the collection
+	 *
+	 *	@param	Filter	The filter object to remove from the collection
+	 *	@return			The number of Filters removed from the collection
+	 */
+	int32 Remove(const TSharedPtr<FSequencerTrackFilter >& Filter)
+	{
+		if (Filter.IsValid())
+		{
+			Filter->OnChanged().RemoveAll(this);
+		}
+
+		int32 Result = ChildFilters.Remove(Filter);
+
+		// Don't broadcast if the collection didn't change
+		if (Result > 0)
+		{
+			ChangedEvent.Broadcast();
+		}
+
+		return Result;
+	}
+
+	/**
+	 *	Gets the filter at the specified index
+	 *
+	 *	@param	Index	The index of the requested filter in the ChildFilters array.
+	 *	@return			Filter at the specified index
+	 */
+	TSharedPtr< FSequencerTrackFilter> GetFilterAtIndex(int32 Index)
+	{
+		return ChildFilters[Index];
+	}
+
+	/** Returns the number of Filters in the collection */
+	FORCEINLINE int32 Num() const
+	{
+		return ChildFilters.Num();
+	}
+
+
+	/** Broadcasts anytime the restrictions of any of the child Filters change */
+	DECLARE_EVENT(FSequencerTrackFilterCollection, FChangedEvent);
+	FChangedEvent& OnChanged() { return ChangedEvent; }
+
+protected:
+
+	/**
+	 *	Called when a child Filter restrictions change and broadcasts the FilterChanged delegate
+	 *	for the collection
+	 */
+	void OnChildFilterChanged()
+	{
+		ChangedEvent.Broadcast();
+	}
+
+	/** The array of child filters */
+	TArray< TSharedPtr< FSequencerTrackFilter > > ChildFilters;
+
+	/**	Fires whenever any filter in the collection changes */
+	FChangedEvent ChangedEvent;
+
 };
 
 class FSequencerTrackFilter_AudioTracks : public FSequencerTrackFilter_ClassType< UMovieSceneAudioTrack >
@@ -183,4 +307,23 @@ private:
 	TWeakObjectPtr<UWorld> CachedWorld;
 };
 
+
+class FSequencerTrackFilter_Animated : public FSequencerTrackFilter
+{
+	virtual FString GetName() const override { return TEXT("AnimatedFilter"); }
+	virtual FText GetDisplayName() const override { return LOCTEXT("SequenceTrackFilter_Animated", "Animated Tracks"); }
+	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_AnimatedTip", "Show Only Animated Tracks."); }
+	virtual FSlateIcon GetIcon() const { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyUser"); }
+
+	virtual bool PassesFilter(FTrackFilterType InItem) const override
+	{
+		return false;
+	}
+
+	virtual bool PassesFilterChannel(FMovieSceneChannel* InMovieSceneChannel) const override
+	{
+		return (InMovieSceneChannel && InMovieSceneChannel->GetNumKeys() > 0);
+	}
+
+};
 #undef LOCTEXT_NAMESPACE

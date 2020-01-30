@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -39,7 +39,7 @@ class UFoliageType_InstancedStaticMesh : public UFoliageType
 
 #if WITH_EDITOR
 	virtual void UpdateBounds() override;
-	virtual bool IsSourcePropertyChange(const UProperty* Property) const override
+	virtual bool IsSourcePropertyChange(const FProperty* Property) const override
 	{
 		return Property && Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFoliageType_InstancedStaticMesh, Mesh);
 	}

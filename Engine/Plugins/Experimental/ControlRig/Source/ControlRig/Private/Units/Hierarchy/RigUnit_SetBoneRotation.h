@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,7 +14,7 @@ struct FRigUnit_SetBoneRotation : public FRigUnitMutable
 {
 	GENERATED_BODY()
 
-	FRigUnit_SetBoneRotation()
+		FRigUnit_SetBoneRotation()
 		: Rotation(FQuat::Identity)
 		, Space(EBoneGetterSetterMode::LocalSpace)
 		, Weight(1.f)
@@ -23,13 +23,31 @@ struct FRigUnit_SetBoneRotation : public FRigUnitMutable
 	{}
 
 	virtual FString GetUnitLabel() const override;
+
+	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("Rotation")) && Space == EBoneGetterSetterMode::LocalSpace)
+		{
+			if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+			{
+				int32 BoneIndex = Container->BoneHierarchy.GetIndex(Bone);
+				if (BoneIndex != INDEX_NONE)
+				{
+					return Container->BoneHierarchy[BoneIndex].ParentName;
+				}
+
+			}
+		}
+		return NAME_None;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**
 	 * The name of the Bone to set the rotation for.
 	 */
-	UPROPERTY(meta = (Input, BoneName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
 	FName Bone;
 
 	/**
@@ -56,7 +74,7 @@ struct FRigUnit_SetBoneRotation : public FRigUnitMutable
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
 	// Used to cache the internally used bone index

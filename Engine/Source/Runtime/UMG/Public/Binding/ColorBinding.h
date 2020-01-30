@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,10 +18,10 @@ public:
 
 	UColorBinding();
 
-	virtual bool IsSupportedSource(UProperty* Property) const override;
-	virtual bool IsSupportedDestination(UProperty* Property) const override;
+	virtual bool IsSupportedSource(FProperty* Property) const override;
+	virtual bool IsSupportedDestination(FProperty* Property) const override;
 
-	virtual void Bind(UProperty* Property, FScriptDelegate* Delegate) override;
+	virtual void Bind(FProperty* Property, FScriptDelegate* Delegate) override;
 
 	UFUNCTION()
 	FSlateColor GetSlateValue() const;

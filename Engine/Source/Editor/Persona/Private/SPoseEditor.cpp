@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SPoseEditor.h"
@@ -37,7 +37,7 @@ void SPoseEditor::Construct(const FArguments& InArgs, const TSharedRef<class IPe
 	check(PoseAssetObj);
 
 	SAnimEditorBase::Construct(SAnimEditorBase::FArguments()
-		.DisplayAnimInfoBar(false),
+		.DisplayAnimTimeline(false),
 		InPreviewScene);
 
 	NonScrollEditorPanels->AddSlot()

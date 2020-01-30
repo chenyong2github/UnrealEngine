@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
 #include "GraphEditor.h"
+#include "ContentBrowserDelegates.h"
 
 class FNiagaraOverviewGraphViewModel;
 struct FActionMenuContent;
@@ -21,6 +22,9 @@ public:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+public:
+	FRefreshAssetViewDelegate RefreshAssetView;
+
 private:
 	void ViewModelSelectionChanged();
 
@@ -32,13 +36,13 @@ private:
 	FActionMenuContent OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
 
 	void OnCreateComment();
+	void OnClearIsolated();
 
 	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 
 	void CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilder, UEdGraph* InGraph);
 
 	void ZoomToFit();
-
 	void ZoomToFitAll();
 
 	void OnAlignTop();
@@ -48,7 +52,12 @@ private:
 	void OnDistributeNodesH();
 	void OnDistributeNodesV();
 
+	void LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox);
+	ECheckBoxState GetLibraryCheckBoxState() const;
+	void TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox);
+	ECheckBoxState GetTemplateCheckBoxState() const;
 
+	bool ShouldFilterEmitter(const FAssetData& AssetData);
 private:
 	TSharedPtr<FNiagaraOverviewGraphViewModel> ViewModel;
 	TSharedPtr<SGraphEditor> GraphEditor;
@@ -57,4 +66,7 @@ private:
 	bool bUpdatingGraphSelectionFromViewModel;
 
 	int32 ZoomToFitFrameDelay;
+
+	static bool bShowLibraryOnly;
+	static bool bShowTemplateOnly;
 };

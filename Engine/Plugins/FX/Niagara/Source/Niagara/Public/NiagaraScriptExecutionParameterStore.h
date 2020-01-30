@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -16,13 +16,13 @@ public:
 	FNiagaraScriptExecutionPaddingInfo(uint32 InSrcOffset, uint32 InDestOffset, uint32 InSrcSize, uint32 InDestSize) : SrcOffset(InSrcOffset), DestOffset(InDestOffset), SrcSize(InSrcSize), DestSize(InDestSize) {}
 
 	UPROPERTY()
-	uint32 SrcOffset;
+	uint16 SrcOffset;
 	UPROPERTY()
-	uint32 DestOffset;
+	uint16 DestOffset;
 	UPROPERTY()
-	uint32 SrcSize;
+	uint16 SrcSize;
 	UPROPERTY()
-	uint32 DestSize;
+	uint16 DestSize;
 };
 
 /**
@@ -84,10 +84,10 @@ public:
 	}
 
 	// Just the external parameters, not previous or internal...
-	uint32 GetExternalParameterSize() { return ParameterSize; }
+	uint32 GetExternalParameterSize() const { return ParameterSize; }
 
 	// The entire buffer padded out by the required alignment of the types..
-	uint32 GetPaddedParameterSizeInBytes() { return PaddedParameterSize; }
+	uint32 GetPaddedParameterSizeInBytes() const { return PaddedParameterSize; }
 
 	// Helper that converts the data from the base type array internally into the padded out renderer-ready format.
 	void CopyParameterDataToPaddedBuffer(uint8* InTargetBuffer, uint32 InTargetBufferSizeInBytes);
@@ -97,6 +97,7 @@ public:
 	void SetAsInitialized() { bInitialized = true; }
 protected:
 	void AddPaddedParamSize(const FNiagaraTypeDefinition& InParamType, uint32 InOffset);
+	void AddAlignmentPadding();
 
 private:
 
@@ -107,7 +108,7 @@ private:
 	UPROPERTY()
 	uint32 PaddedParameterSize;
 
-	static void GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset);
+	static uint32 GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset);
 
 	UPROPERTY()
 	TArray<FNiagaraScriptExecutionPaddingInfo> PaddingInfo;

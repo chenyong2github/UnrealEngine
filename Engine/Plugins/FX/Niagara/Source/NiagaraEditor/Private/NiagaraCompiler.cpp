@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraCompiler.h"
 #include "NiagaraHlslTranslator.h"
@@ -1065,10 +1065,13 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 				int32 NewBindingIdx = Results.Data->CalledVMExternalFunctions.AddDefaulted();
 				Results.Data->CalledVMExternalFunctions[NewBindingIdx].Name = *Sig->GetName();
 				Results.Data->CalledVMExternalFunctions[NewBindingIdx].OwnerName = Sig->OwnerName;
-				Results.Data->CalledVMExternalFunctions[NewBindingIdx].Specifiers = Sig->FunctionSpecifiers;
-
 				Results.Data->CalledVMExternalFunctions[NewBindingIdx].InputParamLocations = FuncInfo.InputParamLocations;
 				Results.Data->CalledVMExternalFunctions[NewBindingIdx].NumOutputs = FuncInfo.NumOutputs;
+				for (auto it = Sig->FunctionSpecifiers.CreateConstIterator(); it; ++it)
+				{
+					// we convert the map into an array here to save runtime memory
+					Results.Data->CalledVMExternalFunctions[NewBindingIdx].FunctionSpecifiers.Emplace(it->Key, it->Value);
+				}
 			}
 			else
 			{

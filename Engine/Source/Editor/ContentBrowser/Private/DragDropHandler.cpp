@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DragDropHandler.h"
 #include "Layout/WidgetPath.h"
@@ -8,6 +8,8 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
+#include "AssetToolsModule.h"
+#include "Misc/BlacklistNames.h"
 
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "ContentBrowserUtils.h"
@@ -112,6 +114,13 @@ void DragDropHandler::HandleDropOnAssetFolder(const TSharedRef<SWidget>& ParentW
 	{
 		return ContentBrowserUtils::IsClassPath(AssetPath);
 	});
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(TargetPath))
+	{
+		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+		return;
+	}
 
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 	const FText MoveCopyHeaderString = FText::Format(LOCTEXT("AssetViewDropMenuHeading", "Move/Copy to {0}"), TargetDisplayName);

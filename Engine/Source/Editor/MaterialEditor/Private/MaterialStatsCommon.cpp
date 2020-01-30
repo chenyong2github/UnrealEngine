@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 //
 #include "MaterialStatsCommon.h"
 #include "EngineGlobals.h"
@@ -345,7 +345,7 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 	bool bMobileHDR = MobileHDR && MobileHDR->GetValueOnAnyThread() == 1;
 
 	static const FName FLocalVertexFactoryName = FLocalVertexFactory::StaticType.GetFName();
-	static const FName FGPUFactoryName = TGPUSkinVertexFactory<true>::StaticType.GetFName();
+	static const FName FGPUFactoryName = TEXT("TGPUSkinVertexFactoryExtra");
 
 	if (TargetMaterial->IsUIMaterial())
 	{

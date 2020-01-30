@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VariantManagerPropertyCapturer.h"
 
@@ -35,18 +35,18 @@ private:
 	void CaptureActorExceptionProperties(const AActor* Actor, FPropertyPath& PropertyPath, FString& PrettyPathString, TArray<FString>& ComponentNames);
 	void CaptureComponentExceptionProperties(const UActorComponent* Component, FPropertyPath& PropertyPath, FString& PrettyPathString, TArray<FString>& ComponentNames);
 
-	bool CanCaptureProperty(const UStruct* ContainerClass, const UProperty* Property, FName& OutSetterFunctionName);
+	bool CanCaptureProperty(const UStruct* ContainerClass, const FProperty* Property, FName& OutSetterFunctionName);
 	void CaptureProp(FPropertyPath& PropertyPath, FString& PrettyPathString, TArray<FString>& ComponentNames, FName PropertySetterName = FName(), EPropertyValueCategory InCaptureType = EPropertyValueCategory::Generic);
 
 	void GetAllPropertyPathsRecursive(const void* ValuePtr, const UStruct* PropertySource, FPropertyPath PropertyPath, FString PrettyPathString, TArray<FString> ComponentNames);
 
-	static UArrayProperty* GetMeshComponentOverloadMaterials();
-	static UStructProperty* GetSceneComponentRelativeLocation();
-	static UStructProperty* GetSceneComponentRelativeRotation();
-	static UStructProperty* GetSceneComponentRelativeScale3D();
-	static UBoolProperty* GetSceneComponentbVisible();
-	static UStructProperty* GetLightComponentLightColor();
-	static UStructProperty* GetFogComponentDefaultLightColor();
+	static FArrayProperty* GetMeshComponentOverloadMaterials();
+	static FStructProperty* GetSceneComponentRelativeLocation();
+	static FStructProperty* GetSceneComponentRelativeRotation();
+	static FStructProperty* GetSceneComponentRelativeScale3D();
+	static FBoolProperty* GetSceneComponentbVisible();
+	static FStructProperty* GetLightComponentLightColor();
+	static FStructProperty* GetFogComponentDefaultLightColor();
 
 private:
 
@@ -108,7 +108,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 			int32 NumMats = ComponentAsMeshComponent->GetNumMaterials();
 			const static FString MatString = FString(TEXT("Material["));
 
-			UArrayProperty* OverrideMatsProp = FVariantManagerUtils::GetOverrideMaterialsProperty();
+			FArrayProperty* OverrideMatsProp = FVariantManagerUtils::GetOverrideMaterialsProperty();
 			PropertyPath.AddProperty(FPropertyInfo(OverrideMatsProp));
 
 			FPropertyInfo LeafInfo(OverrideMatsProp->Inner);
@@ -137,7 +137,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::RelativeLocation))
 		{
-			UStructProperty* RelativeLocationProp = FVariantManagerUtils::GetRelativeLocationProperty();
+			FStructProperty* RelativeLocationProp = FVariantManagerUtils::GetRelativeLocationProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(RelativeLocationProp));
 			ComponentNames.Add(FString());
@@ -149,7 +149,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::RelativeRotation))
 		{
-			UStructProperty* RelativeRotationProp = FVariantManagerUtils::GetRelativeRotationProperty();
+			FStructProperty* RelativeRotationProp = FVariantManagerUtils::GetRelativeRotationProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(RelativeRotationProp));
 			ComponentNames.Add(FString());
@@ -161,7 +161,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::RelativeScale3D))
 		{
-			UStructProperty* RelativeScale3DProp = FVariantManagerUtils::GetRelativeScale3DProperty();
+			FStructProperty* RelativeScale3DProp = FVariantManagerUtils::GetRelativeScale3DProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(RelativeScale3DProp));
 			ComponentNames.Add(FString());
@@ -174,7 +174,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::Visibility))
 		{
-			UBoolProperty* VisibilityProp = FVariantManagerUtils::GetVisibilityProperty();
+			FBoolProperty* VisibilityProp = FVariantManagerUtils::GetVisibilityProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(VisibilityProp));
 			ComponentNames.Add(FString());
@@ -191,7 +191,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::Color))
 		{
-			UStructProperty* LightColorProp = FVariantManagerUtils::GetLightColorProperty();
+			FStructProperty* LightColorProp = FVariantManagerUtils::GetLightColorProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(LightColorProp));
 			ComponentNames.Add(FString());
@@ -208,7 +208,7 @@ void FPropertyCaptureHelper::CaptureComponentExceptionProperties(const UActorCom
 
 		if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::Color))
 		{
-			UStructProperty* FogComponentProp = FVariantManagerUtils::GetDefaultLightColorProperty();
+			FStructProperty* FogComponentProp = FVariantManagerUtils::GetDefaultLightColorProperty();
 
 			PropertyPath.AddProperty(FPropertyInfo(FogComponentProp));
 			ComponentNames.Add(FString());
@@ -233,7 +233,7 @@ bool IsHiddenFunction(const UStruct* PropertyStructure, const FString& FunctionN
 	return HideFunctions.Contains(FunctionName);
 }
 
-bool FPropertyCaptureHelper::CanCaptureProperty(const UStruct* ContainerClass, const UProperty* Property, FName& OutSetterFunctionName)
+bool FPropertyCaptureHelper::CanCaptureProperty(const UStruct* ContainerClass, const FProperty* Property, FName& OutSetterFunctionName)
 {
 	if (EnumHasAnyFlags(CategoriesToCapture, EPropertyValueCategory::Generic))
 	{
@@ -261,7 +261,7 @@ bool FPropertyCaptureHelper::CanCaptureProperty(const UStruct* ContainerClass, c
 
 				// If this is a bool property, strip off the 'b' so that the "Set" functions to be
 				// found are, for example, "SetHidden" instead of "SetbHidden"
-				if (Property->GetClass()->IsChildOf(UBoolProperty::StaticClass()))
+				if (Property->GetClass()->IsChildOf(FBoolProperty::StaticClass()))
 				{
 					PropertyVarName.RemoveFromStart("b", ESearchCase::CaseSensitive);
 				}
@@ -287,17 +287,17 @@ bool FPropertyCaptureHelper::CanCaptureProperty(const UStruct* ContainerClass, c
 				// And all other parameters have default arguments
 				if (bFoundValidFunction)
 				{
-					for( TFieldIterator<UProperty> It(Function); It && It->HasAnyPropertyFlags(CPF_Parm) && !It->HasAnyPropertyFlags(CPF_OutParm|CPF_ReturnParm); ++It)
+					for( TFieldIterator<FProperty> It(Function); It && It->HasAnyPropertyFlags(CPF_Parm) && !It->HasAnyPropertyFlags(CPF_OutParm|CPF_ReturnParm); ++It)
 					{
-						UProperty* PropertyParam = *It;
+						FProperty* PropertyParam = *It;
 						checkSlow(PropertyParam); // Fix static analysis warning
 						bool bParamCanBeHandled = false;
 
 						if (PropertyParam->GetClass() == Property->GetClass())
 						{
-							if (Property->GetClass()->IsChildOf(UStructProperty::StaticClass()))
+							if (Property->GetClass()->IsChildOf(FStructProperty::StaticClass()))
 							{
-								if (Cast<UStructProperty>(Property)->Struct == Cast<UStructProperty>(PropertyParam)->Struct)
+								if (CastField<FStructProperty>(Property)->Struct == CastField<FStructProperty>(PropertyParam)->Struct)
 								{
 									bParamCanBeHandled = true;
 								}
@@ -360,9 +360,9 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 	FName PropertySetterName;
 
 	//@todo variantmanager clean this up, tons of duplication
-	for (TFieldIterator<UProperty> PropertyIterator(PropertySource); PropertyIterator; ++PropertyIterator)
+	for (TFieldIterator<FProperty> PropertyIterator(PropertySource); PropertyIterator; ++PropertyIterator)
 	{
-		UProperty* Property = *PropertyIterator;
+		FProperty* Property = *PropertyIterator;
 
 		if (Property)
 		{
@@ -388,7 +388,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 			ComponentNames.Add(FString());
 
 			// Arrays of..
-			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 			{
 				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(ValuePtr));
 				for (int32 Index = 0; Index < ArrayHelper.Num(); ++Index)
@@ -400,7 +400,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 					ComponentNames.Add(FString());
 
 					// ...structs
-					if (UStructProperty* StructProperty = Cast<UStructProperty>(ArrayProperty->Inner))
+					if (FStructProperty* StructProperty = CastField<FStructProperty>(ArrayProperty->Inner))
 					{
 						// Check the UArrayProperty's flags. The Inner's flags are unused for this
 						if (CanCaptureProperty(PropertySource, ArrayProperty, PropertySetterName) &&
@@ -410,7 +410,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 						}
 					}
 					// ...objects
-					else if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(ArrayProperty->Inner))
+					else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner))
 					{
 						void* ObjectContainer = ArrayHelper.GetRawPtr(Index);
 						UObject* Object = ObjectProperty->GetObjectPropertyValue(ObjectContainer);
@@ -466,7 +466,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 				}
 			}
 			// Structs
-			else if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+			else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 			{
 				if (CanCaptureProperty(PropertySource, Property, PropertySetterName) && (FVariantManagerUtils::IsBuiltInStructProperty(Property) || CAPTURE_ENTIRE_NON_BUILTIN_STRUCTS))
 				{
@@ -486,7 +486,7 @@ void FPropertyCaptureHelper::GetAllPropertyPathsRecursive(const void* ValuePtr, 
 				}
 			}
 			// Objects
-			else if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property))
+			else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
 			{
 				const void* ObjectContainer = ObjectProperty->ContainerPtrToValuePtr<const void>(ValuePtr);
 				const UObject* Object = ObjectProperty->GetObjectPropertyValue(ObjectContainer);

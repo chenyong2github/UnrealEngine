@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ContentStreaming.h: Definitions of classes used for content streaming.
@@ -512,17 +512,20 @@ struct IAudioStreamingManager : public IStreamingManager
 	 * @param ChunkIndex the index of that soundwave we'd like to request a chunk of.
 	 * @param OnLoadCompleted optional callback when the load completes.
 	 * @param ThreadToCallOnLoadCompleteOn. Optional specifier for which thread OnLoadCompleted should be called on.
+	 * @param bForImmediatePlaybac if true, this will optionally reprioritize this chunk's load request.
 	 */
-	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted = [](EAudioChunkLoadResult) {}, ENamedThreads::Type ThreadToCallOnLoadCompletedOn = ENamedThreads::AnyThread) = 0;
+	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted = [](EAudioChunkLoadResult) {}, ENamedThreads::Type ThreadToCallOnLoadCompletedOn = ENamedThreads::AnyThread, bool bForImmediatePlayback = false) = 0;
 
 	/**
 	 * Gets a pointer to a chunk of audio data
 	 *
 	 * @param SoundWave		SoundWave we want a chunk from
 	 * @param ChunkIndex	Index of the chunk we want
+	 * @param bBlockForLoad if true, will block this thread until we finish loading this chunk.
+	 * @param bForImmediatePlayback if true, will optionally reprioritize this chunk's load request. See au.streamcaching.PlaybackRequestPriority.
 	 * @return a handle to the loaded chunk. Can return a default constructed FAudioChunkHandle if the chunk is not loaded yet.
 	 */
-	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex,  bool bBlockForLoad = false) const = 0;
+	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex,  bool bBlockForLoad = false, bool bForImmediatePlayback = false) const = 0;
 
 	/**
 	 * This will start evicting elements from the cache until either hit our target of bytes or run out of chunks we can free.
@@ -536,6 +539,16 @@ struct IAudioStreamingManager : public IStreamingManager
 	 * Used for rendering debug info:
 	 */
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) = 0;
+
+	/**
+	 * Generate a memory report as a formatted string for this streaming manager.
+	 */
+	virtual FString GenerateMemoryReport() = 0;
+
+	/**
+	 * Whether to toggle a performance intensive profiling mode the streaming manager.
+	 */
+	virtual void SetProfilingMode(bool bEnabled) = 0;
 
 protected:
 	friend FAudioChunkHandle;
@@ -586,6 +599,7 @@ struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 {
 	/** Default constructor, initializing all member variables. */
 	ENGINE_API FStreamingManagerCollection();
+	ENGINE_API ~FStreamingManagerCollection();
 
 	/**
 	 * Calls UpdateResourceStreaming(), and does per-frame cleaning. Call once per frame.

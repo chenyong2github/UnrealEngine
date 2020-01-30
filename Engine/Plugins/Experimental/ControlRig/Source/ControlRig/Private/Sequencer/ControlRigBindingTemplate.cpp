@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sequencer/ControlRigBindingTemplate.h"
 #include "MovieSceneSequence.h"
@@ -7,7 +7,8 @@
 #include "IMovieScenePlayer.h"
 #include "ControlRig.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Sequencer/ControlRigSequencerAnimInstance.h"
+#include "AnimCustomInstanceHelper.h"
+#include "Sequencer/ControlRigLayerInstance.h"
 #include "Sequencer/MovieSceneControlRigInstanceData.h"
 #include "IControlRigObjectBinding.h"
 
@@ -38,13 +39,13 @@ struct FControlRigPreAnimatedTokenProducer : IMovieScenePreAnimatedTokenProducer
 				{
 					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 					{
-						if (UControlRigSequencerAnimInstance* AnimInstance = Cast<UControlRigSequencerAnimInstance>(SkeletalMeshComponent->GetAnimInstance()))
+						if (UControlRigLayerInstance* AnimInstance = Cast<UControlRigLayerInstance>(SkeletalMeshComponent->GetAnimInstance()))
 						{
 							// Force us to zero weight before we despawn, as the graph could persist
 							AnimInstance->ResetNodes();
 							AnimInstance->RecalcRequiredBones();
 						}
-						UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(SkeletalMeshComponent);
+						FAnimCustomInstanceHelper::UnbindFromSkeletalMeshComponent<UControlRigLayerInstance>(SkeletalMeshComponent);
 					}
 
 					ControlRig->GetObjectBinding()->UnbindFromObject();
@@ -78,25 +79,30 @@ struct FBindControlRigObjectToken : IMovieSceneExecutionToken
 		, bSpawned(bInSpawned)
 	{}
 
-	void BindToSequencerInstance(UControlRig* ControlRig)
+	void BindToSequencerInstance(UControlRig* ControlRig, uint32 SequenceID)
 	{
 		check(ControlRig);
 		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 		{
 			bool bWasCreated = false;
-			if (UControlRigSequencerAnimInstance* AnimInstance = UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(SkeletalMeshComponent,bWasCreated))
+			if (UControlRigLayerInstance* AnimInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UControlRigLayerInstance>(SkeletalMeshComponent,bWasCreated))
 			{
+				if (bWasCreated)
+				{
+					AnimInstance->AddControlRigTrack(SequenceID, ControlRig);
+				}
+				
 				AnimInstance->RecalcRequiredBones();
 			}
 		}
 	}
 
-	void UnBindFromSequencerInstance(UControlRig* ControlRig)
+	void UnBindFromSequencerInstance(UControlRig* ControlRig, uint32 SequenceID)
 	{
 		check(ControlRig);
 		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 		{
-			UAnimCustomInstance::UnbindFromSkeletalMeshComponent(SkeletalMeshComponent);
+			FAnimCustomInstanceHelper::UnbindFromSkeletalMeshComponent<UControlRigLayerInstance>(SkeletalMeshComponent);
 		}
 	}
 
@@ -140,7 +146,7 @@ struct FBindControlRigObjectToken : IMovieSceneExecutionToken
 							UObject* OuterBoundObject = OuterBoundObjects[0].Get();
 							if (OuterBoundObject && !ControlRig->GetObjectBinding()->IsBoundToObject(OuterBoundObject))
 							{
-								UnBindFromSequencerInstance(ControlRig);
+								UnBindFromSequencerInstance(ControlRig, Operand.SequenceID.GetInternalValue());
 								ControlRig->GetObjectBinding()->UnbindFromObject();
 								ControlRig->GetObjectBinding()->BindToObject(OuterBoundObject);
 							}
@@ -149,12 +155,12 @@ struct FBindControlRigObjectToken : IMovieSceneExecutionToken
 #if WITH_EDITORONLY_DATA
 					else if (ObjectBinding.IsValid() && !ControlRig->GetObjectBinding()->IsBoundToObject(ObjectBinding.Get()))
 					{
-						UnBindFromSequencerInstance(ControlRig);
+						UnBindFromSequencerInstance(ControlRig, Operand.SequenceID.GetInternalValue());
 						ControlRig->GetObjectBinding()->UnbindFromObject();
 						ControlRig->GetObjectBinding()->BindToObject(ObjectBinding.Get());
 					}
 #endif
-					BindToSequencerInstance(ControlRig);
+					BindToSequencerInstance(ControlRig, Operand.SequenceID.GetInternalValue());
 				}
 			}
 			else
@@ -164,12 +170,12 @@ struct FBindControlRigObjectToken : IMovieSceneExecutionToken
 #if WITH_EDITORONLY_DATA
 				if (ObjectBinding.IsValid() && !ControlRig->GetObjectBinding()->IsBoundToObject(ObjectBinding.Get()))
 				{
-					UnBindFromSequencerInstance(ControlRig);
+					UnBindFromSequencerInstance(ControlRig, Operand.SequenceID.GetInternalValue());
 					ControlRig->GetObjectBinding()->UnbindFromObject();
 					ControlRig->GetObjectBinding()->BindToObject(ObjectBinding.Get());
 				}
 
-				BindToSequencerInstance(ControlRig);
+				BindToSequencerInstance(ControlRig, Operand.SequenceID.GetInternalValue());
 #endif
 			}
 
@@ -178,14 +184,10 @@ struct FBindControlRigObjectToken : IMovieSceneExecutionToken
 			{
 				if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 				{
-					if (UControlRigSequencerAnimInstance* AnimInstance = Cast<UControlRigSequencerAnimInstance>(SkeletalMeshComponent->GetAnimInstance()))
+					if (UControlRigLayerInstance* AnimInstance = Cast<UControlRigLayerInstance>(SkeletalMeshComponent->GetAnimInstance()))
 					{
 						// @todo: let's think about the input here, I'm disabling handling of inputs but allowing it to execute when ticks
-						bool bStructureChanged = AnimInstance->UpdateControlRig(ControlRig, Operand.SequenceID.GetInternalValue(), bAdditive, bApplyBoneFilter, *BoneFilter, Weight, false, true);
-						if (bStructureChanged)
-						{
-							AnimInstance->RecalcRequiredBones();
-						}
+						AnimInstance->UpdateControlRigTrack(Operand.SequenceID.GetInternalValue(), Weight, FControlRigIOSettings::MakeDisabled(), true);
 					}
 				}
 			}
@@ -207,13 +209,14 @@ struct FBindControlRigObjectToken : IMovieSceneExecutionToken
 				{
 					if(USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 					{
-						if (UControlRigSequencerAnimInstance* AnimInstance = Cast<UControlRigSequencerAnimInstance>(SkeletalMeshComponent->GetAnimInstance()))
+						if (UControlRigLayerInstance* AnimInstance = Cast<UControlRigLayerInstance>(SkeletalMeshComponent->GetAnimInstance()))
 						{
 							// Force us to zero weight before we despawn, as the graph could persist
-							AnimInstance->UpdateControlRig(ControlRig, Operand.SequenceID.GetInternalValue(), bAdditive, bApplyBoneFilter, *BoneFilter, 0.0f, true, true);
+							// @todo take a look and see why this would be 
+							AnimInstance->UpdateControlRigTrack(Operand.SequenceID.GetInternalValue(), 0.0f, FControlRigIOSettings::MakeEnabled(), true);
 							AnimInstance->RecalcRequiredBones();
 						}
-						UAnimSequencerInstance::UnbindFromSkeletalMeshComponent(SkeletalMeshComponent);
+						FAnimCustomInstanceHelper::UnbindFromSkeletalMeshComponent<UControlRigLayerInstance>(SkeletalMeshComponent);
 					}
 
 					ControlRig->GetObjectBinding()->UnbindFromObject();

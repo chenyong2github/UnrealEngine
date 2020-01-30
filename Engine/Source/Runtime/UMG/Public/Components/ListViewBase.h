@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Views/STileView.h"
 #include "Widgets/Views/STreeView.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include "ListViewBase.generated.h"
 
@@ -285,6 +286,7 @@ protected:
 		ESelectionMode::Type SelectionMode = ESelectionMode::Single;
 		bool bClearSelectionOnClick = false;
 		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
+		bool bReturnFocusToSelection = false;
 	};
 
 	template <template<typename> class TreeViewT = STreeView, typename UListViewBaseT>
@@ -299,6 +301,7 @@ protected:
 			.ClearSelectionOnClick(Args.bClearSelectionOnClick)
 			.ConsumeMouseWheel(Args.ConsumeMouseWheel)
 			.SelectionMode(Args.SelectionMode)
+			.ReturnFocusToSelection(Args.bReturnFocusToSelection)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
@@ -503,7 +506,7 @@ private:
  * To generate a row for the child list, use GenerateTypedRow with the appropriate SObjectTableRow<T> type for your list
  *
  * Additionally, the entry widget class can be filtered for a particular class and interface with the EntryClass and EntryInterface metadata arguments
- * This can be specified either on the class directly (see below) or on any BindWidget UProperty
+ * This can be specified either on the class directly (see below) or on any BindWidget FProperty
  *
  * Example:
  * class UMyUserWidget : public UUserWidget
@@ -728,7 +731,8 @@ protected:	\
 	virtual uint32 GetOwningUserIndex() const override \
 	{	\
 		const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();	\
-		return LocalPlayer ? LocalPlayer->GetControllerId() : 0;	\
+		int32 SlateUserIndex = LocalPlayer ? FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId()) : 0;	\
+		return SlateUserIndex >= 0 ? SlateUserIndex : 0;	\
 	}	\
 	virtual bool IsDesignerPreview() const override { return IsDesignTime(); }	\
 private:	\

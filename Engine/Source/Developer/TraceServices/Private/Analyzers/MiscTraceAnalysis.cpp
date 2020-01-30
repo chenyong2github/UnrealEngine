@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "MiscTraceAnalysis.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Model/LogPrivate.h"

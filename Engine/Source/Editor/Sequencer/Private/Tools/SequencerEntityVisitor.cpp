@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/SequencerEntityVisitor.h"
 #include "IKeyArea.h"
@@ -79,9 +79,12 @@ void FSequencerEntityWalker::ConditionallyIntersectNode(const ISequencerEntityVi
 			}
 		}
 
-		if (Range.IntersectKeyArea(InNode, VirtualKeySize.Y))
+		if (InNode->GetType() == ESequencerNode::Track || InNode->GetType() == ESequencerNode::KeyArea || InNode->GetType() == ESequencerNode::Category)
 		{
-			VisitKeyAnyAreas(Visitor, InNode, !InNode->IsExpanded());
+			if (Range.IntersectKeyArea(InNode, VirtualKeySize.Y))
+			{
+				VisitKeyAnyAreas(Visitor, InNode, !InNode->IsExpanded());
+			}
 		}
 	}
 

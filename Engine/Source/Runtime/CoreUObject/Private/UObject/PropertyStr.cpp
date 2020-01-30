@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
@@ -6,10 +6,11 @@
 #include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
-	UStrProperty.
+	FStrProperty.
 -----------------------------------------------------------------------------*/
+IMPLEMENT_FIELD(FStrProperty)
 
-EConvertFromTypeResult UStrProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FStrProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
 {
 	// Convert serialized text to string.
 	if (Tag.Type==NAME_TextProperty)
@@ -25,13 +26,13 @@ EConvertFromTypeResult UStrProperty::ConvertFromType(const FPropertyTag& Tag, FS
 	return EConvertFromTypeResult::UseSerializeItem;
 }
 
-FString UStrProperty::GetCPPTypeForwardDeclaration() const
+FString FStrProperty::GetCPPTypeForwardDeclaration() const
 {
 	return FString();
 }
 
 // Necessary to fix Compiler Error C2026 and C1091
-FString UStrProperty::ExportCppHardcodedText(const FString& InSource, const FString& Indent)
+FString FStrProperty::ExportCppHardcodedText(const FString& InSource, const FString& Indent)
 {
 	const FString Source = InSource.ReplaceCharWithEscapedChar();
 	FString Result{};
@@ -76,7 +77,7 @@ FString UStrProperty::ExportCppHardcodedText(const FString& InSource, const FStr
 	return Result;
 }
 
-void UStrProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FStrProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	FString& StringValue = *(FString*)PropertyValue;
 	if (0 != (PortFlags & PPF_ExportCpp))
@@ -96,7 +97,7 @@ void UStrProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue,
 		ValueStr += TEXT("\"\"");
 	}
 }
-const TCHAR* UStrProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FStrProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
 {
 	if( !(PortFlags & PPF_Delimited) )
 	{
@@ -115,7 +116,7 @@ const TCHAR* UStrProperty::ImportText_Internal( const TCHAR* Buffer, void* Data,
 		}
 		const TCHAR* Start = Buffer;
 		FString Temp;
-		Buffer = UPropertyHelpers::ReadToken(Buffer, Temp);
+		Buffer = FPropertyHelpers::ReadToken(Buffer, Temp);
 		if (Buffer == NULL)
 		{
 			return NULL;
@@ -130,12 +131,7 @@ const TCHAR* UStrProperty::ImportText_Internal( const TCHAR* Buffer, void* Data,
 	return Buffer;
 }
 
-uint32 UStrProperty::GetValueTypeHashInternal(const void* Src) const
+uint32 FStrProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	return GetTypeHash(*(const FString*)Src);
 }
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UStrProperty, UProperty,
-	{
-	}
-);

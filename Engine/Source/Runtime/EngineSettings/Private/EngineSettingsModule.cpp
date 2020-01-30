@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
@@ -253,7 +253,7 @@ void UGameMapsSettings::PostInitProperties()
 	FixMapAssetRef(TransitionMap);
 }
 
-void UGameMapsSettings::PostReloadConfig( UProperty* PropertyThatWasLoaded )
+void UGameMapsSettings::PostReloadConfig( FProperty* PropertyThatWasLoaded )
 {
 	if (PropertyThatWasLoaded)
 	{

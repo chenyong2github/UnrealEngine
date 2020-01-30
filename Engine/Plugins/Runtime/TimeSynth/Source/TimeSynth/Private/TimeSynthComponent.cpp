@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TimeSynthComponent.h"
 #include "AudioThread.h"
@@ -233,6 +233,13 @@ void UTimeSynthComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 
 		for (FTimeSynthClipHandle& ClipHandle : VolumeGroup.Clips)
 		{
+			if (FMath::IsNearlyEqual(VolumeGroup.CurrentVolumeDb, VolumeGroup.LastVolumeDb, KINDA_SMALL_NUMBER))
+			{
+				continue;
+			}
+
+			VolumeGroup.LastVolumeDb = VolumeGroup.CurrentVolumeDb;
+
 			float LinearVolume = Audio::ConvertToLinear(VolumeGroup.CurrentVolumeDb);
 
 			SynthCommand([this, ClipHandle, LinearVolume]
@@ -311,7 +318,7 @@ bool UTimeSynthComponent::Init(int32& InSampleRate)
 	DynamicsProcessor.SetKneeBandwidth(10.0f);
 	DynamicsProcessor.SetInputGain(0.0f);
 	DynamicsProcessor.SetOutputGain(0.0f);
-	DynamicsProcessor.SetChannelLinked(true);
+	DynamicsProcessor.SetChannelLinkMode(Audio::EDynamicsProcessorChannelLinkMode::Average);
 	DynamicsProcessor.SetAnalogMode(true);
 	DynamicsProcessor.SetPeakMode(Audio::EPeakMode::Peak);
 	DynamicsProcessor.SetProcessingMode(Audio::EDynamicsProcessingMode::Compressor);
@@ -358,6 +365,8 @@ void UTimeSynthComponent::ShutdownPlayingClips()
 		ActivePlayingClipIndices_AudioRenderThread.RemoveAtSwap(i, 1, false);
 		FreePlayingClipIndices_AudioRenderThread.Add(ClipIndex);
 	}
+
+	SoundWaveDecoder.Reset();
 }
 
 void UTimeSynthComponent::OnEndGenerate() 
@@ -595,6 +604,17 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 
 	// Get the distance to nearest listener using this transform
 	const FAudioDevice* OwningAudioDevice = GetAudioDevice();
+
+	// Validate audio device since it might not be available (i.e. -nosound)
+	if (OwningAudioDevice == nullptr)
+	{
+		static bool bShouldWarn = true;
+		UE_CLOG(bShouldWarn, LogTimeSynth, Warning, TEXT("Failed to play clip: no audio device. Running -nosound?"));
+		bShouldWarn = false;
+
+		return FTimeSynthClipHandle();
+	}
+
 	const float DistanceToListener = OwningAudioDevice->GetDistanceToNearestListener(ThisComponentTransform.GetTranslation());
 
 	TArray<FTimeSynthClipSound> ValidSounds;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 //This file needs to be here so the "ant" build step doesnt fail when looking for a /src folder.
 
 package com.epicgames.ue4;
@@ -206,6 +206,7 @@ import android.graphics.Color;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.content.BroadcastReceiver;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.FileProvider;
 //$${gameActivityImportAdditions}$$
 
@@ -5129,6 +5130,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 	}
 
+	public boolean AndroidThunkJava_IsAllowedRemoteNotifications()
+	{
+		boolean bPluginEnabled = false;
+//$${gameActivityAllowedRemoteNotificationsAdditions}$$
+		return bPluginEnabled && NotificationManagerCompat.from(getApplicationContext()).areNotificationsEnabled();
+	}
+
 	public void AndroidThunkJava_SetDesiredViewSize(int width, int height)
 	{
 		if (width == DesiredHolderWidth && height == DesiredHolderHeight)
@@ -5284,7 +5292,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		{
 			AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 			String framesPerBuffer = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
-			int framesPerBufferInt = Integer.parseInt(framesPerBuffer);
+			int framesPerBufferInt = framesPerBuffer == null ? 0 : Integer.parseInt(framesPerBuffer);
 			if (framesPerBufferInt == 0) framesPerBufferInt = 256; // Use default
 			Log.debug("[JAVA] audiomanager.framesPerBuffer = " + framesPerBufferInt);
 			return framesPerBufferInt;
@@ -5294,7 +5302,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		{
 			AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 			String sampleRateStr = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
-			int sampleRateInt = Integer.parseInt(sampleRateStr);
+			int sampleRateInt = sampleRateStr == null ? 0 : Integer.parseInt(sampleRateStr);
 			if (sampleRateInt == 0) sampleRateInt = 44100; // Use a default value if property not found
 			Log.debug("[JAVA] audiomanager.optimalSampleRate = " + sampleRateInt);
 			return sampleRateInt;

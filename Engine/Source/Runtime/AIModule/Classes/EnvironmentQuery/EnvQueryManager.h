@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -203,8 +203,11 @@ class AIMODULE_API UEnvQueryManager : public UAISubsystem, public FSelfRegisteri
 	/** find value of named param stored with active query */
 	float FindNamedParam(int32 QueryId, FName ParamName) const;
 
-	/** execute query */
+	/** aborts specific query */
 	bool AbortQuery(int32 RequestID);
+
+	/** outputs active queries to log */
+	void PrintActiveQueryInfo() const;
 
 	/** fail all running queries on cleaning the world */
 	virtual void OnWorldCleanup();
@@ -312,7 +315,7 @@ private:
 	mutable double LastQueryCountWarningThresholdTime;
 
 	void CheckQueryCount() const;
-	void LogQueryCountWarning() const;
+	void LogQueryInfo(bool bDisplayThresholdWarning) const;
 #endif
 
 #if WITH_EDITOR

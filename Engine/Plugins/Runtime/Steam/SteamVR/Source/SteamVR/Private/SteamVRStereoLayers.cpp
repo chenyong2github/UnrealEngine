@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 //
 #include "SteamVRStereoLayers.h"
 #include "CoreMinimal.h"
@@ -18,6 +18,10 @@ static vr::EVROverlayError sOvrError;
 #define OVR_VERIFY(x) sOvrError = x; ensure(sOvrError == vr::VROverlayError_None)
 #else
 #define OVR_VERIFY(x) x
+#endif
+
+#if !PLATFORM_MAC
+#include "VulkanRHIPrivate.h"
 #endif
 
 /*=============================================================================
@@ -131,8 +135,18 @@ void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool 
 	vr::VRTextureBounds_t TextureBounds;
     TextureBounds.uMin = Layer.LayerDesc.UVRect.Min.X;
     TextureBounds.uMax = Layer.LayerDesc.UVRect.Max.X;
-    TextureBounds.vMin = Layer.LayerDesc.UVRect.Min.Y;
-    TextureBounds.vMax = Layer.LayerDesc.UVRect.Max.Y;
+
+	if ( IsOpenGLPlatform( GMaxRHIShaderPlatform ) )
+	{
+		TextureBounds.vMin = Layer.LayerDesc.UVRect.Max.Y;
+		TextureBounds.vMax = Layer.LayerDesc.UVRect.Min.Y;
+	}
+	else
+	{
+		TextureBounds.vMin = Layer.LayerDesc.UVRect.Min.Y;
+		TextureBounds.vMax = Layer.LayerDesc.UVRect.Max.Y;
+	}
+
 	OVR_VERIFY(VROverlay->SetOverlayTextureBounds(Layer.OverlayHandle, &TextureBounds));
 	OVR_VERIFY(VROverlay->SetOverlayWidthInMeters(Layer.OverlayHandle, Layer.LayerDesc.QuadSize.X / WorldToMeterScale));
 	
@@ -236,18 +250,43 @@ void FSteamVRHMD::UpdateStereoLayers_RenderThread()
 			if (Layer.bUpdateTexture || (Layer.LayerDesc.Flags & LAYER_FLAG_TEX_CONTINUOUS_UPDATE))
 			{
 				vr::Texture_t Texture;
-				Texture.handle = Layer.LayerDesc.Texture->GetNativeResource();
+				vr::VRVulkanTextureData_t VulkanTexture{};
 				if ( IsVulkanPlatform( GMaxRHIShaderPlatform ) )
 				{
+#if PLATFORM_MAC
+					check( 0 );
+#else
+					auto vlkRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
+					FRHITexture2D* TextureRHI2D = Layer.LayerDesc.Texture->GetTexture2D();
+					check(TextureRHI2D);
+					FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)TextureRHI2D;
+
+					VulkanTexture.m_pInstance = vlkRHI->GetInstance();
+					VulkanTexture.m_pDevice = vlkRHI->GetDevice()->GetInstanceHandle();
+					VulkanTexture.m_pPhysicalDevice = vlkRHI->GetDevice()->GetPhysicalHandle();
+					VulkanTexture.m_pQueue = vlkRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
+					VulkanTexture.m_nQueueFamilyIndex = vlkRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
+					VulkanTexture.m_nImage = (uint64_t)Texture2D->Surface.Image;
+					VulkanTexture.m_nWidth = Texture2D->Surface.Width;
+					VulkanTexture.m_nHeight = Texture2D->Surface.Height;
+					VulkanTexture.m_nFormat = (uint32_t)Texture2D->Surface.ViewFormat;
+					VulkanTexture.m_nSampleCount = 1;
+
+					Texture.handle = &VulkanTexture;
 					Texture.eType = vr::TextureType_Vulkan;
+#endif
 				}
 				else if ( IsOpenGLPlatform( GMaxRHIShaderPlatform ) )
 				{
+					// We need to dereference the pointer to the real handle
+					uintptr_t TextureID = *reinterpret_cast<uint32*>(Layer.LayerDesc.Texture->GetNativeResource());
+					Texture.handle = reinterpret_cast<void*>(TextureID);
 					Texture.eType = vr::TextureType_OpenGL;
 				}
 				else
 				{
 #if PLATFORM_WINDOWS
+					Texture.handle = Layer.LayerDesc.Texture->GetNativeResource();
 					Texture.eType = vr::TextureType_DirectX;
 #else
 					check( 0 );

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -605,6 +605,16 @@ namespace UnrealBuildTool
 			get { return ShadowVariableWarningLevel >= WarningLevel.Warning; }
 			set { ShadowVariableWarningLevel = (value ? WarningLevel.Warning : WarningLevel.Off); }
 		}
+
+		/// <summary>
+		/// How to treat unsafe implicit type cast warnings (e.g., double->float or int64->int32)
+		/// </summary>
+		public WarningLevel UnsafeTypeCastWarningLevel
+		{
+			get { return UnsafeTypeCastWarningLevelPrivate ?? Target.UnsafeTypeCastWarningLevel; }
+			set { UnsafeTypeCastWarningLevelPrivate = value; }
+		}
+		private WarningLevel? UnsafeTypeCastWarningLevelPrivate;
 
 		/// <summary>
 		/// Enable warnings for using undefined identifiers in #if expressions

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tiles/WorldTileModel.h"
 #include "Engine/World.h"
@@ -11,6 +11,7 @@
 #include "EditorLevelUtils.h"
 #include "LevelCollectionModel.h"
 
+#include "Modules/ModuleManager.h"
 #include "Tiles/WorldTileDetails.h"
 #include "Tiles/WorldTileCollectionModel.h"
 #include "Engine/WorldComposition.h"

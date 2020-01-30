@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClient.h"
 
@@ -1210,6 +1210,7 @@ void FConcertClient::SendDiscoverServersEvent()
 	FConcertAdmin_DiscoverServersEvent DiscoverServersEvent;
 	DiscoverServersEvent.RequiredRole = Role;
 	DiscoverServersEvent.RequiredVersion = VERSION_STRINGIFY(ENGINE_MAJOR_VERSION) TEXT(".") VERSION_STRINGIFY(ENGINE_MINOR_VERSION);
+	DiscoverServersEvent.ClientAuthenticationKey = Settings->ClientSettings.ClientAuthenticationKey;
 	ClientAdminEndpoint->PublishEvent(DiscoverServersEvent);
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Level.cpp: Level-related functions
@@ -902,7 +902,7 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 	const double StableSortTime = FPlatformTime::Seconds() - StableSortStartTime;
 
 	const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
-	if (ElapsedTime > 1.0)
+	if (ElapsedTime > 1.0 && !FApp::IsUnattended())
 	{
 		UE_LOG(LogLevel, Warning, TEXT("SortActorsHierarchy(%s) took %f seconds (CalcAttachDepth: %f StableSort: %f)"), Level ? *GetNameSafe(Level->GetOutermost()) : TEXT("??"), ElapsedTime, CalcAttachDepthTime, StableSortTime);
 	}
@@ -1455,7 +1455,7 @@ void ULevel::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FString PropertyName = PropertyThatChanged ? PropertyThatChanged->GetName() : TEXT("");
 
 	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULevel, MapBuildData))
@@ -2058,7 +2058,7 @@ void ULevel::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatfo
 	}
 }
 
-bool ULevel::CanEditChange(const UProperty* PropertyThatWillChange) const
+bool ULevel::CanEditChange(const FProperty* PropertyThatWillChange) const
 {
 	static FName NAME_LevelPartition = GET_MEMBER_NAME_CHECKED(ULevel, LevelPartition);
 	if (PropertyThatWillChange->GetFName() == NAME_LevelPartition)

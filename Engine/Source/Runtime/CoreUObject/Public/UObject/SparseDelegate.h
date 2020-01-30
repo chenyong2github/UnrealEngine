@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -51,6 +51,9 @@ public:
 
 	/** Acquires the actual Multicast Delegate from the annotation if any delegates are bound to it. Will be null if no entry exists in the annotation for this object/delegatename. */
 	static FMulticastScriptDelegate* GetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName);
+
+	/** Acquires the actual Multicast Delegate from the annotation if any delegates are bound to it as a shared pointer. Will be null if no entry exists in the annotation for this object/delegatename. */
+	static TSharedPtr<FMulticastScriptDelegate> GetSharedMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName);
 
 	/** Directly sets the Multicast Delegate for this object/delegatename pair. If the delegate is unbound it will be assigned/inserted anyways. */
 	static void SetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName, FMulticastScriptDelegate Delegate);
@@ -167,7 +170,7 @@ public:
 
 protected:
 
-	friend class UMulticastSparseDelegateProperty;
+	friend class FMulticastSparseDelegateProperty;
 	bool bIsBound;
 };
 
@@ -196,9 +199,26 @@ private:
 
 public:
 	/** Returns the multicast delegate if any delegates are bound to the sparse delegate */
+	UE_DEPRECATED(4.25, "This function has been deprecated - please use GetShared() instead")
 	MulticastDelegate* Get() const
 	{
-		return (MulticastDelegate*)(bIsBound ? FSparseDelegateStorage::GetMulticastDelegate(GetDelegateOwner(), GetDelegateName()) : nullptr);
+		MulticastDelegate* Result = nullptr;
+		if (bIsBound)
+		{
+			Result = static_cast<MulticastDelegate*>(FSparseDelegateStorage::GetMulticastDelegate(GetDelegateOwner(), GetDelegateName()));
+		}
+		return Result;
+	}
+
+	/** Returns the multicast delegate if any delegates are bound to the sparse delegate */
+	TSharedPtr<MulticastDelegate> GetShared() const
+	{
+		TSharedPtr<MulticastDelegate> Result;
+		if (bIsBound)
+		{
+			Result = StaticCastSharedPtr<MulticastDelegate>(FSparseDelegateStorage::GetSharedMulticastDelegate(GetDelegateOwner(), GetDelegateName()));
+		}
+		return Result;
 	}
 
 	/**
@@ -298,7 +318,7 @@ public:
 	template<typename... ParamTypes>
 	void Broadcast(ParamTypes... Params)
 	{
-		if (auto MCDelegate = Get())
+		if (TSharedPtr<MulticastDelegate> MCDelegate = GetShared())
 		{
 			MCDelegate->Broadcast(Params...);
 		}

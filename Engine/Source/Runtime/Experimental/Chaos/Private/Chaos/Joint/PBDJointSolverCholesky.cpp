@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Joint/PBDJointSolverCholesky.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
@@ -14,7 +14,8 @@
 namespace Chaos
 {
 #if CHAOS_JOINTSOLVER_STATSENABLED
-	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_JointSolver_Apply, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::ApplyConstraints"), STAT_JointSolver_ApplyConstraints, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::ApplyDrives"), STAT_JointSolver_ApplyDrives, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::ApplyPushOut"), STAT_JointSolver_Jacobian, STATGROUP_Chaos);
 #define CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT SCOPE_CYCLE_COUNTER(X)
 #else
@@ -63,9 +64,11 @@ namespace Chaos
 		Qs[1].EnforceShortestArcWith(Qs[0]);
 
 		Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
+		AngularDriveStiffness = 0.0f;// FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
 		SwingTwistAngleTolerance = SolverSettings.SwingTwistAngleTolerance;
 		bEnableTwistLimits = SolverSettings.bEnableTwistLimits;
-		bEnableTwistLimits = SolverSettings.bEnableSwingLimits;
+		bEnableSwingLimits = SolverSettings.bEnableSwingLimits;
+		bEnableDrives = SolverSettings.bEnableDrives;
 
 		UpdateDerivedState();
 	}
@@ -74,8 +77,68 @@ namespace Chaos
 		const FReal Dt,
 		const FPBDJointSettings& JointSettings)
 	{
-		CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(STAT_JointSolver_Apply);
+		CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(STAT_JointSolver_ApplyConstraints);
 
+		FDenseMatrix61 C;
+		FDenseMatrix66 J0, J1;
+		BuildJacobianAndResidual_Constraints(JointSettings, J0, J1, C);
+
+		SolveAndApply(JointSettings, J0, J1, C);
+	}
+
+	void FJointSolverCholesky::ApplyDrives(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings)
+	{
+		CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(STAT_JointSolver_ApplyDrives);
+
+		FDenseMatrix61 C;
+		FDenseMatrix66 J0, J1;
+		BuildJacobianAndResidual_Drives(JointSettings, J0, J1, C);
+
+		SolveAndApply(JointSettings, J0, J1, C);
+	}
+
+	void FJointSolverCholesky::BuildJacobianAndResidual_Constraints(
+		const FPBDJointSettings& JointSettings,
+		FDenseMatrix66& J0,
+		FDenseMatrix66& J1,
+		FDenseMatrix61& C)
+	{
+		CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(STAT_JointSolver_Jacobian);
+
+		// Initialize with zero constraints
+		J0.SetDimensions(0, 6);
+		J1.SetDimensions(0, 6);
+		C.SetDimensions(0, 1);
+
+		AddLinearConstraints(JointSettings, J0, J1, C);
+		AddAngularConstraints(JointSettings, J0, J1, C);
+	}
+
+	void FJointSolverCholesky::BuildJacobianAndResidual_Drives(
+		const FPBDJointSettings& JointSettings,
+		FDenseMatrix66& J0,
+		FDenseMatrix66& J1,
+		FDenseMatrix61& C)
+	{
+		CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(STAT_JointSolver_Jacobian);
+
+		// Initialize with zero constraints
+		J0.SetDimensions(0, 6);
+		J1.SetDimensions(0, 6);
+		C.SetDimensions(0, 1);
+
+		//AddLinearConstraints(JointSettings, J0, J1, C);
+		AddAngularDrives(JointSettings, J0, J1, C);
+	}
+
+	void FJointSolverCholesky::SolveAndApply(
+		const FPBDJointSettings& JointSettings,
+		const FDenseMatrix66& J0,
+		const FDenseMatrix66& J1,
+		const FDenseMatrix61& C)
+	{
 		// Solving for world-space position/rotation corrections D(6x1) where
 		// D = [I.Jt / [J.I.Jt]].C = I.Jt.L
 		// I is the inverse mass matrix, J the Jacobian, C the current constraint violation,
@@ -101,9 +164,6 @@ namespace Chaos
 		//           | 0              -Swing1Axis         |
 		//           | 0              -Swing2Axis         |
 		//
-		FDenseMatrix61 C;
-		FDenseMatrix66 J0, J1;
-		BuildJacobianAndResidual(JointSettings, J0, J1, C);
 
 		// InvM(6x6) = inverse mass matrix
 		const FMassMatrix InvM0 = FMassMatrix::Make(InvMs[0], Qs[0], InvILs[0]);
@@ -142,22 +202,51 @@ namespace Chaos
 		}
 	}
 
-	void FJointSolverCholesky::BuildJacobianAndResidual(
-		const FPBDJointSettings& JointSettings,
+	void FJointSolverCholesky::AddLinearRow(
+		const FVec3& Axis,
+		const FVec3& Connector0,
+		const FVec3& Connector1,
+		const FReal Error,
 		FDenseMatrix66& J0,
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(STAT_JointSolver_Jacobian);
+		const int32 RowIndex = J0.NumRows();
+		J0.AddRows(1);
+		J1.AddRows(1);
+		C.AddRows(1);
 
-		// Initialize with zero constraints
-		J0.SetDimensions(0, 6);
-		J1.SetDimensions(0, 6);
-		C.SetDimensions(0, 1);
+		J0.SetRowAt(RowIndex, 0, Axis);
+		J0.SetRowAt(RowIndex, 3, -FVec3::CrossProduct(Axis, Connector0));
 
-		AddLinearConstraints(JointSettings, J0, J1, C);
-		AddAngularConstraints(JointSettings, J0, J1, C);
+		J1.SetRowAt(RowIndex, 0, -Axis);
+		J1.SetRowAt(RowIndex, 3, FVec3::CrossProduct(Axis, Connector1));
+
+		C.SetAt(RowIndex, 0, Error);
 	}
+
+	void FJointSolverCholesky::AddAngularRow(
+		const FVec3& Axis0,
+		const FVec3& Axis1,
+		const FReal Error,
+		FDenseMatrix66& J0,
+		FDenseMatrix66& J1,
+		FDenseMatrix61& C)
+	{
+		const int32 RowIndex = J0.NumRows();
+		J0.AddRows(1);
+		J1.AddRows(1);
+		C.AddRows(1);
+
+		J0.SetRowAt(RowIndex, 0, 0, 0, 0);
+		J0.SetRowAt(RowIndex, 3, Axis0);
+
+		J1.SetRowAt(RowIndex, 0, 0, 0, 0);
+		J1.SetRowAt(RowIndex, 3, -Axis1);
+
+		C.SetAt(RowIndex, 0, Error);
+	}
+
 
 	// 3 constraints along principle axes
 	void FJointSolverCholesky::AddLinearConstraints_Point(
@@ -201,7 +290,7 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		const FReal Limit = JointSettings.Motion.LinearLimit;
+		const FReal Limit = JointSettings.LinearLimit;
 		const FVec3 ConstraintSeparation = Xs[1] - Xs[0];
 		const FReal ConstraintSeparationLen = ConstraintSeparation.Size();
 
@@ -211,19 +300,9 @@ namespace Chaos
 			const FVec3 XP0 = Xs[0] - Ps[0];
 			const FVec3 XP1 = Xs[1] - Ps[1];
 			const FVec3 Axis = ConstraintSeparation / ConstraintSeparationLen;
+			const FReal Error = ConstraintSeparationLen - Limit;
 
-			const int32 RowIndex = J0.NumRows();
-			J0.AddRows(1);
-			J1.AddRows(1);
-			C.AddRows(1);
-
-			J0.SetRowAt(RowIndex, 0, Axis);
-			J0.SetRowAt(RowIndex, 3, -FVec3::CrossProduct(Axis, XP0));
-
-			J1.SetRowAt(RowIndex, 0, -Axis);
-			J1.SetRowAt(RowIndex, 3, FVec3::CrossProduct(Axis, XP1));
-
-			C.SetAt(RowIndex, 0, ConstraintSeparationLen - Limit);
+			AddLinearRow(Axis, XP0, XP1, Error, J0, J1, C);
 		}
 	}
 
@@ -245,41 +324,22 @@ namespace Chaos
 		bool bAxisConstraintActive = (AxisMotion != EJointMotionType::Free);
 		if (bAxisConstraintActive)
 		{
-			const int32 RowIndex = J0.NumRows();
-			J0.AddRows(1);
-			J1.AddRows(1);
-			C.AddRows(1);
+			const FReal Error = ConstraintDistanceAxial;
 
-			J0.SetRowAt(RowIndex, 0, Axis);
-			J0.SetRowAt(RowIndex, 3, -FVec3::CrossProduct(Axis, XP0));
-
-			J1.SetRowAt(RowIndex, 0, -Axis);
-			J1.SetRowAt(RowIndex, 3, FVec3::CrossProduct(Axis, XP1));
-
-			C.SetAt(RowIndex, 0, ConstraintDistanceAxial);
+			AddLinearRow(Axis, XP0, XP1, Error, J0, J1, C);
 		}
 
 		// Radial Constraint
 		const FVec3 ConstraintSeparationRadial = ConstraintSeparation - ConstraintDistanceAxial * Axis;
 		const FReal ConstraintDistanceRadial = ConstraintSeparationRadial.Size();
-		const FReal RadialLimit = JointSettings.Motion.LinearLimit;
+		const FReal RadialLimit = JointSettings.LinearLimit;
 		bool bRadialConstraintActive = (ConstraintDistanceRadial >= RadialLimit);
 		if (bRadialConstraintActive)
 		{
 			const FVec3 RadialAxis = ConstraintSeparationRadial / ConstraintDistanceRadial;
+			const FReal Error = ConstraintDistanceRadial - RadialLimit;
 
-			const int32 RowIndex = J0.NumRows();
-			J0.AddRows(1);
-			J1.AddRows(1);
-			C.AddRows(1);
-
-			J0.SetRowAt(RowIndex, 0, RadialAxis);
-			J0.SetRowAt(RowIndex, 3, -FVec3::CrossProduct(RadialAxis, XP0));
-
-			J1.SetRowAt(RowIndex, 0, -RadialAxis);
-			J1.SetRowAt(RowIndex, 3, FVec3::CrossProduct(RadialAxis, XP1));
-
-			C.SetAt(RowIndex, 0, ConstraintDistanceRadial - RadialLimit);
+			AddLinearRow(RadialAxis, XP0, XP1, Error, J0, J1, C);
 		}
 	}
 
@@ -292,7 +352,7 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		const FReal Limit = (AxisMotion == EJointMotionType::Limited) ? JointSettings.Motion.LinearLimit : (FReal)0;
+		const FReal Limit = (AxisMotion == EJointMotionType::Limited) ? JointSettings.LinearLimit : (FReal)0;
 		const FVec3 ConstraintSeparation = Xs[1] - Xs[0];
 
 		// Planar Constraint
@@ -302,19 +362,9 @@ namespace Chaos
 		{
 			const FVec3 XP0 = Xs[0] - Ps[0];
 			const FVec3 XP1 = Xs[1] - Ps[1];
+			const FReal Error = (ConstraintDistanceAxial >= Limit) ? ConstraintDistanceAxial - Limit : ConstraintDistanceAxial + Limit;
 
-			const int32 RowIndex = J0.NumRows();
-			J0.AddRows(1);
-			J1.AddRows(1);
-			C.AddRows(1);
-
-			J0.SetRowAt(RowIndex, 0, Axis);
-			J0.SetRowAt(RowIndex, 3, -FVec3::CrossProduct(Axis, XP0));
-
-			J1.SetRowAt(RowIndex, 0, -Axis);
-			J1.SetRowAt(RowIndex, 3, FVec3::CrossProduct(Axis, XP1));
-
-			C.SetAt(RowIndex, 0, (ConstraintDistanceAxial >= Limit) ? ConstraintDistanceAxial - Limit : ConstraintDistanceAxial + Limit);
+			AddLinearRow(Axis, XP0, XP1, Error, J0, J1, C);
 		}
 	}
 
@@ -338,27 +388,15 @@ namespace Chaos
 			TwistAngle = -TwistAngle;
 		}
 
-		const FReal TwistAngleMax = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
+		const FReal TwistAngleMax = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
 		bool bConstraintActive = (TwistAngle <= -TwistAngleMax) || (TwistAngle >= TwistAngleMax);
 		if (bConstraintActive)
 		{
 			const FVec3 Axis0 = Rs[0] * TwistAxis01;
 			const FVec3 Axis1 = Rs[1] * TwistAxis01;
-			const FVec3 XP0 = Xs[0] - Ps[0];
-			const FVec3 XP1 = Xs[1] - Ps[1];
+			const FReal Error = (TwistAngle >= TwistAngleMax) ? TwistAngle - TwistAngleMax : TwistAngle + TwistAngleMax;
 
-			const int32 RowIndex = J0.NumRows();
-			J0.AddRows(1);
-			J1.AddRows(1);
-			C.AddRows(1);
-
-			J0.SetRowAt(RowIndex + 0, 0, 0, 0, 0);
-			J0.SetRowAt(RowIndex + 0, 3, Axis0);
-
-			J1.SetRowAt(RowIndex + 0, 0, 0, 0, 0);
-			J1.SetRowAt(RowIndex + 0, 3, -Axis1);
-
-			C.SetAt(RowIndex, 0, (TwistAngle >= TwistAngleMax) ? TwistAngle - TwistAngleMax : TwistAngle + TwistAngleMax);
+			AddAngularRow(Axis0, Axis1, Error, J0, J1, C);
 		}
 	}
 
@@ -381,8 +419,8 @@ namespace Chaos
 
 		// Calculate swing limit for the current swing axis
 		FReal SwingAngleMax = FLT_MAX;
-		const FReal Swing1Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
-		const FReal Swing2Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
+		const FReal Swing1Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+		const FReal Swing2Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
 
 		// Circular swing limit
 		SwingAngleMax = Swing1Limit;
@@ -399,24 +437,18 @@ namespace Chaos
 		bool bConstraintActive = (SwingAngle <= -SwingAngleMax) || (SwingAngle >= SwingAngleMax);
 		if (bConstraintActive)
 		{
-			const FVec3 XP0 = Xs[0] - Ps[0];
-			const FVec3 XP1 = Xs[1] - Ps[1];
 			const FVec3 Axis = Rs[0] * SwingAxis01;
+			const FReal Error = (SwingAngle >= SwingAngleMax) ? SwingAngle - SwingAngleMax : SwingAngle + SwingAngleMax;
 
-			const int32 RowIndex = J0.NumRows();
-			J0.AddRows(1);
-			J1.AddRows(1);
-			C.AddRows(1);
-
-			J0.SetRowAt(RowIndex + 0, 0, 0, 0, 0);
-			J0.SetRowAt(RowIndex + 0, 3, Axis);
-
-			J1.SetRowAt(RowIndex + 0, 0, 0, 0, 0);
-			J1.SetRowAt(RowIndex + 0, 3, -Axis);
-
-			C.SetAt(RowIndex, 0, (SwingAngle >= SwingAngleMax) ? SwingAngle - SwingAngleMax : SwingAngle + SwingAngleMax);
+			AddAngularRow(Axis, Axis, Error, J0, J1, C);
 		}
 	}
+
+	float GetSwingAngle(const FReal SwingY, const FReal SwingW)
+	{
+		return 4.0f * FMath::Atan2(SwingY, 1.0f + SwingW);
+	}
+
 
 	// up to 1 constraint limiting rotation about swing axis (relative to body 0)
 	void FJointSolverCholesky::AddAngularConstraints_Swing(
@@ -458,28 +490,83 @@ namespace Chaos
 				SwingAngle = (FReal)PI - SwingAngle;
 			}
 
-			FReal SwingAngleMax = JointSettings.Motion.AngularLimits[(int32)SwingConstraintIndex];
+			const FMatrix33 RM0 = Rs[0].ToMatrix();
+			const FReal R01SwingYorZ = (SwingAxisIndex == EJointAngularAxisIndex::Swing1) ? R01Swing.Y : R01Swing.Z;
+			const FReal SwingAngle2 = GetSwingAngle(R01SwingYorZ, R01Swing.W);
+
+
+			FReal SwingAngleMax = JointSettings.AngularLimits[(int32)SwingConstraintIndex];
 			bool bConstraintActive = (SwingAngle <= -SwingAngleMax) || (SwingAngle >= SwingAngleMax);
 			if (bConstraintActive)
 			{
-				const FVec3 XP0 = Xs[0] - Ps[0];
-				const FVec3 XP1 = Xs[1] - Ps[1];
 				const FVec3 Axis = SwingCross / SwingCrossLen;
+				const FReal Error = (SwingAngle >= SwingAngleMax) ? SwingAngle - SwingAngleMax : SwingAngle + SwingAngleMax;
 
-				const int32 RowIndex = J0.NumRows();
-				J0.AddRows(1);
-				J1.AddRows(1);
-				C.AddRows(1);
-
-				J0.SetRowAt(RowIndex + 0, 0, 0, 0, 0);
-				J0.SetRowAt(RowIndex + 0, 3, Axis);
-
-				J1.SetRowAt(RowIndex + 0, 0, 0, 0, 0);
-				J1.SetRowAt(RowIndex + 0, 3, -Axis);
-
-				C.SetAt(RowIndex, 0, (SwingAngle >= SwingAngleMax) ? SwingAngle - SwingAngleMax : SwingAngle + SwingAngleMax);
+				AddAngularRow(Axis, Axis, Error, J0, J1, C);
 			}
 		}
+	}
+
+	//void FJointSolverCholesky::AddAngularConstraints_Swing(
+	//	const FPBDJointSettings& JointSettings,
+	//	const EJointAngularConstraintIndex SwingConstraintIndex,
+	//	const EJointAngularAxisIndex SwingAxisIndex,
+	//	const FRotation3& R01Twist,
+	//	const FRotation3& R01Swing,
+	//	FDenseMatrix66& J0,
+	//	FDenseMatrix66& J1,
+	//	FDenseMatrix61& C)
+	//{
+	//	const FMatrix33 RM0 = Rs[0].ToMatrix();
+	//	const FReal R01SwingYorZ = ((int32)SwingAxisIndex == 2) ? R01Swing.Z : R01Swing.Y;	// Can't index a quat :(
+	//	FReal SwingAngle = GetSwingAngle(R01SwingYorZ, R01Swing.W);
+
+	//	FReal SwingAngleMax = JointSettings.AngularLimits[(int32)SwingConstraintIndex];
+	//	bool bConstraintActive = (SwingAngle <= -SwingAngleMax) || (SwingAngle >= SwingAngleMax);
+	//	if (bConstraintActive)
+	//	{
+	//		const FVec3 Axis = RM0.GetAxis((int32)SwingAxisIndex);
+	//		const FReal Error = (SwingAngle >= SwingAngleMax) ? SwingAngle - SwingAngleMax : SwingAngle + SwingAngleMax;
+
+	//		AddAngularRow(Axis, Axis, Error, J0, J1, C);
+	//	}
+	//}
+
+	void FJointSolverCholesky::AddAngularDrive_SLerp(
+		const FPBDJointSettings& JointSettings,
+		FDenseMatrix66& J0,
+		FDenseMatrix66& J1,
+		FDenseMatrix61& C)
+	{
+		// @todo(ccaulfield): target angles
+		FRotation3 R01Twist, R01Swing;
+		FPBDJointUtilities::DecomposeSwingTwistLocal(Rs[0], Rs[1], R01Swing, R01Twist);
+
+		FVec3 SwingAxis01;
+		FReal SwingAngle;
+		R01Swing.ToAxisAndAngleSafe(SwingAxis01, SwingAngle, FJointConstants::Swing1Axis(), SwingTwistAngleTolerance);
+		if (SwingAngle > PI)
+		{
+			SwingAngle = SwingAngle - (FReal)2 * PI;
+		}
+
+		{
+			const FVec3 Axis = Rs[0] * SwingAxis01;
+			const FReal Error = AngularDriveStiffness * SwingAngle;
+
+			AddAngularRow(Axis, Axis, Error, J0, J1, C);
+		}
+	}
+
+
+	void FJointSolverCholesky::AddAngularDrive_Swing(
+		const FPBDJointSettings& JointSettings,
+		const EJointAngularConstraintIndex SwingConstraintIndex,
+		const EJointAngularAxisIndex SwingAxisIndex,
+		FDenseMatrix66& J0,
+		FDenseMatrix66& J1,
+		FDenseMatrix61& C)
+	{
 	}
 
 	// Add linear constraints to solver
@@ -489,7 +576,7 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		const TVector<EJointMotionType, 3>& Motion = JointSettings.Motion.LinearMotionTypes;
+		const TVector<EJointMotionType, 3>& Motion = JointSettings.LinearMotionTypes;
 		if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
 		{
 			AddLinearConstraints_Point(JointSettings, J0, J1, C);
@@ -538,9 +625,9 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
-		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
-		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
+		EJointMotionType TwistMotion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
+		EJointMotionType Swing1Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
+		EJointMotionType Swing2Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
 
 		bool bAddTwist = bEnableTwistLimits && (TwistMotion != EJointMotionType::Free);
 		bool bAddConeOrSwing = bEnableSwingLimits && ((Swing1Motion != EJointMotionType::Free) || (Swing2Motion != EJointMotionType::Free));
@@ -574,6 +661,46 @@ namespace Chaos
 					{
 						AddAngularConstraints_Swing(JointSettings, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, R01Twist, R01Swing, J0, J1, C);
 					}
+				}
+			}
+		}
+	}
+
+	// Add angular constraints to solver
+	void FJointSolverCholesky::AddAngularDrives(
+		const FPBDJointSettings& JointSettings,
+		FDenseMatrix66& J0,
+		FDenseMatrix66& J1,
+		FDenseMatrix61& C)
+	{
+		EJointMotionType TwistMotion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
+		EJointMotionType Swing1Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
+		EJointMotionType Swing2Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
+
+		bool bTwistDriveEnabled = false;// bEnableDrives&& JointSettings.bAngularTwistDriveEnabled && (TwistMotion != EJointMotionType::Locked);
+		bool bSwing1DriveEnabled = false;// bEnableDrives && JointSettings.bAngularSwingDriveEnabled && (Swing1Motion != EJointMotionType::Locked);
+		bool bSwing2DriveEnabled = false;// bEnableDrives && JointSettings.bAngularSwingDriveEnabled && (Swing2Motion != EJointMotionType::Locked);
+		bool bSlerpDriveEnabled = false;// bEnableDrives && JointSettings.bAngularSLerpDriveEnabled && (Swing1Motion != EJointMotionType::Locked) && (Swing2Motion != EJointMotionType::Locked);
+		bool bAnyDriveEnabled = (bTwistDriveEnabled || bSwing1DriveEnabled || bSwing2DriveEnabled || bSlerpDriveEnabled);
+
+		if (bAnyDriveEnabled)
+		{
+			if (bSlerpDriveEnabled)
+			{
+				AddAngularDrive_SLerp(JointSettings, J0, J1, C);
+			}
+			else
+			{
+				if (bTwistDriveEnabled)
+				{
+				}
+				if (bSwing1DriveEnabled)
+				{
+					AddAngularDrive_Swing(JointSettings, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, J0, J1, C);
+				}
+				if (bSwing2DriveEnabled)
+				{
+					AddAngularDrive_Swing(JointSettings, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, J0, J1, C);
 				}
 			}
 		}

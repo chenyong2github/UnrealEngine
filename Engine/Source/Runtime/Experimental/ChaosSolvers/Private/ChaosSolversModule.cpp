@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosSolversModule.h"
 #include "CoreMinimal.h"
@@ -464,6 +464,8 @@ Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= fa
 #endif
 )
 {
+	LLM_SCOPE(ELLMTag::Chaos);
+
 	FChaosScopeSolverLock SolverScopeLock;
 	
 	Chaos::EMultiBufferMode SolverBufferMode = Chaos::EMultiBufferMode::Single;
@@ -495,6 +497,7 @@ Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= fa
 		// Need to let the thread know there's a new solver to care about
 		Dispatcher->EnqueueCommandImmediate([NewSolver](Chaos::FPersistentPhysicsTask* PhysThread)
 		{
+			LLM_SCOPE(ELLMTag::Chaos);
 			PhysThread->AddSolver(NewSolver);
 		});
 	}
@@ -528,6 +531,8 @@ void FChaosSolversModule::SetDedicatedThreadTickMode(EChaosSolverTickMode InTick
 
 void FChaosSolversModule::DestroySolver(Chaos::FPhysicsSolver* InSolver)
 {
+	LLM_SCOPE(ELLMTag::Chaos);
+
 	FChaosScopeSolverLock SolverScopeLock;
 
 	if(Solvers.Remove(InSolver) > 0)
@@ -536,6 +541,7 @@ void FChaosSolversModule::DestroySolver(Chaos::FPhysicsSolver* InSolver)
 		{
 			Dispatcher->EnqueueCommandImmediate([InSolver](Chaos::FPersistentPhysicsTask* PhysThread)
 			{
+				LLM_SCOPE(ELLMTag::Chaos);
 				if(PhysThread)
 				{
 					PhysThread->RemoveSolver(InSolver);
@@ -594,7 +600,7 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 #endif
 #if 0
 
-		const TArray<Chaos::TBox<float, 3>>& Boxes = Hierarchy->GetWorldSpaceBoxes();
+		const TArray<Chaos::TAABB<float, 3>>& Boxes = Hierarchy->GetWorldSpaceBoxes();
 
 		if(Boxes.Num() > 0)
 		{

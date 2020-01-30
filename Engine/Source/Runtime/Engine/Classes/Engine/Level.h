@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -51,7 +51,7 @@ public:
 
 private:
 #if WITH_EDITOR
-	virtual void BeginOperation(FLevelPartitionOperationScope* Scope) = 0;
+	virtual void BeginOperation(class FLevelPartitionOperationScope* Scope) = 0;
 	virtual void EndOperation() = 0;
 #endif
 };
@@ -743,7 +743,7 @@ public:
 	virtual void PostEditUndo() override;	
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
-	virtual bool CanEditChange(const UProperty* PropertyThatWillChange) const override;
+	virtual bool CanEditChange(const FProperty* PropertyThatWillChange) const override;
 #endif // WITH_EDITOR
 	virtual void PostLoad() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;

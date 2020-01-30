@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyEditorTableRow.h"
 #include "Widgets/Text/STextBlock.h"
@@ -229,7 +229,7 @@ FReply SPropertyEditorTableRow::OnNameDoubleClicked()
 TSharedRef<SWidget> SPropertyEditorTableRow::ConstructPropertyEditorWidget()
 {
 	TSharedPtr<SWidget> PropertyWidget; 
-	const UProperty* const Property = PropertyEditor->GetProperty();
+	const FProperty* const Property = PropertyEditor->GetProperty();
 
 	const TSharedRef< FPropertyEditor > PropertyEditorRef = PropertyEditor.ToSharedRef();
 	const TSharedRef< IPropertyUtilities > PropertyUtilitiesRef = PropertyUtilities.ToSharedRef();

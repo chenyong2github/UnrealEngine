@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -27,10 +27,8 @@ struct FRigUnit_MultiplyTransform : public FRigUnit_BinaryTransformOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Argument0*Argument1;
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
 USTRUCT(meta = (DisplayName = "GetRelativeTransform", Category = "Math|Transform", Deprecated="4.23.0"))
@@ -38,9 +36,7 @@ struct FRigUnit_GetRelativeTransform : public FRigUnit_BinaryTransformOp
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& Context) override
-	{
-		Result = Argument0.GetRelativeTransform(Argument1);
-	}
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 };
 

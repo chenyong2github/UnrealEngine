@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/LevelBounds.h"
 #include "Engine/CollisionProfile.h"
@@ -47,7 +47,7 @@ void ALevelBounds::PostLoad()
 	}
 }
 
-FBox ALevelBounds::GetComponentsBoundingBox(bool bNonColliding) const
+FBox ALevelBounds::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	checkf(RootComponent != nullptr, TEXT("LevelBounds actor with null root component: %s"), *GetPathNameSafe(this));
 	FVector BoundsCenter = RootComponent->GetComponentLocation();

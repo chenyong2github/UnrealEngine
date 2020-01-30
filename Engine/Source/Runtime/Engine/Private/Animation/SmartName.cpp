@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/SmartName.h"
 #include "UObject/FrameworkObjectVersion.h"
@@ -111,7 +111,16 @@ void FSmartNameMapping::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::MoveCurveTypesToSkeleton)
 	{
-		Ar << CurveMetaDataMap;
+#if WITH_EDITORONLY_DATA
+		if (Ar.IsCooking())
+		{
+			Ar << LoadDataCurveMetaDataMap; // Cook out loaded data for determinism
+		}
+		else
+#endif
+		{
+			Ar << CurveMetaDataMap;
+		}
 	}
 
 	if (Ar.IsLoading())
@@ -119,6 +128,10 @@ void FSmartNameMapping::Serialize(FArchive& Ar)
 		CurveMetaDataMap.GenerateKeyArray(CurveNameList);
 #if !WITH_EDITOR
 		CurveMetaDataMap.GenerateValueArray(CurveMetaDataList);
+#endif
+
+#if WITH_EDITORONLY_DATA
+		LoadDataCurveMetaDataMap = CurveMetaDataMap;
 #endif
 	}
 }

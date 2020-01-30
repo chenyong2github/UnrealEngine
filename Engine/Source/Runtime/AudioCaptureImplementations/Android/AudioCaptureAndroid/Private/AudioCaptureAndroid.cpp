@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCaptureAndroid.h"
 
@@ -47,9 +47,11 @@ bool Audio::FAudioCaptureAndroidStream::OpenCaptureStream(const FAudioCaptureDev
 
 bool Audio::FAudioCaptureAndroidStream::CloseStream()
 {
-	check(InputOboeStream != nullptr);
-	InputOboeStream->close();
-	InputOboeStream.Reset();
+	if (!InputOboeStream)
+	{
+		InputOboeStream->close();
+		InputOboeStream.Reset();
+	}
 
 	return true;
 }

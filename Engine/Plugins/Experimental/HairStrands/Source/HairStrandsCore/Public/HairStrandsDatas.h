@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -324,6 +324,12 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 
 	/** Roots UV. Support UDIM coordinate up to 256x256 */
 	TArray<FVector2D> CurvesRootUV; // [0..256]
+
+	/** Strand ID associated with each curve */
+	TArray<int> StrandIDs;
+
+	/** Mapping of imported Groom ID to index */
+	TMap<int, int> GroomIDToIndex;
 
 	/** Max strands Curves length */
 	float MaxLength = 0;

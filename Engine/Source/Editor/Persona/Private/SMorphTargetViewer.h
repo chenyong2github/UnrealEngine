@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -77,6 +77,11 @@ public:
 	*
 	*/
 	void OnPreviewMeshChanged(class USkeletalMesh* OldPreviewMesh, class USkeletalMesh* NewPreviewMesh);
+
+	/**
+	* Is registered with Persona to handle when its preview mesh morph targets has changed.
+	*/
+	void OnMorphTargetsChanged();
 
 	/**
 	* Filters the SListView when the user changes the search text box (NameFilterBox)

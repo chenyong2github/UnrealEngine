@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveAssetEditor.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
@@ -75,7 +75,7 @@ struct FCurveAssetEditorTreeItem : public ICurveEditorTreeItem
 			return;
 		}
 
-		TUniquePtr<FRichCurveEditorModel> NewCurve = MakeUnique<FRichCurveEditorModel>(static_cast<FRichCurve*>(EditInfo.CurveToEdit), CurveOwner.Get());
+		TUniquePtr<FRichCurveEditorModelRaw> NewCurve = MakeUnique<FRichCurveEditorModelRaw>(static_cast<FRichCurve*>(EditInfo.CurveToEdit), CurveOwner.Get());
 		NewCurve->SetShortDisplayName(CurveName);
 		NewCurve->SetColor(CurveColor);
 		OutCurveModels.Add(MoveTemp(NewCurve));

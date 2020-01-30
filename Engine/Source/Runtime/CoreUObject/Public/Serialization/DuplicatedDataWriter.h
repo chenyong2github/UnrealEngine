@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -41,9 +41,10 @@ private:
 
 	//~ Begin FArchive Interface.
 
-	virtual FArchive& operator<<(FName& N);
-	virtual FArchive& operator<<(UObject*& Object);
-	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr);
+	virtual FArchive& operator<<(FName& N) override;
+	virtual FArchive& operator<<(UObject*& Object) override;
+	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override;
+	virtual FArchive& operator<<(FField*& Field) override;
 
 	virtual void Serialize(void* Data,int64 Num)
 	{

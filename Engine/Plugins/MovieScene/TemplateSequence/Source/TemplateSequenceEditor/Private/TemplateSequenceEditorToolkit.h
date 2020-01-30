@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,6 +14,12 @@ class ISequencer;
 class FAssetDragDropOp;
 class FClassDragDropOp;
 class FActorDragDropGraphEdOp;
+
+struct FTemplateSequenceToolkitParams
+{
+	bool bCanChangeBinding = true;
+	UClass* InitialBindingClass = nullptr;
+};
 
 /**
  * Implements an Editor toolkit for template sequences.
@@ -42,7 +48,7 @@ public:
 	 * @param TemplateSequence The animation to edit.
 	 * @param TrackEditorDelegates Delegates to call to create auto-key handlers for this sequencer.
 	 */
-	void Initialize(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UTemplateSequence* TemplateSequence);
+	void Initialize(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UTemplateSequence* TemplateSequence, const FTemplateSequenceToolkitParams& ToolkitParams);
 
 public:
 

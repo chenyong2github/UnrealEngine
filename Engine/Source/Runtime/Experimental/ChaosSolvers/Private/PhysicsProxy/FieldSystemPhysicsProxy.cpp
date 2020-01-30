@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
@@ -117,7 +117,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 					FFieldContext Context(
-						SampleIndicesView, // @todo(brice) important: an empty index array should evaluate everything
+						SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 						SamplePointsView,
 						Command.MetaData);
 
@@ -251,7 +251,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
 
 					FFieldContext Context{
-						IndexView, // @todo(brice) important: an empty index array should evaluate everything
+						IndexView, // @todo(chaos) important: an empty index array should evaluate everything
 						SamplesView,
 						Command.MetaData
 					};
@@ -420,23 +420,31 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
 					TEXT("Field based evaluation of the simulations 'LinearVelocity' parameter expects FVector field inputs.")))
 				{
-					FFieldSystemPhysicsProxy::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
+					if (Handles.Num())
 					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						FFieldContext Context(
+							SampleIndicesView,
+							SamplePointsView,
+							Command.MetaData);
 
-						FVector * tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
+						TArray<FVector> LocalResults;
+						LocalResults.AddUninitialized(Handles.Num());					
+						TArrayView<FVector> ResultsView(&(LocalResults[0]), LocalResults.Num());
+						static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(
+							Context, ResultsView);
 
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData
-						};
-
-						FVector * vptr = &(Particles.V(0));
-						TArrayView<FVector> ResultsView(vptr, Particles.Size());
-						static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+						int32 i = 0;
+						for (Chaos::TGeometryParticleHandle<float, 3>* Handle : Handles)
+						{
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
+							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
+							{
+								RigidHandle->V() += ResultsView[i];
+							}
+							++i;
+						}
 					}
 				}
 				CommandsToRemove.Add(CommandIndex);
@@ -983,7 +991,6 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 
 						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
 						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
 						FFieldContext Context(
 							SampleIndicesView,
 							SamplePointsView,
@@ -1000,7 +1007,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
 							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 							{
-								RigidHandle->ExternalForce() += ForceView[i];
+								RigidHandle->F() += ForceView[i];
 							}
 							++i;
 						}
@@ -1060,7 +1067,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
 							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 							{
-								RigidHandle->ExternalTorque() += TorqueView[i];
+								RigidHandle->Torque() += TorqueView[i];
 							}
 							++i;
 						}

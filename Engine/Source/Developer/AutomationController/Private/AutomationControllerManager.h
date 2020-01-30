@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -485,6 +485,12 @@ private:
 
 	/** Timer to keep track of the last time tests were updated */
 	double CheckTestTimer;
+
+	/** The time to wait between test updates in seconds */
+	float CheckTestIntervalSeconds = 1.0f;
+	
+	/** The time to wait before considering a game instance as lost in seconds */
+	float GameInstanceLostTimerSeconds = 300.0f;
 
 	/** Whether tick is still executing tests for different clusters */
 	uint32 ClusterDistributionMask;

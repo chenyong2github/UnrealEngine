@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SAnimTrackPanel.h"
@@ -72,26 +72,6 @@ TSharedRef<class S2ColumnWidget> SAnimTrackPanel::Create2ColumnWidget( TSharedRe
 		];
 
 	return NewTrack.ToSharedRef();
-}
-
-FReply SAnimTrackPanel::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
-{
-	const float ZoomDelta = -0.1f * MouseEvent.GetWheelDelta();
-
-	const FVector2D MouseWidgetPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-	const float ZoomRatio = FMath::Clamp((MouseWidgetPos.X / (MyGeometry.Size.X - WidgetWidth)), 0.f, 1.f);
-
-	{
-		const float InputViewSize = ViewInputMax.Get() - ViewInputMin.Get();
-		const float InputChange = InputViewSize * ZoomDelta;
-
-		float ViewMinInput = ViewInputMin.Get() - (InputChange * ZoomRatio);
-		float ViewMaxInput = ViewInputMax.Get() + (InputChange * (1.f - ZoomRatio));
-		
-		InputViewRangeChanged(ViewMinInput, ViewMaxInput);
-	}
-
-	return FReply::Handled();
 }
 
 FReply SAnimTrackPanel::OnMouseButtonDown( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent )
@@ -198,7 +178,7 @@ void SAnimTrackPanel::PanInputViewRange(int32 ScreenDelta, FVector2D ScreenViewS
 
 void SAnimTrackPanel::InputViewRangeChanged(float ViewMin, float ViewMax)
 {
-	OnSetInputViewRange.Execute(ViewMin, ViewMax);
+	OnSetInputViewRange.ExecuteIfBound(ViewMin, ViewMax);
 }
 
 #undef LOCTEXT_NAMESPACE

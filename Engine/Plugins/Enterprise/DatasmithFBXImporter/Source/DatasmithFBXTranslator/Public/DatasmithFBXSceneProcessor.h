@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -41,9 +41,6 @@ public:
 
 	/** Find and mark scene nodes which shouldn't be merged with parent or sibling nodes */
 	void FindPersistentNodes();
-
-	/** Find duplicated nodes which could be replaced with a single instance and pointer to children ("shared nodes") */
-	void OptimizeDuplicatedNodes();
 
 	/** Collapse node hierarchy . */
 	void SimplifyNodeHierarchy();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -209,9 +209,14 @@ namespace UnrealBuildTool
 			// read the old file
 			string OldPListData = File.Exists(PListFile) ? File.ReadAllText(PListFile) : "";
 
-			// determine if there is a launch.xib
+			// determine if there is a Lanchscreen Storyboard THEN a launch.xib
+			string LaunchStoryboard = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.storyboard";
 			string LaunchXib = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.xib";
-			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.xib"))
+			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard"))
+			{
+				LaunchStoryboard = BuildDirectory + "/Resources/Interface/LaunchScreen.storyboard";
+			}
+			else if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.xib"))
 			{
 				LaunchXib = BuildDirectory + "/Resources/Interface/LaunchScreen.xib";
 			}
@@ -560,9 +565,8 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t</dict>");
 				Text.AppendLine("\t</dict>");
 			}
-			if (File.Exists(LaunchXib))
+			if (File.Exists(LaunchStoryboard) || File.Exists(LaunchXib))
 			{
-				// TODO: compile the xib via remote tool
 				Text.AppendLine("\t<key>UILaunchStoryboardName</key>");
 				Text.AppendLine("\t<string>LaunchScreen</string>");
 				bSkipDefaultPNGs = true;
@@ -862,6 +866,8 @@ namespace UnrealBuildTool
 			// copy engine assets in (IOS and TVOS shared in IOS)
 			if (bSkipDefaultPNGs)
 			{
+				//Copy storyboard or xib
+				CopyFiles(InEngineDir + "/Build/IOS/Resources/Interface", AppDirectory, "*", true);
 				// we still want default icons
 				if (!bSkipIcons)
 				{
@@ -1115,14 +1121,6 @@ namespace UnrealBuildTool
 				DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + InProjectName + "_Distro.mobileprovision");
 				DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
 			}
-
-			// compile the launch .xib
-			// @todo tvos: Is this needed for IOS, but not TVOS?
-			//			string LaunchXib = InEngineDir + "/Build/IOS/Resources/Interface/LaunchScreen.xib";
-			//			if (File.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.xib"))
-			//			{
-			//				LaunchXib = BuildDirectory + "/Resources/Interface/LaunchScreen.xib";
-			//			}
 
 			bool bSupportsPortrait = true;
 			bool bSupportsLandscape = false;

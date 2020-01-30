@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithVREDTranslatorModule.h"
 
@@ -7,8 +7,7 @@
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 
 #include "CoreMinimal.h"
-#include "DatasmithImporterModule.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 
 class FVREDTranslatorModule : public IDatasmithVREDTranslatorModule
 {

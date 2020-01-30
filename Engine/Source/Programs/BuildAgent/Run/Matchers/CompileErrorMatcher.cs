@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using BuildAgent.Run;
 using BuildAgent.Run.Interfaces;
@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Tools.DotNETCommon;
 
 namespace BuildAgent.Matchers
 {
@@ -64,6 +65,7 @@ namespace BuildAgent.Matchers
 				EndIdx++;
 			}
 
+			Log.TraceWarning("WARNING DETECTED! {0}", Input);
 			return new ErrorMatch(Severity, ErrorPriority.High, "Compile", Input, 0, EndIdx);
 		}
 

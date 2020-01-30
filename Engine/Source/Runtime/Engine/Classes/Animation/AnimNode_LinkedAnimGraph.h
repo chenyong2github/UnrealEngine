@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -47,6 +47,9 @@ public:
 
 	// The root node of the dynamically-linked graph
 	FAnimNode_Base* LinkedRoot;
+
+	// Our node index
+	int32 NodeIndex;
 
 	/** Dynamically set the anim class of this linked instance */
 	void SetAnimClass(TSubclassOf<UAnimInstance> InClass, const UAnimInstance* InOwningAnimInstance);

@@ -1,8 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "HAL/PlatformMisc.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
@@ -642,6 +643,8 @@ bool IPlatformFile::DeleteDirectoryRecursively(const TCHAR* Directory)
 	{
 	public:
 		IPlatformFile&		PlatformFile;
+		uint32 FirstError = 0;
+
 		FRecurse(IPlatformFile&	InPlatformFile)
 			: PlatformFile(InPlatformFile)
 		{
@@ -651,7 +654,10 @@ bool IPlatformFile::DeleteDirectoryRecursively(const TCHAR* Directory)
 			if (bIsDirectory)
 			{
 				PlatformFile.IterateDirectory(FilenameOrDirectory, *this);
-				PlatformFile.DeleteDirectory(FilenameOrDirectory);
+				if (!PlatformFile.DeleteDirectory(FilenameOrDirectory) && FirstError == 0)
+				{
+					FirstError = FPlatformMisc::GetLastError();
+				}
 			}
 			else
 			{
@@ -660,14 +666,22 @@ bool IPlatformFile::DeleteDirectoryRecursively(const TCHAR* Directory)
 
 				// File delete failed -- unset readonly flag and try again
 				PlatformFile.SetReadOnly(FilenameOrDirectory, false);
-				PlatformFile.DeleteFile(FilenameOrDirectory);
+				if (!PlatformFile.DeleteFile(FilenameOrDirectory) && FirstError == 0)
+				{
+					FirstError = FPlatformMisc::GetLastError();
+				}
 			}
 			return true; // continue searching
 		}
 	};
 	FRecurse Recurse(*this);
 	Recurse.Visit(Directory, true);
-	return !DirectoryExists(Directory);
+	const bool bSucceeded = !DirectoryExists(Directory);
+	if (!bSucceeded)
+	{
+		FPlatformMisc::SetLastError(Recurse.FirstError);
+	}
+	return bSucceeded;
 }
 
 
@@ -813,11 +827,18 @@ static bool InternalCreateDirectoryTree(IPlatformFile& Ipf, const FString& Direc
 			if (!InternalCreateDirectoryTree(Ipf, Directory.Left(SeparatorIndex)))
 				return false;
 
-			return Ipf.CreateDirectory(*Directory) || Ipf.DirectoryExists(*Directory);
+			if (Ipf.CreateDirectory(*Directory))
+				return true;
 		}
 	}
 
-	return Ipf.DirectoryExists(*Directory);
+	uint32 ErrorCode = FPlatformMisc::GetLastError();
+	const bool bExists = Ipf.DirectoryExists(*Directory);
+	if (!bExists)
+	{
+		FPlatformMisc::SetLastError(ErrorCode);
+	}
+	return bExists;
 }
 
 bool IPlatformFile::CreateDirectoryTree(const TCHAR* Directory)

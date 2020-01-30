@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MetalIndexBuffer.cpp: Metal Index buffer RHI implementation.
@@ -32,7 +32,7 @@ FMetalIndexBuffer::FMetalIndexBuffer(uint32 InStride, uint32 InSize, uint32 InUs
 	if (RHISupportsTessellation(GMaxRHIShaderPlatform))
 	{
 		EPixelFormat Format = IndexType == mtlpp::IndexType::UInt16 ? PF_R16_UINT : PF_R32_UINT;
-		CreateLinearTexture(Format, this);
+		CreateLinearTexture(Format, this, 0);
 	}
 }
 

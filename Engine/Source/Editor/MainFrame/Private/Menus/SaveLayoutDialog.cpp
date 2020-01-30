@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SaveLayoutDialog.h"
 #include "EditorStyleSet.h"
@@ -268,6 +268,7 @@ void SSaveLayoutDialog::Construct(const FArguments& InArgs, const TSharedRef<FSa
 			[
 				SNew(STextBlock)
 				.Text( this, &SSaveLayoutDialog::GetNameErrorLabelText )
+				.ToolTipText(this, &SSaveLayoutDialog::GetNameErrorLabelText)
 				.TextStyle( FEditorStyle::Get(), "AssetDialog.ErrorLabelFont" )
 			]
 		]

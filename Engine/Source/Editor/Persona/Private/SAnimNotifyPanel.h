@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -17,6 +17,7 @@
 #include "Framework/Commands/Commands.h"
 #include "SAnimTimingPanel.h"
 #include "EditorUndoClient.h"
+#include "AnimModel.h"
 
 class FSlateWindowElementList;
 class SAnimNotifyNode;
@@ -37,6 +38,7 @@ DECLARE_DELEGATE_TwoParams( FReplaceWithBlueprintNotify, FString, FString )
 DECLARE_DELEGATE( FDeselectAllNotifies )
 DECLARE_DELEGATE_OneParam( FOnGetBlueprintNotifyData, TArray<FAssetData>& )
 DECLARE_DELEGATE_OneParam( FOnGetNativeNotifyClasses, TArray<UClass*>&)
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnSnapPosition, float& /*InOutTimeToSnap*/, float /*InSnapMargin*/)
 
 class SAnimNotifyNode;
 class SAnimNotifyTrack;
@@ -177,7 +179,6 @@ public:
 	SLATE_ATTRIBUTE( float, ViewInputMax )
 	SLATE_ATTRIBUTE( float, InputMin )
 	SLATE_ATTRIBUTE( float, InputMax )
-	SLATE_ATTRIBUTE( TArray<FTrackMarkerBar>, MarkerBars )
 	SLATE_EVENT( FOnSetInputViewRange, OnSetInputViewRange )
 	SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
 	SLATE_EVENT( FOnGetScrubValue, OnGetScrubValue )
@@ -185,10 +186,11 @@ public:
 	SLATE_EVENT( FOnGetTimingNodeVisibility, OnGetTimingNodeVisibility )
 	SLATE_EVENT( FOnInvokeTab, OnInvokeTab )
 	SLATE_EVENT( FSimpleDelegate, OnNotifiesChanged )
+	SLATE_EVENT( FOnSnapPosition, OnSnapPosition )
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton);
+	void Construct(const FArguments& InArgs, const TSharedRef<FAnimModel>& InModel);
 	virtual ~SAnimNotifyPanel();
 
 	void SetSequence(class UAnimSequenceBase *	InSequence);
@@ -196,12 +198,10 @@ public:
 	// Generate a new track name (smallest integer number that isn't currently used)
 	FName GetNewTrackName() const;
 
+	FReply AddTrack();
 	FReply InsertTrack(int32 TrackIndexToInsert);
 	FReply DeleteTrack(int32 TrackIndexToDelete);
 	bool CanDeleteTrack(int32 TrackIndexToDelete);
-
-	/** Widget timer function to trigger notify track rename (cannot do it directly from add track code) */
-	EActiveTimerReturnType TriggerRename(double InCurrentTime, float InDeltaTime, int32 TrackIndex);
 	
 	// Handler function for renaming a notify track
 	void OnCommitTrackName(const FText& InText, ETextCommit::Type CommitInfo, int32 TrackIndexToName);
@@ -246,7 +246,11 @@ public:
 	/** Handler for replacing with notify blueprint */
 	void OnReplaceSelectedWithNotifyBlueprint(FString NewBlueprintNotifyName, FString NewBlueprintNotifyClass);
 
+	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
+
 private:
+	friend struct FScopedSavedNotifySelection;
+
 	TSharedPtr<SBorder> PanelArea;
 	TSharedPtr<SScrollBar> NotifyTrackScrollBar;
 	class UAnimSequenceBase* Sequence;
@@ -324,8 +328,8 @@ private:
 
 	virtual void InputViewRangeChanged(float ViewMin, float ViewMax) override;
 
-	/** Attribute for accessing any section/branching point positions we have to draw */
-	TAttribute<TArray<FTrackMarkerBar>>	MarkerBars;
+	/** Delegate used to snap when dragging */
+	FOnSnapPosition OnSnapPosition;
 
 	/** UI commands for this widget */
 	TSharedPtr<FUICommandList> UICommandList;
@@ -344,4 +348,10 @@ private:
 
 	/** Delegate used to inform others that notifies have changed (for timing) */
 	FSimpleDelegate OnNotifiesChanged;
+
+	/** Recursion guard for selection */
+	bool bIsSelecting;
+
+	/** Recursion guard for updating */
+	bool bIsUpdating;
 };

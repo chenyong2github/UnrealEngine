@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGLShaderResources.h: OpenGL shader resource RHI definitions.
@@ -30,8 +30,7 @@ enum
 {
 	OGL_MAX_UNIFORM_BUFFER_BINDINGS = 12,	// @todo-mobile: Remove me
 	OGL_FIRST_UNIFORM_BUFFER = 0,			// @todo-mobile: Remove me
-	OGL_MAX_COMPUTE_STAGE_UAV_UNITS = 8,	// @todo-mobile: Remove me
-	OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT = -1, // for now, only CS supports UAVs/ images
+	OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT = -1, // for now, only CS and PS supports UAVs/ images
 };
 
 struct FOpenGLShaderResourceTable : public FBaseShaderResourceTable
@@ -328,6 +327,7 @@ public:
 	bool NeedsTextureStage(int32 TextureStageIndex);
 	int32 MaxTextureStageUsed();
 	const TBitArray<>& GetTextureNeeds(int32& OutMaxTextureStageUsed);
+	const TBitArray<>& GetUAVNeeds(int32& OutMaxUAVUnitUsed) const;
 	bool NeedsUAVStage(int32 UAVStageIndex) const;
 
 	FOpenGLLinkedProgram* LinkedProgram;

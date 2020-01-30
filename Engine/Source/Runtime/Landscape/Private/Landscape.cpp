@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Landscape.cpp: Terrain rendering
@@ -50,6 +50,7 @@ Landscape.cpp: Terrain rendering
 #include "EngineUtils.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "LandscapeWeightmapUsage.h"
+#include "LandscapeSubsystem.h"
 
 #if WITH_EDITOR
 #include "LandscapeEdit.h"
@@ -96,6 +97,7 @@ DEFINE_STAT(STAT_LandscapeLayersRegenerateWeightmaps);
 
 DEFINE_STAT(STAT_LandscapeVertexMem);
 DEFINE_STAT(STAT_LandscapeOccluderMem);
+DEFINE_STAT(STAT_LandscapeHoleMem);
 DEFINE_STAT(STAT_LandscapeComponentMem);
 
 #if ENABLE_COOK_STATS
@@ -116,7 +118,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("6862AA3DD9FB4368B9DDAF9EB7E9901F")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("EAA6E15CEDD644308E8B8D5427EC180")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -593,6 +595,17 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeHoleMaterial() const
 	return nullptr;
 }
 
+bool ULandscapeComponent::IsLandscapeHoleMaterialValid() const
+{
+	UMaterialInterface* HoleMaterial = GetLandscapeHoleMaterial();
+	if (!HoleMaterial)
+	{
+		return false;
+	}
+
+	return HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>();
+}
+
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
 {
 	for (const FWeightmapLayerAllocationInfo& Allocation : WeightmapLayerAllocations)
@@ -1006,14 +1019,13 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, TargetDisplayOrder(ELandscapeLayerDisplayMode::Default)
 #endif // WITH_EDITORONLY_DATA
+#if !WITH_EDITORONLY_DATA
+	, LandscapeMaterialCached(nullptr)
+	, LandscapeGrassTypes()
+	, GrassMaxSquareDiscardDistance(0.0f)
+#endif
 	, bHasLandscapeGrass(true)
 {
-	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.bTickEvenWhenPaused = true;
-	PrimaryActorTick.bStartWithTickEnabled = true;
-	PrimaryActorTick.TickGroup = TG_DuringPhysics;
-	bAllowTickBeforeBeginPlay = true;
-
 	bReplicates = false;
 	NetUpdateFrequency = 10.0f;
 	SetHidden(false);
@@ -1280,17 +1292,6 @@ void ULandscapeComponent::GetGeneratedTexturesAndMaterialInstances(TArray<UObjec
 ALandscapeProxy* ULandscapeComponent::GetLandscapeProxy() const
 {
 	return CastChecked<ALandscapeProxy>(GetOuter());
-}
-
-FIntPoint ULandscapeComponent::GetSectionBase() const
-{
-	return FIntPoint(SectionBaseX, SectionBaseY);
-}
-
-void ULandscapeComponent::SetSectionBase(FIntPoint InSectionBase)
-{
-	SectionBaseX = InSectionBase.X;
-	SectionBaseY = InSectionBase.Y;
 }
 
 const FMeshMapBuildData* ULandscapeComponent::GetMeshMapBuildData() const
@@ -1892,6 +1893,14 @@ void ALandscapeProxy::PostRegisterAllComponents()
 		{
 			LandscapeInfo = CreateLandscapeInfo();
 		}
+
+		if (UWorld* OwningWorld = GetWorld())
+		{
+			if (ULandscapeSubsystem* LandscapeSubsystem = OwningWorld->GetSubsystem<ULandscapeSubsystem>())
+			{
+				LandscapeSubsystem->RegisterActor(this);
+			}
+		}
 	}
 #if WITH_EDITOR
 	// Game worlds don't have landscape infos
@@ -1907,11 +1916,9 @@ void ALandscapeProxy::PostRegisterAllComponents()
 
 void ALandscapeProxy::UnregisterAllComponents(const bool bForReregister)
 {
-#if WITH_EDITOR
 	// Game worlds don't have landscape infos
-	if (GetWorld() && !GetWorld()->IsGameWorld()
-		// On shutdown the world will be unreachable
-		&& !GetWorld()->IsPendingKillOrUnreachable() &&
+	// On shutdown the world will be unreachable
+	if (GetWorld() && !GetWorld()->IsPendingKillOrUnreachable() &&
 		// When redoing the creation of a landscape we may get UnregisterAllComponents called when
 		// we are in a "pre-initialized" state (empty guid, etc)
 		LandscapeGuid.IsValid())
@@ -1921,8 +1928,12 @@ void ALandscapeProxy::UnregisterAllComponents(const bool bForReregister)
 		{
 			LandscapeInfo->UnregisterActor(this);
 		}
+
+		if (ULandscapeSubsystem* LandscapeSubsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>())
+		{
+			LandscapeSubsystem->UnregisterActor(this);
+		}
 	}
-#endif
 
 	Super::UnregisterAllComponents(bForReregister);
 }
@@ -2361,13 +2372,6 @@ void ALandscapeProxy::PostLoad()
 {
 	Super::PostLoad();
 
-	// disable ticking if we have no grass to tick
-	if (!GIsEditor && !bHasLandscapeGrass)
-	{
-		SetActorTickEnabled(false);
-		PrimaryActorTick.bCanEverTick = false;
-	}
-
 	// Temporary
 	if (ComponentSizeQuads == 0 && LandscapeComponents.Num() > 0)
 	{
@@ -2446,6 +2450,11 @@ void ALandscapeProxy::PostLoad()
 	FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateUObject(this, &ALandscapeProxy::OnFeatureLevelChanged);
 	FeatureLevelChangedDelegateHandle = GetWorld()->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
 #endif
+}
+
+FIntPoint ALandscapeProxy::GetSectionBaseOffset() const
+{
+	return LandscapeSectionOffset;
 }
 
 #if WITH_EDITOR
@@ -2660,11 +2669,6 @@ void ALandscapeProxy::SetAbsoluteSectionBase(FIntPoint InSectionBase)
 	}
 }
 
-FIntPoint ALandscapeProxy::GetSectionBaseOffset() const
-{
-	return LandscapeSectionOffset;
-}
-
 void ALandscapeProxy::RecreateComponentsState()
 {
 	for (int32 ComponentIndex = 0; ComponentIndex < LandscapeComponents.Num(); ComponentIndex++)
@@ -2861,20 +2865,6 @@ ALandscapeProxy* ULandscapeInfo::GetLandscapeProxy() const
 	return nullptr;
 }
 
-void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const
-{
-	ALandscape* Landscape = LandscapeActor.Get();
-	if (Landscape)
-	{
-		Fn(Landscape);
-	}
-
-	for (ALandscapeProxy* LandscapeProxy : Proxies)
-	{
-		Fn(LandscapeProxy);
-	}
-}
-
 void ULandscapeInfo::Reset()
 {
 	LandscapeActor.Reset();
@@ -3013,16 +3003,30 @@ void ULandscapeInfo::RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck)
 
 #endif
 
+void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const
+{
+	ALandscape* Landscape = LandscapeActor.Get();
+	if (Landscape)
+	{
+		Fn(Landscape);
+	}
+
+	for (ALandscapeProxy* LandscapeProxy : Proxies)
+	{
+		Fn(LandscapeProxy);
+	}
+}
+
 void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 {
+	UWorld* OwningWorld = Proxy->GetWorld();
+	// do not pass here invalid actors
+	checkSlow(Proxy);
+	check(Proxy->GetLandscapeGuid().IsValid());
+	
 #if WITH_EDITOR
-	if (!Proxy->GetWorld()->IsGameWorld())
+	if (!OwningWorld->IsGameWorld())
 	{
-		// do not pass here invalid actors
-		checkSlow(Proxy);
-		check(Proxy->GetLandscapeGuid().IsValid());
-		UWorld* OwningWorld = Proxy->GetWorld();
-
 		// in case this Info object is not initialized yet
 		// initialized it with properties from passed actor
 		if (LandscapeGuid.IsValid() == false ||
@@ -3064,23 +3068,24 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		}
 		else
 		{
-			// Insert Proxies in a sorted fashion for generating determisnitic results in the Layer system
+			auto LamdbdaLowerBound = [](ALandscapeProxy* A, ALandscapeProxy* B)
+			{
+				FIntPoint SectionBaseA = A->GetSectionBaseOffset();
+				FIntPoint SectionBaseB = B->GetSectionBaseOffset();
+
+				if (SectionBaseA.X != SectionBaseB.X)
+				{
+					return SectionBaseA.X < SectionBaseB.X;
+				}
+
+				return SectionBaseA.Y < SectionBaseB.Y;
+			};
+
+			// Insert Proxies in a sorted fashion for generating deterministic results in the Layer system
 			ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
 			if (!Proxies.Contains(Proxy))
 			{
-				uint32 InsertIndex = Algo::LowerBound(Proxies, Proxy, [](ALandscapeProxy* A, ALandscapeProxy* B)
-				{
-					FIntPoint SectionBaseA = A->GetSectionBaseOffset();
-					FIntPoint SectionBaseB = B->GetSectionBaseOffset();
-
-					if (SectionBaseA.X != SectionBaseB.X)
-					{
-						return SectionBaseA.X < SectionBaseB.X;
-					}
-
-					return SectionBaseA.Y < SectionBaseB.Y;
-				});
-
+				uint32 InsertIndex = Algo::LowerBound(Proxies, Proxy, LamdbdaLowerBound);
 				Proxies.Insert(StreamingProxy, InsertIndex);
 			}
 			StreamingProxy->LandscapeActor = LandscapeActor;
@@ -3097,6 +3102,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		UpdateAllAddCollisions();
 	}
 #endif
+	
 	//
 	// add proxy components to the XY map
 	//
@@ -3113,29 +3119,33 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 
 void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 {
+	UWorld* OwningWorld = Proxy->GetWorld();
 #if WITH_EDITOR
-	if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
+	if (!OwningWorld->IsGameWorld())
 	{
-		// Note: UnregisterActor sometimes gets triggered twice, e.g. it has been observed to happen during redo
-		// Note: In some cases LandscapeActor could be updated to a new landscape actor before the old landscape is unregistered/destroyed
-		// e.g. this has been observed when merging levels in the editor
-
-		if (LandscapeActor.Get() == Landscape)
+		if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
 		{
-			LandscapeActor = nullptr;
-		}
+			// Note: UnregisterActor sometimes gets triggered twice, e.g. it has been observed to happen during redo
+			// Note: In some cases LandscapeActor could be updated to a new landscape actor before the old landscape is unregistered/destroyed
+			// e.g. this has been observed when merging levels in the editor
 
-		// update proxies reference to landscape actor
-		for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
-		{
-			StreamingProxy->LandscapeActor = LandscapeActor;
+			if (LandscapeActor.Get() == Landscape)
+			{
+				LandscapeActor = nullptr;
+			}
+
+			// update proxies reference to landscape actor
+			for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
+			{
+				StreamingProxy->LandscapeActor = LandscapeActor;
+			}
 		}
-	}
-	else
-	{
-		ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
-		Proxies.Remove(StreamingProxy);
-		StreamingProxy->LandscapeActor = nullptr;
+		else
+		{
+			ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
+			Proxies.Remove(StreamingProxy);
+			StreamingProxy->LandscapeActor = nullptr;
+		}
 	}
 #endif
 
@@ -3160,8 +3170,11 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	XYtoCollisionComponentMap.Compact();
 
 #if WITH_EDITOR
-	UpdateLayerInfoMap();
-	UpdateAllAddCollisions();
+	if (!OwningWorld->IsGameWorld())
+	{
+		UpdateLayerInfoMap();
+		UpdateAllAddCollisions();
+	}
 #endif
 }
 
@@ -3305,7 +3318,7 @@ ULandscapeWeightmapUsage::ULandscapeWeightmapUsage(const FObjectInitializer& Obj
 }
 
 // Generate a new guid to force a recache of all landscape derived data
-#define LANDSCAPE_FULL_DERIVEDDATA_VER			TEXT("016D326F3A954BBA9CCDFA00CEFA31E9")
+#define LANDSCAPE_FULL_DERIVEDDATA_VER			TEXT("89D752865B0642E89CC8A5A2FED808A2")
 
 FString FLandscapeComponentDerivedData::GetDDCKeyString(const FGuid& StateId)
 {
@@ -3405,45 +3418,6 @@ bool LandscapeMaterialsParameterSetUpdater(FStaticParameterSet& StaticParameterS
 	return UpdateParameterSet<FStaticTerrainLayerWeightParameter, UMaterialExpressionLandscapeLayerWeight>(StaticParameterSet.TerrainLayerWeightParameters, ParentMaterial);
 }
 
-bool ALandscapeProxy::ShouldTickIfViewportsOnly() const
-{
-	return true;
-}
-
-void ALandscape::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
-{
-	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		TickLayers(DeltaTime, TickType, ThisTickFunction);
-	}
-#endif
-}
-
-void ALandscapeProxy::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
-{
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Landscape);
-	LLM_SCOPE(ELLMTag::Landscape);
-#if WITH_EDITOR
-	// editor-only
-	UWorld* World = GetWorld();
-	if (GIsEditor && World && !World->IsPlayInEditor())
-	{
-		UpdateBakedTextures();
-	}
-#endif
-
-	// Tick grass even while paused or in the editor
-	if (GIsEditor || bHasLandscapeGrass)
-	{
-		TickGrass();
-	}
-
-	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
-}
-
 ALandscapeProxy::~ALandscapeProxy()
 {
 	for (int32 Index = 0; Index < AsyncFoliageTasks.Num(); Index++)
@@ -3522,6 +3496,10 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 
 	int32 OccluderGeometryLOD = GetLandscapeProxy()->OccluderGeometryLOD;
 	Ar << OccluderGeometryLOD;
+
+	bool bMeshHoles = GetLandscapeProxy()->bMeshHoles;
+	uint8 MeshHolesMaxLod = GetLandscapeProxy()->MeshHolesMaxLod;
+	Ar << bMeshHoles << MeshHolesMaxLod;
 
 	// Take into account the Heightmap offset per component
 	Ar << HeightmapScaleBias.Z;
@@ -3746,12 +3724,16 @@ void ALandscapeProxy::UpdateBakedTextures()
 #endif
 
 template<class ContainerType>
-void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
+void InvalidateGeneratedComponentDataImpl(const ContainerType& Components, bool bInvalidateLightingCache)
 {
 	TMap<ALandscapeProxy*, TSet<ULandscapeComponent*>> ByProxy;
 	for (auto Iter = Components.CreateConstIterator(); Iter; ++Iter)
 	{
 		ULandscapeComponent* Component = *Iter;
+		if (bInvalidateLightingCache)
+		{
+			Component->InvalidateLightingCache();
+		}
 		Component->BakedTextureMaterialGuid.Invalidate();
 		ByProxy.FindOrAdd(Component->GetLandscapeProxy()).Add(Component);
 	}
@@ -3762,19 +3744,19 @@ void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
 	}
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData()
+void ALandscapeProxy::InvalidateGeneratedComponentData(bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(LandscapeComponents);
+	InvalidateGeneratedComponentDataImpl(LandscapeComponents, bInvalidateLightingCache);
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components)
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(Components);
+	InvalidateGeneratedComponentDataImpl(Components, bInvalidateLightingCache);
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(Components);
+	InvalidateGeneratedComponentDataImpl(Components, bInvalidateLightingCache);
 }
 
 #undef LOCTEXT_NAMESPACE

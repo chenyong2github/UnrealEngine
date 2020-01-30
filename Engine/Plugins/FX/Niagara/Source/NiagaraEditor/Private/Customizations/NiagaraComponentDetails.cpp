@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraComponentDetails.h"
 #include "PropertyHandle.h"
@@ -221,6 +221,8 @@ public:
 			{
 				TSharedPtr<SWidget> DefaultNameWidget;
 				TSharedPtr<SWidget> DefaultValueWidget;
+
+				Row->DisplayName(FText::FromName(Parameter.GetName()));
 
 				TSharedPtr<IPropertyHandle> PropertyHandle = Row->GetPropertyHandle();
 

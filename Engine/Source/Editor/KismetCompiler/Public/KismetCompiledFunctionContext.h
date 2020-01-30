@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -48,7 +48,7 @@ public:
 
 	UFunction* Function;
 	UBlueprintGeneratedClass* NewClass;
-	UField** LastFunctionPropertyStorageLocation;
+	FField** LastFunctionPropertyStorageLocation;
 
 	// Linear execution schedule
 	TArray<UEdGraphNode*> LinearExecutionList;

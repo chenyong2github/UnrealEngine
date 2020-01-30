@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialToolkit.h"
 #include "SocialManager.h"
@@ -11,6 +11,49 @@
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "Engine/LocalPlayer.h"
+
+#if WITH_EDITOR
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStartRandomizeUserPresence, uint8 /*NumRandomUser*/, float /*TickerTimer*/);
+static FOnStartRandomizeUserPresence Debug_OnStartRandomizeUserPresenceEvent;
+static FAutoConsoleCommandWithWorldAndArgs CMD_OnStartRandomUserPresence
+(
+	TEXT("SocialUI.StartRandomizeUserPresence"),
+	TEXT("Randomize users' presence and fire off presence changed events to trigger friend list update/refresh etc. @param NumRandomUser uint8, @param TickerTimer float"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&Args, UWorld* World)
+{
+	uint8 NumRandomUser = 2;
+	float TickerTimer = 5.f;
+
+	if (Args.Num() > 0)
+	{
+		NumRandomUser = FCString::Atoi(*Args[0]);
+	}
+	if (Args.Num() > 1)
+	{
+		TickerTimer = FCString::Atof(*Args[1]);
+	}
+	Debug_OnStartRandomizeUserPresenceEvent.Broadcast(NumRandomUser, TickerTimer);
+})
+);
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnStopRandomizeUserPresence, bool /*bClearGeneratedPresence*/)
+static FOnStopRandomizeUserPresence Debug_OnStopRandomizeUserPresenceEvent;
+static FAutoConsoleCommandWithWorldAndArgs CMD_OnStopRandomUserPresence
+(
+	TEXT("SocialUI.StopRandomizeUserPresence"),
+	TEXT("Stop randomizing users' presnece, with optional param to clear off already generated presence (default to false). @param bClearGeneratedPresence uint8"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&Args, UWorld* World)
+{
+	bool bClearGeneratedPresence = false;
+	if (Args.Num() > 0)
+	{
+		bClearGeneratedPresence = Args[0].ToBool();
+	}
+	Debug_OnStopRandomizeUserPresenceEvent.Broadcast(bClearGeneratedPresence);
+})
+);
+
+#endif
 
 bool NameToSocialSubsystem(FName SubsystemName, ESocialSubsystem& OutSocialSubsystem)
 {
@@ -109,8 +152,8 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 //@todo DanH Social: Need a non-backdoor way to get toolkits from the manager (an issue when we don't know where the manager is) - new game subsystems should be a nice solve
-TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> USocialToolkit::AllToolkitsByOwningPlayer;
-USocialToolkit* USocialToolkit::GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer)
+TMap<TWeakObjectPtr<const ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> USocialToolkit::AllToolkitsByOwningPlayer;
+USocialToolkit* USocialToolkit::GetToolkitForPlayerInternal(const ULocalPlayer* LocalPlayer)
 {
 	TWeakObjectPtr<USocialToolkit>* FoundToolkit = AllToolkitsByOwningPlayer.Find(LocalPlayer);
 	return FoundToolkit ? FoundToolkit->Get() : nullptr;
@@ -125,6 +168,11 @@ USocialToolkit::USocialToolkit()
 
 void USocialToolkit::InitializeToolkit(ULocalPlayer& InOwningLocalPlayer)
 {
+#if WITH_EDITOR
+	Debug_OnStartRandomizeUserPresenceEvent.AddUObject(this, &USocialToolkit::Debug_OnStartRandomizeUserPresence);
+	Debug_OnStopRandomizeUserPresenceEvent.AddUObject(this, &USocialToolkit::Debug_OnStopRandomizeUserPresence);
+#endif
+
 	LocalPlayerOwner = &InOwningLocalPlayer;
 
 	SocialChatManager = USocialChatManager::CreateChatManager(*this);
@@ -540,9 +588,12 @@ void USocialToolkit::OnOwnerLoggedOut()
 				FriendsInterface->ClearOnInviteReceivedDelegates(this);
 				FriendsInterface->ClearOnInviteAcceptedDelegates(this);
 				FriendsInterface->ClearOnInviteRejectedDelegates(this);
+				FriendsInterface->ClearOnInviteAbortedDelegates(this);
 
 				FriendsInterface->ClearOnBlockedPlayerCompleteDelegates(LocalUserNum, this);
 				FriendsInterface->ClearOnUnblockedPlayerCompleteDelegates(LocalUserNum, this);
+
+				FriendsInterface->ClearOnRecentPlayersAddedDelegates(this);
 
 				FriendsInterface->ClearOnQueryBlockedPlayersCompleteDelegates(this);
 				FriendsInterface->ClearOnQueryRecentPlayersCompleteDelegates(this);
@@ -691,6 +742,8 @@ void USocialToolkit::HandleReadFriendsListComplete(int32 LocalUserNum, bool bWas
 	}
 
 	HandleExistingPartyInvites(SubsystemType);
+
+	OnReadFriendsListComplete(LocalUserNum, bWasSuccessful, ListName, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleQueryBlockedPlayersComplete(const FUniqueNetId& UserId, bool bWasSuccessful, const FString& ErrorStr, ESocialSubsystem SubsystemType)
@@ -714,6 +767,8 @@ void USocialToolkit::HandleQueryBlockedPlayersComplete(const FUniqueNetId& UserI
 			//@todo DanH: Only bother retrying on primary
 		}
 	}
+
+	OnQueryBlockedPlayersComplete(UserId, bWasSuccessful, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleQueryRecentPlayersComplete(const FUniqueNetId& UserId, const FString& Namespace, bool bWasSuccessful, const FString& ErrorStr, ESocialSubsystem SubsystemType)
@@ -737,6 +792,8 @@ void USocialToolkit::HandleQueryRecentPlayersComplete(const FUniqueNetId& UserId
 			//@todo DanH: Only bother retrying on primary
 		}
 	}
+
+	OnQueryRecentPlayersComplete(UserId, Namespace, bWasSuccessful, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleRecentPlayersAdded(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<FOnlineRecentPlayer>>& NewRecentPlayers, ESocialSubsystem SubsystemType)
@@ -776,13 +833,13 @@ void USocialToolkit::HandleMapExternalIdComplete(ESocialSubsystem SubsystemType,
 void USocialToolkit::HandlePresenceReceived(const FUniqueNetId& UserId, const TSharedRef<FOnlineUserPresence>& NewPresence, ESocialSubsystem SubsystemType)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_USocialToolkit_HandlePresenceReceived);
-	if (USocialUser* UpdatedUser = FindUser(UserId))
+	if (USocialUser* UpdatedUser = FindUser(UserId.AsShared()))
 	{
 		UpdatedUser->NotifyPresenceChanged(SubsystemType);
 	}
 	else if (SubsystemType == ESocialSubsystem::Platform)
 	{
-		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found.\n"), *UserId.ToDebugString());
+		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found."), *UserId.ToDebugString());
 	}
 }
 
@@ -798,7 +855,7 @@ void USocialToolkit::HandleQueryPrimaryUserIdMappingComplete(bool bWasSuccessful
 	}
 	else
 	{
-		QueueUserDependentActionInternal(IdentifiedUserId, ESocialSubsystem::Primary,
+		QueueUserDependentActionInternal(IdentifiedUserId.AsShared(), ESocialSubsystem::Primary,
 			[this, DisplayName] (USocialUser& SocialUser)
 			{
 				if (SocialUser.IsBlocked())
@@ -821,7 +878,7 @@ void USocialToolkit::HandleFriendInviteReceived(const FUniqueNetId& LocalUserId,
 {
 	if (LocalUserId == *GetLocalUserNetId(SubsystemType))
 	{
-		QueueUserDependentActionInternal(SenderId, SubsystemType,
+		QueueUserDependentActionInternal(SenderId.AsShared(), SubsystemType,
 			[this, SubsystemType] (USocialUser& SocialUser)
 			{
 				//@todo DanH: This event should send the name of the list the accepting friend is on, shouldn't it?
@@ -842,7 +899,7 @@ void USocialToolkit::HandleFriendInviteAccepted(const FUniqueNetId& LocalUserId,
 {
 	if (LocalUserId == *GetLocalUserNetId(SubsystemType))
 	{
-		QueueUserDependentActionInternal(FriendId, SubsystemType,
+		QueueUserDependentActionInternal(FriendId.AsShared(), SubsystemType,
 			[this, SubsystemType] (USocialUser& SocialUser)
 			{
 				//@todo DanH: This event should send the name of the list the accepting friend is on, shouldn't it?
@@ -863,7 +920,7 @@ void USocialToolkit::HandleFriendInviteRejected(const FUniqueNetId& LocalUserId,
 {
 	if (LocalUserId == *GetLocalUserNetId(SubsystemType))
 	{
-		if (USocialUser* InvitedUser = FindUser(FriendId))
+		if (USocialUser* InvitedUser = FindUser(FriendId.AsShared()))
 		{
 			InvitedUser->NotifyFriendInviteRemoved(SubsystemType);
 		}
@@ -874,7 +931,7 @@ void USocialToolkit::HandleFriendInviteSent(int32 LocalUserNum, bool bWasSuccess
 {
 	if (bWasSuccessful)
 	{
-		QueueUserDependentActionInternal(InvitedUserId, SubsystemType,
+		QueueUserDependentActionInternal(InvitedUserId.AsShared(), SubsystemType,
 			[this, SubsystemType, ListName, LocalUserNum] (USocialUser& SocialUser)
 			{
 				IOnlineFriendsPtr FriendsInterface = Online::GetFriendsInterfaceChecked(GetWorld(), USocialManager::GetSocialOssName(SubsystemType));
@@ -895,7 +952,7 @@ void USocialToolkit::HandleFriendRemoved(const FUniqueNetId& LocalUserId, const 
 {
 	if (LocalUserId == *GetLocalUserNetId(SubsystemType))
 	{
-		USocialUser* FormerFriend = FindUser(FriendId);
+		USocialUser* FormerFriend = FindUser(FriendId.AsShared());
 		if (ensure(FormerFriend))
 		{
 			FormerFriend->NotifyUserUnfriended(SubsystemType);
@@ -907,12 +964,14 @@ void USocialToolkit::HandleDeleteFriendComplete(int32 InLocalUserNum, bool bWasS
 {
 	if (bWasSuccessful && InLocalUserNum == GetLocalUserNum())
 	{
-		USocialUser* FormerFriend = FindUser(DeletedFriendId);
+		USocialUser* FormerFriend = FindUser(DeletedFriendId.AsShared());
 		if (ensure(FormerFriend))
 		{
 			FormerFriend->NotifyUserUnfriended(SubsystemType);
 		}
 	}
+
+	OnDeleteFriendComplete(InLocalUserNum, bWasSuccessful, DeletedFriendId, ListName, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InviterUserId, const FString& ListName, const FString& ErrorStr)
@@ -925,7 +984,7 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 	if (LocalUserId == *GetLocalUserNetId(ESocialSubsystem::Primary))
 	{
 		// We really should know about the sender of the invite already, but queue it up in case we receive it during initial setup
-		QueueUserDependentActionInternal(SenderId, ESocialSubsystem::Primary,
+		QueueUserDependentActionInternal(SenderId.AsShared(), ESocialSubsystem::Primary,
 			[this] (USocialUser& User)
 			{
 				if (User.IsFriend(ESocialSubsystem::Primary))
@@ -940,7 +999,7 @@ void USocialToolkit::HandleBlockPlayerComplete(int32 LocalUserNum, bool bWasSucc
 {
 	if (bWasSuccessful && LocalUserNum == GetLocalUserNum())
 	{
-		QueueUserDependentActionInternal(BlockedPlayerId, SubsystemType, 
+		QueueUserDependentActionInternal(BlockedPlayerId.AsShared(), SubsystemType, 
 			[this, SubsystemType] (USocialUser& User)
 			{
 				// Quite frustrating that the event doesn't sent the FOnlineBlockedPlayer in the first place or provide a direct getter on the interface...
@@ -964,18 +1023,22 @@ void USocialToolkit::HandleBlockPlayerComplete(int32 LocalUserNum, bool bWasSucc
 				}
 			});
 	}
+
+	OnBlockPlayerComplete(LocalUserNum, bWasSuccessful, BlockedPlayerId, ListName, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleUnblockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UnblockedPlayerId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType)
 {
 	if (bWasSuccessful && LocalUserNum == GetLocalUserNum())
 	{
-		USocialUser* UnblockedUser = FindUser(UnblockedPlayerId);
+		USocialUser* UnblockedUser = FindUser(UnblockedPlayerId.AsShared());
 		if (ensure(UnblockedUser))
 		{
 			UnblockedUser->NotifyUserUnblocked(SubsystemType);
 		}
 	}
+
+	OnUnblockPlayerComplete(LocalUserNum, bWasSuccessful, UnblockedPlayerId, ListName, ErrorStr, SubsystemType);
 }
 
 //@todo DanH recent players: Where is the line for this between backend and game to update this stuff? #required
@@ -1015,3 +1078,60 @@ void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)
 		}
 	}
 }
+
+#if WITH_EDITOR
+void USocialToolkit::Debug_OnStartRandomizeUserPresence(uint8 NumRandomUser, float TickerTimer)
+{
+	if (Debug_PresenceTickerHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(Debug_PresenceTickerHandle);
+		Debug_PresenceTickerHandle.Reset();
+	}
+
+	if (ensure(TickerTimer > 0.f))
+	{
+		bDebug_IsRandomlyChangingUserPresence = true;
+		Debug_PresenceTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &USocialToolkit::Debug_HandleRandomizeUserPresenceTick, NumRandomUser), TickerTimer);
+	}
+}
+
+void USocialToolkit::Debug_OnStopRandomizeUserPresence(bool bClearGeneratedPresence)
+{
+	bDebug_IsRandomlyChangingUserPresence = false;
+	if (Debug_PresenceTickerHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(Debug_PresenceTickerHandle);
+		Debug_PresenceTickerHandle.Reset();
+	}
+
+	if (bClearGeneratedPresence)
+	{
+		// Refresh all existing presence data to revert them back to normal
+		for (USocialUser* User : AllUsers)
+		{
+			User->bDebug_IsPresenceArtificial = false;
+			User->NotifyPresenceChanged(ESocialSubsystem::Primary);
+		}
+	}
+}
+
+bool USocialToolkit::Debug_HandleRandomizeUserPresenceTick(float DeltaTime, uint8 NumRandomUser)
+{
+	Debug_ChangeRandomUserPresence(NumRandomUser);
+	return true;
+}
+
+void USocialToolkit::Debug_ChangeRandomUserPresence(uint8 NumRandomUser)
+{
+	const TArray<USocialUser*> SocialUsers = GetAllUsers();
+	for (int32 i = 0; i < NumRandomUser; i++)
+	{
+		int32 UserIndex = FMath::RandRange(0, SocialUsers.Num() - 1);
+		if (USocialUser* SocialUser = SocialUsers[UserIndex])
+		{
+			SocialUser->Debug_RandomizePresence();
+			SocialUser->NotifyPresenceChanged(ESocialSubsystem::Primary);
+		}
+	}
+}
+#endif

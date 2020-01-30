@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * File to hold common package helper functions.
@@ -18,7 +18,7 @@
 
 class Error;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogPackageHelperFunctions, Log, All);
+UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogPackageHelperFunctions, Log, All);
 
 /**
  * Flags which modify the way that NormalizePackageNames works.

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
 using UnrealBuildTool;
@@ -23,8 +23,8 @@ public class DatasmithWireTranslator : ModuleRules
                 "CADTools",
                 "DatasmithContent",
 				"DatasmithCore",
-				"DatasmithCoreTechExtension",
-				"DatasmithImporter",
+				"DatasmithCoreTechParametricSurfaceData",
+				"DatasmithTranslator",
 				"Engine",
 				"MeshDescription",
                 "StaticMeshDescription",

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ParticleVertexFactory.h: Particle vertex factory definitions.
@@ -54,7 +54,6 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FNiagaraRibbonUniformParameters> FNiagaraRibbonUniformBufferRef;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVFLooseParameters, NIAGARAVERTEXFACTORIES_API)
-	SHADER_PARAMETER(uint32, NiagaraFloatDataOffset)
 	SHADER_PARAMETER(uint32, NiagaraFloatDataStride)
 	SHADER_PARAMETER(uint32, SortedIndicesOffset)
 	SHADER_PARAMETER(uint32, FacingMode)
@@ -62,7 +61,18 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVFLooseParameters, NIAGARAVER
 	SHADER_PARAMETER_SRV(Buffer<float4>, TangentsAndDistances)
 	SHADER_PARAMETER_SRV(Buffer<uint>, MultiRibbonIndices)
 	SHADER_PARAMETER_SRV(Buffer<float>, PackedPerRibbonDataByIndex)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataPosition)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataVelocity)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataColor)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataWidth)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataTwist)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFacing)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataNormalizedAge)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialRandom)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam0)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam1)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam2)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataMaterialParam3)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FNiagaraRibbonVFLooseParameters> FNiagaraRibbonVFLooseParametersRef;
 
@@ -132,10 +142,9 @@ public:
 	void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, int32 ParameterIndex, uint32 StreamOffset, uint32 Stride);
 
 
-	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataOffset, uint32 InFloatDataStride)
+	void SetParticleData(const FShaderResourceViewRHIRef& InParticleDataFloatSRV, uint32 InFloatDataStride)
 	{
 		ParticleDataFloatSRV = InParticleDataFloatSRV;
-		FloatDataOffset = InFloatDataOffset;
 		FloatDataStride = InFloatDataStride;
 	}
 
@@ -170,14 +179,9 @@ public:
 		FacingMode = InFacingMode;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetParticleDataFloatSRV()
+	FORCEINLINE FRHIShaderResourceView* GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
-	}
-
-	FORCEINLINE int32 GetFloatDataOffset()
-	{
-		return FloatDataOffset;
 	}
 
 	FORCEINLINE int32 GetFloatDataStride()
@@ -185,7 +189,7 @@ public:
 		return FloatDataStride;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetSortedIndicesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetSortedIndicesSRV()
 	{
 		return SortedIndicesSRV;
 	}
@@ -195,17 +199,17 @@ public:
 		return SortedIndicesOffset;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetTangentAndDistancesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetTangentAndDistancesSRV()
 	{
 		return TangentAndDistancesSRV;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetMultiRibbonIndicesSRV()
+	FORCEINLINE FRHIShaderResourceView* GetMultiRibbonIndicesSRV()
 	{
 		return MultiRibbonIndicesSRV;
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef GetPackedPerRibbonDataByIndexSRV()
+	FORCEINLINE FRHIShaderResourceView* GetPackedPerRibbonDataByIndexSRV()
 	{
 		return PackedPerRibbonDataByIndexSRV;
 	}
@@ -250,7 +254,6 @@ private:
 	const FNiagaraDataSet *DataSet;
 
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
-	uint32 FloatDataOffset;
 	uint32 FloatDataStride;
 
 	FVertexBufferRHIRef SortedIndicesBuffer;

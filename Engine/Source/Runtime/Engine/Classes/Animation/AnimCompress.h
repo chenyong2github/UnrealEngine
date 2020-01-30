@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,6 +12,7 @@
 #include "UObject/Object.h"
 #include "Templates/Function.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimBoneCompressionCodec.h"
 #include "AnimationUtils.h"
 #include "AnimEnums.h"
 #include "AnimationCompression.h"
@@ -72,6 +73,11 @@ public:
 	const DataType& GetMaxErrorItem() const
 	{
 		return Items[0];
+	}
+
+	bool IsValid() const
+	{
+		return Items.Num() > 0;
 	}
 
 private:
@@ -185,15 +191,16 @@ class ENGINE_API FCompressionMemorySummary
 public:
 	FCompressionMemorySummary(bool bInEnabled);
 
-	void GatherPreCompressionStats(const FCompressibleAnimData& CompressibleAnimData, int32 PreCompressedSize, int32 ProgressNumerator, int32 ProgressDenominator);
+	void GatherPreCompressionStats(const FString& Name, int32 RawSize, int32 PreviousCompressionSize, int32 ProgressNumerator, int32 ProgressDenominator);
 
-	void GatherPostCompressionStats(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& CompressedData, double CompressionTime);
+	void GatherPostCompressionStats(const FCompressedAnimSequence& CompressedData, const TArray<FBoneData>& BoneData, const FName AnimFName, double CompressionTime, bool bInPerformedCompression);
 
 	~FCompressionMemorySummary();
 
 private:
 	bool bEnabled;
 	bool bUsed;
+	bool bPerformedCompression;
 	int32 TotalRaw;
 	int32 TotalBeforeCompressed;
 	int32 TotalAfterCompressed;
@@ -222,9 +229,9 @@ struct ENGINE_API FAnimCompressContext
 private:
 	FCompressionMemorySummary	CompressionSummary;
 
-	void GatherPreCompressionStats(const FCompressibleAnimData& CompressibleAnimData, int32 PreviousCompressionSize);
+	void GatherPreCompressionStats(const FString& Name, int32 RawSize, int32 PreviousCompressionSize);
 
-	void GatherPostCompressionStats(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& CompressedData, double CompressionTime);
+	void GatherPostCompressionStats(const FCompressedAnimSequence& CompressedData, const TArray<FBoneData>& BoneData, const FName AnimFName, double CompressionTime, bool bInPerformedCompression);
 
 
 public:
@@ -252,86 +259,48 @@ public:
 
 	friend class FAnimationUtils;
 	friend class FDerivedDataAnimationCompression;
+	friend class UAnimSequence;
 };
-
-#if USE_SEGMENTING_CONTEXT
-//////////////////////////////////////////////////////////////////////////
-// FAnimSegmentContext - This holds the relevant intermediate information
-// when compressing animation sequence segments.
-struct FAnimSegmentContext
-{
-	int32 StartFrame;
-	int32 NumFrames;
-
-	TArray<struct FTranslationTrack> TranslationData;
-	TArray<struct FRotationTrack> RotationData;
-	TArray<struct FScaleTrack> ScaleData;
-
-	AnimationCompressionFormat TranslationCompressionFormat;
-	AnimationCompressionFormat RotationCompressionFormat;
-	AnimationCompressionFormat ScaleCompressionFormat;
-
-	TArray<int32> CompressedTrackOffsets;
-	FCompressedOffsetData CompressedScaleOffsets;
-	TArray<uint8> CompressedByteStream;
-	TArray<uint8> CompressedTrivialTracksByteStream;
-};
-#endif
 
 UCLASS(abstract, hidecategories=Object, MinimalAPI, EditInlineNew)
-class UAnimCompress : public UObject
+class UAnimCompress : public UAnimBoneCompressionCodec
 {
 	GENERATED_UCLASS_BODY()
-
-	/** Name of Compression Scheme used for this asset*/
-	UPROPERTY(Category=Compression, VisibleAnywhere)
-	FString Description;
 
 	/** Compression algorithms requiring a skeleton should set this value to true. */
 	UPROPERTY()
 	uint32 bNeedsSkeleton:1;
 
-	/** Whether to enable segmenting or not. Needed for USE_SEGMENTING_CONTEXT (currently turned off) */
-	//UPROPERTY(Category = Compression, EditAnywhere)
-	UPROPERTY()
-	uint32 bEnableSegmenting:1;
-
-	/** When splitting the sequence into segments, we will try to approach this value as much as possible. */
-	UPROPERTY(Category = Compression, EditAnywhere, meta = (ClampMin = "16"))
-	uint32 IdealNumFramesPerSegment;
-
-	/** When splitting the sequence into segments, we will never allow a segment with more than the maximum number of frames. */
-	UPROPERTY(Category = Compression, EditAnywhere)
-	uint32 MaxNumFramesPerSegment;
-
 	/** Format for bitwise compression of translation data. */
-	UPROPERTY()
+	UPROPERTY(Category = Compression, EditAnywhere)
 	TEnumAsByte<AnimationCompressionFormat> TranslationCompressionFormat;
 
 	/** Format for bitwise compression of rotation data. */
-	UPROPERTY()
+	UPROPERTY(Category = Compression, EditAnywhere)
 	TEnumAsByte<AnimationCompressionFormat> RotationCompressionFormat;
 
 	/** Format for bitwise compression of scale data. */
-	UPROPERTY()
+	UPROPERTY(Category = Compression, EditAnywhere)
 	TEnumAsByte<AnimationCompressionFormat> ScaleCompressionFormat;
 
 	/** Max error for compression of curves using remove redundant keys */
 	UPROPERTY(Category = Compression, EditAnywhere)
 	float MaxCurveError;
 
-#if WITH_EDITOR
 public:
-	/**
-	 * Reduce the number of keyframes and bitwise compress all sequences in the specified array.
-	 *
-	 * @param	AnimSequences	The animations to compress.
-	 * @param	bOutput			If false don't generate output or compute memory savings.
-	 * @return					false if a skeleton was needed by the algorithm but not provided.
-	 */
-	ENGINE_API bool Reduce(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult);
+#if WITH_EDITORONLY_DATA
+	/** UAnimBoneCompressionCodec implementation */
+	virtual bool Compress(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) override;
+#endif
 
-#endif // WITH_EDITOR
+	virtual TUniquePtr<ICompressedAnimData> AllocateAnimData() const override;
+
+	virtual void ByteSwapIn(ICompressedAnimData& AnimData, TArrayView<uint8> CompressedData, FMemoryReader& MemoryStream) const override;
+	virtual void ByteSwapOut(ICompressedAnimData& AnimData, TArrayView<uint8> CompressedData, FMemoryWriter& MemoryStream) const override;
+
+	virtual void DecompressPose(FAnimSequenceDecompressionContext& DecompContext, const BoneTrackArray& RotationPairs, const BoneTrackArray& TranslationPairs, const BoneTrackArray& ScalePairs, TArrayView<FTransform>& OutAtoms) const override;
+	virtual void DecompressBone(FAnimSequenceDecompressionContext& DecompContext, int32 TrackIndex, FTransform& OutAtom) const override;
+
 protected:
 #if WITH_EDITOR
 	/**
@@ -340,8 +309,9 @@ protected:
 	 *
 	 * @return		true if the keyframe reduction was successful.
 	 */
-	virtual void DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) PURE_VIRTUAL(UAnimCompress::DoReduction,);
+	virtual bool DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) PURE_VIRTUAL(UAnimCompress::DoReduction,return false;);
 #endif // WITH_EDITOR
+
 	/**
 	 * Common compression utility to remove 'redundant' position keys based on the provided delta threshold
 	 *
@@ -420,22 +390,6 @@ protected:
 		float MaxPosDelta,
 		float MaxRotDelta, 
 		float MaxScaleDelta);
-
-	/**
-	 * Same as above function but it will execute for every segment.
-	 *
-	 * @param	RawSegments		Array of segments being compressed
-	 * @param	MaxPosDelta		Maximum local-space threshold for stationary motion
-	 * @param	MaxRotDelta		Maximum angle threshold to consider stationary motion
-	 * @param	MaxScaleDelta	Maximum scale threshold to consider stationary motion
-	 */
-#if USE_SEGMENTING_CONTEXT
-	static void FilterTrivialKeys(
-		TArray<FAnimSegmentContext>& RawSegments,
-		float MaxPosDelta,
-		float MaxRotDelta,
-		float MaxScaleDelta);
-#endif
 
 	/**
 	 * Common compression utility to retain only intermittent position keys. For example,
@@ -522,27 +476,6 @@ protected:
 		TArray<struct FScaleTrack>& OutScaleData);
 
 	/**
-	 * This will populate segments from the raw animation data.
-	 *
-	 * @param	AnimSeq						AnimSequence being compressed
-	 * @param	TranslationData				Translation tracks
-	 * @param	RotationData				Rotation tracks
-	 * @param	ScaleData					Scale tracks
-	 * @param	IdealNumFramesPerSegment	The ideal number of frames within a segment
-	 * @param	MaxNumFramesPerSegment		The maximum number of frames within a segment
-	 * @param	OutRawSegments				The array of segments to populate
-	 */
-#if USE_SEGMENTING_CONTEXT
-	static void SeparateRawDataIntoTracks(
-		const UAnimSequence& AnimSeq,
-		const TArray<struct FTranslationTrack>& TranslationData,
-		const TArray<struct FRotationTrack>& RotationData,
-		const TArray<struct FScaleTrack>& ScaleData,
-		int32 IdealNumFramesPerSegment,
-		int32 MaxNumFramesPerSegment,
-		TArray<FAnimSegmentContext>& OutRawSegments);
-#endif
-	/**
 	 * Common compression utility to walk an array of rotation tracks and enforce
 	 * that all adjacent rotation keys are represented by shortest-arc quaternion pairs.
 	 *
@@ -575,82 +508,12 @@ public:
 		const TArray<FScaleTrack>& ScaleData,
 		bool IncludeKeyTable = false);
 
-	/**
-	 * Encodes individual key arrays into an AnimSequence using the desired bit packing formats.
-	 * This action is performed for every segment supplied.
-	 *
-	 * @param	AnimSeq						Animation Sequence which will contain the bit-packed data.
-	 * @param	TargetTranslationFormat		The format to use when encoding translation keys.
-	 * @param	TargetRotationFormat		The format to use when encoding rotation keys.
-	 * @param	TargetScaleFormat			The format to use when encoding scale keys.
-	 * @param	RawSegments					The array of segments to compress
-	 * @param	bIsSorted					For variable interpolation, is the compressed data sorted or not?
-	 */
-#if USE_SEGMENTING_CONTEXT
-	static void BitwiseCompressAnimationTracks(
-		UAnimSequence& AnimSeq,
-		AnimationCompressionFormat TargetTranslationFormat,
-		AnimationCompressionFormat TargetRotationFormat,
-		AnimationCompressionFormat TargetScaleFormat,
-		TArray<FAnimSegmentContext>& RawSegments,
-		bool bIsSorted = false);
-
-	/**
-	 * Encodes individual key arrays into an AnimSequence using the desired bit packing formats.
-	 * This action is performed for a single segment.
-	 *
-	 * @param	AnimSeq						Animation Sequence which will contain the bit-packed data.
-	 * @param	TargetTranslationFormat		The format to use when encoding translation keys.
-	 * @param	TargetRotationFormat		The format to use when encoding rotation keys.
-	 * @param	TargetScaleFormat			The format to use when encoding scale keys.
-	 * @param	RawSegment					The segment to compress
-	 * @param	bIsSorted					For variable interpolation, is the compressed data sorted or not?
-	 */
-	static void BitwiseCompressAnimationTracks(
-		const UAnimSequence& AnimSeq,
-		AnimationCompressionFormat TargetTranslationFormat,
-		AnimationCompressionFormat TargetRotationFormat,
-		AnimationCompressionFormat TargetScaleFormat,
-		FAnimSegmentContext& RawSegment,
-		bool bIsSorted = false);
-
-	/**
-	 * Encodes the trivial tracks within a segment.
-	 *
-	 * @param	AnimSeq						Animation Sequence which will contain the bit-packed data.
-	 * @param	RawSegment					The segment to compress
-	 */
-	static void BitwiseCompressTrivialAnimationTracks(const UAnimSequence& AnimSeq, FAnimSegmentContext& RawSegment);
-
-	/**
-	 * Coalesces the compressed data from every segment into a single contiguous array stored within the sequence.
-	 *
-	 * @param	AnimSeq						Animation Sequence which will contain the bit-packed data.
-	 * @param	RawSegments					The array of segments to coalesce
-	 * @param	bIsSorted					For variable interpolation, is the compressed data sorted or not?
-	 */
-	static void CoalesceCompressedSegments(UAnimSequence& AnimSeq, const TArray<FAnimSegmentContext>& RawSegments, bool bIsSorted = false);
-#endif
-
 #if WITH_EDITOR
 	void PopulateDDCKeyArchive(FArchive& Ar) { PopulateDDCKey(Ar); }
 
 protected:
 	virtual void PopulateDDCKey(FArchive& Ar);
 #endif // WITH_EDITOR
-
-	/**
-	 * Structure that holds the range min/extent for a track.
-	 */
-	struct FAnimTrackRange
-	{
-		FVector RotMin;
-		FVector RotExtent;
-		FVector TransMin;
-		FVector TransExtent;
-		FVector ScaleMin;
-		FVector ScaleExtent;
-	};
 
 	/**
 	 * Utility function to append data to a byte stream.
@@ -702,206 +565,6 @@ protected:
 		const FQuat& Quat,
 		const float* Mins,
 		const float* Ranges);
-
-#if USE_SEGMENTING_CONTEXT
-	/**
-	 * Utility function that performs minimal sanity checks.
-	 *
-	 * @param	AnimSeq						The anim sequence to check
-	 * @param	Segment						The segment to check
-	 */
-	static void SanityCheckTrackData(const UAnimSequence& AnimSeq, const FAnimSegmentContext& Segment);
-#endif
-
-	/**
-	 * Calculates the translation track range.
-	 *
-	 * @param	TranslationData				The translation track data
-	 * @param	Format						Compression format
-	 * @param	OutMin						The output range minimum
-	 * @param	OutExtent					The output range extent
-	 */
-	static void CalculateTrackRange(const FTranslationTrack& TranslationData, AnimationCompressionFormat Format, FVector& OutMin, FVector& OutExtent);
-
-	/**
-	 * Calculates the rotation track range.
-	 *
-	 * @param	TranslationData				The rotation track data
-	 * @param	Format						Compression format
-	 * @param	OutMin						The output range minimum
-	 * @param	OutExtent					The output range extent
-	 */
-	static void CalculateTrackRange(const FRotationTrack& RotationData, AnimationCompressionFormat Format, FVector& OutMin, FVector& OutExtent);
-
-	/**
-	 * Calculates the sacle track range.
-	 *
-	 * @param	TranslationData				The scale track data
-	 * @param	Format						Compression format
-	 * @param	OutMin						The output range minimum
-	 * @param	OutExtent					The output range extent
-	 */
-	static void CalculateTrackRange(const FScaleTrack& ScaleData, AnimationCompressionFormat Format, FVector& OutMin, FVector& OutExtent);
-
-#if USE_SEGMENTING_CONTEXT
-	/**
-	 * Calculates the track ranges within a segment.
-	 *
-	 * @param	TargetTranslationFormat		Compression format for translations
-	 * @param	TargetRotationFormat		Compression format for rotations
-	 * @param	TargetScaleFormat			Compression format for scales
-	 * @param	Segment						The segment that contains our tracks to process
-	 * @param	TrackRanges					The calculated track ranges
-	 */
-	static void CalculateTrackRanges(
-		AnimationCompressionFormat TargetTranslationFormat,
-		AnimationCompressionFormat TargetRotationFormat,
-		AnimationCompressionFormat TargetScaleFormat,
-		const FAnimSegmentContext& Segment,
-		TArray<FAnimTrackRange>& TrackRanges);
-#endif
-
-	/**
-	 * Structure to wrap and represent track key flags.
-	 */
-	struct FTrackKeyFlags
-	{
-		constexpr FTrackKeyFlags() : Flags(0) {}
-		constexpr explicit FTrackKeyFlags(uint8 InFlags) : Flags(InFlags) {}
-
-		constexpr bool IsComponentNeededX() const { return (Flags & 0x1) != 0; }
-		constexpr bool IsComponentNeededY() const { return (Flags & 0x2) != 0; }
-		constexpr bool IsComponentNeededZ() const { return (Flags & 0x4) != 0; }
-
-		constexpr bool IsValid() const { return (Flags & ~0x7) == 0; }
-
-		uint8 Flags;
-	};
-
-#if USE_SEGMENTING_CONTEXT
-	/**
-	 * Writes the necessary track ranges to a byte stream.
-	 *
-	 * @param	ByteStream					Byte stream to append to
-	 * @param	GetTranslationFormatFun		Function that returns the translation format for a track index
-	 * @param	GetRotationFormatFun		Function that returns the rotation format for a track index
-	 * @param	GetScaleFormatFun			Function that returns the scale format for a track index
-	 * @param	GetTranslationFlagsFun		Function that returns the translation flags for a track index
-	 * @param	GetRotationFlagsFun			Function that returns the rotation flags for a track index
-	 * @param	GetScaleFlagsFun			Function that returns the scale flags for a track index
-	 * @param	Segment						Segment to process
-	 * @param	TrackRanges					Track ranges to pack
-	 * @param	bInterleaveValues			Whether to interleave range values or not
-	 */
-	static void WriteTrackRanges(
-		TArray<uint8>& ByteStream,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetTranslationFormatFun,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetRotationFormatFun,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetScaleFormatFun,
-		TFunction<FTrackKeyFlags(int32 TrackIndex)> GetTranslationFlagsFun,
-		TFunction<FTrackKeyFlags(int32 TrackIndex)> GetRotationFlagsFun,
-		TFunction<FTrackKeyFlags(int32 TrackIndex)> GetScaleFlagsFun,
-		const FAnimSegmentContext& Segment,
-		const TArray<FAnimTrackRange>& TrackRanges,
-		bool bInterleaveValues);
-
-	/**
-	 * Writes a segment's uniform track data to a byte stream.
-	 * A track's data is uniform if no keys are removed.
-	 *
-	 * @param	ByteStream					Byte stream to append to
-	 * @param	GetTranslationFormatFun		Function that returns the translation format for a track index
-	 * @param	GetRotationFormatFun		Function that returns the rotation format for a track index
-	 * @param	GetScaleFormatFun			Function that returns the scale format for a track index
-	 * @param	IsTranslationUniformFun		Function that returns if a track translation's data is uniform or not for a track index
-	 * @param	IsRotationUniformFun		Function that returns if a track rotation's data is uniform or not for a track index
-	 * @param	IsScaleUniformFun			Function that returns if a track scale's data is uniform or not for a track index
-	 * @param	PackTranslationKeyFun		Function that packs a translation key for a track index
-	 * @param	PackRotationKeyFun			Function that packs a rotation key for a track index
-	 * @param	PackScaleKeyFun				Function that packs a scale key for a track index
-	 * @param	Segment						Segment to process
-	 * @param	TrackRanges					Track ranges for the segment to process
-	 */
-	static void WriteUniformTrackData(
-		TArray<uint8>& ByteStream,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetTranslationFormatFun,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetRotationFormatFun,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetScaleFormatFun,
-		TFunction<bool(int32 TrackIndex)> IsTranslationUniformFun,
-		TFunction<bool(int32 TrackIndex)> IsRotationUniformFun,
-		TFunction<bool(int32 TrackIndex)> IsScaleUniformFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FVector& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackTranslationKeyFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FQuat& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackRotationKeyFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FVector& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackScaleKeyFun,
-		const FAnimSegmentContext& Segment,
-		const TArray<FAnimTrackRange>& TrackRanges);
-
-	/**
-	 * Writes a segment's variable track data to a byte stream with a sorted ordering.
-	 * A track's data is variable if some keys are removed.
-	 *
-	 * @param	ByteStream					Byte stream to append to
-	 * @param	AnimSeq						The anim sequence to process
-	 * @param	GetTranslationFormatFun		Function that returns the translation format for a track index
-	 * @param	GetRotationFormatFun		Function that returns the rotation format for a track index
-	 * @param	GetScaleFormatFun			Function that returns the scale format for a track index
-	 * @param	IsTranslationUniformFun		Function that returns if a track translation's data is uniform or not for a track index
-	 * @param	IsRotationUniformFun		Function that returns if a track rotation's data is uniform or not for a track index
-	 * @param	IsScaleUniformFun			Function that returns if a track scale's data is uniform or not for a track index
-	 * @param	PackTranslationKeyFun		Function that packs a translation key for a track index
-	 * @param	PackRotationKeyFun			Function that packs a rotation key for a track index
-	 * @param	PackScaleKeyFun				Function that packs a scale key for a track index
-	 * @param	Segment						Segment to process
-	 * @param	TrackRanges					Track ranges for the segment to process
-	 */
-	static void WriteSortedVariableTrackData(
-		TArray<uint8>& ByteStream,
-		const UAnimSequence& AnimSeq,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetTranslationFormatFun,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetRotationFormatFun,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetScaleFormatFun,
-		TFunction<bool(int32 TrackIndex)> IsTranslationVariableFun,
-		TFunction<bool(int32 TrackIndex)> IsRotationVariableFun,
-		TFunction<bool(int32 TrackIndex)> IsScaleVariableFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FVector& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackTranslationKeyFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FQuat& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackRotationKeyFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FVector& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackScaleKeyFun,
-		FAnimSegmentContext& Segment,
-		const TArray<FAnimTrackRange>& TrackRanges);
-
-	/**
-	 * Writes a segment's variable track data to a byte stream with a linear ordering.
-	 * A track's data is variable if some keys are removed.
-	 *
-	 * @param	ByteStream					Byte stream to append to
-	 * @param	AnimSeq						The anim sequence to process
-	 * @param	GetTranslationFormatFun		Function that returns the translation format for a track index
-	 * @param	GetRotationFormatFun		Function that returns the rotation format for a track index
-	 * @param	GetScaleFormatFun			Function that returns the scale format for a track index
-	 * @param	IsTranslationUniformFun		Function that returns if a track translation's data is uniform or not for a track index
-	 * @param	IsRotationUniformFun		Function that returns if a track rotation's data is uniform or not for a track index
-	 * @param	IsScaleUniformFun			Function that returns if a track scale's data is uniform or not for a track index
-	 * @param	PackTranslationKeyFun		Function that packs a translation key for a track index
-	 * @param	PackRotationKeyFun			Function that packs a rotation key for a track index
-	 * @param	PackScaleKeyFun				Function that packs a scale key for a track index
-	 * @param	Segment						Segment to process
-	 * @param	TrackRanges					Track ranges for the segment to process
-	 */
-	static void WriteLinearVariableTrackData(
-		TArray<uint8>& ByteStream,
-		const UAnimSequence& AnimSeq,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetTranslationFormatFun,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetRotationFormatFun,
-		TFunction<AnimationCompressionFormat(int32 TrackIndex)> GetScaleFormatFun,
-		TFunction<bool(int32 TrackIndex)> IsTranslationVariableFun,
-		TFunction<bool(int32 TrackIndex)> IsRotationVariableFun,
-		TFunction<bool(int32 TrackIndex)> IsScaleVariableFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FVector& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackTranslationKeyFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FQuat& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackRotationKeyFun,
-		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FVector& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackScaleKeyFun,
-		const FAnimSegmentContext& Segment,
-		const TArray<FAnimTrackRange>& TrackRanges);
-#endif
 
 	/**
 	 * Pads a byte stream to force a particular alignment for the data to follow.

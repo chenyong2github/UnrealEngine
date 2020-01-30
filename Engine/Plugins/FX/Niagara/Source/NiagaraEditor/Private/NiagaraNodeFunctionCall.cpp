@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeFunctionCall.h"
 #include "UObject/UnrealType.h"
@@ -624,7 +624,17 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 		{
 			UEdGraphNode::bHasCompilerMessage = true;
 			UEdGraphNode::ErrorType = EMessageSeverity::Info;
-			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+
+			if (FunctionScript->ExperimentalMessage.IsEmpty())
+			{
+				UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+			}
+			else
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("Message"), FunctionScript->ExperimentalMessage);
+				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}."), Args);
+			}
 		}
 		else
 		{
@@ -638,7 +648,17 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 		{
 			UEdGraphNode::bHasCompilerMessage = true;
 			UEdGraphNode::ErrorType = EMessageSeverity::Info;
-			UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+
+			if (Signature.ExperimentalMessage.IsEmpty())
+			{
+				UEdGraphNode::NodeUpgradeMessage = LOCTEXT("FunctionExperimental", "This function is marked as experimental, use with care!");
+			}
+			else
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("Message"), Signature.ExperimentalMessage);
+				UEdGraphNode::NodeUpgradeMessage = FText::Format(LOCTEXT("FunctionExperimentalReason", "This function is marked as experimental, reason: {Message}"), Args);
+			}
 		}
 	}
 }
@@ -715,7 +735,7 @@ void UNiagaraNodeFunctionCall::SubsumeExternalDependencies(TMap<const UObject*, 
 	}
 }
 
-void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<UObject*>& InReferencedObjs) const
+void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const
 {
 	if (FunctionScript && FunctionScript->GetOutermost() != this->GetOutermost())
 	{
@@ -733,7 +753,7 @@ void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage 
 				if (FoundGuid.IsValid() && FoundCompileHash.IsValid())
 				{
 					InReferencedCompileHashes.Add(FoundCompileHash);
-					InReferencedObjs.Add(FunctionGraph);
+					InReferencedObjs.Add(FunctionGraph->GetPathName());
 					FunctionGraph->GatherExternalDependencyData((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0), InReferencedCompileHashes, InReferencedObjs);
 				}
 			}

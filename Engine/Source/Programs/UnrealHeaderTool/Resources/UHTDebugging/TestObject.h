@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -115,6 +115,8 @@ public:
 	{
 		return FString("Hello").Len();
 	}
+
+	virtual void PureVirtualImplementedFunction() PURE_VIRTUAL(, )
 
 	UFUNCTION()
 	FORCENOINLINE int32 NoInlineFunc()

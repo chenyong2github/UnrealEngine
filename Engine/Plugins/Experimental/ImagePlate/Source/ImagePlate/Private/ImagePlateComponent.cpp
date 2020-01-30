@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImagePlateComponent.h"
 
@@ -445,9 +445,9 @@ void UImagePlateComponent::PostEditUndo()
 	UpdateMaterialParametersForMedia();
 }
 
-UStructProperty* UImagePlateComponent::GetImagePlateProperty()
+FStructProperty* UImagePlateComponent::GetImagePlateProperty()
 {
-	return FindField<UStructProperty>(StaticClass(), GET_MEMBER_NAME_CHECKED(UImagePlateComponent, Plate));
+	return FindField<FStructProperty>(StaticClass(), GET_MEMBER_NAME_CHECKED(UImagePlateComponent, Plate));
 }
 
 #endif

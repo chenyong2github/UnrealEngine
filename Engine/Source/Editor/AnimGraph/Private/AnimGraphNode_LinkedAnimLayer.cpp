@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_LinkedAnimLayer.h"
 #include "Widgets/Text/STextBlock.h"
@@ -92,7 +92,7 @@ FText UAnimGraphNode_LinkedAnimLayer::GetNodeTitle(ENodeTitleType::Type TitleTyp
 	}
 	else
 	{
-		FFormatNamedArguments Args;
+	FFormatNamedArguments Args;
 		Args.Add(TEXT("NodeTitle"), LOCTEXT("NodeTitle", "Linked Anim Layer"));
 		Args.Add(TEXT("TargetClass"), TargetAnimBlueprintInterface ? FText::FromString(TargetAnimBlueprintInterface->GetName()) : LOCTEXT("InterfaceNone", "None"));
 		Args.Add(TEXT("Layer"), Node.Layer == NAME_None ? LOCTEXT("LayerNone", "None") : FText::FromName(Node.Layer));
@@ -102,20 +102,20 @@ FText UAnimGraphNode_LinkedAnimLayer::GetNodeTitle(ENodeTitleType::Type TitleTyp
 			if (UAnimInstance* PreviewAnimInstance = PreviewNode->GetTargetInstance<UAnimInstance>())
 			{
 				if (UClass* PreviewTargetClass = PreviewAnimInstance->GetClass())
-				{
+	{
 					Args.Add(TEXT("TargetClass"), PreviewTargetClass == GetAnimBlueprint()->GeneratedClass ? LOCTEXT("ClassSelf", "Self") : FText::FromName(PreviewTargetClass->GetFName()));
 				}
-			}
+	}
 		}
 
 		if (TitleType == ENodeTitleType::ListView)
-		{
-			return FText::Format(LOCTEXT("TitleListFormatOutputPose", "{NodeTitle}: {Layer} - {TargetClass}"), Args);
-		}
-		else
-		{
-			return FText::Format(LOCTEXT("TitleFormatOutputPose", "{NodeTitle}: {Layer}\n{TargetClass}"), Args);
-		}
+	{
+		return FText::Format(LOCTEXT("TitleListFormatOutputPose", "{NodeTitle}: {Layer} - {TargetClass}"), Args);
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("TitleFormatOutputPose", "{NodeTitle}: {Layer}\n{TargetClass}"), Args);
+	}
 	}
 }
 
@@ -506,7 +506,7 @@ FString UAnimGraphNode_LinkedAnimLayer::GetCurrentInstanceBlueprintPath() const
 	return FString();
 }
 
-void UAnimGraphNode_LinkedAnimLayer::GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const
+void UAnimGraphNode_LinkedAnimLayer::GetExposableProperties(TArray<FProperty*>& OutExposableProperties) const
 {
 	UClass* TargetClass = GetTargetSkeletonClass();
 	if(TargetClass)
@@ -518,9 +518,9 @@ void UAnimGraphNode_LinkedAnimLayer::GetExposableProperties(TArray<UProperty*>& 
 			// Check name matches.
 			if(AnimBlueprintFunction.Name == Node.GetDynamicLinkFunctionName())
 			{
-				for(UProperty* Property : AnimBlueprintFunction.InputProperties)
+				for(const TFieldPath<FProperty>& Property : AnimBlueprintFunction.InputProperties)
 				{
-					OutExposableProperties.Add(Property);
+					OutExposableProperties.Add(Property.Get());
 				}
 			}
 		}
@@ -554,7 +554,7 @@ FString UAnimGraphNode_LinkedAnimLayer::GetLayerName() const
 	return Node.Layer.ToString();
 }
 
-bool UAnimGraphNode_LinkedAnimLayer::IsStructuralProperty(UProperty* InProperty) const
+bool UAnimGraphNode_LinkedAnimLayer::IsStructuralProperty(FProperty* InProperty) const
 {
 	return Super::IsStructuralProperty(InProperty) ||
 		InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_LinkedAnimLayer, Layer);
@@ -578,18 +578,18 @@ TSubclassOf<UInterface> UAnimGraphNode_LinkedAnimLayer::GetInterfaceForLayer() c
 {
 	if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
 	{
-		// Find layer with this name in interfaces
-		for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
-		{
-			for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
+			// Find layer with this name in interfaces
+			for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
 			{
-				if(InterfaceGraph->GetFName() == Node.Layer)
+				for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
 				{
-					return InterfaceDesc.Interface;
+					if(InterfaceGraph->GetFName() == Node.Layer)
+					{
+						return InterfaceDesc.Interface;
+					}
 				}
 			}
 		}
-	}
 
 	return nullptr;
 }

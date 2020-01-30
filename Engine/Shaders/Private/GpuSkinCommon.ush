@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	GpuSkinCacheCommon.usf: Common properties and defines for GPU Skinning Cache
@@ -16,21 +16,21 @@
 //	Position			2,3					2,3								2,3
 //	UVs[1..N]			N/A					5,1..N							5,(1..N)*2
 
-// TSkinWeightInfo<true>
-// TSkinWeightInfo<false>
-
-// Members of weight array
-//	MEMBER				TSkinWeightInfo<true>		TSkinWeightInfo<false>
-//	InfluenceBones		0,1							0,2	
-//	InfluenceWeights	1,1							2,2	
-
 #include "Common.ush"
 
 #define	GPUSKIN_VB_OFFSET_TANGENT_X			0
 #define	GPUSKIN_VB_OFFSET_TANGENT_Z			1
 
+#ifndef GPUSKIN_BONE_INDEX_UINT16
+#define GPUSKIN_BONE_INDEX_UINT16			0	// 16-bit bone index if 1, otherwise 8-bit bone index
+#endif
+
+#ifndef GPUSKIN_UNLIMITED_BONE_INFLUENCE
+#define GPUSKIN_UNLIMITED_BONE_INFLUENCE	0
+#endif
+
 #define	GPUSKIN_VB_OFFSET_INFLUENCEBONES	0
-#define	GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS	(1 + GPUSKIN_USE_EXTRA_INFLUENCES)
+#define	GPUSKIN_VB_OFFSET_INFLUENCEWEIGHTS	((1 + GPUSKIN_USE_EXTRA_INFLUENCES) * (1 + GPUSKIN_BONE_INDEX_UINT16))
 
 
 #ifndef GPUSKIN_RWBUFFER_OFFSET_TANGENT_X

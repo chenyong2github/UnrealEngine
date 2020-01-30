@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGLWindows.h: Manual loading of OpenGL functions from DLL.
@@ -288,6 +288,7 @@ THIRD_PARTY_INCLUDES_END
 	EnumMacro(PFNGLBINDVERTEXARRAYPROC,glBindVertexArray) \
 	EnumMacro(PFNGLCOPYBUFFERSUBDATAPROC,glCopyBufferSubData) \
 	EnumMacro(PFNGLTEXBUFFERPROC,glTexBuffer) \
+	EnumMacro(PFNGLTEXBUFFERRANGEPROC, glTexBufferRange)\
 	EnumMacro(PFNGLTEXIMAGE2DMULTISAMPLEPROC,glTexImage2DMultisample) \
 	EnumMacro(PFNGLQUERYCOUNTERPROC, glQueryCounter)\
 	EnumMacro(PFNGLISSYNCPROC, glIsSync)\

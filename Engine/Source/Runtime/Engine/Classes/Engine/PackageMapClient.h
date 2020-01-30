@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /**
@@ -447,6 +447,18 @@ public:
 	}
 
 	virtual void Serialize(FArchive& Ar) override;
+
+	FString GetFullNetGUIDPath(const FNetworkGUID& NetGUID) const
+	{
+		FString FullGuidCachePath;
+
+		if (const FNetGUIDCache * const GuidCacheLocal = GuidCache.Get())
+		{
+			FullGuidCachePath = GuidCacheLocal->FullNetGUIDPath(NetGUID);
+		}
+
+		return FullGuidCachePath;
+	}
 
 protected:
 

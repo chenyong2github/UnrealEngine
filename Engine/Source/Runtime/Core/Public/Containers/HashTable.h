@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -224,7 +224,7 @@ FORCEINLINE FHashTable::FHashTable( uint32 InHashSize, uint32 InIndexSize )
 	
 	if( IndexSize )
 	{
-		HashMask = HashSize - 1;
+		HashMask = (uint16)(HashSize - 1);
 		
 		Hash = new uint32[ HashSize ];
 		NextIndex = new uint32[ IndexSize ];

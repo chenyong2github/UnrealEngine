@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FrameRateCustomization.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -68,7 +68,7 @@ FFrameRate FFrameRateCustomization::GetFirstFrameRate() const
 
 void FFrameRateCustomization::SetFrameRate(FFrameRate NewFrameRate)
 {
-	if (UStructProperty* StructProperty = Cast<UStructProperty>(StructPropertyHandle->GetProperty()))
+	if (FStructProperty* StructProperty = CastField<FStructProperty>(StructPropertyHandle->GetProperty()))
 	{
 		TArray<void*> RawData;
 		StructPropertyHandle->AccessRawData(RawData);

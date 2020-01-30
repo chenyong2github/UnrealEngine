@@ -33,6 +33,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <NoWarn>CS0649</NoWarn>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <Import Project="NotForLicensees\EpicInternal.props" Condition="Exists('NotForLicensees\EpicInternal.props')" />
   <ItemGroup>

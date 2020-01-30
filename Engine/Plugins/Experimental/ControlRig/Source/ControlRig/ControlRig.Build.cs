@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 namespace UnrealBuildTool.Rules
 {
@@ -36,12 +36,21 @@ namespace UnrealBuildTool.Rules
 
             if (Target.bBuildEditor == true)
             {
+                PublicDependencyModuleNames.AddRange(
+				    new string[]
+					{
+						"RigVMDeveloper",
+                        "AnimGraph",
+                    }
+                );
+
                 PrivateDependencyModuleNames.AddRange(
                     new string[]
                     {
                         "UnrealEd",
                         "BlueprintGraph",
                         "PropertyEditor",
+                        "RigVMDeveloper",
                     }
                 );
 
