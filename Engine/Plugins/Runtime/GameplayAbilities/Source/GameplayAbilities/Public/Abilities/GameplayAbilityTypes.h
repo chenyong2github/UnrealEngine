@@ -192,6 +192,14 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityActorInfo
 	virtual void ClearActorInfo();
 };
 
+/** Enum used by the Ability Rep Anim Montage struct to rep the quantized position or the current section id */
+UENUM()
+enum class ERepAnimPositionMethod
+{
+	Position = 0,			// reps the position in the montage to keep the client in sync (heavier, quantized, more precise)
+	CurrentSectionId = 1,	// reps the current section id we want to play on the client (compact, less precise)
+};
+
 /** Data about montages that is replicated to simulated clients */
 USTRUCT()
 struct GAMEPLAYABILITIES_API FGameplayAbilityRepAnimMontage
@@ -207,7 +215,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityRepAnimMontage
 	float PlayRate;
 
 	/** Montage position */
-	UPROPERTY()
+	UPROPERTY(NotReplicated)
 	float Position;
 
 	/** Montage current blend time */
@@ -217,6 +225,10 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityRepAnimMontage
 	/** NextSectionID */
 	UPROPERTY()
 	uint8 NextSectionID;
+
+	/** flag indicating we should serialize the position or the current section id */
+	UPROPERTY()
+	uint8 bRepPosition : 1;
 
 	/** Bit set when montage has been stopped. */
 	UPROPERTY()
@@ -234,21 +246,40 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityRepAnimMontage
 	UPROPERTY()
 	uint8 bSkipPlayRate : 1;
 
+	UPROPERTY()
+	FPredictionKey PredictionKey;
+
+	/** The current section Id used by the montage. Will only be valid if bRepPosition is false */
+	UPROPERTY(NotReplicated)
+	uint8 SectionIdToPlay;
+
 	FGameplayAbilityRepAnimMontage()
-		: AnimMontage(nullptr),
-		PlayRate(0.f),
-		Position(0.f),
-		BlendTime(0.f),
-		NextSectionID(0),
-		IsStopped(true),
-		ForcePlayBit(0),
-		SkipPositionCorrection(false),
-		bSkipPlayRate(false)
+	: AnimMontage(nullptr),
+	PlayRate(0.f),
+	Position(0.f),
+	BlendTime(0.f),
+	NextSectionID(0),
+	bRepPosition(true),
+	IsStopped(true),
+	ForcePlayBit(0),
+	SkipPositionCorrection(false),
+	bSkipPlayRate(false),
+	SectionIdToPlay(0)
 	{
 	}
 
-	UPROPERTY()
-	FPredictionKey PredictionKey;
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+
+	void SetRepAnimPositionMethod(ERepAnimPositionMethod InMethod);
+};
+
+template<>
+struct TStructOpsTypeTraits<FGameplayAbilityRepAnimMontage> : public TStructOpsTypeTraitsBase2<FGameplayAbilityRepAnimMontage>
+{
+	enum
+	{
+		WithNetSerializer = true,
+	};
 };
 
 

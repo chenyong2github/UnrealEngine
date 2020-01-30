@@ -1215,6 +1215,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Returns amount of time left in current section */
 	float GetCurrentMontageSectionTimeLeft() const;
 
+	/** Method to set the replication method for the position in the montage */
+	void SetMontageRepAnimPositionMethod(ERepAnimPositionMethod InMethod);
+
 	// ----------------------------------------------------------------------------------------------------------------
 	//	Actor interaction
 	// ----------------------------------------------------------------------------------------------------------------	
