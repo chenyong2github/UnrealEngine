@@ -150,6 +150,7 @@ void FAsioStoreCborPeer::OnStatus()
 {
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
 	Builder.AddInteger("recorder_port", Recorder.GetPort());
+	Builder.AddInteger("change_serial", Store.GetChangeSerial());
 	SendResponse(Builder.Done());
 }
 

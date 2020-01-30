@@ -19,6 +19,7 @@ public:
 	struct TRACEANALYSIS_API FStatus
 	{
 		uint32			GetRecorderPort() const;
+		uint32			GetChangeSerial() const;
 	};
 
 	struct TRACEANALYSIS_API FTraceInfo

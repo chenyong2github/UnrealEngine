@@ -190,6 +190,7 @@ void FAsioStore::ClearTraces()
 	}
 
 	Traces.Empty();
+	ChangeSerial = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -213,6 +214,12 @@ void FAsioStore::WatchDir()
 		Refresh();
 		WatchDir();
 	});
+}
+
+////////////////////////////////////////////////////////////////////////////////
+uint32 FAsioStore::GetChangeSerial() const
+{
+	return ChangeSerial;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -256,6 +263,8 @@ FAsioStore::FTrace* FAsioStore::AddTrace(const TCHAR* Path)
 	{
 		return Existing;
 	}
+
+	ChangeSerial += Id;
 
 	FTrace* Trace = new FTrace(MoveTemp(NewTrace));
 	Traces.Add(Trace);

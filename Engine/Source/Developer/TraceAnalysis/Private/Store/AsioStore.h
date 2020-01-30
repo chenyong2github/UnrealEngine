@@ -53,6 +53,7 @@ public:
 						FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir);
 						~FAsioStore();
 	void				Close();
+	uint32				GetChangeSerial() const;
 	uint32				GetTraceCount() const;
 	const FTrace*		GetTraceInfo(uint32 Index) const;
 	FNewTrace			CreateTrace();
@@ -67,6 +68,7 @@ private:
 	void				Refresh();
 	FString				StoreDir;
 	TArray<FTrace*>		Traces;
+	uint32				ChangeSerial;
 	FDirWatcher*		DirWatcher = nullptr;
 #if 0
 	int32				LastTraceId = -1;

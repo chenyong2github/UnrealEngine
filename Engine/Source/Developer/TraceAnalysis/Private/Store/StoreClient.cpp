@@ -324,6 +324,15 @@ uint32 FStoreClient::FStatus::GetRecorderPort() const
 	return Response->GetInteger("recorder_port", 0);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::FStatus::GetChangeSerial() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetInteger("change_serial", 0);
+}
+
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
