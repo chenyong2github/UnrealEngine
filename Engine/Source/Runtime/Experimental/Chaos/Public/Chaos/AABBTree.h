@@ -69,14 +69,57 @@ struct TAABBTreeIntersectionHelper<T, FQueryFastDataVoid, EAABBQueryType::Overla
 	}
 };
 
+template <typename TPayloadType, typename T, bool bComputeBounds>
+struct TBoundsWrapperHelper
+{
+
+};
+
 template <typename TPayloadType, typename T>
-struct TAABBTreeLeafArray
+struct TBoundsWrapperHelper<TPayloadType, T, true>
+{
+	void ComputeBounds(const TArray<TPayloadBoundsElement<TPayloadType, T>>& Elems)
+	{
+		Bounds = TAABB<T, 3>::EmptyAABB();
+
+		for (const auto& Elem : Elems)
+		{
+			Bounds.GrowToInclude(Elem.Bounds);
+		}
+	}
+
+	const TAABB<T, 3>& GetBounds() const { return Bounds; }
+
+private:
+	TAABB<T, 3> Bounds;
+};
+
+template <typename TPayloadType, typename T>
+struct TBoundsWrapperHelper<TPayloadType, T, false>
+{
+	void ComputeBounds(const TArray<TPayloadBoundsElement<TPayloadType, T>>&)
+	{
+	}
+
+	const TAABB<T, 3> GetBounds() const
+	{
+		return TAABB<T, 3>::EmptyAABB();
+	}
+};
+
+template <typename TPayloadType, typename T, bool bComputeBounds = true>
+struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComputeBounds>
 {
 	TAABBTreeLeafArray() {}
 	//todo: avoid copy?
 	TAABBTreeLeafArray(const TArray<TPayloadBoundsElement<TPayloadType, T>>& InElems)
 		: Elems(InElems)
 	{
+		ComputeBounds(Elems);
+		if (bComputeBounds)
+		{
+		
+		}
 	}
 
 	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, T>>& OutElements)
@@ -148,16 +191,23 @@ struct TAABBTreeLeafArray
 		}
 	}
 
+	const TAABB<T, 3>& GetBounds() const
+	{
+		return Bounds;
+	}
+
 	void Serialize(FChaosArchive& Ar)
 	{
 		Ar << Elems;
 	}
 
+
 	TArray<TPayloadBoundsElement<TPayloadType, T>> Elems;
+	TAABB<T,3> Bounds;
 };
 
-template <typename TPayloadType, typename T>
-FChaosArchive& operator<<(FChaosArchive& Ar, TAABBTreeLeafArray<TPayloadType, T>& LeafArray)
+template <typename TPayloadType, typename T, bool bComputeBounds>
+FChaosArchive& operator<<(FChaosArchive& Ar, TAABBTreeLeafArray<TPayloadType, T, bComputeBounds>& LeafArray)
 {
 	LeafArray.Serialize(Ar);
 	return Ar;
@@ -427,6 +477,16 @@ public:
 			{
 				if (PayloadInfo->LeafIdx != INDEX_NONE)
 				{
+					//If we are still within the same leaf bounds, do nothing
+					if (bHasBounds)
+					{
+						const TAABB<T,3>& LeafBounds = Leaves[PayloadInfo->LeafIdx].GetBounds();
+						if (LeafBounds.Contains(NewBounds.Min()) && LeafBounds.Contains(NewBounds.Max()))
+						{
+							return;
+						}
+					}
+
 					Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
 					PayloadInfo->LeafIdx = INDEX_NONE;
 				}
