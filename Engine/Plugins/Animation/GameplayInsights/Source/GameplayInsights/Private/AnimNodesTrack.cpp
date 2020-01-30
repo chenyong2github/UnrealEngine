@@ -58,6 +58,21 @@ FAnimNodesTrack::FAnimNodesTrack(const FAnimationSharedData& InSharedData, uint6
 		}
 	}
 #endif
+
+#if WITH_ENGINE
+	OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddRaw(this, &FAnimNodesTrack::OnWorldCleanup);
+	OnWorldBeginTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddRaw(this, &FAnimNodesTrack::RemoveWorld);
+	OnPreWorldFinishDestroyHandle = FWorldDelegates::OnPreWorldFinishDestroy.AddRaw(this, &FAnimNodesTrack::RemoveWorld);
+#endif
+}
+
+FAnimNodesTrack::~FAnimNodesTrack()
+{
+#if WITH_ENGINE
+	FWorldDelegates::OnPreWorldFinishDestroy.Remove(OnPreWorldFinishDestroyHandle);
+	FWorldDelegates::OnWorldBeginTearDown.Remove(OnWorldBeginTearDownHandle);
+	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupHandle);
+#endif
 }
 
 static const TCHAR* GetPhaseName(EAnimGraphPhase InPhase)
@@ -414,6 +429,19 @@ void FAnimNodesTrack::GetCustomDebugObjects(const IAnimationBlueprintEditor& InA
 void FAnimNodesTrack::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(AnimInstance);
+}
+
+void FAnimNodesTrack::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
+{
+	RemoveWorld(InWorld);
+}
+
+void FAnimNodesTrack::RemoveWorld(UWorld* InWorld)
+{
+	if(AnimInstance && AnimInstance->GetWorld() == InWorld)
+	{
+		AnimInstance = nullptr;
+	}
 }
 
 #endif

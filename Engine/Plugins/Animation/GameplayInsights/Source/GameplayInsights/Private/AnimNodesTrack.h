@@ -27,6 +27,7 @@ class FAnimNodesTrack : public FGameplayTimingEventsTrack
 
 public:
 	FAnimNodesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
+	~FAnimNodesTrack();
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
@@ -46,6 +47,10 @@ public:
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override { return TEXT("InsightsAnimNodesTrack"); }
+
+	// Handle worlds being torn down
+	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+	void RemoveWorld(UWorld* InWorld);
 #endif
 
 private:
@@ -66,5 +71,12 @@ private:
 
 	/** Data used for anim BP debugging */
 	UAnimInstance* AnimInstance;
+#endif
+
+#if WITH_ENGINE
+	/** Handles used to deal with world switching */
+	FDelegateHandle OnWorldCleanupHandle;
+	FDelegateHandle OnWorldBeginTearDownHandle;
+	FDelegateHandle OnPreWorldFinishDestroyHandle;
 #endif
 };

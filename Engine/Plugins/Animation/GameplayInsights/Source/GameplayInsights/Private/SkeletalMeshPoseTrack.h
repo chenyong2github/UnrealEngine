@@ -52,6 +52,7 @@ public:
 
 	// Handle worlds being torn down
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+	void RemoveWorld(UWorld* InWorld);
 
 	// Draw poses at the specified time
 	void DrawPoses(UWorld* InWorld, double InTime);
@@ -118,7 +119,9 @@ private:
 	/** Cached map of per-world data */
 	TMap<TWeakObjectPtr<UWorld>, FWorldComponentCache> WorldCache;
 
-	/** Handle used to deal with world switching */
-	FDelegateHandle OnWorldDestroyedHandle;
+	/** Handles used to deal with world switching */
+	FDelegateHandle OnWorldCleanupHandle;
+	FDelegateHandle OnWorldBeginTearDownHandle;
+	FDelegateHandle OnPreWorldFinishDestroyHandle;
 #endif
 };

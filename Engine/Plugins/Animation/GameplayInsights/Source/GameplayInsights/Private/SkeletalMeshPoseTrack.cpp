@@ -32,14 +32,18 @@ FSkeletalMeshPoseTrack::FSkeletalMeshPoseTrack(const FAnimationSharedData& InSha
 	, bPotentiallyDebugged(false)
 {
 #if WITH_ENGINE
-	OnWorldDestroyedHandle = FWorldDelegates::OnWorldCleanup.AddRaw(this, &FSkeletalMeshPoseTrack::OnWorldCleanup);
+	OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddRaw(this, &FSkeletalMeshPoseTrack::OnWorldCleanup);
+	OnWorldBeginTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddRaw(this, &FSkeletalMeshPoseTrack::RemoveWorld);
+	OnPreWorldFinishDestroyHandle = FWorldDelegates::OnPreWorldFinishDestroy.AddRaw(this, &FSkeletalMeshPoseTrack::RemoveWorld);
 #endif
 }
 
 FSkeletalMeshPoseTrack::~FSkeletalMeshPoseTrack()
 {
 #if WITH_ENGINE
-	FWorldDelegates::OnWorldCleanup.Remove(OnWorldDestroyedHandle);
+	FWorldDelegates::OnPreWorldFinishDestroy.Remove(OnPreWorldFinishDestroyHandle);
+	FWorldDelegates::OnWorldBeginTearDown.Remove(OnWorldBeginTearDownHandle);
+	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupHandle);
 
 	for(auto& WorldCacheEntry : WorldCache)
 	{
@@ -333,6 +337,11 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 #if WITH_ENGINE
 
 void FSkeletalMeshPoseTrack::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
+{
+	RemoveWorld(InWorld);
+}
+
+void FSkeletalMeshPoseTrack::RemoveWorld(UWorld* InWorld)
 {
 	FWorldComponentCache& CacheForWorld = GetWorldCache(InWorld);
 
