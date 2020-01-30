@@ -126,6 +126,8 @@ namespace Chaos
 
 		// Tolerances
 		FReal SwingTwistAngleTolerance;
+		FReal PositionTolerance;
+		FReal AngleTolerance;
 
 		// Stability control
 		FReal MinParentMassRatio;

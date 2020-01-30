@@ -2132,7 +2132,7 @@ inline int32 HexToBytes( const FString& HexString, uint8* OutBytes )
 	}
 	while( *CharPos )
 	{
-		OutBytes[ NumBytes ] = TCharToNibble( *CharPos++ ) << 4;
+		OutBytes[ NumBytes ] = (uint8)(TCharToNibble( *CharPos++ ) << 4);
 		OutBytes[ NumBytes ] += TCharToNibble( *CharPos++ );
 		++NumBytes;
 	}

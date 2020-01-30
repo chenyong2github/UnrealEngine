@@ -97,7 +97,7 @@ void FOpenColorIOShaderCompilationManager::RunCompileJobs()
 		{
 			for (int32 JobIndex = 0; JobIndex < CurrentWorkerInfo.QueuedJobs.Num(); JobIndex++)
 			{
-				FShaderCompileJob& CurrentJob = *((FShaderCompileJob*)(CurrentWorkerInfo.QueuedJobs[JobIndex]));
+				FShaderCompileJob& CurrentJob = StaticCastSharedRef<FShaderCompileJob>(CurrentWorkerInfo.QueuedJobs[JobIndex]).Get();
 
 				check(!CurrentJob.bFinalized);
 				CurrentJob.bFinalized = true;
@@ -186,10 +186,10 @@ void FOpenColorIOShaderCompilationManager::InitWorkerInfo()
 	}	
 }
 
-OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<FShaderCommonCompileJob*> InNewJobs)
+OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> InNewJobs)
 {
 #if WITH_EDITOR
-	for (FShaderCommonCompileJob *Job : InNewJobs)
+	for (TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>& Job : InNewJobs)
 	{
 		FOpenColorIOShaderMapCompileResults& ShaderMapInfo = OpenColorIOShaderMapJobs.FindOrAdd(Job->Id);
 		//@todo : Apply shader map isn't used for now with this compile manager. Should be merged to have a generic shader compiler
@@ -265,7 +265,7 @@ void FOpenColorIOShaderCompilationManager::ProcessCompiledOpenColorIOShaderMaps(
 		{
 			TArray<FString> Errors;
 			FOpenColorIOShaderMapFinalizeResults& CompileResults = ProcessIt.Value();
-			const TArray<FShaderCommonCompileJob*>& ResultArray = CompileResults.FinishedJobs;
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& ResultArray = CompileResults.FinishedJobs;
 
 			// Make a copy of the array as this entry of FOpenColorIOShaderMap::ShaderMapsBeingCompiled will be removed below
 			TArray<FOpenColorIOTransformResource*> ColorTransformArray = *ColorTransforms;
@@ -273,7 +273,7 @@ void FOpenColorIOShaderCompilationManager::ProcessCompiledOpenColorIOShaderMaps(
 
 			for (int32 JobIndex = 0; JobIndex < ResultArray.Num(); JobIndex++)
 			{
-				FShaderCompileJob& CurrentJob = *((FShaderCompileJob*)(ResultArray[JobIndex]));
+				FShaderCompileJob& CurrentJob = StaticCastSharedRef<FShaderCompileJob>(ResultArray[JobIndex]).Get();
 				bSuccess = bSuccess && CurrentJob.bSucceeded;
 
 				if (bSuccess)
@@ -390,11 +390,7 @@ void FOpenColorIOShaderCompilationManager::ProcessCompiledOpenColorIOShaderMaps(
 				}
 
 				// Cleanup shader jobs and compile tracking structures
-				for (int32 JobIndex = 0; JobIndex < ResultArray.Num(); JobIndex++)
-				{
-					delete ResultArray[JobIndex];
-				}
-
+				ResultArray.Empty();
 				CompiledShaderMaps.Remove(ShaderMap->GetCompilingId());
 			}
 

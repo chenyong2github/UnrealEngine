@@ -809,6 +809,7 @@ void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdLi
 	checkSlow(bNeedsUniformBufferUpdate);
 	bNeedsUniformBufferUpdate = false;
 	Proxy->UpdateUniformBuffer();
+	AddPrimitiveToUpdateGPU(*Scene, PackedIndex);
 }
 
 void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshes()

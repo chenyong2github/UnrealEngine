@@ -73,6 +73,25 @@ void FNiagaraEmitterHandleViewModel::GetRendererPreviewData(TArray<FRendererPrev
 	}
 }
 
+void FNiagaraEmitterHandleViewModel::GetRendererEntries(TArray<UNiagaraStackEntry*>& InRenderingEntries)
+{
+	InRenderingEntries.Empty();
+	UNiagaraEmitter* Emitter = GetEmitterHandle()->GetInstance();
+	UNiagaraStackRoot* StackRoot = Cast<UNiagaraStackRoot>(EmitterStackViewModel->GetRootEntry());
+	if (StackRoot)
+	{
+		TArray<UNiagaraStackEntry*> Children;
+		StackRoot->GetRenderGroup()->GetUnfilteredChildren(Children);
+		for (UNiagaraStackEntry* Child : Children)
+		{
+			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(Child))
+			{
+				InRenderingEntries.Add(Child);
+			}
+		}
+	}
+}
+
 TSharedRef<FNiagaraSystemViewModel> FNiagaraEmitterHandleViewModel::GetOwningSystemViewModel() const
 {
 	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModelPinned = OwningSystemViewModelWeak.Pin();

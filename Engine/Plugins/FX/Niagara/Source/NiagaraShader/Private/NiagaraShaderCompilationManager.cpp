@@ -25,36 +25,36 @@ static FAutoConsoleVariableRef CVarShowNiagaraShaderWarnings(
 
 NIAGARASHADER_API FNiagaraShaderCompilationManager GNiagaraShaderCompilationManager;
 
-NIAGARASHADER_API void FNiagaraShaderCompilationManager::AddJobs(TArray<FShaderCommonCompileJob*> InNewJobs)
+NIAGARASHADER_API void FNiagaraShaderCompilationManager::AddJobs(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> InNewJobs)
 {
 	check(IsInGameThread());
 	JobQueue.Append(InNewJobs);
 	
-	for (FShaderCommonCompileJob *Job : InNewJobs)
+	for (TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job : InNewJobs)
 	{
 		FNiagaraShaderMapCompileResults& ShaderMapInfo = NiagaraShaderMapJobs.FindOrAdd(Job->Id);
 //		ShaderMapInfo.bApplyCompletedShaderMapForRendering = bApplyCompletedShaderMapForRendering;
 //		ShaderMapInfo.bRecreateComponentRenderStateOnCompletion = bRecreateComponentRenderStateOnCompletion;
 		ShaderMapInfo.NumJobsQueued++;
 
-		FShaderCompileJob& CurrentJob = *((FShaderCompileJob*) Job);
+		TSharedRef<FShaderCompileJob, ESPMode::ThreadSafe> CurrentJob = StaticCastSharedRef<FShaderCompileJob>(Job);
 
 		// Fast math breaks The ExecGrid layout script because floor(x/y) returns a bad value if x == y. Yay.
-		if (IsMetalPlatform((EShaderPlatform)CurrentJob.Input.Target.Platform))
+		if (IsMetalPlatform((EShaderPlatform)CurrentJob->Input.Target.Platform))
 		{
-			CurrentJob.Input.Environment.CompilerFlags.Add(CFLAG_NoFastMath);
+			CurrentJob->Input.Environment.CompilerFlags.Add(CFLAG_NoFastMath);
 		}
 
-		UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("Adding niagara gpu shader compile job... %s"), *CurrentJob.Input.DebugGroupName);
+		UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("Adding niagara gpu shader compile job... %s"), *CurrentJob->Input.DebugGroupName);
 
 		static ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-		const FName Format = LegacyShaderPlatformToShaderFormat(EShaderPlatform(CurrentJob.Input.Target.Platform));
+		const FName Format = LegacyShaderPlatformToShaderFormat(EShaderPlatform(CurrentJob->Input.Target.Platform));
 		FString AbsoluteDebugInfoDirectory = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*(FPaths::ProjectSavedDir() / TEXT("ShaderDebugInfo")));
 		FPaths::NormalizeDirectoryName(AbsoluteDebugInfoDirectory);
-		CurrentJob.Input.DumpDebugInfoPath = AbsoluteDebugInfoDirectory / Format.ToString() / CurrentJob.Input.DebugGroupName;
-		if (!IFileManager::Get().DirectoryExists(*CurrentJob.Input.DumpDebugInfoPath))
+		CurrentJob->Input.DumpDebugInfoPath = AbsoluteDebugInfoDirectory / Format.ToString() / CurrentJob->Input.DebugGroupName;
+		if (!IFileManager::Get().DirectoryExists(*CurrentJob->Input.DumpDebugInfoPath))
 		{
-			verifyf(IFileManager::Get().MakeDirectory(*CurrentJob.Input.DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *CurrentJob.Input.DumpDebugInfoPath);
+			verifyf(IFileManager::Get().MakeDirectory(*CurrentJob->Input.DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *CurrentJob->Input.DumpDebugInfoPath);
 		}
 	}
 	GShaderCompilingManager->AddJobs(InNewJobs, true, false, FString(), FString(), true);
@@ -67,7 +67,7 @@ void FNiagaraShaderCompilationManager::ProcessAsyncResults()
 	TArray<int32> FinalizedShaderMapIDs;
 	for (int32 JobIndex = JobQueue.Num() - 1; JobIndex >= 0; JobIndex--)
 	{
-		FShaderCompileJob* Job = (FShaderCompileJob*)(JobQueue[JobIndex]);
+		TSharedRef<FShaderCompileJob, ESPMode::ThreadSafe> Job = StaticCastSharedRef<FShaderCompileJob>(JobQueue[JobIndex]);
 		if (Job->bFinalized)
 		{
 			FinalizedShaderMapIDs.Add(Job->Id);
@@ -80,26 +80,26 @@ void FNiagaraShaderCompilationManager::ProcessAsyncResults()
 	// Process the results from the shader compile worker
 	for (int32 JobIndex = JobQueue.Num() - 1; JobIndex >= 0; JobIndex--)
 	{
-		FShaderCompileJob& CurrentJob = *((FShaderCompileJob*)(JobQueue[JobIndex]));
+		TSharedRef<FShaderCompileJob, ESPMode::ThreadSafe> CurrentJob = StaticCastSharedRef<FShaderCompileJob>(JobQueue[JobIndex]);
 
-		if (!CurrentJob.bFinalized)
+		if (!CurrentJob->bFinalized)
 		{
 			continue;
 		}
 
-		CurrentJob.bSucceeded = CurrentJob.Output.bSucceeded;
-		if (CurrentJob.Output.bSucceeded)
+		CurrentJob->bSucceeded = CurrentJob->Output.bSucceeded;
+		if (CurrentJob->Output.bSucceeded)
 		{
-			UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("GPU shader compile succeeded. Id %d"), CurrentJob.Id);
+			UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("GPU shader compile succeeded. Id %d"), CurrentJob->Id);
 		}
 		else
 		{
-			UE_LOG(LogNiagaraShaderCompiler, Warning, TEXT("GPU shader compile failed! Id %d"), CurrentJob.Id);
+			UE_LOG(LogNiagaraShaderCompiler, Warning, TEXT("GPU shader compile failed! Id %d"), CurrentJob->Id);
 		}
 
-		FNiagaraShaderMapCompileResults& ShaderMapResults = NiagaraShaderMapJobs.FindChecked(CurrentJob.Id);
-		ShaderMapResults.FinishedJobs.Add(&CurrentJob);
-		ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && CurrentJob.bSucceeded;
+		FNiagaraShaderMapCompileResults& ShaderMapResults = NiagaraShaderMapJobs.FindChecked(CurrentJob->Id);
+		ShaderMapResults.FinishedJobs.Add(JobQueue[JobIndex]);
+		ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && CurrentJob->bSucceeded;
 		JobQueue.RemoveAt(JobIndex);
 	}
 
@@ -152,7 +152,7 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(TMap<int
 		{
 			TArray<FString> Errors;
 			FNiagaraShaderMapFinalizeResults& CompileResults = ProcessIt.Value();
-			const TArray<FShaderCommonCompileJob*>& ResultArray = CompileResults.FinishedJobs;
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& ResultArray = CompileResults.FinishedJobs;
 
 			// Make a copy of the array as this entry of FNiagaraShaderMap::ShaderMapsBeingCompiled will be removed below
 			TArray<FNiagaraShaderScript*> ScriptArray = *Scripts;
@@ -160,25 +160,25 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(TMap<int
 
 			for (int32 JobIndex = 0; JobIndex < ResultArray.Num(); JobIndex++)
 			{
-				FShaderCompileJob& CurrentJob = *((FShaderCompileJob*)(ResultArray[JobIndex]));
-				bSuccess = bSuccess && CurrentJob.bSucceeded;
+				TSharedRef<FShaderCompileJob, ESPMode::ThreadSafe> CurrentJob = StaticCastSharedRef<FShaderCompileJob>(ResultArray[JobIndex]);
+				bSuccess = bSuccess && CurrentJob->bSucceeded;
 
 				if (bSuccess)
 				{
-					check(CurrentJob.Output.ShaderCode.GetShaderCodeSize() > 0);
+					check(CurrentJob->Output.ShaderCode.GetShaderCodeSize() > 0);
 				}
 
-				if (GShowNiagaraShaderWarnings || !CurrentJob.bSucceeded)
+				if (GShowNiagaraShaderWarnings || !CurrentJob->bSucceeded)
 				{
-					for (int32 ErrorIndex = 0; ErrorIndex < CurrentJob.Output.Errors.Num(); ErrorIndex++)
+					for (int32 ErrorIndex = 0; ErrorIndex < CurrentJob->Output.Errors.Num(); ErrorIndex++)
 					{
-						Errors.AddUnique(CurrentJob.Output.Errors[ErrorIndex].GetErrorString().Replace(TEXT("Error"), TEXT("Err0r")));
+						Errors.AddUnique(CurrentJob->Output.Errors[ErrorIndex].GetErrorString().Replace(TEXT("Error"), TEXT("Err0r")));
 					}
 
-					if (CurrentJob.Output.Errors.Num())
+					if (CurrentJob->Output.Errors.Num())
 					{
-						UE_LOG(LogNiagaraShaderCompiler, Display, TEXT("There were issues for job \"%s\""), *CurrentJob.Input.DebugGroupName);
-						for (const FShaderCompilerError& Error : CurrentJob.Output.Errors)
+						UE_LOG(LogNiagaraShaderCompiler, Display, TEXT("There were issues for job \"%s\""), *CurrentJob->Input.DebugGroupName);
+						for (const FShaderCompilerError& Error : CurrentJob->Output.Errors)
 						{
 							UE_LOG(LogNiagaraShaderCompiler, Warning, TEXT("%s"), *Error.GetErrorString())
 						}
@@ -186,7 +186,7 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(TMap<int
 				}
 				else
 				{
-					UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("Shader compile job \"%s\" completed."), *CurrentJob.Input.DebugGroupName);
+					UE_LOG(LogNiagaraShaderCompiler, Verbose, TEXT("Shader compile job \"%s\" completed."), *CurrentJob->Input.DebugGroupName);
 				}
 			}
 
@@ -277,11 +277,7 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(TMap<int
 				}
 
 				// Cleanup shader jobs and compile tracking structures
-				for (int32 JobIndex = 0; JobIndex < ResultArray.Num(); JobIndex++)
-				{
-					delete ResultArray[JobIndex];
-				}
-
+				ResultArray.Empty();
 				CompiledShaderMaps.Remove(ShaderMap->GetCompilingId());
 			}
 

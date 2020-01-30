@@ -28,7 +28,7 @@ UE_TRACE_EVENT_END()
 
 void FLogTrace::OutputLogCategory(const FLogCategoryBase* Category, const TCHAR* Name, ELogVerbosity::Type DefaultVerbosity)
 {
-	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
+	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(Logging, LogCategory, NameSize)
 		<< LogCategory.CategoryPointer(Category)
 		<< LogCategory.DefaultVerbosity(DefaultVerbosity)
@@ -37,8 +37,8 @@ void FLogTrace::OutputLogCategory(const FLogCategoryBase* Category, const TCHAR*
 
 void FLogTrace::OutputLogMessageSpec(const void* LogPoint, const FLogCategoryBase* Category, ELogVerbosity::Type Verbosity, const ANSICHAR* File, int32 Line, const TCHAR* Format)
 {
-	uint16 FileNameSize = strlen(File) + 1;
-	uint16 FormatStringSize = (FCString::Strlen(Format) + 1) * sizeof(TCHAR);
+	uint16 FileNameSize = (uint16)(strlen(File) + 1);
+	uint16 FormatStringSize = (uint16)((FCString::Strlen(Format) + 1) * sizeof(TCHAR));
 	auto StringCopyFunc = [FileNameSize, FormatStringSize, File, Format](uint8* Out) {
 		memcpy(Out, File, FileNameSize);
 		memcpy(Out + FileNameSize, Format, FormatStringSize);

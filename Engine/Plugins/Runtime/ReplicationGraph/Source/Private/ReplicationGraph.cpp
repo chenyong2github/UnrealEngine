@@ -899,7 +899,6 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 
 		const FReplicationGraphDestructionSettings DestructionSettings(DestructInfoMaxDistanceSquared, CVar_RepGraph_OutOfRangeDistanceCheckRatio * DestructInfoMaxDistanceSquared);
 
-		FBitWriter& ConnectionSendBuffer = NetConnection->SendBuffer; // unused
 		ConnectionManager->QueuedBitsForActorDiscovery = 0;
 
 		// --------------------------------------------------------------------------------------------------------------
@@ -1826,7 +1825,7 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 	}
 
 	// Optional budget for actor discovery traffic
-	if (!bIsActorDiscoveryBudgetFull)
+	if (bIsTrafficActorDiscovery && !bIsActorDiscoveryBudgetFull)
 	{
 		ConnectionManager.QueuedBitsForActorDiscovery += BitsWritten;
 

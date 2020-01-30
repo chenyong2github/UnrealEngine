@@ -69,169 +69,164 @@ public:
 //////////////////////////////////////////////////////////////////////////
 // FKismet2Menu
 
-void FKismet2Menu::FillFileMenuBlueprintSection( FMenuBuilder& MenuBuilder, FBlueprintEditor& Kismet )
+void FKismet2Menu::FillFileMenuBlueprintSection(UToolMenu* InMenu)
 {
-	MenuBuilder.BeginSection("FileBlueprint", LOCTEXT("BlueprintHeading", "Blueprint"));
+	FToolMenuInsert InsertPosition("FileLoadAndSave", EToolMenuInsertType::After);
+
 	{
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().CompileBlueprint );
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().RefreshAllNodes );
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().ReparentBlueprint );
-		MenuBuilder.AddWrapperSubMenu(
+		FToolMenuSection& Section = InMenu->AddSection("FileBlueprint", LOCTEXT("BlueprintHeading", "Blueprint"));
+		Section.InsertPosition = InsertPosition;
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().CompileBlueprint );
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().RefreshAllNodes );
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().ReparentBlueprint );
+		Section.AddSubMenu(
+			"Diff",
 			LOCTEXT("Diff", "Diff"),
 			LOCTEXT("BlueprintEditorDiffToolTip", "Diff against previous revisions"),
-			FOnGetContent::CreateStatic< FBlueprintEditor& >( &FKismet2Menu::MakeDiffMenu, Kismet),
-			FSlateIcon());
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().BeginBlueprintMerge);
+			FNewToolMenuWidget::CreateStatic(&FKismet2Menu::MakeDiffMenu));
+		Section.AddMenuEntry(FBlueprintEditorCommands::Get().BeginBlueprintMerge);
 	}
-	MenuBuilder.EndSection();
 
-	// Only show the developer menu on machines with the solution (assuming they can build it)
-	ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::GetModulePtr<ISourceCodeAccessModule>("SourceCodeAccess");
-	if(SourceCodeAccessModule != nullptr && SourceCodeAccessModule->GetAccessor().CanAccessSourceCode())
+	InMenu->AddDynamicSection("FileDeveloper", FNewToolMenuDelegate::CreateLambda([InsertPosition](UToolMenu* InMenu)
 	{
-		MenuBuilder.BeginSection("FileDeveloper");
+		// Only show the developer menu on machines with the solution (assuming they can build it)
+		ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::GetModulePtr<ISourceCodeAccessModule>("SourceCodeAccess");
+		if (SourceCodeAccessModule != nullptr && SourceCodeAccessModule->GetAccessor().CanAccessSourceCode())
 		{
-			MenuBuilder.AddSubMenu( 
+			FToolMenuSection& Section = InMenu->AddSection("FileDeveloper");
+			Section.InsertPosition = InsertPosition;
+			Section.AddSubMenu(
+				"DeveloperMenu",
 				LOCTEXT("DeveloperMenu", "Developer"),
 				LOCTEXT("DeveloperMenu_ToolTip", "Open the developer menu"),
-				FNewMenuDelegate::CreateStatic( &FKismet2Menu::FillDeveloperMenu ),
+				FNewToolMenuDelegate::CreateStatic( &FKismet2Menu::FillDeveloperMenu ),
 				false);
 		}
-		MenuBuilder.EndSection();
-	}
+	}));
 }
 
-void FKismet2Menu::FillDeveloperMenu( FMenuBuilder& MenuBuilder )
+void FKismet2Menu::FillDeveloperMenu(UToolMenu* InMenu)
 {
-	MenuBuilder.BeginSection("FileDeveloperCompilerSettings", LOCTEXT("CompileOptionsHeading", "Compiler Settings"));
 	{
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().SaveIntermediateBuildProducts );
+		FToolMenuSection& Section = InMenu->AddSection("FileDeveloperCompilerSettings", LOCTEXT("CompileOptionsHeading", "Compiler Settings"));
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().SaveIntermediateBuildProducts );
 	}
-	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("GenerateNativeCode", LOCTEXT("Cpp", "C++"));
 	{
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().GenerateNativeCode);
+		FToolMenuSection& Section = InMenu->AddSection("GenerateNativeCode", LOCTEXT("Cpp", "C++"));
+		Section.AddMenuEntry(FBlueprintEditorCommands::Get().GenerateNativeCode);
 	}
-	MenuBuilder.EndSection();
 
 	if (FFindInBlueprintSearchManager::Get().ShouldEnableDeveloperMenuTools())
 	{
-		MenuBuilder.BeginSection("FileDeveloperSearchTools", LOCTEXT("SearchToolsHeading", "Search Tools"));
-		{
-			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().GenerateSearchIndex);
-			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().DumpCachedIndexData);
-		}
-		MenuBuilder.EndSection();
+		FToolMenuSection& Section = InMenu->AddSection("FileDeveloperSearchTools", LOCTEXT("SearchToolsHeading", "Search Tools"));
+		Section.AddMenuEntry(FBlueprintEditorCommands::Get().GenerateSearchIndex);
+		Section.AddMenuEntry(FBlueprintEditorCommands::Get().DumpCachedIndexData);
 	}
 
 	if (false)
 	{
-		MenuBuilder.BeginSection("FileDeveloperFindReferences");
 		{
-			MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().FindReferencesFromClass );
-			MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().FindReferencesFromBlueprint );
-			MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().FindReferencesFromBlueprint );
+			FToolMenuSection& Section = InMenu->AddSection("FileDeveloperFindReferences");
+			Section.AddMenuEntry(FBlueprintEditorCommands::Get().FindReferencesFromClass);
+			Section.AddMenuEntry(FBlueprintEditorCommands::Get().FindReferencesFromBlueprint);
+			Section.AddMenuEntry(FBlueprintEditorCommands::Get().FindReferencesFromBlueprint);
 		}
-		MenuBuilder.EndSection();
 	}
 
-	MenuBuilder.BeginSection("SchemaDeveloperSettings", LOCTEXT("SchemaDevUtilsHeading", "Schema Utilities"));
 	{
-		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().ShowActionMenuItemSignatures);
+		FToolMenuSection& Section = InMenu->AddSection("SchemaDeveloperSettings", LOCTEXT("SchemaDevUtilsHeading", "Schema Utilities"));
+		Section.AddMenuEntry(FBlueprintEditorCommands::Get().ShowActionMenuItemSignatures);
 	}
-	MenuBuilder.EndSection();
 }
 
-void FKismet2Menu::FillEditMenu( FMenuBuilder& MenuBuilder )
+void FKismet2Menu::FillEditMenu(UToolMenu* InMenu)
 {
-	MenuBuilder.BeginSection("EditSearch", LOCTEXT("EditMenu_SearchHeading", "Search") );
 	{
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().FindInBlueprint );
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().FindInBlueprints );
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().DeleteUnusedVariables );
+		FToolMenuSection& Section = InMenu->AddSection("EditSearch", LOCTEXT("EditMenu_SearchHeading", "Search"));
+		Section.InsertPosition = FToolMenuInsert("EditHistory", EToolMenuInsertType::After);
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().FindInBlueprint );
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().FindInBlueprints );
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().DeleteUnusedVariables );
 	}
-	MenuBuilder.EndSection();
 }
 
-void FKismet2Menu::FillViewMenu( FMenuBuilder& MenuBuilder )
+void FKismet2Menu::FillViewMenu(UToolMenu* InMenu)
 {
-	MenuBuilder.BeginSection("ViewPinVisibility", LOCTEXT("ViewMenu_PinVisibilityHeading", "Pin Visibility") );
 	{
-		MenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().ShowAllPins);
-		MenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().HideNoConnectionNoDefaultPins);
-		MenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().HideNoConnectionPins);
+		FToolMenuSection& Section = InMenu->AddSection("ViewPinVisibility", LOCTEXT("ViewMenu_PinVisibilityHeading", "Pin Visibility"));
+		Section.AddMenuEntry(FGraphEditorCommands::Get().ShowAllPins);
+		Section.AddMenuEntry(FGraphEditorCommands::Get().HideNoConnectionNoDefaultPins);
+		Section.AddMenuEntry(FGraphEditorCommands::Get().HideNoConnectionPins);
 	}
-	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("ViewZoom", LOCTEXT("ViewMenu_ZoomHeading", "Zoom") );
 	{
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().ZoomToWindow );
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().ZoomToSelection );
+		FToolMenuSection& Section = InMenu->AddSection("ViewZoom", LOCTEXT("ViewMenu_ZoomHeading", "Zoom") );
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().ZoomToWindow );
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().ZoomToSelection );
 	}
-	MenuBuilder.EndSection();
 }
 
-void FKismet2Menu::FillDebugMenu( FMenuBuilder& MenuBuilder )
+void FKismet2Menu::FillDebugMenu(UToolMenu* InMenu)
 {
-	MenuBuilder.BeginSection("DebugBreakpoints", LOCTEXT("DebugMenu_BreakpointHeading", "Breakpoints") );
 	{
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().DisableAllBreakpoints );
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().EnableAllBreakpoints );
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().ClearAllBreakpoints );
+		FToolMenuSection& Section = InMenu->AddSection("DebugBreakpoints", LOCTEXT("DebugMenu_BreakpointHeading", "Breakpoints"));
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().DisableAllBreakpoints );
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().EnableAllBreakpoints );
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().ClearAllBreakpoints );
 	}
-	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("DebugWatches", LOCTEXT("DebugMenu_WatchHeading", "Watches") );
 	{
-		MenuBuilder.AddMenuEntry( FBlueprintEditorCommands::Get().ClearAllWatches );
+		FToolMenuSection& Section = InMenu->AddSection("DebugWatches", LOCTEXT("DebugMenu_WatchHeading", "Watches"));
+		Section.AddMenuEntry( FBlueprintEditorCommands::Get().ClearAllWatches );
 	}
-	MenuBuilder.EndSection();
 }
 
-void FKismet2Menu::SetupBlueprintEditorMenu( TSharedPtr< FExtender > Extender, FBlueprintEditor& BlueprintEditor)
+void FKismet2Menu::SetupBlueprintEditorMenu(const FName MainMenuName)
 {
-	// Extend the File menu with asset actions
-	Extender->AddMenuExtension(
-		"FileLoadAndSave",
-		EExtensionHook::After,
-		BlueprintEditor.GetToolkitCommands(),
-		FMenuExtensionDelegate::CreateStatic< FBlueprintEditor& >( &FKismet2Menu::FillFileMenuBlueprintSection, BlueprintEditor ) );
+	const FName ParentMenuName("MainFrame.MainMenu");
 
-	// Extend the Edit menu
-	Extender->AddMenuExtension(
-		"EditHistory",
-		EExtensionHook::After,
-		BlueprintEditor.GetToolkitCommands(),
-		FMenuExtensionDelegate::CreateStatic( &FKismet2Menu::FillEditMenu ) );
+	{
+		const FName FileMenuName = *(MainMenuName.ToString() + TEXT(".File"));
+		if (!UToolMenus::Get()->IsMenuRegistered(FileMenuName))
+		{
+			FKismet2Menu::FillFileMenuBlueprintSection(UToolMenus::Get()->RegisterMenu(FileMenuName, *(ParentMenuName.ToString() + TEXT(".File"))));
+		}
+	}
+
+	{
+		const FName EditMenuName = *(MainMenuName.ToString() + TEXT(".Edit"));
+		if (!UToolMenus::Get()->IsMenuRegistered(EditMenuName))
+		{
+			FKismet2Menu::FillEditMenu(UToolMenus::Get()->RegisterMenu(EditMenuName, *(ParentMenuName.ToString() + TEXT(".Edit"))));
+		}
+	}
 
 	// Add additional blueprint editor menus
 	{
-		struct Local
+		FToolMenuSection& Section = UToolMenus::Get()->ExtendMenu(MainMenuName)->FindOrAddSection(NAME_None);
+
+		// View
+		if (!Section.FindEntry("View"))
 		{
-			static void AddBlueprintEditorMenus( FMenuBarBuilder& MenuBarBuilder )
-			{
-				// View
-				MenuBarBuilder.AddPullDownMenu( 
-					LOCTEXT("ViewMenu", "View"),
-					LOCTEXT("ViewMenu_ToolTip", "Open the View menu"),
-					FNewMenuDelegate::CreateStatic( &FKismet2Menu::FillViewMenu ),
-					"View");
+			Section.AddSubMenu(
+				"View",
+				LOCTEXT("ViewMenu", "View"),
+				LOCTEXT("ViewMenu_ToolTip", "Open the View menu"),
+				FNewToolMenuDelegate::CreateStatic(&FKismet2Menu::FillViewMenu)
+			).InsertPosition = FToolMenuInsert("Edit", EToolMenuInsertType::After);
+		}
 
-				// Debug
-				MenuBarBuilder.AddPullDownMenu( 
-					LOCTEXT("DebugMenu", "Debug"),
-					LOCTEXT("DebugMenu_ToolTip", "Open the debug menu"),
-					FNewMenuDelegate::CreateStatic( &FKismet2Menu::FillDebugMenu ),
-					"Debug");
-			}
-		};
-
-		Extender->AddMenuBarExtension(
-			"Edit",
-			EExtensionHook::After,
-			BlueprintEditor.GetToolkitCommands(), 
-			FMenuBarExtensionDelegate::CreateStatic( &Local::AddBlueprintEditorMenus ) );
+		// Debug
+		if (!Section.FindEntry("Debug"))
+		{
+			Section.AddSubMenu(
+				"Debug",
+				LOCTEXT("DebugMenu", "Debug"),
+				LOCTEXT("DebugMenu_ToolTip", "Open the debug menu"),
+				FNewToolMenuDelegate::CreateStatic(&FKismet2Menu::FillDebugMenu)
+			).InsertPosition = FToolMenuInsert("Edit", EToolMenuInsertType::After);
+		}
 	}
 }
 
@@ -310,11 +305,12 @@ static void OnDiffRevisionPicked(FRevisionInfo const& RevisionInfo, TWeakObjectP
 	}
 }
 
-TSharedRef<SWidget> FKismet2Menu::MakeDiffMenu(FBlueprintEditor& Kismet)
+TSharedRef<SWidget> FKismet2Menu::MakeDiffMenu(const FToolMenuContext& InToolMenuContext)
 {
 	if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
 	{
-		UBlueprint* BlueprintObj = Kismet.GetBlueprintObj();
+		UBlueprintEditorToolMenuContext* Context = InToolMenuContext.FindContext<UBlueprintEditorToolMenuContext>();
+		UBlueprint* BlueprintObj = Context ? Context->GetBlueprintObj() : nullptr;
 		if(BlueprintObj)
 		{
 			TWeakObjectPtr<UBlueprint> BlueprintPtr = BlueprintObj;

@@ -224,7 +224,7 @@ uint32 FCpuProfilerTraceInternal::GetNextSpecId()
 uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name, ECpuProfilerGroup Group)
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
-	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
+	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(CpuProfiler, EventSpec, NameSize)
 		<< EventSpec.Id(SpecId)
 		<< EventSpec.Group(uint16(Group))
@@ -236,7 +236,7 @@ uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name, ECpuProfilerGroup G
 uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name, ECpuProfilerGroup Group)
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
-	uint16 NameSize = strlen(Name) + 1;
+	uint16 NameSize = (uint16)(strlen(Name) + 1);
 	UE_TRACE_LOG(CpuProfiler, EventSpec, NameSize)
 		<< EventSpec.Id(SpecId)
 		<< EventSpec.Group(uint16(Group))

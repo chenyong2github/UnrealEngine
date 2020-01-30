@@ -255,11 +255,6 @@ public class Engine : ModuleRules
 				}
 			);
 
-			if (Target.bWithLiveCoding)
-			{
-				PrivateDependencyModuleNames.Add("LiveCoding");
-			}
-
 			PrivateDependencyModuleNames.Add("CollisionAnalyzer");
 			CircularlyReferencedDependentModules.Add("CollisionAnalyzer");
 
@@ -318,6 +313,11 @@ public class Engine : ModuleRules
 				"Advertising"
 			}
 		);
+
+		if (Target.bWithLiveCoding)
+		{
+			DynamicallyLoadedModuleNames.Add("LiveCoding");
+		}
 
 		if (Target.Type != TargetType.Server)
 		{

@@ -302,8 +302,20 @@ void FMetalCommandList::SetParallelIndex(uint32 InIndex, uint32 InNum)
 void FMetalCommandList::Commit(mtlpp::CommandBuffer& Buffer, TArray<ns::Object<mtlpp::CommandBufferHandler>> CompletionHandlers, bool const bWait, bool const bIsLastCommandBuffer)
 {
 	check(Buffer);
-	
-	Buffer.AddCompletedHandler([CompletionHandlers, bIsLastCommandBuffer](mtlpp::CommandBuffer const& CompletedBuffer)
+
+	// The lifetime of this array is per frame
+	if (!FrameCommitedBufferTimings.IsValid())
+	{
+		FrameCommitedBufferTimings = MakeShared<TArray<FMetalCommandBufferTiming>, ESPMode::ThreadSafe>();
+	}
+
+	// The lifetime of this should be for the entire game
+	if (!LastCompletedBufferTiming.IsValid())
+	{
+		LastCompletedBufferTiming = MakeShared<FMetalCommandBufferTiming, ESPMode::ThreadSafe>();
+	}
+
+	Buffer.AddCompletedHandler([CompletionHandlers, FrameCommitedBufferTimingsLocal = FrameCommitedBufferTimings, LastCompletedBufferTimingLocal = LastCompletedBufferTiming](mtlpp::CommandBuffer const& CompletedBuffer)
 	{
 		if (CompletedBuffer.GetStatus() == mtlpp::CommandBufferStatus::Error)
 		{
@@ -316,16 +328,24 @@ void FMetalCommandList::Commit(mtlpp::CommandBuffer& Buffer, TArray<ns::Object<m
 				Handler.GetPtr()(CompletedBuffer);
 			}
 		}
-		
-		FMetalGPUProfiler::RecordCommandBuffer(CompletedBuffer);
-		
-		// The final command buffer in a frame will publish its frame
-		// stats and reset the counters for the next frame.
-		if(bIsLastCommandBuffer)
+
+		if (CompletedBuffer.GetStatus() == mtlpp::CommandBufferStatus::Completed)
 		{
-			FMetalGPUProfiler::RecordFrame();
+			FrameCommitedBufferTimingsLocal->Add({CompletedBuffer.GetGpuStartTime(), CompletedBuffer.GetGpuEndTime()});
+		}
+
+		// If this is the last reference, then it is the last command buffer to return, so record the frame
+		if (FrameCommitedBufferTimingsLocal.IsUnique())
+		{
+			FMetalGPUProfiler::RecordFrame(*FrameCommitedBufferTimingsLocal, *LastCompletedBufferTimingLocal);
 		}
 	});
+
+	// If bIsLastCommandBuffer is set then this is the end of the "frame".
+	if (bIsLastCommandBuffer)
+	{
+		FrameCommitedBufferTimings = MakeShared<TArray<FMetalCommandBufferTiming>, ESPMode::ThreadSafe>();
+	}
 
 	if (bImmediate)
 	{

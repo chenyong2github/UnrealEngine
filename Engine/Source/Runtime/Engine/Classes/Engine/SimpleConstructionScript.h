@@ -54,8 +54,18 @@ class USimpleConstructionScript : public UObject
 	/** Return the Blueprint associated with this SCS instance */
 	ENGINE_API class UBlueprint* GetBlueprint() const;
 
-	/** Helper function to find the current scene root component template and/or owning SCS node */
-	ENGINE_API USceneComponent* GetSceneRootComponentTemplate(USCS_Node** OutSCSNode = nullptr) const;
+	/** 
+	 * Helper function to find the current scene root component template and optionally the owning SCS node 
+	 * @param bShouldUseDefaultRoot  Whether the default scene root, if already in the root node set, should be used (note this will return null in that case because of the expectations of other calling code)
+	 * @param OutSCSNode             If not-null, the SCSNode for the scene root component will be returned in this variable
+	 */
+	ENGINE_API USceneComponent* GetSceneRootComponentTemplate(bool bShouldUseDefaultRoot = false, USCS_Node** OutSCSNode = nullptr) const;
+
+	UE_DEPRECATED(4.25, "Use version that specifies whether the default scene root should be used")
+	ENGINE_API USceneComponent* GetSceneRootComponentTemplate(USCS_Node** OutSCSNode) const
+	{
+		return GetSceneRootComponentTemplate(false, OutSCSNode);
+	}
 #endif
 
 	/** Return the Blueprint associated with this SCS instance */

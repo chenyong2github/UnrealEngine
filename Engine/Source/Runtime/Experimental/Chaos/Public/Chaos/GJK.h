@@ -562,9 +562,11 @@ namespace Chaos
 		}
 		else if (bComputeMTD)
 		{
-			if (InGJKPreDist2 > 1e-6 && InGJKPreDist2 < TNumericLimits<T>::Max())
+			// If Inflation == 0 we would expect GJKPreDist2 to be 0
+			// However, due to precision we can still end up with GJK failing.
+			// When that happens fall back on EPA
+			if (Inflation > 0 && InGJKPreDist2 > 1e-6 && InGJKPreDist2 < TNumericLimits<T>::Max())
 			{
-				CHAOS_ENSURE(Inflation > 0);	//shouldn't end up here if there is no inflation
 				OutNormal = Normal;
 				TVector<T, 3> ClosestA(0);
 				TVector<T, 3> ClosestB(0);
@@ -595,7 +597,7 @@ namespace Chaos
 			}
 			else
 			{
-				//todo: use EPA
+				//use EPA
 				TArray<TVec3<T>> VertsA;
 				TArray<TVec3<T>> VertsB;
 

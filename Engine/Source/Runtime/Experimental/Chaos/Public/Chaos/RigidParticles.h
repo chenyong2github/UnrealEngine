@@ -175,7 +175,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		MSleepData.Add(SleepData);
 		SleepDataLock.WriteUnlock();
 	}
-	void ClearSleepData()
+	CHAOS_API void ClearSleepData()
 	{
 		SleepDataLock.WriteLock();
 		MSleepData.Empty();

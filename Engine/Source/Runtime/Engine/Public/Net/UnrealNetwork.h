@@ -282,13 +282,17 @@ ENGINE_API void RegisterReplicatedLifetimeProperty(
 /*-----------------------------------------------------------------------------
 	Disable macros.
 	Use these macros to state that properties tagged replicated 
-	are voluntarely not replicated. This silences an error about missing
+	are voluntarily not replicated. This silences an error about missing
 	registered properties when class replication is started
 -----------------------------------------------------------------------------*/
 
 /** Use this macro in GetLifetimeReplicatedProps to flag a replicated property as not-replicated */
 #define DISABLE_REPLICATED_PROPERTY(c,v) \
 DisableReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NAME_CHECKED(c,v), OutLifetimeProps);
+
+/** Use this macro to disable inherited properties that are private. Be careful since it removes a compile-time error when the variable doesn't exist */
+#define DISABLE_REPLICATED_PRIVATE_PROPERTY(c,v) \
+DisableReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), FName(TEXT(#v)), OutLifetimeProps);
 
 #define DISABLE_REPLICATED_PROPERTY_FAST(c,v) \
 { \

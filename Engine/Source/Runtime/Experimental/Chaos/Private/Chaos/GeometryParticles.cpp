@@ -60,6 +60,9 @@ namespace Chaos
 		, Geometry()
 		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
 		, Materials()
+		, MaterialMasks()
+		, MaterialMaskMaps()
+		, MaterialMaskMapMaterials()
 		, bDisable(false)
 		, bSimulate(true)
 		, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
@@ -96,6 +99,7 @@ namespace Chaos
 	void TPerShapeData<T, d>::Serialize(FChaosArchive& Ar)
 	{
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		Ar.UsingCustomVersion(FExternalPhysicsMaterialCustomObjectVersion::GUID);
 
 		Ar << Geometry;
 		Ar << QueryData;
@@ -132,6 +136,12 @@ namespace Chaos
 			Ar << Data;
 			CollisionTraceType = (EChaosCollisionTraceFlag)Data;
 		}
+
+		if (Ar.CustomVer(FExternalPhysicsMaterialCustomObjectVersion::GUID) >= FExternalPhysicsMaterialCustomObjectVersion::AddedMaterialMasks)
+		{
+			Ar << MaterialMasks << MaterialMaskMaps << MaterialMaskMapMaterials;
+		}
+
 	}
 
 
@@ -198,10 +208,16 @@ namespace Chaos
 		TShapesArray<T, d>& ShapeArray = MShapesArray[Index];
 		Mapping.Reset();
 
-		int32 ShapeIndex = 0;
-		for (TUniquePtr<TPerShapeData<T, d>>& Shape : ShapeArray)
+		for (int32 ShapeIndex = 0; ShapeIndex < ShapeArray.Num(); ++ ShapeIndex)
 		{
-			Mapping.Add(Shape->Geometry.Get(), ShapeIndex++);
+			const FImplicitObject* ImplicitObject = ShapeArray[ShapeIndex]->Geometry.Get();
+			Mapping.Add(ImplicitObject, ShapeIndex);
+
+			const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject);
+			if (ImplicitChildObject != ImplicitObject)
+			{
+				Mapping.Add(ImplicitChildObject, ShapeIndex);
+			}
 		}
 
 		if (MGeometry[Index])
@@ -218,11 +234,11 @@ namespace Chaos
 						{
 							if (ImplicitShapeMap[Index].Contains(ImplicitObject.Get()))
 							{
-								ImplicitShapeMap[Index].Add(ImplicitChildObject, ImplicitShapeMap[Index][ImplicitObject.Get()]);
+								ImplicitShapeMap[Index].Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[Index][ImplicitObject.Get()]));
 							}
 							else if (ImplicitShapeMap[Index].Contains(ImplicitChildObject))
 							{
-								ImplicitShapeMap[Index].Add(ImplicitObject.Get(), ImplicitShapeMap[Index][ImplicitChildObject]);
+								ImplicitShapeMap[Index].Add(ImplicitObject.Get(), CopyTemp(ImplicitShapeMap[Index][ImplicitChildObject]));
 							}
 							
 						}
@@ -235,11 +251,11 @@ namespace Chaos
 				{
 					if (ImplicitShapeMap[Index].Contains(MGeometry[Index].Get()))
 					{
-						ImplicitShapeMap[Index].Add(ImplicitChildObject, ImplicitShapeMap[Index][MGeometry[Index].Get()]);
+						ImplicitShapeMap[Index].Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[Index][MGeometry[Index].Get()]));
 					}
 					else if (ImplicitShapeMap[Index].Contains(ImplicitChildObject))
 					{
-						ImplicitShapeMap[Index].Add(MGeometry[Index].Get(), ImplicitShapeMap[Index][ImplicitChildObject]);
+						ImplicitShapeMap[Index].Add(MGeometry[Index].Get(), CopyTemp(ImplicitShapeMap[Index][ImplicitChildObject]));
 					}
 					
 				}

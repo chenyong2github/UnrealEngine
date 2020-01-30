@@ -441,7 +441,7 @@ typedef TSharedPtr<const IOnlinePartyPendingJoinRequestInfo> IOnlinePartyPending
 /**
  * Info needed to join a party
  */
-class IOnlinePartyJoinInfo
+class ONLINESUBSYSTEM_API IOnlinePartyJoinInfo
 	: public TSharedFromThis<IOnlinePartyJoinInfo>
 {
 public:
@@ -524,6 +524,9 @@ public:
 	 * @return whether or not the join info has the info to request an invite
 	 */
 	virtual bool CanRequestAnInvite() const = 0;
+
+	virtual FString ToDebugString() const;
+
 };
 
 typedef TSharedRef<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstRef;

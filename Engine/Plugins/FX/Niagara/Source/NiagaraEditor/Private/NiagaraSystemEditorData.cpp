@@ -8,6 +8,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterEditorData.h"
 #include "NiagaraOverviewNode.h"
+#include "NiagaraNode.h"
 #include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "EdGraph/EdGraph.h"
 
@@ -106,6 +107,14 @@ void UNiagaraSystemEditorData::PostLoadFromOwner(UObject* InOwner)
 	if(SystemOverviewGraph->Nodes.Num() == 0)
 	{
 		SynchronizeOverviewGraphWithSystem(*OwningSystem);
+	}
+
+	// Remove any niagara nodes which may have been pasted into the overview graph in error.  This is no longer possible.
+	TArray<UNiagaraNode*> NiagaraNodes;
+	SystemOverviewGraph->GetNodesOfClass<UNiagaraNode>(NiagaraNodes);
+	for (UNiagaraNode* NiagaraNode : NiagaraNodes)
+	{
+		NiagaraNode->DestroyNode();
 	}
 }
 

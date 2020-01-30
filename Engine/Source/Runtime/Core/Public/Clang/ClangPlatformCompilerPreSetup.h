@@ -74,13 +74,17 @@
 #endif // PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 
 #ifndef PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
-	#define PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
-		//@TODO: FLOATPRECISION: Add Clang support for this kind of error
+	#define PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS \
+		_Pragma("clang diagnostic push") \
+		_Pragma("clang diagnostic ignored \"-Wfloat-conversion\"") \
+		_Pragma("clang diagnostic ignored \"-Wimplicit-float-conversion\"") \
+		_Pragma("clang diagnostic ignored \"-Wimplicit-int-conversion\"") \
+		_Pragma("clang diagnostic ignored \"-Wc++11-narrowing\"")
 #endif // PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #ifndef PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
-	#define PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
-		//@TODO: FLOATPRECISION: Add Clang support for this kind of error
+	#define PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS \
+		_Pragma("clang diagnostic pop")
 #endif // PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #ifndef PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS

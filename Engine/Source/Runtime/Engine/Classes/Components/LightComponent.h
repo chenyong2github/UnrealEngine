@@ -302,6 +302,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
 	void SetForceCachedShadowsForMovablePrimitives(bool bNewValue);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
+	void SetLightingChannels(bool bChannel0, bool bChannel1, bool bChannel2);
+
 public:
 	/** The light's scene info. */
 	class FLightSceneProxy* SceneProxy;

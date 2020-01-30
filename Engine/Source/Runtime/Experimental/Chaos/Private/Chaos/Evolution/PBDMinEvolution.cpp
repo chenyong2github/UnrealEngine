@@ -19,16 +19,16 @@
 
 namespace Chaos
 {
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::AdvanceOneTimeStep"), STAT_MinEvolution_AdvanceOneTimeStep, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::Integrate"), STAT_MinEvolution_Integrate, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::KinematicTargets"), STAT_MinEvolution_KinematicTargets, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::PrepareConstraints"), STAT_MinEvolution_PrepareConstraints, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UnprepareConstraints"), STAT_MinEvolution_UnprepareConstraints, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::ApplyConstraints"), STAT_MinEvolution_ApplyConstraints, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::ApplyPushOut"), STAT_MinEvolution_ApplyPushOut, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("FPBDMinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::AdvanceOneTimeStep"), STAT_MinEvolution_AdvanceOneTimeStep, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Integrate"), STAT_MinEvolution_Integrate, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::KinematicTargets"), STAT_MinEvolution_KinematicTargets, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::PrepareConstraints"), STAT_MinEvolution_PrepareConstraints, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UnprepareConstraints"), STAT_MinEvolution_UnprepareConstraints, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraints"), STAT_MinEvolution_ApplyConstraints, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyPushOut"), STAT_MinEvolution_ApplyPushOut, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_Chaos);
 
 	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
 		: Particles(InParticles)
@@ -127,11 +127,6 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Integrate);
 
-		TPerParticleEulerStepVelocity<FReal, 3> EulerStepVelocityRule;
-		TPerParticleAddImpulses<FReal, 3> AddImpulsesRule;
-		TPerParticleEtherDrag<FReal, 3> EtherDragRule;
-		TPerParticlePBDEulerStep<FReal, 3> EulerStepPositionRule;
-
 		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
 		{
 			if (Particle.ObjectState() == EObjectStateType::Dynamic)
@@ -139,26 +134,37 @@ namespace Chaos
 				Particle.PreV() = Particle.V();
 				Particle.PreW() = Particle.W();
 
-				EulerStepVelocityRule.Apply(Particle, Dt);
+				// Calculate new velocities from forces, torques and drag
+				const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R(), Particle.InvI());
+				const FVec3 DV = Particle.InvM() * (Particle.F() * Dt + Particle.LinearImpulse());
+				const FVec3 DW = WorldInvI * (Particle.Torque() * Dt + Particle.AngularImpulse());
+				const FReal LinearDrag = FMath::Max(FReal(0), FReal(1) - (Particle.LinearEtherDrag() * Dt));
+				const FReal AngularDrag = FMath::Max(FReal(0), FReal(1) - (Particle.AngularEtherDrag() * Dt));
+				const FVec3 V = LinearDrag * (Particle.V() + DV);
+				const FVec3 W = AngularDrag * (Particle.W() + DW);
 
-				AddImpulsesRule.Apply(Particle, Dt);
+				FVec3 PCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
+				FRotation3 QCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
+				PCoM = PCoM + V * Dt;
+				QCoM = FRotation3::IntegrateRotationWithAngularVelocity(QCoM, W, Dt);
+
+				// Update particle state (forces are zeroed at the end of the frame)
+				FParticleUtilitiesPQ::SetCoMWorldTransform(&Particle, PCoM, QCoM);
+				Particle.V() = V;
+				Particle.W() = W;
 				Particle.LinearImpulse() = FVec3(0);
 				Particle.AngularImpulse() = FVec3(0);
 
-				EtherDragRule.Apply(Particle, Dt);
-
-				EulerStepPositionRule.Apply(Particle, Dt);
-
-
+				// Update world-space bounds
 				if (Particle.HasBounds())
 				{
 					const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
 					
-					TAABB<FReal, 3> NextWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
-					NextWorldSpaceBounds.ThickenSymmetrically(NextWorldSpaceBounds.Extents() * BoundsExtension);
+					TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
+					WorldSpaceBounds.ThickenSymmetrically(WorldSpaceBounds.Extents() * BoundsExtension);
 
-					TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
-					WorldSpaceBounds.GrowToInclude(NextWorldSpaceBounds);
+					//TAABB<FReal, 3> PrevWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+					//WorldSpaceBounds.GrowToInclude(PrevWorldSpaceBounds);
 
 					Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 				}
@@ -239,11 +245,11 @@ namespace Chaos
 			{
 				const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
 				
-				TAABB<FReal, 3> NextWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
-				NextWorldSpaceBounds.ThickenSymmetrically(NextWorldSpaceBounds.Extents() * BoundsExtension);
+				TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+				WorldSpaceBounds.ThickenSymmetrically(WorldSpaceBounds.Extents() * BoundsExtension);
 
-				TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(PrevX, PrevR));
-				WorldSpaceBounds.GrowToInclude(NextWorldSpaceBounds);
+				//TAABB<FReal, 3> PrevWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(PrevX, PrevR));
+				//WorldSpaceBounds.GrowToInclude(PrevWorldSpaceBounds);
 
 				Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 			}

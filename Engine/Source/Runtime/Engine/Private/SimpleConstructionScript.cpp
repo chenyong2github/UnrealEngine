@@ -296,7 +296,7 @@ void USimpleConstructionScript::FixupSceneNodeHierarchy()
 	// by this SCS; it could be from a super SCS, or (if SceneRootNode and 
 	// SceneRootComponentTemplate is not) it could be a native component
 	USCS_Node* SceneRootNode = nullptr;
-	USceneComponent* SceneRootComponentTemplate = GetSceneRootComponentTemplate(&SceneRootNode);
+	USceneComponent* SceneRootComponentTemplate = GetSceneRootComponentTemplate(true, &SceneRootNode);
 
 	if (SceneRootComponentTemplate == nullptr)
 	{
@@ -985,7 +985,7 @@ USCS_Node* USimpleConstructionScript::FindSCSNodeByGuid(const FGuid Guid) const
 }
 
 #if WITH_EDITOR
-USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(USCS_Node** OutSCSNode) const
+USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(bool bShouldUseDefautRoot, USCS_Node** OutSCSNode) const
 {
 	UClass* GeneratedClass = GetOwnerClass();
 	UClass* ParentClass = GetParentClass();
@@ -1059,7 +1059,7 @@ USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(USCS_N
 		{
 			const TArray<USCS_Node*>& SCSRootNodes = SCSStack[StackIndex]->GetRootNodes();
 
-			const bool bCanUseDefaultSceneRoot = DefaultSceneRootNode && DefaultSceneRootNode->ComponentTemplate && SCSRootNodes.Contains(DefaultSceneRootNode);
+			const bool bCanUseDefaultSceneRoot = bShouldUseDefautRoot && DefaultSceneRootNode && DefaultSceneRootNode->ComponentTemplate && SCSRootNodes.Contains(DefaultSceneRootNode);
 			// Check for any scene component nodes in the root set that are not the default scene root
 			for (int32 RootNodeIndex = 0; RootNodeIndex < SCSRootNodes.Num() && RootComponentTemplate == nullptr; ++RootNodeIndex)
 			{

@@ -1585,6 +1585,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
+	{
+		SCOPED_BOOT_TIMING("BeginPreInitTextLocalization");
+		BeginPreInitTextLocalization();
+	}
+
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
 	{
