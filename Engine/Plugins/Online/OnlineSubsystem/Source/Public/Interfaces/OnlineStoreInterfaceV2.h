@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "OnlineDelegateMacros.h"
 
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineStoreV2, Log, All);
 
@@ -21,7 +22,6 @@ class FUniqueNetId;
 typedef FString FUniqueOfferId;
 typedef FString FOfferNamespace;
 typedef FString FUniqueCategoryId;
-
 
 enum class EOnlineStoreOfferDiscountType : uint8
 {
@@ -107,6 +107,8 @@ public:
 	/** Type of discount currently running on this offer (if any) */
 	EOnlineStoreOfferDiscountType DiscountType;
 
+	TMap<FString, FString> DynamicFields;
+
 	/** @return FText suitable for localized display */
 	virtual FText GetDisplayRegularPrice() const
 	{
@@ -180,11 +182,27 @@ DECLARE_DELEGATE_TwoParams(FOnQueryOnlineStoreCategoriesComplete, bool /*bWasSuc
 DECLARE_DELEGATE_ThreeParams(FOnQueryOnlineStoreOffersComplete, bool /*bWasSuccessful*/, const TArray<FUniqueOfferId>& /*OfferIds*/, const FString& /*Error*/);
 
 /**
+ * Delegate fired when a session create request has completed
+ *
+ * @param SessionName the name of the session this callback is for
+ * @param bWasSuccessful true if the async action completed without error, false if there was an error
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnQueryForAvailablePurchasesComplete, bool);
+typedef FOnQueryForAvailablePurchasesComplete::FDelegate FOnQueryForAvailablePurchasesCompleteDelegate;
+
+/**
  *	Access to available offers for purchase
  */
 class IOnlineStoreV2
 {
 public:
+
+	virtual ~IOnlineStoreV2(){}
+
+	/**
+	* Delegate which is executed when QueryForAvailablePurchases completes
+	*/
+	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnQueryForAvailablePurchasesComplete, bool);
 
 	/**
 	 * Query for available store categories. Delegate callback is guaranteed.

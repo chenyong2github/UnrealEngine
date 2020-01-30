@@ -4524,14 +4524,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 		else if( IapStoreHelper != null )
 		{
-			if(!IapStoreHelper.onActivityResult(requestCode, resultCode, data))
-			{
 				super.onActivityResult(requestCode, resultCode, data);
-			}
-			else
-			{
-				Log.debug("[JAVA] - Store Helper handled onActivityResult");
-			}
 		}
 		else
 		{

@@ -5,7 +5,16 @@
 	<init>
 	  <log text="Subsystem Google Play SDK Android init"/>
 	</init>
-
+	
+	<!-- gradle dependencies additions -->
+	<buildGradleAdditions>
+		<insert>
+			dependencies {
+			implementation 'com.android.billingclient:billing:2.0.3'
+			}
+		</insert>
+	</buildGradleAdditions>
+	
 	<!-- optional additions to GameActivity onCreate in GameActivity.java -->
 	<gameActivityOnCreateAdditions>
 		<insert>
