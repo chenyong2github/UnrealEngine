@@ -204,3 +204,4 @@ REGISTER_NAME(602,GameUserSettings)
 
 // Commonly multicased names - defined globally to prevent non-determinism in package name tables
 REGISTER_NAME(700,Filename)
+REGISTER_NAME(701,Lerp)
