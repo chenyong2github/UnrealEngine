@@ -3,7 +3,6 @@
 #include "SourceFilteringEditorModule.h"
 #include "Modules/ModuleManager.h"
 
-#include "TraceServices/SessionService.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "HAL/IConsoleManager.h"
 #include "Insights/IUnrealInsightsModule.h"

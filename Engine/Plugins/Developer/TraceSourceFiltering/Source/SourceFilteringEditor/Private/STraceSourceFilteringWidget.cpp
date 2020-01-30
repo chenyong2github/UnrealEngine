@@ -15,7 +15,6 @@
 #include "Widgets/Images/SThrobber.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/ITraceServicesModule.h"
-#include "TraceServices/SessionService.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/EnumRange.h"
 
