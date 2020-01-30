@@ -21,6 +21,7 @@ public class TraceInsights : ModuleRules
 				"InputCore",
 				"RHI",
 				"RenderCore",
+				"Sockets",
 				"Slate",
 				"EditorStyle",
 				"TraceLog",

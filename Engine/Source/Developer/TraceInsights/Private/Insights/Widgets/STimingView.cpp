@@ -19,7 +19,6 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBar.h"

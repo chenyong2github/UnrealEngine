@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
-#include "TraceServices/SessionService.h"
+#include "TraceServices/AnalysisService.h"
 #include "Containers/UnrealString.h"
 #include "Misc/IFilter.h"
 #include "Framework/Views/TreeFilterHandler.h"

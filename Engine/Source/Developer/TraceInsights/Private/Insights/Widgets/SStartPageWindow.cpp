@@ -11,7 +11,9 @@
 #include "HAL/FileManagerGeneric.h"
 #include "Input/Events.h"
 #include "Internationalization/Text.h"
+#include "IPAddress.h"
 #include "SlateOptMacros.h"
+#include "SocketSubsystem.h"
 #include "Styling/CoreStyle.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
@@ -1026,8 +1028,22 @@ FReply SStartPageWindow::Connect_OnClicked()
 		return FReply::Handled();
 	}
 
-	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
-	const bool bConnectedSuccessfully = SessionService->ConnectSession(*HostText.ToString());
+	bool bConnectedSuccessfully = false;
+	Trace::FControlClient ControlClient;
+	if (ControlClient.Connect(*HostText.ToString()))
+	{
+		TSharedPtr<FInternetAddr> RecorderAddr;
+		if (ISocketSubsystem* Sockets = ISocketSubsystem::Get())
+		{
+			bool bCanBindAll = false;
+			RecorderAddr = Sockets->GetLocalHostAddr(*GLog, bCanBindAll);
+			if (RecorderAddr.IsValid())
+			{
+				ControlClient.SendSendTo(*RecorderAddr->ToString(false));
+				bConnectedSuccessfully = true;
+			}
+		}
+	}
 
 	if (bConnectedSuccessfully)
 	{

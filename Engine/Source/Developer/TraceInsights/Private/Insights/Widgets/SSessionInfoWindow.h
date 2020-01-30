@@ -10,7 +10,6 @@
 #include "Misc/Guid.h"
 #include "SlateFwd.h"
 #include "TraceServices/ModuleService.h"
-#include "TraceServices/SessionService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SSplitter.h"

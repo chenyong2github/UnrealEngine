@@ -4,7 +4,6 @@
 #include "TraceServices/Model/Channel.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "Templates/SharedPointer.h"
-#include "TraceServices/SessionService.h"
 #include "Misc/CoreDelegates.h"
 #include "Algo/Transform.h"
 #include "Modules/ModuleManager.h"

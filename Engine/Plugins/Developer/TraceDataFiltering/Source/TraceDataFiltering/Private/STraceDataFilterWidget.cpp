@@ -9,7 +9,6 @@
 #include "Widgets/SOverlay.h"
 #include "Templates/SharedPointer.h"
 #include "TraceServices/ITraceServicesModule.h"
-#include "TraceServices/SessionService.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 

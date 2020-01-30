@@ -170,24 +170,44 @@ FAnalysisService::~FAnalysisService()
 
 TSharedPtr<const IAnalysisSession> FAnalysisService::Analyze(const TCHAR* SessionUri)
 {
-	TUniquePtr<Trace::IInDataStream> DataStream(Trace::DataStream_ReadFile(SessionUri));
-	if (!DataStream)
-	{
-		return nullptr;
-	}
-	
-	TSharedPtr<const IAnalysisSession> AnalysisSession = StartAnalysis(SessionUri, MoveTemp(DataStream));
+	TSharedPtr<const IAnalysisSession> AnalysisSession = StartAnalysis(SessionUri);
 	AnalysisSession->Wait();
 	return AnalysisSession;
 }
 
 TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* SessionUri)
 {
-	TUniquePtr<Trace::IInDataStream> DataStream(Trace::DataStream_ReadFile(SessionUri));
-	if (!DataStream)
+	struct FFileDataStream
+		: public IInDataStream
+	{
+		virtual int32 Read(void* Data, uint32 Size) override
+		{
+			if (Remaining <= 0)
+			{
+				return 0;
+			}
+
+			Size = (Size < Remaining) ? Size : Remaining;
+			Remaining -= Size;
+			return Handle->Read((uint8*)Data, Size);
+		}
+
+		TUniquePtr<IFileHandle> Handle;
+		int64 Remaining;
+	};
+
+	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();
+	IFileHandle* Handle = FileSystem.OpenRead(SessionUri, true);
+	if (!Handle)
 	{
 		return nullptr;
 	}
+
+	FFileDataStream* FileStream = new FFileDataStream();
+	FileStream->Handle = TUniquePtr<IFileHandle>(Handle);
+	FileStream->Remaining = Handle->Size();
+
+	TUniquePtr<IInDataStream> DataStream(FileStream);
 	return StartAnalysis(SessionUri, MoveTemp(DataStream));
 }
 

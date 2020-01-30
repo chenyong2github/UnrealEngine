@@ -10,7 +10,6 @@ namespace Trace
 {
 	class FStoreService;
 	class IAnalysisService;
-	class ISessionService;
 	class IModuleService;
 }
 
@@ -99,7 +98,6 @@ protected:
 	TUniquePtr<Trace::FStoreService> StoreService;
 
 	TSharedPtr<Trace::IAnalysisService> TraceAnalysisService;
-	TSharedPtr<Trace::ISessionService> TraceSessionService;
 	TSharedPtr<Trace::IModuleService> TraceModuleService;
 
 	TMap<FName, FInsightsMajorTabConfig> TabConfigs;

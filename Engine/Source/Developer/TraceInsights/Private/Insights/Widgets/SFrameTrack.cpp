@@ -10,7 +10,6 @@
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 #include "Widgets/Layout/SScrollBar.h"
 
 // Insights

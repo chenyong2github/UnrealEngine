@@ -32,10 +32,8 @@ TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAnalysisService,
-								   TSharedRef<Trace::ISessionService> InTraceSessionService,
 								   TSharedRef<Trace::IModuleService> InTraceModuleService)
 	: AnalysisService(InTraceAnalysisService)
-	, SessionService(InTraceSessionService)
 	, ModuleService(InTraceModuleService)
 	, StoreDir()
 	, StoreClient()

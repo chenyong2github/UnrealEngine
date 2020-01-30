@@ -15,7 +15,6 @@ class STimingProfilerWindow;
 
 namespace Trace
 {
-	class ISessionService;
 	class IAnalysisService;
 	class IAnalysisSession;
 }

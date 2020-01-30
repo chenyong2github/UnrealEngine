@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Processor.h"
-#include "DataStream.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "StreamReader.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Analysis.h"
+#include "Trace/DataStream.h"
 
 namespace Trace
 {

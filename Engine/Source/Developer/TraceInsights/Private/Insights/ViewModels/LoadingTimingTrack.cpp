@@ -6,7 +6,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"

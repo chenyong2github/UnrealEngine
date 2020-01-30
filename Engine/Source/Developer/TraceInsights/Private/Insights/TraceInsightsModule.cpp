@@ -6,7 +6,6 @@
 #include "Trace/StoreClient.h"
 #include "Trace/StoreService.h"
 #include "TraceServices/ITraceServicesModule.h"
-#include "TraceServices/SessionService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/LayoutService.h"
@@ -51,12 +50,11 @@ void FTraceInsightsModule::StartupModule()
 {
 	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
 	TraceAnalysisService = TraceServicesModule.GetAnalysisService();
-	TraceSessionService = TraceServicesModule.GetSessionService();
 	TraceModuleService = TraceServicesModule.GetModuleService();
 
 	FInsightsStyle::Initialize();
 
-	FInsightsManager::Initialize(TraceAnalysisService.ToSharedRef(), TraceSessionService.ToSharedRef(), TraceModuleService.ToSharedRef());
+	FInsightsManager::Initialize(TraceAnalysisService.ToSharedRef(), TraceModuleService.ToSharedRef());
 	FTimingProfilerManager::Initialize();
 	FLoadingProfilerManager::Initialize();
 	FNetworkingProfilerManager::Initialize();

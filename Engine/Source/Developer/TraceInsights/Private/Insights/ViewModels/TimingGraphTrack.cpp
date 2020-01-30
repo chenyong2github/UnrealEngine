@@ -5,7 +5,6 @@
 #include <limits>
 
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/Common/TimeUtils.h"

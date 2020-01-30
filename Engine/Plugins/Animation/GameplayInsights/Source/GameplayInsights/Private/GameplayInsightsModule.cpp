@@ -12,7 +12,6 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "TraceServices/ITraceServicesModule.h"
-#include "TraceServices/SessionService.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Trace/StoreService.h"
 #include "Trace/StoreClient.h"
