@@ -30,7 +30,6 @@ class UPhysicalMaterial;
 class UPhysicalMaterialMask;
 class USubsurfaceProfile;
 class UTexture;
-struct FPrimitiveViewRelevance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
 #if WITH_EDITORONLY_DATA
@@ -60,62 +59,6 @@ enum EMaterialUsage
 	MATUSAGE_HairStrands,
 
 	MATUSAGE_MAX,
-};
-
-// the class is only storing bits, initialized to 0 and has an |= operator
-// to provide a combined set of multiple materials (component / mesh)
-struct ENGINE_API FMaterialRelevance
-{
-	// bits that express which EMaterialShadingModel are used
-	uint16 ShadingModelMask;
-	uint8 bOpaque : 1;
-	uint8 bMasked : 1;
-	uint8 bDistortion : 1;
-	uint8 bHairStrands : 1;
-	uint8 bSeparateTranslucency : 1; // Translucency After DOF
-	uint8 bNormalTranslucency : 1;
-	uint8 bUsesSceneColorCopy : 1;
-	uint8 bDisableOffscreenRendering : 1; // Blend Modulate
-	uint8 bDisableDepthTest : 1;
-	uint8 bOutputsTranslucentVelocity : 1;
-	uint8 bUsesGlobalDistanceField : 1;
-	uint8 bUsesWorldPositionOffset : 1;
-	uint8 bDecal : 1;
-	uint8 bTranslucentSurfaceLighting : 1;
-	uint8 bUsesSceneDepth : 1;
-	uint8 bUsesSkyMaterial : 1;
-	uint8 bUsesSingleLayerWaterMaterial : 1;
-	uint8 bHasVolumeMaterialDomain : 1;
-	uint8 bUsesDistanceCullFade : 1;
-	uint8 bUsesCustomDepthStencil : 1;
-
-	/** Default constructor */
-	FMaterialRelevance()
-	{
-		// the class is only storing bits initialized to 0, the following avoids code redundancy
-		uint8 * RESTRICT p = (uint8*)this;
-		for(uint32 i = 0; i < sizeof(*this); ++i)
-		{
-			*p++ = 0;
-		}
-	}
-
-	/** Bitwise OR operator.  Sets any relevance bits which are present in either. */
-	FMaterialRelevance& operator|=(const FMaterialRelevance& B)
-	{
-		// the class is only storing bits, the following avoids code redundancy
-		const uint8 * RESTRICT s = (const uint8*)&B;
-		uint8 * RESTRICT d = (uint8*)this;
-		for(uint32 i = 0; i < sizeof(*this); ++i)
-		{
-			*d = *d | *s; 
-			++s;++d;
-		}
-		return *this;
-	}
-
-	/** Copies the material's relevance flags to a primitive's view relevance flags. */
-	void SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutViewRelevance) const;
 };
 
 /** 

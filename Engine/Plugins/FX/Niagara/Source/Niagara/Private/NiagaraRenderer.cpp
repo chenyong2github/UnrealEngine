@@ -309,7 +309,7 @@ FPrimitiveViewRelevance FNiagaraRenderer::GetViewRelevance(const FSceneView* Vie
 	Result.bDynamicRelevance = bHasDynamicData;
 	if (bHasDynamicData)
 	{
-		Result.bOpaqueRelevance = View->Family->EngineShowFlags.Bounds;
+		Result.bOpaque = View->Family->EngineShowFlags.Bounds;
 		DynamicDataRender->GetMaterialRelevance().SetPrimitiveViewRelevance(Result);
 	}
 

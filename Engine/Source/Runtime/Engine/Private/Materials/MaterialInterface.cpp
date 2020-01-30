@@ -38,25 +38,7 @@ UEnum* UMaterialInterface::SamplerTypeEnum = nullptr;
 /** Copies the material's relevance flags to a primitive's view relevance flags. */
 void FMaterialRelevance::SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutViewRelevance) const
 {
-	OutViewRelevance.bOpaqueRelevance = bOpaque;
-	OutViewRelevance.bMaskedRelevance = bMasked;
-	OutViewRelevance.bTranslucentVelocityRelevance = bOutputsTranslucentVelocity;
-	OutViewRelevance.bDistortionRelevance = bDistortion;
-	OutViewRelevance.bHairStrandsRelevance = bHairStrands;
-	OutViewRelevance.bSeparateTranslucencyRelevance = bSeparateTranslucency;
-	OutViewRelevance.bNormalTranslucencyRelevance = bNormalTranslucency;
-	OutViewRelevance.bUsesSceneColorCopy = bUsesSceneColorCopy;
-	OutViewRelevance.bDisableOffscreenRendering = bDisableOffscreenRendering;
-	OutViewRelevance.ShadingModelMaskRelevance = ShadingModelMask;
-	OutViewRelevance.bUsesGlobalDistanceField = bUsesGlobalDistanceField;
-	OutViewRelevance.bUsesWorldPositionOffset = bUsesWorldPositionOffset;
-	OutViewRelevance.bDecal = bDecal;
-	OutViewRelevance.bTranslucentSurfaceLighting = bTranslucentSurfaceLighting;
-	OutViewRelevance.bUsesSceneDepth = bUsesSceneDepth;
-	OutViewRelevance.bUsesSkyMaterial = bUsesSkyMaterial;
-	OutViewRelevance.bUsesSingleLayerWaterMaterial = bUsesSingleLayerWaterMaterial;
-	OutViewRelevance.bHasVolumeMaterialDomain = bHasVolumeMaterialDomain;
-	OutViewRelevance.bUsesCustomDepthStencil = bUsesCustomDepthStencil;
+	OutViewRelevance.Raw = Raw;
 }
 
 //////////////////////////////////////////////////////////////////////////

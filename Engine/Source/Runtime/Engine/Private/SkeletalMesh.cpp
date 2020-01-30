@@ -5160,7 +5160,7 @@ FPrimitiveViewRelevance FSkeletalMeshSceneProxy::GetViewRelevance(const FSceneVi
 	MaterialRelevance.SetPrimitiveViewRelevance(Result);
 
 #if !UE_BUILD_SHIPPING
-	Result.bSeparateTranslucencyRelevance |= View->Family->EngineShowFlags.Constraints;
+	Result.bSeparateTranslucency |= View->Family->EngineShowFlags.Constraints;
 #endif
 
 #if WITH_EDITOR
@@ -5171,7 +5171,7 @@ FPrimitiveViewRelevance FSkeletalMeshSceneProxy::GetViewRelevance(const FSceneVi
 	}
 #endif
 
-	Result.bVelocityRelevance = IsMovable() && Result.bOpaqueRelevance && Result.bRenderInMainPass;
+	Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
 
 	return Result;
 }

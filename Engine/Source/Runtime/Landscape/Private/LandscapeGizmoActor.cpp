@@ -343,7 +343,7 @@ public:
 		Result.bDrawRelevance = IsShown(View) && bVisible && !View->bIsGameView && GLandscapeEditRenderMode & ELandscapeEditRenderMode::Gizmo;
 		Result.bDynamicRelevance = true;
 		// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
-		Result.bSeparateTranslucencyRelevance = Result.bNormalTranslucencyRelevance = true;
+		Result.bSeparateTranslucency = Result.bNormalTranslucency = true;
 #endif
 		return Result;
 	}

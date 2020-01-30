@@ -41,7 +41,7 @@ public:
 		Result.bDrawRelevance = IsShown(View);
 		Result.bDynamicRelevance = true;
 		// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
-		Result.bSeparateTranslucencyRelevance = Result.bNormalTranslucencyRelevance = IsShown(View) && GIsEditor;
+		Result.bSeparateTranslucency = Result.bNormalTranslucency = IsShown(View) && GIsEditor;
 		return Result;
 	}
 

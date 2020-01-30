@@ -288,7 +288,7 @@ protected:
 		FPrimitiveViewRelevance Result;
 		Result.bDrawRelevance = IsShown(View);
 		Result.bDynamicRelevance = true;
-		Result.bNormalTranslucencyRelevance = Result.bSeparateTranslucencyRelevance = IsShown(View);
+		Result.bNormalTranslucency = Result.bSeparateTranslucency = IsShown(View);
 		return Result;
 	}
 
