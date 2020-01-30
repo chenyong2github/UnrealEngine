@@ -407,7 +407,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	else
 	{
 		// Create tab layout.
-		Layout = FTabManager::NewLayout("InsightsTimingProfilerLayout_v1.0")
+		Layout = FTabManager::NewLayout("InsightsTimingProfilerLayout_v1.1")
 			->AddArea
 			(
 				FTabManager::NewPrimaryArea()
@@ -433,21 +433,21 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.1f)
 							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::FramesTrackID, TimingProfilerManager->IsFramesTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+							->AddTab(FTimingProfilerTabs::FramesTrackID, ETabState::OpenedTab)
 						)
 						->Split
 						(
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.5f)
 							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::TimingViewID, TimingProfilerManager->IsTimingViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+							->AddTab(FTimingProfilerTabs::TimingViewID, ETabState::OpenedTab)
 						)
 						->Split
 						(
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.2f)
 							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::LogViewID, TimingProfilerManager->IsLogViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+							->AddTab(FTimingProfilerTabs::LogViewID, ETabState::OpenedTab)
 						)
 					)
 					->Split
@@ -459,8 +459,8 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 						(
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.67f)
-							->AddTab(FTimingProfilerTabs::TimersID, TimingProfilerManager->IsTimersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-							->AddTab(FTimingProfilerTabs::StatsCountersID, TimingProfilerManager->IsStatsCountersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+							->AddTab(FTimingProfilerTabs::TimersID, ETabState::OpenedTab)
+							->AddTab(FTimingProfilerTabs::StatsCountersID, ETabState::OpenedTab)
 							->SetForegroundTab(FTimingProfilerTabs::TimersID)
 						)
 						->Split
@@ -468,14 +468,14 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.165f)
 							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::CallersID, TimingProfilerManager->IsCallersTreeViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+							->AddTab(FTimingProfilerTabs::CallersID, ETabState::OpenedTab)
 						)
 						->Split
 						(
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.165f)
 							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::CalleesID, TimingProfilerManager->IsCalleesTreeViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+							->AddTab(FTimingProfilerTabs::CalleesID, ETabState::OpenedTab)
 						)
 					)
 				)
