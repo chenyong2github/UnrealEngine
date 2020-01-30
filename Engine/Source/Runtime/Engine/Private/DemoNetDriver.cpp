@@ -1145,7 +1145,7 @@ bool UDemoNetDriver::InitConnectInternal(FString& Error)
 				return false;
 			}
 
-			GetWorld()->DemoNetDriver = nullptr;
+			GetWorld()->ClearDemoNetDriver();
 			SetWorld(nullptr);
 
 			auto NewPendingNetGame = NewObject<UDemoPendingNetGame>();
