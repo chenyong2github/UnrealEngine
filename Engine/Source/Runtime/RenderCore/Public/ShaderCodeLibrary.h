@@ -11,7 +11,9 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogShaderLibrary, Log, All);
 
+class FAnsiStringBuilderBase;
 class FShaderPipeline;
+class FStringView;
 
 struct RENDERCORE_API FShaderCodeLibraryPipeline
 {
@@ -56,7 +58,7 @@ struct RENDERCORE_API FShaderCodeLibraryPipeline
 
 struct RENDERCORE_API FCompactFullName
 {
-	TArray<FName> ObjectClassAndPath;
+	TArray<FName, TInlineAllocator<16>> ObjectClassAndPath;
 
 	bool operator==(const FCompactFullName& Other) const
 	{
@@ -64,7 +66,9 @@ struct RENDERCORE_API FCompactFullName
 	}
 
 	FString ToString() const;
-	void ParseFromString(const FString& Src);
+	void AppendString(FStringBuilderBase& Out) const;
+	void AppendString(FAnsiStringBuilderBase& Out) const;
+	void ParseFromString(const FStringView& Src);
 	friend RENDERCORE_API uint32 GetTypeHash(const FCompactFullName& A);
 };
 
@@ -93,10 +97,11 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 	}
 
 	void ComputeKeyHash();
-	void ParseFromString(const FString& Src);
-	void ParseFromStringCached(const FString& Src, class TMap<uint32, FName>& NameCache);
+	void ParseFromString(const FStringView& Src);
+	void ParseFromStringCached(const FStringView& Src, class TMap<uint32, FName>& NameCache);
 	FString ToString() const;
 	void ToString(FString& OutResult) const;
+	void AppendString(FAnsiStringBuilderBase& Out) const;
 	static FString HeaderLine();
 
 	/** Computes pipeline hash from the passed pipeline. Pass nullptr to clear */
