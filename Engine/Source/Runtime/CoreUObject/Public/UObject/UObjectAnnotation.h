@@ -100,6 +100,7 @@ private:
 				}
 			}
 			AnnotationMap.Add(AnnotationCacheKey, AnnotationCacheValue);
+		}
 	}
 
 public:
@@ -310,7 +311,7 @@ public:
 	}
 
 private:
-	template<T> 
+	template<typename T> 
 	void AddAnnotationInternal(const UObjectBase* Object, T&& Annotation)
 	{
 		FScopeLock InverseAnnotationMapLock(&InverseAnnotationMapCritical);
@@ -343,12 +344,12 @@ public:
 	 */
 	void AddAnnotation(const UObjectBase* Object, const TAnnotation& Annotation)
 	{
-		AddAnnotationInternal(Annotation)
+		AddAnnotationInternal(Object, Annotation);
 	}
 
 	void AddAnnotation(const UObjectBase* Object, TAnnotation&& Annotation)
 	{
-		AddAnnotationInternal(MoveTemp(Annotation))
+		AddAnnotationInternal(Object, MoveTemp(Annotation));
 	}
 
 	/**

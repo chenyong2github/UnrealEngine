@@ -85,7 +85,6 @@ public:
 	void AddAnnotation(const UObjectBase* Object, const TAnnotation& Annotation)
 	{
 		AddAnnotationInternal(Object, Annotation);
-		}
 	}
 
 	void RemoveAnnotation(const UObjectBase* Object)
