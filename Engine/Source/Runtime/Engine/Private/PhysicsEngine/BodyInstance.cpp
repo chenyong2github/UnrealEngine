@@ -3952,6 +3952,7 @@ void FBodyInstance::InitDynamicProperties_AssumesLocked()
 				FPhysicsInterface::PutToSleep_AssumesLocked(ActorHandle);
 			}
 		}
+		FPhysicsInterface::SetInitialized_AssumesLocked(ActorHandle, true);
 	}
 }
 
