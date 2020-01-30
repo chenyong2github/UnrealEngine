@@ -487,6 +487,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Attachment)
 	uint8 bAutoManageAttachment:1;
+
+	/**
+	 * Option for how we handle bWeldSimulatedBodies when we attach to the AutoAttachParent, if bAutoManageAttachment is true.
+	 * @see bAutoManageAttachment
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attachment, meta=(EditCondition="bAutoManageAttachment"))
+	uint8 bAutoAttachWeldSimulatedBodies:1;
 	
 	/** If this component is having it's significance managed by gameplay code. */
 	uint8 bIsManagingSignificance : 1;
