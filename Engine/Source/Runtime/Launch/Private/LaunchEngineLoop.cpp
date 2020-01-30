@@ -2894,6 +2894,8 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			}
 		}
 
+		InitGameTextLocalization();
+
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Initial UObject load"), STAT_InitialUObjectLoad, STATGROUP_LoadTime);
 
 		// In order to be able to use short script package names get all script
@@ -3445,6 +3447,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 #else // WITH_ENGINE
 	InitEngineTextLocalization();
+	InitGameTextLocalization();
 #if USE_LOCALIZED_PACKAGE_CACHE
 	{
 		SCOPED_BOOT_TIMING("FPackageLocalizationManager::Get().InitializeFromDefaultCache");
