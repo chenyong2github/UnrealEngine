@@ -89,36 +89,56 @@ void FGameplayInsightsModule::StartupModule()
 		FInsightsMajorTabConfig TimingProfilerConfig;
 		TimingProfilerConfig.TabLabel = LOCTEXT("GameplayInsightsTabName", "Gameplay Insights");
 		TimingProfilerConfig.TabTooltip = LOCTEXT("GameplayInsightsTabTooltip", "Open the Gameplay Insights tab.");
-		TimingProfilerConfig.Layout = FTabManager::NewLayout("GameplayInsightsTimingLayout_v1.1")
+		TimingProfilerConfig.Layout = FTabManager::NewLayout("GameplayInsightsTimingLayout_v1.2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
-			->SetOrientation(Orient_Horizontal)
+			->SetOrientation(Orient_Vertical)
+			->Split
+			(
+				FTabManager::NewStack()
+				->AddTab(FTimingProfilerTabs::ToolbarID, ETabState::ClosedTab)
+				->SetHideTabWell(true)
+			)
 			->Split
 			(
 				FTabManager::NewSplitter()
-				->SetOrientation(Orient_Vertical)
-				->SetSizeCoefficient(0.7f)
+				->SetOrientation(Orient_Horizontal)
 				->Split
 				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.1f)
-					->SetHideTabWell(true)
-					->AddTab(FTimingProfilerTabs::FramesTrackID, ETabState::OpenedTab)
+					FTabManager::NewSplitter()
+					->SetOrientation(Orient_Vertical)
+					->SetSizeCoefficient(0.7f)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.1f)
+						->SetHideTabWell(true)
+						->AddTab(FTimingProfilerTabs::FramesTrackID, ETabState::OpenedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.9f)
+						->SetHideTabWell(true)
+						->AddTab(FTimingProfilerTabs::TimingViewID, ETabState::OpenedTab)
+					)
 				)
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.9f)
-					->SetHideTabWell(true)
-					->AddTab(FTimingProfilerTabs::TimingViewID, ETabState::OpenedTab)
+					->SetSizeCoefficient(0.3f)
+					->AddTab(GameplayInsightsTabs::DocumentTab, ETabState::ClosedTab)
+					->AddTab(FTimingProfilerTabs::TimersID, ETabState::ClosedTab)
+					->AddTab(FTimingProfilerTabs::StatsCountersID, ETabState::ClosedTab)
+					->AddTab(FTimingProfilerTabs::CallersID, ETabState::ClosedTab)
+					->AddTab(FTimingProfilerTabs::CalleesID, ETabState::ClosedTab)
 				)
 			)
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(0.3f)
-				->AddTab(GameplayInsightsTabs::DocumentTab, ETabState::ClosedTab)
+				->AddTab(FTimingProfilerTabs::LogViewID, ETabState::ClosedTab)
 			)
 		);
 		TimingProfilerConfig.WorkspaceGroup = WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory();
