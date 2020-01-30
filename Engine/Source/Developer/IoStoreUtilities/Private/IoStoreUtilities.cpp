@@ -60,14 +60,12 @@ struct FContainerSourceSpec
 
 struct FCookedFileStatData
 {
-	static constexpr int32 NumPackageExtensions = 2;
-	static constexpr TCHAR const* Extensions[] = { TEXT("umap"), TEXT("uasset"), TEXT("ubulk"), TEXT("uptnl") };
-	enum FFileExt { UMap, UAsset, UBulk, UPtnl };
-	enum FFileType { PackageHeader, BulkData };
+	enum EFileExt { UMap, UAsset, UBulk, UPtnl };
+	enum EFileType { PackageHeader, BulkData };
 
 	int64 FileSize = 0;
-	FFileType FileType = PackageHeader;
-	FFileExt FileExt = UMap;
+	EFileType FileType = PackageHeader;
+	EFileExt FileExt = UMap;
 };
 
 using FCookedFileStatMap = TMap<FString, FCookedFileStatData>;
@@ -2965,6 +2963,10 @@ public:
 
 	virtual bool Visit(const TCHAR* FilenameOrDirectory, const FFileStatData& StatData)
 	{
+		// Should match FCookedFileStatData::EFileExt
+		static const TCHAR* Extensions[] = { TEXT("umap"), TEXT("uasset"), TEXT("ubulk"), TEXT("uptnl") };
+		static const int32 NumPackageExtensions = 2;
+
 		if (StatData.bIsDirectory)
 		{
 			return true;
@@ -2977,13 +2979,13 @@ public:
 		}
 
 		int32 ExtIndex = 0;
-		for (ExtIndex = 0; ExtIndex < UE_ARRAY_COUNT(FCookedFileStatData::Extensions); ++ExtIndex)
+		for (ExtIndex = 0; ExtIndex < UE_ARRAY_COUNT(Extensions); ++ExtIndex)
 		{
-			if (0 == FCString::Stricmp(Extension, FCookedFileStatData::Extensions[ExtIndex]))
+			if (0 == FCString::Stricmp(Extension, Extensions[ExtIndex]))
 				break;
 		}
 
-		if (ExtIndex >= UE_ARRAY_COUNT(FCookedFileStatData::Extensions))
+		if (ExtIndex >= UE_ARRAY_COUNT(Extensions))
 		{
 			return true;
 		}
@@ -2999,9 +3001,9 @@ public:
 
 		FCookedFileStatData& CookedFileStatData = CookedFileStatMap.Add(MoveTemp(Path));
 		CookedFileStatData.FileSize = StatData.FileSize;
-		CookedFileStatData.FileExt = FCookedFileStatData::FFileExt(ExtIndex);
+		CookedFileStatData.FileExt = FCookedFileStatData::EFileExt(ExtIndex);
 		CookedFileStatData.FileType = 
-			ExtIndex < FCookedFileStatData::NumPackageExtensions ?
+			ExtIndex < NumPackageExtensions ?
 			FCookedFileStatData::PackageHeader : 
 			FCookedFileStatData::BulkData;
 
