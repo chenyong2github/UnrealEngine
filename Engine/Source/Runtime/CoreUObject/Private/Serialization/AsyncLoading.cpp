@@ -4642,6 +4642,16 @@ FAsyncLoadingThread::FAsyncLoadingThread(int32 InThreadIndex, IEDLBootNotificati
 		GEventDrivenLoaderEnabled ? TEXT("true") : TEXT("false"),
 		FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled ? TEXT("true") : TEXT("false"),
 		FAsyncLoadingThreadSettings::Get().bAsyncPostLoadEnabled ? TEXT("true") : TEXT("false"));
+
+	bool bDisableEDLWarning = false;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.DisableEDLDeprecationWarnings"), /* out */ bDisableEDLWarning, GEngineIni);
+	}
+	if (!GEventDrivenLoaderEnabled && !bDisableEDLWarning)
+	{
+		UE_LOG(LogStreaming, Warning, TEXT("Event Driven Loader is disabled. Loading code will use deprecated path which will be removed in future release."));
+	}
 #endif
 }
 
