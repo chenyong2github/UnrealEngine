@@ -394,6 +394,15 @@ public:
 		return false;
 	}
 
+	template <typename QueryGeomType>
+	bool GJKContactPoint(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+	{
+		TRigidTransform<T, d> AToBTMNoScale(AToBTM.GetLocation() * MInvScale, AToBTM.GetRotation());
+
+		auto ScaledA = MakeScaledHelper(A, MInvScale);
+		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, MInternalThickness + Thickness, Location, Normal, Penetration, MScale);
+	}
+
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
 	template <typename QueryGeomType>
 	bool LowLevelOverlapGeom(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, T Thickness = 0, FMTDInfo* OutMTD = nullptr) const

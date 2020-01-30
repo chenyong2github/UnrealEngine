@@ -248,9 +248,15 @@ bool FTriangleMeshImplicitObject::Raycast(const FVec3& StartPoint, const FVec3& 
 
 
 template <typename QueryGeomType>
-bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
 {
+	ensure(TriMeshScale != FVec3(0.0f));
 	bool bResult = false;
+
+	const auto& WorldScaleGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
+
+	TRigidTransform<FReal, 3> WorldScaleQueryTM;
+	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
 
 	auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C,
 		FVec3& LocalContactLocation, FVec3& LocalContactNormal, FReal& LocalContactPhi) -> bool
@@ -261,10 +267,8 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 
 		FReal LambdaPenetration;
 		FVec3 ClosestA, ClosestB, LambdaNormal;
-		if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, LambdaPenetration, ClosestA, ClosestB, LambdaNormal, (FReal)0))
+		if (GJKPenetration(TriangleConvex, WorldScaleGeom, WorldScaleQueryTM, LambdaPenetration, ClosestA, ClosestB, LambdaNormal, (FReal)0))
 		{
-			FVec3 TestVector = QueryTM.InverseTransformVector(LambdaNormal);
-
 			LocalContactLocation = ClosestB;
 			LocalContactNormal = LambdaNormal;
 			LocalContactPhi = -LambdaPenetration;
@@ -290,7 +294,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 			//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
 			//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
 			TVec3<FReal> A, B, C;
-			TransformVertsHelper(QueryGeom, TriIdx, MParticles, Elements, A, B, C);
+			TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 			if (OverlapTriangle(A, B, C, LocalContactLocation, LocalContactNormal, LocalContactPhi))
 			{
@@ -344,24 +348,24 @@ bool FTriangleMeshImplicitObject::GJKContactPoint(const FConvex& QueryGeom, cons
 	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TSphere<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TSphere<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration, TriMeshScale);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TBox<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TBox<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration, TriMeshScale);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TCapsule<FReal> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TCapsule<FReal> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration, TriMeshScale);
 }
 
-bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale) const
 {
-	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration, TriMeshScale);
 }
 
 int32 FTriangleMeshImplicitObject::GetExternalFaceIndexFromInternal(int32 InternalFaceIndex) const
@@ -437,6 +441,24 @@ bool FTriangleMeshImplicitObject::Overlap(const FVec3& Point, const FReal Thickn
 	}
 }
 
+template <typename QueryGeomType, typename T, int d>
+static auto MakeScaledHelper(const QueryGeomType& B, const TVector<T,d>& InvScale )
+{
+	TUniquePtr<QueryGeomType> HackBPtr(const_cast<QueryGeomType*>(&B));	//todo: hack, need scaled object to accept raw ptr similar to transformed implicit
+	TImplicitObjectScaled<QueryGeomType> ScaledB(MakeSerializable(HackBPtr), InvScale);
+	HackBPtr.Release();
+	return ScaledB;
+}
+
+template <typename QueryGeomType, typename T, int d>
+static auto MakeScaledHelper(const TImplicitObjectScaled<QueryGeomType>& B, const TVector<T,d>& InvScale)
+{
+	//if scaled of scaled just collapse into one scaled
+	TImplicitObjectScaled<QueryGeomType> ScaledB(B.Object(), InvScale * B.GetScale());
+	return ScaledB;
+}
+
+
 template <typename QueryGeomType, typename IdxType>
 void TransformVertsHelper(const QueryGeomType& QueryGeom, int32 TriIdx, const TParticles<FReal, 3>& Particles,
 	const TArray<TVector<IdxType, 3>>& Elements, TVec3<FReal>& OutA, TVec3<FReal>& OutB, TVec3<FReal>& OutC)
@@ -462,10 +484,32 @@ const QueryGeomType& GetGeomHelper(const QueryGeomType& QueryGeom)
 	return QueryGeom;
 }
 
-template <typename QueryGeomType>
-const QueryGeomType& GetGeomHelper(const TImplicitObjectScaled<QueryGeomType>& QueryGeom)
+void ScaleTransformHelper(const FVec3& TriMeshScale, const FRigidTransform3& QueryTM, FRigidTransform3& OutScaledQueryTM)
 {
-	return *QueryGeom.GetUnscaledObject();
+	OutScaledQueryTM = TRigidTransform<FReal, 3>(QueryTM.GetLocation() * TriMeshScale, QueryTM.GetRotation());
+}
+
+
+template <typename IdxType>
+void TransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const TParticles<FReal, 3>& Particles,
+	const TArray<TVector<IdxType, 3>>& Elements, TVec3<FReal>& OutA, TVec3<FReal>& OutB, TVec3<FReal>& OutC)
+{
+	OutA = Particles.X(Elements[TriIdx][0]) * TriMeshScale;
+	OutB = Particles.X(Elements[TriIdx][1]) * TriMeshScale;
+	OutC = Particles.X(Elements[TriIdx][2]) * TriMeshScale;
+}
+
+template <typename QueryGeomType>
+const QueryGeomType& ScaleGeomIntoWorldHelper(const QueryGeomType& QueryGeom, const FVec3& TriMeshScale)
+{
+	return QueryGeom;
+}
+
+template <typename QueryGeomType>
+TImplicitObjectScaled<QueryGeomType> ScaleGeomIntoWorldHelper(const TImplicitObjectScaled<QueryGeomType>& QueryGeom, const FVec3& TriMeshScale)
+{
+	// This will apply TriMeshScale to QueryGeom and return a new scaled implicit in world space.
+	return MakeScaledHelper(QueryGeom, TriMeshScale);
 }
 
 template <typename QueryGeomType>
