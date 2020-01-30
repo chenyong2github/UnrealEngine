@@ -671,6 +671,9 @@ void FEditorModeTools::DeactivateModeAtIndex(int32 InIndex)
 
 	Mode->Exit();
 
+	const bool bIsEnteringMode = false;
+	BroadcastEditorModeIDChanged(Mode->GetID(), bIsEnteringMode);
+
 	// Remove the toolbar widget
 	ActiveToolBarRows.RemoveAll(
 		[&Mode](FEdModeToolbarRow& Row)
@@ -692,6 +695,9 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 	UEdMode* Mode = ActiveScriptableModes[InIndex];
 
 	Mode->Exit();
+
+	const bool bIsEnteringMode = false;
+	BroadcastEditorModeIDChanged(Mode->GetID(), bIsEnteringMode);
 
 	// Remove the toolbar widget
 	ActiveToolBarRows.RemoveAll(
@@ -956,7 +962,7 @@ bool FEditorModeTools::ShouldShowModeToolbox() const
 	bool bHasVisibleModes = false;
 	for (const TSharedPtr<FEdMode>& Mode : ActiveModes)
 	{
-		if (Mode->GetModeInfo().bVisible)
+		if (Mode->GetModeInfo().bVisible && Mode->UsesToolkits())
 		{
 			bHasVisibleModes = true;
 			break;
@@ -967,7 +973,7 @@ bool FEditorModeTools::ShouldShowModeToolbox() const
 	{
 		for (const UEdMode* Mode : ActiveScriptableModes)
 		{
-			if (Mode->GetModeInfo().bVisible)
+			if (Mode->GetModeInfo().bVisible && Mode->UsesToolkits())
 			{
 				bHasVisibleModes = true;
 				break;
@@ -1061,6 +1067,9 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			// Enter the new mode
 			Mode->Enter();
 
+			const bool bIsEnteringMode = true;
+			BroadcastEditorModeIDChanged(Mode->GetID(), bIsEnteringMode);
+
 			// Ask the mode to build the toolbar.
 			TSharedPtr<FUICommandList> CommandList;
 			const TSharedPtr<FModeToolkit> Toolkit = Mode->GetToolkit();
@@ -1133,6 +1142,9 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			ActiveScriptableModes.Add(ScriptableMode);
 			// Enter the new mode
 			ScriptableMode->Enter();
+
+			const bool bIsEnteringMode = true;
+			BroadcastEditorModeIDChanged(ScriptableMode->GetID(), bIsEnteringMode);
 
 			// Ask the mode to build the toolbar.
 			TSharedPtr<FUICommandList> CommandList;

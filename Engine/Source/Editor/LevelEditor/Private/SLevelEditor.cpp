@@ -1449,13 +1449,12 @@ void SLevelEditor::EditorModeCommandsChanged()
 
 void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, bool bIsEnteringMode)
 {
-	FEdMode* EdMode  = GLevelEditorModeTools().GetActiveMode(ModeChangedID);
-	if (EdMode && EdMode->UsesToolkits() && EdMode->GetToolkit().IsValid())
+	if(bIsEnteringMode)
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-		if ((ModeChangedID == FBuiltinEditorModes::EM_Default || !GLevelEditorModeTools().ShouldShowModeToolbox()) && !GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+		if (!GLevelEditorModeTools().ShouldShowModeToolbox() && !GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 		{
 			TSharedPtr<SDockTab> ToolboxTab = LevelEditorTabManager->FindExistingLiveTab(LevelEditorTabIds::LevelEditorToolBox);
 			if (ToolboxTab.IsValid())
