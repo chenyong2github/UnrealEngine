@@ -24,7 +24,7 @@ class UControlRigThumbnailRenderer : public USkeletalMeshThumbnailRenderer
 
 	// Begin UThumbnailRenderer Object
 	CONTROLRIGEDITOR_API virtual bool CanVisualizeAsset(UObject* Object) override;
-	CONTROLRIGEDITOR_API virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas) override;
+	CONTROLRIGEDITOR_API virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily) override;
 	// End UThumbnailRenderer Object
 
 	// USkeletalMeshThumbnailRenderer implementation

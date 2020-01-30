@@ -29,7 +29,7 @@ void UCurveLinearColorThumbnailRenderer::GetThumbnailSize(UObject* Object, float
 	}
 }
 
-void UCurveLinearColorThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* Viewport, FCanvas* Canvas)
+void UCurveLinearColorThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* Viewport, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UCurveLinearColor* GradientCurve = Cast<UCurveLinearColor>(Object);
 	if (GradientCurve)

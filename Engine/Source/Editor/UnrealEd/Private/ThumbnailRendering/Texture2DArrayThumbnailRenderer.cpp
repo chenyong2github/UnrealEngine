@@ -23,11 +23,11 @@ void UTexture2DArrayThumbnailRenderer::GetThumbnailSize(UObject* Object, float Z
 
 }
 
-void UTexture2DArrayThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas)
+void UTexture2DArrayThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UTexture2DArray* TextureArray = Cast<UTexture2DArray>(Object);
 	if (TextureArray != nullptr)
 	{
-		Super::Draw(TextureArray, X, Y, Width, Height, nullptr, Canvas);
+		Super::Draw(TextureArray, X, Y, Width, Height, nullptr, Canvas, bAdditionalViewFamily);
 	}
 }
