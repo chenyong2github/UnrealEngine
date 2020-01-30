@@ -80,9 +80,6 @@ bool FAsioTcpServer::StartServer(uint32 Port, uint32 Backlog)
 		return false;
 	}
 
-	asio::socket_base::linger Linger(true, 0);
-	TempAcceptor.set_option(Linger);
-
 	Acceptor = MoveTemp(TempAcceptor);
 	AsyncAccept();
 	return true;
