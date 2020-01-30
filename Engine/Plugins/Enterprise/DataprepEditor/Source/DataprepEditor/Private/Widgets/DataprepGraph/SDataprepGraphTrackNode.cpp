@@ -754,7 +754,7 @@ float SDataprepGraphTrackWidget::ValidateNodeAbscissa(float InAbscissa)
 		AbscissaRange.X = ActionSlots[0]->OffsetAttr.Get(FVector2D::ZeroVector).Left;
 		AbscissaRange.Y = ActionSlots[ActionSlots.Num() - 1]->OffsetAttr.Get(FVector2D::ZeroVector).Left;
 
-		return InAbscissa < InAbscissa ? AbscissaRange.X : (InAbscissa > AbscissaRange.Y ? AbscissaRange.Y : InAbscissa);
+		return InAbscissa < AbscissaRange.X ? AbscissaRange.X : (InAbscissa > AbscissaRange.Y ? AbscissaRange.Y : InAbscissa);
 	}
 
 	return InAbscissa;

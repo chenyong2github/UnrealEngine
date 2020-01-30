@@ -35,10 +35,16 @@ UDataprepGraphActionNode::UDataprepGraphActionNode()
 
 void UDataprepGraphActionNode::Initialize(UDataprepActionAsset* InDataprepActionAsset, int32 InExecutionOrder)
 {
-	ensure(InDataprepActionAsset);
-	DataprepActionAsset = InDataprepActionAsset;
-	ActionTitle = DataprepActionAsset->GetLabel();
-	ExecutionOrder = InExecutionOrder;
+	if(InDataprepActionAsset)
+	{
+		DataprepActionAsset = InDataprepActionAsset;
+		ActionTitle = DataprepActionAsset->GetLabel();
+		ExecutionOrder = InExecutionOrder;
+	}
+	else
+	{
+		ensure(false);
+	}
 }
 
 FLinearColor UDataprepGraphActionNode::GetNodeTitleColor() const
