@@ -91,7 +91,7 @@ FAddressInfoResult FSocketSubsystemBSD::GetAddressInfo(const TCHAR* HostName, co
 	addrinfo* AddrInfo = nullptr;
 
 	// Make sure we filter out IPv6 if the platform is not officially supported
-	const bool bCanUseIPv6 = (CVarDisableIPv6.GetValueOnAnyThread() == 0 && PLATFORM_HAS_BSD_IPV6_SOCKETS) ? true : false;
+	const bool bCanUseIPv6 = (CVarDisableIPv6.GetValueOnAnyThread() == 0 && PLATFORM_HAS_BSD_IPV6_SOCKETS);
 
 	// Determine if we can save time with numericserv
 	if (ServiceName != nullptr && FString(ServiceName).IsNumeric())
