@@ -511,7 +511,7 @@ void FAudioEffectsManager::Update()
 	{
 		CurrentReverbAsset->bChanged = false;
 		class FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-		TArray<FAudioDevice*>& AudioDevices = DeviceManager->GetAudioDevices();
+		TArray<FAudioDevice*> AudioDevices = DeviceManager->GetAudioDevices();
 		for (int32 i = 0; i < AudioDevices.Num(); ++i)
 		{
 			if (AudioDevices[i])
@@ -520,7 +520,6 @@ void FAudioEffectsManager::Update()
 				EffectsManager->SetReverbSettings(CurrentReverbSettings, true);
 			}
 		}
-		
 	}
 
 #endif

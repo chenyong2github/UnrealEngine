@@ -1754,8 +1754,7 @@ void UEngine::ShutdownAudioDeviceManager()
 
 		FAudioThread::StopAudioThread();
 
-		AudioDeviceManager->ShutdownAllAudioDevices();
-
+		MainAudioDeviceHandle.Reset();
 		delete AudioDeviceManager;
 		AudioDeviceManager = NULL;
 	}
@@ -2861,7 +2860,16 @@ FAudioDevice* UEngine::GetMainAudioDevice()
 {
 	if (AudioDeviceManager != nullptr)
 	{
-		return AudioDeviceManager->GetAudioDevice(MainAudioDeviceHandle);
+		return AudioDeviceManager->GetMainAudioDeviceHandle();
+	}
+	return FAudioDeviceHandle();
+}
+
+FAudioDevice* UEngine::GetMainAudioDeviceRaw()
+{
+	if (AudioDeviceManager != nullptr && MainAudioDeviceHandle.IsValid())
+	{
+		return AudioDeviceManager->GetMainAudioDeviceHandle().GetAudioDevice();
 	}
 	return nullptr;
 }

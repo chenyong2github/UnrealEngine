@@ -210,7 +210,7 @@ namespace
 			return nullptr;
 		}
 
-		return World->GetAudioDevice();
+		return World->GetAudioDeviceRaw();
 	}
 
 	struct FAudioStats
@@ -788,7 +788,7 @@ void FAudioDebugger::DumpActiveSounds() const
 		return;
 	}
 
-	FAudioDevice* AudioDevice = GEngine->GetAudioDeviceManager()->GetActiveAudioDevice();
+	FAudioDeviceHandle AudioDevice = GEngine->GetAudioDeviceManager()->GetActiveAudioDevice();
 	if (!AudioDevice)
 	{
 		return;
@@ -861,7 +861,7 @@ void FAudioDebugger::ResolveDesiredStats(FViewportClient* ViewportClient)
 
 	if (ViewportClient->IsStatEnabled(TEXT("Sounds")))
 	{
-		FAudioStats& Stats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
+		FAudioStats& Stats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceID);
 		SetStats |= ERequestedAudioStats::Sounds;
 
 		if (Stats.DisplayFlags & static_cast<uint8>(FAudioStats::EDisplayFlags::Debug))
@@ -891,7 +891,7 @@ void FAudioDebugger::ResolveDesiredStats(FViewportClient* ViewportClient)
 
 	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ResolveDesiredStats"), STAT_AudioResolveDesiredStats, STATGROUP_TaskGraphTasks);
 
-	const uint32 DeviceID = AudioDevice->DeviceHandle;
+	const uint32 DeviceID = AudioDevice->DeviceID;
 	if (IsInAudioThread())
 	{
 		FAudioStats_AudioThread& Stats = AudioDeviceStats_AudioThread.FindOrAdd(DeviceID);
@@ -924,7 +924,7 @@ int32 FAudioDebugger::RenderStatCues(UWorld* World, FViewport* Viewport, FCanvas
 	Y += FontHeight;
 
 	int32 ActiveSoundCount = 0;
-	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
+	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceID);
 
 	if (!SoundCueDebugMinimalCVar)
 	{
@@ -1064,7 +1064,7 @@ int32 FAudioDebugger::RenderStatMixes(UWorld* World, FViewport* Viewport, FCanva
 
 	bool bDisplayedSoundMixes = false;
 
-	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
+	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceID);
 	if (AudioStats.StatSoundMixes.Num() > 0)
 	{
 		bDisplayedSoundMixes = true;
@@ -1213,7 +1213,7 @@ int32 FAudioDebugger::RenderStatSounds(UWorld* World, FViewport* Viewport, FCanv
 	const int32 FontHeight = GetStatsFont()->GetMaxCharHeight() + 2;
 	Y += FontHeight;
 
-	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
+	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceID);
 
 	const uint8 bDebug = AudioStats.DisplayFlags & static_cast<uint8>(FAudioStats::EDisplayFlags::Debug);
 
@@ -1375,7 +1375,7 @@ int32 FAudioDebugger::RenderStatSounds(UWorld* World, FViewport* Viewport, FCanv
 		}
 	}
 
-	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Audio Device ID: %u, Max Sounds Displayed: %i"), AudioDevice->DeviceHandle, AudioDebugSoundMaxNumDisplayedCVar), GetStatsFont(), HeaderColor);
+	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Audio Device ID: %u, Max Sounds Displayed: %i"), AudioDevice->DeviceID, AudioDebugSoundMaxNumDisplayedCVar), GetStatsFont(), HeaderColor);
 	Y += FontHeight;
 
 	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("Total Sounds: %i, Sound Waves: %i"), AudioStats.StatSoundInfos.Num(), TotalSoundWavesNum), GetStatsFont(), HeaderColor);
@@ -1491,7 +1491,7 @@ int32 FAudioDebugger::RenderStatWaves(UWorld* World, FViewport* Viewport, FCanva
 
 	const int32 FontHeight = GetStatsFont()->GetMaxCharHeight() + 2;
 
-	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
+	FAudioStats& AudioStats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceID);
 	Canvas->DrawShadowedString(X, Y, TEXT("Active Sound Waves:"), GetStatsFont(), FLinearColor::Green);
 	Y += TabWidth;
 
@@ -1551,8 +1551,8 @@ int32 FAudioDebugger::RenderStatWaves(UWorld* World, FViewport* Viewport, FCanva
 
 void FAudioDebugger::RemoveDevice(const FAudioDevice& AudioDevice)
 {
-	AudioDeviceStats.Remove(AudioDevice.DeviceHandle);
-	AudioDeviceStats_AudioThread.Remove(AudioDevice.DeviceHandle);
+	AudioDeviceStats.Remove(AudioDevice.DeviceID);
+	AudioDeviceStats_AudioThread.Remove(AudioDevice.DeviceID);
 }
 
 bool FAudioDebugger::ToggleStats(UWorld* World, const uint8 StatToToggle)
@@ -1570,7 +1570,7 @@ bool FAudioDebugger::ToggleStats(UWorld* World, const uint8 StatToToggle)
 
 	if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
 	{
-		DeviceManager->GetDebugger().ToggleStats(AudioDevice->DeviceHandle, StatToToggle);
+		DeviceManager->GetDebugger().ToggleStats(AudioDevice->DeviceID, StatToToggle);
 	}
 
 	return true;
@@ -1638,7 +1638,7 @@ bool FAudioDebugger::PostStatModulatorHelp(UWorld* World, FCommonViewportClient*
 		return false;
 	}
 
-	if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+	if (FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
 	{
 		if (AudioDevice->IsModulationPluginEnabled())
 		{
@@ -1715,7 +1715,7 @@ bool FAudioDebugger::ToggleStatSounds(UWorld* World, FCommonViewportClient* View
 
 	FAudioDevice* AudioDevice = GetWorldAudio(World);
 	check(AudioDevice);
-	FAudioStats& Stats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceHandle);
+	FAudioStats& Stats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceID);
 	Stats.DisplayFlags = ShowSounds;
 	Stats.DisplaySort = DisplaySort;
 
@@ -1733,7 +1733,7 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 {
 	check(IsInAudioThread());
 
-	FAudioStats_AudioThread* Stats_AudioThread = AudioDeviceStats_AudioThread.Find(AudioDevice.DeviceHandle);
+	FAudioStats_AudioThread* Stats_AudioThread = AudioDeviceStats_AudioThread.Find(AudioDevice.DeviceID);
 	if (!Stats_AudioThread)
 	{
 		return;
@@ -1838,7 +1838,7 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 
 	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AudioSendResults"), STAT_AudioSendResults, STATGROUP_TaskGraphTasks);
 
-	const uint32 AudioDeviceID = AudioDevice.DeviceHandle;
+	const uint32 AudioDeviceID = AudioDevice.DeviceID;
 
 	TArray<FTransform> ListenerTransforms;
 	for (const FListener& Listener : AudioDevice.GetListeners())
