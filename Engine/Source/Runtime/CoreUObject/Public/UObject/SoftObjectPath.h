@@ -51,6 +51,9 @@ struct COREUOBJECT_API FSoftObjectPath
 	/** Returns string representation of reference, in form /package/path.assetname[:subpath] */
 	FString ToString() const;
 
+	/** Append string representation of reference, in form /package/path.assetname[:subpath] */
+	void ToString(FStringBuilderBase& Builder) const;
+
 	/** Returns the entire asset path as an FName, including both package and asset but not sub object */
 	FORCEINLINE FName GetAssetPathName() const
 	{
@@ -60,7 +63,7 @@ struct COREUOBJECT_API FSoftObjectPath
 	/** Returns string version of asset path, including both package and asset but not sub object */
 	FORCEINLINE FString GetAssetPathString() const
 	{
-		if (AssetPathName == NAME_None)
+		if (AssetPathName.IsNone())
 		{
 			return FString();
 		}
@@ -216,6 +219,12 @@ private:
 
 	friend struct Z_Construct_UScriptStruct_FSoftObjectPath_Statics;
 };
+
+inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSoftObjectPath& Path)
+{
+	Path.ToString(Builder);
+	return Builder;
+}
 
 /**
  * A struct that contains a string reference to a class, can be used to make soft references to classes

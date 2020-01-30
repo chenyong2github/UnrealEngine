@@ -36,6 +36,19 @@ FString FSoftObjectPath::ToString() const
 	return FullPathString;
 }
 
+void FSoftObjectPath::ToString(FStringBuilderBase& Builder) const
+{
+	if (!AssetPathName.IsNone())
+	{
+		Builder << AssetPathName;
+	}
+
+	if (SubPathString.Len() > 0)
+	{
+		Builder << ':' << SubPathString;
+	}
+}
+
 void FSoftObjectPath::SetPath(FString Path)
 {
 	if (Path.IsEmpty() || Path.Equals(TEXT("None"), ESearchCase::CaseSensitive))
