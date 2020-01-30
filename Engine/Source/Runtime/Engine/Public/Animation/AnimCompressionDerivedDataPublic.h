@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "TickableEditorObject.h"
+#include "Animation/AnimCompressionTypes.h"
 
 class UAnimSequence;
 class FDerivedDataAnimationCompression;
