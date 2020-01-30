@@ -31,6 +31,7 @@
 #include "WorldFilters.h"
 #include "SourceFilterStyle.h"
 #include "TraceFilter.h"
+#include "TraceSourceFilteringProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "FEditorSourceFilterService"
 
@@ -47,6 +48,14 @@ FEditorSessionSourceFilterService::FEditorSessionSourceFilterService()
 	// Register delegate to catch engine-level trace filtering system changes 
 	FTraceWorldFiltering::OnFilterStateChanged().AddRaw(this, &FEditorSessionSourceFilterService::UpdateTimeStamp);	
 	SetupWorldFilters();
+	
+	// Try and load the user-defined default filter preset
+	USourceFilterCollection* PresetCollection = GetDefault<UTraceSourceFilteringProjectSettings>()->DefaultFilterPreset.LoadSynchronous();
+	if (PresetCollection)
+	{
+		FilterCollection->CopyData(PresetCollection);
+		UpdateTimeStamp();
+	}
 }
 
 FEditorSessionSourceFilterService::~FEditorSessionSourceFilterService()
