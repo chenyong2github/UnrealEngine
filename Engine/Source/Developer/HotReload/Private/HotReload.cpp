@@ -1608,6 +1608,7 @@ bool FHotReloadModule::StartCompilingModuleDLLs(const TArray< FModuleToRecompile
 
 	const TCHAR* BuildPlatformName = FPlatformMisc::GetUBTPlatform();
 	const TCHAR* BuildConfigurationName = FModuleManager::GetUBTConfiguration();
+	const TCHAR* BuildTargetName = FPlatformMisc::GetUBTTargetName();
 
 	RecompileModulesCallback = MoveTemp(InRecompileModulesCallback);
 
@@ -1636,10 +1637,6 @@ bool FHotReloadModule::StartCompilingModuleDLLs(const TArray< FModuleToRecompile
 	}
 
 	FString ExtraArg;
-#if UE_EDITOR
-	// When recompiling from the editor, we don't know the editor target name. Pass -TargetType=Editor to UBT to have it figure it out.
-	ExtraArg = TEXT( "-TargetType=Editor " );
-#endif
 
 	if (FPaths::IsProjectFilePathSet())
 	{
@@ -1652,9 +1649,9 @@ bool FHotReloadModule::StartCompilingModuleDLLs(const TArray< FModuleToRecompile
 		ExtraArg += TEXT( "-FailIfGeneratedCodeChanges " );
 	}
 
-	FString CmdLineParams = FString::Printf( TEXT( "%s %s %s %s%s -IgnoreJunk" ), 
+	FString CmdLineParams = FString::Printf( TEXT( "%s %s %s %s %s%s -IgnoreJunk" ), 
 		*ModuleArg, 
-		BuildPlatformName, BuildConfigurationName, 
+		BuildTargetName, BuildPlatformName, BuildConfigurationName,
 		*ExtraArg, *InAdditionalCmdLineArgs );
 
 	const bool bInvocationSuccessful = InvokeUnrealBuildToolForCompile(CmdLineParams, Ar);
