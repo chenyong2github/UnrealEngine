@@ -333,6 +333,10 @@ class ENGINE_API UFXSystemComponent : public UPrimitiveComponent
 	GENERATED_UCLASS_BODY()
 public:
 
+	/**Change a named boolean parameter, ParticleSystemComponent converts to float.*/
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void SetBoolParameter(FName ParameterName, bool Param) {}
+
 	/** Change a named float parameter */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
 	virtual void SetFloatParameter(FName ParameterName, float Param) {}
@@ -1058,6 +1062,8 @@ public:
 	 *	@param	bNewEnableState		The value to set it to
 	 */
 	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
+
+	void SetBoolParameter(FName ParameterName, bool Param) override;
 
 	/** Change a named float parameter */
 	void SetFloatParameter(FName ParameterName, float Param) override;
