@@ -4458,15 +4458,26 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 		IssueScalableLongGPUTask(RHICmdList);
 	}
 #endif
-	FString FrameString = FString::Printf(TEXT("Frame %d"), CurrentFrameCounter);
+
 #if ENABLE_NAMED_EVENTS
+	TCHAR IndexedFrameString[32];
+	const TCHAR* FrameString = nullptr;
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+	{
+		FrameString = TEXT("Frame");
+	}
+	else
+	{
 #if PLATFORM_LIMIT_PROFILER_UNIQUE_NAMED_EVENTS
-	FPlatformMisc::BeginNamedEvent(FColor::Yellow, TEXT("Frame"));
+		FrameString = TEXT("Frame");
 #else
-	FPlatformMisc::BeginNamedEvent(FColor::Yellow, *FrameString);
+		FCString::Snprintf(IndexedFrameString, 32, TEXT("Frame %d"), CurrentFrameCounter);
+		FrameString = IndexedFrameString;
 #endif
+	}
+	FPlatformMisc::BeginNamedEvent(FColor::Yellow, FrameString);
 #endif // ENABLE_NAMED_EVENTS
-	RHICmdList.PushEvent(*FrameString, FColor::Green);
+	RHICmdList.PushEvent(FrameString, FColor::Green);
 #endif // !UE_BUILD_SHIPPING
 
 	GPU_STATS_BEGINFRAME(RHICmdList);
@@ -4533,18 +4544,22 @@ void FEngineLoop::Tick()
 
 	uint64 CurrentFrameCounter = GFrameCounter;
 
+	TCHAR IndexedFrameString[32];
+	const TCHAR* FrameString = nullptr;
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(Frame);
+		FrameString = TEXT("FEngineLoop");
 	}
 	else
 	{
 #if PLATFORM_LIMIT_PROFILER_UNIQUE_NAMED_EVENTS
-		SCOPED_NAMED_EVENT(FEngineLoopTick, FColor::Red);
+		FrameString = TEXT("FEngineLoop");
 #else
-		SCOPED_NAMED_EVENT_F(TEXT("Frame %d"), FColor::Red, CurrentFrameCounter);
+		FCString::Snprintf(IndexedFrameString, 32, TEXT("Frame %d"), CurrentFrameCounter);
+		FrameString = IndexedFrameString;
 #endif
 	}
+	SCOPED_NAMED_EVENT_TCHAR(FrameString, FColor::Red);
 
 	// execute callbacks for cvar changes
 	{

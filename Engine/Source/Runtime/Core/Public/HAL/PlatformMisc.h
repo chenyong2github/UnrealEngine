@@ -116,6 +116,7 @@ public:
 	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_##Name##_)(Color, NAMED_EVENT_STR(#Name));
 
 #define SCOPED_NAMED_EVENT_FSTRING(Text, Color)  FScopedNamedEvent       ANONYMOUS_VARIABLE(NamedEvent_)         (Color, *Text);
+#define SCOPED_NAMED_EVENT_TCHAR(Text, Color)    FScopedNamedEvent       ANONYMOUS_VARIABLE(NamedEvent_)         (Color, Text);
 
 #define SCOPED_NAMED_EVENT_TEXT(Text, Color) \
 	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_)         (Color, NAMED_EVENT_STR(Text));
@@ -156,6 +157,7 @@ public:
 
 #define SCOPED_NAMED_EVENT(...)
 #define SCOPED_NAMED_EVENT_FSTRING(...)
+#define SCOPED_NAMED_EVENT_TCHAR(...)
 #define SCOPED_NAMED_EVENT_TEXT(...)
 #define SCOPED_NAMED_EVENT_F(...)
 #define SCOPED_PROFILER_COLOR(...)
