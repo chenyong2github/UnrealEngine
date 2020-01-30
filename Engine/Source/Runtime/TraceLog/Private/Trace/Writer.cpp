@@ -378,14 +378,14 @@ static FWriteBuffer* __restrict GActiveThreadList;	// = nullptr;
 ////////////////////////////////////////////////////////////////////////////////
 static uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 {
-	auto SendInner = [] (uint8* __restrict Data, uint32 Size)
+	auto SendInner = [] (uint8* __restrict SendData, uint32 SendSize)
 	{
 		if (GDataState == EDataState::Sending)
 		{
 			// Transmit data to the io handle
 			if (GDataHandle)
 			{
-				if (!IoWrite(GDataHandle, Data, Size))
+				if (!IoWrite(GDataHandle, SendData, SendSize))
 				{
 					IoClose(GDataHandle);
 					GDataHandle = 0;
@@ -394,7 +394,7 @@ static uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Si
 		}
 		else
 		{
-			GHoldBuffer->Write(Data, Size);
+			GHoldBuffer->Write(SendData, SendSize);
 
 			// Did we overflow? Enter partial mode.
 			bool bOverflown = GHoldBuffer->IsFull();
