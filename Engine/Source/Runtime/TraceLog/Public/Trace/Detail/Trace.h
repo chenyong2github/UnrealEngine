@@ -51,6 +51,7 @@
 		enum \
 		{ \
 			Important			= Trace::FEventDef::Flag_Important, \
+			NoSync				= Trace::FEventDef::Flag_NoSync, \
 			PartialEventFlags	= (0, ##__VA_ARGS__), \
 		}; \
 		static void FORCENOINLINE Initialize() \
@@ -97,7 +98,7 @@
 			if (auto LogScope = Trace::FEventDef::FLogScope( \
 				LoggerName##EventName##Event.Uid, \
 				TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), \
-				bool(decltype(F##LoggerName##EventName##Fields::EventProps_Private)::MaybeHasAux), \
+				F##LoggerName##EventName##Fields::EventFlags, \
 				##__VA_ARGS__)) \
 					LogScope
 

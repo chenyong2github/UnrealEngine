@@ -797,6 +797,11 @@ void Writer_EventCreate(
 		Event.Flags |= uint8(EEventFlags::MaybeHasAux);
 	}
 
+	if (Flags & FEventDef::Flag_NoSync)
+	{
+		Event.Flags |= uint8(EEventFlags::NoSync);
+	}
+
 	// Write details about event's fields
 	Event.FieldCount = uint8(FieldCount);
 	for (uint32 i = 0; i < FieldCount; ++i)

@@ -58,6 +58,7 @@ struct FAnalysisEngine::FDispatch
 	{
 		Flag_Important		= 1 << 0,
 		Flag_MaybeHasAux	= 1 << 1,
+		Flag_NoSync			= 1 << 2,
 	};
 
 	struct FField
@@ -111,6 +112,7 @@ public:
 	void				SetEventName(const ANSICHAR* Name, int32 NameSize=-1);
 	void				SetImportant();
 	void				SetMaybeHasAux();
+	void				SetNoSync();
 	FDispatch::FField&	AddField(const ANSICHAR* Name, int32 NameSize, uint16 Size);
 	FDispatch*			Finalize();
 
@@ -192,6 +194,13 @@ void FAnalysisEngine::FDispatchBuilder::SetMaybeHasAux()
 {
 	auto* Dispatch = (FDispatch*)(Buffer.GetData());
 	Dispatch->Flags |= FDispatch::Flag_MaybeHasAux;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::FDispatchBuilder::SetNoSync()
+{
+	auto* Dispatch = (FDispatch*)(Buffer.GetData());
+	Dispatch->Flags |= FDispatch::Flag_NoSync;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -774,6 +783,11 @@ void FAnalysisEngine::OnNewEventProtocol1(FDispatchBuilder& Builder, const void*
 	{
 		Builder.SetMaybeHasAux();
 	}
+
+	if (NewEvent.Flags & int(Protocol1::EEventFlags::NoSync))
+	{
+		Builder.SetNoSync();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -975,10 +989,26 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 			break;
 		}
 
-		uint32 BlockSize = Header->Size;
-		
-		switch (ProtocolVersion)
+		uint16 Uid = Header->Uid & uint16(Protocol2::EKnownEventUids::UidMask);
+		if (Uid >= Dispatches.Num())
 		{
+			// We don't know about this event yet
+			break;
+		}
+
+		const FDispatch* Dispatch = Dispatches[Uid];
+		if (Dispatch == nullptr)
+		{
+			return -1;
+		}
+
+		uint32 BlockSize = Header->Size;
+
+		// Make sure we consume events in the correct order
+		if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
+		{
+			switch (ProtocolVersion)
+			{
 			case Protocol1::EProtocol::Id:
 				{
 					const auto* HeaderV1 = (Protocol1::FEventHeader*)Header;
@@ -992,14 +1022,20 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 
 			case Protocol2::EProtocol::Id:
 				{
-					uint32 EventSerial = Header->SerialLow|(uint32(Header->SerialHigh) << 16);
+					const auto* HeaderSync = (Protocol2::FEventHeaderSync*)Header;
+					uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);
 					if (EventSerial != (NextLogSerial & 0x00ffffff))
 					{
 						return EventCount;
 					}
-					BlockSize += sizeof(*Header);
+					BlockSize += sizeof(*HeaderSync);
 				}
 				break;
+			}
+		}
+		else
+		{
+			BlockSize += sizeof(*Header);
 		}
 
 		if (Reader.GetPointer(BlockSize) == nullptr)
@@ -1008,18 +1044,6 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 		}
 
 		Reader.Advance(BlockSize);
-
-		uint16 Uid = Header->Uid & uint16(Protocol2::EKnownEventUids::UidMask);
-		if (Uid >= Dispatches.Num())
-		{
-			return -1;
-		}
-
-		const FDispatch* Dispatch = Dispatches[Uid];
-		if (Dispatch == nullptr)
-		{
-			return -1;
-		}
 
 		FAuxDataCollector AuxCollector;
 		if (Dispatch->Flags & FDispatch::Flag_MaybeHasAux)
@@ -1030,13 +1054,12 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 				Reader.RestoreMark(Mark);
 				break;
 			}
-			else if (AuxStatus < 0)
-			{
-				return -1;
-			}
 		}
 
-		++NextLogSerial;
+		if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
+		{
+			++NextLogSerial;
+		}
 
 		FEventDataInfo EventDataInfo = {
 			*Dispatch,

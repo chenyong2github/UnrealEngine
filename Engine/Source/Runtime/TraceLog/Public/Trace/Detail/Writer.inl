@@ -49,17 +49,19 @@ inline FWriteBuffer* Writer_GetBuffer()
 ////////////////////////////////////////////////////////////////////////////////
 struct FLogInstance
 {
-	uint8*					Ptr;
-	Private::FWriteBuffer*	Internal;
+	uint8*	Ptr;
+	void*	Internal;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
+template <class HeaderType>
+inline FLogInstance Writer_BeginLogPrelude(uint16 Size, bool bMaybeHasAux)
 {
 	using namespace Private;
 
+	uint32 AllocSize = sizeof(HeaderType) + Size + int(bMaybeHasAux);
+
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	int32 AllocSize = Size + sizeof(FEventHeader) + int(bMaybeHasAux);
 	Buffer->Cursor += AllocSize;
 	if (UNLIKELY(Buffer->Cursor > (uint8*)Buffer))
 	{
@@ -73,22 +75,47 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHas
 	}
 
 	uint8* Cursor = Buffer->Cursor - Size - int(bMaybeHasAux);
+	return {Cursor, Buffer};
+}
+
+////////////////////////////////////////////////////////////////////////////////
+inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
+{
+	using namespace Private;
+
+	FLogInstance Instance = Writer_BeginLogPrelude<FEventHeaderSync>(Size, bMaybeHasAux);
 
 	// Event header
-	auto* Header = (uint16*)(Cursor - sizeof(FEventHeader::SerialHigh)); // FEventHeader1
+	auto* Header = (uint16*)(Instance.Ptr - sizeof(FEventHeaderSync::SerialHigh)); // FEventHeader1
 	*(uint32*)(Header - 1) = uint32(AtomicIncrementRelaxed(&GLogSerial));
 	Header[-2] = Size;
 	Header[-3] = EventUid;
 
-	return {Cursor, Buffer};
+	return Instance;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+inline FLogInstance Writer_BeginLogNoSync(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
+{
+	using namespace Private;
+
+	FLogInstance Instance = Writer_BeginLogPrelude<FEventHeader>(Size, bMaybeHasAux);
+
+	// Event header
+	auto* Header = (uint16*)(Instance.Ptr);
+	Header[-1] = Size;
+	Header[-2] = EventUid;
+
+	return Instance;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 inline void Writer_EndLog(FLogInstance Instance)
 {
 	using namespace Private;
-	FWriteBuffer* Buffer = Instance.Internal;
-	Private::AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
+	auto* Buffer = (FWriteBuffer*)(Instance.Internal);
+	AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
 }
 
 } // namespace Trace

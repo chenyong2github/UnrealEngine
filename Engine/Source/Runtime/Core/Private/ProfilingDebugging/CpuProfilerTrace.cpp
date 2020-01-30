@@ -19,7 +19,7 @@ UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, Important)
 	UE_TRACE_EVENT_FIELD(uint8, CharSize)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(CpuProfiler, EventBatch)
+UE_TRACE_EVENT_BEGIN(CpuProfiler, EventBatch, NoSync)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 

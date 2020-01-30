@@ -22,13 +22,14 @@ public:
 	{
 		Flag_Important		= 1 << 0,
 		Flag_MaybeHasAux	= 1 << 1,
+		Flag_NoSync			= 1 << 3,
 	};
 
 	class FLogScope
 	{
 	public:
-								FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux);
-								FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux, uint16 ExtraBytes);
+								FLogScope(uint16 EventUid, uint16 Size, uint32 EventFlags);
+								FLogScope(uint16 EventUid, uint16 Size, uint32 EventFlags, uint16 ExtraBytes);
 								~FLogScope();
 		FLogInstance			Instance;
 		constexpr explicit		operator bool () const { return true; }
