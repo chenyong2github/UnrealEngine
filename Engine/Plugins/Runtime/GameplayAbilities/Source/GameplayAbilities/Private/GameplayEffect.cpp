@@ -798,8 +798,11 @@ void FGameplayEffectSpec::Initialize(const UGameplayEffect* InDef, const FGamepl
 {
 	Def = InDef;
 	check(Def);	
-	SetLevel(InLevel);
+	// SetContext requires the level to be set before it runs
+	// however, there are code paths in SetLevel that can potentially (depends on game data setup) require the context to be set
+	Level = InLevel;
 	SetContext(InEffectContext);
+	SetLevel(InLevel);
 
 	// Init our ModifierSpecs
 	Modifiers.SetNum(Def->Modifiers.Num());
