@@ -835,7 +835,27 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 
 	UCookOnTheFlyServer::FCookByTheBookStartupOptions StartupOptions;
 
-	StartupOptions.TargetPlatforms = Platforms;
+	// Validate target platforms and add them to StartupOptions
+	for (ITargetPlatform* TargetPlatform : Platforms)
+	{
+		if (TargetPlatform)
+		{
+			if (TargetPlatform->HasEditorOnlyData())
+			{
+				UE_LOG(LogCook, Warning, TEXT("Target platform \"%s\" is an editor platform and can not be a cook target"), *TargetPlatform->PlatformName());
+			}
+			else
+			{
+				StartupOptions.TargetPlatforms.Add(TargetPlatform);
+			}
+		}
+	}
+	if (!StartupOptions.TargetPlatforms.Num())
+	{
+		UE_LOG(LogCook, Error, TEXT("No target platforms specified or all target platforms are invalid"));
+		return false;
+	}
+
 	Swap( StartupOptions.CookMaps, MapList );
 	Swap( StartupOptions.CookDirectories, CmdLineDirEntries );
 	Swap( StartupOptions.NeverCookDirectories, CmdLineNeverCookDirEntries);
