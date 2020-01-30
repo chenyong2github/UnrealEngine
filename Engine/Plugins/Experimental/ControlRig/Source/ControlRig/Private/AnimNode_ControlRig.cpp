@@ -30,6 +30,7 @@ void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* In
 	if (ControlRigClass)
 	{
 		ControlRig = NewObject<UControlRig>(InAnimInstance->GetOwningComponent(), ControlRigClass);
+		ControlRig->RequestInit();
 	}
 
 	FAnimNode_ControlRigBase::OnInitializeAnimInstance(InProxy, InAnimInstance);
@@ -68,7 +69,6 @@ void FAnimNode_ControlRig::Update_AnyThread(const FAnimationUpdateContext& Conte
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	FAnimNode_ControlRigBase::Update_AnyThread(Context);
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	// alpha handlers
@@ -93,7 +93,8 @@ void FAnimNode_ControlRig::Update_AnyThread(const FAnimationUpdateContext& Conte
 	InternalBlendAlpha = FMath::Clamp<float>(InternalBlendAlpha, 0.f, 1.f);
 
 	PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
-	Source.Update(Context);
+
+	FAnimNode_ControlRigBase::Update_AnyThread(Context);
 
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Class"), *GetNameSafe(ControlRigClass.Get()));
 }
@@ -104,8 +105,6 @@ void FAnimNode_ControlRig::Initialize_AnyThread(const FAnimationInitializeContex
 
 	FAnimNode_ControlRigBase::Initialize_AnyThread(Context);
 
-	Source.Initialize(Context);
-
 	AlphaBoolBlend.Reinitialize();
 	AlphaScaleBiasClamp.Reinitialize();
 }
@@ -115,7 +114,6 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	FAnimNode_ControlRigBase::CacheBones_AnyThread(Context);
-	Source.CacheBones(Context);
 
 	FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
 	InputToCurveMappingUIDs.Reset();
@@ -156,9 +154,6 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 void FAnimNode_ControlRig::Evaluate_AnyThread(FPoseContext & Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	// If not playing a montage, just pass through
-	Source.Evaluate(Output);
 
 	// evaluate 
 	FAnimNode_ControlRigBase::Evaluate_AnyThread(Output);
