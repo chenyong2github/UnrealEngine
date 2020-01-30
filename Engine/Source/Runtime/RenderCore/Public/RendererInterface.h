@@ -466,7 +466,7 @@ struct FSceneRenderTargetItem
 	TArray< FUnorderedAccessViewRHIRef, TInlineAllocator<1> > MipUAVs;
 
 	/** All SRVs that has been created on for that ShaderResourceTexture.  */
-	TMap<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef> SRVs;
+	TArray<TPair<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
 
 	FShaderResourceViewRHIRef RTWriteMaskSRV;
 	FShaderResourceViewRHIRef FmaskSRV;
