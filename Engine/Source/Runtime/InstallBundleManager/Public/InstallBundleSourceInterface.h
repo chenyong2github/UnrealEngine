@@ -43,6 +43,11 @@ public:
 	// BundleNames contains all dependencies and has been deduped
 	virtual void GetContentState(TArrayView<const FName> BundleNames, EInstallBundleGetContentStateFlags Flags, FInstallBundleGetContentStateDelegate Callback) = 0;
 
+	// Allows this bundle source to reject bundle requests early, rather than failing them.
+	// This means that client code does not have to wait on these bundles.
+	// This may be called anytime after Init, even during AsyncInit
+	virtual EInstallBundleSourceBundleSkipReason GetBundleSkipReason(FName BundleName) const { return EInstallBundleSourceBundleSkipReason::None; }
+
 	struct FRequestUpdateContentBundleContext
 	{
 		FName BundleName;
