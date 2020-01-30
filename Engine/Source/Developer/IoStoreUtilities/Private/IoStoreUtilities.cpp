@@ -128,6 +128,45 @@ private:
 	const TArray<FNameEntryId>& NameMap;
 };
 
+struct FPackage;
+using FPackageMap = TMap<FName, FPackage*>;
+using FSourceToLocalizedPackageIdMap = TMap<int32,int32>;
+using FSourceToLocalizedPackageMultimap = TMultiMap<FPackage*,FPackage*>;
+using FLocalizedToSourceImportIndexMap = TMap<int32, int32>;
+using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
+
+static constexpr TCHAR L10NPrefix[] = TEXT("/Game/L10N/");
+
+// modified copy from PakFileUtilities
+static FString RemapLocalizationPathIfNeeded(const FString& Path, FString* OutRegion)
+{
+	static constexpr int32 L10NPrefixLength = sizeof(L10NPrefix)/sizeof(TCHAR) - 1;
+
+	int32 FoundIndex = Path.Find(L10NPrefix, ESearchCase::IgnoreCase);
+	if (FoundIndex >= 0)
+	{
+		// Validate the content index is the first one
+		int32 ContentIndex = Path.Find(TEXT("/Game/"), ESearchCase::IgnoreCase);
+		if (ContentIndex == FoundIndex)
+		{
+			int32 EndL10NOffset = ContentIndex + L10NPrefixLength;
+			int32 NextSlashIndex = Path.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, EndL10NOffset);
+			int32 RegionLength = NextSlashIndex - EndL10NOffset;
+			if (RegionLength >= 2)
+			{
+				FString NonLocalizedPath = Path.Mid(0, ContentIndex) + TEXT("/Game") + Path.Mid(NextSlashIndex);
+				if (OutRegion)
+				{
+					*OutRegion = Path.Mid(EndL10NOffset, RegionLength);
+					OutRegion->ToLowerInline();
+				}
+				return NonLocalizedPath;
+			}
+		}
+	}
+	return Path;
+}
+
 class FNameMapBuilder
 {
 public:
@@ -442,9 +481,13 @@ private:
 struct FPackage
 {
 	FName Name;
+	FName SourcePackageName; // for localized packages
 	FString FileName;
 	FString RelativeFileName;
 	int32 GlobalPackageId = 0;
+	FString Region; // for localized packages
+	int32 SourceGlobalPackageId = -1; // for localized packages
+	int32 ImportedPackagesSerializeCount = 0; // < ImportedPackages.Num() for source packages that have localized packages
 	uint32 PackageFlags = 0;
 	int32 NameCount = 0;
 	int32 ImportCount = 0;
@@ -465,6 +508,7 @@ struct FPackage
 	int64 ExportMapSize = 0;
 	int64 ExportBundlesSize = 0;
 
+	bool bIsLocalizedAndConformed = false;
 	bool bHasCircularImportDependencies = false;
 
 	TArray<FString> ImportedFullNames;
@@ -1102,6 +1146,7 @@ struct FImportData
 	FName ObjectName;
 	bool bIsPackage = false;
 	bool bIsScript = false;
+	bool bIsLocalized = false;
 	FString FullName;
 	FPackage* Package = nullptr;
 
@@ -1110,6 +1155,10 @@ struct FImportData
 		if (bIsScript != Other.bIsScript)
 		{
 			return bIsScript;
+		}
+		if (bIsLocalized != Other.bIsLocalized)
+		{
+			return Other.bIsLocalized;
 		}
 		if (OutermostIndex != Other.OutermostIndex)
 		{
@@ -1182,6 +1231,7 @@ static void FindImport(
 				GlobalImport.ObjectName = Import->ObjectName;
 				GlobalImport.bIsPackage = true;
 				GlobalImport.bIsScript = FullName.StartsWith(TEXT("/Script/"));
+				GlobalImport.bIsLocalized = FullName.Contains(L10NPrefix);
 				GlobalImport.FullName = FullName;
 				GlobalImport.RefCount = 1;
 			}
@@ -1215,6 +1265,7 @@ static void FindImport(
 				GlobalImport.OuterIndex = OuterGlobalImport.GlobalIndex;
 				GlobalImport.ObjectName = Import->ObjectName;
 				GlobalImport.bIsScript = OuterGlobalImport.bIsScript;
+				GlobalImport.bIsLocalized = OuterGlobalImport.bIsLocalized;
 				GlobalImport.FullName = FullName;
 				GlobalImport.RefCount = 1;
 			}
@@ -1268,7 +1319,10 @@ static void FindExport(
 	}
 }
 
-FPackage* FindOrAddPackage(const TCHAR* RelativeFileName, TArray<FPackage*>& Packages, TMap<FName, FPackage*>& PackageMap)
+FPackage* FindOrAddPackage(
+	const TCHAR* RelativeFileName,
+	TArray<FPackage*>& Packages,
+	FPackageMap& PackageMap)
 {
 	FString PackageName;
 	FString ErrorMessage;
@@ -1285,12 +1339,215 @@ FPackage* FindOrAddPackage(const TCHAR* RelativeFileName, TArray<FPackage*>& Pac
 	{
 		Package = new FPackage();
 		Package->Name = PackageFName;
+		Package->SourcePackageName = *RemapLocalizationPathIfNeeded(PackageName, &Package->Region);
 		Package->GlobalPackageId = Packages.Num();
 		Packages.Add(Package);
 		PackageMap.Add(PackageFName, Package);
 	}
 
 	return Package;
+}
+
+static bool ConformLocalizedPackage(
+	const FPackageMap& PackageMap,
+	const TArray<FImportData>& GlobalImports,
+	const FPackage& SourcePackage,
+	FPackage& LocalizedPackage,
+	TArray<FExportData>& GlobalExports,
+	FLocalizedToSourceImportIndexMap& LocalizedToSourceImportIndexMap)
+{
+	const int32 ExportCount =
+		SourcePackage.ExportCount < LocalizedPackage.ExportCount ?
+		SourcePackage.ExportCount :
+		LocalizedPackage.ExportCount;
+
+	UE_CLOG(SourcePackage.ExportCount != LocalizedPackage.ExportCount, LogIoStore, Verbose,
+		TEXT("For culture '%s': Localized package '%s' (%d) for source package '%s' (%d)  - Has ExportCount %d vs. %d"),
+			*LocalizedPackage.Region,
+			*LocalizedPackage.Name.ToString(),
+			LocalizedPackage.GlobalPackageId,
+			*LocalizedPackage.SourcePackageName.ToString(),
+			SourcePackage.GlobalPackageId,
+			LocalizedPackage.ExportCount,
+			SourcePackage.ExportCount);
+
+	auto GetExportNameSafe = [](
+		const FString& ExportFullName,
+		const FName& PackageName,
+		int32 PackageNameLen) -> const TCHAR*
+	{
+		const bool bValidNameLen = ExportFullName.Len() > PackageNameLen + 1;
+		if (bValidNameLen)
+		{
+			const TCHAR* ExportNameStr = *ExportFullName + PackageNameLen;
+			const bool bValidNameFormat = *ExportNameStr == '/';
+			if (bValidNameFormat)
+			{
+				return ExportNameStr + 1; // skip verified '/'
+			}
+			else
+			{
+				UE_CLOG(!bValidNameFormat, LogIoStore, Warning,
+					TEXT("Export name '%s' should start with '/' at position %d, i.e. right after package prefix '%s'"),
+					*ExportFullName,
+					PackageNameLen,
+					*PackageName.ToString());
+			}
+		}
+		else
+		{
+			UE_CLOG(!bValidNameLen, LogIoStore, Warning,
+				TEXT("Export name '%s' with length %d should be longer than package name '%s' with length %d"),
+				*ExportFullName,
+				PackageNameLen,
+				*PackageName.ToString());
+		}
+
+		return nullptr;
+	};
+
+	const int32 LocalizedPackageNameLen = LocalizedPackage.Name.GetStringLength();
+	const int32 SourcePackageNameLen = SourcePackage.Name.GetStringLength();
+
+	TArray <TPair<int32, int32>, TInlineAllocator<64>> MatchingPublicExports;
+	MatchingPublicExports.Reserve(ExportCount);
+
+	bool bSuccess = true;
+	int32 LocalizedIndex = 0;
+	int32 SourceIndex = 0;
+	while (LocalizedIndex < ExportCount && SourceIndex < ExportCount)
+	{
+		FString FailReason;
+		const FExportData& LocalizedExportData = GlobalExports[LocalizedPackage.Exports[LocalizedIndex]];
+		const FExportData& SourceExportData = GlobalExports[SourcePackage.Exports[SourceIndex]];
+
+		const TCHAR* LocalizedExportStr = GetExportNameSafe(
+			LocalizedExportData.FullName, LocalizedPackage.Name, LocalizedPackageNameLen);
+		const TCHAR* SourceExportStr = GetExportNameSafe(
+			SourceExportData.FullName, SourcePackage.Name, SourcePackageNameLen);
+
+		if (!LocalizedExportStr || !SourceExportStr)
+		{
+			UE_LOG(LogIoStore, Error,
+				TEXT("Culture '%s': Localized package '%s' (%d) for source package '%s' (%d) - Has some bad data from an earlier phase."),
+				*LocalizedPackage.Region,
+				*LocalizedPackage.Name.ToString(),
+				LocalizedPackage.GlobalPackageId,
+				*LocalizedPackage.SourcePackageName.ToString(),
+				SourcePackage.GlobalPackageId)
+			return false;
+		}
+
+		int32 CompareResult = FCString::Stricmp(LocalizedExportStr, SourceExportStr);
+		if (CompareResult < 0)
+		{
+			++LocalizedIndex;
+
+			if (LocalizedExportData.GlobalImportIndex != -1)
+			{
+				FailReason.Appendf(TEXT("Public localized export '%s' is missing in the source package"),
+					*LocalizedExportData.ObjectName.ToString());
+			}
+		}
+		else if (CompareResult > 0)
+		{
+			++SourceIndex;
+
+			if (SourceExportData.GlobalImportIndex != -1)
+			{
+				FailReason.Appendf(TEXT("Public source export '%s' is missing in the localized package"),
+					*SourceExportData.ObjectName.ToString());
+			}
+		}
+		else
+		{
+			++LocalizedIndex;
+			++SourceIndex;
+
+		if (SourceExportData.GlobalImportIndex != -1)
+		{
+				if (LocalizedExportData.ClassIndex != SourceExportData.ClassIndex)
+			{
+					const FImportData& LocalizedImportData = GlobalImports[LocalizedExportData.ClassIndex.ToImport()];
+					const FImportData& SourceImportData = GlobalImports[SourceExportData.ClassIndex.ToImport()];
+
+					FailReason.Appendf(TEXT("Public export '%s' has class %s (%d) vs. %s (%d)"),
+					*LocalizedExportData.ObjectName.ToString(),
+						*LocalizedImportData.ObjectName.ToString(),
+						LocalizedExportData.ClassIndex.ForDebugging(),
+						*SourceImportData.ObjectName.ToString(),
+						SourceExportData.ClassIndex.ForDebugging());
+			}
+				else if (LocalizedExportData.TemplateIndex != SourceExportData.TemplateIndex)
+			{
+					const FImportData& LocalizedImportData = GlobalImports[LocalizedExportData.TemplateIndex.ToImport()];
+					const FImportData& SourceImportData = GlobalImports[SourceExportData.TemplateIndex.ToImport()];
+
+					FailReason.Appendf(TEXT("Public export '%s' has template %s (%d) vs. %s (%d)"),
+						*LocalizedExportData.ObjectName.ToString(),
+					*LocalizedImportData.ObjectName.ToString(),
+					LocalizedExportData.ClassIndex.ForDebugging(),
+					*SourceImportData.ObjectName.ToString(),
+					SourceExportData.ClassIndex.ForDebugging());
+			}
+			else if (LocalizedExportData.SuperIndex != SourceExportData.SuperIndex)
+			{
+				const FImportData& LocalizedImportData = GlobalImports[LocalizedExportData.ClassIndex.ToImport()];
+				const FImportData& SourceImportData = GlobalImports[SourceExportData.ClassIndex.ToImport()];
+
+					FailReason.Appendf(TEXT("Public export '%s' has super %s (%d) vs. %s (%d)"),
+						*LocalizedExportData.ObjectName.ToString(),
+					*LocalizedImportData.ObjectName.ToString(),
+					LocalizedExportData.ClassIndex.ForDebugging(),
+					*SourceImportData.ObjectName.ToString(),
+					SourceExportData.ClassIndex.ForDebugging());
+			}
+			else
+			{
+					MatchingPublicExports.Emplace(LocalizedIndex - 1, SourceIndex - 1);
+			}
+		}
+		else if (LocalizedExportData.GlobalImportIndex != -1)
+		{
+				FailReason.Appendf(TEXT("Public localized export '%s' exists in the source package")
+					TEXT(", but is not part of the source package interface (it is not imported by any other package)."),
+					*LocalizedExportData.ObjectName.ToString());
+			}
+		}
+
+		if (FailReason.Len() > 0)
+		{
+			UE_LOG(LogIoStore, Warning,
+				TEXT("Culture '%s': Localized package '%s' (%d) for '%s' (%d) - %s"),
+				*LocalizedPackage.Region,
+				*LocalizedPackage.Name.ToString(),
+				LocalizedPackage.GlobalPackageId,
+				*LocalizedPackage.SourcePackageName.ToString(),
+				SourcePackage.GlobalPackageId,
+				*FailReason);
+			bSuccess = false;
+		}
+	}
+
+	if (bSuccess)
+	{
+		for (TPair<int32, int32>& Pair : MatchingPublicExports)
+		{
+			FExportData& LocalizedExportData = GlobalExports[LocalizedPackage.Exports[Pair.Key]];
+			const FExportData& SourceExportData = GlobalExports[SourcePackage.Exports[Pair.Value]];
+
+			LocalizedToSourceImportIndexMap.Add(
+				LocalizedExportData.GlobalImportIndex,
+				SourceExportData.GlobalImportIndex);
+
+			LocalizedExportData.GlobalImportIndex = SourceExportData.GlobalImportIndex;
+
+		}
+	LocalizedPackage.FirstGlobalImport = SourcePackage.FirstGlobalImport;
+	LocalizedPackage.GlobalImportCount = SourcePackage.GlobalImportCount;
+	}
+
+	return bSuccess;
 }
 
 void FinalizePackageHeader(
@@ -1582,7 +1839,7 @@ static void ParsePackageAssets(
 		}, EParallelForFlags::Unbalanced);
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Serializing package assets..."));
+	UE_LOG(LogIoStore, Display, TEXT("Parsing package assets..."));
 	{
 		IOSTORE_CPU_SCOPE(SerializeAssets);
 
@@ -1706,6 +1963,169 @@ static void ParsePackageAssets(
 	}
 }
 
+void ProcessLocalizedPackages(
+	const TArray<FPackage*>& Packages,
+	const FPackageMap& PackageMap,
+	const TArray<FImportData>& GlobalImports,
+	TArray<FExportData>& GlobalExports,
+	FCulturePackageMap& OutCulturePackageMap,
+	FSourceToLocalizedPackageMultimap& OutSourceToLocalizedPackageMap)
+{
+	IOSTORE_CPU_SCOPE(ProcessLocalizedPackages);
+
+	FLocalizedToSourceImportIndexMap LocalizedToSourceImportIndexMap;
+
+	UE_LOG(LogIoStore, Display, TEXT("Conforming localized packages..."));
+	for (FPackage* Package : Packages)
+	{
+		if (Package->Region.Len() == 0)
+		{
+			continue;
+		}
+
+		if (Package->Name == Package->SourcePackageName)
+		{
+			UE_LOG(LogIoStore, Error,
+				TEXT("For culture '%s': Localized package '%s' (%d) should have a package name different from source name."),
+				*Package->Region,
+				*Package->Name.ToString(),
+				Package->GlobalPackageId)
+			continue;
+		}
+
+		FPackage* SourcePackage = PackageMap.FindRef(Package->SourcePackageName);
+		if (!SourcePackage)
+		{
+			// no update or verification required
+			UE_LOG(LogIoStore, Verbose,
+				TEXT("For culture '%s': Localized package '%s' (%d) is unique and does not override a source package."),
+				*Package->Region,
+				*Package->Name.ToString(),
+				Package->GlobalPackageId);
+			continue;
+		}
+
+		Package->SourceGlobalPackageId = SourcePackage->GlobalPackageId;
+
+		Package->bIsLocalizedAndConformed = ConformLocalizedPackage(
+			PackageMap, GlobalImports, *SourcePackage,
+			*Package, GlobalExports, LocalizedToSourceImportIndexMap);
+
+		if (Package->bIsLocalizedAndConformed)
+		{
+			UE_LOG(LogIoStore, Verbose, TEXT("For culture '%s': Adding conformed localized package '%s' (%d) for '%s' (%d). ")
+				TEXT("When loading the source package it will be remapped to this localized package."),
+				*Package->Region,
+				*Package->Name.ToString(),
+				Package->GlobalPackageId,
+				*Package->SourcePackageName.ToString(),
+				SourcePackage->GlobalPackageId);
+
+			OutSourceToLocalizedPackageMap.Add(SourcePackage, Package);
+			OutCulturePackageMap.FindOrAdd(Package->Region).Add(SourcePackage->GlobalPackageId, Package->GlobalPackageId);
+		}
+		else
+		{
+			UE_LOG(LogIoStore, Warning,
+				TEXT("For culture '%s': Localized package '%s' (%d) does not conform to source package '%s' (%d) due to mismatching public exports. ")
+				TEXT("When loading the source package will never be remapped to this localized package."),
+				*Package->Region,
+				*Package->Name.ToString(),
+				Package->GlobalPackageId,
+				*Package->SourcePackageName.ToString(),
+				SourcePackage->GlobalPackageId);
+		}
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Adding localized import packages..."));
+	TArray<FPackage*> LocalizedPackages;
+
+	for (FPackage* Package : Packages)
+	{
+		LocalizedPackages.Reset();
+		for (FPackage* ImportedPackage : Package->ImportedPackages)
+		{
+			LocalizedPackages.Reset();
+			OutSourceToLocalizedPackageMap.MultiFind(ImportedPackage, LocalizedPackages);
+			for (FPackage* LocalizedPackage : LocalizedPackages)
+			{
+				UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized imported package '%s' (%d)"),
+					*Package->Name.ToString(),
+					Package->GlobalPackageId,
+					*LocalizedPackage->Name.ToString(),
+					LocalizedPackage->GlobalPackageId);
+			}
+		}
+		Package->ImportedPackagesSerializeCount = Package->ImportedPackages.Num();
+		Package->ImportedPackages.Append(LocalizedPackages);
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Conforming localized imports..."));
+	for (FPackage* Package : Packages)
+	{
+		for (int32& GlobalImportIndex : Package->Imports)
+		{
+			const FImportData& ImportData = GlobalImports[GlobalImportIndex];
+			if (ImportData.bIsLocalized)
+			{
+				const int32* SourceGlobalImportIndex = LocalizedToSourceImportIndexMap.Find(GlobalImportIndex);
+				if (SourceGlobalImportIndex)
+				{
+					GlobalImportIndex = *SourceGlobalImportIndex;
+
+					const FImportData& SourceImportData = GlobalImports[*SourceGlobalImportIndex];
+					UE_LOG(LogIoStore, Verbose,
+						TEXT("For package '%s' (%d): Remap localized import %s to source import %s (in a conformed localized package)"),
+						*Package->Name.ToString(),
+						Package->GlobalPackageId,
+						*ImportData.FullName,
+						*SourceImportData.FullName);
+				}
+				else
+				{
+					UE_LOG(LogIoStore, Verbose,
+						TEXT("For package '%s' (%d): Skip remap for localized import %s")
+						TEXT(", either there is no source package or the localized package did not conform to it."),
+						*Package->Name.ToString(),
+						Package->GlobalPackageId,
+						*ImportData.FullName);
+				}
+
+				// FString SourceImport = RemapLocalizationPathIfNeeded(Package->ImportedFullNames[I], nullptr);
+				// if (int32* SourceImportIndex = GlobalImportsByFullName.Find(SourceImport))
+				// {
+				// 	UE_LOG(LogIoStore, Warning,
+				// 		TEXT("Remap import index from %d to %d with new name %s"),
+				// 		GlobalImportIndex, *SourceImportIndex, *SourceImport);
+
+				// 	ensure(GlobalImports[*SourceImportIndex].GlobalIndex == *SourceImportIndex);
+				// 	Package->Imports.Add(GlobalImports[*SourceImportIndex].GlobalIndex);
+				// }
+				// else
+				// {
+				// 	UE_LOG(LogIoStore, Warning,
+				// 		TEXT("Failed to remap import index from %d"),
+				// 		GlobalImportIndex);
+
+				// 	ensure(ImportData.GlobalIndex == GlobalImportIndex);
+				// 	Package->Imports.Add(ImportData.GlobalIndex);
+				// }
+			}
+			// else
+			// {
+			// 	ensure(ImportData.GlobalIndex == GlobalImportIndex);
+			// 	Package->Imports.Add(ImportData.GlobalIndex);
+			// }
+
+			// if (ImportData.Package)
+			// {
+			// 	Package->ImportedPackages.Add(ImportData.Package);
+			// 	ImportData.Package->ImportedByPackages.Add(Package);
+			// }
+		}
+}
+}
+
 int32 CreateTarget(
 	const TCHAR* OutputDir,
 	const TCHAR* CookedDir,
@@ -1734,7 +2154,7 @@ int32 CreateTarget(
 	TArray<FExportBundleMetaEntry> ExportBundleMetaEntries;
 
 	TArray<FPackage*> Packages;
-	TMap<FName, FPackage*> PackageMap;
+	FPackageMap PackageMap;
 
 	TArray<FIoStoreWriter*> IoStoreWriters;
 	FIoStoreWriter* GlobalIoStoreWriter;
@@ -1824,6 +2244,7 @@ int32 CreateTarget(
 	ParsePackageAssets(NameMapBuilder, Packages, PackageAssetData, GlobalPackageData, ExportGraph);
 
 	TArray<FImportData>& GlobalImports = GlobalPackageData.Imports.Objects;
+	TArray<FExportData>& GlobalExports = GlobalPackageData.Exports.Objects;
 	TMap<FString, int32>& GlobalImportsByFullName = GlobalPackageData.Imports.ObjectsByFullName;
 	TMap<FString, int32>& GlobalExportsByFullName = GlobalPackageData.Exports.ObjectsByFullName;
 
@@ -1923,9 +2344,6 @@ int32 CreateTarget(
 	}
 #endif
 
-	TSet<FString> MissingExports;
-	TSet<FPackage*> Visited;
-	TSet<FCircularImportChain> CircularChains;
 
 	// Lookup global indices and package pointers for all imports before adding preload and postload arcs
 	UE_LOG(LogIoStore, Display, TEXT("Looking up import packages..."));
@@ -1979,9 +2397,21 @@ int32 CreateTarget(
 		}
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Adding optimized postload dependencies..."));
+	FSourceToLocalizedPackageMultimap SourceToLocalizedPackageMap;
+	FCulturePackageMap CulturePackageMap;
+
+	ProcessLocalizedPackages(
+		Packages, PackageMap, GlobalImports, GlobalExports,
+		CulturePackageMap, SourceToLocalizedPackageMap);
+
+	int32 CircularChainCount = 0;
+
+	UE_LOG(LogIoStore, Display, TEXT("Adding postload dependencies..."));
 	{
 		IOSTORE_CPU_SCOPE(PostLoadDependencies);
+
+		TSet<FPackage*> Visited;
+		TSet<FCircularImportChain> CircularChains;
 
 		for (FPackage* Package : Packages)
 		{
@@ -1989,12 +2419,14 @@ int32 CreateTarget(
 			Visited.Add(Package);
 			AddPostLoadDependencies(*Package, Visited, CircularChains);
 		}
+		CircularChainCount = CircularChains.Num();
 	}
 		
 	UE_LOG(LogIoStore, Display, TEXT("Adding preload dependencies..."));
 	{
 		IOSTORE_CPU_SCOPE(PreLoadDependencies);
 
+		TArray<FPackage*> LocalizedPackages;
 		for (FPackage* Package : Packages)
 		{
 			// Convert PreloadDependencies to arcs
@@ -2024,12 +2456,27 @@ int32 CreateTarget(
 						else
 						{
 							check(Import.GlobalExportIndex != - 1);
-							FExportData& Export = GlobalPackageData.Exports.Objects[Import.GlobalExportIndex];
+							FExportData& Export = GlobalExports[Import.GlobalExportIndex];
+
 							FPackage* SourcePackage = PackageMap.FindRef(Export.SourcePackageName);
 							check(SourcePackage);
-							FPackageIndex SourceDep = FPackageIndex::FromExport(Export.SourceIndex);
+
 							AddExternalExportArc(ExportGraph, *SourcePackage, Export.SourceIndex, PhaseFrom, *Package, I, PhaseTo);
 							Package->ImportedPreloadPackages.Add(SourcePackage);
+
+							LocalizedPackages.Reset();
+							SourceToLocalizedPackageMap.MultiFind(SourcePackage, LocalizedPackages);
+							for (FPackage* LocalizedPackage : LocalizedPackages)
+							{
+								UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized preload dependency '%s' in '%s'"),
+									*Package->Name.ToString(),
+									Package->GlobalPackageId,
+									*Export.ObjectName.ToString(),
+									*LocalizedPackage->Name.ToString());
+
+								AddExternalExportArc(ExportGraph, *LocalizedPackage, Export.SourceIndex, PhaseFrom, *Package, I, PhaseTo);
+								Package->ImportedPreloadPackages.Add(LocalizedPackage);
+							}
 						}
 					}
 				};
@@ -2142,19 +2589,21 @@ int32 CreateTarget(
 
 			NameMapBuilder.MarkNameAsReferenced(Package->Name);
 			NameMapBuilder.SerializeName(*StoreTocArchive, Package->Name);
+			*StoreTocArchive << Package->SourceGlobalPackageId;
 			*StoreTocArchive << Package->ExportCount;
 			int32 ExportBundleCount = Package->ExportBundles.Num();
 			*StoreTocArchive << ExportBundleCount;
 			*StoreTocArchive << Package->FirstExportBundleMetaEntry;
 			*StoreTocArchive << Package->FirstGlobalImport;
 			*StoreTocArchive << Package->GlobalImportCount;
-			int32 ImportedPackagesCount = Package->ImportedPackages.Num();
+			int32 ImportedPackagesCount = Package->ImportedPackagesSerializeCount;
 			*StoreTocArchive << ImportedPackagesCount;
 			int32 ImportedPackagesOffset = ImportedPackagesArchive->Tell();
 			*StoreTocArchive << ImportedPackagesOffset;
 
-			for (FPackage* ImportedPackage : Package->ImportedPackages)
+			for (int32 I = 0; I < Package->ImportedPackagesSerializeCount; ++I)
 			{
+				FPackage* ImportedPackage = Package->ImportedPackages[I];
 				*ImportedPackagesArchive << ImportedPackage->GlobalPackageId;
 			}
 		}
@@ -2258,6 +2707,8 @@ int32 CreateTarget(
 
 		GlobalMetaArchive << ExportBundleMetaByteCount;
 		GlobalMetaArchive.Serialize(ExportBundleMetaEntries.GetData(), ExportBundleMetaByteCount);
+
+		GlobalMetaArchive << CulturePackageMap;
 
 #if !SKIP_WRITE_CONTAINER
 		const FIoStatus Status = GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalMeta), FIoBuffer(FIoBuffer::Wrap, GlobalMetaArchive.GetData(), GlobalMetaArchive.TotalSize()), TEXT("LoaderGlobalMeta"));
@@ -2403,7 +2854,7 @@ int32 CreateTarget(
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageImportMap"), (double)ImportMapSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageExportMap"), (double)ExportMapSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB PackageArcs, %d internal arcs, %d external arcs, %d circular packages (%d chains)"),
-		(double)UGraphSize / 1024.0 / 1024.0, TotalInternalArcCount, TotalExternalArcCount, CircularPackagesCount, CircularChains.Num());
+		(double)UGraphSize / 1024.0 / 1024.0, TotalInternalArcCount, TotalExternalArcCount, CircularPackagesCount, CircularChainCount);
 
 	return 0;
 }

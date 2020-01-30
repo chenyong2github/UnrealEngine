@@ -14,6 +14,8 @@
 #include "Stats/StatsMisc.h"
 #include "Misc/CoreStats.h"
 #include "HAL/IConsoleManager.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
@@ -52,31 +54,49 @@
 #include "UObject/UObjectClusters.h"
 
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
-//PRAGMA_DISABLE_OPTIMIZATION
+PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
+#ifndef ALT2_VERIFY_ASYNC_FLAGS
 #define ALT2_VERIFY_ASYNC_FLAGS DO_CHECK
+#endif
 
-#define UE_ASYNC_PACKAGE_LOG(Verbosity, Desc, Function, Text) \
-if ((Desc).Name != (Desc).NameToLoad) \
+#ifndef ALT2_LOG_VERBOSE
+#define ALT2_LOG_VERBOSE DO_CHECK
+#endif
+
+#define UE_ASYNC_PACKAGE_LOG(Verbosity, PackageDesc, LogDesc, Format, ...) \
+if ((PackageDesc).Name != (PackageDesc).NameToLoad) \
 { \
-	UE_LOG(LogStreaming, Verbosity, Function TEXT(": ") Text TEXT(": %s (%d) %s (%d)."), \
-		*(Desc).Name.ToString(), \
-		(Desc).PackageId.ToIndexForDebugging(), \
-		*(Desc).NameToLoad.ToString(), \
-		(Desc).PackageIdToLoad.ToIndexForDebugging()); \
+	UE_LOG(LogStreaming, Verbosity, LogDesc TEXT(": %s (%d) %s (%d) - ") Format, \
+		*(PackageDesc).Name.ToString(), \
+		(PackageDesc).PackageId.ToIndexForDebugging(), \
+		*(PackageDesc).NameToLoad.ToString(), \
+		(PackageDesc).PackageIdToLoad.ToIndexForDebugging(), \
+		##__VA_ARGS__); \
 } \
 else \
 { \
-	UE_LOG(LogStreaming, Verbosity, Function TEXT(": ") Text TEXT(": %s (%d)."), \
-		*(Desc).Name.ToString(), \
-		(Desc).PackageId.ToIndexForDebugging()); \
+	UE_LOG(LogStreaming, Verbosity, LogDesc TEXT(": %s (%d) - ") Format, \
+		*(PackageDesc).Name.ToString(), \
+		(PackageDesc).PackageId.ToIndexForDebugging(), \
+		##__VA_ARGS__); \
 }
 
-#if DO_CHECK
-#define UE_ASYNC_PACKAGE_LOG_VERBOSE(Verbosity, Desc, Function, Text) UE_ASYNC_PACKAGE_LOG(Verbosity, Desc, Function, Text)
+#define UE_ASYNC_PACKAGE_CLOG(Condition, Verbosity, PackageDesc, LogDesc, Format, ...) \
+if ((Condition)) \
+{ \
+	UE_ASYNC_PACKAGE_LOG(Verbosity, PackageDesc, LogDesc, Format, ##__VA_ARGS__); \
+}
+
+#if ALT2_LOG_VERBOSE
+#define UE_ASYNC_PACKAGE_LOG_VERBOSE(Verbosity, PackageDesc, LogDesc, Format, ...) \
+	UE_ASYNC_PACKAGE_LOG(Verbosity, PackageDesc, LogDesc, Format, ##__VA_ARGS__)
+#define UE_ASYNC_PACKAGE_CLOG_VERBOSE(Condition, Verbosity, PackageDesc, LogDesc, Format, ...) \
+	UE_ASYNC_PACKAGE_CLOG(Condition, Verbosity, PackageDesc, LogDesc, Format, ##__VA_ARGS__)
 #else
-#define UE_ASYNC_PACKAGE_LOG_VERBOSE(Verbosity, Desc, Function, Text)
+#define UE_ASYNC_PACKAGE_LOG_VERBOSE(Verbosity, PackageDesc, LogDesc, Format, ...)
+#define UE_ASYNC_PACKAGE_CLOG_VERBOSE(Condition, Verbosity, PackageDesc, LogDesc, Format, ...)
 #endif
 
 struct FAsyncPackage2;
@@ -189,6 +209,72 @@ struct FExportObject
 	bool bFiltered = false;
 };
 
+struct FAsyncPackageDesc2
+{
+	// A unique request id for each external call to LoadPackage
+	int32 RequestID;
+	// The PackageId is used as a key in AsyncPackageLookup to track active load requests,
+	// which in turn is used for looking up packages for setting up serialized arcs (mostly post load dependencies).
+	// The PackageId always corresponds to either Name or NameToLoad.
+	// - For normal packages it is the same as PackageIdToLoad.
+	// - For temp packages it is a "fake" unique package id for that specific temporary name.
+	// - For localized packages it is the same as PackageIdToLoad,
+	//   source package id cannot be used here, then serialized arcs would be wrong.
+	FPackageId PackageId; 
+	// The package id to load always represents an actual serialized package on disc.
+	FPackageId PackageIdToLoad; 
+	// The UPackage name used by the engine and game code for in memory and external communication.
+	// - For normal packages it is the same as NameToLoad.
+	// - For temp packages it is a temp name provided in the call to LoadPackage.
+	// - For localized packages it is the source name of the localized package,
+	//   so clients running different languages all use the same name.
+	FName Name;
+	// The package name of the actual serialized package on disc. Always corresponds to PackageIdToLoad.
+	FName NameToLoad;
+	/** Delegate called on completion of loading. This delegate can only be created and consumed on the game thread */
+	TUniquePtr<FLoadPackageAsyncDelegate> PackageLoadedDelegate;
+
+	FAsyncPackageDesc2(
+		int32 InRequestID,
+		FPackageId InPackageId,
+		FPackageId InPackageIdToLoad,
+		const FName& InName,
+		const FName& InNameToLoad,
+		TUniquePtr<FLoadPackageAsyncDelegate>&& InCompletionDelegate = TUniquePtr<FLoadPackageAsyncDelegate>())
+		: RequestID(InRequestID)
+		, PackageId(InPackageId)
+		, PackageIdToLoad(InPackageIdToLoad)
+		, Name(InName)
+		, NameToLoad(InNameToLoad)
+		, PackageLoadedDelegate(MoveTemp(InCompletionDelegate))
+	{
+	}
+
+	/** This constructor does not modify the package loaded delegate as this is not safe outside the game thread */
+	FAsyncPackageDesc2(const FAsyncPackageDesc2& OldPackage)
+		: RequestID(OldPackage.RequestID)
+		, PackageId(OldPackage.PackageId)
+		, PackageIdToLoad(OldPackage.PackageIdToLoad)
+		, Name(OldPackage.Name)
+		, NameToLoad(OldPackage.NameToLoad)
+	{
+	}
+
+	/** This constructor will explicitly copy the package loaded delegate and invalidate the old one */
+	FAsyncPackageDesc2(const FAsyncPackageDesc2& OldPackage, TUniquePtr<FLoadPackageAsyncDelegate>&& InPackageLoadedDelegate)
+		: FAsyncPackageDesc2(OldPackage)
+	{
+		PackageLoadedDelegate = MoveTemp(InPackageLoadedDelegate);
+	}
+
+#if DO_GUARD_SLOW
+	~FAsyncPackageDesc2()
+	{
+		checkSlow(!PackageLoadedDelegate.IsValid() || IsInGameThread());
+	}
+#endif
+};
+
 using FExportObjects = TArray<FExportObject>;
 
 class FGlobalImport
@@ -277,6 +363,7 @@ private:
 struct FPackageStoreEntry
 {
 	FName Name;
+	FPackageId SourcePackageId;
 	int32 ExportCount;
 	int32 ExportBundleCount;
 	int32 FirstExportBundleIndex;
@@ -480,6 +567,59 @@ public:
 		}
 
 
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreLocalization);
+
+			using FLocalizedPackageIdMap = TMap<int32, int32>;
+			using FCulturePackageMap = TMap<FString, FLocalizedPackageIdMap>;
+			FCulturePackageMap CulturePackageMap;
+
+			GlobalMetaAr << CulturePackageMap;
+
+			FString CurrentCultureName = FInternationalization::Get().GetCurrentCulture()->GetName();
+			FParse::Value(FCommandLine::Get(), TEXT("CULTURE="), CurrentCultureName);
+
+			FLocalizedPackageIdMap* LocalizedPackageIdMap = CulturePackageMap.Find(CurrentCultureName);
+			if (LocalizedPackageIdMap)
+			{
+				for (auto It = LocalizedPackageIdMap->CreateIterator(); It; ++It)
+				{
+					const FName& SourceName = StoreEntries[It.Key()].Name;
+					FPackageId* FoundPackageId = PackageNameToPackageId.Find(SourceName);
+
+					UE_CLOG(!FoundPackageId, LogStreaming, Warning,
+						TEXT("Skip remapping for localized package %s (%d) since the source package %s (%d) is unknown."),
+						It.Value(),
+						*StoreEntries[It.Value()].Name.ToString(),
+						It.Key(),
+						*SourceName.ToString());
+
+					if (FoundPackageId)
+					{
+						const FPackageId LocalizedPackageId = FPackageId::FromIndex(It.Value());
+						*FoundPackageId = LocalizedPackageId;
+
+#if ALT2_LOG_VERBOSE
+						UE_LOG(LogStreaming, Verbose, TEXT("LoadPackageStore: RemapLocalizedPackage: %s (%d) %s (%d)."),
+							*StoreEntries[It.Key()].Name.ToString(),
+							It.Key(),
+							*StoreEntries[It.Value()].Name.ToString(),
+							It.Value());
+#endif
+					}
+				}
+
+				for (int32 I = 0; I < ImportedPackagesCount; ++I)
+				{
+					if (int32* Value = LocalizedPackageIdMap->Find(ImportedPackages[I]))
+					{
+						ImportedPackages[I] = *Value;
+					}
+				}
+
+			}
+		}
+
 		// Load initial loading meta data
 		{
 			FIoBuffer TempIoBuffer;
@@ -668,6 +808,12 @@ struct FPackageImportStore
 		return GlobalImports[GlobalImportIndex].GetObject();
 	}
 
+	inline bool IsValidLocalImportIndex(FPackageIndex LocalIndex)
+	{
+		check(ImportMap);
+		return LocalIndex.IsImport() && LocalIndex.ToImport() < ImportMapCount;
+	}
+
 	inline UObject* FindOrGetImportFromLocalIndex(FPackageIndex LocalIndex)
 	{
 		check(LocalIndex.IsImport());
@@ -689,6 +835,19 @@ struct FPackageImportStore
 			GIsInitialLoad && GlobalImportIndex < GlobalScriptImportCount ?
 			FindImportFromGlobalIndex(GlobalImportIndex) :
 			GetImportFromGlobalIndex(GlobalImportIndex);
+	}
+
+	inline FName GetNameFromLocalIndex(FPackageIndex LocalIndex)
+	{
+		check(LocalIndex.IsImport());
+		check(ImportMap);
+		const int32 LocalImportIndex = LocalIndex.ToImport();
+		if (LocalImportIndex < ImportMapCount)
+		{
+			const int32 GlobalImportIndex = ImportMap[LocalImportIndex];
+			return GlobalImportNames[GlobalImportIndex];
+		}
+		return FName();
 	}
 
 	void StoreGlobalImportObject(int32 GlobalImportIndex, UObject* InObject)
@@ -771,6 +930,22 @@ public:
 		return true;
 	}
 
+	FORCENOINLINE void HandleBadExportIndex(int32 ExportIndex, UObject*& Object)
+	{
+		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadExportIndex"),
+			TEXT("Index: %d/%d"), ExportIndex, ExportCount);
+
+		Object = nullptr;
+	}
+
+	FORCENOINLINE void HandleBadImportIndex(int32 ImportIndex, UObject*& Object)
+	{
+		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadImportIndex"),
+			TEXT("ImportIndex: %d/%d"), ImportIndex, ImportStore->ImportMapCount);
+
+		Object = nullptr;
+	}
+
 	virtual FArchive& operator<<( UObject*& Object ) override
 	{
 		FPackageIndex Index;
@@ -783,11 +958,41 @@ public:
 		}
 		else if (Index.IsExport())
 		{
-			Object = (*Exports)[Index.ToExport()].Object;
+			const int32 ExportIndex = Index.ToExport();
+			if (ExportIndex < ExportCount)
+			{
+				Object = (*Exports)[ExportIndex].Object;
+
+#if ALT2_LOG_VERBOSE
+				const FExportMapEntry& Export = ExportMap[ExportIndex];
+				FNameEntryId NameEntry = (*GlobalNameMap)[Export.ObjectName[0]];
+				FName ObjectName = FName::CreateFromDisplayId(NameEntry, Export.ObjectName[1]);
+				UE_ASYNC_PACKAGE_CLOG_VERBOSE(!Object, VeryVerbose, *PackageDesc,
+					TEXT("FSimpleExportArchive: Object"), TEXT("Export %s at index %d is null."),
+					*ObjectName.ToString(), 
+					ExportIndex);
+#endif
+			}
+			else
+			{
+				HandleBadExportIndex(ExportIndex, Object);
+			}
 		}
 		else
 		{
-			Object = ImportStore->FindOrGetImportFromLocalIndex(Index);
+			if (ImportStore->IsValidLocalImportIndex(Index))
+			{
+				Object = ImportStore->FindOrGetImportFromLocalIndex(Index);
+
+				UE_ASYNC_PACKAGE_CLOG_VERBOSE(!Object, Log, *PackageDesc,
+					TEXT("FSimpleExportArchive: Object"), TEXT("Import %s at index %d is null"),
+					*ImportStore->GetNameFromLocalIndex(Index).ToString(),
+					Index.ToImport());
+			}
+			else
+			{
+				HandleBadImportIndex(Index.ToImport(), Object);
+			}
 		}
 		return *this;
 	}
@@ -810,9 +1015,14 @@ public:
 		return Ar;
 	}
 
-	void BadNameIndexError(int32 NameIndex)
+	FORCENOINLINE void HandleBadNameIndex(int32 NameIndex, FName& Name)
 	{
-		UE_LOG(LogStreaming, Error, TEXT("Bad name index %i/%i"), NameIndex, GlobalNameMap->Num());
+		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadNameIndex"),
+			TEXT("Index: %d/%d"), NameIndex, GlobalNameMap->Num());
+
+		Name = FName();
+		ArIsError = true;
+		ArIsCriticalError = true;
 	}
 
 	inline virtual FArchive& operator<<(FName& Name) override
@@ -835,10 +1045,7 @@ public:
 		}
 		else
 		{
-			Name = FName();
-			BadNameIndexError(NameIndex);
-			ArIsError = true;
-			ArIsCriticalError = true;
+			HandleBadNameIndex(NameIndex, Name);
 		}
 		return *this;
 	}
@@ -848,10 +1055,14 @@ private:
 	friend FAsyncPackage2;
 
 	UObject* TemplateForGetArchetypeFromLoader = nullptr;
+
+	FAsyncPackageDesc2* PackageDesc = nullptr;
 	FPackageImportStore* ImportStore = nullptr;
 	const int32* PackageNameMap = nullptr;
 	const TArray<FNameEntryId>* GlobalNameMap = nullptr;
 	const FExportObjects* Exports = nullptr;
+	const FExportMapEntry* ExportMap = nullptr;
+	int32 ExportCount = 0;
 	TArray<FExternalReadCallback>* ExternalReadDependencies;
 };
 
@@ -1067,56 +1278,6 @@ struct FAsyncLoadingThreadState2
 
 uint32 FAsyncLoadingThreadState2::TlsSlot;
 
-struct FAsyncPackageDesc2
-{
-	int32 RequestID;
-	FPackageId PackageId;
-	FPackageId PackageIdToLoad;
-	FName Name;
-	FName NameToLoad;
-	/** Delegate called on completion of loading. This delegate can only be created and consumed on the game thread */
-	TUniquePtr<FLoadPackageAsyncDelegate> PackageLoadedDelegate;
-
-	FAsyncPackageDesc2(
-		int32 InRequestID,
-		FPackageId InPackageId,
-		FPackageId InPackageIdToLoad,
-		const FName& InName,
-		const FName& InNameToLoad,
-		TUniquePtr<FLoadPackageAsyncDelegate>&& InCompletionDelegate = TUniquePtr<FLoadPackageAsyncDelegate>())
-		: RequestID(InRequestID)
-		, PackageId(InPackageId)
-		, PackageIdToLoad(InPackageIdToLoad)
-		, Name(InName)
-		, NameToLoad(InNameToLoad)
-		, PackageLoadedDelegate(MoveTemp(InCompletionDelegate))
-	{
-	}
-
-	/** This constructor does not modify the package loaded delegate as this is not safe outside the game thread */
-	FAsyncPackageDesc2(const FAsyncPackageDesc2& OldPackage)
-		: RequestID(OldPackage.RequestID)
-		, PackageId(OldPackage.PackageId)
-		, PackageIdToLoad(OldPackage.PackageIdToLoad)
-		, Name(OldPackage.Name)
-		, NameToLoad(OldPackage.NameToLoad)
-	{
-	}
-
-	/** This constructor will explicitly copy the package loaded delegate and invalidate the old one */
-	FAsyncPackageDesc2(const FAsyncPackageDesc2& OldPackage, TUniquePtr<FLoadPackageAsyncDelegate>&& InPackageLoadedDelegate)
-		: FAsyncPackageDesc2(OldPackage)
-	{
-		PackageLoadedDelegate = MoveTemp(InPackageLoadedDelegate);
-	}
-
-#if DO_GUARD_SLOW
-	~FAsyncPackageDesc2()
-	{
-		checkSlow(!PackageLoadedDelegate.IsValid() || IsInGameThread());
-	}
-#endif
-};
 /**
 * Structure containing intermediate data required for async loading of all exports of a package.
 */
@@ -2038,16 +2199,18 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue()
 
 		if (bInserted)
 		{
-			UE_ASYNC_PACKAGE_LOG(Verbose, *PackageDesc, TEXT("CreateAsyncPackages"), TEXT("AddPackage"));
+			UE_ASYNC_PACKAGE_LOG(Verbose, *PackageDesc, TEXT("CreateAsyncPackages: AddPackage"),
+				TEXT("Start loading package."));
 		}
 		else if (!Package)
 		{
-			UE_ASYNC_PACKAGE_LOG(Warning, *PackageDesc, TEXT("CreateAsyncPackages"),
+			UE_ASYNC_PACKAGE_LOG(Warning, *PackageDesc, TEXT("CreateAsyncPackages: SkipPackage"),
 				TEXT("Skipping unknown package, probably a temp package that has already been completely loaded"));
 		}
 		else
 		{
-			UE_ASYNC_PACKAGE_LOG_VERBOSE(Verbose, *PackageDesc, TEXT("CreateAsyncPackages"), TEXT("UpdPackage"));
+			UE_ASYNC_PACKAGE_LOG_VERBOSE(Verbose, *PackageDesc, TEXT("CreateAsyncPackages: UpdatePackage"),
+				TEXT("Package is alreay being loaded."));
 		}
 
 		--QueuedPackagesCounter;
@@ -2577,8 +2740,14 @@ void FAsyncPackage2::ImportPackagesRecursive()
 
 		if (bNeedToLoadPackage)
 		{
-			FPackageId PackageId = FPackageId::FromIndex(GlobalPackageIndex);
-			FAsyncPackageDesc2 PackageDesc(INDEX_NONE, PackageId, PackageId, Entry.Name, Entry.Name);
+			const FPackageId PackageIdToLoad = FPackageId::FromIndex(GlobalPackageIndex);
+			const FName NameToLoad = Entry.Name;
+			const FName SourceName =
+				Entry.SourcePackageId.IsValid() ?
+				GlobalPackageStore.StoreEntries[Entry.SourcePackageId.ToIndex()].Name :
+				NameToLoad;
+
+			FAsyncPackageDesc2 PackageDesc(INDEX_NONE, PackageIdToLoad, PackageIdToLoad, SourceName, NameToLoad);
 			bool bInserted;
 			FAsyncPackage2* ImportedPackage = AsyncLoadingThread.FindOrInsertPackage(&PackageDesc, bInserted);
 			if (ImportedPackage)
@@ -2586,11 +2755,13 @@ void FAsyncPackage2::ImportPackagesRecursive()
 				TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(this, ImportedPackage);
 				if (bInserted)
 				{
-					UE_ASYNC_PACKAGE_LOG(Verbose, PackageDesc, TEXT("ImportPackages"), TEXT("AddPackage"));
+					UE_ASYNC_PACKAGE_LOG(Verbose, PackageDesc, TEXT("ImportPackages: AddPackage"),
+						TEXT("Start loading imported package."));
 				}
 				else
 				{
-					UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, PackageDesc, TEXT("ImportPackages"), TEXT("UpdPackage"));
+					UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, PackageDesc, TEXT("ImportPackages: UpdatePackage"),
+						TEXT("Imported package is already being loaded."));
 				}
 				ImportedPackage->AddRef();
 				ImportedAsyncPackages.Reserve(ImportedPackageCount);
@@ -2603,11 +2774,13 @@ void FAsyncPackage2::ImportPackagesRecursive()
 			}
 			else
 			{
-				UE_ASYNC_PACKAGE_LOG(Error, PackageDesc, TEXT("ImportPackages"), TEXT("Skipping unknown package, but this should never happen here"));
+				UE_ASYNC_PACKAGE_LOG(Error, PackageDesc, TEXT("ImportPackages: SkipPackage"),
+					TEXT("Skipping unknown imported package, but this should not happen here"));
 			}
 		}
 	}
-	UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("ImportPackages"), TEXT("ImportsDone"));
+	UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("ImportPackages: ImportsDone"),
+		TEXT("All imported packages are now being loaded."));
 }
 
 void FAsyncPackage2::StartLoading()
@@ -2747,10 +2920,13 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 		Ar.ArAllowLazyLoading = true;
 
 		// FSimpleExportArchive special fields
+		Ar.PackageDesc = &Package->Desc;
 		Ar.PackageNameMap = Package->PackageNameMap;
 		Ar.GlobalNameMap = &Package->AsyncLoadingThread.GlobalNameMap.GetNameEntries();
 		Ar.ImportStore = &Package->ImportStore;
 		Ar.Exports = &Package->Exports;
+		Ar.ExportMap = Package->ExportMap;
+		Ar.ExportCount = Package->ExportCount;
 		Ar.ExternalReadDependencies = &Package->ExternalReadDependencies;
 	}
 	const FExportBundleHeader* ExportBundle = Package->ExportBundles + ExportBundleIndex;
@@ -3158,7 +3334,8 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoad(FAsyncPackage2* Package,
 
 	if (Package->LinkerRoot && LoadingState == EAsyncPackageState::Complete)
 	{
-		UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("AsyncPackage"), TEXT("FullyLoaded"));
+		UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("AsyncThread: FullyLoaded"),
+			TEXT("Async loading of package is done, and UPackage is marked as fully loaded."))
 		Package->LinkerRoot->MarkAsFullyLoaded();
 	}
 
@@ -3407,7 +3584,8 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			Package->bAddedForDelete = true;
 			Package->MarkRequestIDsAsComplete();
 
-			UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("GameThread"), TEXT("LoadCompleted"));
+			UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("GameThread: LoadCompleted"),
+				TEXT("All loading of package is done, and the async package and load request will be deleted."));
 
 			if (FlushRequestID != INDEX_NONE && !ContainsRequestID(FlushRequestID))
 			{
@@ -4366,11 +4544,13 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 
 	if (bCreatedLinkerRoot)
 	{
-		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateUPackage"), TEXT("AddPackage"));
+		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateUPackage: AddPackage"),
+			TEXT("New UPackage created."));
 	}
 	else
 	{
-		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateUPackage"), TEXT("UpdPackage"));
+		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateUPackage: UpdatePackage"),
+			TEXT("Existing UPackage updated."));
 	}
 }
 
@@ -4731,13 +4911,13 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 		FAsyncPackageDesc2 PackageDesc(RequestID, PackageId, PackageIdToLoad, PackageName, PackageNameToLoad, MoveTemp(CompletionDelegatePtr));
 		QueuePackage(PackageDesc);
 
-		UE_ASYNC_PACKAGE_LOG(Verbose, PackageDesc, TEXT("LoadPackage"), TEXT("QueuePackage"));
+		UE_ASYNC_PACKAGE_LOG(Verbose, PackageDesc, TEXT("LoadPackage: QueuePackage"), TEXT("Package added to pending queue."));
 	}
 	else
 	{
 		FPackageId PackageId = PackageName != PackageNameToLoad ? GlobalPackageStore.FindPackageId(PackageName) : PackageIdToLoad;
 		FAsyncPackageDesc2 PackageDesc(RequestID, PackageId, PackageIdToLoad, PackageName, PackageNameToLoad);
-		UE_ASYNC_PACKAGE_LOG(Warning, PackageDesc, TEXT("LoadPackage"), TEXT("Skipping unknown package, the provided package does not exist"));
+		UE_ASYNC_PACKAGE_LOG(Warning, PackageDesc, TEXT("LoadPackage: SkipPackage"), TEXT("Skipping unknown package, the provided package does not exist"));
 		InCompletionDelegate.ExecuteIfBound(PackageName, nullptr, EAsyncLoadingResult::Failed);
 	}
 
