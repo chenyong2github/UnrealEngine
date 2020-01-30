@@ -572,41 +572,58 @@ private:
 	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
 	bool QueryImp(const TVector<T, 3>& Start, TQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, const TAABB<T,3>& QueryBounds, SQVisitor& Visitor) const
 	{
+		//QUICK_SCOPE_CYCLE_COUNTER(AABBTreeQueryImp);
 		TVector<T, 3> TmpPosition;
 		T TOI = 0;
+		const void* QueryData = Visitor.GetQueryData();
 
-		for (const auto& Elem : GlobalPayloads)
 		{
-			const auto& InstanceBounds = Elem.Bounds;
-			if (TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
+
+			//QUICK_SCOPE_CYCLE_COUNTER(QueryGlobal);
+
+			for(const auto& Elem : GlobalPayloads)
 			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true);
-				bool bContinue;
-				if (Query == EAABBQueryType::Overlap)
+				if (PrePreFilterHelper(Elem.Payload, QueryData))
 				{
-					bContinue = Visitor.VisitOverlap(VisitData);
-				}
-				else
-				{
-					bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData, CurData) : Visitor.VisitRaycast(VisitData, CurData);
+					continue;
 				}
 
-				if (!bContinue)
+				const auto& InstanceBounds = Elem.Bounds;
+				if(TAABBTreeIntersectionHelper<T,TQueryFastData,Query>::Intersects(Start,CurData,TOI,TmpPosition,InstanceBounds,QueryBounds,QueryHalfExtents))
 				{
-					return false;
+					TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload,true);
+					bool bContinue;
+					if(Query == EAABBQueryType::Overlap)
+					{
+						bContinue = Visitor.VisitOverlap(VisitData);
+					} else
+					{
+						bContinue = Query == EAABBQueryType::Sweep ? Visitor.VisitSweep(VisitData,CurData) : Visitor.VisitRaycast(VisitData,CurData);
+					}
+
+					if(!bContinue)
+					{
+						return false;
+					}
 				}
 			}
 		}
 
 		if (bMutable)
 		{
+			//QUICK_SCOPE_CYCLE_COUNTER(QueryDirty);
+
 			for (const auto& Elem : DirtyElements)
 			{
 				const auto& InstanceBounds = Elem.Bounds;
+				if (PrePreFilterHelper(Elem.Payload, QueryData))
+				{
+					continue;
+				}
+
 				if (TAABBTreeIntersectionHelper<T, TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents))
 				{
 					TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-
 					bool bContinue;
 					if (Query == EAABBQueryType::Overlap)
 					{
@@ -623,6 +640,7 @@ private:
 					}
 				}
 			}
+
 		}
 
 		struct FNodeQueueEntry
@@ -959,6 +977,9 @@ private:
 				check(false);
 				return true;
 			}
+
+			const void* GetQueryData() const { return nullptr; }
+
 			TArray<TPayloadType>& CollectedResults;
 		};
 
