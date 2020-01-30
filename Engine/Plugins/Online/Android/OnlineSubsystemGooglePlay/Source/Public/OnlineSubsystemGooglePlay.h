@@ -10,6 +10,8 @@
 #include "Templates/UniquePtr.h"
 #include "HAL/RunnableThread.h"
 #include "OnlineStoreInterfaceGooglePlay.h"
+#include "OnlineStoreGooglePlay.h"
+#include "OnlinePurchaseGooglePlay.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "gpg/game_services.h"
@@ -132,7 +134,7 @@ PACKAGE_SCOPE:
 	 * @param InResponseCode response from the GooglePlay backend
 	 * @param ProvidedProductInformation information returned from the backend about the queried offers
 	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnGooglePlayAvailableIAPQueryComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const TArray<FInAppPurchaseProductInfo>& /*ProvidedProductInformation*/);
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnGooglePlayAvailableIAPQueryComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const TArray<FOnlineStoreOffer>& /*ProvidedProductInformation*/);
 
 	/**
 	 * Delegate fired internally when the Java in app purchase has completed, notifying any GooglePlay OSS listeners
