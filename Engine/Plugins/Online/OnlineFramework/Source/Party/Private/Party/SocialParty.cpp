@@ -1287,6 +1287,16 @@ bool USocialParty::IsLocalPlayerPartyLeader() const
 	return OwningLocalUserId == CurrentLeaderId;
 }
 
+bool USocialParty::IsPartyLeader(const ULocalPlayer& LocalPlayer) const
+{
+	return LocalPlayer.GetPreferredUniqueNetId() == CurrentLeaderId;
+}
+
+bool USocialParty::IsPartyLeaderLocal() const
+{
+	return GetSocialManager().IsLocalUser(CurrentLeaderId, ESocialSubsystem::Primary);
+}
+
 bool USocialParty::IsNetDriverFromReservationBeacon(const UNetDriver* const InNetDriver) const
 {
 	const FName NetDriverName = InNetDriver->NetDriverName;
