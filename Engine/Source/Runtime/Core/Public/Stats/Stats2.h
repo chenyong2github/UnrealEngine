@@ -1522,6 +1522,7 @@ class FCycleCounter
 {
 	/** Name of the stat, usually a short name **/
 	FName StatId;
+	bool bEmitsNamedEvents = false;
 
 public:
 
@@ -1536,21 +1537,23 @@ public:
 		{
 			return;
 		}
+
+		// Emit named event for active cycle stat.
+		if ( GCycleStatsShouldEmitNamedEvents > 0 )
+		{
+#if	PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
+			FPlatformMisc::BeginNamedEvent( FColor( 0 ), InStatId.GetStatDescriptionANSI() );
+#else
+			FPlatformMisc::BeginNamedEvent( FColor( 0 ), InStatId.GetStatDescriptionWIDE() );
+#endif // PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
+			bEmitedNamedEvent = true;
+		}
+
 		if( (bAlways && FThreadStats::WillEverCollectData()) || FThreadStats::IsCollectingData() )
 		{
 			FName StatName = MinimalNameToName(StatMinimalName);
 			StatId = StatName;
 			FThreadStats::AddMessage( StatName, EStatOperation::CycleScopeStart );
-
-			// Emit named event for active cycle stat.
-			if( GCycleStatsShouldEmitNamedEvents > 0 )
-			{
-#if	PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
-				FPlatformMisc::BeginNamedEvent( FColor( 0 ), InStatId.GetStatDescriptionANSI() );
-#else
-				FPlatformMisc::BeginNamedEvent( FColor( 0 ), InStatId.GetStatDescriptionWIDE() );
-#endif // PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
-			}
 		}
 	}
 
@@ -1559,15 +1562,15 @@ public:
 	 */
 	FORCEINLINE_STATS void Stop()
 	{
+		if ( bEmitsNamedEvents )
+		{
+			FPlatformMisc::EndNamedEvent();
+			bEmitedNamedEvent = false;
+		}
+
 		if( !StatId.IsNone() )
 		{
 			FThreadStats::AddMessage(StatId, EStatOperation::CycleScopeEnd);
-
-			// End named event for active cycle stat.
-			if( GCycleStatsShouldEmitNamedEvents > 0 )
-			{
-				FPlatformMisc::EndNamedEvent();
-			}
 		}
 	}
 
