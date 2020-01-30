@@ -319,7 +319,7 @@ void FAppEventManager::PauseAudio()
 	bAudioPaused = true;
 	UE_LOG(LogTemp, Log, TEXT("Android pause audio"));
 
-	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
 		if (AudioDevice->IsAudioMixerEnabled())
@@ -354,7 +354,7 @@ void FAppEventManager::ResumeAudio()
 	bAudioPaused = false;
 	UE_LOG(LogTemp, Log, TEXT("Android resume audio"));
 
-	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
 		if (AudioDevice->IsAudioMixerEnabled())

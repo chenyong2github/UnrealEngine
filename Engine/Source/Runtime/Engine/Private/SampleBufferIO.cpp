@@ -17,7 +17,7 @@ namespace Audio
 
 	void FSoundWavePCMLoader::LoadSoundWave(USoundWave* InSoundWave, TFunction<void(const USoundWave* SoundWave, const Audio::FSampleBuffer& OutSampleBuffer)> OnLoaded)
 	{
-		FAudioDeviceHandle AudioDevice = FAudioDevice::GetMainAudioDevice();
+		FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
 
 		if (!AudioDevice || !InSoundWave)
 		{

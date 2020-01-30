@@ -237,7 +237,7 @@ UObject* USoundFactory::CreateObject
 			// to be auditioned in the editor properly.
 			if (!ExistingSound->ResourceData)
 			{
-				if (FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice())
+				if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice())
 				{
 					FName RuntimeFormat = AudioDevice->GetRuntimeFormat(ExistingSound);
 					ExistingSound->InitAudioResource(RuntimeFormat);

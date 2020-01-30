@@ -104,7 +104,7 @@ UWorld* UAudioModulationStatics::GetAudioWorld(const UObject* WorldContextObject
 
 AudioModulation::FAudioModulationImpl* UAudioModulationStatics::GetModulationImpl(UWorld* World)
 {
-	FAudioDeviceHandle AudioDevice;
+	FAudioDevice* AudioDevice = nullptr;
 	if (World)
 	{
 		AudioDevice = World->GetAudioDevice();

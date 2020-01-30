@@ -1132,10 +1132,10 @@ public:
 	}
 
 	/** Returns the main audio device of the engine */
-	static FAudioDeviceHandle GetMainAudioDevice()
+	static FAudioDevice* GetMainAudioDevice()
 	{
 		// Try to get GEngine's main audio device
-		FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 
 		// If we don't have a main audio device (maybe we're running in a non-standard mode like a commandlet)
 		if (!AudioDevice)
@@ -1194,7 +1194,7 @@ public:
 
 	static bool IsOcclusionPluginLoaded()
 	{
-		if (FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice())
+		if (FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice())
 		{
 			return MainAudioDevice->bOcclusionInterfaceEnabled;
 		}
@@ -1209,7 +1209,7 @@ public:
 
 	static bool IsReverbPluginLoaded()
 	{
-		if (FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice())
+		if (FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice())
 		{
 			return MainAudioDevice->bReverbInterfaceEnabled;
 		}
@@ -1678,8 +1678,8 @@ public:
 
 	bool IsMainAudioDevice()
 	{
-		FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice();
-		return (!MainAudioDevice || MainAudioDevice.GetAudioDevice() == this);
+		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice();
+		return (MainAudioDevice == nullptr || MainAudioDevice == this);
 	}
 
 	/** Set whether or not we force the use of attenuation for non-game worlds (as by default we only care about game worlds) */
@@ -1710,7 +1710,7 @@ public:
 	int32 NumPrecacheFrames;
 
 	/** The handle for this audio device used in the audio device manager. */
-	Audio::FDeviceId DeviceID;
+	Audio::FDeviceId DeviceHandle;
 
 	/** 3rd party audio spatialization interface. */
 	TAudioSpatializationPtr SpatializationPluginInterface;

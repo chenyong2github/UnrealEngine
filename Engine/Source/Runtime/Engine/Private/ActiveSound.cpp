@@ -198,7 +198,7 @@ int32 FActiveSound::GetPlayCount() const
 		return 0;
 	}
 
-	if (const int32* PlayCount = Sound->CurrentPlayCount.Find(AudioDevice->DeviceID))
+	if (const int32* PlayCount = Sound->CurrentPlayCount.Find(AudioDevice->DeviceHandle))
 	{
 		return *PlayCount;
 	}
@@ -764,13 +764,13 @@ void FActiveSound::MarkPendingDestroy(bool bDestroyNow)
 
 	if (Sound && !bIsStopping)
 	{
-		int32* PlayCount = AudioDevice ? Sound->CurrentPlayCount.Find(AudioDevice->DeviceID) : nullptr;
+		int32* PlayCount = AudioDevice ? Sound->CurrentPlayCount.Find(AudioDevice->DeviceHandle) : nullptr;
 		if (PlayCount)
 		{
 			*PlayCount = FMath::Max(*PlayCount - 1, 0);
 			if (*PlayCount == 0)
 			{
-				Sound->CurrentPlayCount.Remove(AudioDevice->DeviceID);
+				Sound->CurrentPlayCount.Remove(AudioDevice->DeviceHandle);
 			}
 		}
 
@@ -953,7 +953,7 @@ void FActiveSound::OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDat
 	{
 		if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
 		{
-			if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDeviceRaw(TraceDetails.AudioDeviceID))
+			if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(TraceDetails.AudioDeviceID))
 			{
 				FActiveSound* ActiveSound = TraceDetails.ActiveSound;
 
@@ -1011,7 +1011,7 @@ void FActiveSound::CheckOcclusion(const FVector ListenerLocation, const FVector 
 				const uint32 SoundOwnerID = OwnerID;
 				TWeakObjectPtr<UWorld> SoundWorld = World;
 				FAsyncTraceDetails TraceDetails;
-				TraceDetails.AudioDeviceID = AudioDevice->DeviceID;
+				TraceDetails.AudioDeviceID = AudioDevice->DeviceHandle;
 				TraceDetails.ActiveSound = this;
 
 				FAudioThread::RunCommandOnGameThread([SoundWorld, SoundLocation, ListenerLocation, OcclusionTraceChannel, SoundOwnerID, bUseComplexCollisionForOcclusion, TraceDetails]

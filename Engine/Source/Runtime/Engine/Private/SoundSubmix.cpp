@@ -37,7 +37,7 @@ void USoundSubmix::StartRecordingOutput(const UObject* WorldContextObject, float
 
 	// Find device for this specific audio recording thing.
 	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* DesiredAudioDevice = ThisWorld->GetAudioDeviceRaw();
+	FAudioDevice* DesiredAudioDevice = ThisWorld->GetAudioDevice();
 
 	StartRecordingOutput(DesiredAudioDevice, ExpectedDuration);
 }
@@ -59,7 +59,7 @@ void USoundSubmix::StopRecordingOutput(const UObject* WorldContextObject, EAudio
 
 	// Find device for this specific audio recording thing.
 	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* DesiredAudioDevice = ThisWorld->GetAudioDeviceRaw();
+	FAudioDevice* DesiredAudioDevice = ThisWorld->GetAudioDevice();
 
 	StopRecordingOutput(DesiredAudioDevice, ExportType, Name, Path, ExistingSoundWaveToOverwrite);
 }
@@ -139,7 +139,7 @@ void USoundSubmix::StartEnvelopeFollowing(const UObject* WorldContextObject)
 
 	// Find device for this specific audio recording thing.
 	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw();
+	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
 
 	StartEnvelopeFollowing(AudioDevice);
 }
@@ -161,7 +161,7 @@ void USoundSubmix::StopEnvelopeFollowing(const UObject* WorldContextObject)
 
 	// Find device for this specific audio recording thing.
 	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw();
+	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
 
 	StopEnvelopeFollowing(AudioDevice);
 }
@@ -183,7 +183,7 @@ void USoundSubmix::AddEnvelopeFollowerDelegate(const UObject* WorldContextObject
 
 	// Find device for this specific audio recording thing.
 	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw();
+	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
 	if (AudioDevice)
 	{
 		AudioDevice->AddEnvelopeFollowerDelegate(this, OnSubmixEnvelopeBP);
@@ -198,7 +198,7 @@ void USoundSubmix::SetSubmixOutputVolume(const UObject* WorldContextObject, floa
 	}
 
 	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw();
+	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
 	if (AudioDevice)
 	{
 		AudioDevice->SetSubmixOutputVolume(this, InOutputVolume);

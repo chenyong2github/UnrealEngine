@@ -12,7 +12,7 @@ void FSlateSoundDevice::PlaySound(const FSlateSound& Sound, int32 UserIndex) con
 {
 	if( GEngine && Sound.GetResourceObject() != nullptr )
 	{
-		FAudioDeviceHandle AudioDevice = GEngine->GetActiveAudioDevice();
+		FAudioDevice* const AudioDevice = GEngine->GetActiveAudioDevice();
 		if(AudioDevice)
 		{
 			UObject* const Object = Sound.GetResourceObject();

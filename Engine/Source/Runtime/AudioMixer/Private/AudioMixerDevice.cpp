@@ -1688,7 +1688,7 @@ namespace Audio
 
 	bool FMixerDevice::IsMainAudioDevice() const
 	{
-		bool bIsMain = (this == GEngine->GetMainAudioDeviceRaw());
+		bool bIsMain = (this == GEngine->GetMainAudioDevice());
 		return bIsMain;
 	}
 

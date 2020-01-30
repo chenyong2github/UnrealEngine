@@ -22,7 +22,7 @@
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "Particles/WorldPSCPool.h"
 #include "Containers/SortedMap.h"
-#include "AudioDeviceManager.h"
+
 #include "Subsystems/WorldSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
 
@@ -1188,7 +1188,7 @@ private:
 public:
 
 	/** Handle to the active audio device for this world. */
-	FAudioDeviceHandle AudioDeviceHandle;
+	uint32 AudioDeviceHandle;
 
 #if WITH_EDITOR
 	/** Hierarchical LOD System. Used when WorldSetting.bEnableHierarchicalLODSystem is true */
@@ -3306,20 +3306,18 @@ public:
 	 */
 	class AAudioVolume* GetAudioSettings( const FVector& ViewLocation, struct FReverbSettings* OutReverbSettings, struct FInteriorSettings* OutInteriorSettings );
 
-	void SetAudioDevice(FAudioDeviceHandle& InHandle);
+	/** Returns the audio device handle for this world.*/
+	uint32 GetAudioDeviceHandle() const { return AudioDeviceHandle; }
+
+	/** Sets the audio device handle to the active audio device for this world.*/
+	void SetAudioDeviceHandle(const uint32 InAudioDeviceHandle);
 
 	/**
-	 * Get the audio device used by this world.
-	 */
-	FAudioDeviceHandle GetAudioDevice();
-
-	/**
-	* Returns the audio device associated with this world.
-	* Lifecycle of the audio device is not guaranteed unless you used GetAudioDevice().
+	* Returns the audio device associated with this world, or returns the main audio device if there is none.
 	*
 	* @return Audio device to use with this world.
 	*/
-	class FAudioDevice* GetAudioDeviceRaw();
+	class FAudioDevice* GetAudioDevice();
 
 	/** Return the URL of this level on the local machine. */
 	virtual FString GetLocalURL() const;

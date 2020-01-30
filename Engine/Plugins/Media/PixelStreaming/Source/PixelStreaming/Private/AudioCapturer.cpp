@@ -114,7 +114,7 @@ int32 FAudioCapturer::Init()
 		return -1;
 	}
 
-	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (!AudioDevice)
 	{
 		return -1;
@@ -139,7 +139,7 @@ int32 FAudioCapturer::Terminate()
 		return -1;
 	}
 
-	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (!AudioDevice)
 	{
 		return -1;

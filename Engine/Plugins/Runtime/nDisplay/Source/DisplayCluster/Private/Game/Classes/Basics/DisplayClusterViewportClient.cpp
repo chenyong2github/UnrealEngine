@@ -323,8 +323,8 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 									// If there is more than one world referencing the main audio device
 									if (AudioDeviceManager->GetNumMainAudioDeviceWorlds() > 1)
 									{
-										uint32 MainAudioDeviceID = GEngine->GetMainAudioDeviceID();
-										if (AudioDevice->DeviceID == MainAudioDeviceID && !HasAudioFocus())
+										uint32 MainAudioDeviceHandle = GEngine->GetAudioDeviceHandle();
+										if (AudioDevice->DeviceHandle == MainAudioDeviceHandle && !HasAudioFocus())
 										{
 											bUpdateListenerPosition = false;
 										}
