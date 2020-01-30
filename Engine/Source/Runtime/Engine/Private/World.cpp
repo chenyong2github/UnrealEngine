@@ -3915,6 +3915,22 @@ void UWorld::DestroyDemoNetDriver()
 	}
 }
 
+void UWorld::ClearDemoNetDriver()
+{
+	FLevelCollection* const SourceCollection = FindCollectionByType(ELevelCollectionType::DynamicSourceLevels);
+	if (SourceCollection)
+	{
+		SourceCollection->SetDemoNetDriver(nullptr);
+	}
+	FLevelCollection* const StaticCollection = FindCollectionByType(ELevelCollectionType::StaticLevels);
+	if (StaticCollection)
+	{
+		StaticCollection->SetDemoNetDriver(nullptr);
+	}
+
+	DemoNetDriver = nullptr;
+}
+
 bool UWorld::SetGameMode(const FURL& InURL)
 {
 	if( IsServer() && !AuthorityGameMode )

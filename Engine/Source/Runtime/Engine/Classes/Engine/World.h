@@ -2925,6 +2925,9 @@ public:
 	// Destroys the current demo net driver
 	void DestroyDemoNetDriver();
 
+	// Remove internal references to pending demo net driver when starting a replay, but do not destroy it
+	void ClearDemoNetDriver();
+
 	/** Returns true if we are currently playing a replay */
 	bool IsPlayingReplay() const;
 
