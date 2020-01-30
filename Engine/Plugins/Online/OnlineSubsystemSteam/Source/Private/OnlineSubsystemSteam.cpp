@@ -619,7 +619,6 @@ bool FOnlineSubsystemSteam::InitSteamworksClient(bool bRelaunchInSteam, int32 St
 		SteamAPIClientHandle = FSteamSharedModule::Get().ObtainSteamClientInstanceHandle();
 		// Steamworks needs to initialize as close to start as possible, so it can hook its overlay into Direct3D, etc.
 		bSteamworksClientInitialized = (SteamAPIClientHandle.IsValid() ? true : false);
-		GameServerGamePort = SteamAPIClientHandle->GetGamePort();
 
 		// Test all the Steam interfaces
 #define GET_STEAMWORKS_INTERFACE(Interface) \
@@ -653,6 +652,8 @@ bool FOnlineSubsystemSteam::InitSteamworksClient(bool bRelaunchInSteam, int32 St
 
 	if (bSteamworksClientInitialized)
 	{
+		GameServerGamePort = SteamAPIClientHandle->GetGamePort();
+
 		bool bIsSubscribed = true;
 		if (FPlatformProperties::IsGameOnly() || FPlatformProperties::IsServerOnly())
 		{
