@@ -83,7 +83,6 @@ namespace Audio
 		FPatchInput(const FPatchOutputStrongPtr& InOutput);
 		FPatchInput(const FPatchInput& Other);
 		FPatchInput& operator=(const FPatchInput& Other);
-		FPatchInput(FPatchInput&& Other);
 
 		/** Default constructed FPatchInput instances will always return -1 for PushAudio and true for IsOutputStillActive. */
 		FPatchInput();
