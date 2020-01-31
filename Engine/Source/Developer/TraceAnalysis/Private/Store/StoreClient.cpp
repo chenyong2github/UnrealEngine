@@ -61,7 +61,7 @@ int32 FTraceDataStream::Read(void* Dest, uint32 DestSize)
 class FStoreCborClient
 {
 public:
-							FStoreCborClient();
+							FStoreCborClient(asio::io_context& InIoContext);
 							~FStoreCborClient();
 	bool					IsOpen() const;
 	void					Close();
@@ -81,14 +81,15 @@ public:
 
 private:
 	bool					Communicate(const FPayload& Payload);
-	asio::io_context		IoContext;
+	asio::io_context&		IoContext;
 	asio::ip::tcp::socket	Socket;
 	FResponse				Response;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-FStoreCborClient::FStoreCborClient()
-: Socket(IoContext)
+FStoreCborClient::FStoreCborClient(asio::io_context& InIoContext)
+: IoContext(InIoContext)
+, Socket(InIoContext)
 {
 }
 
@@ -391,7 +392,9 @@ uint32 FStoreClient::FSessionInfo::GetIpAddress() const
 ////////////////////////////////////////////////////////////////////////////////
 FStoreClient* FStoreClient::Connect(const TCHAR* Host, uint32 Port)
 {
-	FStoreCborClient* Impl = new FStoreCborClient();
+	static asio::io_context IoContext;
+
+	FStoreCborClient* Impl = new FStoreCborClient(IoContext);
 	if (!Impl->Connect(Host, Port))
 	{
 		delete Impl;
