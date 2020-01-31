@@ -1167,7 +1167,7 @@ ALandscape* ALandscapeStreamingProxy::GetLandscapeActor()
 	return LandscapeActor.Get();
 }
 
-ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo()
+ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo(bool bMapCheck)
 {
 	ULandscapeInfo* LandscapeInfo = nullptr;
 
@@ -1186,7 +1186,7 @@ ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo()
 		LandscapeInfoMap.Map.Add(LandscapeGuid, LandscapeInfo);
 	}
 	check(LandscapeInfo);
-	LandscapeInfo->RegisterActor(this);
+	LandscapeInfo->RegisterActor(this, bMapCheck);
 
 	return LandscapeInfo;
 }
@@ -1891,7 +1891,30 @@ void ALandscapeProxy::PostRegisterAllComponents()
 		// Duplicated Landscapes don't have a valid guid until PostEditImport is called, we'll register then
 		if (LandscapeGuid.IsValid())
 		{
-			LandscapeInfo = CreateLandscapeInfo();
+#if WITH_EDITOR
+			if (GIsEditor && !GetWorld()->IsGameWorld())
+			{
+				UpdateCachedHasLayersContent(true);
+
+				// Cache the value at this point as CreateLandscapeInfo (-> RegisterActor) might create/destroy layers content if there was a mismatch between landscape & proxy
+				// Check the actual flag here not HasLayersContent() which could return true if the LandscapeActor is valid.
+				bool bHasLayersContentBefore = bHasLayersContent;
+
+				LandscapeInfo = CreateLandscapeInfo(true);
+
+				FixupWeightmaps();
+
+				const bool bNeedOldDataMigration = !bHasLayersContentBefore && CanHaveLayersContent();
+				if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid())
+				{
+					LandscapeInfo->LandscapeActor.Get()->CopyOldDataToDefaultLayer(this);
+				}
+			}
+			else
+#endif
+			{
+				LandscapeInfo = CreateLandscapeInfo(true);
+			}
 		}
 
 		if (UWorld* OwningWorld = GetWorld())
@@ -2416,26 +2439,6 @@ void ALandscapeProxy::PostLoad()
 			EditorLayerSettings.Add(FLandscapeEditorLayerSettings(EditorCachedLayerInfos_DEPRECATED[i]));
 		}
 		EditorCachedLayerInfos_DEPRECATED.Empty();
-	}
-
-	if (GIsEditor && !GetWorld()->IsGameWorld())
-	{
-		UpdateCachedHasLayersContent(true);
-		
-		ULandscapeInfo* LandscapeInfo = CreateLandscapeInfo();
-
-		// Cache the value at this point as RegisterActor might create/destroy layers content if there was a mismatch between landscape & proxy
-		// Check the actual flag here not HasLayersContent() which could return true if the LandscapeActor is valid.
-		const bool bNeedOldDataMigration = !bHasLayersContent && CanHaveLayersContent();
-				
-		LandscapeInfo->RegisterActor(this, true);
-
-		FixupWeightmaps();
-
-		if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid())
-		{
-			LandscapeInfo->LandscapeActor.Get()->CopyOldDataToDefaultLayer(this);
-		}
 	}
 
 	for (ULandscapeComponent* Comp : LandscapeComponents)
