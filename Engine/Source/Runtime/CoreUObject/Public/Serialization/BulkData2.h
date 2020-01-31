@@ -15,6 +15,8 @@
 #define BULKDATA_NOT_IMPLEMENTED_FOR_RUNTIME PLATFORM_BREAK()
 
 struct FOwnedBulkDataPtr;
+class IMappedFileHandle;
+class IMappedFileRegion;
 
 /**
  * Represents an IO request from the BulkData streaming API.
@@ -140,6 +142,8 @@ private:
 	void SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 
+	bool MemoryMapBulkData(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead);
+
 	void AllocateData(SIZE_T SizeInBytes);
 	void FreeData();
 
@@ -164,6 +168,10 @@ private:
 	}; // Note that the union will end up being 16 bytes with padding
 	
 	void* DataBuffer = nullptr;
+
+	IMappedFileHandle* MappedHandle = nullptr; // Temp
+	IMappedFileRegion* MappedRegion = nullptr; // Temp
+
 	uint32 BulkDataFlags = 0;
 	mutable uint8 LockStatus = 0; // Mutable so that the read only lock can be const
 };
