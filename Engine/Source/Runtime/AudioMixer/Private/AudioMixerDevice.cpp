@@ -138,7 +138,7 @@ namespace Audio
 
 	bool FMixerDevice::InitializeHardware()
 	{
-		AUDIO_MIXER_CHECK_GAME_THREAD(this);
+		ensure(IsInGameThread());
 	
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
