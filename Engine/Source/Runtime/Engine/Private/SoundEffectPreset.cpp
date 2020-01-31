@@ -15,14 +15,6 @@ USoundEffectPreset::USoundEffectPreset(const FObjectInitializer& ObjectInitializ
 
 USoundEffectPreset::~USoundEffectPreset()
 {
-	for (int32 i = 0; i < Instances.Num(); ++i)
-	{
-		if (Instances[i])
-		{
-			Instances[i]->ClearPreset(false /* bRemoveFromPreset */);
-		}
-	}
-	Instances.Reset();
 }
 
 
@@ -76,6 +68,20 @@ void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& Collector)
 			Collector.AddReferencedObject(EffectPreset);
 		}
 	}
+}
+
+void USoundEffectPreset::BeginDestroy()
+{
+	for (int32 i = 0; i < Instances.Num(); ++i)
+	{
+		if (Instances[i])
+		{
+			Instances[i]->ClearPreset(false /* bRemoveFromPreset */);
+		}
+	}
+	Instances.Reset();
+
+	Super::BeginDestroy();
 }
 
 void USoundEffectPreset::RemoveEffectInstance(FSoundEffectBase* InSource)
