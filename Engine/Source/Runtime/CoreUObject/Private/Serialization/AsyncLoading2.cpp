@@ -4877,12 +4877,58 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 
 	int32 RequestID = INDEX_NONE;
 
+	// happy path where all inputs are actual package names
 	FName PackageName = FName(*InName);
 	FName PackageNameToLoad = InPackageToLoadFrom ? FName(InPackageToLoadFrom) : PackageName;
-
 	FPackageId PackageIdToLoad = GlobalPackageStore.FindPackageId(PackageNameToLoad);
+	FPackageId PackageId = PackageName != PackageNameToLoad ? GlobalPackageStore.FindPackageId(PackageName) : PackageIdToLoad;
 
-	if (PackageIdToLoad.IsValid())
+	// fixup for PackageNameToLoad and PackageIdToLoad to handle any input string that can be converted to a long package name
+	if (!PackageIdToLoad.IsValid())
+	{
+		FString PackageToLoadFrom = PackageNameToLoad.ToString();
+		if (!FPackageName::IsValidLongPackageName(PackageToLoadFrom))
+		{
+			FString NewPackageNameToLoadFrom;
+			if (FPackageName::TryConvertFilenameToLongPackageName(PackageToLoadFrom, NewPackageNameToLoadFrom))
+			{
+				FName NewPackageNameToLoad = *NewPackageNameToLoadFrom;
+				FPackageId NewPackageIdToLoad = GlobalPackageStore.FindPackageId(NewPackageNameToLoad);
+				if (NewPackageIdToLoad.IsValid())
+				{
+					PackageIdToLoad = NewPackageIdToLoad;
+					PackageNameToLoad = NewPackageNameToLoad;
+				}
+			}
+		}
+	}
+
+	// fixup for PackageName and PackageId to handle any input string that can be converted to a long package name
+	if (PackageIdToLoad.IsValid() && !PackageId.IsValid())
+	{
+		FName NewPackageName = PackageName;
+
+		FString PackageNameStr = PackageName.ToString();
+		bool bIsValidPackageName = FPackageName::IsValidLongPackageName(PackageNameStr);
+		if (!bIsValidPackageName)
+		{
+			FString NewPackageNameStr;
+			if (FPackageName::TryConvertFilenameToLongPackageName(PackageNameStr, NewPackageNameStr))
+			{
+				NewPackageName = *NewPackageNameStr;
+				bIsValidPackageName = true;
+			}
+		}
+
+		if (bIsValidPackageName)
+		{
+			FPackageId NewPackageId = GlobalPackageStore.FindOrAddPackageId(NewPackageName);
+			PackageId = NewPackageId;
+			PackageName = NewPackageName;
+		}
+	}
+
+	if (PackageId.IsValid() && PackageIdToLoad.IsValid())
 	{
 		if (FCoreDelegates::OnAsyncLoadPackage.IsBound())
 		{
@@ -4902,11 +4948,6 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 			CompletionDelegatePtr.Reset(new FLoadPackageAsyncDelegate(InCompletionDelegate));
 		}
 
-		FPackageId PackageId =
-			PackageName != PackageNameToLoad ?
-			GlobalPackageStore.FindOrAddPackageId(PackageName) :
-			PackageIdToLoad;
-
 		// Add new package request
 		FAsyncPackageDesc2 PackageDesc(RequestID, PackageId, PackageIdToLoad, PackageName, PackageNameToLoad, MoveTemp(CompletionDelegatePtr));
 		QueuePackage(PackageDesc);
@@ -4915,7 +4956,6 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 	}
 	else
 	{
-		FPackageId PackageId = PackageName != PackageNameToLoad ? GlobalPackageStore.FindPackageId(PackageName) : PackageIdToLoad;
 		FAsyncPackageDesc2 PackageDesc(RequestID, PackageId, PackageIdToLoad, PackageName, PackageNameToLoad);
 		UE_ASYNC_PACKAGE_LOG(Warning, PackageDesc, TEXT("LoadPackage: SkipPackage"), TEXT("Skipping unknown package, the provided package does not exist"));
 		InCompletionDelegate.ExecuteIfBound(PackageName, nullptr, EAsyncLoadingResult::Failed);
