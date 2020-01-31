@@ -1904,9 +1904,9 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			TArray<FAudioDevice*> AudioDevices = AudioDeviceManager->GetAudioDevices();
 			for (FAudioDevice* AudioDevice : AudioDevices)
 			{
-				AudioDevice->Flush(nullptr);
+					AudioDevice->Flush(nullptr);
+				}
 			}
-		}
 
 		if (PlayWorld)
 		{
