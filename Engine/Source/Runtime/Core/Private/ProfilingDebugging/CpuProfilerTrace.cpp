@@ -117,7 +117,7 @@ void FCpuProfilerTraceInternal::EndCapture(FThreadBuffer* InThreadBuffer)
 #define CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE() \
 	++FCpuProfilerTraceInternal::ThreadDepth; \
 	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel | CpuChannel); \
-	if (!bEventEnabled & (bEventEnabled == FCpuProfilerTraceInternal::bThreadEnabled)) \
+	if ((!bEventEnabled) & (bEventEnabled == FCpuProfilerTraceInternal::bThreadEnabled)) \
 	{ \
 		return; \
 	} \
@@ -189,7 +189,7 @@ void FCpuProfilerTrace::OutputEndEvent(const Trace::FChannel& Channel)
 {
 	--FCpuProfilerTraceInternal::ThreadDepth;
 	const bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(Channel | CpuChannel);
-	if (!bEventEnabled & (bEventEnabled == FCpuProfilerTraceInternal::bThreadEnabled))
+	if ((!bEventEnabled) & (bEventEnabled == FCpuProfilerTraceInternal::bThreadEnabled))
 	{
 		return;
 	}
