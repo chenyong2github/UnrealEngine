@@ -18,10 +18,9 @@
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "EventDefaults.h"
 #include "EventsData.h"
-//#include "ProfilingDebugging/CsvProfiler.h"
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolverSolver, Log, All);
-//CSV_DEFINE_CATEGORY(Chaos, true);
 
 // DebugDraw CVars
 #if CHAOS_DEBUG_DRAW
@@ -495,6 +494,51 @@ namespace Chaos
 		GetEventManager()->DispatchEvents();
 	}
 
+	/**
+	 * ProxyType is FSingleParticlePhysicsProxy<T>, where T is:
+	 *    Chaos::TPBDRigidParticle<float,3>
+	 *    Chaos::TKinematicGeometryParticle<float,3>
+	 *    Chaos::TGeometryParticle<float,3>
+	 */
+	template<typename ProxyType>
+	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, Chaos::IDispatcher* Dispatcher)
+	{
+		LLM_SCOPE(ELLMTag::Chaos);
+
+		if (Chaos::FParticleData* ProxyData = Proxy->NewData())
+		{
+			if (auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Proxy->GetHandle()))
+			{
+				if (Dispatcher)
+				{
+					Dispatcher->EnqueueCommandImmediate([Proxy, ProxyData, Solver](Chaos::FPersistentPhysicsTask* PhysThread)
+					{
+						// make sure the handle is still valid
+						if (auto* Handle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Proxy->GetHandle()))
+						{
+							Solver->GetEvolution()->DirtyParticle(*Handle);
+							Proxy->PushToPhysicsState(ProxyData);
+						}
+						delete ProxyData;
+					});
+				}
+				else
+				{
+					Solver->GetEvolution()->DirtyParticle(*RigidHandle);
+					Proxy->PushToPhysicsState(ProxyData);
+					delete ProxyData;
+				}
+				Solver->RemoveDirtyProxy(Proxy);
+
+				Proxy->ClearAccumulatedData();
+			}
+			else
+			{
+				delete ProxyData;
+			}
+		}
+	}
+
 	void PushPhysicsStateExec(FPBDRigidsSolver* Solver, FGeometryCollectionPhysicsProxy* Proxy, Chaos::IDispatcher* Dispatcher)
 	{
 		Proxy->NewData();
@@ -536,58 +580,33 @@ namespace Chaos
 
 	void FPBDRigidsSolver::PushPhysicsState(IDispatcher* Dispatcher)
 	{
-		//CSV_SCOPED_TIMING_STAT(Chaos, PushPhysicsState);
-
-		TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
-
-		// init the pooled particle data
-		for (int32 i = 0; i < DirtyProxiesArray.Num(); i++)
+		if (DirtyProxiesSet.Num() == 0)
+			return;
+		TArray<IPhysicsProxyBase*> DirtyProxiesArray = DirtyProxiesSet.Array();
+		for (auto & Proxy : DirtyProxiesArray)
 		{
-			auto Proxy = DirtyProxiesArray[i];
 			switch (Proxy->GetType())
 			{
-				// @todo(RyanK): May need to port these to using pools
+			//case EPhysicsProxyType::NoneType: // 0
+			//case EPhysicsProxyType::StaticMeshType: // 1
 			case EPhysicsProxyType::GeometryCollectionType: // 2
 				PushPhysicsStateExec(this, static_cast<FGeometryCollectionPhysicsProxy*>(Proxy), Dispatcher);
 				break;
 			case EPhysicsProxyType::FieldType: // 3
 				PushPhysicsStateExec(this, static_cast<FFieldSystemPhysicsProxy*>(Proxy), Dispatcher);
 				break;
-			case EPhysicsProxyType::SingleRigidParticleType:
-			{
-				FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >* ProxyType = static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(Proxy);
-				if (auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(ProxyType->GetHandle()))
-				{
-					TPoolParticleData<Chaos::TPBDRigidParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*, 800>::PoolEntry& Entry = RigidParticlePool.GetNewEntry();
-					Entry.Proxy = ProxyType;
-					Entry.ParticleData.Init(*ProxyType->GetParticle());
-					DirtyProxiesSet.Remove(Proxy);
-				}
-			}
-			break;
-			case EPhysicsProxyType::SingleKinematicParticleType:
-			{
-				FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >* ProxyType = static_cast<FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*>(Proxy);
-				if (auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(ProxyType->GetHandle()))
-				{
-					TPoolParticleData<Chaos::TKinematicGeometryParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*, 100>::PoolEntry& Entry = KinematicGeometryParticlePool.GetNewEntry();
-					Entry.Proxy = ProxyType;
-					Entry.ParticleData.Init(*ProxyType->GetParticle());
-					DirtyProxiesSet.Remove(Proxy);
-				}
-			}
-			break;
-			case EPhysicsProxyType::SingleGeometryParticleType:
-			{
-				FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >* ProxyType = static_cast<FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*>(Proxy);
-				if (auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(ProxyType->GetHandle()))
-				{
-					TPoolParticleData<Chaos::TGeometryParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*, 100>::PoolEntry& Entry = GeometryParticlePool.GetNewEntry();
-					Entry.Proxy = ProxyType;
-					Entry.ParticleData.Init(*ProxyType->GetParticle());
-					DirtyProxiesSet.Remove(Proxy);
-				}
-			}
+			//case EPhysicsProxyType::SkeletalMeshType: // 4
+			case EPhysicsProxyType::SingleRigidParticleType: // 7
+				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(Proxy), Dispatcher);
+				break;
+			case EPhysicsProxyType::SingleKinematicParticleType: // 6
+				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
+				break;
+			case EPhysicsProxyType::SingleGeometryParticleType: // 5
+				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
+				break;
+			default:
+				ensure("Unknown proxy type in physics solver.");
 			}
 		}
 	}
