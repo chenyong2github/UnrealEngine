@@ -210,11 +210,6 @@ public:
 			GetDynamicParticles().GetSleepDataLock().WriteUnlock();
 		}
 
-		//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
-		//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
-		//If we want to support that, the UniqueIndex must be kept around until GT goes away
-		//This is hard to do, but would probably mean the ownership of the index is in the proxy
-		UniqueIndices.ReleaseIdx(Particle->UniqueIdx());
 		ParticleHandles.DestroyHandleSwap(Particle);
 		
 		UpdateViews();
