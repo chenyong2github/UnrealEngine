@@ -5,6 +5,7 @@
 #include "AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "EditorSupportDelegates.h"
+#include "FileHelpers.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IAssetRegistry.h"
@@ -95,92 +96,105 @@ namespace
 
 	void FixMaterialUsage(URuntimeVirtualTexture* RuntimeVirtualTexture)
 	{
-		UE_LOG(LogRuntimeVirtualTextureFixMaterial, Log, TEXT("Begin fix material usage for '%s' ..."), *RuntimeVirtualTexture->GetName());
+		TArray<UPackage*> PackagesToSave;
 
-		TArray<UMaterial*> Materials;
-		TArray<UMaterialFunctionInterface*> Functions;
-		FindAllMaterials(RuntimeVirtualTexture, Materials, Functions);
-
-		int32 TaskCount = Materials.Num() + Functions.Num();
-		FScopedSlowTask Task(TaskCount, LOCTEXT("RuntimeVirtualTexture_FixMaterialUsageProgress", "Fixing materials for Runtime Virtual Texture usage..."));
-		Task.MakeDialog();
-
-		for (UMaterial* Material : Materials)
 		{
-			Task.EnterProgressFrame();
+			UE_LOG(LogRuntimeVirtualTextureFixMaterial, Log, TEXT("Begin fix material usage for '%s' ..."), *RuntimeVirtualTexture->GetName());
 
-			bool bMaterialModified = false;
-			for (UMaterialExpression* Expression : Material->Expressions)
+			TArray<UMaterial*> Materials;
+			TArray<UMaterialFunctionInterface*> Functions;
+			FindAllMaterials(RuntimeVirtualTexture, Materials, Functions);
+
+			int32 TaskCount = Materials.Num() + Functions.Num();
+			FScopedSlowTask Task(TaskCount, LOCTEXT("RuntimeVirtualTexture_FixMaterialUsageProgress", "Fixing materials for Runtime Virtual Texture usage..."));
+			Task.MakeDialog();
+
+			for (UMaterial* Material : Materials)
 			{
-				UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(Expression);
-				if (RVTSampleExpression)
+				Task.EnterProgressFrame();
+
+				bool bMaterialModified = false;
+				for (UMaterialExpression* Expression : Material->Expressions)
 				{
-					if (RuntimeVirtualTexture == RVTSampleExpression->VirtualTexture)
+					UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(Expression);
+					if (RVTSampleExpression)
 					{
-						if (RVTSampleExpression->InitVirtualTextureDependentSettings())
+						if (RuntimeVirtualTexture == RVTSampleExpression->VirtualTexture)
 						{
-							Expression->Modify();
+							if (RVTSampleExpression->InitVirtualTextureDependentSettings())
+							{
+								Expression->Modify();
 
-							FPropertyChangedEvent Event(UMaterialExpressionTextureBase::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialExpressionRuntimeVirtualTextureSample, MaterialType)));
-							Expression->PostEditChangeProperty(Event);
+								FPropertyChangedEvent Event(UMaterialExpressionTextureBase::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialExpressionRuntimeVirtualTextureSample, MaterialType)));
+								Expression->PostEditChangeProperty(Event);
 
-							bMaterialModified = true;
+								bMaterialModified = true;
+							}
 						}
 					}
 				}
-			}
 
-			if (bMaterialModified)
-			{
-				UE_LOG(LogRuntimeVirtualTextureFixMaterial, Log, TEXT("  Recompile material '%s' ..."), *Material->GetName());
-
-				FScopedSlowTask CompileTask(1, FText::AsCultureInvariant(Material->GetName()));
-				CompileTask.MakeDialog();
-				CompileTask.EnterProgressFrame();
-
-				UMaterialEditingLibrary::RecompileMaterial(Material);
-			}
-		}
-
-		for (UMaterialFunctionInterface *Function : Functions)
-		{
-			Task.EnterProgressFrame();
-
-			bool bFunctionModified = false;
-			const TArray<UMaterialExpression*> *Expressions = Function->GetFunctionExpressions();
-			for (UMaterialExpression *Expression : *Expressions)
-			{
-				UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(Expression);
-				if (RVTSampleExpression)
+				if (bMaterialModified)
 				{
-					if (RuntimeVirtualTexture == RVTSampleExpression->VirtualTexture)
-					{
-						if (RVTSampleExpression->InitVirtualTextureDependentSettings())
-						{
-							Expression->Modify();
+					UE_LOG(LogRuntimeVirtualTextureFixMaterial, Log, TEXT("  Recompile material '%s' ..."), *Material->GetName());
 
-							FPropertyChangedEvent Event(UMaterialExpressionTextureBase::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialExpressionRuntimeVirtualTextureSample, MaterialType)));
-							Expression->PostEditChangeProperty(Event);
+					FScopedSlowTask CompileTask(1, FText::AsCultureInvariant(Material->GetName()));
+					CompileTask.MakeDialog();
+					CompileTask.EnterProgressFrame();
 
-							bFunctionModified = true;
-						}
-					}
+					UMaterialEditingLibrary::RecompileMaterial(Material);
+
+					PackagesToSave.Add(Material->GetOutermost());
 				}
 			}
 
-			if (bFunctionModified)
+			for (UMaterialFunctionInterface *Function : Functions)
 			{
-				UE_LOG(LogRuntimeVirtualTextureFixMaterial, Log, TEXT("  Update function '%s' ..."), *Function->GetName());
+				Task.EnterProgressFrame();
 
-				FScopedSlowTask CompileTask(1, FText::AsCultureInvariant(Function->GetName()));
-				CompileTask.MakeDialog();
-				CompileTask.EnterProgressFrame();
+				bool bFunctionModified = false;
+				const TArray<UMaterialExpression*> *Expressions = Function->GetFunctionExpressions();
+				for (UMaterialExpression *Expression : *Expressions)
+				{
+					UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(Expression);
+					if (RVTSampleExpression)
+					{
+						if (RuntimeVirtualTexture == RVTSampleExpression->VirtualTexture)
+						{
+							if (RVTSampleExpression->InitVirtualTextureDependentSettings())
+							{
+								Expression->Modify();
 
-				UMaterialEditingLibrary::UpdateMaterialFunction(Function, nullptr);
+								FPropertyChangedEvent Event(UMaterialExpressionTextureBase::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialExpressionRuntimeVirtualTextureSample, MaterialType)));
+								Expression->PostEditChangeProperty(Event);
+
+								bFunctionModified = true;
+							}
+						}
+					}
+				}
+
+				if (bFunctionModified)
+				{
+					UE_LOG(LogRuntimeVirtualTextureFixMaterial, Log, TEXT("  Update function '%s' ..."), *Function->GetName());
+
+					FScopedSlowTask CompileTask(1, FText::AsCultureInvariant(Function->GetName()));
+					CompileTask.MakeDialog();
+					CompileTask.EnterProgressFrame();
+
+					UMaterialEditingLibrary::UpdateMaterialFunction(Function, nullptr);
+
+					PackagesToSave.Add(Function->GetOutermost());
+				}
 			}
-		}
 
-		UE_LOG(LogRuntimeVirtualTextureFixMaterial, Log, TEXT("End fix material usage for '%s' ..."), *RuntimeVirtualTexture->GetName());
+			UE_LOG(LogRuntimeVirtualTextureFixMaterial, Log, TEXT("End fix material usage for '%s' ..."), *RuntimeVirtualTexture->GetName());
+		}
+	
+		if (PackagesToSave.Num())
+		{
+			FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, false, true);
+		}
 	}
 }
 
