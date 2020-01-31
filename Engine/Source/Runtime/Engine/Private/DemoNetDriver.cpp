@@ -865,7 +865,10 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 	if (Super::InitBase(bInitAsClient, InNotify, URL, bReuseAddressAndPort, Error))
 	{
 		DemoURL							= URL;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Time							= 0;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		ResetElapsedTime();
 		bChannelsArePaused				= false;
 		bIsFastForwarding				= false;
 		bIsFastForwardingForCheckpoint	= false;
@@ -1552,11 +1555,11 @@ void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 
 	RecordCountSinceFlush++;
 
-	const double ElapsedTime = EndTime - LastRecordAvgFlush;
+	const double DemoElapsedTime = EndTime - LastRecordAvgFlush;
 
 	const double AVG_FLUSH_TIME_IN_SECONDS = 2;
 
-	if (ElapsedTime > AVG_FLUSH_TIME_IN_SECONDS && RecordCountSinceFlush > 0)
+	if (DemoElapsedTime > AVG_FLUSH_TIME_IN_SECONDS && RecordCountSinceFlush > 0)
 	{
 		const float AvgTimeMS = (AccumulatedRecordTime / RecordCountSinceFlush) * 1000;
 		const float MaxRecordTimeMS = MaxRecordTime * 1000;
@@ -2808,7 +2811,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 					}
 
 					// We check ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER to force at least one update for each actor
-					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER) || ((Time - ActorInfo->LastNetUpdateTime) < RelevantTimeout);
+					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTimestamp < KINDA_SMALL_NUMBER) || ((GetElapsedTime() - ActorInfo->LastNetUpdateTimestamp) < RelevantTimeout);
 
 					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || (ActorInfo->ForceRelevantFrame >= ReplicationFrame);
 
@@ -2851,7 +2854,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 
 					if (bDoPrioritizeActors) // implies bDoFindActorChannelEarly is true
 					{
-						const float LastReplicationTime = Channel ? (Time - Channel->LastUpdateTime) : SpawnPrioritySeconds;
+						const double LastReplicationTime = Channel ? (GetElapsedTime() - Channel->LastUpdateTime) : SpawnPrioritySeconds;
 						ActorPriority.Priority = FMath::RoundToInt(65536.0f * Actor->GetReplayPriority(ViewLocation, ViewDirection, Viewer, ViewTarget, Channel, LastReplicationTime));
 					}
 
@@ -2861,7 +2864,10 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 
 					if (bIsRelevant)
 					{
-						ActorInfo->LastNetUpdateTime = Time;
+						ActorInfo->LastNetUpdateTimestamp = GetElapsedTime();
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
+						ActorInfo->LastNetUpdateTime = ActorInfo->LastNetUpdateTimestamp;
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 				}
 
@@ -4557,7 +4563,7 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 		SpawnInfo.OverrideLevel						= RollbackActor.Level;
 		SpawnInfo.bDeferConstruction				= true;
 
-		const FTransform SpawnTransform = FTransform(RollbackActor.Rotation, RollbackActor.Location);
+		const FTransform SpawnTransform = FTransform(RollbackActor.Rotation, RollbackActor.Location, RollbackActor.Scale3D);
 
 		AActor* Actor = GetWorld()->SpawnActorAbsolute(RollbackActor.Archetype->GetClass(), SpawnTransform, SpawnInfo);
 		if (Actor)
@@ -5870,7 +5876,7 @@ void UDemoNetDriver::RestoreConnectionPostScrub(APlayerController* PC, UNetConne
 
 	PC->SetRole(ROLE_AutonomousProxy);
 	PC->NetConnection = NetConnection;
-	NetConnection->LastReceiveTime = Time;
+	NetConnection->LastReceiveTime = GetElapsedTime();
 	NetConnection->LastReceiveRealtime = FPlatformTime::Seconds();
 	NetConnection->LastGoodPacketRealtime = FPlatformTime::Seconds();
 	NetConnection->State = USOCK_Open;
@@ -6493,6 +6499,7 @@ void UDemoNetDriver::QueueNetStartupActorForRollbackViaDeletion(AActor* Actor)
 	RollbackActor.Archetype	= Actor->GetArchetype();
 	RollbackActor.Location	= Actor->GetActorLocation();
 	RollbackActor.Rotation	= Actor->GetActorRotation();
+	RollbackActor.Scale3D	= Actor->GetActorScale3D();
 	RollbackActor.Level		= Actor->GetLevel();
 
 	if (GDemoSaveRollbackActorState != 0)

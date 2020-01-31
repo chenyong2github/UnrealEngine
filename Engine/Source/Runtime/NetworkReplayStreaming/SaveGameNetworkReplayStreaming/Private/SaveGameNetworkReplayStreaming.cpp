@@ -1552,7 +1552,7 @@ bool FSaveGameNetworkReplayStreamer::ReadMetaDataFromLocalStream(FArchive& Strea
 	check(StreamArchive.IsLoading());
 
 	FLocalFileReplayInfo FileReplayInfo;
-	if (!ReadReplayInfo(StreamArchive, FileReplayInfo) || !FileReplayInfo.bIsValid)
+	if (!ReadReplayInfo(StreamArchive, FileReplayInfo, EReadReplayInfoFlags::None) || !FileReplayInfo.bIsValid)
 	{
 		return false;
 	}

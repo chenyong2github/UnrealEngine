@@ -22,6 +22,7 @@
 #include "Stats/StatsMisc.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "Net/Core/Trace/NetTrace.h"
 
 DEFINE_LOG_CATEGORY(LogNet);
 DEFINE_LOG_CATEGORY(LogRep);
@@ -150,7 +151,7 @@ int64 UChannel::Close(EChannelCloseReason Reason)
 			SentClosingBunch = 1; //in case this send ends up failing and trying to reach back to close the connection, don't allow recursion.
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			CloseBunch.DebugString = FString::Printf(TEXT("%.2f Close: %s"), Connection->Driver->Time, *Describe());
+			CloseBunch.DebugString = FString::Printf(TEXT("%.2f Close: %s"), Connection->Driver->GetElapsedTime(), *Describe());
 #endif
 			check(!CloseBunch.IsError());
 			check(CloseBunch.bClose);
@@ -986,6 +987,9 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 
 	if ( Connection->Driver->IsServer() )
 	{
+		// This is a bit special, currently we report this is at the end of bunch event though AppendMustBeMappedGuids rewrites the entire bunch
+		UE_NET_TRACE_SCOPE(MustBeMappedGuids_IsAtStartOfBunch, *Bunch, GetTraceCollector(*Bunch), ENetTraceVerbosity::Trace);
+
 		// Append any "must be mapped" guids to front of bunch from the packagemap
 		AppendMustBeMappedGuids( Bunch );
 
@@ -1016,6 +1020,12 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 		Connection->LastOut.SerializeBits( Bunch->GetData(), Bunch->GetNumBits() );
 		Connection->LastOut.bOpen     |= Bunch->bOpen;
 		Connection->LastOut.bClose    |= Bunch->bClose;
+
+#if UE_NET_TRACE_ENABLED		
+		SetTraceCollector(Connection->LastOut, GetTraceCollector(*Bunch));
+		SetTraceCollector(*Bunch, nullptr);
+#endif
+
 		OutBunch                       = Connection->LastOutBunch;
 		Bunch                          = &Connection->LastOut;
 		check(!Bunch->IsError());
@@ -1037,6 +1047,13 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 			FOutBunch * PartialBunch = new FOutBunch(this, false);
 			int64 bitsThisBunch = FMath::Min<int64>(bitsLeft, MAX_PARTIAL_BUNCH_SIZE_BITS);
 			PartialBunch->SerializeBits(data, bitsThisBunch);
+
+#if UE_NET_TRACE_ENABLED
+			// Attach tracecollector of split bunch to first partial bunch
+			SetTraceCollector(*PartialBunch, GetTraceCollector(*Bunch));
+			SetTraceCollector(*Bunch, nullptr);
+#endif
+
 			OutgoingBunches.Add(PartialBunch);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1131,7 +1148,7 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 		}
 
 		// Update Packet Range
-		int32 PacketId = SendRawBunch(ThisOutBunch, Merge);
+		int32 PacketId = SendRawBunch(ThisOutBunch, Merge, GetTraceCollector(*NextBunch));
 		if (PartialNum == 0)
 		{
 			PacketIdRange = FPacketIdRange(PacketId);
@@ -1233,7 +1250,7 @@ FOutBunch* UChannel::PrepBunch(FOutBunch* Bunch, FOutBunch* OutBunch, bool Merge
 	return OutBunch;
 }
 
-int32 UChannel::SendRawBunch(FOutBunch* OutBunch, bool Merge)
+int32 UChannel::SendRawBunch(FOutBunch* OutBunch, bool Merge, const FNetTraceCollector* Collector)
 {
 	if ( Connection->ResendAllDataState != EResendAllDataState::None )
 	{
@@ -1244,7 +1261,7 @@ int32 UChannel::SendRawBunch(FOutBunch* OutBunch, bool Merge)
 
 	// Send the raw bunch.
 	OutBunch->ReceivedAck = 0;
-	int32 PacketId = Connection->SendRawBunch(*OutBunch, Merge);
+	int32 PacketId = Connection->SendRawBunch(*OutBunch, Merge, Collector);
 	if( OpenPacketId.First==INDEX_NONE && OpenedLocally )
 	{
 		OpenPacketId = FPacketIdRange(PacketId);
@@ -1274,6 +1291,11 @@ int32 UChannel::IsNetReady( bool Saturate )
 	return Connection->IsNetReady( Saturate );
 }
 
+void UChannel::ReceivedAck( int32 AckPacketId )
+{
+	// Do nothing. Most channels deal with this in Tick().
+}
+
 void UChannel::ReceivedNak( int32 NakPacketId )
 {
 	for( FOutBunch* Out=OutRec; Out; Out=Out->Next )
@@ -1283,7 +1305,21 @@ void UChannel::ReceivedNak( int32 NakPacketId )
 		{
 			check(Out->bReliable);
 			UE_LOG(LogNetTraffic, Log, TEXT("      Channel %i nak); resending %i..."), Out->ChIndex, Out->ChSequence );
-			Connection->SendRawBunch( *Out, 0 );
+			
+			FNetTraceCollector* Collector = Connection->GetOutTraceCollector();
+			if (Collector)
+			{
+				// Inject trace event for the resent bunch if tracing is enabled
+				// The reason behind the complexity is that the outgoing sendbuffer migth be flushed during the call to SendRawBunch()
+				FNetTraceCollector* TempCollector = UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace);
+				UE_NET_TRACE(ResendBunch, TempCollector, 0U, Out->GetNumBits(), ENetTraceVerbosity::Trace);
+				Connection->SendRawBunch(*Out, 0, TempCollector);
+				UE_NET_TRACE_DESTROY_COLLECTOR(TempCollector);
+			}
+			else
+			{
+				Connection->SendRawBunch( *Out, 0 );
+			}
 		}
 	}
 }
@@ -1435,7 +1471,9 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 			break;
 		}
 		int32 Pos = Bunch.GetPosBits();
-		
+
+		UE_NET_TRACE_DYNAMIC_NAME_SCOPE(FNetControlMessageInfo::GetName(MessageType), Bunch, Connection ? Connection->GetInTraceCollector() : nullptr, ENetTraceVerbosity::Trace);
+
 		// we handle Actor channel failure notifications ourselves
 		if (MessageType == NMT_ActorChannelFailure)
 		{
@@ -1673,19 +1711,27 @@ void UControlChannel::Tick()
 	if( !OpenAcked )
 	{
 		int32 Count = 0;
-		for( FOutBunch* Out=OutRec; Out; Out=Out->Next )
-			if( !Out->ReceivedAck )
+		for (FOutBunch* Out = OutRec; Out; Out = Out->Next)
+		{
+			if (!Out->ReceivedAck)
+			{
 				Count++;
-		if ( Count > 8 )
+			}
+		}
+
+		if (Count > 8)
+		{
 			return;
+		}
+
 		// Resend any pending packets if we didn't get the appropriate acks.
 		for( FOutBunch* Out=OutRec; Out; Out=Out->Next )
 		{
 			if( !Out->ReceivedAck )
 			{
-				float Wait = Connection->Driver->Time-Out->Time;
-				checkSlow(Wait>=0.f);
-				if( Wait>1.f )
+				const double Wait = Connection->Driver->GetElapsedTime() - Out->Time;
+				checkSlow(Wait >= 0.0);
+				if (Wait > 1.0)
 				{
 					UE_LOG(LogNetTraffic, Log, TEXT("Channel %i ack timeout); resending %i..."), ChIndex, Out->ChSequence );
 					check(Out->bReliable);
@@ -1742,8 +1788,8 @@ void UActorChannel::Init( UNetConnection* InConnection, int32 InChannelIndex, EC
 {
 	Super::Init( InConnection, InChannelIndex, CreateFlags );
 
-	RelevantTime			= Connection->Driver->Time;
-	LastUpdateTime			= Connection->Driver->Time - Connection->Driver->SpawnPrioritySeconds;
+	RelevantTime			= Connection->Driver->GetElapsedTime();
+	LastUpdateTime			= Connection->Driver->GetElapsedTime() - Connection->Driver->SpawnPrioritySeconds;
 	bForceCompareProperties	= false;
 	bActorIsPendingKill		= false;
 	CustomTimeDilation		= 1.0f;
@@ -2408,6 +2454,8 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 	{
 		if (Bunch.bHasMustBeMappedGUIDs)
 		{
+			UE_NET_TRACE_SCOPE(MustBeMappedGUIDs, Bunch, Connection->GetInTraceCollector(), ENetTraceVerbosity::Trace);
+
 			// If this bunch has any guids that must be mapped, we need to wait until they resolve before we can 
 			// process the rest of the stream on this channel
 			uint16 NumMustBeMappedGUIDs = 0;
@@ -2550,6 +2598,8 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 			return;
 		}
 
+		UE_NET_TRACE_SCOPE(NewActor, Bunch, Connection->GetInTraceCollector(), ENetTraceVerbosity::Trace);
+
 		AActor* NewChannelActor = NULL;
 		bSpawnedNewActor = Connection->PackageMap->SerializeNewActor(Bunch, this, NewChannelActor);
 
@@ -2631,9 +2681,14 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 
 		bool bHasRepLayout = false;
 
+		UE_NET_TRACE_NAMED_OBJECT_SCOPE(ContentBlockScope, FNetworkGUID(), Bunch, Connection->GetInTraceCollector(), ENetTraceVerbosity::Trace);
+
 		// Read the content block header and payload
 		UObject* RepObj = ReadContentBlockPayload( Bunch, Reader, bHasRepLayout );
 
+		// Special case where we offset the events to avoid having to create a new collector for reading from the Reader
+		UE_NET_TRACE_OFFSET_SCOPE(Bunch.GetPosBits() - Reader.GetNumBits(), Connection->GetInTraceCollector());
+		
 		if ( Bunch.IsError() )
 		{
 			if ( Connection->InternalAck )
@@ -2650,6 +2705,9 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 
 		if ( Reader.GetNumBits() == 0 )
 		{
+			// Set the scope name
+			UE_NET_TRACE_SET_SCOPE_OBJECTID(ContentBlockScope, Connection->Driver->GuidCache->GetNetGUID(RepObj));
+
 			// Nothing else in this block, continue on (should have been a delete or create block)
 			continue;
 		}
@@ -2689,6 +2747,9 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 			return;
 		}
 
+		// Set the scope name now that we can lookup the NetGUID from the replicator
+		UE_NET_TRACE_SET_SCOPE_OBJECTID(ContentBlockScope, Replicator->ObjectNetGUID);
+	
 		// Check to see if the actor was destroyed
 		// If so, don't continue processing packets on this channel, or we'll trigger an error otherwise
 		// note that this is a legitimate occurrence, particularly on client to server RPCs
@@ -2875,6 +2936,10 @@ int64 UActorChannel::ReplicateActor()
 		return 0;
 	}
 
+#if UE_NET_TRACE_ENABLED
+	SetTraceCollector(Bunch, UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
+#endif
+
 	if (bIsNewlyReplicationPaused)
 	{
 		Bunch.bReliable = true;
@@ -2885,7 +2950,7 @@ int64 UActorChannel::ReplicateActor()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (CVarNetReliableDebug.GetValueOnAnyThread() > 0)
 	{
-		Bunch.DebugString = FString::Printf(TEXT("%.2f ActorBunch: %s"), Connection->Driver->Time, *Actor->GetName() );
+		Bunch.DebugString = FString::Printf(TEXT("%.2f ActorBunch: %s"), Connection->Driver->GetElapsedTime(), *Actor->GetName() );
 	}
 #endif
 
@@ -2939,6 +3004,8 @@ int64 UActorChannel::ReplicateActor()
 
 	if (RepFlags.bNetInitial && OpenedLocally)
 	{
+		UE_NET_TRACE_SCOPE(NewActor, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
+
 		Connection->PackageMap->SerializeNewActor(Bunch, this, Actor);
 		WroteSomethingImportant = true;
 
@@ -2968,7 +3035,10 @@ int64 UActorChannel::ReplicateActor()
 	if (!bIsNewlyReplicationPaused)
 	{
 		// The Actor
-		WroteSomethingImportant |= ActorReplicator->ReplicateProperties(Bunch, RepFlags);
+		{
+			UE_NET_TRACE_OBJECT_SCOPE(ActorReplicator->ObjectNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
+			WroteSomethingImportant |= ActorReplicator->ReplicateProperties(Bunch, RepFlags);
+		}
 
 		// The SubObjects
 		WroteSomethingImportant |= Actor->ReplicateSubobjects(this, &Bunch, &RepFlags);
@@ -3080,7 +3150,7 @@ int64 UActorChannel::ReplicateActor()
 	PendingObjKeys.Empty();
 
 	// If we evaluated everything, mark LastUpdateTime, even if nothing changed.
-	LastUpdateTime = Connection->Driver->Time;
+	LastUpdateTime = Connection->Driver->GetElapsedTime();
 
 	MemMark.Pop();
 
@@ -3323,6 +3393,12 @@ int32 UActorChannel::WriteContentBlockPayload( UObject* Obj, FNetBitWriter &Bunc
 
 	const int32 HeaderNumBits = Bunch.GetNumBits() - StartHeaderBits;
 
+	// Trace header
+	UE_NET_TRACE(ContentBlockHeader, GetTraceCollector(Bunch), StartHeaderBits, Bunch.GetNumBits(), ENetTraceVerbosity::Trace);
+
+	// Inject payload events right after header
+	UE_NET_TRACE_EVENTS(GetTraceCollector(Bunch), GetTraceCollector(Payload));
+
 	Bunch.SerializeBits( Payload.GetData(), Payload.GetNumBits() );
 
 	return HeaderNumBits;
@@ -3546,6 +3622,7 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 
 UObject* UActorChannel::ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader& OutPayload, bool& bOutHasRepLayout )
 {
+	const int32 StartHeaderBits = Bunch.GetPosBits();
 	bool bObjectDeleted = false;
 	UObject* RepObj = ReadContentBlockHeader( Bunch, bObjectDeleted, bOutHasRepLayout );
 
@@ -3566,6 +3643,8 @@ UObject* UActorChannel::ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader&
 	uint32 NumPayloadBits = 0;
 	Bunch.SerializeIntPacked( NumPayloadBits );
 
+	UE_NET_TRACE(ContentBlockHeader, Connection->GetInTraceCollector(), StartHeaderBits, Bunch.GetPosBits(), ENetTraceVerbosity::Trace);
+
 	if ( Bunch.IsError() )
 	{
 		UE_LOG( LogNet, Error, TEXT( "UActorChannel::ReceivedBunch: Read NumPayloadBits FAILED. Bunch.IsError() == TRUE. Closing connection. RepObj: %s, Channel: %i" ), RepObj ? *RepObj->GetFullName() : TEXT( "NULL" ), ChIndex );
@@ -3580,6 +3659,8 @@ UObject* UActorChannel::ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader&
 int32 UActorChannel::WriteFieldHeaderAndPayload( FNetBitWriter& Bunch, const FClassNetCache* ClassCache, const FFieldNetCache* FieldCache, FNetFieldExportGroup* NetFieldExportGroup, FNetBitWriter& Payload, bool bIgnoreInternalAck )
 {
 	const int32 NumOriginalBits = Bunch.GetNumBits();
+
+	UE_NET_TRACE_DYNAMIC_NAME_SCOPE(FieldCache->Field.GetFName(), Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
 
 	NET_CHECKSUM( Bunch );
 
@@ -3609,7 +3690,13 @@ int32 UActorChannel::WriteFieldHeaderAndPayload( FNetBitWriter& Bunch, const FCl
 	uint32 NumPayloadBits = Payload.GetNumBits();
 
 	Bunch.SerializeIntPacked( NumPayloadBits );
+
+	UE_NET_TRACE(FieldHeader, GetTraceCollector(Bunch), NumOriginalBits, Bunch.GetNumBits(), ENetTraceVerbosity::Trace);
+
 	Bunch.SerializeBits( Payload.GetData(), NumPayloadBits );
+
+	// Inject trace data from payload stream	
+	UE_NET_TRACE_EVENTS(GetTraceCollector(Bunch), GetTraceCollector(Payload));
 
 	return Bunch.GetNumBits() - NumOriginalBits;
 }
@@ -3622,6 +3709,8 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 	{
 		return false;	// We're done
 	}
+
+	const int64 HeaderBitPos = Bunch.GetPosBits();
 	
 	NET_CHECKSUM( Bunch );
 
@@ -3696,6 +3785,8 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 
 	uint32 NumPayloadBits = 0;
 	Bunch.SerializeIntPacked( NumPayloadBits );
+
+	UE_NET_TRACE(FieldHeader, Connection->GetInTraceCollector(), HeaderBitPos, Bunch.GetPosBits(), ENetTraceVerbosity::Trace);
 
 	if ( Bunch.IsError() )
 	{
@@ -3942,6 +4033,7 @@ bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FRe
 		Bunch.bReliable = true;
 		NewSubobject = true;
 	}
+	UE_NET_TRACE_OBJECT_SCOPE(ObjectReplicator->ObjectNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
 	bool WroteSomething = ObjectReplicator.Get().ReplicateProperties(Bunch, RepFlags);
 	if (NewSubobject && !WroteSomething)
 	{
