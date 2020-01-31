@@ -406,6 +406,11 @@ class FEdMode* FAssetEditorToolkit::GetEditorMode() const
 	return nullptr;
 }
 
+class UEdMode* FAssetEditorToolkit::GetScriptableEditorMode() const
+{
+	return nullptr;
+}
+
 FText FAssetEditorToolkit::GetEditorModeDisplayName() const
 {
 	return FText::GetEmpty();

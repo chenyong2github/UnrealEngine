@@ -7,6 +7,7 @@
 #include "Framework/Docking/TabManager.h"
 
 class FEdMode;
+class UEdMode;
 class IToolkitHost;
 class SDockableTab;
 
@@ -124,6 +125,9 @@ public:
 
 	/** @returns the editor mode this toolkit is used for, or null if not relevant. */
 	virtual FEdMode* GetEditorMode() const = 0;
+
+	/** @returns the scriptable editor mode this toolkit is used for, or null if not relevant. */
+	virtual UEdMode* GetScriptableEditorMode() const = 0;
 
 	/** @return the editor mode display name if there is an editor mode associated with this toolkit.  An empty FText is returned otherwise */
 	virtual FText GetEditorModeDisplayName() const = 0;

@@ -801,8 +801,6 @@ void UEdMode::Enter()
 	bInvalidationPending = false;
 
 	FEditorDelegates::EditorModeIDEnter.Broadcast(GetID());
-	const bool bIsEnteringMode = true;
-	Owner->BroadcastEditorModeIDChanged(GetID(), bIsEnteringMode);
 
 }
 
@@ -849,11 +847,10 @@ void UEdMode::Exit()
 		Toolkit.Reset();
 	}
 
+
 	OnToolNotificationMessage.Clear();
 	OnToolWarningMessage.Clear();
 
-	const bool bIsEnteringMode = false;
-	Owner->BroadcastEditorModeIDChanged(GetID(), bIsEnteringMode);
 	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
 	if (ToolsContext != nullptr)
 	{

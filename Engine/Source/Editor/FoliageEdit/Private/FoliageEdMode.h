@@ -325,6 +325,8 @@ public:
 	/** FEdMode: Called after an Undo operation */
 	virtual void PostUndo() override;
 
+	virtual bool UsesToolkits() const override { return true; }
+
 	/** Called when the current level changes */
 	void NotifyNewCurrentLevel();
 	void NotifyLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld);
