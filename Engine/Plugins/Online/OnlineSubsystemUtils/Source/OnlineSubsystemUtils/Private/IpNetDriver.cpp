@@ -1060,6 +1060,23 @@ bool UIpNetDriver::InitConnect( FNetworkNotify* InNotify, const FURL& ConnectURL
 		SocketSubsystem->GetAddressInfoAsync(AsyncResolverHandler, *ConnectURL.Host, *FString::Printf(TEXT("%d"), DestinationPort),
 			EAddressInfoFlags::AllResultsWithMapping | EAddressInfoFlags::OnlyUsableAddresses, NAME_None, ESocketType::SOCKTYPE_Datagram);
 	}
+	else if (BoundSockets.Num() > 1)
+	{
+		// Clean up any potential multiple sockets we have created when resolution was disabled.
+		// InitBase could have created multiple sockets and if so, we'll want to clean them up.
+		UE_LOG(LogNet, Verbose, TEXT("Cleaning up additional sockets created as address resolution is disabled."));
+		for (FSocket*& CurSocket : BoundSockets)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if (CurSocket != Socket)
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			{
+				SocketSubsystem->DestroySocket(CurSocket);
+				CurSocket = nullptr;
+			}
+		}
+		BoundSockets.Remove(nullptr);
+	}
 	
 	UE_LOG(LogNet, Log, TEXT("Game client on port %i, rate %i"), DestinationPort, ServerConnection->CurrentNetSpeed );
 	CreateInitialClientChannels();
