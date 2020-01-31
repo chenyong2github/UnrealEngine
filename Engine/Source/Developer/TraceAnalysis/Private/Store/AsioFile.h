@@ -21,6 +21,7 @@ public:
 										FAsioFile(asio::io_context& IoContext, UPTRINT OsHandle);
 	static FAsioWriteable*				WriteFile(asio::io_context& IoContext, const TCHAR* Path);
 	static FAsioReadable*				ReadFile(asio::io_context& IoContext, const TCHAR* Path);
+	virtual bool						IsOpen() const override;
 	virtual void						Close() override;
 	virtual bool						Write(const void* Src, uint32 Size, FAsioIoSink* Sink, uint32 Id) override;
 	virtual bool						Read(void* Dest, uint32 Size, FAsioIoSink* Sink, uint32 Id) override;

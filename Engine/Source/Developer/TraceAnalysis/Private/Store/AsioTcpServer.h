@@ -14,6 +14,7 @@ public:
 							FAsioTcpServer(asio::io_context& IoContext);
 	virtual					~FAsioTcpServer();
 	asio::io_context&		GetIoContext();
+	bool					IsOpen() const;
 	void					Close();
 	virtual bool			OnAccept(asio::ip::tcp::socket& Socket) = 0;
 	uint32					GetPort() const;

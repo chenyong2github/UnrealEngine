@@ -19,6 +19,7 @@ class FAsioIoable
 {
 public:
 	virtual			~FAsioIoable() = default;
+	virtual bool	IsOpen() const = 0;
 	virtual void	Close() = 0;
 
 protected:

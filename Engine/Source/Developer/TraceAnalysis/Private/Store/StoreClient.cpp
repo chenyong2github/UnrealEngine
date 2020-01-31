@@ -16,8 +16,9 @@ class FTraceDataStream
 public:
 							FTraceDataStream(asio::ip::tcp::socket& InSocket);
 	virtual					~FTraceDataStream();
-	virtual int32			Read(void* Dest, uint32 DestSize) override;
+	bool					IsOpen() const;
 	virtual void			Close() override;
+	virtual int32			Read(void* Dest, uint32 DestSize) override;
 
 private:
 	asio::ip::tcp::socket	Socket;
@@ -33,6 +34,12 @@ FTraceDataStream::FTraceDataStream(asio::ip::tcp::socket& InSocket)
 FTraceDataStream::~FTraceDataStream()
 {
 	Close();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FTraceDataStream::IsOpen() const
+{
+	return Socket.is_open();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -100,15 +107,15 @@ FStoreCborClient::~FStoreCborClient()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FStoreCborClient::Close()
-{
-	Socket.close();
-}
-
-////////////////////////////////////////////////////////////////////////////////
 bool FStoreCborClient::IsOpen() const
 {
 	return Socket.is_open();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FStoreCborClient::Close()
+{
+	Socket.close();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

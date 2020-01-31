@@ -14,6 +14,7 @@ public:
 						FAsioTickable(asio::io_context& IoContext);
 	virtual				~FAsioTickable();
 	asio::io_context&	GetIoContext();
+	bool				IsActive() const;
 	bool				StartTick(uint32 MillisecondRate);
 	bool				StopTick();
 	void				TickOnce(uint32 MillisecondRate);

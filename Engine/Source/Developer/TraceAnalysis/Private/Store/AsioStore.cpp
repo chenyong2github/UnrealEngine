@@ -32,6 +32,7 @@ public:
 	void async_wait(...) {}
 	void cancel() {}
 	void close() {}
+	bool is_open() { return false; }
 };
 #endif // PLATFORM_WINDOWS
 

@@ -23,6 +23,16 @@ FAsioFile::FAsioFile(asio::io_context& IoContext, UPTRINT OsHandle)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool FAsioFile::IsOpen() const
+{
+#if PLATFORM_WINDOWS
+	return Handle.is_open();
+#else
+	return StreamDescriptor.is_open();
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAsioFile::Close()
 {
 #if PLATFORM_WINDOWS
