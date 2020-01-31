@@ -795,7 +795,8 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 				{
 					// Look for any structurally significant changes (missing, added, or changed texts) in the cache
 					// Ignore insignificant things (like source changes caused by assets moving or being renamed)
-					if (!IsGatherableTextDataIdentical(GatherableTextDataArray, PackagePendingGather.GatherableTextDataArray))
+					if (EnumHasAnyFlags(GatherableTextResultFlags, EPropertyLocalizationGathererResultFlags::HasTextWithInvalidPackageLocalizationID) 
+						|| !IsGatherableTextDataIdentical(GatherableTextDataArray, PackagePendingGather.GatherableTextDataArray))
 					{
 						PackagesWithStaleGatherCache.Add(PackagePendingGather.PackageName);
 						
