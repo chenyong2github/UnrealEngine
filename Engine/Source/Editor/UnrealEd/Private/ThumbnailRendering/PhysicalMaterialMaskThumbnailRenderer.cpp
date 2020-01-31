@@ -21,11 +21,11 @@ void UPhysicalMaterialMaskThumbnailRenderer::GetThumbnailSize(UObject* Object, f
 	}
 }
 
-void UPhysicalMaterialMaskThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas)
+void UPhysicalMaterialMaskThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UPhysicalMaterialMask* PhysMatMask = Cast<UPhysicalMaterialMask>(Object);
 	if (PhysMatMask->MaskTexture != nullptr)
 	{
-		Super::Draw(PhysMatMask->MaskTexture, X, Y, Width, Height, RenderTarget, Canvas);
+		Super::Draw(PhysMatMask->MaskTexture, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
 	}
 }

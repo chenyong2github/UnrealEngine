@@ -20,7 +20,7 @@ class FDerivedDataAnimationCompression : public FDerivedDataPluginInterface
 {
 private:
 	// The anim data to compress
-	TSharedPtr<FCompressibleAnimData> DataToCompressPtr;
+	FCompressibleAnimPtr DataToCompressPtr;
 
 	// The Type of anim data to compress (makes up part of DDC key)
 	const TCHAR* TypeName;
@@ -35,11 +35,13 @@ public:
 	FDerivedDataAnimationCompression(const TCHAR* InTypeName, const FString& InAssetDDCKey, TSharedPtr<FAnimCompressContext> InCompressContext);
 	virtual ~FDerivedDataAnimationCompression();
 
-	void SetCompressibleData(TSharedRef<FCompressibleAnimData> InCompressibleAnimData)
+	void SetCompressibleData(FCompressibleAnimRef InCompressibleAnimData)
 	{
 		DataToCompressPtr = InCompressibleAnimData;
 		check(DataToCompressPtr->Skeleton != nullptr);
 	}
+
+	FCompressibleAnimPtr GetCompressibleData() const { return DataToCompressPtr; }
 
 	uint64 GetMemoryUsage() const
 	{

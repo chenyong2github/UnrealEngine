@@ -294,7 +294,7 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 		}
 	}
 
-	Relevance.bVelocityRelevance = IsMovable() && Relevance.bOpaqueRelevance && Relevance.bRenderInMainPass;
+	Relevance.bVelocityRelevance = IsMovable() && Relevance.bOpaque && Relevance.bRenderInMainPass;
 
 	return Relevance;
 }
@@ -473,6 +473,11 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 }
 
 /********* UFXSystemComponent *********/
+void UNiagaraComponent::SetBoolParameter(FName Parametername, bool Param)
+{
+	SetVariableBool(Parametername, Param);
+}
+
 void UNiagaraComponent::SetFloatParameter(FName ParameterName, float Param)
 {
 	SetVariableFloat(ParameterName, Param);
@@ -885,7 +890,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 				SavedAutoAttachRelativeRotation = GetRelativeRotation();
 				SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 				//bIsChangingAutoAttachment = true;
-				AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
+				AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, bAutoAttachWeldSimulatedBodies), AutoAttachSocketName);
 				//bIsChangingAutoAttachment = false;
 			}
 

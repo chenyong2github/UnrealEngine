@@ -25,7 +25,6 @@ namespace BuildAgent
 		{
 			try
 			{
-				Log.TraceInformation("Welcome to the Danger Zone!");
 				int Result = GuardedMain(Args);
 				return Result;
 			}

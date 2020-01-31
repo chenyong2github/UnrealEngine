@@ -102,7 +102,7 @@ void FLiveCodingModule::StartupModule()
 		);
 	}
 
-	Startup(hInstance);
+	LppStartup(hInstance);
 
 	if (Settings->bEnabled && !FApp::IsUnattended())
 	{
@@ -128,7 +128,7 @@ void FLiveCodingModule::StartupModule()
 
 void FLiveCodingModule::ShutdownModule()
 {
-	Shutdown();
+	LppShutdown();
 
 	FCoreDelegates::OnEndFrame.Remove(EndFrameDelegateHandle);
 
@@ -303,7 +303,8 @@ bool FLiveCodingModule::StartLiveCoding()
 		LppUseExternalBuildSystem();
 
 		// Enable the server
-		FString ProcessGroup = FString::Printf(TEXT("UE4_%s_0x%08x"), FApp::GetProjectName(), GetTypeHash(FPaths::ProjectDir()));
+		FString ProjectPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()).ToLower();
+		FString ProcessGroup = FString::Printf(TEXT("UE4_%s_0x%08x"), FApp::GetProjectName(), GetTypeHash(ProjectPath));
 		LppRegisterProcessGroup(TCHAR_TO_ANSI(*ProcessGroup));
 
 		// Build the command line

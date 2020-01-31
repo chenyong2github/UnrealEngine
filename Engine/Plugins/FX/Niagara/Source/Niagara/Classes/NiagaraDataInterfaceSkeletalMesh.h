@@ -134,8 +134,17 @@ struct FSkeletalMeshSkinningData
 		return BoneRefToLocals[CurrIndex ^ 1];
 	}
 
-private:
+	FORCEINLINE TArray<FTransform>& CurrComponentTransforms()
+	{
+		return ComponentTransforms[CurrIndex];
+	}
 
+	FORCEINLINE TArray<FTransform>& PrevComponentTransforms()
+	{
+		return ComponentTransforms[CurrIndex ^ 1];
+	}
+
+private:
 	FCriticalSection CriticalSection; 
 	
 	TWeakObjectPtr<USkeletalMeshComponent> MeshComp;
@@ -151,6 +160,9 @@ private:
 
 	/** Cached bone matrices. */
 	TArray<FMatrix> BoneRefToLocals[2];
+
+	/** Component space transforms */
+	TArray<FTransform> ComponentTransforms[2];
 
 	struct FLODData
 	{

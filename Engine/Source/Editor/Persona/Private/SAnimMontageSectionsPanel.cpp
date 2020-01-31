@@ -437,7 +437,7 @@ TSharedRef<SWidget> SAnimMontageSectionsPanel::OnGetSectionMenuContent(int32 Sec
 			FText SectionNameText = FText::FromName(Montage->CompositeSections[NextSectionIdx].SectionName);
 			MenuBuilder.AddMenuEntry(
 				SectionNameText,
-				FText::Format(LOCTEXT("RemoveLinkTooltip", "Set {0} to be the next section"), SectionNameText),
+				FText::Format(LOCTEXT("SetNextSectionTooltip", "Set {0} to be the next section"), SectionNameText),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &SAnimMontageSectionsPanel::SetNextSectionIndex, SectionIdx, NextSectionIdx))
 			);

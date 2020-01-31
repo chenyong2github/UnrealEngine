@@ -5,16 +5,7 @@
 #include "LC_PoolAllocator.h"
 #include "LC_Platform.h"
 #include "LC_Logging.h"
-
-
-namespace
-{
-	template <typename T>
-	inline T RoundUpToMultiple(T numToRound, T multipleOf)
-	{
-		return (numToRound + (multipleOf - 1u)) & ~(multipleOf - 1u);
-	}
-}
+#include "LC_BitUtil.h"
 
 
 MicroAllocator::MicroAllocator(const char* name, size_t alignment)
@@ -29,14 +20,14 @@ MicroAllocator::MicroAllocator(const char* name, size_t alignment)
 
 		// all pools grow such that new blocks need to be allocated for every ELEMENT_COUNT_PER_POOL_GROWTH elements
 		const uint32_t pageSize = virtualMemory::GetPageSize();
-		const size_t growSize = RoundUpToMultiple<size_t>(elementSize * ELEMENT_COUNT_PER_POOL_GROWTH, pageSize);
+		const size_t growSize = bitUtil::RoundUpToMultiple<size_t>(elementSize * ELEMENT_COUNT_PER_POOL_GROWTH, pageSize);
 		m_poolAllocators[i] = new PoolAllocator<PoolAllocatorMultiThreadPolicy>(name, elementSize, alignment, growSize);
 	}
 
 	// store all those allocators into a lookup-table for fast access during allocation
 	for (size_t i = 1u; i <= POOL_ALLOCATOR_COUNT; ++i)
 	{
-		const size_t nextMultiple = RoundUpToMultiple<size_t>(i, 4u);
+		const size_t nextMultiple = bitUtil::RoundUpToMultiple<size_t>(i, 4u);
 		m_poolAllocators[i] = m_poolAllocators[nextMultiple];
 	}
 }

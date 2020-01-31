@@ -217,6 +217,34 @@ private:
 	friend struct Z_Construct_UScriptStruct_FSoftObjectPath_Statics;
 };
 
+/** Fast non-alphabetical order that is only stable during this process' lifetime. */
+struct FSoftObjectPathFastLess
+{
+	bool operator()(const FSoftObjectPath& Lhs, const FSoftObjectPath& Rhs) const
+	{
+		int32 Comp = Lhs.GetAssetPathName().CompareIndexes(Rhs.GetAssetPathName());
+		if (Comp < 0)
+		{
+			return true;
+		}
+		return Comp == 0 && Lhs.GetSubPathString() < Rhs.GetSubPathString();
+	}
+};
+
+/** Slow alphabetical order that is stable / deterministic over process runs. */
+struct FSoftObjectPathLexicalLess
+{
+	bool operator()(const FSoftObjectPath& Lhs, const FSoftObjectPath& Rhs) const
+	{
+		int32 Comp = Lhs.GetAssetPathName().Compare(Rhs.GetAssetPathName());
+		if (Comp < 0)
+		{
+			return true;
+		}
+		return Comp == 0 && Lhs.GetSubPathString() < Rhs.GetSubPathString();
+	}
+};
+
 /**
  * A struct that contains a string reference to a class, can be used to make soft references to classes
  */

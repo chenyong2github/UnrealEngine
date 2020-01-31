@@ -15,13 +15,12 @@ namespace Timing_Data_Investigator
 	/// Interaction logic for MainWindow.xaml
 	/// </summary>
 	public partial class MainWindow : Window
-    {
-        public MainWindow()
-        {
-            InitializeComponent();
-
+	{
+		public MainWindow()
+		{
+			InitializeComponent();
 			Loaded += MainWindow_Loaded;
-        }
+		}
 
 		private void MainWindow_Loaded(object sender, RoutedEventArgs e)
 		{
@@ -29,7 +28,8 @@ namespace Timing_Data_Investigator
 		}
 
 		private void LoadTimingFile(string FilePath)
-        {
+		{
+
 			TimingDataViewModel NewTimingData = TimingDataViewModel.FromBinaryFile(FileReference.FromString(FilePath));
 
 			// If this is an aggregate, hook up the open commands for the file rows.
@@ -50,41 +50,41 @@ namespace Timing_Data_Investigator
 			}
 
 			AddTimingDataViewModelToTabs(NewTimingData);
-        }
+		}
 
-        private void AddTimingDataViewModelToTabs(TimingDataViewModel NewViewModel)
-        {
+		private void AddTimingDataViewModelToTabs(TimingDataViewModel NewViewModel)
+		{
 			NoOpenTabsTab.Visibility = Visibility.Collapsed;
 			OpenedFiles.Items.Add(NewViewModel);
 			OpenedFiles.SelectedItem = NewViewModel;
-        }
+		}
 
-        private void OpenFile_Click(object sender, RoutedEventArgs e)
-        {
+		private void OpenFile_Click(object sender, RoutedEventArgs e)
+		{
 			ShowOpenFileDialog();
 		}
 
 		private void ShowOpenFileDialog()
 		{
 			OpenFileDialog OpenFileDialog = new OpenFileDialog();
-            OpenFileDialog.Filter = "Timing Files (*.timing.bin)|*.timing.bin|All Files (*.*)|*.*";
-            if (OpenFileDialog.ShowDialog(this) == true)
-            {
-                LoadTimingFile(OpenFileDialog.FileName);
-            }
-        }
+			OpenFileDialog.Filter = "Timing Files (*.timing.bin)|*.timing.bin|All Files (*.*)|*.*";
+			if (OpenFileDialog.ShowDialog(this) == true)
+			{
+				LoadTimingFile(OpenFileDialog.FileName);
+			}
+		}
 
-        private void Exit_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
+		private void Exit_Click(object sender, RoutedEventArgs e)
+		{
+			Close();
+		}
 
-        private void RemoveTab_Click(object sender, RoutedEventArgs e)
-        {
+		private void RemoveTab_Click(object sender, RoutedEventArgs e)
+		{
 			Button RemoveTabButton = (Button)e.Source;
 			TimingDataViewModel TabToRemove = (TimingDataViewModel)RemoveTabButton.DataContext;
 			CloseTab(TabToRemove);
-        }
+		}
 
 		private void StackPanel_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
 		{

@@ -1049,7 +1049,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 			}
 		}
 
-		bool bOpaqueRelevance = false;
+		bool bOpaque = false;
 		bool bTranslucentRelevance = false;
 		bool bShadowRelevance = false;
 		bool bCustomDataRelevance = false;
@@ -1103,8 +1103,8 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 				ViewMask |= (1 << ViewIndex);
 			}
 
-			bOpaqueRelevance |= ViewRelevance.bOpaqueRelevance || ViewRelevance.bMaskedRelevance;
-			bTranslucentRelevance |= ViewRelevance.HasTranslucency() && !ViewRelevance.bMaskedRelevance;
+			bOpaque |= ViewRelevance.bOpaque || ViewRelevance.bMasked;
+			bTranslucentRelevance |= ViewRelevance.HasTranslucency() && !ViewRelevance.bMasked;
 			bShadowRelevance |= ViewRelevance.bShadowRelevance;
 			bCustomDataRelevance |= ViewRelevance.bUseCustomViewData;
 		}
@@ -1134,7 +1134,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 			}
 		}
 
-		if (bOpaqueRelevance && bShadowRelevance)
+		if (bOpaque && bShadowRelevance)
 		{
 			const FBoxSphereBounds& Bounds = Proxy->GetBounds();
 			bool bDrawingStaticMeshes = false;
@@ -1747,7 +1747,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 	bool bShadowIsPotentiallyVisibleNextFrame = false;
 	bool bOpaqueShadowIsVisibleThisFrame = false;
 	bool bSubjectIsVisible = false;
-	bool bOpaqueRelevance = false;
+	bool bOpaque = false;
 	bool bTranslucentRelevance = false;
 	bool bTranslucentShadowIsVisibleThisFrame = false;
 	int32 NumBufferedFrames = FOcclusionQueryHelpers::GetNumBufferedFrames(FeatureLevel);
@@ -1799,7 +1799,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 		bOpaqueShadowIsVisibleThisFrame |= (bPrimitiveIsShadowRelevant && !bOpaqueShadowIsOccluded);
 		bTranslucentShadowIsVisibleThisFrame |= (bPrimitiveIsShadowRelevant && !bTranslucentShadowIsOccluded);
 		bShadowIsPotentiallyVisibleNextFrame |= bPrimitiveIsShadowRelevant;
-		bOpaqueRelevance |= ViewRelevance.bOpaqueRelevance;
+		bOpaque |= ViewRelevance.bOpaque;
 		bTranslucentRelevance |= ViewRelevance.HasTranslucency();
 	}
 
@@ -1967,7 +1967,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 			// Use the max resolution if the desired resolution is larger than that
 			const int32 SizeX = MaxDesiredResolution >= MaxShadowResolution ? MaxShadowResolution : (1 << (FMath::CeilLogTwo(MaxDesiredResolution) - 1));
 
-			if (bOpaqueRelevance && bCreateOpaqueObjectShadow && (bOpaqueShadowIsVisibleThisFrame || bShadowIsPotentiallyVisibleNextFrame))
+			if (bOpaque && bCreateOpaqueObjectShadow && (bOpaqueShadowIsVisibleThisFrame || bShadowIsPotentiallyVisibleNextFrame))
 			{
 				// Create a projected shadow for this interaction's shadow.
 				FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(),1,16) FProjectedShadowInfo;
@@ -2050,7 +2050,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 		// If the subject is visible in at least one view, create a preshadow for static primitives shadowing the subject.
 		if (MaxPreFadeAlpha > 1.0f / 256.0f 
 			&& bRenderPreShadow
-			&& bOpaqueRelevance
+			&& bOpaque
 			&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Round down to the nearest power of two so that resolution changes are always doubling or halving the resolution, which increases filtering stability.
@@ -3509,7 +3509,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 				const FVisibleLightViewInfo& VisibleLightViewInfo = View.VisibleLightInfos[LightSceneInfo->Id];
 				const FPrimitiveViewRelevance ViewRelevance = VisibleLightViewInfo.ProjectedShadowViewRelevanceMap[ShadowIndex];
 				const bool bHasViewRelevance = (ProjectedShadowInfo->bTranslucentShadow && ViewRelevance.HasTranslucency()) 
-					|| (!ProjectedShadowInfo->bTranslucentShadow && ViewRelevance.bOpaqueRelevance);
+					|| (!ProjectedShadowInfo->bTranslucentShadow && ViewRelevance.bOpaque);
 
 				bShadowIsVisible |= bHasViewRelevance && VisibleLightViewInfo.ProjectedShadowVisibilityMap[ShadowIndex];
 			}

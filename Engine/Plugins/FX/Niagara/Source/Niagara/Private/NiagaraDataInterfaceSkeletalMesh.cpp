@@ -128,6 +128,15 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 			PrevBoneRefToLocals() = CurrBoneRefToLocals();
 		}
 
+		if (CurrComponentTransforms().Num() == 0)
+		{
+			CurrComponentTransforms() = SkelComp->GetComponentSpaceTransforms();
+		}
+		if (PrevComponentTransforms().Num() != CurrComponentTransforms().Num())
+		{
+			PrevComponentTransforms() = CurrComponentTransforms();
+		}
+
 		if (Usage.NeedPreSkinnedVerts() && CurrSkinnedPositions(LODIndex).Num() == 0)
 		{
 			FSkeletalMeshLODRenderData& SkelMeshLODData = SkelComp->SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex];
@@ -236,12 +245,19 @@ bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 		{
 			SkelComp->CacheRefToLocalMatrices(CurrBones);
 		}
+
+		CurrComponentTransforms() = SkelComp->GetComponentSpaceTransforms();
 	}
 
 	//Prime the prev matrices if they're missing.
-	if (PrevBoneRefToLocals().Num() != CurrBoneRefToLocals().Num() || bForceDataRefresh)
+	if ((PrevBoneRefToLocals().Num() != CurrBoneRefToLocals().Num()) || bForceDataRefresh)
 	{
 		PrevBoneRefToLocals() = CurrBoneRefToLocals();
+	}
+
+	if ((PrevComponentTransforms().Num() != CurrComponentTransforms().Num()) || bForceDataRefresh)
+	{
+		PrevComponentTransforms() = CurrComponentTransforms();
 	}
 
 	if (bRequirePreskin)
@@ -2235,13 +2251,6 @@ void FSkeletalMeshAccessorHelper::Init<
 	SkinningData = InstData->SkinningData.SkinningData.Get();
 	Usage = InstData->SkinningData.Usage;
 
-	if (Comp)
-	{
-		const USkinnedMeshComponent* BaseComp = Comp->GetBaseComponent();
-		BoneComponentSpaceTransforms = &BaseComp->GetComponentSpaceTransforms();
-		PrevBoneComponentSpaceTransforms = &BaseComp->GetPreviousComponentTransformsArray();
-	}
-
 	const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->Mesh->GetSamplingInfo();
 	SamplingRegion = &SamplingInfo.GetRegion(InstData->SamplingRegionIndices[0]);
 	SamplingRegionBuiltData = &SamplingInfo.GetRegionBuiltData(InstData->SamplingRegionIndices[0]);
@@ -2259,13 +2268,6 @@ void FSkeletalMeshAccessorHelper::Init<
 	IndexBuffer = LODData->MultiSizeIndexContainer.GetIndexBuffer();
 	SkinningData = InstData->SkinningData.SkinningData.Get();
 	Usage = InstData->SkinningData.Usage;
-
-	if (Comp)
-	{
-		const USkinnedMeshComponent* BaseComp = Comp->GetBaseComponent();
-		BoneComponentSpaceTransforms = &BaseComp->GetComponentSpaceTransforms();
-		PrevBoneComponentSpaceTransforms = &BaseComp->GetPreviousComponentTransformsArray();
-	}
 
 	const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->Mesh->GetSamplingInfo();
 	SamplingRegion = &SamplingInfo.GetRegion(InstData->SamplingRegionIndices[0]);

@@ -406,7 +406,7 @@ void FTimingRelevantElement_Section::GetDescriptionItems(TMap<FString, FText>& I
 	Items.Add(LOCTEXT("SectionName", "Name").ToString(), FText::FromName(Section.SectionName));
 	if(GetDefault<UPersonaOptions>()->TimelineDisplayFormat == EFrameNumberDisplayFormats::Frames)
 	{
-		Items.Add(LOCTEXT("SectionTriggerFrame", "Trigger Frame").ToString(), FText::Format(LOCTEXT("SectionTriggerTimeValue", "{0}"), FText::AsNumber(Montage->GetFrameAtTime(Section.GetTime()))));
+		Items.Add(LOCTEXT("SectionTriggerFrame", "Trigger Frame").ToString(), FText::Format(LOCTEXT("SectionTriggerFrameValue", "{0}"), FText::AsNumber(Montage->GetFrameAtTime(Section.GetTime()))));
 	}
 	else
 	{

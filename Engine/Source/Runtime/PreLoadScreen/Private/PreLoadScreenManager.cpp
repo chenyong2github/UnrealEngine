@@ -356,6 +356,8 @@ void FPreLoadScreenManager::GameLogicFrameTick()
         // Gives widgets a chance to process any accumulated input
         FSlateApplication::Get().FinishedInputThisFrame();
 
+		FSlateApplication::Get().GetPlatformApplication()->Tick(DeltaTime);
+
         //Needed as this won't be incrementing on its own and some other tick functions rely on this (like analytics)
         GFrameCounter++;
     }

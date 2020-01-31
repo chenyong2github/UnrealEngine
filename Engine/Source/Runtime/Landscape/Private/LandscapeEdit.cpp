@@ -6593,7 +6593,7 @@ void BuildHoleRenderData(int32 InNumSubsections, int32 InSubsectionSizeVerts, TA
 	}
 
 	OutHoleRenderData.MinIndex = MinIndex;
-	OutHoleRenderData.MinIndex = MaxIndex;
+	OutHoleRenderData.MaxIndex = MaxIndex;
 }
 
 // Generates vertex and index buffer data from the component's height map and visibility textures.

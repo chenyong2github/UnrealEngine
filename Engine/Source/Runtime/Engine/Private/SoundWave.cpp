@@ -969,6 +969,8 @@ void USoundWave::BeginDestroy()
 		AsyncLoadingDataFormats.Empty();
 	}
 #endif
+
+	ReleaseCompressedAudio();
 }
 
 void USoundWave::InitAudioResource( FByteBulkData& CompressedData )

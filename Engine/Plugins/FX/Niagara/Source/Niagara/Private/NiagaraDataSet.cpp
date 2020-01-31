@@ -127,6 +127,7 @@ void FNiagaraDataSet::ResetBuffersInternal()
 	FreeIDsTable.Reset();
 	NumFreeIDs = 0;
 	MaxUsedID = INDEX_NONE;
+	SpawnedIDsTable.Reset();
 
 	//Ensure we have a valid current buffer
 	BeginSimulate();
@@ -248,6 +249,9 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 			//Free ID Table must always be at least as large as the data buffer + it's current size in the case all particles die this frame.
 			FreeIDsTable.AddUninitialized(NumNewIDs);
 
+			// The spawned IDs table must be as large as the free IDs table, in case we allocate all of them this tick.
+			SpawnedIDsTable.Reserve(FreeIDsTable.Num());
+
 			//Free table should always have enough room for these new IDs.
 			check(NumFreeIDs + NumNewIDs <= FreeIDsTable.Num());
 
@@ -363,27 +367,22 @@ void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList&
 		return;
 	}
 
+	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUComputeInitFreeIDs, TEXT("Init Free IDs - %s"), DebugSimName ? DebugSimName : TEXT(""));
+
 	TCHAR DebugBufferName[128];
 	FCString::Snprintf(DebugBufferName, UE_ARRAY_COUNT(DebugBufferName), TEXT("NiagaraFreeIDList_%s"), DebugSimName ? DebugSimName : TEXT(""));
 	FRWBuffer NewFreeIDsBuffer;
 	NewFreeIDsBuffer.Initialize(sizeof(int32), NumIDsToAlloc, EPixelFormat::PF_R32_SINT, BUF_Static, DebugBufferName);
 
 	// We must maintain the existing list of free IDs.
-	FRHIShaderResourceView* ExistingBuffer;
-	if (GPUNumAllocatedIDs > 0)
-	{
-		// The free IDs buffer was written in the previous simulation step, but hasn't been transitioned to read yet, so we must
-		// transition it explicitly here. The new buffer will be transitioned by NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(),
-		// so there's no need for a barrier at the end of this function.
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, GPUFreeIDs.UAV);
-		ExistingBuffer = GPUFreeIDs.SRV;
-	}
-	else
-	{
-		ExistingBuffer = FNiagaraRenderer::GetDummyIntBuffer().SRV;
-	}
-	
-	NiagaraInitGPUFreeIDList(RHICmdList, FeatureLevel, NumIDsToAlloc, NewFreeIDsBuffer, GPUNumAllocatedIDs, ExistingBuffer);
+	FRWBuffer& ExistingBuffer = (GPUNumAllocatedIDs > 0) ? GPUFreeIDs : FNiagaraRenderer::GetDummyIntBuffer();
+
+	// The free IDs buffer was written in the previous simulation step, but hasn't been transitioned to read yet, so we must
+	// transition it explicitly here. The new buffer will be transitioned by NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(),
+	// so there's no need for a barrier at the end of this function.
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ExistingBuffer.UAV);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, NewFreeIDsBuffer.UAV);
+	NiagaraInitGPUFreeIDList(RHICmdList, FeatureLevel, NumIDsToAlloc, NewFreeIDsBuffer, GPUNumAllocatedIDs, ExistingBuffer.SRV);
 
 	GPUFreeIDs = MoveTemp(NewFreeIDsBuffer);
 	GPUNumAllocatedIDs = NumIDsToAlloc;
@@ -485,6 +484,8 @@ FNiagaraDataBuffer::FNiagaraDataBuffer(FNiagaraDataSet* InOwner)
 	, NumInstancesAllocated(0)
 	, FloatStride(0)
 	, Int32Stride(0)
+	, NumSpawnedInstances(0)
+	, IDAcquireTag(0)
 {
 }
 

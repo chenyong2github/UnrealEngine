@@ -165,6 +165,7 @@ struct FDataSetMeta
 	
 	TArray<int32>*RESTRICT IDTable;
 	TArray<int32>*RESTRICT FreeIDTable;
+	TArray<int32>*RESTRICT SpawnedIDsTable;
 
 	/** Number of free IDs in the FreeIDTable */
 	int32* NumFreeIDs;
@@ -190,6 +191,7 @@ struct FDataSetMeta
 		, InstanceOffset(INDEX_NONE)
 		, IDTable(nullptr)
 		, FreeIDTable(nullptr)
+		, SpawnedIDsTable(nullptr)
 		, NumFreeIDs(nullptr)
 		, MaxUsedID(nullptr)
 		, IDAcquireTag(INDEX_NONE)
@@ -204,12 +206,13 @@ struct FDataSetMeta
 		InstanceOffset = INDEX_NONE;
 		IDTable = nullptr;
 		FreeIDTable = nullptr;
+		SpawnedIDsTable = nullptr;
 		NumFreeIDs = nullptr;
 		MaxUsedID = nullptr;
 		IDAcquireTag = INDEX_NONE;
 	}
 
-	FORCEINLINE void Init(uint8*RESTRICT *RESTRICT InInputRegisters, uint8*RESTRICT *RESTRICT InOutputRegisters, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag)
+	FORCEINLINE void Init(uint8*RESTRICT *RESTRICT InInputRegisters, uint8*RESTRICT *RESTRICT InOutputRegisters, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag, TArray<int32>* InSpawnedIDsTable)
 	{
 		InputRegisters = InInputRegisters;
 		OutputRegisters = InOutputRegisters;
@@ -221,6 +224,7 @@ struct FDataSetMeta
 		NumFreeIDs = InNumFreeIDs;
 		MaxUsedID = InMaxUsedID;
 		IDAcquireTag = InIDAcquireTag;
+		SpawnedIDsTable = InSpawnedIDsTable;
 	}
 
 private:

@@ -85,8 +85,8 @@ namespace Chaos
 		// Box-TriangleMesh
 		//
 
-		template <typename T, int d>
-		void CHAOS_API UpdateBoxTriangleMeshConstraint(const TAABB<T, d>& Box0, const TRigidTransform<T, d>& Transform0, const FTriangleMeshImplicitObject& TriangleMesh1, const TRigidTransform<T, d>& Transformw1, const T CullDistance, TRigidBodyPointContactConstraint<T, d>& Constraint);
+		template <typename TriMeshType, typename T, int d>
+		void CHAOS_API UpdateBoxTriangleMeshConstraint(const TAABB<T, d>& Box0, const TRigidTransform<T, d>& Transform0, const TriMeshType & TriangleMesh1, const TRigidTransform<T, d>& Transformw1, const T CullDistance, TRigidBodyPointContactConstraint<T, d>& Constraint);
 
 		template <typename T, int d>
 		void CHAOS_API UpdateBoxTriangleMeshManifold(TCollisionConstraintBase<T, d>&  Constraint, const TRigidTransform<T, d>& ATM, const TRigidTransform<T, d>& BTM, const T CullDistance);
@@ -234,12 +234,6 @@ namespace Chaos
 		template<typename T, int d>
 		void CHAOS_API ConstructLevelsetLevelsetConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T CullDistance, FCollisionConstraintsArray& NewConstraints);
 
-
-		//
-		// Union-Union
-		//
-		template<typename T, int d>
-		void CHAOS_API ConstructUnionUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T CullDistance, FCollisionConstraintsArray& NewConstraints);
 
 		//
 		// Constraint API

@@ -1972,7 +1972,7 @@ struct FRelevancePacket
 			const bool bEditorSelectionRelevance = ViewRelevance.bEditorStaticSelectionRelevance;
 			const bool bTranslucentRelevance = ViewRelevance.HasTranslucency();
 
-			const bool bHairStrandsEnabled = ViewRelevance.bHairStrandsRelevance && IsHairStrandsEnable(Scene->GetShaderPlatform());
+			const bool bHairStrandsEnabled = ViewRelevance.bHairStrands && IsHairStrandsEnable(Scene->GetShaderPlatform());
 			if (!bEditorRelevance && bHairStrandsEnabled)
 			{
 				++NumVisibleDynamicPrimitives;
@@ -2026,12 +2026,12 @@ struct FRelevancePacket
 			{
 				if (View.Family->AllowTranslucencyAfterDOF())
 				{
-					if (ViewRelevance.bNormalTranslucencyRelevance)
+					if (ViewRelevance.bNormalTranslucency)
 					{
 						TranslucentPrimCount.Add(ETranslucencyPass::TPT_StandardTranslucency, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
 					}
 
-					if (ViewRelevance.bSeparateTranslucencyRelevance)
+					if (ViewRelevance.bSeparateTranslucency)
 					{
 						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyAfterDOF, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
 					}
@@ -2042,13 +2042,13 @@ struct FRelevancePacket
 					TranslucentPrimCount.Add(ETranslucencyPass::TPT_AllTranslucency, ViewRelevance.bUsesSceneColorCopy, ViewRelevance.bDisableOffscreenRendering);
 				}
 
-				if (ViewRelevance.bDistortionRelevance)
+				if (ViewRelevance.bDistortion)
 				{
 					bHasDistortionPrimitives = true;
 				}
 			}
 			
-			CombinedShadingModelMask |= ViewRelevance.ShadingModelMaskRelevance;
+			CombinedShadingModelMask |= ViewRelevance.ShadingModelMask;
 			bUsesGlobalDistanceField |= ViewRelevance.bUsesGlobalDistanceField;
 			bUsesLightingChannels |= ViewRelevance.bUsesLightingChannels;
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
@@ -2303,7 +2303,7 @@ struct FRelevancePacket
 											DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Velocity);
 										}
 
-										if (ViewRelevance.bTranslucentVelocityRelevance &&
+										if (ViewRelevance.bOutputsTranslucentVelocity &&
 											FTranslucentVelocityMeshProcessor::PrimitiveCanHaveVelocity(View.GetShaderPlatform(), PrimitiveSceneProxy) &&
 											FTranslucentVelocityMeshProcessor::PrimitiveHasVelocityForFrame(PrimitiveSceneProxy))
 										{
@@ -2327,12 +2327,12 @@ struct FRelevancePacket
 						{
 							if (View.Family->AllowTranslucencyAfterDOF())
 							{
-								if (ViewRelevance.bNormalTranslucencyRelevance)
+								if (ViewRelevance.bNormalTranslucency)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyStandard);
 								}
 
-								if (ViewRelevance.bSeparateTranslucencyRelevance)
+								if (ViewRelevance.bSeparateTranslucency)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAfterDOF);
 								}
@@ -2344,7 +2344,7 @@ struct FRelevancePacket
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::TranslucencyAll);
 							}
 
-							if (ViewRelevance.bDistortionRelevance)
+							if (ViewRelevance.bDistortion)
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Distortion);
 							}
@@ -2730,7 +2730,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 				View.NumVisibleDynamicMeshElements[EMeshPass::Velocity] += NumElements;
 			}
 
-			if (ViewRelevance.bTranslucentVelocityRelevance)
+			if (ViewRelevance.bOutputsTranslucentVelocity)
 			{
 				PassMask.Set(EMeshPass::TranslucentVelocity);
 				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucentVelocity] += NumElements;
@@ -2750,13 +2750,13 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 	{
 		if (View.Family->AllowTranslucencyAfterDOF())
 		{
-			if (ViewRelevance.bNormalTranslucencyRelevance)
+			if (ViewRelevance.bNormalTranslucency)
 			{
 				PassMask.Set(EMeshPass::TranslucencyStandard);
 				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyStandard] += NumElements;
 			}
 
-			if (ViewRelevance.bSeparateTranslucencyRelevance)
+			if (ViewRelevance.bSeparateTranslucency)
 			{
 				PassMask.Set(EMeshPass::TranslucencyAfterDOF);
 				View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAfterDOF] += NumElements;
@@ -2768,7 +2768,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			View.NumVisibleDynamicMeshElements[EMeshPass::TranslucencyAll] += NumElements;
 		}
 
-		if (ViewRelevance.bDistortionRelevance)
+		if (ViewRelevance.bDistortion)
 		{
 			PassMask.Set(EMeshPass::Distortion);
 			View.NumVisibleDynamicMeshElements[EMeshPass::Distortion] += NumElements;
@@ -2790,7 +2790,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 
 	// Hair strands are not rendered into the base pass (bRenderInMainPass=0) and so this 
 	// adds a special pass for allowing hair strands to be selectable.
-	if (View.bAllowTranslucentPrimitivesInHitProxy && ViewRelevance.bHairStrandsRelevance)
+	if (View.bAllowTranslucentPrimitivesInHitProxy && ViewRelevance.bHairStrands)
 	{
 		PassMask.Set(EMeshPass::HitProxy);
 		View.NumVisibleDynamicMeshElements[EMeshPass::HitProxy] += NumElements;
@@ -2814,7 +2814,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		BatchAndProxy.SortKey = MeshBatch.PrimitiveSceneProxy->GetTranslucencySortPriority();
 	}
 	
-	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrandsRelevance && IsHairStrandsEnable(View.GetShaderPlatform());
+	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnable(View.GetShaderPlatform());
 	if (bIsHairStrandsCompatible)
 	{
 		View.HairStrandsMeshElements.AddUninitialized(1);

@@ -959,6 +959,15 @@ void FPhysInterface_Chaos::SetWakeCounter_AssumesLocked(const FPhysicsActorHandl
 	// #todo : Implement
 }
 
+void FPhysInterface_Chaos::SetInitialized_AssumesLocked(const FPhysicsActorHandle& InHandle, bool InInitialized)
+{
+	Chaos::TPBDRigidParticle<float, 3>* Rigid = InHandle->CastToRigidParticle();
+	if (Rigid)
+	{
+		Rigid->SetInitialized(InInitialized);
+	}
+}
+
 SIZE_T FPhysInterface_Chaos::GetResourceSizeEx(const FPhysicsActorHandle& InActorRef)
 {
     return sizeof(FPhysicsActorHandle);

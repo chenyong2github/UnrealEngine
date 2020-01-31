@@ -21,7 +21,7 @@ UMaterialInstanceThumbnailRenderer::UMaterialInstanceThumbnailRenderer(const FOb
 {
 }
 
-void UMaterialInstanceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas)
+void UMaterialInstanceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UMaterialInterface* MatInst = Cast<UMaterialInterface>(Object);
 	if (MatInst != nullptr)
@@ -87,7 +87,8 @@ void UMaterialInstanceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y,
 
 			ThumbnailScene->SetMaterialInterface(MatInst);
 			FSceneViewFamilyContext ViewFamily( FSceneViewFamily::ConstructionValues( RenderTarget, ThumbnailScene->GetScene(), FEngineShowFlags(ESFIM_Game) )
-				.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime));
+				.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
+				.SetAdditionalViewFamily(bAdditionalViewFamily));
 
 
 			ViewFamily.EngineShowFlags.DisableAdvancedFeatures();

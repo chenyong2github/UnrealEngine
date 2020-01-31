@@ -2894,8 +2894,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			}
 		}
 
-		InitGameTextLocalization();
-
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Initial UObject load"), STAT_InitialUObjectLoad, STATGROUP_LoadTime);
 
 		// In order to be able to use short script package names get all script
@@ -3447,7 +3445,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 #else // WITH_ENGINE
 	InitEngineTextLocalization();
-	InitGameTextLocalization();
 #if USE_LOCALIZED_PACKAGE_CACHE
 	{
 		SCOPED_BOOT_TIMING("FPackageLocalizationManager::Get().InitializeFromDefaultCache");
@@ -5347,17 +5344,10 @@ bool FEngineLoop::AppInit( )
 		
 		if(bNeedCompile)
 		{
-			// If there was no editor target, use the default UE4Editor target
-			FString CompileProject = FPaths::GetProjectFilePath();
-			if(EditorTargetFileName.Len() == 0)
-			{
-				CompileProject.Empty();
-			}
-
 			// Try to compile it
 			FFeedbackContext *Context = (FFeedbackContext*)FDesktopPlatformModule::Get()->GetNativeFeedbackContext();
 			Context->BeginSlowTask(FText::FromString(TEXT("Starting build...")), true, true);
-			bool bCompileResult = FDesktopPlatformModule::Get()->CompileGameProject(FPaths::RootDir(), CompileProject, Context);
+			bool bCompileResult = FDesktopPlatformModule::Get()->CompileGameProject(FPaths::RootDir(), FPaths::GetProjectFilePath(), Context);
 			Context->EndSlowTask();
 
 			// Check if we're running the wrong executable now

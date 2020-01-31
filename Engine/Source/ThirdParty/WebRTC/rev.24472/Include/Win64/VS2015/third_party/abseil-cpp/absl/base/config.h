@@ -419,8 +419,13 @@
 #if defined(_MSC_VER) && _MSC_VER >= 1910 && \
     ((defined(_MSVC_LANG) && _MSVC_LANG > 201402) || __cplusplus > 201402)
 // #define ABSL_HAVE_STD_ANY 1
-#define ABSL_HAVE_STD_OPTIONAL 1
-#define ABSL_HAVE_STD_VARIANT 1
+
+// #RVF / EPIC : These are always disabled at the moment, to force WebRTC to use absl instead of std::optional / std::variant
+// This solves the linker problems when the WebRTC libraries were compiled with say C++11/14, but UE4 is being built in C++17 mode.
+// Once we need to upgrade WebRTC, I'll revise this.
+
+// #define ABSL_HAVE_STD_OPTIONAL 1
+// #define ABSL_HAVE_STD_VARIANT 1
 // #define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
 

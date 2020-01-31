@@ -14,6 +14,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bEnableCloudKitSupport = false;
 	bSupportsPortraitOrientation = true;
 	bSupportsITunesFileSharing = false;
+	bSupportsFilesApp = false;
 	BundleDisplayName = TEXT("UE4 Game");
 	BundleName = TEXT("MyUE4Game");
 	BundleIdentifier = TEXT("com.YourCompany.GameNameNoSpaces");

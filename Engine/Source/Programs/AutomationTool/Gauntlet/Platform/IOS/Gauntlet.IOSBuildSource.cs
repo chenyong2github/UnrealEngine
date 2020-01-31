@@ -69,21 +69,24 @@ namespace Gauntlet
 		// This is limited to bulk builds which exceed 4 gigs, this method works around this, though we really do need to fix
 		internal static bool ExecuteIPAZipCommand(String Arguments, out String Output, String ShouldExist = "")
 		{
-			IProcessResult Result = ExecuteCommand("unzip", Arguments);
-			Output = Result.Output;
-
-			if (Result.ExitCode != 0)
+			using (new ScopedSuspendECErrorParsing())
 			{
-				if (!String.IsNullOrEmpty(ShouldExist))
-				{
-					if (!File.Exists(ShouldExist) && !Directory.Exists(ShouldExist))
-					{
-						Log.Error(String.Format("unzip encountered an error or warning procesing IPA, possibly due to Zip64 issue, {0} missing", ShouldExist));
-						return false;
-					}
-				}
+				IProcessResult Result = ExecuteCommand("unzip", Arguments);
+				Output = Result.Output;
 
-				Log.Warning(String.Format("unzip encountered an error or warning procesing IPA, possibly due to Zip64 issue. Future steps may fail."));
+				if (Result.ExitCode != 0)
+				{
+					if (!String.IsNullOrEmpty(ShouldExist))
+					{
+						if (!File.Exists(ShouldExist) && !Directory.Exists(ShouldExist))
+						{
+							Log.Error(String.Format("unzip encountered an error or warning procesing IPA, possibly due to Zip64 issue, {0} missing", ShouldExist));
+							return false;
+						}
+					}
+
+					Log.Info(String.Format("unzip encountered an issue procesing IPA, possibly due to Zip64. Future steps may fail."));
+				}
 			}
 			
 			return true;

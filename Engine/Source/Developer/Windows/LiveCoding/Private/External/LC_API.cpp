@@ -7,6 +7,7 @@
 #include "LC_Restart.h"
 #include "LC_RunMode.h"
 #include "LC_Logging.h"
+#include "LC_Memory.h"
 #include "LPP_API.h"
 
 namespace
@@ -19,20 +20,46 @@ namespace
 
 	// default run mode
 	static RunMode::Enum g_runMode = RunMode::DEFAULT;
+
+
+	static bool CheckForStartup(void)
+	{
+		if (!g_startupThread)
+		{
+			LC_ERROR_USER("Live++ was not started properly. Call lppStartup() first.");
+			return false;
+		}
+
+		return true;
+	}
 }
 
 
-void api::Startup(ClientStartupThread* startupThread)
+
+namespace
 {
-	g_startupThread = startupThread;
+	// startup thread
+	static ClientStartupThread* g_mainStartupThread = nullptr;
+}
+
+
+// BEGIN EPIC MOD - Adding instance to startup function
+LPP_DLL_API(void) LppStartup(void* thisInstance)
+{
+	g_startupThread = new ClientStartupThread((HINSTANCE)thisInstance);
+
 	restart::Startup();
 }
+// END EPIC MOD
 
 
-void api::Shutdown(void)
+LPP_DLL_API(void) LppShutdown(void)
 {
 	restart::Shutdown();
-	g_startupThread = nullptr;
+
+	// wait for the startup thread to finish its work and clean up
+	g_startupThread->Join();
+	memory::DeleteAndNull(g_startupThread);
 }
 
 
@@ -56,6 +83,11 @@ LPP_DLL_API(int) LppCheckVersion(const char* apiVersion)
 
 LPP_DLL_API(void) LppRegisterProcessGroup(const char* groupName)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	// now that we have the process group name, start Live++.
 	// ensure that initialization can happen only once, even if the user calls this more than once.
 	{
@@ -77,12 +109,22 @@ LPP_DLL_API(void) LppRegisterProcessGroup(const char* groupName)
 
 LPP_DLL_API(void) LppSyncPoint(void)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	syncPoint::EnterTarget();
 }
 
 
 LPP_DLL_API(void) LppWaitForToken(void* token)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	if (!token)
 	{
 		// nullptr tokens are returned by Live++ when trying to enable modules which are not loaded into the host process.
@@ -96,78 +138,154 @@ LPP_DLL_API(void) LppWaitForToken(void* token)
 
 LPP_DLL_API(void) LppTriggerRecompile(void)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	g_startupThread->TriggerRecompile();
 }
 
 
 LPP_DLL_API(void) LppLogMessage(const wchar_t* message)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	g_startupThread->LogMessage(message);
 }
 
 
 LPP_DLL_API(void) LppBuildPatch(const wchar_t* moduleNames[], const wchar_t* objPaths[], const wchar_t* amalgamatedObjPaths[], unsigned int count)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	g_startupThread->BuildPatch(moduleNames, objPaths, amalgamatedObjPaths, count);
 }
 
 
 LPP_DLL_API(void) LppInstallExceptionHandler(void)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	g_startupThread->InstallExceptionHandler();
 }
 
 
 LPP_DLL_API(void) LppUseExternalBuildSystem(void)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	g_runMode = RunMode::EXTERNAL_BUILD_SYSTEM;
+}
+
+
+LPP_DLL_API(void) LppTriggerRestart(void)
+{
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
+	return g_startupThread->TriggerRestart();
 }
 
 
 LPP_DLL_API(int) LppWantsRestart(void)
 {
+	if (!CheckForStartup())
+	{
+		return 0;
+	}
+
 	return restart::WasRequested();
 }
 
 
 LPP_DLL_API(void) LppRestart(lpp::RestartBehaviour behaviour, unsigned int exitCode)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	restart::Execute(behaviour, exitCode);
 }
 
 
 LPP_DLL_API(void*) LppEnableModule(const wchar_t* nameOfExeOrDll)
 {
+	if (!CheckForStartup())
+	{
+		return nullptr;
+	}
+
 	return g_startupThread->EnableModule(nameOfExeOrDll);
 }
 
 
 LPP_DLL_API(void*) LppEnableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
 {
+	if (!CheckForStartup())
+	{
+		return nullptr;
+	}
+
 	return g_startupThread->EnableModules(namesOfExeOrDll, count);
 }
 
 
 LPP_DLL_API(void*) LppEnableAllModules(const wchar_t* nameOfExeOrDll)
 {
+	if (!CheckForStartup())
+	{
+		return nullptr;
+	}
+
 	return g_startupThread->EnableAllModules(nameOfExeOrDll);
 }
 
 
 LPP_DLL_API(void*) LppDisableModule(const wchar_t* nameOfExeOrDll)
 {
+	if (!CheckForStartup())
+	{
+		return nullptr;
+	}
+
 	return g_startupThread->DisableModule(nameOfExeOrDll);
 }
 
 
 LPP_DLL_API(void*) LppDisableModules(const wchar_t* namesOfExeOrDll[], unsigned int count)
 {
+	if (!CheckForStartup())
+	{
+		return nullptr;
+	}
+
 	return g_startupThread->DisableModules(namesOfExeOrDll, count);
 }
 
 
 LPP_DLL_API(void*) LppDisableAllModules(const wchar_t* nameOfExeOrDll)
 {
+	if (!CheckForStartup())
+	{
+		return nullptr;
+	}
+
 	return g_startupThread->DisableAllModules(nameOfExeOrDll);
 }
 
@@ -215,17 +333,32 @@ LPP_DLL_API(void*) LppEnableLazyLoadedModule(const wchar_t* nameOfExeOrDll)
 
 LPP_DLL_API(void) LppApplySettingBool(const char* settingName, int value)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	g_startupThread->ApplySettingBool(settingName, value);
 }
 
 
 LPP_DLL_API(void) LppApplySettingInt(const char* settingName, int value)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	g_startupThread->ApplySettingInt(settingName, value);
 }
 
 
 LPP_DLL_API(void) LppApplySettingString(const char* settingName, const wchar_t* value)
 {
+	if (!CheckForStartup())
+	{
+		return;
+	}
+
 	g_startupThread->ApplySettingString(settingName, value);
 }
