@@ -240,7 +240,7 @@ const FAsioStore::FTrace* FAsioStore::GetTraceInfo(uint32 Index) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FAsioStore::FTrace* FAsioStore::GetTrace(uint32 Id)
+FAsioStore::FTrace* FAsioStore::GetTrace(uint32 Id) const
 {
 	for (FTrace* Trace : Traces)
 	{
@@ -325,6 +325,12 @@ FAsioStore::FNewTrace FAsioStore::CreateTrace()
 	}
 
 	return { Trace->GetId(), File };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FAsioStore::HasTrace(uint32 Id) const
+{
+	return GetTrace(Id) != nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

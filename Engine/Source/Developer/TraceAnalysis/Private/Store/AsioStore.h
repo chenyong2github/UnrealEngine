@@ -54,12 +54,13 @@ public:
 	uint32				GetChangeSerial() const;
 	uint32				GetTraceCount() const;
 	const FTrace*		GetTraceInfo(uint32 Index) const;
+	bool				HasTrace(uint32 Id) const;
 	FNewTrace			CreateTrace();
 	FAsioReadable*		OpenTrace(uint32 Id);
 
 private:
 	class				FDirWatcher;
-	FTrace*				GetTrace(uint32 Id);
+	FTrace*				GetTrace(uint32 Id) const;
 	FTrace*				AddTrace(const TCHAR* Path);
 	void				ClearTraces();
 	void				WatchDir();
