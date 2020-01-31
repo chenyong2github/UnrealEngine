@@ -96,7 +96,7 @@ UTexture* UnFbx::FFbxImporter::ImportTexture(FbxFileTexture* FbxTexture, bool bS
 	}
 	else
 	{
-		UE_LOG(LogFbxMaterialImport, Warning, TEXT("Unable to find Texture file %s"), *AbsoluteFilename);
+		UE_LOG(LogFbxMaterialImport, Display, TEXT("Unable to find Texture file %s"), *AbsoluteFilename);
 	}
 
 	TArray<uint8> DataBinary;
