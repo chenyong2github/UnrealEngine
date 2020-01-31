@@ -345,7 +345,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 , bIsBuilt(false)
 , bShouldTick(true)
 , ActiveLevelCollectionIndex(INDEX_NONE)
-, AudioDeviceHandle(INDEX_NONE)
+, AudioDeviceHandle()
 #if WITH_EDITOR
 , HierarchicalLODBuilder(new FHierarchicalLODBuilder(this))
 #endif
@@ -847,6 +847,8 @@ void UWorld::BeginDestroy()
 	{
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
 	}
+
+	AudioDeviceHandle.Reset();
 }
 
 void UWorld::ReleasePhysicsScene()
@@ -6197,7 +6199,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 			CurrentWorld->ClearFlags(RF_Standalone);
 
 			// Stop all audio to remove references to old world
-			if (FAudioDevice* AudioDevice = CurrentWorld->GetAudioDevice())
+			if (FAudioDevice* AudioDevice = CurrentWorld->GetAudioDeviceRaw())
 			{
 				AudioDevice->Flush(CurrentWorld);
 			}
@@ -6299,7 +6301,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 			// if we've already switched to entry before and this is the transition to the new map, re-create the gameinfo
 			if (bSwitchedToDefaultMap && !bIsClient)
 			{
-				if (FAudioDevice* AudioDevice = LoadedWorld->GetAudioDevice())
+				if (FAudioDevice* AudioDevice = LoadedWorld->GetAudioDeviceRaw())
 				{
 					AudioDevice->SetDefaultBaseSoundMix(LoadedWorld->GetWorldSettings()->DefaultBaseSoundMix);
 				}
@@ -7490,6 +7492,42 @@ void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneVi
 	}
 }
 
+void UWorld::SetAudioDevice(FAudioDeviceHandle& InHandle)
+{
+	AudioDeviceHandle = InHandle;
+}
+
+FAudioDeviceHandle UWorld::GetAudioDevice()
+{
+	if (AudioDeviceHandle)
+	{
+		return AudioDeviceHandle;
+	}
+	else if (GEngine)
+	{
+		return GEngine->GetMainAudioDevice();
+	}
+	else
+	{
+		return FAudioDeviceHandle();
+	}
+}
+
+FAudioDevice* UWorld::GetAudioDeviceRaw()
+{
+	if (AudioDeviceHandle)
+	{
+		return AudioDeviceHandle.GetAudioDevice();
+	}
+	else if (GEngine)
+	{
+		return GEngine->GetMainAudioDeviceRaw();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
 
 /**
 * Dump visible actors in current world.

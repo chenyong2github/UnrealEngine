@@ -303,14 +303,7 @@ void UGameViewportClient::PostInitProperties()
 
 void UGameViewportClient::BeginDestroy()
 {
-	if (GEngine)
-	{
-		class FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-		if (AudioDeviceManager)
-		{
-			AudioDeviceManager->ShutdownAudioDevice(AudioDeviceHandle);
-		}
-	}
+	AudioDevice.Reset();
 
 	RemoveAllViewportWidgets();
 	Super::BeginDestroy();

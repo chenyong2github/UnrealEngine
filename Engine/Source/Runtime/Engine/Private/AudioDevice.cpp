@@ -5360,7 +5360,14 @@ FAudioDevice::FCreateComponentParams::FCreateComponentParams(UWorld* InWorld, AA
 		Actor = (World ? World->GetWorldSettings() : nullptr);
 	}
 
-	AudioDevice = (World ? World->GetAudioDevice() : nullptr);
+	AudioDevice = (World ? World->GetAudioDeviceRaw() : nullptr);
+	
+	// If the world doesn't own an audio device, fall back to the main audio device.
+	if (!AudioDevice)
+	{
+		AudioDevice = (GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr);
+	}
+
 	CommonInit();
 }
 
@@ -5368,7 +5375,14 @@ FAudioDevice::FCreateComponentParams::FCreateComponentParams(AActor* InActor)
 	: Actor(InActor)
 {
 	World = (Actor ? Actor->GetWorld() : nullptr);
-	AudioDevice = (World ? World->GetAudioDevice() : nullptr);
+	AudioDevice = (World ? World->GetAudioDeviceRaw() : nullptr);
+
+	// If the world doesn't own an audio device, fall back to the main audio device.
+	if (!AudioDevice)
+	{
+		AudioDevice = (GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr);
+	}
+
 	CommonInit();
 }
 
@@ -5418,7 +5432,7 @@ UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, UWorld* World,
 	}
 	else
 	{
-		Params = MakeUnique<FCreateComponentParams>(GEngine->GetMainAudioDevice());
+		Params = MakeUnique<FCreateComponentParams>(GEngine->GetMainAudioDeviceRaw());
 	}
 
 	Params->bPlay = bPlay;
