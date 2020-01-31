@@ -39,7 +39,8 @@ FAsioRecorderRelay::FAsioRecorderRelay(asio::ip::tcp::socket& Socket, FAsioWrite
 ////////////////////////////////////////////////////////////////////////////////
 FAsioRecorderRelay::~FAsioRecorderRelay()
 {
-	Close();
+	check(!Input.IsOpen());
+	check(!Output->IsOpen());
 	delete Output;
 }
 
@@ -118,13 +119,13 @@ FAsioRecorder::FAsioRecorder(asio::io_context& IoContext, FAsioStore& InStore)
 ////////////////////////////////////////////////////////////////////////////////
 FAsioRecorder::~FAsioRecorder()
 {
-	Close();
+	check(!FAsioTickable::IsActive());
+	check(!FAsioTcpServer::IsOpen());
 
 	for (FSession& Session : Sessions)
 	{
 		delete Session.Relay;
 	}
-	Sessions.Empty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

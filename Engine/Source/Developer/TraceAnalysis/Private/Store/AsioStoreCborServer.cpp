@@ -67,7 +67,7 @@ FAsioStoreCborPeer::FAsioStoreCborPeer(
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStoreCborPeer::~FAsioStoreCborPeer()
 {
-	Close();
+	check(!IsOpen());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -336,7 +336,8 @@ FAsioStoreCborServer::FAsioStoreCborServer(
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStoreCborServer::~FAsioStoreCborServer()
 {
-	Close();
+	check(!FAsioTcpServer::IsOpen());
+	check(!FAsioTickable::IsActive());
 
 	for (FAsioStoreCborPeer* Peer : Peers)
 	{

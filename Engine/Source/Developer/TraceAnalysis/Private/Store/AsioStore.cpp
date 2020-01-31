@@ -166,8 +166,11 @@ FAsioStore::FAsioStore(asio::io_context& InIoContext, const TCHAR* InStoreDir)
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStore::~FAsioStore()
 {
-	Close();
-	delete DirWatcher;
+	if (DirWatcher != nullptr)
+	{
+		check(!DirWatcher->is_open());
+		delete DirWatcher;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

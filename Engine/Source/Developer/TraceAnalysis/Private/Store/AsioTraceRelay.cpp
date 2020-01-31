@@ -25,11 +25,14 @@ FAsioTraceRelay::FAsioTraceRelay(
 ////////////////////////////////////////////////////////////////////////////////
 FAsioTraceRelay::~FAsioTraceRelay()
 {
+	check(!Input->IsOpen());
+	delete Input;
+
 	if (Output != nullptr)
 	{
+		check(!Output->IsOpen());
 		delete Output;
 	}
-	delete Input;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
