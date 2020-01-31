@@ -246,7 +246,14 @@ FAudioDeviceParams FAudioDeviceManager::GetDefaultParamsForNewWorld()
 #endif
 
 	FAudioDeviceParams Params;
-	Params.Scope = bCreateNewAudioDeviceForPlayInEditor ? EAudioDeviceScope::Unique : EAudioDeviceScope::Shared;
+	if (GIsEditor)
+	{
+		Params.Scope = bCreateNewAudioDeviceForPlayInEditor ? EAudioDeviceScope::Unique : EAudioDeviceScope::Shared;
+	}
+	else
+	{
+		Params.Scope = EAudioDeviceScope::Shared;
+	}
 
 	return Params;
 }
