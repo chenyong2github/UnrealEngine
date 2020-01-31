@@ -402,6 +402,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 					Segment.VertexBufferElementType = VET_Float3;
 					Segment.FirstPrimitive = Section.BaseIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
+					Segment.bEnabled = !Section.bDisabled;
 					GeometrySections.Add(Segment);
 				}
 				Initializer.Segments = GeometrySections;

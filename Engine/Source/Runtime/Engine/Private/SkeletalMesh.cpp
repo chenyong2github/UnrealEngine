@@ -5062,6 +5062,7 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 						FRayTracingGeometrySegment Segment;
 						Segment.FirstPrimitive = Section.BaseIndex / 3;
 						Segment.NumPrimitives = Section.NumTriangles;
+						Segment.bEnabled = !Section.bDisabled;
 						GeometrySections.Add(Segment);
 					}
 					MeshObject->GetRayTracingGeometry()->Initializer.Segments = GeometrySections;

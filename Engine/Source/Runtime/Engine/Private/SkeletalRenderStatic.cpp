@@ -159,6 +159,7 @@ void FSkeletalMeshObjectStatic::FSkeletalMeshObjectLOD::InitResources(FSkelMeshC
 					Segment.VertexBufferStride = VertexBufferStride;
 					Segment.FirstPrimitive = Section.BaseIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
+					Segment.bEnabled = !Section.bDisabled;
 					GeometrySections.Add(Segment);
 				}
 				Initializer.Segments = GeometrySections;
