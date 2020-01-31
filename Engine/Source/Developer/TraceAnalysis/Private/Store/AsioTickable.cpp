@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsioTickable.h"
+#include "Misc/AssertionMacros.h"
 
 #include <chrono>
 
