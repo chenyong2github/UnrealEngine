@@ -476,6 +476,8 @@ void USkeletalMeshComponent::CompleteParallelBlendPhysics()
 	ParallelBlendPhysicsCompletionTask.SafeRelease();
 }
 
+// NOTE: See GatherActorsAndTransforms in PhysScene_Chaos.cpp where this code is cloned for deferred mode.
+// @todo(chaos): merge required deferred functionality back into USkeletalMeshComponent
 void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>& InSpaceBases, ETeleportType Teleport, bool bNeedsSkinning, EAllowKinematicDeferral DeferralAllowed)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateRBBones);
