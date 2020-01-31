@@ -20,7 +20,7 @@ if [ ! -f Build/BatchFiles/Linux/RunXBuild.sh ]; then
 	exit 1
 fi
 
-xbuild /verbosity:quiet /nologo "$@" |grep -i error
+xbuild /verbosity:quiet /nologo "$@" |grep -wi error
 if [ $? -ne 1 ]; then
 	exit 1
 else
