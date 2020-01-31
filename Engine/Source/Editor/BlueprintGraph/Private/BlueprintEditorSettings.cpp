@@ -28,6 +28,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bAlwaysShowInterfacesInOverrides(true)
 	, bShowParentClassInOverrides(true)
 	, bShowEmptySections(true)
+	, bShowAccessSpecifier(false)
 	, bSpawnDefaultBlueprintNodes(true)
 	, bHideConstructionScriptComponentsInDetailsView(true)
 	, bHostFindInBlueprintsInGlobalTab(true)

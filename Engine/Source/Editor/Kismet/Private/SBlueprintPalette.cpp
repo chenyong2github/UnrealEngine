@@ -1023,6 +1023,22 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 	TSharedRef<SWidget> IconWidget = CreateIconWidget(IconToolTip, IconBrush, IconColor, IconDocLink, IconDocExcerpt, SecondaryBrush, SecondaryIconColor);
 	IconWidget->SetEnabled(bIsEditingEnabled);
 
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+
+	// Enum representing the access specifier of this function or variable
+	enum class EAccessSpecifier : uint8
+	{
+		None		= 0,
+		Private		= 1,
+		Protected	= 2,
+		Public		= 3
+	};
+
+	// We should only bother checking for access if the setting is on and this is not an animation graph
+	const bool bShouldCheckForAccessSpec = Settings->bShowAccessSpecifier;
+
+	EAccessSpecifier ActionAccessSpecifier = EAccessSpecifier::None;	
+
 	// Setup a meta tag for this node
 	FTutorialMetaData TagMeta("PaletteItem"); 
 	if( ActionPtr.IsValid() )
@@ -1034,23 +1050,27 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
 	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget( NameFont, InCreateData, bIsReadOnly );
 	
-	// For Variables and Local Variables, we will convert the icon widget into a pin type selector.
-	if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId() || GraphAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
+	// Will set the icon of this property to be a Pin Type selector. 
+	auto GenerateVariableSettings = [&](FProperty* VariableProp)
 	{
-		FProperty* VariableProp = nullptr;
-
-		if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
-		{
-			VariableProp = StaticCastSharedPtr<FEdGraphSchemaAction_K2Var>(GraphAction)->GetProperty();
-		}
-		else if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
-		{
-			VariableProp = StaticCastSharedPtr<FEdGraphSchemaAction_K2LocalVar>(GraphAction)->GetProperty();
-		}
-
-		// If the variable is not a local variable or created by the current Blueprint, do not use the PinTypeSelector
 		if (VariableProp)
 		{
+			if (bShouldCheckForAccessSpec)
+			{
+				if (VariableProp->GetBoolMetaData(FBlueprintMetadata::MD_Private))
+				{
+					ActionAccessSpecifier = EAccessSpecifier::Private;
+				}
+				else if (VariableProp->GetBoolMetaData(FBlueprintMetadata::MD_Protected))
+				{
+					ActionAccessSpecifier = EAccessSpecifier::Protected;
+				}
+				else
+				{
+					ActionAccessSpecifier = EAccessSpecifier::Public;
+				}
+			}
+
 			if (FBlueprintEditorUtils::IsVariableCreatedByBlueprint(Blueprint, VariableProp) || VariableProp->GetOwner<UFunction>())
 			{
 				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
@@ -1058,36 +1078,126 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 					.IsEnabled(bIsEditingEnabled);
 			}
 		}
+	};
+
+	// For Variables and Local Variables, we will convert the icon widget into a pin type selector.
+	if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
+	{	
+		GenerateVariableSettings(StaticCastSharedPtr<FEdGraphSchemaAction_K2Var>(GraphAction)->GetProperty());
+	}
+	else if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
+	{
+		GenerateVariableSettings(StaticCastSharedPtr<FEdGraphSchemaAction_K2LocalVar>(GraphAction)->GetProperty());
+	}
+	// Determine the access level of this action if it is a function graph or for interface events
+	else if (bShouldCheckForAccessSpec && GraphAction->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
+	{
+		UFunction* FunctionToCheck = nullptr;
+
+		if (FEdGraphSchemaAction_K2Graph* FuncGraphAction = (FEdGraphSchemaAction_K2Graph*)(GraphAction.Get()))
+		{
+			FunctionToCheck = FindField<UFunction>(Blueprint->SkeletonGeneratedClass, FuncGraphAction->FuncName);
+
+			// Handle override/interface functions
+			if(!FunctionToCheck)
+			{
+				FBlueprintEditorUtils::GetOverrideFunctionClass(Blueprint, FuncGraphAction->FuncName, &FunctionToCheck);			
+			}
+		}
+
+		// If we have found a function that matches this action name, then grab it's access specifier
+		if (FunctionToCheck)
+		{
+			if (FunctionToCheck->HasAnyFunctionFlags(FUNC_Protected))
+			{
+				ActionAccessSpecifier = EAccessSpecifier::Protected;
+			}
+			else if (FunctionToCheck->HasAnyFunctionFlags(FUNC_Private))
+			{
+				ActionAccessSpecifier = EAccessSpecifier::Private;
+			}
+			else
+			{
+				ActionAccessSpecifier = EAccessSpecifier::Public;
+			}
+		}
 	}
 
-	// now, create the actual widget
-	ChildSlot
-	[
-		SNew(SHorizontalBox)
-		.AddMetaData<FTutorialMetaData>(TagMeta)
-		// icon slot
-		+SHorizontalBox::Slot()
-			.AutoWidth()
+	FText AccessModifierText = FText::GetEmpty();
+
+	switch (ActionAccessSpecifier)
+	{
+		case EAccessSpecifier::Public:
+		{
+			AccessModifierText = LOCTEXT("AccessModifierPublic", "public");
+		}
+		break;
+		case EAccessSpecifier::Protected:
+		{
+			AccessModifierText = LOCTEXT("AccessModifierProtected", "protected");
+		}
+		break;
+		case EAccessSpecifier::Private:
+		{
+			AccessModifierText = LOCTEXT("AccessModifierPrivate", "private");
+		}
+		break;
+	}
+
+	// Calculate a color so that the text gets brighter the more accessible the action is
+	const bool AccessSpecifierEnabled = (ActionAccessSpecifier != EAccessSpecifier::None) && bShouldCheckForAccessSpec;
+
+	// Create the widget with an icon
+	TSharedRef<SHorizontalBox> ActionBox = SNew(SHorizontalBox)		
+		.AddMetaData<FTutorialMetaData>(TagMeta);
+
+	ActionBox.Get().AddSlot()
+		.AutoWidth()
 		[
 			IconWidget
-		]
-		// name slot
-		+SHorizontalBox::Slot()
-			.FillWidth(1.f)
+		];
+
+	// Only add an access specifier if we have one
+	if (ActionAccessSpecifier != EAccessSpecifier::None)
+	{
+		ActionBox.Get().AddSlot()
+			.MaxWidth(50.f)
+			.FillWidth(AccessSpecifierEnabled ? 0.4f : 0.0f)
+			.Padding(FMargin(/* horizontal */ AccessSpecifierEnabled ? 6.0f : 0.0f, /* vertical */ 0.0f))
 			.VAlign(VAlign_Center)
-			.Padding(3,0)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				// Will only display text if we have a modifier level
+					.IsEnabled(AccessSpecifierEnabled)
+					.Text(AccessModifierText)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+					// Bold if public
+					.TextStyle(FEditorStyle::Get(), ActionAccessSpecifier == EAccessSpecifier::Public ? "BlueprintEditor.AccessModifier.Public" : "BlueprintEditor.AccessModifier.Default")
+			];
+	}
+
+	ActionBox.Get().AddSlot()
+		.FillWidth(1.f)
+		.VAlign(VAlign_Center)
+		.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
 		[
 			NameSlotWidget
-		]
-		// optional visibility slot
-		+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(FMargin(3,0))
-			.VAlign(VAlign_Center)
+		];
+
+	ActionBox.Get().AddSlot()
+		.AutoWidth()
+		.Padding(FMargin(3.0f, 0.0f))
+		.VAlign(VAlign_Center)
 		[
 			SNew(SPaletteItemVisibilityToggle, ActionPtr, InBlueprintEditor, InBlueprint)
 			.IsEnabled(bIsEditingEnabled)
-		]
+		];
+
+	// Now, create the actual widget
+	ChildSlot
+	[
+		ActionBox
 	];
 }
 

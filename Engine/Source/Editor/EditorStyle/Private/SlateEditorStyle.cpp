@@ -5994,6 +5994,12 @@ void FSlateEditorStyle::FStyle::SetupPersonaStyle()
 			);
 	}
 
+	// Access modifier display in MyBlueprint window for functions/variables
+	{
+		Set("BlueprintEditor.AccessModifier.Public", FTextBlockStyle().SetFont(DEFAULT_FONT("Bold", 9) ));
+		Set("BlueprintEditor.AccessModifier.Default", FTextBlockStyle().SetFont(DEFAULT_FONT("Regular", 9)));
+	}
+
 	// Kismet linear expression display
 	{
 		Set( "KismetExpression.ReadVariable.Body", new BOX_BRUSH( "/Graph/Linear_VarNode_Background", FMargin(16.f/64.f, 12.f/28.f) ) );

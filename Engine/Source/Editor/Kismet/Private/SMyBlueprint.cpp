@@ -406,6 +406,20 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 		TEXT("MyBlueprint_AlwaysShowInterfacesInOverrides")
 	);
 
+	ViewOptions.AddMenuEntry(
+		LOCTEXT("AlwaysShowAccessSpecifier", "Show access specifier in the My Blueprint View"),
+		LOCTEXT("AlwaysShowAccessSpecifierTooltip", "Should we always display the access specifier of functions in the function menu?"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnToggleShowAccessSpecifier),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SMyBlueprint::GetShowAccessSpecifier)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton,
+		TEXT("MyBlueprint_AlwaysShowAccessSpecifier")
+	);
+
 	SAssignNew(FilterBox, SSearchBox)
 		.OnTextChanged( this, &SMyBlueprint::OnFilterTextChanged );
 
@@ -1599,6 +1613,20 @@ void SMyBlueprint::OnToggleShowParentClassInOverrides()
 bool SMyBlueprint::GetShowParentClassInOverrides() const
 {
 	return GetMutableDefault<UBlueprintEditorSettings>()->bShowParentClassInOverrides;
+}
+
+void SMyBlueprint::OnToggleShowAccessSpecifier()
+{
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	Settings->bShowAccessSpecifier = !Settings->bShowAccessSpecifier;
+	Settings->PostEditChange();
+	Settings->SaveConfig();
+	Refresh();
+}
+
+bool SMyBlueprint::GetShowAccessSpecifier() const 
+{
+	return GetMutableDefault<UBlueprintEditorSettings>()->bShowAccessSpecifier;
 }
 
 bool SMyBlueprint::IsShowingReplicatedVariablesOnly() const
