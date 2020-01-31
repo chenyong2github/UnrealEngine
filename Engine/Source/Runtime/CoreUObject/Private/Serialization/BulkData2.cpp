@@ -734,7 +734,6 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			Fallback.BulkDataSize = BulkDataSize;
 		}
 
-		FName PackageName;
 		const FString* Filename = nullptr;
 		const FLinkerLoad* Linker = nullptr;
 
@@ -745,7 +744,6 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			if (Linker != nullptr)
 			{
 				Filename = &Linker->Filename;
-				PackageName = Package->FileName;
 			}
 		}
 
@@ -756,7 +754,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		if (IsInlined())
 		{
-			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *PackageName.ToString());
+			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *Package->FileName.ToString());
 			
 			// Inline data is already in the archive so serialize it immediately
 			AllocateData(BulkDataSize);
@@ -803,7 +801,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		// If we are not using the FIoDispatcher and we have a filename then we need to make sure we can retrieve it later!
 		if (bUseIoDispatcher == false && Filename != nullptr)
 		{
-			Fallback.Token = FileTokenSystem::RegisterFileToken(PackageName, *Filename, BulkDataOffsetInFile);
+			Fallback.Token = FileTokenSystem::RegisterFileToken(Package->FileName, *Filename, BulkDataOffsetInFile);
 		}
 
 		if (bShouldForceLoad)
