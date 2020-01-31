@@ -40,7 +40,7 @@ public:
 
 struct ExportInterface_InstanceData
 {
-	UObject* CallbackHandler = nullptr;
+	TWeakObjectPtr<UObject> CallbackHandler;
 
 	/** We use a lock-free queue here because multiple threads might try to push data to it at the same time. */
 	TQueue<FBasicParticleData, EQueueMode::Mpsc> GatheredData;
