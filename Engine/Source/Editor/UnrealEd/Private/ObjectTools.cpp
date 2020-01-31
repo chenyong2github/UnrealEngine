@@ -2116,7 +2116,7 @@ namespace ObjectTools
 			const int32 NumAudioDevices = AudioDeviceManager->GetNumActiveAudioDevices();
 			for (int32 DeviceIndex = 0; DeviceIndex < NumAudioDevices; DeviceIndex++)
 			{
-				FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(DeviceIndex);
+				FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDeviceRaw(DeviceIndex);
 				if (AudioDevice != nullptr)
 				{
 					AudioDevice->StopAllSounds();

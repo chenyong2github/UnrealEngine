@@ -1901,13 +1901,10 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		if (bRequestEndPlayMapQueued)
 		{
 			// Shutdown all audio devices if we've requested end playmap now to avoid issues with GC running
-			TArray<FAudioDevice*>& AudioDevices = AudioDeviceManager->GetAudioDevices();
+			TArray<FAudioDevice*> AudioDevices = AudioDeviceManager->GetAudioDevices();
 			for (FAudioDevice* AudioDevice : AudioDevices)
 			{
-				if (AudioDevice)
-				{
-					AudioDevice->Flush(nullptr);
-				}
+				AudioDevice->Flush(nullptr);
 			}
 		}
 
@@ -2287,7 +2284,7 @@ UAudioComponent* UEditorEngine::GetPreviewAudioComponent()
 
 UAudioComponent* UEditorEngine::ResetPreviewAudioComponent( USoundBase* Sound, USoundNode* SoundNode )
 {
-	if (FAudioDevice* AudioDevice = GetMainAudioDevice())
+	if (FAudioDevice* AudioDevice = GetMainAudioDeviceRaw())
 	{
 		if (PreviewAudioComponent)
 		{
