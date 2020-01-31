@@ -7,6 +7,7 @@
 #include "UObject/ScriptMacros.h"
 #include "Interfaces/OnlinePurchaseInterface.h"
 #include "OnlineSubsystem.h"
+#include "GameFramework/OnlineReplStructs.h"
 #include "InAppPurchaseCallbackProxy2.h"
 #include "InAppPurchaseRestoreCallbackProxy2.generated.h"
 
