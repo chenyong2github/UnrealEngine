@@ -377,6 +377,118 @@ namespace Chaos
 
 		template<ELockType>
 		friend struct TSolverQueryMaterialScope;
+
+		template<typename DirtyParticleData, typename DirtyProxy, SIZE_T PreAllocCount>
+		class TPoolParticleData
+		{
+		public:
+			struct PoolEntry
+			{
+				PoolEntry() {}
+
+				DirtyParticleData ParticleData;
+				DirtyProxy Proxy;
+			};
+
+			TPoolParticleData()
+			{
+				NumDirty = 0;
+				// Prealloc default object in the pool. 
+				// Must call DirtyParticleData.Init + DirtyParticleData.Reset each 
+				// time you use an entry in the pool.
+				Pool.AddDefaulted(PreAllocCount);
+			}
+
+			~TPoolParticleData()
+			{
+				Pool.Empty();
+			}
+
+			void Enqueue(FPBDRigidsSolver * Solver, Chaos::IDispatcher* Dispatcher)
+			{
+				if (GetNum() == 0)
+				{
+					return;
+				}
+
+				static const uint32 TASK_GRANULARITY = 10;
+				uint32 StartIndex = 0;
+				uint32 EndIndex = 0;
+
+				if (Dispatcher != nullptr)
+				{
+					do
+					{
+						uint32 NextUpperBound = StartIndex + TASK_GRANULARITY;
+						EndIndex = (NextUpperBound > GetNum()) ? GetNum() : NextUpperBound;
+
+						Dispatcher->EnqueueCommandImmediate([this, Solver, Dispatcher, StartIndex, EndIndex](Chaos::FPersistentPhysicsTask* PhysThread)
+						{
+							for (uint32 SubIndex = StartIndex; SubIndex < EndIndex; SubIndex++)
+							{
+								PoolEntry& Entry = GetEntry(SubIndex);
+								if (Entry.Proxy != nullptr)
+								{
+									// make sure the handle is still valid
+									if (auto* Handle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Entry.Proxy->GetHandle()))
+									{
+										Solver->GetEvolution()->DirtyParticle(*Handle);
+										Entry.Proxy->PushToPhysicsState(static_cast<Chaos::FParticleData*>(&Entry.ParticleData));
+									}
+									Entry.Proxy->ClearAccumulatedData();
+									Entry.ParticleData.Reset();
+								}
+							}
+						});
+
+						uint32 NextLowerBound = StartIndex + TASK_GRANULARITY;
+						StartIndex = (NextLowerBound > GetNum()) ? StartIndex : NextLowerBound;
+
+					} while (EndIndex < GetNum());
+				}
+				else
+				{
+					for (uint32 i = 0; i < GetNum(); i++)
+					{
+						PoolEntry& Entry = GetEntry(i);
+						if (Entry.Proxy != nullptr)
+						{
+							// make sure the handle is still valid
+							if (auto* Handle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Entry.Proxy->GetHandle()))
+							{
+								Solver->GetEvolution()->DirtyParticle(*Handle);
+								Entry.Proxy->PushToPhysicsState(static_cast<Chaos::FParticleData*>(&Entry.ParticleData));
+							}
+							Entry.Proxy->ClearAccumulatedData();
+							Entry.ParticleData.Reset();
+						}
+					}
+				}
+			}
+
+			uint32 GetNum() {return NumDirty;}
+			void Reset() { NumDirty = 0; }
+
+			PoolEntry& GetNewEntry() {
+				if (NumDirty >= Pool.Num())
+				{
+					Pool.Add(PoolEntry());
+				}
+				return Pool[NumDirty++];
+			}
+
+			PoolEntry& GetEntry(int32 index) {
+				ensure(index < Pool.Num());
+				return Pool[index];
+			}
+
+			TArray<PoolEntry> Pool;
+			int32 NumDirty;
+		};
+
+		TPoolParticleData<Chaos::TPBDRigidParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*, 800> RigidParticlePool;
+		TPoolParticleData<Chaos::TKinematicGeometryParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*, 100> KinematicGeometryParticlePool;
+		TPoolParticleData<Chaos::TGeometryParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*, 100> GeometryParticlePool;
 	};
 
 	template<>
