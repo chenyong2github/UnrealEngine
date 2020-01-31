@@ -1816,6 +1816,11 @@ void SStartPageWindow::UpdateMetadata(FTraceSession& TraceSession)
 			return InnerBytesRead;
 		}
 
+		virtual void Close() override
+		{
+			Inner->Close();
+		}
+
 		int32 BytesRead = 0;
 		Trace::IInDataStream* Inner;
 	};
