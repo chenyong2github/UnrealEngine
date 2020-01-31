@@ -12,6 +12,7 @@
 #include "UObject/Object.h"
 #include "UObject/Package.h"
 #include "IO/IoDispatcher.h"
+#include "Async/MappedFileHandle.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
 
@@ -748,8 +749,15 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			}
 		}
 
+		// Some failed paths require us to load the data before we return from ::Serialize but it is not
+		// safe to do so until the end of this method. By setting this flag to true we can indicate that 
+		// the load is required.
+		bool bShouldForceLoad = false;
+
 		if (IsInlined())
 		{
+			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *PackageName.ToString());
+			
 			// Inline data is already in the archive so serialize it immediately
 			AllocateData(BulkDataSize);
 			SerializeBulkData(Ar, DataBuffer, BulkDataSize);
@@ -760,17 +768,28 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				ProcessDuplicateData(Ar, Package, Filename, BulkDataSizeOnDisk, BulkDataOffsetInFile);
 			}
-
+			 
 			// Fix up the file offset if we have a linker (if we do not then we will be loading via FIoDispatcher anyway)
 			if (Linker != nullptr)
 			{
 				BulkDataOffsetInFile += Linker->Summary.BulkDataStartOffset;
 			}
 
-			// If the archive does not support lazy loading and the data is not in a different file then we have to load 
-			// the data from the archive immediately as we won't get another chance.
-			if (!Ar.IsAllowingLazyLoading() && !IsInSeperateFile())
+			if (bAttemptFileMapping)
 			{
+				check(Filename != nullptr);
+				FString MemoryMappedFilename = ConvertFilenameFromFlags(*Filename);
+				if (!MemoryMapBulkData(MemoryMappedFilename, BulkDataOffsetInFile, BulkDataSize))
+				{
+					bShouldForceLoad = true; // Signal we want to force the BulkData to load
+				}
+			}
+			else if (!Ar.IsAllowingLazyLoading() && !IsInSeperateFile())
+			{
+
+				// If the archive does not support lazy loading and the data is not in a different file then we have to load 
+				// the data from the archive immediately as we won't get another chance.
+
 				const int64 CurrentArchiveOffset = Ar.Tell();
 				Ar.Seek(BulkDataOffsetInFile);
 
@@ -785,6 +804,11 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		if (bUseIoDispatcher == false && Filename != nullptr)
 		{
 			Fallback.Token = FileTokenSystem::RegisterFileToken(PackageName, *Filename, BulkDataOffsetInFile);
+		}
+
+		if (bShouldForceLoad)
+		{
+			ForceBulkDataResident();
 		}
 	}
 #else
@@ -1140,11 +1164,19 @@ FOwnedBulkDataPtr* FBulkDataBase::StealFileMapping()
 {
 	check(LockStatus == LOCKSTATUS_Unlocked);
 
-	FOwnedBulkDataPtr* Result = new FOwnedBulkDataPtr(DataBuffer);
-
-	// We are giving ownership of the data to the caller so we just null out the pointer.
-	DataBuffer = nullptr;
-
+	FOwnedBulkDataPtr* Result;
+	if (MappedHandle == nullptr || MappedRegion == nullptr)
+	{
+		Result = new FOwnedBulkDataPtr(DataBuffer);
+		DataBuffer = nullptr;
+	}
+	else
+	{
+		Result = new FOwnedBulkDataPtr(MappedHandle, MappedRegion);
+		MappedHandle = nullptr;
+		MappedRegion = nullptr;
+	}
+	
 	return Result;
 }
 
@@ -1380,6 +1412,31 @@ void FBulkDataBase::SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataL
 	}
 }
 
+bool FBulkDataBase::MemoryMapBulkData(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead)
+{
+	check(!MappedHandle && !MappedRegion);
+
+	MappedHandle = FPlatformFileManager::Get().GetPlatformFile().OpenMapped(*Filename);
+
+	if (MappedHandle == nullptr)
+	{
+		return false;
+	}
+
+	MappedRegion = MappedHandle->MapRegion(OffsetInBulkData, BytesToRead, true);
+	if (MappedRegion == nullptr)
+	{
+		delete MappedHandle;
+		MappedHandle = nullptr;
+		return false;
+	}
+
+	checkf(MappedRegion->GetMappedSize() == BytesToRead, TEXT("Mapped size (%lld) is different to the requested size (%lld)!"), MappedRegion->GetMappedSize(), BytesToRead);
+	checkf(IsAligned(MappedRegion->GetMappedPtr(), FPlatformProperties::GetMemoryMappingAlignment()), TEXT("Memory mapped file has the wrong alignment!"));
+
+	return true;
+}
+
 void FBulkDataBase::AllocateData(SIZE_T SizeInBytes)
 {
 	DataBuffer = FMemory::Realloc(DataBuffer, SizeInBytes, DEFAULT_ALIGNMENT);
@@ -1389,6 +1446,12 @@ void FBulkDataBase::FreeData()
 {
 	FMemory::Free(DataBuffer);
 	DataBuffer = nullptr;
+
+	delete MappedRegion;
+	MappedRegion = nullptr;
+
+	delete MappedHandle;
+	MappedHandle = nullptr;
 }
 
 FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
