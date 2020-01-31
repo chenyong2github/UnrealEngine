@@ -16,7 +16,7 @@ UDestructibleMeshThumbnailRenderer::UDestructibleMeshThumbnailRenderer(const FOb
 	ThumbnailScene = nullptr;
 }
 
-void UDestructibleMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas)
+void UDestructibleMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UDestructibleMesh* DestructibleMesh = Cast<UDestructibleMesh>(Object);
 	if (DestructibleMesh != nullptr)
