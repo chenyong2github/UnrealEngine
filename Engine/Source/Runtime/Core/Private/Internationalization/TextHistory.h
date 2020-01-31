@@ -665,7 +665,7 @@ private:
 		void GetTableIdAndKey(FName& OutTableId, FString& OutKey) const;
 
 		/** Collect any string table asset references */
-		void CollectStringTableAssetReferences(FStructuredArchive::FRecord Record) const;
+		void CollectStringTableAssetReferences(FStructuredArchive::FRecord Record);
 
 		/** Resolve the string table pointer, potentially re-caching it if it's missing or stale */
 		FStringTableEntryConstPtr ResolveStringTableEntry();
