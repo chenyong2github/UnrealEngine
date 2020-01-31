@@ -4,7 +4,6 @@
 
 #include "Asio/Asio.h"
 #include "AsioFile.h"
-#include "AsioObject.h"
 #include "Containers/Array.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
@@ -24,7 +23,6 @@ enum class EStoreVersion
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioStore
-	: public FAsioObject
 {
 public:
 	class FTrace
@@ -66,6 +64,7 @@ private:
 	void				ClearTraces();
 	void				WatchDir();
 	void				Refresh();
+	asio::io_context&	IoContext;
 	FString				StoreDir;
 	TArray<FTrace*>		Traces;
 	uint32				ChangeSerial;

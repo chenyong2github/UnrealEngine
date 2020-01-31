@@ -144,8 +144,8 @@ uint64 FAsioStore::FTrace::GetTimestamp() const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-FAsioStore::FAsioStore(asio::io_context& IoContext, const TCHAR* InStoreDir)
-: FAsioObject(IoContext)
+FAsioStore::FAsioStore(asio::io_context& InIoContext, const TCHAR* InStoreDir)
+: IoContext(InIoContext)
 , StoreDir(InStoreDir)
 {
 	Refresh();
@@ -311,7 +311,7 @@ FAsioStore::FNewTrace FAsioStore::CreateTrace()
 	}
 #endif // 0
 
-	FAsioWriteable* File = FAsioFile::WriteFile(GetIoContext(), *TracePath);
+	FAsioWriteable* File = FAsioFile::WriteFile(IoContext, *TracePath);
 	if (File == nullptr)
 	{
 		return {};
@@ -346,7 +346,7 @@ FAsioReadable* FAsioStore::OpenTrace(uint32 Id)
 	TracePath += ".utrace";
 #endif // 0
 
-	return FAsioFile::ReadFile(GetIoContext(), *TracePath);
+	return FAsioFile::ReadFile(IoContext, *TracePath);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

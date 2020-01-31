@@ -13,8 +13,7 @@ namespace Trace
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioTcpServer::FAsioTcpServer(asio::io_context& IoContext)
-: FAsioObject(IoContext)
-, Acceptor(IoContext)
+: Acceptor(IoContext)
 {
 }
 

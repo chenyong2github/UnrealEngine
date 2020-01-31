@@ -2,13 +2,14 @@
 
 #include "AsioTickable.h"
 
+#include <chrono>
+
 namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioTickable::FAsioTickable(asio::io_context& IoContext)
-: FAsioObject(IoContext)
-, Timer(IoContext)
+: Timer(IoContext)
 {
 }
 

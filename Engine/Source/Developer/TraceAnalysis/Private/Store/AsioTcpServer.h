@@ -3,14 +3,12 @@
 #pragma once
 
 #include "Asio/Asio.h"
-#include "AsioObject.h"
 
 namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioTcpServer
-	: public FAsioObject
 {
 public:
 							FAsioTcpServer(asio::io_context& IoContext);

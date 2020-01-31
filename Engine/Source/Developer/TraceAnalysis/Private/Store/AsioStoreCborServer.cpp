@@ -2,7 +2,6 @@
 
 #include "AsioStoreCborServer.h"
 #include "AsioIoable.h"
-#include "AsioObject.h"
 #include "AsioRecorder.h"
 #include "AsioSocket.h"
 #include "AsioStore.h"
@@ -15,7 +14,6 @@ namespace Trace
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioStoreCborPeer
 	: public FAsioIoSink
-	, public FAsioObject
 {
 public:
 					FAsioStoreCborPeer(asio::ip::tcp::socket& InSocket, FAsioStore& InStore, FAsioRecorder& InRecorder);
@@ -56,8 +54,7 @@ FAsioStoreCborPeer::FAsioStoreCborPeer(
 	asio::ip::tcp::socket& InSocket,
 	FAsioStore& InStore,
 	FAsioRecorder& InRecorder)
-: FAsioObject(InSocket.get_executor().context())
-, Store(InStore)
+: Store(InStore)
 , Recorder(InRecorder)
 , Socket(InSocket)
 {
@@ -236,7 +233,8 @@ void FAsioStoreCborPeer::OnTraceRead()
 		}
 	}
 
-	FAsioTraceRelay* Relay = new FAsioTraceRelay(GetIoContext(), Input, SessionId, Recorder);
+	asio::io_context& IoContext = Socket.GetIoContext();
+	FAsioTraceRelay* Relay = new FAsioTraceRelay(IoContext, Input, SessionId, Recorder);
 	uint32 Port = Relay->GetPort();
 	if (!Port)
 	{

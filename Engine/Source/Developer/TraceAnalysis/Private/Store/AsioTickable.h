@@ -3,16 +3,12 @@
 #pragma once
 
 #include "Asio/Asio.h"
-#include "AsioObject.h"
-
-#include <chrono>
 
 namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioTickable
-	: public FAsioObject
 {
 public:
 						FAsioTickable(asio::io_context& IoContext);
