@@ -37,7 +37,6 @@ FTimingProfilerManager::FTimingProfilerManager(TSharedRef<FUICommandList> InComm
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
 	, bIsFramesTrackVisible(false)
-	, bIsGraphTrackVisible(false)
 	, bIsTimingViewVisible(false)
 	, bIsTimersViewVisible(false)
 	, bIsCallersTreeViewVisible(false)

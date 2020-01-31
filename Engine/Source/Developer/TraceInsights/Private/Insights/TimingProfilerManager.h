@@ -172,9 +172,6 @@ protected:
 	/** If the Frames Track is visible or hidden. */
 	bool bIsFramesTrackVisible;
 
-	/** If the Graph Track is visible or hidden. */
-	bool bIsGraphTrackVisible;
-
 	/** If the Timing View is visible or hidden. */
 	bool bIsTimingViewVisible;
 
