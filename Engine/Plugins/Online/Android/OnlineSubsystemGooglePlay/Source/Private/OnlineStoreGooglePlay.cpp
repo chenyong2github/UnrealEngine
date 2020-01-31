@@ -50,7 +50,7 @@ void FOnlineStoreGooglePlayV2::Init()
 	AndroidThunkCpp_Iap_SetupIapService(GooglePlayLicenseKey);
 }
 
-void FOnlineStoreGooglePlayV2::OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FInAppPurchaseProductInfo>& InProvidedProductInformation)
+void FOnlineStoreGooglePlayV2::OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FOnlineStoreOffer>& InProvidedProductInformation)
 { 
 	TArray<FUniqueOfferId> OfferIds;
 	for (const FOnlineStoreOffer& Product : InProvidedProductInformation)
