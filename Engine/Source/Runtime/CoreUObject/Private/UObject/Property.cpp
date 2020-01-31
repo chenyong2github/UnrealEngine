@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "Misc/AsciiSet.h"
 #include "Misc/Guid.h"
 #include "Math/RandomStream.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
@@ -1045,32 +1046,24 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 {
 	check(ObjectStruct);
 
-	while (*Str == ' ' || *Str == 9)
-	{
-		Str++;
-	}
-			
-	const TCHAR* Start = Str;
-			
-	while (*Str && *Str != '=' && *Str != '(' && *Str != '[' && *Str != '.')
-	{
-		Str++;
-	}
+	constexpr FAsciiSet Whitespaces(" \t");
+	constexpr FAsciiSet Delimiters("=([.");
 
+	// strip leading whitespace
+	const TCHAR* Start = FAsciiSet::Skip(Str, Whitespaces);
+	// find first delimiter
+	Str = FAsciiSet::FindFirstOrEnd(Start, Delimiters);
+	// check if delimiter was found...
 	if (*Str)
 	{
-		TCHAR* Token = new TCHAR[Str - Start + 1];
-		FCString::Strncpy(Token, Start, Str - Start + 1);
-
-		// strip trailing whitespace on token
-		int32 l = FCString::Strlen(Token);
-		while (l > 0 && (Token[l - 1] == ' ' || Token[l - 1] == 9))
+		// strip trailing whitespace
+		int32 Len = Str - Start;
+		while (Len > 0 && Whitespaces.Contains(Start[Len - 1]))
 		{
-			Token[l - 1] = 0;
-			--l;
+			--Len;
 		}
 
-		const FName PropertyName(Token);
+		const FName PropertyName(Len, Start);
 		FProperty* Property = FindField<FProperty>(ObjectStruct, PropertyName);
 
 		if (Property == nullptr)
@@ -1088,9 +1081,6 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 				Property = ObjectStruct->CustomFindProperty(PropertyName);
 			}
 		}		
-
-		delete[] Token;
-		Token = NULL;
 
 		if (Property == NULL)
 		{

@@ -290,7 +290,7 @@ const TCHAR* FStructProperty::ImportText_Internal(const TCHAR* InBuffer, void* D
 		StructLinker->LoadFlags |= OldFlags | PropagatedLoadFlags;
 	}
 #endif 
-	const TCHAR* Result = Struct->ImportText(InBuffer, Data, Parent, PortFlags, ErrorText, GetName(), true);
+	const TCHAR* Result = Struct->ImportText(InBuffer, Data, Parent, PortFlags, ErrorText, [this]() { return GetName(); }, true);
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	if (StructLinker)
