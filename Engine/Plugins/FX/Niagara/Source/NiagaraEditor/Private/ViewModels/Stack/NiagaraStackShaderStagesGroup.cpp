@@ -2,7 +2,7 @@
 
 #include "ViewModels/Stack/NiagaraStackShaderStagesGroup.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraShaderStageBase.h"
