@@ -2613,12 +2613,20 @@ void FTextHistory_StringTableEntry::FStringTableReferenceData::GetTableIdAndKey(
 	OutKey = Key;
 }
 
-void FTextHistory_StringTableEntry::FStringTableReferenceData::CollectStringTableAssetReferences(FStructuredArchive::FRecord Record) const
+void FTextHistory_StringTableEntry::FStringTableReferenceData::CollectStringTableAssetReferences(FStructuredArchive::FRecord Record)
 {
 	if (Record.GetUnderlyingArchive().IsObjectReferenceCollector())
 	{
 		FScopeLock ScopeLock(&DataCS);
+
+		const FName OldTableId = TableId;
 		IStringTableEngineBridge::CollectStringTableAssetReferences(TableId, Record.EnterField(SA_FIELD_NAME(TEXT("AssetReferences"))));
+
+		if (TableId != OldTableId)
+		{
+			// This String Table asset was redirected, so we'll need to re-resolve the String Table entry later
+			StringTableEntry.Reset();
+		}
 	}
 }
 
