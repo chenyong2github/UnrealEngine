@@ -446,7 +446,7 @@ void UIpConnection::ReceivedRawPacket(void* Data, int32 Count)
 	SocketError_RecvDelayStartTime = 0.0;
 
 	// Set that we've gotten packet from the server, this begins destruction of the other elements.
-	if (ResolutionState != EAddressResolutionState::Done)
+	if (IsAddressResolutionEnabled() && ResolutionState != EAddressResolutionState::Done)
 	{
 		// We only want to write this once, because we don't want to waste cycles trying to clean up nothing.
 		ResolutionState = EAddressResolutionState::Connected;
@@ -584,7 +584,7 @@ void UIpConnection::HandleSocketRecvError(class UNetDriver* NetDriver, const FSt
 
 void UIpConnection::CleanupResolutionSockets()
 {
-	if (Driver == nullptr || Driver->GetSocketSubsystem() == nullptr)
+	if (Driver == nullptr || Driver->GetSocketSubsystem() == nullptr || !IsAddressResolutionEnabled())
 	{
 		return;
 	}
