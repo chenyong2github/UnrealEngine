@@ -7081,7 +7081,7 @@ int32 UParticleSystemComponent::GetLODLevel()
  */
 void UParticleSystemComponent::SetBoolParameter(FName Name, bool Value)
 {
-	SetFloatParameter(Name, float(Value));
+	SetFloatParameter(Name, (Value ? 1.0f : 0.0f));
 
 }
 
