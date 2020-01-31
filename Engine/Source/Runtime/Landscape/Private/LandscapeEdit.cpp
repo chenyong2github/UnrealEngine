@@ -697,9 +697,14 @@ void ULandscapeComponent::FixupWeightmaps()
 			bool bFixedWeightmapTextureIndex = false;
 
 			// Store the weightmap allocations in WeightmapUsageMap
-			for (int32 LayerIdx = 0; LayerIdx < WeightmapLayerAllocations.Num(); LayerIdx++)
+			for (int32 LayerIdx = 0; LayerIdx < WeightmapLayerAllocations.Num();)
 			{
 				FWeightmapLayerAllocationInfo& Allocation = WeightmapLayerAllocations[LayerIdx];
+				if (!Allocation.IsAllocated())
+				{
+					WeightmapLayerAllocations.RemoveAt(LayerIdx);
+					continue;
+				}
 
 				// Fix up any problems caused by the layer deletion bug.
 				if (Allocation.WeightmapTextureIndex >= WeightmapTextures.Num())
@@ -741,13 +746,13 @@ void ULandscapeComponent::FixupWeightmaps()
 						->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_FixedUpSharedLayerWeightmap", "Fixed up shared weightmap texture for layer {LayerName} in component '{LandscapeName}' (shares with '{ChannelName}')"), Arguments)))
 						->AddToken(FMapErrorToken::Create(FMapErrors::FixedUpSharedLayerWeightmap));
 					WeightmapLayerAllocations.RemoveAt(LayerIdx);
-					LayerIdx--;
 					continue;
 				}
 				else
 				{
 					Usage->ChannelUsage[Allocation.WeightmapTextureChannel] = this;
 				}
+				++LayerIdx;
 			}
 
 			RemoveInvalidWeightmaps();
