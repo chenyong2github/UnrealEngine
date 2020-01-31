@@ -13,6 +13,10 @@
 #if defined(_MSC_VER)
 #	pragma warning(push)
 #	pragma warning(disable : 4191)
+#	if defined(_PREFAST_)
+#		include <CodeAnalysis/Warnings.h>
+#		pragma warning(disable : ALL_CODE_ANALYSIS_WARNINGS)
+#	endif
 #endif
 
 THIRD_PARTY_INCLUDES_START
