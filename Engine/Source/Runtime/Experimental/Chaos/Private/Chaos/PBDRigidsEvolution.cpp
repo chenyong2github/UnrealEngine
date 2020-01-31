@@ -29,7 +29,7 @@ namespace Chaos
 			AABBMaxChildrenInLeaf = 500;
 			AABBMaxTreeDepth = 200;
 			MaxPayloadSize = 100000;
-			IterationsPerTimeSlice = 4000;
+			IterationsPerTimeSlice = 40000;
 		}
 	} ConfigSettings;
 
