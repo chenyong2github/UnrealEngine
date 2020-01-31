@@ -16,6 +16,7 @@ class FAsioSocket
 public:
 							FAsioSocket(asio::ip::tcp::socket& InSocket);
 	virtual					~FAsioSocket();
+	asio::io_context&		GetIoContext();
 	bool					IsOpen() const;
 	uint32					GetRemoteAddress() const;
 	uint32					GetRemotePort() const;
