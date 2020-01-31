@@ -78,10 +78,10 @@ void FLightSceneInfo::AddToScene()
 			|| (LightType == LightType_Spot && MobileEnableMovableSpotLightsVar->GetValueOnRenderThread());
 	}
 
-	// Only need to create light interactions for lights that can cast a shadow, 
+	// Only need to create light interactions for lights that can cast a shadow,
 	// As deferred shading doesn't need to know anything about the primitives that a light affects
-	if (Proxy->CastsDynamicShadow() 
-		|| Proxy->CastsStaticShadow() 
+	if (Proxy->CastsDynamicShadow()
+		|| Proxy->CastsStaticShadow()
 		// Lights that should be baked need to check for interactions to track unbuilt state correctly
 		|| Proxy->HasStaticLighting()
 		// Mobile path supports dynamic point/spot lights in the base pass using forward rendering, so we need to know the primitives
