@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NiagaraParameterEditMode.h"
+#include "ViewModels/NiagaraParameterEditMode.h"
 #include "INiagaraCompiler.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "EditorUndoClient.h"

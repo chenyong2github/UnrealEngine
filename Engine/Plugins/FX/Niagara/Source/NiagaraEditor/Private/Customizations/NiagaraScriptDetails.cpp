@@ -9,7 +9,7 @@
 #include "NiagaraParameterCollectionViewModel.h"
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraScriptOutputCollectionViewModel.h"
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraParameterViewModel.h"
 #include "NiagaraEditorStyle.h"
@@ -28,7 +28,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraParameterCollectionCustomNodeBuilder.h"
 #include "NiagaraMetaDataCustomNodeBuilder.h"
-#include "SItemSelector.h"
+#include "Widgets/SItemSelector.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 

@@ -6,7 +6,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraTypes.h"
 #include "NiagaraScriptSource.h"
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraNodeEmitter.h"
