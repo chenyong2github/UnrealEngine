@@ -166,6 +166,7 @@ struct FBXImportOptions
 	FString BaseNormalTextureName;
 	FString BaseEmmisiveTextureName;
 	FString BaseSpecularTextureName;
+	FString BaseOpacityTextureName;
 	EMaterialSearchLocation MaterialSearchLocation;
 	//If true the materials will be reorder to follow the fbx order
 	bool bReorderMaterialToFbxOrder;
