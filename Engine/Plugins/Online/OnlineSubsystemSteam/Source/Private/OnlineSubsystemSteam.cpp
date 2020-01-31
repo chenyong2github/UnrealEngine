@@ -322,11 +322,6 @@ IOnlineEntitlementsPtr FOnlineSubsystemSteam::GetEntitlementsInterface() const
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemSteam::GetStoreInterface() const
-{
-	return nullptr;
-}
-
 IOnlineEventsPtr FOnlineSubsystemSteam::GetEventsInterface() const
 {
 	return nullptr;

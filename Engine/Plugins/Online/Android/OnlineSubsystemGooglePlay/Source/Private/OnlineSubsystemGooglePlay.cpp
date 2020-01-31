@@ -47,10 +47,12 @@ IOnlineIdentityPtr FOnlineSubsystemGooglePlay::GetIdentityInterface() const
 	return IdentityInterface;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 IOnlineStorePtr FOnlineSubsystemGooglePlay::GetStoreInterface() const
 {
 	return StoreInterface;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 IOnlineStoreV2Ptr FOnlineSubsystemGooglePlay::GetStoreV2Interface() const
 {
