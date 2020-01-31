@@ -75,6 +75,7 @@ FAudioDeviceManager::FAudioDeviceManager()
 
 FAudioDeviceManager::~FAudioDeviceManager()
 {
+	MainAudioDeviceHandle.Reset();
 	Devices.Reset();
 
 	// Release any loaded buffers - this calls stop on any sources that need it
