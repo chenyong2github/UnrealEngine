@@ -10,8 +10,7 @@ public class OnlineSubsystem : ModuleRules
 		
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"Json",
-                "OnlineSubsystemUtils"
+				"Json"
             }
 		);
 
