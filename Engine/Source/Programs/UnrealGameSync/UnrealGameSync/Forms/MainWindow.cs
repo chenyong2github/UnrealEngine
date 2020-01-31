@@ -374,7 +374,7 @@ namespace UnrealGameSync
 
 				foreach(UserSelectedProjectSettings RecentProject in Settings.RecentProjects)
 				{
-					ToolStripMenuItem Item = new ToolStripMenuItem(RecentProject.ToString(), null, new EventHandler((o, e) => TryOpenProject(RecentProject, TabMenu_TabIdx)));
+					ToolStripMenuItem Item = new ToolStripMenuItem(RecentProject.ToString(), null, new EventHandler((o, e) => TabMenu_OpenRecentProject_Click(RecentProject, TabMenu_TabIdx)));
 					TabMenu_RecentProjects.DropDownItems.Insert(InsertIdx, Item);
 					InsertIdx++;
 				}
@@ -1141,6 +1141,12 @@ namespace UnrealGameSync
 		private void TabMenu_OpenProject_Click(object sender, EventArgs e)
 		{
 			EditSelectedProject(TabMenu_TabIdx);
+		}
+
+		private void TabMenu_OpenRecentProject_Click(UserSelectedProjectSettings RecentProject, int TabIdx)
+		{
+			TryOpenProject(RecentProject, TabIdx);
+			SaveTabSettings();
 		}
 
 		private void TabMenu_TabNames_Stream_Click(object sender, EventArgs e)
