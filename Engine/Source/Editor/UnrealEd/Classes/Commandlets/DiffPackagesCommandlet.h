@@ -33,7 +33,7 @@ enum EObjectDiff
 };
 
 UCLASS(deprecated)
-class UE_DEPRECATED(4.25, "No longer maintained; use DiffAssetCommandlet instead") UDEPRECATED_DiffPackagesCommandlet : public UCommandlet
+class UDEPRECATED_DiffPackagesCommandlet : public UCommandlet // No longer maintained; use DiffAssetCommandlet instead
 {
 	GENERATED_UCLASS_BODY()
 
