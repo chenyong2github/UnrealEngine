@@ -27,47 +27,62 @@ struct FCpuProfilerTrace
 	CORE_API static void Shutdown();
 	FORCENOINLINE CORE_API static uint32 OutputEventType(const ANSICHAR* Name);
 	FORCENOINLINE CORE_API static uint32 OutputEventType(const TCHAR* Name);
-	CORE_API static void OutputBeginEvent(uint32 SpecId, const Trace::FChannel& Channel);
-	CORE_API static void OutputBeginDynamicEvent(const ANSICHAR* Name, const Trace::FChannel& Channel);
-	CORE_API static void OutputBeginDynamicEvent(const TCHAR* Name, const Trace::FChannel& Channel);
-	CORE_API static void OutputEndEvent(const Trace::FChannel& Channel);
+	CORE_API static void OutputBeginEvent(uint32 SpecId);
+	CORE_API static void OutputBeginDynamicEvent(const ANSICHAR* Name);
+	CORE_API static void OutputBeginDynamicEvent(const TCHAR* Name);
+	CORE_API static void OutputEndEvent();
 
 	struct FEventScope
 	{
 		FEventScope(uint32 InSpecId, const Trace::FChannel& Channel)
-			: Channel(Channel)
+			: bEnabled(Channel | CpuChannel)
 		{
-			OutputBeginEvent(InSpecId, Channel); 
+			if (bEnabled)
+			{
+				OutputBeginEvent(InSpecId);
+			}
 		}
 
 		~FEventScope()
 		{
-			OutputEndEvent(Channel);
+			if (bEnabled)
+			{
+				OutputEndEvent();
+			}
 		}
 
-		const Trace::FChannel& Channel;
+		bool bEnabled;
 	};
 
 	struct FDynamicEventScope
 	{
 		FDynamicEventScope(const ANSICHAR* InEventName, const Trace::FChannel& Channel)
-			: Channel(Channel)
+			: bEnabled(Channel | CpuChannel)
 		{
-			OutputBeginDynamicEvent(InEventName, Channel);
+			if (bEnabled)
+			{
+				OutputBeginDynamicEvent(InEventName);
+			}
 		}
 
 		FDynamicEventScope(const TCHAR* InEventName, const Trace::FChannel& Channel)
-			: Channel(Channel)
+			: bEnabled(Channel | CpuChannel)
 		{
-			OutputBeginDynamicEvent(InEventName, Channel);
+			if (bEnabled)
+			{
+				OutputBeginDynamicEvent(InEventName);
+			}
 		}
 
 		~FDynamicEventScope()
 		{
-			OutputEndEvent(Channel);
+			if (bEnabled)
+			{
+				OutputEndEvent();
+			}
 		}
 
-		const Trace::FChannel& Channel;
+		bool bEnabled;
 	};
 };
 

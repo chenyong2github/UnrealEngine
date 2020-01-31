@@ -872,7 +872,10 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 	}
 #endif
 #if CPUPROFILERTRACE_ENABLED
-	FCpuProfilerTrace::OutputBeginDynamicEvent(Text, CpuChannel);
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
 #endif
 }
 
@@ -888,7 +891,10 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 	}
 #endif
 #if CPUPROFILERTRACE_ENABLED
-	FCpuProfilerTrace::OutputBeginDynamicEvent(Text, CpuChannel);
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
 #endif
 }
 
@@ -904,7 +910,10 @@ void FWindowsPlatformMisc::EndNamedEvent()
 	}
 #endif
 #if CPUPROFILERTRACE_ENABLED
-	FCpuProfilerTrace::OutputEndEvent(CpuChannel);
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputEndEvent();
+	}
 #endif
 }
 #endif // STATS || ENABLE_STATNAMEDEVENTS
