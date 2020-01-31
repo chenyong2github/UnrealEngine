@@ -84,7 +84,7 @@ void FGameplayTagBlueprintPropertyMappingDetails::CustomizeHeader(TSharedRef<IPr
 	}
 
 	// Sort the options list alphabetically.
-	PropertyOptions.StableSort([](const FProperty& A, const FProperty& B) { return (A.GetName() < B.GetName()); });
+	PropertyOptions.StableSort([](const TFieldPath<FProperty>& A, const TFieldPath<FProperty>& B) { return (A->GetName() < B->GetName()); });
 
 	if ((FoundProperty == nullptr) || (FoundProperty != SelectedProperty) || (FoundProperty->GetName() != SelectedPropertyName))
 	{
@@ -124,7 +124,7 @@ void FGameplayTagBlueprintPropertyMappingDetails::CustomizeChildren(TSharedRef<I
 			.HAlign(HAlign_Fill)
 			.Padding(0.0f, 0.0f, 2.0f, 0.0f)
 			[
-				SNew(SComboBox< FProperty* >)
+				SNew(SComboBox< TFieldPath<FProperty> >)
 				.OptionsSource(&PropertyOptions)
 				.OnGenerateWidget(this, &FGameplayTagBlueprintPropertyMappingDetails::GeneratePropertyWidget)
 				.OnSelectionChanged(this, &FGameplayTagBlueprintPropertyMappingDetails::OnChangeProperty)
@@ -139,7 +139,7 @@ void FGameplayTagBlueprintPropertyMappingDetails::CustomizeChildren(TSharedRef<I
 		];
 }
 
-void FGameplayTagBlueprintPropertyMappingDetails::OnChangeProperty(FProperty* ItemSelected, ESelectInfo::Type SelectInfo)
+void FGameplayTagBlueprintPropertyMappingDetails::OnChangeProperty(TFieldPath<FProperty> ItemSelected, ESelectInfo::Type SelectInfo)
 {
 	if (NamePropertyHandle.IsValid() && GuidPropertyHandle.IsValid())
 	{
@@ -158,7 +158,7 @@ void FGameplayTagBlueprintPropertyMappingDetails::OnChangeProperty(FProperty* It
 	}
 }
 
-FGuid FGameplayTagBlueprintPropertyMappingDetails::GetPropertyGuid(FProperty* Property) const
+FGuid FGameplayTagBlueprintPropertyMappingDetails::GetPropertyGuid(TFieldPath<FProperty> Property) const
 {
 	FGuid Guid;
 
@@ -170,14 +170,14 @@ FGuid FGameplayTagBlueprintPropertyMappingDetails::GetPropertyGuid(FProperty* Pr
 	return Guid;
 }
 
-FString FGameplayTagBlueprintPropertyMappingDetails::GetPropertyName(FProperty* Property) const
+FString FGameplayTagBlueprintPropertyMappingDetails::GetPropertyName(TFieldPath<FProperty> Property) const
 {
-	return (Property ? Property->GetName() : TEXT("None"));
+	return (Property != nullptr ? Property->GetName() : TEXT("None"));
 }
 
-TSharedRef<SWidget> FGameplayTagBlueprintPropertyMappingDetails::GeneratePropertyWidget(FProperty* Property)
+TSharedRef<SWidget> FGameplayTagBlueprintPropertyMappingDetails::GeneratePropertyWidget(TFieldPath<FProperty> Property)
 {
-	return SNew(STextBlock).Text(FText::FromString(GetPropertyName(Property)));
+	return SNew(STextBlock).Text(FText::FromString(GetPropertyName(Property.Get())));
 }
 
 FText FGameplayTagBlueprintPropertyMappingDetails::GetSelectedValueText() const

@@ -358,7 +358,7 @@ void USocialUser::TryBroadcastInitializationComplete()
 				InitEventsByUser.Remove(this);
 
 				// Remove Toolkit's reference to the SocialUser, GC will clean it
-				GetOwningToolkit().HandleUserInvalidated(this);
+				GetOwningToolkit().HandleUserInvalidated(*this);
 			}
 		}
 	}

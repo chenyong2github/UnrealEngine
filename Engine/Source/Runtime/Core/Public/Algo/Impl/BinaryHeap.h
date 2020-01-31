@@ -113,7 +113,7 @@ namespace AlgoImpl
 	 * @param	Predicate	A binary predicate object used to specify if one element should precede another.
 	 */
 	template <typename RangeValueType, typename ProjectionType, typename PredicateType>
-	FORCEINLINE void HeapifyInternal(RangeValueType* First, SIZE_T Num, ProjectionType Projection, PredicateType Predicate)
+	FORCEINLINE void HeapifyInternal(RangeValueType* First, int32 Num, ProjectionType Projection, PredicateType Predicate)
 	{
 		for (int32 Index = HeapGetParentIndex(Num - 1); Index >= 0; Index--)
 		{
@@ -130,7 +130,7 @@ namespace AlgoImpl
 	 * @param	Predicate	predicate class
 	 */
 	template <typename RangeValueType, typename ProjectionType, class PredicateType>
-	void HeapSortInternal(RangeValueType* First, SIZE_T Num, ProjectionType Projection, PredicateType Predicate)
+	void HeapSortInternal(RangeValueType* First, int32 Num, ProjectionType Projection, PredicateType Predicate)
 	{
 		TReversePredicate< PredicateType > ReversePredicateWrapper(Predicate); // Reverse the predicate to build a max-heap instead of a min-heap
 		HeapifyInternal(First, Num, Projection, ReversePredicateWrapper);

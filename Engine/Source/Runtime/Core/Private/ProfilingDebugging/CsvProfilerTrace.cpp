@@ -116,7 +116,7 @@ struct FCsvProfilerTraceInternal
 
 void FCsvProfilerTrace::OutputRegisterCategory(int32 Index, const TCHAR* Name)
 {
-	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
+	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(CsvProfiler, RegisterCategory, NameSize)
 		<< RegisterCategory.Index(Index)
 		<< RegisterCategory.Attachment(Name, NameSize);
@@ -124,7 +124,7 @@ void FCsvProfilerTrace::OutputRegisterCategory(int32 Index, const TCHAR* Name)
 
 void FCsvProfilerTrace::OutputInlineStat(const char* StatName, int32 CategoryIndex)
 {
-	uint16 NameSize = (strlen(StatName) + 1) * sizeof(char);
+	uint16 NameSize = (uint16)((strlen(StatName) + 1) * sizeof(char));
 	UE_TRACE_LOG(CsvProfiler, DefineInlineStat, NameSize)
 		<< DefineInlineStat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
 		<< DefineInlineStat.CategoryIndex(CategoryIndex)
@@ -142,7 +142,7 @@ void FCsvProfilerTrace::OutputDeclaredStat(const FName& StatName, int32 Category
 {
 	TCHAR NameString[NAME_SIZE];
 	StatName.GetPlainNameString(NameString);
-	uint16 NameSize = (FCString::Strlen(NameString) + 1) * sizeof(TCHAR);
+	uint16 NameSize = (uint16)((FCString::Strlen(NameString) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(CsvProfiler, DefineDeclaredStat, NameSize)
 		<< DefineDeclaredStat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
 		<< DefineDeclaredStat.CategoryIndex(CategoryIndex)
@@ -240,7 +240,7 @@ void FCsvProfilerTrace::OutputCustomStat(const FName& StatName, int32 CategoryIn
 void FCsvProfilerTrace::OutputBeginCapture(const TCHAR* Filename, uint32 RenderThreadId, uint32 RHIThreadId, const char* DefaultWaitStatName, bool bEnableCounts)
 {
 	OutputInlineStat(DefaultWaitStatName, CSV_CATEGORY_INDEX(Exclusive));
-	uint16 NameSize = (FCString::Strlen(Filename) + 1) * sizeof(TCHAR);
+	uint16 NameSize = (uint16)((FCString::Strlen(Filename) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(CsvProfiler, BeginCapture, NameSize)
 		<< BeginCapture.Cycle(FPlatformTime::Cycles64())
 		<< BeginCapture.RenderThreadId(RenderThreadId)
@@ -251,7 +251,7 @@ void FCsvProfilerTrace::OutputBeginCapture(const TCHAR* Filename, uint32 RenderT
 
 void FCsvProfilerTrace::OutputEvent(const TCHAR* Text, int32 CategoryIndex, uint64 Cycles)
 {
-	uint16 TextSize = (FCString::Strlen(Text) + 1) * sizeof(TCHAR);
+	uint16 TextSize = (uint16)((FCString::Strlen(Text) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(CsvProfiler, Event, TextSize)
 		<< Event.Cycle(Cycles)
 		<< Event.CategoryIndex(CategoryIndex)
@@ -267,8 +267,8 @@ void FCsvProfilerTrace::OutputEndCapture()
 
 void FCsvProfilerTrace::OutputMetadata(const TCHAR* Key, const TCHAR* Value)
 {
-	uint16 KeySize = (FCString::Strlen(Key) + 1) * sizeof(TCHAR);
-	uint16 ValueSize = (FCString::Strlen(Value) + 1) * sizeof(TCHAR);
+	uint16 KeySize = (uint16)((FCString::Strlen(Key) + 1) * sizeof(TCHAR));
+	uint16 ValueSize = (uint16)((FCString::Strlen(Value) + 1) * sizeof(TCHAR));
 	auto Attachment = [Key, KeySize, Value, ValueSize](uint8* Out)
 	{
 		memcpy(Out, Key, KeySize);

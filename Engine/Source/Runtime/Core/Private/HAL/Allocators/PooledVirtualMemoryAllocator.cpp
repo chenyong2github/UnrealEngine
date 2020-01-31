@@ -223,7 +223,7 @@ void FPooledVirtualMemoryAllocator::DestroyPool(FPoolDescriptorBase* Pool)
 	// allocated with placement new, do not call delete
 	PoolDesc.Pool->~T64KBAlignedPool();
 
-	FPlatformMemory::FPlatformVirtualMemoryBlock VMBlock(Pool, Pool->VMSizeDivVirtualSizeAlignment);
+	FPlatformMemory::FPlatformVirtualMemoryBlock VMBlock(Pool, (uint32)Pool->VMSizeDivVirtualSizeAlignment);
 	VMBlock.FreeVirtual();
 }
 

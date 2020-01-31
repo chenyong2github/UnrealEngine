@@ -403,7 +403,7 @@ void VoxelIndPageClearBufferGenCS(uint GroupIndex : SV_GroupIndex, uint3 Dispatc
 #if SHADER_INDPAGECLEAR
 
 uint				VirtualVoxel_PageResolution;
-uint				VirtualVoxel_PageCountResolution;
+int3				VirtualVoxel_PageCountResolution;
 
 Buffer<uint4>		VirtualVoxel_PageIndexCoordBuffer;
 

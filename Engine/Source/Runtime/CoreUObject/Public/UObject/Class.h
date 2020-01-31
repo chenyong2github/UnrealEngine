@@ -2554,8 +2554,8 @@ public:
 	/** List of network relevant fields (functions) */
 	TArray<UField*> NetFields;
 
-	/** List of network relevant fields (properties) */
-	TArray<FProperty*> NetProperties;
+	/** Index of the first ClassRep that belongs to this class. Anything before that was defined by / belongs to parent classes. */
+	int32 FirstOwnedClassRep = 0;
 
 #if WITH_EDITOR || HACK_HEADER_GENERATOR 
 	// Editor only properties
@@ -3117,7 +3117,10 @@ public:
 	 * Also happens after blueprint compiliation.
 	 */
 	void SetUpRuntimeReplicationData();
-	void SetUpUhtReplicationData(UClass** OutSuperClassWithReplicatedData);
+
+#if HACK_HEADER_GENERATOR
+	void SetUpUhtReplicationData();
+#endif  // HACK_HEADER_GENERATOR
 
 	/**
 	 * Helper function for determining if the given class is compatible with structured archive serialization

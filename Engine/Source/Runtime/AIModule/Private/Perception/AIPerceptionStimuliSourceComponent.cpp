@@ -5,6 +5,7 @@
 
 UAIPerceptionStimuliSourceComponent::UAIPerceptionStimuliSourceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bAutoRegisterAsSource(false)
 {
 	bSuccessfullyRegistered = false;
 }

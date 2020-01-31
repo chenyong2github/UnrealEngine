@@ -284,7 +284,7 @@ void FNiagaraRenderer::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher
 		NumRegisteredGPURenderers = Batcher->GetGPUInstanceCounterManager().GetGPURendererCount();
 		if (NumRegisteredGPURenderers)
 		{
-			NumRegisteredGPURenderers->Value += 1;
+			NumRegisteredGPURenderers->Value += GetMaxIndirectArgs();
 		}
 	}
 }
@@ -293,7 +293,7 @@ void FNiagaraRenderer::ReleaseRenderThreadResources()
 {
 	if (NumRegisteredGPURenderers)
 	{
-		NumRegisteredGPURenderers->Value -= 1;
+		NumRegisteredGPURenderers->Value -= GetMaxIndirectArgs();
 		NumRegisteredGPURenderers.SafeRelease();
 	}
 }
@@ -351,7 +351,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, int32 So
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSortParticles);
 
 	uint32 NumInstances = Buffer.GetNumInstances();
-	check(OutIndices.ReadBuffer->NumBytes >= OutIndices.FirstIndex + NumInstances * sizeof(int32));
+	check(OutIndices.ReadBuffer->NumBytes >= (OutIndices.Buffer - OutIndices.ReadBuffer->MappedBuffer) + NumInstances * sizeof(int32));
 	check(SortInfo.SortMode != ENiagaraSortMode::None);
 	check(VFVariables.IsValidIndex(SortVarIdx));
 	check(SortInfo.SortAttributeOffset != INDEX_NONE);

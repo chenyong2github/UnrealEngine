@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/GeometryParticles.h"
+
+#include "Chaos/CastingUtilities.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/ParticleHandle.h"
@@ -58,8 +60,12 @@ namespace Chaos
 		, Geometry()
 		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
 		, Materials()
+		, MaterialMasks()
+		, MaterialMaskMaps()
+		, MaterialMaskMapMaterials()
 		, bDisable(false)
 		, bSimulate(true)
+		, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
 	{
 	}
 
@@ -93,6 +99,7 @@ namespace Chaos
 	void TPerShapeData<T, d>::Serialize(FChaosArchive& Ar)
 	{
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		Ar.UsingCustomVersion(FExternalPhysicsMaterialCustomObjectVersion::GUID);
 
 		Ar << Geometry;
 		Ar << QueryData;
@@ -122,6 +129,19 @@ namespace Chaos
 		{
 			Ar << bSimulate;
 		}
+
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeCollisionTraceType)
+		{
+			int32 Data = (int32)CollisionTraceType;
+			Ar << Data;
+			CollisionTraceType = (EChaosCollisionTraceFlag)Data;
+		}
+
+		if (Ar.CustomVer(FExternalPhysicsMaterialCustomObjectVersion::GUID) >= FExternalPhysicsMaterialCustomObjectVersion::AddedMaterialMasks)
+		{
+			Ar << MaterialMasks << MaterialMaskMaps << MaterialMaskMapMaterials;
+		}
+
 	}
 
 
@@ -169,17 +189,82 @@ namespace Chaos
 	}
 
 	template <typename T, int d, EGeometryParticlesSimType SimType>
-	void TGeometryParticlesImp<T, d, SimType>::SerializeHashResultHelper(FChaosArchive& Ar, TGeometryParticle<T, d>* Particle)
+	void TGeometryParticlesImp<T, d, SimType>::MapImplicitShapes()
 	{
-		if (Particle)
+		int32 NumShapeArrays = MShapesArray.Num();
+		ImplicitShapeMap.Resize(NumShapeArrays);
+		for (int32 Index = 0; Index < NumShapeArrays; ++Index)
 		{
-			MHashResult.Add(Particle->GetHashResultLowLevel());
-		}
-		else
-		{
-			MHashResult.Add(FMath::RandHelper(TNumericLimits<uint32>::Max()));
+			MapImplicitShapes(Index);
 		}
 	}
+
+	template <typename T, int d, EGeometryParticlesSimType SimType>
+	void TGeometryParticlesImp<T, d, SimType>::MapImplicitShapes(int32 Index)
+	{
+		checkSlow(Index >= 0 && Index < ImplicitShapeMap.Num());
+
+		TMap<const FImplicitObject*, int32>& Mapping = ImplicitShapeMap[Index];
+		TShapesArray<T, d>& ShapeArray = MShapesArray[Index];
+		Mapping.Reset();
+
+		for (int32 ShapeIndex = 0; ShapeIndex < ShapeArray.Num(); ++ ShapeIndex)
+		{
+			const FImplicitObject* ImplicitObject = ShapeArray[ShapeIndex]->Geometry.Get();
+			Mapping.Add(ImplicitObject, ShapeIndex);
+
+			const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject);
+			if (ImplicitChildObject != ImplicitObject)
+			{
+				Mapping.Add(ImplicitChildObject, ShapeIndex);
+			}
+		}
+
+		if (MGeometry[Index])
+		{
+			int32 CurrentShapeIndex = INDEX_NONE;
+
+			if (const auto* Union = MGeometry[Index]->template GetObject<FImplicitObjectUnion>())
+			{
+				for (const TUniquePtr<FImplicitObject>& ImplicitObject : Union->GetObjects())
+				{
+					if (ImplicitObject.Get())
+					{
+						if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject.Get()))
+						{
+							if (ImplicitShapeMap[Index].Contains(ImplicitObject.Get()))
+							{
+								ImplicitShapeMap[Index].Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[Index][ImplicitObject.Get()]));
+							}
+							else if (ImplicitShapeMap[Index].Contains(ImplicitChildObject))
+							{
+								ImplicitShapeMap[Index].Add(ImplicitObject.Get(), CopyTemp(ImplicitShapeMap[Index][ImplicitChildObject]));
+							}
+							
+						}
+					}
+				}
+			}
+			else
+			{
+				if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(MGeometry[Index].Get()))
+				{
+					if (ImplicitShapeMap[Index].Contains(MGeometry[Index].Get()))
+					{
+						ImplicitShapeMap[Index].Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[Index][MGeometry[Index].Get()]));
+					}
+					else if (ImplicitShapeMap[Index].Contains(ImplicitChildObject))
+					{
+						ImplicitShapeMap[Index].Add(MGeometry[Index].Get(), CopyTemp(ImplicitShapeMap[Index][ImplicitChildObject]));
+					}
+					
+				}
+			}
+
+		}
+	}
+
+
 
 	
 	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::RigidBodySim>;

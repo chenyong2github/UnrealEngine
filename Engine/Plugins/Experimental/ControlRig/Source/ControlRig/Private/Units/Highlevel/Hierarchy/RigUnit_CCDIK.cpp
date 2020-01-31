@@ -50,6 +50,10 @@ FRigUnit_CCDIK_Execute()
 
 			Chain.Reserve(BoneIndices.Num());
 		}
+		else
+		{
+			return;
+		}
 
 		int32 RootParentIndex = (*Hierarchy)[RootIndex].ParentIndex;
 		if (RootParentIndex != INDEX_NONE)
@@ -65,6 +69,11 @@ FRigUnit_CCDIK_Execute()
 			int32 BoneIndex = Hierarchy->GetIndex(RotationLimit.Bone);
 			BoneIndex = BoneIndices.Find(BoneIndex);
 			RotationLimitIndex.Add(BoneIndex);
+		}
+
+		if(BoneIndices.Num() < 2)
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("No bones found."));
 		}
 	}
 	else  if (Context.State == EControlRigState::Update)

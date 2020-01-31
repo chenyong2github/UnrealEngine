@@ -35,5 +35,6 @@ struct FRigUnit_BlendTransform : public FRigUnit
 	UPROPERTY(meta = (Output))
 	FTransform Result;
 
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };

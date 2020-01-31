@@ -224,6 +224,7 @@ static FSceneView* CreateSceneView( FSceneViewFamilyContext* ViewFamilyContext, 
 
 	// Create the view's uniform buffer.
 	FViewUniformShaderParameters ViewUniformShaderParameters;
+	ViewUniformShaderParameters.VTFeedbackBuffer = GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI;
 
 	View->SetupCommonViewUniformBufferParameters(
 		ViewUniformShaderParameters,
@@ -1096,16 +1097,12 @@ void FSlateRHIRenderingPolicy::DrawElements(
 							{
 								uint32 InstanceCount = RenderBatch.InstanceCount;
 
-								if (GRHISupportsInstancing)
-								{
-									RenderBatch.InstanceData->BindStreamSource(RHICmdList, 1, RenderBatch.InstanceOffset);
+								RenderBatch.InstanceData->BindStreamSource(RHICmdList, 1, RenderBatch.InstanceOffset);
 
-									// for RHIs that can't handle VertexOffset, we need to offset the stream source each time
+								// for RHIs that can't handle VertexOffset, we need to offset the stream source each time
 
-									RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
-									RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
-
-								}
+								RHICmdList.SetStreamSource(0, VertexBufferPtr->VertexBufferRHI, RenderBatch.VertexOffset * sizeof(FSlateVertex));
+								RHICmdList.DrawIndexedPrimitive(IndexBufferPtr->IndexBufferRHI, 0, 0, RenderBatch.NumVertices, RenderBatch.IndexOffset, PrimitiveCount, InstanceCount);
 							}
 							else
 							{

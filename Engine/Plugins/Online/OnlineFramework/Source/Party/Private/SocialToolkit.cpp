@@ -152,8 +152,8 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 //@todo DanH Social: Need a non-backdoor way to get toolkits from the manager (an issue when we don't know where the manager is) - new game subsystems should be a nice solve
-TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> USocialToolkit::AllToolkitsByOwningPlayer;
-USocialToolkit* USocialToolkit::GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer)
+TMap<TWeakObjectPtr<const ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> USocialToolkit::AllToolkitsByOwningPlayer;
+USocialToolkit* USocialToolkit::GetToolkitForPlayerInternal(const ULocalPlayer* LocalPlayer)
 {
 	TWeakObjectPtr<USocialToolkit>* FoundToolkit = AllToolkitsByOwningPlayer.Find(LocalPlayer);
 	return FoundToolkit ? FoundToolkit->Get() : nullptr;
@@ -1053,9 +1053,10 @@ void USocialToolkit::HandleGameDestroyed(const FName SessionName, bool bWasSucce
 	// Update the recent player list whenever a game session ends
 }
 
-void USocialToolkit::HandleUserInvalidated(USocialUser* InvalidUser)
+void USocialToolkit::HandleUserInvalidated(USocialUser& InvalidUser)
 {
-	AllUsers.Remove(InvalidUser);
+	AllUsers.Remove(&InvalidUser);
+	OnSocialUserInvalidated().Broadcast(InvalidUser);
 }
 
 void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)

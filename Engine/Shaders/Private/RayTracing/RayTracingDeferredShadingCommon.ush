@@ -1,0 +1,50 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+//#include "../DeferredShadingCommon.ush"
+
+//#dxr-todo: workaround for flickering. UE-87281
+
+FGBufferData GetGBufferDataFromSceneTexturesLoad(uint2 PixelCoord, bool bGetNormalizedNormal = true)
+{
+	float4 GBufferA = SceneGBufferA.Load(int3(PixelCoord, 0));
+	float4 GBufferB = SceneGBufferB.Load(int3(PixelCoord, 0));
+	float4 GBufferC = SceneGBufferC.Load(int3(PixelCoord, 0));
+	float4 GBufferD = SceneGBufferD.Load(int3(PixelCoord, 0));
+	float4 GBufferE = SceneGBufferE.Load(int3(PixelCoord, 0));
+	float4 GBufferVelocity = SceneVelocityBuffer.Load(int3(PixelCoord, 0));
+
+	uint CustomStencil = 0;
+	float CustomNativeDepth = 0;
+
+	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;;
+
+	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+
+	return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromPixelPos(PixelCoord));
+}
+
+FGBufferData GetGBufferDataFromPayload(in FMaterialClosestHitPayload Payload)
+{
+	FGBufferData GBufferData = (FGBufferData)0;
+	GBufferData.Depth = 1.f; // Do not use depth
+	GBufferData.WorldNormal = Payload.WorldNormal;
+	GBufferData.BaseColor = Payload.BaseColor;
+	GBufferData.Metallic = Payload.Metallic;
+	GBufferData.Specular = Payload.Specular;
+	GBufferData.Roughness = Payload.Roughness;
+	GBufferData.CustomData = Payload.CustomData;
+	GBufferData.GBufferAO = Payload.GBufferAO;
+	GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f;
+	GBufferData.ShadingModelID = Payload.ShadingModelID;
+	GBufferData.SpecularColor = Payload.SpecularColor;
+	GBufferData.DiffuseColor = Payload.DiffuseColor;
+	return GBufferData;
+}
+
+FGBufferData GetGBufferDataFromPayload(in FPackedMaterialClosestHitPayload Payload)
+{
+	RayDesc DummyRay = (RayDesc)0; // Not needed to unpack GBuffer
+	return GetGBufferDataFromPayload(UnpackRayTracingPayload(Payload, DummyRay));
+}

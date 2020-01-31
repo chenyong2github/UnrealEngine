@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	UnArchive.cpp: Core archive classes.
-=============================================================================*/
 #include "Serialization/Archive.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/UnrealMemory.h"
@@ -26,6 +23,7 @@
 #include "Serialization/CompressedChunkInfo.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 namespace ArchiveUtil
 {
@@ -1212,3 +1210,5 @@ void FArchive::SetArchiveState(const FArchiveState& InState)
 {
 	ImplicitConv<FArchiveState&>(*this) = InState;
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

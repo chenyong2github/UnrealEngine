@@ -21,6 +21,16 @@
 
 #define LOCTEXT_NAMESPACE "PhysicsAsset"
 
+FSolverIterations::FSolverIterations()
+	: SolverIterations(3)
+	, JointIterations(2)
+	, CollisionIterations(1)
+	, SolverPushOutIterations(1)
+	, JointPushOutIterations(1)
+	, CollisionPushOutIterations(2)
+{
+}
+
 ///////////////////////////////////////	
 //////////// UPhysicsAsset ////////////
 ///////////////////////////////////////

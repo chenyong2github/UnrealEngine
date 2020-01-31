@@ -53,7 +53,8 @@ namespace Audio
 
 		SetBPMInternal(QuantizationSettings.BeatsPerMinute);
 
-		if (!bQuantizationSettingsSet)
+		// allow these setting to cache, but do not reset event state until function is called with a valid sample rate
+		if (!bQuantizationSettingsSet && (InQuantizationSettings.SampleRate > 0))
 		{
 			bQuantizationSettingsSet = true;
 			ResetEventState();

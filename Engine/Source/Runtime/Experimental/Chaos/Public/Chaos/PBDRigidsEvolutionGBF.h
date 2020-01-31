@@ -49,6 +49,7 @@ namespace Chaos
 		using Base::ParticleUpdatePosition;
 		using Base::SetParticleUpdatePositionFunction;
 		using Base::SetParticleUpdateVelocityFunction;
+		using Base::GenerateUniqueIdx;
 		using typename Base::FForceRule;
 		using FGravityForces = TPerParticleGravity<T, d>;
 		using FCollisionConstraints = TPBDCollisionConstraints<T, d>;
@@ -72,6 +73,11 @@ namespace Chaos
 		void SetPostDetectCollisionsCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
 		{
 			PostDetectCollisionsCallback = Cb;
+		}
+
+		void SetCollisionModifierCallback(const TCollisionModifierCallback<T, d>& Cb)
+		{
+			CollisionModifierCallback = Cb;
 		}
 
 		void SetPreApplyCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
@@ -206,6 +212,7 @@ namespace Chaos
 
 		TPBDRigidsEvolutionCallback<T, d> PostIntegrateCallback;
 		TPBDRigidsEvolutionCallback<T, d> PostDetectCollisionsCallback;
+		TCollisionModifierCallback<T, d> CollisionModifierCallback;
 		TPBDRigidsEvolutionCallback<T, d> PreApplyCallback;
 		TPBDRigidsEvolutionIslandCallback<T, d> PostApplyCallback;
 		TPBDRigidsEvolutionIslandCallback<T, d> PostApplyPushOutCallback;

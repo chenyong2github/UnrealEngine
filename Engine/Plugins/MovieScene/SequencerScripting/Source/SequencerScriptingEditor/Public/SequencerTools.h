@@ -11,6 +11,8 @@
 #include "SequencerTools.generated.h"
 
 class UFbxExportOption;
+class UAnimSequence;
+class UPoseAsset;
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnRenderMovieStopped, bool, bSuccess);
 
@@ -97,6 +99,18 @@ public:
 	static bool ExportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions,const FString& InFBXFileName);
 
 	/*
+	 * Export Passed in Binding as an Anim Seqquence.
+	 *
+	 * @InWorld World to export
+	 * @InSequence Sequence to export
+	 * @AnimSequence The AnimSequence to save into.
+	 * @InBinding Binding to export that has a skelmesh component on it
+	 * @InAnimSequenceFilename File to create
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
+	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, const FSequencerBindingProxy& Binding);
+
+	/*
 	 * Import Passed in Bindings to FBX
 	 *
 	 * @InWorld World to import to
@@ -107,6 +121,5 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
 	static bool ImportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString&  InImportFilename);
-
 
 };

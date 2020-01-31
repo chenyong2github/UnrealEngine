@@ -64,6 +64,7 @@ protected:
 		Args.bClearSelectionOnClick = bClearSelectionOnClick;
 		Args.SelectionMode = SelectionMode;
 		Args.ConsumeMouseWheel = ConsumeMouseWheel;
+		Args.bReturnFocusToSelection = bReturnFocusToSelection;
 
 		MyListView = MyTreeView = ITypedUMGListView<UObject*>::ConstructTreeView<TreeViewT>(this, ListItems, Args);
 		MyTreeView->SetOnEntryInitialized(SListView<UObject*>::FOnEntryInitialized::CreateUObject(this, &UTreeView::HandleOnEntryInitializedInternal));

@@ -535,7 +535,6 @@ void FInstancedStaticMeshVertexFactory::Copy(const FInstancedStaticMeshVertexFac
 void FInstancedStaticMeshVertexFactory::InitRHI()
 {
 	check(HasValidFeatureLevel());
-	const bool bInstanced = GRHISupportsInstancing;
 
 #if !ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES // position(and normal) only shaders cannot work with dithered LOD
 	// If the vertex buffer containing position is not the same vertex buffer containing the rest of the data,
@@ -548,7 +547,9 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 			StreamElements.Add(AccessPositionStreamComponent(Data.PositionComponent, 0));
 
 			if (bAddNormal)
+			{
 				StreamElements.Add(AccessPositionStreamComponent(Data.TangentBasisComponents[2], 2));
+			}
 
 			if (bInstanced)
 			{
@@ -630,21 +631,21 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	}
 
 	// toss in the instanced location stream
-	check(Data.InstanceOriginComponent.VertexBuffer || !bInstanced);
-	if (bInstanced && Data.InstanceOriginComponent.VertexBuffer)
+	check(Data.InstanceOriginComponent.VertexBuffer);
+	if (Data.InstanceOriginComponent.VertexBuffer)
 	{
 		Elements.Add(AccessStreamComponent(Data.InstanceOriginComponent, 8));
 	}
 
-	check(Data.InstanceTransformComponent[0].VertexBuffer || !bInstanced);
-	if (bInstanced && Data.InstanceTransformComponent[0].VertexBuffer)
+	check(Data.InstanceTransformComponent[0].VertexBuffer);
+	if (Data.InstanceTransformComponent[0].VertexBuffer)
 	{
 		Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[0], 9));
 		Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[1], 10));
 		Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[2], 11));
 	}
 
-	if (bInstanced && Data.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
+	if (Data.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
 	{
 		Elements.Add(AccessStreamComponent(Data.InstanceLightmapAndShadowMapUVBiasComponent,12));
 	}
@@ -660,21 +661,18 @@ FVertexFactoryShaderParameters* FInstancedStaticMeshVertexFactory::ConstructShad
 }
 
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FEmulatedInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
 
 void FInstancedStaticMeshRenderData::InitVertexFactories()
 {
-	const bool bInstanced = GRHISupportsInstancing;
-
 	// Allocate the vertex factories for each LOD
 	for (int32 LODIndex = 0; LODIndex < LODModels.Num(); LODIndex++)
 	{
-		VertexFactories.Add(bInstanced ? new FInstancedStaticMeshVertexFactory(FeatureLevel) : new FEmulatedInstancedStaticMeshVertexFactory(FeatureLevel));
+		VertexFactories.Add(new FInstancedStaticMeshVertexFactory(FeatureLevel));
 	}
 
 	const int32 LightMapCoordinateIndex = Component->GetStaticMesh()->LightMapCoordinateIndex;
 	ENQUEUE_RENDER_COMMAND(InstancedStaticMeshRenderData_InitVertexFactories)(
-		[this, LightMapCoordinateIndex, bInstanced](FRHICommandListImmediate& RHICmdList)
+		[this, LightMapCoordinateIndex](FRHICommandListImmediate& RHICmdList)
 	{
 		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
 		{
@@ -693,11 +691,8 @@ void FInstancedStaticMeshRenderData::InitVertexFactories()
 			}
 			RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
 
-			if (bInstanced)
-			{
-				check(PerInstanceRenderData);
-				PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
-			}
+			check(PerInstanceRenderData);
+			PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
 
 			VertexFactory.SetData(Data);
 			VertexFactory.InitResource();
@@ -825,23 +820,6 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 	}
 }
 
-int32 FInstancedStaticMeshSceneProxy::GetNumMeshBatches() const
-{
-	const bool bInstanced = GRHISupportsInstancing;
-
-	if (bInstanced)
-	{
-		return 1;
-	}
-	else
-	{
-		const uint32 NumInstances = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
-		const uint32 MaxInstancesPerBatch = FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask();
-		const uint32 NumBatches = FMath::DivideAndRoundUp(NumInstances, MaxInstancesPerBatch);
-		return NumBatches;
-	}
-}
-
 int32 FInstancedStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	if (OccluderData)
@@ -887,8 +865,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 		}
 	}
 
-	const bool bInstanced = GRHISupportsInstancing;
-
 	// Copy the parameters for LOD - all instances
 	UserData_AllInstances.MeshRenderData = InComponent->GetStaticMesh()->RenderData.Get();
 	UserData_AllInstances.StartCullDistance = InComponent->InstanceStartCullDistance;
@@ -897,7 +873,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_AllInstances.MinLOD = ClampedMinLOD;
 	UserData_AllInstances.bRenderSelected = true;
 	UserData_AllInstances.bRenderUnselected = true;
-	UserData_AllInstances.RenderData = bInstanced ? nullptr : &InstancedRenderData;
+	UserData_AllInstances.RenderData = nullptr;
 
 	FVector MinScale(0);
 	FVector MaxScale(0);
@@ -914,9 +890,14 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_DeselectedInstances.bRenderSelected = false;
 }
 
+void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
+{
+	InstancedRenderData.ReleaseResources(&GetScene(), StaticMesh);
+	FStaticMeshSceneProxy::DestroyRenderThreadResources();
+}
+
 void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const
 {
-	const bool bInstanced = GRHISupportsInstancing;
 	OutMeshBatch.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
 	const uint32 NumInstances = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
 	FMeshBatchElement& BatchElement0 = OutMeshBatch.Elements[0];
@@ -924,40 +905,9 @@ void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int
 	BatchElement0.bUserDataIsColorVertexBuffer = false;
 	BatchElement0.InstancedLODIndex = LODIndex;
 	BatchElement0.UserIndex = 0;
-	BatchElement0.bIsInstancedMesh = bInstanced;
 	BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
 
-	if (bInstanced)
-	{
-		BatchElement0.NumInstances = NumInstances;
-	}
-	else
-	{
-		const uint32 MaxInstancesPerBatch = FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask();
-		const uint32 NumBatches = FMath::DivideAndRoundUp(NumInstances, MaxInstancesPerBatch);
-		uint32 InstanceIndex = BatchIndex * MaxInstancesPerBatch;
-		uint32 NumInstancesThisBatch = FMath::Min(NumInstances - InstanceIndex, MaxInstancesPerBatch);
-				
-		if (NumInstancesThisBatch > 0)
-		{
-			OutMeshBatch.Elements.Reserve(NumInstancesThisBatch);
-						
-			// BatchElement0 is already inside the array; but Reserve() might have shifted it
-			OutMeshBatch.Elements[0].UserIndex = InstanceIndex;
-			--NumInstancesThisBatch;
-			++InstanceIndex;
-
-			// Add remaining BatchElements 1..n-1
-			while (NumInstancesThisBatch > 0)
-			{
-				auto* NewBatchElement = new(OutMeshBatch.Elements) FMeshBatchElement();
-				*NewBatchElement = BatchElement0;
-				NewBatchElement->UserIndex = InstanceIndex;
-				++InstanceIndex;
-				--NumInstancesThisBatch;
-			}
-		}
-	}
+	BatchElement0.NumInstances = NumInstances;
 }
 
 void FInstancedStaticMeshSceneProxy::GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const
@@ -2941,8 +2891,6 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	FVertexInputStreamArray& VertexStreams
 	) const
 {
-	const bool bInstanced = GRHISupportsInstancing;
-
 	// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
 	FRHIUniformBuffer* VertexFactoryUniformBuffer = static_cast<FRHIUniformBuffer*>(BatchElement.VertexFactoryUserData);
 	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
@@ -2951,42 +2899,24 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	const auto* InstancedVertexFactory = static_cast<const FInstancedStaticMeshVertexFactory*>(VertexFactory);
 	const int32 InstanceOffsetValue = BatchElement.UserIndex;
 
-	if (bInstanced)
+	if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
 	{
-		if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
+		if (InstancedVertexFactory->GetNumInstances() > 0)
 		{
-			if (InstancedVertexFactory->GetNumInstances() > 0)
-			{
-				ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
-				ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
-				ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
-				ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
-			}
-			else
-			{
-				ensureMsgf(false, TEXT("Instanced static mesh rendered with no instances. Data initialized: %d"), InstancedVertexFactory->IsDataInitialized());
-			}
+			ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
+			ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
+			ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
+			ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
 		}
-
-		if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
+		else
 		{
-			VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, InputStreamType, VertexStreams);
+			ensureMsgf(false, TEXT("Instanced static mesh rendered with no instances. Data initialized: %d"), InstancedVertexFactory->IsDataInitialized());
 		}
 	}
-	else if (CPUInstanceOrigin.IsBound())
+
+	if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
 	{
-		const float ShortScale = 1.0f / 32767.0f;
-		auto* InstancingData = (const FInstancingUserData*)BatchElement.UserData;
-		check(InstancingData);
-
-		FVector4 InstanceTransform[3];
-		FVector4 InstanceLightmapAndShadowMapUVBias;
-		FVector4 InstanceOrigin;
-		InstancingData->RenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(BatchElement.UserIndex, InstanceTransform, InstanceLightmapAndShadowMapUVBias, InstanceOrigin);
-
-		ShaderBindings.Add(CPUInstanceOrigin, InstanceOrigin);
-		ShaderBindings.Add(CPUInstanceTransform, InstanceTransform);
-		ShaderBindings.Add(CPUInstanceLightmapAndShadowMapBias, InstanceLightmapAndShadowMapUVBias);
+		VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, InputStreamType, VertexStreams);
 	}
 
 	if( InstancingWorldViewOriginOneParameter.IsBound() )

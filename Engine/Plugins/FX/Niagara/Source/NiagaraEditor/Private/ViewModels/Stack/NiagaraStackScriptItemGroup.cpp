@@ -174,6 +174,7 @@ class FScriptItemGroupAddUtilities : public TNiagaraStackItemGroupAddUtilities<U
 public:
 	FScriptItemGroupAddUtilities(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterViewModel> InEmitterViewModel, UNiagaraStackEditorData& InStackEditorData, FOnItemAdded InOnItemAdded)
 		: TNiagaraStackItemGroupAddUtilities(LOCTEXT("ScriptGroupAddItemName", "Module"), EAddMode::AddFromAction, false, InOnItemAdded)
+		, OutputNode(nullptr)
 		, SystemViewModel(InSystemViewModel)
 		, EmitterViewModel(InEmitterViewModel)
 		, StackEditorData(InStackEditorData)
@@ -980,38 +981,15 @@ void GatherRenamedModuleOutputs(
 	TArray<TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>> InClipboardFunctionAndNodeFunctionPairs,
 	TMap<FName, FName>& OutOldModuleOutputNameToNewModuleOutputNameMap)
 {
+	UNiagaraEmitter* Emitter = InOwnerEntry->GetEmitterViewModel().IsValid() ? InOwnerEntry->GetEmitterViewModel()->GetEmitter() : nullptr;
+
 	for (TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>& ClipboardFunctionAndNodeFunctionPair : InClipboardFunctionAndNodeFunctionPairs)
 	{
 		const UNiagaraClipboardFunction* ClipboardFunction = ClipboardFunctionAndNodeFunctionPair.Key;
 		UNiagaraNodeFunctionCall* NewFunctionCallNode = ClipboardFunctionAndNodeFunctionPair.Value;
 		if (NewFunctionCallNode->GetFunctionName() != ClipboardFunction->FunctionName)
 		{
-			TArray<FNiagaraVariable> OutputVariables;
-			TArray<FNiagaraVariable> OutputVariablesWithOriginalAliasesIntact;
-			FCompileConstantResolver ConstantResolver = InOwnerEntry->GetEmitterViewModel().IsValid()
-				? FCompileConstantResolver(InOwnerEntry->GetEmitterViewModel()->GetEmitter())
-				: FCompileConstantResolver();
-			FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(*NewFunctionCallNode, ConstantResolver, OutputVariables, OutputVariablesWithOriginalAliasesIntact);
-
-			for (FNiagaraVariable& OutputVariableWithOriginalAliasesIntact : OutputVariablesWithOriginalAliasesIntact)
-			{
-				TArray<FString> SplitAliasedVariableName;
-				OutputVariableWithOriginalAliasesIntact.GetName().ToString().ParseIntoArray(SplitAliasedVariableName, TEXT("."));
-				if (SplitAliasedVariableName.Contains(TEXT("Module")))
-				{
-					TArray<FString> SplitOldVariableName = SplitAliasedVariableName;
-					TArray<FString> SplitNewVariableName = SplitAliasedVariableName;
-					for (int32 i = 0; i < SplitAliasedVariableName.Num(); i++)
-					{
-						if (SplitAliasedVariableName[i] == TEXT("Module"))
-						{
-							SplitOldVariableName[i] = ClipboardFunction->FunctionName;
-							SplitNewVariableName[i] = NewFunctionCallNode->GetFunctionName();
-						}
-					}
-					OutOldModuleOutputNameToNewModuleOutputNameMap.Add(*FString::Join(SplitOldVariableName, TEXT(".")), *FString::Join(SplitNewVariableName, TEXT(".")));
-				}
-			}
+			FNiagaraStackGraphUtilities::GatherRenamedStackFunctionOutputVariableNames(Emitter, *NewFunctionCallNode, ClipboardFunction->FunctionName, NewFunctionCallNode->GetFunctionName(), OutOldModuleOutputNameToNewModuleOutputNameMap);
 		}
 	}
 }

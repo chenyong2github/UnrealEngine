@@ -309,7 +309,7 @@ UNiagaraDataInterfaceCurlNoise::UNiagaraDataInterfaceCurlNoise(FObjectInitialize
 {
 	OffsetFromSeed = FNiagaraUIntVectorToFVector(Rand3DPCG16(FIntVector(Seed, Seed, Seed))) / 100.0;
 
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyCurlNoise, ESPMode::ThreadSafe>(OffsetFromSeed);
+	Proxy.Reset(new FNiagaraDataInterfaceProxyCurlNoise(OffsetFromSeed));
 }
 
 void UNiagaraDataInterfaceCurlNoise::PostInitProperties()

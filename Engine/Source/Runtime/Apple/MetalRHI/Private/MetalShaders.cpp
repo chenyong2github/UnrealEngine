@@ -767,6 +767,20 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(const TArray<uint8>& I
     }
 	UniformBuffersCopyInfo = Header.UniformBuffersCopyInfo;
 	SideTableBinding = Header.SideTable;
+
+	StaticSlots.Reserve(Bindings.ShaderResourceTable.ResourceTableLayoutHashes.Num());
+
+	for (uint32 LayoutHash : Bindings.ShaderResourceTable.ResourceTableLayoutHashes)
+	{
+		if (const FShaderParametersMetadata* Metadata = FindUniformBufferStructByLayoutHash(LayoutHash))
+		{
+			StaticSlots.Add(Metadata->GetLayout().StaticSlot);
+		}
+		else
+		{
+			StaticSlots.Add(MAX_UNIFORM_BUFFER_STATIC_SLOTS);
+		}
+	}
 }
 
 /** Destructor */

@@ -157,7 +157,7 @@ bool UToolMenus::IsMenuRegistered(const FName Name) const
 	return Found && *Found && (*Found)->IsRegistered();
 }
 
-TArray<UToolMenu*> UToolMenus::CollectHierarchy(const FName InName)
+TArray<UToolMenu*> UToolMenus::CollectHierarchy(const FName InName, const TMap<FName, FName>& UnregisteredParentNames)
 {
 	TArray<UToolMenu*> Result;
 	TArray<FName> SubstitutedMenuNames;
@@ -207,12 +207,29 @@ TArray<UToolMenu*> UToolMenus::CollectHierarchy(const FName InName)
 
 		Result.Add(Current);
 
-		CurrentMenuName = Current->MenuParent;
+		if (Current->IsRegistered())
+		{
+			CurrentMenuName = Current->MenuParent;
+		}
+		else if (const FName* FoundUnregisteredParentName = UnregisteredParentNames.Find(CurrentMenuName))
+		{
+			CurrentMenuName = *FoundUnregisteredParentName;
+		}
+		else
+		{
+			CurrentMenuName = NAME_None;
+		}
 	}
 
 	Algo::Reverse(Result);
 
 	return Result;
+}
+
+TArray<UToolMenu*> UToolMenus::CollectHierarchy(const FName InName)
+{
+	TMap<FName, FName> UnregisteredParents;
+	return CollectHierarchy(InName, UnregisteredParents);
 }
 
 void UToolMenus::ListAllParents(const FName InName, TArray<FName>& AllParents)
@@ -421,7 +438,13 @@ void UToolMenus::AssembleMenu(UToolMenu* GeneratedMenu, const UToolMenu* Other)
 		int32 NumHandled = 0;
 		for (int32 i=0; i < RemainingSections.Num(); ++i)
 		{
-			const FToolMenuSection& RemainingSection = RemainingSections[i];
+			FToolMenuSection& RemainingSection = RemainingSections[i];
+
+			// Menubars do not have sections, combine all sections into one
+			if (GeneratedMenu->MenuType == EMultiBoxType::MenuBar)
+			{
+				RemainingSection.Name = NAME_None;
+			}
 
 			// Update existing section
 			FToolMenuSection* Section = GeneratedMenu->FindSection(RemainingSection.Name);
@@ -667,32 +690,9 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 
 void UToolMenus::AssembleMenuHierarchy(UToolMenu* GeneratedMenu, const TArray<UToolMenu*>& Hierarchy)
 {
-	if (GeneratedMenu->MenuType == EMultiBoxType::MenuBar)
+	for (const UToolMenu* FoundParent : Hierarchy)
 	{
-		// Menu Bars require one section
-		if (GeneratedMenu->Sections.Num() == 0)
-		{
-			GeneratedMenu->Sections.AddDefaulted();
-		}
-
-		FToolMenuSection& MenuBarSection = GeneratedMenu->Sections[0];
-		for (const UToolMenu* MenuData : Hierarchy)
-		{
-			for (const FToolMenuSection& Section : MenuData->Sections)
-			{
-				for (const FToolMenuEntry& Block : Section.Blocks)
-				{
-					MenuBarSection.AssembleBlock(Block);
-				}
-			}
-		}
-	}
-	else
-	{
-		for (const UToolMenu* FoundParent : Hierarchy)
-		{
-			AssembleMenu(GeneratedMenu, FoundParent);
-		}
+		AssembleMenu(GeneratedMenu, FoundParent);
 	}
 
 	ApplyCustomization(GeneratedMenu);
@@ -717,24 +717,65 @@ UToolMenu* UToolMenus::GenerateSubMenu(const UToolMenu* InGeneratedParent, const
 	// Submenus that are constructed by delegates can also be overridden by menus in the database
 	TArray<UToolMenu*> Hierarchy;
 	{
+		struct FMenuHierarchyInfo
+		{
+			FMenuHierarchyInfo() : BaseMenu(nullptr), SubMenu(nullptr) { }
+			FName BaseMenuName;
+			FName SubMenuName;
+			UToolMenu* BaseMenu;
+			UToolMenu* SubMenu;
+		};
+
+		TArray<FMenuHierarchyInfo> HierarchyInfos;
+		TArray<UToolMenu*> UnregisteredHierarchy;
+
 		// Walk up all parent menus trying to find a menu
 		FName BaseName = InGeneratedParent->GetMenuName();
 		while (BaseName != NAME_None)
 		{
-			FName JoinedName = JoinMenuPaths(BaseName, InBlockName);
-			if (UToolMenu* Found = FindMenu(JoinedName))
+			FMenuHierarchyInfo& Info = HierarchyInfos.AddDefaulted_GetRef();
+			Info.BaseMenuName = BaseName;
+			Info.BaseMenu = FindMenu(Info.BaseMenuName);
+			Info.SubMenuName = JoinMenuPaths(BaseName, InBlockName);
+			Info.SubMenu = FindMenu(Info.SubMenuName);
+
+			if (Info.SubMenu)
 			{
-				Hierarchy = CollectHierarchy(JoinedName);
-				break;
+				if (Info.SubMenu->IsRegistered())
+				{
+					if (UnregisteredHierarchy.Num() == 0)
+					{
+						Hierarchy = CollectHierarchy(Info.SubMenuName);
+					}
+					else
+					{
+						UnregisteredHierarchy.Add(Info.SubMenu);
+					}
+					break;
+				}
+				else
+				{
+					UnregisteredHierarchy.Add(Info.SubMenu);
+				}
 			}
 
-			UToolMenu* BaseData = FindMenu(BaseName);
-			BaseName = BaseData ? BaseData->MenuParent : NAME_None;
+			BaseName = Info.BaseMenu  ? Info.BaseMenu->MenuParent : NAME_None;
+		}
+
+		if (UnregisteredHierarchy.Num() > 0)
+		{
+			// Create lookup for UToolMenus that were extended but not registered
+			TMap<FName, FName> UnregisteredParentNames;
+			for (int32 i = 0; i < UnregisteredHierarchy.Num() - 1; ++i)
+			{
+				UnregisteredParentNames.Add(UnregisteredHierarchy[i]->GetMenuName(), UnregisteredHierarchy[i + 1]->GetMenuName());
+			}
+			Hierarchy = CollectHierarchy(UnregisteredHierarchy[0]->GetMenuName(), UnregisteredParentNames);
 		}
 	}
 
 	// Construct menu using delegate and insert as root so it can be overridden
-	if (Block->SubMenuData.ConstructMenu.NewToolMenuDelegate.IsBound())
+	if (Block->SubMenuData.ConstructMenu.NewToolMenu.IsBound())
 	{
 		UToolMenu* Menu = NewObject<UToolMenu>(this);
 		Menu->Context = InGeneratedParent->Context;
@@ -744,7 +785,7 @@ UToolMenu* UToolMenus::GenerateSubMenu(const UToolMenu* InGeneratedParent, const
 		Menu->SubMenuParent = InGeneratedParent;
 		Menu->SubMenuSourceEntryName = InBlockName;
 
-		Block->SubMenuData.ConstructMenu.NewToolMenuDelegate.Execute(Menu);
+		Block->SubMenuData.ConstructMenu.NewToolMenu.Execute(Menu);
 		Menu->MenuName = SubMenuFullName;
 		Hierarchy.Insert(Menu, 0);
 	}
@@ -896,16 +937,33 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 				{
 					FName SubMenuFullName = JoinMenuPaths(MenuData->MenuName, Block.Name);
 					FNewMenuDelegate NewMenuDelegate;
-					if (Block.SubMenuData.ConstructMenu.NewMenuDelegate.IsBound())
+					bool bSubMenuAdded = false;
+
+					if (Block.SubMenuData.ConstructMenu.NewMenuLegacy.IsBound())
 					{
-						NewMenuDelegate = Block.SubMenuData.ConstructMenu.NewMenuDelegate;
+						NewMenuDelegate = Block.SubMenuData.ConstructMenu.NewMenuLegacy;
+					}
+					else if (Block.SubMenuData.ConstructMenu.NewToolMenuWidget.IsBound())
+					{
+						// Full replacement of the widget shown when submenu is opened
+						FOnGetContent OnGetContent = ConvertWidgetChoice(Block.SubMenuData.ConstructMenu, MenuData->Context);
+						if (OnGetContent.IsBound())
+						{
+							MenuBuilder.AddWrapperSubMenu(
+								Block.Label.Get(),
+								Block.ToolTip.Get(),
+								OnGetContent,
+								Block.Icon.Get()
+							);
+						}
+						bSubMenuAdded = true;
 					}
 					else if (Block.Name == NAME_None)
 					{
-						if (Block.SubMenuData.ConstructMenu.NewToolMenuDelegate.IsBound())
+						if (Block.SubMenuData.ConstructMenu.NewToolMenu.IsBound())
 						{
 							// Blocks with no name cannot call PopulateSubMenu()
-							NewMenuDelegate = FNewMenuDelegate::CreateUObject(this, &UToolMenus::PopulateSubMenuWithoutName, TWeakObjectPtr<UToolMenu>(MenuData), Block.SubMenuData.ConstructMenu.NewToolMenuDelegate);
+							NewMenuDelegate = FNewMenuDelegate::CreateUObject(this, &UToolMenus::PopulateSubMenuWithoutName, TWeakObjectPtr<UToolMenu>(MenuData), Block.SubMenuData.ConstructMenu.NewToolMenu);
 						}
 						else
 						{
@@ -917,44 +975,47 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 						NewMenuDelegate = FNewMenuDelegate::CreateUObject(this, &UToolMenus::PopulateSubMenu, TWeakObjectPtr<UToolMenu>(MenuData), Block.Name);
 					}
 
-					if (Widget.IsValid())
+					if (!bSubMenuAdded)
 					{
-						if (UIAction.IsBound())
+						if (Widget.IsValid())
 						{
-							MenuBuilder.AddSubMenu(UIAction, Widget.ToSharedRef(), NewMenuDelegate, Block.bShouldCloseWindowAfterMenuSelection);
+							if (UIAction.IsBound())
+							{
+								MenuBuilder.AddSubMenu(UIAction, Widget.ToSharedRef(), NewMenuDelegate, Block.bShouldCloseWindowAfterMenuSelection);
+							}
+							else
+							{
+								MenuBuilder.AddSubMenu(Widget.ToSharedRef(), NewMenuDelegate, Block.SubMenuData.bOpenSubMenuOnClick, Block.bShouldCloseWindowAfterMenuSelection);
+							}
 						}
 						else
 						{
-							MenuBuilder.AddSubMenu(Widget.ToSharedRef(), NewMenuDelegate, Block.SubMenuData.bOpenSubMenuOnClick, Block.bShouldCloseWindowAfterMenuSelection);
-						}
-					}
-					else
-					{
-						if (UIAction.IsBound())
-						{
-							MenuBuilder.AddSubMenu(
-								Block.Label,
-								Block.ToolTip,
-								NewMenuDelegate,
-								UIAction,
-								Block.Name,
-								Block.UserInterfaceActionType,
-								Block.SubMenuData.bOpenSubMenuOnClick,
-								Block.Icon.Get(),
-								Block.bShouldCloseWindowAfterMenuSelection
-							);
-						}
-						else
-						{
-							MenuBuilder.AddSubMenu(
-								Block.Label,
-								Block.ToolTip,
-								NewMenuDelegate,
-								Block.SubMenuData.bOpenSubMenuOnClick,
-								Block.Icon.Get(),
-								Block.bShouldCloseWindowAfterMenuSelection,
-								Block.Name
-							);
+							if (UIAction.IsBound())
+							{
+								MenuBuilder.AddSubMenu(
+									Block.Label,
+									Block.ToolTip,
+									NewMenuDelegate,
+									UIAction,
+									Block.Name,
+									Block.UserInterfaceActionType,
+									Block.SubMenuData.bOpenSubMenuOnClick,
+									Block.Icon.Get(),
+									Block.bShouldCloseWindowAfterMenuSelection
+								);
+							}
+							else
+							{
+								MenuBuilder.AddSubMenu(
+									Block.Label,
+									Block.ToolTip,
+									NewMenuDelegate,
+									Block.SubMenuData.bOpenSubMenuOnClick,
+									Block.Icon.Get(),
+									Block.bShouldCloseWindowAfterMenuSelection,
+									Block.Name
+								);
+							}
 						}
 					}
 				}
@@ -1154,9 +1215,9 @@ void UToolMenus::PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilder, UToolMe
 		{
 			FName SubMenuFullName = JoinMenuPaths(MenuData->MenuName, Block.Name);
 			FNewMenuDelegate NewMenuDelegate;
-			if (Block.SubMenuData.ConstructMenu.NewMenuDelegate.IsBound())
+			if (Block.SubMenuData.ConstructMenu.NewMenuLegacy.IsBound())
 			{
-				NewMenuDelegate = Block.SubMenuData.ConstructMenu.NewMenuDelegate;
+				NewMenuDelegate = Block.SubMenuData.ConstructMenu.NewMenuLegacy;
 			}
 			else
 			{
@@ -1175,7 +1236,7 @@ void UToolMenus::PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilder, UToolMe
 	AddReferencedContextObjects(MenuBarBuilder.GetMultiBox(), MenuData);
 }
 
-FOnGetContent UToolMenus::ConvertWidgetChoice(const FNewToolMenuWidgetChoice& Choice, const FToolMenuContext& Context) const
+FOnGetContent UToolMenus::ConvertWidgetChoice(const FNewToolMenuChoice& Choice, const FToolMenuContext& Context) const
 {
 	if (Choice.NewToolMenuWidget.IsBound())
 	{
@@ -1199,6 +1260,20 @@ FOnGetContent UToolMenus::ConvertWidgetChoice(const FNewToolMenuWidgetChoice& Ch
 				MenuData->Context = Context;
 				ToCall.Execute(MenuData);
 				return UToolMenus::Get()->GenerateWidget(MenuData);
+			}
+
+			return SNullWidget::NullWidget;
+		});
+	}
+	else if (Choice.NewMenuLegacy.IsBound())
+	{
+		return FOnGetContent::CreateLambda([ToCall = Choice.NewMenuLegacy, Context]()
+		{
+			if (ToCall.IsBound())
+			{
+				FMenuBuilder MenuBuilder(true, Context.CommandList, Context.GetAllExtenders());
+				ToCall.Execute(MenuBuilder);
+				return MenuBuilder.MakeWidget();
 			}
 
 			return SNullWidget::NullWidget;

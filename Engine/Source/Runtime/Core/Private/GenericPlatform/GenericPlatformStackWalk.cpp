@@ -108,7 +108,7 @@ bool FGenericPlatformStackWalk::SymbolInfoToHumanReadableString( const FProgramC
 		}
 
 		// Append the stack line.
-		FCStringAnsi::Strncat(HumanReadableString, StackLine, HumanReadableStringSize);
+		FCStringAnsi::Strncat(HumanReadableString, StackLine, (int32)HumanReadableStringSize);
 
 		// Return true, if we have a valid function name.
 		return bHasValidFunctionName;
@@ -182,7 +182,7 @@ void FGenericPlatformStackWalk::StackWalkAndDump( ANSICHAR* HumanReadableString,
 	while( CurrentDepth < Depth )
 	{
 		FPlatformStackWalk::ProgramCounterToHumanReadableString( CurrentDepth, StackTrace[CurrentDepth], HumanReadableString, HumanReadableStringSize, reinterpret_cast< FGenericCrashContext* >( Context ) );
-		FCStringAnsi::Strncat(HumanReadableString, LINE_TERMINATOR_ANSI, HumanReadableStringSize);
+		FCStringAnsi::Strncat(HumanReadableString, LINE_TERMINATOR_ANSI, (int32)HumanReadableStringSize);
 		CurrentDepth++;
 	}
 }

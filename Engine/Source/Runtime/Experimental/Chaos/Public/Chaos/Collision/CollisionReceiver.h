@@ -24,11 +24,15 @@ namespace Chaos
 		/**
 		 * Called by a CollisionDetector (possibly in a task) when it finds collisions.
 		 */
-		void ReceiveCollisions(const TArray<TCollisionConstraintBase<float, 3>*>& Constraints)
+		void ReceiveCollisions(const FCollisionConstraintsArray& Constraints)
 		{
-			for (TCollisionConstraintBase<FReal, 3>* ConstraintBase : Constraints)
+			for (const TRigidBodyPointContactConstraint<FReal, 3>& Constraint : Constraints.SinglePointConstraints)
 			{
-				Queue.Enqueue(ConstraintBase);
+				SinglePointQueue.Enqueue(Constraint);
+			}
+			for (const TRigidBodyMultiPointContactConstraint<FReal, 3>& Constraint : Constraints.MultiPointConstraints)
+			{
+				MultiPointQueue.Enqueue(Constraint);
 			}
 		}
 
@@ -37,24 +41,33 @@ namespace Chaos
 		 */
 		void ProcessCollisions()
 		{
-			FCollisionConstraintBase* ConstraintBase = nullptr;
-			while (Queue.Dequeue(ConstraintBase))
+			// @todo(chaos) : Collision Constraints
+			//    This needs to be moved within the MidPhase (which does not exist yet). The 
+			//    NarrowPhase is creating temporary constraints for all interacting bodies 
+			//    even though we might already have those bodies within the constraint.
+			//    So there is a bunch of wasted computation when the CreateConstraints is called. 
+			TRigidBodyPointContactConstraint<FReal, 3> SinglePointConstraint;
+			while (SinglePointQueue.Dequeue(SinglePointConstraint))
 			{
-				// @todo(chaos) : Collision Constraints
-				//    This needs to be moved within the MidPhase (which does not exist yet). The 
-				//    NarrowPhase is creating temporary constraints for all interacting bodies 
-				//    even though we might already have those bodies within the constraint.
-				//    So there is a bunch of wasted computation when the CreateConstraints is called. 
-				if (!CollisionConstraints.Contains(ConstraintBase))
+				if (!CollisionConstraints.Contains(&SinglePointConstraint))
 				{
-					CollisionConstraints.AddConstraint(ConstraintBase);
+					CollisionConstraints.AddConstraint(SinglePointConstraint);
+				}
+			}
+			TRigidBodyMultiPointContactConstraint<FReal, 3> MultiPointConstraint;
+			while (MultiPointQueue.Dequeue(MultiPointConstraint))
+			{
+				if (!CollisionConstraints.Contains(&MultiPointConstraint))
+				{
+					CollisionConstraints.AddConstraint(MultiPointConstraint);
 				}
 			}
 		}
 
 	private:
 		//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
-		TQueue<FCollisionConstraintBase*, EQueueMode::Mpsc> Queue;
+		TQueue<TRigidBodyPointContactConstraint<FReal, 3>, EQueueMode::Mpsc> SinglePointQueue;
+		TQueue<TRigidBodyMultiPointContactConstraint<FReal, 3>, EQueueMode::Mpsc> MultiPointQueue;
 		FCollisionConstraints& CollisionConstraints;
 	};
 
@@ -76,11 +89,15 @@ namespace Chaos
 		/**
 		 * Called by a CollisionDetector (possibly in a task) when it finds collisions.
 		 */
-		void ReceiveCollisions(const TArray<TCollisionConstraintBase<float, 3>*>& Constraints)
+		void ReceiveCollisions(const FCollisionConstraintsArray& Constraints)
 		{
-			for (TCollisionConstraintBase<FReal, 3>* ConstraintBase : Constraints)
+			for (const TRigidBodyPointContactConstraint<FReal, 3>& Constraint : Constraints.SinglePointConstraints)
 			{
-				CollisionConstraints.AddConstraint(ConstraintBase);
+				CollisionConstraints.AddConstraint(Constraint);
+			}
+			for (const TRigidBodyMultiPointContactConstraint<FReal, 3>& Constraint : Constraints.MultiPointConstraints)
+			{
+				CollisionConstraints.AddConstraint(Constraint);
 			}
 		}
 

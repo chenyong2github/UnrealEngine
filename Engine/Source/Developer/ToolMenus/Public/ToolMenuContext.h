@@ -73,7 +73,7 @@ public:
 	const FUIAction* GetActionForCommand(TSharedPtr<const FUICommandInfo> Command) const;
 
 	void AddExtender(const TSharedPtr<FExtender>& InExtender);
-	TSharedPtr<FExtender> GetAllExtenders();
+	TSharedPtr<FExtender> GetAllExtenders() const;
 	void ReplaceExtenders(const TSharedPtr<FExtender>& InExtender);
 	void ResetExtenders();
 

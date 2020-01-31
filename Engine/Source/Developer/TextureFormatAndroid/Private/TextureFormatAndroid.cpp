@@ -57,7 +57,7 @@ static bool CompressImageUsingQonvert(
 	EPixelFormat PixelFormat,
 	int32 SizeX,
 	int32 SizeY,
-	TArray<uint8>& OutCompressedData
+	TArray64<uint8>& OutCompressedData
 	)
 {
 	// Avoid dependency on GPixelFormats in RenderCore.
@@ -68,9 +68,17 @@ static bool CompressImageUsingQonvert(
 	const int32 ImageBlocksX = FMath::Max(SizeX / BlockSizeX, 1);
 	const int32 ImageBlocksY = FMath::Max(SizeY / BlockSizeY, 1);
 
+	// The converter doesn't support 64-bit sizes.
+	const int64 SourceDataSize = (int64)SizeX * SizeY * 4;
+	const int64 OutDataSize = (int64)ImageBlocksX * ImageBlocksY * BlockBytes;
+	if (SourceDataSize != (uint32)SourceDataSize || OutDataSize != (uint32)OutDataSize)
+	{
+		return false;
+	}
+
 	// Allocate space to store compressed data.
-	OutCompressedData.Empty(ImageBlocksX * ImageBlocksY * BlockBytes);
-	OutCompressedData.AddUninitialized(ImageBlocksX * ImageBlocksY * BlockBytes);
+	OutCompressedData.Empty(OutDataSize);
+	OutCompressedData.AddUninitialized(OutDataSize);
 
 	TQonvertImage SrcImg;
 	TQonvertImage DstImg;
@@ -81,12 +89,12 @@ static bool CompressImageUsingQonvert(
 	SrcImg.nWidth    = SizeX;
 	SrcImg.nHeight   = SizeY;
 	SrcImg.nFormat   = Q_FORMAT_BGRA_8888;
-	SrcImg.nDataSize = SizeX * SizeY * 4;
+	SrcImg.nDataSize = (uint32)SourceDataSize;
 	SrcImg.pData     = (unsigned char*)SourceData;
 
 	DstImg.nWidth    = SizeX;
 	DstImg.nHeight   = SizeY;
-	DstImg.nDataSize = ImageBlocksX * ImageBlocksY * BlockBytes;
+	DstImg.nDataSize = (uint32)OutDataSize;
 	DstImg.pData     = OutCompressedData.GetData();
 
 	switch (PixelFormat)
@@ -234,7 +242,7 @@ class FTextureFormatAndroid : public ITextureFormat
 		int32 SliceSize = Image.SizeX * Image.SizeY;
 		for (int32 SliceIndex = 0; SliceIndex < Image.NumSlices && bCompressionSucceeded; ++SliceIndex)
 		{
-			TArray<uint8> CompressedSliceData;
+			TArray64<uint8> CompressedSliceData;
 			bCompressionSucceeded = CompressImageUsingQonvert(
 				Image.AsBGRA8() + SliceIndex * SliceSize,
 				CompressedPixelFormat,

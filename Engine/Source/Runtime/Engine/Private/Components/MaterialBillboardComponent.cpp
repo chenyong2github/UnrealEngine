@@ -150,11 +150,12 @@ public:
 
 					const FVector CameraUp = -View->ViewMatrices.GetInvViewProjectionMatrix().TransformVector(FVector(1.0f, 0.0f, 0.0f));
 					const FVector CameraRight = -View->ViewMatrices.GetInvViewProjectionMatrix().TransformVector(FVector(0.0f, 1.0f, 0.0f));
-					const FVector CameraForward = -View->ViewMatrices.GetInvViewProjectionMatrix().TransformVector(FVector(0.0f, 0.0f, 1.0f));
 					const FMatrix WorldToLocal = GetLocalToWorld().InverseFast();
-					const FVector LocalCameraUp = WorldToLocal.TransformVector(CameraUp);
-					const FVector LocalCameraRight = WorldToLocal.TransformVector(CameraRight);
-					const FVector LocalCameraForward = WorldToLocal.TransformVector(CameraForward);
+					const FMatrix ViewToLocal = View->ViewMatrices.GetInvViewMatrix() * WorldToLocal;
+					const FVector TangentX = -ViewToLocal.TransformVector(FVector(1.0f, 0.0f, 0.0f));
+					const FVector TangentY = -ViewToLocal.TransformVector(FVector(0.0f, 1.0f, 0.0f));
+					const FVector TangentZ = -ViewToLocal.TransformVector(FVector(0.0f, 0.0f, 1.0f));
+					//				
 
 					// Draw the elements ordered so the last is on top of the first.
 					for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
@@ -176,8 +177,10 @@ public:
 							// Convert the size into world-space.
 							const float W = View->ViewMatrices.GetViewProjectionMatrix().TransformPosition(SourcePosition).W;
 							const float AspectRatio = CameraRight.Size() / CameraUp.Size();
-							const float WorldSizeX = Element.bSizeIsInScreenSpace ? (SizeX               * W) : (SizeX / CameraRight.Size());
-							const float WorldSizeY = Element.bSizeIsInScreenSpace ? (SizeY * AspectRatio * W) : (SizeY / CameraUp.Size());
+
+							// TangentXYZ are normalized, so we don't / Right.Size() and Up.Size() again here
+							const float WorldSizeX = Element.bSizeIsInScreenSpace ? (SizeX               * W) : SizeX;
+							const float WorldSizeY = Element.bSizeIsInScreenSpace ? (SizeY * AspectRatio * W) : SizeY;
 
 							// Evaluate the color/opacity of the sprite.
 							FLinearColor Color = BaseColor;
@@ -190,15 +193,16 @@ public:
 							for (uint32 VertexIndex = 0; VertexIndex < 4; ++VertexIndex)
 							{
 								const int WriteIndex = WriteOffset + VertexIndex;
-								StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(WriteIndex, LocalCameraRight.GetSafeNormal(), LocalCameraUp.GetSafeNormal(), -LocalCameraForward.GetSafeNormal());
+								// correct TBN of billboard by ViewToLocal, notice that we use -TangentX
+								StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(WriteIndex, -TangentX, TangentY, TangentZ);
 								StaticMeshVertexBuffers.ColorVertexBuffer.VertexColor(WriteIndex) = Color.ToFColor(true);
 							}
 
 							// Set up the sprite vertex positions and texture coordinates.
-							StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(WriteOffset + 0) = -WorldSizeX * LocalCameraRight + +WorldSizeY * LocalCameraUp;
-							StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(WriteOffset + 1) = +WorldSizeX * LocalCameraRight + +WorldSizeY * LocalCameraUp;
-							StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(WriteOffset + 2) = -WorldSizeX * LocalCameraRight + -WorldSizeY * LocalCameraUp;
-							StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(WriteOffset + 3) = +WorldSizeX * LocalCameraRight + -WorldSizeY * LocalCameraUp;
+							StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(WriteOffset + 0) = -WorldSizeX * TangentY + +WorldSizeY * TangentX;
+							StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(WriteOffset + 1) = +WorldSizeX * TangentY + +WorldSizeY * TangentX;
+							StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(WriteOffset + 2) = -WorldSizeX * TangentY + -WorldSizeY * TangentX;
+							StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(WriteOffset + 3) = +WorldSizeX * TangentY + -WorldSizeY * TangentX;
 
 							StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(WriteOffset + 0, 0, FVector2D(0, 0));
 							StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(WriteOffset + 1, 0, FVector2D(0, 1));

@@ -1319,7 +1319,7 @@ void UParticleModuleRequired::CacheDerivedData()
 void UParticleModuleRequired::InitBoundingGeometryBuffer()
 {
 	// The SRV is only needed for platforms that can render particles with instancing
-	if (GRHISupportsInstancing && BoundingGeometryBuffer->Vertices->Num())
+	if (BoundingGeometryBuffer->Vertices->Num())
 	{
 		BeginInitResource(BoundingGeometryBuffer);
 	}

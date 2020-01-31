@@ -111,6 +111,7 @@ struct KISMET_API FFindInBlueprintSearchTags
 };
 
 /** FiB data versioning */
+UENUM()
 enum EFiBVersion
 {
 	FIB_VER_NONE = -1, // Unknown version (not set)
@@ -232,6 +233,7 @@ struct KISMET_API FFiBMD
 	static const FString FiBSearchableShallowMD;
 	static const FString FiBSearchableExplicitMD;
 	static const FString FiBSearchableHiddenExplicitMD;
+	static const FString FiBSearchableFormatVersionMD;
 };
 
 /** Which assets to index for caching */
@@ -293,8 +295,8 @@ enum class EAddOrUpdateBlueprintSearchMetadataFlags
 	None = 0,
 	/** Forces the Blueprint to be recache'd, regardless of what data it believes exists */
 	ForceRecache = 1 << 0,
-	/** Whether to allow a new entry to be added to the database if a match is not found */
-	AllowNewEntry = 1 << 1,
+	/** Clear any cached data value for this Blueprint */
+	ClearCachedValue = 1 << 1,
 };
 
 ENUM_CLASS_FLAGS(EAddOrUpdateBlueprintSearchMetadataFlags);
@@ -497,9 +499,10 @@ public:
 	 * Gathers the Blueprint's search metadata and adds or updates it in the cache
 	 *
 	 * @param InBlueprint		Blueprint to cache the searchable data for
-	 * @param InOptions			Options to assist with controlling this function's behavior
+	 * @param InFlags			Flags to assist with controlling this function's behavior
+	 * @param InVersion			Allows the caller to override the format version to use for caching
 	 */
-	void AddOrUpdateBlueprintSearchMetadata(UBlueprint* InBlueprint, EAddOrUpdateBlueprintSearchMetadataFlags InFlags = EAddOrUpdateBlueprintSearchMetadataFlags::None);
+	void AddOrUpdateBlueprintSearchMetadata(UBlueprint* InBlueprint, EAddOrUpdateBlueprintSearchMetadataFlags InFlags = EAddOrUpdateBlueprintSearchMetadataFlags::None, EFiBVersion InVersion = EFiBVersion::FIB_VER_NONE);
 
 	/**
 	 * Starts a search query, the FiB manager handles where the thread is at in the search query at all times so that post-save of the cache to disk it can correct the index
@@ -732,6 +735,9 @@ protected:
 
 	/** Thread-safe access to the active search query that's mapped to the given stream search */
 	FActiveSearchQueryPtr FindSearchQuery(const class FStreamSearch* InSearchOriginator) const;
+
+	/** Returns the next pending search data for the given query and advances the index to the next entry */
+	FSearchData GetNextSearchDataForQuery(FActiveSearchQueryPtr InSearchQueryPtr, bool bCheckDeferredList);
 
 private:
 	/** Maps the Blueprint paths to their index in the SearchArray */

@@ -859,7 +859,6 @@ static void InitRHICapabilitiesForGL()
 	GMaxShadowDepthBufferSizeX = FMath::Min<int32>(Value_GL_MAX_RENDERBUFFER_SIZE, 4096); // Limit to the D3D11 max.
 	GMaxShadowDepthBufferSizeY = FMath::Min<int32>(Value_GL_MAX_RENDERBUFFER_SIZE, 4096);
 	GHardwareHiddenSurfaceRemoval = FOpenGL::HasHardwareHiddenSurfaceRemoval();
-	GRHISupportsInstancing = FOpenGL::SupportsInstancing();
 	GSupportsTimestampRenderQueries = FOpenGL::SupportsTimestampQueries();
 
 	// It's not possible to create a framebuffer with the backbuffer as the color attachment and a custom renderbuffer as the depth/stencil surface.
@@ -871,7 +870,7 @@ static void InitRHICapabilitiesForGL()
 
 	checkf(!IsMobileHDR32bpp() || GSupportsHDR32bppEncodeModeIntrinsic || IsPCPlatform(GMaxRHIShaderPlatform), TEXT("Current platform does not support 32bpp HDR but IsMobileHDR32bpp() returned true"));
 
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2) ? GMaxRHIShaderPlatform : SP_OPENGL_PCES2;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2) ? GMaxRHIShaderPlatform : SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1) ? GMaxRHIShaderPlatform : SP_OPENGL_PCES3_1;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = OPENGL_ESDEFERRED ? SP_OPENGL_ES31_EXT : SP_OPENGL_SM5;
@@ -917,13 +916,16 @@ static void InitRHICapabilitiesForGL()
 	//@todo: ES2 requires GL_OES_depth_texture extension to support depth textures of any kind.
 	SetupTextureFormat( PF_ShadowDepth,			FOpenGLTextureFormat( ShadowDepthFormat,		ShadowDepthFormat,		GL_DEPTH_COMPONENT,	GL_UNSIGNED_INT,				false,			false));
 	SetupTextureFormat( PF_D24,					FOpenGLTextureFormat( DepthFormat,				DepthFormat,			GL_DEPTH_COMPONENT,	GL_UNSIGNED_INT,				false,			false));
-	SetupTextureFormat( PF_A16B16G16R16,		FOpenGLTextureFormat( GL_RGBA16,				GL_RGBA16,				GL_RGBA,			GL_UNSIGNED_SHORT,				false,			false));
+	SetupTextureFormat( PF_A16B16G16R16,		FOpenGLTextureFormat( GL_RGBA16F,				GL_RGBA16F,				GL_RGBA,			GL_HALF_FLOAT,					false,			false));
 	SetupTextureFormat( PF_A1,					FOpenGLTextureFormat( ));
 	SetupTextureFormat( PF_R16G16B16A16_UINT,	FOpenGLTextureFormat( GL_RGBA16UI,				GL_RGBA16UI,			GL_RGBA_INTEGER,	GL_UNSIGNED_SHORT,				false,			false));
 	SetupTextureFormat( PF_R16G16B16A16_SINT,	FOpenGLTextureFormat( GL_RGBA16I,				GL_RGBA16I,				GL_RGBA_INTEGER,	GL_SHORT,						false,			false));
 	SetupTextureFormat( PF_R32G32B32A32_UINT,	FOpenGLTextureFormat( GL_RGBA32UI,				GL_RGBA32UI,			GL_RGBA_INTEGER,	GL_UNSIGNED_INT,				false,			false));
 	SetupTextureFormat( PF_R16G16B16A16_UNORM,	FOpenGLTextureFormat( GL_RGBA16,				GL_RGBA16,				GL_RGBA,			GL_UNSIGNED_SHORT,				false,			false));
 	SetupTextureFormat( PF_R16G16B16A16_SNORM,	FOpenGLTextureFormat( GL_RGBA16,				GL_RGBA16,				GL_RGBA,			GL_SHORT,						false,			false));
+	
+	SetupTextureFormat( PF_R16G16_UINT,			FOpenGLTextureFormat( GL_RG16UI,				GL_RG16UI,				GL_RG_INTEGER,		GL_UNSIGNED_SHORT,				false,			false));
+	
 
 	SetupTextureFormat( PF_R5G6B5_UNORM,		FOpenGLTextureFormat( ));
 #if PLATFORM_DESKTOP || PLATFORM_ANDROIDESDEFERRED || PLATFORM_LUMINGL4
@@ -994,6 +996,7 @@ static void InitRHICapabilitiesForGL()
 			SetupTextureFormat(PF_R8G8B8A8_SNORM, FOpenGLTextureFormat(GL_RGBA8, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false));
 
 			SetupTextureFormat(PF_G16R16, FOpenGLTextureFormat(GL_RG16, GL_RG16, GL_RG, GL_UNSIGNED_SHORT, false, false));
+			SetupTextureFormat(PF_R32G32_UINT, FOpenGLTextureFormat(GL_RG32UI, GL_RG32UI, GL_RG, GL_UNSIGNED_INT, false, false));
 		}
 		if (FOpenGL::SupportsPackedDepthStencil())
 		{
@@ -1009,26 +1012,12 @@ static void InitRHICapabilitiesForGL()
 #endif // PLATFORM_DESKTOP || PLATFORM_ANDROIDESDEFERRED || PLATFORM_LUMINGL4
 	{
 #if !PLATFORM_DESKTOP && !PLATFORM_LUMINGL4
-		// ES2-based cases
-		GLuint BGRA8888 = (FOpenGL::SupportsBGRA8888() && !FOpenGL::SupportsSRGB()) ? GL_BGRA_EXT : GL_RGBA;
-		GLuint SizedBGRA8888 = (FOpenGL::SupportsBGRA8888() && !FOpenGL::SupportsSRGB()) ? GL_BGRA_EXT : GL_RGBA8;
-		const bool bNeedsBGRASwizzle = (BGRA8888 == GL_RGBA);
-		GLuint RGBA8 = FOpenGL::SupportsRGBA8() ? GL_RGBA8_OES : GL_RGBA;
-
-	#if PLATFORM_ANDROID
-		SetupTextureFormat(PF_B8G8R8A8, FOpenGLTextureFormat(BGRA8888, GL_SRGB8_ALPHA8, SizedBGRA8888, GL_SRGB8_ALPHA8, BGRA8888, GL_UNSIGNED_BYTE, false, bNeedsBGRASwizzle));
-		SetupTextureFormat(PF_R8G8B8A8_UINT, FOpenGLTextureFormat(GL_RGBA8, GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, false, false));
-	#else
-		SetupTextureFormat(PF_B8G8R8A8, FOpenGLTextureFormat(GL_RGBA, GL_SRGB_ALPHA_EXT, GL_BGRA8_EXT, GL_SRGB8_ALPHA8_EXT, BGRA8888, GL_UNSIGNED_BYTE, false, false));
-	#endif
-		SetupTextureFormat(PF_R8G8B8A8, FOpenGLTextureFormat(RGBA8, GL_SRGB8_ALPHA8, GL_RGBA8, GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false));
-	#if PLATFORM_IOS
-		SetupTextureFormat(PF_G8, FOpenGLTextureFormat(GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE8_EXT, GL_LUMINANCE8_EXT, GL_LUMINANCE, GL_UNSIGNED_BYTE, false, false));
-		SetupTextureFormat(PF_A8, FOpenGLTextureFormat(GL_ALPHA, GL_ALPHA, GL_ALPHA8_EXT, GL_ALPHA8_EXT, GL_ALPHA, GL_UNSIGNED_BYTE, false, false));
-	#else
+		SetupTextureFormat(PF_B8G8R8A8, FOpenGLTextureFormat(GL_RGBA8, GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, true));
+		SetupTextureFormat(PF_R8G8B8A8, FOpenGLTextureFormat(GL_RGBA8, GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false));
+		SetupTextureFormat(PF_R8G8B8A8_UINT, FOpenGLTextureFormat(GL_RGBA8UI, GL_RGBA8UI, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, false, false));
 		SetupTextureFormat(PF_G8, FOpenGLTextureFormat(GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, false, false));
 		SetupTextureFormat(PF_A8, FOpenGLTextureFormat(GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE, false, false));
-	#endif
+
 		FOpenGL::PE_SetupTextureFormat(&SetupTextureFormat); // platform extension
 
 #if PLATFORM_ANDROID
@@ -1088,6 +1077,7 @@ static void InitRHICapabilitiesForGL()
 			SetupTextureFormat( PF_R32_SINT,		FOpenGLTextureFormat( GL_R32I,					GL_R32I,				GL_RED_INTEGER,	GL_INT,								false,	false));
 			SetupTextureFormat( PF_R16_UINT,		FOpenGLTextureFormat( GL_R16UI,					GL_R16UI,				GL_RED_INTEGER,	GL_UNSIGNED_SHORT,					false,	false));
 			SetupTextureFormat( PF_R16_SINT,		FOpenGLTextureFormat( GL_R16I,					GL_R16I,				GL_RED_INTEGER,	GL_SHORT,							false,	false));
+			SetupTextureFormat( PF_R32G32_UINT,		FOpenGLTextureFormat( GL_RG32UI,				GL_RG32UI,				GL_RG_INTEGER,	GL_UNSIGNED_INT,					false, false));
 		}
 #endif
 	
@@ -1099,7 +1089,7 @@ static void InitRHICapabilitiesForGL()
 		{
 			// @todo android: This is cheating by not setting a stencil anywhere, need that! And Shield is still rendering black scene
 			SetupTextureFormat(PF_DepthStencil, FOpenGLTextureFormat(DepthFormat, GL_NONE, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, false, false));
-	}
+		}
 #endif // !PLATFORM_DESKTOP
 	}
 
@@ -1216,6 +1206,7 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 	}
 
 	PrivateOpenGLDevicePtr = this;
+	GlobalUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
 }
 
 extern void DestroyShadersAndPrograms();

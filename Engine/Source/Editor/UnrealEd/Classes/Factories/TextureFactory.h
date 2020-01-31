@@ -12,7 +12,7 @@
 
 struct FImportImage
 {
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	ETextureSourceFormat Format = TSF_Invalid;
 	TextureCompressionSettings CompressionSettings = TC_Default;
 	int32 NumMips;
@@ -20,10 +20,11 @@ struct FImportImage
 	int32 SizeY = 0;
 	bool SRGB = true;
 
-	void Init2D(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData = nullptr);
+	void Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB);
+	void Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData = nullptr);
 	void Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, const void* InData = nullptr);
 
-	int32 GetMipSize(int32 InMipIndex) const;
+	int64 GetMipSize(int32 InMipIndex) const;
 	void* GetMipData(int32 InMipIndex);
 };
 

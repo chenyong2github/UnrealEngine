@@ -215,12 +215,16 @@ bool IMeshPaintEdMode::ProcessCapturedMouseMoves( FEditorViewportClient* InViewp
 	return bPaintApplied;
 }
 
-/** FEdMode: Called when the a mouse button is released */
+/** FEdMode: Called when a mouse button is released */
 bool IMeshPaintEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	InViewportClient->bLockFlightCamera = false;
-	MeshPainter->FinishPainting();
-	PaintingWithInteractorInVR = nullptr;
+	if (MeshPainter->IsPainting())
+	{
+		MeshPainter->FinishPainting();
+		PaintingWithInteractorInVR = nullptr;
+	}
+
 	return true;
 }
 

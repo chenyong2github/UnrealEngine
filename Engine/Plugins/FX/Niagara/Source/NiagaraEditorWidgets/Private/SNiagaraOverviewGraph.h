@@ -4,6 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "GraphEditor.h"
+#include "ContentBrowserDelegates.h"
 
 class FNiagaraOverviewGraphViewModel;
 struct FActionMenuContent;
@@ -20,6 +21,9 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraOverviewGraphViewModel> InViewModel);
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+public:
+	FRefreshAssetViewDelegate RefreshAssetView;
 
 private:
 	void ViewModelSelectionChanged();
@@ -48,6 +52,12 @@ private:
 	void OnDistributeNodesH();
 	void OnDistributeNodesV();
 
+	void LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox);
+	ECheckBoxState GetLibraryCheckBoxState() const;
+	void TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox);
+	ECheckBoxState GetTemplateCheckBoxState() const;
+
+	bool ShouldFilterEmitter(const FAssetData& AssetData);
 private:
 	TSharedPtr<FNiagaraOverviewGraphViewModel> ViewModel;
 	TSharedPtr<SGraphEditor> GraphEditor;
@@ -56,4 +66,7 @@ private:
 	bool bUpdatingGraphSelectionFromViewModel;
 
 	int32 ZoomToFitFrameDelay;
+
+	static bool bShowLibraryOnly;
+	static bool bShowTemplateOnly;
 };

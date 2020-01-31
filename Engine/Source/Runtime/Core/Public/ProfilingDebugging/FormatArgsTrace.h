@@ -41,7 +41,7 @@ struct FFormatArgsTrace
 		uint8* PayloadBufferPtr = TypeCodesBufferPtr + FormatArgsCount;
 		EncodeArgumentsInternal(TypeCodesBufferPtr, PayloadBufferPtr, FormatArgs...);
 		check(PayloadBufferPtr - Buffer == FormatArgsSize);
-		return FormatArgsSize;
+		return (uint16)FormatArgsSize;
 	}
 
 private:
@@ -121,7 +121,7 @@ private:
 		*TypeCodesPtr++ = FormatArgTypeCode_CategoryString | sizeof(CharType);
 		if (Argument != nullptr)
 		{
-			uint16 Length = (TCString<CharType>::Strlen(Argument) + 1) * sizeof(CharType);
+			uint16 Length = (uint16)((TCString<CharType>::Strlen(Argument) + 1) * sizeof(CharType));
 			memcpy(PayloadPtr, Argument, Length);
 			PayloadPtr += Length;
 		}

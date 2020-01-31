@@ -58,6 +58,14 @@ static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
 	ECVF_Default
 );
 
+static int32 GNiagaraComponentWarnNullAsset = 0;
+static FAutoConsoleVariableRef CVarNiagaraComponentWarnNullAsset(
+	TEXT("fx.Niagara.ComponentWarnNullAsset"),
+	GNiagaraComponentWarnNullAsset,
+	TEXT("When enabled we will warn if a NiagaraComponent is activate with a null asset.  This is sometimes useful for tracking down components that can be removed."),
+	ECVF_Default
+);
+
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -371,7 +379,7 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	for (int32 RendererIdx : RendererDrawOrder)
 	{
 		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
-		if (Renderer && (Renderer->GetSimTarget() == ENiagaraSimTarget::CPUSim || ViewFamily.GetFeatureLevel() >= ERHIFeatureLevel::ES3_1))
+		if (Renderer && (Renderer->GetSimTarget() != ENiagaraSimTarget::GPUComputeSim || FNiagaraUtilities::AllowGPUParticles(ViewFamily.GetShaderPlatform())))
 		{
 			Renderer->GetDynamicMeshElements(Views, ViewFamily, VisibilityMap, Collector, this);
 		}
@@ -783,7 +791,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (Asset == nullptr)
 	{
 		DestroyInstance();
-		if (!HasAnyFlags(RF_DefaultSubObject | RF_ArchetypeObject | RF_ClassDefaultObject))
+		if (GNiagaraComponentWarnNullAsset && !HasAnyFlags(RF_DefaultSubObject | RF_ArchetypeObject | RF_ClassDefaultObject))
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara Component due to missing or invalid asset! (%s)"), *GetFullName());
 		}
@@ -1116,6 +1124,8 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	//UE_LOG(LogNiagara, Log, TEXT("OnComponentDestroyed %p %p"), this, SystemInstance.Get());
 	//DestroyInstance();//Can't do this here as we can call this from inside the system instance currently during completion 
 
+	UnregisterWithScalabilityManager();
+
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
@@ -1143,7 +1153,11 @@ void UNiagaraComponent::OnUnregister()
 
 void UNiagaraComponent::BeginDestroy()
 {
-	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP  %s\n"), this, *GetAsset()->GetFullName());
+	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP - %d - %s\n"), this, ScalabilityManagerHandle, *GetAsset()->GetFullName());
+
+	//By now we will have already unregisted with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
+	ScalabilityManagerHandle = INDEX_NONE;
+
 	DestroyInstance();
 
 	Super::BeginDestroy();

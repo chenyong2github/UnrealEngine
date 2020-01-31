@@ -353,6 +353,18 @@ UBlueprint::UBlueprint(const FObjectInitializer& ObjectInitializer)
 }
 
 #if WITH_EDITORONLY_DATA
+static TAutoConsoleVariable<bool> CVarBPDisableSearchDataUpdateOnSave(
+	TEXT("bp.DisableSearchDataUpdateOnSave"),
+	false,
+	TEXT("Don't update Blueprint search metadata on save (for QA/testing purposes only). On an editor relaunch, it should include the BP in the unindexed count after the first search."),
+	ECVF_Cheat);
+
+static TAutoConsoleVariable<bool> CVarBPForceOldSearchDataFormatVersionOnSave(
+	TEXT("bp.ForceOldSearchDataFormatVersionOnSave"),
+	false,
+	TEXT("Force Blueprint search metadata to use an old format version on save (for QA/testing purposes only). On an editor relaunch, it should include the BP in the out-of-date count after the first search."),
+	ECVF_Cheat);
+
 void UBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);
@@ -362,8 +374,26 @@ void UBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 
 	if (!TargetPlatform || TargetPlatform->HasEditorOnlyData())
 	{
+		// This will force an immediate (synchronous) update of this Blueprint's index tag value.
+		EAddOrUpdateBlueprintSearchMetadataFlags Flags = EAddOrUpdateBlueprintSearchMetadataFlags::ForceRecache;
+
+		// For regression testing, we exclude the registry tag on save by clearing the cached value.
+		// Expected result: On an editor relaunch it should cause this BP to be reported as "unindexed," until the asset is loaded.
+		if (CVarBPDisableSearchDataUpdateOnSave.GetValueOnGameThread())
+		{
+			Flags |= EAddOrUpdateBlueprintSearchMetadataFlags::ClearCachedValue;
+		}
+
+		// For regression testing, we allow an old format version to be used as an override on save.
+		// Expected result: On an editor relaunch it should cause this BP to be reported as "out-of-date," until the asset is loaded.
+		EFiBVersion OverrideVersion = EFiBVersion::FIB_VER_NONE;
+		if (CVarBPForceOldSearchDataFormatVersionOnSave.GetValueOnGameThread())
+		{
+			OverrideVersion = EFiBVersion::FIB_VER_BASE;
+		}
+
 		// Cache the BP for use (immediate, since we're about to save)
-		FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(this, EAddOrUpdateBlueprintSearchMetadataFlags::ForceRecache);
+		FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(this, Flags, OverrideVersion);
 	}
 }
 #endif // WITH_EDITORONLY_DATA

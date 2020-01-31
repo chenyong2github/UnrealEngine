@@ -48,7 +48,47 @@ struct FMovieSceneSequenceTransform;
 
 namespace UnFbx
 {
+	/** Adapter interface which allows ExportAnimTrack to act on both sequencer and matinee data. */
+	class UNREALED_API IAnimTrackAdapter
+	{
+	public:
+		virtual ~IAnimTrackAdapter() {};
+		virtual int32 GetLocalStartFrame() const = 0;
+		virtual int32 GetStartFrame() const { return GetLocalStartFrame(); }
+		virtual int32 GetLength() const = 0;
+		/** Updates the runtime state of the animation track to the specified frame. */
+		virtual void UpdateAnimation(int32 LocalFrame) = 0;
+		virtual float GetFrameRate() const { return 1.f / DEFAULT_SAMPLERATE; }
+	};
 
+	/** An anim track adapter for matinee. */
+	class UNREALED_API FMatineeAnimTrackAdapter : public IAnimTrackAdapter
+	{
+	public:
+		FMatineeAnimTrackAdapter(AMatineeActor* InMatineeActor);
+		virtual int32 GetLocalStartFrame() const override;
+		virtual int32 GetLength() const override;
+		virtual void UpdateAnimation(int32 LocalFrame) override;
+
+	private:
+		AMatineeActor* MatineeActor;
+	};
+	/** An anim track adapter for a level sequence. */
+	class UNREALED_API FLevelSequenceAnimTrackAdapter : public IAnimTrackAdapter
+	{
+	public:
+		FLevelSequenceAnimTrackAdapter(IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform);
+		virtual int32 GetLocalStartFrame() const override;
+		virtual int32 GetStartFrame() const override;
+		virtual int32 GetLength() const override;
+		virtual void UpdateAnimation(int32 LocalFrame) override;
+		virtual float GetFrameRate() const override;
+
+	private:
+		IMovieScenePlayer* MovieScenePlayer;
+		UMovieScene* MovieScene;
+		FMovieSceneSequenceTransform RootToLocalTransform;
+	};
 /**
  * Main FBX Exporter class.
  */
@@ -265,49 +305,6 @@ private:
 
 	UFbxExportOption *ExportOptionsUI;
 	UFbxExportOption *ExportOptionsOverride;
-
-	/** Adapter interface which allows ExportAnimTrack to act on both sequencer and matinee data. */
-	class IAnimTrackAdapter
-	{
-	public:
-		virtual ~IAnimTrackAdapter() {}
-		virtual int32 GetLocalStartFrame() const = 0;
-		virtual int32 GetStartFrame() const { return GetLocalStartFrame(); }
-		virtual int32 GetLength() const = 0;
-		/** Updates the runtime state of the animation track to the specified frame. */
-		virtual void UpdateAnimation( int32 LocalFrame) = 0;
-		virtual float GetFrameRate() const { return 1.f / DEFAULT_SAMPLERATE; }
-	};
-
-	/** An anim track adapter for matinee. */
-	class FMatineeAnimTrackAdapter : public IAnimTrackAdapter
-	{
-	public:
-		FMatineeAnimTrackAdapter( AMatineeActor* InMatineeActor );
-		virtual int32 GetLocalStartFrame() const override;
-		virtual int32 GetLength() const override;
-		virtual void UpdateAnimation(int32 LocalFrame) override;
-
-	private:
-		AMatineeActor* MatineeActor;
-	};
-
-	/** An anim track adapter for a level sequence. */
-	class FLevelSequenceAnimTrackAdapter : public FFbxExporter::IAnimTrackAdapter
-	{
-	public:
-		FLevelSequenceAnimTrackAdapter( IMovieScenePlayer* InMovieScenePlayer, UMovieScene* InMovieScene, const FMovieSceneSequenceTransform& InRootToLocalTransform );
-		virtual int32 GetLocalStartFrame() const override;
-		virtual int32 GetStartFrame() const override;
-		virtual int32 GetLength() const override;
-		virtual void UpdateAnimation(int32 LocalFrame) override;
-		virtual float GetFrameRate() const override;
-
-	private:
-		IMovieScenePlayer* MovieScenePlayer;
-		UMovieScene* MovieScene;
-		FMovieSceneSequenceTransform RootToLocalTransform;
-	};
 
 	/**
 	* Export Anim Track of the given SkeletalMeshComponent

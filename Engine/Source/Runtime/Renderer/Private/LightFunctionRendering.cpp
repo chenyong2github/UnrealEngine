@@ -364,8 +364,7 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 							}
 							else
 							{
-								FProjectedShadowInfo::SetBlendStateForProjection(
-									GraphicsPSOInit,
+								GraphicsPSOInit.BlendState = FProjectedShadowInfo::GetBlendStateForProjection(
 									LightSceneInfo->GetDynamicShadowMapChannel(),
 									false,
 									false,

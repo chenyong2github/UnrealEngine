@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Audio.h"
+#include "AudioDefines.h"
 #include "Audio/AudioDebug.h"
 #include "AudioThread.h"
 #include "Containers/Queue.h"
@@ -102,6 +102,8 @@ public:
 	* handle is invalid then a NULL device ptr will be returned.
 	*/
 	FAudioDevice* GetAudioDevice(Audio::FDeviceId Handle);
+
+	static FAudioDeviceManager* Get();
 
 	/**
 	* Returns a ptr to the active audio device. If there is no active

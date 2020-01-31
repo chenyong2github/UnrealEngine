@@ -85,7 +85,9 @@ struct FMacPlatformMath : public FClangPlatformMath
 #endif
 
 	static FORCEINLINE bool IsNaN( float A ) { return isnan(A) != 0; }
+	static FORCEINLINE bool IsNaN(double A) { return isnan(A) != 0; }
 	static FORCEINLINE bool IsFinite( float A ) { return isfinite(A); }
+	static FORCEINLINE bool IsFinite(double A) { return isfinite(A); }
 
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	static FORCEINLINE float InvSqrt(float F)

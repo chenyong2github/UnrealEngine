@@ -681,7 +681,7 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 /** derive basis vectors */
 float3x3 CalcTangentBasis(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return float3x3(-Intermediates.Up, -Intermediates.Right, Intermediates.Facing);
+	return float3x3(Intermediates.Up, Intermediates.Right, Intermediates.Facing);
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)

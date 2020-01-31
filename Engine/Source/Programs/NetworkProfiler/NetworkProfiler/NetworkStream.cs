@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
@@ -45,6 +46,8 @@ namespace NetworkProfiler
 		public Dictionary<int,TypeSummary> ActorNameToSummary = new Dictionary<int,TypeSummary>();
 		/** Mapping from RPC name to summary */
 		public Dictionary<int,TypeSummary> RPCNameToSummary = new Dictionary<int,TypeSummary>();
+
+		public Dictionary<int, ObjectReplicationSummary> ObjectNameToReplicationSummary = new Dictionary<int, ObjectReplicationSummary>();
 
 		public StreamHeader Header;
 
@@ -208,5 +211,59 @@ namespace NetworkProfiler
 			SizeBits = InSizeBits;
             TimeInMS = InTimeInMS;
 		}
+	}
+
+	public class ObjectReplicationSummary
+	{
+		public ObjectReplicationSummary(int InObjectNameIndex, List<int> PropertyNameIndices)
+		{
+			ObjectNameIndex = InObjectNameIndex;
+			PropertiesPrivate = new List<PropertyReplicationSummary>();
+			for (int i = 0; i < PropertyNameIndices.Count; i++)
+			{
+				PropertiesPrivate.Add(new PropertyReplicationSummary(PropertyNameIndices[i]));
+			}
+		}
+
+		public readonly int ObjectNameIndex;
+		public int LastReplicatedFrame = -1;
+		public int LastReplicateFrameWithData = -1;
+
+		public int NumberOfComparisons = 0;
+		public int NumberOfReplications = 0;
+		public int NumberOfReplicationsWithData = 0;
+
+		public int NumberOfFramesReplicated = 0;
+		public int NumberOfFramesReplicatedWithData = 0;
+
+		public float TimeSpentComparingProperties = 0;
+
+		private List<PropertyReplicationSummary> PropertiesPrivate;
+		public ReadOnlyCollection<PropertyReplicationSummary> Properties
+		{
+			get { return PropertiesPrivate.AsReadOnly(); }
+		}
+		
+	}
+
+	public class PropertyReplicationSummary
+	{
+		public PropertyReplicationSummary(int InPropertyNameIndex)
+		{
+			PropertyNameIndex = InPropertyNameIndex;
+		}
+
+		public readonly int PropertyNameIndex;
+		public int LastReplicatedFrame = -1;
+		public int LastComparedFrame = -1;
+		public int LastChangedFrame = -1;
+
+		public int NumberOfComparisons = 0;
+		public int NumberOfChanges = 0;
+		public int NumberOfReplications = 0;
+
+		public int NumberOfFramesReplicated = 0;
+		public int NumberOfFramesCompared = 0;
+		public int NumberOfFramesChanged = 0;
 	}
 }

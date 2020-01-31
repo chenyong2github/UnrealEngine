@@ -1095,6 +1095,7 @@ void SSequencer::InitializeTrackFilters()
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_CameraObjects>());
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_LightObjects>());
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_SkeletalMeshObjects>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_Animated>());
 
 	// Add any global user-defined frontend filters
 	for (TObjectIterator<USequencerTrackFilterExtension> ExtensionIt(RF_NoFlags); ExtensionIt; ++ExtensionIt)
@@ -1163,7 +1164,7 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 		if (GetSequencerSettings()->ShouldSyncCurveEditorSelection())
 		{
 			TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
-
+			CurveEditor->SuspendBroadcast();
 			// Clear the tree selection
 			CurveEditorTree->ClearSelection();
 			for (TSharedRef<FSequencerDisplayNode> Node : SelectedDisplayNodes)
@@ -1174,6 +1175,7 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 					CurveEditorTree->SetItemSelection(CurveEditorTreeItem, true);
 				}
 			}
+			CurveEditor->ResumeBroadcast();
 		}
 	}
 }
@@ -1637,6 +1639,31 @@ void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);
+		}
+	}
+}
+
+
+void SSequencer::SetFilterOn(const FText& InName, bool bOn)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
+		{
+			if (InName.EqualToCaseIgnored(TrackFilter->GetDisplayName()))
+			{
+				if (bOn && !IsTrackFilterActive(TrackFilter))
+				{
+					Sequencer->GetNodeTree()->AddFilter(TrackFilter);
+				}
+				else if (!bOn && IsTrackFilterActive(TrackFilter))
+				{
+					Sequencer->GetNodeTree()->RemoveFilter(TrackFilter);
+				}
+			}
 		}
 	}
 }

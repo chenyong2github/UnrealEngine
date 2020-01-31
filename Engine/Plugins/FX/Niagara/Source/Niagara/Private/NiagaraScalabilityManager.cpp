@@ -38,6 +38,24 @@ void FNiagaraScalabilityManager::AddReferencedObjects(FReferenceCollector& Colle
 	Collector.AddReferencedObjects(ManagedComponents);
 }
 
+
+void FNiagaraScalabilityManager::PreGarbageCollectBeginDestroy()
+{
+	//After the GC has potentially nulled out references to the components we were tracking we clear them out here.
+	//This should only be in the case where MarkPendingKill() is called directly. Typical component destruction will unregister in OnComponentDestroyed().
+	//Components then just clear their handle in BeginDestroy knowing they've already been removed from the manager.
+	//I would prefer some pre BeginDestroy() callback into the component in which I could cleanly unregister with the manager in all cases but I don't think that's possible.
+	int32 CompIdx = ManagedComponents.Num();
+	while (--CompIdx >= 0)
+	{
+		if (ManagedComponents[CompIdx] == nullptr)
+		{
+			//UE_LOG(LogNiagara, Warning, TEXT("Unregister from PreGCBeginDestroy @%d/%d - %s"), CompIdx, ManagedComponents.Num(), *EffectType->GetName());
+			UnregisterAt(CompIdx);
+		}
+	}
+}
+
 void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 {
 	check(Component->ScalabilityManagerHandle == INDEX_NONE);
@@ -118,9 +136,17 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 		UNiagaraComponent* Component = ManagedComponents[CompIdx];
 		if (Component)
 		{
+			//Belt and braces GC safety. If someone calls MarkPendingKill() directly and we get here before we clear these out in the post GC callback.
+			if (Component->IsPendingKill())
+			{
+				//UE_LOG(LogNiagara, Warning, TEXT("Unregisteded a pending kill Niagara component from the scalability manager. \nComponent: 0x%P - %s\nEffectType: 0x%P - %s"),
+				//	Component, *Component->GetName(), EffectType, *EffectType->GetName());
+				Unregister(Component);
+				continue;
+			}
 			if (Component->GetAsset() == nullptr)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: %0xP - %s\nEffectType: %0xP - %s"),
+				UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: 0x%P - %s\nEffectType: 0x%P - %s"),
 					Component, *Component->GetName(), EffectType, *EffectType->GetName());
 				Unregister(Component);
 				continue;

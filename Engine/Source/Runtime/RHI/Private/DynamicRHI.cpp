@@ -468,3 +468,49 @@ void FDynamicRHI::RHICheckViewportHDRStatus(FRHIViewport* Viewport)
 {
 }
 
+
+FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, uint8 InFormat, uint32 InStartElement, uint32 InNumElements)
+	: VertexBufferInitializer({ InVertexBuffer, InStartElement, InNumElements, InFormat }), Type(EType::VertexBufferSRV)
+{
+	/*if (!VertexBufferInitializer.IsWholeResource())
+	{
+		const uint32 Stride = GPixelFormats[InFormat].BlockBytes;
+		check((VertexBufferInitializer.NumElements + VertexBufferInitializer.StartElement) * Stride <= VertexBufferInitializer.VertexBuffer->GetSize());
+	}*/
+}
+
+FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIVertexBuffer* InVertexBuffer, uint8 InFormat)
+	: VertexBufferInitializer({ InVertexBuffer, 0, UINT32_MAX, InFormat }), Type(EType::VertexBufferSRV) 
+{
+}
+
+FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer, uint32 InStartElement, uint32 InNumElements)
+	: StructuredBufferInitializer(FStructuredBufferShaderResourceViewInitializer{ InStructuredBuffer, InStartElement, InNumElements }), Type(EType::StructuredBufferSRV) 
+{
+	if (!StructuredBufferInitializer.IsWholeResource())
+	{
+		const uint32 Stride = StructuredBufferInitializer.StructuredBuffer->GetStride();
+		check((StructuredBufferInitializer.NumElements + StructuredBufferInitializer.StartElement) * Stride <= StructuredBufferInitializer.StructuredBuffer->GetSize());
+	}
+}
+
+FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIStructuredBuffer* InStructuredBuffer)
+	: StructuredBufferInitializer(FStructuredBufferShaderResourceViewInitializer{ InStructuredBuffer, 0, UINT32_MAX }), Type(EType::StructuredBufferSRV) 
+{
+}
+
+FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer, uint32 InStartElement, uint32 InNumElements)
+	: IndexBufferInitializer(FIndexBufferShaderResourceViewInitializer{ InIndexBuffer, InStartElement, InNumElements }), Type(EType::IndexBufferSRV) 
+{
+	if (!IndexBufferInitializer.IsWholeResource())
+	{
+		const uint32 Stride = IndexBufferInitializer.IndexBuffer->GetStride();
+		check((IndexBufferInitializer.NumElements + IndexBufferInitializer.StartElement) * Stride <= IndexBufferInitializer.IndexBuffer->GetSize());
+	}
+}
+
+FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIIndexBuffer* InIndexBuffer)
+	: IndexBufferInitializer(FIndexBufferShaderResourceViewInitializer{ InIndexBuffer, 0, UINT32_MAX }), Type(EType::IndexBufferSRV) 
+{
+}
+

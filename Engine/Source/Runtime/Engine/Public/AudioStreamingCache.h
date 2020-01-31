@@ -43,6 +43,8 @@ public:
 			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
 #endif
 		}
+
+		
 	};
 
 	FAudioChunkCache(uint32 InMaxChunkSize, uint32 NumChunks, uint64 InMemoryLimitInBytes);
@@ -50,10 +52,10 @@ public:
 	~FAudioChunkCache();
 
 	// Places chunk in cache, or puts this chunk back at the top of the cache if it's already loaded. Returns false on failure.
-	bool AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult) > OnLoadCompleted, ENamedThreads::Type CallbackThread);
+	bool AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult) > OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback);
 
 	// Returns the chunk asked for, or an empty TArrayView if that chunk is not loaded.
-	TArrayView<uint8> GetChunk(const FChunkKey& InKey, bool bBlockForLoadCompletion);
+	TArrayView<uint8> GetChunk(const FChunkKey& InKey, bool bBlockForLoadCompletion, bool bNeededForPlayback);
 
 	// add an additional reference for a chunk.
 	void AddNewReferenceToChunk(const FChunkKey& InKey);
@@ -96,6 +98,8 @@ public:
 	// This is for debugging purposes only. Prints the elements in the cache from most recently used to least.
 	// Returns the dimensions of this debug log so that multiple caches can be tiled across the screen.
 	TPair<int, int> DebugDisplay(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) const;
+	// Generate a formatted text file for this cache.
+	FString DebugPrint();
 
 private:
 
@@ -277,8 +281,8 @@ private:
 	// Returns the least recent chunk and fixes up the linked list accordingly.
 	FCacheElement* EvictLeastRecentChunk();
 
-	void KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type CallbackThread);
-	EAsyncIOPriorityAndFlags GetAsyncPriorityForChunk(const FChunkKey& InKey);
+	void KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback);
+	EAsyncIOPriorityAndFlags GetAsyncPriorityForChunk(const FChunkKey& InKey, bool bNeededForPlayback);
 
 	// Calls OnLoadCompleted on current thread if CallbackThread == ENamedThreads::AnyThread, and dispatchs an async task on a named thread otherwise.
 	static void ExecuteOnLoadCompleteCallback(EAudioChunkLoadResult Result, const TFunction<void(EAudioChunkLoadResult)>& OnLoadCompleted, const ENamedThreads::Type& CallbackThread);
@@ -350,10 +354,12 @@ public:
 	virtual void AddStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual void RemoveStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual bool IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const override;
-	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn) override;
-	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false) const override;
+	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
+	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) override;
+	virtual FString GenerateMemoryReport() override;
+	virtual void SetProfilingMode(bool bEnabled) override;
 	// End IAudioStreamingManager interface
 
 protected:
@@ -381,3 +387,8 @@ protected:
 	
 
 };
+
+inline int32 GetTypeHash(const FAudioChunkCache::FChunkKey& InKey)
+{
+	return HashCombine(InKey.SoundWaveName.GetNumber(), InKey.ChunkIndex);
+}

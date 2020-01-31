@@ -168,7 +168,7 @@ bool FEngineVersion::Parse(const FString &Text, FEngineVersion &OutVersion)
 	}
 
 	// Build the output version
-	OutVersion.Set(Major, Minor, Patch, Changelist, Branch);
+	OutVersion.Set((uint16)Major, (uint16)Minor, (uint16)Patch, (uint32)Changelist, Branch);
 	return true;
 }
 

@@ -1921,7 +1921,10 @@ void FPhysicsAssetEditorSharedData::AddReferencedObjects(FReferenceCollector& Co
 	Collector.AddReferencedObject(CopiedBodySetup);
 	Collector.AddReferencedObject(CopiedConstraintTemplate);
 
-	PreviewScene.Pin()->AddReferencedObjects(Collector);
+	if (PreviewScene != nullptr)
+	{
+		PreviewScene.Pin()->AddReferencedObjects(Collector);
+	}
 }
 
 void FPhysicsAssetEditorSharedData::ForceDisableSimulation()

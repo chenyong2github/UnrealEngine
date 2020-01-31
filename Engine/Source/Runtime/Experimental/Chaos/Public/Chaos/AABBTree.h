@@ -79,6 +79,11 @@ struct TAABBTreeLeafArray
 	{
 	}
 
+	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, T>>& OutElements)
+	{
+		OutElements.Append(Elems);
+	}
+
 	template <typename TSQVisitor, typename TQueryFastData>
 	bool RaycastFast(const TVector<T,3>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor) const
 	{
@@ -218,6 +223,8 @@ inline FArchive& operator<<(FArchive& Ar, FAABBTreePayloadInfo& PayloadInfo)
 	PayloadInfo.Serialize(Ar);
 	return Ar;
 }
+
+extern CHAOS_API int32 MaxDirtyElements;
 
 template <typename TPayloadType, typename TLeafType, typename T, bool bMutable = true>
 class TAABBTree final : public ISpatialAcceleration<TPayloadType, T, 3>
@@ -489,6 +496,17 @@ public:
 				}
 			}
 		}
+
+		if(DirtyElements.Num() > MaxDirtyElements)
+		{
+			UE_LOG(LogChaos, Verbose, TEXT("Bounding volume exceeded maximum dirty elements (%d dirty of max %d) and is forcing a tree rebuild."), DirtyElements.Num(), MaxDirtyElements);
+			ReoptimizeTree();
+		}
+	}
+
+	int32 NumDirtyElements() const
+	{
+		return DirtyElements.Num();
 	}
 
 	const TArray<TPayloadBoundsElement<TPayloadType, T>>& GlobalObjects() const
@@ -518,18 +536,8 @@ public:
 
 		if (bSerializePayloadToInfo)
 		{
-			TArray<TPayloadType> Payloads;
-			if (!Ar.IsLoading())
-			{
-				PayloadToInfo.GenerateKeyArray(Payloads);
-			}
-			Ar << Payloads;
+			Ar << PayloadToInfo;
 
-			for (auto Payload : Payloads)
-			{
-				auto& Info = PayloadToInfo.FindOrAdd(Payload);
-				Ar << Info;
-			}
 			if (!bMutable)	//if immutable empty this even if we had to serialize it in for backwards compat
 			{
 				PayloadToInfo.Empty();
@@ -545,6 +553,21 @@ private:
 
 	using FElement = TPayloadBoundsElement<TPayloadType, T>;
 	using FNode = TAABBTreeNode<T>;
+
+	void ReoptimizeTree()
+	{
+		TArray<FElement> AllElements;
+		AllElements.Append(DirtyElements);
+		AllElements.Append(GlobalPayloads);
+
+		for(auto& Leaf : Leaves)
+		{
+			Leaf.GatherElements(AllElements);
+		}
+
+		TAABBTree<TPayloadType,TLeafType,T,bMutable> NewTree(AllElements);
+		*this = NewTree;
+	}
 
 	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
 	bool QueryImp(const TVector<T, 3>& Start, TQueryFastData& CurData, const TVector<T, 3> QueryHalfExtents, const TAABB<T,3>& QueryBounds, SQVisitor& Visitor) const
@@ -964,6 +987,28 @@ private:
 
 	}
 
+	TAABBTree<TPayloadType,TLeafType,T,bMutable>& operator=(const TAABBTree<TPayloadType,TLeafType,T,bMutable>& Rhs)
+	{
+		ensure(Rhs.TimeSliceWorkToComplete.IsEmpty());
+		TimeSliceWorkToComplete.Empty();
+		if(this != &Rhs)
+		{
+			FullBounds = Rhs.FullBounds;
+			Nodes = Rhs.Nodes;
+			Leaves = Rhs.Leaves;
+			DirtyElements = Rhs.DirtyElements;
+			GlobalPayloads = Rhs.GlobalPayloads;
+			PayloadToInfo = Rhs.PayloadToInfo;
+			MaxChildrenInLeaf = Rhs.MaxChildrenInLeaf;
+			MaxTreeDepth = Rhs.MaxTreeDepth;
+			MaxPayloadBounds = Rhs.MaxPayloadBounds;
+			MaxNumToProcess = Rhs.MaxNumToProcess;
+			NumProcessedThisSlice = Rhs.NumProcessedThisSlice;
+		}
+
+		return *this;
+	}
+
 	struct FSplitInfo
 	{
 		TAABB<T, 3> SplitBounds;	//Even split of parent bounds
@@ -977,7 +1022,8 @@ private:
 	TArray<TLeafType> Leaves;
 	TArray<FElement> DirtyElements;
 	TArray<FElement> GlobalPayloads;
-	TMap<TPayloadType, FAABBTreePayloadInfo> PayloadToInfo;
+	TArrayAsMap<TPayloadType, FAABBTreePayloadInfo> PayloadToInfo;
+
 	int32 MaxChildrenInLeaf;
 	int32 MaxTreeDepth;
 	T MaxPayloadBounds;

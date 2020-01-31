@@ -86,15 +86,6 @@ namespace Chaos
 
 			UpdatePositionBasedState(InParticles, ActiveIndices);
 		}
-
-		template<class T_PARTICLES>
-		inline void ApplyHelper(T_PARTICLES& InParticles, const T Dt, const int32 Index) const
-		{
-			TVector<T, d> R = InParticles.X(Index) - MXcm;
-			TVector<T, d> Dv = MVcm - InParticles.V(Index) + TVector<T, d>::CrossProduct(R, MOmega);
-			InParticles.V(Index) += MCoefficient * Dv;
-		}
-
 		inline void Apply(TDynamicParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
 		{
 			if (InParticles.InvM(Index) == 0)
@@ -113,9 +104,20 @@ namespace Chaos
 			ApplyHelper(InParticles, Dt, Index);
 		}
 
+	protected:
+		template<class T_PARTICLES>
+		inline void ApplyHelper(T_PARTICLES& InParticles, const T Dt, const int32 Index) const
+		{
+			TVector<T, d> R = InParticles.X(Index) - MXcm;
+			TVector<T, d> Dv = MVcm - InParticles.V(Index) + TVector<T, d>::CrossProduct(R, MOmega);
+			InParticles.V(Index) += MCoefficient * Dv;
+		}
+
+	protected:
+		mutable T MCoefficient;  // The mutable allows to be modified in derived classes Apply const functions
+
 	private:
 		TArray<int32> ActiveIndices;
 		TVector<T, d> MXcm, MVcm, MOmega;
-		T MCoefficient;
 	};
 }

@@ -83,7 +83,9 @@ struct FWindowsPlatformMath : public FGenericPlatformMath
 	}
 
 	static FORCEINLINE bool IsNaN( float A ) { return _isnan(A) != 0; }
+	static FORCEINLINE bool IsNaN(double A) { return _isnan(A) != 0; }
 	static FORCEINLINE bool IsFinite( float A ) { return _finite(A) != 0; }
+	static FORCEINLINE bool IsFinite(double A) { return _finite(A) != 0; }
 
 	static FORCEINLINE float InvSqrt(float F)
 	{

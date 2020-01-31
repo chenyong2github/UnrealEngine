@@ -8,6 +8,7 @@
 #include "UObject/Interface.h"
 #include "NavAreas/NavArea.h"
 #include "AI/Navigation/NavLinkDefinition.h"
+#include "Engine/World.h"
 #include "NavLinkCustomInterface.generated.h"
 
 /** 
@@ -75,6 +76,9 @@ class NAVIGATIONSYSTEM_API INavLinkCustomInterface
 
 	/** Helper function: create modifier for navigation data export */
 	static FNavigationLink GetModifier(const INavLinkCustomInterface* CustomNavLink);
+
+	static void OnPreWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
+	static void ResetUniqueId();
 
 	static uint32 NextUniqueId;
 };

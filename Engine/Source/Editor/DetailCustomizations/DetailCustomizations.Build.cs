@@ -50,7 +50,6 @@ public class DetailCustomizations : ModuleRules
 				"NavigationSystem",
 				"AIModule", 
 				"ConfigEditor",
-				"Persona",
 				"CinematicCamera",
 				"ComponentVisualizers",
 				"SkeletonEditor",

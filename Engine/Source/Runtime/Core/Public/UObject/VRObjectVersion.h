@@ -18,6 +18,9 @@ struct CORE_API FVRObjectVersion
 		// Change how ARSessionConfig stores plane detection configuration from bitmask to bools
 		UseBoolsForARSessionConfigPlaneDetectionConfiguration,
 
+		// Change how UStereoLayerComponent stores additional properties for non-quad layer types
+		UseSubobjectForStereoLayerShapeProperties,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -844,6 +844,9 @@ public:
 
 	void SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKBytesPerSec);
 
+	/** Sets the global and connection-specific cull distance setting of this actor */
+	void SetAllCullDistanceSettingsForActor(const FActorRepListType& Actor, float CullDistanceSquared);
+
 	// --------------------------------------------------------------
 
 	/** Creates a new node for the graph. This and UReplicationNode::CreateChildNode should be the only things that create the graph node UObjects */

@@ -150,7 +150,7 @@ public:
 	IPooledRenderTarget* DepthTarget;
 
 	FShadowMapRenderTargets() :
-		DepthTarget(NULL)
+		DepthTarget(nullptr)
 	{}
 
 	FIntPoint GetSize() const
@@ -165,6 +165,19 @@ public:
 			return ColorTargets[0]->GetDesc().Extent;
 		}
 	}
+
+	void CopyReferencesFromRenderTargets(const FShadowMapRenderTargetsRefCounted& SourceTargets)
+	{
+		int32 ColorTargetsCount = SourceTargets.ColorTargets.Num();
+		ColorTargets.Empty(ColorTargetsCount);
+		ColorTargets.AddDefaulted(ColorTargetsCount);
+		for (int32 TargetIndex = 0; TargetIndex < ColorTargetsCount; TargetIndex++)
+		{
+			ColorTargets[TargetIndex] = SourceTargets.ColorTargets[TargetIndex].GetReference();
+		}
+
+		DepthTarget = SourceTargets.DepthTarget.GetReference();
+	}
 };
 
 typedef TFunctionRef<void(FRHICommandList& RHICmdList, bool bFirst)> FBeginShadowRenderPassFunction;
@@ -178,6 +191,11 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER(float, bClampToNearPlane)
 	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
 	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewMatrices, [6])
+
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<VplListEntry>, RWGvListBuffer)
+	SHADER_PARAMETER_UAV(RWByteAddressBuffer, RWGvListHeadBuffer)
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<VplListEntry>, RWVplListBuffer)
+	SHADER_PARAMETER_UAV(RWByteAddressBuffer, RWVplListHeadBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters,)
@@ -396,15 +414,14 @@ public:
 	/** Renders shadow maps for translucent primitives. */
 	void RenderTranslucencyDepths(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer);
 
-	static void SetBlendStateForProjection(
-		FGraphicsPipelineStateInitializer& GraphicsPSOInit,
+	static FRHIBlendState* GetBlendStateForProjection(
 		int32 ShadowMapChannel,
 		bool bIsWholeSceneDirectionalShadow,
 		bool bUseFadePlane,
 		bool bProjectingForForwardShading,
 		bool bMobileModulatedProjections);
 
-	void SetBlendStateForProjection(FGraphicsPipelineStateInitializer& GraphicsPSOInit, bool bProjectingForForwardShading, bool bMobileModulatedProjections) const;
+	FRHIBlendState* GetBlendStateForProjection(bool bProjectingForForwardShading, bool bMobileModulatedProjections) const;
 
 	/**
 	 * Projects the shadow onto the scene for a particular view.
@@ -519,7 +536,7 @@ public:
 	/**
 	* Setup uniformbuffers and update Primitive Shader Data
 	*/
-	void SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene);
+	void SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene, FLightPropagationVolume* LPV = nullptr);
 
 	/**
 	* Ensure Cached Shadowmap is in EReadable state

@@ -190,7 +190,7 @@ FPrimitiveSceneInfo::~FPrimitiveSceneInfo()
 }
 
 #if RHI_RAYTRACING
-FRayTracingGeometryRHIRef FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstance(int LodLevel)
+FRHIRayTracingGeometry* FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstance(int LodLevel) const
 {
 	if (RayTracingGeometries.Num() > LodLevel)
 	{
@@ -809,6 +809,7 @@ void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdLi
 	checkSlow(bNeedsUniformBufferUpdate);
 	bNeedsUniformBufferUpdate = false;
 	Proxy->UpdateUniformBuffer();
+	AddPrimitiveToUpdateGPU(*Scene, PackedIndex);
 }
 
 void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshes()

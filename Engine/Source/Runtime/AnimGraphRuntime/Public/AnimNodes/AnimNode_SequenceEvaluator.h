@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimSequenceBase.h"
-#include "Animation/AnimSequenceDecompressionContext.h"
 #include "AnimNode_SequenceEvaluator.generated.h"
 
 UENUM(BlueprintType)

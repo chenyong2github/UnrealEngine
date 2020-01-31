@@ -19,14 +19,16 @@ struct FNiagaraDataInterfaceProxy;
 
 struct FNDITransformHandlerNoop
 {
-	FORCEINLINE void TransformPosition(FVector& V, const FMatrix& M) {  }
+	FORCEINLINE void TransformPosition(FVector& V, const FMatrix& M) { }
 	FORCEINLINE void TransformVector(FVector& V, const FMatrix& M) { }
+	FORCEINLINE void TransformRotation(FQuat& Q1, const FQuat& Q2) { }
 };
 
 struct FNDITransformHandler
 {
 	FORCEINLINE void TransformPosition(FVector& P, const FMatrix& M) { P = M.TransformPosition(P); }
 	FORCEINLINE void TransformVector(FVector& V, const FMatrix& M) { V = M.TransformVector(V).GetUnsafeNormal3(); }
+	FORCEINLINE void TransformRotation(FQuat& Q1, const FQuat& Q2) { Q1 = Q2 * Q1; }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -157,12 +159,11 @@ private:
 
 struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>
 {
+	FNiagaraDataInterfaceProxy() {}
 	virtual ~FNiagaraDataInterfaceProxy() {/*check(IsInRenderingThread());*/}
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const = 0;
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) { check(false); }
-
-	virtual void DeferredDestroy() {}
 
 	// #todo(dmp): move all of this stuff to the RW interface to keep it out of here?
 
@@ -314,7 +315,7 @@ protected:
 
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const;
 
-	TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy;
+	TUniquePtr<FNiagaraDataInterfaceProxy> Proxy;
 };
 
 /** Helper class for decoding NDI parameters into a usable struct type. */

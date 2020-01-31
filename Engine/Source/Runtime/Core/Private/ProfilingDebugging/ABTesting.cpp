@@ -109,7 +109,7 @@ const TCHAR* FABTest::TickAndGetCommand()
 	}
 	else if (bABTestActive)
 	{
-		float Delta;
+		double Delta;
 		if (bABScopeTestActive)
 		{
 			Delta = TotalScopeTimeInFrame;
@@ -117,7 +117,7 @@ const TCHAR* FABTest::TickAndGetCommand()
 		else
 		{
 			Delta = FPlatformTime::Seconds() - LastTime;
-			check(Delta > 0);
+			check(Delta > 0.0);
 		}
 
 		FSample* Sample = nullptr;

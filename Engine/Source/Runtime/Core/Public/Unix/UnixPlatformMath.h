@@ -11,7 +11,9 @@
 #include "Linux/LinuxSystemIncludes.h"
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	#include "Math/UnrealPlatformMathSSE.h"
-#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+#elif PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+	#include <arm_neon.h>
+#endif
 
 /**
 * Linux implementation of the Math OS functions
@@ -88,7 +90,9 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 #endif
 
 	static FORCEINLINE bool IsNaN( float A ) { return isnan(A) != 0; }
+	static FORCEINLINE bool IsNaN(double A) { return isnan(A) != 0; }
 	static FORCEINLINE bool IsFinite( float A ) { return isfinite(A); }
+	static FORCEINLINE bool IsFinite(double A) { return isfinite(A); }
 
 	static FORCEINLINE float InvSqrt( float F )
 	{

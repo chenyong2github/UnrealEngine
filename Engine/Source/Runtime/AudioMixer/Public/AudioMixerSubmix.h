@@ -102,6 +102,9 @@ namespace Audio
 		/** Clears all submix effects from the effect submix chain. */
 		void ClearSoundEffectSubmixes();
 
+		/** Swaps effect for provided submix at the given index.  Fails if effect at index doesn't exist */
+		void ReplaceSoundEffectSubmix(int32 InIndex, int32 InPresetId, FSoundEffectSubmixPtr InEffectInstance);
+
 		/** Whether or not this submix instance is muted. */
 		void SetBackgroundMuted(bool bInMuted);
 

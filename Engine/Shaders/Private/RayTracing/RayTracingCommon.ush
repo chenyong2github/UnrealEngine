@@ -178,7 +178,7 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	uint ShadingModelID;				// 92        1       4bits
 	uint BlendingMode;					// 96        0       4bits (packed with ShadingModelID)
 	uint PrimitiveLightingChannelMask;	// 100       0       (removed)
-	float4 CustomData;					// 104       4       32bits -- only zw are packed at the moment
+	float4 CustomData;					// 104       4       32bits
 	float GBufferAO;					// 120       0       (removed)
 	float3 IndirectIrradiance;			// 124       0       48bits -- gbuffer only has float payload and there are truncation HLSL warnings
 
@@ -226,8 +226,8 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint BaseColorAndOpacity[2];                         // 8  bytes
 	uint MetallicAndSpecularAndRoughness;                // 4  bytes
 	uint IorAndShadingModelIDAndBlendingModeAndFlags;    // 4  bytes
-	uint IndirectIrradiance[2];                          // 8  bytes
-	uint CustomData;                                     // 4  bytes
+	uint PackedIndirectIrradiance[2];                    // 8  bytes
+	uint PackedCustomData;                               // 4  bytes
 	                                                     // 52 bytes total
 
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlags |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD << 24; }
@@ -256,17 +256,17 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 
 	void SetIndirectIrradiance(float3 InIndirectIrradiance)
 	{
-		IndirectIrradiance[0] = f32tof16(InIndirectIrradiance.x);
-		IndirectIrradiance[0] |= f32tof16(InIndirectIrradiance.y) << 16;
-		IndirectIrradiance[1] = f32tof16(InIndirectIrradiance.z);
+		PackedIndirectIrradiance[0] = f32tof16(InIndirectIrradiance.x);
+		PackedIndirectIrradiance[0] |= f32tof16(InIndirectIrradiance.y) << 16;
+		PackedIndirectIrradiance[1] = f32tof16(InIndirectIrradiance.z);
 	}
 
 	float3 GetIndirectIrradiance()
 	{
 		float3 Result;
-		Result.x = f16tof32(IndirectIrradiance[0]);
-		Result.y = f16tof32(IndirectIrradiance[0] >> 16);
-		Result.z = f16tof32(IndirectIrradiance[1]);
+		Result.x = f16tof32(PackedIndirectIrradiance[0]);
+		Result.y = f16tof32(PackedIndirectIrradiance[0] >> 16);
+		Result.z = f16tof32(PackedIndirectIrradiance[1]);
 		return Result;
 	}
 
@@ -282,9 +282,11 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	float4 GetCustomData()
 	{
 		float4 Result;
-		Result.z = f16tof32(CustomData.x & 0xFFFF);
-		Result.w = f16tof32(CustomData.x >> 16);
-		Result.xy = 0;
+		Result.x = PackedCustomData & 0xFF;
+		Result.y = (PackedCustomData >> 8) & 0xFF;
+		Result.z = (PackedCustomData >> 16) & 0xFF;
+		Result.w = (PackedCustomData >> 24) & 0xFF;
+		Result /= 255.0;
 		return Result;
 	}
 	
@@ -334,10 +336,11 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	Output.IorAndShadingModelIDAndBlendingModeAndFlags |= (Input.ShadingModelID & 0xF) << 16; // 4 bits
 	Output.IorAndShadingModelIDAndBlendingModeAndFlags |= (Input.BlendingMode & 0xF) << 20;   // 4 bits
 	Output.IorAndShadingModelIDAndBlendingModeAndFlags |= (Input.Flags & 0xF) << 24;          // 8 bits
-	Output.IndirectIrradiance[0] = f32tof16(Input.IndirectIrradiance.x);
-	Output.IndirectIrradiance[0] |= f32tof16(Input.IndirectIrradiance.y) << 16;
-	Output.IndirectIrradiance[1] = f32tof16(Input.IndirectIrradiance.z);
-	Output.CustomData = f32tof16(Input.CustomData.z) | (f32tof16(Input.CustomData.w) << 16);
+	Output.PackedIndirectIrradiance[0] = f32tof16(Input.IndirectIrradiance.x);
+	Output.PackedIndirectIrradiance[0] |= f32tof16(Input.IndirectIrradiance.y) << 16;
+	Output.PackedIndirectIrradiance[1] = f32tof16(Input.IndirectIrradiance.z);
+	int4 CustomData = round(Input.CustomData * 255);
+	Output.PackedCustomData = CustomData.x | (CustomData.y << 8) | (CustomData.z << 16) | (CustomData.w << 24);
 
 	return Output;
 }
@@ -346,8 +349,8 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 {
 	FMaterialClosestHitPayload Output = (FMaterialClosestHitPayload)0;
 
-	Output.HitT               = Input.HitT;
-	Output.RayCone            = Input.RayCone;
+	Output.HitT = Input.HitT;
+	Output.RayCone = Input.RayCone; 
 	Output.Radiance           = Input.GetRadiance();
 	Output.WorldNormal        = Input.GetWorldNormal();
 	Output.BaseColor          = Input.GetBaseColor();

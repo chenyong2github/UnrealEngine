@@ -843,16 +843,6 @@ private:
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIHairStrandsProxy::DeferredDestroy()
-{
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToProxyData.Remove(Sys);
-	}
-
-	DeferredDestroyList.Empty();
-}
-
 void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
 	FNDIHairStrandsData* SourceData = static_cast<FNDIHairStrandsData*>(PerInstanceData);
@@ -882,22 +872,14 @@ void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanc
 	check(IsInRenderingThread());
 
 	FNDIHairStrandsData* TargetData = SystemInstancesToProxyData.Find(SystemInstance);
-	if (TargetData != nullptr)
-	{
-		DeferredDestroyList.Remove(SystemInstance);
-	}
-	else
-	{
-		TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
-	}
+	TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
 }
 
 void FNDIHairStrandsProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
-
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
+	//check(SystemInstancesToProxyData.Contains(SystemInstance));
+	SystemInstancesToProxyData.Remove(SystemInstance);
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -911,7 +893,7 @@ UNiagaraDataInterfaceHairStrands::UNiagaraDataInterfaceHairStrands(FObjectInitia
 	, GroupIndex(0)
 {
 
-	Proxy = MakeShared<FNDIHairStrandsProxy, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNDIHairStrandsProxy());
 }
 
 bool UNiagaraDataInterfaceHairStrands::IsComponentValid() const

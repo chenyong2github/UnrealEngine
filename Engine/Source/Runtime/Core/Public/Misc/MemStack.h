@@ -229,39 +229,51 @@ template <class T> inline T* NewOned(FMemStackBase& Mem, int32 Count = 1, int32 
 inline void* operator new(size_t Size, FMemStackBase& Mem, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
 {
 	// Get uninitialized memory.
-	return Mem.PushBytes( Size*Count, Align );
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= TNumericLimits<int32>::Max());
+	return Mem.PushBytes( (int32)SizeInBytes, Align );
 }
 inline void* operator new(size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
 {
 	// Get zero-filled memory.
-	uint8* Result = Mem.PushBytes( Size*Count, Align );
-	FMemory::Memzero( Result, Size*Count );
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes( (int32)SizeInBytes, Align );
+	FMemory::Memzero( Result, SizeInBytes );
 	return Result;
 }
 inline void* operator new(size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
 {
 	// Get one-filled memory.
-	uint8* Result = Mem.PushBytes( Size*Count, Align );
-	FMemory::Memset( Result, 0xff, Size*Count );
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes( (int32)SizeInBytes, Align );
+	FMemory::Memset( Result, 0xff, SizeInBytes );
 	return Result;
 }
 inline void* operator new[](size_t Size, FMemStackBase& Mem, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
 {
 	// Get uninitialized memory.
-	return Mem.PushBytes( Size*Count, Align );
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= TNumericLimits<int32>::Max());
+	return Mem.PushBytes( (int32)SizeInBytes, Align );
 }
 inline void* operator new[](size_t Size, FMemStackBase& Mem, EMemZeroed Tag, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
 {
 	// Get zero-filled memory.
-	uint8* Result = Mem.PushBytes( Size*Count, Align );
-	FMemory::Memzero( Result, Size*Count );
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes( (int32)SizeInBytes, Align );
+	FMemory::Memzero( Result, SizeInBytes );
 	return Result;
 }
 inline void* operator new[](size_t Size, FMemStackBase& Mem, EMemOned Tag, int32 Count = 1, int32 Align = DEFAULT_ALIGNMENT)
 {
 	// Get one-filled memory.
-	uint8* Result = Mem.PushBytes( Size*Count, Align );
-	FMemory::Memset( Result, 0xff, Size*Count );
+	const size_t SizeInBytes = Size * Count;
+	checkSlow(SizeInBytes <= TNumericLimits<int32>::Max());
+	uint8* Result = Mem.PushBytes( (int32)SizeInBytes, Align );
+	FMemory::Memset( Result, 0xff, SizeInBytes );
 	return Result;
 }
 
@@ -304,6 +316,8 @@ public:
 		{
 			return Data;
 		}
+
+		//@TODO: FLOATPRECISION: Takes SIZE_T input but doesn't actually support it
 		void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements,SIZE_T NumBytesPerElement)
 		{
 			void* OldData = Data;
@@ -311,7 +325,7 @@ public:
 			{
 				// Allocate memory from the stack.
 				Data = (ElementType*)FMemStack::Get().PushBytes(
-					NumElements * NumBytesPerElement,
+					(int32)(NumElements * NumBytesPerElement),
 					FMath::Max(Alignment,(uint32)alignof(ElementType))
 					);
 

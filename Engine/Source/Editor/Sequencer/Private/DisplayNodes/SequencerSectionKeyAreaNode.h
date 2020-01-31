@@ -74,6 +74,7 @@ public:
 	virtual FNodePadding GetNodePadding() const override;
 	virtual ESequencerNode::Type GetType() const override;
 	virtual void SetDisplayName(const FText& NewDisplayName) override;
+	virtual FSlateFontInfo GetDisplayNameFont() const override;
 
 	// ICurveEditorTreeItem interface
 	virtual void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels) override;

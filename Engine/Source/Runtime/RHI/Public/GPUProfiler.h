@@ -158,7 +158,7 @@ public:
 	 *
 	 * @return Frequency for the timing values, in number of ticks per seconds, or 0 if the feature isn't supported.
 	 */
-	static uint64 GetTimingFrequency()
+	static uint64 GetTimingFrequency(uint32 GPUIndex = 0)
 	{
 		return GTimingFrequency;
 	}
@@ -168,7 +168,7 @@ public:
 	*
 	* @return CPU and GPU timestamps, in microseconds. Both are 0 if feature isn't supported.
 	*/
-	static FGPUTimingCalibrationTimestamp GetCalibrationTimestamp()
+	static FGPUTimingCalibrationTimestamp GetCalibrationTimestamp(uint32 GPUIndex = 0)
 	{
 		return GCalibrationTimestamp;
 	}

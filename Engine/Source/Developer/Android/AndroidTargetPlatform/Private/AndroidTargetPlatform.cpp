@@ -216,6 +216,12 @@ FAndroidTargetDevicePtr FAndroidTargetPlatform::CreateTargetDevice(const ITarget
 	return MakeShareable(new FAndroidTargetDevice(InTargetPlatform, InSerialNumber, InAndroidVariant));
 }
 
+static bool UsesVirtualTextures()
+{
+	static auto* CVarMobileVirtualTextures = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.VirtualTextures"));
+	return CVarMobileVirtualTextures->GetValueOnAnyThread() != 0;
+}
+
 bool FAndroidTargetPlatform::SupportsES2() const
 {
 	// default to support ES2
@@ -353,6 +359,9 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 
 		case ETargetPlatformFeatures::SoftwareOcclusion:
 			return SupportsSoftwareOcclusion();
+
+		case ETargetPlatformFeatures::VirtualTextureStreaming:
+			return UsesVirtualTextures();
 
 		default:
 			break;

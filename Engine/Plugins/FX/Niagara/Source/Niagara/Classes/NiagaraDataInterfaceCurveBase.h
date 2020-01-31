@@ -103,7 +103,7 @@ public:
 		, ShowInCurveEditor(false)
 #endif
 	{
-		Proxy = MakeShared<FNiagaraDataInterfaceProxyCurveBase, ESPMode::ThreadSafe>();
+		Proxy.Reset(new FNiagaraDataInterfaceProxyCurveBase());
 	}
 
 	UNiagaraDataInterfaceCurveBase(FObjectInitializer const& ObjectInitializer)
@@ -118,7 +118,7 @@ public:
 		, ShowInCurveEditor(false)
 #endif
 	{
-		Proxy = MakeShared<FNiagaraDataInterfaceProxyCurveBase, ESPMode::ThreadSafe>();
+		Proxy.Reset(new FNiagaraDataInterfaceProxyCurveBase());
 	}
 
 	enum

@@ -261,6 +261,9 @@ struct FAssetPickerConfig
 	/** Indicates if the 'Show Developers' option should be enabled or disabled */
 	bool bCanShowDevelopersFolder;
 
+	/** Indicates if engine content should always be shown */
+	bool bForceShowEngineContent;
+
 	/** Indicates if the context menu is going to load the assets, and if so to preload before the context menu is shown, and warn about the pending load. */
 	bool bPreloadAssetsForContextMenu;
 
@@ -291,6 +294,7 @@ struct FAssetPickerConfig
 		, bCanShowFolders(false)
 		, bCanShowRealTimeThumbnails(false)
 		, bCanShowDevelopersFolder(true)
+		, bForceShowEngineContent(false)
 		, bPreloadAssetsForContextMenu(true)
 		, bAddFilterUI(false)
 		, bShowPathInColumnView(false)

@@ -333,49 +333,57 @@ void FMetalGPUProfiler::EndFrame()
 // All these recording functions MUST be called from within scheduled/completion handlers.
 // Ordering is enforced by libdispatch so calling these outside of that context WILL result in
 // incorrect values.
-
-// There overall flow should be this per frame:
-// Each command buffer finishes and accumulates its time.
-// On frame end these times are converted into cycles and published.
-// Present is a different case because it occurs on its own command buffer outside of
-// the normal submission scheme and Metal presents when a command buffer is scheduled.
-// This timing is not included in the time published in RecordFrame.
-
-void FMetalGPUProfiler::IncrementFrameIndex()
+void FMetalGPUProfiler::RecordFrame(TArray<FMetalCommandBufferTiming>& CommandBufferTimings, FMetalCommandBufferTiming& LastBufferTiming)
 {
-	// This is called from RecordFrame.
-	// Prepare the next frame for recording.
-	FrameTimeGPUIndex = ((FrameTimeGPUIndex + 1) % MAX_FRAME_HISTORY);
-	FrameStartGPUCycles[FrameTimeGPUIndex] = 0;
-	FrameEndGPUCycles[FrameTimeGPUIndex] = 0;
-	FrameGPUTimeCycles[FrameTimeGPUIndex] = 0;
-	FrameIdleTimeCycles[FrameTimeGPUIndex] = 0;
-	FramePresentTimeCycles[FrameTimeGPUIndex] = 0;
-	RunningFrameTimeSeconds = 0.0;
-}
-
-void FMetalGPUProfiler::RecordFrame()
-{
-	// Note: We do not call RecordCommandBuffer here.
-	// This is only applied by FMetalCommandList::Commit, which will also apply RecordCommandBuffer.
 	const double CyclesPerSecond = 1.0 / FPlatformTime::GetSecondsPerCycle();
-	FrameGPUTimeCycles[FrameTimeGPUIndex] = uint64(CyclesPerSecond * RunningFrameTimeSeconds);
-	// for now set the GPU time to 0 until we figure out why it isn't always accurate
-#if PLATFORM_IOS
-	FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, (int32)0);
-#else
-	FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, int32(FrameGPUTimeCycles[FrameTimeGPUIndex]));
-#endif
+
+	double RunningFrameTimeSeconds = 0.0;
+	uint64 FrameStartGPUCycles = 0;
+	uint64 FrameEndGPUCycles = 0;
+
+	// Sort the timings
+	CommandBufferTimings.Sort();
+
+	CFTimeInterval FirstStartTime = 0.0;
+
+	// Add the timings excluding any overlapping time
+	for (const FMetalCommandBufferTiming& Timing : CommandBufferTimings)
+	{
+		if (FirstStartTime == 0.0)
+		{
+			FirstStartTime = Timing.StartTime;
+		}
+		
+		// Only process if the previous buffer finished before the end of this one
+		if (LastBufferTiming.EndTime < Timing.EndTime)
+		{
+			// Check if the end of the previous buffer finished before the start of this one
+			if (LastBufferTiming.EndTime > Timing.StartTime)
+			{
+				// Segment from end of last buffer to end of current
+				RunningFrameTimeSeconds += Timing.EndTime - LastBufferTiming.EndTime;
+			}
+			else
+			{
+				// Full timing of this buffer
+				RunningFrameTimeSeconds += Timing.EndTime - Timing.StartTime;
+			}
+
+			LastBufferTiming = Timing;
+		}
+	}
+    
+	FrameStartGPUCycles = FirstStartTime * CyclesPerSecond;
+	FrameEndGPUCycles = LastBufferTiming.EndTime * CyclesPerSecond;
+    
+	uint64 FrameGPUTimeCycles = uint64(CyclesPerSecond * RunningFrameTimeSeconds);
+	FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, int32(FrameGPUTimeCycles));
 	
 #if STATS
-	FPlatformAtomics::AtomicStore_Relaxed(&GMetalGPUWorkTime, FrameGPUTimeCycles[FrameTimeGPUIndex]);
-	
-	int64 TimeAsCycles = int64(FrameEndGPUCycles[FrameTimeGPUIndex] - FrameStartGPUCycles[FrameTimeGPUIndex] - FrameGPUTimeCycles[FrameTimeGPUIndex]);
-	FrameIdleTimeCycles[FrameTimeGPUIndex] = TimeAsCycles;
-	FPlatformAtomics::AtomicStore_Relaxed(&GMetalGPUIdleTime, TimeAsCycles);
+	FPlatformAtomics::AtomicStore_Relaxed(&GMetalGPUWorkTime, FrameGPUTimeCycles);
+	int64 FrameIdleTimeCycles = int64(FrameEndGPUCycles - FrameStartGPUCycles - FrameGPUTimeCycles);
+	FPlatformAtomics::AtomicStore_Relaxed(&GMetalGPUIdleTime, FrameIdleTimeCycles);
 #endif //STATS
-	
-	IncrementFrameIndex();
 }
 
 void FMetalGPUProfiler::RecordPresent(const mtlpp::CommandBuffer& Buffer)
@@ -386,42 +394,8 @@ void FMetalGPUProfiler::RecordPresent(const mtlpp::CommandBuffer& Buffer)
 	uint64 StartTimeCycles = uint64(GpuStartTimeSeconds * CyclesPerSecond);
 	uint64 EndTimeCycles = uint64(GpuEndTimeSeconds * CyclesPerSecond);
 	int64 Time = int64(EndTimeCycles - StartTimeCycles);
-	FramePresentTimeCycles[FrameTimeGPUIndex] = Time;
 	FPlatformAtomics::AtomicStore_Relaxed(&GMetalPresentTime, Time);
 }
-
-void FMetalGPUProfiler::RecordCommandBuffer(const mtlpp::CommandBuffer& Buffer)
-{
-	const double CyclesPerSecond = 1.0 / FPlatformTime::GetSecondsPerCycle();
-	
-	const CFTimeInterval GpuEndTimeSeconds   = Buffer.GetGpuEndTime();
-	const CFTimeInterval GpuStartTimeSeconds = Buffer.GetGpuStartTime();
-	
-	uint64 StartTimeCycles = uint64(GpuStartTimeSeconds * CyclesPerSecond);
-	uint64 EndTimeCycles   = uint64(GpuEndTimeSeconds * CyclesPerSecond);
-	
-	{
-		uint64 Existing = FrameEndGPUCycles[FrameTimeGPUIndex];
-		FrameEndGPUCycles[FrameTimeGPUIndex] = Existing > 0 ? FMath::Max(Existing, EndTimeCycles) : EndTimeCycles;
-	}
-	
-	{
-		uint64 Existing = FrameStartGPUCycles[FrameTimeGPUIndex];
-		FrameStartGPUCycles[FrameTimeGPUIndex] = Existing > 0 ? FMath::Min(Existing, StartTimeCycles) : StartTimeCycles;
-	}
-	
-	RunningFrameTimeSeconds += (GpuEndTimeSeconds - GpuStartTimeSeconds);
-}
-	
-int32 FMetalGPUProfiler::FrameTimeGPUIndex = 0;
-int64 FMetalGPUProfiler::FrameStartGPUCycles[MAX_FRAME_HISTORY];
-int64 FMetalGPUProfiler::FrameEndGPUCycles[MAX_FRAME_HISTORY];
-int64 FMetalGPUProfiler::FrameGPUTimeCycles[MAX_FRAME_HISTORY];
-int64 FMetalGPUProfiler::FrameIdleTimeCycles[MAX_FRAME_HISTORY];
-int64 FMetalGPUProfiler::FramePresentTimeCycles[MAX_FRAME_HISTORY];
-
-double FMetalGPUProfiler::RunningFrameTimeSeconds = 0.0;
-
 // END WARNING
 
 IMetalStatsScope::~IMetalStatsScope()

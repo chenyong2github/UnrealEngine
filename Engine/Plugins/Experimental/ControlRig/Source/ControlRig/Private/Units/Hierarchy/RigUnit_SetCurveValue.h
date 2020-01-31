@@ -26,7 +26,7 @@ struct FRigUnit_SetCurveValue : public FRigUnitMutable
 	/**
 	 * The name of the Curve to set the Value for.
 	 */
-	UPROPERTY(meta = (Input, CurveName, Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "CurveName", Constant))
 	FName Curve;
 
 	/**

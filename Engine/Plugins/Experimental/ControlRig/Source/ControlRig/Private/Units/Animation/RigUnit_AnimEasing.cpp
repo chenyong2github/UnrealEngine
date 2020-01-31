@@ -3,6 +3,10 @@
 #include "Units/Animation/RigUnit_AnimEasing.h"
 #include "Units/RigUnitContext.h"
 
+FRigUnit_AnimEasingType_Execute()
+{
+}
+
 FRigUnit_AnimEasing_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

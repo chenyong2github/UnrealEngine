@@ -238,12 +238,36 @@ FString FMacPlatformProcess::GetGameBundleId()
 	// Encode the data as a string
 	NSString* String = [[NSString alloc] initWithData:_PipeOutput encoding:NSUTF8StringEncoding];
 	
-	OutString = FString(String);
+	OutString += FString(String);
 	
 	[String release];
 }
 
 @end // NSAutoReadPipe
+
+void DisableStallingMetalGPUCaptureKeysForChildProcessWhenDebugging(NSTask* childProcess)
+{
+#if WITH_EDITOR
+	if(FPlatformMisc::IsDebuggerPresent())
+	{
+		// - These are the extra environment keys when turning on GPU Frame Capture via Xcode 11.3 in macOS Catalina (10.15.2):
+		//		DYLD_INSERT_LIBRARIES, DYMTL_TOOLS_DYLIB_PATH, GPUTOOLS_LOAD_GTMTLCAPTURE, GT_HOST_URL_MTL and METAL_LOAD_INTERPOSER
+		// - Both DYLD_INSERT_LIBRARIES and METAL_LOAD_INTERPOSER seem to be new for Catalina (10.15.2) compared to Mojave (10.14.6).
+		// - Using DYLD_INSERT_LIBRARIES seem to be causing a stall at child process startup with Xcode debugger attached to the parent process.
+		// - Removing DYLD_INSERT_LIBRARIES removes the stall for child process startup which is especially useful for ShaderCompileWorker when invoking MetalCompiler and it's other child processes tools.
+
+		// Get the current environment and remove the relevant key(s)
+		NSMutableDictionary* childEnvironment = [[NSProcessInfo processInfo].environment mutableCopy];
+		
+		NSArray* metalKeysToRemove = @[@"DYLD_INSERT_LIBRARIES"];
+		
+		[childEnvironment removeObjectsForKeys:metalKeysToRemove];
+		[childProcess setEnvironment:childEnvironment];
+		
+		[childEnvironment release];
+	}
+#endif
+}
 
 bool FMacPlatformProcess::ExecProcess( const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory)
 {
@@ -350,6 +374,8 @@ bool FMacPlatformProcess::ExecProcess( const TCHAR* URL, const TCHAR* Params, in
 				}
 			}
 		}
+		
+		DisableStallingMetalGPUCaptureKeysForChildProcessWhenDebugging(ProcessHandle);
 		
 		[ProcessHandle setArguments: Arguments];
 		
@@ -520,6 +546,8 @@ FProcHandle FMacPlatformProcess::CreateProc( const TCHAR* URL, const TCHAR* Parm
 				}
 			}
 		}
+		
+		DisableStallingMetalGPUCaptureKeysForChildProcessWhenDebugging(ProcessHandle);
 
 		[ProcessHandle setArguments: Arguments];
 

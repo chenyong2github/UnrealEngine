@@ -291,10 +291,10 @@ inline VariableSizeType FFrame::ReadVariableSize( FProperty** ExpressionField )
 	FProperty* Property = CastField<FProperty>(Field);
 	if (Property)
 	{
-		Result = Property->GetSize();
+		Result = (VariableSizeType)Property->GetSize();
 	}
 
-	if ( ExpressionField != nullptr )
+	if (ExpressionField != nullptr)
 	{
 		*ExpressionField = Property;
 	}

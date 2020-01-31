@@ -36,6 +36,11 @@ inline FVec3 ComputeBoundsThickness(const TPBDRigidParticles<FReal, 3>& InPartic
 	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, BoundsThickness, BoundsVelocityInflation);
 }
 
+inline FVec3 ComputeBoundsThickness(const TKinematicGeometryParticles<FReal, 3>& InParticles, FReal Dt, int32 BodyIndex, FReal BoundsThickness, FReal BoundsVelocityInflation)
+{
+	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, BoundsThickness, BoundsVelocityInflation);
+}
+
 template <typename THandle>
 FVec3 ComputeBoundsThickness(const THandle& PBDRigid, FReal Dt, FReal BoundsThickness, FReal BoundsVelocityInflation)
 {

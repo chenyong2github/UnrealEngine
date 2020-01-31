@@ -562,7 +562,7 @@ bool FOpenXRHMD::EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDe
 	}
 	if (Type == EXRTrackedDeviceType::Any || Type == EXRTrackedDeviceType::Controller)
 	{
-		for (int32 i = 0; i < ActionSpaces.Num(); i++)
+		for (int32 i = 0; i < DeviceSpaces.Num(); i++)
 		{
 			OutDevices.Add(i);
 		}
@@ -584,14 +584,14 @@ bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVect
 	CurrentOrientation = FQuat::Identity;
 	CurrentPosition = FVector::ZeroVector;
 
-	if (!ActionSpaces.IsValidIndex(DeviceId) || !ActionSpaces[DeviceId].Space || FrameState.predictedDisplayTime <= 0)
+	if (!DeviceSpaces.IsValidIndex(DeviceId) || !DeviceSpaces[DeviceId].Space || FrameState.predictedDisplayTime <= 0)
 	{
 		return false;
 	}
 
 	XrSpaceLocation Location = {};
 	Location.type = XR_TYPE_SPACE_LOCATION;
-	XrResult Result = xrLocateSpace(ActionSpaces[DeviceId].Space, GetTrackingSpace(), FrameState.predictedDisplayTime, &Location);
+	XrResult Result = xrLocateSpace(DeviceSpaces[DeviceId].Space, GetTrackingSpace(), FrameState.predictedDisplayTime, &Location);
 	if (!XR_ENSURE(Result))
 	{
 		return false;
@@ -833,6 +833,8 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, SelectedViewConfigurationType(XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO)
 	, RenderBridge(InRenderBridge)
 	, RendererModule(nullptr)
+	, LastRequestedSwapchainFormat(0)
+	, LastRequestedDepthSwapchainFormat(0)
 {
 	FrameState.type = XR_TYPE_FRAME_STATE;
 	FrameState.next = nullptr;
@@ -886,7 +888,8 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 		View.pose = ToXrPose(FTransform::Identity);
 	}
 
-	ResetActionDevices();
+	// Add a device space for the HMD without an action handle and ensure it has the correct index
+	ensure(DeviceSpaces.Emplace(XR_NULL_HANDLE) == HMDDeviceId);
 }
 
 FOpenXRHMD::~FOpenXRHMD()
@@ -1043,7 +1046,7 @@ bool FOpenXRHMD::OnStereoStartup()
 	SpaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
 	SpaceInfo.poseInReferenceSpace = ToXrPose(FTransform::Identity);
 	XR_ENSURE(xrCreateReferenceSpace(Session, &SpaceInfo, &HmdSpace));
-	ActionSpaces[HMDDeviceId].Space = HmdSpace;
+	DeviceSpaces[HMDDeviceId].Space = HmdSpace;
 
 	ensure(Spaces.Contains(XR_REFERENCE_SPACE_TYPE_LOCAL));
 	SpaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
@@ -1062,9 +1065,9 @@ bool FOpenXRHMD::OnStereoStartup()
 	}
 
 	// Create action spaces for all devices
-	for (auto& ActionSpace : ActionSpaces)
+	for (auto& DeviceSpace : DeviceSpaces)
 	{
-		ActionSpace.CreateSpace(Session);
+		DeviceSpace.CreateSpace(Session);
 	}
 
 	RenderBridge->SetOpenXRHMD(this);
@@ -1103,10 +1106,10 @@ void FOpenXRHMD::CloseSession()
 {
 	if (Session != XR_NULL_HANDLE)
 	{
-		// Clear up action spaces
-		for (auto& ActionSpace : ActionSpaces)
+		// Clear up device spaces
+		for (auto& DeviceSpace : DeviceSpaces)
 		{
-			ActionSpace.DestroySpace();
+			DeviceSpace.DestroySpace();
 		}
 
 		// Close the session now we're allowed to.
@@ -1133,10 +1136,10 @@ void FOpenXRHMD::CloseSession()
 
 int32 FOpenXRHMD::AddActionDevice(XrAction Action)
 {
-	int32 DeviceId = ActionSpaces.Emplace(Action);
+	int32 DeviceId = DeviceSpaces.Emplace(Action);
 	if (Session)
 	{
-		ActionSpaces[DeviceId].CreateSpace(Session);
+		DeviceSpaces[DeviceId].CreateSpace(Session);
 	}
 
 	return DeviceId;
@@ -1144,10 +1147,11 @@ int32 FOpenXRHMD::AddActionDevice(XrAction Action)
 
 void FOpenXRHMD::ResetActionDevices()
 {
-	ActionSpaces.Reset();
-
-	// The HMD device does not have an action associated with it
-	ensure(ActionSpaces.Emplace(XR_NULL_HANDLE) == HMDDeviceId);
+	// Index 0 is HMDDeviceId and is preserved. The remaining are action devices.
+	if (DeviceSpaces.Num() > 0)
+	{
+		DeviceSpaces.RemoveAt(HMDDeviceId + 1, DeviceSpaces.Num() - 1);
+	}
 }
 
 bool FOpenXRHMD::IsInitialized() const
@@ -1206,14 +1210,18 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	// We need to ensure we can sample from the texture in CopyTexture
 	Flags |= TexCreate_ShaderResource;
 
-	Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
-	if (!Swapchain)
+	if (Swapchain == nullptr || Format != LastRequestedSwapchainFormat || Swapchain->GetTexture2D()->GetSizeX() != SizeX || Swapchain->GetTexture2D()->GetSizeY() != SizeY)
 	{
-		return false;
+		Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, NumMips, NumSamples, Flags, TargetableTextureFlags);
+		if (!Swapchain)
+		{
+			return false;
+		}
 	}
-	
+
 	// Grab the presentation texture out of the swapchain.
 	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)Swapchain->GetTextureRef();
+	LastRequestedSwapchainFormat = Format;
 
 	bNeedReAllocatedDepth = bDepthExtensionSupported;
 
@@ -1228,15 +1236,19 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 		return false;
 	}
 
-	DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, FMath::Max(NumMips, 1u), NumSamples, 0, TexCreate_DepthStencilTargetable);
-	if (!DepthSwapchain)
+	if (DepthSwapchain == nullptr || Format != LastRequestedDepthSwapchainFormat || DepthSwapchain->GetTexture2D()->GetSizeX() != SizeX || DepthSwapchain->GetTexture2D()->GetSizeY() != SizeY)
 	{
-		return false;
+		DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, FMath::Max(NumMips, 1u), NumSamples, 0, TexCreate_DepthStencilTargetable);
+		if (!DepthSwapchain)
+		{
+			return false;
+		}
 	}
 
 	bNeedReAllocatedDepth = false;
 
 	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)DepthSwapchain->GetTextureRef();
+	LastRequestedDepthSwapchainFormat = Format;
 
 	return true;
 }
@@ -1365,7 +1377,7 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	ViewInfo.type = XR_TYPE_VIEW_LOCATE_INFO;
 	ViewInfo.next = nullptr;
 	ViewInfo.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
-	ViewInfo.space = ActionSpaces[HMDDeviceId].Space;
+	ViewInfo.space = DeviceSpaces[HMDDeviceId].Space;
 	ViewInfo.displayTime = FrameState.predictedDisplayTime;
 	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &ViewState, 0, &ViewCount, nullptr));
 	Views.SetNum(ViewCount);
@@ -1663,13 +1675,13 @@ void FOpenXRHMD::DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdL
 // OpenXR Action Space Implementation
 //---------------------------------------------------
 
-FOpenXRHMD::FActionSpace::FActionSpace(XrAction InAction)
+FOpenXRHMD::FDeviceSpace::FDeviceSpace(XrAction InAction)
 	: Action(InAction)
 	, Space(XR_NULL_HANDLE)
 {
 }
 
-bool FOpenXRHMD::FActionSpace::CreateSpace(XrSession InSession)
+bool FOpenXRHMD::FDeviceSpace::CreateSpace(XrSession InSession)
 {
 	if (Action == XR_NULL_HANDLE || Space != XR_NULL_HANDLE)
 	{
@@ -1685,7 +1697,7 @@ bool FOpenXRHMD::FActionSpace::CreateSpace(XrSession InSession)
 	return XR_ENSURE(xrCreateActionSpace(InSession, &ActionSpaceInfo, &Space));
 }
 
-void FOpenXRHMD::FActionSpace::DestroySpace()
+void FOpenXRHMD::FDeviceSpace::DestroySpace()
 {
 	if (Space)
 	{

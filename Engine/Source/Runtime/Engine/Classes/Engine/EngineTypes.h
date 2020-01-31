@@ -18,6 +18,7 @@
 class AActor;
 class UDecalComponent;
 class UPhysicalMaterial;
+class UPhysicalMaterialMask;
 class UPrimitiveComponent;
 class USceneComponent;
 
@@ -2591,6 +2592,9 @@ struct FMeshBuildSettings
 	UPROPERTY(EditAnywhere, Category=BuildSettings, meta=(DisplayName="Two-Sided Distance Field Generation"))
 	uint8 bGenerateDistanceFieldAsIfTwoSided:1;
 
+	UPROPERTY(EditAnywhere, Category=BuildSettings, meta=(DisplayName="Enable Physical Material Mask"))
+	uint8 bSupportFaceRemap : 1;
+
 	UPROPERTY(EditAnywhere, Category=BuildSettings)
 	int32 MinLightmapResolution;
 
@@ -2635,6 +2639,7 @@ struct FMeshBuildSettings
 		, bUseFullPrecisionUVs(false)
 		, bGenerateLightmapUVs(true)
 		, bGenerateDistanceFieldAsIfTwoSided(false)
+		, bSupportFaceRemap(false)
 		, MinLightmapResolution(64)
 		, SrcLightmapIndex(0)
 		, DstLightmapIndex(1)
@@ -3648,6 +3653,24 @@ enum EPhysicalSurface
 	SurfaceType62 UMETA(Hidden),
 	SurfaceType_Max UMETA(Hidden)
 };
+
+/** Types of valid physical material mask colors which may be associated with a physical material */
+UENUM(BlueprintType)
+namespace EPhysicalMaterialMaskColor
+{
+	enum Type
+	{
+		Red,
+		Green,
+		Blue,
+		Cyan,
+		Magenta,
+		Yellow,
+		White,
+		Black,
+		MAX
+	};
+}
 
 /** Describes how often this component is allowed to move. */
 UENUM(BlueprintType)

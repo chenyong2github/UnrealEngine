@@ -20,22 +20,29 @@ public:
 	~FNiagaraRendererMeshes();
 	
 	//FNiagaraRenderer Interface
-	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;
 	virtual void ReleaseRenderThreadResources() override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
 	virtual int32 GetDynamicDataSize()const override;
 	virtual bool IsMaterialValid(UMaterialInterface* Mat)const override;
+#if RHI_RAYTRACING
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) final override;
+#endif
 	//FNiagaraRenderer Interface END
 
 	void SetupVertexFactory(FNiagaraMeshVertexFactory *InVertexFactory, const FStaticMeshLODResources& LODResources) const;
+
+protected:
+	virtual int32 GetMaxIndirectArgs() const override;
+	int32 GetLODIndex() const;
 
 private:
 	mutable TArray<class FNiagaraMeshVertexFactory*, TInlineAllocator<2>> VertexFactories;
 	/** Render data of the static mesh we use. */
 	FStaticMeshRenderData* MeshRenderData;
 
+	TArray<TArray<TPair<int32 /*Count*/, int32 /*Offset*/>>> IndexInfoPerSection;
 	ENiagaraSortMode SortMode;
 	ENiagaraMeshFacingMode FacingMode;
 	uint32 bOverrideMaterials : 1;

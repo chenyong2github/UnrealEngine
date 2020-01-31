@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "/Engine/Private/Common.ush"
+
 static const int FLUID_PRESSURE_OFFSET = 6;
 static const int FLUID_DISTANCE_OFFSET = 14;
 static const int NUM_ATTRIBUTES = 17;

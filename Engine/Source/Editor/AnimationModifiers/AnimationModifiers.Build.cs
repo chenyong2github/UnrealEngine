@@ -22,7 +22,6 @@ public class AnimationModifiers : ModuleRules
                 "Kismet",
                 "AssetTools",
                 "ClassViewer",
-                "Persona",
                 "AnimationEditor",
                 "SkeletonEditor",
                 "AssetRegistry"                

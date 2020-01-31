@@ -406,6 +406,7 @@ namespace BuildPatchServices
 		, Configuration(MoveTemp(InConfiguration))
 		, DataStagingDir(Configuration.StagingDirectory / TEXT("PatchData"))
 		, InstallStagingDir(Configuration.StagingDirectory / TEXT("Install"))
+		, MetaStagingDir(Configuration.StagingDirectory / TEXT("Meta"))
 		, PreviousMoveMarker(Configuration.InstallDirectory / TEXT("$movedMarker"))
 		, ThreadLock()
 		, bSuccess(false)
@@ -653,33 +654,34 @@ namespace BuildPatchServices
 
 		// do the delta optimization
 		FOptimisedDeltaDependencies OptimisedDeltaDependencies = InstallerHelpers::BuildOptimisedDeltaDependencies(DownloadService);
-		typedef TTuple<FBuildPatchInstallerAction&, TUniquePtr<IOptimisedDelta>> FManifestInfoDeltaPair;
+		typedef TTuple<FBuildPatchInstallerAction&, IOptimisedDelta*> FManifestInfoDeltaPair;
 		TArray<FManifestInfoDeltaPair> RunningOptimisedDeltas;
 		for (FBuildPatchInstallerAction& InstallerAction : InstallerActions)
 		{
 			if (InstallerAction.IsUpdate())
 			{
-				RunningOptimisedDeltas.Add(FManifestInfoDeltaPair{ InstallerAction, FOptimisedDeltaFactory::Create(ConfigHelpers::BuildOptimisedDeltaConfig(Configuration, InstallerAction), OptimisedDeltaDependencies) });
+				IOptimisedDelta* OptimisedDelta = FOptimisedDeltaFactory::Create(ConfigHelpers::BuildOptimisedDeltaConfig(Configuration, InstallerAction), OptimisedDeltaDependencies);
+				OptimisedDeltas.Add(TUniquePtr<IOptimisedDelta>(OptimisedDelta));
+				RunningOptimisedDeltas.Add(FManifestInfoDeltaPair{ InstallerAction, OptimisedDelta });
 			}
 		}
 		for (FManifestInfoDeltaPair& RunningOptimisedDelta : RunningOptimisedDeltas)
 		{
 			FBuildPatchInstallerAction& InstallerAction = RunningOptimisedDelta.Get<0>();
-			const TUniquePtr<IOptimisedDelta>& OptimisedDelta = RunningOptimisedDelta.Get<1>();
-
-			FBuildPatchAppManifestPtr DestinationManifest(OptimisedDelta->GetDestinationManifest());
+			IOptimisedDelta* const OptimisedDelta = RunningOptimisedDelta.Get<1>();
+			const IOptimisedDelta::FResultValueOrError& OptimisedDeltaResult = OptimisedDelta->GetResult();
 			PreviousTotalDownloadRequired.Add(OptimisedDelta->GetMetaDownloadSize());
 			// The OptimiseDelta class handles policy, so if we get a nullptr back, that is a hard error.
-			if (!DestinationManifest.IsValid())
+			if (!OptimisedDeltaResult.IsValid())
 			{
 				UE_LOG(LogBuildPatchServices, Error, TEXT("Installer setup: Destination manifest could not be obtained."));
-				InstallerError->SetError(EBuildPatchInstallError::DownloadError, DownloadErrorCodes::MissingDestinationManifest);
+				InstallerError->SetError(EBuildPatchInstallError::DownloadError, *OptimisedDeltaResult.GetError());
 				bInstallerInitSuccess = false;
 				break;
 			}
 			else
 			{
-				InstallerAction.SetDeltaManifest(DestinationManifest.ToSharedRef());
+				InstallerAction.SetDeltaManifest(OptimisedDeltaResult.GetValue().ToSharedRef());
 			}
 		}
 
@@ -786,7 +788,6 @@ namespace BuildPatchServices
 					{
 						UE_LOG(LogBuildPatchServices, Log, TEXT("Deleting litter from staging area."));
 						IFileManager::Get().DeleteDirectory(*DataStagingDir, false, true);
-						IFileManager::Get().Delete(*(InstallStagingDir / TEXT("$resumeData")), false, true);
 					}
 					else
 					{
@@ -1081,10 +1082,12 @@ namespace BuildPatchServices
 		// Save the staging directories
 		FPaths::NormalizeDirectoryName(DataStagingDir);
 		FPaths::NormalizeDirectoryName(InstallStagingDir);
+		FPaths::NormalizeDirectoryName(MetaStagingDir);
 
 		// Make sure staging directories exist
 		IFileManager::Get().MakeDirectory(*DataStagingDir, true);
 		IFileManager::Get().MakeDirectory(*InstallStagingDir, true);
+		IFileManager::Get().MakeDirectory(*MetaStagingDir, true);
 
 		// Reset our error and build progress
 		InstallerError.Reset(FInstallerErrorFactory::Create());
@@ -1274,6 +1277,7 @@ namespace BuildPatchServices
 					ManifestSet.Get(),
 					Configuration.InstallDirectory,
 					InstallStagingDir,
+					MetaStagingDir,
 					FilesToConstruct.Array(),
 					Configuration.InstallMode}),
 				FileSystem.Get(),

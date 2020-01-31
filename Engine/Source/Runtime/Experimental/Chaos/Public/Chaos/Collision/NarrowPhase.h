@@ -7,36 +7,40 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "ChaosStats.h"
 
 namespace Chaos
 {
+#define CHAOS_ENABLE_STAT_NARROWPHASE 0
+#if CHAOS_ENABLE_STAT_NARROWPHASE
+	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::NarrowPhase"), STAT_Collisions_NarrowPhase, STATGROUP_ChaosCollision, CHAOS_API);
+	#define SCOPE_CYCLE_COUNTER_NAROWPHASE() SCOPE_CYCLE_COUNTER(STAT_Collisions_GJK)
+#else
+	#define SCOPE_CYCLE_COUNTER_NAROWPHASE()
+#endif
+
+	class FCollisionContext;
+
 	/**
-	 * Generate contact manifolds for particle pairs and pass them on to the consumer. Can be composed with a
-	 * multi-threaded BroadPhase as long as the collisions receiver type can handle multi-threaded calls to ReceiveCollisions.
+	 * Generate contact manifolds for particle pairs.
 	 *
-	 * /template T_RECEIVER The object type that will take the detected collisions. Generally this will depend on the type of BroadPhase.
 	 * /see FAsyncCollisionReceiver, FSyncCollisionReceiver.
 	 */
 	class CHAOS_API FNarrowPhase
 	{
 	public:
-		using FCollisionConstraintsArray = TArray<TCollisionConstraintBase<FReal, 3>*>;
-
-		// @todo(ccaulfield): COLLISION Transient Handle version
-		template<typename T_RECEIVER>
-		void GenerateCollisions(FReal Dt, T_RECEIVER& Receiver, TGeometryParticleHandle<FReal, 3>* Particle1, TGeometryParticleHandle<FReal, 3>* Particle2, const FReal BoundsThickness, CollisionStats::FStatData& StatData)
+		FNarrowPhase(const FCollisionContext& InContext)
+			: Context(InContext)
 		{
-			// @todo(ccaulfield): COLLISION - Thickness: add shape padding (BoundsThickness is the distance within which we speculatively create constraints)
-
-			FCollisionConstraintsArray NewConstraints;
-			ConstructConstraints(Particle1, Particle2, BoundsThickness, NewConstraints, StatData);
-
-			Receiver.ReceiveCollisions(NewConstraints);
 		}
 
-	private:
-		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FReal Thickness, FCollisionConstraintsArray& NewConstraints, CollisionStats::FStatData& StatData)
+		// @todo(chaos): COLLISION Transient Handle version
+		/**
+		 * /param CullDistance The contact separation at which we ignore the constraint
+		 */
+		void GenerateCollisions(FCollisionConstraintsArray& NewConstraints, FReal Dt, TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FReal CullDistance, CollisionStats::FStatData& StatData)
 		{
+			SCOPE_CYCLE_COUNTER_NAROWPHASE();
 			if (ensure(Particle0 && Particle1))
 			{
 				//
@@ -46,11 +50,14 @@ namespace Chaos
 				//   determine if the constraint is already defined, and then opt out of 
 				//   the creation process. 
 				//
-				Collisions::ConstructConstraints<FReal, 3>(Particle0, Particle1, Particle0->Geometry().Get(), Particle1->Geometry().Get(), Collisions::GetTransform(Particle0), Collisions::GetTransform(Particle1), Thickness, NewConstraints);
+				Collisions::ConstructConstraints<FReal, 3>(Particle0, Particle1, Particle0->Geometry().Get(), Particle1->Geometry().Get(), Collisions::GetTransform(Particle0), Collisions::GetTransform(Particle1), CullDistance, Context, NewConstraints);
 
 				CHAOS_COLLISION_STAT(if (NewConstraints.Num()) { StatData.IncrementCountNP(NewConstraints.Num()); });
 				CHAOS_COLLISION_STAT(if (!NewConstraints.Num()) { StatData.IncrementRejectedNP(); });
 			}
 		}
+
+	private:
+		const FCollisionContext& Context;
 	};
 }

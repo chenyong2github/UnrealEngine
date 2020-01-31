@@ -425,10 +425,11 @@ void FUniformExpressionSet::CreateBufferStruct()
 
 	const uint32 StructSize = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
 	UniformBufferStruct.Emplace(
-		FShaderParametersMetadata::EUseCase::DataDrivenShaderParameterStruct,
+		FShaderParametersMetadata::EUseCase::DataDrivenUniformBuffer,
 		MaterialLayoutName,
 		TEXT("MaterialUniforms"),
 		TEXT("Material"),
+		nullptr,
 		StructSize,
 		Members);
 }
@@ -956,6 +957,91 @@ uint32 FUniformExpressionSet::GetReferencedTexture2DRHIHash(const FMaterialRende
 	}
 
 	return BaseHash;
+}
+
+/** Converts an arbitrary number into a safe divisor. i.e. FMath::Abs(Number) >= DELTA */
+static float GetSafeDivisor(float Number)
+{
+	if (FMath::Abs(Number) < DELTA)
+	{
+		if (Number < 0.0f)
+		{
+			return -DELTA;
+		}
+		else
+		{
+			return +DELTA;
+		}
+	}
+	else
+	{
+		return Number;
+	}
+}
+
+/**
+ * FORCENOINLINE is required to discourage compiler from vectorizing the Div operation, which may tempt it into optimizing divide as A * rcp(B)
+ * This will break shaders that are depending on exact divide results (see SubUV material function)
+ * Technically this could still happen for a scalar divide, but it doesn't seem to occur in practice
+ */
+FORCENOINLINE static float DivideComponent(float A, float B)
+{
+	return A / GetSafeDivisor(B);
+}
+
+void FMaterialUniformExpressionFoldedMath::GetNumberValue(const FMaterialRenderContext& Context, FLinearColor& OutValue) const
+{
+	FLinearColor ValueA = FLinearColor::Black;
+	FLinearColor ValueB = FLinearColor::Black;
+	A->GetNumberValue(Context, ValueA);
+	B->GetNumberValue(Context, ValueB);
+
+	switch (Op)
+	{
+	case FMO_Add: OutValue = ValueA + ValueB; break;
+	case FMO_Sub: OutValue = ValueA - ValueB; break;
+	case FMO_Mul: OutValue = ValueA * ValueB; break;
+	case FMO_Div:
+		OutValue.R = DivideComponent(ValueA.R, ValueB.R);
+		OutValue.G = DivideComponent(ValueA.G, ValueB.G);
+		OutValue.B = DivideComponent(ValueA.B, ValueB.B);
+		OutValue.A = DivideComponent(ValueA.A, ValueB.A);
+		break;
+	case FMO_Dot:
+	{
+		check(ValueType & MCT_Float);
+		float DotProduct = ValueA.R * ValueB.R;
+		DotProduct += (ValueType >= MCT_Float2) ? ValueA.G * ValueB.G : 0;
+		DotProduct += (ValueType >= MCT_Float3) ? ValueA.B * ValueB.B : 0;
+		DotProduct += (ValueType >= MCT_Float4) ? ValueA.A * ValueB.A : 0;
+		OutValue.R = OutValue.G = OutValue.B = OutValue.A = DotProduct;
+	}
+	break;
+	case FMO_Cross:
+	{
+		// Must be Float3, replicate CoerceParameter behavior
+		switch (ValueType)
+		{
+		case MCT_Float:
+			ValueA.B = ValueA.G = ValueA.R;
+			ValueB.B = ValueB.G = ValueB.R;
+			break;
+		case MCT_Float1:
+			ValueA.B = ValueA.G = 0.f;
+			ValueB.B = ValueB.G = 0.f;
+			break;
+		case MCT_Float2:
+			ValueA.B = 0.f;
+			ValueB.B = 0.f;
+			break;
+		};
+		FVector Cross = FVector::CrossProduct(FVector(ValueA), FVector(ValueB));
+		OutValue.R = Cross.X; OutValue.G = Cross.Y; OutValue.B = Cross.Z;
+		OutValue.A = 0.f;
+	}
+	break;
+	default: UE_LOG(LogMaterial, Fatal, TEXT("Unknown folded math operation: %08x"), (int32)Op);
+	};
 }
 
 FMaterialUniformExpressionTexture::FMaterialUniformExpressionTexture() :

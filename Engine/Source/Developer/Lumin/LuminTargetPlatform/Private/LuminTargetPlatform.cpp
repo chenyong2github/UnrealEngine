@@ -179,7 +179,6 @@ void FLuminTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormat
 	// @todo Lumin: re-use Android version? Make sure Android has VULKAN_SM5
 	static FName NAME_GLSL_ES2(TEXT("GLSL_ES2"));
 //	static FName NAME_GLSL_310_ES_EXT(TEXT("GLSL_310_ES_EXT"));
-//	static FName NAME_GLSL_SM4(TEXT("GLSL_150"));
 	static FName NAME_GLSL_SM5(TEXT("GLSL_430"));
 	static FName NAME_VULKAN_SM5_LUMIN(TEXT("SF_VULKAN_SM5_LUMIN"));
 	static FName NAME_VULKAN_SM5_LUMIN_NOUB(TEXT("SF_VULKAN_SM5_LUMIN_NOUB"));

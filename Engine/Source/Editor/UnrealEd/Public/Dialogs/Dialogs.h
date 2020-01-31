@@ -199,7 +199,7 @@ public:
 		MyWindow = InWindow;
 	}
 
-	UNREALED_API static void OpenDialog(const FText& InDialogTitle, const TSharedRef< SWidget >& DisplayContent, const FArguments& InArgs = FArguments());
+	UNREALED_API static void OpenDialog(const FText& InDialogTitle, const TSharedRef< SWidget >& DisplayContent, const FArguments& InArgs = FArguments(), bool bAsModalDialog = false);
 
 private:
 	FReply OnOK_Clicked(void);

@@ -220,7 +220,7 @@ public:
 		OutUAVs[3] = GGlobalDistanceFieldCulledObjectBuffers.Buffers.BoxBounds.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 
-		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 
 		extern float GAOConeHalfAngle;
 		const float GlobalMaxSphereQueryRadius = MaxOcclusionDistance / (1 + FMath::Tan(GAOConeHalfAngle));
@@ -398,7 +398,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		CulledObjectBufferParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		CulledObjectBufferParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 		GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, GlobalDistanceFieldInfo.ParameterData);
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, GObjectGridBuffers.CullGridObjectNum.UAV);
@@ -544,7 +544,7 @@ public:
 		AtlasSizeY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
 		AtlasSizeZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
 
-		CulledObjectBufferParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, AtlasSizeX, AtlasSizeY, AtlasSizeZ);
+		CulledObjectBufferParameters.Set(RHICmdList, ShaderRHI, GGlobalDistanceFieldCulledObjectBuffers.Buffers, TextureAtlas, FIntVector(AtlasSizeX, AtlasSizeY, AtlasSizeZ));
 		GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, ParameterData);
 
 		const FSceneRenderTargetItem& ClipMapRTI = Clipmap.RenderTarget->GetRenderTargetItem();
@@ -1465,7 +1465,8 @@ void UpdateGlobalDistanceFieldVolume(
 
 								// Cull the global objects to the volume being updated
 								{
-									ClearUAV(RHICmdList, GGlobalDistanceFieldCulledObjectBuffers.Buffers.ObjectIndirectArguments, 0);
+									RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, GGlobalDistanceFieldCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV);
+									RHICmdList.ClearUAVUint(GGlobalDistanceFieldCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, FUintVector4(0, 0, 0, 0));
 
 									TShaderMapRef<FCullObjectsForVolumeCS> ComputeShader(View.ShaderMap);
 									RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());

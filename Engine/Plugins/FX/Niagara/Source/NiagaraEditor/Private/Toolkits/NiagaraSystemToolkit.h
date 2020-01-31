@@ -14,6 +14,7 @@
 #include "ISequencerTrackEditor.h"
 
 #include "NiagaraScript.h"
+#include "ContentBrowserDelegates.h"
 
 class FNiagaraSystemInstance;
 class FNiagaraSystemViewModel;
@@ -71,6 +72,9 @@ public:
 
 	TSharedPtr<FNiagaraSystemViewModel> GetSystemViewModel();
 
+public:
+	FRefreshAssetViewDelegate RefreshAssetView;
+
 protected:
 	void OnToggleBounds();
 	bool IsToggleBoundsChecked() const;
@@ -112,6 +116,11 @@ private:
 
 	void GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder, TSharedRef<ISequencer> Sequencer);
 	TSharedRef<SWidget> CreateAddEmitterMenuContent();
+	void LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox);
+	ECheckBoxState GetLibraryCheckBoxState() const;
+	void TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox);
+	ECheckBoxState GetTemplateCheckBoxState() const;
+	bool ShouldFilterEmitter(const FAssetData& AssetData);
 	TSharedRef<SWidget> GenerateCompileMenuContent();
 
 	void EmitterAssetSelected(const FAssetData& AssetData);
@@ -179,4 +188,7 @@ private:
 	static const FName GeneratedCodeTabID;
 	static const FName MessageLogTabID;
 	static const FName SystemOverviewTabID;
+
+	static bool bShowLibraryOnly;
+	static bool bShowTemplateOnly;
 };

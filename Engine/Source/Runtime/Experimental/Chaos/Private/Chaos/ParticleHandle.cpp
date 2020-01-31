@@ -5,9 +5,68 @@
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
+#include "Chaos/CastingUtilities.h"
 
 namespace Chaos
 {
+	template <typename T, int d>
+	void Chaos::TGeometryParticle<T, d>::MapImplicitShapes()
+	{
+		ImplicitShapeMap.Reset();
+
+		for (int32 ShapeIndex = 0; ShapeIndex < MShapesArray.Num(); ++ ShapeIndex)
+		{
+			const FImplicitObject* ImplicitObject = MShapesArray[ShapeIndex]->Geometry.Get();
+			ImplicitShapeMap.Add(ImplicitObject, ShapeIndex);
+
+			const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject);
+			if (ImplicitChildObject != ImplicitObject)
+			{
+				ImplicitShapeMap.Add(ImplicitChildObject, ShapeIndex);
+			}
+		}
+
+		if (MGeometry)
+		{
+			int32 CurrentShapeIndex = INDEX_NONE;
+			if (const auto* Union = MGeometry->template GetObject<FImplicitObjectUnion>())
+			{
+				for (const TUniquePtr<FImplicitObject>& ImplicitObject : Union->GetObjects())
+				{
+					if (ImplicitObject.Get())
+					{
+						if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject.Get()))
+						{
+							if (ImplicitShapeMap.Contains(ImplicitObject.Get()))
+							{
+								ImplicitShapeMap.Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[ImplicitObject.Get()]));
+							}
+							else if (ImplicitShapeMap.Contains(ImplicitChildObject))
+							{
+								ImplicitShapeMap.Add(ImplicitObject.Get(), CopyTemp(ImplicitShapeMap[ImplicitChildObject]));
+							}
+						}
+					}
+				}
+			}
+			else 
+			{
+				if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(MGeometry.Get()))
+				{
+					if (ImplicitShapeMap.Contains(MGeometry.Get()))
+					{
+						ImplicitShapeMap.Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[MGeometry.Get()]));
+					}
+					else if (ImplicitShapeMap.Contains(ImplicitChildObject))
+					{
+						ImplicitShapeMap.Add(MGeometry.Get(), CopyTemp(ImplicitShapeMap[ImplicitChildObject]));
+					}
+				}
+			}
+		}
+	}
+
+
 
 	template class CHAOS_API TGeometryParticleData<float, 3>;
 	template class CHAOS_API TGeometryParticle<float, 3>;

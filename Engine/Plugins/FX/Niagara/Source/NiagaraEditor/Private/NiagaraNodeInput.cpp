@@ -20,7 +20,7 @@ DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - UNiagaraNodeInput - SortNodes"), STAT_N
 
 UNiagaraNodeInput::UNiagaraNodeInput(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, Usage(ENiagaraInputNodeUsage::Undefined)
+	, Usage(ENiagaraInputNodeUsage::Parameter)
 	, CallSortPriority(0)
 	, DataInterface(nullptr)
 {

@@ -332,9 +332,7 @@ bool AggressiveDCEPass::AggressiveDCE(Function* func) {
   call_in_func_ = false;
   func_is_entry_point_ = false;
   private_stores_.clear();
-  /* UE Change Begin: Track function-variable stores to handle intrinsics that use such variables as operands but DCE only considers the declaration of the variable. */
   function_stores_.clear();
-  /* UE Change End: Track function-variable stores to handle intrinsics that use such variables as operands but DCE only considers the declaration of the variable. */
   // Stacks to keep track of when we are inside an if- or loop-construct.
   // When immediately inside an if- or loop-construct, we do not initially
   // mark branches live. All other branches must be marked live.
@@ -362,11 +360,9 @@ bool AggressiveDCEPass::AggressiveDCE(Function* func) {
           if (IsVarOfStorage(varId, SpvStorageClassPrivate) ||
               IsVarOfStorage(varId, SpvStorageClassWorkgroup))
             private_stores_.push_back(&*ii);
-          /* UE Change Begin: Track function-variable stores to handle intrinsics that use such variables as operands but DCE only considers the declaration of the variable. */
           else if (IsVarOfStorage(varId, SpvStorageClassFunction))
-			function_stores_[varId] = &*ii;
-		  else
-          /* UE Change End: Track function-variable stores to handle intrinsics that use such variables as operands but DCE only considers the declaration of the variable. */
+            function_stores_[varId] = &*ii;
+          else
             AddToWorklist(&*ii);
         } break;
         case SpvOpCopyMemory:
@@ -430,15 +426,15 @@ bool AggressiveDCEPass::AggressiveDCE(Function* func) {
     // Add all operand instructions if not already live
     liveInst->ForEachInId([&liveInst, this](const uint32_t* iid) {
       Instruction* inInst = get_def_use_mgr()->GetDef(*iid);
-      /* UE Change Begin: Track function-variable stores to handle intrinsics that use such variables as operands but DCE only considers the declaration of the variable. */
+      // Track function-variable stores to handle intrinsics that use
+      // such variables as operands.
       SpvOp op = inInst->opcode();
       if (op == SpvOpVariable) {
         auto it = function_stores_.find(*iid);
-		if (it != function_stores_.end()) {
-		  AddToWorklist(it->second);
-		}
-	  }
-      /* UE Change End: Track function-variable stores to handle intrinsics that use such variables as operands but DCE only considers the declaration of the variable. */
+        if (it != function_stores_.end()) {
+          AddToWorklist(it->second);
+        }
+      }
       // Do not add label if an operand of a branch. This is not needed
       // as part of live code discovery and can create false live code,
       // for example, the branch to a header of a loop.
@@ -506,6 +502,28 @@ bool AggressiveDCEPass::AggressiveDCE(Function* func) {
         ProcessLoad(varId);
       }
     }
+
+    // Add OpDecorateId instructions that apply to this instruction to the work
+    // list.  We use the decoration manager to look through the group
+    // decorations to get to the OpDecorate* instructions themselves.
+    auto decorations =
+        get_decoration_mgr()->GetDecorationsFor(liveInst->result_id(), false);
+    for (Instruction* dec : decorations) {
+      // We only care about OpDecorateId instructions because the are the only
+      // decorations that will reference an id that will have to be kept live
+      // because of that use.
+      if (dec->opcode() != SpvOpDecorateId) {
+        continue;
+      }
+      if (dec->GetSingleWordInOperand(1) ==
+          SpvDecorationHlslCounterBufferGOOGLE) {
+        // These decorations should not force the use id to be live.  It will be
+        // removed if either the target or the in operand are dead.
+        continue;
+      }
+      AddToWorklist(dec);
+    }
+
     worklist_.pop();
   }
 
@@ -586,12 +604,27 @@ void AggressiveDCEPass::InitializeModuleScopeLiveInstructions() {
       AddToWorklist(&entry);
     }
   }
-  // Keep workgroup size.
   for (auto& anno : get_module()->annotations()) {
     if (anno.opcode() == SpvOpDecorate) {
+      // Keep workgroup size.
       if (anno.GetSingleWordInOperand(1u) == SpvDecorationBuiltIn &&
           anno.GetSingleWordInOperand(2u) == SpvBuiltInWorkgroupSize) {
         AddToWorklist(&anno);
+      }
+
+      if (context()->preserve_bindings()) {
+        // Keep all bindings.
+        if ((anno.GetSingleWordInOperand(1u) == SpvDecorationDescriptorSet) ||
+            (anno.GetSingleWordInOperand(1u) == SpvDecorationBinding)) {
+          AddToWorklist(&anno);
+        }
+      }
+
+      if (context()->preserve_spec_constants()) {
+        // Keep all specialization constant instructions
+        if (anno.GetSingleWordInOperand(1u) == SpvDecorationSpecId) {
+          AddToWorklist(&anno);
+        }
       }
     }
   }
@@ -619,14 +652,6 @@ Pass::Status AggressiveDCEPass::ProcessImpl() {
   // return unmodified.
   if (!AllExtensionsSupported()) return Status::SuccessWithoutChange;
 
-  // If the decoration manager is kept live then the context will try to keep it
-  // up to date.  ADCE deals with group decorations by changing the operands in
-  // |OpGroupDecorate| instruction directly without informing the decoration
-  // manager.  This can put it in an invalid state which will cause an error
-  // when the context tries to update it.  To avoid this problem invalidate
-  // the decoration manager upfront.
-  context()->InvalidateAnalyses(IRContext::Analysis::kAnalysisDecorations);
-
   // Eliminate Dead functions.
   bool modified = EliminateDeadFunctions();
 
@@ -636,9 +661,23 @@ Pass::Status AggressiveDCEPass::ProcessImpl() {
   ProcessFunction pfn = [this](Function* fp) { return AggressiveDCE(fp); };
   modified |= context()->ProcessEntryPointCallTree(pfn);
 
+  // If the decoration manager is kept live then the context will try to keep it
+  // up to date.  ADCE deals with group decorations by changing the operands in
+  // |OpGroupDecorate| instruction directly without informing the decoration
+  // manager.  This can put it in an invalid state which will cause an error
+  // when the context tries to update it.  To avoid this problem invalidate
+  // the decoration manager upfront.
+  //
+  // We kill it at now because it is used when processing the entry point
+  // functions.
+  context()->InvalidateAnalyses(IRContext::Analysis::kAnalysisDecorations);
+
   // Process module-level instructions. Now that all live instructions have
   // been marked, it is safe to remove dead global values.
   modified |= ProcessGlobalValues();
+
+  // Sanity check.
+  assert(to_kill_.size() == 0 || modified);
 
   // Kill all dead instructions.
   for (auto inst : to_kill_) {
@@ -733,7 +772,7 @@ bool AggressiveDCEPass::ProcessGlobalValues() {
             uint32_t counter_buffer_id = annotation->GetSingleWordInOperand(2);
             Instruction* counter_buffer_inst =
                 get_def_use_mgr()->GetDef(counter_buffer_id);
-            if (counter_buffer_inst && IsDead(counter_buffer_inst)) {
+            if (IsDead(counter_buffer_inst)) {
               context()->KillInst(annotation);
               modified = true;
             }
@@ -812,7 +851,17 @@ bool AggressiveDCEPass::ProcessGlobalValues() {
   // attributes here.
   for (auto& val : get_module()->types_values()) {
     if (IsDead(&val)) {
+      // Save forwarded pointer if pointer is live since closure does not mark
+      // this live as it does not have a result id. This is a little too
+      // conservative since it is not known if the structure type that needed
+      // it is still live. TODO(greg-lunarg): Only save if needed.
+      if (val.opcode() == SpvOpTypeForwardPointer) {
+        uint32_t ptr_ty_id = val.GetSingleWordInOperand(0);
+        Instruction* ptr_ty_inst = get_def_use_mgr()->GetDef(ptr_ty_id);
+        if (!IsDead(ptr_ty_inst)) continue;
+      }
       to_kill_.push_back(&val);
+      modified = true;
     }
   }
 
@@ -884,6 +933,7 @@ void AggressiveDCEPass::InitExtensions() {
       "SPV_AMD_gpu_shader_half_float_fetch",
       "SPV_GOOGLE_decorate_string",
       "SPV_GOOGLE_hlsl_functionality1",
+      "SPV_GOOGLE_user_type",
       "SPV_NV_shader_subgroup_partitioned",
       "SPV_EXT_descriptor_indexing",
       "SPV_NV_fragment_shader_barycentric",
@@ -893,6 +943,7 @@ void AggressiveDCEPass::InitExtensions() {
       "SPV_NV_mesh_shader",
       "SPV_NV_ray_tracing",
       "SPV_EXT_fragment_invocation_density",
+      "SPV_EXT_physical_storage_buffer",
   });
 }
 

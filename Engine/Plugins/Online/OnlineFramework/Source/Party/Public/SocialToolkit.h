@@ -38,7 +38,7 @@ class PARTY_API USocialToolkit : public UObject
 
 public:
 	template <typename ToolkitT = USocialToolkit>
-	static ToolkitT* GetToolkitForPlayer(ULocalPlayer* LocalPlayer)
+	static ToolkitT* GetToolkitForPlayer(const ULocalPlayer* LocalPlayer)
 	{
 		static_assert(TIsDerivedFrom<ToolkitT, USocialToolkit>::IsDerived, "GetToolkitForPlayer only supports getting USocialToolkit type objects");
 		return Cast<ToolkitT>(GetToolkitForPlayerInternal(LocalPlayer));
@@ -107,6 +107,9 @@ public:
 	DECLARE_EVENT_OneParam(USocialToolkit, FOnKnownUserInitialized, USocialUser&);
 	FOnKnownUserInitialized& OnKnownUserInitialized() { return OnKnownUserInitializedEvent; }
 
+	DECLARE_EVENT_OneParam(USocialToolkit, FOnSocialUserInvalidated, const USocialUser&);
+	FOnSocialUserInvalidated& OnSocialUserInvalidated() { return OnSocialUserInvalidatedEvent; }
+
 	DECLARE_EVENT(USocialToolkit, FBasicToolkitEvent);
 	FBasicToolkitEvent& OnToolkitReset() const { return OnToolkitResetEvent; }
 
@@ -122,7 +125,7 @@ PARTY_SCOPE:
 
 	bool AcceptFriendInvite(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
-	void HandleUserInvalidated(USocialUser* InvalidUser);
+	void HandleUserInvalidated(USocialUser& InvalidUser);
 
 #if PLATFORM_PS4
 	void NotifyPSNFriendsListRebuilt();
@@ -235,8 +238,8 @@ private:	// Handlers
 #endif
 
 private:
-	static USocialToolkit* GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer);
-	static TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
+	static USocialToolkit* GetToolkitForPlayerInternal(const ULocalPlayer* LocalPlayer);
+	static TMap<TWeakObjectPtr<const ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
 
 	UPROPERTY()
 	USocialUser* LocalUser;
@@ -263,5 +266,6 @@ private:
 	mutable FOnRelationshipEstablished OnRecentPlayerAddedEvent;
 	
 	mutable FOnKnownUserInitialized OnKnownUserInitializedEvent;
+	mutable FOnSocialUserInvalidated OnSocialUserInvalidatedEvent;
 	mutable FBasicToolkitEvent OnToolkitResetEvent;
 };

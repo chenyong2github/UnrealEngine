@@ -32,13 +32,16 @@ namespace Chaos
 	class TPerShapeData;
 
 	class FPhysicalMaterial;
+	class FPhysicalMaterialMask;
 
 	template<typename, uint32, uint32>
 	class THandle;
 
 	struct FMaterialHandle;
+	struct FMaterialMaskHandle;
 
 	class FChaosPhysicsMaterial;
+	class FChaosPhysicsMaterialMask;
 }
 
 // Temporary dummy types until SQ implemented
@@ -68,6 +71,7 @@ using FPhysicsShape = Chaos::TPerShapeData<float, 3>;
 using FPhysicsGeometry = Chaos::FImplicitObject;
 using FPhysicsCapsuleGeometry = Chaos::TCapsule<float>;
 using FPhysicsMaterial = Chaos::FChaosPhysicsMaterial;
+using FPhysicsMaterialMask = Chaos::FChaosPhysicsMaterialMask; 
 using FPhysicsActor = Chaos::TGeometryParticle<float,3>;
 
 template <typename T>
@@ -216,6 +220,7 @@ typedef FPhysInterface_Chaos				FPhysicsCommand;
 typedef FPhysicsShapeReference_Chaos		FPhysicsShapeHandle;
 typedef FPhysicsGeometryCollection_Chaos	FPhysicsGeometryCollection;
 typedef Chaos::FMaterialHandle				FPhysicsMaterialHandle;
+typedef Chaos::FMaterialMaskHandle			FPhysicsMaterialMaskHandle;
 typedef FPhysicsShapeAdapter_Chaos			FPhysicsShapeAdapter;
 typedef FPhysicsUserData_Chaos				FPhysicsUserData;
 

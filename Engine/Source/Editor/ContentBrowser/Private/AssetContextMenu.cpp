@@ -173,12 +173,31 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(const TArray<FAssetData>&
 			}
 			ContextObject->CommonClass = CommonClass;
 
+			ContextObject->bCanBeModified = true;
+
+			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+			const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+			if (WritableFolderFilter->HasFiltering())
+			{
+				for (const UObject* SelectedObject : SelectedObjects)
+				{
+					if (SelectedObject)
+					{
+						UPackage* SelectedObjectPackage = SelectedObject->GetOutermost();
+						if (SelectedObjectPackage && !WritableFolderFilter->PassesStartsWithFilter(SelectedObjectPackage->GetFName()))
+						{
+							ContextObject->bCanBeModified = false;
+							break;
+						}
+					}
+				}
+			}
+
 			MenuName = UToolMenus::JoinMenuPaths(BaseMenuName, CommonClass->GetFName());
 
 			RegisterMenuHierarchy(CommonClass);
 
 			// Find asset actions for common class
-			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 			TSharedPtr<IAssetTypeActions> CommonAssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(ContextObject->CommonClass).Pin();
 			if (CommonAssetTypeActions.IsValid() && CommonAssetTypeActions->HasActions(SelectedObjects))
 			{
@@ -272,7 +291,10 @@ void FAssetContextMenu::AddMenuOptions(UToolMenu* InMenu)
 	AddAssetTypeMenuOptions(InMenu, Context->SelectedObjects.Num() > 0);
 
 	// Add imported asset context menu options
-	AddImportedAssetMenuOptions(InMenu);
+	if (Context->bCanBeModified)
+	{
+		AddImportedAssetMenuOptions(InMenu);
+	}
 
 	// Add quick access to common commands.
 	AddCommonMenuOptions(InMenu);
@@ -283,17 +305,20 @@ void FAssetContextMenu::AddMenuOptions(UToolMenu* InMenu)
 	// Add reference options
 	AddReferenceMenuOptions(InMenu);
 
-	// Add copy full path options
-	AddCopyFilePathMenuOptions(InMenu);
-
 	// Add collection options
-	AddCollectionMenuOptions(InMenu);
+	if (Context->bCanBeModified)
+	{
+		AddCollectionMenuOptions(InMenu);
+	}
 
 	// Add documentation options
 	AddDocumentationMenuOptions(InMenu);
 
 	// Add source control options
-	AddSourceControlMenuOptions(InMenu);
+	if (Context->bCanBeModified)
+	{
+		AddSourceControlMenuOptions(InMenu);
+	}
 }
 
 void FAssetContextMenu::SetSelectedAssets(const TArray<FAssetData>& InSelectedAssets)
@@ -418,7 +443,7 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteReimport, (int32)INDEX_NONE),
-						FCanExecuteAction()
+						FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteReimportAssetActions, ResolvedFilePaths)
 					)
 				);
 				if (ValidSelectedAssetCount == 1)
@@ -431,7 +456,7 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 						FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
 						FUIAction(
 							FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteReimportWithNewFile, (int32)INDEX_NONE),
-							FCanExecuteAction()
+							FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteReimportAssetActions, ResolvedFilePaths)
 						)
 					);
 				}
@@ -474,48 +499,57 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 	int32 NumAssetItems, NumClassItems;
 	ContentBrowserUtils::CountItemTypes(SelectedAssets, NumAssetItems, NumClassItems);
 
+	UContentBrowserAssetContextMenuContext* Context = Menu->FindContext<UContentBrowserAssetContextMenuContext>();
+	const bool bCanBeModified = !Context || Context->bCanBeModified;
+
 	{
 		FToolMenuSection& Section = Menu->AddSection("CommonAssetActions", LOCTEXT("CommonAssetActionsMenuHeading", "Common"));
 
 		// Edit
-		Section.AddMenuEntry(
-			"EditAsset",
-			LOCTEXT("EditAsset", "Edit..."),
-			LOCTEXT("EditAssetTooltip", "Opens the selected asset(s) for edit."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit"),
-			FUIAction( FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteEditAsset) )
+		if (bCanBeModified)
+		{
+			Section.AddMenuEntry(
+				"EditAsset",
+				LOCTEXT("EditAsset", "Edit..."),
+				LOCTEXT("EditAssetTooltip", "Opens the selected asset(s) for edit."),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit"),
+				FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteEditAsset))
 			);
+		}
 	
 		// Only add these options if assets are selected
 		if (NumAssetItems > 0)
 		{
-			// Rename
-			Section.AddMenuEntry(FGenericCommands::Get().Rename,
-				LOCTEXT("Rename", "Rename"),
-				LOCTEXT("RenameTooltip", "Rename the selected asset."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Rename")
+			if (bCanBeModified)
+			{
+				// Rename
+				Section.AddMenuEntry(FGenericCommands::Get().Rename,
+					LOCTEXT("Rename", "Rename"),
+					LOCTEXT("RenameTooltip", "Rename the selected asset."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Rename")
 				);
 
-			// Duplicate
-			Section.AddMenuEntry(FGenericCommands::Get().Duplicate,
-				LOCTEXT("Duplicate", "Duplicate"),
-				LOCTEXT("DuplicateTooltip", "Create a copy of the selected asset(s)."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Duplicate")
+				// Duplicate
+				Section.AddMenuEntry(FGenericCommands::Get().Duplicate,
+					LOCTEXT("Duplicate", "Duplicate"),
+					LOCTEXT("DuplicateTooltip", "Create a copy of the selected asset(s)."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Duplicate")
 				);
 
-			// Save
-			Section.AddMenuEntry(FContentBrowserCommands::Get().SaveSelectedAsset,
-				LOCTEXT("SaveAsset", "Save"),
-				LOCTEXT("SaveAssetTooltip", "Saves the asset to file."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.SaveIcon16x")
+				// Save
+				Section.AddMenuEntry(FContentBrowserCommands::Get().SaveSelectedAsset,
+					LOCTEXT("SaveAsset", "Save"),
+					LOCTEXT("SaveAssetTooltip", "Saves the asset to file."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "Level.SaveIcon16x")
 				);
 
-			// Delete
-			Section.AddMenuEntry(FGenericCommands::Get().Delete,
-				LOCTEXT("Delete", "Delete"),
-				LOCTEXT("DeleteTooltip", "Delete the selected assets."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete")
+				// Delete
+				Section.AddMenuEntry(FGenericCommands::Get().Delete,
+					LOCTEXT("Delete", "Delete"),
+					LOCTEXT("DeleteTooltip", "Delete the selected assets."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete")
 				);
+			}
 
 			// Asset Actions sub-menu
 			Section.AddSubMenu(
@@ -532,7 +566,7 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions")
 				);
 
-			if (NumClassItems == 0)
+			if (NumClassItems == 0 && bCanBeModified)
 			{
 				// Asset Localization sub-menu
 				Section.AddSubMenu(
@@ -554,6 +588,8 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 
 void FAssetContextMenu::AddExploreMenuOptions(UToolMenu* Menu)
 {
+	UContentBrowserAssetContextMenuContext* Context = Menu->FindContext<UContentBrowserAssetContextMenuContext>();
+
 	FToolMenuSection& Section = Menu->AddSection("AssetContextExploreMenuOptions", LOCTEXT("AssetContextExploreMenuOptionsHeading", "Explore"));
 	{
 		// Find in Content Browser
@@ -563,40 +599,49 @@ void FAssetContextMenu::AddExploreMenuOptions(UToolMenu* Menu)
 			LOCTEXT("ShowInFolderViewTooltip", "Selects the folder that contains this asset in the Content Browser Sources Panel.")
 			);
 
-		// Find in Explorer
-		Section.AddMenuEntry(
-			"FindInExplorer",
-			ContentBrowserUtils::GetExploreFolderText(),
-			LOCTEXT("FindInExplorerTooltip", "Finds this asset on disk"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
-			FUIAction(
-				FExecuteAction::CreateSP( this, &FAssetContextMenu::ExecuteFindInExplorer ),
-				FCanExecuteAction::CreateSP( this, &FAssetContextMenu::CanExecuteFindInExplorer )
+		if (Context->bCanBeModified)
+		{
+			// Find in Explorer
+			Section.AddMenuEntry(
+				"FindInExplorer",
+				ContentBrowserUtils::GetExploreFolderText(),
+				LOCTEXT("FindInExplorerTooltip", "Finds this asset on disk"),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteFindInExplorer),
+					FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteFindInExplorer)
 				)
 			);
+		}
 	}
 }
 
 void FAssetContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
-{	
+{
+	UContentBrowserAssetContextMenuContext* Context = Menu->FindContext<UContentBrowserAssetContextMenuContext>();
+	const bool bCanBeModified = !Context || Context->bCanBeModified;
+
 	{
 		FToolMenuSection& Section = Menu->AddSection("AssetActionsSection");
 
-		// Create BP Using This
-		Section.AddMenuEntry(
-			"CreateBlueprintUsing",
-			LOCTEXT("CreateBlueprintUsing", "Create Blueprint Using This..."),
-			LOCTEXT("CreateBlueprintUsingTooltip", "Create a new Blueprint and add this asset to it"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteCreateBlueprintUsing),
-				FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteCreateBlueprintUsing)
-			)
-		);
+		if (bCanBeModified)
+		{
+			// Create BP Using This
+			Section.AddMenuEntry(
+				"CreateBlueprintUsing",
+				LOCTEXT("CreateBlueprintUsing", "Create Blueprint Using This..."),
+				LOCTEXT("CreateBlueprintUsingTooltip", "Create a new Blueprint and add this asset to it"),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteCreateBlueprintUsing),
+					FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecuteCreateBlueprintUsing)
+				)
+			);
+		}
 
 		// Capture Thumbnail
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-		if (SelectedAssets.Num() == 1 && AssetToolsModule.Get().AssetUsesGenericThumbnail(SelectedAssets[0]))
+		if (bCanBeModified && SelectedAssets.Num() == 1 && AssetToolsModule.Get().AssetUsesGenericThumbnail(SelectedAssets[0]))
 		{
 			Section.AddMenuEntry(
 				"CaptureThumbnail",
@@ -611,7 +656,7 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 		}
 
 		// Clear Thumbnail
-		if (CanClearCustomThumbnails())
+		if (bCanBeModified && CanClearCustomThumbnails())
 		{
 			Section.AddMenuEntry(
 				"ClearCustomThumbnail",
@@ -640,6 +685,7 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 	}
 
 	// MOVE ACTIONS
+	if (bCanBeModified)
 	{
 		FToolMenuSection& Section = Menu->AddSection("AssetContextMoveActions", LOCTEXT("AssetContextMoveActionsMenuHeading", "Move"));
 		bool bHasExportableAssets = false;
@@ -692,6 +738,7 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 	}
 
 	// ADVANCED ACTIONS
+	if (bCanBeModified)
 	{
 		FToolMenuSection& Section = Menu->AddSection("AssetContextAdvancedActions", LOCTEXT("AssetContextAdvancedActionsMenuHeading", "Advanced"));
 
@@ -791,7 +838,7 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 		}
 	}
 
-	if (GetDefault<UEditorExperimentalSettings>()->bTextAssetFormatSupport)
+	if (bCanBeModified && GetDefault<UEditorExperimentalSettings>()->bTextAssetFormatSupport)
 	{
 		FToolMenuSection& FormatActionsSection = Menu->AddSection("AssetContextTextAssetFormatActions", LOCTEXT("AssetContextTextAssetFormatActionsHeading", "Text Assets"));
 		{
@@ -1282,8 +1329,11 @@ void FAssetContextMenu::ExecuteOpenEditorsForAssets(TArray<FName> InAssets)
 
 bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 {
-	FToolMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
+	UContentBrowserAssetContextMenuContext* Context = Menu->FindContext<UContentBrowserAssetContextMenuContext>();
+
 	{
+		FToolMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
+
 		Section.AddMenuEntry(
 			"CopyReference",
 			LOCTEXT("CopyReference", "Copy Reference"),
@@ -1291,22 +1341,17 @@ bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 			FSlateIcon(),
 			FUIAction( FExecuteAction::CreateSP( this, &FAssetContextMenu::ExecuteCopyReference ) )
 			);
-	}
-
-	return true;
-}
-
-bool FAssetContextMenu::AddCopyFilePathMenuOptions(UToolMenu* Menu)
-{
-	FToolMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
-	{
-		Section.AddMenuEntry(
-			"CopyFilePath",
-			LOCTEXT("CopyFilePath", "Copy File Path"),
-			LOCTEXT("CopyFilePathTooltip", "Copies the file paths on disk for the selected assets to the clipboard."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteCopyFilePath))
-		);
+	
+		if (Context->bCanBeModified)
+		{
+			Section.AddMenuEntry(
+				"CopyFilePath",
+				LOCTEXT("CopyFilePath", "Copy File Path"),
+				LOCTEXT("CopyFilePathTooltip", "Copies the file paths on disk for the selected assets to the clipboard."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteCopyFilePath))
+			);
+		}
 	}
 
 	return true;
@@ -1827,10 +1872,34 @@ bool FAssetContextMenu::AreImportedAssetActionsVisible() const
 
 bool FAssetContextMenu::CanExecuteImportedAssetActions(const TArray<FString> ResolvedFilePaths) const
 {
+	if (ResolvedFilePaths.Num() == 0)
+	{
+		return false;
+	}
+
 	// Verify that all the file paths are legitimate
 	for (const auto& SourceFilePath : ResolvedFilePaths)
 	{
 		if (!SourceFilePath.Len() || IFileManager::Get().FileSize(*SourceFilePath) == INDEX_NONE)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FAssetContextMenu::CanExecuteReimportAssetActions(const TArray<FString> ResolvedFilePaths) const
+{
+	if (ResolvedFilePaths.Num() == 0)
+	{
+		return false;
+	}
+
+	// Verify that all the file paths are non-empty
+	for (const auto& SourceFilePath : ResolvedFilePaths)
+	{
+		if (!SourceFilePath.Len())
 		{
 			return false;
 		}
@@ -1874,18 +1943,15 @@ void FAssetContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*= IND
 
 	int32 SourceFileIndexToReplace = SourceFileIndex;
 	//Check if the data is valid
-	if (SourceFileIndex == INDEX_NONE)
+	if (SourceFileIndexToReplace == INDEX_NONE)
 	{
-		check(AssetSourcePaths.Num() <= 1);
-		//Ask for a new file for the index 0
+		// Ask for a new file for the index 0
+		// TODO(?) need to do anything for multiple source paths here?
+		// UDIM textures will have multiple source paths for example, but they come through this path
 		SourceFileIndexToReplace = 0;
 	}
-	else
-	{
-		check(AssetSourcePaths.IsValidIndex(SourceFileIndex));
-	}
 	check(SourceFileIndexToReplace >= 0);
-	
+	check(AssetSourcePaths.IsValidIndex(SourceFileIndexToReplace));
 
 	FReimportManager::Instance()->ValidateAllSourceFileAndReimport(CopyOfSelectedAssets, true, SourceFileIndexToReplace, true);
 }
@@ -2216,6 +2282,17 @@ void FAssetContextMenu::ExecuteShowAssetMetaData()
 	}
 }
 
+bool FAssetContextMenu::CanModifyPath(const FString& InPath) const
+{
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPath))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void FAssetContextMenu::ExecuteEditAsset()
 {
 	TMap<UClass*, TArray<UObject*> > SelectedAssetsByClass;
@@ -2298,13 +2375,29 @@ void FAssetContextMenu::ExecuteRename()
 		// Don't operate on Redirectors
 		if ( AssetViewSelectedAssets[0].AssetClass != UObjectRedirector::StaticClass()->GetFName() )
 		{
-			OnRenameRequested.ExecuteIfBound(AssetViewSelectedAssets[0]);
+			if (CanModifyPath(AssetViewSelectedAssets[0].PackageName.ToString()))
+			{
+				OnRenameRequested.ExecuteIfBound(AssetViewSelectedAssets[0]);
+			}
+			else
+			{
+				FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+				AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+			}
 		}
 	}
 
 	if ( AssetViewSelectedAssets.Num() == 0 && SelectedFolders.Num() == 1 )
 	{
-		OnRenameFolderRequested.ExecuteIfBound(SelectedFolders[0]);
+		if (CanModifyPath(SelectedFolders[0]))
+		{
+			OnRenameFolderRequested.ExecuteIfBound(SelectedFolders[0]);
+		}
+		else
+		{
+			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+			AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+		}
 	}
 }
 
@@ -2324,6 +2417,17 @@ void FAssetContextMenu::ExecuteDelete()
 		}
 	}
 
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	const TSharedRef<FBlacklistPaths>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderBlacklist();
+	const bool bHasWritableFolderFilter = WritableFolderFilter->HasFiltering();
+
+	TArray<FString> SelectedFolders = AssetView.Pin()->GetSelectedFolders();
+	if (SelectedFolders.Num() > 0 && !AssetToolsModule.Get().AllPassWritableFolderFilter(SelectedFolders))
+	{
+		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+		return;
+	}
+
 	TArray< FAssetData > AssetViewSelectedAssets = AssetView.Pin()->GetSelectedAssets();
 	if(AssetViewSelectedAssets.Num() > 0)
 	{
@@ -2339,6 +2443,12 @@ void FAssetContextMenu::ExecuteDelete()
 				continue;
 			}
 
+			if (bHasWritableFolderFilter && !WritableFolderFilter->PassesStartsWithFilter(AssetData.PackageName))
+			{
+				AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+				return;
+			}
+
 			AssetsToDelete.Add( AssetData );
 		}
 
@@ -2348,7 +2458,6 @@ void FAssetContextMenu::ExecuteDelete()
 		}
 	}
 
-	TArray< FString > SelectedFolders = AssetView.Pin()->GetSelectedFolders();
 	if(SelectedFolders.Num() > 0)
 	{
 		FText Prompt;

@@ -45,7 +45,7 @@ enum class EInvalidateWidgetReason : uint8;
 class FWidgetProxy
 {
 public:
-	FWidgetProxy(SWidget* InWidget);
+	FWidgetProxy(SWidget& InWidget);
 
 	int32 Update(
 		const FPaintArgs& PaintArgs,
@@ -58,6 +58,7 @@ public:
 
 private:
 	int32 Repaint(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWindowElementList& OutDrawElements) const;
+
 public:
 	SWidget* Widget;
 	int32 Index;
@@ -68,7 +69,9 @@ public:
 	EInvalidateWidgetReason CurrentInvalidateReason;
 	/** The widgets own visibility */
 	EVisibility Visibility;
+	/** Used to make sure we don't double process a widget that is invalidated.  (a widget can invalidate itself but an ancestor can end up painting that widget first thus rendering the child's own invalidate unnecessary */
 	uint8 bUpdatedSinceLastInvalidate : 1;
+	/** Is the widget already in a pending update list.  If it already is in an update list we don't bother adding it again */
 	uint8 bInUpdateList : 1;
 	uint8 bInvisibleDueToParentOrSelfVisibility : 1;
 	uint8 bChildOrderInvalid : 1;
@@ -135,7 +138,7 @@ private:
 struct FSlateWidgetPersistentState
 {
 	FSlateWidgetPersistentState()
-		: CachedElementListNode(nullptr)
+		: CachedElementHandle()
 		, LayerId(0)
 		, OutgoingLayerId(0)
 		, IncomingUserIndex(INDEX_NONE)
@@ -150,7 +153,7 @@ struct FSlateWidgetPersistentState
 	FGeometry DesktopGeometry;
 	FSlateRect CullingBounds;
 	FWidgetStyle WidgetStyle;
-	FSlateCachedElementListNode* CachedElementListNode;
+	FSlateCachedElementsHandle CachedElementHandle;
 	/** Starting layer id for drawing children **/
 	int32 LayerId;
 	int32 OutgoingLayerId;
@@ -161,7 +164,6 @@ struct FSlateWidgetPersistentState
 
 	static const FSlateWidgetPersistentState NoState;
 };
-template <> struct TIsPODType<FSlateWidgetPersistentState> { enum { Value = true }; };
 
 struct FWidgetStackData
 {

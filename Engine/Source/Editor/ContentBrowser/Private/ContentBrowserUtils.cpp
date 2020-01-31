@@ -472,6 +472,13 @@ void ContentBrowserUtils::RenameAsset(UObject* Asset, const FString& NewName, FT
 
 void ContentBrowserUtils::CopyAssets(const TArray<UObject*>& Assets, const FString& DestPath)
 {
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(DestPath))
+	{
+		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+		return;
+	}
+
 	TArray<UObject*> NewObjects;
 	ObjectTools::DuplicateObjects(Assets, TEXT(""), DestPath, /*bOpenDialog=*/false, &NewObjects);
 
@@ -499,6 +506,12 @@ void ContentBrowserUtils::MoveAssets(const TArray<UObject*>& Assets, const FStri
 	check(DestPath.Len() > 0);
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (!AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(DestPath))
+	{
+		AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+		return;
+	}
+
 	TArray<FAssetRenameData> AssetsAndNames;
 	for ( auto AssetIt = Assets.CreateConstIterator(); AssetIt; ++AssetIt )
 	{
@@ -1557,7 +1570,13 @@ bool ContentBrowserUtils::IsValidPathToCreateNewFolder(const FString& InPath)
 {
 	// We can't currently make folders in class paths
 	// If we do later allow folders in class paths, they must only be created within modules (see IsValidPathToCreateNewClass above)
-	return !IsClassPath(InPath);
+	if (IsClassPath(InPath))
+	{
+		return false;
+	}
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	return AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPath);
 }
 
 const TSharedPtr<FLinearColor> ContentBrowserUtils::LoadColor(const FString& FolderPath)

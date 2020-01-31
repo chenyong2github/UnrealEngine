@@ -17,10 +17,11 @@ namespace Algo
 	template <typename InT, typename PredicateT>
 	FORCEINLINE bool CompareByPredicate(const InT& InputA, const InT& InputB, PredicateT Predicate)
 	{
-		if (InputA.Num() == InputB.Num())
-		{
-			uint32 Count = GetNum(InputA);
+		auto Count = GetNum(InputA);
+		auto CountB = GetNum(InputB);
 
+		if (Count == CountB)
+		{
 			auto* A = GetData(InputA);
 			auto* B = GetData(InputB);
 

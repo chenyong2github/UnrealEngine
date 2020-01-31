@@ -4176,6 +4176,7 @@ namespace ThumbnailTools
 			// Draw the thumbnail
 			const int32 XPos = 0;
 			const int32 YPos = 0;
+			const bool bAdditionalViewFamily = false;
 			RenderInfo->Renderer->Draw(
 				InObject,
 				XPos,
@@ -4183,7 +4184,8 @@ namespace ThumbnailTools
 				DrawWidth,
 				DrawHeight,
 				RenderTargetResource,
-				&Canvas
+				&Canvas, 
+				bAdditionalViewFamily
 				);
 		}
 

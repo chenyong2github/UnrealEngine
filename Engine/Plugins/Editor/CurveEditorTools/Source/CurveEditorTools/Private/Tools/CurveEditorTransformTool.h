@@ -175,6 +175,8 @@ private:
 		TArray<FKeyHandle> Handles;
 		/** The extended key info for each of the above handles */
 		TArray<FKeyPosition> StartKeyPositions;
+		/** Used in OnEndDrag to send final key updates */
+		TArray<FKeyPosition> LastDraggedKeyPositions;
 	};
 
 	/** Key dragging data stored per-curve */

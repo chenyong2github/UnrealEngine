@@ -138,6 +138,11 @@ FConsoleVariableSinkHandle CreateMaxArrayMemoryCVarAndRegisterSink()
 FConsoleVariableSinkHandle MaxRepArraySizeHandle = CreateMaxArraySizeCVarAndRegisterSink();
 FConsoleVariableSinkHandle MaxRepArrayMemorySink = CreateMaxArrayMemoryCVarAndRegisterSink();
 
+namespace UE4PushModelPrivate
+{
+	class FPushModelPerNetDriverState;
+}
+
 namespace UE4_RepLayout_Private
 {
 	template<typename OutputType, typename CommandType, typename BufferType>
@@ -247,12 +252,23 @@ namespace UE4_RepLayout_Private
 		}
 	}
 
-	UE4PushModelPrivate::FPushModelPerNetDriverState* GetPerNetDriverState(const UE4PushModelPrivate::FPushModelPerNetDriverHandle Handle)
+	UE4PushModelPrivate::FPushModelPerNetDriverState* GetPerNetDriverState(const FRepChangelistState* ChangelistState)
 	{
+		const UE4PushModelPrivate::FPushModelPerNetDriverHandle Handle = ChangelistState->GetPushModelObjectHandle();
 		return Handle.IsValid() ? UE4PushModelPrivate::GetPerNetDriverState(Handle) : nullptr;
 	}
-
+#else
+	UE4PushModelPrivate::FPushModelPerNetDriverState* GetPerNetDriverState(const FRepChangelistState* ChangelistState)
+	{
+		return nullptr;
+	}
 #endif
+
+	static bool IsNetworkProfilerEnabled()
+	{
+		NETWORK_PROFILER(return true;);
+		return false;
+	}
 }
 
 //~ TODO: Consider moving the FastArray members into their own sub-struct to save memory for non fast array
@@ -1110,6 +1126,13 @@ struct FComparePropertiesSharedParams
 	FSendingRepState* const RepState;
 	FRepChangelistState* const RepChangelistState;
 	FRepChangedPropertyTracker* const RepChangedPropertyTracker;
+	UE4PushModelPrivate::FPushModelPerNetDriverState* const PushModelState = nullptr;
+	const bool bValidateProperties = false;
+	const bool bIsNetworkProfilerActive = false;
+#if (WITH_PUSH_VALIDATION_SUPPORT || USE_NETWORK_PROFILER)
+	TBitArray<> PropertiesCompared;
+	TBitArray<> PropertiesChanged;
+#endif
 };
 
 struct FComparePropertiesStackParams
@@ -1132,7 +1155,7 @@ static void CompareProperties_Array_r(
 	const uint16 CmdIndex,
 	const uint16 Handle);
 
-static void CompareRoleProperty(
+static bool CompareRoleProperty(
 	const FComparePropertiesSharedParams& SharedParams,
 	FComparePropertiesStackParams& StackParams,
 	const uint16 RoleOrRemoteRoleIndex,
@@ -1146,7 +1169,10 @@ static void CompareRoleProperty(
 	{
 		SavedRoleOrRemoteRole = ActorRoleOrRemoteRole;
 		StackParams.Changed.Add(Handle);
+		return true;
 	}
+
+	return false;
 }
 
 static void CompareRoleProperties(
@@ -1160,7 +1186,9 @@ static void CompareRoleProperties(
 	}
 }
 
-static void CompareParentProperty(
+// Compare the specific FRepParentCmd.
+// Returns true if the property (or any of its nested FRepLayoutCmds) has changed.
+static bool CompareParentProperty(
 	const int32 ParentIndex,
 	const FComparePropertiesSharedParams& SharedParams,
 	FComparePropertiesStackParams& StackParams)
@@ -1173,13 +1201,19 @@ static void CompareParentProperty(
 	// Further, this will keep the last active state of the property in the shadow buffer,
 	// meaning the next time the property becomes active it will be sent to all connections.
 	const bool bIsActive = !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->Parents[ParentIndex].Active;
-
 	const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
 
 	if (bShouldSkip)
 	{
-		return;
+		return false;
 	}
+
+#if USE_NETWORK_PROFILER
+	if (SharedParams.bIsNetworkProfilerActive)
+	{
+		const_cast<TBitArray<>&>(SharedParams.PropertiesCompared)[ParentIndex] = true;
+	}
+#endif
 
 	const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
 
@@ -1187,19 +1221,51 @@ static void CompareParentProperty(
 	{
 		if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::Role))
 		{
-			CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::Role, SharedParams.RepState->SavedRole);
-			return;
+			return CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::Role, SharedParams.RepState->SavedRole);
 		}
 		if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::RemoteRole))
 		{
-			CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::RemoteRole, SharedParams.RepState->SavedRemoteRole);
-			return;
+			return CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::RemoteRole, SharedParams.RepState->SavedRemoteRole);
 		}
 	}
+	
+	const int32 NumChanges = StackParams.Changed.Num();
 
 	// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
 	CompareProperties_r(SharedParams, StackParams, Parent.CmdStart, Parent.CmdEnd, Cmd.RelativeHandle - 1);
+
+	return !!(StackParams.Changed.Num() - NumChanges);
 }
+
+namespace UE4_RepLayout_Private
+{
+	static bool CompareParentPropertyHelper(
+		const int32 ParentIndex,
+		const FComparePropertiesSharedParams& SharedParams,
+		FComparePropertiesStackParams& StackParams)
+	{
+		const bool bDidPropertyChange = CompareParentProperty(ParentIndex, SharedParams, StackParams);
+
+	#if USE_NETWORK_PROFILER
+		if (SharedParams.bIsNetworkProfilerActive)
+		{
+			const_cast<TBitArray<>&>(SharedParams.PropertiesChanged)[ParentIndex] = bDidPropertyChange;
+		}
+	#endif // USING_NETWORK_PROFILER
+
+		return bDidPropertyChange;
+	}
+
+#if WITH_PUSH_MODEL
+	static bool IsPropertyDirty(
+		const int32 ParentIndex,
+		const FComparePropertiesSharedParams& SharedParams,
+		FComparePropertiesStackParams& StackParams)
+	{
+		return !EnumHasAnyFlags(SharedParams.Parents[ParentIndex].Flags, ERepParentFlags::UsePushModel) || SharedParams.PushModelState->IsPropertyDirty(ParentIndex);
+	}
+#endif // WITH_PUSH_MODEL	
+}	
 
 static void CompareParentProperties(
 	const FComparePropertiesSharedParams& SharedParams,
@@ -1208,8 +1274,7 @@ static void CompareParentProperties(
 	check(StackParams.ShadowData);
 
 #if WITH_PUSH_MODEL
-
-	if (UE4PushModelPrivate::FPushModelPerNetDriverState* PushModelObject = UE4_RepLayout_Private::GetPerNetDriverState(SharedParams.RepChangelistState->GetPushModelObjectHandle()))
+	if (SharedParams.PushModelState != nullptr)
 	{
 		// Typically, on an initial compare all properties will be dirty anyway.
 		// However, if an Actor is awakened from Dormancy, it's SendingRepState will have been recreated, invalidating
@@ -1219,8 +1284,8 @@ static void CompareParentProperties(
 		// To get around this, and just to be sure our code paths are consistent, we forcibly mark Role and RemoteRole dirty here.
 		if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor) && SharedParams.bIsInitial)
 		{
-			PushModelObject->MarkPropertyDirty((int32)AActor::ENetFields_Private::RemoteRole);
-			PushModelObject->MarkPropertyDirty((int32)AActor::ENetFields_Private::Role);
+			SharedParams.PushModelState->MarkPropertyDirty((int32)AActor::ENetFields_Private::RemoteRole);
+			SharedParams.PushModelState->MarkPropertyDirty((int32)AActor::ENetFields_Private::Role);
 		}
 
 		// If we're forcibly comparing all properties, then don't bother checking dirty state.
@@ -1228,50 +1293,51 @@ static void CompareParentProperties(
 		{
 			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 			{
-				CompareParentProperty(ParentIndex, SharedParams, StackParams);
+				UE4_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
 			}
 		}
 
-		// If we have full push model support, then we only need to check properties that are actually dirty.
-		else if (!GbPushModelValidateProperties && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::FullPushSupport))
+#if (WITH_PUSH_VALIDATION_SUPPORT)		
+		// If we're running validation, then we'll check everything regardless of push model state.
+		else if (SharedParams.bValidateProperties)
 		{
-			for (TConstSetBitIterator<> It = PushModelObject->GetDirtyProperties(); It; ++It)
+			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 			{
-				CompareParentProperty(It.GetIndex(), SharedParams, StackParams);
+				const bool bIsPropertyDirty = UE4_RepLayout_Private::IsPropertyDirty(ParentIndex, SharedParams, StackParams);
+				const bool bDidPropertyChange = UE4_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
+
+				ensureAlwaysMsgf(bDidPropertyChange && !bIsPropertyDirty, TEXT("Push Model Property changed value, but was not marked dirty! Property=%s"), *SharedParams.Parents[ParentIndex].Property->GetPathName());
+			}	
+		}
+#endif // WITH_PUSH_VALIDATION_SUPPORT
+
+		// If we have full push model support, then we only need to check properties that are actually dirty.
+		else if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::FullPushSupport))
+		{
+			for (TConstSetBitIterator<> It = SharedParams.PushModelState->GetDirtyProperties(); It; ++It)
+			{
+				UE4_RepLayout_Private::CompareParentPropertyHelper(It.GetIndex(), SharedParams, StackParams);
 			}
 		}
 		else
 		{
-#if WITH_PUSH_VALIDATION_SUPPORT
-			int32 StartChangedNum = 0;
-#endif
-
 			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 			{
-				const bool bIsPropertyDirty = !EnumHasAnyFlags(SharedParams.Parents[ParentIndex].Flags, ERepParentFlags::UsePushModel) || PushModelObject->IsPropertyDirty(ParentIndex);
-				if (GbPushModelValidateProperties || bIsPropertyDirty)
+				if (UE4_RepLayout_Private::IsPropertyDirty(ParentIndex, SharedParams, StackParams))
 				{
-					CompareParentProperty(ParentIndex, SharedParams, StackParams);
-
-#if WITH_PUSH_VALIDATION_SUPPORT
-					const bool bWasFoundDirtyButNotMarkedDirty = GbPushModelValidateProperties && !bIsPropertyDirty && StackParams.Changed.Num() > StartChangedNum;
-
-					ensureAlwaysMsgf(!bWasFoundDirtyButNotMarkedDirty, TEXT("Push Model Property changed value, but was not marked dirty! Property=%s"), *SharedParams.Parents[ParentIndex].Property->GetPathName());
-
-					StartChangedNum = StackParams.Changed.Num();
-#endif
+					UE4_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
 				}
 			}
 		}
 
-		PushModelObject->ResetDirtyStates();
+		SharedParams.PushModelState->ResetDirtyStates();
 		return;
 	}
-#endif
+#endif // WITH_PUSH_MODEL
 
 	for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 	{
-		CompareParentProperty(ParentIndex, SharedParams, StackParams);
+		UE4_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
 	}
 }
 
@@ -1412,7 +1478,10 @@ bool FRepLayout::CompareProperties(
 		Cmds,
 		RepState,
 		RepChangelistState,
-		(RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr)
+		(RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr),
+		/*PushModelState=*/UE4_RepLayout_Private::GetPerNetDriverState(RepChangelistState),
+		/*bValidateProperties=*/GbPushModelValidateProperties,
+		/*bIsNetworkProfilerActive=*/UE4_RepLayout_Private::IsNetworkProfilerEnabled()
 	};
 
 	FComparePropertiesStackParams StackParams{
@@ -1423,11 +1492,35 @@ bool FRepLayout::CompareProperties(
 
 	if (RepFlags.bRolesOnly)
 	{
+		// Don't track anything for the network profiler for this, since we want to use this frames *main* comparison
+		// data for tracking.
+		// This may throw off the number of total comparisons / replications for role properties, but this should
+		// happen infrequently and the overall time and bandwidth spent on these properties is likely negligible
+		// in the overall profile.
 		CompareRoleProperties(SharedParams, StackParams);
 	}
 	else
 	{
+#if USE_NETWORK_PROFILER 
+		const uint32 ReplicateParentPropertiesStartTime = SharedParams.bIsNetworkProfilerActive ? FPlatformTime::Cycles() : 0;
+		if (SharedParams.bIsNetworkProfilerActive)
+		{
+			SharedParams.PropertiesChanged.Init(false, Parents.Num());
+			SharedParams.PropertiesCompared.Init(false, Parents.Num());
+		}
+
+		struct FPropertyNameHelper
+		{
+			static FString ConvertParentCmdToPropertyName(const FRepParentCmd& Parent)
+			{
+				return Parent.CachedPropertyName.ToString();
+			}
+		};
+#endif
+	
 		CompareParentProperties(SharedParams, StackParams);
+
+		NETWORK_PROFILER(GNetworkProfiler.TrackCompareProperties(Owner, FPlatformTime::Cycles() - ReplicateParentPropertiesStartTime, SharedParams.PropertiesCompared, SharedParams.PropertiesChanged, Parents, &FPropertyNameHelper::ConvertParentCmdToPropertyName););
 	}
 
 	if (Changed.Num() == 0)

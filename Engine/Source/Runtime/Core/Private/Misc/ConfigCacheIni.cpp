@@ -144,7 +144,7 @@ bool FConfigValue::ExpandValue(const FString& InCollapsedValue, FString& OutExpa
 		const TCHAR* Begin;
 		const TCHAR* End;
 
-		int32 Len() const { return End - Begin; }
+		int32 Len() const { return UE_PTRDIFF_TO_INT32(End - Begin); }
 	};
 
 	// Find substrings of input and expansions to concatenate to final output string
@@ -367,7 +367,7 @@ static void ExtractPropertyValue(const FString& FullStructValue, const FString& 
 		}
 
 		// pull out the token
-		Out.AppendChars(*FullStructValue + MatchLoc, Travel - Start);
+		Out.AppendChars(*FullStructValue + MatchLoc, UE_PTRDIFF_TO_INT32(Travel - Start));
 	}
 }
 
@@ -2600,8 +2600,7 @@ bool FConfigCacheIni::GetSectionNames( const FString& Filename, TArray<FString>&
 		out_SectionNames.Empty(Num());
 		for ( FConfigFile::TIterator It(*File); It; ++It )
 		{
-			// insert each item at the beginning of the array because TIterators return results in reverse order from which they were added
-			out_SectionNames.Insert(It.Key(),0);
+			out_SectionNames.Add(It.Key());
 
 			FCoreDelegates::OnConfigSectionNameRead.Broadcast(*Filename, *It.Key());
 		}
@@ -3110,8 +3109,8 @@ struct FConfigMemoryData
 		SIZE_T MaxMem = MemAr.GetMax();
 
 		NameIndent = FMath::Max(NameIndent, ConfigFilename.Len());
-		SizeIndent = FMath::Max(SizeIndent, FString::FromInt(TotalMem).Len());
-		MaxSizeIndent = FMath::Max(MaxSizeIndent, FString::FromInt(MaxMem).Len());
+		SizeIndent = FMath::Max(SizeIndent, FString::FromInt((int32)TotalMem).Len());
+		MaxSizeIndent = FMath::Max(MaxSizeIndent, FString::FromInt((int32)MaxMem).Len());
 		
 		new(MemoryData) FConfigFileMemoryData( ConfigFilename, TotalMem, MaxMem );
 	}
@@ -3896,6 +3895,8 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FConfigCacheIni::LoadGlobalIniFile(GHardwareIni, TEXT("Hardware"));	
 	// Load runtime options
 	FConfigCacheIni::LoadGlobalIniFile(GRuntimeOptionsIni, TEXT("RuntimeOptions"));
+	// Load install bundle config
+	FConfigCacheIni::LoadGlobalIniFile(GInstallBundleIni, TEXT("InstallBundle"));
 	
 	// Load user game settings .ini, allowing merging. This also updates the user .ini if necessary.
 #if PLATFORM_PS4

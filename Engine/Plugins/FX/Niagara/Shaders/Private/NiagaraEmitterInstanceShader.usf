@@ -4,9 +4,9 @@
 NiagaraSimulationShader.usf: 
 =============================================================================*/
 #pragma warning(disable:4008)
+#include "/Engine/Public/Platform.ush"
 
 #if GPU_SIMULATION
-	#include "/Engine/Public/Platform.ush"
 	#include "/Engine/Private/Common.ush"
 	#include "/Engine/Private/GlobalDistanceFieldShared.ush"
 #else
@@ -470,7 +470,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	}
 
 #define USE_WAVE_INTRISICS (PS4_PROFILE || XBOXONE_PROFILE)
-#define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32)  && !USE_WAVE_INTRISICS)
+#define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32)  && !USE_WAVE_INTRISICS && !VULKAN_PROFILE_SM5 && !VULKAN_PROFILE)
 
 #if USE_GROUP_SHARED
 	#if THREADGROUP_SIZE == 64

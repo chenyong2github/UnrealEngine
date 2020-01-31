@@ -607,7 +607,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		TArray<VkImage> Images;
 		SwapChain = new FVulkanSwapChain(
 			RHI->Instance, *Device, WindowHandle,
-			PixelFormat, SizeX, SizeY,
+			PixelFormat, SizeX, SizeY, bIsFullscreen,
 			&DesiredNumBackBuffers,
 			Images,
 			LockToVsync,
@@ -975,7 +975,7 @@ void FVulkanDynamicRHI::RHIResizeViewport(FRHIViewport* ViewportRHI, uint32 Size
 		PreferredPixelFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnAnyThread()));
 	}
 
-	if (Viewport->GetSizeXY() != FIntPoint(SizeX, SizeY))
+	if (Viewport->GetSizeXY() != FIntPoint(SizeX, SizeY) || Viewport->IsFullscreen() != bIsFullscreen)
 	{
 		FlushRenderingCommands();
 
@@ -1071,7 +1071,7 @@ void FVulkanDynamicRHI::RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Vi
 	}
 }
 
-void FVulkanCommandListContext::RHISetViewport(uint32 MinX, uint32 MinY, float MinZ, uint32 MaxX, uint32 MaxY, float MaxZ)
+void FVulkanCommandListContext::RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ)
 {
 	PendingGfxState->SetViewport(MinX, MinY, MinZ, MaxX, MaxY, MaxZ);
 }

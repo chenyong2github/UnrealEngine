@@ -16,7 +16,7 @@ class UPaperSpriteThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 	GENERATED_UCLASS_BODY()
 
 	// UThumbnailRenderer interface
-	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas) override;
+	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget*, FCanvas* Canvas, bool bAdditionalViewFamily) override;
 	// End of UThumbnailRenderer interface
 
 protected:

@@ -88,7 +88,7 @@ public:
 			const FOpenColorIOTransformResource* InColorTransform,
 			FShaderCompilerEnvironment* CompilationEnvironment,
 			EShaderPlatform Platform,
-			TArray<FShaderCommonCompileJob*>& NewJobs,
+			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 			FShaderTarget Target
 		);
 

@@ -54,9 +54,9 @@ struct MSLVertexAttr
 // Matches the binding index of a MSL resource for a binding within a descriptor set.
 // Taken together, the stage, desc_set and binding combine to form a reference to a resource
 // descriptor used in a particular shading stage.
-// If using MSL 2.0 argument buffers, and the descriptor set is not marked as a discrete descriptor set,
-// the binding reference we remap to will become an [[id(N)]] attribute within
-// the "descriptor set" argument buffer structure.
+// If using MSL 2.0 argument buffers, the descriptor set is not marked as a discrete descriptor set,
+// and (for iOS only) the resource is not a storage image (sampled != 2), the binding reference we
+// remap to will become an [[id(N)]] attribute within the "descriptor set" argument buffer structure.
 // For resources which are bound in the "classic" MSL 1.0 way or discrete descriptors, the remap will become a
 // [[buffer(N)]], [[texture(N)]] or [[sampler(N)]] depending on the resource types used.
 struct MSLResourceBinding
@@ -253,10 +253,6 @@ public:
 			macOS = 1
 		} Platform;
 
-		// Provide the Metal bindings as part of the options structure as that is more convenient.
-		std::vector<MSLVertexAttr> vtx_attrs;
-		std::vector<MSLResourceBinding> res_bindings;
-		
 		Platform platform = macOS;
 		uint32_t msl_version = make_msl_version(1, 2);
 		uint32_t texel_buffer_texture_width = 4096; // Width of 2D Metal textures used as 1D texel buffers
@@ -267,9 +263,10 @@ public:
 		uint32_t shader_tess_factor_buffer_index = 26;
 		uint32_t buffer_size_buffer_index = 25;
 		uint32_t view_mask_buffer_index = 24;
+		uint32_t dynamic_offsets_buffer_index = 23;
 		uint32_t shader_input_wg_index = 0;
 		uint32_t device_index = 0;
-		uint32_t argument_buffer_offset = 0; // Allow the caller to specify the Metal translation should use argument buffers
+		uint32_t argument_buffer_offset = 0; // Allow the caller to specify an offset for argument buffer binding slots
 		bool enable_point_size_builtin = true;
 		bool disable_rasterization = false;
 		bool capture_output_to_buffer = false;
@@ -283,17 +280,30 @@ public:
 		// MSL 2.0 must also be enabled.
 		bool argument_buffers = false;
 
+		// Ensures vertex and instance indices start at zero. This reflects the behavior of HLSL with SV_VertexID and SV_InstanceID.
+		bool enable_base_index_zero = false;
+
 		// Fragment output in MSL must have at least as many components as the render pass.
 		// Add support to explicit pad out components.
 		bool pad_fragment_output_components = false;
-		bool ios_support_base_vertex_instance = false; // Provide the Metal bindings as part of the options structure as that is more convenient.
-		bool ios_use_framebuffer_fetch_subpasses = true; // Use Metal's native frame-buffer fetch API for subpass inputs.
-		bool enforce_storge_buffer_bounds = false; // Storage buffer robustness - clamps access to SSBOs to the size of the buffer
-		
+
+		// Specifies whether the iOS target version supports the [[base_vertex]] and [[base_instance]] attributes.
+		bool ios_support_base_vertex_instance = false;
+
+		// Use Metal's native frame-buffer fetch API for subpass inputs.
+		bool ios_use_framebuffer_fetch_subpasses = false;
+
+		// Storage buffer robustness - clamps access to SSBOs to the size of the buffer
+		bool enforce_storge_buffer_bounds = false;
+
+		// Enables use of "fma" intrinsic for invariant float math
 		bool invariant_float_math = false;
-		
-		bool emulate_cube_array = false; // Emulate texturecube_array with texture2d_array for iOS where this type is not available
-		bool enable_decoration_binding = false; // Allow user to enable decoration binding
+
+		// Emulate texturecube_array with texture2d_array for iOS where this type is not available
+		bool emulate_cube_array = false;
+
+		// Allow user to enable decoration binding
+		bool enable_decoration_binding = false;
 
 		// Requires MSL 2.1, use the native support for texel buffers.
 		bool texture_buffer_native = false;
@@ -332,18 +342,6 @@ public:
 	void set_msl_options(const Options &opts)
 	{
 		msl_options = opts;
-		
-		// Provide the Metal bindings as part of the options structure as that is more convenient.
-		for (auto &va : msl_options.vtx_attrs)
-			vtx_attrs_by_location[va.location] = va;
-		
-		for (auto &rb : msl_options.res_bindings)
-		{
-			resource_bindings.insert({
-				StageSetBinding{ rb.stage, rb.desc_set, rb.binding },
-				std::pair<MSLResourceBinding, bool>(rb, true)
-			});
-		}
 	}
 
 	// Provide feedback to calling API to allow runtime to disable pipeline
@@ -387,21 +385,21 @@ public:
 	// buffer if the shader needs it.
 	bool needs_output_buffer() const
 	{
-		return capture_output_to_buffer && stage_out_var_id != 0;
+		return capture_output_to_buffer && stage_out_var_id != ID(0);
 	}
 
 	// Provide feedback to calling API to allow it to pass a patch output
 	// buffer if the shader needs it.
 	bool needs_patch_output_buffer() const
 	{
-		return capture_output_to_buffer && patch_stage_out_var_id != 0;
+		return capture_output_to_buffer && patch_stage_out_var_id != ID(0);
 	}
 
 	// Provide feedback to calling API to allow it to pass an input threadgroup
 	// buffer if the shader needs it.
 	bool needs_input_threadgroup_mem() const
 	{
-		return capture_output_to_buffer && stage_in_var_id != 0;
+		return capture_output_to_buffer && stage_in_var_id != ID(0);
 	}
 
 	explicit CompilerMSL(std::vector<uint32_t> spirv);
@@ -421,6 +419,14 @@ public:
 	// is_msl_resource_binding_used() will return true after calling ::compile() if
 	// the set/binding combination was used by the MSL code.
 	void add_msl_resource_binding(const MSLResourceBinding &resource);
+
+	// desc_set and binding are the SPIR-V descriptor set and binding of a buffer resource
+	// in this shader. index is the index within the dynamic offset buffer to use. This
+	// function marks that resource as using a dynamic offset (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+	// or VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC). This function only has any effect if argument buffers
+	// are enabled. If so, the buffer will have its address adjusted at the beginning of the shader with
+	// an offset taken from the dynamic offset buffer.
+	void add_dynamic_buffer(uint32_t desc_set, uint32_t binding, uint32_t index);
 
 	// When using MSL argument buffers, we can force "classic" MSL 1.0 binding schemes for certain descriptor sets.
 	// This corresponds to VK_KHR_push_descriptor in Vulkan.
@@ -466,7 +472,7 @@ public:
 	// This can be used on both combined image/samplers (sampler2D) or standalone samplers.
 	// The remapped sampler must not be an array of samplers.
 	// Prefer remap_constexpr_sampler_by_binding unless you're also doing reflection anyways.
-	void remap_constexpr_sampler(uint32_t id, const MSLConstexprSampler &sampler);
+	void remap_constexpr_sampler(VariableID id, const MSLConstexprSampler &sampler);
 
 	// Same as remap_constexpr_sampler, except you provide set/binding, rather than variable ID.
 	// Remaps based on ID take priority over set/binding remaps.
@@ -476,9 +482,6 @@ public:
 	// to use for a particular location. The default is 4 if number of components is not overridden.
 	void set_fragment_output_components(uint32_t location, uint32_t components);
 
-	// Returns false, because Metal does not support combined texture-samplers.
-	virtual bool supports_combined_samplers() const override;
-	
 protected:
 	// An enum of SPIR-V functions that are implemented in additional
 	// source code that is added to the shader if necessary.
@@ -511,12 +514,6 @@ protected:
 		SPVFuncImplInverse4x4,
 		SPVFuncImplInverse3x3,
 		SPVFuncImplInverse2x2,
-		SPVFuncImplRowMajor2x3,
-		SPVFuncImplRowMajor2x4,
-		SPVFuncImplRowMajor3x2,
-		SPVFuncImplRowMajor3x4,
-		SPVFuncImplRowMajor4x2,
-		SPVFuncImplRowMajor4x3,
 		// It is very important that this come before *Swizzle and ChromaReconstruct*, to ensure it's
 		// emitted before them.
 		SPVFuncImplForwardArgs,
@@ -565,9 +562,9 @@ protected:
 		SPVFuncImplArrayCopyMultidimMax = 6
 	};
 
-    // If the underlying resource has been used for comparison then duplicate loads of that resource must be too
-    // Use Metal's native frame-buffer fetch API for subpass inputs.
-    void emit_texture_op(const Instruction &i) override;
+	// If the underlying resource has been used for comparison then duplicate loads of that resource must be too
+	// Use Metal's native frame-buffer fetch API for subpass inputs.
+	void emit_texture_op(const Instruction &i) override;
 	void emit_binary_unord_op(uint32_t result_type, uint32_t result_id, uint32_t op0, uint32_t op1, const char *op);
 	void emit_instruction(const Instruction &instr) override;
 	void emit_glsl_op(uint32_t result_type, uint32_t result_id, uint32_t op, const uint32_t *args,
@@ -587,27 +584,35 @@ protected:
 	                        const std::string &qualifier = "", uint32_t base_offset = 0) override;
 	void emit_struct_padding_target(const SPIRType &type) override;
 	std::string type_to_glsl(const SPIRType &type, uint32_t id = 0) override;
-	std::string type_to_array_glsl(const SPIRType &type) override; // Allow Metal to use the array<T> template to make arrays a value type
-	std::string variable_decl(const SPIRVariable &variable) override; // Threadgroup arrays can't have a wrapper type
+
+	// Allow Metal to use the array<T> template to make arrays a value type
+	std::string type_to_array_glsl(const SPIRType &type) override;
+
+	// Threadgroup arrays can't have a wrapper type
+	std::string variable_decl(const SPIRVariable &variable) override;
+
+	// GCC workaround of lambdas calling protected functions (for older GCC versions)
+	std::string variable_decl(const SPIRType &type, const std::string &name, uint32_t id = 0) override;
+
 	std::string image_type_glsl(const SPIRType &type, uint32_t id = 0) override;
 	std::string sampler_type(const SPIRType &type);
 	std::string builtin_to_glsl(spv::BuiltIn builtin, spv::StorageClass storage) override;
 	std::string to_func_call_arg(const SPIRFunction::Parameter &arg, uint32_t id) override;
 	std::string to_name(uint32_t id, bool allow_alias = true) const override;
-	std::string to_function_name(uint32_t img, const SPIRType &imgtype, bool is_fetch, bool is_gather, bool is_proj,
+	std::string to_function_name(VariableID img, const SPIRType &imgtype, bool is_fetch, bool is_gather, bool is_proj,
 	                             bool has_array_offsets, bool has_offset, bool has_grad, bool has_dref, uint32_t lod,
 	                             uint32_t minlod) override;
-	std::string to_function_args(uint32_t img, const SPIRType &imgtype, bool is_fetch, bool is_gather, bool is_proj,
+	std::string to_function_args(VariableID img, const SPIRType &imgtype, bool is_fetch, bool is_gather, bool is_proj,
 	                             uint32_t coord, uint32_t coord_components, uint32_t dref, uint32_t grad_x,
 	                             uint32_t grad_y, uint32_t lod, uint32_t coffset, uint32_t offset, uint32_t bias,
 	                             uint32_t comp, uint32_t sample, uint32_t minlod, bool *p_forward) override;
 	std::string to_initializer_expression(const SPIRVariable &var) override;
-	
-	// Metal expands float[]/float2[] members inside structs to float4[] so we must unpack
-	virtual std::string to_dereferenced_expression(uint32_t id, bool register_expression_read = true) override;
-	
+
 	std::string unpack_expression_type(std::string expr_str, const SPIRType &type, uint32_t physical_type_id,
 	                                   bool is_packed, bool row_major) override;
+
+	// Returns false, because Metal does not support combined texture-samplers.
+	bool supports_combined_samplers() const override;
 
 	std::string bitcast_glsl_op(const SPIRType &result_type, const SPIRType &argument_type) override;
 	bool skip_argument(uint32_t id) const override;
@@ -616,19 +621,20 @@ protected:
 	void replace_illegal_names() override;
 	void declare_undefined_values() override;
 	void declare_constant_arrays();
-	
+
 	// Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries
 	void declare_complex_constant_arrays();
-	
+
 	bool is_patch_block(const SPIRType &type);
 	bool is_non_native_row_major_matrix(uint32_t id) override;
 	bool member_is_non_native_row_major_matrix(const SPIRType &type, uint32_t index) override;
 	std::string convert_row_major_matrix(std::string exp_str, const SPIRType &exp_type, uint32_t physical_type_id,
 	                                     bool is_packed) override;
-	
+
 	// Storage buffer robustness
-	std::string access_chain_internal(uint32_t base, const uint32_t *indices, uint32_t count, AccessChainFlags flags, AccessChainMeta *meta) override;
-	
+	std::string access_chain_internal(uint32_t base, const uint32_t *indices, uint32_t count, AccessChainFlags flags,
+	                                  AccessChainMeta *meta) override;
+
 	void preprocess_op_codes();
 	void localize_global_variables();
 	void extract_global_variables_from_functions();
@@ -752,6 +758,7 @@ protected:
 	uint32_t swizzle_buffer_id = 0;
 	uint32_t buffer_size_buffer_id = 0;
 	uint32_t view_mask_buffer_id = 0;
+	uint32_t dynamic_offsets_buffer_id = 0;
 
 	void bitcast_to_builtin_store(uint32_t target_id, std::string &expr, const SPIRType &expr_type) override;
 	void bitcast_from_builtin_load(uint32_t source_id, std::string &expr, const SPIRType &expr_type) override;
@@ -763,7 +770,7 @@ protected:
 	bool is_out_of_bounds_tessellation_level(uint32_t id_lhs);
 
 	void ensure_builtin(spv::StorageClass storage, spv::BuiltIn builtin);
-	
+
 	void mark_implicit_builtin(spv::StorageClass storage, spv::BuiltIn builtin, uint32_t id);
 
 	std::string convert_to_f32(const std::string &expr, uint32_t components);
@@ -783,6 +790,7 @@ protected:
 		uint32_t desc_set;
 		uint32_t binding;
 		bool operator==(const SetBindingPair &other) const;
+		bool operator<(const SetBindingPair &other) const;
 	};
 
 	struct StageSetBinding
@@ -807,12 +815,12 @@ protected:
 	// Intentionally uninitialized, works around MSVC 2013 bug.
 	uint32_t next_metal_resource_ids[kMaxArgumentBuffers];
 
-	uint32_t stage_in_var_id = 0;
-	uint32_t stage_out_var_id = 0;
-	uint32_t patch_stage_in_var_id = 0;
-	uint32_t patch_stage_out_var_id = 0;
-	uint32_t stage_in_ptr_var_id = 0;
-	uint32_t stage_out_ptr_var_id = 0;
+	VariableID stage_in_var_id = 0;
+	VariableID stage_out_var_id = 0;
+	VariableID patch_stage_in_var_id = 0;
+	VariableID patch_stage_out_var_id = 0;
+	VariableID stage_in_ptr_var_id = 0;
+	VariableID stage_out_ptr_var_id = 0;
 	int32_t needs_base_vertex_arg = 0; // Handle HLSL-style 0-based vertex/instance index.
 	int32_t needs_base_instance_arg = 0; // Handle HLSL-style 0-based vertex/instance index.
 	bool has_sampled_images = false;
@@ -848,7 +856,10 @@ protected:
 
 	std::unordered_set<uint32_t> buffers_requiring_array_length;
 	SmallVector<uint32_t> buffer_arrays;
-    std::set<SPIRVariable *> atomic_vars; // Emulate texture2D atomic operations
+	std::unordered_set<SPIRVariable *> atomic_vars; // Emulate texture2D atomic operations
+
+	// Must be ordered since array is in a specific order.
+	std::map<SetBindingPair, std::pair<uint32_t, uint32_t>> buffers_requiring_dynamic_offset;
 
 	uint32_t argument_buffer_ids[kMaxArgumentBuffers];
 	uint32_t argument_buffer_discrete_mask = 0;
@@ -876,7 +887,7 @@ protected:
 
 		CompilerMSL &compiler;
 		std::unordered_map<uint32_t, uint32_t> result_types;
-		std::unordered_map<uint32_t, SPIRVariable*> image_pointers; // Emulate texture2D atomic operations
+		std::unordered_map<uint32_t, SPIRVariable *> image_pointers; // Emulate texture2D atomic operations
 		std::unordered_map<uint32_t, uint32_t> invocation_ids; // Fix tessellation patch function processing
 		std::unordered_set<uint32_t> variables_indexed_by_invocation; // Fix tessellation patch function processing
 		bool passed_control_barrier = false; // Fix tessellation patch function processing

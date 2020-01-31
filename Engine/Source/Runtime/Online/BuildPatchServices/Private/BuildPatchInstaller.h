@@ -85,6 +85,9 @@ namespace BuildPatchServices
 		// The directory created in staging to construct install files to.
 		FString InstallStagingDir;
 
+		// The directory created in staging to store any required meta, such as resume info.
+		FString MetaStagingDir;
+
 		// The filename used to mark a previous install that did not complete but moved staged files into the install directory.
 		FString PreviousMoveMarker;
 
@@ -178,6 +181,9 @@ namespace BuildPatchServices
 
 		// The message pump controller.
 		TUniquePtr<IMessagePump> MessagePump;
+
+		// Holds the optimised delta interfaces created during Initialize.
+		TArray<TUniquePtr<IOptimisedDelta>> OptimisedDeltas;
 
 		// The interface for manifest data aggregation.
 		TUniquePtr<IBuildManifestSet> ManifestSet;

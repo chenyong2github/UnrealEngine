@@ -27,6 +27,8 @@
 #include "Hash/CityHash.h"
 #include "Templates/AlignmentTemplates.h"
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+
 // Page protection to catch FNameEntry stomps
 #ifndef FNAME_WRITE_PROTECT_PAGES
 #define FNAME_WRITE_PROTECT_PAGES 0
@@ -1700,7 +1702,7 @@ static int32 GetLengthAndWidth(const WIDECHAR* Str, bool& bOutIsWide)
 
 	bOutIsWide = UserCharBits & 0xffffff80u;
 
-	return It - Str;
+	return UE_PTRDIFF_TO_INT32(It - Str);
 }
 
 static FWideStringViewWithWidth MakeUnconvertedView(const WIDECHAR* Str, int32 Len)
@@ -3170,3 +3172,5 @@ uint8** FNameDebugVisualizer::GetBlocks()
 
 	return ((FNamePool*)(NamePoolData))->GetBlocksForDebugVisualizer();
 }
+
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

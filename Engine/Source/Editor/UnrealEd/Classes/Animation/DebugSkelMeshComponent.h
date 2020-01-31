@@ -308,9 +308,9 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	virtual bool IsWindEnabled() const override { return true; }
 	virtual void SetAnimClass(class UClass* NewClass) override;
 	//~ End SkeletalMeshComponent Interface
-	// Preview.
-	// @todo document
-	bool IsPreviewOn() const;
+
+	// return true if currently preview animation asset is on
+	virtual bool IsPreviewOn() const;
 
 	// @todo document
 	FString GetPreviewText() const;

@@ -106,8 +106,7 @@ inline bool RHISupportsGPUParticles()
 		&& GSupportsWideMRT
 		&& GPixelFormats[PF_G32R32F].Supported 
 		&& GSupportsTexture3D 
-		&& GSupportsResourceView 
-		&& GRHISupportsInstancing;
+		&& GSupportsResourceView;
 }
 
 class FFXSystemInterface;

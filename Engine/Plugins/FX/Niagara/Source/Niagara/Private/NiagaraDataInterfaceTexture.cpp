@@ -20,7 +20,7 @@ UNiagaraDataInterfaceTexture::UNiagaraDataInterfaceTexture(FObjectInitializer co
 	: Super(ObjectInitializer)
 	, Texture(nullptr)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyTexture, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyTexture());
 	PushToRenderThread();
 }
 

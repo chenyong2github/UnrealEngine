@@ -44,6 +44,12 @@ namespace InstallBundleUtil
 		return TEXT("");
 	}
 
+	const FString& GetInstallBundleSectionPrefix()
+	{
+		static FString Prefix(TEXT("InstallBundleDefinition ")); // trailing space intentional
+		return Prefix;
+	}
+
 	FName FInstallBundleManagerKeepAwake::Tag(TEXT("InstallBundleManagerKeepAwake"));
 	FName FInstallBundleManagerKeepAwake::TagWithRendering(TEXT("InstallBundleManagerKeepAwakeWithRendering"));
 

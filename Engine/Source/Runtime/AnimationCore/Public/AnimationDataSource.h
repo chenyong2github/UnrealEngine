@@ -69,6 +69,9 @@ public:
 
 private:
 
-	UPROPERTY()
-	TMap<FName, UObject*> DataSources;
+	UPROPERTY(transient)
+	TMap<FName, TWeakObjectPtr<UObject>> DataSources;
+
+	/** Clear Invalid Data Sources that are GC-ed */
+	void ClearInvalidDataSource();
 };

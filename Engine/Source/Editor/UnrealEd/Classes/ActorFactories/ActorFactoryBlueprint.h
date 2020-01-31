@@ -11,8 +11,8 @@
 class AActor;
 struct FAssetData;
 
-UCLASS(MinimalAPI, config=Editor, collapsecategories, hidecategories=Object)
-class UActorFactoryBlueprint : public UActorFactory
+UCLASS(config=Editor, collapsecategories, hidecategories=Object)
+class UNREALED_API UActorFactoryBlueprint : public UActorFactory
 {
 	GENERATED_UCLASS_BODY()
 

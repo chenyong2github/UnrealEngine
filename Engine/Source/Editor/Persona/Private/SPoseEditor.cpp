@@ -37,7 +37,7 @@ void SPoseEditor::Construct(const FArguments& InArgs, const TSharedRef<class IPe
 	check(PoseAssetObj);
 
 	SAnimEditorBase::Construct(SAnimEditorBase::FArguments()
-		.DisplayAnimInfoBar(false),
+		.DisplayAnimTimeline(false),
 		InPreviewScene);
 
 	NonScrollEditorPanels->AddSlot()

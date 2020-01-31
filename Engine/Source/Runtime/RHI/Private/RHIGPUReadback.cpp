@@ -77,7 +77,7 @@ void* FRHIGPUBufferReadback::Lock(uint32 NumBytes)
 	if (DestinationStagingBuffer)
 	{
 		ensure(Fence->Poll());
-		return RHILockStagingBuffer(DestinationStagingBuffer, 0, NumBytes);
+		return RHILockStagingBuffer(DestinationStagingBuffer, Fence.GetReference(), 0, NumBytes);
 	}
 	else
 	{
@@ -132,7 +132,7 @@ void* FRHIGPUTextureReadback::Lock(uint32 NumBytes)
 		void* ResultsBuffer = nullptr;
 		int32 BufferWidth = 0, BufferHeight = 0;
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		RHICmdList.MapStagingSurface(DestinationStagingBuffer, ResultsBuffer, BufferWidth, BufferHeight);
+		RHICmdList.MapStagingSurface(DestinationStagingBuffer, Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight);
 		return ResultsBuffer;
 	}
 	else

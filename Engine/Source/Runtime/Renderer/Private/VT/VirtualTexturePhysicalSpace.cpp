@@ -72,13 +72,26 @@ EPixelFormat GetUnorderedAccessViewFormat(EPixelFormat InFormat)
 	return InFormat;
 }
 
+EPixelFormat RemapVirtualTexturePhysicalSpaceFormat(EPixelFormat InFormat)
+{
+	if (InFormat == PF_B8G8R8A8 && IsOpenGLPlatform(GMaxRHIShaderPlatform) && IsMobilePlatform(GMaxRHIShaderPlatform))
+	{
+		// FIXME: Mobile/Android OpenGL can't copy data between swizzled formats
+		// Always use RGBA format for both VT intermediate render targets and VT physical texture
+		// This will also make uncompressed streaming VT to have a R and B channel swapped 
+		return PF_R8G8B8A8;
+	}
+
+	return InFormat;
+}
+
 void FVirtualTexturePhysicalSpace::InitRHI()
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	for (int32 Layer = 0; Layer < Description.NumLayers; ++Layer)
 	{
-		const EPixelFormat FormatSRV = Description.Format[Layer];
+		const EPixelFormat FormatSRV = RemapVirtualTexturePhysicalSpaceFormat(Description.Format[Layer]);
 		const EPixelFormat FormatUAV = GetUnorderedAccessViewFormat(FormatSRV);
 		const bool bCreateAliasedUAV = (FormatUAV != PF_Unknown) && (FormatUAV != FormatSRV);
 
@@ -100,8 +113,16 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 		SRVCreateInfo.Format = FormatSRV;
 		TextureSRV[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
 
-		SRVCreateInfo.SRGBOverride = SRGBO_ForceEnable;
-		TextureSRV_SRGB[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
+		if (GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1)
+		{
+			SRVCreateInfo.SRGBOverride = SRGBO_ForceEnable;
+			TextureSRV_SRGB[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
+		}
+		else
+		{
+			// Not all mobile RHIs support sRGB views
+			TextureSRV_SRGB[Layer] = TextureSRV[Layer];
+		}
 
 		if (bCreateAliasedUAV)
 		{

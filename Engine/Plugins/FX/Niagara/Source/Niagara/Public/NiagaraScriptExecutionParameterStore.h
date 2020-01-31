@@ -84,10 +84,10 @@ public:
 	}
 
 	// Just the external parameters, not previous or internal...
-	uint32 GetExternalParameterSize() { return ParameterSize; }
+	uint32 GetExternalParameterSize() const { return ParameterSize; }
 
 	// The entire buffer padded out by the required alignment of the types..
-	uint32 GetPaddedParameterSizeInBytes() { return PaddedParameterSize; }
+	uint32 GetPaddedParameterSizeInBytes() const { return PaddedParameterSize; }
 
 	// Helper that converts the data from the base type array internally into the padded out renderer-ready format.
 	void CopyParameterDataToPaddedBuffer(uint8* InTargetBuffer, uint32 InTargetBufferSizeInBytes);
@@ -97,6 +97,7 @@ public:
 	void SetAsInitialized() { bInitialized = true; }
 protected:
 	void AddPaddedParamSize(const FNiagaraTypeDefinition& InParamType, uint32 InOffset);
+	void AddAlignmentPadding();
 
 private:
 

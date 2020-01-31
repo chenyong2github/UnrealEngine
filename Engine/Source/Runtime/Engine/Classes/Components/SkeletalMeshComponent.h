@@ -298,6 +298,7 @@ class ENGINE_API USkeletalMeshComponent : public USkinnedMeshComponent, public I
 	friend class UAnimInstance;
 	friend struct FAnimNode_LinkedAnimGraph;
 	friend struct FAnimNode_LinkedAnimLayer;
+	friend struct FLinkedInstancesAdapter;
 
 	/**
 	 * Animation 
@@ -2250,4 +2251,31 @@ public:
 
 	// Are we currently within PostAnimEvaluation
 	bool IsPostEvaluatingAnimation() const { return bPostEvaluatingAnimation; }
+};
+
+struct FLinkedInstancesAdapter
+{
+	static void AddLinkedInstance(USkeletalMeshComponent* InComponent, UAnimInstance* InAnimInstance)
+	{
+		if (InComponent && InAnimInstance)
+		{
+			InComponent->LinkedInstances.Add(InAnimInstance);
+		}
+	}
+
+	static void RemoveLinkedInstance(USkeletalMeshComponent* InComponent, UAnimInstance* InAnimInstance)
+	{
+		if (InComponent && InAnimInstance)
+		{
+			InComponent->LinkedInstances.Remove(InAnimInstance);
+		}
+	}
+
+	static void ResetLinkedInstance(USkeletalMeshComponent* InComponent)
+	{
+		if (InComponent)
+		{
+			InComponent->LinkedInstances.Reset();
+		}
+	}
 };

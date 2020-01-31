@@ -11,6 +11,7 @@
 #include "EditorLevelUtils.h"
 #include "LevelCollectionModel.h"
 
+#include "Modules/ModuleManager.h"
 #include "Tiles/WorldTileDetails.h"
 #include "Tiles/WorldTileCollectionModel.h"
 #include "Engine/WorldComposition.h"

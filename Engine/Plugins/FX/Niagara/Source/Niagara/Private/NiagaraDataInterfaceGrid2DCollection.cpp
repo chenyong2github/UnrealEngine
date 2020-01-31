@@ -124,7 +124,7 @@ private:
 UNiagaraDataInterfaceGrid2DCollection::UNiagaraDataInterfaceGrid2DCollection(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Proxy = MakeShared<FNiagaraDataInterfaceProxyGrid2DCollection, ESPMode::ThreadSafe>();
+	Proxy.Reset(new FNiagaraDataInterfaceProxyGrid2DCollection());
 	RWProxy = (FNiagaraDataInterfaceProxyRW*) Proxy.Get();
 	PushToRenderThread();
 }
@@ -399,15 +399,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
 		[RT_Proxy, RT_NumCellsX, RT_NumCellsY, RT_NumTilesX, RT_NumTilesY, RT_CellSize, RT_WorldBBoxSize, RT_OutputShaderStages, RT_IterationShaderStages, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
 	{
-		Grid2DCollectionRWInstanceData* TargetData = RT_Proxy->SystemInstancesToProxyData.Find(InstanceID);
-		if (TargetData != nullptr)
-		{
-			RT_Proxy->DeferredDestroyList.Remove(InstanceID);
-		}
-		else
-		{
-			TargetData = &RT_Proxy->SystemInstancesToProxyData.Add(InstanceID);
-		}
+		check(!RT_Proxy->SystemInstancesToProxyData.Contains(InstanceID));
+		Grid2DCollectionRWInstanceData* TargetData = &RT_Proxy->SystemInstancesToProxyData.Add(InstanceID);
 
 		TargetData->NumCellsX = RT_NumCellsX;
 		TargetData->NumCellsY = RT_NumCellsY;
@@ -440,7 +433,8 @@ void UNiagaraDataInterfaceGrid2DCollection::DestroyPerInstanceData(void* PerInst
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
 		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 	{
-		ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
+		//check(ThisProxy->SystemInstancesToProxyData.Contains(InstanceID));
+		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
 	}
 	);
 }
@@ -661,27 +655,6 @@ void UNiagaraDataInterfaceGrid2DCollection::GetCellSize(FVectorVMContext& Contex
 	}
 }
 
-// #todo(dmp): move these to super class
-void FNiagaraDataInterfaceProxyGrid2DCollection::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
-{
-	check(IsInRenderingThread());
-
-	DeferredDestroyList.Add(SystemInstance);
-	Batcher->EnqueueDeferredDeletesForDI_RenderThread(this->AsShared());
-}
-
-// #todo(dmp): move these to super class
-void FNiagaraDataInterfaceProxyGrid2DCollection::DeferredDestroy()
-{
-	for (const FNiagaraSystemInstanceID& Sys : DeferredDestroyList)
-	{
-		SystemInstancesToProxyData.Remove(Sys);
-	}
-
-	DeferredDestroyList.Empty();
-}
-
-
 void FNiagaraDataInterfaceProxyGrid2DCollection::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
 {
 	// #todo(dmp): Context doesnt need to specify if a stage is output or not since we moved pre/post stage to the DI itself.  Not sure which design is better for the future
@@ -698,7 +671,9 @@ void FNiagaraDataInterfaceProxyGrid2DCollection::PreStage(FRHICommandList& RHICm
 		// memory efficient since it would theoretically not require any double buffering.		
 		if (!Context.IsIterationStage)
 		{
-			ClearUAV(RHICmdList, ProxyData->DestinationData->GridBuffer, FLinearColor(0, 0, 0, 0));
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);
+			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ProxyData->DestinationData->GridBuffer.UAV);
 		}
 	}
 }
@@ -726,8 +701,10 @@ void FNiagaraDataInterfaceProxyGrid2DCollection::ResetData(FRHICommandList& RHIC
 	{
 		if (Buffer)
 		{
-			ClearUAV(RHICmdList, Buffer->GridBuffer, FLinearColor(0, 0, 0, 0));
-		}		
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Buffer->GridBuffer.UAV);
+			RHICmdList.ClearUAVFloat(Buffer->GridBuffer.UAV, FVector4(ForceInitToZero));
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Buffer->GridBuffer.UAV);
+		}
 	}	
 }
 #undef LOCTEXT_NAMESPACE

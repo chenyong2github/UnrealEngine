@@ -24,6 +24,8 @@
 #include "Misc/ConfigCacheIni.h"
 #endif
 
+#define VALIDATE_GLOBAL_UNIFORM_BUFFERS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+
 static TAutoConsoleVariable<int32> CVarShaderDevelopmentMode(
 	TEXT("r.ShaderDevelopmentMode"),
 	0,
@@ -350,6 +352,37 @@ bool ShouldExportShaderDebugInfo(EShaderPlatform Platform)
 {
 	static uint64 GExportDebugInfoPlatforms = GetExportShaderDebugInfoPlatforms();
 	return (GExportDebugInfoPlatforms & (uint64(1) << Platform)) != 0;
+}
+
+void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBufferStaticSlot Slot, uint32 ExpectedHash)
+{
+#if VALIDATE_GLOBAL_UNIFORM_BUFFERS
+	FUniformBufferStaticSlotRegistry& SlotRegistry = FUniformBufferStaticSlotRegistry::Get();
+
+	if (!UniformBuffer)
+	{
+		UE_LOG(LogShaders, Warning, TEXT("Shader requested a global uniform buffer at static slot %s, but it was null."), *SlotRegistry.GetDebugDescription(Slot));
+	}
+	else
+	{
+		const FRHIUniformBufferLayout& Layout = UniformBuffer->GetLayout();
+
+		if (Layout.GetHash() != ExpectedHash)
+		{
+			const FShaderParametersMetadata* ExpectedStructMetadata = FindUniformBufferStructByLayoutHash(ExpectedHash);
+
+			checkf(
+				ExpectedStructMetadata,
+				TEXT("Shader is requesting uniform buffer '%s' at slot %s with hash '%u', but a reverse lookup of the hash can't find it. The shader cache may be out of date."),
+				*Layout.GetDebugName().ToString(), *SlotRegistry.GetDebugDescription(Slot), ExpectedHash);
+
+			checkf(
+				false,
+				TEXT("Shader attempted to bind uniform buffer '%s' at slot %s with hash '%u', but the shader expected '%s' with hash '%u'."),
+				*Layout.GetDebugName().ToString(), *SlotRegistry.GetDebugDescription(Slot), ExpectedHash, ExpectedStructMetadata->GetShaderVariableName(), Layout.GetHash());
+		}
+	}
+#endif
 }
 
 bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName,uint16& OutBufferIndex,uint16& OutBaseIndex,uint16& OutSize) const

@@ -34,7 +34,7 @@ private:
 	TWeakPtr<FStatsTreeElement> WeakTreeElement;
 
 	FText GetLabelText() const;
-	FText GetTooltipText() const;
+	FText GetToolTipText() const;
 	FSlateColor GetTextColor() const;
 	FText GetTotalTimeText(bool bInclusive) const;
 	FText GetAverageTimeText(bool bInclusive) const;

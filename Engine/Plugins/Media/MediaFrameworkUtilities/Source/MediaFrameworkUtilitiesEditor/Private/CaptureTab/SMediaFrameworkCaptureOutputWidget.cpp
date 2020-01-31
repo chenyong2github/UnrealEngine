@@ -25,6 +25,7 @@
 #include "Widgets/SViewport.h"
 #include "Widgets/Text/STextBlock.h"
 
+#include "Modules/ModuleManager.h"
 #include "Editor.h"
 #include "IAssetViewport.h"
 #include "LevelEditor.h"

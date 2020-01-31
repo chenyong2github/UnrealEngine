@@ -87,7 +87,7 @@ public:
 	FAnimNode_LayeredBoneBlend()
 		: bMeshSpaceRotationBlend(false)
 		, bMeshSpaceScaleBlend(false)
-		, CurveBlendOption(ECurveBlendOption::MaxWeight)
+		, CurveBlendOption(ECurveBlendOption::Override)
 		, bBlendRootMotionBasedOnRootBone(true)
 		, bHasRelevantPoses(false)
 		, LODThreshold(INDEX_NONE)

@@ -1482,6 +1482,7 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 		TargetSection.BoneMap.Add(0);
 
 		TargetSection.CalcMaxBoneInfluences();
+		TargetSection.CalcUse16BitBoneIndex();
 	}
 
 	// Only using bone zero

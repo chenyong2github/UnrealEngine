@@ -44,6 +44,7 @@ FCurveEditor::FCurveEditor()
 	: Bounds(new FStaticCurveEditorBounds)
 	, bBoundTransformUpdatesSuppressed(false)
 	, ActiveCurvesSerialNumber(0)
+	, SuspendBroadcastCount(0)
 {
 	Settings = GetMutableDefault<UCurveEditorSettings>();
 	CommandList = MakeShared<FUICommandList>();
@@ -84,7 +85,7 @@ void FCurveEditor::InitCurveEditor(const FCurveEditorInitParams& InInitParams)
 		// We call a delegate and have the delegate create the instance to cover cross-module
 		AddTool(Tools[DelegateIndex].Execute(SharedThis(this)));
 	}
-
+	SuspendBroadcastCount = 0;
 	// Listen to global undo so we can fix up our selection state for keys that no longer exist.
 	GEditor->RegisterForUndo(this);
 }
@@ -97,6 +98,16 @@ void FCurveEditor::SetPanel(TSharedPtr<SCurveEditorPanel> InPanel)
 TSharedPtr<SCurveEditorPanel> FCurveEditor::GetPanel() const
 {
 	return WeakPanel.Pin();
+}
+
+void FCurveEditor::SetView(TSharedPtr<SCurveEditorView> InView)
+{
+	WeakView = InView;
+}
+
+TSharedPtr<SCurveEditorView> FCurveEditor::GetView() const
+{
+	return WeakView.Pin();
 }
 
 FCurveModel* FCurveEditor::FindCurve(FCurveModelID CurveID) const
@@ -121,16 +132,34 @@ FCurveEditorToolID FCurveEditor::AddTool(TUniquePtr<ICurveEditorToolExtension>&&
 FCurveModelID FCurveEditor::AddCurve(TUniquePtr<FCurveModel>&& InCurve)
 {
 	FCurveModelID NewID = FCurveModelID::Unique();
+	FCurveModel *Curve = InCurve.Get();
+
 	CurveData.Add(NewID, MoveTemp(InCurve));
-
 	++ActiveCurvesSerialNumber;
-
+	if (IsBroadcasting())
+	{
+		OnCurveArrayChanged.Broadcast(Curve, true);
+	}
 	return NewID;
+}
+
+void FCurveEditor::BroadcastCurveChanged(FCurveModel* InCurve)
+{
+	if (IsBroadcasting())
+	{
+		OnCurveArrayChanged.Broadcast(InCurve, true);
+	}
 }
 
 FCurveModelID FCurveEditor::AddCurveForTreeItem(TUniquePtr<FCurveModel>&& InCurve, FCurveEditorTreeItemID TreeItemID)
 {
 	FCurveModelID NewID = FCurveModelID::Unique();
+	FCurveModel *Curve = InCurve.Get();
+
+	if(IsBroadcasting())
+	{
+		OnCurveArrayChanged.Broadcast(InCurve.Get(), true);
+	}
 
 	CurveData.Add(NewID, MoveTemp(InCurve));
 	TreeIDByCurveID.Add(NewID, TreeItemID);
@@ -148,9 +177,35 @@ void FCurveEditor::RemoveCurve(FCurveModelID InCurveID)
 		Panel->RemoveCurveFromViews(InCurveID);
 	}
 
+	if(IsBroadcasting())
+	{
+		OnCurveArrayChanged.Broadcast(FindCurve(InCurveID), false);
+	}
+
+
 	CurveData.Remove(InCurveID);
 	Selection.Remove(InCurveID);
 	PinnedCurves.Remove(InCurveID);
+
+
+	++ActiveCurvesSerialNumber;
+
+}
+
+void FCurveEditor::RemoveAllCurves()
+{
+	TSharedPtr<SCurveEditorPanel> Panel = WeakPanel.Pin();
+	if (Panel.IsValid())
+	{
+		for (TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveData)
+		{
+			Panel->RemoveCurveFromViews(CurvePair.Key);
+		}
+	}
+
+	CurveData.Empty();
+	Selection.Clear();
+	PinnedCurves.Empty();
 
 	++ActiveCurvesSerialNumber;
 }
@@ -174,11 +229,15 @@ void FCurveEditor::UnpinCurve(FCurveModelID InCurveID)
 
 const SCurveEditorView* FCurveEditor::FindFirstInteractiveView(FCurveModelID InCurveID) const
 {
-	for (auto ViewIt = GetPanel()->FindViews(InCurveID); ViewIt; ++ViewIt)
+	TSharedPtr<SCurveEditorPanel> Panel = WeakPanel.Pin();
+	if (Panel.IsValid())
 	{
-		if (ViewIt.Value()->IsInteractive())
+		for (auto ViewIt = Panel->FindViews(InCurveID); ViewIt; ++ViewIt)
 		{
-			return &ViewIt.Value().Get();
+			if (ViewIt.Value()->IsInteractive())
+			{
+				return &ViewIt.Value().Get();
+			}
 		}
 	}
 	return nullptr;
@@ -214,6 +273,21 @@ void FCurveEditor::RemoveTreeItem(FCurveEditorTreeItemID ItemID)
 
 	Tree.RemoveItem(ItemID, this);
 	++ActiveCurvesSerialNumber;
+}
+
+void FCurveEditor::RemoveAllTreeItems()
+{
+	TArray<FCurveEditorTreeItemID> RootItems = Tree.GetRootItems();
+	for(FCurveEditorTreeItemID ItemID : RootItems)
+	{
+		Tree.RemoveItem(ItemID, this);
+	}
+	++ActiveCurvesSerialNumber;
+}
+
+void FCurveEditor::SetTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems)
+{
+	Tree.SetDirectSelection(MoveTemp(TreeItems), this);
 }
 
 ECurveEditorTreeSelectionState FCurveEditor::GetTreeSelectionState(FCurveEditorTreeItemID InTreeItemID) const
@@ -434,10 +508,28 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 
 		if (Axes & EAxisList::Y)
 		{
-			// Store the min max for each view
-			for (auto ViewIt = GetPanel()->FindViews(CurveID); ViewIt; ++ViewIt)
+			TSharedPtr<SCurveEditorPanel> Panel = WeakPanel.Pin();
+			TSharedPtr<SCurveEditorView> View = WeakView.Pin();
+			if (Panel.IsValid())
 			{
-				TTuple<double, double>* ViewBounds = ViewToOutputBounds.Find(ViewIt.Value());
+				// Store the min max for each view
+				for (auto ViewIt = Panel->FindViews(CurveID); ViewIt; ++ViewIt)
+				{
+					TTuple<double, double>* ViewBounds = ViewToOutputBounds.Find(ViewIt.Value());
+					if (ViewBounds)
+					{
+						ViewBounds->Get<0>() = FMath::Min(ViewBounds->Get<0>(), OutputMin);
+						ViewBounds->Get<1>() = FMath::Max(ViewBounds->Get<1>(), OutputMax);
+					}
+					else
+					{
+						ViewToOutputBounds.Add(ViewIt.Value(), MakeTuple(OutputMin, OutputMax));
+					}
+				}
+			}
+			else if(View.IsValid())
+			{
+				TTuple<double, double>* ViewBounds = ViewToOutputBounds.Find(View.ToSharedRef());
 				if (ViewBounds)
 				{
 					ViewBounds->Get<0>() = FMath::Min(ViewBounds->Get<0>(), OutputMin);
@@ -445,7 +537,7 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 				}
 				else
 				{
-					ViewToOutputBounds.Add(ViewIt.Value(), MakeTuple(OutputMin, OutputMax));
+					ViewToOutputBounds.Add(View.ToSharedRef(), MakeTuple(OutputMin, OutputMax));
 				}
 			}
 		}
@@ -1487,7 +1579,6 @@ void FCurveEditor::PostUndo(bool bSuccess)
 			Selection.Remove(Set.Key);
 			continue;
 		}
-
 		// Get all of the key handles from this curve.
 		TArray<FKeyHandle> KeyHandles;
 		CurveModel->GetKeys(*this, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);

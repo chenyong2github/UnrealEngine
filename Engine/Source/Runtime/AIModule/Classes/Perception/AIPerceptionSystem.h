@@ -18,7 +18,7 @@
 class UAIPerceptionComponent;
 class UAISenseEvent;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogAIPerception, Warning, All);
+AIMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogAIPerception, Warning, All);
 
 class APawn;
 
@@ -64,8 +64,10 @@ protected:
 	 *	bSomeListenersNeedUpdateDueToStimuliAging gets reset to false */
 	uint32 bSomeListenersNeedUpdateDueToStimuliAging : 1;
 
-	/** gets set to true when perception system gets notified about a stimuli source's end play */
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(4.25, "This property will be removed in future versions. UnregisterSource is called by AActor.OnEndPlay delegate and will perform the cleanup.")
 	uint32 bStimuliSourcesRefreshRequired : 1;
+#endif
 
 	uint32 bHandlePawnNotification : 1;
 

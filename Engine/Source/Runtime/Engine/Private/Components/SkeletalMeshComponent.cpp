@@ -40,6 +40,9 @@
 #include "SkeletalRenderPublic.h"
 #include "ContentStreaming.h"
 #include "Animation/AnimTrace.h"
+#if INTEL_ISPC
+#include "SkeletalMeshComponent.ispc.generated.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponent"
 
@@ -585,6 +588,8 @@ void USkeletalMeshComponent::OnUnregister()
 			PhysScene->ClearPreSimKinematicUpdate(this);
 		}
 	}
+
+	RequiredBones.Reset();
 
 	Super::OnUnregister();
 }
@@ -1388,32 +1393,48 @@ void USkeletalMeshComponent::FillComponentSpaceTransforms(const USkeletalMesh* I
 #endif
 	}
 
-	for (int32 i = 1; i<FillComponentSpaceTransformsRequiredBones.Num(); i++)
+	if (INTEL_ISPC)
 	{
-		const int32 BoneIndex = FillComponentSpaceTransformsRequiredBones[i];
-		FTransform* SpaceBase = ComponentSpaceData + BoneIndex;
+#if INTEL_ISPC
+		ispc::FillComponentSpaceTransforms(
+			(ispc::FTransform*)&ComponentSpaceData[0],
+			(ispc::FTransform*)&LocalTransformsData[0],
+			FillComponentSpaceTransformsRequiredBones.GetData(),
+			(const uint8*)InSkeletalMesh->RefSkeleton.GetRefBoneInfo().GetData(),
+			sizeof(FMeshBoneInfo),
+			offsetof(FMeshBoneInfo, ParentIndex),
+			FillComponentSpaceTransformsRequiredBones.Num());
+#endif
+	}
+	else
+	{
+		for (int32 i = 1; i < FillComponentSpaceTransformsRequiredBones.Num(); i++)
+		{
+			const int32 BoneIndex = FillComponentSpaceTransformsRequiredBones[i];
+			FTransform* SpaceBase = ComponentSpaceData + BoneIndex;
 
-		FPlatformMisc::Prefetch(SpaceBase);
+			FPlatformMisc::Prefetch(SpaceBase);
 
 #if DO_GUARD_SLOW
-		// Mark bone as processed
-		BoneProcessed[BoneIndex] = 1;
+			// Mark bone as processed
+			BoneProcessed[BoneIndex] = 1;
 #endif
-		// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.
-		const int32 ParentIndex = InSkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
-		FTransform* ParentSpaceBase = ComponentSpaceData + ParentIndex;
-		FPlatformMisc::Prefetch(ParentSpaceBase);
+			// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.
+			const int32 ParentIndex = InSkeletalMesh->RefSkeleton.GetParentIndex(BoneIndex);
+			FTransform* ParentSpaceBase = ComponentSpaceData + ParentIndex;
+			FPlatformMisc::Prefetch(ParentSpaceBase);
 
 #if DO_GUARD_SLOW
-		// Check the precondition that Parents occur before Children in the RequiredBones array.
-		checkSlow(BoneProcessed[ParentIndex] == 1);
+			// Check the precondition that Parents occur before Children in the RequiredBones array.
+			checkSlow(BoneProcessed[ParentIndex] == 1);
 #endif
-		FTransform::Multiply(SpaceBase, LocalTransformsData + BoneIndex, ParentSpaceBase);
+			FTransform::Multiply(SpaceBase, LocalTransformsData + BoneIndex, ParentSpaceBase);
 
-		SpaceBase->NormalizeRotation();
+			SpaceBase->NormalizeRotation();
 
-		checkSlow(SpaceBase->IsRotationNormalized());
-		checkSlow(!SpaceBase->ContainsNaN());
+			checkSlow(SpaceBase->IsRotationNormalized());
+			checkSlow(!SpaceBase->ContainsNaN());
+		}
 	}
 }
 

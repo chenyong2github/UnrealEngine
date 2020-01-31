@@ -13,6 +13,7 @@
 #endif
 
 #include "ChaosInterfaceWrapperCore.h"
+#include "Chaos/CastingUtilities.h"
 #include "Chaos/ISpatialAcceleration.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/GeometryQueries.h"
@@ -240,7 +241,7 @@ private:
 				TVector<float, 3> WorldPosition, WorldNormal;
 				float Distance = 0;	//not needed but fixes compiler warning for overlap
 				int32 FaceIdx = INDEX_NONE;	//not needed but fixes compiler warning for overlap
-				const bool bComputeMTD = !!((uint16)(OutputFlags & EHitFlags::MTD));
+				const bool bComputeMTD = !!((uint16)(OutputFlags.HitFlags & EHitFlags::MTD));
 
 				if (SQ == ESQType::Raycast)
 				{
@@ -262,7 +263,19 @@ private:
 				}
 				else if (SQ == ESQType::Overlap || (SQ == ESQType::Sweep && CurData->CurrentLength == 0))
 				{
-					bHit = OverlapQuery(*Geom, ActorTM, *QueryGeom, StartTM, /*Thickness=*/0);
+					if (bComputeMTD)
+					{
+						FMTDInfo MTDInfo;
+						bHit = OverlapQuery(*Geom, ActorTM, *QueryGeom, StartTM, /*Thickness=*/0, &MTDInfo);
+						if (bHit)
+						{
+							WorldNormal = MTDInfo.Normal * MTDInfo.Penetration;
+						}
+					}
+					else
+					{
+						bHit = OverlapQuery(*Geom, ActorTM, *QueryGeom, StartTM, /*Thickness=*/0);
+					}
 				}
 
 				if(bHit)
@@ -278,10 +291,10 @@ private:
 					{
 
 						//overlap never blocks
-						const bool bBlocker = SQ != ESQType::Overlap && (HitType == ECollisionQueryHitType::Block || bAnyHit || HitBuffer.WantsSingleResult());
+						const bool bBlocker = (HitType == ECollisionQueryHitType::Block || bAnyHit || HitBuffer.WantsSingleResult());
 						HitBuffer.InsertHit(Hit, bBlocker);
 
-						if (bBlocker)
+						if (bBlocker && SQ != ESQType::Overlap)
 						{
 							CurData->SetLength(FMath::Max(0.f, Distance));	//Max is needed for MTD which returns negative distance
 							if (CurData->CurrentLength == 0 && (SQ == ESQType::Raycast || HitBuffer.WantsSingleResult()))	//raycasts always fail with distance 0, sweeps only matter if we want multi overlaps
@@ -322,7 +335,7 @@ private:
 	const FVector StartPoint;
 	const FVector Dir;
 	const FVector HalfExtents;
-	EHitFlags OutputFlags;
+	FHitFlags OutputFlags;
 	bool bAnyHit;
 	const FQueryDebugParams DebugParams;
 	ChaosInterface::FSQHitBuffer<THitType>& HitBuffer;
@@ -344,23 +357,33 @@ void FChaosSQAccelerator::Raycast(const FVector& Start, const FVector& Dir, cons
 }
 
 template <typename QueryGeomType>
-void SweepHelper(const QueryGeomType& QueryGeom, const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>& SpatialAcceleration, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams)
+void SweepHelper(const QueryGeomType& QueryGeom,const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>& SpatialAcceleration,const FTransform& StartTM,const FVector& Dir,const float DeltaMagnitude,ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer,EHitFlags OutputFlags,const FQueryFilterData& QueryFilterData,ICollisionQueryFilterCallbackBase& QueryCallback,const FQueryDebugParams& DebugParams)
 {
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	const TAABB<float, 3> Bounds = QueryGeom.BoundingBox().TransformedAABB(StartTM);
-	const FVector HalfExtents = Bounds.Extents() * 0.5f;
+	const TAABB<float,3> Bounds = QueryGeom.BoundingBox().TransformedAABB(StartTM);
+	const bool bSweepAsOverlap = DeltaMagnitude == 0;	//question: do we care about tiny sweeps?
+	TSQVisitor<QueryGeomType,TAccelerationStructureHandle<float,3>,FSweepHit> SweepVisitor(StartTM,Dir,HitBuffer,OutputFlags,QueryFilterData,QueryCallback,QueryGeom,DebugParams);
 
-	TSQVisitor<QueryGeomType, TAccelerationStructureHandle<float, 3>, FSweepHit> SweepVisitor(StartTM, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, QueryGeom, DebugParams);
 	HitBuffer.IncFlushCount();
-	SpatialAcceleration.Sweep(Bounds.GetCenter(), Dir, DeltaMagnitude, HalfExtents, SweepVisitor);
+
+	if(bSweepAsOverlap)
+	{
+		//fallback to overlap
+		SpatialAcceleration.Overlap(Bounds,SweepVisitor);
+	} else
+	{
+		const FVector HalfExtents = Bounds.Extents() * 0.5f;
+		SpatialAcceleration.Sweep(Bounds.GetCenter(),Dir,DeltaMagnitude,HalfExtents,SweepVisitor);
+	}
+
 	HitBuffer.DecFlushCount();
 }
 
 void FChaosSQAccelerator::Sweep(const Chaos::FImplicitObject& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams) const
 {
-	return Chaos::CastHelper(QueryGeom, StartTM, [&](const auto& Downcast, const FTransform& StartFullTM) { return SweepHelper(Downcast, SpatialAcceleration, StartFullTM, Dir, DeltaMagnitude, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, DebugParams); });
+	return Chaos::Utilities::CastHelper(QueryGeom, StartTM, [&](const auto& Downcast, const FTransform& StartFullTM) { return SweepHelper(Downcast, SpatialAcceleration, StartFullTM, Dir, DeltaMagnitude, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, DebugParams); });
 }
 
 template <typename QueryGeomType>
@@ -378,7 +401,7 @@ void OverlapHelper(const QueryGeomType& QueryGeom, const Chaos::ISpatialAccelera
 
 void FChaosSQAccelerator::Overlap(const Chaos::FImplicitObject& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams) const
 {
-	return Chaos::CastHelper(QueryGeom, GeomPose, [&](const auto& Downcast, const FTransform& GeomFullPose) { return OverlapHelper(Downcast, SpatialAcceleration, GeomFullPose, HitBuffer, QueryFilterData, QueryCallback, DebugParams); });
+	return Chaos::Utilities::CastHelper(QueryGeom, GeomPose, [&](const auto& Downcast, const FTransform& GeomFullPose) { return OverlapHelper(Downcast, SpatialAcceleration, GeomFullPose, HitBuffer, QueryFilterData, QueryCallback, DebugParams); });
 }
 
 #if WITH_PHYSX

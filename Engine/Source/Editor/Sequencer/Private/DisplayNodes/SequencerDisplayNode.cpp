@@ -582,6 +582,22 @@ TSharedPtr<FSequencerObjectBindingNode> FSequencerDisplayNode::FindParentObjectB
 	return nullptr;
 }
 
+TSharedPtr<FSequencerTrackNode> FSequencerDisplayNode::FindParentTrackNode() const
+{
+	TSharedPtr<FSequencerDisplayNode> CurrentParentNode = GetParent();
+	while (CurrentParentNode.IsValid())
+	{
+		if (CurrentParentNode->GetType() == ESequencerNode::Track)
+		{
+			return StaticCastSharedPtr<FSequencerTrackNode>(CurrentParentNode);
+		}
+		CurrentParentNode = CurrentParentNode->GetParent();
+	}
+
+	return nullptr;
+}
+
+
 FGuid FSequencerDisplayNode::GetObjectGuid() const
 {
 	TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = FindParentObjectBindingNode();
@@ -768,6 +784,12 @@ bool FSequencerDisplayNode::IsDimmed() const
 	}
 
 	return bDimLabel;
+}
+
+FSlateFontInfo FSequencerDisplayNode::GetDisplayNameFont() const
+{
+	FSlateFontInfo NodeFont = FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
+	return NodeFont;
 }
 
 FLinearColor FSequencerDisplayNode::GetDisplayNameColor() const
@@ -1341,6 +1363,7 @@ TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const F
 			[
 				SNew(STextBlock)
 				.Text(this, &FSequencerDisplayNode::GetDisplayName)
+				.Font(this, &FSequencerDisplayNode::GetDisplayNameFont)
 				.HighlightText_Static(SequencerNodeConstants::GetCurveEditorHighlightText, InCurveEditor)
 				.ToolTipText(this, &FSequencerDisplayNode::GetDisplayNameToolTipText)
 			];

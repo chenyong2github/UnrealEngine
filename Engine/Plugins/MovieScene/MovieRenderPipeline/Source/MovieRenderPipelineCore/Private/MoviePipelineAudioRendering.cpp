@@ -151,8 +151,8 @@ void UMoviePipeline::ProcessAudioTick()
 		// Process work that has been submitted from the game thread to the audio thread over the temporal samples of this frame.
 		AudioDeltaTime = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence).AsInterval();
 	}
-	
-	if (FAudioDevice* AudioDevice = GEngine->GetActiveAudioDevice())
+
+	if (FAudioDevice* AudioDevice = FAudioDeviceManager::GetActiveDevice())
 	{
 		// Handle any game logic that changed Audio State.
 		AudioDevice->Update(true);

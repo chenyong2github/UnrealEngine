@@ -488,6 +488,7 @@ bool GSupportsTexture3D = true;
 bool GSupportsMobileMultiView = false;
 bool GSupportsImageExternal = false;
 bool GSupportsResourceView = true;
+bool GRHISupportsMultithreading = false;
 TRHIGlobal<bool> GSupportsMultipleRenderTargets(true);
 bool GSupportsWideMRT = true;
 float GMinClipZ = 0.0f;
@@ -513,10 +514,11 @@ bool GRHISupportsTextureStreaming = false;
 bool GSupportsDepthBoundsTest = false;
 bool GSupportsEfficientAsyncCompute = false;
 bool GRHISupportsBaseVertexIndex = true;
-TRHIGlobal<bool> GRHISupportsInstancing(true);
 bool GRHISupportsFirstInstance = false;
 bool GRHISupportsDynamicResolution = false;
 bool GRHISupportsRayTracing = false;
+bool GRHISupportsRayTracingMissShaderBindings = false;
+bool GRHISupportsRayTracingAsyncBuildAccelerationStructure = false;
 bool GRHISupportsWaveOperations = false;
 bool GRHISupportsRHIThread = false;
 bool GRHISupportsRHIOnTaskThread = false;
@@ -703,10 +705,7 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	switch (Platform)
 	{
 	case SP_PCD3D_SM5:
-	case SP_OPENGL_SM4:
-	case SP_OPENGL_PCES2:
 	case SP_OPENGL_SM5:
-	case SP_PCD3D_ES2:
 	case SP_PCD3D_ES3_1:
 	case SP_OPENGL_PCES3_1:
 	case SP_VULKAN_PCES3_1:
@@ -729,7 +728,6 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_METAL_SM5:
 	case SP_METAL_SM5_NOTESS:
 	case SP_METAL_MACES3_1:
-	case SP_METAL_MACES2:
 	case SP_METAL_MRT_MAC:
 		return NAME_PLATFORM_MAC;
 	case SP_SWITCH:
@@ -973,19 +971,6 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 	OutRTInfo.bClearStencil = (StencilLoadAction == ERenderTargetLoadAction::EClear);
 
 	OutRTInfo.FoveationTexture = FoveationTexture;
-
-	if (NumUAVs > 0)
-	{
-		check(UAVIndex != -1);
-		int32 StartingUAVIndex = FMath::Max(UAVIndex, OutRTInfo.NumColorRenderTargets);
-		check((StartingUAVIndex+NumUAVs) <= MaxSimultaneousUAVs);
-		OutRTInfo.NumColorRenderTargets = StartingUAVIndex;
-		for (int32 Index = 0; Index < NumUAVs; ++Index)
-		{
-			OutRTInfo.UnorderedAccessView[Index] = UAVs[Index];
-		}
-		OutRTInfo.NumUAVs = NumUAVs;
-	}
 }
 
 void FRHIRenderPassInfo::OnVerifyNumUAVsFailed(int32 InNumUAVs)
@@ -1128,10 +1113,7 @@ FString LexToString(EShaderPlatform Platform)
 	{
 	case SP_PCD3D_SM5: return TEXT("PCD3D_SM5");
 	case SP_PCD3D_ES3_1: return TEXT("PCD3D_ES3_1");
-	case SP_PCD3D_ES2: return TEXT("PCD3D_ES2");
-	case SP_OPENGL_SM4: return TEXT("OPENGL_SM4");
 	case SP_OPENGL_SM5: return TEXT("OPENGL_SM5");
-	case SP_OPENGL_PCES2: return TEXT("OPENGL_PCES2");
 	case SP_OPENGL_PCES3_1: return TEXT("OPENGL_PCES3_1");
 	case SP_OPENGL_ES2_ANDROID: return TEXT("OPENGL_ES2_ANDROID");
 	case SP_OPENGL_ES2_WEBGL: return TEXT("OPENGL_ES2_WEBGL");
@@ -1149,16 +1131,19 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_METAL_SM5: return TEXT("METAL_SM5");
 	case SP_METAL_SM5_NOTESS: return TEXT("METAL_SM5_NOTESS");
 	case SP_METAL_MACES3_1: return TEXT("METAL_MACES3_1");
-	case SP_METAL_MACES2: return TEXT("METAL_MACES2");
 	case SP_VULKAN_ES3_1_ANDROID: return TEXT("VULKAN_ES3_1_ANDROID");
 	case SP_VULKAN_ES3_1_LUMIN: return TEXT("VULKAN_ES3_1_LUMIN");
 	case SP_VULKAN_PCES3_1: return TEXT("VULKAN_PCES3_1");
 	case SP_VULKAN_SM5: return TEXT("VULKAN_SM5");
 	case SP_VULKAN_SM5_LUMIN: return TEXT("VULKAN_SM5_LUMIN");
 
-	case SP_OPENGL_ES2_IOS_DEPRECATED:
-	case SP_VULKAN_SM4_DEPRECATED:
-	case SP_PCD3D_SM4_DEPRECATED:
+	case SP_OPENGL_ES2_IOS_REMOVED:
+	case SP_VULKAN_SM4_REMOVED:
+	case SP_PCD3D_SM4_REMOVED:
+	case SP_OPENGL_SM4_REMOVED:
+	case SP_PCD3D_ES2_DEPRECATED:
+	case SP_OPENGL_PCES2_DEPRECATED:
+	case SP_METAL_MACES2_DEPRECATED:
 		return TEXT("");
 
 	default:
@@ -1235,7 +1220,9 @@ inline void ParseDataDrivenShaderInfo(const FConfigSection& Section, FDataDriven
 	Info.bSupports4ComponentUAVReadWrite = GetSectionBool(Section, "bSupports4ComponentUAVReadWrite");
 	Info.bSupportsRenderTargetWriteMask = GetSectionBool(Section, "bSupportsRenderTargetWriteMask");
 	Info.bSupportsRayTracing = GetSectionBool(Section, "bSupportsRayTracing");
+	Info.bSupportsRayTracingMissShaderBindings = GetSectionBool(Section, "bSupportsRayTracingMissShaderBindings");
 	Info.bSupportsGPUSkinCache = GetSectionBool(Section, "bSupportsGPUSkinCache");
+	Info.bSupportsByteBufferComputeShaders = GetSectionBool(Section, "bSupportsByteBufferComputeShaders");
 
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
 	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");

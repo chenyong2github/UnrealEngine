@@ -224,7 +224,10 @@ namespace UnrealBuildTool
 			{
 				Parent.GetAllModuleNames(ModuleNames);
 			}
-			ModuleNames.AddRange(CompiledAssembly.GetTypes().Where(x => x.IsClass && x.IsSubclassOf(typeof(ModuleRules)) && ModuleNameToModuleFile.ContainsKey(x.Name)).Select(x => x.Name));
+			if (CompiledAssembly != null)
+			{
+				ModuleNames.AddRange(CompiledAssembly.GetTypes().Where(x => x.IsClass && x.IsSubclassOf(typeof(ModuleRules)) && ModuleNameToModuleFile.ContainsKey(x.Name)).Select(x => x.Name));
+			}
 		}
 
 		/// <summary>
@@ -638,7 +641,7 @@ namespace UnrealBuildTool
 			foreach(KeyValuePair<string, FileReference> TargetPair in TargetNameToTargetFile)
 			{
 				TargetRules Rules = CreateTargetRulesInstance(TargetPair.Key + "Target", new TargetInfo(TargetPair.Key, Platform, Configuration, Architecture, ProjectFile, null));
-				if(Rules.Type == Type && Rules.IsPrimaryTarget)
+				if(Rules.Type == Type)
 				{
 					Matches.Add(TargetPair.Key);
 				}

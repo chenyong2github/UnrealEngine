@@ -67,12 +67,10 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	// Stack
 	Style->Set("NiagaraEditor.Stack.IconSize", FVector2D(18.0f, 18.0f));
 
-	FSlateFontInfo StackGroupFont = DEFAULT_FONT("Bold", 10);
+	FSlateFontInfo StackGroupFont = DEFAULT_FONT("Bold", 12);
 	FTextBlockStyle StackGroupText = FTextBlockStyle(NormalText)
 		.SetFont(StackGroupFont)
-		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f))
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));
+		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 	Style->Set("NiagaraEditor.Stack.GroupText", StackGroupText);
 
 	FSlateFontInfo StackDefaultFont = DEFAULT_FONT("Regular", 10);
@@ -82,9 +80,9 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 
 	FSlateFontInfo StackCategoryFont = DEFAULT_FONT("Bold", 10);
 	FTextBlockStyle StackCategoryText = FTextBlockStyle(NormalText)
-		.SetFont(StackCategoryFont)
-		.SetShadowOffset(FVector2D(1, 1));
+		.SetFont(StackCategoryFont);
 	Style->Set("NiagaraEditor.Stack.CategoryText", StackCategoryText);
+	Style->Set("NiagaraEditor.SystemOverview.GroupHeaderText", StackCategoryText);
 
 	FSlateFontInfo ParameterFont = DEFAULT_FONT("Regular", 8);
 	FTextBlockStyle ParameterText = FTextBlockStyle(NormalText)
@@ -106,12 +104,6 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 		.SetFont(SystemOverviewListHeaderFont);
 	Style->Set("NiagaraEditor.SystemOverview.ListHeaderText", SystemOverviewListHeaderText);
 
-	FSlateFontInfo SystemOverviewGroupHeaderFont = DEFAULT_FONT("Bold", 9);
-	FTextBlockStyle SystemOverviewGroupHeaderText = FTextBlockStyle(NormalText)
-		.SetFont(SystemOverviewGroupHeaderFont)
-		.SetShadowOffset(FVector2D(0, 1))
-		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f));;
-	Style->Set("NiagaraEditor.SystemOverview.GroupHeaderText", SystemOverviewGroupHeaderText);
 
 	FSlateFontInfo SystemOverviewItemFont = DEFAULT_FONT("Regular", 9);
 	FTextBlockStyle SystemOverviewItemText = FTextBlockStyle(NormalText)

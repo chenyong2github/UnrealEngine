@@ -52,7 +52,22 @@ public:
 	 * @param Viewport the viewport being drawn in
 	 * @param Canvas the render interface to draw with
 	 */
-	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* Viewport, FCanvas* Canvas) PURE_VIRTUAL(UThumbnailRenderer::Draw,);
+	UE_DEPRECATED(4.24, "Please override the other prototype of the Draw function.")
+	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* Viewport, FCanvas* Canvas) { Draw(Object, X, Y, Width, Height, Viewport, Canvas, false); }
+
+	/**
+	 * Draws a thumbnail for the object that was specified.
+	 *
+	 * @param Object the object to draw the thumbnail for
+	 * @param X the X coordinate to start drawing at
+	 * @param Y the Y coordinate to start drawing at
+	 * @param Width the width of the thumbnail to draw
+	 * @param Height the height of the thumbnail to draw
+	 * @param Viewport the viewport being drawn in
+	 * @param Canvas the render interface to draw with
+	 * @param bAdditionalViewFamily whether this draw should write over the render target (true) or clear it before (false)
+	 */
+	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* Viewport, FCanvas* Canvas, bool bAdditionalViewFamily) PURE_VIRTUAL(UThumbnailRenderer::Draw, );
 
 	/**
 	 * Checks to see if the specified asset supports realtime thumbnails, which will cause them to always be rerendered to reflect any changes

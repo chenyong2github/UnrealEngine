@@ -479,6 +479,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 	}
 	else
 	{
+		Output.ResetToRefPose();
 #if WITH_EDITORONLY_DATA
 		// even if you don't have any asset curve, we want to output this curve values
 		Proxy->PropagatePreviewCurve(Output);

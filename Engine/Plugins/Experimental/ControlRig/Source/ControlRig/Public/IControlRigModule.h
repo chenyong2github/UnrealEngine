@@ -6,8 +6,6 @@
 #include "Modules/ModuleInterface.h"
 #include "Templates/SubclassOf.h"
 
-class URigUnitEditor_Base;
-
 class IControlRigModule : public IModuleInterface
 {
 public:

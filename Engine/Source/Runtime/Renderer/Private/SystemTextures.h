@@ -91,6 +91,9 @@ public:
 
 	/** float4(0,0,0,0) volumetric texture. */
 	TRefCountPtr<IPooledRenderTarget> VolumetricBlackDummy;
+	
+	// Dummy 0 Uint texture for RHIs that need explicit overloads
+	TRefCountPtr<IPooledRenderTarget> ZeroUIntDummy;
 
 	// SRV for WhiteDummy Texture.
 	TRefCountPtr<FRHIShaderResourceView> WhiteDummySRV;
@@ -99,6 +102,7 @@ public:
 
 	FRDGTextureRef GetWhiteDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetBlackDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetPerlinNoiseGradient(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetPerlinNoise3D(FRDGBuilder& GraphBuilder) const;

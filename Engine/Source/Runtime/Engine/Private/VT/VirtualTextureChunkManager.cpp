@@ -47,10 +47,12 @@ FVirtualTextureChunkStreamingManager::FVirtualTextureChunkStreamingManager()
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->Initialize();
 #endif
+	BeginInitResource(&UploadCache);
 }
 
 FVirtualTextureChunkStreamingManager::~FVirtualTextureChunkStreamingManager()
 {
+	UploadCache.ReleaseResource(); // Must be called from rendering thread
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->ShutDown();
 #endif

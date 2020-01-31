@@ -52,6 +52,7 @@
 #include "Misc/EmbeddedCommunication.h"
 #include "Engine/CoreSettings.h"
 #include "EngineAnalytics.h"
+#include "StudioAnalytics.h"
 #include "Engine/DemoNetDriver.h"
 
 #include "Tickable.h"
@@ -1623,6 +1624,11 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	{
 		SCOPE_TIME_GUARD(TEXT("UGameEngine::Tick - Analytics"));
 		FEngineAnalytics::Tick(DeltaSeconds);
+	}
+
+	{
+		SCOPE_TIME_GUARD(TEXT("UGameEngine::Tick - Studio Analytics"));
+		FStudioAnalytics::Tick(DeltaSeconds);
 	}
 
 	// -----------------------------------------------------

@@ -134,7 +134,19 @@ private:
 
 				// in the future we might allow it to parent to BP classes, but right now, it won't work well because of multi rig graph
 				// for now we disable it and only allow native class. 
-				return (!InClass->HasAnyClassFlags(CLASS_Deprecated) && InClass->HasAnyClassFlags(CLASS_Native) && InClass->GetOutermost() != GetTransientPackage());
+				if (!InClass->HasAnyClassFlags(CLASS_Deprecated) && InClass->HasAnyClassFlags(CLASS_Native) && InClass->GetOutermost() != GetTransientPackage())
+				{
+					// see if it can be blueprint base
+					const FString BlueprintBaseMetaKey(TEXT("IsBlueprintBase"));
+
+					if (InClass->HasMetaData(*BlueprintBaseMetaKey))
+					{
+						if (InClass->GetMetaData(*BlueprintBaseMetaKey) == TEXT("true"))
+						{
+							return true;
+						}
+					}
+				}
 			}
 
 			return false;
