@@ -75,7 +75,7 @@ void FInsightsManager::BindCommands()
 
 FInsightsManager::~FInsightsManager()
 {
-	ResetSession();
+	ResetSession(false);
 
 	FInsightsCommands::Unregister();
 
@@ -169,15 +169,21 @@ bool FInsightsManager::Tick(float DeltaTime)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::ResetSession()
+void FInsightsManager::ResetSession(bool bNotify)
 {
 	if (Session.IsValid())
 	{
 		Session->Stop(true);
 		Session.Reset();
+
 		CurrentTraceId = 0;
+		CurrentTraceFilename.Reset();
 		bIsNetworkingProfilerAvailable = false;
-		OnSessionChanged();
+
+		if (bNotify)
+		{
+			OnSessionChanged();
+		}
 	}
 }
 

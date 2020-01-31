@@ -63,7 +63,10 @@ public:
 	/** Shutdowns the main manager. */
 	void Shutdown()
 	{
-		FInsightsManager::Instance.Reset();
+		if (FInsightsManager::Instance.IsValid())
+		{
+			FInsightsManager::Instance.Reset();
+		}
 	}
 
 	/** @return the global instance of the main manager (FInsightsManager). */
@@ -167,7 +170,7 @@ private:
 	bool Tick(float DeltaTime);
 
 	/** Resets (closes) current session instance. */
-	void ResetSession();
+	void ResetSession(bool bNotify = true);
 
 	void OnSessionChanged();
 
