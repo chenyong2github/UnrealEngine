@@ -19,6 +19,12 @@ FAsioTickable::~FAsioTickable()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+asio::io_context& FAsioTickable::GetIoContext()
+{
+	return Timer.get_executor().context();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FAsioTickable::StartTick(uint32 InMillisecondRate)
 {
 	if (MillisecondRate)
