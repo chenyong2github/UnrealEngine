@@ -641,7 +641,10 @@ namespace process
 		Environment* environment = new Environment;
 		environment->size = environmentData.size();
 		environment->data = ::malloc(environmentData.size() * sizeof(wchar_t));
-		memcpy(environment->data, environmentData.data(), environmentData.size() * sizeof(wchar_t));
+		if (environment->data != nullptr)
+		{
+			memcpy(environment->data, environmentData.data(), environmentData.size() * sizeof(wchar_t));
+		}
 		return environment;
 	}
 	// END EPIC MOD
