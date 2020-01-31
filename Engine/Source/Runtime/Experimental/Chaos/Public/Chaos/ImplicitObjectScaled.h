@@ -27,6 +27,11 @@ public:
 
 	using FImplicitObject::GetTypeName;
 
+	//needed for serialization
+	TImplicitObjectInstanced()
+		: FImplicitObject(EImplicitObject::HasBoundingBox,StaticType())
+	{}
+
 	TImplicitObjectInstanced(const ObjectType&& Object)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsInstanced)
 		, MObject(MoveTemp(Object))
@@ -136,6 +141,11 @@ public:
 	bool LowLevelOverlapGeom(const QueryGeomType& B,const TRigidTransform<T,d>& BToATM,T Thickness = 0, FMTDInfo* OutMTD = nullptr) const
 	{
 		return MObject->OverlapGeom(B,BToATM,Thickness, OutMTD);
+	}
+
+	virtual uint16 GetMaterialIndex(uint32 HintIndex) const
+	{
+		return MObject->GetMaterialIndex(HintIndex);
 	}
 
 protected:

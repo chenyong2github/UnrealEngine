@@ -12,6 +12,7 @@
 #include "Chaos/PhysicalMaterials.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
+#include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
 
 #ifndef CHAOS_DETERMINISTIC
 #define CHAOS_DETERMINISTIC 1
@@ -52,6 +53,9 @@ namespace Chaos
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
 		TArray<FMaterialHandle> Materials;
+		TArray<FMaterialMaskHandle> MaterialMasks;
+		TArray<uint32> MaterialMaskMaps;
+		TArray<FMaterialHandle> MaterialMaskMapMaterials;
 
 		// TODO: Bitfields?
 		bool bDisable;
@@ -226,8 +230,8 @@ namespace Chaos
 		CHAOS_API FUniqueIdx UniqueIdx(const int32 Index) const { return MUniqueIdx[Index]; }
 		CHAOS_API FUniqueIdx& UniqueIdx(const int32 Index) { return MUniqueIdx[Index]; }
 
-		void*& UserData(const int32 Index) { return MUserData[Index]; }
-		const void* UserData(const int32 Index) const { return MUserData[Index]; }
+		CHAOS_API void*& UserData(const int32 Index) { return MUserData[Index]; }
+		CHAOS_API const void* UserData(const int32 Index) const { return MUserData[Index]; }
 
 		CHAOS_API TSerializablePtr<FImplicitObject> Geometry(const int32 Index) const { return MGeometry[Index]; }
 

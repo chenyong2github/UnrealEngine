@@ -123,8 +123,8 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 	// Useful for actions whose "CanExecute" will not change or is expensive to calculate.
 	CacheCanExecuteVars();
 
-	int32 NumAssetPaths, NumClassPaths;
-	ContentBrowserUtils::CountPathTypes(SelectedPaths, NumAssetPaths, NumClassPaths);
+	const int32 NumAssetPaths = Context->NumAssetPaths;
+	const int32 NumClassPaths = Context->NumClassPaths;
 
 	// Only add something if at least one folder is selected
 	if ( SelectedPaths.Num() > 0 )

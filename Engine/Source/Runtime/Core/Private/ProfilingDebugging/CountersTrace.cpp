@@ -29,7 +29,7 @@ uint16 FCountersTrace::OutputInitCounter(const TCHAR* CounterName, ETraceCounter
 {
 	static TAtomic<uint16> NextId(1);
 	uint16 CounterId = uint16(NextId++);
-	uint16 NameSize = (FCString::Strlen(CounterName) + 1) * sizeof(TCHAR);
+	uint16 NameSize = (uint16)((FCString::Strlen(CounterName) + 1) * sizeof(TCHAR));
 	UE_TRACE_LOG(Counters, Spec, NameSize)
 		<< Spec.Id(CounterId)
 		<< Spec.Type(uint8(CounterType))

@@ -147,8 +147,6 @@ namespace Chaos
 	{
 	public:
 
-		static_assert(TIsTrivial<ElementType>::Value, "Handle managed data must be trivial");
-
 		using FHandle = THandle<ElementType, IndexWidth, GenerationWidth>;
 		using FConstHandle = TConstHandle<ElementType, IndexWidth, GenerationWidth>;
 		

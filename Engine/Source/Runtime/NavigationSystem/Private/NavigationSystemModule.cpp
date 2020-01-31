@@ -5,6 +5,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/World.h"
+#include "NavLinkCustomInterface.h"
 
 #define LOCTEXT_NAMESPACE "NavigationSystem"
 
@@ -18,21 +19,34 @@ class FNavigationSystemModule : public INavSysModule
 	
 	//virtual UNavigationSystemBase* CreateNavigationSystemInstance(UWorld& World) override;
 	// End IModuleInterface
+
+private:
+#if WITH_EDITOR 
+	static FDelegateHandle OnPreWorldInitializationHandle;
+#endif
 };
 
 IMPLEMENT_MODULE(FNavigationSystemModule, NavigationSystem)
 
+#if WITH_EDITOR 
+FDelegateHandle FNavigationSystemModule::OnPreWorldInitializationHandle;
+#endif
+
 void FNavigationSystemModule::StartupModule()
 { 
 	// mz@todo bind to all the delegates in FNavigationSystem
-
-	// also, to 
+#if WITH_EDITOR 
+	OnPreWorldInitializationHandle = FWorldDelegates::OnPreWorldInitialization.AddStatic(&INavLinkCustomInterface::OnPreWorldInitialization);
+#endif
 }
 
 void FNavigationSystemModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
+#if WITH_EDITOR
+	FWorldDelegates::OnPreWorldInitialization.Remove(OnPreWorldInitializationHandle);
+#endif
 }
 
 //UNavigationSystemBase* FNavigationSystemModule::CreateNavigationSystemInstance(UWorld& World)

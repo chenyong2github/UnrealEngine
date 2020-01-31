@@ -233,7 +233,7 @@ true_random(void)
   if ((rand_ib += 73939) >= 224729)
       rand_ib -= 96233;
   rand_irand = (rand_irand * rand_m) + rand_ia + rand_ib;
-  return (rand_irand >> 16) ^ (rand_irand & RAND_MASK);
+  return unsigned16((rand_irand >> 16) ^ (rand_irand & RAND_MASK));
 }
 
 /*

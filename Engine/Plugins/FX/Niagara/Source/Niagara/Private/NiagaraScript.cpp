@@ -292,6 +292,11 @@ class UNiagaraSystem* UNiagaraScript::FindRootSystem()
 	return nullptr;
 }
 
+bool UNiagaraScript::HasIdsRequiredForShaderCaching() const
+{
+	return CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.BaseScriptCompileHash.IsValid();
+}
+
 FString UNiagaraScript::GetNiagaraDDCKeyString()
 {
 	enum { UE_NIAGARA_COMPILATION_DERIVEDDATA_VER = 2 };
@@ -611,8 +616,39 @@ void UNiagaraScript::PreSave(const class ITargetPlatform* TargetPlatform)
 	Super::PreSave(TargetPlatform);
 
 #if WITH_EDITORONLY_DATA
+	// Pre-save can happen in any order for objects in the package and since this is now used to cache data for execution we need to make sure that the system compilation
+	// is complete before caching the executable data.
+	UNiagaraSystem* SystemOwner = FindRootSystem();
+	if (SystemOwner)
+	{
+		SystemOwner->WaitForCompilationComplete();
+	}
+
 	ScriptExecutionParamStore.Empty();
 	ScriptExecutionBoundParameters.Empty();
+
+	// Make sure the data interfaces are consistent to prevent crashes in later caching operations.
+	if (CachedScriptVM.DataInterfaceInfo.Num() != CachedDefaultDataInterfaces.Num())
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Data interface count mistmatch during script presave. Invaliding compile results (see full log for details).  Script: %s"), *GetPathName());
+		UE_LOG(LogNiagara, Log, TEXT("Compiled DataInterfaceInfos:"));
+		for (const FNiagaraScriptDataInterfaceCompileInfo& DataInterfaceCompileInfo : CachedScriptVM.DataInterfaceInfo)
+		{
+			UE_LOG(LogNiagara, Log, TEXT("Name:%s, Type: %s"), *DataInterfaceCompileInfo.Name.ToString(), *DataInterfaceCompileInfo.Type.GetName());
+		}
+		UE_LOG(LogNiagara, Log, TEXT("Cached DataInterfaceInfos:"));
+		for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceCacheInfo : CachedDefaultDataInterfaces)
+		{
+			UE_LOG(LogNiagara, Log, TEXT("Name:%s, Type: %s, Path:%s"), 
+				*DataInterfaceCacheInfo.Name.ToString(), *DataInterfaceCacheInfo.Type.GetName(), 
+				DataInterfaceCacheInfo.DataInterface != nullptr 
+					? *DataInterfaceCacheInfo.DataInterface->GetPathName() 
+					: TEXT("None"));
+		}
+
+		InvalidateCompileResults();
+		return;
+	}
 
 	if (TargetPlatform && TargetPlatform->RequiresCookedData())
 	{
@@ -957,11 +993,22 @@ void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 	CacheResourceShadersForRendering(true);
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated) || PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, DeprecationRecommendation))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated) || 
+		PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, DeprecationMessage) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, DeprecationRecommendation))
 	{
 		if (Source)
 		{
 			Source->MarkNotSynchronized(TEXT("Deprecation changed."));
+		}
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExperimental) || 
+		PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, ExperimentalMessage))
+	{
+		if (Source)
+		{
+			Source->MarkNotSynchronized(TEXT("Experimental changed."));
 		}
 	}
 
@@ -1322,8 +1369,8 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		}
 		else
 		{
-			UE_LOG(LogNiagara, Error,
-				TEXT("Failed to cache resource shaders for rendering for script %s because it had an invalid cached script id. This should be fixed by force recompiling the owning asset using the 'Full Rebuild' option and then saving the asset."),
+			UE_LOG(LogNiagara, Warning,
+				TEXT("Could not cache resource shaders for rendering for script %s because it had an invalid cached script id. This should be fixed by force recompiling the owning asset using the 'Full Rebuild' option and then saving the asset."),
 				*GetPathName());
 		}
 	}
@@ -1503,10 +1550,10 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 			SystemOwner->WaitForCompilationComplete();
 		}
 
-		if (CachedScriptVMId.CompilerVersionID.IsValid() == false ||  CachedScriptVMId.BaseScriptCompileHash.IsValid() == false)
+		if (HasIdsRequiredForShaderCaching() == false)
 		{
-			UE_LOG(LogNiagara, Error,
-				TEXT("Failed to cache cooked shader for script %s because it had an invalid cached script id.  This should be fixed by running the console command fx.PreventSystemRecompile with the owning system asset path as the argument and then resaving the assets."),
+			UE_LOG(LogNiagara, Warning,
+				TEXT("Could not cache cooked shader for script %s because it had an invalid cached script id.  This should be fixed by running the console command fx.PreventSystemRecompile with the owning system asset path as the argument and then resaving the assets."),
 				*GetPathName());
 			return;
 		}
@@ -1530,7 +1577,7 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 
 bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 {
-	if (ShouldCacheShadersForCooking())
+	if (ShouldCacheShadersForCooking() && HasIdsRequiredForShaderCaching())
 	{
 		bool bHasOutstandingCompilationRequests = false;
 		if (UNiagaraSystem* SystemOwner = FindRootSystem())
@@ -1770,6 +1817,7 @@ void UNiagaraScript::InvalidateCompileResults()
 	ScriptResource.Invalidate();
 	CachedScriptVMId.Invalidate();
 	LastGeneratedVMId.Invalidate();
+	CachedDefaultDataInterfaces.Reset();
 }
 
 

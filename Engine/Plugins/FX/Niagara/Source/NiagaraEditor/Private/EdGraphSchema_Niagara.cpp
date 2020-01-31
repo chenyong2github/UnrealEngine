@@ -1366,6 +1366,8 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 		{
 			if (UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset()))
 			{
+				// asset may not have been fully loaded so give it a chance to do it's PostLoad
+				Collection->ConditionalPostLoad();
 				if (VarName.StartsWith(Collection->GetFullNamespace()))
 				{
 					return Collection;
@@ -1390,6 +1392,8 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 		{
 			if (UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset()))
 			{
+				// asset may not have been fully loaded so give it a chance to do it's PostLoad
+				Collection->ConditionalPostLoad();
 				if (VarName.StartsWith(Collection->GetFullNamespace()))
 				{
 					const TArray<FNiagaraVariable>& CollectionVariables = Collection->GetParameters();

@@ -27,6 +27,7 @@ typedef TSharedPtr<FString, ESPMode::ThreadSafe> FTextDisplayStringPtr;
 /** Singleton class that manages display strings for FText. */
 class CORE_API FTextLocalizationManager
 {
+	friend CORE_API void BeginPreInitTextLocalization();
 	friend CORE_API void BeginInitTextLocalization();
 	friend CORE_API void InitEngineTextLocalization();
 	friend CORE_API void InitGameTextLocalization();

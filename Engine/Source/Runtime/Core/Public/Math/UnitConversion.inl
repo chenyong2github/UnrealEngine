@@ -195,7 +195,7 @@ EUnit FUnitConversion::CalculateDisplayUnit(T Value, EUnit InUnits)
 		double This = Convert(Value, InUnits, DisplayUnits[Index]);
 		double Next = Convert(Value, InUnits, DisplayUnits[Index + 1]);
 
-		if (FMath::Abs(FMath::LogX(10.0f, This)) < FMath::Abs(FMath::LogX(10.0f, Next)))
+		if (FMath::Abs(FMath::LogX(10.0f, (float)This)) < FMath::Abs(FMath::LogX(10.0f, (float)Next)))
 		{
 			BestIndex = Index;
 		}

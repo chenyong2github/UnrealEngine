@@ -15,6 +15,7 @@ class FExtender;
 class FMenuBuilder;
 class FToolBarBuilder;
 class UToolMenu;
+struct FToolMenuContext;
 
 /**
  * Kismet menu
@@ -22,24 +23,24 @@ class UToolMenu;
 class KISMET_API FKismet2Menu
 {
 public:
-	static void SetupBlueprintEditorMenu( TSharedPtr< FExtender > Extender, FBlueprintEditor& Kismet);
+	static void SetupBlueprintEditorMenu(const FName MainMenuName);
 	
 protected:
-	static void FillFileMenuBlueprintSection( FMenuBuilder& MenuBuilder, FBlueprintEditor& Kismet );
+	static void FillFileMenuBlueprintSection(UToolMenu* Menu);
 
-	static void FillEditMenu( FMenuBuilder& MenuBuilder );
+	static void FillEditMenu(UToolMenu* Menu);
 
-	static void FillViewMenu( FMenuBuilder& MenuBuilder );
+	static void FillViewMenu(UToolMenu* Menu);
 
-	static void FillDebugMenu( FMenuBuilder& MenuBuilder );
+	static void FillDebugMenu(UToolMenu* Menu);
 
-	static void FillDeveloperMenu( FMenuBuilder& MenuBuilder );
+	static void FillDeveloperMenu(UToolMenu* Menu);
 
 private:
 	/** Diff current blueprint against the specified revision */
 	static void DiffAgainstRevision( class UBlueprint* Current, int32 OldRevision );
 
-	static TSharedRef<SWidget> MakeDiffMenu(FBlueprintEditor& Kismet);
+	static TSharedRef<SWidget> MakeDiffMenu(const FToolMenuContext& ToolMenuContext);
 };
 
 

@@ -385,6 +385,19 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 		}
 	}
 
+	if(IsInstanced(ObjectType))
+	{
+		EImplicitObjectType InnerType = GetInnerType(ObjectType);
+		switch(InnerType)
+		{
+		case ImplicitObjectType::Convex: if(Ar.IsLoading()) { return new TImplicitObjectInstanced<FConvex>(); } break;
+		case ImplicitObjectType::TriangleMesh: if(Ar.IsLoading()) { return new TImplicitObjectInstanced<FTriangleMeshImplicitObject>(); } break;
+		default: check(false);
+		}
+
+		return nullptr;
+	}
+
 	switch ((EImplicitObjectType)ObjectType)
 	{
 	case ImplicitObjectType::Sphere: if (Ar.IsLoading()) { return new TSphere<FReal, 3>(); } break;

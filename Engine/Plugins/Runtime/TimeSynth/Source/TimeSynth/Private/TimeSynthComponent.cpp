@@ -527,6 +527,12 @@ void UTimeSynthComponent::SetQuantizationSettings(const FTimeSynthQuantizationSe
 	// Store the quantization on the UObject for BP querying
 	QuantizationSettings = InQuantizationSettings;
 
+	// EventQuantizer will handle this case gracefully, but still warn.
+ 	if (!SampleRate)
+ 	{
+ 		UE_LOG(LogTimeSynth, Warning, TEXT("SetQuantizationSettings called with a sample rate of 0.  Did you forget to activate the time synth component?"));
+ 	}
+
 	// Local store what the global quantization is so we can assign it to clips using global quantization
 	GlobalQuantization = (Audio::EEventQuantization)InQuantizationSettings.GlobalQuantization;
 

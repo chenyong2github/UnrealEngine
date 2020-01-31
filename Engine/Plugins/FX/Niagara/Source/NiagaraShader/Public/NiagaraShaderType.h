@@ -96,12 +96,12 @@ public:
 	 * Enqueues a compilation for a new shader of this type.
 	 * @param Script - The script to link the shader with.
 	 */
-	class FShaderCompileJob* BeginCompileShader(
+	TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe> BeginCompileShader(
 			uint32 ShaderMapId,
 			const FNiagaraShaderScript* Script,
 			FShaderCompilerEnvironment* CompilationEnvironment,
 			EShaderPlatform Platform,
-			TArray<FShaderCommonCompileJob*>& NewJobs,
+			TArray<TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 			FShaderTarget Target,
 			TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo
 		);

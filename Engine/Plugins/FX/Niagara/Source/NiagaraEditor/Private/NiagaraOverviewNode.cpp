@@ -10,6 +10,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "Modules/ModuleManager.h"
 #include "ToolMenuSection.h"
 #include "ToolMenu.h"
@@ -268,6 +269,11 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 			}
 		}));
 	}
+}
+
+bool UNiagaraOverviewNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const
+{
+	return Schema->IsA<UEdGraphSchema_NiagaraSystemOverview>();
 }
 
 UNiagaraSystem* UNiagaraOverviewNode::GetOwningSystem()

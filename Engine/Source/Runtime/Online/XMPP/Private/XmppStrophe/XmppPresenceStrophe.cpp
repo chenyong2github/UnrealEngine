@@ -114,6 +114,8 @@ bool FXmppPresenceStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
 			FDateTime::ParseIso8601(*TimestampStanza->GetAttribute(Strophe::SA_STAMP), Presence.SentTime);
 		}
 
+		Presence.ReceivedTime = FDateTime::UtcNow();
+
 		FString UnusedPlatformUserId;
 		Presence.UserJid.ParseResource(Presence.AppId, Presence.Platform, UnusedPlatformUserId);
 	}

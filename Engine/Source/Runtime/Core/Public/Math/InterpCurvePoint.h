@@ -206,7 +206,7 @@ inline void ComputeCurveTangent( float PrevTime, const T& PrevPoint,
 
 	AutoCalcTangent( PrevPoint, CurPoint, NextPoint, Tension, OutTangent );
 
-	const float PrevToNextTimeDiff = FMath::Max< double >( KINDA_SMALL_NUMBER, NextTime - PrevTime );
+	const float PrevToNextTimeDiff = FMath::Max< float >( KINDA_SMALL_NUMBER, NextTime - PrevTime );
 
 	OutTangent /= PrevToNextTimeDiff;
 }

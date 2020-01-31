@@ -41,9 +41,29 @@ namespace Chaos
 	enum class CHAOS_API EContactShapesType
 	{
 		Unknown,
+		SphereSphere,
+		SphereCapsule,
+		SphereBox,
+		SphereConvex,
+		SphereTriMesh,
+		SphereHeightField,
+		SpherePlane,
 		CapsuleCapsule,
 		CapsuleBox,
+		CapsuleConvex,
+		CapsuleTriMesh,
+		CapsuleHeightField,
 		BoxBox,
+		BoxConvex,
+		BoxTriMesh,
+		BoxHeightField,
+		BoxPlane,
+		ConvexConvex,
+		ConvexTriMesh,
+		ConvexHeightField,
+		LevelSetLevelSet,
+
+		NumShapesTypes
 	};
 
 	/*
@@ -187,10 +207,19 @@ namespace Chaos
 		TRigidBodyPointContactConstraint(
 			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
 			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
-			EContactShapesType ShapesType = EContactShapesType::Unknown)
+			EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::SinglePoint, ShapesType) {}
 
-		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
+		static typename TCollisionConstraintBase<T, d>::FType StaticType() { return Base::FType::SinglePoint; };
+
+	protected:
+		// For use by derived types that can be used as point constraints in Update
+		TRigidBodyPointContactConstraint(typename Base::FType InType) : Base(InType) {}
+		TRigidBodyPointContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
+			typename Base::FType InType, EContactShapesType ShapesType)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, InType, ShapesType) {}
 	};
 	typedef TRigidBodyPointContactConstraint<float, 3> FRigidBodyPointContactConstraint;
 
@@ -199,24 +228,24 @@ namespace Chaos
 	*
 	*/
 	template<class T, int d>
-	class TRigidBodyMultiPointContactConstraint : public TCollisionConstraintBase<T, d>
+	class TRigidBodyMultiPointContactConstraint : public TRigidBodyPointContactConstraint<T, d>
 	{
 	public:
-		using Base = TCollisionConstraintBase<T, d>;
+		using Base = TRigidBodyPointContactConstraint<T, d>;
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 		using FManifold = TCollisionContact<T, d>;
 		using Base::Particle;
 
-		TRigidBodyMultiPointContactConstraint() : Base(Base::FType::MultiPoint), PlaneOwnerIndex(INDEX_NONE), PlaneFaceIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
+		TRigidBodyMultiPointContactConstraint() : Base(TCollisionConstraintBase<T, d>::FType::MultiPoint), PlaneOwnerIndex(INDEX_NONE), PlaneFaceIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
 		TRigidBodyMultiPointContactConstraint(
 			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
 			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
-			EContactShapesType ShapesType = EContactShapesType::Unknown)
+			EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::MultiPoint, ShapesType)
 			, PlaneOwnerIndex(INDEX_NONE), PlaneFaceIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0)
 		{}
 
-		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
+		static typename TCollisionConstraintBase<T, d>::FType StaticType() { return Base::FType::MultiPoint; };
 
 		// Get the particle that owns the plane
 		FGeometryParticleHandle* PlaneParticleHandle() const { check(PlaneOwnerIndex >= 0 && PlaneOwnerIndex < 2); return Particle[PlaneOwnerIndex]; }
@@ -386,8 +415,8 @@ namespace Chaos
 	template<int T_MAXCONSTRAINTS>
 	struct TCollisionConstraintsStore
 	{
-		TArray<TRigidBodyPointContactConstraint<FReal, 3>, TFixedAllocator<T_MAXCONSTRAINTS>> SinglePointConstraints;
-		TArray<TRigidBodyMultiPointContactConstraint<FReal, 3>, TFixedAllocator<T_MAXCONSTRAINTS>> MultiPointConstraints;
+		TArray<FRigidBodyPointContactConstraint, TFixedAllocator<T_MAXCONSTRAINTS>> SinglePointConstraints;
+		TArray<FRigidBodyMultiPointContactConstraint, TFixedAllocator<T_MAXCONSTRAINTS>> MultiPointConstraints;
 
 		int32 Num() const { return SinglePointConstraints.Num() + MultiPointConstraints.Num(); }
 
@@ -397,6 +426,45 @@ namespace Chaos
 			MultiPointConstraints.Empty();
 		}
 
+		FRigidBodyPointContactConstraint* AddPointConstraint(
+			TGeometryParticleHandle<FReal, 3>* Particle0, const FImplicitObject* Implicit0, const FRigidTransform3& Transform0,
+			TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit1, const FRigidTransform3& Transform1,
+			EContactShapesType ShapesType)
+		{
+			if (SinglePointConstraints.Num() < T_MAXCONSTRAINTS)
+			{
+				int32 ConstraintIndex = SinglePointConstraints.Emplace(FRigidBodyPointContactConstraint(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, ShapesType));
+				return &SinglePointConstraints[ConstraintIndex];
+			}
+			return nullptr;
+		}
+
+		void PopPointConstraint()
+		{
+			SinglePointConstraints.Pop(false);
+		}
+
+		FRigidBodyMultiPointContactConstraint* AddMultiPointConstraint(
+			TGeometryParticleHandle<FReal, 3>* Particle0, const FImplicitObject* Implicit0, const FRigidTransform3& Transform0,
+			TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit1, const FRigidTransform3& Transform1,
+			EContactShapesType ShapesType)
+		{
+			if (MultiPointConstraints.Num() < T_MAXCONSTRAINTS)
+			{
+				int32 ConstraintIndex = MultiPointConstraints.Emplace(FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, ShapesType));
+				return &MultiPointConstraints[ConstraintIndex];
+			}
+			return nullptr;
+		}
+
+		void PopMultiPointConstraint()
+		{
+			MultiPointConstraints.Pop();
+		}
+
+
+
+		// Get rid of these
 		TRigidBodyPointContactConstraint<FReal, 3>* TryAdd(FReal MaxPhi, const TRigidBodyPointContactConstraint<FReal, 3>& C)
 		{
 			if ((SinglePointConstraints.Num() < T_MAXCONSTRAINTS) && (C.GetPhi() < MaxPhi))

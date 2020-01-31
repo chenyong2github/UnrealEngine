@@ -274,9 +274,6 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 		return false;
 	}
 
-	// Fix static analysis warning
-	check(Asset);
-
 	// @todo toolkit minor: When "Edit Here" happens in a different level editor from the one that an asset is already
 	//    being edited within, we should decide whether to disallow "Edit Here" in that case, or to close the old asset
 	//    editor and summon it in the new level editor, or to just foreground the old level editor (current behavior)
@@ -376,22 +373,25 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 	}
 	// Must check Asset here in addition to at the beginning of the function, because if the asset was destroyed and recreated it might not be found correctly
 	// Do not add to recently opened asset list if this is a level-associated asset like Level Blueprint or Built Data. Their naming is not compatible
-	if (Asset && Asset->IsAsset() && !Asset->IsA(UMapBuildDataRegistry::StaticClass()))
+	if (Asset)
 	{
-		FString AssetPath = Asset->GetOuter()->GetPathName();
-		FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-		FMainMRUFavoritesList* RecentlyOpenedAssets = CBModule.GetRecentlyOpenedAssets();
-		if (RecentlyOpenedAssets && FPackageName::IsValidLongPackageName(AssetPath))
+		if (Asset->IsAsset() && !Asset->IsA(UMapBuildDataRegistry::StaticClass()))
 		{
-			RecentlyOpenedAssets->AddMRUItem(AssetPath);
+			FString AssetPath = Asset->GetOuter()->GetPathName();
+			FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+			FMainMRUFavoritesList* RecentlyOpenedAssets = CBModule.GetRecentlyOpenedAssets();
+			if (RecentlyOpenedAssets && FPackageName::IsValidLongPackageName(AssetPath))
+			{
+				RecentlyOpenedAssets->AddMRUItem(AssetPath);
+			}
 		}
-	}
 
-	const double OpenTime = FStudioAnalytics::GetAnalyticSeconds() - OpenAssetStartTime;
-	FStudioAnalytics::FireEvent_Loading(TEXT("OpenAssetEditor"), OpenTime, {
-		FAnalyticsEventAttribute(TEXT("AssetPath"), Asset->GetFullName()),
-		FAnalyticsEventAttribute(TEXT("AssetType"), Asset->GetClass()->GetName())
-	});
+		const double OpenTime = FStudioAnalytics::GetAnalyticSeconds() - OpenAssetStartTime;
+		FStudioAnalytics::FireEvent_Loading(TEXT("OpenAssetEditor"), OpenTime, {
+			FAnalyticsEventAttribute(TEXT("AssetPath"), Asset->GetFullName()),
+			FAnalyticsEventAttribute(TEXT("AssetType"), Asset->GetClass()->GetName())
+		});
+	}
 
 	return true;
 }

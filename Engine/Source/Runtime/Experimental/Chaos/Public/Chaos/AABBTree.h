@@ -499,7 +499,7 @@ public:
 
 		if(DirtyElements.Num() > MaxDirtyElements)
 		{
-			UE_LOG(LogChaos, Warning, TEXT("Bounding volume exceeded maximum dirty elements (%d dirty of max %d) and is forcing a tree rebuild."), DirtyElements.Num(), MaxDirtyElements);
+			UE_LOG(LogChaos, Verbose, TEXT("Bounding volume exceeded maximum dirty elements (%d dirty of max %d) and is forcing a tree rebuild."), DirtyElements.Num(), MaxDirtyElements);
 			ReoptimizeTree();
 		}
 	}

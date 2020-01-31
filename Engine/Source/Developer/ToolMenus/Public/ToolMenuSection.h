@@ -97,4 +97,5 @@ public:
 private:
 
 	bool bIsRegistering;
+	bool bAddedDuringRegister;
 };

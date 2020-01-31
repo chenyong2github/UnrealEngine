@@ -49,6 +49,14 @@ DECLARE_CYCLE_STAT(TEXT("DynamicSpriteEmitterData GetDynamicMeshElementsEmitter 
 
 #include "InGamePerformanceTracker.h"
 
+static int32 GFXAllowParticleMeshLODs = 0;
+static FAutoConsoleVariableRef CVarFXAllowParticleMeshLODs(
+	TEXT("fx.FXAllowParticleMeshLODs"),
+	GFXAllowParticleMeshLODs,
+	TEXT("If we allow particle meshes to use LODs or not"),
+	ECVF_Default
+);
+
 /** 
  * Whether to track particle rendering stats.  
  * Enable with the TRACKPARTICLERENDERINGSTATS command. 
@@ -1548,8 +1556,9 @@ public:
 
 uint32 FDynamicMeshEmitterData::GetMeshLODIndexFromProxy(const FParticleSystemSceneProxy *InOwnerProxy) const
 {
+	// Determine first available LOD level, top level can be stripped per platform
 	check(IsInRenderingThread());
-	int FirstAvailableLOD = StaticMesh->RenderData->CurrentFirstLODIdx;
+	int32 FirstAvailableLOD = StaticMesh->RenderData->CurrentFirstLODIdx;
 	for (; FirstAvailableLOD < StaticMesh->RenderData->LODResources.Num(); FirstAvailableLOD++)
 	{
 		if (StaticMesh->RenderData->LODResources[FirstAvailableLOD].GetNumVertices() > 0)
@@ -1558,18 +1567,16 @@ uint32 FDynamicMeshEmitterData::GetMeshLODIndexFromProxy(const FParticleSystemSc
 		}
 	}
 
-	// hack for FORT - 71986.  Needs to be resolved for real ASAP.  
-	// For now return the first valid LOD, should be 0 on non-mobile platforms.
-	//if (!InOwnerProxy)
+	if (!InOwnerProxy || !GFXAllowParticleMeshLODs)
 	{
 		return FirstAvailableLOD;
 	}
 	const auto FeatureLevel = InOwnerProxy->GetScene().GetFeatureLevel();
-	int32 MeshMinimumLOD = StaticMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
-	FirstAvailableLOD = FMath::Clamp(FirstAvailableLOD, MeshMinimumLOD, StaticMesh->GetNumLODs()-1);
-	
-	int32 MeshLOD = (InOwnerProxy->MeshEmitterLODIndices.IsValidIndex(EmitterIndex)) ? InOwnerProxy->MeshEmitterLODIndices[EmitterIndex] : 0;
-	return FMath::Clamp(MeshLOD, FirstAvailableLOD, StaticMesh->GetNumLODs()-1);
+	const int32 EffectiveMinLOD = StaticMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
+	const int32 MaxLOD = StaticMesh->RenderData->LODResources.Num() - 1;
+	const int32 ClampedMinLOD = FMath::Clamp(EffectiveMinLOD, FirstAvailableLOD, MaxLOD);
+	const int32 MeshLOD = (InOwnerProxy->MeshEmitterLODIndices.IsValidIndex(EmitterIndex)) ? InOwnerProxy->MeshEmitterLODIndices[EmitterIndex] : 0;
+	return FMath::Clamp(MeshLOD, ClampedMinLOD, MaxLOD);
 }
 
 FParticleVertexFactoryBase *FDynamicMeshEmitterData::CreateVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, const FParticleSystemSceneProxy *InOwnerProxy)
@@ -2370,7 +2377,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 			{
 				ParticlePos = Proxy->GetLocalToWorld().TransformPosition(ParticlePos);
 			}
-			FVector ParticleSize = TransMat.TransformVector(Particle.Size);
+			FVector ParticleSize = TransMat.GetScaleVector();
 			int32 LODIndexToUse = ComputeStaticMeshLOD(StaticMesh->RenderData.Get(), ParticlePos, ParticleSize.Size()*0.5f*StaticMesh->GetBounds().SphereRadius, *View, 0, TotalLODSizeScale);
 			LODIndexToUse = FMath::Min(LODIndexToUse, StaticMesh->GetNumLODs() - 1);
 			LastCalculatedMeshLOD = LODIndexToUse < LastCalculatedMeshLOD ? LODIndexToUse : LastCalculatedMeshLOD;

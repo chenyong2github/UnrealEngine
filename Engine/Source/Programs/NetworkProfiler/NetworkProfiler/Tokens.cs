@@ -2,6 +2,7 @@
 
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,26 +14,28 @@ namespace NetworkProfiler
 	/** Enum values need to be in sync with UE3 */
 	public enum ETokenTypes
 	{
-		FrameMarker			= 0,	// Frame marker, signaling beginning of frame.	
-		SocketSendTo,				// FSocket::SendTo
-		SendBunch,					// UChannel::SendBunch
-		SendRPC,					// Sending RPC
-		ReplicateActor,				// Replicated object	
-		ReplicateProperty,			// Property being replicated.
-		EndOfStreamMarker,			// End of stream marker		
-		Event,						// Event
-		RawSocketData,				// Raw socket data being sent
-		SendAck,					// Ack being sent
-		WritePropertyHeader,		// Property header being written
-		ExportBunch,				// Exported GUIDs
-		MustBeMappedGuids,			// Must be mapped GUIDs
-		BeginContentBlock,			// Content block headers
-		EndContentBlock,			// Content block footers
-		WritePropertyHandle,		// Property handles
-		ConnectionChange,			// Connection changed
-		NameReference,				// Reference to name
-		ConnectionReference,		// Reference to connection
-		MaxAndInvalid,				// Invalid token, also used as the max token index
+		FrameMarker			= 0,		// Frame marker, signaling beginning of frame.	
+		SocketSendTo,					// FSocket::SendTo
+		SendBunch,						// UChannel::SendBunch
+		SendRPC,						// Sending RPC
+		ReplicateActor,					// Replicated object	
+		ReplicateProperty,				// Property being replicated.
+		EndOfStreamMarker,				// End of stream marker		
+		Event,							// Event
+		RawSocketData,					// Raw socket data being sent
+		SendAck,						// Ack being sent
+		WritePropertyHeader,			// Property header being written
+		ExportBunch,					// Exported GUIDs
+		MustBeMappedGuids,				// Must be mapped GUIDs
+		BeginContentBlock,				// Content block headers
+		EndContentBlock,				// Content block footers
+		WritePropertyHandle,			// Property handles
+		ConnectionChange,				// Connection changed
+		NameReference,					// Reference to name
+		ConnectionReference,			// Reference to connection
+		PropertyComparison,				// Data about property comparions.
+		ReplicatePropertiesMetaData,	// Data about properties that were filtered out during replication.
+		MaxAndInvalid,					// Invalid token, also used as the max token index
 	}
 
 	/** Enum values need to be in sync with UE3 */
@@ -141,6 +144,15 @@ namespace NetworkProfiler
 				case ETokenTypes.ConnectionChange:
 					SerializedToken = new TokenConnectionChanged( BinaryStream );
 					break;
+
+				case ETokenTypes.PropertyComparison:
+					SerializedToken = new TokenPropertyComparison(BinaryStream);
+					break;
+
+				case ETokenTypes.ReplicatePropertiesMetaData:
+					SerializedToken = new TokenReplicatePropertiesMetaData(BinaryStream);
+					break;
+
 				default:
 					throw new InvalidDataException();
 			}
@@ -860,8 +872,91 @@ namespace NetworkProfiler
 		}
 	}
 
+	/**
+	 * Token that tracks information about property comparisons for objects.
+	 */ 
+	class TokenPropertyComparison : TokenBase
+	{
+		/** Index to the Name of the object whose properties we were comparing. */
+		public int ObjectNameIndex;
+
+		/** The amount of time we spent comparing the properties. */
+		public float TimeSpentComparing;
+
+		/**
+		 * A BitArray describing which of the top level properties of the object were actually compared.
+		 * The number of bits will always match the number of top level properties in the class.
+		 */
+		public BitArray ComparedProperties;
+
+		/**
+		 * A BitArray describing which of the top level properties of the object were found to have changed
+		 * after we compared them.
+		 * The number of bits will always match the number of top level properties in the class.
+		 */ 
+		public BitArray ChangedProperties;
+
+		public List<int> ExportedPropertyNames;
+
+		public TokenPropertyComparison(BinaryReader BinaryStream)
+		{
+			ObjectNameIndex = TokenHelper.LoadPackedInt(BinaryStream);
+			TimeSpentComparing = BinaryStream.ReadSingle();
+			TokenHelper.ReadBitArray(BinaryStream, ref ComparedProperties);
+			TokenHelper.ReadBitArray(BinaryStream, ref ChangedProperties);
+
+			int NumExportedPropertyNames = TokenHelper.LoadPackedInt(BinaryStream);
+			if (NumExportedPropertyNames > 0)
+			{
+				ExportedPropertyNames = new List<int>(NumExportedPropertyNames);
+				for (int i = 0; i < NumExportedPropertyNames; ++i)
+				{
+					ExportedPropertyNames.Add(TokenHelper.LoadPackedInt(BinaryStream));
+				}
+			}
+		}
+	}
+
+	/**
+	 * Token that tracks basic metadata about replication for objects.
+	 */ 
+	class TokenReplicatePropertiesMetaData : TokenBase
+	{
+		/** Index to the Name of the object whose properties we were replicating. */
+		public int ObjectNameIndex;
+
+		/**
+		 * Whether or not we resent our entire history.
+		 * This is used to indicate we were resending everything for replay recording (checkpoints).
+		 * Note, properties that were filtered for the connection or that were inactive won't have
+		 * been sent, so using FilteredProperties is still required to see what was actually sent.
+		 */ 
+		public bool bSentAllChangedProperties;
+
+		/**
+		 * A BitArray describing which of the top level properties of the object were inactive (would not
+		 * be replicated) during a call to ReplicateProperties.
+		 * The number of bits will always match the number of top level properties in the class,
+		 * unless bWasAnythingSent is false (in which case it will be null).
+		 */
+		public BitArray FilteredProperties;
+
+		public TokenReplicatePropertiesMetaData(BinaryReader BinaryStream)
+		{
+			ObjectNameIndex = TokenHelper.LoadPackedInt(BinaryStream);
+
+			byte Flags = BinaryStream.ReadByte();
+			bSentAllChangedProperties = (Flags & 0x1) != 0;
+			TokenHelper.ReadBitArray(BinaryStream, ref FilteredProperties);
+		}
+	}
+
+
 	public class TokenHelper
 	{
+		public const int NumBitsPerDWord = 32;
+		public const int NumBitsPerDWordLog2 = 5;
+
 		static public TreeNode AddNode( TreeNodeCollection Tree, string Text )
 		{
 			TreeNode[] Childs = Tree.Find( Text, false );
@@ -896,6 +991,22 @@ namespace NetworkProfiler
 			}
 
 			return (int)Value;
+		}
+
+		public static void ReadBitArray(BinaryReader BinaryStream, ref BitArray OutBitArray)
+		{
+			// TODO: Verify Endianness
+			int NumBits = LoadPackedInt(BinaryStream);
+			int NumInts = ((NumBits + NumBitsPerDWord - 1) >> NumBitsPerDWordLog2);
+			int[] ReadValues = new int[NumInts];
+
+			for (Int32 Idx = 0; Idx < NumInts; Idx++)
+			{
+				ReadValues[Idx] = LoadPackedInt(BinaryStream);
+			}
+
+			OutBitArray = new BitArray(ReadValues);
+			OutBitArray.Length = NumBits;
 		}
 	}
 }

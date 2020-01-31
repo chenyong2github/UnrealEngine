@@ -3218,6 +3218,7 @@ TSharedPtr<SWidget> SContentBrowser::GetFolderContextMenu(const TArray<FString>&
 	UContentBrowserFolderContext* Context = NewObject<UContentBrowserFolderContext>();
 	Context->ContentBrowser = SharedThis(this);
 	Context->OnCreateNewFolder = InOnCreateNewFolder;
+	ContentBrowserUtils::CountPathTypes(SelectedPaths, Context->NumAssetPaths, Context->NumClassPaths);
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	Context->bCanBeModified = AssetToolsModule.Get().AllPassWritableFolderFilter(SelectedPaths);

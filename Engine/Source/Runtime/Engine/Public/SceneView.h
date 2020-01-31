@@ -812,7 +812,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_TEXTURE(Texture3D, CameraAerialPerspectiveVolume)
 	SHADER_PARAMETER_SAMPLER(SamplerState, CameraAerialPerspectiveVolumeSampler)
 
-	SHADER_PARAMETER_UAV(RWTexture2D<uint>, VTFeedbackBuffer)
+	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
 	SHADER_PARAMETER_UAV(RWTexture2D<uint>, QuadOverdraw)
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()

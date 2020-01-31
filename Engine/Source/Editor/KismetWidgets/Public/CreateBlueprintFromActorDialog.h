@@ -13,7 +13,8 @@ enum class ECreateBlueprintFromActorMode : uint8
 {
 	None,        // Indicates that a user is unable to create blueprints from the currently selected actor set
 	Harvest,     // Harvest all the components of the selected actors and create an actor blueprint with those components in it.
-	Subclass     // Create a subclass of the selected Actor's class with defaults from the selected Actor. Valid only when there is a single selected actor.
+	Subclass,     // Create a subclass of the selected Actor's class with defaults from the selected Actor. Valid only when there is a single selected actor.
+	ChildActor    // Create an actor blueprint with each selected actor as a child actor component
 };
 
 class FCreateBlueprintFromActorDialog

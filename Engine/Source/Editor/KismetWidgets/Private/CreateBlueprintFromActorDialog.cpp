@@ -57,11 +57,47 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 	switch (CreateMode) 
 	{
 		case ECreateBlueprintFromActorMode::Harvest:
+	{
+		TArray<AActor*> Actors;
+
+		USelection* SelectedActors = GEditor->GetSelectedActors();
+		for(FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+		{
+			// We only care about actors that are referenced in the world for literals, and also in the same level as this blueprint
+				if (AActor* Actor = Cast<AActor>(*Iter))
+			{
+				Actors.Add(Actor);
+			}
+		}
+
+			const bool bReplaceActor = true;
+			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, bReplaceActor);
+	}
+		break;
+
+		case ECreateBlueprintFromActorMode::Subclass:
+	{
+		AActor* ActorToUse = ActorOverride.Get();
+
+		if( !ActorToUse )
+		{
+			TArray< UObject* > SelectedActors;
+			GEditor->GetSelectedActors()->GetSelectedObjects(AActor::StaticClass(), SelectedActors);
+				check(SelectedActors.Num() == 1);
+			ActorToUse =  Cast<AActor>(SelectedActors[0]);
+		}
+
+		const bool bReplaceActor = true;
+		Blueprint = FKismetEditorUtilities::CreateBlueprintFromActor(InAssetPath, ActorToUse, bReplaceActor);
+	}
+		break;
+
+		case ECreateBlueprintFromActorMode::ChildActor:
 		{
 			TArray<AActor*> Actors;
 
 			USelection* SelectedActors = GEditor->GetSelectedActors();
-			for(FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+			for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
 			{
 				// We only care about actors that are referenced in the world for literals, and also in the same level as this blueprint
 				if (AActor* Actor = Cast<AActor>(*Iter))
@@ -71,24 +107,7 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 			}
 
 			const bool bReplaceActor = true;
-			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, bReplaceActor);
-		}
-		break;
-
-		case ECreateBlueprintFromActorMode::Subclass:
-		{
-			AActor* ActorToUse = ActorOverride.Get();
-
-			if (!ActorToUse)
-			{
-				TArray< UObject* > SelectedActors;
-				GEditor->GetSelectedActors()->GetSelectedObjects(AActor::StaticClass(), SelectedActors);
-				check(SelectedActors.Num() == 1);
-				ActorToUse = Cast<AActor>(SelectedActors[0]);
-			}
-
-			const bool bReplaceActor = true;
-			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActor(InAssetPath, ActorToUse, bReplaceActor);
+			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActors(InAssetPath, Actors, bReplaceActor);
 		}
 		break;
 	}

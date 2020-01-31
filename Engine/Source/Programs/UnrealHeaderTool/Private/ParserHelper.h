@@ -734,7 +734,7 @@ public:
 
 private:
 	/** Whether TokenName has been looked up */
-	bool bTokenNameInitialized;
+	mutable bool bTokenNameInitialized;
 	/** Name of token, lazily initialized */
 	mutable FName TokenName;
 
@@ -860,6 +860,7 @@ public:
 		if (!bTokenNameInitialized)
 		{
 			TokenName = FName(Identifier, FNAME_Find);
+			bTokenNameInitialized = true;
 		}
 		return TokenName;
 	}

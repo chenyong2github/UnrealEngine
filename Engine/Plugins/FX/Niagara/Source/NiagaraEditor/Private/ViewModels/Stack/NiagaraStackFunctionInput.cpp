@@ -418,9 +418,36 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 			{
 				if (InputValues.DynamicNode->FunctionScript->bDeprecated)
 				{
-					FText LongMessage = InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr ?
-						FText::Format(LOCTEXT("DynamicInputScriptDeprecationLong", "The script asset for the assigned dynamic input {0} has been deprecated. Suggested replacement: {1}"), FText::FromString(InputValues.DynamicNode->GetFunctionName()), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
-						FText::Format(LOCTEXT("DynamicInputScriptDeprecationUnknownLong", "The script asset for the assigned dynamic input {0} has been deprecated."), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("ScriptName"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
+
+					if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						Args.Add(TEXT("Recommendation"), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName()));
+					}
+
+					if (InputValues.DynamicNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						Args.Add(TEXT("Message"), InputValues.DynamicNode->FunctionScript->DeprecationMessage);
+					}
+
+					FText FormatString = LOCTEXT("DynamicInputScriptDeprecationUnknownLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated.");
+
+					if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr &&
+						InputValues.DynamicNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason: {Message}. Suggested replacement: {Recommendation}");
+					}
+					else if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						FormatString = LOCTEXT("DynamicInputScriptDeprecationLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Suggested replacement: {Recommendation}");
+					}
+					else if (InputValues.DynamicNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason: {Message}");
+					}
+
+					FText LongMessage = FText::Format(FormatString, Args);
 
 					int32 AddIdx = NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Warning,
@@ -449,7 +476,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 				if (InputValues.DynamicNode->FunctionScript->bExperimental)
 				{
 					FText ErrorMessage;
-					if (InputValues.DynamicNode->FunctionScript->ExperimentalMessage.IsEmpty())
+					if (InputValues.DynamicNode->FunctionScript->ExperimentalMessage.IsEmptyOrWhitespace())
 					{
 						ErrorMessage = FText::Format(LOCTEXT("DynamicInputScriptExperimental", "The script asset for the dynamic input {0} is experimental, use with care!"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
 					}

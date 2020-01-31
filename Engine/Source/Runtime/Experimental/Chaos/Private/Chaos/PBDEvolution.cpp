@@ -43,6 +43,7 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 {
 	MCollisionParticles.AddArray(&MCollided);
 	MParticles.AddArray(&MParticleGroupIds);
+	MPerGroupDamping.Add(Damping);
 
 	SetParticleUpdateFunction(
 		[PBDUpdateRule = 

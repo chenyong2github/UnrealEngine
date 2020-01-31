@@ -8,6 +8,7 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolution.h"
+#include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/CollisionDetector.h"
 #include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/Plane.h"
@@ -75,10 +76,11 @@ public:
 
 	void UpdateManifold(FContactConstraintBase& Constraint, T CullDistance = T(0))
 	{
-		const FRigidTransform3 Transform0 = Collisions::GetTransform(Constraint.Particle[0]);
-		const FRigidTransform3 Transform1 = Collisions::GetTransform(Constraint.Particle[1]);
-
-		Collisions::UpdateManifold(Constraint, Transform0, Transform1, CullDistance);
+		if (Constraint.GetType() == FContactConstraintBase::FType::MultiPoint)
+		{
+			FCollisionContext Context;
+			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance, Context);
+		}
 	}
 
 
