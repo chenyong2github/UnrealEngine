@@ -71,7 +71,7 @@ void FAsioTraceRelay::OnIoComplete(uint32 Id, int32 Size)
 {
 	if (Size < 0)
 	{
-		if (Id == OpRead && SessionId /*&& -Size == asio::eof*/)
+		if (Id == OpRead && SessionId && -Size == asio::error::eof)
 		{
 			for (int i = 0, n = Recorder.GetSessionCount(); i < n; ++i)
 			{

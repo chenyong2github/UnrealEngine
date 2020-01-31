@@ -24,6 +24,7 @@ void throw_exception(const ExceptionType& Exception)
 } // namespace asio
 
 #include "asio/connect.hpp"
+#include "asio/error.hpp"
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/read.hpp"
