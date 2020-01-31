@@ -149,6 +149,8 @@ void FGameplayInsightsModule::StartupModule()
 		UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::LoadingProfilerTabId, FInsightsMajorTabConfig::Unavailable());
 		UnrealInsightsModule.RegisterMajorTabConfig(FInsightsManagerTabs::NetworkingProfilerTabId, FInsightsMajorTabConfig::Unavailable());
 
+		UnrealInsightsModule.SetUnrealInsightsLayoutIni(GEditorLayoutIni);
+
 		UnrealInsightsModule.CreateSessionViewer(false);
 		UnrealInsightsModule.StartAnalysisForLastLiveSession();
 	}

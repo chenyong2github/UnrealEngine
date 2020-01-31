@@ -53,6 +53,11 @@ public:
 
 	const FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId) const;
 
+	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) override;
+
+	/** Retrieve ini path for saving layout(s) */
+	static const FString& GetUnrealInsightsLayoutIni();
+
 protected:
 	void InitTraceStore();
 
@@ -106,5 +111,5 @@ protected:
 	FOnInsightsMajorTabCreated OnInsightsMajorTabCreatedDelegate;
 
 	TSharedPtr<FTabManager::FLayout> PersistentLayout;
-	FString UnrealInsightsLayoutIni;
+	static FString UnrealInsightsLayoutIni;
 };

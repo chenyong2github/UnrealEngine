@@ -210,4 +210,7 @@ public:
 
 	/** Callback invoked when a major tab is created */
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() = 0;
+
+	/** Set the INI path for saving persistent layout data */
+	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) = 0;
 };

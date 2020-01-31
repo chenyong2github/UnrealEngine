@@ -35,6 +35,8 @@ DEFINE_LOG_CATEGORY(TraceInsights);
 
 IMPLEMENT_MODULE(FTraceInsightsModule, TraceInsights);
 
+FString FTraceInsightsModule::UnrealInsightsLayoutIni;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static TSharedPtr<SDockTab> NeverReuse(const FTabId&)
@@ -58,6 +60,8 @@ void FTraceInsightsModule::StartupModule()
 	FTimingProfilerManager::Initialize();
 	FLoadingProfilerManager::Initialize();
 	FNetworkingProfilerManager::Initialize();
+	
+	UnrealInsightsLayoutIni = FPaths::GetPath(GEngineIni) + "/UnrealInsightsLayout.ini";
 
 #if WITH_EDITOR
 	//...
@@ -69,14 +73,12 @@ void FTraceInsightsModule::StartupModule()
 
 void FTraceInsightsModule::ShutdownModule()
 {
-#if WITH_EDITOR
 	if (PersistentLayout.IsValid())
 	{
 		// Save application layout.
-		FLayoutSaveRestore::SaveToConfig(GEditorLayoutIni, PersistentLayout.ToSharedRef());
-		GConfig->Flush(false, GEditorLayoutIni);
+		FLayoutSaveRestore::SaveToConfig(UnrealInsightsLayoutIni, PersistentLayout.ToSharedRef());		
+		GConfig->Flush(false, UnrealInsightsLayoutIni);
 	}
-#endif
 
 	UnregisterTabSpawners();
 
@@ -250,7 +252,6 @@ void FTraceInsightsModule::CreateSessionBrowser(bool bAllowDebugTools, bool bSin
 	AddAreaForWidgetReflector(DefaultLayout, bAllowDebugTools);
 
 	// Restore application layout.
-	UnrealInsightsLayoutIni = FPaths::GetPath(GEngineIni) + "/UnrealInsightsLayout.ini";
 	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(UnrealInsightsLayoutIni, DefaultLayout);
 	FGlobalTabmanager::Get()->RestoreFrom(PersistentLayout.ToSharedRef(), TSharedPtr<SWindow>());
 }
@@ -269,7 +270,6 @@ void FTraceInsightsModule::CreateSessionViewer(bool bAllowDebugTools)
 #endif
 
 	// Restore application layout.
-	UnrealInsightsLayoutIni = FPaths::GetPath(GEngineIni) + "/UnrealInsightsLayout.ini";
 	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(UnrealInsightsLayoutIni, DefaultLayout);
 	FGlobalTabmanager::Get()->RestoreFrom(PersistentLayout.ToSharedRef(), TSharedPtr<SWindow>());
 }
@@ -373,6 +373,16 @@ const FInsightsMajorTabConfig& FTraceInsightsModule::FindMajorTabConfig(const FN
 const FOnRegisterMajorTabExtensions* FTraceInsightsModule::FindMajorTabLayoutExtension(const FName& InMajorTabId) const
 {
 	return MajorTabExtensionDelegates.Find(InMajorTabId);
+}
+
+void FTraceInsightsModule::SetUnrealInsightsLayoutIni(const FString& InIniPath)
+{
+	UnrealInsightsLayoutIni = InIniPath;
+}
+
+const FString& FTraceInsightsModule::GetUnrealInsightsLayoutIni()
+{
+	return UnrealInsightsLayoutIni;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

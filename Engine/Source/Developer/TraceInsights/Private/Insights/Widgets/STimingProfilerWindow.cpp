@@ -6,6 +6,7 @@
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Docking/LayoutService.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -324,6 +325,12 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 {
 	// Create & initialize tab manager.
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
+	const auto& PersistLayout = [](const TSharedRef<FTabManager::FLayout>& LayoutToSave)
+	{
+		FLayoutSaveRestore::SaveToConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), LayoutToSave);
+	};
+	TabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateLambda(PersistLayout));
+
 	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("TimingProfilerMenuGroupName", "Timing Insights"));
 
 	Extension = MakeShared<FInsightsMajorTabExtender>(TabManager);
@@ -371,8 +378,6 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	TSharedPtr<FTimingProfilerManager> TimingProfilerManager = FTimingProfilerManager::Get();
 	ensure(TimingProfilerManager.IsValid());
 
-	TSharedPtr<FTabManager::FLayout> Layout;
-
 	// Check for layout overrides.
 	FTraceInsightsModule& TraceInsightsModule = FModuleManager::GetModuleChecked<FTraceInsightsModule>("TraceInsights");
 	FInsightsMajorTabConfig TabConfig = TraceInsightsModule.FindMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId);
@@ -400,89 +405,93 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		}
 	}
 
-	if (TabConfig.Layout.IsValid())
+	TSharedRef<FTabManager::FLayout> Layout = [&TabConfig]() -> TSharedRef<FTabManager::FLayout>
 	{
-		Layout = TabConfig.Layout;
-	}
-	else
-	{
-		// Create tab layout.
-		Layout = FTabManager::NewLayout("InsightsTimingProfilerLayout_v1.1")
-			->AddArea
-			(
-				FTabManager::NewPrimaryArea()
-				->SetOrientation(Orient_Vertical)
-				->Split
+		if (TabConfig.Layout.IsValid())
+		{
+			return TabConfig.Layout.ToSharedRef();
+		}
+		else
+		{
+			// Create tab layout.
+			return FTabManager::NewLayout("InsightsTimingProfilerLayout_v1.1")
+				->AddArea
 				(
-					FTabManager::NewStack()
-					->AddTab(FTimingProfilerTabs::ToolbarID, ETabState::OpenedTab)
-					->SetHideTabWell(true)
-				)
-				->Split
-				(
-					FTabManager::NewSplitter()
-					->SetOrientation(Orient_Horizontal)
-					->SetSizeCoefficient(1.0f)
+					FTabManager::NewPrimaryArea()
+					->SetOrientation(Orient_Vertical)
 					->Split
 					(
-						FTabManager::NewSplitter()
-						->SetOrientation(Orient_Vertical)
-						->SetSizeCoefficient(0.65f)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.1f)
-							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::FramesTrackID, ETabState::OpenedTab)
-						)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.5f)
-							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::TimingViewID, ETabState::OpenedTab)
-						)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.2f)
-							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::LogViewID, ETabState::OpenedTab)
-						)
+						FTabManager::NewStack()
+						->AddTab(FTimingProfilerTabs::ToolbarID, ETabState::OpenedTab)
+						->SetHideTabWell(true)
 					)
 					->Split
 					(
 						FTabManager::NewSplitter()
-						->SetOrientation(Orient_Vertical)
-						->SetSizeCoefficient(0.35f)
+						->SetOrientation(Orient_Horizontal)
+						->SetSizeCoefficient(1.0f)
 						->Split
 						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.67f)
-							->AddTab(FTimingProfilerTabs::TimersID, ETabState::OpenedTab)
-							->AddTab(FTimingProfilerTabs::StatsCountersID, ETabState::OpenedTab)
-							->SetForegroundTab(FTimingProfilerTabs::TimersID)
+							FTabManager::NewSplitter()
+							->SetOrientation(Orient_Vertical)
+							->SetSizeCoefficient(0.65f)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.1f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::FramesTrackID, ETabState::OpenedTab)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.5f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::TimingViewID, ETabState::OpenedTab)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.2f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::LogViewID, ETabState::OpenedTab)
+							)
 						)
 						->Split
 						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.165f)
-							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::CallersID, ETabState::OpenedTab)
-						)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.165f)
-							->SetHideTabWell(true)
-							->AddTab(FTimingProfilerTabs::CalleesID, ETabState::OpenedTab)
+							FTabManager::NewSplitter()
+							->SetOrientation(Orient_Vertical)
+							->SetSizeCoefficient(0.35f)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.67f)
+								->AddTab(FTimingProfilerTabs::TimersID, ETabState::OpenedTab)
+								->AddTab(FTimingProfilerTabs::StatsCountersID, ETabState::OpenedTab)
+								->SetForegroundTab(FTimingProfilerTabs::TimersID)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.165f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::CallersID, ETabState::OpenedTab)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.165f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::CalleesID, ETabState::OpenedTab)
+							)
 						)
 					)
-				)
-			);
-	}
-
+				);
+		}
+	}();
+	
 	Layout->ProcessExtensions(Extension->GetLayoutExtender());
+	Layout = FLayoutSaveRestore::LoadFromConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), Layout);
 
 	// Create & initialize main menu.
 	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>(), Extension->GetMenuExtender());
@@ -526,7 +535,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 					+ SVerticalBox::Slot()
 						.FillHeight(1.0f)
 						[
-							TabManager->RestoreFrom(Layout.ToSharedRef(), ConstructUnderWindow).ToSharedRef()
+							TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
 						]
 				]
 
