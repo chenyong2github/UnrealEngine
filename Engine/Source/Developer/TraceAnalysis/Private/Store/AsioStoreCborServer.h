@@ -13,6 +13,7 @@ namespace Trace
 class FAsioRecorder;
 class FAsioStore;
 class FAsioStoreCborPeer;
+class FAsioTraceRelay;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAsioStoreCborServer
@@ -25,11 +26,13 @@ public:
 	void						Close();
 	FAsioStore&					GetStore() const;
 	FAsioRecorder&				GetRecorder() const;
+	FAsioTraceRelay*			RelayTrace(uint32 Id);
 
 private:
 	virtual bool				OnAccept(asio::ip::tcp::socket& Socket) override;
 	virtual void				OnTick() override;
 	TArray<FAsioStoreCborPeer*>	Peers;
+	TArray<FAsioTraceRelay*>	Relays;
 	FAsioStore&					Store;
 	FAsioRecorder&				Recorder;
 };

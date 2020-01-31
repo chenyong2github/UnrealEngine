@@ -16,7 +16,7 @@ class FAsioStoreCborPeer
 	: public FAsioIoSink
 {
 public:
-					FAsioStoreCborPeer(asio::ip::tcp::socket& InSocket, FAsioStore& InStore, FAsioRecorder& InRecorder);
+					FAsioStoreCborPeer(asio::ip::tcp::socket& InSocket, FAsioStore& InStore, FAsioRecorder& InRecorder, FAsioStoreCborServer& InParent);
 	virtual			~FAsioStoreCborPeer();
 	bool			IsOpen() const;
 	void			Close();
@@ -30,32 +30,35 @@ protected:
 		InternalError		= 500,
 	};
 
-	void			OnPayload();
-	void			OnConnect();
-	void			OnSessionCount();
-	void			OnSessionInfo();
-	void			OnStatus();
-	void			OnTraceCount();
-	void			OnTraceInfo();
-	void			OnTraceRead();
-	void			SendError(EStatusCode StatusCode);
-	void			SendResponse(const FPayload& Payload);
-	virtual void	OnIoComplete(uint32 Id, int32 Size) override;
-	enum			{ OpStart, OpReadPayloadSize, OpReadPayload, OpSendResponse };
-	FAsioStore&		Store;
-	FAsioRecorder&	Recorder;
-	FAsioSocket		Socket;
-	uint32			PayloadSize;
-	FResponse		Response;
+	void					OnPayload();
+	void					OnConnect();
+	void					OnSessionCount();
+	void					OnSessionInfo();
+	void					OnStatus();
+	void					OnTraceCount();
+	void					OnTraceInfo();
+	void					OnTraceRead();
+	void					SendError(EStatusCode StatusCode);
+	void					SendResponse(const FPayload& Payload);
+	virtual void			OnIoComplete(uint32 Id, int32 Size) override;
+	enum					{ OpStart, OpReadPayloadSize, OpReadPayload, OpSendResponse };
+	FAsioStore&				Store;
+	FAsioRecorder&			Recorder;
+	FAsioStoreCborServer&	Parent;
+	FAsioSocket				Socket;
+	uint32					PayloadSize;
+	FResponse				Response;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStoreCborPeer::FAsioStoreCborPeer(
 	asio::ip::tcp::socket& InSocket,
 	FAsioStore& InStore,
-	FAsioRecorder& InRecorder)
+	FAsioRecorder& InRecorder,
+	FAsioStoreCborServer& InParent)
 : Store(InStore)
 , Recorder(InRecorder)
+, Parent(InParent)
 , Socket(InSocket)
 {
 	OnIoComplete(OpStart, 0);
@@ -211,41 +214,25 @@ void FAsioStoreCborPeer::OnTraceInfo()
 void FAsioStoreCborPeer::OnTraceRead()
 {
 	uint32 Id = uint32(Response.GetInteger("id", 0));
-	if (!Id)
+	if (!Id || !Store.HasTrace(Id))
 	{
 		return SendError(EStatusCode::BadRequest);
 	}
 
-	FAsioReadable* Input = Store.OpenTrace(Id);
-	if (Input == nullptr)
+	FAsioTraceRelay* Relay = Parent.RelayTrace(Id);
+	if (Relay == nullptr)
 	{
-		return SendError(EStatusCode::BadRequest);
-	}
-
-	uint32 SessionId = 0;
-	for (int i = 0, n = Recorder.GetSessionCount(); i < n; ++i)
-	{
-		const FAsioRecorder::FSession* Session = Recorder.GetSessionInfo(i);
-		if (Session->GetTraceId() == Id)
-		{
-			SessionId = Session->GetId();
-			break;
-		}
-	}
-
-	asio::io_context& IoContext = Socket.GetIoContext();
-	FAsioTraceRelay* Relay = new FAsioTraceRelay(IoContext, Input, SessionId, Recorder);
-	uint32 Port = Relay->GetPort();
-	if (!Port)
-	{
-		delete Relay;
 		return SendError(EStatusCode::InternalError);
 	}
 
 	TPayloadBuilder<> Builder((int32)EStatusCode::Success);
-	Builder.AddInteger("port", Port);
+	Builder.AddInteger("port", Relay->GetPort());
 	SendResponse(Builder.Done());
 }
+
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioStoreCborPeer::OnPayload()
@@ -355,6 +342,11 @@ FAsioStoreCborServer::~FAsioStoreCborServer()
 	{
 		delete Peer;
 	}
+
+	for (FAsioTraceRelay* Relay : Relays)
+	{
+		delete Relay;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -366,6 +358,11 @@ void FAsioStoreCborServer::Close()
 	for (FAsioStoreCborPeer* Peer : Peers)
 	{
 		Peer->Close();
+	}
+
+	for (FAsioTraceRelay* Relay : Relays)
+	{
+		Relay->Close();
 	}
 }
 
@@ -384,7 +381,7 @@ FAsioRecorder& FAsioStoreCborServer::GetRecorder() const
 ////////////////////////////////////////////////////////////////////////////////
 bool FAsioStoreCborServer::OnAccept(asio::ip::tcp::socket& Socket)
 {
-	FAsioStoreCborPeer* Peer = new FAsioStoreCborPeer(Socket, Store, Recorder);
+	FAsioStoreCborPeer* Peer = new FAsioStoreCborPeer(Socket, Store, Recorder, *this);
 	Peers.Add(Peer);
 	return true;
 }
@@ -392,6 +389,7 @@ bool FAsioStoreCborServer::OnAccept(asio::ip::tcp::socket& Socket)
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioStoreCborServer::OnTick()
 {
+	// Clean up dead peers
 	uint32 FinalNum = 0;
 	for (int i = 0, n = Peers.Num(); i < n; ++i)
 	{
@@ -405,8 +403,55 @@ void FAsioStoreCborServer::OnTick()
 
 		delete Peer;
 	}
-
 	Peers.SetNum(FinalNum);
+
+	// Clean up dead relays
+	FinalNum = 0;
+	for (int i = 0, n = Relays.Num(); i < n; ++i)
+	{
+		FAsioTraceRelay* Relay = Relays[i];
+		if (Relay->IsOpen())
+		{
+			Relays[FinalNum] = Relay;
+			++FinalNum;
+			continue;
+		}
+
+		delete Relay;
+	}
+	Relays.SetNum(FinalNum);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FAsioTraceRelay* FAsioStoreCborServer::RelayTrace(uint32 Id)
+{
+	FAsioReadable* Input = Store.OpenTrace(Id);
+	if (Input == nullptr)
+	{
+		return nullptr;
+	}
+
+	uint32 SessionId = 0;
+	for (int i = 0, n = Recorder.GetSessionCount(); i < n; ++i)
+	{
+		const FAsioRecorder::FSession* Session = Recorder.GetSessionInfo(i);
+		if (Session->GetTraceId() == Id)
+		{
+			SessionId = Session->GetId();
+			break;
+		}
+	}
+
+	asio::io_context& IoContext = FAsioTcpServer::GetIoContext();
+	FAsioTraceRelay* Relay = new FAsioTraceRelay(IoContext, Input, SessionId, Recorder);
+	if (Relay->GetPort() == 0)
+	{
+		delete Relay;
+		return nullptr;
+	}
+
+	Relays.Add(Relay);
+	return Relay;
 }
 
 } // namespace Trace
