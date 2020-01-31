@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerController.h"
 #include "OnlineSubsystem.h"
 #include "Engine/World.h"
+#include "Engine/LocalPlayer.h"
 
 //////////////////////////////////////////////////////////////////////////
 // UInAppPurchaseQueryCallbackProxy
