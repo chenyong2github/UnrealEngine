@@ -15,9 +15,11 @@
 #include "Logging/MessageLog.h"
 #include "MessageLogModule.h"
 #include "TimedDataInputCollection.h"
+#include "TimedDataMonitorEditorSettings.h"
 #include "TimedDataMonitorSubsystem.h"
 
-#include "STimecodeProvider.h"
+#include "STimedDataGenlock.h"
+#include "STimedDataTimecodeProvider.h"
 #include "STimedDataListView.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
@@ -216,7 +218,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					[
 						SNew(SCheckBox)
 						.Padding(4.f)
-						.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show/Hide the general user settings"))
+						.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show the general user settings"))
 						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
 						.ForegroundColor(FSlateColor::UseForeground())
 						.IsChecked_Lambda([]() { return ECheckBoxState::Unchecked; })
@@ -243,9 +245,9 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				SNew(SBorder)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
+				.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Placeholder", "Placehoder for GL"))
+					SAssignNew(TimedDataGenlockWidget, STimedDataGenlock, SharedThis<STimedDataMonitorPanel>(this))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -256,8 +258,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[
-					SNew(STimecodeProvider)
-					.DisplayFrameRate(true)
+					SAssignNew(TimedDataTimecodeWidget, STimedDataTimecodeProvider, SharedThis<STimedDataMonitorPanel>(this))
 				]
 			]
 		]
@@ -270,7 +271,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 			.Orientation(Orient_Vertical)
 			+ SScrollBox::Slot()
 			[
-				SAssignNew(TimedDataSourceList, STimedDataInputListView)
+				SAssignNew(TimedDataSourceList, STimedDataInputListView, SharedThis<STimedDataMonitorPanel>(this))
 			]
 		]
 		// sources list
@@ -325,6 +326,32 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 	];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+
+void STimedDataMonitorPanel::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	double RefreshTimer = GetDefault<UTimedDataMonitorEditorSettings>()->RefreshRate;
+	if (bRefreshRequested || (FApp::GetCurrentTime() - LastCachedValueUpdateTime > RefreshTimer))
+	{
+		bRefreshRequested = false;
+		LastCachedValueUpdateTime = FApp::GetCurrentTime();
+
+		if (TimedDataGenlockWidget)
+		{
+			TimedDataGenlockWidget->UpdateCachedValue();
+		}
+		if (TimedDataTimecodeWidget)
+		{
+			TimedDataTimecodeWidget->UpdateCachedValue();
+		}
+		if (TimedDataSourceList)
+		{
+			TimedDataSourceList->UpdateCachedValue();
+		}
+	}
+}
 
 
 void STimedDataMonitorPanel::BuildCalibrationArray()

@@ -18,7 +18,9 @@
 
 class FWorkspaceItem;
 class IMessageLogListing;
+class STimedDataGenlock;
 class STimedDataInputListView;
+class STimedDataTimecodeProvider;
 class SWidget;
 
 
@@ -39,6 +41,10 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	void RequestRefresh() { bRefreshRequested = true; }
+
 private:
 	FReply OnCalibrateClicked();
 	TSharedRef<SWidget> OnCalibrateBuildMenu();
@@ -55,6 +61,8 @@ private:
 	void Jam(bool bWithTimecode);
 
 private:
+	TSharedPtr<STimedDataGenlock> TimedDataGenlockWidget;
+	TSharedPtr<STimedDataTimecodeProvider> TimedDataTimecodeWidget;
 	TSharedPtr<STimedDataInputListView> TimedDataSourceList;
 	TSharedPtr<IMessageLogListing> MessageLogListing;
 
@@ -64,6 +72,8 @@ private:
 	FText CalibrationName[CalibrationArrayCount];
 	FText CalibrationTooltip[CalibrationArrayCount];
 
-	static FDelegateHandle LevelEditorTabManagerChangedHandle;
+	bool bRefreshRequested = true;
+	double LastCachedValueUpdateTime = 0.0;
 
+	static FDelegateHandle LevelEditorTabManagerChangedHandle;
 };

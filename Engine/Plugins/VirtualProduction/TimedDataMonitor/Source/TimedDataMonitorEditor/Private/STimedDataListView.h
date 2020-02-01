@@ -15,6 +15,7 @@
 
 class STimedDataInputListView;
 class STimedDataInputTableRow;
+class STimedDataMonitorPanel;
 struct FTimedDataInputTableRowData;
 
 
@@ -76,12 +77,11 @@ public:
 	SLATE_BEGIN_ARGS(STimedDataInputListView) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedPtr<STimedDataMonitorPanel> OwnerPanel);
 	virtual ~STimedDataInputListView();
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-
-	void RequestRefresh() { bRefreshRequested = true; }
+	void RequestRefresh();
+	void UpdateCachedValue();
 
 private:
 	void RequestRebuildSources();
@@ -95,8 +95,8 @@ private:
 	bool OnIsSelectableOrNavigable(FTimedDataInputTableRowDataPtr InItem) const;
 
 private:
+	TWeakPtr<STimedDataMonitorPanel> OwnerPanel;
+
 	TArray<FTimedDataInputTableRowDataPtr> ListItemsSource;
 	bool bRebuildListRequested = true;
-	bool bRefreshRequested = true;
-	double LastCachedValueUpdateTime = 0.0;
 };

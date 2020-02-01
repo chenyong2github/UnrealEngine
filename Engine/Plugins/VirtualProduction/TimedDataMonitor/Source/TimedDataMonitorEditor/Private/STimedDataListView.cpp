@@ -14,6 +14,7 @@
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 
+#include "STimedDataMonitorPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -450,8 +451,9 @@ FText STimedDataInputTableRow::GetFrameDroppedCount() const
 /**
  * STimedDataListView
  */
-void STimedDataInputListView::Construct(const FArguments& InArgs)
+void STimedDataInputListView::Construct(const FArguments& InArgs, TSharedPtr<STimedDataMonitorPanel> InOwnerPanel)
 {
+	OwnerPanel = InOwnerPanel;
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 	TimedDataMonitorSubsystem->OnIdentifierListChanged().AddSP(this, &STimedDataInputListView::RequestRebuildSources);
@@ -540,10 +542,17 @@ STimedDataInputListView::~STimedDataInputListView()
 }
 
 
-void STimedDataInputListView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void STimedDataInputListView::RequestRefresh()
 {
-	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	if (TSharedPtr<STimedDataMonitorPanel> OwnerPanelPin = OwnerPanel.Pin())
+	{
+		OwnerPanelPin->RequestRefresh();
+	}
+}
 
+
+void STimedDataInputListView::UpdateCachedValue()
+{
 	if (bRebuildListRequested)
 	{
 		RebuildSources();
@@ -551,15 +560,9 @@ void STimedDataInputListView::Tick(const FGeometry& AllottedGeometry, const doub
 		bRebuildListRequested = false;
 	}
 
-	double RefreshTimer = GetDefault<UTimedDataMonitorEditorSettings>()->RefreshRate;
-	if (bRefreshRequested || (FApp::GetCurrentTime() - LastCachedValueUpdateTime > RefreshTimer))
+	for (FTimedDataInputTableRowDataPtr& RowDataPtr : ListItemsSource)
 	{
-		bRefreshRequested = false;
-		LastCachedValueUpdateTime = FApp::GetCurrentTime();
-		for (FTimedDataInputTableRowDataPtr& RowDataPtr : ListItemsSource)
-		{
-			RowDataPtr->UpdateCachedValue();
-		}
+		RowDataPtr->UpdateCachedValue();
 	}
 }
 

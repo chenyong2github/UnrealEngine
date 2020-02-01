@@ -11,6 +11,7 @@
 #include "Framework/MultiBox/SToolBarComboButtonBlock.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
+#include "ObjectEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "STimecodeProvider.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -93,7 +94,7 @@ void STimecodeProviderTab::Construct(const FArguments& InArgs)
 		]
 		.OnGetMenuContent(this, &STimecodeProviderTab::OnGetMenuContent);
 
-	ButtonContent->SetEnabled(MakeAttributeLambda([] { return GEngine && (GEngine->GetTimecodeProvider() != nullptr || GEngine->bGenerateDefaultTimecode); }));
+	ButtonContent->SetEnabled(MakeAttributeLambda([] { return GEngine && GEngine->GetTimecodeProvider() != nullptr; }));
 
 	ChildSlot
 	[
@@ -148,13 +149,15 @@ TSharedRef<SWidget> STimecodeProviderTab::OnGetMenuContent()
 		MenuBuilder.EndSection();
 	}
 
-	if (GEngine->GetTimecodeProvider() || GEngine->bGenerateDefaultTimecode)
+	if (GEngine->GetTimecodeProvider())
 	{
 		MenuBuilder.BeginSection("Settings", LOCTEXT("Settings", "Settings"));
 		{
 			TSharedRef<SWidget> RefreshDelay = SNew(SSpinBox<float>)
 				.ToolTipText(LOCTEXT("FrameDelay_ToolTip", "Number of frames to subtract from the original timecode."))
 				.Value(this, &STimecodeProviderTab::GetFrameDelay)
+				.MinValue(TOptional<float>())
+				.MaxValue(TOptional<float>())
 				.OnValueCommitted(this, &STimecodeProviderTab::SetFrameDelay);
 
 			MenuBuilder.AddWidget(RefreshDelay, LOCTEXT("FrameDelay", "Frame Delay"));
@@ -167,29 +170,20 @@ TSharedRef<SWidget> STimecodeProviderTab::OnGetMenuContent()
 
 float STimecodeProviderTab::GetFrameDelay() const
 {
-	if (GEngine->GetTimecodeProvider())
+	if (UTimecodeProvider* TimecodeProviderPtr = GEngine->GetTimecodeProvider())
 	{
-		return GEngine->GetTimecodeProvider()->FrameDelay;
-	}
-	else if (GEngine->bGenerateDefaultTimecode)
-	{
-		return GEngine->GenerateDefaultTimecodeFrameDelay;
+		return TimecodeProviderPtr->FrameDelay;
 	}
 	return 0.f;
 }
 
 void STimecodeProviderTab::SetFrameDelay(float InNewValue, ETextCommit::Type)
 {
-	if (GetFrameDelay() != InNewValue)
+	if (UTimecodeProvider* TimecodeProviderPtr = GEngine->GetTimecodeProvider())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetFrameDelay", "TC Frame Delay"));
-		if (GEngine->GetTimecodeProvider())
+		if (TimecodeProviderPtr->FrameDelay != InNewValue)
 		{
-			GEngine->GetTimecodeProvider()->FrameDelay = InNewValue;
-		}
-		else if (GEngine->bGenerateDefaultTimecode)
-		{
-			GEngine->GenerateDefaultTimecodeFrameDelay = InNewValue;
+			FObjectEditorUtils::SetPropertyValue(TimecodeProviderPtr, GET_MEMBER_NAME_CHECKED(UTimecodeProvider, FrameDelay), InNewValue);
 		}
 	}
 }
