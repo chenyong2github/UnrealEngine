@@ -286,7 +286,7 @@ namespace Audio
 
 	void FMixerDevice::TeardownHardware()
 	{
-		AUDIO_MIXER_CHECK_GAME_THREAD(this);
+		ensure(IsInGameThread());
 
 		for (TObjectIterator<USoundSubmix> It; It; ++It)
 		{
