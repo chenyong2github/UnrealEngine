@@ -263,17 +263,9 @@ void FCurlHttpManager::InitCurl()
 	if (FParse::Value(FCommandLine::Get(), TEXT("MULTIHOMEHTTP="), Home, UE_ARRAY_COUNT(Home)))
 	{
 		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-		if (SocketSubsystem)
+		if (SocketSubsystem && SocketSubsystem->GetAddressFromString(Home).IsValid())
 		{
-			TSharedRef<FInternetAddr> HostAddr = SocketSubsystem->CreateInternetAddr();
-			HostAddr->SetAnyAddress();
-
-			bool bIsValid = false;
-			HostAddr->SetIp(Home, bIsValid);
-			if (bIsValid)
-			{
-				CurlRequestOptions.LocalHostAddr = FString(Home);
-			}
+			CurlRequestOptions.LocalHostAddr = FString(Home);
 		}
 	}
 

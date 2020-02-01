@@ -916,7 +916,7 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void PostLoad() override;
 
-	LANDSCAPE_API ULandscapeInfo* CreateLandscapeInfo();
+	LANDSCAPE_API ULandscapeInfo* CreateLandscapeInfo(bool bMapCheck = false);
 	LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const;
 
 	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/

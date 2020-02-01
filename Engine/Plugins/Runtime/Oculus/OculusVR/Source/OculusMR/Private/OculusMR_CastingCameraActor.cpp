@@ -274,7 +274,7 @@ void AOculusMR_CastingCameraActor::BeginPlay()
 	VRNotificationComponent->HMDRecenteredDelegate.Add(Delegate);
 
 #if PLATFORM_ANDROID
-	FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+	FAudioDeviceHandle AudioDevice = FAudioDevice::GetMainAudioDevice();
 	AudioDevice->StartRecording(nullptr, 0.1);
 #endif
 }
@@ -282,7 +282,7 @@ void AOculusMR_CastingCameraActor::BeginPlay()
 void AOculusMR_CastingCameraActor::EndPlay(EEndPlayReason::Type Reason)
 {
 #if PLATFORM_ANDROID
-	FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+	FAudioDeviceHandle AudioDevice = FAudioDevice::GetMainAudioDevice();
 	float NumChannels = 2;
 	float SampleRate = AudioDevice->GetSampleRate();
 	AudioDevice->StopRecording(nullptr, NumChannels, SampleRate);
@@ -486,7 +486,7 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 		ForegroundCaptureActor->GetCaptureComponent2D()->TextureTarget = ForegroundRenderTargets[CaptureIndex];
 		GetCaptureComponent2D()->SetVisibility(true);
 
-		FAudioDevice* AudioDevice = FAudioDevice::GetMainAudioDevice();
+		FAudioDeviceHandle AudioDevice = FAudioDevice::GetMainAudioDevice();
 		float NumChannels, SampleRate;
 		NumChannels = 2;
 		SampleRate = AudioDevice->GetSampleRate();

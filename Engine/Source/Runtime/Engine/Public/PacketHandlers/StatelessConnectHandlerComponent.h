@@ -73,7 +73,7 @@ private:
 	 * @param InTimestamp		The timestamp value to send
 	 * @param InCookie			The cookie value to send
 	 */
-	void SendChallengeResponse(uint8 InSecretId, float InTimestamp, uint8 InCookie[COOKIE_BYTE_SIZE]);
+	void SendChallengeResponse(uint8 InSecretId, double InTimestamp, uint8 InCookie[COOKIE_BYTE_SIZE]);
 
 	/**
 	 * Constructs and sends the server ack to a successful challenge response, from the server to the client.
@@ -219,7 +219,7 @@ private:
 	 * @param OutOrigCookie			If this is a restart handshake challenge response, this is the original handshake's cookie
 	 * @return				Whether or not the handshake packet was parsed successfully
 	 */
-	bool ParseHandshakePacket(FBitReader& Packet, bool& bOutRestartHandshake, uint8& OutSecretId, float& OutTimestamp,
+	bool ParseHandshakePacket(FBitReader& Packet, bool& bOutRestartHandshake, uint8& OutSecretId, double& OutTimestamp,
 								uint8 (&OutCookie)[COOKIE_BYTE_SIZE], uint8 (&OutOrigCookie)[COOKIE_BYTE_SIZE]);
 
 	/**
@@ -230,7 +230,7 @@ private:
 	 * @param TimeStamp			The serverside timestamp
 	 * @param OutCookie			Outputs the generated cookie value.
 	 */
-	void GenerateCookie(TSharedPtr<const FInternetAddr> ClientAddress, uint8 SecretId, float Timestamp, uint8 (&OutCookie)[COOKIE_BYTE_SIZE]);
+	void GenerateCookie(TSharedPtr<const FInternetAddr> ClientAddress, uint8 SecretId, double Timestamp, uint8 (&OutCookie)[COOKIE_BYTE_SIZE]);
 
 	/**
 	 * Generates a new HandshakeSecret value
@@ -260,7 +260,7 @@ private:
 	uint8 ActiveSecret;
 
 	/** The time of the last secret value update */
-	float LastSecretUpdateTimestamp;
+	double LastSecretUpdateTimestamp;
 
 	/** The last address to successfully complete the handshake challenge */
 	TSharedPtr<const FInternetAddr> LastChallengeSuccessAddress;
@@ -288,7 +288,7 @@ private:
 	uint8 LastSecretId;
 
 	/** The Timestamp value of the last challenge response sent */
-	float LastTimestamp;
+	double LastTimestamp;
 
 	/** The Cookie value of the last challenge response sent. Will differ from AuthorisedCookie, if a handshake retry is triggered. */
 	uint8 LastCookie[COOKIE_BYTE_SIZE];

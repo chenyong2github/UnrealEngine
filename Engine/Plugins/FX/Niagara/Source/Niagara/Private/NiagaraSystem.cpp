@@ -675,6 +675,10 @@ bool UNiagaraSystem::IsValid()const
 		return false;
 	}
 
+	if (EmitterHandles.Num() == 0)
+	{
+		return false;
+	}
 
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{

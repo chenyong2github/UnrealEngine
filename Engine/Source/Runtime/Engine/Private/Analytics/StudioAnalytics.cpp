@@ -34,7 +34,10 @@ void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProvider> InAnalytics)
 
 	TimeEstimation = FPlatformTime::Seconds();
 
-	TimerThread = FThread(TEXT("Studio Analytics Timer Thread"), []() { RunTimer_Concurrent(); });
+	if (FPlatformProcess::SupportsMultithreading())
+	{
+		TimerThread = FThread(TEXT("Studio Analytics Timer Thread"), []() { RunTimer_Concurrent(); });
+	}
 }
 
 IAnalyticsProvider& FStudioAnalytics::GetProvider()

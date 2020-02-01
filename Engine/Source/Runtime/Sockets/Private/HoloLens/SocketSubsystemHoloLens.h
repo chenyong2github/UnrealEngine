@@ -7,7 +7,6 @@
 #include "BSDSockets/SocketsBSD.h"
 #include "SocketSubsystemPackage.h"
 
-
 /**
  * HoloLens specific socket subsystem implementation
  */
@@ -28,15 +27,18 @@ public:
 
 	// FSocketSubsystemBSD overrides
 
-	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false) override;
-	virtual ESocketErrors GetHostByName(const ANSICHAR* HostName, FInternetAddr& OutAddr) override;
+	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType) override;
 	virtual bool HasNetworkDevice() override;
 	virtual ESocketErrors GetLastErrorCode() override;
-	virtual bool GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr> >& OutAdresses) override;
 	virtual const TCHAR* GetSocketAPIName() const override;
 	virtual bool Init(FString& Error) override;
 	virtual void Shutdown() override;
 	virtual ESocketErrors TranslateErrorCode(int32 Code) override;
+
+	virtual FName GetDefaultSocketProtocolFamily() const override
+	{
+		return FNetworkProtocolTypes::IPv6;
+	}
 
 PACKAGE_SCOPE:
 
@@ -57,9 +59,4 @@ protected:
 
 	/** Holds the single instantiation of this subsystem. */
 	static FSocketSubsystemHoloLens* SocketSingleton;
-
-private:
-
-	// Used to prevent multiple threads accessing the shared data.
-	FCriticalSection HostByNameSynch;
 };

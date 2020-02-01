@@ -38,25 +38,7 @@ UEnum* UMaterialInterface::SamplerTypeEnum = nullptr;
 /** Copies the material's relevance flags to a primitive's view relevance flags. */
 void FMaterialRelevance::SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutViewRelevance) const
 {
-	OutViewRelevance.bOpaqueRelevance = bOpaque;
-	OutViewRelevance.bMaskedRelevance = bMasked;
-	OutViewRelevance.bTranslucentVelocityRelevance = bOutputsTranslucentVelocity;
-	OutViewRelevance.bDistortionRelevance = bDistortion;
-	OutViewRelevance.bHairStrandsRelevance = bHairStrands;
-	OutViewRelevance.bSeparateTranslucencyRelevance = bSeparateTranslucency;
-	OutViewRelevance.bNormalTranslucencyRelevance = bNormalTranslucency;
-	OutViewRelevance.bUsesSceneColorCopy = bUsesSceneColorCopy;
-	OutViewRelevance.bDisableOffscreenRendering = bDisableOffscreenRendering;
-	OutViewRelevance.ShadingModelMaskRelevance = ShadingModelMask;
-	OutViewRelevance.bUsesGlobalDistanceField = bUsesGlobalDistanceField;
-	OutViewRelevance.bUsesWorldPositionOffset = bUsesWorldPositionOffset;
-	OutViewRelevance.bDecal = bDecal;
-	OutViewRelevance.bTranslucentSurfaceLighting = bTranslucentSurfaceLighting;
-	OutViewRelevance.bUsesSceneDepth = bUsesSceneDepth;
-	OutViewRelevance.bUsesSkyMaterial = bUsesSkyMaterial;
-	OutViewRelevance.bUsesSingleLayerWaterMaterial = bUsesSingleLayerWaterMaterial;
-	OutViewRelevance.bHasVolumeMaterialDomain = bHasVolumeMaterialDomain;
-	OutViewRelevance.bUsesCustomDepthStencil = bUsesCustomDepthStencil;
+	OutViewRelevance.Raw = Raw;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -107,6 +89,47 @@ void UMaterialInterface::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTexture
 {
 	GetUsedTextures(OutTextures, QualityLevel, false, FeatureLevel, false);
 	OutIndices.AddDefaulted(OutTextures.Num());
+}
+
+bool UMaterialInterface::GetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly /*= false*/, bool bCheckParent /*= true*/) const
+{
+	TBitArray<> Output(false, 1); // Relying on the default allocator to be inline to avoid allocation here.
+	FStaticParamEvaluationContext EvalContext(1, &ParameterInfo);
+	if (!GetStaticSwitchParameterValues(EvalContext, Output, &OutExpressionGuid, bCheckParent))
+	{
+		return false;
+	}
+
+	if (bOveriddenOnly && !EvalContext.IsResolvedByOverride(0))
+	{
+		return false;
+	}
+
+	OutValue = Output[0];
+
+	return true;
+}
+
+bool UMaterialInterface::GetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly /*= false*/, bool bCheckParent /*= true*/) const
+{
+	TBitArray<> Output(false, 4); // Relying on the default allocator to be inline to avoid allocation here.
+	FStaticParamEvaluationContext EvalContext(1, &ParameterInfo);
+	if (!GetStaticComponentMaskParameterValues(EvalContext, Output, &OutExpressionGuid, bCheckParent))
+	{
+		return false;
+	}
+	
+	if (bOveriddenOnly && !EvalContext.IsResolvedByOverride(0))
+	{
+		return false;
+	}
+
+	R = Output[0];
+	G = Output[1];
+	B = Output[2];
+	A = Output[3];
+
+	return true;
 }
 
 FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Material, ERHIFeatureLevel::Type InFeatureLevel) const
@@ -762,6 +785,27 @@ void UMaterialInterface::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUse
 		{
 			AssetUserData.RemoveAt(DataIdx);
 			return;
+		}
+	}
+}
+
+void UMaterialInterface::FStaticParamEvaluationContext::MarkParameterResolved(int32 ParamIndex, bool bIsOverride)
+{
+	FBitReference BitRef = PendingParameters[ParamIndex];
+	check(BitRef);
+	BitRef = false;
+	ResolvedByOverride[ParamIndex] = bIsOverride;
+	--PendingParameterNum;
+}
+
+void UMaterialInterface::FStaticParamEvaluationContext::ForEachPendingParameter(TFunctionRef<bool(int32, const FMaterialParameterInfo&)> Op)
+{
+	for (TConstSetBitIterator<> It(PendingParameters); It; ++It)
+	{
+		int32 ParamIndex = It.GetIndex();
+		if (!Op(ParamIndex, ParameterInfos[ParamIndex]))
+		{
+			break;
 		}
 	}
 }

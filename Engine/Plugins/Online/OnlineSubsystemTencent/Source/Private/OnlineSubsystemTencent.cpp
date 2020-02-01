@@ -107,11 +107,6 @@ IOnlineTitleFilePtr FOnlineSubsystemTencent:: GetTitleFileInterface() const
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemTencent::GetStoreInterface() const
-{
-	return nullptr;
-}
-
 IOnlineStoreV2Ptr FOnlineSubsystemTencent::GetStoreV2Interface() const
 {
 #if	WITH_TENCENT_RAIL_SDK

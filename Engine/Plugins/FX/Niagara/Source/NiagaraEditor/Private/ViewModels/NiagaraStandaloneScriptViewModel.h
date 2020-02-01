@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Internationalization/Text.h"
-#include "NiagaraParameterEditMode.h"
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraParameterEditMode.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 
 class FNiagaraMessageLogViewModel;
 class UNiagaraScript;

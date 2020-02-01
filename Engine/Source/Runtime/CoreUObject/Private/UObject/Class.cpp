@@ -3879,7 +3879,7 @@ void UClass::FinishDestroy()
 	//warning: Must be emptied explicitly in order for intrinsic classes
 	// to not show memory leakage on exit.
 	NetFields.Empty();
-	NetProperties.Empty();
+	ClassReps.Empty();
 
 	ClassDefaultObject = nullptr;
 
@@ -3946,17 +3946,21 @@ static int32 GValidateReplicatedProperties = 1;
 
 static FAutoConsoleVariable CVarValidateReplicatedPropertyRegistration(TEXT("net.ValidateReplicatedPropertyRegistration"), GValidateReplicatedProperties, TEXT("Warns if replicated properties were not registered in GetLifetimeReplicatedProps."));
 
-void UClass::SetUpUhtReplicationData(UClass** OutSuperClassWithReplicatedData)
-{
 #if HACK_HEADER_GENERATOR
+void UClass::SetUpUhtReplicationData()
+{
 	if (!HasAnyClassFlags(CLASS_ReplicationDataIsSetUp) && PropertyLink != NULL)
 	{
-		NetFields.Empty();
         ClassReps.Empty();
 		if (UClass* SuperClass = GetSuperClass())
 		{
-			SuperClass->SetUpUhtReplicationData(nullptr);
+			SuperClass->SetUpUhtReplicationData();
 			ClassReps = SuperClass->ClassReps;
+			FirstOwnedClassRep = ClassReps.Num();
+		}
+		else
+		{
+			FirstOwnedClassRep = 0;
 		}
 
 		for (TFieldIterator<FProperty> It(this, EFieldIteratorFlags::ExcludeSuper); It; ++It)
@@ -3964,65 +3968,50 @@ void UClass::SetUpUhtReplicationData(UClass** OutSuperClassWithReplicatedData)
 			if (It->PropertyFlags & CPF_Net)
 			{
 				It->RepIndex = ClassReps.Num();
-				NetProperties.Add(*It);
 				new (ClassReps) FRepRecord(*It, 0);
 			}
 		}
 
 		ClassFlags |= CLASS_ReplicationDataIsSetUp;
 		ClassReps.Shrink();
-		NetFields.Shrink();
 	}
-
-	if (OutSuperClassWithReplicatedData)
-	{
-		UClass* SuperClass = GetSuperClass();
-		for (; SuperClass != nullptr && SuperClass->NetFields.Num() == 0; SuperClass = SuperClass->GetSuperClass()) {}
-		*OutSuperClassWithReplicatedData = SuperClass;
-	}
-#endif
 }
+#endif
 
 void UClass::SetUpRuntimeReplicationData()
 {
 	if (!HasAnyClassFlags(CLASS_ReplicationDataIsSetUp) && PropertyLink != NULL)
 	{
 		NetFields.Empty();
-		NetProperties.Empty();
 
 		if (UClass* SuperClass = GetSuperClass())
 		{
 			SuperClass->SetUpRuntimeReplicationData();
 			ClassReps = SuperClass->ClassReps;
+			FirstOwnedClassRep = ClassReps.Num();
 		}
 		else
 		{
 			ClassReps.Empty();
+			FirstOwnedClassRep = 0;
 		}
 
-		TArray<FProperty*> NetPropsForClassRep;		// Track properties so me can ensure they are sorted by offsets at the end
-
+		// Track properties so me can ensure they are sorted by offsets at the end
+		TArray<FProperty*> NetProperties;
 		for (TFieldIterator<FField> It(this, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
-			FProperty* Prop = CastField<FProperty>(*It);
-			if (Prop)
+			if (FProperty* Prop = CastField<FProperty>(*It))
 			{
-				if (Prop->PropertyFlags & CPF_Net)
+				if ((Prop->PropertyFlags & CPF_Net) && Prop->GetOwner<UObject>() == this)
 				{
 					NetProperties.Add(Prop);
-
-					if (Prop->GetOwner<UObject>() == this)
-					{
-						NetPropsForClassRep.Add(Prop);
-					}
 				}
 			}
-			}
+		}
 
-		for( TFieldIterator<UField> It(this,EFieldIteratorFlags::ExcludeSuper); It; ++It )
+		for(TFieldIterator<UField> It(this,EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
-			UFunction* Func = Cast<UFunction>(*It);
-			if (Func)
+			if (UFunction * Func = Cast<UFunction>(*It))
 			{
 				// When loading reflection data (e.g. from blueprints), we may have references to placeholder functions, or reflection data 
 				// in children may be out of date. In that case we cannot enforce this check, but that is ok because reflection data will
@@ -4039,30 +4028,31 @@ void UClass::SetUpRuntimeReplicationData()
 		const bool bIsNativeClass = HasAnyClassFlags(CLASS_Native);
 		if (!bIsNativeClass)
 		{
-		// Sort NetProperties so that their ClassReps are sorted by memory offset
+			// Sort NetProperties so that their ClassReps are sorted by memory offset
 			struct FComparePropertyOffsets
-		{
-				FORCEINLINE bool operator()(FProperty& A, FProperty& B) const
 			{
-				// Ensure stable sort
-				if ( A.GetOffset_ForGC() == B.GetOffset_ForGC() )
+				FORCEINLINE bool operator()(FProperty& A, FProperty& B) const
 				{
-					return A.GetName() < B.GetName();
-				}
+					// Ensure stable sort
+					if ( A.GetOffset_ForGC() == B.GetOffset_ForGC() )
+					{
+						return A.GetName() < B.GetName();
+					}
 
-				return A.GetOffset_ForGC() < B.GetOffset_ForGC();
-			}
-		};
+					return A.GetOffset_ForGC() < B.GetOffset_ForGC();
+				}
+			};
 
 			Sort(NetProperties.GetData(), NetProperties.Num(), FComparePropertyOffsets());
 		}
 
-		for (int32 i = 0; i < NetPropsForClassRep.Num(); i++)
+		ClassReps.Reserve(ClassReps.Num() + NetProperties.Num());
+		for (int32 i = 0; i < NetProperties.Num(); i++)
 		{
-			NetPropsForClassRep[i]->RepIndex = ClassReps.Num();
-			for (int32 j = 0; j < NetPropsForClassRep[i]->ArrayDim; j++)
+			NetProperties[i]->RepIndex = ClassReps.Num();
+			for (int32 j = 0; j < NetProperties[i]->ArrayDim; j++)
 			{
-				new(ClassReps)FRepRecord(NetPropsForClassRep[i], j);
+				new(ClassReps)FRepRecord(NetProperties[i], j);
 			}
 		}
 
@@ -4072,7 +4062,6 @@ void UClass::SetUpRuntimeReplicationData()
 		}
 
 		NetFields.Shrink();
-		NetProperties.Shrink();
 
 		struct FCompareUFieldNames
 		{
@@ -4604,7 +4593,6 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	ClassUnique = 0;
 	ClassReps.Empty();
 	NetFields.Empty();
-	NetProperties.Empty();
 
 #if WITH_EDITOR
 	if (!bRecompilingOnLoad)

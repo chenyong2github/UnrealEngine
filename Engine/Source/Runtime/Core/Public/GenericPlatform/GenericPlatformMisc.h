@@ -1413,6 +1413,8 @@ public:
 		return PakchunkIndex;
 	}
 
+	static int32 GetPakchunkIndexFromPakFile(const FString& InFilename);
+
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Returns any platform specific warning messages we want printed on screen

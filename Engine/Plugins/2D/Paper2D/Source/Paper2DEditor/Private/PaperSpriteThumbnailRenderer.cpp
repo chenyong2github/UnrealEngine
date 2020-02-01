@@ -16,7 +16,7 @@ UPaperSpriteThumbnailRenderer::UPaperSpriteThumbnailRenderer(const FObjectInitia
 {
 }
 
-void UPaperSpriteThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas)
+void UPaperSpriteThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UPaperSprite* Sprite = Cast<UPaperSprite>(Object);
 	DrawFrame(Sprite, X, Y, Width, Height, RenderTarget, Canvas, nullptr);

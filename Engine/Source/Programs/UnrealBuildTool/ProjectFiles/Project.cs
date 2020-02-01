@@ -67,11 +67,15 @@ namespace UnrealBuildTool
 	/// </summary>
 	struct AliasedFile
 	{
-		public AliasedFile(string FileSystemPath, string ProjectPath)
+		public AliasedFile(FileReference Location, string FileSystemPath, string ProjectPath)
 		{
+			this.Location = Location;
 			this.FileSystemPath = FileSystemPath;
 			this.ProjectPath = ProjectPath;
 		}
+
+		// Full location on disk.
+		public readonly FileReference Location;
 
 		// File system path.
 		public readonly string FileSystemPath;
@@ -138,6 +142,7 @@ namespace UnrealBuildTool
 		{
 			ProjectFilePath = InProjectFilePath;
 			ShouldBuildByDefaultForSolutionTargets = true;
+			IntelliSenseCppVersion = CppStandardVersion.Default;
 		}
 
 
@@ -204,7 +209,14 @@ namespace UnrealBuildTool
 			set;
 		}
 
-
+		/// <summary>
+		/// C++ version which is used in this project.
+		/// </summary>
+		public CppStandardVersion IntelliSenseCppVersion
+		{
+			get;
+			protected set;
+		}
 
 		/// All of the targets in this project.  All non-stub projects must have at least one target.
 		public readonly List<ProjectTarget> ProjectTargets = new List<ProjectTarget>();
@@ -286,6 +298,19 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Adds information about a module to this project file
+		/// </summary>
+		/// <param name="Module">The module to add</param>
+		/// <param name="CompileEnvironment">Compile environment for this module</param>
+		public virtual void AddModule(UEBuildModuleCPP Module, CppCompileEnvironment CompileEnvironment)
+		{
+			AddIntelliSensePreprocessorDefinitions(CompileEnvironment.Definitions);
+			AddIntelliSenseIncludePaths(CompileEnvironment.SystemIncludePaths, true);
+			AddIntelliSenseIncludePaths(CompileEnvironment.UserIncludePaths, false);
+			SetIntelliSenseCppVersion(Module.Rules.CppStandard);
+		}
+
+		/// <summary>
 		/// Adds all of the specified preprocessor definitions to this VCProject's list of preprocessor definitions for all modules in the project
 		/// </summary>
 		/// <param name="NewPreprocessorDefinitions">List of preprocessor definitons to add</param>
@@ -362,6 +387,21 @@ namespace UnrealBuildTool
 					{
 						SearchPaths.Add(PathRelativeToProjectFile);
 					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Sets highest C++ version which is used in this project
+		/// </summary>
+		/// <param name="CppVersion">Version</param>
+		public void SetIntelliSenseCppVersion(CppStandardVersion CppVersion)
+		{
+			if (CppVersion != CppStandardVersion.Default)
+			{
+				if (CppVersion > IntelliSenseCppVersion)
+				{
+					IntelliSenseCppVersion = CppVersion;
 				}
 			}
 		}

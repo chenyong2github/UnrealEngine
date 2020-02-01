@@ -2,7 +2,9 @@
 
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.IO;
@@ -13,7 +15,8 @@ namespace NetworkProfiler
 {
 	class StreamParser
 	{
-        public static NetworkStream NetworkStream = new NetworkStream();
+		public static NetworkStream NetworkStream = new NetworkStream();
+
 		/**
 		 * Helper function for handling updating actor summaries as they require a bit more work.
 		 * 
@@ -76,6 +79,8 @@ namespace NetworkProfiler
 			TokenReplicateActor LastActorToken = null;
             List<TokenReplicateProperty> LastProperties = new List<TokenReplicateProperty>();
 			List<TokenWritePropertyHeader> LastPropertyHeaders = new List<TokenWritePropertyHeader>();
+
+			Dictionary<int, TokenPropertyComparison> ObjectNamesToPropertyComparisons = new Dictionary<int, TokenPropertyComparison>();
 
 			TokenFrameMarker LastFrameMarker = null;
 
@@ -221,6 +226,9 @@ namespace NetworkProfiler
 				if( Token.TokenType == ETokenTypes.FrameMarker )
 				{
 					LastFrameMarker = (TokenFrameMarker) Token;
+					ObjectNamesToPropertyComparisons = new Dictionary<int, TokenPropertyComparison>();
+
+					//Console.Out.WriteLine("EndOfFrame: " + NetworkStream.Frames.Count.ToString("0"));
 				}
 
 				// Bail out if we hit the end. We already flushed tokens above.
@@ -239,7 +247,7 @@ namespace NetworkProfiler
 					if( Token.TokenType == ETokenTypes.ReplicateActor )
 					{
 						// Encountered a new actor so we can finish up existing one for summary.
-						FinishActorProperties(Token as TokenReplicateActor, LastProperties, LastPropertyHeaders );
+						FinishActorProperties(Token as TokenReplicateActor, LastProperties, LastPropertyHeaders);
 						Debug.Assert(LastProperties.Count == 0);		// We shouldn't have any properties now
 						Debug.Assert(LastPropertyHeaders.Count == 0);	// We shouldn't have any property headers now either
 						HandleActorSummary(NetworkStream, LastActorToken);
@@ -264,6 +272,25 @@ namespace NetworkProfiler
 					{
 						var TokenWritePropertyHeader = Token as TokenWritePropertyHeader;
                         LastPropertyHeaders.Add(TokenWritePropertyHeader);
+					}
+					else if ( Token.TokenType == ETokenTypes.PropertyComparison )
+					{
+						var TokenPropertyComparison = Token as TokenPropertyComparison;
+						ObjectNamesToPropertyComparisons[TokenPropertyComparison.ObjectNameIndex] = TokenPropertyComparison;
+						HandleObjectComparison(NetworkStream, TokenPropertyComparison);
+					}
+					else if ( Token.TokenType == ETokenTypes.ReplicatePropertiesMetaData )
+					{
+						var TokenReplicatePropertiesMetaData = Token as TokenReplicatePropertiesMetaData;
+						TokenPropertyComparison Comparison = null;
+						if (ObjectNamesToPropertyComparisons.TryGetValue(TokenReplicatePropertiesMetaData.ObjectNameIndex, out Comparison))
+						{
+							HandleObjectReplication(NetworkStream, Comparison, TokenReplicatePropertiesMetaData);
+						}
+						else
+						{
+							Console.Out.WriteLine(NetworkStream.GetName(TokenReplicatePropertiesMetaData.ObjectNameIndex));
+						}
 					}
 					else
 					{
@@ -309,6 +336,154 @@ namespace NetworkProfiler
 				Columns[5] = (SummaryEntry.Value.TimeInMS / SummaryEntry.Value.Count).ToString("0.0000");
 				Columns[6] = NetworkStream.GetName(SummaryEntry.Key);
                 ListView.Items.Add(new ListViewItem(Columns));
+			}
+
+			ListView.AutoResizeColumns(ColumnHeaderAutoResizeStyle.HeaderSize);
+			ListView.EndUpdate();
+		}
+
+		private static void HandleObjectComparison(NetworkStream NetworkStream, TokenPropertyComparison ObjectComparison)
+		{
+			// We're guaranteed that before any Replication takes place (at least in a single frame), a comparison will also take place.
+			// So, if this is the very first comparison for a given object class, we'll also need to set up our summary.
+
+			ObjectReplicationSummary ObjectSummary = null;
+			if (!NetworkStream.ObjectNameToReplicationSummary.TryGetValue(ObjectComparison.ObjectNameIndex, out ObjectSummary))
+			{
+				// If we don't have a comparison token the first time we see this object, something is broken in the stream.
+				Debug.Assert(ObjectComparison.ExportedPropertyNames != null);
+
+				ObjectSummary = new ObjectReplicationSummary(ObjectComparison.ObjectNameIndex, ObjectComparison.ExportedPropertyNames);
+				NetworkStream.ObjectNameToReplicationSummary.Add(ObjectSummary.ObjectNameIndex, ObjectSummary);
+			}
+
+			ObjectSummary.NumberOfComparisons++;
+			ObjectSummary.TimeSpentComparingProperties += ObjectComparison.TimeSpentComparing;
+
+			ReadOnlyCollection<PropertyReplicationSummary> ObjectProperties = ObjectSummary.Properties;
+			BitArray PropertiesCompared = ObjectComparison.ComparedProperties;
+			BitArray PropertiesChanged = ObjectComparison.ChangedProperties;
+
+			Debug.Assert(PropertiesChanged.Count == ObjectProperties.Count);
+			Debug.Assert(PropertiesCompared.Count == ObjectProperties.Count);
+
+			int FrameNum = NetworkStream.Frames.Count;
+
+			for (int i = 0; i < ObjectProperties.Count; i++)
+			{
+				if (PropertiesCompared[i])
+				{
+					PropertyReplicationSummary ObjectProperty = ObjectProperties[i];
+					ObjectProperty.NumberOfComparisons++;
+
+					if (ObjectProperty.LastComparedFrame != FrameNum)
+					{
+						ObjectProperty.LastComparedFrame++;
+						ObjectProperty.NumberOfFramesCompared++;
+					}
+
+					if (PropertiesChanged[i])
+					{
+						ObjectProperty.NumberOfChanges++;
+						if (ObjectProperty.LastChangedFrame != FrameNum)
+						{
+							ObjectProperty.LastChangedFrame = FrameNum;
+							ObjectProperty.NumberOfFramesChanged++;
+						}
+					}
+				}
+			}
+		}
+
+		private static void HandleObjectReplication(NetworkStream NetworkStream, TokenPropertyComparison ObjectComparison, TokenReplicatePropertiesMetaData ObjectReplication)
+		{
+			// TODO: We may be able to move this data into the Per Frame data so we can display it when selecting a range.
+			//			For now, we're just going to show a summary for the entire profile.
+
+			
+			// If we're replicating this object, we're guaranteed that it was compared before
+			// so this should be valid.
+			ObjectReplicationSummary ObjectSummary = NetworkStream.ObjectNameToReplicationSummary[ObjectReplication.ObjectNameIndex];
+
+			int FrameNum = NetworkStream.Frames.Count;
+
+			ReadOnlyCollection<PropertyReplicationSummary> ObjectProperties = ObjectSummary.Properties;
+			BitArray PropertiesCompared = ObjectComparison.ComparedProperties;
+			BitArray PropertiesChanged = ObjectComparison.ChangedProperties;
+			BitArray PropertiesFiltered = ObjectReplication.FilteredProperties;
+
+			// At this point, our object summary should be up to date so we can move on to property summaries.
+			// We will do that by comparing the bitfields sent 
+			Debug.Assert(PropertiesChanged.Count == ObjectProperties.Count);
+			Debug.Assert(PropertiesCompared.Count == ObjectProperties.Count);
+			Debug.Assert(PropertiesFiltered.Count == ObjectProperties.Count);
+
+			ObjectSummary.NumberOfReplications++;
+			if (ObjectSummary.LastReplicatedFrame != FrameNum)
+			{
+				// If this is the first replication for an object on a given frame, we better have compared its properties.
+				ObjectSummary.LastReplicatedFrame = FrameNum;
+				ObjectSummary.NumberOfFramesReplicated++;
+			}
+
+			for (int i = 0; i < ObjectProperties.Count; i++)
+			{
+				if (PropertiesCompared[i] && PropertiesChanged[i] && !PropertiesFiltered[i])
+				{
+					PropertyReplicationSummary ObjectProperty = ObjectProperties[i];
+
+					// The property was compared, changed, and wasn't filtered, that means it was replicated.
+					// Note, we ignore the WasNewObjectComparison here because we may legitimately replicate this
+					// property multiple times in the same frame to multiple connections and individual connections
+					// can have different filters applied to them.
+					ObjectProperty.NumberOfReplications++;
+					if (ObjectProperty.LastReplicatedFrame != FrameNum)
+					{
+						ObjectProperty.LastReplicatedFrame = FrameNum;
+						ObjectProperty.NumberOfFramesReplicated++;
+					}
+				}
+			}
+		}
+
+		public static void ParseStreamIntoReplicationListView( NetworkStream NetworkStream, Dictionary<int, ObjectReplicationSummary> Summaries, ListView ListView )
+		{
+			ListView.BeginUpdate();
+			ListView.Items.Clear();
+
+			// Columns are "Object Class", "# Comparisons", "# Replications", "Comparison Time", "Avg. Time Per Compare"
+			var Columns = new string[5];
+			foreach (var SummaryEntry in Summaries)
+			{
+				Columns[0] = NetworkStream.GetName(SummaryEntry.Key);
+				Columns[1] = (SummaryEntry.Value.NumberOfComparisons).ToString("0");
+				Columns[2] = (SummaryEntry.Value.NumberOfReplications).ToString("0");
+				Columns[3] = (SummaryEntry.Value.TimeSpentComparingProperties).ToString("0.0");
+				Columns[4] = ((float)SummaryEntry.Value.TimeSpentComparingProperties / (float)SummaryEntry.Value.NumberOfComparisons).ToString("0.000");
+				ListView.Items.Add(new ListViewItem(Columns));
+			}
+
+			ListView.AutoResizeColumns(ColumnHeaderAutoResizeStyle.HeaderSize);
+			ListView.EndUpdate();
+		}
+
+		public static void ParseStreamIntoPropertyReplicationListView(NetworkStream NetworkStream, ReadOnlyCollection<PropertyReplicationSummary> Summaries, ListView ListView )
+		{
+			ListView.BeginUpdate();
+			ListView.Items.Clear();
+
+			if (Summaries != null)
+			{
+				// Columns are "Property", "# Comparisons", "# Times Changed", "# Replications"
+				var Columns = new string[4];
+				foreach (var Summary in Summaries)
+				{
+					Columns[0] = NetworkStream.GetName(Summary.PropertyNameIndex);
+					Columns[1] = (Summary.NumberOfComparisons).ToString("0");
+					Columns[2] = (Summary.NumberOfChanges).ToString("0");
+					Columns[3] = (Summary.NumberOfReplications).ToString("0");
+					ListView.Items.Add(new ListViewItem(Columns));
+				}
 			}
 
 			ListView.AutoResizeColumns(ColumnHeaderAutoResizeStyle.HeaderSize);

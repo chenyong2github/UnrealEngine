@@ -130,11 +130,14 @@ class STEAMSHARED_API FSteamInstanceHandlerBase
 public:
 	virtual ~FSteamInstanceHandlerBase() {}
 	virtual bool IsInitialized() const { return bInitialized; }
+	int32 GetGamePort() const { return GamePort; }
 
 protected:
-	FSteamInstanceHandlerBase() : bInitialized(false) {}
+	FSteamInstanceHandlerBase();
 
 	bool bInitialized;
+	int32 GamePort;
+
 	virtual bool CanCleanUp() const;
 	virtual void Destroy();
 	virtual void InternalShutdown() = 0;
@@ -166,7 +169,6 @@ class STEAMSHARED_API FSteamServerInstanceHandler : public FSteamInstanceHandler
 public:
 	virtual ~FSteamServerInstanceHandler() { Destroy(); }
 
-	int32 GetGamePort() const { return GamePort; }
 	int32 GetSteamPort() const { return SteamPort; }
 	int32 GetQueryPort() const { return QueryPort; }
 
@@ -175,7 +177,6 @@ PACKAGE_SCOPE:
 	FSteamServerInstanceHandler(FSteamSharedModule* SteamInitializer);
 
 protected:
-	int32 GamePort;
 	int32 SteamPort;
 	int32 QueryPort;
 	virtual void InternalShutdown() override;
@@ -183,7 +184,6 @@ protected:
 private:
 	FSteamServerInstanceHandler() : 
 		FSteamInstanceHandlerBase(),
-		GamePort(-1),
 		SteamPort(-1),
 		QueryPort(-1)
 	{

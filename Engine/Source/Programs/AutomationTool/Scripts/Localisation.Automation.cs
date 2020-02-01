@@ -23,6 +23,7 @@ using Tools.DotNETCommon;
 [Help("ExcludePlugins", "Optional comma separated list of plugins to exclude from the gather.")]
 [Help("IncludePlatforms", "Optional flag to include platforms from within the given UEProjectDirectory as part of the gather.")]
 [Help("AdditionalCommandletArguments", "Optional arguments to pass to the gather process.")]
+[Help("ParallelGather", "Run the gather processes for a single batch in parallel rather than sequence.")]
 class Localize : BuildCommand
 {
 	private class LocalizationBatch
@@ -39,6 +40,34 @@ class Localize : BuildCommand
 		public string LocalizationTargetDirectory { get; private set; }
 		public string RemoteFilenamePrefix { get; private set; }
 		public IReadOnlyList<string> LocalizationProjectNames { get; private set; }
+	};
+
+	private class LocalizationTask
+	{
+		public LocalizationTask(LocalizationBatch InBatch, string InUEProjectRoot, string InLocalizationProviderName, int InPendingChangeList, BuildCommand InCommand)
+		{
+			Batch = InBatch;
+			RootWorkingDirectory = CombinePaths(InUEProjectRoot, Batch.UEProjectDirectory);
+			RootLocalizationTargetDirectory = CombinePaths(InUEProjectRoot, Batch.LocalizationTargetDirectory);
+
+			// Try and find our localization provider
+			{
+				LocalizationProvider.LocalizationProviderArgs LocProviderArgs;
+				LocProviderArgs.RootWorkingDirectory = RootWorkingDirectory;
+				LocProviderArgs.RootLocalizationTargetDirectory = RootLocalizationTargetDirectory;
+				LocProviderArgs.RemoteFilenamePrefix = Batch.RemoteFilenamePrefix;
+				LocProviderArgs.Command = InCommand;
+				LocProviderArgs.PendingChangeList = InPendingChangeList;
+				LocProvider = LocalizationProvider.GetLocalizationProvider(InLocalizationProviderName, LocProviderArgs);
+			}
+		}
+
+		public LocalizationBatch Batch;
+		public string RootWorkingDirectory;
+		public string RootLocalizationTargetDirectory;
+		public LocalizationProvider LocProvider = null;
+		public List<ProjectInfo> ProjectInfos = new List<ProjectInfo>();
+		public List<IProcessResult> GatherProcessResults = new List<IProcessResult>();
 	};
 
 	public override void ExecuteBuild()
@@ -128,6 +157,10 @@ class Localize : BuildCommand
 			AdditionalCommandletArguments = "";
 		}
 
+		var EnableParallelGather = ParseParam("ParallelGather");
+
+		var StartTime = DateTime.UtcNow;
+
 		var LocalizationBatches = new List<LocalizationBatch>();
 
 		// Add the static set of localization projects as a batch
@@ -195,25 +228,172 @@ class Localize : BuildCommand
 			}
 		}
 
-		// Create a single changelist to use for all changes, and hash the current PO files on disk so we can work out whether they actually change
+		// Create a single changelist to use for all changes
 		int PendingChangeList = 0;
-		Dictionary<string, byte[]> InitalPOFileHashes = null;
 		if (P4Enabled)
 		{
-			var ChangeListCommitMessage = "Localization Automation";
+			var ChangeListCommitMessage = String.Format("Localization Automation using CL {0}", P4Env.Changelist);
 			if (File.Exists(CombinePaths(CmdEnv.LocalRoot, @"Engine/Build/NotForLicensees/EpicInternal.txt")))
 			{
 				ChangeListCommitMessage += "\n#okforgithub ignore";
 			}
 
 			PendingChangeList = P4.CreateChange(P4Env.Client, ChangeListCommitMessage);
+		}
+
+		// Prepare to process each localization batch
+		var LocalizationTasks = new List<LocalizationTask>();
+		foreach (var LocalizationBatch in LocalizationBatches)
+		{
+			var LocalizationTask = new LocalizationTask(LocalizationBatch, UEProjectRoot, LocalizationProviderName, PendingChangeList, this);
+			LocalizationTasks.Add(LocalizationTask);
+
+			// Make sure the Localization configs and content is up-to-date to ensure we don't get errors later on
+			if (P4Enabled)
+			{
+				LogInformation("Sync necessary content to head revision");
+				P4.Sync(P4Env.Branch + "/" + LocalizationTask.Batch.LocalizationTargetDirectory + "/Config/Localization/...");
+				P4.Sync(P4Env.Branch + "/" + LocalizationTask.Batch.LocalizationTargetDirectory + "/Content/Localization/...");
+			}
+
+			// Generate the info we need to gather for each project
+			foreach (var ProjectName in LocalizationTask.Batch.LocalizationProjectNames)
+			{
+				LocalizationTask.ProjectInfos.Add(GenerateProjectInfo(LocalizationTask.RootLocalizationTargetDirectory, ProjectName, LocalizationStepNames));
+			}
+		}
+
+		// Hash the current PO files on disk so we can work out whether they actually change
+		Dictionary<string, byte[]> InitalPOFileHashes = null;
+		if (P4Enabled)
+		{
 			InitalPOFileHashes = GetPOFileHashes(LocalizationBatches, UEProjectRoot);
 		}
 
-		// Process each localization batch
-		foreach (var LocalizationBatch in LocalizationBatches)
+		// Download the latest translations from our localization provider
+		if (LocalizationStepNames.Contains("Download"))
 		{
-			ProcessLocalizationProjects(LocalizationBatch, PendingChangeList, UEProjectRoot, UEProjectName, LocalizationProviderName, LocalizationStepNames, AdditionalCommandletArguments);
+			foreach (var LocalizationTask in LocalizationTasks)
+			{
+				if (LocalizationTask.LocProvider != null)
+				{
+					foreach (var ProjectInfo in LocalizationTask.ProjectInfos)
+					{
+						LocalizationTask.LocProvider.DownloadProjectFromLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ImportInfo);
+					}
+				}
+			}
+		}
+
+		// Begin the gather command for each task
+		// These can run in parallel when ParallelGather is enabled
+		{
+			var EditorExe = CombinePaths(CmdEnv.LocalRoot, @"Engine/Binaries/Win64/UE4Editor-Cmd.exe");
+
+			// Set the common basic editor arguments
+			var EditorArguments = P4Enabled 
+				? String.Format("-SCCProvider=Perforce -P4Port={0} -P4User={1} -P4Client={2} -P4Passwd={3} -P4Changelist={4} -EnableSCC -DisableSCCSubmit", P4Env.ServerAndPort, P4Env.User, P4Env.Client, P4.GetAuthenticationToken(), PendingChangeList)
+				: "-SCCProvider=None";
+			if (IsBuildMachine)
+			{
+				EditorArguments += " -BuildMachine";
+			}
+			EditorArguments += " -Unattended -LogLocalizationConflicts";
+			if (EnableParallelGather)
+			{
+				EditorArguments += " -multiprocess";
+			}
+			if (!String.IsNullOrEmpty(AdditionalCommandletArguments))
+			{
+				EditorArguments += " " + AdditionalCommandletArguments;
+			}
+
+			// Set the common process run options
+			var CommandletRunOptions = ERunOptions.Default | ERunOptions.NoLoggingOfRunCommand; // Disable logging of the run command as it will print the exit code which GUBP can pick up as an error (we do that ourselves later)
+			if (EnableParallelGather)
+			{
+				CommandletRunOptions |= ERunOptions.NoWaitForExit;
+			}
+
+			foreach (var LocalizationTask in LocalizationTasks)
+			{
+				var ProjectArgument = String.IsNullOrEmpty(UEProjectName) ? "" : String.Format("\"{0}\"", Path.Combine(LocalizationTask.RootWorkingDirectory, String.Format("{0}.uproject", UEProjectName)));
+
+				foreach (var ProjectInfo in LocalizationTask.ProjectInfos)
+				{
+					var LocalizationConfigFiles = new List<string>();
+					foreach (var LocalizationStep in ProjectInfo.LocalizationSteps)
+					{
+						if (LocalizationStepNames.Contains(LocalizationStep.Name))
+						{
+							LocalizationConfigFiles.Add(LocalizationStep.LocalizationConfigFile);
+						}
+					}
+
+					if (LocalizationConfigFiles.Count > 0)
+					{
+						var Arguments = String.Format("{0} -run=GatherText -config=\"{1}\" {2}", ProjectArgument, String.Join(";", LocalizationConfigFiles), EditorArguments);
+						LogInformation("Running localization commandlet for '{0}': {1}", ProjectInfo.ProjectName, Arguments);
+						LocalizationTask.GatherProcessResults.Add(Run(EditorExe, Arguments, null, CommandletRunOptions));
+					}
+					else
+					{
+						LocalizationTask.GatherProcessResults.Add(null);
+					}
+				}
+			}
+		}
+
+		// Wait for each commandlet process to finish and report the result.
+		// This runs even for non-parallel execution to log the exit state of the process.
+		foreach (var LocalizationTask in LocalizationTasks)
+		{
+			for (int ProjectIndex = 0; ProjectIndex < LocalizationTask.ProjectInfos.Count; ++ProjectIndex)
+			{
+				var ProjectInfo = LocalizationTask.ProjectInfos[ProjectIndex];
+				var RunResult = LocalizationTask.GatherProcessResults[ProjectIndex];
+
+				if (RunResult != null)
+				{
+					RunResult.WaitForExit();
+					if (RunResult.ExitCode == 0)
+					{
+						LogInformation("The localization commandlet for '{0}' exited with code 0.", ProjectInfo.ProjectName);
+					}
+					else
+					{
+						LogWarning("The localization commandlet for '{0}' exited with code {1} which likely indicates a crash.", ProjectInfo.ProjectName, RunResult.ExitCode);
+					}
+				}
+			}
+		}
+
+		// Upload the latest sources to our localization provider
+		if (LocalizationStepNames.Contains("Upload"))
+		{
+			foreach (var LocalizationTask in LocalizationTasks)
+			{
+				if (LocalizationTask.LocProvider != null)
+				{
+					// Upload all text to our localization provider
+					for (int ProjectIndex = 0; ProjectIndex < LocalizationTask.ProjectInfos.Count; ++ProjectIndex)
+					{
+						var ProjectInfo = LocalizationTask.ProjectInfos[ProjectIndex];
+						var RunResult = LocalizationTask.GatherProcessResults[ProjectIndex];
+
+						if (RunResult != null && RunResult.ExitCode == 0)
+						{
+							// Recalculate the split platform paths before doing the upload, as the export may have changed them
+							ProjectInfo.ExportInfo.CalculateSplitPlatformNames(LocalizationTask.RootLocalizationTargetDirectory);
+							LocalizationTask.LocProvider.UploadProjectToLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ExportInfo);
+						}
+						else
+						{
+							LogWarning("Skipping upload to the localization provider for '{0}' due to an earlier commandlet failure.", ProjectInfo.ProjectName);
+						}
+					}
+				}
+			}
 		}
 
 		// Clean-up the changelist so it only contains the changed files, and then submit it (if we were asked to)
@@ -260,122 +440,9 @@ class Localize : BuildCommand
 				P4.Submit(PendingChangeList, out SubmittedChangeList);
 			}
 		}
-	}
 
-	private void ProcessLocalizationProjects(LocalizationBatch LocalizationBatch, int PendingChangeList, string UEProjectRoot, string UEProjectName, string LocalizationProviderName, IReadOnlyList<string> LocalizationSteps, string AdditionalCommandletArguments)
-	{
-		var EditorExe = CombinePaths(CmdEnv.LocalRoot, @"Engine/Binaries/Win64/UE4Editor-Cmd.exe");
-		var RootWorkingDirectory = CombinePaths(UEProjectRoot, LocalizationBatch.UEProjectDirectory);
-		var RootLocalizationTargetDirectory = CombinePaths(UEProjectRoot, LocalizationBatch.LocalizationTargetDirectory);
-
-		// Try and find our localization provider
-		LocalizationProvider LocProvider = null;
-		{
-			LocalizationProvider.LocalizationProviderArgs LocProviderArgs;
-			LocProviderArgs.RootWorkingDirectory = RootWorkingDirectory;
-			LocProviderArgs.RootLocalizationTargetDirectory = RootLocalizationTargetDirectory;
-			LocProviderArgs.RemoteFilenamePrefix = LocalizationBatch.RemoteFilenamePrefix;
-			LocProviderArgs.Command = this;
-			LocProviderArgs.PendingChangeList = PendingChangeList;
-			LocProvider = LocalizationProvider.GetLocalizationProvider(LocalizationProviderName, LocProviderArgs);
-		}
-
-		// Make sure the Localization configs and content is up-to-date to ensure we don't get errors later on
-		if (P4Enabled)
-		{
-			LogInformation("Sync necessary content to head revision");
-			P4.Sync(P4Env.Branch + "/" + LocalizationBatch.LocalizationTargetDirectory + "/Config/Localization/...");
-			P4.Sync(P4Env.Branch + "/" + LocalizationBatch.LocalizationTargetDirectory + "/Content/Localization/...");
-		}
-
-		// Generate the info we need to gather for each project
-		var ProjectInfos = new List<ProjectInfo>();
-		foreach (var ProjectName in LocalizationBatch.LocalizationProjectNames)
-		{
-			ProjectInfos.Add(GenerateProjectInfo(RootLocalizationTargetDirectory, ProjectName, LocalizationSteps));
-		}
-
-		if (LocalizationSteps.Contains("Download") && LocProvider != null)
-		{
-			// Export all text from our localization provider
-			foreach (var ProjectInfo in ProjectInfos)
-			{
-				LocProvider.DownloadProjectFromLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ImportInfo);
-			}
-		}
-
-		// Setup editor arguments for SCC.
-		string EditorArguments = String.Empty;
-		if (P4Enabled)
-		{
-			EditorArguments = String.Format("-SCCProvider={0} -P4Port={1} -P4User={2} -P4Client={3} -P4Passwd={4} -P4Changelist={5} -EnableSCC -DisableSCCSubmit", "Perforce", P4Env.ServerAndPort, P4Env.User, P4Env.Client, P4.GetAuthenticationToken(), PendingChangeList);
-		}
-		else
-		{
-			EditorArguments = String.Format("-SCCProvider={0}", "None");
-		}
-		if (IsBuildMachine)
-		{
-			EditorArguments += " -BuildMachine";
-		}
-		EditorArguments += " -Unattended -LogLocalizationConflicts";
-
-		// Execute commandlet for each config in each project.
-		bool bLocCommandletFailed = false;
-		foreach (var ProjectInfo in ProjectInfos)
-		{
-			var LocalizationConfigFiles = new List<string>();
-			foreach (var LocalizationStep in ProjectInfo.LocalizationSteps)
-			{
-				if (LocalizationSteps.Contains(LocalizationStep.Name))
-				{
-					LocalizationConfigFiles.Add(LocalizationStep.LocalizationConfigFile);
-				}
-			}
-
-			if (LocalizationConfigFiles.Count > 0)
-			{
-				var ProjectArgument = String.IsNullOrEmpty(UEProjectName) ? "" : String.Format("\"{0}\"", Path.Combine(RootWorkingDirectory, String.Format("{0}.uproject", UEProjectName)));
-				var CommandletArguments = String.Format("-config=\"{0}\"", String.Join(";", LocalizationConfigFiles));
-
-				if (!String.IsNullOrEmpty(AdditionalCommandletArguments))
-				{
-					CommandletArguments += " " + AdditionalCommandletArguments;
-				}
-
-				string Arguments = String.Format("{0} -run=GatherText {1} {2}", ProjectArgument, EditorArguments, CommandletArguments);
-				LogInformation("Running localization commandlet: {0}", Arguments);
-				var StartTime = DateTime.UtcNow;
-				var RunResult = Run(EditorExe, Arguments, null, ERunOptions.Default | ERunOptions.NoLoggingOfRunCommand); // Disable logging of the run command as it will print the exit code which GUBP can pick up as an error (we do that ourselves below)
-				var RunDuration = (DateTime.UtcNow - StartTime).TotalMilliseconds;
-				LogInformation("Localization commandlet finished in {0}s", RunDuration / 1000);
-
-				if (RunResult.ExitCode != 0)
-				{
-					LogWarning("The localization commandlet exited with code {0} which likely indicates a crash. It ran with the following arguments: '{1}'", RunResult.ExitCode, Arguments);
-					bLocCommandletFailed = true;
-					break; // We failed a step, so don't process any other steps in this config chain
-				}
-			}
-		}
-
-		if (LocalizationSteps.Contains("Upload") && LocProvider != null)
-		{
-			if (bLocCommandletFailed)
-			{
-				LogWarning("Skipping upload to the localization provider due to an earlier commandlet failure.");
-			}
-			else
-			{
-				// Upload all text to our localization provider
-				foreach (var ProjectInfo in ProjectInfos)
-				{
-					// Recalculate the split platform paths before doing the upload, as the export may have changed them
-					ProjectInfo.ExportInfo.CalculateSplitPlatformNames(RootLocalizationTargetDirectory);
-					LocProvider.UploadProjectToLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ExportInfo);
-				}
-			}
-		}
+		var RunDuration = (DateTime.UtcNow - StartTime).TotalMilliseconds;
+		LogInformation("Localize command finished in {0} seconds", RunDuration / 1000);
 	}
 
 	private ProjectInfo GenerateProjectInfo(string RootWorkingDirectory, string ProjectName, IReadOnlyList<string> LocalizationStepNames)

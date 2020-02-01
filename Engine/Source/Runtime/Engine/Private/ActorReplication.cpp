@@ -107,7 +107,7 @@ float AActor::GetReplayPriority(const FVector& ViewPos, const FVector& ViewDir, 
 		{
 			Time *= 2.4f;
 		}
-		else if (DistSq < FARSIGHTTHRESHOLD)
+		else if (DistSq < FARSIGHTTHRESHOLDSQUARED)
 		{
 			Time *= 0.8f;
 		}

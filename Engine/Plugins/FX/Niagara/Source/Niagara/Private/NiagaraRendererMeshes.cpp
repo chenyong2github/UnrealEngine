@@ -122,6 +122,14 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial3Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
 
 	MeshMinimumLOD = Properties->ParticleMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
+
+	const int32 LODCount = MeshRenderData->LODResources.Num();
+	IndexInfoPerSection.SetNum(LODCount);
+
+	for (int32 LODIdx = 0; LODIdx < LODCount; ++LODIdx)
+	{
+		Properties->GetIndexInfoPerSection(LODIdx, IndexInfoPerSection[LODIdx]);
+	}
 }
 
 FNiagaraRendererMeshes::~FNiagaraRendererMeshes()
@@ -144,9 +152,17 @@ void FNiagaraRendererMeshes::ReleaseRenderThreadResources()
 	VertexFactories.Empty();
 }
 
-void FNiagaraRendererMeshes::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+int32 FNiagaraRendererMeshes::GetMaxIndirectArgs() const
 {
-	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
+	// currently the most indirect args we can add would be for a single lod, so search for the LOD with the highest number of sections
+	// this value should be constant for the life of the renderer as it is being used for NumRegisteredGPURenderers
+	int32 MaxSectionCount = 0;
+
+	for (const auto& IndexInfo : IndexInfoPerSection)
+	{
+		MaxSectionCount = FMath::Max(MaxSectionCount, IndexInfo.Num());
+	}
+	return MaxSectionCount;
 }
 
 void FNiagaraRendererMeshes::SetupVertexFactory(FNiagaraMeshVertexFactory *InVertexFactory, const FStaticMeshLODResources& LODResources) const
@@ -158,6 +174,24 @@ void FNiagaraRendererMeshes::SetupVertexFactory(FNiagaraMeshVertexFactory *InVer
 	LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTexCoordVertexBuffer(InVertexFactory, Data, MAX_TEXCOORDS);
 	LODResources.VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(InVertexFactory, Data);
 	InVertexFactory->SetData(Data);
+}
+
+int32 FNiagaraRendererMeshes::GetLODIndex() const
+{
+	const int32 LODCount = MeshRenderData->LODResources.Num();
+
+	// Doesn't seem to work for some reason. See comment in FDynamicMeshEmitterData::GetMeshLODIndexFromProxy()
+	// const int32 LODIndex = FMath::Max<int32>((int32)MeshRenderData->CurrentFirstLODIdx, MeshMinimumLOD);
+	int32 LODIndex = FMath::Clamp<int32>(MeshRenderData->CurrentFirstLODIdx, 0, LODCount - 1);
+
+	while (LODIndex < LODCount && !MeshRenderData->LODResources[LODIndex].GetNumVertices())
+	{
+		++LODIndex;
+	}
+
+	check(MeshRenderData->LODResources[LODIndex].GetNumVertices());
+
+	return LODIndex;
 }
 
 void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const
@@ -191,8 +225,8 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	FScopeCycleCounter EmitterStatsCounter(EmitterStatID);
 #endif
 
-	// @TODO : support multiple LOD and section, using an inlined array and/or the SceneRenderingAllocator
-	uint32 IndirectArgsOffset = INDEX_NONE;
+	// @TODO : support multiple LOD
+	TArray<uint32, TInlineAllocator<8>> IndirectArgsOffsets;
 	int32 NumInstances = SourceParticleData->GetNumInstances();
 
 	FGlobalDynamicReadBuffer& DynamicReadBuffer = Collector.GetDynamicReadBuffer();
@@ -228,11 +262,22 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 			FMemory::Memcpy(ParticleData.Buffer, SourceParticleData->GetFloatBuffer().GetData(), SourceParticleData->GetFloatBuffer().Num());
 		}
 	}
-
+	
+	const int32 LODIndex = GetLODIndex();
+	const FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[LODIndex];
 
 	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
-		IndirectArgsOffset = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(SourceParticleData->GetGPUInstanceCountBufferOffset(), NumIndicesPerInstance);
+		const int32 SectionCount = LODModel.Sections.Num();
+
+		IndirectArgsOffsets.SetNum(SectionCount);
+		for (int32 SectionIdx = 0; SectionIdx < SectionCount; ++SectionIdx)
+		{
+			IndirectArgsOffsets[SectionIdx] = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(
+				SourceParticleData->GetGPUInstanceCountBufferOffset(),
+				IndexInfoPerSection[LODIndex][SectionIdx].Key,
+				IndexInfoPerSection[LODIndex][SectionIdx].Value);
+		}
 	}
 
 	{
@@ -244,15 +289,6 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 			if (VisibilityMap & (1 << ViewIndex))
 			{
 				const FSceneView* View = Views[ViewIndex];
-
-				// Doesn't seem to work for some reason. See comment in FDynamicMeshEmitterData::GetMeshLODIndexFromProxy()
-				// const int32 LODIndex = FMath::Max<int32>((int32)MeshRenderData->CurrentFirstLODIdx, MeshMinimumLOD);
-				int32 LODIndex = (int32)MeshRenderData->CurrentFirstLODIdx;
-				while (LODIndex < MeshRenderData->LODResources.Num() - 1 && !MeshRenderData->LODResources[LODIndex].GetNumVertices())
-				{
-					++LODIndex;
-				}
-				const FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[LODIndex];
 
 				// Get the next vertex factory to use
 				FNiagaraMeshVertexFactory* VertexFactory = nullptr;
@@ -402,9 +438,9 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				// GPU mesh rendering currently only supports one mesh section.
 				// TODO: Add proper support for multiple mesh sections for GPU mesh particles.
-				int32 MaxSection = SimTarget == ENiagaraSimTarget::GPUComputeSim ? 1 : LODModel.Sections.Num();
+				const int32 SectionCount = LODModel.Sections.Num();
 				const bool bIsWireframe = AllowDebugViewmodes() && View && View->Family->EngineShowFlags.Wireframe;
-				for (int32 SectionIndex = 0; SectionIndex < MaxSection; SectionIndex++)
+				for (int32 SectionIndex = 0; SectionIndex < SectionCount; SectionIndex++)
 				{
 					const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
 					FMaterialRenderProxy* MaterialProxy = DynamicDataMesh->Materials[SectionIndex];
@@ -461,10 +497,10 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 						BatchElement.NumPrimitives = Section.NumTriangles;
 					}
 
-					if (IndirectArgsOffset != INDEX_NONE)
+					if (IndirectArgsOffsets.IsValidIndex(SectionIndex))
 					{
 						BatchElement.NumPrimitives = 0;
-						BatchElement.IndirectArgsOffset = IndirectArgsOffset;
+						BatchElement.IndirectArgsOffset = IndirectArgsOffsets[SectionIndex];
 						BatchElement.IndirectArgsBuffer = Batcher->GetGPUInstanceCounterManager().GetDrawIndirectBuffer().Buffer;
 					}
 					else
@@ -669,13 +705,7 @@ FNiagaraDynamicDataBase *FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 	{
 		DynamicData = new FNiagaraDynamicDataMesh(Emitter);
 
-		// Doesn't seem to work for some reason. See comment in FDynamicMeshEmitterData::GetMeshLODIndexFromProxy()
-		// const int32 LODIndex = FMath::Max<int32>((int32)MeshRenderData->CurrentFirstLODIdx, MeshMinimumLOD);
-		int32 LODIndex = (int32)MeshRenderData->CurrentFirstLODIdx;
-		while (LODIndex < MeshRenderData->LODResources.Num() - 1 && !MeshRenderData->LODResources[LODIndex].GetNumVertices())
-		{
-			++LODIndex;
-		}
+		const int32 LODIndex = GetLODIndex();
 		const FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[LODIndex];
 
 		check(BaseMaterials_GT.Num() == LODModel.Sections.Num());

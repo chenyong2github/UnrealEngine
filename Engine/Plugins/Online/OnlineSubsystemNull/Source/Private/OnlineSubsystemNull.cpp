@@ -89,11 +89,6 @@ IOnlineTitleFilePtr FOnlineSubsystemNull::GetTitleFileInterface() const
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemNull::GetStoreInterface() const
-{
-	return nullptr;
-}
-
 IOnlineStoreV2Ptr FOnlineSubsystemNull::GetStoreV2Interface() const
 {
 	return StoreV2Interface;

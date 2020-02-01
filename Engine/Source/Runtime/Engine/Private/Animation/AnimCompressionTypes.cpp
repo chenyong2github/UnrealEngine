@@ -459,6 +459,9 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 
 			FOwnedBulkDataPtr* OwnedPtr = OptionalBulk.StealFileMapping();
 
+			// Decompression will crash later if the data failed to load so assert now to make it easier to debug in the future.
+			checkf(OwnedPtr->GetPointer() != nullptr || Size == 0, TEXT("Compressed animation data failed to load")); 
+
 #if WITH_EDITOR
 			check(!bUseMapping && !OwnedPtr->GetMappedHandle());
 			CompressedByteStream.Empty(Size);
@@ -494,6 +497,8 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 
 		Ar << BoneCodecDDCHandle;
 		Ar << CurveCodecPath;
+
+		check(!BoneCodecDDCHandle.Equals(TEXT("None"), ESearchCase::IgnoreCase)); // Failed DDC data?
 
 		int32 NumCurveBytes;
 		Ar << NumCurveBytes;
@@ -615,6 +620,7 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 		}
 
 		FString BoneCodecDDCHandle = BoneCompressionCodec != nullptr ? BoneCompressionCodec->GetCodecDDCHandle() : TEXT("");
+		check(!BoneCodecDDCHandle.Equals(TEXT("None"), ESearchCase::IgnoreCase)); // Will write broken DDC data to DDC!
 		Ar << BoneCodecDDCHandle;
 
 		FString CurveCodecPath = CurveCompressionCodec->GetPathName();

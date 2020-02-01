@@ -2116,7 +2116,7 @@ namespace ObjectTools
 			const int32 NumAudioDevices = AudioDeviceManager->GetNumActiveAudioDevices();
 			for (int32 DeviceIndex = 0; DeviceIndex < NumAudioDevices; DeviceIndex++)
 			{
-				FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(DeviceIndex);
+				FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDeviceRaw(DeviceIndex);
 				if (AudioDevice != nullptr)
 				{
 					AudioDevice->StopAllSounds();
@@ -4182,6 +4182,7 @@ namespace ThumbnailTools
 			// Draw the thumbnail
 			const int32 XPos = 0;
 			const int32 YPos = 0;
+			const bool bAdditionalViewFamily = false;
 			RenderInfo->Renderer->Draw(
 				InObject,
 				XPos,
@@ -4189,7 +4190,8 @@ namespace ThumbnailTools
 				DrawWidth,
 				DrawHeight,
 				RenderTargetResource,
-				&Canvas
+				&Canvas, 
+				bAdditionalViewFamily
 				);
 		}
 

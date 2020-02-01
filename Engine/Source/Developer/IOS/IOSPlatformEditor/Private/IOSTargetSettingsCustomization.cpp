@@ -821,6 +821,7 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 	SETUP_PLIST_PROP(PreferredLandscapeOrientation, OrientationCategory);
 	
 	SETUP_PLIST_PROP(bSupportsITunesFileSharing, FileSystemCategory);
+	SETUP_PLIST_PROP(bSupportsFilesApp, FileSystemCategory);
 	
 	SETUP_PLIST_PROP(bSupportsMetal, RenderCategory);
 	

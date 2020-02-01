@@ -22,6 +22,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
@@ -51,10 +52,13 @@ TAutoConsoleVariable<int32> CVar_ChaosDrawHierarchyBounds(TEXT("P.Chaos.DrawHier
 TAutoConsoleVariable<int32> CVar_ChaosDrawHierarchyObjectBounds(TEXT("P.Chaos.DrawHierarchy.ObjectBounds"), 1, TEXT("Enable / disable drawing of the physics hierarchy object bounds"));
 TAutoConsoleVariable<int32> CVar_ChaosDrawHierarchyCellElementThresh(TEXT("P.Chaos.DrawHierarchy.CellElementThresh"), 128, TEXT("Num elements to consider \"high\" for cell colouring when rendering."));
 TAutoConsoleVariable<int32> CVar_ChaosDrawHierarchyDrawEmptyCells(TEXT("P.Chaos.DrawHierarchy.DrawEmptyCells"), 1, TEXT("Whether to draw cells that are empty when cells are enabled."));
+TAutoConsoleVariable<int32> CVar_ChaosUpdateKinematicsOnDeferredSkelMeshes(TEXT("P.Chaos.UpdateKinematicsOnDeferredSkelMeshes"), 1, TEXT("Whether to defer update kinematics for skeletal meshes."));
 
 #endif
 
 TAutoConsoleVariable<int32> CVar_ChaosSimulationEnable(TEXT("P.Chaos.Simulation.Enable"), 1, TEXT("Enable / disable chaos simulation. If disabled, physics will not tick."));
+
+DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_UpdateKinematicsOnDeferredSkelMeshesChaos, STATGROUP_Physics);
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -676,6 +680,41 @@ void FPhysScene_Chaos::UpdateActorInAccelerationStructure(const FPhysicsActorHan
 #endif
 }
 
+void FPhysScene_Chaos::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors)
+{
+#if WITH_CHAOS
+	using namespace Chaos;
+
+	if (GetSpacialAcceleration())
+	{
+		ExternalDataLock.WriteLock();
+
+		auto SpatialAcceleration = GetSpacialAcceleration();
+
+		if (SpatialAcceleration)
+		{
+			int32 NumActors = Actors.Num();
+			for (int32 ActorIndex = 0; ActorIndex < NumActors; ++ActorIndex)
+			{
+				const FPhysicsActorHandle& Actor = Actors[ActorIndex];
+
+				// @todo(chaos): dedupe code in UpdateActorInAccelerationStructure
+				TAABB<FReal, 3> WorldBounds;
+				const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
+				if (bHasBounds)
+				{
+					WorldBounds = Actor->Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
+				}
+
+				Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
+				SpatialAcceleration->UpdateElementIn(AccelerationHandle, WorldBounds, bHasBounds, Actor->SpatialIdx());
+			}
+		}
+
+		ExternalDataLock.WriteUnlock();
+	}
+#endif
+}
 
 template<typename ObjectType>
 void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, FChaosSolversModule* InModule)
@@ -1441,6 +1480,16 @@ void FPhysScene_ChaosInterface::AddRadialForceToBody_AssumesLocked(FBodyInstance
 
 void FPhysScene_ChaosInterface::ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping)
 {
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (ensure(FPhysicsInterface::IsValid(Handle)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			Rigid->SetF(Chaos::TVector<float, 3>(0.f,0.f,0.f));
+			Rigid->MarkClean(Chaos::EParticleFlags::F);
+		}
+	}
 }
 
 void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange)
@@ -1473,7 +1522,16 @@ void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInsta
 
 void FPhysScene_ChaosInterface::ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping)
 {
-	// #todo : Implement
+	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+	if (ensure(FPhysicsInterface::IsValid(Handle)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			Rigid->SetTorque(Chaos::TVector<float, 3>(0.f, 0.f, 0.f));
+			Rigid->MarkClean(Chaos::EParticleFlags::Torque);
+		}
+	}
 }
 
 void FPhysScene_ChaosInterface::SetKinematicTarget_AssumesLocked(FBodyInstance* BodyInstance, const FTransform& TargetTM, bool bAllowSubstepping)
@@ -1499,14 +1557,198 @@ void FPhysScene_ChaosInterface::DeferredRemoveCollisionDisableTable(uint32 SkelM
 
 }
 
-void FPhysScene_ChaosInterface::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning)
+bool FPhysScene_ChaosInterface::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning)
 {
+#if !UE_BUILD_SHIPPING
+	const bool bDeferredUpdate = CVar_ChaosUpdateKinematicsOnDeferredSkelMeshes.GetValueOnGameThread() != 0;
+	if (!bDeferredUpdate)
+	{
+		return false;
+	}
+#endif
 
+	// If null, or pending kill, do nothing
+	if (InSkelComp != nullptr && !InSkelComp->IsPendingKill())
+	{
+		// If we are already flagged, just need to update info
+		if (InSkelComp->bDeferredKinematicUpdate)
+		{
+			TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>* FoundItem = DeferredKinematicUpdateSkelMeshes.FindByPredicate([InSkelComp](const TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>& InItem) { return InSkelComp == InItem.Key; });
+			if (!ensure(FoundItem != nullptr))// If the bool was set, we must be in the array!
+			{
+				FDeferredKinematicUpdateInfo Info;
+				Info.TeleportType = InTeleport;
+				Info.bNeedsSkinning = bNeedsSkinning;
+				DeferredKinematicUpdateSkelMeshes.Emplace(InSkelComp, Info);
+				return true;
+			}
+
+			FDeferredKinematicUpdateInfo& Info = FoundItem->Value;
+
+			// If we are currently not going to teleport physics, but this update wants to, we 'upgrade' it
+			if (Info.TeleportType == ETeleportType::None && InTeleport == ETeleportType::TeleportPhysics)
+			{
+				Info.TeleportType = ETeleportType::TeleportPhysics;
+			}
+
+			// If we need skinning, remember that
+			if (bNeedsSkinning)
+			{
+				Info.bNeedsSkinning = true;
+			}
+		}
+		// We are not flagged yet..
+		else
+		{
+			// Set info and add to map
+			FDeferredKinematicUpdateInfo Info;
+			Info.TeleportType = InTeleport;
+			Info.bNeedsSkinning = bNeedsSkinning;
+			DeferredKinematicUpdateSkelMeshes.Emplace(InSkelComp, Info);
+
+			// Set flag on component
+			InSkelComp->bDeferredKinematicUpdate = true;
+		}
+	}
+
+	return true;
 }
 
 void FPhysScene_ChaosInterface::ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp)
 {
+	// If non-null, and flagged for deferred update..
+	if (InSkelComp != nullptr && InSkelComp->bDeferredKinematicUpdate)
+	{
+		// Remove from map
+		int32 NumRemoved = DeferredKinematicUpdateSkelMeshes.RemoveAll([InSkelComp](const TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>& InItem) { return InSkelComp == InItem.Key; });
 
+		ensure(NumRemoved == 1); // Should be in array if flag was set!
+
+		// Clear flag
+		InSkelComp->bDeferredKinematicUpdate = false;
+	}
+}
+
+// Collect all the actors that need moving, along with their transforms
+// Extracted from USkeletalMeshComponent::UpdateKinematicBonesToAnim
+// @todo(chaos): merge this functionality back into USkeletalMeshComponent
+template<typename T_ACTORCONTAINER, typename T_TRANSFORMCONTAINER>
+void GatherActorsAndTransforms(
+	USkeletalMeshComponent* SkelComp, 
+	const TArray<FTransform>& InComponentSpaceTransforms, 
+	ETeleportType Teleport, 
+	bool bNeedsSkinning, 
+	T_ACTORCONTAINER& KinematicUpdateActors,
+	T_TRANSFORMCONTAINER& KinematicUpdateTransforms,
+	T_ACTORCONTAINER& TeleportActors,
+	T_TRANSFORMCONTAINER& TeleportTransforms)
+{
+	bool bTeleport = Teleport == ETeleportType::TeleportPhysics;
+	const UPhysicsAsset* PhysicsAsset = SkelComp->GetPhysicsAsset();
+	const FTransform& CurrentLocalToWorld = SkelComp->GetComponentTransform();
+	const int32 NumBodies = SkelComp->Bodies.Num();
+	for (int32 i = 0; i < NumBodies; i++)
+	{
+		FBodyInstance* BodyInst = SkelComp->Bodies[i];
+		FPhysicsActorHandle& ActorHandle = BodyInst->ActorHandle;
+		if (bTeleport || !BodyInst->IsInstanceSimulatingPhysics())
+		{
+			const int32 BoneIndex = BodyInst->InstanceBoneIndex;
+			if (BoneIndex != INDEX_NONE)
+			{
+				const FTransform BoneTransform = InComponentSpaceTransforms[BoneIndex] * CurrentLocalToWorld;
+				if (!bTeleport)
+				{
+					KinematicUpdateActors.Add(ActorHandle);
+					KinematicUpdateTransforms.Add(BoneTransform);
+				}
+				else
+				{
+					TeleportActors.Add(ActorHandle);
+					TeleportTransforms.Add(BoneTransform);
+				}
+				if (!PhysicsAsset->SkeletalBodySetups[i]->bSkipScaleFromAnimation)
+				{
+					const FVector& MeshScale3D = CurrentLocalToWorld.GetScale3D();
+					if (MeshScale3D.IsUniform())
+					{
+						BodyInst->UpdateBodyScale(BoneTransform.GetScale3D());
+					}
+					else
+					{
+						BodyInst->UpdateBodyScale(MeshScale3D);
+					}
+				}
+			}
+		}
+	}
+}
+
+// Move all actors that need teleporting
+void ProcessTeleportActors(FPhysScene_Chaos& Scene, const TArrayView<FPhysicsActorHandle>& ActorHandles, const TArrayView<FTransform>& Transforms)
+{
+	int32 NumActors = ActorHandles.Num();
+	if (NumActors > 0)
+	{
+		for (int32 ActorIndex = 0; ActorIndex < NumActors; ++ActorIndex)
+		{
+			const FPhysicsActorHandle& ActorHandle = ActorHandles[ActorIndex];
+			const FTransform& ActorTransform = Transforms[ActorIndex];
+			ActorHandle->SetX(ActorTransform.GetLocation(), false);	// only set dirty once in SetR
+			ActorHandle->SetR(ActorTransform.GetRotation());
+			ActorHandle->UpdateShapeBounds();
+		}
+
+		Scene.UpdateActorsInAccelerationStructure(ActorHandles);
+	}
+}
+
+// Set all actor kinematic targets
+void ProcessKinematicTargetActors(FPhysScene_Chaos& Scene, const TArrayView<FPhysicsActorHandle>& ActorHandles, const TArrayView<FTransform>& Transforms)
+{
+	// TODO - kinematic targets
+	ProcessTeleportActors(Scene, ActorHandles, Transforms);
+}
+
+// Collect the actors and transforms of all the bodies we have to move, and process them in bulk
+// to avoid locks in the Spatial Acceleration and the Solver's Dirty Proxy systems.
+void FPhysScene_ChaosInterface::UpdateKinematicsOnDeferredSkelMeshes()
+{
+	SCOPE_CYCLE_COUNTER(STAT_UpdateKinematicsOnDeferredSkelMeshesChaos);
+
+	using FActorsArray = TArray<FPhysicsActorHandle, TInlineAllocator<64>>;
+	using FTransformsArray = TArray<FTransform, TInlineAllocator<64>>;
+
+	FActorsArray KinematicUpdateActors;
+	FTransformsArray KinematicUpdateTransforms;
+	FActorsArray TeleportActors;
+	FTransformsArray TeleportTransforms;
+
+	for (const TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>& DeferredKinematicUpdate : DeferredKinematicUpdateSkelMeshes)
+	{
+		USkeletalMeshComponent* SkelComp = DeferredKinematicUpdate.Key;
+		const FDeferredKinematicUpdateInfo& Info = DeferredKinematicUpdate.Value;
+
+		ensure(SkelComp->bDeferredKinematicUpdate); // Should be true if in map!
+
+		if (!SkelComp->bEnablePerPolyCollision)
+		{
+			GatherActorsAndTransforms(SkelComp, SkelComp->GetComponentSpaceTransforms(), Info.TeleportType, Info.bNeedsSkinning, KinematicUpdateActors, KinematicUpdateTransforms, TeleportActors, TeleportTransforms);
+		}
+		else
+		{
+			// TODO: acceleration for per-poly collision
+			SkelComp->UpdateKinematicBonesToAnim(SkelComp->GetComponentSpaceTransforms(), Info.TeleportType, Info.bNeedsSkinning, EAllowKinematicDeferral::DisallowDeferral);
+		}
+
+		// Clear deferred flag
+		SkelComp->bDeferredKinematicUpdate = false;
+	}
+
+	ProcessKinematicTargetActors(Scene, KinematicUpdateActors, KinematicUpdateTransforms);
+	ProcessTeleportActors(Scene, TeleportActors, TeleportTransforms);
+
+	DeferredKinematicUpdateSkelMeshes.Reset();
 }
 
 void FPhysScene_ChaosInterface::AddPendingOnConstraintBreak(FConstraintInstance* ConstraintInstance, int32 SceneType)
@@ -1568,6 +1810,9 @@ void FPhysScene_ChaosInterface::StartFrame()
 		Dt = 0.0f;
 	}
 #endif
+
+	// Update any skeletal meshes that need their bone transforms sent to physics sim
+	UpdateKinematicsOnDeferredSkelMeshes();
 
 	if (FPhysicsReplication* PhysicsReplication = Scene.GetPhysicsReplication())
 	{

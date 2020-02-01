@@ -91,7 +91,8 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 			int32 CurrShape = 0;
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
-				Shape->SimData = Data->ShapeSimData[CurrShape++];
+				Shape->SimData = Data->ShapeSimData[CurrShape];
+				Shape->QueryData = Data->ShapeQueryData[CurrShape++];
 			}
 		}
 
@@ -200,7 +201,8 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 			int32 CurrShape = 0;
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
-				Shape->SimData = Data->ShapeSimData[CurrShape++];
+				Shape->SimData = Data->ShapeSimData[CurrShape];
+				Shape->QueryData = Data->ShapeQueryData[CurrShape++];
 			}
 		}
 
@@ -377,7 +379,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			int32 CurrShape = 0;
 			for (const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
 			{
-				Shape->SimData = Data->ShapeSimData[CurrShape++];
+				Shape->SimData = Data->ShapeSimData[CurrShape];
+				Shape->QueryData = Data->ShapeQueryData[CurrShape++];
 			}
 		}
 
@@ -388,7 +391,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 				GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Chaos::EObjectStateType::Dynamic);
 			}
 		}
-		else
+		
+		if(Data->MInitialized)
 		{
 			// wait for the first pass with nothing updated to claim its initialized
 			bInitialized = true;

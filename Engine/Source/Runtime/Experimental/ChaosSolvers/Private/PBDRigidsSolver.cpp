@@ -582,7 +582,7 @@ namespace Chaos
 	{
 		if (DirtyProxiesSet.Num() == 0)
 			return;
-		TArray<IPhysicsProxyBase*> DirtyProxiesArray = DirtyProxiesSet.Array();
+		TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
 		for (auto & Proxy : DirtyProxiesArray)
 		{
 			switch (Proxy->GetType())

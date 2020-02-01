@@ -374,7 +374,7 @@ FDebugRenderSceneProxy* FGameplayDebuggerCategory_AI::CreateDebugSceneProxy(cons
 			const bool bCanShow = View->Family->EngineShowFlags.GetSingleFlag(ViewFlagIndex);
 
 			FPrimitiveViewRelevance Result;
-			Result.bDrawRelevance = Result.bSeparateTranslucencyRelevance = Result.bNormalTranslucencyRelevance = bCanShow;
+			Result.bDrawRelevance = Result.bSeparateTranslucency = Result.bNormalTranslucency = bCanShow;
 			Result.bDynamicRelevance = true;
 			return Result;
 		}

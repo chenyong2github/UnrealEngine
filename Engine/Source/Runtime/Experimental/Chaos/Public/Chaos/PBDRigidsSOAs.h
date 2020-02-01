@@ -210,11 +210,6 @@ public:
 			GetDynamicParticles().GetSleepDataLock().WriteUnlock();
 		}
 
-		//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
-		//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
-		//If we want to support that, the UniqueIndex must be kept around until GT goes away
-		//This is hard to do, but would probably mean the ownership of the index is in the proxy
-		UniqueIndices.ReleaseIdx(Particle->UniqueIdx());
 		ParticleHandles.DestroyHandleSwap(Particle);
 		
 		UpdateViews();
@@ -294,13 +289,15 @@ public:
 		auto PBDRigid = Particle->CastToRigidParticle();
 		if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 		{
-			check(!PBDRigid->Disabled());
-			if (auto PBDRigidClustered = Particle->CastToClustered())
+			if (ensure(!PBDRigid->Disabled()))
 			{
-				InsertToMapAndArray(PBDRigidClustered, ActiveClusteredToIndex, ActiveClusteredArray);
-			}
+				if (auto PBDRigidClustered = Particle->CastToClustered())
+				{
+					InsertToMapAndArray(PBDRigidClustered, ActiveClusteredToIndex, ActiveClusteredArray);
+				}
 
-			InsertToMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
+				InsertToMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
+			}
 		}
 		
 		UpdateViews();
@@ -314,13 +311,15 @@ public:
 			if (   PBDRigid->ObjectState() == EObjectStateType::Dynamic
 				|| PBDRigid->ObjectState() == EObjectStateType::Sleeping)
 			{
-				check(!PBDRigid->Disabled());
-				if (auto PBDRigidClustered = Particle->CastToClustered())
+				if (ensure(!PBDRigid->Disabled()))
 				{
-					RemoveFromMapAndArray(PBDRigidClustered, ActiveClusteredToIndex, ActiveClusteredArray);
-				}
+					if (auto PBDRigidClustered = Particle->CastToClustered())
+					{
+						RemoveFromMapAndArray(PBDRigidClustered, ActiveClusteredToIndex, ActiveClusteredArray);
+					}
 
-				RemoveFromMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
+					RemoveFromMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
+				}
 			}
 		}
 

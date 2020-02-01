@@ -23,8 +23,15 @@ public:
 		uint32_t firstPostPatchHook;
 		uint32_t lastPostPatchHook;
 
+		// security cookie
 		uint32_t originalCookieRva;
 		uint32_t patchCookieRva;
+
+		// UE4-specific
+		uint32_t originalUe4NameTableRva;
+		uint32_t patchUe4NameTableRva;
+		uint32_t originalUe4ObjectArrayRva;
+		uint32_t patchUe4ObjectArrayRva;
 
 		uint32_t dllMainRva;
 
@@ -44,7 +51,12 @@ public:
 	void RegisterPrePatchHooks(uint16_t moduleIndex, uint32_t firstRva, uint32_t lastRva);
 	void RegisterPostPatchHooks(uint16_t moduleIndex, uint32_t firstRva, uint32_t lastRva);
 
+	// Security cookie
 	void RegisterSecurityCookie(uint32_t originalRva, uint32_t patchRva);
+
+	// UE4-specific
+	void RegisterUe4NameTable(uint32_t originalRva, uint32_t patchRva);
+	void RegisterUe4ObjectArray(uint32_t originalRva, uint32_t patchRva);
 
 	void RegisterDllMain(uint32_t rva);
 

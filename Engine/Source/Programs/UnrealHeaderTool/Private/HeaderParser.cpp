@@ -6143,7 +6143,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	check(Class->Children == NULL);
 	check(Class->Next == NULL);
 	check(Class->NetFields.Num() == 0);
-	check(Class->NetProperties.Num() == 0);
+	check(Class->FirstOwnedClassRep == 0);
 
 	// Make sure our parent classes is parsed.
 	for (UClass* Temp = Class->GetSuperClass(); Temp; Temp = Temp->GetSuperClass())

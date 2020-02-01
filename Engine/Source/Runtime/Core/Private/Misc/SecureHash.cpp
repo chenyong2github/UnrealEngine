@@ -517,7 +517,7 @@ void LexFromString(FMD5Hash& Hash, const TCHAR* Buffer)
 			return;
 		}
 
-		Bytes[ByteIndex] = (FirstCharVal << 4) + SecondCharVal;
+		Bytes[ByteIndex] = (uint8)((FirstCharVal << 4) + SecondCharVal);
 	}
 
 	FMemory::Memcpy(Hash.Bytes, Bytes, 16);

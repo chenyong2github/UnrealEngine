@@ -218,7 +218,7 @@
 #include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "StudioAnalytics.h"
-
+#include "Engine/LevelScriptActor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -1901,15 +1901,12 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		if (bRequestEndPlayMapQueued)
 		{
 			// Shutdown all audio devices if we've requested end playmap now to avoid issues with GC running
-			TArray<FAudioDevice*>& AudioDevices = AudioDeviceManager->GetAudioDevices();
+			TArray<FAudioDevice*> AudioDevices = AudioDeviceManager->GetAudioDevices();
 			for (FAudioDevice* AudioDevice : AudioDevices)
 			{
-				if (AudioDevice)
-				{
 					AudioDevice->Flush(nullptr);
 				}
 			}
-		}
 
 		if (PlayWorld)
 		{
@@ -2287,7 +2284,7 @@ UAudioComponent* UEditorEngine::GetPreviewAudioComponent()
 
 UAudioComponent* UEditorEngine::ResetPreviewAudioComponent( USoundBase* Sound, USoundNode* SoundNode )
 {
-	if (FAudioDevice* AudioDevice = GetMainAudioDevice())
+	if (FAudioDevice* AudioDevice = GetMainAudioDeviceRaw())
 	{
 		if (PreviewAudioComponent)
 		{
@@ -6880,7 +6877,13 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 {
 	if (bReading)
 	{
-		if (bIsReplay && Context.World() && Context.World()->RemapCompiledScriptActor(Str))
+		UWorld* const World = Context.World();
+		if (World == nullptr)
+		{
+			return false;
+		}
+
+		if (bIsReplay && World->RemapCompiledScriptActor(Str))
 		{
 			return true;
 		}
@@ -6895,9 +6898,44 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 		
 		if (bIsReplay)
 		{
-			FString AssetName = Path.GetAssetName();
-			FString ShortName = FPackageName::GetShortName(Path.GetLongPackageName());
+			const FString AssetName = Path.GetAssetName();
+			const FString ShortName = FPackageName::GetShortName(Path.GetLongPackageName());
 
+			FString PackageNameOnly = Path.ToString();
+			FPackageName::TryConvertFilenameToLongPackageName(PackageNameOnly, PackageNameOnly);
+
+			const FString PrefixedFullName = UWorld::ConvertToPIEPackageName(Str, Context.PIEInstance);
+			const FString PrefixedPackageName = UWorld::ConvertToPIEPackageName(PackageNameOnly, Context.PIEInstance);
+			const FString WorldPackageName = World->GetOutermost()->GetName();
+
+			if (WorldPackageName == PrefixedPackageName)
+			{
+				const ALevelScriptActor* LSA = World->GetLevelScriptActor();
+				if (LSA && LSA->GetClass() && LSA->GetClass()->GetName() == AssetName && LSA->GetClass()->GetOutermost()->GetName() != WorldPackageName)
+				{
+					Str = Path.ToString();
+				}
+				else
+				{
+					Str = PrefixedFullName;
+				}
+				
+				return true;
+			}
+
+			for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
+			{
+				if (StreamingLevel != nullptr)
+				{
+					const FString StreamingLevelName = StreamingLevel->GetWorldAsset().GetLongPackageName();
+					if (StreamingLevelName == PrefixedPackageName)
+					{
+						Str = PrefixedFullName;
+						return true;
+					}
+				}
+			}
+			
 			const bool bActorClass = FPackageName::IsValidObjectPath(Path.ToString()) && !AssetName.IsEmpty() && !ShortName.IsEmpty() && (AssetName == (ShortName + TEXT("_C")));
 			if (!bActorClass)
 			{

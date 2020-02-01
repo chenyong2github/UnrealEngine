@@ -14,14 +14,14 @@ namespace Timing_Data_Investigator.Controls
 	/// Interaction logic for TimingDataGrid.xaml
 	/// </summary>
 	public partial class TimingDataGrid : UserControl
-    {
-        public TimingDataGrid()
-        {
+	{
+		public TimingDataGrid()
+		{
 			InitializeComponent();
-        }
+		}
 
-        private void Grid_Sorting(object sender, DataGridSortingEventArgs e)
-        {
+		private void Grid_Sorting(object sender, DataGridSortingEventArgs e)
+		{
 			switch (e.Column.SortDirection)
 			{
 				case ListSortDirection.Ascending:
@@ -47,8 +47,8 @@ namespace Timing_Data_Investigator.Controls
 			PropertyInfo SortProperty = typeof(TimingDataViewModel).GetProperty(e.Column.SortMemberPath);
 			GridModel.Sort(SortProperty, e.Column.SortDirection);
 
-            e.Handled = true;
-        }
+			e.Handled = true;
+		}
 
 		private void SortNodes(ObservableCollection<TreeGridElement> NewFlatModel, TreeGridElement Node, ListSortDirection SortDirection, PropertyInfo SortProperty)
 		{
@@ -72,38 +72,38 @@ namespace Timing_Data_Investigator.Controls
 			}
 		}
 
-        private void Grid_KeyDown(object sender, KeyEventArgs e)
-        {
+		private void Grid_KeyDown(object sender, KeyEventArgs e)
+		{
 			TreeGridElement SelectedData = Grid.SelectedItem as TreeGridElement;
-            if (SelectedData == null)
-            {
-                return;
-            }
+			if (SelectedData == null)
+			{
+				return;
+			}
 
-            if (e.Key == Key.Right && !SelectedData.IsExpanded)
-            {
-                SelectedData.IsExpanded = true;
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Left)
-            {
-                while (SelectedData != null)
-                {
-                    if (SelectedData.IsExpanded)
-                    {
-                        SelectedData.IsExpanded = false;
-                        Grid.SelectedItem = SelectedData;
-                        Grid.ScrollIntoView(SelectedData);
+			if (e.Key == Key.Right && !SelectedData.IsExpanded)
+			{
+				SelectedData.IsExpanded = true;
+				e.Handled = true;
+			}
+			else if (e.Key == Key.Left)
+			{
+				while (SelectedData != null)
+				{
+					if (SelectedData.IsExpanded)
+					{
+						SelectedData.IsExpanded = false;
+						Grid.SelectedItem = SelectedData;
+						Grid.ScrollIntoView(SelectedData);
 						DataGridRow Row = (DataGridRow)Grid.ItemContainerGenerator.ContainerFromItem(SelectedData);
-                        Row.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
-                        e.Handled = true;
-                        break;
-                    }
+						Row.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+						e.Handled = true;
+						break;
+					}
 
-                    SelectedData = SelectedData.Parent as TreeGridElement;
-                }
-            }
-        }
+					SelectedData = SelectedData.Parent as TreeGridElement;
+				}
+			}
+		}
 
 		private void Button_Click(object sender, System.Windows.RoutedEventArgs e)
 		{

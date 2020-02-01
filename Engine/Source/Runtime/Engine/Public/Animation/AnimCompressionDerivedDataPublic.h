@@ -5,23 +5,27 @@
 #if WITH_EDITOR
 
 #include "TickableEditorObject.h"
+#include "Animation/AnimCompressionTypes.h"
 
 class UAnimSequence;
 class FDerivedDataAnimationCompression;
+struct FCompressibleAnimData;
 
 extern ENGINE_API class FAsyncCompressedAnimationsManagement* GAsyncCompressedAnimationsTracker;
 
 // Animation data that is currently being compressed
 struct FActiveAsyncCompressionTask
 {
-	FActiveAsyncCompressionTask(UAnimSequence* InSequence, const FString& InCacheKey, const uint64 InTaskSize, const uint32 InAsyncHandle, bool bInPerformFrameStripping)
+	FActiveAsyncCompressionTask(UAnimSequence* InSequence, FCompressibleAnimPtr InDataToCompress, const FString& InCacheKey, const uint64 InTaskSize, const uint32 InAsyncHandle, bool bInPerformFrameStripping)
 		: Sequence(InSequence)
+		, DataToCompress(InDataToCompress)
 		, TaskSize(InTaskSize)
 		, CacheKey(InCacheKey)
 		, AsyncHandle(InAsyncHandle)
 		, bPerformFrameStripping(bInPerformFrameStripping)
 	{}
 	UAnimSequence* Sequence;
+	FCompressibleAnimPtr DataToCompress;
 	uint64 TaskSize;
 	FString CacheKey;
 	uint32 AsyncHandle;
@@ -47,7 +51,7 @@ struct FQueuedAsyncCompressionWork
 //   Maintains active compressions
 //   tracks memory usage of async compression
 //   Gives API for blocking on compression
-class ENGINE_API FAsyncCompressedAnimationsManagement : public FTickableEditorObject
+class ENGINE_API FAsyncCompressedAnimationsManagement : public FTickableEditorObject, public FGCObject
 {
 public:
 	static FAsyncCompressedAnimationsManagement& Get();
@@ -81,6 +85,10 @@ private:
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
 	virtual TStatId GetStatId() const override;
 	/* End FTickableEditorObject */
+
+	// FGCObject interface
+	void AddReferencedObjects(FReferenceCollector& Collector) override;
+	// End of FGCObject interface
 };
 
 #endif

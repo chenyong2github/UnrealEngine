@@ -456,7 +456,7 @@ void HIDInputInterface::SendControllerEvents()
 					else
 					{
 						const bool bIsTrigger = Element.Usage == ControllerState.Device.LeftTriggerAnalogMapping || Element.Usage == ControllerState.Device.RightTriggerAnalogMapping;
-						const float Percentage = FMath::GetRangePct(Element.MinValue, Element.MaxValue, NewValue);
+						const float Percentage = FMath::GetRangePct((float)Element.MinValue, (float)Element.MaxValue, (float)NewValue);
 						const float FloatValue = bIsTrigger ? Percentage : Percentage * 2.0f - 1.0f;
 
 						if (Element.Usage == ControllerState.Device.LeftAnalogXMapping && ControllerState.LeftAnalogX != NewValue)

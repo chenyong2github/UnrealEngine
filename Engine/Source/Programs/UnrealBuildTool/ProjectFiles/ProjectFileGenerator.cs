@@ -721,7 +721,7 @@ namespace UnrealBuildTool
 			Dictionary<FileReference, ProjectFile> ProgramProjects;
 			{
 				// Setup buildable projects for all targets
-				AddProjectsForAllTargets( PlatformProjectGenerators, AllGameProjects, AllTargetFiles, out EngineProject, out EnterpriseProject, out GameProjects, out ProgramProjects );
+				AddProjectsForAllTargets( PlatformProjectGenerators, AllGameProjects, AllTargetFiles, Arguments, out EngineProject, out EnterpriseProject, out GameProjects, out ProgramProjects );
 
 				// Add projects for mods
 				AddProjectsForMods(GameProjects, out ModProjects);
@@ -1022,7 +1022,7 @@ namespace UnrealBuildTool
 				foreach(FileReference ProjectFile in AllGameProjects)
 				{
 					RulesAssembly RulesAssembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, false, false);
-					QueryTargetsMode.WriteTargetInfo(ProjectFile, RulesAssembly, QueryTargetsMode.GetDefaultOutputFile(ProjectFile));
+					QueryTargetsMode.WriteTargetInfo(ProjectFile, RulesAssembly, QueryTargetsMode.GetDefaultOutputFile(ProjectFile), new CommandLineArguments(GetTargetArguments(Arguments)));
 				}
 			}
 
@@ -1036,6 +1036,7 @@ namespace UnrealBuildTool
 		private void AddUBTConfigFilesToEngineProject(ProjectFile EngineProject)
 		{
 			EngineProject.AddAliasedFileToProject(new AliasedFile(
+					XmlConfig.GetSchemaLocation(),
 					XmlConfig.GetSchemaLocation().FullName,
 					Path.Combine("Programs", "UnrealBuildTool")
 				));
@@ -1045,6 +1046,7 @@ namespace UnrealBuildTool
 			{
 				EngineProject.AddAliasedFileToProject(
 						new AliasedFile(
+							InputFile.Location,
 							InputFile.Location.FullName,
 							Path.Combine("Config", "UnrealBuildTool", InputFile.FolderName)
 						)
@@ -1821,10 +1823,8 @@ namespace UnrealBuildTool
 									ProjectFile ProjectFileForIDE;
 									if (ModuleToProjectFileMap.TryGetValue(Module.Name, out ProjectFileForIDE) && ProjectFileForIDE == TargetProjectFile)
 									{
-										CppCompileEnvironment ModuleCompileEnvironment = Module.CreateModuleCompileEnvironment(Target.Rules, BinaryCompileEnvironment);
-										ProjectFileForIDE.AddIntelliSensePreprocessorDefinitions(ModuleCompileEnvironment.Definitions);
-										ProjectFileForIDE.AddIntelliSenseIncludePaths(ModuleCompileEnvironment.SystemIncludePaths, true);
-										ProjectFileForIDE.AddIntelliSenseIncludePaths(ModuleCompileEnvironment.UserIncludePaths, false);
+										CppCompileEnvironment ModuleCompileEnvironment = Module.CreateCompileEnvironmentForIntellisense(Target.Rules, BinaryCompileEnvironment);
+										ProjectFileForIDE.AddModule(Module, ModuleCompileEnvironment);
 									}
 								}
 							}
@@ -2168,14 +2168,16 @@ namespace UnrealBuildTool
 		/// <param name="PlatformProjectGenerators">The registered platform project generators</param>
 		/// <param name="AllGames">All game folders</param>
 		/// <param name="AllTargetFiles">All the target files to add</param>
+		/// <param name="Arguments">The commandline arguments used</param>
 		/// <param name="EngineProject">The engine project we created</param>
 		/// <param name="EnterpriseProject">The enterprise project we created</param>
 		/// <param name="GameProjects">Map of game folder name to all of the game projects we created</param>
 		/// <param name="ProgramProjects">Map of program names to all of the program projects we created</param>
-		private void AddProjectsForAllTargets( 
-			PlatformProjectGeneratorCollection PlatformProjectGenerators, 
-			List<FileReference> AllGames, 
+		private void AddProjectsForAllTargets(
+			PlatformProjectGeneratorCollection PlatformProjectGenerators,
+			List<FileReference> AllGames,
 			List<FileReference> AllTargetFiles,
+			String[] Arguments,
 			out ProjectFile EngineProject, 
 			out ProjectFile EnterpriseProject,
 			out List<ProjectFile> GameProjects, 
@@ -2251,7 +2253,7 @@ namespace UnrealBuildTool
 
 					// Create target rules for all of the platforms and configuration combinations that we want to enable support for.
 					// Just use the current platform as we only need to recover the target type and both should be supported for all targets...
-					TargetRules TargetRulesObject = RulesAssembly.CreateTargetRules(TargetName, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, "", CheckProjectFile, null);
+					TargetRules TargetRulesObject = RulesAssembly.CreateTargetRules(TargetName, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, "", CheckProjectFile, new CommandLineArguments(GetTargetArguments(Arguments)));
 
 					bool IsProgramTarget = false;
 
@@ -2407,7 +2409,7 @@ namespace UnrealBuildTool
 							ProjectFilePath = ProjectFilePath,
 							UnrealProjectFilePath = CheckProjectFile,
 							SupportedPlatforms = TargetRulesObject.GetSupportedPlatforms().Where(x => UEBuildPlatform.GetBuildPlatform(x, true) != null).ToArray(),
-							CreateRulesDelegate = (Platform, Configuration) => RulesAssembly.CreateTargetRules(TargetName, Platform, Configuration, "", CheckProjectFile, null)
+							CreateRulesDelegate = (Platform, Configuration) => RulesAssembly.CreateTargetRules(TargetName, Platform, Configuration, "", CheckProjectFile, new CommandLineArguments(GetTargetArguments(Arguments)))
                         };
 
 					ProjectFile.ProjectTargets.Add(ProjectTarget);
@@ -2870,6 +2872,12 @@ namespace UnrealBuildTool
 			InProject.LoadGUIDFromExistingProject();
 
 			OtherProjectFiles.Add( InProject );
+		}
+
+		public virtual string[] GetTargetArguments(string[] Arguments)
+		{
+			// by default we do not forward any arguments to the targets
+			return new string[0];
 		}
 
 		/// The default project to be built for the solution.

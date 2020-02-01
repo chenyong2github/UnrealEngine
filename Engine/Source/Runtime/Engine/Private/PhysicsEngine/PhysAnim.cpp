@@ -476,6 +476,8 @@ void USkeletalMeshComponent::CompleteParallelBlendPhysics()
 	ParallelBlendPhysicsCompletionTask.SafeRelease();
 }
 
+// NOTE: See GatherActorsAndTransforms in PhysScene_Chaos.cpp where this code is cloned for deferred mode.
+// @todo(chaos): merge required deferred functionality back into USkeletalMeshComponent
 void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>& InSpaceBases, ETeleportType Teleport, bool bNeedsSkinning, EAllowKinematicDeferral DeferralAllowed)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateRBBones);
@@ -525,15 +527,14 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 	}
 #endif
 
-#if !(WITH_CHAOS) // TODO Deferred update not implemented yet in Chaos.
-
 	// If we are only using bodies for physics, don't need to move them right away, can defer until simulation (unless told not to)
 	if (DeferralAllowed == EAllowKinematicDeferral::AllowDeferral && (bDeferKinematicBoneUpdate || BodyInstance.GetCollisionEnabled() == ECollisionEnabled::PhysicsOnly))
 	{
-		PhysScene->MarkForPreSimKinematicUpdate(this, Teleport, bNeedsSkinning);
-		return;
+		if (PhysScene->MarkForPreSimKinematicUpdate(this, Teleport, bNeedsSkinning))
+		{
+			return;
+		}
 	}
-#endif
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// If desired, draw the skeleton at the point where we pass it to the physics.
@@ -693,7 +694,7 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 		{
 			if (bNeedsSkinning)
 			{
-					const FSkeletalMeshLODRenderData& LODData = MeshObject->GetSkeletalMeshRenderData().LODRenderData[0];
+				const FSkeletalMeshLODRenderData& LODData = MeshObject->GetSkeletalMeshRenderData().LODRenderData[0];
 				FSkinWeightVertexBuffer& SkinWeightBuffer = *GetSkinWeightBuffer(0);
 				TArray<FMatrix> RefToLocals;
 				TArray<FVector> NewPositions;

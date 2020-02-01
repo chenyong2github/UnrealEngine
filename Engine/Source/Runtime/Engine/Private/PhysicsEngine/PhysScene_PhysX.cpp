@@ -956,7 +956,7 @@ void GatherClothingStats(const UWorld* World)
 }
 
 
-void FPhysScene_PhysX::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning)
+bool FPhysScene_PhysX::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning)
 {
 	// If null, or pending kill, do nothing
 	if (InSkelComp != nullptr && !InSkelComp->IsPendingKill())
@@ -971,7 +971,7 @@ void FPhysScene_PhysX::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSk
 				Info.TeleportType = InTeleport;
 				Info.bNeedsSkinning = bNeedsSkinning;
 				DeferredKinematicUpdateSkelMeshes.Emplace(InSkelComp, Info);
-				return;
+				return true;
 			}
 
 			FDeferredKinematicUpdateInfo& Info = FoundItem->Value;
@@ -1001,6 +1001,8 @@ void FPhysScene_PhysX::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSk
 			InSkelComp->bDeferredKinematicUpdate = true;
 		}
 	}
+
+	return true;
 }
 
 void FPhysScene_PhysX::ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp)

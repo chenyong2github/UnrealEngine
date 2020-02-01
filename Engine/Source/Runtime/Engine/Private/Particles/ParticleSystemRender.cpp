@@ -49,6 +49,14 @@ DECLARE_CYCLE_STAT(TEXT("DynamicSpriteEmitterData GetDynamicMeshElementsEmitter 
 
 #include "InGamePerformanceTracker.h"
 
+static int32 GFXAllowParticleMeshLODs = 0;
+static FAutoConsoleVariableRef CVarFXAllowParticleMeshLODs(
+	TEXT("fx.FXAllowParticleMeshLODs"),
+	GFXAllowParticleMeshLODs,
+	TEXT("If we allow particle meshes to use LODs or not"),
+	ECVF_Default
+);
+
 /** 
  * Whether to track particle rendering stats.  
  * Enable with the TRACKPARTICLERENDERINGSTATS command. 
@@ -1559,7 +1567,7 @@ uint32 FDynamicMeshEmitterData::GetMeshLODIndexFromProxy(const FParticleSystemSc
 		}
 	}
 
-	if (!InOwnerProxy)
+	if (!InOwnerProxy || !GFXAllowParticleMeshLODs)
 	{
 		return FirstAvailableLOD;
 	}
@@ -7163,17 +7171,17 @@ FPrimitiveViewRelevance FParticleSystemSceneProxy::GetViewRelevance(const FScene
 	}
 	if (View->Family->EngineShowFlags.Bounds || View->Family->EngineShowFlags.VectorFields)
 	{
-		Result.bOpaqueRelevance = true;
+		Result.bOpaque = true;
 	}
 	// see if any of the emitters use dynamic vertex data
 	if (DynamicData == NULL)
 	{
 		// In order to get the LOD distances to update,
 		// we need to force a call to DrawDynamicElements...
-		Result.bOpaqueRelevance = true;
+		Result.bOpaque = true;
 	}
 
-	Result.bVelocityRelevance = IsMovable() && Result.bOpaqueRelevance && Result.bRenderInMainPass;
+	Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
 
 	return Result;
 }

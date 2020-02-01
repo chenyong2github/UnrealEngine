@@ -71,11 +71,6 @@ IOnlineTitleFilePtr FOnlineSubsystemTwitch:: GetTitleFileInterface() const
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemTwitch::GetStoreInterface() const
-{
-	return nullptr;
-}
-
 IOnlineStoreV2Ptr FOnlineSubsystemTwitch::GetStoreV2Interface() const
 {
 	return nullptr;

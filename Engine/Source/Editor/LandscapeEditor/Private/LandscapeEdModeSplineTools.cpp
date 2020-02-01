@@ -2250,6 +2250,20 @@ void FEdModeLandscape::ShowSplineProperties()
 	}
 }
 
+void FEdModeLandscape::GetSelectedSplineOwners(TSet<ALandscapeProxy*>& SelectedSplineOwners) const
+{
+	for (ULandscapeSplineSegment* Segment : SplinesTool->SelectedSplineSegments)
+	{
+		SelectedSplineOwners.Add(Segment->GetTypedOuter<ALandscapeProxy>());
+	}
+
+	for (ULandscapeSplineControlPoint* ControlPoint : SplinesTool->SelectedSplineControlPoints)
+	{
+		SelectedSplineOwners.Add(ControlPoint->GetTypedOuter<ALandscapeProxy>());
+	}
+}
+
+
 void FEdModeLandscape::SelectAllConnectedSplineControlPoints()
 {
 	if (SplinesTool /*&& SplinesTool == CurrentTool*/)

@@ -6043,6 +6043,8 @@ void FSlateEditorStyle::FStyle::SetupPersonaStyle()
 		Set("BlueprintDif.NextDiff.Small", new IMAGE_BRUSH("/Icons/diff_next_40x", Icon16x16));
 		Set("BlueprintDif.PrevDiff", new IMAGE_BRUSH("/Icons/diff_prev_40x", Icon16x16));
 		Set("BlueprintDif.PrevDiff.Small", new IMAGE_BRUSH("/Icons/diff_prev_40x", Icon16x16));
+		Set("BlueprintDif.HorizontalDiff.Small", new IMAGE_BRUSH("/Icons/icon_horizontal_diff_view_16px", Icon16x16));
+		Set("BlueprintDif.VerticalDiff.Small", new IMAGE_BRUSH("/Icons/icon_vertical_diff_view_16px", Icon16x16));
 
 		Set("BlueprintDif.ItalicText", 
 			FTextBlockStyle(NormalText)

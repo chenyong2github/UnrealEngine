@@ -345,7 +345,7 @@ void UNiagaraEmitter::PostLoad()
 			if (bActualInterpolatedSpawning)
 			{
 #if WITH_EDITORONLY_DATA
-				SpawnScriptProps.Script->InvalidateCompileResults();//clear out the script as it was compiled with interpolated spawn.
+				SpawnScriptProps.Script->InvalidateCompileResults(TEXT("Interpolated spawn changed."));//clear out the script as it was compiled with interpolated spawn.
 #endif
 				SpawnScriptProps.Script->SetUsage(ENiagaraScriptUsage::ParticleSpawnScript);
 			}
@@ -847,7 +847,7 @@ void  UNiagaraEmitter::InvalidateCompileResults()
 	GetScripts(Scripts, false);
 	for (int32 i = 0; i < Scripts.Num(); i++)
 	{
-		Scripts[i]->InvalidateCompileResults();
+		Scripts[i]->InvalidateCompileResults(TEXT("Emitter compile invalidated."));
 	}
 }
 
@@ -886,7 +886,7 @@ void UNiagaraEmitter::OnPostCompile()
 		GetScripts(Scripts, false);
 		for (int32 i = 0; i < Scripts.Num(); i++)
 		{
-			Scripts[i]->InvalidateCompileResults(); 
+			Scripts[i]->InvalidateCompileResults(TEXT("Console variable forced recompile.")); 
 		}
 	}
 

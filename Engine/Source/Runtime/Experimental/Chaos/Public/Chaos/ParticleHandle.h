@@ -110,6 +110,7 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
 	Concrete.ClearEvents();
+	Concrete.SetInitialized(false);
 }
 
 
@@ -126,6 +127,30 @@ bool GeometryParticleSleeping(const FConcrete& Concrete)
 	return Concrete.ObjectState() == EObjectStateType::Sleeping;
 }
 
+//Used to filter out at the acceleration structure layer
+//Returns true when there is no way a later PreFilter will succeed. Avoid virtuals etc..
+FORCEINLINE_DEBUGGABLE bool PrePreFilterImp(const FCollisionFilterData& QueryFilterData, const FCollisionFilterData& UnionFilterData)
+{
+	//HACK: need to replace all these hard-coded values with proper enums, bad modules are not setup for it right now
+	//ECollisionQuery QueryType = (ECollisionQuery)QueryFilter.Word0;
+	//if (QueryType != ECollisionQuery::ObjectQuery)
+	if(QueryFilterData.Word0)
+	{
+		//since we're taking the union of shapes we can only support trace channel
+		//const ECollisionChannel QuerierChannel = GetCollisionChannel(QueryFilter.Word3);
+		const uint32 QuerierChannel = (QueryFilterData.Word3 << 6) >> (32 - 5);
+
+		//uint32 const QuerierBit = ECC_TO_BITFIELD(QuerierChannel);
+		const uint32 QuerierBit = (1 << (QuerierChannel));
+
+		// check if Querier wants a hit
+		const uint32 TouchOrBlock = (UnionFilterData.Word1 | UnionFilterData.Word2);
+		return !(QuerierBit & TouchOrBlock);
+	}
+
+	return false;
+}
+
 /** Wrapper that holds both physics thread data and GT data. It's possible that the physics handle is null if we're doing operations entirely on external threads*/
 template <typename T, int d>
 class TAccelerationStructureHandle
@@ -136,10 +161,6 @@ public:
 
 	template <bool bPersistent>
 	TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>& InHandle);
-
-	template <bool bPersistent>
-	TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>* InHandle, TGeometryParticle<T, d>* InGeometryParticle);
-
 
 	//Should only be used by GT and scene query threads where an appropriate lock has been acquired
 	TGeometryParticle<T, d>* GetExternalGeometryParticle_ExternalThread() const { return ExternalGeometryParticle; }
@@ -174,11 +195,29 @@ public:
 		return CachedUniqueIdx;
 	}
 
+	bool PrePreFilter(const void* QueryData) const
+	{
+		if(bCanPrePreFilter)
+		{
+			if (const FCollisionFilterData* QueryFilterData = static_cast<const FCollisionFilterData*>(QueryData))
+			{
+				return PrePreFilterImp(*QueryFilterData, UnionFilterData);
+			}
+		}
+		
+		return false;
+	}
+
 private:
 	TGeometryParticle<T, d>* ExternalGeometryParticle;
 	TGeometryParticleHandle<T, d>* GeometryParticleHandle;
 
 	FUniqueIdx CachedUniqueIdx;
+	FCollisionFilterData UnionFilterData;
+	bool bCanPrePreFilter;
+
+	template <typename TParticle>
+	void UpdatePrePreFilter(const TParticle& Particle);
 };
 
 template <typename T, int d>
@@ -1477,6 +1516,12 @@ public:
 		this->MDirtyFlags.Clear();
 	}
 
+	void MarkClean(const EParticleFlags CleanBits)
+	{
+		this->MDirtyFlags.MarkClean(CleanBits);
+	}
+
+
 	TGeometryParticleHandle<T, d>* Handle() const
 	{
 		if (Proxy)
@@ -1587,11 +1632,13 @@ public:
 		ShapeCollisionDisableFlags.Empty(Shapes.Num());
 		CollisionTraceType.Empty(Shapes.Num());
 		ShapeSimData.Empty(Shapes.Num());
+		ShapeQueryData.Empty(Shapes.Num());
 		for (const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
 		{
 			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
 			CollisionTraceType.Add(ShapePtr->CollisionTraceType);
 			ShapeSimData.Add(ShapePtr->SimData);
+			ShapeQueryData.Add(ShapePtr->QueryData);
 		}
 	}
 
@@ -1608,6 +1655,7 @@ public:
 		ShapeCollisionDisableFlags.Reset();
 		CollisionTraceType.Reset();
 		ShapeSimData.Reset();
+		ShapeQueryData.Reset();
 #if CHAOS_CHECKED
 		DebugName = NAME_None;
 #endif
@@ -1623,6 +1671,7 @@ public:
 	TBitArray<> ShapeCollisionDisableFlags;
 	TArray<EChaosCollisionTraceFlag> CollisionTraceType;
 	TArray < FCollisionFilterData > ShapeSimData;
+	TArray < FCollisionFilterData > ShapeQueryData;
 #if CHAOS_CHECKED
 	FName DebugName;
 #endif
@@ -1826,6 +1875,12 @@ public:
 		this->MGravityEnabled = InGravityEnabled;
 	}
 
+	bool IsInitialized() const { return MInitialized; }
+	void SetInitialized(const bool InInitialized)
+	{
+		this->MInitialized = InInitialized;
+	}
+
 	// Named to match signature of TPBDRigidParticleHandle, as both are used in templated functions.
 	// See its comment for details.
 	bool& SetDisabledLowLevel() { return MDisabled; }
@@ -1993,6 +2048,7 @@ private:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+	bool MInitialized;
 	bool MAwakeEvent;
 };
 
@@ -2048,6 +2104,7 @@ public:
 		, MDisabled(false)
 		, MToBeRemovedOnFracture(false)
 		, MGravityEnabled(false)
+		, MInitialized(false)
 	{}
 
 	TPBDRigidParticleData(const TPBDRigidParticle<T, d>& InParticle)
@@ -2073,6 +2130,7 @@ public:
 		, MDisabled(InParticle.Disabled())
 		, MToBeRemovedOnFracture(InParticle.ToBeRemovedOnFracture())
 		, MGravityEnabled(InParticle.IsGravityEnabled())
+		, MInitialized(InParticle.IsInitialized())
 	{
 		Type = EParticleType::Rigid;
 	}
@@ -2099,6 +2157,7 @@ public:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+	bool MInitialized;
 
 	void Reset() {
 		TKinematicGeometryParticleData<T, d>::Reset();
@@ -2222,8 +2281,13 @@ TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticl
 	: ExternalGeometryParticle(InHandle->GTGeometryParticle())
 	, GeometryParticleHandle(InHandle)
 	, CachedUniqueIdx(InHandle->UniqueIdx())
+	, bCanPrePreFilter(false)
 {
 	ensure(CachedUniqueIdx.IsValid());
+	if (InHandle)
+	{
+		UpdatePrePreFilter(*InHandle);
+	}
 }
 
 template <typename T, int d>
@@ -2231,8 +2295,14 @@ TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticl
 	: ExternalGeometryParticle(InGeometryParticle)
 	, GeometryParticleHandle(InGeometryParticle ? InGeometryParticle->Handle() : nullptr)
 	, CachedUniqueIdx(InGeometryParticle ? InGeometryParticle->UniqueIdx() : FUniqueIdx())
+	, bCanPrePreFilter(false)
 {
-	ensure(!InGeometryParticle || CachedUniqueIdx.IsValid());
+	if (InGeometryParticle)
+	{
+		ensure(CachedUniqueIdx.IsValid());
+		ensure(IsInGameThread());
+		UpdatePrePreFilter(*InGeometryParticle);
+	}
 }
 
 template <typename T, int d>
@@ -2241,33 +2311,29 @@ TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryPartic
 	: ExternalGeometryParticle(InHandle.GTGeometryParticle())
 	, GeometryParticleHandle(InHandle.Handle())
 	, CachedUniqueIdx(InHandle.UniqueIdx())
+	, bCanPrePreFilter(false)
 {
 	ensure(CachedUniqueIdx.IsValid());
+	UpdatePrePreFilter(InHandle);
 }
 
 template <typename T, int d>
-template <bool bPersistent>
-TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>* InHandle, TGeometryParticle<T, d>* InGeometryParticle)
-	: ExternalGeometryParticle(InGeometryParticle)
-	, GeometryParticleHandle(InHandle)
+template <typename TParticle>
+void TAccelerationStructureHandle<T, d>::UpdatePrePreFilter(const TParticle& Particle)
 {
-	if (GeometryParticleHandle)
+	const auto& Shapes = Particle.ShapesArray();
+	for (const auto& Shape : Shapes)
 	{
-		CachedUniqueIdx = GeometryParticleHandle->UniqueIdx();
+		UnionFilterData.Word0 |= Shape->QueryData.Word0;
+		UnionFilterData.Word1 |= Shape->QueryData.Word1;
+		UnionFilterData.Word2 |= Shape->QueryData.Word2;
+		UnionFilterData.Word3 |= Shape->QueryData.Word3;
 	}
-	else if (ExternalGeometryParticle)
-	{
-		CachedUniqueIdx = ExternalGeometryParticle->UniqueIdx();
-	}
+	
+	bCanPrePreFilter = true;
 
-	if (GeometryParticleHandle && ExternalGeometryParticle)
-	{
-		ensure(GeometryParticleHandle->UniqueIdx() == ExternalGeometryParticle->UniqueIdx());
-	}
-
-	//If either handle or particle are valid, we must have a valid idx
-	ensure((!GeometryParticleHandle && !ExternalGeometryParticle) || CachedUniqueIdx.IsValid());
 }
+
 
 template <typename T, int d>
 void TAccelerationStructureHandle<T, d>::Serialize(FChaosArchive& Ar)

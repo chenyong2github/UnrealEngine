@@ -20,10 +20,11 @@
 #include "ProfilingDebugging/Histogram.h"
 #include "Containers/ArrayView.h"
 #include "Containers/CircularBuffer.h"
+#include "Net/Core/Trace/Config.h"
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
 #include "Net/Core/Misc/PacketTraits.h"
-#include "Net/Util/ResizableCircularQueue.h"
+#include "Net/Core/Misc/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
 
 #include "NetConnection.generated.h"
@@ -379,12 +380,26 @@ public:
 	int32			QueuedBits;			// Bits assumed to be queued up.
 	int32			TickCount;				// Count of ticks.
 	uint32			LastProcessedFrame;   // The last frame where we gathered and processed actors for this connection
+
 	/** The last time an ack was received */
+	UE_DEPRECATED(4.25, "Please use GetLastRecvAckTime() instead.")
 	float			LastRecvAckTime;
+
+	double GetLastRecvAckTime() const { return LastRecvAckTimestamp; }
+
 	/** Time when connection request was first initiated */
+	UE_DEPRECATED(4.25, "Please use GetConnectTime() instead.")
 	float			ConnectTime;
 
+	double GetConnectTime() const { return ConnectTimestamp; }
+
 private:
+	/** The last time an ack was received */
+	double			LastRecvAckTimestamp;
+
+	/** Time when connection request was first initiated */
+	double			ConnectTimestamp;
+
 	FPacketTimestamp	LastOSReceiveTime;		// Last time a packet was received at the OS/NIC layer
 	bool				bIsOSReceiveTimeLocal;	// Whether LastOSReceiveTime uses the same clock as the game, or needs translating
 
@@ -531,6 +546,15 @@ public:
 	double			LogCallLastTime;
 	int32			LogCallCount;
 	int32			LogSustainedCount;
+
+	uint32 GetConnectionId() const { return ConnectionId; }
+	void SetConnectionId(uint32 InConnectionId) { ConnectionId = InConnectionId; }
+
+	/** If this is a child connection it will return the topmost parent coonnection ID, otherwise it will return its own ID. */
+	ENGINE_API uint32 GetParentConnectionId() const;
+
+	FNetTraceCollector* GetInTraceCollector() const;
+	FNetTraceCollector* GetOutTraceCollector() const;
 
 	// ----------------------------------------------
 	// Actor Channel Accessors
@@ -973,7 +997,7 @@ public:
 	/**
 	 * Returns true if encryption is enabled for this connection.
 	 */
-	ENGINE_API bool IsEncryptionEnabled() const;
+	ENGINE_API virtual bool IsEncryptionEnabled() const;
 
 	/** 
 	* Gets a unique ID for the connection, this ID depends on the underlying connection
@@ -1029,8 +1053,9 @@ public:
 	 */
 	ENGINE_API virtual void ReceivedRawPacket(void* Data,int32 Count);
 
-	/** Send a raw bunch. */
-	ENGINE_API int32 SendRawBunch( FOutBunch& Bunch, bool InAllowMerge );
+	/** Send a raw bunch */
+	ENGINE_API int32 SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FNetTraceCollector* BunchCollector);
+	inline int32 SendRawBunch( FOutBunch& Bunch, bool InAllowMerge ) { return SendRawBunch(Bunch, InAllowMerge, nullptr); }
 
 	/** The maximum number of bits allowed within a single bunch. */
 	FORCEINLINE int32 GetMaxSingleBunchSizeBits() const
@@ -1108,7 +1133,7 @@ public:
 	/**
 	* Return current timeout value that should be used
 	*/
-	ENGINE_API float GetTimeoutValue();
+	ENGINE_API virtual float GetTimeoutValue();
 
 	/** Adds the channel to the ticking channels list. USed to selectively tick channels that have queued bunches or are pending dormancy. */
 	void StartTickingChannel(UChannel* Channel) { ChannelsToTick.AddUnique(Channel); }
@@ -1252,6 +1277,9 @@ protected:
 	/** Called internally to destroy an actor during replay fast-forward when the actor channel index will be recycled */
 	ENGINE_API virtual void DestroyIgnoredActor(AActor* Actor);
 
+	/** This is called whenever a connection has passed the relative time to be considered timed out. */
+	ENGINE_API virtual void HandleConnectionTimeout(const FString& Error);
+
 private:
 	/**
 	 * The channels that need ticking. This will be a subset of OpenChannels, only including
@@ -1307,6 +1335,18 @@ private:
 
 	/** Calculate the average jitter while adding the new packet's jitter value */
 	void ProcessJitter(uint32 PacketJitterClockTimeMS);
+
+	/** Flush outgoing packet if needed before we write data to it */
+	void PrepareWriteBitsToSendBuffer(const int32 SizeInBits, const int32 ExtraSizeInBits);
+	
+	/** Write data to outgoing send buffer, PrepareWriteBitsToSendBuffer should be called before to make sure that
+		data will fit in packet. */
+	int32 WriteBitsToSendBufferInternal( 
+		const uint8 *	Bits, 
+		const int32		SizeInBits, 
+		const uint8 *	ExtraBits, 
+		const int32		ExtraSizeInBits,
+		EWriteBitsDataType DataType =  EWriteBitsDataType::Unknown);
 
 	/**
 	 * on the server, the world the client has told us it has loaded
@@ -1374,6 +1414,16 @@ private:
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;
+
+	/** Unique ID that can be used instead of passing around a pointer to the connection */
+	uint32 ConnectionId;
+
+#if UE_NET_TRACE_ENABLED
+	FNetTraceCollector* InTraceCollector = nullptr;
+	FNetTraceCollector* OutTraceCollector = nullptr;
+	/** Cached NetTrace id from the NetDriver */
+	uint32 NetTraceId = 0;
+#endif
 
 	/** 
 	* Set to true after a packet is flushed (sent) and reset at the end of the connection's Tick. 
@@ -1451,4 +1501,13 @@ public:
 
 	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() override { return nullptr; }
 };
+
+#if UE_NET_TRACE_ENABLED
+	inline FNetTraceCollector* UNetConnection::GetInTraceCollector() const { return InTraceCollector; }
+	inline FNetTraceCollector* UNetConnection::GetOutTraceCollector() const { return OutTraceCollector; }
+#else
+	inline FNetTraceCollector* UNetConnection::GetInTraceCollector() const { return nullptr; }
+	inline FNetTraceCollector* UNetConnection::GetOutTraceCollector() const { return nullptr; }
+#endif
+
 

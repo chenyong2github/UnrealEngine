@@ -37,6 +37,9 @@ public:
 
 	void AddReferencedEffects(FReferenceCollector& Collector);
 
+
+	virtual void BeginDestroy() override;
+
 protected:
 
 #if WITH_EDITORONLY_DATA

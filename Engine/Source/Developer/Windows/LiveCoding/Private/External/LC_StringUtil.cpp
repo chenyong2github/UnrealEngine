@@ -6,11 +6,11 @@
 
 namespace detail
 {
-	std::wstring ToWideString(const char* utf8Str, size_t length)
+	static std::wstring ToWideString(const char* utf8Str, size_t length)
 	{
 		const int sizeNeeded = ::MultiByteToWideChar(CP_UTF8, 0, utf8Str, static_cast<int>(length), NULL, 0);
 
-		wchar_t* wstrTo = static_cast<wchar_t*>(_alloca(sizeNeeded * sizeof(wchar_t)));
+		wchar_t* wstrTo = static_cast<wchar_t*>(_alloca(static_cast<size_t>(sizeNeeded) * sizeof(wchar_t)));
 
 		::MultiByteToWideChar(CP_UTF8, 0, utf8Str, static_cast<int>(length), wstrTo, sizeNeeded);
 		return std::wstring(wstrTo, static_cast<size_t>(sizeNeeded));
@@ -144,6 +144,24 @@ namespace string
 	}
 
 
+	std::string EraseAll(const std::string& str, const std::string& subString)
+	{
+		const size_t subStringLength = subString.length();
+		std::string result(str);
+
+		for (;;)
+		{
+			const size_t pos = result.find(subString);
+			if (pos == std::string::npos)
+			{
+				return result;
+			}
+
+			result.erase(pos, subStringLength);
+		}
+	}
+
+
 	std::wstring EraseAll(const std::wstring& str, const std::wstring& subString)
 	{
 		const size_t subStringLength = subString.length();
@@ -183,6 +201,28 @@ namespace string
 	const wchar_t* Find(const wchar_t* str, const wchar_t* subString)
 	{
 		return wcsstr(str, subString);
+	}
+
+
+	const wchar_t* Find(const wchar_t* str, size_t strLength, const wchar_t* subString, size_t subStringLength)
+	{
+		const wchar_t* end = str + strLength;
+		while (str < end - subStringLength)
+		{
+			size_t i = 0;
+			for (; i < subStringLength; ++i)
+			{
+				if (str[i] != subString[i])
+					break;
+			}
+
+			if (i == subStringLength)
+				return str;
+
+			++str;
+		}
+
+		return nullptr;
 	}
 
 

@@ -418,9 +418,36 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 			{
 				if (InputValues.DynamicNode->FunctionScript->bDeprecated)
 				{
-					FText LongMessage = InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr ?
-						FText::Format(LOCTEXT("DynamicInputScriptDeprecationLong", "The script asset for the assigned dynamic input {0} has been deprecated. Suggested replacement: {1}"), FText::FromString(InputValues.DynamicNode->GetFunctionName()), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
-						FText::Format(LOCTEXT("DynamicInputScriptDeprecationUnknownLong", "The script asset for the assigned dynamic input {0} has been deprecated."), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("ScriptName"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
+
+					if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						Args.Add(TEXT("Recommendation"), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName()));
+					}
+
+					if (InputValues.DynamicNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						Args.Add(TEXT("Message"), InputValues.DynamicNode->FunctionScript->DeprecationMessage);
+					}
+
+					FText FormatString = LOCTEXT("DynamicInputScriptDeprecationUnknownLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated.");
+
+					if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr &&
+						InputValues.DynamicNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageAndRecommendationLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason: {Message}. Suggested replacement: {Recommendation}");
+					}
+					else if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						FormatString = LOCTEXT("DynamicInputScriptDeprecationLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Suggested replacement: {Recommendation}");
+					}
+					else if (InputValues.DynamicNode->FunctionScript->DeprecationMessage.IsEmptyOrWhitespace() == false)
+					{
+						FormatString = LOCTEXT("DynamicInputScriptDeprecationMessageLong", "The script asset for the assigned dynamic input {ScriptName} has been deprecated. Reason: {Message}");
+					}
+
+					FText LongMessage = FText::Format(FormatString, Args);
 
 					int32 AddIdx = NewIssues.Add(FStackIssue(
 						EStackIssueSeverity::Warning,
@@ -449,7 +476,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 				if (InputValues.DynamicNode->FunctionScript->bExperimental)
 				{
 					FText ErrorMessage;
-					if (InputValues.DynamicNode->FunctionScript->ExperimentalMessage.IsEmpty())
+					if (InputValues.DynamicNode->FunctionScript->ExperimentalMessage.IsEmptyOrWhitespace())
 					{
 						ErrorMessage = FText::Format(LOCTEXT("DynamicInputScriptExperimental", "The script asset for the dynamic input {0} is experimental, use with care!"), FText::FromString(InputValues.DynamicNode->GetFunctionName()));
 					}
@@ -1238,11 +1265,6 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 
 bool UNiagaraStackFunctionInput::CanReset() const
 {
-	if (IsStaticParameter())
-	{
-		// Static switch parameters only hold a single value in the default pin, so we disable resetting to prevent a special implementation for them
-		return false;
-	}
 	if (bCanResetCache.IsSet() == false)
 	{
 		bool bNewCanReset;
@@ -1261,8 +1283,37 @@ bool UNiagaraStackFunctionInput::CanReset() const
 		{
 			UEdGraphPin* DefaultPin = GetDefaultPin();
 			if (ensure(DefaultPin != nullptr))
-			{			
-				if(DefaultPin->LinkedTo.Num() == 0)
+			{
+				if (IsStaticParameter())
+				{
+					bNewCanReset = true;
+
+					// Static switch parameters only hold a single value in the default pin, so we compare it to the default value in the switch metadata
+					UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetSource())->NodeGraph;
+					const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(OwningFunctionCallNode->GetSchema());
+
+					for (const FNiagaraVariable& SwitchVar : FunctionGraph->FindStaticSwitchInputs())
+					{
+						FEdGraphPinType PinType = Schema->TypeDefinitionToPinType(SwitchVar.GetType());
+						if (DefaultPin->PinName.IsEqual(SwitchVar.GetName()) && DefaultPin->PinType == PinType)
+						{
+							TOptional<FNiagaraVariableMetaData> MetaData = FunctionGraph->GetMetaData(SwitchVar);
+
+							int32 DefaultValue = MetaData.IsSet() ? MetaData->StaticSwitchDefaultValue  : 0;
+							int32 CurrentPinValue = 0;
+							if (FNiagaraEditorUtilities::ResolveConstantValue(DefaultPin, CurrentPinValue))
+							{
+								bNewCanReset = DefaultValue != CurrentPinValue;
+							}
+							else
+							{
+								bNewCanReset = false;
+							}
+							break;
+						}
+					}
+				}
+				else if (DefaultPin->LinkedTo.Num() == 0)
 				{
 					if (UEdGraphPin* OverridePin = GetOverridePin())
 					{
@@ -1387,6 +1438,34 @@ void UNiagaraStackFunctionInput::Reset()
 			}
 
 			FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
+		}
+	}
+	else if (IsStaticParameter())
+	{
+		// Static switch parameters only hold a single value in the default pin, so we directly set it to the default value from the switch metadata
+		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->FunctionScript->GetSource())->NodeGraph;
+		const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(OwningFunctionCallNode->GetSchema());
+		UEdGraphPin* DefaultPin = GetDefaultPin();
+
+		for (FNiagaraVariable SwitchVar : FunctionGraph->FindStaticSwitchInputs())
+		{
+			FEdGraphPinType PinType = Schema->TypeDefinitionToPinType(SwitchVar.GetType());
+			if (DefaultPin->PinName.IsEqual(SwitchVar.GetName()) && DefaultPin->PinType == PinType)
+			{
+				TOptional<FNiagaraVariableMetaData> MetaData = FunctionGraph->GetMetaData(SwitchVar);
+
+				int32 DefaultValue = MetaData.IsSet() ? MetaData->StaticSwitchDefaultValue : 0;
+				SwitchVar.SetValue(DefaultValue);
+				FString PinDefaultValue;
+				if (ensureMsgf(Schema->TryGetPinDefaultValueFromNiagaraVariable(SwitchVar, PinDefaultValue), TEXT("Could not generate value string to reset static switch parameter.")))
+				{
+					DefaultPin->DefaultValue = PinDefaultValue;
+				}
+
+				OwningFunctionCallNode->GetNiagaraGraph()->NotifyGraphNeedsRecompile();
+				FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
+				break;
+			}
 		}
 	}
 	else

@@ -1170,7 +1170,7 @@ FPrimitiveViewRelevance FNavMeshSceneProxy::GetViewRelevance(const FSceneView* V
 	Result.bDrawRelevance = bVisible && IsShown(View);
 	Result.bDynamicRelevance = true;
 	// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
-	Result.bSeparateTranslucencyRelevance = Result.bNormalTranslucencyRelevance = bVisible && IsShown(View);
+	Result.bSeparateTranslucency = Result.bNormalTranslucency = bVisible && IsShown(View);
 	return Result;
 }
 

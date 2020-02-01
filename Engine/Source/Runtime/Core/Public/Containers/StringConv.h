@@ -876,13 +876,13 @@ private:
 				return UNICODE_BOGUS_CHAR_CODEPOINT;
 			}
 
-			const uint32 HighSurrogate = Codepoint;
+			const uint16 HighSurrogate = (uint16)Codepoint;
 			Codepoint = *(++CodeUnitPtr);
 
 			// If our High Surrogate is set, check if this character is the matching low-surrogate
 			if (StringConv::IsLowSurrogate(Codepoint))
 			{
-				const uint32 LowSurrogate = Codepoint;
+				const uint16 LowSurrogate = (uint16)Codepoint;
 
 				// Combine our high and low surrogates together to a single Unicode codepoint
 				Codepoint = StringConv::EncodeSurrogate(HighSurrogate, LowSurrogate);

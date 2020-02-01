@@ -76,17 +76,7 @@ public:
 
 	virtual int32 GetAddressInfoHintFlag(EAddressInfoFlags InFlags) const override;
 
-	/**
-	 * Android platform specific look up to determine the host address
-	 * as many Android devices have multiple interfaces (wifi, cellular et al.)
-	 * Prefer Wifi, fallback to cellular, then anything else present
-	 *
-	 * @param Out the output device to log messages to
-	 * @param bCanBindAll true if all can be bound (no primarynet), false otherwise
-	 *
-	 * @return The local host address
-	 */
-	virtual TSharedRef<FInternetAddr> GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll) override;
+	virtual bool GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses) override;
 
 	virtual FName GetDefaultSocketProtocolFamily() const override
 	{

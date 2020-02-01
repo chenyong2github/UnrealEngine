@@ -122,6 +122,8 @@ public:
 	const FUniqueNetIdRepl& GetOwningLocalUserId() const { return OwningLocalUserId; }
 	const FUniqueNetIdRepl& GetPartyLeaderId() const { return CurrentLeaderId; }
 	bool IsLocalPlayerPartyLeader() const;
+	bool IsPartyLeader(const ULocalPlayer& LocalPlayer) const;
+	bool IsPartyLeaderLocal() const;
 
 	FChatRoomId GetChatRoomId() const;
 	bool IsPersistentParty() const;

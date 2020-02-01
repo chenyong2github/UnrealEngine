@@ -183,10 +183,16 @@ namespace commands
 		static const uint32_t ID = DisconnectClient::ID + 1u;
 	};
 
+	// tell Live++ to trigger a restart
+	struct TriggerRestart
+	{
+		static const uint32_t ID = TriggerRecompile::ID + 1u;
+	};
+
 	// tell Live++ to log a message
 	struct LogMessage
 	{
-		static const uint32_t ID = TriggerRecompile::ID + 1u;
+		static const uint32_t ID = TriggerRestart::ID + 1u;
 	};
 
 	// tell Live++ to build a patch using an array of object files

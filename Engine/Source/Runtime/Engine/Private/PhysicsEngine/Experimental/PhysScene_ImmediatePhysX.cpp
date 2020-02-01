@@ -592,9 +592,9 @@ void FPhysScene_ImmediatePhysX::FlushDeferredCollisionDisableTableQueue()
     // @todo(mlentine): For new we ignore this as we probably want a different format for this going forward
 }
 
-void FPhysScene_ImmediatePhysX::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning)
+bool FPhysScene_ImmediatePhysX::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning)
 {
-
+	return false;
 }
 
 void FPhysScene_ImmediatePhysX::ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp)

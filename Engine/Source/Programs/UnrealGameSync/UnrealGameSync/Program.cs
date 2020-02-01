@@ -46,13 +46,16 @@ namespace UnrealGameSync
 		{
 			string ServerAndPort = null;
 			string UserName = null;
-			string UpdatePath = null;
-			Utility.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref UpdatePath);
+			string BaseUpdatePath = null;
+			Utility.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
 
 			List<string> RemainingArgs = new List<string>(Args);
 
 			string UpdateSpawn;
 			ParseArgument(RemainingArgs, "-updatespawn=", out UpdateSpawn);
+
+			string UpdatePath;
+			ParseArgument(RemainingArgs, "-updatepath=", out UpdatePath);
 
 			bool bRestoreState;
 			ParseOption(RemainingArgs, "-restorestate", out bRestoreState);

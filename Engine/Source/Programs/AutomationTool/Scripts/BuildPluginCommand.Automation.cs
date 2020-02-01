@@ -208,7 +208,7 @@ class BuildPlugin : BuildCommand
 				Arguments += InAdditionalArgs;
 			}
 
-			CommandUtils.RunUBT(CmdEnv, UE4Build.GetUBTExecutable(), String.Format("{0} {1} {2} {3}", TargetName, Platform, Configuration, Arguments));
+			CommandUtils.RunUBT(CmdEnv, UE4Build.GetUBTExecutable(), HostProjectFile, TargetName, Platform, Configuration, Arguments);
 		}
 	}
 
@@ -311,7 +311,7 @@ class BuildPlugin : BuildCommand
 					UnrealTargetPlatform TargetPlatform;
 					if (!UnrealTargetPlatform.TryParse(TargetPlatformName, out TargetPlatform))
 					{
-						throw new AutomationException("Unknown target platform '{0}' specified on command line");
+						throw new AutomationException("Unknown target platform '{0}' specified on command line", TargetPlatformName);
 					}
 					if(TargetPlatforms.Contains(TargetPlatform))
 					{

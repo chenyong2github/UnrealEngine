@@ -1105,6 +1105,7 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 	// We need to sort the variables in a stable manner.
 	TArray<UNiagaraScriptVariable*> Values;
 	VariableToScriptVariable.GenerateValueArray(Values);
+	Values.Remove(nullptr);
 	Values.Sort([&](const UNiagaraScriptVariable& A, const UNiagaraScriptVariable& B)
 	{
 		const FName& AName = A.Variable.GetName();

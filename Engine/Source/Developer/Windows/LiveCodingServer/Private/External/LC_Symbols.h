@@ -45,15 +45,34 @@ namespace symbols
 
 	struct Contribution
 	{
-		uint32_t compilandNameIndex;				// name of the compiland (.obj file) that contributed this
+		// index of the name of the compiland (.obj file) that contributed this
+		uint32_t compilandNameIndex;
 		uint32_t rva;
 		uint32_t size;
 	};
 
 	struct ContributionDB
 	{
-		types::vector<ImmutableString> stringTable;
-		types::vector<Contribution*> contributions;	// stores all contributions gathered from a .PDB file, ordered by ascending RVA
+		// string table that stores the name of a compiland (.obj file).
+		// indexed by a contribution's compiland name index.
+		// this is loaded initially when gathering contributions.
+		types::vector<ImmutableString> originalStringTable;
+
+		// string table that stores the name of an .obj file on disk.
+		// indexed by a contribution's compiland name index.
+		// this is filled after both contributions and compilands have been loaded.
+		types::vector<ImmutableString> objOnDiskStringTable;
+
+		// stores all contributions gathered from a .PDB file, ordered by ascending RVA
+		types::vector<Contribution*> contributions;
+
+		// array of all contributions per compiland name index, each ordered by ascending RVA.
+		// indexed by a contribution's compiland name index.
+		typedef types::vector<Contribution*> ContributionsPerCompiland;
+		types::vector<ContributionsPerCompiland> contributionsPerCompilandNameIndex;
+
+		// lookup-table from compiland name to corresponding compiland name index
+		types::StringMap<uint32_t> compilandNameToCompilandNameIndex;
 	};
 
 	struct CompilandSourceFiles
@@ -227,9 +246,12 @@ namespace symbols
 	// CACHE: must be kept per module
 	ContributionDB* GatherContributions(Provider* provider);
 
+	// converts the string table of .obj files to a string table of real .obj files on disk,
+	// and builds a per-compiland array of contributions.
+	void FinalizeContributions(const CompilandDB* compilandDb, ContributionDB* db);
+
 	// CACHE: temporary, throw away after use
 	DiaCompilandDB* GatherDiaCompilands(Provider* provider);
-
 
 	// gathers user-defined types for a given compiland
 	UserDefinedTypesDB* GatherUserDefinedTypes(const DiaCompilandDB* diaCompilandDb, const Compiland* compiland);
@@ -322,7 +344,14 @@ namespace symbols
 	// finds a contribution by RVA, binary search. RVA need not be exact, only must lie inside any of the contributions
 	const Contribution* FindContributionByRVA(const ContributionDB* db, uint32_t rva);
 
-	ImmutableString GetContributionCompilandName(const CompilandDB* compilandDb, const ContributionDB* db, const Contribution* contribution);
+	// returns the compiland name of a given contribution
+	ImmutableString GetContributionCompilandName(const ContributionDB* db, const Contribution* contribution);
+
+	// returns all contributions for a certain compiland name
+	const ContributionDB::ContributionsPerCompiland* GetContributionsForCompilandName(const ContributionDB* db, const ImmutableString& compilandName);
+
+	// returns all contributions for a certain compiland name index
+	const ContributionDB::ContributionsPerCompiland* GetContributionsForCompilandNameIndex(const ContributionDB* db, uint32_t compilandNameIndex);
 
 	const ImmutableString& GetImageSectionName(const ImageSectionDB* db, const ImageSection* imageSection);
 

@@ -284,7 +284,7 @@ void FNiagaraRenderer::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher
 		NumRegisteredGPURenderers = Batcher->GetGPUInstanceCounterManager().GetGPURendererCount();
 		if (NumRegisteredGPURenderers)
 		{
-			NumRegisteredGPURenderers->Value += 1;
+			NumRegisteredGPURenderers->Value += GetMaxIndirectArgs();
 		}
 	}
 }
@@ -293,7 +293,7 @@ void FNiagaraRenderer::ReleaseRenderThreadResources()
 {
 	if (NumRegisteredGPURenderers)
 	{
-		NumRegisteredGPURenderers->Value -= 1;
+		NumRegisteredGPURenderers->Value -= GetMaxIndirectArgs();
 		NumRegisteredGPURenderers.SafeRelease();
 	}
 }
@@ -309,7 +309,7 @@ FPrimitiveViewRelevance FNiagaraRenderer::GetViewRelevance(const FSceneView* Vie
 	Result.bDynamicRelevance = bHasDynamicData;
 	if (bHasDynamicData)
 	{
-		Result.bOpaqueRelevance = View->Family->EngineShowFlags.Bounds;
+		Result.bOpaque = View->Family->EngineShowFlags.Bounds;
 		DynamicDataRender->GetMaterialRelevance().SetPrimitiveViewRelevance(Result);
 	}
 

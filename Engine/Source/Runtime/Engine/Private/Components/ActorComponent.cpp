@@ -179,7 +179,10 @@ FGlobalComponentRecreateRenderStateContext::FGlobalComponentRecreateRenderStateC
 	// recreate render state for all components.
 	for (UActorComponent* Component : TObjectRange<UActorComponent>())
 	{
-		ComponentContexts.Add(new FComponentRecreateRenderStateContext(Component, &ScenesToUpdateAllPrimitiveSceneInfos));
+		if (Component->IsRegistered() && Component->IsRenderStateCreated())
+		{
+			ComponentContexts.Emplace(Component, &ScenesToUpdateAllPrimitiveSceneInfos);
+		}
 	}
 
 	UpdateAllPrimitiveSceneInfos();

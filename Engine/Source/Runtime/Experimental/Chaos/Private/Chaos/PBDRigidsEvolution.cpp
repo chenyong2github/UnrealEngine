@@ -29,7 +29,7 @@ namespace Chaos
 			AABBMaxChildrenInLeaf = 500;
 			AABBMaxTreeDepth = 200;
 			MaxPayloadSize = 100000;
-			IterationsPerTimeSlice = 40000;
+			IterationsPerTimeSlice = 4000;
 		}
 	} ConfigSettings;
 
@@ -381,8 +381,18 @@ namespace Chaos
 			ApplyParticlePendingData(Itr.Value, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
 			if (!bIsSingleThreaded)
 			{
-			ApplyParticlePendingData(Itr.Value, *AsyncExternalAcceleration, false);
-		}
+				ApplyParticlePendingData(Itr.Value, *AsyncExternalAcceleration, false);
+			}
+
+			// Async queue deletes complete, unique index free to be consumed by new particles.
+			if(Itr.Value.bDelete)
+			{
+				//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
+				//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
+				//If we want to support that, the UniqueIndex must be kept around until GT goes away
+				//This is hard to do, but would probably mean the ownership of the index is in the proxy
+				Particles.GetUniqueIndices().ReleaseIdx(Itr.Value.DeleteAccelerationHandle.UniqueIdx());
+			}
 		}
 		AsyncAccelerationQueue.Empty();
 

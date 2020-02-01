@@ -53,6 +53,7 @@ public:
 	virtual bool GetHostName(FString& HostName) override;
 
 	virtual TSharedRef<FInternetAddr> CreateInternetAddr() override;
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr(const FName RequestedProtocol) override;
 
 	virtual const TCHAR* GetSocketAPIName() const override;
 
@@ -60,7 +61,7 @@ public:
 	virtual ESocketErrors TranslateErrorCode(int32 Code) override {	return (ESocketErrors)Code;	}
 
 	virtual bool GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses) override;
-	virtual TSharedRef<FInternetAddr> GetLocalBindAddr(FOutputDevice& Out) override;
+	virtual TArray<TSharedRef<FInternetAddr>> GetLocalBindAddresses() override;
 	virtual bool HasNetworkDevice() override { return true; }
 	virtual bool IsSocketWaitSupported() const override { return false; }
 	virtual bool RequiresChatDataBeSeparate() override { return false; }

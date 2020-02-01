@@ -137,6 +137,7 @@ public:
 
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
+	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
 
 #if XGE_FIXED
 	template<typename PayloadType>
@@ -377,7 +378,7 @@ public:
 	ENGINE_API void DeferredAddCollisionDisableTable(uint32 SkelMeshCompID, TMap<struct FRigidBodyIndexPair, bool> * CollisionDisableTable);
 	ENGINE_API void DeferredRemoveCollisionDisableTable(uint32 SkelMeshCompID);
 
-	void MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning);
+	bool MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning);
 	void ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp);
 
 	void AddPendingOnConstraintBreak(FConstraintInstance* ConstraintInstance, int32 SceneType);
@@ -485,6 +486,21 @@ private:
 
 
 	void CompleteSceneSimulation(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+
+	/** Process kinematic updates on any deferred skeletal meshes */
+	void UpdateKinematicsOnDeferredSkelMeshes();
+
+	/** Information about how to perform kinematic update before physics */
+	struct FDeferredKinematicUpdateInfo
+	{
+		/** Whether to teleport physics bodies or not */
+		ETeleportType	TeleportType;
+		/** Whether to update skinning info */
+		bool			bNeedsSkinning;
+	};
+
+	/** Map of SkeletalMeshComponents that need their bone transforms sent to the physics engine before simulation. */
+	TArray<TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>>	DeferredKinematicUpdateSkelMeshes;
 
 	FPhysScene_Chaos Scene;
 

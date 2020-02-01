@@ -349,7 +349,7 @@ FAddressInfoResult FSocketSubsystemSteam::GetAddressInfo(const TCHAR* HostName, 
 	RawAddress.RemoveFromStart(STEAM_URL_PREFIX);
 
 	// Steam ids are pure numeric values, so we can use this to determine if the input is a SteamID.
-	if (RawAddress.IsNumeric())
+	if (RawAddress.IsNumeric() && HostName != nullptr)
 	{
 		FAddressInfoResult SteamResult(HostName, ServiceName);
 
@@ -474,11 +474,24 @@ ESocketErrors FSocketSubsystemSteam::TranslateErrorCode(int32 Code)
 	return (ESocketErrors)LastSocketError;
 }
 
+bool FSocketSubsystemSteam::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses)
+{
+	TArray<TSharedRef<FInternetAddr>> BindArray = GetLocalBindAddresses();
+	for (const auto& BindAddr : BindArray)
+	{
+		OutAddresses.Add(BindAddr);
+	}
+
+	return true;
+}
+
 /**
  *	Get local IP to bind to
  */
-TSharedRef<FInternetAddr> FSocketSubsystemSteam::GetLocalBindAddr(FOutputDevice& Out)
+TArray<TSharedRef<FInternetAddr>> FSocketSubsystemSteam::GetLocalBindAddresses()
 {
+	TArray<TSharedRef<FInternetAddr>> OutArray;
+
 	FInternetAddrSteam* SteamAddr = nullptr;
 	CSteamID SteamId;
 	if (SteamUser())
@@ -499,7 +512,8 @@ TSharedRef<FInternetAddr> FSocketSubsystemSteam::GetLocalBindAddr(FOutputDevice&
 		SteamAddr = new FInternetAddrSteam();
 	}
 
-	return MakeShareable(SteamAddr);
+	OutArray.Add(MakeShareable(SteamAddr));
+	return OutArray;
 }
 
 /**

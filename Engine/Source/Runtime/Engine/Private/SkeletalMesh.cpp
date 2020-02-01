@@ -5062,6 +5062,7 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 						FRayTracingGeometrySegment Segment;
 						Segment.FirstPrimitive = Section.BaseIndex / 3;
 						Segment.NumPrimitives = Section.NumTriangles;
+						Segment.bEnabled = !Section.bDisabled;
 						GeometrySections.Add(Segment);
 					}
 					MeshObject->GetRayTracingGeometry()->Initializer.Segments = GeometrySections;
@@ -5160,7 +5161,7 @@ FPrimitiveViewRelevance FSkeletalMeshSceneProxy::GetViewRelevance(const FSceneVi
 	MaterialRelevance.SetPrimitiveViewRelevance(Result);
 
 #if !UE_BUILD_SHIPPING
-	Result.bSeparateTranslucencyRelevance |= View->Family->EngineShowFlags.Constraints;
+	Result.bSeparateTranslucency |= View->Family->EngineShowFlags.Constraints;
 #endif
 
 #if WITH_EDITOR
@@ -5171,7 +5172,7 @@ FPrimitiveViewRelevance FSkeletalMeshSceneProxy::GetViewRelevance(const FSceneVi
 	}
 #endif
 
-	Result.bVelocityRelevance = IsMovable() && Result.bOpaqueRelevance && Result.bRenderInMainPass;
+	Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
 
 	return Result;
 }

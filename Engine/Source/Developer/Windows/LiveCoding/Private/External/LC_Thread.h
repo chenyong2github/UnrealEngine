@@ -100,9 +100,9 @@ inline thread::Handle thread::Create(const char* threadName, unsigned int stackS
 	// here's the trick: we generate another capture-less lambda that has the same signature as a thread function,
 	// and internally cast the given object to its original type, calling the lambda with captures from within
 	// this capture-less lambda.
-	auto capturelessLambda = [](void* captureLambda) -> unsigned int
+	auto capturelessLambda = [](void* lambdaContext) -> unsigned int
 	{
-		CaptureLambdaType* lambdaOnHeap = static_cast<CaptureLambdaType*>(captureLambda);
+		CaptureLambdaType* lambdaOnHeap = static_cast<CaptureLambdaType*>(lambdaContext);
 		const unsigned int result = (*lambdaOnHeap)();
 		delete lambdaOnHeap;
 
@@ -141,9 +141,9 @@ inline thread::Handle thread::Create(const char* threadName, unsigned int stackS
 	// here's the trick: we generate another capture-less lambda that has the same signature as a thread function,
 	// and internally cast the given object to its original type, calling the lambda with captures from within
 	// this capture-less lambda.
-	auto capturelessLambda = [](void* captureLambda) -> unsigned int
+	auto capturelessLambda = [](void* lambdaContext) -> unsigned int
 	{
-		CaptureLambdaType* lambdaOnHeap = static_cast<CaptureLambdaType*>(captureLambda);
+		CaptureLambdaType* lambdaOnHeap = static_cast<CaptureLambdaType*>(lambdaContext);
 		const unsigned int result = (*lambdaOnHeap)();
 		delete lambdaOnHeap;
 

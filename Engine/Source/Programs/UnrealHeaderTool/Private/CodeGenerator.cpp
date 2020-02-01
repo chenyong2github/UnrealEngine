@@ -163,36 +163,35 @@ namespace
 	/** Whether or not the given class has any replicated properties. */
 	static bool ClassHasReplicatedProperties(UClass* Class)
 	{
-		for (TFieldIterator<FProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		if (!Class->HasAnyClassFlags(CLASS_ReplicationDataIsSetUp))
 		{
-			if ((It->PropertyFlags & CPF_Net) != 0)
+			for (TFieldIterator<FProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 			{
-				return true;
+				if ((It->PropertyFlags & CPF_Net) != 0)
+				{
+					return true;
+				}
 			}
 		}
 
-		return false;
+		return Class->FirstOwnedClassRep < Class->ClassReps.Num();
 	}
 
-	static void ExportNetData(FOutputDevice& Out, UClass* Class, UClass* ParentRepClass, const TCHAR* API)
+	static void ExportNetData(FOutputDevice& Out, UClass* Class, const TCHAR* API)
 	{
 		const TArray<FRepRecord>& ClassReps = Class->ClassReps;
-		
-		const FString NetfieldStart = ParentRepClass
-				? FString::Printf(TEXT("(uint16)%s%s::ENetFields_Private::NETFIELD_REP_END + (uint16)1"), ParentRepClass->GetPrefixCPP(), *ParentRepClass->GetName())
-				: FString(TEXT("0"));
 
 		FUHTStringBuilder NetFieldBuilder;
 		NetFieldBuilder.Logf(TEXT(""
 		"\tenum class ENetFields_Private : uint16\r\n"
 		"\t{\r\n"
-		"\t\tNETFIELD_REP_START=%s,\r\n"), *NetfieldStart);
+		"\t\tNETFIELD_REP_START=(uint16)((int32)Super::ENetFields_Private::NETFIELD_REP_END + (int32)1),\r\n"));
 
 		FUHTStringBuilder ArrayDimBuilder;
 
 		bool bAnyStaticArrays = false;
 		bool bIsFirst = true;
-		for (int32 ClassRepIndex = ClassReps.Num() - Class->NetProperties.Num() - Class->NetFields.Num(); ClassRepIndex < ClassReps.Num(); ++ClassRepIndex)
+		for (int32 ClassRepIndex = Class->FirstOwnedClassRep; ClassRepIndex < ClassReps.Num(); ++ClassRepIndex)
 		{
 			const FRepRecord& ClassRep = ClassReps[ClassRepIndex];
 			const FString PropertyName = ClassRep.Property->GetName();
@@ -276,21 +275,19 @@ namespace
 			}
 		}
 
-		UClass* ParentRepClass = nullptr;
-		Class->SetUpUhtReplicationData(&ParentRepClass);
 
-		ExportNetData(Writer, Class, ParentRepClass, API);
+		ExportNetData(Writer, Class, API);
 		
-		// If we don't have any Super Classes that have replicated properties,
-		// then we're the base most replicated class, and we should add in our interface stuff.
-		if (!ParentRepClass)
+		// If this class has replicated properties and it owns the first one, that means
+		// it's the base most replicated class. In that case, go ahead and add our interface macro.
+		if (Class->ClassReps.Num() > 0 && Class->FirstOwnedClassRep == 0)
 		{
 			OutFlags |= FNativeClassHeaderGenerator::EExportClassOutFlags::NeedsPushModelHeaders;
 			Writer.Logf(TEXT(
 				"private:\r\n"
-				"\tREPLICATED_BASE_CLASS(%s)\r\n"
+				"\tREPLICATED_BASE_CLASS(%s%s)\r\n"
 				"public:\r\n"
-			), *Class->GetName());
+			), Class->GetPrefixCPP(), *Class->GetName());
 		}
 	}
 }
@@ -2532,7 +2529,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		FUHTStringBuilder ValidationBuilder;
 		ValidationBuilder.Log(TEXT("\t\tconst bool bIsValid = true"));
 
-		for (int32 i = Class->ClassReps.Num() - Class->NetFields.Num(); i < Class->ClassReps.Num(); ++i)
+		for (int32 i = Class->FirstOwnedClassRep; i < Class->ClassReps.Num(); ++i)
 		{
 			const FProperty* const Property = Class->ClassReps[i].Property;
 			const FString PropertyName = Property->GetName();
@@ -5726,7 +5723,7 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		{
 			if (ClassHasReplicatedProperties(Class))
 			{
-				Class->SetUpUhtReplicationData(nullptr);
+				Class->SetUpUhtReplicationData();
 			}
 		}
 	}

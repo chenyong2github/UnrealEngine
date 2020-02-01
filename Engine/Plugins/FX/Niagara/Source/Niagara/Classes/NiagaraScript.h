@@ -386,6 +386,10 @@ public:
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	uint32 bDeprecated : 1;
 
+	/* Message to display when the script is deprecated. */
+	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated", MultiLine = true))
+	FText DeprecationMessage;
+
 	/* Which script to use if this is deprecated.*/
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated"))
 	UNiagaraScript* DeprecationRecommendation;
@@ -565,7 +569,7 @@ public:
 	NIAGARA_API bool DidScriptCompilationSucceed(bool bGPUScript) const;
 
 #if WITH_EDITORONLY_DATA
-	NIAGARA_API void InvalidateCompileResults();
+	NIAGARA_API void InvalidateCompileResults(const FString& Reason);
 	FText GetDescription() { return Description.IsEmpty() ? FText::FromString(GetName()) : Description; }
 
 	/** Helper to convert the struct from its binary data out of the DDC to it's actual in-memory version.

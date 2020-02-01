@@ -15,6 +15,8 @@ void UOculusNetConnection::InitBase(UNetDriver* InDriver, class FSocket* InSocke
 		return;
 	}
 
+	DisableAddressResolution();
+
 	// Pass the call up the chain
 	UNetConnection::InitBase(InDriver, InSocket, InURL, InState,
 		// Use the default packet size/overhead unless overridden by a child class

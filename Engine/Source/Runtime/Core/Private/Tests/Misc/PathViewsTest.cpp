@@ -2,8 +2,8 @@
 
 #include "Misc/PathViews.h"
 
+#include "Containers/StringView.h"
 #include "Misc/AutomationTest.h"
-#include "Misc/StringView.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

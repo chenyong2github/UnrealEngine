@@ -308,21 +308,66 @@ void ISocketSubsystem::GetAddressInfoAsync(FAsyncGetAddressInfoCallback Callback
 	(new FAutoDeleteAsyncTask<FGetAddressInfoTask>(this, HostName, ServiceName, QueryFlags, ProtocolTypeName, SocketType, Callback))->StartBackgroundTask();
 }
 
-TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalBindAddr(FOutputDevice& Out)
+TArray<TSharedRef<FInternetAddr>> ISocketSubsystem::GetLocalBindAddresses()
 {
-	bool bCanBindAll;
-	// look up the local host address
-	TSharedRef<FInternetAddr> BindAddr = GetLocalHostAddr(Out, bCanBindAll);
+	TArray<TSharedRef<FInternetAddr>> BindingAddresses;
 
-	// If we can bind to all addresses, return the any address
-	if (bCanBindAll)
+	// Multihome addresses should be the only thing in the array if it exists.
+	TSharedRef<FInternetAddr> MultihomeAddr = CreateInternetAddr();
+	if (GetMultihomeAddress(MultihomeAddr))
 	{
-		BindAddr->SetAnyAddress();
+		BindingAddresses.Add(MultihomeAddr);
+		return BindingAddresses;
 	}
 
-	// return it
-	return BindAddr;
+	// Next, we want to grab the bindable addresses, which we ask GAI for.
+	// Because of how GAI works, we need to push in a service flag otherwise the query will fail.
+	//
+	// Since these addresses will be initialized to 0 anyways due to the nature of C++, set our service to be the number 0, which will
+	// cause no issues in terms of functionality.
+	FAddressInfoResult BindableAddresses = GetAddressInfo(nullptr, TEXT("0"),
+		EAddressInfoFlags::AllResultsWithMapping | EAddressInfoFlags::BindableAddress | EAddressInfoFlags::OnlyUsableAddresses, NAME_None);
 
+	if (BindableAddresses.ReturnCode == SE_NO_ERROR)
+	{
+		// Push in all the bindable addresses.
+		for (const auto& BindAddresses : BindableAddresses.Results)
+		{
+			BindingAddresses.Add(BindAddresses.Address);
+		}
+	}
+
+	return BindingAddresses;
+}
+
+bool ISocketSubsystem::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses)
+{
+	FString HostName;
+	// Attempt to get a hostname so that we can look it up in order to get an idea of adapters that we might have 
+	// (or the addresses that are tied to us). This is a fallback implementation for platforms that do not have this implemented.
+	// Platforms are encouraged to implement this themselves.
+	if (GetHostName(HostName))
+	{
+		// We want usable addresses, and if possible get every protocol and map it. Some platforms will do this query twice to make sure
+		// we have all protocols. Others will only use the protocol specified.
+		FAddressInfoResult GAIRequest = GetAddressInfo(*HostName, nullptr,
+			EAddressInfoFlags::AllResultsWithMapping | EAddressInfoFlags::OnlyUsableAddresses,
+			NAME_None);
+
+		// Start packing the addresses we got to the results.
+		if (GAIRequest.ReturnCode == SE_NO_ERROR)
+		{
+			// Push all results into the output array.
+			for (const auto& AddressResult : GAIRequest.Results)
+			{
+				OutAddresses.Add(AddressResult.Address);
+			}
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 FResolveInfo* ISocketSubsystem::GetHostByName(const ANSICHAR* HostName)
@@ -347,45 +392,38 @@ FResolveInfo* ISocketSubsystem::GetHostByName(const ANSICHAR* HostName)
 TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll)
 {
 	TSharedRef<FInternetAddr> HostAddr = CreateInternetAddr();
-	FString HostName;
 	bCanBindAll = false;
 
-	if (GetMultihomeAddress(HostAddr))
+	if (!GetMultihomeAddress(HostAddr))
 	{
-		return HostAddr;
-	}
+		bCanBindAll = true;
 
-	if (GetHostName(HostName) == false)
-	{
-		Out.Logf(TEXT("%s: gethostname failed (%s)"), GetSocketAPIName(), GetSocketError());
-	}
-
-	// Failing to find the host is not considered an error and we just bind to any address
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ESocketErrors FindHostResult = GetHostByName(TCHAR_TO_ANSI(*HostName), *HostAddr);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	if (FindHostResult == SE_NO_ERROR || FindHostResult == SE_HOST_NOT_FOUND 
-		|| FindHostResult == SE_EWOULDBLOCK || FindHostResult == SE_TRY_AGAIN)
-	{
-		if( !FParse::Param(FCommandLine::Get(),TEXT("PRIMARYNET")) )
+		TArray<TSharedPtr<FInternetAddr>> AdapterAddresses;
+		if (!GetLocalAdapterAddresses(AdapterAddresses))
 		{
-			bCanBindAll = true;
+			Out.Logf(TEXT("Could not fetch the local adapter addresses"));
+			HostAddr->SetAnyAddress();
 		}
-		static bool First;
-		if( !First )
+		else
 		{
-			First = true;
-			UE_LOG(LogInit, Log, TEXT("%s: I am %s (%s)"), GetSocketAPIName(), *HostName, *HostAddr->ToString(true) );
+			HostAddr = AdapterAddresses[0]->Clone();
 		}
 	}
-	else
-	{
-		Out.Logf(TEXT("GetHostByName failed (%s)"), GetSocketError(FindHostResult));
-		HostAddr->SetAnyAddress();
-	}
 
-	// return the newly created address
 	return HostAddr;
+}
+
+TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalBindAddr(FOutputDevice& Out)
+{
+	TArray<TSharedRef<FInternetAddr>> BindingAddresses = GetLocalBindAddresses();
+	if (BindingAddresses.Num() == 0)
+	{
+		TSharedRef<FInternetAddr> AnyAddress = CreateInternetAddr();
+		AnyAddress->SetAnyAddress();
+		return AnyAddress;
+	}
+
+	return BindingAddresses[0];
 }
 
 bool ISocketSubsystem::GetMultihomeAddress(TSharedRef<FInternetAddr>& Addr)
@@ -670,6 +708,48 @@ static bool SocketSubsystemCommandHandler(UWorld* InWorld, const TCHAR* Cmd, FOu
 		else if (FParse::Command(&Cmd, TEXT("ASYNCGAI")))
 		{
 			RunAsyncGAIQuery(FParse::Token(Cmd, true));
+		}
+		else
+		{
+			ISocketSubsystem* SocketSub = ISocketSubsystem::Get();
+			check(SocketSub);
+
+			if (FParse::Command(&Cmd, TEXT("GETBINDADDRESSES")))
+			{
+				TArray<TSharedRef<FInternetAddr>> BindAddresses = SocketSub->GetLocalBindAddresses();
+				UE_LOG(LogSockets, Log, TEXT("Got Binding Addresses:"));
+				for (const auto& BindAddress : BindAddresses)
+				{
+					UE_LOG(LogSockets, Log, TEXT("# Bind Address: %s"), *BindAddress->ToString(false));
+				}
+			}
+			else if (FParse::Command(&Cmd, TEXT("GETADAPTERS")))
+			{
+				TArray<TSharedPtr<FInternetAddr>> AdapterAddresses;
+				if (SocketSub->GetLocalAdapterAddresses(AdapterAddresses))
+				{
+					UE_LOG(LogSockets, Log, TEXT("Got Local Adapter Addresses:"));
+					for (const auto& AdapterAddress : AdapterAddresses)
+					{
+						UE_LOG(LogSockets, Log, TEXT("# Adapter Address: %s"), *AdapterAddress->ToString(false));
+					}
+				}
+				else
+				{
+					UE_LOG(LogSockets, Warning, TEXT("Could not get the local adapter addresses!"));
+				}
+			}
+			else if (FParse::Command(&Cmd, TEXT("GETLOCALHOST")))
+			{
+				bool bCanBindAll = false;
+				TSharedRef<FInternetAddr> LocalHostAddr = SocketSub->GetLocalHostAddr(Ar, bCanBindAll);
+				UE_LOG(LogSockets, Log, TEXT("LocalHostAddr is %s (this function auto adds multihome) Bind all: %d"), *LocalHostAddr->ToString(false), bCanBindAll);
+			}
+			else if (FParse::Command(&Cmd, TEXT("GETBINDADDR")))
+			{
+				TSharedRef<FInternetAddr> BindAddr = SocketSub->GetLocalBindAddr(Ar);
+				UE_LOG(LogSockets, Log, TEXT("The Local binding addr is %s"), *BindAddr->ToString(false));
+			}
 		}
 
 		return true;

@@ -94,7 +94,7 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 				FScopeLock ResultLock(&ResultCritical);
 				Ret.Append(ThreadResult.Array());
 			}
-		});
+		}, GIsInitialLoad ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 
 		UnlockUObjectHashTables();
 	}

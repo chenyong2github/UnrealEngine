@@ -25,6 +25,14 @@ enum class ELocalFileChunkType : uint32
 	Unknown = 0xFFFFFFFF
 };
 
+enum class EReadReplayInfoFlags : uint32
+{
+	None = 0,
+	SkipHeaderChunkTest = 1,
+};
+
+ENUM_CLASS_FLAGS(EReadReplayInfoFlags);
+
 /** Struct to hold chunk metadata */
 struct FLocalFileChunkInfo
 {
@@ -582,9 +590,22 @@ protected:
 		FString FileFriendlyName;
 	};
 
-	bool ReadReplayInfo(const FString& StreamName, FLocalFileReplayInfo& OutReplayInfo) const;
+	bool ReadReplayInfo(const FString& StreamName, FLocalFileReplayInfo& OutReplayInfo) const
+	{
+		return ReadReplayInfo(StreamName, OutReplayInfo, EReadReplayInfoFlags::None);
+	}
+
+	bool ReadReplayInfo(const FString& StreamName, FLocalFileReplayInfo& OutReplayInfo, EReadReplayInfoFlags Flags) const;
+
+	UE_DEPRECATED(4.25, "Now takes a set of read flags")
 	bool ReadReplayInfo(FArchive& Archive, FLocalFileReplayInfo& OutReplayInfo) const;
+
+	bool ReadReplayInfo(FArchive& Archive, FLocalFileReplayInfo& OutReplayInfo, EReadReplayInfoFlags Flags) const;
+
+	UE_DEPRECATED(4.25, "Now takes a set of read flags")
 	bool ReadReplayInfo(FArchive& Archive, FLocalFileReplayInfo& OutReplayInfo, struct FLocalFileSerializationInfo& SerializationInfo) const;
+
+	bool ReadReplayInfo(FArchive& Archive, FLocalFileReplayInfo& OutReplayInfo, struct FLocalFileSerializationInfo& SerializationInfo, EReadReplayInfoFlags Flags) const;
 
 	bool WriteReplayInfo(const FString& StreamName, const FLocalFileReplayInfo& ReplayInfo);
 	bool WriteReplayInfo(FArchive& Archive, const FLocalFileReplayInfo& ReplayInfo);

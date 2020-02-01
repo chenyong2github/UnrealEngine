@@ -18,6 +18,7 @@
 #include "Engine/DebugDisplayProperty.h"
 #include "UObject/SoftObjectPath.h"
 #include "StereoRendering.h"
+#include "AudioDeviceManager.h"
 
 #include "GameViewportClient.generated.h"
 
@@ -101,6 +102,9 @@ protected:
 
 	/** If true will suppress the blue transition text messages. */
 	bool bSuppressTransitionMessage;
+
+	/** Strong handle to the audio device used by this viewport. */
+	FAudioDeviceHandle AudioDevice;
 
 public:
 
@@ -1001,9 +1005,6 @@ private:
 
 	/** Mouse cursor locking behavior when the viewport is clicked */
 	EMouseLockMode MouseLockMode;
-
-	/** Handle to the audio device created for this viewport. Each viewport (for multiple PIE) will have its own audio device. */
-	uint32 AudioDeviceHandle;
 
 	/** Whether or not this audio device is in audio-focus */
 	bool bHasAudioFocus;
