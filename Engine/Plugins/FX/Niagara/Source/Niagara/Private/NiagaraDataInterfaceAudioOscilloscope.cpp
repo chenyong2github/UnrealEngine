@@ -594,3 +594,5 @@ void FNiagaraSubmixListener::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix,
 	SubmixSampleRate = SampleRate;
 	MixerInput.PushAudio(AudioData, NumSamples);
 }
+
+#undef LOCTEXT_NAMESPACE
