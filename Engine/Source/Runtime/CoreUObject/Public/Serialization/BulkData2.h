@@ -45,7 +45,7 @@ public:
 	using BulkDataRangeArray = TArray<FBulkDataBase*, TInlineAllocator<8>>;
 
 	static void				SetIoDispatcher(FIoDispatcher* InIoDispatcher) { IoDispatcher = InIoDispatcher; }
-	static FIoDispatcher*	GetIoDispatcher() { return IoDispatcher; }
+	static FIoDispatcher* GetIoDispatcher() { return IoDispatcher; }
 public:
 	using FileToken = int32;
 	static constexpr FileToken InvalidToken = INDEX_NONE;
@@ -55,7 +55,7 @@ public:
 	FBulkDataBase& operator=(const FBulkDataBase& Other);
 
 	FBulkDataBase()
-	{ 
+	{
 		Fallback.BulkDataSize = 0;
 		Fallback.Token = InvalidToken;
 	}
@@ -90,7 +90,7 @@ public:
 	uint32 GetBulkDataFlags() const { return BulkDataFlags; }
 
 	bool CanLoadFromDisk() const;
-	
+
 	/**
 	 * Returns true if the data references a file that currently exists and can be referenced by the file system.
 	 */
@@ -99,7 +99,7 @@ public:
 	bool IsStoredCompressedOnDisk() const;
 	FName GetDecompressionFormat() const;
 
-	bool IsBulkDataLoaded() const { return DataBuffer != nullptr; }
+	bool IsBulkDataLoaded() const { return DataAllocation.IsLoaded(); }
 
 	// TODO: The flag tests could be inline if we fixed the header dependency issues (the flags are defined in Bulkdata.h at the moment)
 	bool IsAvailableForUse() const;
@@ -107,17 +107,18 @@ public:
 	bool IsOptional() const;
 	bool IsInlined() const;
 	UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
-	FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
+		FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
 	bool IsInSeperateFile() const;
 	bool IsSingleUse() const;
 	bool IsMemoryMapped() const;
+	bool IsDataMemoryMapped() const;
 	bool IsUsingIODispatcher() const;
 
 	IAsyncReadFileHandle* OpenAsyncReadHandle() const;
 
 	IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
-	
+
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 
 	void RemoveBulkData();
@@ -134,6 +135,10 @@ public:
 	FOwnedBulkDataPtr* StealFileMapping();
 
 private:
+
+	void SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet);
+	void ClearRuntimeBulkDataFlags(uint32 BulkDataFlagsToClear);
+
 	/**
 	 * Poll to see if it is safe to discard the data owned by the Bulkdata object
 	 *
@@ -149,12 +154,50 @@ private:
 
 	bool MemoryMapBulkData(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead);
 
-	void AllocateData(SIZE_T SizeInBytes);
-	void FreeData();
+	// Methods for dealing with the allocated data
+	FORCEINLINE void* AllocateData(SIZE_T SizeInBytes) { return DataAllocation.AllocateData(this, SizeInBytes); }
+	FORCEINLINE void  FreeData() { DataAllocation.Free(this); }
+	FORCEINLINE void* GetDataBufferForWrite() const { return DataAllocation.GetAllocationForWrite(this); }
+	FORCEINLINE const void* GetDataBufferReadOnly() const { return DataAllocation.GetAllocationReadOnly(this); }
 
 	FString ConvertFilenameFromFlags(const FString& Filename) const;
 
 private:
+	/**
+	 * This is a wrapper for the BulkData memory allocation so we can use a single pointer to either
+	 * reference a straight memory allocation or in the case that the BulkData object represents a 
+	 * memory mapped file region, a FOwnedBulkDataPtr.
+	 * This makes the code more complex but it means that we do not pay any additional memory cost when
+	 * memory mapping isn't being used at a small cpu cost. However the number of BulkData object usually
+	 * means that the memory saving is worth it compared to how infrequently the memory accessors are 
+	 * actually called.
+	 *
+	 * Note: We use a flag set in the owning BulkData object to tell us what storage type we are using 
+	 * so all accessors require that a pointer to the parent object be passed in.
+	 */
+	class FBulkDataAllocation
+	{
+	public:
+		// Misc
+		bool IsLoaded() const { return Allocation != nullptr; }
+		void Free(FBulkDataBase* Owner);
+
+		// Set as a raw buffer
+		void* AllocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes); //DataBuffer = FMemory::Realloc(DataBuffer, SizeInBytes, DEFAULT_ALIGNMENT);
+		void SetData(FBulkDataBase* Owner, void* Buffer);
+
+		// Set as memory mapped
+		void SetMemoryMappedData(FBulkDataBase* Owner, IMappedFileHandle* MappedHandle, IMappedFileRegion* MappedRegion);
+
+		// Getters		
+		void* GetAllocationForWrite(const FBulkDataBase* Owner) const;
+		const void* GetAllocationReadOnly(const FBulkDataBase* Owner) const;
+	
+		FOwnedBulkDataPtr* StealFileMapping(FBulkDataBase* Owner);
+		void Swap(FBulkDataBase* Owner, void** DstBuffer);
+	private:
+		void* Allocation = nullptr; // Will either be the data allocation or a FOwnedBulkDataPtr if memory mapped
+	};
 
 	static FIoDispatcher* IoDispatcher;
 
@@ -172,11 +215,7 @@ private:
 		FIoChunkId ChunkID;	
 	}; // Note that the union will end up being 16 bytes with padding
 	
-	void* DataBuffer = nullptr;
-
-	IMappedFileHandle* MappedHandle = nullptr; // Temp
-	IMappedFileRegion* MappedRegion = nullptr; // Temp
-
+	FBulkDataAllocation DataAllocation;
 	uint32 BulkDataFlags = 0;
 	mutable uint8 LockStatus = 0; // Mutable so that the read only lock can be const
 };

@@ -615,8 +615,9 @@ private:
 
 FBulkDataBase::FBulkDataBase(FBulkDataBase&& Other)
 	: ChunkID(Other.ChunkID) // Copies the entire union
-	, DataBuffer(Other.DataBuffer)
+	, DataAllocation(Other.DataAllocation)
 	, BulkDataFlags(Other.BulkDataFlags)
+
 {
 	check(Other.LockStatus == LOCKSTATUS_Unlocked); // Make sure that the other object wasn't inuse
 
@@ -624,7 +625,6 @@ FBulkDataBase::FBulkDataBase(FBulkDataBase&& Other)
 	{
 		Other.Fallback.Token = InvalidToken; // Prevent the other object from unregistering the token
 	}	
-	Other.DataBuffer = nullptr;	// Prevent the other object from deleting our data
 }
 
 FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
@@ -641,12 +641,19 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 	// Copy token
 	BulkDataFlags = Other.BulkDataFlags;
 
-	if (Other.DataBuffer != nullptr)
+	if( !Other.IsDataMemoryMapped())
 	{
 		const int64 DataSize = Other.GetBulkDataSize();
 
-		AllocateData(DataSize);
-		FMemory::Memcpy(DataBuffer, DataBuffer, DataSize);
+		void* Dst = AllocateData(DataSize);
+		FMemory::Memcpy(Dst, Other.GetDataBufferReadOnly(), DataSize);
+	}
+	else
+	{
+		const int64 BulkDataSize = GetBulkDataSize();
+		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Fallback.Token);
+		const FString MemoryMappedFilename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
+		MemoryMapBulkData(MemoryMappedFilename, FileData.BulkDataOffsetInFile, BulkDataSize);
 	}
 
 	return *this;
@@ -757,7 +764,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			UE_CLOG(bAttemptFileMapping, LogSerialization, Error, TEXT("Attempt to file map inline bulk data, this will almost certainly fail due to alignment requirements. Package '%s'"), *Package->FileName.ToString());
 			
 			// Inline data is already in the archive so serialize it immediately
-			AllocateData(BulkDataSize);
+			void* DataBuffer = AllocateData(BulkDataSize);
 			SerializeBulkData(Ar, DataBuffer, BulkDataSize);
 		}
 		else
@@ -791,7 +798,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 				const int64 CurrentArchiveOffset = Ar.Tell();
 				Ar.Seek(BulkDataOffsetInFile);
 
-				AllocateData(BulkDataSize);
+				void* DataBuffer = AllocateData(BulkDataSize);
 				SerializeBulkData(Ar, DataBuffer, BulkDataSize);
 
 				Ar.Seek(CurrentArchiveOffset); // Return back to the original point in the archive so future serialization can continue
@@ -822,25 +829,28 @@ void* FBulkDataBase::Lock(uint32 LockFlags)
 
 	if (LockFlags & LOCK_READ_WRITE)
 	{
+		checkf(!IsDataMemoryMapped(), TEXT("Attempting to open a write lock on a memory mapped BulkData object, this will not work!"));
 		LockStatus = LOCKSTATUS_ReadWriteLock;
+		return GetDataBufferForWrite();
 	}
 	else if (LockFlags & LOCK_READ_ONLY)
 	{
 		LockStatus = LOCKSTATUS_ReadOnlyLock;
+		return (void*)GetDataBufferReadOnly(); // Cast the const away, icky but our hands are tied by the original API at this time
 	}
 	else
 	{
 		UE_LOG(LogSerialization, Fatal, TEXT("Unknown lock flag %i"), LockFlags);
+		return nullptr;
 	}
-
-	return DataBuffer;
 }
 
 const void* FBulkDataBase::LockReadOnly() const
 {
 	check(LockStatus == LOCKSTATUS_Unlocked);
 	LockStatus = LOCKSTATUS_ReadOnlyLock;
-	return DataBuffer;
+
+	return GetDataBufferReadOnly();
 }
 
 void FBulkDataBase::Unlock()
@@ -876,7 +886,7 @@ void* FBulkDataBase::Realloc(int64 SizeInBytes)
 
 	Fallback.BulkDataSize = SizeInBytes;
 
-	return DataBuffer;
+	return GetDataBufferForWrite();
 }
 
 void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
@@ -886,12 +896,14 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 	check(LockStatus == LOCKSTATUS_Unlocked);
 	check(DstBuffer);
 
+	UE_CLOG(IsDataMemoryMapped(), LogSerialization, Warning, TEXT("FBulkDataBase::GetCopy being called on a memory mapped BulkData object, call ::StealFileMapping instead!"));
+
 	if (*DstBuffer != nullptr)
 	{
 		// TODO: Might be worth changing the API so that we can validate that the buffer is large enough?
 		if (IsBulkDataLoaded())
 		{
-			FMemory::Memcpy(*DstBuffer, DataBuffer, GetBulkDataSize());
+			FMemory::Memcpy(*DstBuffer, GetDataBufferReadOnly(), GetBulkDataSize());
 
 			if (bDiscardInternalCopy && CanDiscardInternalData())
 			{
@@ -911,14 +923,14 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 			if (bDiscardInternalCopy && CanDiscardInternalData())
 			{
 				// Since we were going to discard the data anyway we can just hand over ownership to the caller
-				::Swap(*DstBuffer, DataBuffer);
+				DataAllocation.Swap(this, DstBuffer);
 			}
 			else
 			{
 				const int64 BulkDataSize = GetBulkDataSize();
 
 				*DstBuffer = FMemory::Malloc(BulkDataSize, 0);
-				FMemory::Memcpy(*DstBuffer, DataBuffer, BulkDataSize);
+				FMemory::Memcpy(*DstBuffer, GetDataBufferReadOnly(), BulkDataSize);
 			}
 		}
 		else
@@ -928,7 +940,7 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 	}
 }
 
-void  FBulkDataBase::SetBulkDataFlags(uint32 BulkDataFlagsToSet)
+void FBulkDataBase::SetBulkDataFlags(uint32 BulkDataFlagsToSet)
 {
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
@@ -936,7 +948,7 @@ void  FBulkDataBase::SetBulkDataFlags(uint32 BulkDataFlagsToSet)
 	BulkDataFlags |= BulkDataFlagsToSet;
 }
 
-void  FBulkDataBase::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
+void FBulkDataBase::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
 {
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
@@ -944,11 +956,23 @@ void  FBulkDataBase::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
 	BulkDataFlags = BulkDataFlagsToSet;
 }
 
-void  FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
+void FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
 { 
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
 
+	BulkDataFlags &= ~BulkDataFlagsToClear;
+}
+
+void FBulkDataBase::SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet)
+{
+	check(BulkDataFlagsToSet == BULKDATA_UsesIoDispatcher || BulkDataFlagsToSet == BULKDATA_DataIsMemoryMapped);
+	BulkDataFlags |= BulkDataFlagsToSet;
+}
+
+void FBulkDataBase::ClearRuntimeBulkDataFlags(uint32 BulkDataFlagsToClear)
+{
+	check(BulkDataFlagsToClear == BULKDATA_UsesIoDispatcher || BulkDataFlagsToClear == BULKDATA_DataIsMemoryMapped);
 	BulkDataFlags &= ~BulkDataFlagsToClear;
 }
 
@@ -1044,6 +1068,11 @@ bool FBulkDataBase::IsSingleUse() const
 bool FBulkDataBase::IsMemoryMapped() const
 {
 	return (BulkDataFlags & BULKDATA_MemoryMappedPayload) != 0;
+}
+
+bool FBulkDataBase::IsDataMemoryMapped() const
+{
+	return (BulkDataFlags & BULKDATA_DataIsMemoryMapped) != 0;
 }
 
 bool FBulkDataBase::IsUsingIODispatcher() const
@@ -1154,7 +1183,10 @@ void FBulkDataBase::ForceBulkDataResident()
 {
 	if (!IsBulkDataLoaded())
 	{
+		void* DataBuffer = nullptr;
 		LoadDataDirectly(&DataBuffer);
+
+		DataAllocation.SetData(this, DataBuffer);
 	}
 }
 
@@ -1162,20 +1194,7 @@ FOwnedBulkDataPtr* FBulkDataBase::StealFileMapping()
 {
 	check(LockStatus == LOCKSTATUS_Unlocked);
 
-	FOwnedBulkDataPtr* Result;
-	if (MappedHandle == nullptr || MappedRegion == nullptr)
-	{
-		Result = new FOwnedBulkDataPtr(DataBuffer);
-		DataBuffer = nullptr;
-	}
-	else
-	{
-		Result = new FOwnedBulkDataPtr(MappedHandle, MappedRegion);
-		MappedHandle = nullptr;
-		MappedRegion = nullptr;
-	}
-	
-	return Result;
+	return DataAllocation.StealFileMapping(this);
 }
 
 void FBulkDataBase::RemoveBulkData()
@@ -1412,7 +1431,10 @@ void FBulkDataBase::SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataL
 
 bool FBulkDataBase::MemoryMapBulkData(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead)
 {
-	check(!MappedHandle && !MappedRegion);
+	check(!IsBulkDataLoaded());
+
+	IMappedFileHandle* MappedHandle = nullptr;
+	IMappedFileRegion* MappedRegion = nullptr;
 
 	MappedHandle = FPlatformFileManager::Get().GetPlatformFile().OpenMapped(*Filename);
 
@@ -1432,24 +1454,9 @@ bool FBulkDataBase::MemoryMapBulkData(const FString& Filename, int64 OffsetInBul
 	checkf(MappedRegion->GetMappedSize() == BytesToRead, TEXT("Mapped size (%lld) is different to the requested size (%lld)!"), MappedRegion->GetMappedSize(), BytesToRead);
 	checkf(IsAligned(MappedRegion->GetMappedPtr(), FPlatformProperties::GetMemoryMappingAlignment()), TEXT("Memory mapped file has the wrong alignment!"));
 
+	DataAllocation.SetMemoryMappedData(this, MappedHandle, MappedRegion);
+
 	return true;
-}
-
-void FBulkDataBase::AllocateData(SIZE_T SizeInBytes)
-{
-	DataBuffer = FMemory::Realloc(DataBuffer, SizeInBytes, DEFAULT_ALIGNMENT);
-}
-
-void FBulkDataBase::FreeData()
-{
-	FMemory::Free(DataBuffer);
-	DataBuffer = nullptr;
-
-	delete MappedRegion;
-	MappedRegion = nullptr;
-
-	delete MappedHandle;
-	MappedHandle = nullptr;
 }
 
 FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
@@ -1477,4 +1484,114 @@ FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 	{
 		return FPaths::ChangeExtension(Filename, DefaultExt);
 	}
+}
+
+void FBulkDataBase::FBulkDataAllocation::Free(FBulkDataBase* Owner)
+{
+	if (!Owner->IsDataMemoryMapped())
+	{
+		FMemory::Free(Allocation);
+		Allocation = nullptr;
+	}
+	else
+	{
+		FOwnedBulkDataPtr* Ptr = static_cast<FOwnedBulkDataPtr*>(Allocation);
+		delete Ptr;
+
+		Allocation = nullptr;
+	}
+}
+
+void* FBulkDataBase::FBulkDataAllocation::AllocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes)
+{
+	checkf(Allocation == nullptr, TEXT("Trying to allocate a BulkData object without freeing it first!"));
+
+	Allocation = FMemory::Malloc(SizeInBytes, DEFAULT_ALIGNMENT);
+
+	return Allocation;
+}
+
+void FBulkDataBase::FBulkDataAllocation::SetData(FBulkDataBase* Owner, void* Buffer)
+{
+	checkf(Allocation == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
+
+	Allocation = Buffer;
+}
+
+void FBulkDataBase::FBulkDataAllocation::SetMemoryMappedData(FBulkDataBase* Owner, IMappedFileHandle* MappedHandle, IMappedFileRegion* MappedRegion)
+{
+	checkf(Allocation == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
+	FOwnedBulkDataPtr* Ptr = new FOwnedBulkDataPtr(MappedHandle, MappedRegion);
+
+	Owner->SetRuntimeBulkDataFlags(BULKDATA_DataIsMemoryMapped);
+
+	Allocation = Ptr;
+}
+
+void* FBulkDataBase::FBulkDataAllocation::GetAllocationForWrite(const FBulkDataBase* Owner) const
+{
+	if (!Owner->IsDataMemoryMapped())
+	{
+		return Allocation;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+const void* FBulkDataBase::FBulkDataAllocation::GetAllocationReadOnly(const FBulkDataBase* Owner) const
+{
+	if (!Owner->IsDataMemoryMapped())
+	{
+		return Allocation;
+	}
+	else if (Allocation != nullptr)
+	{
+		FOwnedBulkDataPtr* Ptr = static_cast<FOwnedBulkDataPtr*>(Allocation);
+		return Ptr->GetPointer();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+FOwnedBulkDataPtr* FBulkDataBase::FBulkDataAllocation::StealFileMapping(FBulkDataBase* Owner)
+{
+	FOwnedBulkDataPtr* Ptr;
+	if (!Owner->IsDataMemoryMapped())
+	{
+		Ptr = new FOwnedBulkDataPtr(Allocation);	
+	}
+	else
+	{
+		Ptr = static_cast<FOwnedBulkDataPtr*>(Allocation);
+		Owner->ClearRuntimeBulkDataFlags(BULKDATA_DataIsMemoryMapped);
+	}	
+
+	Allocation = nullptr;
+	return Ptr;
+}
+	
+void FBulkDataBase::FBulkDataAllocation::Swap(FBulkDataBase* Owner, void** DstBuffer)
+{
+	if (!Owner->IsDataMemoryMapped())
+	{
+		::Swap(*DstBuffer, Allocation);
+	}
+	else
+	{
+		FOwnedBulkDataPtr* Ptr = static_cast<FOwnedBulkDataPtr*>(Allocation);
+
+		const int64 BulkDataSize = Owner->GetBulkDataSize();
+
+		*DstBuffer = FMemory::Malloc(BulkDataSize, DEFAULT_ALIGNMENT);
+		FMemory::Memcpy(*DstBuffer, Ptr->GetPointer(), BulkDataSize);
+
+		delete Ptr;
+		Allocation = nullptr;
+
+		Owner->ClearRuntimeBulkDataFlags(BULKDATA_DataIsMemoryMapped);
+	}	
 }
