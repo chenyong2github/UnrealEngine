@@ -597,7 +597,7 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 			{
 				UObject* Object = (UObject*)*It;
 
-				checkSlow(Object->GetFName() == SearchPath.Inner && SearchPath.MatchOuterNames(Object->GetOuter()) == Object->GetPathName().EndsWith(ObjectName.ToString()));
+				checkSlow(Object->GetFName() != SearchPath.Inner || SearchPath.MatchOuterNames(Object->GetOuter()) == Object->GetPathName().EndsWith(ObjectName.ToString()));
 
 				if
 					((Object->GetFName() == SearchPath.Inner)
