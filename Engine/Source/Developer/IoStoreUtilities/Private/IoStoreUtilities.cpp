@@ -86,6 +86,8 @@ struct FContainerTargetSpec
 {
 	FIoStoreWriter* IoStoreWriter;
 	TArray<FContainerTargetFile> TargetFiles;
+
+	TUniquePtr<FIoStoreEnvironment> IoStoreEnv;
 };
 
 struct FPackageAssetData
@@ -2186,10 +2188,10 @@ int32 CreateTarget(
 				ContainerTarget.IoStoreWriter = GlobalIoStoreWriter;
 			}
 			else
-			{
-				FIoStoreEnvironment ContainerIoStoreEnv;
-				ContainerIoStoreEnv.InitializeFileEnvironment(Container.OutputPath);
-				ContainerTarget.IoStoreWriter = new FIoStoreWriter(ContainerIoStoreEnv);
+			{		
+				ContainerTarget.IoStoreEnv.Reset(new FIoStoreEnvironment());
+				ContainerTarget.IoStoreEnv->InitializeFileEnvironment(Container.OutputPath);
+				ContainerTarget.IoStoreWriter = new FIoStoreWriter(*ContainerTarget.IoStoreEnv);
 				IoStoreWriters.Add(ContainerTarget.IoStoreWriter);
 #if !SKIP_WRITE_CONTAINER
 				FIoStatus IoStatus = ContainerTarget.IoStoreWriter->Initialize();
