@@ -489,41 +489,55 @@ UObject* StaticFindObjectFastExplicit( const UClass* ObjectClass, FName ObjectNa
 	return Result;
 }
 
-static FName SplitInnerAndOuter(const TCHAR* OuterAndInner, const TCHAR* Delimiter, FName& OutOuter, uint32 InnerNumber)
+struct FObjectSearchPath
 {
-	check(*Delimiter == ':');
+	FName Inner;
+	FName Outer;
+	FName OuterOuter;
 
-	int32 OuterLen = static_cast<int32>(Delimiter - OuterAndInner);
-	OutOuter = FName(OuterLen, OuterAndInner);
-	return FName(Delimiter + 1, InnerNumber);
-}
-
-static FName ExtractInnerAndOuterFromPath(FName ObjectPath, FName& OutOuter)
-{
-	TCHAR PathBuffer[NAME_SIZE];
-	ObjectPath.GetPlainNameString(PathBuffer);
-
-	// Find package separator . or subobject separator :
-	constexpr FAsciiSet DotColon(".:");
-	const TCHAR* Path = PathBuffer;
-	while (true)
+	// @param FullPath is one of four types: "Object", "Package.Object", "Object:Subobject" or "Package.Object:Subobject"
+	explicit FObjectSearchPath(FName FullPath)
 	{
-		const TCHAR* DelimiterOrEnd = FAsciiSet::FindFirstOrEnd(Path, DotColon);
+		TCHAR Buffer[NAME_SIZE];
+		FullPath.GetPlainNameString(Buffer);
 
-		if (*DelimiterOrEnd == '\0')
+		// Find last dot and last dot or colon
+		const TCHAR* LastDot = nullptr;
+		const TCHAR* LastDelimiter = nullptr;
+		constexpr FAsciiSet DotColon(".:");
+		for (const TCHAR* It = FAsciiSet::FindFirstOrEnd(Buffer, DotColon); *It != '\0'; It = FAsciiSet::FindFirstOrEnd(It + 1, DotColon)) 
 		{
-			return Path == PathBuffer ? ObjectPath : FName(Path, ObjectPath.GetNumber());
+			LastDot = *It == '.' ? It : LastDot;
+			LastDelimiter = It;
 		}
-		else if (*DelimiterOrEnd == ':')
+			
+		if (!LastDelimiter) // "Object"
 		{
-			return SplitInnerAndOuter(Path, DelimiterOrEnd, OutOuter, ObjectPath.GetNumber());
+			Inner = FullPath;
 		}
-
-		// We have a package prefix, drop it
-		check(*DelimiterOrEnd == '.');
-		Path = DelimiterOrEnd + 1;
+		else if (!!LastDot && LastDelimiter > LastDot) // "Package.Object:Subobject"
+		{
+			OuterOuter = FName(LastDot - Buffer, Buffer);
+			SetOuterAndInner(LastDot + 1, LastDelimiter, FullPath.GetNumber());
+		}
+		else // "Package.Object" or "Object:Subobject"
+		{
+			SetOuterAndInner(Buffer, LastDelimiter, FullPath.GetNumber());
+		}
 	}
-}
+	
+	void SetOuterAndInner(const TCHAR* OuterAndInner, const TCHAR* Delimiter, int32 InnerNumber)
+	{
+		int32 OuterLen = static_cast<int32>(Delimiter - OuterAndInner);
+		Outer = FName(OuterLen, OuterAndInner);
+		Inner = FName(Delimiter + 1, InnerNumber);
+	}
+
+	bool MatchOuterNames(UObject* OuterObject) const
+	{
+		return Outer.IsNone() || (OuterObject->GetFName() == Outer && (OuterOuter.IsNone() || OuterObject->GetOuter()->GetFName() == OuterOuter));
+	}
+};
 
 UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, const UClass* ObjectClass, const UObject* ObjectPackage, FName ObjectName, bool bExactClass, bool bAnyPackage, EObjectFlags ExcludeFlags, EInternalObjectFlags ExclusiveInternalFlags)
 {
@@ -571,11 +585,9 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 	}
 	else
 	{
-		// Find an object with the specified name and (optional) class, in any package; if bAnyPackage is false, only matches top-level packages
-		FName VerifyOuterName;
-		FName ActualObjectName = ExtractInnerAndOuterFromPath(ObjectName, /* out*/ VerifyOuterName);
+		FObjectSearchPath SearchPath(ObjectName);
 
-		const int32 Hash = GetObjectHash(ActualObjectName);
+		const int32 Hash = GetObjectHash(SearchPath.Inner);
 		FHashTableLock HashLock(ThreadHash);
 
 		FHashBucket* Bucket = ThreadHash.Hash.Find(Hash);
@@ -584,8 +596,11 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 			for (FHashBucketIterator It(*Bucket); It; ++It)
 			{
 				UObject* Object = (UObject*)*It;
+
+				checkSlow(Object->GetFName() == SearchPath.Inner && SearchPath.MatchOuterNames(Object->GetOuter()) == Object->GetPathName().EndsWith(ObjectName.ToString()));
+
 				if
-					((Object->GetFName() == ActualObjectName)
+					((Object->GetFName() == SearchPath.Inner)
 
 					/* Don't return objects that have any of the exclusive flags set */
 					&& !Object->HasAnyFlags(ExcludeFlags)
@@ -602,12 +617,12 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 					&& !Object->HasAnyInternalFlags(ExclusiveInternalFlags)
 
 					/** Ensure that the partial path provided matches the object found */
-					&& (VerifyOuterName.IsNone() || (Object->GetOuter() && Object->GetOuter()->GetFName() == VerifyOuterName)))
+					&& SearchPath.MatchOuterNames(Object->GetOuter()))
 				{
 					checkf(!Object->IsUnreachable(), TEXT("%s"), *Object->GetFullName());
 					if (Result)
 					{
-						UE_LOG(LogUObjectHash, Warning, TEXT("Ambiguous search, could be %s or %s"), *GetFullNameSafe(Result), *GetFullNameSafe(Object));
+						UE_LOG(LogUObjectHash, Warning, TEXT("Ambiguous path search, could be %s or %s"), *GetFullNameSafe(Result), *GetFullNameSafe(Object));
 					}
 					else
 					{
