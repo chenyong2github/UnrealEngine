@@ -25,11 +25,13 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -47,6 +49,7 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/Log.h"
+#include "Insights/StoreService/StoreBrowser.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/Version.h"
@@ -57,12 +60,12 @@
 #define LOCTEXT_NAMESPACE "SStartPageWindow"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// STraceSessionRow
+// STraceListRow
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class STraceSessionRow : public SMultiColumnTableRow<TSharedPtr<FTraceSession>>
+class STraceListRow : public SMultiColumnTableRow<TSharedPtr<FTraceViewModel>>
 {
-	SLATE_BEGIN_ARGS(STraceSessionRow) {}
+	SLATE_BEGIN_ARGS(STraceListRow) {}
 	SLATE_END_ARGS()
 
 public:
@@ -70,15 +73,15 @@ public:
 	 * Constructs the widget.
 	 *
 	 * @param InArgs The construction arguments.
-	 * @param InTraceSession The trace session displayed by this row.
+	 * @param InTrace The trace displayed by this row.
 	 * @param InOwnerTableView The table to which the row must be added.
 	 */
-	void Construct(const FArguments& InArgs, TSharedPtr<FTraceSession> InTraceSession, TSharedRef<SStartPageWindow> InParentWidget, const TSharedRef<STableViewBase>& InOwnerTableView)
+	void Construct(const FArguments& InArgs, TSharedPtr<FTraceViewModel> InTrace, TSharedRef<SStartPageWindow> InParentWidget, const TSharedRef<STableViewBase>& InOwnerTableView)
 	{
-		WeakTraceSession = MoveTemp(InTraceSession);
+		WeakTrace = MoveTemp(InTrace);
 		WeakParentWidget = InParentWidget;
 
-		SMultiColumnTableRow<TSharedPtr<FTraceSession>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+		SMultiColumnTableRow<TSharedPtr<FTraceViewModel>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 	}
 
 public:
@@ -90,8 +93,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &STraceSessionRow::GetTraceSessionName)
-					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+					.Text(this, &STraceListRow::GetTraceName)
+					.ToolTip(STraceListRow::GetTraceTooltip())
 				];
 		}
 		else if (ColumnName == FName(TEXT("Uri")))
@@ -100,8 +103,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &STraceSessionRow::GetTraceSessionUri)
-					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+					.Text(this, &STraceListRow::GetTraceUri)
+					.ToolTip(STraceListRow::GetTraceTooltip())
 				];
 		}
 		else if (ColumnName == FName(TEXT("Platform")))
@@ -110,8 +113,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &STraceSessionRow::GetTraceSessionPlatform)
-					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+					.Text(this, &STraceListRow::GetTracePlatform)
+					.ToolTip(STraceListRow::GetTraceTooltip())
 				];
 		}
 		else if (ColumnName == FName(TEXT("AppName")))
@@ -120,8 +123,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &STraceSessionRow::GetTraceSessionAppName)
-					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+					.Text(this, &STraceListRow::GetTraceAppName)
+					.ToolTip(STraceListRow::GetTraceTooltip())
 				];
 		}
 		else if (ColumnName == FName(TEXT("BuildConfig")))
@@ -130,8 +133,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &STraceSessionRow::GetTraceSessionBuildConfiguration)
-					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+					.Text(this, &STraceListRow::GetTraceBuildConfiguration)
+					.ToolTip(STraceListRow::GetTraceTooltip())
 				];
 		}
 		else if (ColumnName == FName(TEXT("BuildTarget")))
@@ -140,8 +143,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &STraceSessionRow::GetTraceSessionBuildTarget)
-					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+					.Text(this, &STraceListRow::GetTraceBuildTarget)
+					.ToolTip(STraceListRow::GetTraceTooltip())
 				];
 		}
 		else if (ColumnName == FName(TEXT("Size")))
@@ -150,9 +153,9 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &STraceSessionRow::GetTraceSessionSize)
-					.ColorAndOpacity(this, &STraceSessionRow::GetColorBySize)
-					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+					.Text(this, &STraceListRow::GetTraceSize)
+					.ColorAndOpacity(this, &STraceListRow::GetColorBySize)
+					.ToolTip(STraceListRow::GetTraceTooltip())
 				];
 		}
 		else if (ColumnName == FName(TEXT("Status")))
@@ -161,8 +164,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &STraceSessionRow::GetTraceSessionStatus)
-					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+					.Text(this, &STraceListRow::GetTraceStatus)
+					.ToolTip(STraceListRow::GetTraceTooltip())
 				];
 		}
 		else
@@ -171,12 +174,13 @@ public:
 		}
 	}
 
-	FText GetTraceSessionName() const
+	FText GetTraceIndexAndId() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			return TraceSessionPin->Name;
+			const FString TraceIdStr = FString::Printf(TEXT("%d (0x%08X)"), TracePin->TraceIndex, TracePin->TraceId);
+			return FText::FromString(TraceIdStr);
 		}
 		else
 		{
@@ -184,12 +188,12 @@ public:
 		}
 	}
 
-	FText GetTraceSessionUri() const
+	FText GetTraceName() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			return TraceSessionPin->Uri;
+			return TracePin->Name;
 		}
 		else
 		{
@@ -197,12 +201,12 @@ public:
 		}
 	}
 
-	FText GetTraceSessionPlatform() const
+	FText GetTraceUri() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			return TraceSessionPin->Platform;
+			return TracePin->Uri;
 		}
 		else
 		{
@@ -210,12 +214,12 @@ public:
 		}
 	}
 
-	FText GetTraceSessionAppName() const
+	FText GetTracePlatform() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			return TraceSessionPin->AppName;
+			return TracePin->Platform;
 		}
 		else
 		{
@@ -223,38 +227,64 @@ public:
 		}
 	}
 
-	FText GetTraceSessionBuildConfiguration() const
+	FText GetTraceAppName() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			if (TraceSessionPin->ConfigurationType != EBuildConfiguration::Unknown)
+			return TracePin->AppName;
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	FText GetTraceCommandLine() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			return TracePin->CommandLine;
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	FText GetTraceBuildConfiguration() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			if (TracePin->ConfigurationType != EBuildConfiguration::Unknown)
 			{
-				return EBuildConfigurations::ToText(TraceSessionPin->ConfigurationType);
+				return EBuildConfigurations::ToText(TracePin->ConfigurationType);
 			}
 		}
 		return FText::GetEmpty();
 	}
 
-	FText GetTraceSessionBuildTarget() const
+	FText GetTraceBuildTarget() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			if (TraceSessionPin->TargetType != EBuildTargetType::Unknown)
+			if (TracePin->TargetType != EBuildTargetType::Unknown)
 			{
-				return FText::FromString(LexToString(TraceSessionPin->TargetType));
+				return FText::FromString(LexToString(TracePin->TargetType));
 			}
 		}
 		return FText::GetEmpty();
 	}
 
-	FText GetTraceSessionTimestamp() const
+	FText GetTraceTimestamp() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			return FText::AsDate(TraceSessionPin->Timestamp);
+			return FText::AsDate(TracePin->Timestamp);
 		}
 		else
 		{
@@ -262,16 +292,49 @@ public:
 		}
 	}
 
-	FText GetTraceSessionSize() const
+	FText GetTraceTimestampForTooltip() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			return FText::AsDateTime(TracePin->Timestamp);
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	FText GetTraceSize() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
 			//FNumberFormattingOptions FormattingOptions;
 			//FormattingOptions.MinimumFractionalDigits = 1;
 			//FormattingOptions.MaximumFractionalDigits = 1;
-			//return FText::AsMemory(TraceSessionPin->Size, &FormattingOptions);
-			return FText::Format(LOCTEXT("SessionFileSizeFormatKiB", "{0} KiB"), TraceSessionPin->Size / 1024);
+			//return FText::AsMemory(TracePin->Size, &FormattingOptions);
+			return FText::Format(LOCTEXT("SessionFileSizeFormatKiB", "{0} KiB"), TracePin->Size / 1024);
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	FText GetTraceSizeForTooltip() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			if (TracePin->Size > 1024)
+			{
+				return FText::Format(LOCTEXT("TraceTooltip_FileSize2", "{0} bytes ({1})"), FText::AsNumber(TracePin->Size), FText::AsMemory(TracePin->Size));
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("TraceTooltip_FileSize1", "{0} bytes"), FText::AsNumber(TracePin->Size));
+			}
 		}
 		else
 		{
@@ -281,23 +344,23 @@ public:
 
 	FSlateColor GetColorBySize() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			TSharedRef<ITypedTableView<TSharedPtr<FTraceSession>>> OwnerWidget = OwnerTablePtr.Pin().ToSharedRef();
-			const TSharedPtr<FTraceSession>* MyItem = OwnerWidget->Private_ItemFromWidget(this);
+			TSharedRef<ITypedTableView<TSharedPtr<FTraceViewModel>>> OwnerWidget = OwnerTablePtr.Pin().ToSharedRef();
+			const TSharedPtr<FTraceViewModel>* MyItem = OwnerWidget->Private_ItemFromWidget(this);
 			const bool IsSelected = OwnerWidget->Private_IsItemSelected(*MyItem);
 
 			if (IsSelected)
 			{
 				return FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
 			}
-			else if (TraceSessionPin->Size < 1024ULL * 1024ULL)
+			else if (TracePin->Size < 1024ULL * 1024ULL)
 			{
 				// < 1 MiB
 				return FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
 			}
-			else if (TraceSessionPin->Size < 1024ULL * 1024ULL * 1024ULL)
+			else if (TracePin->Size < 1024ULL * 1024ULL * 1024ULL)
 			{
 				// [1 MiB  .. 1 GiB)
 				return FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -314,59 +377,137 @@ public:
 		}
 	}
 
-	FText GetTraceSessionStatus() const
+	FText GetTraceStatus() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			if (TraceSessionPin->bIsLive)
+			if (TracePin->bIsLive)
 			{
-				return LOCTEXT("LiveTraceSessionStatus", "LIVE");
+				return LOCTEXT("LiveTraceStatus", "LIVE");
 			}
 		}
 		return FText::GetEmpty();
 	}
 
-	FText GetTraceSessionTooltip() const
+	FText GetTraceStatusForTooltip() const
 	{
-		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
-		if (TraceSessionPin.IsValid())
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
 		{
-			FTextBuilder TextBuilder;
-
-			const FString TraceIdStr = FString::Printf(TEXT("0x%08X"), TraceSessionPin->TraceId);
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_Id", "Trace {0} ({1})"), FText::AsNumber(TraceSessionPin->TraceIndex), FText::FromString(TraceIdStr));
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_Name", "{0}"), TraceSessionPin->Name);
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_Uri", "Uri: {0}"), TraceSessionPin->Uri);
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_Platform", "Platform: {0}"), TraceSessionPin->Platform);
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_AppName", "App Name: {0}"), TraceSessionPin->AppName);
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_CommandLine", "Command Line: {0}"), TraceSessionPin->CommandLine);
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_BuildConfig", "Build Configuration: {0}"),
-				TraceSessionPin->ConfigurationType == EBuildConfiguration::Unknown ? FText::GetEmpty() : EBuildConfigurations::ToText(TraceSessionPin->ConfigurationType));
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_BuildTarget", "Build Target: {0}"),
-				TraceSessionPin->TargetType == EBuildTargetType::Unknown ? FText::GetEmpty() : FText::FromString(LexToString(TraceSessionPin->TargetType)));
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_Timestamp", "Timestamp: {0}"), FText::AsDateTime(TraceSessionPin->Timestamp));
-			if (TraceSessionPin->Size > 1024)
+			if (TracePin->bIsLive)
 			{
-				TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_FileSize2", "File Size: {0} bytes ({1})"), FText::AsNumber(TraceSessionPin->Size), FText::AsMemory(TraceSessionPin->Size));
+				FString Ip = FString::Printf(TEXT("%d.%d.%d.%d"),
+					(TracePin->IpAddress >> 24) & 0xFF,
+					(TracePin->IpAddress >> 16) & 0xFF,
+					(TracePin->IpAddress >> 8) & 0xFF,
+					TracePin->IpAddress & 0xFF);
+				return FText::Format(LOCTEXT("LiveTraceStatusFmt", "LIVE ({0})"), FText::FromString(Ip));
 			}
 			else
 			{
-				TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_FileSize1", "File Size: {0} bytes"), FText::AsNumber(TraceSessionPin->Size));
+				return LOCTEXT("OfflineTraceStatus", "Offline");
 			}
-			const FText Status = TraceSessionPin->bIsLive ? LOCTEXT("LiveTraceSessionStatus", "LIVE") : LOCTEXT("OfflineTraceSessionStatus", "Offline");
-			TextBuilder.AppendLineFormat(LOCTEXT("TraceSessionTooltip_Status", "Status: {0}"), Status);
+		}
+		return FText::GetEmpty();
+	}
 
-			return TextBuilder.ToText();
+	TSharedPtr<IToolTip> GetTraceTooltip() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			TSharedPtr<SGridPanel> GridPanel;
+			TSharedPtr<SToolTip> TraceTooltip =
+			SNew(SToolTip)
+			[
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2.0f)
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &STraceListRow::GetTraceName)
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+						.ColorAndOpacity(FLinearColor::White)
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(this, &STraceListRow::GetTraceIndexAndId)
+						.ColorAndOpacity(FLinearColor::Gray)
+					]
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2.0f)
+				[
+					SNew(STextBlock)
+					.Text(this, &STraceListRow::GetTraceUri)
+					.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2.0f)
+				[
+					SAssignNew(GridPanel, SGridPanel)
+				]
+			];
+
+			int32 Row = 0;
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_Platform", "Platform:"), &STraceListRow::GetTracePlatform);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_AppName", "App Name:"), &STraceListRow::GetTraceAppName);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_CommandLine", "Command Line:"), &STraceListRow::GetTraceCommandLine);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_BuildConfig", "Build Config:"), &STraceListRow::GetTraceBuildConfiguration);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_BuildTarget", "Build Target:"), &STraceListRow::GetTraceBuildTarget);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_Timestamp", "Timestamp:"), &STraceListRow::GetTraceTimestampForTooltip);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_Size", "File Size:"), &STraceListRow::GetTraceSizeForTooltip);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_Status", "Status:"), &STraceListRow::GetTraceStatusForTooltip);
+
+			return TraceTooltip;
 		}
 		else
 		{
-			return FText::GetEmpty();
+			return nullptr;
 		}
 	}
 
+	void AddGridPanelRow(TSharedPtr<SGridPanel> Grid, int32 Row, const FText& Name,
+		typename TAttribute<FText>::FGetter::template TRawMethodDelegate_Const<STraceListRow>::FMethodPtr Value) const
+	{
+		Grid->AddSlot(0, Row)
+			.Padding(2.0f)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Text(Name)
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 8))
+				.ColorAndOpacity(FLinearColor::Gray)
+			];
+
+		Grid->AddSlot(1, Row)
+			.Padding(2.0f)
+			.HAlign(HAlign_Left)
+			[
+				SNew(STextBlock)
+				.Text(this, Value)
+				.WrapTextAt(512.0f)
+				.ColorAndOpacity(FLinearColor::White)
+			];
+	}
+
 private:
-	TWeakPtr<FTraceSession> WeakTraceSession;
+	TWeakPtr<FTraceViewModel> WeakTrace;
 	TWeakPtr<SStartPageWindow> WeakParentWidget;
 };
 
@@ -388,11 +529,13 @@ SStartPageWindow::SStartPageWindow()
 	, AutoStartAppNameFilter()
 	, AutoStartConfigurationTypeFilter(EBuildConfiguration::Unknown)
 	, AutoStartTargetTypeFilter(EBuildTargetType::Unknown)
-	, TraceSessionsListView()
-	, TraceSessions()
-	, TraceSessionsMap()
+	, StoreBrowser(new Insights::FStoreBrowser())
+	, TracesChangeSerial(0)
+	, TraceViewModels()
+	, TraceViewModelMap()
+	, TraceListView()
+	, SelectedTrace()
 	, HostTextBox()
-	, SelectedTraceSession()
 	, SplashScreenOverlayFadeTime(0.0f)
 {
 }
@@ -466,7 +609,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 						.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
 						.Padding(8.0f)
 						[
-							ConstructLocalSessionDirectoryPanel()
+							ConstructTraceStoreDirectoryPanel()
 						]
 					]
 				]
@@ -534,10 +677,10 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 			.Expose(OverlaySettingsSlot)
 		];
 
-	RefreshTraceSessionList();
+	RefreshTraceList();
 
-	FSlateApplication::Get().SetKeyboardFocus(TraceSessionsListView);
-	FSlateApplication::Get().SetUserFocus(0, TraceSessionsListView);
+	FSlateApplication::Get().SetKeyboardFocus(TraceListView);
+	FSlateApplication::Get().SetUserFocus(0, TraceListView);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -562,16 +705,16 @@ TSharedRef<SWidget> SStartPageWindow::ConstructSessionsPanel()
 	.VAlign(VAlign_Fill)
 	.Padding(0.0f, 1.0f, 0.0f, 2.0f)
 	[
-		SAssignNew(TraceSessionsListView, SListView<TSharedPtr<FTraceSession>>)
+		SAssignNew(TraceListView, SListView<TSharedPtr<FTraceViewModel>>)
 		.IsFocusable(true)
 		.ItemHeight(20.0f)
 		.SelectionMode(ESelectionMode::Single)
-		.OnSelectionChanged(this, &SStartPageWindow::TraceSessions_OnSelectionChanged)
-		.OnMouseButtonDoubleClick(this, &SStartPageWindow::TraceSessions_OnMouseButtonDoubleClick)
-		.ListItemsSource(&TraceSessions)
-		.OnGenerateRow(this, &SStartPageWindow::TraceSessions_OnGenerateRow)
+		.OnSelectionChanged(this, &SStartPageWindow::TraceList_OnSelectionChanged)
+		.OnMouseButtonDoubleClick(this, &SStartPageWindow::TraceList_OnMouseButtonDoubleClick)
+		.ListItemsSource(&TraceViewModels)
+		.OnGenerateRow(this, &SStartPageWindow::TraceList_OnGenerateRow)
 		.ConsumeMouseWheel(EConsumeMouseWheel::Always)
-		//.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SStartPageWindow::TraceSessions_GetContextMenu))
+		//.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SStartPageWindow::TraceList_GetContextMenu))
 		.HeaderRow
 		(
 			SNew(SHeaderRow)
@@ -683,7 +826,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
 	[
 		SNew(SComboButton)
 		.ToolTipText(LOCTEXT("MRU_Tooltip", "Open a trace file or choose a trace session."))
-		.OnGetMenuContent(this, &SStartPageWindow::MakeSessionListMenu)
+		.OnGetMenuContent(this, &SStartPageWindow::MakeTraceListMenu)
 		.HasDownArrow(true)
 		.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
 	];
@@ -692,7 +835,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStartPageWindow::ConstructLocalSessionDirectoryPanel()
+TSharedRef<SWidget> SStartPageWindow::ConstructTraceStoreDirectoryPanel()
 {
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
 
@@ -702,7 +845,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLocalSessionDirectoryPanel()
 	.Padding(0.0f, 0.0f)
 	[
 		SNew(STextBlock)
-		.Text(LOCTEXT("LocalSessionDirectoryText", "Local Session Directory:"))
+		.Text(LOCTEXT("TraceStoreDirText", "Trace Store Directory:"))
 		.ColorAndOpacity(FLinearColor::Gray)
 	]
 
@@ -718,7 +861,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLocalSessionDirectoryPanel()
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(this, &SStartPageWindow::GetLocalSessionDirectory)
+			.Text(this, &SStartPageWindow::GetTraceStoreDirectory)
 			.Justification(ETextJustify::Right)
 		]
 
@@ -728,9 +871,9 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLocalSessionDirectoryPanel()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("ExploreLocalSessionDirButton", "..."))
-			.ToolTipText(LOCTEXT("ExploreLocalSessionDirButtonToolTip", "Explore the Local Session Directory"))
-			.OnClicked(this, &SStartPageWindow::ExploreLocalSessionDirectory_OnClicked)
+			.Text(LOCTEXT("ExploreTraceStoreDirButton", "..."))
+			.ToolTipText(LOCTEXT("ExploreTraceStoreDirButtonToolTip", "Explore the Trace Store Directory"))
+			.OnClicked(this, &SStartPageWindow::ExploreTraceStoreDirectory_OnClicked)
 		]
 	];
 
@@ -750,12 +893,12 @@ TSharedRef<SWidget> SStartPageWindow::ConstructAutoStartPanel()
 	.VAlign(VAlign_Center)
 	[
 		SNew(SCheckBox)
-		.ToolTipText(LOCTEXT("AutoStart_Tooltip", "Enable auto-start analysis for LIVE sessions."))
+		.ToolTipText(LOCTEXT("AutoStart_Tooltip", "Enable auto-start analysis for LIVE trace sessions."))
 		.IsChecked(this, &SStartPageWindow::AutoStart_IsChecked)
 		.OnCheckStateChanged(this, &SStartPageWindow::AutoStart_OnCheckStateChanged)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("AutoStart_Text", "Auto Start Analysis for LIVE Sessions"))
+			.Text(LOCTEXT("AutoStart_Text", "Auto-start analysis for LIVE trace sessions"))
 		]
 	]
 
@@ -767,7 +910,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructAutoStartPanel()
 	[
 		SAssignNew(AutoStartPlatformFilter, SSearchBox)
 		.HintText(LOCTEXT("AutoStartPlatformFilter_Hint", "Platform"))
-		.ToolTipText(LOCTEXT("AutoStartPlatformFilter_Tooltip", "Type here to specify the Platform filter.\nAuto-start analysis will be enabled only for live sessions with this specified Platform."))
+		.ToolTipText(LOCTEXT("AutoStartPlatformFilter_Tooltip", "Type here to specify the Platform filter.\nAuto-start analysis will be enabled only for live trace sessions with this specified Platform."))
 	]
 
 	+ SHorizontalBox::Slot()
@@ -778,7 +921,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructAutoStartPanel()
 	[
 		SAssignNew(AutoStartAppNameFilter, SSearchBox)
 		.HintText(LOCTEXT("AutoStartAppNameFilter_Hint", "AppName"))
-		.ToolTipText(LOCTEXT("AutoStartAppNameFilter_Tooltip", "Type here to specify the AppName filter.\nAuto-start analysis will be enabled only for live sessions with this specified AppName."))
+		.ToolTipText(LOCTEXT("AutoStartAppNameFilter_Tooltip", "Type here to specify the AppName filter.\nAuto-start analysis will be enabled only for live trace sessions with this specified AppName."))
 	];
 
 	return Widget;
@@ -939,9 +1082,9 @@ TSharedRef<SWidget> SStartPageWindow::ConstructConnectPanel()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<ITableRow> SStartPageWindow::TraceSessions_OnGenerateRow(TSharedPtr<FTraceSession> InTraceSession, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SStartPageWindow::TraceList_OnGenerateRow(TSharedPtr<FTraceViewModel> InTrace, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(STraceSessionRow, InTraceSession, SharedThis(this), OwnerTable);
+	return SNew(STraceListRow, InTrace, SharedThis(this), OwnerTable);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -1011,9 +1154,9 @@ FText SStartPageWindow::GetSplashScreenOverlayText() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SStartPageWindow::RefreshTraceSessions_OnClicked()
+FReply SStartPageWindow::RefreshTraces_OnClicked()
 {
-	RefreshTraceSessionList();
+	RefreshTraceList();
 	return FReply::Handled();
 }
 
@@ -1070,13 +1213,13 @@ FReply SStartPageWindow::Connect_OnClicked()
 		ActiveNotifications.Add(TEXT("ConnectFailed"), NotificationItem);
 	}
 
-	RefreshTraceSessionList();
+	RefreshTraceList();
 	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStartPageWindow::RefreshTraceSessionList()
+void SStartPageWindow::RefreshTraceList()
 {
 	Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 	if (StoreClient == nullptr)
@@ -1084,214 +1227,192 @@ void SStartPageWindow::RefreshTraceSessionList()
 		return;
 	}
 
-	bool bTraceListChanged = false;
+	FStopwatch StopwatchTotal;
+	StopwatchTotal.Start();
 
-	// Update file metadata (size and timestamp).
+	int32 AddedTraces = 0;
+	int32 RemovedTraces = 0;
+	int32 UpdatedTraces = 0;
+
 	{
-		int32 AvailableTraceCount = 0;
+		StoreBrowser->Lock();
 
-		const int32 TraceCount = StoreClient->GetTraceCount();
-		for (int32 TraceIndex = 0; TraceIndex < TraceCount; ++TraceIndex)
+		const uint64 NewChangeSerial = StoreBrowser->GetLockedTracesChangeSerial();
+		if (NewChangeSerial != TracesChangeSerial)
 		{
-			const Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfo(TraceIndex);
-			if (TraceInfo == nullptr)
+			TracesChangeSerial = NewChangeSerial;
+
+			UE_LOG(TraceInsights, Log, TEXT("[StartPage] Synching the trace list with StoreBrowser..."));
+	
+			const TArray<TSharedPtr<Insights::FStoreBrowserTraceInfo>>& InTraces = StoreBrowser->GetLockedTraces();
+			const TMap<uint32, TSharedPtr<Insights::FStoreBrowserTraceInfo>>& InTraceMap = StoreBrowser->GetLockedTraceMap();
+
+			// Check for removed traces.
 			{
-				continue;
+				int32 TraceViewModelCount = TraceViewModels.Num();
+				for (int32 TraceIndex = 0; TraceIndex < TraceViewModelCount; ++TraceIndex)
+				{
+					FTraceViewModel& Trace = *TraceViewModels[TraceIndex];
+					const TSharedPtr<Insights::FStoreBrowserTraceInfo>* InTracePtrPtr = InTraceMap.Find(Trace.TraceId);
+					if (!InTracePtrPtr)
+					{
+						// This trace was removed.
+						RemovedTraces++;
+						TraceViewModelMap.Remove(Trace.TraceId);
+						TraceViewModels.RemoveAtSwap(TraceIndex);
+						TraceIndex--;
+						TraceViewModelCount--;
+					}
+				}
 			}
 
-			AvailableTraceCount++;
-
-			const uint32 TraceId = TraceInfo->GetId();
-
-			TSharedPtr<FTraceSession>* TraceSessionPtrPtr = TraceSessionsMap.Find(TraceId);
-			if (TraceSessionPtrPtr)
+			// Check for added traces and for updated traces.
+			for (const TSharedPtr<Insights::FStoreBrowserTraceInfo>& InTracePtr : InTraces)
 			{
-				FTraceSession& TraceSession = **TraceSessionPtrPtr;
-
-				// Reset live status for all traces. Live status will be updated at the end of this function.
-				TraceSession.bIsLive = false;
-				TraceSession.IpAddress = 0;
-
-				TraceSession.Timestamp = FTraceSession::ConvertTimestamp(TraceInfo->GetTimestamp());
-				TraceSession.Size = TraceInfo->GetSize();
-			}
-			else
-			{
-				// New trace detected.
-				bTraceListChanged = true;
-				break;
+				const Insights::FStoreBrowserTraceInfo& SourceTrace = *InTracePtr;
+				TSharedPtr<FTraceViewModel>* TracePtrPtr = TraceViewModelMap.Find(SourceTrace.TraceId);
+				if (TracePtrPtr)
+				{
+					FTraceViewModel& Trace = **TracePtrPtr;
+					if (Trace.ChangeSerial != SourceTrace.ChangeSerial)
+					{
+						// This trace was updated.
+						UpdatedTraces++;
+						UpdateTrace(Trace, SourceTrace);
+					}
+				}
+				else
+				{
+					// This trace was added.
+					AddedTraces++;
+					TSharedPtr<FTraceViewModel> TracePtr = MakeShared<FTraceViewModel>();
+					FTraceViewModel& Trace = *TracePtr;
+					Trace.TraceId = SourceTrace.TraceId;
+					Trace.Name = FText::FromString(SourceTrace.Name);
+					Trace.Uri = FText::FromString(FInsightsManager::Get()->GetStoreDir() + TEXT("/") + SourceTrace.Name + TEXT(".utrace"));
+					UpdateTrace(Trace, SourceTrace);
+					TraceViewModels.Add(TracePtr);
+					TraceViewModelMap.Add(SourceTrace.TraceId, TracePtr);
+				}
 			}
 		}
 
-		bTraceListChanged = bTraceListChanged || (AvailableTraceCount != TraceSessions.Num());
+		StoreBrowser->Unlock();
 	}
 
-	// If trace list has changed on store side, recreate the TraceSessions list view widget.
-	if (bTraceListChanged)
+	if (AddedTraces > 0 || RemovedTraces > 0)
 	{
-		UE_LOG(TraceInsights, Log, TEXT("List of trace sessions has changed. Updating..."));
-
-		FStopwatch Stopwatch;
-		Stopwatch.Start();
-
-		int32 MetadataUpdateCount = 0; // for debugging
-
-		TSharedPtr<FTraceSession> NewSelectedTraceSession;
-
-		// Rebuild list of traces.
-		TraceSessions.Reset();
-
-		const int32 TraceCount = StoreClient->GetTraceCount();
-		for (int32 TraceIndex = 0; TraceIndex < TraceCount; ++TraceIndex)
-		{
-			const Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfo(TraceIndex);
-			if (TraceInfo == nullptr)
-			{
-				continue;
-			}
-
-			TSharedPtr<FTraceSession> TraceSessionPtr;
-
-			// Use previous TraceSessionsMap as a cache.
-			TSharedPtr<FTraceSession>* TraceSessionPtrPtr = TraceSessionsMap.Find(TraceInfo->GetId());
-			if (TraceSessionPtrPtr)
-			{
-				// Reuse an existing FTraceSession.
-				TraceSessionPtr = *TraceSessionPtrPtr;
-			}
-			else
-			{
-				// Make new FTraceSession.
-				TraceSessionPtr = MakeShared<FTraceSession>();
-
-				TraceSessionPtr->TraceId = TraceInfo->GetId();
-
-				const FAnsiStringView AnsiTraceName = TraceInfo->GetName();
-				const FString TraceName(AnsiTraceName.Len(), AnsiTraceName.GetData());
-				TraceSessionPtr->Name = FText::FromString(TraceName);
-				TraceSessionPtr->Uri = FText::FromString(FInsightsManager::Get()->GetStoreDir() + TEXT("/") + TraceName + TEXT(".utrace"));
-			}
-
-			FTraceSession& TraceSession = *TraceSessionPtr;
-
-			TraceSession.TraceIndex = TraceIndex;
-
-			TraceSession.Timestamp = FTraceSession::ConvertTimestamp(TraceInfo->GetTimestamp());
-			TraceSession.Size = TraceInfo->GetSize();
-
-			if (!TraceSession.bIsMetadataUpdated)
-			{
-				UpdateMetadata(TraceSession);
-				MetadataUpdateCount++;
-			}
-
-			TraceSessions.Add(TraceSessionPtr);
-
-			// Identify the previously selected trace session (if stil available) to ensure selection remains unchanged.
-			if (SelectedTraceSession && SelectedTraceSession->TraceId == TraceSession.TraceId)
-			{
-				NewSelectedTraceSession = TraceSessionPtr;
-			}
-		}
-
-		// Rebuild map.
-		TraceSessionsMap.Reset();
-		for (TSharedPtr<FTraceSession>& TraceSession : TraceSessions)
-		{
-			TraceSessionsMap.Add(TraceSession->TraceId, TraceSession);
-		}
-
-		Algo::SortBy(TraceSessions, &FTraceSession::Timestamp);
-
-		TraceSessionsListView->RebuildList();
-
-		// If no selection, auto select the last (newest) trace session.
-		if (!NewSelectedTraceSession.IsValid() && TraceSessions.Num() > 0)
-		{
-			NewSelectedTraceSession = TraceSessions.Last();
-		}
-
-		TraceSessionsListView->ScrollToBottom();
-
-		// Restore selection and ensure it is visible.
-		if (NewSelectedTraceSession.IsValid())
-		{
-			TraceSessionsListView->SetItemSelection(NewSelectedTraceSession, true);
-			TraceSessionsListView->RequestScrollIntoView(NewSelectedTraceSession);
-		}
-
-		Stopwatch.Stop();
-		UE_LOG(TraceInsights, Log, TEXT("List of trace sessions updated in %llu ms (metadata updated for %d trace%s)."), Stopwatch.GetAccumulatedTimeMs(), MetadataUpdateCount, MetadataUpdateCount == 1 ? TEXT("") : TEXT("s"));
+		// If we have new or removed traces we need to rebuild the list view.
+		OnTraceListChanged();
 	}
 
-	// Process the connected recorder sessions.
+	StopwatchTotal.Stop();
+	if (UpdatedTraces > 0 || AddedTraces > 0 || RemovedTraces > 0)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[StartPage] The trace list refreshed in %llu ms (%d traces : %d updated, %d added, %d removed)."),
+			StopwatchTotal.GetAccumulatedTimeMs(), TraceViewModels.Num(), UpdatedTraces, AddedTraces, RemovedTraces);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::UpdateTrace(FTraceViewModel& InOutTrace, const Insights::FStoreBrowserTraceInfo& InSourceTrace)
+{
+	//TraceId -- no need to update
+
+	InOutTrace.ChangeSerial = InSourceTrace.ChangeSerial;
+	InOutTrace.TraceIndex = InSourceTrace.TraceIndex;
+
+	//Name -- no need to update
+	//Uri -- no need to update
+
+	InOutTrace.Timestamp = InSourceTrace.Timestamp;
+	InOutTrace.Size = InSourceTrace.Size;
+
+	InOutTrace.bIsLive = InSourceTrace.bIsLive;
+	InOutTrace.IpAddress = InSourceTrace.IpAddress;
+
+	// Is metadata updated?
+	if (!InOutTrace.bIsMetadataUpdated && InSourceTrace.bIsMetadataUpdated)
+	{
+		InOutTrace.bIsMetadataUpdated = true;
+		InOutTrace.Platform = FText::FromString(InSourceTrace.Platform);
+		InOutTrace.AppName = FText::FromString(InSourceTrace.AppName);
+		InOutTrace.CommandLine = FText::FromString(InSourceTrace.CommandLine);
+		InOutTrace.ConfigurationType = InSourceTrace.ConfigurationType;
+		InOutTrace.TargetType = InSourceTrace.TargetType;
+	}
+
+	// Auto start analysis for a live trace session.
+	if (InOutTrace.bIsLive &&
+		InOutTrace.bIsMetadataUpdated &&
+		bAutoStartAnalysisForLiveSessions && // is auto start enabled?
+		!AutoStartedSessions.Contains(InOutTrace.TraceId)) // is not already auto-started?
 	{
 		const FString AutoStartPlatformFilterStr = AutoStartPlatformFilter->GetText().ToString();
 		const FString AutoStartAppNameFilterStr = AutoStartAppNameFilter->GetText().ToString();
 
-		const int32 SessionCount = StoreClient->GetSessionCount();
-		for (int32 SessionIndex = 0; SessionIndex < SessionCount; ++SessionIndex)
+		// matches filter?
+		if ((AutoStartPlatformFilterStr.IsEmpty() || FCString::Strcmp(*AutoStartPlatformFilterStr, *InOutTrace.Platform.ToString()) == 0) &&
+			(AutoStartAppNameFilterStr.IsEmpty() || FCString::Strcmp(*AutoStartAppNameFilterStr, *InOutTrace.AppName.ToString()) == 0) &&
+			(AutoStartConfigurationTypeFilter == EBuildConfiguration::Unknown || AutoStartConfigurationTypeFilter == InOutTrace.ConfigurationType) &&
+			(AutoStartTargetTypeFilter == EBuildTargetType::Unknown || AutoStartTargetTypeFilter == InOutTrace.TargetType))
 		{
-			const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionIndex);
-			if (SessionInfo == nullptr)
-			{
-				continue;
-			}
-
-			const uint32 TraceId = SessionInfo->GetTraceId();
-
-			TSharedPtr<FTraceSession>* TraceSessionPtrPtr = TraceSessionsMap.Find(TraceId);
-			if (TraceSessionPtrPtr)
-			{
-				FTraceSession& TraceSession = **TraceSessionPtrPtr;
-
-				// Update live status.
-				TraceSession.bIsLive = true;
-				TraceSession.IpAddress = SessionInfo->GetIpAddress();
-
-				// Auto start anaysis for a live session.
-				if (bAutoStartAnalysisForLiveSessions && // is auto start enabled?
-					!AutoStartedSessions.Contains(TraceId)) // is not already auto-started?
-				{
-					// matches filter?
-					if ((AutoStartPlatformFilterStr.IsEmpty() || FCString::Strcmp(*AutoStartPlatformFilterStr, *TraceSession.Platform.ToString()) == 0) &&
-						(AutoStartAppNameFilterStr.IsEmpty() || FCString::Strcmp(*AutoStartAppNameFilterStr, *TraceSession.AppName.ToString()) == 0) &&
-						(AutoStartConfigurationTypeFilter == EBuildConfiguration::Unknown || AutoStartConfigurationTypeFilter == TraceSession.ConfigurationType) &&
-						(AutoStartTargetTypeFilter == EBuildTargetType::Unknown || AutoStartTargetTypeFilter == TraceSession.TargetType))
-					{
-						UE_LOG(TraceInsights, Log, TEXT("Auto starting analysis for trace with id 0x%08X..."), TraceSession.TraceId);
-						AutoStartedSessions.Add(TraceSession.TraceId);
-						LoadTrace(TraceSession.TraceId);
-					}
-				}
-			}
-			else
-			{
-				// Trace not found. It will be picked up by the next RefreshTraceSessionList() call.
-			}
+			UE_LOG(TraceInsights, Log, TEXT("[StartPage] Auto starting analysis for trace with id 0x%08X..."), InOutTrace.TraceId);
+			AutoStartedSessions.Add(InOutTrace.TraceId);
+			LoadTrace(InOutTrace.TraceId);
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStartPageWindow::TraceSessions_OnSelectionChanged(TSharedPtr<FTraceSession> TraceSession, ESelectInfo::Type SelectInfo)
+void SStartPageWindow::OnTraceListChanged()
 {
-	SelectedTraceSession = TraceSession;
+	Algo::SortBy(TraceViewModels, &FTraceViewModel::Timestamp);
+
+	//////////////////////////////////////////////////
+	// TraceViewModels array has changed.
+	// Now we need to rebuild the list in the ListView.
+
+	TSharedPtr<FTraceViewModel> NewSelectedTrace;
+	if (SelectedTrace)
+	{
+		// Identify the previously selected trace (if stil available) to ensure selection remains unchanged.
+		TSharedPtr<FTraceViewModel>* TracePtrPtr = TraceViewModelMap.Find(SelectedTrace->TraceId);
+		NewSelectedTrace = TracePtrPtr ? *TracePtrPtr : nullptr;
+	}
+
+	TraceListView->RebuildList();
+
+	// If no selection, auto select the last (newest) trace.
+	if (!NewSelectedTrace.IsValid() && TraceViewModels.Num() > 0)
+	{
+		NewSelectedTrace = TraceViewModels.Last();
+	}
+
+	TraceListView->ScrollToBottom();
+
+	// Restore selection and ensure it is visible.
+	if (NewSelectedTrace.IsValid())
+	{
+		TraceListView->SetItemSelection(NewSelectedTrace, true);
+		TraceListView->RequestScrollIntoView(NewSelectedTrace);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStartPageWindow::TraceSessions_OnMouseButtonDoubleClick(TSharedPtr<FTraceSession> TraceSession)
+void SStartPageWindow::TraceList_OnSelectionChanged(TSharedPtr<FTraceViewModel> TraceSession, ESelectInfo::Type SelectInfo)
+{
+	SelectedTrace = TraceSession;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::TraceList_OnMouseButtonDoubleClick(TSharedPtr<FTraceViewModel> TraceSession)
 {
 	LoadTraceSession(TraceSession);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility SStartPageWindow::TraceSessions_Visibility() const
-{
-	return (TraceSessions.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1312,36 +1433,17 @@ void SStartPageWindow::AutoStart_OnCheckStateChanged(ECheckBoxState NewState)
 
 void SStartPageWindow::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	// We need to check if there is any available session, but not too often.
+	// We need to update the trace list, but not too often.
 	static uint64 NextTimestamp = 0;
 	uint64 Time = FPlatformTime::Cycles64();
 	if (Time > NextTimestamp)
 	{
 		const uint64 WaitTime = static_cast<uint64>(0.5 / FPlatformTime::GetSecondsPerCycle64()); // 500ms
 		NextTimestamp = Time + WaitTime;
-		RefreshTraceSessionList();
+		RefreshTraceList();
 	}
 
 	TickSplashScreenOverlay(InDeltaTime);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility SStartPageWindow::IsSessionOverlayVisible() const
-{
-	if (FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Hidden;
-	}
-
-	return EVisibility::Visible;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SStartPageWindow::IsSessionValid() const
-{
-	return FInsightsManager::Get()->GetSession().IsValid();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1440,14 +1542,14 @@ FReply SStartPageWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEven
 
 bool SStartPageWindow::Open_IsEnabled() const
 {
-	return TraceSessions.Num() > 0;
+	return TraceViewModels.Num() > 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FReply SStartPageWindow::Open_OnClicked()
 {
-	LoadTraceSession(SelectedTraceSession);
+	LoadTraceSession(SelectedTrace);
 	return FReply::Handled();
 }
 
@@ -1488,7 +1590,7 @@ void SStartPageWindow::OpenFileDialog()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStartPageWindow::LoadTraceSession(TSharedPtr<FTraceSession> InTraceSession)
+void SStartPageWindow::LoadTraceSession(TSharedPtr<FTraceViewModel> InTraceSession)
 {
 	if (InTraceSession.IsValid())
 	{
@@ -1502,13 +1604,13 @@ void SStartPageWindow::LoadTraceFile(const FString& InTraceFile)
 {
 	if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
 	{
-		UE_LOG(TraceInsights, Log, TEXT("Start analysis (in separate process) for trace file: \"%s\""), *InTraceFile);
+		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis (in separate process) for trace file: \"%s\""), *InTraceFile);
 
 		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
 		FString CmdLine = TEXT("-TraceFile=\"") + InTraceFile + TEXT("\"");
 
-		constexpr bool bLaunchDetached = false;
+		constexpr bool bLaunchDetached = true;
 		constexpr bool bLaunchHidden = false;
 		constexpr bool bLaunchReallyHidden = false;
 
@@ -1520,14 +1622,17 @@ void SStartPageWindow::LoadTraceFile(const FString& InTraceFile)
 		void* PipeReadChild = nullptr;
 
 		FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
-		FPlatformProcess::CloseProc(Handle);
+		if (Handle.IsValid())
+		{
+			FPlatformProcess::CloseProc(Handle);
+		}
 
 		SplashScreenOverlayTraceFile = FPaths::GetBaseFilename(InTraceFile);
 		ShowSplashScreenOverlay();
 	}
 	else
 	{
-		UE_LOG(TraceInsights, Log, TEXT("Start analysis for trace file: \"%s\""), *InTraceFile);
+		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis for trace file: \"%s\""), *InTraceFile);
 		FInsightsManager::Get()->LoadTraceFile(InTraceFile);
 	}
 }
@@ -1538,14 +1643,14 @@ void SStartPageWindow::LoadTrace(uint32 InTraceId)
 {
 	if (FInsightsManager::Get()->ShouldOpenAnalysisInSeparateProcess())
 	{
-		UE_LOG(TraceInsights, Log, TEXT("Start analysis (in separate process) for trace id: 0x%08X"), InTraceId);
+		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis (in separate process) for trace id: 0x%08X"), InTraceId);
 
 		const TCHAR* ExecutablePath = FPlatformProcess::ExecutablePath();
 
 		const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
 		FString CmdLine = FString::Printf(TEXT("-TraceId=%d -StorePort=%d"), InTraceId, StorePort);
 
-		constexpr bool bLaunchDetached = false;
+		constexpr bool bLaunchDetached = true;
 		constexpr bool bLaunchHidden = false;
 		constexpr bool bLaunchReallyHidden = false;
 
@@ -1557,28 +1662,31 @@ void SStartPageWindow::LoadTrace(uint32 InTraceId)
 		void* PipeReadChild = nullptr;
 
 		FProcHandle Handle = FPlatformProcess::CreateProc(ExecutablePath, *CmdLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild);
-		FPlatformProcess::CloseProc(Handle);
+		if (Handle.IsValid())
+		{
+			FPlatformProcess::CloseProc(Handle);
+		}
 
-		TSharedPtr<FTraceSession>* TraceSessionPtrPtr = TraceSessionsMap.Find(InTraceId);
+		TSharedPtr<FTraceViewModel>* TraceSessionPtrPtr = TraceViewModelMap.Find(InTraceId);
 		if (TraceSessionPtrPtr)
 		{
-			FTraceSession& TraceSession = **TraceSessionPtrPtr;
+			FTraceViewModel& TraceSession = **TraceSessionPtrPtr;
 			SplashScreenOverlayTraceFile = FPaths::GetBaseFilename(TraceSession.Uri.ToString());
 		}
 		ShowSplashScreenOverlay();
 	}
 	else
 	{
-		UE_LOG(TraceInsights, Log, TEXT("Start analysis for trace id: 0x%08X"), InTraceId);
+		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Start analysis for trace id: 0x%08X"), InTraceId);
 		FInsightsManager::Get()->LoadTrace(InTraceId);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStartPageWindow::MakeSessionListMenu()
+TSharedRef<SWidget> SStartPageWindow::MakeTraceListMenu()
 {
-	RefreshTraceSessionList();
+	RefreshTraceList();
 
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
@@ -1595,33 +1703,33 @@ TSharedRef<SWidget> SStartPageWindow::MakeSessionListMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("AvailableSessions", LOCTEXT("AvailableSessionsHeading", "Top Most Recently Created Sessions"));
+	MenuBuilder.BeginSection("AvailableTraces", LOCTEXT("AvailableTracesHeading", "Top Most Recently Created Traces"));
 	{
 		Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 		if (StoreClient != nullptr)
 		{
-			// Make a copy of the sessions list (to allow TraceSessions to be sorted by other criteria).
-			TArray<TSharedPtr<FTraceSession>> SortedTraceSessions(TraceSessions);
-			Algo::SortBy(SortedTraceSessions, &FTraceSession::Timestamp);
+			// Make a copy of the trace list (to allow list view to be sorted by other criteria).
+			TArray<TSharedPtr<FTraceViewModel>> SortedTraces(TraceViewModels);
+			Algo::SortBy(SortedTraces, &FTraceViewModel::Timestamp);
 
 			int32 TraceCountLimit = 10; // top 10
 
-			// Iterate in reverse order as we want most recent sessions first.
-			for (int32 TraceSessionIndex = SortedTraceSessions.Num() - 1; TraceSessionIndex >= 0 && TraceCountLimit > 0; --TraceSessionIndex, --TraceCountLimit)
+			// Iterate in reverse order as we want most recently created traces first.
+			for (int32 TraceIndex = SortedTraces.Num() - 1; TraceIndex >= 0 && TraceCountLimit > 0; --TraceIndex, --TraceCountLimit)
 			{
-				const FTraceSession& TraceSession = *SortedTraceSessions[TraceSessionIndex];
+				const FTraceViewModel& Trace = *SortedTraces[TraceIndex];
 
-				FText Label = TraceSession.Name;
-				if (TraceSession.bIsLive)
+				FText Label = Trace.Name;
+				if (Trace.bIsLive)
 				{
-					Label = FText::Format(LOCTEXT("LiveSessionTextFmt", "{0} (LIVE!)"), Label);
+					Label = FText::Format(LOCTEXT("LiveTraceTextFmt", "{0} (LIVE!)"), Label);
 				}
 
 				MenuBuilder.AddMenuEntry(
 					Label,
 					TAttribute<FText>(), // no tooltip
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &SStartPageWindow::LoadTrace, TraceSession.TraceId)),
+					FUIAction(FExecuteAction::CreateSP(this, &SStartPageWindow::LoadTrace, Trace.TraceId)),
 					NAME_None,
 					EUserInterfaceActionType::Button
 				);
@@ -1635,14 +1743,14 @@ TSharedRef<SWidget> SStartPageWindow::MakeSessionListMenu()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText SStartPageWindow::GetLocalSessionDirectory() const
+FText SStartPageWindow::GetTraceStoreDirectory() const
 {
 	return FText::FromString(FPaths::ConvertRelativePathToFull(FInsightsManager::Get()->GetStoreDir()));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SStartPageWindow::ExploreLocalSessionDirectory_OnClicked()
+FReply SStartPageWindow::ExploreTraceStoreDirectory_OnClicked()
 {
 	FString FullPath(FPaths::ConvertRelativePathToFull(FInsightsManager::Get()->GetStoreDir()));
 	FPlatformProcess::ExploreFolder(*FullPath);
@@ -1691,7 +1799,7 @@ EVisibility SStartPageWindow::StopTraceRecorder_Visibility() const
 FReply SStartPageWindow::StartTraceRecorder_OnClicked()
 {
 	//TODO: StoreClient->StartRecorderServer();
-	RefreshTraceSessionList();
+	RefreshTraceList();
 	return FReply::Handled();
 }
 
@@ -1700,7 +1808,7 @@ FReply SStartPageWindow::StartTraceRecorder_OnClicked()
 FReply SStartPageWindow::StopTraceRecorder_OnClicked()
 {
 	//TODO: StoreClient->StopRecorderServer();
-	RefreshTraceSessionList();
+	RefreshTraceList();
 	return FReply::Handled();
 }
 
@@ -1732,117 +1840,6 @@ void SStartPageWindow::CloseSettings()
 		SNullWidget::NullWidget
 	];
 	MainContentPanel->SetEnabled(true);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct FDiagnosticsSessionAnalyzer : public Trace::IAnalyzer
-{
-	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override
-	{
-		Context.InterfaceBuilder.RouteEvent(0, "Diagnostics", "Session");
-	}
-
-	virtual bool OnEvent(uint16, const FOnEventContext& Context) override
-	{
-		const FEventData& EventData = Context.EventData;
-
-		const uint8* Attachment = EventData.GetAttachment();
-		if (Attachment == nullptr)
-		{
-			return false;
-		}
-
-		uint8 AppNameOffset = EventData.GetValue<uint8>("AppNameOffset");
-		uint8 CommandLineOffset = EventData.GetValue<uint8>("CommandLineOffset");
-
-		Platform = FString(AppNameOffset, (const ANSICHAR*)Attachment);
-
-		Attachment += AppNameOffset;
-		int32 AppNameLength = CommandLineOffset - AppNameOffset;
-		AppName = FString(AppNameLength, (const ANSICHAR*)Attachment);
-
-		Attachment += AppNameLength;
-		int32 CommandLineLength = EventData.GetAttachmentSize() - CommandLineOffset;
-		CommandLine = FString(CommandLineLength, (const ANSICHAR*)Attachment);
-
-		ConfigurationType = EventData.GetValue<int8>("ConfigurationType");
-		TargetType = EventData.GetValue<int8>("TargetType");
-
-		return false;
-	}
-
-	FString Platform;
-	FString AppName;
-	FString CommandLine;
-	int8 ConfigurationType = 0;
-	int8 TargetType = 0;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SStartPageWindow::UpdateMetadata(FTraceSession& TraceSession)
-{
-	if (TraceSession.bIsMetadataUpdated)
-	{
-		return;
-	}
-
-	//UE_LOG(TraceInsights, Log, TEXT("Updating metadata for trace 0x%08X (%s)..."), TraceSession.TraceId, *TraceSession.Name.ToString());
-
-	Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
-	if (StoreClient == nullptr)
-	{
-		return;
-	}
-
-	Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(TraceSession.TraceId);
-	if (!TraceData)
-	{
-		return;
-	}
-
-	struct FDataStream : public Trace::IInDataStream
-	{
-		virtual int32 Read(void* Data, uint32 Size) override
-		{
-			if (BytesRead >= 48 * 1024)
-			{
-				return 0;
-			}
-
-			const int32 InnerBytesRead = Inner->Read(Data, Size);
-			BytesRead += InnerBytesRead;
-			return InnerBytesRead;
-		}
-
-		virtual void Close() override
-		{
-			Inner->Close();
-		}
-
-		int32 BytesRead = 0;
-		Trace::IInDataStream* Inner;
-	};
-
-	FDataStream DataStream;
-	DataStream.Inner = TraceData.Get();
-
-	FDiagnosticsSessionAnalyzer Analyzer;
-	Trace::FAnalysisContext Context;
-	Context.AddAnalyzer(Analyzer);
-	Context.Process(DataStream).Wait();
-
-	if (Analyzer.Platform.Len() != 0)
-	{
-		TraceSession.Platform = FText::FromString(Analyzer.Platform);
-		TraceSession.AppName = FText::FromString(Analyzer.AppName);
-		TraceSession.CommandLine = FText::FromString(Analyzer.CommandLine);
-		TraceSession.ConfigurationType = static_cast<EBuildConfiguration>(Analyzer.ConfigurationType);
-		TraceSession.TargetType = static_cast<EBuildTargetType>(Analyzer.TargetType);
-	}
-
-	TraceSession.bIsMetadataUpdated = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
