@@ -94,6 +94,13 @@ static TAutoConsoleVariable<int32> CVarBasePassWriteDepthEvenWithFullPrepass(
 	TEXT("0 to allow a readonly base pass, which skips an MSAA depth resolve, and allows masked materials to get EarlyZ (writing to depth while doing clip() disables EarlyZ) (default)\n")
 	TEXT("1 to force depth writes in the base pass.  Useful for debugging when the prepass and base pass don't match what they render."));
 
+static int32 GAsyncCreateLightPrimitiveInteractions = 1;
+static FAutoConsoleVariableRef CVarAsyncCreateLightPrimitiveInteractions(
+	TEXT("r.AsyncCreateLightPrimitiveInteractions"),
+	GAsyncCreateLightPrimitiveInteractions,
+	TEXT("Whether to create LPIs asynchronously."),
+	ECVF_RenderThreadSafe);
+
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer MotionBlurStartFrame"), STAT_FDeferredShadingSceneRenderer_MotionBlurStartFrame, STATGROUP_SceneRendering);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDistanceCullFadeUniformShaderParameters, "PrimitiveFade");
@@ -999,6 +1006,62 @@ void FPersistentUniformBuffers::UpdateViewUniformBufferImmediate(const FViewUnif
 	CachedView = nullptr;
 }
 
+class FAsyncCreateLightPrimitiveInteractionsTask : public FNonAbandonableTask
+{
+	TSet<FPrimitiveSceneInfo*> PendingPrimitives;
+	const FScene* Scene;
+
+public:
+	FAsyncCreateLightPrimitiveInteractionsTask()
+		: Scene(nullptr)
+	{}
+
+	void Init(const FScene* InScene)
+	{
+		Scene = InScene;
+	}
+
+	void AddPrimitive(FPrimitiveSceneInfo* PrimInfo)
+	{
+		PendingPrimitives.Add(PrimInfo);
+	}
+
+	bool HasPendingPrimitives() const
+	{
+		return PendingPrimitives.Num() > 0;
+	}
+
+	void DoWork()
+	{
+		for (TSet<FPrimitiveSceneInfo*>::TConstIterator It(PendingPrimitives); It; ++It)
+		{
+			FPrimitiveSceneInfo* PrimInfo = *It;
+			FPrimitiveSceneProxy* Proxy = PrimInfo->Proxy;
+			const FBoxSphereBounds& Bounds = Proxy->GetBounds();
+
+			for (FSceneLightOctree::TConstElementBoxIterator<> LightIt(Scene->LightOctree, FBoxCenterAndExtent(Bounds));
+				LightIt.HasPendingElements();
+				LightIt.Advance())
+			{
+				const FLightSceneInfoCompact& LightInfo = LightIt.GetCurrentElement();
+
+				if (LightInfo.AffectsPrimitive(Bounds, Proxy))
+				{
+					FLightPrimitiveInteraction::Create(LightInfo.LightSceneInfo, PrimInfo);
+				}
+			}
+		}
+
+		PendingPrimitives.Reset();
+		Scene = nullptr;
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncCreateLightPrimitiveInteractionsTask, STATGROUP_ThreadPoolAsyncTasks);
+	}
+};
+
 FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScene, bool bCreateFXSystem, ERHIFeatureLevel::Type InFeatureLevel)
 :	FSceneInterface(InFeatureLevel)
 ,	World(InWorld)
@@ -1031,6 +1094,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 #if RHI_RAYTRACING
 , RayTracingDynamicGeometryCollection(nullptr)
 #endif
+,	AsyncCreateLightPrimitiveInteractionsTask(nullptr)
 ,	NumVisibleLights_GameThread(0)
 ,	NumEnabledSkylights_GameThread(0)
 ,	SceneFrameNumber(0)
@@ -1127,6 +1191,12 @@ FScene::~FScene()
 
 	BeginReleaseResource(&HaltonPrimesResource);
 #endif
+
+	if (AsyncCreateLightPrimitiveInteractionsTask)
+	{
+		delete AsyncCreateLightPrimitiveInteractionsTask;
+		AsyncCreateLightPrimitiveInteractionsTask = nullptr;
+	}
 
 	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.
 }
@@ -3013,6 +3083,8 @@ void FScene::GetRelevantLights_RenderThread( UPrimitiveComponent* Primitive, TAr
 	check( RelevantLights );
 	if( Primitive->SceneProxy )
 	{
+		FlushAsyncLightPrimitiveInteractionCreation();
+
 		for( const FLightPrimitiveInteraction* Interaction=Primitive->SceneProxy->GetPrimitiveSceneInfo()->LightList; Interaction; Interaction=Interaction->GetNextLight() )
 		{
 			RelevantLights->Add( Interaction->GetLight()->Proxy->GetLightComponent() );
@@ -3198,6 +3270,11 @@ void FScene::ConditionalMarkStaticMeshElementsForUpdate()
 void FScene::DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const
 {
 	FlushRenderingCommands();
+
+	if (AsyncCreateLightPrimitiveInteractionsTask)
+	{
+		AsyncCreateLightPrimitiveInteractionsTask->EnsureCompletion();
+	}
 
 	TSet<FString> LightsWithUnbuiltInteractions;
 	TSet<FString> PrimitivesWithUnbuiltInteractions;
@@ -3485,7 +3562,7 @@ struct FPrimitiveArraySortKey
 	}
 };
 
-void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
+void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs)
 {
 	SCOPED_NAMED_EVENT(FScene_UpdateAllPrimitiveSceneInfos, FColor::Orange);
 	SCOPE_CYCLE_COUNTER(STAT_UpdateScenePrimitiveRenderThreadTime);
@@ -3500,6 +3577,20 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 
 	TSet<FPrimitiveSceneInfo*> DeletedSceneInfos;
 	DeletedSceneInfos.Reserve(RemovedLocalPrimitiveSceneInfos.Num());
+
+	if (!!GAsyncCreateLightPrimitiveInteractions && !AsyncCreateLightPrimitiveInteractionsTask)
+	{
+		AsyncCreateLightPrimitiveInteractionsTask = new FAsyncTask<FAsyncCreateLightPrimitiveInteractionsTask>();
+	}
+
+	if (AsyncCreateLightPrimitiveInteractionsTask)
+	{
+		if (!AsyncCreateLightPrimitiveInteractionsTask->IsDone())
+		{
+			AsyncCreateLightPrimitiveInteractionsTask->EnsureCompletion();
+		}
+		AsyncCreateLightPrimitiveInteractionsTask->GetTask().Init(this);
+	}
 
 	{
 		SCOPED_NAMED_EVENT(FScene_RemovePrimitiveSceneInfos, FColor::Red);
@@ -3814,18 +3905,18 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 					SCOPED_NAMED_EVENT(FScene_AddPrimitiveSceneInfoToScene, FColor::Turquoise);
 					if (GIsEditor)
 					{
-						PrimitiveSceneInfo->AddToScene(RHICmdList, true);
+						PrimitiveSceneInfo->AddToScene(RHICmdList, true, true, bAsyncCreateLPIs);
 					}
 					else
 					{
 						const bool bAddToDrawLists = !(CVarDoLazyStaticMeshUpdate.GetValueOnRenderThread());
 						if (bAddToDrawLists)
 						{
-							PrimitiveSceneInfo->AddToScene(RHICmdList, true);
+							PrimitiveSceneInfo->AddToScene(RHICmdList, true, true, bAsyncCreateLPIs);
 						}
 						else
 						{
-							PrimitiveSceneInfo->AddToScene(RHICmdList, true, false);
+							PrimitiveSceneInfo->AddToScene(RHICmdList, true, false, bAsyncCreateLPIs);
 							PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
 						}
 					}
@@ -3909,9 +4000,15 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 			check(!(bUpdateStaticDrawLists && PrimitiveSceneInfo->StaticMeshes.Num()));
 
 			// Re-add the primitive to the scene with the new transform.
-			PrimitiveSceneInfo->AddToScene(RHICmdList, bUpdateStaticDrawLists);
+			PrimitiveSceneInfo->AddToScene(RHICmdList, bUpdateStaticDrawLists, true, bAsyncCreateLPIs);
 
 			PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+		}
+
+		if (AsyncCreateLightPrimitiveInteractionsTask && AsyncCreateLightPrimitiveInteractionsTask->GetTask().HasPendingPrimitives())
+		{
+			check(GAsyncCreateLightPrimitiveInteractions);
+			AsyncCreateLightPrimitiveInteractionsTask->StartBackgroundTask();
 		}
 
 		for (const auto& Transform : OverridenPreviousTransforms)
@@ -3988,6 +4085,50 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 	AddedPrimitiveSceneInfos.Reset();
 }
 
+void FScene::CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo, bool bAsyncCreateLPIs)
+{
+	if (!bAsyncCreateLPIs
+		|| !GAsyncCreateLightPrimitiveInteractions
+		|| GetShadingPath() == EShadingPath::Mobile
+		|| PrimitiveInfo->LODParentComponentId.IsValid()
+		|| !PrimitiveInfo->Proxy->IsMeshShapeOftenMoving())
+	{
+		FMemMark MemStackMark(FMemStack::Get());
+		const FBoxSphereBounds& Bounds = PrimitiveInfo->Proxy->GetBounds();
+
+		for (FSceneLightOctree::TConstElementBoxIterator<SceneRenderingAllocator> LightIt(LightOctree, FBoxCenterAndExtent(Bounds));
+			LightIt.HasPendingElements();
+			LightIt.Advance())
+		{
+			const FLightSceneInfoCompact& LightInfo = LightIt.GetCurrentElement();
+
+			if (LightInfo.AffectsPrimitive(Bounds, PrimitiveInfo->Proxy))
+			{
+				FLightPrimitiveInteraction::Create(LightInfo.LightSceneInfo, PrimitiveInfo);
+			}
+		}
+	}
+	else
+	{
+		check(AsyncCreateLightPrimitiveInteractionsTask);
+		AsyncCreateLightPrimitiveInteractionsTask->GetTask().AddPrimitive(PrimitiveInfo);
+	}
+}
+
+void FScene::FlushAsyncLightPrimitiveInteractionCreation() const
+{
+	if (!GAsyncCreateLightPrimitiveInteractions)
+	{
+		check(!AsyncCreateLightPrimitiveInteractionsTask || AsyncCreateLightPrimitiveInteractionsTask->IsIdle());
+	}
+	else if (AsyncCreateLightPrimitiveInteractionsTask && !AsyncCreateLightPrimitiveInteractionsTask->IsWorkDone())
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FlushAsyncLPICreation);
+		SCOPE_CYCLE_COUNTER(STAT_FlushAsyncLPICreation);
+		AsyncCreateLightPrimitiveInteractionsTask->EnsureCompletion();
+	}
+}
+
 /**
  * Dummy NULL scene interface used by dedicated servers.
  */
@@ -4015,7 +4156,7 @@ public:
 	virtual void AddPrimitive(UPrimitiveComponent* Primitive) override {}
 	virtual void RemovePrimitive(UPrimitiveComponent* Primitive) override {}
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) override {}
-	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList) override {}
+	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs = false) override {}
 	virtual FPrimitiveSceneInfo* GetPrimitiveSceneInfo(int32 PrimiteIndex) override { return NULL; }
 
 	/** Updates the transform of a primitive which has already been added to the scene. */

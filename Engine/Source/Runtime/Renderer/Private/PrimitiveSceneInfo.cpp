@@ -505,7 +505,7 @@ int32 FPrimitiveSceneInfo::UpdateStaticLightingBuffer()
 	return LCIs.Num();
 }
 
-void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists)
+void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists, bool bAsyncCreateLPIs)
 {
 	check(IsInRenderingThread());
 
@@ -661,21 +661,8 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 		LodInfo.CullValue = LodInfo.CullMethod == 0 ? Proxy->GetVirtualTextureCullMips() : Proxy->GetVirtualTextureMinCoverage();
 	}
 
-	{
-		FMemMark MemStackMark(FMemStack::Get());
-
-		// Find lights that affect the primitive in the light octree.
-		for (FSceneLightOctree::TConstElementBoxIterator<SceneRenderingAllocator> LightIt(Scene->LightOctree, Proxy->GetBounds().GetBox());
-			LightIt.HasPendingElements();
-			LightIt.Advance())
-		{
-			const FLightSceneInfoCompact& LightSceneInfoCompact = LightIt.GetCurrentElement();
-			if (LightSceneInfoCompact.AffectsPrimitive(CompactPrimitiveSceneInfo.Bounds, CompactPrimitiveSceneInfo.Proxy))
-			{
-				FLightPrimitiveInteraction::Create(LightSceneInfoCompact.LightSceneInfo,this);
-			}
-		}
-	}
+	// Find lights that affect the primitive in the light octree.
+	Scene->CreateLightPrimitiveInteractionsForPrimitive(this, bAsyncCreateLPIs);
 
 	INC_MEMORY_STAT_BY(STAT_PrimitiveInfoMemory, sizeof(*this) + StaticMeshes.GetAllocatedSize() + StaticMeshRelevances.GetAllocatedSize() + Proxy->GetMemoryFootprint());
 }

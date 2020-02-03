@@ -66,7 +66,7 @@ public:
 	/**
 	* Updates all primitive scene info additions, remobals and translation changes
 	*/
-	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList) = 0;
+	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs = false) = 0;
 	/** 
 	 * Updates the transform of a primitive which has already been added to the scene. 
 	 * 
