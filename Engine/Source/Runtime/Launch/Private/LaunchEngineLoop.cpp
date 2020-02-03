@@ -4460,7 +4460,7 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 #endif
 
 #if ENABLE_NAMED_EVENTS
-	TCHAR IndexedFrameString[32];
+	TCHAR IndexedFrameString[32] = { 0 };
 	const TCHAR* FrameString = nullptr;
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 	{
@@ -4544,7 +4544,7 @@ void FEngineLoop::Tick()
 
 	uint64 CurrentFrameCounter = GFrameCounter;
 
-	TCHAR IndexedFrameString[32];
+	TCHAR IndexedFrameString[32] = { 0 };
 	const TCHAR* FrameString = nullptr;
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 	{
