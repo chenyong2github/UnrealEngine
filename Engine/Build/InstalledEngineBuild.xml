@@ -104,7 +104,7 @@
 	<Property Name="TargetDebugInfoArg" Value="" If="$(WithFullDebugInfo)"/>
 
 	<!-- Compile flags for Windows targets -->
-	<Property Name="VSCompilerArg" Value=""/>
+	<Property Name="VSCompilerArg" Value="-2017"/>
 
 	<!-- Names of the client and server targets to build -->
 	<Property Name="OptionalClientTarget" Value=""/>
