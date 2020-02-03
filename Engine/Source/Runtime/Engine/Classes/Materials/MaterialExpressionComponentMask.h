@@ -34,6 +34,7 @@ class UMaterialExpressionComponentMask : public UMaterialExpression
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual FText GetKeywords() const override { return FText::FromString(TEXT("component mask")); }
 #endif
 	//~ End UMaterialExpression Interface
 };

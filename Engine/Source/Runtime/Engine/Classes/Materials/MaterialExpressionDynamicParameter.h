@@ -53,6 +53,7 @@ class UMaterialExpressionDynamicParameter : public UMaterialExpression
 	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
 	virtual int32 GetWidth() const override;
 	virtual int32 GetLabelPadding() override { return 8; }
+	virtual FText GetKeywords() const override { return FText::FromString(TEXT("dynamic")); }
 #endif
 	//~ End UMaterialExpression Interface
 
