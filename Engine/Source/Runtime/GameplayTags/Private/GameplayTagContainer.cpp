@@ -1119,7 +1119,7 @@ bool FGameplayTag::MatchesTag(const FGameplayTag& TagToCheck) const
 	}
 
 	// This should always be invalid if the node is missing
-	ensureMsgf(!IsValid(), TEXT("Valid tag failed to conver to single tag container. %s"), *GetTagName().ToString());
+	ensureMsgf(!IsValid(), TEXT("Valid tag failed to convert to single tag container. %s"), *GetTagName().ToString());
 
 	return false;
 }
