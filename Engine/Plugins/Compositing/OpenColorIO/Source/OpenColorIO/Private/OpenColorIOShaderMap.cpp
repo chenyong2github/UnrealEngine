@@ -305,7 +305,7 @@ void FOpenColorIOShaderMap::LoadFromDerivedDataCache(const FOpenColorIOTransform
 			TArray<uint8> CachedData;
 			const FString DataKey = GetOpenColorIOShaderMapKeyString(InShaderMapId, InPlatform);
 
-			if (GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData))
+			if (GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData, InColorTransform->GetFriendlyName()))
 			{
 				COOK_STAT(Timer.AddHit(CachedData.Num()));
 				InOutShaderMap = new FOpenColorIOShaderMap();
@@ -340,7 +340,7 @@ void FOpenColorIOShaderMap::SaveToDerivedDataCache()
 	FMemoryWriter Ar(SaveData, true);
 	Serialize(Ar);
 
-	GetDerivedDataCacheRef().Put(*GetOpenColorIOShaderMapKeyString(ShaderMapId, Platform), SaveData);
+	GetDerivedDataCacheRef().Put(*GetOpenColorIOShaderMapKeyString(ShaderMapId, Platform), SaveData, GetFriendlyName());
 	COOK_STAT(Timer.AddMiss(SaveData.Num()));
 #endif
 }
