@@ -71,6 +71,8 @@ public:
 	void Hide(UWorld* World);
 	void Tick(UWorld* World, float DeltaSeconds);
 
+	TSharedPtr<SVirtualWindow> VPUTILITIES_API GetSlateWindow() const;
+
 private:
 	bool CreatePostProcessComponent(UWorld* World);
 	void ReleasePostProcessComponent();
@@ -187,6 +189,8 @@ public:
 	virtual void Hide();
 	virtual void Tick(float DeltaTime);
 
+	void SetDisplayTypes(EVPWidgetDisplayType InEditorDisplayType, EVPWidgetDisplayType InGameDisplayType, EVPWidgetDisplayType InPIEDisplayType);
+
 protected:
 	void InitWidget();
 	void ReleaseWidget();
@@ -207,14 +211,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "User Interface", meta = (DisplayName = "PIE Display Type"))
 	EVPWidgetDisplayType PIEDisplayType;
 
-	/** The class of User Widget to create and display an instance of */
-	UPROPERTY(EditAnywhere, Category = "User Interface")
-	TSubclassOf<UUserWidget> WidgetClass;
-
-protected:
 	/** Behavior when the widget should be display by the slate attached to the viewport. */
 	UPROPERTY(EditAnywhere, Category = "Viewport", meta = (ShowOnlyInnerProperties))
 	FVPFullScreenUserWidget_Viewport ViewportDisplayType;
+
+public:
+	/** The class of User Widget to create and display an instance of */
+	UPROPERTY(EditAnywhere, Category = "User Interface")
+	TSubclassOf<UUserWidget> WidgetClass;
 
 	/** Behavior when the widget should be display by a post process. */
 	UPROPERTY(EditAnywhere, Category = "Post Process", meta = (ShowOnlyInnerProperties))

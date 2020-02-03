@@ -253,6 +253,11 @@ void FVPFullScreenUserWidget_PostProcess::Tick(UWorld* World, float DeltaSeconds
 	TickRenderer(World, DeltaSeconds);
 }
 
+TSharedPtr<SVirtualWindow> FVPFullScreenUserWidget_PostProcess::GetSlateWindow() const
+{
+	return SlateWindow;
+}
+
 bool FVPFullScreenUserWidget_PostProcess::CreatePostProcessComponent(UWorld* World)
 {
 	ReleasePostProcessComponent();
@@ -642,6 +647,13 @@ void UVPFullScreenUserWidget::Tick(float DeltaSeconds)
 			}
 		}
 	}
+}
+
+void UVPFullScreenUserWidget::SetDisplayTypes(EVPWidgetDisplayType InEditorDisplayType, EVPWidgetDisplayType InGameDisplayType, EVPWidgetDisplayType InPIEDisplayType)
+{
+	EditorDisplayType = InEditorDisplayType;
+	GameDisplayType = InGameDisplayType;
+	PIEDisplayType = InPIEDisplayType;
 }
 
 void UVPFullScreenUserWidget::InitWidget()
