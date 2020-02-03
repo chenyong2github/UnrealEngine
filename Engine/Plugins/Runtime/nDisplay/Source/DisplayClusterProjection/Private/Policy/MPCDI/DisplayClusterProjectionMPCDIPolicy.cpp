@@ -77,6 +77,9 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& In
 		return false;
 	}
 
+	// Support custom origin node
+	OriginCompId = CfgData.OriginType;
+
 	UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("MPCDI policy has been initialized [%s:%s in %s]"), *CfgData.BufferId, *CfgData.RegionId, *CfgData.MPCDIFileName);
 
 	// Finally, initialize internal views data container
