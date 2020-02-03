@@ -3342,15 +3342,15 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	}
 	
 	for (FObjectReplicator* Replicator : This->AllOwnedReplicators)
-		{
+	{
 		Collector.AddReferencedObject(Replicator->ObjectPtr, This);
 		Collector.AddReferencedObject(Replicator->ObjectClass, This);
-			}
+	}
 
 	for (FConnectionMap::TIterator It(This->MappedClientConnections); It; ++It)
-		{
+	{
 		Collector.AddReferencedObject(It.Value(), This);
-		}
+	}
 
 	if (This->GuidCache.IsValid())
 	{
