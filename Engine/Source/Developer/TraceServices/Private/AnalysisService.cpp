@@ -189,7 +189,7 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 
 			Size = (Size < Remaining) ? Size : Remaining;
 			Remaining -= Size;
-			return Handle->Read((uint8*)Data, Size);
+			return Handle->Read((uint8*)Data, Size) ? Size : 0;
 		}
 
 		TUniquePtr<IFileHandle> Handle;
