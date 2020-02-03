@@ -451,7 +451,7 @@ public:
 
 	/** Deletes a vertex instance from a mesh */
 	void DeleteVertexInstance(const FVertexInstanceID VertexInstanceID, TArray<FVertexID>* InOutOrphanedVerticesPtr = nullptr);
-
+	
 	/** Returns whether the passed vertex instance ID is valid */
 	bool IsVertexInstanceValid(const FVertexInstanceID VertexInstanceID) const
 	{
@@ -479,7 +479,7 @@ public:
 		CreateEdge_Internal(EdgeID, VertexID0, VertexID1);
 	}
 
-	/** Deletes an edge from a mesh */
+	/** Deletes an edge from the mesh */
 	void DeleteEdge(const FEdgeID EdgeID, TArray<FVertexID>* InOutOrphanedVerticesPtr = nullptr);
 
 	/** Returns whether the passed edge ID is valid */
@@ -512,6 +512,11 @@ public:
 	/** Deletes a triangle from the mesh */
 	void DeleteTriangle(const FTriangleID TriangleID, TArray<FEdgeID>* InOutOrphanedEdgesPtr = nullptr, TArray<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr = nullptr, TArray<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr = nullptr);
 
+	/** Deletes triangles from the mesh and remove all orphaned polygon groups, vertex instances, edges and vertices.
+		Will not compact the internal arrays, you must call Compact() manually.
+	 */
+	void DeleteTriangles(const TArray<FTriangleID>& Triangles);
+
 	/** Returns whether the passed triangle ID is valid */
 	bool IsTriangleValid(const FTriangleID TriangleID) const
 	{
@@ -541,6 +546,11 @@ public:
 
 	/** Deletes a polygon from the mesh */
 	void DeletePolygon(const FPolygonID PolygonID, TArray<FEdgeID>* InOutOrphanedEdgesPtr = nullptr, TArray<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr = nullptr, TArray<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr = nullptr);
+
+	/** Deletes polygons from the mesh and remove all orphaned polygon groups, vertex instances, edges and vertices.
+		Will not compact the internal arrays, you must call Compact() manually.
+	 */
+	void DeletePolygons(const TArray<FPolygonID>& Polygons);
 
 	/** Returns whether the passed polygon ID is valid */
 	bool IsPolygonValid(const FPolygonID PolygonID) const
@@ -1238,11 +1248,32 @@ private:
 	void CreatePolygon_Internal(const FPolygonID PolygonID, const FPolygonGroupID PolygonGroupID, TArrayView<const FVertexInstanceID> VertexInstanceIDs, TArray<FEdgeID>* OutEdgeIDs);
 	void CreatePolygonGroup_Internal(const FPolygonGroupID PolygonGroupID) { PolygonGroupAttributesSet.Insert(PolygonGroupID); }
 
+	template <template <typename...> class TContainer>
+	void DeleteVertexInstance_Internal(const FVertexInstanceID VertexInstanceID, TContainer<FVertexID>* InOutOrphanedVerticesPtr = nullptr);
+	template <template <typename...> class TContainer>
+	void DeleteEdge_Internal(const FEdgeID EdgeID, TContainer<FVertexID>* InOutOrphanedVerticesPtr = nullptr);
+	template <template <typename...> class TContainer>
+	void DeleteTriangle_Internal(const FTriangleID TriangleID, TContainer<FEdgeID>* InOutOrphanedEdgesPtr = nullptr, TContainer<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr = nullptr, TContainer<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr = nullptr);
+	template <template <typename...> class TContainer>
+	void DeletePolygon_Internal(const FPolygonID PolygonID, TContainer<FEdgeID>* InOutOrphanedEdgesPtr = nullptr, TContainer<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr = nullptr, TContainer<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr = nullptr);
+
 	/** Given a set of index remappings, fixes up references to element IDs */
 	void FixUpElementIDs(const FElementIDRemappings& Remappings);
 
 	/** Given a set of index remappings, remaps all attributes accordingly */
 	void RemapAttributes(const FElementIDRemappings& Remappings);
+
+	template <class T>
+	void AddUnique(TArray<T>& Container, const T& Item)
+	{
+		Container.AddUnique(Item);
+	}
+
+	template <class T>
+	void AddUnique(TSet<T>& Container, const T& Item)
+	{
+		Container.Add(Item);
+	}
 
 
 	FVertexArray VertexArray;
