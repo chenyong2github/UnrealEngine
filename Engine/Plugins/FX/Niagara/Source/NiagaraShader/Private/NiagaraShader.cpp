@@ -557,7 +557,7 @@ void FNiagaraShaderMap::LoadFromDerivedDataCache(const FNiagaraShaderScript* Scr
 			TArray<uint8> CachedData;
 			const FString DataKey = GetNiagaraShaderMapKeyString(ShaderMapId, Platform);
 
-			if (GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData))
+			if (GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData, Script->GetFriendlyName()))
 			{
 				COOK_STAT(Timer.AddHit(CachedData.Num()));
 				InOutShaderMap = new FNiagaraShaderMap();
@@ -590,7 +590,7 @@ void FNiagaraShaderMap::SaveToDerivedDataCache()
 	FMemoryWriter Ar(SaveData, true);
 	Serialize(Ar);
 
-	GetDerivedDataCacheRef().Put(*GetNiagaraShaderMapKeyString(ShaderMapId, Platform), SaveData);
+	GetDerivedDataCacheRef().Put(*GetNiagaraShaderMapKeyString(ShaderMapId, Platform), SaveData, FriendlyName);
 	COOK_STAT(Timer.AddMiss(SaveData.Num()));
 }
 

@@ -149,7 +149,7 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 }
 
 #if WITH_EDITORONLY_DATA
-uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey)
+uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& SoundWaveName)
 {
 	int32 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
@@ -166,7 +166,7 @@ uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedData
 	}
 
 	const uint32 Result = DerivedData.Num();
-	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData);
+	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, SoundWaveName);
 	DerivedDataKey = InDerivedDataKey;
 	BulkData.RemoveBulkData();
 	return Result;

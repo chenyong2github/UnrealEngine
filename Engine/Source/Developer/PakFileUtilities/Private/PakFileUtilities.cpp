@@ -796,7 +796,7 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 
 		if (GetDerivedDataCacheRef().CachedDataProbablyExists(*DDCKey))
 		{
-			int32 AsyncHandle = GetDerivedDataCacheRef().GetAsynchronous(*DDCKey);
+			int32 AsyncHandle = GetDerivedDataCacheRef().GetAsynchronous(*DDCKey, InFile.Dest);
 			GetDerivedDataCacheRef().WaitAsynchronousCompletion(AsyncHandle);
 			GetData.Empty(GetData.Max());
 			bool Result = false;
@@ -869,7 +869,7 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 		GetData.Empty(GetData.Max());
 		FMemoryWriter Ar(GetData, true);
 		SerializeDDCData(Ar);
-		GetDerivedDataCacheRef().Put(*DDCKey, GetData);
+		GetDerivedDataCacheRef().Put(*DDCKey, GetData, InFile.Dest);
 	}
 
 

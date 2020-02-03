@@ -376,7 +376,7 @@ public:
 		bGreyScaleFormat = (PixelFormat == PF_G8) || (PixelFormat == PF_BC4);
 
 		FTexturePlatformData* PlatformData = Owner->PlatformData;
-		if (PlatformData && PlatformData->TryLoadMips(MipBias, InitialData.GetMipData() + MipBias))
+		if (PlatformData && PlatformData->TryLoadMips(MipBias, InitialData.GetMipData() + MipBias, Owner))
 		{
 			for (int32 MipIndex = MipBias; MipIndex < NumMips; ++MipIndex)
 			{

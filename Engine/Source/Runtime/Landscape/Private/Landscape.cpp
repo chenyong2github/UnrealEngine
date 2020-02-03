@@ -285,14 +285,14 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 			// The DDC is only useful when cooking (see else).
 
 			COOK_STAT(auto Timer = LandscapeCookStats::UsageStats.TimeSyncWork());
-			if (PlatformData.LoadFromDDC(NewSourceHash))
+			if (PlatformData.LoadFromDDC(NewSourceHash, this))
 			{
 				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
 			}
 			else
 			{
 				GeneratePlatformVertexData(TargetPlatform);
-				PlatformData.SaveToDDC(NewSourceHash);
+				PlatformData.SaveToDDC(NewSourceHash, this);
 				COOK_STAT(Timer.AddMiss(PlatformData.GetPlatformDataSize()));
 			}
 		}
@@ -3358,15 +3358,15 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentDerivedData& Data)
 	return Ar << Data.CompressedLandscapeData;
 }
 
-bool FLandscapeComponentDerivedData::LoadFromDDC(const FGuid& StateId)
+bool FLandscapeComponentDerivedData::LoadFromDDC(const FGuid& StateId, UObject* Component)
 {
-	return GetDerivedDataCacheRef().GetSynchronous(*GetDDCKeyString(StateId), CompressedLandscapeData);
+	return GetDerivedDataCacheRef().GetSynchronous(*GetDDCKeyString(StateId), CompressedLandscapeData, Component->GetPathName());
 }
 
-void FLandscapeComponentDerivedData::SaveToDDC(const FGuid& StateId)
+void FLandscapeComponentDerivedData::SaveToDDC(const FGuid& StateId, UObject* Component)
 {
 	check(CompressedLandscapeData.Num() > 0);
-	GetDerivedDataCacheRef().Put(*GetDDCKeyString(StateId), CompressedLandscapeData);
+	GetDerivedDataCacheRef().Put(*GetDDCKeyString(StateId), CompressedLandscapeData, Component->GetPathName());
 }
 
 void LandscapeMaterialsParameterValuesGetter(FStaticParameterSet& OutStaticParameterSet, UMaterialInstance* Material)

@@ -4403,7 +4403,7 @@ void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 		FMemoryWriter Ar(SaveData, true);
 		SerializeGlobalShaders(Ar, GGlobalShaderMap[Platform], &ShaderKeysToSave);
 
-		GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, ShaderFilenameDependencies.Value), SaveData);
+		GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, ShaderFilenameDependencies.Value), SaveData, TEXT("GlobalShaderMap"_SV));
 		COOK_STAT(Timer.AddMiss(SaveData.Num()));
 	}
 }
@@ -4614,7 +4614,7 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, bool bRefreshShaderMap)
 
 				const FString DataKey = GetGlobalShaderMapKeyString(ShaderMapId, Platform, ShaderFilenameDependencies.Value);
 
-				AsyncDDCRequestHandles[HandleIndex] = GetDerivedDataCacheRef().GetAsynchronous(*DataKey);
+				AsyncDDCRequestHandles[HandleIndex] = GetDerivedDataCacheRef().GetAsynchronous(*DataKey, TEXT("GlobalShaderMap"_SV));
 
 				++HandleIndex;
 			}

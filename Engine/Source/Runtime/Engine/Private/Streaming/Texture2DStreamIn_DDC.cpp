@@ -128,7 +128,7 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 			if (!MipMap.DerivedDataKey.IsEmpty())
 			{
 				check(!DDCHandles[MipIndex]);
-				DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*MipMap.DerivedDataKey);
+				DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*MipMap.DerivedDataKey, Context.Texture->GetPathName());
 
 #if !UE_BUILD_SHIPPING
 				// On some platforms the IO is too fast to test cancelation requests timing issues.
@@ -196,7 +196,7 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 				}
 				else
 				{
-					bDDCValid = GetDerivedDataCacheRef().GetSynchronous(*MipMap.DerivedDataKey, DerivedMipData);
+					bDDCValid = GetDerivedDataCacheRef().GetSynchronous(*MipMap.DerivedDataKey, DerivedMipData, Context.Texture->GetPathName());
 				}
 
 				if (bDDCValid)				
