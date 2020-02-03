@@ -47,6 +47,7 @@ class VIRTUALCAMERA_API AVirtualCameraActor : public AActor
 
 public:
 
+	AVirtualCameraActor(const FObjectInitializer& ObjectInitializer);
 	AVirtualCameraActor(FVTableHelper& Helper);
 	~AVirtualCameraActor();
 
