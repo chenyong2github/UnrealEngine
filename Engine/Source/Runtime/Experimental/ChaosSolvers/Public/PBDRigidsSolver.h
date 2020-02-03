@@ -61,9 +61,12 @@ namespace Chaos
 	{
 
 		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn);
-		~FPBDRigidsSolver();
 
 	public:
+
+		// #BGTODO ensure no external callers directly deleting, make private and push everything through DestroySolver.
+		~FPBDRigidsSolver();
+
 		typedef FPhysicsSolverBase Super;
 
 		friend class FPersistentPhysicsTask;
