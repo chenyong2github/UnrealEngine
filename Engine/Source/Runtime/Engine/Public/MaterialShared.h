@@ -547,6 +547,7 @@ public:
 		NumUsedUVScalars(0),
 		NumUsedCustomInterpolatorScalars(0),
 #endif
+		RuntimeVirtualTextureOutputAttributeMask(0),
 		bNeedsSceneTextures(false),
 		bUsesEyeAdaptation(false),
 		bModifiesMeshPosition(false),
@@ -554,7 +555,7 @@ public:
 		bUsesGlobalDistanceField(false),
 		bUsesPixelDepthOffset(false),
 		bUsesDistanceCullFade(false),
-		bHasRuntimeVirtualTextureOutput(false)
+		bHasRuntimeVirtualTextureOutputNode(false)
 	{}
 
 	ENGINE_API void Serialize(FArchive& Ar);
@@ -582,6 +583,9 @@ public:
 	uint8 NumUsedCustomInterpolatorScalars;
 #endif // WITH_EDITOR
 
+	/** Bitfield of runtime virtual texture output attributes. */
+	uint8 RuntimeVirtualTextureOutputAttributeMask;
+
 	/** true if the material needs the scenetexture lookups. */
 	uint8 bNeedsSceneTextures : 1;
 
@@ -603,8 +607,8 @@ public:
 	/** true if the material uses distance cull fade */
 	uint8 bUsesDistanceCullFade : 1;
 
-	/** true if the material supports virtual texture output */
-	uint8 bHasRuntimeVirtualTextureOutput : 1;
+	/** true if the material writes to a runtime virtual texture custom output node. */
+	uint8 bHasRuntimeVirtualTextureOutputNode : 1;
 
 	/** Indicates whether the material uses scene color. */
 	ENGINE_API bool RequiresSceneColorCopy() const { return IsSceneTextureUsed(PPI_SceneColor); }
@@ -1113,7 +1117,6 @@ public:
 	bool UsesSceneDepthLookup() const { return MaterialCompilationOutput.UsesSceneDepthLookup(); }
 	bool UsesVelocitySceneTexture() const { return MaterialCompilationOutput.UsesVelocitySceneTexture(); }
 	bool UsesDistanceCullFade() const { return MaterialCompilationOutput.bUsesDistanceCullFade; }
-	bool HasRuntimeVirtualTextureOutput() const { return MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput; }
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
@@ -1121,6 +1124,7 @@ public:
 	uint32 GetEstimatedNumVirtualTextureLookups() const { return MaterialCompilationOutput.EstimatedNumVirtualTextureLookups; }
 #endif
 	uint32 GetNumVirtualTextureStacks() const { return MaterialCompilationOutput.UniformExpressionSet.VTStacks.Num(); }
+	uint8 GetRuntimeVirtualTextureOutputAttributeMask() const { return MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask; }
 	bool UsesSceneTexture(uint32 TexId) const { return (MaterialCompilationOutput.UsedSceneTextures & (1ull << TexId)) != 0; }
 
 	bool IsValidForRendering(bool bFailOnInvalid = false) const
@@ -1513,7 +1517,10 @@ public:
 	virtual bool HasMaterialAttributesConnected() const { return false; }
 	virtual uint32 GetDecalBlendMode() const { return 0; }
 	virtual uint32 GetMaterialDecalResponse() const { return 0; }
+	virtual bool HasBaseColorConnected() const { return false; }
 	virtual bool HasNormalConnected() const { return false; }
+	virtual bool HasRoughnessConnected() const { return false; }
+	virtual bool HasSpecularConnected() const { return false; }
 	virtual bool HasEmissiveColorConnected() const { return false; }
 	virtual bool RequiresSynchronousCompilation() const { return false; };
 	virtual bool IsDefaultMaterial() const { return false; };
@@ -1622,14 +1629,14 @@ public:
 	ENGINE_API bool MaterialUsesSceneDepthLookup_RenderThread() const;
 	ENGINE_API bool MaterialUsesSceneDepthLookup_GameThread() const;
 
-	/** Does the material have a runtime virtual texture output node. */
-	ENGINE_API bool HasRuntimeVirtualTextureOutput_RenderThread() const;
-
 	/** Does the material use CustomDepth or CustomStencil lookup */
 	ENGINE_API bool UsesCustomDepthStencil_GameThread() const;
 
 	/** Note: This function is only intended for use in deciding whether or not shader permutations are required before material translation occurs. */
 	ENGINE_API bool MaterialMayModifyMeshPosition() const;
+
+	/** Get the runtime virtual texture output attribute mask for the material. */
+	ENGINE_API uint8 GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread() const;
 
 	class FMaterialShaderMap* GetGameThreadShaderMap() const 
 	{ 
@@ -2259,8 +2266,10 @@ public:
 	ENGINE_API virtual enum ERefractionMode GetRefractionMode() const override;
 	ENGINE_API virtual uint32 GetDecalBlendMode() const override;
 	ENGINE_API virtual uint32 GetMaterialDecalResponse() const override;
+	ENGINE_API virtual bool HasBaseColorConnected() const override;
 	ENGINE_API virtual bool HasNormalConnected() const override;
-	ENGINE_API virtual bool HasEmissiveColorConnected() const override;
+	ENGINE_API virtual bool HasRoughnessConnected() const override;
+	ENGINE_API virtual bool HasSpecularConnected() const override;	ENGINE_API virtual bool HasEmissiveColorConnected() const override;
 	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;
 	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const override;
 	ENGINE_API virtual enum ETranslucencyLightingMode GetTranslucencyLightingMode() const override;
