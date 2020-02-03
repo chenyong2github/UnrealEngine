@@ -33,6 +33,8 @@ FAutoConsoleVariableRef CVarChaosSolverDrawBPBounds(TEXT("p.Chaos.Solver.DrawBPB
 float ChaosSolverCollisionDefaultIterationsCVar = 1;
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultIterations(TEXT("p.ChaosSolverCollisionDefaultIterations"), ChaosSolverCollisionDefaultIterationsCVar, TEXT("Default collision iterations for the solver.[def:1]"));
 
+int32 ChaosSolverCleanupCommandsOnDestruction = 1;
+FAutoConsoleVariableRef CVarChaosSolverCleanupCommandsOnDestruction(TEXT("p.Chaos.Solver.CleanupCommandsOnDestruction"), ChaosSolverCleanupCommandsOnDestruction, TEXT("Whether or not to run internal command queue cleanup on solver destruction (0 = no cleanup, >0 = cleanup all commands)"));
 
 namespace Chaos
 {
@@ -159,6 +161,18 @@ namespace Chaos
 	{
 		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::PBDRigidsSolver()"));
 		Reset();
+	}
+
+	FPBDRigidsSolver::~FPBDRigidsSolver()
+	{
+		if(ChaosSolverCleanupCommandsOnDestruction != 0)
+		{
+			TFunction<void(FPhysicsSolver*)> Command;
+			while(CommandQueue.Dequeue(Command))
+			{
+				Command(this);
+			}
+		}
 	}
 
 	float MaxBoundsForTree = 10000;
