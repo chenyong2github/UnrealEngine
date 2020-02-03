@@ -104,7 +104,7 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 		return CastChecked<UClass>(Attribute->GetOwner<UObject>());
 	}
 
-	/** Returns true if this is one of the special attributes defined on the bBilitySystemComponent itself */
+	/** Returns true if this is one of the special attributes defined on the AbilitySystemComponent itself */
 	bool IsSystemAttribute() const;
 
 	/** Returns true if the variable associated with Property is of type FGameplayAttributeData or one of its subclasses */
