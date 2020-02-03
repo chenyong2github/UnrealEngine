@@ -649,15 +649,15 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	}
 
 	/** Call from OnRep functions to set the attribute base value on the client */
-	void SetBaseAttributeValueFromReplication(float NewValue, FGameplayAttribute Attribute)
+	void SetBaseAttributeValueFromReplication(const FGameplayAttribute& Attribute, float NewValue, float OldValue)
 	{
-		ActiveGameplayEffects.SetBaseAttributeValueFromReplication(Attribute, NewValue);
+		ActiveGameplayEffects.SetBaseAttributeValueFromReplication(Attribute, NewValue, OldValue);
 	}
 
 	/** Call from OnRep functions to set the attribute base value on the client */
-	void SetBaseAttributeValueFromReplication(FGameplayAttributeData NewValue, FGameplayAttribute Attribute)
+	void SetBaseAttributeValueFromReplication(const FGameplayAttribute& Attribute, const FGameplayAttributeData& NewValue, const FGameplayAttributeData& OldValue)
 	{
-		ActiveGameplayEffects.SetBaseAttributeValueFromReplication(Attribute, NewValue.GetBaseValue());
+		ActiveGameplayEffects.SetBaseAttributeValueFromReplication(Attribute, NewValue.GetBaseValue(), OldValue.GetBaseValue());
 	}
 
 	/** Tests if all modifiers in this GameplayEffect will leave the attribute > 0.f */

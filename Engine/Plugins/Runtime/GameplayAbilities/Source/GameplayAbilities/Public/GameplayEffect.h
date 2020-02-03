@@ -1678,7 +1678,7 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffectsContainer : public FFastArray
 
 	bool HasPredictedEffectWithPredictedKey(FPredictionKey PredictionKey) const;
 		
-	void SetBaseAttributeValueFromReplication(FGameplayAttribute Attribute, float BaseBalue);
+	void SetBaseAttributeValueFromReplication(const FGameplayAttribute& Attribute, float NewBaseValue, float OldBaseValue);
 
 	void GetAllActiveGameplayEffectSpecs(TArray<FGameplayEffectSpec>& OutSpecCopies) const;
 
