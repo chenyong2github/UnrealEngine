@@ -4430,9 +4430,6 @@ void FMaterialEditor::UndoGraphAction()
 void FMaterialEditor::RedoGraphAction()
 {
 	FlushRenderingCommands();
-	
-	// Clear selection, to avoid holding refs to nodes that go away
-	GraphEditor->ClearSelectionSet();
 
 	int32 NumExpressions = Material->Expressions.Num();
 	GEditor->RedoTransaction();
@@ -4533,6 +4530,8 @@ void FMaterialEditor::PostUndo(bool bSuccess)
 		RefreshExpressionPreviews();
 		GraphEditor->NotifyGraphChanged();
 		SetMaterialDirty();
+
+		FSlateApplication::Get().DismissAllMenus();
 	}
 }
 

@@ -256,6 +256,7 @@ void FSoundCueEditor::PostUndo(bool bSuccess)
 	{
 		SoundCueGraphEditor->ClearSelectionSet();
 		SoundCueGraphEditor->NotifyGraphChanged();
+		FSlateApplication::Get().DismissAllMenus();
 	}
 
 }
