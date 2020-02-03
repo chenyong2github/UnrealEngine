@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "/engine/public/platform.ush"
+
 Texture2D PostprocessInput0;
 SamplerState PostprocessInput0Sampler;
 
