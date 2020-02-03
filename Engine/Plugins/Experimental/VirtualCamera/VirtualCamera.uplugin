@@ -27,6 +27,11 @@
 				"Linux",
 				"Mac"
 			]
+		},
+		{
+			"Name": "VirtualCameraEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins":
