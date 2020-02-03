@@ -9,6 +9,8 @@
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
 #include "IDocumentation.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Framework/Docking/TabManager.h"
+#include "Misc/BlacklistNames.h"
 
 /////////////////////////////////////////////////////
 // FWorkflowTabFactory
@@ -112,13 +114,24 @@ TSharedRef<SDockTab> FWorkflowTabFactory::OnSpawnTab(const FSpawnTabArgs& SpawnA
 	return SpawnInfo.TabManager.IsValid() ? SpawnTab(SpawnInfo) : SNew(SDockTab);
 }
 
+bool FWorkflowTabFactory::CanSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const
+{
+	TSharedPtr<FTabManager> TabManager = WeakTabManager.Pin();
+	if (TabManager.IsValid())
+	{
+		return TabManager->GetTabBlacklist()->PassesFilter(SpawnArgs.GetTabId().TabType);
+	}
+
+	return true;
+}
+
 FTabSpawnerEntry& FWorkflowTabFactory::RegisterTabSpawner(TSharedRef<FTabManager> InTabManager, const FApplicationMode* CurrentApplicationMode) const
 {
 	FWorkflowTabSpawnInfo SpawnInfo;
 	SpawnInfo.TabManager = InTabManager;
 
 	TWeakPtr<FTabManager> WeakTabManager(InTabManager);
-	FTabSpawnerEntry& SpawnerEntry = InTabManager->RegisterTabSpawner(GetIdentifier(), FOnSpawnTab::CreateSP(this, &FWorkflowTabFactory::OnSpawnTab, WeakTabManager))
+	FTabSpawnerEntry& SpawnerEntry = InTabManager->RegisterTabSpawner(GetIdentifier(), FOnSpawnTab::CreateSP(this, &FWorkflowTabFactory::OnSpawnTab, WeakTabManager), FCanSpawnTab::CreateSP(this, &FWorkflowTabFactory::CanSpawnTab, WeakTabManager))
 		.SetDisplayName(ConstructTabName(SpawnInfo).Get())
 		.SetTooltipText(GetTabToolTipText(SpawnInfo));
 
