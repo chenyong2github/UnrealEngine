@@ -391,6 +391,17 @@ namespace nDisplayLauncher.Cluster
 				RegistrySaver.UpdateRegistry(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityRender, value);
 			}
 		}
+
+		private UE4LogVerbosity _SelectedVerbocityRenderSync = UE4LogVerbosity.Log;
+		public UE4LogVerbosity SelectedVerbocityRenderSync
+		{
+			get { return _SelectedVerbocityRenderSync; }
+			set
+			{
+				Set(ref _SelectedVerbocityRenderSync, value, "SelectedVerbocityRenderSync");
+				RegistrySaver.UpdateRegistry(RegistrySaver.RegCategoryLogParams, RegistrySaver.RegLogParamsVerbosityRenderSync, value);
+			}
+		}
 		#endregion
 
 		public Launcher()
