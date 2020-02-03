@@ -530,21 +530,6 @@ namespace BlueprintActionDatabaseImpl
 
 	/** True if a RefreshAll has been requested for the next Tick */
 	bool bRefreshAllRequested = false;
-
-	/** */
-	TWeakObjectPtr<UWorld> OriginalOwningWorldOnSave;
-
-	/** */
-	static void OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
-	{
-		OriginalOwningWorldOnSave = World->PersistentLevel->OwningWorld;
-	}
-
-	/** */
-	static void OnPostSaveWorld(uint32 SaveFlags, UWorld* World, bool bSuccess)
-	{
-		OriginalOwningWorldOnSave.Reset();
-	}
 }
 
 //------------------------------------------------------------------------------
@@ -1152,27 +1137,55 @@ FBlueprintActionDatabase* FBlueprintActionDatabase::TryGet()
 FBlueprintActionDatabase::FBlueprintActionDatabase()
 {
 	RefreshAll();
-	FCoreUObjectDelegates::OnAssetLoaded.AddStatic(&BlueprintActionDatabaseImpl::OnAssetLoaded);
+	OnAssetLoadedDelegateHandle = FCoreUObjectDelegates::OnAssetLoaded.AddStatic(&BlueprintActionDatabaseImpl::OnAssetLoaded);
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-	AssetRegistry.OnAssetAdded().AddStatic(&BlueprintActionDatabaseImpl::OnAssetAdded);
-	AssetRegistry.OnAssetRemoved().AddStatic(&BlueprintActionDatabaseImpl::OnAssetRemoved);
-	AssetRegistry.OnAssetRenamed().AddStatic(&BlueprintActionDatabaseImpl::OnAssetRenamed);
+	OnAssetAddedDelegateHandle = AssetRegistry.OnAssetAdded().AddStatic(&BlueprintActionDatabaseImpl::OnAssetAdded);
+	OnAssetRemovedDelegateHandle = AssetRegistry.OnAssetRemoved().AddStatic(&BlueprintActionDatabaseImpl::OnAssetRemoved);
+	OnAssetRenamedDelegateHandle = AssetRegistry.OnAssetRenamed().AddStatic(&BlueprintActionDatabaseImpl::OnAssetRenamed);
 
-	FEditorDelegates::OnAssetsPreDelete.AddStatic(&BlueprintActionDatabaseImpl::OnAssetsPendingDelete);
-	FKismetEditorUtilities::OnBlueprintUnloaded.AddStatic(&BlueprintActionDatabaseImpl::OnBlueprintUnloaded);
+	OnAssetsPreDeleteDelegateHandle = FEditorDelegates::OnAssetsPreDelete.AddStatic(&BlueprintActionDatabaseImpl::OnAssetsPendingDelete);
+	OnBlueprintUnloadedDelegateHandle = FKismetEditorUtilities::OnBlueprintUnloaded.AddStatic(&BlueprintActionDatabaseImpl::OnBlueprintUnloaded);
 
-	GEngine->OnWorldAdded().AddStatic(&BlueprintActionDatabaseImpl::OnWorldAdded);
-	GEngine->OnWorldDestroyed().AddStatic(&BlueprintActionDatabaseImpl::OnWorldDestroyed);
-	FWorldDelegates::RefreshLevelScriptActions.AddStatic(&BlueprintActionDatabaseImpl::OnRefreshLevelScripts);
+	OnWorldAddedDelegateHandle = GEngine->OnWorldAdded().AddStatic(&BlueprintActionDatabaseImpl::OnWorldAdded);
+	OnWorldDestroyedDelegateHandle = GEngine->OnWorldDestroyed().AddStatic(&BlueprintActionDatabaseImpl::OnWorldDestroyed);
+	RefreshLevelScriptActionsDelegateHandle = FWorldDelegates::RefreshLevelScriptActions.AddStatic(&BlueprintActionDatabaseImpl::OnRefreshLevelScripts);
 
-	FModuleManager::Get().OnModulesChanged().AddStatic(&BlueprintActionDatabaseImpl::OnModulesChanged);
+	OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddStatic(&BlueprintActionDatabaseImpl::OnModulesChanged);
 
 	IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-	HotReloadSupport.OnHotReload().AddStatic(&BlueprintActionDatabaseImpl::OnProjectHotReloaded);
+	OnHotReloadDelegateHandle = HotReloadSupport.OnHotReload().AddStatic(&BlueprintActionDatabaseImpl::OnProjectHotReloaded);
+}
 
-	FEditorDelegates::PreSaveWorld.AddStatic(&BlueprintActionDatabaseImpl::OnPreSaveWorld);
-	FEditorDelegates::PostSaveWorld.AddStatic(&BlueprintActionDatabaseImpl::OnPostSaveWorld);
+//------------------------------------------------------------------------------
+FBlueprintActionDatabase::~FBlueprintActionDatabase()
+{
+	FCoreUObjectDelegates::OnAssetLoaded.Remove(OnAssetLoadedDelegateHandle);
+
+	if (FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")))
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.OnAssetAdded().Remove(OnAssetAddedDelegateHandle);
+		AssetRegistry.OnAssetAdded().Remove(OnAssetRemovedDelegateHandle);
+		AssetRegistry.OnAssetAdded().Remove(OnAssetRenamedDelegateHandle);
+	}
+
+	FEditorDelegates::OnAssetsPreDelete.Remove(OnAssetsPreDeleteDelegateHandle);
+	FKismetEditorUtilities::OnBlueprintUnloaded.Remove(OnBlueprintUnloadedDelegateHandle);
+
+	if (GEngine)
+	{
+		GEngine->OnWorldAdded().Remove(OnWorldAddedDelegateHandle);
+		GEngine->OnWorldAdded().Remove(OnWorldDestroyedDelegateHandle);
+	}
+
+	FWorldDelegates::RefreshLevelScriptActions.Remove(RefreshLevelScriptActionsDelegateHandle);
+	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
+
+	if (IHotReloadInterface* HotReloadSupport = FModuleManager::GetModulePtr<IHotReloadInterface>("HotReload"))
+	{
+		HotReloadSupport->OnHotReload().Remove(OnHotReloadDelegateHandle);
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -1534,14 +1547,6 @@ void FBlueprintActionDatabase::RefreshAssetActions(UObject* const AssetObject)
 	{
 		for( ULevel* Level : WorldAsset->GetLevels() )
 		{
-			// Skip adding member actions for the persistent level on save if it doesn't match what the owning world was set to prior to saving.
-			// Otherwise, a new entry will be created for actions that aren't technically valid for the world asset, since this is likely a sublevel.
-			// When the world that owns the sublevel is destroyed, these actions won't be cleaned up, preventing the level from being freed during GC.
-			if (Level == WorldAsset->PersistentLevel && OriginalOwningWorldOnSave.IsValid() && Level->OwningWorld != OriginalOwningWorldOnSave.Get())
-			{
-				continue;
-			}
-
 			UBlueprint* LevelScript = Level->GetLevelScriptBlueprint(true);
 			if (LevelScript != nullptr)
 			{
