@@ -224,20 +224,36 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 	uint32 TraceId = 0;
 	bool bUseTraceId = FParse::Value(FCommandLine::Get(), TEXT("-TraceId="), TraceId);
 
+	TCHAR* StoreHost = new TCHAR[MaxPath + 1];
+	FCString::Strcpy(StoreHost, MaxPath, TEXT("127.0.0.1"));
+	uint32 StorePort = 0;
+	bool bUseCustomStoreAddress = false;
+
+	if (FParse::Value(FCommandLine::Get(), TEXT("-Store="), StoreHost, MaxPath, true))
+	{
+		TCHAR* Port = FCString::Strchr(StoreHost, TEXT(':'));
+		if (Port)
+		{
+			*Port = 0;
+			Port++;
+			StorePort = FCString::Atoi(Port);
+		}
+		bUseCustomStoreAddress = true;
+	}
+	if (FParse::Value(FCommandLine::Get(), TEXT("-StoreHost="), StoreHost, MaxPath, true))
+	{
+		bUseCustomStoreAddress = true;
+	}
+	if (FParse::Value(FCommandLine::Get(), TEXT("-StorePort="), StorePort))
+	{
+		bUseCustomStoreAddress = true;
+	}
+
 	if (bUseTraceId)
 	{
-		TCHAR* StoreHost = new TCHAR[MaxPath + 1];
-		FCString::Strcpy(StoreHost, MaxPath, TEXT("127.0.0.1"));
-		FParse::Value(FCommandLine::Get(), TEXT("-StoreHost="), StoreHost, MaxPath, true);
-
-		uint32 StorePort = 0;
-		FParse::Value(FCommandLine::Get(), TEXT("-StorePort="), StorePort);
-
 		TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
 		TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
 		TraceInsightsModule.StartAnalysisForTrace(TraceId);
-
-		delete[] StoreHost;
 	}
 	else
 	{
@@ -252,12 +268,22 @@ void FUserInterfaceCommand::InitializeSlateApplication()
 		}
 		else
 		{
+			if (!bUseCustomStoreAddress)
+			{
+				TraceInsightsModule.CreateDefaultStore();
+			}
+			else
+			{
+				TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
+			}
 			const bool bSingleProcess = FParse::Param(FCommandLine::Get(), TEXT("SingleProcess"));
 			TraceInsightsModule.CreateSessionBrowser(bAllowDebugTools, bSingleProcess);
 		}
 
 		delete[] TraceFile;
 	}
+
+	delete[] StoreHost;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

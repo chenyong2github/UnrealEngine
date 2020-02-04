@@ -136,14 +136,9 @@ class IUnrealInsightsModule : public IModuleInterface
 {
 public:
 	/**
-	 * Called when the application starts in "Browser" mode.
+	 * Creates the default trace store (for "Browser" mode).
 	 */
-	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) = 0;
-
-	/**
-	 * Called when the application starts in "Viewer" mode.
-	 */
-	virtual void CreateSessionViewer(bool bAllowDebugTools) = 0;
+	virtual void CreateDefaultStore() = 0;
 
 	/**
 	 * Gets the store client.
@@ -158,6 +153,16 @@ public:
 	 * @return If connected succesfully or not.
 	 */
 	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) = 0;
+
+	/**
+	 * Called when the application starts in "Browser" mode.
+	 */
+	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) = 0;
+
+	/**
+	 * Called when the application starts in "Viewer" mode.
+	 */
+	virtual void CreateSessionViewer(bool bAllowDebugTools) = 0;
 
 	/**
 	 * Gets the current analysis session.
@@ -211,6 +216,6 @@ public:
 	/** Callback invoked when a major tab is created */
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() = 0;
 
-	/** Set the INI path for saving persistent layout data */
+	/** Set the ini path for saving persistent layout data. */
 	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) = 0;
 };

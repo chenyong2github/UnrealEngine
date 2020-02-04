@@ -60,13 +60,8 @@ void FTraceInsightsModule::StartupModule()
 	FTimingProfilerManager::Initialize();
 	FLoadingProfilerManager::Initialize();
 	FNetworkingProfilerManager::Initialize();
-	
-	UnrealInsightsLayoutIni = FPaths::GetPath(GEngineIni) + "/UnrealInsightsLayout.ini";
 
-#if WITH_EDITOR
-	//...
-	FCoreDelegates::OnExit.AddRaw(this, &FTraceInsightsModule::HandleExit);
-#endif
+	UnrealInsightsLayoutIni = FPaths::GetPath(GEngineIni) + "/UnrealInsightsLayout.ini";
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -76,7 +71,7 @@ void FTraceInsightsModule::ShutdownModule()
 	if (PersistentLayout.IsValid())
 	{
 		// Save application layout.
-		FLayoutSaveRestore::SaveToConfig(UnrealInsightsLayoutIni, PersistentLayout.ToSharedRef());		
+		FLayoutSaveRestore::SaveToConfig(UnrealInsightsLayoutIni, PersistentLayout.ToSharedRef());
 		GConfig->Flush(false, UnrealInsightsLayoutIni);
 	}
 
@@ -109,20 +104,44 @@ void FTraceInsightsModule::ShutdownModule()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if WITH_EDITOR
-void FTraceInsightsModule::HandleExit()
+void FTraceInsightsModule::CreateDefaultStore()
 {
-	// In editor, as module lifetimes are different, we need to shut down the recorder service before
-	// threads get killed in the shutdown process otherwise we will hang forever waiting on the recorder server.
-	//...
+	const FString StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
+
+	FInsightsManager::Get()->SetStoreDir(StoreDir);
+
+	// Create the Store Service.
+	Trace::FStoreService::FDesc StoreServiceDesc;
+	StoreServiceDesc.StoreDir = *StoreDir;
+	StoreServiceDesc.RecorderPort = 1980;
+	StoreServiceDesc.ThreadCount = 2;
+	StoreService = TUniquePtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
+
+	if (StoreService.IsValid())
+	{
+		ConnectToStore(TEXT("127.0.0.1"), StoreService->GetPort());
+	}
 }
-#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Trace::FStoreClient* FTraceInsightsModule::GetStoreClient()
+{
+	return FInsightsManager::Get()->GetStoreClient();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTraceInsightsModule::ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort)
+{
+	return FInsightsManager::Get()->ConnectToStore(InStoreHost, InStorePort);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FTraceInsightsModule::RegisterTabSpawners()
 {
-	TSharedRef<FWorkspaceItem> ToolsCategory = WorkspaceMenu::GetMenuStructure().GetToolsCategory(); 
+	TSharedRef<FWorkspaceItem> ToolsCategory = WorkspaceMenu::GetMenuStructure().GetToolsCategory();
 
 	const FInsightsMajorTabConfig& StartPageConfig = FindMajorTabConfig(FInsightsManagerTabs::StartPageTabId);
 	if (StartPageConfig.bIsAvailable)
@@ -207,47 +226,53 @@ void FTraceInsightsModule::UnregisterTabSpawners()
 void FTraceInsightsModule::CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess)
 {
 	FInsightsManager::Get()->SetOpenAnalysisInSeparateProcess(!bSingleProcess);
-	FInsightsManager::Get()->SetStoreDir(FPaths::ProjectSavedDir() / TEXT("TraceSessions"));
-
-	// Create the Store Service.
-	Trace::FStoreService::FDesc StoreServiceDesc;
-	StoreServiceDesc.StoreDir = *FInsightsManager::Get()->GetStoreDir();
-	StoreServiceDesc.RecorderPort = 1980;
-	StoreServiceDesc.ThreadCount = 2;
-	StoreService = TUniquePtr<Trace::FStoreService>(Trace::FStoreService::Create(StoreServiceDesc));
-
-	if (StoreService.IsValid())
-	{
-		// Create the Store Client.
-		FInsightsManager::Get()->ConnectToStore(TEXT("127.0.0.1"), StoreService->GetPort());
-	}
 
 	RegisterTabSpawners();
 
-	TSharedRef<FWorkspaceItem> ToolsCategory = WorkspaceMenu::GetMenuStructure().GetToolsCategory(); 
+	TSharedRef<FWorkspaceItem> ToolsCategory = WorkspaceMenu::GetMenuStructure().GetToolsCategory();
 
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
 
 	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("TraceSessionBrowserLayout_v1.0");
 
-	const float WindowWidth  = bSingleProcess ? 1280.0f : 920.0f;
-	const float WindowHeight = bSingleProcess ? 720.0f : 664.0f;
+	if (!bSingleProcess)
+	{
+		constexpr float WindowWidth = 920.0f;
+		constexpr float WindowHeight = 665.0f;
 
-	DefaultLayout->AddArea
-	(
-		FTabManager::NewArea(WindowWidth * DPIScaleFactor, WindowHeight * DPIScaleFactor)
-		->Split
+		DefaultLayout->AddArea
 		(
-			FTabManager::NewStack()
-			->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::OpenedTab)
-			->AddTab(FInsightsManagerTabs::SessionInfoTabId, ETabState::ClosedTab)
-			->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab)
-			->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::ClosedTab)
-			->AddTab(FInsightsManagerTabs::NetworkingProfilerTabId, ETabState::ClosedTab)
-			->SetForegroundTab(FTabId(FInsightsManagerTabs::StartPageTabId))
-			//->SetHideTabWell(true)
-		)
-	);
+			FTabManager::NewArea(WindowWidth * DPIScaleFactor, WindowHeight * DPIScaleFactor)
+			->Split
+			(
+				FTabManager::NewStack()
+				->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::OpenedTab)
+				//->SetForegroundTab(FTabId(FInsightsManagerTabs::StartPageTabId))
+				//->SetHideTabWell(true)
+			)
+		);
+	}
+	else
+	{
+		constexpr float WindowWidth = 1280.0f;
+		constexpr float WindowHeight = 720.0f;
+
+		DefaultLayout->AddArea
+		(
+			FTabManager::NewArea(WindowWidth * DPIScaleFactor, WindowHeight * DPIScaleFactor)
+			->Split
+			(
+				FTabManager::NewStack()
+				->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::OpenedTab)
+				->AddTab(FInsightsManagerTabs::SessionInfoTabId, ETabState::ClosedTab)
+				->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab)
+				->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::ClosedTab)
+				->AddTab(FInsightsManagerTabs::NetworkingProfilerTabId, ETabState::ClosedTab)
+				->SetForegroundTab(FTabId(FInsightsManagerTabs::StartPageTabId))
+				//->SetHideTabWell(true)
+			)
+		);
+	}
 
 	AddAreaForWidgetReflector(DefaultLayout, bAllowDebugTools);
 
@@ -375,10 +400,7 @@ const FOnRegisterMajorTabExtensions* FTraceInsightsModule::FindMajorTabLayoutExt
 	return MajorTabExtensionDelegates.Find(InMajorTabId);
 }
 
-void FTraceInsightsModule::SetUnrealInsightsLayoutIni(const FString& InIniPath)
-{
-	UnrealInsightsLayoutIni = InIniPath;
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FString& FTraceInsightsModule::GetUnrealInsightsLayoutIni()
 {
@@ -387,16 +409,9 @@ const FString& FTraceInsightsModule::GetUnrealInsightsLayoutIni()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Trace::FStoreClient* FTraceInsightsModule::GetStoreClient()
+void FTraceInsightsModule::SetUnrealInsightsLayoutIni(const FString& InIniPath)
 {
-	return FInsightsManager::Get()->GetStoreClient();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FTraceInsightsModule::ConnectToStore(const TCHAR* Host, uint32 Port)
-{
-	return FInsightsManager::Get()->ConnectToStore(Host, Port);
+	UnrealInsightsLayoutIni = InIniPath;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

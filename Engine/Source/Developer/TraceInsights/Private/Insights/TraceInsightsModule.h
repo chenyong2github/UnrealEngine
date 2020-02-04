@@ -30,11 +30,13 @@ public:
 		return false;
 	}
 
-	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) override;
-	virtual void CreateSessionViewer(bool bAllowDebugTools) override;
+	virtual void CreateDefaultStore() override;
 
 	virtual Trace::FStoreClient* GetStoreClient() override;
 	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) override;
+
+	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) override;
+	virtual void CreateSessionViewer(bool bAllowDebugTools) override;
 
 	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const override;
 	virtual void StartAnalysisForTrace(uint32 InTraceId) override;
@@ -48,15 +50,16 @@ public:
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() override { return OnInsightsMajorTabCreatedDelegate; }
 	virtual FOnRegisterMajorTabExtensions& OnRegisterMajorTabExtension(const FName& InMajorTabId) override;
 
-	/** Find a major tab config for the specified ID */
+	/** Find a major tab config for the specified id. */
 	const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const;
 
 	const FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId) const;
 
-	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) override;
-
-	/** Retrieve ini path for saving layout(s) */
+	/** Retrieve ini path for saving persistent layout data. */
 	static const FString& GetUnrealInsightsLayoutIni();
+
+	/** Set the ini path for saving persistent layout data. */
+	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) override;
 
 protected:
 	void InitTraceStore();
@@ -93,11 +96,6 @@ protected:
 
 	/** Networking Profiler */
 	TSharedRef<SDockTab> SpawnNetworkingProfilerTab(const FSpawnTabArgs& Args);
-
-#if WITH_EDITOR
-	/** Handle exit */
-	void HandleExit();
-#endif
 
 protected:
 	TUniquePtr<Trace::FStoreService> StoreService;
