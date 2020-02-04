@@ -127,14 +127,10 @@ uint32 FGenericFileIoStoreImpl::Run()
 	FFileIoStoreReadBlock* ScheduledBlocksHead = nullptr;
 	FFileIoStoreReadBlock* ScheduledBlocksTail = nullptr;
 
-	for (;;)
+	while (!bStopRequested)
 	{
-		for (;;)
+		while (!bStopRequested)
 		{
-			if (bStopRequested)
-			{
-				break;
-			}
 			{
 				FScopeLock PendingBlocksLock(&PendingBlocksCritical);
 				if (PendingBlocksHead)
