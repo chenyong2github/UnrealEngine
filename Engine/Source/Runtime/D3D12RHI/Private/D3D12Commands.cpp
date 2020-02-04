@@ -1424,11 +1424,9 @@ void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPr
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
-	uint32 VertexCount = GetVertexCountForPrimitiveCount(NumPrimitives, StateCache.GetGraphicsPipelinePrimitiveType());
-
+	uint32 VertexCount = StateCache.GetVertexCountAndIncrementStat(NumPrimitives);
 	NumInstances = FMath::Max<uint32>(1, NumInstances);
 	numDraws++;
-	numPrimitives += NumInstances * NumPrimitives;
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
@@ -1526,16 +1524,15 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferR
 
 	NumInstances = FMath::Max<uint32>(1, NumInstances);
 	numDraws++;
-	numPrimitives += NumInstances * NumPrimitives;
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, NumVertices * NumInstances);
 	}
-	uint32 IndexCount = GetVertexCountForPrimitiveCount(NumPrimitives, StateCache.GetGraphicsPipelinePrimitiveType());
 
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
+	uint32 IndexCount = StateCache.GetVertexCountAndIncrementStat(NumPrimitives);
 	FD3D12IndexBuffer* IndexBuffer = RetrieveObject<FD3D12IndexBuffer>(IndexBufferRHI);
 
 	// Verify that we are not trying to read outside the index buffer range

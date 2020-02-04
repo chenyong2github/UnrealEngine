@@ -208,6 +208,9 @@ void FD3D12StateCacheBase::DirtyStateForNewCommandList()
 	PipelineState.Graphics.bNeedSetRootSignature = true;
 	bNeedSetPrimitiveTopology = true;
 
+	PipelineState.Graphics.NumLines = 0;
+	PipelineState.Graphics.NumTriangles = 0;
+
 	if (PipelineState.Graphics.VBCache.BoundVBMask) { bNeedSetVB = true; }
 
 	// IndexBuffers are set in DrawIndexed*() calls, so there's no way to depend on previously set IndexBuffers without making a new DrawIndexed*() call.
