@@ -206,7 +206,8 @@ static const FPlatformAudioCookOverrides* GetCookOverridesForRunningPlatform()
  */
 static uint32 PutDerivedDataInCache(
 	FStreamedAudioPlatformData* DerivedData,
-	const FString& DerivedDataKeySuffix
+	const FString& DerivedDataKeySuffix,
+	const FStringView& SoundWaveName
 	)
 {
 	TArray<uint8> RawDerivedData;
@@ -243,14 +244,14 @@ static uint32 PutDerivedDataInCache(
 				);
 		}
 
-		TotalBytesPut += Chunk.StoreInDerivedDataCache(ChunkDerivedDataKey);
+		TotalBytesPut += Chunk.StoreInDerivedDataCache(ChunkDerivedDataKey, SoundWaveName);
 	}
 
 	// Store derived data.
 	// At this point we've stored all the non-inline data in the DDC, so this will only serialize and store the metadata and any inline chunks
 	FMemoryWriter Ar(RawDerivedData, /*bIsPersistent=*/ true);
 	DerivedData->Serialize(Ar, NULL);
-	GetDerivedDataCacheRef().Put(*DerivedDataKey, RawDerivedData);
+	GetDerivedDataCacheRef().Put(*DerivedDataKey, RawDerivedData, SoundWaveName);
 	TotalBytesPut += RawDerivedData.Num();
 	UE_LOG(LogAudio, Verbose, TEXT("%s  Derived Data: %d bytes"), *LogString, RawDerivedData.Num());
 	return TotalBytesPut;
@@ -449,7 +450,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				// @todo: This will remove the streaming bulk data, which we immediately reload below!
 				// Should ideally avoid this redundant work, but it only happens when we actually have
 				// to build the compressed audio, which should only ever be once.
-				this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix);
+				this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, SoundWave.GetPathName());
 
 				check(this->BytesCached != 0);
 			}
@@ -504,7 +505,7 @@ public:
 		bool bForDDC = (CacheFlags & EStreamedAudioCacheFlags::ForDDCBuild) != 0;
 		bool bAllowAsyncBuild = (CacheFlags & EStreamedAudioCacheFlags::AllowAsyncBuild) != 0;
 
-		if (!bForceRebuild && GetDerivedDataCacheRef().GetSynchronous(*DerivedData->DerivedDataKey, RawDerivedData))
+		if (!bForceRebuild && GetDerivedDataCacheRef().GetSynchronous(*DerivedData->DerivedDataKey, RawDerivedData, SoundWave.GetPathName()))
 		{
 			BytesCached = RawDerivedData.Num();
 			FMemoryReader Ar(RawDerivedData, /*bIsPersistent=*/ true);
@@ -658,7 +659,7 @@ static void BeginLoadDerivedChunks(TIndirectArray<FStreamedAudioChunk>& Chunks, 
 		const FStreamedAudioChunk& Chunk = Chunks[ChunkIndex];
 		if (!Chunk.DerivedDataKey.IsEmpty())
 		{
-			OutHandles[ChunkIndex] = DDC.GetAsynchronous(*Chunk.DerivedDataKey);
+			OutHandles[ChunkIndex] = DDC.GetAsynchronous(*Chunk.DerivedDataKey, TEXT("Unknown SoundWave"_SV));
 		}
 	}
 }
@@ -802,14 +803,14 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 	{
 		if (bMakeSureChunkIsLoaded)
 		{
-			if (DDC.GetSynchronous(*Chunk.DerivedDataKey, TempData))
+			if (DDC.GetSynchronous(*Chunk.DerivedDataKey, TempData, TEXT("Unknown SoundWave"_SV)))
 			{
 				ChunkDataSize = DeserializeChunkFromDDC(TempData, Chunk, ChunkIndex, OutChunkData);
 			}
 		}
 		else
 		{
-			AsyncHandle = DDC.GetAsynchronous(*Chunk.DerivedDataKey);
+			AsyncHandle = DDC.GetAsynchronous(*Chunk.DerivedDataKey, TEXT("Unknown SoundWave"_SV));
 		}
 	}
 

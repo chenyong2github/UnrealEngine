@@ -5530,46 +5530,32 @@ FReply FPersonaMeshDetails::OnRemoveClothingAssetClicked(int32 AssetIndex, IDeta
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 	check(SkelMesh);
 
-	TArray<UActorComponent*> ComponentsToReregister;
-	for(TObjectIterator<USkeletalMeshComponent> It; It; ++It)
-	{
-		if(USkeletalMesh* UsedMesh = (*It)->SkeletalMesh)
-		{
-			if(UsedMesh == SkelMesh)
-			{
-				ComponentsToReregister.Add(*It);
-			}
-		}
-	}
-
 	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
+	// Now we can remove the asset.
+	if(SkelMesh->MeshClothingAssets.IsValidIndex(AssetIndex))
 	{
 		// Need to unregister our components so they shut down their current clothing simulation
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
 
-		// Now we can remove the asset.
-		if(SkelMesh->MeshClothingAssets.IsValidIndex(AssetIndex))
+		if (UClothingAssetBase* AssetToRemove = SkelMesh->MeshClothingAssets[AssetIndex])
 		{
-			if (UClothingAssetBase* AssetToRemove = SkelMesh->MeshClothingAssets[AssetIndex])
-			{
-				AssetToRemove->UnbindFromSkeletalMesh(SkelMesh);
-			}
-			SkelMesh->MeshClothingAssets.RemoveAt(AssetIndex);
+			AssetToRemove->UnbindFromSkeletalMesh(SkelMesh);
+		}
+		SkelMesh->MeshClothingAssets.RemoveAt(AssetIndex);
 
-			// Need to fix up asset indices on sections.
-			if(FSkeletalMeshModel* MeshResource = SkelMesh->GetImportedModel())
+		// Need to fix up asset indices on sections.
+		if(FSkeletalMeshModel* MeshResource = SkelMesh->GetImportedModel())
+		{
+			for(FSkeletalMeshLODModel& LodModel : MeshResource->LODModels)
 			{
-				for(FSkeletalMeshLODModel& LodModel : MeshResource->LODModels)
+				for(int32 SectionIndex = 0; SectionIndex < LodModel.Sections.Num(); ++SectionIndex)
 				{
-					for(int32 SectionIndex = 0; SectionIndex < LodModel.Sections.Num(); ++SectionIndex)
+					FSkelMeshSection& Section = LodModel.Sections[SectionIndex];
+					if(Section.CorrespondClothAssetIndex > AssetIndex)
 					{
-						FSkelMeshSection& Section = LodModel.Sections[SectionIndex];
-						if(Section.CorrespondClothAssetIndex > AssetIndex)
-						{
-							--Section.CorrespondClothAssetIndex;
-							//Keep the user section data (build source data) in sync
-							SetSkelMeshSourceSectionUserData(LodModel, SectionIndex, Section.OriginalDataSectionIndex);
-						}
+						--Section.CorrespondClothAssetIndex;
+						//Keep the user section data (build source data) in sync
+						SetSkelMeshSourceSectionUserData(LodModel, SectionIndex, Section.OriginalDataSectionIndex);
 					}
 				}
 			}

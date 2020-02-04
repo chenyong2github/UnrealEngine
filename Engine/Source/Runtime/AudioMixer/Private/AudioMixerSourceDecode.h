@@ -29,11 +29,15 @@ namespace Audio
 		// The number of channels of the procedural buffer
 		int32 NumChannels;
 
+		// Force decodes to execute synchronously
+		bool bForceSyncDecode;
+
 		FProceduralAudioTaskData()
 			: ProceduralSoundWave(nullptr)
 			, AudioData(nullptr)
 			, NumSamples(0)
 			, NumChannels(0)
+			, bForceSyncDecode(false)
 		{}
 	};
 
@@ -64,6 +68,10 @@ namespace Audio
 		// Whether or not to skip the first buffer
 		bool bSkipFirstBuffer;
 
+		// Force this decoding operation to occur synchronously,
+		// regardless of the value of au.ForceSyncAudioDecodes. (used by time synth)
+		bool bForceSyncDecode;
+
 		FDecodeAudioTaskData()
 			: AudioData(nullptr)
 			, DecompressionState(nullptr)
@@ -73,6 +81,7 @@ namespace Audio
 			, NumFramesToDecode(0)
 			, bLoopingMode(false)
 			, bSkipFirstBuffer(false)
+			, bForceSyncDecode(false)
 		{}
 	};
 

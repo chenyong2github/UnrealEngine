@@ -3023,6 +3023,8 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 	// Draw lines to lights affecting this mesh if its selected.
 	if (ViewFamily.EngineShowFlags.LightInfluences)
 	{
+		Scene->FlushAsyncLightPrimitiveInteractionCreation();
+
 		for (TArray<FPrimitiveSceneInfo*>::TConstIterator It(Scene->Primitives); It; ++It)
 		{
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = *It;

@@ -92,7 +92,10 @@ bool FPicpProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& InViewportSi
 		UE_LOG(LogPicpProjectionMPCDI, Warning, TEXT("Couldn't load PICP MPCDI config: %s"), *CfgData.ConfigLineStr);
 		return false;
 	}
-	
+
+	// Support custom origin node
+	OriginCompId = CfgData.OriginType;
+
 	UE_LOG(LogPicpProjectionMPCDI, Log, TEXT("PICP MPCDI policy has been initialized [%s]"), *CfgData.ConfigLineStr);
 
 	// Finally, initialize internal views data container

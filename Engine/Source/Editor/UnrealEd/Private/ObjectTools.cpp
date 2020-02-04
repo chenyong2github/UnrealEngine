@@ -3432,17 +3432,18 @@ namespace ObjectTools
 				Redirector = NULL;
 			}
 
+			UPackage* OldPackage = Object->GetOutermost();
 			UPackage* NewPackage = CreatePackage( NULL, *PkgName );
+
 			// if this object is being renamed out of the MyLevel package into a content package, we need to mark it RF_Standalone
 			// so that it will be saved (UWorld::CleanupWorld() clears this flag for all objects inside the package)
 			if (!Object->HasAnyFlags(RF_Standalone)
-				&&	Object->GetOutermost()->ContainsMap()
+				&&	OldPackage->ContainsMap()
 				&&	!NewPackage->GetOutermost()->ContainsMap() )
 			{
 				Object->SetFlags(RF_Standalone);
 			}
 
-			UPackage *OldPackage = Object->GetOutermost();
 			FString OldObjectFullName = Object->GetFullName();
 			FString OldObjectPathName = Object->GetPathName();
 			GEditor->RenameObject( Object, NewPackage, *ObjName, bLeaveRedirector ? REN_None : REN_DontCreateRedirectors );
@@ -3464,6 +3465,12 @@ namespace ObjectTools
 			UObjectRedirector* NewRedirector = FindObject<UObjectRedirector>(NULL, *OldObjectPathName);
 			if ( NewRedirector )
 			{
+				// If we created a redirector to a map asset, ensure the redirector package is flagged as containing a map for it to have the correct file extension.
+				if (NewPackage->ContainsMap())
+				{
+					NewRedirector->GetOutermost()->ThisContainsMap();
+				}
+
 				FAssetRegistryModule::AssetCreated(NewRedirector);
 			}
 

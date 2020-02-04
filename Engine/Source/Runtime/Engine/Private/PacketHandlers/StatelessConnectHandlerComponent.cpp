@@ -1034,7 +1034,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 							}
 
 							bRestartedHandshake = bRestartHandshake;
-							LastChallengeSuccessAddress = Address;
+							LastChallengeSuccessAddress = Address->Clone();
 
 
 							// Now ack the challenge response - the cookie is stored in AuthorisedCookie, to enable retries

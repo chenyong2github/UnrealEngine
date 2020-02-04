@@ -1770,7 +1770,16 @@ public:
 	void SaveShaderStableKeys(const class ITargetPlatform* TP);
 	ENGINE_API virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal) override;
 
+#if WITH_EDITORONLY_DATA
+	bool HasBaseColorConnected() const { return BaseColor.IsConnected(); }
+	bool HasRoughnessConnected() const { return Roughness.IsConnected(); }
+#else	
+	// Add to runtime data only if we need to call these at runtime
+	bool HasBaseColorConnected() const { check(0); return false; }
+	bool HasRoughnessConnected() const { check(0); return false; }
+#endif 	
 	bool HasNormalConnected() const { return Normal.IsConnected(); }
+	bool HasSpecularConnected() const { return Specular.IsConnected(); }
 	bool HasEmissiveColorConnected() const { return EmissiveColor.IsConnected(); }
 
 #if WITH_EDITOR

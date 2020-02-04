@@ -65,7 +65,12 @@ enum class ERootMotionSourceSettingsFlags : uint8
 	// do not reduce SimulationTime. Disabling this is useful for sources that
 	// are more about providing velocity (like jumps), vs. sources that need
 	// the precision of partial ticks for say ending up at an exact location (MoveTo)
-	DisablePartialEndTick		= 0x02
+	DisablePartialEndTick		= 0x02,
+	// Whether to ignore impact to Z when accumulating output to Velocity
+	// Setting this flag on override sources provides the same behavior as
+	// animation root motion
+	IgnoreZAccumulate			= 0x04
+
 };
 
 enum class ERootMotionSourceID : uint16 { Invalid = 0 };
@@ -733,10 +738,10 @@ struct ENGINE_API FRootMotionSourceGroup
 	virtual ~FRootMotionSourceGroup() {}
 
 	/** Root Motion Sources currently applied in this Group */
-	TArray< TSharedPtr<FRootMotionSource>, TInlineAllocator<8> > RootMotionSources;
+	TArray< TSharedPtr<FRootMotionSource> > RootMotionSources;
 
 	/** Root Motion Sources to be added next frame */
-	TArray< TSharedPtr<FRootMotionSource>, TInlineAllocator<4> > PendingAddRootMotionSources;
+	TArray< TSharedPtr<FRootMotionSource> > PendingAddRootMotionSources;
 
 	/** 
 	 *  Whether this group has additive root motion sources
@@ -749,6 +754,12 @@ struct ENGINE_API FRootMotionSourceGroup
 	 **/
 	UPROPERTY()
 	uint8 bHasOverrideSources:1;
+
+	/** 
+	 *  Whether this group has override root motion sources that have IgnoreZAccumulate flag
+	 **/
+	UPROPERTY()
+	uint8 bHasOverrideSourcesWithIgnoreZAccumulate:1;
 
 	/** True when we had additive velocity applied last tick, checked to know if we should restore
 	 *  LastPreAdditiveVelocity before a Velocity computation */
@@ -791,6 +802,9 @@ struct ENGINE_API FRootMotionSourceGroup
 
 	/** @return true if Velocity will be overridden by root motion sources, meaning we can skip all normal movement-based velocity calculations */
 	bool HasOverrideVelocity() const;
+
+	/** @return true if Velocity will be overridden by root motion sources that do not affect Z velocity (matching animation root motion behavior) */
+	bool HasOverrideVelocityWithIgnoreZAccumulate() const;
 
 	/** @return true if any axis of velocity has additive velocity applied by root motion sources */
 	bool HasAdditiveVelocity() const;

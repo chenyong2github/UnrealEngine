@@ -93,7 +93,7 @@ bool UDisplayClusterPlayerInput::DeserializeKeyStateMap(const TMap<FString, FStr
 	int idx = 0;
 	for (auto it = InKeyStateMap.CreateConstIterator(); it; ++it)
 	{
-		UE_LOG(LogDisplayClusterGame, Log, TEXT("Input data [%d]: %s = %s"), idx, *it->Key, *it->Value);
+		UE_LOG(LogDisplayClusterGame, VeryVerbose, TEXT("Input data [%d]: %s = %s"), idx, *it->Key, *it->Value);
 		++idx;
 
 		FKey Key(*it->Key);

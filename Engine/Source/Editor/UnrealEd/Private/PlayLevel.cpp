@@ -109,6 +109,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Async/Async.h"
+#include "StudioAnalytics.h"
 #include "UObject/SoftObjectPath.h"
 #include "IAssetViewport.h"
 
@@ -2299,7 +2301,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 
 	// Broadcast PreBeginPIE before checks that might block PIE below (BeginPIE is broadcast below after the checks)
 	FEditorDelegates::PreBeginPIE.Broadcast(InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor);
-	double PIEStartTime = FPlatformTime::Seconds();
+	const double PIEStartTime = FStudioAnalytics::GetAnalyticSeconds();
 	const FScopedBusyCursor BusyCursor;
 
 	// Block PIE when there is a transaction recording into the undo buffer. This is generally avoided

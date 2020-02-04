@@ -141,10 +141,10 @@ public:
 	static FString GetDDCKeyString(const FGuid& StateId);
 
 	/** Loads the platform data from DDC */
-	bool LoadFromDDC(const FGuid& StateId);
+	bool LoadFromDDC(const FGuid& StateId, UObject* Component);
 
 	/** Saves the compressed platform data to the DDC */
-	void SaveToDDC(const FGuid& StateId);
+	void SaveToDDC(const FGuid& StateId, UObject* Component);
 
 	/* Serializer */
 	friend FArchive& operator<<(FArchive& Ar, FLandscapeComponentDerivedData& Data);

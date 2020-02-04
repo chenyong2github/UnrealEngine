@@ -446,6 +446,10 @@ public:
 	DECLARE_EVENT_OneParam(FSlateApplication, FOnWindowBeingDestroyed, const SWindow&);
 	FOnWindowBeingDestroyed& OnWindowBeingDestroyed() { return WindowBeingDestroyedEvent; }
 
+	/** Delegate called just before possible focus change */
+	DECLARE_MULTICAST_DELEGATE_FiveParams(FOnFocusChanging, const FFocusEvent&, const FWeakWidgetPath&, const TSharedPtr<SWidget>&, const FWidgetPath&, const TSharedPtr<SWidget>&);
+	FOnFocusChanging& OnFocusChanging() { return FocusChangingDelegate; }
+
 	/** 
 	 * Removes references to FViewportRHI's.  
 	 * This has to be done explicitly instead of using the FRenderResource mechanism because FViewportRHI's are managed by the game thread.
@@ -1808,6 +1812,9 @@ private:
 
 	/** Delegate for slate Tick during modal dialogs */
 	FOnModalLoopTickEvent ModalLoopTickEvent;
+
+	/** Delegate for when focus might be about to change */
+	FOnFocusChanging FocusChangingDelegate;
 
 	/** Critical section to avoid multiple threads calling Slate Tick when we're synchronizing between the Slate Loading Thread and the Game Thread. */
 	FCriticalSection SlateTickCriticalSection;

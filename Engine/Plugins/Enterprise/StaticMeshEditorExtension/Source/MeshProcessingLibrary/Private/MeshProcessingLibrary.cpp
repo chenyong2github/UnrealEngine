@@ -639,31 +639,9 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 		// Update mesh to only contain visible triangles
 		else
 		{
-			TArray<FEdgeID> OrphanedEdges;
-			TArray<FVertexInstanceID> OrphanedVertexInstances;
-			TArray<FPolygonGroupID> OrphanedPolygonGroups;
-			TArray<FVertexID> OrphanedVertices;
-			for (FPolygonID PolygonID : PolygonToRemove)
-			{
-				NewRawMesh.DeletePolygon(PolygonID, &OrphanedEdges, &OrphanedVertexInstances, &OrphanedPolygonGroups);
-			}
-			for (FPolygonGroupID PolygonGroupID : OrphanedPolygonGroups)
-			{
-				NewRawMesh.DeletePolygonGroup(PolygonGroupID);
-			}
-			for (FVertexInstanceID VertexInstanceID : OrphanedVertexInstances)
-			{
-				NewRawMesh.DeleteVertexInstance(VertexInstanceID, &OrphanedVertices);
-			}
-			for (FEdgeID EdgeID : OrphanedEdges)
-			{
-				NewRawMesh.DeleteEdge(EdgeID, &OrphanedVertices);
-			}
-			for (FVertexID VertexID : OrphanedVertices)
-			{
-				NewRawMesh.DeleteVertex(VertexID);
-			}
-			//Compact and Remap IDs so we have clean ID from 0 to n since we just erase some polygons
+			NewRawMesh.DeletePolygons(PolygonToRemove);
+			
+			//Compact and Remap IDs so we have clean ID from 0 to n since we just erased some polygons
 			FElementIDRemappings RemappingInfos;
 			NewRawMesh.Compact(RemappingInfos);
 

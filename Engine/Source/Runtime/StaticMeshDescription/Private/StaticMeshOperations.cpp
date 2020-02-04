@@ -274,31 +274,7 @@ static void RemovePolygonsAndCompact(FMeshDescription& MeshDescription, const TA
 {
 	if (PolygonsToRemove.Num() > 0)
 	{
-		TArray<FEdgeID> OrphanedEdges;
-		TArray<FVertexInstanceID> OrphanedVertexInstances;
-		TArray<FPolygonGroupID> OrphanedPolygonGroups;
-		TArray<FVertexID> OrphanedVertices;
-
-		for (FPolygonID PolygonID : PolygonsToRemove)
-		{
-			MeshDescription.DeletePolygon(PolygonID, &OrphanedEdges, &OrphanedVertexInstances, &OrphanedPolygonGroups);
-		}
-		for (FPolygonGroupID PolygonGroupID : OrphanedPolygonGroups)
-		{
-			MeshDescription.DeletePolygonGroup(PolygonGroupID);
-		}
-		for (FVertexInstanceID VertexInstanceID : OrphanedVertexInstances)
-		{
-			MeshDescription.DeleteVertexInstance(VertexInstanceID, &OrphanedVertices);
-		}
-		for (FEdgeID EdgeID : OrphanedEdges)
-		{
-			MeshDescription.DeleteEdge(EdgeID, &OrphanedVertices);
-		}
-		for (FVertexID VertexID : OrphanedVertices)
-		{
-			MeshDescription.DeleteVertex(VertexID);
-		}
+		MeshDescription.DeletePolygons(PolygonsToRemove);
 		// Compact and Remap IDs so we have clean ID from 0 to n since we just erase some polygons
 		FElementIDRemappings RemappingInfos;
 		MeshDescription.Compact(RemappingInfos);

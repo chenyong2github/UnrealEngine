@@ -49,7 +49,7 @@ namespace Audio
 	class FMixerSourceBuffer : public ISoundWaveClient
 	{
 	public:		
-		static FMixerSourceBufferPtr Create(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
+		static FMixerSourceBufferPtr Create(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
 
 		~FMixerSourceBuffer();
 
@@ -96,7 +96,7 @@ namespace Audio
 		void OnEndGenerate();
 		void ClearWave() { SoundWave = nullptr; }
 	private:
-		FMixerSourceBuffer(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
+		FMixerSourceBuffer(FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
 
 		void SubmitInitialPCMBuffers();
 		void SubmitInitialRealtimeBuffers();
@@ -128,6 +128,7 @@ namespace Audio
 		uint32 bLoopCallback : 1;
 		uint32 bProcedural : 1;
 		uint32 bIsBus : 1;
+		uint32 bForceSyncDecode : 1;
 	
 		virtual void OnBeginDestroy(class USoundWave* Wave) override;
 		virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const override;

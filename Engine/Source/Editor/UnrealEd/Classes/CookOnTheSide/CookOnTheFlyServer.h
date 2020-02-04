@@ -9,6 +9,7 @@
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/Package.h"
+#include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "INetworkFileSystemModule.h"

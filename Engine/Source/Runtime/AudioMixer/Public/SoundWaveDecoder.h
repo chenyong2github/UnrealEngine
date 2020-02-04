@@ -33,16 +33,18 @@ namespace Audio
 			, SeekTime(0.0f)
 			, PitchScale(1.0f)
 			, VolumeScale(1.0f)
+			, bForceSyncDecode(false)
 		{}
 
 		USoundWave* SoundWave;
 		float SeekTime;
 		float PitchScale;
 		float VolumeScale;
+		bool bForceSyncDecode;
 		FDecodingSoundSourceHandle Handle;
 	};
 
-	class FDecodingSoundSource
+	class FDecodingSoundSource : public FGCObject
 	{
 	public:
 		FDecodingSoundSource(FAudioDevice* AudioDevice, const FSourceDecodeInit& InitData);
@@ -69,8 +71,14 @@ namespace Audio
 		// Sets the volume scale
 		void SetVolumeScale(float InVolumeScale, uint32 NumFrames = 512);
 
+		// Sets the ForceSyncDecode flag. (Decodes for this soundwave will not happen in an async task if true)
+		void SetForceSyncDecode(bool bShouldForceSyncDecode);
+
 		// Get audio buffer
 		bool GetAudioBuffer(const int32 InNumFrames, const int32 InNumChannels, AlignedFloatBuffer& OutAudioBuffer);
+
+		// Override for FGCObject:
+		virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
 
 	private:
 
@@ -83,7 +91,7 @@ namespace Audio
 		// The sound wave object with which this sound is generating
 		USoundWave* SoundWave;
 
-		// Mixer buffer object which is a conveince wrapper around some buffer initialization and management
+		// Mixer buffer object which is a convenience wrapper around some buffer initialization and management
 		FMixerBuffer* MixerBuffer;
 
 		// Object which handles bulk of decoding operations
@@ -97,6 +105,9 @@ namespace Audio
 
 		// If we've initialized	
 		FThreadSafeBool bInitialized;
+
+		// force the decoding of this sound to be synchronous
+		bool bForceSyncDecode{false};
 
 		// Object used for source generation from decoded buffers
 		struct FSourceInfo

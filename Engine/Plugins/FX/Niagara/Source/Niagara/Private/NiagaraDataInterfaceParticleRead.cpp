@@ -67,35 +67,66 @@ static const TCHAR* NiagaraParticleDataValueTypeName(ENiagaraParticleDataValueTy
 	}
 }
 
-struct FNDIParticleRead_InstanceDataGPU
+struct FNDIParticleRead_InstanceData
 {
+	FNiagaraSystemInstance* SystemInstance;
+	FNiagaraEmitterInstance* EmitterInstance;
+};
+
+struct FNDIParticleRead_RenderThreadData
+{
+	FNDIParticleRead_RenderThreadData() : SourceEmitterGPUContext(nullptr) {}
+
 	FNiagaraComputeExecutionContext* SourceEmitterGPUContext;
 	FString SourceEmitterName;
 };
 
 struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProxy
 {
-	FNiagaraDataInterfaceProxyParticleRead() : SourceEmitterGPUContext(nullptr)
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& InstanceID) override
 	{
-	}
-
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override
-	{
-		FNDIParticleRead_InstanceDataGPU* InstanceData = static_cast<FNDIParticleRead_InstanceDataGPU*>(PerInstanceData);
-		if (InstanceData)
+		FNDIParticleRead_RenderThreadData* SystemData = SystemsRenderData.Find(InstanceID);
+		if (!ensure(SystemData))
 		{
-			SourceEmitterGPUContext = InstanceData->SourceEmitterGPUContext;
-			SourceEmitterName = InstanceData->SourceEmitterName;
+			return;
 		}
+
+		FNDIParticleRead_RenderThreadData* IncomingData = static_cast<FNDIParticleRead_RenderThreadData*>(PerInstanceData);
+		if (!IncomingData)
+		{
+			SystemData->SourceEmitterGPUContext = nullptr;
+			SystemData->SourceEmitterName = TEXT("");
+			return;
+		}
+
+		*SystemData = *IncomingData;
 	}
 	
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
-		return sizeof(FNDIParticleRead_InstanceDataGPU);
+		return sizeof(FNDIParticleRead_RenderThreadData);
 	}
 
-	FNiagaraComputeExecutionContext* SourceEmitterGPUContext;
-	FString SourceEmitterName;
+	void CreateRenderThreadSystemData(const FNiagaraSystemInstanceID& InstanceID)
+	{
+		check(IsInRenderingThread());
+		check(!SystemsRenderData.Contains(InstanceID));
+		SystemsRenderData.Add(InstanceID);
+	}
+
+	void DestroyRenderThreadSystemData(const FNiagaraSystemInstanceID& InstanceID)
+	{
+		check(IsInRenderingThread());
+		SystemsRenderData.Remove(InstanceID);
+	}
+
+	FNDIParticleRead_RenderThreadData* GetRenderDataForSystem(const FNiagaraSystemInstanceID& InstanceID)
+	{
+		return SystemsRenderData.Find(InstanceID);
+	}
+
+private:
+	TMap<FNiagaraSystemInstanceID, FNDIParticleRead_RenderThreadData> SystemsRenderData;
 };
 
 struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInterfaceParametersCS
@@ -295,12 +326,16 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 
 		FNiagaraDataInterfaceProxyParticleRead* Proxy = static_cast<FNiagaraDataInterfaceProxyParticleRead*>(Context.DataInterface);
 		check(Proxy);
-		if (Proxy->SourceEmitterGPUContext == nullptr)
+
+		FNDIParticleRead_RenderThreadData* RTData = Proxy->GetRenderDataForSystem(Context.SystemInstance);
+		check(RTData);
+
+		if (RTData->SourceEmitterGPUContext == nullptr)
 		{
 			// This means the source emitter isn't running on GPU.
 			if (!bSourceEmitterNotGPUErrorShown)
 			{
-				UE_LOG(LogNiagara, Error, TEXT("GPU particle read DI is set to access CPU emitter '%s'."), *Proxy->SourceEmitterName);
+				UE_LOG(LogNiagara, Error, TEXT("GPU particle read DI is set to access CPU emitter '%s'."), *RTData->SourceEmitterName);
 				bSourceEmitterNotGPUErrorShown = true;
 			}
 			SetErrorParams(RHICmdList, ComputeShader, false);
@@ -309,7 +344,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 
 		bSourceEmitterNotGPUErrorShown = false;
 
-		FNiagaraDataSet* SourceDataSet = Proxy->SourceEmitterGPUContext->MainDataSet;
+		FNiagaraDataSet* SourceDataSet = RTData->SourceEmitterGPUContext->MainDataSet;
 		if (!SourceDataSet)
 		{
 			SetErrorParams(RHICmdList, ComputeShader, false);
@@ -318,7 +353,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 
 		FNiagaraDataBuffer* SourceData;
 		uint32 NumSpawnedInstances = 0, IDAcquireTag = 0;
-		const bool bReadingOwnEmitter = Context.ComputeInstanceData->Context == Proxy->SourceEmitterGPUContext;
+		const bool bReadingOwnEmitter = Context.ComputeInstanceData->Context == RTData->SourceEmitterGPUContext;
 		if (bReadingOwnEmitter)
 		{
 			// If the current execution context is the same as the source emitter's context, it means we're reading from
@@ -357,7 +392,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 
 		if (CachedDataSet != SourceDataSet)
 		{
-			FindAttributeIndices(SourceDataSet, *Proxy->SourceEmitterName);
+			FindAttributeIndices(SourceDataSet, *RTData->SourceEmitterName);
 			CachedDataSet = SourceDataSet;
 		}
 
@@ -443,7 +478,34 @@ bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceDat
 		return false;
 	}
 
+	FNiagaraDataInterfaceProxyParticleRead* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyParticleRead>();
+	ENQUEUE_RENDER_COMMAND(FNDIParticleReadCreateRTInstance)(
+		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandList& CmdList)
+		{
+			ThisProxy->CreateRenderThreadSystemData(InstanceID);
+		}
+	);
+
 	return true;
+}
+
+void UNiagaraDataInterfaceParticleRead::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
+{
+	FNDIParticleRead_InstanceData* InstData = (FNDIParticleRead_InstanceData*)PerInstanceData;
+	InstData->~FNDIParticleRead_InstanceData();
+
+	FNiagaraDataInterfaceProxyParticleRead* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyParticleRead>();
+	ENQUEUE_RENDER_COMMAND(FNDIParticleReadDestroyRTInstance) (
+		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
+		{
+			ThisProxy->DestroyRenderThreadSystemData(InstanceID);
+		}
+	);
+}
+
+int32 UNiagaraDataInterfaceParticleRead::PerInstanceDataSize() const
+{
+	return sizeof(FNDIParticleRead_InstanceData);
 }
 
 void UNiagaraDataInterfaceParticleRead::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
@@ -1254,12 +1316,12 @@ FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceParticleRead::ConstructC
 
 void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {
-	FNDIParticleRead_InstanceDataGPU* DataToPass = new (DataForRenderThread) FNDIParticleRead_InstanceDataGPU;
+	FNDIParticleRead_RenderThreadData* RTData = new (DataForRenderThread) FNDIParticleRead_RenderThreadData;
 	FNDIParticleRead_InstanceData* PIData = static_cast<FNDIParticleRead_InstanceData*>(PerInstanceData);
 	if (PIData && PIData->EmitterInstance)
 	{
-		DataToPass->SourceEmitterGPUContext = PIData->EmitterInstance->GetGPUContext();
-		DataToPass->SourceEmitterName = PIData->EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName();
+		RTData->SourceEmitterGPUContext = PIData->EmitterInstance->GetGPUContext();
+		RTData->SourceEmitterName = PIData->EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName();
 	}
 }
 

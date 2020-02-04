@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfacePhysicsAsset.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "SkeletalRenderPublic.h"
 #include "SkeletalMeshTypes.h"
 #include "AnimationRuntime.h"
 #include "NiagaraShader.h"
@@ -305,6 +306,28 @@ void FNDIPhysicsAssetBuffer::Update()
 	}
 }
 
+struct FPhysicsAssetManager
+{
+	TMap<int32,FSkeletalMeshObject*> Elements;
+};
+
+FPhysicsAssetManager GHairManager;
+
+void MeshObjectCallback(
+	FSkeletalMeshObjectCallbackData::EEventType Event,
+	FSkeletalMeshObject* MeshObject,
+	uint64 UserData)
+{
+	ENQUEUE_RENDER_COMMAND(FPhysicsAssetUpdate)(
+		[Event, MeshObject, UserData](FRHICommandListImmediate& RHICmdList)
+	{
+		if (Event == FSkeletalMeshObjectCallbackData::EEventType::Register || Event == FSkeletalMeshObjectCallbackData::EEventType::Update)
+		{
+			GHairManager.Elements.Add(UserData,MeshObject);
+		}
+	});
+}
+
 void FNDIPhysicsAssetBuffer::InitRHI()
 {
 	if (IsValid())
@@ -320,6 +343,25 @@ void FNDIPhysicsAssetBuffer::InitRHI()
 		//UE_LOG(LogPhysicsAsset, Warning, TEXT("Num Capsules = %d | Num Spheres = %d | Num Boxes = %d"), AssetArrays->ElementOffsets.NumElements - AssetArrays->ElementOffsets.CapsuleOffset,
 		//	AssetArrays->ElementOffsets.CapsuleOffset - AssetArrays->ElementOffsets.SphereOffset, AssetArrays->ElementOffsets.SphereOffset - AssetArrays->ElementOffsets.BoxOffset);
 	}
+
+	// /*const FPrimitiveComponentId LocalComponentId = SkeletalMesh->ComponentId;
+	//EWorldType::Type WorldType = SkeletalMesh->GetWorld() ? EWorldType::Type(SkeletalMesh->GetWorld()->WorldType) : EWorldType::None;
+	//WorldType = WorldType == EWorldType::Inactive ? EWorldType::Editor : WorldType;*/
+
+	//// Always setup the callback, even if the SkeletalMeshData are not ready yet
+	//if (SkeletalMesh.IsValid() && SkeletalMesh.Get() != nullptr)
+	//{
+	//	/*FSkeletalMeshObjectCallbackData CallbackData;
+	//	CallbackData.Run = MeshObjectCallback;
+	//	CallbackData.UserData = (uint64(LocalComponentId.PrimIDValue) & 0xFFFFFFFF) | (uint64(WorldType) << 32);
+	//	SkeletalMesh->MeshObjectCallbackData = CallbackData;*/
+
+	//	if (SkeletalMesh->MeshObject != nullptr)
+	//	{
+	//		UE_LOG(LogPhysicsAsset, Log, TEXT("Skin Cache there : %d %d %d"), SkeletalMesh->MeshObject, SkeletalMesh->MeshObject->GetCachedGeometry().LODIndex, 
+	//				SkeletalMesh->MeshObject->GetCachedGeometry().Sections.Num());
+	//	}
+	//}
 }
 
 void FNDIPhysicsAssetBuffer::ReleaseRHI()
@@ -533,6 +575,28 @@ void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher
 	check(IsInRenderingThread());
 	//check(SystemInstancesToProxyData.Contains(SystemInstance));
 	SystemInstancesToProxyData.Remove(SystemInstance);
+}
+
+void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
+	if (Context.ShaderStageIndex == 0)
+	{
+		FNDIPhysicsAssetData* ProxyData =
+			SystemInstancesToProxyData.Find(Context.SystemInstance);
+
+		if (ProxyData != nullptr)
+		{
+
+		}
+	}
+}
+
+void FNDIPhysicsAssetProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
+}
+
+void FNDIPhysicsAssetProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -945,6 +1009,71 @@ UNiagaraDataInterfacePhysicsAsset::ConstructComputeParameters() const
 {
 	return new FNDIPhysicsAssetParametersCS();
 }
+
+//------------------------------------------------------------------------------------------------------------
+//
+//class FResetCS : public FGlobalShader
+//{
+//	DECLARE_GLOBAL_SHADER(FCopyBoundingBoxCS);
+//	SHADER_USE_PARAMETER_STRUCT(FCopyBoundingBoxCS, FGlobalShader);
+//
+//	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+//		SHADER_PARAMETER(uint32, NumElements)
+//		SHADER_PARAMETER_UAV(RWBuffer, BoundingBoxBuffer)
+//		SHADER_PARAMETER_UAV(RWBuffer, OutNodeBoundBuffer)
+//		END_SHADER_PARAMETER_STRUCT()
+//
+//public:
+//	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+//	{
+//		return RHISupportsComputeShaders(Parameters.Platform);
+//	}
+//
+//	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+//	{
+//		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+//		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
+//	}
+//};
+//
+//IMPLEMENT_GLOBAL_SHADER(FCopyBoundingBoxCS, "/Plugin/Experimental/HairStrands/Private/NiagaraCopyBoundingBox.usf", "MainCS", SF_Compute);
+//
+//static void AddSkinCacheRasterPass(
+//	FRDGBuilder& GraphBuilder,
+//	FRHIUnorderedAccessView* BoundingBoxBuffer,
+//	FRHIUnorderedAccessView* OutNodeBoundBuffer)
+//{
+//	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
+//	const uint32 NumElements = 1;
+//
+//	FCopyBoundingBoxCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyBoundingBoxCS::FParameters>();
+//	Parameters->BoundingBoxBuffer = BoundingBoxBuffer;
+//	Parameters->OutNodeBoundBuffer = OutNodeBoundBuffer;
+//	Parameters->NumElements = NumElements;
+//
+//	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+//
+//	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
+//
+//	TShaderMapRef<FCopyBoundingBoxCS> ComputeShader(ShaderMap);
+//	FComputeShaderUtils::AddPass(
+//		GraphBuilder,
+//		RDG_EVENT_NAME("CopyBoundingBox"),
+//		*ComputeShader,
+//		Parameters,
+//		FIntVector(DispatchCount, 1, 1));
+//
+//	GraphBuilder.AddPass(
+//		RDG_EVENT_NAME("SkinCacheRaster"),
+//		PassParameters,
+//		ERDGPassFlags::Raster,
+//		[PassParameters, Scene = Scene, ViewInfo, RasterPassType, &PrimitiveSceneInfos, ViewportRect, HairRenderInfo, RasterDirection](FRHICommandListImmediate& RHICmdList)
+//	{
+//	});
+//}
+
+//------------------------------------------------------------------------------------------------------------
+
 
 
 #undef LOCTEXT_NAMESPACE

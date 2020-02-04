@@ -855,7 +855,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStatic
 	TArray<uint8> DerivedData;
 
 	COOK_STAT(auto Timer = DistanceFieldCookStats::UsageStats.TimeSyncWork());
-	if (GetDerivedDataCacheRef().GetSynchronous(*InDDCKey, DerivedData))
+	if (GetDerivedDataCacheRef().GetSynchronous(*InDDCKey, DerivedData, Mesh->GetPathName()))
 	{
 		COOK_STAT(Timer.AddHit(DerivedData.Num()));
 		FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
@@ -1210,7 +1210,7 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks()
 				// Save built distance field volume to DDC
 				FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
 				Ar << *(Task->StaticMesh->RenderData->LODResources[0].DistanceFieldData);
-				GetDerivedDataCacheRef().Put(*Task->DDCKey, DerivedData);
+				GetDerivedDataCacheRef().Put(*Task->DDCKey, DerivedData, Task->StaticMesh->GetPathName());
 				COOK_STAT(Timer.AddMiss(DerivedData.Num()));
 			}
 		}

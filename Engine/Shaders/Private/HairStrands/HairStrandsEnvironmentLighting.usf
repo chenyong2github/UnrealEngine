@@ -552,7 +552,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	float3			SampleBaseColor;
 	float			SampleRoughness;
 	float			SampleSpecular;
-	DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+	uint			SampleLigthChannelMask;
+	DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLigthChannelMask);
 
 	FGBufferData GBuffer;
 	GBuffer.ShadingModelID = SHADINGMODELID_HAIR;

@@ -1500,7 +1500,6 @@ void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 		NewPackage->SetPackageFlags(PKG_NewlyCreated);
 
 		const FString NewPackageName = NewPackage->GetName();
-		const FString Filename = FPackageName::LongPackageNameToFilename(NewPackageName, FPackageName::GetAssetPackageExtension());
 
 		// This package not empty, in case it ever was
 		RemoveEmptyPackage(NewPackage->GetFName());
