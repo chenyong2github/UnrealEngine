@@ -265,6 +265,7 @@ public:
 		FCachedGeometrySection MeshSection;
 		const FSkelMeshRenderSection& Section = *DispatchData[SectionIndex].Section;
 		MeshSection.PositionBuffer	= DispatchData[SectionIndex].PositionBuffer->SRV;
+		MeshSection.UVsBuffer		= DispatchData[SectionIndex].UVsBufferSRV;
 		MeshSection.TotalVertexCount= DispatchData[SectionIndex].PositionBuffer->NumBytes / (sizeof(float)*3);
 		MeshSection.NumPrimitives	= Section.NumTriangles;
 		MeshSection.IndexBaseIndex	= Section.BaseIndex;

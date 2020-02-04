@@ -16,6 +16,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "NiagaraSystem.h"
 
 #if WITH_EDITORONLY_DATA
 #include "DerivedDataCacheInterface.h"
@@ -357,16 +358,126 @@ void FHairStrandsClusterCullingResource::ReleaseRHI()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
+FHairStrandsRootResource::FHairStrandsRootResource()
+{
+
+}
+
+FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsRootData& InRootData): 
+RootData(InRootData)
+{
+	PopulateFromRootData();
+}
+
 FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount):
+	RootData(HairStrandsDatas, LODCount)
+{
+	PopulateFromRootData();
+}
+
+void FHairStrandsRootResource::PopulateFromRootData()
+{
+	uint32 LODIndex = 0;
+	for (FHairStrandsRootData::FMeshProjectionLOD& MeshProjectionLOD : RootData.MeshProjectionLODs)
+	{
+		FMeshProjectionLOD& LOD = MeshProjectionLODs.AddDefaulted_GetRef();
+
+		LOD.LODIndex = MeshProjectionLOD.LODIndex;
+		LOD.Status = FHairStrandsProjectionHairData::LODData::EStatus::Invalid;
+	}
+}
+
+void FHairStrandsRootResource::InitRHI()
+{
+	if (RootData.VertexToCurveIndexBuffer.Num() > 0)
+	{
+		CreateBuffer<FHairStrandsIndexFormat>(RootData.VertexToCurveIndexBuffer, VertexToCurveIndexBuffer);
+		CreateBuffer<FHairStrandsRootPositionFormat>(RootData.RootPositionBuffer, RootPositionBuffer);
+		CreateBuffer<FHairStrandsRootNormalFormat>(RootData.RootNormalBuffer, RootNormalBuffer);
+		
+		check(MeshProjectionLODs.Num() == RootData.MeshProjectionLODs.Num());
+		for (uint32 LODIt=0, LODCount = MeshProjectionLODs.Num(); LODIt<LODCount; ++LODIt)
+		{
+			FMeshProjectionLOD& GPUData = MeshProjectionLODs[LODIt];
+			const FHairStrandsRootData::FMeshProjectionLOD& CPUData = RootData.MeshProjectionLODs[LODIt];
+
+			const bool bHasValidCPUData = CPUData.RootTriangleBarycentricBuffer.Num() > 0;
+			if (bHasValidCPUData)
+			{
+				GPUData.Status = FHairStrandsProjectionHairData::LODData::EStatus::Completed;
+
+				check(CPUData.RootTriangleBarycentricBuffer.Num() > 0);
+				CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(CPUData.RootTriangleBarycentricBuffer, GPUData.RootTriangleBarycentricBuffer);
+
+				check(CPUData.RootTriangleIndexBuffer.Num() > 0);
+				CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(CPUData.RootTriangleIndexBuffer, GPUData.RootTriangleIndexBuffer);
+
+				check(CPUData.RestRootTrianglePosition0Buffer.Num() > 0);
+				check(CPUData.RestRootTrianglePosition1Buffer.Num() > 0);
+				check(CPUData.RestRootTrianglePosition2Buffer.Num() > 0);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition0Buffer, GPUData.RestRootTrianglePosition0Buffer);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition1Buffer, GPUData.RestRootTrianglePosition1Buffer);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition2Buffer, GPUData.RestRootTrianglePosition2Buffer);
+			}
+			else
+			{
+				GPUData.Status = FHairStrandsProjectionHairData::LODData::EStatus::Initialized;
+
+				CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(RootData.RootCount, GPUData.RootTriangleBarycentricBuffer);
+				CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(RootData.RootCount, GPUData.RootTriangleIndexBuffer);
+
+				// Create buffers. Initialization will be done by render passes
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition0Buffer);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition1Buffer);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition2Buffer);
+			}
+
+			// Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle 
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.DeformedRootTrianglePosition0Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.DeformedRootTrianglePosition1Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.DeformedRootTrianglePosition2Buffer);
+		}
+	}
+}
+
+void FHairStrandsRootResource::ReleaseRHI()
+{
+	RootPositionBuffer.Release();
+	RootNormalBuffer.Release();
+	VertexToCurveIndexBuffer.Release();
+
+	for (FMeshProjectionLOD& GPUData : MeshProjectionLODs)
+	{
+		GPUData.Status = FHairStrandsProjectionHairData::LODData::EStatus::Invalid;
+		GPUData.RootTriangleIndexBuffer.Release();
+		GPUData.RootTriangleBarycentricBuffer.Release();
+		GPUData.RestRootTrianglePosition0Buffer.Release();
+		GPUData.RestRootTrianglePosition1Buffer.Release();
+		GPUData.RestRootTrianglePosition2Buffer.Release();
+		GPUData.DeformedRootTrianglePosition0Buffer.Release();
+		GPUData.DeformedRootTrianglePosition1Buffer.Release();
+		GPUData.DeformedRootTrianglePosition2Buffer.Release();
+	}
+	MeshProjectionLODs.Empty();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+FHairStrandsRootData::FHairStrandsRootData()
+{
+
+}
+
+FHairStrandsRootData::FHairStrandsRootData(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount):
 	RootCount(HairStrandsDatas ? HairStrandsDatas->GetNumCurves() : 0)
 {
 	if (!HairStrandsDatas)
 		return;
 
 	const uint32 CurveCount = HairStrandsDatas->GetNumCurves();
-	CurveIndices.SetNum(HairStrandsDatas->GetNumPoints());
-	RootPositions.SetNum(RootCount);
-	RootNormals.SetNum(RootCount);
+	VertexToCurveIndexBuffer.SetNum(HairStrandsDatas->GetNumPoints());
+	RootPositionBuffer.SetNum(RootCount);
+	RootNormalBuffer.SetNum(RootCount);
 
 	for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
 	{
@@ -374,13 +485,13 @@ FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* Hair
 		const uint32 PointCount = HairStrandsDatas->StrandsCurves.CurvesCount[CurveIndex];
 		for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 		{
-			CurveIndices[RootIndex + PointIndex] = CurveIndex; // RootIndex;
+			VertexToCurveIndexBuffer[RootIndex + PointIndex] = CurveIndex; // RootIndex;
 		}
 
 		check(PointCount > 1);
 
 		const FVector P0 = HairStrandsDatas->StrandsPoints.PointsPosition[RootIndex];
-		const FVector P1 = HairStrandsDatas->StrandsPoints.PointsPosition[RootIndex+1];
+		const FVector P1 = HairStrandsDatas->StrandsPoints.PointsPosition[RootIndex + 1];
 		FVector N0 = (P1 - P0).GetSafeNormal();
 
 		// Fallback in case the initial points are too close (this happens on certain assets)
@@ -401,64 +512,65 @@ FHairStrandsRootResource::FHairStrandsRootResource(const FHairStrandsDatas* Hair
 		N.Z = N0.Z;
 		N.W = 0;
 
-		RootPositions[CurveIndex] = P;
-		RootNormals[CurveIndex] = N;
+		RootPositionBuffer[CurveIndex] = P;
+		RootNormalBuffer[CurveIndex] = N;
 	}
-	
+
 	MeshProjectionLODs.SetNum(LODCount);
 	uint32 LODIndex = 0;
 	for (FMeshProjectionLOD& MeshProjectionLOD : MeshProjectionLODs)
 	{
-		MeshProjectionLOD.Status = FHairStrandsProjectionHairData::LODData::EStatus::Invalid;
-		MeshProjectionLOD.RestRootOffset = HairStrandsDatas->BoundingBox.GetCenter();
 		MeshProjectionLOD.LODIndex = LODIndex++;
 	}
 }
 
-void FHairStrandsRootResource::InitRHI()
+bool FHairStrandsRootData::HasProjectionData() const
 {
-	if (CurveIndices.Num() > 0)
+	bool bIsValid = MeshProjectionLODs.Num() > 0;
+	for (const FMeshProjectionLOD& LOD : MeshProjectionLODs)
 	{
-		CreateBuffer<FHairStrandsIndexFormat>(CurveIndices, VertexToCurveIndexBuffer);
-		CreateBuffer<FHairStrandsRootPositionFormat>(RootPositions, RootPositionBuffer);
-		CreateBuffer<FHairStrandsRootNormalFormat>(RootNormals, RootNormalBuffer);	
-		for (FMeshProjectionLOD& LOD : MeshProjectionLODs)
+		const bool bHasValidCPUData = LOD.RootTriangleBarycentricBuffer.Num() > 0;
+		if (bHasValidCPUData)
 		{
-			LOD.Status = FHairStrandsProjectionHairData::LODData::EStatus::Initialized;
+			bIsValid = bIsValid && LOD.RootTriangleBarycentricBuffer.Num() > 0;
+			bIsValid = bIsValid && LOD.RootTriangleIndexBuffer.Num() > 0;
+			bIsValid = bIsValid && LOD.RestRootTrianglePosition0Buffer.Num() > 0;
+			bIsValid = bIsValid && LOD.RestRootTrianglePosition1Buffer.Num() > 0;
+			bIsValid = bIsValid && LOD.RestRootTrianglePosition2Buffer.Num() > 0;
 
-			// Create buffers. Initialization will be done by render passes
-			CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(RootCount, LOD.RootTriangleIndexBuffer);
-			CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(RootCount, LOD.RootTriangleBarycentricBuffer);
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.RestRootTrianglePosition0Buffer);
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.RestRootTrianglePosition1Buffer);
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.RestRootTrianglePosition2Buffer);
-
-			// Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle 
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition0Buffer);
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition1Buffer);
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition2Buffer);
+			if (!bIsValid) break;
 		}
 	}
+
+	return bIsValid;
 }
 
-void FHairStrandsRootResource::ReleaseRHI()
+FArchive& operator<<(FArchive& Ar, FHairStrandsRootData::FMeshProjectionLOD& LOD)
 {
-	RootPositionBuffer.Release();
-	RootNormalBuffer.Release();
-	VertexToCurveIndexBuffer.Release();
+	Ar << LOD.LODIndex;
+	Ar << LOD.RootTriangleIndexBuffer;
+	Ar << LOD.RootTriangleBarycentricBuffer;
+	Ar << LOD.RestRootTrianglePosition0Buffer;
+	Ar << LOD.RestRootTrianglePosition1Buffer;
+	Ar << LOD.RestRootTrianglePosition2Buffer;
+	return Ar;
+}
 
-	for (FMeshProjectionLOD& LOD : MeshProjectionLODs)
-	{
-		LOD.Status = FHairStrandsProjectionHairData::LODData::EStatus::Invalid;
-		LOD.RootTriangleIndexBuffer.Release();
-		LOD.RootTriangleBarycentricBuffer.Release();
-		LOD.RestRootTrianglePosition0Buffer.Release();
-		LOD.RestRootTrianglePosition1Buffer.Release();
-		LOD.RestRootTrianglePosition2Buffer.Release();
-		LOD.DeformedRootTrianglePosition0Buffer.Release();
-		LOD.DeformedRootTrianglePosition1Buffer.Release();
-		LOD.DeformedRootTrianglePosition2Buffer.Release();
-	}
+void FHairStrandsRootData::Serialize(FArchive& Ar)
+{
+	Ar << RootCount;
+	Ar << VertexToCurveIndexBuffer;
+	Ar << RootPositionBuffer;
+	Ar << RootNormalBuffer;
+	Ar << MeshProjectionLODs;
+}
+
+void FHairStrandsRootData::Reset()
+{
+	RootCount = 0;
+	VertexToCurveIndexBuffer.Empty();
+	RootPositionBuffer.Empty();
+	RootNormalBuffer.Empty();
 	MeshProjectionLODs.Empty();
 }
 
@@ -561,6 +673,57 @@ void UGroomAsset::Serialize(FArchive& Ar)
 		// Old format serialized the computed groom data directly
 		Ar << HairGroupsData;
 	}
+}
+
+UGroomAsset::UGroomAsset(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	HairToGuideDensity = 0.1f;
+
+	SimulatedGroup = 0;
+	EnableSimulation = false;
+	NiagaraSolver = EGroomNiagaraSolvers::AngularSprings;
+
+	SubSteps = 5;
+	IterationCount = 20;
+
+	GravityVector = FVector(0.0, 0.0, -981.0);
+	AirDrag = 0.1;
+	AirVelocity = FVector(0, 0, 0);
+
+	SolveBend = true;
+	ProjectBend = false;
+	BendDamping = 0.01;
+	BendStiffness = 0.01;
+
+	BendScale.GetRichCurve()->SetKeyInterpMode(BendScale.GetRichCurve()->AddKey(0.f, 1.f), ERichCurveInterpMode::RCIM_Cubic);
+	BendScale.GetRichCurve()->SetKeyInterpMode(BendScale.GetRichCurve()->AddKey(1.f, 1.f), ERichCurveInterpMode::RCIM_Cubic);
+
+	SolveStretch = true;
+	ProjectStretch = false;
+	StretchDamping = 0.01;
+	StretchStiffness = 1.0;
+
+	StretchScale.GetRichCurve()->SetKeyInterpMode(StretchScale.GetRichCurve()->AddKey(0.f, 1.f), ERichCurveInterpMode::RCIM_Cubic);
+	StretchScale.GetRichCurve()->SetKeyInterpMode(StretchScale.GetRichCurve()->AddKey(1.f, 1.f), ERichCurveInterpMode::RCIM_Cubic);
+
+	SolveCollision = true;
+	ProjectCollision = true;
+	KineticFriction = 0.1;
+	StaticFriction = 0.1;
+	StrandsViscosity = 1.0;
+	CollisionRadius = 1.0;
+
+	RadiusScale.GetRichCurve()->SetKeyInterpMode(RadiusScale.GetRichCurve()->AddKey(0.f, 1.0f), ERichCurveInterpMode::RCIM_Cubic);
+	RadiusScale.GetRichCurve()->SetKeyInterpMode(RadiusScale.GetRichCurve()->AddKey(1.f, 0.1f), ERichCurveInterpMode::RCIM_Cubic);
+
+	StrandsSize = EGroomStrandsSize::Size16;
+	StrandsDensity = 1.0;
+	StrandsSmoothing = 0.1;
+	StrandsThickness = 0.01;
+
+	ThicknessScale.GetRichCurve()->SetKeyInterpMode(ThicknessScale.GetRichCurve()->AddKey(0.f, 1.0f), ERichCurveInterpMode::RCIM_Cubic);
+	ThicknessScale.GetRichCurve()->SetKeyInterpMode(ThicknessScale.GetRichCurve()->AddKey(1.f, 1.0f), ERichCurveInterpMode::RCIM_Cubic);
 }
 
 void UGroomAsset::InitResource()
@@ -976,3 +1139,130 @@ bool UGroomAsset::CacheDerivedData(const FGroomBuildSettings* InBuildSettings)
 }
 
 #endif // WITH_EDITORONLY_DATA
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+static void InitializeGroupInfos(
+	const TArray<UGroomBindingAsset::FHairGroupData>& HairGroupDatas,
+	TArray<FGoomBindingGroupInfo>& GroupInfos)
+{
+	GroupInfos.Empty();
+	for (const UGroomBindingAsset::FHairGroupData& Data : HairGroupDatas)
+	{
+		FGoomBindingGroupInfo& Info = GroupInfos.AddDefaulted_GetRef();
+		Info.SimRootCount	= Data.SimRootData.RootCount;
+		Info.SimLODCount	= Data.SimRootData.MeshProjectionLODs.Num();
+		Info.RenRootCount	= Data.RenRootData.RootCount;
+		Info.RenLODCount	= Data.RenRootData.MeshProjectionLODs.Num();
+	}
+}
+
+FArchive& operator<<(FArchive& Ar, UGroomBindingAsset::FHairGroupData& GroupData)
+{
+	GroupData.SimRootData.Serialize(Ar);
+	GroupData.RenRootData.Serialize(Ar);
+	return Ar;
+}
+
+void UGroomBindingAsset::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar << HairGroupDatas;
+}
+
+void UGroomBindingAsset::InitResource()
+{
+	for (FHairGroupData& Data : HairGroupDatas)
+	{
+		FHairGroupResource& Resource = HairGroupResources.AddDefaulted_GetRef();
+		Resource.SimRootResources = new FHairStrandsRootResource(Data.SimRootData);
+		Resource.RenRootResources = new FHairStrandsRootResource(Data.RenRootData);
+
+		BeginInitResource(Resource.SimRootResources);
+		BeginInitResource(Resource.RenRootResources);
+	}
+}
+
+void UGroomBindingAsset::UpdateResource()
+{
+	for (FHairGroupResource& Resource : HairGroupResources)
+	{
+		BeginUpdateResourceRHI(Resource.SimRootResources);
+		BeginUpdateResourceRHI(Resource.RenRootResources);
+	}
+}
+
+void UGroomBindingAsset::ReleaseResource()
+{
+	// Delay destruction to insure that the rendering thread is done with all resources usage
+	if (HairGroupResources.Num() > 0)
+	{
+		for (FHairGroupResource& Resource : HairGroupResources)
+		{
+			FHairStrandsRootResource* InSimRootResources = Resource.SimRootResources;
+			FHairStrandsRootResource* InRenRootResources = Resource.RenRootResources;
+			ENQUEUE_RENDER_COMMAND(ReleaseHairStrandsResourceCommand)(
+				[InSimRootResources, InRenRootResources](FRHICommandList& RHICmdList)
+			{
+				InSimRootResources->ReleaseResource();
+				InRenRootResources->ReleaseResource();
+				delete InSimRootResources;
+				delete InRenRootResources;
+			});
+			Resource.SimRootResources = nullptr;
+			Resource.RenRootResources = nullptr;
+		}
+		HairGroupResources.Empty();
+	}
+}
+
+void UGroomBindingAsset::Reset()
+{
+	ReleaseResource();
+	for (FHairGroupData& Data : HairGroupDatas)
+	{
+		Data.SimRootData.Reset();
+		Data.RenRootData.Reset();
+	}
+}
+
+void UGroomBindingAsset::PostLoad()
+{
+	Super::PostLoad();
+
+	InitializeGroupInfos(HairGroupDatas, GroupInfos);
+
+	if (!IsTemplate())
+	{
+		InitResource();
+	}
+}
+
+void UGroomBindingAsset::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+	InitializeGroupInfos(HairGroupDatas, GroupInfos);
+}
+
+void UGroomBindingAsset::PostSaveRoot(bool bCleanupIsRequired)
+{
+	Super::PostSaveRoot(bCleanupIsRequired);
+	InitializeGroupInfos(HairGroupDatas, GroupInfos);
+}
+
+void UGroomBindingAsset::BeginDestroy()
+{
+	ReleaseResource();
+	Super::BeginDestroy();
+}
+
+#if WITH_EDITOR
+void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	UpdateResource();
+	OnGroomBindingAssetChanged.Broadcast();
+}
+#endif // WITH_EDITOR
+
+

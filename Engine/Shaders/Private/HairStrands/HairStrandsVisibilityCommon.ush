@@ -37,7 +37,7 @@ struct FNodeData
 	uint  PrimitiveID_MacroGroupID;
 	uint  Tangent_Coverage8bit;
 	uint  BaseColor_Roughness;
-	float Specular;
+	uint  Specular_LightChannels;
 };
 
 float3 EncodeTangent(float3 N)
@@ -136,7 +136,7 @@ FNodeDesc DecodeNodeDesc(uint In)
 	return Out;
 }
 
-FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular)
+FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, uint LightChannelMask)
 {
 	// 4x16bits
 	const uint4 EncodedVisibilityData = EncodeVisibilityData(VisibilityData);
@@ -146,7 +146,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	Out.Tangent_Coverage8bit	= (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);	// 32bits uint
 	Out.PrimitiveID_MacroGroupID= (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);	// 32bits uint
 	Out.BaseColor_Roughness		= float4ToUint(float4(sqrt(BaseColor), Roughness));									// 32bits uint
-	Out.Specular				= Specular;																			// 32bits float
+	Out.Specular_LightChannels	= clamp(uint(Specular * 0xFF), 0, 0xFF) | ((LightChannelMask & 0x7) << 8);
 
 	return Out;
 }
@@ -157,7 +157,8 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 inout FVisibilityData	OutVisibilityData,
 	 inout float3			OutBaseColor, 
 	 inout float			OutRoughness,
-	 inout float			OutSpecular)
+	 inout float			OutSpecular,
+	 inout uint				OutLightChannelMask)
 {
 	OutDepth = InNode.Depth;
 
@@ -171,7 +172,8 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	const float4 BaseColorAndRoughness = UintToFloat4(InNode.BaseColor_Roughness);
 	OutBaseColor = BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz;
 	OutRoughness = BaseColorAndRoughness.w;
-	OutSpecular = InNode.Specular;
+	OutSpecular			= float(0xFF & InNode.Specular_LightChannels) / 0xFF;
+	OutLightChannelMask = (InNode.Specular_LightChannels>>8) & 0x7;
 }
 
 #define HAIR_VISIBILITY_MAXSAMPLECOUNT 8
@@ -337,7 +339,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
  struct FPPLLNodeData
  {
 	 float Depth;
-	 uint Specular_Coverage16bit;
+	 uint Specular_LightChannel_Coverage16bit;
 	 uint PrimitiveID_MacroGroupID;
 	 uint Tangent_Coverage8bit;
 	 uint BaseColor_Roughness;
@@ -355,7 +357,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 return float2(f16tof32(PackedVelocity >> 16), f16tof32(PackedVelocity));
  }
 
- FPPLLNodeData ConvertToPPLLNodeData(float Depth, float CoverageFullPrecision, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, float2 Velocity, uint NextNodeIndex)
+ FPPLLNodeData ConvertToPPLLNodeData(float Depth, float CoverageFullPrecision, FVisibilityData VisibilityData, float3 BaseColor, float Roughness, float Specular, uint LightChannelMask, float2 Velocity, uint NextNodeIndex)
  {
 	 // 4x16bits
 	 const uint4 EncodedVisibilityData = EncodeVisibilityData(VisibilityData);
@@ -366,7 +368,7 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 Out.Tangent_Coverage8bit = (0xFFFF & EncodedVisibilityData.x) | ((0xFFFF & EncodedVisibilityData.y) << 16);
 	 Out.PrimitiveID_MacroGroupID = (0xFFFF & EncodedVisibilityData.z) | ((0xFFFF & EncodedVisibilityData.w) << 16);
 	 Out.BaseColor_Roughness = float4ToUint(float4(sqrt(BaseColor), Roughness));
-	 Out.Specular_Coverage16bit = clamp(uint(Specular * 0xFFFF), 0, 0xFFFF) | ((0xFFFF & Coverage16bit) << 16);
+	 Out.Specular_LightChannel_Coverage16bit = clamp(uint(Specular * 0xFF), 0, 0xFF) | ((LightChannelMask & 0x7)<<8) | ((0xFFFF & Coverage16bit) << 16);
 	 Out.NextNodeIndex = NextNodeIndex;
 	 Out.PackedVelocity = PackVelocity(Velocity);
 
@@ -380,9 +382,9 @@ FNodeData ConvertToNodeData(float Depth, FVisibilityData VisibilityData, float3 
 	 Out.PrimitiveID_MacroGroupID = In.PrimitiveID_MacroGroupID;
 	 Out.Tangent_Coverage8bit = In.Tangent_Coverage8bit;
 	 Out.BaseColor_Roughness = In.BaseColor_Roughness;
-	 Out.Specular = float(In.Specular_Coverage16bit & 0xFFFF) / float(0xFFFF);
+	 Out.Specular_LightChannels = In.Specular_LightChannel_Coverage16bit & 0xFFFF;
 
-	 OutCoverage16bit = (In.Specular_Coverage16bit >> 16) & 0xFFFF;
+	 OutCoverage16bit = (In.Specular_LightChannel_Coverage16bit >> 16) & 0xFFFF;
 
 	 return Out;
  }

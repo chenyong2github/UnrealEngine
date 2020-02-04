@@ -1627,6 +1627,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
 
+	if (HasHairStrandsProjectionQuery(Scene->GetShaderPlatform()))
+	{
+		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+		RunHairStrandsBindingQueries(RHICmdList, ShaderMap);
+	}
+
 	// Interpolation needs to happen after the skin cache run as there is a dependency 
 	// on the skin cache output.
 	const bool bRunHairStrands = IsHairStrandsEnable(Scene->GetShaderPlatform()) && Views.Num() > 0;
@@ -1635,6 +1641,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
 		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+
 		RunHairStrandsInterpolation(RHICmdList, WorldType, &Views[0].ShaderDrawData, ShaderMap, EHairStrandsInterpolationType::RenderStrands, &HairClusterData); // Send data to full up with culling
 	}
 

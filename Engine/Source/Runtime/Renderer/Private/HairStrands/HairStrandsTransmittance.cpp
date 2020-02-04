@@ -95,6 +95,7 @@ class FDeepTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER(FVector, LightDirection)
 		SHADER_PARAMETER(uint32, MaxVisibilityNodeCount)
 		SHADER_PARAMETER(FVector4, LightPosition)
+		SHADER_PARAMETER(uint32, LightChannelMask)
 		SHADER_PARAMETER(float, DepthBiasScale)
 		SHADER_PARAMETER(float, DensityScale)
 		SHADER_PARAMETER(float, DeepShadow_KernelAperture)
@@ -172,6 +173,7 @@ struct FDeepShadowTransmittanceParams
 	FIntPoint DeepShadow_Resolution = FIntPoint(0, 0);
 	FVector LightDirection = FVector::ZeroVector;
 	FVector4 LightPosition = FVector4(0, 0, 0, 0);
+	uint32 LightChannelMask = 0;
 	float LightRadius = 0;
 	float DepthBiasScale = 0;
 	float DensityScale = 0;
@@ -216,6 +218,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	Parameters->DeepShadow_DomTexture = Params.DeepShadow_DomTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->OutputColor = GraphBuilder.CreateUAV(OutBuffer);
+	Parameters->LightChannelMask = Params.LightChannelMask;
 	Parameters->DeepShadow_Resolution = Params.DeepShadow_Resolution;
 	Parameters->LightDirection = Params.LightDirection;
 	Parameters->LightPosition = Params.LightPosition;
@@ -529,6 +532,7 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 				Params.LightDirection = DeepShadowData.LightDirection;
 				Params.LightPosition = DeepShadowData.LightPosition;
 				Params.LightRadius = 0;
+				Params.LightChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
 				Params.DepthBiasScale = GetDeepShadowDepthBiasScale();
 				Params.DeepShadow_AtlasSlotOffsets[DeepShadowData.MacroGroupId] = FIntVector4(DeepShadowData.AtlasRect.Min.X, DeepShadowData.AtlasRect.Min.Y, DeepShadowData.AtlasRect.Width(), DeepShadowData.AtlasRect.Height());
 				Params.DeepShadow_WorldToLightTransforms[DeepShadowData.MacroGroupId] = DeepShadowData.WorldToLightTransform;
@@ -574,6 +578,7 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 		Params.DepthBiasScale = GetHairStrandsVoxelizationDepthBiasScale();
 		Params.LightDirection = LightSceneInfo->Proxy->GetDirection();
 		Params.LightPosition = FVector4(LightSceneInfo->Proxy->GetPosition(), LightSceneInfo->Proxy->GetLightType() == ELightComponentType::LightType_Directional ? 0 : 1);
+		Params.LightChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
 		Params.LightRadius = FMath::Max(LightParameters.SourceLength, LightParameters.SourceRadius);
 		Params.VirtualVoxelResources = &MacroGroupDatas.VirtualVoxelResources;
 

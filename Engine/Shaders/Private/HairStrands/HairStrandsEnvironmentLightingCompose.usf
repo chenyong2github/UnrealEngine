@@ -30,7 +30,7 @@ void MainPS(
 			const uint LocalOffset = NodeDesc.Offset + SampleIt;
 			const float4 LightingSample = HairLightingSampleBuffer[LocalOffset];
 			if (PixelCoverage >= 1)
-				OutColor += LightingSample;
+				OutColor += float4(LightingSample.xyz, 0);
 			else
 				OutColorSubPixel += LightingSample * PixelCoverage;
 		}		

@@ -249,7 +249,8 @@ FGBufferData GetGBufferData(uint2 PixelCoord)
 			float3			SampleBaseColor;
 			float			SampleRoughness;
 			float			SampleSpecular;
-			DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+			uint			SampleLigthChannelMask;
+			DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLigthChannelMask);
 
 			if (SampleDepth >= ClosestDepth) // InverseZ
 			{

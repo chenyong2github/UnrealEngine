@@ -93,6 +93,27 @@ float3 DIPhysicsAsset_GetPreviousPosition(in FDIPhysicsAssetContext DIContext, i
     return float3(DIContext.PreviousTransformBuffer[BufferOffset].w, DIContext.PreviousTransformBuffer[BufferOffset+1].w, DIContext.PreviousTransformBuffer[BufferOffset+2].w);
 }
 
+float4 DIPhysicsAsset_GetCurrentOrientation(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
+{
+	const int BufferOffset = 3 * ElementIndex;
+	const float3 OrientationMatrix[3] = {float3(DIContext.CurrentTransformBuffer[BufferOffset].x, DIContext.CurrentTransformBuffer[BufferOffset+1].x, DIContext.CurrentTransformBuffer[BufferOffset+2].x),
+									     float3(DIContext.CurrentTransformBuffer[BufferOffset].y, DIContext.CurrentTransformBuffer[BufferOffset+1].y, DIContext.CurrentTransformBuffer[BufferOffset+2].y),
+										 float3(DIContext.CurrentTransformBuffer[BufferOffset].z, DIContext.CurrentTransformBuffer[BufferOffset+1].z, DIContext.CurrentTransformBuffer[BufferOffset+2].z)};
+
+
+	return QuatFromMatrix(OrientationMatrix);
+}
+
+float4 DIPhysicsAsset_GetPreviousOrientation(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
+{
+	const int BufferOffset = 3 * ElementIndex;
+	const float3 OrientationMatrix[3] = {float3(DIContext.PreviousTransformBuffer[BufferOffset].x, DIContext.PreviousTransformBuffer[BufferOffset+1].x, DIContext.PreviousTransformBuffer[BufferOffset+2].x),
+										 float3(DIContext.PreviousTransformBuffer[BufferOffset].y, DIContext.PreviousTransformBuffer[BufferOffset+1].y, DIContext.PreviousTransformBuffer[BufferOffset+2].y),
+										 float3(DIContext.PreviousTransformBuffer[BufferOffset].z, DIContext.PreviousTransformBuffer[BufferOffset+1].z, DIContext.PreviousTransformBuffer[BufferOffset+2].z)};
+
+	return QuatFromMatrix(OrientationMatrix);
+}
+
 float3x4 DIPhysicsAsset_GetCurrentTransform(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
 	const int BufferOffset = 3 * ElementIndex;
@@ -201,9 +222,6 @@ float DIPhysicsAsset_GetBoxProjection(in float3 LocalPosition, in float3 BoxExte
 				OutClosestPosition.z = NegativeSide ? -HalfExtent.z : HalfExtent.z;
 				OutClosestNormal.z = NegativeSide ? -1.0 : 1.0;
 			}
-
-			//OutClosestPosition[ClosestAxis] = NegativeSide ? -HalfExtent[ClosestAxis] : HalfExtent[ClosestAxis];
-			//OutClosestNormal[ClosestAxis] = NegativeSide ? -1.0 : 1.0;
 		}
 		else
 		{
@@ -219,6 +237,22 @@ float DIPhysicsAsset_GetBoxProjection(in float3 LocalPosition, in float3 BoxExte
  * Get the closest element to the node position
  * -----------------------------------------------------------------
  */
+
+/*float3 DIPhysicsAsset_GetLocalPosition(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in int ElementIndex, in float TimeFraction )
+{
+	//return mul(DIPhysicsAsset_GetInverseTransform(DIContext,ElementIndex), float4(NodePosition,1.0)).xyz;
+
+	const float3 CurrentPosition = DIPhysicsAsset_GetCurrentPosition(DIContext,ElementIndex);
+	const float4 CurrentOrientation = DIPhysicsAsset_GetCurrentOrientation(DIContext,ElementIndex);
+
+	const float3 PreviousPosition = DIPhysicsAsset_GetPreviousPosition(DIContext,ElementIndex);
+	const float4 PreviousOrientation = DIPhysicsAsset_GetPreviousOrientation(DIContext,ElementIndex);
+
+	const float4 SlerpedOrientation = InverseQuat(SlerpQuat(PreviousOrientation,CurrentOrientation,TimeFraction));
+	const float3 SlerpedPosition = PreviousPosition + TimeFraction * (CurrentPosition-PreviousPosition);
+
+	return RotateVectorByQuat( NodePosition - SlerpedPosition, SlerpedOrientation );
+}*/
 
 float3 DIPhysicsAsset_GetLocalPosition(in FDIPhysicsAssetContext DIContext, in float3 NodePosition, in int ElementIndex, in float TimeFraction )
 {

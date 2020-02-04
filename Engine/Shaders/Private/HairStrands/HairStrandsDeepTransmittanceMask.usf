@@ -52,6 +52,7 @@ float3 ToWorldPosition(float2 UV, float Depth)
 uint2				DeepShadow_Resolution;
 float4x4			DeepShadow_WorldToLightTransforms[MAX_HAIR_MACROGROUP_COUNT];
 float3				LightDirection;
+uint				LightChannelMask;
 uint				MaxVisibilityNodeCount;
 float4				LightPosition;
 float				DepthBiasScale;
@@ -119,7 +120,14 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		float3			SampleBaseColor;
 		float			SampleRoughness;
 		float			SampleSpecular;
-		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+		uint			SampleLightChannelMask;
+		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLightChannelMask);
+
+		if ((LightChannelMask & SampleLightChannelMask) == 0)
+		{
+			OutputColor[LocalOffset] = InitNullPackedHairTransmittanceMask();
+			return;
+		}
 
 		FGBufferData GBuffer;
 		GBuffer.ShadingModelID = SHADINGMODELID_HAIR;
@@ -340,7 +348,14 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		float3			SampleBaseColor;
 		float			SampleRoughness;
 		float			SampleSpecular;
-		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+		uint			SampleLightChannelMask;
+		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLightChannelMask);
+
+		if ((LightChannelMask & SampleLightChannelMask) == 0)
+		{
+			OutputColor[LocalOffset] = InitNullPackedHairTransmittanceMask();
+			return;
+		}
 
 		FGBufferData GBuffer;
 		GBuffer.ShadingModelID = SHADINGMODELID_HAIR;

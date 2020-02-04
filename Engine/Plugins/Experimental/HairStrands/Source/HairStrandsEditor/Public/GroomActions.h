@@ -42,4 +42,8 @@ private:
 	/** Callback for Rebuild groom action */
 	bool CanRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
 	void ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
+
+	/** Callback for Rebuild groom action */
+	bool CanCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
+	void ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
 };

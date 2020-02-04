@@ -17,6 +17,14 @@ struct FPackedHairTransmittanceMask
 	uint PackedHairCountAndVisibility;
 };
 
+FPackedHairTransmittanceMask InitNullPackedHairTransmittanceMask()
+{
+	FPackedHairTransmittanceMask Out;
+	Out.Transmittance = 0;
+	Out.PackedHairCountAndVisibility = 0;
+	return Out;
+}
+
 FHairTransmittanceMask InitHairTransmittanceMask()
 {
 	FHairTransmittanceMask Out;

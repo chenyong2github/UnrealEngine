@@ -96,6 +96,7 @@ class FOcclusionRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCategorizationTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairLightChannelMaskTexture)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWOcclusionMaskUAV)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWRayDistanceUAV)
@@ -155,6 +156,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
 	const bool bSubPixelShadowMask,
 	FRDGTextureRef HairCategorizationTexture,
+	FRDGTextureRef HairLightChannelMaskTexture,
 	FRDGTextureUAV* OutShadowMaskUAV,
 	FRDGTextureUAV* OutRayHitDistanceUAV)
 #if RHI_RAYTRACING
@@ -233,7 +235,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		{
 			PassParameters->HairCategorizationTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 		}
-		
+		PassParameters->HairLightChannelMaskTexture = HairLightChannelMaskTexture;
+		if (!PassParameters->HairLightChannelMaskTexture)
+		{
+			PassParameters->HairLightChannelMaskTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		}
 		FOcclusionRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOcclusionRGS::FLightTypeDim>(LightSceneProxy->GetLightType());
 		if (DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndAvgOccluder)
