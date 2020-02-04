@@ -40,7 +40,7 @@ public:
 	void Reset();
 
 	/** Gets the currently assigned simulation if there is one. */
-	TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> GetSimulation() const;
+	NIAGARAEDITOR_API TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> GetSimulation() const;
 
 	/** Sets the current simulation for the emitter. */
 	void SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
@@ -77,7 +77,7 @@ public:
 	FOnEmitterChanged& OnEmitterChanged();
 
 	/** Gets a delegate which is called when a property on the emitter changes. */
-	FOnPropertyChanged& OnPropertyChanged();
+	NIAGARAEDITOR_API FOnPropertyChanged& OnPropertyChanged();
 
 	/** Gets a delegate which is called when the shared script is compiled. */
 	FOnScriptCompiled& OnScriptCompiled();

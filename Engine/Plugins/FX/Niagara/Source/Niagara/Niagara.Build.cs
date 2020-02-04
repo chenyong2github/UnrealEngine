@@ -61,6 +61,8 @@ public class Niagara : ModuleRules
                 new string[] {
                 "TargetPlatform",
                 "UnrealEd",
+				"SlateCore",
+				"Slate"
             });
         }
     }
