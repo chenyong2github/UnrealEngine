@@ -252,7 +252,7 @@ void FObjectPropertyBase::ExportTextItem( FString& ValueStr, const void* Propert
  *
  * @return	true if the text is successfully resolved into a valid object reference of the correct type, false otherwise.
  */
-bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UObject* OwnerObject, UClass* RequiredMetaClass, uint32 PortFlags, const TCHAR*& Buffer, UObject*& out_ResolvedValue, FUObjectSerializeContext* InSerializeContext /*= nullptr*/)
+bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UObject* OwnerObject, UClass* RequiredMetaClass, uint32 PortFlags, const TCHAR*& Buffer, UObject*& out_ResolvedValue, FUObjectSerializeContext* InSerializeContext /*= nullptr*/, bool bAllowAnyPackage /*= true*/)
 {
 	check(Property);
 	if (!RequiredMetaClass)
@@ -299,12 +299,12 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 
 			// ignore the object class, it isn't fully qualified, and searching ANY_PACKAGE might get the wrong one!
 			// Try the find the object.
-			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, *ObjectText, PortFlags, InSerializeContext);
+			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, *ObjectText, PortFlags, InSerializeContext, bAllowAnyPackage);
 		}
 		else
 		{
 			// Try the find the object.
-			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, *Temp, PortFlags, InSerializeContext);
+			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, *Temp, PortFlags, InSerializeContext, bAllowAnyPackage);
 		}
 
 		if ( out_ResolvedValue != nullptr && !out_ResolvedValue->GetClass()->IsChildOf(RequiredMetaClass) )
@@ -344,7 +344,7 @@ const TCHAR* FObjectPropertyBase::ImportText_Internal( const TCHAR* InBuffer, vo
 	return Buffer;
 }
 
-UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UObject* OwnerObject, UClass* ObjectClass, UClass* RequiredMetaClass, const TCHAR* Text, uint32 PortFlags/*=0*/, FUObjectSerializeContext* InSerializeContext /*= nullptr*/)
+UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UObject* OwnerObject, UClass* ObjectClass, UClass* RequiredMetaClass, const TCHAR* Text, uint32 PortFlags/*=0*/, FUObjectSerializeContext* InSerializeContext /*= nullptr*/, bool bAllowAnyPackage /*= true*/)
 {
 	UObject*	Result = nullptr;
 	check( ObjectClass->IsChildOf(RequiredMetaClass) );
@@ -410,9 +410,9 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 			}
 		}
 
-		if (Result == nullptr)
+		if (Result == nullptr && bAllowAnyPackage)
 		{
-			// match any object of the correct class whose path contains the specified path
+			// match any object of the correct class who shares the same name regardless of package path
 			Result = StaticFindObjectSafe(ObjectClass, ANY_PACKAGE, Text);
 			// disallow class default subobjects here while importing defaults
 			if (Result != nullptr && (PortFlags & PPF_ParsingDefaultProperties) && Result->IsTemplate(RF_ClassDefaultObject))

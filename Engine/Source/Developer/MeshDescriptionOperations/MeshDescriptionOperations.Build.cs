@@ -12,16 +12,17 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "Core",
-                    "CoreUObject",
-                    "RenderCore",
 					"MeshDescription",
-                    "StaticMeshDescription",
-                    "MeshUtilitiesCommon",
-                    "RawMesh",
-                    "RHI"
                 }
             );
+
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+                    "Core",
+                    "StaticMeshDescription",
+				}
+			);
 
             AddEngineThirdPartyPrivateStaticDependencies(Target, "MikkTSpace");
         }

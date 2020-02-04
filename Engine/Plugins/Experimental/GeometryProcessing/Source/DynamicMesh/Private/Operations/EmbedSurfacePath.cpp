@@ -358,7 +358,7 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 		{
 			double DistSq = EndPt.DistanceSquared(ComputedPointsAndSources[NewComputedPtIdx].Value.Position);
 			// TODO: reject cases that move us backwards if !bAllowBackwardsSearch
-			ensure(bAllowBackwardsSearch || DistSq < InitialDistSq + FMathd::ZeroTolerance);
+			ensure(bAllowBackwardsSearch || DistSq <= InitialDistSq + 10 * FMathd::ZeroTolerance);
 			if (BestCandidate == -1 || DistSq < BestCandidateDistSq)
 			{
 				BestCandidateDistSq = DistSq;
@@ -786,7 +786,10 @@ bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, con
 			bEmbedSuccess = SurfacePath.EmbedSimplePath(false, OutPathVertices, true, PtSnapVertexOrEdgeThresholdSq);
 		}
 		
-		
+		if (OutPathVertices.Num() == 0)
+		{
+			return false;
+		}
 
 		// TODO: remove this debugging check:
 		//TSet<int> VertPathSet;

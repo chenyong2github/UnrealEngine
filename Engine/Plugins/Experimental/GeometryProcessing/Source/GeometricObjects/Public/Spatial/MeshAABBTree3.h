@@ -99,6 +99,22 @@ public:
 		return tNearID;
 	}
 
+	/**
+	 * Convenience function that calls FindNearestTriangle and then finds nearest point
+	 * @return nearest point to Point, or Point itself if a nearest point was not found
+	 */
+	virtual FVector3d FindNearestPoint(const FVector3d& Point, double MaxDist = TNumericLimits<double>::Max())
+	{
+		double NearestDistSqr;
+		int32 NearTriID = FindNearestTriangle(Point, NearestDistSqr, MaxDist);
+		if (NearTriID >= 0)
+		{
+			FDistPoint3Triangle3d Query = TMeshQueries<TriangleMeshType>::TriangleDistance(*Mesh, NearTriID, Point);
+			return Query.ClosestTrianglePoint;
+		}
+		return Point;
+	}
+
 protected:
 	void find_nearest_tri(int IBox, const FVector3d& P, double& NearestDistSqr, int& TID)
 	{
@@ -165,6 +181,104 @@ protected:
 			}
 		}
 	}
+
+
+
+
+public:
+	/**
+	 * Find the Vertex closest to P, and distance to it, within distance MaxDist, or return InvalidID
+	 */
+	virtual int FindNearestVertex(const FVector3d& P, double& NearestDistSqr, double MaxDist = TNumericLimits<double>::Max())
+	{
+		check(MeshTimestamp == Mesh->GetShapeTimestamp());
+		check(RootIndex >= 0);
+		if (RootIndex < 0)
+		{
+			return IndexConstants::InvalidID;
+		}
+
+		NearestDistSqr = (MaxDist < DOUBLE_MAX) ? MaxDist * MaxDist : DOUBLE_MAX;
+		int NearestVertexID = IndexConstants::InvalidID;
+		find_nearest_vertex(RootIndex, P, NearestDistSqr, NearestVertexID);
+		return NearestVertexID;
+	}
+
+
+protected:
+	void find_nearest_vertex(int IBox, const FVector3d& P, double& NearestDistSqr, int& NearestVertexID)
+	{
+		int idx = BoxToIndex[IBox];
+		if (idx < TrianglesEnd)
+		{ // triangle-list case, array is [N t1 t2 ... tN]
+			int num_tris = IndexList[idx];
+			for (int i = 1; i <= num_tris; ++i)
+			{
+				int ti = IndexList[idx + i];
+				if (TriangleFilterF != nullptr && TriangleFilterF(ti) == false)
+				{
+					continue;
+				}
+				FIndex3i Triangle = Mesh->GetTriangle(ti);
+				for (int j = 0; j < 3; ++j) 
+				{
+					double VertexDistSqr = Mesh->GetVertex(Triangle[j]).DistanceSquared(P);
+					if (VertexDistSqr < NearestDistSqr) 
+					{
+						NearestDistSqr = VertexDistSqr;
+						NearestVertexID = Triangle[j];
+					}
+				}
+			}
+		}
+		else
+		{ // internal node, either 1 or 2 child boxes
+			int iChild1 = IndexList[idx];
+			if (iChild1 < 0)
+			{ // 1 child, descend if nearer than cur min-dist
+				iChild1 = (-iChild1) - 1;
+				double fChild1DistSqr = BoxDistanceSqr(iChild1, P);
+				if (fChild1DistSqr <= NearestDistSqr)
+				{
+					find_nearest_vertex(iChild1, P, NearestDistSqr, NearestVertexID);
+				}
+			}
+			else
+			{ // 2 children, descend closest first
+				iChild1 = iChild1 - 1;
+				int iChild2 = IndexList[idx + 1] - 1;
+
+				double fChild1DistSqr = BoxDistanceSqr(iChild1, P);
+				double fChild2DistSqr = BoxDistanceSqr(iChild2, P);
+				if (fChild1DistSqr < fChild2DistSqr)
+				{
+					if (fChild1DistSqr < NearestDistSqr)
+					{
+						find_nearest_vertex(iChild1, P, NearestDistSqr, NearestVertexID);
+						if (fChild2DistSqr < NearestDistSqr)
+						{
+							find_nearest_vertex(iChild2, P, NearestDistSqr, NearestVertexID);
+						}
+					}
+				}
+				else
+				{
+					if (fChild2DistSqr < NearestDistSqr)
+					{
+						find_nearest_vertex(iChild2, P, NearestDistSqr, NearestVertexID);
+						if (fChild1DistSqr < NearestDistSqr)
+						{
+							find_nearest_vertex(iChild1, P, NearestDistSqr, NearestVertexID);
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+
+
 
 public:
 	virtual bool SupportsTriangleRayIntersection() override

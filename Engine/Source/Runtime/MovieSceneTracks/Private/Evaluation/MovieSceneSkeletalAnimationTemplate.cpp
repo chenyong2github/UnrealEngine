@@ -250,7 +250,7 @@ namespace MovieScene
 			return TypeID;
 		}
 
-		virtual FBlendedAnimation RetrieveCurrentValue(UObject* InObject, IMovieScenePlayer* Player) const
+		virtual FBlendedAnimation RetrieveCurrentValue(UObject* InObject, IMovieScenePlayer* Player) const override
 		{
 			check(false);
 			return FBlendedAnimation();

@@ -13,7 +13,6 @@
 
 class USceneComponent;
 
-
 /**
  * MPCDI projection policy
  */
@@ -21,8 +20,19 @@ class FDisplayClusterProjectionMPCDIPolicy
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
+	enum class EWarpType : uint8
+	{
+		mpcdi = 0,
+		mesh
+	};
+
+public:
 	FDisplayClusterProjectionMPCDIPolicy(const FString& ViewportId);
 	virtual ~FDisplayClusterProjectionMPCDIPolicy();
+
+public:
+	virtual EWarpType GetWarpType() const
+	{ return EWarpType::mpcdi; }
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -39,10 +49,10 @@ public:
 	virtual bool IsWarpBlendSupported() override;
 	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) override;
 
-protected:	
+protected:
 	bool InitializeResources_RenderThread();
 
-private:
+protected:
 	FString OriginCompId;
 	FIntPoint ViewportSize;
 

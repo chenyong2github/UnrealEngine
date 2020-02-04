@@ -7,8 +7,8 @@
 #include "Common/TcpSocketBuilder.h"
 
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterHelpers.h"
 
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 
 

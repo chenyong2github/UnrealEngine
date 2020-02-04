@@ -107,7 +107,7 @@ void FGeometryCollectionSelectRigidBodyEdMode::DeactivateMode()
 
 		if (GEngine)
 		{
-			GEngine->ScreenMessages.Remove(MessageKey);
+			GEngine->RemoveOnScreenDebugMessage(MessageKey);
 		}
 	}
 }

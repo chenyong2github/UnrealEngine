@@ -7,7 +7,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogIFCTranslator, Log, All);
 
-class IDatasmithIFCTranslatorModule : public IModuleInterface
+class DATASMITHIFCTRANSLATOR_API IDatasmithIFCTranslatorModule : public IModuleInterface
 {
 public:
 	static const TCHAR* ModuleName;

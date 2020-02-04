@@ -218,6 +218,7 @@ public:
 	 * Test for ray intersection with the preview mesh.
 	 * Requires that bBuildSpatialDataStructure = true
 	 * @return true if ray intersections mesh
+	 * @warning returns false if preview is not visible
 	 */
 	bool TestRayIntersection(const FRay3d& WorldRay);
 
@@ -227,11 +228,19 @@ public:
 	 * @param WorldRay ray in world space
 	 * @param HitOut output hit data (only certain members are initialized, see implementation)
 	 * @return true if ray intersections mesh
+	 * @warning returns false if preview is not visible
 	 */
 	bool FindRayIntersection(const FRay3d& WorldRay, FHitResult& HitOut);
 
 
-
+	/**
+	 * Find nearest point on current mesh to given WorldPoint
+	 * Requires that bBuildSpatialDataStructure = true unless bLinearSearch = true
+	 * @param WorldPoint point in world space
+	 * @param bLinearSearch test every triangle. On a mesh where only a few queries will be run, this is faster than building the spatial data structure.
+	 * @return nearest point in world space
+	 */
+	FVector3d FindNearestPoint(const FVector3d& WorldPoint, bool bLinearSearch = false);
 
 
 
@@ -281,6 +290,11 @@ public:
 	//
 	// Edit access to internal mesh, and change-tracking/notification
 	// 
+
+	/**
+	 * Replace mesh with new mesh
+	 */
+	void ReplaceMesh(FDynamicMesh3&& NewMesh);
 
 	/**
 	 * Apply EditFunc to the internal mesh and update internal data structures as necessary

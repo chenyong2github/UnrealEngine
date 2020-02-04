@@ -217,6 +217,7 @@ typedef struct
 typedef char NvAPI_String[NVAPI_GENERIC_STRING_MAX];
 typedef char NvAPI_LongString[NVAPI_LONG_STRING_MAX];
 typedef char NvAPI_ShortString[NVAPI_SHORT_STRING_MAX];
+typedef NvU16 NvAPI_UnicodeShortString[NVAPI_SHORT_STRING_MAX];
 //! @}
 
 
@@ -395,7 +396,7 @@ typedef enum _NvAPI_Status
 //
 //!   DESCRIPTION: This API returns display driver version and driver-branch string.
 //!
-//! SUPPORTED OS:  Windows XP and higher
+//! SUPPORTED OS:  Windows 7 and higher
 //!
 //! 
 //! \param [out]  pDriverVersion         Contains the driver version after successful return.
@@ -478,7 +479,7 @@ typedef NV_DISPLAY_DRIVER_MEMORY_INFO_V3 NV_DISPLAY_DRIVER_MEMORY_INFO;
 //!   DESCRIPTION: This function retrieves the available driver memory footprint for the specified GPU. 
 //!                If the GPU is in TCC Mode, only dedicatedVideoMemory will be returned in pMemoryInfo (NV_DISPLAY_DRIVER_MEMORY_INFO).
 //!
-//! SUPPORTED OS:  Windows XP and higher
+//! SUPPORTED OS:  Windows 7 and higher
 //!
 //!
 //! TCC_SUPPORTED
@@ -517,7 +518,7 @@ NVAPI_INTERFACE NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalGpu, NV_DIS
 //!
 //!       For GPU handles in TCC MODE please use NvAPI_EnumTCCPhysicalGPUs()
 //!
-//! SUPPORTED OS:  Windows XP and higher,  Mac OS X
+//! SUPPORTED OS:  Windows 7 and higher
 //!
 //!
 //! \par Introduced in
@@ -548,7 +549,7 @@ static const NVDX_ObjectHandle NVDX_OBJECT_NONE = 0;
 //!                         we want the NvAPI handle
 //! \param [out]  pHandle   A handle to the resource
 //!
-//! SUPPORTED OS:  Windows XP and higher
+//! SUPPORTED OS:  Windows 7 and higher
 //!
 //!
 //! \since Release: 185

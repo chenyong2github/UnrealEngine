@@ -11,6 +11,7 @@
 #include "Misc/Guid.h"
 #include "MovieScene.h"
 #include "TrackRecorders/IMovieSceneTrackRecorderFactory.h"
+#include "MovieScene/MovieSceneLiveLinkSection.h"
 
 #include "MovieSceneLiveLinkTrackRecorder.generated.h"
 
@@ -35,6 +36,7 @@ public:
 	virtual void RecordSampleImpl(const FQualifiedFrameTime& CurrentTime) override;
 	virtual void FinalizeTrackImpl() override;
 	virtual void SetSectionStartTimecodeImpl(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame) override;
+	virtual UMovieSceneSection* GetMovieSceneSection() const override { return Cast<UMovieSceneSection>(MovieSceneSection.Get()); }
 	virtual void StopRecordingImpl() override;
 	virtual void SetSavedRecordingDirectory(const FString& InDirectory)
 	{
@@ -45,7 +47,7 @@ public:
 
 public:
 	//we don't call UMovieSceneTrackRecorder::CreateTrack or CreateTrackImpl since that expects an  ObjectToRecord and a GUID which isn't needed.
-	void CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, UMovieSceneTrackRecorderSettings* InSettingsObject);
+	void CreateTrack(UMovieScene* InMovieScene, const FName& InSubjectName, bool bInSaveSubjectSettings, bool bInAlwaysUseTimecoe, UMovieSceneTrackRecorderSettings* InSettingsObject);
 	void AddContentsToFolder(UMovieSceneFolder* InFolder);
 	void SetReduceKeys(bool bInReduce) { bReduceKeys = bInReduce; }
 
@@ -65,6 +67,9 @@ private:
 	/** Whether we should save subject preset in the the live link section. If not, we'll create one with subject information with no settings */
 	bool bSaveSubjectSettings;
 
+	/** Whether or not we use timecode time or world time*/
+	bool bUseSourceTimecode;
+
 	/** Role of the subject we will record*/
 	TSubclassOf<ULiveLinkRole> SubjectRole;
 
@@ -77,6 +82,9 @@ private:
 	/** Diff between Engine Time from when starting to record and Platform
 	Time which is used by Live Link. Still used if no TimeCode present.*/
 	double SecondsDiff; 
+
+	/** The frame at the start of this recording section */
+	FFrameNumber RecordStartFrame;
 
 	/** Guid when registered to get LiveLinkData */
 	FGuid HandlerGuid;

@@ -41,6 +41,10 @@ public:
 
 	FFrameRate GetFrameRate() const;
 
+	void SetFrameRate(FFrameRate InFrameRate, bool bFromTimecode);
+
+	bool IsSameFrameRate(FFrameRate InFrameRate) const;
+
 	bool Reviewing() const;
 
 	bool Recording() const;
@@ -77,10 +81,10 @@ private:
 	FText GetUserDescriptionText() const;
 	void SetUserDescriptionText(const FText& InNewText, ETextCommit::Type);
 
-	FReply SetFrameRate();
 	FText GetFrameRateText() const;
 	FText GetFrameRateTooltipText() const;
 	bool IsFrameRateCompatible(FFrameRate InFrameRate) const;
+	bool IsSetFromTimecode() const;
 
 	FText GetSlateText() const;
 	void SetSlateText(const FText& InNewText, ETextCommit::Type InCommitType);
@@ -125,6 +129,8 @@ private:
 	void BindCommands();
 
 	void OnToggleEditPreviousRecording(ECheckBoxState CheckState);
+	
+	TSharedRef<SWidget> OnCreateMenu();
 
 private:
 

@@ -1339,7 +1339,7 @@ public:
 	 * This class will be responsible of updating the application Time and DeltaTime.
 	 * Can be used to synchronize the engine with another process (gen-lock).
 	 */
-	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Framerate, meta=(MetaClass="EngineCustomTimeStep", DisplayName="Custom TimeStep", ConfigRestartRequired=true))
+	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Framerate, meta=(MetaClass="EngineCustomTimeStep", DisplayName="Custom TimeStep"))
 	FSoftClassPath CustomTimeStepClassName;
 
 private:
@@ -1354,15 +1354,30 @@ private:
 	bool bIsCurrentTimecodeProviderInitialized;
 
 public:
-	/**
-	 * Set TimecodeProvider when the engine is started.
-	 */
-	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="TimecodeProvider", ConfigRestartRequired=true))
+	/** Set TimecodeProvider when the engine is started. */
+	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="Timecode Provider"))
 	FSoftClassPath TimecodeProviderClassName;
+
+	/**
+	 * Generate a default timecode from the computer clock when there is no timecode provider.
+	 * On desktop, the system time will be used and will behave as if a USystemTimecodeProvider was set.
+	 * On console, the high performance clock will be used. That may introduce drift over time.
+	 * If you wish to use the system time on console, set the timecode provider to USystemeTimecodeProvider.
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Timecode)
+	bool bGenerateDefaultTimecode;
+
+	/** When generating a default timecode (bGenerateDefaultTimecode is true and no timecode provider is set) at which frame rate it should be generated (number of frames). */
+	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(EditCondition="bGenerateDefaultTimecode"))
+	FFrameRate GenerateDefaultTimecodeFrameRate;
+
+	/** Number of frames to subtract from generated default timecode. */
+	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Timecode, meta=(EditCondition="bGenerateDefaultTimecode"))
+	float GenerateDefaultTimecodeFrameDelay;
 
 public:
 	/** 
-	 * Whether we should check for more than N pawns spawning in a single frame.  
+	 * Whether we should check for more than N pawns spawning in a single frame.
 	 * Basically, spawning pawns and all of their attachments can be slow.  And on consoles it
 	 * can be really slow.  If this bool is true we will display a 
 	 **/
@@ -1572,9 +1587,6 @@ public:
 	UPROPERTY(globalconfig)
 	FString ParticleEventManagerClassPath;
 
-	/** A collection of messages to display on-screen. */
-	TArray<struct FScreenMessageString> PriorityScreenMessages;
-
 	/** Used to alter the intensity level of the selection highlight on selected objects */
 	UPROPERTY(transient)
 	float SelectionHighlightIntensity;
@@ -1774,10 +1786,30 @@ protected:
 	/** Audio device handle to the main audio device. */
 	FAudioDeviceHandle MainAudioDeviceHandle;
 
-public:
+private:
+	/** A collection of messages to display on-screen. */
+	TArray<struct FScreenMessageString> PriorityScreenMessages;
 
 	/** A collection of messages to display on-screen. */
 	TMap<int32, FScreenMessageString> ScreenMessages;
+
+public:
+	float DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas* CanvasObject, float MessageX, float MessageY);
+
+	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
+	void AddOnScreenDebugMessage(uint64 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
+
+	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
+	void AddOnScreenDebugMessage(int32 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
+
+	/** Retrieve the message for the given key */
+	bool OnScreenDebugMessageExists(uint64 Key);
+
+	/** Clear any existing debug messages */
+	void ClearOnScreenDebugMessages();
+
+	//Remove the message for the given key
+	void RemoveOnScreenDebugMessage(uint64 Key);
 
 	/** Reference to the stereoscopic rendering interface, if any */
 	TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice;
@@ -1959,6 +1991,9 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual bool IsDestructionThreadSafe() const override { return false; }
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	//~ End UObject Interface.
 
 	/** Initialize the game engine. */
@@ -2333,18 +2368,6 @@ public:
 	 * Returns the current desired time between garbage collection passes (not the time remaining)
 	 */
 	float GetTimeBetweenGarbageCollectionPasses() const;
-
-	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
-	void AddOnScreenDebugMessage(uint64 Key,float TimeToDisplay,FColor DisplayColor,const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
-
-	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
-	void AddOnScreenDebugMessage(int32 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
-
-	/** Retrieve the message for the given key */
-	bool OnScreenDebugMessageExists(uint64 Key);
-
-	/** Clear any existing debug messages */
-	void ClearOnScreenDebugMessages();
 
 #if !UE_BUILD_SHIPPING
 	/** 

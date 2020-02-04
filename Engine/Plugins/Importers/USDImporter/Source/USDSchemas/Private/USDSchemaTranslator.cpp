@@ -2,10 +2,15 @@
 
 #include "USDSchemaTranslator.h"
 
+#include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
 #include "Algo/Find.h"
 #include "Async/Async.h"
+#include "Misc/ScopedSlowTask.h"
+#include "Modules/ModuleManager.h"
+
+#define LOCTEXT_NAMESPACE "USDSchemaTranslator"
 
 int32 FRegisteredSchemaTranslatorHandle::CurrentSchemaTranslatorId = 0;
 
@@ -113,13 +118,18 @@ FUsdSchemaTranslatorRegistry::FSchemaTranslatorsStack* FUsdSchemaTranslatorRegis
 
 void FUsdSchemaTranslationContext::CompleteTasks()
 {
-	bool bFinished = false;
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdSchemaTranslationContext::CompleteTasks );
+
+	FScopedSlowTask SlowTask( TranslatorTasks.Num(), LOCTEXT( "TasksProgress", "Executing USD Schema tasks" ) );
+
+	bool bFinished = ( TranslatorTasks.Num() == 0 );
 	while ( !bFinished )
 	{
 		for ( TArray< TSharedPtr< FUsdSchemaTranslatorTaskChain > >::TIterator TaskChainIterator = TranslatorTasks.CreateIterator(); TaskChainIterator; ++TaskChainIterator )
 		{
 			if ( (*TaskChainIterator)->Execute() == ESchemaTranslationStatus::Done )
 			{
+ 				SlowTask.EnterProgressFrame();
 				TaskChainIterator.RemoveCurrent();
 			}
 		}
@@ -128,9 +138,40 @@ void FUsdSchemaTranslationContext::CompleteTasks()
 	}
 }
 
+bool FUsdSchemaTranslator::IsCollapsed( ECollapsingType CollapsingType ) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdSchemaTranslator::IsCollapsed );
+
+	if ( !CanBeCollapsed( CollapsingType ) )
+	{
+		return false;
+	}
+
+	TUsdStore< pxr::UsdPrim > Prim = Schema.Get().GetPrim();
+	TUsdStore< pxr::UsdPrim > ParentPrim = Prim.Get().GetParent();
+
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+
+	while ( ParentPrim.Get() )
+	{
+		TSharedPtr< FUsdSchemaTranslator > ParentSchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( Context, pxr::UsdTyped( ParentPrim.Get() ) );
+
+		if ( ParentSchemaTranslator && ParentSchemaTranslator->CollapsesChildren( CollapsingType ) )
+		{
+			return true;
+		}
+		else
+		{
+			ParentPrim = ParentPrim.Get().GetParent();
+		}
+	}
+
+	return false;
+}
+
 void FSchemaTranslatorTask::Start()
 {
-	if ( bAsync )
+	if ( bAsync && IsInGameThread() )
 	{
 		Result = Async( EAsyncExecution::LargeThreadPool,
 			[ this ]() -> bool
@@ -167,9 +208,16 @@ bool FSchemaTranslatorTask::DoWork()
 
 FUsdSchemaTranslatorTaskChain& FUsdSchemaTranslatorTaskChain::Do( bool bAsync, TFunction< bool() > Callable )
 {
-	CurrentTask = MakeShared< FSchemaTranslatorTask >( bAsync, Callable );
+	if ( !CurrentTask )
+	{
+		CurrentTask = MakeShared< FSchemaTranslatorTask >( bAsync, Callable );
 
-	CurrentTask->StartIfAsync(); // Queue it right now if async
+		CurrentTask->StartIfAsync(); // Queue it right now if async
+	}
+	else
+	{
+		Then( bAsync, Callable );
+	}
 
 	return *this;
 }
@@ -213,7 +261,14 @@ ESchemaTranslationStatus FUsdSchemaTranslatorTaskChain::Execute()
 
 		if ( CurrentTask )
 		{
-			CurrentTask->StartIfAsync(); // Queue the next task asap if async
+			if ( IsInGameThread() )
+			{
+				CurrentTask->StartIfAsync(); // Queue the next task asap if async
+			}
+			else
+			{
+				CurrentTask->Start();
+			}
 		}
 	}
 
@@ -221,3 +276,5 @@ ESchemaTranslationStatus FUsdSchemaTranslatorTaskChain::Execute()
 }
 
 #endif //#if USE_USD_SDK
+
+#undef LOCTEXT_NAMESPACE

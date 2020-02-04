@@ -55,7 +55,8 @@ void IMeshPaintComponentAdapter::DefaultQueryPaintableTextures(int32 MaterialInd
 			if (TextureBase != NULL &&
 				TextureBase->Texture != NULL &&
 				!TextureBase->Texture->IsNormalMap() && 
-				!TextureBase->Texture->VirtualTextureStreaming )
+				!TextureBase->Texture->VirtualTextureStreaming &&
+				!TextureBase->Texture->HasHDRSource()) // Currently HDR textures are not supported to paint on
 			{
 				// Default UV channel to index 0. 
 				PaintableTexture = FPaintableTexture(TextureBase->Texture, 0);

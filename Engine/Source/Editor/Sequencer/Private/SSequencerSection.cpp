@@ -857,6 +857,13 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 		return false;
 	}
 
+	FMovieSceneSupportsEasingParams SupportsEasingParams(ThisSection);
+	EMovieSceneTrackEasingSupportFlags EasingFlags = Track->SupportsEasing(SupportsEasingParams);
+	if (!EnumHasAnyFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::ManualEasing))
+	{
+		return false;
+	}
+
 	FTimeToPixel TimeToPixelConverter = ConstructTimeConverterForSection(MakeSectionGeometryWithoutHandles(SectionGeometry, SectionInterface), *ThisSection, GetSequencer());
 
 	const double MouseTime = TimeToPixelConverter.PixelToSeconds(SectionGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X);
@@ -886,7 +893,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 		TSharedRef<ISequencerSection> EasingSection    =  Handle.GetSectionInterface();
 		UMovieSceneSection*           EasingSectionObj = EasingSection->GetSectionObject();
 
-		if (EasingSectionObj->HasStartFrame())
+		if (EasingSectionObj->HasStartFrame() && EnumHasAllFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::ManualEaseIn))
 		{
 			TRange<FFrameNumber> EaseInRange      = EasingSectionObj->GetEaseInRange();
 			double               HandlePositionIn = ( EaseInRange.IsEmpty() ? EasingSectionObj->GetInclusiveStartFrame() : EaseInRange.GetUpperBoundValue() ) / TimeToPixelConverter.GetTickResolution();
@@ -898,7 +905,7 @@ bool SSequencerSection::CheckForEasingHandleInteraction( const FPointerEvent& Mo
 			}
 		}
 
-		if (EasingSectionObj->HasEndFrame())
+		if (EasingSectionObj->HasEndFrame() && EnumHasAllFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::ManualEaseOut))
 		{
 			TRange<FFrameNumber> EaseOutRange      = EasingSectionObj->GetEaseOutRange();
 			double               HandlePositionOut = (EaseOutRange.IsEmpty() ? EasingSectionObj->GetExclusiveEndFrame() : EaseOutRange.GetLowerBoundValue() ) / TimeToPixelConverter.GetTickResolution();
@@ -1404,7 +1411,7 @@ void SSequencerSection::PaintKeys( FSequencerSectionPainter& InPainter, const FW
 			// Generate the hull of frame numbers that contribute to this key so we can draw it enabled/disabled depending on whether it is outside of the valid range or not
 			TRange<FFrameNumber> KeyRange = TRange<FFrameNumber>::Empty();
 
-			float AverageKeyTime = 0.f;
+			double AverageKeyTime = 0.f;
 			int32 NumKeyTimes = 0;
 			int32 NumOverlaps = 0;
 

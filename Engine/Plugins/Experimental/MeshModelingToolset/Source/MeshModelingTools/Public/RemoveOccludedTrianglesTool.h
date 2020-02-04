@@ -130,7 +130,7 @@ public:
 	UPROPERTY()
 	URemoveOccludedTrianglesTool *Tool;
 
-	int ComponentIndex;
+	int PreviewIdx;
 };
 
 
@@ -178,12 +178,21 @@ protected:
 	UPROPERTY()
 	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
 
+	// When multiple meshes in the selection correspond to the same asset, only one needs a PreviewWithBackgroundCompute
+	//  all others just get a plain PreviewMesh copy that is updated via OnMeshUpdated broadcast from the source Preview
+	UPROPERTY()
+	TArray<UPreviewMesh*> PreviewCopies;
+
 
 protected:
 	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
 
 	// pre-transformed combined all-mesh data (with mesh geometry data in just raw index buffers as that's all we need)
 	TSharedPtr<IndexMeshWithAcceleration> CombinedMeshTrees;
+
+	TArray<TArray<int32>> PreviewToCopyIdx;
+	TArray<int32> PreviewToTargetIdx;
+	TArray<int32> TargetToPreviewIdx;
 
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;

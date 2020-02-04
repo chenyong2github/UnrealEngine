@@ -27,6 +27,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "Misc/Paths.h"
+#include "Misc/UObjectToken.h"
 #include "ObjectTools.h"
 #include "UObject/PropertyPortFlags.h"
 
@@ -549,10 +550,27 @@ void FDatasmithActorImporter::SetupHierarchicalInstancedStaticMeshComponent(FDat
 	HierarchicalInstancedStaticMeshComponent->ClearInstances();
 
 	int32 InstanceCount = HierarchicalInstancedStatictMeshActorElement->GetInstancesCount();
+	bool bContainsInvertedMeshes = false;
 
 	for (int32 i = 0; i < InstanceCount; i++)
 	{
-		HierarchicalInstancedStaticMeshComponent->AddInstance(HierarchicalInstancedStatictMeshActorElement->GetInstance(i));
+		FTransform Instance = HierarchicalInstancedStatictMeshActorElement->GetInstance(i);
+		HierarchicalInstancedStaticMeshComponent->AddInstance(Instance);
+
+		FVector InstanceScale = Instance.GetScale3D();
+		if ((InstanceScale.X * InstanceScale.Y * InstanceScale.Z) < 0)
+		{
+			bContainsInvertedMeshes = true;
+		}
+	}
+
+	if (bContainsInvertedMeshes)
+	{
+		ImportContext.LogWarning(FText::GetEmpty())
+			->AddToken(FUObjectToken::Create(HierarchicalInstancedStaticMeshComponent))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("HierarchicalInstancedStaticMeshComponentHasInvertedScale",
+				"{0} has instances with negative scaling producing unsupported inverted meshes."),
+				FText::FromString(HierarchicalInstancedStatictMeshActorElement->GetLabel()))));
 	}
 
 	SetupStaticMeshComponent(ImportContext, HierarchicalInstancedStaticMeshComponent, HierarchicalInstancedStatictMeshActorElement);

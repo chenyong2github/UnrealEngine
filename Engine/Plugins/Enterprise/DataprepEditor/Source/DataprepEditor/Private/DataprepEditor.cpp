@@ -85,6 +85,7 @@ const FName FDataprepEditor::DetailsTabId(TEXT("DataprepEditor_Details"));
 const FName FDataprepEditor::DataprepAssetTabId(TEXT("DataprepEditor_Dataprep"));
 const FName FDataprepEditor::SceneViewportTabId(TEXT("DataprepEditor_SceneViewport"));
 const FName FDataprepEditor::DataprepStatisticsTabId(TEXT("DataprepEditor_Statistics"));
+const FName FDataprepEditor::DataprepGraphEditorTabId(TEXT("DataprepEditor_GraphEditor"));
 
 static bool bLogTiming = true;
 
@@ -316,6 +317,12 @@ void FDataprepEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& I
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
 		// end of temp code for nodes development
+
+		InTabManager->RegisterTabSpawner(DataprepGraphEditorTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabGraphEditor))
+			.SetDisplayName(LOCTEXT("GraphEditorTab", "Simplified Graph"))
+			.SetGroup(WorkspaceMenuCategoryRef)
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
+		
 	}
 }
 
@@ -402,9 +409,9 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	SessionID = FGuid::NewGuid().ToString();
 
 	// Initialize Actions' context
-	DataprepActionAsset::FCanExecuteNextStepFunc CanExecuteNextStepFunc = [this](UDataprepActionAsset* ActionAsset, UDataprepOperation* Operation, UDataprepFilter* Filter) -> bool
+	DataprepActionAsset::FCanExecuteNextStepFunc CanExecuteNextStepFunc = [this](UDataprepActionAsset* ActionAsset) -> bool
 	{
-		return this->OnCanExecuteNextStep(ActionAsset, Operation, Filter);
+		return this->OnCanExecuteNextStep(ActionAsset);
 	};
 
 	DataprepActionAsset::FActionsContextChangedFunc ActionsContextChangedFunc = [this](const UDataprepActionAsset* ActionAsset, bool bWorldChanged, bool bAssetsChanged, const TArray< TWeakObjectPtr<UObject> >& NewAssets)
@@ -839,6 +846,8 @@ void FDataprepEditor::CreateTabs()
 	}
 	// end of temp code for nodes development
 
+	CreateGraphEditor();
+
 }
 
 // Temp code for the nodes development
@@ -952,6 +961,23 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabSceneViewport( const FSpawnTabArgs
 	return SpawnedTab;
 }
 
+TSharedRef<SDockTab> FDataprepEditor::SpawnTabGraphEditor(const FSpawnTabArgs & Args)
+{
+	check(Args.GetTabId() == DataprepGraphEditorTabId);
+
+	if(!bIsDataprepInstance)
+	{
+		return SNew(SDockTab)
+			//.Icon(FDataprepEditorStyle::Get()->GetBrush("DataprepEditor.Tabs.Pipeline"))
+			.Label(LOCTEXT("DataprepEditor_GraphEditorTab_Title", "Simplified Graph"))
+			[
+				GraphEditor.ToSharedRef()
+			];
+	}
+
+	return SNew(SDockTab);
+}
+
 TSharedRef<FTabManager::FLayout> FDataprepEditor::CreateDataprepLayout()
 {
 	return FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.7")
@@ -1016,6 +1042,13 @@ TSharedRef<FTabManager::FLayout> FDataprepEditor::CreateDataprepLayout()
 							->SetHideTabWell( true )
 						)
 						// end of temp code for nodes development
+						->Split
+						(
+							FTabManager::NewStack()
+							->SetSizeCoefficient(0.85f)
+							->AddTab(DataprepGraphEditorTabId, ETabState::ClosedTab)
+							->SetHideTabWell( true )
+						)
 					)
 				)
 				->Split
@@ -1170,7 +1203,7 @@ FString FDataprepEditor::GetTransientContentFolder()
 	return FPaths::Combine( GetRootPackagePath(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ), SessionID );
 }
 
-bool FDataprepEditor::OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset, UDataprepOperation* Operation, UDataprepFilter* Filter)
+bool FDataprepEditor::OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset)
 {
 	// #ueent_todo: Make this action configurable by user
 	UpdatePreviewPanels(false);

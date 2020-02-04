@@ -65,10 +65,12 @@ void FDisplayClusterClusterSyncClient::GetDeltaTime(float& DeltaSeconds)
 	}
 }
 
-void FDisplayClusterClusterSyncClient::GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate)
+void FDisplayClusterClusterSyncClient::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
 {
-	static const TSharedPtr<FDisplayClusterMessage> Request(new FDisplayClusterMessage(FDisplayClusterClusterSyncMsg::GetTimecode::name, FDisplayClusterClusterSyncMsg::TypeRequest, FDisplayClusterClusterSyncMsg::ProtocolName));
+	static const TSharedPtr<FDisplayClusterMessage> Request(new FDisplayClusterMessage(FDisplayClusterClusterSyncMsg::GetFrameTime::name, FDisplayClusterClusterSyncMsg::TypeRequest, FDisplayClusterClusterSyncMsg::ProtocolName));
 	TSharedPtr<FDisplayClusterMessage> Response = SendRecvMsg(Request);
+
+	FrameTime.Reset();
 
 	if (!Response.IsValid())
 	{
@@ -76,13 +78,21 @@ void FDisplayClusterClusterSyncClient::GetTimecode(FTimecode& Timecode, FFrameRa
 	}
 
 	// Extract sync data from response message
-	if (Response->GetArg(FDisplayClusterClusterSyncMsg::GetTimecode::argTimecode, Timecode) == false)
+	bool bIsValid = false;
+	if (Response->GetArg(FDisplayClusterClusterSyncMsg::GetFrameTime::argIsValid, bIsValid) == false)
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Couldn't extract an argument: %s"), FDisplayClusterClusterSyncMsg::GetTimecode::argTimecode);
+		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Couldn't extract an argument: %s"), FDisplayClusterClusterSyncMsg::GetFrameTime::argIsValid);
 	}
-	if (Response->GetArg(FDisplayClusterClusterSyncMsg::GetTimecode::argFrameRate, FrameRate) == false)
+
+	if (bIsValid)
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Couldn't extract an argument: %s"), FDisplayClusterClusterSyncMsg::GetTimecode::argTimecode);
+		FQualifiedFrameTime NewFrameTime;
+		if (Response->GetArg(FDisplayClusterClusterSyncMsg::GetFrameTime::argFrameTime, NewFrameTime) == false)
+		{
+			UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Couldn't extract an argument: %s"), FDisplayClusterClusterSyncMsg::GetFrameTime::argFrameTime);
+		}
+
+		FrameTime = NewFrameTime;
 	}
 }
 

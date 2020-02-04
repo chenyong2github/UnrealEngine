@@ -87,6 +87,10 @@ void FDisplayClusterConfigParserText::ParseLine(const FString& line)
 	{
 		AddRender(impl_parse<FDisplayClusterConfigRender>(line));
 	}
+	else if (line.StartsWith(FString(DisplayClusterStrings::cfg::data::nvidia::Header)))
+	{
+		AddNvidia(impl_parse<FDisplayClusterConfigNvidia>(line));
+	}
 	else if (line.StartsWith(FString(DisplayClusterStrings::cfg::data::stereo::Header)))
 	{
 		AddStereo(impl_parse<FDisplayClusterConfigStereo>(line));

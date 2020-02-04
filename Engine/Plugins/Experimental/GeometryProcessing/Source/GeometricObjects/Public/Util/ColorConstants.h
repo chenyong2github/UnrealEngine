@@ -25,7 +25,7 @@ namespace LinearColors
 	}
 
 #define ColorConstant(ColorName, R, G, B) \
-	template <typename VectorType> VectorType ColorName##3f() { return MakeColor3f<VectorType>(R, G, B); } \
+	inline FLinearColor ColorName##3f() { return MakeColor3f<FLinearColor>(R, G, B); } \
 	inline FColor ColorName##3b() { return MakeColor3f<FLinearColor>(R, G, B).ToFColor(false); }
 
 	ColorConstant(Black, 0.0f, 0.0f, 0.0f);
@@ -203,16 +203,16 @@ namespace LinearColors
 	template <typename VectorType>
 	VectorType SelectColor(int32 Index)
 	{
-		static const VectorType ColorMap[] = {
-			SpringGreen3f<VectorType>(), Plum3f<VectorType>(), Khaki3f<VectorType>(),
-			PaleGreen3f<VectorType>(), LightSteelBlue3f<VectorType>(), Aquamarine3f<VectorType>(),
-			Salmon3f<VectorType>(), Goldenrod3f<VectorType>(), LightSeaGreen3f<VectorType>(),
-			IndianRed3f<VectorType>(), DarkSalmon3f<VectorType>(), Coral3f<VectorType>(),
-			Burlywood3f<VectorType>(), GreenYellow3f<VectorType>(), Lavender3f<VectorType>(),
-			MediumAquamarine3f<VectorType>(), Thistle3f<VectorType>(), Wheat3f<VectorType>(),
-			LightSkyBlue3f<VectorType>(), LightPink3f<VectorType>(), MediumSpringGreen3f<VectorType>()
+		static const FLinearColor ColorMap[] = {
+			SpringGreen3f(), Plum3f(), Khaki3f(),
+			PaleGreen3f(), LightSteelBlue3f(), Aquamarine3f(),
+			Salmon3f(), Goldenrod3f(), LightSeaGreen3f(),
+			IndianRed3f(), DarkSalmon3f(), Coral3f(),
+			Burlywood3f(), GreenYellow3f(), Lavender3f(),
+			MediumAquamarine3f(), Thistle3f(), Wheat3f(),
+			LightSkyBlue3f(), LightPink3f(), MediumSpringGreen3f()
 		};
-		return (Index < 0) ? White3f<VectorType>() : ColorMap[Index % (7 * 3)];
+		return (Index < 0) ? VectorType(White3f()) : VectorType(ColorMap[Index % (7 * 3)]);
 	}
 
 

@@ -39,7 +39,6 @@ void UPlanePositionGizmo::Setup()
 	bInInteraction = false;
 }
 
-
 FInputRayHit UPlanePositionGizmo::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
 	FInputRayHit GizmoHit;
@@ -76,8 +75,17 @@ void UPlanePositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 
 	InteractionStartPoint = InteractionCurPoint = IntersectionPoint;
 
+	float DirectionSignX = FVector::DotProduct(InteractionStartPoint - AxisSource->GetOrigin(), InteractionAxisX);
+	ParameterSigns.X = (bEnableSignedAxis && DirectionSignX < 0) ? -1.0f : 1.0f;
+	ParameterSigns.X *= (bFlipX) ? -1.0f : 1.0f;
+	float DirectionSignY = FVector::DotProduct(InteractionStartPoint - AxisSource->GetOrigin(), InteractionAxisY);
+	ParameterSigns.Y = (bEnableSignedAxis && DirectionSignY < 0) ? -1.0f : 1.0f;
+	ParameterSigns.Y *= (bFlipY) ? -1.0f : 1.0f;
+
 	InteractionStartParameter = GizmoMath::ComputeCoordinatesInPlane(IntersectionPoint,
 			InteractionOrigin, InteractionNormal, InteractionAxisX, InteractionAxisY);
+	InteractionStartParameter.X *= ParameterSigns.X;
+	InteractionStartParameter.Y *= ParameterSigns.Y;
 	InteractionCurParameter = InteractionStartParameter;
 
 	InitialTargetParameter = ParameterSource->GetParameter();
@@ -107,6 +115,8 @@ void UPlanePositionGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 	InteractionCurPoint = IntersectionPoint;
 	InteractionCurParameter = GizmoMath::ComputeCoordinatesInPlane(IntersectionPoint,
 		InteractionOrigin, InteractionNormal, InteractionAxisX, InteractionAxisY);
+	InteractionCurParameter.X *= ParameterSigns.X;
+	InteractionCurParameter.Y *= ParameterSigns.Y;
 
 	FVector2D DeltaParam = InteractionCurParameter - InteractionStartParameter;
 	FVector2D NewValue = InitialTargetParameter + DeltaParam;

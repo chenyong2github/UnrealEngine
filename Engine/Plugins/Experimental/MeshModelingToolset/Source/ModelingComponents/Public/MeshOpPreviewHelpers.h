@@ -115,6 +115,11 @@ public:
 	void SetVisibility(bool bVisible);
 
 
+	/**
+	 * @return true if currently using the 'in progress' working material
+	 */
+	bool IsUsingWorkingMaterial();
+
 
 	//
 	// Change notification
@@ -148,6 +153,8 @@ protected:
 	bool bResultValid = false;
 
 	bool bVisible = true;
+
+	const float SecondsBeforeWorkingMaterial = 2.0;
 
 	// this object manages the background computes
 	TUniquePtr<FBackgroundDynamicMeshComputeSource> BackgroundCompute;

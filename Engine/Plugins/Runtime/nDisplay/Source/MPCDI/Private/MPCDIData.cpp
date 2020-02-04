@@ -10,9 +10,9 @@
 #include "Misc/Paths.h"
 
 #include "MPCDIHelpers.h"
+#include "MPCDIWarpTexture.h"
 
 THIRD_PARTY_INCLUDES_START
-
 #include "mpcdiProfile.h"
 #include "mpcdiReader.h"
 #include "mpcdiDisplay.h"
@@ -22,21 +22,19 @@ THIRD_PARTY_INCLUDES_START
 #include "mpcdiBetaMap.h"
 #include "mpcdiDistortionMap.h"
 #include "mpcdiGeometryWarpFile.h"
-
 THIRD_PARTY_INCLUDES_END
 
 
 bool FMPCDIData::FMPCDIBuffer::Initialize(const FString& BufferName)
 {
 	ID = BufferName;
-	AABBox = FBox(FVector(FLT_MAX, FLT_MAX, FLT_MAX), FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX));
 	return true;
 }
-void FMPCDIData::FMPCDIBuffer::AddRegion(MPCDI::FMPCDIRegion* MPCDIRegionPtr)
+
+void FMPCDIData::FMPCDIBuffer::AddRegion(FMPCDIRegion* MPCDIRegionPtr)
 {
 	if (MPCDIRegionPtr)
 	{
-		MPCDIRegionPtr->WarpMap.AppendAABB(AABBox);
 		Regions.Add(MPCDIRegionPtr);
 	}
 }
@@ -81,7 +79,13 @@ void FMPCDIData::CleanupMPCDIData()
 	{
 		for (auto& ItRegion : ItBuffer->Regions)
 		{
-			BeginReleaseResource(&ItRegion->WarpMap);
+
+			if (ItRegion->WarpData && ItRegion->WarpData->GetWarpGeometryType() == EWarpGeometryType::PFM_Texture)
+			{
+				FMPCDIWarpTexture* WarpMap = static_cast<FMPCDIWarpTexture*>(ItRegion->WarpData);
+				BeginReleaseResource(WarpMap);
+			}
+
 			BeginReleaseResource(&ItRegion->AlphaMap);
 			BeginReleaseResource(&ItRegion->BetaMap);
 		}
@@ -147,7 +151,7 @@ bool FMPCDIData::AddRegion(const FString& BufferName, const FString& RegionName,
 				FMPCDIBuffer* Buffer = Buffers[OutRegionLocator.BufferIndex];
 				if (Buffer)
 				{
-					MPCDI::FMPCDIRegion* NewRegionPtr = new MPCDI::FMPCDIRegion(*RegionName, 1920, 1080);
+					FMPCDIRegion* NewRegionPtr = new FMPCDIRegion(*RegionName, 1920, 1080);
 					Buffer->AddRegion(NewRegionPtr);
 					return FindRegion(BufferName, RegionName, OutRegionLocator);
 				}
@@ -155,7 +159,7 @@ bool FMPCDIData::AddRegion(const FString& BufferName, const FString& RegionName,
 		}
 	}
 
-	//Region already exist
+	// Region already exists
 	return true;
 }
 
@@ -165,7 +169,7 @@ bool FMPCDIData::Load(const FString& MPCIDIFile)
 	FString MPCIDIFileFullPath = DisplayClusterHelpers::config::GetFullPath(MPCIDIFile);
 	if (!FPaths::FileExists(MPCIDIFileFullPath))
 	{
-		//! Handle error: mpcdi file not found
+		UE_LOG(LogMPCDI, Error, TEXT("File not found: %s"), *MPCIDIFileFullPath);
 		return false;
 	}
 
@@ -194,12 +198,15 @@ bool FMPCDIData::Load(const FString& MPCIDIFile)
 		case mpcdi::ProfileType2d:
 			MPCDIProfileType = IMPCDI::EMPCDIProfileType::mpcdi_2D;
 			break;
+
 		case mpcdi::ProfileType3d:
 			MPCDIProfileType = IMPCDI::EMPCDIProfileType::mpcdi_3D;
 			break;
+
 		case mpcdi::ProfileTypea3:
 			MPCDIProfileType = IMPCDI::EMPCDIProfileType::mpcdi_A3D;
 			break;
+
 		case mpcdi::ProfileTypesl:
 			MPCDIProfileType = IMPCDI::EMPCDIProfileType::mpcdi_SL;
 			break;
@@ -214,9 +221,7 @@ bool FMPCDIData::Load(const FString& MPCIDIFile)
 		Version = version.c_str();
 		UE_LOG(LogMPCDI, Verbose, TEXT("Version: %s"), *Version);
 
-		
-
-		// Fill buffer information		
+		// Fill buffer information
 		for (mpcdi::Display::BufferIterator itBuffer = profile->GetDisplay()->GetBufferBegin(); itBuffer != profile->GetDisplay()->GetBufferEnd(); ++itBuffer)
 		{
 			Buffers.Add(new FMPCDIBuffer());
@@ -230,19 +235,19 @@ bool FMPCDIData::Load(const FString& MPCIDIFile)
 				mpcdi::Region *mpcdiRegion = it->second;
 				if (mpcdiRegion)
 				{
-					MPCDI::FMPCDIRegion* NewRegionPtr = new MPCDI::FMPCDIRegion();
+					FMPCDIRegion* NewRegionPtr = new FMPCDIRegion();
 					if (NewRegionPtr->Load(mpcdiRegion, GetProfileType()))
 					{
 						buffer.AddRegion(NewRegionPtr);
 					}
 					else
 					{
-						//@todo handle error
 						UE_LOG(LogMPCDI, Error, TEXT("Can't load mpcdi region %s"), ANSI_TO_TCHAR(mpcdiRegion->GetId().c_str()));
-					}					
+					}
 				}
-			}// end region loop
-		}//end buffer loop
+			}
+		}
+
 		success = true;
 	}
 
@@ -255,7 +260,7 @@ void FMPCDIData::AddReferencedObjects(FReferenceCollector& Collector)
 }
 
 #if 0
-//@todo Unsupported now
+// not supported yet
 bool FMPCDIData::ComputeFrustum_SL(const IMPCDI::FRegionLocator& RegionLocator, IMPCDI::FFrustum &OutFrustum, float WorldScale, float ZNear, float ZFar) const
 {
 	const FMPCDIData::FMPCDIBuffer *MPCDIBuffer = Buffers[RegionLocator.BufferIndex];
@@ -300,24 +305,29 @@ bool FMPCDIData::ComputeFrustum(const IMPCDI::FRegionLocator& RegionLocator, IMP
 	const FMPCDIData::FMPCDIBuffer *MPCDIBuffer = Buffers[RegionLocator.BufferIndex];
 	if (MPCDIBuffer)
 	{
-		switch (GetProfileType())
+		FMPCDIRegion* Region = GetRegion(RegionLocator);
+		if (Region && Region->WarpData)
 		{
-		case IMPCDI::EMPCDIProfileType::mpcdi_A3D:
-			return GetRegion(RegionLocator)->WarpMap.GetFrustum_A3D(Frustum, WorldScale, ZNear, ZFar);
-			break;
+			switch (GetProfileType())
+			{
+			case IMPCDI::EMPCDIProfileType::mpcdi_A3D:
+				return Region->WarpData->GetFrustum_A3D(Frustum, WorldScale, ZNear, ZFar);
+				break;
 #if 0
-		//@todo Unsupported now
-		case EMPCDIProfileType::mpcdi_SL:
-		{
-			return ComputeFrustum_SL(RegionLocator, Frustum, WorldScale, ZNear, ZFar);
+			// Not supported yet
+			case EMPCDIProfileType::mpcdi_SL:
+			{
+				return ComputeFrustum_SL(RegionLocator, Frustum, WorldScale, ZNear, ZFar);
+				break;
+			}
 			break;
-		}
-		break;
 #endif
-		default:
-			//@todo logs not supported yet
-			break;
+			default:
+				UE_LOG(LogMPCDI, Warning, TEXT("Current MPCDI profile is not supported yet"));
+				break;
+			}
 		}
 	}
+
 	return false;
 }

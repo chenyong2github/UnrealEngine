@@ -50,7 +50,7 @@ void UMovieSceneSpawnTrackRecorder::CreateTrackImpl()
 		bWasSpawned = ObjectToRecord.IsValid();
 		BoolChannel->SetDefault(bWasSpawned);
 		FText Error;
-		FString Name = ObjectToRecord->GetName();
+		FString Name = ObjectToRecord.IsValid() ? ObjectToRecord->GetName() : MovieSceneSection->GetName();
 		FName SerializedType("Spawn");
 		FString FileName = FString::Printf(TEXT("%s_%s"), *(SerializedType.ToString()), *Name);
 

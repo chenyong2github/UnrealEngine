@@ -18,8 +18,7 @@ public:
 	virtual void SetCanCancel(const TAttribute<bool>& InCanCancel) override;
 	virtual void SetKeepOpenOnSuccess(const TAttribute<bool>& InKeepOpenOnSuccess) override;
 	virtual void SetKeepOpenOnFailure(const TAttribute<bool>& InKeepOpenOnFailure) override;
-	virtual bool ShouldCancel() const override;
-
+	virtual EAsyncTaskNotificationPromptAction GetPromptAction() const override;
 private:
 	//~ FCoreAsyncTaskNotificationImpl
 	virtual void UpdateNotification() override;

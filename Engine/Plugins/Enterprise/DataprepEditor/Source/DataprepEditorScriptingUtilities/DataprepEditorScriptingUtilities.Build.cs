@@ -13,6 +13,9 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DataprepCore",
 					"Engine",
+
+					// Temporary
+					"DataprepEditor",
 				}
 			);
 		}

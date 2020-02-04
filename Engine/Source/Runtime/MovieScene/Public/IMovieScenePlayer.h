@@ -14,6 +14,7 @@
 #include "Misc/InlineValue.h"
 #include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
+#include "Generators/MovieSceneEasingCurves.h"
 
 
 class UMovieSceneSequence;
@@ -47,6 +48,26 @@ struct EMovieSceneViewportParams
 	bool bEnableColorScaling;
 };
 
+/** Camera cut parameters */
+struct EMovieSceneCameraCutParams
+{
+	/** If this is not null, release actor lock only if currently locked to this object */
+	UObject* UnlockIfCameraObject = nullptr;
+	/** Whether this is a jump cut, i.e. the cut jumps from one shot to another shot */
+	bool bJumpCut = false;
+
+	/** Blending time to get to the new shot instead of cutting */
+	float BlendTime = -1.f;
+	/** Blending type to use to get to the new shot (only used when BlendTime is greater than 0) */
+	TOptional<EMovieSceneBuiltInEasing> BlendType;
+
+#if WITH_EDITOR
+	// Info for previewing shot blends in editor.
+	UObject* PreviousCameraObject = nullptr;
+	float PreviewBlendFactor = -1.f;
+#endif
+};
+
 /**
  * Interface for movie scene players
  * Provides information for playback of a movie scene
@@ -78,7 +99,21 @@ public:
 	 * @param UnlockIfCameraObject If this is not nullptr, release actor lock only if currently locked to this object.
 	 * @param bJumpCut Whether this is a jump cut, ie. the cut jumps from one shot to another shot
 	 */
-	virtual void UpdateCameraCut(UObject* CameraObject, UObject* UnlockIfCameraObject = nullptr, bool bJumpCut = false) = 0;
+	void UpdateCameraCut(UObject* CameraObject, UObject* UnlockIfCameraObject = nullptr, bool bJumpCut = false)
+	{
+		EMovieSceneCameraCutParams CameraCutParams;
+		CameraCutParams.UnlockIfCameraObject = UnlockIfCameraObject;
+		CameraCutParams.bJumpCut = bJumpCut;
+		UpdateCameraCut(CameraObject, CameraCutParams);
+	}
+
+	/**
+	 * Updates the perspective viewports with the actor to view through
+	 *
+	 * @param CameraObject The object, probably a camera, that the viewports should lock to
+	 * @param CameraCutParams The parameters for this camera cut.
+	 */
+	virtual void UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams) = 0;
 
 	/*
 	 * Set the perspective viewport settings

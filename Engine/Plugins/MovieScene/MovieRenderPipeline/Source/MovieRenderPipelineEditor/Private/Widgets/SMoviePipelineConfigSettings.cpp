@@ -99,6 +99,7 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 					.IsFocusable(false)
 					.IsChecked(this, &FMoviePipelineSettingTreeItem::GetCheckState)
 					.OnCheckStateChanged(this, &FMoviePipelineSettingTreeItem::SetCheckState, SettingsWidget)
+					.Visibility(this, &FMoviePipelineSettingTreeItem::GetEnabledStateVisibility)
 				]
 			]
 
@@ -148,8 +149,8 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 			.Padding(0, 0, 4, 0)
 			[
 				SNew(STextBlock)
-				// .ToolTipText(this, &STakeRecorderCockpit::GetRecordErrorText)
-				// .Visibility(this, &STakeRecorderCockpit::GetRecordErrorVisibility)
+				.ToolTipText(this, &FMoviePipelineSettingTreeItem::GetSettingErrorTooltipText)
+				.Visibility(this, &FMoviePipelineSettingTreeItem::GetSettingErrorVisibility)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
 				.Text(FEditorFontGlyphs::Exclamation_Triangle)
 				.ColorAndOpacity(FLinearColor::Yellow)
@@ -160,7 +161,6 @@ struct FMoviePipelineSettingTreeItem : IMoviePipelineSettingTreeItem
 	}
 
 private:
-
 	FText GetDescription() const
 	{
 		UMoviePipelineSetting* Setting = WeakSetting.Get();
@@ -170,7 +170,7 @@ private:
 	ECheckBoxState GetCheckState() const
 	{
 		UMoviePipelineSetting* Setting = WeakSetting.Get();
-		return Setting && Setting->bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return Setting && Setting->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 
 	void SetCheckState(const ECheckBoxState NewState, TWeakPtr<SMoviePipelineConfigSettings> WeakSettingsWidget)
@@ -194,7 +194,7 @@ private:
 				FScopedTransaction Transaction(FText::Format(TransactionFormat, 1));
 
 				ThisSetting->Modify();
-				ThisSetting->bEnabled = bEnable;
+				ThisSetting->SetIsEnabled(bEnable);
 			}
 			else 
 			{
@@ -203,22 +203,51 @@ private:
 				for (UMoviePipelineSetting* SelectedSetting : SelectedSettings)
 				{
 					SelectedSetting->Modify();
-					SelectedSetting->bEnabled = bEnable;
+					SelectedSetting->SetIsEnabled(bEnable);
 				}
 			}
 		}
 	}
 
+	EVisibility GetEnabledStateVisibility() const
+	{
+		UMoviePipelineSetting* Setting = WeakSetting.Get();
+		return Setting && Setting->CanBeDisabled() ? EVisibility::Visible : EVisibility::Hidden;
+	}
+
 	FSlateColor GetColorAndOpacity() const
 	{
 		UMoviePipelineSetting* Setting = WeakSetting.Get();
-		return Setting && Setting->bEnabled ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground();
+		return Setting && Setting->IsEnabled() ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground();
 	}
 
 	FSlateColor GetImageColorAndOpacity() const
 	{
 		UMoviePipelineSetting* Setting = WeakSetting.Get();
-		return Setting && Setting->bEnabled ? FLinearColor::White : FLinearColor::White.CopyWithNewOpacity(0.3f);
+		return Setting && Setting->IsEnabled() ? FLinearColor::White : FLinearColor::White.CopyWithNewOpacity(0.3f);
+	}
+
+	FText GetSettingErrorTooltipText() const
+	{
+		UMoviePipelineSetting* Setting = WeakSetting.Get();
+		if (Setting)
+		{
+			switch (Setting->GetValidationState())
+			{
+			case EMoviePipelineValidationState::Errors:
+				return LOCTEXT("ValidationSettingError_Tooltip", "This setting has an invalid setting that must be corrected before attempting to render.");
+			case EMoviePipelineValidationState::Warnings:
+				return LOCTEXT("ValidationSettingWarning_Tooltip", "This setting is configured in a way that may produce undesired results.");
+			}
+		}
+
+		return FText();
+	}
+
+	EVisibility GetSettingErrorVisibility() const
+	{
+		UMoviePipelineSetting* Setting = WeakSetting.Get();
+		return Setting && (Setting->GetValidationState() != EMoviePipelineValidationState::Valid) ? EVisibility::Visible : EVisibility::Hidden;
 	}
 };
 
@@ -265,8 +294,8 @@ private:
 
 	FText GetLabel() const
 	{
-		return FText::Format(LOCTEXT("CategoryFormatString", "{0} ({1})"),
-			Category, Children.Num());
+		return FText::Format(LOCTEXT("CategoryFormatString", "{0}"),
+			Category);
 	}
 };
 
@@ -279,7 +308,9 @@ void SMoviePipelineConfigSettings::Construct(const FArguments& InArgs)
 		.TreeItemsSource(&RootNodes)
 		.OnSelectionChanged(InArgs._OnSelectionChanged)
 		.OnGenerateRow(this, &SMoviePipelineConfigSettings::OnGenerateRow)
-		.OnGetChildren(this, &SMoviePipelineConfigSettings::OnGetChildren);
+		.OnGetChildren(this, &SMoviePipelineConfigSettings::OnGetChildren)
+		.OnIsSelectableOrNavigable(this, &SMoviePipelineConfigSettings::IsSelectableOrNavigable) // Only works for Keyboard Navigation
+		.ClearSelectionOnClick(false);
 
 	CommandList = MakeShared<FUICommandList>();
 	CommandList->MapAction(
@@ -311,6 +342,13 @@ void SMoviePipelineConfigSettings::Tick(const FGeometry& AllottedGeometry, const
 	{
 		ReconstructTree();
 	}
+
+	// One the tree has been reconstructed (if needed) see if there's any pending settings to try and select.
+	if (PendingSettingsToSelect.Num() > 0)
+	{
+		SetSelectedSettings_Impl(PendingSettingsToSelect);
+		PendingSettingsToSelect.Empty();
+	}
 }
 
 FReply SMoviePipelineConfigSettings::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -339,8 +377,12 @@ void SMoviePipelineConfigSettings::GetSelectedSettings(TArray<UMoviePipelineSett
 	}
 }
 
-
 void SMoviePipelineConfigSettings::SetSelectedSettings(const TArray<UMoviePipelineSetting*>& Settings)
+{
+	PendingSettingsToSelect = Settings;
+}
+
+void SMoviePipelineConfigSettings::SetSelectedSettings_Impl(const TArray<UMoviePipelineSetting*>& Settings)
 {
 	TreeView->ClearSelection();
 
@@ -349,6 +391,7 @@ void SMoviePipelineConfigSettings::SetSelectedSettings(const TArray<UMoviePipeli
 	// Get all of our items first
 	for (TSharedPtr<IMoviePipelineSettingTreeItem> Item : RootNodes)
 	{
+		AllSettingTreeItems.Add(Item);
 		OnGetChildren(Item, AllSettingTreeItems);
 	}
 
@@ -407,7 +450,7 @@ void SMoviePipelineConfigSettings::ReconstructTree()
 
 	static const FName CategoryName = "Category";
 
-	for (UMoviePipelineSetting* Setting : ShotConfig->GetSettings())
+	for (UMoviePipelineSetting* Setting : ShotConfig->GetUserSettings())
 	{
 		if (!Setting)
 		{
@@ -510,6 +553,11 @@ void SMoviePipelineConfigSettings::OnGetChildren(TSharedPtr<IMoviePipelineSettin
 	{
 		OutChildItems.Append(Category->Children);
 	}
+}
+
+bool SMoviePipelineConfigSettings::IsSelectableOrNavigable(TSharedPtr<IMoviePipelineSettingTreeItem> Item) const
+{
+	return !Item->AsCategory().IsValid();
 }
 
 void SMoviePipelineConfigSettings::OnDeleteSelected()

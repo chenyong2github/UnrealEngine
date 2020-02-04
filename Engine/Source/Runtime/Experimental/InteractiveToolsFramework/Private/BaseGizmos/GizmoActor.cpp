@@ -5,6 +5,7 @@
 #include "BaseGizmos/GizmoArrowComponent.h"
 #include "BaseGizmos/GizmoRectangleComponent.h"
 #include "BaseGizmos/GizmoCircleComponent.h"
+#include "BaseGizmos/GizmoBoxComponent.h"
 #include "BaseGizmos/GizmoLineHandleComponent.h"
 
 #include "Components/PrimitiveComponent.h"
@@ -53,6 +54,7 @@ UGizmoRectangleComponent* AGizmoActor::AddDefaultRectangleComponent(
 	NewRectangle->DirectionY = PlaneAxisx2;
 	NewRectangle->Color = Color;
 	NewRectangle->LengthX = NewRectangle->LengthY = 30.0f;
+	NewRectangle->SegmentFlags = 0x2 | 0x4;
 	NewRectangle->RegisterComponent();
 	return NewRectangle;
 }
@@ -60,17 +62,36 @@ UGizmoRectangleComponent* AGizmoActor::AddDefaultRectangleComponent(
 
 UGizmoCircleComponent* AGizmoActor::AddDefaultCircleComponent(
 	UWorld* World, AActor* Actor,
-	const FLinearColor& Color, const FVector& PlaneNormal)
+	const FLinearColor& Color, const FVector& PlaneNormal, float Radius)
 {
 	UGizmoCircleComponent* NewCircle = NewObject<UGizmoCircleComponent>(Actor);
 	Actor->AddInstanceComponent(NewCircle);
 	NewCircle->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	NewCircle->Normal = PlaneNormal;
 	NewCircle->Color = Color;
-	NewCircle->Radius = 120.0f;
+	NewCircle->Radius = Radius;
 	NewCircle->RegisterComponent();
 	return NewCircle;
 }
+
+
+
+UGizmoBoxComponent* AGizmoActor::AddDefaultBoxComponent(
+	UWorld* World, AActor* Actor,
+	const FLinearColor& Color, const FVector& Origin,
+	const FVector& Dimensions
+)
+{
+	UGizmoBoxComponent* NewBox = NewObject<UGizmoBoxComponent>(Actor);
+	Actor->AddInstanceComponent(NewBox);
+	NewBox->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	NewBox->Origin = Origin;
+	NewBox->Color = Color;
+	NewBox->Dimensions = Dimensions;
+	NewBox->RegisterComponent();
+	return NewBox;
+}
+
 
 UGizmoLineHandleComponent* AGizmoActor::AddDefaultLineHandleComponent(
 	UWorld* World, AActor* Actor,

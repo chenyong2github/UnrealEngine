@@ -15,6 +15,7 @@
 #include "LevelEditorSequencerIntegration.h"
 #include "Misc/TemplateSequenceEditorPlaybackContext.h"
 #include "Misc/TemplateSequenceEditorSpawnRegister.h"
+#include "Misc/TemplateSequenceEditorUtil.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "SequencerSettings.h"
@@ -100,26 +101,6 @@ void FTemplateSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, c
 		SequencerInitParams.ViewParams.UniqueName = "TemplateSequenceEditor";
 		SequencerInitParams.ViewParams.ScrubberStyle = ESequencerScrubberStyle::FrameBlock;
 		SequencerInitParams.ViewParams.OnReceivedFocus.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerReceivedFocus);
-
-		if (ToolkitParams.bCanChangeBinding)
-		{
-			// Callbacks for changing the root binding by drag-and-dropping stuff on the Sequencer.
-			SequencerInitParams.ViewParams.OnAssetsDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerAssetsDrop);
-			SequencerInitParams.ViewParams.OnClassesDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerClassesDrop);
-			SequencerInitParams.ViewParams.OnActorsDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerActorsDrop);
-
-			// Extended for showing toolbar controls to change the root binding.
-			TSharedRef<FExtender> ToolbarExtender = MakeShared<FExtender>();
-			ToolbarExtender->AddToolBarExtension("Base Commands", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateSP(this, &FTemplateSequenceEditorToolkit::ExtendSequencerToolbar));
-			SequencerInitParams.ViewParams.ToolbarExtender = ToolbarExtender;
-		}
-		else
-		{
-			// Bind drag-and-drop callbacks to suppress them from doing anything.
-			SequencerInitParams.ViewParams.OnAssetsDrop.BindLambda([](const TArray<UObject*>&, const FAssetDragDropOp&) -> bool { return false; });
-			SequencerInitParams.ViewParams.OnClassesDrop.BindLambda([](const TArray<TWeakObjectPtr<UClass>>&, const FClassDragDropOp&) -> bool { return false; });
-			SequencerInitParams.ViewParams.OnActorsDrop.BindLambda([](const TArray<TWeakObjectPtr<AActor>>&, const FActorDragDropGraphEdOp&) -> bool { return false; });
-		}
 	}
 
 	Sequencer = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer").CreateSequencer(SequencerInitParams);
@@ -128,7 +109,8 @@ void FTemplateSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, c
 
 	if (ToolkitParams.InitialBindingClass != nullptr)
 	{
-		ChangeActorBinding(*ToolkitParams.InitialBindingClass);
+		FTemplateSequenceEditorUtil Util(TemplateSequence, *Sequencer.Get());
+		Util.ChangeActorBinding(ToolkitParams.InitialBindingClass);
 	}
 
 	FLevelEditorSequencerIntegrationOptions Options;
@@ -183,7 +165,6 @@ void FTemplateSequenceEditorToolkit::RegisterTabSpawners(const TSharedRef<class 
 	}
 }
 
-
 void FTemplateSequenceEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	if (!IsWorldCentricAssetEditor())
@@ -193,73 +174,6 @@ void FTemplateSequenceEditorToolkit::UnregisterTabSpawners(const TSharedRef<clas
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.AttachSequencer(SNullWidget::NullWidget, nullptr);
-}
-
-void FTemplateSequenceEditorToolkit::ExtendSequencerToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	TSharedRef<SHorizontalBox> Widget = SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("BoundActorClassPicker", "Bound Actor Class"))
-		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SComboButton)
-			.OnGetMenuContent(this, &FTemplateSequenceEditorToolkit::GetBoundActorClassMenuContent)
-			.ButtonContent()
-			[
-				SNew(STextBlock)
-				.Text(this, &FTemplateSequenceEditorToolkit::GetBoundActorClassName)
-			]
-		];
-	
-	ToolbarBuilder.AddWidget(Widget);
-}
-
-FText FTemplateSequenceEditorToolkit::GetBoundActorClassName() const
-{
-	const UClass* BoundActorClass = TemplateSequence ? TemplateSequence->BoundActorClass.Get() : NULL;
-	return BoundActorClass ? BoundActorClass->GetDisplayNameText() : FText::FromName(NAME_None);
-}
-
-TSharedRef<SWidget> FTemplateSequenceEditorToolkit::GetBoundActorClassMenuContent()
-{
-	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
-
-	FClassViewerInitializationOptions Options;
-	Options.Mode = EClassViewerMode::ClassPicker;
-	Options.bIsActorsOnly = true;
-
-	TSharedRef<SWidget> ClassPicker = ClassViewerModule.CreateClassViewer(Options, FOnClassPicked::CreateSP(this, &FTemplateSequenceEditorToolkit::OnBoundActorClassPicked));
-
-	return SNew(SBox)
-		.WidthOverride(350.0f)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.MaxHeight(400.0f)
-			.AutoHeight()
-			[
-				ClassPicker
-			]
-		];
-}
-
-void FTemplateSequenceEditorToolkit::OnBoundActorClassPicked(UClass* ChosenClass)
-{
-	FSlateApplication::Get().DismissAllMenus();
-
-	if (TemplateSequence != nullptr)
-	{
-		ChangeActorBinding(*ChosenClass);
-
-		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-	}
 }
 
 TSharedRef<FExtender> FTemplateSequenceEditorToolkit::HandleMenuExtensibilityGetExtender(const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> ContextSensitiveObjects)
@@ -370,108 +284,6 @@ void FTemplateSequenceEditorToolkit::OnSequencerReceivedFocus()
 	if (Sequencer.IsValid())
 	{
 		FLevelEditorSequencerIntegration::Get().OnSequencerReceivedFocus(Sequencer.ToSharedRef());
-	}
-}
-
-bool FTemplateSequenceEditorToolkit::OnSequencerReceivedDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, FReply& OutReply)
-{
-	bool bIsDragSupported = false;
-
-	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
-	if (Operation.IsValid() && (
-		(Operation->IsOfType<FAssetDragDropOp>() && StaticCastSharedPtr<FAssetDragDropOp>(Operation)->GetAssetPaths().Num() <= 1) ||
-		(Operation->IsOfType<FClassDragDropOp>() && StaticCastSharedPtr<FClassDragDropOp>(Operation)->ClassesToDrop.Num() <= 1) ||
-		(Operation->IsOfType<FActorDragDropGraphEdOp>() && StaticCastSharedPtr<FActorDragDropGraphEdOp>(Operation)->Actors.Num() <= 1)))
-	{
-		bIsDragSupported = true;
-	}
-
-	OutReply = (bIsDragSupported ? FReply::Handled() : FReply::Unhandled());
-	return true;
-}
-
-bool FTemplateSequenceEditorToolkit::OnSequencerAssetsDrop(const TArray<UObject*>& Assets, const FAssetDragDropOp& DragDropOp)
-{
-	if (Assets.Num() > 0)
-	{
-		// Only drop the first asset.
-		UObject* CurObject = Assets[0];
-
-		// TODO: check for dropping a sequence?
-
-		ChangeActorBinding(*CurObject, DragDropOp.GetActorFactory());
-
-		return true;
-	}
-
-	return true;
-}
-
-bool FTemplateSequenceEditorToolkit::OnSequencerClassesDrop(const TArray<TWeakObjectPtr<UClass>>& Classes, const FClassDragDropOp& DragDropOp)
-{
-	if (Classes.Num() > 0 && Classes[0].IsValid())
-	{
-		// Only drop the first class.
-		UClass* CurClass = Classes[0].Get();
-
-		ChangeActorBinding(*CurClass);
-
-		return true;
-	}
-	return false;
-}
-
-bool FTemplateSequenceEditorToolkit::OnSequencerActorsDrop(const TArray<TWeakObjectPtr<AActor>>& Actors, const FActorDragDropGraphEdOp& DragDropOp)
-{
-	return false;
-}
-
-void FTemplateSequenceEditorToolkit::ChangeActorBinding(UObject& Object, UActorFactory* ActorFactory, bool bSetupDefaults)
-{
-	// See if we have anything to do in the first place.
-	if (UClass* ChosenClass = Cast<UClass>(&Object))
-	{
-		if (ChosenClass == TemplateSequence->BoundActorClass)
-		{
-			return;
-		}
-	}
-
-	UMovieScene* MovieScene = TemplateSequence->GetMovieScene();
-	check(MovieScene != nullptr);
-
-	// See if we previously had a main object binding.
-	FGuid PreviousSpawnableGuid;
-	if (MovieScene->GetSpawnableCount() > 0)
-	{
-		PreviousSpawnableGuid = MovieScene->GetSpawnable(0).GetGuid();
-	}
-
-	// Make the new spawnable object binding.
-	FGuid NewSpawnableGuid = Sequencer->MakeNewSpawnable(Object, ActorFactory, bSetupDefaults);
-	FMovieSceneSpawnable* NewSpawnable = MovieScene->FindSpawnable(NewSpawnableGuid);
-
-	if (Object.IsA<UClass>())
-	{
-		UClass* ChosenClass = StaticCast<UClass*>(&Object);
-		TemplateSequence->BoundActorClass = ChosenClass;
-	}
-	else
-	{
-		const UObject* SpawnableTemplate = NewSpawnable->GetObjectTemplate();
-		TemplateSequence->BoundActorClass = SpawnableTemplate->GetClass();
-	}
-
-	// If we had a previous one, move everything under it to the new binding, and clean up.
-	if (PreviousSpawnableGuid.IsValid())
-	{
-		MovieScene->MoveBindingContents(PreviousSpawnableGuid, NewSpawnableGuid);
-
-		if (MovieScene->RemoveSpawnable(PreviousSpawnableGuid))
-		{
-			FMovieSceneSpawnRegister& SpawnRegister = Sequencer->GetSpawnRegister();
-			SpawnRegister.DestroySpawnedObject(PreviousSpawnableGuid, Sequencer->GetFocusedTemplateID(), *Sequencer);
-		}
 	}
 }
 

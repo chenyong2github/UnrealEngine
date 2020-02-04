@@ -25,6 +25,7 @@
 #include "EditorModeManager.h"
 #include "MeshPaintMode.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "MeshPaintModeHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MeshPaintCustomization"
 
@@ -157,14 +158,10 @@ FReply FVertexPaintingSettingsCustomization::OnSwapColorsClicked(TSharedRef<IPro
 {
 	FScopedTransaction Transaction(NSLOCTEXT("VertexPaintSettings", "SwapColorsTransation", "Swap paint and erase colors"));
 
+	UMeshPaintModeHelpers::SwapColors();
 	UMeshVertexPaintingToolProperties* Settings = UMeshPaintMode::GetVertexToolProperties();
 	if (Settings)
 	{
-		Settings->Modify();
-		
-		FLinearColor TempPaintColor = Settings->PaintColor;
-		Settings->PaintColor = Settings->EraseColor;
-		Settings->EraseColor = TempPaintColor;
 		PaintColor->NotifyPostChange(EPropertyChangeType::ValueSet);
 		EraseColor->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}

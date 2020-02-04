@@ -58,6 +58,7 @@ public:
 		MaxWidth = InMaxWidth;
 		return *this;
 	}
+
 private:
 	class SInvalidDetailWidget : public SSpacer
 	{
@@ -194,12 +195,22 @@ public:
 		return *this;
 	}
 
+	bool HasNameContent() const 
+	{
+		return NameWidget.Widget->GetType() != InvalidDetailWidgetName;
+	}
+
+	bool HasValueContent() const
+	{
+		return ValueWidget.Widget->GetType() != InvalidDetailWidgetName;
+	}
+
 	/**
 	 * @return true if the row has columns, false if it spans the entire row
 	 */
 	bool HasColumns() const
 	{
-		return NameWidget.Widget->GetType() != InvalidDetailWidgetName || ValueWidget.Widget->GetType() != InvalidDetailWidgetName;
+		return HasNameContent() || HasValueContent();
 	}
 
 	/**

@@ -137,6 +137,21 @@ struct DATAPREPLIBRARIES_API FMeshReductionArray
 	TArray<FMeshReductionOptions> Array;
 };
 
+UENUM(BlueprintInternalUseOnly)
+enum class ERandomizeTransformType : uint8
+{
+	Rotation,
+	Location,
+	Scale
+};
+
+UENUM(BlueprintInternalUseOnly)
+enum class ERandomizeTransformReferenceFrame : uint8
+{
+	World,
+	Relative
+};
+
 UCLASS()
 class DATAPREPLIBRARIES_API UDataprepOperationsLibrary : public UBlueprintFunctionLibrary
 {
@@ -263,6 +278,39 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
 	static void SubstituteMeshesByTable(const TArray<UObject*>& SelectedObjects, const UDataTable* DataTable);
+
+	/**
+	 * Add tags to a set of actors
+	 * @param SelectedObjects	Objects to add the tags to
+	 * @param Tags				Array of tags to add
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void AddTags( const TArray< UObject* >& SelectedObjects, const TArray<FName>& InTags );
+
+	/**
+	 * Adds metadata to selected objects that implement the UInterface_AssetUserData interface.
+	 * @param SelectedObjects:	Objects to consider
+	 * @param InMetadata:		The metadata to append
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void AddMetadata(const TArray<UObject*>& SelectedObjects, const TMap<FName, FString>& InMetadata);
+
+	/**
+	 * Replace all references to the assets in the array, except the first, with the first asset of the array.
+	 * @param SelectedObjects	Objects to consolidate
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void ConsolidateObjects( const TArray< UObject* >& SelectedObjects );
+
+	/**
+	 * Alters transform of selected objects by appling randomly generated offset to one of the transform components (rotation, scale or translation)
+	 * @param SelectedObjects:	Objects to consider
+	 * @param TransformType:	Selected transform component to randomize
+	 * @param Min:				Start of randomization range
+	 * @param Max:				End of randomization range
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformReferenceFrame ReferenceFrame, const FVector& Min, const FVector& Max);
 
 private:
 	static void SubstituteMaterial(const TArray<UObject*>& SelectedObjects, const FString& MaterialSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UMaterialInterface*>& MaterialList, UMaterialInterface* MaterialSubstitute);

@@ -25,6 +25,32 @@
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
+namespace ArchiveUtil
+{
+
+template<typename T>
+FArchive& SerializeByteOrderSwapped(FArchive& Ar, T& Value)
+{
+	static_assert(!TIsSigned<T>::Value, "To reduce the number of template instances, cast 'Value' to a uint16&, uint32& or uint64& prior to the call.");
+
+	if (Ar.IsLoading())
+	{
+		// Read and swap.
+		Ar.Serialize(&Value, sizeof(T));
+		Value = ByteSwap(Value);
+	}
+	else // Saving
+	{
+		// Swap and write.
+		T SwappedValue = ByteSwap(Value);
+		Ar.Serialize(&SwappedValue, sizeof(T));
+	}
+	return Ar;
+}
+
+} // namespace ArchiveUtil
+
+
 /*-----------------------------------------------------------------------------
 	FArchive implementation.
 -----------------------------------------------------------------------------*/
@@ -1005,6 +1031,38 @@ void FArchive::ByteSwap(void* V, int32 Length)
 	{
 		Swap(Ptr[Top--], Ptr[Bottom++]);
 	}
+}
+
+FArchive& FArchive::SerializeByteOrderSwapped(void* V, int32 Length)
+{
+	if (IsLoading())
+	{
+		Serialize(V, Length); // Read.
+		ByteSwap(V, Length); // Swap.
+	}
+	else // Writing
+	{
+		ByteSwap(V, Length); // Swap V.
+		Serialize(V, Length); // Write V.
+		ByteSwap(V, Length); // Swap V back to its original byte order to prevent caller from observing V swapped.
+	}
+
+	return *this;
+}
+
+FArchive& FArchive::SerializeByteOrderSwapped(uint16& Value)
+{
+	return ArchiveUtil::SerializeByteOrderSwapped(*this, Value);
+}
+
+FArchive& FArchive::SerializeByteOrderSwapped(uint32& Value)
+{
+	return ArchiveUtil::SerializeByteOrderSwapped(*this, Value);
+}
+
+FArchive& FArchive::SerializeByteOrderSwapped(uint64& Value)
+{
+	return ArchiveUtil::SerializeByteOrderSwapped(*this, Value);
 }
 
 void FArchive::SerializeIntPacked(uint32& Value)

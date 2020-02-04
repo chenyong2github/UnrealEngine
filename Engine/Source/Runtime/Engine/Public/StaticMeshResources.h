@@ -601,7 +601,7 @@ public:
 	 * Cache derived renderable data for the static mesh with the provided
 	 * level of detail settings.
 	 */
-	void Cache(UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings);
+	ENGINE_API void Cache(UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings);
 #endif // #if WITH_EDITORONLY_DATA
 
 	/** Serialization. */

@@ -29,6 +29,7 @@
 #include "StaticMeshVertexData.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshDescription.h"
+#include "StaticMeshOperations.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "SpeedTreeWind.h"
 #include "DistanceFieldAtlas.h"
@@ -54,7 +55,6 @@
 #include "PlatformInfo.h"
 #include "ScopedTransaction.h"
 #include "IMeshBuilderModule.h"
-#include "MeshDescriptionOperations.h"
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
 #include "TessellationRendering.h"
@@ -2940,6 +2940,12 @@ void UStaticMesh::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PreEditChange);
 
+	if (bIsInPostEditChange)
+	{
+		//Ignore re-entrant PostEditChange calls
+		return;
+	}
+
 	Super::PreEditChange(PropertyAboutToChange);
 
 	// Release the static mesh's resources.
@@ -2956,6 +2962,13 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
+	
+	if (bIsInPostEditChange)
+	{
+		//Ignore re-entrant PostEditChange calls
+		return;
+	}
+	TGuardValue<bool> PostEditChangeGuard(bIsInPostEditChange, true);
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LODGroup))
 	{
@@ -3025,12 +3038,15 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		BroadcastNavCollisionChange();
 	}
 
-	// Only unbuild lighting for properties which affect static lighting
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapResolution)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapCoordinateIndex))
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		FStaticMeshComponentRecreateRenderStateContext Context(this, true);		
-		SetLightingGuid();
+		// Only unbuild lighting for properties which affect static lighting
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapResolution)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapCoordinateIndex))
+		{
+			FStaticMeshComponentRecreateRenderStateContext Context(this, true);
+			SetLightingGuid();
+		}
 	}
 	
 	UpdateUVChannelData(true);
@@ -3500,7 +3516,7 @@ void FStaticMeshSourceModel::LoadRawMesh(FRawMesh& OutRawMesh) const
 			{
 				MaterialMap.Add(StaticMeshOwner->StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
 			}
-			FMeshDescriptionOperations::ConvertToRawMesh(*MeshDescription, OutRawMesh, MaterialMap);
+			FStaticMeshOperations::ConvertToRawMesh(*MeshDescription, OutRawMesh, MaterialMap);
 		}
 	}
 	else
@@ -3526,7 +3542,7 @@ void FStaticMeshSourceModel::SaveRawMesh(FRawMesh& InRawMesh, bool /* unused */)
 	TMap<int32, FName> MaterialMap;
 	check(StaticMeshOwner != nullptr);
 	FillMaterialName(StaticMeshOwner->StaticMaterials, MaterialMap);
-	FMeshDescriptionOperations::ConvertFromRawMesh(InRawMesh, *MeshDescription, MaterialMap);
+	FStaticMeshOperations::ConvertFromRawMesh(InRawMesh, *MeshDescription, MaterialMap);
 	
 	// Package up mesh description into bulk data
 	if (!MeshDescriptionBulkData.IsValid())
@@ -3849,7 +3865,7 @@ bool UStaticMesh::LoadMeshDescription(int32 LodIndex, FMeshDescription& OutMeshD
 		FStaticMeshAttributes StaticMeshAttributes(OutMeshDescription);
 		StaticMeshAttributes.Register();
 
-		FMeshDescriptionOperations::ConvertFromRawMesh(LodRawMesh, OutMeshDescription, MaterialMap);
+		FStaticMeshOperations::ConvertFromRawMesh(LodRawMesh, OutMeshDescription, MaterialMap);
 		return true;
 	}
 
@@ -4124,7 +4140,7 @@ void UStaticMesh::CacheMeshData()
 						// Convert the RawMesh to MeshDescription
 						TMap<int32, FName> MaterialMap;
 						FillMaterialName(StaticMaterials, MaterialMap);
-						FMeshDescriptionOperations::ConvertFromRawMesh(TempRawMesh, *MeshDescription, MaterialMap);
+						FStaticMeshOperations::ConvertFromRawMesh(TempRawMesh, *MeshDescription, MaterialMap);
 
 						// Pack MeshDescription into temporary bulk data, ready to write out to DDC.
 						// This will be reloaded from the DDC when needed if a MeshDescription is requested from the static mesh.
@@ -4151,7 +4167,7 @@ bool UStaticMesh::AddUVChannel(int32 LODIndex)
 	{
 		Modify();
 
-		if (FMeshDescriptionOperations::AddUVChannel(*MeshDescription))
+		if (FStaticMeshOperations::AddUVChannel(*MeshDescription))
 		{
 			CommitMeshDescription(LODIndex);
 			PostEditChange();
@@ -4169,7 +4185,7 @@ bool UStaticMesh::InsertUVChannel(int32 LODIndex, int32 UVChannelIndex)
 	{
 		Modify();
 
-		if (FMeshDescriptionOperations::InsertUVChannel(*MeshDescription, UVChannelIndex))
+		if (FStaticMeshOperations::InsertUVChannel(*MeshDescription, UVChannelIndex))
 		{
 			// Adjust the lightmap UV indices in the Build Settings to account for the new channel
 			FMeshBuildSettings& LODBuildSettings = GetSourceModel(LODIndex).BuildSettings;
@@ -4221,7 +4237,7 @@ bool UStaticMesh::RemoveUVChannel(int32 LODIndex, int32 UVChannelIndex)
 
 		Modify();
 
-		if (FMeshDescriptionOperations::RemoveUVChannel(*MeshDescription, UVChannelIndex))
+		if (FStaticMeshOperations::RemoveUVChannel(*MeshDescription, UVChannelIndex))
 		{
 			// Adjust the lightmap UV indices in the Build Settings to account for the removed channel
 			if (UVChannelIndex < LODBuildSettings.SrcLightmapIndex)
@@ -5158,6 +5174,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 
 	LODResources.bHasDepthOnlyIndices = true;
 	LODResources.DepthOnlyIndexBuffer.SetIndices(DepthOnlyIndexBuffer, IndexBufferStride);
+	LODResources.DepthOnlyNumTriangles = NumTriangles;
 
 	// Fill reversed index buffer
 	TArray<uint32> ReversedIndexBuffer(IndexBuffer);
@@ -5197,7 +5214,7 @@ UStaticMeshDescription* UStaticMesh::CreateStaticMeshDescription(UObject* Outer)
 }
 
 
-void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions)
+void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions, bool bBuildSimpleCollision)
 {
 	TArray<const FMeshDescription*> MeshDescriptions;
 	MeshDescriptions.Reserve(StaticMeshDescriptions.Num());
@@ -5207,11 +5224,11 @@ void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescri
 		MeshDescriptions.Emplace(&StaticMeshDescription->GetMeshDescription());
 	}
 
-	BuildFromMeshDescriptions(MeshDescriptions);
+	BuildFromMeshDescriptions(MeshDescriptions, bBuildSimpleCollision);
 }
 
 
-bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions)
+bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions, bool bBuildSimpleCollision)
 {
 	// Set up
 
@@ -5220,15 +5237,16 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 
 	TOptional<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 	
+	bool bNewMesh = true;
 	if (RenderData.IsValid())
 	{
+		bNewMesh = false;
 		const bool bInvalidateLighting = true;
 		const bool bRefreshBounds = true;
 		RecreateRenderStateContext = FStaticMeshComponentRecreateRenderStateContext(this, bInvalidateLighting, bRefreshBounds);
+		ReleaseResources();
+		ReleaseResourcesFence.Wait();
 	}
-
-	ReleaseResources();
-	ReleaseResourcesFence.Wait();
 
 	RenderData = MakeUnique<FStaticMeshRenderData>();
 	RenderData->AllocateLODResources(MeshDescriptions.Num());
@@ -5298,7 +5316,33 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	CreateBodySetup();
 	check(BodySetup);
 	BodySetup->InvalidatePhysicsData();
-	BodySetup->CreatePhysicsMeshes();
+
+	if (bBuildSimpleCollision)
+	{
+		FKBoxElem BoxElem;
+		BoxElem.Center = RenderData->Bounds.Origin;
+		BoxElem.X = RenderData->Bounds.BoxExtent.X * 2.0f;
+		BoxElem.Y = RenderData->Bounds.BoxExtent.Y * 2.0f;
+		BoxElem.Z = RenderData->Bounds.BoxExtent.Z * 2.0f;
+		BodySetup->AggGeom.BoxElems.Add(BoxElem);
+		BodySetup->CreatePhysicsMeshes();
+	}
+
+	if (!bNewMesh)
+	{
+		for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		{
+			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
+			if (StaticMeshComponent->GetStaticMesh() == this)
+			{
+				// it needs to recreate IF it already has been created
+				if (StaticMeshComponent->IsPhysicsStateCreated())
+				{
+					StaticMeshComponent->RecreatePhysicsState();
+				}
+			}
+		}
+	}
 
 	return true;
 }

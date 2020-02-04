@@ -234,6 +234,9 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=BasicProperties, meta=(DisallowedClasses = "Texture2D"))
 	TSubclassOf<UTexture> SubclassOfWithDisallowed;
 
+	UPROPERTY(EditAnywhere, Category=BasicProperties, meta=(AllowedClasses="StaticMesh,  SkeletalMesh	"))
+	TAssetPtr<UObject> AssetPointerWithAllowedAndWhitespace;
+
 	UPROPERTY(EditAnywhere, Category=BasicProperties)
 	FLinearColor LinearColorProperty;
 
@@ -464,6 +467,15 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
 	TMap<FName, FName> NameToNameMap;
+
+	UPROPERTY(EditAnywhere, Category="TMap Tests")
+	TMap<FName, UObject*> NameToObjectMap;
+
+	UPROPERTY(EditAnywhere, Category="TMap Tests")
+	TMap<FName, FPropertyEditorTestBasicStruct> NameToCustomMap;
+
+	UPROPERTY(EditAnywhere, Category="TMap Tests")
+	TMap<FName, FLinearColor> NameToColorMap;
 
 	UPROPERTY(EditAnywhere, Category = "TMap Tests")
 	TMap<int, FPropertyEditorTestBasicStruct> IntToCustomMap;

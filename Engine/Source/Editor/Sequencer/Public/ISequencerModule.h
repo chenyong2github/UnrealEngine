@@ -15,13 +15,11 @@ class FExtender;
 class FStructOnScope;
 class FExtensibilityManager;
 class FMenuBuilder;
+class FSequencerCustomizationManager;
 class ISequencerTrackEditor;
 class ISequencerEditorObjectBinding;
 class IToolkitHost;
 class UMovieSceneSequence;
-class FAssetDragDropOp;
-class FClassDragDropOp;
-class FActorDragDropGraphEdOp;
 struct FSequencerInitParams;
 
 enum class ECurveEditorTreeFilterType : uint32;
@@ -62,18 +60,6 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnSequencerCreated, TSharedRef<ISequencer>)
 /** A delegate that gets executed a sequencer is initialize and allow modification the initialization params. */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPreSequencerInit, TSharedRef<ISequencer>, TSharedRef<ISequencerObjectChangeListener>, const FSequencerInitParams&);
 
-/** A delegate that gets executed when a drag/drop event happens on the sequencer. The return value determines if the event was handled by the bound delegate. */
-DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOptionalOnDragDrop, const FGeometry&, const FDragDropEvent&, FReply&);
-
-/** A delegate that gets executed when an asset is dropped on the sequencer. The return value determines if the operation was handled by the bound delegate. */
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnAssetsDrop, const TArray<UObject*>&, const FAssetDragDropOp&);
-
-/** A delegate that gets executed when a class is dropped on the sequencer. The return value determines if the operation was handled by the bound delegate. */
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnClassesDrop, const TArray<TWeakObjectPtr<UClass>>&, const FClassDragDropOp&);
-
-/** A delegate that gets executed when an actor is dropped on the sequencer. The return value determines if the operation was handled by the bound delegate. */
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnActorsDrop, const TArray<TWeakObjectPtr<AActor>>&, const FActorDragDropGraphEdOp&);
-
 /**
  * Sequencer view parameters.
  */
@@ -100,18 +86,6 @@ struct FSequencerViewParams
 
 	/** Style of scrubber to use */
 	ESequencerScrubberStyle ScrubberStyle;
-
-	/** Called when something is dragged over the sequencer. */
-	FOptionalOnDragDrop OnReceivedDragOver;
-
-	/** Called when an asset is dropped on the sequencer. */
-	FOnAssetsDrop OnAssetsDrop;
-
-	/** Called when a class is dropped on the sequencer. */
-	FOnClassesDrop OnClassesDrop;
-
-	/** Called when an actor is dropped on the sequencer. */
-	FOnActorsDrop OnActorsDrop;
 
 	FSequencerViewParams(FString InName = FString())
 		: UniqueName(MoveTemp(InName))
@@ -289,6 +263,12 @@ public:
 	 * @return Toolbar extensibility manager.
 	 */
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() const = 0;
+
+	/**
+	 * Get the sequencer customization manager, which handles editor customizations applied based on
+	 * the currently focused sequence type and other dynamic criteria.
+	 */
+	virtual TSharedPtr<FSequencerCustomizationManager> GetSequencerCustomizationManager() const = 0;
 
 	/**
 	 * Register a sequencer channel type using a default channel interface.

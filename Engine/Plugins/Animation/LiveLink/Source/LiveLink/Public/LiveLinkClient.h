@@ -11,7 +11,8 @@
 #include "LiveLinkRefSkeleton.h"
 #include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
-#include "Misc/FrameRate.h"
+#include "Misc/Optional.h"
+#include "Misc/QualifiedFrameTime.h"
 #include "Misc/Timecode.h"
 #include "Tickable.h"
 #include "UObject/GCObject.h"
@@ -48,6 +49,7 @@ public:
 	virtual const FLiveLinkSubjectFrame* GetSubjectData(FName InSubjectName) override;
 	virtual const FLiveLinkSubjectFrame* GetSubjectDataAtWorldTime(FName InSubjectName, double InWorldTime) override;
 	virtual const FLiveLinkSubjectFrame* GetSubjectDataAtSceneTime(FName InSubjectName, const FTimecode& InSceneTime) override;
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual const TArray<FLiveLinkFrame>* GetSubjectRawFrames(FName SubjectName) override;
 	virtual void ClearSubjectsFrames(FName SubjectName) override;
 	virtual void ClearAllSubjectsFrames() override;
@@ -86,8 +88,8 @@ public:
 	virtual void PushSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& SubjectKey, FLiveLinkFrameDataStruct&& FrameData) override;
 
 	virtual bool CreateSubject(const FLiveLinkSubjectPreset& SubjectPreset) override;
-	virtual bool AddVirtualSubject(FLiveLinkSubjectKey VirtualSubjectKey, TSubclassOf<ULiveLinkVirtualSubject> VirtualSubjectClass) override;
-	virtual void RemoveVirtualSubject(FLiveLinkSubjectKey VirtualSubjectKey) override;
+	virtual bool AddVirtualSubject(const FLiveLinkSubjectKey& VirtualSubjectKey, TSubclassOf<ULiveLinkVirtualSubject> VirtualSubjectClass) override;
+	virtual void RemoveVirtualSubject(const FLiveLinkSubjectKey& VirtualSubjectKey) override;
 	virtual void RemoveSubject_AnyThread(const FLiveLinkSubjectKey& SubjectKey) override;
 	virtual void ClearSubjectsFrames_AnyThread(FLiveLinkSubjectName SubjectName) override;
 	virtual void ClearSubjectsFrames_AnyThread(const FLiveLinkSubjectKey& InSubjectKey) override;
@@ -110,6 +112,7 @@ public:
 	virtual bool DoesSubjectSupportsRole(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> SupportedRole) const override;
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(const FLiveLinkSubjectKey& SubjectKey) const override;
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(FLiveLinkSubjectName SubjectName) const override;
+	virtual ULiveLinkSourceSettings* GetSourceSettings(const FGuid& SourceGuid) const override;
 	virtual UObject* GetSubjectSettings(const FLiveLinkSubjectKey& SubjectKey) const override;
 	virtual ULiveLinkSourceSettings* GetSourceSettings(const FGuid& SourceGuid) const override;
 
@@ -117,7 +120,7 @@ public:
 	virtual bool EvaluateFrameFromSource_AnyThread(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual bool EvaluateFrame_AnyThread(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual bool EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName SubjectName, double WorldTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
-	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FQualifiedFrameTime& FrameTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual void ForceTick() override;
 
 	virtual FSimpleMulticastDelegate& OnLiveLinkTicked() override;
@@ -131,7 +134,9 @@ public:
 	virtual FOnLiveLinkSubjectEvaluated& OnLiveLinkSubjectEvaluated() override;
 #endif
 
-	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) override;
+	virtual void RegisterForFrameDataReceived(const FLiveLinkSubjectKey& InSubjectKey, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived_AnyThread, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived_AnyThread, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle) override;
+	virtual void UnregisterForFrameDataReceived(const FLiveLinkSubjectKey& InSubjectKey, FDelegateHandle InStaticDataReceivedHandle, FDelegateHandle InFrameDataReceivedHandle) override;
+	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataAdded::FDelegate& OnStaticDataAdded, const FOnLiveLinkSubjectFrameDataAdded::FDelegate& OnFrameDataAdded, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) override;
 	virtual void UnregisterSubjectFramesHandle(FLiveLinkSubjectName InSubjectName, FDelegateHandle InStaticDataReceivedHandle, FDelegateHandle InFrameDataReceivedHandle) override;
 	//~ End ILiveLinkClient implementation
 
@@ -173,6 +178,7 @@ public:
 
 protected:
 	//~ Begin FLiveLinkClient_Base_DEPRECATED implementation
+	using FLiveLinkClient_Base_DEPRECATED::EvaluateFrameAtSceneTime_AnyThread;
 	virtual void AquireLock_Deprecation() override;
 	virtual void ReleaseLock_Deprecation() override;
 	virtual void ClearFrames_Deprecation(const FLiveLinkSubjectKey& SubjectKey) override;
@@ -237,14 +243,26 @@ private:
 	/** Lock to stop multiple threads accessing the Subjects from the collection at the same time */
 	mutable FCriticalSection CollectionAccessCriticalSection;
 
+	struct FSubjectFramesAddedHandles
+	{
+		FOnLiveLinkSubjectStaticDataAdded OnStaticDataAdded;
+		FOnLiveLinkSubjectFrameDataAdded OnFrameDataAdded;
+	};
+
+	/** Map of delegates to notify interested parties when the client receives a static or data frame for each subject */
+	TMap<FLiveLinkSubjectName, FSubjectFramesAddedHandles> SubjectFrameAddedHandles;
+
 	struct FSubjectFramesReceivedHandles
 	{
 		FOnLiveLinkSubjectStaticDataReceived OnStaticDataReceived;
 		FOnLiveLinkSubjectFrameDataReceived OnFrameDataReceived;
 	};
 
-	/** Map of delegates to notify interested parties when the client receives a static or data frame for each subject */
-	TMap<FLiveLinkSubjectName, FSubjectFramesReceivedHandles> SubjectFrameReceivedHandles;
+	/** Delegate when LiveLinkClient received a subject static or frame data. */
+	TMap<FLiveLinkSubjectKey, FSubjectFramesReceivedHandles> SubjectFrameReceivedHandles;
+
+	/** Lock to to access SubjectFrameReceivedHandles */
+	mutable FCriticalSection SubjectFrameReceivedHandleseCriticalSection;
 
 	/** Delegate when LiveLinkClient has ticked. */
 	FSimpleMulticastDelegate OnLiveLinkTickedDelegate;
@@ -255,7 +273,6 @@ private:
 
 	/** Cached value of the engine timecode and frame rate*/
 	double CachedEngineTime;
-	FTimecode CachedEngineTimecode;
-	FFrameRate CachedEngineTimecodeFrameRate;
+	TOptional<FQualifiedFrameTime> CachedEngineFrameTime;
 #endif
 };

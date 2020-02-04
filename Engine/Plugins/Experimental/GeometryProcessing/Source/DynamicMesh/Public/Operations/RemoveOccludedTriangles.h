@@ -55,14 +55,14 @@ public:
 
 	/**
 	 * Remove the occluded triangles, considering the given occluder AABB tree (which may represent more geometry than a single mesh)
-	 * See alternative versions below if you would like to not precompute acceleration structures; these are mainly provided so the N-mutual-occluding-objects case can run on each mesh separately without 
+	 * See simpler invocations below for the single instance case or the case where you'd like the spatial data structures built for you
 	 *
-	 * @param LocalToWorld Transform to take the local mesh into the space of the occluders
+	 * @param MeshLocalToOccluderSpaces Transforms to take instances of the local mesh into the space of the occluders
 	 * @param Spatial AABB trees for all occluders to consider
 	 * @param FastWindingTrees Precomputed fast winding trees for occluder
 	 * @return true on success
 	 */
-	virtual bool Apply(FTransform3d MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
+	virtual bool Apply(const TArrayView<const FTransform3d> MeshLocalToOccluderSpaces, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
 	{
 		if (Cancelled())
 		{
@@ -137,7 +137,7 @@ public:
 			FMeshNormals Normals(Mesh);
 			Normals.ComputeVertexNormals();
 
-			ParallelFor(Mesh->MaxVertexID(), [this, &Normals, &VertexOccluded, &IsOccludedF, &MeshLocalToOccluderSpace](int32 VID)
+			ParallelFor(Mesh->MaxVertexID(), [this, &Normals, &VertexOccluded, &IsOccludedF, &MeshLocalToOccluderSpaces](int32 VID)
 			{
 				if (!Mesh->IsVertex(VID))
 				{
@@ -146,7 +146,12 @@ public:
 				FVector3d SamplePos = Mesh->GetVertex(VID);
 				FVector3d Normal = Normals[VID];
 				SamplePos += Normal * NormalOffset;
-				VertexOccluded[VID] = IsOccludedF(MeshLocalToOccluderSpace.TransformPosition(SamplePos));
+				bool bAllOccluded = true;
+				for (const FTransform3d& XF : MeshLocalToOccluderSpaces)
+				{
+					bAllOccluded = bAllOccluded && IsOccludedF(XF.TransformPosition(SamplePos));
+				}
+				VertexOccluded[VID] = bAllOccluded;
 			}, bForceSingleThread);
 		}
 		if (Cancelled())
@@ -156,7 +161,7 @@ public:
 
 		RemovedT.Empty();
 		FCriticalSection RemoveTMutex;
-		ParallelFor(Mesh->MaxTriangleID(), [this, &VertexOccluded, &IsOccludedF, &RemoveTMutex, &MeshLocalToOccluderSpace, &TriangleBaryCoordSamples](int32 TID)
+		ParallelFor(Mesh->MaxTriangleID(), [this, &VertexOccluded, &IsOccludedF, &RemoveTMutex, &MeshLocalToOccluderSpaces, &TriangleBaryCoordSamples](int32 TID)
 		{
 			if (!Mesh->IsTriangle(TID))
 			{
@@ -178,7 +183,10 @@ public:
 				{
 					FVector3d BaryCoords = TriangleBaryCoordSamples[SampleIdx];
 					FVector3d SamplePos = V0 * BaryCoords.X + V1 * BaryCoords.Y + V2 * BaryCoords.Z + Normal * NormalOffset;
-					bInside = IsOccludedF(MeshLocalToOccluderSpace.TransformPosition(SamplePos));
+					for (const FTransform3d& XF : MeshLocalToOccluderSpaces)
+					{
+						bInside = bInside && IsOccludedF(XF.TransformPosition(SamplePos));
+					}
 				}
 			}
 			if (bInside)
@@ -209,14 +217,28 @@ public:
 		return true;
 	}
 
+
 	/**
-	 * Remove the occluded triangles
+	* Remove the occluded triangles -- single instance case
+	*
+	* @param LocalToWorld Transform to take the local mesh into the space of the occluder geometry
+	* @param Occluder AABB tree of occluding geometry
+	* @return true on success
+	*/
+	virtual bool Apply(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Spatial, TFastWindingTree<OccluderTriangleMeshType>* FastWindingTree)
+	{
+		TArrayView<const FTransform3d> MeshLocalToOccluderSpaces(&MeshLocalToOccluderSpace, 1); // array view of the single transform
+		return Apply(MeshLocalToOccluderSpaces, Spatial, FastWindingTree);
+	}
+
+	/**
+	 * Remove the occluded triangles -- single instance case w/out precomputed winding tree
 	 *
 	 * @param LocalToWorld Transform to take the local mesh into the space of the occluder geometry
 	 * @param Occluder AABB tree of occluding geometry
 	 * @return true on success
 	 */
-	virtual bool Apply(FTransform3d MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Occluder)
+	virtual bool Apply(const FTransform3d& MeshLocalToOccluderSpace, TMeshAABBTree3<OccluderTriangleMeshType>* Occluder)
 	{
 		TFastWindingTree<OccluderTriangleMeshType> FastWindingTree(Occluder, InsideMode == EOcclusionCalculationMode::FastWindingNumber);
 		return Apply(MeshLocalToOccluderSpace, Occluder, &FastWindingTree);

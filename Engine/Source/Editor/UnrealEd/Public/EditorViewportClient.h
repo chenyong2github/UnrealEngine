@@ -899,6 +899,14 @@ public:
 	 */
 	void FocusViewportOnBox( const FBox& BoundingBox, bool bInstant = false );
 
+	/**
+	 * Translates the viewport so that the given LookAt point is at the center of viewport, while maintaining current Location/LookAt distance
+	 *
+	 * @param NewLookAt			The new NewLookAt point to focus on
+	 * @param bInstant			Whether or not to focus the viewport instantly or over time
+	 */
+	void CenterViewportAtPoint(const FVector& NewLookAt, bool bInstant = false);
+
 	FEditorCameraController* GetCameraController(void) { return CameraController; }
 
 	void InputAxisForOrbit(FViewport* Viewport, const FVector& DragDelta, FVector& Drag, FRotator& Rot);

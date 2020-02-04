@@ -750,6 +750,7 @@ void FConcertClientWorkspace::OnEndFrame()
 		if (PackageManager)
 		{
 			PackageManager->SynchronizePersistedFiles(SessionData.PersistedFiles);
+			PackageManager->QueueDirtyPackagesForReload();
 			PackageManager->ApplyAllHeadPackageData();
 			PackageManager->SynchronizeInMemoryPackages();
 		}

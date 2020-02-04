@@ -2,9 +2,8 @@
 #include "MovieRenderPipelineEditorModule.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineGameOverrideSetting.h"
-#include "MoviePipelineAccumulationSetting.h"
+#include "MoviePipelineAntiAliasingSetting.h"
 #include "MoviePipelineImageSequenceOutput.h"
-#include "MoviePipelineAudioOutput.h"
 #include "Misc/Paths.h"
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineOutputSetting.h"
@@ -20,13 +19,13 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 	UMoviePipelineShotConfig* OutConfig = NewObject<UMoviePipelineShotConfig>(InOwner);
 	OutConfig->FindOrAddSetting<UMoviePipelineDeferredPassBase>();
 
-	UMoviePipelineAccumulationSetting* Accumulation = OutConfig->FindOrAddSetting< UMoviePipelineAccumulationSetting>();
-	Accumulation->SpatialSampleCount = InSpatialSampleCount;
-	Accumulation->AccumulationGamma = AccumulationGamma;
+	UMoviePipelineAntiAliasingSetting* AntiAliasing = OutConfig->FindOrAddSetting< UMoviePipelineAntiAliasingSetting>();
+	AntiAliasing->SpatialSampleCount = InSpatialSampleCount;
+	AntiAliasing->AccumulationGamma = AccumulationGamma;
+	AntiAliasing->TemporalSampleCount = InSampleCount;
 
 	{
 		UMoviePipelineCameraSetting* CameraSetting = OutConfig->FindOrAddSetting<UMoviePipelineCameraSetting>();
-		CameraSetting->TemporalSampleCount = InSampleCount;
 		CameraSetting->CameraShutterAngle = InShutterAngle;
 		CameraSetting->ShutterTiming = InFrameTiming;
 		CameraSetting->bManualExposure = false;
@@ -36,7 +35,7 @@ UMoviePipelineShotConfig* GenerateTestShotConfig(UObject* InOwner, int32 InSampl
 	{
 		UMoviePipelineHighResSetting* HighRes = OutConfig->FindOrAddSetting<UMoviePipelineHighResSetting>();
 		HighRes->TileCount = InTileCount;
-		HighRes->OverlapPercentage = PadRatioX;
+		HighRes->OverlapRatio = PadRatioX;
 		// HighRes->bWriteAllSamples = true;
 		// HighRes->OverlapPercentage = 0.f;
 	}

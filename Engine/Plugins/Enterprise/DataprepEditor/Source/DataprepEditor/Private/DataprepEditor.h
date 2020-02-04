@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "DataprepGraph/DataprepGraph.h"
+
 #include "DataprepAssetInterface.h"
 #include "DataprepActionAsset.h"
 
@@ -23,10 +25,11 @@ class FUICommandList;
 class IMessageLogListing;
 class IMessageToken;
 class SDockableTab;
+class SGraphEditor;
 class SGraphNodeDetailsWidget;
 class SInspectorView;
 class SWidget;
-class UWorld;
+class UDataprepGraph;
 class UEdGraphNode;
 
 namespace AssetPreviewWidget
@@ -130,6 +133,7 @@ private:
 	TSharedRef<SDockTab> SpawnTabDataprep(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabSceneViewport( const FSpawnTabArgs& Args );
 	TSharedRef<SDockTab> SpawnTabStatistics(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTabGraphEditor(const FSpawnTabArgs & Args);
 
 	TSharedRef<FTabManager::FLayout> CreateDataprepLayout();
 	TSharedRef<FTabManager::FLayout> CreateDataprepInstanceLayout();
@@ -180,7 +184,7 @@ private:
 	/** Handles change to selection in SceneOutliner */
 	void OnSceneOutlinerSelectionChanged(SceneOutliner::FTreeItemPtr ItemPtr, ESelectInfo::Type SelectionMode);
 
-	bool OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset, UDataprepOperation* Operation, UDataprepFilter* Filter );
+	bool OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset);
 
 	/** Handles change to the content passed to an action */
 	void OnActionsContextChanged( const UDataprepActionAsset* ActionAsset, bool bWorldChanged, bool bAssetsChanged, const TArray< TWeakObjectPtr<UObject> >& NewAssets );
@@ -201,12 +205,14 @@ private:
 	TSharedPtr<SWidget> ScenePreviewView;
 	TSharedPtr<SGraphNodeDetailsWidget> DetailsView;
 	TSharedPtr<class SDataprepAssetView > DataprepAssetView;
-	TSharedPtr<class SGraphEditor> PipelineView;
+	TSharedPtr<SGraphEditor> PipelineView;
+	TSharedPtr<SGraphEditor> GraphEditor;
 
 	TSharedPtr<class ICustomSceneOutliner> SceneOutliner;
 
 	/** Command list for the pipeline editor */
 	TSharedPtr<FUICommandList> PipelineEditorCommands;
+	TSharedPtr<FUICommandList> GraphEditorCommands;
 	bool bIsActionMenuContextSensitive;
 	bool bSaveIntermediateBuildProducts;
 
@@ -226,6 +232,11 @@ private:
 	 * The world used to preview the inputs
 	 */
 	TStrongObjectPtr<UWorld> PreviewWorld;
+
+	/**
+	 * The graph used to manipulate actions and steps
+	 */
+	TStrongObjectPtr<UDataprepGraph> DataprepGraph;
 
 	TSet<class AActor*> DefaultActorsInPreviewWorld;
 
@@ -255,6 +266,7 @@ private:
 	static const FName DataprepAssetTabId;
 	static const FName SceneViewportTabId;
 	static const FName DataprepStatisticsTabId;
+	static const FName DataprepGraphEditorTabId;
 
 //Temp Code to allow us to work on the nodes while we don't have our own graph.
 public:
@@ -268,6 +280,8 @@ private:
 	TSharedRef<SDockTab> SpawnTabPipelineGraph(const FSpawnTabArgs& Args);
 
 	void CreatePipelineEditor();
+
+	void CreateGraphEditor();
 
 	
 	/** Called to create context menu when right-clicking on graph */

@@ -16,16 +16,18 @@ namespace DatasmithDispatcher
 class DATASMITHDISPATCHER_API FDatasmithDispatcher
 {
 public:
-	FDatasmithDispatcher(const CADLibrary::FImportParameters& InImportParameters, const FString& InCacheDir, int32 InNumberOfWorkers, TMap<FString, FString>& CADFileToUnrealFileMap, TMap<FString, FString>& CADFileToUnrealGeomMap);
+	FDatasmithDispatcher(const CADLibrary::FImportParameters& InImportParameters, const FString& InCacheDir, int32 InNumberOfWorkers, TMap<uint32, FString>& CADFileToUnrealFileMap, TMap<uint32, FString>& CADFileToUnrealGeomMap);
 
-	void AddTask(const FString& FileName);
+	void AddTask(const CADLibrary::FFileDescription & FileDescription);
 	TOptional<FTask> GetNextTask();
 	void SetTaskState(int32 TaskIndex, ETaskState TaskState);
 
 	void Process(bool bWithProcessor);
 	bool IsOver();
 
-	void LinkCTFileToUnrealCacheFile(const FString& CTFile, const FString& UnrealSceneGraphFile, const FString& UnrealGeomFile);
+	void LinkCTFileToUnrealCacheFile(const CADLibrary::FFileDescription& CTFileDescription, const FString& UnrealSceneGraphFile, const FString& UnrealGeomFile);
+
+	void LogWarningMessages(const TArray<FString>& Warnings) const;
 
 private:
 	void SpawnHandlers();
@@ -43,8 +45,8 @@ private:
 	int32 CompletedTaskCount;
 
 	// Scene wide state
-	TMap<FString, FString>& CADFileToUnrealFileMap;
-	TMap<FString, FString>& CADFileToUnrealGeomMap;
+	TMap<uint32, FString>& CADFileToUnrealFileMap;
+	TMap<uint32, FString>& CADFileToUnrealGeomMap;
 	FString ProcessCacheFolder;
 	CADLibrary::FImportParameters ImportParameters;
 

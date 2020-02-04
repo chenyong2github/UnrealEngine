@@ -54,7 +54,7 @@ private:
 	FString GetSessionWorkingDir(const FGuid& SessionId) const;
 
 	EConcertSessionRepositoryMountResponseCode MountSessionRepository(FConcertServerSessionRepository& Repository, bool bCreateIfNotExist, bool bCleanWorkingDir, bool bCleanExpiredSessions, bool bSearchByPaths);
-	bool UnmountSessionRepository(FConcertServerSessionRepository& InOutRepository, bool bDropped);
+	bool UnmountSessionRepository(const FGuid& RepositoryId, bool bDropped);
 
 	/**  */
 	void HandleDiscoverServersEvent(const FConcertMessageContext& Context);

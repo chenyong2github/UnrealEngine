@@ -8,8 +8,8 @@
 #include "PropertyValue.h"
 #include "Variant.h"
 #include "VariantManager.h"
-#include "VariantManagerLog.h"
 #include "VariantManagerContentEditorModule.h"
+#include "VariantManagerLog.h"
 #include "VariantManagerPropertyCapturer.h"
 #include "VariantObjectBinding.h"
 #include "VariantSet.h"
@@ -263,7 +263,7 @@ FString UVariantManagerBlueprintLibrary::GetPropertyTypeString(UPropertyValue* P
 		return TEXT("object");
 	}
 
-	UE_LOG(LogVariantContent, Error, TEXT("Invalid property type for UPropertyValue '%s'!"), *PropVal->GetFullDisplayString());
+	UE_LOG(LogVariantManager, Error, TEXT("Invalid property type for UPropertyValue '%s'!"), *PropVal->GetFullDisplayString());
 	return FString();
 }
 

@@ -11,7 +11,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 #include "UVMapSettings.h"
 #include "StaticMeshAttributes.h"
 
@@ -172,7 +172,7 @@ void FDatasmithMeshExporter::CreateDefaultUVs( FDatasmithMesh& Mesh )
 	FDatasmithMeshUtils::ToMeshDescription(Mesh, MeshDescription);
 	FUVMapParameters UVParameters(Mesh.GetExtents().GetCenter(), FQuat::Identity, Mesh.GetExtents().GetSize(), FVector::OneVector, FVector2D::UnitVector);
 	TMap<FVertexInstanceID, FVector2D> TexCoords;
-	FMeshDescriptionOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
+	FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
 	
 	// Put the results in a map to determine the number of unique values.
 	TMap<FVector2D, TArray<int32>> UniqueTexCoordMap;

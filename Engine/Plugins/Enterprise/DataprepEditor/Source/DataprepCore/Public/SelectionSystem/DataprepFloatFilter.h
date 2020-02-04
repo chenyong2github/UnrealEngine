@@ -28,14 +28,17 @@ class DATAPREPCORE_API UDataprepFloatFilter : public UDataprepFilter
 public:
 	bool Filter(float Float) const;
 
-	//~ Begin UDataprepFilter Interface
+	// Begin UDataprepFilter Interface
 	virtual TArray<UObject*> FilterObjects(const TArray<UObject*>& Objects) const override;
 	virtual bool IsThreadSafe() const override { return true; }
 	virtual FText GetFilterCategoryText() const override;
 	virtual TSubclassOf<UDataprepFetcher> GetAcceptedFetcherClass() const override;
 	virtual void SetFetcher(const TSubclassOf<UDataprepFetcher>& FetcherClass) override;
-	virtual UDataprepFetcher* GetFetcher() const override;
-	//~ Begin UDataprepFilter Interface
+private:
+	virtual const UDataprepFetcher* GetFetcherImplementation() const override;
+	// End UDataprepFilter Interface
+
+public:
 
 	EDataprepFloatMatchType GetFloatMatchingCriteria() const;
 	float GetEqualValue() const;
@@ -50,15 +53,16 @@ private:
 	UPROPERTY()
 	UDataprepFloatFetcher* FloatFetcher;
 
-	// The criteria selected by the user
-	UPROPERTY(EditAnywhere, Category = Filter)
+	// The matching criteria used when checking if a fetched value can pass the filter
+	UPROPERTY(EditAnywhere, Category = "Filter")
 	EDataprepFloatMatchType FloatMatchingCriteria;
 
-	// The value to use for the equality check
-	UPROPERTY(EditAnywhere, Category = Filter)
+	// The value to use for the comparison against the fetched value
+	UPROPERTY(EditAnywhere, Category = "Filter")
 	float EqualValue;
 
 	// The value used for the tolerance when doing a nearly equal
-	UPROPERTY(EditAnywhere, Category = Filter)
+	UPROPERTY(EditAnywhere, Category = "Filter")
 	float Tolerance = KINDA_SMALL_NUMBER;
 };
+

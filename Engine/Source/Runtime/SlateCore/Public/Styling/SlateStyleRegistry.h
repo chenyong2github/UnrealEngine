@@ -58,6 +58,15 @@ public:
 	 */
 	static void GetAllResources( TArray<const FSlateBrush*>& OutResources );
 
+	/**
+	 * Gets the names of every style entry using a brush
+	 * Note: this function is expensive and is not designed to be used in performance critical situations
+	 * 
+	 * @param BrushName The name of the brush to find style entries from
+	 * @return Array of style names using the brush
+	 */
+	static TArray<FName> GetSylesUsingBrush(const FName BrushName);
+
 private:
 
 	/** Repository is just a collection of shared style pointers. */

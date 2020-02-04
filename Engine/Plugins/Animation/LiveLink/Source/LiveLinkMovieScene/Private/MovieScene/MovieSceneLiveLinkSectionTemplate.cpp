@@ -122,15 +122,7 @@ bool FMovieSceneLiveLinkSectionTemplate::GetLiveLinkFrameArray(const FFrameTime&
 {
 	//See if we have a valid time code time. 
 	//If so we may can possible send raw data if not asked to only send interpolated.
-	TOptional<FQualifiedFrameTime> TimeCodeFrameTime;
-	if (GEngine && GEngine->GetTimecodeProvider() && GEngine->GetTimecodeProvider()->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
-	{
-		const UTimecodeProvider* TimeCodeProvider = GEngine->GetTimecodeProvider();
-		FFrameRate TCFrameRate = TimeCodeProvider->GetFrameRate();
-		FTimecode TimeCode = TimeCodeProvider->GetTimecode(); //Same as FApp::GetTimecode();
-		FFrameNumber FrameNumber = TimeCode.ToFrameNumber(TCFrameRate);
-		TimeCodeFrameTime = FQualifiedFrameTime(FFrameTime(FrameNumber), TCFrameRate);
-	}
+	TOptional<FQualifiedFrameTime> TimeCodeFrameTime = FApp::GetCurrentFrameTime();
 
 	//Send interpolated if told to or no valid timecode synced.
 	const bool bAlwaysSendInterpolated = CVarSequencerAlwaysSendInterpolatedLiveLink->GetInt() == 0 ? false : true;

@@ -6,9 +6,11 @@
 #include "Misc/Guid.h"
 #include "MovieSceneTrackEditor.h"
 #include "TrackEditors/SubTrackEditorBase.h"
+#include "ContentBrowserDelegates.h"
 
 struct FAssetData;
 class FMenuBuilder;
+class UCameraAnim;
 class UCameraComponent;
 class UTemplateSequence;
 class UTemplateSequenceSection;
@@ -24,19 +26,25 @@ public:
 	// ISequencerTrackEditor interface
 	virtual bool SupportsType(TSubclassOf<class UMovieSceneTrack> TrackClass) const override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
+	TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
+	virtual void AddKey(const FGuid& ObjectGuid) override;
 
 private:
-	void AddTemplateSequenceSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
-	void AddCameraAnimationSequenceSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
-	void AddTemplateSequenceAssetSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, const UClass* TemplateSequenceClass, bool bRecursiveClasses = false);
+	void AddTemplateSequenceAssetSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, const UClass* RootBindingClass, bool bIsCameraAnimMenu);
+	TSharedRef<SWidget> BuildTemplateSequenceAssetSubMenu(FGuid ObjectBinding, const UClass* RootBindingClass, bool bIsCameraAnimMenu);
 
 	void OnTemplateSequenceAssetSelected(const FAssetData& AssetData, TArray<FGuid> ObjectBindings);
 	void OnTemplateSequenceAssetEnterPressed(const TArray<FAssetData>& AssetData, TArray<FGuid> ObjectBindings);
 
+	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, FGuid ObjectBinding, UTemplateSequence* TemplateSequence);
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, TArray<FGuid> ObjectBindings, UTemplateSequence* TemplateSequence);
+	FKeyPropertyResult AddLegacyCameraAnimKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, UCameraAnim* CameraAnim);
 
+	const UClass* AcquireObjectClassFromObjectGuid(const FGuid& Guid);
 	UCameraComponent* AcquireCameraComponentFromObjectGuid(const FGuid& Guid);
+
+	friend class STemplateSequenceAssetSubMenu;
 };
 
 class FTemplateSequenceSection
@@ -44,9 +52,6 @@ class FTemplateSequenceSection
 	, public TSharedFromThis<FTemplateSequenceSection>
 {
 public:
-	/** Constructor. */
 	FTemplateSequenceSection(TSharedPtr<ISequencer> InSequencer, UTemplateSequenceSection& InSection);
-
-	/** Virtual destructor. */
 	virtual ~FTemplateSequenceSection() {}
 };

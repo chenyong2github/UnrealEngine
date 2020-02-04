@@ -61,7 +61,8 @@ TAutoConsoleVariable<int32> CVarDisplayOutputDevice(
 	TEXT("5: ACES 1000 nit ScRGB (HDR)\n")
 	TEXT("6: ACES 2000 nit ScRGB (HDR)\n")
 	TEXT("7: Linear EXR (HDR)\n")
-	TEXT("8: Linear final color, no tone curve (HDR)\n"),
+	TEXT("8: Linear final color, no tone curve (HDR)\n")
+	TEXT("9: Linear final color with tone curve\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 	
 TAutoConsoleVariable<int32> CVarHDROutputEnabled(
@@ -218,8 +219,8 @@ FDesktopDomain RemapPermutation(FDesktopDomain PermutationVector, ERHIFeatureLev
 	// You most likely need Bloom anyway.
 	CommonPermutationVector.Set<FTonemapperBloomDim>(true);
 
-	// Disable grain quantization only for LinearNoToneCurve output device
-	if (PermutationVector.Get<FTonemapperOutputDeviceDim>() == ETonemapperOutputDevice::LinearNoToneCurve)
+	// Disable grain quantization for LinearNoToneCurve and LinearWithToneCurve output device
+	if (PermutationVector.Get<FTonemapperOutputDeviceDim>() == ETonemapperOutputDevice::LinearNoToneCurve || PermutationVector.Get<FTonemapperOutputDeviceDim>() == ETonemapperOutputDevice::LinearWithToneCurve)
 		PermutationVector.Set<FTonemapperGrainQuantizationDim>(false);
 	else
 		PermutationVector.Set<FTonemapperGrainQuantizationDim>(true);
@@ -449,6 +450,10 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 	{
 		OutputDeviceValue = ETonemapperOutputDevice::LinearNoToneCurve;
 	}
+	else if (Family.SceneCaptureSource == SCS_FinalToneCurveHDR)
+	{
+		OutputDeviceValue = ETonemapperOutputDevice::LinearWithToneCurve;
+	}
 	else if (Family.bIsHDR)
 	{
 		OutputDeviceValue = ETonemapperOutputDevice::ACES1000nitST2084;
@@ -670,7 +675,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		{
 			OutputDesc.Format = PF_A32B32G32R32F;
 		}
-		if (OutputDevice == ETonemapperOutputDevice::LinearNoToneCurve)
+		if (OutputDevice == ETonemapperOutputDevice::LinearNoToneCurve || OutputDevice == ETonemapperOutputDevice::LinearWithToneCurve)
 		{
 			OutputDesc.Format = PF_FloatRGBA;
 		}
@@ -947,7 +952,7 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 		{
 			OutputDesc.Format = PF_A32B32G32R32F;
 		}
-		if (OutputDevice == ETonemapperOutputDevice::LinearNoToneCurve)
+		if (OutputDevice == ETonemapperOutputDevice::LinearNoToneCurve || OutputDevice == ETonemapperOutputDevice::LinearWithToneCurve)
 		{
 			OutputDesc.Format = PF_FloatRGBA;
 		}

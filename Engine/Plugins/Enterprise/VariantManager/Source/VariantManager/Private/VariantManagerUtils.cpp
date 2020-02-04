@@ -8,6 +8,12 @@
 #include "Components/MeshComponent.h"
 #include "Components/LightComponent.h"
 #include "Atmosphere/AtmosphericFogComponent.h"
+#include "Engine/Scene.h"  // So we can check FPostProcessSettings exists
+#include "CineCameraComponent.h"  // So we can check the CineCamera structs exist
+#include "CineCameraActor.h"	  // So we can check the CineCamera structs exist
+
+#define GET_STRUCT_NAME_CHECKED(StructName) \
+	((void)sizeof(F##StructName), TEXT(#StructName))
 
 FArrayProperty* FVariantManagerUtils::OverrideMaterialsProperty = nullptr;
 FStructProperty* FVariantManagerUtils::RelativeLocationProperty = nullptr;
@@ -52,6 +58,31 @@ bool FVariantManagerUtils::IsBuiltInStructProperty(const FProperty* Property)
 	return bIsBuiltIn;
 }
 
+bool FVariantManagerUtils::IsWalkableStructProperty(const FProperty* Property)
+{
+	const static TSet<FName> WalkableStructNames
+	{
+		GET_STRUCT_NAME_CHECKED(PostProcessSettings),
+		GET_STRUCT_NAME_CHECKED(CameraLookatTrackingSettings),
+		GET_STRUCT_NAME_CHECKED(CameraFilmbackSettings),
+		GET_STRUCT_NAME_CHECKED(CameraLensSettings),
+		GET_STRUCT_NAME_CHECKED(CameraFocusSettings),
+		GET_STRUCT_NAME_CHECKED(CameraTrackingFocusSettings)
+	};
+
+	bool bIsWalkable = false;
+
+	const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
+	if (StructProp && StructProp->Struct)
+	{
+		FName StructName = StructProp->Struct->GetFName();
+
+		bIsWalkable = WalkableStructNames.Contains(StructName);
+	}
+
+	return bIsWalkable;
+}
+
 FArrayProperty* FVariantManagerUtils::GetOverrideMaterialsProperty()
 {
 	if (!OverrideMaterialsProperty)
@@ -66,7 +97,7 @@ FStructProperty* FVariantManagerUtils::GetRelativeLocationProperty()
 {
 	if (!RelativeLocationProperty)
 	{
-		RelativeLocationProperty = FindField<FStructProperty>( USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( USceneComponent, USceneComponent::GetRelativeLocationPropertyName() ) );
+		RelativeLocationProperty = FindField<FStructProperty>( USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName() );
 	}
 
 	return RelativeLocationProperty;
@@ -76,7 +107,7 @@ FStructProperty* FVariantManagerUtils::GetRelativeRotationProperty()
 {
 	if (!RelativeRotationProperty)
 	{
-		RelativeRotationProperty = FindField<FStructProperty>( USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( USceneComponent, USceneComponent::GetRelativeRotationPropertyName() ) );
+		RelativeRotationProperty = FindField<FStructProperty>( USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName() );
 	}
 
 	return RelativeRotationProperty;
@@ -86,7 +117,7 @@ FStructProperty* FVariantManagerUtils::GetRelativeScale3DProperty()
 {
 	if (!RelativeScale3DProperty)
 	{
-		RelativeScale3DProperty = FindField<FStructProperty>( USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( USceneComponent, USceneComponent::GetRelativeScale3DPropertyName() ) );
+		RelativeScale3DProperty = FindField<FStructProperty>( USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName() );
 	}
 
 	return RelativeScale3DProperty;
@@ -96,7 +127,7 @@ FBoolProperty* FVariantManagerUtils::GetVisibilityProperty()
 {
 	if (!VisiblityProperty)
 	{
-		VisiblityProperty = FindField<FBoolProperty>( USceneComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( USceneComponent, USceneComponent::GetVisiblePropertyName() ) );
+		VisiblityProperty = FindField<FBoolProperty>( USceneComponent::StaticClass(), USceneComponent::GetVisiblePropertyName() );
 	}
 
 	return VisiblityProperty;
@@ -132,3 +163,5 @@ void FVariantManagerUtils::InvalidateCache(UClass* OldClass, UClass* NewClass, E
 	LightColorProperty = nullptr;
 	DefaultLightColorProperty = nullptr;
 }
+
+#undef GET_MEMBER_NAME_CHECKED

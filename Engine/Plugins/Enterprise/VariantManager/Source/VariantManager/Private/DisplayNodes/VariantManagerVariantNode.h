@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "DisplayNodes/VariantManagerDisplayNode.h"
 
-class FMenuBuilder;
 class FAssetThumbnailPool;
-enum class EItemDropZone;
 class FDragDropEvent;
+class FMenuBuilder;
+class SCheckBox;
 class SVariantManagerTableRow;
 class UVariant;
-class SCheckBox;
-
+enum class EItemDropZone;
+struct FSlateImageBrush;
 
 /** A variant manager display node representing a variant in the outliner. */
 class FVariantManagerVariantNode : public FVariantManagerDisplayNode
@@ -49,4 +49,7 @@ private:
 	TSharedPtr<SCheckBox> RadioButton;
 
 	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
+
+	// We need to keep the brush alive while the thumbnail is rendered
+	TSharedPtr<FSlateImageBrush> ImageBrush;
 };

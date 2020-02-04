@@ -67,7 +67,8 @@ void UMoviePipelineLinearExecutorBase::OnPipelineErrored(UMoviePipeline* InPipel
 void UMoviePipelineLinearExecutorBase::OnExecutorFinishedImpl()
 {
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineLinearExecutorBase finished %d jobs in %s."), Queue->GetJobs().Num(), *(FDateTime::UtcNow() - InitializationTime).ToString());
-
+	// Only say that we're no longer rendering once we've finished all jobs in the executor so the UI doesn't flicker while switching over between jobs.
+	bIsRendering = false;
 	Super::OnExecutorFinishedImpl();
 }
 

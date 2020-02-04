@@ -250,7 +250,7 @@ bool FRenderAssetStreamingManager::StreamOutRenderAssetData( int64 RequiredMemor
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
-	const int64 MaxTempMemoryAllowed = Settings.MaxTempMemoryAllowed * 1024 * 1024;
+	const int64 MaxTempMemoryAllowed = static_cast<int64>(Settings.MaxTempMemoryAllowed) * 1024 * 1024;
 	const bool CachedPauseTextureStreaming = bPauseRenderAssetStreaming;
 
 	// Pause texture streaming to prevent sending load requests.
@@ -610,7 +610,7 @@ void FRenderAssetStreamingManager::PrepareAsyncTask(bool bProcessEverything)
 	// Same when forcing stream-in, for which we want all used textures to be fully loaded 
 	if (Stats.IsUsingLimitedPoolSize() && !bProcessEverything && !Settings.bFullyLoadUsedTextures)
 	{
-		const int64 TempMemoryBudget = Settings.MaxTempMemoryAllowed * 1024 * 1024;
+		const int64 TempMemoryBudget = static_cast<int64>(Settings.MaxTempMemoryAllowed) * 1024 * 1024;
 		AsyncTask.Reset(Stats.TotalGraphicsMemory, Stats.AllocatedMemorySize, Stats.TexturePoolSize, TempMemoryBudget, MemoryMargin);
 	}
 	else

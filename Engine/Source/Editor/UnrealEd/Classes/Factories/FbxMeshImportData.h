@@ -7,7 +7,7 @@
 #include "Factories/FbxAssetImportData.h"
 #include "FbxMeshImportData.generated.h"
 
-UENUM()
+UENUM(BlueprintType)
 enum EFBXNormalImportMethod
 {
 	FBXNIM_ComputeNormals UMETA(DisplayName="Compute Normals"),
@@ -16,7 +16,7 @@ enum EFBXNormalImportMethod
 	FBXNIM_MAX,
 };
 
-UENUM()
+UENUM(BlueprintType)
 namespace EFBXNormalGenerationMethod
 {
 	enum Type
@@ -28,7 +28,7 @@ namespace EFBXNormalGenerationMethod
 	};
 }
 
-UENUM()
+UENUM(BlueprintType)
 namespace EVertexColorImportOption
 {
 	enum Type
@@ -43,7 +43,7 @@ namespace EVertexColorImportOption
 }
 
 /** Action to add nodes to the graph based on selected objects*/
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FImportMeshLodSectionsData
 {
 	GENERATED_USTRUCT_BODY();
@@ -57,7 +57,7 @@ struct FImportMeshLodSectionsData
 /**
  * Import data and options used when importing any mesh from FBX
  */
-UCLASS(config=EditorPerProjectUserSettings, configdonotcheckdefaults, abstract)
+UCLASS(BlueprintType, config=EditorPerProjectUserSettings, configdonotcheckdefaults, abstract)
 class UFbxMeshImportData : public UFbxAssetImportData
 {
 	GENERATED_UCLASS_BODY()

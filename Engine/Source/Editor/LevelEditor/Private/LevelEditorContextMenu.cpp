@@ -1019,6 +1019,29 @@ void FLevelEditorContextMenuImpl::FillTransformMenu(UToolMenu* Menu)
 	}
 }
 
+// A box that will expand to match its content's desired size, but will never shrink.
+// A helper class for the AttachToActor menu so that it does not constantly resize all the time,
+// but also ensure that you're never in a state where you can't read the full actor name.
+class SOnlyExpandsBox : public SBox
+{
+protected:
+	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override
+	{
+		FVector2D RequestedDesiredSize = SBox::ComputeDesiredSize(LayoutScaleMultiplier);
+		if (RequestedDesiredSize.X > MaxPreviousWidth)
+		{
+			MaxPreviousWidth = RequestedDesiredSize.X;
+			return RequestedDesiredSize;
+		}
+		else
+		{
+			return FVector2D(MaxPreviousWidth, RequestedDesiredSize.Y);
+		}
+	}
+private:
+	mutable float MaxPreviousWidth = 400.0f;
+};
+
 void FLevelEditorContextMenuImpl::FillActorMenu(UToolMenu* Menu)
 {
 	struct Local
@@ -1060,10 +1083,13 @@ void FLevelEditorContextMenuImpl::FillActorMenu(UToolMenu* Menu)
 			+SVerticalBox::Slot()
 			.MaxHeight(400.0f)
 			[
-				SceneOutlinerModule.CreateSceneOutliner(
-					InitOptions,
-					FOnActorPicked::CreateStatic( &FLevelEditorActionCallbacks::AttachToActor )
-					)
+				SNew(SOnlyExpandsBox)
+				[
+					SceneOutlinerModule.CreateSceneOutliner(
+						InitOptions,
+						FOnActorPicked::CreateStatic( &FLevelEditorActionCallbacks::AttachToActor )
+						)
+				]
 			]
 		]
 	

@@ -1060,7 +1060,7 @@ template<typename ChildT, Index Log2Dim>
 inline Index64
 InternalNode<ChildT, Log2Dim>::onVoxelCount() const
 {
-    Index64 sum = ChildT::NUM_VOXELS * mValueMask.countOn();
+    Index64 sum = static_cast<Index64>(ChildT::NUM_VOXELS) * mValueMask.countOn();
     for (ChildOnCIter iter = this->cbeginChildOn(); iter; ++iter) {
         sum += iter->onVoxelCount();
     }

@@ -2,10 +2,12 @@
 
 #include "PropertyValueMaterial.h"
 
-#include "CoreMinimal.h"
-#include "Components/MeshComponent.h"
-#include "HAL/UnrealMemory.h"
+#include "VariantManagerContentLog.h"
 #include "VariantObjectBinding.h"
+
+#include "Components/MeshComponent.h"
+#include "CoreMinimal.h"
+#include "HAL/UnrealMemory.h"
 
 #define LOCTEXT_NAMESPACE "PropertyValueMaterial"
 
@@ -60,6 +62,7 @@ bool UPropertyValueMaterial::Resolve(UObject* Object)
 	// is just to get ParentContainerAddress pointing at the target UMeshComponent, as we
 	// apply/record values by calling the respective functions instead
 	FCapturedPropSegment OverrideInner = CapturedPropSegments.Pop();
+	ParentContainerObject = Object;
 	bool bResolveSucceeded = ResolvePropertiesRecursive(Object->GetClass(), Object, 0);
 	CapturedPropSegments.Add(OverrideInner);
 

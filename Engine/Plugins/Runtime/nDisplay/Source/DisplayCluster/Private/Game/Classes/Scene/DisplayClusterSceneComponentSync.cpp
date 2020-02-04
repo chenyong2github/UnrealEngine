@@ -46,15 +46,7 @@ void UDisplayClusterSceneComponentSync::BeginPlay()
 	}
 }
 
-
-void UDisplayClusterSceneComponentSync::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
-{
-	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
-
-	// ...
-}
-
-void UDisplayClusterSceneComponentSync::OnComponentDestroyed(bool bDestroyingHierarchy)
+void UDisplayClusterSceneComponentSync::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (GDisplayCluster->IsModuleInitialized())
 	{
@@ -68,7 +60,14 @@ void UDisplayClusterSceneComponentSync::OnComponentDestroyed(bool bDestroyingHie
 		}
 	}
 
-	Super::OnComponentDestroyed(bDestroyingHierarchy);
+	Super::EndPlay(EndPlayReason);
+}
+
+void UDisplayClusterSceneComponentSync::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
+{
+	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
+
+	// ...
 }
 
 

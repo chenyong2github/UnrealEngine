@@ -59,14 +59,6 @@ void FTextShaper::ShapeBidirectionalText(const FT_Face Face, const FString& Text
 			PerformKerningTextShaping(Face, *Text, TextDirectionInfo.StartIndex, TextDirectionInfo.StartIndex + TextDirectionInfo.Length, OutShapedLines);
 		}
 	}
-
-	for (FShapedGlyphLine& ShapedLine : OutShapedLines)
-	{
-		for (const FShapedGlyphEntry& Glyph : ShapedLine.GlyphsToRender)
-		{
-			ShapedLine.Width += Glyph.XOffset + Glyph.XAdvance;
-		}
-	}
 }
 
 void FTextShaper::PerformKerningTextShaping(const FT_Face Face, const TCHAR* Text, const int32 StartIndex, const int32 EndIndex, TArray<FShapedGlyphLine>& OutShapedLines)
@@ -82,13 +74,14 @@ void FTextShaper::PerformKerningTextShaping(const FT_Face Face, const TCHAR* Tex
 		const TCHAR CurrentChar = Text[Index];
 
 		const bool bIsZeroWidthSpace = CurrentChar == TEXT('\u200B');
-		const bool bIsWhitespace = bIsZeroWidthSpace || FText::IsWhitespace(CurrentChar);
+		bool bIsWhitespace = bIsZeroWidthSpace || FText::IsWhitespace(CurrentChar);
 
 		FT_Load_Char(Face, CurrentChar, FT_LOAD_DEFAULT);
 		uint32 GlyphIndex = FT_Get_Char_Index(Face, CurrentChar);
 		if (GlyphIndex == 0)	// Get Space instead of invalid character
 		{
 			GlyphIndex = FT_Get_Char_Index(Face, ' ');
+			bIsWhitespace = true;
 		}
 		
 
@@ -210,20 +203,14 @@ bool FTextShaper::InsertSubstituteGlyphs(const FT_Face Face, const TCHAR* Text, 
 
 	if (Char == TEXT('\t'))
 	{
-		uint32 SpaceGlyphIndex = 0;
 		int16 SpaceXAdvance = 0;
-#if TEXT3D_WITH_FREETYPE
-		{
-			SpaceGlyphIndex = FT_Get_Char_Index(Face, TEXT(' '));
+		uint32 SpaceGlyphIndex = FT_Get_Char_Index(Face, TEXT(' '));
 
-			FT_Fixed AdvanceData = 0;
-			if (FT_Get_Advance(Face, SpaceGlyphIndex, /*FIXME*/0, &AdvanceData) == 0)
-			{
-				SpaceXAdvance = ((AdvanceData + (1 << 9)) >> 10) * FontInverseScale;
-				//SpaceXAdvance = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int16>((CachedAdvanceData + (1 << 9)) >> 10);
-			}
+		FT_Fixed AdvanceData = 0;
+		if (FT_Get_Advance(Face, SpaceGlyphIndex, /*FIXME*/0, &AdvanceData) == 0)
+		{
+			SpaceXAdvance = ((AdvanceData + (1 << 9)) >> 10) * FontInverseScale;
 		}
-#endif // TEXT3D_WITH_FREETYPE
 
 		// We insert a spacer glyph with (up-to) the width of 4 space glyphs in-place of a tab character
 		const int32 NumSpacesToInsert = 4 - (OutShapedLines.Last().GlyphsToRender.Num() % 4);

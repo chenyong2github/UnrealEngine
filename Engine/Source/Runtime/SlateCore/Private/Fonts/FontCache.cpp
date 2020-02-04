@@ -1198,6 +1198,7 @@ void FSlateFontCache::ReleaseResources()
 	{
 		FontTexture->ReleaseResources();
 	}
+	OnReleaseResourcesDelegate.Broadcast(*this);
 }
 
 bool FSlateFontCache::FlushCache()
@@ -1208,9 +1209,6 @@ bool FSlateFontCache::FlushCache()
 
 		FlushData();
 		ReleaseResources();
-
-		// hack
-		FSlateApplicationBase::Get().GetRenderer()->FlushCommands();
 
 		SET_DWORD_STAT(STAT_SlateNumFontAtlases, 0);
 		SET_DWORD_STAT(STAT_SlateNumFontNonAtlasedTextures, 0);

@@ -25,7 +25,6 @@ class FMovieSceneClipboard;
 class FSequencerTimeSliderController;
 class FVirtualTrackArea;
 class ISequencerEditTool;
-class SSequencerLabelBrowser;
 class SCurveEditorTree;
 class SSequencerTrackArea;
 class SSequencerTrackOutliner;
@@ -38,6 +37,7 @@ class SWindow;
 class USequencerSettings;
 class FSequencerTrackFilter;
 struct FPaintPlaybackRangeArgs;
+struct FSequencerCustomizationInfo;
 struct FSequencerSelectionCurveFilter;
 
 namespace SequencerLayoutConstants
@@ -257,10 +257,7 @@ public:
 	
 	~SSequencer();
 	
-	virtual void AddReferencedObjects( FReferenceCollector& Collector )
-	{
-		Collector.AddReferencedObject( Settings );
-	}
+	virtual void AddReferencedObjects( FReferenceCollector& Collector ) { }
 
 	virtual bool SupportsKeyboardFocus() const override
 	{
@@ -348,12 +345,6 @@ private:
 	/** Handles key selection changes. */
 	void HandleKeySelectionChanged();
 
-	/** Handles selection changes in the label browser. */
-	void HandleLabelBrowserSelectionChanged(FString NewLabel, ESelectInfo::Type SelectInfo);
-
-	/** Handles determining the visibility of the label browser. */
-	EVisibility HandleLabelBrowserVisibility() const;
-
 	/** Handles section selection changes. */
 	void HandleSectionSelectionChanged();
 
@@ -382,14 +373,14 @@ private:
 
 	TSharedRef<SWidget> MakeFilterMenu();
 
-	/** Makes the general menu for the toolbar. */
-	TSharedRef<SWidget> MakeGeneralMenu();
+	/** Makes the actions menu for the toolbar. */
+	TSharedRef<SWidget> MakeActionsMenu();
+
+	/** Makes the view menu for the toolbar. */
+	TSharedRef<SWidget> MakeViewMenu();
 
 	/** Makes the plabacky menu for the toolbar. */
 	TSharedRef<SWidget> MakePlaybackMenu();
-
-	/** Makes the select/edit menu for the toolbar. */
-	TSharedRef<SWidget> MakeSelectEditMenu();
 
 	/** Makes the snapping menu for the toolbar. */
 	TSharedRef<SWidget> MakeSnapMenu();
@@ -405,8 +396,14 @@ private:
 
 	void OpenTaggedBindingManager();
 
+	/** Makes the advanced menu for the toolbar. */
+	void FillAdvancedMenu(FMenuBuilder& InMenuBuilder);
+
 	/** Makes the playback speed menu for the toolbar. */
 	void FillPlaybackSpeedMenu(FMenuBuilder& InMenuBuilder);
+
+	/** Return the current sequencer settings */ 
+	USequencerSettings* GetSequencerSettings() const;
 
 public:
 	/** Makes the time display format menu for the toolbar and the play rate menu. */
@@ -541,6 +538,7 @@ private:
 
 	/** Returns whether or not the Curve Editor is enabled. Allows us to bind to the Slate Enabled attribute. */
 	bool GetIsCurveEditorEnabled() const { return !GetIsSequenceReadOnly(); }
+
 public:
 	/** On Paste Command */
 	void OnPaste();
@@ -566,6 +564,14 @@ public:
 
 	/** This adds the specified path to the selection set to be restored the next time the tree view is refreshed. */
 	void AddAdditionalPathToSelectionSet(const FString& Path) { AdditionalSelectionsToAdd.Add(Path); }
+
+	/** Applies dynamic sequencer customizations to this editor. */
+	void ApplySequencerCustomizations(const TArray<FSequencerCustomizationInfo>& Customizations);
+
+private:
+	/** Applies a single customization. */
+	void ApplySequencerCustomization(const FSequencerCustomizationInfo& Customization);
+
 private:
 
 	/** Transform box widget. */
@@ -594,9 +600,6 @@ private:
 
 	/** The breadcrumb trail widget for this sequencer */
 	TSharedPtr<SBreadcrumbTrail<FSequencerBreadcrumb>> BreadcrumbTrail;
-
-	/** The label browser for filtering tracks. */
-	TSharedPtr<SSequencerLabelBrowser> LabelBrowser;
 
 	/** The search box for filtering tracks. */
 	TSharedPtr<SSearchBox> SearchBox;
@@ -628,8 +631,8 @@ private:
 	/** The curve editor panel. This is created and updated even if it is not currently visible. */
 	TSharedPtr<SWidget> CurveEditorPanel;
 
-	/** Cached settings provided to the sequencer itself on creation */
-	USequencerSettings* Settings;
+	/** Container for the toolbar, so that we can re-create it as needed. */
+	TSharedPtr<SBox> ToolbarContainer;
 
 	/** The fill coefficients of each column in the grid. */
 	float ColumnFillCoefficients[2];
@@ -641,10 +644,10 @@ private:
 	bool bUserIsSelecting;
 
 	/** Extender to use for the 'add' menu */
-	TSharedPtr<FExtender> AddMenuExtender;
+	TArray<TSharedPtr<FExtender>> AddMenuExtenders;
 
 	/** Extender to use for the toolbar */
-	TSharedPtr<FExtender> ToolbarExtender;
+	TArray<TSharedPtr<FExtender>> ToolbarExtenders;
 
 	/** Numeric type interface used for converting parsing and generating strings from numbers */
 	TSharedPtr<INumericTypeInterface<double>> NumericTypeInterface;
@@ -679,19 +682,22 @@ private:
 	FSimpleDelegate OnReceivedFocus;
 
 	/** Called when something is dragged over the sequencer. */
-	FOptionalOnDragDrop OnReceivedDragOver;
+	TArray<FOptionalOnDragDrop> OnReceivedDragOver;
 
 	/** Called when something is dropped onto the sequencer. */
-	FOptionalOnDragDrop OnReceivedDrop;
+	TArray<FOptionalOnDragDrop> OnReceivedDrop;
 
 	/** Called when an asset is dropped on the sequencer. */
-	FOnAssetsDrop OnAssetsDrop;
+	TArray<FOnAssetsDrop> OnAssetsDrop;
 
 	/** Called when a class is dropped on the sequencer. */
-	FOnClassesDrop OnClassesDrop;
+	TArray<FOnClassesDrop> OnClassesDrop;
 	
 	/** Called when an actor is dropped on the sequencer. */
-	FOnActorsDrop OnActorsDrop;
+	TArray<FOnActorsDrop> OnActorsDrop;
+
+	/** Stores the callbacks and extenders provided to the constructor. */
+	FSequencerCustomizationInfo RootCustomization;
 
 	/** Cached clamp and view range for unlinking the curve editor time range */
 	TRange<double> CachedClampRange;

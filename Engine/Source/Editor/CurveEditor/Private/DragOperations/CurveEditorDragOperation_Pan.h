@@ -14,12 +14,15 @@ public:
 
 	virtual void OnBeginDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
 	virtual void OnDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseWheel(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
 
 private:
 
 	FCurveEditor* CurveEditor;
 	TSharedPtr<SCurveEditorView> View;
 
+	bool bIsDragging;
+	
 	double InitialInputMin, InitialInputMax;
 	double InitialOutputMin, InitialOutputMax;
 	FCurveEditorAxisSnap::FSnapState SnappingState;

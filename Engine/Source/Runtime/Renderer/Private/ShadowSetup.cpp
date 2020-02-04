@@ -2207,7 +2207,7 @@ void ComputeWholeSceneShadowCacheModes(
 				{
 					int64 CachedShadowMapsSize = Scene->GetCachedWholeSceneShadowMapsSize();
 
-					if (CachedShadowMapsSize < GWholeSceneShadowCacheMb * 1024 * 1024)
+					if (CachedShadowMapsSize < static_cast<int64>(GWholeSceneShadowCacheMb) * 1024 * 1024)
 					{
 						OutNumShadowMaps = 2;
 						// Note: ShadowMap with static primitives rendered first so movable shadowmap can composite

@@ -35,7 +35,7 @@ void UMovieSceneLiveLinkSection::SetMask(const TArray<bool>& InChannelMask)
 
 void UMovieSceneLiveLinkSection::RecordFrame(FFrameNumber InFrameNumber, const FLiveLinkFrameDataStruct& InFrameData)
 {
-	ExpandToFrame(GetInclusiveStartFrame() + InFrameNumber);
+	ExpandToFrame(InFrameNumber);
 
 	for (UMovieSceneLiveLinkSubSection* SubSection : SubSections)
 	{

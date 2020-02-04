@@ -289,6 +289,17 @@ void FLandscapeToolKit::OnToolPaletteChanged(FName PaletteName)
 	}
 }
 
+FText FLandscapeToolKit::GetActiveToolDisplayName() const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	return LandscapeEdMode->CurrentTool->GetDisplayName();
+}
+
+FText FLandscapeToolKit::GetActiveToolMessage() const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	return LandscapeEdMode->CurrentTool->GetDisplayMessage();
+}
 
 void FLandscapeToolKit::NotifyToolChanged()
 {

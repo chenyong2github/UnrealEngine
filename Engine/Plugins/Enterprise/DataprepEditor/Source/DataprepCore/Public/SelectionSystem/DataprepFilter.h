@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "DataprepFetcher.h"
 #include "DataprepParameterizableObject.h"
+
+#include "SelectionSystem/DataprepFetcher.h"
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -16,12 +18,17 @@
  * The Dataprep Filter a base class for the Dataprep selection system
  * It's main responsibility is to filter a array of object and to return the selected objects
  */
-UCLASS(Abstract)
+UCLASS(Abstract, BlueprintType)
 class DATAPREPCORE_API UDataprepFilter : public UDataprepParameterizableObject
 {
 	GENERATED_BODY()
 
 public:
+
+	// Begin UObject Interface
+	virtual void PostCDOContruct() override;
+	// End UObject Interface
+
 	/**
 	 * Take a array of object and return the objects that pass the filter
 	 * @param Objects The object to filter
@@ -57,11 +64,15 @@ public:
 	 */
 	virtual void SetFetcher(const TSubclassOf<UDataprepFetcher>& FetcherClass) { unimplemented(); /** must be override */ }
 
-	virtual UDataprepFetcher* GetFetcher() const
+	UFUNCTION(BlueprintCallable, Category="Filter")
+	UDataprepFetcher* GetFetcher()
 	{
-		// must be override
-		unimplemented();
-		return {};
+		return const_cast<UDataprepFetcher*>( static_cast<const UDataprepFilter*>( this )->GetFetcherImplementation() );
+	}
+
+	const UDataprepFetcher* GetFetcher() const
+	{
+		return GetFetcherImplementation();
 	}
 
 	/**
@@ -82,7 +93,23 @@ public:
 		return bIsExcludingResult;
 	}
 
+	/**
+	 * Return the type of filter to use for a fetcher
+	 */
+	static UClass* GetFilterTypeForFetcherType(UClass* FetcherClass);
+
 private:
-	UPROPERTY()
+
+	virtual const UDataprepFetcher* GetFetcherImplementation() const
+	{
+		// must be override
+		unimplemented();
+		return {};
+	}
+
+	// Is this filter a excluding filter (a filter that is inverse his normal output)
+	UPROPERTY(EditAnywhere, Category="Filter")
 	bool bIsExcludingResult = false;
+
+	static TMap<UClass*, UClass*> FetcherClassToFilterClass;
 };

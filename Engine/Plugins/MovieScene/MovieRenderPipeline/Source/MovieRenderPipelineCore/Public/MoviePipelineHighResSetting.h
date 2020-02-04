@@ -2,10 +2,8 @@
 #pragma once
 
 #include "MoviePipelineSetting.h"
+#include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineHighResSetting.generated.h"
-
-// Forward Declares
-
 
 UCLASS(Blueprintable)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineHighResSetting : public UMoviePipelineSetting
@@ -15,15 +13,15 @@ public:
 	UMoviePipelineHighResSetting()
 		: TileCount(1)
 		, TextureSharpnessBias(0.f)
-		, OverlapPercentage(0.f)
-		, bWriteAllSamples(true)
+		, OverlapRatio(0.f)
+		, bWriteAllSamples(false)
 	{
 	}
 	
 	FIntPoint CalculatePaddedBackbufferSize(const FIntPoint& InTileSize)
 	{
-		int32 OverlappedPadX = FMath::CeilToInt(InTileSize.X * OverlapPercentage);
-		int32 OverlappedPadY = FMath::CeilToInt(InTileSize.Y * OverlapPercentage);
+		int32 OverlappedPadX = FMath::CeilToInt(InTileSize.X * OverlapRatio);
+		int32 OverlappedPadY = FMath::CeilToInt(InTileSize.Y * OverlapRatio);
 
 		return InTileSize + FIntPoint(2 * OverlappedPadX, 2 * OverlappedPadY);
 	}
@@ -34,6 +32,26 @@ public:
 #endif
 	virtual bool IsValidOnShots() const override { return true; }
 	virtual bool IsValidOnMaster() const override { return true; }
+	virtual void ValidateStateImpl() override
+	{
+		Super::ValidateStateImpl();
+
+		if (TileCount > 1)
+		{
+			ValidationResults.Add(NSLOCTEXT("MovieRenderPipeline", "HighRes_UnsupportedFeatures", "Tiling does not support TAA or Auto Exposure. These will be forced off when rendering. Use Spatial/Temporal sampling and Manual Camera Exposure /w Exposure Compensation instead."));
+			if (FMath::IsNearlyEqual(OverlapRatio, 0.f))
+			{
+				ValidationResults.Add(NSLOCTEXT("MovieRenderPipeline", "HighRes_OverlapNeeded", "Increase the overlap amount to avoid seams in the final image. More overlap results in longer renders so start at 0.1 and increase as needed."));
+			}
+			ValidationState = EMoviePipelineValidationState::Warnings;
+		}
+	}
+
+	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
+	{
+		InOutFormatArgs.Arguments.Add(TEXT("tile_count"), TileCount);
+		InOutFormatArgs.Arguments.Add(TEXT("overlap_percent"), OverlapRatio);
+	}
 
 public:
 	/**
@@ -61,13 +79,13 @@ public:
 	* will become visible in the final image as a "grid" of repeated problem areas.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 0.5, ClampMax=1), Category = "Movie Pipeline")
-	float OverlapPercentage;
+	float OverlapRatio;
 	
 	/**
 	* If true, we will write all samples that get generated to disk individually. This can be useful for debugging or if you need to accumulate
 	* render passes differently than provided.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, UIMax = 0.5, ClampMax=1), Category = "Movie Pipeline|Debug")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Movie Pipeline")
 	bool bWriteAllSamples;
 
 };

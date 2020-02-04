@@ -93,6 +93,20 @@ public:
 
 
 	/**
+	* Set the frame rate for this take
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder|Panel")
+	void SetFrameRate(FFrameRate InFrameRate);
+
+
+	/**
+	* Set if the frame rate is set from the Timecode frame rate
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder|Panel")
+	void SetFrameRateFromTimecode(bool  bInFromTimecode);
+
+
+	/**
 	 * Access the sources that are to be (or were) used for recording this take
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")

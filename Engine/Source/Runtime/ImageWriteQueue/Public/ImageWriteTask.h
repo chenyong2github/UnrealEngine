@@ -12,7 +12,7 @@
 
 template<typename> struct TImageDataTraits;
 
-typedef TFunction<void(FImagePixelData*)> FPixelPreProcessor;
+typedef TUniqueFunction<void(FImagePixelData*)> FPixelPreProcessor;
 
 /**
  * Interface that is implemented in order to be able to asynchronously write images to disk
@@ -239,6 +239,56 @@ struct TAsyncAlphaWrite<FLinearColor>
 		for (FLinearColor& Pixel : LinearColorData->Pixels)
 		{
 			Pixel.A = Alpha;
+		}
+	}
+};
+
+/**
+ * A pixel preprocessor for use with FImageWriteTask::PixelPreProcessor that inverts the alpha channel as part of the threaded work
+ */
+template<typename PixelType> struct TAsyncAlphaInvert;
+
+template<>
+struct TAsyncAlphaInvert<FColor>
+{
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Color);
+
+		TImagePixelData<FColor>* ColorData = static_cast<TImagePixelData<FColor>*>(PixelData);
+		for (FColor& Pixel : static_cast<TImagePixelData<FColor>*>(PixelData)->Pixels)
+		{
+			Pixel.A = 255 - Pixel.A;
+		}
+	}
+};
+
+template<>
+struct TAsyncAlphaInvert<FFloat16Color>
+{
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Float16);
+
+		TImagePixelData<FFloat16Color>* Float16ColorData = static_cast<TImagePixelData<FFloat16Color>*>(PixelData);
+		for (FFloat16Color& Pixel : Float16ColorData->Pixels)
+		{
+			Pixel.A = FFloat16(1.f) - Pixel.A;
+		}
+	}
+};
+
+template<>
+struct TAsyncAlphaInvert<FLinearColor>
+{
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Float32);
+
+		TImagePixelData<FLinearColor>* LinearColorData = static_cast<TImagePixelData<FLinearColor>*>(PixelData);
+		for (FLinearColor& Pixel : LinearColorData->Pixels)
+		{
+			Pixel.A = 1.f - Pixel.A;
 		}
 	}
 };

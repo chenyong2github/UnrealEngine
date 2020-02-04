@@ -1,18 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshBuilder.h"
-#include "Engine/StaticMesh.h"
-#include "StaticMeshResources.h"
-#include "PhysicsEngine/BodySetup.h"
-#include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
-#include "MeshDescriptionHelper.h"
+
 #include "BuildOptimizationHelper.h"
 #include "Components.h"
+#include "Engine/StaticMesh.h"
+#include "IMeshReductionInterfaces.h"
 #include "IMeshReductionManagerModule.h"
 #include "MeshBuild.h"
+#include "MeshDescriptionHelper.h"
 #include "Modules/ModuleManager.h"
-#include "IMeshReductionInterfaces.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
+#include "StaticMeshResources.h"
 
 DEFINE_LOG_CATEGORY(LogStaticMeshBuilder);
 
@@ -154,7 +155,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		{
 			float OverlappingThreshold = LODBuildSettings.bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 			FOverlappingCorners OverlappingCorners;
-			FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, MeshDescriptions[BaseReduceLodIndex], OverlappingThreshold);
+			FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, MeshDescriptions[BaseReduceLodIndex], OverlappingThreshold);
 
 			int32 OldSectionInfoMapCount = StaticMesh->GetSectionInfoMap().GetSectionNumber(LodIndex);
 

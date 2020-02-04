@@ -21,6 +21,9 @@ public:
 	virtual int32 GetNumAtlasPages() const override;
 	virtual FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override;
 	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const override;
+#if WITH_ATLAS_DEBUGGING
+	virtual FAtlasSlotInfo GetAtlasSlotInfoAtPosition(FIntPoint InPosition, int32 AtlasIndex) const override;
+#endif
 
 	/**
 	 * Loads and creates rendering resources for all used textures.  
@@ -79,7 +82,7 @@ private:
 	 * 
 	 * @param Info	Information on how to generate the texture resource
 	 */
-	FSlateShaderResourceProxy* GenerateTextureResource( const FNewTextureInfo& Info );
+	FSlateShaderResourceProxy* GenerateTextureResource( const FNewTextureInfo& Info, FName TextureName );
 	
 private:
 

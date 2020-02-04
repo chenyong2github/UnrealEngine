@@ -793,7 +793,7 @@ class DatasmithFBXExporter():
                 node = vrNodePtr.vrNodePtr(renamedNodeIDList[0])
                 newName = node.getName()
                 logging.debug('\tonly one node renamed away from ' + str(transNameVar) + ': ' + str(newName))
-                node.set('base', newName)
+                xmlNode.set('base', newName)
             elif numRenamedNodes > 1:
                 states = [stateNode.get('name') for stateNode in xmlNode.iterfind('State')]
                 states = [state for state in states if state not in commandNames]

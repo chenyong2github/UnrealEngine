@@ -8,9 +8,9 @@
 
 #include "Variant.generated.h"
 
+#define VARIANT_THUMBNAIL_SIZE 256
 
 class UVariantObjectBinding;
-
 
 UCLASS(DefaultToInstanced)
 class VARIANTMANAGERCONTENT_API UVariant : public UObject
@@ -51,6 +51,14 @@ public:
 	// Returns true if none of our properties are dirty
 	bool IsActive();
 
+	// Sets the thumbnail to use for this variant. Can receive nullptr to clear it
+	// On the Variant Manager a cleared thumbnail will be displayed as the default thumbnail for Variant assets
+	void SetThumbnail(UTexture2D* NewThumbnail);
+
+	// Gets the thumbnail currently used for this variant
+	UFUNCTION(BlueprintCallable, Category="Variant")
+	UTexture2D* GetThumbnail();
+
 private:
 
 	// The display name used to be a property. Use the non-deprecated, non-property version from now on
@@ -61,4 +69,7 @@ private:
 
 	UPROPERTY()
 	TArray<UVariantObjectBinding*> ObjectBindings;
+
+	UPROPERTY()
+	UTexture2D* Thumbnail;
 };

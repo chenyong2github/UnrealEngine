@@ -43,7 +43,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	virtual void Execute(UMoviePipelineQueue* InPipelineQueue)
+	void Execute(UMoviePipelineQueue* InPipelineQueue)
 	{
 		ExecuteImpl(InPipelineQueue);
 	}
@@ -62,6 +62,8 @@ public:
 	{
 		TargetPipelineClass = InPipelineClass;
 	}
+
+	bool IsRendering() const { return IsRenderingImpl(); }
 protected:
 	/** 
 	* This should be called when the Executor has finished executing all of the things
@@ -91,8 +93,10 @@ protected:
 		OnExecutorFinishedDelegate.Broadcast(this, bFatal);
 	}
 
+	// UMoviePipelineExecutorBase Interface
 	virtual void ExecuteImpl(UMoviePipelineQueue* InPipelineQueue) PURE_VIRTUAL(UMoviePipelineExecutorBase::ExecuteImpl, );
-
+	virtual bool IsRenderingImpl() const PURE_VIRTUAL(UMoviePipelineExecutorBase::IsRenderingImpl, return false; );
+	// ~UMoviePipelineExecutorBase
 private:
 	/** 
 	* Called when the Executor has finished all jobs. Reports success if no jobs

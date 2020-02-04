@@ -88,7 +88,7 @@ void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepC
 			if( StaticMesh->IsMeshDescriptionValid( 0 ) )
 			{
 				FText OutReason;
-				if( UCoreTechBlueprintLibrary::RetessellateStaticMesh( StaticMesh, TessellationSettings, false, OutReason ) )
+				if( UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification( StaticMesh, TessellationSettings, false, OutReason ) )
 				{
 					ModifiedStaticMeshes.Add( StaticMesh );
 				}

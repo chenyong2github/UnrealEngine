@@ -50,9 +50,22 @@ class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutToolProperties : public UInteract
 public:
 	UUVLayoutToolProperties();
 
+	/** Separate UV charts so that they do not overlap and have unique texels, or stack all the charts together */
+	UPROPERTY(EditAnywhere, Category = UVLayout)
+	bool bSeparateUVIslands = true;
 
-// TODO: add config settings for uvlayout (currently nothing really in the actual algorithm is exposed as a usable parameter)
+	/** Expected resolution of output textures; controls spacing left between charts */
+	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "256", UIMax = "2048", ClampMin = "2", ClampMax = "4096", EditCondition = "bSeparateUVIslands"))
+	int TextureResolution = 1024;
 
+	UPROPERTY(EditAnywhere, Category = UVLayout)
+	float UVScaleFactor = 1;
+
+	//
+	// save/restore support
+	//
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -134,8 +147,6 @@ protected:
 
 	UPROPERTY()
 	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
-
-
 
 	UPROPERTY()
 	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;

@@ -604,3 +604,23 @@ TRange<FFrameNumber> UMovieSceneSection::GetEaseOutRange() const
 
 	return TRange<FFrameNumber>::Empty();
 }
+
+#if WITH_EDITOR
+
+void UMovieSceneSection::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	static const FName NAME_SectionRange = GET_MEMBER_NAME_CHECKED(UMovieSceneSection, SectionRange);
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property != nullptr && PropertyChangedEvent.Property->GetFName() == NAME_SectionRange)
+	{
+		if (UMovieSceneTrack* Track = GetTypedOuter<UMovieSceneTrack>())
+		{
+			Track->UpdateEasing();
+		}
+	}
+}
+
+#endif
+

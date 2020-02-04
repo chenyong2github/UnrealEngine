@@ -33,6 +33,7 @@ public:
 	/**
 	* What was the last configuration preset the user used? Can be null.
 	*/
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TSoftObjectPtr<UMoviePipelineMasterConfig> LastPresetOrigin;
 	
 	/**
@@ -60,4 +61,15 @@ public:
 	*/
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="Movie Render Pipeline")
 	TSubclassOf<UMoviePipeline> DefaultPipeline;
+
+	/**
+	* The settings specified here will automatically be added to a Movie Pipeline Master Configuration when using the UI. 
+	* This does not apply to scripting and does not apply to runtime. It is only a convenience function so that when a job is
+	* created, it can be pre-filled with some settings to make the render functional out of the gate. It can also be
+	* used to automatically add your own setting to jobs.
+	*
+	* This only applies to jobs created via the UI. If you do not use the UI (ie: Scripting/Python) you will need to
+	* add settings by hand for each job you create. */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline", DisplayName = "Default Job Settings Classes")
+	TArray<TSubclassOf<UMoviePipelineSetting>> DefaultClasses;
 };

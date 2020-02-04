@@ -499,6 +499,12 @@ struct CORE_API FGenericMemoryWarningContext
 
 namespace RecoveryService
 {
-	/** Generates a name for the disaster recovery service embedded in the CrashReporterClient. */
+	/** Generates a name for the disaster recovery service embedded in the CrashReporterClientEditor. */
 	CORE_API FString GetRecoveryServerName();
+
+	/** Generates a name for the disaster recovery session. */
+	CORE_API FString MakeSessionName();
+
+	/** Tokenize the session name into its components. */
+	CORE_API bool TokenizeSessionName(const FString& SessionName, FString* OutServerName, int32* SeqNum, FString* ProjName, FDateTime* DateTime);
 }

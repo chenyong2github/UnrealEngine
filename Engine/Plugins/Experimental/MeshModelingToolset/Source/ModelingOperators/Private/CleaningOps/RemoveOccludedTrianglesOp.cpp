@@ -87,6 +87,6 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		Jacket.NormalOffset = NormalOffset;
 		Jacket.AddRandomRays = AddRandomRays;
 		Jacket.AddTriangleSamples = AddTriangleSamples;
-		Jacket.Apply(ResultTransform, &CombinedMeshTrees->AABB, &CombinedMeshTrees->FastWinding);
+		Jacket.Apply(MeshTransforms, &CombinedMeshTrees->AABB, &CombinedMeshTrees->FastWinding);
 	}
 }

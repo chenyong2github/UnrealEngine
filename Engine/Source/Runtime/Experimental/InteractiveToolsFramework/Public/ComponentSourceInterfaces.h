@@ -88,6 +88,13 @@ public:
 
 
 	/**
+	 * Checks if the underlying asset that would be edited by CommitMesh() is the same for two ComponentTargets
+	 * @param OtherTarget Another component target to compare against
+	 * @return true if both component targets are known to share the same source asset
+	 */
+	virtual bool HasSameSourceData(const FPrimitiveComponentTarget& OtherTarget) const = 0;
+
+	/**
 	 * Commit an update to the material set. This may generate a transaction.
 	 * @param MaterialSet new list of materials
 	 * @param bApplyToAsset if true, materials of Asset are updated (if Asset exists), rather than Component

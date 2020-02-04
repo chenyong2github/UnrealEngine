@@ -47,6 +47,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
 	bDeleteKeysWhenTrimming = true;
+	bCleanPlaybackMode = true;
 	bActivateRealtimeViewports = true;
 	bEvaluateSubSequencesInIsolation = false;
 	bRerunConstructionScripts = true;
@@ -587,6 +588,20 @@ void USequencerSettings::SetDeleteKeysWhenTrimming(bool bInDeleteKeysWhenTrimmin
 	if (bDeleteKeysWhenTrimming != bInDeleteKeysWhenTrimming)
 	{
 		bDeleteKeysWhenTrimming = bInDeleteKeysWhenTrimming;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetCleanPlaybackMode() const
+{
+	return bCleanPlaybackMode;
+}
+
+void USequencerSettings::SetCleanPlaybackMode(bool bInCleanPlaybackMode)
+{
+	if (bInCleanPlaybackMode != bCleanPlaybackMode)
+	{
+		bCleanPlaybackMode = bInCleanPlaybackMode;
 		SaveConfig();
 	}
 }

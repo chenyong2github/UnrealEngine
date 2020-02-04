@@ -3,17 +3,15 @@
 #pragma once
 
 #include "BevelType.h"
+#include "Util.h"
 #include "Mesh.h"
 
-struct FPart;
-class FData;
-class FContourList;
 
 /** Makes actual bevel. */
 class FMeshCreator final
 {
 public:
-	FMeshCreator(TSharedRef<TText3DMeshList> MeshesIn, const TSharedPtr<FData> DataIn);
+	FMeshCreator();
 
 	/**
 	 * Create meshes.
@@ -21,16 +19,17 @@ public:
 	 * @param Extrude - Orthogonal (to front cap) offset value.
 	 * @param Bevel - Bevel value (bevel happens before extrude).
 	 * @param Type - Defines shape of beveled part.
-	 * @param HalfCircleSegments - Segments count for Type == EText3DBevelType::HalfCircle.
+	 * @param BevelSegments - Segments count for Type == EText3DBevelType::HalfCircle.
 	 */
-	void CreateMeshes(const TSharedPtr<FContourList> ContoursIn, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 HalfCircleSegments);
+	void CreateMeshes(const TSharedPtr<class FContourList> ContoursIn, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments);
 	void SetFrontAndBevelTextureCoordinates(const float Bevel);
-	void MirrorMeshes(const float Extrude, const float ScaleX);
+	void MirrorGroups(const float Extrude);
+	void BuildMesh(UStaticMesh* StaticMesh, class UMaterial* DefaultMaterial);
 
 private:
-	TSharedRef<TText3DMeshList> Meshes;
-	const TSharedPtr<FData> Data;
-	TSharedPtr<FContourList> Contours;
+	TSharedRef<class FData> Data;
+	TSharedPtr<class FText3DGlyph> Glyph;
+	TSharedPtr<class FContourList> Contours;
 
 
 	/**
@@ -38,15 +37,12 @@ private:
 	 */
 	void CreateFrontMesh();
 	/**
-	 *
-	 */
-	/**
 	 * Create 'Bevel' part of glyph (actually half of it, will be mirrored later).
 	 * @param Bevel - Bevel value (bevel happens before extrude).
 	 * @param Type - Defines shape of beveled part.
-	 * @param HalfCircleSegments - Segments count for Type == EText3DBevelType::HalfCircle.
+	 * @param BevelSegments - Segments count for Type == EText3DBevelType::HalfCircle.
 	 */
-	void CreateBevelMesh(const float Bevel, const EText3DBevelType Type, const int32 HalfCircleSegments);
+	void CreateBevelMesh(const float Bevel, const EText3DBevelType Type, const int32 BevelSegments);
 	/**
 	 * Create 'Extrude' part of glyph.
 	 * @param Extrude - Extrude value.
@@ -54,7 +50,7 @@ private:
 	 */
 	void CreateExtrudeMesh(float Extrude, const float Bevel);
 
-	void MirrorMesh(const EText3DMeshType TypeIn, const EText3DMeshType TypeOut, const float Extrude, const float ScaleX);
+	void MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroupType TypeOut, const float Extrude);
 
 
 	/**
@@ -78,11 +74,6 @@ private:
 	void Reset(const float Extrude, const float Expand, FVector2D NormalStart, FVector2D NormalEnd);
 
 	/**
-	 * Make bevel only for non-trivial places.
-	 */
-	void BevelPartsWithIntersectingNormals();
-
-	/**
 	 * Continue with trivial bevel till FData::Expand.
 	 */
 	void BevelPartsWithoutIntersectingNormals();
@@ -91,32 +82,31 @@ private:
 	 * Clear PathPrev and PathNext.
 	 * @param Point - Point which paths should be cleared.
 	 */
-	void EmptyPaths(FPart* const Point) const;
+	void EmptyPaths(const FPartPtr Point) const;
 
 	/**
 	 * Same as previous function but does not cover the intersection-case.
 	 * @param Point - Point that should be expanded.
 	 * @param TextureCoordinates - Texcture coordinates of added vertices.
 	 */
-	void ExpandPoint(FPart* const Point, const FVector2D TextureCoordinates = FVector2D(0, 0));
+	void ExpandPoint(const FPartPtr Point, const FVector2D TextureCoordinates = FVector2D(0.f, 0.f));
 	/**
 	 * Common code for expanding, vertices are added uninitialized.
 	 * @param Point - Expanded point.
 	 */
-	void ExpandPointWithoutAddingVertices(FPart* const Point) const;
+	void ExpandPointWithoutAddingVertices(const FPartPtr Point) const;
 
 	/**
 	 * Add vertex for smooth point.
 	 * @param Point - Expanded point.
 	 * @param TextureCoordinates - Texture coordinates of added vertex.
 	 */
-	void AddVertexSmooth(const FPart* const Point, const FVector2D TextureCoordinates);
+	void AddVertexSmooth(const FPartConstPtr Point, const FVector2D TextureCoordinates);
 	/**
 	 * Add vertex for sharp point.
 	 * @param Point - Expanded point.
 	 * @param Edge - Edge from which TangentX and TangentZ will be assigned.
 	 * @param TextureCoordinates - Texture coordinates of added vertex.
 	 */
-	void AddVertexSharp(const FPart* const Point, const FPart* const Edge, const FVector2D TextureCoordinates);
-
+	void AddVertexSharp(const FPartConstPtr Point, const FPartConstPtr Edge, const FVector2D TextureCoordinates);
 };

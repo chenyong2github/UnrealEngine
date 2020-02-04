@@ -465,6 +465,8 @@ void FSoundClassEditor::PostUndo(bool bSuccess)
 {
 	GraphEditor->ClearSelectionSet();
 	GraphEditor->NotifyGraphChanged();
+
+	FSlateApplication::Get().DismissAllMenus();
 }
 
 #undef LOCTEXT_NAMESPACE

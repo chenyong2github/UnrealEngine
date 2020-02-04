@@ -23,9 +23,28 @@ public:
 	 * @param Mesh the mesh to constrain
 	 * @param bAllowSplits should we allow constrained edges to be split
 	 * @param bAllowSmoothing should we allow constrained vertices to be smoothed
+	 * @param bParallel should we run the algo in parallel
 	 */
 	static void ConstrainAllSeams(FMeshConstraints& Constraints, const FDynamicMesh3& Mesh, bool bAllowSplits, bool bAllowSmoothing, bool bParallel = true);
 
+	/**
+	 * Constrain all attribute seams for all overlays of a mesh and different types of boundaries on the mesh
+	 * @param Constraints the set of constraints to add to
+	 * @param Mesh the mesh to constrain
+	 * @param MeshBoundaryConstraint the constraints to place on Mesh boundaries
+	 * @param GroupBoundaryConstraint the constraints to place on boundaries between polygon groups
+	 * @param MaterialBoundaryConstraint the constraints to place on boundaries between different materials
+	 * @param bAllowSplits should we allow constrained edges to be split
+	 * @param bAllowSmoothing should we allow constrained vertices to be smoothed
+	 * @param bParallel should we run the algo in parallel
+	 */
+	static void ConstrainAllBoundariesAndSeams(FMeshConstraints& Constraints,
+											   const FDynamicMesh3& Mesh,
+											   EEdgeRefineFlags MeshBoundaryConstraint,
+											   EEdgeRefineFlags GroupBoundaryConstraint,
+											   EEdgeRefineFlags MaterialBoundaryConstraint,
+											   bool bAllowSeamSplits, bool bAllowSeamSmoothing,
+											   bool bParallel = true);
 
 	/**
 	 * Constrain all attribute seams for all overlays of a mesh, for edges in the edge array
@@ -80,6 +99,28 @@ public:
 				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, FVertexConstraint::Pinned());
 			}
 			BeginEdges++;
+		}
+	}
+
+
+	/**
+	 * For all edges, disable flip/split/collapse. For all vertices, pin in current position.
+	 * @param Constraints the set of constraints to add to
+	 * @param Mesh the mesh to constrain
+	 * @param Enumerable object that can be passed to a range-based for loop
+	 */
+	template<typename EnumerableType>
+	static void FullyConstrainEdges(FMeshConstraints& Constraints, const FDynamicMesh3& Mesh, EnumerableType Enumerable)
+	{
+		for ( int EdgeID : Enumerable)
+		{
+			if (Mesh.IsEdge(EdgeID))
+			{
+				Constraints.SetOrUpdateEdgeConstraint(EdgeID, FEdgeConstraint::FullyConstrained());
+				FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, FVertexConstraint::Pinned());
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, FVertexConstraint::Pinned());
+			}
 		}
 	}
 

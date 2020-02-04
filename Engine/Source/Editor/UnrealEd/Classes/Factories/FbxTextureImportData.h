@@ -12,7 +12,7 @@
 /**
  * Import data and options used when importing any mesh from FBX
  */
-UCLASS(AutoExpandCategories=(Texture))
+UCLASS(BlueprintType, AutoExpandCategories=(Texture))
 class UNREALED_API UFbxTextureImportData : public UFbxAssetImportData
 {
 	GENERATED_UCLASS_BODY()

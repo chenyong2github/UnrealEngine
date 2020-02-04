@@ -107,7 +107,7 @@ bool FMeshRefinerBase::CheckIfFlipInvertsNormals(int a, int b, int c, int d, int
 bool FMeshRefinerBase::CanCollapseEdge(int eid, int a, int b, int c, int d, int tc, int td, int& collapse_to) const
 {
 	collapse_to = -1;
-	if (Constraints == nullptr)
+	if (!Constraints)
 	{
 		return true;
 	}
@@ -157,7 +157,7 @@ bool FMeshRefinerBase::CanCollapseEdge(int eid, int a, int b, int c, int d, int 
 bool FMeshRefinerBase::CanCollapseVertex(int eid, int a, int b, int& collapse_to) const
 {
 	collapse_to = -1;
-	if (Constraints == nullptr)
+	if (!Constraints)
 	{
 		return true;
 	}
@@ -256,7 +256,7 @@ void FMeshRefinerBase::DoDebugChecks(bool bEndOfPass)
 void FMeshRefinerBase::DebugCheckUVSeamConstraints()
 {
 	// verify UV constraints (temporary?)
-	if (Mesh->HasAttributes() && Mesh->Attributes()->PrimaryUV() != nullptr && Constraints != nullptr)
+	if (Mesh->HasAttributes() && Mesh->Attributes()->PrimaryUV() != nullptr && Constraints)
 	{
 		for (int eid : Mesh->EdgeIndicesItr())
 		{
@@ -280,7 +280,7 @@ void FMeshRefinerBase::DebugCheckUVSeamConstraints()
 
 void FMeshRefinerBase::DebugCheckVertexConstraints()
 {
-	if (Constraints == nullptr)
+	if (!Constraints)
 	{
 		return;
 	}

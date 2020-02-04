@@ -1695,6 +1695,10 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 				{
 					TextInputMethodSystem->ProcessMessage(hwnd, msg, wParam, lParam);
 				}
+				if (msg == WM_INPUTLANGCHANGE)
+				{
+					MessageHandler->OnInputLanguageChanged();
+				}
 				return 0;
 			}
 			break;

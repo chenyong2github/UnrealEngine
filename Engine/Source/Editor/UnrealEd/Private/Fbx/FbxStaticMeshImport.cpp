@@ -33,7 +33,6 @@
 #include "Misc/FbxErrors.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
 #include "IMeshBuilderModule.h"
 #include "Settings/EditorExperimentalSettings.h"
 

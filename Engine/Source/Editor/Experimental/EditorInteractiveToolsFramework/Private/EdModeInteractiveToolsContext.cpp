@@ -459,13 +459,14 @@ void UEdModeInteractiveToolsContext::Shutdown()
 
 
 
-void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* EditorModeIn)
+void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* EditorModeIn,
+	IToolsContextAssetAPI* UseAssetAPI)
 {
 	this->EditorMode = EditorModeIn;
 
 	this->TransactionAPI = new FEdModeToolsContextTransactionImpl(this, EditorModeIn);
 	this->QueriesAPI = new FEdModeToolsContextQueriesImpl(this, EditorModeIn);
-	this->AssetAPI = new FEditorToolAssetAPI();
+	this->AssetAPI = (UseAssetAPI != nullptr) ? UseAssetAPI: new FEditorToolAssetAPI();
 
 	Initialize(QueriesAPI, TransactionAPI);
 
@@ -676,6 +677,12 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 		return false;
 	}
 
+	// convert doubleclick events to pressed, for now...this is a hack!
+	if (Event == IE_DoubleClick)
+	{
+		Event = IE_Pressed;
+	}
+
 	if (Event == IE_Pressed || Event == IE_Released)
 	{
 		if (Key.IsMouseButton())
@@ -766,7 +773,6 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 
 
-
 bool UEdModeInteractiveToolsContext::MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
 {
 #ifdef ENABLE_DEBUG_PRINTING
@@ -824,7 +830,8 @@ bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportC
 
 bool UEdModeInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	return true;
+	// capture tracking if we have an active tool
+	return ToolManager->HasActiveTool(EToolSide::Mouse);
 }
 
 bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
@@ -891,6 +898,10 @@ FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* V
 
 
 
+FRay UEdModeInteractiveToolsContext::GetLastWorldRay() const
+{
+	return CurrentMouseState.Mouse.WorldRay;
+}
 
 
 

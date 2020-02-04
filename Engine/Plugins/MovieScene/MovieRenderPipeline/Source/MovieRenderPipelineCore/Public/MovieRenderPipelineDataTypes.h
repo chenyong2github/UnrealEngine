@@ -3,6 +3,10 @@
 
 #include "Misc/Timecode.h"
 #include "ImagePixelData.h"
+#include "Containers/UnrealString.h"
+#include "Engine/Scene.h"
+#include "Engine/EngineTypes.h"
+#include "DSP/BufferVectorOperations.h"
 #include "MovieRenderPipelineDataTypes.generated.h"
 
 class UMovieSceneCinematicShotSection;
@@ -22,7 +26,8 @@ struct FImageOverlappedAccumulator;
 class FMoviePipelineOutputMerger;
 class FRenderTarget;
 class UMoviePipeline;
-
+struct FMoviePipelineFormatArgs;
+namespace Audio { class FMixerSubmix; }
 
 /**
 * What is the current overall state of the Pipeline? States are processed in order from first to
@@ -265,83 +270,55 @@ namespace MoviePipeline
 			// shutter timing offsets into account. Written here just to consolidate various usages.
 			return FFrameTime(InTime) + MotionBlurCenteringOffsetTicks + ShutterOffsetTicks;
 		}
-
-
 	};
 }
 
 USTRUCT(BlueprintType)
-struct FMoviePipelineWorkInfo
+struct FMoviePipelineSegmentWorkMetrics
 {
 	GENERATED_BODY()
 
 public:
-	FMoviePipelineWorkInfo()
-		: NumCameraCuts(0)
-		, NumOutputFrames(0)
-		, NumUtilityFrames(0)
-		, NumOutputFramesWithSubsampling(0)
-		, NumSamples(0)
-		, NumTiles(0)
-	{
-	}
-
-	FString ToDisplayString()
-	{
-		return FString::Printf(TEXT("Camera Cuts: %d Output Frames: %d SubsampledOutputFrames: %d TotalSamples: %d UtilityFrames: %d TileCount: %d"),
-			NumCameraCuts, NumOutputFramesWithSubsampling, NumOutputFramesWithSubsampling, NumSamples, NumUtilityFrames, NumTiles);
-	}
-
-	/** Either the current camera cut number (not index) or the total number of camera cuts. */
-	int32 NumCameraCuts;
-	/** How many frames do we expect to see written to disk. */
-	int32 NumOutputFrames;
-	/** How many extra engine ticks are run for utility reasons that don't produce any output. */
-	int32 NumUtilityFrames;
-	/** OutputFrames * TemporalSamples. This many engine frames are passed during the production of all Output Frames. */
-	int32 NumOutputFramesWithSubsampling;
-	/** NumOutputFrames * NumTemporalSamples * SpatialSamples * NumTiles */
-	int32 NumSamples;
-	/** Either the current tile number (not index) or the total number of tiles */
-	int32 NumTiles;
-
-	FMoviePipelineWorkInfo& operator += (const FMoviePipelineWorkInfo& InRHS)
-	{
-		NumCameraCuts += InRHS.NumCameraCuts;
-		NumOutputFrames += InRHS.NumOutputFrames;
-		NumUtilityFrames += InRHS.NumUtilityFrames;
-		NumOutputFramesWithSubsampling += InRHS.NumOutputFramesWithSubsampling;
-		NumSamples += InRHS.NumSamples;
-		NumTiles += InRHS.NumTiles;
-
-		return *this;
-	}
-
-	friend FMoviePipelineWorkInfo operator+ (const FMoviePipelineWorkInfo& InLHS, const FMoviePipelineWorkInfo& InRHS)
-	{
-		FMoviePipelineWorkInfo Sum = InLHS;
-		Sum += InRHS;
-		return Sum;
-	}
-
-	bool operator == (const FMoviePipelineWorkInfo& InRHS) const
-	{
-		return	NumCameraCuts == InRHS.NumCameraCuts
-				&& NumOutputFrames == InRHS.NumOutputFrames
-				&& NumUtilityFrames == InRHS.NumUtilityFrames
-				&& NumOutputFramesWithSubsampling == InRHS.NumOutputFramesWithSubsampling
-				&& NumSamples == InRHS.NumSamples
-				&& NumTiles == InRHS.NumTiles;
-	}
-
-	bool operator != (const FMoviePipelineWorkInfo& InRHS) const
-	{
-		return !(*this == InRHS);
-	}
+	FMoviePipelineSegmentWorkMetrics()
+		: SegmentName()
+		, OutputFrameIndex(-1)
+		, TotalOutputFrameCount(-1)
+		, OutputSubSampleIndex(-1)
+		, TotalSubSampleCount(-1)
+		, EngineWarmUpFrameIndex(-1)
+		, TotalEngineWarmUpFrameCount(-1)
+	{ }	
+	
+	// This information is used to be presented in the UI.
+	
+	/** The name of the segment (if any) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pipeline Segment")
+	FString SegmentName;
+	
+	/** Index of the output frame we are working on right now. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pipeline Segment")
+	int32 OutputFrameIndex;
+	/** The number of output frames we expect to make for this segment. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pipeline Segment")
+	int32 TotalOutputFrameCount;
 
 
+	/** Which temporal/spatial sub sample are we working on right now. This counts temporal, spatial, and tile samples to accurately reflect how much work is needed for this output frame. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pipeline Segment")
+	int32 OutputSubSampleIndex;
+	
+	/** The total number of samples we will have to build to render this output frame. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pipeline Segment")
+	int32 TotalSubSampleCount;
+	
+	/** The index of the engine warm up frame that we are working on. No rendering samples are produced for these. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pipeline Segment")
+	int32 EngineWarmUpFrameIndex;
+	
+	/** The total number of engine warm up frames for this segment. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pipeline Segment")
+	int32 TotalEngineWarmUpFrameCount;
 };
-
 
 
 UENUM(BlueprintType)
@@ -352,6 +329,7 @@ enum class EMoviePipelineShutterTiming : uint8
 	FrameClose
 };
 
+// ToDo: Rename this to segment.
 USTRUCT(BlueprintType)
 struct FMoviePipelineCameraCutInfo
 {
@@ -360,48 +338,24 @@ public:
 	FMoviePipelineCameraCutInfo()
 		: OriginalRange(TRange<FFrameNumber>::Empty())
 		, TotalOutputRange(TRange<FFrameNumber>::Empty())
-		, NumWarmUpFrames(0)
-		, bAccurateFirstFrameHistory(true)
+		, bEmulateFirstFrameMotionBlur(true)
 		, NumTemporalSamples(0)
 		, NumSpatialSamples(0)
 		, NumTiles(0, 0)
 		, State(EMovieRenderShotState::Uninitialized)
-		, CurrentTick(FFrameNumber(0))
+		, CurrentMasterSeqTick(FFrameNumber(0))
+		, CurrentLocalSeqTick(FFrameNumber(0))
 		, bHasEvaluatedMotionBlurFrame(false)
-		, bHasNotifiedFrameProductionStarted(false)
-		, NumWarmUpFramesRemaining(0)
-	{}
+		, NumEngineWarmUpFramesRemaining(0)
+	{
+	}
 
 	bool IsInitialized() const { return State != EMovieRenderShotState::Uninitialized; }
-	void SetNextState(const EMovieRenderShotState InCurrentState);
+	void SetNextStateAfter(const EMovieRenderShotState InCurrentState);
+	void CalculateWorkMetrics();
 
-	/** 
-	* Returns the number of expected frames to be produced by Initial Range + Handle Frames given a Frame Rate.
-	* This will be inaccurate when PlayRate tracks are involved.
-	*/
+private:
 	FFrameNumber GetOutputFrameCountEstimate() const;
-
-	/**
-	* Returns the expected number of frames different frames that will be submitted for rendering. This is
-	* the number of output frames * temporal samples. This will be inaccurate when PlayRate tracks are involved.
-	*/
-	FFrameNumber GetTemporalFrameCountEstimate() const;
-
-	/** 
-	* Returns misc. utility frame counts (Warm Up + MotionBlur Fix) since these are outside the ranges.
-	*/
-	FFrameNumber GetUtilityFrameCountEstimate() const;
-
-	/**
-	* Returns the number of samples submitted to the GPU, optionally counting samples for the various parts.
-	* This will be inaccurate when PlayRate tracks are involved.
-	*/
-	FFrameNumber GetSampleCountEstimate(const bool bIncludeWarmup = true, const bool bIncludeMotionBlur = true) const;
-	
-	/**
-	* Summarizes the total expected amount of work into one easy to access struct.
-	*/
-	FMoviePipelineWorkInfo GetTotalWorkEstimate() const;
 
 public:
 	/** The original non-modified range for this shot that will be rendered. */
@@ -410,69 +364,54 @@ public:
 	/** The range for this shot including handle frames that will be rendered. */
 	TRange<FFrameNumber> TotalOutputRange;
 
-	/** How many warm up frames should this shot wait for. */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	int32 NumWarmUpFrames;
-
-	/** Should we evaluate/render an extra frame at the start of this shot to show correct motion blur on the first frame? */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	bool bAccurateFirstFrameHistory;
-
-	UPROPERTY(BlueprintReadOnly, Transient, Category = "Movie Render Pipeline")
-	TWeakObjectPtr<UMovieSceneCameraCutSection> CameraCutSection;
+	/** 
+	* Should we evaluate/render an extra frame at the start of this shot to show correct motion blur on the first frame? 
+	* This emulates motion blur by evaluating forward one frame and then going backwards which is a approximation.
+	*/
+	bool bEmulateFirstFrameMotionBlur;
 
 	/** How many temporal samples is each frame broken up into? */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	int32 NumTemporalSamples;
 
 	/** For each temporal sample, how many spatial samples do we take? */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	int32 NumSpatialSamples;
 
 	/** How many image tiles are going to be rendered per temporal frame. */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	FIntPoint NumTiles;
 
 	/** Display name for UI Purposes. */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	FString DisplayName;
+	FString CameraName;
+	FString ShotName;
 
 	/** Cached Frame Rate these are being rendered at. Simplifies some APIs. */
 	FFrameRate CachedFrameRate;
 
 	/** Cached Tick Resolution our numbers are in. Simplifies some APIs. */
 	FFrameRate CachedTickResolution;
+	
+	
+	TWeakObjectPtr<UMovieSceneCameraCutSection> CameraCutSection;
 public:
 	/** The current state of processing this Shot is in. Not all states will be passed through. */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	EMovieRenderShotState State;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	FFrameNumber CurrentTick;
+	/** The current tick of this shot that we're on in master sequence space, for evaluating the master sequence at this time. */
+	FFrameNumber CurrentMasterSeqTick;
 
-	/** Metrics - How much work has been done for this particular shot. */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	FMoviePipelineWorkInfo CurrentWorkInfo;
+	/** The current tick of this shot that we're on local space, for knowing which frame of this sub-section is equivalent to the master. */
+	FFrameNumber CurrentLocalSeqTick;
 
-	/** 
-	* Metrics - How much work is there estimated to do for this shot? Can be more than estimated total due to PlayRate tracks. 
-	* Cached after setup so that Blueprints can read the variable directly due to no support for UFunctions on Structs.
-	*/
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	FMoviePipelineWorkInfo TotalWorkInfo;
+	/** Metrics - How much work has been done for this particular shot and how much do we estimate we have to do? */
+	FMoviePipelineSegmentWorkMetrics WorkMetrics;
 
 public:
 	/** Have we evaluated the motion blur frame? Only used if bEvaluateMotionBlurOnFirstFrame is set */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
 	bool bHasEvaluatedMotionBlurFrame;
 
-	/** Have we notified the output containers that we're about to begin producing frames? */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	bool bHasNotifiedFrameProductionStarted;
+	/** How many engine warm up frames are left to process for this shot. May be zero. */
+	int32 NumEngineWarmUpFramesRemaining;
 
-	/** How many warm up frames are left to process for this shot. May always be zero. */
-	UPROPERTY(BlueprintReadOnly, Category = "Movie Render Pipeline")
-	int32 NumWarmUpFramesRemaining;
+
 
 	bool operator == (const FMoviePipelineCameraCutInfo& InRHS) const
 	{
@@ -480,11 +419,11 @@ public:
 			OriginalRange == InRHS.OriginalRange &&
 			TotalOutputRange == InRHS.TotalOutputRange &&
 			State == InRHS.State &&
-			NumWarmUpFramesRemaining == InRHS.NumWarmUpFramesRemaining &&
-			bAccurateFirstFrameHistory == InRHS.bAccurateFirstFrameHistory &&
+			NumEngineWarmUpFramesRemaining == InRHS.NumEngineWarmUpFramesRemaining &&
+			bEmulateFirstFrameMotionBlur == InRHS.bEmulateFirstFrameMotionBlur &&
 			bHasEvaluatedMotionBlurFrame == InRHS.bHasEvaluatedMotionBlurFrame &&
-			bHasNotifiedFrameProductionStarted == InRHS.bHasNotifiedFrameProductionStarted &&
-			CurrentTick == InRHS.CurrentTick &&
+			CurrentMasterSeqTick == InRHS.CurrentMasterSeqTick &&
+			CurrentLocalSeqTick == InRHS.CurrentLocalSeqTick &&
 			CameraCutSection == InRHS.CameraCutSection;
 	}
 
@@ -532,6 +471,8 @@ public:
 
 	/** The range of time that represents the handle frames (if any) after the shot. */
 	TRange<FFrameNumber> HandleFrameRangeEnd;
+
+	FFrameNumber StartFrameOffsetTick;
 	
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Movie Render Pipeline")
 	UMoviePipelineShotConfig* ShotOverrideConfig;
@@ -546,6 +487,12 @@ public:
 	int32 CurrentCameraCutIndex;
 
 	FMoviePipelineCameraCutInfo& GetCurrentCameraCut()
+	{
+		check(CurrentCameraCutIndex >= 0 && CurrentCameraCutIndex < CameraCuts.Num());
+		return CameraCuts[CurrentCameraCutIndex];
+	}
+
+	const FMoviePipelineCameraCutInfo& GetCurrentCameraCut() const
 	{
 		check(CurrentCameraCutIndex >= 0 && CurrentCameraCutIndex < CameraCuts.Num());
 		return CameraCuts[CurrentCameraCutIndex];
@@ -588,28 +535,55 @@ public:
 * we may render but not desire an output (such as filling temporal histories) or
 * we may be accumulating the results into a target which does not produce an output.
 * Finally, we may be running the Tick/Render loop but not wanting to do anything!
-* This is the case when we are using the frame-step debugging, the engine is still
-* live and running, but we don't want to advance the output process forwards at all.
 */
-USTRUCT(BlueprintType)
 struct FMoviePipelineFrameOutputState
 {
-	GENERATED_BODY()
 public:
+	struct FTimeData
+	{
+		FTimeData()
+			: MotionBlurFraction(0.f)
+			, FrameDeltaTime(0.0)
+			, WorldSeconds(0.0)
+			, bWasAffectedByTimeDilation(false)
+		{
+		}
+
+		/** A 0-1 fraction of how much motion blur should be applied. This is tied to the shutter angle but more complicated when using sub-sampling */
+		float MotionBlurFraction;
+
+		/** The delta time in seconds used for this frame. */
+		double FrameDeltaTime;
+
+		/** The total elapsed time since the pipeline started.*/
+		double WorldSeconds;
+
+		/**
+		* If true, there was a non-1.0 Time Dilation in effect when this frame was produced. This indicates that there
+		* may be duplicate frame Source/Effective frame numbers as they find the closest ideal time to the current.
+		*/
+		bool bWasAffectedByTimeDilation;
+	};
+
 	FMoviePipelineFrameOutputState()
 		: OutputFrameNumber(-1)
+		, ShotCount(0)
 		, TemporalSampleIndex(-1)
-		, MotionBlurFraction(0.5f)
-		, FrameDeltaTime(0)
-		, WorldSeconds(0)
-		, bWasAffectedByTimeDilation(false)
+		, TemporalSampleCount(0)
 	{
 		// There is other code which relies on this starting on -1.
 		check(OutputFrameNumber == -1);
 
-		// Likewise, the code assumes you start on sample index 0.
+		// Likewise, the code assumes you start on sample index -1.
 		check(TemporalSampleIndex == -1);
+
+		ResetPerFrameData();
+		ResetPerShotData();
 	}
+
+	/** Is this the first temporal sample for the output frame? */
+	FORCEINLINE bool IsFirstTemporalSample() const { return TemporalSampleIndex == 0; }
+	FORCEINLINE bool IsLastTemporalSample() const { return TemporalSampleIndex == (TemporalSampleCount - 1); }
 
 	/**
 	* The expected output frame count that the render is working towards creating.
@@ -617,25 +591,71 @@ public:
 	* the file written to disk uses a different number (due to relative frame numbers
 	* or offset frames being added.
 	*/
-	UPROPERTY(BlueprintReadOnly, Transient, Category = "Movie Render Pipeline")
 	int32 OutputFrameNumber;
 
+	/** Which shot is this output state for? */
+	int32 ShotIndex;
+
+	/** How many shots total will we be outputting? */
+	int32 ShotCount;
+
 	/** Which sub-frame are we on when using Accumulation Frame rendering. */
-	UPROPERTY(BlueprintReadOnly, Transient, Category = "Movie Render Pipeline")
 	int32 TemporalSampleIndex;
 
-	/** A 0-1 fraction of how much motion blur should be applied. This is tied to the shutter angle but more complicated when using sub-sampling */
-	UPROPERTY(BlueprintReadOnly, Transient, Category = "Movie Render Pipeline")
-	float MotionBlurFraction;
+	/** How many temporal samples do we add together to produce one Output Frame? */
+	int32 TemporalSampleCount;
 
-	/** The delta time in seconds used for this frame. */
-	double FrameDeltaTime;
+	/** 
+	* The expected output frame count for this current shot that we're working towards
+	* creating. Like OutputFrameNumber but relative to this shot. This should get reset between shots. 
+	*/
+	int32 ShotOutputFrameNumber;
 
-	/** The total elapsed time since the pipeline started.*/
-	double WorldSeconds;
-	
+	/** The total number of samples (including warm ups) that have been sent to the GPU for this shot. */
+	int32 ShotSamplesRendered;
+
+	/** INFORMATION BELOW HERE SHOULD NOT GET PERSISTED BETWEEN FRAMES */
+
+	void ResetPerFrameData()
+	{
+		TimeData = FTimeData();
+		bSkipRendering = false;
+		bDiscardRenderResult = false;
+		SourceFrameNumber = 0;
+		SourceTimeCode = FTimecode();
+		EffectiveFrameNumber = 0;
+		EffectiveTimeCode = FTimecode();
+		CurrentShotSourceFrameNumber = 0;
+		CurrentShotSourceTimeCode = FTimecode();
+	}
+
+	void ResetPerShotData()
+	{
+		ShotOutputFrameNumber = -1;
+		ShotSamplesRendered = 0;
+		ShotIndex = 0;
+		TemporalSampleCount = 0;
+	}
+
+	/** What time data should this frame use? Can vary between samples when TemporalSampleCount > 1. */
+	FTimeData TimeData;
+
+	/**
+	* If true, then the rendering for this frame should be skipped (ie: nothing submitted to the gpu, and the output merger not told to expect this frame).
+	* This is used for rendering every Nth frame for rendering drafts. We still run the game thread logic for the skipped frames (which is relatively cheap)
+	* and simply omit rendering them. This increases consistency with non-skipped renders, and will be useful for consistency when rendering on a farm.
+	*/
+	bool bSkipRendering;
+
+	/**
+	* If this is true, then the frame will be rendered but the results discarded and not sent to the accumulator. This is used for render warmup frames
+	* or gpu-based feedback loops. Ignored if bSkipRendering is true.
+	*/
+	bool bDiscardRenderResult;
+
+
 	/** The closest frame number (in Display Rate) on the Sequence. May be duplicates in the case of different output framerate or Play Rate tracks. */
-	FFrameNumber SourceFrameNumber;
+	int32 SourceFrameNumber;
 
 	/** The closest time code version of the SourceFrameNumber on the Sequence. May be a duplicate in the case of different output framerate or Play Rate tracks. */
 	FTimecode SourceTimeCode;
@@ -644,19 +664,23 @@ public:
 	* The closest frame number (in Display Rate) on the Sequence adjusted for the effective output rate. These numbers will not line up with the frame
 	* in the source Sequence if the output frame rate differs from the Sequence display rate. May be a duplicate in the event of Play Rate tracks.
 	*/
-	FFrameNumber EffectiveFrameNumber;
+	int32 EffectiveFrameNumber;
 
 	/** The closest time code version of the EffectiveFrameNumber. May be a duplicate in the event of Play Rate tracks. */
 	FTimecode EffectiveTimeCode;
 
-	/**
-	* If true, there was a non-1.0 Time Dilation in effect when this frame was produced. This indicates that there 
-	* may be duplicate frame Source/Effective frame numbers as they find the closest ideal time to the current.
-	*/
-	bool bWasAffectedByTimeDilation;
+
+	int32 CurrentShotSourceFrameNumber;
+	
+	FTimecode CurrentShotSourceTimeCode;
+
+
 
 	bool operator == (const FMoviePipelineFrameOutputState& InRHS) const
 	{
+		// ToDo: I don't think this is used anymore. Was used to make it so that the output state
+		// for the first temporal sample (which is what the expected output was built off of) could
+		// be equality against the last temporal sample when used in a TSet but better to do that explicitly.
 		return
 			OutputFrameNumber == InRHS.OutputFrameNumber &&
 			// TemporalSampleIndex == InRHS.TemporalSampleIndex &&
@@ -666,8 +690,7 @@ public:
 			SourceFrameNumber == InRHS.SourceFrameNumber &&
 			SourceTimeCode == InRHS.SourceTimeCode &&
 			EffectiveFrameNumber == InRHS.EffectiveFrameNumber &&
-			EffectiveTimeCode == InRHS.EffectiveTimeCode &&
-			bWasAffectedByTimeDilation == InRHS.bWasAffectedByTimeDilation;
+			EffectiveTimeCode == InRHS.EffectiveTimeCode;
 	}
 
 	bool operator != (const FMoviePipelineFrameOutputState& InRHS) const
@@ -679,6 +702,21 @@ public:
 	{
 		return GetTypeHash(OutputState.OutputFrameNumber);
 	}
+	void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const int32 InZeroPadCount, const int32 InFrameNumberOffset) const;
+};
+
+struct FMoviePipelineFormatArgs
+{
+	FMoviePipelineFormatArgs()
+		: InJob(nullptr)
+	{
+	}
+
+	/** A set of Key/Value pairs for format strings (without {}) and their values. */
+	FStringFormatNamedArguments Arguments;
+
+	/** Which job is this for? Some settings are specific to the level sequence being rendered. */
+	class UMoviePipelineExecutorJob* InJob;
 };
 
 /**
@@ -687,6 +725,21 @@ public:
 struct FMoviePipelineRenderPassMetrics
 {
 public:
+	/** What FrameIndex should the FSceneView use for its internal index. Used to ensure samples have unique TAA/Raytracing/etc. sequences */
+	int32 FrameIndex;
+
+	/** Is the Scene View frozen so no changes are made as a result of this sample? */
+	bool bWorldIsPaused;
+
+	/** Do we pass the camera cut flag to the renderer to clear histories? */
+	bool bCameraCut;
+
+	/** Which anti-aliasing method should this view use? */
+	EAntiAliasingMethod AntiAliasingMethod;
+
+	/** What type of output should the Post Processing output? (HDR /w ToneCurve, HDR w/o ToneCurve) */
+	ESceneCaptureSource SceneCaptureSource;
+
 	/** How many tiles on X and Y are there total. */
 	FIntPoint TileCounts;
 
@@ -711,7 +764,7 @@ public:
 	FIntPoint TileSize;
 
 	/** If true, we will discard this sample after rendering. Used to get history set up correctly. */
-	bool bIsHistoryOnlyFrame;
+	bool bDiscardResult;
 
 	/** If true, we will write this sample to disk (and also send it to the accumulator.) */
 	bool bWriteSampleToDisk;
@@ -744,7 +797,7 @@ public:
 	* The amount of screen-space shift used to replace TAA Projection Jitter, modified for each spatial sample
 	* of the render.
 	*/
-	FVector2D SpatialShift;
+	FVector2D ProjectionMatrixJitterAmount;
 
 	/**
 	* If set, forces the exposure compensation on a render. Useful when doing tiled renders where auto-exposure is disabled.
@@ -905,3 +958,36 @@ public:
 
 	TMap<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>> ImageOutputData;
 };
+
+namespace MoviePipeline
+{
+	struct FAudioState
+	{
+		struct FAudioSegment
+		{
+			FMoviePipelineFrameOutputState OutputState;
+
+			float NumChannels;
+			float SampleRate;
+
+			Audio::AlignedFloatBuffer SegmentData;
+		};
+
+		FAudioState()
+			: bIsRecordingAudio(false)
+			, PrevUnfocusedAudioMultiplier(1.f)
+			, PrevRenderEveryTickValue(1)
+		{}
+
+		bool bIsRecordingAudio;
+
+		float PrevUnfocusedAudioMultiplier;
+		int32 PrevRenderEveryTickValue;
+
+		/** Float Buffers for Movie Segments we've finished rendering. Stored until shutdown. Fully available during Finalize stage. */
+		TArray<FAudioSegment> FinishedSegments;
+
+		/** An array of active submixes we are recording for this shot. Gets cleared when recording stops on a shot. */
+		TArray<TWeakPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>> ActiveSubmixes;
+	};
+}

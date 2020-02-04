@@ -48,10 +48,11 @@ void FDynamicMeshToMeshDescription::Update(const FDynamicMesh3* MeshIn, FMeshDes
 	Builder.SetMeshDescription(&MeshOut);
 
 	check(MeshIn->IsCompactV());
-	check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
 
 	// update positions
-	for (int VertID : MeshIn->VertexIndicesItr())
+	int32 NumVertices = MeshOut.Vertices().Num();
+	check(NumVertices <= MeshIn->VertexCount());
+	for (int32 VertID = 0; VertID < NumVertices; ++VertID)
 	{
 		Builder.SetPosition(FVertexID(VertID), (FVector)MeshIn->GetVertex(VertID));
 	}

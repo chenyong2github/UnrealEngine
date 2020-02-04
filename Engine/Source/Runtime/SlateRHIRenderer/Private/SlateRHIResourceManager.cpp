@@ -282,6 +282,27 @@ bool FSlateRHIResourceManager::IsAtlasPageResourceAlphaOnly(const int32 InIndex)
 	return false;
 }
 
+#if WITH_ATLAS_DEBUGGING
+FAtlasSlotInfo FSlateRHIResourceManager::GetAtlasSlotInfoAtPosition(FIntPoint InPosition, int32 AtlasIndex) const
+{
+	if (TextureAtlases.IsValidIndex(AtlasIndex))
+	{
+		FAtlasSlotInfo NewInfo;
+
+		const FAtlasedTextureSlot* Slot = TextureAtlases[AtlasIndex]->GetSlotAtPosition(InPosition);
+		if (Slot)
+		{
+			NewInfo.AtlasSlotRect = FSlateRect(FVector2D(Slot->X, Slot->Y), FVector2D(Slot->X + Slot->Width, Slot->Y + Slot->Height));
+
+			NewInfo.TextureName = AtlasDebugData.FindRef(Slot);
+
+			return NewInfo;
+		}
+	}
+
+	return FAtlasSlotInfo();
+}
+#endif
 void FSlateRHIResourceManager::Tick(float DeltaSeconds)
 {
 	TryToCleanupExpiredResources(false);
@@ -336,11 +357,10 @@ void FSlateRHIResourceManager::CreateTextures( const TArray< const FSlateBrush* 
 	{
 		const FNewTextureInfo& Info = It.Value();
 		FName TextureName = It.Key();
-		FString NameStr = TextureName.ToString();
 
 		checkSlow( TextureName != NAME_None );
 
-		FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info );
+		FSlateShaderResourceProxy* NewTexture = GenerateTextureResource( Info, TextureName );
 
 		ResourceMap.Add( TextureName, NewTexture );
 	}
@@ -405,7 +425,7 @@ bool FSlateRHIResourceManager::LoadTexture( const FName& TextureName, const FStr
 	return bSucceeded;
 }
 
-FSlateShaderResourceProxy* FSlateRHIResourceManager::GenerateTextureResource( const FNewTextureInfo& Info )
+FSlateShaderResourceProxy* FSlateRHIResourceManager::GenerateTextureResource( const FNewTextureInfo& Info, const FName TextureName )
 {
 	FSlateShaderResourceProxy* NewProxy = NULL;
 	const uint32 Width = Info.TextureData->GetWidth();
@@ -434,6 +454,10 @@ FSlateShaderResourceProxy* FSlateRHIResourceManager::GenerateTextureResource( co
 		}
 		
 		check( Atlas && NewSlot );
+
+#if WITH_ATLAS_DEBUGGING
+		AtlasDebugData.Add(NewSlot, TextureName);
+#endif
 
 		// Create a proxy to the atlased texture. The texture being used is the atlas itself with sub uvs to access the correct texture
 		NewProxy = new FSlateShaderResourceProxy;

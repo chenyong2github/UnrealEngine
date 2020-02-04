@@ -22,7 +22,6 @@
 #include "MovieScene.h"
 #include "Sequencer.h"
 #include "SSequencer.h"
-#include "SSequencerLabelEditor.h"
 #include "MovieSceneSequence.h"
 #include "SequencerTrackNode.h"
 #include "ObjectEditorUtils.h"
@@ -282,12 +281,6 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("Organize", LOCTEXT("OrganizeContextMenuSectionName", "Organize"));
 	{
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("LabelsSubMenuText", "Labels"),
-			LOCTEXT("LabelsSubMenuTip", "Add or remove labels on this track"),
-			FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::HandleLabelsSubMenuCreate)
-		);
-
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("TagsLabel", "Tags"),
 			LOCTEXT("TagsTooltip", "Show this object binding's tags"),
@@ -1133,10 +1126,13 @@ TSharedRef<SWidget> FSequencerObjectBindingNode::HandleAddTrackComboButtonGetMen
 	const bool bUseSubMenus = Sequencer.IsLevelEditorSequencer();
 
 	UObject* BoundObject = GetSequencer().FindSpawnedObjectOrTemplate(ObjectBinding);
-	const UClass* ObjectClass = GetClassForObjectBinding();
+	const UClass* MainSelectionObjectClass = GetClassForObjectBinding();
 
 	TArray<FGuid> ObjectBindings;
 	ObjectBindings.Add(ObjectBinding);
+
+	TArray<UClass*> ObjectClasses;
+	ObjectClasses.Add(const_cast<UClass*>(MainSelectionObjectClass));
 
 	// Only include other selected object bindings if this binding is selected. Otherwise, this will lead to 
 	// confusion with multiple tracks being added to possibly unrelated objects
@@ -1154,8 +1150,12 @@ TSharedRef<SWidget> FSequencerObjectBindingNode::HandleAddTrackComboButtonGetMen
 			FGuid Guid = ObjectBindingNode->GetObjectBinding();
 			for (auto RuntimeObject : Sequencer.FindBoundObjects(Guid, Sequencer.GetFocusedTemplateID()))
 			{
-				ObjectBindings.AddUnique(Guid);
-				continue;
+				if (RuntimeObject != nullptr)
+				{
+					ObjectBindings.AddUnique(Guid);
+					ObjectClasses.Add(RuntimeObject->GetClass());
+					continue;
+				}
 			}
 		}
 	}
@@ -1164,6 +1164,8 @@ TSharedRef<SWidget> FSequencerObjectBindingNode::HandleAddTrackComboButtonGetMen
 	TSharedRef<FUICommandList> CommandList(new FUICommandList);
 
 	TSharedRef<FExtender> Extender = SequencerModule.GetAddTrackMenuExtensibilityManager()->GetAllExtenders(CommandList, TArrayBuilder<UObject*>().Add(BoundObject)).ToSharedRef();
+
+	const UClass* ObjectClass = UClass::FindCommonBase(ObjectClasses);
 
 	for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : GetSequencer().GetTrackEditors())
 	{
@@ -1379,27 +1381,6 @@ void FSequencerObjectBindingNode::HandleAddTrackSubMenuNew(FMenuBuilder& AddTrac
 
 		++MenuDataIndex;
 	}
-}
-
-
-void FSequencerObjectBindingNode::HandleLabelsSubMenuCreate(FMenuBuilder& MenuBuilder)
-{
-	const TSet< TSharedRef<FSequencerDisplayNode> >& SelectedNodes = GetSequencer().GetSelection().GetSelectedOutlinerNodes();
-	TArray<FGuid> ObjectBindingIds;
-	for (TSharedRef<const FSequencerDisplayNode> SelectedNode : SelectedNodes )
-	{
-		if (SelectedNode->GetType() == ESequencerNode::Object)
-		{
-			TSharedRef<const FSequencerObjectBindingNode> ObjectBindingNode = StaticCastSharedRef<const FSequencerObjectBindingNode>(SelectedNode);
-			FGuid ObjectBindingId = ObjectBindingNode->GetObjectBinding();
-			if (ObjectBindingId.IsValid())
-			{
-				ObjectBindingIds.Add(ObjectBindingId);
-			}
-		}
-	}
-
-	MenuBuilder.AddWidget(SNew(SSequencerLabelEditor, GetSequencer(), ObjectBindingIds), FText::GetEmpty(), true);
 }
 
 

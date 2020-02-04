@@ -202,6 +202,9 @@ private:
 	/** Called when a viewport tab is closed */
 	void OnViewportTabClosed(TSharedRef<SDockTab> ClosedTab);
 
+	/** Called when the toolbox tab is closed */
+	void OnToolboxTabClosed(TSharedRef<SDockTab> ClosedTab);
+
 	/** Save the information about the given viewport in the transient viewport information */
 	void SaveViewportTabInfo(TSharedRef<const class FLevelViewportTabContent> ViewportTabContent);
 

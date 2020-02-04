@@ -14,6 +14,55 @@
 
 #include "MPCDIStrings.h"
 
+
+static bool ExportMeshData(FMPCDIRegion* Region, struct FMPCDIGeometryExportData& MeshData)
+{
+	if (Region->WarpData)
+	{
+		switch (Region->WarpData->GetWarpGeometryType())
+		{
+			case EWarpGeometryType::PFM_Texture:
+			{
+				FMPCDIWarpTexture* WarpMap = static_cast<FMPCDIWarpTexture*>(Region->WarpData);
+				WarpMap->ExportMeshData(MeshData);
+				break;
+			}
+			case EWarpGeometryType::UE_StaticMesh:
+			{
+				//! Not Implemented
+				return false;
+				break;
+			}
+		}
+	}
+
+	return true;
+}
+
+static bool ImportMeshData(FMPCDIRegion* Region, const struct FMPCDIGeometryImportData& MeshData)
+{
+	if (Region->WarpData)
+	{
+		switch (Region->WarpData->GetWarpGeometryType())
+		{
+			case EWarpGeometryType::PFM_Texture:
+			{
+				FMPCDIWarpTexture* WarpMap = static_cast<FMPCDIWarpTexture*>(Region->WarpData);
+				WarpMap->ImportMeshData(MeshData);
+				break;
+			}
+
+			case EWarpGeometryType::UE_StaticMesh:
+			{
+				//! Not Implemented
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 bool UMPCDIAPIImpl::GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, struct FMPCDIGeometryExportData& MeshData)
 {	
 	IMPCDI& MpcdiModule = IMPCDI::Get();
@@ -32,11 +81,10 @@ bool UMPCDIAPIImpl::GetMPCDIMeshData(const FString& MPCDIFile, const FString& Bu
 		ShaderInputData.RegionLocator = RegionLocator;
 		TSharedPtr<FMPCDIData> MpcdiData = MpcdiModule.GetMPCDIData(ShaderInputData);
 
-		MPCDI::FMPCDIRegion* Region = MpcdiData.Get()->GetRegion(RegionLocator);
-		MPCDI::FMPCDIWarpTexture* WarpTexture = &Region->WarpMap;
-		WarpTexture->ExportMeshData(MeshData);
-		return true;
+		FMPCDIRegion* Region = MpcdiData.Get()->GetRegion(RegionLocator);
+		return ExportMeshData(Region, MeshData);
 	}
+
 	return false;
 }
 
@@ -65,10 +113,8 @@ bool UMPCDIAPIImpl::GetPFMMeshData(const FString& LocalPFMFile, FMPCDIGeometryEx
 	ShaderInputData.RegionLocator = RegionLocator;
 	TSharedPtr<FMPCDIData> MpcdiData = MpcdiModule.GetMPCDIData(ShaderInputData);
 
-	MPCDI::FMPCDIRegion* Region = MpcdiData.Get()->GetRegion(RegionLocator);
-	MPCDI::FMPCDIWarpTexture* WarpTexture = &Region->WarpMap;
-	WarpTexture->ExportMeshData(MeshData);
-	return true;
+	FMPCDIRegion* Region = MpcdiData.Get()->GetRegion(RegionLocator);
+	return ExportMeshData(Region, MeshData);
 }
 
 void UMPCDIAPIImpl::ReloadChangedExternalFiles()
@@ -88,9 +134,7 @@ void UMPCDIAPIImpl::SetMPCDIMeshData(const FString& MPCDIFile, const FString& Bu
 		ShaderInputData.RegionLocator = RegionLocator;
 		TSharedPtr<FMPCDIData> MpcdiData = MpcdiModule.GetMPCDIData(ShaderInputData);
 
-		MPCDI::FMPCDIRegion* Region = MpcdiData.Get()->GetRegion(RegionLocator);
-		MPCDI::FMPCDIWarpTexture* WarpTexture = &Region->WarpMap;
-
-		WarpTexture->ImportMeshData(MeshData);
+		FMPCDIRegion* Region = MpcdiData.Get()->GetRegion(RegionLocator);
+		ImportMeshData(Region, MeshData);
 	}
 }

@@ -104,18 +104,16 @@ double FMovieSceneTimeController_PlatformClock::GetCurrentTime() const
 
 double FMovieSceneTimeController_AudioClock::GetCurrentTime() const
 {
-	FAudioDevice* AudioDevice = GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr;
+	FAudioDevice* AudioDevice = GEngine ? GEngine->GetMainAudioDevice() : nullptr;
 	return AudioDevice ? AudioDevice->GetAudioClock() : FPlatformTime::Seconds();
 }
 
 double FMovieSceneTimeController_TimecodeClock::GetCurrentTime() const
 {
-	if (GEngine && GEngine->GetTimecodeProvider() && GEngine->GetTimecodeProvider()->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+	const TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
+	if (CurrentFrameTime.IsSet())
 	{
-		FTimecode Timecode = FApp::GetTimecode();
-		FFrameRate FrameRate = FApp::GetTimecodeFrameRate();
-		FFrameNumber FrameNumber = Timecode.ToFrameNumber(FrameRate);
-		return FrameRate.AsSeconds(FrameNumber);
+		return CurrentFrameTime.GetValue().AsSeconds();
 	}
 	else
 	{

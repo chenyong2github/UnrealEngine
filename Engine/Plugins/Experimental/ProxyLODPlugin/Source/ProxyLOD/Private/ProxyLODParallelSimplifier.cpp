@@ -2,16 +2,17 @@
 
 #include "ProxyLODParallelSimplifier.h"
 #include "ProxyLODMeshPartition.h"
+#include "Async/ParallelFor.h"
 
-void ProxyLOD::PartitionAndSimplifyMesh(const FBBox& SrcBBox, const TArray<int32>& SrcTriNumByPartition, const float MinFractionToRetain, const float MaxFeatureCost, const int32 NumPartitions,
+void ProxyLOD::PartitionAndSimplifyMesh(const FBBox& SrcBBox, const float MinFractionToRetain, const float MaxFeatureCost, const int32 NumPartitions,
 	FAOSMesh& InOutMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::PartitionAndSimplifyMesh)
+
 	typedef FAOSMesh                           SimplifierMeshType;
 	typedef ProxyLOD::FQuadricMeshSimplifier   FMeshSimplifier;
 
 	check(NumPartitions > 0);
-	check(SrcTriNumByPartition.Num() == NumPartitions);
-
 
 	// Create individual meshes for each partition.
 
@@ -32,134 +33,76 @@ void ProxyLOD::PartitionAndSimplifyMesh(const FBBox& SrcBBox, const TArray<int32
 	TArray<int32>*  SeamVertexIdArrayCollection = new TArray<int32>[NumPartitions];
 
 	// Create tasks for each partition.
-
-	ProxyLOD::FTaskGroup TaskGroup;
-	for (int32 i = 0; i < NumPartitions; ++i)
-	{
-
-		SimplifierMeshType& LocalMesh = PartitionedMeshArray[i];
-		TArray<int32>* SeamVertexIdArray = &SeamVertexIdArrayCollection[i];
-		const int32 MaxTriNumToRetain = SrcTriNumByPartition[i]; // currently not used
-		const int32 MinTriNumToRetain = FMath::CeilToInt(MaxTriNumToRetain * MinFractionToRetain);
-
-		// Create a functor with the required interface for the task group
-
-		auto PartitionedWork = [MinTriNumToRetain, MaxTriNumToRetain, MaxFeatureCost, &LocalMesh, SeamVertexIdArray]()
+	ParallelFor(
+		NumPartitions,
+		[&PartitionedMeshArray, &SeamVertexIdArrayCollection, &MinFractionToRetain, &MaxFeatureCost](int32 Index)
 		{
+			SimplifierMeshType& LocalMesh = PartitionedMeshArray[Index];
+			TArray<int32>* SeamVertexIdArray = &SeamVertexIdArrayCollection[Index];
+			const int32 MinTriNumToRetain = FMath::CeilToInt((LocalMesh.GetNumIndexes() / 3) * MinFractionToRetain);
+
 			ProxyLOD::FSimplifierTerminatorBase Terminator(MinTriNumToRetain, MaxFeatureCost);
 			SimplifyMesh(Terminator, LocalMesh, SeamVertexIdArray);
-		};
-
-		// Enqueue the task 
-
-		TaskGroup.Run(PartitionedWork);
-	}
-
-	// This actually triggers the running of the jobs in the task group and then waits for completion.
-
-	TaskGroup.Wait();
+		},
+		EParallelForFlags::Unbalanced
+	);
 
 	// Merge the partitioned mesh back into a single mesh.
-
 	MergeMeshArray(PartitionedMeshArray, SeamVertexIdArrayCollection, InOutMesh);
 
 	// Delete the array of seam verts ids
-
-	if (SeamVertexIdArrayCollection) delete[] SeamVertexIdArrayCollection;
-
+	if (SeamVertexIdArrayCollection)
+	{
+		delete[] SeamVertexIdArrayCollection;
+	}
 }
 
-void ProxyLOD::ParallelSimplifyMesh(const FClosestPolyField& SrcReference, const float MinFractionToRatain, const float MaxFeatureCost, FAOSMesh& InOutMesh)
+void ProxyLOD::ParallelSimplifyMesh(const FClosestPolyField& SrcReference, const float MinFractionToRetain, const float MaxFeatureCost, FAOSMesh& InOutMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::ParallelSimplifyMesh)
+
+	// Nothing to do if we must retain 100% of the input
+	if (MinFractionToRetain >= 1.0f || InOutMesh.GetNumIndexes() <= 3)
+	{
+		return;
+	}
+
 	const FMeshDescriptionArrayAdapter& SrcMeshAdapter = SrcReference.MeshAdapter();
+	const FBBox  SrcBBox = SrcMeshAdapter.GetBBox();
+	const size_t AOSTriNum = InOutMesh.GetNumIndexes() / 3;
+	const int32  AOSTriNumToRetain = FMath::CeilToInt(SrcMeshAdapter.polygonCount() * MinFractionToRetain);
+	const float  AOSMinFractionToRetain = float(AOSTriNumToRetain) / AOSTriNum;
 
-	const size_t SrcTriNum = SrcMeshAdapter.polygonCount();
-
-	FBBox SrcBBox = SrcMeshAdapter.GetBBox();
-
-	TArray<int32> SrcTriNumByPartition;
-
-	// Testing
-	int32 NumPartitions;
-
-
-	NumPartitions = 6;
+	// Nothing to do if we must retain 100% of the AOS Mesh
+	if (AOSMinFractionToRetain >= 1.0f)
 	{
-		// Find the number of Src Tris in each partition.
-
-		FMajorAxisPartitionFunctor PartitionFunctor(SrcBBox, NumPartitions);
-
-		SrcTriNumByPartition.Empty(NumPartitions);
-		SrcTriNumByPartition.AddZeroed(NumPartitions);
-
-		for (int32 i = 0; i < SrcTriNum; ++i)
-		{
-			auto PartitionIdx = PartitionFunctor(SrcMeshAdapter.GetRawPoly(i).VertexPositions);
-			SrcTriNumByPartition[PartitionIdx] += 1;
-		}
-
-
-
-		float RetainFraction = 5.f;
-		PartitionAndSimplifyMesh(SrcBBox, SrcTriNumByPartition, RetainFraction, MaxFeatureCost, NumPartitions, InOutMesh);
-
-		//	ProjectVerticesOntoSrc(SrcReference, InOutMesh);
+		return;
 	}
 
-	NumPartitions = 4;
+	// Usage of prime numbers is to ensure seams will never be at the same places throughout the sequence
+	// Changing those numbers will affect the output, so choose numbers high enough now
+	// to take advantage of CPUs with many cores and properly balance tasks on them.
+	TArray<int32> NumPartitionsSequence = { 31, 7 };
+
+	// Remove partition size that do not make sense for number of tris available
+	NumPartitionsSequence.RemoveAll([AOSTriNum](int32 Partitions) { return AOSTriNum < Partitions*10000; });
+
+	// Each step will get rid of the same ratio until we reach the target for the final step
+	// This provides good performance and quality results by leaving enough for subsequent steps to reduce.
+	// For this, we want FractionToRetainPerStep ^ Steps = AOSMinFractionToRetain
+	const float FractionToRetainPerStep = FMath::Exp(FMath::Loge(AOSMinFractionToRetain) / (NumPartitionsSequence.Num()+1));
+
+	for (int32 NumPartitions : NumPartitionsSequence)
 	{
-		// Find the number of Src Tris in each partition.
-
-		FMajorAxisPartitionFunctor PartitionFunctor(SrcBBox, NumPartitions);
-
-		SrcTriNumByPartition.Empty(NumPartitions);
-		SrcTriNumByPartition.AddZeroed(NumPartitions);
-
-		for (int32 i = 0; i < SrcTriNum; ++i)
-		{
-			auto PartitionIdx = PartitionFunctor(SrcMeshAdapter.GetRawPoly(i).VertexPositions);
-			SrcTriNumByPartition[PartitionIdx] += 1;
-		}
-
-
-
-		float RetainFraction = 1.f;
-		PartitionAndSimplifyMesh(SrcBBox, SrcTriNumByPartition, RetainFraction, MaxFeatureCost, NumPartitions, InOutMesh);
-
-		//ProjectVerticesOntoSrc(SrcReference, InOutMesh);
+		// Each partition will retain the specified ratio, which will be
+		// proportional to the amount of tris it contains.
+		// Low poly partition will remove less tri than high poly partitions providing a good balance.
+		// Each partition is still subject to MaxFeatureCost so some partition might stop removing tris
+		// once they are too low on poly.
+		const FMajorAxisPartitionFunctor PartitionFunctor(SrcBBox, NumPartitions);
+		PartitionAndSimplifyMesh(SrcBBox, FractionToRetainPerStep, MaxFeatureCost, NumPartitions, InOutMesh);
 	}
 
-	NumPartitions = 2;
-	if (1)
-	{
-		// Find the number of Src Tris in each partition.
-
-		FMajorAxisPartitionFunctor PartitionFunctor(SrcBBox, NumPartitions);
-
-		SrcTriNumByPartition.Empty(NumPartitions);
-		SrcTriNumByPartition.AddZeroed(NumPartitions);
-
-		for (int32 i = 0; i < SrcTriNum; ++i)
-		{
-			auto PartitionIdx = PartitionFunctor(SrcMeshAdapter.GetRawPoly(i).VertexPositions);
-			SrcTriNumByPartition[PartitionIdx] += 1;
-		}
-
-
-
-		float RetainFraction = 0.2f; // FMath::Max(0.5f, MinFractionToRatain);
-		PartitionAndSimplifyMesh(SrcBBox, SrcTriNumByPartition, RetainFraction, MaxFeatureCost, NumPartitions, InOutMesh);
-
-		//	ProjectVerticesOntoSrc(SrcReference, InOutMesh);
-	}
-
-	/* NumPartitions = 1; */
-	{
-		const int32 MaxTriNumToRetain = SrcTriNum;
-		const int32 MinTriNumToRetain = FMath::CeilToInt(MaxTriNumToRetain * MinFractionToRatain);
-
-		ProxyLOD::FSimplifierTerminator Terminator(MinTriNumToRetain, MaxTriNumToRetain, MaxFeatureCost);
-		SimplifyMesh(Terminator, InOutMesh);
-
-	}
+	const ProxyLOD::FSimplifierTerminatorBase Terminator(AOSTriNumToRetain, MaxFeatureCost);
+	SimplifyMesh(Terminator, InOutMesh);
 }

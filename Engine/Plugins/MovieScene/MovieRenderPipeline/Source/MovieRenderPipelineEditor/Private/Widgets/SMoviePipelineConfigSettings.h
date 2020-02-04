@@ -44,6 +44,7 @@ private:
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	void SetSelectedSettings_Impl(const TArray<UMoviePipelineSetting*>& Settings);
 
 private:
 
@@ -54,8 +55,10 @@ private:
 	void OnGetChildren(TSharedPtr<IMoviePipelineSettingTreeItem> Item, TArray<TSharedPtr<IMoviePipelineSettingTreeItem>>& OutChildItems);
 
 	void OnDeleteSelected();
+	bool IsSelectableOrNavigable(TSharedPtr<IMoviePipelineSettingTreeItem> Item) const;
 
 private:
+	TArray<UMoviePipelineSetting*> PendingSettingsToSelect;
 
 	uint32 CachedSettingsSerialNumber;
 	TWeakObjectPtr<UMoviePipelineConfigBase> WeakShotConfig;

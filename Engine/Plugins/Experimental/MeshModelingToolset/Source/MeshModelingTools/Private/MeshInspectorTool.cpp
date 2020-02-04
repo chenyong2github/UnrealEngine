@@ -114,7 +114,7 @@ void UMeshInspectorTool::Setup()
 	AddToolPropertySource(Settings);
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
-	MaterialSettings->Setup();
+	MaterialSettings->RestoreProperties(this);
 	AddToolPropertySource(MaterialSettings);
 
 	PreviewMesh->EnableWireframe(Settings->bWireframe);
@@ -141,6 +141,7 @@ void UMeshInspectorTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	Settings->SaveProperties(this);
+	MaterialSettings->SaveProperties(this);
 }
 
 

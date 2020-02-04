@@ -2819,6 +2819,13 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 	// By this point it is safe to remove the GameInstance from the root and allow it to garbage collected as per usual
 	GameInstance->RemoveFromRoot();
 
+	// If the request wanted to override the game mode we have to do that here while we still have specifics about
+	// the request. This will allow
+	if (InParams.GameModeOverride)
+	{
+		GameInstance->GetWorld()->GetWorldSettings()->DefaultGameMode = InParams.GameModeOverride;
+	}
+
 	FGameInstancePIEResult StartResult = FGameInstancePIEResult::Success();
 	{
 		FTemporaryPlayInEditorIDOverride OverrideIDHelper(InPIEInstanceIndex);

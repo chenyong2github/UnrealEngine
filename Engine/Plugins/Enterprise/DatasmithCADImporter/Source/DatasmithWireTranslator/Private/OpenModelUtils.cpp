@@ -17,7 +17,6 @@
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
-#include "Utility/DatasmithMathUtils.h"
 using namespace OpenModelUtils;
 
 const TCHAR * OpenModelUtils::AlObjectTypeToString(AlObjectType type)
@@ -1576,13 +1575,10 @@ void OpenModelUtils::SetActorTransform(const TSharedPtr< IDatasmithActorElement 
 		}
 		FTransform LocalTransform(Matrix);
 		FTransform LocalUETransform = FDatasmithUtils::ConvertTransform(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, LocalTransform);
-		FQuat Quat;
 		
-		FDatasmithTransformUtils::GetSafeRotation(LocalUETransform, Quat);
-
 		ActorElement->SetTranslation(LocalUETransform.GetTranslation());
 		ActorElement->SetScale(LocalUETransform.GetScale3D());
-		ActorElement->SetRotation(Quat);
+		ActorElement->SetRotation(LocalUETransform.GetRotation());
 	}
 }
 

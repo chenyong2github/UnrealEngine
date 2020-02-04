@@ -6,6 +6,7 @@
 
 #include "LiveLinkClient.h"
 #include "ILiveLinkSource.h"
+#include "ITimedDataInput.h"
 #include "LiveLinkFrameInterpolationProcessor.h"
 #include "LiveLinkFramePreProcessor.h"
 #include "LiveLinkFrameTranslator.h"
@@ -13,9 +14,11 @@
 #include "LiveLinkRole.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
+#include "LiveLinkTimedDataInput.h"
 #include "LiveLinkTypes.h"
 
 
+struct FLiveLinkInterpolationInfo;
 
 struct FLiveLinkTimeSynchronizationData
 {
@@ -41,10 +44,16 @@ struct FLiveLinkTimeSynchronizationData
 /**
  * Manages subject manipulation either to add or get frame data for specific roles
  */
-class FLiveLinkSubject : public ILiveLinkSubject
+class FLiveLinkSubject : public ILiveLinkSubject, public ITimedDataInputChannel
 {
 private:
 	using Super = ILiveLinkSubject;
+
+public:
+	explicit FLiveLinkSubject(TSharedPtr<FLiveLinkTimedDataInput> InTimedDataGroup);
+	FLiveLinkSubject(const FLiveLinkSubject&) = delete;
+	FLiveLinkSubject& operator=(const FLiveLinkSubject&) = delete;
+	virtual ~FLiveLinkSubject();
 
 	//~ Begin ILiveLinkSubject Interface
 public:
@@ -62,9 +71,26 @@ protected:
 	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const { return FrameSnapshot; }
 	//~ End ILiveLinkSubject Interface
 
+	//~Begin ITimedDataSource Interface
+public:
+	virtual FText GetDisplayName() const override;
+	virtual ETimedDataInputState GetState() const override;
+	virtual FTimedDataChannelSampleTime GetOldestDataTime() const override;
+	virtual FTimedDataChannelSampleTime GetNewestDataTime() const override;
+	virtual TArray<FTimedDataChannelSampleTime> GetDataTimes() const override;
+	virtual int32 GetNumberOfSamples() const override;
+	virtual bool IsBufferStatsEnabled() const override;
+	virtual void SetBufferStatsEnabled(bool bEnable) override;
+	virtual int32 GetBufferUnderflowStat() const override;
+	virtual int32 GetBufferOverflowStat() const override;
+	virtual int32 GetFrameDroppedStat() const override;
+	virtual void GetLastEvaluationData(FTimedDataInputEvaluationData& OutEvaluationData) const override;
+	virtual void ResetBufferStats() override;
+	//~End ITimedDataSrouce Interface
+
 public:
 	bool EvaluateFrameAtWorldTime(double InWorldTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame);
-	bool EvaluateFrameAtSceneTime(const FTimecode& InSceneTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame);
+	bool EvaluateFrameAtSceneTime(const FQualifiedFrameTime& InSceneTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame);
 
 	bool HasStaticData() const;
 
@@ -100,11 +126,20 @@ private:
 	bool GetFrameAtSceneTime(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
 	bool GetFrameAtSceneTime_Closest(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
 	bool GetFrameAtSceneTime_Interpolated(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
+	
+	// Verify interpolation result to update our internal statistics
+	void VerifyInterpolationInfo(const FLiveLinkInterpolationInfo& InterpolationInfo);
 
 	// Populate OutFrame with the latest frame.
 	bool GetLatestFrame(FLiveLinkSubjectFrameData& OutFrame);
 
 	void ResetFrame(FLiveLinkSubjectFrameData& OutFrame) const;
+
+	// Update our internal statistics
+	void IncreaseFrameDroppedStat();
+	void IncreaseBufferUnderFlowStat();
+	void IncreaseBufferOverFlowStat();
+	void UpdateEvaluationData(const FTimedDataInputEvaluationData& EvaluationData);
 
 protected:
 	// The role the subject was build with
@@ -123,6 +158,18 @@ private:
 		ELiveLinkSourceMode SourceMode = ELiveLinkSourceMode::EngineTime;
 		FLiveLinkSourceBufferManagementSettings BufferSettings;
 	};
+	
+	struct FSubjectEvaluationStatistics
+	{
+		TAtomic<int32> BufferUnderflow;
+		TAtomic<int32> BufferOverflow;
+		TAtomic<int32> FrameDrop;
+		FTimedDataInputEvaluationData LastEvaluationData;
+
+		FSubjectEvaluationStatistics();
+		FSubjectEvaluationStatistics(const FSubjectEvaluationStatistics&) = delete;
+		FSubjectEvaluationStatistics& operator=(const FSubjectEvaluationStatistics&) = delete;
+	};
 
 	// Static data of the subject
 	FLiveLinkStaticDataStruct StaticData;
@@ -136,17 +183,24 @@ private:
 	// Name of the subject
 	FLiveLinkSubjectKey SubjectKey;
 
+	// Timed data input group for the subject
+	TWeakPtr<FLiveLinkTimedDataInput> TimedDataGroup;
+
 	// Connection settings specified by user
 	FLiveLinkCachedSettings CachedSettings;
 
 	// Last time a frame was pushed
 	double LastPushTime = 0.0;
 
-	//Cache of the last frame we used to build the snapshot, used to clean frames
-	int32 LastReadFrame;
+	// Logging stats is enabled by default. If monitor opens at a later stage,previous stats will be able to be seen
+	bool bIsStatLoggingEnabled = true;
 
-#if WITH_EDITORONLY_DATA
-	int32 SnapshotIndex = INDEX_NONE;
-	int32 NumberOfBufferAtSnapshot = 0;
-#endif
+	// Some stats compiled by the subject.
+	FSubjectEvaluationStatistics EvaluationStatistics;
+	
+	/** 
+	 * Evaluation can be done on any thread so we need to protect statistic logging 
+	 * Some stats requires more than atomic sized vars so a critical section is used to protect when necessary
+	 */
+	mutable FCriticalSection StatisticCriticalSection;
 };

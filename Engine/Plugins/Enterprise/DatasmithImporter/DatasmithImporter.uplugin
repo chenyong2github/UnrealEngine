@@ -22,12 +22,12 @@
 		},
 		{
 			"Name": "DatasmithTranslator",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "DatasmithNativeTranslator",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
 	],

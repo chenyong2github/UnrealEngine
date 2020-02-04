@@ -565,13 +565,16 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 
 	if (GetDefault<ULevelEditorViewportSettings>()->SnapToSurface.bEnabled)
 	{
-		// HACK: If we are aligning rotation to surfaces, we have to factor in the inverse of the actor transform so that the resulting transform after SpawnActor is correct.
+		// HACK: If we are aligning rotation to surfaces, we have to factor in the inverse of the actor's rotation and translation so that the resulting transform after SpawnActor is correct.
 
 		if (auto* RootComponent = NewActorTemplate->GetRootComponent())
 		{
 			RootComponent->UpdateComponentToWorld();
 		}
+
+		FVector OrigActorScale3D = ActorTransform.GetScale3D();
 		ActorTransform = NewActorTemplate->GetTransform().Inverse() * ActorTransform;
+		ActorTransform.SetScale3D(OrigActorScale3D);
 	}
 
 	// Do not fade snapping indicators over time if the viewport is not realtime

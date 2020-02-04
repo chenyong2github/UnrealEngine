@@ -46,6 +46,7 @@ private:
 	bool CanEditSelectedLayer() const;
 	void OnEditSelectedLayer();
 
+	bool CanAddSubLayer() const;
 	void OnAddSubLayer();
 	void OnNewSubLayer();
 

@@ -27,7 +27,6 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialShared.h"
 #include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"

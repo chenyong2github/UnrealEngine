@@ -1390,7 +1390,6 @@ float FParticleRibbonEmitterInstance::Spawn(float DeltaTime)
 			GetParticleLifetimeAndSize(TrailIdx, Particle, bNoLivingParticles, Particle->OneOverMaxLifetime, Particle->Size.X);
 			Particle->RelativeTime = SpawnTime * Particle->OneOverMaxLifetime;
 			Particle->Size.Y = Particle->Size.X;
-			Particle->Size.Z = Particle->Size.Z;
 			Particle->BaseSize = Particle->Size;
 
 			if (EventPayload)
@@ -1891,7 +1890,6 @@ bool FParticleRibbonEmitterInstance::Spawn_Source(float DeltaTime)
 				GetParticleLifetimeAndSize(TrailIdx, Particle, bNoLivingParticles, Particle->OneOverMaxLifetime, Particle->Size.X);
 				Particle->RelativeTime = SpawnTime * Particle->OneOverMaxLifetime;
 				Particle->Size.Y = Particle->Size.X;
-				Particle->Size.Z = Particle->Size.Z;
 				Particle->BaseSize = Particle->Size;
 
 				Component->SetComponentToWorld(SavedComponentToWorld);

@@ -134,6 +134,8 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		{
 			if (UParticleSystemComponent* ParticleComponent = Cast<UParticleSystemComponent>(Component))
 			{
+				// The particle needs to be set inactive in case its template was active.
+				ParticleComponent->SetActiveFlag(false);
 				Component->bAutoActivate = false;
 			}
 		}

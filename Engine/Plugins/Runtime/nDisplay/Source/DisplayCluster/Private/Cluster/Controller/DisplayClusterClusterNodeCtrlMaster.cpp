@@ -36,7 +36,7 @@ FDisplayClusterClusterNodeCtrlMaster::FDisplayClusterClusterNodeCtrlMaster(const
 	CachedInputDataEvent  = FPlatformProcess::CreateSynchEvent(true);
 	CachedDeltaTimeEvent  = FPlatformProcess::CreateSynchEvent(true);
 	CachedEventsDataEvent = FPlatformProcess::CreateSynchEvent(true);
-	CachedTimeCodeFrameRateEvent = FPlatformProcess::CreateSynchEvent(true);
+	CachedFrameTimeEvent  = FPlatformProcess::CreateSynchEvent(true);
 }
 
 FDisplayClusterClusterNodeCtrlMaster::~FDisplayClusterClusterNodeCtrlMaster()
@@ -44,7 +44,7 @@ FDisplayClusterClusterNodeCtrlMaster::~FDisplayClusterClusterNodeCtrlMaster()
 	delete CachedInputDataEvent;
 	delete CachedDeltaTimeEvent;
 	delete CachedEventsDataEvent;
-	delete CachedTimeCodeFrameRateEvent;
+	delete CachedFrameTimeEvent;
 
 	for (auto& it : CachedSyncDataEvents)
 	{
@@ -73,24 +73,29 @@ void FDisplayClusterClusterNodeCtrlMaster::GetDeltaTime(float& DeltaSeconds)
 	DeltaSeconds = CachedDeltaTime;
 }
 
-void FDisplayClusterClusterNodeCtrlMaster::GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate)
+void FDisplayClusterClusterNodeCtrlMaster::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
 {
 	if (IsInGameThread())
 	{
-		// This values are updated in UEngine::UpdateTimeAndHandleMaxTickRate (via UpdateTimecode).
-		CachedTimecode  = FApp::GetTimecode();
-		CachedFramerate = FApp::GetTimecodeFrameRate();
+		CachedFrameTime = FApp::GetCurrentFrameTime();
 
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetTimecode cached values: Timecode %s, FrameRate %s"), *CachedTimecode.ToString(), *FDisplayClusterTypesConverter::ToString(CachedFramerate));
+		if (CachedFrameTime.IsSet())
+		{
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetFrameTime cached values: Seconds %f"), CachedFrameTime.GetValue().AsSeconds());
+		}
+		else
+		{
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetFrameTime cached values: [INVALID]"));
+		}
 
-		CachedTimeCodeFrameRateEvent->Trigger();
+		CachedFrameTimeEvent->Trigger();
 	}
 
-	CachedTimeCodeFrameRateEvent->Wait();
+	// Wait until data is available
+	CachedFrameTimeEvent->Wait();
 
 	// Return cached value
-	Timecode  = CachedTimecode;
-	FrameRate = CachedFramerate;
+	FrameTime = CachedFrameTime;
 }
 
 void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
@@ -201,7 +206,7 @@ void FDisplayClusterClusterNodeCtrlMaster::ClearCache()
 
 	// Reset all cache events
 	CachedDeltaTimeEvent->Reset();
-	CachedTimeCodeFrameRateEvent->Reset();
+	CachedFrameTimeEvent->Reset();
 	CachedEventsDataEvent->Reset();
 	CachedInputDataEvent->Reset();
 

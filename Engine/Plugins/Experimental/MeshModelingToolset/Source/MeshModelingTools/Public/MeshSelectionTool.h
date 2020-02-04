@@ -32,18 +32,26 @@ enum class EMeshSelectionToolActions
 {
 	NoAction,
 
+	SelectAll,
 	ClearSelection,
 	InvertSelection,
 	GrowSelection,
 	ShrinkSelection,
 	ExpandToConnected,
 
+	SelectLargestComponentByTriCount,
+	SelectLargestComponentByArea,
+	OptimizeSelection,
+
 	DeleteSelected,
 	DisconnectSelected,
 	SeparateSelected,
 	FlipSelected,
 	CreateGroup,
-	AssignMaterial
+	AssignMaterial,
+
+	CycleSelectionMode,
+	CycleViewMode
 };
 
 
@@ -70,6 +78,12 @@ class MESHMODELINGTOOLS_API UMeshSelectionEditActions : public UMeshSelectionToo
 	GENERATED_BODY()
 
 public:
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Select All", DisplayPriority = 1))
+	void SelectAll()
+	{
+		PostAction(EMeshSelectionToolActions::SelectAll);
+	}
+
 	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Clear", DisplayPriority = 1))
 	void Clear()
 	{
@@ -99,6 +113,24 @@ public:
 	void ExpandToConnected()
 	{
 		PostAction(EMeshSelectionToolActions::ExpandToConnected);
+	}
+
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "SelectLargestComponentByTriCount", DisplayPriority = 5))
+	void SelectLargestComponentByTriCount()
+	{
+		PostAction(EMeshSelectionToolActions::SelectLargestComponentByTriCount);
+	}
+
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "SelectLargestComponentByArea", DisplayPriority = 5))
+	void SelectLargestComponentByArea()
+	{
+		PostAction(EMeshSelectionToolActions::SelectLargestComponentByArea);
+	}
+
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "OptimizeSelection", DisplayPriority = 5))
+	void OptimizeSelection()
+	{
+		PostAction(EMeshSelectionToolActions::OptimizeSelection);
 	}
 
 };
@@ -151,8 +183,11 @@ public:
 UENUM()
 enum class EMeshSelectionToolPrimaryMode
 {
-	/** Select all triangles inside the brush */
+	/** Select all triangles inside the brush area */
 	Brush,
+
+	/** Select all triangles inside the brush volume */
+	VolumetricBrush,
 
 	/** Select all triangles inside brush with normal within angular tolerance of hit triangle */
 	AngleFiltered,
@@ -205,10 +240,6 @@ public:
 	/** Angle in Degrees used for Angle-based Selection Modes */
 	UPROPERTY(EditAnywhere, Category = Selection, meta = (UIMin = "0.0", UIMax = "90.0") )
 	float AngleTolerance = 1.0;
-
-	/** A Volumetric brush selects anything within a 3D sphere, rather than only elements connected to the Brush Position  */
-	UPROPERTY(EditAnywhere, Category = Selection)
-	bool bVolumetricBrush = false;
 
 	/** Allow the brush to hit back-facing parts of the surface  */
 	UPROPERTY(EditAnywhere, Category = Selection)
@@ -341,16 +372,21 @@ protected:
 	EMeshSelectionToolActions PendingAction;
 	virtual void ApplyAction(EMeshSelectionToolActions ActionType);
 
+	void SelectAll();
 	void ClearSelection();
 	void InvertSelection();
 	void GrowShrinkSelection(bool bGrow);
 	void ExpandToConnected();
+
+	void SelectLargestComponent(bool bWeightByArea);
+	void OptimizeSelection();
 
 	void DeleteSelectedTriangles();
 	void DisconnectSelectedTriangles(); // disconnects edges between selected and not-selected triangles; keeps all triangles in the same mesh
 	void SeparateSelectedTriangles(); // separates out selected triangles to a new mesh, removing them from the current mesh
 	void FlipSelectedTriangles();
 	void AssignNewGroupToSelectedTriangles();
+	
 
 	// if true, mesh has been edited
 	bool bHaveModifiedMesh = false;
