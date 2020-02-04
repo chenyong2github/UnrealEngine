@@ -2397,7 +2397,14 @@ bool USoundWave::GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& 
 
 void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnLoadCompleted, bool bForceSync /*= false*/, int32 ChunkIndex /*= 1*/, ENamedThreads::Type CallbackThread /*= ENamedThreads::GameThread*/)
 {
-	if (bForceSync)
+	// if we are requesting a chunk that is out of bounds,
+	// early exit.
+	if (ChunkIndex >= GetNumChunks())
+	{
+		FAudioChunkHandle EmptyChunkHandle;
+		OnLoadCompleted(EmptyChunkHandle);
+	}
+	else if (bForceSync)
 	{
 		// For sync cases, we call GetLoadedChunk with bBlockForLoad = true, then execute the callback immediately.
 		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(this, ChunkIndex, true);
@@ -2425,6 +2432,13 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnL
 
 void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 {
+	// Since the zeroth chunk is always inlined and stored in memory,
+	// early exit if we only have one chunk.
+	if (GetNumChunks() <= 1)
+	{
+		return;
+	}
+
 	if (FirstChunk.IsValid())
 	{
 		return;
