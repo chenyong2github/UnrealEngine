@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsioFile.h"
-
-#if !PLATFORM_WINDOWS
 #include "Containers/StringConv.h"
 
+#if !PLATFORM_WINDOWS
 #include <sys/file.h>
 #include <errno.h>
 #endif
