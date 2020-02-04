@@ -265,12 +265,13 @@ public:
 
 	/** Set the interp mode of the specified key */
 	virtual void SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode) final override;
+	void SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode, bool bAutoSetTangents);
 
 	/** Set the tangent mode of the specified key */
-	void SetKeyTangentMode(FKeyHandle KeyHandle, ERichCurveTangentMode NewTangentMode);
+	void SetKeyTangentMode(FKeyHandle KeyHandle, ERichCurveTangentMode NewTangentMode, bool bAutoSetTangents = true);
 
 	/** Set the tangent weight mode of the specified key */
-	void SetKeyTangentWeightMode(FKeyHandle KeyHandle, ERichCurveTangentWeightMode NewTangentWeightMode);
+	void SetKeyTangentWeightMode(FKeyHandle KeyHandle, ERichCurveTangentWeightMode NewTangentWeightMode, bool bAutoSetTangents = true);
 
 	/** Get the interp mode of the specified key */
 	virtual ERichCurveInterpMode GetKeyInterpMode(FKeyHandle KeyHandle) const final override;
