@@ -3,10 +3,10 @@
 #include "SNiagaraSystemScript.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "SNiagaraParameterCollection.h"
-#include "SNiagaraScriptGraph.h"
+#include "Widgets/SNiagaraScriptGraph.h"
 
 #include "Widgets/Layout/SSplitter.h"
 

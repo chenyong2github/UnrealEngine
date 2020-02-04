@@ -1046,8 +1046,8 @@ static FGraphEventRef SubmitScene(const FScene* Scene, FViewInfo& View, FOcclusi
 
 			// Relevance requirements
 			FPrimitiveViewRelevance ViewRelevance = Proxy->GetViewRelevance(&View);
-			const bool bNonOpaqueRelevance = (ViewRelevance.bMaskedRelevance || ViewRelevance.HasTranslucency()); // TODO: opaque sections
-			bool bCanBeOccluder = ViewRelevance.bDrawRelevance && (ViewRelevance.bOpaqueRelevance && !bNonOpaqueRelevance);
+			const bool bNonOpaqueRelevance = (ViewRelevance.bMasked || ViewRelevance.HasTranslucency()); // TODO: opaque sections
+			bool bCanBeOccluder = ViewRelevance.bDrawRelevance && (ViewRelevance.bOpaque && !bNonOpaqueRelevance);
 
 			if (bCanBeOccluder)
 			{

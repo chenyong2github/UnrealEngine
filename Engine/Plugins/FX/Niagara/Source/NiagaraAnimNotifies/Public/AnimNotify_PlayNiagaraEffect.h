@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 
-
 #include "AnimNotify_PlayNiagaraEffect.generated.h"
 
 
@@ -15,7 +14,6 @@ class UAnimSequenceBase;
 class UNiagaraSystem;
 class USkeletalMeshComponent;
 class UNiagaraSystemComponent;
-
 class UNiagaraSystem;
 class UFXSystemComponent;
 

@@ -14,12 +14,12 @@ struct FRigHierarchyContainer;
 UENUM(BlueprintType)
 enum class ERigElementType : uint8
 {
-	None UMETA(Hidden),
+	None,
 	Bone = 0x001,
 	Space = 0x002,
 	Control = 0x004,
 	Curve = 0x008,
-	All = Bone | Space | Control | Curve UMETA(Hidden),
+	All = Bone | Space | Control | Curve,
 };
 
 /*

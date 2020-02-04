@@ -5283,10 +5283,12 @@ protected:
 		{
 			while (CurrentField)
 			{
-				if (CurrentField->HasAllCastFlags(T::StaticClassCastFlags()) &&
+				typename T::FieldTypeClass* FieldClass = CurrentField->GetClass();
+
+				if (FieldClass->HasAllCastFlags(T::StaticClassCastFlags()) &&
 					(
 						   bIncludeDeprecated
-						|| !CurrentField->HasAllCastFlags(CASTCLASS_FProperty)
+						|| !FieldClass->HasAllCastFlags(CASTCLASS_FProperty)
 						|| !((FProperty*)CurrentField)->HasAllPropertyFlags(CPF_Deprecated)
 					)
 				)

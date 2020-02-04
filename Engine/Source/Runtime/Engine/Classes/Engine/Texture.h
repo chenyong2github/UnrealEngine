@@ -506,9 +506,10 @@ public:
 	 * @param OutMipData -	Must point to an array of pointers with at least
 	 *						Texture.Mips.Num() - FirstMipToLoad + 1 entries. Upon
 	 *						return those pointers will contain mip data.
+	 * @param Texture - The texture to load mips for.
 	 * @returns true if all requested mips have been loaded.
 	 */
-	bool TryLoadMips(int32 FirstMipToLoad, void** OutMipData);
+	bool TryLoadMips(int32 FirstMipToLoad, void** OutMipData, UTexture* Texture);
 
 	/** Serialization. */
 	void Serialize(FArchive& Ar, class UTexture* Owner);
@@ -573,7 +574,7 @@ public:
 		uint32 InFlags,
 		class ITextureCompressorModule* Compressor);
 	void FinishCache();
-	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0);
+	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0, UTexture* Texture = nullptr);
 	bool AreDerivedMipsAvailable() const;
 	bool AreDerivedVTChunksAvailable() const;
 #endif

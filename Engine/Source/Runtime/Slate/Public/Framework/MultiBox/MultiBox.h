@@ -297,7 +297,7 @@ public:
 	 *
 	 * @return  MultiBox widget object
 	 */
-	TSharedRef< class SMultiBoxWidget > MakeWidget( bool bSearchable, FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr );
+	TSharedRef< class SMultiBoxWidget > MakeWidget( bool bSearchable, FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr, TAttribute<float> InMaxHeight = TAttribute<float>() );
 
 
 	/**
@@ -584,7 +584,12 @@ public:
 	* @return	Whether this block is searchable
 	*/
 	bool GetSearchable() const;
-	
+
+	/**
+	* Sets optional maximum height of widget
+	*/
+	void SetMaxHeight(TAttribute<float> InMaxHeight) { MaxHeight = InMaxHeight; }
+
 	/**
 	 * Builds this MultiBox widget up from the MultiBox associated with it
 	 */
@@ -774,4 +779,7 @@ private:
 
 	/** Whether this multibox can be searched */
 	bool bSearchable;
+
+	/** Optional maximum height of widget */
+	TAttribute<float> MaxHeight;
 };

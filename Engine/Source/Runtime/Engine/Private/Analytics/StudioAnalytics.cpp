@@ -51,16 +51,17 @@ void FStudioAnalytics::RunTimer_Concurrent()
 {
 	TimeEstimation = FPlatformTime::Seconds();
 
+	const double FixedInterval = 0.0333333333334;
+	const double BreakpointHitchTime = 1;
+
 	while (bInitialized)
 	{
-		const double FixedInterval = 0.0333333333334;
-
 		const double StartTime = FPlatformTime::Seconds();
 		FPlatformProcess::Sleep((float)FixedInterval);
 		const double EndTime = FPlatformTime::Seconds();
 		const double DeltaTime = EndTime - StartTime;
 
-		if (DeltaTime > 1.0)
+		if (DeltaTime > BreakpointHitchTime)
 		{
 			TimeEstimation += FixedInterval;
 		}
@@ -111,6 +112,12 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 {
 	// Ignore anything less than a 1/4th a second.
 	if (SecondsSpentLoading < 0.250)
+	{
+		return;
+	}
+
+	// Throw out anything over 10 hours - 
+	if (SecondsSpentLoading > 36000)
 	{
 		return;
 	}

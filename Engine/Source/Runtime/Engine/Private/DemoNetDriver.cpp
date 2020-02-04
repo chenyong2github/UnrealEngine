@@ -865,7 +865,10 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 	if (Super::InitBase(bInitAsClient, InNotify, URL, bReuseAddressAndPort, Error))
 	{
 		DemoURL							= URL;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Time							= 0;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		ResetElapsedTime();
 		bChannelsArePaused				= false;
 		bIsFastForwarding				= false;
 		bIsFastForwardingForCheckpoint	= false;
@@ -1145,7 +1148,7 @@ bool UDemoNetDriver::InitConnectInternal(FString& Error)
 				return false;
 			}
 
-			GetWorld()->DemoNetDriver = nullptr;
+			GetWorld()->ClearDemoNetDriver();
 			SetWorld(nullptr);
 
 			auto NewPendingNetGame = NewObject<UDemoPendingNetGame>();
@@ -1552,11 +1555,11 @@ void UDemoNetDriver::TickFlushInternal(float DeltaSeconds)
 
 	RecordCountSinceFlush++;
 
-	const double ElapsedTime = EndTime - LastRecordAvgFlush;
+	const double DemoElapsedTime = EndTime - LastRecordAvgFlush;
 
 	const double AVG_FLUSH_TIME_IN_SECONDS = 2;
 
-	if (ElapsedTime > AVG_FLUSH_TIME_IN_SECONDS && RecordCountSinceFlush > 0)
+	if (DemoElapsedTime > AVG_FLUSH_TIME_IN_SECONDS && RecordCountSinceFlush > 0)
 	{
 		const float AvgTimeMS = (AccumulatedRecordTime / RecordCountSinceFlush) * 1000;
 		const float MaxRecordTimeMS = MaxRecordTime * 1000;
@@ -1829,18 +1832,28 @@ bool UDemoNetDriver::DemoReplicateActor(AActor* Actor, UNetConnection* Connectio
 	return bDidReplicateActor;
 }
 
-void UDemoNetDriver::SerializeGuidCache(TSharedPtr<FNetGUIDCache> InGuidCache, FArchive* CheckpointArchive)
+class FRepActorsCheckpointParams
+{
+public:
+	const double StartCheckpointTime;
+	const double CheckpointMaxUploadTimePerFrame;
+};
+
+// Serialisation of net guids cache can take too long for a single frame (if checkpoint saving is timeboxed).
+// Make a snapshot of net guids that need to be serialised for checkpoint so serialisation can be split between multiple frames.
+// This operation is not time boxed and is expected to be fast and to fit into a single frame.
+void UDemoNetDriver::CacheNetGuids()
 {
 	int32 NumValues = 0;
-	int32 UnloadedValues = 0;
-
-	FArchivePos CountPos = CheckpointArchive->Tell();
-
-	*CheckpointArchive << NumValues;
-
 	const bool bDeltaCheckpoint = HasDeltaCheckpoints();
+	const double StartTime = FPlatformTime::Seconds();
 
-	for (auto It = InGuidCache->ObjectLookup.CreateIterator(); It; ++It)
+	// initialize NetGuidCache serialization
+	NetGuidCacheSnapshot.Reset();
+	NextNetGuidForRecording = 0;
+	NumNetGuidsForRecording = 0;
+
+	for (auto It = GuidCache->ObjectLookup.CreateIterator(); It; ++It)
 	{
 		FNetworkGUID& NetworkGUID = It.Key();
 		FNetGuidCacheObject& CacheObject = It.Value();
@@ -1852,50 +1865,83 @@ void UDemoNetDriver::SerializeGuidCache(TSharedPtr<FNetGUIDCache> InGuidCache, F
 
 		if (NetworkGUID.IsValid())
 		{
-			const UObject* Object = CacheObject.Object.Get();
+			NetGuidCacheSnapshot.Add({ NetworkGUID, CacheObject });
 
-			if (NetworkGUID.IsStatic() || (Object && Object->IsNameStableForNetworking()))
-			{		
-				// if we know the guid was specifically deleted, do not serialize it
-				if (DeletedNetStartupActorGUIDs.Contains(NetworkGUID))
-				{
-					continue;
-				}
+			CacheObject.bDirtyForReplay = false;
 
-				FString PathName = Object ? Object->GetName() : CacheObject.PathName.ToString();
+			++NumValues;
+		}
+	}
 
-				GEngine->NetworkRemapPath(this, PathName, false);
+	UE_LOG(LogDemo, Verbose, TEXT("CacheNetGuids: %d, %.1f ms"), NumValues, (FPlatformTime::Seconds() - StartTime) * 1000);
+}
 
-				*CheckpointArchive << NetworkGUID;
-				*CheckpointArchive << CacheObject.OuterGUID;
-				*CheckpointArchive << PathName;
-				*CheckpointArchive << CacheObject.NetworkChecksum;
+// Checkpoint saving step.
+// Serialise as many net guids as fit into a single frame (if time boxed) from previously made snapshot
+bool UDemoNetDriver::SerializeGuidCache(const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive)
+{
+	if (NextNetGuidForRecording == 0) // is the first iteration?
+	{
+		NetGuidsCountPos = CheckpointArchive->Tell();
+		*CheckpointArchive << NextNetGuidForRecording;
+	}
 
-				uint8 Flags = 0;
-				Flags |= CacheObject.bNoLoad ? (1 << 0) : 0;
-				Flags |= CacheObject.bIgnoreWhenMissing ? (1 << 1) : 0;
+	const double StartTime = FPlatformTime::Seconds();
+	const double Deadline = Params.StartCheckpointTime + Params.CheckpointMaxUploadTimePerFrame;
 
-				*CheckpointArchive << Flags;
+	check(NextNetGuidForRecording >= 0 && NextNetGuidForRecording < NetGuidCacheSnapshot.Num());
 
-				CacheObject.bDirtyForReplay = false;
+	for (; NextNetGuidForRecording != NetGuidCacheSnapshot.Num(); ++NextNetGuidForRecording)
+	{
+		FNetworkGUID& NetworkGUID = NetGuidCacheSnapshot[NextNetGuidForRecording].NetGuid;
+		FNetGuidCacheObject& CacheObject = NetGuidCacheSnapshot[NextNetGuidForRecording].NetGuidCacheObject;
 
-				++NumValues;
+		const UObject* Object = CacheObject.Object.Get();
 
-				const bool bUnloaded = Object == nullptr || !Object->IsNameStableForNetworking();
-				if (bUnloaded)
-				{
-					++UnloadedValues;
-				}
+		if (NetworkGUID.IsStatic() || (Object && Object->IsNameStableForNetworking()))
+		{		
+			// if we know the guid was specifically deleted, do not serialize it
+			if (DeletedNetStartupActorGUIDs.Contains(NetworkGUID))
+			{
+				continue;
+			}
+
+			FString PathName = Object ? Object->GetName() : CacheObject.PathName.ToString();
+
+			GEngine->NetworkRemapPath(this, PathName, false);
+
+			*CheckpointArchive << NetworkGUID;
+			*CheckpointArchive << CacheObject.OuterGUID;
+			*CheckpointArchive << PathName;
+			*CheckpointArchive << CacheObject.NetworkChecksum;
+
+			uint8 Flags = 0;
+			Flags |= CacheObject.bNoLoad ? (1 << 0) : 0;
+			Flags |= CacheObject.bIgnoreWhenMissing ? (1 << 1) : 0;
+
+			*CheckpointArchive << Flags;
+
+			++NumNetGuidsForRecording;
+
+			if (FPlatformTime::Seconds() >= Deadline)
+			{
+				break;
 			}
 		}
 	}
 
-	FArchivePos Pos = CheckpointArchive->Tell();
-	CheckpointArchive->Seek(CountPos);
-	*CheckpointArchive << NumValues;
-	CheckpointArchive->Seek(Pos);
+	bool bCompleted = NextNetGuidForRecording == NetGuidCacheSnapshot.Num();
+	if (bCompleted)
+	{
+		FArchivePos Pos = CheckpointArchive->Tell();
+		CheckpointArchive->Seek(NetGuidsCountPos);
+		*CheckpointArchive << NumNetGuidsForRecording;
+		CheckpointArchive->Seek(Pos);
+	}
 
-	UE_LOG(LogDemo, Verbose, TEXT("Checkpoint. SerializeGuidCache: %i Unloaded: %i"), NumValues, UnloadedValues);
+	UE_LOG(LogDemo, Log, TEXT("Checkpoint. SerializeGuidCache: %i/%i (total %i), took %.3f (%.3f)"), NextNetGuidForRecording, NetGuidCacheSnapshot.Num(), NumNetGuidsForRecording, FPlatformTime::Seconds() - Params.StartCheckpointTime, FPlatformTime::Seconds() - StartTime);
+
+	return bCompleted;
 }
 
 float UDemoNetDriver::GetCheckpointSaveMaxMSPerFrame() const
@@ -1931,6 +1977,8 @@ void UDemoNetDriver::SaveCheckpoint()
 	check(CheckpointSaveContext.CheckpointSaveState == ECheckpointSaveState_Idle);
 	
 	const bool bDeltaCheckpoint = HasDeltaCheckpoints();
+
+	CSV_SCOPED_TIMING_STAT(Basic, DemoSaveCheckpointTime);
 
 	if (HasLevelStreamingFixes())
 	{
@@ -2050,14 +2098,6 @@ void UDemoNetDriver::SaveCheckpoint()
 	}
 }
 
-class FRepActorsCheckpointParams
-{
-public:
-
-	const double StartCheckpointTime;
-	const double CheckpointMaxUploadTimePerFrame;
-};
-
 // Only start execution if a certain percentage remains of the 
 static bool inline ShouldExecuteState(const FRepActorsCheckpointParams& Params, double CurrentTime, double RequiredRatioToStart)
 {
@@ -2085,6 +2125,8 @@ void UDemoNetDriver::TickCheckpoint()
 	{
 		return;
 	}
+
+	CSV_SCOPED_TIMING_STAT(Basic, DemoTickCheckpointTime);
 
 	FRepActorsCheckpointParams Params
 	{
@@ -2222,6 +2264,20 @@ void UDemoNetDriver::TickCheckpoint()
 							*CheckpointArchive << DeletedNetStartupActors;
 						}
 
+						CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_CacheNetGuids;
+					}
+				}
+				break;
+
+				case ECheckpointSaveState_CacheNetGuids:
+				{
+					// Postpone execution of this state if we have used too much of our alloted time, this value can be tweaked based on profiling
+					const double RequiredRatioFor_CacheNetGuids = 0.8;
+					if ((bExecuteNextState = ShouldExecuteState(Params, CurrentTime, RequiredRatioFor_CacheNetGuids)) == true)
+					{
+						SCOPED_NAMED_EVENT(UDemoNetDriver_CacheNetGuids, FColor::Green);
+
+						CacheNetGuids();
 						CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_SerializeGuidCache;
 					}
 				}
@@ -2229,15 +2285,12 @@ void UDemoNetDriver::TickCheckpoint()
 
 				case ECheckpointSaveState_SerializeGuidCache:
 				{
-					// Postpone execution of this state if we have used to much of our alloted time, this value can be tweaked based on profiling
-					const double RequiredRatioFor_SerializeGuidCache = 0.8;
-					if ((bExecuteNextState = ShouldExecuteState(Params, CurrentTime, RequiredRatioFor_SerializeGuidCache)) == true)
+					SCOPED_NAMED_EVENT(UDemoNetDriver_SerializeGuidCache, FColor::Green);
+
+					// Save the current guid cache
+					bExecuteNextState = SerializeGuidCache(Params, CheckpointArchive);
+					if (bExecuteNextState)
 					{
-						SCOPED_NAMED_EVENT(UDemoNetDriver_SerializeGuidCache, FColor::Green);
-
-						// Save the current guid cache
-						SerializeGuidCache( GuidCache, CheckpointArchive );
-
 						CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_SerializeNetFieldExportGroupMap;
 					}
 				}
@@ -2808,7 +2861,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 					}
 
 					// We check ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER to force at least one update for each actor
-					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER) || ((Time - ActorInfo->LastNetUpdateTime) < RelevantTimeout);
+					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTimestamp < KINDA_SMALL_NUMBER) || ((GetElapsedTime() - ActorInfo->LastNetUpdateTimestamp) < RelevantTimeout);
 
 					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || (ActorInfo->ForceRelevantFrame >= ReplicationFrame);
 
@@ -2851,7 +2904,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 
 					if (bDoPrioritizeActors) // implies bDoFindActorChannelEarly is true
 					{
-						const float LastReplicationTime = Channel ? (Time - Channel->LastUpdateTime) : SpawnPrioritySeconds;
+						const double LastReplicationTime = Channel ? (GetElapsedTime() - Channel->LastUpdateTime) : SpawnPrioritySeconds;
 						ActorPriority.Priority = FMath::RoundToInt(65536.0f * Actor->GetReplayPriority(ViewLocation, ViewDirection, Viewer, ViewTarget, Channel, LastReplicationTime));
 					}
 
@@ -2861,7 +2914,10 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 
 					if (bIsRelevant)
 					{
-						ActorInfo->LastNetUpdateTime = Time;
+						ActorInfo->LastNetUpdateTimestamp = GetElapsedTime();
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
+						ActorInfo->LastNetUpdateTime = ActorInfo->LastNetUpdateTimestamp;
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 				}
 
@@ -4557,7 +4613,7 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 		SpawnInfo.OverrideLevel						= RollbackActor.Level;
 		SpawnInfo.bDeferConstruction				= true;
 
-		const FTransform SpawnTransform = FTransform(RollbackActor.Rotation, RollbackActor.Location);
+		const FTransform SpawnTransform = FTransform(RollbackActor.Rotation, RollbackActor.Location, RollbackActor.Scale3D);
 
 		AActor* Actor = GetWorld()->SpawnActorAbsolute(RollbackActor.Archetype->GetClass(), SpawnTransform, SpawnInfo);
 		if (Actor)
@@ -5870,7 +5926,7 @@ void UDemoNetDriver::RestoreConnectionPostScrub(APlayerController* PC, UNetConne
 
 	PC->SetRole(ROLE_AutonomousProxy);
 	PC->NetConnection = NetConnection;
-	NetConnection->LastReceiveTime = Time;
+	NetConnection->LastReceiveTime = GetElapsedTime();
 	NetConnection->LastReceiveRealtime = FPlatformTime::Seconds();
 	NetConnection->LastGoodPacketRealtime = FPlatformTime::Seconds();
 	NetConnection->State = USOCK_Open;
@@ -6493,6 +6549,7 @@ void UDemoNetDriver::QueueNetStartupActorForRollbackViaDeletion(AActor* Actor)
 	RollbackActor.Archetype	= Actor->GetArchetype();
 	RollbackActor.Location	= Actor->GetActorLocation();
 	RollbackActor.Rotation	= Actor->GetActorRotation();
+	RollbackActor.Scale3D	= Actor->GetActorScale3D();
 	RollbackActor.Level		= Actor->GetLevel();
 
 	if (GDemoSaveRollbackActorState != 0)

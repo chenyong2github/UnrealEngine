@@ -1265,6 +1265,7 @@ void FRootMotionSource_JumpForce::AddReferencedObjects(class FReferenceCollector
 FRootMotionSourceGroup::FRootMotionSourceGroup()
 	: bHasAdditiveSources(false)
 	, bHasOverrideSources(false)
+	, bHasOverrideSourcesWithIgnoreZAccumulate(false)
 	, bIsAdditiveVelocityApplied(false)
 	, LastPreAdditiveVelocity(ForceInitToZero)
 {
@@ -1278,6 +1279,11 @@ bool FRootMotionSourceGroup::HasActiveRootMotionSources() const
 bool FRootMotionSourceGroup::HasOverrideVelocity() const
 {
 	return bHasOverrideSources;
+}
+
+bool FRootMotionSourceGroup::HasOverrideVelocityWithIgnoreZAccumulate() const
+{
+	return bHasOverrideSourcesWithIgnoreZAccumulate;
 }
 
 bool FRootMotionSourceGroup::HasAdditiveVelocity() const
@@ -1419,6 +1425,7 @@ void FRootMotionSourceGroup::PrepareRootMotion(float DeltaTime, const ACharacter
 	// Prepare active sources
 	{
 		bHasOverrideSources = false;
+		bHasOverrideSourcesWithIgnoreZAccumulate = false;
 		bHasAdditiveSources = false;
 		LastAccumulatedSettings.Clear();
 
@@ -1589,6 +1596,11 @@ void FRootMotionSourceGroup::PrepareRootMotion(float DeltaTime, const ACharacter
 				else if (RootMotionSource->AccumulateMode == ERootMotionAccumulateMode::Override)
 				{
 					bHasOverrideSources = true;
+
+					if (RootMotionSource->Settings.HasFlag(ERootMotionSourceSettingsFlags::IgnoreZAccumulate))
+					{
+						bHasOverrideSourcesWithIgnoreZAccumulate = true;
+					}
 				}
 			}
 		}
@@ -1663,6 +1675,7 @@ void FRootMotionSourceGroup::AccumulateRootMotionVelocityFromSource
 
 	const FVector RootMotionVelocity = RootMotionParams.GetRootMotionTransform().GetTranslation();
 
+	const FVector InputVelocity = InOutVelocity;
 	if (RootMotionSource.AccumulateMode == ERootMotionAccumulateMode::Override)
 	{
 		InOutVelocity = RootMotionVelocity;
@@ -1670,6 +1683,10 @@ void FRootMotionSourceGroup::AccumulateRootMotionVelocityFromSource
 	else if (RootMotionSource.AccumulateMode == ERootMotionAccumulateMode::Additive)
 	{
 		InOutVelocity += RootMotionVelocity;
+	}
+	if (RootMotionSource.Settings.HasFlag(ERootMotionSourceSettingsFlags::IgnoreZAccumulate))
+	{
+		InOutVelocity.Z = InputVelocity.Z;
 	}
 }
 
@@ -1940,6 +1957,7 @@ bool FRootMotionSourceGroup::NetSerialize(FArchive& Ar, class UPackageMap* Map, 
 
 	FArchive_Serialize_BitfieldBool(Ar, bHasAdditiveSources);
 	FArchive_Serialize_BitfieldBool(Ar, bHasOverrideSources);
+	FArchive_Serialize_BitfieldBool(Ar, bHasOverrideSourcesWithIgnoreZAccumulate);
 	LastPreAdditiveVelocity.NetSerialize(Ar, Map, bOutSuccess);
 	FArchive_Serialize_BitfieldBool(Ar, bIsAdditiveVelocityApplied);
 	Ar << LastAccumulatedSettings.Flags;
@@ -2057,6 +2075,7 @@ void FRootMotionSourceGroup::Clear()
 	bIsAdditiveVelocityApplied = false;
 	bHasAdditiveSources = false;
 	bHasOverrideSources = false;
+	bHasOverrideSourcesWithIgnoreZAccumulate = false;
 	LastAccumulatedSettings.Clear();
 }
 
@@ -2097,6 +2116,7 @@ FRootMotionSourceGroup& FRootMotionSourceGroup::operator=(const FRootMotionSourc
 
 		bHasAdditiveSources = Other.bHasAdditiveSources;
 		bHasOverrideSources = Other.bHasOverrideSources;
+		bHasOverrideSourcesWithIgnoreZAccumulate = Other.bHasOverrideSourcesWithIgnoreZAccumulate;
 		LastPreAdditiveVelocity = Other.LastPreAdditiveVelocity;
 		bIsAdditiveVelocityApplied = Other.bIsAdditiveVelocityApplied;
 		LastAccumulatedSettings = Other.LastAccumulatedSettings;
@@ -2108,6 +2128,7 @@ bool FRootMotionSourceGroup::operator==(const FRootMotionSourceGroup& Other) con
 {
 	if (bHasAdditiveSources != Other.bHasAdditiveSources || 
 		bHasOverrideSources != Other.bHasOverrideSources ||
+		bHasOverrideSourcesWithIgnoreZAccumulate != Other.bHasOverrideSourcesWithIgnoreZAccumulate ||
 		bIsAdditiveVelocityApplied != Other.bIsAdditiveVelocityApplied ||
 		!LastPreAdditiveVelocity.Equals(Other.LastPreAdditiveVelocity, 1.f))
 	{

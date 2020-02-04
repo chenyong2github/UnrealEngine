@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SItemSelector.h"
+#include "Widgets/SItemSelector.h"
 #include "AssetData.h"
 
 typedef SItemSelector<FText, FAssetData> SNiagaraAssetItemSelector;

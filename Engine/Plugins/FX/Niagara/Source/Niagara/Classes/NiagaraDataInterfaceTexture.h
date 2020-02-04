@@ -43,6 +43,8 @@ public:
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters()const override;
 
+	void SetTexture(UTexture* InTexture);
+
 	//FRWBuffer& GetGPUBuffer();
 	static const FString TextureName;
 	static const FString SamplerName;

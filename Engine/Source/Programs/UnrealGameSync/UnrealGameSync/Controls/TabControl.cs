@@ -25,6 +25,7 @@ namespace UnrealGameSync
 			public int CloseButtonWidth;
 			public Size TextSize;
 			public Tuple<Color, float> Highlight;
+			public Color? TintColor;
 		}
 
 		class TabDragData
@@ -117,7 +118,16 @@ namespace UnrealGameSync
 			}
 		}
 
-		public int InsertTab(int InsertIdx, string Name, object Data)
+		public void SetTint(int TabIdx, Color? TintColor)
+		{
+			if(Tabs[TabIdx].TintColor != TintColor)
+			{
+				Tabs[TabIdx].TintColor = TintColor;
+				Invalidate();
+			}
+		}
+
+		public int InsertTab(int InsertIdx, string Name, object Data, Color? TintColor)
 		{
 			int Idx = Tabs.Count - 1;
 			if(InsertIdx >= 0 && InsertIdx < Tabs.Count - 1)
@@ -129,7 +139,7 @@ namespace UnrealGameSync
 				SelectedTabIdx++;
 			}
 
-			Tabs.Insert(Idx, new TabData{ Name = Name, Data = Data });
+			Tabs.Insert(Idx, new TabData{ Name = Name, Data = Data, TintColor = TintColor });
 			LayoutTabs();
 			Invalidate();
 			return Idx;
@@ -553,10 +563,20 @@ namespace UnrealGameSync
 			float DpiScaleY = Graphics.DpiY / 96.0f;
 
 			Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+
 			Graphics.FillRectangle(BackgroundBrush, Tab.MinX + 1, 1, Tab.Width - 1, ClientSize.Height - 3);
 			Graphics.FillRectangle(StripeBrush, Tab.MinX + 1, ClientSize.Height - (int)(5 * DpiScaleY), Tab.Width - 1, (int)(5 * DpiScaleY) - 2);
 
-			if(Highlight != null && Highlight.Item2 > 0.0f)
+			if (Tab.TintColor.HasValue)
+			{
+				int MidX = Tab.MinX + Tab.Width / 2;
+				using (LinearGradientBrush Brush = new LinearGradientBrush(new Rectangle(MidX, 1, 1, ClientSize.Height), Color.FromArgb(64, Tab.TintColor.Value), Color.FromArgb(32, Tab.TintColor.Value), LinearGradientMode.Vertical))
+				{
+					Graphics.FillRectangle(Brush, Tab.MinX + 1, 1, Tab.Width - 1, ClientSize.Height - 3);
+				}
+			}
+
+			if (Highlight != null && Highlight.Item2 > 0.0f)
 			{
 				using(SolidBrush Brush = new SolidBrush(Highlight.Item1))
 				{

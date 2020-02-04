@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NiagaraScriptViewModel.h"
+#include "ViewModels/NiagaraScriptViewModel.h"
 
 class FNiagaraSystemViewModel;
 class FNiagaraScriptViewModel;

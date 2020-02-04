@@ -149,7 +149,7 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 }
 
 #if WITH_EDITORONLY_DATA
-uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey)
+uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& SoundWaveName)
 {
 	int32 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
@@ -166,7 +166,7 @@ uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedData
 	}
 
 	const uint32 Result = DerivedData.Num();
-	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData);
+	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, SoundWaveName);
 	DerivedDataKey = InDerivedDataKey;
 	BulkData.RemoveBulkData();
 	return Result;
@@ -219,7 +219,7 @@ void USoundWave::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		return;
 	}
 
-	if (FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDevice())
+	if (FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw())
 	{
 		if (LocalAudioDevice->HasCompressedAudioInfoClass(this) && DecompressionType == DTYPE_Native)
 		{
@@ -835,7 +835,7 @@ void USoundWave::PostLoad()
 	// most likely cause us to run out of memory.
 	if (!GIsEditor && !IsTemplate( RF_ClassDefaultObject ) && GEngine)
 	{
-		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw();
 		if (AudioDevice)
 		{
 			// Upload the data to the hardware, but only if we've precached startup sounds already
@@ -969,6 +969,8 @@ void USoundWave::BeginDestroy()
 		AsyncLoadingDataFormats.Empty();
 	}
 #endif
+
+	ReleaseCompressedAudio();
 }
 
 void USoundWave::InitAudioResource( FByteBulkData& CompressedData )
@@ -1616,9 +1618,12 @@ bool USoundWave::IsReadyForFinishDestroy()
 	{
 		FScopeLock Lock(&SourcesPlayingCs);
 		
-		for (ISoundWaveClient* i : SourcesPlaying)
+		for (ISoundWaveClient* SoundWaveClientPtr : SourcesPlaying)
 		{
-			i->OnIsReadyForFinishDestroy(this);
+			if(SoundWaveClientPtr)
+			{
+				SoundWaveClientPtr->OnIsReadyForFinishDestroy(this);
+			}
 		}
 	}
 
@@ -2392,7 +2397,14 @@ bool USoundWave::GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& 
 
 void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnLoadCompleted, bool bForceSync /*= false*/, int32 ChunkIndex /*= 1*/, ENamedThreads::Type CallbackThread /*= ENamedThreads::GameThread*/)
 {
-	if (bForceSync)
+	// if we are requesting a chunk that is out of bounds,
+	// early exit.
+	if (ChunkIndex >= static_cast<int32>(GetNumChunks()))
+	{
+		FAudioChunkHandle EmptyChunkHandle;
+		OnLoadCompleted(EmptyChunkHandle);
+	}
+	else if (bForceSync)
 	{
 		// For sync cases, we call GetLoadedChunk with bBlockForLoad = true, then execute the callback immediately.
 		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(this, ChunkIndex, true);
@@ -2420,6 +2432,13 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle)> OnL
 
 void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 {
+	// Since the zeroth chunk is always inlined and stored in memory,
+	// early exit if we only have one chunk.
+	if (GetNumChunks() <= 1)
+	{
+		return;
+	}
+
 	if (FirstChunk.IsValid())
 	{
 		return;

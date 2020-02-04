@@ -459,6 +459,7 @@ public:
 	float GetPlayRate() const { return PlayRate; }
 	float GetDeltaMoved() const { return DeltaMoved; }
 	float GetPreviousPosition() const { return PreviousPosition;  }
+	const FAnimMontageInstance* GetMontageSyncLeader() const { return MontageSyncLeader; } 
 
 	/** 
 	 * Setters

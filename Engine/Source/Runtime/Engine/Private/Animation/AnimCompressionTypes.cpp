@@ -459,6 +459,9 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 
 			FOwnedBulkDataPtr* OwnedPtr = OptionalBulk.StealFileMapping();
 
+			// Decompression will crash later if the data failed to load so assert now to make it easier to debug in the future.
+			checkf(OwnedPtr->GetPointer() != nullptr || Size == 0, TEXT("Compressed animation data failed to load")); 
+
 #if WITH_EDITOR
 			check(!bUseMapping && !OwnedPtr->GetMappedHandle());
 			CompressedByteStream.Empty(Size);

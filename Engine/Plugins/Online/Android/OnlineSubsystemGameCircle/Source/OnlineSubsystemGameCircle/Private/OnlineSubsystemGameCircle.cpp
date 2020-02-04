@@ -19,10 +19,12 @@ IOnlineIdentityPtr FOnlineSubsystemGameCircle::GetIdentityInterface() const
 	return IdentityInterface;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 IOnlineStorePtr FOnlineSubsystemGameCircle::GetStoreInterface() const
 {
 	return StoreInterface;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 IOnlineSessionPtr FOnlineSubsystemGameCircle::GetSessionInterface() const
 {

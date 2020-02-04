@@ -587,7 +587,7 @@ namespace UnrealBuildTool
 		/// Checks whether the binary output paths are appropriate for the distribution
 		/// level of its direct module dependencies
 		/// </summary>
-		public bool CheckRestrictedFolders(DirectoryReference ProjectDir, Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache)
+		public bool CheckRestrictedFolders(List<DirectoryReference> RootDirectories, Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache)
 		{
 			// Find all the modules we depend on
 			Dictionary<UEBuildModule, UEBuildModule> ModuleReferencedBy = new Dictionary<UEBuildModule, UEBuildModule>();
@@ -598,16 +598,8 @@ namespace UnrealBuildTool
 			foreach (FileReference OutputFilePath in OutputFilePaths)
 			{
 				// Find the base directory for this binary
-				DirectoryReference BaseDir;
-				if(OutputFilePath.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
-				{
-					BaseDir = UnrealBuildTool.EngineDirectory;
-				}
-				else if(ProjectDir != null && OutputFilePath.IsUnderDirectory(ProjectDir))
-				{
-					BaseDir = ProjectDir;
-				}
-				else
+				DirectoryReference BaseDir = RootDirectories.FirstOrDefault(x => OutputFilePath.IsUnderDirectory(x));
+				if (BaseDir == null)
 				{
 					continue;
 				}
@@ -622,7 +614,7 @@ namespace UnrealBuildTool
 					Dictionary<RestrictedFolder, DirectoryReference> ModuleRestrictedFolders;
 					if (!ModuleRestrictedFolderCache.TryGetValue(Module, out ModuleRestrictedFolders))
 					{
-						ModuleRestrictedFolders = Module.FindRestrictedFolderReferences(ProjectDir);
+						ModuleRestrictedFolders = Module.FindRestrictedFolderReferences(RootDirectories);
 						ModuleRestrictedFolderCache.Add(Module, ModuleRestrictedFolders);
 					}
 

@@ -49,14 +49,12 @@ USoundEffectPreset* FSoundEffectBase::GetPreset()
 
 void FSoundEffectBase::ClearPreset(bool bRemoveFromPreset)
 {
-	if (Preset.IsValid())
+	if (bRemoveFromPreset && Preset.IsValid())
 	{
-		if (bRemoveFromPreset)
-		{
-			Preset->RemoveEffectInstance(this);
-		}
-		Preset.Reset();
+		Preset->RemoveEffectInstance(this);
 	}
+
+	Preset.Reset();
 }
 
 bool FSoundEffectBase::Update()

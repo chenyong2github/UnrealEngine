@@ -1371,6 +1371,13 @@ bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FNam
 	const int32 BoneIndex = GetBoneIndex(BoneName);
 	const TArray<FTransform>& Transforms = GetComponentSpaceTransforms();
 
+	// detect the case where we don't have a pose yet
+	if (Transforms.Num() == 0)
+	{
+		OutTwistAngle = OutSwingAngle = 0.f;
+		return false;
+	}
+
 	if (BoneIndex != INDEX_NONE && ensureMsgf(BoneIndex < Transforms.Num(), TEXT("Invalid transform access in %s. Index=%d, Num=%d"), *GetPathName(), BoneIndex, Transforms.Num()))
 	{
 		FTransform LocalTransform = GetComponentSpaceTransforms()[BoneIndex];
@@ -1478,9 +1485,19 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 
 		SkeletalMesh = InSkelMesh;
 
-		for (TWeakObjectPtr<USkinnedMeshComponent>& SlavePoseComponent : SlavePoseComponents)
+		//SlavePoseComponents is an array of weak obj ptrs, so it can contain null elements
+		for (auto Iter = SlavePoseComponents.CreateIterator(); Iter; ++Iter)
 		{
-			SlavePoseComponent->UpdateMasterBoneMap();
+			TWeakObjectPtr<USkinnedMeshComponent> Comp = (*Iter);
+			if (Comp.IsValid() == false)
+			{
+				SlavePoseComponents.RemoveAt(Iter.GetIndex());
+				--Iter;
+			}
+			else
+			{
+				Comp->UpdateMasterBoneMap();
+			}
 		}
 
 		// Don't init anim state if not registered

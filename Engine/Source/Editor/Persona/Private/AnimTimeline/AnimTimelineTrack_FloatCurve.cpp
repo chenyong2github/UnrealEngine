@@ -35,6 +35,11 @@ FAnimTimelineTrack_FloatCurve::FAnimTimelineTrack_FloatCurve(FFloatCurve& InCurv
 
 TSharedRef<SWidget> FAnimTimelineTrack_FloatCurve::MakeTimelineWidgetContainer()
 {
+	TSharedRef<SWidget> CurveWidget = MakeCurveWidget();
+
+	// zoom to fit now we have a view
+	CurveEditor->ZoomToFit(EAxisList::Y);
+
 	auto ColorLambda = [this]()
 	{
 		if(GetModel()->IsTrackSelected(AsShared()))
@@ -53,7 +58,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_FloatCurve::MakeTimelineWidgetContainer()
 		.BorderImage_Lambda([this](){ return FloatCurve.GetCurveTypeFlag(AACF_Metadata) ? FEditorStyle::GetBrush("Sequencer.Section.SelectedSectionOverlay") : FEditorStyle::GetBrush("AnimTimeline.Outliner.DefaultBorder"); })
 		.BorderBackgroundColor_Lambda(ColorLambda)
 		[
-			MakeCurveWidget()
+			CurveWidget
 		];
 }
 
@@ -63,7 +68,6 @@ TSharedRef<SWidget> FAnimTimelineTrack_FloatCurve::GenerateContainerWidgetForOut
 	TSharedPtr<SHorizontalBox> InnerHorizontalBox;
 	TSharedRef<SWidget> OutlinerWidget = GenerateStandardOutlinerWidget(InRow, false, OuterBorder, InnerHorizontalBox);
 
-	TWeakPtr<FAnimTimelineTrack_FloatCurve> WeakThisTrack = SharedThis(this);
 
 	UAnimMontage* AnimMontage = Cast<UAnimMontage>(GetModel()->GetAnimSequenceBase());
 	bool bChildAnimMontage = AnimMontage && AnimMontage->HasParentAsset();
@@ -77,7 +81,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_FloatCurve::GenerateContainerWidgetForOut
 			SAssignNew(EditableTextLabel, SInlineEditableTextBlock)
 			.IsReadOnly(bChildAnimMontage)
 			.Text(this, &FAnimTimelineTrack_FloatCurve::GetLabel)
-			.IsSelected_Lambda([WeakThisTrack](){ return WeakThisTrack.Pin()->GetModel()->IsTrackSelected(WeakThisTrack.Pin().ToSharedRef()); })
+			.IsSelected_Lambda([this](){ return GetModel()->IsTrackSelected(SharedThis(this)); })
 			.OnTextCommitted(this, &FAnimTimelineTrack_FloatCurve::OnCommitCurveName)
 			.HighlightText(InRow->GetHighlightText())
 		];
@@ -214,6 +218,8 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
 
 			FScopedTransaction Transaction(LOCTEXT("CurveEditor_RenameCurve", "Rename Curve"));
 
+			AnimSequenceBase->Modify();
+
 			FSmartName NewSmartName;
 			if (NameMapping->FindSmartName(RequestedName, NewSmartName))
 			{
@@ -258,6 +264,9 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
 
 			FloatCurve.Name.UID = NewSmartName.UID;
 			FloatCurve.Name.DisplayName = NewSmartName.DisplayName;
+
+			CurveName = FloatCurve.Name;
+			FullCurveName = FText::FromName(FloatCurve.Name.DisplayName);
 		}
 	}
 }

@@ -10,17 +10,7 @@
 #include "GroomActor.h"
 #include "NiagaraDataInterfaceHairStrands.generated.h"
 
-/** Size of each strands*/
-UENUM(BlueprintType)
-enum class EHairStrandsSize : uint8
-{
-	None = 0 UMETA(Hidden),
-	Size2 = 0x02 UMETA(DisplatName = "2"),
-	Size4 = 0x04 UMETA(DisplatName = "4"),
-	Size8 = 0x08 UMETA(DisplatName = "8"),
-	Size16 = 0x10 UMETA(DisplatName = "16"),
-	Size32 = 0x20 UMETA(DisplatName = "32")
-};
+static const int32 MaxDelay = 5;
 
 /** Render buffers that will be used in hlsl functions */
 struct FNDIHairStrandsBuffer : public FRenderResource
@@ -66,11 +56,108 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 /** Data stored per strand base instance*/
 struct FNDIHairStrandsData
 {
+	FNDIHairStrandsData()
+	{
+		ResetDatas();
+	}
 	/** Initialize the buffers */
 	bool Init(class UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance);
 
 	/** Release the buffers */
 	void Release();
+
+	inline void ResetDatas()
+	{
+		WorldTransform.SetIdentity();
+		BoxCenter = FVector(0, 0, 0);
+		BoxExtent = FVector(0, 0, 0);
+
+		TickCount = 0;
+		ForceReset = true;
+		ResetTick = MaxDelay;
+
+		NumStrands = 0;
+		StrandsSize = 0;
+
+		SubSteps = 5;
+		IterationCount = 20;
+
+		GravityVector = FVector(0.0, 0.0, -981.0);
+		AirDrag = 0.1;
+		AirVelocity = FVector(0, 0, 0);
+
+		SolveBend = true;
+		ProjectBend = false;
+		BendDamping = 0.01;
+		BendStiffness = 0.01;
+
+		SolveStretch = true;
+		ProjectStretch = false;
+		StretchDamping = 0.01;
+		StretchStiffness = 1.0;
+
+		SolveCollision = true;
+		ProjectCollision = true;
+		KineticFriction = 0.1;
+		StaticFriction = 0.1;
+		StrandsViscosity = 1.0;
+		CollisionRadius = 1.0;
+
+		StrandsDensity = 1.0;
+		StrandsSmoothing = 0.1;
+		StrandsThickness = 0.01;
+	}
+
+	inline void CopyDatas(const FNDIHairStrandsData* OtherDatas)
+	{
+		if (OtherDatas != nullptr)
+		{
+			HairStrandsBuffer = OtherDatas->HairStrandsBuffer;
+
+			WorldTransform = OtherDatas->WorldTransform;
+			BoxCenter = OtherDatas->BoxCenter;
+			BoxExtent = OtherDatas->BoxExtent;
+
+			TickCount = OtherDatas->TickCount;
+			ForceReset = OtherDatas->ForceReset;
+			ResetTick = OtherDatas->ResetTick;
+
+			NumStrands = OtherDatas->NumStrands;
+			StrandsSize = OtherDatas->StrandsSize;
+
+			SubSteps = OtherDatas->SubSteps;
+			IterationCount = OtherDatas->IterationCount;
+
+			GravityVector = OtherDatas->GravityVector;
+			AirDrag = OtherDatas->AirDrag;
+			AirVelocity = OtherDatas->AirVelocity;
+
+			SolveBend = OtherDatas->SolveBend;
+			ProjectBend = OtherDatas->ProjectBend;
+			BendDamping = OtherDatas->BendDamping;
+			BendStiffness = OtherDatas->BendStiffness;
+			BendScale = OtherDatas->BendScale;
+
+			SolveStretch = OtherDatas->SolveStretch;
+			ProjectStretch = OtherDatas->ProjectStretch;
+			StretchDamping = OtherDatas->StretchDamping;
+			StretchStiffness = OtherDatas->StretchStiffness;
+			StretchScale = OtherDatas->StretchScale;
+
+			SolveCollision = OtherDatas->SolveCollision;
+			ProjectCollision = OtherDatas->ProjectCollision;
+			StaticFriction = OtherDatas->StaticFriction;
+			KineticFriction = OtherDatas->KineticFriction;
+			StrandsViscosity = OtherDatas->StrandsViscosity;
+			CollisionRadius = OtherDatas->CollisionRadius;
+			RadiusScale = OtherDatas->RadiusScale;
+
+			StrandsDensity = OtherDatas->StrandsDensity;
+			StrandsSmoothing = OtherDatas->StrandsSmoothing;
+			StrandsThickness = OtherDatas->StrandsThickness;
+			ThicknessScale = OtherDatas->ThicknessScale;
+		}
+	}
 
 	/** Cached World transform. */
 	FTransform WorldTransform;
@@ -79,7 +166,7 @@ struct FNDIHairStrandsData
 	int32 NumStrands;
 
 	/** Strand size */
-	int32 StrandSize;
+	int32 StrandsSize;
 
 	/** Bounding box center */
 	FVector BoxCenter;
@@ -98,6 +185,84 @@ struct FNDIHairStrandsData
 
 	/** Strands Gpu buffer */
 	FNDIHairStrandsBuffer* HairStrandsBuffer;
+	
+	/** Number of substeps to be used */
+	int32 SubSteps;
+
+	/** Number of iterations for the constraint solver  */
+	int32 IterationCount;
+
+	/** Acceleration vector in cm/s2 to be used for the gravity*/
+	FVector GravityVector;
+
+	/** Coefficient between 0 and 1 to be used for the air drag */
+	float AirDrag;
+
+	/** Velocity of the surrounding air in cm/s  */
+	FVector AirVelocity;
+
+	/** Velocity of the surrounding air in cm/s */
+	bool SolveBend;
+
+	/** Enable the solve of the bend constraint during the xpbd loop */
+	bool ProjectBend;
+
+	/** Damping for the bend constraint between 0 and 1 */
+	float BendDamping;
+
+	/** Stiffness for the bend constraint in GPa */
+	float BendStiffness;
+
+	/** Stiffness scale along the strand */
+	TStaticArray<float,4> BendScale;
+
+	/** Enable the solve of the stretch constraint during the xpbd loop */
+	bool SolveStretch;
+
+	/** Enable the projection of the stretch constraint after the xpbd loop */
+	bool ProjectStretch;
+
+	/** Damping for the stretch constraint between 0 and 1 */
+	float StretchDamping;
+
+	/** Stiffness for the stretch constraint in GPa */
+	float StretchStiffness;
+
+	/** Stiffness scale along the strand */
+	TStaticArray<float, 4> StretchScale;
+
+	/** Enable the solve of the collision constraint during the xpbd loop  */
+	bool SolveCollision;
+
+	/** Enable ther projection of the collision constraint after the xpbd loop */
+	bool ProjectCollision;
+
+	/** Static friction used for collision against the physics asset */
+	float StaticFriction;
+
+	/** Kinetic friction used for collision against the physics asset*/
+	float KineticFriction;
+
+	/** Radius that will be used for the collision detection against the physics asset */
+	float StrandsViscosity;
+
+	/** Radius scale along the strand */
+	float CollisionRadius;
+
+	/** Radius scale along the strand */
+	TStaticArray<float, 4> RadiusScale;
+
+	/** Density of the strands in g/cm3 */
+	float StrandsDensity;
+
+	/** Smoothing between 0 and 1 of the incoming guides curves for better stability */
+	float StrandsSmoothing;
+
+	/** Strands thickness in cm that will be used for mass and inertia computation */
+	float StrandsThickness;
+
+	/** Thickness scale along the curve */
+	TStaticArray<float, 4> ThicknessScale;
 };
 
 /** Data Interface for the strand base */
@@ -107,10 +272,6 @@ class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfaceHairStrands : public UNiagaraD
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	/** Size of each strand. */
-	UPROPERTY(EditAnywhere, Category = "Spawn")
-	EHairStrandsSize StrandSize;
 
 	/** Hair Strands Asset used to sample from when not overridden by a source actor from the scene. Also useful for previewing in the editor. */
 	UPROPERTY(EditAnywhere, Category = "Source")
@@ -122,10 +283,6 @@ public:
 
 	/** The source component from which to sample */
 	TWeakObjectPtr<class UGroomComponent> SourceComponent;
-
-	/** Group Index to be used */
-	UPROPERTY(EditAnywhere, Category = "Source")
-	int32 GroupIndex;
 
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
@@ -155,13 +312,65 @@ public:
 
 	/** Extract datas and resources */
 	void ExtractDatasAndResources(FNiagaraSystemInstance* SystemInstance, FHairStrandsDatas*& OutStrandsDatas,
-		FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource, FHairStrandsRootResource*& OutStrandsRootResource);
+		FHairStrandsRestResource*& OutStrandsRestResource, FHairStrandsDeformedResource*& OutStrandsDeformedResource, FHairStrandsRootResource*& OutStrandsRootResource, UGroomAsset*& OutGroomAsset);
 
 	/** Get the number of strands */
 	void GetNumStrands(FVectorVMContext& Context);
 
-	/** Get the strand size  */
+	/** Get the grrom asset datas  */
 	void GetStrandSize(FVectorVMContext& Context);
+
+	void GetSubSteps(FVectorVMContext& Context);
+
+	void GetIterationCount(FVectorVMContext& Context);
+
+	void GetGravityVector(FVectorVMContext& Context);
+
+	void GetAirDrag(FVectorVMContext& Context);
+
+	void GetAirVelocity(FVectorVMContext& Context);
+
+	void GetSolveBend(FVectorVMContext& Context);
+
+	void GetProjectBend(FVectorVMContext& Context);
+
+	void GetBendDamping(FVectorVMContext& Context);
+
+	void GetBendStiffness(FVectorVMContext& Context);
+
+	void GetBendScale(FVectorVMContext& Context);
+
+	void GetSolveStretch(FVectorVMContext& Context);
+
+	void GetProjectStretch(FVectorVMContext& Context);
+
+	void GetStretchDamping(FVectorVMContext& Context);
+
+	void GetStretchStiffness(FVectorVMContext& Context);
+
+	void GetStretchScale(FVectorVMContext& Context);
+
+	void GetSolveCollision(FVectorVMContext& Context);
+
+	void GetProjectCollision(FVectorVMContext& Context);
+
+	void GetStaticFriction(FVectorVMContext& Context);
+
+	void GetKineticFriction(FVectorVMContext& Context);
+
+	void GetStrandsViscosity(FVectorVMContext& Context);
+
+	void GetCollisionRadius(FVectorVMContext& Context);
+
+	void GetRadiusScale(FVectorVMContext& Context);
+
+	void GetStrandsSmoothing(FVectorVMContext& Context);
+
+	void GetStrandsDensity(FVectorVMContext& Context);
+
+	void GetStrandsThickness(FVectorVMContext& Context);
+
+	void GetThicknessScale(FVectorVMContext& Context);
 
 	/** Get the world transform */
 	void GetWorldTransform(FVectorVMContext& Context);
@@ -266,10 +475,10 @@ public:
 	void ProjectBendRodMaterial(FVectorVMContext& Context);
 
 	/** Solve the static collision constraint */
-	void SolveStaticCollisionConstraint(FVectorVMContext& Context);
+	void SolveHardCollisionConstraint(FVectorVMContext& Context);
 
 	/** Project the static collision constraint */
-	void ProjectStaticCollisionConstraint(FVectorVMContext& Context);
+	void ProjectHardCollisionConstraint(FVectorVMContext& Context);
 
 	/** Solve the soft collision constraint */
 	void SolveSoftCollisionConstraint(FVectorVMContext& Context);
@@ -283,8 +492,11 @@ public:
 	/** Compute the rest direction*/
 	void ComputeRestDirection(FVectorVMContext& Context);
 
-	/** Update the node orientation to match the bishop frame*/
-	void UpdateNodeOrientation(FVectorVMContext& Context);
+	/** Update the strands material frame */
+	void UpdateMaterialFrame(FVectorVMContext& Context);
+
+	/** Compute the strands material frame */
+	void ComputeMaterialFrame(FVectorVMContext& Context);
 
 	/** Compute the air drag force */
 	void ComputeAirDragForce(FVectorVMContext& Context);

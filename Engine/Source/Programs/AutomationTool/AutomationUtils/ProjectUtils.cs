@@ -205,7 +205,7 @@ namespace AutomationTool
 			ProjectDescriptor Project = ProjectDescriptor.FromFile(RawProjectPath);
 
 			// Enumerate all the available plugins
-			Dictionary<string, PluginInfo> AllPlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, RawProjectPath, new string[0]).ToDictionary(x => x.Name, x => x, StringComparer.OrdinalIgnoreCase);
+			Dictionary<string, PluginInfo> AllPlugins = Plugins.ReadAvailablePlugins(CommandUtils.EngineDirectory, DirectoryReference.FromFile(RawProjectPath), new List<DirectoryReference>()).ToDictionary(x => x.Name, x => x, StringComparer.OrdinalIgnoreCase);
 
 			// find if there are any plugins enabled or disabled which differ from the default
 			string Reason;

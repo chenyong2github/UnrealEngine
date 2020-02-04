@@ -522,6 +522,15 @@ void FRigBoneHierarchy::ResetTransforms()
 	}
 }
 
+void FRigBoneHierarchy::RecomputeGlobalTransforms()
+{
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
+	{
+		Bones[Index].GlobalTransform = Bones[Index].InitialTransform;
+		RecalculateGlobalTransform(Bones[Index]);
+	}
+}
+
 int32 FRigBoneHierarchy::GetChildrenRecursive(const int32 InIndex, TArray<int32>& OutChildren, bool bRecursively) const
 {
 	const int32 StartChildIndex = OutChildren.Num();
@@ -575,13 +584,6 @@ bool FRigBoneHierarchy::Select(const FName& InName, bool bSelect)
 
 	if(bSelect)
 	{
-		if (Container)
-		{
-			Container->SpaceHierarchy.ClearSelection();
-			Container->ControlHierarchy.ClearSelection();
-			Container->CurveContainer.ClearSelection();
-		}
-
 		Selection.Add(InName);
 	}
 	else

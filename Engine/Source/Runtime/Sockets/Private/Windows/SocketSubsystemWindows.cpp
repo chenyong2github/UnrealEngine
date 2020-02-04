@@ -132,12 +132,12 @@ ESocketErrors FSocketSubsystemWindows::GetLastErrorCode()
 }
 
 
-bool FSocketSubsystemWindows::GetLocalAdapterAddresses( TArray<TSharedPtr<FInternetAddr> >& OutAdresses )
+bool FSocketSubsystemWindows::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses)
 {
 	ULONG Flags = GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_FRIENDLY_NAME;
 	ULONG Result;
 	ULONG Size = 0;
-	ULONG Family = (PLATFORM_HAS_BSD_IPV6_SOCKETS) ? AF_UNSPEC : AF_INET;
+	ULONG Family = (PLATFORM_HAS_BSD_IPV6_SOCKETS && CVarDisableIPv6.GetValueOnAnyThread() == 0) ? AF_UNSPEC : AF_INET;
 
 	// determine the required size of the address list buffer
 	Result = GetAdaptersAddresses(Family, Flags, NULL, NULL, &Size);
@@ -155,15 +155,15 @@ bool FSocketSubsystemWindows::GetLocalAdapterAddresses( TArray<TSharedPtr<FInter
 	if (Result != ERROR_SUCCESS)
 	{
 		FMemory::Free(AdapterAddresses);
-
 		return false;
 	}
 
 	// extract the list of physical addresses from each adapter
 	for (PIP_ADAPTER_ADDRESSES AdapterAddress = AdapterAddresses; AdapterAddress != NULL; AdapterAddress = AdapterAddress->Next)
 	{
-		if ((AdapterAddress->IfType == IF_TYPE_ETHERNET_CSMACD) ||
-			(AdapterAddress->IfType == IF_TYPE_IEEE80211))
+		if ((AdapterAddress->IfType == IF_TYPE_ETHERNET_CSMACD ||
+			AdapterAddress->IfType == IF_TYPE_IEEE80211) && 
+			AdapterAddress->OperStatus == IfOperStatusUp)
 		{
 			for (PIP_ADAPTER_UNICAST_ADDRESS UnicastAddress = AdapterAddress->FirstUnicastAddress; UnicastAddress != NULL; UnicastAddress = UnicastAddress->Next)
 			{
@@ -173,14 +173,14 @@ bool FSocketSubsystemWindows::GetLocalAdapterAddresses( TArray<TSharedPtr<FInter
 					TSharedRef<FInternetAddrBSD> NewAddress = MakeShareable(new FInternetAddrBSD(this));
 					NewAddress->SetIp(*RawAddress);
 					NewAddress->SetScopeId((RawAddress->ss_family == AF_INET) ? ntohl(AdapterAddress->IfIndex) : ntohl(AdapterAddress->Ipv6IfIndex));
-					OutAdresses.Add(NewAddress);
+					UE_LOG(LogSockets, Verbose, TEXT("Adapter address added: %s"), *NewAddress->ToString(false));
+					OutAddresses.Add(NewAddress);
 				}
 			}
 		}
 	}
 
 	FMemory::Free(AdapterAddresses);
-
 	return true;
 }
 

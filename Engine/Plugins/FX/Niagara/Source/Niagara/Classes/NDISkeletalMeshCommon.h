@@ -15,13 +15,6 @@ struct FSkeletalMeshAccessorHelper
 		IndexBuffer = LODData->MultiSizeIndexContainer.GetIndexBuffer();
 		SkinningData = InstData->SkinningData.SkinningData.Get();
 		Usage = InstData->SkinningData.Usage;
-
-		if (Comp)
-		{
-			const USkinnedMeshComponent* BaseComp = Comp->GetBaseComponent();
-			BoneComponentSpaceTransforms = &BaseComp->GetComponentSpaceTransforms();
-			PrevBoneComponentSpaceTransforms = &BaseComp->GetPreviousComponentTransformsArray();
-		}
 	}
 
 	USkeletalMeshComponent* Comp = nullptr;
@@ -34,8 +27,6 @@ struct FSkeletalMeshAccessorHelper
 	const FSkeletalMeshSamplingRegionBuiltData* SamplingRegionBuiltData = nullptr;
 	FSkeletalMeshSkinningData* SkinningData = nullptr;
 	FSkeletalMeshSkinningDataUsage Usage;
-	const TArray<FTransform>* BoneComponentSpaceTransforms = nullptr;
-	const TArray<FTransform>* PrevBoneComponentSpaceTransforms = nullptr;
 };
 
 template<>
@@ -161,30 +152,22 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 
 	FORCEINLINE_DEBUGGABLE FVector GetSkinnedBonePosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return (*Accessor.BoneComponentSpaceTransforms)[BoneIndex].GetLocation();
+		return Accessor.SkinningData->CurrComponentTransforms()[BoneIndex].GetLocation();
 	}
 
 	FORCEINLINE_DEBUGGABLE FVector GetSkinnedBonePreviousPosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		if (Accessor.PrevBoneComponentSpaceTransforms != nullptr && Accessor.PrevBoneComponentSpaceTransforms->Num() > 0)
-		{
-			return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetLocation();
-		}
-		return GetSkinnedBonePosition(Accessor, BoneIndex);
+		return Accessor.SkinningData->PrevComponentTransforms()[BoneIndex].GetLocation();
 	}
 
 	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return (*Accessor.BoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+		return Accessor.SkinningData->CurrComponentTransforms()[BoneIndex].GetRotation();
 	}
 
 	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		if (Accessor.PrevBoneComponentSpaceTransforms != nullptr && Accessor.PrevBoneComponentSpaceTransforms->Num() > 0)
-		{
-			return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetRotation();
-		}
-		return GetSkinnedBoneRotation(Accessor, BoneIndex);
+		return Accessor.SkinningData->PrevComponentTransforms()[BoneIndex].GetRotation();
 	}
 };
 
@@ -226,22 +209,22 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 
 	FORCEINLINE_DEBUGGABLE FVector GetSkinnedBonePosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return (*Accessor.BoneComponentSpaceTransforms)[BoneIndex].GetLocation();
+		return Accessor.SkinningData->CurrComponentTransforms()[BoneIndex].GetLocation();
 	}
 
 	FORCEINLINE_DEBUGGABLE FVector GetSkinnedBonePreviousPosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetLocation();
+		return Accessor.SkinningData->PrevComponentTransforms()[BoneIndex].GetLocation();
 	}
 
 	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return (*Accessor.BoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+		return Accessor.SkinningData->CurrComponentTransforms()[BoneIndex].GetRotation();
 	}
 
 	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
-		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+		return Accessor.SkinningData->PrevComponentTransforms()[BoneIndex].GetRotation();
 	}
 };
 

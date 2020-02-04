@@ -252,7 +252,7 @@ void FMovieSceneCompiler::Compile(UMovieSceneSequence& InCompileSequence, IMovie
 		//  1. Group
 		//  2. Hierarchical bias
 		//  3. Evaluation priority
-		CompileData.Sort(SortPredicate);
+		CompileData.StableSort(SortPredicate);
 
 		// Compose the final result for the compiled range
 		FCompiledGroupResult Result(It.Range());
@@ -353,7 +353,7 @@ void FMovieSceneCompiler::CompileRange(TRange<FFrameNumber> InGlobalRange, UMovi
 		//  1. Group
 		//  2. Hierarchical bias
 		//  3. Evaluation priority
-		SortedCompileData.Sort(SortPredicate);
+		SortedCompileData.StableSort(SortPredicate);
 
 		// Compose the final result for the compiled range
 		FCompiledGroupResult Result(CompiledRange);

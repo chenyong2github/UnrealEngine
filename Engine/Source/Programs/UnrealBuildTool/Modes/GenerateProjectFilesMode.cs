@@ -191,23 +191,55 @@ namespace UnrealBuildTool
 		/// <returns>True if the project file was parsed, false otherwise</returns>
 		private static bool TryParseProjectFileArgument(CommandLineArguments Arguments, out FileReference ProjectFile)
 		{
-			FileReference ExplicitProjectFile;
-			if(Arguments.TryGetValue("-Project=", out ExplicitProjectFile))
-			{
-				ProjectFile = ExplicitProjectFile;
-				return true;
-			}
+			string CandidateProjectPath = null;
 
-			for(int Idx = 0; Idx < Arguments.Count; Idx++)
+			// look for -project=<path>, if it does not exist check arguments for anything that has .uproject in it
+			if (!Arguments.TryGetValue("-Project=", out CandidateProjectPath))
 			{
-				if(Arguments[Idx][0] != '-' && Arguments[Idx].EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
+				// Go through the argument list and try to match poorly (or well..) formed arguments like 
+				// EngineTest, EngineTest.uproject
+				// Collaboration/FooProject
+				// by checking for those in the native project list
+				for (int Idx = 0; Idx < Arguments.Count; Idx++)
 				{
-					Arguments.MarkAsUsed(Idx);
-					ProjectFile = new FileReference(Arguments[Idx]);
-					return true;
+					if (Arguments[Idx][0] != '-' && Arguments[Idx].EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
+					{
+						CandidateProjectPath = Arguments[Idx];
+						Arguments.MarkAsUsed(Idx);
+						break; 
+					}
 				}
 			}
 
+			// We have a project file either via -project= or because there was something called .uproject in the arg list
+			// so now validate it
+			if (!string.IsNullOrEmpty(CandidateProjectPath))
+			{
+				FileReference CandidateProjectFile = new FileReference(CandidateProjectPath);
+
+				// if the path doesn't exist then check native paths (ueprojectdirs)
+				if (!FileReference.Exists(CandidateProjectFile))
+				{
+					// clean everything the user provided to just the name and make sure it has the expected extension
+					string ProjectName = CandidateProjectFile.ChangeExtension("uproject").GetFileName();
+
+					// check native project paths (uprojectdirs)
+					IEnumerable<FileReference> NativeProjectFiles = NativeProjects.EnumerateProjectFiles();
+
+					CandidateProjectFile = NativeProjectFiles.Where(F => F.GetFileName().Equals(ProjectName, StringComparison.InvariantCultureIgnoreCase)).FirstOrDefault();
+				}
+
+				if (CandidateProjectFile == null || !FileReference.Exists(CandidateProjectFile))
+				{
+					// if we didn't find anything then throw an error as the user explicitly provided a uproject
+					throw new Exception(string.Format("Unable to find project file based on argument {0}", CandidateProjectPath));
+				}
+
+				Log.TraceVerbose("Resolved project argument {0} to {1}", CandidateProjectPath, CandidateProjectFile);
+				ProjectFile = CandidateProjectFile;
+				return true;
+			}
+			
 			FileReference InstalledProjectFile = UnrealBuildTool.GetInstalledProjectFile();
 			if(InstalledProjectFile != null)
 			{

@@ -245,7 +245,7 @@ namespace Chaos
 		CHAOS_API FParticleID ParticleID(const int32 Idx) const { return MParticleIDs[Idx]; }
 		CHAOS_API FParticleID& ParticleID(const int32 Idx) { return MParticleIDs[Idx]; }
 #endif
-
+		// Set a dynamic geometry. Note that X and R must be initialized before calling this function.
 		CHAOS_API void SetDynamicGeometry(const int32 Index, TUniquePtr<FImplicitObject>&& InUnique)
 		{
 			check(!SharedGeometry(Index));	// If shared geometry exists we should not be setting dynamic geometry on top
@@ -255,6 +255,7 @@ namespace Chaos
 			MapImplicitShapes(Index);
 		}
 
+		// Set a shared geometry. Note that X and R must be initialized before calling this function.
 		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> InShared)
 		{
 			check(!DynamicGeometry(Index));	// If dynamic geometry exists we should not be setting shared geometry on top

@@ -979,6 +979,8 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 			DirtyDelegateHandle = UPackage::PackageMarkedDirtyEvent.AddRaw(this, &FSoftObjectPathRenameSerializer::OnMarkPackageDirty);
 		}
 
+		this->ArIsObjectReferenceCollector = true;
+
 		// Mark it as saving to correctly process all references
 		this->SetIsSaving(true);
 	}
@@ -996,7 +998,7 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		}
 
 		FFieldClass* PropertyClass = InProperty->GetClass();
-		if (PropertyClass->GetCastFlags() & (CASTCLASS_FBoolProperty | CASTCLASS_FNameProperty | CASTCLASS_FStrProperty | CASTCLASS_FTextProperty | CASTCLASS_FMulticastDelegateProperty))
+		if (PropertyClass->GetCastFlags() & (CASTCLASS_FBoolProperty | CASTCLASS_FNameProperty | CASTCLASS_FStrProperty | CASTCLASS_FMulticastDelegateProperty))
 		{
 			return true;
 		}
@@ -1170,15 +1172,6 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 {
 	using namespace AssetRenameManagerImpl;
 
-	struct FSoftObjectPathLess
-	{
-		FORCEINLINE bool operator()(const FSoftObjectPath& A, const FSoftObjectPath& B) const
-		{
-			int32 Result = A.GetAssetPathName().CompareIndexes(B.GetAssetPathName());
-			return Result ? Result < 0 : A.GetSubPathString() < B.GetSubPathString();
-		}
-	};
-
 	bool bFoundReference = false;
 
 	// First check cache
@@ -1217,7 +1210,7 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 		CachedReferences->Map.GenerateKeyArray(CachedReferences->Keys);
 		
 		// Keys need to be sorted for binary search
-		CachedReferences->Keys.Sort(FSoftObjectPathLess());
+		CachedReferences->Keys.Sort(FSoftObjectPathFastLess());
 	}
 
 	for (const TPair<FSoftObjectPath, FSoftObjectPath>& Pair : AssetRedirectorMap)
@@ -1225,7 +1218,7 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 		const FString& CheckSubPath = Pair.Key.GetSubPathString();
 
 		// Find where we're going to start iterating
-		int32 Index = Algo::LowerBound(CachedReferences->Keys, Pair.Key, FSoftObjectPathLess());
+		int32 Index = Algo::LowerBound(CachedReferences->Keys, Pair.Key, FSoftObjectPathFastLess());
 		for (int32 Num = CachedReferences->Keys.Num(); Index < Num; ++Index)
 		{
 			const FSoftObjectPath& CachedKey = CachedReferences->Keys[Index];

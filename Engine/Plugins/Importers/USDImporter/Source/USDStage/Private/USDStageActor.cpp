@@ -62,7 +62,7 @@ DEFINE_LOG_CATEGORY( LogUsdStage );
 
 static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_Transient;
 
-AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded{};
+AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded;
 
 #if USE_USD_SDK
 

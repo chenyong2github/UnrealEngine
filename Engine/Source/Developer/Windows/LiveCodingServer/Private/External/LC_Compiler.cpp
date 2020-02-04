@@ -8,6 +8,8 @@
 #include "LC_CriticalSection.h"
 #include "LC_Logging.h"
 #include "LC_TimeStamp.h"
+#include "LC_MemoryFile.h"
+#include "LC_StringUtil.h"
 
 
 namespace
@@ -173,45 +175,50 @@ const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t*
 			// this is slightly more complicated than it needs to be, because we cannot simply run a command in the shell and grab
 			// the environment without knowing if the .bat has finished running. similarly, we cannot grab the environment once
 			// the shell process has terminated already.
-			// here's what we do:
-			// - create a unique, temporary file. this is used for letting the shell signal that it has finished executing
-			// - run the .bat file in the shell
-			// - tell the shell to delete the temporary file and pause
-			// - wait until the temporary file is deleted. it is now save to grab the environment
-			// - grab the environment and store it in our cache
-			// - terminate the shell process
-
-			// create an empty temporary file
-			const std::wstring& tempFileDeletedByCmd = file::GenerateTempFilename();
-			char emptyData = 0u;
-			file::CreateFileWithData(tempFileDeletedByCmd.c_str(), &emptyData, 0u);
 
 			// tell cmd.exe to execute commands, and quote all filenames involved.
 			// the whole command needs to be quoted as well.
 			const std::wstring& cmdPath = environment::GetVariable(L"COMSPEC", L"cmd");
-			std::wstring commandLine(L"/c \"\"");
+			std::wstring commandLine(L"/c \"call \"");
 			commandLine += pathToVcvars;
-			commandLine += L"\" && del /q \"";
-			commandLine += tempFileDeletedByCmd;
-			commandLine += L"\" && pause \"";
+
+			// set an environment variable with the exit code from the batch file.
+			// we can retrieve this from the environment later and check if there was an error.
+			commandLine += L"\" & call set LPP_TOOLCHAIN_EXIT_CODE=%^ERRORLEVEL% & call pause \"";
 
 			process::Context* vcvarsProcess = process::Spawn(cmdPath.c_str(), nullptr, commandLine.c_str(), nullptr, process::SpawnFlags::NO_WINDOW);
 
-			// wait until the temporary file is deleted.
+			// wait until LPP_TOOLCHAIN_EXIT_CODE shows up in the environment of the process.
 			// busy waiting like this is not very nice, but happens only once or twice during startup, and is called from a separate thread anyway.
 			const uint64_t startTimestamp = timeStamp::Get();
 			bool shownWarning = false;
+
+			process::Environment* environment = nullptr;
+			const wchar_t* toolchainExitCodeStr = nullptr;
 			for (;;)
 			{
-				const file::Attributes& tempAttributes = file::GetAttributes(tempFileDeletedByCmd.c_str());
-				if (file::DoesExist(tempAttributes))
+				// grab the environment from the process
+				process::Suspend(vcvarsProcess->pi.hProcess);
+				environment = process::CreateEnvironment(vcvarsProcess->pi.hProcess);
+				process::Resume(vcvarsProcess->pi.hProcess);
+
+				if (environment)
 				{
-					thread::Sleep(10u);
+					toolchainExitCodeStr = string::Find(static_cast<const wchar_t*>(environment->data), environment->size / sizeof(wchar_t), L"LPP_TOOLCHAIN_EXIT_CODE", wcslen(L"LPP_TOOLCHAIN_EXIT_CODE"));
+					if (toolchainExitCodeStr)
+					{
+						const wchar_t* exitCodeStr = toolchainExitCodeStr + wcslen(L"LPP_TOOLCHAIN_EXIT_CODE") + 1u;
+						if (*exitCodeStr != '%')
+						{
+							// the environment variable is available and set, so the batch file has finished running
+							break;
+						}
+					}
 				}
-				else
-				{
-					break;
-				}
+
+				// the batch file hasn't finished running yet, wait a bit
+				process::DestroyEnvironment(environment);
+				thread::Sleep(20u);
 
 				// show a warning in case this takes longer than 5 seconds.
 				// this can happen for some users:
@@ -222,13 +229,28 @@ const process::Environment* compiler::CreateEnvironmentCacheEntry(const wchar_t*
 					LC_WARNING_USER("Prewarming compiler/linker environment for %S is taking suspiciously long.", pathToVcvars.c_str());
 					shownWarning = true;
 				}
+
+				// safety net: bail out if this takes longer than 10 seconds
+				if (timeStamp::ToSeconds(delta) >= 10.0)
+				{
+					LC_WARNING_USER("Prewarming compiler/linker environment for %S took too long and was aborted.", pathToVcvars.c_str());
+					return nullptr;
+				}
 			}
 
-			// grab the environment from the process and insert it into the cache
-			process::Environment* environment = process::CreateEnvironment(vcvarsProcess->pi.hProcess);
+			// insert the environment into the cache
 			{
 				CriticalSection::ScopedLock lock(&g_compilerCacheCS);
 				g_compilerEnvironmentCache.Insert(absolutePathToCompilerExe, environment);
+			}
+
+			// test the exit code of the process
+			{
+				const unsigned int toolchainExitCode = string::StringToInt<unsigned int>(toolchainExitCodeStr + wcslen(L"LPP_TOOLCHAIN_EXIT_CODE") + 1u);
+				if (toolchainExitCode != 0u)
+				{
+					LC_WARNING_USER("Prewarming environment cache for %S failed with exit code %u", pathToVcvars.c_str(), toolchainExitCode);
+				}
 			}
 
 			process::Terminate(vcvarsProcess->pi.hProcess);

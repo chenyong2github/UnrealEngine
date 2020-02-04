@@ -13,13 +13,13 @@
 #include "UObject/CoreNetTypes.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/Field.h"
+#include "Trace/Config.h"
 
 class FOutBunch;
 class INetDeltaBaseState;
+class FNetTraceCollector;
 
 DECLARE_DELEGATE_RetVal_OneParam( bool, FNetObjectIsDynamic, const UObject*);
-
-class FOutBunch;
 
 //
 // Information about a field.
@@ -298,6 +298,29 @@ template <> struct TIsZeroConstructType<FLifetimeProperty> { enum { Value = true
 
 GENERATE_MEMBER_FUNCTION_CHECK(GetLifetimeReplicatedProps, void, const, TArray<FLifetimeProperty>&)
 
+// Consider adding UE_NET_TRACE_ENABLE to build config, for now we use the UE_TRACE_ENABLED as NetTrace is not support unless tracing is enabled
+#if UE_TRACE_ENABLED
+/**
+ * We pass a NetTraceCollector along with the NetBitWriter in order avoid modifying all API`s where we want to be able to collect Network stats
+ * Since the pointer to the collector is temporary we need to avoid copying it around by accident
+ */
+class FNetTraceCollectorDoNotCopyWrapper
+{
+public:
+	FNetTraceCollectorDoNotCopyWrapper() : Collector(nullptr) {}
+	FNetTraceCollectorDoNotCopyWrapper(const FNetTraceCollectorDoNotCopyWrapper&) : Collector(nullptr) {}
+    FNetTraceCollectorDoNotCopyWrapper(FNetTraceCollectorDoNotCopyWrapper&&) { Collector = nullptr; }
+	FNetTraceCollectorDoNotCopyWrapper& operator=(const FNetTraceCollectorDoNotCopyWrapper& Other) { Collector = nullptr; return *this; }
+    FNetTraceCollectorDoNotCopyWrapper& operator=(FNetTraceCollectorDoNotCopyWrapper&&) { Collector = nullptr; return *this; }
+
+	void Set(FNetTraceCollector* InCollector) { Collector = InCollector; }
+	FNetTraceCollector* Get() const { return Collector; }
+
+private:
+	FNetTraceCollector* Collector;
+};
+#endif
+
 /**
  * FNetBitWriter
  *	A bit writer that serializes FNames and UObject* through
@@ -311,6 +334,10 @@ public:
 	FNetBitWriter();
 
 	class UPackageMap * PackageMap;
+
+#if UE_TRACE_ENABLED
+	FNetTraceCollectorDoNotCopyWrapper TraceCollector;
+#endif
 
 	virtual FArchive& operator<<(FName& Name) override;
 	virtual FArchive& operator<<(UObject*& Object) override;

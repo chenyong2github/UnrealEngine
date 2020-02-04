@@ -175,22 +175,12 @@ void FBaseMenuBuilder::AddMenuEntry( const FUIAction& UIAction, const TSharedRef
 TSharedRef< class SWidget > FMenuBuilder::MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride /* = nullptr */, uint32 MaxHeight)
 {
 	// Make menu builders searchable (by default)
-	TSharedRef< class SWidget > MenuWidget = MultiBox->MakeWidget(bSearchable, InMakeMultiBoxBuilderOverride);
+	TAttribute<float> MaxHeightAttribute;
 	if (MaxHeight < INT_MAX)
 	{
-		TSharedRef<SWidget> ConstrainedMenu = SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.MaxHeight((float)MaxHeight)
-			[
-				SNew(SScrollBox)
-				+ SScrollBox::Slot()
-				[
-					MenuWidget
-				]
-			];
-		return ConstrainedMenu;
+		MaxHeightAttribute.Set((float)MaxHeight);
 	}
-	return MenuWidget;
+	return MultiBox->MakeWidget(bSearchable, InMakeMultiBoxBuilderOverride, MaxHeightAttribute);
 }
 
 void FMenuBuilder::BeginSection( FName InExtensionHook, const TAttribute< FText >& InHeadingText )

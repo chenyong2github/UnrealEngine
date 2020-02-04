@@ -12,6 +12,7 @@ namespace Audio
 		, MixerBuffer(nullptr)
 		, SampleRate(INDEX_NONE)
 		, SeekTime(InitData.SeekTime)
+		, bForceSyncDecode(InitData.bForceSyncDecode)
 	{
 		SourceInfo.VolumeParam.Init();
 		SourceInfo.VolumeParam.SetValue(InitData.VolumeScale);
@@ -45,7 +46,7 @@ namespace Audio
 		const ELoopingMode LoopingMode = SoundWave->bLooping ? ELoopingMode::LOOP_Forever : ELoopingMode::LOOP_Never;
 		const bool bIsSeeking = SeekTime > 0.0f;
 
-		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, *SoundWave, LoopingMode, bIsSeeking);
+		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, *SoundWave, LoopingMode, bIsSeeking, bForceSyncDecode);
 		return MixerSourceBuffer.IsValid();
 	}
 
@@ -139,6 +140,11 @@ namespace Audio
 	{
 		SourceInfo.VolumeParam.SetValue(InVolumeScale, NumFrames);
 		SourceInfo.VolumeResetFrame = SourceInfo.NumFramesGenerated + NumFrames;
+	}
+
+	void FDecodingSoundSource::SetForceSyncDecode(bool bShouldForceSyncDecode)
+	{
+		bForceSyncDecode = bShouldForceSyncDecode;
 	}
 
 	void FDecodingSoundSource::ReadFrame()
@@ -355,6 +361,11 @@ namespace Audio
 		return true;
 	}
 
+	void FDecodingSoundSource::AddReferencedObjects(FReferenceCollector & Collector)
+	{
+		Collector.AddReferencedObject(SoundWave);
+	}
+
 	FSoundSourceDecoder::FSoundSourceDecoder()
 		: AudioThreadId(0)
 		, AudioDevice(nullptr)
@@ -364,7 +375,7 @@ namespace Audio
 
 	FSoundSourceDecoder::~FSoundSourceDecoder()
 	{
-
+		
 	}
 
 	void FSoundSourceDecoder::Init(FAudioDevice* InAudioDevice, int32 InSampleRate)
@@ -405,6 +416,7 @@ namespace Audio
 
 		if (DecodingSoundWaveDataPtr->PreInit(SampleRate))
 		{
+			DecodingSoundWaveDataPtr->SetForceSyncDecode(InitData.bForceSyncDecode);
 			InitializingDecodingSources.Add(InitData.Handle.Id, DecodingSoundWaveDataPtr);
 
 			// Add this decoding sound wave to a data structure we can access safely from audio render thread

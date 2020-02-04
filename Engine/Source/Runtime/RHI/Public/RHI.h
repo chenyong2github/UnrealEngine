@@ -15,9 +15,11 @@
 #define RHI_COMMAND_LIST_DEBUG_TRACES 0
 #endif
 
+template <typename T> class TArrayView;
+
 class FResourceArrayInterface;
 class FResourceBulkDataInterface;
-
+class FStringView;
 
 /** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
 #define SHADER_PARAMETER_STRUCT_ALIGNMENT 16
@@ -764,6 +766,7 @@ struct FVertexElement
 	}
 	RHI_API FString ToString() const;
 	RHI_API void FromString(const FString& Src);
+	RHI_API void FromString(const FStringView& Src);
 };
 
 typedef TArray<FVertexElement,TFixedAllocator<MaxVertexElementCount> > FVertexDeclarationElementList;
@@ -952,8 +955,7 @@ struct FDepthStencilStateInitializerRHI
 	}
 	RHI_API FString ToString() const;
 	RHI_API void FromString(const FString& Src);
-
-
+	RHI_API void FromString(const FStringView& Src);
 };
 
 class FBlendStateInitializerRHI
@@ -1005,8 +1007,7 @@ public:
 		}
 		RHI_API FString ToString() const;
 		RHI_API void FromString(const TArray<FString>& Parts, int32 Index);
-
-
+		RHI_API void FromString(TArrayView<const FStringView> Parts);
 	};
 
 	FBlendStateInitializerRHI() {}
@@ -1040,8 +1041,7 @@ public:
 	}
 	RHI_API FString ToString() const;
 	RHI_API void FromString(const FString& Src);
-
-
+	RHI_API void FromString(const FStringView& Src);
 };
 
 /**
@@ -1316,18 +1316,18 @@ struct FRHITextureSRVCreateInfo
 {
 	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel = 0u, uint8 InNumMipLevels = 1u, uint8 InFormat = PF_Unknown)
 		: Format(InFormat)
-		, SRGBOverride(SRGBO_Default)
 		, MipLevel(InMipLevel)
 		, NumMipLevels(InNumMipLevels)
+		, SRGBOverride(SRGBO_Default)
 		, FirstArraySlice(0)
 		, NumArraySlices(0)
 	{}
 
 	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel, uint8 InNumMipLevels, uint32 InFirstArraySlice, uint32 InNumArraySlices, uint8 InFormat = PF_Unknown)
 		: Format(InFormat)
-		, SRGBOverride(SRGBO_Default)
 		, MipLevel(InMipLevel)
 		, NumMipLevels(InNumMipLevels)
+		, SRGBOverride(SRGBO_Default)
 		, FirstArraySlice(InFirstArraySlice)
 		, NumArraySlices(InNumArraySlices)
 	{}
@@ -1335,14 +1335,14 @@ struct FRHITextureSRVCreateInfo
 	/** View the texture with a different format. Leave as PF_Unknown to use original format. Useful when sampling stencil */
 	uint8 Format;
 
-	/** Potentially override the texture's sRGB flag */
-	ERHITextureSRVOverrideSRGBType SRGBOverride;
-
 	/** Specify the mip level to use. Useful when rendering to one mip while sampling from another */
 	uint8 MipLevel;
 
 	/** Create a view to a single, or multiple mip levels */
 	uint8 NumMipLevels;
+
+	/** Potentially override the texture's sRGB flag */
+	ERHITextureSRVOverrideSRGBType SRGBOverride;
 
 	/** Specify first array slice index. By default 0. */
 	uint32 FirstArraySlice;
@@ -1354,9 +1354,9 @@ struct FRHITextureSRVCreateInfo
 	{
 		return (
 			Format == Other.Format &&
-			SRGBOverride == Other.SRGBOverride &&
 			MipLevel == Other.MipLevel &&
 			NumMipLevels == Other.NumMipLevels &&
+			SRGBOverride == Other.SRGBOverride &&
 			FirstArraySlice == Other.FirstArraySlice &&
 			NumArraySlices == Other.NumArraySlices);
 	}

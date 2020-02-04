@@ -73,7 +73,10 @@ namespace RBFDistanceMetric
 	*/
 	static inline float SwingAngle(const FQuat& A, const FQuat& B, const FVector& TwistAxis)
 	{
-		return ArcLength(A.RotateVector(TwistAxis), B.RotateVector(TwistAxis));
+		FQuat ASwing, BSwing, DummyTwist;
+		A.ToSwingTwist(TwistAxis, ASwing, DummyTwist);
+		B.ToSwingTwist(TwistAxis, BSwing, DummyTwist);
+		return ASwing.AngularDistance(BSwing);
 	}
 
 	/* Returns the twist arc length distance between two quaternions, using a specific 
@@ -150,6 +153,8 @@ class TRBFInterpolator
 public:
 	using WeightFuncT = TFunction<float(const T& A, const T& B)>;
 
+	TRBFInterpolator() = default;
+
 	/* Construct an RBF interpolator, taking in a set of sparse nodes and a symmetric weighing
 	   function that computes the distance between two nodes, and, optionally, smooths 
 	   the distance with a smoothing kernel.
@@ -162,6 +167,11 @@ public:
 	{
 		MakeUpperKernel();
 	}
+
+	TRBFInterpolator(const TRBFInterpolator<T>&) = default;
+	TRBFInterpolator(TRBFInterpolator<T>&&) = default;
+	TRBFInterpolator<T>& operator=(const TRBFInterpolator<T>&) = default;
+	TRBFInterpolator<T>& operator=(TRBFInterpolator<T>&&) = default;
 
 	/* Given a value, compute the weight values to use to calculate each node's contribution
 	   to that value's location.
@@ -329,6 +339,6 @@ private:
 	}
 
 
-	const TArrayView<T>& Nodes;
+	TArrayView<T> Nodes;
 	WeightFuncT WeightFunc;
 };

@@ -60,7 +60,7 @@ public:
 	 */
 	FInternetAddrBSD();
 
-	FInternetAddrBSD(FSocketSubsystemBSD* InSocketSubsystem);
+	FInternetAddrBSD(FSocketSubsystemBSD* InSocketSubsystem, FName RequestedProtocol=NAME_None);
 
 	/**
 	 * Compares FInternetAddrs together, comparing the logical net addresses (endpoints)
@@ -187,8 +187,8 @@ public:
 
 	/**
 	 * Sets the address structure to be bindable to any IP address.
-	 * Uses the value returned from GetDefaultSocketProtocolFamily to determine default
-	 * addresses to be used.
+	 * Uses the protocol the address structure was created with (or currently set to) to
+	 * determine the address protocol type used.
 	 *
 	 * To skip assumptions, you can call the designated version explicitly below.
 	 */
@@ -202,8 +202,8 @@ public:
 
 	/**
 	 * Sets the address structure to be bound to the multicast ip address.
-	 * Uses the value returned from GetDefaultSocketProtocolFamily to determine default
-	 * addresses to be used.
+	 * Uses the protocol the address structure was created with (or currently set to) to
+	 * determine the address protocol type used.
 	 *
 	 * To skip assumptions, you can call the designated version explicitly below.
 	 */
@@ -217,8 +217,8 @@ public:
 
 	/**
 	 * Sets the address structure to be bound to the loopback ip address.
-	 * Uses the value returned from GetDefaultSocketProtocolFamily to determine default
-	 * addresses to be used.
+	 * Uses the protocol the address structure was created with (or currently set to) to
+	 * determine the address protocol type used.
 	 *
 	 * To skip assumptions, you can call the designated version explicitly below.
 	 */

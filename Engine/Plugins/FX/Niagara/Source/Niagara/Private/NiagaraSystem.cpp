@@ -675,6 +675,10 @@ bool UNiagaraSystem::IsValid()const
 		return false;
 	}
 
+	if (EmitterHandles.Num() == 0)
+	{
+		return false;
+	}
 
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
@@ -998,7 +1002,7 @@ bool UNiagaraSystem::ProcessCompilationResult(FEmitterCompiledScriptPair& Script
 	TArray<uint8> OutData;
 	if (UNiagaraScript::ExecToBinaryData(OutData, *ExeData))
 	{
-		GetDerivedDataCacheRef().Put(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), OutData);
+		GetDerivedDataCacheRef().Put(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), OutData, GetPathName());
 		return true;
 	}
 	
@@ -1012,7 +1016,7 @@ bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 	ScriptPair.CompileId = NewID;
 
 	TArray<uint8> Data;
-	if (GetDerivedDataCacheRef().GetSynchronous(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), Data))
+	if (GetDerivedDataCacheRef().GetSynchronous(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), Data, GetPathName()))
 	{
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
 		if (ScriptPair.CompiledScript->BinaryToExecData(Data, *ExeData))

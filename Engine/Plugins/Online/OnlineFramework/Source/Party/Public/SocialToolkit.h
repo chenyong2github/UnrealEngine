@@ -17,6 +17,7 @@ class FSocialPartyInvitation;
 class USocialChatManager;
 
 class FOnlinePartyId;
+class FSocialUserList;
 
 enum class EMemberExitedReason : uint8;
 
@@ -53,7 +54,7 @@ public:
 
 	IOnlineSubsystem* GetSocialOss(ESocialSubsystem SubsystemType) const;
 
-	TSharedRef<ISocialUserList> CreateUserList(const FSocialUserListConfig& ListConfig);
+	TSharedRef<ISocialUserList> CreateUserList(const FSocialUserListConfig& ListConfig) const;
 
 	USocialUser& GetLocalUser() const;
 
@@ -114,7 +115,7 @@ public:
 	FBasicToolkitEvent& OnToolkitReset() const { return OnToolkitResetEvent; }
 
 #if WITH_EDITOR
-	bool Debug_IsRandomlyChangingPresence() { return bDebug_IsRandomlyChangingUserPresence; }
+	bool Debug_IsRandomlyChangingPresence() const { return bDebug_IsRandomlyChangingUserPresence; }
 #endif
 
 PARTY_SCOPE:
@@ -253,6 +254,8 @@ private:
 
 	UPROPERTY()
 	USocialChatManager* SocialChatManager;
+
+	mutable TArray<TWeakPtr<FSocialUserList>> CachedSocialUserLists;
 
 	mutable FPartyInviteEvent OnPartyInviteReceivedEvent;
 	mutable FPartyInviteEvent OnPartyInviteAcceptedEvent;

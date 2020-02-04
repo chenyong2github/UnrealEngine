@@ -3871,7 +3871,7 @@ public:
 						}
 						else
 						{
-							UE_LOG(LogSkeletalMesh, Warning, TEXT("%s"), *(TextMessage.ToString()));
+							UE_LOG(LogSkeletalMesh, Display, TEXT("%s"), *(TextMessage.ToString()));
 						}
 					}
 				}

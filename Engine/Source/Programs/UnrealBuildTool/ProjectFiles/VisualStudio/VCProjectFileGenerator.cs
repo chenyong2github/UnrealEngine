@@ -73,7 +73,7 @@ namespace UnrealBuildTool
 		/// Whether to generate per-file intellisense data.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		bool bUsePerFileIntellisense = false;
+		bool bUsePerFileIntellisense = true;
 
 		/// <summary>
 		/// Whether to include a dependency on ShaderCompileWorker when generating project files for the editor.
@@ -121,6 +121,11 @@ namespace UnrealBuildTool
 			{
 				BuildToolOverride = "-2019";
 			}
+		}
+
+		public override string[] GetTargetArguments(string[] Arguments)
+		{
+			return Arguments.Where(s => string.Equals(s, BuildToolOverride, StringComparison.InvariantCultureIgnoreCase)).ToArray();
 		}
 
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")
@@ -287,17 +292,17 @@ namespace UnrealBuildTool
 			if (ProjectFileFormat == VCProjectFileFormat.Default)
 			{
 				// Pick the best platform installed by default
-				if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2017) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2017))
+				if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2019) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2019))
+				{
+					ProjectFileFormat = VCProjectFileFormat.VisualStudio2019;
+				}
+				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2017) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2017))
 				{
 					ProjectFileFormat = VCProjectFileFormat.VisualStudio2017;
 				}
 				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2015_DEPRECATED) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2015_DEPRECATED))
 				{
 					ProjectFileFormat = VCProjectFileFormat.VisualStudio2015;
-				}
-				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2019) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2019))
-				{
-					ProjectFileFormat = VCProjectFileFormat.VisualStudio2019;
 				}
 
 				// Allow the SDKs to override

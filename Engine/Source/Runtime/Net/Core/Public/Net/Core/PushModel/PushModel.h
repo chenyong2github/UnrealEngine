@@ -80,6 +80,9 @@
  * but if they are using things like Blueprint Setters, passing values around by reference, or setting values in Native
  * C++, then it is completely up to them to call the necessary methods.
  *
+ * UFUNCTIONS or Blueprint Defined Functions that take Properties by reference will check for Networked Properties and
+ * should add nodes automatically (see UNetPushModelHelpers).
+ *
  * Devs don't need to care *if* a given object is actually networked or is actively replicating, Push Model handles
  * that sort of tracking internally. As such, we don't expect users to ever need to know or have a reference to
  * any information other than A) The Object that's being dirtied and B) The Property that's being dirtied.
@@ -95,11 +98,15 @@
  * whether or not a given property is dirty. If it is, then we can compare and replicate it normally, otherwise we
  * can quickly skip it.
  *
- * One important thing to note is that at this time, Push Model only supports Top Level properties of Objects.
+ * One important thing to note is that at this time, Push Model only supports Top Level properties of Objects
+ * (in RepLayout parlance, Parent Commands).
+ *
  * So, if changes are made to Structs, Containers, or nested properties therein, the owning Struct or Container
  * property must be marked dirty.
  *
  * This also means that we *must* compare a property when it's dirty to make sure we know exactly what's changed.
+ * Optimizations could be made for "network primtiive" types where we skip comparisons if desired, at the potential
+ * expense of extra bandwidth for properties that didn't actually change.
  *
  ****************************************************************
  * Examples
@@ -333,12 +340,6 @@ namespace UE4PushModelPrivate
 	 */
 	NETCORE_API void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 StartRepIndex, const int32 EndRepIndex);
 
-	/**
-	 * This method is called by all NetDriver's before they replicated properties.
-	 * It's required in order to give PushModel a chance to do any setup work.
-	 */
-	NETCORE_API void PreReplication();
-	
 	/**
 	 * This method is called by all NetDriver's PostGarbageCollection.
 	 * It's required in order to give PushModel a chance to do any cleanup work.

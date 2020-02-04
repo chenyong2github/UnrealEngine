@@ -504,13 +504,6 @@ bool FRigSpaceHierarchy::Select(const FName& InName, bool bSelect)
 
 	if(bSelect)
 	{
-		if (Container)
-		{
-			Container->BoneHierarchy.ClearSelection();
-			Container->ControlHierarchy.ClearSelection();
-			Container->CurveContainer.ClearSelection();
-		}
-
 		Selection.Add(InName);
 	}
 	else

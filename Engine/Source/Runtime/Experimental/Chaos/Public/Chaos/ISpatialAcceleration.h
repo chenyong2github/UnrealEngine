@@ -139,6 +139,8 @@ public:
 		Returns true to continue iterating through the acceleration structure
 	*/
 	virtual bool Sweep(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData) = 0;
+
+	virtual const void* GetQueryData() const { return nullptr; }
 };
 
 /**
@@ -360,6 +362,11 @@ public:
 		return Visitor.Sweep(Instance, CurData);
 	}
 
+	FORCEINLINE const void* GetQueryData() const
+	{
+		return Visitor.GetQueryData();
+	}
+
 private:
 	ISpatialVisitor<TPayloadType, T>& Visitor;
 };
@@ -433,10 +440,13 @@ public:
 	void Remove(const TKey& Key)
 	{
 		const int32 Idx = GetUniqueIdx(Key).Idx;
-		Entries[Idx] = FEntry();	//Mark as free, also resets default values for next use of value
+		if(Idx >= 0 && Idx < Entries.Num())
+		{
+			Entries[Idx] = FEntry();	//Mark as free, also resets default values for next use of value
 #if CHAOS_SERIALIZE_OUT
-		KeysToSerializeOut[Idx] = TKey();
+			KeysToSerializeOut[Idx] = TKey();
 #endif
+		}
 	}
 
 	void Reset()
@@ -500,5 +510,24 @@ FChaosArchive& operator<< (FChaosArchive& Ar, TArrayAsMap<TKey, TValue>& Map)
 	Map.Serialize(Ar);
 	return Ar;
 }
+
+
+template <typename TPayload>
+typename TEnableIf<!TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(const TPayload& Payload, const void* QueryData)
+{
+	return Payload.PrePreFilter(QueryData);
+}
+
+template <typename TPayload>
+typename TEnableIf<TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(const TPayload& Payload, const void* QueryData)
+{
+	return false;
+}
+
+FORCEINLINE bool PrePreFilterHelper(const int32 Payload, const void* QueryData)
+{
+	return false;
+}
+
 
 }

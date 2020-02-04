@@ -598,7 +598,7 @@ void UMinimalClient::ResetConnTimeout(float Duration)
 		// @todo #JohnBHack: This is a slightly hacky way of setting the timeout to a large value, which will be overridden by newly
 		//				received packets, making it unsuitable for most situations (except crashes - but that could still be subject
 		//				to a race condition)
-		double NewLastReceiveTime = UnitDriver->Time + Duration;
+		const double NewLastReceiveTime = UnitDriver->GetElapsedTime() + Duration;
 
 		UnitConn->LastReceiveTime = FMath::Max(NewLastReceiveTime, UnitConn->LastReceiveTime);
 	}

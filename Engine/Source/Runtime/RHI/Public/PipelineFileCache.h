@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/List.h"
+#include "Containers/StringView.h"
 #include "RHI.h"
 
 DECLARE_STATS_GROUP(TEXT("ShaderPipelineCache"),STATGROUP_PipelineStateCache, STATCAT_Advanced);
@@ -71,7 +72,7 @@ struct RHI_API FPipelineFileCacheRasterizerState
 		return KeyHash;
 	}
 	FString ToString() const;
-	void FromString(const FString& Src);
+	void FromString(const FStringView& Src);
 };
 
 /**
@@ -111,7 +112,7 @@ struct RHI_API FPipelineCacheFileFormatPSO
 
 		FString ToString() const;
 		static FString HeaderLine();
-		void FromString(const FString& Src);
+		void FromString(const FStringView& Src);
 	};
 	struct RHI_API GraphicsDescriptor
 	{
@@ -145,15 +146,15 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		
 		FString ToString() const;
 		static FString HeaderLine();
-		bool FromString(const FString& Src);
+		bool FromString(const FStringView& Src);
 
 		FString ShadersToString() const;
 		static FString ShaderHeaderLine();
-		void ShadersFromString(const FString& Src);
+		void ShadersFromString(const FStringView& Src);
 
 		FString StateToString() const;
 		static FString StateHeaderLine();
-		bool StateFromString(const FString& Src);
+		bool StateFromString(const FStringView& Src);
 	};
 	enum class DescriptorType : uint32
 	{
@@ -187,7 +188,7 @@ struct RHI_API FPipelineCacheFileFormatPSO
 	
 	FString CommonToString() const;
 	static FString CommonHeaderLine();
-	void CommonFromString(const FString& Src);
+	void CommonFromString(const FStringView& Src);
 	
 	// Potential cases for seperating verify logic if requiired: RunTime-Logging, RunTime-UserCaching, RunTime-PreCompile, CommandLet-Cooking
 	bool Verify() const;

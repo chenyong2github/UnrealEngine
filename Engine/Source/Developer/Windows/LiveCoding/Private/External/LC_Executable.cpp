@@ -350,6 +350,77 @@ void executable::DestroyImportModuleDB(ImportModuleDB* database)
 }
 
 
+executable::PdbInfo* executable::GatherPdbInfo(const Image* image, const ImageSectionDB* imageSections)
+{
+	const IMAGE_NT_HEADERS* ntHeader = detail::GetNtHeader(image);
+	if (!ntHeader)
+	{
+		return nullptr;
+	}
+
+	const IMAGE_SECTION_HEADER* sectionHeader = detail::GetSectionHeader(ntHeader);
+	if (!sectionHeader)
+	{
+		return nullptr;
+	}
+
+	// the debug directory stores an array of IMAGE_DEBUG_DIRECTORY entries
+	const size_t count = ntHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG].Size / sizeof(IMAGE_DEBUG_DIRECTORY);
+	if (count == 0u)
+	{
+		// no debug directories
+		return nullptr;
+	}
+
+	const DWORD baseDebugDirectory = RvaToFileOffset(imageSections, ntHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG].VirtualAddress);
+	if (baseDebugDirectory == 0u)
+	{
+		// no debug directories
+		return nullptr;
+	}
+
+	const IMAGE_DEBUG_DIRECTORY* debugDirectory = pointer::Offset<const IMAGE_DEBUG_DIRECTORY*>(image->base, baseDebugDirectory);
+	for (size_t i=0u; i < count; ++i)
+	{
+		// we are only interested in PDB files
+		if (debugDirectory->Type == IMAGE_DEBUG_TYPE_CODEVIEW)
+		{
+			// try interpreting the raw data as PDB 7.0 info. if it belongs to PDB 7.0 data, the signature matches "RSDS"
+			// http://www.debuginfo.com/articles/debuginfomatch.html
+			struct PDB70Header
+			{
+				DWORD signature;	// 'RSDS'
+				GUID guid;
+				DWORD age;
+			};
+
+			const DWORD RSDS = 0x53445352u;
+			const PDB70Header* pdbHeader = pointer::Offset<const PDB70Header*>(image->base, debugDirectory->PointerToRawData);
+			if (pdbHeader->signature == RSDS)
+			{
+				// PDB filename follows right after the header data
+				const char* pdbPath = pointer::Offset<const char*>(pdbHeader, sizeof(PDB70Header));
+
+				PdbInfo* pdbInfo = new PdbInfo;
+				pdbInfo->guid = pdbHeader->guid;
+				pdbInfo->age = pdbHeader->age;
+				strcpy_s(pdbInfo->path, pdbPath);
+
+				return pdbInfo;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+
+void executable::DestroyPdbInfo(PdbInfo* pdbInfo)
+{
+	delete pdbInfo;
+}
+
+
 void executable::CallDllEntryPoint(void* moduleBase, uint32_t entryPointRva)
 {
 	typedef decltype(_DllMainCRTStartup) DllEntryPoint;

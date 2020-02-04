@@ -275,6 +275,18 @@ void ClientStartupThread::InstallExceptionHandler(void)
 }
 
 
+void ClientStartupThread::TriggerRestart(void)
+{
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		m_userCommandThread->TriggerRestart();
+	}
+}
+
+
 // BEGIN EPIC MOD - Adding ShowConsole command
 void ClientStartupThread::ShowConsole(void)
 {
@@ -529,7 +541,7 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 
 		const commands::RegisterProcess command =
 		{
-			process::GetBase(), process::GetId(), restartedProcessId, commandThreadId, &JumpToSelf,
+			process::GetBase(), process::GetId(), restartedProcessId, commandThreadId, reinterpret_cast<void*>(&JumpToSelf),
 			(imagePath.size() + 1u) * sizeof(wchar_t), 
 			(commandLine.size() + 1u) * sizeof(wchar_t),
 			(workingDirectory.size() + 1u) * sizeof(wchar_t),

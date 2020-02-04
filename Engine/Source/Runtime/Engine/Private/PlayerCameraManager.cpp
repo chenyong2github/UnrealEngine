@@ -596,7 +596,7 @@ void APlayerCameraManager::ApplyAudioFade()
 		UWorld* World = GetWorld();
 		if (World)
 		{
-			if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+			if (FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
 			{
 				AudioDevice->SetTransientMasterVolume(1.0f - FadeAmount);
 			}
@@ -611,7 +611,7 @@ void APlayerCameraManager::StopAudioFade()
 		UWorld* World = GetWorld();
 		if (World)
 		{
-			if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+			if (FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
 			{
 				AudioDevice->SetTransientMasterVolume(1.0f);
 			}

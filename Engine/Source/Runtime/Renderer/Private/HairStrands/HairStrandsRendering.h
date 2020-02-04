@@ -44,4 +44,6 @@ void RunHairStrandsInterpolation(
 	EHairStrandsInterpolationType Type,
 	FHairStrandClusterData* ClusterData);
 
-
+void RunHairStrandsBindingQueries(
+	FRHICommandListImmediate& RHICmdList,
+	TShaderMap<FGlobalShaderType>* ShaderMap);

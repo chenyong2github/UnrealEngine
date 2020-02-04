@@ -305,9 +305,6 @@ class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFac
 		InstancingOffsetParameter.Bind(ParameterMap, TEXT("InstancingOffset"));
 		InstancingWorldViewOriginZeroParameter.Bind(ParameterMap, TEXT("InstancingWorldViewOriginZero"));
 		InstancingWorldViewOriginOneParameter.Bind(ParameterMap, TEXT("InstancingWorldViewOriginOne"));
-		CPUInstanceOrigin.Bind(ParameterMap, TEXT("CPUInstanceOrigin"));
-		CPUInstanceTransform.Bind(ParameterMap, TEXT("CPUInstanceTransform"));
-		CPUInstanceLightmapAndShadowMapBias.Bind(ParameterMap, TEXT("CPUInstanceLightmapAndShadowMapBias"));
 		VertexFetch_InstanceOriginBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_InstanceOriginBuffer"));
 		VertexFetch_InstanceTransformBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_InstanceTransformBuffer"));
 		VertexFetch_InstanceLightmapBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_InstanceLightmapBuffer"));
@@ -328,6 +325,8 @@ class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFac
 
 	void Serialize(FArchive& Ar) override
 	{
+		Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+
 		FLocalVertexFactoryShaderParametersBase::Serialize(Ar);
 		Ar << InstancingFadeOutParamsParameter;
 		Ar << InstancingViewZCompareZeroParameter;
@@ -336,9 +335,14 @@ class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFac
 		Ar << InstancingOffsetParameter;
 		Ar << InstancingWorldViewOriginZeroParameter;
 		Ar << InstancingWorldViewOriginOneParameter;
-		Ar << CPUInstanceOrigin;
-		Ar << CPUInstanceTransform;
-		Ar << CPUInstanceLightmapAndShadowMapBias;
+		
+		if (Ar.IsLoading() && Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::RemovedEmulatedInstancing)
+		{
+			// Older version need to also load legacy emulated instancing shader parameters
+			FShaderParameter Dummy;
+			Ar << Dummy << Dummy << Dummy;
+		}
+
 		Ar << VertexFetch_InstanceOriginBufferParameter;
 		Ar << VertexFetch_InstanceTransformBufferParameter;
 		Ar << VertexFetch_InstanceLightmapBufferParameter;
@@ -355,10 +359,6 @@ private:
 	FShaderParameter InstancingOffsetParameter;
 	FShaderParameter InstancingWorldViewOriginZeroParameter;
 	FShaderParameter InstancingWorldViewOriginOneParameter;
-
-	FShaderParameter CPUInstanceOrigin;
-	FShaderParameter CPUInstanceTransform;
-	FShaderParameter CPUInstanceLightmapAndShadowMapBias;
 
 	FShaderResourceParameter VertexFetch_InstanceOriginBufferParameter;
 	FShaderResourceParameter VertexFetch_InstanceTransformBufferParameter;

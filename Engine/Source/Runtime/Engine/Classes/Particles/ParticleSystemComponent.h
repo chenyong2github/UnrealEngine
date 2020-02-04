@@ -333,6 +333,10 @@ class ENGINE_API UFXSystemComponent : public UPrimitiveComponent
 	GENERATED_UCLASS_BODY()
 public:
 
+	/**Change a named boolean parameter, ParticleSystemComponent converts to float.*/
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void SetBoolParameter(FName ParameterName, bool Param) {}
+
 	/** Change a named float parameter */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
 	virtual void SetFloatParameter(FName ParameterName, float Param) {}
@@ -487,6 +491,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Attachment)
 	uint8 bAutoManageAttachment:1;
+
+	/**
+	 * Option for how we handle bWeldSimulatedBodies when we attach to the AutoAttachParent, if bAutoManageAttachment is true.
+	 * @see bAutoManageAttachment
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attachment, meta=(EditCondition="bAutoManageAttachment"))
+	uint8 bAutoAttachWeldSimulatedBodies:1;
 	
 	/** If this component is having it's significance managed by gameplay code. */
 	uint8 bIsManagingSignificance : 1;
@@ -1051,6 +1062,8 @@ public:
 	 *	@param	bNewEnableState		The value to set it to
 	 */
 	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
+
+	void SetBoolParameter(FName ParameterName, bool Param) override;
 
 	/** Change a named float parameter */
 	void SetFloatParameter(FName ParameterName, float Param) override;

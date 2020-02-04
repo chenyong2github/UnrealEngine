@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+using System;
 using Microsoft.Win32;
 
 namespace UnrealBuildTool.Rules
@@ -37,6 +38,9 @@ namespace UnrealBuildTool.Rules
 					case WindowsCompiler.VisualStudio2015_DEPRECATED:
 						DTEKey = "VisualStudio.DTE.14.0";
 						break;
+					default:
+						throw new Exception("Unknown visual studio version when mapping to DTEKey: " +
+						                    Target.WindowsPlatform.Compiler.ToString());
 				}
 				bHasVisualStudioDTE = RegistryKey.OpenBaseKey(RegistryHive.ClassesRoot, RegistryView.Registry32).OpenSubKey(DTEKey) != null;
 			}

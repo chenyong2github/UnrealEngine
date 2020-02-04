@@ -767,7 +767,7 @@ FPrimitiveViewRelevance FGeometryCollectionSceneProxy::GetViewRelevance(const FS
 	MaterialRelevance.SetPrimitiveViewRelevance(Result);
 
 	// #todo(dmp): why does this crash?
-	// Result.bVelocityRelevance = IsMovable() && Result.bOpaqueRelevance && Result.bRenderInMainPass;
+	// Result.bVelocityRelevance = IsMovable() && Result.bOpaque && Result.bRenderInMainPass;
 
 	return Result;
 

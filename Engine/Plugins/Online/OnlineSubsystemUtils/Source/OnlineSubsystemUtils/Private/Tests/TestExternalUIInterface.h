@@ -58,6 +58,12 @@ namespace ETestExternalUIInterfaceState
 	/** Current external UI test */
 	ETestExternalUIInterfaceState::Type State;
 
+	/** If this is an one off test (for when calling a test that requires extra information, outside the automation loop) */
+	bool bIsolatedTest;
+
+	/** Prepares the testing harness environment */
+	void PrepareTests();
+
 	/** Completes testing and cleans up after itself */
 	void FinishTest();
 
@@ -84,6 +90,12 @@ namespace ETestExternalUIInterfaceState
 	/** Delegate executed when the show web UI has been closed. */
 	void OnShowWebUrlClosed(const FString& FinalUrl);
 
+	/** Delegate executed when the store UI has been closed. */
+	void OnStoreUIClosed(bool bWasPurchased);
+
+	/** Delegate executed when the send message UI has been closed. */
+	void OnSendMessageUIClosed(bool bWasSent);
+
  public:
 
 	/**
@@ -101,6 +113,7 @@ namespace ETestExternalUIInterfaceState
 		,	OnlineSub(NULL)
 		,	ExternalUI(NULL)
 		,	State(ETestExternalUIInterfaceState::Begin)
+		,	bIsolatedTest(false)
 	{
 	}
 
@@ -109,6 +122,16 @@ namespace ETestExternalUIInterfaceState
 	 *
 	 */
 	void Test();
+
+	/**
+	 * Runs a test for sending messages (not automated as this requires user input)
+	 */
+	void TestSendMessage(const FString& InMsgRecepient, const FString& InMessage);
+
+	/**
+	 * Runs a test for opening the store page
+	 */
+	void TestStorePage(const FString& InProductId, bool bShouldAddToCart);
 
  };
 

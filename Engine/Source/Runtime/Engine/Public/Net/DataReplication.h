@@ -78,7 +78,11 @@ public:
 	{
 		FName FuncName;
 		int32 Calls;
+
+		UE_DEPRECATED(4.25, "Please use LastCallTimestamp instead")
 		float LastCallTime;
+
+		double LastCallTimestamp;
 	};
 
 	struct FRPCPendingLocalCall

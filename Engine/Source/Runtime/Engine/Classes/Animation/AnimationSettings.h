@@ -28,19 +28,6 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Compression)
 	TArray<FString> KeyEndEffectorsMatchNameArray;
 
-	UPROPERTY(config, EditAnywhere, Category = Compression, NoClear)
-	TSubclassOf<class UAnimCompress>  DefaultCompressionAlgorithm; 
-
-	UPROPERTY(config, EditAnywhere, Category = Compression)
-	TEnumAsByte<AnimationCompressionFormat> RotationCompressionFormat;
-
-	UPROPERTY(config, EditAnywhere, Category = Compression)
-	TEnumAsByte<AnimationCompressionFormat> TranslationCompressionFormat;
-
-	/** Max error for compression of curves using remove redundant keys */
-	UPROPERTY(config, EditAnywhere, Category = Compression)
-	float MaxCurveError;
-
 	UPROPERTY(config, EditAnywhere, Category = Compression)
 	bool ForceRecompression;
 
@@ -60,14 +47,6 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	/** If true and the existing compression error is greater than Alternative Compression Threshold, then Alternative Compression Threshold will be effectively raised to the existing error level */
 	UPROPERTY(config, EditAnywhere, Category = Compression)
 	bool bRaiseMaxErrorToExisting;
-
-	/** If true, then an exhaustive search is used otherwise only a short list of the best methods is tried */
-	UPROPERTY(config, EditAnywhere, Category = Compression)
-	bool bTryExhaustiveSearch;
-
-	/** If true, anim sequences are compressed in segments. This allows for parallel compression of individual sequences. */
-	UPROPERTY(config, EditAnywhere, Category = Compression)
-	bool bEnableSegmenting;
 
 	UPROPERTY(config, EditAnywhere, Category = Performance)
 	bool bEnablePerformanceLog;

@@ -15,6 +15,8 @@ class UControlRig;
 class URigVMController;
 struct FRigCurveContainer;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FControlRigGraphNodeClicked, UControlRigGraphNode*);
+
 UCLASS()
 class CONTROLRIGDEVELOPER_API UControlRigGraph : public UEdGraph
 {
@@ -82,6 +84,8 @@ private:
 
 	bool bIsSelecting;
 
+	FControlRigGraphNodeClicked OnGraphNodeClicked;
+
 #endif
 #if WITH_EDITORONLY_DATA
 
@@ -103,5 +107,6 @@ private:
 #endif
 	friend class UControlRigGraphNode;
 	friend class FControlRigEditor;
+	friend class SControlRigGraphNode;
 };
 

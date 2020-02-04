@@ -16,6 +16,7 @@ public:
 
 public:
 	SLATE_BEGIN_ARGS(SNiagaraStackFunctionInputName) { }
+		SLATE_ATTRIBUTE(bool, IsSelected);
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UNiagaraStackFunctionInput* InFunctionInput, UNiagaraStackViewModel* InStackViewModel);
@@ -43,4 +44,6 @@ private:
 	UNiagaraStackFunctionInput* FunctionInput;
 
 	TSharedPtr<SInlineEditableTextBlock> NameTextBlock;
+
+	TAttribute<bool> IsSelected;
 };

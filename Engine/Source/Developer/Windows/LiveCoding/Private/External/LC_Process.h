@@ -28,7 +28,7 @@ namespace process
 	struct Environment
 	{
 		size_t size;
-		char* data;
+		void* data;
 	};
 
 	typedef HANDLE Handle;

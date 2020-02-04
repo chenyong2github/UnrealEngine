@@ -724,7 +724,7 @@ void ULandscapeHeightfieldCollisionComponent::SpeculativelyLoadAsyncDDCCollsionD
 			static FName PhysicsFormatName(FPlatformProperties::GetPhysicsFormat());
 
 			FString Key = GetHFDDCKeyString(PhysicsFormatName, false, HeightfieldGuid, CookedPhysicalMaterials);
-			uint32 Handle = GetDerivedDataCacheRef().GetAsynchronous(*Key);
+			uint32 Handle = GetDerivedDataCacheRef().GetAsynchronous(*Key, GetPathName());
 			check(!SpeculativeDDCRequest.IsValid());
 			SpeculativeDDCRequest = MakeShareable(new FAsyncPreRegisterDDCRequest(Key, Handle));
 			World->AsyncPreRegisterDDCRequests.Add(SpeculativeDDCRequest);
@@ -840,7 +840,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 				}
 			}
 
-			if (GetDerivedDataCacheRef().GetSynchronous(*DDCKey, OutCookedData))
+			if (GetDerivedDataCacheRef().GetSynchronous(*DDCKey, OutCookedData, GetPathName()))
 			{
 				COOK_STAT(Timer.AddHit(OutCookedData.Num()));
 				bShouldSaveCookedDataToDDC[CookedDataIndex] = false;
@@ -989,7 +989,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 
 		if (!GLandscapeCollisionSkipDDC && bShouldSaveCookedDataToDDC[CookedDataIndex] && HeightfieldGuid.IsValid())
 		{
-			GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(Format, bUseDefMaterial, HeightfieldGuid, InOutMaterials), OutCookedData);
+			GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(Format, bUseDefMaterial, HeightfieldGuid, InOutMaterials), OutCookedData, GetPathName());
 			bShouldSaveCookedDataToDDC[CookedDataIndex] = false;
 		}
 	}
@@ -1041,7 +1041,7 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 				}
 			}
 
-			if (GetDerivedDataCacheRef().GetSynchronous(*DDCKey, OutCookedData))
+			if (GetDerivedDataCacheRef().GetSynchronous(*DDCKey, OutCookedData, GetPathName()))
 			{
 				COOK_STAT(Timer.AddHit(OutCookedData.Num()));
 				bShouldSaveCookedDataToDDC[CookedDataIndex] = false;
@@ -1189,7 +1189,7 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 
 		if (!GLandscapeCollisionSkipDDC && bShouldSaveCookedDataToDDC[CookedDataIndex] && MeshGuid.IsValid())
 		{
-			GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(Format, bUseDefMaterial, MeshGuid, InOutMaterials), OutCookedData);
+			GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(Format, bUseDefMaterial, MeshGuid, InOutMaterials), OutCookedData, GetPathName());
 			bShouldSaveCookedDataToDDC[CookedDataIndex] = false;
 		}
 	}
@@ -1778,7 +1778,7 @@ void ULandscapeHeightfieldCollisionComponent::Serialize(FArchive& Ar)
 			CookCollisionData(Format, false, true, CookedCollisionData, CookedPhysicalMaterials);
 			if (!GLandscapeCollisionSkipDDC && HeightfieldGuid.IsValid())
 			{
-				GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(Format, false, HeightfieldGuid, CookedPhysicalMaterials), CookedCollisionData);
+				GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(Format, false, HeightfieldGuid, CookedPhysicalMaterials), CookedCollisionData, GetPathName());
 			}
 		}
 	}
@@ -2117,12 +2117,12 @@ void ULandscapeHeightfieldCollisionComponent::PreSave(const class ITargetPlatfor
 			static const FName PhysicsFormatName(FPlatformProperties::GetPhysicsFormat());
 			if(CookedCollisionData.Num() && HeightfieldGuid.IsValid())
 			{
-				GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(PhysicsFormatName, false, HeightfieldGuid, CookedPhysicalMaterials), CookedCollisionData);
+				GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(PhysicsFormatName, false, HeightfieldGuid, CookedPhysicalMaterials), CookedCollisionData, GetPathName());
 			}
 
 			if(CookedCollisionDataEd.Num() && HeightfieldGuid.IsValid())
 			{
-				GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(PhysicsFormatName, true, HeightfieldGuid, TArray<UPhysicalMaterial*>()), CookedCollisionDataEd);
+				GetDerivedDataCacheRef().Put(*GetHFDDCKeyString(PhysicsFormatName, true, HeightfieldGuid, TArray<UPhysicalMaterial*>()), CookedCollisionDataEd, GetPathName());
 			}
 		}
 #endif// WITH_EDITOR

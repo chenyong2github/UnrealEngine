@@ -8,7 +8,28 @@
 #include "Interfaces/OnlineStoreInterface.h"
 #include "InAppPurchaseCallbackProxy.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInAppPurchaseResult, EInAppPurchaseState::Type, CompletionStatus, const FInAppPurchaseProductInfo&, InAppPurchaseInformation);
+/**
+ * Micro-transaction purchase information
+ */
+USTRUCT(BlueprintType)
+struct FInAppPurchaseReceiptInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+		// The item name
+		UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
+		FString ItemName;
+
+	// The unique product identifier
+	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
+		FString ItemId;
+
+	// the unique transaction identifier
+	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
+		FString ValidationInfo;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInAppPurchaseResult, EInAppPurchaseState::Type, PurchaseStatus, const FInAppPurchaseProductInfo&, InAppPurchaseReceipts);
 
 UCLASS(MinimalAPI)
 class UInAppPurchaseCallbackProxy : public UObject

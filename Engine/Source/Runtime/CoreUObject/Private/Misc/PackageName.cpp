@@ -1237,15 +1237,61 @@ FString FPackageName::PackageFromPath(const TCHAR* InPathName)
 	}
 }
 
-bool FPackageName::IsPackageExtension( const TCHAR* Ext )
+bool FPackageName::IsTextPackageExtension(const TCHAR* Ext)
+{
+	return IsTextAssetPackageExtension(Ext) || IsTextMapPackageExtension(Ext);
+}
+
+bool FPackageName::IsTextAssetPackageExtension(const TCHAR* Ext)
 {
 	if (*Ext != TEXT('.'))
 	{
-		return AssetPackageExtension.EndsWith(Ext) || MapPackageExtension.EndsWith(Ext);
+		return (TextAssetPackageExtension.EndsWith(Ext));
 	}
 	else
 	{
-		return AssetPackageExtension == Ext || MapPackageExtension == Ext;
+		return (TextAssetPackageExtension == Ext);
+	}
+}
+
+bool FPackageName::IsTextMapPackageExtension(const TCHAR* Ext)
+{
+	if (*Ext != TEXT('.'))
+	{
+		return (TextMapPackageExtension.EndsWith(Ext));
+	}
+	else
+	{
+		return (TextMapPackageExtension == Ext);
+	}
+}
+
+bool FPackageName::IsPackageExtension( const TCHAR* Ext )
+{
+	return IsAssetPackageExtension(Ext) || IsMapPackageExtension(Ext);
+}
+
+bool FPackageName::IsAssetPackageExtension(const TCHAR* Ext)
+{
+	if (*Ext != TEXT('.'))
+	{
+		return (AssetPackageExtension.EndsWith(Ext));
+	}
+	else
+	{
+		return (AssetPackageExtension == Ext);
+	}
+}
+
+bool FPackageName::IsMapPackageExtension(const TCHAR* Ext)
+{
+	if (*Ext != TEXT('.'))
+	{
+		return (MapPackageExtension.EndsWith(Ext));
+	}
+	else
+	{
+		return (MapPackageExtension == Ext);
 	}
 }
 

@@ -228,6 +228,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #include "Particles/ParticleSystemManager.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Net/Core/Trace/NetTrace.h"
 #include "ObjectTrace.h"
 #include "Animation/AnimTrace.h"
 #include "StudioAnalytics.h"
@@ -1082,11 +1083,13 @@ FWorldContext
 
 void FWorldContext::SetCurrentWorld(UWorld* World)
 {
-	if (World != nullptr)
+	if (World != nullptr && AudioDeviceID != INDEX_NONE)
 	{
 		// Set the world's audio device handle so that audio components playing in the 
 		// world will use the correct audio device instance.
-		World->SetAudioDeviceHandle(AudioDeviceHandle);
+		FAudioDeviceHandle AudioDevice = FAudioDeviceManager::Get()->GetAudioDevice(AudioDeviceID);
+
+		World->SetAudioDevice(AudioDevice);
 	}
 
 	for (int32 idx = 0; idx < ExternalReferences.Num(); ++idx)
@@ -1715,6 +1718,14 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		GCycleStatsShouldEmitNamedEvents = 1;
 	}
 
+#if UE_NET_TRACE_ENABLED
+	uint32 NetTraceVerbosity;
+	if(FParse::Value(FCommandLine::Get(), TEXT("NetTrace="), NetTraceVerbosity))
+	{
+		FNetTrace::SetTraceVerbosity(NetTraceVerbosity);
+	}
+#endif
+
 	// Record the analytics for any attached HMD devices
 	RecordHMDAnalytics();
 
@@ -1754,8 +1765,7 @@ void UEngine::ShutdownAudioDeviceManager()
 
 		FAudioThread::StopAudioThread();
 
-		AudioDeviceManager->ShutdownAllAudioDevices();
-
+		MainAudioDeviceHandle.Reset();
 		delete AudioDeviceManager;
 		AudioDeviceManager = NULL;
 	}
@@ -1763,6 +1773,10 @@ void UEngine::ShutdownAudioDeviceManager()
 
 void UEngine::PreExit()
 {
+#if UE_NET_TRACE_ENABLED
+	FNetTrace::SetTraceVerbosity(0);
+#endif
+
 	if (IMovieSceneCaptureModule* Module = FModuleManager::GetModulePtr<IMovieSceneCaptureModule>( "MovieSceneCapture" ))
 	{
 		Module->DestroyAllActiveCaptures();
@@ -2750,7 +2764,7 @@ void UEngine::Serialize(FArchive& Ar)
 	if (Ar.IsCountingMemory())
 	{
 		// Only use the main audio device when counting memory
-		if (FAudioDevice* AudioDevice = GetMainAudioDevice())
+		if (FAudioDeviceHandle AudioDevice = GetMainAudioDevice())
 		{
 			AudioDevice->CountBytes(Ar);
 		}
@@ -2857,27 +2871,36 @@ class FAudioDeviceManager* UEngine::GetAudioDeviceManager()
 	return AudioDeviceManager;
 }
 
-uint32 UEngine::GetAudioDeviceHandle() const
+uint32 UEngine::GetMainAudioDeviceID() const
 {
-	return MainAudioDeviceHandle;
+	return MainAudioDeviceHandle.GetDeviceID();
 }
 
-FAudioDevice* UEngine::GetMainAudioDevice()
+FAudioDeviceHandle UEngine::GetMainAudioDevice()
 {
 	if (AudioDeviceManager != nullptr)
 	{
-		return AudioDeviceManager->GetAudioDevice(MainAudioDeviceHandle);
+		return AudioDeviceManager->GetMainAudioDeviceHandle();
+	}
+	return FAudioDeviceHandle();
+}
+
+FAudioDevice* UEngine::GetMainAudioDeviceRaw()
+{
+	if (AudioDeviceManager != nullptr && MainAudioDeviceHandle.IsValid())
+	{
+		return AudioDeviceManager->GetMainAudioDeviceHandle().GetAudioDevice();
 	}
 	return nullptr;
 }
 
-FAudioDevice* UEngine::GetActiveAudioDevice()
+FAudioDeviceHandle UEngine::GetActiveAudioDevice()
 {
 	if (AudioDeviceManager != nullptr)
 	{
 		return AudioDeviceManager->GetActiveAudioDevice();
 	}
-	return nullptr;
+	return FAudioDeviceHandle();
 }
 
 void UEngine::InitializeAudioDeviceManager()
@@ -3841,11 +3864,11 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	FAudioDevice* AudioDevice = nullptr;
 	if (InWorld)
 	{
-		AudioDevice = InWorld->GetAudioDevice();
+		AudioDevice = InWorld->GetAudioDeviceRaw();
 	}
 	else
 	{
-		AudioDevice = GetMainAudioDevice();
+		AudioDevice = GetMainAudioDeviceRaw();
 	}
 
 	if (AudioDevice && AudioDevice->Exec(InWorld, Cmd, Ar) == true)
@@ -12512,7 +12535,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		}
 
 		// Stop all audio to remove references to current level.
-		if (FAudioDevice* AudioDevice = WorldContext.World()->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = WorldContext.World()->GetAudioDeviceRaw())
 		{
 			AudioDevice->Flush(WorldContext.World());
 			AudioDevice->SetTransientMasterVolume(1.0f);
@@ -12752,7 +12775,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	WorldContext.World()->SetGameMode(URL);
 
-	if (FAudioDevice* AudioDevice = WorldContext.World()->GetAudioDevice())
+	if (FAudioDevice* AudioDevice = WorldContext.World()->GetAudioDeviceRaw())
 	{
 		AudioDevice->SetDefaultBaseSoundMix(WorldContext.World()->GetWorldSettings()->DefaultBaseSoundMix);
 	}
@@ -13877,7 +13900,7 @@ bool UEngine::CommitMapChange( FWorldContext &Context )
 
 		// make sure any looping sounds, etc are stopped
 
-		if (FAudioDevice* AudioDevice = Context.World()->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = Context.World()->GetAudioDeviceRaw())
 		{
 			AudioDevice->StopAllSounds();
 		}

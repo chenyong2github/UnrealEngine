@@ -943,6 +943,10 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				ClearTransientControls();
 				RequestAutoVMRecompilation();
 				MarkPackageDirty();
+
+				// This is not necessarily required but due to workflow
+				// expectations we still mark the blueprint as dirty.
+				FBlueprintEditorUtils::MarkBlueprintAsModified(this);
 				break;
 			}
 			case ERigVMGraphNotifType::PinWatchedChanged:

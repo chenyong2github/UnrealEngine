@@ -89,11 +89,6 @@ IOnlineTitleFilePtr FOnlineSubsystemOculus::GetTitleFileInterface() const
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemOculus::GetStoreInterface() const
-{
-	return nullptr;
-}
-
 IOnlineStoreV2Ptr FOnlineSubsystemOculus::GetStoreV2Interface() const
 {
 	return nullptr;

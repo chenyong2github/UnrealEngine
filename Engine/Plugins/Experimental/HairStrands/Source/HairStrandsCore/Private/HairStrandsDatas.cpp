@@ -51,6 +51,15 @@ void FHairStrandsPoints::Reset()
 	PointsCoordU.Reset();
 }
 
+FArchive& operator<<(FArchive& Ar, FVector4_16& Vertex)
+{
+	Ar << Vertex.X;
+	Ar << Vertex.Y;
+	Ar << Vertex.Z;
+	Ar << Vertex.W;
+	return Ar;
+}
+
 FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 {
 	Ar << Vertex.X;

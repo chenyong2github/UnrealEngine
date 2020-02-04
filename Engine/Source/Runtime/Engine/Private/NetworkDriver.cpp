@@ -57,6 +57,8 @@
 #include "Net/OnlineEngineInterface.h"
 #include "NetworkingDistanceConstants.h"
 #include "Engine/ChildConnection.h"
+#include "Net/Core/Trace/NetTrace.h"
+#include "Misc/ScopeExit.h"
 #include "Net/DataChannel.h"
 #include "GameFramework/PlayerState.h"
 #include "Net/PerfCountersHelpers.h"
@@ -68,7 +70,6 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "SocketSubsystem.h"
 #include "AddressInfoTypes.h"
-
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
 #endif
@@ -76,7 +77,6 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
-
 
 // Default net driver stats
 DEFINE_STAT(STAT_Ping);
@@ -263,6 +263,7 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,   World(nullptr)
 ,   Notify(nullptr)
 ,	Time( 0.f )
+,	ElapsedTime( 0.0 )
 ,	LastTickDispatchRealtime( 0.f )
 ,   bIsPeer(false)
 ,	bSkipLocalStats(false)
@@ -338,7 +339,7 @@ void UNetDriver::InitPacketSimulationSettings()
 #if DO_ENABLE_NET_TEST
 bool UNetDriver::IsSimulatingPacketLossBurst() const
 {
-	return PacketLossBurstEndTime > Time;
+	return PacketLossBurstEndTime > ElapsedTime;
 }
 #endif
 
@@ -351,6 +352,12 @@ void UNetDriver::PostInitProperties()
 
 	if ( !HasAnyFlags(RF_ClassDefaultObject) )
 	{
+		// Init ConnectionIdHandler
+		{
+			constexpr uint32 IdCount = 1024;
+			ConnectionIdHandler.Init(IdCount);
+		}
+
 		InitPacketSimulationSettings();
 
 		
@@ -1222,8 +1229,8 @@ void UNetDriver::UpdateNetworkLagState()
 			{
 				NumValidConnections++;
 
-				const float HalfTimeout = Connection->GetTimeoutValue() * TimeoutPercentThreshold;
-				const float DeltaTimeSinceLastMessage = Time - Connection->LastReceiveTime;
+				const double HalfTimeout = Connection->GetTimeoutValue() * TimeoutPercentThreshold;
+				const double DeltaTimeSinceLastMessage = ElapsedTime - Connection->LastReceiveTime;
 				if (DeltaTimeSinceLastMessage > HalfTimeout)
 				{
 					NumLaggingConnections++;
@@ -1249,8 +1256,8 @@ void UNetDriver::UpdateNetworkLagState()
 		// Just check the server connection.
 		if (ensure(ServerConnection))
 		{
-			const float HalfTimeout = ServerConnection->GetTimeoutValue() * TimeoutPercentThreshold;
-			const float DeltaTimeSinceLastMessage = Time - ServerConnection->LastReceiveTime;
+			const double HalfTimeout = ServerConnection->GetTimeoutValue() * TimeoutPercentThreshold;
+			const double DeltaTimeSinceLastMessage = ElapsedTime - ServerConnection->LastReceiveTime;
 			if (DeltaTimeSinceLastMessage > HalfTimeout)
 			{
 				// We have exceeded half our timeout. We are lagging.
@@ -1462,6 +1469,9 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 
 	Notify = InNotify;
 
+	// If we are not using Iris, we use the UniqueId to identify the NetDriver.
+	NetTraceId = GetUniqueID();
+
 	return bSuccess;
 }
 
@@ -1648,6 +1658,9 @@ void UNetDriver::Shutdown()
 
 	SetReplicationDriver(nullptr);
 
+	// End NetTrace session for this instance
+	UE_NET_TRACE_END_SESSION(GetNetTraceId());
+
 	if (AnalyticsAggregator.IsValid())
 	{
 		AnalyticsAggregator->SendAnalytics();
@@ -1751,7 +1764,10 @@ void UNetDriver::TickDispatch( float DeltaTime )
 	}
 
 	// Get new time.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Time += DeltaTime;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ElapsedTime += DeltaTime;
 
 	// Checks for standby cheats if enabled	
 	UpdateStandbyCheatStatus();
@@ -2038,8 +2054,12 @@ void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClass
 
 	if ( CVarNetReliableDebug.GetValueOnAnyThread() > 0 )
 	{
-		Bunch.DebugString = FString::Printf( TEXT( "%.2f RPC: %s - %s" ), Connection->Driver->Time, *TargetObj->GetFullName(), *Function->GetName() );
+		Bunch.DebugString = FString::Printf( TEXT( "%.2f RPC: %s - %s" ), Connection->Driver->GetElapsedTime(), *TargetObj->GetFullName(), *Function->GetName() );
 	}
+#endif
+
+#if UE_NET_TRACE_ENABLED
+	SetTraceCollector(Bunch, UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 #endif
 
 	TArray< FProperty * > LocalOutParms;
@@ -2092,6 +2112,12 @@ void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClass
 
 	FNetBitWriter TempWriter( Bunch.PackageMap, 0 );
 
+#if UE_NET_TRACE_ENABLED
+	// Create trace collector if tracing is enabled for the target bunch
+	SetTraceCollector(TempWriter, GetTraceCollector(Bunch) ? UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace) : nullptr);
+    ON_SCOPE_EXIT { UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(TempWriter)); };
+#endif // UE_NET_TRACE_ENABLED
+
 	// Use the replication layout to send the rpc parameter values
 	TSharedPtr<FRepLayout> RepLayout = GetFunctionRepLayout( Function );
 	RepLayout->SendPropertiesForRPC( Function, Ch, TempWriter, Parms );
@@ -2139,9 +2165,20 @@ void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClass
 			Ch->PrepareForRemoteFunction(TargetObj);
 
 			FNetBitWriter TempBlockWriter( Bunch.PackageMap, 0 );
+
+#if UE_NET_TRACE_ENABLED
+			UE_NET_TRACE_OBJECT_SCOPE(Ch->ActorNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
+
+			// Ugliness to get data reported correctly, we basically fold the data from TempWriter into TempBlockWriter and then to Bunch
+			// Create trace collector if tracing is enabled for the target bunch			
+			SetTraceCollector(TempBlockWriter, GetTraceCollector(Bunch) ? UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace) : nullptr);
+#endif
+			
 			Ch->WriteFieldHeaderAndPayload( TempBlockWriter, ClassCache, FieldCache, NetFieldExportGroup, TempWriter );
 			ParameterBits = TempBlockWriter.GetNumBits();
 			HeaderBits = Ch->WriteContentBlockPayload( TargetObj, Bunch, false, TempBlockWriter );
+
+			UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(TempBlockWriter));
 		}
 
 		// Destroy the memory used for the copied out parameters
@@ -2247,11 +2284,11 @@ void UNetDriver::UpdateStandbyCheatStatus(void)
 							{
 								check(FoundWorld == PlayerControllerWorld);
 							}
-							if (Time - NetConn->LastReceiveTime > StandbyRxCheatTime)
+							if (ElapsedTime - NetConn->LastReceiveTime > StandbyRxCheatTime)
 							{
 								CountBadRx++;
 							}
-							if (Time - NetConn->LastRecvAckTime > StandbyTxCheatTime)
+							if (ElapsedTime - NetConn->GetLastRecvAckTime() > StandbyTxCheatTime)
 							{
 								CountBadTx++;
 							}
@@ -2814,7 +2851,7 @@ void UNetDriver::HandlePacketLossBurstCommand( int32 DurationInMilliseconds )
 #if DO_ENABLE_NET_TEST
 	UE_LOG(LogNet, Log, TEXT("%s simulating packet loss burst. Dropping incoming and outgoing packets for %d milliseconds."), *GetName(), DurationInMilliseconds);
 
-	PacketLossBurstEndTime = Time + (DurationInMilliseconds / 1000.0f);
+	PacketLossBurstEndTime = ElapsedTime + (DurationInMilliseconds / 1000.0);
 #endif
 }
 
@@ -3626,7 +3663,7 @@ FNetViewer::FNetViewer(UNetConnection* InConnection, float DeltaSeconds) :
 FActorPriority::FActorPriority(UNetConnection* InConnection, UActorChannel* InChannel, FNetworkObjectInfo* InActorInfo, const TArray<struct FNetViewer>& Viewers, bool bLowBandwidth)
 	: ActorInfo(InActorInfo), Channel(InChannel), DestructionInfo(NULL)
 {	
-	float Time  = Channel ? (InConnection->Driver->Time - Channel->LastUpdateTime) : InConnection->Driver->SpawnPrioritySeconds;
+	const float Time = Channel ? (InConnection->Driver->GetElapsedTime() - Channel->LastUpdateTime) : InConnection->Driver->SpawnPrioritySeconds;
 	// take the highest priority of the viewers on this connection
 	Priority = 0;
 	for (int32 i = 0; i < Viewers.Num(); i++)
@@ -3714,7 +3751,7 @@ int32 UNetDriver::ServerReplicateActors_PrepConnections( const float DeltaSecond
 		//@note: we cannot add Connection->IsNetReady(0) here to check for saturation, as if that's the case we still want to figure out the list of relevant actors
 		//			to reset their NetUpdateTime so that they will get sent as soon as the connection is no longer saturated
 		AActor* OwningActor = Connection->OwningActor;
-		if ( OwningActor != NULL && Connection->State == USOCK_Open && ( Connection->Driver->Time - Connection->LastReceiveTime < 1.5f ) )
+		if ( OwningActor != NULL && Connection->State == USOCK_Open && ( Connection->Driver->GetElapsedTime() - Connection->LastReceiveTime < 1.5 ) )
 		{
 			check( World == OwningActor->GetWorld() );
 
@@ -3888,7 +3925,10 @@ void UNetDriver::ServerReplicateActors_BuildConsiderList( TArray<FNetworkObjectI
 
 			// and mark when the actor first requested an update
 			//@note: using Time because it's compared against UActorChannel.LastUpdateTime which also uses that value
-			ActorInfo->LastNetUpdateTime = Time;
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			ActorInfo->LastNetUpdateTime = ElapsedTime;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			ActorInfo->LastNetUpdateTimestamp = ElapsedTime;
 		}
 
 		// and clear the pending update flag assuming all clients will be able to consider it
@@ -4057,7 +4097,7 @@ int32 UNetDriver::ServerReplicateActors_PrioritizeActors( UNetConnection* Connec
 					// Not owned by this connection, if we have a channel, close it, and continue
 					// NOTE - We won't close the channel if any connection has a NULL view target.
 					//	This is to give all connections a chance to own it
-					if ( !bHasNullViewTarget && Channel != NULL && Time - Channel->RelevantTime >= RelevantTimeout )
+					if ( !bHasNullViewTarget && Channel != NULL && ElapsedTime - Channel->RelevantTime >= RelevantTimeout )
 					{
 						Channel->Close(EChannelCloseReason::Relevancy);
 					}
@@ -4075,7 +4115,7 @@ int32 UNetDriver::ServerReplicateActors_PrioritizeActors( UNetConnection* Connec
 				}
 
 				// See of actor wants to try and go dormant
-				if ( ShouldActorGoDormant( Actor, ConnectionViewers, Channel, Time, bLowNetBandwidth ) )
+				if ( ShouldActorGoDormant( Actor, ConnectionViewers, Channel, ElapsedTime, bLowNetBandwidth ) )
 				{
 					// Channel is marked to go dormant now once all properties have been replicated (but is not dormant yet)
 					Channel->StartBecomingDormant();
@@ -4191,7 +4231,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 			// bTearOff actors should never be checked
 			if ( bLevelInitializedForActor )
 			{
-				if ( !Actor->GetTearOff() && ( !Channel || Time - Channel->RelevantTime > 1.f ) )
+				if ( !Actor->GetTearOff() && ( !Channel || ElapsedTime - Channel->RelevantTime > 1.0 ) )
 				{
 					if ( IsActorRelevantToConnection( Actor, ConnectionViewers ) )
 					{
@@ -4211,7 +4251,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 			}
 
 			// if the actor is now relevant or was recently relevant
-			const bool bIsRecentlyRelevant = bIsRelevant || ( Channel && Time - Channel->RelevantTime < RelevantTimeout ) || (ActorInfo->ForceRelevantFrame >= Connection->LastProcessedFrame);
+			const bool bIsRecentlyRelevant = bIsRelevant || ( Channel && ElapsedTime - Channel->RelevantTime < RelevantTimeout ) || (ActorInfo->ForceRelevantFrame >= Connection->LastProcessedFrame);
 
 			if ( bIsRecentlyRelevant )
 			{
@@ -4251,7 +4291,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 					// if it is relevant then mark the channel as relevant for a short amount of time
 					if ( bIsRelevant )
 					{
-						Channel->RelevantTime = Time + 0.5f * UpdateDelayRandomStream.FRand();
+						Channel->RelevantTime = ElapsedTime + 0.5 * UpdateDelayRandomStream.FRand();
 					}
 					// if the channel isn't saturated
 					if ( Channel->IsNetReady( 0 ) )
@@ -4572,7 +4612,7 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 					// find the channel
 					UActorChannel *Channel = Connection->FindActorChannelRef(ConsiderList[ConsiderIdx]->WeakActor);
 					// and if the channel last update time doesn't match the last net update time for the actor
-					if (Channel != NULL && Channel->LastUpdateTime < ConsiderList[ConsiderIdx]->LastNetUpdateTime)
+					if (Channel != NULL && Channel->LastUpdateTime < ConsiderList[ConsiderIdx]->LastNetUpdateTimestamp)
 					{
 						//UE_LOG(LogNet, Log, TEXT("flagging %s for a future update"),*Actor->GetName());
 						// flag it for a pending update
@@ -4641,7 +4681,7 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 				UActorChannel* Channel = PriorityActors[k]->Channel;
 				
 				UE_LOG(LogNetTraffic, Verbose, TEXT("Saturated. %s"), *Actor->GetName());
-				if (Channel != NULL && Time - Channel->RelevantTime <= 1.f)
+				if (Channel != NULL && ElapsedTime - Channel->RelevantTime <= 1.0)
 				{
 					UE_LOG(LogNetTraffic, Log, TEXT(" Saturated. Mark %s NetUpdateTime to be checked for next tick"), *Actor->GetName());
 					PriorityActors[k]->ActorInfo->bPendingNetUpdate = true;
@@ -4653,7 +4693,7 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 					PriorityActors[k]->ActorInfo->bPendingNetUpdate = true;
 					if ( Channel != NULL )
 					{
-						Channel->RelevantTime = Time + 0.5f * UpdateDelayRandomStream.FRand();
+						Channel->RelevantTime = ElapsedTime + 0.5 * UpdateDelayRandomStream.FRand();
 					}
 					}
 
@@ -5263,6 +5303,24 @@ void UNetDriver::SetReplicationDriver(UReplicationDriver* NewReplicationDriver)
 		ReplicationDriver->InitForNetDriver(this);
 		ReplicationDriver->InitializeActorsInWorld( GetWorld() );
 	}
+}
+
+UNetConnection* UNetDriver::GetConnectionById(uint32 ConnectionId) const
+{
+	if (ServerConnection != nullptr && ServerConnection->GetConnectionId() == ConnectionId)
+	{
+		return ServerConnection;
+	}
+
+	for (UNetConnection* Connection : ClientConnections)
+	{
+		if (Connection && Connection->GetConnectionId() == ConnectionId)
+		{
+			return Connection;
+		}
+	}
+
+	return nullptr;
 }
 
 static void	DumpRelevantActors( UWorld* InWorld )

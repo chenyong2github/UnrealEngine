@@ -65,21 +65,18 @@ void restart::Execute(lpp::RestartBehaviour behaviour, unsigned int exitCode)
 		// https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitprocess
 		case lpp::LPP_RESTART_BEHAVIOUR_DEFAULT_EXIT:
 			ExitProcess(exitCode);
-			break;
 
 		// https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/exit-exit-exit?view=vs-2019
 		case lpp::LPP_RESTART_BEHAVIOUR_EXIT_WITH_FLUSH:
 			exit(static_cast<int>(exitCode));
-			break;
 
 		// https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/exit-exit-exit?view=vs-2019
 		case lpp::LPP_RESTART_BEHAVIOUR_EXIT:
 			_Exit(static_cast<int>(exitCode));
-			break;
 
 		// https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess
 		case lpp::LPP_RESTART_BEHAVIOUR_INSTANT_TERMINATION:
 			::TerminateProcess(::GetCurrentProcess(), exitCode);
 			break;
-	};
+	}
 }

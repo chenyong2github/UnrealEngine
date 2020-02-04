@@ -30,13 +30,29 @@ void FOnlineAsyncEventSteamExternalUITriggered::TriggerDelegates()
 		ExternalUISteam->ProfileUIClosedDelegate.ExecuteIfBound();
 		ExternalUISteam->ProfileUIClosedDelegate.Unbind();
 
-		//@todo samz - obtain final url
+		// We don't have a way to tell if you sent a message, but we attempt to send it for you.
+		ExternalUISteam->ShowMessageClosedDelegate.ExecuteIfBound(ExternalUISteam->bMessageSent);
+		ExternalUISteam->ShowMessageClosedDelegate.Unbind();
+		ExternalUISteam->bMessageSent = false;
+
+		// We don't have any way to know that you bought an item on the store from this overlay. 
+		// This would be handled either by a DLC query or the server WebAPI.
+		// This returns true in order to trigger license checks.
+		ExternalUISteam->ShowStoreClosedDelegate.ExecuteIfBound(true);
+		ExternalUISteam->ShowStoreClosedDelegate.Unbind();
+
+		// Steam doesn't allow you to capture the final browsing url on web overlays, so pass an empty string
 		ExternalUISteam->ShowWebUrlClosedDelegate.ExecuteIfBound(TEXT(""));
 		ExternalUISteam->ShowWebUrlClosedDelegate.Unbind();
 	}
 }
 
 bool FOnlineExternalUISteam::ShowLoginUI(const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate)
+{
+	return false;
+}
+
+bool FOnlineExternalUISteam::ShowAccountCreationUI(const int ControllerIndex, const FOnAccountCreationUIClosedDelegate& Delegate)
 {
 	return false;
 }
@@ -122,11 +138,43 @@ bool FOnlineExternalUISteam::ShowAccountUpgradeUI(const FUniqueNetId& UniqueId)
 
 bool FOnlineExternalUISteam::ShowStoreUI(int32 LocalUserNum, const FShowStoreParams& ShowParams, const FOnShowStoreUIClosedDelegate& Delegate)
 {
-	return false;
+	if (!ShowParams.ProductId.IsNumeric() || ShowParams.ProductId.IsEmpty())
+	{
+		return false;
+	}
+
+	uint32 ProductId = (uint32)FCString::Atoi(*ShowParams.ProductId);
+
+	if (ProductId == 0)
+	{
+		return false;
+	}
+
+	SteamFriends()->ActivateGameOverlayToStore(ProductId, ShowParams.bAddToCart ? k_EOverlayToStoreFlag_AddToCartAndShow : k_EOverlayToStoreFlag_None);
+	ShowStoreClosedDelegate = Delegate;
+
+	return true;
 }
 
 bool FOnlineExternalUISteam::ShowSendMessageUI(int32 LocalUserNum, const FShowSendMessageParams& ShowParams, const FOnShowSendMessageUIClosedDelegate& Delegate)
 {
+	// Steam only allows an application to open the chat UI if a recipient is specified.
 	return false;
 }
 
+bool FOnlineExternalUISteam::ShowSendMessageToUserUI(int32 LocalUserNum, const FUniqueNetId& Recipient, const FShowSendMessageParams& ShowParams, const FOnShowSendMessageUIClosedDelegate& Delegate)
+{
+	const FUniqueNetIdSteam& TargetUser = (const FUniqueNetIdSteam&)Recipient;
+	const FString MessageToSend = ShowParams.DisplayMessage.ToString();
+
+	if (!TargetUser.IsValid() || MessageToSend.IsEmpty())
+	{
+		return false;
+	}
+	ShowMessageClosedDelegate = Delegate;
+
+	bMessageSent = SteamFriends()->ReplyToFriendMessage(TargetUser, TCHAR_TO_UTF8(*MessageToSend));
+	SteamFriends()->ActivateGameOverlayToUser(TCHAR_TO_UTF8(TEXT("chat")), TargetUser);
+	
+	return true;
+}

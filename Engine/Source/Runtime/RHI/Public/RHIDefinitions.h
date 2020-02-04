@@ -794,8 +794,13 @@ enum EBufferUsageFlags
 
 	/** Create a byte address buffer, which is basically a structured buffer with a uint32 type. */
 	BUF_ByteAddressBuffer = 0x0020,
+
 	/** Create a structured buffer with an atomic UAV counter. */
-	BUF_UAVCounter        = 0x0040,
+	BUF_UAVCounter UE_DEPRECATED(4.25, "BUF_UAVCounter is deprecated and getting removed; please don't use.") = 0x0040,
+
+	/** Buffer that the GPU will use as a source for a copy. */
+	BUF_SourceCopy			= 0x0040,
+
 	/** Create a buffer that can be bound as a stream output target. */
 	BUF_StreamOutput      = 0x0080,
 	/** Create a buffer which contains the arguments used by DispatchIndirect or DrawIndirect. */
@@ -825,7 +830,7 @@ enum EBufferUsageFlags
 	BUF_Transient		  = 0x2000,
 
 	/** Buffer that should be accessed one byte at a time. */
-	BUF_UINT8             = 0x4000,
+	BUF_UINT8 UE_DEPRECATED(4.25, "BUF_UINT8 is deprecated and getting removed; please don't use.") = 0x4000,
 
 	/**
 	 * Buffer contains opaque ray tracing acceleration structure data.

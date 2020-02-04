@@ -138,7 +138,7 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 	{
 		World->bAllowAudioPlayback = !ConfigOption->bMuteAudio;
 
-		if(FAudioDevice* AudioDevice = World->GetAudioDevice())
+		if(FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
 		{
 			AudioDevice->SetUseAttenuationForNonGameWorlds(ConfigOption->bUseAudioAttenuation);
 		}
@@ -222,7 +222,7 @@ void FAnimationViewportClient::OnToggleUseAudioAttenuation()
 	UWorld* World = PreviewScene->GetWorld();
 	if(World)
 	{
-		if(FAudioDevice* AudioDevice = GetWorld()->GetAudioDevice())
+		if(FAudioDevice* AudioDevice = GetWorld()->GetAudioDeviceRaw())
 		{
 			AudioDevice->SetUseAttenuationForNonGameWorlds(ConfigOption->bUseAudioAttenuation);
 		}
@@ -879,11 +879,24 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 				FTransform LocalTransform = LocalBoneTransforms[BoneIndex];
 				FTransform ComponentTransform = PreviewMeshComponent->GetDrawTransform(BoneIndex);
 
-				TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("LocalTransform", "Local: {0}"), FText::FromString(LocalTransform.ToHumanReadableString())));
+				auto GetDisplayTransform = [](const FTransform& InTransform) -> FText
+				{
+					FRotator R(InTransform.GetRotation());
+					FVector T(InTransform.GetTranslation());
+					FVector S(InTransform.GetScale3D());
 
-				TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("ComponentTransform", "Component: {0}"), FText::FromString(ComponentTransform.ToHumanReadableString())));
+					FString Output = FString::Printf(TEXT("Rotation: X(Roll) %f Y(Pitch)  %f Z(Yaw) %f\r\n"), R.Roll, R.Pitch, R.Yaw);
+					Output += FString::Printf(TEXT("Translation: %f %f %f\r\n"), T.X, T.Y, T.Z);
+					Output += FString::Printf(TEXT("Scale3D: %f %f %f\r\n"), S.X, S.Y, S.Z);
 
-				TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("ReferenceTransform", "Reference: {0}"), FText::FromString(ReferenceTransform.ToHumanReadableString())));
+					return FText::FromString(Output);
+				};
+
+				TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("LocalTransform", "Local: {0}"), GetDisplayTransform(LocalTransform)));
+
+				TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("ComponentTransform", "Component: {0}"), GetDisplayTransform(ComponentTransform)));
+
+				TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("ReferenceTransform", "Reference: {0}"), GetDisplayTransform(ReferenceTransform)));
 			}
 
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("ApproximateSize", "Approximate Size: {0}x{1}x{2}"),
@@ -1885,7 +1898,7 @@ void FAnimationViewportClient::UpdateAudioListener(const FSceneView& View)
 
 	if (ViewportWorld)
 	{
-		if (FAudioDevice* AudioDevice = ViewportWorld->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = ViewportWorld->GetAudioDeviceRaw())
 		{
 			const FVector& ViewLocation = GetViewLocation();
 			const FRotator& ViewRotation = GetViewRotation();

@@ -95,8 +95,7 @@ public:
 		if (RHISupportsManualVertexFetch(Platform))
 		{
 			OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
-			OutEnvironment.SetDefine(TEXT("USE_INSTANCING_EMULATED"), TEXT("0"));
-		
+
 			OutEnvironment.SetDefine(TEXT("USE_INSTANCING_BONEMAP"), TEXT("1"));
 			OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), TEXT("0"));
 		}

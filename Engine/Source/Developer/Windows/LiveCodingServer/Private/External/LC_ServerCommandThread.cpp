@@ -202,6 +202,13 @@ void ServerCommandThread::RestartTargets(void)
 		}
 	}
 
+	// exit all successfully prepared processes
+	for (size_t i = 0u; i < count; ++i)
+	{
+		LiveProcess* liveProcess = m_liveProcesses[i];
+		liveProcess->WaitForExitBeforeRestart();
+	}
+
 	// restart all successfully prepared processes
 	for (size_t i = 0u; i < count; ++i)
 	{
@@ -1199,6 +1206,7 @@ unsigned int ServerCommandThread::CommandThread(DuplexPipeServer* pipe, Event* r
 	// handle incoming commands
 	CommandMap commandMap;
 	commandMap.RegisterAction<actions::TriggerRecompile>();
+	commandMap.RegisterAction<actions::TriggerRestart>();
 	commandMap.RegisterAction<actions::LogMessage>();
 	commandMap.RegisterAction<actions::BuildPatch>();
 	commandMap.RegisterAction<actions::ReadyForCompilation>();
@@ -1321,6 +1329,21 @@ bool ServerCommandThread::actions::TriggerRecompile::Execute(const CommandType*,
 	pipe->SendAck();
 
 	commandThread->m_manualRecompileTriggered = true;
+
+	return true;
+}
+
+
+bool ServerCommandThread::actions::TriggerRestart::Execute(const CommandType*, const DuplexPipe* pipe, void* context, const void*, size_t)
+{
+	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
+
+	// protect against accepting this command while compilation is already in progress
+	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
+
+	pipe->SendAck();
+
+	commandThread->RestartTargets();
 
 	return true;
 }

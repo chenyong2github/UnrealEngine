@@ -134,8 +134,17 @@ struct FSkeletalMeshSkinningData
 		return BoneRefToLocals[CurrIndex ^ 1];
 	}
 
-private:
+	FORCEINLINE TArray<FTransform>& CurrComponentTransforms()
+	{
+		return ComponentTransforms[CurrIndex];
+	}
 
+	FORCEINLINE TArray<FTransform>& PrevComponentTransforms()
+	{
+		return ComponentTransforms[CurrIndex ^ 1];
+	}
+
+private:
 	FCriticalSection CriticalSection; 
 	
 	TWeakObjectPtr<USkeletalMeshComponent> MeshComp;
@@ -151,6 +160,9 @@ private:
 
 	/** Cached bone matrices. */
 	TArray<FMatrix> BoneRefToLocals[2];
+
+	/** Component space transforms */
+	TArray<FTransform> ComponentTransforms[2];
 
 	struct FLODData
 	{
@@ -413,8 +425,12 @@ struct FNDISkeletalMesh_InstanceData
 	/** True if the mesh we're using allows area weighted sampling on GPU. */
 	uint32 bIsGpuUniformlyDistributedSampling : 1;
 
+	/** True if the mesh we're using is to be rendered in unlimited bone influences mode. */
+	uint32 bUnlimitedBoneInfluences : 1;
 	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
+	FRHIShaderResourceView* MeshSkinWeightLookupBufferSrv;
 	uint32 MeshWeightStrideByte;
+	uint32 MeshSkinWeightIndexSizeByte;
 
 	/** Extra mesh data upload to GPU.*/
 	FSkeletalMeshGpuSpawnStaticBuffers* MeshGpuSpawnStaticBuffers;
@@ -546,6 +562,7 @@ public:
 	static const FString MeshIndexBufferName;
 	static const FString MeshVertexBufferName;
 	static const FString MeshSkinWeightBufferName;
+	static const FString MeshSkinWeightLookupBufferName;
 	static const FString MeshCurrBonesBufferName;
 	static const FString MeshPrevBonesBufferName;
 	static const FString MeshCurrSamplingBonesBufferName;
@@ -559,6 +576,7 @@ public:
 	static const FString MeshTriangleCountName;
 	static const FString MeshVertexCountName;
 	static const FString MeshWeightStrideName;
+	static const FString MeshSkinWeightIndexSizeName;
 	static const FString MeshNumTexCoordName;
 	static const FString MeshNumWeightsName;
 	static const FString NumSpecificBonesName;
@@ -740,10 +758,13 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 	FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers;
 	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer;
 	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
+	FRHIShaderResourceView* MeshSkinWeightLookupBufferSrv;
 
 	bool bIsGpuUniformlyDistributedSampling;
 
+	bool bUnlimitedBoneInfluences;
 	uint32 MeshWeightStrideByte;
+	uint32 MeshSkinWeightIndexSizeByte;
 	FMatrix Transform;
 	FMatrix PrevTransform;
 	float DeltaSeconds;

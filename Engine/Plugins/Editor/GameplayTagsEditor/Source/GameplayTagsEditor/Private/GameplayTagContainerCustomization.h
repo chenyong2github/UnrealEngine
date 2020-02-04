@@ -81,5 +81,9 @@ private:
 
 	void OnTagDoubleClicked(FString TagName);
 	FReply OnRemoveTagClicked(FString TagName);
+
+	FReply OnSingleTagMouseButtonPressed(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FString TagName);
+	void OnSingleTagSearchForReferences(FString TagName);
+	void OnWholeContainerSearchForReferences();
 };
 

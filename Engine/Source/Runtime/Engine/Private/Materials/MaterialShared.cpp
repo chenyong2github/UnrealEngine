@@ -534,24 +534,26 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 	Ar << Tmp8;
 #endif
 
+	Ar << RuntimeVirtualTextureOutputAttributeMask;
+
 	uint8 PackedFlags = 0;
-	PackedFlags |= (bUsesEyeAdaptation				<< 0);
-	PackedFlags |= (bModifiesMeshPosition			<< 1);
-	PackedFlags |= (bUsesWorldPositionOffset		<< 2);
-	PackedFlags |= (bUsesGlobalDistanceField		<< 3);
-	PackedFlags |= (bUsesPixelDepthOffset			<< 4);
-	PackedFlags |= (bUsesDistanceCullFade			<< 5);
-	PackedFlags |= (bHasRuntimeVirtualTextureOutput << 6);
+	PackedFlags |= (bUsesEyeAdaptation << 0);
+	PackedFlags |= (bModifiesMeshPosition << 1);
+	PackedFlags |= (bUsesWorldPositionOffset << 2);
+	PackedFlags |= (bUsesGlobalDistanceField << 3);
+	PackedFlags |= (bUsesPixelDepthOffset << 4);
+	PackedFlags |= (bUsesDistanceCullFade << 5);
+	PackedFlags |= (bHasRuntimeVirtualTextureOutputNode << 6);
 
 	Ar << PackedFlags;
 
-	bUsesEyeAdaptation				= (PackedFlags >> 0) & 1;
-	bModifiesMeshPosition			= (PackedFlags >> 1) & 1;
-	bUsesWorldPositionOffset		= (PackedFlags >> 2) & 1;
-	bUsesGlobalDistanceField		= (PackedFlags >> 3) & 1;
-	bUsesPixelDepthOffset			= (PackedFlags >> 4) & 1;
-	bUsesDistanceCullFade			= (PackedFlags >> 5) & 1;
-	bHasRuntimeVirtualTextureOutput = (PackedFlags >> 6) & 1;
+	bUsesEyeAdaptation = (PackedFlags >> 0) & 1;
+	bModifiesMeshPosition = (PackedFlags >> 1) & 1;
+	bUsesWorldPositionOffset = (PackedFlags >> 2) & 1;
+	bUsesGlobalDistanceField = (PackedFlags >> 3) & 1;
+	bUsesPixelDepthOffset = (PackedFlags >> 4) & 1;
+	bUsesDistanceCullFade = (PackedFlags >> 5) & 1;
+	bHasRuntimeVirtualTextureOutputNode = (PackedFlags >> 6) & 1;
 }
 
 void FMaterial::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
@@ -901,14 +903,14 @@ bool FMaterial::MaterialUsesSceneDepthLookup_GameThread() const
 	return GameThreadShaderMap.GetReference() ? GameThreadShaderMap->UsesSceneDepthLookup() : false;
 }
 
-bool FMaterial::HasRuntimeVirtualTextureOutput_RenderThread() const
-{
-	return RenderingThreadShaderMap ? RenderingThreadShaderMap->HasRuntimeVirtualTextureOutput() : false;
-}
-
 bool FMaterial::UsesCustomDepthStencil_GameThread() const
 {
 	return GameThreadShaderMap.GetReference() ? (GameThreadShaderMap->UsesSceneTexture(PPI_CustomDepth) || GameThreadShaderMap->UsesSceneTexture(PPI_CustomStencil)) : false;
+}
+
+uint8 FMaterial::GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread() const
+{
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->GetRuntimeVirtualTextureOutputAttributeMask() : 0;
 }
 
 FMaterialShaderMap* FMaterial::GetRenderingThreadShaderMap() const 
@@ -1416,9 +1418,24 @@ uint32 FMaterialResource::GetMaterialDecalResponse() const
 	return Material->GetMaterialDecalResponse();
 }
 
+bool FMaterialResource::HasBaseColorConnected() const
+{
+	return HasMaterialAttributesConnected() || Material->HasBaseColorConnected();
+}
+
 bool FMaterialResource::HasNormalConnected() const
 {
 	return HasMaterialAttributesConnected() || Material->HasNormalConnected();
+}
+
+bool FMaterialResource::HasRoughnessConnected() const
+{
+	return HasMaterialAttributesConnected() || Material->HasRoughnessConnected();
+}
+
+bool FMaterialResource::HasSpecularConnected() const
+{
+	return HasMaterialAttributesConnected() || Material->HasSpecularConnected();
 }
 
 bool FMaterialResource::HasEmissiveColorConnected() const
@@ -1468,8 +1485,7 @@ uint32 FMaterialResource::GetStencilCompare() const
 
 bool FMaterialResource::HasRuntimeVirtualTextureOutput() const
 {
-	// Slow check used only for ShouldCompilePermutation() calls. 
-	// Runtime calls from render thread can use faster FMaterial::HasRuntimeVirtualTextureOutput_RenderThread()
+	// Slow check. Used for ShouldCompilePermutation() calls. 
 	for (UMaterialExpression* Expression : Material->Expressions)
 	{
 		if (Expression->IsA(UMaterialExpressionRuntimeVirtualTextureOutput::StaticClass()))
@@ -3150,7 +3166,7 @@ void FMaterial::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, FStab
 FMaterialUpdateContext::FMaterialUpdateContext(uint32 Options, EShaderPlatform InShaderPlatform)
 {
 	bool bReregisterComponents = (Options & EOptions::ReregisterComponents) != 0;
-	bool bRecreateRenderStates = (Options & EOptions::RecreateRenderStates) != 0;
+	bool bRecreateRenderStates = ((Options & EOptions::RecreateRenderStates) != 0) && FApp::CanEverRender();
 
 	bSyncWithRenderingThread = (Options & EOptions::SyncWithRenderingThread) != 0;
 	if (bReregisterComponents)

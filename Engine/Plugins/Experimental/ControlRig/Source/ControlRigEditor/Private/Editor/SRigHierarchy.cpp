@@ -31,9 +31,11 @@
 #include "ControlRig.h"
 #include "ControlRigEditorStyle.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformTime.h"
 #include "Dialogs/Dialogs.h"
 #include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
+#include "Types/WidgetActiveTimerDelegate.h"
 
 #define LOCTEXT_NAMESPACE "SRigHierarchy"
 
@@ -323,13 +325,14 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 			.Padding(2.0f)
 			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
 			[
-				SAssignNew(TreeView, STreeView<TSharedPtr<FRigTreeElement>>)
+				SAssignNew(TreeView, SRigHierarchyTreeView)
 				.TreeItemsSource(&RootElements)
 				.SelectionMode(ESelectionMode::Multi)
 				.OnGenerateRow(this, &SRigHierarchy::MakeTableRowWidget)
 				.OnGetChildren(this, &SRigHierarchy::HandleGetChildrenForTree)
 				.OnSelectionChanged(this, &SRigHierarchy::OnSelectionChanged)
 				.OnContextMenuOpening(this, &SRigHierarchy::CreateContextMenu)
+				.OnMouseButtonClick(this, &SRigHierarchy::OnItemClicked)
 				.OnMouseButtonDoubleClick(this, &SRigHierarchy::OnItemDoubleClicked)
 				.HighlightParentNodesForSelection(true)
 				.ItemHeight(24)
@@ -843,6 +846,39 @@ TSharedPtr< SWidget > SRigHierarchy::CreateContextMenu()
 	return MenuBuilder.MakeWidget();
 }
 
+void SRigHierarchy::OnItemClicked(TSharedPtr<FRigTreeElement> InItem)
+{
+	FRigHierarchyContainer* Hierarchy = GetHierarchyContainer();
+	if (Hierarchy->IsSelected(InItem->Key))
+	{
+		if (ControlRigEditor.IsValid())
+		{
+			ControlRigEditor.Pin()->SetDetailStruct(InItem->Key);
+		}
+
+		if (InItem->Key.Type == ERigElementType::Bone)
+		{
+			const FRigBone& Bone = Hierarchy->BoneHierarchy[InItem->Key.Name];
+			if (Bone.Type == ERigBoneType::Imported)
+			{
+				return;
+			}
+		}
+
+		uint32 CurrentCycles = FPlatformTime::Cycles();
+		double SecondsPassed = double(CurrentCycles - TreeView->LastClickCycles) * FPlatformTime::GetSecondsPerCycle();
+		if (SecondsPassed > 0.5f)
+		{
+			RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float) {
+				HandleRenameItem();
+				return EActiveTimerReturnType::Stop;
+			}));
+		}
+
+		TreeView->LastClickCycles = CurrentCycles;
+	}
+}
+
 void SRigHierarchy::OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem)
 {
 	if (TreeView->IsItemExpanded(InItem))
@@ -855,14 +891,13 @@ void SRigHierarchy::OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem)
 	}
 }
 
-
 void SRigHierarchy::FillContextMenu(class FMenuBuilder& MenuBuilder)
 {
 	const FControlRigHierarchyCommands& Actions = FControlRigHierarchyCommands::Get();
 	{
 		struct FLocalMenuBuilder
 		{
-			static void FillNewMenu(FMenuBuilder& InSubMenuBuilder, TSharedPtr<STreeView<TSharedPtr<FRigTreeElement>>> InTreeView)
+			static void FillNewMenu(FMenuBuilder& InSubMenuBuilder, TSharedPtr<SRigHierarchyTreeView> InTreeView)
 			{
 				const FControlRigHierarchyCommands& Actions = FControlRigHierarchyCommands::Get();
 
@@ -1334,6 +1369,18 @@ void SRigHierarchy::HandleDuplicateItem()
 					FRigControl Control = Hierarchy->ControlHierarchy[Key.Name];
 					const FName NewName = CreateUniqueName(Key.Name, Key.Type);
 					FRigControl& NewControl = Hierarchy->ControlHierarchy.Add(NewName, Control.ControlType, Control.ParentName, Control.SpaceName, Control.InitialValue, Control.GizmoName, Control.GizmoTransform, Control.GizmoColor);
+
+					// copy additional members
+					NewControl.bAnimatable = Control.bAnimatable;
+					NewControl.PrimaryAxis = Control.PrimaryAxis;
+					NewControl.bLimitTranslation = Control.bLimitTranslation;
+					NewControl.bLimitRotation = Control.bLimitRotation;
+					NewControl.bLimitScale = Control.bLimitScale;
+					NewControl.MinimumValue = Control.MinimumValue;
+					NewControl.MaximumValue = Control.MaximumValue;
+					NewControl.bDrawLimits = Control.bDrawLimits;
+					NewControl.bGizmoEnabled = Control.bGizmoEnabled;
+
 					NewKeys.Add(NewControl.GetElementKey());
 					break;
 				}
@@ -1357,6 +1404,8 @@ void SRigHierarchy::HandleDuplicateItem()
 		{
 			Hierarchy->Select(NewKeys[Index]);
 		}
+		
+		ControlRigBlueprint->PropagateHierarchyFromBPToInstances(false);
 	}
 
 	FSlateApplication::Get().DismissAllMenus();
@@ -1372,11 +1421,14 @@ bool SRigHierarchy::CanRenameItem() const
 /** Delete Item */
 void SRigHierarchy::HandleRenameItem()
 {
+	if (!CanRenameItem())
+	{
+		return;
+	}
+
 	FRigHierarchyContainer* Hierarchy = GetHierarchyContainer();
 	if (Hierarchy)
 	{
-		ClearDetailPanel();
-
 		FScopedTransaction Transaction(LOCTEXT("HierarchyTreeRenameSelected", "Rename selected item from hierarchy"));
 		ControlRigBlueprint->Modify();
 

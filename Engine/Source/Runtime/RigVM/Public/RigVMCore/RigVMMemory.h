@@ -897,6 +897,9 @@ private:
 	UPROPERTY(transient)
 	TMap<FName, int32> NameMap;
 
+	UPROPERTY(transient)
+	bool bEncounteredErrorDuringLoad;
+
 	friend class URigVM;
 	friend class URigVMCompiler;
 };

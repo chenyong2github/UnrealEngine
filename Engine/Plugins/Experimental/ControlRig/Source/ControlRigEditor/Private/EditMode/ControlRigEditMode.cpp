@@ -144,14 +144,12 @@ void FControlRigEditMode::SetObjects_Internal()
 	{
 		//Don't add the WeakControlRig Editing...SelectedObjects.Add(WeakControlRigEditing);
 		WeakControlRigEditing.Get()->DrawInterface = &DrawInterface;
-		if (IsInLevelEditor())
-		{
-			WeakControlRigEditing->Hierarchy.OnElementSelected.RemoveAll(this);
-			WeakControlRigEditing->ControlModified().RemoveAll(this);
 
-			WeakControlRigEditing->Hierarchy.OnElementSelected.AddSP(this, &FControlRigEditMode::OnRigElementSelected);
-			WeakControlRigEditing->ControlModified().AddSP(this, &FControlRigEditMode::OnControlModified);
-		}
+		WeakControlRigEditing->Hierarchy.OnElementSelected.RemoveAll(this);
+		WeakControlRigEditing->ControlModified().RemoveAll(this);
+
+		WeakControlRigEditing->Hierarchy.OnElementSelected.AddSP(this, &FControlRigEditMode::OnRigElementSelected);
+		WeakControlRigEditing->ControlModified().AddSP(this, &FControlRigEditMode::OnControlModified);
 
 		// create default manipulation layer
 		RecreateManipulationLayer();
@@ -203,10 +201,6 @@ void FControlRigEditMode::Exit()
 {
 	if (bIsTransacting)
 	{
-		if (ManipulationLayer)
-		{
-			ManipulationLayer->EndTransaction();
-		}
 
 		if (GEditor)
 		{
@@ -467,26 +461,10 @@ bool FControlRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, F
 	{
 		if (bManipulatorMadeChange)
 		{
-			// One final notify of our manipulators to make sure the property is keyed
-			for (AControlRigGizmoActor* GizmoActor : GizmoActors)
-			{
-				if (GizmoActor->IsManipulating())
-				{
-					GizmoActor->SetManipulating(false);
-				}
-			}
-
 			bManipulatorMadeChange = false;
 			GEditor->EndTransaction();
 
 		}
-
-		if (ManipulationLayer)
-		{
-			ManipulationLayer->EndTransaction();
-		}
-
-
 		bIsTransacting = false;
 		return true;
 	}
@@ -501,15 +479,18 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 	if (!bIsTransacting)
 	{
 
-		if (ManipulationLayer != nullptr)
+		if (WeakControlRigEditing.IsValid())
 		{
-			ManipulationLayer->BeginTransaction();
-		}
-		for (AControlRigGizmoActor* GizmoActor : GizmoActors)
-		{
-			GizmoActor->SetManipulating(true);
-		}
+			UObject* Blueprint = WeakControlRigEditing->GetClass()->ClassGeneratedBy;
+			if (Blueprint)
+			{
+				Blueprint->SetFlags(RF_Transactional);
+				Blueprint->Modify();
+			}
 
+			WeakControlRigEditing->SetFlags(RF_Transactional);
+			WeakControlRigEditing->Modify();
+		}
 		bIsTransacting = true;
 		bManipulatorMadeChange = false;
 
@@ -595,8 +576,8 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 				if (ControlData)
 				{
-					FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
-
+					FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);
+					
 					const FName& ControlName = ControlData->ControlName;
 					if (Click.IsShiftDown() || Click.IsControlDown())
 					{
@@ -633,8 +614,9 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 	{
 		return true;
 	}
-	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
 
+	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() &&  !GIsTransacting);
+	
 	// clear selected controls
 	ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
 
@@ -805,7 +787,7 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 
 				if (SelectedRigElementType == ERigElementType::Control)
 				{
-					FTransform NewWorldTransform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false) * ComponentTransform;
+					FTransform NewWorldTransform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false, true) * ComponentTransform;
 					bool bTransformChanged = false;
 					if (bDoRotation)
 					{
@@ -1075,7 +1057,7 @@ void FControlRigEditMode::RecalcPivotTransform()
 		{
 			if (SelectedRigElements[Index].Type == ERigElementType::Control)
 			{
-				LastTransform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false);
+				LastTransform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false, true);
 				PivotLocation += LastTransform.GetLocation();
 				++NumSelection;
 			}
@@ -1298,18 +1280,21 @@ bool FControlRigEditMode::IsTransformDelegateAvailable() const
 
 bool FControlRigEditMode::AreRigElementSelectedAndMovable() const
 {
-	if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
+	if (!AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
 	{
-		return true;
+		return false;
 	}
 
-	if (IsTransformDelegateAvailable())
+	//when in sequencer/level we don't have that delegate so don't check.
+	if (!IsInLevelEditor())
 	{
-		return true;
+		if (!IsTransformDelegateAvailable())
+		{
+			return false;
+		}
 	}
 
-	return false;
-
+	return true;
 }
 
 void FControlRigEditMode::OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
@@ -1353,8 +1338,11 @@ void FControlRigEditMode::OnRigElementSelected(FRigHierarchyContainer* Container
 			// if it's control
 			if (InKey.Type == ERigElementType::Control)
 			{
-				FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting );
-				ControlProxy->Modify();
+				FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);	
+				if (IsInLevelEditor())
+				{
+					ControlProxy->Modify();
+				}
 				// users may select gizmo and control rig units, so we have to let them go through both of them if they do
 				// first go through gizmo actor
 				AControlRigGizmoActor* GizmoActor = GetGizmoFromControlName(InKey.Name);

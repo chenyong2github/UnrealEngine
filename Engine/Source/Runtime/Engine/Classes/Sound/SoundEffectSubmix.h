@@ -29,12 +29,12 @@ class ENGINE_API USoundEffectSubmixPreset : public USoundEffectPreset
 /** Struct which has data needed to initialize the submix effect. */
 struct FSoundEffectSubmixInitData
 {
-	uint32 DeviceHandle;
+	uint32 DeviceID;
 	void* PresetSettings;
 	float SampleRate;
 
 	FSoundEffectSubmixInitData()
-		: DeviceHandle(INDEX_NONE)
+		: DeviceID(INDEX_NONE)
 		, PresetSettings(nullptr)
 		, SampleRate(0)
 	{
