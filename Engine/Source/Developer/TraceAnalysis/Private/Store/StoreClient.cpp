@@ -216,6 +216,11 @@ bool FStoreCborClient::Communicate(const FPayload& Payload)
 		return false;
 	}
 
+	if (Response.GetStatusCode() != EStatusCode::Success)
+	{
+		return false;
+	}
+
 	return true;
 }
 
