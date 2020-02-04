@@ -10,8 +10,10 @@
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/SWidget.h"
 #include "Styling/SlateBrush.h"
+#include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
 #endif
+
 
 
 #define LOCTEXT_NAMESPACE "UNiagaraRibbonRendererProperties"
