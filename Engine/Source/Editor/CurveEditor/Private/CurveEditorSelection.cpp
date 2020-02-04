@@ -65,14 +65,19 @@ void FCurveEditorSelection::Add(FCurveModelID CurveID, ECurvePointType PointType
 void FCurveEditorSelection::Add(FCurveModelID CurveID, ECurvePointType PointType, TArrayView<const FKeyHandle> Keys)
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
-	if (Keys.Num() > 0 && CurveEditor && !CurveEditor->GetCurves()[CurveID]->IsReadOnly())
+	if (Keys.Num() > 0 && CurveEditor)
 	{
-		ChangeSelectionPointType(PointType);
-
-		FKeyHandleSet& SelectedKeys = CurveToSelectedKeys.FindOrAdd(CurveID);
-		for (FKeyHandle Key : Keys)
+		const TUniquePtr<FCurveModel> *CurveModel = CurveEditor->GetCurves().Find(CurveID);
+		if (CurveModel && CurveModel->IsValid() && !(*CurveModel)->IsReadOnly())
 		{
-			SelectedKeys.Add(Key);
+			ChangeSelectionPointType(PointType);
+
+			FKeyHandleSet& SelectedKeys = CurveToSelectedKeys.FindOrAdd(CurveID);
+			for (FKeyHandle Key : Keys)
+			{
+				SelectedKeys.Add(Key);
+			}
+
 		}
 	}
 

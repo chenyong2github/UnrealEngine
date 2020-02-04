@@ -178,7 +178,6 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				}
 				else if (URigVMRerouteNode* RerouteModelNode = Cast<URigVMRerouteNode>(ModelNode))
 				{
-					// todo: collapsed or not?
 					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, ModelNode->GetFName());
 					AddNode(NewNode, false);
 
@@ -244,7 +243,8 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName());
 				if (EdNode)
 				{
-					RemoveNode(EdNode);
+					RemoveNode(EdNode, true);
+					NotifyGraphChanged();
 				}
 			}
 			break;
@@ -271,6 +271,27 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				{
 					EdNode->NodeWidth = (int32)ModelNode->GetSize().X;
 					EdNode->NodeHeight = (int32)ModelNode->GetSize().Y;
+				}
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::RerouteCompactnessChanged:
+		{
+			if (URigVMRerouteNode* ModelNode = Cast<URigVMRerouteNode>(InSubject))
+			{
+				UEdGraphNode* EdNode = Cast<UEdGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName()));
+				if (EdNode)
+				{
+					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
+					{
+						// start at index 2 (the subpins below the top level value pin)
+						// and hide the pins (or show them if they were hidden previously)
+						for (int32 PinIndex = 2; PinIndex < RigNode->Pins.Num(); PinIndex++)
+						{
+							RigNode->Pins[PinIndex]->bHidden = !ModelNode->GetShowsAsFullNode();
+						}
+						NotifyGraphChanged();
+					}
 				}
 			}
 			break;
@@ -335,6 +356,29 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 								SourceRigPin->BreakLinkTo(TargetRigPin);
 							}
 
+							for (int32 LinkedPinIndex = 0; LinkedPinIndex < SourceRigPin->LinkedTo.Num();)
+							{
+								if (SourceRigPin->LinkedTo[LinkedPinIndex])
+								{
+									++LinkedPinIndex;
+								}
+								else
+								{
+									SourceRigPin->LinkedTo.RemoveAtSwap(LinkedPinIndex);
+								}
+							}
+
+							for (int32 LinkedPinIndex = 0; LinkedPinIndex < TargetRigPin->LinkedTo.Num();)
+							{
+								if (TargetRigPin->LinkedTo[LinkedPinIndex])
+								{
+									++LinkedPinIndex;
+								}
+								else
+								{
+									TargetRigPin->LinkedTo.RemoveAtSwap(LinkedPinIndex);
+								}
+							}
 						}
 					}
 				}

@@ -12,7 +12,6 @@ AControlRigGizmoActor::AControlRigGizmoActor(const FObjectInitializer& ObjectIni
 	, bEnabled(true)
 	, bSelected(false)
 	, bHovered(false)
-	, bManipulating(false)
 {
 
 	ActorRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent0"));
@@ -82,23 +81,6 @@ bool AControlRigGizmoActor::IsHovered() const
 	return bHovered;
 }
 
-void AControlRigGizmoActor::SetManipulating(bool bInManipulating)
-{
-	bool bOldManipulating = bManipulating;
-
-	bManipulating = bInManipulating;
-
-	if(bManipulating != bOldManipulating)
-	{
-		FEditorScriptExecutionGuard Guard;
-		OnManipulatingChanged(bManipulating);
-	}
-}
-
-bool AControlRigGizmoActor::IsManipulating() const
-{
-	return bManipulating;
-}
 
 void AControlRigGizmoActor::SetGizmoColor(const FLinearColor& InColor)
 {

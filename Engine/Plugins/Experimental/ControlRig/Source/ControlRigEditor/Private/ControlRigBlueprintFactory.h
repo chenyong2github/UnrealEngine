@@ -8,6 +8,7 @@
 #include "Engine/Blueprint.h"
 #include "Factories/Factory.h"
 #include "ControlRig.h"
+#include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintFactory.generated.h"
 
 UCLASS(MinimalAPI, HideCategories=Object)
@@ -26,5 +27,20 @@ public:
 	virtual bool ConfigureProperties() override;
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext) override;
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+
+	/**
+	 * Create a new control rig asset within the contents space of the project.
+	 * @param InDesiredPackagePath The package path to use for the control rig asset
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	static UControlRigBlueprint* CreateNewControlRigAsset(const FString& InDesiredPackagePath);
+
+	/**
+	 * Create a new control rig asset within the contents space of the project
+	 * based on a skeletal mesh or skeleton object.
+	 * @param The SkeletalMesh / Skeleton object to base the control rig asset on
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	static UControlRigBlueprint* CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject);
 };
 

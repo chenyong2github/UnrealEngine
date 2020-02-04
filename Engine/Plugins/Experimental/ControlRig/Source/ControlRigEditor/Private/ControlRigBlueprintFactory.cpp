@@ -19,6 +19,7 @@
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "ControlRigBlueprint.h"
+#include "ControlRigBlueprintActions.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintFactory"
@@ -290,6 +291,16 @@ UObject* UControlRigBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* I
 UObject* UControlRigBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	return FactoryCreateNew(Class, InParent, Name, Flags, Context, Warn, NAME_None);
+}
+
+UControlRigBlueprint* UControlRigBlueprintFactory::CreateNewControlRigAsset(const FString& InDesiredPackagePath)
+{
+	return FControlRigBlueprintActions::CreateNewControlRigAsset(InDesiredPackagePath);
+}
+
+UControlRigBlueprint* UControlRigBlueprintFactory::CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject)
+{
+	return FControlRigBlueprintActions::CreateControlRigFromSkeletalMeshOrSkeleton(InSelectedObject);
 }
 
 #undef LOCTEXT_NAMESPACE

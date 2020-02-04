@@ -167,6 +167,9 @@ private:
 	/** Editor mode has been added or removed, clears cached command list so it will be rebuilt */
 	void EditorModeCommandsChanged();
 
+	/** Called when a level editor mode is toggled */
+	void OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, bool bIsEnteringMode);
+
 	/** Gets the tabId mapping to an editor mode */
 	static FName GetEditorModeTabId( FEditorModeID ModeID );
 

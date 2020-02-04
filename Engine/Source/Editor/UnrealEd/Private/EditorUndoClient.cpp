@@ -10,3 +10,11 @@ FEditorUndoClient::~FEditorUndoClient()
 		GEditor->UnregisterForUndo(this);
 	}
 }
+
+FSelfRegisteringEditorUndoClient::FSelfRegisteringEditorUndoClient()
+{
+	if (GEditor)
+	{
+		GEditor->RegisterForUndo(this);
+	}
+}

@@ -3223,6 +3223,18 @@ void FAnimBlueprintCompilerContext::FPropertyCopyRecord::ValidateFastPath(UClass
 				InvalidateFastPath();
 				return;
 			}
+
+			// If the property is not one of the following types or categories, then we ignore the fast
+			// path. This matches the supported copyable types in FExposedValueHandler::Initialize
+			if (!(CastField<FBoolProperty>(DestProperty) ||
+				  CastField<FNameProperty>(DestProperty) ||
+				  CastField<FStructProperty>(DestProperty) ||
+				  CastField<FObjectPropertyBase>(DestProperty) ||
+				  (DestProperty->PropertyFlags & CPF_IsPlainOldData) != 0))
+			{
+				InvalidateFastPath();
+				return;
+			}
 		}
 		else
 		{
@@ -3399,22 +3411,28 @@ void FAnimBlueprintCompilerContext::PrecompileFunction(FKismetFunctionContext& C
 {
 	Super::PrecompileFunction(Context, InternalFlags);
 
-	auto CompareEntryPointName =
-	[Function = Context.Function](UEdGraph* InGraph)
+	if(Context.Function)
 	{
-		TArray<UK2Node_FunctionEntry*> EntryPoints;
-		InGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryPoints);
-		if(EntryPoints.Num() == 1)
+		auto CompareEntryPointName =
+		[Function = Context.Function](UEdGraph* InGraph)
 		{
-			return EntryPoints[0]->CustomGeneratedFunctionName == Function->GetFName(); 
-		}
-		return true;
-	};
+			if(InGraph)
+			{
+				TArray<UK2Node_FunctionEntry*> EntryPoints;
+				InGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryPoints);
+				if(EntryPoints.Num() == 1 && EntryPoints[0])
+				{
+					return EntryPoints[0]->CustomGeneratedFunctionName == Function->GetFName(); 
+				}
+			}
+			return true;
+		};
 
-	if(GeneratedStubGraphs.ContainsByPredicate(CompareEntryPointName))
-	{
-		Context.Function->SetMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly, TEXT("true"));
-		Context.Function->SetMetaData(FBlueprintMetadata::MD_AnimBlueprintFunction, TEXT("true"));
+		if(GeneratedStubGraphs.ContainsByPredicate(CompareEntryPointName))
+		{
+			Context.Function->SetMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly, TEXT("true"));
+			Context.Function->SetMetaData(FBlueprintMetadata::MD_AnimBlueprintFunction, TEXT("true"));
+		}
 	}
 }
 
@@ -3422,23 +3440,29 @@ void FAnimBlueprintCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Fun
 {
 	Super::SetCalculatedMetaDataAndFlags(Function, EntryNode, K2Schema);
 
-	auto CompareEntryPointName =
-	[Function](UEdGraph* InGraph)
+	if(Function)
 	{
-		TArray<UK2Node_FunctionEntry*> EntryPoints;
-		InGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryPoints);
-		if(EntryPoints.Num() == 1)
+		auto CompareEntryPointName =
+		[Function](UEdGraph* InGraph)
 		{
-			return EntryPoints[0]->CustomGeneratedFunctionName == Function->GetFName(); 
-		}
-		return true;
-	};
+			if(InGraph)
+			{
+				TArray<UK2Node_FunctionEntry*> EntryPoints;
+				InGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryPoints);
+				if(EntryPoints.Num() == 1 && EntryPoints[0])
+				{
+					return EntryPoints[0]->CustomGeneratedFunctionName == Function->GetFName(); 
+				}
+			}
+			return true;
+		};
 
-	// Match by name to generated graph's entry points
-	if(GeneratedStubGraphs.ContainsByPredicate(CompareEntryPointName))
-	{
-		Function->SetMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly, TEXT("true"));
-		Function->SetMetaData(FBlueprintMetadata::MD_AnimBlueprintFunction, TEXT("true"));
+		// Match by name to generated graph's entry points
+		if(GeneratedStubGraphs.ContainsByPredicate(CompareEntryPointName))
+		{
+			Function->SetMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly, TEXT("true"));
+			Function->SetMetaData(FBlueprintMetadata::MD_AnimBlueprintFunction, TEXT("true"));
+		}
 	}
 }
 

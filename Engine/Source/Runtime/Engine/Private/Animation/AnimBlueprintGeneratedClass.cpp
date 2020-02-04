@@ -400,7 +400,7 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 		bool bFoundOutput = false;
 #if WITH_EDITOR
 		// In editor we can grab the group from metadata, otherwise we need to wait until CDO post load (LinkFunctionsToDefaultObjectNodes)
-		FText CategoryText = FObjectEditorUtils::GetCategoryText((*It)->GetAssociatedFField());
+		FText CategoryText = FObjectEditorUtils::GetCategoryText(*It);
 		FName Group = CategoryText.IsEmpty() ? NAME_None : FName(*CategoryText.ToString());
 #endif
 		FStructProperty* OutputPoseNodeProperty = nullptr;

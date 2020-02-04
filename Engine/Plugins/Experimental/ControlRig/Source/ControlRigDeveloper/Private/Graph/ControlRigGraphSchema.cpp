@@ -52,6 +52,16 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 	}
 #endif
 
+	if (PinA == PinB)
+	{
+		return false;
+	}
+
+	if (PinA->GetOwningNode() == PinB->GetOwningNode())
+	{
+		return false;
+	}
+
 	UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 	MutableThis->LastPinForCompatibleCheck = nullptr;
 
@@ -313,14 +323,14 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 	{
 		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 		MutableThis->LastPinForCompatibleCheck = PinB;
-		MutableThis->bLastPinWasInput = true;
+		MutableThis->bLastPinWasInput = PinB->Direction == EGPD_Input;
 		return true;
 	}
 	if (PinB->PinType.PinCategory == TEXT("REROUTE"))
 	{
 		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 		MutableThis->LastPinForCompatibleCheck = PinA;
-		MutableThis->bLastPinWasInput = false;
+		MutableThis->bLastPinWasInput = PinA->Direction == EGPD_Input;
 		return true;
 	}
 
@@ -359,6 +369,20 @@ void UControlRigGraphSchema::GetVariablePinTypes(TArray<FEdGraphPinType>& PinTyp
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Struct, FName(NAME_None), TBaseStructure<FTransform>::Get(), EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Struct, FName(NAME_None), TBaseStructure<FEulerTransform>::Get(), EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Struct, FName(NAME_None), TBaseStructure<FLinearColor>::Get(), EPinContainerType::None, false, FEdGraphTerminalType()));
+}
+
+bool UControlRigGraphSchema::SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNode* Node) const
+{
+	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+	{
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(RigNode);
+		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+		if (RigBlueprint != nullptr)
+		{
+			return RigBlueprint->Controller->RemoveNode(RigNode->GetModelNode());
+		}
+	}
+	return false;
 }
 
 

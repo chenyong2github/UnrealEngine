@@ -1041,6 +1041,12 @@ bool FLiveLinkClient::EvaluateFrameFromSource_AnyThread(const FLiveLinkSubjectKe
 	return false;
 }
 
+//just call our tick
+void FLiveLinkClient::ForceTick()
+{
+	Tick();
+}
+
 bool FLiveLinkClient::EvaluateFrame_AnyThread(FLiveLinkSubjectName InSubjectName, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LiveLink_EvaluateFrame);
@@ -1257,14 +1263,11 @@ void FLiveLinkClient::OnPropertyChanged(FGuid InEntryGuid, const FPropertyChange
 	}
 }
 
-ULiveLinkSourceSettings* FLiveLinkClient::GetSourceSettings(FGuid InEntryGuid) const
+ULiveLinkSourceSettings* FLiveLinkClient::GetSourceSettings(const FGuid& InEntryGuid) const
 {
 	if (const FLiveLinkCollectionSourceItem* SourceItem = Collection->FindSource(InEntryGuid))
 	{
-		if (!SourceItem->IsVirtualSource())
-		{
-			return SourceItem->Setting;
-		}
+		return SourceItem->Setting;
 	}
 	return nullptr;
 }

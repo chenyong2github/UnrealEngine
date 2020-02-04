@@ -234,6 +234,11 @@ bool SKismetInspector::IsSelected(UObject* Object) const
 	return false;
 }
 
+const TArray< TWeakObjectPtr<UObject> >& SKismetInspector::GetSelectedObjects() const
+{
+	return SelectedObjects;
+}
+
 FText SKismetInspector::GetContextualEditingWidgetTitle() const
 {
 	FText Title = PropertyViewTitle;

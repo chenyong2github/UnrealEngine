@@ -446,7 +446,7 @@ public:
 	FSkinWeightRHIInfo CreateRHIBuffer_RenderThread();
 	FSkinWeightRHIInfo CreateRHIBuffer_Async();
 
-	GPUSkinBoneInfluenceType GetBoneInfluenceType() const;
+	ENGINE_API GPUSkinBoneInfluenceType GetBoneInfluenceType() const;
 	void GetVertexInfluenceOffsetCount(uint32 VertexIndex, uint32& VertexWeightOffset, uint32& VertexInfluenceCount) const;
 	ENGINE_API bool GetRigidWeightBone(uint32 VertexIndex, int32& OutBoneIndex) const;
 	uint32 GetBoneIndex(uint32 VertexIndex, uint32 InfluenceIndex) const;

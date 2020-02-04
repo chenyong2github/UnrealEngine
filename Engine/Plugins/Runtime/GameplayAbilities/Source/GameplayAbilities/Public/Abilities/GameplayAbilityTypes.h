@@ -12,13 +12,13 @@
 #include "GameplayPrediction.h"
 #include "GameplayAbilitySpec.h"
 #include "UObject/Package.h"
+#include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "GameplayAbilityTypes.generated.h"
 
 class APlayerController;
 class UAbilitySystemComponent;
-class UAnimInstance;
 class UAnimMontage;
 class UGameplayAbility;
 class UMovementComponent;
@@ -166,12 +166,30 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityActorInfo
 	/** Movement component of the avatar actor. Often null */
 	UPROPERTY(BlueprintReadOnly, Category = "ActorInfo")
 	TWeakObjectPtr<UMovementComponent>	MovementComponent;
-
-	/** Accessor to get the current anim instance from the SkeletalMeshComponent */
+	
+	/** The linked Anim Instance that this component will play montages in. Use NAME_None for the main anim instance. */
+	UPROPERTY(BlueprintReadOnly, Category = "ActorInfo")
+	FName AffectedAnimInstanceTag; 
+	
+	/** Accessor to get the affected anim instance from the SkeletalMeshComponent */
 	UAnimInstance* GetAnimInstance() const
 	{ 
 		const USkeletalMeshComponent* SKMC = SkeletalMeshComponent.Get();
-		return (SKMC ? SKMC->GetAnimInstance() : nullptr);
+
+		if (SKMC)
+		{
+			if (AffectedAnimInstanceTag != NAME_None)
+			{
+				if(UAnimInstance* Instance = SKMC->GetAnimInstance())
+				{
+					return Instance->GetLinkedAnimGraphInstanceByTag(AffectedAnimInstanceTag);
+				}
+			}
+
+			return SKMC->GetAnimInstance();
+		}
+
+		return nullptr;
 	}
 
 	/** Returns true if this actor is locally controlled. Only true for players on the client that owns them */

@@ -38,7 +38,7 @@ void UControlRigControlsProxy::PostEditChangeProperty(struct FPropertyChangedEve
 #if WITH_EDITOR
 void UControlRigControlsProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid())
+	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
 	}
@@ -76,7 +76,7 @@ void UControlRigTransformControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigTransformControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid())
+	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FTransform>(ControlName, Transform, true, EControlRigSetKey::DoNotCare);
@@ -120,7 +120,7 @@ void UControlRigTransformNoScaleControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigTransformNoScaleControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid())
+	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FTransformNoScale>(ControlName, Transform, true, EControlRigSetKey::DoNotCare);
@@ -165,7 +165,7 @@ void UControlRigFloatControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigFloatControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid())
+	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<float>(ControlName, Float, true, EControlRigSetKey::DoNotCare);
@@ -186,7 +186,8 @@ void UControlRigFloatControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHa
 void UControlRigVectorControlProxy::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVectorControlProxy, Vector))
+	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVectorControlProxy, Vector))
+		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVectorControlProxy, Vector)))
 	{
 		if (RigControl && ControlRig.IsValid())
 		{
@@ -212,7 +213,7 @@ void UControlRigVectorControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigVectorControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid())
+	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FVector>(ControlName, Vector, true, EControlRigSetKey::DoNotCare);
@@ -258,7 +259,7 @@ void UControlRigVector2DControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigVector2DControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid())
+	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FVector2D>(ControlName, Vector2D, true, EControlRigSetKey::DoNotCare);
@@ -305,7 +306,7 @@ void UControlRigBoolControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigBoolControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid())
+	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<bool>(ControlName, Bool, true, EControlRigSetKey::DoNotCare);
