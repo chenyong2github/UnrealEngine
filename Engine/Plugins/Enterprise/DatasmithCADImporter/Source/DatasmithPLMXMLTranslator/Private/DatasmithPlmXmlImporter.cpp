@@ -5,6 +5,7 @@
 #include "DatasmithImportOptions.h"
 #include "DatasmithPayload.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 
 #include "HAL/FileManager.h" // IFileManager
