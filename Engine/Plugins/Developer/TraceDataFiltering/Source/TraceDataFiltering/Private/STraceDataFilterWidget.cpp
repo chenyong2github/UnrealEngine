@@ -683,14 +683,17 @@ void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 	{
 		IUnrealInsightsModule& InsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 		Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();
-		const int32 SessionCount = StoreClient->GetSessionCount();
-
-		if (SessionCount > 0)
+		if (StoreClient)
 		{
-			const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
-			if (SessionInfo)
+			const int32 SessionCount = StoreClient->GetSessionCount();
+
+			if (SessionCount > 0)
 			{
-				SetCurrentAnalysisSession(SessionInfo->GetTraceId(), InsightsModule.GetAnalysisSession().ToSharedRef());
+				const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
+				if (SessionInfo)
+				{
+					SetCurrentAnalysisSession(SessionInfo->GetTraceId(), InsightsModule.GetAnalysisSession().ToSharedRef());
+				}
 			}
 		}
 	}
