@@ -200,6 +200,16 @@ void UAnimationAsset::PostLoad()
 		Skeleton->ConditionalPostLoad();
 	}
 
+	// Load Parent Asset, to make sure anything accessing from PostLoad has valid data to access
+	if (ParentAsset)
+	{
+		if (FLinkerLoad* ParentAssetLinker = ParentAsset->GetLinker())
+		{
+			ParentAssetLinker->Preload(ParentAsset);
+		}
+		ParentAsset->ConditionalPostLoad();
+	}
+
 	ValidateSkeleton();
 
 	check( Skeleton==NULL || SkeletonGuid.IsValid() );
