@@ -1618,9 +1618,12 @@ bool USoundWave::IsReadyForFinishDestroy()
 	{
 		FScopeLock Lock(&SourcesPlayingCs);
 		
-		for (ISoundWaveClient* i : SourcesPlaying)
+		for (ISoundWaveClient* SoundWaveClientPtr : SourcesPlaying)
 		{
-			i->OnIsReadyForFinishDestroy(this);
+			if(SoundWaveClientPtr)
+			{
+				SoundWaveClientPtr->OnIsReadyForFinishDestroy(this);
+			}
 		}
 	}
 
