@@ -18,7 +18,6 @@
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 #include "Slate/SceneViewport.h"
-#include "UObject/ConstructorHelpers.h"
 #include "VirtualCamera.h"
 #include "VirtualCameraMovement.h"
 #include "VirtualCameraSubsystem.h"
@@ -134,11 +133,6 @@ AVirtualCameraActor::AVirtualCameraActor(const FObjectInitializer& ObjectInitial
 	CameraScreenWidget = CreateDefaultSubobject<UVPFullScreenUserWidget>("Camera UMG");
 	CameraScreenWidget->SetDisplayTypes(EVPWidgetDisplayType::PostProcess, EVPWidgetDisplayType::Viewport, EVPWidgetDisplayType::PostProcess);
 	CameraScreenWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
-	ConstructorHelpers::FClassFinder<UUserWidget> UMG_Finder(DefaultCameraUMG);
-	if (UMG_Finder.Class)
-	{
-		CameraUMGclass = UMG_Finder.Class;
-	}
 }
 
 AVirtualCameraActor::AVirtualCameraActor(FVTableHelper& Helper)
@@ -174,6 +168,11 @@ bool AVirtualCameraActor::StartStreaming()
 	if (!ActorWorld)
 	{
 		return false;
+	}
+	if (!CameraUMGclass)
+	{
+		FSoftClassPath DefaultUMG(DefaultCameraUMG);
+		CameraUMGclass = DefaultUMG.TryLoadClass<UUserWidget>();
 	}
 
 	if (UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>())
@@ -241,7 +240,8 @@ bool AVirtualCameraActor::StartStreaming()
 		SupportedChannels.Emplace(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read, FOnRemoteSessionChannelCreated::CreateUObject(this, &AVirtualCameraActor::OnInputChannelCreated));
 		SupportedChannels.Emplace(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write, FOnRemoteSessionChannelCreated::CreateUObject(this, &AVirtualCameraActor::OnImageChannelCreated));
 
-		if (RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), RemoteSessionPort))
+		RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), RemoteSessionPort);
+		if (RemoteSessionHost)
 		{
 			RemoteSessionHost->Tick(0.0f);
 		}
