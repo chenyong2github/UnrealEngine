@@ -151,14 +151,16 @@ typedef TOctree<FLightSceneInfoCompact,struct FLightOctreeSemantics> FSceneLight
  */
 class FLightSceneInfo : public FRenderResource
 {
-public:
-	/** The light's scene proxy. */
-	FLightSceneProxy* Proxy;
+	friend class FLightPrimitiveInteraction;
 
 	/** The list of dynamic primitives affected by the light. */
 	FLightPrimitiveInteraction* DynamicInteractionOftenMovingPrimitiveList;
 
 	FLightPrimitiveInteraction* DynamicInteractionStaticPrimitiveList;
+
+public:
+	/** The light's scene proxy. */
+	FLightSceneProxy* Proxy;
 
 	/** If bVisible == true, this is the index of the primitive in Scene->Lights. */
 	int32 Id;
@@ -299,6 +301,10 @@ public:
 		// Movable lights get a channel assigned when they are added to the scene
 		return DynamicShadowMapChannel;
 	}
+
+	FLightPrimitiveInteraction* GetDynamicInteractionOftenMovingPrimitiveList(bool bSync = true) const;
+
+	FLightPrimitiveInteraction* GetDynamicInteractionStaticPrimitiveList(bool bSync = true) const;
 
 	/** Hash function. */
 	friend uint32 GetTypeHash(const FLightSceneInfo* LightSceneInfo)
