@@ -1307,8 +1307,11 @@ void FFbxImporter::ConvertScene()
 	for (int32 AnimStackIndex = 0; AnimStackIndex < AnimStackCount; AnimStackIndex++)
 	{
 		FbxAnimStack* CurAnimStack = Scene->GetSrcObject<FbxAnimStack>(AnimStackIndex);
-		int32 ResampleRate = GetGlobalAnimStackSampleRate(CurAnimStack);
-		MergeAllLayerAnimation(CurAnimStack, ResampleRate);
+		if (CurAnimStack->GetMemberCount() > 1)
+		{
+			int32 ResampleRate = GetGlobalAnimStackSampleRate(CurAnimStack);
+			MergeAllLayerAnimation(CurAnimStack, ResampleRate);
+		}
 	}
 
 	//Set the original file information
