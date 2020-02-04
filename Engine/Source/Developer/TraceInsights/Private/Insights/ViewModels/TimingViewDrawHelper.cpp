@@ -109,9 +109,12 @@ void FTimingEventsTrackDrawStateBuilder::AddEvent(double EventStartTime, double 
 	if (Color == 0)
 	{
 		uint32 NameHash = 0;
-		for (const TCHAR* c = EventName; *c; ++c)
+		if (EventName != nullptr)
 		{
-			NameHash = (NameHash + *c) * 0x2c2c57ed;
+			for (const TCHAR* c = EventName; *c; ++c)
+			{
+				NameHash = (NameHash + *c) * 0x2c2c57ed;
+			}
 		}
 
 		Color = NameHash | 0xFF000000;
@@ -243,7 +246,7 @@ void FTimingEventsTrackDrawStateBuilder::AddEvent(double EventStartTime, double 
 	// Draw the name of the timing event.
 	if (EventW > 8.0f)
 	{
-		FString Name = EventName;// +TEXT(" [") + FText::AsNumber(Event.Type->Id).ToString() + TEXT("]");
+		FString Name = EventName; //+ TEXT(" [") + FText::AsNumber(Event.Type->Id).ToString() + TEXT("]");
 		if (EventW > Name.Len() * 2.0f + 48.0f)
 		{
 			const double Duration = EventEndTime - EventStartTime;
