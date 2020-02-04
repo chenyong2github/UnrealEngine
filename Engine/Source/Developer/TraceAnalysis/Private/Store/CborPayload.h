@@ -53,11 +53,23 @@ struct FPayload
 
 
 ////////////////////////////////////////////////////////////////////////////////
+enum class EStatusCode
+{
+	Unknown				= 0,
+	Success				= 200,
+	BadRequest			= 400,
+	MethodNotAllowed	= 405,
+	InternalError		= 500,
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 template <int Size=128>
 class TPayloadBuilder
 {
 public:
-								TPayloadBuilder(int32 StatusCode);
+								TPayloadBuilder(EStatusCode StatusCode);
 	template <int N>			TPayloadBuilder(const char (&MethodName)[N]);
 	template <int N> void		AddInteger(const char (&Name)[N], int64 Value);
 	template <int N> void		AddString(const char (&Name)[N], const char* Value, int32 Length=-1);
@@ -70,10 +82,10 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int Size>
-inline TPayloadBuilder<Size>::TPayloadBuilder(int32 StatusCode)
+inline TPayloadBuilder<Size>::TPayloadBuilder(EStatusCode StatusCode)
 {
 	CborWriter.WriteContainerStart(ECborCode::Map, -1);
-	AddInteger("$status", StatusCode);
+	AddInteger("$status", int32(StatusCode));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -121,6 +133,7 @@ inline FPayload TPayloadBuilder<Size>::Done()
 class FResponse
 {
 public:
+	EStatusCode		GetStatusCode() const;
 	int64			GetInteger(const char* Key, int64 Default) const;
 	template <int N>
 	FAnsiStringView	GetString(const char* Key, const char (&Default)[N]) const;
@@ -133,6 +146,13 @@ private:
 	Type			GetValue(const char* Key, Type Default, LambdaType&& Lambda) const;
 	TArray<uint8>	Buffer;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+inline EStatusCode FResponse::GetStatusCode() const
+{
+	int32 Code = GetInteger("$status", 0);
+	return Code ? EStatusCode(Code) : EStatusCode::Unknown;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 inline const uint8* FResponse::GetData() const
