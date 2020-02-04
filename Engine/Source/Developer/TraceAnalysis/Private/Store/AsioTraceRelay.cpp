@@ -20,6 +20,7 @@ FAsioTraceRelay::FAsioTraceRelay(
 , SessionId(InSessionId)
 {
 	StartServer();
+	TickOnce(3000);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -44,12 +45,25 @@ void FAsioTraceRelay::Close()
 	}
 
 	Input->Close();
+
+	FAsioTcpServer::Close();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FAsioTraceRelay::IsOpen() const
 {
-	return (Output != nullptr) && Output->IsOpen();
+	if (FAsioTcpServer::IsOpen())
+	{
+		return true;
+	}
+
+	bool bOpen = Input->IsOpen();
+	if (Output != nullptr)
+	{
+		bOpen &= Output->IsOpen();
+	}
+
+	return bOpen;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -63,6 +77,13 @@ bool FAsioTraceRelay::OnAccept(asio::ip::tcp::socket& Socket)
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioTraceRelay::OnTick()
 {
+	if (!bTimedOut && FAsioTcpServer::IsOpen())
+	{
+		Close();
+		bTimedOut = true;
+		return;
+	}
+
 	return OnIoComplete(OpStart, 0);
 }
 
