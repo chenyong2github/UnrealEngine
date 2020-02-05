@@ -1231,7 +1231,7 @@ struct FPrecacheCallbackHandler
 
 	void CheckThottleIOState(bool bMaybeWasStalledOnIncoming = false)
 	{
-		if (UnprocessedMemUsed <= GMaxReadyRequestsToStallMB * 1024 * 1024 * 9 / 10)
+		if (UnprocessedMemUsed <= static_cast<int64>(GMaxReadyRequestsToStallMB) * 1024 * 1024 * 9 / 10)
 		{
 			if (bStalledOnMemory)
 			{
@@ -1245,7 +1245,7 @@ struct FPrecacheCallbackHandler
 			}
 			bStalledOnMemory = false;
 		}
-		else if (UnprocessedMemUsed > GMaxReadyRequestsToStallMB * 1024 * 1024)
+		else if (UnprocessedMemUsed > static_cast<int64>(GMaxReadyRequestsToStallMB) * 1024 * 1024)
 		{
 			if (!bStalledOnMemory)
 			{

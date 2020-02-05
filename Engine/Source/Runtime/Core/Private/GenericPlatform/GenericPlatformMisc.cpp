@@ -1467,3 +1467,32 @@ void FGenericPlatformMisc::ParseChunkIdPakchunkIndexMapping(TArray<FString> Chun
 		}
 	}
 }
+
+int32 FGenericPlatformMisc::GetPakchunkIndexFromPakFile(const FString& InFilename)
+{
+	FString ChunkIdentifier(TEXT("pakchunk"));
+	FString BaseFilename = FPaths::GetBaseFilename(InFilename);
+	int32 ChunkNumber = INDEX_NONE;
+
+	if (BaseFilename.StartsWith(ChunkIdentifier))
+	{
+		int32 StartOfNumber = ChunkIdentifier.Len();
+		int32 DigitCount = 0;
+		if (FChar::IsDigit(BaseFilename[StartOfNumber]))
+		{
+			while ((DigitCount + StartOfNumber) < BaseFilename.Len() && FChar::IsDigit(BaseFilename[StartOfNumber + DigitCount]))
+			{
+				DigitCount++;
+			}
+
+			if ((StartOfNumber + DigitCount) < BaseFilename.Len())
+			{
+				FString ChunkNumberString = BaseFilename.Mid(StartOfNumber, DigitCount);
+				check(ChunkNumberString.IsNumeric());
+				TTypeFromString<int32>::FromString(ChunkNumber, *ChunkNumberString);
+			}
+		}
+	}
+
+	return ChunkNumber;
+}

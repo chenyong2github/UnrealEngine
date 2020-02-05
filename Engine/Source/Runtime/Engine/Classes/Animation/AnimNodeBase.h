@@ -719,8 +719,8 @@ enum class EPostCopyOperation : uint8
 UENUM()
 enum class ECopyType : uint8
 {
-	// Just copy the memory
-	MemCopy,
+	// For plain old data types, we do a simple memcpy.
+	PlainProperty,
 
 	// Read and write properties using bool property helpers, as source/dest could be bitfield or boolean
 	BoolProperty,
@@ -730,6 +730,9 @@ enum class ECopyType : uint8
 
 	// Read and write properties using object property helpers, as source/dest could be regular/weak/lazy etc.
 	ObjectProperty,
+
+	// FName needs special case because its size changes between editor/compiler and runtime.
+	NameProperty,
 };
 
 
@@ -748,7 +751,7 @@ struct FExposedValueCopyRecord
 		, SourceArrayIndex(0)
 		, bInstanceIsTarget(false)
 		, PostCopyOperation(EPostCopyOperation::None)
-		, CopyType(ECopyType::MemCopy)
+		, CopyType(ECopyType::PlainProperty)
 		, DestProperty(nullptr)
 		, DestArrayIndex(0)
 		, Size(0)

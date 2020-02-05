@@ -625,7 +625,7 @@ public:
 //
 // Constructors.
 //
-UStruct::UStruct( EStaticConstructor, int32 InSize, int32 InMinAlignment, EObjectFlags InFlags )
+UStruct::UStruct(EStaticConstructor, int32 InSize, int32 InMinAlignment, EObjectFlags InFlags)
 	: UField(EC_StaticConstructor, InFlags)
 	, SuperStruct(nullptr)
 	, Children(nullptr)
@@ -656,13 +656,13 @@ UStruct::UStruct(UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment)
 #endif
 }
 
-UStruct::UStruct(const FObjectInitializer& ObjectInitializer, UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment )
-:	UField			(ObjectInitializer)
-,   SuperStruct		( InSuperStruct )
+UStruct::UStruct(const FObjectInitializer& ObjectInitializer, UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment)
+	: UField(ObjectInitializer)
+	, SuperStruct(InSuperStruct)
 	, Children(nullptr)
 	, ChildProperties(nullptr)
-,	PropertiesSize	( ParamsSize ? ParamsSize : (InSuperStruct ? InSuperStruct->GetPropertiesSize() : 0) )
-,	MinAlignment	( Alignment ? Alignment : (FMath::Max(InSuperStruct ? InSuperStruct->GetMinAlignment() : 1,1)) )
+	, PropertiesSize(ParamsSize ? ParamsSize : (InSuperStruct ? InSuperStruct->GetPropertiesSize() : 0))
+	, MinAlignment(Alignment ? Alignment : (FMath::Max(InSuperStruct ? InSuperStruct->GetMinAlignment() : 1, 1)))
 	, PropertyLink(nullptr)
 	, RefLink(nullptr)
 	, DestructorLink(nullptr)
@@ -1227,7 +1227,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 	const bool bArePropertyGuidsAvailable = (UnderlyingArchive.UE4Ver() >= VER_UE4_PROPERTY_GUID_IN_PROPERTY_TAG) && !FPlatformProperties::RequiresCookedData() && ArePropertyGuidsAvailable();
 	const bool bUseRedirects = !FPlatformProperties::RequiresCookedData() || UnderlyingArchive.IsSaveGame();
 
-	if( UnderlyingArchive.IsLoading() )
+	if (UnderlyingArchive.IsLoading())
 	{
 #if WITH_TEXT_ARCHIVE_SUPPORT
 		if (UnderlyingArchive.IsTextFormat())
@@ -1265,14 +1265,14 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 				{
 					Property = Property->PropertyLinkNext;
 					// Skip over properties that don't need to be serialized.
-					while( Property && !Property->ShouldSerializeValue( UnderlyingArchive ) )
+					while (Property && !Property->ShouldSerializeValue(UnderlyingArchive))
 					{
 						Property = Property->PropertyLinkNext;
 					}
 					RemainingArrayDim = Property ? Property->ArrayDim : 0;
 				}
 				bAdvanceProperty = false;
-			
+
 				// Optionally resolve properties using Guid Property tags in non cooked builds that support it.
 				if (bArePropertyGuidsAvailable && Tag.HasPropertyGuid)
 				{
@@ -1284,10 +1284,10 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 					}
 				}
 				// If this property is not the one we expect (e.g. skipped as it matches the default value), do the brute force search.
-				if( Property == nullptr || Property->GetFName() != Tag.Name )
+				if (Property == nullptr || Property->GetFName() != Tag.Name)
 				{
 					// No need to check redirects on platforms where everything is cooked. Always check for save games
-					if (bUseRedirects && !UnderlyingArchive.HasAnyPortFlags(PPF_DuplicateForPIE|PPF_Duplicate))
+					if (bUseRedirects && !UnderlyingArchive.HasAnyPortFlags(PPF_DuplicateForPIE | PPF_Duplicate))
 					{
 						for (UStruct* CheckStruct = GetOwnerStruct(); CheckStruct; CheckStruct = CheckStruct->GetSuperStruct())
 						{
@@ -1302,28 +1302,26 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 					FProperty* CurrentProperty = Property;
 					// Search forward...
-					for ( ; Property; Property=Property->PropertyLinkNext )
+					for (; Property; Property = Property->PropertyLinkNext)
 					{
-						if( Property->GetFName() == Tag.Name )
+						if (Property->GetFName() == Tag.Name)
 						{
 							break;
 						}
 					}
 					// ... and then search from the beginning till we reach the current property if it's not found.
-					if( Property == nullptr )
+					if (Property == nullptr)
 					{
-						for( Property = PropertyLink; Property && Property != CurrentProperty; Property = Property->PropertyLinkNext )
+						for (Property = PropertyLink; Property && Property != CurrentProperty; Property = Property->PropertyLinkNext)
 						{
-							if( Property->GetFName() == Tag.Name )
+							if (Property->GetFName() == Tag.Name)
 							{
 								break;
 							}
 						}
 
-						if( Property == CurrentProperty )
+						if (Property == CurrentProperty)
 						{
-							// Property wasn't found.
-							Property = nullptr;
 						}
 					}
 
@@ -1461,7 +1459,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 			Property;
 			Property = UnderlyingArchive.ArUseCustomPropertyList ? FCustomPropertyListNode::GetNextPropertyAndAdvance(CustomPropertyNode) : Property->PropertyLinkNext)
 		{
-			if( Property->ShouldSerializeValue(UnderlyingArchive) )
+			if (Property->ShouldSerializeValue(UnderlyingArchive))
 			{
 				const int32 LoopMin = CustomPropertyNode ? CustomPropertyNode->ArrayIndex : 0;
 				const int32 LoopMax = CustomPropertyNode ? LoopMin + 1 : Property->ArrayDim;
@@ -1473,7 +1471,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 					StaticArrayContainer.Emplace(PropertiesRecord.EnterArray(SA_FIELD_NAME((*Property->GetName())), NumItems));
 				}
 
-				for( int32 Idx = LoopMin; Idx < LoopMax; Idx++ )
+				for (int32 Idx = LoopMin; Idx < LoopMax; Idx++)
 				{
 					uint8* DataPtr      = Property->ContainerPtrToValuePtr           <uint8>(Data, Idx);
 					uint8* DefaultValue = Property->ContainerPtrToValuePtrForDefaults<uint8>(DefaultsStruct, Defaults, Idx);
@@ -1509,7 +1507,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 						// if using it, save the current custom property list and switch to its sub property list (in case of UStruct serialization)
 						const FCustomPropertyListNode* SavedCustomPropertyList = nullptr;
-						if(UnderlyingArchive.ArUseCustomPropertyList && CustomPropertyNode)
+						if (UnderlyingArchive.ArUseCustomPropertyList && CustomPropertyNode)
 						{
 							SavedCustomPropertyList = UnderlyingArchive.ArCustomPropertyList;
 							UnderlyingArchive.ArCustomPropertyList = CustomPropertyNode->SubPropertyList;
@@ -1526,7 +1524,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 						// set the tag's size
 						Tag.Size = UnderlyingArchive.Tell() - DataOffset;
 
-						if ( Tag.Size >  0 && !UnderlyingArchive.IsTextFormat())
+						if (Tag.Size > 0 && !UnderlyingArchive.IsTextFormat())
 						{
 							// mark our current location
 							DataOffset = UnderlyingArchive.Tell();
@@ -4034,7 +4032,7 @@ void UClass::SetUpRuntimeReplicationData()
 				FORCEINLINE bool operator()(FProperty& A, FProperty& B) const
 				{
 					// Ensure stable sort
-					if ( A.GetOffset_ForGC() == B.GetOffset_ForGC() )
+					if (A.GetOffset_ForGC() == B.GetOffset_ForGC())
 					{
 						return A.GetName() < B.GetName();
 					}

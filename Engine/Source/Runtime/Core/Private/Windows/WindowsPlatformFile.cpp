@@ -810,7 +810,7 @@ private:
 		}
 
 		// We now have a canonical, strict-valid, absolute Unreal Path.  Convert it to a Windows Path.
-		Algo::Replace(Result, TEXT('/'), TEXT('\\'));
+		Result.ReplaceCharInline(TEXT('/'), TEXT('\\'), ESearchCase::CaseSensitive);
 
 		// Handle Windows Path length over MAX_PATH
 		if (!bIsUNCPath && Result.Len() > MAX_PATH)
@@ -952,7 +952,7 @@ public:
 		}
 		// Convert the result back into an UnrealPath(\\ -> / )
 		NormalizedFileName.RemoveFromStart(TEXT("\\\\?\\"), ESearchCase::CaseSensitive);
-		Algo::Replace(NormalizedFileName, TEXT('\\'), TEXT('/'));
+		NormalizedFileName.ReplaceCharInline(TEXT('\\'), TEXT('/'), ESearchCase::CaseSensitive);
 
 		return NormalizedFileName;
 	}

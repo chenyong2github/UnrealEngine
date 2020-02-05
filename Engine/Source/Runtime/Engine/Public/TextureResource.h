@@ -140,7 +140,7 @@ struct FTexture2DMipMap
 	 * Place mip-map data in the derived data cache associated with the provided
 	 * key.
 	 */
-	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey);
+	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName);
 #endif // #if WITH_EDITORONLY_DATA
 };
 

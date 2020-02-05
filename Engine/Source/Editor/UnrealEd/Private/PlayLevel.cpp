@@ -109,6 +109,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Async/Async.h"
+#include "StudioAnalytics.h"
 #include "UObject/SoftObjectPath.h"
 #include "IAssetViewport.h"
 
@@ -724,7 +726,7 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 	bool bWasSimulatingInEditor = PlayInEditorSessionInfo->OriginalRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor;
 	
 	// Stop all audio and remove references to temp level.
-	if (FAudioDevice* AudioDevice = PlayWorld->GetAudioDevice())
+	if (FAudioDevice* AudioDevice = PlayWorld->GetAudioDeviceRaw())
 	{
 		AudioDevice->Flush(PlayWorld);
 		AudioDevice->ResetInterpolation();
@@ -2296,7 +2298,7 @@ void UEditorEngine::ResetPIEAudioSetting(UWorld *CurrentPieWorld)
 	ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
 	if (!PlayInSettings->EnableGameSound)
 	{
-		if (FAudioDevice* AudioDevice = CurrentPieWorld->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = CurrentPieWorld->GetAudioDeviceRaw())
 		{
 			AudioDevice->SetTransientMasterVolume(0.0f);
 		}
@@ -2353,7 +2355,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 
 	// Broadcast PreBeginPIE before checks that might block PIE below (BeginPIE is broadcast below after the checks)
 	FEditorDelegates::PreBeginPIE.Broadcast(InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor);
-	double PIEStartTime = FPlatformTime::Seconds();
+	const double PIEStartTime = FStudioAnalytics::GetAnalyticSeconds();
 	const FScopedBusyCursor BusyCursor;
 
 	// Block PIE when there is a transaction recording into the undo buffer. This is generally avoided
@@ -2476,7 +2478,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	}
 
 	// Flush all audio sources from the editor world
-	if (FAudioDevice* AudioDevice = EditorWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = EditorWorld->GetAudioDevice())
 	{
 		AudioDevice->Flush(EditorWorld);
 		AudioDevice->ResetInterpolation();
@@ -2728,7 +2730,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 
 		if (!InParams.EditorPlaySettings->EnableGameSound)
 		{
-			if (FAudioDevice* GameInstanceAudioDevice = GameInstance->GetWorld()->GetAudioDevice())
+			if (FAudioDeviceHandle GameInstanceAudioDevice = GameInstance->GetWorld()->GetAudioDevice())
 			{
 				GameInstanceAudioDevice->SetTransientMasterVolume(0.0f);
 			}
@@ -2816,6 +2818,13 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 
 	// By this point it is safe to remove the GameInstance from the root and allow it to garbage collected as per usual
 	GameInstance->RemoveFromRoot();
+
+	// If the request wanted to override the game mode we have to do that here while we still have specifics about
+	// the request. This will allow
+	if (InParams.GameModeOverride)
+	{
+		GameInstance->GetWorld()->GetWorldSettings()->DefaultGameMode = InParams.GameModeOverride;
+	}
 
 	FGameInstancePIEResult StartResult = FGameInstancePIEResult::Success();
 	{

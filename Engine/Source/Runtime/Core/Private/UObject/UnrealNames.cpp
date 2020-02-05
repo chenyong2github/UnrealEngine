@@ -1719,6 +1719,19 @@ static FWideStringViewWithWidth MakeUnconvertedView(const WIDECHAR* Str)
 	return View;
 }
 
+// @pre Str contains only digits and the number is smaller than int64 max
+template<typename CharType>
+static constexpr int64 Atoi64(const CharType* Str, int32 Len)
+{
+    int64 N = 0;
+    for (int32 Idx = 0; Idx < Len; ++Idx)
+    {
+        N = 10 * N + Str[Idx] - '0';
+    }
+
+    return N;
+}
+
 /** Templated implementations of non-templated member functions, helps keep header clean */
 struct FNameHelper
 {
@@ -1745,16 +1758,15 @@ struct FNameHelper
 		}
 
 		const CharType* FirstDigit = Name + Len - Digits;
-		if (Digits && Digits < Len && *(FirstDigit - 1) == '_')
+		static constexpr int32 MaxDigitsInt32 = 10;
+		if (Digits && Digits < Len && *(FirstDigit - 1) == '_' && Digits <= MaxDigitsInt32)
 		{
 			// check for the case where there are multiple digits after the _ and the first one
 			// is a 0 ("Rocket_04"). Can't split this case. (So, we check if the first char
 			// is not 0 or the length of the number is 1 (since ROcket_0 is valid)
 			if (Digits == 1 || *FirstDigit != '0')
 			{
-				// Attempt to convert what's following it to a number
-				// This relies on Name being null-terminated
-				int64 Number = TCString<CharType>::Atoi64(Name + Len - Digits);
+				int64 Number = Atoi64(Name + Len - Digits, Digits);
 				if (Number < MAX_int32)
 				{
 					InOutLen -= 1 + Digits;
@@ -2274,9 +2286,27 @@ void FName::AutoTest()
 	check(*Cylinder.ToEName() == NAME_Cylinder);
 	check(Cylinder.GetPlainNameString() == TEXT("Cylinder"));
 
+	// Test numbers
+	check(FName("Text_0") == FName("Text", NAME_EXTERNAL_TO_INTERNAL(0)));
+	check(FName("Text_1") == FName("Text", NAME_EXTERNAL_TO_INTERNAL(1)));
+	check(FName("Text_1_0") == FName("Text_1", NAME_EXTERNAL_TO_INTERNAL(0)));
+	check(FName("Text_0_1") == FName("Text_0", NAME_EXTERNAL_TO_INTERNAL(1)));
+	check(FName("Text_00") == FName("Text_00", NAME_NO_NUMBER_INTERNAL));
+	check(FName("Text_01") == FName("Text_01", NAME_NO_NUMBER_INTERNAL));
+
+	// Test unterminated strings
 	check(FName("") == FName(0, "Unused"));
 	check(FName("Used") == FName(4, "UsedUnused"));
 	check(FName("Used") == FName(4, "Used"));
+	check(FName("Used_0") == FName(6, "Used_01"));
+	check(FName("Used_01") == FName(7, "Used_012"));
+	check(FName("Used_123") == FName(8, "Used_123456"));
+	check(FName("Used_123") == FName(8, "Used_123_456"));
+	check(FName("Used_123") == FName(8, TEXT("Used_123456")));
+	check(FName("Used_123") == FName(8, TEXT("Used_123_456")));
+	check(FName("Used_2147483646") == FName(15, TEXT("Used_2147483646123")));
+	check(FName("Used_2147483647") == FName(15, TEXT("Used_2147483647123")));
+	check(FName("Used_2147483648") == FName(15, TEXT("Used_2147483648123")));
 
 	// Test wide strings
 	FString Wide("Wide ");

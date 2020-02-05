@@ -66,6 +66,7 @@ class COREUOBJECT_API UField : public UObject
 	DECLARE_CASTED_CLASS_INTRINSIC(UField, UObject, CLASS_Abstract, TEXT("/Script/CoreUObject"), CASTCLASS_UField)
 
 	typedef UField BaseFieldClass;
+	typedef UClass FieldTypeClass;
 
 	/** Next Field in the linked list */
 	UField*			Next;

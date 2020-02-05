@@ -4629,6 +4629,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					for( int32 i=0; i<Linker->ExportMap.Num(); i++ )
 					{
 						UObject* Object = Linker->ExportMap[i].Object;
+						
+						// Consider redirectors to world/levels as map packages too.
+						if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Object))
+						{
+							Object = Redirector->DestinationObject;
+						}
+							
 						if ( Object )
 						{
 							const FString ExportClassName = Object->GetClass()->GetName();

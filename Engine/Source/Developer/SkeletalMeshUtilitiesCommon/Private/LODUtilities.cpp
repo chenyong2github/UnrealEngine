@@ -114,7 +114,7 @@ void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<S
 	// warn about too many influences
 	if (MaxVertexInfluence > MAX_TOTAL_INFLUENCES)
 	{
-		UE_LOG(LogLODUtilities, Warning, TEXT("Warning skeletal mesh influence count of %d exceeds max count of %d. Influence truncation will occur. Maximum Ignored Weight %f"), MaxVertexInfluence, MAX_TOTAL_INFLUENCES, MaxIgnoredWeight);
+		UE_LOG(LogLODUtilities, Display, TEXT("Skeletal mesh influence count of %d exceeds max count of %d. Influence truncation will occur. Maximum Ignored Weight %f"), MaxVertexInfluence, MAX_TOTAL_INFLUENCES, MaxIgnoredWeight);
 	}
 
 	for (int32 i = 0; i < Influences.Num(); i++)

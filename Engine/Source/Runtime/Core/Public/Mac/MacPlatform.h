@@ -60,6 +60,7 @@ typedef FMacPlatformTypes FPlatformTypes;
 	#define PLATFORM_TCHAR_IS_4_BYTES				1
 #endif
 #define PLATFORM_HAS_BSD_TIME						1
+#define PLATFORM_HAS_BSD_IPV6_SOCKETS				1
 //#define PLATFORM_USE_PTHREADS						1
 #define PLATFORM_MAX_FILEPATH_LENGTH_DEPRECATED		MAC_MAX_PATH
 #define PLATFORM_SUPPORTS_TBB						1

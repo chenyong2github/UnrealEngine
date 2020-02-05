@@ -314,14 +314,59 @@ public:
 		return TextMapPackageExtension;
 	}
 
+	/**
+	 * Returns whether the passed in extension is a valid text package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is either an text asset or a text map extension, otherwise false
+	 */
+	static bool IsTextPackageExtension(const TCHAR* Ext);
+
+	/**
+	 * Returns whether the passed in extension is a valid text asset package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is a text asset extension, otherwise false
+	 */
+	static bool IsTextAssetPackageExtension(const TCHAR* Ext);
+
+	/**
+	 * Returns whether the passed in extension is a valid text map package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is a text map extension, otherwise false
+	 */
+	static bool IsTextMapPackageExtension(const TCHAR* Ext);
+
 	/** 
-	 * Returns whether the passed in extension is a valid package 
+	 * Returns whether the passed in extension is a valid binary package
 	 * extension. Extensions with and without trailing dots are supported.
 	 *
 	 * @param	Extension to test. 
-	 * @return	True if Ext is either an asset or a map extension, otherwise false
+	 * @return	True if Ext is either a binary  asset or map extension, otherwise false
 	 */
 	static bool IsPackageExtension(const TCHAR* Ext);
+
+	/**
+	 * Returns whether the passed in extension is a valid binary asset package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is a binary asset extension, otherwise false
+	 */
+	static bool IsAssetPackageExtension(const TCHAR* Ext);
+
+	/**
+	 * Returns whether the passed in extension is a valid binary map package
+	 * extension. Extensions with and without trailing dots are supported.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is a binary asset extension, otherwise false
+	 */
+	static bool IsMapPackageExtension(const TCHAR* Ext);
 
 	/** 
 	 * Returns whether the passed in filename ends with any of the known
