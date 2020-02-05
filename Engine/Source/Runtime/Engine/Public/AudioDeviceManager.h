@@ -10,6 +10,12 @@
 class FAudioDebugger;
 #endif // ENABLE_AUDIO_DEBUG
 
+// Set this to one if you'd like to check who owns
+// handles to an audio device.
+#ifndef INSTRUMENT_AUDIODEVICE_HANDLES
+#define INSTRUMENT_AUDIODEVICE_HANDLES 0
+#endif
+
 class FReferenceCollector;
 class FSoundBuffer;
 class IAudioDeviceModule;
@@ -79,6 +85,8 @@ public:
 
 	FAudioDeviceHandle& operator=(const FAudioDeviceHandle& Other);
 	FAudioDeviceHandle& operator=(FAudioDeviceHandle&& Other);
+
+	
 	~FAudioDeviceHandle();
 
 	// gets a pointer to the compressed chunk.
@@ -102,6 +110,11 @@ private:
 
 	FAudioDevice* Device;
 	Audio::FDeviceId DeviceId;
+
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+	uint32 StackWalkID;
+	void AddStackDumpToAudioDeviceContainer();
+#endif
 
 	friend class FAudioDeviceManager;
 
@@ -365,6 +378,13 @@ public:
 
 	TArray<UWorld*> GetWorldsUsingAudioDevice(const Audio::FDeviceId& InID);
 
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+	void AddStackWalkForContainer(Audio::FDeviceId InId, uint32 StackWalkID, FString&& InStackWalk);
+	void RemoveStackWalkForContainer(Audio::FDeviceId InId, uint32 StackWalkID);
+#endif
+
+	void LogListOfAudioDevices();
+
 private:
 
 #if ENABLE_AUDIO_DEBUG
@@ -446,6 +466,10 @@ private:
 
 		FAudioDeviceContainer(FAudioDeviceContainer&& Other);
 
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+		TMap<uint32, FString> HandleCreationStackWalks;
+#endif
+
 	private:
 		FAudioDeviceContainer();
 	};
@@ -456,6 +480,10 @@ private:
 	 * This function is used to check if we can use an existing audio device.
 	 */
 	static bool CanUseAudioDevice(const FAudioDeviceParams& InParams, const FAudioDeviceContainer& InContainer);
+
+#if INSTRUMENT_AUDIODEVICE_HANDLES
+	static uint32 CreateUniqueStackWalkID();
+#endif
 
 	/**
 	* Bank of audio devices. Will increase in size as we create new audio devices,
