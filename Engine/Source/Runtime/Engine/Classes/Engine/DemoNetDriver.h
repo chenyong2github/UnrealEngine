@@ -1081,6 +1081,7 @@ private:
 		ECheckpointSaveState_Idle,
 		ECheckpointSaveState_ProcessCheckpointActors,
 		ECheckpointSaveState_SerializeDeletedStartupActors,
+		ECheckpointSaveState_CacheNetGuids,
 		ECheckpointSaveState_SerializeGuidCache,
 		ECheckpointSaveState_SerializeNetFieldExportGroupMap,
 		ECheckpointSaveState_SerializeDemoFrameFromQueuedDemoPackets,
@@ -1231,7 +1232,8 @@ protected:
 
 	bool DemoReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate);
 
-	void SerializeGuidCache(TSharedPtr<class FNetGUIDCache> GuidCache, FArchive* CheckpointArchive);
+	void CacheNetGuids();
+	bool SerializeGuidCache(const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive);
 
 	void NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureType);
 
@@ -1276,5 +1278,19 @@ public:
 
 private:
 	TAtomic<float> LastReplayFrameFidelity{ 0 };
+
 //////////////////////////////////////////////////////////////////////////
+// Time boxing for net guid cache serialization
+private:
+	struct FNetGuidCacheItem
+	{
+		FNetworkGUID NetGuid;
+		FNetGuidCacheObject NetGuidCacheObject;
+	};
+
+	TArray<FNetGuidCacheItem> NetGuidCacheSnapshot;
+	int32 NextNetGuidForRecording;
+	int32 NumNetGuidsForRecording;
+	FArchivePos NetGuidsCountPos;
+/////////////////////////////////////////////////////////////////////////
 };
