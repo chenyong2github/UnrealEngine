@@ -247,11 +247,6 @@ public:
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(FLiveLinkSubjectName SubjectName) const = 0;
 
 	/**
-	 * Get the Settings of this source.
-	 */
-	virtual ULiveLinkSourceSettings* GetSourceSettings(const FGuid& SourceKey) const = 0;
-
-	/**
 	 * Get the Settings of this subject.
 	 * @note If subject is a VirtualSubject, the VirtualSubject itself is returned.
 	 */

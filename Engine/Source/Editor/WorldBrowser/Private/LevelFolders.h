@@ -65,6 +65,10 @@ public:
 
 	//~ FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const
+	{
+		return "FLevelFolders";
+	}
 
 public:
 

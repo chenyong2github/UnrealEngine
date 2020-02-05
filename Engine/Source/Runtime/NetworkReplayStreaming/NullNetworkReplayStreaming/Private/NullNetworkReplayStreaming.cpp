@@ -752,28 +752,6 @@ EStreamingOperationResult FNullNetworkReplayStreamer::GetDemoPath(FString& DemoP
 	return EStreamingOperationResult::Success;
 }
 
-const int32 FNullNetworkReplayStreamer::GetUserIndexFromUserString(const FString& UserString)
-{
-	if (!UserString.IsEmpty() && GEngine != nullptr)
-	{
-		if (UWorld* World = GWorld.GetReference())
-		{
-			for (auto ConstIt = GEngine->GetLocalPlayerIterator(World); ConstIt; ++ConstIt)
-			{
-				if (ULocalPlayer const * const LocalPlayer = *ConstIt)
-				{
-					if (UserString.Equals(LocalPlayer->GetPreferredUniqueNetId().ToString()))
-					{
-						return LocalPlayer->GetControllerId();
-					}
-				}
-			}
-		}
-	}
-
-	return INDEX_NONE;
-}
-
 IMPLEMENT_MODULE( FNullNetworkReplayStreamingFactory, NullNetworkReplayStreaming )
 
 TSharedPtr< INetworkReplayStreamer > FNullNetworkReplayStreamingFactory::CreateReplayStreamer() 

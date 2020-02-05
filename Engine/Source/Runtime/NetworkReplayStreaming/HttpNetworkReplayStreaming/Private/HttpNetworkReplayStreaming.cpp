@@ -1517,18 +1517,6 @@ void FHttpNetworkReplayStreamer::DeleteFinishedStream( const FString& StreamName
 
 void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& InReplayVersion, const int32 UserIndex, const FString& MetaString, const TArray< FString >& ExtraParms, const FEnumerateStreamsCallback& Delegate )
 {
-	EnumerateStreams( InReplayVersion, GetUserStringFromUserIndex(UserIndex), MetaString, ExtraParms, Delegate );
-}
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& InReplayVersion, const FString& UserString, const FString& MetaString, const FEnumerateStreamsCallback& Delegate )
-{
-	EnumerateStreams( InReplayVersion, UserString, MetaString, TArray< FString >(), Delegate );
-}
-
-void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& InReplayVersion, const FString& UserString, const FString& MetaString, const TArray< FString >& ExtraParms, const FEnumerateStreamsCallback& Delegate )
-{
 	if ( ServerURL.IsEmpty() )
 	{
 		UE_LOG( LogHttpReplay, Warning, TEXT( "FHttpNetworkReplayStreamer::EnumerateStreams. ServerURL is empty, aborting." ) );
@@ -1560,6 +1548,8 @@ void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& 
 		URL += FString::Printf( TEXT( "&meta=%s" ), *MetaStringToUse );
 	}
 
+	FString UserString = GetUserStringFromUserIndex(UserIndex);
+
 	// Add optional User parameter (filter replays by a user that was in the replay)
 	if ( !UserString.IsEmpty() )
 	{
@@ -1580,8 +1570,6 @@ void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& 
 
 	AddRequestToQueue( EQueuedHttpRequestType::EnumeratingSessions, HttpRequest );
 }
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FHttpNetworkReplayStreamer::EnumerateRecentStreams( const FNetworkReplayVersion& InReplayVersion, const int32 UserIndex, const FEnumerateStreamsCallback& Delegate )
 {
@@ -2713,28 +2701,6 @@ bool FHttpNetworkReplayStreamer::IsCheckpointTypeSupported(EReplayCheckpointType
 	}
 
 	return bSupported;
-}
-
-const int32 FHttpNetworkReplayStreamer::GetUserIndexFromUserString(const FString& UserString)
-{
-	if (!UserString.IsEmpty() && GEngine != nullptr)
-	{
-		if (UWorld* World = GWorld.GetReference())
-		{
-			for (auto ConstIt = GEngine->GetLocalPlayerIterator(World); ConstIt; ++ConstIt)
-			{
-				if (ULocalPlayer const * const LocalPlayer = *ConstIt)
-				{
-					if (UserString.Equals(LocalPlayer->GetPreferredUniqueNetId().ToString()))
-					{
-						return LocalPlayer->GetControllerId();
-					}
-				}
-			}
-		}
-	}
-
-	return INDEX_NONE;
 }
 
 IMPLEMENT_MODULE( FHttpNetworkReplayStreamingFactory, HttpNetworkReplayStreaming )

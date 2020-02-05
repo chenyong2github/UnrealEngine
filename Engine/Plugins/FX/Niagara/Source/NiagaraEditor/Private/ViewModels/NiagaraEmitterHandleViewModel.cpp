@@ -48,31 +48,6 @@ void FNiagaraEmitterHandleViewModel::Cleanup()
 	}
 }
 
-void FNiagaraEmitterHandleViewModel::GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData)
-{
-	InRendererPreviewData.Empty();
-	UNiagaraEmitter* Emitter = GetEmitterHandle()->GetInstance();
-	UNiagaraStackRoot* StackRoot = Cast<UNiagaraStackRoot>(EmitterStackViewModel->GetRootEntry());
-	if (StackRoot)
-	{
-		TArray<UNiagaraStackEntry*> Children;
-		StackRoot->GetRenderGroup()->GetUnfilteredChildren(Children);
-		for (UNiagaraStackEntry* Child : Children)
-		{
-			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(Child))
-			{
-				TArray<UMaterialInterface*> Materials;
-				FNiagaraEmitterInstance* InInstance = GetEmitterViewModel()->GetSimulation().IsValid() ? GetEmitterViewModel()->GetSimulation().Pin().Get() : nullptr;
-				RendererItem->GetRendererProperties()->GetUsedMaterials(InInstance, Materials);
-				for (UMaterialInterface* Material : Materials)
-				{
-					InRendererPreviewData.Add(new FRendererPreviewData(Child, Material));
-				}
-			}
-		}
-	}
-}
-
 void FNiagaraEmitterHandleViewModel::GetRendererEntries(TArray<UNiagaraStackEntry*>& InRenderingEntries)
 {
 	InRenderingEntries.Empty();

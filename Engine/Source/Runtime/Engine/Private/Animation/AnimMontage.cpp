@@ -7,6 +7,7 @@
 #include "Animation/AnimMontage.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectThreadContext.h"
 #include "Animation/AssetMappingTable.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimInstance.h"
@@ -596,7 +597,12 @@ void UAnimMontage::RefreshCacheData()
 	// This gets called whenever notifies are modified in the editor, so refresh our branch list
 	RefreshBranchingPointMarkers();
 #if WITH_EDITOR
-	PropagateChanges();
+	if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+	{
+		// This is not needed during post load (as the child montages themselves will handle
+		// updating and calling it can cause deterministic cooking issues depending on load order
+		PropagateChanges();
+	}
 #endif // WITH_EDITOR
 }
 

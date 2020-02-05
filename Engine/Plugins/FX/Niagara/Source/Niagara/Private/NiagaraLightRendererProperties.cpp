@@ -5,6 +5,17 @@
 #include "NiagaraConstants.h"
 #include "NiagaraRendererLights.h"
 #include "Modules/ModuleManager.h"
+#if WITH_EDITOR
+#include "Widgets/Images/SImage.h"
+#include "Styling/SlateIconFinder.h"
+#include "Widgets/SWidget.h"
+#include "Styling/SlateBrush.h"
+#include "AssetThumbnail.h"
+#include "Widgets/Text/STextBlock.h"
+#endif
+
+
+#define LOCTEXT_NAMESPACE "UNiagaraLightRendererProperties"
 
 TArray<TWeakObjectPtr<UNiagaraLightRendererProperties>> UNiagaraLightRendererProperties::LightRendererPropertiesToDeferredInit;
 
@@ -101,6 +112,20 @@ const TArray<FNiagaraVariable>& UNiagaraLightRendererProperties::GetOptionalAttr
 	return Attrs;
 }
 
+void UNiagaraLightRendererProperties::GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
+{
+	TSharedRef<SWidget> LightWidget = SNew(SImage)
+		.Image(FSlateIconFinder::FindIconBrushForClass(GetClass()));
+	OutWidgets.Add(LightWidget);
+}
+
+void UNiagaraLightRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
+{
+	TSharedRef<SWidget> LightTooltip = SNew(STextBlock)
+		.Text(LOCTEXT("LightRenderer", "Light Renderer"));
+	OutWidgets.Add(LightTooltip);
+}
+
 bool UNiagaraLightRendererProperties::IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage)
 {
 	return true;
@@ -112,3 +137,4 @@ void UNiagaraLightRendererProperties::FixMaterial(UMaterial* Material)
 
 #endif // WITH_EDITORONLY_DATA
 
+#undef LOCTEXT_NAMESPACE

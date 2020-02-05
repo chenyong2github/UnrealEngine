@@ -25,6 +25,7 @@
 #include "NiagaraRendererProperties.h"
 #include "Widgets/SWidget.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ViewModels/Stack/NiagaraStackRendererItem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
 
@@ -39,7 +40,7 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 	CurrentIssueIndex = -1;
 
 	EmitterHandleViewModelWeak.Reset();
-	ThumbnailPool = MakeShared<FAssetThumbnailPool>(100, TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraOverviewStackNode::IsHoveringThumbnail)));
+	ThumbnailPool = MakeShared<FAssetThumbnailPool>(10, TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraOverviewStackNode::IsHoveringThumbnail)));
 	ThumbnailBar = SNew(SHorizontalBox);
 	if (OverviewStackNode->GetOwningSystem() != nullptr)
 	{
@@ -182,32 +183,40 @@ FReply SNiagaraOverviewStackNode::OnCycleThroughIssues()
 	return FReply::Handled();
 }
 
-TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData* InData)
+TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(UNiagaraStackEntry* InData, TSharedPtr<SWidget> InWidget, TSharedPtr<SWidget> InTooltipWidget)
 {
-	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
-	TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(InData->RenderingObject, InThumbnailSize, InThumbnailSize, ThumbnailPool));
-	if (AssetThumbnail)
+	TSharedPtr<SToolTip> ThumbnailTooltipWidget;
+	// If this is just text, don't constrain the size
+	if (InTooltipWidget->GetType() == TEXT("STextBlock"))
 	{
-		ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
-		TSharedPtr<FAssetThumbnail> TooltipThumbnail = MakeShareable(new FAssetThumbnail(InData->RenderingObject, 64.0f, 64.0f, ThumbnailPool));
-		TSharedRef<SToolTip> ThumbnailTooltipWidget = SNew(SToolTip)
+		ThumbnailTooltipWidget = SNew(SToolTip)
+			.Content()
+			[
+				InTooltipWidget.ToSharedRef()
+			];
+	}
+	else
+	{
+
+		ThumbnailTooltipWidget = SNew(SToolTip)
 			.Content()
 			[
 				SNew(SBox)
-				.MinDesiredHeight(64.0f)
 				.MaxDesiredHeight(64.0f)
-				.MinDesiredWidth(64.0f)
+				.MinDesiredHeight(64.0f)
 				.MaxDesiredWidth(64.0f)
+				.MinDesiredWidth(64.0f)
 				[
-					TooltipThumbnail->MakeThumbnailWidget()
+					InTooltipWidget.ToSharedRef()
 				]
 			];
-		ThumbnailWidget->SetOnMouseButtonDown(FPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::OnClickedRenderingPreview, InData->RenderingEntry));
-		ThumbnailWidget->SetOnMouseEnter(FNoReplyPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::SetIsHoveringThumbnail, true));
-		ThumbnailWidget->SetOnMouseLeave(FSimpleNoReplyPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::SetIsHoveringThumbnail, false));
-		ThumbnailWidget->SetToolTip(ThumbnailTooltipWidget);
 	}
-	return ThumbnailWidget;
+	InWidget->SetOnMouseButtonDown(FPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::OnClickedRenderingPreview, InData));
+	InWidget->SetOnMouseEnter(FNoReplyPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::SetIsHoveringThumbnail, true));
+	InWidget->SetOnMouseLeave(FSimpleNoReplyPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::SetIsHoveringThumbnail, false));
+	InWidget->SetToolTip(ThumbnailTooltipWidget);
+
+	return InWidget.ToSharedRef();
 }
 
 FReply SNiagaraOverviewStackNode::OnClickedRenderingPreview(const FGeometry& InGeometry, const FPointerEvent& InEvent, UNiagaraStackEntry* InEntry)
@@ -323,8 +332,7 @@ void SNiagaraOverviewStackNode::FillThumbnailBar(UObject* ChangedObject, const b
 		}
 		if (EmitterHandleViewModelWeak.IsValid())
 		{
-			EmitterHandleViewModelWeak.Pin()->GetRendererPreviewData(PreviewData);
-
+	
 			// Isolate toggle button
 			ThumbnailBar->AddSlot()
 				.AutoWidth()
@@ -347,26 +355,35 @@ void SNiagaraOverviewStackNode::FillThumbnailBar(UObject* ChangedObject, const b
 					]
 				];
 
-			for (FRendererPreviewData* Preview : PreviewData)
+			EmitterHandleViewModelWeak.Pin()->GetRendererEntries(PreviewStackEntries);
+			FNiagaraEmitterInstance* InInstance = EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetSimulation().IsValid() ? EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetSimulation().Pin().Get() : nullptr;
+			for (UNiagaraStackEntry* Entry : PreviewStackEntries)
 			{
-				if (Preview->RenderingObject)
+				if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(Entry))
 				{
-					ThumbnailBar->AddSlot()
-						.AutoWidth()
-						.HAlign(HAlign_Left)
-						.VAlign(VAlign_Center)
-						.Padding(2.0f, 2.0f, 4.0f, 4.0f)
-						.MaxWidth(ThumbnailSize)
-						[
-							SNew(SBox)
-							.MinDesiredHeight(ThumbnailSize)
-							.MaxDesiredHeight(ThumbnailSize)
-							.MinDesiredWidth(ThumbnailSize)
-							.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
+					TArray<TSharedPtr<SWidget>> Widgets;
+					RendererItem->GetRendererProperties()->GetRendererWidgets(InInstance, Widgets, ThumbnailPool);
+					TArray<TSharedPtr<SWidget>> TooltipWidgets;
+					RendererItem->GetRendererProperties()->GetRendererTooltipWidgets(InInstance, TooltipWidgets, ThumbnailPool);
+					for (int32 WidgetIndex = 0; WidgetIndex < Widgets.Num(); WidgetIndex++)
+					{
+						ThumbnailBar->AddSlot()
+							.AutoWidth()
+							.HAlign(HAlign_Left)
+							.VAlign(VAlign_Center)
+							.Padding(2.0f, 2.0f, 4.0f, 4.0f)
+							.MaxWidth(ThumbnailSize)
 							[
-								CreateThumbnailWidget(ThumbnailSize, Preview)
-							]
-						];
+								SNew(SBox)
+								.MinDesiredHeight(ThumbnailSize)
+								.MaxDesiredHeight(ThumbnailSize)
+								.MinDesiredWidth(ThumbnailSize)
+								.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
+								[
+									CreateThumbnailWidget(Entry, Widgets[WidgetIndex], TooltipWidgets[WidgetIndex])
+								]
+							];
+					}
 				}
 			}
 		}
