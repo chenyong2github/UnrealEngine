@@ -1522,6 +1522,24 @@ namespace WindowsMixedReality
 
 		bIsStereoDesired = false;
 		bIsStereoEnabled = false;
+
+#if WITH_WINDOWS_MIXED_REALITY
+		// Reset the viewport to no longer match the HMD display
+		FSceneViewport* SceneVP = FindMRSceneViewport(bIsStereoDesired);
+
+		if (SceneVP)
+		{
+			TSharedPtr<SWindow> Window = SceneVP->FindWindow();
+			if (Window.IsValid())
+			{
+#if !PLATFORM_HOLOLENS
+				// Set MirrorWindow state on the Window
+				Window->SetMirrorWindow(bIsStereoDesired);
+				Window->SetViewportSizeDrivenByWindow(true);
+#endif
+			}
+		}
+#endif
 		
 		bNeedReallocateDepthTexture = false;
 
