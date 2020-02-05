@@ -29,6 +29,10 @@ void STimecodeProvider::Construct(const FArguments& InArgs)
 			{
 				return TimecodeProviderPtr->GetFrameRate().ToPrettyText();
 			}
+			else if (GEngine->bGenerateDefaultTimecode)
+			{
+				return GEngine->GenerateDefaultTimecodeFrameRate.ToPrettyText();
+			}
 			return NSLOCTEXT("TimecodeProvider", "Undefined", "<Undefined>");
 		}))
 		.Font(InArgs._TimecodeProviderFont)
@@ -60,6 +64,10 @@ void STimecodeProvider::Construct(const FArguments& InArgs)
 					if (const UTimecodeProvider* TimecodeProviderPtr = GetTimecodeProvider())
 					{
 						return FText::FromName(TimecodeProviderPtr->GetFName());
+					}
+					else if (GEngine->bGenerateDefaultTimecode)
+					{
+						return NSLOCTEXT("TimecodeProvider", "EngineDefault", "Engine Default");
 					}
 					return NSLOCTEXT("TimecodeProvider", "Undefined", "<Undefined>");
 				}))
@@ -123,6 +131,10 @@ FSlateColor STimecodeProvider::HandleIconColorAndOpacity() const
 			return FLinearColor::Yellow;
 		}
 	}
+	else if (GEngine->bGenerateDefaultTimecode)
+	{
+		return FLinearColor::Green;
+	}
 	return FSlateColor::UseForeground();
 }
 
@@ -141,6 +153,10 @@ FText STimecodeProvider::HandleStateText() const
 		case ETimecodeProviderSynchronizationState::Synchronizing:
 			return FEditorFontGlyphs::Hourglass_O;
 		}
+	}
+	else if (GEngine->bGenerateDefaultTimecode)
+	{
+		return FEditorFontGlyphs::Clock_O;
 	}
 
 	return FEditorFontGlyphs::Exclamation;

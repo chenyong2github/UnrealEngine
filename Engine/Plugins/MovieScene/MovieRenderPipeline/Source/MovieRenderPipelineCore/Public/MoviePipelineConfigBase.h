@@ -16,23 +16,21 @@ public:
 	UMoviePipelineConfigBase()
 	{
 		SettingsSerialNumber = -1;
+		DisplayName = TEXT("Unsaved Config");
 	}
 
 public:
-	/**
-	* Removes the specific instance from our Setting list.
-	*/
+	/** Removes the specific instance from our Setting list. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void RemoveSetting(UMoviePipelineSetting* InSetting);
+	virtual void RemoveSetting(UMoviePipelineSetting* InSetting);
 
+	/** Copy this configuration from another existing configuration. */
 	virtual void CopyFrom(UMoviePipelineConfigBase* InConfig);
 
 	int32 GetSettingsSerialNumber() const { return SettingsSerialNumber; }
 
-	/**
-	* Returns an array of all settings in this config.
-	*/
-	virtual TArray<UMoviePipelineSetting*> GetSettings() const { return Settings; }
+	/** Returns an array of all settings in this config that the user has added via the UI or via Scripting. */
+	virtual TArray<UMoviePipelineSetting*> GetUserSettings() const { return Settings; }
 
 public:
 
@@ -44,7 +42,7 @@ public:
 	UFUNCTION(BlueprintPure, meta = (DeterminesOutputType = "InClass"), Category = "Movie Render Pipeline")
 	UMoviePipelineSetting* FindSettingByClass(TSubclassOf<UMoviePipelineSetting> InClass) const
 	{
-		TArray<UMoviePipelineSetting*> AllSettings = GetSettings();
+		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
 		UMoviePipelineSetting* const* Found = AllSettings.FindByPredicate([InClass](UMoviePipelineSetting* In) { return In && In->GetClass() == InClass; });
 		return Found ? CastChecked<UMoviePipelineSetting>(*Found) : nullptr;
 	}
@@ -67,6 +65,7 @@ public:
 			if (CanSettingBeAdded(Found))
 			{
 				Settings.Add(Found);
+				OnSettingAdded(Found);
 				++SettingsSerialNumber;
 			}
 			else
@@ -87,7 +86,7 @@ public:
 	{
 		TArray<SettingType*> FoundSettings;
 
-		TArray<UMoviePipelineSetting*> AllSettings = GetSettings();
+		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
 		for (UMoviePipelineSetting* Setting : AllSettings)
 		{
 			if (Setting->GetClass()->IsChildOf<SettingType>())
@@ -107,7 +106,7 @@ public:
 	{
 		UClass* PredicateClass = SettingType::StaticClass();
 
-		TArray<UMoviePipelineSetting*> AllSettings = GetSettings();
+		TArray<UMoviePipelineSetting*> AllSettings = GetUserSettings();
 		UMoviePipelineSetting* const* Found = AllSettings.FindByPredicate([PredicateClass](UMoviePipelineSetting* In) { return In && In->GetClass() == PredicateClass; });
 		return Found ? CastChecked<SettingType>(*Found) : nullptr;
 	}
@@ -127,6 +126,7 @@ public:
 			if (CanSettingBeAdded(Found))
 			{
 				Settings.Add(Found);
+				OnSettingAdded(Found);
 				++SettingsSerialNumber;
 			}
 			else
@@ -140,6 +140,13 @@ public:
 
 public:
 	virtual bool CanSettingBeAdded(const UMoviePipelineSetting* InSetting) const PURE_VIRTUAL( UMoviePipelineConfigBase::CanSettingBeAdded, return false; );
+
+protected:
+	virtual void OnSettingAdded(UMoviePipelineSetting* InSetting) { InSetting->ValidateState(); }
+	virtual void OnSettingRemoved(UMoviePipelineSetting* InSetting) {}
+public:
+	UPROPERTY()
+	FString DisplayName;
 
 protected:
 	/** Array of settings classes that affect various parts of the output pipeline. */

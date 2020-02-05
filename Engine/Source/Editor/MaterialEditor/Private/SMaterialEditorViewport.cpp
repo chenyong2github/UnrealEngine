@@ -29,7 +29,6 @@
 #include "AdvancedPreviewScene.h"
 #include "AssetViewerSettings.h"
 #include "Engine/PostProcessVolume.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "MaterialEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
@@ -375,6 +374,13 @@ bool SMaterialEditor3DPreviewViewport::SetPreviewAsset(UObject* InAsset)
 		{
 			PreviewPrimType = TPT_None;
 		}
+
+		// Update the rotation of the plane mesh so that it is front facing to the viewport camera's default forward view.
+		if (PreviewPrimType == TPT_Plane)
+		{
+			const FRotator PlaneRotation(0.0f, 180.0f, 0.0f);
+			Transform.SetRotation(FQuat(PlaneRotation));
+		}
 	}
 	else if (InAsset != nullptr)
 	{
@@ -707,7 +713,7 @@ TSharedRef<FEditorViewportClient> SMaterialEditor3DPreviewViewport::MakeEditorVi
 	EditorViewportClient = MakeShareable( new FMaterialEditorViewportClient(MaterialEditorPtr, *AdvancedPreviewScene.Get(), SharedThis(this)) );
 	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().AddRaw(this, &SMaterialEditor3DPreviewViewport::OnAssetViewerSettingsChanged);
 	EditorViewportClient->SetViewLocation( FVector::ZeroVector );
-	EditorViewportClient->SetViewRotation( FRotator(0.0f, -90.0f, 0.0f) );
+	EditorViewportClient->SetViewRotation( FRotator(-15.0f, -90.0f, 0.0f) );
 	EditorViewportClient->SetViewLocationForOrbiting( FVector::ZeroVector );
 	EditorViewportClient->bSetListenerPosition = false;
 	EditorViewportClient->EngineShowFlags.EnableAdvancedFeatures();
@@ -897,7 +903,6 @@ void SMaterialEditorUIPreviewZoomer::SetPreviewMaterial(UMaterialInterface* InPr
 
 void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMaterialInterface* PreviewMaterial )
 {
-	bRealtime = false;
 	ChildSlot
 	[
 		SNew( SVerticalBox )
@@ -910,21 +915,6 @@ void SMaterialEditorUIPreviewViewport::Construct( const FArguments& InArgs, UMat
 			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
 			[
 				SNew( SHorizontalBox )
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding( 9.f )
-				.AutoWidth()
-				[
-					SNew( SCheckBox )
-					.CheckBoxContentUsesAutoWidth( true )
-					.OnCheckStateChanged(this, &SMaterialEditorUIPreviewViewport::OnRealtimeChanged)
-					.IsChecked(this, &SMaterialEditorUIPreviewViewport::IsRealtimeChecked)
-					.Content()
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("Realtime", "Realtime"))
-					]
-				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding( 3.f )
@@ -1027,32 +1017,5 @@ void SMaterialEditorUIPreviewViewport::OnPreviewYCommitted( int32 NewValue, ETex
 	OnPreviewYChanged( NewValue );
 }
 
-void SMaterialEditorUIPreviewViewport::OnRealtimeChanged(ECheckBoxState State)
-{
-	if (State == ECheckBoxState::Checked)
-	{
-		bRealtime = true;
-		ActiveTimerHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SMaterialEditorUIPreviewViewport::EnsureTick));
-	}
-	else
-	{
-		bRealtime = false;
-		if (ActiveTimerHandle.IsValid())
-		{
-			UnRegisterActiveTimer(ActiveTimerHandle.Pin().ToSharedRef());
-		}
-	}
-}
-
-ECheckBoxState SMaterialEditorUIPreviewViewport::IsRealtimeChecked() const
-{
-	return bRealtime ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-EActiveTimerReturnType SMaterialEditorUIPreviewViewport::EnsureTick(double InCurrentTime, float InDeltaTime)
-{
-	// Keep the timer going if we're realtime
-	return bRealtime ? EActiveTimerReturnType::Continue : EActiveTimerReturnType::Stop;
-}
 
 #undef LOCTEXT_NAMESPACE

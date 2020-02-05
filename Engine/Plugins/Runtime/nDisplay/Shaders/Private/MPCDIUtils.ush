@@ -1,4 +1,74 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/engine/public/platform.ush"
 #include "/Engine/Private/GammaCorrectionCommon.ush"
+
+
+//VS Parameters
+float4 DrawRectanglePosScaleBias;
+float4 DrawRectangleInvTargetSizeAndTextureSize;
+float4 DrawRectangleUVScaleBias;
+
+// PS parameters
+Texture2D InputTexture;
+Texture2D WarpMapTexture;
+Texture2D AlphaMapTexture;
+Texture2D BetaMapTexture;
+Texture2D OverlayUnderTexture;
+Texture2D OverlayOverTexture;
+Texture2D InnerCameraTexture;
+Texture2D ChromakeyCameraTexture;
+Texture2D ChromakeyMarkerTexture;
+
+SamplerState InputSampler;
+SamplerState WarpMapSampler;
+SamplerState AlphaMapSampler;
+SamplerState BetaMapSampler;
+SamplerState OverlayUnderSampler;
+SamplerState OverlayOverSampler;
+SamplerState InnerCameraSampler;
+SamplerState ChromakeyCameraSampler;
+SamplerState ChromakeyMarkerSampler;
+
+float4x4 MeshToCaveProjectionMatrix;
+float4x4 ViewportTextureProjectionMatrix;
+float4x4 OverlayProjectionMatrix;
+float4x4 InnerCameraProjectionMatrix;
+
+float AlphaEmbeddedGamma;
+
+float4 InnerCameraSoftEdge;
+
+float ChromakeyMarkerScale;
+
+struct InputVS
+{
+	float4 Position : ATTRIBUTE0;
+	float2 UV : ATTRIBUTE1;
+#if MESH_WARP
+	float2 UV_Chromakey : ATTRIBUTE2;
+#endif
+};
+
+struct OutputVS
+{
+	float4	Position : SV_POSITION;
+	float4	UV : TEXCOORD0;
+#if MESH_WARP
+	float4	UV_Chromakey : TEXCOORD1;
+	float3	PFMPosition : NORMAL;
+#endif
+};
+
+struct OutputPS
+{
+	float4 Color : SV_Target0;
+};
+
+float Pow2(float X)
+{
+	return X * X;
+}
 
 float MPCDI_sRGBToLinear(float srgb)
 {
@@ -28,4 +98,36 @@ float3 MPCDI_LinearTosRGB(float3 lin)
 	return float3(MPCDI_LinarTosRGB(lin.r),
 				  MPCDI_LinarTosRGB(lin.g),
 				  MPCDI_LinarTosRGB(lin.b));
+}
+
+/** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
+void DrawRectangle(in float4 InPosition, in float2 InTexCoord, out float4 OutPosition, out float2 OutTexCoord)
+{
+	OutPosition = InPosition;
+	OutPosition.xy = -1.0f + 2.0f * (DrawRectanglePosScaleBias.zw + (InPosition.xy * DrawRectanglePosScaleBias.xy)) * DrawRectangleInvTargetSizeAndTextureSize.xy;
+	OutPosition.xy *= float2(1, -1);
+	OutTexCoord.xy = (DrawRectangleUVScaleBias.zw + (InTexCoord.xy * DrawRectangleUVScaleBias.xy)) * DrawRectangleInvTargetSizeAndTextureSize.zw;
+}
+
+
+float4 ApplyBlending(float3 color, OutputVS IN, float ColorAlphaValue)
+{
+#if ALPHAMAP_BLENDING
+	color = MPCDI_sRGBToLinear(color);
+
+	// Load alpha
+	float alpha = pow(AlphaMapTexture.Sample(AlphaMapSampler, IN.UV.xy).r, AlphaEmbeddedGamma);
+
+#if BETAMAP_BLENDING
+	float beta = BetaMapTexture.Sample(BetaMapSampler, IN.UV.xy).r;
+	color = (color*alpha*(1 - beta)) + beta;
+#else // NOT BETAMAP_BLENDING
+	color = color * alpha;
+#endif // BETAMAP_BLENDING
+	// Load beta
+
+	return float4(MPCDI_LinearTosRGB(color), ColorAlphaValue);
+#else //NOT ALPHAMAP_BLENDING
+	return float4(color, ColorAlphaValue);
+#endif // ALPHAMAP_BLENDING
 }

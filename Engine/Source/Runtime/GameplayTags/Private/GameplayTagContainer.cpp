@@ -1218,7 +1218,7 @@ bool FGameplayTag::NetSerialize_Packed(FArchive& Ar, class UPackageMap* Map, boo
 		FGameplayTagNetIndex NetIndex = INVALID_TAGNETINDEX;
 
 		UPackageMapClient* PackageMapClient = Cast<UPackageMapClient>(Map);
-		const bool bIsReplay = PackageMapClient && PackageMapClient->GetConnection() && PackageMapClient->GetConnection()->InternalAck;
+		const bool bIsReplay = PackageMapClient && PackageMapClient->GetConnection() && PackageMapClient->GetConnection()->IsInternalAck();
 
 		TSharedPtr<FNetFieldExportGroup> NetFieldExportGroup;
 

@@ -351,6 +351,35 @@ namespace VectorUtil
 		return RealType(-2.0) * atan2(bottom, top);
 	}
 
+
+	/**
+	 * Calculate gradient of scalar field values fi,fj,fk defined at corners of triangle Vi,Vj,Vk and interpolated across triangle using linear basis functions.
+	 * This gradient is a 3D vector lying in the plane of the triangle (or zero if field is constant).
+	 * @return gradient (3D vector) lying in plane of triangle.
+	 */
+	template <typename RealType>
+	inline FVector3<RealType> TriGradient(FVector3<RealType> Vi, FVector3<RealType> Vj, FVector3<RealType> Vk, RealType fi, RealType fj, RealType fk)
+	{
+		// recenter (better for precision)
+		FVector3<RealType> Centroid = (Vi + Vj + Vk) / (RealType)3;
+		Vi -= Centroid; Vj -= Centroid; Vk -= Centroid;
+		// calculate tangent-normal frame
+		FVector3<RealType> Normal = VectorUtil::Normal<RealType>(Vi, Vj, Vk);
+		FVector3<RealType> Perp0, Perp1;
+		VectorUtil::MakePerpVectors<RealType>(Normal, Perp0, Perp1);
+		// project points to triangle plane coordinates
+		FVector2<RealType> vi(Vi.Dot(Perp0), Vi.Dot(Perp1));
+		FVector2<RealType> vj(Vj.Dot(Perp0), Vj.Dot(Perp1));
+		FVector2<RealType> vk(Vk.Dot(Perp0), Vk.Dot(Perp1));
+		// calculate gradient
+		FVector2<RealType> GradX = (fj-fi)*(vi-vk).Perp() + (fk-fi)*(vj-vi).Perp();
+		// map back to 3D vector in triangle plane
+		RealType AreaScale = (RealType)1 / ((RealType)2 * VectorUtil::Area<RealType>(Vi, Vj, Vk));
+		return AreaScale * (GradX.X * Perp0 + GradX.Y * Perp1);
+	}
+
+
+
 	/**
 	 * @return angle between vectors (A-CornerPt) and (B-CornerPt)
 	 */

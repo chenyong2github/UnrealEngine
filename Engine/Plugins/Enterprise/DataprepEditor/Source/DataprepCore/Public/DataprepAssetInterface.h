@@ -22,6 +22,10 @@ enum class FDataprepAssetChangeType : uint8
 	ProducerModified,
 	ConsumerModified,
 	RecipeModified,
+	ActionAdded,
+	ActionModified,
+	ActionMoved,
+	ActionRemoved,
 };
 
 /**
@@ -111,6 +115,9 @@ public:
 
 	/** @return True if the Dataprep recipe is actionable */
 	virtual bool HasActions() const { return false; }
+
+	/** @return the array of actions of the recipe */
+	virtual const TArray<UDataprepActionAsset*>& GetActions() const;
 
 	/** Temporary function to allow the dataprep editor to show the parametrization */
 	virtual UObject* GetParameterizationObject()

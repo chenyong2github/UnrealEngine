@@ -2,25 +2,25 @@
 
 #include "PropertyValue.h"
 
-#include "CoreMinimal.h"
+#include "VariantManagerContentLog.h"
+#include "VariantManagerObjectVersion.h"
+#include "VariantObjectBinding.h"
+
 #include "Components/ActorComponent.h"
+#include "CoreMinimal.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/SCS_Node.h"
 #include "HAL/UnrealMemory.h"
 #include "UObject/Package.h"
-#include "UObject/TextProperty.h"
-#include "VariantObjectBinding.h"
-#include "VariantManagerObjectVersion.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/Script.h"
-#include "Engine/SCS_Node.h"
-#include "Engine/BlueprintGeneratedClass.h"
+#include "UObject/TextProperty.h"
 #include "UObject/CoreObjectVersion.h"
 #include "UObject/UnrealTypePrivate.h" // Only for converting deprecated UProperties!
+
 #if WITH_EDITOR
 #include "EdGraphSchema_K2.h"
 #endif
-
-// WARNING: This should always be the last include in any file that needs it (except .generated.h)
-#include "UObject/UndefineUPropertyMacros.h"
 
 #define LOCTEXT_NAMESPACE "PropertyValue"
 
@@ -279,7 +279,7 @@ void UPropertyValue::Serialize(FArchive& Ar)
 		if (TempObjPtr.IsNull())
 		{
 			FFieldClass* PropClass = GetPropertyClass();
-			if (PropClass && PropClass->IsChildOf(FObjectProperty::StaticClass()) && HasRecordedData())
+			if (PropClass && PropClass->IsChildOf(FObjectPropertyBase::StaticClass()) && HasRecordedData())
 			{
 				UObject* Obj = *((UObject**)ValueBytes.GetData());
 				if (Obj && Obj->IsValidLowLevel())
@@ -338,17 +338,14 @@ void UPropertyValue::Serialize(FArchive& Ar)
 			{
 				// Back then we didn't store the class directly, and just fetched it from the leaf-most property
 				// Try to do that again as it might help decode ValueBytes if those properties were string types
-				UProperty* LastProp = Properties_DEPRECATED[Properties_DEPRECATED.Num() -1];
-				if (LastProp && LastProp->IsValidLowLevel())
-				{
-					LeafPropertyClass = FFieldClass::GetNameToFieldClassMap().FindRef(LastProp->GetClass()->GetFName());
-				}
+				TFieldPath<FProperty> LastProp = Properties_DEPRECATED.Last();
+				LeafPropertyClass = FFieldClass::GetNameToFieldClassMap().FindRef(LastProp->GetClass()->GetFName());
 
 				CapturedPropSegments.Reserve(NumDeprecatedProps);
 				int32 Index = 0;
 				for (Index = 0; Index < NumDeprecatedProps; Index++)
 				{
-					UProperty* Prop = Properties_DEPRECATED[Index];
+					TFieldPath<FProperty> Prop = Properties_DEPRECATED[Index];
 					if (Prop == nullptr || !Prop->IsValidLowLevel() || !PropertyIndices_DEPRECATED.IsValidIndex(Index))
 					{
 						break;
@@ -447,6 +444,7 @@ bool UPropertyValue::Resolve(UObject* Object)
 		return false;
 	}
 
+	ParentContainerObject = Object;
 	if (!ResolvePropertiesRecursive(Object->GetClass(), Object, 0))
 	{
 		return false;
@@ -619,14 +617,11 @@ void UPropertyValue::ApplyDataToResolvedObject()
 
 	// Modify container component
 	UObject* ContainerObject = nullptr;
-	if (UObject* Component = (UObject*)ParentContainerAddress)
+	if (ParentContainerObject && ParentContainerObject->IsA(UActorComponent::StaticClass()))
 	{
-		if(Component->IsA(UActorComponent::StaticClass()))
-	{
-			Component->SetFlags(RF_Transactional);
-			Component->Modify();
-			ContainerObject = Component;
-		}
+		ParentContainerObject->SetFlags(RF_Transactional);
+		ParentContainerObject->Modify();
+		ContainerObject = ParentContainerObject;
 	}
 
 	if (PropertySetter)
@@ -707,7 +702,7 @@ UScriptStruct* UPropertyValue::GetStructPropertyStruct() const
 
 UClass* UPropertyValue::GetObjectPropertyObjectClass() const
 {
-	if (FObjectProperty* ObjProp = CastField<FObjectProperty>(GetProperty()))
+	if (FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>(GetProperty()))
 	{
 		return ObjProp->PropertyClass;
 	}
@@ -1031,7 +1026,7 @@ const TArray<uint8>& UPropertyValue::GetRecordedData()
 
 	// We need to resolve our softpath still
 	FFieldClass* PropClass = GetPropertyClass();
-	if (bHasRecordedData && PropClass && PropClass->IsChildOf(FObjectProperty::StaticClass()) && !TempObjPtr.IsNull())
+	if (bHasRecordedData && PropClass && PropClass->IsChildOf(FObjectPropertyBase::StaticClass()) && !TempObjPtr.IsNull())
 	{
 		// Force resolve of our soft object pointer
 		UObject* Obj = TempObjPtr.LoadSynchronous();
@@ -1082,7 +1077,7 @@ void UPropertyValue::SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, 
 			// Don't need to actually update the pointer, as that will be done when serializing
 			// But we do need to reset it or else GetRecordedData will read its data instead of ValueBytes
 			FFieldClass* PropClass = GetPropertyClass();
-			if (PropClass && PropClass->IsChildOf(FObjectProperty::StaticClass()))
+			if (PropClass && PropClass->IsChildOf(FObjectPropertyBase::StaticClass()))
 			{
 				TempObjPtr.Reset();
 			}
@@ -1159,7 +1154,16 @@ const TArray<uint8>& UPropertyValue::GetDefaultValue()
 						// If we're a material property value we won't have PropertyValuePtr
 						if (PropertyValuePtr)
 						{
-							FMemory::Memcpy(DefaultValue.GetData(), PropertyValuePtr, NumBytes);
+							if (FSoftObjectProperty* PropAsSoft = CastField<FSoftObjectProperty>(LeafProperty))
+							{
+								UObject* DefaultObj = PropAsSoft->LoadObjectPropertyValue(PropertyValuePtr);
+								FMemory::Memcpy(DefaultValue.GetData(), (uint8*)&DefaultObj, NumBytes);
+							}
+							else
+							{
+								FMemory::Memcpy(DefaultValue.GetData(), PropertyValuePtr, NumBytes);
+							}
+
 						}
 
 						// If a valid enum value hasn't been specified as default, the default will be the _MAX value
@@ -1447,6 +1451,7 @@ bool UPropertyValue::ResolvePropertiesRecursive(UStruct* ContainerClass, void* C
 				{
 					ParentContainerClass = CurrentObject->GetClass();
 					ParentContainerAddress = CurrentObject;
+					ParentContainerObject = CurrentObject;
 
 					return ResolvePropertiesRecursive(CurrentObject->GetClass(), CurrentObject, SegmentIndex + 1);
 				}
@@ -1470,6 +1475,7 @@ bool UPropertyValue::ResolvePropertiesRecursive(UStruct* ContainerClass, void* C
 							{
 								ParentContainerClass = BPNode->ComponentClass;
 								ParentContainerAddress = BPNode->ComponentTemplate;
+								ParentContainerObject = BPNode->ComponentTemplate;
 
 								return ResolvePropertiesRecursive(BPNode->ComponentClass, BPNode->ComponentTemplate, SegmentIndex + 1);
 							}
@@ -1488,6 +1494,7 @@ bool UPropertyValue::ResolvePropertiesRecursive(UStruct* ContainerClass, void* C
 				{
 					ParentContainerClass = CurrentObject->GetClass();
 					ParentContainerAddress = CurrentObject;
+					ParentContainerObject = CurrentObject;
 
 					return ResolvePropertiesRecursive(CurrentObject->GetClass(), CurrentObject, SegmentIndex + 1);
 				}
@@ -1503,6 +1510,7 @@ bool UPropertyValue::ResolvePropertiesRecursive(UStruct* ContainerClass, void* C
 				{
 					ParentContainerClass = CurrentObject->GetClass();
 					ParentContainerAddress = CurrentObject;
+					ParentContainerObject = CurrentObject;
 
 					return ResolvePropertiesRecursive(CurrentObject->GetClass(), CurrentObject, SegmentIndex + 1);
 				}
@@ -1582,6 +1590,7 @@ bool UPropertyValue::ResolvePropertiesRecursive(UStruct* ContainerClass, void* C
 							{
 								ParentContainerClass = CurrentObject->GetClass();
 								ParentContainerAddress =  CurrentObject;
+								ParentContainerObject = CurrentObject;
 
 								// The next link in the chain is just this array's inner. Let's just skip it instead
 								return ResolvePropertiesRecursive(CurrentObject->GetClass(), CurrentObject, SegmentIndex + 2);
@@ -1605,6 +1614,7 @@ bool UPropertyValue::ResolvePropertiesRecursive(UStruct* ContainerClass, void* C
 								{
 									ParentContainerClass = CurrentObject->GetClass();
 									ParentContainerAddress =  CurrentObject;
+									ParentContainerObject = CurrentObject;
 									NextSeg.ComponentName = CurrentObject->GetName();
 									return true;
 								}
@@ -1628,6 +1638,7 @@ bool UPropertyValue::ResolvePropertiesRecursive(UStruct* ContainerClass, void* C
 								{
 									ParentContainerClass = CurrentObject->GetClass();
 									ParentContainerAddress =  CurrentObject;
+									ParentContainerObject = CurrentObject;
 									NextSeg.ComponentName = CurrentObject->GetName();
 									return true;
 								}
@@ -1718,5 +1729,3 @@ void UPropertyValueVisibility::Serialize(FArchive& Ar)
 }
 
 #undef LOCTEXT_NAMESPACE
-
-#include "UObject/DefineUPropertyMacros.h"

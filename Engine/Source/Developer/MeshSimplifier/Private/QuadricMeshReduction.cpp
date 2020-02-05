@@ -10,9 +10,9 @@
 #include "Features/IModularFeatures.h"
 #include "IMeshReductionInterfaces.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "RenderUtils.h"
 #include "Engine/StaticMesh.h"
-#include "MeshDescriptionOperations.h"
 
 class FQuadricSimplifierMeshReductionModule : public IMeshReductionModule
 {
@@ -201,7 +201,7 @@ public:
 		bool bWeldVertices = ReductionSettings.WeldingThreshold > 0.0f;
 		if (bWeldVertices)
 		{
-			FMeshDescriptionOperations::BuildWeldedVertexIDRemap(InMesh, ReductionSettings.WeldingThreshold, VertexIDRemap);
+			FStaticMeshOperations::BuildWeldedVertexIDRemap(InMesh, ReductionSettings.WeldingThreshold, VertexIDRemap);
 		}
 
 		TArray< TVertSimp< NumTexCoords > >	Verts;

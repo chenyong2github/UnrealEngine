@@ -62,7 +62,7 @@ FName FTextureResource::TextureGroupStatFNames[TEXTUREGROUP_MAX] =
 	};
 #endif
 
-// This is used to prevent the PostEditChange to automatically update the material depedencies & material context, in some case we want to manually control this
+// This is used to prevent the PostEditChange to automatically update the material dependencies & material context, in some case we want to manually control this
 // to be more efficient.
 ENGINE_API bool GDisableAutomaticTextureMaterialUpdateDependencies = false;
 
@@ -246,7 +246,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	}
 	else if (!GDisableAutomaticTextureMaterialUpdateDependencies)
 	{
-		// Update any material that uses this texture and must force a recompile of cache ressource
+		// Update any material that uses this texture and must force a recompile of cache resource
 		TArray<UMaterial*> MaterialsToUpdate;
 		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
 		for (TObjectIterator<UMaterialInterface> It; It; ++It)

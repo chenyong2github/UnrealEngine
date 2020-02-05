@@ -8,72 +8,104 @@
 #define BYTESWAP_ORDER16_unsigned(x) ((((x) >> 8) & 0xff) + (((x) << 8) & 0xff00))
 #define BYTESWAP_ORDER32_unsigned(x) (((x) >> 24) + (((x) >> 8) & 0xff00) + (((x) << 8) & 0xff0000) + ((x) << 24))
 
-
-static FORCEINLINE uint16 BYTESWAP_ORDER16 (uint16 val)
+// Encapsulate Byte swapping generic versions for benchmarking purpose (compare the generic vs intrinsic performance: See ByteSwapTest.cpp).
+namespace Internal
 {
-	return(BYTESWAP_ORDER16_unsigned(val));
-}
-
-static FORCEINLINE int16 BYTESWAP_ORDER16 (int16 val)
-{
-	uint16 uval = *((uint16*)&val);
-	uval = BYTESWAP_ORDER16_unsigned(uval);
-
-	return *((int16*) &uval);
-}
-
-static FORCEINLINE uint32 BYTESWAP_ORDER32 (uint32 val)
-{
-	return (BYTESWAP_ORDER32_unsigned(val));
-}
-
-static FORCEINLINE int32 BYTESWAP_ORDER32 (int32 val)
-{
-	uint32 uval = *((uint32*)&val);
-	uval = BYTESWAP_ORDER32_unsigned(uval);
-
-	return *((int32*)&uval);
-}
-
-static FORCEINLINE float BYTESWAP_ORDERF (float val)
-{
-	uint32 uval = *((uint32*)&val);
-	uval = BYTESWAP_ORDER32_unsigned(uval);
-
-	return *((float*) &uval);
-}
-
-static FORCEINLINE uint64 BYTESWAP_ORDER64 (uint64 Value)
-{
-	uint64 Swapped = 0;
-	uint8* Forward = (uint8*)&Value;
-	uint8* Reverse = (uint8*)&Swapped + 7;
-	for( int32 i=0; i<8; i++ )
+	static FORCEINLINE uint16 ByteSwapGeneric16(uint16 Value)
 	{
-		*(Reverse--) = *(Forward++); // copy into Swapped
-	}
-	return Swapped;
-}
-
-static FORCEINLINE int64 BYTESWAP_ORDER64 (int64 Value)
-{
-	int64 Swapped = 0;
-	uint8* Forward = (uint8*)&Value;
-	uint8* Reverse = (uint8*)&Swapped + 7;
-
-	for (int32 i = 0; i < 8; i++)
-	{
-		*(Reverse--) = *(Forward++); // copy into Swapped
+		return (BYTESWAP_ORDER16_unsigned(Value));
 	}
 
-	return Swapped;
+	static FORCEINLINE uint32 ByteSwapGeneric32(uint32 Value)
+	{
+		return (BYTESWAP_ORDER32_unsigned(Value));
+	}
+
+	static FORCEINLINE uint64 ByteSwapGeneric64(uint64 Value)
+	{
+		Value = ((Value << 8) & 0xFF00FF00FF00FF00ULL ) | ((Value >> 8) & 0x00FF00FF00FF00FFULL);
+		Value = ((Value << 16) & 0xFFFF0000FFFF0000ULL ) | ((Value >> 16) & 0x0000FFFF0000FFFFULL);
+		return (Value << 32) | (Value >> 32);
+	}
+} // namespace Internal
+
+// Defines the intrinsic version if available (faster). Do not use directly. Use BYTESWAP_ORDERxx() or ByteSwap() functions
+#if defined(_MSC_VER)
+	#define UE_BYTESWAP_INTRINSIC_PRIVATE_16(Val) _byteswap_ushort(Val);
+	#define UE_BYTESWAP_INTRINSIC_PRIVATE_32(Val) _byteswap_ulong(Val);
+	#define UE_BYTESWAP_INTRINSIC_PRIVATE_64(Val) _byteswap_uint64(Val);
+#elif defined(__clang__)
+	#if (__has_builtin(__builtin_bswap16))
+		#define UE_BYTESWAP_INTRINSIC_PRIVATE_16(Val) __builtin_bswap16(Val);
+	#endif
+	#if (__has_builtin(__builtin_bswap32))
+		#define UE_BYTESWAP_INTRINSIC_PRIVATE_32(Val) __builtin_bswap32(Val);
+	#endif
+	#if (__has_builtin(__builtin_bswap64))
+		#define UE_BYTESWAP_INTRINSIC_PRIVATE_64(Val) __builtin_bswap64(Val);
+	#endif
+#endif
+
+static FORCEINLINE uint16 BYTESWAP_ORDER16(uint16 Val)
+{
+#if defined(UE_BYTESWAP_INTRINSIC_PRIVATE_16)
+	return UE_BYTESWAP_INTRINSIC_PRIVATE_16(Val);
+#else
+	return Internal::ByteSwapGeneric16(Val);
+#endif
 }
 
-static FORCEINLINE void BYTESWAP_ORDER_TCHARARRAY (TCHAR* str)
+static FORCEINLINE int16 BYTESWAP_ORDER16(int16 Val)
 {
+	return static_cast<int16>(BYTESWAP_ORDER16(static_cast<uint16>(Val)));
+}
+
+static FORCEINLINE uint32 BYTESWAP_ORDER32(uint32 Val)
+{
+#if defined(UE_BYTESWAP_INTRINSIC_PRIVATE_32)
+	return UE_BYTESWAP_INTRINSIC_PRIVATE_32(Val);
+#else
+	return Internal::ByteSwapGeneric32(Val);
+#endif
+}
+
+static FORCEINLINE int32 BYTESWAP_ORDER32(int32 val)
+{
+	return static_cast<int32>(BYTESWAP_ORDER32(static_cast<uint32>(val)));
+}
+
+static FORCEINLINE uint64 BYTESWAP_ORDER64(uint64 Value)
+{
+#if defined(UE_BYTESWAP_INTRINSIC_PRIVATE_64)
+	return UE_BYTESWAP_INTRINSIC_PRIVATE_64(Value);
+#else
+	return Internal::ByteSwapGeneric64(Value);
+#endif
+}
+
+static FORCEINLINE int64 BYTESWAP_ORDER64(int64 Value)
+{
+	return static_cast<int64>(BYTESWAP_ORDER64(static_cast<uint64>(Value)));
+}
+
+static FORCEINLINE float BYTESWAP_ORDERF(float val)
+{
+	uint32 uval = BYTESWAP_ORDER32(*reinterpret_cast<const uint32*>(&val));
+	return *reinterpret_cast<const float*>(&uval);
+}
+
+static FORCEINLINE double BYTESWAP_ORDERD(double val)
+{
+	uint64 uval = BYTESWAP_ORDER64(*reinterpret_cast<const uint64*>(&val));
+	return *reinterpret_cast<const double*>(&uval);
+}
+
+static FORCEINLINE void BYTESWAP_ORDER_TCHARARRAY(TCHAR* str)
+{
+	static_assert(sizeof(TCHAR) == sizeof(uint16), "Assuming TCHAR is 2 bytes wide.");
 	for (TCHAR* c = str; *c; ++c)
 	{
-		*c = BYTESWAP_ORDER16_unsigned(*c);
+		*c = BYTESWAP_ORDER16(static_cast<uint16>(*c));
 	}
 }
 
@@ -102,3 +134,15 @@ static FORCEINLINE void BYTESWAP_ORDER_TCHARARRAY (TCHAR* str)
 	#define NETWORK_ORDER64(x)   (x)
 	#define NETWORK_ORDER_TCHARARRAY(x)
 #endif
+
+// Implementations that better mix with generic template code.
+template<typename T> T ByteSwap(T Value); // Left unimplemented to get link error when a specialization is missing.
+template<> inline int16 ByteSwap(int16 Value)   { return BYTESWAP_ORDER16(Value); }
+template<> inline uint16 ByteSwap(uint16 Value) { return BYTESWAP_ORDER16(Value); }
+template<> inline int32 ByteSwap(int32 Value)   { return BYTESWAP_ORDER32(Value); }
+template<> inline uint32 ByteSwap(uint32 Value) { return BYTESWAP_ORDER32(Value); }
+template<> inline int64 ByteSwap(int64 Value)   { return BYTESWAP_ORDER64(Value); }
+template<> inline uint64 ByteSwap(uint64 Value) { return BYTESWAP_ORDER64(Value); }
+template<> inline float ByteSwap(float Value)   { return BYTESWAP_ORDERF(Value); }
+template<> inline double ByteSwap(double Value) { return BYTESWAP_ORDERD(Value); }
+template<> inline char16_t ByteSwap(char16_t Value) { return static_cast<char16_t>(BYTESWAP_ORDER16(static_cast<uint16>(Value))); }

@@ -42,7 +42,6 @@ enum class EConvertToPolygonsMode
 
 
 
-
 UCLASS()
 class MESHMODELINGTOOLS_API UConvertToPolygonsToolProperties : public UInteractiveToolPropertySet
 {
@@ -58,6 +57,11 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = PolyGroups)
 	bool bCalculateNormals = true;
+
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowGroupColors = true;
+
+	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving) override;
 };
 
 /**
@@ -69,6 +73,8 @@ class MESHMODELINGTOOLS_API UConvertToPolygonsTool : public USingleSelectionTool
 	GENERATED_BODY()
 
 public:
+	UConvertToPolygonsTool();
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -93,11 +99,13 @@ protected:
 	FDynamicMeshNormalOverlay InitialNormals;
 
 	TValueWatcher<EConvertToPolygonsMode> ConvertModeWatcher;
-
+	TValueWatcher<bool> ShowGroupsWatcher;
 
 	FFindPolygonsAlgorithm Polygons;
 	bool bPolygonsValid = false;
 	void UpdatePolygons();
+
+	void UpdateVisualization();
 
 	void ConvertToPolygons(FMeshDescription* MeshIn);
 

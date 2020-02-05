@@ -62,12 +62,12 @@ TSharedPtr<FDataprepSchemaAction> FDataprepFilterMenuActionCollector::CreateMenu
 	if ( Fetcher )
 	{
 		FDataprepSchemaAction::FOnExecuteAction OnExcuteMenuAction;
-		OnExcuteMenuAction.BindLambda( [FilterClass = Filter.GetClass(), FetcherClass = Fetcher->GetClass()] (const FDataprepSchemaActionContext& InContext)
+		OnExcuteMenuAction.BindLambda( [FetcherClass = Fetcher->GetClass()] (const FDataprepSchemaActionContext& InContext)
 		{
 			UDataprepActionAsset* Action = InContext.DataprepActionPtr.Get();
 			if ( Action )
 			{
-				int32 NewFilterIndex = Action->AddFilterWithAFetcher( TSubclassOf<UDataprepFilter>( FilterClass ), TSubclassOf<UDataprepFetcher>( FetcherClass ) );
+				int32 NewFilterIndex = Action->AddStep( FetcherClass );
 				if ( InContext.StepIndex != INDEX_NONE && InContext.StepIndex != NewFilterIndex )
 				{
 					Action->MoveStep( NewFilterIndex, InContext.StepIndex );

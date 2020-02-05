@@ -150,8 +150,7 @@ struct FVertexFactoryInput
 	float2	LightMapCoordinate : ATTRIBUTE15;
 #endif
 
-/** Optional instance ID for vertex layered rendering */
-#if FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1 && (MANUAL_VERTEX_FETCH && USE_INSTANCING)
+#if USE_INSTANCING
 	uint InstanceId	: SV_InstanceID;
 #endif
 
@@ -241,8 +240,7 @@ struct FPositionOnlyVertexFactoryInput
 	uint PrimitiveId : ATTRIBUTE1;
 #endif
 
-/** Optional instance ID for vertex layered rendering */
-#if (FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1) && (MANUAL_VERTEX_FETCH && USE_INSTANCING)
+#if USE_INSTANCING
 	uint InstanceId	: SV_InstanceID;
 #endif
 
@@ -270,8 +268,7 @@ struct FPositionAndNormalOnlyVertexFactoryInput
 	uint PrimitiveId : ATTRIBUTE1;
 #endif
 
-/** Optional instance ID for vertex layered rendering */
-#if (FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1) && (MANUAL_VERTEX_FETCH && USE_INSTANCING)
+#if  USE_INSTANCING
 	uint InstanceId	: SV_InstanceID;
 #endif
 
@@ -493,6 +490,8 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.InstanceLocalPosition = Input.Position.xyz;
 	Result.PerInstanceParams = Intermediates.PerInstanceParams;
 
+	Result.InstanceId = GetInstanceId(Input.InstanceId); 
+	
 	#if USE_INSTANCING_BONEMAP
 		// when using geometry collections, we can correctly compute velocities because we pass along previous transforms
 		Result.PrevFrameLocalToWorld = mul(GetInstancePrevTransform(Intermediates), GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld);
@@ -821,14 +820,7 @@ half3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFactor
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 #if USE_INSTANCING
-	// Workaround for FORT-70572. It turns out on old Nvidia (AMD?) drivers, SV_VertexID must be used if
-    // SV_InstanceID is used. Otherwise, SV_InstanceID will get weird (SV_VertexID?) values
-    #if SM4_PROFILE && MANUAL_VERTEX_FETCH
-        float4 Position = Input.Position + Input.VertexId * asfloat(0x00800001);
-    #else
-        float4 Position = Input.Position;
-    #endif
-	return CalcWorldPosition(Position, GetInstanceTransform(Intermediates), Intermediates.PrimitiveId) * Intermediates.PerInstanceParams.z;
+	return CalcWorldPosition(Input.Position, GetInstanceTransform(Intermediates), Intermediates.PrimitiveId) * Intermediates.PerInstanceParams.z;
 #else
 	return CalcWorldPosition(Input.Position, Intermediates.PrimitiveId);
 #endif	// USE_INSTANCING

@@ -6,6 +6,7 @@
 #include "Misc/SecureHash.h"
 #include "Templates/Function.h"
 
+#include "USDLevelSequenceHelper.h"
 #include "USDListener.h"
 #include "USDMemory.h"
 #include "USDPrimTwin.h"
@@ -26,12 +27,13 @@
 #include "USDStageActor.generated.h"
 
 class ALevelSequenceActor;
-struct FMeshDescription;
-struct FUsdSchemaTranslationContext;
 class IMeshBuilderModule;
 class ULevelSequence;
 class UMaterial;
 class UUsdAsset;
+enum class EUsdPurpose : int32;
+struct FMeshDescription;
+struct FUsdSchemaTranslationContext;
 
 DECLARE_LOG_CATEGORY_EXTERN( LogUsdStage, Log, All );
 
@@ -47,7 +49,8 @@ class AUsdStageActor : public AActor
 {
 	GENERATED_BODY()
 
-	friend struct UsdStageActorImpl;
+	friend struct FUsdStageActorImpl;
+	friend class FUsdLevelSequenceHelperImpl;
 
 public:
 	UPROPERTY(EditAnywhere, Category = "USD", meta = (FilePathFilter = "usd files (*.usd; *.usda; *.usdc)|*.usd; *.usda; *.usdc"))
@@ -55,6 +58,14 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "USD")
 	EUsdInitialLoadSet InitialLoadSet;
+
+	/* Only load prims with these specific purposes from the USD file */
+	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	int32 PurposesToLoad;
+
+	/* Quickly toggle visibility of prims with specific purposes in the level based on component tags */
+	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	int32 PurposeVisibility;
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	float GetTime() const { return Time; }
@@ -82,6 +93,9 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
 	ULevelSequence* LevelSequence;
 
+	UPROPERTY(Transient)
+	TMap<FString, ULevelSequence*> SubLayerLevelSequencesByIdentifier;
+
 public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
 	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
@@ -100,6 +114,7 @@ public:
 	virtual ~AUsdStageActor();
 
 	void Refresh() const;
+	void ReloadAnimations();
 
 public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
@@ -111,8 +126,7 @@ private:
 	void OpenUsdStage();
 	void LoadUsdStage();
 
-	void InitLevelSequence( float FramesPerSecond );
-	void SetupLevelSequence();
+	void RefreshVisibilityBasedOnPurpose();
 
 	void OnUsdPrimTwinDestroyed( const FUsdPrimTwin& UsdPrimTwin );
 
@@ -155,7 +169,7 @@ protected:
 private:
 	TUsdStore< pxr::UsdStageRefPtr > UsdStageStore;
 	FUsdListener UsdListener;
-
 #endif // #if USE_USD_SDK
 
+	FUsdLevelSequenceHelper LevelSequenceHelper;
 };

@@ -39,6 +39,7 @@ public:
 	virtual void ExecuteRecipe( const TSharedPtr<FDataprepActionContext>& InActionsContext ) override;
 	virtual bool HasActions() const override { return Parent ? Parent->HasActions() : false; }
 	virtual UObject* GetParameterizationObject() override;
+	virtual const TArray<UDataprepActionAsset*>& GetActions() const override;
 private:
 	virtual TArray<UDataprepActionAsset*> GetCopyOfActions(TMap<UObject*,UObject*>& OutOriginalToCopy) const override;
 	// End of UDataprepAssetInterface interface

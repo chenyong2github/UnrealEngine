@@ -150,6 +150,8 @@ public:
 	**/
 	virtual void BuildToolPalette(FName Palette, class FToolBarBuilder& ToolbarBuilder);
 
+	virtual FText GetActiveToolDisplayName() const { return FText(); }
+	virtual FText GetActiveToolMessage() const { return FText(); }
 
 	virtual void OnToolPaletteChanged(FName PaletteName);
 

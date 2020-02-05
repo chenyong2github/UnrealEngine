@@ -12,7 +12,6 @@
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 
-DEFINE_LOG_CATEGORY(LogDatasmithCADWorker);
 using namespace DatasmithDispatcher;
 
 
@@ -23,7 +22,6 @@ FDatasmithCADWorkerImpl::FDatasmithCADWorkerImpl(int32 InServerPID, int32 InServ
 	, CachePath(InCachePath)
 	, PingStartCycle(0)
 {
-	UE_SET_LOG_VERBOSITY(LogDatasmithCADWorker, Verbose);
 }
 
 bool FDatasmithCADWorkerImpl::Run()
@@ -121,8 +119,8 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FImportParametersCommand& Imp
 
 void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskCommand)
 {
-	const FString& FileToProcess = RunTaskCommand.JobFilePath;
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("Process %s"), *FileToProcess);
+	const CADLibrary::FFileDescription& FileToProcess = RunTaskCommand.JobFileDescription;
+	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("Process %s"), *FileToProcess.Name);
 
 	FCompletedTaskCommand CompletedTask;
 #ifdef CAD_INTERFACE
@@ -136,10 +134,11 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 		CompletedTask.ExternalReferences = FileParser.GetExternalRefSet().Array();
 		CompletedTask.SceneGraphFileName = FileParser.GetSceneGraphFile();
 		CompletedTask.GeomFileName = FileParser.GetMeshFileName();
+		CompletedTask.WarningMessages = FileParser.GetWarningMessages();
 	}
 #endif // CAD_INTERFACE
 	CommandIO.SendCommand(CompletedTask, Config::SendCommandTimeout_s);
 
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s"), *FileToProcess);
+	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s"), *FileToProcess.Name);
 }
 

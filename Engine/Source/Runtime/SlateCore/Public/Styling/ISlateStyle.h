@@ -34,6 +34,15 @@ public:
 	 */
 	virtual void GetResources( TArray< const FSlateBrush* >& OutResources ) const = 0;
 
+	/**
+	 * Gets the names of every style entry using a brush in this style
+	 * Note: this function is expensive and is not designed to be used in performance critical situations
+	 *
+	 * @param BrushName The name of the brush to find style entries from
+	 * @return Array of style names using the brush
+	 */
+	virtual TArray<FName> GetEntriesUsingBrush(const FName BrushName) const = 0;
+
 	template< typename WidgetStyleType >            
 	const WidgetStyleType& GetWidgetStyle( FName PropertyName, const ANSICHAR* Specifier = nullptr ) const 
 	{
@@ -56,42 +65,47 @@ public:
 	/**
 	 * @param PropertyName   Name of the property to get
 	 * @param Specifier      An optional string to append to the property name
+	 * @param DefaultValue	 The default value to return if the property cannot be found
 	 *
 	 * @return a float property.
 	 */
-	virtual float GetFloat( const FName PropertyName, const ANSICHAR* Specifier = nullptr ) const = 0;
+	virtual float GetFloat(const FName PropertyName, const ANSICHAR* Specifier = nullptr, float DefaultValue = FStyleDefaults::GetFloat()) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
 	 * @param Specifier      An optional string to append to the property name
+	 * @param DefaultValue	 The default value to return if the property cannot be found
 	 *
 	 * @return a FVector2D property.
 	 */
-	virtual FVector2D GetVector( const FName PropertyName, const ANSICHAR* Specifier = nullptr ) const = 0;
+	virtual FVector2D GetVector(const FName PropertyName, const ANSICHAR* Specifier = nullptr, FVector2D DefaultValue = FStyleDefaults::GetVector2D()) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
 	 * @param Specifier      An optional string to append to the property name
+	 * @param DefaultValue	 The default value to return if the property cannot be found
 	 *
 	 * @return a FLinearColor property.
 	 */
-	virtual const FLinearColor& GetColor( const FName PropertyName, const ANSICHAR* Specifier = nullptr ) const = 0;
+	virtual const FLinearColor& GetColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FLinearColor& DefaultValue = FStyleDefaults::GetColor()) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
 	 * @param Specifier      An optional string to append to the property name
+	 * @param DefaultValue	 The default value to return if the property cannot be found
 	 *
 	 * @return a FLinearColor property.
 	 */
-	virtual const FSlateColor GetSlateColor( const FName PropertyName, const ANSICHAR* Specifier = nullptr ) const = 0;
+	virtual const FSlateColor GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateColor& DefaultValue = FStyleDefaults::GetSlateColor()) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get
 	 * @param Specifier      An optional string to append to the property name
+	 * @param DefaultValue	 The default value to return if the property cannot be found
 	 *
 	 * @return a FMargin property.
 	 */
-	virtual const FMargin& GetMargin( const FName PropertyName, const ANSICHAR* Specifier = nullptr ) const = 0;
+	virtual const FMargin& GetMargin(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FMargin& DefaultValue = FStyleDefaults::GetMargin()) const = 0;
 
 	/**
 	 * @param PropertyName   Name of the property to get

@@ -11,6 +11,7 @@
 #include "MovieSceneCommonHelpers.h"
 #include "GameFramework/Actor.h"
 #include "EditorStyleSet.h"
+#include "Styling/CoreStyle.h"
 #include "CurveKeyEditors/SNumericKeyEditor.h"
 #include "CurveKeyEditors/SBoolCurveKeyEditor.h"
 #include "CurveKeyEditors/SStringCurveKeyEditor.h"
@@ -23,6 +24,14 @@
 #include "Channels/FloatChannelCurveModel.h"
 #include "EventChannelCurveModel.h"
 #include "PropertyCustomizationHelpers.h"
+#include "MovieSceneObjectBindingIDCustomization.h"
+#include "MovieSceneObjectBindingIDPicker.h"
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
+#include "Framework/Application/MenuStack.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Editor/SceneOutliner/Private/SSocketChooser.h"
+#include "SComponentChooser.h"
 
 #define LOCTEXT_NAMESPACE "BuiltInChannelEditors"
 
@@ -112,6 +121,11 @@ bool CanCreateKeyEditor(const FMovieSceneStringChannel*  Channel)
 	return true;
 }
 bool CanCreateKeyEditor(const FMovieSceneObjectPathChannel* Channel)
+{
+	return true;
+}
+
+bool CanCreateKeyEditor(const FMovieSceneActorReferenceData* Channel)
 {
 	return true;
 }
@@ -240,6 +254,225 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneOb
 	}
 
 	return SNullWidget::NullWidget;
+}
+
+/** Delegate used to set a class */
+DECLARE_DELEGATE_OneParam(FOnSetActorReferenceKey, FMovieSceneActorReferenceKey);
+
+class SActorReferenceBox : public SCompoundWidget, public FMovieSceneObjectBindingIDPicker
+{
+public:
+	SLATE_BEGIN_ARGS(SActorReferenceBox)
+	{}
+	SLATE_ATTRIBUTE(FMovieSceneActorReferenceKey, ActorReferenceKey)
+	SLATE_EVENT(FOnSetActorReferenceKey, OnSetActorReferenceKey)
+
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, TWeakPtr<ISequencer> InSequencer)
+	{
+		WeakSequencer = InSequencer;
+		LocalSequenceID = InSequencer.Pin()->GetFocusedTemplateID();
+
+		Key = InArgs._ActorReferenceKey;
+		SetKey = InArgs._OnSetActorReferenceKey;
+
+		OnGlobalTimeChangedHandle = WeakSequencer.Pin()->OnGlobalTimeChanged().AddRaw(this, &SActorReferenceBox::GlobalTimeChanged);
+		OnMovieSceneDataChangedHandle = WeakSequencer.Pin()->OnMovieSceneDataChanged().AddRaw(this, &SActorReferenceBox::MovieSceneDataChanged);
+
+		ChildSlot
+		[
+			SNew(SComboButton)
+			.OnGetMenuContent(this, &SActorReferenceBox::GetPickerMenu)
+			.ContentPadding(FMargin(0.0, 0.0))
+			.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+			.ForegroundColor(FEditorStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+			.ButtonContent()
+			[
+				GetCurrentItemWidget(
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), "PropertyEditor.AssetClass")
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+				)
+			]
+		];
+
+		Update();
+	}
+
+	virtual ~SActorReferenceBox()
+	{
+		if (WeakSequencer.IsValid())
+		{
+			WeakSequencer.Pin()->OnGlobalTimeChanged().Remove(OnGlobalTimeChangedHandle);
+			WeakSequencer.Pin()->OnMovieSceneDataChanged().Remove(OnMovieSceneDataChangedHandle);
+		}
+	}
+
+	virtual UMovieSceneSequence* GetSequence() const override
+	{
+		return WeakSequencer.Pin()->GetFocusedMovieSceneSequence();
+	}
+
+	/** Set the current binding ID */
+	virtual void SetCurrentValue(const FMovieSceneObjectBindingID& InBindingId) override
+	{
+		SetKey.Execute(FMovieSceneActorReferenceKey(InBindingId));
+	}
+
+	/** Get the current binding ID */
+	virtual FMovieSceneObjectBindingID GetCurrentValue() const override
+	{
+		return Key.Get().Object;
+	}
+
+	void GlobalTimeChanged()
+	{
+		Update();
+	}
+
+	void MovieSceneDataChanged(EMovieSceneDataChangeType)
+	{
+		Update();
+	}
+
+	void Update()
+	{
+		if (IsEmpty())
+		{
+			Initialize();
+		}
+		else
+		{
+			UpdateCachedData();
+		}
+	}
+
+private:
+
+	TAttribute< FMovieSceneActorReferenceKey> Key;
+
+	FOnSetActorReferenceKey SetKey;
+
+	FDelegateHandle OnGlobalTimeChangedHandle, OnMovieSceneDataChangedHandle;
+};
+
+
+TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneActorReferenceData>& Channel, UMovieSceneSection* Section, const FGuid& InObjectBindingID, TWeakPtr<FTrackInstancePropertyBindings> PropertyBindings, TWeakPtr<ISequencer> InSequencer)
+{
+	const FMovieSceneActorReferenceData* RawChannel = Channel.Get();
+	if (!RawChannel)
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	TFunction<TOptional<FMovieSceneActorReferenceKey>(UObject&, FTrackInstancePropertyBindings*)> Func;
+
+	TSequencerKeyEditor<FMovieSceneActorReferenceData, FMovieSceneActorReferenceKey> KeyEditor(InObjectBindingID, Channel, Section, InSequencer, PropertyBindings, Func);
+
+	auto OnSetCurrentValueLambda = [KeyEditor](FMovieSceneActorReferenceKey& ActorKey) mutable
+	{
+		FScopedTransaction Transaction(LOCTEXT("SetKey", "Set Actor Reference Key Value"));
+		KeyEditor.SetValueWithNotify(ActorKey, EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
+
+		// Look for components to choose
+		ISequencer* Sequencer = KeyEditor.GetSequencer();
+		FMovieSceneEvaluationOperand ObjectOperand(ActorKey.Object.GetSequenceID(), ActorKey.Object.GetGuid());
+		TArray<USceneComponent*> ComponentsWithSockets;
+		AActor* Actor = nullptr;
+		for (TWeakObjectPtr<> WeakObject : Sequencer->FindBoundObjects(ObjectOperand))
+		{
+			Actor = Cast<AActor>(WeakObject.Get());
+			if (Actor)
+			{
+				TInlineComponentArray<USceneComponent*> Components(Actor);
+
+				for (USceneComponent* Component : Components)
+				{
+					if (Component && Component->HasAnySockets())
+					{
+						ComponentsWithSockets.Add(Component);
+					}
+				}
+				break;
+			}
+		}
+
+		if (ComponentsWithSockets.Num() == 0 || !Actor)
+		{
+			return;
+		}
+
+		// Pop up a component chooser
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedPtr< ILevelEditor > LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+
+		TSharedPtr<SWidget> ComponentMenuWidget =
+			SNew(SComponentChooserPopup)
+			.Actor(Actor)
+			.OnComponentChosen_Lambda([=](FName InComponentName) mutable
+				{
+					ActorKey.ComponentName = InComponentName;
+					KeyEditor.SetValueWithNotify(ActorKey, EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
+
+					// Look for sockets to choose
+					USceneComponent* ComponentWithSockets = nullptr;
+					TInlineComponentArray<USceneComponent*> Components(Actor);
+
+					for (USceneComponent* Component : Components)
+					{
+						if (Component && Component->GetFName() == InComponentName)
+						{
+							ComponentWithSockets = Component;
+							break;
+						}
+					}
+
+					if (!ComponentWithSockets)
+					{
+						return;
+					}
+							
+					// Pop up a socket chooser
+					TSharedPtr<SWidget> SocketMenuWidget =
+						SNew(SSocketChooserPopup)
+						.SceneComponent(ComponentWithSockets)
+						.OnSocketChosen_Lambda([=](FName InSocketName) mutable
+							{
+								ActorKey.SocketName = InSocketName;
+								KeyEditor.SetValueWithNotify(ActorKey, EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
+							}
+						);
+
+					// Create as context menu
+					FSlateApplication::Get().PushMenu(
+						LevelEditor.ToSharedRef(),
+						FWidgetPath(),
+						SocketMenuWidget.ToSharedRef(),
+						FSlateApplication::Get().GetCursorPos(),
+						FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
+					);
+				}
+			);
+
+		// Create as context menu
+		FSlateApplication::Get().PushMenu(
+			LevelEditor.ToSharedRef(),
+			FWidgetPath(),
+			ComponentMenuWidget.ToSharedRef(),
+			FSlateApplication::Get().GetCursorPos(),
+			FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
+		);
+	};
+
+	auto GetCurrentValueLambda = [KeyEditor]() -> FMovieSceneActorReferenceKey
+	{
+		return KeyEditor.GetCurrentValue();
+	};
+
+	return SNew(SActorReferenceBox, InSequencer)
+		.ActorReferenceKey_Lambda(GetCurrentValueLambda)
+		.OnSetActorReferenceKey_Lambda(OnSetCurrentValueLambda);
 }
 
 UMovieSceneKeyStructType* InstanceGeneratedStruct(FMovieSceneByteChannel* Channel, FSequencerKeyStructGenerator* Generator)

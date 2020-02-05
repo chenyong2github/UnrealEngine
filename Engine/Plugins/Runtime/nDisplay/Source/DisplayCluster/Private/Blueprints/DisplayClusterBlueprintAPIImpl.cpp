@@ -15,9 +15,9 @@
 #include "DisplayClusterRootComponent.h"
 
 #include "Config/DisplayClusterConfigTypes.h"
-#include "Misc/DisplayClusterHelpers.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterHelpers.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////

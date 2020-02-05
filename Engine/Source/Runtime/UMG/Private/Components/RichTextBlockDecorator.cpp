@@ -28,8 +28,6 @@ TSharedRef<ISlateRun> FRichTextDecorator::Create(const TSharedRef<class FTextLay
 	}
 
 	const FTextBlockStyle& TextStyle = Owner->GetDefaultTextStyle();
-	// TODO Allow universal mods?
-
 
 	TSharedPtr<ISlateRun> SlateRun;
 	TSharedPtr<SWidget> DecoratorWidget = CreateDecoratorWidget(RunInfo, TextStyle);
@@ -45,6 +43,15 @@ TSharedRef<ISlateRun> FRichTextDecorator::Create(const TSharedRef<class FTextLay
 		FSlateWidgetRun::FWidgetRunInfo WidgetRunInfo(DecoratorWidget.ToSharedRef(), WidgetBaseline);
 		SlateRun = FSlateWidgetRun::Create(TextLayout, RunInfo, InOutModelText, WidgetRunInfo, ModelRange);
 	}
+	else
+	{
+		// Assume there's a text handler if widget is empty, if there isn't one it will just display an empty string
+		FTextBlockStyle TempStyle = TextStyle;
+		CreateDecoratorText(RunInfo, TempStyle, *InOutModelText);
+
+		ModelRange.EndIndex = InOutModelText->Len();
+		SlateRun = FSlateTextRun::Create(RunInfo, InOutModelText, TempStyle, ModelRange);
+	}
 
 	return SlateRun.ToSharedRef();
 }
@@ -52,6 +59,10 @@ TSharedRef<ISlateRun> FRichTextDecorator::Create(const TSharedRef<class FTextLay
 TSharedPtr<SWidget> FRichTextDecorator::CreateDecoratorWidget(const FTextRunInfo& RunInfo, const FTextBlockStyle& DefaultTextStyle) const
 {
 	return TSharedPtr<SWidget>();
+}
+
+void FRichTextDecorator::CreateDecoratorText(const FTextRunInfo& RunInfo, FTextBlockStyle& InOutTextStyle, FString& InOutString) const
+{
 }
 
 /////////////////////////////////////////////////////

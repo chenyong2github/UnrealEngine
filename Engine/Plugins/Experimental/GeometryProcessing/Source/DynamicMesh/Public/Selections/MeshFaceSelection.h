@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Port of geometry3cpp MeshBoundaryLoops
+// Port of geometry3cpp MeshFaceSelection
 
 #pragma once
 
@@ -190,7 +190,7 @@ public:
 		}
 	}
 
-	TSet<int> AsSet() const
+	const TSet<int>& AsSet() const
 	{
 		return Selected;
 	}

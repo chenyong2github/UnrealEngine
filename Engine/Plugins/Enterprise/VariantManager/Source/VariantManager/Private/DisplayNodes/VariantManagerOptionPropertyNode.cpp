@@ -57,22 +57,7 @@ TSharedPtr<SWidget> FVariantManagerOptionPropertyNode::GetPropertyValueWidget()
 	}
 	else
 	{
-		FString ActorName;
-		if (SwitchActor)
-		{
-			ActorName = SwitchActor->GetActorLabel();
-		}
-
-		return SNew(SBox)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
-		.Padding(FMargin(3.0f, 0.0f, 0.0f, 0.0f))
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("FailedToResolveText", "Failed to resolve!"))
-			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
-		];
+		return GetFailedToResolveWidget(PropVal);
 	}
 
 	Options.Reset();

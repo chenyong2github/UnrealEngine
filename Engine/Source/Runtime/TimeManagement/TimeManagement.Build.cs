@@ -15,14 +15,5 @@ public class TimeManagement : ModuleRules
 				"Engine",
 			}
 		);
-
-        if (Target.bBuildEditor == true)
-        {
-            PrivateDependencyModuleNames.AddRange(
-                new string[] {
-                "SlateCore",
-                });
-        }
-
     }
 }

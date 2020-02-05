@@ -46,7 +46,8 @@ public:
 	}
 
 	virtual const TCHAR* GetToolName() override { return TEXT("Mirror"); }
-	virtual FText GetDisplayName() override { return FText(); /*NSLOCTEXT("UnrealEd", "LandscapeTool_Mirror", "Mirror Landscape");*/ };
+	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeTool_Mirror", "Mirror Landscape"); };
+	virtual FText GetDisplayMessage() override { return NSLOCTEXT("UnrealEd", "LandscapeTool_Mirror_Message", "Copy one side of a landscape to the other side so that you can easily mirror or rotate the landscape geometry along the X or Y axis."); };
 
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::None | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }
 	virtual bool SupportsMask() override { return false; }

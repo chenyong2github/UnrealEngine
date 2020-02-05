@@ -97,13 +97,30 @@ void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenc
 	// add control for all bone hierarchy 
 	for (int32 BoneIndex = 0; BoneIndex < BoneHierarchy.Num(); ++BoneIndex)
 	{
+
 		const FRigBone& RigBone = BoneHierarchy[BoneIndex];
 		FName BoneName = RigBone.Name;
 		FName ParentName = RigBone.ParentName;
 		FName SpaceName = GetSpaceName(BoneName);// name conflict?
 		FName ControlName = GetControlName(BoneName); // name conflict?
-		Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Bone, BoneName);
-		Container->ControlHierarchy.Add(ControlName, ERigControlType::Transform, GetControlName(ParentName), SpaceName);
+		if (ParentName != NAME_None)
+		{
+			FTransform Transform = BoneHierarchy.GetGlobalTransform(BoneName);
+			FTransform ParentTransform = BoneHierarchy.GetGlobalTransform(ParentName);
+			FTransform LocalTransform = Transform.GetRelativeTransform(ParentTransform);
+			FRigSpace& Space = Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Bone, ParentName);
+			Space.InitialTransform = LocalTransform;
+		}
+		else
+		{
+			FTransform Transform = BoneHierarchy.GetGlobalTransform(BoneName);
+			FTransform ParentTransform = FTransform::Identity;
+			FTransform LocalTransform = Transform.GetRelativeTransform(ParentTransform);
+			FRigSpace& Space = Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Global, ParentName);
+			Space.InitialTransform = LocalTransform;
+		}
+		Container->ControlHierarchy.Add(ControlName, ERigControlType::Transform, NAME_None, SpaceName);
+
 	}
 
 	Container->Initialize(true);

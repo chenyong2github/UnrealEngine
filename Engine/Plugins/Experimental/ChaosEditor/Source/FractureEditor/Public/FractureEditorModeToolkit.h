@@ -103,6 +103,10 @@ public:
 	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
+	/** Modes Panel Header Information **/
+	virtual FText GetActiveToolDisplayName() const;
+	virtual FText GetActiveToolMessage() const;
+
 	TSharedPtr<SWidget> ExplodedViewWidget;
 	TSharedPtr<SWidget> LevelViewWidget;
 	TSharedPtr<SWidget> ShowBoneColorsWidget;

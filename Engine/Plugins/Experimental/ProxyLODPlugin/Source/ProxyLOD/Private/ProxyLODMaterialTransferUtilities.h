@@ -7,6 +7,7 @@
 #include "ProxyLODMeshTypes.h"   // FMeshDescriptionArrayAdapter, FVertexDataMesh
 #include "ProxyLODGrid2d.h"
 #include "ProxyLODRasterizer.h" // FRasterGrid
+#include "ProxyLODkDOPInterface.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <openvdb/openvdb.h>
@@ -36,6 +37,7 @@ namespace ProxyLOD
 	* Texels in the resulting FSrcDataGrid that  have MaterialId = -1;
 	*
 	* @param SrcMesh             High poly grid that represents the source geometry.
+	* @param SrckDOPTree         kDOPTree of the SrcMesh.
 	* @param ReducedMesh         Low poly Mesh with UVs, that ostensibly represents the same geometry.
 	* @param ReducedMeshUVGrid   A mapping of the UVs on the ReducedMesh to the texture atlas space.
 	* @param TransferType        Controls the logic when a forward and reverse ray both hit high-res geometry.
@@ -47,11 +49,13 @@ namespace ProxyLOD
 	* Because some locations in the texture atlas for the Reduced Mesh will fall outside of all the charts (i.e. be dead space),
 	* there will be texels in the SrcDataGrid that correspond to this space and will be given .MaterialId =-1 for quick identification.
 	*/
-	FSrcDataGrid::Ptr CreateCorrespondence( const FMeshDescriptionArrayAdapter& SrcMesh,
-										    const FVertexDataMesh& ReducedMesh,
-		                                    const ProxyLOD::FRasterGrid& ReducedMeshUVGrid,
-		                                    const int32 TransferType, 
-										    float MaxRayLength = 3.f);
+	FSrcDataGrid::Ptr CreateCorrespondence(
+		const FMeshDescriptionArrayAdapter& SrcMesh,
+		const FkDOPTree& SrckDOPTree,
+		const FVertexDataMesh& ReducedMesh,
+		const ProxyLOD::FRasterGrid& ReducedMeshUVGrid,
+		const int32 TransferType, 
+		float MaxRayLength = 3.f);
 	/**
 	* Generate a map between UV locations on the simplified geometry and points on the Src geometry.
 	*
@@ -65,6 +69,7 @@ namespace ProxyLOD
 	*
 	* @param ClosestSrcPolyGrid  Sparse 3d grid that holds the Id of the closest poly to a given voxel.
 	* @param SrcMesh             High poly grid that represents the source geometry.
+	* @param SrckDOPTree         kDOPTree of the SrcMesh.
 	* @param ReducedMesh         Low poly Mesh with UVs, that ostensibly represents the same geometry.
 	* @param ReducedMeshUVGrid   A mapping of the UVs on the ReducedMesh to the texture atlas space.
 	* @param TransferType        Controls the logic when a forward and reverse ray both hit high-res geometry.
@@ -76,13 +81,15 @@ namespace ProxyLOD
 	* Because some locations in the texture atlas for the Reduced Mesh will fall outside of all the charts (i.e. be dead space),
 	* there will be texels in the SrcDataGrid that correspond to this space and will be given .MaterialId =-1 for quick identification.
 	*/
-	FSrcDataGrid::Ptr CreateCorrespondence( const openvdb::Int32Grid& ClosestSrcPolyGrid,
-		                                    const FMeshDescriptionArrayAdapter& SrcMesh,
-										    const FVertexDataMesh& ReducedMesh, 
-											const ProxyLOD::FRasterGrid& ReducedMeshUVGrid,
-											const int32 TransferType, 
-											float MaxRayLength = 3.f);
-	
+	FSrcDataGrid::Ptr CreateCorrespondence(
+		const openvdb::Int32Grid& ClosestSrcPolyGrid,
+		const FMeshDescriptionArrayAdapter& SrcMesh,
+		const FkDOPTree& SrckDOPTree,
+		const FVertexDataMesh& ReducedMesh,
+		const ProxyLOD::FRasterGrid& ReducedMeshUVGrid,
+		const int32 TransferType, 
+		float MaxRayLength = 3.f);
+
 	/**
 	* Utility used generate new Flattened Materials for the DstRawMesh that correspond to the super-sampling
 	* of Flattened materials for the Source Geometry (SrcMeshAdapter).

@@ -50,6 +50,11 @@ public:
 	FDynamicMesh3* GetMesh() { return Mesh.Get(); }
 
 	/**
+	 * @return pointer to internal mesh
+	 */
+	const FDynamicMesh3* GetMesh() const { return Mesh.Get(); }
+
+	/**
 	 * @return the current internal mesh, which is replaced with an empty mesh
 	 */
 	TUniquePtr<FDynamicMesh3> ExtractMesh(bool bNotifyUpdate);
@@ -101,7 +106,20 @@ public:
 	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex positions.
 	 * This function will update the existing RenderProxy buffers if possible
 	 */
-	void FastNotifyPositionsUpdated();
+	void FastNotifyPositionsUpdated(bool bNormals = false, bool bColors = false, bool bUVs = false);
+
+	/**
+	 * Call this instead of NotifyMeshUpdated() if you have only updated the vertex uvs.
+	 * This function will update the existing RenderProxy buffers if possible
+	 */
+	void FastNotifyUVsUpdated();
+
+	/**
+	 * Call this instead of NotifyMeshUpdated() if you have only updated secondary triangle sorting.
+	 * This function will update the existing buffers if possible, without rebuilding entire RenderProxy.
+	 */
+	void FastNotifySecondaryTrianglesChanged();
+
 
 	/**
 	 * Apply a vertex deformation change to the internal mesh

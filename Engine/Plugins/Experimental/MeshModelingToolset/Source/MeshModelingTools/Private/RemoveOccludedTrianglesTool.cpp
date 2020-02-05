@@ -97,6 +97,44 @@ void URemoveOccludedTrianglesTool::Setup()
 		ComponentTarget->SetOwnerVisibility(false);
 	}
 
+	// find components with the same source asset
+	TargetToPreviewIdx.SetNum(ComponentTargets.Num());
+	PreviewToTargetIdx.Reset();
+	for (int ComponentIdx = 0; ComponentIdx < TargetToPreviewIdx.Num(); ComponentIdx++)
+	{
+		TargetToPreviewIdx[ComponentIdx] = -1;
+	}
+	bool bAnyHasSameSource = false;
+	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	{
+		if (TargetToPreviewIdx[ComponentIdx] >= 0) // already mapped
+		{
+			continue;
+		}
+
+		int32 NumPreviews = PreviewToTargetIdx.Num();
+		PreviewToTargetIdx.Add(ComponentIdx);
+		TargetToPreviewIdx[ComponentIdx] = NumPreviews;
+
+		FPrimitiveComponentTarget* ComponentTarget = ComponentTargets[ComponentIdx].Get();
+		for (int32 VsIdx = ComponentIdx + 1; VsIdx < ComponentTargets.Num(); VsIdx++)
+		{
+			if (ComponentTarget->HasSameSourceData(*ComponentTargets[VsIdx]))
+			{
+				bAnyHasSameSource = true;
+
+				TargetToPreviewIdx[VsIdx] = NumPreviews;
+			}
+		}
+	}
+
+	if (bAnyHasSameSource)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("JacketingMultipleAssetWithSameSource", "WARNING: Multiple meshes in your selection use the same source asset!  Triangles will be conservatively removed from these meshes only when they are occluded in every selected instance."),
+			EToolMessageLevel::UserWarning);
+	}
+
 	BasicProperties = NewObject<URemoveOccludedTrianglesToolProperties>(this, TEXT("Remove Occluded Triangle Settings"));
 	AdvancedProperties = NewObject<URemoveOccludedTrianglesAdvancedProperties>(this, TEXT("Advanced Settings"));
 
@@ -111,14 +149,15 @@ void URemoveOccludedTrianglesTool::Setup()
 
 void URemoveOccludedTrianglesTool::SetupPreviews()
 {	
-	int32 TargetNumPreview = ComponentTargets.Num();
+	int32 NumTargets = ComponentTargets.Num();
+	int32 NumPreviews = PreviewToTargetIdx.Num();
 
 	CombinedMeshTrees = MakeShared<IndexMeshWithAcceleration>();
 
 #if WITH_EDITOR
 	static const FText SlowTaskText = LOCTEXT("RemoveOccludedTrianglesInit", "Building mesh occlusion data...");
 
-	FScopedSlowTask SlowTask(TargetNumPreview, SlowTaskText);
+	FScopedSlowTask SlowTask(NumTargets, SlowTaskText);
 	SlowTask.MakeDialog();
 
 	// Declare progress shortcut lambdas
@@ -130,35 +169,62 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 	auto EnterProgressFrame = [](float Progress) {};
 #endif
 
-	OriginalDynamicMeshes.SetNum(TargetNumPreview);
-	for (int32 PreviewIdx = 0; PreviewIdx < TargetNumPreview; PreviewIdx++)
+	OriginalDynamicMeshes.SetNum(NumPreviews);
+	PreviewToCopyIdx.Reset(); PreviewToCopyIdx.SetNum(NumPreviews);
+	for (int32 TargetIdx = 0; TargetIdx < NumTargets; TargetIdx++)
 	{
-		EnterProgressFrame(.5);
+		EnterProgressFrame(1);
+		
+		int PreviewIdx = TargetToPreviewIdx[TargetIdx];
 
-		URemoveOccludedTrianglesOperatorFactory *OpFactory = NewObject<URemoveOccludedTrianglesOperatorFactory>();
-		OpFactory->Tool = this;
-		OpFactory->ComponentIndex = PreviewIdx;
-		OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3>();
-		FMeshDescriptionToDynamicMesh Converter;
-		Converter.bPrintDebugMessages = true;
-		Converter.Convert(ComponentTargets[PreviewIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
+		bool bHasConverted = OriginalDynamicMeshes[PreviewIdx].IsValid();
 
-		EnterProgressFrame(.5);
+		if (!bHasConverted)
+		{
+			URemoveOccludedTrianglesOperatorFactory *OpFactory = NewObject<URemoveOccludedTrianglesOperatorFactory>();
+			OpFactory->Tool = this;
+			OpFactory->PreviewIdx = PreviewIdx;
+			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3>();
+			FMeshDescriptionToDynamicMesh Converter;
+			Converter.bPrintDebugMessages = true;
+			Converter.Convert(ComponentTargets[TargetIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
 
-		UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
-		Preview->Setup(this->TargetWorld, OpFactory);
+			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
+			Preview->Setup(this->TargetWorld, OpFactory);
 
-		FComponentMaterialSet MaterialSet;
-		ComponentTargets[PreviewIdx]->GetMaterialSet(MaterialSet);
-		Preview->ConfigureMaterials(MaterialSet.Materials,
-			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
-		);
+			FComponentMaterialSet MaterialSet;
+			ComponentTargets[TargetIdx]->GetMaterialSet(MaterialSet);
+			Preview->ConfigureMaterials(MaterialSet.Materials,
+				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
+			);
 
-		Preview->PreviewMesh->SetTransform(ComponentTargets[PreviewIdx]->GetWorldTransform());
-		Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
-		Preview->SetVisibility(true);
+			Preview->PreviewMesh->SetTransform(ComponentTargets[TargetIdx]->GetWorldTransform());
+			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
+			Preview->SetVisibility(true);
+		}
+		else
+		{
+			// already did the conversion for a full UMeshOpPreviewWithBackgroundCompute -- just make a light version of that and hook it up to copy the other's work
+			int CopyIdx = PreviewCopies.Num();
+			UPreviewMesh* PreviewMesh = PreviewCopies.Add_GetRef(NewObject<UPreviewMesh>(this));
+			PreviewMesh->CreateInWorld(this->TargetWorld, ComponentTargets[TargetIdx]->GetWorldTransform());
 
-		CombinedMeshTrees->AddMesh(*OriginalDynamicMeshes[PreviewIdx], FTransform3d(ComponentTargets[PreviewIdx]->GetWorldTransform()));
+			PreviewToCopyIdx[PreviewIdx].Add(CopyIdx);
+
+			PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
+
+			FComponentMaterialSet MaterialSet;
+			ComponentTargets[TargetIdx]->GetMaterialSet(MaterialSet);
+			PreviewMesh->SetMaterials(MaterialSet.Materials);
+			
+			PreviewMesh->SetVisible(true);
+
+			Previews[PreviewIdx]->OnMeshUpdated.AddLambda([this, CopyIdx](UMeshOpPreviewWithBackgroundCompute* Compute) {
+				PreviewCopies[CopyIdx]->UpdatePreview(Compute->PreviewMesh->GetPreviewDynamicMesh());
+			});
+		}
+
+		CombinedMeshTrees->AddMesh(*OriginalDynamicMeshes[PreviewIdx], FTransform3d(ComponentTargets[TargetIdx]->GetWorldTransform()));
 	}
 
 	CombinedMeshTrees->BuildAcceleration();
@@ -178,6 +244,15 @@ void URemoveOccludedTrianglesTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		ComponentTarget->SetOwnerVisibility(true);
 	}
+
+	// clear all the preview copies
+	for (UPreviewMesh* PreviewMesh : PreviewCopies)
+	{
+		PreviewMesh->SetVisible(false);
+		PreviewMesh->Disconnect();
+		PreviewMesh = nullptr;
+	}
+	PreviewCopies.Empty();
 
 	TArray<FDynamicMeshOpResult> Results;
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
@@ -227,8 +302,9 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	}
 	Op->WindingIsoValue = Tool->BasicProperties->WindingIsoValue;
 
+	int ComponentIndex = Tool->PreviewToTargetIdx[PreviewIdx];
 	FTransform LocalToWorld = Tool->ComponentTargets[ComponentIndex]->GetWorldTransform();
-	Op->OriginalMesh = Tool->OriginalDynamicMeshes[ComponentIndex];
+	Op->OriginalMesh = Tool->OriginalDynamicMeshes[PreviewIdx];
 
 	Op->CombinedMeshTrees = Tool->CombinedMeshTrees;
 
@@ -239,6 +315,12 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	Op->AddTriangleSamples = Tool->BasicProperties->AddTriangleSamples;
 	
 	Op->SetTransform(LocalToWorld);
+
+	Op->MeshTransforms.Add((FTransform3d)LocalToWorld);
+	for (int32 CopyIdx : Tool->PreviewToCopyIdx[PreviewIdx])
+	{
+		Op->MeshTransforms.Add((FTransform3d)Tool->PreviewCopies[CopyIdx]->GetTransform());
+	}
 
 	return Op;
 }
@@ -254,6 +336,23 @@ void URemoveOccludedTrianglesTool::Tick(float DeltaTime)
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Preview->Tick(DeltaTime);
+	}
+	// copy working material state to corresponding copies
+	for (int PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
+	{
+		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[PreviewIdx];
+		bool bIsWorking = Preview->IsUsingWorkingMaterial();
+		for (int CopyIdx : PreviewToCopyIdx[PreviewIdx])
+		{
+			if (bIsWorking)
+			{		
+				PreviewCopies[CopyIdx]->SetOverrideRenderMaterial(Preview->WorkingMaterial);
+			}
+			else
+			{
+				PreviewCopies[CopyIdx]->ClearOverrideRenderMaterial();
+			}
+		}
 	}
 }
 
@@ -301,16 +400,16 @@ void URemoveOccludedTrianglesTool::GenerateAsset(const TArray<FDynamicMeshOpResu
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveOccludedTrianglesToolTransactionName", "Remove Occluded Triangles"));
 
-	check(Results.Num() == ComponentTargets.Num());
+	check(Results.Num() == Previews.Num());
 	
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
 	{
-		check(Results[ComponentIdx].Mesh.Get() != nullptr);
-		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		check(Results[PreviewIdx].Mesh.Get() != nullptr);
+		int ComponentIdx = PreviewToTargetIdx[PreviewIdx];
+		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &PreviewIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			
-			Converter.Convert(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription);
+			Converter.Convert(Results[PreviewIdx].Mesh.Get(), *CommitParams.MeshDescription);
 		});
 	}
 

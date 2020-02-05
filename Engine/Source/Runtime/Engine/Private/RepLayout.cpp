@@ -783,7 +783,7 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 	const uint32			InChecksum)
 {
 	// Compatible checksums are only used for InternalAck connections
-	if (ServerConnection && !ServerConnection->InternalAck)
+	if (ServerConnection && !ServerConnection->IsInternalAck())
 	{
 		return 0;
 	}
@@ -1630,7 +1630,7 @@ bool FRepLayout::ReplicateProperties(
 
 	if (OwningChannel->Connection->ResendAllDataState != EResendAllDataState::None)
 	{
-		check(OwningChannel->Connection->InternalAck);
+		check(OwningChannel->Connection->IsInternalAck());
 
 		// If we are resending data since open, we don't want to affect the current state of channel/replication, so just do the minimum and send the data, and return
 		if (RepState->LifetimeChangelist.Num() > 0)
@@ -1743,7 +1743,7 @@ bool FRepLayout::ReplicateProperties(
 	check(Changed.Num() > 0);
 
 	// do not build shared state for InternalAck (demo) connections
-	if (!OwningChannel->Connection->InternalAck && (GNetSharedSerializedData != 0))
+	if (!OwningChannel->Connection->IsInternalAck() && (GNetSharedSerializedData != 0))
 	{
 		// if no shared serialization info exists, build it
 		if (!RepChangelistState->SharedSerialization.IsValid())
@@ -1768,7 +1768,7 @@ bool FRepLayout::ReplicateProperties(
 	}
 
 	// Send the final merged change list
-	if (OwningChannel->Connection->InternalAck)
+	if (OwningChannel->Connection->IsInternalAck())
 	{
 		// Remember all properties that have changed since this channel was first opened in case we need it (for bResendAllDataSinceOpen)
 		// We use UnfilteredChanged so LifetimeChangelist contains all properties, regardless of Active state.
@@ -3290,7 +3290,7 @@ bool FRepLayout::ReceiveProperties(
 
 	UE_NET_TRACE_SCOPE(Properties, InBunch, OwningChannel->Connection->GetInTraceCollector(), ENetTraceVerbosity::Trace);
 
-	if (OwningChannel->Connection->InternalAck)
+	if (OwningChannel->Connection->IsInternalAck())
 	{
 		return ReceiveProperties_BackwardsCompatible(OwningChannel->Connection, RepState, Data, InBunch, bOutHasUnmapped, bEnableRepNotifies, bOutGuidsChanged);
 	}
@@ -6111,7 +6111,7 @@ void FRepLayout::SendPropertiesForRPC(
 
 	if (!IsEmpty())
 	{
-		if (Channel->Connection->InternalAck)
+		if (Channel->Connection->IsInternalAck())
 		{
 			TArray<uint16> Changed;
 
@@ -6182,7 +6182,7 @@ void FRepLayout::ReceivePropertiesForRPC(
 			}
 		}
 
-		if (Channel->Connection->InternalAck)
+		if (Channel->Connection->IsInternalAck())
 		{
 			bool bHasUnmapped = false;
 			bool bGuidsChanged = false;
@@ -6572,7 +6572,7 @@ void FRepLayout::PreSendCustomDeltaProperties(
 {
 	using namespace UE4_RepLayout_Private;
 
-	if (!Connection->InternalAck)
+	if (!Connection->IsInternalAck())
 	{
 		const FLifetimeCustomDeltaState& LocalLifetimeCustomPropertyState = *LifetimeCustomPropertyState;
 
@@ -6700,7 +6700,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 	UPackageMapClient* PackageMap = static_cast<UPackageMapClient*>(DeltaSerializeInfo.Map);
 	UNetConnection* Connection = DeltaSerializeInfo.Connection;
 	const bool bIsWriting = !!DeltaSerializeInfo.Writer;
-	const bool bInternalAck = !!Connection->InternalAck;
+	const bool bInternalAck = Connection->IsInternalAck();
 
 	FRepObjectDataBuffer ObjectData(Object);
 	FScriptArray* ObjectArray = GetTypedProperty<FScriptArray>(ObjectData, FastArrayItemCmd);
@@ -6734,10 +6734,6 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 			LocalNetFieldExportGroup = CreateNetfieldExportGroup();
 			PackageMap->AddNetFieldExportGroup(OwnerPathName, LocalNetFieldExportGroup);
 		}
-
-		checkf(LocalNetFieldExportGroup->NetFieldExports.Num() == Cmds.Num(),
-			TEXT("NetFieldExports.Num() does not match number of commands! PathName = %s, NetFieldExportGroup.PathName = %s, Cmds.Num() = %d, NetFieldExports.Num() = %d"),
-			*OwnerPathName, *(LocalNetFieldExportGroup->PathName), Cmds.Num(), LocalNetFieldExportGroup->NetFieldExports.Num());
 
 		NetFieldExportGroup = LocalNetFieldExportGroup.Get();
 	}

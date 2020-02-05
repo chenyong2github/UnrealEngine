@@ -50,6 +50,7 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 	{
 		//Don't Inititialize the Control Rig here it may have the wrong VM on the CDO
 		SetTargetInstance(ControlRig);
+		ControlRig->RequestInit();
 	}
 }
 

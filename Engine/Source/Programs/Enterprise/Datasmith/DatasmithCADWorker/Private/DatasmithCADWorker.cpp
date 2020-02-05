@@ -4,8 +4,10 @@
 #include "DatasmithCADWorkerImpl.h"
 
 #include "RequiredProgramMainCPPInclude.h"
+#include "CADToolsModule.h"
 
 IMPLEMENT_APPLICATION(DatasmithCADWorker, "DatasmithCADWorker");
+DEFINE_LOG_CATEGORY(LogDatasmithCADWorker);
 
 
 void GetParameter(int32 Argc, TCHAR* Argv[], const FString& InParam, FString& OutValue)
@@ -37,16 +39,27 @@ bool HasParameter(int32 Argc, TCHAR* Argv[], const FString& InParam)
 
 int32 Main(int32 Argc, TCHAR * Argv[])
 {
-	FString ServerPID, ServerPort, CacheDirectory, EnginePluginsPath;
+	UE_SET_LOG_VERBOSITY(LogDatasmithCADWorker, Verbose);
+
+	FString ServerPID, ServerPort, CacheDirectory, CacheVersion, EnginePluginsPath;
 	GetParameter(Argc, Argv, "-ServerPID", ServerPID);
 	GetParameter(Argc, Argv, "-ServerPort", ServerPort);
 	GetParameter(Argc, Argv, "-CacheDir", CacheDirectory);
+	GetParameter(Argc, Argv, "-CacheVersion", CacheVersion);
 	GetParameter(Argc, Argv, "-EnginePluginsDir", EnginePluginsPath);
+
+	int32 EditorCacheVersion = FCString::Atoi(*CacheVersion);
+	int32 WorkerCacheVersion = FCADToolsModule::Get().GetCacheVersion();
+	if (EditorCacheVersion != 0 && EditorCacheVersion != WorkerCacheVersion)
+	{
+		UE_LOG(LogDatasmithCADWorker, Error, TEXT("Incompatible cache systems. Please recompile DatasmithCADWorker target."));
+		return EXIT_FAILURE;
+	}
 
 	FDatasmithCADWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), EnginePluginsPath, CacheDirectory);
 	Worker.Run();
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 int32 Filter(uint32 Code, struct _EXCEPTION_POINTERS *Ep)

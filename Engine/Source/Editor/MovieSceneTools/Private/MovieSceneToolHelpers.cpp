@@ -62,7 +62,10 @@
 #include "Serialization/ObjectReader.h"
 #include "AnimationRecorder.h"
 #include "Components/SkeletalMeshComponent.h"
-
+#include "ILiveLinkClient.h"
+#include "LiveLinkPresetTypes.h"
+#include "LiveLinkSourceSettings.h"
+#include "Features/IModularFeatures.h"
 /* MovieSceneToolHelpers
  *****************************************************************************/
 
@@ -879,7 +882,7 @@ bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid Obj
 				const int32 CompositeIndex = 0;
 				FRichCurve Source;
 				const bool bNegative = false;
-				CurveAPI.GetCurveData(NodeName, AnimatedPropertyName, ChannelIndex, CompositeIndex, Source, bNegative);
+				CurveAPI.GetCurveDataForSequencer(NodeName, AnimatedPropertyName, ChannelIndex, CompositeIndex, Source, bNegative);
 
 				FMovieSceneFloatChannel* Channel = FloatSection->GetChannelProxy().GetChannel<FMovieSceneFloatChannel>(0);
 				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
@@ -1039,7 +1042,8 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	FRichCurve EulerRotation[3];
 	FRichCurve Scale[3];
 	FTransform DefaultTransform;
-	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform);
+	const bool bUseSequencerCurve = true;
+	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, bUseSequencerCurve);
 
  	UMovieScene3DTransformTrack* TransformTrack = InMovieScene->FindTrack<UMovieScene3DTransformTrack>(ObjectBinding); 
 	if (!TransformTrack)
@@ -2065,8 +2069,59 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	}
 
 	UnFbx::FLevelSequenceAnimTrackAdapter AnimTrackAdapter(Player, MovieScene, RootToLocalTransform);
-
+	int32 LocalStartFrame = AnimTrackAdapter.GetLocalStartFrame();
+	int32 StartFrame = AnimTrackAdapter.GetStartFrame();
+	int32 AnimationLength = AnimTrackAdapter.GetLength();
+	float FrameRate = AnimTrackAdapter.GetFrameRate();
+	float DeltaTime = 1.0f / FrameRate;
 	FFrameRate SampleRate = MovieScene->GetDisplayRate();
+
+
+	//If we are running with a live link track we need to do a few things.
+	// 1. First test to see if we have one, only way to really do that is to see if we have a source that has the `Sequencer Live Link Track`.  We also evalute the first frame in case we are out of range and the sources aren't created yet.
+	// 2. Make sure Sequencer.AlwaysSendInterpolated.LiveLink is non-zero, and then set it back to zero if it's not.
+	// 3. For each live link sequencer source we need to set the ELiveLinkSourceMode to Latest so that we just get the latest and don't use engine/timecode for any interpolation.
+
+	ILiveLinkClient* LiveLinkClient = nullptr;
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	TOptional<int32> SequencerAlwaysSenedLiveLinkInterpolated;
+	TMap<FGuid, ELiveLinkSourceMode>  SourceAndMode;
+	IConsoleVariable* CVarAlwaysSendInterpolatedLiveLink = IConsoleManager::Get().FindConsoleVariable(TEXT("Sequencer.AlwaysSendInterpolatedLiveLink"));
+	bool bHaveAtLeastOneSource = false;
+	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	{
+
+		LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+		if (LiveLinkClient)
+		{
+			//Evaluate the first frame we may be out of range and not have any live link sources created yet.
+			AnimTrackAdapter.UpdateAnimation(StartFrame);
+			TArray<FGuid> Sources = LiveLinkClient->GetSources();
+			for (const FGuid& Guid : Sources)
+			{
+				FText SourceTypeText = LiveLinkClient->GetSourceType(Guid);
+				FString SourceTypeStr = SourceTypeText.ToString();
+				if (SourceTypeStr.Contains(TEXT("Sequencer Live Link")))
+				{
+					bHaveAtLeastOneSource = true;
+					ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Guid);
+					if (Settings)
+					{
+						if (Settings->Mode != ELiveLinkSourceMode::Latest)
+						{
+							SourceAndMode.Add(Guid, Settings->Mode);
+							Settings->Mode = ELiveLinkSourceMode::Latest;
+						}
+						if (CVarAlwaysSendInterpolatedLiveLink)
+						{
+							SequencerAlwaysSenedLiveLinkInterpolated = CVarAlwaysSendInterpolatedLiveLink->GetInt();
+							CVarAlwaysSendInterpolatedLiveLink->Set(1, ECVF_SetByConsole);
+						}
+					}
+				}
+			}
+		}
+	}
 
 	FAnimRecorderInstance AnimationRecorder;
 	FAnimationRecordingSettings RecordingSettings;
@@ -2078,21 +2133,26 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	RecordingSettings.bRemoveRootAnimation = false;
 	RecordingSettings.bCheckDeltaTimeAtBeginning = false;
 	AnimationRecorder.Init(SkelMeshComp, AnimSequence, nullptr, RecordingSettings);
+
+	//need to run first time before start record.
+	AnimTrackAdapter.UpdateAnimation(LocalStartFrame);
+	if (LiveLinkClient && bHaveAtLeastOneSource)
+	{
+		LiveLinkClient->ForceTick();
+	}
 	AnimationRecorder.BeginRecording();
 
-
-	int32 LocalStartFrame = AnimTrackAdapter.GetLocalStartFrame();
-	int32 StartFrame = AnimTrackAdapter.GetStartFrame();
-	int32 AnimationLength = AnimTrackAdapter.GetLength();
-	float FrameRate = AnimTrackAdapter.GetFrameRate();
-	float DeltaTime = 1.0f / FrameRate;
-	for (int32 FrameCount = 0; FrameCount <= AnimationLength; ++FrameCount)
+	for (int32 FrameCount = 1; FrameCount <= AnimationLength; ++FrameCount)
 	{
-
 		int32 LocalFrame = LocalStartFrame + FrameCount;
 
 		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
 		AnimTrackAdapter.UpdateAnimation(LocalFrame);
+
+		if (LiveLinkClient && bHaveAtLeastOneSource)
+		{
+			LiveLinkClient->ForceTick();
+		}
 
 		// Update space bases so new animation position has an effect.
 		// @todo - hack - this will be removed at some point (this comment is all over the place by the way in fbx export code).
@@ -2111,6 +2171,23 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	const bool bShowAnimationAssetCreatedToast = false;
 	AnimationRecorder.FinishRecording(bShowAnimationAssetCreatedToast);
 
+	//now do any sequencer live link cleanup
+	if (LiveLinkClient && bHaveAtLeastOneSource)
+	{
+		for (TPair<FGuid, ELiveLinkSourceMode>& Item: SourceAndMode)
+		{
+			ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Item.Key);
+			if (Settings)
+			{
+				Settings->Mode = Item.Value;
+			}
+		}
+	}
+
+	if(SequencerAlwaysSenedLiveLinkInterpolated.IsSet() && CVarAlwaysSendInterpolatedLiveLink)
+	{
+		CVarAlwaysSendInterpolatedLiveLink->Set(0, ECVF_SetByConsole);
+	}
 	return true;
 }
 

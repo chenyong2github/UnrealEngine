@@ -26,9 +26,10 @@ public:
 			Regions.Empty();
 		}
 
-		FString                      ID;       // Unique buffer name
-		TArray<MPCDI::FMPCDIRegion*> Regions;  // Asset of warp regions
-		FBox                         AABBox;
+		// Unique buffer name
+		FString ID;
+		// Asset of warp regions
+		TArray<FMPCDIRegion*> Regions;
 
 		// Shader Lamp view and projection matrices
 		FVector Origin;
@@ -36,7 +37,7 @@ public:
 		FMatrix Camera2World;
 
 		bool Initialize(const FString& BufferName);
-		void AddRegion(MPCDI::FMPCDIRegion* MPCDIRegionPtr);
+		void AddRegion(FMPCDIRegion* MPCDIRegionPtr);
 
 		bool FindRegion(const FString& RegionName, IMPCDI::FRegionLocator& OutRegionLocator) const
 		{
@@ -57,14 +58,12 @@ public:
 	bool LoadFromFile(const FString& MPCIDIFile);
 
 	void CleanupMPCDIData();
-
-
 	void ReloadAll();
 	void ReloadChangedExternalFiles_RenderThread();
 
 	bool AddRegion(const FString& BufferName, const FString& RegionName, IMPCDI::FRegionLocator& OutRegionLocator);
 
-	MPCDI::FMPCDIRegion* GetRegion(const IMPCDI::FRegionLocator& RegionLocator) const
+	FMPCDIRegion* GetRegion(const IMPCDI::FRegionLocator& RegionLocator) const
 	{
 		if (RegionLocator.BufferIndex < Buffers.Num())
 		{

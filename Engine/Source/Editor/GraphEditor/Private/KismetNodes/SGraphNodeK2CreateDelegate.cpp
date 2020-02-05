@@ -271,15 +271,35 @@ void SGraphNodeK2CreateDelegate::CreateBelowPinControls(TSharedPtr<SVerticalBox>
 				CreateMatchingEventData = AddDefaultFunctionDataOption(NSLOCTEXT("GraphNodeK2Create", "CreateMatchingEventOption", "[Create a matching event]"));
 			}
 
+			struct FFunctionItemData
+			{
+				FName Name;
+				FText Description;
+			};
+
+			TArray<FFunctionItemData> ClassFunctions;
+
 			for (TFieldIterator<UFunction> It(ScopeClass); It; ++It)
 			{
 				UFunction* Func = *It;
 				if (Func && FunctionSignature->IsSignatureCompatibleWith(Func) &&
 					UEdGraphSchema_K2::FunctionCanBeUsedInDelegate(Func))
 				{
-					// Add this to the searchable text box as an FString so users can type and find it
-					FunctionOptionList.Add(MakeShareable(new FString(Func->GetFName().ToString())));
+					FFunctionItemData ItemData;
+					ItemData->Name = Func->GetFName();
+					ItemData->Description = FunctionDescription(Func);
+					ClassFunctions.Emplace(MoveTemp(ItemData));
 				}
+			}
+
+			ClassFunctions.Sort([](const FFunctionItemData& A, const FFunctionItemData& B) {
+				return A.Description.CompareTo(B.Description) < 0;
+			});
+
+			for (const FFunctionItemData& ItemData : ClassFunctions)
+			{
+				// Add this to the searchable text box as an FString so users can type and find it
+				FunctionOptionList.Add(MakeShareable(new FString(ItemData.Name().ToString())));
 			}
 
 			TSharedRef<SSearchableComboBox> SelectFunctionWidgetRef =

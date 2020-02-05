@@ -808,7 +808,7 @@ void FTexturePlatformData::Cache(
 
 	uint32 Flags = InFlags;
 
-	static bool bForDDC = FString(FCommandLine::Get()).Contains(TEXT("DerivedDataCache"));
+	static bool bForDDC = FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache"));
 	if (bForDDC)
 	{
 		Flags |= ETextureCacheFlags::ForDDCBuild;

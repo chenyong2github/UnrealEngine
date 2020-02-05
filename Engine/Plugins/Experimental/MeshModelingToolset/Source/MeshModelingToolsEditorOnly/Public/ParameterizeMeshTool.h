@@ -46,6 +46,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public UInt
 public:
 
 	IToolsContextAssetAPI* AssetAPI;
+	bool bDoAutomaticGlobalUnwrap = false;
 
 	UParameterizeMeshToolBuilder()
 	{
@@ -54,6 +55,29 @@ public:
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+};
+
+
+
+
+UENUM()
+enum class EUVUnwrapType
+{
+	/**  */
+	MinStretch = 0,
+	/** */
+	ExpMap = 1
+};
+
+
+
+UENUM()
+enum class EUVIslandMode
+{
+	/**  */
+	Auto = 0,
+	/** */
+	PolyGroups = 1
 };
 
 
@@ -78,12 +102,15 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolProperties : public U
 	GENERATED_BODY()
 public:
 
-	/** Prevent UVs from crossing poly group boundaries boundaries */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Respect Group Boundaries"))
-	bool bRespectPolygroups = true;
+	//UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY()
+	EUVIslandMode IslandMode = EUVIslandMode::PolyGroups;
+
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "bIsGlobalMode == false"))
+	EUVUnwrapType UnwrapType = EUVUnwrapType::ExpMap;
 
 	/** Maximum amount of stretch, from none to any.  If zero stretch is specified each triangle will likey be its own chart */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "0.166", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "0.166", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1", EditCondition = "UnwrapType == EUVUnwrapType::MinStretch"))
 	float ChartStretch = 0.11f;
 
 	/** Scaling applied to UV islands */
@@ -93,6 +120,9 @@ public:
 	/** Scaling factor used for UV island normalization/scaling */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "UVScaleMode!=EParameterizeMeshToolUVScaleMode::NoScaling", UIMin = "0.001", UIMax = "10", ClampMin = "0.00001", ClampMax = "1000000.0") )
 	float UVScale = 1.0;
+
+	UPROPERTY()
+	bool bIsGlobalMode = false;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
@@ -115,6 +145,7 @@ public:
 
 	virtual void SetWorld(UWorld* World);
 	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetUseAutoGlobalParameterizationMode(bool bEnable);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -151,6 +182,8 @@ protected:
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
 
+	UPROPERTY()
+	bool bDoAutomaticGlobalUnwrap = false;
 
 protected:
 	UWorld* TargetWorld;

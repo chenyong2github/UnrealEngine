@@ -788,7 +788,7 @@ void FAnimationBudgetAllocator::OnHUDPostRender(AHUD* HUD, UCanvas* Canvas)
 
 			{
 				TMap<AActor*, TArray<int32>> ActorMap;
-				for (int32 ComponentDataIndex : AllSortedComponentData)
+				for (int32 ComponentDataIndex = 0; ComponentDataIndex < AllComponentData.Num(); ++ComponentDataIndex)
 				{
 					FComponentData& ComponentData = AllComponentData[ComponentDataIndex];
 					TArray<int32>& ComponentIndexArray = ActorMap.FindOrAdd(ComponentData.Component->GetOwner());
@@ -797,8 +797,17 @@ void FAnimationBudgetAllocator::OnHUDPostRender(AHUD* HUD, UCanvas* Canvas)
 
 				float LineOffset = 0.0f;
 
-				for(const TPair<AActor*, TArray<int32>>& ActorIndicesPair : ActorMap)
+				for(TPair<AActor*, TArray<int32>>& ActorIndicesPair : ActorMap)
 				{
+					// Sort by significance
+					ActorIndicesPair.Value.Sort([this](int32 Index0, int32 Index1)
+					{
+						const FComponentData& ComponentData0 = AllComponentData[Index0];
+						const FComponentData& ComponentData1 = AllComponentData[Index1];
+ 
+						return ComponentData0.Significance < ComponentData1.Significance;
+					});
+
 					FVector Location = ActorIndicesPair.Key->GetActorLocation();
 
 					FString DebugString;

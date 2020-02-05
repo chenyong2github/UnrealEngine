@@ -410,6 +410,7 @@ private:
 	bool BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bUndo);
 	bool BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bUndo);
 	void BreakAllLinksRecursive(URigVMPin* Pin, bool bAsInput, bool bTowardsParent, bool bUndo);
+	void UpdateRerouteNodeAfterChangingLinks(URigVMPin* PinChanged, bool bUndo = true);
 	bool SetPinExpansion(URigVMPin* InPin, bool bIsExpanded, bool bUndo = true);
 	void ExpandPinRecursively(URigVMPin* InPin, bool bUndo);
 	bool SetPinIsWatched(URigVMPin* InPin, bool bIsWatched, bool bUndo);
@@ -452,6 +453,7 @@ private:
 
 	bool bSuspendNotifications;
 	bool bReportWarningsAndErrors;
+	bool bIgnoreRerouteCompactnessChanges;
 
 	friend class URigVMGraph;
 	friend class URigVMActionStack;

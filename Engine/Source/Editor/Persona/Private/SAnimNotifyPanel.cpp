@@ -2562,6 +2562,7 @@ void SAnimNotifyTrack::CreateNewSyncMarkerAtCursor(FString NewSyncMarkerName, UC
 	SyncMarker.MarkerName = FName(*NewSyncMarkerName);
 	SyncMarker.TrackIndex = TrackIndex;
 	SyncMarker.Time = LastClickedTime;
+	SyncMarker.Guid = FGuid::NewGuid();
 
 	Seq->PostEditChange();
 	Seq->MarkPackageDirty();

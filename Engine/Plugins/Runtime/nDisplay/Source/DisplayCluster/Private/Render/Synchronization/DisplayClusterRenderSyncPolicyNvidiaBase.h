@@ -15,7 +15,16 @@ public:
 	FDisplayClusterRenderSyncPolicyNvidiaBase();
 	virtual ~FDisplayClusterRenderSyncPolicyNvidiaBase() = 0;
 
-protected:
-	// Is NVIDIA API related initialization has been performed already
-	bool bNVAPIInitialized = false;
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterRenderSyncPolicy
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool SynchronizeClusterRendering(int32& InOutSyncInterval) override;
+
+private:
+	bool InitializeNvidiaSwapLock();
+
+private:
+	bool bNvApiInitialised = false;
+	bool bNvApiIBarrierSet = false;
 };

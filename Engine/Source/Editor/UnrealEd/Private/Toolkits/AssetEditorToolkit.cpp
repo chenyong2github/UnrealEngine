@@ -30,8 +30,11 @@
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
 #include "ToolMenus.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Logging/LogMacros.h"
 
 #define LOCTEXT_NAMESPACE "AssetEditorToolkit"
+
+DEFINE_LOG_CATEGORY_STATIC(LogAssetEditorToolkit, Log, All);
 
 TWeakPtr< IToolkitHost > FAssetEditorToolkit::PreviousWorldCentricToolkitHostForNewAssetEditor;
 TSharedPtr<FExtensibilityManager> FAssetEditorToolkit::SharedMenuExtensibilityManager;
@@ -403,6 +406,11 @@ class FEdMode* FAssetEditorToolkit::GetEditorMode() const
 	return nullptr;
 }
 
+class UEdMode* FAssetEditorToolkit::GetScriptableEditorMode() const
+{
+	return nullptr;
+}
+
 FText FAssetEditorToolkit::GetEditorModeDisplayName() const
 {
 	return FText::GetEmpty();
@@ -542,8 +550,15 @@ void FAssetEditorToolkit::SaveAsset_Execute()
 
 	for (UObject* Object : ObjectsToSave)
 	{
-		checkf(((Object != nullptr) && Object->IsAsset()), TEXT("Invalid object to save: %s"), (Object != nullptr) ? *Object->GetFullName() : TEXT("Null Object"));
-		PackagesToSave.Add(Object->GetOutermost());
+		if ((Object == nullptr) || !Object->IsAsset())
+		{
+			// Log an invalid object but don't try to save it
+			UE_LOG(LogAssetEditorToolkit, Log, TEXT("Invalid object to save: %s"), (Object != nullptr) ? *Object->GetFullName() : TEXT("Null Object"));
+		}
+		else
+		{
+			PackagesToSave.Add(Object->GetOutermost());
+		}
 	}
 
 	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirtyOnAssetSave, /*bPromptToSave=*/ false);

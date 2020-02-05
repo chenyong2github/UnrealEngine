@@ -625,7 +625,14 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	GetSequencer()->GetSelectedKeyAreas(KeyAreas);
 	if (KeyAreas.Num() <= 0)
 	{
-		return;
+		if (ControlRigEditMode)
+		{
+			ControlRig = ControlRigEditMode->GetControlRig();
+			if (ControlRig)
+			{
+				ControlRig->ClearControlSelection();
+			}
+		}
 	}
 
 	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);

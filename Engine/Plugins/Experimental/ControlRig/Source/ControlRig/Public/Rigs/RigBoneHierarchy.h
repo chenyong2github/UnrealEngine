@@ -160,6 +160,9 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	// resets all of the transforms back to the initial transform
 	void ResetTransforms();
 
+	// recomputes all of the global transforms from local
+	void RecomputeGlobalTransforms();
+
 	// import skeleton
 	TArray<FRigElementKey> ImportSkeleton(const FReferenceSkeleton& InSkeleton, const FName& InNameSpace, bool bReplaceExistingBones, bool bRemoveObsoleteBones, bool bSelectBones, bool bNotify);
 

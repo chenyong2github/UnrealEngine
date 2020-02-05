@@ -7,6 +7,8 @@
 #include "Animation/Skeleton.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/PackageReload.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Components/SkinnedMeshComponent.h"
@@ -111,6 +113,20 @@ USkeleton::USkeleton(const FObjectInitializer& ObjectInitializer)
 	AnimCurveMapping = SmartNames.AddContainer(AnimCurveMappingName);
 
 	AnimCurveUidVersion = 0;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FCoreUObjectDelegates::OnPackageReloaded.AddStatic(&USkeleton::HandlePackageReloaded);
+	}
+}
+
+void USkeleton::BeginDestroy()
+{
+	Super::BeginDestroy();
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+	}
 }
 
 void USkeleton::PostInitProperties()
@@ -1978,6 +1994,20 @@ void USkeleton::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClas
 const TArray<UAssetUserData*>* USkeleton::GetAssetUserDataArray() const
 {
 	return &AssetUserData;
+}
+
+void USkeleton::HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
+{
+	if (InPackageReloadPhase == EPackageReloadPhase::PostPackageFixup)
+	{
+		for (const auto& RepointedObjectPair : InPackageReloadedEvent->GetRepointedObjects())
+		{
+			if (USkeleton* NewObject = Cast<USkeleton>(RepointedObjectPair.Value))
+			{
+				NewObject->HandleVirtualBoneChanges(); // Reloading Skeletons can invalidate virtual bones so refresh
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE 

@@ -172,9 +172,6 @@ private:
 	*/
 	template<typename T> T* CreateObjectInstance(UObject*& InParent, const FString& ObjectName, const EObjectFlags Flags);
 	
-	/** Generates and populates a FGeometryCacheMeshData instance from and for the given mesh sample */
-	void GeometryCacheDataForMeshSample(FGeometryCacheMeshData &OutMeshData, const FAbcMeshSample* MeshSample, const uint32 MaterialOffset);
-
 	/**
 	* Creates a Static mesh from the given mesh description
 	*

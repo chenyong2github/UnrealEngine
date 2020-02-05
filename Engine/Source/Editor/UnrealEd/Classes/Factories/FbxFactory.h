@@ -26,15 +26,15 @@ class UNREALED_API UFbxFactory : public UFactory
 
 
 	//~ Begin UObject Interface
-	virtual void CleanUp() override;
 	virtual bool ConfigureProperties() override;
 	virtual void PostInitProperties() override;
 	//~ End UObject Interface
 
 	//~ Begin UFactory Interface
+	virtual void CleanUp() override;
 	virtual bool DoesSupportClass(UClass * Class) override;
 	virtual UClass* ResolveSupportedClass() override;
-	virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled);
+	virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
 	virtual bool FactoryCanImport(const FString& Filename) override;
 	virtual IImportSettingsParser* GetImportSettingsParser() override;
 

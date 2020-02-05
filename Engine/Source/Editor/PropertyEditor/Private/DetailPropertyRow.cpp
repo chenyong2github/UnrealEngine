@@ -64,11 +64,7 @@ FDetailPropertyRow::FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode,
 bool FDetailPropertyRow::NeedsKeyNode(TSharedRef<FPropertyNode> InPropertyNode, TSharedRef<FDetailCategoryImpl> InParentCategory)
 {
 	FStructProperty* KeyStructProp = CastField<FStructProperty>(InPropertyNode->GetPropertyKeyNode()->GetProperty());
-	FStructProperty* ValueStructProp = CastField<FStructProperty>(InPropertyNode->GetProperty());
-
-	return KeyStructProp != nullptr || ValueStructProp != nullptr ||
-		GetPropertyCustomization(InPropertyNode->GetPropertyKeyNode().ToSharedRef(), InParentCategory).IsValid() ||
-		GetPropertyCustomization(InPropertyNode, InParentCategory).IsValid();
+	return KeyStructProp != nullptr || GetPropertyCustomization(InPropertyNode->GetPropertyKeyNode().ToSharedRef(), InParentCategory).IsValid();
 }
 
 IDetailPropertyRow& FDetailPropertyRow::DisplayName( const FText& InDisplayName )
@@ -218,6 +214,49 @@ FDetailWidgetRow FDetailPropertyRow::GetWidgetRow()
 	}
 }
 
+static bool IsInContainer(const TSharedPtr<IPropertyHandle>& PropertyHandle)
+{
+	TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
+	while (ParentHandle.IsValid())
+	{
+		if (ParentHandle->AsArray().IsValid() || 
+			ParentHandle->AsSet().IsValid() ||
+			ParentHandle->AsMap().IsValid())
+		{
+			return true;
+		}
+
+		ParentHandle = ParentHandle->GetParentHandle();
+	}
+
+	return false;
+}
+
+static void FixEmptyHeaderRowInContainers(const TSharedPtr<IPropertyHandle>& PropertyHandle, const TSharedPtr<FDetailWidgetRow>& HeaderRow)
+{
+	if (IsInContainer(PropertyHandle))
+	{
+		if (!HeaderRow->HasAnyContent())
+		{
+			if (!HeaderRow->HasNameContent())
+			{
+				HeaderRow->NameContent()
+				[
+					PropertyHandle->CreatePropertyNameWidget()
+				];
+			}
+
+			if (!HeaderRow->HasValueContent())
+			{
+				HeaderRow->ValueContent()
+				[
+					PropertyHandle->CreatePropertyValueWidget(false)
+				];
+			}
+		}
+	}
+}
+
 void FDetailPropertyRow::OnItemNodeInitialized( TSharedRef<FDetailCategoryImpl> InParentCategory, const TAttribute<bool>& InIsParentEnabled, TSharedPtr<IDetailGroup> InParentGroup)
 {
 	IsParentEnabled = InIsParentEnabled;
@@ -229,6 +268,8 @@ void FDetailPropertyRow::OnItemNodeInitialized( TSharedRef<FDetailCategoryImpl> 
 		CustomPropertyWidget = MakeShareable(new FDetailWidgetRow);
 
 		CustomTypeInterface->CustomizeHeader(PropertyHandle.ToSharedRef(), *CustomPropertyWidget, *this);
+
+		FixEmptyHeaderRowInContainers(PropertyHandle, CustomPropertyWidget);
 
 		// set initial value of enabled attribute to settings from struct customization
 		if (CustomPropertyWidget->IsEnabledAttr.IsBound())

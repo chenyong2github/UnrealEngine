@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "StaticMeshOperations.h"
+
 struct FMeshDescription;
 struct FRawMesh;
 struct FUVMapParameters;
@@ -13,16 +15,9 @@ struct FVertexInstanceID;
 struct FPolygonGroupID;
 struct FVertexID;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogMeshDescriptionOperations, Log, All);
-
-typedef TMap<FPolygonGroupID, FPolygonGroupID> PolygonGroupMap;
-
-DECLARE_DELEGATE_ThreeParams(FAppendPolygonGroupsDelegate, const FMeshDescription& /*SourceMesh*/, FMeshDescription& /*TargetMesh*/, PolygonGroupMap& /*RemapPolygonGroup*/)
 
 //////////////////////////////////////////////////////////////////////////
-// Any operations on the mesh description that do not depend on engine module
-// should be implement here.
-
+// FMeshDescriptionOperations has been deprecated, most of it's features have been moved over FStaticMeshOperations.
 class MESHDESCRIPTIONOPERATIONS_API FMeshDescriptionOperations
 {
 public:
@@ -35,47 +30,46 @@ public:
 		UseWeightedAreaAndAngle = 0x00000008, //Use surface area and angle as a ratio when computing normals
 	};
 
+	typedef FStaticMeshOperations::FAppendSettings FAppendSettings;
+
 	/** Convert this mesh description into the old FRawMesh format. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::ConvertToRawMesh() instead.")
 	static void ConvertToRawMesh(const FMeshDescription& SourceMeshDescription, FRawMesh& DestinationRawMesh, const TMap<FName, int32>& MaterialMap);
 
 	/** Convert old FRawMesh format to MeshDescription. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::ConvertFromRawMesh() instead.")
 	static void ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FMeshDescription& DestinationMeshDescription, const TMap<int32, FName>& MaterialMap);
 
-	struct FAppendSettings
-	{
-		FAppendSettings()
-			: bMergeVertexColor(true)
-			, MergedAssetPivot(0.0f, 0.0f, 0.0f)
-		{}
-		FAppendPolygonGroupsDelegate PolygonGroupsDelegate;
-		bool bMergeVertexColor;
-		FVector MergedAssetPivot;
-		TOptional<FTransform> MeshTransform; // Apply a transformation on source mesh (see MeshTransform)
-	};
-
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::AppendMeshDescription() instead.")
 	static void AppendMeshDescription(const FMeshDescription& SourceMesh, FMeshDescription& TargetMesh, FAppendSettings& AppendSettings);
 
 	/*
 	 * Check if all normals and tangents are valid, if not recompute them
 	 */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded() instead.")
 	static void RecomputeNormalsAndTangentsIfNeeded(FMeshDescription& MeshDescription, ETangentOptions TangentOptions, bool bForceRecomputeNormals = false, bool bForceRecomputeTangents = false);
 
 	/**
 	 * Compute normal, tangent and Bi-Normal for every polygon in the mesh description. (this do not compute Vertex NTBs)
 	 * It also remove the degenerated polygon from the mesh description
 	 */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::CreatComputePolygonTangentsAndNormals() instead.")
 	static void CreatePolygonNTB(FMeshDescription& MeshDescription, float ComparisonThreshold);
 
 	/** Compute normal, tangent and Bi-Normal(only if bComputeTangent is true) for every vertex in the mesh description. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::CreateNormals() instead.")
 	static void CreateNormals(FMeshDescription& MeshDescription, ETangentOptions TangentOptions, bool bComputeTangent);
 
 	/** Compute tangent and Bi-Normal using mikkt space for every vertex in the mesh description. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::CreateMikktTangents() instead.")
 	static void CreateMikktTangents(FMeshDescription& MeshDescription, ETangentOptions TangentOptions);
 
 	/** Find all overlapping vertex using the threshold in the mesh description. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::FindOverlappingCorners() instead.")
 	static void FindOverlappingCorners(FOverlappingCorners& OverlappingCorners, const FMeshDescription& MeshDescription, float ComparisonThreshold);
 	
 	/** Find all charts in the mesh description. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::GetUVChartCount() instead.")
 	static int32 GetUVChartCount(FMeshDescription& MeshDescription, int32 SrcLightmapIndex, ELightmapUVVersion LightmapUVVersion, const FOverlappingCorners& OverlappingCorners);
 
 	/**
@@ -92,6 +86,7 @@ public:
 	 * @param OverlappingCorners     Overlapping corners of the given mesh
 	 * @return                       UV layout correctly generated
 	 */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::CreateLightMapUVLayout() instead.")
 	static bool CreateLightMapUVLayout(FMeshDescription& MeshDescription,
 		int32 SrcLightmapIndex,
 		int32 DstLightmapIndex,
@@ -100,26 +95,34 @@ public:
 		const FOverlappingCorners& OverlappingCorners);
 
 	/** Create some UVs from the specified mesh description data. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::GenerateUniqueUVsForStaticMesh() instead.")
 	static bool GenerateUniqueUVsForStaticMesh(const FMeshDescription& MeshDescription, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords);
 
 	/** Add a UV channel to the MeshDescription. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::AddUVChannel() instead.")
 	static bool AddUVChannel(FMeshDescription& MeshDescription);
 
 	/** Insert a UV channel at the given index to the MeshDescription. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::InsertUVChannel() instead.")
 	static bool InsertUVChannel(FMeshDescription& MeshDescription, int32 UVChannelIndex);
 
 	/** Remove the UV channel at the given index from the MeshDescription. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::RemoveUVChannel() instead.")
 	static bool RemoveUVChannel(FMeshDescription& MeshDescription, int32 UVChannelIndex);
 
 	/** Generate planar UV mapping for the MeshDescription */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::GeneratePlanarUV() instead.")
 	static void GeneratePlanarUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords);
 
 	/** Generate cylindrical UV mapping for the MeshDescription */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::GenerateCylindricalUV() instead.")
 	static void GenerateCylindricalUV(FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords);
 
 	/** Generate box UV mapping for the MeshDescription */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::GenerateBoxUV() instead.")
 	static void GenerateBoxUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords);
 
+	UE_DEPRECATED(4.25, "Use FMeshDescription::RemapPolygonGroups() instead.")
 	static void RemapPolygonGroups(FMeshDescription& MeshDescription, TMap<FPolygonGroupID, FPolygonGroupID>& Remap);
 
 	/*
@@ -132,16 +135,22 @@ public:
 	 *                           If param is true  : PolygonGroupTargetID.GetValue() do not necessary equal SectionIndex in case there is less sections then SectionIndex
 	 *                           If param is false : PolygonGroupTargetID.GetValue() equal SectionIndex, we will add all necessary missing PolygonGroupID (this can generate empty PolygonGroupID)
 	 */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::SwapPolygonPolygonGroup() instead.")
 	static void SwapPolygonPolygonGroup(FMeshDescription& MeshDescription, int32 SectionIndex, int32 TriangleIndexStart, int32 TriangleIndexEnd, bool bRemoveEmptyPolygonGroup);
 
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::ConvertHardEdgesToSmoothGroup() instead.")
 	static void ConvertHardEdgesToSmoothGroup(const FMeshDescription& SourceMeshDescription, TArray<uint32>& FaceSmoothingMasks);
 
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::ConvertSmoothGroupToHardEdges() instead.")
 	static void ConvertSmoothGroupToHardEdges(const TArray<uint32>& FaceSmoothingMasks, FMeshDescription& DestinationMeshDescription);
 
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::HasVertexColor() instead.")
 	static bool HasVertexColor(const FMeshDescription& MeshDescription);
 
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::BuildWeldedVertexIDRemap() instead.")
 	static void BuildWeldedVertexIDRemap(const FMeshDescription& MeshDescription, const float WeldingThreshold, TMap<FVertexID, FVertexID>& OutVertexIDRemap);
 
 	/** Computes the SHA hash of all the attributes values in the MeshDescription. */
+	UE_DEPRECATED(4.25, "Use FStaticMeshOperations::ComputeSHAHash() instead.")
 	static FSHAHash ComputeSHAHash(const FMeshDescription& MeshDescription);
 };

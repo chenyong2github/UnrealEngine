@@ -6,6 +6,7 @@
 
 #include "Modules/ModuleInterface.h"
 #include "Templates/Tuple.h"
+#include "UObject/ObjectMacros.h"
 #include "USDMemory.h"
 
 #include <string>
@@ -15,8 +16,9 @@
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
-#include "pxr/pxr.h"
-#include "pxr/usd/usd/stageCache.h"
+	#include "pxr/pxr.h"
+	#include "pxr/base/tf/token.h"
+	#include "pxr/usd/usd/stageCache.h"
 #include "USDIncludesEnd.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -71,6 +73,15 @@ enum class EUsdUpAxis
 	ZAxis,
 };
 
+UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EUsdPurpose : int32
+{
+	Default = 0 UMETA(Hidden),
+	Proxy = 1,
+	Render = 2,
+	Guide = 4
+};
+ENUM_CLASS_FLAGS(EUsdPurpose);
 
 
 struct FUsdVector2Data
@@ -144,22 +155,20 @@ struct FUsdQuatData
 class IUnrealUSDWrapperModule : public IModuleInterface
 {
 public:
-	virtual void Initialize(const std::vector<std::string>& InPluginDirectories) = 0;
+	virtual void Initialize(const TArray< FString >& InPluginDirectories ) = 0;
 };
 
 class UnrealUSDWrapper
 {
 public:
 #if USE_USD_SDK
-	UNREALUSDWRAPPER_API static void Initialize(const std::vector<std::string>& InPluginDirectories);
-	UNREALUSDWRAPPER_API static const char* GetErrors();
+	UNREALUSDWRAPPER_API static void Initialize( const TArray< FString > & InPluginDirectories );
 	UNREALUSDWRAPPER_API static double GetDefaultTimeCode();
 
 	UNREALUSDWRAPPER_API static TUsdStore< pxr::TfRefPtr< pxr::UsdStage > > OpenUsdStage(const char* Path, const char* Filename);
 	UNREALUSDWRAPPER_API static pxr::UsdStageCache& GetUsdStageCache();
 #endif  // #if USE_USD_SDK
 private:
-	static std::string Errors;
 	static bool bInitialized;
 };
 
@@ -184,7 +193,7 @@ public:
 
 	UNREALUSDWRAPPER_API static bool IsUnsigned(const pxr::UsdAttribute& Attribute);
 #endif // #if USE_USD_SDK
-	
+
 };
 
 
@@ -193,7 +202,9 @@ class IUsdPrim
 {
 public:
 #if USE_USD_SDK
-	static UNREALUSDWRAPPER_API bool IsProxyOrGuide(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API EUsdPurpose GetPurpose(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API FName GetPurposeName(EUsdPurpose Purpose);
+
 	static UNREALUSDWRAPPER_API bool HasGeometryData(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API bool HasGeometryDataOrLODVariants(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API int GetNumLODs(const pxr::UsdPrim& Prim);
@@ -223,4 +234,10 @@ public:
 #endif // #if USE_USD_SDK
 };
 
-
+namespace UnrealIdentifiers
+{
+#if USE_USD_SDK
+	/* Attribute name when assigning Unreal materials to UsdGeomMeshes */
+	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignments;
+#endif // #if USE_USD_SDK
+}

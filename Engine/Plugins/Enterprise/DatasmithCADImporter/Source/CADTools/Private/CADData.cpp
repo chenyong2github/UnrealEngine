@@ -4,6 +4,7 @@
 #include "CADOptions.h"
 
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 namespace CADLibrary
 {
@@ -60,6 +61,15 @@ FArchive& operator<<(FArchive& Ar, FCADMaterial& Material)
 	return Ar;
 }
 
+FArchive& operator<<(FArchive& Ar, FFileDescription& File)
+{
+	Ar << File.Path;
+	Ar << File.Name;
+	Ar << File.Extension;
+	Ar << File.Configuration;
+	return Ar;
+}
+
 FArchive& operator<<(FArchive& Ar, FTessellationData& TessellationData)
 {
 	Ar << TessellationData.VertexArray;
@@ -90,6 +100,8 @@ FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh)
 	Ar << BodyMesh.BodyID;
 	Ar << BodyMesh.MeshActorName;
 	Ar << BodyMesh.Faces;
+
+	Ar << BodyMesh.BBox;
 
 	Ar << BodyMesh.MaterialSet;
 	Ar << BodyMesh.ColorSet;
@@ -123,6 +135,27 @@ void DeserializeBodyMeshFile(const TCHAR* Filename, TArray<FBodyMesh>& OutBodySe
 
 	*Archive << OutBodySet;
 	Archive->Close();
+}
+
+// Duplicated with FDatasmithUtils::GetCleanFilenameAndExtension, to delete as soon as possible
+void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilename, FString& OutExtension)
+{
+	if (InFilePath.IsEmpty())
+	{
+		OutFilename.Empty();
+		OutExtension.Empty();
+		return;
+	}
+
+	FString BaseFile = FPaths::GetCleanFilename(InFilePath);
+	BaseFile.Split(TEXT("."), &OutFilename, &OutExtension, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+
+	if (!OutExtension.IsEmpty() && FCString::IsNumeric(*OutExtension))
+	{
+		BaseFile = OutFilename;
+		BaseFile.Split(TEXT("."), &OutFilename, &OutExtension, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+		OutExtension = OutExtension + TEXT(".*");
+	}
 }
 
 }

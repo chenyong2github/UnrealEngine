@@ -388,6 +388,15 @@ void FContentBrowserSingleton::GetSelectedPathViewFolders(TArray<FString>& Selec
 	}
 }
 
+FString FContentBrowserSingleton::GetCurrentPath()
+{
+	if (PrimaryContentBrowser.IsValid())
+	{
+		return PrimaryContentBrowser.Pin()->GetCurrentPath();
+	}
+	return FString();
+}
+
 void FContentBrowserSingleton::CaptureThumbnailFromViewport(FViewport* InViewport, TArray<FAssetData>& SelectedAssets)
 {
 	ContentBrowserUtils::CaptureThumbnailFromViewport(InViewport, SelectedAssets);

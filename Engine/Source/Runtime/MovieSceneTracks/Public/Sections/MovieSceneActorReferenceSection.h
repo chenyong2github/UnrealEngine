@@ -28,16 +28,22 @@ struct FMovieSceneActorReferenceKey
 
 	friend bool operator==(const FMovieSceneActorReferenceKey& A, const FMovieSceneActorReferenceKey& B)
 	{
-		return A.Object == B.Object;
+		return A.Object == B.Object && A.ComponentName == B.ComponentName && A.SocketName == B.SocketName;
 	}
 
 	friend bool operator!=(const FMovieSceneActorReferenceKey& A, const FMovieSceneActorReferenceKey& B)
 	{
-		return A.Object != B.Object;
+		return A.Object != B.Object || A.ComponentName != B.ComponentName || A.SocketName != B.SocketName;
 	}
 
 	UPROPERTY(EditAnywhere, Category="Key")
 	FMovieSceneObjectBindingID Object;
+
+	UPROPERTY(EditAnywhere, Category="Key")
+	FName ComponentName;
+
+	UPROPERTY(EditAnywhere, Category="Key")
+	FName SocketName;
 };
 
 /** A curve of events */
@@ -74,9 +80,10 @@ struct MOVIESCENETRACKS_API FMovieSceneActorReferenceData : public FMovieSceneCh
 	 * Evaluate this channel
 	 *
 	 * @param InTime     The time to evaluate at
-	 * @return the result of the evaluation
+	 * @param OutValue   A value to receive the result
+	 * @return true if the channel was evaluated successfully, false otherwise
 	 */
-	FMovieSceneActorReferenceKey Evaluate(FFrameTime InTime) const;
+	bool Evaluate(FFrameTime InTime, FMovieSceneActorReferenceKey& OutValue) const;
 
 public:
 
@@ -179,6 +186,5 @@ private:
 
 inline bool EvaluateChannel(const FMovieSceneActorReferenceData* InChannel, FFrameTime InTime, FMovieSceneActorReferenceKey& OutValue)
 {
-	OutValue = InChannel->Evaluate(InTime);
-	return true;
+	return InChannel->Evaluate(InTime, OutValue);
 }

@@ -124,13 +124,10 @@ void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 	if (!AllowedClassesFilterString.IsEmpty())
 	{
 		TArray<FString> AllowedClassFilterNames;
-		AllowedClassesFilterString.ParseIntoArray(AllowedClassFilterNames, TEXT(","), true);
+		AllowedClassesFilterString.ParseIntoArrayWS(AllowedClassFilterNames, TEXT(","), true);
 
-		for (FString& ClassName : AllowedClassFilterNames)
+		for (const FString& ClassName : AllowedClassFilterNames)
 		{
-			// User can potentially list class names with leading or trailing whitespace
-			ClassName.TrimStartAndEndInline();
-
 			UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
 			if (!Class)
 			{
@@ -169,13 +166,10 @@ void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 	if (!DisallowedClassesFilterString.IsEmpty())
 	{
 		TArray<FString> DisallowedClassFilterNames;
-		DisallowedClassesFilterString.ParseIntoArray(DisallowedClassFilterNames, TEXT(","), true);
+		DisallowedClassesFilterString.ParseIntoArrayWS(DisallowedClassFilterNames, TEXT(","), true);
 
-		for (FString& ClassName : DisallowedClassFilterNames)
+		for (const FString& ClassName : DisallowedClassFilterNames)
 		{
-			// User can potentially list class names with leading or trailing whitespace
-			ClassName.TrimStartAndEndInline();
-
 			UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
 			if (!Class)
 			{

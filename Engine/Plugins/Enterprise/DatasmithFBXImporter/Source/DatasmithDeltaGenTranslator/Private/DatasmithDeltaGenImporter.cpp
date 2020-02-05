@@ -2,6 +2,7 @@
 
 #include "DatasmithDeltaGenImporter.h"
 
+#include "DatasmithDeltaGenAnimationInterpolator.h"
 #include "DatasmithDeltaGenImportData.h"
 #include "DatasmithDeltaGenImportOptions.h"
 #include "DatasmithDeltaGenImporterAuxFiles.h"
@@ -731,107 +732,171 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithDeltaGenImporter::ConvertMat
 	return MaterialElement;
 }
 
-void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, const FDeltaGenTmlDataAnimationTrack& Track, float Framerate)
+namespace DeltaGenImporterImpl
 {
-	if (Track.Zeroed)
+	void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAnimation, const FDeltaGenTmlDataAnimationTrack& Track, float InFramerate, float TimelineDelayMs)
 	{
-		return;
-	}
+		EDatasmithTransformType DSType = EDatasmithTransformType::Count;
 
-	EDatasmithTransformType DSType = EDatasmithTransformType::Count;
-	switch(Track.Type)
-	{
-	case EDeltaGenTmlDataAnimationTrackType::Translation:
-	{
-		DSType = EDatasmithTransformType::Translation;
-		break;
-	}
-	// We convert Rotation to Euler on import as well
-	case EDeltaGenTmlDataAnimationTrackType::Rotation:
-	case EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler:
-	{
-		DSType = EDatasmithTransformType::Rotation;
-		break;
-	}
-	case EDeltaGenTmlDataAnimationTrackType::Scale:
-	{
-		DSType = EDatasmithTransformType::Scale;
-		break;
-	}
-	case EDeltaGenTmlDataAnimationTrackType::Center:
-	{
-		UE_LOG(LogDatasmithDeltaGenImport, Warning, TEXT("Center animations are currently not supported!"));
-		return;
-		break;
-	}
-	default:
-	{
-		return;
-	}
-	}
-
-	FRichCurve Curves[3];
-	float MinKey = FLT_MAX;
-	float MaxKey = -FLT_MAX;
-
-	// DeltaGen always has all components for each track type
-	EDatasmithTransformChannels Channels = TransformAnimation.GetEnabledTransformChannels();
-	ETransformChannelComponents Components = FDatasmithAnimationUtils::GetChannelTypeComponents(Channels, DSType);
-	if (Track.Keys.Num() > 0)
-	{
-		Components = ETransformChannelComponents::All;
-	}
-	TransformAnimation.SetEnabledTransformChannels(Channels | FDatasmithAnimationUtils::SetChannelTypeComponents(Components, DSType));
-
-	for(int KeyIndex = 0; KeyIndex < Track.Keys.Num(); ++KeyIndex)
-	{
-		float Key = Track.Keys[KeyIndex];
-		bool bUnwindRotation = (DSType == EDatasmithTransformType::Rotation);
-		FVector Value = FVector(Track.Values[KeyIndex].X, Track.Values[KeyIndex].Y, Track.Values[KeyIndex].Z);
-
-		MinKey = FMath::Min(MinKey, Key);
-		MaxKey = FMath::Max(MaxKey, Key);
-
-		Curves[0].AddKey(Key, Value.X, bUnwindRotation);
-		Curves[1].AddKey(Key, Value.Y, bUnwindRotation);
-		Curves[2].AddKey(Key, Value.Z, bUnwindRotation);
-	}
-
-	FFrameRate FrameRate = FFrameRate(static_cast<uint32>(Framerate + 0.5f), 1);
-	FFrameNumber StartFrame = FrameRate.AsFrameNumber(MinKey);
-
-	// If we use AsFrameNumber it will floor, and we might lose the very end of the animation
-	const double TimeAsFrame = (double(MaxKey) * FrameRate.Numerator) / FrameRate.Denominator;
-	FFrameNumber EndFrame = FFrameNumber(static_cast<int32>(FMath::CeilToDouble(TimeAsFrame)));
-
-	// We go to EndFrame.Value+1 here so that if its a 2 second animation at 30fps, frame 60 belongs
-	// to the actual animation, as opposed to being range [0, 59]. This guarantees that the animation will
-	// actually complete within its range, which is necessary in order to play it correctly at runtime
-	for (int32 Frame = StartFrame.Value; Frame <= EndFrame.Value + 1; ++Frame)
-	{
-		float TimeSeconds = FrameRate.AsSeconds(Frame);
-		FVector Val = FVector(Curves[0].Eval(TimeSeconds), Curves[1].Eval(TimeSeconds), Curves[2].Eval(TimeSeconds));
-
-		if (DSType == EDatasmithTransformType::Rotation)
+		switch(Track.Type)
 		{
-			FQuat Xrot = FQuat(FVector(1.0f, 0.0f, 0.0f), FMath::DegreesToRadians(Val.X));
-			FQuat Yrot = FQuat(FVector(0.0f, 1.0f, 0.0f), FMath::DegreesToRadians(Val.Y));
-			FQuat Zrot = FQuat(FVector(0.0f, 0.0f, 1.0f), FMath::DegreesToRadians(Val.Z));
-			Val = (Xrot * Yrot * Zrot).Euler();
-			Val.X *= -1;
-			Val.Z *= -1;
-		}
-		else if (DSType == EDatasmithTransformType::Translation)
-		{
-			// Deltagen is right-handed Z up, UE4 is left-handed Z up. We try keeping the same X, so here we
-			// just flip the Y coordinate to convert between them.
-			// Note: Geometry, transforms and VRED animations get converted when parsing the FBX file in DatasmithFBXFileImporter, so
-			// you won't find analogue for this in VRED importer, even though the conversion is the same
-			Val.Y *= -1;
+			case EDeltaGenTmlDataAnimationTrackType::Translation:
+				DSType = EDatasmithTransformType::Translation;
+				break;
+			// We convert Rotation to Euler on import
+			case EDeltaGenTmlDataAnimationTrackType::Rotation:
+			case EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler:
+				DSType = EDatasmithTransformType::Rotation;
+				break;
+			case EDeltaGenTmlDataAnimationTrackType::Scale:
+				DSType = EDatasmithTransformType::Scale;
+				break;
+			case EDeltaGenTmlDataAnimationTrackType::Center:
+				UE_LOG(LogDatasmithDeltaGenImport, Warning, TEXT("Center animations are currently not supported!"));
+				return;
+				break;
+			default:
+				return;
 		}
 
-		FDatasmithTransformFrameInfo FrameInfo = FDatasmithTransformFrameInfo(Frame, Val);
-		TransformAnimation.AddFrame(DSType, FrameInfo);
+		bool bValidValues = false;
+		for (const FVector& Value : Track.Values)
+		{
+			if (Value != FVector::ZeroVector)
+			{
+				bValidValues = true;
+				break;
+			}
+		}
+
+		bool bValidControlPoints = false;
+		for (const FVector& Value : Track.ValueControlPoints)
+		{
+			if (Value != FVector::ZeroVector)
+			{
+				bValidControlPoints = true;
+				break;
+			}
+		}
+
+		// Early out if this track has invalid data
+		if ((Track.ValueInterpolation == EDeltaGenAnimationInterpolation::Constant ||
+			 Track.ValueInterpolation == EDeltaGenAnimationInterpolation::Linear) &&
+			!bValidValues)
+		{
+			return;
+		}
+		else if (Track.ValueInterpolation == EDeltaGenAnimationInterpolation::Cubic &&
+				 (!bValidValues || !bValidControlPoints))
+		{
+			return;
+		}
+
+		// Extract the keys from the time curve control points (x values of tangential control points)
+		// DeltaGen will store, for example, these "Positions" for some TimeAdjustment Smooth interpolator:
+		//	0.00000000 0.00000000 0.00000000;    <--- P0
+		//	5.00000000 5.00000000 0.00000000;    <--- P1
+		//	10.00000000 10.00000000 0.00000000;  <--- P2
+		//	15.00000000 15.00000000 0.00000000;  <--- P3
+		// With this, we will extract 0 and 15 as keys, and have the entire dataset as control points.
+		int32 NumKeyControlPoints = Track.KeyControlPoints.Num();
+		TArray<float> KeyCurveKeys;
+
+		TUniquePtr<DeltaGen::FInterpolator> KeyInterpolator = nullptr;
+		switch (Track.KeyInterpolation)
+		{
+		case EDeltaGenAnimationInterpolation::Cubic:
+			// We should have 1 tangential (actual vertex) and 2 auxiliary (handles) control points per key, except the
+			// first and last keys, which have 1 handle less, so NumControlPts = NumKeys + NumKeys * 2 - 2, and so
+			// NumKeys = (NumControlPts + 2)/3
+			KeyCurveKeys.Reserve((NumKeyControlPoints + 2) / 3);
+			for (int32 Index = 0; Index < NumKeyControlPoints; Index += 3)
+			{
+				KeyCurveKeys.Add(Track.KeyControlPoints[Index].X);
+			}
+
+			KeyInterpolator = MakeUnique<DeltaGen::FCubicInterpolator>(KeyCurveKeys, Track.KeyControlPoints);
+			break;
+
+		default:
+			KeyCurveKeys.Reserve(NumKeyControlPoints);
+			for (int32 Index = 0; Index < NumKeyControlPoints; ++Index)
+			{
+				KeyCurveKeys.Add(Track.KeyControlPoints[Index].X);
+			}
+
+			KeyInterpolator = MakeUnique<DeltaGen::FLinearInterpolator>(KeyCurveKeys, Track.KeyControlPoints);
+			break;
+		}
+
+		TUniquePtr<DeltaGen::FInterpolator> ValueInterpolator = nullptr;
+		switch (Track.ValueInterpolation)
+		{
+		case EDeltaGenAnimationInterpolation::Constant:
+			ValueInterpolator = MakeUnique<DeltaGen::FConstInterpolator>(Track.Keys, Track.Values);
+			break;
+		case EDeltaGenAnimationInterpolation::Linear:
+			ValueInterpolator = MakeUnique<DeltaGen::FLinearInterpolator>(Track.Keys, Track.Values);
+			break;
+		case EDeltaGenAnimationInterpolation::Cubic:
+			ValueInterpolator = MakeUnique<DeltaGen::FCubicInterpolator>(Track.Keys, Track.ValueControlPoints);
+			break;
+		case EDeltaGenAnimationInterpolation::Unsupported:
+		default:
+			return;
+			break;
+		}
+
+		if (!ValueInterpolator.IsValid() || !KeyInterpolator.IsValid())
+		{
+			UE_LOG(LogDatasmithDeltaGenImport, Error, TEXT("Unsupported transform animation interpolation type for animation '%s'!"), TransformAnimation.GetLabel());
+			return;
+		}
+
+		float DelayS = (Track.DelayMs + TimelineDelayMs) / 1000.0f;
+
+		FFrameRate Framerate = FFrameRate(static_cast<uint32>(InFramerate + 0.5f), 1);
+		FFrameNumber StartFrame = Framerate.AsFrameNumber(ValueInterpolator->GetMinTime() + DelayS);
+
+		// If we use AsFrameNumber it will floor, and we might lose the very end of the animation
+		const double TimeAsFrame = (double(ValueInterpolator->GetMaxTime() + DelayS) * Framerate.Numerator) / Framerate.Denominator;
+		FFrameNumber EndFrame = FFrameNumber(static_cast<int32>(FMath::CeilToDouble(TimeAsFrame)));
+
+		// We go to EndFrame.Value+1 here so that if its a 2 second animation at 30fps, frame 60 belongs
+		// to the actual animation, as opposed to being range [0, 59]. This guarantees that the animation will
+		// actually complete within its range, which is necessary in order to play it correctly at runtime
+		for (int32 Frame = StartFrame.Value; Frame <= EndFrame.Value + 1; ++Frame)
+		{
+			float TimeSeconds = Framerate.AsSeconds(Frame) - DelayS;
+			FVector InterpolatedTime = KeyInterpolator->SolveForX(TimeSeconds);
+			FVector Val = ValueInterpolator->Evaluate(InterpolatedTime.Y);
+
+			if (DSType == EDatasmithTransformType::Rotation)
+			{
+				FQuat Xrot = FQuat(FVector(1.0f, 0.0f, 0.0f), FMath::DegreesToRadians(Val.X));
+				FQuat Yrot = FQuat(FVector(0.0f, 1.0f, 0.0f), FMath::DegreesToRadians(Val.Y));
+				FQuat Zrot = FQuat(FVector(0.0f, 0.0f, 1.0f), FMath::DegreesToRadians(Val.Z));
+				Val = (Xrot * Yrot * Zrot).Euler();
+				Val.X *= -1;
+				Val.Z *= -1;
+			}
+			else if (DSType == EDatasmithTransformType::Translation)
+			{
+				// Deltagen is right-handed Z up, UE4 is left-handed Z up. We try keeping the same X, so here we
+				// just flip the Y coordinate to convert between them.
+				// Note: Geometry, transforms and VRED animations get converted when parsing the FBX file in DatasmithFBXFileImporter, so
+				// you won't find analogue for this in VRED importer, even though the conversion is the same
+				Val.Y *= -1;
+			}
+
+			FDatasmithTransformFrameInfo FrameInfo = FDatasmithTransformFrameInfo(Frame, Val);
+			TransformAnimation.AddFrame(DSType, FrameInfo);
+		}
+
+		// DeltaGen always has all components for each track type
+		EDatasmithTransformChannels Channels = TransformAnimation.GetEnabledTransformChannels();
+		ETransformChannelComponents Components = ETransformChannelComponents::All;
+		TransformAnimation.SetEnabledTransformChannels(Channels | FDatasmithAnimationUtils::SetChannelTypeComponents(Components, DSType));
 	}
 }
 
@@ -849,7 +914,7 @@ TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithDeltaGenImporter::ConvertAn
 
 		for (const FDeltaGenTmlDataAnimationTrack& Track : Animation.Tracks)
 		{
-			PopulateTransformAnimation(TransformAnimation.Get(), Track, TmlTimeline.Framerate);
+			DeltaGenImporterImpl::PopulateTransformAnimation(TransformAnimation.Get(), Track, TmlTimeline.Framerate, Animation.DelayMs);
 		}
 
 		if (TransformAnimation->GetFramesCount(EDatasmithTransformType::Translation) > 0 ||

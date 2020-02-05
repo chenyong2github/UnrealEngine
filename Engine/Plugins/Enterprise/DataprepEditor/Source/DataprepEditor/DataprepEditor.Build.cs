@@ -28,7 +28,6 @@ namespace UnrealBuildTool.Rules
 					"KismetCompiler",
 					"KismetWidgets",
 					"MeshDescription",
-					"MeshDescriptionOperations",
 					"MeshUtilities",
 					"MeshUtilitiesCommon",
 					"MessageLog",

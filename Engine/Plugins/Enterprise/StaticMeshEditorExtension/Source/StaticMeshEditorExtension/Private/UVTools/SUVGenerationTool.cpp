@@ -7,7 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 #include "UVMapSettings.h"
 #include "ScopedTransaction.h"
 #include "DetailLayoutBuilder.h"
@@ -225,13 +225,13 @@ bool SGenerateUV::GenerateUVTexCoords(TMap<FVertexInstanceID, FVector2D>& OutTex
 		switch (GenerateUVSettings->ProjectionType)
 		{
 		case EGenerateUVProjectionType::Box:
-			FMeshDescriptionOperations::GenerateBoxUV(*MeshDescription, UVParameters, OutTexCoords);
+			FStaticMeshOperations::GenerateBoxUV(*MeshDescription, UVParameters, OutTexCoords);
 			break;
 		case EGenerateUVProjectionType::Cylindrical:
-			FMeshDescriptionOperations::GenerateCylindricalUV(*MeshDescription, UVParameters, OutTexCoords);
+			FStaticMeshOperations::GenerateCylindricalUV(*MeshDescription, UVParameters, OutTexCoords);
 			break;
 		case EGenerateUVProjectionType::Planar:
-			FMeshDescriptionOperations::GeneratePlanarUV(*MeshDescription, UVParameters, OutTexCoords);
+			FStaticMeshOperations::GeneratePlanarUV(*MeshDescription, UVParameters, OutTexCoords);
 			break;
 		}
 

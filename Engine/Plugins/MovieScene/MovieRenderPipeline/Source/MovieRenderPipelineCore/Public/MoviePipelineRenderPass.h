@@ -12,9 +12,9 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineRenderPass : public UMoviePipeli
 {
 	GENERATED_BODY()
 public:
-	void Setup(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses)
+	void Setup(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 	{
-		SetupImpl(InEnginePasses);
+		SetupImpl(InEnginePasses, InPassInitSettings);
 	}
 
 	void Teardown()
@@ -34,6 +34,12 @@ public:
 		GetRequiredEnginePassesImpl(RequiredEnginePasses);
 	}
 
+	/** This will called for each requested sample. This should only be used if you're not trying to share engine passes with other things. */
+	void RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState)
+	{
+		RenderSample_GameThreadImpl(InSampleState);
+	}
+
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
 	virtual bool IsValidOnMaster() const override { return true; }
@@ -43,9 +49,11 @@ protected:
 protected:
 	virtual void GetRequiredEnginePassesImpl(TSet<FMoviePipelinePassIdentifier>& RequiredEnginePasses) {}
 
-	virtual void SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses) {}
+	virtual void SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) {}
 
 	virtual void TeardownImpl() {}
 
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) {}
+
+	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) {}
 };

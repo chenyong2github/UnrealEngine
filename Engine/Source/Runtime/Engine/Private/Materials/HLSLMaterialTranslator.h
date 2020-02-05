@@ -265,6 +265,10 @@ protected:
 	uint32 bIsFullyRough : 1;
 	/** true if allowed to generate code chunks. Translator operates in two phases; generate all code chunks & query meta data based on generated code chunks. */
 	uint32 bAllowCodeChunkGeneration : 1;
+	
+	/** True if this material reads any per-instance custom data */
+	uint32 bUsesPerInstanceCustomData : 1;
+
 	/** Tracks the texture coordinates used by this material. */
 	TBitArray<> AllocatedUserTexCoords;
 	/** Tracks the texture coordinates used by the vertex shader in this material. */
@@ -728,6 +732,14 @@ protected:
 	 * @return	Code index
 	 */
 	virtual int32 PerInstanceFadeAmount() override;
+
+	/**
+	 * Returns a custom data on a per-instance basis when instancing
+	 * @DataIndex - index in array that represents custom data
+	 *
+	 * @return	Code index
+	 */
+	virtual int32 PerInstanceCustomData(int32 DataIndex, int32 DefaultValueIndex) override;
 
 	/**
 	 * Returns a float2 texture coordinate after 2x2 transform and offset applied

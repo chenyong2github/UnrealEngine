@@ -3,6 +3,7 @@
 #include "ILiveLinkModule.h"
 
 #include "Features/IModularFeatures.h"
+#include "Interfaces/IPluginManager.h"
 #include "LiveLinkMotionController.h"
 
 #include "LiveLinkMessageBusDiscoveryManager.h"
@@ -13,6 +14,9 @@
 #include "LiveLinkHeartbeatEmitter.h"
 #include "LiveLinkPreset.h"
 #include "LiveLinkSettings.h"
+
+#include "Styling/SlateStyle.h"
+
 
 /**
  * Implements the Messaging module.
@@ -27,6 +31,8 @@ class FLiveLinkModule
 public:
 	FLiveLinkClient LiveLinkClient;
 	FLiveLinkMotionController LiveLinkMotionController;
+	TSharedPtr<FSlateStyleSet> StyleSet;
+	FString ContentDir;
 
 	FLiveLinkModule()
 		: LiveLinkClient()
@@ -34,7 +40,9 @@ public:
 		, HeartbeatEmitter(MakeUnique<FLiveLinkHeartbeatEmitter>())
 		, DiscoveryManager(MakeUnique<FLiveLinkMessageBusDiscoveryManager>())
 		, LiveLinkDebugCommand(MakeUnique<FLiveLinkDebugCommand>(LiveLinkClient))
-	{}
+	{
+		CreateStyle();
+	}
 
 	// IModuleInterface interface
 
@@ -64,6 +72,11 @@ public:
 		return false;
 	}
 
+	virtual TSharedPtr<FSlateStyleSet> GetStyle() override
+	{
+		return StyleSet;
+	}
+
 	virtual FLiveLinkHeartbeatEmitter& GetHeartbeatEmitter() override
 	{
 		return *HeartbeatEmitter;
@@ -72,6 +85,19 @@ public:
 	virtual FLiveLinkMessageBusDiscoveryManager& GetMessageBusDiscoveryManager() override
 	{
 		return *DiscoveryManager;
+	}
+
+private:
+	void CreateStyle()
+	{
+		static FName LiveLinkStyle(TEXT("LiveLinkCoreStyle"));
+		StyleSet = MakeShared<FSlateStyleSet>(LiveLinkStyle);
+
+		ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
+
+		const FVector2D Icon16x16(16.0f, 16.0f);
+
+		StyleSet->Set("LiveLinkIcon", new FSlateImageBrush((ContentDir / TEXT("LiveLink_16x")) + TEXT(".png"), Icon16x16));
 	}
 
 private:

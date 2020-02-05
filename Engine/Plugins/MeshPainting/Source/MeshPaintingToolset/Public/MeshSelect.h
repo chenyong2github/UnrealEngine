@@ -6,13 +6,13 @@
 #include "BaseTools/SingleClickTool.h"
 #include "MeshSelect.generated.h"
 
-
+class IMeshPaintComponentAdapter;
 
 /**
- * Builder for UMeshClickToolBuilder
+ * Builder for UVertexAdapterClickTool
  */
 UCLASS()
-class MESHPAINTINGTOOLSET_API UMeshClickToolBuilder : public USingleClickToolBuilder
+class MESHPAINTINGTOOLSET_API UVertexAdapterClickToolBuilder : public USingleClickToolBuilder
 {
 	GENERATED_BODY()
 
@@ -20,6 +20,21 @@ public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
+
+
+/**
+ * Builder for UTextureAdapterClickTool
+ */
+UCLASS()
+class MESHPAINTINGTOOLSET_API UTextureAdapterClickToolBuilder : public USingleClickToolBuilder
+{
+	GENERATED_BODY()
+
+public:
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+};
+
 
 
 /**
@@ -47,6 +62,11 @@ public:
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
+	
+	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter)
+	{
+		return true;
+	}
 
 protected:
 	// flags used to identify modifier keys/buttons
@@ -55,3 +75,28 @@ protected:
 
 };
 
+UCLASS()
+class MESHPAINTINGTOOLSET_API UVertexAdapterClickTool : public UMeshClickTool
+{
+	GENERATED_BODY()
+
+public:
+	UVertexAdapterClickTool();
+
+	// USingleClickTool overrides
+	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) override;
+
+};
+
+UCLASS()
+class MESHPAINTINGTOOLSET_API UTextureAdapterClickTool : public UMeshClickTool
+{
+	GENERATED_BODY()
+
+public:
+	UTextureAdapterClickTool();
+
+	// USingleClickTool overrides
+	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) override;
+
+};

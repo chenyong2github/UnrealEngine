@@ -706,6 +706,7 @@ struct FNDISkeletalMeshParametersName
 	FString MeshIndexBufferName;
 	FString MeshVertexBufferName;
 	FString MeshSkinWeightBufferName;
+	FString MeshSkinWeightLookupBufferName;
 	FString MeshCurrBonesBufferName;
 	FString MeshPrevBonesBufferName;
 	FString MeshCurrSamplingBonesBufferName;
@@ -719,6 +720,7 @@ struct FNDISkeletalMeshParametersName
 	FString MeshTriangleCountName;
 	FString MeshVertexCountName;
 	FString MeshWeightStrideName;
+	FString MeshSkinWeightIndexSizeName;
 	FString MeshNumTexCoordName;
 	FString MeshNumWeightsName;
 	FString NumSpecificBonesName;
@@ -736,6 +738,7 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 	Names.MeshIndexBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshIndexBufferName + Suffix;
 	Names.MeshVertexBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshVertexBufferName + Suffix;
 	Names.MeshSkinWeightBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightBufferName + Suffix;
+	Names.MeshSkinWeightLookupBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightLookupBufferName + Suffix;
 	Names.MeshCurrBonesBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshCurrBonesBufferName + Suffix;
 	Names.MeshPrevBonesBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshPrevBonesBufferName + Suffix;
 	Names.MeshCurrSamplingBonesBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshCurrSamplingBonesBufferName + Suffix;
@@ -749,6 +752,7 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 	Names.MeshTriangleCountName = UNiagaraDataInterfaceSkeletalMesh::MeshTriangleCountName + Suffix;
 	Names.MeshVertexCountName = UNiagaraDataInterfaceSkeletalMesh::MeshVertexCountName + Suffix;
 	Names.MeshWeightStrideName = UNiagaraDataInterfaceSkeletalMesh::MeshWeightStrideName + Suffix;
+	Names.MeshSkinWeightIndexSizeName = UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightIndexSizeName + Suffix;
 	Names.MeshNumTexCoordName = UNiagaraDataInterfaceSkeletalMesh::MeshNumTexCoordName + Suffix;
 	Names.MeshNumWeightsName = UNiagaraDataInterfaceSkeletalMesh::MeshNumWeightsName + Suffix;
 	Names.NumSpecificBonesName = UNiagaraDataInterfaceSkeletalMesh::NumSpecificBonesName + Suffix;
@@ -771,6 +775,7 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 		MeshIndexBuffer.Bind(ParameterMap, *ParamNames.MeshIndexBufferName);
 		MeshVertexBuffer.Bind(ParameterMap, *ParamNames.MeshVertexBufferName);
 		MeshSkinWeightBuffer.Bind(ParameterMap, *ParamNames.MeshSkinWeightBufferName);
+		MeshSkinWeightLookupBuffer.Bind(ParameterMap, *ParamNames.MeshSkinWeightLookupBufferName);
 		MeshCurrBonesBuffer.Bind(ParameterMap, *ParamNames.MeshCurrBonesBufferName);
 		MeshPrevBonesBuffer.Bind(ParameterMap, *ParamNames.MeshPrevBonesBufferName);
 		MeshCurrSamplingBonesBuffer.Bind(ParameterMap, *ParamNames.MeshCurrSamplingBonesBufferName);
@@ -784,6 +789,7 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 		MeshTriangleCount.Bind(ParameterMap, *ParamNames.MeshTriangleCountName);
 		MeshVertexCount.Bind(ParameterMap, *ParamNames.MeshVertexCountName);
 		MeshWeightStride.Bind(ParameterMap, *ParamNames.MeshWeightStrideName);
+		MeshSkinWeightIndexSize.Bind(ParameterMap, *ParamNames.MeshSkinWeightIndexSizeName);
 		MeshNumTexCoord.Bind(ParameterMap, *ParamNames.MeshNumTexCoordName);
 		MeshNumWeights.Bind(ParameterMap, *ParamNames.MeshNumWeightsName);
 		NumSpecificBones.Bind(ParameterMap, *ParamNames.NumSpecificBonesName);
@@ -801,6 +807,7 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 		Ar << MeshIndexBuffer;
 		Ar << MeshVertexBuffer;
 		Ar << MeshSkinWeightBuffer;
+		Ar << MeshSkinWeightLookupBuffer;
 		Ar << MeshCurrBonesBuffer;
 		Ar << MeshPrevBonesBuffer;
 		Ar << MeshCurrSamplingBonesBuffer;
@@ -814,6 +821,7 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 		Ar << MeshTriangleCount;
 		Ar << MeshVertexCount;
 		Ar << MeshWeightStride;
+		Ar << MeshSkinWeightIndexSize;
 		Ar << MeshNumTexCoord;
 		Ar << MeshNumWeights;
 		Ar << NumSpecificBones;
@@ -872,10 +880,13 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 			}
 
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightBuffer, InstanceData->MeshSkinWeightBufferSrv);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightLookupBuffer, InstanceData->MeshSkinWeightLookupBufferSrv);
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshWeightStride, InstanceData->MeshWeightStrideByte/4);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshSkinWeightIndexSize, InstanceData->MeshSkinWeightIndexSizeByte);
 
 			uint32 EnabledFeaturesBits = InstanceData->bIsGpuUniformlyDistributedSampling ? 1 : 0;
+			EnabledFeaturesBits |= (InstanceData->bUnlimitedBoneInfluences ? (1 << 1) : 0);
 
 			FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffers = InstanceData->DynamicBuffer;
 			check(DynamicBuffers);
@@ -930,8 +941,10 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer().SRV);
 
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightBuffer, FNiagaraRenderer::GetDummyUIntBuffer().SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightLookupBuffer, FNiagaraRenderer::GetDummyUIntBuffer().SRV);
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshWeightStride, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshSkinWeightIndexSize, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumWeights, 0);
 
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshCurrBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer().SRV);
@@ -959,6 +972,7 @@ private:
 	FShaderResourceParameter MeshIndexBuffer;
 	FShaderResourceParameter MeshVertexBuffer;
 	FShaderResourceParameter MeshSkinWeightBuffer;
+	FShaderResourceParameter MeshSkinWeightLookupBuffer;
 	FShaderResourceParameter MeshCurrBonesBuffer;
 	FShaderResourceParameter MeshPrevBonesBuffer;
 	FShaderResourceParameter MeshCurrSamplingBonesBuffer;
@@ -972,6 +986,7 @@ private:
 	FShaderParameter MeshTriangleCount;
 	FShaderParameter MeshVertexCount;
 	FShaderParameter MeshWeightStride;
+	FShaderParameter MeshSkinWeightIndexSize;
 	FShaderParameter MeshNumTexCoord;
 	FShaderParameter MeshNumWeights;
 	FShaderParameter NumSpecificBones;
@@ -993,15 +1008,18 @@ void FNiagaraDataInterfaceProxySkeletalMesh::ConsumePerInstanceDataFromGameThrea
 	FNiagaraDataInterfaceProxySkeletalMeshData& Data = SystemInstancesToData.FindOrAdd(Instance);
 
 	Data.bIsGpuUniformlyDistributedSampling = SourceData->bIsGpuUniformlyDistributedSampling;
+	Data.bUnlimitedBoneInfluences = SourceData->bUnlimitedBoneInfluences;
 	Data.DeltaSeconds = SourceData->DeltaSeconds;
 	Data.DynamicBuffer = SourceData->DynamicBuffer;
 	Data.MeshWeightStrideByte = SourceData->MeshWeightStrideByte;
+	Data.MeshSkinWeightIndexSizeByte = SourceData->MeshSkinWeightIndexSizeByte;
 	Data.PrevTransform = SourceData->PrevTransform;
 	Data.StaticBuffers = SourceData->StaticBuffers;
 	Data.Transform = SourceData->Transform;
 
 	// @todo-threadsafety race here. Need to hold a ref to this buffer on the RT
 	Data.MeshSkinWeightBufferSrv = SourceData->MeshSkinWeightBufferSrv;
+	Data.MeshSkinWeightLookupBufferSrv = SourceData->MeshSkinWeightLookupBufferSrv;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1013,15 +1031,18 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 	FNDISkeletalMesh_InstanceData* SourceData = static_cast<FNDISkeletalMesh_InstanceData*>(PerInstanceData);
 
 	Data->bIsGpuUniformlyDistributedSampling = SourceData->bIsGpuUniformlyDistributedSampling;
+	Data->bUnlimitedBoneInfluences = SourceData->bUnlimitedBoneInfluences;
 	Data->DeltaSeconds = SourceData->DeltaSeconds;
 	Data->DynamicBuffer = SourceData->MeshGpuSpawnDynamicBuffers;
 	Data->MeshWeightStrideByte = SourceData->MeshWeightStrideByte;
+	Data->MeshSkinWeightIndexSizeByte = SourceData->MeshSkinWeightIndexSizeByte;
 	Data->PrevTransform = SourceData->PrevTransform;
 	Data->StaticBuffers = SourceData->MeshGpuSpawnStaticBuffers;
 	Data->Transform = SourceData->Transform;
 
 	// @todo-threadsafety race here. Need to hold a ref to this buffer on the RT
 	Data->MeshSkinWeightBufferSrv = SourceData->MeshSkinWeightBufferSrv;
+	Data->MeshSkinWeightLookupBufferSrv = SourceData->MeshSkinWeightLookupBufferSrv;
 }
 
 USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
@@ -1173,7 +1194,9 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	DeltaSeconds = SystemInstance->GetComponent()->GetWorld()->GetDeltaSeconds();
 	ChangeId = Interface->ChangeId;
 	bIsGpuUniformlyDistributedSampling = false;
+	bUnlimitedBoneInfluences = false;
 	MeshWeightStrideByte = 0;
+	MeshSkinWeightIndexSizeByte = 0;
 	MeshGpuSpawnStaticBuffers = nullptr;
 	MeshGpuSpawnDynamicBuffers = nullptr;
 
@@ -1426,9 +1449,13 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	//-TODO: We should find out if this DI is connected to a GPU emitter or not rather than a blanket accross the system
 	if ( SystemInstance->HasGPUEmitters() )
 	{
+		GPUSkinBoneInfluenceType BoneInfluenceType = SkinWeightBuffer->GetBoneInfluenceType();
+		bUnlimitedBoneInfluences = (BoneInfluenceType == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence);
 		MeshWeightStrideByte = SkinWeightBuffer->GetConstantInfluencesVertexStride();
+		MeshSkinWeightIndexSizeByte = SkinWeightBuffer->GetBoneIndexByteSize();
 		MeshSkinWeightBufferSrv = SkinWeightBuffer->GetDataVertexBuffer()->GetSRV();
 		//check(MeshSkinWeightBufferSrv->IsValid()); // not available in this stream
+		MeshSkinWeightLookupBufferSrv = SkinWeightBuffer->GetLookupVertexBuffer()->GetSRV();
 
 		FSkeletalMeshLODInfo* LODInfo = Mesh->GetLODInfo(LODIndex);
 		bIsGpuUniformlyDistributedSampling = LODInfo->bSupportUniformlyDistributedSampling && bAllRegionsAreAreaWeighting;
@@ -2001,6 +2028,7 @@ void UNiagaraDataInterfaceSkeletalMesh::ValidateFunction(const FNiagaraFunctionS
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshIndexBufferName(TEXT("MeshIndexBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshVertexBufferName(TEXT("MeshVertexBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightBufferName(TEXT("MeshSkinWeightBuffer_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightLookupBufferName(TEXT("MeshSkinWeightLookupBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshCurrBonesBufferName(TEXT("MeshCurrBonesBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshPrevBonesBufferName(TEXT("MeshPrevBonesBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshCurrSamplingBonesBufferName(TEXT("MeshCurrSamplingBonesBuffer_"));
@@ -2014,6 +2042,7 @@ const FString UNiagaraDataInterfaceSkeletalMesh::MeshTriangleMatricesOffsetBuffe
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshTriangleCountName(TEXT("MeshTriangleCount_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshVertexCountName(TEXT("MeshVertexCount_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshWeightStrideName(TEXT("MeshWeightStride_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightIndexSizeName(TEXT("MeshSkinWeightIndexSize_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshNumTexCoordName(TEXT("MeshNumTexCoord_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::MeshNumWeightsName(TEXT("MeshNumWeights_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::NumSpecificBonesName(TEXT("NumSpecificBones_"));

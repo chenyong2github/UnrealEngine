@@ -133,6 +133,9 @@ protected:
 	virtual void OnRightMouseButtonDown(const FPointerEvent& MouseEvent) override;
 	virtual void OnRightMouseButtonUp(const FPointerEvent& MouseEvent) override;
 
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+
 public:
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;

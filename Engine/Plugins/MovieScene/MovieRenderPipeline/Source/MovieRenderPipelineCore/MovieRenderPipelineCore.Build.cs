@@ -15,6 +15,8 @@ public class MovieRenderPipelineCore : ModuleRules
 				"RHI",
 				"UMG",
 				"Landscape", // To flush grass
+				"AudioMixer",
+				"NonRealtimeAudioRenderer",
 			}
 		);
 

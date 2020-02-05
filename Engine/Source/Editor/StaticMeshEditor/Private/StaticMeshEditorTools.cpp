@@ -92,6 +92,11 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	IDetailCategoryBuilder& CollisionCategory = DetailBuilder.EditCategory( "Collision", LOCTEXT("CollisionCategory", "Collision") );
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailBuilder.EditCategory("ImportSettings");
 
+	TSharedRef<IPropertyHandle> LightMapCoordinateIndexProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapCoordinateIndex));
+	TSharedRef<IPropertyHandle> LightMapResolutionProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapResolution));
+	LightMapCoordinateIndexProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FStaticMeshDetails::OnLightmapSettingsChanged));
+	LightMapResolutionProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FStaticMeshDetails::OnLightmapSettingsChanged));
+
 	TSharedRef<IPropertyHandle> ImportSettings = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, AssetImportData));
 	if (!StaticMeshEditor.GetStaticMesh() || 
 		!StaticMeshEditor.GetStaticMesh()->AssetImportData ||
@@ -184,6 +189,13 @@ void FStaticMeshDetails::OnInstancedFbxStaticMeshImportDataPropertyIteration(IDe
 			Row->IsEnabled(TAttribute<bool>(this, &FStaticMeshDetails::GetVertexOverrideColorEnabledState));
 		}
 	}
+}
+
+void FStaticMeshDetails::OnLightmapSettingsChanged()
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	StaticMesh->EnforceLightmapRestrictions(false);
 }
 
 bool FStaticMeshDetails::GetVertexOverrideColorEnabledState() const
@@ -4493,10 +4505,9 @@ void FLevelOfDetailSettingsLayout::OnSelectedLODChanged(int32 NewLodIndex)
 		return;
 	}
 	int32 CurrentDisplayLOD = StaticMeshEditor.GetStaticMeshComponent()->ForcedLodModel;
-	int32 RealCurrentDisplayLOD = CurrentDisplayLOD == 0 ? 0 : CurrentDisplayLOD - 1;
 	int32 RealNewLOD = NewLodIndex == 0 ? 0 : NewLodIndex - 1;
 
-	if (CurrentDisplayLOD == NewLodIndex || !LodCategories.IsValidIndex(RealCurrentDisplayLOD) || !LodCategories.IsValidIndex(RealNewLOD))
+	if (CurrentDisplayLOD == NewLodIndex || !LodCategories.IsValidIndex(RealNewLOD))
 	{
 		return;
 	}

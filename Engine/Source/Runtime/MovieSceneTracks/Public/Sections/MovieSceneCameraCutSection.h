@@ -25,14 +25,8 @@ class UMovieSceneCameraCutSection
 	GENERATED_BODY()
 
 public:
-	UMovieSceneCameraCutSection(const FObjectInitializer& Init)
-		: Super(Init)
-	{
-		EvalOptions.EnableAndSetCompletionMode
-			(GetLinkerCustomVersion(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::WhenFinishedDefaultsToProjectDefault ? 
-				EMovieSceneCompletionMode::RestoreState : 
-				EMovieSceneCompletionMode::ProjectDefault);
-	}
+	/** Constructs a new camera cut section */
+	UMovieSceneCameraCutSection(const FObjectInitializer& Init);
 
 	/** Sets the camera binding for this CameraCut section. Evaluates from the sequence binding ID */
 	void SetCameraGuid(const FGuid& InGuid)
@@ -71,6 +65,10 @@ public:
 	 * @return A camera component to be used for this cut section, or nullptr if one was not found.
 	 */
 	MOVIESCENETRACKS_API UCameraComponent* GetFirstCamera(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID) const;
+
+#if WITH_EDITOR
+	MOVIESCENETRACKS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 private:
 

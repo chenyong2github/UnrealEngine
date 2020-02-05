@@ -525,7 +525,7 @@ FPyConversionResult NativizeObject(PyObject* PyObj, UObject*& OutVal, UClass* Ex
 	if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperObjectType) == 1)
 	{
 		FPyWrapperObject* PyWrappedObj = (FPyWrapperObject*)PyObj;
-		if (!ExpectedType || PyWrappedObj->ObjectInstance->IsA(ExpectedType))
+		if (FPyWrapperObject::ValidateInternalState(PyWrappedObj) && (!ExpectedType || PyWrappedObj->ObjectInstance->IsA(ExpectedType)))
 		{
 			OutVal = PyWrappedObj->ObjectInstance;
 			return FPyConversionResult::Success();

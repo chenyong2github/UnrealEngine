@@ -12,6 +12,7 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "MaterialEditingLibrary.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
@@ -51,15 +52,13 @@ namespace UsdSkelRootTranslatorImpl
 				if ( Material == nullptr && bHasPrimDisplayColor )
 				{
 					UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >();
-					if ( UsdToUnreal::ConvertDisplayColor( pxr::UsdGeomMesh( UsdPrim ), *MaterialInstance, pxr::UsdTimeCode( Time ) ) )
-					{
-						if ( MaterialInstance && MaterialInstance->HasOverridenBaseProperties() )
-						{
-							MaterialInstance->ForceRecompileForRendering();
-						}
-						
-						Material = MaterialInstance;
-					}
+
+					FSoftObjectPath MaterialPath( TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'") );
+
+					UMaterialInterface* DisplayColorMaterial = Cast< UMaterialInterface >( MaterialPath.TryLoad() );
+					UMaterialEditingLibrary::SetMaterialInstanceParent( MaterialInstance, DisplayColorMaterial );
+
+					Material = MaterialInstance;
 				}
 
 				ImportedMaterial.Material = Material;

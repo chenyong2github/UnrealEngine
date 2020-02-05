@@ -18,47 +18,6 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineBlueprintLibrary : public UBluep
 
 public:
 	/**
-	* Takes a given Output Directory and FileName which contain {formatStrings} and convert those format strings
-	* to their actual values as best as possible. Merges the result into one final filepath string.
-	*/
-	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	// static FString GetCameraCutCounts(const UMoviePipeline* InPipeline, const FMoviePipelineFrameOutputState& OutputState, const FDirectoryPath& InDirectoryFormatString, const FString& InFileNameFormatString);
-
-	/** 
-	* Get the total number of Camera Cuts in a Movie Pipeline, and an index of which one is being processed.
-	* Note: Index doesn't index into any arrays (since internally we store CameraCuts inside of Shots)
-	*/
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static void GetCameraCutCounts(const UMoviePipeline* InPipeline, int32& OutTotalCuts, int32& OutCurrentCutIndex);
-	
-	/** 
-	* Returns the number of expected frames to be produced by Initial Range + Handle Frames given a Frame Rate.
-	* This will be inaccurate when PlayRate tracks are involved.
-	*/
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static int32 GetOutputFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut);
-	
-	/**
-	* Returns the expected number of frames different frames that will be submitted for rendering. This is
-	* the number of output frames * temporal samples. This will be inaccurate when PlayRate tracks are involved.
-	*/
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static int32 GetTemporalFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut);
-	
-	/** 
-	* Returns misc. utility frame counts (Warm Up + MotionBlur Fix) since these are outside the ranges.
-	*/
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static int32 GetUtilityFrameCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut);
-	
-	/**
-	* Returns the number of samples submitted to the GPU, optionally counting samples for the various parts.
-	* This will be inaccurate when PlayRate tracks are involved.
-	*/
-	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static int32 GetSampleCountEstimate(const FMoviePipelineCameraCutInfo& InCameraCut, const bool bIncludeWarmup = true, const bool bIncludeMotionBlur = true);
-	
-	/**
 	* Duplicates the specified sequence using a medium depth copy. Standard duplication will only duplicate
 	* the top level Sequence (since shots and sub-sequences are other standalone assets) so this function
 	* recursively duplicates the given sequence, shot and subsequence and then fixes up the references to
@@ -73,23 +32,86 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	static UMovieSceneSequence* DuplicateSequence(UObject* Outer, UMovieSceneSequence* InSequence);
 
-	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	// 	FMoviePipelineShotInfo GetCurrentShotSnapshot() const;
-	// 
-	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	// 	FMoviePipelineCameraCutInfo GetCurrentCameraCutSnapshot() const;
-	// 
-	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	// 	FMoviePipelineFrameOutputState GetOutputStateSnapshot() const;
+	/**
+	* Get the estimated amount of time remaining for the current pipeline. Based on looking at the total
+	* amount of samples to render vs. how many have been completed so far. Inaccurate when Time Dilation
+	* is used, and gets more accurate over the course of the render.
+	*
+	* @param	InPipeline	The pipeline to get the time estimate from.
+	* @param	OutEstimate	The resulting estimate, or FTimespan() if estimate is not valid.
+	* @return				True if a valid estimate can be calculated, or false if it is not ready yet (ie: not enough samples rendered)
+	*/
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static bool GetEstimatedTimeRemaining(const UMoviePipeline* InPipeline, FTimespan& OutEstimate);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FDateTime GetJobInitializationTime(const UMoviePipeline* InMoviePipeline);
 
 	/**
-	* Returns an estimate based on the average time taken to render all previous frames.
-	* Will be incorrect if PlayRate tracks are in use. Will be inaccurate when different
-	* shots take significantly different amounts of time to render.
+	* Get the current state of the specified Pipeline. See EMovieRenderPipelineState for more detail about each state.
 	*
-	* @param OutTimespan: The returned estimated time left. Will be default initialized if there is no estimate.
-	* @return True if we can make a reasonable estimate, false otherwise (ie: no rendering has been done to estimate).
+	* @param	InPipeline	The pipeline to get the state for.
+	* @return				Current State.
 	*/
-	// UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	// bool GetRemainingTimeEstimate(FTimespan& OutTimespan) const;
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static EMovieRenderPipelineState GetPipelineState(const UMoviePipeline* InPipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static EMovieRenderShotState GetCurrentSegmentState(UMoviePipeline* InMoviePipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FText GetJobName(UMoviePipeline* InMoviePipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FText GetJobAuthor(UMoviePipeline* InMoviePipeline);
+
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static void GetOverallOutputFrames(const UMoviePipeline* InMoviePipeline, int32& OutCurrentIndex, int32& OutTotalCount);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FText GetCurrentSegmentName(UMoviePipeline* InMoviePipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static void GetOverallSegmentCounts(const UMoviePipeline* InMoviePipeline, int32& OutCurrentIndex, int32& OutTotalCount);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FMoviePipelineSegmentWorkMetrics GetCurrentSegmentWorkMetrics(const UMoviePipeline* InMoviePipeline);
+
+	// The most accurate way to determine 0-1 progress as it looks at the total number of samples needing to be rendered
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static int32 GetTotalSampleCount(const UMoviePipeline* InMoviePipeline)
+	{
+		return 35;
+	}
+
+	// same as above but just 0-1
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static float GetCompletionPercentage(const UMoviePipeline* InPipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static void GetSubsampleCount(const UMoviePipeline* InMoviePipeline, int32& OutCurrentIndex, int32& OutTotalCount)
+	{
+		OutCurrentIndex = 0;
+		OutTotalCount = 1;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static void GetEngineWarmUpFrameCount(const UMoviePipeline* InMoviePipeline, const int32 InSegmentIndex, int32& OutCurrentIndex, int32& OutTotalCount)
+	{
+		OutCurrentIndex = 301;
+		OutTotalCount = 919;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FTimecode GetMasterTimecode(const UMoviePipeline* InMoviePipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FFrameNumber GetMasterFrameNumber(const UMoviePipeline* InMoviePipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FTimecode GetCurrentShotTimecode(const UMoviePipeline* InMoviePipeline);
+
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FFrameNumber GetCurrentShotFrameNumber(const UMoviePipeline* InMoviePipeline);
 };

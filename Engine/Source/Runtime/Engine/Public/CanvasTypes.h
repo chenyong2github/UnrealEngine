@@ -496,6 +496,11 @@ public:
 	bool HasBatchesToRender() const;
 
 	/**
+	 * Clear the list of dirty batches that need to be rendered by the canvas
+	 */
+	void ClearBatchesToRender();
+
+	/**
 	* Access current feature level
 	*
 	* @return feature level that this canvas is rendering at

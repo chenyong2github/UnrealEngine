@@ -33,8 +33,8 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareGeneric.h"
 
-#include "Misc/DisplayClusterHelpers.h"
 #include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
+#include "DisplayClusterHelpers.h"
 
 #include "UnrealClient.h"
 #include "Kismet/GameplayStatics.h"
@@ -197,6 +197,11 @@ void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
 				UE_LOG(LogDisplayClusterRender, Error, TEXT("Wrong window pos/size arguments"));
 			}
 		}
+	}
+
+	if (RenderDevicePtr)
+	{
+		RenderDevicePtr->PreTick(DeltaSeconds);
 	}
 }
 
@@ -690,7 +695,7 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderManager::Create
 
 	// Create sync policy specified in a config file
 	FDisplayClusterConfigGeneral CfgGeneral = GDisplayCluster->GetPrivateConfigMgr()->GetConfigGeneral();
-	const FString SyncPolicyType = FDisplayClusterTypesConverter::ToString(CfgGeneral.SwapSyncPolicy);
+	const FString SyncPolicyType = FDisplayClusterTypesConverter::template ToString(CfgGeneral.SwapSyncPolicy);
 	const FString RHIName = GDynamicRHI->GetName();
 	TSharedPtr<IDisplayClusterRenderSyncPolicy> NewSyncPolicy;
 
@@ -749,7 +754,7 @@ void FDisplayClusterRenderManager::OnViewportCreatedHandler_CheckViewportClass()
 		UDisplayClusterViewportClient* const GameViewport = Cast<UDisplayClusterViewportClient>(GEngine->GameViewport);
 		if (!GameViewport)
 		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("DisplayClusterViewportClient is not set as default GameViewport class"));
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("DisplayClusterViewportClient is not set as a default GameViewport class"));
 		}
 	}
 }

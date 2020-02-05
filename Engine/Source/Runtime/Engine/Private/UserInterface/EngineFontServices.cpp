@@ -78,3 +78,14 @@ void FEngineFontServices::UpdateCache()
 		FontCache->UpdateCache();
 	}
 }
+
+FOnReleaseFontResources& FEngineFontServices::OnReleaseResources()
+{
+	if (SlateFontServices.IsValid())
+	{
+		return SlateFontServices->OnReleaseResources();
+	}
+
+	static FOnReleaseFontResources DummyDelegate;
+	return DummyDelegate;
+}

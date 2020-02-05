@@ -14,22 +14,30 @@ class FDynamicMesh3;
 
 
 /**
- * Fill an EdgeLoop hole with a triangle fan connected to a new vertex at the centroid
+ * Fill an EdgeLoop hole with triangles.
+ * Supports two fill modes, either a fan connected to a new central vertex, or a triangulation of the boundary polygon
  */
 class DYNAMICMESH_API FSimpleHoleFiller
 {
 public:
+	enum class EFillType
+	{
+		TriangleFan,
+		PolygonEarClipping
+	};
+
 	//
 	// Inputs
 	//
 	FDynamicMesh3 *Mesh;
 	FEdgeLoop Loop;
+	EFillType FillType = EFillType::TriangleFan;
 
 	//
 	// Outputs
 	//
-	int NewVertex;
-	TArray<int> NewTriangles;
+	int32 NewVertex = IndexConstants::InvalidID;
+	TArray<int32> NewTriangles;
 
 public:
 	/**
@@ -54,5 +62,10 @@ public:
 		return EOperationValidationResult::Ok;
 	}
 
-	virtual bool Fill(int GroupID = -1);	
+	virtual bool Fill(int32 GroupID = -1);	
+
+
+protected:
+	bool Fill_Fan(int32 NewGroupID);
+	bool Fill_EarClip(int32 NewGroupID);
 };

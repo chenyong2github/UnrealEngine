@@ -12,12 +12,14 @@
 #include "DatasmithDefinitions.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithMesh.h"
-#include "DatasmithMeshExporter.h"
-#include "DatasmithSceneExporter.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "Utility/DatasmithMeshHelper.h"
+#if WITH_EDITOR
+#include "DatasmithMeshExporter.h"
+#include "DatasmithSceneExporter.h"
+#endif //WITH_EDITOR
 
 #include "AssetRegistryModule.h"
 #include "Curves/RichCurve.h"
@@ -33,12 +35,12 @@
 #include "Math/Matrix.h"
 #include "Math/Transform.h"
 #include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RawMesh.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include "ImathMatrixAlgo.h"
@@ -54,7 +56,7 @@ DEFINE_LOG_CATEGORY(LogDatasmithC4DImport);
 // default value of 8 candelas of UE4 point lights, and 100% brightness C4D infinite lights matches
 // the default 10 lux of UE4 directional lights
 #define UnitlessGlobalLightIntensity 10.0
-#define UnitlessIESandPointLightIntensity 8.0
+#define UnitlessIESandPointLightIntensity 8000
 
 FDatasmithC4DImporter::FDatasmithC4DImporter(TSharedRef<IDatasmithScene>& OutScene, UDatasmithC4DImportOptions* InOptions)
 	: Options(InOptions)
@@ -1017,24 +1019,18 @@ TSharedPtr<IDatasmithLightActorElement> FDatasmithC4DImporter::ImportLight(melan
 		Temperature = 6500.0;
 	}
 
-	// IES light
-	// We won't use IES Brightness Scale from the file for now, just use regular light brightness
-	FString IESPath;
-	if (MelangeGetBool(InC4DLightPtr, melange::LIGHT_PHOTOMETRIC_DATA))
-	{
-		IESPath = MelangeGetString(InC4DLightPtr, melange::LIGHT_PHOTOMETRIC_FILE);
-		IESPath = SearchForFile(IESPath, C4dDocumentFilename);
-	}
-
-	// Units
+	// Intensity and units
+	double Intensity = 1.0;
 	EDatasmithLightUnits Units = EDatasmithLightUnits::Unitless;
 	if (MelangeGetBool(InC4DLightPtr, melange::LIGHT_PHOTOMETRIC_UNITS))
 	{
 		Units = GetDatasmithLightIntensityUnits(MelangeGetInt32(InC4DLightPtr, melange::LIGHT_PHOTOMETRIC_UNIT));
+
+		Intensity = MelangeGetDouble(InC4DLightPtr, melange::LIGHT_PHOTOMETRIC_INTENSITY); // Cd/lm value in 'Photometric' tab
 	}
 
-	// Intensity
-	double Intensity = MelangeGetDouble(InC4DLightPtr, melange::LIGHT_BRIGHTNESS);
+	// Brightness
+	Intensity *= MelangeGetDouble(InC4DLightPtr, melange::LIGHT_BRIGHTNESS); // percentage value on 'General' tab, usually = 1.0
 	if (Units == EDatasmithLightUnits::Unitless)
 	{
 		if (LightActor->IsA(EDatasmithElementType::PointLight))
@@ -1047,10 +1043,28 @@ TSharedPtr<IDatasmithLightActorElement> FDatasmithC4DImporter::ImportLight(melan
 		}
 	}
 
+	// IES light
+	// Checks if "Photometric Data" is enabled
+	// Apparently non-IES lights can have this checked while the checkbox is in a "disabled state", so we must also check the light type
+	FString IESPath;
+	TOptional<double> IESBrightnessScale;
+	bool bUseIES = LightTypeId == melange::LIGHT_TYPE_PHOTOMETRIC && MelangeGetBool(InC4DLightPtr, melange::LIGHT_PHOTOMETRIC_DATA);
+	if (bUseIES)
+	{
+		FString IESFilename = MelangeGetString(InC4DLightPtr, melange::LIGHT_PHOTOMETRIC_FILE);
+
+		IESPath = SearchForFile(IESFilename, C4dDocumentFilename);
+		if (IESPath.IsEmpty())
+		{
+			UE_LOG(LogDatasmithC4DImport, Warning, TEXT("Could not find IES file '%s' used by light '%s'"), *IESFilename, *MelangeObjectName(InC4DLightPtr));
+		}
+	}
+
 	// Set common parameters for all lights (including directional lights)
 	LightActor->SetIntensity(Intensity);
-	LightActor->SetUseIes(!IESPath.IsEmpty());
 	LightActor->SetIesFile(*IESPath);
+	LightActor->SetUseIes(bUseIES && !IESPath.IsEmpty());
+	LightActor->SetUseIesBrightness(Units == EDatasmithLightUnits::Unitless);
 	LightActor->SetTemperature(Temperature);
 	LightActor->SetUseTemperature(bUseTemperature);
 	LightActor->SetColor(Color);
@@ -2862,7 +2876,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 	int32 NumPolygons = MeshDescription.Polygons().Num();
 	TArray<uint32> ZeroedFaceSmoothingMask;
 	ZeroedFaceSmoothingMask.SetNumZeroed(NumPolygons);
-	FMeshDescriptionOperations::ConvertSmoothGroupToHardEdges(ZeroedFaceSmoothingMask, MeshDescription);
+	FStaticMeshOperations::ConvertSmoothGroupToHardEdges(ZeroedFaceSmoothingMask, MeshDescription);
 
 	if (Normals)
 	{
@@ -3053,6 +3067,7 @@ bool FDatasmithC4DImporter::ProcessScene()
 	FC4DImporterImpl::RemoveEmptyActors(DatasmithScene, NamesOfCameraTargetActors, NamesOfAnimatedActors);
 	DatasmithScene->RemoveActor(RootActor, EDatasmithActorRemovalRule::KeepChildrenAndKeepRelativeTransform);
 
+#if WITH_EDITOR
 	if (Options->bExportToUDatasmith)
 	{
 		SceneExporterRef = TSharedRef<FDatasmithSceneExporter>(new FDatasmithSceneExporter);
@@ -3062,6 +3077,7 @@ bool FDatasmithC4DImporter::ProcessScene()
 		SceneExporterRef->SetOutputPath(*FPaths::GetPath(C4dDocumentFilename));
 		SceneExporterRef->Export(DatasmithScene);
 	}
+#endif //WITH_EDITOR
 
 	return true;
 }

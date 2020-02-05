@@ -16,7 +16,6 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"MainFrame",
 					"MeshDescription",
-					"MeshDescriptionOperations",
 					"MeshEditor",
 					"MeshProcessingLibrary",
 					"PolygonModeling",

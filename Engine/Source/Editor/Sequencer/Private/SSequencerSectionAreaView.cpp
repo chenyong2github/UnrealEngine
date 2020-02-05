@@ -100,7 +100,8 @@ void SSequencerSectionAreaView::GenerateSectionWidgets()
 			Children.Add( 
 				SNew( SSequencerSection, SectionAreaNode.ToSharedRef(), SectionIndex ) 
 				.Visibility( this, &SSequencerSectionAreaView::GetSectionVisibility, Sections[SectionIndex]->GetSectionObject() )
-				.IsEnabled(this, &SSequencerSectionAreaView::GetSectionEnabled, Sections[SectionIndex]));
+				.IsEnabled(this, &SSequencerSectionAreaView::GetSectionEnabled, Sections[SectionIndex])
+				.ToolTipText(this, &SSequencerSectionAreaView::GetSectionToolTip, Sections[SectionIndex]));
 		}
 	}
 }
@@ -113,6 +114,12 @@ EVisibility SSequencerSectionAreaView::GetSectionVisibility(UMovieSceneSection* 
 bool SSequencerSectionAreaView::GetSectionEnabled(TSharedRef<ISequencerSection> InSequencerSection) const
 {
 	return !InSequencerSection->IsReadOnly();
+}
+
+
+FText SSequencerSectionAreaView::GetSectionToolTip(TSharedRef<ISequencerSection> InSequencerSection) const
+{
+	return InSequencerSection->GetSectionTitle();
 }
 
 

@@ -127,7 +127,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
 	static FSequencerScriptingRange MakeRangeSeconds(UMovieSceneSequence* Sequence, float StartTime, float Duration);
 
-	UE_DEPRECATED(4.22, "Please use GetPlaybackStart and GetPlaybackEnd instead.")
+	/**
+	 * Get playback range of this sequence
+	 *
+	 * @param Sequence        The sequence within which to get the playback range
+	 * @return Playback range of this sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
 	static FSequencerScriptingRange GetPlaybackRange(UMovieSceneSequence* Sequence);
 
 	/**

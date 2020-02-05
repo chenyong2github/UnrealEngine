@@ -7,6 +7,7 @@
 #include "Misc/Base64.h"
 #include <jni.h>
 #include "Android/AndroidJavaEnv.h"
+#include "Async/TaskGraphInterfaces.h"
 
 #define LOCTEXT_NAMESPACE "OnlineSubsystemGooglePlay"
 #define GOOGLEPLAYUSER TEXT("GooglePlayUser")

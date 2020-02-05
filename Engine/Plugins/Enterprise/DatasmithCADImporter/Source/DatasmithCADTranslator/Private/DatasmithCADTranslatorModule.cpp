@@ -2,18 +2,20 @@
 
 #include "DatasmithCADTranslatorModule.h"
 
+#include "CADToolsModule.h"
+#include "DatasmithCADTranslator.h"
+
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-#include "DatasmithCADTranslator.h"
 
 IMPLEMENT_MODULE(FDatasmithCADTranslatorModule, DatasmithCADTranslator);
 
 void FDatasmithCADTranslatorModule::StartupModule()
 {
-	const int32 CacheVersion = 2;
+	const int32 CacheVersion = FCADToolsModule::Get().GetCacheVersion();
 
 	// Create temporary directory which will be used by CoreTech to store tessellation data
 	for (int32 Version = 0; Version < CacheVersion; ++Version)

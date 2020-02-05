@@ -111,7 +111,7 @@ void FControlRigBlueprintActions::ExtendSketalMeshToolMenu()
 						{
 							for (UObject* SelectedObject : SelectedObjects)
 							{
-								FControlRigBlueprintActions::ExecuteCreateControlRigFromSkeletalMesh(SelectedObject);
+								FControlRigBlueprintActions::CreateControlRigFromSkeletalMeshOrSkeleton(SelectedObject);
 							}
 						})
 					);
@@ -121,7 +121,22 @@ void FControlRigBlueprintActions::ExtendSketalMeshToolMenu()
 	}
 }
 
-void FControlRigBlueprintActions::ExecuteCreateControlRigFromSkeletalMesh(UObject* InSelectedObject)
+UControlRigBlueprint* FControlRigBlueprintActions::CreateNewControlRigAsset(const FString& InDesiredPackagePath)
+{
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+
+	UControlRigBlueprintFactory* Factory = NewObject<UControlRigBlueprintFactory>();
+	Factory->ParentClass = UControlRig::StaticClass();
+
+	FString UniquePackageName;
+	FString UniqueAssetName;
+	AssetToolsModule.Get().CreateUniqueAssetName(InDesiredPackagePath, TEXT(""), UniquePackageName, UniqueAssetName);
+
+	UObject* NewAsset = AssetToolsModule.Get().CreateAsset(*UniqueAssetName, *InDesiredPackagePath, nullptr, Factory);
+	return Cast<UControlRigBlueprint>(NewAsset);
+}
+
+UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject)
 {
 	FScopedTransaction Transaction(LOCTEXT("CreateControlRigFromSkeletalMesh", "Create Control Rig"));
 
@@ -132,11 +147,11 @@ void FControlRigBlueprintActions::ExecuteCreateControlRigFromSkeletalMesh(UObjec
 	{
 		Skeleton = SkeletalMesh->Skeleton;
 	}
-
-	check(Skeleton);
-
-	UControlRigBlueprintFactory* Factory = NewObject<UControlRigBlueprintFactory>();
-	Factory->ParentClass = UControlRig::StaticClass();
+	else if (Skeleton == nullptr)
+	{
+		UE_LOG(LogControlRigEditor, Error, TEXT("CreateControlRigFromSkeletalMeshOrSkeleton: Provided object has to be a SkeletalMesh or Skeleton."));
+		return nullptr;
+	}
 
 	FString PackagePath = InSelectedObject->GetPathName();
 	FString ControlRigName = FString::Printf(TEXT("%s_CtrlRig"), *InSelectedObject->GetName());
@@ -147,15 +162,7 @@ void FControlRigBlueprintActions::ExecuteCreateControlRigFromSkeletalMesh(UObjec
 		PackagePath = PackagePath.Left(LastSlashPos);
 	}
 
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-
-	FString UniquePackageName;
-	FString UniqueAssetName;
-	AssetToolsModule.Get().CreateUniqueAssetName(PackagePath / ControlRigName, TEXT(""), UniquePackageName, UniqueAssetName);
-
-	UObject* NewAsset = AssetToolsModule.Get().CreateAsset(*UniqueAssetName, *PackagePath, nullptr, Factory);
-
-	UControlRigBlueprint* NewControlRigBlueprint = Cast<UControlRigBlueprint>(NewAsset);
+	UControlRigBlueprint* NewControlRigBlueprint = CreateNewControlRigAsset(PackagePath / ControlRigName);
 	check(NewControlRigBlueprint);
 
 	NewControlRigBlueprint->HierarchyContainer.BoneHierarchy.ImportSkeleton(Skeleton->GetReferenceSkeleton(), NAME_None, true, true, false, false);
@@ -166,6 +173,8 @@ void FControlRigBlueprintActions::ExecuteCreateControlRigFromSkeletalMesh(UObjec
 	{
 		NewControlRigBlueprint->SetPreviewMesh(SkeletalMesh);
 	}
+
+	return NewControlRigBlueprint;
 }
 
 USkeletalMesh* FControlRigBlueprintActions::GetSkeletalMeshFromControlRigBlueprint(UObject* InAsset)

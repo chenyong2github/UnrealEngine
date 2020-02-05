@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMeshAttributeSet.h"
+#include "IndexTypes.h"
 
 
 
@@ -46,6 +47,24 @@ bool FDynamicMeshAttributeSet::IsSeamVertex(int VID, bool bBoundaryIsSeam) const
 	return Normals0.IsSeamVertex(VID, bBoundaryIsSeam);
 }
 
+bool FDynamicMeshAttributeSet::IsMaterialBoundaryEdge(int EdgeID) const
+{
+	if ( MaterialIDAttrib == nullptr )
+	{
+		return false;
+	}
+	check(ParentMesh->IsEdge(EdgeID));
+	const FIndex4i Edge = ParentMesh->GetEdge(EdgeID);
+	const int Tri0 = Edge[2];
+	const int Tri1 = Edge[3];
+	if (( Tri0 == IndexConstants::InvalidID ) || (Tri1 == IndexConstants::InvalidID))
+	{
+		return false;
+	}
+	const int MatID0 = MaterialIDAttrib->GetValue(Tri0);
+	const int MatID1 = MaterialIDAttrib->GetValue(Tri1);
+	return MatID0 != MatID1;
+}
 
 void FDynamicMeshAttributeSet::OnNewVertex(int VertexID, bool bInserted)
 {

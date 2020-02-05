@@ -26,7 +26,6 @@ void UDefaultControlRigManipulationLayer::CreateLayer()
 
 void UDefaultControlRigManipulationLayer::DestroyLayer()
 {
-	EndTransaction();
 	IControlRigManipulationLayer::DestroyLayer();
 }
 
@@ -536,41 +535,6 @@ FTransform	UDefaultControlRigManipulationLayer::GetSkeletalMeshComponentTransfor
 {
 	USkeletalMeshComponent* MeshComponent = GetSkeletalMeshComponent();
 	return MeshComponent ? MeshComponent->GetComponentTransform() : FTransform::Identity;
-}
-
-void UDefaultControlRigManipulationLayer::BeginTransaction()
-{
-	if (InteractionTransaction != nullptr)
-	{
-		EndTransaction();
-	}
-
-	InteractionTransaction = new FScopedTransaction(LOCTEXT("TransformGizmo", "Transform Gizmo"));
-
-	for (TWeakObjectPtr<UObject> Manip : ManipulatableObjects)
-	{
-		if (UControlRig* ControlRig = Cast<UControlRig>(Manip))
-		{
-			UObject* Blueprint = ControlRig->GetClass()->ClassGeneratedBy;
-			if (Blueprint)
-			{
-				Blueprint->SetFlags(RF_Transactional);
-				Blueprint->Modify();
-			}
-
-			ControlRig->SetFlags(RF_Transactional);
-			ControlRig->Modify();
-		}
-	}
-}
-
-void UDefaultControlRigManipulationLayer::EndTransaction()
-{
-	if (InteractionTransaction != nullptr)
-	{
-		delete InteractionTransaction;
-		InteractionTransaction = nullptr;
-	}
 }
 
 void UDefaultControlRigManipulationLayer::PostPoseUpdate()

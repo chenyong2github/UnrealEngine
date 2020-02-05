@@ -126,7 +126,7 @@ public:
 		}
 		else if (Type == EIntersectionType::Line) 
 		{
-			Quantity = std::numeric_limits<int>::max();
+			Quantity = TNumericLimits<int32>::Max();
 		}
 		else 
 		{

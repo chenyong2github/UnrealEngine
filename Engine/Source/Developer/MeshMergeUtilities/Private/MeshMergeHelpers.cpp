@@ -7,7 +7,7 @@
 
 #include "MaterialOptions.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 
 #include "Misc/PackageName.h"
 #include "MaterialUtilities.h"
@@ -183,6 +183,8 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMesh* StaticMesh, int32 LOD
 
 void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InInstancedStaticMeshComponent, FMeshDescription& InOutRawMesh, TArray<FSectionInfo>& InOutSections)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::ExpandInstances)
+
 	FMeshDescription CombinedRawMesh;
 	FStaticMeshAttributes(CombinedRawMesh).Register();
 
@@ -201,6 +203,8 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 
 void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FMeshDescription& RawMesh, bool bPropagateVertexColours)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::RetrieveMesh)
+
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->GetSourceModel(LODIndex);
 
@@ -247,18 +251,18 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 	}
 
 	// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals	
-	uint32 TangentOptions = FMeshDescriptionOperations::ETangentOptions::BlendOverlappingNormals;
+	EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals;
 	if (BuildSettings.bRemoveDegenerates)
 	{
 		// If removing degenerate triangles, ignore them when computing tangents.
-		TangentOptions |= FMeshDescriptionOperations::ETangentOptions::IgnoreDegenerateTriangles;
+		ComputeNTBsOptions |= EComputeNTBsFlags::IgnoreDegenerateTriangles;
 	}
 	if (BuildSettings.bUseMikkTSpace)
 	{
-		TangentOptions |= FMeshDescriptionOperations::ETangentOptions::UseMikkTSpace;
+		ComputeNTBsOptions |= EComputeNTBsFlags::UseMikkTSpace;
 	}
-	FMeshDescriptionOperations::CreatePolygonNTB(RawMesh, 0.0f);
-	FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(RawMesh, (FMeshDescriptionOperations::ETangentOptions)TangentOptions);
+	FStaticMeshOperations::ComputePolygonTangentsAndNormals(RawMesh, 0.0f);
+	FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(RawMesh, ComputeNTBsOptions);
 }
 
 void FMeshMergeHelpers::RetrieveMesh(USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, FMeshDescription& RawMesh, bool bPropagateVertexColours)
@@ -406,18 +410,21 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMesh* StaticMesh, int32 LODInd
 	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
 
 	// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals	
-	uint32 TangentOptions = FMeshDescriptionOperations::ETangentOptions::BlendOverlappingNormals;
+	EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals;
 	if (BuildSettings.bRemoveDegenerates)
 	{
 		// If removing degenerate triangles, ignore them when computing tangents.
-		TangentOptions |= FMeshDescriptionOperations::ETangentOptions::IgnoreDegenerateTriangles;
+		ComputeNTBsOptions |= EComputeNTBsFlags::IgnoreDegenerateTriangles;
 	}
 	if (BuildSettings.bUseMikkTSpace)
 	{
-		TangentOptions |= FMeshDescriptionOperations::ETangentOptions::UseMikkTSpace;
+		ComputeNTBsOptions |= EComputeNTBsFlags::UseMikkTSpace;
 	}
-	FMeshDescriptionOperations::CreatePolygonNTB(RawMesh, 0.0f);
-	FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(RawMesh, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, (bImportedMesh && BuildSettings.bRecomputeNormals), (bImportedMesh && BuildSettings.bRecomputeTangents));
+	ComputeNTBsOptions |= (bImportedMesh && BuildSettings.bRecomputeNormals) ? EComputeNTBsFlags::Normals : EComputeNTBsFlags::None;
+	ComputeNTBsOptions |= (bImportedMesh && BuildSettings.bRecomputeTangents) ? EComputeNTBsFlags::Tangents : EComputeNTBsFlags::None;
+
+	FStaticMeshOperations::ComputePolygonTangentsAndNormals(RawMesh, 0.0f);
+	FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(RawMesh, ComputeNTBsOptions);
 }
 
 void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& StaticMeshLOD, FMeshDescription& OutRawMesh, const TArray<FStaticMaterial>& Materials)
@@ -451,7 +458,6 @@ void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& Stati
 	const int32 NumTexCoords = StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 	VertexInstanceUVs.SetNumIndices(NumTexCoords);
 
-	
 	for (int32 SectionIndex = 0; SectionIndex < StaticMeshLOD.Sections.Num(); ++SectionIndex)
 	{
 		const FStaticMeshSection& Section = StaticMeshLOD.Sections[SectionIndex];
@@ -788,6 +794,8 @@ void FMeshMergeHelpers::PropagateSplineDeformationToPhysicsGeometry(USplineMeshC
 
 void FMeshMergeHelpers::TransformRawMeshVertexData(const FTransform& InTransform, FMeshDescription &OutRawMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::TransformRawMeshVertexData)
+
 	TVertexAttributesRef<FVector> VertexPositions = OutRawMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 	TEdgeAttributesRef<bool> EdgeHardnesses = OutRawMesh.EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
 	TEdgeAttributesRef<float> EdgeCreaseSharpnesses = OutRawMesh.EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness);
@@ -802,22 +810,19 @@ void FMeshMergeHelpers::TransformRawMeshVertexData(const FTransform& InTransform
 	{
 		VertexPositions[VertexID] = InTransform.TransformPosition(VertexPositions[VertexID]);
 	}
-	
-	auto TransformNormal = [&](FVector& Normal)
-	{
-		FMatrix Matrix = InTransform.ToMatrixWithScale();
-		const float DetM = Matrix.Determinant();
-		FMatrix AdjointT = Matrix.TransposeAdjoint();
-		AdjointT.RemoveScaling();
 
-		Normal = AdjointT.TransformVector(Normal);
-		if (DetM < 0.f)
+	FMatrix Matrix   = InTransform.ToMatrixWithScale();
+	FMatrix AdjointT = Matrix.TransposeAdjoint();
+	AdjointT.RemoveScaling();
+
+	const float MulBy = Matrix.Determinant() < 0.f ? -1.f : 1.f;
+	auto TransformNormal = 
+		[&AdjointT, MulBy](FVector& Normal) 
 		{
-			Normal *= -1.0f;
-		}
-	};	
+			Normal = AdjointT.TransformVector(Normal) * MulBy;
+		};
 
-	for(const FVertexInstanceID& VertexInstanceID : OutRawMesh.VertexInstances().GetElementIDs())
+	for (const FVertexInstanceID& VertexInstanceID : OutRawMesh.VertexInstances().GetElementIDs())
 	{
 		FVector TangentY = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
 		TransformNormal(VertexInstanceTangents[VertexInstanceID]);
@@ -829,7 +834,7 @@ void FMeshMergeHelpers::TransformRawMeshVertexData(const FTransform& InTransform
 	const bool bIsMirrored = InTransform.GetDeterminant() < 0.f;
 	if (bIsMirrored)
 	{
-		//Reverse the vertexinstance
+		//Reverse the vertex instance
 		OutRawMesh.ReverseAllPolygonFacing();
 	}
 }
@@ -1177,6 +1182,8 @@ bool FMeshMergeHelpers::IsLandscapeHit(const FVector& RayOrigin, const FVector& 
 
 void FMeshMergeHelpers::AppendRawMesh(FMeshDescription& InTarget, const FMeshDescription& InSource)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::AppendRawMesh)
+
 	TVertexAttributesConstRef<FVector> SourceVertexPositions = InSource.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 	TEdgeAttributesConstRef<bool> SourceEdgeHardnesses = InSource.EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
 	TEdgeAttributesConstRef<float> SourceEdgeCreaseSharpnesses = InSource.EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness);
@@ -1388,7 +1395,7 @@ void FMeshMergeHelpers::MergeImpostersToRawMesh(TArray<const UStaticMeshComponen
 			}
 			RemapSourcePolygonGroup.Add(SourcePolygonGroupID, MatchTargetPolygonGroupID);
 		}
-		FMeshDescriptionOperations::RemapPolygonGroups(ImposterMesh, RemapSourcePolygonGroup);
+		ImposterMesh.RemapPolygonGroups(RemapSourcePolygonGroup);
 
 		FMeshMergeHelpers::AppendRawMesh(InRawMesh, ImposterMesh);
 	}

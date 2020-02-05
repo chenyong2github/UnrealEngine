@@ -12,7 +12,13 @@
 class CBOR_API FCborWriter
 {
 public:
-	FCborWriter(FArchive* InStream);
+	/*
+	 * Construct a CBOR writer.
+	 * @param InStream The stream used to write the CBOR data.
+	 * @param InWriterEndianness Specify which endianness should be use to write the archive.
+	 * @note CBOR standard endianness is big endian. For interoperability with external tools, the standard endianness should be used. For internal usage, the platform endianness is faster.
+	 */
+	FCborWriter(FArchive* InStream, ECborEndianness InWriterEndianness = ECborEndianness::Platform);
 	~FCborWriter();
 
 public:
@@ -52,5 +58,7 @@ private:
 	FArchive* Stream;
 	/** The writer context stack. */
 	TArray<FCborContext> ContextStack;
+	/** Write the CBOR data using the specified endianness. */
+	ECborEndianness Endianness;
 };
 

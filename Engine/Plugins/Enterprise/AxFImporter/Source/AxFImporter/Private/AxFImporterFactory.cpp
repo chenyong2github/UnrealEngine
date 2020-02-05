@@ -125,6 +125,7 @@ UObject* UAxFImporterFactory::FactoryCreateFile(UClass*           InClass,
 {
 	check(IAxFImporterModule::IsAvailable());
 	
+	AdditionalImportedObjects.Empty();
 	if (!AxFImporterModule->GetAxFImporter().IsLoaded())
 	{
 		UE_LOG(LogAxFImporter, Error, TEXT("AxF Decoding library wan't loaded!"));
@@ -169,6 +170,11 @@ UObject* UAxFImporterFactory::FactoryCreateFile(UClass*           InClass,
 			TArray<FString> Names;
 			CreatedMaterials.GetKeys(Names);
 			Object = (*CreatedMaterials.Find(Names[0]))->GetOutermost();
+			
+			for (const FString& Name : Names)
+			{
+				AdditionalImportedObjects.Add(*CreatedMaterials.Find(Name));
+			}
 		}
 	}
 	Importer.Reset();

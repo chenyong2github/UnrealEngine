@@ -76,8 +76,6 @@ public:
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
 	// End of FGCObject interface
 
-	void UpdateModifierWindow();
-
 	virtual void GeometrySelectNone(bool bStoreSelection, bool bResetPivot);
 	
 	/**

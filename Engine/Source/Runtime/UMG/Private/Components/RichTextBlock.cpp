@@ -79,6 +79,7 @@ void URichTextBlock::SynchronizeProperties()
 	Super::SynchronizeProperties();
 
 	MyRichTextBlock->SetText(Text);
+	MyRichTextBlock->SetMinDesiredWidth(MinDesiredWidth);
 
 	Super::SynchronizeTextLayoutProperties( *MyRichTextBlock );
 }

@@ -14,6 +14,11 @@ void ICurveEditorDragOperation::Drag(FVector2D InitialPosition, FVector2D Curren
 	OnDrag(InitialPosition, CurrentPosition, MouseEvent);
 }
 
+FReply ICurveEditorDragOperation::MouseWheel(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
+{
+	return OnMouseWheel(InitialPosition, CurrentPosition, MouseEvent);
+}
+
 void ICurveEditorDragOperation::EndDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {
 	OnEndDrag(InitialPosition, CurrentPosition, MouseEvent);

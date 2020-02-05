@@ -205,9 +205,8 @@ void UGeometryCacheTrackStreamable::EndCoding()
 			else if (bVisible != VisibilitySample.Value)
 			{				
 				TRange<float> VisibilityRange(RangeStart, ImportVisibilitySamples[SampleIndex].Key);
-				FVisibilitySample Sample;
+				FVisibilitySample Sample(bVisible);
 				Sample.Range = VisibilityRange;
-				Sample.bVisibilityState = bVisible;
 				VisibilitySamples.Add(Sample);
 				
 				bVisible = ImportVisibilitySamples[SampleIndex].Value;
@@ -216,9 +215,8 @@ void UGeometryCacheTrackStreamable::EndCoding()
 			else if (SampleIndex == ImportVisibilitySamples.Num() - 1)
 			{
 				TRange<float> VisibilityRange(RangeStart, ImportVisibilitySamples[SampleIndex].Key);
-				FVisibilitySample Sample;
+				FVisibilitySample Sample(ImportVisibilitySamples[SampleIndex].Value);
 				Sample.Range = VisibilityRange;
-				Sample.bVisibilityState = ImportVisibilitySamples[SampleIndex].Value;
 				VisibilitySamples.Add(Sample);
 			}
 		}
@@ -226,9 +224,8 @@ void UGeometryCacheTrackStreamable::EndCoding()
 	else
 	{
 		TRange<float> VisibilityRange(StartSampleTime, Samples.Last().SampleTime);
-		FVisibilitySample Sample;
+		FVisibilitySample Sample(true);
 		Sample.Range = VisibilityRange;
-		Sample.bVisibilityState = true;
 
 		VisibilitySamples.Add(Sample);
 	}
@@ -488,7 +485,7 @@ const FGeometryCacheTrackStreamableSampleInfo& UGeometryCacheTrackStreamable::Ge
 	return Samples[SampleID];
 }
 
-const FGeometryCacheTrackStreamableSampleInfo& UGeometryCacheTrackStreamable::GetSampleInfo(float Time, bool bLooping) const
+const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackStreamable::GetSampleInfo(float Time, bool bLooping)
 {
 	return GetSampleInfo(FindSampleIndexFromTime(Time, bLooping));
 }

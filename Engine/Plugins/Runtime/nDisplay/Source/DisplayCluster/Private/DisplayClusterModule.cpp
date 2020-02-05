@@ -82,7 +82,7 @@ bool FDisplayClusterModule::Init(EDisplayClusterOperationMode OperationMode)
 
 	CurrentOperationMode = OperationMode;
 
-	UE_LOG(LogDisplayClusterModule, Log, TEXT("Initializing subsystems to %s operation mode"), *FDisplayClusterTypesConverter::ToString(CurrentOperationMode));
+	UE_LOG(LogDisplayClusterModule, Log, TEXT("Initializing subsystems to %s operation mode"), *FDisplayClusterTypesConverter::template ToString(CurrentOperationMode));
 
 	bool result = true;
 	auto it = Managers.CreateIterator();

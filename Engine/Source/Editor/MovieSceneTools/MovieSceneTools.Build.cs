@@ -40,6 +40,7 @@ public class MovieSceneTools : ModuleRules
                 "Json",
                 "JsonUtilities",
 				"LevelSequence",
+                "LiveLinkInterface",
                 "MessageLog",
 				"MovieScene",
 				"MovieSceneTracks",

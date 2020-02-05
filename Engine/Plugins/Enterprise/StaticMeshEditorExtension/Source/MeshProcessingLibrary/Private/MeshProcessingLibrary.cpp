@@ -17,8 +17,8 @@
 #include "MeshMergeData.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescriptionAdapter.h"
-#include "MeshDescriptionOperations.h"
 #include "Misc/ScopedSlowTask.h"
+#include "StaticMeshOperations.h"
 #include "Templates/Tuple.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/StrongObjectPtr.h"
@@ -653,14 +653,6 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = NewRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
 			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = NewRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
 
-			bool bHasAllNormals = true;
-			bool bHasAllTangents = true;
-			for (const FVertexInstanceID VertexInstanceID : NewRawMesh.VertexInstances().GetElementIDs())
-			{
-				bHasAllNormals &= !VertexInstanceNormals[VertexInstanceID].IsNearlyZero();
-				bHasAllTangents &= !VertexInstanceTangents[VertexInstanceID].IsNearlyZero();
-			}
-
 			RawMesh->Empty();
 			// Update mesh description of static mesh with new geometry
 			FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
@@ -668,19 +660,14 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 			*MeshDescription = NewRawMesh;
 
 			const FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
+			EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals;
+			ComputeNTBsOptions |= BuildSettings.bRecomputeNormals ? EComputeNTBsFlags::Normals : EComputeNTBsFlags::None;
+			ComputeNTBsOptions |= BuildSettings.bRecomputeTangents ? EComputeNTBsFlags::Tangents : EComputeNTBsFlags::None;
+			ComputeNTBsOptions |= BuildSettings.bUseMikkTSpace ? EComputeNTBsFlags::UseMikkTSpace : EComputeNTBsFlags::None;
+			ComputeNTBsOptions |= BuildSettings.bComputeWeightedNormals ? EComputeNTBsFlags::WeightedNTBs : EComputeNTBsFlags::None;
+			ComputeNTBsOptions |= BuildSettings.bRemoveDegenerates ? EComputeNTBsFlags::IgnoreDegenerateTriangles : EComputeNTBsFlags::None;
 
-			if (BuildSettings.bRecomputeNormals || !bHasAllNormals)
-			{
-				FMeshDescriptionOperations::CreateNormals(*MeshDescription,
-														  FMeshDescriptionOperations::ETangentOptions::BlendOverlappingNormals,
-														  !BuildSettings.bUseMikkTSpace && !bHasAllTangents);
-			}
-
-			if ((BuildSettings.bRecomputeTangents || !bHasAllTangents) && BuildSettings.bUseMikkTSpace)
-			{
-				FMeshDescriptionOperations::CreateMikktTangents(*MeshDescription,
-																FMeshDescriptionOperations::ETangentOptions::BlendOverlappingNormals);
-			}
+			FStaticMeshOperations::ComputeTangentsAndNormals(*MeshDescription, ComputeNTBsOptions);
 			// TODO: Maybe add generation of lightmap UV here.
 
 			//Commit the result so the old FRawMesh is updated

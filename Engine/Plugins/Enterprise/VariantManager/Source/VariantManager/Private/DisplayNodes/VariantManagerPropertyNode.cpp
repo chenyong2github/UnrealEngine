@@ -4,6 +4,7 @@
 
 #include "PropertyTemplateObject.h"
 #include "PropertyValue.h"
+#include "PropertyValueSoftObject.h"
 #include "SVariantManager.h"
 #include "VariantManager.h"
 #include "VariantManagerDragDropOp.h"
@@ -268,31 +269,7 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 	}
 	if(!bAtLeastOneResolved)
 	{
-		UObject* ActorAsObj = FirstPropertyValue->GetParent()->GetObject();
-		FString ActorName;
-		if (AActor* Actor = Cast<AActor>(ActorAsObj))
-		{
-			ActorName = Actor->GetActorLabel();
-		}
-		else
-		{
-			ActorName = ActorAsObj->GetName();
-		}
-
-		return SNew(SBox)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
-		.Padding(FMargin(3.0f, 0.0f, 0.0f, 0.0f))
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("FailedToResolveText", "Failed to resolve!"))
-			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
-			.ToolTipText(FText::Format(
-				LOCTEXT("FailedToResolveTooltip", "Make sure actor '{0}' has a property with path '{1}'"),
-				FText::FromString(ActorName),
-				FText::FromString(FirstPropertyValue->GetFullDisplayString())))
-		];
+		return GetFailedToResolveWidget(FirstPropertyValue);
 	}
 
 	if (bSomeFailedToResolve)
@@ -302,16 +279,7 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 
 	if (!PropertiesHaveSameValue())
 	{
-		return SNew(SBox)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("MultipleValuesLabel", "Multiple Values"))
-			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
-			.ToolTipText(LOCTEXT("MultipleValuesTooltip", "The selected actors have different values for this property"))
-		];
+		return GetMultipleValuesWidget();
 	}
 
 	FSinglePropertyParams InitParams;
@@ -320,14 +288,20 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 	UPropertyTemplateObject* Template = NewObject<UPropertyTemplateObject>(GetTransientPackage());
 	SinglePropertyViewTemplate.Reset(Template);
 
-	// Find the property responsible for Template's UObject*
-	// Assumes it has only one
-	FObjectProperty* TemplateObjectProp = nullptr;
-	if (FirstPropertyValue->GetPropertyClass() == FObjectProperty::StaticClass())
+	FFieldClass* PropertyClass = FirstPropertyValue->GetPropertyClass();
+
+	// Find the property responsible for Template's UObjectProperty
+	FObjectPropertyBase* TemplateObjectProp = nullptr;
+	if (PropertyClass && PropertyClass->IsChildOf(FObjectPropertyBase::StaticClass()))
 	{
-		for (TFieldIterator<FObjectProperty> PropertyIterator(Template->GetClass()); PropertyIterator; ++PropertyIterator)
+		for (TFieldIterator<FObjectPropertyBase> PropertyIterator(Template->GetClass()); PropertyIterator; ++PropertyIterator)
 		{
-			TemplateObjectProp = *PropertyIterator;
+			FObjectPropertyBase* ObjectProp = *PropertyIterator;
+			if (ObjectProp->GetClass() == PropertyClass)
+			{
+				TemplateObjectProp = ObjectProp;
+				break;
+			}
 		}
 	}
 
@@ -343,9 +317,10 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	TSharedPtr<ISinglePropertyView> SinglePropView = PropertyEditorModule.CreateSingleProperty(
 		SinglePropertyViewTemplate.Get(),
-		UPropertyTemplateObject::GetPropertyNameFromClass(FirstPropertyValue->GetPropertyClass()),
+		UPropertyTemplateObject::GetPropertyNameFromClass(PropertyClass),
 		InitParams);
 
+	// Reset it back to generic
 	if (TemplateObjectProp)
 	{
 		TemplateObjectProp->PropertyClass = UObject::StaticClass();
@@ -377,7 +352,16 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 	PropHandle->AccessRawData(RawDataForEachObject);
 	void* SinglePropWidgetDataPtr = RawDataForEachObject[0]; // We'll always pass just a single object
 	const TArray<uint8>& FirstRecordedData = FirstPropertyValue->GetRecordedData();
-	FMemory::Memcpy((uint8*)SinglePropWidgetDataPtr, FirstRecordedData.GetData(), FirstPropertyValue->GetValueSizeInBytes());
+
+	if (FSoftObjectProperty* Prop = CastField<FSoftObjectProperty>(PropHandle->GetProperty()))
+	{
+		UObject* TargetObject = *((UObject**)FirstRecordedData.GetData());
+		Prop->SetObjectPropertyValue(SinglePropWidgetDataPtr, TargetObject);
+	}
+	else
+	{
+		FMemory::Memcpy((uint8*)SinglePropWidgetDataPtr, FirstRecordedData.GetData(), FirstPropertyValue->GetValueSizeInBytes());
+	}
 
 	// Update recorded data when user modifies the widget (modifying the widget will modify the
 	// property value of the object the widget is looking at e.g. the class metadata object)
@@ -538,11 +522,22 @@ void FVariantManagerPropertyNode::UpdateRecordedDataFromSinglePropView(TSharedPt
 	PropHandle->AccessRawData(RawDataForEachObject);
 	void* SinglePropWidgetDataPtr = RawDataForEachObject[0]; // We'll always pass just a single object
 
-	for (TWeakObjectPtr<UPropertyValue> PropertyValue : PropertyValues)
+	for (TWeakObjectPtr<UPropertyValue> PropertyValuePtr : PropertyValues)
 	{
-		if (PropertyValue.IsValid())
+		UPropertyValue* PropertyValue = PropertyValuePtr.Get();
+		if (!PropertyValue)
 		{
-			PropertyValue.Get()->SetRecordedData((uint8*)SinglePropWidgetDataPtr, PropHandle->GetProperty()->ElementSize);
+			continue;
+		}
+
+		if (FSoftObjectProperty* Prop = CastField<FSoftObjectProperty>(PropHandle->GetProperty()))
+		{
+			UObject* NewObj = Prop->LoadObjectPropertyValue(SinglePropWidgetDataPtr);
+			PropertyValue->SetRecordedData((uint8*)&NewObj, sizeof(UObject*));
+		}
+		else
+		{
+			PropertyValue->SetRecordedData((uint8*)SinglePropWidgetDataPtr, PropHandle->GetProperty()->ElementSize);
 		}
 	}
 
@@ -659,6 +654,53 @@ bool FVariantManagerPropertyNode::PropertiesHaveCurrentValue() const
 	}
 
 	return true;
+}
+
+TSharedRef<SWidget> FVariantManagerPropertyNode::GetMultipleValuesWidget()
+{
+	return SNew(SBox)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("MultipleValuesLabel", "Multiple Values"))
+			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
+			.ToolTipText(LOCTEXT("MultipleValuesTooltip", "The selected actors have different values for this property"))
+		];
+}
+
+TSharedRef<SWidget> FVariantManagerPropertyNode::GetFailedToResolveWidget(const UPropertyValue* Property)
+{
+	if (!Property)
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	FString ActorName;
+
+	if (UVariantObjectBinding* Binding = Property->GetParent())
+	{
+		if (AActor* Actor = Cast<AActor>(Binding->GetObject()))
+		{
+			ActorName = Actor->GetActorLabel();
+		}
+	}
+
+	return SNew(SBox)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("FailedToResolveText", "Failed to resolve!"))
+			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
+			.ToolTipText(FText::Format(
+			LOCTEXT("FailedToResolveTooltip", "Make sure actor '{0}' has a property with path '{1}'"),
+			FText::FromString(ActorName), FText::FromString(Property->GetFullDisplayString())))
+		];
 }
 
 EVisibility FVariantManagerPropertyNode::GetResetButtonVisibility() const

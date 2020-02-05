@@ -292,6 +292,23 @@ bool UPreviewMesh::FindRayIntersection(const FRay3d& WorldRay, FHitResult& HitOu
 }
 
 
+FVector3d UPreviewMesh::FindNearestPoint(const FVector3d& WorldPoint, bool bLinearSearch)
+{
+	FTransform3d Transform(TemporaryParentActor->GetActorTransform());
+	FVector3d LocalPoint = Transform.TransformPosition(WorldPoint);
+	const FDynamicMesh3* UseMesh = GetMesh();
+	if (bLinearSearch)
+	{
+		return TMeshQueries<FDynamicMesh3>::FindNearestPoint_LinearSearch(*UseMesh, WorldPoint);
+	}
+	if (bBuildSpatialDataStructure)
+	{
+		return MeshAABBTree.FindNearestPoint(WorldPoint);
+	}
+	return WorldPoint;
+}
+
+
 
 void UPreviewMesh::InitializeMesh(FMeshDescription* MeshDescription)
 {
@@ -304,6 +321,19 @@ void UPreviewMesh::InitializeMesh(FMeshDescription* MeshDescription)
 	}
 }
 
+
+void UPreviewMesh::ReplaceMesh(FDynamicMesh3&& NewMesh)
+{
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	*Mesh = MoveTemp(NewMesh);
+
+	DynamicMeshComponent->NotifyMeshUpdated();
+
+	if (bBuildSpatialDataStructure)
+	{
+		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
+	}
+}
 
 
 void UPreviewMesh::EditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc)

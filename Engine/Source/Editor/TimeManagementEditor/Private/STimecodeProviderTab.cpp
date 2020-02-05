@@ -11,9 +11,11 @@
 #include "Framework/MultiBox/SToolBarComboButtonBlock.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
+#include "ScopedTransaction.h"
 #include "STimecodeProvider.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SSpinBox.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
@@ -91,7 +93,7 @@ void STimecodeProviderTab::Construct(const FArguments& InArgs)
 		]
 		.OnGetMenuContent(this, &STimecodeProviderTab::OnGetMenuContent);
 
-	ButtonContent->SetEnabled(MakeAttributeLambda([] { return (GEngine && GEngine->GetTimecodeProvider() != nullptr); }));
+	ButtonContent->SetEnabled(MakeAttributeLambda([] { return GEngine && (GEngine->GetTimecodeProvider() != nullptr || GEngine->bGenerateDefaultTimecode); }));
 
 	ChildSlot
 	[
@@ -146,7 +148,50 @@ TSharedRef<SWidget> STimecodeProviderTab::OnGetMenuContent()
 		MenuBuilder.EndSection();
 	}
 
+	if (GEngine->GetTimecodeProvider() || GEngine->bGenerateDefaultTimecode)
+	{
+		MenuBuilder.BeginSection("Settings", LOCTEXT("Settings", "Settings"));
+		{
+			TSharedRef<SWidget> RefreshDelay = SNew(SSpinBox<float>)
+				.ToolTipText(LOCTEXT("FrameDelay_ToolTip", "Number of frames to subtract from the original timecode."))
+				.Value(this, &STimecodeProviderTab::GetFrameDelay)
+				.OnValueCommitted(this, &STimecodeProviderTab::SetFrameDelay);
+
+			MenuBuilder.AddWidget(RefreshDelay, LOCTEXT("FrameDelay", "Frame Delay"));
+		}
+		MenuBuilder.EndSection();
+	}
+
 	return MenuBuilder.MakeWidget();
+}
+
+float STimecodeProviderTab::GetFrameDelay() const
+{
+	if (GEngine->GetTimecodeProvider())
+	{
+		return GEngine->GetTimecodeProvider()->FrameDelay;
+	}
+	else if (GEngine->bGenerateDefaultTimecode)
+	{
+		return GEngine->GenerateDefaultTimecodeFrameDelay;
+	}
+	return 0.f;
+}
+
+void STimecodeProviderTab::SetFrameDelay(float InNewValue, ETextCommit::Type)
+{
+	if (GetFrameDelay() != InNewValue)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("SetFrameDelay", "TC Frame Delay"));
+		if (GEngine->GetTimecodeProvider())
+		{
+			GEngine->GetTimecodeProvider()->FrameDelay = InNewValue;
+		}
+		else if (GEngine->bGenerateDefaultTimecode)
+		{
+			GEngine->GenerateDefaultTimecodeFrameDelay = InNewValue;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

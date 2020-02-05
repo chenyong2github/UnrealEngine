@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
                 {
                     "Engine",
                     "MeshDescription",
-                    "MeshDescriptionOperations",
                     "RawMesh",
                     "StaticMeshDescription",
                 }

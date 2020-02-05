@@ -3,23 +3,26 @@
 #include "DisplayNodes/VariantManagerVariantNode.h"
 
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
-#include "Editor.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Variant.h"
-#include "VariantSet.h"
-#include "VariantObjectBinding.h"
-#include "VariantManagerDragDropOp.h"
-#include "VariantManagerNodeTree.h"
-#include "VariantManagerEditorCommands.h"
-#include "AssetThumbnail.h"
-#include "ScopedTransaction.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SVariantManager.h"
+#include "Variant.h"
+#include "VariantManagerDragDropOp.h"
+#include "VariantManagerEditorCommands.h"
+#include "VariantManagerNodeTree.h"
 #include "VariantManagerSelection.h"
+#include "VariantObjectBinding.h"
+#include "VariantSet.h"
+
+#include "AssetThumbnail.h"
+#include "Brushes/SlateImageBrush.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
+#include "Editor.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "ObjectTools.h"
+#include "ScopedTransaction.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerVariantNode"
@@ -466,10 +469,13 @@ void FVariantManagerVariantNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	FVariantManagerDisplayNode::BuildContextMenu(MenuBuilder);
 
-	MenuBuilder.BeginSection("Variant", LOCTEXT("VariantSectionText", "Variant"));
+	MenuBuilder.BeginSection(TEXT("Variant"), LOCTEXT("VariantSectionText", "Variant"));
 	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().AddSelectedActorsCommand);
 	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().SwitchOnSelectedVariantCommand);
+	MenuBuilder.EndSection();
+	MenuBuilder.BeginSection(TEXT("Thumbnail"), LOCTEXT("ThumbnailSectionText", "Thumbnail"));
 	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().CreateThumbnailVariantCommand);
+	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().LoadThumbnailVariantCommand);
 	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().ClearThumbnailVariantCommand);
 	MenuBuilder.EndSection();
 }
@@ -481,24 +487,37 @@ UVariant& FVariantManagerVariantNode::GetVariant() const
 
 TSharedRef<SWidget> FVariantManagerVariantNode::GetThumbnailWidget()
 {
-	FAssetData AssetData(&Variant);
+	TSharedPtr<SWidget> ThumbnailWidget = nullptr;
 
-	// Create a thumbnail pool to hold the single thumbnail rendered
-	ThumbnailPool = MakeShared<FAssetThumbnailPool>(1, /*InAreRealTileThumbnailsAllowed=*/false);
+	// Try using texture2d thumbnails
+	if (UTexture2D* CreatedThumbnail = Variant.GetThumbnail())
+	{
+		if (!ImageBrush.IsValid() || ImageBrush->GetResourceObject() != CreatedThumbnail)
+		{
+			ImageBrush = MakeShareable(
+				new FSlateImageBrush((UObject*)CreatedThumbnail, FVector2D(CreatedThumbnail->GetSizeX(), CreatedThumbnail->GetSizeY())));
+		}
 
-	TArray<FAssetData> AssetDatas;
-	AssetDatas.Emplace(&Variant);
+		if (ImageBrush.IsValid())
+		{
+			ThumbnailWidget = SNew(SImage).Image(ImageBrush.Get());
+		}
+	}
 
-	// Create the thumbnail handle
-	int32 ThumbnailSizeX = 64;
-	int32 ThumbnailSizeY = 64;
-	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(AssetDatas[0], ThumbnailSizeX, ThumbnailSizeY, ThumbnailPool);
+	// Use default thumbnail graphic for Variants as a fallback
+	if(!ThumbnailWidget.IsValid())
+	{
+		ThumbnailPool = MakeShared<FAssetThumbnailPool>(1, false);
+
+		TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(&Variant, VARIANT_THUMBNAIL_SIZE, VARIANT_THUMBNAIL_SIZE, ThumbnailPool);
+		ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
+	}
 
 	return SNew(SBox)
-		.WidthOverride(ThumbnailSizeX)
-		.HeightOverride(ThumbnailSizeY)
+		.WidthOverride(64)
+		.HeightOverride(64)
 		[
-			AssetThumbnail->MakeThumbnailWidget()
+			ThumbnailWidget.IsValid() ? ThumbnailWidget.ToSharedRef() : SNullWidget::NullWidget
 		];
 }
 

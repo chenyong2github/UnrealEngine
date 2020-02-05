@@ -94,8 +94,6 @@ private:
 	
 	void HandleAddTrackSubMenuNew(FMenuBuilder& AddTrackMenuBuilder, TArray<FPropertyPath> KeyablePropertyPath, int32 PropertyNameIndexStart = 0);
 
-	void HandleLabelsSubMenuCreate(FMenuBuilder& MenuBuilder);
-	
 	void HandlePropertyMenuItemExecute(FPropertyPath PropertyPath);
 
 	ECheckBoxState GetTagCheckState(FName TagName);

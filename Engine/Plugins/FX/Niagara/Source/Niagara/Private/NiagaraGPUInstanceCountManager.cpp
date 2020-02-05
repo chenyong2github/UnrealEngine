@@ -3,7 +3,8 @@
 #include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraStats.h"
 #include "Containers/DynamicRHIResourceArray.h"
-#include "NiagaraSortingGPU.h" // FNiagaraCopyIntBufferRegionCS
+#include "GPUSortManager.h" // CopyUIntBufferToTargets
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 int32 GNiagaraMinGPUInstanceCount = 2048;
 static FAutoConsoleVariableRef CVarNiagaraMinGPUInstanceCount(
@@ -110,28 +111,25 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 		// If we need to increase the buffer size to RecommendedInstanceCounts because the buffer is too small.
 		else if (RequiredInstanceCounts > AllocatedInstanceCounts)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, ResizeNiagaraGPUCounts);
+
 			// Init a bigger buffer filled with 0.
 			TResourceArray<uint32> InitData;
 			InitData.AddZeroed(RecommendedInstanceCounts);
 			FRWBuffer NextCountBuffer;
 			NextCountBuffer.Initialize(sizeof(uint32), RecommendedInstanceCounts, EPixelFormat::PF_R32_UINT, BUF_Static, TEXT("NiagaraGPUInstanceCounts"), &InitData);
 
-			// Because the shader works with SINT, we need to temporarily create view for the shader to work. Those will be (deferred) deleted at end of the scope.
-			FUnorderedAccessViewRHIRef NextCountBufferUAVAsInt = RHICreateUnorderedAccessView(NextCountBuffer.Buffer, EPixelFormat::PF_R32_SINT);
-			FShaderResourceViewRHIRef CountBufferSRVAsInt = RHICreateShaderResourceView(CountBuffer.Buffer, sizeof(uint32), EPixelFormat::PF_R32_SINT);
-
+			// TR-InstanceCount : The new count where just initialized here, while the previous count needs to transit in readable state..
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, NextCountBuffer.UAV);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, CountBuffer.UAV);
+			
 			// Copy the current buffer in the next buffer.
-			TShaderMapRef<FNiagaraCopyIntBufferRegionCS> CopyBufferCS(GetGlobalShaderMap(FeatureLevel));
-			RHICmdList.SetComputeShader(CopyBufferCS->GetComputeShader());
-			FRHIUnorderedAccessView* UAVs[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
-			int32 UsedIndexCounts[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
-			UAVs[0] = NextCountBufferUAVAsInt;
-			UsedIndexCounts[0] = AllocatedInstanceCounts;
-			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAVs, 1);
-			CopyBufferCS->SetParameters(RHICmdList, CountBufferSRVAsInt, UAVs, UsedIndexCounts, 0, 1);
-			DispatchComputeShader(RHICmdList, *CopyBufferCS, FMath::DivideAndRoundUp(AllocatedInstanceCounts, NIAGARA_COPY_BUFFER_THREAD_COUNT), 1, 1);
-			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, UAVs, 1);
-			CopyBufferCS->UnbindBuffers(RHICmdList);
+			FRHIUnorderedAccessView* UAVs[] = { NextCountBuffer.UAV };
+			int32 UsedIndexCounts[] = { AllocatedInstanceCounts };
+			CopyUIntBufferToTargets(RHICmdList, FeatureLevel, CountBuffer.SRV, UAVs, UsedIndexCounts, 0, UE_ARRAY_COUNT(UAVs)); 
+
+			// TR-InstanceCount : The counts can either be used in the next simulation or as the input for the next draw indirect task. In both case, the target is for compute.
+			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, NextCountBuffer.UAV);
 
 			// Swap the buffers
 			AllocatedInstanceCounts = RecommendedInstanceCounts;

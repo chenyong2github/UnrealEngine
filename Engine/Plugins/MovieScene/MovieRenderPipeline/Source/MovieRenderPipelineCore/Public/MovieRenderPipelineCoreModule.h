@@ -7,7 +7,7 @@
 
 // Forward Declare
 class UMoviePipelineExecutorBase;
-class UMoviePipelineMasterConfig;
+class UMoviePipelineQueue;
 class ULevelSequence;
 class UMoviePipeline;
 
@@ -48,12 +48,9 @@ private:
 	void OnCommandLineMovieRenderCompleted(UMoviePipelineExecutorBase* InExecutor, bool bSuccess);
 	void OnCommandLineMovieRenderErrored(UMoviePipelineExecutorBase* InExecutor, UMoviePipeline* InPipelineWithError, bool bIsFatal, FText ErrorText);
 
-	uint8 GetMovieRenderClasses(const FString& InAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType, 
-								ULevelSequence*& OutAsset, UMoviePipelineMasterConfig*& OutConfig, UClass*& OutExecutorClass, UClass*& OutPipelineClass) const;
+	uint8 ParseMovieRenderData(const FString& InSequenceAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType,
+		UMoviePipelineQueue*& OutQueue, UMoviePipelineExecutorBase*& OutExecutor) const;
 
-private:
-	TSharedRef<struct MoviePipeline::FMoviePipelineEnginePass> CreateDeferredEnginePass();
-	FDelegateHandle DeferredEnginePassHandle;
 private:
 	TArray<FOnCreateEngineRenderPass> EngineRenderPassDelegates;
 

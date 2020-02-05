@@ -17,6 +17,9 @@ enum class EDataTableExportFlags : uint8
 	/** Export nested structs as JSON objects (JSON exporter only), rather than as exported text. */
 	UseJsonObjectsForStructs = 1 << 0,
 
+	/** Export text properties as their display string, rather than their complex lossless form. */
+	UseSimpleText = 1 << 1,
+
 	// DEPRECATED. Native properties/enums are always exported using their internal name, user struct/enums are always exported using the friendly names set in the editor
 
 	UsePrettyPropertyNames UE_DEPRECATED(4.23, "UsePrettyPropertyNames is deprecated, we now always use the unlocalized but readable authored names") = 1 << 6,

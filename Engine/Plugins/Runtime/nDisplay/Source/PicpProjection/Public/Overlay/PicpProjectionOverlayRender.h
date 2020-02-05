@@ -6,14 +6,14 @@
 #include "PicpProjectionOverlayViewport.h"
 #include "PicpProjectionOverlayLUT.h"
 
+class FPicpProjectionMPCDIPolicy;
 
 // This is data for shader
 class FPicpProjectionOverlayViewportData
 {
 public:
 	FPicpProjectionOverlayViewportData()
-	{ 
-	}
+	{ }
 
 	~FPicpProjectionOverlayViewportData()
 	{
@@ -23,55 +23,61 @@ public:
 public:
 	void Empty();
 
-	bool isAnyViewportUsed() const 
-	{ 
-		return iViewportUnderUsed() || iViewportOverUsed(); 
+	bool IsAnyViewportUsed() const
+	{
+		return IsViewportUnderUsed() || IsViewportOverUsed();
 	}
 
-	bool iViewportOverUsed() const
-	{ 
+	bool IsViewportOverUsed() const
+	{
 		return ViewportOver.IsEnabled(); 
 	}
 
-	bool iViewportUnderUsed() const
-	{ 
+	bool IsViewportUnderUsed() const
+	{
 		return ViewportUnder.IsEnabled(); 
 	}
 
-	bool isAnyCameraUsed() const
-	{ 
+	bool IsCameraUsed(int CameraIndex) const
+	{
+		return (Cameras.Num() > CameraIndex) && CameraIndex >= 0;
+	}
+
+	bool IsAnyCameraUsed() const
+	{
 		return (Cameras.Num() > 0); 
 	}
 
-	bool isLUTused() const
-	{ 
+	bool IsMultiCamerasUsed() const
+	{
+		return (Cameras.Num() > 1);
+	}
+
+	bool IsLUTused() const
+	{
 		return LUTCorrection.IsEnabled(); 
 	}
 
-	bool isValid()
-	{ 
-		return isAnyViewportUsed() || isAnyCameraUsed(); 
+	bool IsValid()
+	{
+		return IsAnyViewportUsed() || IsAnyCameraUsed();
 	}
 
 	void Initialize(const FPicpProjectionOverlayViewportData& Source);
 
 public:
-	FPicpProjectionOverlayLUT                LUTCorrection;
-	FPicpProjectionOverlayViewport           ViewportOver; // viewport overlay texture
-	FPicpProjectionOverlayViewport           ViewportUnder; // viewport overlay texture
-	TArray<FPicpProjectionOverlayCamera>     Cameras; // Multi cams, in render order
+	FPicpProjectionOverlayLUT                LUTCorrection;    //@todo: LUT correction (Not implemented now)
+	FPicpProjectionOverlayViewport           ViewportOver;     // viewport over overlay texture (over all camera frames)
+	FPicpProjectionOverlayViewport           ViewportUnder;    // viewport overlay texture
+	TArray<FPicpProjectionOverlayCamera>     Cameras;          // Multi cams, in render order
 };
-
-
-class FPicpProjectionMPCDIPolicy;
-
 
 // This is filled from BP
 class FPicpProjectionOverlayFrameData
 {
 public:
 	FPicpProjectionOverlayFrameData()
-	{ 
+	{
 	}
 
 	~FPicpProjectionOverlayFrameData()
@@ -81,12 +87,13 @@ public:
 
 public:
 	static void GenerateDebugContent(const FString& ViewportId, FPicpProjectionMPCDIPolicy* OutPolicy);
+
 	void GetViewportData(const FString& ViewportId, FPicpProjectionMPCDIPolicy* OutPolicy, const FTransform& Origin2WorldTransform) const;
 	void Empty();
 
 public:
-	FPicpProjectionOverlayLUT                      LUTCorrection;  // Global LUT correction
-	TMap<FString, FPicpProjectionOverlayViewport>  ViewportsOver;  // Overlay under inner frame for all viewports by name
-	TMap<FString, FPicpProjectionOverlayViewport>  ViewportsUnder; // Overlay on top of inner frame for all viewports by name
-	TArray<FPicpProjectionOverlayCamera>           Cameras;        // Camera's overlay, in render order
+	FPicpProjectionOverlayLUT                               LUTCorrection;   //@todo: Global LUT correction (Not implemented now)
+	TMap<FString, FPicpProjectionOverlayViewport>           ViewportsOver;   // Overlay under inner frame for all viewports by name
+	TMap<FString, FPicpProjectionOverlayViewport>           ViewportsUnder;  // Overlay on top of inner frame for all viewports by name
+	TArray<FPicpProjectionOverlayCamera>                    Cameras;         // Camera's overlay, in render order
 };

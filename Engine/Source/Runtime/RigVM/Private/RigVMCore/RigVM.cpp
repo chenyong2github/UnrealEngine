@@ -73,16 +73,24 @@ void URigVM::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		Instructions.Reset();
-		Functions.Reset();
-		ParametersNameMap.Reset();
-
-		for (int32 Index = 0; Index < Parameters.Num(); Index++)
+		if (WorkMemory.bEncounteredErrorDuringLoad ||
+			LiteralMemory.bEncounteredErrorDuringLoad)
 		{
-			ParametersNameMap.Add(Parameters[Index].Name, Index);
+			Reset();
 		}
+		else
+		{
+			Instructions.Reset();
+			Functions.Reset();
+			ParametersNameMap.Reset();
 
-		InvalidateCachedMemory();
+			for (int32 Index = 0; Index < Parameters.Num(); Index++)
+			{
+				ParametersNameMap.Add(Parameters[Index].Name, Index);
+			}
+
+			InvalidateCachedMemory();
+		}
 	}
 }
 

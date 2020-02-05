@@ -278,6 +278,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh")
 	static int32 GetNumberVerts(UStaticMesh* StaticMesh, int32 LODIndex);
 
+	/** Get number of StaticMesh verts for an LOD */
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh")
+	static int32 GetNumberMaterials(UStaticMesh* StaticMesh);
+
 	/** Sets StaticMeshFlag bAllowCPUAccess  */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
 	static void SetAllowCPUAccess(UStaticMesh* StaticMesh, bool bAllowCPUAccess);

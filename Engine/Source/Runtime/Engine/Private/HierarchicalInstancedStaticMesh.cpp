@@ -193,6 +193,8 @@ protected:
 	TArray<int32> SortIndex;
 	TArray<FVector> SortPoints;
 	TArray<FMatrix> Transforms;
+	TArray<float> CustomDataFloats;
+	int32 NumCustomDataFloats;
 
 	struct FRunPair
 	{
@@ -316,7 +318,7 @@ protected:
 		
 		if (NumRenderInstances > 0)
 		{
-			BuiltInstanceData->AllocateInstances(NumRenderInstances, GIsEditor ? EResizeBufferFlags::AllowSlackOnGrow|EResizeBufferFlags::AllowSlackOnReduce : EResizeBufferFlags::None, false); // In Editor always permit overallocation, to prevent too much realloc
+			BuiltInstanceData->AllocateInstances(NumRenderInstances, NumCustomDataFloats, GIsEditor ? EResizeBufferFlags::AllowSlackOnGrow|EResizeBufferFlags::AllowSlackOnReduce : EResizeBufferFlags::None, false); // In Editor always permit overallocation, to prevent too much realloc
 
 			FVector2D LightmapUVBias = FVector2D(-1.0f, -1.0f);
 			FVector2D ShadowmapUVBias = FVector2D(-1.0f, -1.0f);
@@ -329,6 +331,10 @@ protected:
 				if (RenderIndex >= 0)
 				{
 					BuiltInstanceData->SetInstance(RenderIndex, Transforms[i], RandomID, LightmapUVBias, ShadowmapUVBias);
+					for (int32 DataIndex = 0; DataIndex < NumCustomDataFloats; ++DataIndex)
+					{
+						BuiltInstanceData->SetInstanceCustomData(RenderIndex, DataIndex, CustomDataFloats[NumCustomDataFloats * i + DataIndex]);
+					}
 				}
 				// correct light/shadow map bias will be setup on game thread side if needed
 			}
@@ -381,7 +387,7 @@ public:
 	TUniquePtr<FClusterTree> Result;
 	TUniquePtr<FStaticMeshInstanceData> BuiltInstanceData;
 
-	FClusterBuilder(TArray<FMatrix> InTransforms, const FBox& InInstBox, int32 InMaxInstancesPerLeaf, float InDensityScaling, int32 InInstancingRandomSeed, bool InGenerateInstanceScalingRange)
+	FClusterBuilder(TArray<FMatrix> InTransforms, TArray<float> InCustomDataFloats, int32 InNumCustomDataFloats, const FBox& InInstBox, int32 InMaxInstancesPerLeaf, float InDensityScaling, int32 InInstancingRandomSeed, bool InGenerateInstanceScalingRange)
 		: OriginalNum(InTransforms.Num())
 		, InstBox(InInstBox)
 		, MaxInstancesPerLeaf(InMaxInstancesPerLeaf)
@@ -389,6 +395,8 @@ public:
 		, DensityScaling(InDensityScaling)
 		, GenerateInstanceScalingRange(InGenerateInstanceScalingRange)
 		, Transforms(MoveTemp(InTransforms))
+		, CustomDataFloats(MoveTemp(InCustomDataFloats))
+		, NumCustomDataFloats(InNumCustomDataFloats)
 		, Result(nullptr)
 	{
 	}
@@ -723,12 +731,14 @@ static void TestFoliage(const TArray<FString>& Args)
 	TempBox += FVector(100.0f, 100.0f, 100.0f);
 
 	TArray<FMatrix> InstanceTransforms;
+	TArray<float> InstanceCustomDataDummy;
 	InstanceTransforms.AddUninitialized(Instances.Num());
 	for (int32 Index = 0; Index < Instances.Num(); Index++)
 	{
 		InstanceTransforms[Index] = Instances[Index].Transform;
 	}
-	FClusterBuilder Builder(InstanceTransforms, TempBox, 16, 1.0f, 1, 0);
+
+	FClusterBuilder Builder(InstanceTransforms, InstanceCustomDataDummy, 0, TempBox, 16, 1.0f, 1, 0);
 	Builder.BuildTree();
 
 	int32 Level = 0;
@@ -1933,6 +1943,7 @@ void UHierarchicalInstancedStaticMeshComponent::PostEditChangeChainProperty(FPro
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 
 	if ((PropertyChangedEvent.Property != NULL && PropertyChangedEvent.Property->GetFName() == "PerInstanceSMData") ||
+		(PropertyChangedEvent.Property != NULL && PropertyChangedEvent.Property->GetFName() == "PerInstanceSMCustomData") ||
 		(PropertyChangedEvent.Property != NULL && PropertyChangedEvent.Property->GetFName() == "Transform") ||
 		(PropertyChangedEvent.Property != NULL && PropertyChangedEvent.Property->GetFName() == "StaticMesh"))
 	{
@@ -2075,7 +2086,9 @@ void UHierarchicalInstancedStaticMeshComponent::RemoveInstancesInternal(const in
 		}
 			
 		PerInstanceSMData.RemoveAtSwap(InstanceIndex, 1, false);
+		PerInstanceSMCustomData.RemoveAtSwap(InstanceIndex*NumCustomDataFloats, NumCustomDataFloats, false);
 
+		ensure(PerInstanceSMData.Num() * NumCustomDataFloats == PerInstanceSMCustomData.Num());
 	#if WITH_EDITOR
 		if (SelectedInstances.Num())
 		{
@@ -2237,6 +2250,69 @@ bool UHierarchicalInstancedStaticMeshComponent::UpdateInstanceTransform(int32 In
 	return Result;
 }
 
+bool UHierarchicalInstancedStaticMeshComponent::SetCustomDataValue(int32 InstanceIndex, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty)
+{
+	if (!PerInstanceSMData.IsValidIndex(InstanceIndex))
+	{
+		return false;
+	}
+
+	if (IsAsyncBuilding())
+	{
+		// invalidate the results of the current async build we need to modify the tree
+		bConcurrentChanges = true;
+	}
+
+	int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+	const float OldCustomDataValue = PerInstanceSMCustomData[InstanceIndex*NumCustomDataFloats+CustomDataIndex];
+
+	// if we are only updating rotation/scale we update the instance directly in the cluster tree
+	const bool bIsOmittedInstance = (RenderIndex == INDEX_NONE);
+
+	bool Result = Super::SetCustomDataValue(InstanceIndex, CustomDataIndex, CustomDataValue, bMarkRenderStateDirty);
+
+	if (Result && GetStaticMesh() != nullptr)
+	{
+		if (!bIsOmittedInstance)
+		{
+			InstanceUpdateCmdBuffer.SetCustomData(RenderIndex, TArray<float>(&PerInstanceSMCustomData[InstanceIndex*NumCustomDataFloats], NumCustomDataFloats));
+		}
+	}
+
+	return Result;
+}
+
+bool UHierarchicalInstancedStaticMeshComponent::SetCustomData(int32 InstanceIndex, const TArray<float>& InCustomData, bool bMarkRenderStateDirty)
+{
+	if (!PerInstanceSMData.IsValidIndex(InstanceIndex) || InCustomData.Num() == 0)
+	{
+		return false;
+	}
+
+	if (IsAsyncBuilding())
+	{
+		// invalidate the results of the current async build we need to modify the tree
+		bConcurrentChanges = true;
+	}
+
+	int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+
+	// if we are only updating rotation/scale we update the instance directly in the cluster tree
+	const bool bIsOmittedInstance = (RenderIndex == INDEX_NONE);
+
+	bool Result = Super::SetCustomData(InstanceIndex, InCustomData, bMarkRenderStateDirty);
+
+	if (Result && GetStaticMesh() != nullptr)
+	{
+		if (!bIsOmittedInstance)
+		{
+			InstanceUpdateCmdBuffer.SetCustomData(RenderIndex, TArray<float>(&PerInstanceSMCustomData[InstanceIndex*NumCustomDataFloats], NumCustomDataFloats));
+		}
+	}
+
+	return Result;
+}
+
 bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
 {
 	bool BatchResult = true;
@@ -2263,6 +2339,16 @@ bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesTransform(in
 		bool Result = UpdateInstanceTransform(InstanceIndex, NewInstancesTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport);
 		BatchResult = BatchResult && Result;
 	}
+
+	return BatchResult;
+}
+
+bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesData(int32 StartInstanceIndex, int32 NumInstances, FInstancedStaticMeshInstanceData* StartInstanceData, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	bool BatchResult = true;
+
+	Super::BatchUpdateInstancesData(StartInstanceIndex, NumInstances, StartInstanceData, bMarkRenderStateDirty, bTeleport);
+	BuildTreeIfOutdated(true, false);
 
 	return BatchResult;
 }
@@ -2356,6 +2442,7 @@ void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 
 	// Clear all the per-instance data
 	PerInstanceSMData.Empty();
+	PerInstanceSMCustomData.Empty();
 	InstanceReorderTable.Empty();
 	InstanceDataBuffers.Reset();
 
@@ -2486,7 +2573,7 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 			InstanceTransforms[Index] = PerInstanceSMData[Index].Transform;
 		}
 
-		FClusterBuilder Builder(InstanceTransforms, GetStaticMesh()->GetBounds().GetBox(), DesiredInstancesPerLeaf(), CurrentDensityScaling, InstancingRandomSeed, PerInstanceSMData.Num() > 0);
+		FClusterBuilder Builder(InstanceTransforms, PerInstanceSMCustomData, NumCustomDataFloats, GetStaticMesh()->GetBounds().GetBox(), DesiredInstancesPerLeaf(), CurrentDensityScaling, InstancingRandomSeed, PerInstanceSMData.Num() > 0);
 		Builder.BuildTreeAndBuffer();
 
 		NumBuiltInstances = Builder.Result->InstanceReorderTable.Num();
@@ -2545,6 +2632,8 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 
 void UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(
 	TArray<FMatrix>& InstanceTransforms, 
+	TArray<float>& InstanceCustomDataFloats,
+	int32 NumCustomDataFloats,
 	const FBox& MeshBox,
 	TArray<FClusterNode>& OutClusterTree,
 	TArray<int32>& OutSortedInstances,
@@ -2560,7 +2649,7 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(
 	float DensityScaling = 1.0f;
 	int32 InstancingRandomSeed = 1;
 
-	FClusterBuilder Builder(InstanceTransforms, MeshBox, MaxInstancesPerLeaf, DensityScaling, InstancingRandomSeed, InGenerateInstanceScalingRange);
+	FClusterBuilder Builder(InstanceTransforms, InstanceCustomDataFloats, NumCustomDataFloats, MeshBox, MaxInstancesPerLeaf, DensityScaling, InstancingRandomSeed, InGenerateInstanceScalingRange);
 	Builder.BuildTree();
 	OutOcclusionLayerNum = Builder.Result->OutOcclusionLayerNum;
 
@@ -2799,7 +2888,7 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 
 		UE_LOG(LogStaticMesh, Verbose, TEXT("Copied %d transforms in %.3fs."), Num, float(FPlatformTime::Seconds() - StartTime));
 
-		TSharedRef<FClusterBuilder, ESPMode::ThreadSafe> Builder(new FClusterBuilder(InstanceTransforms, GetStaticMesh()->GetBounds().GetBox(), DesiredInstancesPerLeaf(), CurrentDensityScaling, InstancingRandomSeed, PerInstanceSMData.Num() > 0));
+		TSharedRef<FClusterBuilder, ESPMode::ThreadSafe> Builder(new FClusterBuilder(InstanceTransforms, PerInstanceSMCustomData, NumCustomDataFloats, GetStaticMesh()->GetBounds().GetBox(), DesiredInstancesPerLeaf(), CurrentDensityScaling, InstancingRandomSeed, PerInstanceSMData.Num() > 0));
 
 		bIsAsyncBuilding = true;
 

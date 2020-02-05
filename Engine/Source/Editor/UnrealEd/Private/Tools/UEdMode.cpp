@@ -285,7 +285,18 @@ public:
 
 	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level) override
 	{
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message.ToString());
+		if (Level == EToolMessageLevel::UserNotification)
+		{
+			ToolsContext->PostToolNotificationMessage(Message);
+		}
+		if (Level == EToolMessageLevel::UserWarning)
+		{
+			ToolsContext->PostToolWarningMessage(Message);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s"), *Message.ToString());
+		}
 	}
 
 	virtual void PostInvalidation() override
@@ -790,8 +801,6 @@ void UEdMode::Enter()
 	bInvalidationPending = false;
 
 	FEditorDelegates::EditorModeIDEnter.Broadcast(GetID());
-	const bool bIsEnteringMode = true;
-	Owner->BroadcastEditorModeIDChanged(GetID(), bIsEnteringMode);
 
 }
 
@@ -838,11 +847,10 @@ void UEdMode::Exit()
 		Toolkit.Reset();
 	}
 
+
 	OnToolNotificationMessage.Clear();
 	OnToolWarningMessage.Clear();
 
-	const bool bIsEnteringMode = false;
-	Owner->BroadcastEditorModeIDChanged(GetID(), bIsEnteringMode);
 	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
 	if (ToolsContext != nullptr)
 	{
@@ -1046,6 +1054,8 @@ void UEdMode::CreateToolkit()
 	{
 		Toolkit = MakeShareable(new FModeToolkit);
 		Toolkit->Init(Owner->GetToolkitHost());
+
+
 	}
 
 	UClass* LoadedSettingsObject = SettingsClass.LoadSynchronous();

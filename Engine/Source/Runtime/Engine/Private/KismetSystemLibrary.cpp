@@ -341,10 +341,10 @@ float UKismetSystemLibrary::GetConsoleVariableFloatValue(const FString& Variable
 {
 	float Value = 0.0f;
 
-	TConsoleVariableData<float>* Variable = IConsoleManager::Get().FindTConsoleVariableDataFloat(*VariableName);
+	IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(*VariableName);
 	if (Variable)
 	{
-		Value = Variable->GetValueOnGameThread();
+		Value = Variable->GetFloat();
 	}
 	else
 	{
@@ -358,10 +358,10 @@ int32 UKismetSystemLibrary::GetConsoleVariableIntValue(const FString& VariableNa
 {
 	int32 Value = 0;
 
-	TConsoleVariableData<int32>* Variable = IConsoleManager::Get().FindTConsoleVariableDataInt(*VariableName);
+	IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(*VariableName);
 	if (Variable)
 	{
-		Value = Variable->GetValueOnGameThread();
+		Value = Variable->GetInt();
 	}
 	else
 	{

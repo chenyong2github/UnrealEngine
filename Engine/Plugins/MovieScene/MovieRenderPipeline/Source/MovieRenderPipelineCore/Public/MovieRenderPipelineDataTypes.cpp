@@ -3,7 +3,6 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
-#include "MoviePipelineAccumulationSetting.h"
 #include "MoviePipeline.h"
 
 FString FMoviePipelineShotInfo::GetDisplayName() const
@@ -28,51 +27,25 @@ FFrameNumber FMoviePipelineCameraCutInfo::GetOutputFrameCountEstimate() const
 	return FFrameNumber(NumFrames);
 }
 
-FFrameNumber FMoviePipelineCameraCutInfo::GetTemporalFrameCountEstimate() const
+void FMoviePipelineCameraCutInfo::CalculateWorkMetrics()
 {
-	FFrameNumber OutputEstimate = GetOutputFrameCountEstimate();
-	FFrameNumber NumRenderedSamples = OutputEstimate * NumTemporalSamples;
-
-	return NumRenderedSamples;
+	// Initial Range + Handle Frames
+	FFrameNumber OutputFrameCount = GetOutputFrameCountEstimate();
+	WorkMetrics.TotalOutputFrameCount = OutputFrameCount.Value;
+	WorkMetrics.TotalSubSampleCount = NumSpatialSamples * NumTemporalSamples * NumTiles.X * NumTiles.Y; // Samples to generate an output frame.
+	WorkMetrics.TotalEngineWarmUpFrameCount = NumEngineWarmUpFramesRemaining;
 }
 
-FFrameNumber FMoviePipelineCameraCutInfo::GetUtilityFrameCountEstimate() const
-{
-	return FFrameNumber(NumWarmUpFrames + (bAccurateFirstFrameHistory ? 1 : 0));
-}
-
-FFrameNumber FMoviePipelineCameraCutInfo::GetSampleCountEstimate(const bool bIncludeWarmup, const bool bIncludeMotionBlur) const
-{
-	int32 TotalSamples = 0;
-	
-	// Warm Up Frames currently don't submit anything to the GPU.
-	if (bIncludeWarmup)
-	{
-		TotalSamples += 0;
-	}
-
-	// Motion blur only adds one sample (overrides spatial samples, only executes once before first temporal sample)
-	if (bIncludeMotionBlur)
-	{
-		TotalSamples += 1;
-	}
-
-	// Only the main frames are rendered with Temporal sub-sampling and Spatial sub-sampling.
-	TotalSamples += GetOutputFrameCountEstimate().Value * NumTemporalSamples * NumSpatialSamples;
-
-	return FFrameNumber(TotalSamples);
-}
-
-void FMoviePipelineCameraCutInfo::SetNextState(const EMovieRenderShotState InCurrentState)
+void FMoviePipelineCameraCutInfo::SetNextStateAfter(const EMovieRenderShotState InCurrentState)
 {
 	switch (InCurrentState)
 	{
 		// This may get called multiple times so we just do nothing until it's appropriate to move on from WarmingUp.
 	case EMovieRenderShotState::WarmingUp:
 		// Warming Up can jump directly to either Rendering or to MotionBlur depending on if fixes are applied.
-		if (NumWarmUpFramesRemaining == 0)
+		if (NumEngineWarmUpFramesRemaining == 0)
 		{
-			if (bAccurateFirstFrameHistory)
+			if (bEmulateFirstFrameMotionBlur)
 			{
 				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("[%d] Shot WarmUp finished. Setting state to MotionBlur."), GFrameCounter);
 				State = EMovieRenderShotState::MotionBlur;
@@ -84,16 +57,16 @@ void FMoviePipelineCameraCutInfo::SetNextState(const EMovieRenderShotState InCur
 			}
 		}
 		break;
-		// This should only be called once with the Uninitalized state.
+		// This should only be called once with the Uninitialized state.
 	case EMovieRenderShotState::Uninitialized:
 		// Uninitialized can either jump to WarmUp, MotionBlur, or straight to Rendering if no fixes are applied.
-		if (NumWarmUpFramesRemaining > 0)
+		if (NumEngineWarmUpFramesRemaining > 0)
 		{
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initialization set state to WarmingUp due to having %d warm up frames."), GFrameCounter, NumWarmUpFramesRemaining);
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initialization set state to WarmingUp due to having %d warm up frames."), GFrameCounter, NumEngineWarmUpFramesRemaining);
 			State = EMovieRenderShotState::WarmingUp;
 		}
 		// If they didn't want any warm-up frames we'll still check to see if they want to fix motion blur on the first frame.
-		else if (bAccurateFirstFrameHistory)
+		else if (bEmulateFirstFrameMotionBlur)
 		{
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initialization set state to MotionBlur due to having no warm up frames."), GFrameCounter);
 			State = EMovieRenderShotState::MotionBlur;
@@ -107,33 +80,6 @@ void FMoviePipelineCameraCutInfo::SetNextState(const EMovieRenderShotState InCur
 	}
 
 }
-
-FMoviePipelineWorkInfo FMoviePipelineCameraCutInfo::GetTotalWorkEstimate() const
-{
-	FMoviePipelineWorkInfo WorkEstimate;
-
-	// Initial Range + Handle Frames
-	FFrameNumber OutputFrameCount = GetOutputFrameCountEstimate();
-	WorkEstimate.NumOutputFrames += OutputFrameCount.Value;
-
-	// Warm Up (no submission to gpu), Motion Blur
-	FFrameNumber UtilityFrameCount = GetUtilityFrameCountEstimate();
-	WorkEstimate.NumUtilityFrames += UtilityFrameCount.Value;
-
-	// OutputFrameCount * TemporalSampleCount (since each output frame gets time sliced)
-	FFrameNumber SubsampledOutputFrameCount = GetTemporalFrameCountEstimate();
-	WorkEstimate.NumOutputFramesWithSubsampling += SubsampledOutputFrameCount.Value;
-
-	// How many different samples are we submitting to the GPU?
-	FFrameNumber TotalSampleCount = GetSampleCountEstimate(true, true) * NumTiles.X * NumTiles.Y;
-	WorkEstimate.NumSamples += TotalSampleCount.Value;
-
-	// How many images will we produce to create the high-res tile.
-	WorkEstimate.NumTiles = NumTiles.X * NumTiles.Y;
-
-	return WorkEstimate;
-}
-
 
 bool MoviePipeline::FTileWeight1D::operator==(const FTileWeight1D& Rhs) const
 {
@@ -229,4 +175,36 @@ void MoviePipeline::FTileWeight1D::CalculateArrayWeight(TArray<float>& WeightDat
 UMoviePipeline* MoviePipeline::FMoviePipelineEnginePass::GetPipeline() const
 {
 	return OwningPipeline.Get();
+}
+
+static FString GetPaddingFormatString(int32 InZeroPadCount, const int32 InFrameNumber)
+{
+	// Printf takes the - sign into account when you specify the number of digits to pad to
+	// so we bump it by one to make the negative sign come first (ie: -0001 instead of -001)
+	if (InFrameNumber < 0)
+	{
+		InZeroPadCount++;
+	}
+
+	return FString::Printf(TEXT("%0*d"), InZeroPadCount, InFrameNumber);
+}
+
+void FMoviePipelineFrameOutputState::GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const int32 InZeroPadCount, const int32 InFrameNumberOffset) const
+{
+	// Zero-pad our frame numbers when we format the strings. Some programs struggle when ingesting frames that 
+	// go 1,2,3,...,10,11. To work around this issue we allow the user to specify how many zeros they want to
+	// pad the numbers with, 0001, 0002, etc. We also allow offsetting the output frame numbers, this is useful
+	// when your sequence starts at zero and you use handle frames (which would cause negative output frame 
+	// numbers), so we allow the user to add a fixed amount to all output to ensure they are positive.
+	FString FrameNumber = GetPaddingFormatString(InZeroPadCount, SourceFrameNumber + InFrameNumberOffset); // Sequence Frame #
+	FString FrameNumberShot = GetPaddingFormatString(InZeroPadCount, CurrentShotSourceFrameNumber + InFrameNumberOffset); // Shot Frame #
+	FString FrameNumberRel = GetPaddingFormatString(InZeroPadCount, OutputFrameNumber + InFrameNumberOffset); // Relative to 0
+	FString FrameNumberShotRel = GetPaddingFormatString(InZeroPadCount, ShotOutputFrameNumber + InFrameNumberOffset); // Relative to 0 within the shot.
+
+	InOutFormatArgs.Arguments.Add(TEXT("frame_number"), FrameNumber);
+	InOutFormatArgs.Arguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
+	InOutFormatArgs.Arguments.Add(TEXT("frame_number_rel"), FrameNumberRel);
+	InOutFormatArgs.Arguments.Add(TEXT("frame_number_shot_rel"), FrameNumberShotRel);
+	InOutFormatArgs.Arguments.Add(TEXT("camera_name"), TEXT("DefaultCameraName"));
+	InOutFormatArgs.Arguments.Add(TEXT("shot_name"), TEXT("DefaultShotName"));
 }

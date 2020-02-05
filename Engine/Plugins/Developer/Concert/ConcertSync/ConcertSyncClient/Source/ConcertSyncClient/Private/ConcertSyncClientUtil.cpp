@@ -364,21 +364,8 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 
 	// Get the current edited map package to check if its going to be purged.
 	bool bEditedMapPurged = false;
-	UPackage* EditedMapPackage = nullptr;
-	if (GIsEditor)
-	{
-		if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
-		{
-			EditedMapPackage = EditorWorld->GetOutermost();
-		}
-	}
-	else if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
-	{
-		if (UWorld* GameWorld = GameEngine->GetGameWorld())
-		{
-			EditedMapPackage = GameWorld->GetOutermost();
-		}
-	}
+	UWorld* CurrentWorld = GetCurrentWorld();
+	UPackage* EditedMapPackage = CurrentWorld ? CurrentWorld->GetOutermost(): nullptr;
 
 	// Collect any in-memory packages that should be purged and check if we are including the current map in the purge.
 	for (const FName PackageName : InPackageNames)
@@ -440,6 +427,20 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}
 #endif // WITH_EDITOR
+}
+
+UWorld* GetCurrentWorld()
+{
+	UWorld* CurrentWorld = nullptr;
+	if (GIsEditor)
+	{
+		CurrentWorld = GEditor->GetEditorWorldContext().World();
+	}
+	else if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	{
+		CurrentWorld = GameEngine->GetGameWorld();
+	}
+	return CurrentWorld;
 }
 
 }

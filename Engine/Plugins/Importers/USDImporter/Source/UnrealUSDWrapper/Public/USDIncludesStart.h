@@ -11,6 +11,7 @@ THIRD_PARTY_INCLUDES_START
 #pragma warning(disable: 4582) /* Workaround union in pxr/usd/pcp/mapFunction.h */
 #pragma warning(disable: 4583)
 #pragma warning(disable: 4003) /* pxr/usd/sdf/fileFormat.h BOOST_PP_SEQ_DETAIL_IS_NOT_EMPTY during static analysis */
+#pragma warning(disable: 5033) /* 'register' is no longer a supported storage class */
 #pragma warning(disable: 6319)
 
 #pragma push_macro("check")

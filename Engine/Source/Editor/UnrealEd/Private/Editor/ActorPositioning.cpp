@@ -169,13 +169,16 @@ FTransform FActorPositioning::GetCurrentViewportPlacementTransform(const AActor&
 
 		if (GetDefault<ULevelEditorViewportSettings>()->SnapToSurface.bEnabled)
 		{
-			// HACK: If we are aligning rotation to surfaces, we have to factor in the inverse of the actor transform so that the resulting transform after SpawnActor is correct.
+			// HACK: If we are aligning rotation to surfaces, we have to factor in the inverse of the actor's rotation and translation so that the resulting transform after SpawnActor is correct.
 
 			if (auto* RootComponent = Actor.GetRootComponent())
 			{
 				RootComponent->UpdateComponentToWorld();
 			}
+
+			FVector OrigActorScale3D = ActorTransform.GetScale3D();
 			ActorTransform = Actor.GetTransform().Inverse() * ActorTransform;
+			ActorTransform.SetScale3D(OrigActorScale3D);
 		}
 	}
 

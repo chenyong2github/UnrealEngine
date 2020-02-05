@@ -137,6 +137,7 @@ UObject* UMDLImporterFactory::FactoryCreateFile(UClass*           InClass,
 {
 	check(IMDLImporterModule::IsAvailable());
 
+	AdditionalImportedObjects.Empty();
 	UObject* Object = nullptr;
 #ifdef USE_MDLSDK
 	TStrongObjectPtr<UMDLImporterOptions> ImporterOptions(NewObject<UMDLImporterOptions>(GetTransientPackage(), TEXT("MDL Importer Options")));
@@ -175,6 +176,11 @@ UObject* UMDLImporterFactory::FactoryCreateFile(UClass*           InClass,
 			TArray<FString> Names;
 			CreatedMaterials.GetKeys(Names);
 			Object = (*CreatedMaterials.Find(Names[0]))->GetOutermost();
+
+			for (const FString& Name : Names)
+			{
+				AdditionalImportedObjects.Add(*CreatedMaterials.Find(Name));
+			}
 		}
 	}
 	Importer.Reset();

@@ -43,7 +43,9 @@ namespace DerivedDataCacheCookStats
 		return Denominator != 0 ? (double)Numerator / (double)Denominator : 0.0;
 	}
 
-	FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+	// AddCookStats cannot be a lambda because of false positives in static analysis.
+	// See https://developercommunity.visualstudio.com/content/problem/576913/c6244-regression-in-new-lambda-processorpermissive.html
+	static void AddCookStats(FCookStatsManager::AddStatFuncRef AddStat)
 	{
 		TMap<FString, FDerivedDataCacheUsageStats> DDCStats;
 		GetDerivedDataCacheRef().GatherUsageStats(DDCStats);
@@ -120,7 +122,9 @@ namespace DerivedDataCacheCookStats
 					));
 			}
 		}
-	});
+	}
+
+	FCookStatsManager::FAutoRegisterCallback RegisterCookStats(AddCookStats);
 }
 #endif
 

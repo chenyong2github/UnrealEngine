@@ -289,6 +289,11 @@ public:
 	/** Set whether to delete keys that fall beyond the section range when trimming */
 	void SetDeleteKeysWhenTrimming(bool bInDeleteKeysWhenTrimming);
 
+	/** @return Whether to playback in clean mode (game view, hide viewport UI) */
+	bool GetCleanPlaybackMode() const;
+	/** Toggle whether to playback in clean mode */
+	void SetCleanPlaybackMode(bool bInCleanPlaybackMode);
+
 	/** @return Whether to activate realtime viewports when in sequencer */
 	bool ShouldActivateRealtimeViewports() const;
 	/** Toggle whether to allow possession of PIE viewports */
@@ -498,8 +503,12 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bDeleteKeysWhenTrimming;
 
+	/** When enabled, sequencer will playback in clean mode (game view, hide viewport UI) */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	bool bCleanPlaybackMode;
+
 	/** When enabled, sequencer will activate 'Realtime' in viewports */
-	UPROPERTY(config, EditAnywhere, Category=General)
+	UPROPERTY(config, EditAnywhere, Category = General)
 	bool bActivateRealtimeViewports;
 
 	/** When enabled, entering a sub sequence will evaluate that sub sequence in isolation, rather than from the master sequence */

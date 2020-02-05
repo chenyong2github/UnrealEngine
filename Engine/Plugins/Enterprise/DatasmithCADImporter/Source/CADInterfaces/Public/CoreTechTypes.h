@@ -48,14 +48,8 @@ namespace CADLibrary
 	};
 
 	/**
->>>> ORIGINAL //UE4/Release-4.24/Engine/Plugins/Enterprise/DatasmithCADImporter/Source/CADInterfaces/Public/CoreTechTypes.h#2
 	 * Mandatory: Kernel_IO has to be initialize with the final MetricUnit, set function doesn't work
-==== THEIRS //UE4/Release-4.24/Engine/Plugins/Enterprise/DatasmithCADImporter/Source/CADInterfaces/Public/CoreTechTypes.h#4
-	 * Mandatory: Kernel_IO has to be initialize with the final MetricUnit, set function doesn't work
-	 * This methode set Tolerance to 0.00001 m whether 0.01 mm
-==== YOURS //David.Lesage_YUL-Release-4.24/Engine/Plugins/Enterprise/DatasmithCADImporter/Source/CADInterfaces/Public/CoreTechTypes.h
-	 * Mandatory: Kernel_IO has to be initialize with the final MetricUnit, set function doesn`t work
-<<<<
+	 * This method set Tolerance to 0.00001 m whether 0.01 mm
 	 * @param MetricUnit: Length unit express in meter
 	 */
 	CADINTERFACES_API CT_IO_ERROR CTKIO_InitializeKernel(double MetricUnit, const TCHAR* = TEXT(""));

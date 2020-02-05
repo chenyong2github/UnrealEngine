@@ -2,7 +2,6 @@
 
 #pragma once
 
-
 #include "Policy/DisplayClusterProjectionPolicyBase.h"
 #include "Policy/PicpProjectionPolicyBase.h"
 
@@ -14,18 +13,23 @@
 #include "RHIResources.h"
 #include "RHIUtilities.h"
 
-
 class FPicpProjectionViewportBase;
 class USceneComponent;
 
 
 /**
- * Adapter for the MPCDI module
+ * Adapter for the PICP MPCDI
  */
 class FPicpProjectionMPCDIPolicy
 	: public FPicpProjectionPolicyBase
 {
 public:
+	enum class EWarpType : uint8
+	{
+		MPCDI= 0,
+		Mesh
+	};
+
 	FPicpProjectionMPCDIPolicy(const FString& ViewportId);
 	virtual ~FPicpProjectionMPCDIPolicy();
 
@@ -49,10 +53,14 @@ public:
 	void SetWarpTextureCapture(const uint32 ViewIdx, FRHITexture2D* target);
 	IMPCDI::FFrustum GetWarpFrustum(const uint32 ViewIdx, bool bIsCaptureWarpTextureFrustum);
 
-protected:	
-	bool InitializeResources_RenderThread();	
+	virtual EWarpType GetWarpType() const
+	{ return EWarpType::MPCDI; }
 
-private:
+protected:
+	bool InitializeResources_RenderThread();
+	bool UpdateCameraTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FPicpProjectionOverlayViewportData& ViewportOverlayData);
+
+protected:
 	FString OriginCompId;
 	FIntPoint ViewportSize;
 

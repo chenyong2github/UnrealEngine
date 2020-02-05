@@ -10,6 +10,11 @@
 #include "LevelSequence.h"
 #include "MoviePipelineMasterConfig.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "MoviePipelineQueue.h"
+#include "Misc/PackageName.h"
+#include "Misc/FileHelper.h"
+#include "UObject/UObjectHash.h"
+#include "ObjectTools.h"
 
 #if WITH_EDITOR
 //#include "Editor.h"
@@ -17,12 +22,6 @@
 
 void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 {
-	// This should be called after the engine has a chance to load all of the modules so that all of our classes are loaded.
-	if (!ensureMsgf(SequenceAssetValue.Len() > 0, TEXT("InitializeCommandLineMovieRender shouldn't be called without an asset to render!")))
-	{
-		return;
-	}
-
 #if WITH_EDITOR
 	//const bool bIsGameMode = !GEditor;
 	//if (!bIsGameMode)
@@ -34,14 +33,12 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 #endif
 
 	// Attempt to convert their command line arguments into the required objects.
-	ULevelSequence* LevelSequence = nullptr;
-	UMoviePipelineMasterConfig* MasterConfig = nullptr;
-	UClass* ExecutorClass = nullptr;
-	UClass* PipelineClass = nullptr;
+	UMoviePipelineExecutorBase* ExecutorBase = nullptr;
+	UMoviePipelineQueue* Queue = nullptr;
 
-	uint8 ReturnCode = GetMovieRenderClasses(SequenceAssetValue, SettingsAssetValue, MoviePipelineLocalExecutorClassType, MoviePipelineClassType, 
-											 /*Out*/ LevelSequence, /*Out*/ MasterConfig, /*Out*/ ExecutorClass, /*Out*/ PipelineClass);
-	if (!ensureMsgf(LevelSequence && MasterConfig && ExecutorClass && PipelineClass, TEXT("There was a failure parsing the command line and a movie render cannot be started. Check the log for more details.")))
+	uint8 ReturnCode = ParseMovieRenderData(SequenceAssetValue, SettingsAssetValue, MoviePipelineLocalExecutorClassType, MoviePipelineClassType, 
+		/*Out*/ Queue, /*Out*/ ExecutorBase);
+	if (!ensureMsgf(ExecutorBase && Queue, TEXT("There was a failure parsing the command line and a movie render cannot be started. Check the log for more details.")))
 	{
 		// Take the failure return code from the detection of our command line arguments.
 		FPlatformMisc::RequestExitWithStatus(/*Force*/ false, /*ReturnCode*/ ReturnCode);
@@ -50,23 +47,16 @@ void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
 	else
 	{
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Successfully detected and loaded required movie arguments. Rendering will begin once the map is loaded."));
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("LevelSequence: %s Config: %s ExecutorClass: %s PipelineClass: %s"), *LevelSequence->GetPathName(), *MasterConfig->GetPathName(), *ExecutorClass->GetPathName(), *PipelineClass->GetPathName());
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("NumJobs: %d ExecutorClass: %s PipelineClass: %s"), Queue->GetJobs().Num(), *ExecutorBase->GetPathName(), *MoviePipelineClassType);
 	}
 
-	// By this time, we know what assets you want to render, how to process the array of assets, and what runs an individual render. First we will create an executor.
-	// UMoviePipelineExecutorBase* ExecutorBase = NewObject<UMoviePipelineExecutorBase>(GetTransientPackage(), ExecutorClass);
-	// 
-	// // We add the Executor to the root set. It will own all of the configuration data so this keeps it nicely in memory until finished,
-	// // and means we only have to add/remove one thing from the root set, everything else uses normal outer ownership.
-	// ExecutorBase->AddToRoot();
-	// ExecutorBase->OnExecutorFinished().AddRaw(this, &FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted);
-	// ExecutorBase->OnExecutorErrored().AddRaw(this, &FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderErrored);
-	// ExecutorBase->SetMoviePipelineClass(PipelineClass);
-	// 
-	// TArray<FMoviePipelineExecutorJobPrev> Jobs;
-	// Jobs.Add(FMoviePipelineExecutorJobPrev(SequenceAssetValue, MasterConfig));
-	// 
-	// ExecutorBase->Execute(Jobs);
+	// We add the Executor to the root set. It will own all of the configuration data so this keeps it nicely in memory until finished,
+	// and means we only have to add/remove one thing from the root set, everything else uses normal outer ownership.
+	ExecutorBase->AddToRoot();
+	ExecutorBase->OnExecutorFinished().AddRaw(this, &FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted);
+	ExecutorBase->OnExecutorErrored().AddRaw(this, &FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderErrored);
+
+	ExecutorBase->Execute(Queue);
 }
 
 void FMovieRenderPipelineCoreModule::OnCommandLineMovieRenderCompleted(UMoviePipelineExecutorBase* InExecutor, bool bSuccess)
@@ -147,7 +137,7 @@ bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FStrin
 
 	// Look to see if they've specified a configuration to use. This should be in the format:
 	// "/Game/MyRenderSettings/MyHighQualitySetting.MyHighQualitySetting" or an absolute path 
-	// to a exported json file.
+	// to a exported json file. Or the contents of a serialized package .utxt
 	FParse::Value(FCommandLine::Get(), TEXT("-MoviePipelineConfig="), OutConfigAssetPath);
 
 	// The user may want to override the executor. By default, we use the one specified in the Project
@@ -161,17 +151,12 @@ bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FStrin
 	// "/Script/ModuleName.ClassNameNoUPrefix"
 	FParse::Value(FCommandLine::Get(), TEXT("-MoviePipelineClass="), OutPipelineType);
 
-	return OutSequenceAssetPath.Len() > 0;
+	return OutSequenceAssetPath.Len() > 0 || OutConfigAssetPath.Len() > 0;
 }
 
-uint8 FMovieRenderPipelineCoreModule::GetMovieRenderClasses(const FString& InSequenceAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType,
-	ULevelSequence*& OutSequence, UMoviePipelineMasterConfig*& OutConfig, UClass*& OutExecutorClass, UClass*& OutPipelineClass) const
+uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequenceAssetPath, const FString& InConfigAssetPath, const FString& InExecutorType, const FString& InPipelineType,
+	UMoviePipelineQueue*& OutQueue, UMoviePipelineExecutorBase*& OutExecutor) const
 {
-	if (!ensureMsgf(InSequenceAssetPath.Len() > 0, TEXT("GetMovieRenderClasses should not be called without an sequence asset path specified!")))
-	{
-		return MoviePipelineErrorCodes::NoAsset;
-	}
-
 	// Store off the messages that print the expected format since they're printed in a couple places.
 	const FString SequenceAssetFormatString = TEXT("Movie Pipeline Asset should be specified in the format '-MoviePipeline=\"/Game/MySequences/MyPipelineAsset\", or a relative (to executable)/absolute path to a JSON file in the format '-MoviePipeline=\"D:/MyMoviePipelineConfig.json\".");
 	const FString ConfigAssetFormatString	= TEXT("Pipeline Config Asset should be specified in the format '-MoviePipelineConfig=\"/Game/MyRenderSettings/MyHighQualitySetting.MyHighQualitySetting\"'");
@@ -186,27 +171,28 @@ uint8 FMovieRenderPipelineCoreModule::GetMovieRenderClasses(const FString& InSeq
 		return MoviePipelineErrorCodes::NoConfig;
 	}
 
-	OutSequence = nullptr;
-	OutConfig = nullptr;
-	OutExecutorClass = nullptr;
-	OutPipelineClass = nullptr;
+	OutQueue = nullptr;
+	OutExecutor = nullptr;
 
-	// We try to detect executor/class overrides first because it'll affect deserialization of JSON based pipeline assets.
-	OutExecutorClass = GetLocalExecutorClass(MoviePipelineLocalExecutorClassType, ExecutorClassFormatString);
-	OutPipelineClass = GetMoviePipelineClass(MoviePipelineClassType, PipelineClassFormatString);
+	// Try to detect executor/class overrides 
+	UClass* ExecutorClass = GetLocalExecutorClass(MoviePipelineLocalExecutorClassType, ExecutorClassFormatString);
+	UClass* PipelineClass = GetMoviePipelineClass(MoviePipelineClassType, PipelineClassFormatString);
 
-	if (!ensureMsgf(OutPipelineClass && OutExecutorClass, TEXT("Attempted to render a movie pipeline but could not load executor or pipeline class, nor fall back to defaults.")))
+	if (!ensureMsgf(PipelineClass && ExecutorClass, TEXT("Attempted to render a movie pipeline but could not load executor or pipeline class, nor fall back to defaults.")))
 	{
 		return MoviePipelineErrorCodes::Critical;
 	}
 
+	// If they're just trying to render a specific sequence, parse that now.
+	ULevelSequence* TargetSequence = nullptr;
+	if(InSequenceAssetPath.Len() > 0)
 	// Locate and load the level sequence they wish to render.
 	{
 		// Convert it to a soft object path and use that load to ensure it follows redirectors, etc.
 		FSoftObjectPath AssetPath = FSoftObjectPath(InSequenceAssetPath);
-		OutSequence = CastChecked<ULevelSequence>(AssetPath.TryLoad());
+		TargetSequence = CastChecked<ULevelSequence>(AssetPath.TryLoad());
 
-		if (!OutSequence)
+		if (!TargetSequence)
 		{
 			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Failed to find Movie Pipeline sequence asset to render. Please note that the /Content/ part of the on-disk structure is omitted. Looked for: %s"), *InSequenceAssetPath);
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("%s"), *SequenceAssetFormatString);
@@ -219,9 +205,24 @@ uint8 FMovieRenderPipelineCoreModule::GetMovieRenderClasses(const FString& InSeq
 	{
 		// Convert it to a soft object path and use that load to ensure it follows redirectors, etc.
 		FSoftObjectPath AssetPath = FSoftObjectPath(InConfigAssetPath);
-		OutConfig = CastChecked<UMoviePipelineMasterConfig>(AssetPath.TryLoad());
+		if (UMoviePipelineQueue* AssetAsQueue = Cast<UMoviePipelineQueue>(AssetPath.TryLoad()))
+		{
+			OutQueue = AssetAsQueue;
+		}
+		else if (UMoviePipelineMasterConfig* AssetAsConfig = Cast<UMoviePipelineMasterConfig>(AssetPath.TryLoad()))
+		{
+			OutQueue = NewObject<UMoviePipelineQueue>();
+			UMoviePipelineExecutorJob* NewJob = OutQueue->AllocateNewJob();
+			NewJob->Sequence = FSoftObjectPath(InSequenceAssetPath);
 
-		if (!OutConfig)
+			// Duplicate the configuration in case we modify it and in case multiple jobs will use it.
+			// we don't ave packages in game mode but if another job uses it we don't want to have modified.
+			UMoviePipelineMasterConfig* NewConfig = NewObject<UMoviePipelineMasterConfig>(NewJob);
+			NewConfig->CopyFrom(AssetAsConfig);
+			NewJob->SetConfiguration(AssetAsConfig);
+		}
+
+		if (!OutQueue)
 		{
 			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Failed to find Pipeline Configuration asset to render. Please note that the /Content/ part of the on-disk structure is omitted. Looked for: %s"), *InConfigAssetPath);
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("%s"), *ConfigAssetFormatString);
@@ -230,10 +231,69 @@ uint8 FMovieRenderPipelineCoreModule::GetMovieRenderClasses(const FString& InSeq
 	}
 	else
 	{
-		// If they didn't pass a path that started with /Game/, we'll try to see if it is a JSON file we can understand.
-		UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Not supported yet"));
-		return MoviePipelineErrorCodes::Critical;
+		// If they didn't pass a path that started with /Game/, we'll try to see if it is a manifest file.
+		if (InConfigAssetPath.EndsWith(FPackageName::GetTextAssetPackageExtension()))
+		{
+			FString InFileName = TEXT("QueueManifest");
+			FString InPackagePath = TEXT("/Engine/MovieRenderPipeline/Editor/Transient");
+
+			FString NewPackageName = FPackageName::GetLongPackagePath(InPackagePath) + TEXT("/") + InFileName;
+
+			UPackage* OuterPackage = CreatePackage(nullptr, *NewPackageName);
+			UPackage* QueuePackage = LoadPackage(OuterPackage, *InConfigAssetPath, LOAD_None);
+			if (QueuePackage)
+			{
+				OutQueue = Cast<UMoviePipelineQueue>((UObject*)FindObjectWithOuter(QueuePackage, UMoviePipelineQueue::StaticClass()));
+			}
+			
+			if(!OutQueue)
+			{
+				UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Could not parse text asset package."));
+				return MoviePipelineErrorCodes::NoConfig;
+			}
+		}
+		else
+		{
+			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Unknown Config Asset Path. Path: %s"), *InConfigAssetPath);
+			return MoviePipelineErrorCodes::NoConfig;
+		}
+#if 0
+		else
+		{
+			// Due to API limitations we need to save this to a file and then call LoadPackage()
+			FGuid FileNameGuid = FGuid::NewGuid();
+
+			FString ManifestFileName = TEXT("MovieRenderPipeline/") + FileNameGuid.ToString() + FPackageName::GetTextAssetPackageExtension();
+			FString ManifestFilePath = FPaths::ProjectSavedDir() / ManifestFileName;
+
+			if (!FFileHelper::SaveStringToFile(InConfigAssetPath, *ManifestFilePath))
+			{
+				UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Failed to find Pipeline Configuration asset to render. Please note that the /Content/ part of the on-disk structure is omitted. Looked for: %s"), *InConfigAssetPath);
+				return MoviePipelineErrorCodes::NoConfig;
+			}
+
+			UPackage* NewPackage = LoadPackage(nullptr, *ManifestFilePath, LOAD_None);
+			if (NewPackage)
+			{
+			}
+			else
+			{
+				UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("Could not parse text asset package."));
+				return MoviePipelineErrorCodes::NoConfig;
+			}
+				 
+		}
+#endif
+
 	}
+
+
+	// By this time, we know what assets you want to render, how to process the array of assets, and what runs an individual render. First we will create an executor.
+	OutExecutor = NewObject<UMoviePipelineExecutorBase>(GetTransientPackage(), ExecutorClass);
+	OutExecutor->SetMoviePipelineClass(PipelineClass);
+
+	// Rename our Queue to belong to the Executor
+	OutQueue->Rename(nullptr, OutExecutor);
 
 	return MoviePipelineErrorCodes::Success;
 }

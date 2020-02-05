@@ -121,7 +121,6 @@ void FCameraShakePreviewerModule::RegisterViewportOptionMenuExtender()
 void FCameraShakePreviewerModule::UnregisterViewportOptionMenuExtender()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModuleName);
-	FLevelEditorModule::FLevelEditorMenuExtender Extender = FLevelEditorModule::FLevelEditorMenuExtender::CreateRaw(this, &FCameraShakePreviewerModule::OnExtendLevelViewportOptionMenu);
 	LevelEditorModule.GetAllLevelViewportOptionsMenuExtenders().RemoveAll([=](const FLevelEditorModule::FLevelEditorMenuExtender& Extender) { return Extender.GetHandle() == ViewportOptionsMenuExtenderHandle; });
 
 	if (GEditor)
@@ -154,17 +153,21 @@ TSharedRef<FExtender> FCameraShakePreviewerModule::OnExtendLevelViewportOptionMe
 		return HasCameraShakesPreview(ViewportClient) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	});
 
-	CommandList->MapAction(FCameraShakePreviewerCommands::Get().ToggleCameraShakesPreview, ToggleCameraShakesPreviewAction);
-
 	// Make the extender that adds the menu entry.
 	TSharedRef<FExtender> Extender = MakeShared<FExtender>();
 	Extender->AddMenuExtension(
 		"LevelViewportViewportOptions2",
 		EExtensionHook::After,
 		nullptr,
-		FMenuExtensionDelegate::CreateLambda([](FMenuBuilder& MenuBuilder)
+		FMenuExtensionDelegate::CreateLambda([ToggleCameraShakesPreviewAction](FMenuBuilder& MenuBuilder)
 		{
-			MenuBuilder.AddMenuEntry(FCameraShakePreviewerCommands::Get().ToggleCameraShakesPreview);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("AllowCameraShakes", "Allow Camera Shakes"),
+				LOCTEXT("AllowCameraShakesTooltip", "If enabled, allows the camera shakes previewer panel to apply shakes to this viewport"),
+				FSlateIcon(),
+				ToggleCameraShakesPreviewAction,
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton);
 		})
 	);
 	return Extender;

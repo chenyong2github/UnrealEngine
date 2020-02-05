@@ -299,9 +299,11 @@ void INiagaraModule::StartupModule()
 		return FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(DIClassName);
 	}));
 
-	FFXSystemInterface::RegisterCustomFXSystem(NiagaraEmitterInstanceBatcher::Name, FCreateCustomFXSystemDelegate::CreateLambda([](ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform) -> FFXSystemInterface*
+	FFXSystemInterface::RegisterCustomFXSystem(
+		NiagaraEmitterInstanceBatcher::Name, 
+		FCreateCustomFXSystemDelegate::CreateLambda([](ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager) -> FFXSystemInterface*
 	{
-		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform);
+		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform, InGPUSortManager);
 	}));
 }
 

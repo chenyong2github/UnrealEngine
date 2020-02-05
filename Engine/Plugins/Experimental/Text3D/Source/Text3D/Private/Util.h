@@ -5,20 +5,28 @@
 
 struct FPart;
 
-class FAvailableExpandsFar final : public TMap<FPart*, float>
+using FPartPtr = TSharedPtr<FPart>;
+using FPartConstPtr = TSharedPtr<const FPart>;
+
+class FAvailableExpandsFar final : public TMap<FPartPtr, float>
 {
 public:
-	void Add(const FPart* const Edge, const float Value)
+	void Add(const FPartConstPtr Edge, const float Value)
 	{
-		TMap<FPart*, float>::Add(const_cast<FPart*>(Edge), Value);
+		TMap<FPartPtr, float>::Add(ConstCastSharedPtr<FPart>(Edge), Value);
+	}
+
+	void Remove(const FPartConstPtr Edge)
+	{
+		TMap<FPartPtr, float>::Remove(ConstCastSharedPtr<FPart>(Edge));
 	}
 };
 
-class FContourBase : public TArray<FPart*>
+class FContourBase : public TArray<FPartPtr>
 {
-protected:
-	int32 Find(const FPart* const Edge)
+public:
+	int32 Find(const FPartConstPtr Edge)
 	{
-		return TArray<FPart*>::Find(const_cast<FPart*>(Edge));
+		return TArray<FPartPtr>::Find(ConstCastSharedPtr<FPart>(Edge));
 	}
 };

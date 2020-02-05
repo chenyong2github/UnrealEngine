@@ -147,6 +147,7 @@ struct FGatherTextFromPackagesConfiguration
 	FGatherTextFromPackagesConfiguration()
 		: IsEnabled(true)
 		, FileExtensions(GetDefaultPackageFileExtensions())
+		, ShouldExcludeDerivedClasses(false)
 		, ShouldGatherFromEditorOnlyData(false)
 		, SkipGatherCache(false)
 	{
@@ -176,6 +177,14 @@ struct FGatherTextFromPackagesConfiguration
 	/* Packages in these collections may be processed for gathering. */
 	UPROPERTY(config, EditAnywhere, Category = "Filter")
 	TArray<FName> Collections;
+
+	/* Classes that should be excluded from gathering. */
+	UPROPERTY(config, EditAnywhere, Category = "Filter")
+	TArray<FSoftClassPath> ExcludeClasses;
+
+	/* Should classes derived from those in the exclude classes list also be excluded from gathering? */
+	UPROPERTY(config, EditAnywhere, Category = "Filter")
+	bool ShouldExcludeDerivedClasses;
 
 	/* If enabled, data that is specified as editor-only may be processed for gathering. */
 	UPROPERTY(config, EditAnywhere, Category = "Gather Text")

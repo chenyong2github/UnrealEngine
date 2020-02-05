@@ -42,12 +42,12 @@ UFractureToolBrick::UFractureToolBrick(const FObjectInitializer& ObjInit)
 
 FText UFractureToolBrick::GetDisplayText() const
 { 
-	return FText(NSLOCTEXT("Fracture", "FractureToolBrick", "Brick")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolBrick", "Brick Fracture")); 
 }
 
 FText UFractureToolBrick::GetTooltipText() const 
 { 
-	return FText(NSLOCTEXT("Fracture", "FractureToolBrickTooltip", "Brick Fracture")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolBrickTooltip", "This type of fracture enables you to define a pattern to perform the fracture, along with the forward and up axis in which to fracture. You can also adjust the brick length, height, or depth to provide varying results.  Click the Fracture Button to commit the fracture to the geometry collection.")); 
 }
 
 FSlateIcon UFractureToolBrick::GetToolIcon() const 

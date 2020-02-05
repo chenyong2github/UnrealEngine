@@ -8,6 +8,7 @@
 #include "LinearTimecodeDecoder.h"
 #include "Stats/StatsMisc.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /* FLinearTimecodeAudioCaptureCustomTimeStepImplementation implementation
 *****************************************************************************/
@@ -157,7 +158,12 @@ UAudioCaptureTimecodeProvider::UAudioCaptureTimecodeProvider(const FObjectInitia
 
 /* UTimecodeProvider interface implementation
 *****************************************************************************/
-FTimecode UAudioCaptureTimecodeProvider::GetTimecode() const
+FQualifiedFrameTime UAudioCaptureTimecodeProvider::GetQualifiedFrameTime() const
+{
+	return FQualifiedFrameTime(GetTimecodeInternal(), GetFrameRateInternal());
+}
+
+FTimecode UAudioCaptureTimecodeProvider::GetTimecodeInternal() const
 {
 	FTimecode Result;
 	{
@@ -180,7 +186,7 @@ FTimecode UAudioCaptureTimecodeProvider::GetTimecode() const
 	return Result;
 }
 
-FFrameRate UAudioCaptureTimecodeProvider::GetFrameRate() const
+FFrameRate UAudioCaptureTimecodeProvider::GetFrameRateInternal() const
 {
 	FFrameRate Result = FrameRate;
 	if (bDetectFrameRate)
@@ -248,3 +254,5 @@ void UAudioCaptureTimecodeProvider::BeginDestroy()
 	delete Implementation;
 	Super::BeginDestroy();
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

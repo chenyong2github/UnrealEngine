@@ -26,10 +26,11 @@ public:
 	virtual FText GetFilterCategoryText() const override;
 	virtual TSubclassOf<UDataprepFetcher> GetAcceptedFetcherClass() const override;
 	virtual void SetFetcher(const TSubclassOf<UDataprepFetcher>& FetcherClass) override;
-	virtual UDataprepFetcher* GetFetcher() const override;
-	//~ Begin UDataprepFilter Interface
 
 private:
+	virtual const UDataprepFetcher* GetFetcherImplementation() const override;
+	//~ Begin UDataprepFilter Interface
+
 	UPROPERTY()
 	UDataprepBoolFetcher* BoolFetcher;
 };

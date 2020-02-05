@@ -8,6 +8,7 @@
 #include "DataprepAssetProducers.h"
 #include "DataprepEditor.h"
 #include "DataprepEditorStyle.h"
+#include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/SDataprepEditorViewport.h"
 #include "Widgets/SDataprepProducersWidget.h"
@@ -20,6 +21,14 @@
 #include "UObject/StrongObjectPtr.h"
 
 #include "Widgets/SNullWidget.h"
+
+// Temporary include remove when the new graph is in place
+#include "BlueprintNodes/K2Node_DataprepAction.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "SchemaActions/DataprepSchemaActionUtils.h"
+#include "DataprepActionAsset.h"
+
 
 const FName DataprepEditorAppIdentifier = FName(TEXT("DataprepEditorApp"));
 
@@ -67,11 +76,15 @@ public:
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 		PropertyModule.RegisterCustomClassLayout( UDataprepAssetProducers::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic( &FDataprepAssetProducersDetails::MakeDetails ) );
 
+		SDataprepGraphEditor::RegisterFactories();
+
 		SDataprepEditorViewport::LoadDefaultSettings();
 	}
 
 	virtual void ShutdownModule() override
 	{
+		SDataprepGraphEditor::UnRegisterFactories();
+
 		MenuExtensibilityManager.Reset();
 		ToolBarExtensibilityManager.Reset();
 
@@ -116,6 +129,23 @@ public:
 		return SNullWidget::NullWidget;
 	}
 
+	virtual UEdGraphNode* CreateDataprepActionInGraph(UEdGraph& Graph, UDataprepActionAsset*& OutDataprepAction) override
+	{
+		FVector2D NullLocation( EForceInit::ForceInitToZero );
+		UK2Node_DataprepAction* DataprepActionNode = DataprepSchemaActionUtils::SpawnEdGraphNode<UK2Node_DataprepAction>( Graph, NullLocation );
+		DataprepActionNode->CreateDataprepActionAsset();
+		OutDataprepAction = DataprepActionNode->GetDataprepAction();
+		return DataprepActionNode;
+	}
+
+	virtual UEdGraphNode* CreateDataprepActionInGraphByDuplication(UEdGraph& Graph, const UDataprepActionAsset& DataprepAssetToBeDuplicated, UDataprepActionAsset*& OutDataprepAction)
+	{
+		FVector2D NullLocation( EForceInit::ForceInitToZero );
+		UK2Node_DataprepAction* DataprepActionNode = DataprepSchemaActionUtils::SpawnEdGraphNode<UK2Node_DataprepAction>(Graph, NullLocation);
+		DataprepActionNode->DuplicateExistingDataprepActionAsset( DataprepAssetToBeDuplicated );
+		OutDataprepAction = DataprepActionNode->GetDataprepAction();
+		return DataprepActionNode;
+	}
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;

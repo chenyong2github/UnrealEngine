@@ -167,7 +167,58 @@ void ULevelSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRange I
 /* IMovieScenePlayer interface
  *****************************************************************************/
 
-void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* UnlockIfCameraObject, bool bJumpCut)
+TTuple<EViewTargetBlendFunction, float> BuiltInEasingTypeToBlendFunction(EMovieSceneBuiltInEasing EasingType)
+{
+	using Return = TTuple<EViewTargetBlendFunction, float>;
+	switch (EasingType)
+	{
+		case EMovieSceneBuiltInEasing::Linear:
+			return Return(EViewTargetBlendFunction::VTBlend_Linear, 1.f);
+
+		case EMovieSceneBuiltInEasing::QuadIn:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseIn, 2);
+		case EMovieSceneBuiltInEasing::QuadOut:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseOut, 2);
+		case EMovieSceneBuiltInEasing::QuadInOut:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseInOut, 2);
+
+		case EMovieSceneBuiltInEasing::CubicIn:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseIn, 3);
+		case EMovieSceneBuiltInEasing::CubicOut:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseOut, 3);
+		case EMovieSceneBuiltInEasing::CubicInOut:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseInOut, 3);
+
+		case EMovieSceneBuiltInEasing::QuartIn:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseIn, 4);
+		case EMovieSceneBuiltInEasing::QuartOut:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseOut, 4);
+		case EMovieSceneBuiltInEasing::QuartInOut:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseInOut, 4);
+
+		case EMovieSceneBuiltInEasing::QuintIn:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseIn, 5);
+		case EMovieSceneBuiltInEasing::QuintOut:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseOut, 5);
+		case EMovieSceneBuiltInEasing::QuintInOut:
+			return Return(EViewTargetBlendFunction::VTBlend_EaseInOut, 5);
+
+		// UNSUPPORTED
+		case EMovieSceneBuiltInEasing::SinIn:
+		case EMovieSceneBuiltInEasing::SinOut:
+		case EMovieSceneBuiltInEasing::SinInOut:
+		case EMovieSceneBuiltInEasing::CircIn:
+		case EMovieSceneBuiltInEasing::CircOut:
+		case EMovieSceneBuiltInEasing::CircInOut:
+		case EMovieSceneBuiltInEasing::ExpoIn:
+		case EMovieSceneBuiltInEasing::ExpoOut:
+		case EMovieSceneBuiltInEasing::ExpoInOut:
+			break;
+	}
+	return Return(EViewTargetBlendFunction::VTBlend_Linear, 1.f);
+}
+
+void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams)
 {
 	if (World == nullptr || World->GetGameInstance() == nullptr)
 	{
@@ -200,7 +251,7 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 
 	if (CameraObject == ViewTarget)
 	{
-		if ( bJumpCut )
+		if (CameraCutParams.bJumpCut)
 		{
 			if (PC->PlayerCameraManager)
 			{
@@ -216,7 +267,7 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 	}
 
 	// skip unlocking if the current view target differs
-	AActor* UnlockIfCameraActor = Cast<AActor>(UnlockIfCameraObject);
+	AActor* UnlockIfCameraActor = Cast<AActor>(CameraCutParams.UnlockIfCameraObject);
 
 	// if unlockIfCameraActor is valid, release lock if currently locked to object
 	if (CameraObject == nullptr && UnlockIfCameraActor != nullptr && UnlockIfCameraActor != ViewTarget)
@@ -256,8 +307,33 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 		}
 	}
 
+	bool bDoSetViewTarget = true;
 	FViewTargetTransitionParams TransitionParams;
-	PC->SetViewTarget(CameraActor, TransitionParams);
+	if (CameraCutParams.BlendType.IsSet())
+	{
+		// Convert known easing functions to their corresponding view target blend parameters.
+		TTuple<EViewTargetBlendFunction, float> BlendFunctionAndExp = BuiltInEasingTypeToBlendFunction(CameraCutParams.BlendType.GetValue());
+		TransitionParams.BlendTime = CameraCutParams.BlendTime;
+		TransitionParams.BlendFunction = BlendFunctionAndExp.Get<0>();
+		TransitionParams.BlendExp = BlendFunctionAndExp.Get<1>();
+
+		// Calling SetViewTarget on a camera that we are currently transitioning to will 
+		// result in that transition being aborted, and the view target being set immediately.
+		// We want to avoid that, so let's leave the transition running if it's the case.
+		if (PC->PlayerCameraManager != nullptr)
+		{
+			const AActor* CurViewTarget = PC->PlayerCameraManager->ViewTarget.Target;
+			const AActor* PendingViewTarget = PC->PlayerCameraManager->PendingViewTarget.Target;
+			if (CameraActor != nullptr && PendingViewTarget == CameraActor)
+			{
+				bDoSetViewTarget = false;
+			}
+		}
+	}
+	if (bDoSetViewTarget)
+	{
+		PC->SetViewTarget(CameraActor, TransitionParams);
+	}
 
 	// Set or restore the aspect ratio constraint if we were overriding it for this sequence.
 	if (LocalPlayer != nullptr && CameraSettings.bOverrideAspectRatioAxisConstraint)

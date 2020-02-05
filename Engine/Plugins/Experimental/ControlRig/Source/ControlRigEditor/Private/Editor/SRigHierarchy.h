@@ -107,6 +107,24 @@ struct FRigHierarchyImportSettings
 	USkeletalMesh* Mesh;
 };
 
+class SRigHierarchyTreeView : public STreeView<TSharedPtr<FRigTreeElement>>
+{
+public:
+
+	virtual ~SRigHierarchyTreeView() {}
+
+	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override
+	{
+		FReply Reply = STreeView<TSharedPtr<FRigTreeElement>>::OnFocusReceived(MyGeometry, InFocusEvent);
+
+		LastClickCycles = FPlatformTime::Cycles();
+
+		return Reply;
+	}
+
+	uint32 LastClickCycles = 0;
+};
+
 /** Widget allowing editing of a control rig's structure */
 class SRigHierarchy : public SCompoundWidget, public FEditorUndoClient
 {
@@ -166,6 +184,7 @@ private:
 	void OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 
 	TSharedPtr< SWidget > CreateContextMenu();
+	void OnItemClicked(TSharedPtr<FRigTreeElement> InItem);
 	void OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem);
 
 	// FEditorUndoClient
@@ -195,7 +214,7 @@ private:
 	void OnFilterTextChanged(const FText& SearchText);
 
 	/** Tree view widget */
-	TSharedPtr<STreeView<TSharedPtr<FRigTreeElement>>> TreeView;
+	TSharedPtr<SRigHierarchyTreeView> TreeView;
 
 	/** Backing array for tree view */
 	TArray<TSharedPtr<FRigTreeElement>> RootElements;

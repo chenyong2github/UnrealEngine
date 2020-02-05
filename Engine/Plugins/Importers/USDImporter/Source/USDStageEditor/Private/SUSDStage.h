@@ -34,6 +34,10 @@ protected:
 	TSharedRef< SWidget > MakeMainMenu();
 	void FillFileMenu( FMenuBuilder& MenuBuilder );
 	void FillActionsMenu( FMenuBuilder& MenuBuilder );
+	void FillOptionsMenu( FMenuBuilder& MenuBuilder );
+	void FillPayloadsSubMenu( FMenuBuilder& MenuBuilder );
+	void FillPurposesToLoadSubMenu( FMenuBuilder& MenuBuilder );
+	void FillPurposeVisibilitySubMenu( FMenuBuilder& MenuBuilder );
 
 	void OnNew();
 	void OnOpen();
@@ -43,7 +47,6 @@ protected:
 	void OnImport();
 
 	void OnPrimSelected( FString PrimPath );
-	void OnInitialLoadSetChanged( EUsdInitialLoadSet InitialLoadSet );
 
 	void OpenStage( const TCHAR* FilePath );
 

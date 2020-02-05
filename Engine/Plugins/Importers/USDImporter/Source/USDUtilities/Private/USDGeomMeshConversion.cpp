@@ -54,6 +54,13 @@ namespace UsdToUnrealImpl
 
 bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const pxr::UsdTimeCode TimeCode )
 {
+	return ConvertGeomMesh( UsdMesh, MeshDescription, FTransform::Identity, TimeCode );
+}
+
+bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescription& MeshDescription, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode )
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertGeomMesh );
+
 	using namespace pxr;
 
 	FScopedUsdAllocs UsdAllocs;
@@ -67,10 +74,10 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 	TArray< FString >& MaterialNames = GeometryMaterials.Key;
 	TArray< int32 >& FaceMaterialIndices = GeometryMaterials.Value;
 
-	int32 VertexOffset = MeshDescription.Vertices().Num();
-	int32 VertexInstanceOffset = MeshDescription.VertexInstances().Num();
-	int32 PolygonOffset = MeshDescription.Polygons().Num();
-	int32 MaterialIndexOffset = 0; //Materials.Num();
+	const int32 VertexOffset = MeshDescription.Vertices().Num();
+	const int32 VertexInstanceOffset = MeshDescription.VertexInstances().Num();
+	const int32 PolygonOffset = MeshDescription.Polygons().Num();
+	const int32 MaterialIndexOffset = MeshDescription.PolygonGroups().Num();
 
 	FStaticMeshAttributes StaticMeshAttributes( MeshDescription );
 
@@ -89,10 +96,10 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 			{
 				const GfVec3f& Point = PointsArray[ LocalPointIndex ];
 
-				FVector Pos = UsdToUnreal::ConvertVector( StageUpAxis, Point );
+				FVector Position = AdditionalTransform.TransformPosition( UsdToUnreal::ConvertVector( StageUpAxis, Point ) );
 
 				FVertexID AddedVertexId = MeshDescription.CreateVertex();
-				MeshDescriptionVertexPositions[ AddedVertexId ] = Pos;
+				MeshDescriptionVertexPositions[ AddedVertexId ] = Position;
 			}
 		}
 	}
@@ -137,6 +144,8 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 		{
 			NormalsAttribute.Get( &Normals, TimeCodeValue );
 		}
+
+		pxr::TfToken NormalsInterpType = UsdMesh.GetNormalsInterpolation();
 
 		// UVs
 		TVertexInstanceAttributesRef< FVector2D > MeshDescriptionUVs = StaticMeshAttributes.GetVertexInstanceUVs();
@@ -207,6 +216,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 		TVertexInstanceAttributesRef< FVector > MeshDescriptionNormals = StaticMeshAttributes.GetVertexInstanceNormals();
 		TPolygonGroupAttributesRef< FName > PolygonGroupImportedMaterialSlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
+		TPolygonGroupAttributesRef< FName > PolygonGroupUsdPrimPaths = MeshDescription.PolygonGroupAttributes().GetAttributesRef< FName >( "UsdPrimPath" );
 
 		MeshDescription.ReserveNewVertexInstances( FaceCounts.size() * 3 );
 		MeshDescription.ReserveNewPolygons( FaceCounts.size() );
@@ -259,19 +269,21 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 				if ( Normals.size() > 0 )
 				{
-					const int32 NormalIndex = Normals.size() != FaceIndices.size() ? FaceIndices[CurrentVertexInstanceIndex] : CurrentVertexInstanceIndex;
-					check(NormalIndex < Normals.size());
-					const GfVec3f& Normal = Normals[NormalIndex];
-					FVector TransformedNormal = UsdToUnreal::ConvertVector( StageUpAxis, Normal );
+					const int32 NormalIndex = UsdToUnrealImpl::GetPrimValueIndex( NormalsInterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
-					ensure( !TransformedNormal.IsNearlyZero() );
-					MeshDescriptionNormals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
+					if ( NormalIndex < Normals.size() )
+					{
+						const GfVec3f& Normal = Normals[NormalIndex];
+						FVector TransformedNormal = AdditionalTransform.TransformVector( UsdToUnreal::ConvertVector( StageUpAxis, Normal ) ).GetSafeNormal();
+
+						MeshDescriptionNormals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
+					}
 				}
 
 				int32 UVLayerIndex = 0;
 				for ( const FUVSet& UVSet : UVSets )
 				{
-					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( UVSet.InterpType, VertexID.GetValue(), CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( UVSet.InterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					GfVec2f UV( 0.f, 0.f );
 
@@ -301,7 +313,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 						return FLinearColor( FLinearColor( UsdToUnreal::ConvertColor( UsdColor ) ).ToFColor( false ) );
 					};
 
-					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( ColorPrimvar.GetInterpolation(), VertexID.GetValue(), CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( ColorPrimvar.GetInterpolation(), ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					GfVec3f UsdColor( 1.f, 1.f, 1.f );
 
@@ -315,7 +327,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 				// Vertex opacity
 				{
-					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( OpacityPrimvar.GetInterpolation(), VertexID.GetValue(), CurrentVertexInstanceIndex, PolygonIndex );
+					const int32 ValueIndex = UsdToUnrealImpl::GetPrimValueIndex( OpacityPrimvar.GetInterpolation(), ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex );
 
 					if ( !UsdOpacities.empty() && ensure( UsdOpacities.size() > ValueIndex ) )
 					{
@@ -324,8 +336,9 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 				}
 			}
 
+			// Polygon groups
 			int32 MaterialIndex = 0;
-			if (PolygonIndex >= 0 && PolygonIndex < FaceMaterialIndices.Num())
+			if ( FaceMaterialIndices.IsValidIndex( PolygonIndex ) )
 			{
 				MaterialIndex = FaceMaterialIndices[PolygonIndex];
 				if (MaterialIndex < 0 || MaterialIndex > MaterialNames.Num())
@@ -334,35 +347,29 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 				}
 			}
 
-			int32 RealMaterialIndex = MaterialIndexOffset + MaterialIndex;
-			if (!PolygonGroupMapping.Contains(RealMaterialIndex))
+			const int32 RealMaterialIndex = MaterialIndexOffset + MaterialIndex;
+
+			if ( !PolygonGroupMapping.Contains( RealMaterialIndex ) )
 			{
-				FName ImportedMaterialSlotName;
-				if (MaterialIndex >= 0 && MaterialIndex < MaterialNames.Num())
+				FName ImportedMaterialSlotName = *UsdToUnreal::ConvertPath( UsdMesh.GetPath() );
+				if ( MaterialNames.IsValidIndex( MaterialIndex ) )
 				{
 					FString MaterialName = MaterialNames[MaterialIndex];
 					ImportedMaterialSlotName = FName(*MaterialName);
-					//Materials[RealMaterialIndex].Name = MaterialName;
 				}
 
-				FPolygonGroupID ExistingPolygonGroup = FPolygonGroupID::Invalid;
-				for (const FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
+				FPolygonGroupID NewPolygonGroup = MeshDescription.CreatePolygonGroup();
+				PolygonGroupImportedMaterialSlotNames[ NewPolygonGroup ] = ImportedMaterialSlotName;
+
+				if ( PolygonGroupUsdPrimPaths.IsValid() )
 				{
-					if (PolygonGroupImportedMaterialSlotNames[PolygonGroupID] == ImportedMaterialSlotName)
-					{
-						ExistingPolygonGroup = PolygonGroupID;
-						break;
-					}
+					PolygonGroupUsdPrimPaths[ NewPolygonGroup ] = FName( UsdToUnreal::ConvertPath( UsdMesh.GetPath() ) );
 				}
-				if (ExistingPolygonGroup == FPolygonGroupID::Invalid)
-				{
-					ExistingPolygonGroup = MeshDescription.CreatePolygonGroup();
-					PolygonGroupImportedMaterialSlotNames[ExistingPolygonGroup] = ImportedMaterialSlotName;
-				}
-				PolygonGroupMapping.Add(RealMaterialIndex, ExistingPolygonGroup);
+
+				PolygonGroupMapping.Add( RealMaterialIndex, NewPolygonGroup );
 			}
 
-			FPolygonGroupID PolygonGroupID = PolygonGroupMapping[RealMaterialIndex];
+			FPolygonGroupID PolygonGroupID = PolygonGroupMapping[ RealMaterialIndex ];
 			// Insert a polygon into the mesh
 			const FPolygonID NewPolygonID = MeshDescription.CreatePolygon( PolygonGroupID, CornerInstanceIDs );
 			if ( bFlipThisGeometry )

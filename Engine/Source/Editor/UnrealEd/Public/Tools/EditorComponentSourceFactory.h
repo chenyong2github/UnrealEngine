@@ -29,5 +29,7 @@ public:
 
 	virtual void CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;
 
+	virtual bool HasSameSourceData(const FPrimitiveComponentTarget& OtherTarget) const override;
+
 	static const int LODIndex{0};
 };

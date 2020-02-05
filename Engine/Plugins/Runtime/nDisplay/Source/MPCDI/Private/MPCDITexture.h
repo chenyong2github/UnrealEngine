@@ -5,66 +5,52 @@
 #include "RenderResource.h"
 
 
-namespace MPCDI
+class FMPCDITexture : public FTexture
 {
-	class FMPCDITexture : public FTexture
+public:
+	FMPCDITexture()
+		: Data(NULL)
+		, Width(0)
+		, Height(0)
+		, PixelFormat(PF_Unknown)
+		, bReleaseData(false)
+	{ }
+
+	virtual ~FMPCDITexture()
+	{ }
+
+public:
+	virtual void InitRHI() override;
+
+	void SetTextureData(void *InData, uint32_t InWidth, uint32_t InHeight, EPixelFormat InPixelFormat, bool releaseData = true)
 	{
-	public:
-		FMPCDITexture()
-			: Data(NULL)
-			, Width(0)
-			, Height(0)
-			, PixelFormat(PF_Unknown)
-			, bReleaseData(false)
-		{ 
-		}
-		virtual ~FMPCDITexture()
-		{
-		}
+		Data = InData;
+		Width = InWidth;
+		Height = InHeight;
+		PixelFormat = InPixelFormat;
+		bReleaseData = releaseData;
+	}
 
-	public:
-		virtual void InitRHI() override;
+	inline void* GetData() const
+	{ return Data; }
 
-		void SetTextureData(void *InData, uint32_t InWidth, uint32_t InHeight, EPixelFormat InPixelFormat, bool releaseData = true)
-		{
-			Data = InData;
-			Width = InWidth;
-			Height = InHeight;
-			PixelFormat = InPixelFormat;
-			bReleaseData = releaseData;
-		}
+	inline uint32_t GetWidth() const
+	{ return Width; }
 
-		inline void* GetData() const
-		{ 
-			return Data; 
-		}
+	inline uint32_t GetHeight() const
+	{ return Height; }
 
-		inline uint32_t GetWidth() const
-		{ 
-			return Width; 
-		}
+	inline EPixelFormat GetPixelFormat() const
+	{ return PixelFormat; }
 
-		inline uint32_t GetHeight() const
-		{ 
-			return Height; 
-		}
+	inline bool IsValid() const
+	{ return (Width > 0) && (Height > 0); }
 
-		inline EPixelFormat GetPixelFormat() const
-		{ 
-			return PixelFormat; 
-		}
+	void ReleaseTextureData();
 
-		inline bool IsValid() const
-		{
-			return (Width > 0) && (Height > 0);
-		}
-
-		void ReleaseTextureData();
-
-	private:
-		void *Data;
-		uint32_t Width, Height;
-		EPixelFormat PixelFormat;
-		bool bReleaseData;
-	};
-}
+private:
+	void *Data;
+	uint32_t Width, Height;
+	EPixelFormat PixelFormat;
+	bool bReleaseData;
+};

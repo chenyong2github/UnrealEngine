@@ -40,7 +40,8 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 
 	// Create the child widgets that need to know about our pipeline
 	PipelineQueueEditorWidget = SNew(SMoviePipelineQueueEditor)
-		.OnEditConfigRequested(this, &SMoviePipelineQueuePanel::OnEditJobConfigRequested);
+		.OnEditConfigRequested(this, &SMoviePipelineQueuePanel::OnEditJobConfigRequested)
+		.OnPresetChosen(this, &SMoviePipelineQueuePanel::OnJobPresetChosen);
 	// .MoviePipeline(this, &SMoviePipelineConfigPanel::GetMoviePipeline);
 
 	ChildSlot
@@ -176,7 +177,10 @@ bool SMoviePipelineQueuePanel::IsRenderLocalEnabled() const
 	check(Subsystem);
 
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	return (!Subsystem->IsRendering()) && (ProjectSettings->DefaultLocalExecutor != nullptr);
+	const bool bHasExecutor = ProjectSettings->DefaultLocalExecutor != nullptr;
+	const bool bNotRendering = !Subsystem->IsRendering();
+	const bool bHasJobs = Subsystem->GetQueue()->GetJobs().Num() > 0;
+	return bHasExecutor && bNotRendering && bHasJobs;
 }
 
 FReply SMoviePipelineQueuePanel::OnRenderRemoteRequested()
@@ -197,7 +201,10 @@ bool SMoviePipelineQueuePanel::IsRenderRemoteEnabled() const
 	check(Subsystem);
 
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	return (!Subsystem->IsRendering()) && (ProjectSettings->DefaultRemoteExecutor != nullptr);
+	const bool bHasExecutor = ProjectSettings->DefaultRemoteExecutor != nullptr;
+	const bool bNotRendering = !Subsystem->IsRendering();
+	const bool bHasJobs = Subsystem->GetQueue()->GetJobs().Num() > 0;
+	return bHasExecutor && bNotRendering && bHasJobs;;
 }
 
 /*UMoviePipelineConfigBase* SMoviePipelineConfigPanel::AllocateTransientPreset()
@@ -229,8 +236,29 @@ void SMoviePipelineQueuePanel::AddReferencedObjects(FReferenceCollector& Collect
 	// Collector.AddReferencedObject(RecordingLevelSequence);
 }
 
+void SMoviePipelineQueuePanel::OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot)
+{
+	// Store the preset so the next job they make will use it.
+	UMovieRenderPipelineProjectSettings* ProjectSettings = GetMutableDefault<UMovieRenderPipelineProjectSettings>();
+	ProjectSettings->LastPresetOrigin = InJob->GetPresetOrigin();
+	ProjectSettings->SaveConfig();
+}
+
 void SMoviePipelineQueuePanel::OnEditJobConfigRequested(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMovieSceneCinematicShotSection> InShot)
 {
+	// Only allow one editor open at once for now.
+	if (WeakEditorWindow.IsValid())
+	{
+		FWidgetPath ExistingWindowPath;
+		if (FSlateApplication::Get().FindPathToWidget(WeakEditorWindow.Pin().ToSharedRef(), ExistingWindowPath, EVisibility::All))
+		{
+			WeakEditorWindow.Pin()->BringToFront();
+			FSlateApplication::Get().SetAllUserFocus(ExistingWindowPath, EFocusCause::SetDirectly);
+		}
+
+		return;
+	}
+
 	TSharedRef<SWindow> EditorWindow =
 		SNew(SWindow)
 		.ClientSize(FVector2D(700, 600));
@@ -257,7 +285,6 @@ void SMoviePipelineQueuePanel::OnEditJobConfigRequested(TWeakObjectPtr<UMoviePip
 
 void SMoviePipelineQueuePanel::OnConfigWindowClosed()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Config updated!"));
 	if (WeakEditorWindow.IsValid())
 	{
 		WeakEditorWindow.Pin()->RequestDestroyWindow();
@@ -288,6 +315,9 @@ void SMoviePipelineQueuePanel::OnConfigUpdatedForJobToPreset(TWeakObjectPtr<UMov
 			InJob->SetPresetOrigin(MasterConfig);
 		}
 	}
+
+	// Store the preset they used as the last set one
+	OnJobPresetChosen(InJob, nullptr);
 
 	OnConfigWindowClosed();
 }

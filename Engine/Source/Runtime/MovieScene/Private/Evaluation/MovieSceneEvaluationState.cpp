@@ -334,6 +334,19 @@ UMovieSceneSequence* FMovieSceneEvaluationState::FindSequence(FMovieSceneSequenc
 	return Cache ? Cache->GetSequence() : nullptr;
 }
 
+FMovieSceneSequenceID FMovieSceneEvaluationState::FindSequenceId(UMovieSceneSequence* InSequence) const
+{
+	for (auto& Pair : ObjectCaches)
+	{
+		if (Pair.Value.GetSequence() == InSequence)
+		{
+			return Pair.Key;
+		}
+	}
+
+	return FMovieSceneSequenceID();
+}
+
 FGuid FMovieSceneEvaluationState::FindObjectId(UObject& Object, FMovieSceneSequenceIDRef InSequenceID, IMovieScenePlayer& Player)
 {
 	FMovieSceneObjectCache* Cache = ObjectCaches.Find(InSequenceID);

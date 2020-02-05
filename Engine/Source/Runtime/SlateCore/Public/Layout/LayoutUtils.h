@@ -152,7 +152,7 @@ static AlignmentArrangeResult AlignChild(EFlowDirection InLayoutFlow, float Allo
 	}
 
 	// Same as Fill
-	return AlignmentArrangeResult(MarginPre, ( AllottedSize - TotalMargin ) * ContentScale);
+	return AlignmentArrangeResult(MarginPre, (AllottedSize - TotalMargin) * ContentScale);
 }
 
 template<EOrientation Orientation, typename SlotType>

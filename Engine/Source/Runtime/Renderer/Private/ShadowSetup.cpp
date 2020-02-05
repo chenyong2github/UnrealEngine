@@ -2207,7 +2207,7 @@ void ComputeWholeSceneShadowCacheModes(
 				{
 					int64 CachedShadowMapsSize = Scene->GetCachedWholeSceneShadowMapsSize();
 
-					if (CachedShadowMapsSize < GWholeSceneShadowCacheMb * 1024 * 1024)
+					if (CachedShadowMapsSize < static_cast<int64>(GWholeSceneShadowCacheMb) * 1024 * 1024)
 					{
 						OutNumShadowMaps = 2;
 						// Note: ShadowMap with static primitives rendered first so movable shadowmap can composite
@@ -2669,7 +2669,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 							&& (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly || bCastCachedShadowFromMovablePrimitives))
 						{
 							// Add all the shadow casting primitives affected by the light to the shadow's subject primitive list.
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionOftenMovingPrimitiveList;
+							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false);
 								Interaction;
 								Interaction = Interaction->GetNextPrimitive())
 							{
@@ -2690,7 +2690,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						if (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly)
 						{
 							// Add all the shadow casting primitives affected by the light to the shadow's subject primitive list.
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionStaticPrimitiveList;
+							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false);
 								Interaction;
 								Interaction = Interaction->GetNextPrimitive())
 							{
@@ -4214,7 +4214,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 							Scene->FlushAsyncLightPrimitiveInteractionCreation();
 
 							// Look for individual primitives with a dynamic shadow.
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionOftenMovingPrimitiveList;
+							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false);
 								Interaction;
 								Interaction = Interaction->GetNextPrimitive()
 								)
@@ -4223,7 +4223,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 								NumInteractionShadows++;
 							}
 
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionStaticPrimitiveList;
+							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false);
 								Interaction;
 								Interaction = Interaction->GetNextPrimitive()
 								)

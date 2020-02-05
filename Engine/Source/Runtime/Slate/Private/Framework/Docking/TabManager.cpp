@@ -1658,7 +1658,7 @@ TSharedPtr<SDockTab> FTabManager::SpawnTab(const FTabId& TabId, const TSharedPtr
 			bSpawningAllowedBySpawner = Spawner->CanSpawnTab.Execute(FSpawnTabArgs(ParentWindow, TabId));
 		}
 
-		if(bSpawningAllowedBySpawner)
+		if (bSpawningAllowedBySpawner && !Spawner->SpawnedTabPtr.IsValid())
 		{
 			NewTabWidget = Spawner->OnSpawnTab.Execute(FSpawnTabArgs(ParentWindow, TabId));
 			NewTabWidget->SetLayoutIdentifier(TabId);
@@ -1667,6 +1667,11 @@ TSharedPtr<SDockTab> FTabManager::SpawnTab(const FTabId& TabId, const TSharedPtr
 
 			// The spawner tracks that last tab it spawned
 			Spawner->SpawnedTabPtr = NewTabWidget;
+		} 
+		else
+		{
+			// If we got here, somehow there is two entries spawning the same tab.  This is now allowed so just ignore it.
+			bSpawningAllowedBySpawner = false;
 		}
 	}
 

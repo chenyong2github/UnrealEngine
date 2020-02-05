@@ -83,6 +83,12 @@ protected:
 	// properties they are tracking
 	virtual bool PropertiesHaveCurrentValue() const;
 
+	// Returns a widget that is displayed when PropertyValues have different recorded data
+	TSharedRef<SWidget> GetMultipleValuesWidget();
+
+	// Returns a widget that is displayed when we fail to resolve PropertyValues
+	TSharedRef<SWidget> GetFailedToResolveWidget(const UPropertyValue* Property);
+
 	bool RecursiveDisableOldResetButton(TSharedPtr<SWidget> Widget);
 
 	EVisibility GetResetButtonVisibility() const;

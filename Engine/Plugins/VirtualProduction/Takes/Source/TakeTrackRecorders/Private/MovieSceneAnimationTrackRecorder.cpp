@@ -121,9 +121,8 @@ void UMovieSceneAnimationTrackRecorder::CreateTrackImpl()
 		{
 			//If we are syncing to a timecode provider use that's frame rate as our frame rate since
 			//otherwise use the displayrate.
-			const UTimecodeProvider* TimecodeProvider = GEngine->GetTimecodeProvider();
-			FFrameRate SampleRate = (TimecodeProvider && TimecodeProvider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
-				? TimecodeProvider->GetFrameRate() : MovieScene->GetDisplayRate();
+			const TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
+			FFrameRate SampleRate = CurrentFrameTime.IsSet() ? CurrentFrameTime.GetValue().Rate : MovieScene->GetDisplayRate();
 
 			FText Error;
 			FString Name = SkeletalMeshComponent->GetName();
@@ -261,9 +260,8 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 			bRecordInWorldSpace = !OwningTakeRecorderSource->IsOtherActorBeingRecorded(AttachParent->GetOwner());
 		}
 
-		const UTimecodeProvider* TimecodeProvider = GEngine->GetTimecodeProvider();
-		FFrameRate SampleRate = (TimecodeProvider && TimecodeProvider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
-			? TimecodeProvider->GetFrameRate() : MovieScene->GetDisplayRate();
+		const TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
+		FFrameRate SampleRate = CurrentFrameTime.IsSet() ? CurrentFrameTime.GetValue().Rate : MovieScene->GetDisplayRate();
 
 		//Set this up here so we know that it's parent sources have also been added so we record in the correct space
 		FAnimationRecordingSettings RecordingSettings;

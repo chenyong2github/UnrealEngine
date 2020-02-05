@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "SubRegionRemesher.h"
 #include "UObject/NoExportTypes.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "OctreeDynamicMeshComponent.h"
@@ -14,12 +16,12 @@
 #include "Changes/ValueWatcher.h"
 #include "BaseGizmos/BrushStampIndicator.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "Properties/RemeshProperties.h"
 #include "TransformTypes.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 class UTransformGizmo;
 class UTransformProxy;
-
 
 DECLARE_STATS_GROUP(TEXT("SculptTool"), STATGROUP_SculptTool, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("SculptTool_UpdateROI"), SculptTool_UpdateROI, STATGROUP_SculptTool);
@@ -40,10 +42,10 @@ DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_4RemeshPass"), STAT_SculptTool_Remesh
 DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_5PassOctreeUpdate"), STAT_SculptTool_Remesh_PassOctreeUpdate, STATGROUP_SculptTool);
 DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_6Finish"), STAT_SculptTool_Remesh_Finish, STATGROUP_SculptTool);
 
-
 class FMeshVertexChangeBuilder;
 class FDynamicMeshChangeTracker;
 class UPreviewMesh;
+class FSubRegionRemesher;
 
 /** Mesh Sculpting Brush Types */
 UENUM()
@@ -80,11 +82,8 @@ enum class EDynamicMeshSculptBrushType : uint8
 
 };
 
-
-
-
 /**
- *
+ * Tool Builder
  */
 UCLASS()
 class MESHMODELINGTOOLS_API UDynamicMeshSculptToolBuilder : public UMeshSurfacePointToolBuilder
@@ -102,56 +101,51 @@ public:
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
-
-
-
-
-
-
-
-
 UCLASS()
 class MESHMODELINGTOOLS_API UBrushSculptProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
-	UBrushSculptProperties();
+	/* This is a dupe of the bool in the tool class.  I needed it here so it could be checked as an EDITCONDITION */
+	UPROPERTY()
+	bool bIsRemeshingEnabled = false;
 
 	/** Primary Brush Mode */
 	UPROPERTY(EditAnywhere, Category = Sculpting)
-	EDynamicMeshSculptBrushType PrimaryBrushType;
+	EDynamicMeshSculptBrushType PrimaryBrushType = EDynamicMeshSculptBrushType::Move;
 
 	/** Power/Speed of Brush */
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", EditCondition = "PrimaryBrushType != EDynamicMeshSculptBrushType::Pull"))
-	float BrushSpeed;
+	float PrimaryBrushSpeed = 0.5;
 
 	/** Smoothing Speed of Smoothing brush */
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float SmoothSpeed;
+	float SmoothBrushSpeed = 0.25;
+
+	/** If enabled, Full Remeshing is applied during smoothing, which will wipe out fine details */
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "bIsRemeshingEnabled"))
+	bool bSmoothBrushRemeshes = false;
 
 	/** If true, try to preserve the shape of the UV/3D mapping. This will prevent smoothing in some cases */
 	UPROPERTY(EditAnywhere, Category = Sculpting)
-	bool bPreserveUVFlow;
-
+	bool bPreserveUVFlow = false;
 
 	/** Depth of Brush into surface along view ray or surface normal, depending on brush */
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0"))
-	float BrushDepth;
+	float BrushDepth = 0;
 
 	/** Disable updating of the brush Target Surface after each stroke */
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
-	bool bFreezeTarget;
+	bool bFreezeTarget = false;
 
 	/** Hit back sides of triangles */
 	UPROPERTY(EditAnywhere, Category = Sculpting)
-	bool bHitBackFaces;
+	bool bHitBackFaces = true;
 
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
-
-
 
 UCLASS()
 class MESHMODELINGTOOLS_API UFixedPlaneBrushProperties : public UInteractiveToolPropertySet
@@ -179,52 +173,19 @@ public:
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
-
-
-
 UCLASS()
-class MESHMODELINGTOOLS_API UBrushRemeshProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UBrushRemeshProperties : public URemeshProperties
 {
 	GENERATED_BODY()
 
 public:
-	UBrushRemeshProperties();
-
 	/** Target Relative Triangle Sizefor Dynamic Meshing */
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.5", UIMax = "2.0", ClampMin = "0.1", ClampMax = "100.0"))
-	float RelativeSize;
-
-	/** Smoothing speed for dynamic meshing */
-	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
-	float Smoothing;
-
-	/** If enabled, Full Remeshing is applied during smoothing, which will wipe out fine details */
-	UPROPERTY(EditAnywhere, Category = Remeshing)
-	bool bRemeshSmooth = false;
-
-
-	/** Enable edge flips */
-	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
-	bool bFlips = false;
-
-	/** Enable edge splits */
-	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
-	bool bSplits = true;
-
-	/** Enable edge collapses */
-	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
-	bool bCollapses = true;
-
-	/** Prevent normal flips */
-	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
-	bool bPreventNormalFlips = false;
-
+	float RelativeSize = 1.0f;
 };
 
-
-
 /**
- *
+ * Dynamic Mesh Sculpt Tool Class
  */
 UCLASS()
 class MESHMODELINGTOOLS_API UDynamicMeshSculptTool : public UMeshSurfacePointTool
@@ -261,7 +222,6 @@ public:
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 public:
-
 	/** Properties that control sculpting*/
 	UPROPERTY()
 	UBrushSculptProperties* SculptProperties;
@@ -281,7 +241,6 @@ public:
 	UFixedPlaneBrushProperties* GizmoProperties;
 
 public:
-
 	virtual void IncreaseBrushRadiusAction();
 	virtual void DecreaseBrushRadiusAction();
 	virtual void IncreaseBrushRadiusSmallStepAction();
@@ -290,16 +249,13 @@ public:
 	virtual void IncreaseBrushSpeedAction();
 	virtual void DecreaseBrushSpeedAction();
 
-
 	virtual void NextBrushModeAction();
 	virtual void PreviousBrushModeAction();
 
 	virtual void NextHistoryBrushModeAction();
 	virtual void PreviousHistoryBrushModeAction();
 
-
-protected:
-
+private:
 	UWorld* TargetWorld;		// required to spawn UPreviewMesh/etc
 
 	UPROPERTY()
@@ -322,13 +278,14 @@ protected:
 	TValueWatcher<EMeshEditingMaterialModes> MaterialModeWatcher;
 	void UpdateMaterialMode(EMeshEditingMaterialModes NewMode);
 
-
 	FInterval1d BrushRelativeSizeRange;
 	double CurrentBrushRadius;
 	void CalculateBrushRadius();
 
 	bool bEnableRemeshing;
 	double InitialEdgeLength;
+
+	FSubRegionRemesher MakeRemesher(FDynamicMesh3* Mesh, FDynamicMeshOctree3* Octree);
 
 	bool bInDrag;
 
@@ -340,7 +297,6 @@ protected:
 	FVector3d LastBrushPosWorld;
 	FVector3d LastBrushPosNormalWorld;
 	FVector3d LastSmoothBrushPosLocal;
-	
 
 	TArray<int> VertexROI;
 	TSet<int> VertexSetBuffer;
@@ -421,7 +377,6 @@ protected:
 	int BrushTypeHistoryIndex = 0;
 
 	UPreviewMesh* MakeDefaultSphereMesh(UObject* Parent, UWorld* World, int Resolution = 32);
-
 
 	//
 	// support for gizmo in FixedPlane mode

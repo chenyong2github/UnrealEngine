@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Logging/LogMacros.h"
 
 class IConcertSyncClient;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogDisasterRecovery, Log, All);
 
 /**
  * Interface for the Disaster Recovery module.

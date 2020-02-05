@@ -27,13 +27,22 @@ bool FMovieSceneTangentData::Serialize(FArchive& Ar)
 		return false;
 	}
 
-	// Serialization is handled manually to avoid the extra size overhead of FProperty tagging.
-	// Otherwise with many keys in a FMovieSceneTangentData the size can become quite large.
-	Ar << ArriveTangent;
-	Ar << LeaveTangent;
-	Ar << TangentWeightMode;
-	Ar << ArriveTangentWeight;
-	Ar << LeaveTangentWeight;
+	if (Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::SerializeFloatChannelCompletely)
+	{
+		Ar << ArriveTangent;
+		Ar << LeaveTangent;
+		Ar << TangentWeightMode;
+		Ar << ArriveTangentWeight;
+		Ar << LeaveTangentWeight;
+	}
+	else
+	{
+		Ar << ArriveTangent;
+		Ar << LeaveTangent;
+		Ar << ArriveTangentWeight;
+		Ar << LeaveTangentWeight;
+		Ar << TangentWeightMode;
+	}
 
 	return true;
 }
@@ -55,13 +64,29 @@ bool FMovieSceneFloatValue::Serialize(FArchive& Ar)
 	{
 		return false;
 	}
+	
+	if (Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::SerializeFloatChannelCompletely)
+	{
+		// Serialization is handled manually to avoid the extra size overhead of FProperty tagging.
+		// Otherwise with many keys in a FMovieSceneFloatValue the size can become quite large.
+		Ar << Value;
+		Ar << InterpMode;
+		Ar << TangentMode;
+		Ar << Tangent;
+	}
+	else
+	{
+		Ar << Value;
+		Ar << Tangent.ArriveTangent;
+		Ar << Tangent.LeaveTangent;
+		Ar << Tangent.ArriveTangentWeight;
+		Ar << Tangent.LeaveTangentWeight;
+		Ar << Tangent.TangentWeightMode;
+		Ar << InterpMode;
+		Ar << TangentMode;
+		Ar << PaddingByte;
+	}
 
-	// Serialization is handled manually to avoid the extra size overhead of FProperty tagging.
-	// Otherwise with many keys in a FMovieSceneFloatValue the size can become quite large.
-	Ar << Value;
-	Ar << InterpMode;
-	Ar << TangentMode;
-	Ar << Tangent;
 
 	return true;
 }
@@ -1053,7 +1078,85 @@ void FMovieSceneFloatChannel::AddKeys(const TArray<FFrameNumber>& InTimes, const
 bool FMovieSceneFloatChannel::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FSequencerObjectVersion::GUID);
-	return false;
+	if (Ar.CustomVer(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::SerializeFloatChannelCompletely)
+	{
+		return false;
+	}
+
+	Ar << PreInfinityExtrap;
+	Ar << PostInfinityExtrap;
+
+	//Save FFrameNumber(int32) and  FMovieSceneFloatValue Arrays.
+	//We try to save and load the full array data, unless we are
+	//ByteSwapping or the Size has a mismatch on load, then we do normal save/load
+	if (Ar.IsLoading())
+	{
+		int32 CurrentSerializedElementSize = sizeof(FFrameNumber);
+		int32 SerializedElementSize = 0;
+		Ar << SerializedElementSize;
+		if (SerializedElementSize != CurrentSerializedElementSize || Ar.IsByteSwapping())
+		{
+			Ar << Times;
+		}
+		else
+		{
+			Times.CountBytes(Ar);
+			int32 NewArrayNum = 0;
+			Ar << NewArrayNum;
+			Times.Empty(NewArrayNum);
+			if (NewArrayNum > 0)
+			{
+				Times.AddUninitialized(NewArrayNum);
+				Ar.Serialize(Times.GetData(), NewArrayNum * SerializedElementSize);
+			}
+		}
+		CurrentSerializedElementSize = sizeof(FMovieSceneFloatValue);
+		Ar << SerializedElementSize;
+		if (SerializedElementSize != CurrentSerializedElementSize || Ar.IsByteSwapping())
+		{
+			Ar << Values;
+		}
+		else
+		{
+			Values.CountBytes(Ar);
+			int32 NewArrayNum = 0;
+			Ar << NewArrayNum;
+			Values.Empty(NewArrayNum);
+			if (NewArrayNum > 0)
+			{
+				Values.AddUninitialized(NewArrayNum);
+				Ar.Serialize(Values.GetData(), NewArrayNum * SerializedElementSize);
+			}
+		}
+	}
+	else if (Ar.IsSaving())
+	{
+		int32 SerializedElementSize = sizeof(FFrameNumber);
+		Ar << SerializedElementSize;
+		Times.CountBytes(Ar);
+		int32 ArrayCount = Times.Num();
+		Ar << ArrayCount;
+		if (ArrayCount > 0)
+		{
+			Ar.Serialize(Times.GetData(), ArrayCount * SerializedElementSize);
+		}
+		Values.CountBytes(Ar);
+		SerializedElementSize = sizeof(FMovieSceneFloatValue);
+		Ar << SerializedElementSize;
+		ArrayCount = Values.Num();
+		Ar << ArrayCount;
+		if (ArrayCount > 0)
+		{
+			Ar.Serialize(Values.GetData(), ArrayCount * SerializedElementSize);
+		}
+	}
+
+	Ar << DefaultValue;
+	Ar << bHasDefaultValue;
+	Ar << TickResolution.Numerator;
+	Ar << TickResolution.Denominator;
+
+	return true;
 }
 
 #if WITH_EDITORONLY_DATA

@@ -139,6 +139,9 @@ public:
  * UGizmoTransformChangeStateTarget is an implementation of IGizmoStateTarget that
  * emits an FComponentWorldTransformChange on a target USceneComponent. This StateTarget
  * also opens/closes an undo transaction via GizmoManager.
+ *
+ * The DependentChangeSources and ExternalDependentChangeSources lists allow additional
+ * FChange objects to be inserted into the transaction, provided by IToolCommandChangeSource implementations.
  */
 UCLASS()
 class INTERACTIVETOOLSFRAMEWORK_API UGizmoTransformChangeStateTarget : public UObject, public IGizmoStateTarget
@@ -160,6 +163,11 @@ public:
 			{
 				Source->BeginChange();
 			}
+
+			for (IToolCommandChangeSource* Source : ExternalDependentChangeSources)
+			{
+				Source->BeginChange();
+			}
 		}
 	}
 
@@ -176,6 +184,16 @@ public:
 				TransactionManager->EmitObjectChange(TargetComponent.Get(), MoveTemp(TransformChange), ChangeDescription);
 
 				for (TUniquePtr<IToolCommandChangeSource>& Source : DependentChangeSources)
+				{
+					TUniquePtr<FToolCommandChange> Change = Source->EndChange();
+					if (Change)
+					{
+						UObject* Target = Source->GetChangeTarget();
+						TransactionManager->EmitObjectChange(Target, MoveTemp(Change), Source->GetChangeDescription());
+					}
+				}
+
+				for (IToolCommandChangeSource* Source : ExternalDependentChangeSources)
 				{
 					TUniquePtr<FToolCommandChange> Change = Source->EndChange();
 					if (Change)
@@ -218,6 +236,11 @@ public:
 	 * This allows (eg) TransformProxy change events to be collected at the same time as changes to a gizmo target component.
 	 */
 	TArray<TUniquePtr<IToolCommandChangeSource>> DependentChangeSources;
+
+	/**
+	 * Dependent-change generators that are not owned by this class, otherwise handled identically to DependentChangeSources
+	 */
+	TArray<IToolCommandChangeSource*> ExternalDependentChangeSources;
 
 public:
 

@@ -779,7 +779,7 @@ void FCinematicShotTrackEditor::OnLockShotsClicked(ECheckBoxState CheckBoxState)
 	}
 	else
 	{
-		GetSequencer()->UpdateCameraCut(nullptr, nullptr);
+		GetSequencer()->UpdateCameraCut(nullptr, EMovieSceneCameraCutParams());
 		GetSequencer()->SetPerspectiveViewportCameraCutEnabled(false);
 	}
 

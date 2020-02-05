@@ -372,25 +372,9 @@ public:
 	FParticleAttributesTexture RenderAttributesTexture;
 	/** Texture holding simulation attributes. */
 	FParticleAttributesTexture SimulationAttributesTexture;
-	/** Vertex buffer that points to the current sorted vertex buffer. */
-	FParticleIndicesVertexBuffer SortedVertexBuffer;
-
-	FParticleSortBuffers ParticleSortBuffers;
 
 	/** Frame index used to track double buffered resources on the GPU. */
-	int32 FrameIndex;
-
-	/** List of simulations to be sorted. */
-	TArray<FParticleSimulationSortInfo> SimulationsToSort;
-	/** The total number of sorted particles. */
-	int32 SortedParticleCount;
-
-	/** Default constructor. */
-	FParticleSimulationResources()
-		: FrameIndex(0)
-		, SortedParticleCount(0)
-	{
-	}
+	int32 FrameIndex = 0;
 
 	/**
 	 * Initialize resources.
@@ -404,7 +388,6 @@ public:
 			ParticleResources->StateTextures[1].InitResource();
 			ParticleResources->RenderAttributesTexture.InitResource();
 			ParticleResources->SimulationAttributesTexture.InitResource();
-			ParticleResources->SortedVertexBuffer.InitResource();
 
 			FRHITexture* AttributeTextures[2];
 			AttributeTextures[0] = ParticleResources->RenderAttributesTexture.TextureRHI;
@@ -425,7 +408,6 @@ public:
 			ParticleResources->StateTextures[1].ReleaseResource();
 			ParticleResources->RenderAttributesTexture.ReleaseResource();
 			ParticleResources->SimulationAttributesTexture.ReleaseResource();
-			ParticleResources->SortedVertexBuffer.ReleaseResource();
 		});
 	}
 
@@ -680,7 +662,7 @@ TGlobalResource<FGPUSpriteVertexDeclaration> GGPUSpriteVertexDeclaration;
 struct FGPUSpriteMeshDataUserData  : public FOneFrameResource
 {
 	int32 SortedOffset = 0;
-	FRHIShaderResourceView* SortedParticleIndicesSRV = nullptr;
+	FShaderResourceViewRHIRef SortedParticleIndicesSRV;
 };
 
 /**
@@ -2546,9 +2528,12 @@ public:
 /**
  * Vertex buffer used to hold particle indices.
  */
-class FGPUParticleVertexBuffer : public FParticleIndicesVertexBuffer
+class FGPUParticleVertexBuffer : public FVertexBuffer
 {
 public:
+
+	/** Shader resource view of the vertex buffer. */
+	FShaderResourceViewRHIRef VertexBufferSRV;
 
 	/** The number of particles referenced by this vertex buffer. */
 	int32 ParticleCount;
@@ -2587,6 +2572,13 @@ public:
 			VertexBufferRHI = RHICreateVertexBuffer(BufferSize, Flags, CreateInfo);
 			VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, BufferStride, PF_G16R16F);
 		}
+	}
+
+	/** Release RHI resources. */
+	virtual void ReleaseRHI() override
+	{
+		VertexBufferSRV.SafeRelease();
+		FVertexBuffer::ReleaseRHI();
 	}
 };
 
@@ -3065,6 +3057,7 @@ public:
 				const bool bTranslucent = RendersWithTranslucentMaterial();
 				const bool bAllowSorting = FXConsoleVariables::bAllowGPUSorting
 					&& FeatureLevel == ERHIFeatureLevel::SM5
+					// && RHISupportsComputeShaders(ViewFamily.GetShaderPlatform())
 					&& bTranslucent;
 
 				// Iterate over views and assign parameters for each.
@@ -3081,14 +3074,16 @@ public:
 				FGPUSpriteMeshDataUserData* MeshBatchUserData = nullptr;
 				if (bAllowSorting && SortMode == PSORTMODE_DistanceToView)
 				{
-					MeshBatchUserData = &Collector.AllocateOneFrameResource<FGPUSpriteMeshDataUserData>();
-
 					// Extensibility TODO: This call to AddSortedGPUSimulation is very awkward. When rendering a frame we need to
 					// accumulate all GPU particle emitters that need to be sorted. That is so they can be sorted in one big radix
 					// sort for efficiency. Ideally that state is per-scene renderer but the renderer doesn't know anything about particles.
-					check(SimulationResources->SortedVertexBuffer.IsInitialized());
-					MeshBatchUserData->SortedOffset = FXSystem->AddSortedGPUSimulation(Simulation, View->ViewMatrices.GetViewOrigin());
-					MeshBatchUserData->SortedParticleIndicesSRV = SimulationResources->SortedVertexBuffer.VertexBufferSRV;
+					FGPUSortManager::FAllocationInfo SortedIndicesInfo;
+					if (FXSystem->AddSortedGPUSimulation(Simulation, View->ViewMatrices.GetViewOrigin(), bTranslucent, SortedIndicesInfo))
+					{
+						MeshBatchUserData = &Collector.AllocateOneFrameResource<FGPUSpriteMeshDataUserData>();
+						MeshBatchUserData->SortedOffset = SortedIndicesInfo.BufferOffset;
+						MeshBatchUserData->SortedParticleIndicesSRV = SortedIndicesInfo.BufferSRV;
+					}
 				}
 				check(Simulation->VertexBuffer.IsInitialized());
 				VertexFactory.SetUnsortedParticleIndicesSRV(Simulation->VertexBuffer.VertexBufferSRV);
@@ -4521,18 +4516,6 @@ void FFXSystem::InitGPUResources()
 	{
 		check(ParticleSimulationResources);
 		ParticleSimulationResources->Init();
-
-		ParticleSimulationResources->ParticleSortBuffers.SetBufferSize(GParticleSimulationTextureSizeX * GParticleSimulationTextureSizeY);
-		FParticleSimulationResources* InParticleSimulationResources = ParticleSimulationResources;
-		ENQUEUE_RENDER_COMMAND(FInitParticleSortBuffersCommand)(
-			[InParticleSimulationResources](FRHICommandList& RHICmdList)
-			{
-				InParticleSimulationResources->ParticleSortBuffers.InitRHI();
-
-				// Initialize SortedVertexBuffer to a valid resource, ensuring it can be used in GetDynamicMeshElementsEmitter() 
-				InParticleSimulationResources->SortedVertexBuffer.VertexBufferRHI = InParticleSimulationResources->ParticleSortBuffers.GetSortedVertexBufferRHI(0);
-				InParticleSimulationResources->SortedVertexBuffer.VertexBufferSRV = InParticleSimulationResources->ParticleSortBuffers.GetSortedVertexBufferSRV(0);
-			});
 	}
 }
 
@@ -4542,12 +4525,6 @@ void FFXSystem::ReleaseGPUResources()
 	{
 		check(ParticleSimulationResources);
 		ParticleSimulationResources->Release();
-		FParticleSimulationResources* InParticleSimulationResources = ParticleSimulationResources;
-		ENQUEUE_RENDER_COMMAND(FReleaseParticleSortBuffersCommand)(
-			[InParticleSimulationResources](FRHICommandList& RHICmdList)
-			{
-				InParticleSimulationResources->ParticleSortBuffers.ReleaseRHI();
-			});
 	}
 }
 
@@ -4590,18 +4567,43 @@ void FFXSystem::RemoveGPUSimulation(FParticleSimulationGPU* Simulation)
 	}
 }
 
-int32 FFXSystem::AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, const FVector& ViewOrigin)
+bool FFXSystem::AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, const FVector& ViewOrigin, bool bIsTranslucent, FGPUSortManager::FAllocationInfo& OutInfo)
 {
 	LLM_SCOPE(ELLMTag::Particles);
+	check(RHISupportsComputeShaders(ShaderPlatform));
 
-	check(FeatureLevel == ERHIFeatureLevel::SM5);
-	const int32 BufferOffset = ParticleSimulationResources->SortedParticleCount;
-	ParticleSimulationResources->SortedParticleCount += Simulation->VertexBuffer.ParticleCount;
-	FParticleSimulationSortInfo* SortInfo = new(ParticleSimulationResources->SimulationsToSort) FParticleSimulationSortInfo();
-	SortInfo->VertexBufferSRV = Simulation->VertexBuffer.VertexBufferSRV;
-	SortInfo->ViewOrigin = ViewOrigin;
-	SortInfo->ParticleCount = Simulation->VertexBuffer.ParticleCount;
-	return BufferOffset;
+	const EGPUSortFlags SortFlags = 
+		EGPUSortFlags::KeyGenAfterPostRenderOpaque |
+		EGPUSortFlags::ValuesAsG16R16F | 
+		EGPUSortFlags::LowPrecisionKeys | 
+		EGPUSortFlags::SortAfterPostRenderOpaque;
+
+	// Currently opaque materials would need SortAfterPreRender but this is incompatible with KeyGenAfterPostRenderOpaque
+	if (bIsTranslucent && GPUSortManager && GPUSortManager->AddTask(OutInfo, Simulation->VertexBuffer.ParticleCount, SortFlags))
+	{
+		SimulationsToSort.Emplace(Simulation->VertexBuffer.VertexBufferSRV, ViewOrigin, (uint32)Simulation->VertexBuffer.ParticleCount, OutInfo);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void FFXSystem::GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
+{
+	check(EnumHasAnyFlags(Flags, EGPUSortFlags::KeyGenAfterPostRenderOpaque));
+	check(EnumHasAnyFlags(Flags, EGPUSortFlags::LowPrecisionKeys));
+
+	// First generate keys for each emitter to be sorted.
+	const int32 TotalParticleCount = GenerateParticleSortKeys(
+		RHICmdList,
+		KeysUAV,
+		ValuesUAV,
+		ParticleSimulationResources->GetVisualizeStateTextures().PositionTextureRHI,
+		SimulationsToSort,
+		FeatureLevel,
+		BatchId);
 }
 
 void FFXSystem::AdvanceGPUParticleFrame(bool bAllowGPUParticleUpdate)
@@ -4614,22 +4616,7 @@ void FFXSystem::AdvanceGPUParticleFrame(bool bAllowGPUParticleUpdate)
 
 	// Reset the list of sorted simulations. As PreRenderView is called on GPU simulations we'll
 	// allocate space for them in the sorted index buffer.
-	ParticleSimulationResources->SimulationsToSort.Reset();
-	ParticleSimulationResources->SortedParticleCount = 0;
-}
-
-void FFXSystem::SortGPUParticles(FRHICommandListImmediate& RHICmdList)
-{
-	if (ParticleSimulationResources->SimulationsToSort.Num() > 0)
-	{
-		SortParticlesGPU(
-			RHICmdList,
-			ParticleSimulationResources->ParticleSortBuffers,
-			ParticleSimulationResources->GetVisualizeStateTextures().PositionTextureRHI,
-			ParticleSimulationResources->SimulationsToSort,
-			GetFeatureLevel()
-			);
-	}
+	SimulationsToSort.Reset();
 }
 
 /**

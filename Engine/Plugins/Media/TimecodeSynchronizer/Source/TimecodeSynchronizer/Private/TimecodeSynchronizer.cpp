@@ -271,7 +271,12 @@ void UTimecodeSynchronizer::PostEditChangeChainProperty(FPropertyChangedChainEve
 }
 #endif
 
-FTimecode UTimecodeSynchronizer::GetTimecode() const
+FQualifiedFrameTime UTimecodeSynchronizer::GetQualifiedFrameTime() const
+{
+	return FQualifiedFrameTime(GetTimecodeInternal(), GetFrameRateInternal());
+}
+
+FTimecode UTimecodeSynchronizer::GetTimecodeInternal() const
 {
 	FTimecode Timecode;
 	if (IsSynchronized())
@@ -327,7 +332,7 @@ FFrameTime UTimecodeSynchronizer::GetProviderFrameTime() const
 	return ProviderFrameTime;
 }
 
-FFrameRate UTimecodeSynchronizer::GetFrameRate() const
+FFrameRate UTimecodeSynchronizer::GetFrameRateInternal() const
 {
 	return RegisteredCustomTimeStep ? RegisteredCustomTimeStep->GetFixedFrameRate() : FixedFrameRate;
 }
@@ -890,7 +895,7 @@ void UTimecodeSynchronizer::StartSources()
 	FTimeSynchronizationStartData StartData;
 	CurrentSystemFrameTime = StartData.StartFrame = CalculateSyncTime();
 
-	FApp::SetTimecodeAndFrameRate(GetTimecode(), GetFrameRate());
+	FApp::SetCurrentFrameTime(GetDelayedQualifiedFrameTime());
 
 	for (UTimeSynchronizationSource* InputSource : TimeSynchronizationInputSources)
 	{

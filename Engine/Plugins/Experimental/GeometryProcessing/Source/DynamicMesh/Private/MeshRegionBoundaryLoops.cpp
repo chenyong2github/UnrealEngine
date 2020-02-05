@@ -9,6 +9,18 @@
 
 FMeshRegionBoundaryLoops::FMeshRegionBoundaryLoops(const FDynamicMesh3* MeshIn, const TArray<int>& RegionTris, bool bAutoCompute)
 {
+	SetMesh(MeshIn, RegionTris);
+
+	if (bAutoCompute)
+	{
+		Compute();
+	}
+}
+
+
+
+void FMeshRegionBoundaryLoops::SetMesh(const FDynamicMesh3* MeshIn, const TArray<int>& RegionTris)
+{
 	this->Mesh = MeshIn;
 
 	// make flag set for included triangles
@@ -39,11 +51,6 @@ FMeshRegionBoundaryLoops::FMeshRegionBoundaryLoops(const FDynamicMesh3* MeshIn, 
 				}
 			}
 		}
-	}
-
-	if (bAutoCompute)
-	{
-		Compute();
 	}
 }
 

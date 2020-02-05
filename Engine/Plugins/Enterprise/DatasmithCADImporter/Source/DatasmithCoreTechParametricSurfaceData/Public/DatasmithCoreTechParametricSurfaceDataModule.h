@@ -12,6 +12,8 @@
 class FDatasmithCoreTechParametricSurfaceDataModule : public IModuleInterface
 {
 public:
-    static FDatasmithCoreTechParametricSurfaceDataModule& Get();
-    static bool IsAvailable();
+	virtual void StartupModule() override;
+
+	static FDatasmithCoreTechParametricSurfaceDataModule& Get();
+	static bool IsAvailable();
 };

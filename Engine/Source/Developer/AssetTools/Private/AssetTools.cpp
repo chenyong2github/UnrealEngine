@@ -719,8 +719,7 @@ void UAssetToolsImpl::GenerateAdvancedCopyDestinations(FAdvancedCopyParams& InPa
 						// The default value for save packages is true if SCC is enabled because the user can use SCC to revert a change
 						MoveDialogInfo.bSavePackages = ISourceControlModule::Get().IsEnabled();
 						ObjectTools::GetMoveDialogInfo(NSLOCTEXT("UnrealEd", "DuplicateObjects", "Copy Objects"), ExistingObject, InParams.bGenerateUniqueNames, Parent, DestinationFolder, MoveDialogInfo);
-						FString DestinationPackage = MoveDialogInfo.PGN.PackageName + TEXT("/") + MoveDialogInfo.PGN.ObjectName;
-						OutPackagesAndDestinations.Add(PackageNameString, DestinationPackage);
+						OutPackagesAndDestinations.Add(PackageNameString, MoveDialogInfo.PGN.PackageName);
 					}
 				}
 			}
@@ -875,7 +874,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 						MoveDialogInfo.bSavePackages = ISourceControlModule::Get().IsEnabled() || bForceAutosave;
 						MoveDialogInfo.PGN.GroupName = TEXT("");
 						MoveDialogInfo.PGN.ObjectName = FPaths::GetBaseFilename(DestFilename);
-						MoveDialogInfo.PGN.PackageName = FPaths::GetPath(DestFilename);
+						MoveDialogInfo.PGN.PackageName = DestFilename;
 						const bool bShouldPromptForDestinationConflict = !bCopyOverAllDestinationOverlaps;
 						UObject* NewObject = ObjectTools::DuplicateSingleObject(ExistingObject, MoveDialogInfo.PGN, ObjectsUserRefusedToFullyLoad, bShouldPromptForDestinationConflict);
 						NewObjects.Add(NewObject);
@@ -2049,6 +2048,11 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 					FAssetRegistryModule::AssetCreated(Result);
 					GEditor->BroadcastObjectReimported(Result);
 
+					for (UObject* AdditionalResult : Factory->GetAdditionalImportedObjects())
+					{
+						ReturnObjects.Add(Result);
+					}
+
 					bImportSucceeded = true;
 				}
 				else
@@ -2290,7 +2294,7 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 				if (PackageName.Left(1) == TEXT("/"))
 				{
 					// Trim the leading slash so the file manager doesn't get confused
-					PackageName.MidInline(1, false);
+					PackageName.MidInline(1, MAX_int32, false);
 				}
 
 				FPaths::NormalizeFilename(PackageName);

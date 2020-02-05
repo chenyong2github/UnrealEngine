@@ -36,9 +36,9 @@ void FLightSceneInfoCompact::Init(FLightSceneInfo* InLightSceneInfo)
 }
 
 FLightSceneInfo::FLightSceneInfo(FLightSceneProxy* InProxy, bool InbVisible)
-	: Proxy(InProxy)
-	, DynamicInteractionOftenMovingPrimitiveList(NULL)
+	: DynamicInteractionOftenMovingPrimitiveList(NULL)
 	, DynamicInteractionStaticPrimitiveList(NULL)
+	, Proxy(InProxy)
 	, Id(INDEX_NONE)
 	, TileIntersectionResources(nullptr)
 	, HeightFieldTileIntersectionResources(nullptr)
@@ -88,6 +88,7 @@ void FLightSceneInfo::AddToScene()
 		|| bIsValidLightTypeMobile)
 	{
 		// Add the light to the scene's light octree.
+		Scene->FlushAsyncLightPrimitiveInteractionCreation();
 		Scene->LightOctree.AddElement(LightSceneInfoCompact);
 
 		// TODO: Special case directional lights, no need to traverse the octree.
@@ -124,6 +125,8 @@ void FLightSceneInfo::CreateLightPrimitiveInteraction(const FLightSceneInfoCompa
 
 void FLightSceneInfo::RemoveFromScene()
 {
+	Scene->FlushAsyncLightPrimitiveInteractionCreation();
+
 	if (OctreeId.IsValidId())
 	{
 		// Remove the light from the octree.
@@ -139,8 +142,6 @@ void FLightSceneInfo::RemoveFromScene()
 void FLightSceneInfo::Detach()
 {
 	check(IsInRenderingThread());
-	
-	Scene->FlushAsyncLightPrimitiveInteractionCreation();
 
 	// implicit linked list. The destruction will update this "head" pointer to the next item in the list.
 	while(DynamicInteractionOftenMovingPrimitiveList)
@@ -201,6 +202,24 @@ bool FLightSceneInfo::ShouldRenderLight(const FViewInfo& View) const
 bool FLightSceneInfo::IsPrecomputedLightingValid() const
 {
 	return (bPrecomputedLightingIsValid && NumUnbuiltInteractions < GWholeSceneShadowUnbuiltInteractionThreshold) || !Proxy->HasStaticShadowing();
+}
+
+FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionOftenMovingPrimitiveList(bool bSync) const
+{
+	if (bSync)
+	{
+		Scene->FlushAsyncLightPrimitiveInteractionCreation();
+	}
+	return DynamicInteractionOftenMovingPrimitiveList;
+}
+
+FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionStaticPrimitiveList(bool bSync) const
+{
+	if (bSync)
+	{
+		Scene->FlushAsyncLightPrimitiveInteractionCreation();
+	}
+	return DynamicInteractionStaticPrimitiveList;
 }
 
 void FLightSceneInfo::ReleaseRHI()

@@ -41,6 +41,11 @@ public:
 	FDynamicMesh3 *Mesh;
 	FVector3d PlaneOrigin, PlaneNormal;
 	
+	/**
+	 * If set, only edges that pass this filter will be split
+	 */
+	TUniqueFunction<bool(int32)> EdgeFilterFunc = nullptr;
+
 	bool bCollapseDegenerateEdgesOnCut = true;
 	double DegenerateEdgeTol = FMathd::ZeroTolerance;
 
@@ -73,6 +78,14 @@ public:
 	// Triangle IDs of hole fill triangles.  Outer array is 1:1 with the OpenBoundaries array
 	TArray<TArray<int>> HoleFillTriangles;
 
+	struct FCutResultRegion
+	{
+		int32 GroupID;
+		TArray<int32> Triangles;
+	};
+	/** List of output cut regions (eg that have separate GroupIDs). Currently only calculated by SplitEdgesOnly() path */
+	TArray<FCutResultRegion> ResultRegions;
+
 public:
 
 	/**
@@ -92,13 +105,33 @@ public:
 		return EOperationValidationResult::Ok;
 	}
 
-	// split plane-crossing edges and remove geometry on the positive side of the cutting plane
+	/**
+	 * Compute the plane cut by splitting mesh edges that cross the cut plane, and then deleting any triangles
+	 * on the positive side of the cutting plane.
+	 * @return true if operation succeeds
+	 */
 	virtual bool Cut();
 
-	// alternate path for splitting the mesh without deleting the other half
+	/**
+	 * Compute the plane cut by splitting mesh edges that cross the cut plane, but not deleting triangles on positive side.
+	 * @param bSplitVerticesAtPlane if true, vertices on cutting plane are split into multiple vertices
+	 * @param OffsetSeparatedPortion positive side of cut mesh is offset by this distance along plane normal
+	 * @param TriLabels optional per-triangle integer labels
+	 * @param NewLabelStartID starting new label value
+	 * @param bAddBoundariesFirstHalf add open boundaries on "first" half to OpenBoundaries list (default true)
+	 * @param bAddBoundariesSecondHalf add open boundaries on "second" half to OpenBoundaries list (default true)
+	 * @return true if operation succeeds
+	 */
 	virtual bool CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetSeparatedPortion = 0.0f,
 		TDynamicMeshScalarTriangleAttribute<int>* TriLabels = nullptr, int NewLabelStartID = 0,
 		bool bAddBoundariesFirstHalf = true, bool bAddBoundariesSecondHalf = true);
+
+	/**
+	 * Compute the plane cut by splitting mesh edges that cross the cut plane, and then optionally update groups
+	 * @param bAssignNewGroups if true, update group IDs such that each group-connected-component on either side of the cut plane is assigned a new unique group ID
+	 * @return true if operation succeeds
+	 */
+	virtual bool SplitEdgesOnly(bool bAssignNewGroups);
 
 	/**
 	 *  Fill cut loops with FSimpleHoleFiller
@@ -118,4 +151,7 @@ protected:
 	void CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges);
 	void SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, bool bDeleteTrisOnPlane = true);
 	bool ExtractBoundaryLoops(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges, FMeshPlaneCut::FOpenBoundary& Boundary);
+
+	// set of vertices lying on plane after calling SplitCrossingEdges
+	TSet<int32> OnCutVertices;
 };

@@ -14,6 +14,26 @@
 
 
 /**
+ * Information about the interpolation that was done
+ * Used to give some cues to the caller about what's happened
+ */
+struct FLiveLinkInterpolationInfo
+{
+	/** Distance in seconds between expected evaluation time and newest sample */
+	float ExpectedEvaluationDistanceFromNewestSeconds;
+	
+	/** Distance in seconds between expected evaluation time and oldest sample */
+	float ExpectedEvaluationDistanceFromOldestSeconds;
+
+	/** Whether sampling was done below our oldest sample */
+	bool bUnderflowDetected = false;
+
+	/** Whether interpolation point was above our newest sample */
+	bool bOverflowDetected = false;
+};
+
+
+/**
  * Basic object to interpolate live link frames
  * Inherit from it to do custom blending for your data type
  * @note It can be called from any thread
@@ -22,8 +42,9 @@ class LIVELINKINTERFACE_API ILiveLinkFrameInterpolationProcessorWorker
 {
 public:
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const = 0;
-	virtual void Interpolate(double InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame) = 0;
-	virtual void Interpolate(const FQualifiedFrameTime& InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame) = 0;
+
+	virtual void Interpolate(double InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame, FLiveLinkInterpolationInfo& OutInterpolationInfo) = 0;
+	virtual void Interpolate(const FQualifiedFrameTime& InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame, FLiveLinkInterpolationInfo& OutInterpolationInfo) = 0;
 };
 
 

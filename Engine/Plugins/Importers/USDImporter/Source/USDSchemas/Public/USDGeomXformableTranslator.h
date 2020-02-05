@@ -23,8 +23,12 @@ public:
 
 	explicit FUsdGeomXformableTranslator( TSubclassOf< USceneComponent > InComponentTypeOverride, TSharedRef< FUsdSchemaTranslationContext > InContext, const pxr::UsdTyped& InSchema );
 
+	virtual void CreateAssets() override;
 	virtual USceneComponent* CreateComponents() override;
 	virtual void UpdateComponents( USceneComponent* SceneComponent );
+
+	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override;
+	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return true; }
 
 protected:
 	USceneComponent* CreateComponents( TSubclassOf< USceneComponent > ComponentType );

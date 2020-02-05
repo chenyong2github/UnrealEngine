@@ -131,22 +131,25 @@ void UDataprepDeleteObjectsOperation::OnExecution_Implementation(const FDataprep
 	{
 		AActor* Actor = ActorInfo.Actor;
 
-		// Reattach our children to our parent
-		TArray< USceneComponent* > AttachChildren = Actor->GetRootComponent()->GetAttachChildren(); // Make a copy because the array in RootComponent will get modified during the process
-		USceneComponent* AttachParent = Actor->GetRootComponent()->GetAttachParent();
-
-		for ( USceneComponent* ChildComponent : AttachChildren )
+		if(Actor && Actor->GetRootComponent())
 		{
-			if(ChildComponent)
-			{
-				// skip component with invalid or condemned owner
-				AActor* Owner = ChildComponent->GetOwner();
-				if ( Owner == nullptr || Owner == Actor || Owner->IsPendingKill() || InContext.Objects.Contains(Owner) /* Slow!!! */)
-				{
-					continue;
-				}
+			// Reattach our children to our parent
+			TArray< USceneComponent* > AttachChildren = Actor->GetRootComponent()->GetAttachChildren(); // Make a copy because the array in RootComponent will get modified during the process
+			USceneComponent* AttachParent = Actor->GetRootComponent()->GetAttachParent();
 
-				ChildComponent->AttachToComponent( AttachParent, FAttachmentTransformRules::KeepWorldTransform );
+			for ( USceneComponent* ChildComponent : AttachChildren )
+			{
+				if(ChildComponent)
+				{
+					// skip component with invalid or condemned owner
+					AActor* Owner = ChildComponent->GetOwner();
+					if ( Owner == nullptr || Owner == Actor || Owner->IsPendingKill() || InContext.Objects.Contains(Owner) /* Slow!!! */)
+					{
+						continue;
+					}
+
+					ChildComponent->AttachToComponent( AttachParent, FAttachmentTransformRules::KeepWorldTransform );
+				}
 			}
 		}
 
