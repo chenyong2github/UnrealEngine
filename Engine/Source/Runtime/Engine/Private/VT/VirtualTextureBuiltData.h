@@ -60,7 +60,7 @@ struct FVirtualTextureDataChunk
 	bool ShortenKey(const FString& CacheKey, FString& Result);
 	FThreadSafeBool bFileAvailableInVTDDCDache;
 
-	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey);
+	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName);
 #endif // WITH_EDITORONLY_DATA
 };
 

@@ -35,7 +35,7 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 			const FTexture2DMipMap& OwnerMip = OwnerMips[MipIndex];
 			if (!OwnerMip.DerivedDataKey.IsEmpty())
 			{
-				DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*OwnerMip.DerivedDataKey);
+				DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*OwnerMip.DerivedDataKey, Texture2D->GetPathName());
 			}
 		}
 		*SyncOptions.bSnooze = true;
