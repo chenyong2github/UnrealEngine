@@ -7,12 +7,6 @@
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraDataInterfaceParticleRead.generated.h"
 
-struct FNDIParticleRead_InstanceData
-{
-	FNiagaraSystemInstance* SystemInstance;
-	FNiagaraEmitterInstance* EmitterInstance;
-};
-
 UCLASS(EditInlineNew, Category = "ParticleRead", meta = (DisplayName = "Particle Attribute Reader"))
 class NIAGARA_API UNiagaraDataInterfaceParticleRead : public UNiagaraDataInterface
 {
@@ -27,7 +21,8 @@ public:
 
 	//UNiagaraDataInterface Interface
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual int32 PerInstanceDataSize() const { return sizeof(FNDIParticleRead_InstanceData); }
+	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	virtual int32 PerInstanceDataSize() const override;
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
