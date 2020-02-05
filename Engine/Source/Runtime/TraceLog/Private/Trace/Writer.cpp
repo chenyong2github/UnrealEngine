@@ -708,6 +708,11 @@ void Writer_Initialize()
 ////////////////////////////////////////////////////////////////////////////////
 bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
 {
+	if (GPendingDataHandle || GDataHandle)
+	{
+		return false;
+	}
+
 	Writer_Initialize();
 
 	UPTRINT DataHandle = TcpSocketConnect(Host, Port);
@@ -723,6 +728,11 @@ bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
 ////////////////////////////////////////////////////////////////////////////////
 bool Writer_WriteTo(const ANSICHAR* Path)
 {
+	if (GPendingDataHandle || GDataHandle)
+	{
+		return false;
+	}
+
 	Writer_Initialize();
 
 	UPTRINT DataHandle = FileOpen(Path);
