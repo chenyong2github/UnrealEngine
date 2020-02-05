@@ -283,10 +283,6 @@ class UAnimCompress : public UAnimBoneCompressionCodec
 	UPROPERTY(Category = Compression, EditAnywhere)
 	TEnumAsByte<AnimationCompressionFormat> ScaleCompressionFormat;
 
-	/** Max error for compression of curves using remove redundant keys */
-	UPROPERTY(Category = Compression, EditAnywhere)
-	float MaxCurveError;
-
 public:
 #if WITH_EDITORONLY_DATA
 	/** UAnimBoneCompressionCodec implementation */

@@ -138,9 +138,13 @@ void FAnimModel_AnimSequenceBase::RefreshNotifyTracks()
 	NotifyRoot->ClearChildren();
 	RootTracks.Add(NotifyRoot.ToSharedRef());
 
-	TSharedRef<FAnimTimelineTrack_NotifiesPanel> NotifyPanel = MakeShared<FAnimTimelineTrack_NotifiesPanel>(SharedThis(this));
-	NotifyRoot->AddChild(NotifyPanel);
-	NotifyRoot->SetAnimNotifyPanel(NotifyPanel);
+	if(!NotifyPanel.IsValid())
+	{
+		NotifyPanel = MakeShared<FAnimTimelineTrack_NotifiesPanel>(SharedThis(this));
+		NotifyRoot->SetAnimNotifyPanel(NotifyPanel.ToSharedRef());
+	}
+
+	NotifyRoot->AddChild(NotifyPanel.ToSharedRef());
 }
 
 void FAnimModel_AnimSequenceBase::RefreshCurveTracks()

@@ -72,12 +72,33 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 		// Apply the Bake filter to the same segment of the curve as this. This invalidates the original KeyHandles, because it creates and destroys keys.
 		TArray<FKeyHandle> BakedKeyHandles;
 		BakeFilter->ApplyFilter(InCurveEditor, Pair.Key, MakeArrayView(OriginalKeyHandles.GetData(), OriginalKeyHandles.Num()), BakedKeyHandles);
-
 		// Get the positions from the baked curve to feed into the FFT samples.
 		TArray<FKeyPosition> BakedKeyPositions;
-		BakedKeyPositions.SetNumUninitialized(BakedKeyHandles.Num());
+		BakedKeyPositions.SetNumUninitialized(BakedKeyHandles.Num());	
 		CurveModel->GetKeyPositions(BakedKeyHandles, BakedKeyPositions);
-		
+
+		//Bake Filter returns handles unsorted so need to sort. (Second key is last key but they may change so do it manually).
+		TArray<TPair < FKeyHandle, FKeyPosition>> KeyAndPosition;
+		KeyAndPosition.SetNumUninitialized(BakedKeyHandles.Num());
+		int32 Index = 0;
+		for (; Index < BakedKeyHandles.Num(); ++Index)
+		{
+			KeyAndPosition[Index] = TPair<FKeyHandle, FKeyPosition>(BakedKeyHandles[Index], BakedKeyPositions[Index]);
+		}
+
+		Algo::Sort(KeyAndPosition, [](const TPair < FKeyHandle, FKeyPosition> LHS, const TPair < FKeyHandle, FKeyPosition> RHS)
+		{
+			return LHS.Value.InputValue < RHS.Value.InputValue;
+		});
+
+		for (Index = 0; Index < KeyAndPosition.Num(); ++Index)
+		{
+			BakedKeyHandles[Index] = KeyAndPosition[Index].Key;
+			BakedKeyPositions[Index] = KeyAndPosition[Index].Value;
+		}
+
+		//now it's sorted we can just use them.
+
 		TArray<float> FFTSamples;
 		FFTSamples.Reserve(BakedKeyPositions.Num());
 
@@ -112,7 +133,10 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 		// of handles, as FFT has padded our array (with zeros) up to the next POT.
 		for (int32 KeyHandleIndex = 0; KeyHandleIndex < BakedKeyHandles.Num(); KeyHandleIndex++)
 		{
-			BakedKeyPositions[KeyHandleIndex].OutputValue = FFTSamples[KeyHandleIndex] + ValueOffset;
+			if (!FMath::IsNaN(FFTSamples[KeyHandleIndex]))
+			{
+				BakedKeyPositions[KeyHandleIndex].OutputValue = FFTSamples[KeyHandleIndex] + ValueOffset;
+			}
 		}
 
 		// We re-assign the filtered samples back to our baked curve so that we can then sample it at the original times.

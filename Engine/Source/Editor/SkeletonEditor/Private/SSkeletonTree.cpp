@@ -5,6 +5,8 @@
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/PackageReload.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
@@ -184,6 +186,8 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 		RegisterOnSelectionChanged(InSkeletonTreeArgs.OnSelectionChanged);
 	}
 
+	FCoreUObjectDelegates::OnPackageReloaded.AddSP(this, &SSkeletonTree::HandlePackageReloaded);
+
 	BoneProxy = NewObject<UBoneProxy>(GetTransientPackage());
 	BoneProxy->SkelMeshComponent = PreviewScene.IsValid() ? PreviewScene.Pin()->GetPreviewMeshComponent() : nullptr;
 	BoneProxy->bIsTickable = true;
@@ -314,6 +318,7 @@ SSkeletonTree::~SSkeletonTree()
 	{
 		EditableSkeleton.Pin()->UnregisterOnSkeletonHierarchyChanged(this);
 	}
+	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -1537,6 +1542,23 @@ void SSkeletonTree::OnFilterTextChanged( const FText& SearchText )
 	FilterText = SearchText;
 
 	ApplyFilter();
+}
+
+void SSkeletonTree::HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
+{
+	if (InPackageReloadPhase == EPackageReloadPhase::PostPackageFixup)
+	{
+		for (const auto& RepointedObjectPair : InPackageReloadedEvent->GetRepointedObjects())
+		{
+			if (USkeleton* NewObject = Cast<USkeleton>(RepointedObjectPair.Value))
+			{
+				if (&GetEditableSkeletonInternal()->GetSkeleton() == NewObject)
+				{
+					Refresh();
+				}
+			}
+		}
+	}
 }
 
 void SSkeletonTree::Refresh()

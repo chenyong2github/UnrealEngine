@@ -249,13 +249,6 @@ bool FRigCurveContainer::Select(const FName& InName, bool bSelect)
 
 	if(bSelect)
 	{
-		if (Container)
-		{
-			Container->BoneHierarchy.ClearSelection();
-			Container->SpaceHierarchy.ClearSelection();
-			Container->ControlHierarchy.ClearSelection();
-		}
-
 		Selection.Add(InName);
 	}
 	else

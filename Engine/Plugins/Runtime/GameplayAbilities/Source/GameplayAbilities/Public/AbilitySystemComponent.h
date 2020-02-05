@@ -154,6 +154,11 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UPROPERTY(Replicated)
 	TArray<UAttributeSet*>	SpawnedAttributes;
 
+	/** The linked Anim Instance that this component will play montages in. Use NAME_None for the main anim instance. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Skills")
+	FName AffectedAnimInstanceTag; 
+
+
 	/** Sets the base value of an attribute. Existing active modifiers are NOT cleared and will act upon the new base value. */
 	void SetNumericAttributeBase(const FGameplayAttribute &Attribute, float NewBaseValue);
 

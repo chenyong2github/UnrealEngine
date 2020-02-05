@@ -19,7 +19,8 @@ void FGameplayAbilityActorInfo::InitFromActor(AActor *InOwnerActor, AActor *InAv
 	OwnerActor = InOwnerActor;
 	AvatarActor = InAvatarActor;
 	AbilitySystemComponent = InAbilitySystemComponent;
-
+	AffectedAnimInstanceTag = InAbilitySystemComponent->AffectedAnimInstanceTag; 
+	
 	APlayerController* OldPC = PlayerController.Get();
 
 	// Look for a player controller or pawn in the owner chain.

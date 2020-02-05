@@ -143,6 +143,8 @@ public:
 
 	static bool IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section);
 
+	static bool UseIntermediateTangents();
+
 	inline uint64 GetExtraRequiredMemoryAndReset()
 	{
 		uint64 OriginalValue = ExtraRequiredMemory;
@@ -169,6 +171,10 @@ public:
 			if (WithTangents)
 			{
 				Tangents.Initialize(8, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static, TEXT("SkinCacheTangents"));
+				if (FGPUSkinCache::UseIntermediateTangents())
+				{
+					IntermediateTangents.Initialize(8, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static, TEXT("SkinCacheIntermediateTangents"));
+				}
 			}
 		}
 
@@ -181,6 +187,7 @@ public:
 			if (WithTangents)
 			{
 				Tangents.Release();
+				IntermediateTangents.Release();
 			}
 		}
 
@@ -188,7 +195,12 @@ public:
 		{
 			uint64 PositionBufferSize = 4 * 3 * NumVertices * NUM_BUFFERS;
 			uint64 TangentBufferSize = WithTangents ? 2 * 4 * NumVertices : 0;
-			return TangentBufferSize + PositionBufferSize;
+			uint64 IntermediateTangentBufferSize = 0;
+			if (FGPUSkinCache::UseIntermediateTangents())
+			{
+				IntermediateTangentBufferSize = WithTangents ? 2 * 4 * NumVertices : 0;
+			}
+			return TangentBufferSize + IntermediateTangentBufferSize + PositionBufferSize;
 		}
 
 		uint64 GetNumBytes() const
@@ -201,6 +213,11 @@ public:
 			return WithTangents ? &Tangents : nullptr;
 		}
 
+		FRWBuffer* GetIntermediateTangentBuffer()
+		{
+			return WithTangents ? &IntermediateTangents : nullptr;
+		}
+
 		void RemoveAllFromTransitionArray(TArray<FRHIUnorderedAccessView*>& BuffersToTransition);
 
 	private:
@@ -208,6 +225,7 @@ public:
 		FRWBuffer RWBuffers[NUM_BUFFERS];
 
 		FRWBuffer Tangents;
+		FRWBuffer IntermediateTangents;
 		const uint32 NumVertices;
 		const bool WithTangents;
 	};
@@ -252,6 +270,11 @@ public:
 		FRWBuffer* GetTangentBuffer()
 		{
 			return Allocation->GetTangentBuffer();
+		}
+
+		FRWBuffer* GetIntermediateTangentBuffer()
+		{
+			return Allocation->GetIntermediateTangentBuffer();
 		}
 
 		void Advance(const FVertexBufferAndSRV& BoneBuffer1, uint32 Revision1, const FVertexBufferAndSRV& BoneBuffer2, uint32 Revision2)

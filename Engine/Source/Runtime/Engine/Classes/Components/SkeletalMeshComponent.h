@@ -780,7 +780,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh", meta=(Keywords = "AnimBlueprint", UnsafeDuringActorConstruction = "true"))
 	class UAnimInstance * GetAnimInstance() const;
-
+	
 	/**
 	 * Returns the active post process instance is one is available. This is set on the mesh that this
 	 * component is using, and is evaluated immediately after the main instance.
@@ -867,6 +867,9 @@ public:
 	/** Gets the first layer linked instance corresponding to the specified class */
 	UFUNCTION(BlueprintPure, Category = "Components|SkeletalMesh|Animation Blueprint Linking")
 	UAnimInstance* GetLinkedAnimLayerInstanceByClass(TSubclassOf<UAnimInstance> InClass) const;
+
+	/** Calls a function on each of the anim instances that this mesh component hosts, including linked and post-process instances */
+	void ForEachAnimInstance(TFunctionRef<void(UAnimInstance*)> InFunction);
 
 	/** 
 	 * Returns whether there are any valid instances to run, currently this means whether we have

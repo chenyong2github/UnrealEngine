@@ -6,7 +6,7 @@
 #include "RigUnit_SetControlTransform.generated.h"
 
 /**
- * SetControlBool is used to perform a change in the hierarchy by setting a single bone's Bool.
+ * SetControlBool is used to perform a change in the hierarchy by setting a single control's bool value.
  */
 USTRUCT(meta=(DisplayName="Set Control Bool", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlBool", PrototypeName = "SetControlValue"))
 struct FRigUnit_SetControlBool : public FRigUnitMutable
@@ -39,7 +39,7 @@ struct FRigUnit_SetControlBool : public FRigUnitMutable
 };
 
 /**
- * SetControlFloat is used to perform a change in the hierarchy by setting a single bone's Float.
+ * SetControlFloat is used to perform a change in the hierarchy by setting a single control's float value.
  */
 USTRUCT(meta=(DisplayName="Set Control Float", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlFloat", PrototypeName = "SetControlValue"))
 struct FRigUnit_SetControlFloat : public FRigUnitMutable
@@ -79,7 +79,7 @@ struct FRigUnit_SetControlFloat : public FRigUnitMutable
 };
 
 /**
- * SetControlVector2D is used to perform a change in the hierarchy by setting a single bone's Vector2D.
+ * SetControlVector2D is used to perform a change in the hierarchy by setting a single control's Vector2D value.
  */
 USTRUCT(meta=(DisplayName="Set Control Vector2D", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector2D", PrototypeName = "SetControlValue"))
 struct FRigUnit_SetControlVector2D : public FRigUnitMutable
@@ -119,7 +119,7 @@ struct FRigUnit_SetControlVector2D : public FRigUnitMutable
 };
 
 /**
- * SetControlVector is used to perform a change in the hierarchy by setting a single bone's Vector.
+ * SetControlVector is used to perform a change in the hierarchy by setting a single control's Vector value.
  */
 USTRUCT(meta=(DisplayName="Set Control Vector", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector", PrototypeName = "SetControlValue"))
 struct FRigUnit_SetControlVector : public FRigUnitMutable
@@ -167,7 +167,7 @@ struct FRigUnit_SetControlVector : public FRigUnitMutable
 };
 
 /**
- * SetControlRotator is used to perform a change in the hierarchy by setting a single bone's Rotator.
+ * SetControlRotator is used to perform a change in the hierarchy by setting a single control's Rotator value.
  */
 USTRUCT(meta=(DisplayName="Set Control Rotator", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlRotator", PrototypeName = "SetControlValue"))
 struct FRigUnit_SetControlRotator : public FRigUnitMutable

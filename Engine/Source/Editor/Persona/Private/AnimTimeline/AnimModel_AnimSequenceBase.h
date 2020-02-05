@@ -11,6 +11,7 @@ class UAnimSequenceBase;
 class FAnimTimelineTrack_Notifies;
 class FAnimTimelineTrack_Curves;
 class FAnimTimelineTrack;
+class FAnimTimelineTrack_NotifiesPanel;
 enum class EFrameNumberDisplayFormats : uint8;
 
 /** Anim model for an anim sequence base */
@@ -75,6 +76,9 @@ private:
 
 	/** Root track for notifies */
 	TSharedPtr<FAnimTimelineTrack_Notifies> NotifyRoot;
+
+	/** Legacy notify panel track */
+	TSharedPtr<FAnimTimelineTrack_NotifiesPanel> NotifyPanel;
 
 	/** Root track for curves */
 	TSharedPtr<FAnimTimelineTrack_Curves> CurveRoot;

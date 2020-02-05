@@ -14,6 +14,7 @@
 #include "Editor/SControlRigGizmoNameList.h"
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"
+#include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigElementDetails"
 
@@ -484,6 +485,7 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		}
 	}
 
+	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
 	FRigControl& Control = ContainerBeingCustomized->ControlHierarchy[ElementKeyBeingCustomized.Name];
 
@@ -508,6 +510,7 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					case ERigControlType::Float:
 					{
 						Control.Value = Control.InitialValue = FRigControlValue::Make<float>(0.f);
+						Control.bLimitTranslation = true;
 						Control.MinimumValue = FRigControlValue::Make<float>(0.f);
 						Control.MaximumValue = FRigControlValue::Make<float>(1.f);
 						break;
@@ -515,6 +518,7 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					case ERigControlType::Vector2D:
 					{
 						Control.Value = Control.InitialValue = FRigControlValue::Make<FVector2D>(FVector2D::ZeroVector);
+						Control.bLimitTranslation = true;
 						Control.MinimumValue = FRigControlValue::Make<FVector2D>(FVector2D::ZeroVector);
 						Control.MaximumValue = FRigControlValue::Make<FVector2D>(FVector2D(1.f, 1.f));
 						break;
@@ -559,6 +563,7 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					}
 				}
 
+				this->BlueprintBeingCustomized->PropagateHierarchyFromBPToInstances(false, false);
 				this->ContainerBeingCustomized->ControlHierarchy.OnControlUISettingsChanged.Broadcast(this->ContainerBeingCustomized, this->ElementKeyBeingCustomized);
 			}
 		}
@@ -574,6 +579,8 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		ControlType->CreatePropertyValueWidget()
 	];
 
+	FString ControlTypeName = ControlTypeEnum->GetDisplayNameTextByValue((int64)Control.ControlType).ToString();
+
 	switch (Control.ControlType)
 	{
 		case ERigControlType::Bool:
@@ -588,12 +595,15 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					continue;
 				}
 
-				ControlCategory.AddCustomRow(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
+				FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex).ToString();
+				FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s %s"), *ValueTypeName, *ControlTypeName));
+
+				ControlCategory.AddCustomRow(PropertyLabel)
 				.NameContent()
 				.VAlign(VAlign_Top)
 				[
 					SNew(STextBlock)
-					.Text(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
+					.Text(PropertyLabel)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 				.ValueContent()
@@ -614,6 +624,8 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
 			{
 				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
+				FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex).ToString();
+				FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s %s"), *ValueTypeName, *ControlTypeName));
 
 				if (ValueType == ERigControlValueType::Minimum)
 				{
@@ -641,12 +653,12 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				}
 
 				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
-				Category.AddCustomRow(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
+				Category.AddCustomRow(PropertyLabel)
 				.NameContent()
 				.VAlign(VAlign_Top)
 				[
 					SNew(STextBlock)
-					.Text(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
+					.Text(PropertyLabel)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 					.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
 				]
@@ -669,393 +681,30 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			break;
 		}
 		case ERigControlType::Vector2D:
-		{
-			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
-			{
-				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
-
-				if (ValueType == ERigControlValueType::Minimum)
-				{
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("Limit")))
-					.NameContent()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(TEXT("Limit")))
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitTranslation"))->CreatePropertyValueWidget()
-					];
-
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bDrawLimits")))
-					.NameContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyNameWidget()
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyValueWidget()
-					];
-				}
-
-				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
-				Category.AddCustomRow(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-				.NameContent()
-				.VAlign(VAlign_Top)
-				[
-					SNew(STextBlock)
-					.Text(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-				]
-				.ValueContent()
-				.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-				.MaxDesiredWidth(125.0f * 3.0f)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.Padding(0.0f, 1.0f, 2.0f, 1.0f)
-					[
-						SNew(SNumericEntryBox<float>)
-						.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.Value(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-						.OnValueChanged(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-					]
-					.Padding(0.0f, 1.0f, 2.0f, 1.0f)
-					+ SHorizontalBox::Slot()
-					[
-						SNew(SNumericEntryBox<float>)
-						.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.Value(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationY)
-						.OnValueChanged(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationY)
-					]
-				];
-			}
-			break;
-		}
 		case ERigControlType::Position:
-		{
-			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
-			{
-				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
-
-				if (ValueType == ERigControlValueType::Minimum)
-				{
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("Limit")))
-					.NameContent()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(TEXT("Limit")))
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitTranslation"))->CreatePropertyValueWidget()
-					];
-
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bDrawLimits")))
-					.NameContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyNameWidget()
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyValueWidget()
-					];
-				}
-
-				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
-				Category.AddCustomRow(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-				.NameContent()
-				.VAlign(VAlign_Top)
-				[
-					SNew(STextBlock)
-					.Text(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-				]
-				.ValueContent()
-				.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-				.MaxDesiredWidth(125.0f * 3.0f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					[
-						SNew(SVectorInputBox)
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.bColorAxisLabels(true)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.X(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-						.Y(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationY)
-						.Z(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationZ)
-						.OnXCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-						.OnYCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationY)
-						.OnZCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationZ)
-					]
-				];
-			}
-			break;
-		}
 		case ERigControlType::Scale:
-		{
-			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
-			{
-				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
-
-				if (ValueType == ERigControlValueType::Minimum)
-				{
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("Limit")))
-					.NameContent()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(TEXT("Limit")))
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitScale"))->CreatePropertyValueWidget()
-					];
-
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bDrawLimits")))
-					.NameContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyNameWidget()
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyValueWidget()
-					];
-				}
-
-				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
-				Category.AddCustomRow(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-				.NameContent()
-				.VAlign(VAlign_Top)
-				[
-					SNew(STextBlock)
-					.Text(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-				]
-				.ValueContent()
-				.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-				.MaxDesiredWidth(125.0f * 3.0f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					[
-						SNew(SVectorInputBox)
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.bColorAxisLabels(true)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.X(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleX)
-						.Y(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleY)
-						.Z(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleZ)
-						.OnXCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleX)
-						.OnYCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleY)
-						.OnZCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleZ)
-					]
-				];
-			}
-			break;
-		}
 		case ERigControlType::Rotator:
-		{
-			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
-			{
-				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
-
-				if (ValueType == ERigControlValueType::Minimum)
-				{
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("Limit")))
-					.NameContent()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(TEXT("Limit")))
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitRotation"))->CreatePropertyValueWidget()
-					];
-				}
-
-				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
-				Category.AddCustomRow(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-				.NameContent()
-				.VAlign(VAlign_Top)
-				[
-					SNew(STextBlock)
-					.Text(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-				]
-				.ValueContent()
-				.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-				.MaxDesiredWidth(125.0f * 3.0f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					[
-						SNew(SRotatorInputBox)
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.bColorAxisLabels(true)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.Roll(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationRoll)
-						.Pitch(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationPitch)
-						.Yaw(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationYaw)
-						.OnRollCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationRoll)
-						.OnPitchCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationPitch)
-						.OnYawCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationYaw)
-					]
-				];
-			}
-			break;
-		}
 		case ERigControlType::Transform:
-		{
-			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
-			{
-				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
-
-				if (ValueType == ERigControlValueType::Minimum)
-				{
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bLimitTranslation")))
-					.NameContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitTranslation"))->CreatePropertyNameWidget()
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitTranslation"))->CreatePropertyValueWidget()
-					];
-
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bLimitRotation")))
-					.NameContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitRotation"))->CreatePropertyNameWidget()
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitRotation"))->CreatePropertyValueWidget()
-					];
-
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bLimitScale")))
-					.NameContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitScale"))->CreatePropertyNameWidget()
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitScale"))->CreatePropertyValueWidget()
-					];
-
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bDrawLimits")))
-					.NameContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyNameWidget()
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bDrawLimits"))->CreatePropertyValueWidget()
-					];
-				}
-
-				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
-				Category.AddCustomRow(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-				.NameContent()
-				.VAlign(VAlign_Top)
-				[
-					SNew(STextBlock)
-					.Text(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-				]
-				.ValueContent()
-				.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-				.MaxDesiredWidth(125.0f * 3.0f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					[
-						SNew(SVectorInputBox)
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.bColorAxisLabels(true)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.X(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-						.Y(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationY)
-						.Z(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationZ)
-						.OnXCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-						.OnYCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationY)
-						.OnZCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationZ)
-					]
-					+ SVerticalBox::Slot()
-					[
-						SNew(SRotatorInputBox)
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.bColorAxisLabels(true)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.Roll(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationRoll)
-						.Pitch(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationPitch)
-						.Yaw(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationYaw)
-						.OnRollCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationRoll)
-						.OnPitchCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationPitch)
-						.OnYawCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationYaw)
-					]
-					+ SVerticalBox::Slot()
-					[
-						SNew(SVectorInputBox)
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.bColorAxisLabels(true)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.X(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleX)
-						.Y(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleY)
-						.Z(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleZ)
-						.OnXCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleX)
-						.OnYCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleY)
-						.OnZCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::ScaleZ)
-					]
-				];
-			}
-			break;
-		}
 		case ERigControlType::TransformNoScale:
 		{
 			for(int64 ValueTypeIndex = 0; ValueTypeIndex < ValueTypeEnum->GetMaxEnumValue(); ValueTypeIndex++)
 			{
 				ERigControlValueType ValueType = (ERigControlValueType)ValueTypeIndex;
+				FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex).ToString();
+				FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s %s"), *ValueTypeName, *ControlTypeName));
 
 				if (ValueType == ERigControlValueType::Minimum)
 				{
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bLimitTranslation")))
+					LimitsCategory.AddCustomRow(FText::FromString(TEXT("Limit")))
 					.NameContent()
 					[
-						DetailBuilder.GetProperty(TEXT("bLimitTranslation"))->CreatePropertyNameWidget()
+						SNew(STextBlock)
+						.Text(FText::FromString(TEXT("Limit")))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
 					]
 					.ValueContent()
 					[
 						DetailBuilder.GetProperty(TEXT("bLimitTranslation"))->CreatePropertyValueWidget()
-					];
-
-					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bLimitRotation")))
-					.NameContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitRotation"))->CreatePropertyNameWidget()
-					]
-					.ValueContent()
-					[
-						DetailBuilder.GetProperty(TEXT("bLimitRotation"))->CreatePropertyValueWidget()
 					];
 
 					LimitsCategory.AddCustomRow(FText::FromString(TEXT("bDrawLimits")))
@@ -1069,50 +718,58 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					];
 				}
 
+				uint8* ValuePtr = (uint8*)&Control.GetValue(ValueType);
+
+				const UStruct* ValueStruct = nullptr;
+				switch (Control.ControlType)
+				{
+					case ERigControlType::Vector2D:
+					{
+						ValueStruct = TBaseStructure<FVector2D>::Get();
+						break;
+					}
+					case ERigControlType::Position:
+					case ERigControlType::Scale:
+					{
+						ValueStruct = TBaseStructure<FVector>::Get();
+						break;
+					}
+					case ERigControlType::Rotator:
+					{
+						ValueStruct = TBaseStructure<FRotator>::Get();
+						break;
+					}
+					case ERigControlType::Transform:
+					{
+						ValueStruct = TBaseStructure<FTransform>::Get();
+						break;
+					}
+					case ERigControlType::TransformNoScale:
+					{
+						ValueStruct = TBaseStructure<FTransformNoScale>::Get();
+						break;
+					}
+					default:
+					{
+						checkNoEntry();
+					}
+				}
+
+				TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(ValueStruct, ValuePtr));
+
 				IDetailCategoryBuilder& Category = (ValueType == ERigControlValueType::Minimum || ValueType == ERigControlValueType::Maximum) ? LimitsCategory : ControlCategory;
-				Category.AddCustomRow(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-				.NameContent()
-				.VAlign(VAlign_Top)
-				[
-					SNew(STextBlock)
-					.Text(ValueTypeEnum->GetDisplayNameTextByValue(ValueTypeIndex))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-				]
-				.ValueContent()
-				.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
-				.MaxDesiredWidth(125.0f * 3.0f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					[
-						SNew(SVectorInputBox)
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.bColorAxisLabels(true)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.X(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-						.Y(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationY)
-						.Z(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationZ)
-						.OnXCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationX)
-						.OnYCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationY)
-						.OnZCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::TranslationZ)
-					]
-					+ SVerticalBox::Slot()
-					[
-						SNew(SRotatorInputBox)
-						.AllowSpin(true)
-						.IsEnabled(this, &FRigControlDetails::IsEnabled, ValueType)
-						.bColorAxisLabels(true)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.Roll(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationRoll)
-						.Pitch(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationPitch)
-						.Yaw(this, &FRigControlDetails::GetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationYaw)
-						.OnRollCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationRoll)
-						.OnPitchCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationPitch)
-						.OnYawCommitted(this, &FRigControlDetails::SetComponentValueFloat, ValueType, ERigElementDetailsTransformComponent::RotationYaw)
-					]
-				];
+
+				IDetailPropertyRow* Row = Category.AddExternalStructure(StructToDisplay);
+				Row->DisplayName(PropertyLabel);
+				Row->ShouldAutoExpand(true);
+				Row->IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigControlDetails::IsEnabled, ValueType)));
+
+				FProperty* Property = FRigControl::FindPropertyForValueType(ValueType);
+				FSimpleDelegate OnStructContentsChangedDelegate = FSimpleDelegate::CreateSP(this, &FRigControlDetails::OnStructContentsChanged, Property, DetailBuilder.GetPropertyUtilities());
+
+				TSharedPtr<IPropertyHandle> Handle = Row->GetPropertyHandle();
+				Handle->SetOnPropertyValueChanged(OnStructContentsChangedDelegate);
+				Handle->SetOnChildPropertyValueChanged(OnStructContentsChangedDelegate);
 			}
 			break;
 		}
@@ -1186,6 +843,12 @@ void FRigControlDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			break;
 		}
 	}
+}
+
+void FRigControlDetails::OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	FPropertyChangedEvent ChangeEvent(InProperty, EPropertyChangeType::ValueSet);
+	PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
 }
 
 ECheckBoxState FRigControlDetails::GetComponentValueBool(bool bInitial) const

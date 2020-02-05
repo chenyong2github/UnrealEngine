@@ -140,7 +140,7 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 		, bLimitTranslation(false)
 		, bLimitRotation(false)
 		, bLimitScale(false)
-		, bDrawLimits(false)
+		, bDrawLimits(true)
 		, MinimumValue()
 		, MaximumValue()
 		, bGizmoEnabled(true)
@@ -303,6 +303,30 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 			return FMath::Clamp<float>(Value, Minimum, Maximum);
 		}
 		return FMath::Clamp<float>(Value, Maximum, Minimum);
+	}
+
+	FORCEINLINE_DEBUGGABLE static FProperty* FindPropertyForValueType(ERigControlValueType InValueType)
+	{
+		switch (InValueType)
+		{
+			case ERigControlValueType::Current:
+			{
+				return FRigControl::StaticStruct()->FindPropertyByName(TEXT("Value"));
+			}
+			case ERigControlValueType::Initial:
+			{
+				return FRigControl::StaticStruct()->FindPropertyByName(TEXT("InitialValue"));
+			}
+			case ERigControlValueType::Minimum:
+			{
+				return FRigControl::StaticStruct()->FindPropertyByName(TEXT("MinimumValue"));
+			}
+			case ERigControlValueType::Maximum:
+			{
+				return FRigControl::StaticStruct()->FindPropertyByName(TEXT("MaximumValue"));
+			}
+		}
+		return nullptr;
 	}
 };
 

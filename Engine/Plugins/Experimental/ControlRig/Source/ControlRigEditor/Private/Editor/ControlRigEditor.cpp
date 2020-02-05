@@ -9,7 +9,6 @@
 #include "SKismetInspector.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Editor.h"
-#include "Graph/ControlRigGraphNode.h"
 #include "Graph/ControlRigGraph.h"
 #include "BlueprintActionDatabase.h"
 #include "ControlRigBlueprintCommands.h"
@@ -153,6 +152,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	check(InControlRigBlueprint);
+
 	FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
 
 	FPersonaToolkitArgs PersonaToolkitArgs;
@@ -245,7 +246,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		
 		PersonaToolkit->GetPreviewScene()->SetRemoveAttachedComponentFilter(FOnRemoveAttachedComponentFilter::CreateSP(EditMode, &FControlRigEditMode::CanRemoveFromPreviewScene));
 
-		InControlRigBlueprint->OnModified().AddSP(EditMode, &FControlRigEditMode::HandleModifiedEvent);
+		if (InControlRigBlueprint)
+		{
+			InControlRigBlueprint->OnModified().AddSP(EditMode, &FControlRigEditMode::HandleModifiedEvent);
+		}
 	}
 
 	UpdateControlRig();
@@ -255,15 +259,23 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	if (ControlRigBlueprints.Num() > 0)
 	{
+		bool bBroughtGraphToFront = false;
 		for(UEdGraph* Graph : ControlRigBlueprints[0]->UbergraphPages)
 		{
 			if (Graph->GetFName().IsEqual(UControlRigGraphSchema::GraphName_ControlRig))
 			{
-				OpenGraphAndBringToFront(Graph, false);
-				break;
+				if (!bBroughtGraphToFront)
+				{
+					OpenGraphAndBringToFront(Graph, false);
+					bBroughtGraphToFront = true;
+				}
+			}
+
+			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
+			{
+				RigGraph->OnGraphNodeClicked.AddSP(this, &FControlRigEditor::OnGraphNodeClicked);
 			}
 		}
-
 	}
 
 	if (InControlRigBlueprint)
@@ -648,6 +660,7 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 	ClearDetailObject();
 
 	RigElementInDetailPanel = FRigElementKey();
+	StructToDisplay.Reset();
 	SKismetInspector::FShowDetailsOptions Options;
 	Options.bForceRefresh = true;
 	Inspector->ShowDetailsForObjects(InObjects);
@@ -669,7 +682,7 @@ void FControlRigEditor::SetDetailObject(UObject* Obj)
 			FString StructDefaultValue = StructNode->GetStructDefaultValue();
 			NodeDetailStruct->ImportText(*StructDefaultValue, NodeDetailBuffer.GetData(), nullptr, PPF_None, nullptr, NodeDetailStruct->GetName());
 
-			TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(NodeDetailStruct, (uint8*)NodeDetailBuffer.GetData()));
+			StructToDisplay = MakeShareable(new FStructOnScope(NodeDetailStruct, (uint8*)NodeDetailBuffer.GetData()));
 			if (StructToDisplay.IsValid())
 			{
 				StructToDisplay->SetPackage(GetControlRigBlueprint()->GetOutermost());
@@ -745,7 +758,7 @@ void FControlRigEditor::SetDetailObject(UObject* Obj)
 	SetDetailObjects(Objects);
 }
 
-void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement, TSharedPtr<FStructOnScope> StructToDisplay)
+void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement)
 {
 	if (RigElementInDetailPanel == InElement)
 	{
@@ -753,6 +766,40 @@ void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement, TShared
 	}
 
 	ClearDetailObject();
+	
+	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+
+	switch (InElement.Type)
+	{
+		case ERigElementType::Bone:
+		{
+			FRigBoneHierarchy& BoneHierarchy = RigBlueprint->HierarchyContainer.BoneHierarchy;
+			StructToDisplay = MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&(BoneHierarchy[InElement.Name])));
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			FRigControlHierarchy& ControlHierarchy = RigBlueprint->HierarchyContainer.ControlHierarchy;
+			StructToDisplay = MakeShareable(new FStructOnScope(FRigControl::StaticStruct(), (uint8*)&(ControlHierarchy[InElement.Name])));
+			break;
+		}
+		case ERigElementType::Space:
+		{
+			FRigSpaceHierarchy& SpaceHierarchy = RigBlueprint->HierarchyContainer.SpaceHierarchy;
+			StructToDisplay = MakeShareable(new FStructOnScope(FRigSpace::StaticStruct(), (uint8*)&(SpaceHierarchy[InElement.Name])));
+			break;
+		}
+		case ERigElementType::Curve:
+		{
+			FRigCurveContainer& CurveContainer = RigBlueprint->HierarchyContainer.CurveContainer;
+			StructToDisplay = MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&(CurveContainer[InElement.Name])));
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
 
 	RigElementInDetailPanel = InElement;
 	if (StructToDisplay.IsValid())
@@ -808,7 +855,15 @@ void FControlRigEditor::Compile()
 		GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
 
 		FRigElementKey SelectedKey = RigElementInDetailPanel;
-		ClearDetailObject();
+		TArray< TWeakObjectPtr<UObject> > SelectedObjects;
+		if (SelectedKey.IsValid())
+		{
+			ClearDetailObject();
+		}
+		else
+		{
+			SelectedObjects = Inspector->GetSelectedObjects();
+		}
 
 		if (ControlRig)
 		{
@@ -855,35 +910,15 @@ void FControlRigEditor::Compile()
 
 		if(SelectedKey.IsValid())
 		{
-			UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-			switch (SelectedKey.Type)
+			SetDetailStruct(SelectedKey);
+		}
+		else if (SelectedObjects.Num() > 0)
+		{
+			for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
 			{
-				case ERigElementType::Bone:
+				if (SelectedObject.IsValid())
 				{
-					FRigBoneHierarchy& BoneHierarchy = RigBlueprint->HierarchyContainer.BoneHierarchy;
-					SetDetailStruct(SelectedKey, MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&(BoneHierarchy[SelectedKey.Name]))));
-					break;
-				}
-				case ERigElementType::Control:
-				{
-					FRigControlHierarchy& ControlHierarchy = RigBlueprint->HierarchyContainer.ControlHierarchy;
-					SetDetailStruct(SelectedKey, MakeShareable(new FStructOnScope(FRigControl::StaticStruct(), (uint8*)&(ControlHierarchy[SelectedKey.Name]))));
-					break;
-				}
-				case ERigElementType::Space:
-				{
-					FRigSpaceHierarchy& SpaceHierarchy = RigBlueprint->HierarchyContainer.SpaceHierarchy;
-					SetDetailStruct(SelectedKey, MakeShareable(new FStructOnScope(FRigSpace::StaticStruct(), (uint8*)&(SpaceHierarchy[SelectedKey.Name]))));
-					break;
-				}
-				case ERigElementType::Curve:
-				{
-					FRigCurveContainer& CurveContainer = RigBlueprint->HierarchyContainer.CurveContainer;
-					SetDetailStruct(SelectedKey, MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&(CurveContainer[SelectedKey.Name]))));
-					break;
-				}
-				default:
-				{
+					SetDetailObject(SelectedObject.Get());
 					break;
 				}
 			}
@@ -1074,12 +1109,22 @@ void FControlRigEditor::PostUndo(bool bSuccess)
 {
 	IControlRigEditor::PostUndo(bSuccess);
 	EnsureValidRigElementInDetailPanel();
+
+	if (FControlRigEditMode* EditMode = GetEditMode())
+	{
+		EditMode->RecreateManipulationLayer();
+	}
 }
 
 void FControlRigEditor::PostRedo(bool bSuccess)
 {
 	IControlRigEditor::PostRedo(bSuccess);
 	EnsureValidRigElementInDetailPanel();
+
+	if (FControlRigEditMode* EditMode = GetEditMode())
+	{
+		EditMode->RecreateManipulationLayer();
+	}
 }
 
 void FControlRigEditor::EnsureValidRigElementInDetailPanel()
@@ -1257,6 +1302,18 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					if (InNotifType == ERigVMGraphNotifType::NodeSelected)
 					{
 						SetDetailObject(Node);
+					}
+
+					// if we used to have a rig unit selected, clear the details panel
+					else if(InGraph->GetSelectNodes().Num() == 0)
+					{
+						if (StructToDisplay.IsValid())
+						{
+							if (StructToDisplay->GetStruct()->IsChildOf(FRigUnit::StaticStruct()))
+							{
+								ClearDetailObject();
+							}
+						}
 					}
 
 					if (!RigGraph->bIsSelecting)
@@ -2041,9 +2098,28 @@ void FControlRigEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::
 	}
 }
 
-FTransform FControlRigEditor::GetRigElementTransform(const FRigElementKey& InElement, bool bLocal) const
+FTransform FControlRigEditor::GetRigElementTransform(const FRigElementKey& InElement, bool bLocal, bool bOnDebugInstance) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	if(bOnDebugInstance)
+	{
+		UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged());
+		if (DebuggedControlRig == nullptr)
+		{
+			DebuggedControlRig = ControlRig;
+		}
+
+		if (DebuggedControlRig)
+		{
+			if (bLocal)
+			{
+				return DebuggedControlRig->GetHierarchy()->GetLocalTransform(InElement);
+			}
+			return DebuggedControlRig->GetHierarchy()->GetGlobalTransform(InElement);
+		}
+	}
+
 	if (bLocal)
 	{
 		return GetControlRigBlueprint()->HierarchyContainer.GetLocalTransform(InElement);
@@ -2070,7 +2146,7 @@ void FControlRigEditor::SetRigElementTransform(const FRigElementKey& InElement, 
 				FRigElementKey ParentKey = ControlRigBP->HierarchyContainer.BoneHierarchy[InElement.Name].GetParentElementKey();
 				if (ParentKey.IsValid())
 				{
-					ParentTransform = GetRigElementTransform(ParentKey, false);
+					ParentTransform = GetRigElementTransform(ParentKey, false, false);
 				}
 				Transform = Transform * ParentTransform;
 				Transform.NormalizeRotation();
@@ -2353,6 +2429,43 @@ void FControlRigEditor::OnRigElementAdded(FRigHierarchyContainer* Container, con
 
 void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
 {
+	UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
+	for (UEdGraph* Graph : Blueprint->UbergraphPages)
+	{
+		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+		if (RigGraph == nullptr)
+		{
+			continue;
+		}
+
+		FString RemovedElementName = InKey.Name.ToString();
+		ERigElementType RemovedElementType = InKey.Type;
+
+		for (UEdGraphNode* Node : RigGraph->Nodes)
+		{
+			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+			{
+				if (URigVMNode* ModelNode = RigNode->GetModelNode())
+				{
+					for (URigVMPin * ModelPin : ModelNode->GetPins())
+					{
+						if ((ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("BoneName") && RemovedElementType == ERigElementType::Bone) ||
+							(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("ControlName") && RemovedElementType == ERigElementType::Control) ||
+							(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("SpaceName") && RemovedElementType == ERigElementType::Space) ||
+							(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("CurveName") && RemovedElementType == ERigElementType::Curve))
+						{
+							if (ModelPin->GetDefaultValue() == RemovedElementName)
+							{
+								Blueprint->Controller->SetPinDefaultValue(ModelPin->GetPinPath(), FName(NAME_None).ToString());
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+
 	OnHierarchyChanged();
 }
 
@@ -2410,6 +2523,11 @@ void FControlRigEditor::OnRigElementSelected(FRigHierarchyContainer* Container, 
 		return;
 	}
 
+	if (Container->GetIndex(InKey) == INDEX_NONE)
+	{
+		return;
+	}
+
 	if (InKey.Type == ERigElementType::Bone)
 	{
 		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
@@ -2432,37 +2550,7 @@ void FControlRigEditor::OnRigElementSelected(FRigHierarchyContainer* Container, 
 
 	if (bSelected)
 	{
-		switch (InKey.Type)
-		{
-			case ERigElementType::Bone:
-			{
-				FRigBoneHierarchy& BoneHierarchy = RigBlueprint->HierarchyContainer.BoneHierarchy;
-				SetDetailStruct(InKey, MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&(BoneHierarchy[InKey.Name]))));
-				break;
-			}
-			case ERigElementType::Space:
-			{
-				FRigSpaceHierarchy& SpaceHierarchy = RigBlueprint->HierarchyContainer.SpaceHierarchy;
-				SetDetailStruct(InKey, MakeShareable(new FStructOnScope(FRigSpace::StaticStruct(), (uint8*)&(SpaceHierarchy[InKey.Name]))));
-				break;
-			}
-			case ERigElementType::Control:
-			{
-				FRigControlHierarchy& ControlHierarchy = RigBlueprint->HierarchyContainer.ControlHierarchy;
-				int32 ControlIndex = ControlHierarchy.GetIndex(InKey.Name);
-				if (ControlIndex != INDEX_NONE)
-				{
-					SetDetailStruct(InKey, MakeShareable(new FStructOnScope(FRigControl::StaticStruct(), (uint8*)&(ControlHierarchy[ControlIndex]))));
-				}
-				break;
-			}
-			case ERigElementType::Curve:
-			{
-				FRigCurveContainer& CurveContainer = RigBlueprint->HierarchyContainer.CurveContainer;
-				SetDetailStruct(InKey, MakeShareable(new FStructOnScope(FRigCurve::StaticStruct(), (uint8*)&(CurveContainer[InKey.Name]))));
-				break;
-			}
-		}
+		SetDetailStruct(InKey);
 	}
 	else
 	{
@@ -3089,6 +3177,17 @@ void FControlRigEditor::HandleOnControlModified(IControlRigManipulatable* Subjec
 				Blueprint->HierarchyContainer.SpaceHierarchy.SetInitialGlobalTransform(SpaceName, GlobalTransform);
 				Blueprint->PropagateHierarchyFromBPToInstances(false, false);
 			}
+		}
+	}
+}
+
+void FControlRigEditor::OnGraphNodeClicked(UControlRigGraphNode* InNode)
+{
+	if (InNode)
+	{
+		if (InNode->IsSelectedInEditor())
+		{
+			SetDetailObject(InNode->GetModelNode());
 		}
 	}
 }

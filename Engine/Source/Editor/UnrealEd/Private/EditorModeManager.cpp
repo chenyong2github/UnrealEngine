@@ -950,8 +950,29 @@ bool FEditorModeTools::ShouldShowModeToolbar() const
 
 bool FEditorModeTools::ShouldShowModeToolbox() const
 {
-	// This could ideally ask each active mode if it has any tools but when developing a new mode the toolbox not appearing by default could be hard to understand
-	return !IsModeActive(FBuiltinEditorModes::EM_Default);
+	bool bHasVisibleModes = false;
+	for (const TSharedPtr<FEdMode>& Mode : ActiveModes)
+	{
+		if (Mode->GetModeInfo().bVisible)
+		{
+			bHasVisibleModes = true;
+			break;
+		}
+	}
+
+	if (!bHasVisibleModes)
+	{
+		for (const UEdMode* Mode : ActiveScriptableModes)
+		{
+			if (Mode->GetModeInfo().bVisible)
+			{
+				bHasVisibleModes = true;
+				break;
+			}
+		}
+	}
+
+	return bHasVisibleModes;
 }
 
 void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
@@ -1015,7 +1036,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			}
 
 			// Remove anything that isn't compatible with this mode
-			for (int32 ModeIndex = ActiveModes.Num() - 1; ModeIndex >= 0; --ModeIndex)
+			for (int32 ModeIndex = ActiveModes.Num() - 1; ModeIndex >= 0; ModeIndex--)
 			{
 				const bool bModesAreCompatible = Mode->IsCompatibleWith(ActiveModes[ModeIndex]->GetID()) || ActiveModes[ModeIndex]->IsCompatibleWith(Mode->GetID());
 				if (!bModesAreCompatible)
@@ -1024,7 +1045,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				}
 			}
 			// Remove anything that isn't compatible with this mode
-			for (int32 ModeIndex = ActiveScriptableModes.Num() - 1; ModeIndex >= 0; --ModeIndex)
+			for (int32 ModeIndex = ActiveScriptableModes.Num() - 1; ModeIndex >= 0; ModeIndex--)
 			{
 				const bool bModesAreCompatible = Mode->IsCompatibleWith(ActiveScriptableModes[ModeIndex]->GetID()) || ActiveScriptableModes[ModeIndex]->IsCompatibleWith(Mode->GetID());
 				if (!bModesAreCompatible)
