@@ -1400,7 +1400,7 @@ void FControlRigEditMode::OnRigElementChanged(FRigHierarchyContainer* Container,
 
 void FControlRigEditMode::OnControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey)
 {
-	FScopedTransaction ScopedTransaction(LOCTEXT("MoveControlTransaction", "Modify Control"),!GIsTransacting && InSetKey != EControlRigSetKey::Never);
+	FScopedTransaction ScopedTransaction(LOCTEXT("ModifyControlTransaction", "Modify Control"),!GIsTransacting && InSetKey != EControlRigSetKey::Never);
 	ControlProxy->Modify();
 	ControlProxy->ProxyChanged(Control.Name);
 	RecalcPivotTransform();
