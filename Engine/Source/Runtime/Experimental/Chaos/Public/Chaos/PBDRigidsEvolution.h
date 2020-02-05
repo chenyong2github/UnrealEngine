@@ -388,6 +388,15 @@ class TPBDRigidsEvolutionBase
 	const auto& GetNonDisabledClusteredArray() const { return Particles.GetNonDisabledClusteredArray(); }
 
 	CHAOS_API TSerializablePtr<FChaosPhysicsMaterial> GetPhysicsMaterial(const TGeometryParticleHandle<T, d>* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
+	
+	CHAOS_API const TUniquePtr<FChaosPhysicsMaterial> &GetPerParticlePhysicsMaterial(const TGeometryParticleHandle<T, d>* Particle) const { return Particle->AuxilaryValue(PerParticlePhysicsMaterials); }
+
+	CHAOS_API void SetPerParticlePhysicsMaterial(TGeometryParticleHandle<T, d>* Particle, TUniquePtr<FChaosPhysicsMaterial> &InMaterial)
+	{
+		check(!Particle->AuxilaryValue(PerParticlePhysicsMaterials)); //shouldn't be setting non unique material if a unique one already exists
+		Particle->AuxilaryValue(PerParticlePhysicsMaterials) = MoveTemp(InMaterial);
+	}
+
 	CHAOS_API void SetPhysicsMaterial(TGeometryParticleHandle<T,d>* Particle, TSerializablePtr<FChaosPhysicsMaterial> InMaterial)
 	{
 		check(!Particle->AuxilaryValue(PerParticlePhysicsMaterials)); //shouldn't be setting non unique material if a unique one already exists
