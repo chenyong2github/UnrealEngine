@@ -370,9 +370,8 @@ bool UStaticMeshComponent::SetLODDataCount( const uint32 MinSize, const uint32 M
 		uint32 ItemCountToAdd = MinSize - LODData.Num();
 		for(uint32 i = 0; i < ItemCountToAdd; ++i)
 		{
-			int32 LodIndex = LODData.Num();
 			// call constructor
-			new (LODData)FStaticMeshComponentLODInfo(this, LodIndex);
+			new (LODData)FStaticMeshComponentLODInfo(this);
 		}
 		return true;
 	}
