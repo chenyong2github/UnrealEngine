@@ -26,9 +26,10 @@ NSString* _Nullable _captureFilePath;
 - (void) initializeWithMicrophoneEnabled:(BOOL)bMicrophoneEnabled withCameraEnabled:(BOOL)bCameraEnabled {
 	_screenRecorder = [RPScreenRecorder sharedRecorder];
 	[_screenRecorder setDelegate:self];
-	
+#if !PLATFORM_TVOS
 	[_screenRecorder setMicrophoneEnabled:bMicrophoneEnabled];
 	[_screenRecorder setCameraEnabled:bCameraEnabled];
+#endif
 }
 
 - (void)startRecording {
@@ -203,12 +204,14 @@ NSString* _Nullable _captureFilePath;
                 {
                     NSLog(@"finishWritingWithCompletionHandler");
                     
+#if !PLATFORM_TVOS
                     if (UIVideoAtPathIsCompatibleWithSavedPhotosAlbum(_captureFilePath))
                     {
                         UISaveVideoAtPathToSavedPhotosAlbum(_captureFilePath, nil, nil, nil);
                         NSLog(@"capture saved to album");
                     }
-                    
+#endif
+
                     [_captureFilePath release];
                     _captureFilePath = nullptr;
                     
