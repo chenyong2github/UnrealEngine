@@ -10,6 +10,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include <jni.h>
 #include "Android/AndroidJavaEnv.h"
+#include "Async/TaskGraphInterfaces.h"
 
 FOnlineStoreGooglePlayV2::FOnlineStoreGooglePlayV2(FOnlineSubsystemGooglePlay* InSubsystem)
 	: bIsQueryInFlight(false)
