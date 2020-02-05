@@ -391,7 +391,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 				GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Chaos::EObjectStateType::Dynamic);
 			}
 		}
-		else
+		
+		if(Data->MInitialized)
 		{
 			// wait for the first pass with nothing updated to claim its initialized
 			bInitialized = true;

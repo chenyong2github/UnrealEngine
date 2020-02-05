@@ -110,6 +110,7 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
 	Concrete.ClearEvents();
+	Concrete.SetInitialized(false);
 }
 
 
@@ -1868,6 +1869,12 @@ public:
 		this->MGravityEnabled = InGravityEnabled;
 	}
 
+	bool IsInitialized() const { return MInitialized; }
+	void SetInitialized(const bool InInitialized)
+	{
+		this->MInitialized = InInitialized;
+	}
+
 	// Named to match signature of TPBDRigidParticleHandle, as both are used in templated functions.
 	// See its comment for details.
 	bool& SetDisabledLowLevel() { return MDisabled; }
@@ -2035,6 +2042,7 @@ private:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+	bool MInitialized;
 	bool MAwakeEvent;
 };
 
@@ -2090,6 +2098,7 @@ public:
 		, MDisabled(false)
 		, MToBeRemovedOnFracture(false)
 		, MGravityEnabled(false)
+		, MInitialized(false)
 	{}
 
 	TPBDRigidParticleData(const TPBDRigidParticle<T, d>& InParticle)
@@ -2115,6 +2124,7 @@ public:
 		, MDisabled(InParticle.Disabled())
 		, MToBeRemovedOnFracture(InParticle.ToBeRemovedOnFracture())
 		, MGravityEnabled(InParticle.IsGravityEnabled())
+		, MInitialized(InParticle.IsInitialized())
 	{
 		Type = EParticleType::Rigid;
 	}
@@ -2141,6 +2151,7 @@ public:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+	bool MInitialized;
 
 	void Reset() {
 		TKinematicGeometryParticleData<T, d>::Reset();
