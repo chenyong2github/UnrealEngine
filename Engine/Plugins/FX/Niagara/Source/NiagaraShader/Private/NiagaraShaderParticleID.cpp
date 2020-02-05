@@ -152,3 +152,63 @@ void NiagaraComputeGPUFreeIDs(FRHICommandList& RHICmdList, ERHIFeatureLevel::Typ
 	TShaderMapRef<NiagaraComputeFreeIDsCS> ComputeFreeIDsCS(GetGlobalShaderMap(FeatureLevel));
 	ComputeFreeIDsCS->Execute(RHICmdList, FeatureLevel, NumIDs, IDToIndexTable, FreeIDList, FreeIDListSizes, FreeIDListIndex);
 }
+
+class NiagaraFillIntBufferCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(NiagaraFillIntBufferCS);
+
+public:
+	NiagaraFillIntBufferCS() : FGlobalShader() {}
+
+	NiagaraFillIntBufferCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FGlobalShader(Initializer)
+	{
+		TargetBufferParam.Bind(Initializer.ParameterMap, TEXT("TargetBuffer"));
+		FillValueParam.Bind(Initializer.ParameterMap, TEXT("FillValue"));
+		BufferSizeParam.Bind(Initializer.ParameterMap, TEXT("BufferSize"));
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	bool Serialize(FArchive& Ar)
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << TargetBufferParam;
+		Ar << FillValueParam;
+		Ar << BufferSizeParam;
+		return bShaderHasOutdatedParameters;
+	}
+
+	void Execute(FRHICommandList& RHICmdList, FRWBuffer& Buffer, int Value)
+	{
+		const uint32 THREAD_COUNT = 64;
+		const uint32 NumInts = Buffer.NumBytes / sizeof(int);
+		const uint32 ThreadGroups = FMath::DivideAndRoundUp(NumInts, THREAD_COUNT);
+
+		FRHIComputeShader* ComputeShader = GetComputeShader();
+		RHICmdList.SetComputeShader(ComputeShader);
+
+		SetUAVParameter(RHICmdList, ComputeShader, TargetBufferParam, Buffer.UAV);
+		SetShaderValue(RHICmdList, ComputeShader, FillValueParam, Value);
+		SetShaderValue(RHICmdList, ComputeShader, BufferSizeParam, NumInts);
+
+		DispatchComputeShader(RHICmdList, this, ThreadGroups, 1, 1);
+
+		SetUAVParameter(RHICmdList, ComputeShader, TargetBufferParam, nullptr);
+	}
+
+private:
+	FShaderResourceParameter TargetBufferParam;
+	FShaderParameter FillValueParam;
+	FShaderParameter BufferSizeParam;
+};
+
+IMPLEMENT_GLOBAL_SHADER(NiagaraFillIntBufferCS, "/Plugin/FX/Niagara/Private/NiagaraFillIntBuffer.usf", "FillIntBuffer", SF_Compute);
+
+void NiagaraFillGPUIntBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRWBuffer& Buffer, int Value)
+{
+	TShaderMapRef<NiagaraFillIntBufferCS> FillCS(GetGlobalShaderMap(FeatureLevel));
+	FillCS->Execute(RHICmdList, Buffer, Value);
+}

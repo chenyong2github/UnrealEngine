@@ -1327,6 +1327,8 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	int32 NumBeforeSpawn = Data.GetDestinationDataChecked().GetNumInstances();
 	uint32 TotalActualEventSpawns = 0;
 
+	Data.GetSpawnedIDsTable().SetNum(0, false);
+
 	//Init new particles with the spawn script.
 	if (SpawnTotal + EventSpawnTotal > 0)
 	{
@@ -1424,6 +1426,11 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			}
 		}
 	}
+
+	// The spawn count and ID acquire tag in FNiagaraDataBuffer are currently only used by the GPU path,
+	// but we'll set them here anyway, to prevent surprises in case someone sees them and decides to use them.
+	Data.GetDestinationDataChecked().SetNumSpawnedInstances(Data.GetSpawnedIDsTable().Num());
+	Data.GetDestinationDataChecked().SetIDAcquireTag(Data.GetIDAcquireTag());
 
 	//We're done with this simulation pass.
 	Data.EndSimulate();
