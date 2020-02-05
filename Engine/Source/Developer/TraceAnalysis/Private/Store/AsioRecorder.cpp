@@ -13,7 +13,7 @@ class FAsioRecorderRelay
 	: public FAsioIoSink
 {
 public:
-						FAsioRecorderRelay(uint32 Magic, asio::ip::tcp::socket& Socket, FAsioWriteable* InOutput);
+						FAsioRecorderRelay(asio::ip::tcp::socket& Socket, FAsioWriteable* InOutput);
 	virtual				~FAsioRecorderRelay();
 	bool				IsOpen();
 	void				Close();
@@ -22,26 +22,18 @@ public:
 private:
 	virtual void		OnIoComplete(uint32 Id, int32 Size) override;
 	static const uint32	BufferSize = 64 * 1024;
-	enum				{ OpSocketRead, OpFileWrite };
+	enum				{ OpStart, OpSocketRead, OpFileWrite };
 	FAsioSocket			Input;
 	FAsioWriteable*		Output;
-	union
-	{
-		uint32			Magic;
-		uint8			Buffer[BufferSize];
-	};
+	uint8				Buffer[BufferSize];
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-FAsioRecorderRelay::FAsioRecorderRelay(
-	uint32 InMagic,
-	asio::ip::tcp::socket& Socket,
-	FAsioWriteable* InOutput)
+FAsioRecorderRelay::FAsioRecorderRelay(asio::ip::tcp::socket& Socket, FAsioWriteable* InOutput)
 : Input(Socket)
 , Output(InOutput)
-, Magic(InMagic)
 {
-	Output->Write(&Magic, sizeof(Magic), this, OpFileWrite);
+	OnIoComplete(OpStart, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -86,6 +78,7 @@ void FAsioRecorderRelay::OnIoComplete(uint32 Id, int32 Size)
 		Output->Write(Buffer, Size, this, OpFileWrite);
 		break;
 
+	case OpStart:
 	case OpFileWrite:
 		Input.ReadSome(Buffer, BufferSize, this, OpSocketRead);
 		break;
@@ -167,75 +160,28 @@ const FAsioRecorder::FSession* FAsioRecorder::GetSessionInfo(uint32 Index) const
 ////////////////////////////////////////////////////////////////////////////////
 bool FAsioRecorder::OnAccept(asio::ip::tcp::socket& Socket)
 {
-#if 0
-	auto TraceAcceptor = [this, Socket=MoveTemp(Socket), Buffer] (
-			const asio::error_code& ErrorCode,
-			size_t Size
-		) mutable
-#endif // 0
-	struct FTraceAcceptor
-	{
-		void OnMagic(const asio::error_code& ErrorCode, size_t Size)
-		{
-			if (ErrorCode || Size != sizeof(Magic))
-			{
-				delete this;
-				return;
-			}
-
-			if (Magic != 'TRCE' && Magic != 'ECRT')
-			{
-				delete this;
-				return;
-			}
-
-			OuterSelf->OnAcceptable(Magic, Socket);
-			delete this;
-		}
-		asio::ip::tcp::socket	Socket;
-		FAsioRecorder*			OuterSelf;
-		uint32					Magic;
-	};
-
-	FTraceAcceptor* TraceAcceptor = new FTraceAcceptor{MoveTemp(Socket)};
-	TraceAcceptor->OuterSelf = this;
-
-	asio::async_read(
-		TraceAcceptor->Socket, 
-		asio::buffer(&(TraceAcceptor->Magic), sizeof(TraceAcceptor->Magic)),
-		[TraceAcceptor] (const asio::error_code& ErrorCode, size_t Size)
-		{
-			return TraceAcceptor->OnMagic(ErrorCode, Size);
-		}
-	);
-
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAsioRecorder::OnAcceptable(uint32 Magic, asio::ip::tcp::socket& Socket)
-{
 	FAsioStore::FNewTrace Trace = Store.CreateTrace();
 	if (Trace.Writeable == nullptr)
 	{
-		return;
+		return true;
 	}
 
-	uint32 IdPieces[] =
-	{
-		Socket.local_endpoint().address().to_v4().to_uint(),
+	auto* Relay = new FAsioRecorderRelay(Socket, Trace.Writeable);
+
+	uint32 IdPieces[] = {
+		Relay->GetIpAddress(),
 		Socket.remote_endpoint().port(),
 		Socket.local_endpoint().port(),
 		0,
 	};
-
-	auto* Relay = new FAsioRecorderRelay(Magic, Socket, Trace.Writeable);
 
 	FSession Session;
 	Session.Relay = Relay;
 	Session.Id = QuickStoreHash(IdPieces);
 	Session.TraceId = Trace.Id;
 	Sessions.Add(Session);
+
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
