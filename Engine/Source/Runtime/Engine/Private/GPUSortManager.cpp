@@ -10,6 +10,7 @@
 #include "ShaderPermutation.h"
 #include "ShaderParameterUtils.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
+#include "FXSystem.h" // FXConsoleVariables::bAllowGPUSorting
 
 //*****************************************************************************
 
@@ -34,14 +35,6 @@ static FAutoConsoleVariableRef CVarGPUSortBufferSlack(
 	TEXT("fx.GPUSort.BufferSlack"),
 	GGPUSortBufferSlack,
 	TEXT("Slack ratio when resizing GPU sort buffers. Must be bigger than 1 (default=2)"),
-	ECVF_Default
-);
-
-int32 GGPUSortEnable = 1;
-static FAutoConsoleVariableRef CVarGPUSortEnable(
-	TEXT("fx.AllowGPUSorting"),
-	GGPUSortEnable,
-	TEXT("Whether to enable GPU sort (default 1)"),
 	ECVF_Default
 );
 
@@ -569,7 +562,7 @@ void FGPUSortManager::Register(const FGPUSortKeyGenDelegate& CallbackDelegate, E
 
 bool FGPUSortManager::AddTask(FAllocationInfo& OutInfo, int32 ValueCount, EGPUSortFlags TaskFlags)
 {
-	if (!GGPUSortEnable)
+	if (!FXConsoleVariables::bAllowGPUSorting)
 	{
 		return false;
 	}
