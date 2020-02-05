@@ -332,7 +332,7 @@ void FMultiBox::InsertCustomMultiBlock( TSharedRef<const FMultiBlock> InBlock, i
  *
  * @return  MultiBox widget object
  */
-TSharedRef< SMultiBoxWidget > FMultiBox::MakeWidget( bool bSearchable, FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride /* = nullptr */ )
+TSharedRef< SMultiBoxWidget > FMultiBox::MakeWidget( bool bSearchable, FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride /* = nullptr */, TAttribute<float> InMaxHeight )
 {	
 	TSharedRef< SMultiBoxWidget > NewMultiBoxWidget =
 		SNew( SMultiBoxWidget );
@@ -342,6 +342,9 @@ TSharedRef< SMultiBoxWidget > FMultiBox::MakeWidget( bool bSearchable, FOnMakeMu
 
 	// Assign ourselves to the MultiBox widget
 	NewMultiBoxWidget->SetMultiBox( AsShared() );
+
+	// Set the maximum height the MultiBox widget should be
+	NewMultiBoxWidget->SetMaxHeight( InMaxHeight );
 
 	if( (InMakeMultiBoxBuilderOverride != nullptr) && (InMakeMultiBoxBuilderOverride->IsBound()) )
 	{
@@ -510,22 +513,22 @@ TSharedRef<ITableRow> SMultiBoxWidget::GenerateTiles(TSharedPtr<SWidget> Item, c
 
 float SMultiBoxWidget::GetItemWidth() const
 {
-	float MaxWidth = 0;
+	float MaxItemWidth = 0;
 	for (int32 i = 0; i < TileViewWidgets.Num(); ++i)
 	{
-		MaxWidth = FMath::Max(TileViewWidgets[i]->GetDesiredSize().X, MaxWidth);
+		MaxItemWidth = FMath::Max(TileViewWidgets[i]->GetDesiredSize().X, MaxItemWidth);
 	}
-	return MaxWidth;
+	return MaxItemWidth;
 }
 
 float SMultiBoxWidget::GetItemHeight() const
 {
-	float MaxHeight = 0;
+	float MaxItemHeight = 0;
 	for (int32 i = 0; i < TileViewWidgets.Num(); ++i)
 	{
-		MaxHeight = FMath::Max(TileViewWidgets[i]->GetDesiredSize().Y, MaxHeight);
+		MaxItemHeight = FMath::Max(TileViewWidgets[i]->GetDesiredSize().Y, MaxItemHeight);
 	}
-	return MaxHeight;
+	return MaxItemHeight;
 }
 
 bool SMultiBoxWidget::IsBlockBeingDragged( TSharedPtr<const FMultiBlock> Block ) const
@@ -745,12 +748,29 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 		break;
 	case EMultiBoxType::Menu:
 		{
-			// wrap menu content in a scrollbox to support vertical scrolling if needed
-			MainWidget = SNew(SScrollBox)
-				+SScrollBox::Slot()
-				[
-					SAssignNew( VerticalBox, SVerticalBox )
-				];
+			if (MaxHeight.IsSet())
+			{
+				MainWidget = SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.MaxHeight(MaxHeight)
+					[
+						// wrap menu content in a scrollbox to support vertical scrolling if needed
+						SNew(SScrollBox)
+						+ SScrollBox::Slot()
+						[
+							SAssignNew(VerticalBox, SVerticalBox)
+						]
+					];
+			}
+			else
+			{
+				// wrap menu content in a scrollbox to support vertical scrolling if needed
+				MainWidget = SNew(SScrollBox)
+					+ SScrollBox::Slot()
+					[
+						SAssignNew(VerticalBox, SVerticalBox)
+					];
+			}
 		}
 		break;
 	}
