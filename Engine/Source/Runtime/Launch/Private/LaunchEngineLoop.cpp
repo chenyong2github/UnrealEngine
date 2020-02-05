@@ -1443,19 +1443,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		{
 			Trace::WriteTo(*Parameter);
 		}
-
-#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
-		else
-		{
-			// If we can detect a named event then we can try and auto-connect to UnrealInsights.
-			HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
-			if (KnownEvent != nullptr)
-			{
-				Trace::SendTo(TEXT("127.0.0.1"));
-				::CloseHandle(KnownEvent);
-			}
-		}
-#endif // PLATFORM_WINDOWS
 	}
 
 #if WITH_ENGINE
@@ -1897,6 +1884,19 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	bHasEditorToken = false;
 #endif
 #endif	//UE_EDITOR
+
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
+	if (!bHasEditorToken)
+	{
+		// If we can detect a named event then we can try and auto-connect to UnrealInsights.
+		HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
+		if (KnownEvent != nullptr)
+		{
+			Trace::SendTo(TEXT("127.0.0.1"));
+			::CloseHandle(KnownEvent);
+		}
+	}
+#endif // PLATFORM_WINDOWS
 
 #if !UE_BUILD_SHIPPING
 	// Benchmarking.
