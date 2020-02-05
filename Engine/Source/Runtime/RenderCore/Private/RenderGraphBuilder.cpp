@@ -539,16 +539,19 @@ void FRDGBuilder::AllocateRHITextureSRVIfNeeded(FRDGTextureSRV* SRV)
 		return;
 	}
 
-	if (RenderTarget.SRVs.Contains(SRV->Desc))
+	for (int32 Idx = 0; Idx < RenderTarget.SRVs.Num(); ++Idx)
 	{
-		SRV->ResourceRHI = RenderTarget.SRVs[SRV->Desc];
-		return;
+		if (RenderTarget.SRVs[Idx].Key == SRV->Desc)
+		{
+			SRV->ResourceRHI = RenderTarget.SRVs[Idx].Value;
+			return;
+		}
 	}
 
 	FShaderResourceViewRHIRef RHIShaderResourceView = RHICreateShaderResourceView(RenderTarget.ShaderResourceTexture, SRV->Desc);
 
 	SRV->ResourceRHI = RHIShaderResourceView;
-	RenderTarget.SRVs.Add(SRV->Desc, RHIShaderResourceView);
+	RenderTarget.SRVs.Emplace(SRV->Desc, MoveTemp(RHIShaderResourceView));
 }
 
 void FRDGBuilder::AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV)
