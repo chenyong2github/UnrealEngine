@@ -47,7 +47,7 @@ public:
 	{
 		uint64 LastCycle;
 		uint32 ThreadId;
-		uint32 BufferSize;
+		uint16 BufferSize;
 		uint8 Buffer[MaxBufferSize];
 	};
 
@@ -101,7 +101,7 @@ void FStatsTraceInternal::BeginEncodeOp(const FName& Stat, EOpType Op, FThreadSt
 
 void FStatsTraceInternal::EndEncodeOp(FThreadState* ThreadState, uint8* BufferPtr)
 {
-	ThreadState->BufferSize = BufferPtr - ThreadState->Buffer;
+	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
 }
 
 void FStatsTrace::DeclareStat(const FName& Stat, const ANSICHAR* Name, const TCHAR* Description, bool IsFloatingPoint, bool IsMemory, bool ShouldClearEveryFrame)
@@ -126,7 +126,7 @@ void FStatsTrace::Increment(const FName& Stat)
 	FStatsTraceInternal::FThreadState* ThreadState;
 	uint8* BufferPtr;
 	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::Increment, ThreadState, BufferPtr);
-	ThreadState->BufferSize = BufferPtr - ThreadState->Buffer;
+	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
 	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
 }
 
@@ -135,7 +135,7 @@ void FStatsTrace::Decrement(const FName& Stat)
 	FStatsTraceInternal::FThreadState* ThreadState;
 	uint8* BufferPtr;
 	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::Decrement, ThreadState, BufferPtr);
-	ThreadState->BufferSize = BufferPtr - ThreadState->Buffer;
+	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
 	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
 }
 
