@@ -98,7 +98,7 @@ void FNetTraceReporter::ReportInstanceDestroyed(uint32 GameInstanceId)
 
 void FNetTraceReporter::ReportAnsiName(FNetDebugNameId NameId, uint32 NameSize, const char* Name)
 {
-	UE_TRACE_LOG(NetTrace, NameEvent, NameSize, NetChannel)
+	UE_TRACE_LOG(NetTrace, NameEvent, NetChannel, NameSize)
 		<< NameEvent.NameId(NameId)
 		<< NameEvent.Attachment(Name, NameSize);
 }
