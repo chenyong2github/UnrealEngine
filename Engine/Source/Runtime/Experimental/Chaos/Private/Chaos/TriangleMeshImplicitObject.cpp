@@ -138,6 +138,11 @@ struct FTriangleMeshRaycastVisitor
 		Sweep
 	};
 
+	const void* GetQueryData() const
+	{
+		return nullptr;
+	}
+
 	template <ERaycastType SQType>
 	bool Visit(int32 TriIdx, FQueryFastData& CurData)
 	{
@@ -696,6 +701,8 @@ struct FTriangleMeshSweepVisitor
 	{
 	}
 
+	const void* GetQueryData() const { return nullptr; }
+
 	bool VisitOverlap(const TSpatialVisitorData<int32>& VisitData)
 	{
 		check(false);
@@ -796,7 +803,7 @@ template <typename QueryGeomType>
 bool FTriangleMeshImplicitObject::SweepGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length,
 	FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, const bool bComputeMTD) const
 {
-
+	//QUICK_SCOPE_CYCLE_COUNTER(TrimeshSweep);
 	// Compute scaled sweep inputs to cache in visitor.
 	FVec3 ScaledDirNormalized;
 	FReal LengthScale;

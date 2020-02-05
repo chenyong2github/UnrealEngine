@@ -518,6 +518,7 @@ namespace ChaosTest {
 
 	void AccelerationStructureHandleComparison()
 	{
+#if 0
 		// When an external particle is created, the handle is retrieved via proxy.
 		// Proxy gets handle initialized async on PT later, so this means a handle 
 		// will always have external particle pointer, and eventually an internal pointer.
@@ -551,6 +552,7 @@ namespace ChaosTest {
 
 		EXPECT_NE(InternalOnlyHandle, ExternalOnlyHandle);
 		EXPECT_EQ(InternalOnlyHandle, ExternalInternalHandle);
+#endif
 	}
 
 	void HandleObjectStateChangeTest()
