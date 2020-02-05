@@ -10,6 +10,7 @@
 #include "Templates/RefCounting.h"
 #include "RHI.h"
 #include "RHIResources.h"
+#include "RenderResource.h"
 
 /**
  * Copy one uint buffer into several overlapping targets.
