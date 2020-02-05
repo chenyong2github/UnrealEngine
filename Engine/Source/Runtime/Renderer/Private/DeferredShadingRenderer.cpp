@@ -1697,7 +1697,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPED_GPU_STAT(RHICmdList, SortLights);
 		GatherAndSortLights(SortedLightSet);
 		ComputeLightGrid(RHICmdList, bComputeLightGrid, SortedLightSet);
+
 	}
+
+	CSV_CUSTOM_STAT_GLOBAL(LightCount, float(SortedLightSet.SortedLights.Num()), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_GLOBAL(LightCountShadowOff, float(SortedLightSet.AttenuationLightStart), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_GLOBAL(LightCountShadowOn, float(SortedLightSet.SortedLights.Num()) - float(SortedLightSet.AttenuationLightStart), ECsvCustomStatOp::Set);
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets);
