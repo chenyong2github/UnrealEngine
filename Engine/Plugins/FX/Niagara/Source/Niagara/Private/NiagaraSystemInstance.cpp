@@ -649,7 +649,7 @@ bool FNiagaraSystemInstance::ComputeEmitterPriority(int32 EmitterIdx, TArray<int
 
 void FNiagaraSystemInstance::FindDataInterfaceDependencies(const TArray<UNiagaraDataInterface*>& DataInterfaces, TArray<FNiagaraEmitterInstance*>& Dependencies)
 {
-	for (const UNiagaraDataInterface* DI : DataInterfaces)
+	for (UNiagaraDataInterface* DI : DataInterfaces)
 	{
 		void* InterfaceInstanceData = FindDataInterfaceInstanceData(DI);
 		int32 NumDepsBefore = Dependencies.Num();
