@@ -1779,7 +1779,7 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 			if (InstanceTransforms.Num())
 			{
 				TotalInstances += InstanceTransforms.Num();
-				InstanceBuffer.AllocateInstances(InstanceTransforms.Num(), EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce, true);
+				InstanceBuffer.AllocateInstances(InstanceTransforms.Num(), 0, EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce, true);
 				for (int32 InstanceIndex = 0; InstanceIndex < InstanceTransforms.Num(); InstanceIndex++)
 				{
 					const FMatrix& OutXForm = InstanceTransforms[InstanceIndex];
@@ -1832,7 +1832,7 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 				InstanceTransforms.AddUninitialized(NumKept);
 				TotalInstances += NumKept;
 				{
-					InstanceBuffer.AllocateInstances(NumKept, EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce, true);
+					InstanceBuffer.AllocateInstances(NumKept, 0, EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce, true);
 					int32 InstanceIndex = 0;
 					int32 OutInstanceIndex = 0;
 					for (int32 xStart = 0; xStart < SqrtMaxInstances; xStart++)
@@ -1888,7 +1888,8 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 		{
 			TArray<int32> SortedInstances;
 			TArray<int32> InstanceReorderTable;
-			UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(InstanceTransforms, MeshBox, ClusterTree, SortedInstances, InstanceReorderTable, OutOcclusionLayerNum, DesiredInstancesPerLeaf, false);
+			TArray<float> InstanceCustomDataDummy;
+			UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(InstanceTransforms, InstanceCustomDataDummy, 0, MeshBox, ClusterTree, SortedInstances, InstanceReorderTable, OutOcclusionLayerNum, DesiredInstancesPerLeaf, false);
 
 			// in-place sort the instances
 			

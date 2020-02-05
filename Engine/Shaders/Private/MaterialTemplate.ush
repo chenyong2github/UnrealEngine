@@ -375,6 +375,8 @@ struct FMaterialVertexParameters
 	float4x4 InstanceLocalToWorld;
 	float3 InstanceLocalPosition;
 	float4 PerInstanceParams;
+	uint InstanceId;
+
 #elif IS_MESHPARTICLE_FACTORY 
 	/** Per-particle properties. */
 	float4x4 InstanceLocalToWorld;
@@ -780,6 +782,26 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 		return 0.0f;
 	}
 #endif // DECAL_PRIMITIVE
+
+// Per Instance Custom Data Getter (Vertex Shader Only)
+/** Get the per-instance custom data when instancing */
+float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, float DefaultValue)
+{
+#if USE_INSTANCING && USES_PER_INSTANCE_CUSTOM_DATA
+	if(InstanceVF.NumCustomDataFloats > 0)
+	{
+		int BufferStartIndex = Parameters.InstanceId * InstanceVF.NumCustomDataFloats; 
+		int FloatIndex = clamp(Index, 0, InstanceVF.NumCustomDataFloats - 1);
+		return InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex];
+	}
+	else
+	{
+		return DefaultValue;
+	}
+#else
+	return DefaultValue;
+#endif
+}
 
 /** Transforms a vector from tangent space to world space, prescaling by an amount calculated previously */
 MaterialFloat3 TransformTangentVectorToWorld_PreScaled(FMaterialTessellationParameters Parameters, MaterialFloat3 InTangentVector)

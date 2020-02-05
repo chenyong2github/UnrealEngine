@@ -104,6 +104,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	bUsesDistanceCullFade(false)
 ,	bIsFullyRough(0)
 ,	bAllowCodeChunkGeneration(true)
+,	bUsesPerInstanceCustomData(false)
 ,	AllocatedUserTexCoords()
 ,	AllocatedUserVertexTexCoords()
 ,	DynamicParticleParameterMask(0)
@@ -1148,6 +1149,8 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	{
 		OutEnvironment.SetDefine(TEXT("VIRTUAL_TEXTURE_OUTPUT"), 1);
 	}
+
+	OutEnvironment.SetDefine(TEXT("USES_PER_INSTANCE_CUSTOM_DATA"), bUsesPerInstanceCustomData && Material->IsUsedWithInstancedStaticMeshes());
 		
 	// @todo MetalMRT: Remove this hack and implement proper atmospheric-fog solution for Metal MRT...
 	OutEnvironment.SetDefine(TEXT("MATERIAL_ATMOSPHERIC_FOG"), !IsMetalMRTPlatform(InPlatform) ? bUsesAtmosphericFog : 0);
@@ -6845,6 +6848,25 @@ int32 FHLSLMaterialTranslator::PerInstanceFadeAmount()
 	else
 	{
 		return AddInlinedCodeChunk(MCT_Float, TEXT("GetPerInstanceFadeAmount(Parameters)"));
+	}
+}
+
+/**
+ *	Returns a custom data on a per-instance basis when instancing
+ *	@DataIndex - index in array that represents custom data
+ *
+ *	@return	Code index
+ */
+int32 FHLSLMaterialTranslator::PerInstanceCustomData(int32 DataIndex, int32 DefaultValueIndex)
+{
+	if (ShaderFrequency != SF_Vertex)
+	{
+		return NonVertexShaderExpressionError();
+	}
+	else
+	{
+		bUsesPerInstanceCustomData = true;
+		return AddInlinedCodeChunk(MCT_Float, TEXT("GetPerInstanceCustomData(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
 	}
 }
 

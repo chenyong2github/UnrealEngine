@@ -109,6 +109,9 @@ struct CORE_API FRenderingObjectVersion
 		// Removed emulated instancing from instanced static meshes
 		RemovedEmulatedInstancing,
 
+		// Added per instance custom data (for Instanced Static Meshes)
+		PerInstanceCustomData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

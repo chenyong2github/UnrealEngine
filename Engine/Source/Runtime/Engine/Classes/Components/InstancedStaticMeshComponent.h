@@ -38,6 +38,7 @@ struct FInstanceUpdateCmdBuffer
 		Hide,
 		EditorData,
 		LightmapData,
+		CustomData,
 	};
 	
 	struct FInstanceUpdateCommand
@@ -51,6 +52,8 @@ struct FInstanceUpdateCmdBuffer
 
 		FVector2D LightmapUVBias;
 		FVector2D ShadowmapUVBias;
+
+		TArray<float> CustomDataFloats;
 	};
 	
 	FInstanceUpdateCmdBuffer();
@@ -62,6 +65,7 @@ struct FInstanceUpdateCmdBuffer
 	void SetEditorData(int32 RenderIndex, const FColor& Color, bool bSelected);
 	void SetLightMapData(int32 RenderIndex, const FVector2D& LightmapUVBias);
 	void SetShadowMapData(int32 RenderIndex, const FVector2D& ShadowmapUVBias);
+	void SetCustomData(int32 RenderIndex, const TArray<float>& CustomDataFloats);
 	void ResetInlineCommands();
 	int32 NumInlineCommands() const { return Cmds.Num(); }
 
@@ -107,7 +111,7 @@ struct FInstancedStaticMeshMappingInfo
 {
 	GENERATED_USTRUCT_BODY()
 
-		FStaticLightingTextureMapping_InstancedStaticMesh* Mapping;
+	FStaticLightingTextureMapping_InstancedStaticMesh* Mapping;
 
 	FInstancedStaticMeshMappingInfo()
 		: Mapping(nullptr)
@@ -128,6 +132,17 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	/** Array of instances, bulk serialized. */
 	UPROPERTY(EditAnywhere, SkipSerialization, DisplayName="Instances", Category=Instances, meta=(MakeEditWidget=true, EditFixedOrder))
 	TArray<FInstancedStaticMeshInstanceData> PerInstanceSMData;
+
+	/** Defines the number of floats that will be available per instance for custom data */
+	UPROPERTY(EditAnywhere, Category=Instances, AdvancedDisplay)
+	int32 NumCustomDataFloats;
+
+	/** Array of custom data for instances. This will contains NumCustomDataFloats*InstanceCount entries. The entries are represented sequantially, in instance order. Can be read in a material and manipulated through Blueprints.
+	 *	Example: If NumCustomDataFloats is 1, then each entry will belong to an instance. Custom data 0 will belong to Instance 0. Custom data 1 will belong to Instance 1 etc.
+	 *	Example: If NumCustomDataFloats is 2, then each pair of sequential entries belong to an instance. Custom data 0 and 1 will belong to Instance 0. Custom data 2 and 3 will belong to Instance 2 etc.
+	 */
+	UPROPERTY(EditAnywhere, EditFixedSize, SkipSerialization, DisplayName="Custom data", Category=Instances, AdvancedDisplay, meta=(EditFixedOrder))
+	TArray<float> PerInstanceSMCustomData;
 
 	/** Value used to seed the random number stream that generates random numbers for each of this mesh's instances.
 	The random number is stored in a buffer accessible to materials through the PerInstanceRandom expression. If
@@ -160,6 +175,13 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	/** Add an instance to this component. Transform is given in world space. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	int32 AddInstanceWorldSpace(const FTransform& WorldTransform);
+
+	/** Update custom data for specific instance */
+	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
+	virtual bool SetCustomDataValue(int32 InstanceIndex, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty = false);
+
+	/** Per Instance Custom Data */
+	virtual bool SetCustomData(int32 InstanceIndex, const TArray<float>& CustomDataFloats, bool bMarkRenderStateDirty = false); 
 
 	/** Preallocated memory to include the new added instances count, to prevent reallloc during the add operation. */
 	virtual void PreAllocateInstancesMemory(int32 AddedInstanceCount);
@@ -218,6 +240,8 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	virtual bool BatchUpdateInstancesTransform(int32 StartInstanceIndex, int32 NumInstances, const FTransform& NewInstancesTransform, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
+
+	virtual bool BatchUpdateInstancesData(int32 StartInstanceIndex, int32 NumInstances, FInstancedStaticMeshInstanceData* StartInstanceData, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
 	/** Remove the instance specified. Returns True on success. Note that this will leave the array in order, but may shrink it. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
@@ -459,6 +483,9 @@ public:
 	FInstancedStaticMeshLightMapInstanceData CachedStaticLighting;
 	UPROPERTY()
 	TArray<FInstancedStaticMeshInstanceData> PerInstanceSMData;
+
+	UPROPERTY()
+	TArray<float> PerInstanceSMCustomData;
 
 	/** The cached selected instances */
 	TBitArray<> SelectedInstances;
