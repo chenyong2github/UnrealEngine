@@ -94,6 +94,12 @@ namespace Chaos
 		}
 	}
 
+	template<>
+	void Chaos::TGeometryParticle<float, 3>::MarkClean(const EParticleFlags CleanBits)
+	{
+		this->MDirtyFlags.MarkClean(CleanBits);
+	}
+
 	template <>
 	template <>
 	int32 TGeometryParticleHandleImp<float, 3, true>::GetPayload<int32>(int32 Idx)
