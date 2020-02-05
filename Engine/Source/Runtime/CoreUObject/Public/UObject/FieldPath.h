@@ -202,8 +202,21 @@ private:
 public:
 	TFieldPath()
 	{}
-	TFieldPath(const TFieldPath&) = default;
-	TFieldPath& operator=(const TFieldPath&) = default;
+	FORCEINLINE TFieldPath(const TFieldPath& Other)
+	{
+		//  First refresh the serial number from the other path
+		ResolvedField = Other.Get();
+		// Now that the Other path is refreshed, we can copy from it
+		FFieldPath::operator=(Other);
+	}
+	FORCEINLINE TFieldPath& operator=(const TFieldPath& Other)
+	{
+		//  First refresh the serial number from the other path
+		ResolvedField = Other.Get();
+		// Now that the Other path is refreshed, we can copy from it
+		FFieldPath::operator=(Other);
+		return *this;
+	}
 
 	/**
 	* Construct from a null pointer
@@ -280,6 +293,10 @@ public:
 		// one or both of the types have only been forward-declared.
 		static_assert(TPointerIsConvertibleFromTo<OtherPropertyType, PropertyType>::Value, "Unable to convert TFieldPath - types are incompatible");
 
+		// First make sure the Other path has the serial number up to date, otherwise we'll keep having to
+		// reevealuate this path because it gets the serial number copied from the Other path
+		ResolvedField = Other.Get();
+		// Now that the Other path is refreshed, we can copy from it
 		FFieldPath::operator=(Other);
 	}
 
