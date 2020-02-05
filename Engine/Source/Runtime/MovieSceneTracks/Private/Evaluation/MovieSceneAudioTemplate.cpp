@@ -324,7 +324,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 
 			if (AudioComponent)
 			{
-				if (AttachComponent && AudioComponent->GetAttachParent() != AttachComponent || AudioComponent->GetAttachSocketName() != AttachKey.SocketName)
+				if (AttachComponent && (AudioComponent->GetAttachParent() != AttachComponent || AudioComponent->GetAttachSocketName() != AttachKey.SocketName))
 				{
 					AudioComponent->AttachToComponent(AttachComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachKey.SocketName);
 				}
