@@ -139,10 +139,10 @@ FORCEINLINE_DEBUGGABLE bool PrePreFilterImp(const FCollisionFilterData& QueryFil
 		//since we're taking the union of shapes we can only support trace channel
 		//const ECollisionChannel QuerierChannel = GetCollisionChannel(QueryFilter.Word3);
 		const uint32 QuerierChannel = (QueryFilterData.Word3 << 6) >> (32 - 5);
-
+	
 		//uint32 const QuerierBit = ECC_TO_BITFIELD(QuerierChannel);
 		const uint32 QuerierBit = (1 << (QuerierChannel));
-
+	
 		// check if Querier wants a hit
 		const uint32 TouchOrBlock = (UnionFilterData.Word1 | UnionFilterData.Word2);
 		return !(QuerierBit & TouchOrBlock);
@@ -206,6 +206,14 @@ public:
 		}
 		
 		return false;
+	}
+
+	void UpdateFrom(const TAccelerationStructureHandle<T, d>& InOther)
+	{
+		UnionFilterData.Word0 = InOther.UnionFilterData.Word0;
+		UnionFilterData.Word1 = InOther.UnionFilterData.Word1;
+		UnionFilterData.Word2 = InOther.UnionFilterData.Word2;
+		UnionFilterData.Word3 = InOther.UnionFilterData.Word3;
 	}
 
 private:
