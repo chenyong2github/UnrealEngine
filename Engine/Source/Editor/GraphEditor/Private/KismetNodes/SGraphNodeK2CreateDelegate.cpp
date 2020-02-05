@@ -286,8 +286,8 @@ void SGraphNodeK2CreateDelegate::CreateBelowPinControls(TSharedPtr<SVerticalBox>
 					UEdGraphSchema_K2::FunctionCanBeUsedInDelegate(Func))
 				{
 					FFunctionItemData ItemData;
-					ItemData->Name = Func->GetFName();
-					ItemData->Description = FunctionDescription(Func);
+					ItemData.Name = Func->GetFName();
+					ItemData.Description = FunctionDescription(Func);
 					ClassFunctions.Emplace(MoveTemp(ItemData));
 				}
 			}
