@@ -406,6 +406,20 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 		TEXT("MyBlueprint_AlwaysShowInterfacesInOverrides")
 	);
 
+	ViewOptions.AddMenuEntry(
+		LOCTEXT("AlwaysShowAccessSpecifier", "Show access specifier in the My Blueprint View"),
+		LOCTEXT("AlwaysShowAccessSpecifierTooltip", "Should we always display the access specifier of functions in the function menu?"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnToggleShowAccessSpecifier),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SMyBlueprint::GetShowAccessSpecifier)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton,
+		TEXT("MyBlueprint_AlwaysShowAccessSpecifier")
+	);
+
 	SAssignNew(FilterBox, SSearchBox)
 		.OnTextChanged( this, &SMyBlueprint::OnFilterTextChanged );
 
@@ -965,6 +979,9 @@ bool SMyBlueprint::CanRequestRenameOnActionNode(TWeakPtr<FGraphActionNode> InSel
 void SMyBlueprint::Refresh()
 {
 	bNeedsRefresh = false;
+
+	// Conform to our interfaces here to ensure we catch any newly added functions
+	FBlueprintEditorUtils::ConformImplementedInterfaces(GetBlueprintObj());
 
 	GraphActionMenu->RefreshAllActions(/*bPreserveExpansion=*/ true);
 }
@@ -1598,6 +1615,20 @@ bool SMyBlueprint::GetShowParentClassInOverrides() const
 	return GetMutableDefault<UBlueprintEditorSettings>()->bShowParentClassInOverrides;
 }
 
+void SMyBlueprint::OnToggleShowAccessSpecifier()
+{
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	Settings->bShowAccessSpecifier = !Settings->bShowAccessSpecifier;
+	Settings->PostEditChange();
+	Settings->SaveConfig();
+	Refresh();
+}
+
+bool SMyBlueprint::GetShowAccessSpecifier() const 
+{
+	return GetMutableDefault<UBlueprintEditorSettings>()->bShowAccessSpecifier;
+}
+
 bool SMyBlueprint::IsShowingReplicatedVariablesOnly() const
 {
 	return bShowReplicatedVariablesOnly;
@@ -2165,11 +2196,16 @@ bool SMyBlueprint::CanOpenGraph() const
 
 void SMyBlueprint::OpenGraph(FDocumentTracker::EOpenDocumentCause InCause)
 {
-	UEdGraph* GraphToOpen = NULL;
+	UEdGraph* GraphToOpen = nullptr;
 
 	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
 		GraphToOpen = GraphAction->EdGraph;
+		// If we have no graph then this is an interface event, so focus on the event graph
+		if (!GraphToOpen)
+		{
+			GraphToOpen = FBlueprintEditorUtils::FindEventGraph(GetBlueprintObj());
+		}
 	}
 	else if (FEdGraphSchemaAction_K2Delegate* DelegateAction = SelectionAsDelegate())
 	{
@@ -2205,7 +2241,22 @@ bool SMyBlueprint::CanFocusOnNode() const
 {
 	FEdGraphSchemaAction_K2Event const* const EventAction = SelectionAsEvent();
 	FEdGraphSchemaAction_K2InputAction const* const InputAction = SelectionAsInputAction();
-	return (EventAction && EventAction->NodeTemplate) || (InputAction && InputAction->NodeTemplate);
+	UK2Node_Event* ExistingNode = nullptr;
+
+	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
+	{
+		// Is this an event implemented from an interface?
+		UBlueprint* BlueprintObj = GetBlueprintObj();		
+		UFunction* OverrideFunc = nullptr;
+		UClass* const OverrideFuncClass = FBlueprintEditorUtils::GetOverrideFunctionClass(BlueprintObj, GraphAction->FuncName, &OverrideFunc);
+		UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(BlueprintObj);
+
+		// Add to event graph
+		FName EventName = OverrideFunc->GetFName();
+		ExistingNode = FBlueprintEditorUtils::FindOverrideForFunction(BlueprintObj, OverrideFuncClass, EventName);
+	}
+
+	return (EventAction && EventAction->NodeTemplate) || (InputAction && InputAction->NodeTemplate) || ExistingNode;
 }
 
 void SMyBlueprint::OnFocusNode()
@@ -2216,6 +2267,21 @@ void SMyBlueprint::OnFocusNode()
 	{
 		UK2Node* Node = EventAction ? EventAction->NodeTemplate : InputAction->NodeTemplate;
 		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Node);
+	}
+	else if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
+	{
+		// Is this an event implemented from an interface?
+		UBlueprint* BlueprintObj = GetBlueprintObj();
+		UFunction* OverrideFunc = nullptr;
+		UClass* const OverrideFuncClass = FBlueprintEditorUtils::GetOverrideFunctionClass(BlueprintObj, GraphAction->FuncName, &OverrideFunc);
+		UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(BlueprintObj);
+
+		// Add to event graph
+		FName EventName = OverrideFunc->GetFName();
+		if (UK2Node_Event* ExistingNode = FBlueprintEditorUtils::FindOverrideForFunction(BlueprintObj, OverrideFuncClass, EventName))
+		{
+			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(ExistingNode);
+		}
 	}
 }
 
@@ -2228,7 +2294,7 @@ void SMyBlueprint::OnFocusNodeInNewTab()
 bool SMyBlueprint::CanImplementFunction() const
 {
 	FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph();
-	return GraphAction && GraphAction->EdGraph == NULL;
+	return GraphAction && GraphAction->EdGraph == nullptr && !CanFocusOnNode();
 }
 
 void SMyBlueprint::OnImplementFunction()
@@ -2248,6 +2314,10 @@ void SMyBlueprint::ImplementFunction(FEdGraphSchemaAction_K2Graph* GraphAction)
 {
 	UBlueprint* BlueprintObj = GetBlueprintObj();
 	check(BlueprintObj && BlueprintObj->SkeletonGeneratedClass);
+
+	// Ensure that we are conforming to all current interfaces so that if there has been an additional
+	// interface function added we just focus to it instead of creating a new one
+	FBlueprintEditorUtils::ConformImplementedInterfaces(BlueprintObj);
 
 	UFunction* OverrideFunc = nullptr;
 	UClass* const OverrideFuncClass = FBlueprintEditorUtils::GetOverrideFunctionClass(BlueprintObj, GraphAction->FuncName, &OverrideFunc);
@@ -2693,25 +2763,11 @@ bool SMyBlueprint::CanDeleteEntry() const
 
 	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
-		if (GraphAction->EdGraph != NULL)
-		{
-			// Allow the user to delete any graphs in the interface section if the function can be placed as an event, 
-			// this allows users to resolve warnings when a previously implemented graph has been changed to be an event.
-			if (GraphAction->GetSectionID() == NodeSectionID::INTERFACE)
-			{
-				UFunction* Function = GetBlueprintObj()->SkeletonGeneratedClass->FindFunctionByName(GraphAction->EdGraph->GetFName());
-				if (UEdGraphSchema_K2::FunctionCanBePlacedAsEvent(Function))
-				{
-					return true;
-				}
-			}
-			return GraphAction->EdGraph->bAllowDeletion;
-		}
-		return false;
+		return (GraphAction->EdGraph ? GraphAction->EdGraph->bAllowDeletion : false);
 	}
 	else if (FEdGraphSchemaAction_K2Delegate* DelegateAction = SelectionAsDelegate())
 	{
-		return (DelegateAction->EdGraph != NULL) && (DelegateAction->EdGraph->bAllowDeletion) && 
+		return (DelegateAction->EdGraph != nullptr) && (DelegateAction->EdGraph->bAllowDeletion) &&
 			FDeleteEntryHelper::CanDeleteVariable(GetBlueprintObj(), DelegateAction->GetDelegateName());
 	}
 	else if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
@@ -2720,7 +2776,7 @@ bool SMyBlueprint::CanDeleteEntry() const
 	}
 	else if (FEdGraphSchemaAction_K2Event* EventAction = SelectionAsEvent())
 	{
-		return EventAction->NodeTemplate != NULL;
+		return EventAction->NodeTemplate != nullptr;
 	}
 	else if (FEdGraphSchemaAction_K2LocalVar* LocalVariable = SelectionAsLocalVar())
 	{

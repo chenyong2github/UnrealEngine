@@ -90,7 +90,6 @@
 
 #if WITH_EDITOR
 	#include "DerivedDataCacheInterface.h"
-	#include "Kismet2/KismetEditorUtilities.h"
 	#include "ThumbnailRendering/WorldThumbnailInfo.h"
 	#include "Editor/UnrealEdTypes.h"
 	#include "Settings/LevelEditorPlaySettings.h"
@@ -1043,17 +1042,6 @@ void UWorld::PostLoad()
 
 bool UWorld::PreSaveRoot(const TCHAR* Filename)
 {
-#if WITH_EDITOR
-	// Rebuild all level blueprints now to ensure no stale data is stored on the actors
-	if( !IsRunningCommandlet() )
-	{
-		for (UBlueprint* Blueprint : PersistentLevel->GetLevelBlueprints())
-		{
-			FKismetEditorUtilities::CompileBlueprint(Blueprint, EBlueprintCompileOptions::SkipGarbageCollection | EBlueprintCompileOptions::SkipSave);
-		}
-	}
-#endif
-
 	// Update components and keep track off whether we need to clean them up afterwards.
 	bool bCleanupIsRequired = false;
 	if(!PersistentLevel->bAreComponentsCurrentlyRegistered)

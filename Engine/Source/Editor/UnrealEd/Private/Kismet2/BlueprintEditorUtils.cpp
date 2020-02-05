@@ -9393,6 +9393,19 @@ UClass* FBlueprintEditorUtils::GetNativeParent(const UBlueprint* BP)
 	return Ret;
 }
 
+UClass* FBlueprintEditorUtils::GetTypeForPin(const UEdGraphPin& Pin)
+{
+	UClass* Ret = Cast<UClass>(Pin.PinType.PinSubCategoryObject.Get());
+
+	if(Ret == nullptr && Pin.PinType.PinSubCategory == UEdGraphSchema_K2::PSC_Self)
+	{
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Pin.GetOwningNode());
+		Ret = (Blueprint->GeneratedClass != NULL) ? Blueprint->GeneratedClass : Blueprint->ParentClass;
+	}
+
+	return Ret;
+}
+
 bool FBlueprintEditorUtils::ImplementsGetWorld(const UBlueprint* BP)
 {
 	if(UClass* NativeParent = GetNativeParent(BP))

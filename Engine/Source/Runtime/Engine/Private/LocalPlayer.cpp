@@ -546,11 +546,12 @@ public:
 		if (bShouldLockView)
 		{
 			PlayerState.bLocked = true;
-			PlayerStates.AddAnnotation(Player, PlayerState);
 
 			// Also copy to the clipboard.
 			FString ViewPointString = ViewPointToString(PlayerState.ViewPoint);
 			FPlatformApplicationMisc::ClipboardCopy(*ViewPointString);
+
+			PlayerStates.AddAnnotation(Player, MoveTemp(PlayerState));
 		}
 
 		if (bPrintHelp)

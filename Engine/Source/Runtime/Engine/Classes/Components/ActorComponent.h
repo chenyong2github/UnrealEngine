@@ -120,6 +120,10 @@ private:
 	/** Used for fast removal of end of frame update */
 	int32 MarkedForEndOfFrameUpdateArrayIndex;
 
+	/** Populated when the component is created and tracks the often used order of creation on a per archetype/per actor basis */
+	UPROPERTY()
+	int32 UCSSerializationIndex;
+
 protected:
 	/** 
 	 *  Indicates if this ActorComponent is currently registered with a scene. 
@@ -219,6 +223,10 @@ private:
 	/** True if this component is only used for visualization, usually a sprite or text */
 	UPROPERTY()
 	uint8 bIsVisualizationComponent : 1;
+
+	/** Marks this component pending kill once PostLoad occurs. Used to clean up old native default subobjects that were removed from code */
+	UPROPERTY()
+	uint8 bNeedsUCSSerializationIndexEvaluted : 1;
 #endif
 
 private:
@@ -257,6 +265,25 @@ public:
 	EComponentCreationMethod CreationMethod;
 
 public:
+	/** Returns the UCS serialization index. This can be an expensive operation in the editor if you are dealing with a component that was saved before this information was present and it needs to be calculated. */
+	int32 GetUCSSerializationIndex() const
+	{
+#if WITH_EDITORONLY_DATA
+		if (bNeedsUCSSerializationIndexEvaluted)
+		{
+			const_cast<UActorComponent*>(this)->DetermineUCSSerializationIndexForLegacyComponent();
+		}
+#endif
+
+		return UCSSerializationIndex;
+	}
+
+private:
+	/** Calculate the UCS serialization index for a component that was saved before we started saving this data */
+	void DetermineUCSSerializationIndexForLegacyComponent();
+
+public:
+
 	/** Tracks whether the component has been added to one of the world's end of frame update lists */
 	uint32 GetMarkedForEndOfFrameUpdateState() const { return MarkedForEndOfFrameUpdateState; }
 
@@ -921,6 +948,7 @@ private:
 	void ClearNeedEndOfFrameUpdate_Internal();
 
 	friend struct FMarkComponentEndOfFrameUpdateState;
+	friend struct FSetUCSSerializationIndex;
 	friend struct FActorComponentInstanceData;
 	friend class FActorComponentDetails;
 	friend class FComponentReregisterContextBase;

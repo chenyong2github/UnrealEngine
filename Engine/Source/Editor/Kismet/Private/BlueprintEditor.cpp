@@ -5478,12 +5478,6 @@ void FBlueprintEditor::OnConvertFunctionToEvent()
 				LogResults.Error(*LOCTEXT("FunctionHasOutput_Error", "A function can only be converted if it does not have any output parameters.").ToString());
 				SpecificErrorMessage = LOCTEXT("FunctionHasOutput_Error_Title", "Function cannot have output parameters");
 			}
-			// Make sure this is not an interface function
-			else if (FBlueprintEditorUtils::IsInterfaceFunction(GetBlueprintObj(), Func))
-			{
-				LogResults.Error(*LOCTEXT("FunctionIsFromInterface_Error", "Functions from interfaces cannot be converted to events.").ToString());
-				SpecificErrorMessage = LOCTEXT("FunctionIsFromInterface_Error_Title", "Cannot convert interface functions");
-			}
 			// Make sure this is not a blueprint/macro function library
 			else if (GetBlueprintObj()->BlueprintType == BPTYPE_FunctionLibrary || GetBlueprintObj()->BlueprintType == BPTYPE_MacroLibrary)
 			{
@@ -5567,7 +5561,9 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		bool bIsOverrideFunc = Func->GetSuperFunction() || (ParentFunction != nullptr);
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
-		if (bIsOverrideFunc)
+		// Allow an interface function to be converted in the case where the interface has changed
+		// and the function should now be placed as an event (UE-85687)
+		if (bIsOverrideFunc || FBlueprintEditorUtils::IsInterfaceFunction(NodeBP, Func))
 		{
 			NewEventNode = FEdGraphSchemaAction_K2NewNode::SpawnNode<UK2Node_Event>(
 				EventGraph,
@@ -8815,7 +8811,7 @@ void FBlueprintEditor::RestoreEditedObjectState()
 							if (OuterObject->IsA<UBlueprint>())
 							{
 								// reached up to the blueprint for the graph, we are done climbing the tree
-								OpenCause = FDocumentTracker::OpenNewDocument;
+								OpenCause = FDocumentTracker::RestorePreviousDocument;
 								break;
 							}
 							else if(UEdGraph* OuterGraph = Cast<UEdGraph>(OuterObject))

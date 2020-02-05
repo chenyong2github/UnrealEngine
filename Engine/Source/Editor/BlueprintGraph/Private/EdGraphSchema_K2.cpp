@@ -2801,8 +2801,8 @@ bool UEdGraphSchema_K2::FindSpecializedConversionNode(const UEdGraphPin* OutputP
 		}
 		else
 		{
-			UClass* InputClass  = Cast<UClass>(InputType.PinSubCategoryObject.Get());
-			UClass* OutputClass = Cast<UClass>(OutputType.PinSubCategoryObject.Get());
+			UClass* InputClass  = FBlueprintEditorUtils::GetTypeForPin(*InputPin);
+			UClass* OutputClass = FBlueprintEditorUtils::GetTypeForPin(*OutputPin);
 
 			if ((OutputType.PinCategory == PC_Interface) && (InputType.PinCategory == PC_Object))
 			{

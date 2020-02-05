@@ -800,8 +800,11 @@ void FGameplayEffectSpec::Initialize(const UGameplayEffect* InDef, const FGamepl
 {
 	Def = InDef;
 	check(Def);	
-	SetLevel(InLevel);
+	// SetContext requires the level to be set before it runs
+	// however, there are code paths in SetLevel that can potentially (depends on game data setup) require the context to be set
+	Level = InLevel;
 	SetContext(InEffectContext);
+	SetLevel(InLevel);
 
 	// Init our ModifierSpecs
 	Modifiers.SetNum(Def->Modifiers.Num());
@@ -1719,6 +1722,12 @@ void FActiveGameplayEffect::CheckOngoingTagRequirements(const FGameplayTagContai
 
 bool FActiveGameplayEffect::CheckRemovalTagRequirements(const FGameplayTagContainer& OwnerTags, FActiveGameplayEffectsContainer& OwningContainer) const
 {
+	if (Spec.Def == nullptr)
+	{
+		ABILITY_LOG(Error, TEXT("FActiveGameplayEffect::CheckRemovalTagRequirements called with no UGameplayEffect def. (%s)"), *Spec.GetEffectContext().ToString());
+		return false;
+	}
+
 	if (!Spec.Def->RemovalTagRequirements.IsEmpty())
 	{
 		if (Spec.Def->RemovalTagRequirements.RequirementsMet(OwnerTags))
@@ -2377,10 +2386,8 @@ bool FActiveGameplayEffectsContainer::ShouldUseMinimalReplication()
 	return IsNetAuthority() && (Owner->ReplicationMode == EGameplayEffectReplicationMode::Minimal || Owner->ReplicationMode == EGameplayEffectReplicationMode::Mixed);
 }
 
-void FActiveGameplayEffectsContainer::SetBaseAttributeValueFromReplication(FGameplayAttribute Attribute, float ServerValue)
+void FActiveGameplayEffectsContainer::SetBaseAttributeValueFromReplication(const FGameplayAttribute& Attribute, float ServerValue, float OldValue)
 {
-	float OldValue = Owner->GetNumericAttribute(Attribute);
-
 	FAggregatorRef* RefPtr = AttributeAggregatorMap.Find(Attribute);
 	if (RefPtr && RefPtr->Get())
 	{

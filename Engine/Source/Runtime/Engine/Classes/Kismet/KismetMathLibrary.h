@@ -831,6 +831,83 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 
 
 	//
+	// IntPoint constants
+	//
+	
+	/** Zero Int Point (0, 0) */
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	static FIntPoint IntPoint_Zero();
+	
+	/** One Int Point (1, 1) */
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "One", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	static FIntPoint IntPoint_One();
+	
+	/** Up Int Point (0, -1) */
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Up", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	static FIntPoint IntPoint_Up();
+	
+	/** Left Int Point (-1, 0) */
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Left", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	static FIntPoint IntPoint_Left();
+	
+	/** Right Int Point (1, 0) */
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Right", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	static FIntPoint IntPoint_Right();
+	
+	/** Down Int Point (0, 1) */
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Down", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	static FIntPoint IntPoint_Down();
+
+	//
+	// IntPoint functions
+	//
+
+	/** Convert an IntPoint to a Vector2D */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Vector2D (IntPoint)", CompactNodeTitle = "->", ScriptMethod = "Vector2D", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
+	static FVector2D Conv_IntPointToVector2D(FIntPoint InIntPoint);
+
+	/** Returns IntPoint A added by B */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint + IntPoint", CompactNodeTitle = "+", ScriptMethod = "Add", ScriptOperator = "+;+=", Keywords = "+ add plus"), Category = "Math|IntPoint")
+	static FIntPoint Add_IntPointIntPoint(FIntPoint A, FIntPoint B);
+
+	/** Returns IntPoint A added by B */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint + int", CompactNodeTitle = "+", ScriptMethod = "AddInt", ScriptOperator = "+;+=", Keywords = "+ add plus"), Category = "Math|IntPoint")
+	static FIntPoint Add_IntPointInt(FIntPoint A, int32 B);
+
+	/** Returns IntPoint A subtracted by B */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint - IntPoint", CompactNodeTitle = "-", ScriptMethod = "Subtract", ScriptOperator = "-;-=", Keywords = "- subtract minus"), Category = "Math|IntPoint")
+	static FIntPoint Subtract_IntPointIntPoint(FIntPoint A, FIntPoint B);
+
+	/** Returns IntPoint A subtracted by B */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint - Int", CompactNodeTitle = "-", ScriptMethod = "SubtractInt", ScriptOperator = "-;-=", Keywords = "- subtract minus"), Category = "Math|IntPoint")
+	static FIntPoint Subtract_IntPointInt(FIntPoint A, int32 B);
+
+	/** Returns IntPoint A multiplied by B */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint * IntPoint", CompactNodeTitle = "*", ScriptMethod = "Multiply", ScriptOperator = "*;*=", Keywords = "* multiply"), Category = "Math|IntPoint")
+	static FIntPoint Multiply_IntPointIntPoint(FIntPoint A, FIntPoint B);
+
+	/** Returns IntPoint A multiplied by B */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint * Int", CompactNodeTitle = "*", ScriptMethod = "MultiplyInt", ScriptOperator = "*;*=", Keywords = "* multiply"), Category = "Math|IntPoint")
+	static FIntPoint Multiply_IntPointInt(FIntPoint A, int32 B);
+
+	/** Returns IntPoint A divided by B */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint / IntPoint", CompactNodeTitle = "/", ScriptMethod = "Divide", ScriptOperator = "/;/=", Keywords = "/ divide"), Category = "Math|IntPoint")
+	static FIntPoint Divide_IntPointIntPoint(FIntPoint A, FIntPoint B);
+
+	/** Returns IntPoint A divided by B */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint / Int", CompactNodeTitle = "/", ScriptMethod = "DivideInt", ScriptOperator = "/;/=", Keywords = "/ divide"), Category = "Math|IntPoint")
+	static FIntPoint Divide_IntPointInt(FIntPoint A, int32 B);
+
+	/** Returns true if IntPoint A is equal to IntPoint B (A == B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Equal (IntPoint)", CompactNodeTitle = "==", ScriptMethod = "Equals", ScriptOperator = "==", Keywords = "== equal"), Category = "Math|IntPoint")
+	static bool Equal_IntPointIntPoint(FIntPoint A, FIntPoint B);
+
+	/** Returns true if IntPoint A is NOT equal to IntPoint B (A != B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Not Equal (IntPoint)", CompactNodeTitle = "!=", ScriptMethod = "NotEqual", ScriptOperator = "==", Keywords = "== not equal"), Category = "Math|IntPoint")
+	static bool NotEqual_IntPointIntPoint(FIntPoint A, FIntPoint B);
+	
+
+	//
 	// Vector2D constants - exposed for scripting
 	//
 
@@ -863,7 +940,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Vector (Vector2D)", CompactNodeTitle = "->", ScriptMethod = "Vector", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
 	static FVector Conv_Vector2DToVector(FVector2D InVector2D, float Z = 0);
 
-	/** Convert a Vector2D to a Vector */
+	/** Convert a Vector2D to an IntPoint */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To IntPoint (Vector2D)", CompactNodeTitle = "->", ScriptMethod = "IntPoint", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
 	static FIntPoint Conv_Vector2DToIntPoint(FVector2D InVector2D);
 
@@ -3312,6 +3389,14 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToByte (integer)", CompactNodeTitle = "->", Keywords="cast convert", BlueprintAutocast), Category="Math|Conversions")
 	static uint8 Conv_IntToByte(int32 InInt);
 
+	/** Converts a 64 bit integer to a 32 bit integer (if the integer is too large, returns the low 32 bits) */
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToInt (Int64)", CompactNodeTitle = "->", Keywords="cast convert", BlueprintAutocast), Category="Math|Conversions")
+	static int32 Conv_Int64ToInt(int64 InInt);
+
+	/** Converts a 64 bit integer to a byte (if the integer is too large, returns the low 8 bits) */
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToByte (Int64)", CompactNodeTitle = "->", Keywords="cast convert", BlueprintAutocast), Category="Math|Conversions")
+	static uint8 Conv_Int64ToByte(int64 InInt);
+
 	/** Converts an integer to an IntVector*/
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToIntVector (integer)", CompactNodeTitle = "->", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
 	static FIntVector Conv_IntToIntVector(int32 InInt);
@@ -3954,6 +4039,8 @@ private:
 	static void ReportError_Divide_VectorInt();
 	static void ReportError_Divide_VectorVector();
 	static void ReportError_ProjectVectorOnToVector();
+	static void ReportError_Divide_IntPointOnInt();
+	static void ReportError_Divide_IntPointOnIntPoint();
 	static void ReportError_Divide_Vector2DFloat();
 	static void ReportError_Divide_Vector2DVector2D();
 	static void ReportError_DaysInMonth();
@@ -3964,4 +4051,3 @@ private:
 #if KISMET_MATH_INLINE_ENABLED
 #include "KismetMathLibrary.inl"
 #endif
-

@@ -1843,10 +1843,17 @@ void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapp
 
 		// Ensure LODData has enough entries in it, free not required.
 		SetLODDataCount(ResolvedMesh->GetNumLODs(), ResolvedMesh->GetNumLODs());
+		FStaticMeshComponentLODInfo& LODInfo = LODData[0];
+
+		// Ensure this LODInfo has a valid MapBuildDataId
+		if (LODInfo.CreateMapBuildDataId(0))
+		{
+			MarkPackageDirty();
+		}
 
 		ULevel* StorageLevel = LightingScenario ? LightingScenario : GetOwner()->GetLevel();
 		UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-		FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(LODData[0].MapBuildDataId, true);
+		FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(LODInfo.MapBuildDataId, true);
 
 		MeshBuildData.PerInstanceLightmapData.Empty(AllQuantizedData.Num());
 		MeshBuildData.PerInstanceLightmapData.AddZeroed(AllQuantizedData.Num());
@@ -1858,11 +1865,11 @@ void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapp
 		TRefCountPtr<FLightMap2D> NewLightMap = FLightMap2D::AllocateInstancedLightMap(Registry, this,
 			MoveTemp(AllQuantizedData),
 			bUseVirtualTextures ? MoveTemp(AllShadowMapData) : MoveTemp(EmptyShadowMapData),
-			Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, LMF_Streamed);
+			Registry, LODInfo.MapBuildDataId, Bounds, PaddingType, LMF_Streamed);
 
 		// Create a shadow-map for the primitive, only needed when not using VT
 		TRefCountPtr<FShadowMap2D> NewShadowMap = (bNeedsShadowMap && !bUseVirtualTextures)
-			? FShadowMap2D::AllocateInstancedShadowMap(Registry, this, MoveTemp(AllShadowMapData), Registry, LODData[0].MapBuildDataId, Bounds, PaddingType, SMF_Streamed)
+			? FShadowMap2D::AllocateInstancedShadowMap(Registry, this, MoveTemp(AllShadowMapData), Registry, LODInfo.MapBuildDataId, Bounds, PaddingType, SMF_Streamed)
 			: nullptr;
 
 		MeshBuildData.LightMap = NewLightMap;

@@ -1679,8 +1679,80 @@ FString GetConfigFilename( UObject* SourceObject )
 	else
 #endif
 	{
-		// otherwise look at the class to get the config name
-		return SourceObject->GetClass()->GetConfigName();
+	// otherwise look at the class to get the config name
+	return SourceObject->GetClass()->GetConfigName();
+	}
+}
+
+void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, const UObject* OwnerObject, FProperty* Prop, TSet<FName>& OutFoundSpecialStructs, TArray<UObject::FAssetRegistryTag>& OutTags)
+{
+	FName TagName;
+	UObject::FAssetRegistryTag::ETagType TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
+	FStructProperty* StructProp = CastField<FStructProperty>(Prop);
+
+	if (StructProp && StructProp->Struct && UObject::FAssetRegistryTag::IsUniqueAssetRegistryTagStruct(StructProp->Struct->GetFName(), TagType))
+	{
+		// Special unique structure type
+		TagName = StructProp->Struct->GetFName();
+
+		if (OutFoundSpecialStructs.Contains(TagName))
+		{
+			UE_LOG(LogObj, Error, TEXT("Object %s has more than one unique asset registry struct %s!"), *OwnerObject->GetPathName(), *TagName.ToString());
+		}
+		else
+		{
+			OutFoundSpecialStructs.Add(TagName);
+		}
+	}
+	else if (Prop->HasAnyPropertyFlags(CPF_AssetRegistrySearchable))
+	{
+		TagName = Prop->GetFName();
+
+		if (Prop->IsA(FIntProperty::StaticClass()) ||
+			Prop->IsA(FFloatProperty::StaticClass()) ||
+			Prop->IsA(FDoubleProperty::StaticClass()))
+		{
+			// ints and floats are always numerical
+			TagType = UObject::FAssetRegistryTag::ETagType::TT_Numerical;
+		}
+		else if (Prop->IsA(FByteProperty::StaticClass()))
+		{
+			// bytes are numerical, enums are alphabetical
+			FByteProperty* ByteProp = static_cast<FByteProperty*>(Prop);
+			if (ByteProp->Enum)
+			{
+				TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
+			}
+			else
+			{
+				TagType = UObject::FAssetRegistryTag::ETagType::TT_Numerical;
+			}
+		}
+		else if (Prop->IsA(FEnumProperty::StaticClass()))
+		{
+			// enums are alphabetical
+			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
+		}
+		else if (Prop->IsA(FArrayProperty::StaticClass()) || Prop->IsA(FMapProperty::StaticClass()) || Prop->IsA(FSetProperty::StaticClass())
+			|| Prop->IsA(FStructProperty::StaticClass()) || Prop->IsA(FObjectPropertyBase::StaticClass()))
+		{
+			// Arrays/maps/sets/structs/objects are hidden, it is often too much information to display and sort
+			TagType = UObject::FAssetRegistryTag::ETagType::TT_Hidden;
+		}
+		else
+		{
+			// All other types are alphabetical
+			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
+		}
+	}
+
+	if (TagName != NAME_None)
+	{
+		FString PropertyStr;
+		const uint8* PropertyAddr = Prop->ContainerPtrToValuePtr<uint8>(BaseMemoryLocation);
+		Prop->ExportTextItem(PropertyStr, PropertyAddr, PropertyAddr, nullptr, PPF_None);
+
+		OutTags.Add(UObject::FAssetRegistryTag(TagName, PropertyStr, TagType));
 	}
 }
 
@@ -1689,77 +1761,18 @@ void UObject::FAssetRegistryTag::GetAssetRegistryTagsFromSearchableProperties(co
 	TSet<FName> FoundSpecialStructs;
 
 	check(nullptr != Object);
-	for( TFieldIterator<FProperty> FieldIt( Object->GetClass() ); FieldIt; ++FieldIt )
+	for (TFieldIterator<FProperty> FieldIt( Object->GetClass() ); FieldIt; ++FieldIt)
 	{
-		FName TagName;
-		FAssetRegistryTag::ETagType TagType = TT_Alphabetical;
-		FStructProperty* StructProp = CastField<FStructProperty>(*FieldIt);
+		GetAssetRegistryTagFromProperty(Object, Object, CastField<FProperty>(*FieldIt), FoundSpecialStructs, OutTags);
+	}
 
-		if (StructProp && StructProp->Struct && IsUniqueAssetRegistryTagStruct(StructProp->Struct->GetFName(), TagType))
+	UScriptStruct* SparseClassDataStruct = Object->GetClass()->GetSparseClassDataStruct();
+	if (SparseClassDataStruct)
+	{
+		void* SparseClassData = Object->GetClass()->GetOrCreateSparseClassData();
+		for (TFieldIterator<FProperty> FieldIt(SparseClassDataStruct); FieldIt; ++FieldIt)
 		{
-			// Special unique structure type
-			TagName = StructProp->Struct->GetFName();
-			
-			if (FoundSpecialStructs.Contains(TagName))
-			{
-				UE_LOG(LogObj, Error, TEXT("Object %s has more than one unique asset registry struct %s!"), *Object->GetPathName(), *TagName.ToString());
-			}
-			else
-			{
-				FoundSpecialStructs.Add(TagName);
-			}
-		}
-		else if (FieldIt->HasAnyPropertyFlags(CPF_AssetRegistrySearchable))
-		{
-			TagName = FieldIt->GetFName();
-
-			FProperty* Field = *FieldIt;
-			if (Field->IsA(FIntProperty::StaticClass()) ||
-				Field->IsA(FFloatProperty::StaticClass()) ||
-				Field->IsA(FDoubleProperty::StaticClass()))
-			{
-				// ints and floats are always numerical
-				TagType = FAssetRegistryTag::TT_Numerical;
-			}
-			else if (Field->IsA(FByteProperty::StaticClass()))
-			{
-				// bytes are numerical, enums are alphabetical
-				FByteProperty* ByteProp = static_cast<FByteProperty*>(*FieldIt);
-				if (ByteProp->Enum)
-				{
-					TagType = FAssetRegistryTag::TT_Alphabetical;
-				}
-				else
-				{
-					TagType = FAssetRegistryTag::TT_Numerical;
-				}
-			}
-			else if (Field->IsA(FEnumProperty::StaticClass()) )
-			{
-				// enums are alphabetical
-				TagType = FAssetRegistryTag::TT_Alphabetical;
-			}
-			else if (Field->IsA(FArrayProperty::StaticClass()) || Field->IsA(FMapProperty::StaticClass()) || Field->IsA(FSetProperty::StaticClass())
-				|| Field->IsA(FStructProperty::StaticClass()) || Field->IsA(FObjectPropertyBase::StaticClass()))
-			{
-				// Arrays/maps/sets/structs/objects are hidden, it is often too much information to display and sort
-				TagType = FAssetRegistryTag::TT_Hidden;
-			}
-			else
-			{
-				// All other types are alphabetical
-				TagType = FAssetRegistryTag::TT_Alphabetical;
-			}
-		}
-
-		if (TagName != NAME_None)
-		{
-
-			FString PropertyStr;
-			const uint8* PropertyAddr = FieldIt->ContainerPtrToValuePtr<uint8>(Object);
-			FieldIt->ExportTextItem( PropertyStr, PropertyAddr, PropertyAddr, nullptr, PPF_None );
-
-			OutTags.Add( FAssetRegistryTag(TagName, PropertyStr, TagType) );
+			GetAssetRegistryTagFromProperty(SparseClassData, Object, CastField<FProperty>(*FieldIt), FoundSpecialStructs, OutTags);
 		}
 	}
 }

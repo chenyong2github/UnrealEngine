@@ -33,7 +33,7 @@ template<typename TAnnotation>
 class FUObjectAnnotationSparseNoSync : public FUObjectArray::FUObjectDeleteListener
 {
 public:
-	virtual void NotifyUObjectDeleted(const UObjectBase *Object, int32 Index) override
+	virtual void NotifyUObjectDeleted(const UObjectBase* Object, int32 Index) override
 	{
 		RemoveAnnotation(Object);
 	}
@@ -54,11 +54,13 @@ public:
 		RemoveAllAnnotations();
 	}
 
-	void AddAnnotation(const UObjectBase* Object,TAnnotation Annotation)
+private:
+	template<typename T>
+	void AddAnnotationInternal(const UObjectBase* Object, T&& Annotation)
 	{
 		check(Object);
 		AnnotationCacheKey = Object;
-		AnnotationCacheValue = Annotation;
+		AnnotationCacheValue = Forward<T>(Annotation);
 		if (Annotation.IsDefault())
 		{
 			RemoveAnnotation(Object); // adding the default annotation is the same as removing an annotation
@@ -70,8 +72,19 @@ public:
 				// we are adding the first one, so if we are auto removing or verifying removal, register now
 				GUObjectArray.AddUObjectDeleteListener(this);
 			}
-			AnnotationMap.Add(AnnotationCacheKey,AnnotationCacheValue);
+			AnnotationMap.Add(AnnotationCacheKey, AnnotationCacheValue);
 		}
+	}
+
+public:
+	void AddAnnotation(const UObjectBase* Object, TAnnotation&& Annotation)
+	{
+		AddAnnotationInternal(Object, MoveTemp(Annotation));
+	}
+
+	void AddAnnotation(const UObjectBase* Object, const TAnnotation& Annotation)
+	{
+		AddAnnotationInternal(Object, Annotation);
 	}
 
 	void RemoveAnnotation(const UObjectBase* Object)

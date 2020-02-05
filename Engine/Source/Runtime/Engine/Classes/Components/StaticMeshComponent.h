@@ -89,11 +89,6 @@ struct FStaticMeshComponentLODInfo
 	/** Uniquely identifies this LOD's built map data. */
 	FGuid MapBuildDataId;
 
-#if WITH_EDITOR
-	/** Check to see if MapBuildDataId was loaded - otherwise we need to display a warning on cook */
-	bool bMapBuildDataIdLoaded;
-#endif
-
 	/** Used during deserialization to temporarily store legacy lightmap data. */
 	FMeshMapBuildData* LegacyMapBuildData;
 
@@ -119,12 +114,19 @@ struct FStaticMeshComponentLODInfo
 
 	/** Default constructor */
 	FStaticMeshComponentLODInfo();
-	FStaticMeshComponentLODInfo(UStaticMeshComponent* InOwningComponent, int32 LodIndex);
+	FStaticMeshComponentLODInfo(UStaticMeshComponent* InOwningComponent);
 	/** Destructor */
 	~FStaticMeshComponentLODInfo();
 
 	/** Delete existing resources */
 	void CleanUp();
+
+	/** 
+	 * Ensure this LODInfo has a valid MapBuildDataId GUID.
+	 * @param LodIndex Index of the LOD this LODInfo represents.
+	 * @return true if a new GUID was created, false otherwise.
+	 */
+	bool CreateMapBuildDataId(int32 LodIndex);
 
 	/**
 	* Enqueues a rendering command to release the vertex colors.

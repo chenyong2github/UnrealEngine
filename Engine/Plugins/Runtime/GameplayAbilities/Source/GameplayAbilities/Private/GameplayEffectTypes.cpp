@@ -418,7 +418,7 @@ void FGameplayTagCountContainer::Reset()
 	OnAnyTagChangeDelegate.Clear();
 }
 
-bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, int32 CountDelta, bool bDeferParentTagsOnRemove)
+bool FGameplayTagCountContainer::UpdateExplicitTags(const FGameplayTag& Tag, const int32 CountDelta, const bool bDeferParentTagsOnRemove)
 {
 	const bool bTagAlreadyExplicitlyExists = ExplicitTags.HasTagExact(Tag);
 
@@ -455,6 +455,11 @@ bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, 
 		ExplicitTags.RemoveTag(Tag, bDeferParentTagsOnRemove);
 	}
 
+	return true;
+}
+
+bool FGameplayTagCountContainer::GatherTagChangeDelegates(const FGameplayTag& Tag, const int32 CountDelta, TArray<FDeferredTagChangeDelegate>& TagChangeDelegates)
+{
 	// Check if change delegates are required to fire for the tag or any of its parents based on the count change
 	FGameplayTagContainer TagAndParentsContainer = Tag.GetGameplayTagParents();
 	bool CreatedSignificantChange = false;
@@ -462,7 +467,7 @@ bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, 
 	{
 		const FGameplayTag& CurTag = *CompleteTagIt;
 
-		// Get the current count of the specified tag. NOTE: Stored as a reference, so subsequent changes propogate to the map.
+		// Get the current count of the specified tag. NOTE: Stored as a reference, so subsequent changes propagate to the map.
 		int32& TagCountRef = GameplayTagCountMap.FindOrAdd(CurTag);
 
 		const int32 OldCount = TagCountRef;
@@ -472,29 +477,65 @@ bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, 
 		TagCountRef = NewTagCount;
 
 		// If a significant change (new addition or total removal) occurred, trigger related delegates
-		bool SignificantChange = (OldCount == 0 || NewTagCount == 0);
+		const bool SignificantChange = (OldCount == 0 || NewTagCount == 0);
 		CreatedSignificantChange |= SignificantChange;
 		if (SignificantChange)
 		{
-			OnAnyTagChangeDelegate.Broadcast(CurTag, NewTagCount);
+			TagChangeDelegates.AddDefaulted();
+			TagChangeDelegates.Last().BindLambda([Delegate = OnAnyTagChangeDelegate, CurTag, NewTagCount]()
+			{
+				Delegate.Broadcast(CurTag, NewTagCount);
+			});
 		}
 
 		FDelegateInfo* DelegateInfo = GameplayTagEventMap.Find(CurTag);
 		if (DelegateInfo)
 		{
-			// Prior to calling OnAnyChange delegate, copy our OnNewOrRemove delegate, since things listening to OnAnyChange could add or remove 
-			// to this map causing our pointer to become invalid.
-			FOnGameplayEffectTagCountChanged OnNewOrRemoveLocalCopy = DelegateInfo->OnNewOrRemove;
+			TagChangeDelegates.AddDefaulted();
+			TagChangeDelegates.Last().BindLambda([Delegate = DelegateInfo->OnAnyChange, CurTag, NewTagCount]()
+			{
+				Delegate.Broadcast(CurTag, NewTagCount);
+			});
 
-			DelegateInfo->OnAnyChange.Broadcast(CurTag, NewTagCount);
 			if (SignificantChange)
 			{
-				OnNewOrRemoveLocalCopy.Broadcast(CurTag, NewTagCount);
+				TagChangeDelegates.AddDefaulted();
+				TagChangeDelegates.Last().BindLambda([Delegate = DelegateInfo->OnNewOrRemove, CurTag, NewTagCount]()
+				{
+					Delegate.Broadcast(CurTag, NewTagCount);
+				});
 			}
 		}
 	}
 
 	return CreatedSignificantChange;
+}
+
+bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, int32 CountDelta)
+{
+	if (!UpdateExplicitTags(Tag, CountDelta, false))
+	{
+		return false;
+	}
+
+	TArray<FDeferredTagChangeDelegate> DeferredTagChangeDelegates;
+	bool bSignificantChange = GatherTagChangeDelegates(Tag, CountDelta, DeferredTagChangeDelegates);
+	for (FDeferredTagChangeDelegate& Delegate : DeferredTagChangeDelegates)
+	{
+		Delegate.Execute();
+	}
+
+	return bSignificantChange;
+}
+
+bool FGameplayTagCountContainer::UpdateTagMapDeferredParentRemoval_Internal(const FGameplayTag& Tag, int32 CountDelta, TArray<FDeferredTagChangeDelegate>& DeferredTagChangeDelegates)
+{
+	if (!UpdateExplicitTags(Tag, CountDelta, true))
+	{
+		return false;
+	}
+
+	return GatherTagChangeDelegates(Tag, CountDelta, DeferredTagChangeDelegates);
 }
 
 FGameplayTagBlueprintPropertyMap::FGameplayTagBlueprintPropertyMap()

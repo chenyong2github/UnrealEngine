@@ -5,6 +5,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/Blueprint.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_DynamicCast.h"
@@ -26,7 +27,7 @@ UClass* UK2Node_ConvertAsset::GetTargetClass() const
 	UEdGraphPin* InputPin = FindPin(UK2Node_ConvertAssetImpl::InputPinName);
 	bool bIsConnected = InputPin && InputPin->LinkedTo.Num() && InputPin->LinkedTo[0];
 	UEdGraphPin* SourcePin = bIsConnected ? InputPin->LinkedTo[0] : nullptr;
-	return SourcePin ? Cast<UClass>(SourcePin->PinType.PinSubCategoryObject.Get()) : nullptr;
+	return SourcePin ? FBlueprintEditorUtils::GetTypeForPin(*SourcePin) : nullptr;
 }
 
 bool UK2Node_ConvertAsset::IsAssetClassType() const
