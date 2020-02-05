@@ -22,6 +22,7 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "PipelineFileCache.h"
 #include "Interfaces/IPluginManager.h"
 #include "Hash/CityHash.h"
+#include "Containers/SortedMap.h"
 
 #include "Interfaces/IShaderFormatArchive.h"
 #include "ShaderPipelineCache.h"
@@ -1071,7 +1072,7 @@ private:
 	// A count of the number of LibraryAsync Read Requests in flight
 	volatile int64 InFlightAsyncReadRequests;
 
-	// The shader code present in the library
+	// The shader code present in the library (note: in the editor this is a TSortedMap, but the classes are guaranteed to be serialiation-compatible)
 	TMap<FSHAHash, FShaderCodeEntry> Shaders;
 
 	// De-serialised pipeline map
@@ -1087,10 +1088,19 @@ private:
 			UE_LOG(LogShaderLibrary, Fatal, TEXT("Failed to create shader %s, %s, %s"), *DebugCopy.ToString(), *LibraryName, *LibraryDir);
 		}
 #endif
-			}
+	}
 };
 
 #if WITH_EDITOR
+template <>
+struct TLess<FSHAHash>
+{
+	FORCEINLINE bool operator()(const FSHAHash& Lhs, const FSHAHash& Rhs) const
+	{
+		return FMemory::Memcmp(&Lhs.Hash, &Rhs.Hash, sizeof(FSHAHash::Hash)) < 0;
+	}
+};
+
 struct FEditorShaderCodeArchive
 {
 	FEditorShaderCodeArchive(FName InFormat)
@@ -1260,6 +1270,7 @@ struct FEditorShaderCodeArchive
 
 					if (Version == GShaderCodeArchiveVersion)
 					{
+						// note: we are likely loading a TSortedMap and not a TMap, but the classes are guaranteed to be serialization-compatible
 						TMap<FSHAHash, FShaderCodeEntry> PrevCookedShaders;
 
 						*PrevCookedAr << PrevCookedShaders;
@@ -1341,6 +1352,15 @@ struct FEditorShaderCodeArchive
 		// Shader library
 		if (bSuccess && Shaders.Num() > 0)
 		{
+			// recreate the shader offsets so they match the sorted order
+			uint64 NewOffset = 0;
+			for (TSortedMap<FSHAHash, FShaderCodeEntry, FDefaultAllocator, TLess<FSHAHash>>::TIterator It(Shaders); It; ++It)
+			{
+				It.Value().Offset = NewOffset;
+				NewOffset += It.Value().Size;
+			}
+			checkf(NewOffset == Offset, TEXT("Reordering of shaders at the very end did not end at the original offset - internal error."));
+
 			// Write to a intermediate file
 			FString IntermediateFormatPath = GetShaderCodeFilename(FPaths::ProjectSavedDir() / TEXT("Shaders") / FormatName.ToString(), LibraryName, FormatName);
 			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*IntermediateFormatPath, FILEWRITE_NoFail);
@@ -1396,6 +1416,8 @@ struct FEditorShaderCodeArchive
 			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*TempFilePath, FILEWRITE_NoFail);
 
 			*FileWriter << GShaderPipelineArchiveVersion;
+
+			Pipelines.Sort([](const FShaderCodeLibraryPipeline& A, const FShaderCodeLibraryPipeline& B){ return A.Hash <= B.Hash; });
 
 			*FileWriter << Pipelines;
 
@@ -1582,7 +1604,7 @@ struct FEditorShaderCodeArchive
 private:
 	FName FormatName;
 	FString LibraryName;
-	TMap<FSHAHash, FShaderCodeEntry> Shaders;
+	TSortedMap<FSHAHash, FShaderCodeEntry, FDefaultAllocator, TLess<FSHAHash>> Shaders;
 	TSet<FShaderCodeLibraryPipeline> Pipelines;
 	uint64 Offset;
 	const IShaderFormat* Format;
