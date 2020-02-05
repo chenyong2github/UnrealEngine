@@ -41,6 +41,7 @@ public:
 
 private:
 	virtual bool				OnAccept(asio::ip::tcp::socket& Socket) override;
+	void						OnAcceptable(uint32 Magic, asio::ip::tcp::socket& Socket);
 	virtual void				OnTick() override;
 	TArray<FSession>			Sessions;
 	FAsioStore&					Store;
