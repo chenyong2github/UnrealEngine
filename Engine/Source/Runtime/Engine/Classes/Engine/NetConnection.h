@@ -259,8 +259,9 @@ public:
 UCLASS(customConstructor, Abstract, MinimalAPI, transient, config=Engine)
 class ENGINE_VTABLE UNetConnection : public UPlayer
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
+public:
 	/** child connections for secondary viewports */
 	UPROPERTY(transient)
 	TArray<class UChildConnection*> Children;
@@ -296,9 +297,23 @@ class ENGINE_VTABLE UNetConnection : public UPlayer
 	UPROPERTY()
 	int32	MaxPacket;						// Maximum packet size.
 
+	UE_DEPRECATED(4.25, "Please use IsInternalAck/SetInternalAck instead")
 	UPROPERTY()
 	uint32 InternalAck:1;					// Internally ack all packets, for 100% reliable connections.
 
+	bool IsInternalAck() const { return bInternalAck; }
+	void SetInternalAck(bool bValue) 
+	{ 
+		bInternalAck = bValue; 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		InternalAck = bValue;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+private:
+	uint32 bInternalAck : 1;	// Internally ack all packets, for 100% reliable connections.
+
+public:
 	struct FURL			URL;				// URL of the other side.
 	
 	/** The remote address of this connection, typically generated from the URL. */
@@ -1148,7 +1163,7 @@ public:
 	{
 		// The InternalAck and ServerConnection conditions, are only there to exclude demo's and clients from this check,
 		// so that the check is only performed on servers.
-		return !!InternalAck || Driver->ServerConnection != nullptr || InReliable[0] != InitInReliable;
+		return IsInternalAck() || Driver->ServerConnection != nullptr || InReliable[0] != InitInReliable;
 	}
 
 	/**

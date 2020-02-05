@@ -575,7 +575,7 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 	}
 	FSimpleScopeSecondsCounter ScopedTimer(GTickFlushGameDriverTimeSeconds, bEnableTimer);
 
-	if ( IsServer() && ClientConnections.Num() > 0 && ClientConnections[0]->InternalAck == false )
+	if ( IsServer() && ClientConnections.Num() > 0 && ClientConnections[0]->IsInternalAck() == false )
 	{
 		// Update all clients.
 #if WITH_SERVER_CODE
@@ -2238,7 +2238,7 @@ void UNetDriver::ProcessRemoteFunctionForChannel(UActorChannel* Ch, const FClass
 		}
 	}
 
-	if ( Connection->InternalAck )
+	if ( Connection->IsInternalAck() )
 	{
 		Connection->FlushNet();
 	}
