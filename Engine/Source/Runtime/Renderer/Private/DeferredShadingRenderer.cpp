@@ -568,7 +568,10 @@ void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImm
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
 	SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DistanceFieldAO_Init);
 
-	if (ShouldPrepareHeightFieldScene())
+	const bool bShouldPrepareHeightFieldScene = ShouldPrepareHeightFieldScene();
+	const bool bShouldPrepareDistanceFieldScene = ShouldPrepareDistanceFieldScene();
+
+	if (bShouldPrepareHeightFieldScene)
 	{
 		extern int32 GHFShadowQuality;
 		if (GHFShadowQuality > 2)
@@ -578,8 +581,12 @@ void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImm
 		GHeightFieldTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
 		UpdateGlobalHeightFieldObjectBuffers(RHICmdList);
 	}
+	else if (bShouldPrepareDistanceFieldScene)
+	{
+		AddOrRemoveSceneHeightFieldPrimitives();
+	}
 
-	if (ShouldPrepareDistanceFieldScene())
+	if (bShouldPrepareDistanceFieldScene)
 	{
 		GDistanceFieldVolumeTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
 		UpdateGlobalDistanceFieldObjectBuffers(RHICmdList);
