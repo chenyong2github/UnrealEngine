@@ -408,13 +408,7 @@ FAudioDevice* USynthComponent::GetAudioDevice()
 	// If the synth component has a world, that means it was already registed with that world
 	if (UWorld* World = GetWorld())
 	{
-		// Make sure it has a proper audio device handle and retrieve it
-		if (World->AudioDeviceHandle != INDEX_NONE)
-		{
-			FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-			check(AudioDeviceManager);
-			return AudioDeviceManager->GetAudioDevice(World->AudioDeviceHandle);
-		}
+		return World->AudioDeviceHandle.GetAudioDevice();
 	}
 
 	// Otherwise, retrieve the audio component's audio device (probably from it's owner)

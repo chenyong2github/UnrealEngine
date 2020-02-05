@@ -1222,7 +1222,7 @@ bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObj
 	}
 	
 	// If there is no valid world from the world context object then there certainly are no listeners
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		return AudioDevice->LocationIsAudible(Location, MaximumRange);
 	}	
@@ -1244,7 +1244,7 @@ bool UGameplayStatics::GetClosestListenerLocation(const UObject* WorldContextObj
 	}
 
 	// If there is no valid world from the world context object then there certainly are no listeners
-	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
+	FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice();
 	if (!AudioDevice)
 	{
 		return false;
@@ -1273,7 +1273,7 @@ void UGameplayStatics::SetGlobalPitchModulation(const UObject* WorldContextObjec
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->SetGlobalPitchModulation(PitchModulation, TimeSec);
 	}
@@ -1292,7 +1292,7 @@ void UGameplayStatics::SetSoundClassDistanceScale(const UObject* WorldContextObj
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->SetSoundClassDistanceScale(SoundClass, DistanceAttenuationScale, TimeSec);
 	}
@@ -1311,7 +1311,7 @@ void UGameplayStatics::SetGlobalListenerFocusParameters(const UObject* WorldCont
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		FGlobalFocusSettings NewFocusSettings;
 		NewFocusSettings.FocusAzimuthScale = FMath::Max(FocusAzimuthScale, 0.0f);
@@ -1340,7 +1340,7 @@ void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		FActiveSound NewActiveSound;
 		NewActiveSound.SetSound(Sound);
@@ -1382,7 +1382,7 @@ UAudioComponent* UGameplayStatics::CreateSound2D(const UObject* WorldContextObje
 	}
 
 	FAudioDevice::FCreateComponentParams Params = bPersistAcrossLevelTransition
-		? FAudioDevice::FCreateComponentParams(ThisWorld->GetAudioDevice())
+		? FAudioDevice::FCreateComponentParams(ThisWorld->GetAudioDeviceRaw())
 		: FAudioDevice::FCreateComponentParams(ThisWorld);
 
 	if (ConcurrencySettings)
@@ -1427,7 +1427,7 @@ void UGameplayStatics::PlaySoundAtLocation(const UObject* WorldContextObject, cl
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->PlaySoundAtLocation(Sound, ThisWorld, VolumeMultiplier, PitchMultiplier, StartTime, Location, Rotation, AttenuationSettings, ConcurrencySettings, nullptr, OwningActor);
 	}
@@ -1633,7 +1633,7 @@ void UGameplayStatics::SetBaseSoundMix(const UObject* WorldContextObject, USound
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->SetBaseSoundMix(InSoundMix);
 	}
@@ -1652,7 +1652,7 @@ void UGameplayStatics::PushSoundMixModifier(const UObject* WorldContextObject, U
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->PushSoundMixModifier(InSoundMixModifier);
 	}
@@ -1691,7 +1691,7 @@ void UGameplayStatics::SetSoundMixClassOverride(const UObject* WorldContextObjec
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->SetSoundMixClassOverride(InSoundMixModifier, InSoundClass, Volume, Pitch, FadeInTime, bApplyToChildren);
 	}
@@ -1710,7 +1710,7 @@ void UGameplayStatics::ClearSoundMixClassOverride(const UObject* WorldContextObj
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->ClearSoundMixClassOverride(InSoundMixModifier, InSoundClass, FadeOutTime);
 	}
@@ -1729,7 +1729,7 @@ void UGameplayStatics::PopSoundMixModifier(const UObject* WorldContextObject, US
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->PopSoundMixModifier(InSoundMixModifier);
 	}
@@ -1748,7 +1748,7 @@ void UGameplayStatics::ClearSoundMixModifiers(const UObject* WorldContextObject)
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->ClearSoundMixModifiers();
 	}
@@ -1767,7 +1767,7 @@ void UGameplayStatics::ActivateReverbEffect(const UObject* WorldContextObject, c
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->ActivateReverbEffect(ReverbEffect, TagName, Priority, Volume, FadeTime);
 	}
@@ -1786,7 +1786,7 @@ void UGameplayStatics::DeactivateReverbEffect(const UObject* WorldContextObject,
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->DeactivateReverbEffect(TagName);
 	}
@@ -1805,7 +1805,7 @@ class UReverbEffect* UGameplayStatics::GetCurrentReverbEffect(const UObject* Wor
 		return nullptr;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		return AudioDevice->GetCurrentReverbEffect();
 	}
@@ -1825,7 +1825,7 @@ void UGameplayStatics::SetMaxAudioChannelsScaled(const UObject* WorldContextObje
 		return;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->SetMaxChannelsScaled(MaxChannelCountScale);
 	}
@@ -1845,7 +1845,7 @@ int32 UGameplayStatics::GetMaxAudioChannelCount(const UObject* WorldContextObjec
 		return 0;
 	}
 
-	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		return AudioDevice->GetMaxChannels();
 	}

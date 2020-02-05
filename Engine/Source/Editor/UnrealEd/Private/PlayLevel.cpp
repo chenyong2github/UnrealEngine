@@ -724,7 +724,7 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 	bool bWasSimulatingInEditor = PlayInEditorSessionInfo->OriginalRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor;
 	
 	// Stop all audio and remove references to temp level.
-	if (FAudioDevice* AudioDevice = PlayWorld->GetAudioDevice())
+	if (FAudioDevice* AudioDevice = PlayWorld->GetAudioDeviceRaw())
 	{
 		AudioDevice->Flush(PlayWorld);
 		AudioDevice->ResetInterpolation();
@@ -2296,7 +2296,7 @@ void UEditorEngine::ResetPIEAudioSetting(UWorld *CurrentPieWorld)
 	ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
 	if (!PlayInSettings->EnableGameSound)
 	{
-		if (FAudioDevice* AudioDevice = CurrentPieWorld->GetAudioDevice())
+		if (FAudioDevice* AudioDevice = CurrentPieWorld->GetAudioDeviceRaw())
 		{
 			AudioDevice->SetTransientMasterVolume(0.0f);
 		}
@@ -2476,7 +2476,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	}
 
 	// Flush all audio sources from the editor world
-	if (FAudioDevice* AudioDevice = EditorWorld->GetAudioDevice())
+	if (FAudioDevice* AudioDevice = EditorWorld->GetAudioDeviceRaw())
 	{
 		AudioDevice->Flush(EditorWorld);
 		AudioDevice->ResetInterpolation();
@@ -2728,7 +2728,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 
 		if (!InParams.EditorPlaySettings->EnableGameSound)
 		{
-			if (FAudioDevice* GameInstanceAudioDevice = GameInstance->GetWorld()->GetAudioDevice())
+			if (FAudioDevice* GameInstanceAudioDevice = GameInstance->GetWorld()->GetAudioDeviceRaw())
 			{
 				GameInstanceAudioDevice->SetTransientMasterVolume(0.0f);
 			}

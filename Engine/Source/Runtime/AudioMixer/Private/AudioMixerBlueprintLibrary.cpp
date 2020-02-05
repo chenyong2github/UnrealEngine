@@ -22,7 +22,7 @@ static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextO
 		return nullptr;
 	}
 
-	return ThisWorld->GetAudioDevice();
+	return ThisWorld->GetAudioDevice().GetAudioDevice();
 }
 
 static Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject)

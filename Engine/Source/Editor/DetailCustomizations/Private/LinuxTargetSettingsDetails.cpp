@@ -348,7 +348,7 @@ bool FLinuxTargetSettingsDetails::IsValidAudioDeviceName(const FString& InDevice
 	bool bIsValid = false;
 
 #if WITH_ENGINE
-	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
 		TArray<FString> DeviceNames;
@@ -373,7 +373,7 @@ TSharedRef<SWidget> FLinuxTargetSettingsDetails::MakeAudioDeviceMenu(const TShar
 	FMenuBuilder MenuBuilder(true, nullptr);
 
 #if WITH_ENGINE
-	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
 		TArray<FString> AudioDeviceNames;
