@@ -145,7 +145,9 @@ struct FHairStrandsInterpolationOutput
 void ResetHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
 	FHairStrandsInterpolationInput* InInput,
-	FHairStrandsInterpolationOutput* InOutput);
+	FHairStrandsInterpolationOutput* InOutput,
+	struct FHairStrandsProjectionHairData& SimHairDatas,
+	int32 LODIndex);
 
 void ComputeHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
@@ -156,3 +158,5 @@ void ComputeHairStrandsInterpolation(
 	struct FHairStrandsProjectionHairData& SimHairDatas,
 	int32 LODIndex,
 	struct FHairStrandClusterData* ClusterData);
+
+HAIRSTRANDSCORE_API void AddGroomBindingTask(class UGroomBindingAsset* BindingAsset);

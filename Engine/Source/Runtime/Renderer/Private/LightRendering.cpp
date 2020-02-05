@@ -937,12 +937,26 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 		return HairDatas && ViewIndex < HairDatas->MacroGroupsPerViews.Views.Num() && HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas.Num() > 0;
 	};
 
-	auto GetHairStrandsCategorizationTexture = [HairDatas](int32 ViewIndex, FRDGBuilder& GraphBuilder)
+	struct FHairStrandsTextures
 	{
-		FRDGTextureRef HairCategorizationTexture = nullptr;
-		if (HairDatas && ViewIndex < HairDatas->HairVisibilityViews.HairDatas.Num() && HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture)
-			HairCategorizationTexture = GraphBuilder.RegisterExternalTexture(HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture);
-		return HairCategorizationTexture;
+		FRDGTextureRef CategorizationTexture = nullptr;
+		FRDGTextureRef LightChannelMaskTexture = nullptr;
+	};
+	auto GetHairStrandsTextures = [HairDatas](int32 ViewIndex, FRDGBuilder& GraphBuilder)
+	{
+		FHairStrandsTextures Out;
+		if (HairDatas && ViewIndex < HairDatas->HairVisibilityViews.HairDatas.Num())
+		{
+			if (HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture)
+			{
+				Out.CategorizationTexture = GraphBuilder.RegisterExternalTexture(HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture);
+			}
+			if (HairDatas->HairVisibilityViews.HairDatas[ViewIndex].LightChannelMaskTexture)
+			{
+				Out.LightChannelMaskTexture = GraphBuilder.RegisterExternalTexture(HairDatas->HairVisibilityViews.HairDatas[ViewIndex].LightChannelMaskTexture);
+			}
+		}
+		return Out;
 	};
 
 	check(RHICmdList.IsOutsideRenderPass());
@@ -1392,8 +1406,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 								FRDGTextureUAV* RayTracingShadowMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayTracingShadowMaskTexture));
 								FRDGTextureUAV* RayHitDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
-								FRDGTextureRef HairCategorizationTexture = GetHairStrandsCategorizationTexture(ViewIndex, GraphBuilder);
-
+								FHairStrandsTextures HairTextures = GetHairStrandsTextures(ViewIndex, GraphBuilder);
 								{
 									FString BatchLightNameWithLevel;
 									GetLightNameForDrawEvent(BatchLightSceneInfo.Proxy, BatchLightNameWithLevel);
@@ -1407,7 +1420,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 										BatchRayTracingConfig,
 										DenoiserRequirements,
 										false,
-										HairCategorizationTexture,
+										HairTextures.CategorizationTexture,
+										HairTextures.LightChannelMaskTexture,
 										RayTracingShadowMaskUAV,
 										RayHitDistanceUAV);
 								}
@@ -1452,7 +1466,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 										BatchRayTracingConfig,
 										IScreenSpaceDenoiser::EShadowRequirements::Bailout,
 										true,
-										HairCategorizationTexture,
+										HairTextures.CategorizationTexture,
+										HairTextures.LightChannelMaskTexture,
 										SubPixelRayTracingShadowMaskUAV,
 										SubPixelRayHitDistanceUAV);
 
@@ -1617,8 +1632,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
 							}
 
-							FRDGTextureRef HairCategorizationTexture = GetHairStrandsCategorizationTexture(ViewIndex, GraphBuilder);
-
+							FHairStrandsTextures HairTextures = GetHairStrandsTextures(ViewIndex, GraphBuilder);
 							RenderRayTracingShadows(
 								GraphBuilder,
 								SceneTextures,
@@ -1627,7 +1641,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 								RayTracingConfig,
 								DenoiserRequirements,
 								false,
-								HairCategorizationTexture,
+								HairTextures.CategorizationTexture,
+								HairTextures.LightChannelMaskTexture,
 								RayTracingShadowMaskUAV,
 								RayHitDistanceUAV);
 
@@ -1685,7 +1700,8 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									RayTracingConfig,
 									IScreenSpaceDenoiser::EShadowRequirements::Bailout,
 									true,
-									HairCategorizationTexture,
+									HairTextures.CategorizationTexture,
+									HairTextures.LightChannelMaskTexture,
 									SubPixelRayTracingShadowMaskUAV,
 									SubPixelRayHitDistanceUAV);
 

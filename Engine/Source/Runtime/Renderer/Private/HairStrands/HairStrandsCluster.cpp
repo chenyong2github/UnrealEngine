@@ -142,7 +142,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 			int32 MaterialId = 0;
 			FHairStrandsMacroGroupDatas& MacroGroups = MacroGroupsViews.Views.AddDefaulted_GetRef();
 
-			if (View.HairStrandsMeshElements.Num() == 0)
+			if (View.HairStrandsMeshElements.Num() == 0 || View.bIsPlanarReflection || View.bIsReflectionCapture)
 			{
 				continue;
 			}

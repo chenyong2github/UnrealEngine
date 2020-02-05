@@ -42,6 +42,7 @@ RWStructuredBuffer<FPPLLNodeData> PPLLNodes;
 
 uint HairVisibilityPass_HairMacroGroupIndex;
 uint HairVisibilityPass_HairMaterialId;
+uint HairVisibilityPass_LightChannelMask;
 
 #if HAIR_RENDER_MODE == RENDER_MODE_PPLL
 EARLYDEPTHSTENCIL	// Required for UAV operations to not happen.
@@ -151,7 +152,7 @@ void MainVisibility(
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA
 	OutColor0 = EncodeVisibilityData(VisibilityData);
 	OutColor1 = float4(sqrt(BaseColor), Roughness);
-	OutColor2 = float4(Specular,0,0,0);
+	OutColor2 = float4(Specular, float(HairVisibilityPass_LightChannelMask) / 255.f,0,0);
 	OutColor3 = EncodedVelocity;
 #endif
 
@@ -170,7 +171,7 @@ void MainVisibility(
 		// If we can append new node, add it and make it point to the node previously in head of list
 		uint NextNodeIndex;
 		InterlockedExchange(PPLLNodeIndex[PixelCoord], NodeIndex, NextNodeIndex);
-		const FPPLLNodeData Node = ConvertToPPLLNodeData(SvPosition.z, Coverage, VisibilityData, BaseColor, Roughness, Specular, Velocity, NextNodeIndex);
+		const FPPLLNodeData Node = ConvertToPPLLNodeData(SvPosition.z, Coverage, VisibilityData, BaseColor, Roughness, Specular, HairVisibilityPass_LightChannelMask, Velocity, NextNodeIndex);
 		PPLLNodes[NodeIndex] = Node;
 	}
 #endif
