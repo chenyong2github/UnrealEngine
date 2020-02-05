@@ -1325,4 +1325,13 @@ void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(vo
 	}
 }
 
+void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, TArray<FNiagaraEmitterInstance*>& Dependencies) const
+{
+	FNDIParticleRead_InstanceData* PIData = static_cast<FNDIParticleRead_InstanceData*>(PerInstanceData);
+	if (PIData && PIData->EmitterInstance)
+	{
+		Dependencies.Add(PIData->EmitterInstance);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
