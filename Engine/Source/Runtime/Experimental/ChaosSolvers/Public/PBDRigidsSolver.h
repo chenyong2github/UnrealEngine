@@ -61,6 +61,7 @@ namespace Chaos
 	{
 
 		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn);
+		~FPBDRigidsSolver();
 
 	public:
 		typedef FPhysicsSolverBase Super;
