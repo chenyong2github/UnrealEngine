@@ -33,6 +33,19 @@ void FLandscapeSplineDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		.FillWidth(1)
 		[
 			SNew(STextBlock)
+			.Text_Raw(this, &FLandscapeSplineDetails::OnGetSplineOwningLandscapeText)
+		]
+	];
+
+	LandscapeSplineCategory.AddCustomRow(FText::GetEmpty())
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(0, 0, 2, 0)
+		.VAlign(VAlign_Center)
+		.FillWidth(1)
+		[
+			SNew(STextBlock)
 			.Text(LOCTEXT("SelectAll", "Select all connected:"))
 		]
 		+ SHorizontalBox::Slot()
@@ -121,6 +134,32 @@ bool FLandscapeSplineDetails::IsFlipSegmentButtonEnabled() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	return LandscapeEdMode && LandscapeEdMode->HasSelectedSplineSegments();
+}
+
+FText FLandscapeSplineDetails::OnGetSplineOwningLandscapeText() const
+{
+	TSet<ALandscapeProxy*> SplineOwners;
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		LandscapeEdMode->GetSelectedSplineOwners(SplineOwners);
+	}
+
+	FString SplineOwnersStr;
+	for (ALandscapeProxy* Owner : SplineOwners)
+	{
+		if (Owner)
+		{
+			if (!SplineOwnersStr.IsEmpty())
+			{
+				SplineOwnersStr += ", ";
+			}
+			
+			SplineOwnersStr += Owner->GetActorLabel();
+		}
+	}
+	
+	return FText::FromString("Owner: " + SplineOwnersStr);
 }
 
 FReply FLandscapeSplineDetails::OnSelectConnectedControlPointsButtonClicked()

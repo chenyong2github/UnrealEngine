@@ -13,6 +13,7 @@
 #include "LandscapeLayerInfoObject.h"
 #include "LandscapeGizmoActiveActor.h"
 #include "LandscapeEdit.h"
+#include "Containers/Set.h"
 
 class ALandscape;
 class FCanvas;
@@ -319,6 +320,7 @@ public:
 	void ShowSplineProperties();
 	bool HasSelectedSplineSegments() const;
 	void FlipSelectedSplineSegments();
+	void GetSelectedSplineOwners(TSet<ALandscapeProxy*>& SelectedSplineOwners) const;
 	virtual void SelectAllConnectedSplineControlPoints();
 	virtual void SelectAllConnectedSplineSegments();
 	virtual void SplineMoveToCurrentLevel();
