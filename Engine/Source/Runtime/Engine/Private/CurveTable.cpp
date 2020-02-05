@@ -111,6 +111,7 @@ void UCurveTable::Serialize(FArchive& Ar)
 		}
 
 		bool bCouldConvertToSimpleCurves = bUpgradingCurveTable;
+		RowMap.Reserve(NumRows);
 		for (int32 RowIdx = 0; RowIdx < NumRows; RowIdx++)
 		{
 			// Load row name

@@ -570,51 +570,6 @@ private:
 	uint8	Id[12];
 };
 
-class FIoStoreInstallManifest
-{
-public:
-	struct FEntry
-	{
-		FString PartitionName;
-		int32 InstallChunkId;
-	};
-
-	inline const TArray<FEntry>& ReadEntries() const
-	{
-		return Entries;
-	}
-
-	inline TArray<FEntry>& EditEntries()
-	{
-		return Entries;
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FIoStoreInstallManifest& IoStoreManifest)
-	{
-		int32 Version = CurrentVersion;
-		Ar << Version;
-		check(Version == CurrentVersion);
-		int32 EntryCount = IoStoreManifest.Entries.Num();
-		Ar << EntryCount;
-		if (Ar.IsLoading())
-		{
-			IoStoreManifest.Entries.SetNum(EntryCount);
-		}
-		for (int32 Index = 0; Index < EntryCount; ++Index)
-		{
-			FEntry& Entry = IoStoreManifest.Entries[Index];
-			Ar << Entry.PartitionName;
-			Ar << Entry.InstallChunkId;
-		}
-		return Ar;
-	}
-
-private:
-	static constexpr int32 CurrentVersion = 1;
-
-	TArray<FEntry> Entries;
-};
-
 /**
  * Addressable chunk types.
  */
@@ -649,14 +604,32 @@ static FIoChunkId CreateIoChunkId(uint32 GlobalPackageId, uint16 ChunkIndex, EIo
 }
 
 /**
- * Creates a chunk identifier for BulkData
+ * Creates a FIoChunkId in the format that Bulkdata expects.
+ *
+ * @param GlobalPackageId	The identifier for the package that the bulkdata object is owned by
+ * @param BulkDataChunkId	A unique id for the bulkdata (commonly the bulkdata offset value is used) 
+ * @param ChunkType			The chunk type commonly 'BulkData' or 'OptionalBulkData'
+ *
+ * @return A valid FIoChunkId
  */
-static FIoChunkId CreateBulkdataChunkId(int32 GlobalPackageId, uint64 BulkDataChunkId, EIoChunkType ChunkType)
+static FIoChunkId CreateBulkdataChunkId(int32 GlobalPackageId, int64 BulkDataChunkId, EIoChunkType ChunkType)
 {
+	// We need to be able to call this in the data pipeline and at runtime but currently are unable change the 
+	// file format we cannot generate this during cook and pass it to runtime.
+	// The offset in file is the only unique value we can easily obtain at runtime but it can be negative,
+	// which is a problem because we will only store the first 7 bytes and a negative value will have the 
+	// top bit set. 
+	// We adjust the id and cast to unsigned so that the top byte is very unlikely to have data in it (and log 
+	// it as an error if it does)
+
+	const uint64 Offset = ((uint64_t)1 << 56) / 2;
+	const uint64 AdjustedChunkId = BulkDataChunkId + Offset;
 	uint8 Data[12] = { 0 };
+	
+	UE_CLOG((AdjustedChunkId & 0xF000000000000000) != 0, LogIoDispatcher, Error, TEXT("The BulkDataChunkId (%lld) being used to create a BulkdataChunkId is too large and will lose data, this might create unintended duplicate ids!"), BulkDataChunkId);
 
 	*reinterpret_cast<int32*>(&Data[0]) = GlobalPackageId;
-	*reinterpret_cast<uint64*>(&Data[4]) = BulkDataChunkId; // Top byte will get overwritten!
+	*reinterpret_cast<uint64*>(&Data[4]) = AdjustedChunkId; // Top byte will get overwritten!
 	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(ChunkType);
 
 	FIoChunkId ChunkId;
@@ -792,7 +765,7 @@ public:
 
 	static CORE_API bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 	static CORE_API bool IsInitialized();
-	static CORE_API FIoStatus Initialize(const FIoStoreEnvironment& InitialEnvironment);
+	static CORE_API FIoStatus Initialize();
 	static CORE_API void Shutdown();
 	static CORE_API FIoDispatcher& Get();
 
@@ -812,17 +785,14 @@ class FIoStoreEnvironment
 {
 public:
 	CORE_API FIoStoreEnvironment();
-	CORE_API FIoStoreEnvironment(const FIoStoreEnvironment& BaseEnvironment, FStringView PartitionName);
 	CORE_API ~FIoStoreEnvironment();
 
-	CORE_API void InitializeFileEnvironment(FStringView InBasePath);
+	CORE_API void InitializeFileEnvironment(FStringView InPath);
 
-	CORE_API const FString& GetBasePath() const { return BasePath; }
-	CORE_API const FString& GetPartitionName() const { return PartitionName; }
+	CORE_API const FString& GetPath() const { return Path; }
 
 private:
-	FString			BasePath;
-	FString			PartitionName;
+	FString			Path;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -837,7 +807,8 @@ public:
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
 	CORE_API FIoStatus	Initialize();
-	CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk);
+	CORE_API FIoStatus	EnableCsvOutput();
+	CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name);
 
 	/**
 	 * Creates an addressable range in an already mapped Chunk.

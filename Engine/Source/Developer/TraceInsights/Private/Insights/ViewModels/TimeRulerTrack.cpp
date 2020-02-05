@@ -20,8 +20,12 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+INSIGHTS_IMPLEMENT_RTTI(FTimeRulerTrack)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FTimeRulerTrack::FTimeRulerTrack()
-	: FBaseTimingTrack(FName(TEXT("TimeRuler")))
+	: FBaseTimingTrack()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 	, CrtMousePosTextWidth(0.0f)

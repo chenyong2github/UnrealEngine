@@ -32,11 +32,10 @@
 
 #define LOCTEXT_NAMESPACE "AnimNodesTrack"
 
-const FName FAnimNodesTrack::TypeName(TEXT("Events"));
-const FName FAnimNodesTrack::SubTypeName(TEXT("Animation.AnimNodes"));
+INSIGHTS_IMPLEMENT_RTTI(FAnimNodesTrack)
 
 FAnimNodesTrack::FAnimNodesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FAnimNodesTrack::TypeName, FAnimNodesTrack::SubTypeName, FText::Format(LOCTEXT("TrackNameFormat", "Graph - {0}"), FText::FromString(FString(InName))))
+	: FGameplayTimingEventsTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Graph - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 #if WITH_EDITOR
 	, InstanceClass(nullptr)
@@ -54,10 +53,25 @@ FAnimNodesTrack::FAnimNodesTrack(const FAnimationSharedData& InSharedData, uint6
 			const FClassInfo* AnimInstanceClassInfo = GameplayProvider->FindClassInfo(AnimInstanceInfo->ClassId);
 			if(AnimInstanceClassInfo)
 			{
-				InstanceClass = FindObject<UAnimBlueprintGeneratedClass>(ANY_PACKAGE, AnimInstanceClassInfo->PathName);
+				InstanceClass = FSoftObjectPath(AnimInstanceClassInfo->PathName);
 			}
 		}
 	}
+#endif
+
+#if WITH_ENGINE
+	OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddRaw(this, &FAnimNodesTrack::OnWorldCleanup);
+	OnWorldBeginTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddRaw(this, &FAnimNodesTrack::RemoveWorld);
+	OnPreWorldFinishDestroyHandle = FWorldDelegates::OnPreWorldFinishDestroy.AddRaw(this, &FAnimNodesTrack::RemoveWorld);
+#endif
+}
+
+FAnimNodesTrack::~FAnimNodesTrack()
+{
+#if WITH_ENGINE
+	FWorldDelegates::OnPreWorldFinishDestroy.Remove(OnPreWorldFinishDestroyHandle);
+	FWorldDelegates::OnWorldBeginTearDown.Remove(OnWorldBeginTearDownHandle);
+	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupHandle);
 #endif
 }
 
@@ -172,9 +186,9 @@ void FAnimNodesTrack::FindAnimGraphMessage(const FTimingEventSearchParameters& I
 
 void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-#if WITH_EDITOR
 	MenuBuilder.BeginSection(TEXT("DebugSection"), LOCTEXT("Debug", "Debug"));
 	{
+#if WITH_EDITOR
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ToggleDebug", "Debug this graph"),
 			LOCTEXT("ToggleDebug_Tooltip", "Debug this graph in the animation blueprint editor, opens editor for asset if it exists"),
@@ -182,7 +196,7 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this]()
 				{  
-					if(InstanceClass.Get())
+					if(InstanceClass.LoadSynchronous())
 					{
 						if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass->ClassGeneratedBy))
 						{
@@ -204,7 +218,10 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 										if(USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshPoseTrack->GetComponent(FGameplayTimingViewExtender::GetWorldToVisualize()))
 										{
 											UAnimInstance* Instance = LazyCreateAnimInstance(SkeletalMeshComponent);
-											AnimBlueprint->SetObjectBeingDebugged(Instance);
+											if(Instance)
+											{
+												AnimBlueprint->SetObjectBeingDebugged(Instance);
+											}
 										}
 									}
 								}
@@ -217,7 +234,7 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				{
 					if(InstanceClass.Get())
 					{
-						if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass->ClassGeneratedBy))
+						if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass.Get()->ClassGeneratedBy))
 						{
 							const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 							if(GameplayProvider)
@@ -233,7 +250,10 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 										if(USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshPoseTrack->GetComponent(FGameplayTimingViewExtender::GetWorldToVisualize()))
 										{
 											UAnimInstance* Instance = LazyCreateAnimInstance(SkeletalMeshComponent);
-											AnimBlueprint->IsObjectBeingDebugged(Instance);
+											if(Instance)
+											{
+												AnimBlueprint->IsObjectBeingDebugged(Instance);
+											}
 										}
 									}
 								}
@@ -245,16 +265,27 @@ void FAnimNodesTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
+#endif
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenAnimGraph", "View this graph"),
+			LOCTEXT("OpenAnimGraph_Tooltip", "Open this graph in the schematic anim graph viewer"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{ 
+					SharedData.OpenAnimGraphTab(GetGameplayTrack().GetObjectId());
+				})
+			)
+		);
 	}
 	MenuBuilder.EndSection();
-#endif
 }
 
 #if WITH_EDITOR
 
 UAnimInstance* FAnimNodesTrack::LazyCreateAnimInstance(USkeletalMeshComponent* InComponent)
 {
-	if(InstanceClass.Get() != nullptr)
+	if(InstanceClass.LoadSynchronous() != nullptr)
 	{
 		if(AnimInstance == nullptr)
 		{
@@ -268,7 +299,7 @@ UAnimInstance* FAnimNodesTrack::LazyCreateAnimInstance(USkeletalMeshComponent* I
 
 void FAnimNodesTrack::UpdateDebugData(double InTime)
 {
-	if(InstanceClass.Get())
+	if(InstanceClass.LoadSynchronous())
 	{
 		const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 		const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
@@ -282,7 +313,7 @@ void FAnimNodesTrack::UpdateDebugData(double InTime)
 				const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData.GetAnalysisSession());
 
 
-				FAnimBlueprintDebugData& DebugData = InstanceClass->GetAnimBlueprintDebugData();
+				FAnimBlueprintDebugData& DebugData = InstanceClass.Get()->GetAnimBlueprintDebugData();
 				DebugData.ResetNodeVisitSites();
 
 				// round to nearest frame boundary
@@ -296,13 +327,16 @@ void FAnimNodesTrack::UpdateDebugData(double InTime)
 						{
 							// Basic verification - check node count is the same
 							// @TODO: could add some form of node hash/CRC to the class to improve this
-							if(InMessage.NodeCount == InstanceClass->AnimNodeProperties.Num())
+							if(InMessage.NodeCount == InstanceClass.Get()->AnimNodeProperties.Num())
 							{
 								AnimationProvider->ReadAnimNodesTimeline(GetGameplayTrack().GetObjectId(), [InGraphStartTime, InGraphEndTime, &DebugData](const FAnimationProvider::AnimNodesTimeline& InNodesTimeline)
 								{
 									InNodesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeMessage& InMessage)
 									{
-										DebugData.RecordNodeVisit(InMessage.NodeId, InMessage.PreviousNodeId, InMessage.Weight);
+										if(InMessage.Phase == EAnimGraphPhase::Update)
+										{
+											DebugData.RecordNodeVisit(InMessage.NodeId, InMessage.PreviousNodeId, InMessage.Weight);
+										}
 									});
 								});
 
@@ -314,44 +348,11 @@ void FAnimNodesTrack::UpdateDebugData(double InTime)
 									});
 								});
 
-								AnimationProvider->ReadAnimNodeValuesTimeline(GetGameplayTrack().GetObjectId(), [InGraphStartTime, InGraphEndTime, GameplayProvider, &DebugData](const FAnimationProvider::AnimNodeValuesTimeline& InNodeValuesTimeline)
+								AnimationProvider->ReadAnimNodeValuesTimeline(GetGameplayTrack().GetObjectId(), [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const FAnimationProvider::AnimNodeValuesTimeline& InNodeValuesTimeline)
 								{
-									InNodeValuesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [GameplayProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeValueMessage& InMessage)
+									InNodeValuesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeValueMessage& InMessage)
 									{
-										FText Text;
-										const FText KeyValueFormat(LOCTEXT("KeyValueFormat", "{0} = {1}"));
-
-										switch(InMessage.Type)
-										{
-										case EAnimNodeValueType::Bool:
-											Text = FText::Format(KeyValueFormat, FText::FromString(InMessage.Key), InMessage.Bool.bValue ? LOCTEXT("True", "true") : LOCTEXT("False", "false"));
-											break;
-										case EAnimNodeValueType::Int32:
-											Text = FText::Format(KeyValueFormat, FText::FromString(InMessage.Key), FText::AsNumber(InMessage.Int32.Value));
-											break;
-										case EAnimNodeValueType::Float:
-											Text = FText::Format(KeyValueFormat, FText::FromString(InMessage.Key), FText::AsNumber(InMessage.Float.Value));
-											break;
-										case EAnimNodeValueType::Vector:
-											Text = FText::Format(KeyValueFormat, FText::FromString(InMessage.Key), FText::Format(LOCTEXT("VectorFormat", "({0}, {1}, {2})"), FText::AsNumber(InMessage.Vector.Value.X), FText::AsNumber(InMessage.Vector.Value.Y), FText::AsNumber(InMessage.Vector.Value.Z)));
-											break;
-										case EAnimNodeValueType::String:
-											Text = FText::Format(KeyValueFormat, FText::FromString(InMessage.Key), FText::FromString(InMessage.String.Value));
-											break;
-										case EAnimNodeValueType::Object:
-										{
-											const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InMessage.Object.Value);
-											Text = FText::Format(KeyValueFormat, FText::FromString(InMessage.Key), FText::FromString(ObjectInfo.PathName));
-											break;
-										}
-										case EAnimNodeValueType::Class:
-										{
-											const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(InMessage.Class.Value);
-											Text = FText::Format(KeyValueFormat, FText::FromString(InMessage.Key), FText::FromString(ClassInfo.PathName));
-											break;
-										}
-										}
-
+										FText Text = AnimationProvider->FormatNodeKeyValue(InMessage);
 										DebugData.RecordNodeValue(InMessage.NodeId, Text.ToString());
 									});
 								});
@@ -389,9 +390,9 @@ void FAnimNodesTrack::UpdateDebugData(double InTime)
 
 void FAnimNodesTrack::GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList)
 {
-	if(InstanceClass.Get())
+	if(InstanceClass.LoadSynchronous())
 	{
-		if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass->ClassGeneratedBy))
+		if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass.Get()->ClassGeneratedBy))
 		{
 			const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 			if(GameplayProvider)
@@ -409,12 +410,37 @@ void FAnimNodesTrack::GetCustomDebugObjects(const IAnimationBlueprintEditor& InA
 						if(USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshPoseTrack->GetComponent(FGameplayTimingViewExtender::GetWorldToVisualize()))
 						{
 							UAnimInstance* Instance = LazyCreateAnimInstance(SkeletalMeshComponent);
-							OutDebugList.Emplace(Instance, FText::Format(LOCTEXT("PreviewObjectLabel", "Insights - {0}"), FText::FromString(GetName())).ToString());
+							if(Instance)
+							{
+								OutDebugList.Emplace(Instance, FText::Format(LOCTEXT("PreviewObjectLabel", "Insights - {0}"), FText::FromString(GetName())).ToString());
+							}
 						}
 					}
 				}
 			}
 		}
+	}
+}
+
+#endif
+
+#if WITH_ENGINE
+
+void FAnimNodesTrack::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(AnimInstance);
+}
+
+void FAnimNodesTrack::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
+{
+	RemoveWorld(InWorld);
+}
+
+void FAnimNodesTrack::RemoveWorld(UWorld* InWorld)
+{
+	if(AnimInstance && AnimInstance->GetWorld() == InWorld)
+	{
+		AnimInstance = nullptr;
 	}
 }
 

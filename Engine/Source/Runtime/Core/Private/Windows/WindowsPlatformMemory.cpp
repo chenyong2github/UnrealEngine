@@ -13,8 +13,8 @@
 
 #include "HAL/MallocTBB.h"
 #include "HAL/MallocAnsi.h"
+#include "HAL/MallocMimalloc.h"
 #include "HAL/MallocStomp.h"
-#include "GenericPlatform/GenericPlatformMemoryPoolStats.h"
 #include "HAL/MemoryMisc.h"
 #include "HAL/MallocBinned.h"
 #include "HAL/MallocBinned2.h"
@@ -95,11 +95,15 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
 	}
-	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && TBB_ALLOCATOR_ALLOWED)
+	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && TBB_ALLOCATOR_ALLOWED) //-V517
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::TBB;
 	}
 #if PLATFORM_64BITS
+	else if ((WITH_EDITORONLY_DATA || IS_PROGRAM) && MIMALLOC_ALLOCATOR_ALLOWED) //-V517
+	{
+		AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
+	}
 	else if (USE_MALLOC_BINNED3)
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Binned3;
@@ -126,6 +130,12 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 	else if (FCString::Stristr(CommandLine, TEXT("-tbbmalloc")))
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::TBB;
+	}
+#endif
+#if MIMALLOC_ALLOCATOR_ALLOWED
+	else if (FCString::Stristr(CommandLine, TEXT("-mimalloc")))
+	{
+		AllocatorToUse = EMemoryAllocatorToUse::Mimalloc;
 	}
 #endif
 #if PLATFORM_64BITS
@@ -161,6 +171,10 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 #if TBB_ALLOCATOR_ALLOWED
 	case EMemoryAllocatorToUse::TBB:
 		return new FMallocTBB();
+#endif
+#if MIMALLOC_ALLOCATOR_ALLOWED && PLATFORM_SUPPORTS_MIMALLOC
+	case EMemoryAllocatorToUse::Mimalloc:
+		return new FMallocMimalloc();
 #endif
 	case EMemoryAllocatorToUse::Binned2:
 		return new FMallocBinned2();

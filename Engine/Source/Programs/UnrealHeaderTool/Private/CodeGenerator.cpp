@@ -2957,7 +2957,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FUHTStringBuilder EnhancedUObjectConstructorsMacroCall;
 
 	FClassMetaData* ClassData = GScriptHelper.FindClassData(Class);
-	check(ClassData);
+	checkf(ClassData, TEXT("No class data generated for file %s"), *SourceFile.GetFilename());
 
 	// C++ -> VM stubs (native function execs)
 	FUHTStringBuilder ClassMacroCalls;
@@ -6595,29 +6595,6 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 
 	return Result;
 }
-
-struct FTestCollector
-{
-	void HandleObjectReference(UObject*& Obj)
-	{
-
-	}
-
-	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<T, FField>::IsDerived, void>::Type AddReferencedObject(T*& Field)
-	{
-		if (Field)
-		{
-			UObject* Owner = Field->GetOwnerUObject();
-			UObject* OldOwnerPtr = nullptr;
-			HandleObjectReference(Owner);
-			if (Owner == nullptr && OldOwnerPtr != nullptr)
-			{
-				Field = nullptr;
-			}
-		}
-	}
-};
 
 ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename)
 {

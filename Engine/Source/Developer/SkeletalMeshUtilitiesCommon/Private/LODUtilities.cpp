@@ -2032,22 +2032,24 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 			}
 
 			// Load the BulkData for all dependent LODs; this has to be done on the main thread since it requires access to the Linker and FLinkerLoad::Serialize is not threadsafe
-			FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
-			if (SkeletalMeshResource)
 			{
-				FSkeletalMeshLODModel** LODModels = SkeletalMeshResource->LODModels.GetData();
-				const int32 NumLODModels = SkeletalMeshResource->LODModels.Num();
-				for (int32 DependentLODIndex : DependentLODs)
+				FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
+				if (SkeletalMeshResource)
 				{
-					if (DependentLODIndex < NumLODModels)
+					FSkeletalMeshLODModel** LODModels = SkeletalMeshResource->LODModels.GetData();
+					const int32 NumLODModels = SkeletalMeshResource->LODModels.Num();
+					for (int32 DependentLODIndex : DependentLODs)
 					{
-						SkeletalMesh->ForceBulkDataResident(DependentLODIndex);
+						if (DependentLODIndex < NumLODModels)
+						{
+							SkeletalMesh->ForceBulkDataResident(DependentLODIndex);
+						}
 					}
 				}
 			}
 
 			SkeletalMesh->ReserveLODImportData(MaxDependentLODIndex);
-			//Reduce all dependent LOD in same time
+			//Reduce all dependent LODs in parallel
 			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh](int32 IterationIndex)
 			{
 				check(DependentLODs.IsValidIndex(IterationIndex));

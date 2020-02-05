@@ -68,6 +68,22 @@ struct TIsDerivedFrom
 template<typename A, typename B>	struct TIsSame			{ enum { Value = false	}; };
 template<typename T>				struct TIsSame<T, T>	{ enum { Value = true	}; };
 
+/** Gets the Nth type in a template parameter pack. N must be less than sizeof...(Types) */
+template <int32 N, typename... Types>
+struct TNthTypeFromParameterPack;
+
+template <int32 N, typename T, typename... OtherTypes>
+struct TNthTypeFromParameterPack<N, T, OtherTypes...>
+{
+	using Type = typename TNthTypeFromParameterPack<N - 1, OtherTypes...>::Type;
+};
+
+template <typename T, typename... OtherTypes>
+struct TNthTypeFromParameterPack<0, T, OtherTypes...>
+{
+	using Type = T;
+};
+
 /**
  * TIsCharType
  */

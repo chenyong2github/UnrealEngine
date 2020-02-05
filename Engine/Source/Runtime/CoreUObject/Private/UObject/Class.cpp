@@ -15,6 +15,7 @@
 #include "Misc/OutputDeviceConsole.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/StringBuilder.h"
 #include "UObject/ErrorException.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectAllocator.h"
@@ -1243,8 +1244,8 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 			// and makes it an O(n) when properties are saved in the same order as they are loaded (default case). In the 
 			// case that a property was reordered the code falls back to a slower search.
 			FProperty*	Property = PropertyLink;
-			bool		bAdvanceProperty = false;
-			int32		RemainingArrayDim = Property ? Property->ArrayDim : 0;
+			bool		bAdvanceProperty	= false;
+			int32		RemainingArrayDim	= Property ? Property->ArrayDim : 0;
 
 			// Load all stored properties, potentially skipping unknown ones.
 			while (true)
@@ -1321,8 +1322,6 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 						if (Property == CurrentProperty)
 						{
-							// Property wasn't found.
-							Property = nullptr;
 						}
 					}
 
@@ -1497,7 +1496,9 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 							Tag.SetPropertyGuid(PropertyGuid);
 						}
 
-						FStructuredArchive::FSlot PropertySlot = StaticArrayContainer.IsSet() ? StaticArrayContainer->EnterElement() : PropertiesRecord.EnterField(SA_FIELD_NAME(*Tag.Name.ToString()));
+						TStringBuilder<256> TagName;
+						Tag.Name.ToString(TagName);
+						FStructuredArchive::FSlot PropertySlot = StaticArrayContainer.IsSet() ? StaticArrayContainer->EnterElement() : PropertiesRecord.EnterField(SA_FIELD_NAME(TagName.ToString()));
 
 						PropertySlot << Tag;
 
@@ -1723,8 +1724,6 @@ void UStruct::SerializeProperties(FArchive& Ar)
 		check(!Ar.IsSaving() || VerifySerializedFieldsCount == PropertyCount);
 	}
 }
-
-
 
 void UStruct::Serialize(FArchive& Ar)
 {

@@ -10,6 +10,7 @@ class FGameplaySharedData;
 class FAnimationSharedData;
 class IAnimationBlueprintEditor;
 struct FCustomDebugObject;
+class SGameplayInsightsTransportControls;
 
 class FGameplayTimingViewExtender : public Insights::ITimingViewExtender
 {
@@ -37,6 +38,9 @@ private:
 		// Shared data
 		FGameplaySharedData* GameplaySharedData;
 		FAnimationSharedData* AnimationSharedData;
+#if WITH_EDITOR
+		TSharedPtr<SGameplayInsightsTransportControls> TransportControls;
+#endif
 	};
 
 	// The data we host per-session

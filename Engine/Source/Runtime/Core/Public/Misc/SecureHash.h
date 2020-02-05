@@ -16,6 +16,7 @@
 
 class FAnsiStringBuilderBase;
 class FStringBuilderBase;
+class FStringView;
 struct FMD5Hash;
 
 /*-----------------------------------------------------------------------------

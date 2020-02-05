@@ -16,6 +16,7 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
@@ -918,6 +919,7 @@ void SStatsView::TreeView_OnMouseButtonDoubleClick(FStatsNodePtr StatsNode)
 					}
 					else
 					{
+						GraphTrack->Show();
 						GraphTrack->AddStatsCounterSeries(StatsCounterId, StatsNode->GetColor());
 						GraphTrack->SetDirtyFlag();
 						StatsNode->SetAddedToGraphFlag(true);
@@ -1863,6 +1865,10 @@ void TTimeCalculationHelper<int64>::PostProcess(TMap<uint64, FStatsNodePtr>& Sta
 
 void SStatsView::UpdateStats(double StartTime, double EndTime)
 {
+	FStopwatch AggregationStopwatch;
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	StatsStartTime = StartTime;
 	StatsEndTime = EndTime;
 
@@ -1884,6 +1890,7 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		TTimeCalculationHelper<double> CalculationHelperDbl(StartTime, EndTime);
 		TTimeCalculationHelper<int64>  CalculationHelperInt(StartTime, EndTime);
 
+		AggregationStopwatch.Start();
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
@@ -1925,6 +1932,7 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 				});
 			}
 		}
+		AggregationStopwatch.Stop();
 
 		// Compute average and median inclusive/exclusive times.
 		CalculationHelperDbl.PostProcess(StatsNodesIdMap, bComputeMedian);
@@ -1943,6 +1951,9 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 	}
 
 	UpdateTree();
+
+	Stopwatch.Stop();
+	UE_LOG(TimingProfiler, Log, TEXT("Counters updated in %.3fs (%.3fs)"), Stopwatch.GetAccumulatedTime(), AggregationStopwatch.GetAccumulatedTime());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

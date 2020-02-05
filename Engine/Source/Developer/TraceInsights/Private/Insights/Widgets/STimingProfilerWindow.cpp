@@ -3,8 +3,10 @@
 #include "STimingProfilerWindow.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Docking/LayoutService.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -14,6 +16,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 	#include "EngineAnalytics.h"
@@ -25,6 +28,7 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/TraceInsightsModule.h"
 #include "Insights/Version.h"
 #include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/SInsightsSettings.h"
@@ -321,7 +325,15 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 {
 	// Create & initialize tab manager.
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
+	const auto& PersistLayout = [](const TSharedRef<FTabManager::FLayout>& LayoutToSave)
+	{
+		FLayoutSaveRestore::SaveToConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), LayoutToSave);
+	};
+	TabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateLambda(PersistLayout));
+
 	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("TimingProfilerMenuGroupName", "Timing Insights"));
+
+	Extension = MakeShared<FInsightsMajorTabExtender>(TabManager);
 
 	TabManager->RegisterTabSpawner(FTimingProfilerTabs::ToolbarID, FOnSpawnTab::CreateRaw(this, &STimingProfilerWindow::SpawnTab_Toolbar))
 		.SetDisplayName(LOCTEXT("DeviceToolbarTabTitle", "Toolbar"))
@@ -366,89 +378,129 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	TSharedPtr<FTimingProfilerManager> TimingProfilerManager = FTimingProfilerManager::Get();
 	ensure(TimingProfilerManager.IsValid());
 
-	// Create tab layout.
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("InsightsTimingProfilerLayout_v1.0")
-		->AddArea
-		(
-			FTabManager::NewPrimaryArea()
-			->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->AddTab(FTimingProfilerTabs::ToolbarID, ETabState::OpenedTab)
-				->SetHideTabWell(true)
-			)
-			->Split
-			(
-				FTabManager::NewSplitter()
-				->SetOrientation(Orient_Horizontal)
-				->SetSizeCoefficient(1.0f)
-				->Split
+	// Check for layout overrides.
+	FTraceInsightsModule& TraceInsightsModule = FModuleManager::GetModuleChecked<FTraceInsightsModule>("TraceInsights");
+	FInsightsMajorTabConfig TabConfig = TraceInsightsModule.FindMajorTabConfig(FInsightsManagerTabs::TimingProfilerTabId);
+
+	const FOnRegisterMajorTabExtensions* ExtensionDelegate = TraceInsightsModule.FindMajorTabLayoutExtension(FInsightsManagerTabs::TimingProfilerTabId);
+	if (ExtensionDelegate)
+	{
+		ExtensionDelegate->Broadcast(*Extension);
+	}
+
+	// Register any new minor tabs.
+	for (const FInsightsMinorTabConfig& MinorTabConfig : Extension->GetMinorTabs())
+	{
+		FTabSpawnerEntry& TabSpawnerEntry = TabManager->RegisterTabSpawner(MinorTabConfig.TabId, MinorTabConfig.OnSpawnTab);
+
+		TabSpawnerEntry
+		.SetDisplayName(MinorTabConfig.TabLabel)
+		.SetTooltipText(MinorTabConfig.TabTooltip)
+		.SetIcon(MinorTabConfig.TabIcon)
+		.SetReuseTabMethod(MinorTabConfig.OnFindTabToReuse);
+
+		if (MinorTabConfig.WorkspaceGroup.IsValid())
+		{
+			TabSpawnerEntry.SetGroup(MinorTabConfig.WorkspaceGroup.ToSharedRef());
+		}
+	}
+
+	TSharedRef<FTabManager::FLayout> Layout = [&TabConfig]() -> TSharedRef<FTabManager::FLayout>
+	{
+		if (TabConfig.Layout.IsValid())
+		{
+			return TabConfig.Layout.ToSharedRef();
+		}
+		else
+		{
+			// Create tab layout.
+			return FTabManager::NewLayout("InsightsTimingProfilerLayout_v1.1")
+				->AddArea
 				(
-					FTabManager::NewSplitter()
+					FTabManager::NewPrimaryArea()
 					->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.65f)
 					->Split
 					(
 						FTabManager::NewStack()
-						->SetSizeCoefficient(0.1f)
+						->AddTab(FTimingProfilerTabs::ToolbarID, ETabState::OpenedTab)
 						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::FramesTrackID, TimingProfilerManager->IsFramesTrackVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
 					)
 					->Split
 					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.5f)
-						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::TimingViewID, TimingProfilerManager->IsTimingViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
+						FTabManager::NewSplitter()
+						->SetOrientation(Orient_Horizontal)
+						->SetSizeCoefficient(1.0f)
+						->Split
+						(
+							FTabManager::NewSplitter()
+							->SetOrientation(Orient_Vertical)
+							->SetSizeCoefficient(0.65f)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.1f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::FramesTrackID, ETabState::OpenedTab)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.5f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::TimingViewID, ETabState::OpenedTab)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.2f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::LogViewID, ETabState::OpenedTab)
+							)
+						)
+						->Split
+						(
+							FTabManager::NewSplitter()
+							->SetOrientation(Orient_Vertical)
+							->SetSizeCoefficient(0.35f)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.67f)
+								->AddTab(FTimingProfilerTabs::TimersID, ETabState::OpenedTab)
+								->AddTab(FTimingProfilerTabs::StatsCountersID, ETabState::OpenedTab)
+								->SetForegroundTab(FTimingProfilerTabs::TimersID)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.165f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::CallersID, ETabState::OpenedTab)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.165f)
+								->SetHideTabWell(true)
+								->AddTab(FTimingProfilerTabs::CalleesID, ETabState::OpenedTab)
+							)
+						)
 					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.2f)
-						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::LogViewID, TimingProfilerManager->IsLogViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-					)
-				)
-				->Split
-				(
-					FTabManager::NewSplitter()
-					->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.35f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.67f)
-						->AddTab(FTimingProfilerTabs::TimersID, TimingProfilerManager->IsTimersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-						->AddTab(FTimingProfilerTabs::StatsCountersID, TimingProfilerManager->IsStatsCountersViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-						->SetForegroundTab(FTimingProfilerTabs::TimersID)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.165f)
-						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::CallersID, TimingProfilerManager->IsCallersTreeViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.165f)
-						->SetHideTabWell(true)
-						->AddTab(FTimingProfilerTabs::CalleesID, TimingProfilerManager->IsCalleesTreeViewVisible() ? ETabState::OpenedTab : ETabState::ClosedTab)
-					)
-				)
-			)
-		);
+				);
+		}
+	}();
+	
+	Layout->ProcessExtensions(Extension->GetLayoutExtender());
+	Layout = FLayoutSaveRestore::LoadFromConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), Layout);
 
 	// Create & initialize main menu.
-	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
+	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>(), Extension->GetMenuExtender());
 
 	MenuBarBuilder.AddPullDownMenu(
-		LOCTEXT("MenuLabel", "MENU"),
+		LOCTEXT("MenuLabel", "Menu"),
 		FText::GetEmpty(),
 		FNewMenuDelegate::CreateStatic(&STimingProfilerWindow::FillMenu, TabManager),
-		FName(TEXT("MENU"))
+		FName(TEXT("Menu"))
 	);
 
 	ChildSlot
@@ -505,6 +557,9 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 
 	// Tell tab-manager about the global menu bar.
 	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox());
+
+	// Tell clients about creation
+	TraceInsightsModule.OnMajorTabCreated().Broadcast(FInsightsManagerTabs::TimingProfilerTabId, TabManager.ToSharedRef());
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

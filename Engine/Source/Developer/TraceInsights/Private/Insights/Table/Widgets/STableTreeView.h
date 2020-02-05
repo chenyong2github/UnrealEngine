@@ -66,7 +66,11 @@ public:
 
 	TSharedPtr<Insights::FTable> GetTable() const { return Table; }
 
+	void UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTable);
+
 	virtual void Reset();
+
+	void RebuildColumns();
 
 	/**
 	 * Rebuilds the tree (if necessary).

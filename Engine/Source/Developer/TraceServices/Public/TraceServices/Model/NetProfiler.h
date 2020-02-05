@@ -66,14 +66,16 @@ struct FNetProfilerObjectInstance
 
 struct FNetProfilerContentEvent
 {
+	uint64 StartPos : 24;		// Start position in the packet
+	uint64 EndPos : 24;			// End position in the packet
+	uint64 Level : 4;			// Level
+	uint64 Padding : 12;		// Padding
+
 	uint32 EventTypeIndex;		// Will replace name index
-	uint32 NameIndex ;			// identify the name / type, should we store the actual Name as well
+	uint32 NameIndex;			// identify the name / type, should we store the actual Name as well
 	uint32 ObjectInstanceIndex;	// object instance, Non zero if this is a NetObject, we can then look up data by indexing into ObjectInstances
 
-	uint64 StartPos : 16;		// Start position in the packet
-	uint64 EndPos : 16;			// End position in the packet
-	uint64 Level : 4;			// Level
-	uint64 ParentIndex : 28;	// Parent to be able to build a tree of nested events?
+	uint32 ParentIndex;			// Parent to be able to build a tree of nested events?
 };
 
 struct FNetProfilerPacket
@@ -152,6 +154,9 @@ public:
 	virtual void ReadObjects(uint32 GameInstanceIndex, TFunctionRef<void(const FNetProfilerObjectInstance&)> Callback) const = 0;
 	virtual void ReadObject(uint32 GameInstanceIndex, uint32 ObjectIndex, TFunctionRef<void(const FNetProfilerObjectInstance&)> Callback) const = 0;
 	virtual uint32 GetObjectsChangeCount(uint32 GameInstanceIndex) const = 0;
+
+	// Find Packet Index from SequenceNumber
+	virtual int32 FindPacketIndexFromPacketSequence(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 SequenceNumber) const = 0;
 
 	// Enumerate packets in the provided packet interval
 	virtual uint32 GetPacketCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const = 0;

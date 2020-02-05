@@ -9,6 +9,7 @@
 #include "HAL/UnrealMemory.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Containers/UnrealString.h"
+#include "Algo/Replace.h"
 #include "Templates/Function.h"
 #include "Misc/Paths.h"
 #include "CoreGlobals.h"

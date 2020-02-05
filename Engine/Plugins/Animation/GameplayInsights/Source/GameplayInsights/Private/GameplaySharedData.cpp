@@ -7,6 +7,11 @@
 #include "GameplayProvider.h"
 #include "Insights/ITimingViewSession.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SGameplayTrackTree.h"
+#include "GameplayInsightsModule.h"
+#include "STrackVariantValueView.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "GameplaySharedData"
 
@@ -19,12 +24,16 @@ FGameplaySharedData::FGameplaySharedData()
 
 void FGameplaySharedData::OnBeginSession(Insights::ITimingViewSession& InTimingViewSession)
 {
+	TimingViewSession = &InTimingViewSession;
+
 	ObjectTracks.Reset();
 }
 
 void FGameplaySharedData::OnEndSession(Insights::ITimingViewSession& InTimingViewSession)
 {
 	ObjectTracks.Reset();
+
+	TimingViewSession = nullptr;
 }
 
 TSharedRef<FObjectEventsTrack> FGameplaySharedData::GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo)
@@ -75,28 +84,33 @@ TSharedRef<FObjectEventsTrack> FGameplaySharedData::GetObjectEventsTrackForId(In
 	return LeafObjectEventsTrack.ToSharedRef();
 }
 
-static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, int32& InOutOrder)
+static void UpdateTrackOrderRecursive(TSharedRef<FBaseTimingTrack> InTrack, int32& InOutOrder)
 {
-	// recurse down object-track children, then non-object track leaf tracks to set 
-	// overall ordering based on depth-first traversal of the hierarchy
-
-	InTrack->SetOrder(InOutOrder++);
-
-	for(FGameplayTrack* ChildTrack : InTrack->GetGameplayTrack().GetChildTracks())
+	if(InTrack->Is<FObjectEventsTrack>())
 	{
-		if(ChildTrack->GetTimingTrack()->GetType() == FObjectEventsTrack::TypeName)
+		TSharedRef<FObjectEventsTrack> ObjectEventsTrack = StaticCastSharedRef<FObjectEventsTrack>(InTrack);
+
+		// recurse down object-track children, then non-object track leaf tracks to set 
+		// overall ordering based on depth-first traversal of the hierarchy
+
+		ObjectEventsTrack->SetOrder(InOutOrder++);
+
+		for(FGameplayTrack* ChildTrack : ObjectEventsTrack->GetGameplayTrack().GetChildTracks())
 		{
-			ChildTrack->SetIndent(InTrack->GetGameplayTrack().GetIndent() + 1);
-			UpdateTrackOrderRecursive(StaticCastSharedRef<FObjectEventsTrack>(ChildTrack->GetTimingTrack()), InOutOrder);
+			if(ChildTrack->GetTimingTrack()->Is<FObjectEventsTrack>())
+			{
+				ChildTrack->SetIndent(ObjectEventsTrack->GetGameplayTrack().GetIndent() + 1);
+				UpdateTrackOrderRecursive(StaticCastSharedRef<FObjectEventsTrack>(ChildTrack->GetTimingTrack()), InOutOrder);
+			}
 		}
-	}
 
-	for(FGameplayTrack* ChildTrack : InTrack->GetGameplayTrack().GetChildTracks())
-	{
-		if(ChildTrack->GetTimingTrack()->GetType() != FObjectEventsTrack::TypeName)
+		for(FGameplayTrack* ChildTrack : ObjectEventsTrack->GetGameplayTrack().GetChildTracks())
 		{
-			ChildTrack->SetIndent(InTrack->GetGameplayTrack().GetIndent() + 1);
-			ChildTrack->GetTimingTrack()->SetOrder(InOutOrder++);
+			if(!ChildTrack->GetTimingTrack()->Is<FObjectEventsTrack>())
+			{
+				ChildTrack->SetIndent(ObjectEventsTrack->GetGameplayTrack().GetIndent() + 1);
+				ChildTrack->GetTimingTrack()->SetOrder(InOutOrder++);
+			}
 		}
 	}
 }
@@ -114,12 +128,12 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 		// Add a track for each tracked object
 		GameplayProvider->EnumerateObjects([this, &InTimingViewSession, &InAnalysisSession, &GameplayProvider](const FObjectInfo& InObjectInfo)
 		{
-			TSharedPtr<FObjectEventsTrack> ObjectEventsTrack = GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
-			ObjectEventsTrack->SetVisibilityFlag(false);
-
-			GameplayProvider->ReadObjectEventsTimeline(InObjectInfo.Id, [this, &ObjectEventsTrack](const IGameplayProvider::ObjectEventsTimeline& InTimeline)
+			GameplayProvider->ReadObjectEventsTimeline(InObjectInfo.Id, [this, &InTimingViewSession, &InAnalysisSession, &InObjectInfo](const IGameplayProvider::ObjectEventsTimeline& InTimeline)
 			{
-				ObjectEventsTrack->SetVisibilityFlag(bObjectTracksEnabled);
+				if(InTimeline.GetEventCount() > 0)
+				{
+					GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
+				}
 			});
 		});
 
@@ -134,17 +148,38 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 
 void FGameplaySharedData::ExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 {
-	InMenuBuilder.AddMenuEntry(
-		LOCTEXT("ToggleGameplayTracks", "Gameplay Tracks"),
-		LOCTEXT("ToggleGameplayTracks_Tooltip", "Show/hide the gameplay tracks"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FGameplaySharedData::ToggleGameplayTracks),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateRaw(this, &FGameplaySharedData::AreGameplayTracksEnabled)),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+	InMenuBuilder.BeginSection("GameplayTracks", LOCTEXT("GameplayTracksSection", "Gameplay Tracks"));
+	{
+		InMenuBuilder.AddSubMenu(
+			LOCTEXT("ToggleGameplayTracks", "Gameplay Tracks"),
+			LOCTEXT("ToggleGameplayTracks_Tooltip", "Show/hide individual gameplay tracks"),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
+			{ 
+				InSubMenuBuilder.AddWidget(
+					SNew(SBox)
+					.MaxDesiredHeight(300.0f)
+					.MinDesiredWidth(300.0f)
+					.MaxDesiredWidth(300.0f)
+					[
+						SNew(SGameplayTrackTree, *this)
+					],
+					FText(), true);
+			})
+		);
+
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleEventTracks", "Event Tracks"),
+			LOCTEXT("ToggleEventTracks_Tooltip", "Show/hide the gameplay event tracks"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FGameplaySharedData::ToggleGameplayTracks),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateRaw(this, &FGameplaySharedData::AreGameplayTracksEnabled)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	InMenuBuilder.EndSection();
 }
 
 void FGameplaySharedData::SortTracks()
@@ -152,30 +187,29 @@ void FGameplaySharedData::SortTracks()
 	int32 Order = 10000;
 
 	// Find current roots
-	static TArray<TSharedRef<FObjectEventsTrack>> Roots;
-	check(Roots.Num() == 0);
+	RootTracks.Reset();
 
 	for(auto ObjectTrackPair : ObjectTracks)
 	{
 		if(ObjectTrackPair.Value->GetGameplayTrack().GetParentTrack() == nullptr)
 		{
-			Roots.Add(ObjectTrackPair.Value.ToSharedRef());
+			RootTracks.Add(ObjectTrackPair.Value.ToSharedRef());
 		}
 	}
 
 	// Sort roots alphabetically
-	Algo::Sort(Roots, [](TSharedRef<FObjectEventsTrack> InTrack0, TSharedRef<FObjectEventsTrack> InTrack1)
+	Algo::Sort(RootTracks, [](TSharedPtr<FBaseTimingTrack> InTrack0, TSharedPtr<FBaseTimingTrack> InTrack1)
 	{
 		return InTrack0->GetName() < InTrack1->GetName();
 	});
 
 	// update ordering/indent
-	for(TSharedRef<FObjectEventsTrack> RootTrack : Roots)
+	for(TSharedPtr<FBaseTimingTrack> RootTrack : RootTracks)
 	{
-		UpdateTrackOrderRecursive(RootTrack, Order);
+		UpdateTrackOrderRecursive(RootTrack.ToSharedRef(), Order);
 	}
 
-	Roots.Reset();
+	OnTracksChangedDelegate.Broadcast();
 }
 
 void FGameplaySharedData::ToggleGameplayTracks()
@@ -198,6 +232,44 @@ void FGameplaySharedData::EnumerateObjectTracks(TFunctionRef<void(const TSharedR
 	for(const auto& TrackPair : ObjectTracks)
 	{
 		InCallback(TrackPair.Value.ToSharedRef());
+	}
+}
+
+TSharedPtr<SDockTab> FGameplaySharedData::FindDocumentTab(const TArray<TWeakPtr<SDockTab>>& InWeakDocumentTabs, TFunction<bool(const TSharedRef<SDockTab>&)> InSearchFunction)
+{
+	for(TWeakPtr<SDockTab> WeakTab : InWeakDocumentTabs)
+	{
+		TSharedPtr<SDockTab> PinnedTab = WeakTab.Pin();
+		if(PinnedTab.IsValid())
+		{
+			if(InSearchFunction(PinnedTab.ToSharedRef()))
+			{
+				return PinnedTab;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+void FGameplaySharedData::OpenTrackVariantsTab(const FGameplayTrack& InGameplayTrack) const
+{
+	if(TimingViewSession && AnalysisSession)
+	{
+		FGameplayInsightsModule& GameplayInsightsModule = FModuleManager::GetModuleChecked<FGameplayInsightsModule>("GameplayInsights");
+		TSharedRef<SDockTab> Tab = GameplayInsightsModule.SpawnTimingProfilerDocumentTab(
+			FSearchForTab([this, &InGameplayTrack]()
+			{
+				return FindDocumentTab(WeakTrackVariantsDocumentTabs, [&InGameplayTrack](const TSharedRef<SDockTab>& InDockTab)
+				{
+					return StaticCastSharedRef<STrackVariantValueView>(InDockTab->GetContent())->GetTimingTrack() == InGameplayTrack.GetTimingTrack();
+				});
+			})
+		);
+
+		Tab->SetContent(SNew(STrackVariantValueView, InGameplayTrack.GetTimingTrack(), *TimingViewSession, *AnalysisSession));
+		WeakTrackVariantsDocumentTabs.Add(Tab);
+		Tab->SetLabel(FText::FromString(InGameplayTrack.GetTimingTrack()->GetName()));
 	}
 }
 

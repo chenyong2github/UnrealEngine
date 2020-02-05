@@ -465,8 +465,14 @@ void TStaticMeshStreamIn_IO<bRenderThread>::DoInitiateIO(const FContext& Context
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TStaticMeshStreamIn_IO::DoInitiateIO"), STAT_StaticMeshStreamInIO_DoInitiateIO, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Async);
+
+#if USE_BULKDATA_STREAMING_TOKEN
 	const FString IOFilename = GetIOFilename(Context);
 	SetIORequest(Context, IOFilename);
+#else
+	SetIORequest(Context, FString());
+#endif
+
 	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(DoSerializeLODData), TT_Async, SRA_UPDATE_CALLBACK(DoCancelIO));
 }
 

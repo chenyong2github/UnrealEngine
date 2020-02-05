@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Trace/Config.h"
+#include "Trace/Trace.h"
 
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define COUNTERSTRACE_ENABLED 1
@@ -25,6 +26,8 @@ enum ETraceCounterDisplayHint
 
 #if COUNTERSTRACE_ENABLED
 
+UE_TRACE_CHANNEL_EXTERN(CountersChannel);
+
 struct FCountersTrace
 {
 	CORE_API static uint16 OutputInitCounter(const TCHAR* CounterName, ETraceCounterType CounterType, ETraceCounterDisplayHint CounterDisplayHint);
@@ -37,8 +40,11 @@ struct FCountersTrace
 	public:
 		TCounter(const TCHAR* InCounterName, ETraceCounterDisplayHint InCounterDisplayHint)
 			: Value(0)
+			, CounterId(0)
+			, CounterName(InCounterName)
+			, CounterDisplayHint(InCounterDisplayHint)
 		{
-			CounterId = OutputInitCounter(InCounterName, CounterType, InCounterDisplayHint);
+			CounterId = OutputInitCounter(InCounterName, CounterType, CounterDisplayHint);
 		}
 
 		void Set(ValueType InValue)
@@ -83,6 +89,14 @@ struct FCountersTrace
 	private:
 		ValueType Value;
 		uint16 CounterId;
+		const TCHAR* CounterName;
+		ETraceCounterDisplayHint CounterDisplayHint;
+
+		bool CheckCounterId()
+		{
+			CounterId = OutputInitCounter(CounterName, CounterType, CounterDisplayHint);
+			return !!CounterId;
+		}
 	};
 
 	using FCounterInt = TCounter<int64, TraceCounterType_Int>;

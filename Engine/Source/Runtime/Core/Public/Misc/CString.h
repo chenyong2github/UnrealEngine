@@ -766,10 +766,10 @@ typename TCString<T>::CharType* TCString<T>::Strrstr( CharType* String, const Ch
 template <typename T> FORCEINLINE
 int32 TCString<T>::Strspn( const CharType* String, const CharType* Mask )
 {
-	const TCHAR* StringIt = String;
+	const CharType* StringIt = String;
 	while (*StringIt)
 	{
-		for (const TCHAR* MaskIt = Mask; *MaskIt; ++MaskIt)
+		for (const CharType* MaskIt = Mask; *MaskIt; ++MaskIt)
 		{
 			if (*StringIt == *MaskIt)
 			{
@@ -789,10 +789,10 @@ int32 TCString<T>::Strspn( const CharType* String, const CharType* Mask )
 template <typename T> FORCEINLINE
 int32 TCString<T>::Strcspn( const CharType* String, const CharType* Mask )
 {
-	const TCHAR* StringIt = String;
+	const CharType* StringIt = String;
 	while (*StringIt)
 	{
-		for (const TCHAR* MaskIt = Mask; *MaskIt; ++MaskIt)
+		for (const CharType* MaskIt = Mask; *MaskIt; ++MaskIt)
 		{
 			if (*StringIt == *MaskIt)
 			{

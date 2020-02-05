@@ -32,6 +32,9 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 	ForegroundColorOverride = InArgs._ForegroundColor;
 	BackgroundColorOverride = InArgs._BackgroundColor;
 	ReadOnlyForegroundColorOverride = InArgs._ReadOnlyForegroundColor;
+	OnTextChanged = InArgs._OnTextChanged;
+	OnVerifyTextChanged = InArgs._OnVerifyTextChanged;
+	OnTextCommitted = InArgs._OnTextCommitted;
 
 	SBorder::Construct( SBorder::FArguments()
 		.BorderImage( this, &SEditableTextBox::GetBorderImage )
@@ -65,8 +68,8 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 					.AllowContextMenu( InArgs._AllowContextMenu )
 					.OnContextMenuOpening( InArgs._OnContextMenuOpening )
 					.ContextMenuExtender( InArgs._ContextMenuExtender )
-					.OnTextChanged( InArgs._OnTextChanged )
-					.OnTextCommitted( InArgs._OnTextCommitted )
+					.OnTextChanged(this, &SEditableTextBox::OnEditableTextChanged)
+					.OnTextCommitted(this, &SEditableTextBox::OnEditableTextCommitted)
 					.MinDesiredWidth( InArgs._MinDesiredWidth )
 					.SelectAllTextOnCommit( InArgs._SelectAllTextOnCommit )
 					.OnKeyCharHandler( InArgs._OnKeyCharHandler )			
@@ -426,3 +429,49 @@ TOptional<FText> SEditableTextBox::GetDefaultAccessibleText(EAccessibleType Acce
 	return TOptional<FText>();
 }
 #endif
+
+void SEditableTextBox::OnEditableTextChanged(const FText& InText)
+{
+	OnTextChanged.ExecuteIfBound(InText);
+
+	if (OnVerifyTextChanged.IsBound())
+	{
+		FText OutErrorMessage;
+		if (!OnVerifyTextChanged.Execute(InText, OutErrorMessage))
+		{
+			// Display as an error.
+			SetError(OutErrorMessage);
+		}
+		else
+		{
+			SetError(FText::GetEmpty());
+		}
+	}
+}
+
+void SEditableTextBox::OnEditableTextCommitted(const FText& InText, ETextCommit::Type InCommitType)
+{
+	if (OnVerifyTextChanged.IsBound())
+	{
+		FText OutErrorMessage;
+		if (!OnVerifyTextChanged.Execute(InText, OutErrorMessage))
+		{
+           		// Display as an error.
+			if (InCommitType == ETextCommit::OnEnter)
+			{
+				SetError(OutErrorMessage);
+			}
+			return;
+		}
+		else
+		{
+			if (InCommitType == ETextCommit::OnEnter)
+			{
+				SetError(FText::GetEmpty());
+			}
+			
+		}		
+	}
+
+	OnTextCommitted.ExecuteIfBound(InText, InCommitType);
+}

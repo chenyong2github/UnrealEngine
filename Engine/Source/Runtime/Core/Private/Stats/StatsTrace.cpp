@@ -10,14 +10,16 @@
 
 #if STATSTRACE_ENABLED
 
-UE_TRACE_EVENT_BEGIN(Stats, Spec, Always)
+UE_TRACE_CHANNEL(StatsChannel)
+
+UE_TRACE_EVENT_BEGIN(Stats, Spec, Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(bool, IsFloatingPoint)
 	UE_TRACE_EVENT_FIELD(bool, IsMemory)
 	UE_TRACE_EVENT_FIELD(bool, ShouldClearEveryFrame)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Stats, EventBatch, Always)
+UE_TRACE_EVENT_BEGIN(Stats, EventBatch)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
@@ -45,7 +47,7 @@ public:
 	{
 		uint64 LastCycle;
 		uint32 ThreadId;
-		uint32 BufferSize;
+		uint16 BufferSize;
 		uint8 Buffer[MaxBufferSize];
 	};
 
@@ -72,7 +74,7 @@ FStatsTraceInternal::FThreadState* FStatsTraceInternal::InitThreadState()
 
 void FStatsTraceInternal::FlushThreadBuffer(FThreadState* ThreadState)
 {
-	UE_TRACE_LOG(Stats, EventBatch, ThreadState->BufferSize)
+	UE_TRACE_LOG(Stats, EventBatch, StatsChannel, ThreadState->BufferSize)
 		<< EventBatch.ThreadId(ThreadState->ThreadId)
 		<< EventBatch.Attachment(ThreadState->Buffer, ThreadState->BufferSize);
 	ThreadState->BufferSize = 0;
@@ -99,7 +101,7 @@ void FStatsTraceInternal::BeginEncodeOp(const FName& Stat, EOpType Op, FThreadSt
 
 void FStatsTraceInternal::EndEncodeOp(FThreadState* ThreadState, uint8* BufferPtr)
 {
-	ThreadState->BufferSize = BufferPtr - ThreadState->Buffer;
+	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
 }
 
 void FStatsTrace::DeclareStat(const FName& Stat, const ANSICHAR* Name, const TCHAR* Description, bool IsFloatingPoint, bool IsMemory, bool ShouldClearEveryFrame)
@@ -111,7 +113,7 @@ void FStatsTrace::DeclareStat(const FName& Stat, const ANSICHAR* Name, const TCH
 		memcpy(Buffer, Name, NameSize);
 		memcpy(Buffer + NameSize, Description, DescriptionSize);
 	};
-	UE_TRACE_LOG(Stats, Spec, NameSize + DescriptionSize)
+	UE_TRACE_LOG(Stats, Spec, StatsChannel, NameSize + DescriptionSize)
 		<< Spec.Id(Stat.GetComparisonIndex().ToUnstableInt())
 		<< Spec.IsFloatingPoint(IsFloatingPoint)
 		<< Spec.IsMemory(IsMemory)
@@ -124,7 +126,7 @@ void FStatsTrace::Increment(const FName& Stat)
 	FStatsTraceInternal::FThreadState* ThreadState;
 	uint8* BufferPtr;
 	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::Increment, ThreadState, BufferPtr);
-	ThreadState->BufferSize = BufferPtr - ThreadState->Buffer;
+	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
 	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
 }
 
@@ -133,7 +135,7 @@ void FStatsTrace::Decrement(const FName& Stat)
 	FStatsTraceInternal::FThreadState* ThreadState;
 	uint8* BufferPtr;
 	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::Decrement, ThreadState, BufferPtr);
-	ThreadState->BufferSize = BufferPtr - ThreadState->Buffer;
+	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
 	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
 }
 

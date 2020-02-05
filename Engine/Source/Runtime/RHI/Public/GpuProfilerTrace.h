@@ -5,41 +5,25 @@
 #include "CoreTypes.h"
 #include "Trace/Config.h"
 
+#if !defined(GPUPROFILERTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
-#define GPUPROFILERTRACE_ENABLED 0
+#define GPUPROFILERTRACE_ENABLED 1
 #else
 #define GPUPROFILERTRACE_ENABLED 0
+#endif
 #endif
 
 #if GPUPROFILERTRACE_ENABLED
 
+class FName;
+
 struct FGpuProfilerTrace
 {
-	struct FEventType
-	{
-		RHI_API FEventType(const TCHAR* Name);
-	};
-
 	RHI_API static void BeginFrame();
-	RHI_API static void BeginEvent(const FEventType* EventType, uint32 FrameNumber, uint64 TimestampMicroseconds);
+	RHI_API static void SpecifyEventByName(const FName& Name);
+	RHI_API static void BeginEventByName(const FName& Name, uint32 FrameNumber, uint64 TimestampMicroseconds);
 	RHI_API static void EndEvent(uint64 TimestampMicroseconds);
 	RHI_API static void EndFrame();
-
-private:
-	enum
-	{
-		MaxEventBufferSize = 32768
-	};
-
-	struct FFrame
-	{
-		uint64 TimestampBase;
-		uint64 LastTimestamp;
-		uint32 RenderingFrameNumber;
-		uint16 EventBufferSize;
-		uint8 EventBuffer[MaxEventBufferSize];
-	};
-	static FFrame CurrentFrame;
 };
 
 #define TRACE_GPUPROFILER_DEFINE_EVENT_TYPE(Name) \

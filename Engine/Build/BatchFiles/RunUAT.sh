@@ -72,9 +72,6 @@ if [ "$UATCompileArg" = "-compile" ]; then
 		echo No project to compile, attempting to use precompiled AutomationTool
 		UATCompileArg=
 	else
-		# make sure the UBT project has references to auto-discovered platform extension source files
-		"${SCRIPT_DIR}/FindPlatformExtensionSources.sh"
-
 		# mono 5.0 and up include msbuild
 		if [ "$IS_MS_BUILD_AVAILABLE" == "1" ]; then
 			BUILD_TOOL=msbuild

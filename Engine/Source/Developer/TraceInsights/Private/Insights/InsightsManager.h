@@ -7,7 +7,6 @@
 #include "Framework/Commands/UICommandList.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/ModuleService.h"
-#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/InsightsCommands.h"
@@ -15,17 +14,12 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class SStartPageWindow;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct FInsightsManagerTabs
+namespace Trace
 {
-	static const FName StartPageTabId;
-	static const FName TimingProfilerTabId;
-	static const FName LoadingProfilerTabId;
-	static const FName NetworkingProfilerTabId;
-};
+	class FStoreClient;
+}
+
+class SStartPageWindow;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
@@ -42,7 +36,6 @@ class FInsightsManager
 public:
 	/** Creates the main manager, only one instance can exist. */
 	FInsightsManager(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
-					 TSharedRef<Trace::ISessionService> SessionService,
 					 TSharedRef<Trace::IModuleService> TraceModuleService);
 
 	/** Virtual destructor. */
@@ -51,11 +44,9 @@ public:
 	/**
 	 * Creates an instance of the main manager and initializes global instance with the previously created instance of the manager.
 	 * @param TraceAnalysisService The trace analysis service
-	 * @param TraceSessionService  The trace session service
 	 * @param TraceModuleService   The trace module service
 	 */
 	static TSharedPtr<FInsightsManager> Initialize(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
-												   TSharedRef<Trace::ISessionService> TraceSessionService,
 												   TSharedRef<Trace::IModuleService> TraceModuleService)
 	{
 		if (FInsightsManager::Instance.IsValid())
@@ -63,7 +54,7 @@ public:
 			FInsightsManager::Instance.Reset();
 		}
 
-		FInsightsManager::Instance = MakeShareable(new FInsightsManager(TraceAnalysisService, TraceSessionService, TraceModuleService));
+		FInsightsManager::Instance = MakeShareable(new FInsightsManager(TraceAnalysisService, TraceModuleService));
 		FInsightsManager::Instance->PostConstructor();
 
 		return FInsightsManager::Instance;
@@ -72,21 +63,32 @@ public:
 	/** Shutdowns the main manager. */
 	void Shutdown()
 	{
-		FInsightsManager::Instance.Reset();
+		if (FInsightsManager::Instance.IsValid())
+		{
+			FInsightsManager::Instance.Reset();
+		}
 	}
 
 	/** @return the global instance of the main manager (FInsightsManager). */
 	static TSharedPtr<FInsightsManager> Get();
 
 	TSharedRef<Trace::IAnalysisService> GetAnalysisService() const { return AnalysisService; }
-	TSharedRef<Trace::ISessionService> GetSessionService() const { return SessionService; }
 	TSharedRef<Trace::IModuleService> GetModuleService() const { return ModuleService; }
+
+	void SetStoreDir(const FString& InStoreDir) { StoreDir = InStoreDir; }
+	const FString& GetStoreDir() const { return StoreDir; }
+
+	bool ConnectToStore(const TCHAR* Host, uint32 Port);
+	Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
 
 	/** @return an instance of the trace analysis session. */
 	TSharedPtr<const Trace::IAnalysisSession> GetSession() const;
 
-	/** @return the session handle of the trace analysis session. */
-	Trace::FSessionHandle GetSessionHandle() const;
+	/** @return the id of the trace being analyzed. */
+	uint32 GetTraceId() const { return CurrentTraceId; }
+
+	/** @return the filename of the trace being analyzed. */
+	const FString& GetTraceFilename() const { return CurrentTraceFilename; }
 
 	/** @returns UI command list for the main manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
@@ -123,26 +125,23 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	bool IsAnyLiveSessionAvailable(Trace::FSessionHandle& OutLastLiveSessionHandle) const;
-	bool IsAnySessionAvailable(Trace::FSessionHandle& OutLastSessionHandle) const;
+	bool ShouldOpenAnalysisInSeparateProcess() const { return bShouldOpenAnalysisInSeparateProcess; }
+	void SetOpenAnalysisInSeparateProcess(bool bOnOff) { bShouldOpenAnalysisInSeparateProcess = bOnOff; }
 
-	/** Creates a new analysis session instance and loads the latest available trace session that is live. */
+	/** Creates a new analysis session instance and loads the latest available trace that is live. */
 	void LoadLastLiveSession();
 
-	/** Creates a new analysis session instance and loads the latest available trace session. */
-	void LoadLastSession();
-
 	/**
-	 * Creates a new analysis session instance using specified session handle.
-	 * @param SessionHandle - The handle for session to analyze
+	 * Creates a new analysis session instance using specified trace id.
+	 * @param TraceId - The id of the trace to analyze
 	 */
-	void LoadSession(Trace::FSessionHandle SessionHandle);
+	void LoadTrace(uint32 TraceId);
 
 	/**
 	 * Creates a new analysis session instance and loads a trace file from the specified location.
-	 * @param TraceFilepath - The path to the trace file
+	 * @param TraceFilename - The trace file to analyze
 	 */
-	void LoadTraceFile(const FString& TraceFilepath);
+	void LoadTraceFile(const FString& TraceFilename);
 
 	/** Opens the Settings dialog. */
 	void OpenSettings();
@@ -171,7 +170,7 @@ private:
 	bool Tick(float DeltaTime);
 
 	/** Resets (closes) current session instance. */
-	void ResetSession();
+	void ResetSession(bool bNotify = true);
 
 	void OnSessionChanged();
 
@@ -187,14 +186,22 @@ private:
 	FDelegateHandle OnTickHandle;
 
 	TSharedRef<Trace::IAnalysisService> AnalysisService;
-	TSharedRef<Trace::ISessionService> SessionService;
 	TSharedRef<Trace::IModuleService> ModuleService;
+
+	/** The location of the trace files managed by the trace store. */
+	FString StoreDir;
+
+	/** The client used to connect to the trace store. */
+	TUniquePtr<Trace::FStoreClient> StoreClient;
 
 	/** The trace analysis session. */
 	TSharedPtr<const Trace::IAnalysisSession> Session;
 
-	/** The session handle. */
-	Trace::FSessionHandle CurrentSessionHandle;
+	/** The id of the trace being analyzed. */
+	uint32 CurrentTraceId;
+
+	/** The filename of the trace being analyzed. */
+	FString CurrentTraceFilename;
 
 	/** List of UI commands for this manager. This will be filled by this and corresponding classes. */
 	TSharedRef<FUICommandList> CommandList;
@@ -215,4 +222,6 @@ private:
 	static TSharedPtr<FInsightsManager> Instance;
 
 	bool bIsNetworkingProfilerAvailable;
+
+	bool bShouldOpenAnalysisInSeparateProcess;
 };

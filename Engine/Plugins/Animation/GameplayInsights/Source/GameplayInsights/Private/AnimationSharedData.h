@@ -9,12 +9,17 @@ namespace Trace { class IAnalysisSession; }
 namespace Insights { class ITimingViewSession; }
 namespace Insights { enum class ETimeChangedFlags : int32; }
 class FSkeletalMeshPoseTrack;
+class FSkeletalMeshCurvesTrack;
 class FAnimationTickRecordsTrack;
 class FAnimNodesTrack;
+class FAnimNotifiesTrack;
+class FMontageTrack;
 class FMenuBuilder;
 class UWorld;
 class IAnimationBlueprintEditor;
 struct FCustomDebugObject;
+class SDockTab;
+class FGameplayTrack;
 
 class FAnimationSharedData
 {
@@ -35,7 +40,13 @@ public:
 	void GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList);
 
 	// Helper function to invalidate all viewports so non-realtime viewports update correctly.
-	void InvalidateViewports();
+	void InvalidateViewports() const;
+
+	// Show all the meshes
+	void ShowAllMeshes();
+
+	// Hide all the meshes
+	void HideAllMeshes();
 #endif
 
 	// Check whether animation tracks are enabled
@@ -62,12 +73,19 @@ public:
 	// Find an anim nodes track with the specified anim instance ID
 	TSharedPtr<FAnimNodesTrack> FindAnimNodesTrack(uint64 InAnimInstanceId) const;
 
+	/** Open an anim graph tab to see its schematic view */
+	void OpenAnimGraphTab(uint64 InAnimInstanceId) const;
+
 private:
 	// UI handlers
 	void ToggleAnimationTracks();
 	void OnTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker);
-	void ToggleAnimationParentTracks();
-	bool AreAnimationParentTracksEnabled() const;
+	void ToggleSkeletalMeshPoseTracks();
+	void ToggleSkeletalMeshCurveTracks();
+	void ToggleTickRecordTracks();
+	void ToggleAnimNodeTracks();
+	void ToggleAnimNotifyTracks();
+	void ToggleMontageTracks();
 
 private:
 	// The gameplay shared data we are linked to
@@ -76,10 +94,19 @@ private:
 	// Cached analysis session, set in Tick()
 	const Trace::IAnalysisSession* AnalysisSession;
 
+	// Cached timing view session, set in OnBeginSession/OnEndSession
+	Insights::ITimingViewSession* TimingViewSession;
+
 	// All the tracks we manage
 	TArray<TSharedRef<FSkeletalMeshPoseTrack>> SkeletalMeshPoseTracks;
+	TArray<TSharedRef<FSkeletalMeshCurvesTrack>> SkeletalMeshCurvesTracks;
 	TArray<TSharedRef<FAnimationTickRecordsTrack>> AnimationTickRecordsTracks;
 	TArray<TSharedRef<FAnimNodesTrack>> AnimNodesTracks;
+	TArray<TSharedRef<FAnimNotifiesTrack>> AnimNotifyTracks;
+	TArray<TSharedRef<FMontageTrack>> MontageTracks;
+
+	// All the documents we have spawned
+	mutable TArray<TWeakPtr<SDockTab>> WeakAnimGraphDocumentTabs;
 
 	// Delegate handles for hooks into the timing view
 	FDelegateHandle TimeMarkerChangedHandle;
@@ -90,6 +117,11 @@ private:
 	/** Validity flags for pose times/ranges */
 	bool bTimeMarkerValid;
 
-	// Whether all of our animation tracks are enabled
-	bool bAnimationTracksEnabled;
+	// Flags controlling whether check type of our animation tracks are enabled
+	bool bSkeletalMeshPoseTracksEnabled;
+	bool bSkeletalMeshCurveTracksEnabled;
+	bool bTickRecordTracksEnabled;
+	bool bAnimNodeTracksEnabled;
+	bool bAnimNotifyTracksEnabled;
+	bool bMontageTracksEnabled;
 };

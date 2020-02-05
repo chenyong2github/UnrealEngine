@@ -337,7 +337,7 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		FStructuredArchive::FArray KeysToRemoveArray = Record.EnterArray(SA_FIELD_NAME(TEXT("KeysToRemove")), NumKeysToRemove);
 		if (NumKeysToRemove)
 		{
-			TempKeyStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+			TempKeyStorage = (uint8*)FMemory::Malloc(KeyProp->GetSize());
 			KeyProp->InitializeValue(TempKeyStorage);
 
 			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
@@ -360,16 +360,8 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		// Allocate temporary key space if we haven't allocated it already above
 		if (NumEntries != 0 && !TempKeyStorage)
 		{
-			TempKeyStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+			TempKeyStorage = (uint8*)FMemory::Malloc(KeyProp->GetSize());
 			KeyProp->InitializeValue(TempKeyStorage);
-		}
-
-		if (KeyProp->IsA<FLazyObjectProperty>())
-		{
-			UE_LOG(LogProperty, Warning, 
-				TEXT("Loading map properties with lazy object pointer keys has a known bug in UE4.24.1 (UE-85796). "
-					 "Resaving this package may cause data loss. '%s' in package '%s'. "),
-				*GetFullName(), *UnderlyingArchive.GetArchiveName());
 		}
 
 		// Read remaining items into container

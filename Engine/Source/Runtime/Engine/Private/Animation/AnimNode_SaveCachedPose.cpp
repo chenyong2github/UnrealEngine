@@ -54,7 +54,7 @@ void FAnimNode_SaveCachedPose::Update_AnyThread(const FAnimationUpdateContext& C
 	// Store this context for the post update
 	CachedUpdate.Context = Context.WithOtherSharedContext(CachedUpdate.SharedContext.Get());
 
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Cached Pose Name"), CachePoseName);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), CachePoseName);
 }
 
 void FAnimNode_SaveCachedPose::Evaluate_AnyThread(FPoseContext& Output)
@@ -107,7 +107,10 @@ void FAnimNode_SaveCachedPose::PostGraphUpdate()
 		}
 
 		// Update the max weighted pose node
-		Pose.Update(CachedUpdateContexts[MaxWeightIdx].Context);
+		{
+			TRACE_SCOPED_ANIM_NODE(CachedUpdateContexts[MaxWeightIdx].Context);
+			Pose.Update(CachedUpdateContexts[MaxWeightIdx].Context);
+		}
 
 		// Determine if any ancestors are interested in the other updates we'll be skipping
 		TArray<FAnimNode_Base*, TInlineAllocator<4>> AncestorsWithSkippedUpdateHandlers;

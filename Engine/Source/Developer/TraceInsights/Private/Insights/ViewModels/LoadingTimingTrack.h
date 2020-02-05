@@ -65,9 +65,11 @@ private:
 
 class FLoadingTimingTrack : public FTimingEventsTrack
 {
+	INSIGHTS_DECLARE_RTTI(FLoadingTimingTrack, FTimingEventsTrack)
+
 public:
-	explicit FLoadingTimingTrack(FLoadingSharedState& InSharedState, uint32 InTimelineIndex, const FName& InSubType, const FString& InName)
-		: FTimingEventsTrack(FName(TEXT("Loading")), InSubType, InName)
+	explicit FLoadingTimingTrack(FLoadingSharedState& InSharedState, uint32 InTimelineIndex, const FString& InName)
+		: FTimingEventsTrack(InName)
 		, SharedState(InSharedState)
 		, TimelineIndex(InTimelineIndex)
 	{
