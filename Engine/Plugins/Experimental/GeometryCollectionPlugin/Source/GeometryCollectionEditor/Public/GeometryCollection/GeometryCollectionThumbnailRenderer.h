@@ -22,7 +22,7 @@ class UGeometryCollectionThumbnailRenderer : public UDefaultSizedThumbnailRender
 	GENERATED_UCLASS_BODY()
 
 	// Begin UThumbnailRenderer Object
-	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas) override;
+	virtual void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily) override;
 	// End UThumbnailRenderer Object
 
 	// Begin UObject implementation

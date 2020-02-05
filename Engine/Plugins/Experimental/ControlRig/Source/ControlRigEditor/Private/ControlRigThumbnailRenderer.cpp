@@ -21,7 +21,7 @@ bool UControlRigThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 	return Cast<UControlRigBlueprint>(Object) != nullptr;
 }
 
-void UControlRigThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas)
+void UControlRigThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	RigBlueprint = nullptr;
 
@@ -31,7 +31,7 @@ void UControlRigThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 		if (SkeletalMesh != nullptr)
 		{
 			RigBlueprint = InRigBlueprint;
-			Super::Draw(SkeletalMesh, X, Y, Width, Height, RenderTarget, Canvas);
+			Super::Draw(SkeletalMesh, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
 
 			for (auto Pair : GizmoActors)
 			{

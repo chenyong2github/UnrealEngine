@@ -13,7 +13,7 @@ UPhysicsAssetThumbnailRenderer::UPhysicsAssetThumbnailRenderer(const FObjectInit
 	ThumbnailScene = nullptr;
 }
 
-void UPhysicsAssetThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas)
+void UPhysicsAssetThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(Object);
 	if (PhysicsAsset != nullptr)
@@ -25,7 +25,8 @@ void UPhysicsAssetThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uin
 
 		ThumbnailScene->SetPhysicsAsset(PhysicsAsset);
 		FSceneViewFamilyContext ViewFamily( FSceneViewFamily::ConstructionValues( RenderTarget, ThumbnailScene->GetScene(), FEngineShowFlags(ESFIM_Game) )
-			.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime));
+			.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
+			.SetAdditionalViewFamily(bAdditionalViewFamily));
 
 		ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
 		ViewFamily.EngineShowFlags.MotionBlur = 0;
