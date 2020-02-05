@@ -128,7 +128,11 @@ void UAIPerceptionComponent::ConfigureSense(UAISenseConfig& Config)
 
 	if (IsRegistered())
 	{
-		RequestStimuliListenerUpdate();
+	    UAIPerceptionSystem* AIPerceptionSys = UAIPerceptionSystem::GetCurrent(GetWorld());
+	    if (AIPerceptionSys != nullptr)
+	    {
+		    AIPerceptionSys->OnListenerConfigUpdated(Config.GetSenseID(), *this);
+	    }
 	}
 	// else the sense will be auto-configured during OnRegister
 }
