@@ -6,7 +6,10 @@
 
 #include "ITimedDataInput.h"
 #include "TimedDataMonitorSubsystem.h"
+#include "SlateFwd.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "SlateOptMacros.h"
 
 class STimingDiagramWidgetGraphic;
 
