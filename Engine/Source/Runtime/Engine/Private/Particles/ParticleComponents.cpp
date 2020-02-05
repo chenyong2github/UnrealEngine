@@ -5956,7 +5956,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 					SavedAutoAttachRelativeLocation = GetRelativeLocation();
 					SavedAutoAttachRelativeRotation = GetRelativeRotation();
 					SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
-					AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
+					AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, bAutoAttachWeldSimulatedBodies), AutoAttachSocketName);
 				}
 
 				bDidAutoAttach = true;

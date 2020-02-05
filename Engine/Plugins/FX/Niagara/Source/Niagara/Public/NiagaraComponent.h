@@ -134,6 +134,13 @@ public:
 	uint32 bAutoManageAttachment : 1;
 
 	/**
+	 * Option for how we handle bWeldSimulatedBodies when we attach to the AutoAttachParent, if bAutoManageAttachment is true.
+	 * @see bAutoManageAttachment
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attachment, meta=(EditCondition="bAutoManageAttachment"))
+	uint32 bAutoAttachWeldSimulatedBodies : 1;
+
+	/**
 	 * Time between forced UpdateTransforms for systems that use dynamically calculated bounds,
 	 * Which is effectively how often the bounds are shrunk.
 	 */
