@@ -1993,33 +1993,34 @@ UMaterialExpressionRuntimeVirtualTextureOutput::UMaterialExpressionRuntimeVirtua
 int32 UMaterialExpressionRuntimeVirtualTextureOutput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 CodeInput = INDEX_NONE;
-
-	if (!BaseColor.IsConnected() && !Specular.IsConnected() && !Roughness.IsConnected() && !Normal.IsConnected() && !Opacity.IsConnected())
-	{
-		Compiler->Error(TEXT("No inputs to Runtime Virtual Texture Output."));
-	}
+	uint8 OutputAttributeMask = 0;
 
 	// Order of outputs generates function names GetVirtualTextureOutput{index}
 	// These must match the function names called in VirtualTextureMaterial.usf
 	if (OutputIndex == 0)
 	{
 		CodeInput = BaseColor.IsConnected() ? BaseColor.Compile(Compiler) : Compiler->Constant3(0.f, 0.f, 0.f);
+		OutputAttributeMask |= BaseColor.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::BaseColor) : 0;
 	}
 	else if (OutputIndex == 1)
 	{
 		CodeInput = Specular.IsConnected() ? Specular.Compile(Compiler) : Compiler->Constant(0.5f);
+		OutputAttributeMask |= Specular.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Specular) : 0;
 	}
 	else if (OutputIndex == 2)
 	{
 		CodeInput = Roughness.IsConnected() ? Roughness.Compile(Compiler) : Compiler->Constant(0.5f);
+		OutputAttributeMask |= Roughness.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Roughness) : 0;
 	}
 	else if (OutputIndex == 3)
 	{
 		CodeInput = Normal.IsConnected() ? Normal.Compile(Compiler) : Compiler->Constant3(0.f, 0.f, 1.f);
+		OutputAttributeMask |= Normal.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Normal) : 0;
 	}
 	else if (OutputIndex == 4)
 	{
 		CodeInput = WorldHeight.IsConnected() ? WorldHeight.Compile(Compiler) : Compiler->Constant(0.f);
+		OutputAttributeMask |= WorldHeight.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::WorldHeight) : 0;
 	}
 	else if (OutputIndex == 5)
 	{
@@ -2028,9 +2029,10 @@ int32 UMaterialExpressionRuntimeVirtualTextureOutput::Compile(class FMaterialCom
 	else if (OutputIndex == 6)
 	{
 		CodeInput = Mask.IsConnected() ? Mask.Compile(Compiler) : Compiler->Constant(1.f);
+		OutputAttributeMask |= Mask.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Mask) : 0;
 	}
 
-	Compiler->VirtualTextureOutput();
+	Compiler->VirtualTextureOutput(OutputAttributeMask);
 	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
 }
 

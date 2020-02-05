@@ -323,7 +323,7 @@ public:
 
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) = 0;
 	virtual int32 CustomOutput(class UMaterialExpressionCustomOutput* Custom, int32 OutputIndex, int32 OutputCode) = 0;
-	virtual int32 VirtualTextureOutput() = 0;
+	virtual int32 VirtualTextureOutput(uint8 AttributeMask) = 0;
 
 	virtual int32 DDX(int32 X) = 0;
 	virtual int32 DDY(int32 X) = 0;
@@ -583,7 +583,7 @@ public:
 
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override { return Compiler->CustomExpression(Custom,CompiledInputs); }
 	virtual int32 CustomOutput(class UMaterialExpressionCustomOutput* Custom, int32 OutputIndex, int32 OutputCode) override{ return Compiler->CustomOutput(Custom, OutputIndex, OutputCode); }
-	virtual int32 VirtualTextureOutput() override { return Compiler->VirtualTextureOutput(); }
+	virtual int32 VirtualTextureOutput(uint8 AttributeMask) override { return Compiler->VirtualTextureOutput(AttributeMask); }
 
 	virtual int32 DDX(int32 X) override { return Compiler->DDX(X); }
 	virtual int32 DDY(int32 X) override { return Compiler->DDY(X); }

@@ -72,7 +72,7 @@ namespace RuntimeVirtualTexture
 			OutEnvironment.SetDefine(TEXT("OUT_BASECOLOR"), 1);
 		}
 
-		static FRHIBlendState* GetBlendState()
+		static FRHIBlendState* GetBlendState(uint8 OutputAttributeMask)
 		{
 			return TStaticBlendState< CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One >::GetRHI();
 		}
@@ -81,18 +81,89 @@ namespace RuntimeVirtualTexture
 	/** Specialization for ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular */
 	class FMaterialPolicy_BaseColorNormalSpecular
 	{
+	private:
+		/** Compile time helper to build blend state from the connected output attribute mask. */
+		static constexpr EColorWriteMask GetColorMaskFromAttributeMask(uint8 AttributeMask, uint8 RenderTargetIndex)
+		{
+			// Color mask in the output render targets for each of the relevant attributes in ERuntimeVirtualTextureAttributeType
+			const EColorWriteMask AttributeMasks[][3] = {
+				{ CW_RGBA, CW_NONE, CW_NONE }, // BaseColor
+				{ CW_NONE, EColorWriteMask(CW_RED | CW_GREEN | CW_ALPHA), EColorWriteMask(CW_BLUE | CW_ALPHA) }, // Normal
+				{ CW_NONE, CW_NONE, EColorWriteMask(CW_GREEN | CW_ALPHA) }, // Roughness
+				{ CW_NONE, CW_NONE, EColorWriteMask(CW_RED | CW_ALPHA) }, // Specular
+				{ CW_NONE, EColorWriteMask(CW_BLUE | CW_ALPHA), CW_NONE }, // Mask
+			};
+
+			// Combine the color masks for this AttributeMask
+			EColorWriteMask ColorWriteMask = CW_NONE;
+			for (int32 i = 0; i < 5; ++i)
+			{
+				if (AttributeMask & (1 << i))
+				{
+					ColorWriteMask = EColorWriteMask(ColorWriteMask | AttributeMasks[i][RenderTargetIndex]);
+				}
+			}
+			return ColorWriteMask;
+		}
+
+		/** Helper to convert the connected output attribute mask to a blend state with a color mask for these attributes. */
+		template< uint32 AttributeMask >
+		static FRHIBlendState* TGetBlendStateFromAttributeMask()
+		{
+			return TStaticBlendState< 
+				GetColorMaskFromAttributeMask(AttributeMask, 0), BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,
+				GetColorMaskFromAttributeMask(AttributeMask, 1), BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,
+				GetColorMaskFromAttributeMask(AttributeMask, 2), BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One	>::GetRHI();
+		}
+
+		/** Runtime conversion of attribute mask to static blend state. */
+		static FRHIBlendState* GetBlendStateImpl(uint8 AttributeMask)
+		{
+			// We have 5 relevant bits in the attribute mask. Any more and this would get painful...
+			switch (AttributeMask & 0x1f)
+			{
+			case 1: return TGetBlendStateFromAttributeMask<1>();
+			case 2: return TGetBlendStateFromAttributeMask<2>();
+			case 3: return TGetBlendStateFromAttributeMask<3>();
+			case 4: return TGetBlendStateFromAttributeMask<4>();
+			case 5: return TGetBlendStateFromAttributeMask<5>();
+			case 6: return TGetBlendStateFromAttributeMask<6>();
+			case 7: return TGetBlendStateFromAttributeMask<7>();
+			case 8: return TGetBlendStateFromAttributeMask<8>();
+			case 9: return TGetBlendStateFromAttributeMask<9>();
+			case 10: return TGetBlendStateFromAttributeMask<10>();
+			case 11: return TGetBlendStateFromAttributeMask<11>();
+			case 12: return TGetBlendStateFromAttributeMask<12>();
+			case 13: return TGetBlendStateFromAttributeMask<13>();
+			case 14: return TGetBlendStateFromAttributeMask<14>();
+			case 15: return TGetBlendStateFromAttributeMask<15>();
+			case 16: return TGetBlendStateFromAttributeMask<16>();
+			case 17: return TGetBlendStateFromAttributeMask<17>();
+			case 18: return TGetBlendStateFromAttributeMask<18>();
+			case 19: return TGetBlendStateFromAttributeMask<19>();
+			case 21: return TGetBlendStateFromAttributeMask<21>();
+			case 22: return TGetBlendStateFromAttributeMask<22>();
+			case 23: return TGetBlendStateFromAttributeMask<23>();
+			case 24: return TGetBlendStateFromAttributeMask<24>();
+			case 25: return TGetBlendStateFromAttributeMask<25>();
+			case 26: return TGetBlendStateFromAttributeMask<26>();
+			case 27: return TGetBlendStateFromAttributeMask<27>();
+			case 28: return TGetBlendStateFromAttributeMask<28>();
+			case 29: return TGetBlendStateFromAttributeMask<29>();
+			case 30: return TGetBlendStateFromAttributeMask<30>();
+			default: return TGetBlendStateFromAttributeMask<31>();
+			}
+		}
+
 	public:
 		static void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment)
 		{
 			OutEnvironment.SetDefine(TEXT("OUT_BASECOLOR_NORMAL_SPECULAR"), 1);
 		}
 
-		static FRHIBlendState* GetBlendState()
+		static FRHIBlendState* GetBlendState(uint8 OutputAttributeMask)
 		{
-			return TStaticBlendState<
-				CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,
-				CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,
-				CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One >::GetRHI();
+			return GetBlendStateImpl(OutputAttributeMask);
 		}
 	};
 
@@ -106,7 +177,7 @@ namespace RuntimeVirtualTexture
 			OutEnvironment.SetRenderTargetOutputFormat(0, PF_R32_FLOAT);
 		}
 
-		static FRHIBlendState* GetBlendState()
+		static FRHIBlendState* GetBlendState(uint8 OutputAttributeMask)
 		{
 			return TStaticBlendState< CW_RED, BO_Max, BF_One, BF_One, BO_Add, BF_One, BF_One >::GetRHI();
 		}
@@ -185,6 +256,7 @@ namespace RuntimeVirtualTexture
 			const FMeshBatch& MeshBatch,
 			uint64 BatchElementMask,
 			int32 StaticMeshId,
+			uint8 OutputAttributeMask,
 			const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 			const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 			const FMaterial& RESTRICT MaterialResource)
@@ -200,7 +272,7 @@ namespace RuntimeVirtualTexture
 			Shaders.VertexShader = MaterialResource.GetShader< FShader_VirtualTextureMaterialDraw_VS< MaterialPolicy > >(VertexFactory->GetType());
 			Shaders.PixelShader = MaterialResource.GetShader< FShader_VirtualTextureMaterialDraw_PS< MaterialPolicy > >(VertexFactory->GetType());
 
-			DrawRenderState.SetBlendState(MaterialPolicy::GetBlendState());
+			DrawRenderState.SetBlendState(MaterialPolicy::GetBlendState(OutputAttributeMask));
 
 			ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource);
 			ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, MaterialResource);
@@ -236,21 +308,22 @@ namespace RuntimeVirtualTexture
 				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 				const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
 				const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
+				const uint8 OutputAttributeMask = Material.GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread();
 
-				if (Material.GetMaterialDomain() == MD_RuntimeVirtualTexture || Material.HasRuntimeVirtualTextureOutput_RenderThread())
+				if (OutputAttributeMask != 0)
 				{
 					switch ((ERuntimeVirtualTextureMaterialType)MeshBatch.RuntimeVirtualTextureMaterialType)
 					{
 					case ERuntimeVirtualTextureMaterialType::BaseColor:
-						Process<FMaterialPolicy_BaseColor>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, MaterialRenderProxy, Material);
+						Process<FMaterialPolicy_BaseColor>(MeshBatch, BatchElementMask, StaticMeshId, OutputAttributeMask, PrimitiveSceneProxy, MaterialRenderProxy, Material);
 						break;
 					case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 					case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 					case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
-						Process<FMaterialPolicy_BaseColorNormalSpecular>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, MaterialRenderProxy, Material);
+						Process<FMaterialPolicy_BaseColorNormalSpecular>(MeshBatch, BatchElementMask, StaticMeshId, OutputAttributeMask, PrimitiveSceneProxy, MaterialRenderProxy, Material);
 						break;
 					case ERuntimeVirtualTextureMaterialType::WorldHeight:
-						Process<FMaterialPolicy_WorldHeight>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, MaterialRenderProxy, Material);
+						Process<FMaterialPolicy_WorldHeight>(MeshBatch, BatchElementMask, StaticMeshId, OutputAttributeMask, PrimitiveSceneProxy, MaterialRenderProxy, Material);
 						break;
 					default:
 						break;
