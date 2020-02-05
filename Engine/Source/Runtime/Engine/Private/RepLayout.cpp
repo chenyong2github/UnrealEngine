@@ -1134,6 +1134,7 @@ struct FComparePropertiesSharedParams
 	FRepChangelistState* const RepChangelistState;
 	FRepChangedPropertyTracker* const RepChangedPropertyTracker;
 	UE4PushModelPrivate::FPushModelPerNetDriverState* const PushModelState = nullptr;
+	const TBitArray<>* const PushModelProperties = nullptr;
 	const bool bValidateProperties = false;
 	const bool bIsNetworkProfilerActive = false;
 #if (WITH_PUSH_VALIDATION_SUPPORT || USE_NETWORK_PROFILER)
@@ -1269,7 +1270,7 @@ namespace UE4_RepLayout_Private
 		const FComparePropertiesSharedParams& SharedParams,
 		FComparePropertiesStackParams& StackParams)
 	{
-		return !EnumHasAnyFlags(SharedParams.Parents[ParentIndex].Flags, ERepParentFlags::UsePushModel) || SharedParams.PushModelState->IsPropertyDirty(ParentIndex);
+		return !(*SharedParams.PushModelProperties)[ParentIndex] || SharedParams.PushModelState->IsPropertyDirty(ParentIndex);
 	}
 #endif // WITH_PUSH_MODEL	
 }	
@@ -1313,7 +1314,7 @@ static void CompareParentProperties(
 				const bool bIsPropertyDirty = UE4_RepLayout_Private::IsPropertyDirty(ParentIndex, SharedParams, StackParams);
 				const bool bDidPropertyChange = UE4_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
 
-				ensureAlwaysMsgf(bDidPropertyChange && !bIsPropertyDirty, TEXT("Push Model Property changed value, but was not marked dirty! Property=%s"), *SharedParams.Parents[ParentIndex].Property->GetPathName());
+				ensureAlwaysMsgf(!bDidPropertyChange || bIsPropertyDirty, TEXT("Push Model Property changed value, but was not marked dirty! Property=%s"), *SharedParams.Parents[ParentIndex].Property->GetPathName());
 			}	
 		}
 #endif // WITH_PUSH_VALIDATION_SUPPORT
@@ -1482,6 +1483,12 @@ bool FRepLayout::CompareProperties(
 	TArray<uint16>& Changed = NewHistoryItem.Changed;
 	Changed.Empty(1);
 
+#if WITH_PUSH_MODEL
+		const TBitArray<>* const LocalPushModelProperties = &PushModelProperties;
+#else
+		const TBitArray<>* const LocalPushModelProperties = nullptr;
+#endif		
+
 	FComparePropertiesSharedParams SharedParams{
 		/*bIsInitial=*/ !!RepFlags.bNetInitial,
 		/*bForceFail=*/ false,
@@ -1492,6 +1499,7 @@ bool FRepLayout::CompareProperties(
 		RepChangelistState,
 		(RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr),
 		/*PushModelState=*/UE4_RepLayout_Private::GetPerNetDriverState(RepChangelistState),
+		/*PushModelProperties=*/ LocalPushModelProperties,	
 		/*bValidateProperties=*/GbPushModelValidateProperties,
 		/*bIsNetworkProfilerActive=*/UE4_RepLayout_Private::IsNetworkProfilerEnabled()
 	};
@@ -5454,6 +5462,10 @@ void FRepLayout::InitFromClass(
 
 	Object->GetLifetimeReplicatedProps(LifetimeProps);
 
+#if WITH_PUSH_MODEL
+	PushModelProperties.Init(false, Parents.Num());
+#endif
+
 	// Tracks the number of (non-delta) lifetime properties so we can check that against our
 	// Push Model Enabled properties.
 	int32 NumberOfLifetimeProperties = 0;
@@ -5499,7 +5511,7 @@ void FRepLayout::InitFromClass(
 			if (bIsPushModelEnabled && LifetimeProps[i].bIsPushBased)
 			{
 				++NumberOfPushModelProperties;
-				Parents[ParentIndex].Flags |= ERepParentFlags::UsePushModel;
+				PushModelProperties[ParentIndex] = true;
 			}
 #endif
 		}
