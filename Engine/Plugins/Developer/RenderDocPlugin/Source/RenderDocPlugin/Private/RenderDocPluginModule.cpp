@@ -291,7 +291,7 @@ void FRenderDocPluginModule::InjectDebugExecKeybind()
 	FConfigSection* Section = ConfigFile->Find(TEXT("/Script/Engine.PlayerInput"));
 	if (Section != nullptr)
 	{
-		Section->HandleAddCommand(TEXT("DebugExecBindings"), TEXT("(Key=F12,Command=\"RenderDoc.CaptureFrame\", Alt=true)"), true);
+		Section->HandleAddCommand(TEXT("DebugExecBindings"), TEXT("(Key=F12,Command=\"RenderDoc.CaptureFrame\", Alt=true)"), false);
 	}
 }
 
