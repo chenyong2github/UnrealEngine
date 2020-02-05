@@ -1602,6 +1602,8 @@ public:
 
 	bool DidHitchLastFrame() const;
 
+	static bool IsDormInitialStartupActor(AActor* Actor);
+
 protected:
 
 	bool bMaySendProperties;

@@ -1777,7 +1777,7 @@ Demo Recording tick.
 
 bool UDemoNetDriver::DemoReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate)
 {
-	if (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor())
+	if (IsDormInitialStartupActor(Actor))
 	{
 		return false;
 	}
@@ -2854,7 +2854,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 						continue;
 					}
 
-					if (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor())
+					if (IsDormInitialStartupActor(Actor))
 					{
 						ActorsToRemove.Add(Actor);
 						continue;
