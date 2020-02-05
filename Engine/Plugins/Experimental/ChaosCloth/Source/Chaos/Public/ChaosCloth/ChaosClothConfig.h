@@ -194,4 +194,14 @@ public:
 	// Experimental, this feature might be removed without warning, not for production use
 	UPROPERTY(EditAnywhere, Category = "Experimental", meta = (DisplayName="Use XPBD Constraints (Experimental)"))
 	bool bUseXPBDConstraints = false;
+
+	// Enable local space simulation
+	UPROPERTY(EditAnywhere, Category = LocalSpaceSimulation, meta = (DisplayName = "Use Local space simulation"))
+	bool bUseLocalSpaceSimulation = false;
+
+	UPROPERTY(EditAnywhere, Category = LocalSpaceSimulation, meta = (DisplayName = "Component Linear Acc Scale"))
+	FVector ComponentLinearAccScale = { 1.f, 1.f, 1.f };
+
+	UPROPERTY()
+	FVector ComponentLinearAccClamp = { 4000.f, 4000.f, 4000.f };
 };
