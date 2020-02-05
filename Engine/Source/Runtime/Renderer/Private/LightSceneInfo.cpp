@@ -139,6 +139,8 @@ void FLightSceneInfo::RemoveFromScene()
 void FLightSceneInfo::Detach()
 {
 	check(IsInRenderingThread());
+	
+	Scene->FlushAsyncLightPrimitiveInteractionCreation();
 
 	// implicit linked list. The destruction will update this "head" pointer to the next item in the list.
 	while(DynamicInteractionOftenMovingPrimitiveList)

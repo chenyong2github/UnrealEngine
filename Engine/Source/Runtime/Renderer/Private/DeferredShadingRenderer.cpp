@@ -1204,7 +1204,7 @@ static TAutoConsoleVariable<float> CVarStallInitViews(
 
 void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
-	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList, true);
 
 	check(RHICmdList.IsOutsideRenderPass());
 

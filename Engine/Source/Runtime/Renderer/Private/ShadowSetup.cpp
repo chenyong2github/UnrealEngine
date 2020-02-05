@@ -2527,6 +2527,8 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 
 		if (MaxFadeAlpha > 1.0f / 256.0f)
 		{
+			Scene->FlushAsyncLightPrimitiveInteractionCreation();
+
 			for (int32 ShadowIndex = 0, ShadowCount = ProjectedShadowInitializers.Num(); ShadowIndex < ShadowCount; ShadowIndex++)
 			{
 				FWholeSceneProjectedShadowInitializer& ProjectedShadowInitializer = ProjectedShadowInitializers[ShadowIndex];
@@ -4209,6 +4211,8 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 
 						if( !bMobile || (LightSceneInfo->Proxy->CastsModulatedShadows() && !LightSceneInfo->Proxy->UseCSMForDynamicObjects()))
 						{
+							Scene->FlushAsyncLightPrimitiveInteractionCreation();
+
 							// Look for individual primitives with a dynamic shadow.
 							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionOftenMovingPrimitiveList;
 								Interaction;
