@@ -513,43 +513,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Update the number of instances of a given tag and calls callback */
 	FORCEINLINE void UpdateTagMap(const FGameplayTagContainer& Container, int32 CountDelta)
 	{
-		// For removal, reorder calls so that FillParentTags is only called once
-		if (CountDelta > 0)
+		if (!Container.IsEmpty())
 		{
-			for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
-			{
-				const FGameplayTag& Tag = *TagIt;
-				if (GameplayTagCountContainer.UpdateTagCount(Tag, CountDelta))
-				{
-					OnTagUpdated(Tag, true);
-				}
-			}
-		}
-		else if (CountDelta < 0)
-		{
-			// Defer FillParentTags until all Tags have been removed
-			TArray<FGameplayTag> RemovedTags;
-			RemovedTags.Reserve(Container.Num()); // pre-allocate max number (if all are removed)
-
-			for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
-			{
-				const FGameplayTag& Tag = *TagIt;
-				if (GameplayTagCountContainer.UpdateTagCount(Tag, CountDelta, true))
-				{
-					RemovedTags.Add(Tag);
-				}
-			}
-			
-			if (RemovedTags.Num() > 0)
-			{
-				GameplayTagCountContainer.FillParentTags();
-			}
-
-			// Notify last in case OnTagUpdated queries this container
-			for (FGameplayTag& Tag : RemovedTags)
-			{
-				OnTagUpdated(Tag, false);
-			}
+			UpdateTagMap_Internal(Container, CountDelta);
 		}
 	}
 
@@ -688,15 +654,15 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	}
 
 	/** Call from OnRep functions to set the attribute base value on the client */
-	void SetBaseAttributeValueFromReplication(float NewValue, FGameplayAttribute Attribute)
+	void SetBaseAttributeValueFromReplication(const FGameplayAttribute& Attribute, float NewValue, float OldValue)
 	{
-		ActiveGameplayEffects.SetBaseAttributeValueFromReplication(Attribute, NewValue);
+		ActiveGameplayEffects.SetBaseAttributeValueFromReplication(Attribute, NewValue, OldValue);
 	}
 
 	/** Call from OnRep functions to set the attribute base value on the client */
-	void SetBaseAttributeValueFromReplication(FGameplayAttributeData NewValue, FGameplayAttribute Attribute)
+	void SetBaseAttributeValueFromReplication(const FGameplayAttribute& Attribute, const FGameplayAttributeData& NewValue, const FGameplayAttributeData& OldValue)
 	{
-		ActiveGameplayEffects.SetBaseAttributeValueFromReplication(Attribute, NewValue.GetBaseValue());
+		ActiveGameplayEffects.SetBaseAttributeValueFromReplication(Attribute, NewValue.GetBaseValue(), OldValue.GetBaseValue());
 	}
 
 	/** Tests if all modifiers in this GameplayEffect will leave the attribute > 0.f */
@@ -849,7 +815,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	FGameplayAbilitySpecHandle GiveAbility(const FGameplayAbilitySpec& AbilitySpec);
 
 	/** Grants an ability and attempts to activate it exactly one time, which will cause it to be removed. Only valid on the server! */
-	FGameplayAbilitySpecHandle GiveAbilityAndActivateOnce(const FGameplayAbilitySpec& AbilitySpec);
+	FGameplayAbilitySpecHandle GiveAbilityAndActivateOnce(FGameplayAbilitySpec& AbilitySpec);
 
 	/** Wipes all 'given' abilities. */
 	void ClearAllAbilities();
@@ -1461,7 +1427,7 @@ protected:
 	void	ClientActivateAbilitySucceedWithEventData(FGameplayAbilitySpecHandle AbilityToActivate, FPredictionKey PredictionKey, FGameplayEventData TriggerEventData);
 
 	/** Implementation of ServerTryActivateAbility */
-	virtual void InternalServerTryActiveAbility(FGameplayAbilitySpecHandle AbilityToActivate, bool InputPressed, const FPredictionKey& PredictionKey, const FGameplayEventData* TriggerEventData);
+	virtual void InternalServerTryActivateAbility(FGameplayAbilitySpecHandle AbilityToActivate, bool InputPressed, const FPredictionKey& PredictionKey, const FGameplayEventData* TriggerEventData);
 
 	/** Called when a prediction key that played a montage is rejected */
 	void OnPredictiveMontageRejected(UAnimMontage* PredictiveMontage);
@@ -1575,6 +1541,8 @@ protected:
 	const UAttributeSet*	GetAttributeSubobject(const TSubclassOf<UAttributeSet> AttributeClass) const;
 	const UAttributeSet*	GetAttributeSubobjectChecked(const TSubclassOf<UAttributeSet> AttributeClass) const;
 	const UAttributeSet*	GetOrCreateAttributeSubobject(TSubclassOf<UAttributeSet> AttributeClass);
+
+	void UpdateTagMap_Internal(const FGameplayTagContainer& Container, int32 CountDelta);
 
 	friend struct FActiveGameplayEffect;
 	friend struct FActiveGameplayEffectAction;

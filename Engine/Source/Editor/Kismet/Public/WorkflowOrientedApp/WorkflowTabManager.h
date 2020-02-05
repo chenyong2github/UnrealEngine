@@ -60,7 +60,7 @@ private:
 class FTabInfo : public TSharedFromThis<FTabInfo>
 {
 public:
-	FTabInfo(const TSharedRef<SDockTab>& InTab, const TSharedPtr<FDocumentTabFactory>& InSpawner);
+	FTabInfo(const TSharedRef<SDockTab>& InTab, const TSharedPtr<FDocumentTabFactory>& InSpawner, const TSharedPtr<class FDocumentTracker>& InTracker);
 
 	/** Returns TRUE if the payload used by this TabInfo is the same as passed in */
 	bool PayloadMatches(const TSharedPtr<FTabPayload> TestPayload) const;
@@ -73,7 +73,13 @@ public:
 	 * @param InHistoryNode		The history node to add
 	 * @param bInSaveHistory	TRUE if history should be saved
 	 */
-	void AddTabHistory(TSharedPtr< struct FGenericTabHistory > InHistoryNode, bool bInSaveHistory = true, bool bPrevTabMatches = false);
+	void AddTabHistory(TSharedPtr< struct FGenericTabHistory > InHistoryNode, bool bInSaveHistory = true);
+
+	/** Retrieves the history currently visible in this tab */
+	TSharedPtr<struct FGenericTabHistory> GetCurrentHistory() const;
+
+	/** Sets the current history and evoke it, this can either be an old or new history node */
+	void SetCurrentHistory(TSharedPtr<struct FGenericTabHistory> NewHistory, bool bInSaveHistory = true, bool bShouldRestore = true);
 
 	/** Single step forward in history */
 	FReply OnGoForwardInHistory();
@@ -114,7 +120,7 @@ private:
 	 *
 	 * @param InMenuAnchor		This is the anchor the menu will use for positioning
 	 */
-	FReply OnMouseDownHisory( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TWeakPtr< SMenuAnchor > InMenuAnchor );
+	FReply OnMouseDownHistory( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TWeakPtr< SMenuAnchor > InMenuAnchor );
 
 	/** 
 	 * Callback to create the history menu.
@@ -130,10 +136,10 @@ private:
 	TSharedPtr<SWidget> HistoryNavigationWidget;
 	/** Tab this info represents */
 	TWeakPtr<class SDockTab> Tab;
-	/** List of history data nodes */
-	TArray< TSharedPtr< struct FGenericTabHistory > > History;
-	/** Current history index */
-	int32 CurrentHistoryIndex;
+	/** Current tab history element in this tab, may not necessarily be in the global history */
+	TSharedPtr<struct FGenericTabHistory> CurrentHistory;
+	/** Pointer to document tracker that spawned us */
+	TWeakPtr<class FDocumentTracker> WeakTracker;
 };
 
 /////////////////////////////////////////////////////
@@ -209,12 +215,27 @@ public:
 		return FactoryPtr.Pin()->ConstructTabName(SpawnInfo);
 	}
 
+	/** Returns the tab this is bound to */
+	TSharedPtr<FTabInfo> GetBoundTab() const
+	{
+		return BoundTab.Pin();
+	}
+
+	/** Binds this to a specific tab */
+	void BindToTab(const TSharedPtr<FTabInfo>& InTab)
+	{
+		BoundTab = InTab;
+	}
+
 protected:
 	/** The factory used to generate widgets for the payload */
 	TWeakPtr<class FDocumentTabFactory> FactoryPtr;
 
 	/** The payload this history node represents */
 	TSharedPtr<FTabPayload> Payload;
+
+	/** Specific tab this is bound to, may be null */
+	TWeakPtr<FTabInfo> BoundTab;
 };
 
 /////////////////////////////////////////////////////
@@ -239,14 +260,25 @@ public:
 	/** Are we opening a new document, or restoring a previously opened document */
 	enum EOpenDocumentCause
 	{
+		// Opens a new document, will open in existing tab if one is found
 		OpenNewDocument,
+		// Always open in a new tab
 		ForceOpenNewDocument,
+		// Restoring tab state from a previous session
 		RestorePreviousDocument,
+		// Navigating within an open tab
 		NavigatingCurrentDocument,
+		// Navigate without saving current document position
 		QuickNavigateCurrentDocument,
+		// Key/Mouse binding for back, turns into NavigatingHistory
 		NavigateBackwards,
+		// Key/Mouse binding for forward
 		NavigateForwards,
-		CreateHistoryEvent
+		// Going forward or back in the history
+		NavigatingHistory,
+
+		// Deprecated, treated the same as OpenNewDocument
+		CreateHistoryEvent,
 	};
 
 	/**
@@ -306,7 +338,7 @@ private:
 	TSharedPtr<FTabManager> TabManager;
 
 	// The last active tab info to be selected, used for opening new documents in the most recently used tab
-	TWeakPtr<FTabInfo> LastEditedTabInfo;
+	TWeakPtr<FTabInfo> WeakLastEditedTabInfo;
 
 	/** Handle to the registered OnActiveTabChanged delegate */
 	FDelegateHandle OnActiveTabChangedDelegateHandle;
@@ -314,9 +346,18 @@ private:
 	/** Handle to the registered OnTabForegrounded delegate */
 	FDelegateHandle TabForegroundedDelegateHandle;
 
+	/** List of history data nodes */
+	TArray< TSharedPtr<FGenericTabHistory> > History;
+
+	/** Current history index */
+	int32 CurrentHistoryIndex;
+
 private:
 	// Clean the spawned list 
 	FTabList& GetSpawnedList();
+
+	// Cleans the LastEditedTabInfo and returns pinned
+	TSharedPtr<FTabInfo> GetLastEditedTabInfo();
 
 	// Called by the global active tab changed callback; dispatches to individually registered callbacks
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
@@ -329,6 +370,12 @@ private:
 
 	/** Helper function to find the tab in the foreground */
 	TWeakPtr< FTabInfo > FindTabInForeground();
+
+	/** Navigates to specific index in tab history, returns success if it was found */
+	bool NavigateToTabHistory(int32 InHistoryIdx);
+
+	/** Returns the currently active tab history, may be null */
+	TSharedPtr<FGenericTabHistory> GetCurrentTabHistory();
 
 	/**
 	 * Navigates current tab
@@ -343,11 +390,13 @@ private:
 	/**
 	 * Opens a new tab
 	 *
-	 * @param InPayload					Payload to use for the tab
+	 * @param InTabHistory				New or existing tab history to open tab to
 	 * @param InOpenCause				The cause of the tab being opened
 	 *
 	 * @return							The tab opened and modified
 	 */
-	TSharedPtr<SDockTab> OpenNewTab(TSharedPtr<FTabPayload> InPayload, EOpenDocumentCause InOpenCause);
+	TSharedPtr<SDockTab> OpenNewTab(TSharedPtr<FGenericTabHistory> InTabHistory, EOpenDocumentCause InOpenCause);
+
+	friend class FTabInfo;
 };
 

@@ -30,6 +30,7 @@
 #include "Components/ChildActorComponent.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Algo/Transform.h"
+#include "Misc/ScopeExit.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -486,42 +487,12 @@ void AActor::RerunConstructionScripts()
 				}
 
 				// Add a new item
-				ComponentMapping.Insert(FComponentData(), Index);
-				ComponentMapping[Index].OldComponent = Component;
-				ComponentMapping[Index].OldOuter = bIsInnerComponent ? CSAddedComponent : nullptr;
-				ComponentMapping[Index].OldArchetype = Component->GetArchetype();
-				ComponentMapping[Index].OldName = Component->GetFName();
-
-				// If it's a UCS-created component, store a serialized index which will be used to match it to the reinstanced counterpart later
-				int32 SerializedIndex = -1;
-				if (Component->CreationMethod == EComponentCreationMethod::UserConstructionScript)
-				{
-					bool bFound = false;
-					for (const UActorComponent* BlueprintCreatedComponent : BlueprintCreatedComponents)
-					{
-						if (BlueprintCreatedComponent)
-						{
-							if (BlueprintCreatedComponent == Component)
-							{
-								SerializedIndex++;
-								bFound = true;
-								break;
-							}
-							else if (BlueprintCreatedComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript &&
-									 BlueprintCreatedComponent->GetArchetype() == ComponentMapping[Index].OldArchetype)
-							{
-								SerializedIndex++;
-							}
-						}
-					}
-
-					if (!bFound)
-					{
-						SerializedIndex = -1;
-					}
-				}
-
-				ComponentMapping[Index].UCSComponentIndex = SerializedIndex;
+				FComponentData& ComponentData = ComponentMapping.InsertDefaulted_GetRef(Index);
+				ComponentData.OldComponent = Component;
+				ComponentData.OldOuter = bIsInnerComponent ? CSAddedComponent : nullptr;
+				ComponentData.OldArchetype = Component->GetArchetype();
+				ComponentData.OldName = Component->GetFName();
+				ComponentData.UCSComponentIndex = Component->GetUCSSerializationIndex();
 			}
 		}
 #endif
@@ -593,12 +564,20 @@ void AActor::RerunConstructionScripts()
 		NameToNewComponent.Reserve(NewComponents.Num());
 		ComponentToArchetypeMap.Reserve(NewComponents.Num());
 
+		typedef TArray<UActorComponent*, TInlineAllocator<4>> FComponentsForSerializationIndex;
+		TMap<int32, FComponentsForSerializationIndex> SerializationIndexToNewUCSComponents;
+
 		for (UActorComponent* NewComponent : NewComponents)
 		{
 			if (GetComponentAddedByConstructionScript(NewComponent))
 			{
 				NameToNewComponent.Add(NewComponent->GetFName(), NewComponent);
 				ComponentToArchetypeMap.Add(NewComponent, NewComponent->GetArchetype());
+
+				if (NewComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript)
+				{
+					SerializationIndexToNewUCSComponents.FindOrAdd(NewComponent->GetUCSSerializationIndex()).Add(NewComponent);
+				}
 			}
 		}
 
@@ -607,35 +586,21 @@ void AActor::RerunConstructionScripts()
 		{
 			if (ComponentData.OldComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 			{
-				// If created by the UCS, look for a component whose class, archetype and serialized index matches
-				for (UActorComponent* NewComponent : NewComponents)
+				if (ComponentData.UCSComponentIndex >= 0)
 				{
-					if (NewComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript &&
-						ComponentData.OldComponent->GetClass() == NewComponent->GetClass() &&
-						ComponentData.OldArchetype == NewComponent->GetArchetype() &&
-						ComponentData.UCSComponentIndex >= 0)
+					// If created by the UCS, look for a component whose class, archetype, and serialized index matches
+					if (FComponentsForSerializationIndex* NewUCSComponentsToConsider = SerializationIndexToNewUCSComponents.Find(ComponentData.UCSComponentIndex))
 					{
-						int32 FoundSerializedIndex = -1;
-						bool bMatches = false;
-						for (UActorComponent* BlueprintCreatedComponent : BlueprintCreatedComponents)
+						for (int32 Index = 0; Index < NewUCSComponentsToConsider->Num(); ++Index)
 						{
-							if (BlueprintCreatedComponent && BlueprintCreatedComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript)
+							UActorComponent* NewComponent = (*NewUCSComponentsToConsider)[Index];
+							if (   ComponentData.OldComponent->GetClass() == NewComponent->GetClass() 
+							    && ComponentData.OldArchetype == ComponentToArchetypeMap[NewComponent])
 							{
-								UObject* BlueprintComponentTemplate = ComponentToArchetypeMap.FindRef(BlueprintCreatedComponent);
-								if (BlueprintComponentTemplate &&
-									ComponentData.OldArchetype == BlueprintComponentTemplate &&
-									++FoundSerializedIndex == ComponentData.UCSComponentIndex)
-								{
-									bMatches = (BlueprintCreatedComponent == NewComponent);
-									break;
-								}
+								OldToNewComponentMapping.Add(ComponentData.OldComponent, NewComponent);
+								NewUCSComponentsToConsider->RemoveAtSwap(Index, 1, false);
+								break;
 							}
-						}
-
-						if (bMatches)
-						{
-							OldToNewComponentMapping.Add(ComponentData.OldComponent, NewComponent);
-							break;
 						}
 					}
 				}
@@ -693,6 +658,11 @@ void AActor::RerunConstructionScripts()
 	}
 }
 
+namespace
+{
+	TMap<const AActor*, TMap<const UObject*, int32>, TInlineSetAllocator<4>> UCSBlueprintComponentArchetypeCounts;
+}
+
 bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationConversionCache* TransformRotationCache, const FComponentInstanceDataCache* InstanceDataCache, bool bIsDefaultTransform)
 {
 	check(!IsPendingKill());
@@ -702,8 +672,13 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 	// Guard against reentrancy due to attribute editing at construction time.
 	// @see RerunConstructionScripts()
 	checkf(!bActorIsBeingConstructed, TEXT("Actor construction is not reentrant"));
-	FGuardValue_Bitfield(bActorIsBeingConstructed, true);
 #endif
+	bActorIsBeingConstructed = true;
+	ON_SCOPE_EXIT
+	{
+		bActorIsBeingConstructed = false;
+		UCSBlueprintComponentArchetypeCounts.Remove(this);
+	};
 
 	// ensure that any existing native root component gets this new transform
 	// we can skip this in the default case as the given transform will be the root component's transform
@@ -948,7 +923,7 @@ static FName FindFirstFreeName(UObject* Outer, FName BaseName)
 	// Binary search if we appear to have used this name a lot, else
 	// just linear search for the first free index:
 	if (FindObjectFast<UObject>(Outer, FName(BaseName, 100)))
-	{
+		{
 		// could be replaced by Algo::LowerBound if TRange or some other
 		// integer range type could be made compatible with the algo's
 		// implementation:
@@ -1223,6 +1198,17 @@ void AActor::CheckComponentInstanceName(const FName InName)
 	}
 }
 
+struct FSetUCSSerializationIndex
+{
+	friend class AActor;
+
+private:
+	FORCEINLINE static void Set(UActorComponent* Component, int32 SerializationIndex)
+	{
+		Component->UCSSerializationIndex = SerializationIndex;
+	}
+};
+
 void AActor::PostCreateBlueprintComponent(UActorComponent* NewActorComp)
 {
 	if (NewActorComp)
@@ -1231,6 +1217,14 @@ void AActor::PostCreateBlueprintComponent(UActorComponent* NewActorComp)
 
 		// Need to do this so component gets saved - Components array is not serialized
 		BlueprintCreatedComponents.Add(NewActorComp);
+
+		if (bActorIsBeingConstructed)
+		{
+			TMap<const UObject*, int32>& ComponentArchetypeCounts = UCSBlueprintComponentArchetypeCounts.FindOrAdd(this);
+			int32& Count = ComponentArchetypeCounts.FindOrAdd(NewActorComp->GetArchetype());
+			FSetUCSSerializationIndex::Set(NewActorComp, Count);
+			++Count;
+		}
 
 		// The component may not have been added to ReplicatedComponents if it was duplicated from
 		// a template, since ReplicatedComponents is normally only updated before the duplicated properties

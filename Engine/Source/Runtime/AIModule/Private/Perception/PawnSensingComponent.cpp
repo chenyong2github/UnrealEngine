@@ -139,7 +139,10 @@ void UPawnSensingComponent::OnTimer()
 		UpdateAISensing();
 	}
 	
-	SetTimer(SensingInterval);
+	if (bEnableSensingUpdates)
+	{
+		SetTimer(SensingInterval);
+	}
 };
 
 

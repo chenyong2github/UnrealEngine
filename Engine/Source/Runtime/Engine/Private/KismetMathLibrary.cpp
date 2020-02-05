@@ -128,6 +128,16 @@ void UKismetMathLibrary::ReportError_Divide_Vector2DFloat()
 	FFrame::KismetExecutionMessage(TEXT("Divide by zero: Divide_Vector2DFloat"), ELogVerbosity::Warning, DivideByZeroWarning);
 }
 
+void UKismetMathLibrary::ReportError_Divide_IntPointOnInt()
+{
+	FFrame::KismetExecutionMessage(TEXT("Divide by zero: Divide_IntPointInt"), ELogVerbosity::Warning, DivideByZeroWarning);
+}
+
+void UKismetMathLibrary::ReportError_Divide_IntPointOnIntPoint()
+{
+	FFrame::KismetExecutionMessage(TEXT("Divide by zero: Divide_IntPointIntPoint"), ELogVerbosity::Warning, DivideByZeroWarning);
+}
+
 void UKismetMathLibrary::ReportError_DaysInMonth()
 {
 	FFrame::KismetExecutionMessage(TEXT("Invalid month (must be between 1 and 12): DaysInMonth"), ELogVerbosity::Warning, InvalidDateWarning);

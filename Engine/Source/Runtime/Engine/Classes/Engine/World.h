@@ -1004,7 +1004,7 @@ public:
 
 private:
 	/** DefaultPhysicsVolume used for whole game **/
-	UPROPERTY()
+	UPROPERTY(Transient)
 	APhysicsVolume*								DefaultPhysicsVolume;
 
 public:

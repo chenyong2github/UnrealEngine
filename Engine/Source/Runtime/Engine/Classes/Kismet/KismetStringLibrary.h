@@ -36,6 +36,10 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToString (IntVector)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_IntVectorToString(FIntVector InIntVec);
 
+	/** Converts an IntPoint value to a string, in the form 'X= Y=' */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (IntPoint)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	static FString Conv_IntPointToString(FIntPoint InIntPoint);
+
 	/** Converts a vector2d value to a string, in the form 'X= Y=' */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "ToString (vector2d)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_Vector2dToString(FVector2D InVec);
@@ -257,6 +261,14 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|String", meta=(CompactNodeTitle = "LEN", Keywords = "length"))
 	static int32 Len(const FString& S);
+	
+	/**
+	 *	Returns true if the string is empty
+	 *	@param InString - The string to check
+	 *	@return Whether or not the string is empty
+	 */
+	UFUNCTION(BlueprintPure, Category="Utilities|String", meta=(Keywords = "empty"))
+	static bool IsEmpty(const FString& InString);
 
 	/** 
 	 * Returns a substring from the string starting at the specified position

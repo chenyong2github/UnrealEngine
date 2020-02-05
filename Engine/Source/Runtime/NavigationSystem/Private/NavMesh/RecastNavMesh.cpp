@@ -1411,6 +1411,10 @@ void ARecastNavMesh::UpdateCustomLink(const INavLinkCustomInterface* CustomLink)
 
 		RecastNavMeshImpl->UpdateNavigationLinkArea(UserId, AreaId, PolyFlags);
 		RecastNavMeshImpl->UpdateSegmentLinkArea(UserId, AreaId, PolyFlags);
+
+#if !UE_BUILD_SHIPPING
+		RequestDrawingUpdate(false);
+#endif
 	}
 }
 
@@ -1507,7 +1511,7 @@ int32 ARecastNavMesh::ReplaceAreaInTileBounds(const FBox& Bounds, TSubclassOf<UN
 
 		const int32 OldAreaID = GetAreaID(OldArea);
 		ensure(OldAreaID != INDEX_NONE);
-		const int32 NewAreaID = 34;// GetAreaID(NewArea);
+		const int32 NewAreaID = GetAreaID(NewArea);
 		ensure(NewAreaID != INDEX_NONE);
 		ensure(NewAreaID != OldAreaID);
 

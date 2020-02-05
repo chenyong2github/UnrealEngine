@@ -270,7 +270,7 @@ void UModelComponent::Serialize(FArchive& Ar)
 
 		if (LegacyComponentData.Data.Num() > 0)
 		{
-			GComponentsWithLegacyLightmaps.AddAnnotation(this, LegacyComponentData);
+			GComponentsWithLegacyLightmaps.AddAnnotation(this, MoveTemp(LegacyComponentData));
 		}
 	}
 

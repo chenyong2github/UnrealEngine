@@ -88,10 +88,12 @@ namespace UnrealBuildTool
 	{
 		Program,
 		EngineRuntime,
+		EngineUncooked,
 		EngineDeveloper,
 		EngineEditor,
 		EngineThirdParty,
 		GameRuntime,
+		GameUncooked,
 		GameDeveloper,
 		GameEditor,
 		GameThirdParty,
@@ -120,7 +122,6 @@ namespace UnrealBuildTool
 				case ModuleHostType.RuntimeNoCommandlet:
 				case ModuleHostType.RuntimeAndProgram:
 				case ModuleHostType.CookedOnly:
-				case ModuleHostType.UncookedOnly:
 				case ModuleHostType.ServerOnly:
 				case ModuleHostType.ClientOnly:
 				case ModuleHostType.ClientOnlyNoCommandlet:
@@ -132,6 +133,8 @@ namespace UnrealBuildTool
 				case ModuleHostType.EditorNoCommandlet:
 				case ModuleHostType.EditorAndProgram:
 					return UHTModuleType.EngineEditor;
+				case ModuleHostType.UncookedOnly:
+					return UHTModuleType.EngineUncooked;
 				default:
 					return null;
 			}
@@ -146,7 +149,6 @@ namespace UnrealBuildTool
 				case ModuleHostType.RuntimeNoCommandlet:
 				case ModuleHostType.RuntimeAndProgram:
 				case ModuleHostType.CookedOnly:
-				case ModuleHostType.UncookedOnly:
 				case ModuleHostType.ServerOnly:
 				case ModuleHostType.ClientOnly:
 				case ModuleHostType.ClientOnlyNoCommandlet:
@@ -158,6 +160,8 @@ namespace UnrealBuildTool
 				case ModuleHostType.EditorNoCommandlet:
 				case ModuleHostType.EditorAndProgram:
 					return UHTModuleType.GameEditor;
+				case ModuleHostType.UncookedOnly:
+					return UHTModuleType.GameUncooked;
 				default:
 					return null;
 			}

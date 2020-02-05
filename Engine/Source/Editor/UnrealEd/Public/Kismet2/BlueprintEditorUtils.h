@@ -1719,6 +1719,9 @@ public:
 	 */
 	static UClass* GetNativeParent(const UBlueprint* BP);
 
+	/** Returns the UClass type for an object pin, if any */
+	static UClass* GetTypeForPin(const UEdGraphPin& Pin);
+
 	/**
 	 * Returns true if this BP is currently based on a type that returns true for the UObject::ImplementsGetWorld() call:
 	 */
