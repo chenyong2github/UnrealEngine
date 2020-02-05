@@ -4,6 +4,7 @@
 
 #include "AnimTimelineTrack.h"
 #include "Animation/Skeleton.h"
+#include "EditorUndoClient.h"
 
 class SBorder;
 class FCurveEditor;
@@ -11,7 +12,7 @@ struct FRichCurve;
 class SHorizontalBox;
 class SCurveBoundsOverlay;
 
-class FAnimTimelineTrack_Curve : public FAnimTimelineTrack
+class FAnimTimelineTrack_Curve : public FAnimTimelineTrack, public FSelfRegisteringEditorUndoClient
 {
 	ANIMTIMELINE_DECLARE_TRACK(FAnimTimelineTrack_Curve, FAnimTimelineTrack);
 
@@ -26,6 +27,10 @@ public:
 	virtual bool SupportsSelection() const override { return true; }
 	virtual void AddToContextMenu(FMenuBuilder& InMenuBuilder, TSet<FName>& InOutExistingMenuTypes) const override;
 	
+	/** FEditorUndoClient interface */
+	virtual void PostUndo(bool bSuccess) override { PostUndoRedo(); }
+	virtual void PostRedo(bool bSuccess) override { PostUndoRedo(); }
+
 	/** Access the curve we are editing */
 	const TArray<FRichCurve*>& GetCurves() { return Curves; }
 
@@ -65,6 +70,9 @@ protected:
 
 	/** Edit this curve in the curve editor */
 	void HendleEditCurve();
+
+	/** Handle undo/redo */
+	void PostUndoRedo();
 
 protected:
 	/** The curve we are editing */

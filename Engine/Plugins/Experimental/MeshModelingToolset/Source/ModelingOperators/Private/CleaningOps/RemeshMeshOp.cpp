@@ -42,8 +42,8 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 	Remesher.ProjectionMode = (bReproject) ? 
 		FRemesher::ETargetProjectionMode::AfterRefinement : FRemesher::ETargetProjectionMode::NoProjection;
 
-	Remesher.bEnableSmoothing = (SmoothingSpeed > 0);
-	Remesher.SmoothSpeedT = SmoothingSpeed;
+	Remesher.bEnableSmoothing = (SmoothingStrength > 0);
+	Remesher.SmoothSpeedT = SmoothingStrength;
 	// convert smooth type from UI enum to (currently 1:1) FRemesher enum
 	Remesher.SmoothType = FRemesher::ESmoothTypes::Uniform;
 	if (!bDiscardAttributes)
@@ -70,8 +70,13 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 	Remesher.DEBUG_CHECK_LEVEL = 0;
 
 	FMeshConstraints constraints;
-	FMeshConstraintsUtil::ConstrainAllSeams(constraints, *TargetMesh, true, !bPreserveSharpEdges);
-	Remesher.SetExternalConstraints(&constraints);
+	FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(constraints, *TargetMesh,
+														 MeshBoundaryConstraint,
+														 GroupBoundaryConstraint,
+														 MaterialBoundaryConstraint,
+														 true, !bPreserveSharpEdges);
+
+	Remesher.SetExternalConstraints(MoveTemp(constraints));
 
 	FMeshProjectionTarget ProjTarget(OriginalMesh.Get(), OriginalMeshSpatial.Get());
 	Remesher.SetProjectionTarget(&ProjTarget);

@@ -347,9 +347,10 @@ private:
 	int64 CalcBlockSize(int32 BlockIndex) const;
 	int64 CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const;
 
-	/** Uses a hash as the GUID, useful to prevent creating new GUIDs on load for legacy assets. */
-	void UseHashAsGuid();
 public:
+	/** Uses a hash as the GUID, useful to prevent creating new GUIDs on load for legacy assets. */
+	ENGINE_API void UseHashAsGuid();
+
 	void ReleaseSourceMemory(); // release the memory from the mips (does almost the same as remove source data except doesn't rebuild the guid)
 	FORCEINLINE bool HasHadBulkDataCleared() const { return bHasHadBulkDataCleared; }
 private:
@@ -393,7 +394,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category=TextureSource)
 	bool bPNGCompressed;
 
-	/** Legacy textures use a hash instead of a GUID. */
+	/** Uses hash instead of guid to identify content to improve DDC cache hit. */
 	UPROPERTY(VisibleAnywhere, Category=TextureSource)
 	bool bGuidIsHash;
 
@@ -505,9 +506,10 @@ public:
 	 * @param OutMipData -	Must point to an array of pointers with at least
 	 *						Texture.Mips.Num() - FirstMipToLoad + 1 entries. Upon
 	 *						return those pointers will contain mip data.
+	 * @param Texture - The texture to load mips for.
 	 * @returns true if all requested mips have been loaded.
 	 */
-	bool TryLoadMips(int32 FirstMipToLoad, void** OutMipData);
+	bool TryLoadMips(int32 FirstMipToLoad, void** OutMipData, UTexture* Texture);
 
 	/** Serialization. */
 	void Serialize(FArchive& Ar, class UTexture* Owner);
@@ -572,7 +574,7 @@ public:
 		uint32 InFlags,
 		class ITextureCompressorModule* Compressor);
 	void FinishCache();
-	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0);
+	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0, UTexture* Texture = nullptr);
 	bool AreDerivedMipsAvailable() const;
 	bool AreDerivedVTChunksAvailable() const;
 #endif
@@ -685,7 +687,7 @@ public:
 	uint32 CompressionNone:1;
 
 	/** If enabled, defer compression of the texture until save. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta=(NoResetToDefault))
 	uint32 DeferCompression:1;
 
 	/** How aggressively should any relevant lossy compression be applied. */

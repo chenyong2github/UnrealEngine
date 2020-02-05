@@ -35,6 +35,10 @@ class UGeomModifier : public UObject
 	UPROPERTY(EditAnywhere, Category = GeomModifier)
 	FText Tooltip;
 
+	/** Icon name for showing this modifier in a toolbar */
+	UPROPERTY()
+	FName ToolbarIconName;
+
 	/** If true, this modifier should be displayed as a push button instead of a radio button */
 	UPROPERTY(EditAnywhere, Category=GeomModifier)
 	uint32 bPushButton:1;
@@ -50,6 +54,8 @@ class UGeomModifier : public UObject
 	UPROPERTY()
 	uint32 bPendingPivotOffsetUpdate:1;
 
+	UPROPERTY()
+	uint32 bAppearsInToolbar : 1;
 private:
 	/** Stored state of polys in case the brush state needs to be restroed */
 	UPROPERTY()
@@ -82,10 +88,13 @@ public:
 	 */
 	bool Apply();
 
+	UE_DEPRECATED(4.25, "Supports has been deprected.  Use SupportsCurrentSelection instead")
+	virtual bool Supports() { return SupportsCurrentSelection(); };
+
 	/**
 	 * @return		true if this modifier will work on the currently selected sub objects.
 	 */
-	virtual bool Supports();
+	virtual bool SupportsCurrentSelection();
 
 	/** Gives the individual modifiers a chance to do something the first time they are activated. */
 	virtual void Initialize();
@@ -166,6 +175,5 @@ protected:
 	 */
 	virtual void UpdatePivotOffset();
 };
-
 
 

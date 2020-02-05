@@ -22,12 +22,10 @@ namespace Chaos
 
 		void AddDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
-			FScopeLock Lock(&DirtyProxiesCriticalSection);
 			DirtyProxiesSet.Add(ProxyBaseIn);
 		}
 		void RemoveDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
-			FScopeLock Lock(&DirtyProxiesCriticalSection);
 			DirtyProxiesSet.Remove(ProxyBaseIn);
 		}
 
@@ -47,7 +45,6 @@ namespace Chaos
 			EMultiBufferMode BufferMode;
 
 			// Input Proxy Map
-			FCriticalSection DirtyProxiesCriticalSection;
 			TSet< IPhysicsProxyBase *> DirtyProxiesSet;
 
 #if CHAOS_CHECKED

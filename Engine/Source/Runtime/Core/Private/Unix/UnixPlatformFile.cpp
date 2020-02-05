@@ -37,7 +37,7 @@ namespace
 			UnixEpoch + FTimespan::FromSeconds(FileInfo.st_mtime), 
 			FileSize,
 			bIsDirectory,
-			!!(FileInfo.st_mode & S_IWUSR)
+			!(FileInfo.st_mode & S_IWUSR)
 		);
 	}
 

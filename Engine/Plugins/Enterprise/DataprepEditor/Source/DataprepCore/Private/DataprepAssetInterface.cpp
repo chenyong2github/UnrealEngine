@@ -176,4 +176,13 @@ void UDataprepAssetInterface::ExecuteRecipe_Internal(const TSharedPtr<FDataprepA
 	}
 }
 
+const TArray<UDataprepActionAsset*>& UDataprepAssetInterface::GetActions() const
+{
+	static TArray<UDataprepActionAsset*> Dummy;
+
+	unimplemented();
+
+	return Dummy; 
+}
+
 #undef LOCTEXT_NAMESPACE

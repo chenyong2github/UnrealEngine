@@ -19,6 +19,12 @@ namespace PicpProjectionStrings
 					static constexpr auto Region = TEXT("region");
 					static constexpr auto Origin = TEXT("origin");
 				}
+
+				namespace mesh
+				{
+					static constexpr auto FileID   = TEXT("@UESM");
+					static constexpr auto BufferID = TEXT("@@Buf");
+				}
 			}
 		}
 	}
@@ -26,5 +32,6 @@ namespace PicpProjectionStrings
 	namespace projection
 	{
 		static constexpr auto PicpMPCDI = TEXT("picp_mpcdi");
+		static constexpr auto PicpMesh  = TEXT("picp_mesh");
 	}
 };

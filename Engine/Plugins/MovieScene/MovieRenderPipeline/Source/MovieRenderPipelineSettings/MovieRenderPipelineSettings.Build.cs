@@ -11,7 +11,11 @@ public class MovieRenderPipelineSettings : ModuleRules
 				"Core",
 				"CoreUObject",
 				"NonRealtimeAudioRenderer",
-				"AudioMixer"
+				"AudioMixer",
+				"UMG",
+				"Slate",
+				"RenderCore",
+				"RHI"
 			}
 		);
 

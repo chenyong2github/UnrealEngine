@@ -35,15 +35,26 @@ public:
 
 public:
 	TArray<UMoviePipelineOutputBase*> GetOutputContainers() const;
-	virtual TArray<UMoviePipelineSetting*> GetSettings() const override;
+	virtual TArray<UMoviePipelineSetting*> GetUserSettings() const override;
 	virtual void CopyFrom(UMoviePipelineConfigBase* InConfig) override;
 
+	/** Initializes a single instance of every setting so that even non-user-configured settings have a chance to apply their default values. Does nothing if they're already instanced for this configuration. */
+	void InitializeTransientSettings();
+
+	TArray<UMoviePipelineSetting*> GetTransientSettings() const { return TransientSettings; }
+	TArray<UMoviePipelineSetting*> GetAllSettings() const
+	{
+		TArray<UMoviePipelineSetting*> CombinedSettings;
+		CombinedSettings.Append(GetUserSettings());
+		CombinedSettings.Append(GetTransientSettings());
+		return CombinedSettings;
+	}
 public:
 
 	/** Returns a pointer to the config specified for the shot, otherwise the default for this pipeline. */
 	UMoviePipelineShotConfig* GetConfigForShot(const FString& ShotName) const;
 
-	void GetFilenameFormatArguments(FFormatNamedArguments& OutArguments, const UMoviePipelineExecutorJob* InJob) const;
+	void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const;
 
 
 	/**
@@ -58,6 +69,10 @@ protected:
 		check(InSetting);
 		return InSetting->IsValidOnMaster();
 	}
+
+	virtual void OnSettingAdded(UMoviePipelineSetting* InSetting) override;
+	virtual void OnSettingRemoved(UMoviePipelineSetting* InSetting) override;
+	void AddTransientSettingByClass(const UClass* InSettingClass);
 public:
 	
 	/** The default shot-setup to use for any shot that doesn't a specific implementation. This is required! */
@@ -71,4 +86,8 @@ public:
 private:
 	UPROPERTY(Transient, Instanced)
 	UMoviePipelineOutputSetting* OutputSetting;
+
+	/** An array of settings that are available in the engine and have not been edited by the user. */
+	UPROPERTY(Transient)
+	TArray<UMoviePipelineSetting*> TransientSettings;
 };

@@ -950,7 +950,35 @@ void FFbxImportUIDetails::ConstructBaseMaterialUI(TSharedPtr<IPropertyHandle> Ha
 				]
 			]
 		];
+
+		// base opacity properties
+		InitialSelect = FindString(BaseTextureNames, ImportUI->TextureImportData->BaseOpacityTextureName);
+		InitialSelect = InitialSelect == INDEX_NONE ? 0 : InitialSelect; // default to the empty string located at index 0
+		MaterialCategory.AddCustomRow(LOCTEXT("BaseOpacityTextureProperty", "Base Opacity Texture Property")).NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("BaseOpacityTextureProperty", "Base Opacity Texture Property"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.MinDesiredWidth(MinDesiredWidth)
+				[
+					SNew(STextComboBox)
+					.OptionsSource(&BaseTextureNames)
+					.OnSelectionChanged(this, &FFbxImportUIDetails::OnOpacityTextureColor)
+					.InitiallySelectedItem(BaseTextureNames[InitialSelect])
+				]
+			]
+		];
 	}
+
 	if (BaseTextureNames.Num() > 1 || BaseColorNames.Num() > 1)
 	{
 		MaterialCategory.AddCustomRow(LOCTEXT("BaseParamPropertyClearAll", "Clear All Properties"))
@@ -1174,6 +1202,11 @@ void FFbxImportUIDetails::OnSpecularTextureColor(TSharedPtr<FString> Selection, 
 	GetSelectionParameterString(Selection, ImportUI->TextureImportData->BaseSpecularTextureName);
 }
 
+void FFbxImportUIDetails::OnOpacityTextureColor(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo)
+{
+	GetSelectionParameterString(Selection, ImportUI->TextureImportData->BaseOpacityTextureName);
+}
+
 FReply FFbxImportUIDetails::MaterialBaseParamClearAllProperties()
 {
 	ImportUI->TextureImportData->BaseColorName.Empty();
@@ -1182,6 +1215,7 @@ FReply FFbxImportUIDetails::MaterialBaseParamClearAllProperties()
 	ImportUI->TextureImportData->BaseEmmisiveTextureName.Empty();
 	ImportUI->TextureImportData->BaseEmissiveColorName.Empty();
 	ImportUI->TextureImportData->BaseSpecularTextureName.Empty();
+	ImportUI->TextureImportData->BaseOpacityTextureName.Empty();
 	//Need to refresh the custom detail since we do not have any pointer on the combo box
 	RefreshCustomDetail();
 	return FReply::Handled();

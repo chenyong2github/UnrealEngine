@@ -4,6 +4,7 @@
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/Package.h"
+#include "RigVMModule.h"
 
 bool FRigVMRegister::Serialize(FArchive& Ar)
 {
@@ -291,6 +292,7 @@ uint16 FRigVMRegisterOffset::GetElementSize() const
 FRigVMMemoryContainer::FRigVMMemoryContainer(bool bInUseNames)
 	: bUseNameMap(bInUseNames)
 	, MemoryType(ERigVMMemoryType::Work)
+	, bEncounteredErrorDuringLoad(false)
 {
 }
 
@@ -309,6 +311,7 @@ FRigVMMemoryContainer& FRigVMMemoryContainer::operator= (const FRigVMMemoryConta
 	Reset();
 
 	bUseNameMap = InOther.bUseNameMap;
+	bEncounteredErrorDuringLoad = false;
 	Data.Append(InOther.Data);
 	Registers.Append(InOther.Registers);
 	RegisterOffsets.Append(InOther.RegisterOffsets);
@@ -357,6 +360,8 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
+		bEncounteredErrorDuringLoad = false;
+
 		ScriptStructs.Reset();
 		TArray<FString> ScriptStructPaths;
 		Ar << ScriptStructPaths;
@@ -364,7 +369,16 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 		for (const FString& ScriptStructPath : ScriptStructPaths)
 		{
 			UScriptStruct* ScriptStruct = FindObject<UScriptStruct>(nullptr, *ScriptStructPath);
-			ensure(ScriptStruct != nullptr);
+
+			// this might have happened if a given script struct no longer 
+			// exists or cannot be loaded.
+			if (ScriptStruct == nullptr)
+			{
+				FString PackagePath = Ar.GetArchiveName();
+				UE_LOG(LogRigVM, Error, TEXT("Struct '%s' cannot be found. Asset '%s' no longer functional."), *ScriptStructPath, *PackagePath);
+				bEncounteredErrorDuringLoad = true;
+			}
+
 			ScriptStructs.Add(ScriptStruct);
 		}
 
@@ -425,7 +439,7 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 					ensure(View.Num() == Register.GetTotalElementCount());
 
 					uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
-					UScriptStruct* ScriptStruct = ScriptStructs[Register.ScriptStructIndex];
+					UScriptStruct* ScriptStruct = GetScriptStruct(Register);
 					for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
 					{
 						ScriptStruct->ImportText(*View[ElementIndex], DataPtr, nullptr, PPF_None, nullptr, ScriptStruct->GetName());
@@ -436,7 +450,14 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 			}
 		}
 
-		UpdateRegisters();
+		if (bEncounteredErrorDuringLoad)
+		{
+			Reset();
+		}
+		else
+		{
+			UpdateRegisters();
+		}
 	}
 	else
 	{
@@ -485,7 +506,7 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 				case ERigVMRegisterType::Struct:
 				{
 					uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
-					UScriptStruct* ScriptStruct = ScriptStructs[Register.ScriptStructIndex];
+					UScriptStruct* ScriptStruct = GetScriptStruct(Register);
 
 					TArray<FString> View;
 					for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
@@ -785,7 +806,14 @@ bool FRigVMMemoryContainer::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 			int32 Count = InElementIndex == INDEX_NONE ? Register.GetTotalElementCount() : 1;
 
 			UScriptStruct* ScriptStruct = GetScriptStruct(InRegisterIndex);
-			ScriptStruct->DestroyStruct(DataPtr, Count);
+			if (ScriptStruct)
+			{
+				ScriptStruct->DestroyStruct(DataPtr, Count);
+			}
+			else
+			{
+				FMemory::Memzero(DataPtr, Register.GetAllocatedBytes());
+			}
 			break;
 		}
 		case ERigVMRegisterType::String:
@@ -1041,7 +1069,7 @@ void FRigVMMemoryContainer::SetRegisterValueFromString(const FRigVMOperand& InOp
 
 		if (Register.ScriptStructIndex != INDEX_NONE)
 		{
-			UScriptStruct* ScriptStruct = ScriptStructs[Register.ScriptStructIndex];
+			UScriptStruct* ScriptStruct = GetScriptStruct(Register);
 			if (ScriptStruct == InCPPTypeObject)
 			{
 				uint8* DataPtr = (uint8*)GetData(Register);
@@ -1103,7 +1131,7 @@ TArray<FString> FRigVMMemoryContainer::GetRegisterValueAsString(const FRigVMOper
 
 		if (Register.ScriptStructIndex != INDEX_NONE)
 		{
-			UScriptStruct* ScriptStruct = ScriptStructs[Register.ScriptStructIndex];
+			UScriptStruct* ScriptStruct = GetScriptStruct(Register);
 			if (ScriptStruct == InCPPTypeObject)
 			{
 				uint8* DataPtr = (uint8*)GetData(Register);

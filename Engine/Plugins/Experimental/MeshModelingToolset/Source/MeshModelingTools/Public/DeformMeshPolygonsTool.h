@@ -18,7 +18,6 @@
 #include "MeshSolverUtilities/Private/LaplacianMeshSmoother.h"
 #include "Curves/CurveFloat.h"
 #include "ModelingOperators/Public/ModelingTaskTypes.h"
-#include "EditMeshPolygonsTool.h"		// for a few enums
 #include "DeformMeshPolygonsTool.generated.h"
 
 class FMeshVertexChangeBuilder;
@@ -70,6 +69,19 @@ static ELaplacianWeightScheme ConvertToLaplacianWeightScheme(const EWeightScheme
 {
 	return static_cast<ELaplacianWeightScheme>(WeightScheme);
 }
+
+
+/** Modes for quick transformer */
+UENUM()
+enum class EQuickTransformerMode : uint8
+{
+	/** Translation along frame axes */
+	AxisTranslation = 0 UMETA(DisplayName = "Translate"),
+
+	/** Rotation around frame axes*/
+	AxisRotation = 1 UMETA(DisplayName = "Rotate"),
+};
+
 
 
 

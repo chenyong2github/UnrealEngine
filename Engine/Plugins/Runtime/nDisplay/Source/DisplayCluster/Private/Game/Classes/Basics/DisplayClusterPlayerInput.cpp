@@ -5,9 +5,9 @@
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "DisplayClusterGlobals.h"
-#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
+#include "DisplayClusterHelpers.h"
 
 #include "Engine/World.h"
 
@@ -58,14 +58,14 @@ bool UDisplayClusterPlayerInput::SerializeKeyStateMap(TMap<FString, FString>& Ou
 		check(SendValue > 0.f);
 
 		StrKeyState = FString::Printf(TEXT("%s;%s;%s;%s;%s;%s;%s;%s;"),
-			*FDisplayClusterTypesConverter::ToString(it->Value.RawValue),
-			*FDisplayClusterTypesConverter::ToString(it->Value.Value),
-			*FDisplayClusterTypesConverter::ToString(it->Value.LastUpDownTransitionTime),
+			*FDisplayClusterTypesConverter::template ToString(it->Value.RawValue),
+			*FDisplayClusterTypesConverter::template ToString(it->Value.Value),
+			*FDisplayClusterTypesConverter::template ToString(it->Value.LastUpDownTransitionTime),
 			*DisplayClusterHelpers::str::BoolToStr(it->Value.bDown ? true : false, false),
 			*DisplayClusterHelpers::str::BoolToStr(it->Value.bDownPrevious ? true : false, false),
 			*DisplayClusterHelpers::str::BoolToStr(it->Value.bConsumed ? true : false, false),
-			*FDisplayClusterTypesConverter::ToString(it->Value.SampleCountAccumulator),
-			*FDisplayClusterTypesConverter::ToString(it->Value.RawValueAccumulator));
+			*FDisplayClusterTypesConverter::template ToString(it->Value.SampleCountAccumulator),
+			*FDisplayClusterTypesConverter::template ToString(it->Value.RawValueAccumulator));
 
 		for (int i = 0; i < IE_MAX; ++i)
 		{
@@ -93,7 +93,7 @@ bool UDisplayClusterPlayerInput::DeserializeKeyStateMap(const TMap<FString, FStr
 	int idx = 0;
 	for (auto it = InKeyStateMap.CreateConstIterator(); it; ++it)
 	{
-		UE_LOG(LogDisplayClusterGame, Log, TEXT("Input data [%d]: %s = %s"), idx, *it->Key, *it->Value);
+		UE_LOG(LogDisplayClusterGame, VeryVerbose, TEXT("Input data [%d]: %s = %s"), idx, *it->Key, *it->Value);
 		++idx;
 
 		FKey Key(*it->Key);
@@ -101,14 +101,14 @@ bool UDisplayClusterPlayerInput::DeserializeKeyStateMap(const TMap<FString, FStr
 
 		TArray<FString> Fields = DisplayClusterHelpers::str::StrToArray<FString>(it->Value, FString(";"), false);
 
-		KeyState.RawValue                 = FDisplayClusterTypesConverter::FromString<FVector>(Fields[0]);
-		KeyState.Value                    = FDisplayClusterTypesConverter::FromString<FVector>(Fields[1]);
-		KeyState.LastUpDownTransitionTime = FDisplayClusterTypesConverter::FromString<float>(Fields[2]);
-		KeyState.bDown                    = FDisplayClusterTypesConverter::FromString<bool>(Fields[3]) ? 1 : 0;
-		KeyState.bDownPrevious            = FDisplayClusterTypesConverter::FromString<bool>(Fields[4]) ? 1 : 0;
-		KeyState.bConsumed                = FDisplayClusterTypesConverter::FromString<bool>(Fields[5]) ? 1 : 0;
-		KeyState.SampleCountAccumulator   = FDisplayClusterTypesConverter::FromString<uint8>(Fields[6]);
-		KeyState.RawValueAccumulator      = FDisplayClusterTypesConverter::FromString<FVector>(Fields[7]);
+		KeyState.RawValue                 = FDisplayClusterTypesConverter::template FromString<FVector>(Fields[0]);
+		KeyState.Value                    = FDisplayClusterTypesConverter::template FromString<FVector>(Fields[1]);
+		KeyState.LastUpDownTransitionTime = FDisplayClusterTypesConverter::template FromString<float>(Fields[2]);
+		KeyState.bDown                    = FDisplayClusterTypesConverter::template FromString<bool>(Fields[3]) ? 1 : 0;
+		KeyState.bDownPrevious            = FDisplayClusterTypesConverter::template FromString<bool>(Fields[4]) ? 1 : 0;
+		KeyState.bConsumed                = FDisplayClusterTypesConverter::template FromString<bool>(Fields[5]) ? 1 : 0;
+		KeyState.SampleCountAccumulator   = FDisplayClusterTypesConverter::template FromString<uint8>(Fields[6]);
+		KeyState.RawValueAccumulator      = FDisplayClusterTypesConverter::template FromString<FVector>(Fields[7]);
 
 		for (int i = 0; i < IE_MAX; ++i)
 		{

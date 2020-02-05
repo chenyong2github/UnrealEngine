@@ -73,7 +73,7 @@ namespace Chaos
 
 		void MarkClean(const EParticleFlags CleanBits)
 		{
-			Bits |= ~(int32)CleanBits;
+			Bits &= ~(int32)CleanBits;
 		}
 
 		void Clear()

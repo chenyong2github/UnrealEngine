@@ -22,7 +22,7 @@ namespace TakesUtils
 
 	TAKESCORE_API UWorld* GetFirstPIEWorld();
 
-	TAKESCORE_API void ClampPlaybackRangeToEncompassAllSections(UMovieScene* InMovieScene);
+	TAKESCORE_API void ClampPlaybackRangeToEncompassAllSections(UMovieScene* InMovieScene, bool bUpperBoundOnly);
 
 	TAKESCORE_API void SaveAsset(UObject* InObject);
 

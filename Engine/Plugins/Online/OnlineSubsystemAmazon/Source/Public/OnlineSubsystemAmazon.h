@@ -47,7 +47,6 @@ public:
 	virtual IOnlineTitleFilePtr GetTitleFileInterface() const override { return nullptr; }
 	virtual IOnlineEntitlementsPtr GetEntitlementsInterface() const override { return nullptr; }
 	virtual IOnlineIdentityPtr GetIdentityInterface() const override;
-	virtual IOnlineStorePtr GetStoreInterface() const override { return nullptr; }
 	virtual IOnlineStoreV2Ptr GetStoreV2Interface() const override { return nullptr; }
 	virtual IOnlinePurchasePtr GetPurchaseInterface() const override { return nullptr; }
 	virtual IOnlineEventsPtr GetEventsInterface() const override { return nullptr; }

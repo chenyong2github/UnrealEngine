@@ -446,6 +446,10 @@ public:
 	DECLARE_EVENT_OneParam(FSlateApplication, FOnWindowBeingDestroyed, const SWindow&);
 	FOnWindowBeingDestroyed& OnWindowBeingDestroyed() { return WindowBeingDestroyedEvent; }
 
+	/** Delegate called just before possible focus change */
+	DECLARE_MULTICAST_DELEGATE_FiveParams(FOnFocusChanging, const FFocusEvent&, const FWeakWidgetPath&, const TSharedPtr<SWidget>&, const FWidgetPath&, const TSharedPtr<SWidget>&);
+	FOnFocusChanging& OnFocusChanging() { return FocusChangingDelegate; }
+
 	/** 
 	 * Removes references to FViewportRHI's.  
 	 * This has to be done explicitly instead of using the FRenderResource mechanism because FViewportRHI's are managed by the game thread.
@@ -1364,6 +1368,7 @@ public:
 	virtual bool OnKeyChar( const TCHAR Character, const bool IsRepeat ) override;
 	virtual bool OnKeyDown( const int32 KeyCode, const uint32 CharacterCode, const bool IsRepeat ) override;
 	virtual bool OnKeyUp( const int32 KeyCode, const uint32 CharacterCode, const bool IsRepeat ) override;
+	virtual void OnInputLanguageChanged() override;
 	virtual bool OnMouseDown( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button ) override;
 	virtual bool OnMouseDown( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button, const FVector2D CursorPos ) override;
 	virtual bool OnMouseUp( const EMouseButtons::Type Button ) override;
@@ -1808,6 +1813,9 @@ private:
 
 	/** Delegate for slate Tick during modal dialogs */
 	FOnModalLoopTickEvent ModalLoopTickEvent;
+
+	/** Delegate for when focus might be about to change */
+	FOnFocusChanging FocusChangingDelegate;
 
 	/** Critical section to avoid multiple threads calling Slate Tick when we're synchronizing between the Slate Loading Thread and the Game Thread. */
 	FCriticalSection SlateTickCriticalSection;

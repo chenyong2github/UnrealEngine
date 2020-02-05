@@ -249,7 +249,7 @@ public:
 	FProceduralDecodeHandle(const FProceduralAudioTaskData& InJobData)
 	{
 		Task = new FAsyncTask<FAsyncDecodeWorker>(InJobData);
-        if (ForceSyncAudioDecodesCvar)
+        if (ForceSyncAudioDecodesCvar || InJobData.bForceSyncDecode)
         {
             Task->StartSynchronousTask();
             return;
@@ -277,7 +277,7 @@ public:
 	FDecodeHandle(const FDecodeAudioTaskData& InJobData)
 	{
 		Task = new FAsyncTask<FAsyncDecodeWorker>(InJobData);
-        if (ForceSyncAudioDecodesCvar)
+        if (ForceSyncAudioDecodesCvar || InJobData.bForceSyncDecode)
         {
             Task->StartSynchronousTask();
             return;

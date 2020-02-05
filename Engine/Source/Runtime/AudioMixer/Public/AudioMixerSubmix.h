@@ -127,10 +127,10 @@ namespace Audio
 		void OnAmbisonicsSettingsChanged(UAmbisonicsSubmixSettingsBase* AmbisonicsSettings);
 
 		// This is called by the corresponding USoundSubmix when StartRecordingOutput is called.
-		void OnStartRecordingOutput(float ExpectedDuration);
+		AUDIOMIXER_API void OnStartRecordingOutput(float ExpectedDuration);
 
 		// This is called by the corresponding USoundSubmix when StopRecordingOutput is called.
-		AlignedFloatBuffer& OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate);
+		AUDIOMIXER_API AlignedFloatBuffer& OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate);
 
 		// This is called by the corresponding USoundSubmix when PauseRecording is called.
 		void PauseRecordingOutput();

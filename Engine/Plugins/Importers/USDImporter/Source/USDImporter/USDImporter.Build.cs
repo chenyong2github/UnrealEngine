@@ -8,8 +8,12 @@ namespace UnrealBuildTool.Rules
 	public class USDImporter : ModuleRules
 	{
 		public USDImporter(ReadOnlyTargetRules Target) : base(Target)
-        {
-			bUseRTTI = true;
+		{
+			// We require the whole editor to be RTTI enabled on Linux for now
+			if (Target.Platform != UnrealTargetPlatform.Linux)
+			{
+				bUseRTTI = true;
+			}
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
@@ -21,21 +25,21 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 					"InputCore",
 					"SlateCore",
-                    "PropertyEditor",
+					"PropertyEditor",
 					"Slate",
-                    "EditorStyle",
+				"EditorStyle",
                     "RawMesh",
                     "GeometryCache",
 					"MeshDescription",
-					"MeshDescriptionOperations",
 					"MeshUtilities",
 					"MessageLog",
 					"PythonScriptPlugin",
                     "RenderCore",
                     "RHI",
 					"StaticMeshDescription",
+					"UnrealUSDWrapper",
 					"USDUtilities",
-                }
+				}
 				);
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -43,11 +47,11 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
 
 				foreach (string FilePath in Directory.EnumerateFiles(Path.Combine(ModuleDirectory, "../../Binaries/Win64/"), "*.dll", SearchOption.AllDirectories))
-                {
-                    RuntimeDependencies.Add(FilePath);
-                }
-            }
-            else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
+				{
+					RuntimeDependencies.Add(FilePath);
+				}
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
 			{
 				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
 
@@ -56,10 +60,10 @@ namespace UnrealBuildTool.Rules
 				PrivateRuntimeLibraryPaths.Add(RuntimeLibraryPath);
 
 				foreach (string FilePath in Directory.EnumerateFiles(RuntimeLibraryPath, "*.so*", SearchOption.AllDirectories))
-                {
-                    RuntimeDependencies.Add(FilePath);
-                }
-            }
+				{
+					RuntimeDependencies.Add(FilePath);
+				}
+			}
 		}
 	}
 }

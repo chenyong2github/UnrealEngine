@@ -52,7 +52,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline|Rendering")
 	bool IsRendering() const
 	{
-		return ActiveExecutor != nullptr;
+		return ActiveExecutor ? ActiveExecutor->IsRendering() : false;
 	}
 
 private:

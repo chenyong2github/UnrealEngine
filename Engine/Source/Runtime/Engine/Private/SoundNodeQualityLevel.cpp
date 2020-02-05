@@ -68,6 +68,44 @@ void USoundNodeQualityLevel::PrimeChildWavePlayers(bool bRecurse)
 	}
 }
 
+void USoundNodeQualityLevel::RetainChildWavePlayers(bool bRecurse)
+{
+	// If we're able to retrieve a valid cached quality level for this sound cue,
+	// only retain that quality level.
+	int32 QualityLevel = USoundCue::GetCachedQualityLevel();
+
+#if WITH_EDITOR
+	if (GIsEditor && QualityLevel < 0)
+	{
+		QualityLevel = GetDefault<ULevelEditorPlaySettings>()->PlayInEditorSoundQualityLevel;
+	}
+#endif
+
+	if (ChildNodes.IsValidIndex(QualityLevel) && ChildNodes[QualityLevel])
+	{
+		ChildNodes[QualityLevel]->RetainChildWavePlayers(bRecurse);
+	}
+}
+
+void USoundNodeQualityLevel::ReleaseRetainerOnChildWavePlayers(bool bRecurse)
+{
+	// If we're able to retrieve a valid cached quality level for this sound cue,
+	// only release that quality level.
+	int32 QualityLevel = USoundCue::GetCachedQualityLevel();
+
+#if WITH_EDITOR
+	if (GIsEditor && QualityLevel < 0)
+	{
+		QualityLevel = GetDefault<ULevelEditorPlaySettings>()->PlayInEditorSoundQualityLevel;
+	}
+#endif
+
+	if (ChildNodes.IsValidIndex(QualityLevel) && ChildNodes[QualityLevel])
+	{
+		ChildNodes[QualityLevel]->ReleaseRetainerOnChildWavePlayers(bRecurse);
+	}
+}
+
 int32 USoundNodeQualityLevel::GetMaxChildNodes() const
 {
 	return GetDefault<UAudioSettings>()->QualityLevels.Num();

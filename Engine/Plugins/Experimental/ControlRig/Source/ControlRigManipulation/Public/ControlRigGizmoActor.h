@@ -86,14 +86,6 @@ public:
 	/** Get whether the control is hovered */
 	virtual bool IsHovered() const;
 
-	UFUNCTION(BlueprintSetter)
-	/** Set whether the control is being manipulated */
-	virtual void SetManipulating(bool bInManipulating);
-
-	UFUNCTION(BlueprintGetter)
-	/** Get whether the control is being manipulated */
-	virtual bool IsManipulating() const;
-
 	/** Called from the edit mode each tick */
 	virtual void TickControl() {};
 
@@ -140,9 +132,6 @@ private:
 	UPROPERTY(BlueprintGetter = IsHovered, BlueprintSetter = SetHovered, Category = "ControlRig|Gizmo")
 	uint8 bHovered : 1;
 
-	/** Whether this control is being manipulated */
-	UPROPERTY(BlueprintGetter = IsManipulating, BlueprintSetter = SetManipulating, Category = "ControlRig|Gizmo")
-	uint8 bManipulating : 1;
 };
 
 /**

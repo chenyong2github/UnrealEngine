@@ -100,7 +100,8 @@
 //----------------------------------------------------------------------------//
 #define NV_SPECIALOP_THREADLTMASK                           4
 #define NV_SPECIALOP_FOOTPRINT_SINGLELOD_PRED               5
-
+#define NV_SPECIALOP_GLOBAL_TIMER_LO                        9
+#define NV_SPECIALOP_GLOBAL_TIMER_HI                       10
 
 //----------------------------------------------------------------------------//
 //----------------------------- Texture Types  -------------------------------//

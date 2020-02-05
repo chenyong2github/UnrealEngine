@@ -58,11 +58,62 @@ struct TConstrainedDelaunay2
 	}
 
 	template<class InputRealType>
-	void GEOMETRYALGORITHMS_API Add(const FDynamicGraph2<InputRealType>& Graph);
+	void Add(const FDynamicGraph2<InputRealType>& Graph)
+	{
+		int32 VertexStart = Vertices.Num();
+		int32 GMaxVertID = Graph.MaxVertexID();
+		TArray<int32> GraphToDTVertIdxMap; GraphToDTVertIdxMap.SetNum(GMaxVertID);
+		for (int32 Idx = 0; Idx < GMaxVertID; Idx++)
+		{
+			if (Graph.IsVertex(Idx))
+			{
+				GraphToDTVertIdxMap[Idx] = Vertices.Num();
+				Vertices.Add((FVector2<RealType>)Graph.GetVertex(Idx));
+			}
+			else
+			{
+				GraphToDTVertIdxMap[Idx] = -1;
+			}
+		}
+		for (const FDynamicGraph::FEdge& Edge : Graph.Edges())
+		{
+			Edges.Add(FIndex2i(GraphToDTVertIdxMap[Edge.A], GraphToDTVertIdxMap[Edge.B]));
+		}
+	}
 	template<class InputRealType>
-	void GEOMETRYALGORITHMS_API Add(const TPolygon2<InputRealType>& Polygon, bool bIsHole = false);
+	void Add(const TPolygon2<InputRealType>& Polygon, bool bIsHole = false)
+	{
+		int32 VertexStart = Vertices.Num();
+		int32 VertexEnd = VertexStart + Polygon.VertexCount();
+		for (const FVector2<InputRealType> &Vertex : Polygon.GetVertices())
+		{
+			Vertices.Add((FVector2<RealType>)Vertex);
+		}
+
+		TArray<FIndex2i>* EdgeArr;
+		if (bIsHole)
+		{
+			EdgeArr = &HoleEdges;
+		}
+		else
+		{
+			EdgeArr = &Edges;
+		}
+		for (int32 A = VertexEnd - 1, B = VertexStart; B < VertexEnd; A = B++)
+		{
+			EdgeArr->Add(FIndex2i(A, B));
+		}
+	}
 	template<class InputRealType>
-	void GEOMETRYALGORITHMS_API Add(const TGeneralPolygon2<InputRealType>& Polygon);
+	void Add(const TGeneralPolygon2<InputRealType>& GPolygon)
+	{
+		Add(GPolygon.GetOuter(), false);
+		const TArray<TPolygon2<InputRealType>>& Holes = GPolygon.GetHoles();
+		for (int HoleIdx = 0, HolesNum = Holes.Num(); HoleIdx < HolesNum; HoleIdx++)
+		{
+			Add(Holes[HoleIdx], true);
+		}
+	}
 
 	//
 	// outputs
@@ -78,6 +129,15 @@ struct TConstrainedDelaunay2
 	 * @return false if Triangulation failed
 	 */
 	bool GEOMETRYALGORITHMS_API Triangulate();
+
+	/**
+	 * Populate Triangles with override function to determine which triangles are in or out.
+	 * Note that boundary edges and hole edges are treated as equivalent by this function; only the KeepTriangle function determines what triangles are excluded.
+	 *
+	 * @param KeepTriangle Function to check whether the given triangle should be kept in the output
+	 * @return false if Triangulation failed
+	 */
+	bool GEOMETRYALGORITHMS_API Triangulate(TFunctionRef<bool(const TArray<FVector2<RealType>>&, const FIndex3i&)> KeepTriangle);
 };
 
 template<typename RealType>
@@ -85,17 +145,4 @@ TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGe
 
 typedef TConstrainedDelaunay2<float> FConstrainedDelaunay2f;
 typedef TConstrainedDelaunay2<double> FConstrainedDelaunay2d;
-
-
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<double>::Add(const FDynamicGraph2<double>& Graph);
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<double>::Add(const TGeneralPolygon2<double>& Polygon);
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<double>::Add(const TGeneralPolygon2<float>& Polygon);
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<double>::Add(const TPolygon2<double>& Polygon, bool bIsHole);
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<double>::Add(const TPolygon2<float>& Polygon, bool bIsHole);
-
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<float>::Add(const FDynamicGraph2<double>& Graph);
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<float>::Add(const TGeneralPolygon2<double>& Polygon);
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<float>::Add(const TGeneralPolygon2<float>& Polygon);
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<float>::Add(const TPolygon2<double>& Polygon, bool bIsHole);
-template void GEOMETRYALGORITHMS_API TConstrainedDelaunay2<float>::Add(const TPolygon2<float>& Polygon, bool bIsHole);
 

@@ -166,6 +166,7 @@ struct FBXImportOptions
 	FString BaseNormalTextureName;
 	FString BaseEmmisiveTextureName;
 	FString BaseSpecularTextureName;
+	FString BaseOpacityTextureName;
 	EMaterialSearchLocation MaterialSearchLocation;
 	//If true the materials will be reorder to follow the fbx order
 	bool bReorderMaterialToFbxOrder;
@@ -356,6 +357,9 @@ public:
 	UE_DEPRECATED(4.21, "Please use FRichCurve version instead to get tangent weight support")
 	UNREALED_API void GetCurveData(const FString& NodeName, const FString& PropertyName, int32 ChannelIndex, int32 CompositeIndex, FInterpCurveFloat& CurveData, bool bNegative) const;
 	
+	//This one should be use only by the sequencer the key tangents data is transform to fit the expected data we have in the old matinee code
+	UNREALED_API void GetCurveDataForSequencer(const FString& NodeName, const FString& PropertyName, int32 ChannelIndex, int32 CompositeIndex, FRichCurve& RichCurve, bool bNegative) const;
+
 	UNREALED_API void GetCurveData(const FString& NodeName, const FString& PropertyName, int32 ChannelIndex, int32 CompositeIndex, FRichCurve& CurveData, bool bNegative) const;
 
 	
@@ -368,6 +372,9 @@ public:
 	UE_DEPRECATED(4.21, "Please use FRichCurve version instead to get tangent weight support")
 	UNREALED_API void GetCurveData(const FFbxAnimCurveHandle &CurveHandle, FInterpCurveFloat& CurveData, bool bNegative) const;
 	
+	//This one should be use only by the sequencer the key tangents data is transform to fit the expected data we have in the old matinee code
+	UNREALED_API void GetCurveDataForSequencer(const FFbxAnimCurveHandle &CurveHandle, FRichCurve& RichCurve, bool bNegative) const;
+
 	UNREALED_API void GetCurveData(const FFbxAnimCurveHandle &CurveHandle, FRichCurve& CurveData, bool bNegative) const;
 
 	UNREALED_API void GetBakeCurveData(const FFbxAnimCurveHandle &CurveHandle, TArray<float>& CurveData, float PeriodTime, float StartTime = 0.0f, float StopTime = -1.0f, bool bNegative = false) const;
@@ -382,7 +389,7 @@ public:
 	UNREALED_API void GetConvertedTransformCurveData(const FString& NodeName, FRichCurve& TranslationX, FRichCurve& TranslationY, FRichCurve& TranslationZ,
 		FRichCurve& EulerRotationX, FRichCurve& EulerRotationY, FRichCurve& EulerRotationZ,
 		FRichCurve& ScaleX, FRichCurve& ScaleY, FRichCurve& ScaleZ,
-		FTransform& DefaultTransform) const;
+		FTransform& DefaultTransform, bool bUseSequencerCurve) const;
 
 	FbxScene* Scene;
 	TMap<uint64, FFbxAnimNodeHandle> CurvesData;
@@ -1084,7 +1091,7 @@ public:
 	/**
 	 * Import FbxCurve to Curve
 	 */
-	bool ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& RichCurve, const FbxTimeSpan &AnimTimeSpan, const float ValueScale = 1.f) const;
+	static bool ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& RichCurve, const FbxTimeSpan &AnimTimeSpan, const float ValueScale = 1.f, const bool bAutoSetTangents = true);
 
 	/**
 	 * Merge all layers of one AnimStack to one layer.

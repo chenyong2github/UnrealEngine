@@ -14,12 +14,8 @@
 
 #include "Overlay/PicpProjectionOverlayRender.h"
 
-class FRHICommandListImmediate;
+struct FMPCDIRegion;
 
-namespace MPCDI
-{	
-	struct FMPCDIRegion;
-};
 
 class IPicpMPCDI : public IModuleInterface
 {
@@ -52,6 +48,7 @@ public:
 	virtual bool ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::FTextureWarpData& TextureWarpData, IMPCDI::FShaderInputData& ShaderInputData, FMPCDIData* MPCDIData, FPicpProjectionOverlayViewportData* ViewportOverlayData) = 0;
 
 	virtual void ApplyBlur(UTextureRenderTarget2D* InOutRenderTarget, UTextureRenderTarget2D* TemporaryRenderTarget, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType) = 0;
+	
 	virtual void ApplyCompose(UTexture* InputTexture, UTextureRenderTarget2D* OutputRenderTarget, UTextureRenderTarget2D* Result) = 0;
 	virtual void ExecuteCompose() = 0;
 };

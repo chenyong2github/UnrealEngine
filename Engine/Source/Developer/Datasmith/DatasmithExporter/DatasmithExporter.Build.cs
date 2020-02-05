@@ -25,8 +25,7 @@ namespace UnrealBuildTool.Rules
 					"Projects",
                     "RawMesh",
                     "MeshDescription",
-					"MeshDescriptionOperations",
-					"StaticMeshDescription"
+					"StaticMeshDescription",
                 }
             );
 

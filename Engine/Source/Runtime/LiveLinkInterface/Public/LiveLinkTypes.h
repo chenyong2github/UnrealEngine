@@ -76,6 +76,11 @@ struct LIVELINKINTERFACE_API FLiveLinkSubjectKey
 		Ar << InSubjectKey.SubjectName;
 		return Ar;
 	}
+
+	friend uint32 GetTypeHash(const FLiveLinkSubjectKey& SubjectKey)
+	{
+		return GetTypeHash(SubjectKey.Source) + GetTypeHash(SubjectKey.SubjectName.Name) * 13;
+	}
 };
 
 
@@ -170,6 +175,9 @@ struct LIVELINKINTERFACE_API FLiveLinkBaseFrameData
 	/** Values of the properties defined in the static structure. Use FLiveLinkBaseStaticData.FindPropertyValue to evaluate. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="LiveLink")
 	TArray<float> PropertyValues;
+
+	/** Return the LiveLinkTime struct constructed from this frame data. */
+	FLiveLinkTime GetLiveLinkTime() const { return FLiveLinkTime(WorldTime.GetOffsettedTime(), MetaData.SceneTime); }
 };
 
 

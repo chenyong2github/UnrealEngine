@@ -4,9 +4,12 @@
 
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "PicpProjectionStrings.h"
+#include "Policy/PicpProjectionPolicyBase.h"
 
 class IDisplayClusterProjectionPolicyFactory;
 class FPicpProjectionMPCDIViewport;
+
+
 /**
  * Implements projection policy factory for the 'mpcdi' policy
  */
@@ -23,11 +26,9 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId) override;
 
-	TArray<TSharedPtr<IDisplayClusterProjectionPolicy>> GetMPCDIPolicy()
-	{
-		return MPCDIPolicy;
-	}
+	TArray<TSharedPtr<FPicpProjectionPolicyBase>> GetPicpPolicy();
+	TSharedPtr<FPicpProjectionPolicyBase>         GetPicpPolicyByViewport(const FString& ViewportId);
 
 private:
-	TArray<TSharedPtr<IDisplayClusterProjectionPolicy>> MPCDIPolicy;
+	TArray<TSharedPtr<FPicpProjectionPolicyBase>> PicpPolicy;
 };

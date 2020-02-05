@@ -628,16 +628,7 @@ void FCanvas::AddTriangleRenderItem(const FCanvasUVTri& Tri, const FMaterialRend
 
 FCanvas::~FCanvas()
 {
-	// delete batches from elements entries
-	for( int32 Idx=0; Idx < SortedElements.Num(); Idx++ )
-	{
-		FCanvasSortElement& SortElement = SortedElements[Idx];
-		for( int32 BatchIdx=0; BatchIdx < SortElement.RenderBatchArray.Num(); BatchIdx++ )
-		{
-			FCanvasBaseRenderItem* RenderItem = SortElement.RenderBatchArray[BatchIdx];
-			delete RenderItem;
-		}
-	}
+	ClearBatchesToRender();
 }
 
 void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce, bool bInsideRenderPass)
@@ -676,6 +667,7 @@ void FCanvas::Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bFor
 
 	if (!bInsideRenderPass)
 	{
+		GetRendererModule().InitializeSystemTextures(RHICmdList);
 		const FTexture2DRHIRef& RenderTargetTexture = RenderTarget->GetRenderTargetTexture();
 
 		check(IsValidRef(RenderTargetTexture));
@@ -942,6 +934,22 @@ bool FCanvas::HasBatchesToRender() const
 	return false;
 }
 
+void FCanvas::ClearBatchesToRender()
+{
+	// delete batches from elements entries
+	for (FCanvasSortElement& SortElement : SortedElements)
+	{
+		for (FCanvasBaseRenderItem* RenderItem : SortElement.RenderBatchArray)
+		{
+			delete RenderItem;
+		}
+	}
+
+	// empty the array of entries
+	SortedElements.Empty();
+	SortedElementLookupMap.Empty();
+	LastElementIndex = INDEX_NONE;
+}
 
 void FCanvas::CopyTransformStack(const FCanvas& Copy)
 { 

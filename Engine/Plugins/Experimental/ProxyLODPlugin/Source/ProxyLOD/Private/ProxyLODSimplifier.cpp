@@ -237,6 +237,8 @@ void ProxyLOD::FQuadricMeshSimplifier::InitVert(SimpVertType* v)
 
 void ProxyLOD::FQuadricMeshSimplifier::GroupVerts()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::FQuadricMeshSimplifier::GroupVerts)
+
 	// group verts that share a point
 	FHashTable HashTable(1 << FMath::Min(16u, FMath::FloorLog2(numSVerts / 2)), numSVerts);
 
@@ -300,6 +302,8 @@ void ProxyLOD::FQuadricMeshSimplifier::GroupVerts()
 
 void ProxyLOD::FQuadricMeshSimplifier::GroupEdges()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::FQuadricMeshSimplifier::GroupEdges)
+
 	FHashTable HashTable(1 << FMath::Min(16u, FMath::FloorLog2(edges.Num() / 2)), edges.Num());
 
 	TArray<uint32> HashValues;
@@ -378,6 +382,8 @@ void ProxyLOD::FQuadricMeshSimplifier::GroupEdges()
 
 void ProxyLOD::FQuadricMeshSimplifier::InitCosts()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::FQuadricMeshSimplifier::InitCosts)
+
 	//	SCOPE_LOG_TIME(TEXT("UE4_ProxyLOD_Simplifier_InitCosts"), nullptr);
 	for (int i = 0; i < edges.Num(); i++)
 	{

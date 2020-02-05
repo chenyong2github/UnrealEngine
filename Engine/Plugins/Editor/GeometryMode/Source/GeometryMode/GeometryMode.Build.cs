@@ -20,6 +20,7 @@ public class GeometryMode : ModuleRules
 				"LevelEditor",
 				"NavigationSystem",
 				"EditorSubsystem",
+				"Projects",
             }
 		);
 

@@ -16,7 +16,8 @@ FTakeRecorderUserParameters::FTakeRecorderUserParameters()
 }
 
 FTakeRecorderProjectParameters::FTakeRecorderProjectParameters()
-	: bRecordSourcesIntoSubSequences(false)
+	: bStartAtCurrentTimecode(true)
+	, bRecordSourcesIntoSubSequences(false)
 	, bRecordToPossessable(false)
 {}
 

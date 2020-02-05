@@ -64,10 +64,6 @@ public:
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const;
 	FTransform	GetSkeletalMeshComponentTransform() const;
 
-	// Utility functions
-	void BeginTransaction();
-	void EndTransaction();
-
 	// in this layer, we only care one to one
 	const FControlData* GetControlDataFromGizmo(const AControlRigGizmoActor* GizmoActor) const;
 	// this is slow, and it only finds the first one, and there is no guarantee it will always find the same name if you run this multiple sessions.

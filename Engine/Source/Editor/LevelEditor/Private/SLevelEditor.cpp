@@ -167,6 +167,7 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 
 	// We need to register when modes list changes so that we can refresh the auto generated commands.
 	FEditorModeRegistry::Get().OnRegisteredModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
+	GLevelEditorModeTools().OnEditorModeIDChanged().AddSP(this, &SLevelEditor::OnEditorModeIdChanged);
 
 	// @todo This is a hack to get this working for now. This won't work with multiple worlds
 	GEditor->GetEditorWorldContext(true).AddRef(World);
@@ -671,6 +672,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		TSharedRef<SDockTab> DockTab = SNew( SDockTab )
 			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Modes" ) )
 			.Label( NSLOCTEXT( "LevelEditor", "ToolsTabTitle", "Toolbox" ) )
+			.OnTabClosed(this, &SLevelEditor::OnToolboxTabClosed)
 			[
 				SNew( SBox )
 				.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("ToolsPanel"), TEXT("LevelEditorToolBox")))
@@ -993,6 +995,12 @@ void SLevelEditor::OnViewportTabClosed(TSharedRef<SDockTab> ClosedTab)
 		}
 	}
 }
+
+void SLevelEditor::OnToolboxTabClosed(TSharedRef<SDockTab> ClosedTab)
+{
+	GLevelEditorModeTools().ActivateDefaultMode();
+}
+
 
 void SLevelEditor::SaveViewportTabInfo(TSharedRef<const FLevelViewportTabContent> ViewportTabContent)
 {
@@ -1414,23 +1422,6 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 
 	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
 	GLevelEditorModeTools().DeactivateOtherVisibleModes(ModeID);
-
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
-	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-
-	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Default) && !GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-	{
-		TSharedPtr<SDockTab> ToolboxTab = LevelEditorTabManager->FindExistingLiveTab(LevelEditorTabIds::LevelEditorToolBox);
-		if (ToolboxTab.IsValid())
-		{
-			ToolboxTab->RequestCloseTab();
-		}
-	}
-	else
-	{
-		LevelEditorTabManager->InvokeTab(LevelEditorTabIds::LevelEditorToolBox);
-	}
-
 }
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )
@@ -1454,6 +1445,28 @@ void SLevelEditor::EditorModeCommandsChanged()
 	}
 
 	RefreshEditorModeCommands();
+}
+
+void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, bool bIsEnteringMode)
+{
+	if(bIsEnteringMode)
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+
+		if (!GLevelEditorModeTools().ShouldShowModeToolbox() && !GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+		{
+			TSharedPtr<SDockTab> ToolboxTab = LevelEditorTabManager->FindExistingLiveTab(LevelEditorTabIds::LevelEditorToolBox);
+			if (ToolboxTab.IsValid())
+			{
+				ToolboxTab->RequestCloseTab();
+			}
+		}
+		else
+		{
+			LevelEditorTabManager->InvokeTab(LevelEditorTabIds::LevelEditorToolBox);
+		}
+	}
 }
 
 void SLevelEditor::RefreshEditorModeCommands()

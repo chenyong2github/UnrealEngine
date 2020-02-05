@@ -46,7 +46,7 @@ bool FMovieSceneCompilerPerfTest::RunTest(const FString& Parameters)
 	{
 		FMovieSceneRootEvaluationTemplateInstance RootInstance;
 		virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootInstance; }
-		virtual void UpdateCameraCut(UObject* CameraObject, UObject* UnlockIfCameraObject = nullptr, bool bJumpCut = false) override {}
+		virtual void UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams) override {}
 		virtual void SetViewportSettings(const TMap<FViewportClient*, EMovieSceneViewportParams>& ViewportParamsMap) override {}
 		virtual void GetViewportSettings(TMap<FViewportClient*, EMovieSceneViewportParams>& ViewportParamsMap) const override {}
 		virtual EMovieScenePlayerStatus::Type GetPlaybackStatus() const override { return EMovieScenePlayerStatus::Playing; }
@@ -87,6 +87,40 @@ TRange<FFrameNumber> MakeRange(FFrameNumber LowerBound, FFrameNumber UpperBound,
 		: UpperType == ERangeBoundTypes::Inclusive
 			? TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Exclusive(LowerBound), TRangeBound<FFrameNumber>::Inclusive(UpperBound))
 			: TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Exclusive(LowerBound), TRangeBound<FFrameNumber>::Exclusive(UpperBound));
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneCompilerEvaluationRangeTest, "System.Engine.Sequencer.Compiler.EvaluationRange", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMovieSceneCompilerEvaluationRangeTest::RunTest(const FString& Parameters)
+{
+	double StartSecondTimes   [] = { 400.0f, 400.0f, 400.0f, 400.0f, 400.1f, 400.5f, 400.8f };
+	double DurationSecondTimes[] = { 400.0f, 400.1f, 400.5f, 400.8f, 400.0f, 400.0f, 400.0f };
+
+	FFrameRate TickResolution(1, 1);
+
+	for (int32 Index = 0; Index < 7; ++Index)
+	{
+		double StartSeconds = StartSecondTimes[Index];
+		double DurationSeconds = DurationSecondTimes[Index];
+
+		FFrameTime LowerBound = StartSeconds * TickResolution;
+		FFrameTime UpperBound = (StartSeconds + DurationSeconds) * TickResolution;
+
+		FMovieSceneEvaluationRange EvaluatedRange(TRange<FFrameTime>(LowerBound, UpperBound), TickResolution, EPlayDirection::Forwards);
+
+		TRange<FFrameTime> TimeRange = EvaluatedRange.GetRange();
+		UTEST_EQUAL("Range - Lower Bound", TimeRange.GetLowerBoundValue(), LowerBound);
+		UTEST_EQUAL("Range - Upper Bound", TimeRange.GetUpperBoundValue(), UpperBound);
+
+		TRange<FFrameNumber> FrameNumberRange = EvaluatedRange.GetFrameNumberRange();
+
+		// Subframe evaluation range tests
+		// For example, a range of [400.5, 800.5[ will return a lower bound frame of 401 since the frame is already beyond 400
+		UTEST_EQUAL("FrameNumberRange - Lower Bound Frame", FrameNumberRange.GetLowerBoundValue().Value, FMath::CeilToInt(StartSeconds));
+
+		// For example, a range of [400, 800.5[ will return an upper bound frame of 801 so that a key at 800 will be evaluated
+		UTEST_EQUAL("FrameNumberRange - Upper Bound Frame", FrameNumberRange.GetUpperBoundValue().Value, FMath::CeilToInt(StartSeconds + DurationSeconds));
+	}
+	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneCompilerRangeTest, "System.Engine.Sequencer.Compiler.Ranges", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

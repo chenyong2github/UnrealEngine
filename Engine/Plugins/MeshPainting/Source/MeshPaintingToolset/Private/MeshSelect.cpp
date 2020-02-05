@@ -15,19 +15,29 @@
 #define LOCTEXT_NAMESPACE "MeshSelection"
 
 
-bool UMeshClickToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+bool UVertexAdapterClickToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return true;
 }
 
-UInteractiveTool* UMeshClickToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UInteractiveTool* UVertexAdapterClickToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
-	UMeshClickTool* NewTool = NewObject<UMeshClickTool>(SceneState.ToolManager);
+	UVertexAdapterClickTool* NewTool = NewObject<UVertexAdapterClickTool>(SceneState.ToolManager);
 
 	return NewTool;
 }
 
+bool UTextureAdapterClickToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return true;
+}
 
+UInteractiveTool* UTextureAdapterClickToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+{
+	UTextureAdapterClickTool* NewTool = NewObject<UTextureAdapterClickTool>(SceneState.ToolManager);
+
+	return NewTool;
+}
 
 
 UMeshClickTool::UMeshClickTool()
@@ -43,6 +53,10 @@ void UMeshClickTool::Setup()
 	MouseBehavior->Initialize(this);
 	MouseBehavior->Modifiers.RegisterModifier(AdditiveSelectionModifier, FInputDeviceState::IsShiftKeyDown);
 	AddInputBehavior(MouseBehavior);
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartMeshSelectTool", "Select a mesh. Switch tools to paint vertex colors, blend between textures, or paint directly onto a texture file."),
+		EToolMessageLevel::UserNotification);
 }
 
 void UMeshClickTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
@@ -84,8 +98,11 @@ void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 				{
 					UMeshComponent* MeshComponent = Cast<UMeshComponent>(CandidateComponent);
 					TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
-					MeshToolManager->AddPaintableMeshComponent(MeshComponent);
-					MeshToolManager->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
+					if (IsMeshAdapterSupported(MeshAdapter))
+					{
+						MeshToolManager->AddPaintableMeshComponent(MeshComponent);
+						MeshToolManager->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
+					}
 				}
 					
 			}
@@ -97,7 +114,7 @@ void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 		if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(TraceHitResult.GetComponent()))
 		{
 			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
-			if (MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid())
+			if (MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid() && IsMeshAdapterSupported(MeshAdapter))
 			{
 				MeshToolManager->AddPaintableMeshComponent(MeshComponent);
 				MeshToolManager->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
@@ -116,6 +133,30 @@ void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 		GetToolManager()->RequestSelectionChange(NewSelection);
 		GetToolManager()->EndUndoTransaction();
 	}
+}
+
+
+
+UVertexAdapterClickTool::UVertexAdapterClickTool()
+	: UMeshClickTool()
+{
+
+}
+
+bool UVertexAdapterClickTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter)
+{
+	return MeshAdapter->SupportsVertexPaint();
+}
+
+UTextureAdapterClickTool::UTextureAdapterClickTool()
+	: UMeshClickTool()
+{
+
+}
+
+bool UTextureAdapterClickTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter)
+{
+	return MeshAdapter->SupportsTexturePaint();
 }
 
 #undef LOCTEXT_NAMESPACE

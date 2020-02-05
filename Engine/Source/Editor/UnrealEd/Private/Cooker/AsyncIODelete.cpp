@@ -159,7 +159,7 @@ bool FAsyncIODelete::WaitForAllTasks(float TimeLimitSeconds)
 
 	if (TimeLimitSeconds <= 0.f)
 	{
-	TasksComplete->Wait();
+		TasksComplete->Wait();
 	}
 	else
 	{

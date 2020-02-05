@@ -36,7 +36,13 @@ public:
 };
 
 
-
+UENUM()
+enum class EBakeScaleMethod : uint8
+{
+	BakeFullScale,			// bake all scale information, so the component has scale of 1 on all axes
+	BakeNonuniformScale,	// bake the non-uniform scale, so the component has a uniform scale
+	DoNotBakeScale			// do not bake any scaling
+};
 
 
 /**
@@ -50,15 +56,23 @@ class MESHMODELINGTOOLS_API UBakeTransformToolProperties : public UInteractiveTo
 public:
 	UBakeTransformToolProperties();
 
-	/** Recompute all mesh normals */
+	/** Bake rotation */
 	UPROPERTY(EditAnywhere, Category = Options)
-	bool bRecomputeNormals;
+	bool bBakeRotation = true;
+
+	/** Bake scale */
+	UPROPERTY(EditAnywhere, Category = Options)
+	EBakeScaleMethod BakeScale = EBakeScaleMethod::BakeNonuniformScale;
+
+	/** Recenter pivot after baking transform */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bRecenterPivot = false;
 };
 
 
 
 /**
- * Simple Mesh Normal Updating Tool
+ * Simple tool to bake scene transform on meshes into the mesh assets
  */
 UCLASS()
 class MESHMODELINGTOOLS_API UBakeTransformTool : public UMultiSelectionTool
@@ -84,16 +98,13 @@ public:
 protected:
 
 	UPROPERTY()
-		UBakeTransformToolProperties* BasicProperties;
-
-	UPROPERTY()
-		TArray<UPreviewMesh*> Previews;
+	UBakeTransformToolProperties* BasicProperties;
 
 protected:
-	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
-
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 
-	void UpdateAssets(const TArray<TUniquePtr<FDynamicMesh3>>& Results);
+	TArray<int> MapToFirstOccurrences;
+
+	void UpdateAssets();
 };

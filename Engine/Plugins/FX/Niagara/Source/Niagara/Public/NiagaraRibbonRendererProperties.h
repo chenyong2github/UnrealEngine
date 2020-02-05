@@ -9,6 +9,8 @@
 #include "NiagaraRibbonRendererProperties.generated.h"
 
 class FNiagaraEmitterInstance;
+class FAssetThumbnailPool;
+class SWidget;
 
 UENUM()
 enum class ENiagaraRibbonFacingMode : uint8
@@ -83,6 +85,8 @@ public:
 	virtual void FixMaterial(UMaterial* Material);
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
+	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
+	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 #endif
 	//UNiagaraRendererProperties Interface END
 

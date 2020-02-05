@@ -473,6 +473,11 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 }
 
 /********* UFXSystemComponent *********/
+void UNiagaraComponent::SetBoolParameter(FName Parametername, bool Param)
+{
+	SetVariableBool(Parametername, Param);
+}
+
 void UNiagaraComponent::SetFloatParameter(FName ParameterName, float Param)
 {
 	SetVariableFloat(ParameterName, Param);

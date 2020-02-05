@@ -33,7 +33,6 @@ public class MeshMergeUtilities : ModuleRules
                 "RawMesh",
                 "MeshDescription",
 				"StaticMeshDescription",
-                "MeshDescriptionOperations"
             }
 		);
 

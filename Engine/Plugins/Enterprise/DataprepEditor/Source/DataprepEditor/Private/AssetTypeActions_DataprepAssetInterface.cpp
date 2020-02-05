@@ -2,6 +2,7 @@
 
 #include "AssetTypeActions_DataprepAssetInterface.h"
 
+#include "DataprepAsset.h"
 #include "DataprepAssetInstance.h"
 #include "DataprepAssetProducers.h"
 #include "DataprepCoreUtils.h"
@@ -40,16 +41,16 @@ void FAssetTypeActions_DataprepAssetInterface::CreateInstance(TArray<TWeakObject
 
 	if(DataprepAssetInterfaces.Num() == 1)
 	{
-		if(UDataprepAssetInterface* Object = DataprepAssetInterfaces[0].Get())
+		if(UDataprepAsset* DataprepAsset = Cast<UDataprepAsset>(DataprepAssetInterfaces[0].Get()))
 		{
 			// Determine an appropriate and unique name 
 			FString Name;
 			FString PackageName;
-			CreateUniqueAssetName(Object->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
+			CreateUniqueAssetName(DataprepAsset->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
 
 			// Create the factory used to generate the asset
 			UDataprepAssetInstanceFactory* Factory = NewObject<UDataprepAssetInstanceFactory>();
-			Factory->InitialParent = Object;
+			Factory->Parent = DataprepAsset;
 
 			// Create asset in 
 			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
@@ -61,16 +62,16 @@ void FAssetTypeActions_DataprepAssetInterface::CreateInstance(TArray<TWeakObject
 		TArray<UObject*> AssetsToSync;
 		for(auto AssetIt = DataprepAssetInterfaces.CreateConstIterator(); AssetIt; ++AssetIt)
 		{
-			if(UDataprepAssetInterface* DataprepAssetInterface = (*AssetIt).Get())
+			if(UDataprepAsset* DataprepAsset = Cast<UDataprepAsset>((*AssetIt).Get()))
 			{
 				// Determine an appropriate name
 				FString Name;
 				FString PackageName;
-				CreateUniqueAssetName(DataprepAssetInterface->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
+				CreateUniqueAssetName(DataprepAsset->GetOutermost()->GetName(), DefaultSuffix, PackageName, Name);
 
 				// Create the factory used to generate the asset
 				UDataprepAssetInstanceFactory* Factory = NewObject<UDataprepAssetInstanceFactory>();
-				Factory->InitialParent = DataprepAssetInterface;
+				Factory->Parent = DataprepAsset;
 
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 				UObject* NewAsset = AssetTools.CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), UDataprepAssetInstance::StaticClass(), Factory);

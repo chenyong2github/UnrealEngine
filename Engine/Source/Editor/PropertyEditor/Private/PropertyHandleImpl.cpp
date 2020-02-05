@@ -3857,8 +3857,11 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 	const TCHAR* ObjectBuffer = *InValue;
 	UObject* QualifiedObject = nullptr;
 
+	// Only allow finding any object with the same name if package path not provided
+	const bool bAllowAnyPackage = !InValue.Contains(TEXT("/"));
+
 	// This will attempt to load the object if it is not in memory. We purposefully pass in null as owner to avoid issues with cross level references
-	if (NodeProperty && FObjectPropertyBase::ParseObjectPropertyValue(NodeProperty, nullptr, UObject::StaticClass(), 0, ObjectBuffer, QualifiedObject))
+	if (NodeProperty && FObjectPropertyBase::ParseObjectPropertyValue(NodeProperty, nullptr, UObject::StaticClass(), 0, ObjectBuffer, QualifiedObject, nullptr, bAllowAnyPackage))
 	{
 		if (QualifiedObject)
 		{
@@ -3911,7 +3914,7 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 
 			const FString& AllowedClassesString = NodeProperty->GetMetaData("AllowedClasses");
 			TArray<FString> AllowedClassNames;
-			AllowedClassesString.ParseIntoArray(AllowedClassNames, TEXT(","), true);
+			AllowedClassesString.ParseIntoArrayWS(AllowedClassNames, TEXT(","), true);
 			bool bSupportedObject = false;
 
 			// Check AllowedClasses metadata
@@ -3939,7 +3942,7 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 			{
 				const FString& DisallowedClassesString = NodeProperty->GetMetaData("DisallowedClasses");
 				TArray<FString> DisallowedClassNames;
-				DisallowedClassesString.ParseIntoArray(DisallowedClassNames, TEXT(","), true);
+				DisallowedClassesString.ParseIntoArrayWS(DisallowedClassNames, TEXT(","), true);
 
 				for (const FString& DisallowedClassName : DisallowedClassNames)
 				{

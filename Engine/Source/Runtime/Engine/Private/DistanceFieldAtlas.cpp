@@ -855,7 +855,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, UStatic
 	TArray<uint8> DerivedData;
 
 	COOK_STAT(auto Timer = DistanceFieldCookStats::UsageStats.TimeSyncWork());
-	if (GetDerivedDataCacheRef().GetSynchronous(*InDDCKey, DerivedData))
+	if (GetDerivedDataCacheRef().GetSynchronous(*InDDCKey, DerivedData, Mesh->GetPathName()))
 	{
 		COOK_STAT(Timer.AddHit(DerivedData.Num()));
 		FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
@@ -1210,7 +1210,7 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks()
 				// Save built distance field volume to DDC
 				FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
 				Ar << *(Task->StaticMesh->RenderData->LODResources[0].DistanceFieldData);
-				GetDerivedDataCacheRef().Put(*Task->DDCKey, DerivedData);
+				GetDerivedDataCacheRef().Put(*Task->DDCKey, DerivedData, Task->StaticMesh->GetPathName());
 				COOK_STAT(Timer.AddMiss(DerivedData.Num()));
 			}
 		}
@@ -1579,12 +1579,17 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 			{
 				typename FUploadHeightFieldToAtlasCS::FParameters* Parameters = GraphBuilder.AllocParameters<typename FUploadHeightFieldToAtlasCS::FParameters>();
 				const FIntPoint UpdateRegion = PendingUploads[Idx].SetShaderParameters(Parameters, *this);
+				const bool bNeedBarrier = Idx > 0;
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("UploadHeightFieldToAtlas"),
 					Parameters,
 					ERDGPassFlags::Compute,
-					[Parameters, ComputeShaderPtr, UpdateRegion](FRHICommandList& CmdList)
+					[Parameters, ComputeShaderPtr, UpdateRegion, bNeedBarrier](FRHICommandList& CmdList)
 				{
+					if (bNeedBarrier)
+					{
+						CmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, Parameters->RWHeightFieldAtlas);
+					}
 					FComputeShaderUtils::Dispatch(CmdList, ComputeShaderPtr, *Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
 				});
 			}
@@ -1598,12 +1603,17 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 			{
 				typename FUploadVisibilityToAtlasCS::FParameters* Parameters = GraphBuilder.AllocParameters<typename FUploadVisibilityToAtlasCS::FParameters>();
 				const FIntPoint UpdateRegion = PendingUploads[Idx].SetShaderParameters(Parameters, *this);
+				const bool bNeedBarrier = Idx > 0;
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("UploadVisibilityToAtlas"),
 					Parameters,
 					ERDGPassFlags::Compute,
-					[Parameters, ComputeShaderPtr, UpdateRegion](FRHICommandList& CmdList)
+					[Parameters, ComputeShaderPtr, UpdateRegion, bNeedBarrier](FRHICommandList& CmdList)
 				{
+					if (bNeedBarrier)
+					{
+						CmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, Parameters->RWVisibilityAtlas);
+					}
 					FComputeShaderUtils::Dispatch(CmdList, ComputeShaderPtr, *Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
 				});
 			}

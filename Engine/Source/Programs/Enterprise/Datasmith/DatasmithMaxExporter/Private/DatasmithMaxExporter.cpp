@@ -584,8 +584,14 @@ int FDatasmithMaxExporter::ExportScene(FDatasmithSceneExporter* DatasmithSceneEx
 						ElementMap.Add(InSceneParser.GetNode(i), ActorElement);
 					}
 
+					TSharedPtr< IDatasmithActorElement > InversedHISMActor;
 					ActorElement->AddChild( FDatasmithMaxSceneExporter::ExportHierarchicalInstanceStaticMeshActor( DatasmithScene, InSceneParser.GetNode(i), InSceneParser.GetCustomMeshNode(i), *MeshLabel, SupportedChannels,
-						StaticMeshMtl, InSceneParser.GetInstancesTransform(i), *MeshName, UnitMultiplier, StaticMeshExportMode) );
+						StaticMeshMtl, InSceneParser.GetInstancesTransform(i), *MeshName, UnitMultiplier, StaticMeshExportMode, InversedHISMActor) );
+
+					if( InversedHISMActor.IsValid() )
+					{
+						ActorElement->AddChild(InversedHISMActor);
+					}
 
 					GeometryCounter++;
 				}

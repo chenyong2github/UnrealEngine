@@ -1425,7 +1425,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> RequestData = NiagaraModule.Precompile(this);
 
 		// check the ddc first
-		if (!GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(), OutData))
+		if (!GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(), OutData, GetPathName()))
 		{
 			FNiagaraVMExecutableData ExeData;
 			if (BinaryToExecData(OutData, ExeData))
@@ -1447,7 +1447,7 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 			// save result to the ddc
 			if (ExecToBinaryData(OutData, *ExeData))
 			{
-				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(), OutData);
+				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(), OutData, GetPathName());
 			}
 		}
 		ActiveCompileRoots.Empty();

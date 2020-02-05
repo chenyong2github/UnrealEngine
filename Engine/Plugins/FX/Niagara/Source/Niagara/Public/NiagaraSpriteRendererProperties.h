@@ -38,6 +38,8 @@ enum class ENiagaraSpriteFacingMode : uint8
 	FaceCameraDistanceBlend
 };
 
+class FAssetThumbnailPool;
+class SWidget;
 
 UCLASS(editinlinenew, meta = (DisplayName = "Sprite Renderer"))
 class NIAGARA_API UNiagaraSpriteRendererProperties : public UNiagaraRendererProperties
@@ -68,6 +70,8 @@ public:
 	virtual void FixMaterial(UMaterial* Material) override;
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
+	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
+	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 #endif
 	//UNiagaraMaterialRendererProperties interface END
 

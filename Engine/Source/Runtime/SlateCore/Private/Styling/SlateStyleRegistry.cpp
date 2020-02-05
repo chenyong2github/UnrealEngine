@@ -74,3 +74,16 @@ void FSlateStyleRegistry::GetAllResources( TArray< const FSlateBrush* >& OutReso
 		It->Value->GetResources( OutResources );
 	}
 }
+
+TArray<FName> FSlateStyleRegistry::GetSylesUsingBrush(const FName BrushName)
+{
+	TArray<FName> StylesUsingBrush;
+
+	/* Iterate the style chunks and collect their resources */
+	for (auto It = SlateStyleRepository.CreateConstIterator(); It; ++It)
+	{
+		StylesUsingBrush.Append(It->Value->GetEntriesUsingBrush(BrushName));
+	}
+
+	return StylesUsingBrush;
+}

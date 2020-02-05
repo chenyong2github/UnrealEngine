@@ -22,6 +22,7 @@
 #include "GPUScene.h"
 #include "Rendering/ColorVertexBuffer.h"
 #include "FXSystem.h"
+#include "GPUSortManager.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
 {
@@ -614,7 +615,19 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		// Notify the FX system that the scene is about to be rendered.
 		if (Scene->FXSystem && Views.IsValidIndex(0))
 		{
+			FGPUSortManager* GPUSortManager = Scene->FXSystem->GetGPUSortManager();
 			Scene->FXSystem->PreRender(RHICmdList, &Views[0].GlobalDistanceFieldInfo.ParameterData, false);
+			if (GPUSortManager)
+			{
+				GPUSortManager->OnPreRender(RHICmdList);
+			}
+			// Call PostRenderOpaque now as this is irrelevant for when rendering hit proxies.
+			// because we don't tick the particles in the render loop (see last param being "false").
+			Scene->FXSystem->PostRenderOpaque(RHICmdList, Views[0].ViewUniformBuffer, nullptr, nullptr, false);
+			if (GPUSortManager)
+			{
+				GPUSortManager->OnPostRenderOpaque(RHICmdList);
+			}
 		}
 
 		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT);

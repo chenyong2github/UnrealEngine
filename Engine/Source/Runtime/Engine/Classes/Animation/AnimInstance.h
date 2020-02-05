@@ -426,6 +426,14 @@ class ENGINE_API UAnimInstance : public UObject
 	/** Flag to check if created by LinkedAnimGraph in ReinitializeLinkedAnimInstance */
 	uint8 bCreatedByLinkedAnimGraph : 1;
 
+	/** Whether to process notifies from any linked anim instances */
+	UPROPERTY(EditDefaultsOnly, Category = Notifies)
+	uint8 bReceiveNotifiesFromLinkedInstances : 1;
+
+	/** Whether to propagate notifies to any linked anim instances */
+	UPROPERTY(EditDefaultsOnly, Category = Notifies)
+	uint8 bPropagateNotifiesToLinkedInstances : 1;
+
 private:
 	/** True when Montages are being ticked, and Montage Events should be queued. 
 	 * When Montage are being ticked, we queue AnimNotifies and Events. We trigger notifies first, then Montage events. */
@@ -444,8 +452,6 @@ public:
 
 	// @todo document
 	void MakeMontageTickRecord(FAnimTickRecord& TickRecord, class UAnimMontage* Montage, float CurrentPosition, float PreviousPosition, float MoveDelta, float Weight, TArray<FPassedMarker>& MarkersPassedThisTick, FMarkerTickRecord& MarkerTickRecord);
-
-	bool IsSlotNodeRelevantForNotifies(FName SlotNodeName) const;
 
 	/** Get global weight in AnimGraph for this slot node.
 	* Note: this is the weight of the node, not the weight of any potential montage it is playing. */
@@ -498,6 +504,22 @@ public:
 	// Can does this anim instance need an update (parallel or not)?
 	bool NeedsUpdate() const;
 
+	/** Get whether to process notifies from any linked anim instances */
+	UFUNCTION(BlueprintPure, Category = "Notifies")
+	bool GetReceiveNotifiesFromLinkedInstances() const { return bReceiveNotifiesFromLinkedInstances; }
+
+	/** Set whether to process notifies from any linked anim instances */
+	UFUNCTION(BlueprintCallable, Category = "Notifies")
+	void SetReceiveNotifiesFromLinkedInstances(bool bSet) { bReceiveNotifiesFromLinkedInstances = bSet; }
+
+	/** Get whether to propagate notifies to any linked anim instances */
+	UFUNCTION(BlueprintPure, Category = "Notifies")
+	bool GetPropagateNotifiesToLinkedInstances() const { return bPropagateNotifiesToLinkedInstances; }
+
+	/** Set whether to propagate notifies to any linked anim instances */
+	UFUNCTION(BlueprintCallable, Category = "Notifies")
+	void SetPropagateNotifiesToLinkedInstances(bool bSet) { bPropagateNotifiesToLinkedInstances = bSet; }
+
 private:
 	// Does this anim instance need immediate update (rather than parallel)?
 	bool NeedsImmediateUpdate(float DeltaSeconds) const;
@@ -528,6 +550,10 @@ public:
 	/** Executed when begin play is called on the owning component */
 	UFUNCTION(BlueprintImplementableEvent)
 	void BlueprintBeginPlay();
+
+	/** Executed when the all Linked Animation Layers are initialized */
+	UFUNCTION(BlueprintImplementableEvent)
+	void BlueprintLinkedAnimationLayersInitialized();
 
 	bool CanTransitionSignature() const;
 	

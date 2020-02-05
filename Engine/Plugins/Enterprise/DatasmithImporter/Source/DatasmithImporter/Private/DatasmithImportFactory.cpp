@@ -12,6 +12,7 @@
 #include "DatasmithStaticMeshImporter.h"
 #include "DatasmithTranslatableSource.h"
 #include "DatasmithTranslatorManager.h"
+#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "LayoutUV.h"
 #include "Utility/DatasmithImporterUtils.h"
@@ -118,11 +119,14 @@ namespace DatasmithImportFactoryImpl
 
 		if (AssetName.IsEmpty())
 		{
-			FString FilenameBase = FPaths::GetBaseFilename(InContext.Options->FilePath);
-			AssetName = UPackageTools::SanitizePackageName(FilenameBase);
+			AssetName = FPaths::GetBaseFilename(InContext.Options->FilePath);
 		}
 
+		AssetName = FDatasmithUtils::SanitizeObjectName(AssetName);
+
 		FString PackageName = FPaths::Combine(InContext.AssetsContext.RootFolderPath, AssetName);
+		PackageName = UPackageTools::SanitizePackageName(PackageName);
+
 
 		FText CreateAssetFailure =  LOCTEXT( "CreateSceneAsset_PackageFailure", "Failed to create the Datasmith Scene asset." );
 		FText OutFailureReason;
@@ -205,7 +209,7 @@ namespace DatasmithImportFactoryImpl
 		// MATERIALS
 		// We need to import the materials before the static meshes to know about the meshes build requirements that are driven by the materials
 		if ( Progress )
-		{ 
+		{
 			Progress->EnterProgressFrame( 5.f );
 		}
 		FDatasmithImporter::ImportMaterials(InContext);
@@ -411,7 +415,9 @@ void UDatasmithImportFactory::CleanUp()
 
 bool UDatasmithImportFactory::IsExtensionSupported(const FString& Filename)
 {
-	FString Extension = FPaths::GetExtension(Filename);
+	FString Extension;
+	FString Name;
+	FDatasmithUtils::GetCleanFilenameAndExtension(Filename, Name, Extension);
 	auto ExtensionMatch = [&Extension](const FString& Format) { return Format.StartsWith(Extension); };
 	return !Extension.IsEmpty() && Algo::FindByPredicate(Formats, ExtensionMatch) != nullptr;
 }

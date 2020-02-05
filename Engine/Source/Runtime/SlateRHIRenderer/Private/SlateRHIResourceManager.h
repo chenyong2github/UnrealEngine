@@ -130,6 +130,9 @@ public:
 	virtual int32 GetNumAtlasPages() const override;
 	virtual FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override;
 	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const override;
+#if WITH_ATLAS_DEBUGGING
+	virtual FAtlasSlotInfo GetAtlasSlotInfoAtPosition(FIntPoint InPosition, int32 AtlasIndex) const override;
+#endif
 
 	/** FTickableGameObject interface */
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
@@ -250,7 +253,7 @@ private:
 	 * 
 	 * @param Info	Information on how to generate the texture
 	 */
-	FSlateShaderResourceProxy* GenerateTextureResource( const FNewTextureInfo& Info );
+	FSlateShaderResourceProxy* GenerateTextureResource( const FNewTextureInfo& Info, const FName TextureName );
 	
 	/**
 	 * Returns a texture rendering resource from for a dynamically loaded texture or utexture object

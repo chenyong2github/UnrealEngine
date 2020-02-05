@@ -1604,6 +1604,7 @@ void FDeferredShadingSceneRenderer::InjectTranslucentVolumeLightingArray(FRHICom
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		// non-shadowed, non-light function lights
+		CA_SUPPRESS(6385);
 		InjectTranslucentLightArray(RHICmdList, Views[ViewIndex], LightInjectionData[ViewIndex], ViewIndex);
 	}
 

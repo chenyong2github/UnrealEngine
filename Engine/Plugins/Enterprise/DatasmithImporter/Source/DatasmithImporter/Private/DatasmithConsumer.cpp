@@ -38,7 +38,7 @@
 #include "Components/PointLightComponent.h"
 #include "EditorLevelUtils.h"
 #include "Engine/Level.h"
-#include "Engine/LevelStreamingDynamic.h"
+#include "Engine/LevelStreamingAlwaysLoaded.h"
 #include "Engine/Light.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -363,7 +363,7 @@ ULevel * UDatasmithConsumer::FindLevel( const FString& InLevelName )
 	return Level;
 }
 
-bool UDatasmithConsumer::SetLevelName( const FString & InLevelName, FText& OutReason )
+bool UDatasmithConsumer::SetLevelNameImplementation(const FString & InLevelName, FText& OutReason, const bool bIsAutomated)
 {
 	FString NewLevelName = InLevelName;
 
@@ -414,11 +414,33 @@ bool UDatasmithConsumer::SetLevelName( const FString & InLevelName, FText& OutRe
 	return bValidLevelName;
 }
 
-bool UDatasmithConsumer::SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason)
+bool UDatasmithConsumer::SetTargetContentFolderImplementation(const FString& InTargetContentFolder, FText& OutFailureReason, const bool bIsAutomated)
 {
-	if ( Super::SetTargetContentFolder( InTargetContentFolder, OutReason ) )
+
+	if ( Super::SetTargetContentFolderImplementation( InTargetContentFolder, OutFailureReason, bIsAutomated ) )
 	{
-		UpdateScene();
+		// Warn user if related Datasmith scene is not in package path and force re-creation of Datasmith scene
+		if ( DatasmithScene )
+		{ 
+			const FString DatasmithScenePath = FPaths::GetPath( DatasmithScene->GetPathName() );
+			if ( FPaths::GetPath( DatasmithScene->GetPathName() ) != TargetContentFolder)
+			{
+				DatasmithScene.Reset();
+
+				FText WarningMessage = FText::Format( LOCTEXT("DatasmithConsumer_NoSceneAsset", "Package path {0} different from path previously used, {1}.\nPrevious content will not be updated."), FText::FromString( TargetContentFolder ), FText::FromString( DatasmithScenePath ) );
+
+				if ( !bIsAutomated )
+				{
+					const FText DialogTitle( LOCTEXT("DatasmithConsumerDlgTitle", "Warning") );
+
+					// We should move that on the text box widget directly
+					FMessageDialog::Open( EAppMsgType::Ok, WarningMessage, &DialogTitle );
+				}
+
+				UE_LOG(LogDatasmithImport, Log, TEXT("%s"), *WarningMessage.ToString());
+			}
+		}
+
 		return true;
 	}
 
@@ -433,30 +455,12 @@ void UDatasmithConsumer::UpdateScene()
 		return;
 	}
 
-	const FText DialogTitle( LOCTEXT( "DatasmithConsumerDlgTitle", "Warning" ) );
-
-	// Warn user if related Datasmith scene is not in package path and force re-creation of Datasmith scene
-	FString DatasmithScenePath = FPaths::GetPath( DatasmithScene->GetPathName() );
-	if( DatasmithScenePath != TargetContentFolder )
+	// Check if name of owning Dataprep asset has not changed
+	const FString DatasmithSceneName = GetOuter()->GetName() + DatasmithSceneSuffix;
+	if( DatasmithScene->GetName() != DatasmithSceneName )
 	{
 		// Force re-creation of Datasmith scene
 		DatasmithScene.Reset();
-
-		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoSceneAsset", "Package path {0} different from path previously used, {1}.\nPrevious content will not be updated."), FText::FromString (TargetContentFolder ), FText::FromString ( DatasmithScenePath ) );
-		FMessageDialog::Open(EAppMsgType::Ok, WarningMessage, &DialogTitle );
-
-		UE_LOG( LogDatasmithImport, Warning, TEXT("%s"), *WarningMessage.ToString() );
-	}
-	// Check if name of owning Dataprep asset has not changed
-	else
-	{
-		const FString DatasmithSceneName = GetOuter()->GetName() + DatasmithSceneSuffix;
-
-		if( DatasmithScene->GetName() != DatasmithSceneName )
-		{
-			// Force re-creation of Datasmith scene
-			DatasmithScene.Reset();
-		}
 	}
 
 }
@@ -470,16 +474,9 @@ void UDatasmithConsumer::MoveLevel()
 		return;
 	}
 
-	const FText DialogTitle( LOCTEXT( "DatasmithConsumerDlgTitle", "Warning" ) );
-
 	ULevel* Level = FindLevel( LevelName );
 	if( Level == nullptr )
 	{
-		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoLevel", "Level {0} different from level previously used, {1}.\nPrevious level will not be updated."), FText::FromString( LevelName ), FText::FromString (LastLevelName ) );
-		FMessageDialog::Open(EAppMsgType::Ok, WarningMessage, &DialogTitle );
-
-		UE_LOG( LogDatasmithImport, Warning, TEXT("%s"), *WarningMessage.ToString() );
-
 		return;
 	}
 
@@ -495,14 +492,6 @@ void UDatasmithConsumer::MoveLevel()
 				break;
 			}
 		}
-	}
-
-	if( FoundSceneActor == nullptr )
-	{
-		FText WarningMessage = FText::Format(LOCTEXT("DatasmithConsumer_NoScene", "Level {0} does not contain main actor from previous execution.\nA new actor will be created."), FText::FromString( LevelName ) );
-		FMessageDialog::Open( EAppMsgType::Ok, WarningMessage, &DialogTitle );
-
-		UE_LOG( LogDatasmithImport, Warning, TEXT("%s"), *WarningMessage.ToString() );
 	}
 }
 
@@ -522,7 +511,7 @@ void UDatasmithConsumer::UpdateLevel()
 
 			FString PackageFilename;
 			FPackageName::TryConvertLongPackageNameToFilename( LevelObjectPath.ToString(), PackageFilename, FPackageName::GetMapPackageExtension() );
-			if( ULevelStreaming* LevelStreaming = EditorLevelUtils::CreateNewStreamingLevelForWorld( *GWorld, ULevelStreamingDynamic::StaticClass(), *PackageFilename ) )
+			if( ULevelStreaming* LevelStreaming = EditorLevelUtils::CreateNewStreamingLevelForWorld( *FinalWorld, ULevelStreamingAlwaysLoaded::StaticClass(), *PackageFilename ) )
 			{
 				Level = LevelStreaming->GetLoadedLevel();
 			}

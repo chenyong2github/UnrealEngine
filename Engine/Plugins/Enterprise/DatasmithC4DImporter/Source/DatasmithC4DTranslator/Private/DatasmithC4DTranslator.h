@@ -28,6 +28,9 @@ public:
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
 private:
+	TStrongObjectPtr<UDatasmithC4DImportOptions>& GetOrCreateC4DImportOptions();
+
+private:
 	TStrongObjectPtr<UDatasmithC4DImportOptions> ImportOptions;
 	TSharedPtr<class FDatasmithC4DImporter> Importer;
 #endif

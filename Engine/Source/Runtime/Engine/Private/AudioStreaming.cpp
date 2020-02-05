@@ -68,7 +68,7 @@ void FAsyncStreamDerivedChunkWorker::DoWork()
 
 	TArray<uint8> DerivedChunkData;
 
-	if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedChunkData))
+	if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedChunkData, TEXT("Unknown Audio"_SV)))
 	{
 		FMemoryReader Ar(DerivedChunkData, true);
 		int32 ChunkSize = 0;

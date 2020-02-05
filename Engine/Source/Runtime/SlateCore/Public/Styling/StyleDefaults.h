@@ -38,6 +38,15 @@ public:
 	{
 		return DefaultColor;
 	}
+
+	/**
+	 * Get default Slate Color.
+	 * @return - The default Slate color.
+	 */
+	static const FSlateColor& GetSlateColor()
+	{
+		return DefaultSlateColor;
+	}
 	
 	/**
 	 * Get default FMargin.
@@ -79,4 +88,5 @@ private:
 	static FLinearColor DefaultColor;
 	static FMargin DefaultMargin;
 	static FSlateSound DefaultSound;
+	static FSlateColor DefaultSlateColor;
 };

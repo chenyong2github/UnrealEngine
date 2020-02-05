@@ -67,8 +67,9 @@ namespace
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCinematicsCategory())
 			.SetDisplayName(IMovieRenderPipelineEditorModule::MoviePipelineQueueTabLabel)
 			.SetTooltipText(LOCTEXT("MovieRenderPipelineQueueTab_Tooltip", "Open the Movie Render Queue to render Sequences to disk at a higher quality than realtime allows."))
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.TabIcon"));
+			.SetIcon(FSlateIcon(FMovieRenderPipelineStyle::StyleName, "MovieRenderPipeline.TabIcon"));
 	}
+
 }
 
 void FMovieRenderPipelineEditorModule::PerformTestPipelineRender(const TArray<FString>& Args)

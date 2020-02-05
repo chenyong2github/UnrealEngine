@@ -10,11 +10,6 @@
 #include "Containers/Queue.h"
 #include "Misc/Paths.h"
 
-#define COLORSETLINE    3
-#define MATERIALSETLINE 4
-#define EXTERNALREFLINE 7
-#define MAPCTIDLINE     8
-
 #ifdef CAD_INTERFACE
 #include "kernel_io/attribute_io/attribute_enum.h"
 #include "kernel_io/ct_types.h"
@@ -24,6 +19,7 @@
 
 
 struct FFileStatData;
+struct FFileDescription;
 
 namespace CADLibrary
 {
@@ -64,38 +60,43 @@ public:
 
 	double GetMetricUnit() const { return 0.01; }
 
-	/**
-	 * @param InCTFullPath Full path of the CAD file to parse
-	 */
-	EProcessResult ProcessFile(const FString& InCTFullPath);
+	EProcessResult ProcessFile(const CADLibrary::FFileDescription& InCTFileDescription);
 	void GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash);
 
-
-	const TSet<FString>& GetExternalRefSet()
+	TSet<FFileDescription>& GetExternalRefSet()
 	{
-		return MockUpDescription.ExternalRefSet;
+		return SceneGraphArchive.ExternalRefSet;
 	}
 
-	const FString& GetSceneGraphFile()
+	const FString& GetSceneGraphFile() const
 	{
-		return MockUpDescription.SceneGraphArchive;
+		return SceneGraphArchive.ArchiveFileName;
 	}
-	const FString& GetMeshFileName()
+
+	const FString& GetMeshFileName() const
 	{
 		return MeshArchiveFile;
 	}
-	const FString& GetCADFileName()
+
+	const CADLibrary::FFileDescription& GetCADFileDescription() const
 	{
-		return CADFile;
+		return FileDescription;
 	}
 
+	const TArray<FString>& GetWarningMessages() const 
+	{
+		return WarningMessages;
+	}
+	
 private:
-	EProcessResult ReadFileWithKernelIO(const FString& FullPath);
+	EProcessResult ReadFileWithKernelIO();
 	bool ReadNode(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 	bool ReadInstance(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 	bool ReadComponent(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
 	bool ReadUnloadedComponent(CT_OBJECT_ID NodeId);
 	bool ReadBody(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
+
+	bool FindFile(FFileDescription& FileDescription);
 
 	void LoadSceneGraphArchive(const FString& SceneGraphFilePath);
 
@@ -119,20 +120,19 @@ private:
 protected:
 	FString CachePath;
 
-	FString CADFile;
+	CADLibrary::FFileDescription FileDescription;
 
-	FString FileConfiguration;
-	FString NodeConfiguration;
-
-	FArchiveMockUp MockUpDescription;
+	FArchiveSceneGraph SceneGraphArchive;
+	TArray<FString> WarningMessages;
 
 	FString MeshArchiveFilePath;
 	FString MeshArchiveFile;
 	TArray<FBodyMesh> BodyMeshes;
 
-	bool bNeedSaveCTFile;
+	bool bNeedSaveCTFile = false;
 
 	const FImportParameters& ImportParameters;
+	bool bSewRequired;
 };
 
 #endif // CAD_INTERFACE

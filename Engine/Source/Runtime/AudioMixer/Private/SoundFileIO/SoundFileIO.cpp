@@ -62,7 +62,7 @@ namespace Audio
 		}
 
 		// Create a buffer to do the processing 
-		SoundFileCount ProcessBufferSamples = 1024 * NewSoundFileDescription.NumChannels;
+		SoundFileCount ProcessBufferSamples = static_cast<SoundFileCount>(1024) * NewSoundFileDescription.NumChannels;
 		TArray<float> ProcessBuffer;
 		ProcessBuffer.Init(0.0f, ProcessBufferSamples);
 

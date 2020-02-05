@@ -783,7 +783,7 @@ void FD3D12BufferedGPUTiming::InitDynamicRHI()
 			SetName(NewHeap->Heap, L"FD3D12BufferedGPUTiming: Timestamp Query Heap");
 
 		#if ENABLE_RESIDENCY_MANAGEMENT
-			D3DX12Residency::Initialize(NewHeap->ResidencyHandle, NewHeap->Heap.GetReference(), 8 * QueryHeapDesc.Count);
+			D3DX12Residency::Initialize(NewHeap->ResidencyHandle, NewHeap->Heap.GetReference(), 8ull * QueryHeapDesc.Count);
 			D3DX12Residency::BeginTrackingObject(Adapter->GetDevice(0)->GetResidencyManager(), NewHeap->ResidencyHandle);
 		#endif
 
@@ -792,7 +792,7 @@ void FD3D12BufferedGPUTiming::InitDynamicRHI()
 
 
 		// Multi-GPU support : GPU timing only profile GPU0 currently.
-		const uint64 Size = 8 * QueryHeapDesc.Count; // Each timestamp query occupies 8 bytes.
+		const uint64 Size = 8ull * QueryHeapDesc.Count; // Each timestamp query occupies 8 bytes.
 		Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, FRHIGPUMask::GPU0(), Node, D3D12_RESOURCE_STATE_COPY_DEST, Size, TimestampQueryHeapBuffer.GetInitReference(), TEXT("FD3D12BufferedGPUTiming: Timestamp Query Result Buffer"));
 
 		TimestampListHandles.AddZeroed(QueryHeapDesc.Count);

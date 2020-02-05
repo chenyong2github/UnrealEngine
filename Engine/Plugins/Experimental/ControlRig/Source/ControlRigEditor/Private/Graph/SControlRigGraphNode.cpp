@@ -33,11 +33,21 @@
 
 #define LOCTEXT_NAMESPACE "SControlRigGraphNode"
 
+const FSlateBrush* SControlRigGraphNode::CachedImg_CR_Pin_Connected = nullptr;
+const FSlateBrush* SControlRigGraphNode::CachedImg_CR_Pin_Disconnected = nullptr;
+
 void SControlRigGraphNode::Construct( const FArguments& InArgs )
 {
+	if (CachedImg_CR_Pin_Connected == nullptr)
+	{
+		static const FName NAME_CR_Pin_Connected("ControlRig.Bug.Solid");
+		static const FName NAME_CR_Pin_Disconnected("ControlRig.Bug.Open");
+		CachedImg_CR_Pin_Connected = FControlRigEditorStyle::Get().GetBrush(NAME_CR_Pin_Connected);
+		CachedImg_CR_Pin_Disconnected = FControlRigEditorStyle::Get().GetBrush(NAME_CR_Pin_Disconnected);
+	}
+
 	check(InArgs._GraphNodeObj);
 	this->GraphNode = InArgs._GraphNodeObj;
-
 	this->SetCursor( EMouseCursor::CardinalCross );
 
  	UControlRigGraphNode* ControlRigGraphNode = InArgs._GraphNodeObj;
@@ -147,7 +157,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	InputOutputTree->Tick(DummyGeometry, 0.f, 0.f);
 	OutputTree->Tick(DummyGeometry, 0.f, 0.f);
 
-	const FSlateBrush* ImageBrush = FControlRigEditorStyle::Get().GetBrush(TEXT("ControlRig.RigUnit.VisualDebug"));
+	const FSlateBrush* ImageBrush = FControlRigEditorStyle::Get().GetBrush(TEXT("ControlRig.Bug.Dot"));
 
 	VisualDebugIndicatorWidget =
 		SNew(SImage)
@@ -259,6 +269,19 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 			FullPinHorizontalRowWidget->RemoveSlot(LabelAndValueWidget.ToSharedRef());
 		}
 
+		// Customize the look for pins with injected nodes
+		FString NodeName, PinPath;
+		if (URigVMPin::SplitPinPathAtStart(EdPinObj->GetName(), NodeName, PinPath))
+		{
+			if (URigVMPin* ModelPin = ModelNode->FindPin(PinPath))
+			{
+				if (ModelPin->HasInjectedNodes())
+				{
+					PinToAdd->SetCustomPinIcon(CachedImg_CR_Pin_Connected, CachedImg_CR_Pin_Disconnected);
+				}
+			}
+		}
+
 		PinToAdd->SetOwner(SharedThis(this));
 		PinWidgetMap.Add(EdPinObj, PinToAdd);
 		if(EdPinObj->Direction == EGPD_Input)
@@ -275,6 +298,21 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 const FSlateBrush * SControlRigGraphNode::GetNodeBodyBrush() const
 {
 	return FEditorStyle::GetBrush("Graph.Node.TintedBody");
+}
+
+FReply SControlRigGraphNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = SGraphNode::OnMouseButtonDown(MyGeometry, MouseEvent);
+
+	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode))
+	{
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(RigNode->GetGraph()))
+		{
+			RigGraph->OnGraphNodeClicked.Broadcast(RigNode);
+		}
+	}
+
+	return Reply;
 }
 
 bool SControlRigGraphNode::UseLowDetailNodeTitles() const
@@ -889,11 +927,10 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 
 								if (Widgets.Num() == PreviousNumWidgets)
 								{
-									const FSlateBrush* ImageBrush = FEditorStyle::Get().GetBrush(TEXT("ControlRig.RigUnit.VisualDebug"));
 									FVector2D ImageSize = VisualDebugIndicatorWidget->GetDesiredSize();
 
 									FOverlayWidgetInfo Info;
-									Info.OverlayOffset = FVector2D(WidgetSize.X - (ImageSize.X * 0.8f), -(ImageSize.Y * 0.5f));
+									Info.OverlayOffset = FVector2D(WidgetSize.X - ImageSize.X - 6.f, 6.f);
 									Info.Widget = VisualDebugIndicatorWidget;
 
 									Widgets.Add(Info);

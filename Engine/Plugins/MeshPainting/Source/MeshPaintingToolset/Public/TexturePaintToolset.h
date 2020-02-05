@@ -4,6 +4,8 @@
 
 #include "BatchedElements.h"
 #include "MeshPaintRendering.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "TexturePaintToolset.generated.h"
 
 class UMeshComponent;
 class UTexture;
@@ -56,8 +58,10 @@ class IMeshPaintComponentAdapter;
 struct FPaintableTexture;
 
 /** Helpers functions for texture painting functionality */
-class MESHPAINTINGTOOLSET_API TexturePaintToolset
+UCLASS()
+class MESHPAINTINGTOOLSET_API UTexturePaintToolset : public UBlueprintFunctionLibrary
 {
+	GENERATED_BODY()
 public:
 	/** Static: Copies a texture to a render target texture */
 	static void CopyTextureToRenderTargetTexture(UTexture* SourceTexture, UTextureRenderTarget2D* RenderTargetTexture, ERHIFeatureLevel::Type FeatureLevel);

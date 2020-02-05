@@ -40,7 +40,7 @@ class UGeomModifier_Clip : public UGeomModifier_Edit
 
 
 	//~ Begin UGeomModifier Interface
-	virtual bool Supports() override;
+	virtual bool SupportsCurrentSelection() override;
 	virtual bool InputKey(class FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) override;
 	virtual void Render(const FSceneView* View,FViewport* Viewport,FPrimitiveDrawInterface* PDI) override;
 	virtual void DrawHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View,FCanvas* Canvas) override;

@@ -137,6 +137,7 @@ public:
 
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
+	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
 
 #if XGE_FIXED
 	template<typename PayloadType>

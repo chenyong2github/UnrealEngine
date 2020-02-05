@@ -15,6 +15,7 @@
 #include "Components/VectorFieldComponent.h"
 #include "SceneUtils.h"
 #include "Renderer/Private/SceneRendering.h" // needed for STATGROUP_CommandListMarkers
+#include "GPUSortManager.h"
 
 
 TMap<FName, FCreateCustomFXSystemDelegate> FFXSystemInterface::CreateCustomFXDelegates;
@@ -25,14 +26,19 @@ TMap<FName, FCreateCustomFXSystemDelegate> FFXSystemInterface::CreateCustomFXDel
 
 FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform)
 {
+	// The FGPUSortManager is currently only being used by FFXSystemInterface implementations.
+	// Because of this, the lifetime management of the GPUSortManager only consists of a ref counter incremented initially 
+	// in the gamethread (in this function) and decremented on the renderthread (when the system interfaces are deleted).
+	TRefCountPtr<FGPUSortManager> GPUSortManager = new FGPUSortManager(InFeatureLevel);
+
 	if (CreateCustomFXDelegates.Num())
 	{
-		FFXSystemSet* Set = new FFXSystemSet;
-		Set->FXSystems.Add(new FFXSystem(InFeatureLevel, InShaderPlatform));
+		FFXSystemSet* Set = new FFXSystemSet(GPUSortManager);
+		Set->FXSystems.Add(new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager));
 
 		for (TMap<FName, FCreateCustomFXSystemDelegate>::TConstIterator Ite(CreateCustomFXDelegates); Ite; ++Ite)
 		{
-			FFXSystemInterface* CustomFX = Ite.Value().Execute(InFeatureLevel, InShaderPlatform);
+			FFXSystemInterface* CustomFX = Ite.Value().Execute(InFeatureLevel, InShaderPlatform, GPUSortManager);
 			if (CustomFX)
 			{
 				Set->FXSystems.Add(CustomFX);
@@ -42,7 +48,7 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 	}
 	else
 	{
-		return new FFXSystem(InFeatureLevel, InShaderPlatform);
+		return new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager);
 	}
 }
 
@@ -174,15 +180,30 @@ namespace FXConsoleVariables
 	FX system.
 ------------------------------------------------------------------------------*/
 
-FFXSystem::FFXSystem(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform)
+FFXSystem::FFXSystem(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager)
 	: ParticleSimulationResources(NULL)
 	, FeatureLevel(InFeatureLevel)
 	, ShaderPlatform(InShaderPlatform)
+	, GPUSortManager(InGPUSortManager)
 #if WITH_EDITOR
 	, bSuspended(false)
 #endif // #if WITH_EDITOR
 {
 	InitGPUSimulation();
+
+	// Register the callback in the GPUSortManager. 
+	// The callback is used to generate the initial keys and values for the GPU sort tasks, 
+	// the values being the sorted particle indices used by the GPU particles.
+	// The registration also involves defining the list of flags possibly used in GPUSortManager::AddTask()
+	if (GPUSortManager)
+	{
+		GPUSortManager->Register(FGPUSortKeyGenDelegate::CreateLambda([this](FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
+		{ 
+			GenerateSortKeys(RHICmdList, BatchId, NumElementsInBatch, Flags, KeysUAV, ValuesUAV);
+		}), 
+		EGPUSortFlags::LowPrecisionKeys | EGPUSortFlags::KeyGenAfterPostRenderOpaque | EGPUSortFlags::AnySortLocation | EGPUSortFlags::ValuesAsG16R16F,
+		Name);
+	}
 }
 
 FFXSystem::~FFXSystem()
@@ -446,14 +467,18 @@ void FFXSystem::PostRenderOpaque(
 {
 	if (RHISupportsGPUParticles() && IsParticleCollisionModeSupported(GetShaderPlatform(), PCM_DepthBuffer))
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, GPUParticles_PostRenderOpaque);
 		if (bAllowGPUParticleUpdate)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, GPUParticles_PostRenderOpaque);
 			PrepareGPUSimulation(RHICmdList);
 			SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::CollisionDepthBuffer, ViewUniformBuffer, NULL, SceneTexturesUniformBufferStruct, SceneTexturesUniformBuffer);
 			FinalizeGPUSimulation(RHICmdList);
 		}
-
-		SortGPUParticles(RHICmdList);		
 	}
 }
+
+FGPUSortManager* FFXSystem::GetGPUSortManager() const
+{
+	return GPUSortManager;
+}
+

@@ -5,20 +5,21 @@
 #include "Text3DPrivate.h"
 #include "Templates/SharedPointer.h"
 #include "Math/Vector2D.h"
+#include "Util.h"
 
-class FData;
-class FContourList;
-struct FPart;
-class FContour;
 
 class FGlyphLoader final
 {
 public:
-	FGlyphLoader();
-	void Load(const FT_GlyphSlot Glyph, const TSharedPtr<FData> Data, FContourList* Contours);
+	FGlyphLoader(const FT_GlyphSlot Glyph);
+
+	TSharedPtr<class FContourList> GetContourList() const;
+
 
 private:
 	struct FContourNode;
+
+	using FNodePtr = TSharedPtr<FContourNode>;
 
 	class FLine final
 	{
@@ -63,8 +64,8 @@ private:
 		int32 Depth;
 		int32 MaxDepth;
 
-		const FPart* First;
-		const FPart* Last;
+		FPartConstPtr First;
+		FPartConstPtr Last;
 
 		/** Needed to make additional splits near start and end of curve */
 		bool bFirstSplit;
@@ -122,37 +123,42 @@ private:
 	};
 
 
+	TSharedPtr<class FContourList> Contours;
 	int32 EndIndex;
-	FContour* Contour;
+	class FContour* Contour;
 	/** Initial parity */
-	TMap<const FContour*, bool> Clockwise;
+	TMap<const class FContour*, bool> Clockwise;
 
 	FVector2D FirstPosition;
-	FPart* LastPoint;
+	FPartPtr LastPoint;
 
 
-	bool CreateContour(const FT_Outline Outline, const int32 ContourIndex, FContourList* Contours);
+	bool CreateContour(const FT_Outline Outline, const int32 ContourIndex);
 	void ComputeInitialParity();
 	/**
 	 * Insert NodeA inside NodeB.
 	 * @param NodeA
 	 * @param NodeB
 	 */
-	void Insert(FContourNode* const NodeA, FContourNode* const NodeB);
+	void Insert(const FNodePtr NodeA, const FNodePtr NodeB);
 	/**
 	 * Reverse contour if it's initial parity differs from the one it should have.
 	 * @param Node - Function is called recursively to fix all contours inside Node->Contour.
 	 * @param ClockwiseIn - The parity that contours listed in Node->Nodes should have.
 	 */
-	void FixParity(FContourNode* const Node, const bool bClockwiseIn);
+	void FixParity(const FNodePtr Node, const bool bClockwiseIn);
 
-	FPart* AddPoint(const FVector2D Position);
-	void JoinWithLast(FPart* const Point);
+	bool ProcessFreetypeOutline(const FT_Outline Outline, const int32 ContourIndex);
+	bool ComputeNormals();
+
+	void RemoveContour();
+	FPartPtr AddPoint(const FVector2D Position);
+	void JoinWithLast(const FPartPtr Point);
 	/**
 	 * Check if ContourA is inside ContourB.
 	 * @param ContourA
 	 * @param ContourB
 	 * @return Is ContourA inside ContourB?
 	 */
-	bool Inside(const FContour* const ContourA, const FContour* const ContourB);
+	bool Inside(const class FContour* const ContourA, const class FContour* const ContourB);
 };

@@ -41,16 +41,14 @@ void UMeshOpPreviewWithBackgroundCompute::Cancel()
 
 void UMeshOpPreviewWithBackgroundCompute::Tick(float DeltaTime)
 {
-	bool bIsLongDelay = false;
 	if (BackgroundCompute)
 	{
 		BackgroundCompute->Tick(DeltaTime);
-		bIsLongDelay = BackgroundCompute->GetElapsedComputeTime() > 2.0;
 	}
 
 	UpdateResults();
 
-	if (bResultValid || WorkingMaterial == nullptr || bIsLongDelay == false)
+	if (!IsUsingWorkingMaterial())
 	{
 		if (OverrideMaterial != nullptr)
 		{
@@ -116,4 +114,11 @@ void UMeshOpPreviewWithBackgroundCompute::SetVisibility(bool bVisibleIn)
 {
 	bVisible = bVisibleIn;
 	PreviewMesh->SetVisible(bVisible);
+}
+
+
+bool UMeshOpPreviewWithBackgroundCompute::IsUsingWorkingMaterial()
+{
+	bool bIsLongDelay = BackgroundCompute && BackgroundCompute->GetElapsedComputeTime() > SecondsBeforeWorkingMaterial;
+	return !(bResultValid || WorkingMaterial == nullptr || bIsLongDelay == false);
 }

@@ -379,10 +379,10 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	FilmColor = ColorCorrection( FilmColor );
 
 	// blend with custom LDR color, used for Fade track in Matinee
-	FilmColor = lerp( FilmColor * ColorScale, OverlayColor.rgb, OverlayColor.a );
+	float3 FilmColorNoGamma = lerp( FilmColor * ColorScale, OverlayColor.rgb, OverlayColor.a );
 
 	// Apply "gamma" curve adjustment.
-	FilmColor = pow( max(0, FilmColor), InverseGamma.y );
+	FilmColor = pow( max(0, FilmColorNoGamma), InverseGamma.y );
 		
 	half3 OutDeviceColor = 0;
 	BRANCH
@@ -446,6 +446,13 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	else if( GetOutputDevice() == 8 ) 
 	{
 			OutDeviceColor = GradedColor;
+	}
+	// "Linear" including all color correction and the tone curve, but no device gamma
+	else if (GetOutputDevice() == 9)
+	{
+		float3 OutputGamutColor = mul(AP1_2_Output, mul(sRGB_2_AP1, FilmColorNoGamma));
+
+		OutDeviceColor = OutputGamutColor;
 	}
 
 	// OutputDevice == 2

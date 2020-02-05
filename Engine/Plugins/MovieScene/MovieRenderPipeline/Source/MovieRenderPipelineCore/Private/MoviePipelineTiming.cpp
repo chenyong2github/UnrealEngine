@@ -2,7 +2,7 @@
 
 #include "MoviePipeline.h"
 #include "MovieRenderPipelineDataTypes.h"
-#include "MoviePipelineAccumulationSetting.h"
+#include "MoviePipelineAntiAliasingSetting.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineOutputBase.h"
 #include "CoreGlobals.h"
@@ -17,6 +17,7 @@
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineCameraSetting.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineOutputSetting.h"
 
 void UMoviePipeline::TickProducingFrames()
 {
@@ -42,6 +43,9 @@ void UMoviePipeline::TickProducingFrames()
 	FMoviePipelineShotInfo& CurrentShot = ShotList[CurrentShotIndex];
 	FMoviePipelineCameraCutInfo& CurrentCameraCut = CurrentShot.GetCurrentCameraCut();
 
+	// Reset our Output State so we ensure nothing gets unintentionally persisted between frames.
+	CachedOutputState.ResetPerFrameData();
+
 	// Check to see if we need to initialize a new shot. This potentially changes a lot of state.
 	if (CurrentCameraCut.State == EMovieRenderShotState::Uninitialized)
 	{
@@ -52,20 +56,26 @@ void UMoviePipeline::TickProducingFrames()
 			InitializeShot(CurrentShot);
 		}
 
+		CachedOutputState.ResetPerShotData();
+		CachedOutputState.ShotIndex = CurrentShotIndex;
+		CachedOutputState.ShotSamplesRendered = 0;
+		CachedOutputState.ShotOutputFrameNumber = -1;
+		CachedOutputState.TemporalSampleCount = CurrentCameraCut.NumTemporalSamples;
+
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Initializing Camera Cut [%d/%d] in Shot (%s)."), GFrameCounter, 
 			CurrentShot.CurrentCameraCutIndex + 1, CurrentShot.CameraCuts.Num(), *CurrentShot.GetDisplayName());
 		
-		CurrentCameraCut.SetNextState(EMovieRenderShotState::Uninitialized);
+		CurrentCameraCut.SetNextStateAfter(EMovieRenderShotState::Uninitialized);
 
 		// The shot has been initialized and the new state chosen. Jump the Sequence to the starting time.
 		// This means that the camera will be in the correct location for warm-up frames to allow any systems
 		// dependent on camera position to properly warm up. If motion blur fixes are enabled, then we'll jump 
 		// again after the warm-up frames.
-		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(CurrentCameraCut.CurrentTick, TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
+		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(CurrentCameraCut.CurrentMasterSeqTick, TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
 		
 		// We tell it to jump so that things responding to different scrub-types work correctly.
 		LevelSequenceActor->GetSequencePlayer()->JumpToFrame(TimeInPlayRate);
-		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(CurrentCameraCut.CurrentTick, TargetSequence->GetMovieScene()->GetTickResolution()));
+		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(CurrentCameraCut.CurrentMasterSeqTick, TargetSequence->GetMovieScene()->GetTickResolution()));
 
 		// Ensure we don't try to evaluate as we want to sit and wait during warm up and motion blur frames.
 		LevelSequenceActor->GetSequencePlayer()->Pause();
@@ -77,21 +87,31 @@ void UMoviePipeline::TickProducingFrames()
 	
 	// Do the WarmingUp State exit condition before the WarmingUp loop, to allow the correct WarmingUp state to
 	// persist through to the post-frame render before switching to the next state.
-	if (CurrentCameraCut.State == EMovieRenderShotState::WarmingUp && CurrentCameraCut.NumWarmUpFramesRemaining == 0)
+	if (CurrentCameraCut.State == EMovieRenderShotState::WarmingUp && CurrentCameraCut.NumEngineWarmUpFramesRemaining == 0)
 	{
 		// We can either jump to the MotionBlur state or to the Rendering state, same as with coming from Uninitialized stage. 
 		// We just let the shot decide to move on if it's appropriate (to avoid duplicating the code from Uninitialized)
-		CurrentCameraCut.SetNextState(EMovieRenderShotState::WarmingUp);
+		CurrentCameraCut.SetNextStateAfter(EMovieRenderShotState::WarmingUp);
 	}
 
 	// If the shot is warming up then we will just pass a reasonable amount of time this frame (no output data will be produced).
 	if (CurrentCameraCut.State == EMovieRenderShotState::WarmingUp)
 	{
-		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("[%d] Evaluating WarmUp frame %d. Remaining: %d"), GFrameCounter, CurrentCameraCut.NumWarmUpFramesRemaining, CurrentCameraCut.NumWarmUpFramesRemaining - 1);
+		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("[%d] Evaluating WarmUp frame %d. Remaining: %d"), GFrameCounter, CurrentCameraCut.NumEngineWarmUpFramesRemaining, CurrentCameraCut.NumEngineWarmUpFramesRemaining - 1);
 
 		// This if block will get called the same frame that we transition into the Warm Up state. We should not be in the
 		// warm up state unless we have at least one frame. 
-		CurrentCameraCut.NumWarmUpFramesRemaining--;
+		CurrentCameraCut.NumEngineWarmUpFramesRemaining--;
+		CurrentCameraCut.WorkMetrics.EngineWarmUpFrameIndex++;
+		
+		// Warm up frames will discard the result and not contribute to output.
+		CachedOutputState.bDiscardRenderResult = true;
+
+		// We only render a warm up frame if this is the last engine warmup frame and there are render warmup frames to do.
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentShot);
+		check(AntiAliasingSettings);
+		const bool bRenderFrame = CurrentCameraCut.NumEngineWarmUpFramesRemaining == 0 && AntiAliasingSettings->RenderWarmUpCount > 0;
+		CachedOutputState.bSkipRendering = !bRenderFrame;
 
 		// Render the next frame at a reasonable frame rate to pass time in the world.
 		double FrameDeltaTime = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence).AsInterval();
@@ -99,8 +119,8 @@ void UMoviePipeline::TickProducingFrames()
 		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] Shot WarmUp set engine DeltaTime to %f seconds."), GFrameCounter, FrameDeltaTime);
 		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(FrameDeltaTime));
 		
-		CachedOutputState.FrameDeltaTime = FrameDeltaTime;
-		CachedOutputState.WorldSeconds = CachedOutputState.WorldSeconds + FrameDeltaTime;
+		CachedOutputState.TimeData.FrameDeltaTime = FrameDeltaTime;
+		CachedOutputState.TimeData.WorldSeconds = CachedOutputState.TimeData.WorldSeconds + FrameDeltaTime;
 		// We don't want to execute the other possible states until at least the next frame.
 		// This ensures that we actually tick the world once for the WarmUp state.
 		return;
@@ -128,8 +148,8 @@ void UMoviePipeline::TickProducingFrames()
 		FFrameTime TicksToEndOfPreviousFrame;
 		float WorldTimeDilation = GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation();
 
-		UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(CurrentShot);
-		if (CameraSettings->TemporalSampleCount == 1)
+		UMoviePipelineAntiAliasingSetting* AntiAliasing = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentShot);
+		if (AntiAliasing->TemporalSampleCount == 1)
 		{
 			TicksToEndOfPreviousFrame = FrameMetrics.TicksPerOutputFrame;
 		}
@@ -146,7 +166,8 @@ void UMoviePipeline::TickProducingFrames()
 			TicksToEndOfPreviousFrame = TicksToEndOfPreviousFrame * WorldTimeDilation;
 		}
 		AccumulatedTickSubFrameDeltas -= TicksToEndOfPreviousFrame.GetSubFrame();
-		CurrentCameraCut.CurrentTick = CurrentCameraCut.CurrentTick - TicksToEndOfPreviousFrame.FloorToFrame();
+		CurrentCameraCut.CurrentMasterSeqTick = CurrentCameraCut.CurrentMasterSeqTick - TicksToEndOfPreviousFrame.FloorToFrame();
+		CurrentCameraCut.CurrentLocalSeqTick = CurrentCameraCut.CurrentLocalSeqTick- TicksToEndOfPreviousFrame.FloorToFrame();
 
 		// Skip to rendering which will skip the next block.
 		CurrentCameraCut.State = EMovieRenderShotState::Rendering;
@@ -155,15 +176,18 @@ void UMoviePipeline::TickProducingFrames()
 	// This block is optional, as they may not want motion blur fixes.
 	if (CurrentCameraCut.State == EMovieRenderShotState::MotionBlur)
 	{
+		CachedOutputState.bSkipRendering = true;
+		CachedOutputState.bDiscardRenderResult = true;
+
 		const MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(CurrentShot);
-		CachedOutputState.MotionBlurFraction = FrameMetrics.ShutterAnglePercentage;
+		CachedOutputState.TimeData.MotionBlurFraction = FrameMetrics.ShutterAnglePercentage;
 		
 		// For the Motion Blur frame, we evaluate the Sequence past the starting frame so that on the next frame
 		// we go backwards, and that gives us an approximation of motion blur for data we don't have. The world moves
 		// forward in both cases which is a little odd conceptually but we can't use negative delta times.
 		double FrameDeltaTime = FrameMetrics.TickResolution.AsSeconds(FrameMetrics.TicksPerSample);
-		CachedOutputState.FrameDeltaTime = FrameDeltaTime;
-		CachedOutputState.WorldSeconds = CachedOutputState.WorldSeconds + FrameDeltaTime;
+		CachedOutputState.TimeData.FrameDeltaTime = FrameDeltaTime;
+		CachedOutputState.TimeData.WorldSeconds = CachedOutputState.TimeData.WorldSeconds + FrameDeltaTime;
 
 		// We subtract a single tick here so that if you're trying to render one frame, and it is the last frame of the
 		// camera cut, if we jump forward a whole frame the evaluation will fail (since end frames are exclusive). To
@@ -172,7 +196,7 @@ void UMoviePipeline::TickProducingFrames()
 
 		// CurrentShot.CurrentTick should be at the first frame they want to evaluate, without the shutter timing/motion blur
 		// offsets taken into account. When we evaluate for this frame, take those into account.
-		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut.CurrentTick + MotionBlurDurationTicks);
+		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut.CurrentMasterSeqTick + MotionBlurDurationTicks);
 
 		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(FrameDeltaTime));
 		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(FinalEvalTime, FrameMetrics.TickResolution));
@@ -183,16 +207,6 @@ void UMoviePipeline::TickProducingFrames()
 		CurrentCameraCut.bHasEvaluatedMotionBlurFrame = true;
 		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("[%d] Shot MotionBlur set engine DeltaTime to %f seconds."), GFrameCounter, FrameDeltaTime);
 		return;
-	}
-
-	// We notify our output containers that we're starting to produce content again. This is useful for things like
-	// sound where we may want to skip a period of sound (during warm-ups, etc.) We don't do this as part of another
-	// block because you could be getting to this point from any of three states (Initializing, Warm Up, MotionBlur)
-	// so it's easier to just track it separately and do it once here.
-	if (!CurrentCameraCut.bHasNotifiedFrameProductionStarted)
-	{
-		CurrentCameraCut.bHasNotifiedFrameProductionStarted = true;
-
 	}
 
 	// Alright we're in the point where we finally want to start rendering out frames, we've finished warming up,
@@ -207,23 +221,21 @@ void UMoviePipeline::TickProducingFrames()
 		// engine delta time at the end.
 		FFrameTime DeltaFrameTime = FFrameTime();
 
-		UMoviePipelineAccumulationSetting* AccumulationSettings = FindOrAddSetting<UMoviePipelineAccumulationSetting>(CurrentShot);
-		check(AccumulationSettings);
-
-		UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(CurrentShot);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentShot);
+		check(AntiAliasingSettings);
 
 		// If we've rendered the last sample and wrapped around, then we're going to be
 		// working on the next output frame for this frame. Since OutputFrameNumber gets
 		// initialized to -1, this is ok on the very first frame of rendering as it pushes
 		// us to be working on outputting frame zero.
-		if (CachedOutputState.TemporalSampleIndex >= CameraSettings->TemporalSampleCount - 1)
+		if (CachedOutputState.TemporalSampleIndex >= AntiAliasingSettings->TemporalSampleCount - 1)
 		{
 			CachedOutputState.TemporalSampleIndex = -1;
 		}
 
 		CachedOutputState.TemporalSampleIndex++;
 
-		if (CameraSettings->TemporalSampleCount == 1)
+		if (AntiAliasingSettings->TemporalSampleCount == 1)
 		{
 			// It should always be zero when using no sub-sampling.
 			check(CachedOutputState.TemporalSampleIndex == 0);
@@ -340,8 +352,8 @@ void UMoviePipeline::TickProducingFrames()
 
 			
 			// Shouldn't be in this else branch if they don't have an Accumulation Setting for this shot.
-			check(CameraSettings);
-			check(CameraSettings->TemporalSampleCount > 1);
+			check(AntiAliasingSettings);
+			check(AntiAliasingSettings->TemporalSampleCount > 1);
 				
 			const bool bFirstFrame = CachedOutputState.TemporalSampleIndex == 0;
 			if (bFirstFrame)
@@ -442,12 +454,13 @@ void UMoviePipeline::TickProducingFrames()
 		AccumulatedTickSubFrameDeltas += DeltaFrameTime.GetSubFrame();
 
 		// Increment where we should evaluate on the current camera cut.
-		CurrentCameraCut.CurrentTick += DeltaFrameTime.GetFrame();
+		CurrentCameraCut.CurrentMasterSeqTick += DeltaFrameTime.GetFrame();
+		CurrentCameraCut.CurrentLocalSeqTick += DeltaFrameTime.GetFrame();
 
-		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut.CurrentTick);
+		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut.CurrentMasterSeqTick);
 		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] FinalEvalTime: %s (Tick: %d SOffset: %d MOffset: %d)"), 
 			GFrameCounter, *LexToString(FinalEvalTime.FloorToFrame()),
-			CurrentCameraCut.CurrentTick.Value, FrameMetrics.ShutterOffsetTicks.GetFrame().Value, FrameMetrics.MotionBlurCenteringOffsetTicks.GetFrame().Value);
+			CurrentCameraCut.CurrentMasterSeqTick.Value, FrameMetrics.ShutterOffsetTicks.GetFrame().Value, FrameMetrics.MotionBlurCenteringOffsetTicks.GetFrame().Value);
 
 		
 		// If the user doesn't want to render every frame we need to increase the delta time so that enough
@@ -455,13 +468,13 @@ void UMoviePipeline::TickProducingFrames()
 		// FrameDeltaTime = FrameDeltaTime * 1.0 / (double)Config->OutputFrameStep.Value;
 
 		double FrameDeltaTime = FrameMetrics.TickResolution.AsSeconds(FFrameTime(DeltaFrameTime.GetFrame()));
-		CachedOutputState.FrameDeltaTime = FrameDeltaTime;
-		CachedOutputState.WorldSeconds = CachedOutputState.WorldSeconds + FrameDeltaTime;
-		CachedOutputState.bWasAffectedByTimeDilation = bWasAffectedByTimeDilation;
+		CachedOutputState.TimeData.FrameDeltaTime = FrameDeltaTime;
+		CachedOutputState.TimeData.WorldSeconds = CachedOutputState.TimeData.WorldSeconds + FrameDeltaTime;
+		CachedOutputState.TimeData.bWasAffectedByTimeDilation = bWasAffectedByTimeDilation;
 
 		// The combination of shutter angle percentage, non-uniform render frame delta times and dividing by sample
 		// count produce the correct length for motion blur in all cases.
-		CachedOutputState.MotionBlurFraction = FrameMetrics.ShutterAnglePercentage / CameraSettings->TemporalSampleCount;
+		CachedOutputState.TimeData.MotionBlurFraction = FrameMetrics.ShutterAnglePercentage / AntiAliasingSettings->TemporalSampleCount;
 
 		// Update our Output State with any data we need to derive based on our current time.
 		CalculateFrameNumbersForOutputState(FrameMetrics, CurrentCameraCut, CachedOutputState);
@@ -469,7 +482,7 @@ void UMoviePipeline::TickProducingFrames()
 		// Now that we know the delta time for the upcoming frame, we can see if this time would extend past the end of our
 		// camera cut. If it does, we don't want to produce this frame as that would produce an extra frame at the end!
 		FFrameNumber EndOfCameraCut = CurrentCameraCut.TotalOutputRange.GetUpperBoundValue();
-		if (CurrentCameraCut.CurrentTick >= EndOfCameraCut)
+		if (CurrentCameraCut.CurrentMasterSeqTick >= EndOfCameraCut)
 		{
 			// If this isn't the last shot, we'll immediately call this function again to just
 			// determine a new setup/seek/etc. on the same engine tick. Otherwise we would have
@@ -486,8 +499,20 @@ void UMoviePipeline::TickProducingFrames()
 		// number. If we do it before the above block, then the last frame of each shot increments this global state incorrectly.
 		if (CachedOutputState.TemporalSampleIndex == 0)
 		{
+			CurrentCameraCut.WorkMetrics.OutputFrameIndex++;
+			CurrentCameraCut.WorkMetrics.OutputSubSampleIndex = -1;
 			CachedOutputState.OutputFrameNumber++;
+			CachedOutputState.ShotOutputFrameNumber++;
 		}
+
+		// Check to see if we should be rendering this frame. If they are frame stepping (rendering every Nth frame) then we
+		// just disable rendering but otherwise let the game logic remain the same for evaluation consistency.
+		{
+			UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+			CachedOutputState.bSkipRendering = ((CachedOutputState.OutputFrameNumber + OutputSettings->DEBUG_OutputFrameStepOffset) % OutputSettings->OutputFrameStep) != 0;
+		}
+		
+
 		
 		// Set our time step for the next frame
 		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(FrameDeltaTime));
@@ -501,16 +526,26 @@ void UMoviePipeline::TickProducingFrames()
 
 void UMoviePipeline::CalculateFrameNumbersForOutputState(const MoviePipeline::FFrameConstantMetrics& InFrameMetrics, const FMoviePipelineCameraCutInfo& InCameraCut, FMoviePipelineFrameOutputState& InOutOutputState) const
 {
-	// Find the closest number on the source Sequence. This may produce duplicates when using slow-mo tracks.
-	FFrameRate SourceDisplayRate = TargetSequence->GetMovieScene()->GetDisplayRate();
+	// Find the closest number on the source Sequence. We use the effective framerate and not the original Sequence framerate because had they actually resampled their sequence
+	// to the given display rate then the frame numbers would match what they see. This may produce duplicates when using slow-mo tracks, in that case the user should use the _rel version.
+	FFrameRate SourceDisplayRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
 
 	// "Closest" isn't straightforward when using temporal sub-sampling, ie: A large enough shutter angle pushes a sample over the half way point and it rounds to
 	// the wrong one. Because temporal sub-sampling isn't centered around a frame (the centering is done via the final eval time) we can just subtract TS*TPS to get our centered value.
 	FFrameNumber CenteringOffset = FFrameNumber(InOutOutputState.TemporalSampleIndex * InFrameMetrics.TicksPerSample.RoundToFrame().Value);
-	FFrameNumber CenteredTick = InCameraCut.CurrentTick - CenteringOffset;
+	{
+		FFrameNumber CenteredTick = InCameraCut.CurrentMasterSeqTick - CenteringOffset;
 
-	InOutOutputState.SourceFrameNumber = FFrameRate::TransformTime(CenteredTick, InFrameMetrics.TickResolution, SourceDisplayRate).RoundToFrame();
-	InOutOutputState.SourceTimeCode = FTimecode::FromFrameNumber(InOutOutputState.SourceFrameNumber, InFrameMetrics.FrameRate, false);
-	InOutOutputState.EffectiveFrameNumber = FFrameRate::TransformTime(CenteredTick, InFrameMetrics.TickResolution, InFrameMetrics.FrameRate).RoundToFrame();
-	InOutOutputState.EffectiveTimeCode = FTimecode::FromFrameNumber(InOutOutputState.SourceFrameNumber, InFrameMetrics.FrameRate, false);
+		InOutOutputState.SourceFrameNumber = FFrameRate::TransformTime(CenteredTick, InFrameMetrics.TickResolution, SourceDisplayRate).RoundToFrame().Value;
+		InOutOutputState.SourceTimeCode = FTimecode::FromFrameNumber(InOutOutputState.SourceFrameNumber, InFrameMetrics.FrameRate, false);
+		InOutOutputState.EffectiveFrameNumber = FFrameRate::TransformTime(CenteredTick, InFrameMetrics.TickResolution, InFrameMetrics.FrameRate).RoundToFrame().Value;
+		InOutOutputState.EffectiveTimeCode = FTimecode::FromFrameNumber(InOutOutputState.SourceFrameNumber, InFrameMetrics.FrameRate, false);
+	}
+
+	{
+		FFrameNumber CenteredTick = InCameraCut.CurrentLocalSeqTick - CenteringOffset;
+
+		InOutOutputState.CurrentShotSourceFrameNumber = FFrameRate::TransformTime(CenteredTick, InFrameMetrics.TickResolution, SourceDisplayRate).RoundToFrame().Value;
+		InOutOutputState.CurrentShotSourceTimeCode = FTimecode::FromFrameNumber(InOutOutputState.CurrentShotSourceFrameNumber, InFrameMetrics.FrameRate, false);
+	}
 }

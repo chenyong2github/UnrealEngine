@@ -3,7 +3,7 @@
 #include "Render/Device/DisplayClusterDeviceBase_PostProcess.h"
 #include "Render/Device/DisplayClusterRenderViewport.h"
 
-#include "Misc/DisplayClusterHelpers.h"
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 
 #include "HAL/IConsoleManager.h"

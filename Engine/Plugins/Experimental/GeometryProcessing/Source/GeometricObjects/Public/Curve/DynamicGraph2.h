@@ -72,7 +72,7 @@ public:
 		return 0.5 * (vertices.AsVector2(e.A) + vertices.AsVector2(e.B));
 	}
 
-	int AppendVertex(FVector2d V)
+	int AppendVertex(FVector2<T> V)
 	{
 		int vid = append_vertex_internal();
 		vertices.InsertAt({{V.X, V.Y}}, vid);
@@ -138,13 +138,13 @@ public:
 	}
 
 	/**
-	 * return edges around VID sorted by angle, in clockwise order
+	 * return edges around VID sorted by angle, in counter-clockwise order
 	 */
 	bool SortedVtxEdges(int VID, TArray<int>& Sorted) const
 	{
 		if (vertices_refcount.IsValid(VID) == false)
 			return false;
-		Sorted.SetNumUninitialized(vertex_edges.GetCount(VID));
+		Sorted.Reserve(vertex_edges.GetCount(VID));
 		for (int EID : vertex_edges.Values(VID))
 		{
 			Sorted.Add(EID);

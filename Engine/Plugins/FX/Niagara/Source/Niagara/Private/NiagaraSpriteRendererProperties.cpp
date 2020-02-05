@@ -9,7 +9,14 @@
 #include "Modules/ModuleManager.h"
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
+#include "Widgets/Images/SImage.h"
+#include "Styling/SlateIconFinder.h"
+#include "Widgets/SWidget.h"
+#include "Styling/SlateBrush.h"
+#include "AssetThumbnail.h"
+#include "Widgets/Text/STextBlock.h"
 #endif
+
 #define LOCTEXT_NAMESPACE "UNiagaraSpriteRendererProperties"
 
 TArray<TWeakObjectPtr<UNiagaraSpriteRendererProperties>> UNiagaraSpriteRendererProperties::SpriteRendererPropertiesToDeferredInit;
@@ -246,6 +253,46 @@ const TArray<FNiagaraVariable>& UNiagaraSpriteRendererProperties::GetOptionalAtt
 	return Attrs;
 }
 
+void UNiagaraSpriteRendererProperties::GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
+{
+	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
+	int32 ThumbnailSize = 32;
+	TArray<UMaterialInterface*> Materials;
+	GetUsedMaterials(InEmitter, Materials);
+	for (UMaterialInterface* PreviewedMaterial : Materials)
+	{
+		TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(PreviewedMaterial, ThumbnailSize, ThumbnailSize, InThumbnailPool));
+		if (AssetThumbnail)
+		{
+			ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
+		}
+		OutWidgets.Add(ThumbnailWidget);
+	}
+
+	if (Materials.Num() == 0)
+	{
+		TSharedRef<SWidget> SpriteWidget = SNew(SImage)
+			.Image(FSlateIconFinder::FindIconBrushForClass(GetClass()));
+		OutWidgets.Add(SpriteWidget);
+	}
+}
+
+void UNiagaraSpriteRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
+{
+	TArray<UMaterialInterface*> Materials;
+	GetUsedMaterials(InEmitter, Materials);
+	if (Materials.Num() > 0)
+	{
+		GetRendererWidgets(InEmitter, OutWidgets, InThumbnailPool);
+	}
+	else
+	{
+		TSharedRef<SWidget> SpriteTooltip = SNew(STextBlock)
+			.Text(LOCTEXT("SpriteRendererNoMat", "Sprite Renderer (No Material Set)"));
+		OutWidgets.Add(SpriteTooltip);
+	}
+}
+
 bool UNiagaraSpriteRendererProperties::IsMaterialValidForRenderer(UMaterial* InMaterial, FText& InvalidMessage)
 {
 	if (InMaterial->bUsedWithNiagaraSprites == false)
@@ -298,7 +345,7 @@ void UNiagaraSpriteRendererProperties::CacheDerivedData()
 		TArray<uint8> Data;
 
 		COOK_STAT(auto Timer = NiagaraCutoutCookStats::UsageStats.TimeSyncWork());
-		if (GetDerivedDataCacheRef().GetSynchronous(*KeyString, Data))
+		if (GetDerivedDataCacheRef().GetSynchronous(*KeyString, Data, GetPathName()))
 		{
 			COOK_STAT(Timer.AddHit(Data.Num()));
 			DerivedData.BoundingGeometry.Empty(Data.Num() / sizeof(FVector2D));
@@ -312,7 +359,7 @@ void UNiagaraSpriteRendererProperties::CacheDerivedData()
 			Data.Empty(DerivedData.BoundingGeometry.Num() * sizeof(FVector2D));
 			Data.AddUninitialized(DerivedData.BoundingGeometry.Num() * sizeof(FVector2D));
 			FPlatformMemory::Memcpy(Data.GetData(), DerivedData.BoundingGeometry.GetData(), DerivedData.BoundingGeometry.Num() * DerivedData.BoundingGeometry.GetTypeSize());
-			GetDerivedDataCacheRef().Put(*KeyString, Data);
+			GetDerivedDataCacheRef().Put(*KeyString, Data, GetPathName());
 			COOK_STAT(Timer.AddMiss(Data.Num()));
 		}
 	}

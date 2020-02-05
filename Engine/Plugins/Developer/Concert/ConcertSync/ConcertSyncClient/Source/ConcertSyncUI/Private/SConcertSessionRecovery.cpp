@@ -22,6 +22,8 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 	IntroductionText = InArgs._IntroductionText;
 	ParentWindow = InArgs._ParentWindow;
 	OnRestoreFn = InArgs._OnRestore;
+	OnCancelFn = InArgs._OnCancel;
+	IsRecoverThroughButtonVisible = InArgs._IsRecoverThroughButtonsVisible;
 
 	ActivityViewOptions = MakeShared<FConcertSessionActivitiesOptions>();
 	ActivityViewOptions->bEnableConnectionActivityFiltering = InArgs._IsConnectionActivityFilteringEnabled;
@@ -45,7 +47,8 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 	.PackageActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetPackageActivitiesVisibility)
 	.TransactionActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTransactionActivitiesVisibility)
 	.IgnoredActivitiesVisibility(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetIgnoredActivitiesVisibility)
-	.DetailsAreaVisibility(InArgs._DetailsAreaVisibility);
+	.DetailsAreaVisibility(InArgs._DetailsAreaVisibility)
+	.NoActivitiesReasonText(InArgs._NoActivitiesReasonText);
 
 	ChildSlot
 	[
@@ -119,6 +122,7 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 			[
 				SNew(SUniformGridPanel)
 				.SlotPadding(FMargin(2.0f, 0.0f))
+				.Visibility(InArgs._AreRecoverAllAndCancelButtonsVisible.Get() ? EVisibility::Visible : EVisibility::Collapsed)
 
 				+SUniformGridPanel::Slot(0, 0)
 				[
@@ -189,9 +193,24 @@ TSharedPtr<SWidget> SConcertSessionRecovery::MakeRecoverThroughWidget(TWeakPtr<F
 	return nullptr; // No overlay.
 }
 
+void SConcertSessionRecovery::Reset()
+{
+	ActivityView->Reset();
+}
+
+int32 SConcertSessionRecovery::GetTotalActivityNum() const
+{
+	return ActivityView->GetTotalActivityNum();
+}
+
+TSharedPtr<FConcertClientSessionActivity> SConcertSessionRecovery::GetMostRecentActivity() const
+{
+	return ActivityView->GetMostRecentActivity();
+}
+
 EVisibility SConcertSessionRecovery::GetRecoverThroughButtonVisibility(TSharedPtr<FConcertClientSessionActivity> Activity)
 {
-	return Activity == ActivityView->GetSelectedActivity() ? EVisibility::Visible : EVisibility::Hidden;
+	return Activity == ActivityView->GetSelectedActivity() && IsRecoverThroughButtonVisible.Get() ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 FText SConcertSessionRecovery::GetRecoverThroughButtonTooltip() const
@@ -255,7 +274,14 @@ FReply SConcertSessionRecovery::OnCancelRecoveryClicked()
 {
 	check(!RecoveryThroughItem.IsValid());
 
-	DismissWindow();
+	if (OnCancelFn) // If a cancel behavior is bound.
+	{
+		OnCancelFn();
+	}
+	else // Default cancel behavior.
+	{
+		DismissWindow();
+	}
 	return FReply::Handled();
 }
 

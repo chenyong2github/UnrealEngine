@@ -39,6 +39,8 @@ class SComboButton;
 class UBlendProfile;
 struct FNotificationInfo;
 class IPinnedCommandList;
+class FPackageReloadedEvent;
+enum class EPackageReloadPhase : uint8;
 
 //////////////////////////////////////////////////////////////////////////
 // SSkeletonTree
@@ -314,6 +316,9 @@ private:
 
 	/** Handle external deselection event */
 	void HandleDeselectAll();
+
+	/** Handle package reloading (might be our skeleton) */
+	void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 
 private:
 	/** Pointer back to the skeleton tree that owns us */

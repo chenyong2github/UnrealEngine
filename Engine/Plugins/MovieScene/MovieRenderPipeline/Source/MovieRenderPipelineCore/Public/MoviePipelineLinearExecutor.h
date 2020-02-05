@@ -23,11 +23,15 @@ public:
 	UMoviePipelineLinearExecutorBase()
 		: UMoviePipelineExecutorBase()
 		, CurrentPipelineIndex(0)
+		, bIsRendering(false)
 	{
 	}
 
 protected:
+	// UMoviePipelineExecutorBase Interface
 	virtual void ExecuteImpl(UMoviePipelineQueue* InPipelineQueue) override;
+	virtual bool IsRenderingImpl() const override { return bIsRendering; }
+	// ~UMoviePipelineExeuctorBase Interface
 
 	virtual void StartPipelineByIndex(int32 InPipelineIndex);
 	virtual void Start(const UMoviePipelineExecutorJob* InJob) {}
@@ -49,6 +53,8 @@ protected:
 	/** Which Pipeline Config are we currently working on. */
 	int32 CurrentPipelineIndex;
 
+	/** Have we actually successfully started a render? */
+	bool bIsRendering;
 private:
 	/** Used to track total processing duration. */
 	FDateTime InitializationTime;

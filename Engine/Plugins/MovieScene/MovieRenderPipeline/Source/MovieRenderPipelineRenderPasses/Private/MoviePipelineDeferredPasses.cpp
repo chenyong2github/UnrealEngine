@@ -26,6 +26,8 @@
 #include "Materials/Material.h"
 #include "MoviePipelineCameraSetting.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineAntiAliasingSetting.h"
+#include "MoviePipelineOutputSetting.h"
 
 namespace MoviePipeline
 {
@@ -46,13 +48,6 @@ namespace MoviePipeline
 
 		// Allocate 
 		ViewState.Allocate();
-
-		// Override us to use linear color output.
-		IConsoleVariable* OutputDeviceCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
-		check(OutputDeviceCVar);
-
-		PreviousOutputDeviceIdx = OutputDeviceCVar->GetInt();
-		OutputDeviceCVar->Set(8 /*Linear No Tone Curve*/, EConsoleVariableFlags::ECVF_SetByConsole);
 	}
 
 	void FDeferredRenderEnginePass::Teardown()
@@ -65,21 +60,13 @@ namespace MoviePipeline
 		}
 
 		ViewState.Destroy();
-
-		// Restore the previous output device so that we don't leak changes into the editor.
-		IConsoleVariable* OutputDeviceCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
-		check(OutputDeviceCVar);
-
-		OutputDeviceCVar->Set(PreviousOutputDeviceIdx, EConsoleVariableFlags::ECVF_SetByConsole);
 	}
 
 	void FDeferredRenderEnginePass::RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState)
 	{
 		FMoviePipelineEnginePass::RenderSample_GameThread(InSampleState);
 
-		float TimeSeconds = InSampleState.OutputState.WorldSeconds;
-		float RealTimeSeconds = InSampleState.OutputState.WorldSeconds;
-		float DeltaTimeSeconds = InSampleState.OutputState.FrameDeltaTime;
+		const FMoviePipelineFrameOutputState::FTimeData& TimeData = InSampleState.OutputState.TimeData;
 
 		FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 
@@ -95,52 +82,66 @@ namespace MoviePipeline
 			TileRenderTarget->GameThread_GetRenderTargetResource(),
 			GetPipeline()->GetWorld()->Scene,
 			ShowFlags)
-			.SetWorldTimes(TimeSeconds, DeltaTimeSeconds, RealTimeSeconds)
+			.SetWorldTimes(TimeData.WorldSeconds, TimeData.FrameDeltaTime, TimeData.WorldSeconds)
 			.SetRealtimeUpdate(true));
 
-		ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
+		ViewFamily.SceneCaptureSource = InSampleState.SceneCaptureSource;
 		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
+		ViewFamily.bWorldIsPaused = InSampleState.bWorldIsPaused;
 
 		// View is added as a child of the ViewFamily
 		FSceneView* View = CalcSceneView(&ViewFamily, InSampleState);
 
-		// ToDo: This doesn't work.
-		ViewFamily.FrameNumber += InSampleState.SpatialSampleIndex;
+		// Override the view's FrameIndex to be based on our progress through the sequence. This greatly increases
+		// determinism with things like TAA.
+		View->OverrideFrameIndexValue = InSampleState.FrameIndex;
+		View->bCameraCut = InSampleState.bCameraCut;
+		View->bIsOfflineRender = true;
+		View->AntiAliasingMethod = InSampleState.AntiAliasingMethod;
 
 		// Override the Motion Blur settings since these are controlled by the movie pipeline.
 		{
 			FFrameRate OutputFrameRate = GetPipeline()->GetPipelineMasterConfig()->GetEffectiveFrameRate(GetPipeline()->GetTargetSequence());
 			View->FinalPostProcessSettings.MotionBlurTargetFPS = FMath::RoundToInt(OutputFrameRate.AsDecimal());
-			View->FinalPostProcessSettings.MotionBlurAmount = InSampleState.OutputState.MotionBlurFraction;
+			View->FinalPostProcessSettings.MotionBlurAmount = InSampleState.OutputState.TimeData.MotionBlurFraction;
 			View->FinalPostProcessSettings.MotionBlurMax = 100.f;
 			View->FinalPostProcessSettings.bOverride_MotionBlurAmount = true;
 			View->FinalPostProcessSettings.bOverride_MotionBlurTargetFPS = true;
 			View->FinalPostProcessSettings.bOverride_MotionBlurMax = true;
 		}
 
-		if (InSampleState.ExposureCompensation.IsSet())
+		// Locked Exposure
 		{
-			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-			View->FinalPostProcessSettings.AutoExposureBias = InSampleState.ExposureCompensation.GetValue();
-		}
-		else if (InSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
-		{
-			// Auto exposure is not allowed
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual when using tiling!"));
-			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-		}
-
-		const bool bCanUseAA = InSampleState.SpatialSampleCount == 1 && 
-							   (InSampleState.TileCounts.X == 1 && InSampleState.TileCounts.Y == 1) && 
-							   InSampleState.TemporalSampleCount == 1;
-		if (!bCanUseAA)
-		{
-			View->AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
-
-			// Override the view matrix with our offsets provided by tiling/jittering. This requires
-			// TAA to be disabled.
+			if (InSampleState.ExposureCompensation.IsSet())
 			{
-				View->ViewMatrices.HackAddTemporalAAProjectionJitter(InSampleState.SpatialShift);
+				View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+				View->FinalPostProcessSettings.AutoExposureBias = InSampleState.ExposureCompensation.GetValue();
+			}
+			else if (InSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
+			{
+				// Auto exposure is not allowed
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual when using tiling!"));
+				View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+			}
+		}
+		
+		// Anti Aliasing
+		{
+			// If we're not using Temporal Anti-Aliasing we will apply the View Matrix projection jitter. Normally TAA sets this
+			// inside FSceneRenderer::PreVisibilityFrameSetup..
+			if(View->AntiAliasingMethod != EAntiAliasingMethod::AAM_TemporalAA)
+			{
+				View->ViewMatrices.HackAddTemporalAAProjectionJitter(InSampleState.ProjectionMatrixJitterAmount);
+			}
+		}
+		
+		// Object Occlusion/Histories
+		{
+			// If we're using tiling, we force the reset of histories each frame so that we don't use the previous tile's
+			// object occlusion queries, as that causes things to disappear from some views.
+			if(InSampleState.GetTileCount() > 1)
+			{
+				View->bForceCameraVisibilityReset = true;
 			}
 		}
 
@@ -155,24 +156,7 @@ namespace MoviePipeline
 			View->MaterialTextureMipBias += InSampleState.TextureSharpnessBias;
 		}
 
-		// If this is a history only frame it means we just came from a camera cut, flag it as such
-		// which will have knock-on effects in histories (such as clearing old TAA buffers).
-		if (InSampleState.bIsHistoryOnlyFrame)
-		{
-			View->bCameraCut = true;
-		}
-
-		// The world is always paused, but we are setting the motion blur and view matrices manually
-		bool bIsLastTile = InSampleState.TileIndexes == (InSampleState.TileCounts - FIntPoint(1, 1));
-		bool bIsLastSpatialSample = InSampleState.SpatialSampleIndex == InSampleState.SpatialSampleCount - 1;
-		
-		// The view is frozen for all tiles and all spatial samples, but unfrozen on the last one to allow
-		// a chance to run once-per-game-frame updates. 
-		ViewFamily.bWorldIsPaused = !(bIsLastTile && bIsLastSpatialSample);
-
 		FCanvas Canvas = FCanvas(TileRenderTarget->GameThread_GetRenderTargetResource(), nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
-
-
 		// SetupViewDelegate.Broadcast(ViewFamily, *View, InSampleState);
 
 		// Draw the world into this View Family
@@ -186,7 +170,7 @@ namespace MoviePipeline
 		{
 			// If they only needed this frame for the history, we don't actually care about trying to output it,
 			// so we can skip the copy and pushing to output.
-			if (InSampleState.bIsHistoryOnlyFrame)
+			if (InSampleState.bDiscardResult)
 			{
 				return;
 			}
@@ -224,6 +208,7 @@ namespace MoviePipeline
 	FSceneView* FDeferredRenderEnginePass::CalcSceneView(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InSampleState)
 	{
 		APlayerController* LocalPlayerController = GetPipeline()->GetWorld()->GetFirstPlayerController();
+		// GetPipeline()->GetWorld()->GetGameViewport()->bDisableWorldRendering = true;
 
 		int32 TileSizeX = InitSettings.BackbufferResolution.X;
 		int32 TileSizeY = InitSettings.BackbufferResolution.Y;
@@ -332,11 +317,10 @@ namespace MoviePipeline
 		ViewFamily->Views.Add(View);
 		View->ViewLocation = InSampleState.FrameInfo.CurrViewLocation;
 		View->ViewRotation = InSampleState.FrameInfo.CurrViewRotation;
+		// Override previous/current view transforms so that tiled renders don't use the wrong occlusion/motion blur information.
 		View->PreviousViewTransform = FTransform(InSampleState.FrameInfo.PrevViewRotation, InSampleState.FrameInfo.PrevViewLocation);
 
 		View->StartFinalPostprocessSettings(View->ViewLocation);
-		View->OverrideFrameIndexValue = InSampleState.SpatialSampleIndex;
-		View->bIsOfflineRender = true;
 
 		// CameraAnim override
 		if (LocalPlayerController->PlayerCameraManager)
@@ -385,8 +369,6 @@ namespace MoviePipeline
 			View->LensPrincipalPointOffsetScale = FVector4(TilePrincipalPointOffset.X, -TilePrincipalPointOffset.Y, TilePrincipalPointScale.X, TilePrincipalPointScale.Y);
 		}
 
-		View->bForceCameraVisibilityReset = true;
-
 		View->EndFinalPostprocessSettings(ViewInitOptions);
 
 		return View;
@@ -401,9 +383,9 @@ void UMoviePipelineDeferredPassBase::GetRequiredEnginePassesImpl(TSet<FMoviePipe
 	RequiredEnginePasses.Add(FMoviePipelinePassIdentifier(TEXT("MainDeferredPass")));
 }
 
-void UMoviePipelineDeferredPassBase::SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses)
+void UMoviePipelineDeferredPassBase::SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
-	Super::SetupImpl(InEnginePasses);
+	Super::SetupImpl(InEnginePasses, InPassInitSettings);
 
 	DesiredOutputPasses.Empty();
 
@@ -511,7 +493,7 @@ void UMoviePipelineDeferredPassBase::OnSetupView(FSceneViewFamily& InViewFamily,
 				InPixelData->GetSize().X, InPixelData->GetSize().Y, InPixelData->GetBitDepth());
 
 			// Don't try to accumulate samples rendered for the sake of setting up history.
-			if (AccumulationParams.SampleState.bIsHistoryOnlyFrame)
+			if (AccumulationParams.SampleState.bDiscardResult)
 			{
 				return;
 			}

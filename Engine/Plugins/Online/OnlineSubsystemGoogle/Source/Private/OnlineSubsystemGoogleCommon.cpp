@@ -180,11 +180,6 @@ IOnlineEntitlementsPtr FOnlineSubsystemGoogleCommon::GetEntitlementsInterface() 
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemGoogleCommon::GetStoreInterface() const
-{
-	return nullptr;
-}
-
 IOnlineEventsPtr FOnlineSubsystemGoogleCommon::GetEventsInterface() const
 {
 	return nullptr;

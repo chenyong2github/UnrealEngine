@@ -19,6 +19,7 @@
 #include "Engine/NetConnection.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Misc/ScopeExit.h"
+#include "Net/Core/Trace/NetTrace.h"
 
 DECLARE_CYCLE_STAT(TEXT("Custom Delta Property Rep Time"), STAT_NetReplicateCustomDeltaPropTime, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("ReceiveRPC"), STAT_NetReceiveRPC, STATGROUP_Game);
@@ -151,7 +152,7 @@ public:
 			UpdateCachedRepLayout();
 			UPackageMapClient* PackageMapClient = ((UPackageMapClient*)Params.Map);
 
-			if (PackageMapClient && PackageMapClient->GetConnection()->InternalAck)
+			if (PackageMapClient && PackageMapClient->GetConnection()->IsInternalAck())
 			{
 				if (Ar.IsSaving())
 				{
@@ -320,7 +321,7 @@ bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, uint16 Custom
 	Parms.CustomDeltaIndex = CustomDeltaIndex;
 	Parms.bSupportsFastArrayDeltaStructSerialization = bSupportsFastArrayDelta;
 	Parms.Connection = Connection;
-	Parms.bInternalAck = Connection->InternalAck;
+	Parms.bInternalAck = Connection->IsInternalAck();
 
 	return FNetSerializeCB::SendCustomDeltaProperty(*RepLayout, Parms, CustomDeltaIndex);
 }
@@ -351,9 +352,9 @@ void FObjectReplicator::InitRecentProperties(uint8* Source)
 	// for replays (and the DemoNetDriver will be acts as a server during recording).
 	TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker = bCreateSendingState ? ConnectionDriver->FindOrCreateRepChangedPropertyTracker(MyObject) : nullptr;
 
-	// If acting as a server and are InternalAck, that means we're recording.
+	// If acting as a server and are IsInternalAck, that means we're recording.
 	// In that case, we don't need to create any receiving state, as no one will be sending data to us.
-	ECreateRepStateFlags Flags = (Connection->InternalAck && bIsServer) ? ECreateRepStateFlags::SkipCreateReceivingState : ECreateRepStateFlags::None;
+	ECreateRepStateFlags Flags = (Connection->IsInternalAck() && bIsServer) ? ECreateRepStateFlags::SkipCreateReceivingState : ECreateRepStateFlags::None;
 	RepState = LocalRepLayout.CreateRepState(Source, RepChangedPropertyTracker, Flags);
 
 	if (!bCreateSendingState)
@@ -373,7 +374,7 @@ void FObjectReplicator::InitRecentProperties(uint8* Source)
 		const uint16 NumLifetimeCustomDeltaProperties = FNetSerializeCB::GetNumLifetimeCustomDeltaProperties(LocalRepLayout);
 		SendingRepState->RecentCustomDeltaState.SetNum(NumLifetimeCustomDeltaProperties);
 
-		const bool bIsRecordingReplay = Connection->InternalAck;
+		const bool bIsRecordingReplay = Connection->IsInternalAck();
 
 		if (bIsRecordingReplay)
 		{
@@ -576,7 +577,7 @@ void FObjectReplicator::StartReplicating(class UActorChannel * InActorChannel)
 	if (ConnectionNetDriver->IsServer() || ConnectionNetDriver->MaySendProperties())
 	{
 		// We don't need to handle retirement if our connection is reliable.
-		if (!Connection->InternalAck)
+		if (!Connection->IsInternalAck())
 		{
 			if (FSendingRepState * SendingRepState = RepState.IsValid() ? RepState->GetSendingRepState() : nullptr)
 			{
@@ -945,8 +946,18 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 	FNetSerializeCB NetSerializeCB(ConnectionNetDriver);
 
 	// Read each property/function blob into Reader (so we've safely jumped over this data in the Bunch/stream at this point)
-	while (OwningChannel->ReadFieldHeaderAndPayload(Object, ClassCache, NetFieldExportGroup, Bunch, &FieldCache, Reader))
+	while (true)
 	{
+		UE_NET_TRACE_NAMED_DYNAMIC_NAME_SCOPE(FieldHeaderAndPayloadScope, FName(), Bunch, OwningChannel->Connection->GetInTraceCollector(), ENetTraceVerbosity::Trace);
+
+		if (!OwningChannel->ReadFieldHeaderAndPayload(Object, ClassCache, NetFieldExportGroup, Bunch, &FieldCache, Reader))
+		{
+			break;
+		}
+
+		// Instead of using a "sub-collector" we inject an offset and populates packet content events by using the incoming collector assuming that we read data from packet sequentially
+		UE_NET_TRACE_OFFSET_SCOPE(Bunch.GetPosBits() - Reader.GetNumBits(), OwningChannel->Connection->GetInTraceCollector());
+
 		if (UNLIKELY(Bunch.IsError()))
 		{
 			UE_LOG(LogNet, Error, TEXT("ReceivedBunch: Error reading field: %s"), *Object->GetFullName());
@@ -965,6 +976,8 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 			UE_LOG(LogNet, Verbose, TEXT( "ReceivedBunch: FieldCache->bIncompatible == true. Object: %s, Field: %s" ), *Object->GetFullName(), *FieldCache->Field.GetFName().ToString());
 			continue;
 		}
+
+		UE_NET_TRACE_SET_SCOPE_NAME(FieldHeaderAndPayloadScope, FieldCache->Field.GetFName());
 
 		// Handle property
 		if (FStructProperty* ReplicatedProp = CastField<FStructProperty>(FieldCache->Field.ToField()))
@@ -999,7 +1012,7 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 			Parms.Reader = &Reader;
 			Parms.NetSerializeCB = &NetSerializeCB;
 			Parms.Connection = Connection;
-			Parms.bInternalAck = Connection->InternalAck;
+			Parms.bInternalAck = Connection->IsInternalAck();
 			Parms.Object = Object;
 
 			if (!FNetSerializeCB::ReceiveCustomDeltaProperty(LocalRepLayout, ReceivingRepState, Parms, ReplicatedProp))
@@ -1248,7 +1261,7 @@ void FObjectReplicator::UpdateGuidToReplicatorMap()
 		Parms.GatherGuidReferences = &LocalReferencedGuids;
 		Parms.TrackedGuidMemoryBytes = &LocalTrackedGuidMemoryBytes;
 		Parms.Object = GetObject();
-		Parms.bInternalAck = Connection->InternalAck;
+		Parms.bInternalAck = Connection->IsInternalAck();
 
 		LocalRepLayout.GatherGuidReferences(RepState->GetReceivingRepState(), Parms, LocalReferencedGuids, LocalTrackedGuidMemoryBytes);
 	}
@@ -1305,7 +1318,7 @@ bool FObjectReplicator::MoveMappedObjectToUnmapped(const FNetworkGUID& GUID)
 	FNetSerializeCB NetSerializeCB(Connection->Driver);
 	FNetDeltaSerializeInfo Parms;
 	Parms.Connection = Connection;
-	Parms.bInternalAck = Connection->InternalAck;
+	Parms.bInternalAck = Connection->IsInternalAck();
 	Parms.Map = Connection->PackageMap;
 	Parms.Object = GetObject();
 	Parms.NetSerializeCB = &NetSerializeCB;
@@ -1461,7 +1474,7 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 		FPropertyRetirement** LastNext = nullptr;
 
-		if (!Connection->InternalAck)
+		if (!Connection->IsInternalAck())
 		{
 			// Get info.
 			FPropertyRetirement& Retire = SendingRepState->Retirement[CustomDeltaProperty];
@@ -1486,7 +1499,7 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 			continue;
 		}
 
-		if (!Connection->InternalAck)
+		if (!Connection->IsInternalAck())
 		{
 			*LastNext = new FPropertyRetirement();
 
@@ -1531,6 +1544,12 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 
 	FNetBitWriter Writer( Bunch.PackageMap, 8192 );
 
+#if UE_NET_TRACE_ENABLED
+	// Create trace collector if tracing is enabled for the target bunch
+	SetTraceCollector(Writer, GetTraceCollector(Bunch) ? UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace) : nullptr);
+    ON_SCOPE_EXIT { UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(Writer)); };
+#endif
+ 
 	// TODO: Maybe ReplicateProperties could just take the RepState, Changelist Manger, Writer, and OwningChannel
 	//		and all the work could just be done in a single place.
 
@@ -1799,14 +1818,18 @@ void FObjectReplicator::QueueRemoteFunctionBunch( UFunction* Func, FOutBunch &Bu
 	if (++RemoteFuncInfo[InfoIdx].Calls > CVarMaxRPCPerNetUpdate.GetValueOnAnyThread())
 	{
 		UE_LOG(LogRep, Verbose, TEXT("Too many calls (%d) to RPC %s within a single netupdate. Skipping. %s.  LastCallTime: %.2f. CurrentTime: %.2f. LastRelevantTime: %.2f. LastUpdateTime: %.2f "),
-			RemoteFuncInfo[InfoIdx].Calls, *Func->GetName(), *GetPathNameSafe(GetObject()), RemoteFuncInfo[InfoIdx].LastCallTime, OwningChannel->Connection->Driver->Time, OwningChannel->RelevantTime, OwningChannel->LastUpdateTime);
+			RemoteFuncInfo[InfoIdx].Calls, *Func->GetName(), *GetPathNameSafe(GetObject()), RemoteFuncInfo[InfoIdx].LastCallTimestamp, OwningChannel->Connection->Driver->GetElapsedTime(), OwningChannel->RelevantTime, OwningChannel->LastUpdateTime);
 
 		// The MustBeMappedGuids can just be dropped, because we aren't actually going to send a bunch. If we don't clear it, then we will get warnings when the next channel tries to replicate
 		CastChecked<UPackageMapClient>(Connection->PackageMap)->GetMustBeMappedGuidsInLastBunch().Reset();
 		return;
 	}
 	
-	RemoteFuncInfo[InfoIdx].LastCallTime = OwningChannel->Connection->Driver->Time;
+	RemoteFuncInfo[InfoIdx].LastCallTimestamp = OwningChannel->Connection->Driver->GetElapsedTime();
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	RemoteFuncInfo[InfoIdx].LastCallTime = RemoteFuncInfo[InfoIdx].LastCallTimestamp;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (RemoteFunctions == nullptr)
 	{
@@ -1826,7 +1849,7 @@ void FObjectReplicator::QueueRemoteFunctionBunch( UFunction* Func, FOutBunch &Bu
 			PackageMapClient->GetMustBeMappedGuidsInLastBunch().Reset();
 		}
 
-		if (!Connection->InternalAck)
+		if (!Connection->IsInternalAck())
 		{
 			// Copy over any exported bunches
 			PackageMapClient->AppendExportBunches(OwningChannel->QueuedExportBunches);
@@ -1971,7 +1994,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	FNetDeltaSerializeInfo Parms;
 	Parms.Object = Object;
 	Parms.Connection = Connection;
-	Parms.bInternalAck = Connection->InternalAck;
+	Parms.bInternalAck = Connection->IsInternalAck();
 	Parms.Map = Connection->PackageMap;
 	Parms.NetSerializeCB = &NetSerializeCB;
 
@@ -2042,7 +2065,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 
 			if (!bSuccess)
 			{
-				if (bIsServer && !Connection->InternalAck)
+				if (bIsServer && !Connection->IsInternalAck())
 				{
 					// Close our connection and abort rpcs as things are invalid
 					PendingLocalRPCs.Empty();

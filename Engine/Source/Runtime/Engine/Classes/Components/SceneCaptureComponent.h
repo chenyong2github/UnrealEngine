@@ -56,7 +56,7 @@ enum class ESceneCapturePrimitiveRenderMode : uint8
 };
 
 	// -> will be exported to EngineDecalClasses.h
-UCLASS(hidecategories=(abstract, Collision, Object, Physics, SceneComponent, Mobility))
+UCLASS(abstract, hidecategories=(Collision, Object, Physics, SceneComponent, Mobility))
 class ENGINE_API USceneCaptureComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()

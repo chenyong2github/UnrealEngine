@@ -12,6 +12,7 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"ImageWriteQueue",
+                "SignalProcessing", // Needed for wave writer.
 			}
 		);
 

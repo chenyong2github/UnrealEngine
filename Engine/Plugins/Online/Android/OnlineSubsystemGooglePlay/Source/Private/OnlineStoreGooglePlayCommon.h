@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
 #include "Interfaces/OnlineStoreInterface.h"
 #include "Interfaces/OnlineStoreInterfaceV2.h"
 #include "Interfaces/OnlinePurchaseInterface.h"
@@ -105,18 +104,6 @@ enum class EInAppPurchaseResult : uint8
 	Cancelled,
 };
 
-/**
- * Implementation of the Platform Purchase receipt. For this we provide an identifier and the encrypted data.
- */
-class FGooglePlayPurchaseReceipt : public IPlatformPurchaseReceipt
-{
-public:
-	// Product identifier
-	FString Identifier;
-
-	// The encrypted receipt data
-	FString Data;
-};
 
  /**
   * Delegate fired when an IAP query for available offers has completed
@@ -124,7 +111,7 @@ public:
   * @param Response response from GooglePlay backend
   * @param ProvidedProductInformation list of offers returned in response to a query on available offer ids
   */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGooglePlayAvailableIAPQueryComplete, EGooglePlayBillingResponseCode /*Response*/, const TArray<FInAppPurchaseProductInfo>& /*ProvidedProductInformation*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGooglePlayAvailableIAPQueryComplete, EGooglePlayBillingResponseCode /*Response*/, const TArray<FOnlineStoreOffer>& /*ProvidedProductInformation*/);
 typedef FOnGooglePlayAvailableIAPQueryComplete::FDelegate FOnGooglePlayAvailableIAPQueryCompleteDelegate;
 
 /**

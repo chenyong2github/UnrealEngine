@@ -101,6 +101,12 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 		VertexInstanceIDs[2] = MeshDescription.CreateVertexInstance(VertexIDs[P2]);
 		VertexInstanceIDs[3] = MeshDescription.CreateVertexInstance(VertexIDs[P3]);
 
+		TVertexInstanceAttributesRef<FVector2D> UVs = GetVertexInstanceUVs();
+		UVs[VertexInstanceIDs[0]] = FVector2D(0.0f, 0.0f);
+		UVs[VertexInstanceIDs[1]] = FVector2D(1.0f, 0.0f);
+		UVs[VertexInstanceIDs[2]] = FVector2D(1.0f, 1.0f);
+		UVs[VertexInstanceIDs[3]] = FVector2D(0.0f, 1.0f);
+
 		TArray<FEdgeID> EdgeIDs;
 		EdgeIDs.Reserve(4);
 
@@ -119,7 +125,7 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 	PolygonID_PlusY = MakePolygon(1, 2, 4, 7);
 	PolygonID_MinusY = MakePolygon(3, 0, 6, 5);
 	PolygonID_PlusZ = MakePolygon(1, 0, 3, 2);
-	PolygonID_MinusZ = MakePolygon(5, 4, 7, 6);
+	PolygonID_MinusZ = MakePolygon(6, 7, 4, 5);
 
 	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Normal, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);
 	MeshDescription.PolygonAttributes().RegisterAttribute<FVector>(MeshAttribute::Polygon::Tangent, 1, FVector::ZeroVector, EMeshAttributeFlags::Transient);

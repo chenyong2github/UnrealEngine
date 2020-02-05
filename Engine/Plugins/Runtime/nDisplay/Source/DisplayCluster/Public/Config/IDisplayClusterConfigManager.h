@@ -57,9 +57,11 @@ public:
 	virtual FDisplayClusterConfigGeneral GetConfigGeneral() const = 0;
 	virtual FDisplayClusterConfigStereo  GetConfigStereo()  const = 0;
 	virtual FDisplayClusterConfigRender  GetConfigRender()  const = 0;
+	virtual FDisplayClusterConfigNvidia  GetConfigNvidia()  const = 0;
 	virtual FDisplayClusterConfigNetwork GetConfigNetwork() const = 0;
 	virtual FDisplayClusterConfigDebug   GetConfigDebug()   const = 0;
 	virtual FDisplayClusterConfigCustom  GetConfigCustom()  const = 0;
 
 	virtual FString GetFullPathToFile(const FString& FileName) const = 0;
+	virtual FString GetFullPathToNewFile(const FString& FileName) const = 0;
 };

@@ -13,6 +13,9 @@ struct LIVELINK_API FLiveLinkClientReference
 public:
 
 	FLiveLinkClientReference();
+	FLiveLinkClientReference(const FLiveLinkClientReference& Other);
+	FLiveLinkClientReference& operator=(const FLiveLinkClientReference& Other);
+	FLiveLinkClientReference(const FLiveLinkClientReference&& Other) = delete;
 	~FLiveLinkClientReference();
 
 	ILiveLinkClient* GetClient() const { return LiveLinkClient; }

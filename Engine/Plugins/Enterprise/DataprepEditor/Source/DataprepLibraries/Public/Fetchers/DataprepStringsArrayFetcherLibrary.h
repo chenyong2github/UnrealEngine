@@ -14,9 +14,25 @@ class UDataprepStringActorTagsFetcher final : public UDataprepStringsArrayFetche
 	GENERATED_BODY()
 
 public:
-	//~ UDataprepStringArrayFetcher interface
+	//~ UDataprepStringsArrayFetcher interface
 	virtual TArray<FString> Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const override;
-	//~ End of UDataprepStringFetcher interface
+	//~ End of UDataprepStringsArrayFetcher interface
+
+	//~ UDataprepFetcher interface
+	virtual bool IsThreadSafe() const final;
+	virtual FText GetNodeDisplayFetcherName_Implementation() const;
+	//~ End of UDataprepFetcher interface
+};
+
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName = "Actor Layer", ToolTip = "Return the layers of an actor."))
+class UDataprepStringActorLayersFetcher final : public UDataprepStringsArrayFetcher
+{
+	GENERATED_BODY()
+
+public:
+	//~ UDataprepStringsArrayFetcher interface
+	virtual TArray<FString> Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const override;
+	//~ End of UDataprepStringsArrayFetcher interface
 
 	//~ UDataprepFetcher interface
 	virtual bool IsThreadSafe() const final;

@@ -15,7 +15,6 @@
 #include "AssetRegistryModule.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Animation/AnimationSettings.h"
 #include "Animation/AnimationRecordingSettings.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
@@ -295,16 +294,6 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 		FixupNotifies();
 
-		// force anim settings for speed, we dont want any fancy recompression at present
-		UAnimationSettings* AnimationSettings = GetMutableDefault<UAnimationSettings>();
-		TSubclassOf<UAnimCompress> OldDefaultCompressionAlgorithm = AnimationSettings->DefaultCompressionAlgorithm;
-		TEnumAsByte<AnimationCompressionFormat> OldRotationCompressionFormat = AnimationSettings->RotationCompressionFormat;
-		TEnumAsByte<AnimationCompressionFormat> OldTranslationCompressionFormat = AnimationSettings->TranslationCompressionFormat;
-
-		AnimationSettings->DefaultCompressionAlgorithm = UAnimCompress_BitwiseCompressOnly::StaticClass();
-		AnimationSettings->RotationCompressionFormat = ACF_None;
-		AnimationSettings->TranslationCompressionFormat = ACF_None;
-
 		// post-process applies compression etc.
 		// @todo figure out why removing redundant keys is inconsistent
 
@@ -374,11 +363,6 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 		//AnimationObject->RawCurveData.RemoveRedundantKeys();
 		AnimationObject->PostProcessSequence();
-
-		// restore old settings
-		AnimationSettings->DefaultCompressionAlgorithm = OldDefaultCompressionAlgorithm;
-		AnimationSettings->RotationCompressionFormat = OldRotationCompressionFormat;
-		AnimationSettings->TranslationCompressionFormat = OldTranslationCompressionFormat;
 
 		AnimationObject->MarkPackageDirty();
 		

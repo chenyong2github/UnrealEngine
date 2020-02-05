@@ -53,6 +53,7 @@ UAIPerceptionComponent::UAIPerceptionComponent(const FObjectInitializer& ObjectI
 	, PerceptionListenerId(FPerceptionListenerID::InvalidID())
 	, bCleanedUp(false)
 {
+	bForgetStaleActors = GET_AI_CONFIG_VAR(bForgetStaleActors);
 }
 
 void UAIPerceptionComponent::RequestStimuliListenerUpdate()
@@ -415,6 +416,8 @@ void UAIPerceptionComponent::ProcessStimuli()
 	
 	TArray<AActor*> UpdatedActors;
 	UpdatedActors.Reserve(StimuliToProcess.Num());
+	TArray<AActor*> ActorsToForget;
+	ActorsToForget.Reserve(StimuliToProcess.Num());
 
 	for (FStimulusToProcess& SourcedStimulus : StimuliToProcess)
 	{
@@ -470,6 +473,14 @@ void UAIPerceptionComponent::ProcessStimuli()
 		else
 		{
 			HandleExpiredStimulus(StimulusStore);
+
+			if (bForgetStaleActors && !PerceptualInfo->HasAnyCurrentStimulus())
+			{
+				if (AActor* ActorToForget = PerceptualInfo->Target.Get())
+				{
+					ActorsToForget.Add(ActorToForget);
+				}
+			}
 		}
 
 		// if the new stimulus is "valid" or it's info that "no longer sensed" and it used to be sensed successfully
@@ -493,6 +504,11 @@ void UAIPerceptionComponent::ProcessStimuli()
 		}
 
 		OnPerceptionUpdated.Broadcast(UpdatedActors);
+	}
+
+	for (AActor* ActorToForget : ActorsToForget)
+	{
+		ForgetActor(ActorToForget);
 	}
 }
 

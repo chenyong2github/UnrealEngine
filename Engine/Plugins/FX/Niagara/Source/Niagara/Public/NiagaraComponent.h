@@ -47,10 +47,12 @@ class NIAGARA_API UNiagaraComponent : public UFXSystemComponent
 public:
 
 	/********* UFXSystemComponent *********/
+	void SetBoolParameter(FName ParameterName, bool Param) override;
 	void SetFloatParameter(FName ParameterName, float Param) override;
 	void SetVectorParameter(FName ParameterName, FVector Param) override;
 	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
 	void SetActorParameter(FName ParameterName, class AActor* Param) override;
+
 	virtual UFXSystemAsset* GetFXSystemAsset() const override;
 	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
 	void ReleaseToPool() override;

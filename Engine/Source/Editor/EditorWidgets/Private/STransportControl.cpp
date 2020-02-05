@@ -84,7 +84,7 @@ TSharedPtr<SWidget> STransportControl::MakeTransportControlWidget(ETransportCont
 			. ContentPadding(2.0f)
 			. IsFocusable(bAreButtonsFocusable);
 	case ETransportControlWidgetType::Loop:
-		return SNew(SButton)
+		return SAssignNew(LoopButton, SButton)
 			. OnClicked(TransportControlArgs.OnToggleLooping)
 			. Visibility(TransportControlArgs.OnGetLooping.IsBound() ? EVisibility::Visible : EVisibility::Collapsed)
 			. ToolTipText( LOCTEXT("Loop", "Loop") )
@@ -264,12 +264,12 @@ const FSlateBrush* STransportControl::GetLoopStatusIcon() const
 	if (TransportControlArgs.OnGetLooping.IsBound() &&
 		TransportControlArgs.OnGetLooping.Execute())
 	{
-		return BackwardPlayButton.IsValid() && BackwardPlayButton->IsPressed() ? 
+		return LoopButton.IsValid() && LoopButton->IsPressed() ? 
 			&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Enabled").Pressed : 
 			&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Enabled").Normal;
 	}
 
-	return BackwardPlayButton.IsValid() && BackwardPlayButton->IsPressed() ? 
+	return LoopButton.IsValid() && LoopButton->IsPressed() ? 
 		&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Disabled").Pressed : 
 		&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Disabled").Normal;
 }

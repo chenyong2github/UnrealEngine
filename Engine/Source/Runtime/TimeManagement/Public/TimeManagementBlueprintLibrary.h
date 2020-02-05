@@ -80,10 +80,10 @@ public:
 
 public:
 	/** Get the current timecode of the engine. */
-	UFUNCTION(BlueprintPure, Category = "Utilities|Timecode Provider")
+	UFUNCTION(BlueprintPure, Category = "Utilities|Time Management")
 	static FTimecode GetTimecode();
 
 	/** Gets the current timecode frame rate. */
-	UFUNCTION(BlueprintPure, Category = "Utilities|Timecode Provider")
+	UFUNCTION(BlueprintPure, Category = "Utilities|Time Management")
 	static FFrameRate GetTimecodeFrameRate();
 };

@@ -234,12 +234,12 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		// @todo: This will remove the streaming bulk data, which we immediately reload below!
 		// Should ideally avoid this redundant work, but it only happens when we actually have 
 		// to build the texture, which should only ever be once.
-		this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix);
+		this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName());
 
 		if (DerivedData->VTData->Chunks.Num())
 		{
 			const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
-			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips);
+			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 		}
 		else
 		{
@@ -309,13 +309,13 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!
 			// Should ideally avoid this redundant work, but it only happens when we actually have 
 			// to build the texture, which should only ever be once.
-			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix);
+			this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix, Texture.GetPathName());
 		}
 
 		if (DerivedData->Mips.Num())
 		{
 			const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
-			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips);
+			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 		}
 		else
 		{
@@ -409,7 +409,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 
 	TArray<uint8> RawDerivedData;
 
-	if (!bForceRebuild && GetDerivedDataCacheRef().GetSynchronous(*DerivedData->DerivedDataKey, RawDerivedData))
+	if (!bForceRebuild && GetDerivedDataCacheRef().GetSynchronous(*DerivedData->DerivedDataKey, RawDerivedData, Texture.GetPathName()))
 	{
 		const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
 		const bool bForDDC = (CacheFlags & ETextureCacheFlags::ForDDCBuild) != 0;
@@ -421,11 +421,11 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		// Load any streaming (not inline) mips that are necessary for our platform.
 		if (bForDDC)
 		{
-			bSucceeded = DerivedData->TryLoadMips(0,NULL);
+			bSucceeded = DerivedData->TryLoadMips(0, nullptr, &Texture);
 		}
 		else if (bInlineMips)
 		{
-			bSucceeded = DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips);
+			bSucceeded = DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 		}
 		else
 		{

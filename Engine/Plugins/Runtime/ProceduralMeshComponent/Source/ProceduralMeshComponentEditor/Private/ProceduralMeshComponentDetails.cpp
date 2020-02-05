@@ -18,7 +18,6 @@
 #include "IDetailsView.h"
 #include "ProceduralMeshComponent.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "AssetRegistryModule.h"

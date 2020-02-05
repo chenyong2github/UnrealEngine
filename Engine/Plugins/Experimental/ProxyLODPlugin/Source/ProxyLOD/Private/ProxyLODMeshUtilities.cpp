@@ -15,7 +15,6 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
 
 #include <vector>
 #include <map>
@@ -30,37 +29,9 @@ THIRD_PARTY_INCLUDES_END
 
 void ProxyLOD::ComputeTangentSpace(FMeshDescription& RawMesh, const bool bRecomputeNormals)
 {
-	FVertexInstanceArray& VertexInstanceArray = RawMesh.VertexInstances();
-	TVertexInstanceAttributesRef<FVector> Normals = RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	TVertexInstanceAttributesRef<FVector> Tangents = RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesRef<float> BinormalSigns = RawMesh.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-
 	// Static meshes always blend normals of overlapping corners.
-	uint32 TangentOptions = FMeshDescriptionOperations::ETangentOptions::BlendOverlappingNormals | FMeshDescriptionOperations::ETangentOptions::IgnoreDegenerateTriangles;
-
-	//Keep the original mesh description NTBs if we do not rebuild the normals or tangents.
-	bool bHasAllNormals = true;
-	bool bHasAllTangents = true;
-	for (const FVertexInstanceID VertexInstanceID : VertexInstanceArray.GetElementIDs())
-	{
-		//Dump the tangents
-		BinormalSigns[VertexInstanceID] = 0.0f;
-		Tangents[VertexInstanceID] = FVector(0.0f);
-
-		if (bRecomputeNormals)
-		{
-			//Dump the normals
-			Normals[VertexInstanceID] = FVector(0.0f);
-		}
-		bHasAllNormals &= !Normals[VertexInstanceID].IsNearlyZero();
-		bHasAllTangents &= !Tangents[VertexInstanceID].IsNearlyZero();
-	}
-
-	if (!bHasAllNormals)
-	{
-		FMeshDescriptionOperations::CreateNormals(RawMesh, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, false);
-	}
-	FMeshDescriptionOperations::CreateMikktTangents(RawMesh, (FMeshDescriptionOperations::ETangentOptions)TangentOptions);
+	EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals | EComputeNTBsFlags::IgnoreDegenerateTriangles | EComputeNTBsFlags::Tangents | EComputeNTBsFlags::UseMikkTSpace;
+	FStaticMeshOperations::ComputeTangentsAndNormals(RawMesh, ComputeNTBsOptions);
 }
 
 // Calls into the direxXMesh library to compute the per-vertex normal, by default this will weight by area.
@@ -1317,6 +1288,8 @@ void TAddNormals<FPositionOnlyVertex>(TAOSMesh<FPositionOnlyVertex>& Mesh)
 
 void ProxyLOD::AddNormals(TAOSMesh<FPositionOnlyVertex>& InOutMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::AddNormals)
+
 	TAddNormals(InOutMesh);
 }
 

@@ -33,6 +33,7 @@ public:
 	SLATE_BEGIN_ARGS(SMoviePipelineQueueEditor)
 		{}
 		SLATE_EVENT(FOnMoviePipelineEditConfig, OnEditConfigRequested)
+		SLATE_EVENT(FOnMoviePipelineEditConfig, OnPresetChosen)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -40,6 +41,7 @@ public:
 	TSharedRef<SWidget> MakeAddSequenceJobButton();
 	TSharedRef<SWidget> RemoveSelectedJobButton();
 	TSharedRef<SWidget> OnGenerateNewJobFromAssetMenu();
+
 private:
 	// SWidget Interface
 	FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
@@ -56,17 +58,24 @@ private:
 
 	bool CanDragDropTarget(TSharedPtr<FDragDropOperation> InOperation);
 
+	TSharedPtr<SWidget> GetContextMenuContent();
+
 	void OnDeleteSelected();
 	bool CanDeleteSelected() const;
 	FReply DeleteSelected();
 
+	void OnDuplicateSelected();
+	bool CanDuplicateSelected() const;
+
 	void ReconstructTree();
+	void SetSelectedJobs_Impl(const TArray<UMoviePipelineExecutorJob*>& InJobs);
 
 private:
 	TArray<TSharedPtr<IMoviePipelineQueueTreeItem>> RootNodes;
 	TSharedPtr<STreeView<TSharedPtr<IMoviePipelineQueueTreeItem>>> TreeView;
 	TSharedPtr<FUICommandList> CommandList;
 	uint32 CachedQueueSerialNumber;
-
+	TArray<UMoviePipelineExecutorJob*> PendingJobsToSelect;
 	FOnMoviePipelineEditConfig OnEditConfigRequested;
+	FOnMoviePipelineEditConfig OnPresetChosen;
 };

@@ -19,6 +19,7 @@
 URigVMController::URigVMController()
 	: bSuspendNotifications(false)
 	, bReportWarningsAndErrors(true)
+	, bIgnoreRerouteCompactnessChanges(false)
 {
 	SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 }
@@ -582,6 +583,8 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnLink(URigVMLink* InLink, bo
 	URigVMPin* SourcePin = InLink->GetSourcePin();
 	URigVMPin* TargetPin = InLink->GetTargetPin();
 
+	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
+
 	FRigVMBaseAction Action;
 	if (bUndo)
 	{
@@ -633,6 +636,8 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 	{
 		return nullptr;
 	}
+
+	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
 
 	FRigVMBaseAction Action;
 	if (bUndo)
@@ -1025,6 +1030,8 @@ bool URigVMController::Undo()
 	{
 		return false;
 	}
+
+	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
 	return ActionStack->Undo(this);
 }
 
@@ -1034,6 +1041,8 @@ bool URigVMController::Redo()
 	{
 		return false;
 	}
+
+	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
 	return ActionStack->Redo(this);
 }
 
@@ -1332,10 +1341,12 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo)
 		return false;
 	}
 
-	FRigVMRemoveNodeAction Action;
+	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
+
+	FRigVMBaseAction Action;
 	if (bUndo)
 	{
-		Action = FRigVMRemoveNodeAction(InNode);
+		Action = FRigVMBaseAction();
 		Action.Title = FString::Printf(TEXT("Remove %s Node"), *InNode->GetNodeTitle());
 		ActionStack->BeginAction(Action);
 	}
@@ -1376,6 +1387,11 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo)
 			BreakAllLinksRecursive(Pin, true, false, bUndo);
 			BreakAllLinksRecursive(Pin, false, false, bUndo);
 		}
+	}
+
+	if (bUndo)
+	{
+		ActionStack->AddAction(FRigVMRemoveNodeAction(InNode));
 	}
 
 	Graph->Nodes.Remove(InNode);
@@ -1889,6 +1905,36 @@ bool URigVMController::RenameParameter(const FName& InOldName, const FName& InNe
 	}
 
 	return RenamedNodes.Num() > 0;
+}
+
+void URigVMController::UpdateRerouteNodeAfterChangingLinks(URigVMPin* PinChanged, bool bUndo)
+{
+	if (bIgnoreRerouteCompactnessChanges)
+	{
+		return;
+	}
+
+	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	URigVMRerouteNode* Node = Cast<URigVMRerouteNode>(PinChanged->GetNode());
+	if (Node == nullptr)
+	{
+		return;
+	}
+
+	int32 NbTotalSources = Node->Pins[0]->GetSourceLinks(true /* recursive */).Num();
+	int32 NbTotalTargets = Node->Pins[0]->GetTargetLinks(true /* recursive */).Num();
+	int32 NbToplevelSources = Node->Pins[0]->GetSourceLinks(false /* recursive */).Num();
+	int32 NbToplevelTargets = Node->Pins[0]->GetSourceLinks(false /* recursive */).Num();
+
+	bool bJustTopLevelConnections = (NbTotalSources == NbToplevelSources) && (NbTotalTargets == NbToplevelTargets);
+	bool bOnlyConnectionsOnOneSide = (NbTotalSources == 0) || (NbTotalTargets == 0);
+	bool bShowAsFullNode = (!bJustTopLevelConnections) || bOnlyConnectionsOnOneSide;
+
+	SetRerouteCompactness(Node, bShowAsFullNode, bUndo);
 }
 
 bool URigVMController::SetPinExpansion(const FString& InPinPath, bool bIsExpanded, bool bUndo)
@@ -2687,6 +2733,9 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	Graph->MarkPackageDirty();
 	Notify(ERigVMGraphNotifType::LinkAdded, Link);
 
+	UpdateRerouteNodeAfterChangingLinks(OutputPin, bUndo);
+	UpdateRerouteNodeAfterChangingLinks(InputPin, bUndo);
+
 	if (bUndo)
 	{
 		ActionStack->EndAction(Action);
@@ -2755,6 +2804,9 @@ bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool
 
 			Link->Rename(nullptr, GetTransientPackage());
 			Link->MarkPendingKill();
+
+			UpdateRerouteNodeAfterChangingLinks(OutputPin, bUndo);
+			UpdateRerouteNodeAfterChangingLinks(InputPin, bUndo);
 
 			if (bUndo)
 			{

@@ -37,6 +37,12 @@ public:
 	{ }
 
 	/**
+	* Called before scene Tick
+	*/
+	virtual void PreTick(float DeltaSeconds)
+	{ }
+
+	/**
 	* Called before unload current level
 	*/
 	virtual void EndScene()

@@ -106,6 +106,12 @@ struct CORE_API FRenderingObjectVersion
 		// Add force opaque flag for static mesh
 		AutoExposureChanges,
 
+		// Removed emulated instancing from instanced static meshes
+		RemovedEmulatedInstancing,
+
+		// Added per instance custom data (for Instanced Static Meshes)
+		PerInstanceCustomData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

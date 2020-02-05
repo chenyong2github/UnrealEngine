@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/CameraAnimTrackEditor.h"
+#include "TrackEditors/CameraAnimTrackEditorHelper.h"
 #include "Widgets/SBoxPanel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
@@ -122,9 +123,16 @@ bool FCameraAnimTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& Targe
 }
 
 
-
 void FCameraAnimTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
+	IModuleInterface* TemplateSequenceEditorModule = FModuleManager::Get().GetModule("TemplateSequenceEditor");
+	if (TemplateSequenceEditorModule != nullptr)
+	{
+		// The template sequence plugin will add a new menu which lets people add CameraAnim assets as
+		// "legacy" assets, with a way to upgrade them to a template sequence.
+		return;
+	}
+
 	// only offer this track if we can find a camera component
 	UCameraComponent const* const CamComponent = AcquireCameraComponentFromObjectGuid(ObjectBindings[0]);
 	if (CamComponent)
@@ -231,18 +239,25 @@ void FCameraAnimTrackEditor::OnCameraAnimAssetEnterPressed(const TArray<FAssetDa
 
 FKeyPropertyResult FCameraAnimTrackEditor::AddKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, UCameraAnim* CameraAnim)
 {
+	return FCameraAnimTrackEditorHelper::AddCameraAnimKey(*this, KeyTime, Objects, CameraAnim);
+}
+
+
+FKeyPropertyResult FCameraAnimTrackEditorHelper::AddCameraAnimKey(FMovieSceneTrackEditor& TrackEditor, FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, UCameraAnim* CameraAnim)
+{
 	FKeyPropertyResult KeyPropertyResult;
+	const TSharedPtr<ISequencer> Sequencer = TrackEditor.GetSequencer();
 
 	for (int32 ObjectIndex = 0; ObjectIndex < Objects.Num(); ++ObjectIndex)
 	{
 		UObject* Object = Objects[ObjectIndex].Get();
 
-		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject(Object);
+		FMovieSceneTrackEditor::FFindOrCreateHandleResult HandleResult = TrackEditor.FindOrCreateHandleToObject(Object);
 		FGuid ObjectHandle = HandleResult.Handle;
 		KeyPropertyResult.bHandleCreated |= HandleResult.bWasCreated;
 		if (ObjectHandle.IsValid())
 		{
-			FFindOrCreateTrackResult TrackResult = FindOrCreateTrackForObject(ObjectHandle, UMovieSceneCameraAnimTrack::StaticClass());
+			FMovieSceneTrackEditor::FFindOrCreateTrackResult TrackResult = TrackEditor.FindOrCreateTrackForObject(ObjectHandle, UMovieSceneCameraAnimTrack::StaticClass());
 			UMovieSceneTrack* Track = TrackResult.Track;
 			KeyPropertyResult.bTrackCreated |= TrackResult.bWasCreated;
 
@@ -251,16 +266,15 @@ FKeyPropertyResult FCameraAnimTrackEditor::AddKeyInternal(FFrameNumber KeyTime, 
 				UMovieSceneSection* NewSection = Cast<UMovieSceneCameraAnimTrack>(Track)->AddNewCameraAnim(KeyTime, CameraAnim);
 				KeyPropertyResult.bTrackModified = true;
 
-				GetSequencer()->EmptySelection();
-				GetSequencer()->SelectSection(NewSection);
-				GetSequencer()->ThrobSectionSelection();
+				Sequencer->EmptySelection();
+				Sequencer->SelectSection(NewSection);
+				Sequencer->ThrobSectionSelection();
 			}
 		}
 	}
 
 	return KeyPropertyResult;
 }
-
 
 UCameraComponent* FCameraAnimTrackEditor::AcquireCameraComponentFromObjectGuid(const FGuid& Guid)
 {

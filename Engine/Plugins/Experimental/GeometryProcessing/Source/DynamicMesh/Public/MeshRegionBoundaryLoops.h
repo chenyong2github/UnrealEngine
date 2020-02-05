@@ -25,6 +25,8 @@ public:
 
 	FMeshRegionBoundaryLoops(const FDynamicMesh3* MeshIn, const TArray<int>& RegionTris, bool bAutoCompute = true);
 
+	void SetMesh(const FDynamicMesh3* MeshIn, const TArray<int>& RegionTris);
+
 	/**
 	 * Find set of FEdgeLoops on the border of the input triangle set
 	 * @return false if errors occurred, in this case output set is incomplete
@@ -33,7 +35,13 @@ public:
 
 
 	/** @return number of loops found by Compute() */
-	int GetLoopCount() const
+	int32 GetLoopCount() const
+	{
+		return Num();
+	}
+
+	/** @return number of loops found by Compute() */
+	int32 Num() const
 	{
 		return Loops.Num();
 	}
@@ -42,6 +50,11 @@ public:
 	const FEdgeLoop& operator[](int Index) const
 	{
 		return Loops[Index];
+	}
+
+	const TArray<FEdgeLoop>& GetLoops() const
+	{
+		return Loops;
 	}
 
 	/** @return index of loop with maximum number of vertices */

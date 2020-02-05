@@ -2,30 +2,19 @@
 
 #pragma once
 
-
+#include "Util.h"
 #include "Mesh.h"
+#include "Glyph.h"
 #include "CoreMinimal.h"
 #include "DynamicMeshBuilder.h"
-
-struct FPart;
-
 
 /** Used to add vertices and triangles from different classes */
 class FData final
 {
 public:
-	/**
-	 * Contructor.
-	 * @param MeshesIn - Vertices and indices to which bevel should be added (contains front cap).
-	 * @param ExpandTotalIn - Total expand value (for all ArcSegments from Bevel.cpp).
-	 * @param FontInverseScaleIn - Documented in ContourList.h.
-	 * @param ScaleIn - Documented in ContourList.h.
-	 */
-	FData(TSharedRef<TText3DMeshList> MeshesIn, const float ExpandTotalIn, const float FontInverseScaleIn, const FVector& ScaleIn);
+	FData();
 
-
-	void SetHorizontalOffset(const float HorizontalOffsetIn);
-	void SetVerticalOffset(const float VertricalOffsetIn);
+	void SetGlyph(TSharedPtr<FText3DGlyph> GlyphIn);
 
 	/**
 	 * Set offset once instead of specifying it for every vertex.
@@ -36,13 +25,14 @@ public:
 	void SetMaxBevelTarget();
 
 	int32 AddVertices(const int32 Count);
-	void AddVertex(const FPart* const Point, const FVector2D TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates = {0, 0});
-	void AddVertex(const FVector2D Position, const FVector2D TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates = {0, 0});
+	void AddVertex(const FPartConstPtr Point, const FVector2D TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates = {0.f, 0.f});
+	void AddVertex(const FVector2D Position, const FVector2D TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates = {0.f, 0.f});
+	void AddVertex(const FVector& Position, const FVector& TangentX, const FVector& TangentZ, const FVector2D TextureCoordinates);
 
 	void AddTriangles(const int32 Count);
 	void AddTriangle(const int32 A, const int32 B, const int32 C);
 
-
+	void SetExpandTotal(float ExpandTotal);
 	float GetExpandTotal() const;
 
 	float GetExtrude() const;
@@ -51,14 +41,12 @@ public:
 	float GetExpand() const;
 	void SetExpand(const float ExpandIn);
 
-	float GetFontInverseScale() const;
-
 	void ResetDoneExtrude();
 	void IncreaseDoneExtrude();
 
 	void SetNormals(FVector2D Start, FVector2D End);
-	FVector ComputeTangentZ(const FPart* const Edge, const float DoneExpand);
-	void SetCurrentMesh(EText3DMeshType Type);
+	FVector ComputeTangentZ(const FPartConstPtr Edge, const float DoneExpand);
+	void SetCurrentGroup(EText3DGroupType Type);
 
 
 	/**
@@ -66,44 +54,34 @@ public:
 	 * @param Point - Point for which position should be computed.
 	 * @return Computed position.
 	 */
-	FVector2D Expanded(const FPart* const Point) const;
-	/**
-	 * Similar to FData::Expanded but actually creates vertices and writes indices to paths.
-	 * @param Point - Point that should be expanded.
-	 * @param Count - Amount of edges to which result point will belong. 2 for case without intersections, (n + 1) for case when (n) normals intersect in result point.
-	 */
-	void ExpandPoint(FPart* const Point, const int32 Count);
+	FVector2D Expanded(const FPartConstPtr Point) const;
+
 	/**
 	 * Make triangulation of edge along paths of it's vertices (from end of previous triangulation to result of points' expansion). Removes covered points' indices from paths.
 	 * @param Edge - Edge that has to be filled.
 	 * @param bSkipLastTriangle - Do not create last triangle (furthest from end of previous triangulation).
 	 */
-	void FillEdge(FPart* const Edge, const bool bSkipLastTriangle);
+	void FillEdge(const FPartPtr Edge, const bool bSkipLastTriangle);
 
 private:
-	TSharedRef<TText3DMeshList> Meshes;
-	FText3DDynamicData* CurrentMesh;
-
-	const float ExpandTotal;
+	TSharedPtr<FText3DGlyph> Glyph;
+	EText3DGroupType CurrentGroup;
 
 	float Extrude;
 	float Expand;
+	float ExpandTotal;
 
-	float HorizontalOffset;
-	float VerticalOffset;
+	float CurrentExtrudeHeight;
+	float ExpandTarget;
+	float DoneExtrude;
 
-	const float FontInverseScale;
-	const FVector Scale;
 
 	int32 VertexCountBeforeAdd;
 	int32 AddVertexIndex;
-	float CurrentExtrudeHeight;
-	float ExpandTarget;
 
-	int32 IndicesCountBeforeAdd;
+	int32 TriangleCountBeforeAdd;
 	int32 AddTriangleIndex;
 
-	float DoneExtrude;
 
 	FVector2D NormalStart;
 	FVector2D NormalEnd;
@@ -123,5 +101,5 @@ private:
 	 * @param bNormalIsCapNext - Normal is next point after cap or vice versa.
 	 * @param bSkipLastTriangle - See FData::FillEdge.
 	 */
-	void MakeTriangleFanAlongNormal(const FPart* const Cap, FPart* const Normal, const bool bNormalIsCapNext, const bool bSkipLastTriangle);
+	void MakeTriangleFanAlongNormal(const FPartConstPtr Cap, const FPartPtr Normal, const bool bNormalIsCapNext, const bool bSkipLastTriangle);
 };

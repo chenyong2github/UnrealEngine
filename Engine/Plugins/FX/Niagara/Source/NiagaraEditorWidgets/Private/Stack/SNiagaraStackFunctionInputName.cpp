@@ -14,6 +14,7 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 	FunctionInput = InFunctionInput;
 	StackViewModel = InStackViewModel;
 	StackEntryItem = InFunctionInput;
+	IsSelected = InArgs._IsSelected;
 
 	ChildSlot
 	[
@@ -81,7 +82,7 @@ bool SNiagaraStackFunctionInputName::GetIsNameReadOnly() const
 
 bool SNiagaraStackFunctionInputName::GetIsNameWidgetSelected() const
 {
-	return true;
+	return IsSelected.Get();
 }
 
 bool SNiagaraStackFunctionInputName::GetIsEnabled() const

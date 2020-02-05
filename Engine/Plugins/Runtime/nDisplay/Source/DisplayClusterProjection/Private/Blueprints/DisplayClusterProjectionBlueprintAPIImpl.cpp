@@ -42,3 +42,9 @@ void UDisplayClusterProjectionBlueprintAPIImpl::CameraPolicySetCamera(const FStr
 	}
 
 }
+
+void UDisplayClusterProjectionBlueprintAPIImpl::AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)
+{
+	IDisplayClusterProjection& Module = IDisplayClusterProjection::Get();
+	Module.AssignWarpMeshToViewport(ViewportId, MeshComponent, OriginComponent);
+}

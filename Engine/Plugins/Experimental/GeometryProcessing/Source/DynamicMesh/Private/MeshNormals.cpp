@@ -4,6 +4,7 @@
 
 #include "MeshNormals.h"
 #include "Async/ParallelFor.h"
+#include "MeshIndexUtil.h"
 
 
 void FMeshNormals::SetCount(int Count, bool bClearToZero)
@@ -90,7 +91,7 @@ void FMeshNormals::Compute_FaceAvg(bool bWeightByArea, bool bWeightByAngle)
 	{
 		FVector3d TriNormal, TriCentroid; double TriArea;
 		Mesh->GetTriInfo(TriIdx, TriNormal, TriArea, TriCentroid);
-		FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(TriIdx, TriArea, bWeightByArea, bWeightByAngle);
+		FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(Mesh, TriIdx, TriArea, bWeightByArea, bWeightByAngle);
 
 		FIndex3i Triangle = Mesh->GetTriangle(TriIdx);
 		Normals[Triangle.A] += TriNormal * TriNormalWeights[0];
@@ -135,7 +136,7 @@ void FMeshNormals::Compute_Overlay_FaceAvg(const FDynamicMeshNormalOverlay* Norm
 	{
 		FVector3d TriNormal, TriCentroid; double TriArea;
 		Mesh->GetTriInfo(TriIdx, TriNormal, TriArea, TriCentroid);
-		FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(TriIdx, TriArea, bWeightByArea, bWeightByAngle);
+		FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(Mesh, TriIdx, TriArea, bWeightByArea, bWeightByAngle);
 
 		FIndex3i Tri = NormalOverlay->GetTriangle(TriIdx);
 		for (int j = 0; j < 3; ++j) 
@@ -188,17 +189,75 @@ void FMeshNormals::QuickComputeVertexNormals(FDynamicMesh3& Mesh, bool bInvert)
 }
 
 
-FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertIdx)
+void FMeshNormals::QuickComputeVertexNormalsForTriangles(FDynamicMesh3& Mesh, const TArray<int32>& Triangles, bool bWeightByArea, bool bWeightByAngle, bool bInvert)
+{
+	if (Mesh.HasVertexNormals() == false)
+	{
+		Mesh.EnableVertexNormals(FVector3f::UnitX());
+	}
+
+	TArray<int32> VertexIDs;
+	MeshIndexUtil::TriangleToVertexIDs(&Mesh, Triangles, VertexIDs);
+	ParallelFor(VertexIDs.Num(), [&](int32 i)
+	{
+		int32 vid = VertexIDs[i];
+		FVector3d VtxNormal = ComputeVertexNormal(Mesh, vid, bWeightByArea, bWeightByAngle);
+		Mesh.SetVertexNormal(vid, (FVector3f)VtxNormal);
+	});
+}
+
+
+
+bool FMeshNormals::QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert)
+{
+	if (Mesh.HasAttributes() && Mesh.Attributes()->GetNormalLayer(0) != nullptr)
+	{
+		FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->GetNormalLayer(0);
+		FMeshNormals Normals(&Mesh);
+		Normals.RecomputeOverlayNormals(NormalOverlay);
+		Normals.CopyToOverlay(NormalOverlay, bInvert);
+		return true;
+	}
+	return false;
+}
+
+
+FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertIdx, bool bWeightByArea, bool bWeightByAngle)
 {
 	FVector3d SumNormal = FVector3d::Zero();
 	for (int TriIdx : Mesh.VtxTrianglesItr(VertIdx))
 	{
-		FVector3d Normal, Centroid; double Area;
-		Mesh.GetTriInfo(TriIdx, Normal, Area, Centroid);
-		SumNormal += Area * Normal;
+		FVector3d TriNormal, TriCentroid; double TriArea;
+		Mesh.GetTriInfo(TriIdx, TriNormal, TriArea, TriCentroid);
+		FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(&Mesh, TriIdx, TriArea, bWeightByArea, bWeightByAngle);
+
+		FIndex3i Triangle = Mesh.GetTriangle(TriIdx);
+		int32 j = IndexUtil::FindTriIndex(VertIdx, Triangle);
+		SumNormal += TriNormal * TriNormalWeights[j];
 	}
 	return SumNormal.Normalized();
 }
+
+
+FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int32 VertIdx, TFunctionRef<bool(int32)> TriangleFilterFunc, bool bWeightByArea, bool bWeightByAngle)
+{
+	FVector3d NormalSum(0, 0, 0);
+	for (int TriIdx : Mesh.VtxTrianglesItr(VertIdx))
+	{
+		if (TriangleFilterFunc(TriIdx))
+		{
+			FVector3d TriNormal, TriCentroid; double TriArea;
+			Mesh.GetTriInfo(TriIdx, TriNormal, TriArea, TriCentroid);
+			FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(&Mesh, TriIdx, TriArea, bWeightByArea, bWeightByAngle);
+
+			FIndex3i Triangle = Mesh.GetTriangle(TriIdx);
+			int32 j = IndexUtil::FindTriIndex(VertIdx, Triangle);
+			NormalSum += TriNormal * TriNormalWeights[j];
+		}
+	}
+	return NormalSum.Normalized();
+}
+
 
 
 FVector3d FMeshNormals::ComputeOverlayNormal(const FDynamicMesh3& Mesh, FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx)

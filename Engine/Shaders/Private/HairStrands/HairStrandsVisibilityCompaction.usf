@@ -110,8 +110,9 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			float3			BaseColor = 0.0f;
 			float			Roughness = 0.0f;
 			float			Specular = 0;
+			uint			LightChannelMask = 0;
 			uint			Coverage16bit = 0;
-			DecodeNodeData(ConvertToNodeData(PPLLNode, Coverage16bit), Depth, VisibilityData, BaseColor, Roughness, Specular);
+			DecodeNodeData(ConvertToNodeData(PPLLNode, Coverage16bit), Depth, VisibilityData, BaseColor, Roughness, Specular, LightChannelMask);
 
 			const float Coverage = From8bitCoverage(VisibilityData.Coverage8bit);
 			TotalTransmittance *= 1.0f - Coverage;
@@ -191,8 +192,9 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			float3			BaseColor = 0.0f;
 			float			Roughness = 0.0f;
 			float			Specular = 0;
+			uint			LightChannelMask = 0;
 			float			Coverage16bit = 0;
-			DecodeNodeData(ConvertToNodeData(PPLLNode, Coverage16bit), Depth, VisibilityData, BaseColor, Roughness, Specular);
+			DecodeNodeData(ConvertToNodeData(PPLLNode, Coverage16bit), Depth, VisibilityData, BaseColor, Roughness, Specular, LightChannelMask);
 
 			const float Coverage = From16bitCoverage(Coverage16bit);
 
@@ -219,13 +221,14 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			float3			BaseColor = 0.0f;
 			float			Roughness = 0.0f;
 			float			Specular = 0.0f;
-			DecodeNodeData(OutNodeData, Depth, VisibilityData, BaseColor, Roughness, Specular);
+			uint			LightChannelMask = 0;
+			DecodeNodeData(OutNodeData, Depth, VisibilityData, BaseColor, Roughness, Specular, LightChannelMask);
 
 			// Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
 			uint Coverage8bit = To8bitCoverage(SortedCoverage[i] / float(ValidPixelSampleTotalCoverage));
 			// Patch the coverage on the out node
 			VisibilityData.Coverage8bit = Coverage8bit;
-			OutNodeData = ConvertToNodeData(Depth, VisibilityData, BaseColor, Roughness, Specular);
+			OutNodeData = ConvertToNodeData(Depth, VisibilityData, BaseColor, Roughness, Specular, LightChannelMask);
 
 			Categorization.TotalCoverage8bit += Coverage8bit;
 			Categorization.ClosestDepth = max(Categorization.ClosestDepth, OutNodeData.Depth); // Inverse-Z
@@ -617,14 +620,17 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 					float4 BaseColorAndRoughness = MSAA_MaterialTexture.Load(PixelCoord, SampleIt);
 					BaseColorAndRoughness.xyz = BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz; // Cheap gamma encoding since this is encoded into 8bit target
-					const float Specular = MSAA_AttributeTexture.Load(PixelCoord, SampleIt).x;
+					const float2 SpecularAndLigthChannelMask = MSAA_AttributeTexture.Load(PixelCoord, SampleIt).xy;
+					const float Specular = SpecularAndLigthChannelMask.x;
+					const uint LightChannelMask = SpecularAndLigthChannelMask.y * 0xFF;
 
 					OutNodeData = ConvertToNodeData(
 						SampleDepth,
 						VisibilityData,
 						BaseColorAndRoughness.xyz,
 						BaseColorAndRoughness.w,
-						Specular);
+						Specular,
+						LightChannelMask);
 
 					#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
 					const float2 EncodedVelocity = MSAA_VelocityTexture.Load(PixelCoord, SampleIt);

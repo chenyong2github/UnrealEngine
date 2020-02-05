@@ -5,22 +5,18 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Field.h"
-#include "PropertyValue.generated.h"
 
-// WARNING: This should always be the last include in any file that needs it
-#include "UObject/UndefineUPropertyMacros.h"
+#include "PropertyValue.generated.h"
 
 #define PATH_DELIMITER TEXT(" / ")
 #define ATTACH_CHILDREN_NAME TEXT("Children")
-
-VARIANTMANAGERCONTENT_API DECLARE_LOG_CATEGORY_EXTERN(LogVariantContent, Log, All);
 
 DECLARE_MULTICAST_DELEGATE(FOnPropertyRecorded);
 DECLARE_MULTICAST_DELEGATE(FOnPropertyApplied);
 
 class UVariantObjectBinding;
 class USCS_Node;
-class UProperty;
+class FProperty;
 
 UENUM()
 enum class EPropertyValueCategory : uint8
@@ -136,7 +132,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="PropertyValue")
 	bool HasRecordedData() const;
 	const TArray<uint8>& GetRecordedData();
-	void SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, int32 Offset = 0);
+	virtual void SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, int32 Offset = 0);
 	virtual const TArray<uint8>& GetDefaultValue();
 	void ClearDefaultValue();
 	// Returns true if our recorded data would remain the same if we called
@@ -158,17 +154,15 @@ public:
 	void SetDisplayOrder(uint32 InDisplayOrder);
 #endif //WITH_EDITORONLY_DATA
 
-private:
+protected:
 
 	void SetRecordedDataInternal(const uint8* NewDataBytes, int32 NumBytes, int32 Offset = 0);
-
-protected:
 
 	FProperty* GetProperty() const;
 
 	// Applies the recorded data to the TargetObject via the PropertySetter function
 	// (e.g. SetIntensity instead of setting the Intensity UPROPERTY directly)
-	void ApplyViaFunctionSetter(UObject* TargetObject);
+	virtual void ApplyViaFunctionSetter(UObject* TargetObject);
 
 	// Recursively navigate the component/USCS_Node hierarchy trying to resolve our property path
 	bool ResolveUSCSNodeRecursive(const USCS_Node* Node, int32 SegmentIndex);
@@ -181,14 +175,15 @@ protected:
 	FProperty* LeafProperty;
 	UStruct* ParentContainerClass;
 	void* ParentContainerAddress;
-	uint8* PropertyValuePtr;
+	UObject* ParentContainerObject; // Leafmost UObject* in the property path. Required as ParentContainerAddress
+	uint8* PropertyValuePtr;        // may be pointing at a C++ struct
 	UFunction* PropertySetter;
 
 	// Properties were previously stored like this. Use CapturedPropSegments from now on, which stores
 	// properties by name instead. It is much safer, as we can't guarantee these pointers will be valid
 	// if they point at other packages (will depend on package load order, etc).
 	UPROPERTY()
-	TArray<UProperty*> Properties_DEPRECATED;
+	TArray<TFieldPath<FProperty>> Properties_DEPRECATED;
 	UPROPERTY()
 	TArray<int32> PropertyIndices_DEPRECATED;
 
@@ -253,5 +248,3 @@ class VARIANTMANAGERCONTENT_API UPropertyValueVisibility : public UPropertyValue
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 };
-
-#include "UObject/DefineUPropertyMacros.h"

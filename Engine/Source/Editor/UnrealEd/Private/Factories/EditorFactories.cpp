@@ -3314,6 +3314,8 @@ void* FImportImage::GetMipData(int32 InMipIndex)
 
 bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackContext* Warn, bool bAllowNonPowerOfTwo, FImportImage& OutImage)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTextureFactory::ImportImage)
+
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 
 	//
@@ -4392,6 +4394,11 @@ UObject* UTextureFactory::FactoryCreateBinary
 		Warn->Logf(ELogVerbosity::Error, TEXT("Texture import failed") );
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport( this, nullptr );
 		return nullptr;
+	}
+
+	if (bUseHashAsGuid)
+	{
+		Texture->Source.UseHashAsGuid();
 	}
 
 	//Replace the reference for the new texture with the existing one so that all current users still have valid references.

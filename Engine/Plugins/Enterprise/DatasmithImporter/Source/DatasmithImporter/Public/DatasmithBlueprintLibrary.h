@@ -58,6 +58,14 @@ public:
 	static UDatasmithSceneElement* ConstructDatasmithSceneFromFile(const FString& FilePath);
 
 	/**
+	 * Open an existing DatasmithScene asset file from disk.
+	 * @param   AssetPath Path of the DFatasmithScene asset (eg. "/Game/MyAsset")
+	 * @return  The opened DatasmithScene, that can be modified and can be reimported.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Datasmith")
+	static UDatasmithSceneElement* GetExistingDatasmithScene(const FString& AssetPath);
+
+	/**
 	 * Import a Datasmith Scene created with ConstructDatasmithSceneFromFile.
 	 * @param	DestinationFolder	Destination of where you want the asset to be imported. ie: /Game/MyFolder1
 	 * @return	A structure that contains the created actor or the blueprint actor depending of the options specified at the import.
@@ -65,9 +73,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene")
 	FDatasmithImportFactoryCreateFileResult ImportScene(const FString& DestinationFolder);
 
+	/**
+	 * Reimport a scene opened with GetExistingDatasmithScene
+	 * @return	A structure that contains the created actor or the blueprint actor depending of the options specified at the import.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene")
+	FDatasmithImportFactoryCreateFileResult ReimportScene();
+
+	/**
+	 * Fetch the typed options for this scene
+	 * @param OptionType	Type of the option structure to get
+	 * @return The option structure found
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene", meta = (DeterminesOutputType = "OptionType"))
 	UObject* GetOptions(UClass* OptionType=nullptr);
 
+	/**
+	 * List all the options stuctures applicable on this scene
+	 * @return A map of options type to option object
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene")
 	TMap<UClass*, UObject*> GetAllOptions();
 

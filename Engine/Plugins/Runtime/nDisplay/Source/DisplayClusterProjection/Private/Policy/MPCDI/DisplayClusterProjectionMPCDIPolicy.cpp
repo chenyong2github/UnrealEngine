@@ -37,8 +37,6 @@ void FDisplayClusterProjectionMPCDIPolicy::StartScene(UWorld* World)
 
 	// Find origin component if it exists
 	InitializeOriginComponent(OriginCompId);
-
-
 }
 
 void FDisplayClusterProjectionMPCDIPolicy::EndScene()
@@ -52,7 +50,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& In
 	check(InViewsAmount > 0);
 
 	IMPCDI::ConfigParser CfgData;
-	
+
 	{
 		// Load settings from config file
 		FDisplayClusterConfigProjection CfgProjection;
@@ -77,6 +75,9 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& In
 		return false;
 	}
 
+	// Support custom origin node
+	OriginCompId = CfgData.OriginType;
+
 	UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("MPCDI policy has been initialized [%s:%s in %s]"), *CfgData.BufferId, *CfgData.RegionId, *CfgData.MPCDIFileName);
 
 	// Finally, initialize internal views data container
@@ -94,6 +95,12 @@ void FDisplayClusterProjectionMPCDIPolicy::HandleRemoveViewport()
 bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(const uint32 ViewIdx, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(IsInGameThread());
+
+	if (!WarpRef.IsValid())
+	{
+		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Invalid warp data for viewport '%s'"), *GetViewportId());
+		return false;
+	}
 
 	// World scale multiplier
 	const float WorldScale = WorldToMeters / 100.f;
@@ -123,8 +130,8 @@ bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(const uint32 ViewIdx, F
 	}
 
 	// Get rotation in warp space
-	const FRotator MpcdiRotation = Views[ViewIdx].Frustum.Local2WorldMatrix.Rotator();
-	const FVector  MpcdiOrigin = Views[ViewIdx].Frustum.Local2WorldMatrix.GetOrigin();
+	const FRotator MpcdiRotation = Views[ViewIdx].Frustum.OutCameraRotation;
+	const FVector  MpcdiOrigin = Views[ViewIdx].Frustum.OutCameraOrigin;
 
 	// Transform rotation to world space
 	InOutViewRotation = World2LocalTransform.TransformRotation(MpcdiRotation.Quaternion()).Rotator();
@@ -156,6 +163,11 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uin
 	if (!InitializeResources_RenderThread())
 	{
 		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't initialize rendering resources"));
+		return;
+	}
+
+	if (!WarpRef.IsValid())
+	{
 		return;
 	}
 
@@ -197,11 +209,9 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uin
 	RHICmdList.CopyToResolveTarget(Views[ViewIdx].RTTexture, SrcTexture, copyParams);
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionMPCDIPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-
 bool FDisplayClusterProjectionMPCDIPolicy::InitializeResources_RenderThread()
 {
 	check(IsInRenderingThread());
@@ -227,4 +237,4 @@ bool FDisplayClusterProjectionMPCDIPolicy::InitializeResources_RenderThread()
 	}
 
 	return bIsRenderResourcesInitialized;
-}
+};

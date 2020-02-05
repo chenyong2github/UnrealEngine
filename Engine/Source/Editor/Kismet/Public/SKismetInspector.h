@@ -98,6 +98,9 @@ public:
 	/** @return true if the object is in the selection set. */
 	bool IsSelected(UObject* Object) const;
 
+	/** returns the list of selected objects */
+	const TArray< TWeakObjectPtr<UObject> >& GetSelectedObjects() const;
+
 protected:
 	/** Update the inspector window to show information on the supplied objects */
 	void UpdateFromObjects(const TArray<UObject*>& PropertyObjects, struct FKismetSelectionInfo& SelectionInfo, const FShowDetailsOptions& Options);

@@ -97,7 +97,7 @@
 #include "MeshUtilitiesCommon.h"
 
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -2647,10 +2647,10 @@ public:
 				FStaticMeshAttributes(DestMeshdescription).Register();
 
 				TMap<int32, FName> FromMaterialMap;
-				FMeshDescriptionOperations::ConvertFromRawMesh(InMesh, SrcMeshdescription, FromMaterialMap);
+				FStaticMeshOperations::ConvertFromRawMesh(InMesh, SrcMeshdescription, FromMaterialMap);
 				MeshReduction->ReduceMeshDescription(DestMeshdescription, LODMaxDeviation[NumValidLODs], SrcMeshdescription, InOverlappingCorners, ReductionSettings);
 				TMap<FName, int32> ToMaterialMap;
-				FMeshDescriptionOperations::ConvertToRawMesh(DestMeshdescription, DestMesh, ToMaterialMap);
+				FStaticMeshOperations::ConvertToRawMesh(DestMeshdescription, DestMesh, ToMaterialMap);
 
 				if (DestMesh.WedgeIndices.Num() > 0 && !DestMesh.IsValid())
 				{
@@ -3871,7 +3871,7 @@ public:
 						}
 						else
 						{
-							UE_LOG(LogSkeletalMesh, Warning, TEXT("%s"), *(TextMessage.ToString()));
+							UE_LOG(LogSkeletalMesh, Display, TEXT("%s"), *(TextMessage.ToString()));
 						}
 					}
 				}

@@ -181,6 +181,11 @@ namespace UnrealToUsd
 		return MakeUsdStore< std::string >( TCHAR_TO_ANSI( *InName.ToString() ) );
 	}
 
+	static TUsdStore< pxr::TfToken > ConvertToken( const TCHAR* InString )
+	{
+		return MakeUsdStore< pxr::TfToken >( TCHAR_TO_ANSI( InString ) );
+	}
+
 	static pxr::GfVec2f ConvertVector( const FVector2D& InValue )
 	{
 		return pxr::GfVec2f( InValue[0], InValue[1] );

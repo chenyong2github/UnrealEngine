@@ -193,24 +193,25 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 	// Previous MeshDescription is get to be able to create a new one with the same order of PolygonGroup (the matching of color and partition is currently based on their order)
 	if(FMeshDescription* DestinationMeshDescription = StaticMesh.GetMeshDescription(0))
 	{
-		FStaticMeshAttributes DestinationMeshDescriptionAttributes(*DestinationMeshDescription);
-
 		FMeshDescription MeshDescription;
 		FStaticMeshAttributes MeshDescriptionAttributes(MeshDescription);
 		MeshDescriptionAttributes.Register();
 
-		TPolygonGroupAttributesRef<FName> PolygonGroupDestinationMeshSlotNames = DestinationMeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
-		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
-		for (FPolygonGroupID PolygonGroupID : DestinationMeshDescription->PolygonGroups().GetElementIDs())
-		{
-			FName ImportedSlotName = PolygonGroupDestinationMeshSlotNames[PolygonGroupID];
-			FPolygonGroupID PolyGroupID = MeshDescription.CreatePolygonGroup();
-			PolygonGroupImportedMaterialSlotNames[PolyGroupID] = ImportedSlotName;
-		}
-
 		if ( Loader.LoadFile(ResourceFile, MeshDescription, ImportParameters, MeshParameters))
 		{
-			// @TODO: check: no commit?
+			// To update the SectionInfoMap 
+			{
+				TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
+				FMeshSectionInfoMap& SectionInfoMap = StaticMesh.GetSectionInfoMap();
+				ensure(MeshDescription.PolygonGroups().Num() == SectionInfoMap.GetSectionNumber(0));
+
+				for (FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
+				{
+					FMeshSectionInfo Section = SectionInfoMap.Get(0, PolygonGroupID.GetValue());
+					Section.MaterialIndex = StaticMesh.GetMaterialIndex(MaterialSlotNames[PolygonGroupID]);
+					SectionInfoMap.Set(0, PolygonGroupID.GetValue(), Section);
+				}
+			}
 			*DestinationMeshDescription = MoveTemp(MeshDescription);
 			bSuccessfulTessellation = true;
 		}

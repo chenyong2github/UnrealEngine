@@ -194,7 +194,11 @@ protected:
 	// All component data
 	TArray<FComponentData> AllComponentData;
 
-	/** All currently tickable component indices sorted by significance, updated each tick */
+	/** 
+	 * All currently tickable component indices sorted by significance, updated each tick.
+	 * Note that this array is not managed, so components can be deleted underneath it. 
+	 * Therefore usage outside of Tick() is not recommended.
+	 */
 	TArray<int32> AllSortedComponentData;
 
 #if WITH_TICK_DEBUG

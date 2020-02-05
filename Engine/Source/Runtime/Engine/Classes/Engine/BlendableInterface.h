@@ -65,15 +65,15 @@ struct FPostProcessMaterialNode
 	}
 
 	// Constructor
-	FPostProcessMaterialNode(UMaterialInterface* InMaterialInterface, EBlendableLocation InLocation, int32 InPriority)
-		: MaterialInterface(InMaterialInterface), bIsMID(false), Location(InLocation), Priority(InPriority)
+	FPostProcessMaterialNode(UMaterialInterface* InMaterialInterface, EBlendableLocation InLocation, int32 InPriority, bool InbIsBlendable)
+		: MaterialInterface(InMaterialInterface), bIsMID(false), Location(InLocation), Priority(InPriority), bIsBlendable(InbIsBlendable)
 	{
 		check(IsValid());
 	}
 
 	// Constructor
-	FPostProcessMaterialNode(UMaterialInstanceDynamic* InMID, EBlendableLocation InLocation, int32 InPriority)
-		: MaterialInterface((UMaterialInterface*)InMID), bIsMID(true), Location(InLocation), Priority(InPriority)
+	FPostProcessMaterialNode(UMaterialInstanceDynamic* InMID, EBlendableLocation InLocation, int32 InPriority, bool InbIsBlendable)
+		: MaterialInterface((UMaterialInterface*)InMID), bIsMID(true), Location(InLocation), Priority(InPriority), bIsBlendable(InbIsBlendable)
 	{
 		check(IsValid());
 	}
@@ -106,6 +106,7 @@ struct FPostProcessMaterialNode
 
 	EBlendableLocation GetLocation() const { return Location; }
 	int32 GetPriority() const { return Priority; }
+	bool GetIsBlendable() const { return bIsBlendable; }
 
 	bool IsValid() const { return MaterialInterface != 0; }
 
@@ -119,6 +120,9 @@ private:
 
 	/** Default is 0. */
 	int32 Priority;
+
+	/** Flag for whether the material should be blendable */
+	bool bIsBlendable;
 };
 
 

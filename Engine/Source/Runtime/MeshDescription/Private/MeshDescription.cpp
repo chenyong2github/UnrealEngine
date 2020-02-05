@@ -317,19 +317,24 @@ void FMeshDescription::CreateVertexInstance_Internal(const FVertexInstanceID Ver
 }
 
 
-void FMeshDescription::DeleteVertexInstance(const FVertexInstanceID VertexInstanceID, TArray<FVertexID>* InOutOrphanedVerticesPtr)
+template <template <typename...> class TContainer>
+void FMeshDescription::DeleteVertexInstance_Internal(const FVertexInstanceID VertexInstanceID, TContainer<FVertexID>* InOutOrphanedVerticesPtr)
 {
 	check(VertexInstanceArray[VertexInstanceID].ConnectedTriangles.Num() == 0);
 	const FVertexID VertexID = VertexInstanceArray[VertexInstanceID].VertexID;
 	verify(VertexArray[VertexID].VertexInstanceIDs.RemoveSingle(VertexInstanceID) == 1);
 	if (InOutOrphanedVerticesPtr && VertexArray[VertexID].VertexInstanceIDs.Num() == 0 && VertexArray[VertexID].ConnectedEdgeIDs.Num() == 0)
 	{
-		InOutOrphanedVerticesPtr->AddUnique(VertexID);
+		AddUnique(*InOutOrphanedVerticesPtr, VertexID);
 	}
 	VertexInstanceArray.Remove(VertexInstanceID);
 	VertexInstanceAttributesSet.Remove(VertexInstanceID);
 }
 
+void FMeshDescription::DeleteVertexInstance(const FVertexInstanceID VertexInstanceID, TArray<FVertexID>* InOutOrphanedVerticesPtr)
+{
+	DeleteVertexInstance_Internal<TArray>(VertexInstanceID, InOutOrphanedVerticesPtr);
+}
 
 void FMeshDescription::CreateEdge_Internal(const FEdgeID EdgeID, const FVertexID VertexID0, const FVertexID VertexID1)
 {
@@ -342,8 +347,8 @@ void FMeshDescription::CreateEdge_Internal(const FEdgeID EdgeID, const FVertexID
 	EdgeAttributesSet.Insert(EdgeID);
 }
 
-
-void FMeshDescription::DeleteEdge(const FEdgeID EdgeID, TArray<FVertexID>* InOutOrphanedVerticesPtr)
+template <template <typename...> class TContainer>
+void FMeshDescription::DeleteEdge_Internal(const FEdgeID EdgeID, TContainer<FVertexID>* InOutOrphanedVerticesPtr)
 {
 	FMeshEdge& Edge = EdgeArray[EdgeID];
 	for (const FVertexID EdgeVertexID : Edge.VertexIDs)
@@ -353,13 +358,17 @@ void FMeshDescription::DeleteEdge(const FEdgeID EdgeID, TArray<FVertexID>* InOut
 		if (InOutOrphanedVerticesPtr && Vertex.ConnectedEdgeIDs.Num() == 0)
 		{
 			check(Vertex.VertexInstanceIDs.Num() == 0);  // We must already have deleted any vertex instances
-			InOutOrphanedVerticesPtr->AddUnique(EdgeVertexID);
+			AddUnique(*InOutOrphanedVerticesPtr, EdgeVertexID);
 		}
 	}
 	EdgeArray.Remove(EdgeID);
 	EdgeAttributesSet.Remove(EdgeID);
 }
 
+void FMeshDescription::DeleteEdge(const FEdgeID EdgeID, TArray<FVertexID>* InOutOrphanedVerticesPtr)
+{
+	DeleteEdge_Internal<TArray>(EdgeID, InOutOrphanedVerticesPtr);
+}
 
 void FMeshDescription::CreateTriangle_Internal(const FTriangleID TriangleID, const FPolygonGroupID PolygonGroupID, TArrayView<const FVertexInstanceID> VertexInstanceIDs, TArray<FEdgeID>* OutEdgeIDs)
 {
@@ -417,8 +426,8 @@ void FMeshDescription::CreateTriangle_Internal(const FTriangleID TriangleID, con
 	}
 }
 
-
-void FMeshDescription::DeleteTriangle(const FTriangleID TriangleID, TArray<FEdgeID>* InOutOrphanedEdgesPtr, TArray<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr, TArray<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr)
+template <template <typename...> class TContainer>
+void FMeshDescription::DeleteTriangle_Internal(const FTriangleID TriangleID, TContainer<FEdgeID>* InOutOrphanedEdgesPtr, TContainer<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr, TContainer<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr)
 {
 	const FMeshTriangle& Triangle = TriangleArray[TriangleID];
 	const FPolygonID PolygonID = Triangle.PolygonID;
@@ -445,12 +454,12 @@ void FMeshDescription::DeleteTriangle(const FTriangleID TriangleID, TArray<FEdge
 
 			if (InOutOrphanedVertexInstancesPtr && VertexInstanceArray[VertexInstanceID].ConnectedTriangles.Num() == 0)
 			{
-				InOutOrphanedVertexInstancesPtr->AddUnique(VertexInstanceID);
+				AddUnique(*InOutOrphanedVertexInstancesPtr, VertexInstanceID);
 			}
 
 			if (InOutOrphanedEdgesPtr && EdgeArray[EdgeID].ConnectedTriangles.Num() == 0)
 			{
-				InOutOrphanedEdgesPtr->AddUnique(EdgeID);
+				AddUnique(*InOutOrphanedEdgesPtr, EdgeID);
 			}
 		}
 
@@ -460,7 +469,7 @@ void FMeshDescription::DeleteTriangle(const FTriangleID TriangleID, TArray<FEdge
 
 		if (InOutOrphanedPolygonGroupsPtr && PolygonGroupArray[PolygonGroupID].Polygons.Num() == 0)
 		{
-			InOutOrphanedPolygonGroupsPtr->AddUnique(PolygonGroupID);
+			AddUnique(*InOutOrphanedPolygonGroupsPtr, PolygonGroupID);
 		}
 
 		PolygonArray.Remove(PolygonID);
@@ -478,6 +487,39 @@ void FMeshDescription::DeleteTriangle(const FTriangleID TriangleID, TArray<FEdge
 	TriangleAttributesSet.Remove(TriangleID);
 }
 
+void FMeshDescription::DeleteTriangle(const FTriangleID TriangleID, TArray<FEdgeID>* InOutOrphanedEdgesPtr, TArray<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr, TArray<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr)
+{
+	DeleteTriangle_Internal<TArray>(TriangleID, InOutOrphanedEdgesPtr, InOutOrphanedVertexInstancesPtr, InOutOrphanedPolygonGroupsPtr);
+}
+
+void FMeshDescription::DeleteTriangles(const TArray<FTriangleID>& Triangles)
+{
+	TSet<FEdgeID> OrphanedEdges;
+	TSet<FVertexInstanceID> OrphanedVertexInstances;
+	TSet<FPolygonGroupID> OrphanedPolygonGroups;
+	TSet<FVertexID> OrphanedVertices;
+
+	for (FTriangleID TriangleID : Triangles)
+	{
+		DeleteTriangle_Internal<TSet>(TriangleID, &OrphanedEdges, &OrphanedVertexInstances, &OrphanedPolygonGroups);
+	}
+	for (FPolygonGroupID PolygonGroupID : OrphanedPolygonGroups)
+	{
+		DeletePolygonGroup(PolygonGroupID);
+	}
+	for (FVertexInstanceID VertexInstanceID : OrphanedVertexInstances)
+	{
+		DeleteVertexInstance_Internal<TSet>(VertexInstanceID, &OrphanedVertices);
+	}
+	for (FEdgeID EdgeID : OrphanedEdges)
+	{
+		DeleteEdge_Internal<TSet>(EdgeID, &OrphanedVertices);
+	}
+	for (FVertexID VertexID : OrphanedVertices)
+	{
+		DeleteVertex(VertexID);
+	}
+}
 
 void FMeshDescription::CreatePolygon_Internal(const FPolygonID PolygonID, const FPolygonGroupID PolygonGroupID, TArrayView<const FVertexInstanceID> VertexInstanceIDs, TArray<FEdgeID>* OutEdgeIDs)
 {
@@ -520,8 +562,8 @@ void FMeshDescription::CreatePolygon_Internal(const FPolygonID PolygonID, const 
 	PolygonAttributesSet.Insert(PolygonID);
 }
 
-
-void FMeshDescription::DeletePolygon(const FPolygonID PolygonID, TArray<FEdgeID>* InOutOrphanedEdgesPtr, TArray<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr, TArray<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr)
+template <template <typename...> class TContainer>
+void FMeshDescription::DeletePolygon_Internal(const FPolygonID PolygonID, TContainer<FEdgeID>* InOutOrphanedEdgesPtr, TContainer<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr, TContainer<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr)
 {
 	FMeshPolygon& Polygon = PolygonArray[PolygonID];
 
@@ -537,7 +579,7 @@ void FMeshDescription::DeletePolygon(const FPolygonID PolygonID, TArray<FEdgeID>
 			const FVertexID ThisVertexID = GetVertexInstanceVertex(ThisVertexInstanceID);
 			const FVertexID NextVertexID = GetVertexInstanceVertex(NextVertexInstanceID);
 			const FEdgeID EdgeID = GetVertexPairEdge(ThisVertexID, NextVertexID);
-			
+
 			// If a valid edge isn't found, we deem this to be because it's an internal edge which was already removed
 			// in a previous iteration through the triangle array.
 			if (EdgeID != FEdgeID::Invalid)
@@ -558,7 +600,7 @@ void FMeshDescription::DeletePolygon(const FPolygonID PolygonID, TArray<FEdgeID>
 
 					if (InOutOrphanedEdgesPtr && EdgeArray[EdgeID].ConnectedTriangles.Num() == 0)
 					{
-						InOutOrphanedEdgesPtr->AddUnique(EdgeID);
+						AddUnique(*InOutOrphanedEdgesPtr, EdgeID);
 					}
 				}
 			}
@@ -567,7 +609,7 @@ void FMeshDescription::DeletePolygon(const FPolygonID PolygonID, TArray<FEdgeID>
 
 			if (InOutOrphanedVertexInstancesPtr && VertexInstanceArray[ThisVertexInstanceID].ConnectedTriangles.Num() == 0)
 			{
-				InOutOrphanedVertexInstancesPtr->AddUnique(ThisVertexInstanceID);
+				AddUnique(*InOutOrphanedVertexInstancesPtr, ThisVertexInstanceID);
 			}
 		}
 
@@ -580,13 +622,46 @@ void FMeshDescription::DeletePolygon(const FPolygonID PolygonID, TArray<FEdgeID>
 
 	if (InOutOrphanedPolygonGroupsPtr && PolygonGroup.Polygons.Num() == 0)
 	{
-		InOutOrphanedPolygonGroupsPtr->AddUnique(Polygon.PolygonGroupID);
+		AddUnique(*InOutOrphanedPolygonGroupsPtr, Polygon.PolygonGroupID);
 	}
 
 	PolygonArray.Remove(PolygonID);
 	PolygonAttributesSet.Remove(PolygonID);
 }
 
+void FMeshDescription::DeletePolygon(const FPolygonID PolygonID, TArray<FEdgeID>* InOutOrphanedEdgesPtr, TArray<FVertexInstanceID>* InOutOrphanedVertexInstancesPtr, TArray<FPolygonGroupID>* InOutOrphanedPolygonGroupsPtr)
+{
+	DeletePolygon_Internal<TArray>(PolygonID, InOutOrphanedEdgesPtr, InOutOrphanedVertexInstancesPtr, InOutOrphanedPolygonGroupsPtr);
+}
+
+void FMeshDescription::DeletePolygons(const TArray<FPolygonID>& Polygons)
+{
+	TSet<FEdgeID> OrphanedEdges;
+	TSet<FVertexInstanceID> OrphanedVertexInstances;
+	TSet<FPolygonGroupID> OrphanedPolygonGroups;
+	TSet<FVertexID> OrphanedVertices;
+
+	for (FPolygonID PolygonID : Polygons)
+	{
+		DeletePolygon_Internal<TSet>(PolygonID, &OrphanedEdges, &OrphanedVertexInstances, &OrphanedPolygonGroups);
+	}
+	for (FPolygonGroupID PolygonGroupID : OrphanedPolygonGroups)
+	{
+		DeletePolygonGroup(PolygonGroupID);
+	}
+	for (FVertexInstanceID VertexInstanceID : OrphanedVertexInstances)
+	{
+		DeleteVertexInstance_Internal<TSet>(VertexInstanceID, &OrphanedVertices);
+	}
+	for (FEdgeID EdgeID : OrphanedEdges)
+	{
+		DeleteEdge_Internal<TSet>(EdgeID, &OrphanedVertices);
+	}
+	for (FVertexID VertexID : OrphanedVertices)
+	{
+		DeleteVertex(VertexID);
+	}
+}
 
 bool FMeshDescription::IsVertexOrphaned(const FVertexID VertexID) const
 {

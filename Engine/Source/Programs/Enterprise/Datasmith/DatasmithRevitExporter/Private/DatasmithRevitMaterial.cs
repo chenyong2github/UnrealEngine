@@ -42,6 +42,19 @@ namespace DatasmithRevitExporter
 			}
 		}
 
+		// Calculate lightness from color value. 
+		// Result is mapped to range 0..1.
+		static private float LightnessFromColor(Color inColor)
+		{
+			float R = inColor.Red / 255.0f;
+			float G = inColor.Green / 255.0f;
+			float B = inColor.Blue / 255.0f;
+			float Cmax = Math.Max(R, Math.Max(G, B));
+			float Cmin = Math.Min(R, Math.Min(G, B));
+			float Lightness = ((Cmax + Cmin) * 0.5f);
+			return Lightness;
+		}
+
 		public FMaterialData(
 			MaterialNode  InMaterialNode,
 			Material      InMaterial,
@@ -112,6 +125,10 @@ namespace DatasmithRevitExporter
 				if (RenderingAsset != null)
 				{
 					string RenderingAssetName = RenderingAsset.Name.Replace("Schema", "");
+					if (RenderingAssetName.Contains("Prism"))
+					{
+						RenderingAssetName = RenderingAssetName.Replace("Prism", "Advanced");
+					}
 					Type RenderingAssetType = Type.GetType($"Autodesk.Revit.DB.Visual.{RenderingAssetName},RevitAPI");
 
 					if (RenderingAssetType != null)
@@ -131,9 +148,15 @@ namespace DatasmithRevitExporter
 							case "Stone":
 							case "WallPaint":
 							case "Generic":
-								return InMaterial.Name;
+							// PBR Schemas
+							case "AdvancedGlazing":
+							case "AdvancedLayered":
+							case "AdvancedMetal":
+							case "AdvancedOpaque":
+							case "AdvancedTransparent":
+							return InMaterial.Name;
 							default:
-								break;
+							break;
 						}
 					}
 
@@ -166,7 +189,11 @@ namespace DatasmithRevitExporter
 			}
 
 			string RenderingAssetName = RenderingAsset.Name.Replace("Schema", "");
-			Type   RenderingAssetType = Type.GetType($"Autodesk.Revit.DB.Visual.{RenderingAssetName},RevitAPI");
+			if (RenderingAssetName.Contains("Prism"))
+			{
+				RenderingAssetName = RenderingAssetName.Replace("Prism", "Advanced");
+			}
+			Type RenderingAssetType = Type.GetType($"Autodesk.Revit.DB.Visual.{RenderingAssetName},RevitAPI");
 
 			if (RenderingAssetType == null)
 			{
@@ -1328,6 +1355,97 @@ namespace DatasmithRevitExporter
 				}
 				break;
 
+				// PBR materials
+
+#if REVIT_API_2020
+				case "AdvancedGlazing":
+				{
+					IOMasterMaterial.AddBoolean("IsPBR", true);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+
+					Color TranspColor = GetColorPropertyValue(RenderingAsset, AdvancedGlazing.GlazingTransmissionColor, sourceMaterialColor);
+					float Transparency = LightnessFromColor(TranspColor);
+					IOMasterMaterial.AddFloat("Transparency", Transparency);
+					IOMasterMaterial.AddFloat("TransparencyMapFading", 0.0F);
+
+					IOMasterMaterial.AddBoolean("TintEnabled", true);
+					IOMasterMaterial.AddColor("TintColor", TranspColor.Red / 255.0F, TranspColor.Green / 255.0F, TranspColor.Blue / 255.0F, 1.0F);
+
+					ExportRougness(IOMasterMaterial, RenderingAsset, AdvancedGlazing.GlazingTransmissionRoughness);
+					ExportCutout(IOMasterMaterial, RenderingAsset, AdvancedGlazing.SurfaceCutout);
+					ExportNormalMap(IOMasterMaterial, RenderingAsset, AdvancedGlazing.SurfaceNormal);
+				}
+				break;
+#endif
+
+				case "AdvancedLayered":
+				{
+					IOMasterMaterial.AddBoolean("IsPBR", true);
+					ExportDiffuse(IOMasterMaterial, RenderingAsset, AdvancedLayered.LayeredBottomF0, sourceMaterialColor);
+					ExportRougness(IOMasterMaterial, RenderingAsset, AdvancedLayered.LayeredRoughness);
+					ExportCutout(IOMasterMaterial, RenderingAsset, AdvancedLayered.SurfaceCutout);
+					ExportNormalMap(IOMasterMaterial, RenderingAsset, AdvancedLayered.LayeredNormal);
+				}
+				break;
+
+				case "AdvancedTransparent":
+				{
+					IOMasterMaterial.AddBoolean("IsPBR", true);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+
+					Color TranspColor = GetColorPropertyValue(RenderingAsset, AdvancedTransparent.TransparentColor, sourceMaterialColor);
+
+					IOMasterMaterial.AddBoolean("TintEnabled", true);
+					IOMasterMaterial.AddColor("TintColor", TranspColor.Red / 255.0F, TranspColor.Green / 255.0F, TranspColor.Blue / 255.0F, 1.0F);
+
+					float Transparency = LightnessFromColor(TranspColor);
+					IOMasterMaterial.AddFloat("Transparency", Transparency);
+					IOMasterMaterial.AddFloat("TransparencyMapFading", 0.0F);
+
+					// Control the Unreal material Refraction.
+					float RefractionIndex = GetFloatPropertyValue(RenderingAsset, AdvancedTransparent.TransparentIor, 1.0f);
+					IOMasterMaterial.AddFloat("RefractionIndex", RefractionIndex);
+
+					ExportRougness(IOMasterMaterial, RenderingAsset, AdvancedTransparent.SurfaceRoughness);
+					ExportCutout(IOMasterMaterial, RenderingAsset, AdvancedTransparent.SurfaceCutout);
+					ExportNormalMap(IOMasterMaterial, RenderingAsset, AdvancedTransparent.SurfaceNormal);
+				}
+				break;
+
+				case "AdvancedMetal":
+				{
+					IOMasterMaterial.AddBoolean("IsPBR", true);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.AddBoolean("IsMetal", true);
+					ExportDiffuse(IOMasterMaterial, RenderingAsset, AdvancedMetal.MetalF0, sourceMaterialColor);
+					ExportRougness(IOMasterMaterial, RenderingAsset, AdvancedMetal.SurfaceRoughness);
+					ExportCutout(IOMasterMaterial, RenderingAsset, AdvancedMetal.SurfaceCutout);
+					ExportNormalMap(IOMasterMaterial, RenderingAsset, AdvancedMetal.SurfaceNormal);
+				}
+				break;
+
+				case "AdvancedOpaque":
+				{
+					IOMasterMaterial.AddBoolean("IsPBR", true);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+
+					ExportDiffuse(IOMasterMaterial, RenderingAsset, AdvancedOpaque.OpaqueAlbedo, sourceMaterialColor);
+					ExportCutout(IOMasterMaterial, RenderingAsset, AdvancedOpaque.SurfaceCutout);
+					ExportRougness(IOMasterMaterial, RenderingAsset, AdvancedOpaque.SurfaceRoughness);
+					ExportNormalMap(IOMasterMaterial, RenderingAsset, AdvancedOpaque.SurfaceNormal);
+
+					bool emission = GetBooleanPropertyValue(RenderingAsset, AdvancedOpaque.OpaqueEmission, false);
+					if (emission)
+					{
+						ExportEmission(IOMasterMaterial, RenderingAsset, AdvancedOpaque.OpaqueLuminance, AdvancedOpaque.OpaqueLuminanceModifier);
+					}
+					else
+					{
+						IOMasterMaterial.AddBoolean("SelfIlluminationMapEnable", false);
+					}
+				}
+				break;
+
 				default:
 				{
 					// The properties of the Datasmith master material cannot be set.
@@ -1337,7 +1455,98 @@ namespace DatasmithRevitExporter
 
 			// The properties of the Datasmith master material are set.
 			return true;
-        }
+		}
+
+		private bool ExportTexture(
+			FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetPropertyName, 
+			string MapParamName, string TextureParamPrefix)
+		{
+			string MapPath = GetTexturePropertyPath(RenderingAsset, AssetPropertyName);
+
+			if (!string.IsNullOrEmpty(MapPath))
+			{
+				float UVOffsetX = GetTexturePropertyDistance(RenderingAsset, AssetPropertyName, UnifiedBitmap.TextureRealWorldOffsetX, 0.0F);
+				float UVOffsetY = GetTexturePropertyDistance(RenderingAsset, AssetPropertyName, UnifiedBitmap.TextureRealWorldOffsetY, 0.0F);
+				float UVScaleX = 1.0F / GetTexturePropertyDistance(RenderingAsset, AssetPropertyName, UnifiedBitmap.TextureRealWorldScaleX, 1.0F);
+				float UVScaleY = 1.0F / GetTexturePropertyDistance(RenderingAsset, AssetPropertyName, UnifiedBitmap.TextureRealWorldScaleY, 1.0F);
+				float UVWAngle = GetTexturePropertyAngle(RenderingAsset, AssetPropertyName, UnifiedBitmap.TextureWAngle);
+
+				// Control the Unreal material Normal.
+				IOMasterMaterial.AddTexture(MapParamName, MapPath);
+				IOMasterMaterial.AddFloat($"{TextureParamPrefix}_UVOffsetX", UVOffsetX);
+				IOMasterMaterial.AddFloat($"{TextureParamPrefix}_UVOffsetY", UVOffsetY);
+				IOMasterMaterial.AddFloat($"{TextureParamPrefix}_UVScaleX", UVScaleX);
+				IOMasterMaterial.AddFloat($"{TextureParamPrefix}_UVScaleY", UVScaleY);
+				IOMasterMaterial.AddFloat($"{TextureParamPrefix}_UVWAngle", UVWAngle);
+
+				return true;
+			}
+
+			return false;
+		}
+
+		private void ExportNormalMap(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetPropertyName)
+		{
+			ExportTexture(IOMasterMaterial, RenderingAsset, AssetPropertyName, "NormalMap", "NormalMap");
+		}
+
+		private void ExportDiffuse(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty, Color DefaultColor)
+		{
+			Color DiffuseColor = GetColorPropertyValue(RenderingAsset, AssetProperty, DefaultColor);
+
+			// Control the Unreal material Base Color.
+			IOMasterMaterial.AddColor("DiffuseColor", DiffuseColor.Red / 255.0F, DiffuseColor.Green / 255.0F, DiffuseColor.Blue / 255.0F, 1.0F);
+
+			if (ExportTexture(IOMasterMaterial, RenderingAsset, AssetProperty, "DiffuseMap", "DiffuseMap"))
+			{
+				IOMasterMaterial.AddFloat("DiffuseMapFading", 1.0F);
+			}
+			else
+			{
+				IOMasterMaterial.AddFloat("DiffuseMapFading", 0.0F);
+			}
+		}
+
+		private void ExportEmission(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string LuminanceParam, string ColorParam)
+		{
+			float EmissionLuminance = GetFloatPropertyValue(RenderingAsset, LuminanceParam, 1.0f);
+			Color EmissionFilterColor = GetColorPropertyValue(RenderingAsset, ColorParam, new Color(255, 255, 255));
+
+			// Control the Unreal material Emissive Color.
+			IOMasterMaterial.AddFloat("SelfIlluminationLuminance", EmissionLuminance);
+			IOMasterMaterial.AddColor("SelfIlluminationFilter", EmissionFilterColor.Red / 255.0F, EmissionFilterColor.Green / 255.0F, EmissionFilterColor.Blue / 255.0F, 1.0F);
+
+			if (ExportTexture(IOMasterMaterial, RenderingAsset, ColorParam, "SelfIlluminationMap", "SelfIlluminationMap"))
+			{
+				IOMasterMaterial.AddBoolean("SelfIlluminationMapEnable", true);
+			}
+			else
+			{
+				IOMasterMaterial.AddBoolean("SelfIlluminationMapEnable", false);
+			}
+		}
+
+		private void ExportRougness(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty)
+		{
+			if (ExportTexture(IOMasterMaterial, RenderingAsset, AssetProperty, "RoughnessMap", "RoughnessMap"))
+			{
+				IOMasterMaterial.AddBoolean("RoughnessMapEnable", true);
+			}
+			else
+			{
+				IOMasterMaterial.AddBoolean("RoughnessMapEnable", false);
+				float Rougness = GetFloatPropertyValue(RenderingAsset, AssetProperty, 0f);
+				IOMasterMaterial.AddFloat("Rougness", Rougness);
+			}
+		}
+
+		private void ExportCutout(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty)
+		{
+			if (ExportTexture(IOMasterMaterial, RenderingAsset, AssetProperty, "CutoutOpacityMap", "CutoutMap"))
+			{
+				IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.CutOut);
+			}
+		}
 
 		private void SetFallbackMaterial(
 			Color                    InMaterialColor,

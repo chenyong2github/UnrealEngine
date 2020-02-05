@@ -56,8 +56,9 @@ public:
 
 	/**
 	 * Connect to the default connection setup
+	 * @return true if default connection process properly started
 	 */
-	virtual void DefaultConnect() = 0;
+	virtual bool DefaultConnect() = 0;
 
 	/**
 	 * Disconnect from the current session if any, but prompt the user about session changes first.

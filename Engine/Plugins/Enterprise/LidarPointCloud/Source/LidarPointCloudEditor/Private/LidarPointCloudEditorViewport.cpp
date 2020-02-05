@@ -1,0 +1,234 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+ 
+#include "LidarPointCloudEditorViewport.h"
+#include "LidarPointCloudEditorViewportClient.h"
+#include "LidarPointCloud.h"
+#include "LidarPointCloudComponent.h"
+#include "LidarPointCloudEditorCommands.h"
+
+#include "Slate/SceneViewport.h"
+#include "EditorStyleSet.h"
+#include "ComponentReregisterContext.h"
+#include "Widgets/Docking/SDockTab.h"
+
+///////////////////////////////////////////////////////////
+// SPointCloudEditorViewportToolbar
+
+// In-viewport toolbar widget used in the static mesh editor
+class SPointCloudEditorViewportToolbar : public SCommonEditorViewportToolbarBase
+{
+public:
+	SLATE_BEGIN_ARGS(SPointCloudEditorViewportToolbar) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, TSharedPtr<class ICommonEditorViewportToolbarInfoProvider> InInfoProvider)
+	{
+		SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments(), InInfoProvider);
+	}
+
+	// SCommonEditorViewportToolbarBase interface
+	virtual TSharedRef<SWidget> GenerateShowMenu() const override
+	{
+		GetInfoProvider().OnFloatingButtonClicked();
+
+		TSharedRef<SEditorViewport> ViewportRef = GetInfoProvider().GetViewportWidget();
+
+		const bool bInShouldCloseWindowAfterMenuSelection = true;
+		FMenuBuilder ShowMenuBuilder(bInShouldCloseWindowAfterMenuSelection, ViewportRef->GetCommandList());
+		{
+			auto Commands = FLidarPointCloudEditorCommands::Get();
+
+			ShowMenuBuilder.AddMenuEntry(Commands.SetShowGrid);
+			ShowMenuBuilder.AddMenuEntry(Commands.SetShowBounds);
+			ShowMenuBuilder.AddMenuEntry(Commands.SetShowCollision);
+			ShowMenuBuilder.AddMenuEntry(Commands.SetShowNodes);
+		}
+
+		return ShowMenuBuilder.MakeWidget();
+	}
+	// End of SCommonEditorViewportToolbarBase
+};
+
+///////////////////////////////////////////////////////////
+// SLidarPointCloudEditorViewport
+
+void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
+{
+	PreviewScene->SetFloorVisibility(false, true);
+	PreviewScene->SetEnvironmentVisibility(false);
+
+	PointCloudEditorPtr = InArgs._PointCloudEditor;
+
+	PointCloud = InArgs._ObjectToEdit;
+
+	CurrentViewMode = VMI_Lit;
+
+	SEditorViewport::Construct(SEditorViewport::FArguments());
+
+	PreviewCloudComponent = NewObject<ULidarPointCloudComponent>((UObject*)GetTransientPackage(), NAME_None, RF_Transient);
+
+	SetPreviewCloud(PointCloud);
+
+	ViewportOverlay->AddSlot()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		.Padding(FMargin(10.0f, 40.0f, 10.0f, 10.0f))
+		[
+			SAssignNew(OverlayTextVerticalBox, SVerticalBox)
+		];
+
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &SLidarPointCloudEditorViewport::OnObjectPropertyChanged);
+}
+
+SLidarPointCloudEditorViewport::SLidarPointCloudEditorViewport()
+	: PreviewScene(MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues(), FLT_MAX)))
+{
+}
+
+SLidarPointCloudEditorViewport::~SLidarPointCloudEditorViewport()
+{
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+	if (EditorViewportClient.IsValid())
+	{
+		EditorViewportClient->Viewport = nullptr;
+	}
+}
+
+void SLidarPointCloudEditorViewport::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(PreviewCloudComponent);
+	Collector.AddReferencedObject(PointCloud);
+}
+
+void SLidarPointCloudEditorViewport::RefreshViewport()
+{
+	// Invalidate the viewport's display.
+	SceneViewport->Invalidate();
+}
+
+void SLidarPointCloudEditorViewport::ResetCamera()
+{
+	if (auto EditorViewportClientRawPtr = EditorViewportClient.Get())
+	{
+		EditorViewportClientRawPtr->ResetCamera();
+	}
+}
+
+void SLidarPointCloudEditorViewport::SetPreviewCloud(ULidarPointCloud* InPointCloud)
+{
+	// Set the new preview point cloud.
+	FComponentReregisterContext ReregisterContext(PreviewCloudComponent);
+	PreviewCloudComponent->SetPointCloud(InPointCloud);
+
+	PreviewScene->AddComponent(PreviewCloudComponent, FTransform::Identity);
+
+	EditorViewportClient->SetPreviewCloud(InPointCloud, PreviewCloudComponent);
+}
+
+void SLidarPointCloudEditorViewport::UpdatePreviewCloud(ULidarPointCloud* InPointCloud, bool bResetCamera/*= true*/)
+{
+	if (PreviewCloudComponent)
+	{
+		PreviewScene->RemoveComponent(PreviewCloudComponent);
+		PreviewCloudComponent = nullptr;
+	}
+
+	PreviewCloudComponent = NewObject<ULidarPointCloudComponent>();
+
+	SetPreviewCloud(InPointCloud);
+}
+
+void SLidarPointCloudEditorViewport::PopulateOverlayText(const TArray<FOverlayTextItem>& TextItems)
+{
+	OverlayTextVerticalBox->ClearChildren();
+
+	for (const auto& TextItem : TextItems)
+	{
+		OverlayTextVerticalBox->AddSlot()
+			[
+				SNew(STextBlock)
+				.Text(TextItem.Text)
+				.TextStyle(FEditorStyle::Get(), TextItem.Style)
+			];
+	}
+}
+
+bool SLidarPointCloudEditorViewport::IsVisible() const
+{
+	return ViewportWidget.IsValid() && (!ParentTab.IsValid() || ParentTab.Pin()->IsForeground());
+}
+
+void SLidarPointCloudEditorViewport::OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (!ensure(ObjectBeingModified))
+	{
+		return;
+	}
+
+	if (PreviewCloudComponent)
+	{
+	}
+}
+
+TSharedRef<FEditorViewportClient> SLidarPointCloudEditorViewport::MakeEditorViewportClient()
+{
+	EditorViewportClient = MakeShareable(new FLidarPointCloudEditorViewportClient(PointCloudEditorPtr, SharedThis(this), PreviewScene.ToSharedRef(), PointCloud, nullptr));
+
+	EditorViewportClient->bSetListenerPosition = false;
+
+	EditorViewportClient->SetRealtime(true);
+	EditorViewportClient->VisibilityDelegate.BindSP(this, &SLidarPointCloudEditorViewport::IsVisible);
+
+	return EditorViewportClient.ToSharedRef();
+}
+
+TSharedPtr<SWidget> SLidarPointCloudEditorViewport::MakeViewportToolbar()
+{
+	return SNew(SPointCloudEditorViewportToolbar, SharedThis(this));
+}
+
+void SLidarPointCloudEditorViewport::BindCommands()
+{
+	SEditorViewport::BindCommands();
+
+	const FLidarPointCloudEditorCommands& Commands = FLidarPointCloudEditorCommands::Get();
+
+	TSharedRef<FLidarPointCloudEditorViewportClient> EditorViewportClientRef = EditorViewportClient.ToSharedRef();
+
+	CommandList->MapAction(
+		Commands.ResetCamera,
+		FExecuteAction::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::ResetCamera));
+
+	CommandList->MapAction(
+		Commands.SetShowGrid,
+		FExecuteAction::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::SetShowGrid),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::IsSetShowGridChecked));
+
+	CommandList->MapAction(
+		Commands.SetShowBounds,
+		FExecuteAction::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::ToggleShowBounds),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::IsSetShowBoundsChecked));
+
+	CommandList->MapAction(
+		Commands.SetShowCollision,
+		FExecuteAction::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::SetShowCollision),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::IsSetShowCollisionChecked));
+
+	CommandList->MapAction(
+		Commands.SetShowNodes,
+		FExecuteAction::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::ToggleShowNodes),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(EditorViewportClientRef, &FLidarPointCloudEditorViewportClient::IsSetShowNodesChecked));
+}
+
+void SLidarPointCloudEditorViewport::OnFocusViewportToSelection()
+{
+	if (PreviewCloudComponent)
+	{
+		EditorViewportClient->FocusViewportOnBox(PreviewCloudComponent->Bounds.GetBox());
+		return;
+	}
+}

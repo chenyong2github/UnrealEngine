@@ -52,6 +52,13 @@ public:
 	FDynamicMeshIndexBuffer32 SecondaryIndexBuffer;
 
 
+	/**
+	 * In situations where we want to *update* the existing Vertex or Index buffers, we need to synchronize
+	 * access between the Game and Render threads. We use this lock to do that.
+	 */
+	FCriticalSection BuffersLock;
+
+
 	FMeshRenderBufferSet(ERHIFeatureLevel::Type FeatureLevelType)
 		: VertexFactory(FeatureLevelType, "FMeshRenderBufferSet")
 	{
@@ -124,8 +131,21 @@ public:
 	}
 
 
+	void UploadIndexBufferUpdate()
+	{
+		check(IsInRenderingThread());
+		if (IndexBuffer.Indices.Num() > 0)
+		{
+			InitOrUpdateResource(&IndexBuffer);
+		}
+		if (bEnableSecondaryIndexBuffer && SecondaryIndexBuffer.Indices.Num() > 0)
+		{
+			InitOrUpdateResource(&SecondaryIndexBuffer);
+		}
+	}
 
-	void UploadVertexUpdate(bool bPositions, bool bNormals, bool bColors)
+
+	void UploadVertexUpdate(bool bPositions, bool bMeshAttribs, bool bColors)
 	{
 		check(IsInRenderingThread());
 
@@ -138,7 +158,7 @@ public:
 		{
 			InitOrUpdateResource(&this->PositionVertexBuffer);
 		}
-		if (bNormals)
+		if (bMeshAttribs)
 		{
 			InitOrUpdateResource(&this->StaticMeshVertexBuffer);
 		}
@@ -474,6 +494,51 @@ public:
 
 
 	/**
+	 * FastUpdateTriangleBuffers re-sorts the existing set of triangles in a FMeshRenderBufferSet
+	 * into primary and secondary index buffers. Note that UploadIndexBufferUpdate() must be called
+	 * after this function!
+	 */
+	void FastUpdateIndexBuffers(
+		FMeshRenderBufferSet* RenderBuffers, 
+		const FDynamicMesh3* Mesh)
+	{
+		if (RenderBuffers->TriangleCount == 0)
+		{
+			return;
+		}
+		check(RenderBuffers->Triangles.IsSet() && RenderBuffers->Triangles->Num() > 0);
+
+		//bool bDuplicate = false;		// flag for future use, in case we want to draw all triangles in primary and duplicates in secondary...
+		RenderBuffers->IndexBuffer.Indices.Reset();
+		RenderBuffers->SecondaryIndexBuffer.Indices.Reset();
+		
+		TArray<uint32>& Indices = RenderBuffers->IndexBuffer.Indices;
+		TArray<uint32>& SecondaryIndices = RenderBuffers->SecondaryIndexBuffer.Indices;
+		const TArray<int32>& TriangleIDs = RenderBuffers->Triangles.GetValue();
+
+		int NumTris = TriangleIDs.Num();
+		for (int k = 0; k < NumTris; ++k)
+		{
+			int TriangleID = TriangleIDs[k];
+			bool bInclude = SecondaryTriFilterFunc(Mesh, TriangleID);
+			if (bInclude)
+			{
+				SecondaryIndices.Add(3 * k);
+				SecondaryIndices.Add(3 * k + 1);
+				SecondaryIndices.Add(3 * k + 2);
+			}
+			else // if (bDuplicate == false)
+			{
+				Indices.Add(3 * k);
+				Indices.Add(3 * k + 1);
+				Indices.Add(3 * k + 2);
+			}
+		}
+	}
+
+
+
+	/**
 	 * Update vertex positions/normals/colors of an existing set of render buffers.
 	 * Assumes that buffers were created with unshared vertices, ie three vertices per triangle, eg by InitializeBuffersFromOverlays()
 	 */
@@ -547,6 +612,40 @@ public:
 			}
 		}
 	}
+
+
+
+	/**
+	 * Update vertex uvs of an existing set of render buffers.
+	 * Assumes that buffers were created with unshared vertices, ie three vertices per triangle, eg by InitializeBuffersFromOverlays()
+	 */
+	template<typename TriangleEnumerable>
+	void UpdateVertexUVBufferFromOverlays(
+		FMeshRenderBufferSet* RenderBuffers,
+		const FDynamicMesh3* Mesh,
+		int32 NumTriangles, TriangleEnumerable Enumerable,
+		FDynamicMeshUVOverlay* UVOverlay, int32 UVIndex)
+	{
+		if (RenderBuffers->TriangleCount == 0)
+		{
+			return;
+		}
+		int NumVertices = NumTriangles * 3;
+		check(RenderBuffers->StaticMeshVertexBuffer.GetNumVertices() == NumVertices);
+
+		int VertIdx = 0;
+		for (int TriangleID : Enumerable)
+		{
+			FIndex3i UVTri = UVOverlay->GetTriangle(TriangleID);
+			for (int j = 0; j < 3; ++j)
+			{
+				FVector2f UV = UVOverlay->GetElement(UVTri[j]);
+				RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, UVIndex, (FVector2D)UV);
+				VertIdx++;
+			}
+		}
+	}
+
 
 
 
@@ -626,6 +725,7 @@ public:
 
 		FMaterialRenderProxy* SecondaryMaterialProxy =
 			ParentBaseComponent->HasSecondaryRenderMaterial() ? ParentBaseComponent->GetSecondaryRenderMaterial()->GetRenderProxy() : nullptr;
+		bool bDrawSecondaryBuffers = ParentBaseComponent->GetSecondaryBuffersVisibility();
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -654,6 +754,9 @@ public:
 						continue;
 					}
 
+					// lock buffers so that they aren't modified while we are submitting them
+					FScopeLock BuffersLock(&BufferSet->BuffersLock);
+
 					// do we need separate one of these for each MeshRenderBufferSet?
 					FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
 					DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, DrawsVelocity(), bOutputVelocity);
@@ -668,7 +771,7 @@ public:
 					}
 
 					// draw secondary buffer if we have it, and have secondary material
-					if (BufferSet->SecondaryIndexBuffer.Indices.Num() > 0 && SecondaryMaterialProxy != nullptr)
+					if (bDrawSecondaryBuffers && BufferSet->SecondaryIndexBuffer.Indices.Num() > 0 && SecondaryMaterialProxy != nullptr)
 					{
 						DrawBatch(Collector, *BufferSet, BufferSet->SecondaryIndexBuffer, SecondaryMaterialProxy, false, DepthPriority, ViewIndex, DynamicPrimitiveUniformBuffer);
 						if (bWireframe)

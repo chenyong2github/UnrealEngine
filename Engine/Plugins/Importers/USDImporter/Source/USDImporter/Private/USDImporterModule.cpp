@@ -29,8 +29,8 @@ public:
 		BasePluginPath /= ("Resources/UsdResources/Linux/plugins");
 #endif
 
-		std::vector<std::string> PluginPaths;
-		PluginPaths.push_back(TCHAR_TO_ANSI(*BasePluginPath));
+		TArray< FString > PluginPaths;
+		PluginPaths.Add( BasePluginPath );
 
 		// Load any custom plugins the user may have
 		const TArray<FDirectoryPath>& AdditionalPluginDirectories = GetDefault<UUSDImporterProjectSettings>()->AdditionalPluginDirectories;
@@ -39,12 +39,12 @@ public:
 		{
 			if (!Directory.Path.IsEmpty())
 			{
-				PluginPaths.push_back(TCHAR_TO_ANSI(*Directory.Path));
+				PluginPaths.Add( Directory.Path );
 			}
 		}
 
 		IUnrealUSDWrapperModule& UnrealUSDWrapperModule = FModuleManager::Get().LoadModuleChecked< IUnrealUSDWrapperModule >( TEXT("UnrealUSDWrapper") );
-		UnrealUSDWrapperModule.Initialize(PluginPaths);
+		UnrealUSDWrapperModule.Initialize( PluginPaths );
 
 		USDImporter = NewObject<UUSDImporter>();
 #endif // #if USE_USD_SDK

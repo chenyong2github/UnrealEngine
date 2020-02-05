@@ -378,19 +378,12 @@ public:
 	 *
 	 * @return true on success, false otherwise.
 	 */
-	virtual bool GetLocalAdapterAddresses( TArray<TSharedPtr<FInternetAddr> >& OutAdresses ) override
-	{
-		bool bCanBindAll;
-
-		OutAdresses.Add(GetLocalHostAddr(*GLog, bCanBindAll));
-
-		return true;
-	}
+	virtual bool GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses) override;
 
 	/**
 	 *	Get local IP to bind to
 	 */
-	virtual TSharedRef<FInternetAddr> GetLocalBindAddr(FOutputDevice& Out) override;
+	virtual TArray<TSharedRef<FInternetAddr>> GetLocalBindAddresses() override;
 
 	/**
 	 * Chance for the socket subsystem to get some time

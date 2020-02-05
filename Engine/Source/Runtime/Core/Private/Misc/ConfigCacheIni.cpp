@@ -18,9 +18,9 @@
 #include "Misc/DefaultValueHelper.h"
 #include "Misc/ConfigManifest.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/StringBuilder.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
-#include "Misc/StringBuilder.h"
 
 #if WITH_EDITOR
 	#define INI_CACHE 1

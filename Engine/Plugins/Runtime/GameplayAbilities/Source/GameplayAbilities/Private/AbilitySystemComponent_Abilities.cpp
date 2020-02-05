@@ -2377,6 +2377,13 @@ float UAbilitySystemComponent::PlayMontage(UGameplayAbility* InAnimatingAbility,
 				RepAnimMontageInfo.AnimMontage = NewAnimMontage;
 				RepAnimMontageInfo.ForcePlayBit = !bool(RepAnimMontageInfo.ForcePlayBit);
 
+				RepAnimMontageInfo.SectionIdToPlay = 0;
+				if (RepAnimMontageInfo.AnimMontage && StartSectionName != NAME_None)
+				{
+					// we add one so INDEX_NONE can be used in the on rep
+					RepAnimMontageInfo.SectionIdToPlay = RepAnimMontageInfo.AnimMontage->GetSectionIndex(StartSectionName) + 1;
+				}
+
 				// Update parameters that change during Montage life time.
 				AnimMontage_UpdateReplicatedData();
 
@@ -2567,6 +2574,16 @@ void UAbilitySystemComponent::OnRep_ReplicatedAnimMontage()
 				AnimInstance->Montage_SetPlayRate(LocalAnimMontageInfo.AnimMontage, RepAnimMontageInfo.PlayRate);
 			}
 
+			const int32 SectionIdToPlay = (static_cast<int32>(RepAnimMontageInfo.SectionIdToPlay) - 1);
+			if (SectionIdToPlay != INDEX_NONE)
+			{
+				FName SectionNameToJumpTo = LocalAnimMontageInfo.AnimMontage->GetSectionName(SectionIdToPlay);
+				if (SectionNameToJumpTo != NAME_None)
+				{
+					AnimInstance->Montage_JumpToSection(SectionNameToJumpTo);
+				}
+			}
+
 			// Compressed Flags
 			const bool bIsStopped = AnimInstance->Montage_GetIsStopped(LocalAnimMontageInfo.AnimMontage);
 			const bool bReplicatedIsStopped = bool(RepAnimMontageInfo.IsStopped);
@@ -2677,6 +2694,13 @@ void UAbilitySystemComponent::CurrentMontageJumpToSection(FName SectionName)
 		AnimInstance->Montage_JumpToSection(SectionName, LocalAnimMontageInfo.AnimMontage);
 		if (IsOwnerActorAuthoritative())
 		{
+			RepAnimMontageInfo.SectionIdToPlay = 0;
+			if (RepAnimMontageInfo.AnimMontage)
+			{
+				// we add one so INDEX_NONE can be used in the on rep
+				RepAnimMontageInfo.SectionIdToPlay = RepAnimMontageInfo.AnimMontage->GetSectionIndex(SectionName) + 1;
+			}
+
 			AnimMontage_UpdateReplicatedData();
 		}
 		else
@@ -2784,6 +2808,13 @@ void UAbilitySystemComponent::ServerCurrentMontageJumpToSectionName_Implementati
 			// Update replicated version for Simulated Proxies if we are on the server.
 			if (IsOwnerActorAuthoritative())
 			{
+				RepAnimMontageInfo.SectionIdToPlay = 0;
+				if (RepAnimMontageInfo.AnimMontage && SectionName != NAME_None)
+				{
+					// we add one so INDEX_NONE can be used in the on rep
+					RepAnimMontageInfo.SectionIdToPlay = RepAnimMontageInfo.AnimMontage->GetSectionIndex(SectionName) + 1;
+				}
+
 				AnimMontage_UpdateReplicatedData();
 			}
 		}
@@ -2897,6 +2928,11 @@ float UAbilitySystemComponent::GetCurrentMontageSectionTimeLeft() const
 	}
 
 	return -1.f;
+}
+
+void UAbilitySystemComponent::SetMontageRepAnimPositionMethod(ERepAnimPositionMethod InMethod)
+{
+	RepAnimMontageInfo.SetRepAnimPositionMethod(InMethod);
 }
 
 bool UAbilitySystemComponent::IsAnimatingAbility(UGameplayAbility* InAbility) const

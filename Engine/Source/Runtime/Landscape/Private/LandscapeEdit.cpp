@@ -697,9 +697,14 @@ void ULandscapeComponent::FixupWeightmaps()
 			bool bFixedWeightmapTextureIndex = false;
 
 			// Store the weightmap allocations in WeightmapUsageMap
-			for (int32 LayerIdx = 0; LayerIdx < WeightmapLayerAllocations.Num(); LayerIdx++)
+			for (int32 LayerIdx = 0; LayerIdx < WeightmapLayerAllocations.Num();)
 			{
 				FWeightmapLayerAllocationInfo& Allocation = WeightmapLayerAllocations[LayerIdx];
+				if (!Allocation.IsAllocated())
+				{
+					WeightmapLayerAllocations.RemoveAt(LayerIdx);
+					continue;
+				}
 
 				// Fix up any problems caused by the layer deletion bug.
 				if (Allocation.WeightmapTextureIndex >= WeightmapTextures.Num())
@@ -741,13 +746,13 @@ void ULandscapeComponent::FixupWeightmaps()
 						->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_FixedUpSharedLayerWeightmap", "Fixed up shared weightmap texture for layer {LayerName} in component '{LandscapeName}' (shares with '{ChannelName}')"), Arguments)))
 						->AddToken(FMapErrorToken::Create(FMapErrors::FixedUpSharedLayerWeightmap));
 					WeightmapLayerAllocations.RemoveAt(LayerIdx);
-					LayerIdx--;
 					continue;
 				}
 				else
 				{
 					Usage->ChannelUsage[Allocation.WeightmapTextureChannel] = this;
 				}
+				++LayerIdx;
 			}
 
 			RemoveInvalidWeightmaps();
@@ -4459,9 +4464,8 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			{
 				ModifiedScale.X = FMath::Abs(OriginalScale.Y)*FMath::Sign(ModifiedScale.X);
 			}
-			else
+			else if (SubPropertyName == FName("X"))
 			{
-				// There's no "if name == X" here so that if we can't tell which has changed out of X and Y, we just use X
 				ModifiedScale.Y = FMath::Abs(OriginalScale.X)*FMath::Sign(ModifiedScale.Y);
 			}
 
@@ -4800,9 +4804,9 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			MaterialInstanceConstantMap.Empty();
 		}
 	}
-	else if (PropertyName == FName(TEXT("RelativeScale3D")) ||
-		PropertyName == FName(TEXT("RelativeLocation")) ||
-		PropertyName == FName(TEXT("RelativeRotation")))
+	else if (MemberPropertyName == FName(TEXT("RelativeScale3D")) ||
+			 MemberPropertyName == FName(TEXT("RelativeLocation")) ||
+			 MemberPropertyName == FName(TEXT("RelativeRotation")))
 	{
 		if (Info != nullptr)
 		{

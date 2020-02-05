@@ -499,6 +499,16 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 		if ( GlossinessExpression )
 		{
 			GlossinessExpression->SetName( TEXT("Reflection Glossiness") );
+
+			if ( VRayMaterialProperties.bUseRoughness )
+			{
+				IDatasmithMaterialExpressionGeneric* InverseGlossinessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				InverseGlossinessExpression->SetExpressionName( TEXT("OneMinus") );
+
+				GlossinessExpression->ConnectExpression( *InverseGlossinessExpression->GetInput(0) );
+
+				GlossinessExpression = InverseGlossinessExpression;
+			}
 		}
 	}
 
@@ -578,27 +588,24 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 
 		IDatasmithMaterialExpression* RoughnessOutput = MultiplyGlossiness;
 
-		if ( !VRayMaterialProperties.bUseRoughness )
-		{
-			IDatasmithMaterialExpressionGeneric* OneMinusRougnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
-			OneMinusRougnessExpression->SetExpressionName( TEXT("OneMinus") );
+		IDatasmithMaterialExpressionGeneric* OneMinusRougnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		OneMinusRougnessExpression->SetExpressionName( TEXT("OneMinus") );
 
-			MultiplyGlossiness->ConnectExpression( *OneMinusRougnessExpression->GetInput(0) );
+		MultiplyGlossiness->ConnectExpression( *OneMinusRougnessExpression->GetInput(0) );
 
-			RoughnessOutput = OneMinusRougnessExpression;
-		}
+		RoughnessOutput = OneMinusRougnessExpression;
 
-		IDatasmithMaterialExpressionGeneric* PowRougnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
-		PowRougnessExpression->SetExpressionName( TEXT("Power") );
+		IDatasmithMaterialExpressionGeneric* PowRoughnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		PowRoughnessExpression->SetExpressionName( TEXT("Power") );
 
 		TSharedRef< IDatasmithKeyValueProperty > PowRoughnessValue = FDatasmithSceneFactory::CreateKeyValueProperty( TEXT("ConstExponent") );
 		PowRoughnessValue->SetPropertyType( EDatasmithKeyValuePropertyType::Float );
 		PowRoughnessValue->SetValue( *LexToString( 1.5f ) );
 
-		PowRougnessExpression->AddProperty( PowRoughnessValue );
+		PowRoughnessExpression->AddProperty( PowRoughnessValue );
 
-		RoughnessOutput->ConnectExpression( *PowRougnessExpression->GetInput(0) );
-		PowRougnessExpression->ConnectExpression( PbrMaterialElement->GetRoughness() );
+		RoughnessOutput->ConnectExpression( *PowRoughnessExpression->GetInput(0) );
+		PowRoughnessExpression->ConnectExpression( PbrMaterialElement->GetRoughness() );
 	}
 
 	IDatasmithMaterialExpressionGeneric* ReflectionFresnelExpression = nullptr;

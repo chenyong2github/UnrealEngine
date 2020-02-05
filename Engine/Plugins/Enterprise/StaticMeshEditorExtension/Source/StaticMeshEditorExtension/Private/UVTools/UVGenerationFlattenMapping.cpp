@@ -15,10 +15,10 @@
 #include "Math/UnrealMathUtility.h"
 #include "MeshAttributes.h"
 #include "MeshDescription.h"
-#include "MeshDescriptionOperations.h"
 #include "Misc/ScopedSlowTask.h"
 #include "OverlappingCorners.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "Templates/TypeHash.h"
 
 #define FLATTEN_AREA_WEIGHT 0.7
@@ -1294,7 +1294,7 @@ TArray<int32> UUVGenerationFlattenMapping::GetOverlappingCornersRemapping(const 
 {
 	float ComparisonThreshold = bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 	FOverlappingCorners OverlappingCorners;
-	FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, InMeshDescription, ComparisonThreshold);
+	FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, InMeshDescription, ComparisonThreshold);
 
 	// Create a instanceID mapping that merge overlapping vertices.
 	// In order to produce a better UV mapping

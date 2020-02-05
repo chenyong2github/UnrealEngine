@@ -535,6 +535,10 @@ public:
 	*/
 	MOVIESCENE_API virtual float GetTotalWeightValue(FFrameTime InTime) const { return EvaluateEasing(InTime); }
 
+#if WITH_EDITOR
+	MOVIESCENE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 protected:
 
 	//~ UObject interface

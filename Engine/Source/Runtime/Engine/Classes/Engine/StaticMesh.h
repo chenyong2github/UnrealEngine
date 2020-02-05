@@ -894,17 +894,12 @@ public:
 
 	/** Builds static mesh LODs from the array of StaticMeshDescriptions passed in */
 	UFUNCTION(BlueprintCallable, Category="StaticMesh")
-	ENGINE_API void BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions);
+	ENGINE_API void BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions, bool bBuildSimpleCollision = false);
 
 	/**
 	 * Builds static mesh render buffers from a list of MeshDescriptions, one per LOD.
 	 */
-	ENGINE_API bool BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions);
-
-	/**
-	 * Builds simple collisions at runtime
-	 */
-	ENGINE_API bool BuildSimpleCollision();
+	ENGINE_API bool BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions, bool bBuildSimpleCollision = false);
 
 	/** Builds a LOD resource from a MeshDescription */
 	void BuildFromMeshDescription(const FMeshDescription& MeshDescription, FStaticMeshLODResources& LODResources);
@@ -1347,5 +1342,10 @@ private:
 	 * Fixes up the material when it was converted to the new staticmesh build process
 	 */
 	bool bCleanUpRedundantMaterialPostLoad;
+
+	/**
+	 * Guard to ignore re-entrant PostEditChange calls.
+	 */
+	bool bIsInPostEditChange = false;
 #endif // #if WITH_EDITOR
 };

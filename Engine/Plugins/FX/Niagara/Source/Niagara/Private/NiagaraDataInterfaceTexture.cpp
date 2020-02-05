@@ -468,4 +468,11 @@ FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceTexture::ConstructComput
 	return new FNiagaraDataInterfaceParametersCS_Texture();
 }
 
+
+void UNiagaraDataInterfaceTexture::SetTexture(UTexture* InTexture)
+{
+	Texture = InTexture;
+	PushToRenderThread();
+}
+
 #undef LOCTEXT_NAMESPACE

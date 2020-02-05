@@ -11,6 +11,7 @@
 #include "ComponentReregisterContext.h"
 #include "MeshPaintAdapterFactory.h"
 #include "ToolDataVisualizer.h"
+#include "MeshPaintHelpers.h"
 
 
 #define LOCTEXT_NAMESPACE "MeshVertexBrush"
@@ -19,15 +20,9 @@
  * ToolBuilder
  */
 
-bool HasPaintableMesh(UActorComponent* Component)
-{
-	return Cast<UMeshComponent>(Component) != nullptr;
-}
-
-
 bool UMeshColorPaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, HasPaintableMesh);
+	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
 	return ActorComponent != nullptr;
 }
 
@@ -39,7 +34,7 @@ UInteractiveTool* UMeshColorPaintingToolBuilder::BuildTool(const FToolBuilderSta
 
 bool UMeshWeightPaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, HasPaintableMesh);
+	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
 	return ActorComponent != nullptr;
 }
 
@@ -514,6 +509,10 @@ void UMeshColorPaintingTool::Setup()
 {
 	Super::Setup();
 	ColorProperties = Cast<UMeshColorPaintingToolProperties>(BrushProperties);
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartColorPaintTool", "Paint vertex colors on selected meshes.  Use the Color View Mode to preview your applied changes."),
+		EToolMessageLevel::UserNotification);
 }
 
 void UMeshColorPaintingTool::CacheSelectionData()
@@ -649,6 +648,18 @@ void UMeshColorPaintingTool::PaintLODChanged()
 	}
 }
 
+void UMeshColorPaintingTool::CycleMeshLODs(int32 Direction)
+{
+	if (bCachedForceLOD)
+	{
+		const int32 MaxLODIndex = GetMaxLODIndexToPaint() + 1;
+		const int32 NewLODIndex = ColorProperties->LODIndex + Direction;
+		const int32 AdjustedLODIndex = NewLODIndex < 0 ? MaxLODIndex + NewLODIndex : NewLODIndex % MaxLODIndex;
+		ColorProperties->LODIndex = AdjustedLODIndex;
+		PaintLODChanged();
+	}
+}
+
 UMeshWeightPaintingToolProperties::UMeshWeightPaintingToolProperties()
 	:UMeshVertexPaintingToolProperties(),
 	TextureWeightType(EMeshPaintWeightTypes::AlphaLerp),
@@ -677,6 +688,10 @@ void UMeshWeightPaintingTool::Setup()
 {
 	Super::Setup();
 	WeightProperties = Cast<UMeshWeightPaintingToolProperties>(BrushProperties);
+
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartPaintWeightsTool", "Paint Vertex Weights on selected meshes."),
+		EToolMessageLevel::UserNotification);
 }
 
 void UMeshWeightPaintingTool::CacheSelectionData()

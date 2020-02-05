@@ -4,6 +4,8 @@
 #include "MoviePipelinePIEExecutor.h"
 #include "MoviePipelineNewProcessExecutor.h"
 #include "MoviePipeline.h"
+#include "MoviePipelineImageSequenceOutput.h"
+#include "MoviePipelineDeferredPasses.h"
 
 UMovieRenderPipelineProjectSettings::UMovieRenderPipelineProjectSettings()
 {
@@ -11,4 +13,7 @@ UMovieRenderPipelineProjectSettings::UMovieRenderPipelineProjectSettings()
 	DefaultLocalExecutor = UMoviePipelinePIEExecutor::StaticClass();
 	DefaultRemoteExecutor = UMoviePipelineNewProcessExecutor::StaticClass();
 	DefaultPipeline = UMoviePipeline::StaticClass();
+
+	DefaultClasses.Add(UMoviePipelineImageSequenceOutput_JPG::StaticClass());
+	DefaultClasses.Add(UMoviePipelineDeferredPassBase::StaticClass());
 }

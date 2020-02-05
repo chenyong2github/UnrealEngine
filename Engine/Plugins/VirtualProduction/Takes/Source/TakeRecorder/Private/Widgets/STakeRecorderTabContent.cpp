@@ -205,6 +205,29 @@ FFrameRate STakeRecorderTabContent::GetFrameRate() const
 	return Cockpit.IsValid() ? Cockpit->GetFrameRate() : FFrameRate();
 }
 
+void STakeRecorderTabContent::SetFrameRate(FFrameRate InFrameRate)
+{
+	TSharedPtr<STakeRecorderPanel>   Panel = WeakPanel.Pin();
+	TSharedPtr<STakeRecorderCockpit> Cockpit = Panel.IsValid() ? Panel->GetCockpitWidget() : nullptr;
+
+	if (Cockpit.IsValid())
+	{
+		Cockpit->SetFrameRate(InFrameRate,false);
+	}
+}
+
+void STakeRecorderTabContent::SetFrameRateFromTimecode(bool bInFromTimecode)
+{
+	TSharedPtr<STakeRecorderPanel>   Panel = WeakPanel.Pin();
+	TSharedPtr<STakeRecorderCockpit> Cockpit = Panel.IsValid() ? Panel->GetCockpitWidget() : nullptr;
+
+	if (Cockpit.IsValid())
+	{
+		Cockpit->SetFrameRate(FApp::GetTimecodeFrameRate(), true);
+	}
+}
+
+
 UTakeRecorderSources* STakeRecorderTabContent::GetSources() const
 {
 	ULevelSequence* LevelSequence = nullptr;

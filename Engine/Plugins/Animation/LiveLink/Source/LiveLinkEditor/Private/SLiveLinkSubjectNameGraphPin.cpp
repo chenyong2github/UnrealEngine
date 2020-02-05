@@ -23,7 +23,7 @@ TSharedRef<SWidget> SLiveLinkSubjectNameGraphPin::GetDefaultValueWidget()
 		.Visibility(this, &SGraphPin::GetDefaultValueVisibility);
 }
 
-FLiveLinkSubjectRepresentation SLiveLinkSubjectNameGraphPin::GetValue() const
+SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole SLiveLinkSubjectNameGraphPin::GetValue() const
 {
 	FLiveLinkSubjectRepresentation SubjectRepresentation;
 
@@ -33,10 +33,10 @@ FLiveLinkSubjectRepresentation SLiveLinkSubjectNameGraphPin::GetValue() const
 		SubjectRepresentation.Role = Cast<UClass>(GraphPinObj->DefaultObject);
 	}
 
-	return SubjectRepresentation;
+	return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole(SubjectRepresentation);
 }
 
-void SLiveLinkSubjectNameGraphPin::SetValue(FLiveLinkSubjectRepresentation NewValue)
+void SLiveLinkSubjectNameGraphPin::SetValue(SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue)
 {
 	FString ValueString;
 	FLiveLinkSubjectName::StaticStruct()->ExportText(ValueString, &NewValue.Subject, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr);

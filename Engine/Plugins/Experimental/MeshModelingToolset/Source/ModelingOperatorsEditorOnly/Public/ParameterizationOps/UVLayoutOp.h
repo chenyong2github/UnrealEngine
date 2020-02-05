@@ -16,6 +16,10 @@ public:
 	// inputs
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
 
+	bool bSeparateUVIslands;
+	int TextureResolution;
+	float UVScaleFactor;
+
 
 	void SetTransform(const FTransform& Transform);
 

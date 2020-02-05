@@ -15,9 +15,10 @@ void FVariantManagerEditorCommands::RegisterCommands()
 	UI_COMMAND(CreateVariantManagerCommand, "Add Variant Manager", "Create a new variant manager asset, and place an instance of it in this level", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddVariantSetCommand, "Create new Variant Set", "Creates a new variant set at the bottom of the list", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddSelectedActorsCommand, "Add selected actors", "Creates a new variant set at the bottom of the list", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(SwitchOnSelectedVariantCommand, "Switch On", "Applies a single variant's values to all its captured properties", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(CreateThumbnailVariantCommand, "Create Thumbnail", "Creates a new thumbnail for the variant", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ClearThumbnailVariantCommand, "Clear Thumbnail", "Resets the variant thumbnail to default", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SwitchOnSelectedVariantCommand, "Switch on", "Applies a single variant's values to all its captured properties", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CreateThumbnailVariantCommand, "Set from viewport", "Sets the variant thumbnail to what is currently shown on the viewport", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(LoadThumbnailVariantCommand, "Set from file", "Load an image to serve as the variant thumbnail", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ClearThumbnailVariantCommand, "Clear", "Resets the variant thumbnail to default", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddPropertyCaptures, "Add properties", "Capture new properties from the selected actors to this variant", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddFunction, "Add function caller", "Add a function caller to execute blueprint code or trigger events when this variant is switched on", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(RebindActorDisabled, "Rebind to other Actor", "Actors can only be rebound one at a time!", EUserInterfaceActionType::Button, FInputChord());

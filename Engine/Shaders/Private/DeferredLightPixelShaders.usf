@@ -157,7 +157,15 @@ void ComputeHairLighting(
 		float3			SampleBaseColor;
 		float			SampleRoughness;
 		float			SampleSpecular;
-		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+		uint			SampleLightChannelMask;
+		DecodeNodeData(NodeData, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular, SampleLightChannelMask);
+
+	#if USE_LIGHTING_CHANNELS
+		if (!(SampleLightChannelMask & DeferredLightUniforms.LightingChannelMask))
+		{
+			continue;
+		}
+	#endif
 
 		// Inject material data from the visibility/mini-gbuffer for hair
 		const float SceneDepth = ConvertFromDeviceZ(SampleDepth);
@@ -276,11 +284,7 @@ void DeferredLightPixelMain(
 	OutColorSubPixel = 0;
 	float HairCoverage = 0;
 	BRANCH 
-	if (NodeDesc.Count > 0
-	#if USE_LIGHTING_CHANNELS
-		&& (GetLightingChannelMask(InputParams.ScreenUV) & DeferredLightUniforms.LightingChannelMask)
-	#endif
-		)
+	if (NodeDesc.Count > 0)
 	{
 		ComputeHairLighting(InputParams, NodeDesc, CatData, HairCoverage, OutColor, OutColorSubPixel);
 	#if USE_PREEXPOSURE

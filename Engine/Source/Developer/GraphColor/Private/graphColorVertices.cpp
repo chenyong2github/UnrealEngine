@@ -376,6 +376,7 @@ int _AssignColorToVertex(ColorVerticesContext *context, graphP theGraph, int v)
     	return NOTOK;
 
     // Run the neighbor list of v and unflag all the colors in use
+	CA_ASSUME(theGraph);
     e = gp_GetFirstArc(theGraph, v);
     while (gp_IsArc(e))
     {

@@ -74,6 +74,11 @@ struct FTakeRecorderProjectParameters
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
 	FString DefaultSlate;
 
+	/**
+	 * If enabled, track sections will start at the current timecode. Otherwise, 0.
+	 */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")
+	bool bStartAtCurrentTimecode;
 
 	/**
 	* If enabled, each Source will be recorded into a separate Sequence and embedded in the Master Sequence will link to them via Subscenes track.

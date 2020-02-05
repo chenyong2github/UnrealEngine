@@ -59,8 +59,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
 	TArray<FString> ImportedObjectPaths;
 
-	/** Imported object */
+	/** Imported objects */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
-	UObject* Result;
+	TArray<UObject*> Result;
 };
 

@@ -107,6 +107,18 @@ FAutoConsoleVariableRef CVarGPUSkinCacheAllowDupedVertesForRecomputeTangents(
 	ECVF_RenderThreadSafe
 );
 
+static int32 GBlendUsingVertexColorForRecomputeTangents = 0;
+FAutoConsoleVariableRef CVarGPUSkinCacheBlendUsingVertexColorForRecomputeTangents(
+	TEXT("r.SkinCache.BlendUsingVertexColorForRecomputeTangents"),
+	GBlendUsingVertexColorForRecomputeTangents,
+	TEXT("0: off (default)\n")
+	TEXT("1: No blending, choose between source and recompute tangents.\n")
+	TEXT("2: Linear interpolation between source and recompute tangents.\n")
+	TEXT("3: Vector slerp between source and recompute tangents.\n")
+	TEXT("4: Convert tangents into quaternion, apply slerp, then convert from quaternion back to tangents (most expensive).\n"),
+	ECVF_RenderThreadSafe
+);
+
 static int32 GGPUSkinCacheFlushCounter = 0;
 
 static inline bool DoesPlatformSupportGPUSkinCache(EShaderPlatform Platform)
@@ -203,6 +215,7 @@ public:
 
 		FShaderResourceViewRHIRef TangentBufferSRV = nullptr;
 		FShaderResourceViewRHIRef UVsBufferSRV = nullptr;
+		FShaderResourceViewRHIRef ColorBufferSRV = nullptr;
 		FShaderResourceViewRHIRef PositionBufferSRV = nullptr;
 
 		// skin weight input
@@ -223,6 +236,7 @@ public:
 		uint32 NumTriangles = 0;
 
 		FRWBuffer* TangentBuffer = nullptr;
+		FRWBuffer* IntermediateTangentBuffer = nullptr;
 		FRWBuffer* PositionBuffer = nullptr;
 		FRWBuffer* PreviousPositionBuffer = nullptr;
 
@@ -265,6 +279,7 @@ public:
 		FCachedGeometrySection MeshSection;
 		const FSkelMeshRenderSection& Section = *DispatchData[SectionIndex].Section;
 		MeshSection.PositionBuffer	= DispatchData[SectionIndex].PositionBuffer->SRV;
+		MeshSection.UVsBuffer		= DispatchData[SectionIndex].UVsBufferSRV;
 		MeshSection.TotalVertexCount= DispatchData[SectionIndex].PositionBuffer->NumBytes / (sizeof(float)*3);
 		MeshSection.NumPrimitives	= Section.NumTriangles;
 		MeshSection.IndexBaseIndex	= Section.BaseIndex;
@@ -336,6 +351,7 @@ public:
 
 		Data.TangentBufferSRV = InSourceVertexFactory->GetTangentsSRV();
 		Data.UVsBufferSRV = InSourceVertexFactory->GetTextureCoordinatesSRV();
+		Data.ColorBufferSRV = InSourceVertexFactory->GetColorComponentsSRV();
 		Data.NumTexCoords = InSourceVertexFactory->GetNumTexCoords();
 		Data.PositionBufferSRV = InSourceVertexFactory->GetPositionsSRV();
 
@@ -402,7 +418,7 @@ protected:
 
 	friend class FGPUSkinCache;
 	friend class FBaseGPUSkinCacheCS;
-	friend class FBaseRecomputeTangents;
+	friend class FBaseRecomputeTangentsPerTriangleShader;
 };
 
 class FBaseGPUSkinCacheCS : public FGlobalShader
@@ -703,7 +719,7 @@ void FGPUSkinCache::TransitionAllToWriteable(FRHICommandList& RHICmdList)
 #endif
 
 /** base of the FRecomputeTangentsPerTrianglePassCS class */
-class FBaseRecomputeTangents : public FGlobalShader
+class FBaseRecomputeTangentsPerTriangleShader : public FGlobalShader
 {
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -729,10 +745,10 @@ public:
 	FShaderResourceParameter DuplicatedIndices;
 	FShaderResourceParameter DuplicatedIndicesIndices;
 
-	FBaseRecomputeTangents()
+	FBaseRecomputeTangentsPerTriangleShader()
 	{}
 
-	FBaseRecomputeTangents(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FBaseRecomputeTangentsPerTriangleShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		IntermediateAccumBufferUAV.Bind(Initializer.ParameterMap, TEXT("IntermediateAccumBufferUAV"));
@@ -762,7 +778,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, NumTriangles, DispatchData.NumTriangles);
 
 		SetSRVParameter(RHICmdList, ShaderRHI, GPUPositionCacheBuffer, DispatchData.GetPositionRWBuffer()->SRV);
-		SetSRVParameter(RHICmdList, ShaderRHI, GPUTangentCacheBuffer, DispatchData.GetTangentRWBuffer()->SRV);
+		SetSRVParameter(RHICmdList, ShaderRHI, GPUTangentCacheBuffer, GBlendUsingVertexColorForRecomputeTangents > 0 ? DispatchData.IntermediateTangentBuffer->SRV : DispatchData.GetTangentRWBuffer()->SRV);
 		SetSRVParameter(RHICmdList, ShaderRHI, UVsInputBuffer, DispatchData.UVsBufferSRV);
 
 		SetShaderValue(RHICmdList, ShaderRHI, SkinCacheStart, DispatchData.OutputStreamStart);
@@ -805,7 +821,7 @@ public:
 
 /** Encapsulates the RecomputeSkinTangents compute shader. */
 template <int Permutation>
-class FRecomputeTangentsPerTrianglePassCS : public FBaseRecomputeTangents
+class FRecomputeTangentsPerTrianglePassCS : public FBaseRecomputeTangentsPerTriangleShader
 {
     constexpr static bool bMergeDuplicatedVerts = (2 == (Permutation & 2));
 	constexpr static bool bFullPrecisionUV = (1 == (Permutation & 1));
@@ -822,7 +838,7 @@ class FRecomputeTangentsPerTrianglePassCS : public FBaseRecomputeTangents
 	}
 
 	FRecomputeTangentsPerTrianglePassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseRecomputeTangents(Initializer)
+		: FBaseRecomputeTangentsPerTriangleShader(Initializer)
 	{
 	}
 
@@ -836,42 +852,34 @@ IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerTrianglePassCS<2>, TEXT("
 IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerTrianglePassCS<3>, TEXT("/Engine/Private/RecomputeTangentsPerTrianglePass.usf"), TEXT("MainCS"), SF_Compute);
 
 /** Encapsulates the RecomputeSkinTangentsResolve compute shader. */
-class FRecomputeTangentsPerVertexPassCS : public FGlobalShader
+class FBaseRecomputeTangentsPerVertexShader : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FRecomputeTangentsPerVertexPassCS, Global);
-
+public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		// currently only implemented and tested on Window SM5 (needs Compute, Atomics, SRV for index buffers, UAV for VertexBuffers)
 		return DoesPlatformSupportGPUSkinCache(Parameters.Platform) && IsGPUSkinCacheAvailable(Parameters.Platform);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		// this pass cannot read the input as it doesn't have the permutation
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), ThreadGroupSizeX);
-		OutEnvironment.SetDefine(TEXT("GPUSKIN_RWBUFFER_OFFSET_TANGENT_X"), FGPUSkinCache::RWTangentXOffsetInFloats);
-		OutEnvironment.SetDefine(TEXT("GPUSKIN_RWBUFFER_OFFSET_TANGENT_Z"), FGPUSkinCache::RWTangentZOffsetInFloats);
-		OutEnvironment.SetDefine(TEXT("INTERMEDIATE_ACCUM_BUFFER_NUM_INTS"), FGPUSkinCache::IntermediateAccumBufferNumInts);
-	}
-
 	static const uint32 ThreadGroupSizeX = 64;
 
-	FRecomputeTangentsPerVertexPassCS() {}
-
-public:
 	FShaderResourceParameter IntermediateAccumBufferUAV;
 	FShaderResourceParameter TangentBufferUAV;
+	FShaderResourceParameter TangentInputBuffer;
+	FShaderResourceParameter ColorInputBuffer;
 	FShaderParameter SkinCacheStart;
 	FShaderParameter NumVertices;
 	FShaderParameter InputStreamStart;
 
-	FRecomputeTangentsPerVertexPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FBaseRecomputeTangentsPerVertexShader() {}
+
+	FBaseRecomputeTangentsPerVertexShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		IntermediateAccumBufferUAV.Bind(Initializer.ParameterMap, TEXT("IntermediateAccumBufferUAV"));
 		TangentBufferUAV.Bind(Initializer.ParameterMap, TEXT("TangentBufferUAV"));
+		TangentInputBuffer.Bind(Initializer.ParameterMap, TEXT("TangentInputBuffer"));
+		ColorInputBuffer.Bind(Initializer.ParameterMap, TEXT("ColorInputBuffer"));
 		SkinCacheStart.Bind(Initializer.ParameterMap, TEXT("SkinCacheStart"));
 		NumVertices.Bind(Initializer.ParameterMap, TEXT("NumVertices"));
 		InputStreamStart.Bind(Initializer.ParameterMap, TEXT("InputStreamStart"));
@@ -892,6 +900,9 @@ public:
 		// UAVs
 		SetUAVParameter(RHICmdList, ShaderRHI, IntermediateAccumBufferUAV, StagingBuffer.UAV);
 		SetUAVParameter(RHICmdList, ShaderRHI, TangentBufferUAV, DispatchData.GetTangentRWBuffer()->UAV);
+
+		SetSRVParameter(RHICmdList, ShaderRHI, TangentInputBuffer, DispatchData.IntermediateTangentBuffer ? DispatchData.IntermediateTangentBuffer->SRV : nullptr);
+		SetSRVParameter(RHICmdList, ShaderRHI, ColorInputBuffer, DispatchData.ColorBufferSRV);
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList)
@@ -905,12 +916,41 @@ public:
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << IntermediateAccumBufferUAV << TangentBufferUAV << SkinCacheStart << NumVertices << InputStreamStart;
+		Ar << IntermediateAccumBufferUAV << TangentBufferUAV << TangentInputBuffer << ColorInputBuffer << SkinCacheStart << NumVertices << InputStreamStart;
 		return bShaderHasOutdatedParameters;
 	}
 };
 
-IMPLEMENT_SHADER_TYPE(, FRecomputeTangentsPerVertexPassCS, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
+template <int Permutation>
+class FRecomputeTangentsPerVertexPassCS : public FBaseRecomputeTangentsPerVertexShader
+{
+	DECLARE_SHADER_TYPE(FRecomputeTangentsPerVertexPassCS, Global);
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		// this pass cannot read the input as it doesn't have the permutation
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), ThreadGroupSizeX);
+		OutEnvironment.SetDefine(TEXT("GPUSKIN_RWBUFFER_OFFSET_TANGENT_X"), FGPUSkinCache::RWTangentXOffsetInFloats);
+		OutEnvironment.SetDefine(TEXT("GPUSKIN_RWBUFFER_OFFSET_TANGENT_Z"), FGPUSkinCache::RWTangentZOffsetInFloats);
+		OutEnvironment.SetDefine(TEXT("INTERMEDIATE_ACCUM_BUFFER_NUM_INTS"), FGPUSkinCache::IntermediateAccumBufferNumInts);
+		OutEnvironment.SetDefine(TEXT("BLEND_USING_VERTEX_COLOR"), Permutation);
+	}
+
+	FRecomputeTangentsPerVertexPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FBaseRecomputeTangentsPerVertexShader(Initializer)
+	{
+	}
+
+	FRecomputeTangentsPerVertexPassCS()
+	{}
+};
+
+IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<0>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<1>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<2>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<3>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<4>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
 
 void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex)
 {
@@ -968,21 +1008,21 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 
 			bool bFullPrecisionUV = LodData.StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs();
 
-			FBaseRecomputeTangents* Shader = 0;
+			FBaseRecomputeTangentsPerTriangleShader* Shader = 0;
 
 			if (bFullPrecisionUV)
 			{
-				Shader = GAllowDupedVertsForRecomputeTangents ? (FBaseRecomputeTangents*)*ComputeShader11 : (FBaseRecomputeTangents*)*ComputeShader01;
+				Shader = GAllowDupedVertsForRecomputeTangents ? (FBaseRecomputeTangentsPerTriangleShader*)*ComputeShader11 : (FBaseRecomputeTangentsPerTriangleShader*)*ComputeShader01;
 			}
 			else
 			{
-				Shader = GAllowDupedVertsForRecomputeTangents ? (FBaseRecomputeTangents*)*ComputeShader10 : (FBaseRecomputeTangents*)*ComputeShader00;
+				Shader = GAllowDupedVertsForRecomputeTangents ? (FBaseRecomputeTangentsPerTriangleShader*)*ComputeShader10 : (FBaseRecomputeTangentsPerTriangleShader*)*ComputeShader00;
 			}
 
 			check(Shader);
 
 			uint32 NumTriangles = DispatchData.NumTriangles;
-			uint32 ThreadGroupCountValue = FMath::DivideAndRoundUp(NumTriangles, FBaseRecomputeTangents::ThreadGroupSizeX);
+			uint32 ThreadGroupCountValue = FMath::DivideAndRoundUp(NumTriangles, FBaseRecomputeTangentsPerTriangleShader::ThreadGroupSizeX);
 
 			SCOPED_DRAW_EVENTF(RHICmdList, SkinTangents_PerTrianglePass, TEXT("TangentsTri IndexStart=%d Tri=%d BoneInfluenceType=%d UVPrecision=%d"),
 				DispatchData.IndexBufferOffsetValue, DispatchData.NumTriangles, Entry->BoneInfluenceType, bFullPrecisionUV);
@@ -1009,17 +1049,33 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 			SCOPED_DRAW_EVENTF(RHICmdList, SkinTangents_PerVertexPass, TEXT("TangentsVertex InputStreamStart=%d, OutputStreamStart=%d, Vert=%d"),
 				DispatchData.InputStreamStart, DispatchData.OutputStreamStart, DispatchData.NumVertices);
 			//#todo-gpuskin Feature level?
-			TShaderMapRef<FRecomputeTangentsPerVertexPassCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+			auto* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			TShaderMapRef<FRecomputeTangentsPerVertexPassCS<0>> ComputeShader0(GlobalShaderMap);
+			TShaderMapRef<FRecomputeTangentsPerVertexPassCS<1>> ComputeShader1(GlobalShaderMap);
+			TShaderMapRef<FRecomputeTangentsPerVertexPassCS<2>> ComputeShader2(GlobalShaderMap);
+			TShaderMapRef<FRecomputeTangentsPerVertexPassCS<3>> ComputeShader3(GlobalShaderMap);
+			TShaderMapRef<FRecomputeTangentsPerVertexPassCS<4>> ComputeShader4(GlobalShaderMap);
+			FBaseRecomputeTangentsPerVertexShader* ComputeShader = nullptr;
+			if (GBlendUsingVertexColorForRecomputeTangents == 1)
+				ComputeShader = (FBaseRecomputeTangentsPerVertexShader*)*ComputeShader1;
+			else if (GBlendUsingVertexColorForRecomputeTangents == 2)
+				ComputeShader = (FBaseRecomputeTangentsPerVertexShader*)*ComputeShader2;
+			else if (GBlendUsingVertexColorForRecomputeTangents == 3)
+				ComputeShader = (FBaseRecomputeTangentsPerVertexShader*)*ComputeShader3;
+			else if (GBlendUsingVertexColorForRecomputeTangents == 4)
+				ComputeShader = (FBaseRecomputeTangentsPerVertexShader*)*ComputeShader4;
+			else
+				ComputeShader = (FBaseRecomputeTangentsPerVertexShader*)*ComputeShader0;
 			FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 			RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 			uint32 VertexCount = DispatchData.NumVertices;
-			uint32 ThreadGroupCountValue = FMath::DivideAndRoundUp(VertexCount, FRecomputeTangentsPerVertexPassCS::ThreadGroupSizeX);
+			uint32 ThreadGroupCountValue = FMath::DivideAndRoundUp(VertexCount, ComputeShader->ThreadGroupSizeX);
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, StagingBuffer.UAV.GetReference());
 
 			ComputeShader->SetParameters(RHICmdList, Entry, DispatchData, StagingBuffer);
-			DispatchComputeShader(RHICmdList, *ComputeShader, ThreadGroupCountValue, 1, 1);
+			DispatchComputeShader(RHICmdList, ComputeShader, ThreadGroupCountValue, 1, 1);
 			ComputeShader->UnsetParameters(RHICmdList);
 		}
 		// todo				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, TangentsBlendBuffer.VertexBufferSRV);
@@ -1309,7 +1365,10 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	uint32 CurrentRevision = ShaderData.GetRevisionNumber(false);
 	uint32 PreviousRevision = ShaderData.GetRevisionNumber(true);
 
+	bool bUseIntermediateTangentBuffer = Entry->DispatchData[Section].IndexBuffer && GBlendUsingVertexColorForRecomputeTangents > 0;
+
 	DispatchData.TangentBuffer = DispatchData.PositionTracker.GetTangentBuffer();
+	DispatchData.IntermediateTangentBuffer = DispatchData.PositionTracker.GetIntermediateTangentBuffer();
 
 	DispatchData.PreviousPositionBuffer = DispatchData.PositionTracker.Find(PrevBoneBuffer, PreviousRevision);
 	if (!DispatchData.PreviousPositionBuffer)
@@ -1319,15 +1378,34 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		check(DispatchData.PreviousPositionBuffer)
 
 		RHICmdList.SetComputeShader(Shader->GetComputeShader());
-		Shader->SetParameters(RHICmdList, PrevBoneBuffer, Entry, DispatchData, DispatchData.GetPreviousPositionRWBuffer()->UAV, DispatchData.GetTangentRWBuffer() ? DispatchData.GetTangentRWBuffer()->UAV : nullptr);
+
+		if (bUseIntermediateTangentBuffer)
+		{
+			Shader->SetParameters(RHICmdList, PrevBoneBuffer, Entry, DispatchData, DispatchData.GetPreviousPositionRWBuffer()->UAV, DispatchData.IntermediateTangentBuffer ? DispatchData.IntermediateTangentBuffer->UAV : nullptr);
+		}
+		else
+		{
+			Shader->SetParameters(RHICmdList, PrevBoneBuffer, Entry, DispatchData, DispatchData.GetPreviousPositionRWBuffer()->UAV, DispatchData.GetTangentRWBuffer() ? DispatchData.GetTangentRWBuffer()->UAV : nullptr);
+		}
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.GetPreviousPositionRWBuffer()->UAV.GetReference());
 		BuffersToTransition.Add(DispatchData.GetPreviousPositionRWBuffer()->UAV);
 
-		if (DispatchData.TangentBuffer)
+		if (bUseIntermediateTangentBuffer)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.TangentBuffer->UAV.GetReference());
-			BuffersToTransition.Add(DispatchData.TangentBuffer->UAV);
+			if (DispatchData.IntermediateTangentBuffer)
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.IntermediateTangentBuffer->UAV.GetReference());
+				BuffersToTransition.Add(DispatchData.IntermediateTangentBuffer->UAV);
+			}
+		}
+		else
+		{
+			if (DispatchData.TangentBuffer)
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.TangentBuffer->UAV.GetReference());
+				BuffersToTransition.Add(DispatchData.TangentBuffer->UAV);
+			}
 		}
 
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
@@ -1345,15 +1423,33 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		check(DispatchData.PositionBuffer);
 
 		RHICmdList.SetComputeShader(Shader->GetComputeShader());
-		Shader->SetParameters(RHICmdList, BoneBuffer, Entry, DispatchData, DispatchData.GetPositionRWBuffer()->UAV, DispatchData.GetTangentRWBuffer() ? DispatchData.GetTangentRWBuffer()->UAV : nullptr);
+		if (bUseIntermediateTangentBuffer)
+		{
+			Shader->SetParameters(RHICmdList, BoneBuffer, Entry, DispatchData, DispatchData.GetPositionRWBuffer()->UAV, DispatchData.IntermediateTangentBuffer ? DispatchData.IntermediateTangentBuffer->UAV : nullptr);
+		}
+		else
+		{
+			Shader->SetParameters(RHICmdList, BoneBuffer, Entry, DispatchData, DispatchData.GetPositionRWBuffer()->UAV, DispatchData.GetTangentRWBuffer() ? DispatchData.GetTangentRWBuffer()->UAV : nullptr);
+		}
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.GetPositionRWBuffer()->UAV.GetReference());
 		BuffersToTransition.Add(DispatchData.GetPositionRWBuffer()->UAV);
 
-		if (DispatchData.TangentBuffer)
+		if (bUseIntermediateTangentBuffer)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.TangentBuffer->UAV.GetReference());
-			BuffersToTransition.Add(DispatchData.TangentBuffer->UAV);
+			if (DispatchData.IntermediateTangentBuffer)
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.IntermediateTangentBuffer->UAV.GetReference());
+				BuffersToTransition.Add(DispatchData.IntermediateTangentBuffer->UAV);
+			}
+		}
+		else
+		{
+			if (DispatchData.TangentBuffer)
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DispatchData.TangentBuffer->UAV.GetReference());
+				BuffersToTransition.Add(DispatchData.TangentBuffer->UAV);
+			}
 		}
 
 		uint32 VertexCountAlign64 = FMath::DivideAndRoundUp(DispatchData.NumVertices, (uint32)64);
@@ -1380,6 +1476,13 @@ void FGPUSkinCache::FRWBuffersAllocation::RemoveAllFromTransitionArray(TArray<FR
 			if (TangentBuffer->UAV.IsValid())
 			{
 				InBuffersToTransition.Remove(TangentBuffer->UAV);
+			}
+		}
+		if (auto IntermediateTangentBuffer = GetIntermediateTangentBuffer())
+		{
+			if (IntermediateTangentBuffer->UAV.IsValid())
+			{
+				InBuffersToTransition.Remove(IntermediateTangentBuffer->UAV);
 			}
 		}
 	}
@@ -1420,6 +1523,12 @@ void FGPUSkinCache::GetRayTracingSegmentVertexBuffers(const FGPUSkinCacheEntry& 
 bool FGPUSkinCache::IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section)
 {
 	return SkinCacheEntry->IsSectionValid(Section);
+}
+
+bool FGPUSkinCache::UseIntermediateTangents()
+{
+	int32 RecomputeTangentsMode = GForceRecomputeTangents > 0 ? 1 : GSkinCacheRecomputeTangents;
+	return (RecomputeTangentsMode > 0) && (GBlendUsingVertexColorForRecomputeTangents > 0);
 }
 
 FGPUSkinBatchElementUserData* FGPUSkinCache::InternalGetFactoryUserData(FGPUSkinCacheEntry* Entry, int32 Section)

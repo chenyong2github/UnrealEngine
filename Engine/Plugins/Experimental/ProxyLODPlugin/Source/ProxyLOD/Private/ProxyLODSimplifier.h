@@ -142,11 +142,10 @@ namespace ProxyLOD
 	{
 	public:
 		FSimplifierTerminatorBase(int32 MinTri, float MaxCost)
-			:MaxFeatureCost(MaxCost), MinTriNumToRetain(MinTri)
-			{}
+			: MaxFeatureCost(MaxCost), MinTriNumToRetain(MinTri) {}
 
-			// return true if the simplifier should terminate.
-			inline bool operator()(const int32 TriNum, const float SqrError)
+		// return true if the simplifier should terminate.
+		inline bool operator()(const int32 TriNum, const float SqrError)
 		{
 			if (TriNum < MinTriNumToRetain || SqrError > MaxFeatureCost)
 			{
@@ -155,10 +154,8 @@ namespace ProxyLOD
 			return false;
 		}
 
-
 		float MaxFeatureCost;
 		int32 MinTriNumToRetain;
-
 	};
 
 	/**
@@ -418,210 +415,225 @@ namespace ProxyLOD
 	template< typename TerminationCriterionType>
 	float FQuadricMeshSimplifier::SimplifyMesh(TerminationCriterionType TerminationCriterion)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FQuadricMeshSimplifier::SimplifyMesh)
+
 		SimpVertType* v;
 		SimpEdgeType* e;
 
 		float maxError = 0.0f;
+		// One trace scope per batch is enough for Insights and is easier to read
+		const int32 BatchSize = 4096;
+
 		while (edgeHeap.Num() > 0)
 		{
-			// get the next vertex to collapse
-			uint32 TopIndex = edgeHeap.Top();
+			TRACE_CPUPROFILER_EVENT_SCOPE(SimplifyMeshBatch)
 
-			const float error = edgeHeap.GetKey(TopIndex);
+			int32 Batch = 0;
+			for ( ; Batch < BatchSize && edgeHeap.Num() > 0; ++Batch)
+			{
+				// get the next vertex to collapse
+				uint32 TopIndex = edgeHeap.Top();
 
-			if (TerminationCriterion(numTris, error)) break;
+				const float error = edgeHeap.GetKey(TopIndex);
+
+				if (TerminationCriterion(numTris, error)) break;
 
 
-			maxError = FMath::Max(maxError, error);
+				maxError = FMath::Max(maxError, error);
 
-			edgeHeap.Pop();
+				edgeHeap.Pop();
 
-			SimpEdgeType* top = &edges[TopIndex];
-			check(top);
+				SimpEdgeType* top = &edges[TopIndex];
+				check(top);
 
-			int numEdges = 0;
-			SimpEdgeType* edgeList[32];
+				int numEdges = 0;
+				SimpEdgeType* edgeList[32];
 
-			SimpEdgeType* edge = top;
-			do {
-				edgeList[numEdges++] = edge;
-				edge = edge->next;
-			} while (edge != top);
+				SimpEdgeType* edge = top;
+				do {
+					edgeList[numEdges++] = edge;
+					edge = edge->next;
+				} while (edge != top);
 
 			
-			// skip locked edges
-			bool locked = false;
-			for (int i = 0; i < numEdges; i++)
-			{
-				edge = edgeList[i];
-				if (edge->v0->TestFlags(SIMP_LOCKED) && edge->v1->TestFlags(SIMP_LOCKED))
+				// skip locked edges
+				bool locked = false;
+				for (int i = 0; i < numEdges; i++)
 				{
-					locked = true;
+					edge = edgeList[i];
+					if (edge->v0->TestFlags(SIMP_LOCKED) && edge->v1->TestFlags(SIMP_LOCKED))
+					{
+						locked = true;
+					}
 				}
-			}
-			if (locked)
-			{
-				continue;
-			}
+				if (locked)
+				{
+					continue;
+				}
 				
 
-			v = top->v0;
-			do {
-				GatherUpdates(v);
-				v = v->next;
-			} while (v != top->v0);
-
-			v = top->v1;
-			do {
-				GatherUpdates(v);
-				v = v->next;
-			} while (v != top->v1);
-
-#if 1
-			// remove edges with already removed verts
-			// not sure why this happens
-			for (int i = 0; i < numEdges; i++)
-			{
-				if (edgeList[i]->v0->adjTris.Num() == 0 ||
-					edgeList[i]->v1->adjTris.Num() == 0)
-				{
-					RemoveEdge(edgeList[i]);
-					edgeList[i] = NULL;
-				}
-				else
-				{
-					checkSlow(!edgeList[i]->TestFlags(SIMP_REMOVED));
-				}
-			}
-			if (top->v0->adjTris.Num() == 0 || top->v1->adjTris.Num() == 0)
-				continue;
-#endif
-
-			// move verts to new verts
-			{
-				edge = top;
-
-				TArray< MeshVertType, TInlineAllocator<16> > newVerts;
-				ComputeNewVerts(edge, newVerts);
-
-				uint32 i = 0;
-
-				LockVertFlags(SIMP_MARK1);
-
-				edge->v0->EnableFlagsGroup(SIMP_MARK1);
-				edge->v1->EnableFlagsGroup(SIMP_MARK1);
-
-				// edges
-				e = edge;
+				v = top->v0;
 				do {
-					checkSlow(e == FindEdge(e->v0, e->v1));
-					checkSlow(e->v0->adjTris.Num() > 0);
-					checkSlow(e->v1->adjTris.Num() > 0);
-					checkSlow(e->v0->GetMaterialIndex() == e->v1->GetMaterialIndex());
+					GatherUpdates(v);
+					v = v->next;
+				} while (v != top->v0);
 
-					e->v1->vert = newVerts[i++];
-					e->v0->DisableFlags(SIMP_MARK1);
-					e->v1->DisableFlags(SIMP_MARK1);
-
-					e = e->next;
-				} while (e != edge);
-
-				// remainder verts
-				v = edge->v0;
+				v = top->v1;
 				do {
-					if (v->TestFlags(SIMP_MARK1))
+					GatherUpdates(v);
+					v = v->next;
+				} while (v != top->v1);
+
+	#if 1
+				// remove edges with already removed verts
+				// not sure why this happens
+				for (int i = 0; i < numEdges; i++)
+				{
+					if (edgeList[i]->v0->adjTris.Num() == 0 ||
+						edgeList[i]->v1->adjTris.Num() == 0)
 					{
-						v->vert = newVerts[i++];
-						v->DisableFlags(SIMP_MARK1);
+						RemoveEdge(edgeList[i]);
+						edgeList[i] = NULL;
 					}
-					v = v->next;
-				} while (v != edge->v0);
-
-				v = edge->v1;
-				do {
-					if (v->TestFlags(SIMP_MARK1)) {
-						v->vert = newVerts[i++];
-						v->DisableFlags(SIMP_MARK1);
-					}
-					v = v->next;
-				} while (v != edge->v1);
-
-				UnlockVertFlags(SIMP_MARK1);
-			}
-
-			// collapse all edges
-			for (int i = 0; i < numEdges; i++)
-			{
-				edge = edgeList[i];
-				if (!edge)
-					continue;
-				if (edge->TestFlags(SIMP_REMOVED))	// wtf?
-					continue;
-				if (edge->v0->adjTris.Num() == 0)
-					continue;
-				if (edge->v1->adjTris.Num() == 0)
-					continue;
-
-				Collapse(edge);
-				RemoveEdge(edge);
-			}
-
-			// add v0 remainder verts to v1
-			{
-				// combine v0 and v1 groups
-				top->v0->next->prev = top->v1->prev;
-				top->v1->prev->next = top->v0->next;
-				top->v0->next = top->v1;
-				top->v1->prev = top->v0;
-
-				// ungroup removed verts
-				uint32	vertListNum = 0;
-				SimpVertType*	vertList[256];
-
-				v = top->v1;
-				do {
-					vertList[vertListNum++] = v;
-					v = v->next;
-				} while (v != top->v1);
-
-				check(vertListNum <= 256);
-
-				for (uint32 i = 0; i < vertListNum; i++)
-				{
-					v = vertList[i];
-					if (v->TestFlags(SIMP_REMOVED))
+					else
 					{
-						// ungroup
-						v->prev->next = v->next;
-						v->next->prev = v->prev;
-						v->next = v;
-						v->prev = v;
+						checkSlow(!edgeList[i]->TestFlags(SIMP_REMOVED));
 					}
 				}
+				if (top->v0->adjTris.Num() == 0 || top->v1->adjTris.Num() == 0)
+					continue;
+	#endif
+
+				// move verts to new verts
+				{
+					edge = top;
+
+					TArray< MeshVertType, TInlineAllocator<16> > newVerts;
+					ComputeNewVerts(edge, newVerts);
+
+					uint32 i = 0;
+
+					LockVertFlags(SIMP_MARK1);
+
+					edge->v0->EnableFlagsGroup(SIMP_MARK1);
+					edge->v1->EnableFlagsGroup(SIMP_MARK1);
+
+					// edges
+					e = edge;
+					do {
+						checkSlow(e == FindEdge(e->v0, e->v1));
+						checkSlow(e->v0->adjTris.Num() > 0);
+						checkSlow(e->v1->adjTris.Num() > 0);
+						checkSlow(e->v0->GetMaterialIndex() == e->v1->GetMaterialIndex());
+
+						e->v1->vert = newVerts[i++];
+						e->v0->DisableFlags(SIMP_MARK1);
+						e->v1->DisableFlags(SIMP_MARK1);
+
+						e = e->next;
+					} while (e != edge);
+
+					// remainder verts
+					v = edge->v0;
+					do {
+						if (v->TestFlags(SIMP_MARK1))
+						{
+							v->vert = newVerts[i++];
+							v->DisableFlags(SIMP_MARK1);
+						}
+						v = v->next;
+					} while (v != edge->v0);
+
+					v = edge->v1;
+					do {
+						if (v->TestFlags(SIMP_MARK1)) {
+							v->vert = newVerts[i++];
+							v->DisableFlags(SIMP_MARK1);
+						}
+						v = v->next;
+					} while (v != edge->v1);
+
+					UnlockVertFlags(SIMP_MARK1);
+				}
+
+				// collapse all edges
+				for (int i = 0; i < numEdges; i++)
+				{
+					edge = edgeList[i];
+					if (!edge)
+						continue;
+					if (edge->TestFlags(SIMP_REMOVED))	// wtf?
+						continue;
+					if (edge->v0->adjTris.Num() == 0)
+						continue;
+					if (edge->v1->adjTris.Num() == 0)
+						continue;
+
+					Collapse(edge);
+					RemoveEdge(edge);
+				}
+
+				// add v0 remainder verts to v1
+				{
+					// combine v0 and v1 groups
+					top->v0->next->prev = top->v1->prev;
+					top->v1->prev->next = top->v0->next;
+					top->v0->next = top->v1;
+					top->v1->prev = top->v0;
+
+					// ungroup removed verts
+					uint32	vertListNum = 0;
+					SimpVertType*	vertList[256];
+
+					v = top->v1;
+					do {
+						vertList[vertListNum++] = v;
+						v = v->next;
+					} while (v != top->v1);
+
+					check(vertListNum <= 256);
+
+					for (uint32 i = 0; i < vertListNum; i++)
+					{
+						v = vertList[i];
+						if (v->TestFlags(SIMP_REMOVED))
+						{
+							// ungroup
+							v->prev->next = v->next;
+							v->next->prev = v->prev;
+							v->next = v;
+							v->prev = v;
+						}
+					}
+				}
+
+				{
+					// spread locked flag to vert group
+					uint32 flags = 0;
+
+					v = top->v1;
+					do {
+						flags |= v->flags & SIMP_LOCKED;
+						v = v->next;
+					} while (v != top->v1);
+
+					v = top->v1;
+					do {
+						v->flags |= flags;
+						v = v->next;
+					} while (v != top->v1);
+				}
+
+				UpdateTris();
+				UpdateVerts();
+				UpdateEdges();
 			}
 
+			if (Batch < BatchSize)
 			{
-				// spread locked flag to vert group
-				uint32 flags = 0;
-
-				v = top->v1;
-				do {
-					flags |= v->flags & SIMP_LOCKED;
-					v = v->next;
-				} while (v != top->v1);
-
-				v = top->v1;
-				do {
-					v->flags |= flags;
-					v = v->next;
-				} while (v != top->v1);
+				break;
 			}
-
-			UpdateTris();
-			UpdateVerts();
-			UpdateEdges();
 		}
-
 		// remove degenerate triangles
 		// not sure why this happens
 		for (int i = 0; i < numSTris; i++)

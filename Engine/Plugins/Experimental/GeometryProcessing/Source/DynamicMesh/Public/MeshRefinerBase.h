@@ -20,7 +20,7 @@ protected:
 	FDynamicMesh3* Mesh = nullptr;
 
 	/** Constraints are used to control how certain edges and vertices can be modified */
-	FMeshConstraints* Constraints = nullptr;
+	TOptional<FMeshConstraints> Constraints;
 
 	/** Vertices can be projected onto this surface when they are modified */
 	IProjectionTarget* ProjTarget = nullptr;
@@ -96,13 +96,13 @@ public:
 	FDynamicMesh3* GetMesh() { return Mesh; }
 
 	/** Get the current mesh constraints */
-	FMeshConstraints* GetConstraints() { return Constraints; }
+	const TOptional<FMeshConstraints>& GetConstraints() { return Constraints; }
 
 	/**
 	 * Set external constraints.
 	 * Note that this object will be updated during computation.
 	 */
-	void SetExternalConstraints(FMeshConstraints* ConstraintsIn) { Constraints = ConstraintsIn; }
+	void SetExternalConstraints(TOptional<FMeshConstraints> ConstraintsIn) { Constraints = MoveTemp(ConstraintsIn); }
 
 
 	/** Get the current Projection Target */
@@ -126,7 +126,7 @@ public:
 
 
 	/** If this returns true, abort computation.  */
-	virtual bool Cancelled() 
+	virtual bool Cancelled()
 	{
 		return (Progress == nullptr) ? false : Progress->Cancelled();
 	}
@@ -143,11 +143,11 @@ protected:
 	 */
 	inline double ComputeEdgeFlipMetric(const FVector3d& Direction0, const FVector3d& Direction1) const
 	{
-		if (EdgeFlipTolerance == 0) 
+		if (EdgeFlipTolerance == 0)
 		{
 			return Direction0.Dot(Direction1);
 		}
-		else 
+		else
 		{
 			return Direction0.Normalized().Dot(Direction1.Normalized());
 		}
@@ -211,7 +211,7 @@ protected:
 	 */
 	inline bool IsVertexFixed(int VertexID)
 	{
-		return (Constraints != nullptr && Constraints->GetVertexConstraint(VertexID).Fixed);
+		return (Constraints && Constraints->GetVertexConstraint(VertexID).Fixed);
 	}
 
 
@@ -220,7 +220,7 @@ protected:
 	 */
 	inline bool IsVertexConstrained(int VertexID)
 	{
-		if (Constraints != nullptr)
+		if (Constraints)
 		{
 			FVertexConstraint vc = Constraints->GetVertexConstraint(VertexID);
 			return (vc.Fixed || vc.Target != nullptr);
@@ -233,7 +233,7 @@ protected:
 	 */
 	inline FVertexConstraint GetVertexConstraint(int VertexID)
 	{
-		if (Constraints != nullptr)
+		if (Constraints)
 		{
 			return Constraints->GetVertexConstraint(VertexID);
 		}
@@ -245,7 +245,7 @@ protected:
 	 */
 	inline bool GetVertexConstraint(int VertexID, FVertexConstraint& OutConstraint)
 	{
-		return (Constraints == nullptr) ? false :
+		return Constraints &&
 			Constraints->GetVertexConstraint(VertexID, OutConstraint);
 	}
 

@@ -334,11 +334,13 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		FNiagaraGPUSortInfo SortInfo;
 		SortInfo.SortAttributeOffset = INDEX_NONE;
 		int32 SortingVarIdx = INDEX_NONE;
-		bool bShouldSort = SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout || BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent);
+		const bool bHasTranslucentMaterials = IsTranslucentBlendMode(BlendMode);
+		bool bShouldSort = SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !bSortOnlyWhenTranslucent);
 		if (bShouldSort)
 		{
 			SortInfo.ParticleCount = NumInstances;
 			SortInfo.SortMode = SortMode;
+			SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, bHasTranslucentMaterials); 
 			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending || SortInfo.SortMode == ENiagaraSortMode::CustomDecending)
 			{
 				SortingVarIdx = ENiagaraSpriteVFLayout::CustomSorting;	
@@ -356,29 +358,25 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 					SortInfo.ViewDirection = SceneProxy->GetLocalToWorld().GetTransposed().TransformVector(SortInfo.ViewDirection);
 				}
 			}
-
 			SortInfo.SortAttributeOffset = VFVariables[SortingVarIdx].GetGPUOffset();
 		}
 
-
-		if (SimTarget == ENiagaraSimTarget::CPUSim)//TODO: Compute shader for sorting gpu sims and larger cpu sims.
+		if (SimTarget == ENiagaraSimTarget::CPUSim)
 		{
 			int32 ParticleStrideInFloats = GbEnableMinimalGPUBuffers ? SourceParticleData->GetNumInstances() : SourceParticleData->GetFloatStride() / sizeof(float);
 			check(CPUSimParticleDataAllocation.ParticleData.IsValid());
 			if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE)
 			{
-				if (GNiagaraGPUSorting &&
-					GNiagaraGPUSortingCPUToGPUThreshold >= 0 &&
-					SortInfo.ParticleCount >= GNiagaraGPUSortingCPUToGPUThreshold &&
+				if (GNiagaraGPUSortingCPUToGPUThreshold >= 0 &&
+					SortInfo.ParticleCount >= GNiagaraGPUSortingCPUToGPUThreshold && 
 					FNiagaraUtilities::AllowComputeShaders(Batcher->GetShaderPlatform()))
 				{
 					SortInfo.ParticleCount = NumInstances;
 					SortInfo.ParticleDataFloatSRV = CPUSimParticleDataAllocation.ParticleData.SRV;
 					SortInfo.FloatDataStride = ParticleStrideInFloats;
-					const int32 IndexBufferOffset = Batcher->AddSortedGPUSimulation(SortInfo);
-					if (IndexBufferOffset != INDEX_NONE)
+					if (Batcher->AddSortedGPUSimulation(SortInfo))
 					{
-						OutVertexFactory.SetSortedIndices(Batcher->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
+						OutVertexFactory.SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
 					}
 				}
 				else
@@ -395,7 +393,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		}
 		else // ENiagaraSimTarget::GPUSim
 		{
-			if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE && GNiagaraGPUSorting)
+			if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE)
 			{
 				// Here we need to be conservative about the InstanceCount, since the final value is only known on the GPU after the simulation.
 				SortInfo.ParticleCount = SourceParticleData->GetNumInstances();
@@ -404,10 +402,9 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 				SortInfo.FloatDataStride = SourceParticleData->GetFloatStride() / sizeof(float);
 				SortInfo.GPUParticleCountSRV = Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer().SRV;
 				SortInfo.GPUParticleCountOffset = SourceParticleData->GetGPUInstanceCountBufferOffset();
-				const int32 IndexBufferOffset = Batcher->AddSortedGPUSimulation(SortInfo);
-				if (IndexBufferOffset != INDEX_NONE && SortInfo.GPUParticleCountOffset != INDEX_NONE)
+				if (Batcher->AddSortedGPUSimulation(SortInfo))
 				{
-					OutVertexFactory.SetSortedIndices(Batcher->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
+					OutVertexFactory.SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
 				}
 			}
 

@@ -213,8 +213,8 @@ void FAssetTypeActions_DataTable::PerformAssetDiff(UObject* OldAsset, UObject* N
 	FString AbsoluteNewTempFileName = FPaths::ConvertRelativePathToFull(RelNewTempFileName);
 
 	// save temp files
-	bool OldResult = FFileHelper::SaveStringToFile(OldDataTable->GetTableAsCSV(), *AbsoluteOldTempFileName);
-	bool NewResult = FFileHelper::SaveStringToFile(NewDataTable->GetTableAsCSV(), *AbsoluteNewTempFileName);
+	bool OldResult = FFileHelper::SaveStringToFile(OldDataTable->GetTableAsCSV(EDataTableExportFlags::UseSimpleText), *AbsoluteOldTempFileName);
+	bool NewResult = FFileHelper::SaveStringToFile(NewDataTable->GetTableAsCSV(EDataTableExportFlags::UseSimpleText), *AbsoluteNewTempFileName);
 
 	if (OldResult && NewResult)
 	{

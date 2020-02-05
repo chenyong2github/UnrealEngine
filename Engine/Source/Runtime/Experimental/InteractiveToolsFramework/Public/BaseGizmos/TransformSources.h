@@ -75,6 +75,78 @@ public:
 
 
 
+/**
+ * FSeparateScaleProvider provides TFunction-implementable API that sets/gets a
+ * Scaling Vector from an external source. 
+ */
+struct FSeparateScaleProvider
+{
+	TFunction<FVector(void)> GetScale = []() { return FVector::OneVector; };
+	TFunction<void(FVector)> SetScale = [](FVector) {};
+};
+
+
+/**
+ * UGizmoScaledTransformSource wraps another IGizmoTransformSource implementation and adds a
+ * separate scaling vector to the Transform. The main use of this class is to support scaling
+ * in a 3D gizmo without actually scaling the Gizmo itself. Generally our pattern is to apply
+ * the gizmo's position/rotation transform to the target object via a TransformProxy, but
+ * that does not work with Scaling. So this class stores the scaling vector separately, provided by
+ * an external source via FSeparateScaleProvider, and in GetTransform/SetTransform rewrites the
+ * Transform from the child IGizmoTransformSource with the new scale.
+ */
+UCLASS()
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoScaledTransformSource : public UGizmoBaseTransformSource
+{
+	GENERATED_BODY()
+public:
+
+	/**
+	 * IGizmoTransformSource implementation, returns child transform with local sclae
+	 */
+	virtual FTransform GetTransform() const override;
+
+	/**
+	 * IGizmoTransformSource implementation, removes scale and sends to ScaleProvider, then forwards remaining rotate+translate transform to child
+	 */
+	virtual void SetTransform(const FTransform& NewTransform) override;
+
+	/**
+	 * Child transform source
+	 */
+	UPROPERTY()
+	TScriptInterface<IGizmoTransformSource> ChildTransformSource;
+
+	/**
+	 * Provider for external scale value/storage
+	 */
+	FSeparateScaleProvider ScaleProvider;
+
+	/**
+	 * Return the child transform with combined scale
+	 */
+	FTransform GetScaledTransform() const;
+
+public:
+	/**
+	 * Construct a default instance of UGizmoComponentWorldTransformSource with the given Component
+	 */
+	static UGizmoScaledTransformSource* Construct(
+		IGizmoTransformSource* ChildSource,
+		FSeparateScaleProvider ScaleProviderIn,
+		UObject* Outer = (UObject*)GetTransientPackage())
+	{
+		UGizmoScaledTransformSource* NewSource = NewObject<UGizmoScaledTransformSource>(Outer);
+		NewSource->ChildTransformSource = Cast<UObject>(ChildSource);
+		NewSource->ScaleProvider = ScaleProviderIn;
+		return NewSource;
+	}
+};
+
+
+
+
+
 
 /**
  * UGizmoTransformProxyTransformSource implements IGizmoTransformSource (via UGizmoBaseTransformSource)

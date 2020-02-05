@@ -29,7 +29,7 @@ class FUdpReassembledMessage;
 class FUdpSerializedMessage;
 class FUdpSocketSender;
 class IMessageAttachment;
-
+enum class EUdpMessageFormat : uint8;
 
 /**
  * Implements a message processor for UDP messages.
@@ -486,6 +486,9 @@ private:
 
 	/** Holds a delegate to be invoked when a socket error happen. */
 	FOnError ErrorDelegate;
+
+	/** The configured message format (from UUdpMessagingSettings). */
+	EUdpMessageFormat MessageFormat;
 private:
 
 	/** Defines the maximum number of Hello segments that can be dropped before a remote endpoint is considered dead. */

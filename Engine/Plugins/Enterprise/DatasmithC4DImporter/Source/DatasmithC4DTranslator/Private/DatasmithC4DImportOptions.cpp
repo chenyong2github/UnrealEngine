@@ -15,9 +15,9 @@ UDatasmithC4DImportOptions::UDatasmithC4DImportOptions(const FObjectInitializer&
 	bOptimizeEmptySingleChildActors = false;
 	bAlwaysGenerateNormals = false;
 	ScaleVertices = 1.0;
+#if WITH_EDITOR
 	bExportToUDatasmith = false;
 
-#if WITH_EDITOR
 	// In debug show all properties including the ones for debug
 	if (IDatasmithC4DTranslatorModule::Get().InDebugMode())
 	{

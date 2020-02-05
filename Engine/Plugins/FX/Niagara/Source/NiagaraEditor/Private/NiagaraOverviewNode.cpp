@@ -201,6 +201,16 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 						),
 						EUserInterfaceActionType::ToggleButton
 					);
+
+					Section.AddMenuEntry(
+						"RenameEmitter",
+						LOCTEXT("RenameEmitter", "Rename Emitter"),
+						LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(EmitterHandleViewModel, &FNiagaraEmitterHandleViewModel::SetIsRenamePending, true)
+						)
+					);
 				}
 
 				Section.AddMenuEntry(
@@ -230,6 +240,22 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 							[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
 							{
 								return bSingleSelection && bHasParent;
+							}
+						)
+					)
+				);
+
+				Section.AddMenuEntry(
+					"CreateAssetFromThis",
+					LOCTEXT("CreateAssetFromThisEmitter", "Create Asset From This"),
+					LOCTEXT("CreateAssetFromThisEmitterToolTip", "Create an emitter asset from this emitter."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::CreateAssetFromEmitter, EmitterHandleViewModel),
+						FCanExecuteAction::CreateLambda(
+							[bSingleSelection, EmitterHandleViewModel]()
+							{
+								return bSingleSelection && EmitterHandleViewModel->GetOwningSystemEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 							}
 						)
 					)

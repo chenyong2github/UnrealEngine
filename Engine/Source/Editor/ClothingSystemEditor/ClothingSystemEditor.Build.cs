@@ -35,7 +35,13 @@ public class ClothingSystemEditor : ModuleRules
                 "ClothingSystemEditorInterface"
             }
 		);
-        
+
+		PrivateIncludePathModuleNames.AddRange(
+            new string[] {
+                "Persona",
+            }
+        );
+
         SetupModulePhysicsSupport(Target);
 	}
 }

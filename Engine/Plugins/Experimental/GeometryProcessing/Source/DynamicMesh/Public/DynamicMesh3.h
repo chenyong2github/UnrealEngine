@@ -656,7 +656,7 @@ public:
 		}
 		check(IsVertex(vID));
 		int i = 2 * vID;
-		const TDynamicVector<float> UVs = VertexUVs.GetValue();
+		const TDynamicVector<float>& UVs = VertexUVs.GetValue();
 		return FVector2f(UVs[i], UVs[i + 1]);
 	}
 
@@ -666,7 +666,7 @@ public:
 		{
 			check(IsVertex(vID));
 			int i = 2 * vID;
-			TDynamicVector<float> UVs = VertexUVs.GetValue();
+			TDynamicVector<float>& UVs = VertexUVs.GetValue();
 			UVs[i] = vNewUV.X;
 			UVs[i + 1] = vNewUV.Y;
 			UpdateTimeStamp(false, false);

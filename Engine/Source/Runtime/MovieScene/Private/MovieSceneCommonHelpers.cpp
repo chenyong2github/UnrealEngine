@@ -88,36 +88,85 @@ void MovieSceneHelpers::SortConsecutiveSections(TArray<UMovieSceneSection*>& Sec
 	);
 }
 
-void MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete)
+void MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete, bool bOnlyOnSameRow, bool bAllowOverlapBlending)
 {
-	// Find the previous section and extend it to take the place of the section being deleted
 	int32 SectionIndex = INDEX_NONE;
 
 	TRange<FFrameNumber> SectionRange = Section.GetRange();
 
 	if (Sections.Find(&Section, SectionIndex))
 	{
+		// Find the previous section and extend it to take the place of the section being deleted
 		int32 PrevSectionIndex = SectionIndex - 1;
-		if( Sections.IsValidIndex( PrevSectionIndex ) )
+		if (Sections.IsValidIndex(PrevSectionIndex))
 		{
-			// Extend the previous section
-			if (bDelete)
+			UMovieSceneSection* PrevSection = Sections[PrevSectionIndex];
+			if (!bOnlyOnSameRow || PrevSection->GetRowIndex() == Section.GetRowIndex())
 			{
-				Sections[PrevSectionIndex]->SetEndFrame(SectionRange.GetUpperBound());
-			}
-			else
-			{
-				Sections[PrevSectionIndex]->SetEndFrame(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetLowerBound()));
+				PrevSection->Modify();
+
+				if (bDelete)
+				{
+					// The current section was deleted... extend the previous section to fill the gap.
+					PrevSection->SetEndFrame(SectionRange.GetUpperBound());
+				}
+				else if (!bAllowOverlapBlending)
+				{
+					// Keep the previous section snug against the current section's start.
+					PrevSection->SetEndFrame(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetLowerBound()));
+				}
+				else
+				{
+					// If we made a gap: adjust the previous section's end time so that it ends wherever the current section's ease-in ends.
+					// If we created an overlap: adjust the current section's ease-in so it ends where the previous section ends.
+					const FFrameNumber GapOrOverlap = SectionRange.GetLowerBoundValue() - PrevSection->GetRange().GetUpperBoundValue();
+					if (GapOrOverlap > 0)
+					{
+						// It's a gap!
+						PrevSection->SetEndFrame(TRangeBound<FFrameNumber>::Exclusive(SectionRange.GetLowerBoundValue() + Section.Easing.GetEaseInDuration()));
+					}
+					else
+					{
+						// It's an overlap!
+						Section.Easing.AutoEaseInDuration = -GapOrOverlap.Value;
+					}
+				}
 			}
 		}
 
-		if( !bDelete )
+		// Find the next section and adjust its start time to match the moved/resized section's new end time.
+		if (!bDelete)
 		{
 			int32 NextSectionIndex = SectionIndex + 1;
-			if(Sections.IsValidIndex(NextSectionIndex))
+			if (Sections.IsValidIndex(NextSectionIndex))
 			{
-				// Shift the next CameraCut's start time so that it starts when the new CameraCut ends
-				Sections[NextSectionIndex]->SetStartFrame(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetUpperBound()));
+				UMovieSceneSection* NextSection = Sections[NextSectionIndex];
+				if (!bOnlyOnSameRow || NextSection->GetRowIndex() == Section.GetRowIndex())
+				{
+					NextSection->Modify();
+
+					if (!bAllowOverlapBlending)
+					{
+						// Keep the next section snug against the current section's end.
+						NextSection->SetStartFrame(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetUpperBound()));
+					}
+					else
+					{
+						// If we made a gap: adjust the next section's start time so that it lines up with the current section's end.
+						// If we created an overlap: adjust the next section's ease-in so it ends where the current section ends.
+						const FFrameNumber GapOrOverlap = NextSection->GetRange().GetLowerBoundValue() - SectionRange.GetUpperBoundValue();
+						if (GapOrOverlap > 0)
+						{
+							// It's a gap!
+							NextSection->SetStartFrame(TRangeBound<FFrameNumber>::Inclusive(SectionRange.GetUpperBoundValue() - NextSection->Easing.GetEaseInDuration()));
+						}
+						else
+						{
+							// It's an overlap!
+							NextSection->Easing.AutoEaseInDuration = -GapOrOverlap.Value;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -303,7 +352,7 @@ float MovieSceneHelpers::CalculateWeightForBlending(UMovieSceneSection* SectionT
 }
 
 FTrackInstancePropertyBindings::FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath, const FName& InFunctionName, const FName& InNotifyFunctionName )
-    : PropertyPath( InPropertyPath )
+	: PropertyPath( InPropertyPath )
 	, NotifyFunctionName(InNotifyFunctionName)
 	, PropertyName( InPropertyName )
 {

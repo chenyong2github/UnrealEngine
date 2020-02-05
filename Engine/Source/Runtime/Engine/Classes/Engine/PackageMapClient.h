@@ -309,14 +309,14 @@ private:
 
 	struct FPendingAsyncLoadRequest
 	{
-		FPendingAsyncLoadRequest(const FNetworkGUID InNetGUID, const float InRequestStartTime):
+		FPendingAsyncLoadRequest(const FNetworkGUID InNetGUID, const double InRequestStartTime):
 			NetGUID(InNetGUID),
 			RequestStartTime(InRequestStartTime)
 		{
 		}
 
 		FNetworkGUID NetGUID;
-		float RequestStartTime;
+		double RequestStartTime;
 	};
 
 	/** Set of packages that are currently pending Async loads, referenced by package name. */
@@ -492,7 +492,7 @@ protected:
 	TSet< FNetworkGUID >				CurrentExportNetGUIDs;				// Current list of NetGUIDs being written to the Export Bunch.
 
 	/** Set of Actor NetGUIDs with currently queued bunches and the time they were first queued. */
-	TMap<FNetworkGUID, float> CurrentQueuedBunchNetGUIDs;
+	TMap<FNetworkGUID, double> CurrentQueuedBunchNetGUIDs;
 
 	TArray< FNetworkGUID >				PendingAckGUIDs;					// Quick access to all GUID's that haven't been acked
 

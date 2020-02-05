@@ -14,6 +14,7 @@
 uint MaterialPass_MacroGroupId;
 uint MaterialPass_MaterialId;  
 uint MaterialPass_PrimitiveId;
+uint MaterialPass_LightChannelMask;
 RWStructuredBuffer<FNodeData>	OutNodeData;
 RWBuffer<float2>				OutNodeVelocity; 
 
@@ -220,7 +221,7 @@ FEvaluateOutput Evaluate(
 	}
 
 	FEvaluateOutput Out;
-	Out.NodeData		= ConvertToNodeData(SampleDepth, OutVisibilityData, OutBaseColor, OutRoughness, OutSpecular);
+	Out.NodeData		= ConvertToNodeData(SampleDepth, OutVisibilityData, OutBaseColor, OutRoughness, OutSpecular, MaterialPass_LightChannelMask);
 	Out.NodeVelocity	= EncodedVelocity;
 	return Out;
 }

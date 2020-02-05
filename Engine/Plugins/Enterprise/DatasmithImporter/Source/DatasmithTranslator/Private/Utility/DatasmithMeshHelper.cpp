@@ -4,7 +4,7 @@
 
 #include "StaticMeshAttributes.h"
 #include "Engine/StaticMesh.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 #include "DatasmithMesh.h"
 #include "RawMesh.h"
 #include "DatasmithUtils.h"
@@ -106,11 +106,11 @@ namespace DatasmithMeshHelper
 			TMap<int32, FName> MaterialMapInverse;
 
  			BuildMaterialMappingFromStaticMesh(StaticMesh, MaterialMap, MaterialMapInverse);
-			FMeshDescriptionOperations::ConvertFromRawMesh(RawMesh, MeshDescription, MaterialMapInverse);
+			FStaticMeshOperations::ConvertFromRawMesh(RawMesh, MeshDescription, MaterialMapInverse);
 		}
 		else
 		{
-			FMeshDescriptionOperations::ConvertFromRawMesh(RawMesh, MeshDescription, *InMaterialMapInverse);
+			FStaticMeshOperations::ConvertFromRawMesh(RawMesh, MeshDescription, *InMaterialMapInverse);
 		}
 
 		FillUStaticMesh(StaticMesh, LodIndex, MoveTemp(MeshDescription));
@@ -204,14 +204,14 @@ namespace DatasmithMeshHelper
 
 	void HashMeshDescription(const FMeshDescription& Mesh, FMD5& MD5)
 	{
-		auto HashAttributeSet = [](FMD5& MD5, const FAttributesSetBase& AttributeSet)
+		auto HashAttributeSet = [](FMD5& InMD5, const FAttributesSetBase& AttributeSet)
 		{
 			TArray<FName> OutAttributeNames;
 			AttributeSet.GetAttributeNames(OutAttributeNames);
 			for (const FName& AttributeName: OutAttributeNames)
 			{
 				int32 AttributeHash = AttributeSet.GetHash(AttributeName);
-				MD5.Update((uint8*)&AttributeHash, sizeof(AttributeHash));
+				InMD5.Update((uint8*)&AttributeHash, sizeof(AttributeHash));
 				// #ueent_todo better hash function...
 				// see FDatasmithFBXSceneMesh::GetHash
 			}
@@ -280,7 +280,7 @@ namespace DatasmithMeshHelper
 		FDatasmithMeshUtils::ToMeshDescription(DatasmithMesh, MeshDescription);
 		FUVMapParameters UVParameters(DatasmithMesh.GetExtents().GetCenter(), FQuat::Identity, DatasmithMesh.GetExtents().GetSize(), FVector::OneVector, FVector2D::UnitVector);
 		TMap<FVertexInstanceID, FVector2D> TexCoords;
-		FMeshDescriptionOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
+		FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
 
 		// Put the results in a map to determine the number of unique values.
 		TMap<FVector2D, TArray<int32>> UniqueTexCoordMap;
@@ -324,7 +324,7 @@ namespace DatasmithMeshHelper
 		FBox MeshBoundingBox = MeshDescription.ComputeBoundingBox();
 		FUVMapParameters UVParameters(MeshBoundingBox.GetCenter(), FQuat::Identity, MeshBoundingBox.GetExtent(), FVector::OneVector, FVector2D::UnitVector);
 		TMap<FVertexInstanceID, FVector2D> TexCoords;
-		FMeshDescriptionOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
+		FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
 
 		TMeshAttributesRef<FVertexInstanceID, FVector2D> UVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		if (UVs.GetNumIndices() == 0)

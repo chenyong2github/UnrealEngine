@@ -253,6 +253,7 @@ public:
 	{
 		return CachedLODIndex;
 	}
+	void CycleMeshLODs(int32 Direction);
 
 protected:
 	virtual void CacheSelectionData() override;

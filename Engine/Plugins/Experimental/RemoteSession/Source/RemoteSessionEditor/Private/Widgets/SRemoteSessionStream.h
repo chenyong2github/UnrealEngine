@@ -6,7 +6,7 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Engine/AssetUserData.h"
-#include "RemoteSessionRole.h"
+#include "IRemoteSessionRole.h"
 #include "SlateFwd.h"
 #include "SlateOptMacros.h"
 #include "TickableEditorObject.h"

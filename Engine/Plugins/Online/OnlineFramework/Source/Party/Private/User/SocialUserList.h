@@ -10,7 +10,7 @@ enum class EMemberExitedReason : uint8;
 class FSocialUserList : public ISocialUserList, public FGCObject, public TSharedFromThis<FSocialUserList>
 {
 public:
-	static TSharedRef<FSocialUserList> CreateUserList(USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);
+	static TSharedRef<FSocialUserList> CreateUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
@@ -26,6 +26,9 @@ public:
 	const TArray<USocialUser*>& GetUsers() const { return Users; }
 
 	bool HasPresenceFilters() const;
+
+PARTY_SCOPE:
+	const FSocialUserListConfig& GetListConfig() const { return ListConfig; }
 
 private:
 	void HandleOwnerToolkitReset();
@@ -67,10 +70,10 @@ private:
 	void HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMember* Member);
 
 private:
-	FSocialUserList(USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);
+	FSocialUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);
 	void InitializeList();
 
-	TWeakObjectPtr<USocialToolkit> OwnerToolkit;
+	TWeakObjectPtr<const USocialToolkit> OwnerToolkit;
 
 	UPROPERTY()
 	TArray<USocialUser*> Users;
@@ -84,7 +87,8 @@ private:
 	FSocialUserListConfig ListConfig;
 
 	bool bNeedsSort = false;
-	float AutoUpdatePeriod = 5.f;
+	int32 AutoUpdateRequests = 0;
+	float AutoUpdatePeriod = .5f;
 	FDelegateHandle UpdateTickerHandle;
 
 	mutable FOnUserAdded OnUserAddedEvent;

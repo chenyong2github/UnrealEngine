@@ -327,7 +327,6 @@ void UControlRigGraphNode::CreateExecutionPins()
 			if (Pair.InputPin != nullptr)
 			{
 				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
-				Pair.InputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
 			}
 		}
 		if (Pair.OutputPin == nullptr)
@@ -336,7 +335,6 @@ void UControlRigGraphNode::CreateExecutionPins()
 			if (Pair.OutputPin != nullptr)
 			{
 				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
-				Pair.OutputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
 			}
 		}
 		// note: no recursion for execution pins
@@ -358,7 +356,6 @@ void UControlRigGraphNode::CreateInputPins(URigVMPin* InParentPin)
 			{
 				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
 				Pair.InputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::Input;
-				Pair.InputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
 
 				SetupPinDefaultsFromModel(Pair.InputPin);
 
@@ -374,7 +371,7 @@ void UControlRigGraphNode::CreateInputPins(URigVMPin* InParentPin)
 	}
 }
 
-void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin)
+void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin, bool bHidden)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -387,9 +384,9 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin)
 			Pair.InputPin = CreatePin(EGPD_Input, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.InputPin != nullptr)
 			{
+				Pair.InputPin->bHidden = bHidden;
 				Pair.InputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
 				Pair.InputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::IO;
-				Pair.InputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
 
 				SetupPinDefaultsFromModel(Pair.InputPin);
 
@@ -406,9 +403,9 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin)
 			Pair.OutputPin = CreatePin(EGPD_Output, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.OutputPin != nullptr)
 			{
+				Pair.OutputPin->bHidden = bHidden;
 				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
 				Pair.OutputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::IO;
-				Pair.OutputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
 
 				if (InParentPin != nullptr)
 				{
@@ -424,11 +421,11 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin)
 		{
 			if (!RerouteNode->GetShowsAsFullNode())
 			{
-				continue;
+				bHidden = true;
 			}
 		}
 
-		CreateInputOutputPins(ModelPin);
+		CreateInputOutputPins(ModelPin, bHidden);
 	}
 }
 
@@ -447,7 +444,6 @@ void UControlRigGraphNode::CreateOutputPins(URigVMPin* InParentPin)
 			{
 				Pair.OutputPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
 				Pair.OutputPin->bNotConnectable = ModelPin->GetDirection() != ERigVMPinDirection::Output;
-				Pair.OutputPin->bDisplayAsMutableRef = ModelPin->GetInjectedNodes().Num() > 0;
 
 				if (InParentPin != nullptr)
 				{
@@ -751,7 +747,7 @@ bool UControlRigGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIn
 	{
 		if (!Reroute->GetShowsAsFullNode())
 		{
-			if (Pins.Num() == 2)
+			if (Pins.Num() >= 2)
 			{
 				OutInputPinIndex = 0;
 				OutOutputPinIndex = 1;

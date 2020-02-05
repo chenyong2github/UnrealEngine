@@ -12,7 +12,11 @@
 #include "DataprepContentProducer.h"
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCorePrivateUtils.h"
+#include "DataprepOperation.h"
+#include "DataprepParameterizableObject.h"
 #include "IDataprepProgressReporter.h"
+#include "SelectionSystem/DataprepFetcher.h"
+#include "SelectionSystem/DataprepFilter.h"
 
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -28,6 +32,7 @@
 #include "RenderingThread.h"
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/UObjectHash.h"
+#include "Templates/SubclassOf.h"
 
 #if WITH_EDITOR
 #include "ComponentRecreateRenderStateContext.h"
@@ -35,6 +40,7 @@
 #include "ObjectTools.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
+
 
 #define LOCTEXT_NAMESPACE "DataprepCoreUtils"
 
@@ -218,7 +224,7 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 		// Trigger execution of data preparation operations on world attached to recipe
 		TSet<TWeakObjectPtr<UObject>> CachedAssets;
 		{
-			DataprepActionAsset::FCanExecuteNextStepFunc CanExecuteNextStepFunc = [](UDataprepActionAsset* ActionAsset, UDataprepOperation* Operation, UDataprepFilter* Filter) -> bool
+			DataprepActionAsset::FCanExecuteNextStepFunc CanExecuteNextStepFunc = [](UDataprepActionAsset* ActionAsset) -> bool
 			{
 				return true;
 			};
@@ -315,6 +321,92 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 	}
 
 	return false;
+}
+
+bool FDataprepCoreUtils::IsClassValidForStepCreation(const TSubclassOf<UDataprepParameterizableObject>& StepType, UClass*& OutValidRootClass, FText& OutMessageIfInvalid)
+{
+	UClass* Class = StepType.Get();
+	if ( !Class )
+	{
+		OutMessageIfInvalid = LOCTEXT("StepTypeNull", "The class to use for the step is none.");
+		return false;
+	}
+
+	if ( Class->HasAnyClassFlags( CLASS_Abstract ) )
+	{
+		OutMessageIfInvalid = LOCTEXT("StepTypeIsAbstract", "The class to use for the creation of the step is abstract. We can use that to create a step.");
+		return false;
+	}
+
+	if ( Class->HasAnyClassFlags( CLASS_Transient ) )
+	{
+		OutMessageIfInvalid = LOCTEXT("StepTypeIsTransient", "The class to use for the creation of the step is transient. We can't save transient types. So we can't use them .");
+		return false;
+	}
+
+	if ( Class->HasAnyClassFlags( CLASS_NewerVersionExists ) )
+	{
+		OutMessageIfInvalid = LOCTEXT("StepTypeHasBeenRemplaced", "The class to use for the creation of the step is a old version of newer class.");
+		return false;
+	}
+
+	UClass* DataprepFilterClass = UDataprepFilter::StaticClass();
+	UClass* DataprepTopLevelClass = UDataprepParameterizableObject::StaticClass();
+	UClass* DataprepOperationClass = UDataprepOperation::StaticClass();
+	UClass* DataprepFetcherClass = UDataprepFetcher::StaticClass();
+
+	while ( Class )
+	{
+		if ( Class == DataprepFilterClass )
+		{
+			OutMessageIfInvalid = LOCTEXT("StepTypeIsAFilter", "The class to use for the creation of the step is filter. Please use the desired fetcher for the filter instead.");
+			return false;
+		}
+
+		if ( Class == DataprepTopLevelClass )
+		{
+			OutMessageIfInvalid = LOCTEXT("StepTypeIsUnknow", "The class to use for the creation of the step is unknow to the dataprep ecosystem.");
+			return false;
+		}
+
+		if ( Class == DataprepOperationClass )
+		{
+			OutValidRootClass = DataprepOperationClass;
+			return true;
+		}
+
+		if ( Class == DataprepFetcherClass )
+		{
+			OutValidRootClass = DataprepFetcherClass;
+			return true;
+		}
+
+		Class = Class->GetSuperClass();
+	}
+
+	return false;
+}
+
+UClass* FDataprepCoreUtils::GetTypeOfActionStep(const UDataprepParameterizableObject* Object)
+{
+	UClass* CurrentClass = Object ? Object->GetClass() : nullptr;
+
+	const UClass* DataprepFilterClass = UDataprepFilter::StaticClass();
+	const UClass* DataprepOperationClass = UDataprepOperation::StaticClass();
+
+	while ( CurrentClass )
+	{
+		if ( CurrentClass == DataprepFilterClass
+			|| CurrentClass == DataprepOperationClass
+			)
+		{
+			break;
+		}
+
+		CurrentClass = CurrentClass->GetSuperClass();
+	}
+	
+	return CurrentClass;
 }
 
 FDataprepWorkReporter::FDataprepWorkReporter(const TSharedPtr<IDataprepProgressReporter>& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork, bool bInterruptible )

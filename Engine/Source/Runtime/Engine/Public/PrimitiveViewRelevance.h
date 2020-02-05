@@ -9,8 +9,29 @@
  * The different types of relevance a primitive scene proxy can declare towards a particular scene view.
  * the class is only storing bits, and has an |= operator
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FPrimitiveViewRelevance : public FMaterialRelevance
 {
+#if WITH_EDITOR
+	// Deprecate common attributes with FMaterialRelevance that have different names
+	UE_DEPRECATED(4.25, "ShadingModelMaskRelevance has been renamed ShadingModelMask")
+	uint16 ShadingModelMaskRelevance;
+	UE_DEPRECATED(4.25, "bOpaqueRelevance has been renamed bOpaque")
+	uint32 bOpaqueRelevance : 1;
+	UE_DEPRECATED(4.25, "bMaskedRelevance has been renamed bMasked")
+	uint32 bMaskedRelevance : 1;
+	UE_DEPRECATED(4.25, "bTranslucentVelocityRelevance has been renamed bOutputsTranslucentVelocity")
+	uint32 bTranslucentVelocityRelevance : 1;
+	UE_DEPRECATED(4.25, "bDistortionRelevance has been renamed bDistortion")
+	uint32 bDistortionRelevance : 1;
+	UE_DEPRECATED(4.25, "bSeparateTranslucencyRelevance has been renamed bSeparateTranslucency")
+	uint32 bSeparateTranslucencyRelevance : 1;
+	UE_DEPRECATED(4.25, "bNormalTranslucencyRelevance has been renamed bNormalTranslucency")
+	uint32 bNormalTranslucencyRelevance : 1;
+	UE_DEPRECATED(4.25, "bHairStrandsRelevance has been renamed bHairStrands")
+	uint32 bHairStrandsRelevance : 1;
+#endif
+
 	// Warning: This class is memzeroed externally as 0 is assumed a
 	// valid value for all members meaning 'not relevant'. If this
 	// changes existing class usage should be re-evaluated
@@ -94,3 +115,4 @@ struct FPrimitiveViewRelevance : public FMaterialRelevance
 		return *this;
 	}
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

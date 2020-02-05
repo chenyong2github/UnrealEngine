@@ -251,7 +251,7 @@ FAudioDevice::FAudioDevice()
 	: NumStoppingSources(32)
 	, SampleRate(0)
 	, NumPrecacheFrames(MONO_PCM_BUFFER_SAMPLES)
-	, DeviceHandle(static_cast<Audio::FDeviceId>(INDEX_NONE))
+	, DeviceID(static_cast<Audio::FDeviceId>(INDEX_NONE))
 	, SpatializationPluginInterface(nullptr)
 	, ReverbPluginInterface(nullptr)
 	, OcclusionInterface(nullptr)
@@ -1330,7 +1330,7 @@ bool FAudioDevice::HandleSoloCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
 	if (DeviceManager)
 	{
-		DeviceManager->SetSoloDevice(DeviceHandle);
+		DeviceManager->SetSoloDevice(DeviceID);
 	}
 	return true;
 }
@@ -4348,7 +4348,7 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
 	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AudioSendResults"), STAT_AudioSendResults, STATGROUP_TaskGraphTasks);
 
-	const Audio::FDeviceId AudioDeviceID = DeviceHandle;
+	const Audio::FDeviceId AudioDeviceID = DeviceID;
 	UReverbEffect* ReverbEffect = Effects ? Effects->GetCurrentReverbEffect() : nullptr;
 	FAudioThread::RunCommandOnGameThread([AudioDeviceID, ReverbEffect]()
 	{
@@ -4357,7 +4357,7 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 		{
 			if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
 			{
-				if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(AudioDeviceID))
+				if (FAudioDeviceHandle AudioDevice = AudioDeviceManager->GetAudioDevice(AudioDeviceID))
 				{
 					AudioDevice->CurrentReverbEffect = ReverbEffect;
 				}
@@ -4577,10 +4577,10 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		}
 	}
 
-	int32* PlayCount = Sound->CurrentPlayCount.Find(DeviceHandle);
+	int32* PlayCount = Sound->CurrentPlayCount.Find(DeviceID);
 	if (!PlayCount)
 	{
-		PlayCount = &Sound->CurrentPlayCount.Add(DeviceHandle);
+		PlayCount = &Sound->CurrentPlayCount.Add(DeviceID);
 	}
 	(*PlayCount)++;
 
@@ -5343,7 +5343,7 @@ FAudioDevice::FCreateComponentParams::FCreateComponentParams()
 	: World(nullptr)
 	, Actor(nullptr)
 {
-	AudioDevice = (GEngine ? GEngine->GetMainAudioDevice() : nullptr);
+	AudioDevice = (GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr);
 	CommonInit();
 }
 
@@ -5360,7 +5360,14 @@ FAudioDevice::FCreateComponentParams::FCreateComponentParams(UWorld* InWorld, AA
 		Actor = (World ? World->GetWorldSettings() : nullptr);
 	}
 
-	AudioDevice = (World ? World->GetAudioDevice() : nullptr);
+	AudioDevice = (World ? World->GetAudioDeviceRaw() : nullptr);
+	
+	// If the world doesn't own an audio device, fall back to the main audio device.
+	if (!AudioDevice)
+	{
+		AudioDevice = (GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr);
+	}
+
 	CommonInit();
 }
 
@@ -5368,7 +5375,14 @@ FAudioDevice::FCreateComponentParams::FCreateComponentParams(AActor* InActor)
 	: Actor(InActor)
 {
 	World = (Actor ? Actor->GetWorld() : nullptr);
-	AudioDevice = (World ? World->GetAudioDevice() : nullptr);
+	AudioDevice = (World ? World->GetAudioDeviceRaw() : nullptr);
+
+	// If the world doesn't own an audio device, fall back to the main audio device.
+	if (!AudioDevice)
+	{
+		AudioDevice = (GEngine ? GEngine->GetMainAudioDeviceRaw() : nullptr);
+	}
+
 	CommonInit();
 }
 
@@ -5418,7 +5432,7 @@ UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, UWorld* World,
 	}
 	else
 	{
-		Params = MakeUnique<FCreateComponentParams>(GEngine->GetMainAudioDevice());
+		Params = MakeUnique<FCreateComponentParams>(GEngine->GetMainAudioDeviceRaw());
 	}
 
 	Params->bPlay = bPlay;
@@ -5499,7 +5513,7 @@ UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, const FCreateC
 				}
 				else
 				{
-					AudioComponent->AudioDeviceHandle = Params.AudioDevice->DeviceHandle;
+					AudioComponent->AudioDeviceID = Params.AudioDevice->DeviceID;
 				}
 
 				if (Params.bPlay)

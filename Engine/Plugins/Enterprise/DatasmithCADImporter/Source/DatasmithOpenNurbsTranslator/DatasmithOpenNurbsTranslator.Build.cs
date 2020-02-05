@@ -28,7 +28,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithContent",
 					"DatasmithTranslator",
 					"MeshDescription",
-					"StaticMeshDescription"
+					"StaticMeshDescription",
 				}
 			);
 
@@ -41,6 +41,12 @@ namespace UnrealBuildTool.Rules
             {
 				PrivateDependencyModuleNames.Add("CoreTech");
             }
+
+            if (Target.Type == TargetType.Editor)
+            {
+	            PrivateDependencyModuleNames.Add("MessageLog");
+            }
+
         }
     }
 }

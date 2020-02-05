@@ -616,8 +616,10 @@ void FD3D11BufferedGPUTiming::InitDynamicRHI()
 			QueryDesc.Query = D3D11_QUERY_TIMESTAMP;
 			QueryDesc.MiscFlags = 0;
 
+			CA_SUPPRESS(6385);	// Doesn't like COM
 			D3DResult = D3DRHI->GetDevice()->CreateQuery(&QueryDesc,StartTimestamps[TimestampIndex].GetInitReference());
 			GIsSupported = GIsSupported && (D3DResult == S_OK);
+			CA_SUPPRESS(6385);	// Doesn't like COM
 			D3DResult = D3DRHI->GetDevice()->CreateQuery(&QueryDesc,EndTimestamps[TimestampIndex].GetInitReference());
 			GIsSupported = GIsSupported && (D3DResult == S_OK);
 		}

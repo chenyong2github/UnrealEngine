@@ -5,7 +5,6 @@
 #include "StaticMeshResources.h"
 #include "Materials/MaterialInstance.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
 
 typedef TPair<uint32, uint32> MeshLODPair;
 typedef TPair<uint32, uint32> SectionRemapPair;

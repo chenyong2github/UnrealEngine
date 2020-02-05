@@ -6,8 +6,7 @@
 
 #include "DynamicMesh3.h"
 #include "DynamicMeshToMeshDescription.h"
-
-
+#include "FaceGroupUtil.h"
 
 #include "SimpleDynamicMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -41,6 +40,7 @@ UInteractiveTool* UParameterizeMeshToolBuilder::BuildTool(const FToolBuilderStat
 	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
+	NewTool->SetUseAutoGlobalParameterizationMode(bDoAutomaticGlobalUnwrap);
 
 	return NewTool;
 }
@@ -53,7 +53,8 @@ void UParameterizeMeshToolProperties::SaveProperties(UInteractiveTool* SaveFromT
 {
 	UParameterizeMeshToolProperties* PropertyCache = GetPropertyCache<UParameterizeMeshToolProperties>();
 	PropertyCache->ChartStretch = this->ChartStretch;
-	PropertyCache->bRespectPolygroups = this->bRespectPolygroups;
+	//PropertyCache->IslandMode = this->IslandMode;
+	PropertyCache->UnwrapType = this->UnwrapType;
 	PropertyCache->UVScaleMode = this->UVScaleMode;
 	PropertyCache->UVScale = this->UVScale;
 }
@@ -62,7 +63,8 @@ void UParameterizeMeshToolProperties::RestoreProperties(UInteractiveTool* Restor
 {
 	UParameterizeMeshToolProperties* PropertyCache = GetPropertyCache<UParameterizeMeshToolProperties>();
 	this->ChartStretch = PropertyCache->ChartStretch;
-	this->bRespectPolygroups = PropertyCache->bRespectPolygroups;
+	//this->IslandMode = PropertyCache->IslandMode;
+	this->UnwrapType = PropertyCache->UnwrapType;
 	this->UVScaleMode = PropertyCache->UVScaleMode;
 	this->UVScale = PropertyCache->UVScale;
 }
@@ -88,13 +90,18 @@ void UParameterizeMeshTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 	this->AssetAPI = AssetAPIIn;
 }
 
+void UParameterizeMeshTool::SetUseAutoGlobalParameterizationMode(bool bEnable)
+{
+	bDoAutomaticGlobalUnwrap = bEnable;
+}
+
+
 void UParameterizeMeshTool::Setup()
 {
 	UInteractiveTool::Setup();
 
 	// Deep copy of input mesh to be shared with the UV generation tool.
 	InputMesh = MakeShared<FMeshDescription>(*ComponentTarget->GetMesh());
-
 
 	// Copy existing material if there is one	
 	DefaultMaterial = ComponentTarget->GetMaterial(0);
@@ -106,21 +113,18 @@ void UParameterizeMeshTool::Setup()
 	// hide input StaticMeshComponent
 	ComponentTarget->SetOwnerVisibility(false);
 
-	// initialize our properties
-	Settings = NewObject<UParameterizeMeshToolProperties>(this);
-	Settings->RestoreProperties(this);
-	AddToolPropertySource(Settings);
-	
 	// Construct the preview object and set the material on it
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
 
 	// Initialize the preview mesh with a copy of the source mesh.
+	bool bHasGroups = false;
 	{
 		FDynamicMesh3 Mesh;
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.bPrintDebugMessages = false;
 		Converter.Convert(InputMesh.Get(), Mesh);
+		bHasGroups = FaceGroupUtil::HasMultipleGroups(Mesh);
 
 		FComponentMaterialSet MaterialSet;
 		ComponentTarget->GetMaterialSet(MaterialSet);
@@ -132,10 +136,23 @@ void UParameterizeMeshTool::Setup()
 		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
 	}
 
+	if (bDoAutomaticGlobalUnwrap == false && bHasGroups == false)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("NoGroupsWarning", "This mesh has no PolyGroups!"),
+			EToolMessageLevel::UserWarning);
+		//bDoAutomaticGlobalUnwrap = true;
+	}
+
+	// initialize our properties
+	Settings = NewObject<UParameterizeMeshToolProperties>(this);
+	Settings->RestoreProperties(this);
+	Settings->bIsGlobalMode = bDoAutomaticGlobalUnwrap;
+	AddToolPropertySource(Settings);
+
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
-	MaterialSettings->Setup();
-	MaterialSettings->MaterialMode = ESetMeshMaterialMode::Checkerboard;
+	MaterialSettings->RestoreProperties(this);
 	AddToolPropertySource(MaterialSettings);
 	// force update
 	MaterialSettings->UpdateMaterials();
@@ -164,7 +181,7 @@ void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* 
 void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
-
+	MaterialSettings->SaveProperties(this);
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -211,7 +228,17 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 	ParamertizeMeshOp->Stretch   = Settings->ChartStretch;
 	ParamertizeMeshOp->NumCharts = 0;
 	ParamertizeMeshOp->InputMesh = InputMesh;
-	ParamertizeMeshOp->bRespectPolygroups = Settings->bRespectPolygroups;
+	
+	if (bDoAutomaticGlobalUnwrap)
+	{
+		ParamertizeMeshOp->IslandMode = EParamOpIslandMode::Auto;
+		ParamertizeMeshOp->UnwrapType = EParamOpUnwrapType::MinStretch;
+	}
+	else
+	{
+		ParamertizeMeshOp->IslandMode = EParamOpIslandMode::PolyGroups;		// (EParamOpIslandMode)(int)Settings->IslandMode;
+		ParamertizeMeshOp->UnwrapType = (EParamOpUnwrapType)(int)Settings->UnwrapType;
+	}
 
 	switch (Settings->UVScaleMode)
 	{

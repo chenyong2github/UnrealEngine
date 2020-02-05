@@ -62,15 +62,23 @@ public:
 	/**
 	* Returns all used viewports
 	*
-	* @return - 
+	* @return - amount of policy instances
 	*/
-	//virtual TArray<TSharedPtr<FPicpProjectionViewportBase>> GetProjectionViewports(const FString& InProjectionType) = 0;
-
 	virtual int GetPolicyCount(const FString& InProjectionType) = 0;
+
+	/**
+	* Create link to static mesh geometry as warp source
+	*
+	* @param ViewportId - viewport name
+	* @param MeshComponent - warp mesh
+	* @param OriginComponent - cave origin 
+	*
+	* @return - true if the mesh linked and ready to warp
+	*/
+	virtual bool AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent) = 0;
+
 	virtual void SetOverlayFrameData(const FString& PolicyType, FPicpProjectionOverlayFrameData& OverlayFrameData) = 0;
-
-	virtual void CaptureWarpTexture(UTextureRenderTarget2D* dst, const FString& ViewportId, const uint32 ViewIdx, bool bCaptureNow) = 0;
-
+	virtual void CaptureWarpTexture(UTextureRenderTarget2D* OutWarpRTT, const FString& ViewportId, const uint32 ViewIdx, bool bCaptureNow) = 0;
 	virtual bool GetWarpFrustum(const FString& ViewportId, const uint32 ViewIdx, IMPCDI::FFrustum& OutFrustum, bool bIsCaptureWarpTextureFrustum) = 0;
 
 	// callback

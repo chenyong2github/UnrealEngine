@@ -394,6 +394,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 			InOutImportOptions.BaseNormalTextureName = ImportUI->TextureImportData->BaseNormalTextureName;
 			InOutImportOptions.BaseEmmisiveTextureName = ImportUI->TextureImportData->BaseEmmisiveTextureName;
 			InOutImportOptions.BaseSpecularTextureName = ImportUI->TextureImportData->BaseSpecularTextureName;
+			InOutImportOptions.BaseOpacityTextureName = ImportUI->TextureImportData->BaseOpacityTextureName;
 			InOutImportOptions.BaseEmissiveColorName = ImportUI->TextureImportData->BaseEmissiveColorName;
 		}
 		InOutImportOptions.bImportTextures			= ImportUI->bImportTextures;
@@ -1306,8 +1307,11 @@ void FFbxImporter::ConvertScene()
 	for (int32 AnimStackIndex = 0; AnimStackIndex < AnimStackCount; AnimStackIndex++)
 	{
 		FbxAnimStack* CurAnimStack = Scene->GetSrcObject<FbxAnimStack>(AnimStackIndex);
-		int32 ResampleRate = GetGlobalAnimStackSampleRate(CurAnimStack);
-		MergeAllLayerAnimation(CurAnimStack, ResampleRate);
+		if (CurAnimStack->GetMemberCount() > 1)
+		{
+			int32 ResampleRate = GetGlobalAnimStackSampleRate(CurAnimStack);
+			MergeAllLayerAnimation(CurAnimStack, ResampleRate);
+		}
 	}
 
 	//Set the original file information
@@ -1773,50 +1777,77 @@ FName FFbxImporter::MakeNameForMesh(FString InName, FbxObject* FbxObject)
 	return OutputName;
 }
 
-FbxNode* FFbxImporter::GetMeshNodesFromName(const FString& ReimportMeshName, TArray<FbxNode*>& FbxMeshArray)
+/* The score is the difference between name lower score is better*/
+int32 GetNodeNameDiffScore(const char* MeshName, const FbxNode* FbxMeshNode)
 {
-	//StaticMesh->GetName()
-	char MeshName[1024];
-	FCStringAnsi::Strcpy(MeshName, 1024, TCHAR_TO_UTF8(*ReimportMeshName));
-	// find the Fbx mesh node that the Unreal Mesh matches according to name
-	int32 MeshIndex;
-	for (MeshIndex = 0; MeshIndex < FbxMeshArray.Num(); MeshIndex++)
+	if (FbxMeshNode == nullptr || MeshName == nullptr)
 	{
-		const char* FbxMeshName = FbxMeshArray[MeshIndex]->GetName();
-		// The name of Unreal mesh may have a prefix, so we match from end
-		int32 i = 0;
-		char* MeshPtr = MeshName + FCStringAnsi::Strlen(MeshName) - 1;
-		if (FCStringAnsi::Strlen(FbxMeshName) <= FCStringAnsi::Strlen(MeshName))
-		{
-			const char* FbxMeshPtr = FbxMeshName + FCStringAnsi::Strlen(FbxMeshName) - 1;
-			while (i < FCStringAnsi::Strlen(FbxMeshName))
-			{
-				bool bIsPointAndUnderscore = *FbxMeshPtr == '.' && *MeshPtr == '_';
+		return INDEX_NONE;
+	}
+	int32 MeshNameLen = FCStringAnsi::Strlen(MeshName);
+	if (MeshNameLen == 0)
+	{
+		return INDEX_NONE;
+	}
+	const char* FbxNodeName = FbxMeshNode->GetName();
+	int32 FbxNodeNameLen = FCStringAnsi::Strlen(FbxNodeName);
+	if (FbxNodeNameLen == 0 || FbxNodeNameLen > MeshNameLen)
+	{
+		return INDEX_NONE;
+	}
+	// The name of Unreal mesh may have a prefix, so we match from end
+	int32 i = 0;
+	const char* MeshNamePtr = MeshName + MeshNameLen - 1;
+	const char* FbxMeshPtr = FbxNodeName + FbxNodeNameLen - 1;
+	while (i < FbxNodeNameLen)
+	{
+		bool bIsPointAndUnderscore = *FbxMeshPtr == '.' && *MeshNamePtr == '_';
 
-				if (*MeshPtr != *FbxMeshPtr && !bIsPointAndUnderscore)
-				{
-					break;
-				}
-				else
-				{
-					i++;
-					MeshPtr--;
-					FbxMeshPtr--;
-				}
-			}
+		if (*MeshNamePtr != *FbxMeshPtr && !bIsPointAndUnderscore)
+		{
+			break;
 		}
-
-		if (i == FCStringAnsi::Strlen(FbxMeshName)) // matched
+		else
 		{
-			// check further
-			if (FCStringAnsi::Strlen(FbxMeshName) == FCStringAnsi::Strlen(MeshName) || // the name of Unreal mesh is full match
-				*MeshPtr == '_')														// or the name of Unreal mesh has a prefix
-			{
-				return FbxMeshArray[MeshIndex];
-			}
+			i++;
+			MeshNamePtr--;
+			FbxMeshPtr--;
 		}
 	}
-	return nullptr;
+
+	if (i == FbxNodeNameLen) // matched
+	{
+		if (FbxNodeNameLen == MeshNameLen) // the name of Unreal mesh is full match
+		{
+			return 0;
+		}
+		// The name of Unreal mesh has a prefix
+		if (*MeshNamePtr == '_')
+		{
+			return (MeshNameLen - i);
+		}
+	}
+	return INDEX_NONE;
+}
+
+FbxNode* FFbxImporter::GetMeshNodesFromName(const FString& ReimportMeshName, TArray<FbxNode*>& FbxMeshArray)
+{
+	char MeshName[2048];
+	FCStringAnsi::Strcpy(MeshName, 2048, TCHAR_TO_UTF8(*ReimportMeshName));
+
+	// find the Fbx mesh node that the Unreal Mesh matches according to name
+	int32 BestMatchIndex = INDEX_NONE;
+	int32 BestDiffScore = MAX_int32;
+	for (int32 MeshIndex = 0; MeshIndex < FbxMeshArray.Num(); MeshIndex++)
+	{
+		int32 DiffScore = GetNodeNameDiffScore(MeshName, FbxMeshArray[MeshIndex]);
+		if (DiffScore != INDEX_NONE && DiffScore < BestDiffScore)
+		{
+			BestMatchIndex = MeshIndex;
+			BestDiffScore = DiffScore;
+		}
+	}
+	return FbxMeshArray.IsValidIndex(BestMatchIndex) ? FbxMeshArray[BestMatchIndex] : nullptr;
 }
 
 FbxAMatrix FFbxImporter::ComputeSkeletalMeshTotalMatrix(FbxNode* Node, FbxNode *RootSkeletalNode)
@@ -2244,7 +2275,11 @@ void FFbxImporter::ConvertLodPrefixToLodGroup()
 
 FbxNode *FFbxImporter::RecursiveGetFirstMeshNode(FbxNode* Node, FbxNode* NodeToFind)
 {
-	if (Node->GetMesh() != nullptr)
+	if (Node == nullptr)
+	{
+		return nullptr;
+	}
+	if(Node->GetMesh() != nullptr)
 		return Node;
 	for (int32 ChildIndex = 0; ChildIndex < Node->GetChildCount(); ++ChildIndex)
 	{
@@ -2266,28 +2301,32 @@ FbxNode *FFbxImporter::RecursiveGetFirstMeshNode(FbxNode* Node, FbxNode* NodeToF
 
 void FFbxImporter::RecursiveGetAllMeshNode(TArray<FbxNode *> &OutAllNode, FbxNode* Node)
 {
+	if (Node == nullptr)
+	{
+		return;
+	}
+
 	if (Node->GetMesh() != nullptr)
 	{
 		OutAllNode.Add(Node);
 		return;
 	}
-	else
+
+	//Look if its a generated LOD
+	FString FbxGeneratedNodeName = UTF8_TO_TCHAR(Node->GetName());
+	if (FbxGeneratedNodeName.Contains(TEXT(GeneratedLODNameSuffix)))
 	{
-		//Look if its a generated LOD
-		FString FbxGeneratedNodeName = UTF8_TO_TCHAR(Node->GetName());
-		if (FbxGeneratedNodeName.Contains(TEXT(GeneratedLODNameSuffix)))
+		FString SuffixSearch = TEXT(GeneratedLODNameSuffix);
+		int32 SuffixIndex = FbxGeneratedNodeName.Find(SuffixSearch, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+		SuffixIndex += SuffixSearch.Len();
+		FString LODXNumber = FbxGeneratedNodeName.RightChop(SuffixIndex).Left(1);
+		if (LODXNumber.IsNumeric())
 		{
-			FString SuffixSearch = TEXT(GeneratedLODNameSuffix);
-			int32 SuffixIndex = FbxGeneratedNodeName.Find(SuffixSearch, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-			SuffixIndex += SuffixSearch.Len();
-			FString LODXNumber = FbxGeneratedNodeName.RightChop(SuffixIndex).Left(1);
-			if (LODXNumber.IsNumeric())
-			{
-				OutAllNode.Add(Node);
-				return;
-			}
+			OutAllNode.Add(Node);
+			return;
 		}
 	}
+
 	for (int32 ChildIndex = 0; ChildIndex < Node->GetChildCount(); ++ChildIndex)
 	{
 		RecursiveGetAllMeshNode(OutAllNode, Node->GetChild(ChildIndex));
@@ -2298,7 +2337,10 @@ FbxNode* FFbxImporter::FindLODGroupNode(FbxNode* NodeLodGroup, int32 LodIndex, F
 {
 	check(NodeLodGroup->GetChildCount() >= LodIndex);
 	FbxNode *ChildNode = NodeLodGroup->GetChild(LodIndex);
-
+	if (ChildNode == nullptr)
+	{
+		return nullptr;
+	}
 	return RecursiveGetFirstMeshNode(ChildNode, NodeToFind);
 }
 
@@ -2306,7 +2348,10 @@ void FFbxImporter::FindAllLODGroupNode(TArray<FbxNode*> &OutNodeInLod, FbxNode* 
 {
 	check(NodeLodGroup->GetChildCount() >= LodIndex);
 	FbxNode *ChildNode = NodeLodGroup->GetChild(LodIndex);
-
+	if (ChildNode == nullptr)
+	{
+		return;
+	}
 	RecursiveGetAllMeshNode(OutNodeInLod, ChildNode);
 }
 

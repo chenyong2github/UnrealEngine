@@ -149,6 +149,7 @@
 #include "Materials/MaterialExpressionParticleSpeed.h"
 #include "Materials/MaterialExpressionPerInstanceFadeAmount.h"
 #include "Materials/MaterialExpressionPerInstanceRandom.h"
+#include "Materials/MaterialExpressionPerInstanceCustomData.h"
 #include "Materials/MaterialExpressionPixelDepth.h"
 #include "Materials/MaterialExpressionPixelNormalWS.h"
 #include "Materials/MaterialExpressionPower.h"
@@ -1993,33 +1994,34 @@ UMaterialExpressionRuntimeVirtualTextureOutput::UMaterialExpressionRuntimeVirtua
 int32 UMaterialExpressionRuntimeVirtualTextureOutput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 CodeInput = INDEX_NONE;
-
-	if (!BaseColor.IsConnected() && !Specular.IsConnected() && !Roughness.IsConnected() && !Normal.IsConnected() && !Opacity.IsConnected())
-	{
-		Compiler->Error(TEXT("No inputs to Runtime Virtual Texture Output."));
-	}
+	uint8 OutputAttributeMask = 0;
 
 	// Order of outputs generates function names GetVirtualTextureOutput{index}
 	// These must match the function names called in VirtualTextureMaterial.usf
 	if (OutputIndex == 0)
 	{
 		CodeInput = BaseColor.IsConnected() ? BaseColor.Compile(Compiler) : Compiler->Constant3(0.f, 0.f, 0.f);
+		OutputAttributeMask |= BaseColor.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::BaseColor) : 0;
 	}
 	else if (OutputIndex == 1)
 	{
 		CodeInput = Specular.IsConnected() ? Specular.Compile(Compiler) : Compiler->Constant(0.5f);
+		OutputAttributeMask |= Specular.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Specular) : 0;
 	}
 	else if (OutputIndex == 2)
 	{
 		CodeInput = Roughness.IsConnected() ? Roughness.Compile(Compiler) : Compiler->Constant(0.5f);
+		OutputAttributeMask |= Roughness.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Roughness) : 0;
 	}
 	else if (OutputIndex == 3)
 	{
 		CodeInput = Normal.IsConnected() ? Normal.Compile(Compiler) : Compiler->Constant3(0.f, 0.f, 1.f);
+		OutputAttributeMask |= Normal.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Normal) : 0;
 	}
 	else if (OutputIndex == 4)
 	{
 		CodeInput = WorldHeight.IsConnected() ? WorldHeight.Compile(Compiler) : Compiler->Constant(0.f);
+		OutputAttributeMask |= WorldHeight.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::WorldHeight) : 0;
 	}
 	else if (OutputIndex == 5)
 	{
@@ -2028,9 +2030,10 @@ int32 UMaterialExpressionRuntimeVirtualTextureOutput::Compile(class FMaterialCom
 	else if (OutputIndex == 6)
 	{
 		CodeInput = Mask.IsConnected() ? Mask.Compile(Compiler) : Compiler->Constant(1.f);
+		OutputAttributeMask |= Mask.IsConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Mask) : 0;
 	}
 
-	Compiler->VirtualTextureOutput();
+	Compiler->VirtualTextureOutput(OutputAttributeMask);
 	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
 }
 
@@ -15239,6 +15242,43 @@ int32 UMaterialExpressionPerInstanceFadeAmount::Compile(class FMaterialCompiler*
 void UMaterialExpressionPerInstanceFadeAmount::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("PerInstanceFadeAmount"));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionPerInstanceCustomData
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionPerInstanceCustomData::UMaterialExpressionPerInstanceCustomData(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Custom;
+		FConstructorStatics()
+			: NAME_Custom(LOCTEXT("Custom", "Custom"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Custom);
+
+	bShaderInputData = true;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionPerInstanceCustomData::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 DefaultArgument = DefaultValue.GetTracedInput().Expression ? DefaultValue.Compile(Compiler) : Compiler->Constant(ConstDefaultValue);
+	return Compiler->PerInstanceCustomData(DataIndex, DefaultArgument);
+}
+
+void UMaterialExpressionPerInstanceCustomData::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString::Printf(TEXT("PerInstanceCustomData[%d]"), DataIndex));
 }
 #endif // WITH_EDITOR
 

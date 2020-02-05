@@ -858,18 +858,20 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 	FScopedSlowTask SlowTask(0, LOCTEXT( "CreatingProjectStatus", "Creating project..." ));
 	SlowTask.MakeDialog();
 
-	bool bProjectCreationSuccessful = false;
+	TOptional<FGuid> ProjectID;
 	FString TemplateName;
 	if ( InProjectInfo.TemplateFile.IsEmpty() )
 	{
-		bProjectCreationSuccessful = GenerateProjectFromScratch(InProjectInfo, OutFailReason, OutFailLog);
+		ProjectID = GenerateProjectFromScratch(InProjectInfo, OutFailReason, OutFailLog);
 		TemplateName = InProjectInfo.bShouldGenerateCode ? TEXT("Basic Code") : TEXT("Blank");
 	}
 	else
 	{
-		bProjectCreationSuccessful = CreateProjectFromTemplate(InProjectInfo, OutFailReason, OutFailLog, OutCreatedFiles);
+		ProjectID = CreateProjectFromTemplate(InProjectInfo, OutFailReason, OutFailLog, OutCreatedFiles);
 		TemplateName = FPaths::GetBaseFilename(InProjectInfo.TemplateFile);
 	}
+
+	bool bProjectCreationSuccessful = ProjectID.IsSet();
 
 	if (!bProjectCreationSuccessful && CleanupIsEnabled())
 	{
@@ -889,6 +891,7 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Category"), InProjectInfo.TemplateCategory.ToString()));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ProjectType"), InProjectInfo.bShouldGenerateCode ? TEXT("C++ Code") : TEXT("Content Only")));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Outcome"), bProjectCreationSuccessful ? TEXT("Successful") : TEXT("Failed")));
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ProjectID"), *(bProjectCreationSuccessful ? ProjectID.GetValue().ToString() : FString())));
 
 		if (InProjectInfo.TargetedHardware.IsSet())
 		{
@@ -909,8 +912,8 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 		}
 
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("StarterContent"), InProjectInfo.bCopyStarterContent ? TEXT("Yes") : TEXT("No")));
-		
-		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.NewProject.ProjectCreated" ), EventAttributes );
+
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.NewProject.ProjectCreated"), EventAttributes);
 	}
 
 	return bProjectCreationSuccessful;
@@ -1379,7 +1382,7 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 	return TemplateDefs;
 }
 
-bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog)
+TOptional<FGuid> GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog)
 {
 	FScopedSlowTask SlowTask(5);
 
@@ -1391,16 +1394,17 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 
 	ResetCurrentProjectModulesCache();
 
+	FGuid ProjectID;
 	// Generate config files
-	if (!GenerateConfigFiles(InProjectInfo, CreatedFiles, OutFailReason))
+	if (!GenerateConfigFiles(InProjectInfo, CreatedFiles, OutFailReason, ProjectID))
 	{
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	// Insert any required feature packs (EG starter content) into ini file. These will be imported automatically when the editor is first run
 	if(!InsertFeaturePacksIntoINIFile(InProjectInfo, OutFailReason))
 	{
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	// Make the Content folder
@@ -1410,7 +1414,7 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 		FFormatNamedArguments Args;
 		Args.Add( TEXT("ContentFolder"), FText::FromString( ContentFolder ) );
 		OutFailReason = FText::Format( LOCTEXT("FailedToCreateContentFolder", "Failed to create the content folder {ContentFolder}"), Args );
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	SlowTask.EnterProgressFrame();
@@ -1424,14 +1428,14 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 		// Generate basic source code files
 		if ( !GenerateBasicSourceCode(NewProjectFolder / TEXT("Source"), NewProjectName, NewProjectFolder, StartupModuleNames, CreatedFiles, OutFailReason) )
 		{
-			return false;
+			return TOptional<FGuid>();
 		}
 
 		LocalScope.EnterProgressFrame();
 		// Generate game framework source code files
 		if ( !GenerateGameFrameworkSourceCode(NewProjectFolder / TEXT("Source"), NewProjectName, CreatedFiles, OutFailReason) )
 		{
-			return false;
+			return TOptional<FGuid>();
 		}
 	}
 
@@ -1453,14 +1457,14 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 		if(!Project.Save(InProjectInfo.ProjectFilename, LocalFailReason))
 		{
 			OutFailReason = LocalFailReason;
-			return false;
+			return TOptional<FGuid>();
 		}
 		CreatedFiles.Add(InProjectInfo.ProjectFilename);
 
 		// Set the engine identifier for it. Do this after saving, so it can be correctly detected as foreign or non-foreign.
 		if(!SetEngineAssociationForForeignProject(InProjectInfo.ProjectFilename, OutFailReason))
 		{
-			return false;
+			return TOptional<FGuid>();
 		}
 	}
 
@@ -1471,14 +1475,14 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 		// Generate project files
 		if ( !GenerateCodeProjectFiles(InProjectInfo.ProjectFilename, OutFailReason, OutFailLog) )
 		{
-			return false;
+			return TOptional<FGuid>();
 		}
 	}
 
 	SlowTask.EnterProgressFrame();
 
 	UE_LOG(LogGameProjectGeneration, Log, TEXT("Created new project with %d files (plus project files)"), CreatedFiles.Num());
-	return true;
+	return ProjectID;
 }
 
 static bool SaveConfigValues(const FProjectInformation& InProjectInfo, const TArray<FTemplateConfigValue>& ConfigValues, FText& OutFailReason)
@@ -1588,7 +1592,7 @@ static bool SaveConfigValues(const FProjectInformation& InProjectInfo, const TAr
 	return true;
 }
 
-bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog,TArray<FString>* OutCreatedFiles)
+TOptional<FGuid> GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog, TArray<FString>* OutCreatedFiles)
 {
 	FScopedSlowTask SlowTask(10);
 
@@ -1597,24 +1601,24 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 	const FString SrcFolder = FPaths::GetPath(InProjectInfo.TemplateFile);
 	const FString DestFolder = FPaths::GetPath(InProjectInfo.ProjectFilename);
 
-	if ( !FPlatformFileManager::Get().GetPlatformFile().FileExists(*InProjectInfo.TemplateFile) )
+	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*InProjectInfo.TemplateFile))
 	{
 		FFormatNamedArguments Args;
 		Args.Add( TEXT("TemplateFile"), FText::FromString( InProjectInfo.TemplateFile ) );
 		OutFailReason = FText::Format( LOCTEXT("InvalidTemplate_MissingProject", "Template project \"{TemplateFile}\" does not exist."), Args );
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	SlowTask.EnterProgressFrame();
 
 	UTemplateProjectDefs* TemplateDefs = LoadTemplateDefs(SrcFolder);
-	if ( TemplateDefs == NULL )
+	if (TemplateDefs == nullptr)
 	{
 		FFormatNamedArguments Args;
 		Args.Add( TEXT("TemplateFile"), FText::FromString( FPaths::GetBaseFilename(InProjectInfo.TemplateFile) ) );
 		Args.Add( TEXT("TemplateDefinesFile"), FText::FromString( GetTemplateDefsFilename() ) );
 		OutFailReason = FText::Format( LOCTEXT("InvalidTemplate_MissingDefs", "Template project \"{TemplateFile}\" does not have definitions file: '{TemplateDefinesFile}'."), Args );
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	SlowTask.EnterProgressFrame();
@@ -1626,7 +1630,7 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		FFormatNamedArguments FailArgs;
 		FailArgs.Add(TEXT("DestContentFolder"), FText::FromString(DestContentFolder));
 		OutFailReason = FText::Format(LOCTEXT("FailedToCreateDirectory", "Failed to create directory \"{DestContentFolder}\"."), FailArgs);
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	// Add a rule to replace the build settings version with the appropriate number
@@ -1741,7 +1745,7 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 				FailArgs.Add(TEXT("SrcFilename"), FText::FromString(SrcFilename));
 				FailArgs.Add(TEXT("DestFilename"), FText::FromString(DestFilename));
 				OutFailReason = FText::Format(LOCTEXT("FailedToCopyFile", "Failed to copy \"{SrcFilename}\" to \"{DestFilename}\"."), FailArgs);
-				return false;
+				return TOptional<FGuid>();
 			}
 		}
 	}
@@ -1780,7 +1784,7 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 				FFormatNamedArguments Args;
 				Args.Add( TEXT("FileToFix"), FText::FromString( FileToFix ) );
 				OutFailReason = FText::Format( LOCTEXT("FailedToFixUpFile", "Failed to process file \"{FileToFix}\"."), Args );
-				return false;
+				return TOptional<FGuid>();
 			}
 		}
 	}
@@ -1797,34 +1801,38 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 	AddDefaultMapConfigValues(InProjectInfo, ConfigValuesToSet);
 	
 	TemplateDefs->AddConfigValues(ConfigValuesToSet, TemplateName, ProjectName, InProjectInfo.bShouldGenerateCode);
-	ConfigValuesToSet.Emplace(TEXT("DefaultGame.ini"), TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("ProjectID"), FGuid::NewGuid().ToString(), /*InShouldReplaceExistingValue=*/true);
+
+	FGuid ProjectID = FGuid::NewGuid();
+	ConfigValuesToSet.Emplace(TEXT("DefaultGame.ini"), TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("ProjectID"), ProjectID.ToString(), /*InShouldReplaceExistingValue=*/true);
 
 	// Add all classname fixups
-	for ( const TPair<FString, FString>& Rename : ClassRenames )
+	for (const TPair<FString, FString>& Rename : ClassRenames)
 	{
 		const FString ClassRedirectString = FString::Printf(TEXT("(OldClassName=\"%s\",NewClassName=\"%s\")"), *Rename.Key, *Rename.Value);
 		ConfigValuesToSet.Emplace(TEXT("DefaultEngine.ini"), TEXT("/Script/Engine.Engine"), TEXT("+ActiveClassRedirects"), *ClassRedirectString, /*InShouldReplaceExistingValue=*/false);
 	}
+	
+	SlowTask.EnterProgressFrame();
 
 	if (!SaveConfigValues(InProjectInfo, ConfigValuesToSet, OutFailReason))
 	{
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	// Insert any required feature packs (EG starter content) into ini file. These will be imported automatically when the editor is first run
-	if(!InsertFeaturePacksIntoINIFile(InProjectInfo, OutFailReason))
+	if (!InsertFeaturePacksIntoINIFile(InProjectInfo, OutFailReason))
 	{
-		return false;
+		return TOptional<FGuid>();
 	}
 
-	if( !AddSharedContentToProject(InProjectInfo, CreatedFiles, OutFailReason ) )
+	if (!AddSharedContentToProject(InProjectInfo, CreatedFiles, OutFailReason))
 	{
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	if (!TemplateDefs->PreGenerateProject(DestFolder, SrcFolder, InProjectInfo.ProjectFilename, InProjectInfo.TemplateFile, InProjectInfo.bShouldGenerateCode, OutFailReason))
 	{
-		return false;
+		return TOptional<FGuid>();
 	}
 
 	SlowTask.EnterProgressFrame();
@@ -1833,9 +1841,9 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 	{
 		// Load the source project
 		FProjectDescriptor Project;
-		if(!Project.Load(InProjectInfo.TemplateFile, OutFailReason))
+		if (!Project.Load(InProjectInfo.TemplateFile, OutFailReason))
 		{
-			return false;
+			return TOptional<FGuid>();
 		}
 
 		// Update it to current
@@ -1845,21 +1853,21 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		// Fix up module names
 		const FString BaseSourceName = FPaths::GetBaseFilename(InProjectInfo.TemplateFile);
 		const FString BaseNewName = FPaths::GetBaseFilename(InProjectInfo.ProjectFilename);
-		for ( FModuleDescriptor& ModuleInfo : Project.Modules )
+		for (FModuleDescriptor& ModuleInfo : Project.Modules)
 		{
 			ModuleInfo.Name = FName(*ModuleInfo.Name.ToString().Replace(*BaseSourceName, *BaseNewName));
 		}
 
 		// Save it to disk
-		if(!Project.Save(InProjectInfo.ProjectFilename, OutFailReason))
+		if (!Project.Save(InProjectInfo.ProjectFilename, OutFailReason))
 		{
-			return false;
+			return TOptional<FGuid>();
 		}
 
 		// Set the engine identifier if it's a foreign project. Do this after saving, so it can be correctly detected as foreign.
-		if(!SetEngineAssociationForForeignProject(InProjectInfo.ProjectFilename, OutFailReason))
+		if (!SetEngineAssociationForForeignProject(InProjectInfo.ProjectFilename, OutFailReason))
 		{
-			return false;
+			return TOptional<FGuid>();
 		}
 
 		// Add it to the list of created files
@@ -1868,13 +1876,12 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 
 	SlowTask.EnterProgressFrame();
 
-	SlowTask.EnterProgressFrame();
-	if ( InProjectInfo.bShouldGenerateCode )
+	if (InProjectInfo.bShouldGenerateCode)
 	{
 		// Generate project files
-		if ( !GenerateCodeProjectFiles(InProjectInfo.ProjectFilename, OutFailReason, OutFailLog) )
+		if (!GenerateCodeProjectFiles(InProjectInfo.ProjectFilename, OutFailReason, OutFailLog))
 		{
-			return false;
+			return TOptional<FGuid>();
 		}
 	}
 
@@ -1882,14 +1889,15 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 
 	if (!TemplateDefs->PostGenerateProject(DestFolder, SrcFolder, InProjectInfo.ProjectFilename, InProjectInfo.TemplateFile, InProjectInfo.bShouldGenerateCode, OutFailReason))
 	{
-		return false;
+		return TOptional<FGuid>();
 	}
 
-	if( OutCreatedFiles != nullptr )
+	if (OutCreatedFiles != nullptr)
 	{
 		OutCreatedFiles->Append(CreatedFiles);
 	}
-	return true;
+
+	return ProjectID;
 }
 
 bool GameProjectUtils::SetEngineAssociationForForeignProject(const FString& ProjectFileName, FText& OutFailReason)
@@ -2041,7 +2049,7 @@ void GameProjectUtils::AddHardwareConfigValues(const FProjectInformation& InProj
 	}
 }
 
-bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectInfo, TArray<FString>& OutCreatedFiles, FText& OutFailReason)
+bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectInfo, TArray<FString>& OutCreatedFiles, FText& OutFailReason, FGuid& OutProjectID)
 {
 	const FString NewProjectFolder = FPaths::GetPath(InProjectInfo.ProjectFilename);
 	const FString NewProjectName = FPaths::GetBaseFilename(InProjectInfo.ProjectFilename);
@@ -2128,7 +2136,9 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 		const FString DefaultGameIniFilename = ProjectConfigPath / TEXT("DefaultGame.ini");
 		FString FileContents;
 		FileContents += TEXT("[/Script/EngineSettings.GeneralProjectSettings]") LINE_TERMINATOR;
-		FileContents += TEXT("ProjectID=") + FGuid::NewGuid().ToString() + LINE_TERMINATOR;
+
+		OutProjectID = FGuid::NewGuid();
+		FileContents += TEXT("ProjectID=") + OutProjectID.ToString() + LINE_TERMINATOR;
 
 		if (WriteOutputFile(DefaultGameIniFilename, FileContents, OutFailReason))
 		{

@@ -17,6 +17,7 @@
 #include "Interfaces/OnlineTitleFileInterface.h"
 #include "Interfaces/OnlineAchievementsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
+#include "Interfaces/OnlinePurchaseInterface.h"
 #include "Interfaces/OnlineEntitlementsInterface.h"
 #include "Interfaces/OnlineUserCloudInterface.h"
 #include "Interfaces/OnlineUserInterface.h"
@@ -164,6 +165,13 @@ namespace Online
 	 * @return Interface pointer for the appropriate party service
 	 */
 	IMPLEMENT_GET_INTERFACE(Stats);
+
+	/**
+	 * Get the interface for accessing the purchasing services
+	 * @param SubsystemName - Name of the requested online service
+	 * @return Interface pointer for the appropriate party service
+	 */
+	IMPLEMENT_GET_INTERFACE(Purchase);
 };
 
 #undef IMPLEMENT_GET_INTERFACE

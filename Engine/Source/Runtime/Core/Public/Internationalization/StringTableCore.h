@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Internationalization/Text.h"
 #include "Internationalization/LocKeyFuncs.h"
+#include "Internationalization/Internationalization.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogStringTable, Log, All);
 
@@ -184,7 +185,8 @@ public:
 	 */
 	static bool CanFindOrLoadStringTableAsset()
 	{
-		return !InstancePtr || InstancePtr->CanFindOrLoadStringTableAssetImpl();
+		return FInternationalization::IsAvailable()
+			&& (!InstancePtr || InstancePtr->CanFindOrLoadStringTableAssetImpl());
 	}
 
 	/**
@@ -235,11 +237,11 @@ public:
 	}
 
 	/** Collect a string table asset reference */
-	static void CollectStringTableAssetReferences(const FName InTableId, FStructuredArchive::FSlot Slot)
+	static void CollectStringTableAssetReferences(FName& InOutTableId, FStructuredArchive::FSlot Slot)
 	{
 		if (InstancePtr)
 		{
-			InstancePtr->CollectStringTableAssetReferencesImpl(InTableId, Slot);
+			InstancePtr->CollectStringTableAssetReferencesImpl(InOutTableId, Slot);
 		}
 	}
 
@@ -256,13 +258,13 @@ public:
 	}
 
 protected:
-	virtual ~IStringTableEngineBridge() {}
+	virtual ~IStringTableEngineBridge() = default;
 
 	virtual bool CanFindOrLoadStringTableAssetImpl() = 0;
 	virtual int32 LoadStringTableAssetImpl(const FName InTableId, FLoadStringTableAssetCallback InLoadedCallback) = 0;
 	virtual void FullyLoadStringTableAssetImpl(FName& InOutTableId) = 0;
 	virtual void RedirectStringTableAssetImpl(FName& InOutTableId) = 0;
-	virtual void CollectStringTableAssetReferencesImpl(const FName InTableId, FStructuredArchive::FSlot Slot) = 0;
+	virtual void CollectStringTableAssetReferencesImpl(FName& InOutTableId, FStructuredArchive::FSlot Slot) = 0;
 	virtual bool IsStringTableFromAssetImpl(const FName InTableId) = 0;
 	virtual bool IsStringTableAssetBeingReplacedImpl(const UStringTable* InStringTableAsset) = 0;
 

@@ -3,7 +3,7 @@
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
-#include "HairStrandsAABBCommon.ush"
+#include "HairStrandsAABBCommon.ush" 
 
 #if PERMUTATION_DEBUG == 1
 #include "../ShaderDrawDebug.ush"
@@ -46,31 +46,25 @@ RWBuffer<uint4> OutRenderDeformedPositionBuffer;
 #if PERMUTATION_DYNAMIC_GEOMETRY == 1
 
 // Compact all these buffers into 2 buffers: translation + quaternion
-float3			RestPositionOffset;
 Buffer<float4>  RestPosition0Buffer;
 Buffer<float4>  RestPosition1Buffer;
 Buffer<float4>  RestPosition2Buffer;
 
-float3			DeformedPositionOffset;
 Buffer<float4>  DeformedPosition0Buffer;
 Buffer<float4>  DeformedPosition1Buffer;
 Buffer<float4>  DeformedPosition2Buffer;
 
 Buffer<uint>	RootBarycentricBuffer;
-Buffer<uint>	RootToTriangleIndex;
 
-float3			SimRestPositionOffset;
 Buffer<float4>  SimRestPosition0Buffer;
 Buffer<float4>  SimRestPosition1Buffer;
 Buffer<float4>  SimRestPosition2Buffer;
 
-float3			SimDeformedPositionOffset;
 Buffer<float4>  SimDeformedPosition0Buffer;
 Buffer<float4>  SimDeformedPosition1Buffer;
 Buffer<float4>  SimDeformedPosition2Buffer;
 
 Buffer<uint>	SimRootBarycentricBuffer;
-Buffer<uint>	SimRootToTriangleIndex;
 #endif
 
 #if PERMUTATION_DEBUG == 1
@@ -217,8 +211,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				const uint RootIndex = SimVertexToRootIndexBuffer[GuideIndex0];
 				const float3 RootBarycentric = DecodeBarycentrics(SimRootBarycentricBuffer[RootIndex]);
 
-				const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer, SimRestPositionOffset);
-				const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer, SimDeformedPositionOffset);
+				const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
+				const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
 
 				const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric);
 				const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, GuideVertexWeights[K], RestTriangle, DeformedTriangle, RootBarycentric);
@@ -230,8 +224,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			// Transform hair from rest post to deformed pose, based triangle deformation + simulation offset (optional depending of the simulation is actual running or not
 			const uint RootIndex						= RenVertexToRootIndexBuffer[VertexIndex];
 			const float3 RootBarycentric				= DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
-			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer, RestPositionOffset);
-			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer, DeformedPositionOffset);
+			const FHairMeshTriangle RestTriangle		= GetTriangleTransformation(RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+			const FHairMeshTriangle DeformedTriangle	= GetTriangleTransformation(RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
 
 			ControlPoint = ToTriangle(ControlPoint,RootBarycentric,RestTriangle);
 			ControlPoint = ToWorld(ControlPoint,RootBarycentric,DeformedTriangle) + CurrOffset;

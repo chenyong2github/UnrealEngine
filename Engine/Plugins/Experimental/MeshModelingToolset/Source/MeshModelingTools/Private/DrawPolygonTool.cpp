@@ -13,7 +13,6 @@
 #include "MatrixTypes.h"
 #include "DynamicMeshAttributeSet.h"
 
-#include "MeshDescriptionBuilder.h"
 #include "Generators/FlatTriangulationMeshGenerator.h"
 #include "Generators/DiscMeshGenerator.h"
 #include "Generators/RectangleMeshGenerator.h"
@@ -34,13 +33,6 @@
 #include "Selection/SelectClickedAction.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "AssetGenerationUtil.h"
-
-#include "StaticMeshComponentBuilder.h"
-
-// [RMS] need these for now
-#include "Components/StaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
-#include "Engine/StaticMeshActor.h"
 
 
 #define LOCTEXT_NAMESPACE "UDrawPolygonTool"
@@ -190,7 +182,8 @@ void UDrawPolygonTool::Setup()
 	// parent of any Components in this case, we just use it's transform and change delegate.
 	PlaneTransformProxy = NewObject<UTransformProxy>(this);
 	PlaneTransformProxy->SetTransform(FTransform(DrawPlaneOrientation, DrawPlaneOrigin));
-	PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->Create3AxisTransformGizmo(this);
+	PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
+		ETransformGizmoSubElements::StandardTranslateRotate, this);
 	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
 	// listen for changes to the proxy and update the plane when that happens
 	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UDrawPolygonTool::PlaneTransformChanged);
@@ -493,31 +486,10 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	PDI->DrawPoint(PreviewVertex, ClosedPolygonColor, 10, SDPG_Foreground);
 
 
-	// todo should be an indicator
+	// draw height preview stuff
 	if (bInInteractiveExtrude)
 	{
-		float Length = 10; float Thickness = 2;
-		FColor HitFrameColor(0, 128, 128);
-		PDI->DrawLine(
-			(FVector)HitPosFrameWorld.PointAt(-Length, -Length, 0), (FVector)HitPosFrameWorld.PointAt(Length, Length, 0),
-			HitFrameColor, 1, Thickness, 0.0f, true);
-		PDI->DrawLine(
-			(FVector)HitPosFrameWorld.PointAt(-Length, Length, 0), (FVector)HitPosFrameWorld.PointAt(Length, -Length, 0),
-			HitFrameColor, 1, Thickness, 0.0f, true);
-
-		FVector PreviewOrigin = (FVector)PreviewHeightFrame.Origin;
-
-		FVector DrawPlaneNormal = DrawPlaneOrientation.GetAxisZ();
-
-		FColor AxisColor(128, 128, 0);
-		PDI->DrawLine(
-			PreviewOrigin -1000*DrawPlaneNormal, PreviewOrigin +1000*DrawPlaneNormal,
-			AxisColor, 1, 1.0f, 0.0f, true);
-
-		FColor HeightPosColor(128, 0, 128);
-		PDI->DrawLine(
-			PreviewOrigin + PolygonProperties->ExtrudeHeight*DrawPlaneNormal, (FVector)HitPosFrameWorld.Origin,
-			HeightPosColor, 1, 1.0f, 0.0f, true);
+		HeightMechanic->Render(RenderAPI);
 	}
 
 
@@ -686,7 +658,8 @@ void UDrawPolygonTool::OnNextSequencePreview(const FInputDeviceRay& ClickPos)
 {
 	if (bInInteractiveExtrude)
 	{
-		PolygonProperties->ExtrudeHeight = FindInteractiveHeightDistance(ClickPos);
+		HeightMechanic->UpdateCurrentDistance(ClickPos.WorldRay);
+		PolygonProperties->ExtrudeHeight = HeightMechanic->CurrentHeight;
 		bPreviewUpdatePending = true;
 		return;
 	}
@@ -948,11 +921,34 @@ void UDrawPolygonTool::GenerateFixedPolygon(const TArray<FVector>& FixedPoints, 
 	}
 }
 
+
+
 void UDrawPolygonTool::BeginInteractiveExtrude()
 {
 	bInInteractiveExtrude = true;
 
-	GeneratePreviewHeightTarget();
+	HeightMechanic = NewObject<UPlaneDistanceFromHitMechanic>(this);
+	HeightMechanic->Setup(this);
+
+	HeightMechanic->WorldHitQueryFunc = [this](const FRay& WorldRay, FHitResult& HitResult)
+	{
+		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
+		return TargetWorld->LineTraceSingleByObjectType(HitResult, WorldRay.Origin, WorldRay.PointAt(999999), QueryParams);
+	};
+	HeightMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
+	{
+		if (bIgnoreSnappingToggle == false && SnapProperties->bEnableSnapping && SnapProperties->bSnapToWorldGrid)
+		{
+			return ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, WorldPos, SnapPos);
+		}
+		return false;
+	};
+	HeightMechanic->CurrentHeight = 1.0f;  // initialize to something non-zero...prob should be based on polygon bounds maybe?
+
+	FDynamicMesh3 HeightMesh;
+	FFrame3d HeightMeshFrame;
+	GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &HeightMesh, HeightMeshFrame, false, 99999, true);
+	HeightMechanic->Initialize( MoveTemp(HeightMesh), HeightMeshFrame, false);
 
 	ShowExtrudeMessage();
 }
@@ -965,75 +961,12 @@ void UDrawPolygonTool::EndInteractiveExtrude()
 	PreviewMesh->SetVisible(false);
 
 	bInInteractiveExtrude = false;
+	HeightMechanic = nullptr;
 
 	ShowStartupMessage();
 }
 
-float UDrawPolygonTool::FindInteractiveHeightDistance(const FInputDeviceRay& ClickPos)
-{
-	float NearestHitDist = TNumericLimits<float>::Max();
-	float NearestHitHeight = 1.0f;
-	FFrame3f NearestHitFrameWorld;
 
-	// cast ray at target object
-	FRay3d LocalRay = PreviewHeightFrame.ToFrame((FRay3d)ClickPos.WorldRay);
-	int HitTID = PreviewHeightTargetAABB.FindNearestHitTriangle(LocalRay);
-	if (HitTID >= 0)
-	{
-		FIntrRay3Triangle3d IntrQuery =
-			TMeshQueries<FDynamicMesh3>::TriangleIntersection(PreviewHeightTarget, HitTID, LocalRay);
-		FVector3d HitPosLocal = LocalRay.PointAt(IntrQuery.RayParameter);
-		FVector3d HitNormalLocal = PreviewHeightTarget.GetTriNormal(HitTID);
-
-		NearestHitFrameWorld = FFrame3f(
-			(FVector3f)PreviewHeightFrame.FromFramePoint(HitPosLocal),
-			(FVector3f)PreviewHeightFrame.FromFrameVector(HitNormalLocal));
-		NearestHitHeight = HitPosLocal.Z;
-		NearestHitDist = ClickPos.WorldRay.GetParameter((FVector)NearestHitFrameWorld.Origin);
-	}
-	
-
-	// cast ray into scene
-	FVector RayStart = ClickPos.WorldRay.Origin;
-	FVector RayEnd = ClickPos.WorldRay.PointAt(999999);
-	FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
-	FHitResult Result;
-	bool bHitWorld = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
-	if (bHitWorld)
-	{
-		float WorldHitDist = ClickPos.WorldRay.GetParameter(Result.ImpactPoint);
-		if (WorldHitDist < NearestHitDist)
-		{
-			NearestHitFrameWorld = FFrame3f(Result.ImpactPoint, Result.ImpactNormal);
-			FVector3d HitPosWorld = Result.ImpactPoint;
-			FVector3d HitPosLocal = PreviewHeightFrame.ToFramePoint(HitPosWorld);
-			NearestHitHeight = HitPosLocal.Z;
-			NearestHitDist = WorldHitDist;
-		}
-	}
-
-	if (NearestHitDist < TNumericLimits<float>::Max())
-	{
-		if ( bIgnoreSnappingToggle == false && SnapProperties->bEnableSnapping && SnapProperties->bSnapToWorldGrid )
-		{
-			FVector3d GridPosWorld;
-			if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, (FVector3d)NearestHitFrameWorld.Origin, GridPosWorld))
-			{
-				NearestHitFrameWorld.Origin = (FVector3f)GridPosWorld;
-				FVector3d LocalPos = PreviewHeightFrame.ToFramePoint((FVector3d)NearestHitFrameWorld.Origin);
-				NearestHitHeight = (float)LocalPos.Z;
-			}
-		}
-
-		this->HitPosFrameWorld = NearestHitFrameWorld;
-		return NearestHitHeight;
-	}
-	else
-	{
-		return PolygonProperties->ExtrudeHeight;
-	}
-	
-}
 
 void UDrawPolygonTool::SetDrawPlaneFromWorldPos(const FVector& Position, const FVector& Normal)
 {
@@ -1072,7 +1005,8 @@ void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
 	}
 	else
 	{
-		PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->Create3AxisTransformGizmo(this);
+		PlaneTransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
+			ETransformGizmoSubElements::StandardTranslateRotate, this);
 		PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
 		PlaneTransformGizmo->SetNewGizmoTransform(FTransform(DrawPlaneOrientation, DrawPlaneOrigin));
 	}
@@ -1101,12 +1035,11 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		&Mesh, PlaneFrameOut.ToTransform(), BaseName,
-		AssetGenerationUtil::GetDefaultAutoGeneratedAssetPath(),
-		MaterialProperties->Material);
-
-	// select newly-created object
-	ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+		&Mesh, PlaneFrameOut.ToTransform(), BaseName, MaterialProperties->Material);
+	if (NewActor != nullptr)
+	{
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
+	}
 
 	GetToolManager()->EndUndoTransaction();
 #else
@@ -1263,7 +1196,11 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const
 		}
 
 
-		bool bTriangulationSuccess = Triangulator.Triangulate();
+		bool bTriangulationSuccess = Triangulator.Triangulate([&GeneralPolygon](const TArray<FVector2d>& Vertices, FIndex3i Tri)
+		{
+			// keep triangles based on the input polygon's winding
+			return GeneralPolygon.Contains((Vertices[Tri.A] + Vertices[Tri.B] + Vertices[Tri.C]) / 3.0);
+		});
 		// only truly fail if we got zero triangles back from the triangulator; if it just returned false it may still have managed to partially generate something
 		if (Triangulator.Triangles.Num() == 0)
 		{
@@ -1321,14 +1258,6 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector>& Polygon, const
 	Editor.RescaleAttributeUVs(GlobalUVRescale, false);
 
 	return true;
-}
-
-void UDrawPolygonTool::GeneratePreviewHeightTarget()
-{
-	if (GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &PreviewHeightTarget, PreviewHeightFrame, false, 99999, true))
-	{
-		PreviewHeightTargetAABB.SetMesh(&PreviewHeightTarget);
-	}
 }
 
 

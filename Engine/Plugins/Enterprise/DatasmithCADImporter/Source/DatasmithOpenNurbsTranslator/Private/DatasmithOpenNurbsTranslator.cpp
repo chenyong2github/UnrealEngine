@@ -3,9 +3,13 @@
 #include "DatasmithOpenNurbsTranslator.h"
 #include "DatasmithOpenNurbsTranslatorModule.h"
 
+#ifdef USE_OPENNURBS // The whole translation unit is skipped without OpenNurbs TPS library
+
 #ifdef CAD_LIBRARY
 #include "CoreTechParametricSurfaceExtension.h"
-#endif
+#include "RhinoCoretechWrapper.h"
+#endif // CAD_LIBRARY
+
 #include "DatasmithImportOptions.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaterialsUtils.h"
@@ -15,28 +19,28 @@
 #include "DatasmithUtils.h"
 #include "Utility/DatasmithMeshHelper.h"
 
-#include "StaticMeshAttributes.h"
-#include "StaticMeshOperations.h"
-#include "MeshDescriptionOperations.h"
+#if WITH_EDITOR
+#include "IMessageLogListing.h"
+#include "MessageLogModule.h"
+#endif
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 
-#ifdef USE_OPENNURBS
 // Disable macro redefinition warning
 #pragma warning(push)
 #pragma warning(disable:4005)
 #include "opennurbs.h"
 #pragma warning(pop)
-#endif
-
-#ifdef CAD_LIBRARY
-#include "RhinoCoretechWrapper.h" // requires CoreTech as public dependency
-#endif
 
 #include <deque>
 #include <map>
 #include <set>
 
+DEFINE_LOG_CATEGORY_STATIC(LogDatasmithOpenNurbsTranslator, Log, All);
+
+#define LOCTEXT_NAMESPACE "DatasmithOpenNurbsTranslator"
 
 // Cache for already processed data (only linked file references for now)
 class FTranslationCache
@@ -82,7 +86,7 @@ TSharedPtr<IDatasmithActorElement> DuplicateActorElement(TSharedPtr<IDatasmithAc
 	DuplicatedElement->SetTranslation(ActorElement->GetTranslation());
 	DuplicatedElement->SetScale(ActorElement->GetScale());
 	DuplicatedElement->SetRotation(ActorElement->GetRotation());
-	
+
 	int32 NumChildren = ActorElement->GetChildrenCount();
 	for (int32 Index = 0; Index < NumChildren; ++Index)
 	{
@@ -99,7 +103,6 @@ TSharedPtr<IDatasmithActorElement> DuplicateActorElement(TSharedPtr<IDatasmithAc
 	return DuplicatedElement;
 }
 
-#ifdef USE_OPENNURBS
 // #ueent_wip: test with CADSDK_ENABLED undefined
 class FOpenNurbsObjectWrapper
 {
@@ -605,7 +608,7 @@ public:
 		, TranslationCache(InTranslationCache)
 		, SceneName(InSceneName)
 		, CurrentPath(InCurrentPath)
-		, TessellationOptionsHash(0)
+		, OpenNurbsOptionsHash(0)
 		, FileVersion(0)
 		, ArchiveOpenNurbsVersion(0)
 		, FileLength(0)
@@ -620,14 +623,14 @@ public:
 
 #ifdef CAD_LIBRARY
 		LocalSession = FRhinoCoretechWrapper::GetSharedSession(MetricUnit, ScalingFactor);
-#endif
+#endif // CAD_LIBRARY
 	}
 
 	~FOpenNurbsTranslatorImpl()
 	{
 #ifdef CAD_LIBRARY
 		LocalSession.Reset();
-#endif
+#endif // CAD_LIBRARY
 
 		for (FOpenNurbsTranslatorImpl* ChildTranslator : ChildTranslators)
 		{
@@ -640,10 +643,12 @@ public:
 	TOptional<FMeshDescription> GetMeshDescription(TSharedRef<IDatasmithMeshElement> MeshElement);
 
 	void SetBaseOptions(const FDatasmithImportBaseOptions& InBaseOptions);
-	void SetTessellationOptions(const FDatasmithTessellationOptions& Options);
+	void SetOpenNurbsOptions(const FDatasmithOpenNurbsOptions& Options);
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
 	double GetScalingFactor () const { return ScalingFactor; }
 	double GetMetricUnit() const { return MetricUnit; }
+
+	void ShowMessageLog(const FString& Filename);
 
 private:
 	void TranslateTextureMappingTable(const ON_ObjectArray<ON_TextureMapping>& TextureMappingTable);
@@ -674,7 +679,7 @@ private:
 	FString GetLayerName(const TSharedPtr<IDatasmithActorElement>& LayerElement);
 	void SetLayers(const TSharedPtr<IDatasmithActorElement>& ActorElement, const FOpenNurbsObjectWrapper& Object);
 	void SetTags(const TSharedPtr<IDatasmithActorElement>& ActorElement, const FOpenNurbsObjectWrapper& Object);
-	
+
 	bool TranslateBRep(ON_Brep* brep, const ON_3dmObjectAttributes& Attributes, FMeshDescription& OutMesh, const TSharedRef< IDatasmithMeshElement >& MeshElement, const FString& Name, bool& bHasNormal);
 
 private:
@@ -684,13 +689,13 @@ private:
 	FString SceneName;
 	FString CurrentPath;
 	FString OutputPath;
-	FDatasmithTessellationOptions TessellationOptions;
-	uint32 TessellationOptionsHash;
+	FDatasmithOpenNurbsOptions OpenNurbsOptions;
+	uint32 OpenNurbsOptionsHash;
 	FDatasmithImportBaseOptions BaseOptions;
 
 #ifdef CAD_LIBRARY
 	TSharedPtr<FRhinoCoretechWrapper> LocalSession;
-#endif
+#endif // CAD_LIBRARY
 
 private:
 	// For OpenNurbs archive parsing
@@ -763,7 +768,35 @@ private:
 
 	/** OpenNurbs objects to Datasmith mesh elements */
 	TMap<const FOpenNurbsObjectWrapper* , TSharedPtr< IDatasmithMeshElement > > ObjectToMeshElementMap;
+
+	TArray<FString> MissingRenderMeshes;
 };
+
+void FOpenNurbsTranslatorImpl::ShowMessageLog(const FString& Filename)
+{
+#if WITH_EDITOR
+	if (MissingRenderMeshes.Num())
+	{
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+		TSharedRef<IMessageLogListing> LogListing = (MessageLogModule.GetLogListing(FName(TEXT("DatasmithOpenNurbs"))));
+		LogListing->SetLabel(LOCTEXT("DatasmithOpenNurbsTranslatorDescription", "DatasmithOpenNurbs"));
+
+		LogListing->ClearMessages();
+
+		LogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning,
+			FText::Format(LOCTEXT("DatasmithOpenNurbsTranslator_NoMeshDataForAllMeshes",
+				"Rhino model \"{0}\" doesn't contain mesh data for all objects. \n"
+				"Either resave the 3dm file with a \"rendered view\" or change the import settings to \"Import as NURBS, Tessellate in Unreal\""),
+				FText::FromString(Filename))));
+
+		for (const FString& Name: MissingRenderMeshes)
+		{
+			FText ErrorMessage = FText::Format(LOCTEXT("DatasmithOpenNurbsTranslator_NoMesh", "  {0} doesn't have mesh information."), FText::FromString(Name));
+			LogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error, ErrorMessage));
+		}
+	}
+#endif
+}
 
 void FOpenNurbsTranslatorImpl::TranslateTextureMappingTable(const ON_ObjectArray<ON_TextureMapping>& InTextureMappingTable)
 {
@@ -1384,7 +1417,7 @@ void FOpenNurbsTranslatorImpl::TranslateInstanceDefinitionTable(const TArray<ON_
 
 					ChildTranslators.Add(LinkedFileTranslator);
 
-					LinkedFileTranslator->SetTessellationOptions(TessellationOptions);
+					LinkedFileTranslator->SetOpenNurbsOptions(OpenNurbsOptions);
 
 					ON_BinaryFile Archive(ON::archive_mode::read3dm, FileHandle);
 
@@ -1534,53 +1567,55 @@ void FOpenNurbsTranslatorImpl::SetTags(const TSharedPtr<IDatasmithActorElement>&
 	FString UUID(UUIDString.Array());
 
 	ON::object_type objType = Object.ObjectPtr->ObjectType();
-	FString StrObjectType;
+	const TCHAR* StrObjectType;
 	switch (objType)
 	{
-		case ON::instance_definition: 
-			StrObjectType = "block definition"; 
+		case ON::instance_definition:
+			StrObjectType = TEXT("block definition");
 			break;
-		case ON::instance_reference: 
-			StrObjectType = "block instance"; 
+		case ON::instance_reference:
+			StrObjectType = TEXT("block instance");
 			break;
-		case ON::point_object: 
-			StrObjectType = "point"; 
+		case ON::point_object:
+			StrObjectType = TEXT("point");
 			break;
-		case ON::curve_object: 
-			StrObjectType = "curve"; 
+		case ON::curve_object:
+			StrObjectType = TEXT("curve");
 			break;
-		case ON::surface_object: 
-			StrObjectType = "surface"; 
+		case ON::surface_object:
+			StrObjectType = TEXT("surface");
 			break;
-		case ON::brep_object: 
-			StrObjectType = "brep"; 
+		case ON::brep_object:
+			StrObjectType = TEXT("brep");
 			break;
-		case ON::mesh_object: 
-			StrObjectType = "mesh"; 
+		case ON::mesh_object:
+			StrObjectType = TEXT("mesh");
 			break;
-		case ON::text_dot: 
-			StrObjectType = "textdot"; 
+		case ON::text_dot:
+			StrObjectType = TEXT("textdot");
 			break;
-		case ON::subd_object: 
-			StrObjectType = "subd"; 
+		case ON::subd_object:
+			StrObjectType = TEXT("subd");
 			break;
-		case ON::loop_object: 
-			StrObjectType = "loop"; 
+		case ON::loop_object:
+			StrObjectType = TEXT("loop");
 			break;
-		case ON::cage_object: 
-			StrObjectType = "cage"; 
+		case ON::cage_object:
+			StrObjectType = TEXT("cage");
 			break;
-		case ON::clipplane_object: 
-			StrObjectType = "clip plane"; 
+		case ON::clipplane_object:
+			StrObjectType = TEXT("clip plane");
 			break;
-		case ON::extrusion_object: 
-			StrObjectType = "extrusion"; 
+		case ON::extrusion_object:
+			StrObjectType = TEXT("extrusion");
 			break;
-		default: "unknown"; break;
+		default:
+			StrObjectType = TEXT("unknown");
+			break;
 	}
 
 	ActorElement->AddTag(*FString::Printf(TEXT("Rhino.ID: %s"), *UUID));
-	ActorElement->AddTag(*FString::Printf(TEXT("Rhino.Entity.Type: %s"), *StrObjectType));
+	ActorElement->AddTag(*FString::Printf(TEXT("Rhino.Entity.Type: %s"), StrObjectType));
 }
 
 void FOpenNurbsTranslatorImpl::TranslateNonInstanceObject(const FOpenNurbsObjectWrapper& Object)
@@ -1874,7 +1909,7 @@ TSharedPtr<IDatasmithActorElement> FOpenNurbsTranslatorImpl::GetPointActorElemen
 	if (Object.Attributes.m_name.Length() > 0)
 	{
 		ActorLabel = Object.Attributes.m_name.Array();
-	} 
+	}
 	else
 	{
 		const ON_ClassId* classId = Object.ObjectPtr->ClassId();
@@ -1895,10 +1930,10 @@ TSharedPtr<IDatasmithActorElement> FOpenNurbsTranslatorImpl::GetPointActorElemen
 	FVector Location(pointObj->point.x, pointObj->point.y, pointObj->point.z);
 	Location *= ScalingFactor;
 	Location = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, Location);
-	
+
 	ActorElement->SetTranslation(Location);
 	ActorElement->SetLabel(*ActorLabel);
-	
+
 	return ActorElement;
 }
 
@@ -1941,7 +1976,7 @@ TSharedPtr<IDatasmithMeshElement> FOpenNurbsTranslatorImpl::GetMeshElement(const
 	uint32 CRC = Object.ObjectPtr->DataCRC(0);
 	if (ON_Brep::Cast(Object.ObjectPtr))
 	{
-		CRC ^= TessellationOptionsHash;
+		CRC ^= OpenNurbsOptionsHash;
 	}
 	MD5.Update(reinterpret_cast<const uint8*>(&CRC), sizeof CRC);
 
@@ -2111,7 +2146,7 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	ScalingFactor = 100 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
 #ifdef CAD_LIBRARY
 	LocalSession->SetScaleFactor(ScalingFactor);
-#endif
+#endif // CAD_LIBRARY
 
 	// Step 4: REQUIRED - Read bitmap table (it can be empty)
 	int Count = 0;
@@ -2959,60 +2994,67 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 
 	// No tessellation if CAD library is not present...
 #ifdef CAD_LIBRARY
-	// Ref. visitBRep
-	LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
-
-	CADLibrary::CheckedCTError Result;
-
-	LocalSession->ClearData();
-
-	Result = LocalSession->AddBRep(*Brep);
-
-	FString Filename = FString::Printf(TEXT("%s.ct"), *Name);
-	FString FilePath = FPaths::Combine(OutputPath, Filename);
-	Result = LocalSession->SaveBrep(FilePath);
-	if (Result)
+	if (OpenNurbsOptions.Geometry == EDatasmithOpenNurbsBrepTessellatedSource::UseUnrealNurbsTessellation)
 	{
-		MeshElement->SetFile(*FilePath);
-	}
+		// Ref. visitBRep
+		const FDatasmithOpenNurbsOptions& TessellationOptions = OpenNurbsOptions;
+		LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
 
-	Result = LocalSession->TopoFixes();
+		CADLibrary::CheckedCTError Result;
 
-	CADLibrary::FMeshParameters MeshParameters;
-	Result = LocalSession->Tessellate(OutMesh, MeshParameters);
+		LocalSession->ClearData();
 
-	return bool(Result);
-#else
-	// .. Trying to load the mesh tessellated by Rhino
-	ON_SimpleArray<const ON_Mesh*> RenderMeshes;
-	ON_SimpleArray<const ON_Mesh*> AnyMeshes;
-	Brep->GetMesh(ON::mesh_type::render_mesh, RenderMeshes);
-	Brep->GetMesh(ON::mesh_type::any_mesh, AnyMeshes);
+		Result = LocalSession->AddBRep(*Brep);
 
-	// Aborting because there is no mesh associated with the BRep
-	if(RenderMeshes.Count() == 0 && AnyMeshes.Count() == 0)
-	{
-		return false;
-	}
+		FString Filename = FString::Printf(TEXT("%s.ct"), *Name);
+		FString FilePath = FPaths::Combine(OutputPath, Filename);
+		Result = LocalSession->SaveBrep(FilePath);
+		if (Result)
+		{
+			MeshElement->SetFile(*FilePath);
+		}
 
-	ON_Mesh BRepMesh;
+		Result = LocalSession->TopoFixes();
 
-	if (RenderMeshes.Count() == AnyMeshes.Count())
-	{
-		BRepMesh.Append(RenderMeshes.Count(), RenderMeshes.Array());
+		CADLibrary::FMeshParameters MeshParameters;
+		Result = LocalSession->Tessellate(OutMesh, MeshParameters);
+
+		return bool(Result);
 	}
 	else
+#endif // CAD_LIBRARY
 	{
-		BRepMesh.Append(AnyMeshes.Count(), AnyMeshes.Array());
-	}
+		// .. Trying to load the mesh tessellated by Rhino
+		ON_SimpleArray<const ON_Mesh*> RenderMeshes;
+		ON_SimpleArray<const ON_Mesh*> AnyMeshes;
+		Brep->GetMesh(ON::mesh_type::render_mesh, RenderMeshes);
+		Brep->GetMesh(ON::mesh_type::any_mesh, AnyMeshes);
 
-	if(!DatasmithOpenNurbsTranslatorUtils::TranslateMesh(&BRepMesh, OutMesh, bHasNormal, ScalingFactor))
-	{
-		return false;
-	}
+		// Aborting because there is no mesh associated with the BRep
+		if (RenderMeshes.Count() == 0 && AnyMeshes.Count() == 0)
+		{
+			MissingRenderMeshes.Add(MeshElement->GetLabel());
+			return false;
+		}
 
-	return true;
-#endif
+		ON_Mesh BRepMesh;
+
+		if (RenderMeshes.Count() == AnyMeshes.Count())
+		{
+			BRepMesh.Append(RenderMeshes.Count(), RenderMeshes.Array());
+		}
+		else
+		{
+			BRepMesh.Append(AnyMeshes.Count(), AnyMeshes.Array());
+		}
+
+		if (!DatasmithOpenNurbsTranslatorUtils::TranslateMesh(&BRepMesh, OutMesh, bHasNormal, ScalingFactor))
+		{
+			return false;
+		}
+
+		return true;
+	}
 }
 
 TOptional< FMeshDescription > FOpenNurbsTranslatorImpl::GetMeshDescription(TSharedRef< IDatasmithMeshElement > MeshElement)
@@ -3100,47 +3142,28 @@ void FOpenNurbsTranslatorImpl::SetBaseOptions(const FDatasmithImportBaseOptions&
 	BaseOptions = InBaseOptions;
 }
 
-void FOpenNurbsTranslatorImpl::SetTessellationOptions(const FDatasmithTessellationOptions& Options)
+void FOpenNurbsTranslatorImpl::SetOpenNurbsOptions(const FDatasmithOpenNurbsOptions& Options)
 {
-	TessellationOptions = Options;
-	TessellationOptionsHash = TessellationOptions.GetHash();
+	OpenNurbsOptions = Options;
+	OpenNurbsOptionsHash = OpenNurbsOptions.GetHash();
+
 	for (FOpenNurbsTranslatorImpl* ChildTranslator : ChildTranslators)
 	{
-		ChildTranslator->SetTessellationOptions(Options);
+		ChildTranslator->SetOpenNurbsOptions(OpenNurbsOptions);
 	}
 }
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 // UDatasmithOpenNurbsTranslator
 //////////////////////////////////////////////////////////////////////////
 
-FDatasmithOpenNurbsTranslator::FDatasmithOpenNurbsTranslator()
-	: Translator(nullptr)
-{
-}
-
 void FDatasmithOpenNurbsTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
-#ifdef USE_OPENNURBS
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{TEXT("3dm"), TEXT("Rhino file format")});
-#else
-	OutCapabilities.bIsEnabled = false;
-#endif
-}
-
-bool FDatasmithOpenNurbsTranslator::IsSourceSupported(const FDatasmithSceneSource& Source)
-{
-#ifdef USE_OPENNURBS
-	return Source.GetSourceFile().EndsWith(TEXT(".3dm"));
-#else
-	return false;
-#endif
 }
 
 bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 {
-#ifdef USE_OPENNURBS
 	const FString& Filename = GetSource().GetSourceFile();
 	FILE* FileHandle = ON::OpenFile(*Filename, L"rb");
 	if (!FileHandle)
@@ -3157,8 +3180,7 @@ bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutSce
 	FString OutputPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FDatasmithOpenNurbsTranslatorModule::Get().GetTempDir(), TEXT("Cache"), GetSource().GetSceneName()));
 	IFileManager::Get().MakeDirectory(*OutputPath, true);
 	Translator->SetOutputPath(OutputPath);
-
-	Translator->SetTessellationOptions(GetCommonTessellationOptions());
+	Translator->SetOpenNurbsOptions(OpenNurbsOptions);
 	Translator->SetBaseOptions(BaseOptions);
 
 	ON_BinaryFile Archive(ON::archive_mode::read3dm, FileHandle);
@@ -3168,21 +3190,19 @@ bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutSce
 	ON::CloseFile(FileHandle);
 
 	return bResult;
-#else
-	return false;
-#endif
 }
 
 void FDatasmithOpenNurbsTranslator::UnloadScene()
 {
-#ifdef USE_OPENNURBS
-	Translator.Reset();
-#endif
+	if (Translator)
+	{
+		Translator->ShowMessageLog(GetSource().GetSourceFile());
+		Translator.Reset();
+	}
 }
 
 bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)
 {
-#ifdef USE_OPENNURBS
 	if ( TOptional< FMeshDescription > Mesh = Translator->GetMeshDescription( MeshElement ) )
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
@@ -3200,37 +3220,43 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 				CoreTechData->RawData = MoveTemp(ByteArray);
 				CoreTechData->SceneParameters.ModelCoordSys = uint8(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
 				CoreTechData->SceneParameters.ScaleFactor = Translator->GetScalingFactor();
-				CoreTechData->SceneParameters.MetricUnit = Translator->GetMetricUnit(); 
-				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
+				CoreTechData->SceneParameters.MetricUnit = Translator->GetMetricUnit();
+				CoreTechData->LastTessellationOptions = OpenNurbsOptions;
 				OutMeshPayload.AdditionalData.Add(CoreTechData);
 			}
 		}
-#endif
+#endif // CAD_LIBRARY
 	}
 
 	return OutMeshPayload.LodMeshes.Num() > 0;
-#else
-	return false;
-#endif
 }
 
 void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
 {
-#ifdef USE_OPENNURBS
-	FDatasmithCoreTechTranslator::SetSceneImportOptions(Options);
-
 	for (TStrongObjectPtr<UObject>& Option : Options)
 	{
 		if (UDatasmithImportOptions* DatasmithOptions = Cast<UDatasmithImportOptions>(Option.Get()))
 		{
 			BaseOptions = DatasmithOptions->BaseOptions;
 		}
+		if (UDatasmithOpenNurbsImportOptions* OpenNurbsOptionsObj = Cast<UDatasmithOpenNurbsImportOptions>(Option.Get()))
+		{
+			OpenNurbsOptions = OpenNurbsOptionsObj->Options;
+		}
 	}
 
 	if (Translator)
 	{
-		Translator->SetTessellationOptions( GetCommonTessellationOptions() );
+		Translator->SetOpenNurbsOptions(OpenNurbsOptions);
 		Translator->SetBaseOptions(BaseOptions);
 	}
-#endif
 }
+
+void FDatasmithOpenNurbsTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
+{
+	Options.Add(Datasmith::MakeOptions<UDatasmithOpenNurbsImportOptions>());
+}
+
+#undef LOCTEXT_NAMESPACE // "DatasmithOpenNurbsTranslator"
+
+#endif // USE_OPENNURBS

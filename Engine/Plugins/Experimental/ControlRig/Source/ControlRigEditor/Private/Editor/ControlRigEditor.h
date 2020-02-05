@@ -17,6 +17,7 @@
 #include "Styling/SlateTypes.h"
 #include "AnimPreviewInstance.h"
 #include "ScopedTransaction.h"
+#include "Graph/ControlRigGraphNode.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -117,7 +118,7 @@ public:
 
 	void SetDetailObject(UObject* Obj);
 
-	void SetDetailStruct(const FRigElementKey& InElement, TSharedPtr<FStructOnScope> StructToDisplay);
+	void SetDetailStruct(const FRigElementKey& InElement);
 
 	void ClearDetailObject();
 
@@ -252,6 +253,8 @@ private:
 
 	 void HandleOnControlModified(IControlRigManipulatable* Subject, const FRigControl& Control, EControlRigSetKey InSetKey);
 
+	 void OnGraphNodeClicked(UControlRigGraphNode* InNode);
+
 protected:
 
 	/** Toolbox hosting widget */
@@ -288,7 +291,7 @@ protected:
 	TSharedPtr<FUICommandList> HandleOnViewportContextMenuCommandsDelegate();
 
 	/** Bone Selection related */
-	FTransform GetRigElementTransform(const FRigElementKey& InElement, bool bLocal) const;
+	FTransform GetRigElementTransform(const FRigElementKey& InElement, bool bLocal, bool bOnDebugInstance) const;
 	void SetRigElementTransform(const FRigElementKey& InElement, const FTransform& InTransform, bool bLocal);
 	
 	// FNotifyHook Interface
@@ -300,6 +303,7 @@ protected:
 	bool bControlRigEditorInitialized;
 	bool bIsSettingObjectBeingDebugged;
 	FRigElementKey RigElementInDetailPanel;
+	TSharedPtr<FStructOnScope> StructToDisplay;
 
 	TArray<uint8, TAlignedHeapAllocator<16>> NodeDetailBuffer;
 	UScriptStruct* NodeDetailStruct;

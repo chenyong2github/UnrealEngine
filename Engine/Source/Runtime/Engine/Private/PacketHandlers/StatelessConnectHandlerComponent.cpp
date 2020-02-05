@@ -51,19 +51,19 @@ DEFINE_LOG_CATEGORY(LogHandshake);
  * and the server responding with a unique 'Cookie' value, which the client has to respond with.
  *
  * Client - Initial Connect:
- * [?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][24:PacketSizeFiller][AlignPad]
+ * [?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][28:PacketSizeFiller][AlignPad]
  *													--->
  *															Server - Stateless Handshake Challenge:
- *															[?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][4:Timestamp][20:Cookie][AlignPad]
+ *															[?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][8:Timestamp][20:Cookie][AlignPad]
  *													<---
  * Client - Stateless Challenge Response:
- * [?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][4:Timestamp][20:Cookie][AlignPad]
+ * [?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][8:Timestamp][20:Cookie][AlignPad]
  *													--->
  *															Server:
  *															Ignore, or create UNetConnection.
  *
  *															Server - Stateless Handshake Ack
- *															[?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][4:Timestamp][20:Cookie][AlignPad]
+ *															[?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][8:Timestamp][20:Cookie][AlignPad]
  *													<---
  * Client:
  * Handshake Complete.
@@ -82,7 +82,7 @@ DEFINE_LOG_CATEGORY(LogHandshake);
  *															Server -  Stateless Handshake Challenge (as above)
  *													<--
  * Client - Stateless Challenge Response + Original Cookie
- * [?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][4:Timestamp][20:Cookie][20:OriginalCookie][AlignPad]
+ * [?:MagicHeader][HandshakeBit][RestartHandshakeBit][SecretIdBit][8:Timestamp][20:Cookie][20:OriginalCookie][AlignPad]
  *													-->
  *															Server:
  *															Ignore, or restore UNetConnection.
@@ -175,9 +175,9 @@ DEFINE_LOG_CATEGORY(LogHandshake);
  * Defines
  */
 
-#define HANDSHAKE_PACKET_SIZE_BITS				195
+#define HANDSHAKE_PACKET_SIZE_BITS				227
 #define RESTART_HANDSHAKE_PACKET_SIZE_BITS		2
-#define RESTART_RESPONSE_SIZE_BITS				355
+#define RESTART_RESPONSE_SIZE_BITS				387
 
 #if RESTART_HANDSHAKE_DIAGNOSTICS
 #define RESTART_RESPONSE_DIAGNOSTICS_SIZE_BITS	483
@@ -257,7 +257,7 @@ StatelessConnectHandlerComponent::StatelessConnectHandlerComponent()
 	, Driver(nullptr)
 	, HandshakeSecret()
 	, ActiveSecret(255)
-	, LastSecretUpdateTimestamp(0.f)
+	, LastSecretUpdateTimestamp(0.0)
 	, LastChallengeSuccessAddress(nullptr)
 	, LastServerSequence(0)
 	, LastClientSequence(0)
@@ -265,7 +265,7 @@ StatelessConnectHandlerComponent::StatelessConnectHandlerComponent()
 	, LastChallengeTimestamp(0.0)
 	, LastRestartPacketTimestamp(0.0)
 	, LastSecretId(0)
-	, LastTimestamp(0.f)
+	, LastTimestamp(0.0)
 	, LastCookie()
 	, bRestartedHandshake(false)
 	, AuthorisedCookie()
@@ -342,7 +342,7 @@ void StatelessConnectHandlerComponent::NotifyHandshakeBegin()
 			// In order to prevent DRDoS reflection amplification attacks, clients must pad the packet to match server packet size
 			uint8 bRestartHandshake = bRestartedHandshake ? 1 : 0;
 			uint8 SecretIdPad = 0;
-			uint8 PacketSizeFiller[24];
+			uint8 PacketSizeFiller[28];
 
 			InitialPacket.WriteBit(bRestartHandshake);
 			InitialPacket.WriteBit(SecretIdPad);
@@ -395,7 +395,7 @@ void StatelessConnectHandlerComponent::SendConnectChallenge(TSharedPtr<const FIn
 		FBitWriter ChallengePacket(GetAdjustedSizeBits(HANDSHAKE_PACKET_SIZE_BITS) + 1 /* Termination bit */);
 		uint8 bHandshakePacket = 1;
 		uint8 bRestartHandshake = 0; // Ignored clientside
-		float Timestamp = Driver->Time;
+		double Timestamp = Driver->GetElapsedTime();
 		uint8 Cookie[COOKIE_BYTE_SIZE];
 
 		GenerateCookie(ClientAddress, ActiveSecret, Timestamp, Cookie);
@@ -463,7 +463,7 @@ void StatelessConnectHandlerComponent::SendConnectChallenge(TSharedPtr<const FIn
 	}
 }
 
-void StatelessConnectHandlerComponent::SendChallengeResponse(uint8 InSecretId, float InTimestamp, uint8 InCookie[COOKIE_BYTE_SIZE])
+void StatelessConnectHandlerComponent::SendChallengeResponse(uint8 InSecretId, double InTimestamp, uint8 InCookie[COOKIE_BYTE_SIZE])
 {
 	UNetConnection* ServerConn = (Driver != nullptr ? Driver->ServerConnection : nullptr);
 
@@ -560,7 +560,7 @@ void StatelessConnectHandlerComponent::SendChallengeAck(TSharedPtr<const FIntern
 		FBitWriter AckPacket(GetAdjustedSizeBits(HANDSHAKE_PACKET_SIZE_BITS) + 1 /* Termination bit */);
 		uint8 bHandshakePacket = 1;
 		uint8 bRestartHandshake = 0; // Ignored clientside
-		float Timestamp  = -1.f;
+		double Timestamp  = -1.0;
 
 		if (MagicHeader.Num() > 0)
 		{
@@ -759,7 +759,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 	{
 		bool bRestartHandshake = false;
 		uint8 SecretId = 0;
-		float Timestamp = 1.f;
+		double Timestamp = 1.;
 		uint8 Cookie[COOKIE_BYTE_SIZE];
 		uint8 OrigCookie[COOKIE_BYTE_SIZE];
 
@@ -778,9 +778,9 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 #endif
 					}
 					// Receiving challenge, verify the timestamp is > 0.0f
-					else if (Timestamp > 0.0f)
+					else if (Timestamp > 0.0)
 					{
-						LastChallengeTimestamp = (Driver != nullptr ? Driver->Time : 0.0);
+						LastChallengeTimestamp = (Driver != nullptr ? Driver->GetElapsedTime() : 0.0);
 
 						SendChallengeResponse(SecretId, Timestamp, Cookie);
 
@@ -788,7 +788,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 						SetState(Handler::Component::State::InitializedOnLocal);
 					}
 					// Receiving challenge ack, verify the timestamp is < 0.0f
-					else if (Timestamp < 0.0f)
+					else if (Timestamp < 0.0)
 					{
 						if (!bRestartedHandshake)
 						{
@@ -966,7 +966,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 	{
 		bool bRestartHandshake = false;
 		uint8 SecretId = 0;
-		float Timestamp = 1.f;
+		double Timestamp = 1.0;
 		uint8 Cookie[COOKIE_BYTE_SIZE];
 		uint8 OrigCookie[COOKIE_BYTE_SIZE];
 
@@ -976,7 +976,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 		{
 			if (Handler->Mode == Handler::Mode::Server)
 			{
-				bool bInitialConnect = Timestamp == 0.f;
+				const bool bInitialConnect = Timestamp == 0.0;
 
 				if (bInitialConnect)
 				{
@@ -985,13 +985,13 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 				// Challenge response
 				else if (Driver != nullptr)
 				{
-					// NOTE: Allow CookieDelta to be 0.f, as it is possible for a server to send a challenge and receive a response,
+					// NOTE: Allow CookieDelta to be 0.0, as it is possible for a server to send a challenge and receive a response,
 					//			during the same tick
 					bool bChallengeSuccess = false;
-					float CookieDelta = Driver->Time - Timestamp;
-					float SecretDelta = Timestamp - LastSecretUpdateTimestamp;
-					bool bValidCookieLifetime = CookieDelta >= 0.0 && (MAX_COOKIE_LIFETIME - CookieDelta) > 0.f;
-					bool bValidSecretIdTimestamp = (SecretId == ActiveSecret) ? (SecretDelta >= 0.f) : (SecretDelta <= 0.f);
+					const double CookieDelta = Driver->GetElapsedTime() - Timestamp;
+					const double SecretDelta = Timestamp - LastSecretUpdateTimestamp;
+					const bool bValidCookieLifetime = CookieDelta >= 0.0 && (MAX_COOKIE_LIFETIME - CookieDelta) > 0.0;
+					const bool bValidSecretIdTimestamp = (SecretId == ActiveSecret) ? (SecretDelta >= 0.0) : (SecretDelta <= 0.0);
 
 					if (bValidCookieLifetime && bValidSecretIdTimestamp)
 					{
@@ -1034,7 +1034,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 							}
 
 							bRestartedHandshake = bRestartHandshake;
-							LastChallengeSuccessAddress = Address;
+							LastChallengeSuccessAddress = Address->Clone();
 
 
 							// Now ack the challenge response - the cookie is stored in AuthorisedCookie, to enable retries
@@ -1077,7 +1077,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 }
 
 bool StatelessConnectHandlerComponent::ParseHandshakePacket(FBitReader& Packet, bool& bOutRestartHandshake, uint8& OutSecretId,
-															float& OutTimestamp, uint8 (&OutCookie)[COOKIE_BYTE_SIZE],
+															double& OutTimestamp, uint8 (&OutCookie)[COOKIE_BYTE_SIZE],
 															uint8 (&OutOrigCookie)[COOKIE_BYTE_SIZE])
 {
 	bool bValidPacket = false;
@@ -1123,7 +1123,7 @@ bool StatelessConnectHandlerComponent::ParseHandshakePacket(FBitReader& Packet, 
 	return bValidPacket;
 }
 
-void StatelessConnectHandlerComponent::GenerateCookie(TSharedPtr<const FInternetAddr> ClientAddress, uint8 SecretId, float Timestamp, uint8 (&OutCookie)[20])
+void StatelessConnectHandlerComponent::GenerateCookie(TSharedPtr<const FInternetAddr> ClientAddress, uint8 SecretId, double Timestamp, uint8 (&OutCookie)[20])
 {
 	// @todo #JohnB: Add cpu stats tracking, like what Oodle does upon compression
 	//					NOTE: Being serverside, will only show up in .uprof, not on any 'stat' commands. Still necessary though.
@@ -1140,7 +1140,7 @@ void StatelessConnectHandlerComponent::GenerateCookie(TSharedPtr<const FInternet
 
 void StatelessConnectHandlerComponent::UpdateSecret()
 {
-	LastSecretUpdateTimestamp = Driver != nullptr ? Driver->Time : 0.f;
+	LastSecretUpdateTimestamp = Driver != nullptr ? Driver->GetElapsedTime() : 0.0;
 
 	// On first update, update both secrets
 	if (ActiveSecret == 255)
@@ -1192,7 +1192,7 @@ void StatelessConnectHandlerComponent::Tick(float DeltaTime)
 
 			if (LastSendTimeDiff > 1.0)
 			{
-				bool bRestartChallenge = Driver != nullptr && ((Driver->Time - LastChallengeTimestamp) > MIN_COOKIE_LIFETIME);
+				const bool bRestartChallenge = Driver != nullptr && ((Driver->GetElapsedTime() - LastChallengeTimestamp) > MIN_COOKIE_LIFETIME);
 
 				if (bRestartChallenge)
 				{
@@ -1205,7 +1205,7 @@ void StatelessConnectHandlerComponent::Tick(float DeltaTime)
 
 					NotifyHandshakeBegin();
 				}
-				else if (State == Handler::Component::State::InitializedOnLocal && LastTimestamp != 0.f)
+				else if (State == Handler::Component::State::InitializedOnLocal && LastTimestamp != 0.0)
 				{
 					UE_LOG(LogHandshake, Verbose, TEXT("Challenge response packet timeout - resending."));
 
@@ -1216,7 +1216,7 @@ void StatelessConnectHandlerComponent::Tick(float DeltaTime)
 	}
 	else // if (Handler->Mode == Handler::Mode::Server)
 	{
-		bool bConnectionlessHandler = Driver != nullptr && Driver->StatelessConnectComponent.HasSameObject(this);
+		const bool bConnectionlessHandler = Driver != nullptr && Driver->StatelessConnectComponent.HasSameObject(this);
 
 		if (bConnectionlessHandler)
 		{
@@ -1224,7 +1224,7 @@ void StatelessConnectHandlerComponent::Tick(float DeltaTime)
 
 			// Update the secret value periodically, to reduce replay attacks. Also adds a bit of randomness to the timing of this,
 			// so that handshake Timestamp checking as an added method of reducing replay attacks, is more effective.
-			if (((Driver->Time - LastSecretUpdateTimestamp) - (SECRET_UPDATE_TIME + CurVariance)) > 0.f)
+			if (((Driver->GetElapsedTime() - LastSecretUpdateTimestamp) - (SECRET_UPDATE_TIME + CurVariance)) > 0.0)
 			{
 				CurVariance = FMath::FRandRange(0.f, SECRET_UPDATE_TIME_VARIANCE);
 

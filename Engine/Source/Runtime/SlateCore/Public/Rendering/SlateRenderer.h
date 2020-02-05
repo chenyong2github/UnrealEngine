@@ -7,6 +7,7 @@
 #include "Brushes/SlateDynamicImageBrush.h"
 #include "Rendering/DrawElements.h"
 #include "Templates/RefCounting.h"
+#include "Fonts/FontTypes.h"
 
 class FRHITexture2D;
 class FRenderTarget;
@@ -47,6 +48,11 @@ public:
 	 * These pointers may be the same if your renderer doesn't need a separate render thread font cache
 	 */
 	FSlateFontServices(TSharedRef<class FSlateFontCache> InGameThreadFontCache, TSharedRef<class FSlateFontCache> InRenderThreadFontCache);
+
+	/**
+	 * Destruct the font services
+	 */
+	~FSlateFontServices();
 
 	/**
 	 * Get the font cache to use for the current thread
@@ -110,12 +116,21 @@ public:
 	 */
 	void ReleaseResources();
 
+	/**
+	 * Delegate called after releasing the rendering resources used by this font service
+	 */
+	FOnReleaseFontResources& OnReleaseResources();
+
 private:
+	void HandleFontCacheReleaseResources(const class FSlateFontCache& InFontCache);
+
 	TSharedRef<class FSlateFontCache> GameThreadFontCache;
 	TSharedRef<class FSlateFontCache> RenderThreadFontCache;
 
 	TSharedRef<class FSlateFontMeasure> GameThreadFontMeasure;
 	TSharedRef<class FSlateFontMeasure> RenderThreadFontMeasure;
+
+	FOnReleaseFontResources OnReleaseResourcesDelegate;
 };
 
 
@@ -153,15 +168,10 @@ class SLATECORE_API FSlateRenderer
 public:
 
 	/** Constructor. */
-	explicit FSlateRenderer(const TSharedRef<FSlateFontServices>& InSlateFontServices)
-		: SlateFontServices(InSlateFontServices)
-	{
-	}
+	explicit FSlateRenderer(const TSharedRef<FSlateFontServices>& InSlateFontServices);
 
 	/** Virtual destructor. */
-	virtual ~FSlateRenderer()
-	{
-	}
+	virtual ~FSlateRenderer();
 
 public:
 
@@ -490,6 +500,8 @@ private:
 	// Non-copyable
 	FSlateRenderer(const FSlateRenderer&);
 	FSlateRenderer& operator=(const FSlateRenderer&);
+
+	void HandleFontCacheReleaseResources(const class FSlateFontCache& InFontCache);
 
 protected:
 

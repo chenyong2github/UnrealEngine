@@ -60,7 +60,7 @@
 #include "MatineeExporter.h"
 #include "FbxExporter.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 #include "MaterialUtilities.h"
 #include "InstancedFoliageActor.h"
 #include "LandscapeProxy.h"
@@ -1756,7 +1756,7 @@ bool UStaticMeshExporterOBJ::ExportText(const FExportObjectInnerContext* Context
 			{
 				SmoothingMasks.AddZeroed(TriangleCount);
 
-				FMeshDescriptionOperations::ConvertHardEdgesToSmoothGroup(*MeshDescription, SmoothingMasks);
+				FStaticMeshOperations::ConvertHardEdgesToSmoothGroup(*MeshDescription, SmoothingMasks);
 				for (uint32 SmoothValue : SmoothingMasks)
 				{
 					UniqueSmoothingMasks.AddUnique(SmoothValue);

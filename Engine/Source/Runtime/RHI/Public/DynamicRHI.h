@@ -140,6 +140,9 @@ struct FRayTracingGeometrySegment
 	// Any-hit shader may be invoked multiple times for the same primitive during ray traversal.
 	// Setting this to `false` guarantees that only a single instance of any-hit shader will run per primitive, at some performance cost.
 	bool bAllowDuplicateAnyHitShaderInvocation = true;
+
+	// Indicates whether this section is enabled and should be taken into account during acceleration structure creation
+	bool bEnabled = true;
 };
 
 struct FRayTracingGeometryInitializer

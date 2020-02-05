@@ -24,6 +24,8 @@ class UBlendProfile;
 class URig;
 class USkeletalMesh;
 class USkeletalMeshSocket;
+class FPackageReloadedEvent;
+enum class EPackageReloadPhase : uint8;
 
 /** This is a mapping table between bone in a particular skeletal mesh and bone of this skeleton set. */
 USTRUCT()
@@ -314,6 +316,7 @@ public:
 	ENGINE_API virtual void PreEditUndo() override;
 	ENGINE_API virtual void PostEditUndo() override;
 #endif
+	ENGINE_API virtual void BeginDestroy() override;
 
 	/** Accessor to Reference Skeleton to make data read only */
 	const FReferenceSkeleton& GetReferenceSkeleton() const
@@ -879,6 +882,9 @@ private:
 	/** Regenerate new Guid */
 	void RegenerateGuid();
 	void RegenerateVirtualBoneGuid();
+
+	// Handle skeletons being reloaded via the content browser
+	static void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 
 
 

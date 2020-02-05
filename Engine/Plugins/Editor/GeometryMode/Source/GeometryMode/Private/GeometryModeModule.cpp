@@ -6,6 +6,7 @@
 #include "Editor.h"
 #include "EditorModeRegistry.h"
 #include "GeometryEdMode.h"
+#include "GeometryModeStyle.h"
 
 
 FEditorModeID FGeometryEditingModes::EM_Geometry = FEditorModeID(TEXT("EM_Geometry"));
@@ -14,6 +15,8 @@ FEditorModeID FGeometryEditingModes::EM_TextureAlign = FEditorModeID(TEXT("EM_Te
 
 void FGeometryModeModule::StartupModule()
 {
+	FGeometryModeStyle::Initialize();
+
 	FEditorModeRegistry::Get().RegisterMode<FEdModeGeometry>(
 		FGeometryEditingModes::EM_Geometry,
 		NSLOCTEXT("EditorModes", "GeometryMode", "Brush Editing"),
@@ -26,6 +29,8 @@ void FGeometryModeModule::StartupModule()
 void FGeometryModeModule::ShutdownModule()
 {
 	FEditorModeRegistry::Get().UnregisterMode(FGeometryEditingModes::EM_Geometry);
+
+	FGeometryModeStyle::Shutdown();
 }
 
 IMPLEMENT_MODULE(FGeometryModeModule, GeometryMode);

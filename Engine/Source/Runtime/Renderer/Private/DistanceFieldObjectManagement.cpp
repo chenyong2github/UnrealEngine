@@ -1633,6 +1633,15 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 
 		if (!DistanceFieldSceneData.HeightFieldObjectBuffers)
 		{
+			AddOrRemoveSceneHeightFieldPrimitives(true);
+
+			for (int32 Idx = 0; Idx < DistanceFieldSceneData.HeightfieldPrimitives.Num(); ++Idx)
+			{
+				FPrimitiveSceneInfo* Primitive = DistanceFieldSceneData.HeightfieldPrimitives[Idx];
+				check(!DistanceFieldSceneData.PendingHeightFieldAddOps.Contains(Primitive));
+				DistanceFieldSceneData.PendingHeightFieldAddOps.Add(Primitive);
+			}
+			DistanceFieldSceneData.HeightfieldPrimitives.Reset();
 			DistanceFieldSceneData.HeightFieldObjectBuffers = new FHeightFieldObjectBuffers;
 		}
 
@@ -1747,6 +1756,59 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 			}
 		}
 	}
+}
+
+void FDeferredShadingSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd)
+{
+	FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
+
+	if (SceneData.HeightFieldObjectBuffers)
+	{
+		delete SceneData.HeightFieldObjectBuffers;
+		SceneData.HeightFieldObjectBuffers = nullptr;
+		SceneData.NumHeightFieldObjectsInBuffer = 0;
+		SceneData.HeightFieldAtlasGeneration = 0;
+		SceneData.HFVisibilityAtlasGenerattion = 0;
+	}
+
+	TArray<int32, SceneRenderingAllocator> PendingRemoveIndices;
+	for (int32 Idx = 0; Idx < SceneData.PendingHeightFieldRemoveOps.Num(); ++Idx)
+	{
+		const FHeightFieldPrimitiveRemoveInfo& RemoveInfo = SceneData.PendingHeightFieldRemoveOps[Idx];
+		check(RemoveInfo.DistanceFieldInstanceIndices.Num() == 1);
+		PendingRemoveIndices.Add(RemoveInfo.DistanceFieldInstanceIndices[0]);
+		const FGlobalDFCacheType CacheType = RemoveInfo.bOftenMoving ? GDF_Full : GDF_MostlyStatic;
+		SceneData.PrimitiveModifiedBounds[CacheType].Add(RemoveInfo.SphereBound);
+	}
+	SceneData.PendingHeightFieldRemoveOps.Reset();
+	Algo::Sort(PendingRemoveIndices);
+	for (int32 Idx = PendingRemoveIndices.Num() - 1; Idx >= 0; --Idx)
+	{
+		const int32 RemoveIdx = PendingRemoveIndices[Idx];
+		const int32 LastObjectIdx = SceneData.HeightfieldPrimitives.Num() - 1;
+		if (RemoveIdx != LastObjectIdx)
+		{
+			SceneData.HeightfieldPrimitives[LastObjectIdx]->DistanceFieldInstanceIndices[0] = RemoveIdx;
+		}
+		SceneData.HeightfieldPrimitives.RemoveAtSwap(RemoveIdx);
+	}
+
+	if (!bSkipAdd)
+	{
+		for (int32 Idx = 0; Idx < SceneData.PendingHeightFieldAddOps.Num(); ++Idx)
+		{
+			FPrimitiveSceneInfo* Primitive = SceneData.PendingHeightFieldAddOps[Idx];
+			const int32 HFIdx = SceneData.HeightfieldPrimitives.Add(Primitive);
+			Primitive->DistanceFieldInstanceIndices.Empty(1);
+			Primitive->DistanceFieldInstanceIndices.Add(HFIdx);
+			const FGlobalDFCacheType CacheType = Primitive->Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
+			const FBoxSphereBounds& Bounds = Primitive->Proxy->GetBounds();
+			SceneData.PrimitiveModifiedBounds[CacheType].Add(FVector4(Bounds.Origin, Bounds.SphereRadius));
+		}
+		SceneData.PendingHeightFieldAddOps.Reset();
+	}
+
+	SceneData.PendingHeightFieldUpdateOps.Empty();
 }
 
 FString GetObjectBufferMemoryString()

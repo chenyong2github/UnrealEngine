@@ -17,7 +17,6 @@
 #include "Engine/StaticMesh.h"
 #include "LayoutUV.h"
 #include "MeshBuild.h"
-#include "MeshDescriptionOperations.h"
 #include "MeshUtilities.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/Paths.h"

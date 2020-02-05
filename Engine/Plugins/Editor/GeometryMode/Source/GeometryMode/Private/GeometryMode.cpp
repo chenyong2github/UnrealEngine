@@ -19,63 +19,123 @@
 #include "IDetailsView.h"
 #include "GeomModifier.h"
 #include "GeometryModeModule.h"
+#include "GeometryModeStyle.h"
+#include "Engine/Selection.h"
+#include "Classes/EditorStyleSettings.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "GeometryMode"
 
+
+namespace GeometryModePaletteNames
+{
+	static const FName ToolsPalette(TEXT("Tools"));
+};
+
+/** Geometry Mode widget for controls */
+class SGeometryModeControls : public SCompoundWidget, public FNotifyHook
+{
+public:
+	SLATE_BEGIN_ARGS(SGeometryModeControls) {}
+	SLATE_END_ARGS()
+
+public:
+
+	void SelectionChanged();
+
+	/** SCompoundWidget functions */
+	void Construct(const FArguments& InArgs, TSharedRef<FGeometryModeToolkit> GeometryMode);
+
+	void SetPropertyObjects(const TArray<UObject*>& PropertyObjects);
+
+protected:
+	/** Returns the visibility state of the properties control */
+	bool ArePropertiesVisible() const;
+
+	EVisibility GetPropertyVisibility() const;
+
+	/** Called when the Apply button is clicked */
+	FReply OnApplyClicked();
+
+	/** Called when a modifier button is clicked */
+	FReply OnModifierClicked(UGeomModifier* Modifier);
+
+private:
+	/** Creates the geometry mode controls */
+	void CreateLayout(TSharedRef<FGeometryModeToolkit>& GeometryMode);
+
+	/** Creates controls for the modifiers section */
+	TSharedRef<SVerticalBox> CreateTopModifierButtons(TSharedRef<FGeometryModeToolkit>& GeometryMode);
+
+	/** Creates controls for the actions section */
+	TSharedRef<SUniformGridPanel> CreateBottomModifierButtons(TSharedRef<FGeometryModeToolkit>& GeometryMode);
+
+	/** Creates controls for the modifier properties section */
+	TSharedRef<class IDetailsView> CreateModifierProperties(TSharedRef<FGeometryModeToolkit>& GeometryMode);
+
+	/** Creates a modifier radio button */
+	TSharedRef<SCheckBox> CreateSingleModifierRadioButton(UGeomModifier* Modifier, TSharedRef<FGeometryModeToolkit>& GeometryMode);
+
+	/** Creates an action button */
+	TSharedRef<SButton> CreateSingleModifierButton(UGeomModifier* Modifier, TSharedRef<FGeometryModeToolkit>& GeometryMode);
+
+	void MakeBuilderBrush(UClass* BrushBuilderClass);
+
+	void OnAddVolume(UClass* VolumeClass);
+
+private:
+	/** Pointer to the parent window, so we know to destroy it when done */
+	TWeakPtr<SWindow> ParentWindow;
+
+	/** A list of the checkbox modifier controls */
+	TArray< TSharedPtr<SCheckBox> > ModifierControls;
+
+	TWeakPtr<FGeometryModeToolkit> GeometryModeWeakPtr;
+
+	/** The properties control */
+	TSharedPtr<class IDetailsView> PropertiesControl;
+};
+
 void SGeometryModeControls::SelectionChanged()
 {
-	// If the currently selected modifier is being disabled, change the selection to Edit
-	for (int32 Idx = 0; Idx < ModifierControls.Num(); ++Idx)
+	FModeTool_GeometryModify* ModeTool = GeometryModeWeakPtr.Pin()->GetGeometryModeTool();
+
+	if (!ModeTool->GetCurrentModifier()->SupportsCurrentSelection() && ModeTool->GetNumModifiers() > 0)
 	{
-		if (ModifierControls[Idx]->IsChecked() && !GetGeometryModeTool()->GetModifier(Idx)->Supports())
-		{
-			if (GetGeometryModeTool()->GetNumModifiers() > 0)
-			{
-				GetGeometryModeTool()->SetCurrentModifier(GetGeometryModeTool()->GetModifier(0));
-			}
-		}
+		ModeTool->SetCurrentModifier(ModeTool->GetModifier(0));
 	}
 }
 
-void SGeometryModeControls::Construct(const FArguments& InArgs)
+void SGeometryModeControls::Construct(const FArguments& InArgs, TSharedRef<FGeometryModeToolkit> GeometryMode)
 {
-	FModeTool_GeometryModify* GeometryModeTool = GetGeometryModeTool();
+	GeometryModeWeakPtr = GeometryMode;
+
+	FModeTool_GeometryModify* ModeTool = GeometryMode->GetGeometryModeTool();
+
 	
-	if (GetGeometryModeTool()->GetNumModifiers() > 0)
+	if (ModeTool->GetNumModifiers() > 0)
 	{
-		GetGeometryModeTool()->SetCurrentModifier(GetGeometryModeTool()->GetModifier(0));
+		ModeTool->SetCurrentModifier(ModeTool->GetModifier(0));
 	}
 
-	CreateLayout();
+	CreateLayout(GeometryMode);
 }
 
-void SGeometryModeControls::OnModifierStateChanged(ECheckBoxState NewCheckedState, UGeomModifier* Modifier)
+void SGeometryModeControls::SetPropertyObjects(const TArray<UObject*>& PropertyObjects)
 {
-	if (NewCheckedState == ECheckBoxState::Checked)
-	{
-		GetGeometryModeTool()->SetCurrentModifier(Modifier);
-
-		TArray<UObject*> PropertyObjects;
-		PropertyObjects.Add(GetGeometryModeTool()->GetCurrentModifier());
-		PropertiesControl->SetObjects(PropertyObjects);
-	}
+	PropertiesControl->SetObjects(PropertyObjects);
 }
 
-ECheckBoxState SGeometryModeControls::IsModifierChecked(UGeomModifier* Modifier) const
+bool SGeometryModeControls::ArePropertiesVisible() const
 {
-	return (GetGeometryModeTool()->GetCurrentModifier() == Modifier)
-		? ECheckBoxState::Checked
-		: ECheckBoxState::Unchecked;
+	FModeTool_GeometryModify* ModeTool = GeometryModeWeakPtr.Pin()->GetGeometryModeTool();
+
+	return (ModeTool->GetNumModifiers() > 0) && (ModeTool->GetCurrentModifier() != ModeTool->GetModifier(0));
 }
 
-bool SGeometryModeControls::IsModifierEnabled(UGeomModifier* Modifier) const
+EVisibility SGeometryModeControls::GetPropertyVisibility() const
 {
-	return Modifier->Supports();
-}
-
-EVisibility SGeometryModeControls::IsPropertiesVisible() const
-{
-	if ((GetGeometryModeTool()->GetNumModifiers() > 0) && (GetGeometryModeTool()->GetCurrentModifier() != GetGeometryModeTool()->GetModifier(0)))
+	if(ArePropertiesVisible())
 	{
 		return EVisibility::Visible;
 	}
@@ -85,25 +145,7 @@ EVisibility SGeometryModeControls::IsPropertiesVisible() const
 	}
 }
 
-FReply SGeometryModeControls::OnApplyClicked()
-{
-	check(GLevelEditorModeTools().IsModeActive(FGeometryEditingModes::EM_Geometry));
-
-	GetGeometryModeTool()->GetCurrentModifier()->Apply();
-
-	return FReply::Handled();
-}
-
-FReply SGeometryModeControls::OnModifierClicked(UGeomModifier* Modifier)
-{
-	check(GLevelEditorModeTools().IsModeActive(FGeometryEditingModes::EM_Geometry));
-
-	Modifier->Apply();
-
-	return FReply::Handled();
-}
-
-void SGeometryModeControls::CreateLayout()
+void SGeometryModeControls::CreateLayout(TSharedRef<FGeometryModeToolkit>& GeometryMode)
 {
 	this->ChildSlot
 	[
@@ -111,128 +153,120 @@ void SGeometryModeControls::CreateLayout()
 		+SScrollBox::Slot()
 		.Padding(0.0f)
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Center)
-				[
-					CreateTopModifierButtons()
-				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(3.0f)
-				[
-					SNew(SSeparator)
-					.Orientation(Orient_Horizontal)
-				]	
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					CreateModifierProperties()
-				]	
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(3.0f)
-				[
-					SNew(SSeparator)
-					.Orientation(Orient_Horizontal)
-					.Visibility(this, &SGeometryModeControls::IsPropertiesVisible)
-				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Center)
-				[
-					CreateBottomModifierButtons()
-				]
+				CreateModifierProperties(GeometryMode)
+			]	
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(3.0f)
+			[
+				SNew(SSeparator)
+				.Orientation(Orient_Horizontal)
+				.Visibility(this, &SGeometryModeControls::GetPropertyVisibility)
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("SGeometryModeDialog_Apply", "Apply"))
+				.Visibility(this, &SGeometryModeControls::GetPropertyVisibility)
+				.OnClicked(GeometryMode, &FGeometryModeToolkit::OnApplyClicked)
+			]
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Center)
+			[
+				CreateBottomModifierButtons(GeometryMode)
 			]
 		]
 	];
 }
 
-TSharedRef<SVerticalBox> SGeometryModeControls::CreateTopModifierButtons()
+TSharedRef<SVerticalBox> SGeometryModeControls::CreateTopModifierButtons(TSharedRef<FGeometryModeToolkit>& GeometryMode)
 {
-	FModeTool_GeometryModify* GeometryModeTool = GetGeometryModeTool();
+	FModeTool_GeometryModify* GeometryModeTool = GeometryMode->GetGeometryModeTool();
 	TSharedPtr<SVerticalBox> Vbox;
 	const TSharedRef<SGridPanel> RadioButtonPanel = SNew(SGridPanel);
 
 	// Loop through all geometry modifiers and create radio buttons for ones with the bPushButton set to false
 	int32 CurrentModifierButtonCount = 0;
-	for (FModeTool_GeometryModify::TModifierIterator Itor(GeometryModeTool->ModifierIterator()); Itor; ++Itor)
+	
+	if(GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 	{
-		UGeomModifier* Modifier = *Itor;
-		if (!Modifier->bPushButton)
+		for (FModeTool_GeometryModify::TModifierIterator Itor(GeometryModeTool->ModifierIterator()); Itor; ++Itor)
 		{
-			RadioButtonPanel->AddSlot(CurrentModifierButtonCount%2, CurrentModifierButtonCount/2)
-			.Padding( FMargin(20.0f, 5.0f) )
-			[
-				CreateSingleModifierRadioButton(Modifier)
-			];
+			UGeomModifier* Modifier = *Itor;
+			if (!Modifier->bPushButton)
+			{
+				RadioButtonPanel->AddSlot(CurrentModifierButtonCount % 2, CurrentModifierButtonCount / 2)
+					.Padding(FMargin(20.0f, 5.0f))
+					[
+						CreateSingleModifierRadioButton(Modifier, GeometryMode)
+					];
 
-			++CurrentModifierButtonCount;
+				++CurrentModifierButtonCount;
+			}
 		}
 	}
 
 	// Add the Apply button
 	SAssignNew(Vbox, SVerticalBox)
-	+SVerticalBox::Slot()
+	+ SVerticalBox::Slot()
 	.AutoHeight()
 	[
 		RadioButtonPanel
-	]
-	+SVerticalBox::Slot()
-	.AutoHeight()
-	.VAlign(VAlign_Center)
-	.HAlign(HAlign_Center)
-	[
-		SNew(SButton)
-		.Text(LOCTEXT("SGeometryModeDialog_Apply", "Apply"))
-		.OnClicked(this, &SGeometryModeControls::OnApplyClicked)
 	];
 
 	return Vbox.ToSharedRef();
 }
 
-TSharedRef<SUniformGridPanel> SGeometryModeControls::CreateBottomModifierButtons()
+TSharedRef<SUniformGridPanel> SGeometryModeControls::CreateBottomModifierButtons(TSharedRef<FGeometryModeToolkit>& GeometryMode)
 {
-	FModeTool_GeometryModify* GeometryModeTool = GetGeometryModeTool();
+	FModeTool_GeometryModify* GeometryModeTool = GeometryMode->GetGeometryModeTool();
+
 	TSharedRef<SUniformGridPanel> ButtonGrid = SNew(SUniformGridPanel).SlotPadding(5.0f);
 
-	// The IDs of the buttons created in this function need to sequentially follow the IDs of the modifier radio buttons
-	// So, this loop simply counts the number of radio buttons so we can use that as an offset
-	int32 CurrentModifierButtonCount = 0;
-	for (FModeTool_GeometryModify::TModifierConstIterator Itor(GeometryModeTool->ModifierConstIterator()); Itor; ++Itor)
+	if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 	{
-		const UGeomModifier* Modifier = *Itor;
-		if (!Modifier->bPushButton)
+		// The IDs of the buttons created in this function need to sequentially follow the IDs of the modifier radio buttons
+			// So, this loop simply counts the number of radio buttons so we can use that as an offset
+		int32 CurrentModifierButtonCount = 0;
+		for (FModeTool_GeometryModify::TModifierConstIterator Itor(GeometryModeTool->ModifierConstIterator()); Itor; ++Itor)
 		{
-			++CurrentModifierButtonCount;
+			const UGeomModifier* Modifier = *Itor;
+			if (!Modifier->bPushButton)
+			{
+				++CurrentModifierButtonCount;
+			}
 		}
-	}
 
-	// Loop through all geometry modifiers and create buttons for ones with the bPushButton set to true
-	int32 PushButtonId = 0;
-	for (FModeTool_GeometryModify::TModifierIterator Itor(GeometryModeTool->ModifierIterator()); Itor; ++Itor)
-	{
-		UGeomModifier* Modifier = *Itor;
-		if (Modifier->bPushButton)
+		// Loop through all geometry modifiers and create buttons for ones with the bPushButton set to true
+		int32 PushButtonId = 0;
+		for (FModeTool_GeometryModify::TModifierIterator Itor(GeometryModeTool->ModifierIterator()); Itor; ++Itor)
 		{
-			ButtonGrid->AddSlot(PushButtonId % 2, PushButtonId / 2)
-			[
-				CreateSingleModifierButton(Modifier)
-			];
+			UGeomModifier* Modifier = *Itor;
+			if (Modifier->bPushButton)
+			{
+				ButtonGrid->AddSlot(PushButtonId % 2, PushButtonId / 2)
+					[
+						CreateSingleModifierButton(Modifier, GeometryMode)
+					];
 
-			++CurrentModifierButtonCount;
-			++PushButtonId;
+				++CurrentModifierButtonCount;
+				++PushButtonId;
+			}
 		}
 	}
 
 	return ButtonGrid;
 }
 
-TSharedRef<IDetailsView> SGeometryModeControls::CreateModifierProperties()
+TSharedRef<IDetailsView> SGeometryModeControls::CreateModifierProperties(TSharedRef<FGeometryModeToolkit>& GeometryMode)
 {
 	FDetailsViewArgs Args;
 	Args.bHideSelectionTip = true;
@@ -240,20 +274,20 @@ TSharedRef<IDetailsView> SGeometryModeControls::CreateModifierProperties()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertiesControl = PropertyModule.CreateDetailView(Args);
-	PropertiesControl->SetVisibility(TAttribute<EVisibility>(this, &SGeometryModeControls::IsPropertiesVisible));
+	PropertiesControl->SetVisibility(TAttribute<EVisibility>(this, &SGeometryModeControls::GetPropertyVisibility));
 
 	return PropertiesControl.ToSharedRef();
 }
 
-TSharedRef<SCheckBox> SGeometryModeControls::CreateSingleModifierRadioButton(UGeomModifier* Modifier)
+TSharedRef<SCheckBox> SGeometryModeControls::CreateSingleModifierRadioButton(UGeomModifier* Modifier, TSharedRef<FGeometryModeToolkit>& GeometryMode)
 {
 	TSharedRef<SCheckBox> CheckBox =
 	SNew(SCheckBox)
 	.Style(FEditorStyle::Get(), "RadioButton")
 	.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-	.IsChecked(this, &SGeometryModeControls::IsModifierChecked, Modifier)
-	.IsEnabled(this, &SGeometryModeControls::IsModifierEnabled, Modifier)
-	.OnCheckStateChanged(this, &SGeometryModeControls::OnModifierStateChanged, Modifier)
+	.IsChecked(GeometryMode, &FGeometryModeToolkit::IsModifierChecked, Modifier)
+	.IsEnabled(GeometryMode, &FGeometryModeToolkit::IsModifierEnabled, Modifier)
+	.OnCheckStateChanged(GeometryMode, &FGeometryModeToolkit::OnModifierStateChanged, Modifier)
 	.ToolTip(SNew(SToolTip).Text(Modifier->GetModifierTooltip()))
 	[
 		SNew(STextBlock).Text( Modifier->GetModifierDescription() )
@@ -264,69 +298,220 @@ TSharedRef<SCheckBox> SGeometryModeControls::CreateSingleModifierRadioButton(UGe
 	return CheckBox;
 }
 
-TSharedRef<SButton> SGeometryModeControls::CreateSingleModifierButton(UGeomModifier* Modifier)
+TSharedRef<SButton> SGeometryModeControls::CreateSingleModifierButton(UGeomModifier* Modifier, TSharedRef<FGeometryModeToolkit>& GeometryMode)
 {
 	TSharedRef<SButton> Widget =
 	SNew(SButton)
 	.Text( Modifier->GetModifierDescription() )
 	.ToolTip(SNew(SToolTip).Text(Modifier->GetModifierTooltip()))
 	.HAlign(HAlign_Center)
-	.IsEnabled(this, &SGeometryModeControls::IsModifierEnabled, Modifier)
-	.OnClicked(this, &SGeometryModeControls::OnModifierClicked, Modifier);
+	.IsEnabled(GeometryMode, &FGeometryModeToolkit::IsModifierEnabled, Modifier)
+	.OnClicked_Lambda(
+		[this, Modifier]()->FReply
+		{
+			GeometryModeWeakPtr.Pin()->OnModifierClicked(Modifier);
+			return FReply::Handled();
+		}
+	);
 
 	return Widget;
 }
 
-FModeTool_GeometryModify* SGeometryModeControls::GetGeometryModeTool() const
+
+void FGeometryModeToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
 {
-	FEdModeGeometry* Mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry );
-	FModeTool* Tool = Mode? Mode->GetCurrentTool(): NULL;
+
+}
+
+void FGeometryModeToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
+{
+
+}
+
+void FGeometryModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
+{
+	GeomWidget = SNew(SGeometryModeControls, SharedThis(this));
+
+	bHasBrushActorSelected = false;
+
+	USelection::SelectionChangedEvent.AddSP(this, &FGeometryModeToolkit::OnActorSelectionChanged);
+
+	OnActorSelectionChanged(GEditor->GetSelectedActors());
+
+	FModeToolkit::Init(InitToolkitHost);
+}
+
+FName FGeometryModeToolkit::GetToolkitFName() const
+{
+	return FName("GeometryMode");
+}
+
+FText FGeometryModeToolkit::GetBaseToolkitName() const
+{
+	return LOCTEXT( "ToolkitName", "Geometry Mode" );
+}
+
+class FEdMode* FGeometryModeToolkit::GetEditorMode() const
+{
+	return (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
+}
+
+void FGeometryModeToolkit::OnGeometrySelectionChanged()
+{
+	GeomWidget->SelectionChanged();
+}
+
+void FGeometryModeToolkit::OnActorSelectionChanged(UObject* SelectionContainer)
+{
+	// Make sure the selection set that changed is relevant to us
+	USelection* Selection = Cast<USelection>(SelectionContainer);
+	if (Selection == GEditor->GetSelectedActors())
+	{
+		bHasBrushActorSelected = Selection->CountSelections<ABrush>() > 0;
+	}
+}
+
+class FModeTool_GeometryModify* FGeometryModeToolkit::GetGeometryModeTool() const
+{
+	FEdModeGeometry* Mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
+	FModeTool* Tool = Mode ? Mode->GetCurrentTool() : NULL;
 
 	check(Tool);
 
 	return (FModeTool_GeometryModify*)Tool;
 }
 
-void FGeometryMode::RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
+void FGeometryModeToolkit::OnModifierStateChanged(ECheckBoxState NewCheckedState, UGeomModifier* Modifier)
 {
+	if (NewCheckedState == ECheckBoxState::Checked)
+	{
+		GetGeometryModeTool()->SetCurrentModifier(Modifier);
+
+		TArray<UObject*> PropertyObjects;
+		PropertyObjects.Add(GetGeometryModeTool()->GetCurrentModifier());
+
+		GeomWidget->SetPropertyObjects(PropertyObjects);
+	}
+}
+
+void FGeometryModeToolkit::OnModifierToolBarButtonClicked(UGeomModifier* Modifier)
+{
+	const ECheckBoxState NewState = GetGeometryModeTool()->GetCurrentModifier() == Modifier ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+
+	OnModifierStateChanged(NewState, Modifier);
 
 }
 
-void FGeometryMode::UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
+ECheckBoxState FGeometryModeToolkit::IsModifierChecked(UGeomModifier* Modifier) const
 {
-
+	return (GetGeometryModeTool()->GetCurrentModifier() == Modifier)
+		? ECheckBoxState::Checked
+		: ECheckBoxState::Unchecked;
 }
 
-void FGeometryMode::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
+FReply FGeometryModeToolkit::OnApplyClicked()
 {
-	GeomWidget = SNew(SGeometryModeControls);
+	check(GLevelEditorModeTools().IsModeActive(FGeometryEditingModes::EM_Geometry));
 
-	FModeToolkit::Init(InitToolkitHost);
+	GetGeometryModeTool()->GetCurrentModifier()->Apply();
+
+	return FReply::Handled();
 }
 
-FName FGeometryMode::GetToolkitFName() const
+void FGeometryModeToolkit::OnModifierClicked(UGeomModifier* Modifier)
 {
-	return FName("GeometryMode");
+	check(GLevelEditorModeTools().IsModeActive(FGeometryEditingModes::EM_Geometry));
+
+	Modifier->Apply();
 }
 
-FText FGeometryMode::GetBaseToolkitName() const
+bool FGeometryModeToolkit::IsModifierEnabled(UGeomModifier* Modifier) const
 {
-	return LOCTEXT( "ToolkitName", "Geometry Mode" );
+	return bHasBrushActorSelected && Modifier->SupportsCurrentSelection();
 }
 
-class FEdMode* FGeometryMode::GetEditorMode() const
+
+TSharedPtr<SWidget> FGeometryModeToolkit::GetInlineContent() const
 {
-	return (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
+	return GeomWidget;
 }
 
-void FGeometryMode::SelectionChanged()
+void FGeometryModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) const
 {
-	GeomWidget->SelectionChanged();
+	if(!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+	{
+		PaletteNames.Add(GeometryModePaletteNames::ToolsPalette);
+	}
 }
 
-TSharedPtr<SWidget> FGeometryMode::GetInlineContent() const
+FText FGeometryModeToolkit::GetToolPaletteDisplayName(FName Palette) const
 {
-	return SNew(SGeometryModeControls);
+	if (Palette == GeometryModePaletteNames::ToolsPalette)
+	{
+		return LOCTEXT("GeometryMode_ToolsPalette", "Tools");
+	}
+
+	return FText::GetEmpty();
 }
+
+void FGeometryModeToolkit::BuildToolPalette(FName Palette, class FToolBarBuilder& ToolbarBuilder)
+{
+	if (Palette == GeometryModePaletteNames::ToolsPalette)
+	{
+		FModeTool_GeometryModify* GeometryModeTool = GetGeometryModeTool();
+
+		// Loop through all geometry modifiers and create radio buttons for ones with the bPushButton set to false
+		//int32 CurrentModifierButtonCount = 0;
+		for (FModeTool_GeometryModify::TModifierIterator Itor(GeometryModeTool->ModifierIterator()); Itor; ++Itor)
+		{
+			UGeomModifier* Modifier = *Itor;
+			if (!Modifier->bPushButton && Modifier->bAppearsInToolbar)
+			{
+				FUIAction ModifierAction;
+
+				ModifierAction.ExecuteAction = FExecuteAction::CreateSP(this, &FGeometryModeToolkit::OnModifierToolBarButtonClicked, Modifier);
+				ModifierAction.GetActionCheckState = FGetActionCheckState::CreateSP(this, &FGeometryModeToolkit::IsModifierChecked, Modifier);
+				ModifierAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &FGeometryModeToolkit::IsModifierEnabled, Modifier);
+
+				FSlateIcon Icon(FGeometryModeStyle::GetStyleSetName(), Modifier->ToolbarIconName);
+
+				ToolbarBuilder.AddToolBarButton(ModifierAction, NAME_None, Modifier->GetModifierDescription(), Modifier->GetModifierTooltip(), Icon, EUserInterfaceActionType::RadioButton);
+			}
+		}
+
+		ToolbarBuilder.AddSeparator();
+
+		// Loop through all geometry modifiers and create buttons for ones with the bPushButton set to true
+		int32 PushButtonId = 0;
+		for (FModeTool_GeometryModify::TModifierIterator Itor(GeometryModeTool->ModifierIterator()); Itor; ++Itor)
+		{
+			UGeomModifier* Modifier = *Itor;
+			if (Modifier->bPushButton && Modifier->bAppearsInToolbar)
+			{
+				FUIAction ModifierAction;
+
+				ModifierAction.ExecuteAction = FExecuteAction::CreateSP(this, &FGeometryModeToolkit::OnModifierClicked, Modifier);
+				ModifierAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &FGeometryModeToolkit::IsModifierEnabled, Modifier);
+
+				FSlateIcon Icon(FGeometryModeStyle::GetStyleSetName(), Modifier->ToolbarIconName);
+
+				ToolbarBuilder.AddToolBarButton(ModifierAction, NAME_None, Modifier->GetModifierDescription(), Modifier->GetModifierTooltip(), Icon, EUserInterfaceActionType::Button);
+			}
+		}
+	}
+}
+
+FText FGeometryModeToolkit::GetActiveToolDisplayName() const
+{
+	return GetGeometryModeTool()->GetCurrentModifier()->GetModifierDescription();//  + LOCTEXT("GeometryMode_ToolsTool", " Tool");
+}
+
+FText FGeometryModeToolkit::GetActiveToolMessage() const
+{
+	return bHasBrushActorSelected ? GetGeometryModeTool()->GetCurrentModifier()->GetModifierTooltip() : LOCTEXT("GeometryMode_NoBrushSelectedMessage", "Select a brush actor to begin editing its geometry");
+}
+
+
+
 
 #undef LOCTEXT_NAMESPACE

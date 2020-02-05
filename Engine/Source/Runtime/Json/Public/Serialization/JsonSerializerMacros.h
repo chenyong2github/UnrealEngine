@@ -148,6 +148,33 @@
 			Serializer.Serialize(TEXT(JsonName), UnixTimestampValue); \
 		}
 
+#define JSON_SERIALIZE_DATETIME_UNIX_TIMESTAMP_MILLISECONDS(JsonName, JsonDateTime) \
+if (Serializer.IsLoading()) \
+{ \
+	int64 UnixTimestampValueInMilliseconds; \
+	Serializer.Serialize(TEXT(JsonName), UnixTimestampValueInMilliseconds); \
+	JsonDateTime = FDateTime::FromUnixTimestamp(UnixTimestampValueInMilliseconds / 1000); \
+} \
+else \
+{ \
+	int64 UnixTimestampValueInMilliseconds = JsonDateTime.ToUnixTimestamp() * 1000; \
+	Serializer.Serialize(TEXT(JsonName), UnixTimestampValueInMilliseconds); \
+}
+
+#define JSON_SERIALIZE_ENUM(JsonName, JsonEnum) \
+if (Serializer.IsLoading()) \
+{ \
+	FString JsonTextValue; \
+	Serializer.Serialize(TEXT(JsonName), JsonTextValue); \
+	LexFromString(JsonEnum, *JsonTextValue); \
+} \
+else \
+{ \
+	FString JsonTextValue = LexToString(JsonEnum); \
+	Serializer.Serialize(TEXT(JsonName), JsonTextValue); \
+}
+
+
 struct FJsonSerializerBase;
 
 /** Array of data */

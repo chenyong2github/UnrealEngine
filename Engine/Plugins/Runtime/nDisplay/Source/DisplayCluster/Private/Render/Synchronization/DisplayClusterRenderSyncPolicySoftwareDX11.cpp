@@ -20,7 +20,7 @@
 #include "D3D11Resources.h"
 #include "D3D11Viewport.h"
 
-#include "NVIDIA/nvapi/nvapi.h"
+#include "nvapi.h"
 
 
 static TAutoConsoleVariable<int32> CVarAdvancedSyncEnabled(

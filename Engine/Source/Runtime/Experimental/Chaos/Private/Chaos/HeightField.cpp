@@ -720,7 +720,7 @@ namespace Chaos
 		T InvCurrentLength = 1 / CurrentLength;
 		for(int Axis = 0; Axis < 3; ++Axis)
 		{
-			bParallel[Axis] = Dir[Axis] == 0;
+			bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
 			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 		}
 
@@ -920,7 +920,7 @@ namespace Chaos
 			T InvCurrentLength = 1 / CurrentLength;
 			for(int Axis = 0; Axis < 3; ++Axis)
 			{
-				bParallel[Axis] = Dir[Axis] == 0;
+				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], 1.e-8f);
 				InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 			}
 

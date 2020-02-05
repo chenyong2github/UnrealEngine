@@ -28,4 +28,11 @@ public:
 	//~ Begin USoundNode Interface. 
 	virtual void ParseNodes( class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) override;
 	//~ End USoundNode Interface. 
+
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+
+private:
+	// This is set to true if this node's soundclass specifically dictates that a sound should be retained.
+	bool bRetainingAudioDueToSoundClass;
 };

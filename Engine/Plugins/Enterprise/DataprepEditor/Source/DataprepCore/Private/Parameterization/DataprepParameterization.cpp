@@ -158,12 +158,13 @@ namespace DataprepParameterization
 				{
 					PopulateValueTypeValidationData( static_cast<FStructProperty*>( CurrentProperty ), ValueTypeValidationData );
 				}
-				else
-				{
-					ValueTypeValidationData.Add( CurrentProperty->GetClass() );
-				}
 
 				CurrentClass = CurrentClass->GetSuperClass();
+			}
+
+			if ( NumberOfObject == ValueTypeValidationData.Num() )
+			{
+				ValueTypeValidationData.Add( CurrentProperty->GetClass() );
 			}
 		}
 	}
@@ -383,7 +384,7 @@ namespace DataprepParameterization
 	 */
 	FProperty* GetPropertyFromBinding(FDataprepParameterizationBinding& Binding, void*& OutPropertyValueAddress)
 	{
-		if ( !Binding.ObjectBinded || Binding.ValueTypeValidationData.Num() == 0 )
+		if ( !Binding.ObjectBinded )
 		{
 			return nullptr;
 		}
@@ -434,6 +435,13 @@ namespace DataprepParameterization
 			PropetyAtCurrentLevel = PropertyChain.Last().CachedProperty.Get();
 			FValueTypeValidationData ValueTypeValidationData;
 			PopulateValueTypeValidationData( PropetyAtCurrentLevel, ValueTypeValidationData );
+
+			// 4.25 development hotfix
+			if ( Binding.ValueTypeValidationData.Num() == 0 )
+			{
+				Binding.ValueTypeValidationData = ValueTypeValidationData;
+			}
+
 			// Perf Note: We might be able to cache this validation and some part of this function at some point
 			if ( ValueTypeValidationData == Binding.ValueTypeValidationData )
 			{
@@ -512,40 +520,6 @@ FDataprepParameterizationBinding::FDataprepParameterizationBinding(UDataprepPara
 			DataprepParameterization::PopulateValueTypeValidationData( Property, ValueTypeValidationData );
 		}
 	}
-}
-
-bool FDataprepParameterizationBinding::Serialize(FArchive& Ar)
-{
-	//check(false); // @todo FProperties: if we never hit this, we don't need this
-
-	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
-
-	UScriptStruct* Struct = FDataprepParameterizationBinding::StaticStruct();
-	if (Ar.IsLoading() || Ar.IsSaving())
-	{
-		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
-	}
-
-#if WITH_EDITORONLY_DATA
-	//Take old data and put it in new data structure
-	if (Ar.IsLoading() && Ar.CustomVer(FCoreObjectVersion::GUID) < FCoreObjectVersion::FProperties)
-	{
-		//if (ValueType_DEPRECATED)
-		//{
-		//	ValueType = FFieldClass::GetNameToFieldClassMap().FindRef(ValueType_DEPRECATED->GetFName());
-		//}
-		//else
-		//{
-		//	ValueType = nullptr;
-		//}
-	}
-	else
-#endif // WITH_EDITORONLY_DATA
-	{
-		ValueTypeValidationData.Serialize(Ar);
-	}
-
-	return true;
 }
 
 bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
@@ -1195,18 +1169,20 @@ void UDataprepParameterization::GetExistingParameterNamesForType(FProperty* Prop
 {
 	OutValidExistingNames.Empty( NameToParameterizationProperty.Num() );
 	OutInvalidNames.Empty( NameToParameterizationProperty.Num() );
+	
+
+	FValueTypeValidationData ValidationData;
+	DataprepParameterization::PopulateValueTypeValidationData( Property, ValidationData );
 
 	for ( const TPair<FName, FProperty*>& Pair : NameToParameterizationProperty )
 	{
 		if ( FProperty* ParameterizationProperty = Pair.Value )
 		{
 			bool bWasAdded = false;
-			if ( ParameterizationProperty->GetClass() == Property->GetClass() && ( !bIsDescribingFullProperty || ParameterizationProperty->ArrayDim == Property->ArrayDim ) )
+			if ( Property && ParameterizationProperty->GetClass() == Property->GetClass() && ( !bIsDescribingFullProperty || ParameterizationProperty->ArrayDim == Property->ArrayDim ) )
 			{
 				FValueTypeValidationData ValidationDataForParameterizationProperty;
 				DataprepParameterization::PopulateValueTypeValidationData( ParameterizationProperty, ValidationDataForParameterizationProperty );
-				FValueTypeValidationData ValidationData;
-				DataprepParameterization::PopulateValueTypeValidationData( Property, ValidationData );
 				if ( ValidationDataForParameterizationProperty == ValidationData )
 				{
 					bWasAdded = true;

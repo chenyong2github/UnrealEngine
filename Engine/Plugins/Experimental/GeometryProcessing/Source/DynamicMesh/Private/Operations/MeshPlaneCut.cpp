@@ -10,6 +10,7 @@
 #include "MeshNormals.h"
 #include "DynamicMeshEditor.h"
 #include "MathUtil.h"
+#include "Selections/MeshConnectedComponents.h"
 
 #include "Async/ParallelFor.h"
 
@@ -17,6 +18,7 @@
 void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, bool bDeleteTrisOnPlane)
 {
 	Signs.Reset(); ZeroEdges.Reset(); OnCutEdges.Reset();
+	OnCutVertices.Reset();
 
 	double InvalidDist = -FMathd::MaxReal;
 
@@ -44,8 +46,7 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 		{
 			Signs[VID] = InvalidDist;
 		}
-	},
-		bNoParallel);
+	}, bNoParallel);
 
 	if (bDeleteTrisOnPlane)
 	{
@@ -105,6 +106,10 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 		{
 			continue;
 		}
+		if (EdgeFilterFunc && EdgeFilterFunc(EID) == false)
+		{
+			continue;
+		}
 
 		FIndex2i ev = Mesh->GetEdgeV(EID);
 		double f0 = Signs[ev.A];
@@ -119,12 +124,14 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 			if (n0 + n1 == 2)
 			{
 				ZeroEdges.Add(EID);
+				OnCutVertices.Add(ev.A);
+				OnCutVertices.Add(ev.B);
 			}
-			// TODO: if we need to track ZeroVertices, can add this code back:
-			//else
-			//{
-			//	ZeroVertices.Add((n0 == 1) ? ev[0] : ev[1]);
-			//}
+			else
+			{
+				OnCutVertices.Add((n0 == 1) ? ev[0] : ev[1]);
+				//ZeroVertices.Add((n0 == 1) ? ev[0] : ev[1]);
+			}
 			continue;
 		}
 
@@ -148,6 +155,8 @@ void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdg
 		{
 			NewEdges.Add(splitInfo.NewEdges.C); OnCutEdges.Add(splitInfo.NewEdges.C);
 		}
+
+		OnCutVertices.Add(splitInfo.NewVertex);
 	}
 }
 
@@ -245,7 +254,7 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 		}
 		if (NonSplitTriCount > 0) // connected to both old and new labels -- needs split
 		{
-			if (EMeshResult::Ok == Mesh->SplitVertex(VID, Triangles, SplitInfo))
+			if (Triangles.Num() > 0 && EMeshResult::Ok == Mesh->SplitVertex(VID, Triangles, SplitInfo))
 			{
 				SplitVertices.Add(VID, SplitInfo.NewVertex);
 				Mesh->SetVertex(SplitInfo.NewVertex, Mesh->GetVertex(SplitInfo.NewVertex) + VertexOffsetVec);
@@ -366,6 +375,84 @@ bool FMeshPlaneCut::Cut()
 	return ExtractBoundaryLoops(OnCutEdges, ZeroEdges, Boundary);
 
 }
+
+bool FMeshPlaneCut::SplitEdgesOnly(bool bAssignNewGroups)
+{
+	// split edges with current plane
+	TArray<double> Signs;
+	TSet<int32> ZeroEdges, OnCutEdges;
+	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges, false);
+
+	if (bAssignNewGroups == false)
+	{
+		return true;
+	}
+
+	// find relevant edges/triangles/groups on cut
+	TSet<int32> CutEdges;				// edges lying on the cut
+	TArray<int32> CutEdgeTriangles;		// triangles connected to those edges
+	TSet<int32> CutEdgeGroups;			// group IDs of those triangles (ie groups touching cut)
+	TSet<int32>* EdgeLists[2] = { &ZeroEdges, &OnCutEdges };
+	for (TSet<int32>* EdgeList : EdgeLists)
+	{
+		for (int32 eid : *EdgeList)
+		{
+			FIndex2i EdgeVerts = Mesh->GetEdgeV(eid);
+			if (OnCutVertices.Contains(EdgeVerts.A) && OnCutVertices.Contains(EdgeVerts.B) && CutEdges.Contains(eid) == false )
+			{
+				CutEdges.Add(eid);
+				FIndex2i EdgeTris = Mesh->GetEdgeT(eid);
+				for (int32 j = 0; j < 2; ++j)
+				{
+					if (EdgeTris[j] != FDynamicMesh3::InvalidID)
+					{
+						CutEdgeTriangles.Add(EdgeTris[j]);
+						int32 Group = Mesh->GetTriangleGroup(EdgeTris[j]);
+						CutEdgeGroups.Add(Group);
+					}
+				}
+			}
+		}
+	}
+	
+	// find group-connected-components touching cut, but split each group on either side of the cut into a separate component
+	FMeshConnectedComponents GroupRegions(Mesh);
+	GroupRegions.FindTrianglesConnectedToSeeds( CutEdgeTriangles, [&](int32 t0, int32 t1) {
+		int32 Group0 = Mesh->GetTriangleGroup(t0);
+		int32 Group1 = Mesh->GetTriangleGroup(t1);
+		if (Group0 == Group1)
+		{
+			int32 SharedEdge = Mesh->FindEdgeFromTriPair(t0, t1);
+			if (CutEdges.Contains(SharedEdge) == false)
+			{
+				return true;
+			}
+		}
+		return false;
+	});
+
+	// Assign a new group id for each component
+	// Do we want to keep existing groups? possibly cleaner to assign new ones because one input group may
+	// be split into multiple child groups on each side of the cut. 
+	// But perhaps should track group-mapping?
+	ResultRegions.Reset();
+	ResultRegions.Reserve(GroupRegions.Num());
+	for (FMeshConnectedComponents::FComponent& Component : GroupRegions)
+	{
+		int32 NewGroup = Mesh->AllocateTriangleGroup();
+		for (int tid : Component.Indices)
+		{
+			Mesh->SetTriangleGroup(tid, NewGroup);
+		}
+
+		FCutResultRegion& Result = ResultRegions.Emplace_GetRef();
+		Result.GroupID = NewGroup;
+		Result.Triangles = MoveTemp(Component.Indices);
+	}
+
+	return true;
+}
+
 
 bool FMeshPlaneCut::ExtractBoundaryLoops(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges, FMeshPlaneCut::FOpenBoundary& Boundary)
 {
@@ -507,7 +594,7 @@ bool FMeshPlaneCut::HoleFill(TFunction<TArray<FIndex3i>(const FGeneralPolygon2d&
 			FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal*Boundary.NormalSign);
 			for (int UVLayerIdx = 0, NumLayers = Mesh->Attributes()->NumUVLayers(); UVLayerIdx < NumLayers; UVLayerIdx++)
 			{
-				Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor, FVector2f::Zero(), UVLayerIdx);
+				Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor, FVector2f::Zero(), true, UVLayerIdx);
 			}
 		}
 

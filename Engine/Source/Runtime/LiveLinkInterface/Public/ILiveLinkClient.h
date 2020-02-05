@@ -16,11 +16,14 @@ class ILiveLinkSource;
 class ULiveLinkRole;
 struct FLiveLinkSubjectFrameData;
 struct FTimecode;
+class ULiveLinkSourceSettings;
 
 DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSourceChangedDelegate, FGuid /*SourceGuid*/);
 DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSubjectChangedDelegate, FLiveLinkSubjectKey /*SubjectKey*/);
-DECLARE_EVENT_ThreeParams(ILiveLinkClient, FOnLiveLinkSubjectStaticDataReceived, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*SubjectRole*/, const FLiveLinkStaticDataStruct& /*InStaticData*/)
-DECLARE_EVENT_ThreeParams(ILiveLinkClient, FOnLiveLinkSubjectFrameDataReceived, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*SubjectRole*/, const FLiveLinkFrameDataStruct& /*InFrameData*/)
+DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSubjectStaticDataReceived, const FLiveLinkStaticDataStruct& /*InStaticData*/)
+DECLARE_EVENT_OneParam(ILiveLinkClient, FOnLiveLinkSubjectFrameDataReceived, const FLiveLinkFrameDataStruct& /*InFrameData*/)
+DECLARE_EVENT_ThreeParams(ILiveLinkClient, FOnLiveLinkSubjectStaticDataAdded, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*SubjectRole*/, const FLiveLinkStaticDataStruct& /*InStaticData*/)
+DECLARE_EVENT_ThreeParams(ILiveLinkClient, FOnLiveLinkSubjectFrameDataAdded, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*SubjectRole*/, const FLiveLinkFrameDataStruct& /*InFrameData*/)
 DECLARE_EVENT_FiveParams(ILiveLinkClient, FOnLiveLinkSubjectEvaluated, FLiveLinkSubjectKey /*InSubjectKey*/, TSubclassOf<ULiveLinkRole> /*RequestedRole*/, const FLiveLinkTime& /*RequestedTime*/, bool /*bResult*/, const FLiveLinkTime& /*EvaluatedFrameTime*/)
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -154,10 +157,10 @@ public:
 	virtual bool CreateSubject(const FLiveLinkSubjectPreset& SubjectPreset) = 0;
 
 	/** Add a new virtual subject to the client */
-	virtual bool AddVirtualSubject(FLiveLinkSubjectKey VirtualSubjectKey, TSubclassOf<ULiveLinkVirtualSubject> VirtualSubjectClass) = 0;
+	virtual bool AddVirtualSubject(const FLiveLinkSubjectKey& VirtualSubjectKey, TSubclassOf<ULiveLinkVirtualSubject> VirtualSubjectClass) = 0;
 
 	/** Removes a virtual subject from the client */
-	virtual void RemoveVirtualSubject(FLiveLinkSubjectKey VirtualSubjectKey) = 0;
+	virtual void RemoveVirtualSubject(const FLiveLinkSubjectKey& VirtualSubjectKey) = 0;
 
 	/** Clear the subject from the specific source */
 	virtual void RemoveSubject_AnyThread(const FLiveLinkSubjectKey& SubjectName) = 0;
@@ -233,6 +236,11 @@ public:
 	virtual TArray<FLiveLinkTime> GetSubjectFrameTimes(const FLiveLinkSubjectKey& SubjectKey) const = 0;
 
 	/**
+	 * Get the Settings of this source.
+	 */
+	virtual ULiveLinkSourceSettings* GetSourceSettings(const FGuid& SourceKey) const = 0;
+
+	/**
 	 * Get the time of all the frames for a source.
 	 * @note Use for debugging purposes.
 	 */
@@ -271,18 +279,26 @@ public:
 	 */
 	virtual bool EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName SubjectName, double WorldTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
 
+	UE_DEPRECATED(4.25, "ILiveLinkClient::EvaluateFrameAtSceneTime_AnyThread is deprecated. Please use ILiveLinkClient::EvaluateFrameAtSceneTime_AnyThread with a QualifiedFrameTime instead!")
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) { return false; }
+
 	/**
-	 * Evaluates a subject for a specific role at a Timecode.
+	 * Evaluates a subject for a specific role at a scene time.
 	 * The subject may go through a translator to get the desired role's frame data.
 	 * If it's a virtual subject EvaluateFrame_AnyThread will be used instead.
 	 * @return True if a frame data was calculated.
 	 * @note This value is not cached.
 	 * @see ULiveLinkSourceSettings
 	 */
-	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FQualifiedFrameTime& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
 
 	/** Notify when the LiveLinkClient has ticked. */
 	virtual FSimpleMulticastDelegate& OnLiveLinkTicked() = 0;
+	/**
+	* Performs an internal Tick(). This is to be used when we want to run live link outside of the normal engine tick workflow,
+	* for example when we need to export data that requires live link evaluation during the export process.
+	*/
+	virtual void ForceTick() = 0;
 
 	/** Notify when the list of sources has changed. */
 	virtual FSimpleMulticastDelegate& OnLiveLinkSourcesChanged() = 0;
@@ -307,7 +323,17 @@ public:
 	virtual FOnLiveLinkSubjectEvaluated& OnLiveLinkSubjectEvaluated() = 0;
 #endif
 
-	/** Register for when a frame has been received for a subject */
-	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) = 0;
-	virtual void UnregisterSubjectFramesHandle(FLiveLinkSubjectName SubjectName, FDelegateHandle StaticDataReceivedHandle, FDelegateHandle FrameDataReceivedHandle) = 0;
+	/**
+	 * Register for when a frame data was received.
+	 * This will be called as soon as it is received. It has not been validated or added. The frame is not ready to be used.
+	 * The callback may be call on any thread.
+	 */
+	virtual void RegisterForFrameDataReceived(const FLiveLinkSubjectKey& InSubjectKey, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived_AnyThread, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived_AnyThread, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandleconst) = 0;
+	/** Unregister delegate registered with RegisterForFrameDataReceived. */
+	virtual void UnregisterForFrameDataReceived(const FLiveLinkSubjectKey& InSubjectKey, FDelegateHandle InStaticDataReceivedHandle, FDelegateHandle InFrameDataReceivedHandle) = 0;
+
+	/** Register for when a frame has been validated, added and ready to be used. */
+	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataAdded::FDelegate& OnStaticDataAdded, const FOnLiveLinkSubjectFrameDataAdded::FDelegate& OnFrameDataAddedd, FDelegateHandle& OutStaticDataAddedHandle, FDelegateHandle& OutFrameDataAddeddHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) = 0;
+	/** Unregister delegates registered with RegisterForSubjectFrames. */
+	virtual void UnregisterSubjectFramesHandle(FLiveLinkSubjectName SubjectName, FDelegateHandle StaticDataAddedHandle, FDelegateHandle FrameDataAddedHandle) = 0;
 };

@@ -9,7 +9,7 @@
 
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
+#include "StaticMeshOperations.h"
 
 #include "Components/PrimitiveComponent.h"
 
@@ -145,8 +145,8 @@ void UAttributeEditorTool::GenerateAssets()
 						EdgeHardnesses[ElID] = false;
 					}
 				}
-				FMeshDescriptionOperations::CreatePolygonNTB(*CommitParams.MeshDescription, FMathf::Epsilon);
-				FMeshDescriptionOperations::RecomputeNormalsAndTangentsIfNeeded(*CommitParams.MeshDescription, FMeshDescriptionOperations::ETangentOptions::UseWeightedAreaAndAngle, true);
+				FStaticMeshOperations::ComputePolygonTangentsAndNormals(*CommitParams.MeshDescription, FMathf::Epsilon);
+				FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(*CommitParams.MeshDescription, EComputeNTBsFlags::WeightedNTBs | EComputeNTBsFlags::Normals);
 			}
 			bool RemoveLayers[8] =
 			{
@@ -166,7 +166,7 @@ void UAttributeEditorTool::GenerateAssets()
 			{
 				if (RemoveLayers[LayerIndex] && LayerIndex < InstanceUVs.GetNumIndices())
 				{
-					if (!FMeshDescriptionOperations::RemoveUVChannel(*CommitParams.MeshDescription, LayerIndex))
+					if (!FStaticMeshOperations::RemoveUVChannel(*CommitParams.MeshDescription, LayerIndex))
 					{
 						for (const FVertexInstanceID& ElID : Instances.GetElementIDs())
 						{

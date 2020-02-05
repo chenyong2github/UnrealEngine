@@ -20,6 +20,8 @@ class DATAPREPCORE_API UK2Node_DataprepActionCore : public UK2Node
 public:
 	UDataprepActionAsset* GetDataprepAction() const { return DataprepActionAsset; }
 	void CreateDataprepActionAsset();
+	void DuplicateExistingDataprepActionAsset(const UDataprepActionAsset& DataprepAction);
+
 
 protected:
 	UPROPERTY()

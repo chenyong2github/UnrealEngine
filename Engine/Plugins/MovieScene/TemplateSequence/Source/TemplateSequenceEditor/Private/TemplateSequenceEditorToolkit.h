@@ -73,11 +73,6 @@ public:
 
 private:
 
-	void ExtendSequencerToolbar(FToolBarBuilder& ToolbarBuilder);
-	FText GetBoundActorClassName() const;
-	TSharedRef<SWidget> GetBoundActorClassMenuContent();
-	void OnBoundActorClassPicked(UClass* ChosenClass);
-
 	TSharedRef<FExtender> HandleMenuExtensibilityGetExtender(const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> ContextSensitiveObjects);
 	void HandleTrackMenuExtensionAddTrack(FMenuBuilder& AddTrackMenuBuilder, TArray<UObject*> ContextObjects);
 	void HandleAddComponentActionExecute(UActorComponent* Component);
@@ -87,12 +82,6 @@ private:
 	void HandleMapChanged(class UWorld* NewWorld, EMapChangeType MapChangeType);
 
 	void OnSequencerReceivedFocus();
-	bool OnSequencerReceivedDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, FReply& OutReply);
-	bool OnSequencerAssetsDrop(const TArray<UObject*>& Assets, const FAssetDragDropOp& DragDropOp);
-	bool OnSequencerClassesDrop(const TArray<TWeakObjectPtr<UClass>>& Classes, const FClassDragDropOp& DragDropOp);
-	bool OnSequencerActorsDrop(const TArray<TWeakObjectPtr<AActor>>& Actors, const FActorDragDropGraphEdOp& DragDropOp);
-
-	void ChangeActorBinding(UObject& Object, UActorFactory* ActorFactory = nullptr, bool bSetupDefaults = true);
 
 private:
 

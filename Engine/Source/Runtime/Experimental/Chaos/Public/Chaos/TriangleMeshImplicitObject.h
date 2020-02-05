@@ -266,7 +266,7 @@ namespace Chaos
 		bool bCullsBackFaceRaycast;
 
 		//using BVHType = TBoundingVolume<int32, T, 3>;
-		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal>, FReal, /*bMutable=*/false>;
+		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal, /*bComputeBounds=*/false>, FReal, /*bMutable=*/false>;
 
 		template<typename InStorageType, typename InRealType>
 		friend struct FBvEntry;

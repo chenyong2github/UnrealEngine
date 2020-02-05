@@ -76,6 +76,29 @@ UUVProjectionToolProperties::UUVProjectionToolProperties()
 	UVOffset = FVector2D::ZeroVector;
 }
 
+void UUVProjectionToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UUVProjectionToolProperties* PropertyCache = GetPropertyCache<UUVProjectionToolProperties>();
+	PropertyCache->UVProjectionMethod = this->UVProjectionMethod;
+	PropertyCache->ProjectionPrimitiveScale = this->ProjectionPrimitiveScale;
+	PropertyCache->UVScale = this->UVScale;
+	PropertyCache->UVOffset = this->UVOffset;
+	PropertyCache->bWorldSpaceUVScale = this->bWorldSpaceUVScale;
+	PropertyCache->CylinderProjectToTopOrBottomAngleThreshold = this->CylinderProjectToTopOrBottomAngleThreshold;
+}
+
+void UUVProjectionToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UUVProjectionToolProperties* PropertyCache = GetPropertyCache<UUVProjectionToolProperties>();
+	this->UVProjectionMethod = PropertyCache->UVProjectionMethod;
+	this->ProjectionPrimitiveScale = PropertyCache->ProjectionPrimitiveScale;
+	this->UVScale = PropertyCache->UVScale;
+	this->UVOffset = PropertyCache->UVOffset;
+	this->bWorldSpaceUVScale = PropertyCache->bWorldSpaceUVScale;
+	this->CylinderProjectToTopOrBottomAngleThreshold = PropertyCache->CylinderProjectToTopOrBottomAngleThreshold;
+}
+
+
 UUVProjectionAdvancedProperties::UUVProjectionAdvancedProperties()
 {
 }
@@ -102,6 +125,7 @@ void UUVProjectionTool::Setup()
 	}
 
 	BasicProperties = NewObject<UUVProjectionToolProperties>(this, TEXT("UV Projection Settings"));
+	BasicProperties->RestoreProperties(this);
 	AdvancedProperties = NewObject<UUVProjectionAdvancedProperties>(this, TEXT("Advanced Settings"));
 
 	// initialize our properties
@@ -109,7 +133,8 @@ void UUVProjectionTool::Setup()
 	AddToolPropertySource(AdvancedProperties);
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
-	MaterialSettings->Setup();
+	MaterialSettings->RestoreProperties(this);
+
 	AddToolPropertySource(MaterialSettings);
 
 	// initialize the PreviewMesh+BackgroundCompute object
@@ -170,6 +195,8 @@ void UUVProjectionTool::UpdateNumPreviews()
 			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
+			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
+			Preview->PreviewMesh->SetTransform(ComponentTargets[PreviewIdx]->GetWorldTransform());
 
 			Preview->SetVisibility(true);
 
@@ -188,6 +215,9 @@ void UUVProjectionTool::UpdateNumPreviews()
 
 void UUVProjectionTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	BasicProperties->SaveProperties(this);
+	MaterialSettings->SaveProperties(this);
+
 	// Restore (unhide) the source meshes
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
 	{

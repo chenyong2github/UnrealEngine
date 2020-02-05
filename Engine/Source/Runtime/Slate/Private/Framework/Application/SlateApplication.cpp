@@ -2591,6 +2591,7 @@ bool FSlateApplication::SetUserFocus(FSlateUser& User, const FWidgetPath& InFocu
 #if WITH_SLATE_DEBUGGING
 	FSlateDebugging::BroadcastFocusChanging(FocusEvent, OldFocusedWidgetPath, OldFocusedWidget, NewFocusedWidgetPath, NewFocusedWidget);
 #endif
+	FocusChangingDelegate.Broadcast(FocusEvent, OldFocusedWidgetPath, OldFocusedWidget, NewFocusedWidgetPath, NewFocusedWidget);
 
 	// Notify widgets in the old focus path that focus is changing
 	if (OldFocusedWidgetPath.IsValid())
@@ -4279,6 +4280,11 @@ bool FSlateApplication::ProcessKeyUpEvent( const FKeyEvent& InKeyEvent )
 		}
 
 	return Reply.IsEventHandled();
+}
+
+void FSlateApplication::OnInputLanguageChanged()
+{
+	FInputKeyManager::Get().InitKeyMappings();
 }
 
 bool FSlateApplication::ProcessAnalogInputEvent(const FAnalogInputEvent& InAnalogInputEvent)

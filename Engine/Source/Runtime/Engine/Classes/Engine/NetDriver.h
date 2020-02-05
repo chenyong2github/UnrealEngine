@@ -17,6 +17,7 @@
 #include "Net/Core/Misc/DDoSDetection.h"
 #include "IPAddress.h"
 #include "Net/NetAnalyticsTypes.h"
+#include "Net/NetConnectionIdHandler.h"
 
 #include "NetDriver.generated.h"
 
@@ -93,7 +94,7 @@
  * That code is responsible for creating the main Game Net Driver, parsing out settings, and calling UNetDriver::InitListen.
  * Ultimately, that code will be responsible for figuring out what how exactly we listen for client connections.
  * For example, in IpNetDriver, that is where we determine the IP / Port we will bind to by calls to our configured Socket Subsystem
- * (see ISocketSubsystem::GetLocalBindAddr and ISocketSubsystem::BindNextPort).
+ * (see ISocketSubsystem::GetLocalBindAddresses and ISocketSubsystem::BindNextPort).
  *
  * Once the server is listening, it's ready to start accepting client connections.
  *
@@ -847,9 +848,17 @@ public:
 	class FNetworkNotify*		Notify;
 	
 	/** Accumulated time for the net driver, updated by Tick */
+	UE_DEPRECATED(4.25, "Time is being replaced with a double precision value, please use GetElapsedTime() instead.")
 	UPROPERTY()
 	float						Time;
 
+	double GetElapsedTime() const { return ElapsedTime; }
+	void ResetElapsedTime() { ElapsedTime = 0.0; }
+
+private:
+	double						ElapsedTime;
+
+public:
 	/** Last realtime a tick dispatch occurred. Used currently to try and diagnose timeout issues */
 	double						LastTickDispatchRealtime;
 
@@ -1526,6 +1535,15 @@ public:
 	/** Resets the current delinquency analytics. */
 	ENGINE_API void ResetAsyncLoadDelinquencyAnalytics();
 
+	inline uint32 AllocateConnectionId() { return ConnectionIdHandler.Allocate(); }
+	inline void FreeConnectionId(uint32 Id) { return ConnectionIdHandler.Free(Id); };
+
+	/** Returns the NetConnection associated with the ConnectionId. Slow. */
+	ENGINE_API UNetConnection* GetConnectionById(uint32 ConnectionId) const;
+
+	/** Returns identifier used for NetTrace */
+	inline uint32 GetNetTraceId() const { return NetTraceId; }
+
 protected:
 
 	/** Register all TickDispatch, TickFlush, PostTickFlush to tick in World */
@@ -1584,6 +1602,8 @@ public:
 
 	bool DidHitchLastFrame() const;
 
+	static bool IsDormInitialStartupActor(AActor* Actor);
+
 protected:
 
 	bool bMaySendProperties;
@@ -1619,10 +1639,16 @@ private:
 	int32 DuplicateLevelID;
 
 	/** NetDriver time to end packet loss burst simulation. */
-	float PacketLossBurstEndTime;
+	double PacketLossBurstEndTime;
 
 	/** Count the number of notified packets, i.e. packets that we know if they are delivered or not. Used to reliably measure outgoing packet loss */
 	uint32 OutTotalNotifiedPackets;
+
+	/** Assigns driver unique IDs to client connections */
+	FNetConnectionIdHandler ConnectionIdHandler;
+
+	/** Unique id used by NetTrace to identify driver */
+	uint32 NetTraceId = 0;
 
 #if DO_ENABLE_NET_TEST
 	/** Dont load packet settings from config or cmdline when true*/
