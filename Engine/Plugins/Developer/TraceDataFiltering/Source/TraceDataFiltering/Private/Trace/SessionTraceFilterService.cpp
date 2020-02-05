@@ -123,6 +123,11 @@ void FSessionTraceFilterService::OnEndFrame()
 
 	const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(Handle);
 
+	if (!SessionInfo)
+	{
+		return;
+	}
+
 	ISocketSubsystem* Sockets = ISocketSubsystem::Get();
 	TSharedRef<FInternetAddr> ClientAddr(Sockets->CreateInternetAddr());
 	ClientAddr->SetIp(SessionInfo->GetIpAddress());
