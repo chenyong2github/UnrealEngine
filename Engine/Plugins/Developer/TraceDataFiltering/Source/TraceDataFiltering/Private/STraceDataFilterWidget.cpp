@@ -690,7 +690,7 @@ void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 			if (SessionCount > 0)
 			{
 				const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
-				if (SessionInfo)
+				if (SessionInfo && InsightsModule.GetAnalysisSession())
 				{
 					SetCurrentAnalysisSession(SessionInfo->GetTraceId(), InsightsModule.GetAnalysisSession().ToSharedRef());
 				}
