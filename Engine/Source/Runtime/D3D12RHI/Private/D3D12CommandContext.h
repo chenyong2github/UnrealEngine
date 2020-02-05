@@ -174,7 +174,6 @@ public:
 	virtual void FlushTextureCache() {};
 #endif
 
-	uint32 numPrimitives;
 	uint32 numDraws;
 	uint32 numDispatches;
 	uint32 numClears;
