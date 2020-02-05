@@ -168,7 +168,7 @@ float UHapticFeedbackEffect_SoundWave::GetDuration() const
 
 void UHapticFeedbackEffect_SoundWave::PrepareSoundWaveBuffer()
 {
-	FAudioDeviceHandle AD = GEngine->GetMainAudioDevice();
+	FAudioDevice *AD = GEngine->GetMainAudioDevice();
 	if (!AD || !SoundWave)
 	{
 		return;

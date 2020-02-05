@@ -447,7 +447,7 @@ void UGameUserSettings::ApplyNonResolutionSettings()
 		Scalability::SetQualityLevels(ScalabilityQuality);
 	}
 
-	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
 		FAudioQualitySettings AudioSettings = AudioDevice->GetQualityLevelSettings();

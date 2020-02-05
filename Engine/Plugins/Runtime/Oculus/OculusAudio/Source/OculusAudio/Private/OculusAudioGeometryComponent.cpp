@@ -328,7 +328,7 @@ ovrAudioContext UOculusAudioGeometryComponent::GetContext(UWorld* World)
 					// couldn't get a World
 					return nullptr;
 				}
-				FAudioDevice* AudioDevice = World->GetAudioDeviceRaw();
+				FAudioDevice* AudioDevice = World->GetAudioDevice();
 				if (AudioDevice == nullptr)
 				{
 					// This happens when cooking for native UE4 AudioMixer integration

@@ -17,7 +17,6 @@
 #include "Subsystems/SubsystemCollection.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "RHI.h"
-#include "AudioDeviceManager.h"
 #include "Engine.generated.h"
 
 #define WITH_DYNAMIC_RESOLUTION (!UE_SERVER)
@@ -25,6 +24,7 @@
 class AMatineeActor;
 class APlayerController;
 class Error;
+class FAudioDeviceManager;
 class FCanvas;
 class FCommonViewportClient;
 class FFineGrainedPerformanceTracker;
@@ -366,7 +366,7 @@ struct FWorldContext
 	bool	bWaitingOnOnlineSubsystem;
 
 	/** Handle to this world context's audio device.*/
-	uint32 AudioDeviceID;
+	uint32 AudioDeviceHandle;
 
 	/** Custom description to be display in blueprint debugger UI */
 	FString CustomDescription;
@@ -414,7 +414,7 @@ struct FWorldContext
 		, PIEWorldFeatureLevel(ERHIFeatureLevel::Num)
 		, RunAsDedicated(false)
 		, bWaitingOnOnlineSubsystem(false)
-		, AudioDeviceID(INDEX_NONE)
+		, AudioDeviceHandle(INDEX_NONE)
 		, ThisCurrentWorld(nullptr)
 	{ }
 
@@ -1772,7 +1772,7 @@ protected:
 	FAudioDeviceManager* AudioDeviceManager;
 
 	/** Audio device handle to the main audio device. */
-	FAudioDeviceHandle MainAudioDeviceHandle;
+	uint32 MainAudioDeviceHandle;
 
 public:
 
@@ -2439,14 +2439,13 @@ public:
 	FAudioDeviceManager* GetAudioDeviceManager();
 
 	/** @return the main audio device handle used by the engine. */
-	uint32 GetMainAudioDeviceID() const;
+	uint32 GetAudioDeviceHandle() const;
 
 	/** @return the main audio device. */
-	FAudioDeviceHandle GetMainAudioDevice();
-	class FAudioDevice* GetMainAudioDeviceRaw();
+	class FAudioDevice* GetMainAudioDevice();
 
 	/** @return the currently active audio device */
-	FAudioDeviceHandle GetActiveAudioDevice();
+	class FAudioDevice* GetActiveAudioDevice();
 
 	/** @return whether we're currently running in split screen (more than one local player) */
 	bool IsSplitScreen(UWorld *InWorld);

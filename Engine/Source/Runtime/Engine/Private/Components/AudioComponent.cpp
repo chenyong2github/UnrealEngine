@@ -76,7 +76,7 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 	EnvelopeFollowerAttackTime = 10;
 	EnvelopeFollowerReleaseTime = 100;
 
-	AudioDeviceID = INDEX_NONE;
+	AudioDeviceHandle = INDEX_NONE;
 	AudioComponentID = FPlatformAtomics::InterlockedIncrement(reinterpret_cast<volatile int64*>(&AudioComponentIDCounter));
 
 	RandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
@@ -554,18 +554,18 @@ FAudioDevice* UAudioComponent::GetAudioDevice() const
 
 	if (GEngine)
 	{
-		if (AudioDeviceID != INDEX_NONE)
+		if (AudioDeviceHandle != INDEX_NONE)
 		{
 			FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
-			AudioDevice = (AudioDeviceManager ? AudioDeviceManager->GetAudioDeviceRaw(AudioDeviceID) : nullptr);
+			AudioDevice = (AudioDeviceManager ? AudioDeviceManager->GetAudioDevice(AudioDeviceHandle) : nullptr);
 		}
 		else if (UWorld* World = GetWorld())
 		{
-			AudioDevice = World->AudioDeviceHandle.GetAudioDevice();
+			AudioDevice = World->GetAudioDevice();
 		}
 		else
 		{
-			AudioDevice = GEngine->GetMainAudioDeviceRaw();
+			AudioDevice = GEngine->GetMainAudioDevice();
 		}
 	}
 	return AudioDevice;

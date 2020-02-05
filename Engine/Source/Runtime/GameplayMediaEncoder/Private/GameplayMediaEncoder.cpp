@@ -274,7 +274,7 @@ bool FGameplayMediaEncoder::Start()
 	// subscribe to engine delegates for audio output and back buffer
 	//
 
-	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
+	FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
 		bAudioFormatChecked = false;
@@ -298,7 +298,7 @@ void FGameplayMediaEncoder::Stop()
 
 	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 	{
-		FAudioDevice* AudioDevice = GameEngine->GetMainAudioDeviceRaw();
+		FAudioDevice* AudioDevice = GameEngine->GetMainAudioDevice();
 		if (AudioDevice)
 		{
 			AudioDevice->UnregisterSubmixBufferListener(this);
