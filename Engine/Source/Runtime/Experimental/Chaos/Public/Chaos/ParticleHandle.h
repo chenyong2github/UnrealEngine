@@ -1516,7 +1516,11 @@ public:
 		this->MDirtyFlags.Clear();
 	}
 
-	void MarkClean(const EParticleFlags DirtyBits);
+	void MarkClean(const EParticleFlags CleanBits)
+	{
+		this->MDirtyFlags.MarkClean(CleanBits);
+	}
+
 
 	TGeometryParticleHandle<T, d>* Handle() const
 	{
