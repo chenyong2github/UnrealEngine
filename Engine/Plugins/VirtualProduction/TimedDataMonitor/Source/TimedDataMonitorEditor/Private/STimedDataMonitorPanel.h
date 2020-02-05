@@ -15,7 +15,7 @@
 #include "TimedDataMonitorEditorSettings.h"
 
 
-
+struct FSlateBrush;
 class FWorkspaceItem;
 class IMessageLogListing;
 class STimedDataGenlock;
@@ -49,8 +49,10 @@ private:
 	FReply OnCalibrateClicked();
 	TSharedRef<SWidget> OnCalibrateBuildMenu();
 	FText GetCalibrateButtonTooltip() const;
+	const FSlateBrush* GetCalibrateButtonImage() const;
 	FText GetCalibrateButtonText() const;
 	FReply OnResetErrorsClicked();
+	FReply OnShowBuffersClicked();
 
 	EVisibility ShowMessageLog() const;
 	EVisibility ShowEditorPerformanceThrottlingWarning() const;
@@ -58,7 +60,7 @@ private:
 
 	void BuildCalibrationArray();
 	void CalibrateWithTimecode();
-	void Jam(bool bWithTimecode);
+	void ApplyTimeCorrection();
 
 private:
 	TSharedPtr<STimedDataGenlock> TimedDataGenlockWidget;

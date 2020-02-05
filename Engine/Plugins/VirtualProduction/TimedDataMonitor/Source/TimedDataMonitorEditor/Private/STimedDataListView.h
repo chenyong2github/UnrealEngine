@@ -12,11 +12,13 @@
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/STableRow.h"
 
-
+enum class ETimedDataInputEvaluationType : uint8;
+struct FTimedDataInputTableRowData;
+struct FSlateBrush;
 class STimedDataInputListView;
 class STimedDataInputTableRow;
 class STimedDataMonitorPanel;
-struct FTimedDataInputTableRowData;
+class STimingDiagramWidget;
 
 
 /**
@@ -39,6 +41,9 @@ public:
 
 	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwerTableView, const TSharedRef<STimedDataInputListView>& OwnerTreeView);
 
+public:
+	void UpdateCachedValue();
+
 private:
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 
@@ -54,6 +59,9 @@ private:
 	FText GetBufferSizeText() const;
 	void SetBufferSize(int32 NewValue, ETextCommit::Type CommitType);
 	bool CanEditBufferSize() const;
+	TSharedRef<SWidget> OnEvaluationImageBuildMenu();
+	const FSlateBrush* GetEvaluationImage() const;
+	void SetInputEvaluationType(ETimedDataInputEvaluationType EvaluationType);
 
 	/** Queries about buffer stats to display */
 	FText GetBufferUnderflowCount() const;
@@ -63,6 +71,7 @@ private:
 private:
 	FTimedDataInputTableRowDataPtr Item;
 	TSharedPtr<STimedDataInputListView> OwnerTreeView;
+	TSharedPtr<STimingDiagramWidget> DiagramWidget;
 };
 
 
@@ -90,6 +99,7 @@ private:
 	ECheckBoxState GetAllEnabledCheckState() const;
 	void OnToggleAllEnabledCheckState(ECheckBoxState CheckBoxState);
 	TSharedRef<ITableRow> OnGenerateRow(FTimedDataInputTableRowDataPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void ReleaseListViewWidget(const TSharedRef<ITableRow>& Row);
 	void GetChildrenForInfo(FTimedDataInputTableRowDataPtr InItem, TArray<FTimedDataInputTableRowDataPtr>& OutChildren);
 	void OnSelectionChanged(FTimedDataInputTableRowDataPtr InItem, ESelectInfo::Type SelectInfo);
 	bool OnIsSelectableOrNavigable(FTimedDataInputTableRowDataPtr InItem) const;
@@ -98,5 +108,6 @@ private:
 	TWeakPtr<STimedDataMonitorPanel> OwnerPanel;
 
 	TArray<FTimedDataInputTableRowDataPtr> ListItemsSource;
+	TArray<TWeakPtr<STimedDataInputTableRow>> ListRowWidgets;
 	bool bRebuildListRequested = true;
 };

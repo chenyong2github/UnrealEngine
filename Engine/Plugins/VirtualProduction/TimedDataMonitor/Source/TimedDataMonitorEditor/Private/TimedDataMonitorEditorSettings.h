@@ -13,9 +13,8 @@ UENUM()
 enum class ETimedDataMonitorEditorCalibrationType
 {
 	CalibrateWithTimecode = 0,
-	JamWithTimecode = 1,
-	JamWithPlatformTime = 2,
-	Max = 3
+	TimeCorrection = 1,
+	Max = 2
 };
 
 

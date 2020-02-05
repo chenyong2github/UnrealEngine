@@ -1,0 +1,41 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "ITimedDataInput.h"
+#include "TimedDataMonitorSubsystem.h"
+#include "Widgets/SCompoundWidget.h"
+
+class STimingDiagramWidgetGraphic;
+
+class STimingDiagramWidget : public SCompoundWidget
+{
+private:
+	using Super = SCompoundWidget;
+	
+public:
+	SLATE_BEGIN_ARGS(STimingDiagramWidget)
+			: _ShowFurther(false)
+		{ }
+		SLATE_ARGUMENT(FTimedDataMonitorChannelIdentifier, ChannelIdentifier)
+		SLATE_ARGUMENT(FTimedDataMonitorInputIdentifier, InputIdentifier)
+		SLATE_ARGUMENT(bool, ShowFurther)
+	SLATE_END_ARGS()
+	
+public:
+	void Construct(const FArguments& InArgs, bool bIsInput);
+	
+	void UpdateCachedValue();
+
+private:
+	FText GetTooltipText() const;
+	
+private:
+	// Identifier of the channel this widget is associated to
+	TSharedPtr<STimingDiagramWidgetGraphic> GraphicWidget;
+	FTimedDataMonitorChannelIdentifier ChannelIdentifier;
+	FTimedDataMonitorInputIdentifier InputIdentifier;
+	bool bIsInput;
+};
