@@ -38,7 +38,7 @@ private:
 	TArray<FName> EnumEntries;
 
 	/** List of the current entries in the enum (Pin Friendly Names) */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray<FText> EnumEntryFriendlyNames;
 
 	/** Whether we need to reconstruct the node after the pins have changed */
