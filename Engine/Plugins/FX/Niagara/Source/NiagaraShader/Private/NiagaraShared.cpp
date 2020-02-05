@@ -293,7 +293,7 @@ bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, 
 		GameThreadShaderMap = FNiagaraShaderMap::FindId(ShaderMapId, Platform);
 
 		// Attempt to load from the derived data cache if we are uncooked
-		if (!bForceRecompile && (!GameThreadShaderMap || !GameThreadShaderMap->IsComplete(this, true)) && !FPlatformProperties::RequiresCookedData())
+		if (!bForceRecompile && !GameThreadShaderMap && !FPlatformProperties::RequiresCookedData())
 		{
 			FNiagaraShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, GameThreadShaderMap);
 			if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
