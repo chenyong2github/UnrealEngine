@@ -14,10 +14,43 @@ struct FMaterialData;
 struct FMeshData;
 struct FMeshPassProcessorRenderState;
 
+// This will hold onto the resources until not needed anymore.
+// Move constructor makes it easier to send the destruction to another thread (render thread).
+class FMeshBuilderResources : public FMeshBuilderOneFrameResources
+{
+public:
+	FMeshBuilderResources() = default;
+	FMeshBuilderResources(FMeshBuilderResources&& Other)
+	{
+		if (this != &Other)
+		{
+			VertexBuffer = Other.VertexBuffer;
+			IndexBuffer = Other.IndexBuffer;
+			VertexFactory = Other.VertexFactory;
+			PrimitiveUniformBuffer = Other.PrimitiveUniformBuffer;
+
+			Other.VertexBuffer = nullptr;
+			Other.IndexBuffer = nullptr;
+			Other.VertexFactory = nullptr;
+			Other.PrimitiveUniformBuffer = nullptr;
+		}
+	}
+
+	void Clear()
+	{
+		FMeshBuilderOneFrameResources::~FMeshBuilderOneFrameResources();
+		VertexBuffer = nullptr;
+		IndexBuffer = nullptr;
+		VertexFactory = nullptr;
+		PrimitiveUniformBuffer = nullptr;
+	}
+};
+
 class FMeshMaterialRenderItem : public FCanvasBaseRenderItem
 {
 public:
 	FMeshMaterialRenderItem(const FMaterialData* InMaterialSettings, const FMeshData* InMeshSettings, EMaterialProperty InMaterialProperty, FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator = nullptr);
+	virtual ~FMeshMaterialRenderItem();
 
 	/** Begin FCanvasBaseRenderItem overrides */
 	virtual bool Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) final;
@@ -40,14 +73,17 @@ public:
 	/** Material property to bake out */
 	EMaterialProperty MaterialProperty;
 	/** Material render proxy (material/shader) to use while baking */
-	FMaterialRenderProxy* MaterialRenderProxy;	
+	FMaterialRenderProxy* MaterialRenderProxy;
 	/** Vertex and index data representing the mesh or a quad */
 	TArray<FDynamicMeshVertex> Vertices;
 	TArray<uint32> Indices;
-	/** Light cache interface object to simulate lightmap behaviour in case the material used prebaked ambient occlusion */
+	/** Light cache interface object to simulate lightmap behavior in case the material used prebaked ambient occlusion */
 	FLightCacheInterface* LCI;
 	/** View family to use while baking */
 	FSceneViewFamily* ViewFamily;
 private:
+	FMeshBatch MeshElement;
+	bool bMeshElementDirty;
+	FMeshBuilderResources MeshBuilderResources;
 	FDynamicMeshBufferAllocator* DynamicMeshBufferAllocator;
 };
