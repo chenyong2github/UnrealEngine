@@ -42,6 +42,7 @@
 #include "ShaderPrint.h"
 #include "GpuDebugRendering.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "GPUSortManager.h"
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("r.StencilForLODDither"),
@@ -1586,6 +1587,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender));
 		Scene->FXSystem->PreRender(RHICmdList, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
+		if (FGPUSortManager* GPUSortManager = Scene->FXSystem->GetGPUSortManager())
+		{
+			GPUSortManager->OnPreRender(RHICmdList);
+		}
 	}
 
 	if (AsyncDitherLODEndFence)
@@ -2507,6 +2512,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SceneTextureUniformBuffer.GetReference(),
 			Views[0].AllowGPUParticleUpdate()
 		);
+
+		if (FGPUSortManager* GPUSortManager = Scene->FXSystem->GetGPUSortManager())
+		{
+			GPUSortManager->OnPostRenderOpaque(RHICmdList);
+		}
 		ServiceLocalQueue();
 	}
 

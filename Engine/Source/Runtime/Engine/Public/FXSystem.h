@@ -16,6 +16,7 @@ class UVectorFieldComponent;
 struct FGPUSpriteEmitterInfo;
 struct FGPUSpriteResourceData;
 struct FParticleEmitterInstance;
+class FGPUSortManager;
 
 /*-----------------------------------------------------------------------------
 	Forward declarations.
@@ -110,7 +111,8 @@ inline bool RHISupportsGPUParticles()
 }
 
 class FFXSystemInterface;
-DECLARE_DELEGATE_RetVal_TwoParams(FFXSystemInterface*, FCreateCustomFXSystemDelegate, ERHIFeatureLevel::Type, EShaderPlatform);
+class FGPUSortManager;
+DECLARE_DELEGATE_RetVal_ThreeParams(FFXSystemInterface*, FCreateCustomFXSystemDelegate, ERHIFeatureLevel::Type, EShaderPlatform, FGPUSortManager*);
 
 /*-----------------------------------------------------------------------------
 	The interface to the FX system runtime.
@@ -229,6 +231,9 @@ public:
 		bool bAllowGPUParticleUpdate) = 0;
 
 	bool IsPendingKill() const { return bIsPendingKill; }
+
+	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
+	virtual FGPUSortManager* GetGPUSortManager() const = 0;
 
 protected:
 	

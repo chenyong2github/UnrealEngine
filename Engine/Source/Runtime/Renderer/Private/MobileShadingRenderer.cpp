@@ -49,6 +49,7 @@
 #include "SkyAtmosphereRendering.h"
 #include "VisualizeTexture.h"
 #include "VT/VirtualTextureSystem.h"
+#include "GPUSortManager.h"
 
 uint32 GetShadowQuality();
 
@@ -460,6 +461,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (Scene->FXSystem && ViewFamily.EngineShowFlags.Particles)
 	{
 		Scene->FXSystem->PreRender(RHICmdList, NULL, !Views[0].bIsPlanarReflection);
+		if (FGPUSortManager* GPUSortManager = Scene->FXSystem->GetGPUSortManager())
+		{
+			GPUSortManager->OnPreRender(RHICmdList);
+		}
 	}
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
@@ -720,6 +725,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			nullptr,
 			Views[0].AllowGPUParticleUpdate()
 		);
+		if (FGPUSortManager* GPUSortManager = Scene->FXSystem->GetGPUSortManager())
+		{
+			GPUSortManager->OnPostRenderOpaque(RHICmdList);
+		}
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
 

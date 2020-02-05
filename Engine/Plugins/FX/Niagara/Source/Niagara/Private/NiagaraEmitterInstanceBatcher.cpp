@@ -69,15 +69,6 @@ static FAutoConsoleVariableRef CVarNiagaraGpuMaxQueuedRenderFrames(
 	ECVF_Default
 );
 
-FNiagaraIndicesVertexBuffer::FNiagaraIndicesVertexBuffer(int32 InIndexCount)
-	: IndexCount(InIndexCount)
-{
-	FRHIResourceCreateInfo CreateInfo;
-	VertexBufferRHI = RHICreateVertexBuffer((uint32)IndexCount * sizeof(int32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
-	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(int32), PF_R32_SINT);
-	VertexBufferUAV = RHICreateUnorderedAccessView(VertexBufferRHI, PF_R32_SINT);
-}
-
 const FName NiagaraEmitterInstanceBatcher::Name(TEXT("NiagaraEmitterInstanceBatcher"));
 
 FFXSystemInterface* NiagaraEmitterInstanceBatcher::GetInterface(const FName& InName)
@@ -85,10 +76,33 @@ FFXSystemInterface* NiagaraEmitterInstanceBatcher::GetInterface(const FName& InN
 	return InName == Name ? this : nullptr;
 }
 
+NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager)
+	: FeatureLevel(InFeatureLevel)
+	, ShaderPlatform(InShaderPlatform)
+	, GPUSortManager(InGPUSortManager)
+	// @todo REMOVE THIS HACK
+	, LastFrameThatDrainedData(GFrameNumberRenderThread)
+	, NumAllocatedFreeIDListSizes(0)
+	, bFreeIDListSizesBufferCleared(false)
+{
+	// Register the batcher callback in the GPUSortManager. 
+	// The callback is used to generate the initial keys and values for the GPU sort tasks, 
+	// the values being the sorted particle indices used by the Niagara renderers.
+	// The registration also involves defining the list of flags possibly used in GPUSortManager::AddTask()
+	if (GPUSortManager)
+	{
+		GPUSortManager->Register(FGPUSortKeyGenDelegate::CreateLambda([this](FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
+		{ 
+			GenerateSortKeys(RHICmdList, BatchId, NumElementsInBatch, Flags, KeysUAV, ValuesUAV);
+		}), 
+		EGPUSortFlags::AnyKeyPrecision | EGPUSortFlags::KeyGenAfterPreRender | EGPUSortFlags::AnySortLocation | EGPUSortFlags::ValuesAsInt32,
+		Name);
+	}
+}
+
 NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
 {
 	FinishDispatches();
-	ParticleSortBuffers.ReleaseRHI();
 }
 
 void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiagaraSystemInstanceID InstanceID)
@@ -796,13 +810,10 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	SortedParticleCount = 0;
+	// Reset the list of GPUSort tasks and release any resources they hold on to.
+	// It might be worth considering doing so at the end of the render to free the resources immediately.
+	// (note that currently there are no callback appropriate to do it)
 	SimulationsToSort.Reset();
-
-	for (FNiagaraIndicesVertexBuffer& SortedVertexBuffer : SortedVertexBuffers)
-	{
-		SortedVertexBuffer.UsedIndexCount = 0;
-	}
 
 	// Update draw indirect buffer to max possible size.
 	if (bAllowGPUParticleUpdate)
@@ -936,12 +947,8 @@ void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdLi
 
 	GlobalDistanceFieldParams = GlobalDistanceFieldParameterData ? *GlobalDistanceFieldParameterData : FGlobalDistanceFieldParameterData();
 
-	// Sort buffer after mesh batches are issued, before tick (which will change the GPU instance count).
-	SortGPUParticles(RHICmdList);
-
 	// Update draw indirect args from the simulation results.
 	GPUInstanceCounterManager.UpdateDrawIndirectBuffer(RHICmdList, FeatureLevel);
-
 }
 
 void NiagaraEmitterInstanceBatcher::OnDestroy()
@@ -950,200 +957,46 @@ void NiagaraEmitterInstanceBatcher::OnDestroy()
 	FFXSystemInterface::OnDestroy();
 }
 
-int32 NiagaraEmitterInstanceBatcher::AddSortedGPUSimulation(const FNiagaraGPUSortInfo& SortInfo)
+bool NiagaraEmitterInstanceBatcher::AddSortedGPUSimulation(FNiagaraGPUSortInfo& SortInfo)
 {
-	const int32 ResultOffset = SortedParticleCount;
-	SimulationsToSort.Add(SortInfo);
-
-	SortedParticleCount += SortInfo.ParticleCount;
-
-	if (!SortedVertexBuffers.Num())
+	if (GPUSortManager && GPUSortManager->AddTask(SortInfo.AllocationInfo, SortInfo.ParticleCount, SortInfo.SortFlags))
 	{
-		SortedVertexBuffers.Add(new FNiagaraIndicesVertexBuffer(FMath::Max(GNiagaraGPUSortingMinBufferSize, (int32)(SortedParticleCount * GNiagaraGPUSortingBufferSlack))));
+		// It's not worth currently to have a map between SortInfo.AllocationInfo.SortBatchId and the relevant indices in SimulationsToSort
+		// because the number of batches is expect to be very small (1 or 2). If this change, it might be worth reconsidering.
+		SimulationsToSort.Add(SortInfo);
+		return true;
 	}
-	// If we don't fit anymore, reallocate to a bigger size.
-	else if (SortedParticleCount > SortedVertexBuffers.Last().IndexCount)
+	else
 	{
-		SortedVertexBuffers.Add(new FNiagaraIndicesVertexBuffer((int32)(SortedParticleCount * GNiagaraGPUSortingBufferSlack)));
-	}
-
-	// Keep track of the last used index, which is also the first used index of next entry
-	// if we need to increase the size of SortedVertexBuffers. Used in FNiagaraCopyIntBufferRegionCS
-	SortedVertexBuffers.Last().UsedIndexCount = SortedParticleCount;
-
-	return ResultOffset;
-}
-
-void NiagaraEmitterInstanceBatcher::SortGPUParticles(FRHICommandListImmediate& RHICmdList)
-{
-	if (SortedParticleCount > 0 && SortedVertexBuffers.Num() > 0 && SimulationsToSort.Num() && GNiagaraGPUSortingBufferSlack > 1.f)
-	{
-		SCOPED_GPU_STAT(RHICmdList, NiagaraGPUSorting);
-
-		//UE_LOG(LogNiagara, Warning, TEXT("NiagaraEmitterInstanceBatcher::SortGPUParticles:  %0xP"), this);
-
-		ensure(SortedVertexBuffers.Last().IndexCount >= SortedParticleCount);
-
-		// The particle sort buffer must be able to hold all the particles.
-		if (SortedVertexBuffers.Last().IndexCount != ParticleSortBuffers.GetSize())
-		{
-			ParticleSortBuffers.ReleaseRHI();
-			ParticleSortBuffers.SetBufferSize(SortedVertexBuffers.Last().IndexCount);
-			ParticleSortBuffers.InitRHI();
-		}
-
-		INC_DWORD_STAT_BY(STAT_NiagaraGPUSortedParticles, SortedParticleCount);
-		INC_DWORD_STAT_BY(STAT_NiagaraGPUSortedBuffers, ParticleSortBuffers.GetSize());
-
-		// Make sure our outputs are safe to write to.
-		const int32 InitialSortBufferIndex = 0;
-		FRHIUnorderedAccessView* OutputUAVs[2] = { ParticleSortBuffers.GetKeyBufferUAV(InitialSortBufferIndex), ParticleSortBuffers.GetVertexBufferUAV(InitialSortBufferIndex) };
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, OutputUAVs, 2);
-
-		// EmitterKey = (EmitterIndex & EmitterKeyMask) << EmitterKeyShift.
-		// SortKey = (Key32 >> SortKeyShift) & SortKeyMask.
-		uint32 EmitterKeyMask = (1 << FMath::CeilLogTwo(SimulationsToSort.Num())) - 1;
-		uint32 EmitterKeyShift = 16;
-		uint32 SortKeyMask = 0xFFFF;
-		
-		{
-			SCOPED_DRAW_EVENT(RHICmdList, NiagaraSortKeyGen);
-
-			// Bind the shader
-			
-			FNiagaraSortKeyGenCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FNiagaraSortKeyGenCS::FSortUsingMaxPrecision>(GNiagaraGPUSortingUseMaxPrecision != 0);
-			
-			TShaderMapRef<FNiagaraSortKeyGenCS> KeyGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
-			RHICmdList.SetComputeShader(KeyGenCS->GetComputeShader());
-			KeyGenCS->SetOutput(RHICmdList, ParticleSortBuffers.GetKeyBufferUAV(InitialSortBufferIndex), ParticleSortBuffers.GetVertexBufferUAV(InitialSortBufferIndex));
-
-			// (SortKeyMask, SortKeyShift, SortKeySignBit)
-			FUintVector4 SortKeyParams(SortKeyMask, 0, 0x8000, 0); 
-			if (GNiagaraGPUSortingUseMaxPrecision != 0)
-			{
-				EmitterKeyMask = FMath::Max<uint32>(EmitterKeyMask , 1); // Need at list 1 bit for the above logic
-				uint32 UnusedBits = FPlatformMath::CountLeadingZeros(EmitterKeyMask << EmitterKeyShift);
-				EmitterKeyShift += UnusedBits;
-				SortKeyMask = ~(EmitterKeyMask << EmitterKeyShift);
-
-				SortKeyParams.X = SortKeyMask;
-				SortKeyParams.Y = 16 - UnusedBits;
-				SortKeyParams.Z <<= UnusedBits;
-			}
-			
-			int32 OutputOffset = 0;
-			for (int32 EmitterIndex = 0; EmitterIndex < SimulationsToSort.Num(); ++EmitterIndex)
-			{
-				const FNiagaraGPUSortInfo& SortInfo = SimulationsToSort[EmitterIndex];
-				KeyGenCS->SetParameters(RHICmdList, SortInfo, (uint32)EmitterIndex << EmitterKeyShift, OutputOffset, SortKeyParams);
-				DispatchComputeShader(RHICmdList, *KeyGenCS, FMath::DivideAndRoundUp(SortInfo.ParticleCount, NIAGARA_KEY_GEN_THREAD_COUNT), 1, 1);
-
-				OutputOffset += SortInfo.ParticleCount;
-			}
-			KeyGenCS->UnbindBuffers(RHICmdList);
-		}
-
-		// We may be able to remove this transition if each step isn't dependent on the previous one.
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutputUAVs, 2);
-
-		// Sort buffers and copy results to index buffers.
-		{
-			const uint32 KeyMask = (EmitterKeyMask << EmitterKeyShift) | SortKeyMask;
-			const int32 ResultBufferIndex = SortGPUBuffers(RHICmdList, ParticleSortBuffers.GetSortBuffers(), InitialSortBufferIndex, KeyMask, SortedParticleCount, FeatureLevel);
-			ResolveParticleSortBuffers(RHICmdList, ResultBufferIndex);
-		}
-
-		// Only keep the last sorted index buffer, which is of the same size as ParticleSortBuffers.GetSize().
-		SortedVertexBuffers.RemoveAt(0, SortedVertexBuffers.Num() - 1);
-
-		// Resize the buffer to maximize next frame.
-		// Those ratio must take into consideration the slack ratio to be stable.
-
-		const int32 RecommandedSize = FMath::Max(GNiagaraGPUSortingMinBufferSize, (int32)(SortedParticleCount * GNiagaraGPUSortingBufferSlack));
-		const float BufferUsage = (float)SortedParticleCount /	(float)ParticleSortBuffers.GetSize();
-
-		if (RecommandedSize < ParticleSortBuffers.GetSize() / GNiagaraGPUSortingBufferSlack)
-		{
-			if (NumFramesRequiringShrinking >= GNiagaraGPUSortingFrameCountBeforeBufferShrinking)
-			{
-				NumFramesRequiringShrinking = 0;
-				ParticleSortBuffers.ReleaseRHI();
-				ParticleSortBuffers.SetBufferSize(0);
-
-				// Add an entry that should fit well for next frame.
-				SortedVertexBuffers.Empty();
-				SortedVertexBuffers.Add(new FNiagaraIndicesVertexBuffer(RecommandedSize));
-			}
-			else
-			{
-				++NumFramesRequiringShrinking;
-			}
-		}
-		else // Reset counter since we are not in a shrinking situation anymore.
-		{
-			NumFramesRequiringShrinking = 0;
-		}
-	}
-	else // If the are no sort task, we don't need any of the sort buffers.
-	{
-		if (NumFramesRequiringShrinking >= GNiagaraGPUSortingFrameCountBeforeBufferShrinking)
-		{
-			NumFramesRequiringShrinking = 0;
-			ParticleSortBuffers.ReleaseRHI();
-			ParticleSortBuffers.SetBufferSize(0);
-			SortedVertexBuffers.Empty();
-		}
-		else
-		{
-			++NumFramesRequiringShrinking;
-		}
+		return false;
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::ResolveParticleSortBuffers(FRHICommandListImmediate& RHICmdList, int32 ResultBufferIndex)
+void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
 {
-	SCOPED_DRAW_EVENT(RHICmdList, NiagaraResolveParticleSortBuffers);
+	// Currently all Niagara KeyGen must execute after PreRender() - in between PreInitViews() and PostRenderOpaque(), when the GPU simulation are possibly ticked.
+	check(EnumHasAnyFlags(Flags, EGPUSortFlags::KeyGenAfterPreRender));
 
-#if 0 // TODO use this once working properly!
-	if (SortedVertexBuffers.Num() == 1)
+	const FGPUSortManager::FKeyGenInfo KeyGenInfo((uint32)NumElementsInBatch, EnumHasAnyFlags(Flags, EGPUSortFlags::HighPrecisionKeys));
+
+	FNiagaraSortKeyGenCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FNiagaraSortKeyGenCS::FSortUsingMaxPrecision>(EnumHasAnyFlags(Flags, EGPUSortFlags::HighPrecisionKeys));
+	TShaderMapRef<FNiagaraSortKeyGenCS> KeyGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
+	RHICmdList.SetComputeShader(KeyGenCS->GetComputeShader());
+	KeyGenCS->SetOutput(RHICmdList, KeysUAV, ValuesUAV);
+
+	FRHIUnorderedAccessView* OutputUAVs[] = { KeysUAV, ValuesUAV };
+	for (const FNiagaraGPUSortInfo& SortInfo : SimulationsToSort)
 	{
-		RHICmdList.CopyVertexBuffer(ParticleSortBuffers.GetSortedVertexBufferRHI(ResultBufferIndex), SortedVertexBuffers.Last().VertexBufferRHI);
-		return;
-	}
-#endif
-
-	TShaderMapRef<FNiagaraCopyIntBufferRegionCS> CopyBufferCS(GetGlobalShaderMap(FeatureLevel));
-	RHICmdList.SetComputeShader(CopyBufferCS->GetComputeShader());
-
-	int32 StartingIndex = 0;
-
-	for (int32 Index = 0; Index < SortedVertexBuffers.Num(); Index += NIAGARA_COPY_BUFFER_BUFFER_COUNT)
-	{
-		FRHIUnorderedAccessView* UAVs[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
-		int32 UsedIndexCounts[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
-
-		const int32 NumBuffers = FMath::Min<int32>(NIAGARA_COPY_BUFFER_BUFFER_COUNT, SortedVertexBuffers.Num() - Index);
-
-		int32 LastCount = StartingIndex;
-		for (int32 SubIndex = 0; SubIndex < NumBuffers; ++SubIndex)
+		if (SortInfo.AllocationInfo.SortBatchId == BatchId)
 		{
-			const FNiagaraIndicesVertexBuffer& SortBuffer = SortedVertexBuffers[Index + SubIndex];
-			UAVs[SubIndex] = SortBuffer.VertexBufferUAV;
-			UsedIndexCounts[SubIndex] = SortBuffer.UsedIndexCount;
-
-			LastCount = SortBuffer.UsedIndexCount;
+			KeyGenCS->SetParameters(RHICmdList, SortInfo, (uint32)SortInfo.AllocationInfo.ElementIndex << KeyGenInfo.ElementKeyShift, SortInfo.AllocationInfo.BufferOffset, KeyGenInfo.SortKeyParams);
+			DispatchComputeShader(RHICmdList, *KeyGenCS, FMath::DivideAndRoundUp(SortInfo.ParticleCount, NIAGARA_KEY_GEN_THREAD_COUNT), 1, 1);
+			// TR-KeyGen : No sync needed between tasks since they update different parts of the data (assuming it's ok if cache lines overlap).
+			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, OutputUAVs, UE_ARRAY_COUNT(OutputUAVs));
 		}
-
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAVs, NumBuffers);
-
-		CopyBufferCS->SetParameters(RHICmdList, ParticleSortBuffers.GetSortedVertexBufferSRV(ResultBufferIndex), UAVs, UsedIndexCounts, StartingIndex, NumBuffers);
-		DispatchComputeShader(RHICmdList, *CopyBufferCS, FMath::DivideAndRoundUp(LastCount - StartingIndex, NIAGARA_COPY_BUFFER_THREAD_COUNT), 1, 1);
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, UAVs, NumBuffers);
-
-		StartingIndex = LastCount;
 	}
-	CopyBufferCS->UnbindBuffers(RHICmdList);
+	KeyGenCS->UnbindBuffers(RHICmdList);
 }
 
 void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList, const FNiagaraComputeExecutionContext* Context) const
@@ -1488,4 +1341,9 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	CurrentData.UnsetShaderParams(Shader, RHICmdList);
 	DestinationData.UnsetShaderParams(Shader, RHICmdList);
 	Shader->InstanceCountsParam.UnsetUAV(RHICmdList, ComputeShader);
+}
+
+FGPUSortManager* NiagaraEmitterInstanceBatcher::GetGPUSortManager() const
+{
+	return GPUSortManager;
 }
