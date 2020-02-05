@@ -551,7 +551,7 @@ public:
 		FPrimitiveViewRelevance Result;
 		Result.bDrawRelevance = IsShown(View); 
 		Result.bDynamicRelevance = true;
-		Result.bOpaqueRelevance = true;
+		Result.bOpaque = true;
 		return Result;
 	}
 

@@ -186,7 +186,7 @@ public:
 		Result.bUsesLightingChannels = false;
 		Result.bRenderCustomDepth = false;
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
-		Result.bOpaqueRelevance = true;
+		Result.bOpaque = true;
 		Result.bUsesSceneDepth = false;
 		Result.bUsesSkyMaterial = false;
 		Result.bUsesSingleLayerWaterMaterial = false;
