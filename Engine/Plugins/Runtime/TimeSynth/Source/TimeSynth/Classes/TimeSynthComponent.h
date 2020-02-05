@@ -713,6 +713,15 @@ private:
 			, CurrentTime(0.0f)
 			, TargetFadeTime(0.0f)
 		{}
+
+		FVolumeGroupData(const float InitialVolume_dB)
+			: TargetVolumeDb(InitialVolume_dB)
+			, StartVolumeDb(InitialVolume_dB)
+			, CurrentVolumeDb(InitialVolume_dB)
+			, LastVolumeDb(InitialVolume_dB)
+			, CurrentTime(0.0f)
+			, TargetFadeTime(0.0f)
+		{}
 	};
 	void SetVolumeGroupInternal(FVolumeGroupData& InData, float VolumeDb, float FadeTimeSec);
 
