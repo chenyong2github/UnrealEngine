@@ -16,6 +16,7 @@
 #include "Styling/CoreStyle.h"
 
 #include "STimedDataMonitorPanel.h"
+#include "Styling/SlateTypes.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SSeparator.h"

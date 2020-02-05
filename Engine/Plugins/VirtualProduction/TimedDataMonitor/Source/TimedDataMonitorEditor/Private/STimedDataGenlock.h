@@ -11,6 +11,7 @@
 #include "Styling/SlateColor.h"
 
 class STimedDataMonitorPanel;
+enum class ECheckBoxState : uint8;
 
 class STimedDataGenlock : public SCompoundWidget
 {
