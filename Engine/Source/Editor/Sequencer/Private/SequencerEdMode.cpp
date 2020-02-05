@@ -15,6 +15,8 @@
 #include "MovieSceneHitProxy.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "Tracks/MovieSceneAudioTrack.h"
+#include "Sections/MovieSceneAudioSection.h"
 #include "SubtitleManager.h"
 #include "SequencerMeshTrail.h"
 #include "SequencerKeyActor.h"
@@ -43,6 +45,9 @@ FSequencerEdMode::FSequencerEdMode()
 	{
 		bDrawMeshTrails = Var->GetBool();
 	}));
+
+	AudioTexture = LoadObject<UTexture2D>(NULL, TEXT("/Engine/EditorResources/AudioIcons/S_AudioComponent.S_AudioComponent"));
+	check(AudioTexture);
 }
 
 FSequencerEdMode::~FSequencerEdMode()
@@ -101,6 +106,11 @@ void FSequencerEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrim
 	FEdMode::Render(View, Viewport, PDI);
 
 #if WITH_EDITORONLY_DATA
+	if (PDI)
+	{
+		DrawAudioTracks(PDI);
+	}
+
 	// Draw spline trails using the PDI
 	if (View->Family->EngineShowFlags.Splines)
 	{
@@ -677,6 +687,89 @@ void FSequencerEdMode::DrawTracks3D(FPrimitiveDrawInterface* PDI)
 
 				const bool bIsSelected = Pair.Value;
 				DrawTransformTrack(Sequencer, PDI, TransformTrack, Sequencer->FindObjectsInCurrentSequence(Pair.Key->GetObjectGuid()), bIsSelected);
+			}
+		}
+	}
+}
+
+void FSequencerEdMode::DrawAudioTracks(FPrimitiveDrawInterface* PDI)
+{
+	for (TWeakPtr<FSequencer> WeakSequencer : Sequencers)
+	{
+		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+		if (!Sequencer.IsValid())
+		{
+			continue;
+		}
+
+		UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
+		if (!Sequence)
+		{
+			continue;
+		}
+
+		FQualifiedFrameTime CurrentTime = Sequencer->GetLocalTime();
+
+		const FSequencerSelection& Selection = Sequencer->GetSelection();
+		for (UMovieSceneTrack* Track : Selection.GetSelectedTracks())
+		{
+			UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(Track);
+
+			if (!AudioTrack || !AudioTrack->IsAMasterTrack())
+			{
+				continue;
+			}
+
+			for (UMovieSceneSection* Section : AudioTrack->GetAudioSections())
+			{
+				UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(Section);
+				const FMovieSceneActorReferenceData& AttachActorData = AudioSection->GetAttachActorData();
+
+				TMovieSceneChannelData<const FMovieSceneActorReferenceKey> ChannelData = AttachActorData.GetData();
+
+				TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
+				TArrayView<const FMovieSceneActorReferenceKey> Values = ChannelData.GetValues();
+		
+				FMovieSceneActorReferenceKey CurrentValue;
+				AttachActorData.Evaluate(CurrentTime.Time, CurrentValue);
+
+				for (int32 Index = 0; Index < Times.Num(); ++Index)
+				{
+					FMovieSceneObjectBindingID AttachBindingID = Values[Index].Object;
+					FName AttachSocketName = Values[Index].SocketName;
+
+					FMovieSceneSequenceID SequenceID = Sequencer->GetFocusedTemplateID();
+					if (AttachBindingID.GetSequenceID().IsValid())
+					{
+						// Ensure that this ID is resolvable from the root, based on the current local sequence ID
+						FMovieSceneObjectBindingID RootBindingID = AttachBindingID.ResolveLocalToRoot(SequenceID, Sequencer->GetEvaluationTemplate().GetHierarchy());
+						SequenceID = RootBindingID.GetSequenceID();
+					}
+
+					// If the transform is set, otherwise use the bound actor's transform
+					FMovieSceneEvaluationOperand ObjectOperand(SequenceID, AttachBindingID.GetGuid());
+
+					for (TWeakObjectPtr<> WeakObject : Sequencer->FindBoundObjects(ObjectOperand))
+					{
+						AActor* AttachActor = Cast<AActor>(WeakObject.Get());
+						if (AttachActor)
+						{
+							USceneComponent* AttachComponent = AudioSection->GetAttachComponent(AttachActor, Values[Index]);
+							if (AttachComponent)
+							{
+								FVector Location = AttachComponent->GetSocketLocation(AttachSocketName);
+								bool bIsActive = CurrentValue == Values[Index];
+								FColor Color = bIsActive ? FColor::Green : FColor::White;
+
+								float Scale = PDI->View->WorldToScreen(Location).W * (4.0f / PDI->View->UnscaledViewRect.Width() / PDI->View->ViewMatrices.GetProjectionMatrix().M[0][0]);
+								Scale *= bIsActive ? 15.f : 10.f;
+
+								PDI->DrawSprite(Location, Scale, Scale, AudioTexture->Resource, Color, SDPG_Foreground, 0.0, 0.0, 0.0, 0.0, SE_BLEND_Masked);
+								break;
+							}
+						}
+					}
+				}
 			}
 		}
 	}

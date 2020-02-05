@@ -51,7 +51,7 @@ private:
 	void ActorPickerIDPicked(FActorPickerID, const TArray<FGuid>& ObjectBindings, UMovieSceneSection* Section);
 
 	/** Actor component was picked */
-	void ActorComponentPicked(FString ComponentName, FActorPickerID ActorPickerID, TArray<FGuid> ObjectBindings, UMovieSceneSection* Section);
+	void ActorComponentPicked(FName ComponentName, FActorPickerID ActorPickerID, TArray<FGuid> ObjectBindings, UMovieSceneSection* Section);
 
 	/** Interactively pick an actor from the viewport */
 	void PickActorInteractive(const TArray<FGuid>& ObjectBindings, UMovieSceneSection* Section);
