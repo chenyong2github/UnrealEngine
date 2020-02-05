@@ -2113,15 +2113,15 @@ inline const uint8 TCharToNibble(const TCHAR Hex)
 {
 	if (Hex >= '0' && Hex <= '9')
 	{
-		return static_cast<uint8>(Hex - '0');
+		return uint8(Hex - '0');
 	}
 	if (Hex >= 'A' && Hex <= 'F')
 	{
-		return static_cast<uint8>(Hex - 'A' + 10);
+		return uint8(Hex - 'A' + 10);
 	}
 	if (Hex >= 'a' && Hex <= 'f')
 	{
-		return static_cast<uint8>(Hex - 'a' + 10);
+		return uint8(Hex - 'a' + 10);
 	}
 	checkf(false, TEXT("'%c' (0x%02X) is not a valid hexadecimal digit"), Hex, Hex);
 	return 0;

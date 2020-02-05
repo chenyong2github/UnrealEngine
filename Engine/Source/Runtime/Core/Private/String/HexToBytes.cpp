@@ -22,7 +22,7 @@ namespace String
 		}
 		while (HexPos != HexEnd)
 		{
-			const uint8 HiNibble = static_cast<uint8>(TCharToNibble(*HexPos++) << 4);
+			const uint8 HiNibble = uint8(TCharToNibble(*HexPos++) << 4);
 			*OutPos++ = HiNibble | TCharToNibble(*HexPos++);
 		}
 		return static_cast<int32>(OutPos - OutBytes);
