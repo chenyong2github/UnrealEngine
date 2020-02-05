@@ -14,7 +14,7 @@ namespace functions
 	{
 		const symbols::ThunkDB* thunkDb;
 		uint32_t functionRva;
-		uint32_t patchFunctionRva;		
+		uint32_t patchFunctionRva;
 		uint16_t patchIndex;
 		uint8_t directJumpInstructionSize;
 	};

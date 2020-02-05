@@ -115,8 +115,8 @@ void telemetry::Accumulator::Print(void)
 	LC_LOG_TELEMETRY("Accumulator \"%s\"", m_name);
 
 	LC_LOG_INDENT_TELEMETRY;
-	LC_LOG_TELEMETRY("Current: %" PRId64 " (%.3f KB, %.3f MB)", m_current, m_current / 1024.0f, m_current / 1048576.0f);
-	LC_LOG_TELEMETRY("Accumulated: %" PRId64 " (%.3f KB, %.3f MB)", m_accumulated, m_accumulated / 1024.0f, m_accumulated / 1048576.0f);
+	LC_LOG_TELEMETRY("Current: %" PRId64 " (%.3f KB, %.3f MB)", m_current, static_cast<double>(m_current) / 1024.0, static_cast<double>(m_current) / 1048576.0);
+	LC_LOG_TELEMETRY("Accumulated: %" PRId64 " (%.3f KB, %.3f MB)", m_accumulated, static_cast<double>(m_accumulated) / 1024.0, static_cast<double>(m_accumulated) / 1048576.0);
 }
 
 #include "Windows/HideWindowsPlatformAtomics.h"

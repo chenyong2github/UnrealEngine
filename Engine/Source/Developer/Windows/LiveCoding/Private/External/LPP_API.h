@@ -57,7 +57,7 @@
 /******************************************************************************/
 
 // version string
-#define LPP_VERSION "1.5.0"
+#define LPP_VERSION "1.5.2"
 
 #ifdef __cplusplus
 #	define LPP_NS_BEGIN			namespace lpp {

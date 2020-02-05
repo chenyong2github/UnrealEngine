@@ -5,18 +5,6 @@
 #include "LC_Logging.h"
 
 
-namespace
-{
-	static const char* const TYPE_PREFIXES[4u] =
-	{
-		nullptr,			// Type::INFO
-		"WARNING: ",		// Type::WARNING
-		"ERROR: ",			// Type::ERROR
-		"SUCCESS: ",		// Type::SUCCESS
-	};
-}
-
-
 OutputFile::OutputFile(const wchar_t* logFilePath)
 	: m_logFile(nullptr)
 {
@@ -40,18 +28,6 @@ OutputFile::~OutputFile(void)
 
 void OutputFile::Log(const char* msg)
 {
-	WriteToFile(msg);
-}
-
-
-void OutputFile::Log(const char* msg, int type)
-{
-	const char* const prefix = TYPE_PREFIXES[type];
-	if (prefix)
-	{
-		WriteToFile(prefix);
-	}
-
 	WriteToFile(msg);
 }
 

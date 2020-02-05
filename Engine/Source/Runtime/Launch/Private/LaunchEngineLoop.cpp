@@ -5424,17 +5424,10 @@ bool FEngineLoop::AppInit( )
 		
 		if(bNeedCompile)
 		{
-			// If there was no editor target, use the default UE4Editor target
-			FString CompileProject = FPaths::GetProjectFilePath();
-			if(EditorTargetFileName.Len() == 0)
-			{
-				CompileProject.Empty();
-			}
-
 			// Try to compile it
 			FFeedbackContext *Context = (FFeedbackContext*)FDesktopPlatformModule::Get()->GetNativeFeedbackContext();
 			Context->BeginSlowTask(FText::FromString(TEXT("Starting build...")), true, true);
-			bool bCompileResult = FDesktopPlatformModule::Get()->CompileGameProject(FPaths::RootDir(), CompileProject, Context);
+			bool bCompileResult = FDesktopPlatformModule::Get()->CompileGameProject(FPaths::RootDir(), FPaths::GetProjectFilePath(), Context);
 			Context->EndSlowTask();
 
 			// Check if we're running the wrong executable now

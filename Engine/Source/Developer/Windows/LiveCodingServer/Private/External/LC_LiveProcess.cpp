@@ -176,18 +176,27 @@ bool LiveProcess::PrepareForRestart(void)
 }
 
 
-void LiveProcess::Restart(void* restartJob)
+void LiveProcess::WaitForExitBeforeRestart(void)
 {
 	if (m_restartState == RestartState::SUCCESSFUL_PREPARE)
 	{
 		// in case PrepareForRestart was successful, the client is now waiting for the signal to restart.
-		// tell the client to initiate a restart now.
+		// tell the client to exit now.
 		Event executeRestart(primitiveNames::Restart(m_processId).c_str(), Event::Type::AUTO_RESET);
 		executeRestart.Signal();
 
 		// wait until the client terminates
 		process::Wait(m_processHandle);
 
+		m_restartState = RestartState::SUCCESSFUL_EXIT;
+	}
+}
+
+
+void LiveProcess::Restart(void* restartJob)
+{
+	if (m_restartState == RestartState::SUCCESSFUL_EXIT)
+	{
 		// restart the target application
 		// BEGIN EPIC MOD - Force LiveCoding to start up for child processes
 		std::wstring commandLine(m_commandLine);
@@ -205,14 +214,14 @@ void LiveProcess::Restart(void* restartJob)
 		ResumeThread(context->pi.hThread);
 		// END EPIC MOD
 
-		m_restartState = RestartState::SUCCESSFUL;
+		m_restartState = RestartState::SUCCESSFUL_RESTART;
 	}
 }
 
 
 bool LiveProcess::WasSuccessfulRestart(void) const
 {
-	return (m_restartState == RestartState::SUCCESSFUL);
+	return (m_restartState == RestartState::SUCCESSFUL_RESTART);
 }
 
 

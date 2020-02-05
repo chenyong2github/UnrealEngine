@@ -25,7 +25,7 @@ namespace nameMangling
 	// 			return just[scope::]name. Does expand template params
 	// 0x2000	Input is just a type encoding; compose an abstract declarator
 	// 0x8000	Disable enum / class / struct / union prefix
-	// 0x20000	Disable expansion of __ptr64 keyword
-	std::string UndecorateSymbol(const char* symbolName, uint32_t flags);
-	std::wstring UndecorateSymbolWide(const char* symbolName, uint32_t flags);
+	// 0x20000	Disable expansion of __ptr64 keyword -> this cannot be used because it doesn't fit into 16-bit flags
+	std::string UndecorateSymbol(const char* symbolName, uint16_t flags);
+	std::wstring UndecorateSymbolWide(const char* symbolName, uint16_t flags);
 }

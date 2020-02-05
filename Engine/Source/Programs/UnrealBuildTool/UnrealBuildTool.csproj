@@ -315,10 +315,10 @@
   </Choose>
   <Choose>
     <When Condition="'$(OS)' != 'Windows_NT'">
-	  <PropertyGroup>
-		<DefineConstants>$(DefineConstants);__MonoCS__</DefineConstants>
-	  </PropertyGroup>
-	</When>
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);__MonoCS__</DefineConstants>
+      </PropertyGroup>
+    </When>
   </Choose>
   <Choose>
     <When Condition="'$(OS)' == 'Windows_NT'">
