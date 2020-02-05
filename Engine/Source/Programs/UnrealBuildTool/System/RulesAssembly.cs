@@ -224,7 +224,10 @@ namespace UnrealBuildTool
 			{
 				Parent.GetAllModuleNames(ModuleNames);
 			}
-			ModuleNames.AddRange(CompiledAssembly.GetTypes().Where(x => x.IsClass && x.IsSubclassOf(typeof(ModuleRules)) && ModuleNameToModuleFile.ContainsKey(x.Name)).Select(x => x.Name));
+			if (CompiledAssembly != null)
+			{
+				ModuleNames.AddRange(CompiledAssembly.GetTypes().Where(x => x.IsClass && x.IsSubclassOf(typeof(ModuleRules)) && ModuleNameToModuleFile.ContainsKey(x.Name)).Select(x => x.Name));
+			}
 		}
 
 		/// <summary>

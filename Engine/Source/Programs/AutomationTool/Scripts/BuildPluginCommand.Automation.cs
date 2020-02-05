@@ -208,7 +208,7 @@ class BuildPlugin : BuildCommand
 				Arguments += InAdditionalArgs;
 			}
 
-			CommandUtils.RunUBT(CmdEnv, UE4Build.GetUBTExecutable(), String.Format("{0} {1} {2} {3}", TargetName, Platform, Configuration, Arguments));
+			CommandUtils.RunUBT(CmdEnv, UE4Build.GetUBTExecutable(), HostProjectFile, TargetName, Platform, Configuration, Arguments);
 		}
 	}
 
