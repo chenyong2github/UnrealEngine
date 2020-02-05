@@ -384,7 +384,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdGeomMesh& UsdMesh, FMeshDescrip
 
 namespace UsdGeomMeshConversionImpl
 {
-	UMaterialExpression* ParseInputTexture( pxr::UsdShadeInput& ShadeInput, UMaterial& Material )
+	UMaterialExpression* ParseInputTexture( pxr::UsdShadeInput& ShadeInput, UMaterial& Material, TMap< FString, UObject* >& TexturesCache )
 	{
 		UMaterialExpression* Result = nullptr;
 
@@ -412,11 +412,18 @@ namespace UsdGeomMeshConversionImpl
 
 					FPaths::NormalizeFilename( TextureFileName );
 
-					bool bOutCancelled = false;
-					UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
-					TextureFactory->SuppressImportOverwriteDialog();
+					UTexture2D* Texture2D = Cast< UTexture2D >( TexturesCache.FindRef( TextureFileName ) );
 
-					UTexture2D* Texture2D = Cast< UTexture2D >( TextureFactory->FactoryCreateFile( UTexture2D::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, TextureFileName, TEXT(""), GWarn, bOutCancelled ) );
+					if ( !Texture2D )
+					{
+						bool bOutCancelled = false;
+						UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
+						TextureFactory->SuppressImportOverwriteDialog();
+
+						Texture2D = Cast< UTexture2D >( TextureFactory->FactoryCreateFile( UTexture2D::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, TextureFileName, TEXT(""), GWarn, bOutCancelled ) );
+
+						TexturesCache.Add( TextureFileName, Texture2D );
+					}
 
 					if ( Texture2D )
 					{
@@ -436,6 +443,12 @@ namespace UsdGeomMeshConversionImpl
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material )
 {
+	TMap< FString, UObject* > TexturesCache;
+	return ConvertMaterial( UsdShadeMaterial, Material, TexturesCache );
+}
+
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, TMap< FString, UObject* >& TexturesCache )
+{
 	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
 	
 	if ( !SurfaceShader )
@@ -445,7 +458,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	bool bHasMaterialInfo = false;
 
-	auto ParseFloatInput = [ &Material, &SurfaceShader ]( const ANSICHAR* InputName, float DefaultValue ) -> UMaterialExpression*
+	auto ParseFloatInput = [ &Material, &SurfaceShader, &TexturesCache ]( const ANSICHAR* InputName, float DefaultValue ) -> UMaterialExpression*
 	{
 		pxr::UsdShadeInput Input = SurfaceShader.GetInput( pxr::TfToken(InputName) );
 		UMaterialExpression* InputExpression = nullptr;
@@ -467,7 +480,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 			}
 			else
 			{
-				InputExpression = UsdGeomMeshConversionImpl::ParseInputTexture( Input, Material );
+				InputExpression = UsdGeomMeshConversionImpl::ParseInputTexture( Input, Material, TexturesCache );
 			}
 		}
 
@@ -496,7 +509,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 			}
 			else
 			{
-				BaseColorExpression = UsdGeomMeshConversionImpl::ParseInputTexture( DiffuseInput, Material );
+				BaseColorExpression = UsdGeomMeshConversionImpl::ParseInputTexture( DiffuseInput, Material, TexturesCache );
 			}
 
 			if ( BaseColorExpression )

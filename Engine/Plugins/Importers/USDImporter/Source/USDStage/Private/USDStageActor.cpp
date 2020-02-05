@@ -397,6 +397,7 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
 
 		UsdStageStore = TUsdStore< pxr::UsdStageRefPtr >();
+		AssetsCache.Reset(); // We've changed USD file, clear the cache
 		LoadUsdStage();
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, Time ) )
@@ -426,7 +427,6 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 void AUsdStageActor::Clear()
 {
-	AssetsCache.Reset();
 	PrimPathsToAssets.Reset();
 	ObjectsToWatch.Reset();
 }
