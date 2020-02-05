@@ -4958,7 +4958,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 				if (PlaybackDemoHeader.Version >= HISTORY_MULTIPLE_LEVELS)
 				{
-					int32 LevelIndex;
+					int32 LevelIndex = INDEX_NONE;
 					*CheckpointArchive << LevelIndex;
 				}
 
@@ -5557,7 +5557,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 		if (PlaybackDemoHeader.Version >= HISTORY_MULTIPLE_LEVELS)
 		{
-			int32 LevelIndex;
+			int32 LevelIndex = INDEX_NONE;
 			*GotoCheckpointArchive << LevelIndex;
 		}
 
