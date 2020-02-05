@@ -1394,7 +1394,7 @@ void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlag
 
 	Ar << OutBulkDataOffsetInFile;
 
-	if ((OutBulkDataFlags & BULKDATA_UsesIoDispatcher) != 0)
+	if ((OutBulkDataFlags & BULKDATA_BadDataVersion) != 0)
 	{
 		uint16 DummyBulkDataIndex = InvalidBulkDataIndex;
 		Ar << DummyBulkDataIndex;
