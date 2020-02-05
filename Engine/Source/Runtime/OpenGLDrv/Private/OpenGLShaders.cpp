@@ -2221,7 +2221,7 @@ class FGLProgramCacheLRU
 			LRUBinaryMemoryUse -= GetProgramBinarySize(LinkedProgram->Program);
 		}
 
-		check(!EvictedPrograms.Contains(LinkedProgram->Config.ProgramKey));
+		checkf(!EvictedPrograms.Contains(LinkedProgram->Config.ProgramKey), TEXT("Program is already in the evicted program list: %s"), *LinkedProgram->Config.ProgramKey.ToString());
 		//UE_LOG(LogRHI, Warning, TEXT("LRU: Evicting program %d"), LinkedProgram->Program);
 		FEvictedGLProgram& test = EvictedPrograms.Emplace(LinkedProgram->Config.ProgramKey, FEvictedGLProgram(LinkedProgram));
 		INC_DWORD_STAT(STAT_OpenGLShaderLRUEvictedProgramCount);
