@@ -196,7 +196,7 @@ public:
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(const UNiagaraDataInterface* Interface) 
 	{
-		if (int32* InstDataOffset = DataInterfaceInstanceDataOffsets.Find(Interface))
+		if (int32* InstDataOffset = DataInterfaceInstanceDataOffsets.Find(MakeWeakObjectPtr(const_cast<UNiagaraDataInterface*>(Interface))))
 		{
 			return &DataInterfaceInstanceData[*InstDataOffset];
 		}
