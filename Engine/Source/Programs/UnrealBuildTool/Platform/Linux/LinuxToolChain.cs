@@ -737,8 +737,8 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				// Don't over optimise if using AddressSanitizer or you'll get false positive errors due to erroneous optimisation of necessary AddressSanitizer instrumentation.
-				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
+				// Don't over optimise if using Address/MemorySanitizer or you'll get false positive errors due to erroneous optimisation of necessary Address/MemorySanitizer instrumentation.
+				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
 				{
 					Result += " -O1 -g -fno-optimize-sibling-calls -fno-omit-frame-pointer";
 				}
