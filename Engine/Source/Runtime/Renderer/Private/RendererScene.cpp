@@ -3083,8 +3083,6 @@ void FScene::GetRelevantLights_RenderThread( UPrimitiveComponent* Primitive, TAr
 	check( RelevantLights );
 	if( Primitive->SceneProxy )
 	{
-		FlushAsyncLightPrimitiveInteractionCreation();
-
 		for( const FLightPrimitiveInteraction* Interaction=Primitive->SceneProxy->GetPrimitiveSceneInfo()->LightList; Interaction; Interaction=Interaction->GetNextLight() )
 		{
 			RelevantLights->Add( Interaction->GetLight()->Proxy->GetLightComponent() );
@@ -3271,11 +3269,6 @@ void FScene::DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const
 {
 	FlushRenderingCommands();
 
-	if (AsyncCreateLightPrimitiveInteractionsTask)
-	{
-		AsyncCreateLightPrimitiveInteractionsTask->EnsureCompletion();
-	}
-
 	TSet<FString> LightsWithUnbuiltInteractions;
 	TSet<FString> PrimitivesWithUnbuiltInteractions;
 
@@ -3287,7 +3280,7 @@ void FScene::DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const
 
 		bool bLightHasUnbuiltInteractions = false;
 
-		for(FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionOftenMovingPrimitiveList;
+		for(FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList();
 			Interaction;
 			Interaction = Interaction->GetNextPrimitive())
 		{
@@ -3298,7 +3291,7 @@ void FScene::DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const
 			}
 		}
 
-		for(FLightPrimitiveInteraction* Interaction = LightSceneInfo->DynamicInteractionStaticPrimitiveList;
+		for(FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList();
 			Interaction;
 			Interaction = Interaction->GetNextPrimitive())
 		{
@@ -3410,6 +3403,7 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 	}
 
 	// Lights octree
+	FlushAsyncLightPrimitiveInteractionCreation();
 	LightOctree.ApplyOffset(InOffset, /*bGlobalOctee*/ true);
 
 	// Cached preshadows

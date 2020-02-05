@@ -36,8 +36,6 @@ TAllocatorFixedSizeFreeList<sizeof(FLightPrimitiveInteraction), FREE_LIST_GROW_S
 
 uint32 FRendererModule::GetNumDynamicLightsAffectingPrimitive(const FPrimitiveSceneInfo* PrimitiveSceneInfo,const FLightCacheInterface* LCI)
 {
-	PrimitiveSceneInfo->Scene->FlushAsyncLightPrimitiveInteractionCreation();
-
 	uint32 NumDynamicLights = 0;
 
 	FLightPrimitiveInteraction *LightList = PrimitiveSceneInfo->LightList;
