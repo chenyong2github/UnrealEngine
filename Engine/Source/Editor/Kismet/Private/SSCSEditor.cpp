@@ -1252,7 +1252,7 @@ bool FSCSEditorTreeNodeComponent::CanEditDefaults() const
 	}
 	else if (UActorComponent* ComponentTemplate = GetComponentTemplate())
 	{
-		bCanEdit = FComponentEditorUtils::CanEditNativeComponent(ComponentTemplate);
+		bCanEdit = (FComponentEditorUtils::GetPropertyForEditableNativeComponent(ComponentTemplate) != nullptr);
 	}
 
 	return bCanEdit;
@@ -4708,7 +4708,7 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 						&& (!ActorComp->IsVisualizationComponent())
 						&& (ActorComp->CreationMethod != EComponentCreationMethod::UserConstructionScript || !bHideConstructionScriptComponentsInDetailsView)
 						&& (ParentSceneComp == nullptr || !ParentSceneComp->IsCreatedByConstructionScript() || !ActorComp->HasAnyFlags(RF_DefaultSubObject)))
-						&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::CanEditNativeComponent(ActorComp));
+						&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ActorComp));
 				};
 
 				for (auto It(ComponentsToAdd.CreateIterator()); It; ++It)
