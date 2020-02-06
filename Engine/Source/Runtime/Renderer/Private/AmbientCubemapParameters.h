@@ -15,6 +15,7 @@ class FShaderParameterMap;
 // DEPRECATED: use FAmbientCubemapParameters instead.
 class FCubemapShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FCubemapShaderParameters, NonVirtual);
 public:
 
 	void Bind(const FShaderParameterMap& ParameterMap);
@@ -25,13 +26,15 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FCubemapShaderParameters& P);
 
 private:
-	FShaderParameter AmbientCubemapColor;
-	FShaderParameter AmbientCubemapMipAdjust;
-	FShaderResourceParameter AmbientCubemap;
-	FShaderResourceParameter AmbientCubemapSampler;
-
 	template<typename TRHIShader>
 	void SetParametersTemplate(FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const;
+
+	
+		LAYOUT_FIELD(FShaderParameter, AmbientCubemapColor)
+		LAYOUT_FIELD(FShaderParameter, AmbientCubemapMipAdjust)
+		LAYOUT_FIELD(FShaderResourceParameter, AmbientCubemap)
+		LAYOUT_FIELD(FShaderResourceParameter, AmbientCubemapSampler)
+	
 };
 
 /** Shader parameters needed for deferred passes sampling the ambient cube map. */

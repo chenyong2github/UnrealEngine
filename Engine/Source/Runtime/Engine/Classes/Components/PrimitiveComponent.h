@@ -1894,7 +1894,7 @@ public:
 #endif
 
 	//~ Begin UActorComponent Interface
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void OnRegister()  override;
 	virtual void OnUnregister()  override;

@@ -24,6 +24,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Serialization/MemoryImage.h"
 #include "Hash/CityHash.h"
 #include "Templates/AlignmentTemplates.h"
 
@@ -3202,6 +3203,11 @@ uint8** FNameDebugVisualizer::GetBlocks()
 	static_assert(OffsetBits == FNameBlockOffsetBits,			"Natvis constants out of sync with actual constants");
 
 	return ((FNamePool*)(NamePoolData))->GetBlocksForDebugVisualizer();
+}
+
+void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FName& Object, const FTypeLayoutDesc&)
+{
+	Writer.WriteFName(Object);
 }
 
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

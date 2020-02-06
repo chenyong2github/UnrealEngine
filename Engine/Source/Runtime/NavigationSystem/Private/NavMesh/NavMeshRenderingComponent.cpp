@@ -1351,9 +1351,9 @@ FPrimitiveSceneProxy* UNavMeshRenderingComponent::CreateSceneProxy()
 #endif //WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 }
 
-void UNavMeshRenderingComponent::CreateRenderState_Concurrent()
+void UNavMeshRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 #if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	NavMeshDebugDrawDelgateManager.RegisterDebugDrawDelgate();

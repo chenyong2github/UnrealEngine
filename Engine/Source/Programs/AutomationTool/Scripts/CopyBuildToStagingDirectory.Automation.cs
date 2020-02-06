@@ -2137,23 +2137,21 @@ public partial class Project : CommandUtils
 					}
 
 					string BulkOption = "";
+                    ConfigHierarchy PlatformEngineConfig = null;
+                    if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
                     {
-                        ConfigHierarchy PlatformEngineConfig;
-                        if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
+                        bool bMasterEnable = false;
+						PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
+                        if (bMasterEnable)
                         {
-                            bool bMasterEnable = false;
-							PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
-                            if (bMasterEnable)
+                            int Value = 0;
+							PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
+                            if (Value > 0)
                             {
-                                int Value = 0;
-								PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
-                                if (Value > 0)
-                                {
-                                    BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
-                                }
+                                BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
                             }
                         }
-					}
+                    }
 
 					string AdditionalArgs = String.Empty;
 					if (bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
@@ -2186,6 +2184,22 @@ public partial class Project : CommandUtils
 					{
 						AdditionalArgs += " -fallbackOrderForNonUassetFiles";
 					}
+
+					if (PlatformEngineConfig != null)
+					{
+						// if the runtime will want to reduce memory usage, we have to disable the pak index freezing
+						bool bUnloadPakEntries = false;
+						bool bShrinkPakEntries = false;
+						PlatformEngineConfig.GetBool("Pak", "UnloadPakEntryFilenamesIfPossible", out bUnloadPakEntries);
+						PlatformEngineConfig.GetBool("Pak", "ShrinkPakEntriesMemoryUsage", out bShrinkPakEntries);
+						if (bUnloadPakEntries || bShrinkPakEntries)
+						{
+							AdditionalArgs += " -allowForIndexUnload";
+						}
+					}
+
+					// pass the targetplatform so the index may be able to be frozen
+					AdditionalArgs += " -platform=" + SC.StageTargetPlatform.IniPlatformType;
 
 					Dictionary<string, string> UnrealPakResponseFile;
 					if (ShouldCreateIoStoreContainerFiles(Params, SC))
@@ -2935,7 +2949,7 @@ public partial class Project : CommandUtils
 			return false;
 		}
 
-		return Params.IoStore;
+		return Params.IoStore && !Params.SkipIoStore;
 	}
 
 	private static bool ShouldCreatePak(ProjectParams Params, DeploymentContext SC)

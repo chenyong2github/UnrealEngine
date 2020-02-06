@@ -854,21 +854,11 @@ FMetalDynamicRHI::~FMetalDynamicRHI()
 {
 	check(IsInGameThread() && IsInRenderingThread());
 	
-	// Ask all initialized FRenderResources to release their RHI resources.
-	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-	{
-		FRenderResource* Resource = *ResourceIt;
-		check(Resource->IsInitialized());
-		Resource->ReleaseRHI();
-	}
-	
-	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-	{
-		ResourceIt->ReleaseDynamicRHI();
-	}
-	
 	GIsMetalInitialized = false;
 	GIsRHIInitialized = false;
+
+	// Ask all initialized FRenderResources to release their RHI resources.
+	FRenderResource::ReleaseRHIForAllResources();	
 	
 #if ENABLE_METAL_GPUPROFILE
 	FMetalProfiler::DestroyProfiler();

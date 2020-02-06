@@ -49,26 +49,14 @@ public:
 	 */
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* NormalMapTexture)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI,Texture,TextureSampler,NormalMapTexture);
-	}
-
-	/**
-	 * Serialization.
-	 * @param Ar - The archive with which to serialize.
-	 */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << Texture;
-		Ar << TextureSampler;
-		return bShaderHasOutdatedParameters;
 	}
 
 private:
 	/** The texture to sample. */
-	FShaderResourceParameter Texture;
-	FShaderResourceParameter TextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, Texture);
+	LAYOUT_FIELD(FShaderResourceParameter, TextureSampler);
 };
 IMPLEMENT_SHADER_TYPE(,FSimpleElementNormalMapPS,TEXT("/Engine/Private/SimpleElementNormalMapPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
@@ -86,8 +74,8 @@ void FNormalMapBatchedElementParameters::BindShaders(
 	TShaderMapRef<FSimpleElementNormalMapPS> PixelShader(GetGlobalShaderMap(InFeatureLevel));
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GSimpleElementVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();

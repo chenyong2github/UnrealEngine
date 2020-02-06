@@ -324,9 +324,9 @@ void UDatasmithFileProducer::SceneElementToWorld()
 
 			if (UMaterial* SourceMaterial = Cast< UMaterial >(AssetPair.Value))
 			{
-				SourceMaterial->RebuildExpressionTextureReferences();
+				SourceMaterial->UpdateCachedExpressionData();
 
-				for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
+				for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)
 				{
 					if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
 					{
@@ -471,7 +471,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 				{
 					if (UMaterial* SourceMaterial = Cast< UMaterial >(MaterialInstance))
 					{
-						for (FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->MaterialFunctionInfos)
+						for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)
 						{
 							if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
 							{

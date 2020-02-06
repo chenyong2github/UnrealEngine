@@ -304,6 +304,7 @@ extern CORE_API FString GGameIni;
 extern CORE_API FString GGameUserSettingsIni;
 extern CORE_API FString GRuntimeOptionsIni;
 extern CORE_API FString GInstallBundleIni;
+extern CORE_API FString GDeviceProfilesIni;
 
 extern CORE_API float GNearClippingPlane;
 

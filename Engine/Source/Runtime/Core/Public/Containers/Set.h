@@ -18,6 +18,7 @@
 #include "Templates/AreTypesEqual.h"
 #include "Templates/Decay.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/MemoryImageWriter.h"
 #include "ContainersFwd.h"
 
 /**
@@ -80,6 +81,9 @@ FORCEINLINE void MoveByRelocate(T& A, T& B)
 	RelocateConstructItems<T>(&A, &B, 1);
 }
 
+template <typename AllocatorType, typename InDerivedType = void>
+class TScriptSet;
+
 /** Either NULL or an identifier for an element of a set. */
 class FSetElementId
 {
@@ -88,7 +92,8 @@ public:
 	template<typename,typename,typename>
 	friend class TSet;
 
-	friend class FScriptSet;
+	template <typename, typename>
+	friend class TScriptSet;
 
 	/** Default constructor. */
 	FORCEINLINE FSetElementId():
@@ -142,12 +147,24 @@ private:
 	}
 };
 
-/** An element in the set. */
-template <typename InElementType>
-class TSetElement
+// This is just an int32
+DECLARE_INTRINSIC_TYPE_LAYOUT(FSetElementId);
+
+template<typename InElementType, bool bTypeLayout>
+class TSetElementBase
 {
 public:
 	typedef InElementType ElementType;
+
+	FORCEINLINE TSetElementBase() {}
+
+	/** Initialization constructor. */
+	template <typename InitType, typename = typename TEnableIf<!TAreTypesEqual<TSetElementBase, typename TDecay<InitType>::Type>::Value>::Type> explicit FORCEINLINE TSetElementBase(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
+
+	TSetElementBase(TSetElementBase&&) = default;
+	TSetElementBase(const TSetElementBase&) = default;
+	TSetElementBase& operator=(TSetElementBase&&) = default;
+	TSetElementBase& operator=(const TSetElementBase&) = default;
 
 	/** The element's value. */
 	ElementType Value;
@@ -157,13 +174,47 @@ public:
 
 	/** The hash bucket that the element is currently linked to. */
 	mutable int32 HashIndex;
+};
 
+template<typename InElementType>
+class TSetElementBase<InElementType, true>
+{
+	DECLARE_INLINE_TYPE_LAYOUT(TSetElementBase, NonVirtual);
+public:
+	typedef InElementType ElementType;
+
+	FORCEINLINE TSetElementBase() {}
+
+	/** Initialization constructor. */
+	template <typename InitType, typename = typename TEnableIf<!TAreTypesEqual<TSetElementBase, typename TDecay<InitType>::Type>::Value>::Type> explicit FORCEINLINE TSetElementBase(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
+
+	TSetElementBase(TSetElementBase&&) = default;
+	TSetElementBase(const TSetElementBase&) = default;
+	TSetElementBase& operator=(TSetElementBase&&) = default;
+	TSetElementBase& operator=(const TSetElementBase&) = default;
+
+	/** The element's value. */
+	LAYOUT_FIELD(ElementType, Value);
+
+	/** The id of the next element in the same hash bucket. */
+	LAYOUT_MUTABLE_FIELD(FSetElementId, HashNextId);
+
+	/** The hash bucket that the element is currently linked to. */
+	LAYOUT_MUTABLE_FIELD(int32, HashIndex);
+};
+
+/** An element in the set. */
+template <typename InElementType>
+class TSetElement : public TSetElementBase<InElementType, THasTypeLayout<InElementType>::Value>
+{
+	using Super = TSetElementBase<InElementType, THasTypeLayout<InElementType>::Value>;
+public:
 	/** Default constructor. */
 	FORCEINLINE TSetElement()
 	{}
 
 	/** Initialization constructor. */
-	template <typename InitType, typename = typename TEnableIf<!TAreTypesEqual<TSetElement, typename TDecay<InitType>::Type>::Value>::Type> explicit FORCEINLINE TSetElement(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
+	template <typename InitType, typename = typename TEnableIf<!TAreTypesEqual<TSetElement, typename TDecay<InitType>::Type>::Value>::Type> explicit FORCEINLINE TSetElement(InitType&& InValue) : Super(Forward<InitType>(InValue)) {}
 
 	TSetElement(TSetElement&&) = default;
 	TSetElement(const TSetElement&) = default;
@@ -185,11 +236,11 @@ public:
 	// Comparison operators
 	FORCEINLINE bool operator==(const TSetElement& Other) const
 	{
-		return Value == Other.Value;
+		return this->Value == Other.Value;
 	}
 	FORCEINLINE bool operator!=(const TSetElement& Other) const
 	{
-		return Value != Other.Value;
+		return this->Value != Other.Value;
 	}
 };
 
@@ -215,8 +266,14 @@ template<
 	>
 class TSet
 {
+public:
+	static const bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
+
+private:
 	friend struct TContainerTraits<TSet>;
-	friend class  FScriptSet;
+
+	template <typename, typename>
+	friend class TScriptSet;
 
 	typedef typename KeyFuncs::KeyInitType     KeyInitType;
 	typedef typename KeyFuncs::ElementInitType ElementInitType;
@@ -1152,6 +1209,54 @@ private:
 	mutable HashType Hash;
 	mutable int32	 HashSize;
 
+	template<bool bFreezeMemoryImage, typename Dummy=void>
+	struct TSupportsFreezeMemoryImageHelper
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TSet&) { Writer.WriteBytes(TSet()); }
+		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TSet&, void* Dst) { new(Dst) TSet(); }
+	};
+
+	template<typename Dummy>
+	struct TSupportsFreezeMemoryImageHelper<true, Dummy>
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TSet& Object)
+		{
+			Object.Elements.WriteMemoryImage(Writer);
+			Object.Hash.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<FSetElementId>(), Object.HashSize);
+			Writer.WriteBytes(Object.HashSize);
+		}
+
+		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TSet& Object, void* Dst)
+		{
+			TSet* DstObject = static_cast<TSet*>(Dst);
+			Object.Elements.CopyUnfrozen(Context, &DstObject->Elements);
+
+			new(&DstObject->Hash) HashType();
+			DstObject->Hash.ResizeAllocation(0, Object.HashSize, sizeof(FSetElementId));
+			FMemory::Memcpy(DstObject->Hash.GetAllocation(), Object.Hash.GetAllocation(), sizeof(FSetElementId) * Object.HashSize);
+			DstObject->HashSize = Object.HashSize;
+		}
+	};
+
+public:
+	void WriteMemoryImage(FMemoryImageWriter& Writer) const
+	{
+		checkf(!Writer.GetTargetLayoutParams().b32Bit, TEXT("TSet does not currently support freezing for 32bits"));
+		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
+	}
+
+	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
+	{
+		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::CopyUnfrozen(Context, *this, Dst);
+	}
+
+	static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		ElementArrayType::AppendHash(LayoutParams, Hasher);
+	}
+
+private:
+
 	FORCEINLINE FSetElementId& GetTypedHash(int32 HashIndex) const
 	{
 		return ((FSetElementId*)Hash.GetAllocation())[HashIndex & (HashSize - 1)];
@@ -1469,6 +1574,30 @@ public:
 	FORCEINLINE TRangedForConstIterator end() const   { return TRangedForConstIterator(Elements.end());   }
 };
 
+namespace Freeze
+{
+	template<typename ElementType, typename KeyFuncs, typename Allocator>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TSet<ElementType, KeyFuncs, Allocator>& Object, const FTypeLayoutDesc&)
+	{
+		Object.WriteMemoryImage(Writer);
+	}
+
+	template<typename ElementType, typename KeyFuncs, typename Allocator>
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TSet<ElementType, KeyFuncs, Allocator>& Object, void* OutDst)
+	{
+		Object.CopyUnfrozen(Context, OutDst);
+	}
+
+	template<typename ElementType, typename KeyFuncs, typename Allocator>
+	uint32 IntrinsicAppendHash(const TSet<ElementType, KeyFuncs, Allocator>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		TSet<ElementType, KeyFuncs, Allocator>::AppendHash(LayoutParams, Hasher);
+		return DefaultAppendHash(TypeDesc, LayoutParams, Hasher);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename ElementType, typename KeyFuncs, typename Allocator>), (TSet<ElementType, KeyFuncs, Allocator>));
+
 template<typename ElementType, typename KeyFuncs, typename Allocator>
 struct TContainerTraits<TSet<ElementType, KeyFuncs, Allocator> > : public TContainerTraitsBase<TSet<ElementType, KeyFuncs, Allocator> >
 {
@@ -1490,8 +1619,11 @@ struct FScriptSetLayout
 
 // Untyped set type for accessing TSet data, like FScriptArray for TArray.
 // Must have the same memory representation as a TSet.
-class FScriptSet
+template <typename Allocator, typename InDerivedType>
+class TScriptSet
 {
+	using DerivedType = typename TChooseClass<TIsVoidType<InDerivedType>::Value, TScriptSet, InDerivedType>::Result;
+
 public:
 	static FScriptSetLayout GetScriptLayout(int32 ElementSize, int32 ElementAlignment)
 	{
@@ -1510,7 +1642,7 @@ public:
 		return Result;
 	}
 
-	FScriptSet()
+	TScriptSet()
 		: HashSize(0)
 	{
 	}
@@ -1540,7 +1672,7 @@ public:
 		return Elements.GetData(Index, Layout.SparseArrayLayout);
 	}
 
-	void MoveAssign(FScriptSet& Other, const FScriptSetLayout& Layout)
+	void MoveAssign(DerivedType& Other, const FScriptSetLayout& Layout)
 	{
 		checkSlow(this != &Other);
 		Empty(0, Layout);
@@ -1747,12 +1879,12 @@ private:
 		return NewElementIndex;
 	}
 
-	typedef FDefaultSetAllocator Allocator;
-	typedef Allocator::HashAllocator::ForElementType<FSetElementId> HashType;
+	typedef TScriptSparseArray<typename Allocator::SparseArrayAllocator> ElementArrayType;
+	typedef typename Allocator::HashAllocator::template ForElementType<FSetElementId> HashType;
 
-	FScriptSparseArray Elements;
-	mutable HashType   Hash;
-	mutable int32      HashSize;
+	ElementArrayType Elements;
+	mutable HashType Hash;
+	mutable int32    HashSize;
 
 	FORCEINLINE FSetElementId& GetTypedHash(int32 HashIndex) const
 	{
@@ -1772,33 +1904,41 @@ private:
 	// This function isn't intended to be called, just to be compiled to validate the correctness of the type.
 	static void CheckConstraints()
 	{
-		typedef FScriptSet  ScriptType;
+		typedef TScriptSet  ScriptType;
 		typedef TSet<int32> RealType;
 
 		// Check that the class footprint is the same
-		static_assert(sizeof (ScriptType) == sizeof (RealType), "FScriptSet's size doesn't match TSet");
-		static_assert(alignof(ScriptType) == alignof(RealType), "FScriptSet's alignment doesn't match TSet");
+		static_assert(sizeof (ScriptType) == sizeof (RealType), "TScriptSet's size doesn't match TSet");
+		static_assert(alignof(ScriptType) == alignof(RealType), "TScriptSet's alignment doesn't match TSet");
 
 		// Check member sizes
-		static_assert(sizeof(DeclVal<ScriptType>().Elements) == sizeof(DeclVal<RealType>().Elements), "FScriptSet's Elements member size does not match TSet's");
-		static_assert(sizeof(DeclVal<ScriptType>().Hash)     == sizeof(DeclVal<RealType>().Hash),     "FScriptSet's Hash member size does not match TSet's");
-		static_assert(sizeof(DeclVal<ScriptType>().HashSize) == sizeof(DeclVal<RealType>().HashSize), "FScriptSet's HashSize member size does not match TSet's");
+		static_assert(sizeof(DeclVal<ScriptType>().Elements) == sizeof(DeclVal<RealType>().Elements), "TScriptSet's Elements member size does not match TSet's");
+		static_assert(sizeof(DeclVal<ScriptType>().Hash)     == sizeof(DeclVal<RealType>().Hash),     "TScriptSet's Hash member size does not match TSet's");
+		static_assert(sizeof(DeclVal<ScriptType>().HashSize) == sizeof(DeclVal<RealType>().HashSize), "TScriptSet's HashSize member size does not match TSet's");
 
 		// Check member offsets
-		static_assert(STRUCT_OFFSET(ScriptType, Elements) == STRUCT_OFFSET(RealType, Elements), "FScriptSet's Elements member offset does not match TSet's");
-		static_assert(STRUCT_OFFSET(ScriptType, Hash)     == STRUCT_OFFSET(RealType, Hash),     "FScriptSet's Hash member offset does not match TSet's");
-		static_assert(STRUCT_OFFSET(ScriptType, HashSize) == STRUCT_OFFSET(RealType, HashSize), "FScriptSet's FirstFreeIndex member offset does not match TSet's");
+		static_assert(STRUCT_OFFSET(ScriptType, Elements) == STRUCT_OFFSET(RealType, Elements), "TScriptSet's Elements member offset does not match TSet's");
+		static_assert(STRUCT_OFFSET(ScriptType, Hash)     == STRUCT_OFFSET(RealType, Hash),     "TScriptSet's Hash member offset does not match TSet's");
+		static_assert(STRUCT_OFFSET(ScriptType, HashSize) == STRUCT_OFFSET(RealType, HashSize), "TScriptSet's FirstFreeIndex member offset does not match TSet's");
 	}
 
 public:
 	// These should really be private, because they shouldn't be called, but there's a bunch of code
 	// that needs to be fixed first.
-	FScriptSet(const FScriptSet&) { check(false); }
-	void operator=(const FScriptSet&) { check(false); }
+	TScriptSet(const TScriptSet&) { check(false); }
+	void operator=(const TScriptSet&) { check(false); }
 };
 
-template <>
-struct TIsZeroConstructType<FScriptSet>
+template <typename AllocatorType, typename InDerivedType>
+struct TIsZeroConstructType<TScriptSet<AllocatorType, InDerivedType>>
 {
 	enum { Value = true };
+};
+
+class FScriptSet : public TScriptSet<FDefaultSetAllocator, FScriptSet>
+{
+	using Super = TScriptSet<FDefaultSetAllocator, FScriptSet>;
+
+public:
+	using Super::Super;
 };

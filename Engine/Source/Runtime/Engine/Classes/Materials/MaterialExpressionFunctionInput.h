@@ -116,8 +116,10 @@ class UMaterialExpressionFunctionInput : public UMaterialExpression
 	/** Generate the Id for this input. */
 	ENGINE_API void ConditionallyGenerateId(bool bForce);
 
+#if WITH_EDITOR
 	/** Validate InputName.  Must be called after InputName is changed to prevent duplicate inputs. */
 	ENGINE_API void ValidateName();
+#endif // WITH_EDITOR
 
 
 private:

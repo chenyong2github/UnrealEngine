@@ -45,6 +45,7 @@ Level.cpp: Level-related functions
 #include "PhysicsEngine/BodySetup.h"
 #include "EngineGlobals.h"
 #include "Engine/LevelBounds.h"
+#include "Async/ParallelFor.h"
 #include "UnrealEngine.h"
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
@@ -828,10 +829,10 @@ struct FModelComponentKey
 	}
 };
 
-void ULevel::UpdateLevelComponents(bool bRerunConstructionScripts)
+void ULevel::UpdateLevelComponents(bool bRerunConstructionScripts, FRegisterComponentContext* Context)
 {
 	// Update all components in one swoop.
-	IncrementalUpdateComponents( 0, bRerunConstructionScripts );
+	IncrementalUpdateComponents( 0, bRerunConstructionScripts, Context);
 }
 
 /**
@@ -920,7 +921,8 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 	}
 }
 
-void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bRerunConstructionScripts)
+DECLARE_CYCLE_STAT(TEXT("Deferred Init Bodies"), STAT_DeferredUpdateBodies, STATGROUP_Physics);
+void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bRerunConstructionScripts, FRegisterComponentContext* Context)
 {
 	// A value of 0 means that we want to update all components.
 	if (NumComponentsToUpdate != 0)
@@ -937,6 +939,7 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 		SortActorsHierarchy(Actors, this);
 	}
 
+	int32 PreviousIndex = CurrentActorIndexForUpdateComponents;
 	// Find next valid actor to process components registration
 	while (CurrentActorIndexForUpdateComponents < Actors.Num())
 	{
@@ -952,7 +955,7 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 				Actor->PreRegisterAllComponents();
 				bHasCurrentActorCalledPreRegister = true;
 			}
-			bAllComponentsRegistered = Actor->IncrementalRegisterComponents(NumComponentsToUpdate);
+			bAllComponentsRegistered = Actor->IncrementalRegisterComponents(NumComponentsToUpdate, Context);
 		}
 
 		if (bAllComponentsRegistered)
@@ -1010,6 +1013,32 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 	{
 		// The editor is never allowed to incrementally updated components.  Make sure to pass in a value of zero for NumActorsToUpdate.
 		check(OwningWorld->IsGameWorld());
+	}
+
+	{
+		SCOPE_CYCLE_COUNTER(STAT_DeferredUpdateBodies);
+		// Init Bodies
+		FGCScopeGuard ScopeLock;
+		int32 NumToInit = Actors.Num() - PreviousIndex;
+		TSubclassOf<UActorComponent> PrimitiveStaticClass = UPrimitiveComponent::StaticClass();
+		ParallelFor(NumToInit, [&](int32 Idx) {
+			int32 ActorIdx = Idx + PreviousIndex;
+			AActor* Actor = Actors[ActorIdx];
+			if (Actor && !Actor->IsPendingKill())
+			{
+				TArray<UActorComponent*> PrimtiveComponents;
+				Actor->GetComponents(PrimitiveStaticClass, PrimtiveComponents);
+				for (UActorComponent* PrimtiveComponent : PrimtiveComponents)
+				{
+					FBodyInstance* BodyInstance = Cast<UPrimitiveComponent>(PrimtiveComponent)->GetBodyInstance();
+					if (BodyInstance)
+					{
+						BodyInstance->InitAllBodies(GetWorld()->GetPhysicsScene());
+					}
+				}
+			}
+			// @TODO DO NOT CHECKIN
+		}, EParallelForFlags::ForceSingleThread);
 	}
 }
 

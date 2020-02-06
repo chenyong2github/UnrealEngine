@@ -27,7 +27,7 @@ public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		return AllowDebugViewShaderMode(DVSM_RequiredTextureResolution, Parameters.Platform, Parameters.Material->GetFeatureLevel()) && Parameters.Material->GetFriendlyName().Contains(TEXT("RequiredTextureResolution"));
+		return AllowDebugViewShaderMode(DVSM_RequiredTextureResolution, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel) && Parameters.MaterialParameters.bMaterialIsRequiredTextureResolution;
 	}
 
 	FRequiredTextureResolutionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -39,23 +39,30 @@ public:
 
 	FRequiredTextureResolutionPS() {}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		Ar << AnalysisParamsParameter;
-		Ar << PrimitiveAlphaParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("UNDEFINED_ACCURACY"), UndefinedStreamingAccuracyIntensity);
 		OutEnvironment.SetDefine(TEXT("MAX_NUM_TEX_COORD"), (uint32)TEXSTREAM_MAX_NUM_UVCHANNELS);
 		OutEnvironment.SetDefine(TEXT("MAX_NUM_TEXTURE_REGISTER"), (uint32)TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL);
-		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	LAYOUT_FIELD(FShaderParameter, AnalysisParamsParameter);
+	LAYOUT_FIELD(FShaderParameter, PrimitiveAlphaParameter);
+};
+
+class FRequiredTextureResolutionInterface: public FDebugViewModeInterface
+{
+public:
+
+	FRequiredTextureResolutionInterface() : FDebugViewModeInterface(TEXT("RequiredTextureResolution"), false, true, false) {}
+	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override
+	{
+		return InMaterial->GetShader<FRequiredTextureResolutionPS>(VertexFactoryType);
 	}
 
 	virtual void GetDebugViewModeShaderBindings(
+		const FDebugViewModePS& ShaderBase,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT Material,
@@ -69,22 +76,6 @@ public:
 		FName ViewModeParamName,
 		FMeshDrawSingleShaderBindings& ShaderBindings
 	) const override;
-
-private:
-
-	FShaderParameter AnalysisParamsParameter;
-	FShaderParameter PrimitiveAlphaParameter;
-};
-
-class FRequiredTextureResolutionInterface: public FDebugViewModeInterface
-{
-public:
-
-	FRequiredTextureResolutionInterface() : FDebugViewModeInterface(TEXT("RequiredTextureResolution"), false, true, false) {}
-	virtual FDebugViewModePS* GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override
-	{
-		return InMaterial->GetShader<FRequiredTextureResolutionPS>(VertexFactoryType);
-	}
 };
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

@@ -51,25 +51,6 @@ extern void UpdateMaterialShaderCompilingStats(const FMaterial* Material);
  */
 extern ENGINE_API void DumpMaterialStats( EShaderPlatform Platform );
 
-struct FMaterialShaderPermutationParameters
-{
-	// Shader platform to compile to.
-	const EShaderPlatform Platform;
-
-	// Material to compile.
-	const FMaterial* Material;
-
-	/** Unique permutation identifier of the material shader type. */
-	const int32 PermutationId;
-
-	FMaterialShaderPermutationParameters(EShaderPlatform InPlatform, const FMaterial* InMaterial, int32 InPermutationId)
-		: Platform(InPlatform)
-		, Material(InMaterial)
-		, PermutationId(InPermutationId)
-	{
-	}
-};
-
 /**
  * A shader meta type for material-linked shaders.
  */
@@ -85,25 +66,21 @@ public:
 			FShaderType* InType,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
-			TRefCountPtr<FShaderResource>&& InResource,
+			int32 InResourceIndex,
 			const FUniformExpressionSet& InUniformExpressionSet,
 			const FSHAHash& InMaterialShaderMapHash,
 			const FShaderPipelineType* InShaderPipeline,
 			FVertexFactoryType* InVertexFactoryType,
 			const FString& InDebugDescription
 			)
-		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput,MoveTemp(InResource),InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType)
+		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InResourceIndex,InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType)
 		, UniformExpressionSet(InUniformExpressionSet)
 		, DebugDescription(InDebugDescription)
 		{}
 	};
 
-	typedef FShader* (*ConstructCompiledType)(const CompiledShaderInitializerType&);
-	typedef bool (*ShouldCompilePermutationType)(const FMaterialShaderPermutationParameters&);
-	typedef bool(*ValidateCompiledResultType)(EShaderPlatform, const TArray<FMaterial*>&, const FShaderParameterMap&, TArray<FString>&);
-	typedef void (*ModifyCompilationEnvironmentType)(const FMaterialShaderPermutationParameters&, FShaderCompilerEnvironment&);
-
 	FMaterialShaderType(
+		FTypeLayoutDesc& InTypeLayout,
 		const TCHAR* InName,
 		const TCHAR* InSourceFilename,
 		const TCHAR* InFunctionName,
@@ -113,13 +90,18 @@ public:
 		ConstructCompiledType InConstructCompiledRef,
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
-		ValidateCompiledResultType InValidateCompiledResultRef
+		ValidateCompiledResultType InValidateCompiledResultRef,
+		uint32 InTypeSize,
+		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
 		):
-		FShaderType(EShaderTypeForDynamicCast::Material, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount, InConstructSerializedRef, nullptr),
-		ConstructCompiledRef(InConstructCompiledRef),
-		ShouldCompilePermutationRef(InShouldCompilePermutationRef),
-		ValidateCompiledResultRef(InValidateCompiledResultRef),
-		ModifyCompilationEnvironmentRef(InModifyCompilationEnvironmentRef)
+		FShaderType(EShaderTypeForDynamicCast::Material, InTypeLayout, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount,
+			InConstructSerializedRef,
+			InConstructCompiledRef,
+			InModifyCompilationEnvironmentRef,
+			InShouldCompilePermutationRef,
+			InValidateCompiledResultRef,
+			InTypeSize,
+			InRootParametersMetadata)
 	{
 		checkf(FPaths::GetExtension(InSourceFilename) == TEXT("usf"),
 			TEXT("Incorrect virtual shader path extension for material shader '%s': Only .usf files should be compiled."),
@@ -148,7 +130,7 @@ public:
 		const FMaterial* Material,
 		FShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
-		const TArray<FMaterialShaderType*>& ShaderStages,
+		const TArray<const FShaderType*>& ShaderStages,
 		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& NewJobs,
 		const FString& DebugDescription,
 		const FString& DebugExtension
@@ -164,7 +146,8 @@ public:
 		const FSHAHash& MaterialShaderMapHash,
 		const FShaderCompileJob& CurrentJob,
 		const FShaderPipelineType* ShaderPipeline,
-		const FString& InDebugDescription
+		const FString& InDebugDescription,
+		FShaderMapResourceBuilder& ResourceBuilder
 		);
 
 	/**
@@ -173,102 +156,15 @@ public:
 	 * @param Material - The material to check.
 	 * @return True if this shader type should be cached.
 	 */
-	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, int32 PermutationId) const
-	{
-		return (*ShouldCompilePermutationRef)(FMaterialShaderPermutationParameters(Platform, Material, PermutationId));
-	}
+	bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId) const;
 
-	/**
-	* Checks if the shader type should pass compilation for a particular set of parameters.
-	* @param Platform - Platform to validate.
-	* @param Materials - Materials to validate.
-	* @param ParameterMap - Shader parameters to validate.
-	* @param OutError - List for appending validation errors.
-	*/
-	bool ValidateCompiledResult(EShaderPlatform Platform, const TArray<FMaterial*>& Materials, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError) const
-	{
-		return (*ValidateCompiledResultRef)(Platform, Materials, ParameterMap, OutError);
-	}
+	static bool ShouldCompilePipeline(const FShaderPipelineType* ShaderPipelineType, EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters);
 
 protected:
-
 	/**
 	 * Sets up the environment used to compile an instance of this shader type.
 	 * @param Platform - Platform to compile for.
 	 * @param Environment - The shader compile environment that the function modifies.
 	 */
-	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterial* Material, int32 PermutationId, FShaderCompilerEnvironment& Environment)
-	{
-		// Allow the shader type to modify its compile environment.
-		(*ModifyCompilationEnvironmentRef)(FMaterialShaderPermutationParameters(Platform, Material, PermutationId), Environment);
-	}
-
-private:
-	ConstructCompiledType ConstructCompiledRef;
-	ShouldCompilePermutationType ShouldCompilePermutationRef;
-	ValidateCompiledResultType ValidateCompiledResultRef;
-	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
+	void SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, FShaderCompilerEnvironment& Environment);
 };
-
-/** DECLARE_MATERIAL_SHADER and IMPLEMENT_MATERIAL_SHADER setup a material shader class's boiler plate. They are meant to be used like so:
- *
- * class FMyMaterialShaderPS : public FMaterialShader
- * {
- *		// Setup the shader's boiler plate.
- *		DECLARE_MATERIAL_SHADER(FMyMaterialShaderPS);
- *
- *		// Setup the shader's permutation domain. If no dimensions, can do FPermutationDomain = FShaderPermutationNone.
- *		using FPermutationDomain = TShaderPermutationDomain<DIMENSIONS...>;
- *
- *		// ...
- * };
- *
- * // Instantiates shader's global variable that will take care of compilation process of the shader. This needs imperatively to be
- * done in a .cpp file regardless of whether FMyMaterialShaderPS is in a header or not.
- * IMPLEMENT_MATERIAL_SHADER(FMyMaterialShaderPS, "/Engine/Private/MyShaderFile.usf", "MainPS", SF_Pixel);
- *
- * When the shader class is a public header, let say in Engine module public header, the shader class then should have the ENGINE_API
- * like this:
- *
- * class ENGINE_API FMyMaterialShaderPS : public FMaterialShader
- * {
- *		// Setup the shader's boiler plate.
- *		DECLARE_MATERIAL_SHADER(FMyMaterialShaderPS);
- *
- *		// ...
- * };
- */
-#define DECLARE_MATERIAL_SHADER(ShaderClass) \
-	public: \
-	using ShaderMetaType = FMaterialShaderType; \
-	\
-	static ShaderMetaType StaticType; \
-	\
-	static FShader* ConstructSerializedInstance() { return new ShaderClass(); } \
-	static FShader* ConstructCompiledInstance(const ShaderMetaType::CompiledShaderInitializerType& Initializer) \
-	{ return new ShaderClass(Initializer); } \
-	\
-	virtual uint32 GetTypeSize() const override { return sizeof(*this); } \
-	\
-	static void ModifyCompilationEnvironmentImpl( \
-		const FMaterialShaderPermutationParameters& Parameters, \
-		FShaderCompilerEnvironment& OutEnvironment) \
-	{ \
-		FPermutationDomain PermutationVector(Parameters.PermutationId); \
-		PermutationVector.ModifyCompilationEnvironment(OutEnvironment); \
-		ShaderClass::ModifyCompilationEnvironment(Parameters, OutEnvironment); \
-	}
-
-#define IMPLEMENT_MATERIAL_SHADER(ShaderClass,SourceFilename,FunctionName,Frequency) \
-	ShaderClass::ShaderMetaType ShaderClass::StaticType( \
-		TEXT(#ShaderClass), \
-		TEXT(SourceFilename), \
-		TEXT(FunctionName), \
-		Frequency, \
-		ShaderClass::FPermutationDomain::PermutationCount, \
-		ShaderClass::ConstructSerializedInstance, \
-		ShaderClass::ConstructCompiledInstance, \
-		ShaderClass::ModifyCompilationEnvironmentImpl, \
-		ShaderClass::ShouldCompilePermutation, \
-		ShaderClass::ValidateCompiledResult \
-		)

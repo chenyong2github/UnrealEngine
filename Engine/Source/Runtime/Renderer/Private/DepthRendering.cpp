@@ -96,18 +96,18 @@ void GetDepthPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	FDepthOnlyHS*& HullShader,
-	FDepthOnlyDS*& DomainShader,
-	TDepthOnlyVS<bPositionOnly>*& VertexShader,
-	FDepthOnlyPS*& PixelShader,
-	FShaderPipeline*& ShaderPipeline,
+	TShaderRef<FDepthOnlyHS>& HullShader,
+	TShaderRef<FDepthOnlyDS>& DomainShader,
+	TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader,
+	TShaderRef<FDepthOnlyPS>& PixelShader,
+	FShaderPipelineRef& ShaderPipeline,
 	bool bUsesMobileColorValue)
 {
 	if (bPositionOnly && !bUsesMobileColorValue)
 	{
-		ShaderPipeline = UseShaderPipelines(FeatureLevel) ? Material.GetShaderPipeline(&DepthPosOnlyNoPixelPipeline, VertexFactoryType) : nullptr;
-		VertexShader = ShaderPipeline
-			? ShaderPipeline->GetShader<TDepthOnlyVS<bPositionOnly> >()
+		ShaderPipeline = UseShaderPipelines(FeatureLevel) ? Material.GetShaderPipeline(&DepthPosOnlyNoPixelPipeline, VertexFactoryType) : FShaderPipelineRef();
+		VertexShader = ShaderPipeline.IsValid()
+			? ShaderPipeline.GetShader<TDepthOnlyVS<bPositionOnly> >()
 			: Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType);
 	}
 	else
@@ -119,7 +119,7 @@ void GetDepthPassShaders(
 			&& VertexFactoryType->SupportsTessellationShaders() 
 			&& TessellationMode != MTM_NoTessellation)
 		{
-			ShaderPipeline = nullptr;
+			ShaderPipeline = FShaderPipelineRef();
 			VertexShader = Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType);
 			HullShader = Material.GetShader<FDepthOnlyHS>(VertexFactoryType);
 			DomainShader = Material.GetShader<FDepthOnlyDS>(VertexFactoryType);
@@ -130,24 +130,24 @@ void GetDepthPassShaders(
 		}
 		else
 		{
-			HullShader = nullptr;
-			DomainShader = nullptr;
+			HullShader.Reset();
+			DomainShader.Reset();
 			bool bUseShaderPipelines = UseShaderPipelines(FeatureLevel);
 			if (bNeedsPixelShader)
 			{
-				ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&DepthPipeline, VertexFactoryType, false) : nullptr;
+				ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&DepthPipeline, VertexFactoryType, false) : FShaderPipelineRef();
 			}
 			else
 			{
-				ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&DepthNoPixelPipeline, VertexFactoryType, false) : nullptr;
+				ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&DepthNoPixelPipeline, VertexFactoryType, false) : FShaderPipelineRef();
 			}
 
-			if (ShaderPipeline)
+			if (ShaderPipeline.IsValid())
 			{
-				VertexShader = ShaderPipeline->GetShader<TDepthOnlyVS<bPositionOnly> >();
+				VertexShader = ShaderPipeline.GetShader<TDepthOnlyVS<bPositionOnly> >();
 				if (bNeedsPixelShader)
 				{
-					PixelShader = ShaderPipeline->GetShader<FDepthOnlyPS>();
+					PixelShader = ShaderPipeline.GetShader<FDepthOnlyPS>();
 				}
 			}
 			else
@@ -167,11 +167,11 @@ void GetDepthPassShaders(
 		const FMaterial& Material, \
 		FVertexFactoryType* VertexFactoryType, \
 		ERHIFeatureLevel::Type FeatureLevel, \
-		FDepthOnlyHS*& HullShader, \
-		FDepthOnlyDS*& DomainShader, \
-		TDepthOnlyVS<bPositionOnly>*& VertexShader, \
-		FDepthOnlyPS*& PixelShader, \
-		FShaderPipeline*& ShaderPipeline, \
+		TShaderRef<FDepthOnlyHS>& HullShader, \
+		TShaderRef<FDepthOnlyDS>& DomainShader, \
+		TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader, \
+		TShaderRef<FDepthOnlyPS>& PixelShader, \
+		FShaderPipelineRef& ShaderPipeline, \
 		bool bUsesMobileColorValue \
 	);
 
@@ -247,7 +247,7 @@ static void RenderHiddenAreaMaskView(FRHICommandList& RHICmdList, FGraphicsPipel
 
 	extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -343,20 +343,13 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetPixelShader(), View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
 
 		const float DitherFactor = View.GetTemporalLODTransition();
-		SetShaderValue(RHICmdList, GetPixelShader(), DitheredTransitionFactorParameter, DitherFactor);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), DitheredTransitionFactorParameter, DitherFactor);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << DitheredTransitionFactorParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderParameter DitheredTransitionFactorParameter;
+	LAYOUT_FIELD(FShaderParameter, DitheredTransitionFactorParameter);
 };
 IMPLEMENT_SHADER_TYPE(, FDitheredTransitionStencilPS, TEXT("/Engine/Private/DitheredTransitionStencil.usf"), TEXT("Main"), SF_Pixel);
 
@@ -387,7 +380,7 @@ public:
 	template <typename TRHICmdList>
 	void SetParameters(TRHICmdList& RHICmdList, const FSceneView& View, FRHIUnorderedAccessView* StencilOutputUAV, FIntPoint BufferSizeXY, FIntPoint ViewOffsetXY, uint32 StencilValue)
 	{
-		FRHIComputeShader* ComputeShader = GetComputeShader();
+		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ComputeShader, View.ViewUniformBuffer);
 
@@ -410,23 +403,16 @@ public:
 	template <typename TRHICmdList>
 	void UnsetParameters(TRHICmdList& RHICmdList)
 	{
-		FRHIComputeShader* ComputeShader = GetComputeShader();
+		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
 		if (StencilOutputParameter.IsBound())
 		{
 			RHICmdList.SetUAVParameter(ComputeShader, StencilOutputParameter.GetBaseIndex(), nullptr);
 		}
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << DitheredTransitionFactorParameter << StencilOffsetAndValuesParameter << StencilOutputParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderParameter DitheredTransitionFactorParameter;
-	FShaderParameter StencilOffsetAndValuesParameter;
-	FShaderResourceParameter StencilOutputParameter;
+	LAYOUT_FIELD(FShaderParameter, DitheredTransitionFactorParameter);
+	LAYOUT_FIELD(FShaderParameter, StencilOffsetAndValuesParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, StencilOutputParameter);
 };
 IMPLEMENT_SHADER_TYPE(, FDitheredTransitionStencilCS, TEXT("/Engine/Private/DitheredTransitionStencil.usf"), TEXT("MainCS"), SF_Compute);
 
@@ -476,13 +462,13 @@ void FDeferredShadingSceneRenderer::PreRenderDitherFill(FRHIAsyncComputeCommandL
 		FViewInfo& View = Views[ViewIndex];
 
 		TShaderMapRef<FDitheredTransitionStencilCS> ComputeShader(View.ShaderMap);
-		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 		ComputeShader->SetParameters(RHICmdList, View, StencilTextureUAV, BufferSizeXY, View.ViewRect.Min, STENCIL_SANDBOX_MASK);
 		const int32 SubWidth = FMath::Min(BufferSizeXY.X, View.ViewRect.Width());
 		const int32 SubHeight = FMath::Min(BufferSizeXY.Y, View.ViewRect.Height());
 		check(SubWidth > 0 && SubHeight > 0);
 
-		DispatchComputeShader(RHICmdList, *ComputeShader, FMath::DivideAndRoundUp(SubWidth, 8), FMath::DivideAndRoundUp(SubHeight, 8), 1);
+		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), FMath::DivideAndRoundUp(SubWidth, 8), FMath::DivideAndRoundUp(SubHeight, 8), 1);
 		ComputeShader->UnsetParameters(RHICmdList);
 	}
 }
@@ -502,13 +488,13 @@ void FDeferredShadingSceneRenderer::PreRenderDitherFill(FRHICommandListImmediate
 			FViewInfo& View = Views[ViewIndex];
 
 			TShaderMapRef<FDitheredTransitionStencilCS> ComputeShader(View.ShaderMap);
-			RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 			ComputeShader->SetParameters(RHICmdList, View, StencilTextureUAV, BufferSizeXY, View.ViewRect.Min, STENCIL_SANDBOX_MASK);
 			const int32 SubWidth = FMath::Min(BufferSizeXY.X, View.ViewRect.Width());
 			const int32 SubHeight = FMath::Min(BufferSizeXY.Y, View.ViewRect.Height());
 			check(SubWidth > 0 && SubHeight > 0);
 
-			DispatchComputeShader(RHICmdList, *ComputeShader, FMath::DivideAndRoundUp(SubWidth, 8), FMath::DivideAndRoundUp(SubHeight, 8), 1);
+			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), FMath::DivideAndRoundUp(SubWidth, 8), FMath::DivideAndRoundUp(SubHeight, 8), 1);
 			ComputeShader->UnsetParameters(RHICmdList);
 		}
 	}
@@ -538,8 +524,8 @@ void FDeferredShadingSceneRenderer::PreRenderDitherFill(FRHICommandListImmediate
 
 			extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ScreenVertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -555,7 +541,7 @@ void FDeferredShadingSceneRenderer::PreRenderDitherFill(FRHICommandListImmediate
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				BufferSizeXY,
 				BufferSizeXY,
-				*ScreenVertexShader,
+				ScreenVertexShader,
 				EDRF_UseTriangleOptimization);
 		}
 	}
@@ -895,7 +881,7 @@ void FDepthPassMeshProcessor::Process(
 		FDepthOnlyDS,
 		FDepthOnlyPS> DepthPassShaders;
 
-	FShaderPipeline* ShaderPipeline = nullptr;
+	FShaderPipelineRef ShaderPipeline;
 
 	GetDepthPassShaders<bPositionOnly>(
 		MaterialResource,
@@ -916,7 +902,7 @@ void FDepthPassMeshProcessor::Process(
 	FDepthOnlyShaderElementData ShaderElementData(0.0f);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
 
-	const FMeshDrawCommandSortKey SortKey = CalculateDepthPassMeshStaticSortKey(BlendMode, DepthPassShaders.VertexShader, DepthPassShaders.PixelShader);
+	const FMeshDrawCommandSortKey SortKey = CalculateDepthPassMeshStaticSortKey(BlendMode, DepthPassShaders.VertexShader.GetShader(), DepthPassShaders.PixelShader.GetShader());
 
 	BuildMeshDrawCommands(
 		MeshBatch,
@@ -970,8 +956,9 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 
 		const EBlendMode BlendMode = Material.GetBlendMode();
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material);
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material);
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
 		if (!bIsTranslucent

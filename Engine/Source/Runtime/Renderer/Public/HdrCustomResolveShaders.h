@@ -19,12 +19,6 @@ public:
 	{
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
@@ -42,13 +36,6 @@ public:
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << Tex;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
@@ -56,7 +43,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
 	}
 
@@ -67,7 +54,7 @@ public:
 	}
 
 protected:
-	FShaderResourceParameter Tex;
+	LAYOUT_FIELD(FShaderResourceParameter, Tex);
 };
 
 class FHdrCustomResolve4xPS : public FGlobalShader
@@ -81,13 +68,6 @@ public:
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << Tex;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
@@ -95,7 +75,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
 	}
 
@@ -106,7 +86,7 @@ public:
 	}
 
 protected:
-	FShaderResourceParameter Tex;
+	LAYOUT_FIELD(FShaderResourceParameter, Tex);
 };
 
 
@@ -121,13 +101,6 @@ public:
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << Tex;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
@@ -135,7 +108,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
 	}
 
@@ -146,7 +119,7 @@ public:
 	}
 
 protected:
-	FShaderResourceParameter Tex;
+	LAYOUT_FIELD(FShaderResourceParameter, Tex);
 };
 
 class FHdrCustomResolveFMask2xPS : public FGlobalShader
@@ -161,14 +134,6 @@ public:
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << Tex;
-		Ar << FMaskTex;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
@@ -176,7 +141,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
 		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
 	}
@@ -189,8 +154,8 @@ public:
 	}
 
 protected:
-	FShaderResourceParameter Tex;
-	FShaderResourceParameter FMaskTex;
+	LAYOUT_FIELD(FShaderResourceParameter, Tex);
+	LAYOUT_FIELD(FShaderResourceParameter, FMaskTex);
 };
 
 class FHdrCustomResolveFMask4xPS : public FGlobalShader
@@ -205,14 +170,6 @@ public:
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << Tex;
-		Ar << FMaskTex;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
@@ -220,7 +177,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
 		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
 	}
@@ -233,8 +190,8 @@ public:
 	}
 
 protected:
-	FShaderResourceParameter Tex;
-	FShaderResourceParameter FMaskTex;
+	LAYOUT_FIELD(FShaderResourceParameter, Tex);
+	LAYOUT_FIELD(FShaderResourceParameter, FMaskTex);
 };
 
 
@@ -250,14 +207,6 @@ public:
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << Tex;
-		Ar << FMaskTex;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
@@ -265,7 +214,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
 		SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FMaskSRV);
 	}
@@ -278,6 +227,6 @@ public:
 	}
 
 protected:
-	FShaderResourceParameter Tex;
-	FShaderResourceParameter FMaskTex;
+	LAYOUT_FIELD(FShaderResourceParameter, Tex);
+	LAYOUT_FIELD(FShaderResourceParameter, FMaskTex);
 };

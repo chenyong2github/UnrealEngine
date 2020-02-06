@@ -18,12 +18,12 @@ struct FHairCullingParams
 
 void ComputeHairStrandsClustersCulling(
 	FRHICommandListImmediate& RHICmdList,
-	TShaderMap<FGlobalShaderType>& ShaderMap,
+	FGlobalShaderMap& ShaderMap,
 	const TArray<FViewInfo>& Views,
 	const FHairCullingParams& CullingParameters,
 	FHairStrandClusterData& ClusterDatas);
 
 void ResetHairStrandsClusterToLOD0(
 	FRHICommandListImmediate& RHICmdList,
-	TShaderMap<FGlobalShaderType>& ShaderMap,
+	FGlobalShaderMap& ShaderMap,
 	FHairStrandClusterData& ClusterDatas);

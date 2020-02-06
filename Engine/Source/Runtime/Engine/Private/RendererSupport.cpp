@@ -38,9 +38,9 @@ static void ClearReferencesToRendererModuleClasses(
 	TMap<UWorld*, bool>& WorldsToUpdate, 
 	TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData,
 	FGlobalShaderBackupData& GlobalShaderBackup,
-	TMap<FShaderType*, FString>& ShaderTypeNames,
-	TMap<const FShaderPipelineType*, FString>& ShaderPipelineTypeNames,
-	TMap<FVertexFactoryType*, FString>& VertexFactoryTypeNames)
+	TMap<FShaderType*, FHashedName>& ShaderTypeNames,
+	TMap<const FShaderPipelineType*, FHashedName>& ShaderPipelineTypeNames,
+	TMap<FVertexFactoryType*, FHashedName>& VertexFactoryTypeNames)
 {
 	// Destroy all renderer scenes
 	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
@@ -77,19 +77,19 @@ static void ClearReferencesToRendererModuleClasses(
 	{
 		FShaderType* ShaderType = *It;
 		check(ShaderType->GetNumShaders() == 0);
-		ShaderTypeNames.Add(ShaderType, ShaderType->GetName());
+		ShaderTypeNames.Add(ShaderType, ShaderType->GetHashedName());
 	}
 
 	for (TLinkedList<FShaderPipelineType*>::TIterator It(FShaderPipelineType::GetTypeList()); It; It.Next())
 	{
 		const FShaderPipelineType* ShaderPipelineType = *It;
-		ShaderPipelineTypeNames.Add(ShaderPipelineType, ShaderPipelineType->GetName());
+		ShaderPipelineTypeNames.Add(ShaderPipelineType, ShaderPipelineType->GetHashedName());
 	}
 
 	for(TLinkedList<FVertexFactoryType*>::TIterator It(FVertexFactoryType::GetTypeList()); It; It.Next())
 	{
 		FVertexFactoryType* VertexFactoryType = *It;
-		VertexFactoryTypeNames.Add(VertexFactoryType, VertexFactoryType->GetName());
+		VertexFactoryTypeNames.Add(VertexFactoryType, VertexFactoryType->GetHashedName());
 	}
 
 	// Destroy misc renderer module classes and remove references
@@ -142,9 +142,9 @@ static void RestoreReferencesToRendererModuleClasses(
 	const TMap<UWorld*, bool>& WorldsToUpdate, 
 	const TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > >& ShaderMapToSerializedShaderData,
 	const FGlobalShaderBackupData& GlobalShaderBackup,
-	const TMap<FShaderType*, FString>& ShaderTypeNames,
-	const TMap<const FShaderPipelineType*, FString>& ShaderPipelineTypeNames,
-	const TMap<FVertexFactoryType*, FString>& VertexFactoryTypeNames)
+	const TMap<FShaderType*, FHashedName>& ShaderTypeNames,
+	const TMap<const FShaderPipelineType*, FHashedName>& ShaderPipelineTypeNames,
+	const TMap<FVertexFactoryType*, FHashedName>& VertexFactoryTypeNames)
 {
 	FlushShaderFileCache();
 
@@ -180,14 +180,13 @@ static void RestoreReferencesToRendererModuleClasses(
 		{
 			EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform((ERHIFeatureLevel::Type)i);
 			check(ShaderPlatform < EShaderPlatform::SP_NumPlatforms);
-			FMaterialShaderMap::FixupShaderTypes(ShaderPlatform, ShaderTypeNames, ShaderPipelineTypeNames, VertexFactoryTypeNames);
 		}
 	}
 
-	TArray<FShaderType*> OutdatedShaderTypes;
+	TArray<const FShaderType*> OutdatedShaderTypes;
 	TArray<const FVertexFactoryType*> OutdatedFactoryTypes;
 	TArray<const FShaderPipelineType*> OutdatedShaderPipelineTypes;
-	FShaderType::GetOutdatedTypes(OutdatedShaderTypes, OutdatedFactoryTypes);
+	GetOutdatedShaderTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
 
 	// Recompile any missing shaders
 	UMaterialInterface::IterateOverActiveFeatureLevels([&](ERHIFeatureLevel::Type FeatureLevel) 
@@ -225,9 +224,9 @@ void RecompileRenderer(const TArray<FString>& Args)
 		TMap<UWorld*, bool> WorldsToUpdate;
 		TMap<FMaterialShaderMap*, TUniquePtr<TArray<uint8> > > ShaderMapToSerializedShaderData;
 		FGlobalShaderBackupData GlobalShaderBackup;
-		TMap<FShaderType*, FString> ShaderTypeNames;
-		TMap<const FShaderPipelineType*, FString> ShaderPipelineTypeNames;
-		TMap<FVertexFactoryType*, FString> VertexFactoryTypeNames;
+		TMap<FShaderType*, FHashedName> ShaderTypeNames;
+		TMap<const FShaderPipelineType*, FHashedName> ShaderPipelineTypeNames;
+		TMap<FVertexFactoryType*, FHashedName> VertexFactoryTypeNames;
 
 		ClearReferencesToRendererModuleClasses(WorldsToUpdate, ShaderMapToSerializedShaderData, GlobalShaderBackup, ShaderTypeNames, ShaderPipelineTypeNames, VertexFactoryTypeNames);
 

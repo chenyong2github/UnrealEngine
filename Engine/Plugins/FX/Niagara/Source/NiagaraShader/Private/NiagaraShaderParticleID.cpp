@@ -30,16 +30,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), THREAD_COUNT);
 	}
 
-	bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << NewBufferParam;
-		Ar << ExistingBufferParam;
-		Ar << NumNewElementsParam;
-		Ar << NumExistingElementsParam;
-		return bShaderHasOutdatedParameters;
-	}
-
 	void Execute(FRHICommandList& RHICmdList, uint32 NumElementsToAlloc, FRWBuffer& NewBuffer, uint32 NumExistingElements, FRHIShaderResourceView* ExistingBuffer)
 	{
 		// To simplify the shader code, the size of the ID table must be a multiple of the thread count.
@@ -49,7 +39,7 @@ public:
 		check(NumElementsToAlloc >= NumExistingElements);
 		uint32 NumNewElements = NumElementsToAlloc - NumExistingElements;
 
-		FRHIComputeShader* ComputeShader = GetComputeShader();
+		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
 		RHICmdList.SetComputeShader(ComputeShader);
 
 		NewBufferParam.SetBuffer(RHICmdList, ComputeShader, NewBuffer);
@@ -66,10 +56,10 @@ public:
 private:
 	static constexpr uint32 THREAD_COUNT = 64;
 
-	FRWShaderParameter NewBufferParam;
-	FShaderResourceParameter ExistingBufferParam;
-	FShaderParameter NumNewElementsParam;
-	FShaderParameter NumExistingElementsParam;
+	LAYOUT_FIELD(FRWShaderParameter, NewBufferParam);
+	LAYOUT_FIELD(FShaderResourceParameter, ExistingBufferParam);
+	LAYOUT_FIELD(FShaderParameter, NumNewElementsParam);
+	LAYOUT_FIELD(FShaderParameter, NumExistingElementsParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FNiagaraInitFreeIDBufferCS, "/Plugin/FX/Niagara/Private/NiagaraInitFreeIDBuffer.usf", "InitIDBufferCS", SF_Compute);
@@ -105,16 +95,6 @@ public:
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-	bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << IDToIndexTableParam;
-		Ar << FreeIDListParam;
-		Ar << FreeIDListSizesParam;
-		Ar << FreeIDListIndexParam;
-		return bShaderHasOutdatedParameters;
-	}
-
 	void Execute(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, uint32 NumIDs, FRHIShaderResourceView* IDToIndexTable, FRWBuffer& FreeIDList, FRWBuffer& FreeIDListSizes, uint32 FreeIDListIndex)
 	{
 		const EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
@@ -123,7 +103,7 @@ public:
 		// To simplify the shader code, the size of the ID table must be a multiple of the thread count.
 		check(NumIDs % THREAD_COUNT == 0);
 
-		FRHIComputeShader* ComputeShader = GetComputeShader();
+		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
 		RHICmdList.SetComputeShader(ComputeShader);
 
 		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, IDToIndexTable);
@@ -139,10 +119,10 @@ public:
 	}
 
 private:
-	FShaderResourceParameter IDToIndexTableParam;
-	FRWShaderParameter FreeIDListParam;
-	FRWShaderParameter FreeIDListSizesParam;
-	FShaderParameter FreeIDListIndexParam;
+	LAYOUT_FIELD(FShaderResourceParameter, IDToIndexTableParam);
+	LAYOUT_FIELD(FRWShaderParameter, FreeIDListParam);
+	LAYOUT_FIELD(FRWShaderParameter, FreeIDListSizesParam);
+	LAYOUT_FIELD(FShaderParameter, FreeIDListIndexParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(NiagaraComputeFreeIDsCS, "/Plugin/FX/Niagara/Private/NiagaraComputeFreeIDs.usf", "ComputeFreeIDs", SF_Compute);
@@ -172,22 +152,13 @@ public:
 		return RHISupportsComputeShaders(Parameters.Platform);
 	}
 
-	bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TargetBufferParam;
-		Ar << FillValueParam;
-		Ar << BufferSizeParam;
-		return bShaderHasOutdatedParameters;
-	}
-
 	void Execute(FRHICommandList& RHICmdList, FRWBuffer& Buffer, int Value)
 	{
 		const uint32 THREAD_COUNT = 64;
 		const uint32 NumInts = Buffer.NumBytes / sizeof(int);
 		const uint32 ThreadGroups = FMath::DivideAndRoundUp(NumInts, THREAD_COUNT);
 
-		FRHIComputeShader* ComputeShader = GetComputeShader();
+		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
 		RHICmdList.SetComputeShader(ComputeShader);
 
 		SetUAVParameter(RHICmdList, ComputeShader, TargetBufferParam, Buffer.UAV);
@@ -200,9 +171,9 @@ public:
 	}
 
 private:
-	FShaderResourceParameter TargetBufferParam;
-	FShaderParameter FillValueParam;
-	FShaderParameter BufferSizeParam;
+	LAYOUT_FIELD(FShaderResourceParameter, TargetBufferParam);
+	LAYOUT_FIELD(FShaderParameter, FillValueParam);
+	LAYOUT_FIELD(FShaderParameter, BufferSizeParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(NiagaraFillIntBufferCS, "/Plugin/FX/Niagara/Private/NiagaraFillIntBuffer.usf", "FillIntBuffer", SF_Compute);

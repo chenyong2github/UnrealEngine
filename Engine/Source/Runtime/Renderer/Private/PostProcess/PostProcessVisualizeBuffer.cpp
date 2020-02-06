@@ -131,12 +131,12 @@ FScreenPassTexture AddVisualizeBufferPass(FRDGBuilder& GraphBuilder, const FView
 			View,
 			OutputViewport,
 			FScreenPassTextureViewport(Tile.Input),
-			FScreenPassPipelineState(*VertexShader, *PixelShader, BlendState),
+			FScreenPassPipelineState(VertexShader, PixelShader, BlendState),
 			EScreenPassDrawFlags::None,
 			PassParameters,
 			[PixelShader, PassParameters](FRHICommandList& RHICmdList)
 		{
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 		});
 
 		FTileLabel TileLabel;

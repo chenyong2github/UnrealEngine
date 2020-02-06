@@ -82,7 +82,7 @@ namespace GPUFFT
 	{
 	public:
 
-		typedef TShaderMap<FGlobalShaderType>  ShaderMapType;
+		typedef FGlobalShaderMap  ShaderMapType;
 
 		FGPUFFTShaderContext(FRHICommandList& CmdList, const FGPUFFTShaderContext::ShaderMapType& Map)
 			: RHICmdList(&CmdList), ShaderMap(&Map)
@@ -571,9 +571,9 @@ namespace GPUFFTComputeShaderUtils
 
 		// Factory method.
 		template <typename ComputeShaderT>
-		inline static FScopedUAVBind BindOutput(FRHICommandList& CmdList, ComputeShaderT* Shader, FUnorderedAccessViewRHIRef BufferUAV)
+		inline static FScopedUAVBind BindOutput(FRHICommandList& CmdList, const TShaderRef<ComputeShaderT>& Shader, const FUnorderedAccessViewRHIRef& BufferUAV)
 		{
-			FRHIComputeShader* ShaderRHI = Shader->GetComputeShader();
+			FRHIComputeShader* ShaderRHI = Shader.GetComputeShader();
 			const uint32 BaseIndex = Shader->DestinationResourceParameter().GetBaseIndex();
 			return FScopedUAVBind(CmdList, ShaderRHI, BaseIndex, BufferUAV);
 		}

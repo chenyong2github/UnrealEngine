@@ -4,6 +4,7 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
+#include "Misc/ConfigCacheIni.h"
 
 
 
@@ -61,6 +62,114 @@ bool FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(int32 Index, FConfig
 	return false;
 }
 
+static void DDPIIniRedirect(FString& StringData)
+{
+	TArray<FString> Tokens;
+	StringData.ParseIntoArray(Tokens, TEXT(":"));
+	if (Tokens.Num() != 5)
+	{
+		StringData = TEXT("");
+		return;
+	}
+
+	// now load a local version of the ini hierarchy
+	FConfigFile LocalIni;
+	FConfigCacheIni::LoadLocalIniFile(LocalIni, *Tokens[1], true, *Tokens[2]);
+
+	// and get the platform's value (if it's not found, return an empty string)
+	FString FoundValue;
+	LocalIni.GetString(*Tokens[3], *Tokens[4], FoundValue);
+	StringData = FoundValue;
+}
+
+static FString DDPITryRedirect(const FConfigFile& IniFile, const TCHAR* Key, bool* OutHadBang=nullptr)
+{
+	FString StringData;
+	if (IniFile.GetString(TEXT("DataDrivenPlatformInfo"), Key, StringData))
+	{
+		if (StringData.StartsWith(TEXT("ini:")) || StringData.StartsWith(TEXT("!ini:")))
+		{
+			// check for !'ing a bool
+			if (OutHadBang != nullptr)
+			{
+				*OutHadBang = StringData[0] == TEXT('!');
+			}
+
+			// replace the string, overwriting it
+			DDPIIniRedirect(StringData);
+		}
+	}
+	return StringData;
+}
+
+static void DDPIGetBool(const FConfigFile& IniFile, const TCHAR* Key, bool& OutBool)
+{
+	bool bHadNot = false;
+	FString StringData = DDPITryRedirect(IniFile, Key, &bHadNot);
+
+	// if we ended up with a string, convert it, otherwise leave it alone
+	if (StringData.Len() > 0)
+	{
+		OutBool = bHadNot ? !StringData.ToBool() : StringData.ToBool();
+	}
+}
+
+static void DDPIGetInt(const FConfigFile& IniFile, const TCHAR* Key, int32& OutInt)
+{
+	FString StringData = DDPITryRedirect(IniFile, Key);
+
+	// if we ended up with a string, convert it, otherwise leave it alone
+	if (StringData.Len() > 0)
+	{
+		OutInt = FCString::Atoi(*StringData);
+	}
+}
+
+static void DDPIGetUInt(const FConfigFile& IniFile, const TCHAR* Key, uint32& OutInt)
+{
+	FString StringData = DDPITryRedirect(IniFile, Key);
+
+	// if we ended up with a string, convert it, otherwise leave it alone
+	if (StringData.Len() > 0)
+	{
+		OutInt = (uint32)FCString::Strtoui64(*StringData, nullptr, 10);
+	}
+}
+
+static void DDPIGetString(const FConfigFile& IniFile, const TCHAR* Key, FString& OutString)
+{
+	FString StringData = DDPITryRedirect(IniFile, Key);
+
+	// if we ended up with a string, convert it, otherwise leave it alone
+	if (StringData.Len() > 0)
+	{
+		OutString = StringData;
+	}
+}
+
+static void DDPIGetStringArray(const FConfigFile& IniFile, const TCHAR* Key, TArray<FString>& OutArray)
+{
+	// we don't support redirecting arrays
+	IniFile.GetArray(TEXT("DataDrivenPlatformInfo"), Key, OutArray);
+}
+
+static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformInfoRegistry::FPlatformInfo& Info)
+{
+	DDPIGetBool(IniFile, TEXT("bIsConfidential"), Info.bIsConfidential);
+	DDPIGetBool(IniFile, TEXT("bRestrictLocalization"), Info.bRestrictLocalization);
+	DDPIGetString(IniFile, TEXT("AudioCompressionSettingsIniSectionName"), Info.AudioCompressionSettingsIniSectionName);
+	DDPIGetStringArray(IniFile, TEXT("AdditionalRestrictedFolders"), Info.AdditionalRestrictedFolders);
+	
+	DDPIGetBool(IniFile, TEXT("Freezing_b32Bit"), Info.Freezing_b32Bit);
+	DDPIGetUInt(IniFile, Info.Freezing_b32Bit ? TEXT("Freezing_MaxFieldAlignment32") : TEXT("Freezing_MaxFieldAlignment64"), Info.Freezing_MaxFieldAlignment);
+	DDPIGetBool(IniFile, TEXT("Freezing_bForce64BitMemoryImagePointers"), Info.Freezing_bForce64BitMemoryImagePointers);
+	DDPIGetBool(IniFile, TEXT("Freezing_bAlignBases"), Info.Freezing_bAlignBases);
+	DDPIGetBool(IniFile, TEXT("Freezing_bWithRayTracing"), Info.Freezing_bWithRayTracing);
+
+	// NOTE: add more settings here!
+}
+
+
 /**
 * Get the global set of data driven platform information
 */
@@ -89,9 +198,7 @@ const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& FDataDriven
 			{
 				// cache info
 				FDataDrivenPlatformInfoRegistry::FPlatformInfo& Info = DataDrivenPlatforms.Add(PlatformName, FDataDrivenPlatformInfoRegistry::FPlatformInfo());
-				IniFile.GetBool(TEXT("DataDrivenPlatformInfo"), TEXT("bIsConfidential"), Info.bIsConfidential);
-				IniFile.GetBool(TEXT("DataDrivenPlatformInfo"), TEXT("bRestrictLocalization"), Info.bRestrictLocalization);
-				IniFile.GetArray(TEXT("DataDrivenPlatformInfo"), TEXT("AdditionalRestrictedFolders"), Info.AdditionalRestrictedFolders);
+				LoadDDPIIniSettings(IniFile, Info);
 
 				// get the parent to build list later
 				FString IniParent;

@@ -3166,10 +3166,8 @@ bool FEdModeFoliage::GetStaticMeshVertexColorForHit(const UStaticMeshComponent* 
 	const FPositionVertexBuffer& PositionVertexBuffer = LODModel.VertexBuffers.PositionVertexBuffer;
 
 	int32 SectionFirstTriIndex = 0;
-	for (TArray<FStaticMeshSection>::TConstIterator SectionIt(LODModel.Sections); SectionIt; ++SectionIt)
+	for (const FStaticMeshSection& Section : LODModel.Sections)
 	{
-		const FStaticMeshSection& Section = *SectionIt;
-
 		if (Section.bEnableCollision)
 		{
 			int32 NextSectionTriIndex = SectionFirstTriIndex + Section.NumTriangles;

@@ -53,9 +53,9 @@ public:
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
 
@@ -79,8 +79,6 @@ public:
 	}
 
 	static bool SupportsTessellationShaders() { return true; }
-
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 	FORCEINLINE_DEBUGGABLE void SetColorOverrideStream(FRHICommandList& RHICmdList, const FVertexBuffer* ColorVertexBuffer) const
 	{
@@ -164,9 +162,9 @@ protected:
  */
 class FLocalVertexFactoryShaderParametersBase : public FVertexFactoryShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FLocalVertexFactoryShaderParametersBase, NonVirtual);
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override;
-	virtual void Serialize(FArchive& Ar) override;
+	void Bind(const FShaderParameterMap& ParameterMap);
 
 	void GetElementShaderBindingsBase(
 		const class FSceneInterface* Scene,
@@ -187,18 +185,18 @@ public:
 	}
 
 	// SpeedTree LOD parameter
-	FShaderParameter LODParameter;
+	LAYOUT_FIELD(FShaderParameter, LODParameter);
 
 	// True if LODParameter is bound, which puts us on the slow path in GetElementShaderBindings
-	bool bAnySpeedTreeParamIsBound;
+	LAYOUT_FIELD(bool, bAnySpeedTreeParamIsBound);
 };
 
 /** Shader parameter class used by FLocalVertexFactory only - no derived classes. */
 class FLocalVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
 {
+	DECLARE_TYPE_LAYOUT(FLocalVertexFactoryShaderParameters, NonVirtual);
 public:
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -208,5 +206,5 @@ public:
 		const FMeshBatchElement& BatchElement,
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-	) const override; 
+	) const; 
 };

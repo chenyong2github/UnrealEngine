@@ -167,6 +167,14 @@ struct CORE_API FMemory
 	static void* Realloc(void* Original, SIZE_T Count, uint32 Alignment = DEFAULT_ALIGNMENT);
 	static void Free(void* Original);
 	static SIZE_T GetAllocSize(void* Original);
+
+	static FORCEINLINE_DEBUGGABLE void* MallocZeroed(SIZE_T Count, uint32 Alignment = DEFAULT_ALIGNMENT)
+	{
+		void* Memory = Malloc(Count, Alignment);
+		Memzero(Memory, Count);
+		return Memory;
+	}
+
 	/**
 	* For some allocators this will return the actual size that should be requested to eliminate
 	* internal fragmentation. The return value will always be >= Count. This can be used to grow

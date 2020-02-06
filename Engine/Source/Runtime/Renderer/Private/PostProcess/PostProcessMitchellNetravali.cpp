@@ -70,7 +70,7 @@ FRDGTextureRef ComputeMitchellNetravaliDownsample(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("MitchellNetravaliDownsample %dx%d -> %dx%d", Input.ViewRect.Width(), Input.ViewRect.Height(), OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
-		*ComputeShader,
+		ComputeShader,
 		PassParameters,
 		FComputeShaderUtils::GetGroupCount(OutputViewport.Rect.Size(), FComputeShaderUtils::kGolden2DGroupSize));
 

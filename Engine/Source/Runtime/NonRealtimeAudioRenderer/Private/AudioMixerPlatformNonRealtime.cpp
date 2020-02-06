@@ -317,13 +317,13 @@ namespace Audio
 		static FName NAME_XMA(TEXT("XMA"));
 
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
-		if (InSoundWave->IsStreaming() && InSoundWave->NumChannels <= 2)
+		if (InSoundWave->IsStreaming(nullptr) && InSoundWave->NumChannels <= 2)
 		{
 			return NAME_XMA;
 		}
 #endif
 
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 #if USE_VORBIS_FOR_STREAMING
 			return NAME_OGG;
@@ -364,7 +364,7 @@ namespace Audio
 		}
 #endif
 
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 #if USE_VORBIS_FOR_STREAMING
 			return new FVorbisAudioInfo();

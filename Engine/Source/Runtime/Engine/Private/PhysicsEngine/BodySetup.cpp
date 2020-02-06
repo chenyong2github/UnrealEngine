@@ -813,6 +813,9 @@ void UBodySetup::ClearPhysicsMeshes()
 	AggGeom.FreeRenderInfo();
 }
 
+DECLARE_CYCLE_STAT(TEXT("AddShapesToRigidActor"), STAT_AddShapesToActor, STATGROUP_Physics);
+DECLARE_CYCLE_STAT(TEXT("AddGeomToSolver"), STAT_AddGeomToSolver, STATGROUP_Physics);
+
 void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	FBodyInstance* OwningInstance, 
 	FVector& Scale3D, 
@@ -823,6 +826,8 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	const FTransform& RelativeTM, 
 	TArray<FPhysicsShapeHandle>* NewShapes)
 {
+	SCOPE_CYCLE_COUNTER(STAT_AddShapesToActor);
+
 	check(OwningInstance);
 
 	// in editor, there are a lot of things relying on body setup to create physics meshes
@@ -857,7 +862,10 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 #if WITH_CHAOS
 	AddParams.ChaosTriMeshes = MakeArrayView(ChaosTriMeshes);
 #endif
-	FPhysicsInterface::AddGeometry(OwningInstance->ActorHandle, AddParams, NewShapes);
+	{
+		SCOPE_CYCLE_COUNTER(STAT_AddGeomToSolver);
+		FPhysicsInterface::AddGeometry(OwningInstance->ActorHandle, AddParams, NewShapes);
+	}
 }
 
 void UBodySetup::RemoveSimpleCollision()

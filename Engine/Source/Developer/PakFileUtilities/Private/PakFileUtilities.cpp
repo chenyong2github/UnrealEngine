@@ -23,6 +23,7 @@
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -483,6 +484,7 @@ struct FPakCommandLineParameters
 		, bAsyncCompression(false)
 		, bAlignFilesLargerThanBlock(false)
 		, bForceCompress(false)
+		, bAllowForIndexUnload(false)
 	{
 	}
 
@@ -506,6 +508,8 @@ struct FPakCommandLineParameters
 	bool bAsyncCompression;
 	bool bAlignFilesLargerThanBlock;	// Align files that are larger than block size
 	bool bForceCompress; // Force all files that request compression to be compressed, even if that results in a larger file size
+	bool bAllowForIndexUnload;
+	FString DataDrivenPlatformName;
 };
 
 struct FPakEntryPair
@@ -1113,8 +1117,10 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 
 	if (FParse::Value(CmdLine, TEXT("-create="), ResponseFile))
 	{
+		CmdLineParameters.bAllowForIndexUnload = FParse::Param(CmdLine, TEXT("allowforindexunload"));
 		CmdLineParameters.GeneratePatch = FParse::Value(CmdLine, TEXT("-generatepatch="), CmdLineParameters.SourcePatchPakFilename);
 		FParse::Value(CmdLine, TEXT("-outputchangedfiles="), CmdLineParameters.ChangedFilesOutputFilename);
+		FParse::Value(CmdLine, TEXT("-platform="), CmdLineParameters.DataDrivenPlatformName);
 
 		bool bCompress = FParse::Param(CmdLine, TEXT("compress"));
 		bool bEncrypt = FParse::Param(CmdLine, TEXT("encrypt"));
@@ -2344,60 +2350,166 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	// Remember IndexOffset
 	Info.IndexOffset = PakFileHandle->Tell();
 
-	// Serialize Pak Index at the end of Pak File
-	TArray<uint8> IndexData;
-	FMemoryWriter IndexWriter(IndexData);
-	IndexWriter.SetByteSwapping(PakFileHandle->ForceByteSwapping());
-	int32 NumEntries = Index.Num();
-	IndexWriter << MountPoint;
-	IndexWriter << NumEntries;
+	FPakFileData Data;
+	FPakFile::MakeDirectoryFromPath(MountPoint);
+	Data.MountPoint = MountPoint;
+
+	// process each entry similar to how loading was working
 	for (int32 EntryIndex = 0; EntryIndex < Index.Num(); EntryIndex++)
 	{
 		FPakEntryPair& Entry = Index[EntryIndex];
-		IndexWriter << Entry.Filename;
-		Entry.Info.Serialize(IndexWriter, Info.Version);
+		// add raw entry
+		Data.Files.Add(Entry.Info);
 
-		if (RequiredPatchPadding > 0)
+		// make index entry
+		FString Path = FPaths::GetPath(Entry.Filename);
+		FPakFile::MakeDirectoryFromPath(Path);
+		FPakDirectory* Directory = Data.Index.Find(Path);
+		if (Directory != nullptr)
 		{
-			int64 EntrySize = Entry.Info.GetSerializedSize(FPakInfo::PakFile_Version_Latest);
-			int64 TotalSizeToWrite = Entry.Info.Size + EntrySize;
-			if (TotalSizeToWrite >= RequiredPatchPadding)
+			Directory->Add(FPaths::GetCleanFilename(Entry.Filename), EntryIndex);
+		}
+		else
+		{
+			FPakDirectory& NewDirectory = Data.Index.Add(Path);
+			NewDirectory.Add(FPaths::GetCleanFilename(Entry.Filename), EntryIndex);
+
+			// add the parent directories up to the mount point
+			while (MountPoint != Path)
 			{
-				int64 RealStart = Entry.Info.Offset;
-				if ((RealStart % RequiredPatchPadding) != 0 &&
-					!Entry.Filename.EndsWith(TEXT("uexp")) && // these are export sections of larger files and may be packed with uasset/umap and so we don't need a warning here
-					!(Entry.Filename.EndsWith(TEXT(".m.ubulk")) && CmdLineParameters.AlignForMemoryMapping > 0)) // Bulk padding unaligns patch padding and so we don't need a warning here
+				Path = Path.Left(Path.Len() - 1);
+				int32 Offset = 0;
+				if (Path.FindLastChar('/', Offset))
 				{
-					UE_LOG(LogPakFile, Warning, TEXT("File at offset %lld of size %lld not aligned to patch size %i"), RealStart, Entry.Info.Size, RequiredPatchPadding);
+					Path = Path.Left(Offset);
+					FPakFile::MakeDirectoryFromPath(Path);
+					if (Data.Index.Find(Path) == nullptr)
+					{
+						Data.Index.Add(Path);
+					}
+				}
+				else
+				{
+					Path = MountPoint;
 				}
 			}
 		}
 	}
 
-	if (Info.bEncryptedIndex)
+	// look up platform info via DataDrivenPlatformInfo.ini (null here means that there was no platform specified, and we cannot freeze)
+	const FDataDrivenPlatformInfoRegistry::FPlatformInfo* PlatformInfo = nullptr;
+	if (CmdLineParameters.DataDrivenPlatformName.Len() > 0)
 	{
-		int32 OriginalSize = IndexData.Num();
-		int32 AlignedSize = Align(OriginalSize, FAES::AESBlockSize);
-
-		for (int32 PaddingIndex = IndexData.Num(); PaddingIndex < AlignedSize; ++PaddingIndex)
+		const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& Infos = FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos();
+		PlatformInfo = Infos.Find(CmdLineParameters.DataDrivenPlatformName);
+		if (PlatformInfo == nullptr)
 		{
-			uint8 Byte = IndexData[PaddingIndex % OriginalSize];
-			IndexData.Add(Byte);
+			UE_LOG(LogPakFile, Fatal, TEXT("Unable to find DataDrivenPlatform '%s', unable to continue safely"), *CmdLineParameters.DataDrivenPlatformName);
 		}
 	}
 
-	FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), Info.IndexHash.Hash);
+	// check to make sure freezing of the index is okay (target specified, it's 64-bit, and we don't want to modify it at runtime)
+	bool bAllowFreezing = PlatformInfo != nullptr && PlatformInfo->Freezing_b32Bit == false && CmdLineParameters.bAllowForIndexUnload == false;
 
-	if (Info.bEncryptedIndex)
+	// Disable encrypted freezing until frozen decryption is implemented in FPakFile::LoadIndex()
+	bAllowFreezing = bAllowFreezing && !Info.bEncryptedIndex;
+
+	// if the want to allow for unloading of indices, then 
+	if (bAllowFreezing)
 	{
-		check(InKeyChain.MasterEncryptionKey);
-		FAES::EncryptData(IndexData.GetData(), IndexData.Num(), InKeyChain.MasterEncryptionKey->Key);
-		TotalEncryptedDataSize += IndexData.Num();
+		UE_LOG(LogPakFile, Display, TEXT("ENABLING pak file index freezing"));
+
+		FMemoryImage MemoryImage;
+		// we don't have any editor only data while freezing, so pass false
+		MemoryImage.TargetLayoutParameters.InitializeForPlatform(CmdLineParameters.DataDrivenPlatformName, false);
+
+		FMemoryImageWriter Writer(MemoryImage);
+		Writer.WriteObject(Data);
+
+		FMemoryImageResult Result;
+		MemoryImage.Flatten(Result);
+
+		if (Info.bEncryptedIndex)
+		{
+			check(InKeyChain.MasterEncryptionKey);
+			Result.Bytes.AddZeroed(Align(Result.Bytes.Num(), FAES::AESBlockSize) - Result.Bytes.Num());
+			FSHA1::HashBuffer(Result.Bytes.GetData(), Result.Bytes.Num(), Info.IndexHash.Hash);
+			FAES::EncryptData(Result.Bytes.GetData(), Result.Bytes.Num(), InKeyChain.MasterEncryptionKey->Key);
+			TotalEncryptedDataSize += Result.Bytes.Num();
+		}
+
+		int32 Size = Result.Bytes.Num();
+		PakFileHandle->Serialize(Result.Bytes.GetData(), Size);
+		Result.SaveToArchive(*PakFileHandle);
+
+		// use this to store the frozen data size
+		Info.IndexSize = Size;
+		Info.bIndexIsFrozen = true;
 	}
+	else
+	{
+		UE_LOG(LogPakFile, Display, TEXT("DISABLING pak file index freezing (all must be true: HasPlatformInfo? %s - TargetIs64Bit? %s - NoRuntimeUnloading? %s - Unencrypted? %s)"),
+			PlatformInfo == nullptr ? TEXT("false") : TEXT("true"),
+			PlatformInfo == nullptr ? TEXT("unknown") : PlatformInfo->Freezing_b32Bit ? TEXT("false") : TEXT("true"),
+			CmdLineParameters.bAllowForIndexUnload ? TEXT("false") : TEXT("true"),
+			Info.bEncryptedIndex ? TEXT("false") : TEXT("true"));
 
-	PakFileHandle->Serialize(IndexData.GetData(), IndexData.Num());
+		// Serialize Pak Index at the end of Pak File
+		TArray<uint8> IndexData;
+		FMemoryWriter IndexWriter(IndexData);
+		IndexWriter.SetByteSwapping(PakFileHandle->ForceByteSwapping());
+		int32 NumEntries = Index.Num();
+		IndexWriter << MountPoint;
+		IndexWriter << NumEntries;
+		for (int32 EntryIndex = 0; EntryIndex < Index.Num(); EntryIndex++)
+		{
+			FPakEntryPair& Entry = Index[EntryIndex];
+			IndexWriter << Entry.Filename;
+			Entry.Info.Serialize(IndexWriter, Info.Version);
 
-	Info.IndexSize = IndexData.Num();
+			// @todo loadtime: can't this be done when writing the fileentry itself?
+			if (RequiredPatchPadding > 0)
+			{
+				int64 EntrySize = Entry.Info.GetSerializedSize(FPakInfo::PakFile_Version_Latest);
+				int64 TotalSizeToWrite = Entry.Info.Size + EntrySize;
+				if (TotalSizeToWrite >= RequiredPatchPadding)
+				{
+					int64 RealStart = Entry.Info.Offset;
+					if ((RealStart % RequiredPatchPadding) != 0 &&
+						!Entry.Filename.EndsWith(TEXT("uexp")) && // these are export sections of larger files and may be packed with uasset/umap and so we don't need a warning here
+						!(Entry.Filename.EndsWith(TEXT(".m.ubulk")) && CmdLineParameters.AlignForMemoryMapping > 0)) // Bulk padding unaligns patch padding and so we don't need a warning here
+					{
+						UE_LOG(LogPakFile, Warning, TEXT("File at offset %lld of size %lld not aligned to patch size %i"), RealStart, Entry.Info.Size, RequiredPatchPadding);
+					}
+				}
+			}
+		}
+
+		if (Info.bEncryptedIndex)
+		{
+			int32 OriginalSize = IndexData.Num();
+			int32 AlignedSize = Align(OriginalSize, FAES::AESBlockSize);
+
+			for (int32 PaddingIndex = IndexData.Num(); PaddingIndex < AlignedSize; ++PaddingIndex)
+			{
+				uint8 Byte = IndexData[PaddingIndex % OriginalSize];
+				IndexData.Add(Byte);
+			}
+		}
+
+		FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), Info.IndexHash.Hash);
+
+		if (Info.bEncryptedIndex)
+		{
+			check(InKeyChain.MasterEncryptionKey);
+			FAES::EncryptData(IndexData.GetData(), IndexData.Num(), InKeyChain.MasterEncryptionKey->Key);
+			TotalEncryptedDataSize += IndexData.Num();
+		}
+
+		PakFileHandle->Serialize(IndexData.GetData(), IndexData.Num());
+
+		Info.IndexSize = IndexData.Num();
+	}
 
 	// Save trailer (offset, size, hash value)
 	Info.Serialize(*PakFileHandle, FPakInfo::PakFile_Version_Latest);

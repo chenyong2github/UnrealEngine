@@ -106,8 +106,10 @@ class UMaterialExpressionMaterialFunctionCall : public UMaterialExpression
 	virtual bool NeedsLoadForClient() const override;
 	//~ End UObject Interface.
 
+#if WITH_EDITORONLY_DATA
 	ENGINE_API bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const;
 	ENGINE_API void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const;
+#endif
 
 #if WITH_EDITOR
 	ENGINE_API void UnlinkFunctionFromCaller(FMaterialCompiler* Compiler);

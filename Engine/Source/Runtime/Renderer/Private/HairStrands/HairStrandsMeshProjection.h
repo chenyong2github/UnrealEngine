@@ -10,14 +10,14 @@
 /* Project hair strands onto a LOD mesh */
 void ProjectHairStrandsOntoMesh(
 	class FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& ProjectionMeshData,
 	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);
 
 void TransferMesh(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& SourceMeshData,
 	const FHairStrandsProjectionMeshData& TargetMeshData,
@@ -32,7 +32,7 @@ enum class HairStrandsTriangleType
 /* Update the triangles information on which hair stands have been projected */
 void UpdateHairStrandsMeshTriangles(
 	class FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,

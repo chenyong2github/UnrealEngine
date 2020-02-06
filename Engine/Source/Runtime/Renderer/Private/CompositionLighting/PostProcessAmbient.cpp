@@ -17,6 +17,7 @@
 /*-----------------------------------------------------------------------------
 FCubemapShaderParameters
 -----------------------------------------------------------------------------*/
+IMPLEMENT_TYPE_LAYOUT(FCubemapShaderParameters);
 
 void FCubemapShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
 {

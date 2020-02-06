@@ -117,9 +117,9 @@ static bool SkyAtmosphereComponentStaticLightingBuilt(const USkyAtmosphereCompon
 	return true;	// The component has not been spawned in any world yet so let's mark it as built for now.
 }
 
-void USkyAtmosphereComponent::CreateRenderState_Concurrent()
+void USkyAtmosphereComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 	// If one day we need to look up lightmass built data, lookup it up here using the guid from the correct MapBuildData.
 
 	bool bHidden = false;

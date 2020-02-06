@@ -17,7 +17,6 @@
 #include "NiagaraShaderType.h"
 #include "SceneRenderTargetParameters.h"
 
-struct FNiagaraDataInterfaceParametersCS;
 class UClass;
 
 template<typename TBufferStruct> class TUniformBufferRef;
@@ -28,22 +27,13 @@ class NIAGARASHADER_API FNiagaraShader : public FShader
 public:
 	DECLARE_SHADER_TYPE(FNiagaraShader, Niagara);
 
+	using FPermutationParameters = FNiagaraShaderPermutationParameters;
+
 	static FName UniformBufferLayoutName;
 
 	FNiagaraShader()
 	{
 	}
-
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FNiagaraShaderScript*  Script)
-	{
-		//@todo - lit materials only 
-		return FNiagaraUtilities::SupportsGPUParticles(Platform);
-	}
-
-
-	FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);
-
-	typedef void (*ModifyCompilationEnvironmentType)(EShaderPlatform, const FNiagaraShaderScript* , FShaderCompilerEnvironment&);
 
 	static uint32 GetGroupSize(EShaderPlatform Platform)
 	{
@@ -57,17 +47,19 @@ public:
 		}
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FNiagaraShaderScript*  Script, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FNiagaraShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize(Platform));
+		FShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize(Parameters.Platform));
 	}
 
-	static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
+	static bool ShouldCompilePermutation(const FNiagaraShaderPermutationParameters& Parameters)
 	{
-		return true;
+		//@todo - lit materials only 
+		return FNiagaraUtilities::SupportsGPUParticles(Parameters.Platform);
 	}
-	
-	void SetDataInterfaceParameterInfo(const TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo);
+
+	FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);
 
 //	FRHIUniformBuffer* GetParameterCollectionBuffer(const FGuid& Id, const FSceneInterface* SceneInterface) const;
 	/*
@@ -92,68 +84,63 @@ public:
 	*/
 
 	// Bind parameters
-	void BindParams(const FShaderParameterMap &ParameterMap);
+	void BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo, const FShaderParameterMap &ParameterMap);
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override;
-	virtual uint32 GetAllocatedSize() const override;
-
-	FShaderResourceParameter FloatInputBufferParam;
-	FShaderResourceParameter IntInputBufferParam;
-	FRWShaderParameter FloatOutputBufferParam;
-	FRWShaderParameter IntOutputBufferParam;
-	FRWShaderParameter InstanceCountsParam;
-	FShaderParameter ReadInstanceCountOffsetParam;
-	FShaderParameter WriteInstanceCountOffsetParam;
-	FShaderResourceParameter FreeIDBufferParam;
-	FRWShaderParameter IDToIndexBufferParam;
-	FShaderUniformBufferParameter GlobalConstantBufferParam[2];
-	FShaderUniformBufferParameter SystemConstantBufferParam[2];
-	FShaderUniformBufferParameter OwnerConstantBufferParam[2];
-	FShaderUniformBufferParameter EmitterConstantBufferParam[2];
-	FShaderUniformBufferParameter ExternalConstantBufferParam[2];
-	FShaderUniformBufferParameter DataInterfaceUniformBufferParam;
-	FShaderUniformBufferParameter ViewUniformBufferParam;
-	FShaderParameter SimStartParam;
-	FShaderParameter EmitterTickCounterParam;
-	FShaderParameter EmitterSpawnInfoOffsetsParam;
-	FShaderParameter EmitterSpawnInfoParamsParam;
-	FShaderParameter NumEventsPerParticleParam;
-	FShaderParameter NumParticlesPerEventParam;
-	FShaderParameter CopyInstancesBeforeStartParam;
-	FShaderParameter NumSpawnedInstancesParam;
-	FShaderParameter UpdateStartInstanceParam;
-	FShaderParameter DefaultShaderStageIndexParam;
-	FShaderParameter ShaderStageIndexParam;
-	FShaderParameter IterationInterfaceCount;
-	FShaderParameter ComponentBufferSizeReadParam;
-	FShaderParameter ComponentBufferSizeWriteParam;
-	FRWShaderParameter EventIntUAVParams[MAX_CONCURRENT_EVENT_DATASETS];
-	FRWShaderParameter EventFloatUAVParams[MAX_CONCURRENT_EVENT_DATASETS];
-	FShaderResourceParameter EventIntSRVParams[MAX_CONCURRENT_EVENT_DATASETS];
-	FShaderResourceParameter EventFloatSRVParams[MAX_CONCURRENT_EVENT_DATASETS];
-	FShaderParameter EventWriteFloatStrideParams[MAX_CONCURRENT_EVENT_DATASETS];
-	FShaderParameter EventWriteIntStrideParams[MAX_CONCURRENT_EVENT_DATASETS];
-	FShaderParameter EventReadFloatStrideParams[MAX_CONCURRENT_EVENT_DATASETS];
-	FShaderParameter EventReadIntStrideParams[MAX_CONCURRENT_EVENT_DATASETS];
-
-	TArray< FNiagaraDataInterfaceParamRef >& GetDIParameters()
+	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& GetDIParameters()
 	{
 		return DataInterfaceParameters;
 	}
 
+	LAYOUT_FIELD(FShaderResourceParameter, FloatInputBufferParam);
+	LAYOUT_FIELD(FShaderResourceParameter, IntInputBufferParam);
+	LAYOUT_FIELD(FRWShaderParameter, FloatOutputBufferParam);
+	LAYOUT_FIELD(FRWShaderParameter, IntOutputBufferParam);
+	LAYOUT_FIELD(FRWShaderParameter, InstanceCountsParam);
+	LAYOUT_FIELD(FShaderParameter, ReadInstanceCountOffsetParam);
+	LAYOUT_FIELD(FShaderParameter, WriteInstanceCountOffsetParam);
+	LAYOUT_FIELD(FShaderResourceParameter, FreeIDBufferParam);
+	LAYOUT_FIELD(FRWShaderParameter, IDToIndexBufferParam);
+	LAYOUT_ARRAY(FShaderUniformBufferParameter, GlobalConstantBufferParam, 2);
+	LAYOUT_ARRAY(FShaderUniformBufferParameter, SystemConstantBufferParam, 2);
+	LAYOUT_ARRAY(FShaderUniformBufferParameter, OwnerConstantBufferParam, 2);
+	LAYOUT_ARRAY(FShaderUniformBufferParameter, EmitterConstantBufferParam, 2);
+	LAYOUT_ARRAY(FShaderUniformBufferParameter, ExternalConstantBufferParam, 2);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, DataInterfaceUniformBufferParam);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, ViewUniformBufferParam);
+	LAYOUT_FIELD(FShaderParameter, SimStartParam);
+	LAYOUT_FIELD(FShaderParameter, EmitterTickCounterParam);
+	LAYOUT_FIELD(FShaderParameter, EmitterSpawnInfoOffsetsParam);
+	LAYOUT_FIELD(FShaderParameter, EmitterSpawnInfoParamsParam);
+	LAYOUT_FIELD(FShaderParameter, NumEventsPerParticleParam);
+	LAYOUT_FIELD(FShaderParameter, NumParticlesPerEventParam);
+	LAYOUT_FIELD(FShaderParameter, CopyInstancesBeforeStartParam);
+	LAYOUT_FIELD(FShaderParameter, NumSpawnedInstancesParam);
+	LAYOUT_FIELD(FShaderParameter, UpdateStartInstanceParam);
+	LAYOUT_FIELD(FShaderParameter, DefaultShaderStageIndexParam);
+	LAYOUT_FIELD(FShaderParameter, ShaderStageIndexParam);
+	LAYOUT_FIELD(FShaderParameter, IterationInterfaceCount);
+	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);
+	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeWriteParam);
+	LAYOUT_ARRAY(FRWShaderParameter, EventIntUAVParams, MAX_CONCURRENT_EVENT_DATASETS);
+	LAYOUT_ARRAY(FRWShaderParameter, EventFloatUAVParams, MAX_CONCURRENT_EVENT_DATASETS);
+	LAYOUT_ARRAY(FShaderResourceParameter, EventIntSRVParams, MAX_CONCURRENT_EVENT_DATASETS);
+	LAYOUT_ARRAY(FShaderResourceParameter, EventFloatSRVParams, MAX_CONCURRENT_EVENT_DATASETS);
+	LAYOUT_ARRAY(FShaderParameter, EventWriteFloatStrideParams, MAX_CONCURRENT_EVENT_DATASETS);
+	LAYOUT_ARRAY(FShaderParameter, EventWriteIntStrideParams, MAX_CONCURRENT_EVENT_DATASETS);
+	LAYOUT_ARRAY(FShaderParameter, EventReadFloatStrideParams, MAX_CONCURRENT_EVENT_DATASETS);
+	LAYOUT_ARRAY(FShaderParameter, EventReadIntStrideParams, MAX_CONCURRENT_EVENT_DATASETS);
 
 private:
-	FShaderUniformBufferParameter NiagaraUniformBuffer;
+	LAYOUT_FIELD(FShaderUniformBufferParameter, NiagaraUniformBuffer);
 
 	// Data about parameters used for each Data Interface.
-	TArray< FNiagaraDataInterfaceParamRef > DataInterfaceParameters;
+	LAYOUT_FIELD(TMemoryImageArray<FNiagaraDataInterfaceParamRef>, DataInterfaceParameters);
 
 	/*
 	FDebugUniformExpressionSet	DebugUniformExpressionSet;
 	FRHIUniformBufferLayout		DebugUniformExpressionUBLayout;
 	*/
-	FString						DebugDescription;
+	LAYOUT_FIELD(FMemoryImageString, DebugDescription);
 
 	/* OPTODO: ? */
 	/*
@@ -163,14 +150,12 @@ private:
 	static FAutoConsoleVariableRef CVarAllowCachedUniformExpressions;
 	*/
 
-
 	/*
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING || !WITH_EDITOR)
 	void VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial& Material, const FUniformExpressionCache* UniformExpressionCache);
 #endif
 	*/
 };
-
 
 class FNiagaraEmitterInstanceShader : public FNiagaraShader
 {

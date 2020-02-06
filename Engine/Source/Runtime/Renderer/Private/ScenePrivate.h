@@ -1972,7 +1972,7 @@ public:
 	/** Releases the indirect lighting allocation for the given primitive. */
 	void ReleasePrimitive(FPrimitiveComponentId PrimitiveId);
 
-	FIndirectLightingCacheAllocation* FindPrimitiveAllocation(FPrimitiveComponentId PrimitiveId);	
+	FIndirectLightingCacheAllocation* FindPrimitiveAllocation(FPrimitiveComponentId PrimitiveId) const;	
 
 	/** Updates indirect lighting in the cache based on visibility synchronously. */
 	void UpdateCache(FScene* Scene, FSceneRenderer& Renderer, bool bAllowUnbuiltPreview);
@@ -2425,51 +2425,11 @@ public:
 	const FViewInfo* CachedView;
 };
 
-class FMeshDrawCommandStateBucket
-{
-public:
-
-	FMeshDrawCommandStateBucket(int32 InNum, const FMeshDrawCommand& InMeshDrawCommand) 
-		: Num(InNum)
-		, MeshDrawCommand(InMeshDrawCommand)
-	{}
-
-	int32 Num;
-	FMeshDrawCommand MeshDrawCommand;
-};
-
-struct MeshDrawCommandKeyFuncs : DefaultKeyFuncs<FMeshDrawCommandStateBucket,false>
-{
-	typedef typename TCallTraits<FMeshDrawCommand>::ConstReference KeyInitType;
-
-	/**
-	 * @return True if the keys match.
-	 */
-	static inline bool Matches(KeyInitType A,KeyInitType B)
-	{
-		return A.MatchesForDynamicInstancing(B);
-	}
-
-	/**
-	 * @return The key used to index the given element.
-	 */
-	static inline KeyInitType GetSetKey(ElementInitType Element)
-	{
-		return Element.MeshDrawCommand;
-	}
-
-	/** Calculates a hash index for a key. */
-	static inline uint32 GetKeyHash(KeyInitType Key)
-	{
-		return Key.GetDynamicInstancingHash();
-	}
-};
-
 #if RHI_RAYTRACING
 struct FMeshComputeDispatchCommand
 {
 	FMeshDrawShaderBindings ShaderBindings;
-	class FRayTracingDynamicGeometryConverterCS* MaterialShader;
+	TShaderRef<class FRayTracingDynamicGeometryConverterCS> MaterialShader;
 
 	uint32 NumMaxVertices;
 	uint32 NumCPUVertices;
@@ -2497,8 +2457,8 @@ public:
 	FPersistentUniformBuffers UniformBuffers;
 
 	/** Instancing state buckets.  These are stored on the scene as they are precomputed at FPrimitiveSceneInfo::AddToScene time. */
-	TSet<FMeshDrawCommandStateBucket, MeshDrawCommandKeyFuncs> CachedMeshDrawCommandStateBuckets;
-
+	FCriticalSection CachedMeshDrawCommandLock[EMeshPass::Num];
+	FStateBucketMap CachedMeshDrawCommandStateBuckets[EMeshPass::Num];
 	FCachedPassMeshDrawList CachedDrawLists[EMeshPass::Num];
 
 #if RHI_RAYTRACING

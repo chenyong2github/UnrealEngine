@@ -276,29 +276,29 @@ static FORCEINLINE GLint ModifyFilterByMips(GLint Filter, bool bHasMips)
 
 static FORCEINLINE EShaderFrequency GetShaderFrequency(FRHIGraphicsShader* ShaderRHI)
 {
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Vertex);
 		return SF_Vertex;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
 		return SF_Hull;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
 		return SF_Domain;
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
 		return SF_Geometry;
 #endif
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Pixel);
 		return SF_Pixel;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 
 	return SF_NumFrequencies;
@@ -306,29 +306,29 @@ static FORCEINLINE EShaderFrequency GetShaderFrequency(FRHIGraphicsShader* Shade
 
 static FORCEINLINE CrossCompiler::EShaderStage GetShaderCrossCompilerStage(FRHIGraphicsShader* ShaderRHI)
 {
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Vertex);
 		return CrossCompiler::SHADER_STAGE_VERTEX;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
 		return CrossCompiler::SHADER_STAGE_HULL;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
 		return CrossCompiler::SHADER_STAGE_DOMAIN;
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
 		return CrossCompiler::SHADER_STAGE_GEOMETRY;
 #endif
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Pixel);
 		return CrossCompiler::SHADER_STAGE_PIXEL;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 
 	return CrossCompiler::NUM_SHADER_STAGES;
@@ -336,39 +336,39 @@ static FORCEINLINE CrossCompiler::EShaderStage GetShaderCrossCompilerStage(FRHIG
 
 static FORCEINLINE void GetShaderStageIndexAndMaxUnits(FRHIGraphicsShader* ShaderRHI, GLint& OutIndex, GLint& OutMaxUnits)
 {
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Vertex);
 		OutIndex = FOpenGL::GetFirstVertexTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxVertexTextureImageUnits();
 		break;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Hull);
 		OutIndex = FOpenGL::GetFirstHullTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxHullTextureImageUnits();
 		break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Domain);
 		OutIndex = FOpenGL::GetFirstDomainTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxDomainTextureImageUnits();
 		break;
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Geometry);
 		OutIndex = FOpenGL::GetFirstGeometryTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxGeometryTextureImageUnits();
 		break;
 #endif
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 		VALIDATE_BOUND_SHADER(ShaderRHI, Pixel);
 		OutIndex = FOpenGL::GetFirstPixelTextureUnit();
 		OutMaxUnits = FOpenGL::GetMaxTextureImageUnits();
 		break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 
@@ -1007,7 +1007,7 @@ void FOpenGLDynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* Sh
 	GLint MaxUnits = 0;
 	GetShaderStageIndexAndMaxUnits(ShaderRHI, Index, MaxUnits);
 
-	ensureMsgf((int32)TextureIndex < MaxUnits, TEXT("Using more texture units (%d) than allowed (%d) on Frequency %d!"), TextureIndex, MaxUnits, (int32)ShaderRHI->GetType());
+	ensureMsgf((int32)TextureIndex < MaxUnits, TEXT("Using more texture units (%d) than allowed (%d) on Frequency %d!"), TextureIndex, MaxUnits, (int32)ShaderRHI->GetFrequency());
 	FOpenGLShaderResourceView* SRV = ResourceCast(SRVRHI);
 	GLuint Resource = 0;
 	GLenum Target = GL_TEXTURE_BUFFER;
@@ -1054,7 +1054,7 @@ void FOpenGLDynamicRHI::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,uint32
 	GLint MaxUnits = 0;
 	GetShaderStageIndexAndMaxUnits(ShaderRHI, Index, MaxUnits);
 
-	ensureMsgf((int32)TextureIndex < MaxUnits, TEXT("Using more texture units (%d) than allowed (%d) on Frequency %d!"), TextureIndex, MaxUnits, (int32)ShaderRHI->GetType());
+	ensureMsgf((int32)TextureIndex < MaxUnits, TEXT("Using more texture units (%d) than allowed (%d) on Frequency %d!"), TextureIndex, MaxUnits, (int32)ShaderRHI->GetFrequency());
 	if (NewTexture)
 	{
 		InternalSetShaderTexture(NewTexture, nullptr, Index + TextureIndex, NewTexture->Target, NewTexture->Resource, NewTextureRHI->GetNumMips(), -1);

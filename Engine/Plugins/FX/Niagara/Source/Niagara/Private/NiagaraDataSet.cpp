@@ -972,7 +972,7 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 	check(IsInRenderingThread());
 
 	const uint32 SafeBufferSize = GetFloatStride() / sizeof(float);
-	FRHIComputeShader* ComputeShader = Shader->GetComputeShader();
+	FRHIComputeShader* ComputeShader = CommandList.GetBoundComputeShader();
 
 	if (bInput)
 	{
@@ -998,11 +998,12 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandList &RHICmdList)
 {
 	check(IsInRenderingThread());
+	FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 	if (Shader->FloatOutputBufferParam.IsUAVBound())
 	{
 #if !PLATFORM_PS4
-		Shader->FloatOutputBufferParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+		Shader->FloatOutputBufferParam.UnsetUAV(RHICmdList, ShaderRHI);
 #endif
 		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, CurrDataRender().GetGPUBufferFloat()->UAV);
 	}
@@ -1010,7 +1011,7 @@ void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandLi
 	if (Shader->IntOutputBufferParam.IsUAVBound())
 	{
 #if !PLATFORM_PS4
-		Shader->IntOutputBufferParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+		Shader->IntOutputBufferParam.UnsetUAV(RHICmdList, ShaderRHI);
 #endif
 		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, CurrDataRender().GetGPUBufferInt()->UAV);
 	}
@@ -1018,7 +1019,7 @@ void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandLi
 	if (Shader->IDToIndexBufferParam.IsUAVBound())
 	{
 #if !PLATFORM_PS4
-		Shader->IDToIndexBufferParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+		Shader->IDToIndexBufferParam.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 #endif
 	}
 }

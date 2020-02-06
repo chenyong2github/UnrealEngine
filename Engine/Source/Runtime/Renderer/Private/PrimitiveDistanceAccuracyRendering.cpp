@@ -14,7 +14,8 @@ PrimitiveDistanceAccuracyRendering.cpp: Contains definitions for rendering the v
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FPrimitiveDistanceAccuracyPS,TEXT("/Engine/Private/PrimitiveDistanceAccuracyPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
-void FPrimitiveDistanceAccuracyPS::GetDebugViewModeShaderBindings(
+void FPrimitiveDistanceAccuracyInterface::GetDebugViewModeShaderBindings(
+	const FDebugViewModePS& ShaderBase,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT Material,
@@ -29,6 +30,7 @@ void FPrimitiveDistanceAccuracyPS::GetDebugViewModeShaderBindings(
 	FMeshDrawSingleShaderBindings& ShaderBindings
 ) const
 {
+	const FPrimitiveDistanceAccuracyPS& Shader = static_cast<const FPrimitiveDistanceAccuracyPS&>(ShaderBase);
 	float CPULogDistance = -1.f;
 #if WITH_EDITORONLY_DATA
 	float Distance = 0;
@@ -38,8 +40,8 @@ void FPrimitiveDistanceAccuracyPS::GetDebugViewModeShaderBindings(
 	}
 #endif
 	// Because the streamer use FMath::FloorToFloat, here we need to use -1 to have a useful result.
-	ShaderBindings.Add(CPULogDistanceParameter, CPULogDistance);
-	ShaderBindings.Add(PrimitiveAlphaParameter,  (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f);
+	ShaderBindings.Add(Shader.CPULogDistanceParameter, CPULogDistance);
+	ShaderBindings.Add(Shader.PrimitiveAlphaParameter,  (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f);
 }
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

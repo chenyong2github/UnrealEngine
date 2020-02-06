@@ -56,9 +56,9 @@ void UExponentialHeightFogComponent::AddFogIfNeeded()
 	}
 }
 
-void UExponentialHeightFogComponent::CreateRenderState_Concurrent()
+void UExponentialHeightFogComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 	AddFogIfNeeded();
 }
 

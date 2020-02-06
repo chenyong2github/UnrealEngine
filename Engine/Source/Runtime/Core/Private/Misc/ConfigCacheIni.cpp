@@ -3897,7 +3897,9 @@ void FConfigCacheIni::InitializeConfigSystem()
 	FConfigCacheIni::LoadGlobalIniFile(GRuntimeOptionsIni, TEXT("RuntimeOptions"));
 	// Load install bundle config
 	FConfigCacheIni::LoadGlobalIniFile(GInstallBundleIni, TEXT("InstallBundle"));
-	
+	// Load device profiles for current platform
+	FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"));
+
 	// Load user game settings .ini, allowing merging. This also updates the user .ini if necessary.
 #if PLATFORM_PS4
 	FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"), nullptr, false, false, true, *GetGameUserSettingsDir());
@@ -3983,7 +3985,7 @@ bool FConfigCacheIni::LoadLocalIniFile(FConfigFile& ConfigFile, const TCHAR* Ini
 	if (bIsBaseIniName)
 	{
 		// If base ini, try to use an existing GConfig file to set the config directories instead of assuming defaults
-		FConfigFile* BaseConfig = GConfig->FindConfigFileWithBaseName(IniName);
+		FConfigFile* BaseConfig = GConfig ? GConfig->FindConfigFileWithBaseName(IniName) : nullptr;
 		if (BaseConfig)
 		{
 			if (BaseConfig->SourceEngineConfigDir.Len())

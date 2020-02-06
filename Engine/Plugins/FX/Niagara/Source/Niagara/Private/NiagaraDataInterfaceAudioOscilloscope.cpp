@@ -316,23 +316,12 @@ struct FNiagaraDataInterfaceParametersCS_AudioOscilloscope : public FNiagaraData
 	}
 
 	virtual ~FNiagaraDataInterfaceParametersCS_AudioOscilloscope() {}
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
-	{
-		NumChannels.Bind(ParameterMap, *(NumChannelsName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		AudioBuffer.Bind(ParameterMap, *(AudioBufferName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << NumChannels;
-		Ar << AudioBuffer;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 
 		FNiagaraDataInterfaceProxyOscilloscope* NDI = (FNiagaraDataInterfaceProxyOscilloscope*)Context.DataInterface;
 		FReadBuffer& AudioBufferSRV = NDI->ComputeAndPostSRV();

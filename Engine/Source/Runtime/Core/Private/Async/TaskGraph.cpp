@@ -440,9 +440,10 @@ public:
 	virtual void ProcessTasksUntilQuit(int32 QueueIndex) = 0;
 
 	/** Used for named threads to start processing tasks until the thread is idle and RequestQuit has been called. **/
-	virtual void ProcessTasksUntilIdle(int32 QueueIndex)
+	virtual uint64 ProcessTasksUntilIdle(int32 QueueIndex)
 	{
 		check(0);
+		return 0;
 	}
 
 	/** 
@@ -583,19 +584,21 @@ public:
 		verify(!--Queue(QueueIndex).RecursionGuard);
 	}
 
-	virtual void ProcessTasksUntilIdle(int32 QueueIndex) override
+	virtual uint64 ProcessTasksUntilIdle(int32 QueueIndex) override
 	{
 		check(Queue(QueueIndex).StallRestartEvent); // make sure we are started up
 
 		Queue(QueueIndex).QuitForReturn = false;
 		verify(++Queue(QueueIndex).RecursionGuard == 1);
-		ProcessTasksNamedThread(QueueIndex, false);
+		uint64 ProcessedTasks = ProcessTasksNamedThread(QueueIndex, false);
 		verify(!--Queue(QueueIndex).RecursionGuard);
+		return ProcessedTasks;
 	}
 
 
-	void ProcessTasksNamedThread(int32 QueueIndex, bool bAllowStall)
+	uint64 ProcessTasksNamedThread(int32 QueueIndex, bool bAllowStall)
 	{
+		uint64 ProcessedTasks = 0;
 #if UE_EXTERNAL_PROFILING_ENABLED
 		static thread_local bool bOnce = false;
 		if (!bOnce)
@@ -662,7 +665,7 @@ public:
 						Queue(QueueIndex).StallRestartEvent->Wait(MAX_uint32, bCountAsStall);
 						if (Queue(QueueIndex).QuitForShutdown)
 						{
-							return;
+							return ProcessedTasks;
 						}
 						TestRandomizedThreads();
 					}
@@ -683,6 +686,7 @@ public:
 			else
 			{
 				Task->Execute(NewTasks, ENamedThreads::Type(ThreadId | (QueueIndex << ENamedThreads::QueueIndexShift)));
+				ProcessedTasks++;
 				TestRandomizedThreads();
 			}
 		}
@@ -693,6 +697,7 @@ public:
 			bTasksOpen = false;
 		}
 #endif
+		return ProcessedTasks;
 	}
 	virtual void EnqueueFromThisThread(int32 QueueIndex, FBaseGraphTask* Task) override
 	{
@@ -854,15 +859,16 @@ public:
 		} while (!Queue.QuitForShutdown && FPlatformProcess::SupportsMultithreading()); // @Hack - quit now when running with only one thread.
 	}
 
-	virtual void ProcessTasksUntilIdle(int32 QueueIndex) override
+	virtual uint64 ProcessTasksUntilIdle(int32 QueueIndex) override
 	{
 		if (!FPlatformProcess::SupportsMultithreading())
 		{
-			ProcessTasks();
+			return ProcessTasks();
 		}
 		else
 		{
 			check(0);
+			return 0;
 		}
 	}
 
@@ -961,12 +967,13 @@ private:
 	*	@param QueueIndex, Queue to process tasks from
 	*	@param bAllowStall,  if true, the thread will block on the stall event when it runs out of tasks.
 	**/
-	void ProcessTasks()
+	uint64 ProcessTasks()
 	{
 		LLM_SCOPE(ELLMTag::TaskGraphTasksMisc);
 
 		TStatId StallStatId;
 		bool bCountAsStall = true;
+		uint64 ProcessedTasks = 0;
 #if STATS
 		TStatId StatName;
 		FCycleCounter ProcessingTasks;
@@ -1026,6 +1033,7 @@ private:
 #endif
 			bDidStall = false;
 			Task->Execute(NewTasks, ENamedThreads::Type(ThreadId));
+			ProcessedTasks++;
 			TestRandomizedThreads();
 			if (Queue.bStallForTuning)
 			{
@@ -1049,6 +1057,7 @@ private:
 			}
 		}
 		verify(!--Queue.RecursionGuard);
+		return ProcessedTasks;
 	}
 
 	/** Grouping of the data for an individual queue. **/
@@ -1395,13 +1404,14 @@ public:
 		Thread(CurrentThread).InitializeForCurrentThread();
 	}
 
-	virtual void ProcessThreadUntilIdle(ENamedThreads::Type CurrentThread) final override
+	virtual uint64 ProcessThreadUntilIdle(ENamedThreads::Type CurrentThread) final override
 	{
+		SCOPED_NAMED_EVENT(ProcessThreadUntilIdle, FColor::Red);
 		int32 QueueIndex = ENamedThreads::GetQueueIndex(CurrentThread);
 		CurrentThread = ENamedThreads::GetThreadIndex(CurrentThread);
 		check(CurrentThread >= 0 && CurrentThread < NumNamedThreads);
 		check(CurrentThread == GetCurrentThread());
-		Thread(CurrentThread).ProcessTasksUntilIdle(QueueIndex);
+		return Thread(CurrentThread).ProcessTasksUntilIdle(QueueIndex);
 	}
 
 	virtual void ProcessThreadUntilRequestReturn(ENamedThreads::Type CurrentThread) final override
@@ -1423,6 +1433,7 @@ public:
 
 	virtual void WaitUntilTasksComplete(const FGraphEventArray& Tasks, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread) final override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WaitUntilTasksComplete);
 		ENamedThreads::Type CurrentThread = CurrentThreadIfKnown;
 		if (ENamedThreads::GetThreadIndex(CurrentThreadIfKnown) == ENamedThreads::AnyThread)
 		{

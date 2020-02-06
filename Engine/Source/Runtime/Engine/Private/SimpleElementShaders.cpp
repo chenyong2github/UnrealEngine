@@ -21,16 +21,16 @@ FSimpleElementVS::FSimpleElementVS(const ShaderMetaType::CompiledShaderInitializ
 
 void FSimpleElementVS::SetParameters(FRHICommandList& RHICmdList, const FMatrix& TransformValue, bool bSwitchVerticalAxis)
 {
-	SetShaderValue(RHICmdList, GetVertexShader(),Transform,TransformValue);
-	SetShaderValue(RHICmdList, GetVertexShader(),SwitchVerticalAxis, bSwitchVerticalAxis ? -1.0f : 1.0f);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), Transform,TransformValue);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), SwitchVerticalAxis, bSwitchVerticalAxis ? -1.0f : 1.0f);
 }
 
-bool FSimpleElementVS::Serialize(FArchive& Ar)
+/*bool FSimpleElementVS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 	Ar << Transform << SwitchVerticalAxis;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 
 void FSimpleElementVS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
@@ -55,24 +55,24 @@ void FSimpleElementPS::SetEditorCompositingParameters(FRHICommandList& RHICmdLis
 {
 	if( View )
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetPixelShader(), View->ViewUniformBuffer );
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View->ViewUniformBuffer );
 	}
 	else
 	{
 		// Unset the view uniform buffers since we don't have a view
-		SetUniformBufferParameter(RHICmdList, GetPixelShader(), GetUniformBufferParameter<FViewUniformShaderParameters>(), NULL);
+		SetUniformBufferParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), GetUniformBufferParameter<FViewUniformShaderParameters>(), NULL);
 	}
 }
 
 void FSimpleElementPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue)
 {
-	SetTextureParameter(RHICmdList, GetPixelShader(),InTexture,InTextureSampler,TextureValue);
+	SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),InTexture,InTextureSampler,TextureValue);
 	
-	SetShaderValue(RHICmdList, GetPixelShader(),TextureComponentReplicate,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
-	SetShaderValue(RHICmdList, GetPixelShader(),TextureComponentReplicateAlpha,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),TextureComponentReplicate,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),TextureComponentReplicateAlpha,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
 }
 
-bool FSimpleElementPS::Serialize(FArchive& Ar)
+/*bool FSimpleElementPS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 	Ar << InTexture;
@@ -82,7 +82,7 @@ bool FSimpleElementPS::Serialize(FArchive& Ar)
 	Ar << EditorCompositeDepthTestParameter;
 	Ar << ScreenToPixel;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 
 FSimpleElementAlphaOnlyPS::FSimpleElementAlphaOnlyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 	FSimpleElementPS(Initializer)
@@ -98,15 +98,15 @@ FSimpleElementGammaBasePS::FSimpleElementGammaBasePS(const ShaderMetaType::Compi
 void FSimpleElementGammaBasePS::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, float GammaValue, ESimpleElementBlendMode BlendMode)
 {
 	FSimpleElementPS::SetParameters(RHICmdList, Texture);
-	SetShaderValue(RHICmdList, GetPixelShader(),Gamma,GammaValue);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),Gamma,GammaValue);
 }
 
-bool FSimpleElementGammaBasePS::Serialize(FArchive& Ar)
+/*bool FSimpleElementGammaBasePS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FSimpleElementPS::Serialize(Ar);
 	Ar << Gamma;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 
 FSimpleElementMaskedGammaBasePS::FSimpleElementMaskedGammaBasePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 	FSimpleElementGammaBasePS(Initializer)
@@ -117,15 +117,15 @@ FSimpleElementMaskedGammaBasePS::FSimpleElementMaskedGammaBasePS(const ShaderMet
 void FSimpleElementMaskedGammaBasePS::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, float InGamma, float ClipRefValue, ESimpleElementBlendMode BlendMode)
 {
 	FSimpleElementGammaBasePS::SetParameters(RHICmdList, Texture,InGamma,BlendMode);
-	SetShaderValue(RHICmdList, GetPixelShader(),ClipRef,ClipRefValue);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ClipRef,ClipRefValue);
 }
 
-bool FSimpleElementMaskedGammaBasePS::Serialize(FArchive& Ar)
+/*bool FSimpleElementMaskedGammaBasePS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FSimpleElementGammaBasePS::Serialize(Ar);
 	Ar << ClipRef;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 
 /**
 * Constructor
@@ -174,21 +174,21 @@ void FSimpleElementDistanceFieldGammaPS::SetParameters(
 	)
 {
 	FSimpleElementMaskedGammaBasePS::SetParameters(RHICmdList, Texture,InGamma,InClipRef,BlendMode);
-	SetShaderValue(RHICmdList, GetPixelShader(),SmoothWidth,SmoothWidthValue);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),SmoothWidth,SmoothWidthValue);		
 	const uint32 bEnableShadowValueUInt = (bEnableShadowValue ? 1 : 0);
-	SetShaderValue(RHICmdList, GetPixelShader(),EnableShadow,bEnableShadowValueUInt);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),EnableShadow,bEnableShadowValueUInt);
 	if (bEnableShadowValue)
 	{
-		SetShaderValue(RHICmdList, GetPixelShader(),ShadowDirection,ShadowDirectionValue);
-		SetShaderValue(RHICmdList, GetPixelShader(),ShadowColor,ShadowColorValue);
-		SetShaderValue(RHICmdList, GetPixelShader(),ShadowSmoothWidth,ShadowSmoothWidthValue);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ShadowDirection,ShadowDirectionValue);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ShadowColor,ShadowColorValue);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ShadowSmoothWidth,ShadowSmoothWidthValue);
 	}
-	SetShaderValue(RHICmdList, GetPixelShader(),EnableGlow,GlowInfo.bEnableGlow);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),EnableGlow,GlowInfo.bEnableGlow);
 	if (GlowInfo.bEnableGlow)
 	{
-		SetShaderValue(RHICmdList, GetPixelShader(),GlowColor,GlowInfo.GlowColor);
-		SetShaderValue(RHICmdList, GetPixelShader(),GlowOuterRadius,GlowInfo.GlowOuterRadius);
-		SetShaderValue(RHICmdList, GetPixelShader(),GlowInnerRadius,GlowInfo.GlowInnerRadius);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),GlowColor,GlowInfo.GlowColor);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),GlowOuterRadius,GlowInfo.GlowOuterRadius);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),GlowInnerRadius,GlowInfo.GlowInnerRadius);
 	}
 
 	// This shader does not use editor compositing
@@ -201,7 +201,7 @@ void FSimpleElementDistanceFieldGammaPS::SetParameters(
 * @param Ar - archive to serialize to
 * @return true if any of the parameters were outdated
 */
-bool FSimpleElementDistanceFieldGammaPS::Serialize(FArchive& Ar)
+/*bool FSimpleElementDistanceFieldGammaPS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FSimpleElementMaskedGammaBasePS::Serialize(Ar);
 	Ar << SmoothWidth;
@@ -214,7 +214,7 @@ bool FSimpleElementDistanceFieldGammaPS::Serialize(FArchive& Ar)
 	Ar << GlowOuterRadius;
 	Ar << GlowInnerRadius;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 	
 FSimpleElementHitProxyPS::FSimpleElementHitProxyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 	FGlobalShader(Initializer)
@@ -225,16 +225,16 @@ FSimpleElementHitProxyPS::FSimpleElementHitProxyPS(const ShaderMetaType::Compile
 
 void FSimpleElementHitProxyPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue)
 {
-	SetTextureParameter(RHICmdList, GetPixelShader(),InTexture,InTextureSampler,TextureValue);
+	SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),InTexture,InTextureSampler,TextureValue);
 }
 
-bool FSimpleElementHitProxyPS::Serialize(FArchive& Ar)
+/*bool FSimpleElementHitProxyPS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 	Ar << InTexture;
 	Ar << InTextureSampler;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 
 
 FSimpleElementColorChannelMaskPS::FSimpleElementColorChannelMaskPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -255,12 +255,12 @@ FSimpleElementColorChannelMaskPS::FSimpleElementColorChannelMaskPS(const ShaderM
 */
 void FSimpleElementColorChannelMaskPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, const FMatrix& ColorWeightsValue, float GammaValue)
 {
-	SetTextureParameter(RHICmdList, GetPixelShader(),InTexture,InTextureSampler,TextureValue);
-	SetShaderValue(RHICmdList, GetPixelShader(),ColorWeights,ColorWeightsValue);
-	SetShaderValue(RHICmdList, GetPixelShader(),Gamma,GammaValue);
+	SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),InTexture,InTextureSampler,TextureValue);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ColorWeights,ColorWeightsValue);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),Gamma,GammaValue);
 }
 
-bool FSimpleElementColorChannelMaskPS::Serialize(FArchive& Ar)
+/*bool FSimpleElementColorChannelMaskPS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 	Ar << InTexture;
@@ -268,11 +268,14 @@ bool FSimpleElementColorChannelMaskPS::Serialize(FArchive& Ar)
 	Ar << ColorWeights;
 	Ar << Gamma;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 
 /*------------------------------------------------------------------------------
 	Shader implementations.
 ------------------------------------------------------------------------------*/
+
+IMPLEMENT_TYPE_LAYOUT(FSimpleElementGammaBasePS);
+IMPLEMENT_TYPE_LAYOUT(FSimpleElementMaskedGammaBasePS);
 
 IMPLEMENT_SHADER_TYPE(,FSimpleElementVS,TEXT("/Engine/Private/SimpleElementVertexShader.usf"),TEXT("Main"),SF_Vertex);
 IMPLEMENT_SHADER_TYPE(,FSimpleElementPS, TEXT("/Engine/Private/SimpleElementPixelShader.usf"), TEXT("Main"), SF_Pixel);

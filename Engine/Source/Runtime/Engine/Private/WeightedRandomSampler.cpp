@@ -2,6 +2,8 @@
 
 #include "WeightedRandomSampler.h"
 
+IMPLEMENT_ABSTRACT_TYPE_LAYOUT(FWeightedRandomSampler);
+
 FWeightedRandomSampler::FWeightedRandomSampler()
 	: TotalWeight(0.0f)
 {

@@ -9,6 +9,7 @@
 #include "HAL/PlatformMath.h"
 #include "Templates/MemoryOps.h"
 #include "Math/NumericLimits.h"
+#include "Templates/IsPolymorphic.h"
 
 class FDefaultBitArrayAllocator;
 
@@ -125,6 +126,7 @@ struct TAllocatorTraitsBase
 {
 	enum { SupportsMove    = false };
 	enum { IsZeroConstruct = false };
+	enum { SupportsFreezeMemoryImage = false };
 };
 
 template <typename AllocatorType>
@@ -480,7 +482,7 @@ public:
 		{
 			return !!Data;
 		}
-		
+
 		SizeType GetInitialCapacity() const
 		{
 			return 0;
@@ -898,7 +900,7 @@ public:
 		{
 			return false;
 		}
-		
+
 		SizeType GetInitialCapacity() const
 		{
 			return NumInlineElements;
@@ -978,6 +980,8 @@ public:
 	typedef TFixedAllocator<InlineBitArrayDWORDs> BitArrayAllocator;
 };
 
+
+
 //
 // Set allocation definitions.
 //
@@ -1011,6 +1015,22 @@ public:
 
 	typedef InSparseArrayAllocator SparseArrayAllocator;
 	typedef InHashAllocator        HashAllocator;
+};
+
+template<
+	typename InSparseArrayAllocator,
+	typename InHashAllocator,
+	uint32   AverageNumberOfElementsPerHashBucket,
+	uint32   BaseNumberOfHashBuckets,
+	uint32   MinNumberOfHashedElements
+>
+struct TAllocatorTraits<TSetAllocator<InSparseArrayAllocator, InHashAllocator, AverageNumberOfElementsPerHashBucket, BaseNumberOfHashBuckets, MinNumberOfHashedElements>> :
+	TAllocatorTraitsBase<TSetAllocator<InSparseArrayAllocator, InHashAllocator, AverageNumberOfElementsPerHashBucket, BaseNumberOfHashBuckets, MinNumberOfHashedElements>>
+{
+	enum
+	{
+		SupportsFreezeMemoryImage = TAllocatorTraits<InSparseArrayAllocator>::SupportsFreezeMemoryImage && TAllocatorTraits<InHashAllocator>::SupportsFreezeMemoryImage,
+	};
 };
 
 /** An inline set allocator that allows sizing of the inline allocations for a set number of elements. */
@@ -1108,5 +1128,14 @@ template <> struct TAllocatorTraits<FDefaultAllocator>            : TAllocatorTr
 template <> struct TAllocatorTraits<FDefaultSetAllocator>         : TAllocatorTraits<typename FDefaultSetAllocator        ::Typedef> {};
 template <> struct TAllocatorTraits<FDefaultBitArrayAllocator>    : TAllocatorTraits<typename FDefaultBitArrayAllocator   ::Typedef> {};
 template <> struct TAllocatorTraits<FDefaultSparseArrayAllocator> : TAllocatorTraits<typename FDefaultSparseArrayAllocator::Typedef> {};
+
+template <typename InElementAllocator, typename InBitArrayAllocator>
+struct TAllocatorTraits<TSparseArrayAllocator<InElementAllocator, InBitArrayAllocator>> : TAllocatorTraitsBase<TSparseArrayAllocator<InElementAllocator, InBitArrayAllocator>>
+{
+	enum
+	{
+		SupportsFreezeMemoryImage = TAllocatorTraits<InElementAllocator>::SupportsFreezeMemoryImage && TAllocatorTraits<InBitArrayAllocator>::SupportsFreezeMemoryImage,
+	};
+};
 
 template <uint8 FromIndexSize, uint8 ToIndexSize> struct TCanMoveBetweenAllocators<TSizedDefaultAllocator<FromIndexSize>, TSizedDefaultAllocator<ToIndexSize>> : TCanMoveBetweenAllocators<typename TSizedDefaultAllocator<FromIndexSize>::Typedef, typename TSizedDefaultAllocator<ToIndexSize>::Typedef> {};

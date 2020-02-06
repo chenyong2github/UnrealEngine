@@ -371,7 +371,7 @@ RENDERER_API void RunProjection(
 
 typedef void (*TBindingProcess)(FRHICommandListImmediate& RHICmdList, void* Asset);
 RENDERER_API void EnqueueGroomBindingQuery(void* Asset, TBindingProcess BindingProcess);
-void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, TShaderMap<FGlobalShaderType>* ShaderMap);
+void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, class FGlobalShaderMap* ShaderMap);
 bool HasHairStrandsProjectionQuery(EShaderPlatform Platform);
 
 RENDERER_API FHairStrandsProjectionMeshData ExtractMeshData(class FSkeletalMeshRenderData* RenderData);

@@ -7,6 +7,16 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/MemoryReadStream.h"
 
+//
+struct FFileCachePreloadEntry
+{
+	FFileCachePreloadEntry() : Offset(0), Size(0) {}
+	FFileCachePreloadEntry(int64 InOffset, int64 InSize) : Offset(InOffset), Size(InSize) {}
+
+	int64 Offset;
+	int64 Size;
+};
+
 /**
  * Thready safety note: Once created a IFileCacheHandle is assumed to be only used from a single thread.
  * (i.e. the IFileCacheHandle interface is not thread safe, and the user will need to ensure serialization).
@@ -19,7 +29,7 @@
 class IFileCacheHandle
 {
 public:
-	static void EvictAll();
+	CORE_API static void EvictAll();
 
 	/** 
 	 * Create a IFileCacheHandle from a filename.
@@ -27,19 +37,19 @@ public:
 	 * @return	A IFileCacheHandle that can be used to make read requests. This will be a nullptr if the target file can not be accessed 
 	 *			for any given reason.
 	 */
-	static IFileCacheHandle* CreateFileCacheHandle(const TCHAR* InFileName);
+	CORE_API static IFileCacheHandle* CreateFileCacheHandle(const TCHAR* InFileName);
 
 	/**
 	 * Create a IFileCacheHandle from a IAsyncReadFileHandle.
 	 * @param	FileHandle			A valid IAsyncReadFileHandle that has already been created elsewhere.	
 	 * @return	A IFileCacheHandle that can be used to make read requests. This will be a nullptr if the FileHandle was not valid.
 	 */
-	static IFileCacheHandle* CreateFileCacheHandle(IAsyncReadFileHandle* FileHandle);
+	CORE_API static IFileCacheHandle* CreateFileCacheHandle(IAsyncReadFileHandle* FileHandle);
 
 	virtual ~IFileCacheHandle() {};
 
 	/** Return size of underlying file cache in bytes. */
-	static uint32 GetFileCacheSize();
+	CORE_API static uint32 GetFileCacheSize();
 
 	/**
 	 * Read a byte range form the file. This can be a high-throughput operation and done lots of times for small reads.
@@ -49,6 +59,8 @@ public:
 	 *			Data read from this stream will not be valid until all events returned in OutCompletionEvents are complete
 	 */
 	virtual IMemoryReadStreamRef ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority) = 0;
+
+	virtual FGraphEventRef PreloadData(const FFileCachePreloadEntry* PreloadEntries, int32 NumEntries, EAsyncIOPriorityAndFlags Priority) = 0;
 
 	/**
 	 * Wait until all outstanding read requests complete. 

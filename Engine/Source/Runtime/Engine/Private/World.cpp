@@ -1812,7 +1812,7 @@ void UWorld::ClearWorldComponents()
 }
 
 
-void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly)
+void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly, FRegisterComponentContext* Context)
 {
 	if ( !IsRunningDedicatedServer() )
 	{
@@ -1824,7 +1824,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!LineBatcher->IsRegistered())
 		{	
-			LineBatcher->RegisterComponentWithWorld(this);
+			LineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 
 		if(!PersistentLineBatcher)
@@ -1835,7 +1835,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!PersistentLineBatcher->IsRegistered())	
 		{
-			PersistentLineBatcher->RegisterComponentWithWorld(this);
+			PersistentLineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 
 		if(!ForegroundLineBatcher)
@@ -1846,7 +1846,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!ForegroundLineBatcher->IsRegistered())	
 		{
-			ForegroundLineBatcher->RegisterComponentWithWorld(this);
+			ForegroundLineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 	}
 
@@ -1856,7 +1856,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 		ULevel* CurrentLevel = PersistentLevel;
 #endif
 		check( CurrentLevel );
-		CurrentLevel->UpdateLevelComponents(bRerunConstructionScripts);
+		CurrentLevel->UpdateLevelComponents(bRerunConstructionScripts, Context);
 	}
 	else
 	{
@@ -1867,7 +1867,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 			// Update the level only if it is visible (or not a streamed level)
 			if(!StreamingLevel || Level->bIsVisible)
 			{
-				Level->UpdateLevelComponents(bRerunConstructionScripts);
+				Level->UpdateLevelComponents(bRerunConstructionScripts, Context);
 				IStreamingManager::Get().AddLevel(Level);
 			}
 		}
@@ -3940,7 +3940,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 	return false;
 }
 
-void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
+void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime, FRegisterComponentContext* Context)
 {
 	TRACE_OBJECT_EVENT(this, InitializeActorsForPlay);
 
@@ -3980,7 +3980,7 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 	// We don't need to rerun construction scripts if we have cooked data or we are playing in editor unless the PIE world was loaded
 	// from disk rather than duplicated
 	const bool bRerunConstructionScript = !(FPlatformProperties::RequiresCookedData() || (IsGameWorld() && (PersistentLevel->bHasRerunConstructionScripts || PersistentLevel->bWasDuplicatedForPIE || !bRerunConstructionDuringEditorStreaming)));
-	UpdateWorldComponents( bRerunConstructionScript, true );
+	UpdateWorldComponents( bRerunConstructionScript, true, Context);
 
 	// Init level gameplay info.
 	if( !AreActorsInitialized() )

@@ -76,7 +76,7 @@ static FRDGTextureRef AddHairLUTPass(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsLUT"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		FComputeShaderUtils::GetGroupCount(OutputResolution, FIntVector(FComputeShaderUtils::kGolden2DGroupSize)));
 

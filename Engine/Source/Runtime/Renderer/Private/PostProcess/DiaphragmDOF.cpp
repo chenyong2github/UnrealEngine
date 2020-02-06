@@ -1598,7 +1598,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				FMath::FloorToInt(CocModel.ComputeViewMinForegroundCocRadius(PassViewSize.X)),
 				FMath::CeilToInt(CocModel.ComputeViewMaxBackgroundCocRadius(PassViewSize.X)),
 				PassViewSize.X, PassViewSize.Y),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			GroupCount);
 
@@ -1679,7 +1679,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				RDG_EVENT_NAME("DOF FlattenCoc(Gather4=%s) %dx%d",
 					PermutationVector.Get<FDiaphragmDOFCocFlattenCS::FDoCocGather4>() ? TEXT("Yes") : TEXT("No"),
 					GatheringViewSize.X, GatheringViewSize.Y),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(GatheringViewSize, kDefaultGroupSize));
 		}
@@ -1735,7 +1735,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				RDG_EVENT_NAME("DOF DilateCoc(1/16 %s radius=%d step=%d) %dx%d",
 					GetEventName(Mode), SampleRadiusCount, SampleOffsetMultipler,
 					DilatePassViewSize.X, DilatePassViewSize.Y),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				DilateGroupCount);
 
@@ -1903,7 +1903,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("DOF Downsample %dx%d", PassViewSize.X, PassViewSize.Y),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(PassViewSize, kDefaultGroupSize));
 		}
@@ -1979,7 +1979,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 					bBackgroundHybridScattering ? TEXT("Yes") : TEXT("No"),
 					bRGBBufferSeparateCocBuffer ? TEXT(" R11G11B10") : TEXT(""),
 					PassViewSize.X, PassViewSize.Y),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(PassViewSize, kDefaultGroupSize));
 
@@ -2019,7 +2019,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 			// TODO(RDG): ERDGPassFlags::GenerateMips has no reason to exist.
 			TShaderMapRef<FDiaphragmDOFReduceCS> ComputeShader(View.ShaderMap, PermutationVector);
-			ClearUnusedGraphResources(*ComputeShader, PassParameters);
+			ClearUnusedGraphResources(ComputeShader, PassParameters);
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("DOF Reduce(Mips=[%d;%d]%s) %dx%d",
 					ReducedMipLevelCount,
@@ -2030,7 +2030,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
 				[PassParameters, ComputeShader, PassViewSize](FRHICommandList& RHICmdList)
 			{
-				FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(PassViewSize, kDefaultGroupSize));
+				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(PassViewSize, kDefaultGroupSize));
 			});
 
 			ReducedMipLevelCount += ProcessingMipLevelCount;
@@ -2057,7 +2057,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("DOF ScatterGroupPack"),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				FIntVector(2, 1, 1));
 		}
@@ -2108,7 +2108,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				BokehModel.BokehShape == DiaphragmDOF::EBokehShape::RoundedBlades ? TEXT("Rounded") : TEXT("Straight"),
 				GetEventName(LUTFormat),
 				BokehLUTDesc.Extent.X, BokehLUTDesc.Extent.Y),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(BokehLUTDesc.Extent, kDefaultGroupSize));
 
@@ -2304,7 +2304,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 					PermutationVector.Get<FDDOFClampInputUVDim>() ? TEXT(" ClampUV") : TEXT(""),
 					PermutationVector.Get<FDDOFRGBColorBufferDim>() ? TEXT(" R11G11B10") : TEXT(""),
 					GatheringViewSize.X, GatheringViewSize.Y),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(GatheringViewSize, kDefaultGroupSize));
 		}; // AddGatherPass()
@@ -2365,7 +2365,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 					GetEventName(ConvolutionSettings.LayerProcessing), GetEventName(ConvolutionSettings.PostfilterMethod),
 					PermutationVector.Get<FDiaphragmDOFPostfilterCS::FTileOptimization>() ? TEXT(" TileOptimisation") : TEXT(""),
 					GatheringViewSize.X, GatheringViewSize.Y),
-				*ComputeShader,
+				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(GatheringViewSize, kDefaultGroupSize));
 			
@@ -2412,7 +2412,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(
 				ConvolutionTextures->SceneColor, ERenderTargetLoadAction::ELoad);
 
-			ClearUnusedGraphResources(*VertexShader, *PixelShader, PassParameters);
+			ClearUnusedGraphResources(VertexShader, PixelShader, PassParameters);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("DOF IndirectScatter(%s Bokeh=%s Occlusion=%s) %dx%d",
@@ -2433,12 +2433,12 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 				GraphicsPSOInit.PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-				SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
-				SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 				RHICmdList.SetStreamSource(0, NULL, 0);
 
@@ -2598,7 +2598,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				RecombineQuality,
 				GetEventName(PermutationVector.Get<FDDOFBokehSimulationDim>()),
 				PassViewRect.Width(), PassViewRect.Height()),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(PassViewRect.Size(), kDefaultGroupSize));
 	}

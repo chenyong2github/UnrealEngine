@@ -3,9 +3,12 @@
 #include "PrimitiveUniformShaderParameters.h"
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveSceneInfo.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 void FSinglePrimitiveStructured::InitRHI() 
 {
+	SCOPED_LOADTIMER(FSinglePrimitiveStructuredBuffer_InitRHI);
+
 	if (RHISupportsComputeShaders(GMaxRHIShaderPlatform))
 	{
 		FRHIResourceCreateInfo CreateInfo;
@@ -33,7 +36,7 @@ void FSinglePrimitiveStructured::UploadToGPU()
 	{
 		void* LockedData = nullptr;
 
-		if (!GPUSceneUseTexture2D(ShaderPlatform))
+		if (!GPUSceneUseTexture2D(ShaderPlatform != SP_NumPlatforms ? ShaderPlatform : GMaxRHIShaderPlatform))
 		{
 			LockedData = RHILockStructuredBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
 			FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));

@@ -880,7 +880,7 @@ inline uint32 GetVertexCountForPrimitiveCount(uint32 NumPrimitives, uint32 Primi
 inline uint32 ComputeAnisotropyRT(int32 InitializerMaxAnisotropy)
 {
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaxAnisotropy"));
-	int32 CVarValue = CVar->GetValueOnRenderThread();
+	int32 CVarValue = CVar->GetValueOnAnyThread(); // this is sometimes called from main thread during initialization of static RHI states
 
 	return FMath::Clamp(InitializerMaxAnisotropy > 0 ? InitializerMaxAnisotropy : CVarValue, 1, 16);
 }

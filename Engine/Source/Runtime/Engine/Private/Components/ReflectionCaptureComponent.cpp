@@ -732,9 +732,9 @@ UReflectionCaptureComponent::UReflectionCaptureComponent(const FObjectInitialize
 	bNeedsRecaptureOrUpload = false;
 }
 
-void UReflectionCaptureComponent::CreateRenderState_Concurrent()
+void UReflectionCaptureComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	UpdatePreviewShape();
 

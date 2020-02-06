@@ -15,6 +15,9 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "PipelineStateCache.h"
 
+IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
+IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometrySegment);
+
 #ifndef PLATFORM_ALLOW_NULL_RHI
 	#define PLATFORM_ALLOW_NULL_RHI		0
 #endif
@@ -215,7 +218,7 @@ void RHIInit(bool bHasEditorToken)
 	if(!GDynamicRHI)
 	{
 		// read in any data driven shader platform info structures we can find
-		FDataDrivenShaderPlatformInfo::Initialize();
+		FGenericDataDrivenShaderPlatformInfo::Initialize();
 
 		GRHICommandList.LatchBypass(); // read commandline for bypass flag
 

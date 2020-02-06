@@ -27,7 +27,10 @@ enum class EParallelForFlags
 
 	//Offers better work distribution among threads at the cost of a little bit more synchronization.
 	//This should be used for tasks with highly variable computational time.
-	Unbalanced = 2
+	Unbalanced = 2,
+
+	// if running on the rendering thread, make sure the ProcessThread is called when idle
+	PumpRenderingThread = 4,
 };
 
 ENUM_CLASS_FLAGS(EParallelForFlags)
@@ -35,19 +38,20 @@ ENUM_CLASS_FLAGS(EParallelForFlags)
 namespace ParallelForImpl
 {
 	// struct to hold the working data; this outlives the ParallelFor call; lifetime is controlled by a shared pointer
-	struct FParallelForData
+	template<typename FunctionType>
+	struct TParallelForData
 	{
 		int32 Num;
 		int32 BlockSize;
 		int32 LastBlockExtraNum;
-		TFunctionRef<void(int32)> Body;
+		FunctionType Body;
 		FEvent* Event;
 		FThreadSafeCounter IndexToDo;
 		FThreadSafeCounter NumCompleted;
 		bool bExited;
 		bool bTriggered;
 		bool bSaveLastBlockForMaster;
-		FParallelForData(int32 InTotalNum, int32 InNumThreads, bool bInSaveLastBlockForMaster, TFunctionRef<void(int32)> InBody, EParallelForFlags Flags)
+		TParallelForData(int32 InTotalNum, int32 InNumThreads, bool bInSaveLastBlockForMaster, FunctionType InBody, EParallelForFlags Flags)
 			: Body(InBody)
 			, Event(FPlatformProcess::GetSynchEventFromPool(false))
 			, bExited(false)
@@ -83,22 +87,23 @@ namespace ParallelForImpl
 			LastBlockExtraNum = InTotalNum - Num * BlockSize;
 			check(LastBlockExtraNum >= 0);
 		}
-		~FParallelForData()
+		~TParallelForData()
 		{
 			check(IndexToDo.GetValue() >= Num);
 			check(NumCompleted.GetValue() == Num);
 			check(bExited);
 			FPlatformProcess::ReturnSynchEventToPool(Event);
 		}
-		bool Process(int32 TasksToSpawn, TSharedRef<FParallelForData, ESPMode::ThreadSafe>& Data, bool bMaster);
+		bool Process(int32 TasksToSpawn, TSharedRef<TParallelForData, ESPMode::ThreadSafe>& Data, bool bMaster);
 	};
 
-	class FParallelForTask
+	template<typename FunctionType>
+	class TParallelForTask
 	{
-		TSharedRef<FParallelForData, ESPMode::ThreadSafe> Data;
+		TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe> Data;
 		int32 TasksToSpawn;
 	public:
-		FParallelForTask(TSharedRef<FParallelForData, ESPMode::ThreadSafe>& InData, int32 InTasksToSpawn = 0)
+		TParallelForTask(TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe>& InData, int32 InTasksToSpawn = 0)
 			: Data(InData) 
 			, TasksToSpawn(InTasksToSpawn)
 		{
@@ -117,6 +122,7 @@ namespace ParallelForImpl
 		}
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 		{
+			FMemMark Mark(FMemStack::Get());
 			if (Data->Process(TasksToSpawn, Data, false))
 			{
 				checkSlow(!Data->bTriggered);
@@ -126,13 +132,14 @@ namespace ParallelForImpl
 		}
 	};
 
-	inline bool FParallelForData::Process(int32 TasksToSpawn, TSharedRef<FParallelForData, ESPMode::ThreadSafe>& Data, bool bMaster)
+	template<typename FunctionType>
+	inline bool TParallelForData<FunctionType>::Process(int32 TasksToSpawn, TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe>& Data, bool bMaster)
 	{
 		int32 MaybeTasksLeft = Num - IndexToDo.GetValue();
 		if (TasksToSpawn && MaybeTasksLeft > 0)
 		{
 			TasksToSpawn = FMath::Min<int32>(TasksToSpawn, MaybeTasksLeft);
-			TGraphTask<FParallelForTask>::CreateTask().ConstructAndDispatchWhenReady(Data, TasksToSpawn - 1);		
+			TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(Data, TasksToSpawn - 1);
 		}
 		int32 LocalBlockSize = BlockSize;
 		int32 LocalNum = Num;
@@ -179,7 +186,8 @@ namespace ParallelForImpl
 		return false;
 	}
 
-	inline void ParallelForInternal(int32 Num, TFunctionRef<void(int32)> Body, EParallelForFlags Flags)
+	template<typename FunctionType>
+	inline void ParallelForInternal(int32 Num, FunctionType Body, EParallelForFlags Flags)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ParallelFor);
 		check(Num >= 0);
@@ -198,13 +206,25 @@ namespace ParallelForImpl
 			}
 			return;
 		}
-		FParallelForData* DataPtr = new FParallelForData(Num, AnyThreadTasks + 1, Num > AnyThreadTasks + 1, Body, Flags);
-		TSharedRef<FParallelForData, ESPMode::ThreadSafe> Data = MakeShareable(DataPtr);
-		TGraphTask<FParallelForTask>::CreateTask().ConstructAndDispatchWhenReady(Data, AnyThreadTasks - 1);		
+
+		const bool bPumpRenderingThread = (Flags & EParallelForFlags::PumpRenderingThread) != EParallelForFlags::None;
+		TParallelForData<FunctionType>* DataPtr = new TParallelForData<FunctionType>(Num, AnyThreadTasks + 1, (Num > AnyThreadTasks + 1) && bPumpRenderingThread, Body, Flags);
+		TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe> Data = MakeShareable(DataPtr);
+		TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(Data, AnyThreadTasks - 1);
 		// this thread can help too and this is important to prevent deadlock on recursion 
 		if (!Data->Process(0, Data, true))
 		{
-			Data->Event->Wait();
+			if (bPumpRenderingThread && IsInActualRenderingThread())
+			{
+				while (!Data->Event->Wait(1))
+				{
+					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GetRenderThread_Local());
+				}
+			}
+			else
+			{
+				Data->Event->Wait();
+			}
 			check(Data->bTriggered);
 		}
 		else
@@ -225,7 +245,8 @@ namespace ParallelForImpl
 		*	@param Flags; Used to customize the behavior of the ParallelFor if needed.
 		*	Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
 	**/
-	inline void ParallelForWithPreWorkInternal(int32 Num, TFunctionRef<void(int32)> Body, TFunctionRef<void()> CurrentThreadWorkToDoBeforeHelping, EParallelForFlags Flags = EParallelForFlags::None)
+	template<typename FunctionType>
+	inline void ParallelForWithPreWorkInternal(int32 Num, FunctionType Body, TFunctionRef<void()> CurrentThreadWorkToDoBeforeHelping, EParallelForFlags Flags = EParallelForFlags::None)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ParallelFor);
 
@@ -246,15 +267,25 @@ namespace ParallelForImpl
 			return;
 		}
 		check(Num);
-		FParallelForData* DataPtr = new FParallelForData(Num, AnyThreadTasks, false, Body, Flags);
-		TSharedRef<FParallelForData, ESPMode::ThreadSafe> Data = MakeShareable(DataPtr);
-		TGraphTask<FParallelForTask>::CreateTask().ConstructAndDispatchWhenReady(Data, AnyThreadTasks - 1);		
+		TParallelForData<FunctionType>* DataPtr = new TParallelForData<FunctionType>(Num, AnyThreadTasks, false, Body, Flags);
+		TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe> Data = MakeShareable(DataPtr);
+		TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(Data, AnyThreadTasks - 1);
 		// do the prework
 		CurrentThreadWorkToDoBeforeHelping();
 		// this thread can help too and this is important to prevent deadlock on recursion 
 		if (!Data->Process(0, Data, true))
 		{
-			Data->Event->Wait();
+			if (IsInRenderingThread() && (Flags & EParallelForFlags::PumpRenderingThread) != EParallelForFlags::None)
+			{
+				while (!Data->Event->Wait(1))
+				{
+					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GetRenderThread_Local());
+				}
+			}
+			else
+			{
+				Data->Event->Wait();
+			}
 			check(Data->bTriggered);
 		}
 		else
@@ -274,11 +305,25 @@ namespace ParallelForImpl
 	*	@param bForceSingleThread; Mostly used for testing, if true, run single threaded instead.
 	*	Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
 **/
-inline void ParallelFor(int32 Num, TFunctionRef<void(int32)> Body, bool bForceSingleThread)
+inline void ParallelFor(int32 Num, TFunctionRef<void(int32)> Body, bool bForceSingleThread, bool bPumpRenderingThread=false)
 {
-	ParallelForImpl::ParallelForInternal(Num, Body, bForceSingleThread ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
+	ParallelForImpl::ParallelForInternal(Num, Body,
+		(bForceSingleThread ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None) | 
+		(bPumpRenderingThread ? EParallelForFlags::PumpRenderingThread : EParallelForFlags::None));
 }
 
+/**
+	*	General purpose parallel for that uses the taskgraph
+	*	@param Num; number of calls of Body; Body(0), Body(1)....Body(Num - 1)
+	*	@param Body; Function to call from multiple threads
+	*	@param bForceSingleThread; Mostly used for testing, if true, run single threaded instead.
+	*	Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
+**/
+template<typename FunctionType>
+inline void ParallelForTemplate(int32 Num, const FunctionType& Body, EParallelForFlags Flags = EParallelForFlags::None)
+{
+	ParallelForImpl::ParallelForInternal(Num, Body, Flags);
+}
 /** 
 	*	General purpose parallel for that uses the taskgraph for unbalanced tasks
 	*	Offers better work distribution among threads at the cost of a little bit more synchronization.
@@ -302,9 +347,11 @@ inline void ParallelFor(int32 Num, TFunctionRef<void(int32)> Body, EParallelForF
 	*	@param bForceSingleThread; Mostly used for testing, if true, run single threaded instead.
 	*	Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
 **/
-inline void ParallelForWithPreWork(int32 Num, TFunctionRef<void(int32)> Body, TFunctionRef<void()> CurrentThreadWorkToDoBeforeHelping, bool bForceSingleThread)
+inline void ParallelForWithPreWork(int32 Num, TFunctionRef<void(int32)> Body, TFunctionRef<void()> CurrentThreadWorkToDoBeforeHelping, bool bForceSingleThread, bool bPumpRenderingThread = false)
 {
-	ParallelForImpl::ParallelForWithPreWorkInternal(Num, Body, CurrentThreadWorkToDoBeforeHelping, bForceSingleThread ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
+	ParallelForImpl::ParallelForWithPreWorkInternal(Num, Body, CurrentThreadWorkToDoBeforeHelping,
+		(bForceSingleThread ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None) |
+		(bPumpRenderingThread ? EParallelForFlags::PumpRenderingThread : EParallelForFlags::None));
 }
 
 /** 

@@ -117,11 +117,11 @@ public:
 
 	void SetParameters(FRHICommandListImmediate& RHICmdList, const FShaderResourceViewRHIRef& InTextureY, const FShaderResourceViewRHIRef& InTextureUV)
 	{
-		SetSRVParameter(RHICmdList, GetPixelShader(), TextureY, InTextureY);
-		SetSRVParameter(RHICmdList, GetPixelShader(), TextureUV, InTextureUV);
+		SetSRVParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureY, InTextureY);
+		SetSRVParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureUV, InTextureUV);
 
-		SetSamplerParameter(RHICmdList, GetPixelShader(), PointClampedSamplerY, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SetSamplerParameter(RHICmdList, GetPixelShader(), BilinearClampedSamplerUV, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+		SetSamplerParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), PointClampedSamplerY, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+		SetSamplerParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), BilinearClampedSamplerUV, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -129,18 +129,11 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TextureY << TextureUV << PointClampedSamplerY << BilinearClampedSamplerUV;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderResourceParameter TextureY;
-	FShaderResourceParameter TextureUV;
-	FShaderResourceParameter PointClampedSamplerY;
-	FShaderResourceParameter BilinearClampedSamplerUV;
+	LAYOUT_FIELD(FShaderResourceParameter, TextureY);
+	LAYOUT_FIELD(FShaderResourceParameter, TextureUV);
+	LAYOUT_FIELD(FShaderResourceParameter, PointClampedSamplerY);
+	LAYOUT_FIELD(FShaderResourceParameter, BilinearClampedSamplerUV);
 };
 
 IMPLEMENT_SHADER_TYPE(, FHoloLensCameraImageConversionPS, TEXT("/Plugin/HoloLensAR/HoloLensCameraImageConversion.usf"), TEXT("MainPS"), SF_Pixel)
@@ -304,13 +297,13 @@ private:
 			GraphicsPSOInit.BlendState = TStaticBlendStateWriteMask<CW_RGBA, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE>::GetRHI();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-			TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 			TShaderMapRef<FHoloLensCameraImageConversionVS> VertexShader(GlobalShaderMap);
 			TShaderMapRef<FHoloLensCameraImageConversionPS> PixelShader(GlobalShaderMap);
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GHoloLensCameraImageConversionVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 

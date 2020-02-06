@@ -547,7 +547,7 @@ public:
 	{
 		if (!ScriptShader)
 		{
-			ScriptShader = ScriptResource.GetShader()->GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
+			ScriptShader = ScriptResource.GetShader().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
 		}
 		return ScriptShader; 
 	}
@@ -556,7 +556,7 @@ public:
 	{
 		if (!ScriptShader)
 		{
-			ScriptShader = ScriptResource.GetShaderGameThread()->GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
+			ScriptShader = ScriptResource.GetShaderGameThread().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
 		}
 		return ScriptShader;
 	}

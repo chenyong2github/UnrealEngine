@@ -145,7 +145,7 @@ public:
 		OutUAVs[5] = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		FRHITexture* TextureAtlas;
@@ -172,8 +172,8 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, const FScene* Scene)
 	{
-		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()));
-		CulledObjectParameters.UnsetParameters(RHICmdList, GetComputeShader());
+		ObjectBufferParameters.UnsetParameters(RHICmdList, RHICmdList.GetBoundComputeShader(), *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()));
+		CulledObjectParameters.UnsetParameters(RHICmdList, RHICmdList.GetBoundComputeShader());
 
 		FRHIUnorderedAccessView* OutUAVs[6];
 		OutUAVs[0] = GAOCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV;
@@ -185,26 +185,14 @@ public:
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{		
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << ObjectBufferParameters;
-		Ar << CulledObjectParameters;
-		Ar << AOParameters;
-		Ar << NumConvexHullPlanes;
-		Ar << ViewFrustumConvexHull;
-		Ar << ObjectBoundingGeometryIndexCount;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
 
-	TDistanceFieldObjectBufferParameters<DFPT_SignedDistanceField> ObjectBufferParameters;
-	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> CulledObjectParameters;
-	FAOParameters AOParameters;
-	FShaderParameter NumConvexHullPlanes;
-	FShaderParameter ViewFrustumConvexHull;
-	FShaderParameter ObjectBoundingGeometryIndexCount;
+	LAYOUT_FIELD((TDistanceFieldObjectBufferParameters<DFPT_SignedDistanceField>), ObjectBufferParameters);
+	LAYOUT_FIELD((TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField>), CulledObjectParameters);
+	LAYOUT_FIELD(FAOParameters, AOParameters);
+	LAYOUT_FIELD(FShaderParameter, NumConvexHullPlanes);
+	LAYOUT_FIELD(FShaderParameter, ViewFrustumConvexHull);
+	LAYOUT_FIELD(FShaderParameter, ObjectBoundingGeometryIndexCount);
 };
 
 IMPLEMENT_SHADER_TYPE(,FCullObjectsForViewCS,TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"),TEXT("CullObjectsForViewCS"),SF_Compute);
@@ -228,10 +216,10 @@ void CullObjectsToView(FRHICommandListImmediate& RHICmdList, FScene* Scene, cons
 		RHICmdList.ClearUAVUint(CulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, FUintVector4(0, 0, 0, 0));
 
 		TShaderMapRef<FCullObjectsForViewCS> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
-		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 		ComputeShader->SetParameters(RHICmdList, Scene, View, Parameters);
 
-		DispatchComputeShader(RHICmdList, *ComputeShader, FMath::DivideAndRoundUp<uint32>(Scene->DistanceFieldSceneData.NumObjectsInBuffer, UpdateObjectsGroupSize), 1, 1);
+		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), FMath::DivideAndRoundUp<uint32>(Scene->DistanceFieldSceneData.NumObjectsInBuffer, UpdateObjectsGroupSize), 1, 1);
 		ComputeShader->UnsetParameters(RHICmdList, Scene);
 	}
 }
@@ -276,7 +264,7 @@ public:
 	}
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, FSceneRenderTargetItem& DistanceFieldNormal, FScene* Scene, FVector2D NumGroupsValue, const FDistanceFieldAOParameters& Parameters)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
@@ -308,8 +296,8 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		TileConeAxisAndCos.UnsetUAV(RHICmdList, GetComputeShader());
-		TileConeDepthRanges.UnsetUAV(RHICmdList, GetComputeShader());
+		TileConeAxisAndCos.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
+		TileConeDepthRanges.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 
@@ -319,30 +307,15 @@ public:
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{		
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SceneTextureParameters;
-		Ar << AOParameters;
-		Ar << TileConeAxisAndCos;
-		Ar << TileConeDepthRanges;
-		Ar << NumGroups;
-		Ar << ViewDimensionsParameter;
-		Ar << DistanceFieldNormalTexture;
-		Ar << DistanceFieldNormalSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FAOParameters AOParameters;
-	FRWShaderParameter TileConeAxisAndCos;
-	FRWShaderParameter TileConeDepthRanges;
-	FShaderParameter ViewDimensionsParameter;
-	FShaderParameter NumGroups;
-	FShaderResourceParameter DistanceFieldNormalTexture;
-	FShaderResourceParameter DistanceFieldNormalSampler;
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD(FAOParameters, AOParameters);
+	LAYOUT_FIELD(FRWShaderParameter, TileConeAxisAndCos);
+	LAYOUT_FIELD(FRWShaderParameter, TileConeDepthRanges);
+	LAYOUT_FIELD(FShaderParameter, ViewDimensionsParameter);
+	LAYOUT_FIELD(FShaderParameter, NumGroups);
+	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldNormalTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldNormalSampler);
 };
 
 IMPLEMENT_SHADER_TYPE(,FBuildTileConesCS,TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"),TEXT("BuildTileConesMain"),SF_Compute);
@@ -370,7 +343,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FDistanceFieldAOParameters& Parameters)
 	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		
 		FRHITexture* TextureAtlas;
@@ -395,19 +368,10 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, ConservativeRadiusScale, ConservativeRadiusScaleValue);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << ObjectParameters;
-		Ar << AOParameters;
-		Ar << ConservativeRadiusScale;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> ObjectParameters;
-	FAOParameters AOParameters;
-	FShaderParameter ConservativeRadiusScale;
+	LAYOUT_FIELD((TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField>), ObjectParameters);
+	LAYOUT_FIELD(FAOParameters, AOParameters);
+	LAYOUT_FIELD(FShaderParameter, ConservativeRadiusScale);
 };
 
 IMPLEMENT_SHADER_TYPE(,FObjectCullVS,TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"),TEXT("ObjectCullVS"),SF_Vertex);
@@ -449,7 +413,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, FVector2D NumGroupsValue, const FDistanceFieldAOParameters& Parameters)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		FRHITexture* TextureAtlas;
@@ -481,26 +445,13 @@ public:
 		check(UAVs.Num() > 0);
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << ObjectParameters;
-		Ar << AOParameters;
-		Ar << TileIntersectionParameters;
-		Ar << TileConeAxisAndCos;
-		Ar << TileConeDepthRanges;
-		Ar << NumGroups;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> ObjectParameters;
-	FAOParameters AOParameters;
-	FTileIntersectionParameters TileIntersectionParameters;
-	FShaderResourceParameter TileConeAxisAndCos;
-	FShaderResourceParameter TileConeDepthRanges;
-	FShaderParameter NumGroups;
+	LAYOUT_FIELD((TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField>), ObjectParameters);
+	LAYOUT_FIELD(FAOParameters, AOParameters);
+	LAYOUT_FIELD(FTileIntersectionParameters, TileIntersectionParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, TileConeAxisAndCos);
+	LAYOUT_FIELD(FShaderResourceParameter, TileConeDepthRanges);
+	LAYOUT_FIELD(FShaderParameter, NumGroups);
 };
 
 IMPLEMENT_SHADER_TYPE(template<>,TObjectCullPS<true>,TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"),TEXT("ObjectCullPS"),SF_Pixel);
@@ -539,7 +490,7 @@ public:
 	}
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -569,7 +520,7 @@ public:
 	{
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 
-		TileIntersectionParameters.UnsetParameters(RHICmdList, GetComputeShader());
+		TileIntersectionParameters.UnsetParameters(RHICmdList, RHICmdList.GetBoundComputeShader());
 
 		TArray<FRHIUnorderedAccessView*> UAVs;
 		TileIntersectionParameters.GetUAVs(*TileIntersectionResources, UAVs);
@@ -577,18 +528,10 @@ public:
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UAVs.GetData(), UAVs.Num());
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{		
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << ObjectParameters;
-		Ar << TileIntersectionParameters;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
 
-	TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField> ObjectParameters;
-	FTileIntersectionParameters TileIntersectionParameters;
+	LAYOUT_FIELD((TDistanceFieldCulledObjectBufferParameters<DFPT_SignedDistanceField>), ObjectParameters);
+	LAYOUT_FIELD(FTileIntersectionParameters, TileIntersectionParameters);
 };
 
 IMPLEMENT_SHADER_TYPE(,FComputeCulledTilesStartOffsetCS,TEXT("/Engine/Private/DistanceFieldObjectCulling.usf"),TEXT("ComputeCulledTilesStartOffsetCS"),SF_Compute);
@@ -630,8 +573,8 @@ void ScatterTilesToObjects(FRHICommandListImmediate& RHICmdList, const FViewInfo
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -698,9 +641,9 @@ void BuildTileObjectLists(FRHICommandListImmediate& RHICmdList, FScene* Scene, T
 				SCOPED_DRAW_EVENT(RHICmdList, BuildTileCones);
 				TShaderMapRef<FBuildTileConesCS> ComputeShader(View.ShaderMap);
 
-				RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 				ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal, Scene, FVector2D(TileListGroupSize.X, TileListGroupSize.Y), Parameters);
-				DispatchComputeShader(RHICmdList, *ComputeShader, TileListGroupSize.X, TileListGroupSize.Y, 1);
+				DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), TileListGroupSize.X, TileListGroupSize.Y, 1);
 
 				ComputeShader->UnsetParameters(RHICmdList, View);
 			}
@@ -727,9 +670,9 @@ void BuildTileObjectLists(FRHICommandListImmediate& RHICmdList, FScene* Scene, T
 				const uint32 GroupSize = FMath::DivideAndRoundUp<uint32>(Scene->DistanceFieldSceneData.NumObjectsInBuffer, ComputeStartOffsetGroupSize);
 				// Must write to RWObjectTilesIndirectArguments
 				check(GroupSize != 0);
-				RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 				ComputeShader->SetParameters(RHICmdList, View);
-				DispatchComputeShader(RHICmdList, *ComputeShader, GroupSize, 1, 1);
+				DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSize, 1, 1);
 
 				ComputeShader->UnsetParameters(RHICmdList, View);
 			}

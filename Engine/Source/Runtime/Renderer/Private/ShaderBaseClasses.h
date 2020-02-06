@@ -36,7 +36,7 @@ typedef TUniformBufferRef< FDitherUniformShaderParameters > FDitherUniformBuffer
 /** Base Hull shader for drawing policy rendering */
 class FBaseHS : public FMeshMaterialShader
 {
-	DECLARE_SHADER_TYPE(FBaseHS,MeshMaterial);
+	DECLARE_TYPE_LAYOUT(FBaseHS, NonVirtual);
 public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -52,7 +52,7 @@ public:
 			return false;	
 		}
 
-		if (!Parameters.Material || Parameters.Material->GetTessellationMode() == MTM_NoTessellation)
+		if (Parameters.MaterialParameters.TessellationMode == MTM_NoTessellation)
 		{
 			// Material controls use of tessellation
 			return false;	
@@ -71,12 +71,15 @@ public:
 	}
 
 	FBaseHS() {}
+
+	
+	
 };
 
 /** Base Domain shader for drawing policy rendering */
 class FBaseDS : public FMeshMaterialShader
 {
-	DECLARE_SHADER_TYPE(FBaseDS,MeshMaterial);
+	DECLARE_TYPE_LAYOUT(FBaseDS, NonVirtual);
 public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -92,7 +95,7 @@ public:
 			return false;	
 		}
 
-		if (!Parameters.Material || Parameters.Material->GetTessellationMode() == MTM_NoTessellation)
+		if (Parameters.MaterialParameters.TessellationMode == MTM_NoTessellation)
 		{
 			// Material controls use of tessellation
 			return false;	
@@ -111,5 +114,8 @@ public:
 	}
 
 	FBaseDS() {}
+
+	
+	
 };
 

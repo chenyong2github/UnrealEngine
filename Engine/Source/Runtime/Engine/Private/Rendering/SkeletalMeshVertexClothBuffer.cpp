@@ -4,6 +4,7 @@
 #include "Rendering/SkeletalMeshVertexBuffer.h"
 #include "EngineUtils.h"
 #include "SkeletalMeshTypes.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 /**
 * Constructor
@@ -109,6 +110,8 @@ FVertexBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_Async()
 */
 void FSkeletalMeshVertexClothBuffer::InitRHI()
 {
+	SCOPED_LOADTIMER(FSkeletalMeshVertexClothBuffer_InitRHI);
+
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 
 	if (VertexBufferRHI)

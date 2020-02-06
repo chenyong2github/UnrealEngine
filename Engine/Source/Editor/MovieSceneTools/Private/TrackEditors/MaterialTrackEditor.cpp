@@ -88,7 +88,7 @@ TSharedRef<SWidget> FMaterialTrackEditor::OnGetAddParameterMenuContent( FGuid Ob
 		Material->GetAllScalarParameterInfo(ScalarParameterInfo, ScalarParameterGuids );
 		for (int32 ScalarParameterIndex = 0; ScalarParameterIndex < ScalarParameterInfo.Num(); ++ScalarParameterIndex)
 		{
-			if (!bCollectedVisibleParameters || VisibleExpressions.Contains(ScalarParameterInfo[ScalarParameterIndex].Name))
+			if (!bCollectedVisibleParameters || VisibleExpressions.Contains(FMaterialParameterInfo(ScalarParameterInfo[ScalarParameterIndex].Name)))
 			{
 				FName ScalarParameterName = ScalarParameterInfo[ScalarParameterIndex].Name;
 				FUIAction AddParameterMenuAction( FExecuteAction::CreateSP( this, &FMaterialTrackEditor::AddScalarParameter, ObjectBinding, MaterialTrack, ScalarParameterName ) );
@@ -103,7 +103,7 @@ TSharedRef<SWidget> FMaterialTrackEditor::OnGetAddParameterMenuContent( FGuid Ob
 		Material->GetAllVectorParameterInfo( ColorParameterInfo, ColorParameterGuids );
 		for (int32 ColorParameterIndex = 0; ColorParameterIndex < ColorParameterInfo.Num(); ++ColorParameterIndex)
 		{
-			if (!bCollectedVisibleParameters || VisibleExpressions.Contains(ColorParameterInfo[ColorParameterIndex].Name))
+			if (!bCollectedVisibleParameters || VisibleExpressions.Contains(FMaterialParameterInfo(ColorParameterInfo[ColorParameterIndex].Name)))
 			{
 				FName ColorParameterName = ColorParameterInfo[ColorParameterIndex].Name;
 				FUIAction AddParameterMenuAction( FExecuteAction::CreateSP( this, &FMaterialTrackEditor::AddColorParameter, ObjectBinding, MaterialTrack, ColorParameterName ) );

@@ -218,9 +218,9 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 				}
 				else
 				{
-					for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->MaterialParameterCollectionInfos.Num() && !bRecompile; FunctionIndex++)
+					for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->GetCachedExpressionData().ParameterCollectionInfos.Num() && !bRecompile; FunctionIndex++)
 					{
-						if (CurrentMaterial->MaterialParameterCollectionInfos[FunctionIndex].ParameterCollection == this)
+						if (CurrentMaterial->GetCachedExpressionData().ParameterCollectionInfos[FunctionIndex].ParameterCollection == this)
 						{
 							bRecompile = true;
 							break;
@@ -409,7 +409,6 @@ void UMaterialParameterCollection::CreateBufferStruct()
 	new(Members) FShaderParametersMetadata::FMember(TEXT("Vectors"),TEXT(""),NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Half,1,4,NumVectors, nullptr);
 	const uint32 VectorArraySize = NumVectors * sizeof(FVector4);
 	NextMemberOffset += VectorArraySize;
-	static FName LayoutName(TEXT("MaterialCollection"));
 	const uint32 StructSize = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
 
 	// If Collections ever get non-numeric resources (eg Textures), OutEnvironment.ResourceTableMap has a map by name
@@ -417,7 +416,7 @@ void UMaterialParameterCollection::CreateBufferStruct()
 	// (and the hlsl cbuffers are named MaterialCollection0, etc, so the names don't match the layout)
 	UniformBufferStruct = MakeUnique<FShaderParametersMetadata>(
 		FShaderParametersMetadata::EUseCase::DataDrivenUniformBuffer,
-		LayoutName,
+		TEXT("MaterialCollection"),
 		TEXT("MaterialCollection"),
 		TEXT("MaterialCollection"),
 		nullptr,
@@ -686,9 +685,8 @@ void FMaterialParameterCollectionInstanceResource::GameThread_Destroy()
 	);
 }
 
-static FName MaterialParameterCollectionInstanceResourceName(TEXT("MaterialParameterCollectionInstanceResource"));
 FMaterialParameterCollectionInstanceResource::FMaterialParameterCollectionInstanceResource() :
-	UniformBufferLayout(MaterialParameterCollectionInstanceResourceName)
+	UniformBufferLayout(TEXT("MaterialParameterCollectionInstanceResource"))
 {
 }
 

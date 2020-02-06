@@ -348,9 +348,9 @@ FBoxSphereBounds UEQSRenderingComponent::CalcBounds(const FTransform& LocalToWor
 	return FBoxSphereBounds(BoundingSphere).TransformBy(LocalToWorld);
 }
 
-void UEQSRenderingComponent::CreateRenderState_Concurrent()
+void UEQSRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 #if USE_EQS_DEBUGGER
 	EQSRenderingDebugDrawDelegateHelper.RegisterDebugDrawDelgate();

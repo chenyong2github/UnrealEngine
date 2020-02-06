@@ -277,11 +277,6 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	return false;
 }
 
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceGrid3D::ConstructComputeParameters()const
-{
-	return nullptr;
-}
-
 
 
 bool UNiagaraDataInterfaceGrid3D::CopyToInternal(UNiagaraDataInterface* Destination) const
@@ -674,12 +669,6 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 
 	return false;
 }
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceGrid2D::ConstructComputeParameters()const
-{
-	return nullptr;
-}
-
 
 
 bool UNiagaraDataInterfaceGrid2D::CopyToInternal(UNiagaraDataInterface* Destination) const

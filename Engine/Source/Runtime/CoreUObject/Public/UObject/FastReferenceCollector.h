@@ -721,10 +721,48 @@ private:
 						}
 					}
 					break;
+					case GCRT_ArrayObjectFreezable:
+					{
+						// We're dealing with an array of object references.
+						TArray<UObject*, FMemoryImageAllocator>& ObjectArray = *((TArray<UObject*, FMemoryImageAllocator>*)(StackEntryData + ReferenceInfo.Offset));
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						for (int32 ObjectIndex = 0, ObjectNum = ObjectArray.Num(); ObjectIndex < ObjectNum; ++ObjectIndex)
+						{
+							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, ObjectArray[ObjectIndex], ReferenceTokenStreamIndex, true);
+						}
+					}
+					break;
 					case GCRT_ArrayStruct:
 					{
 						// We're dealing with a dynamic array of structs.
 						const FScriptArray& Array = *((FScriptArray*)(StackEntryData + ReferenceInfo.Offset));
+						StackEntry++;
+						StackEntryData = (uint8*)Array.GetData();
+						StackEntry->Data = StackEntryData;
+						StackEntry->Stride = TokenStream->ReadStride(TokenStreamIndex);
+						StackEntry->Count = Array.Num();
+
+						const FGCSkipInfo SkipInfo = TokenStream->ReadSkipInfo(TokenStreamIndex);
+						StackEntry->LoopStartIndex = TokenStreamIndex;
+
+						if (StackEntry->Count == 0)
+						{
+							// Skip empty array by jumping to skip index and set return count to the one about to be read in.
+							TokenStreamIndex = SkipInfo.SkipIndex;
+							TokenReturnCount = TokenStream->GetSkipReturnCount(SkipInfo);
+						}
+						else
+						{
+							// Loop again.
+							check(StackEntry->Data);
+							TokenReturnCount = 0;
+						}
+					}
+					break;
+					case GCRT_ArrayStructFreezable:
+					{
+						// We're dealing with a dynamic array of structs.
+						const FFreezableScriptArray& Array = *((FFreezableScriptArray*)(StackEntryData + ReferenceInfo.Offset));
 						StackEntry++;
 						StackEntryData = (uint8*)Array.GetData();
 						StackEntry->Data = StackEntryData;

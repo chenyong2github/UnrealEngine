@@ -2352,7 +2352,7 @@ public:
 	 * @param NumComponentsToRegister  Number of components to register in this run, 0 for all
 	 * @return true when all components were registered for this actor
 	 */
-	bool IncrementalRegisterComponents(int32 NumComponentsToRegister);
+	bool IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegisterComponentContext* Context = nullptr);
 
 	/** Flags all component's render state as dirty	 */
 	void MarkComponentsRenderStateDirty();

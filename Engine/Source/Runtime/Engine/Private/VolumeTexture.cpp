@@ -612,7 +612,7 @@ void UVolumeTexture::UpdateMipGenSettings()
 
 #endif // #if WITH_EDITOR
 
-bool UVolumeTexture::ShaderPlatformSupportsCompression(EShaderPlatform ShaderPlatform)
+bool UVolumeTexture::ShaderPlatformSupportsCompression(FStaticShaderPlatform ShaderPlatform)
 {
 	switch (ShaderPlatform)
 	{
@@ -624,7 +624,7 @@ bool UVolumeTexture::ShaderPlatformSupportsCompression(EShaderPlatform ShaderPla
 		return true;
 
 	default:
-		return FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bSupportsVolumeTextureCompression;
+		return FDataDrivenShaderPlatformInfo::GetSupportsVolumeTextureCompression(ShaderPlatform);
 	}
 }
 

@@ -324,7 +324,7 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 	// Update the settings for geometry
 	FMeshProxySettings ProxySettings;
 	ProxySettings.bOverrideVoxelSize = false;
-	
+
 	const float Coefficient = 2.0f * Quality / 100.0f;
 
 	const float MinScreenSize = Coefficient <= 1.0f ? 100.0f : 300.0f;

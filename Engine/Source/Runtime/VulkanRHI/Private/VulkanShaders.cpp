@@ -39,7 +39,7 @@ FVulkanShaderFactory::~FVulkanShaderFactory()
 }
 
 template <typename ShaderType> 
-ShaderType* FVulkanShaderFactory::CreateShader(const TArray<uint8>& Code, FVulkanDevice* Device)
+ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVulkanDevice* Device)
 {
 	uint32 ShaderCodeLen = Code.Num();
 	uint32 ShaderCodeCRC = FCrc::MemCrc32(Code.GetData(), Code.Num());
@@ -83,14 +83,14 @@ void FVulkanShaderFactory::OnDeleteShader(const FVulkanShader& Shader)
 	ShaderMap[Shader.Frequency].Remove(ShaderKey);
 }
 
-void FVulkanShader::Setup(const TArray<uint8>& InShaderHeaderAndCode, uint64 InShaderKey)
+void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 InShaderKey)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanShaders);
 	check(Device);
 
 	ShaderKey = InShaderKey;
 
-	FMemoryReader Ar(InShaderHeaderAndCode, true);
+	FMemoryReaderView Ar(InShaderHeaderAndCode, true);
 
 	Ar << CodeHeader;
 
@@ -224,32 +224,32 @@ VkShaderModule FVulkanLayout::CreatePatchedPatchSpirvModule(TArray<uint32>& Spir
 }
 
 
-FVertexShaderRHIRef FVulkanDynamicRHI::RHICreateVertexShader(const TArray<uint8>& Code)
+FVertexShaderRHIRef FVulkanDynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	return Device->GetShaderFactory().CreateShader<FVulkanVertexShader>(Code, Device);
 }
 
-FPixelShaderRHIRef FVulkanDynamicRHI::RHICreatePixelShader(const TArray<uint8>& Code)
+FPixelShaderRHIRef FVulkanDynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	return Device->GetShaderFactory().CreateShader<FVulkanPixelShader>(Code, Device);
 }
 
-FHullShaderRHIRef FVulkanDynamicRHI::RHICreateHullShader(const TArray<uint8>& Code) 
+FHullShaderRHIRef FVulkanDynamicRHI::RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	return Device->GetShaderFactory().CreateShader<FVulkanHullShader>(Code, Device);
 }
 
-FDomainShaderRHIRef FVulkanDynamicRHI::RHICreateDomainShader(const TArray<uint8>& Code) 
+FDomainShaderRHIRef FVulkanDynamicRHI::RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	return Device->GetShaderFactory().CreateShader<FVulkanDomainShader>(Code, Device);
 }
 
-FGeometryShaderRHIRef FVulkanDynamicRHI::RHICreateGeometryShader(const TArray<uint8>& Code) 
+FGeometryShaderRHIRef FVulkanDynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	return Device->GetShaderFactory().CreateShader<FVulkanGeometryShader>(Code, Device);
 }
 
-FComputeShaderRHIRef FVulkanDynamicRHI::RHICreateComputeShader(const TArray<uint8>& Code) 
+FComputeShaderRHIRef FVulkanDynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	return Device->GetShaderFactory().CreateShader<FVulkanComputeShader>(Code, Device);
 }

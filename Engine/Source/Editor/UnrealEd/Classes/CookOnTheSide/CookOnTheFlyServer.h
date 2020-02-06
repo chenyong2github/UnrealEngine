@@ -471,6 +471,8 @@ public:
 	*/
 	bool IsCookByTheBookMode() const;
 
+	bool IsUsingShaderCodeLibrary() const;
+
 	bool IsUsingPackageStore() const;
 
 	/**

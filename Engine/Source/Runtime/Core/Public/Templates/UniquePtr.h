@@ -6,6 +6,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Templates/IsArray.h"
 #include "Templates/RemoveExtent.h"
+#include "Serialization/MemoryLayout.h"
 
 // Single-ownership smart pointer in the vein of std::unique_ptr.
 // Use this when you need an object's lifetime to be strictly bound to the lifetime of a single smart pointer.
@@ -19,6 +20,8 @@
 template <typename T>
 struct TDefaultDelete
 {
+	DECLARE_INLINE_TYPE_LAYOUT(TDefaultDelete, NonVirtual);
+
 	TDefaultDelete() = default;
 	TDefaultDelete(const TDefaultDelete&) = default;
 	TDefaultDelete& operator=(const TDefaultDelete&) = default;
@@ -83,8 +86,10 @@ struct TDefaultDelete<T[]>
 };
 
 template <typename T, typename Deleter = TDefaultDelete<T>>
-class TUniquePtr : private Deleter
+class TUniquePtr : public /*private*/ Deleter // @todo loadtime: can we go back to private? I get this: error C2243: 'static_cast': conversion from 'T *' to 'Base *' exists, but is inaccessible
 {
+	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TUniquePtr, NonVirtual, Deleter);
+
 	template <typename OtherT, typename OtherDeleter>
 	friend class TUniquePtr;
 
@@ -318,7 +323,8 @@ private:
 	TUniquePtr(const TUniquePtr&);
 	TUniquePtr& operator=(const TUniquePtr&);
 
-	T* Ptr;
+	using PtrType = T*;
+	LAYOUT_FIELD(PtrType, Ptr);
 };
 
 template <typename T, typename Deleter>

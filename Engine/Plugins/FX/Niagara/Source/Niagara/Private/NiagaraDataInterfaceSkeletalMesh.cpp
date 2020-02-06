@@ -488,8 +488,8 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 	if (bUseGpuUniformlyDistributedSampling)
 	{
 		const FSkeletalMeshAreaWeightedTriangleSampler& triangleSampler = SkeletalMeshSamplingLODBuiltData->AreaWeightedTriangleSampler;
-		const TArray<float>& Prob = triangleSampler.GetProb();
-		const TArray<int32>& Alias = triangleSampler.GetAlias();
+		const TArray<float, FMemoryImageAllocator>& Prob = triangleSampler.GetProb();
+		const TArray<int32, FMemoryImageAllocator>& Alias = triangleSampler.GetAlias();
 		check(TriangleCount == triangleSampler.GetNumEntries());
 
 		FRHIResourceCreateInfo CreateInfo;
@@ -767,10 +767,12 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 
 struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_SkeletalMesh, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
 		FNDISkeletalMeshParametersName ParamNames;
-		GetNiagaraDataInterfaceParametersName(ParamNames, ParamRef.ParameterInfo.DataInterfaceHLSLSymbol);
+		GetNiagaraDataInterfaceParametersName(ParamNames, ParameterInfo.DataInterfaceHLSLSymbol);
 
 		MeshIndexBuffer.Bind(ParameterMap, *ParamNames.MeshIndexBufferName);
 		MeshVertexBuffer.Bind(ParameterMap, *ParamNames.MeshVertexBufferName);
@@ -802,43 +804,11 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 		EnabledFeatures.Bind(ParameterMap, *ParamNames.EnabledFeaturesName);
 	}
 
-	virtual void Serialize(FArchive& Ar)override
-	{
-		Ar << MeshIndexBuffer;
-		Ar << MeshVertexBuffer;
-		Ar << MeshSkinWeightBuffer;
-		Ar << MeshSkinWeightLookupBuffer;
-		Ar << MeshCurrBonesBuffer;
-		Ar << MeshPrevBonesBuffer;
-		Ar << MeshCurrSamplingBonesBuffer;
-		Ar << MeshPrevSamplingBonesBuffer;
-		Ar << MeshTangentBuffer;
-		Ar << MeshTexCoordBuffer;
-		Ar << MeshColorBuffer;
-		Ar << MeshTriangleSamplerProbaBuffer;
-		Ar << MeshTriangleSamplerAliasBuffer;
-		Ar << MeshTriangleMatricesOffsetBuffer;
-		Ar << MeshTriangleCount;
-		Ar << MeshVertexCount;
-		Ar << MeshWeightStride;
-		Ar << MeshSkinWeightIndexSize;
-		Ar << MeshNumTexCoord;
-		Ar << MeshNumWeights;
-		Ar << NumSpecificBones;
-		Ar << SpecificBones;
-		Ar << NumSpecificSockets;
-		Ar << SpecificSocketBoneOffset;
-		Ar << InstanceTransform;
-		Ar << InstancePrevTransform;
-		Ar << InstanceInvDeltaTime;
-		Ar << EnabledFeatures;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxySkeletalMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxySkeletalMesh*>(Context.DataInterface);
 		FNiagaraDataInterfaceProxySkeletalMeshData* InstanceData = InterfaceProxy->SystemInstancesToData.Find(Context.SystemInstance);
 		if (InstanceData && InstanceData->StaticBuffers)
@@ -966,38 +936,40 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 		}
 	}
 
-
 private:
-
-	FShaderResourceParameter MeshIndexBuffer;
-	FShaderResourceParameter MeshVertexBuffer;
-	FShaderResourceParameter MeshSkinWeightBuffer;
-	FShaderResourceParameter MeshSkinWeightLookupBuffer;
-	FShaderResourceParameter MeshCurrBonesBuffer;
-	FShaderResourceParameter MeshPrevBonesBuffer;
-	FShaderResourceParameter MeshCurrSamplingBonesBuffer;
-	FShaderResourceParameter MeshPrevSamplingBonesBuffer;
-	FShaderResourceParameter MeshTangentBuffer;
-	FShaderResourceParameter MeshTexCoordBuffer;
-	FShaderResourceParameter MeshColorBuffer;
-	FShaderResourceParameter MeshTriangleSamplerProbaBuffer;
-	FShaderResourceParameter MeshTriangleSamplerAliasBuffer;
-	FShaderResourceParameter MeshTriangleMatricesOffsetBuffer;
-	FShaderParameter MeshTriangleCount;
-	FShaderParameter MeshVertexCount;
-	FShaderParameter MeshWeightStride;
-	FShaderParameter MeshSkinWeightIndexSize;
-	FShaderParameter MeshNumTexCoord;
-	FShaderParameter MeshNumWeights;
-	FShaderParameter NumSpecificBones;
-	FShaderResourceParameter SpecificBones;
-	FShaderParameter NumSpecificSockets;
-	FShaderParameter SpecificSocketBoneOffset;
-	FShaderParameter InstanceTransform;
-	FShaderParameter InstancePrevTransform;
-	FShaderParameter InstanceInvDeltaTime;
-	FShaderParameter EnabledFeatures;
+	LAYOUT_FIELD(FShaderResourceParameter, MeshIndexBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshVertexBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshSkinWeightBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshSkinWeightLookupBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshCurrBonesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshPrevBonesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshCurrSamplingBonesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshPrevSamplingBonesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTangentBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTexCoordBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshColorBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleSamplerProbaBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleSamplerAliasBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleMatricesOffsetBuffer);
+	LAYOUT_FIELD(FShaderParameter, MeshTriangleCount);
+	LAYOUT_FIELD(FShaderParameter, MeshVertexCount);
+	LAYOUT_FIELD(FShaderParameter, MeshWeightStride);
+	LAYOUT_FIELD(FShaderParameter, MeshSkinWeightIndexSize);
+	LAYOUT_FIELD(FShaderParameter, MeshNumTexCoord);
+	LAYOUT_FIELD(FShaderParameter, MeshNumWeights);
+	LAYOUT_FIELD(FShaderParameter, NumSpecificBones);
+	LAYOUT_FIELD(FShaderResourceParameter, SpecificBones);
+	LAYOUT_FIELD(FShaderParameter, NumSpecificSockets);
+	LAYOUT_FIELD(FShaderParameter, SpecificSocketBoneOffset);
+	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
+	LAYOUT_FIELD(FShaderParameter, InstancePrevTransform);
+	LAYOUT_FIELD(FShaderParameter, InstanceInvDeltaTime);
+	LAYOUT_FIELD(FShaderParameter, EnabledFeatures);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_SkeletalMesh);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceSkeletalMesh, FNiagaraDataInterfaceParametersCS_SkeletalMesh);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -2238,12 +2210,6 @@ void UNiagaraDataInterfaceSkeletalMesh::GetParameterDefinitionHLSL(const FNiagar
 {
 	OutHLSL += TEXT("DISKELMESH_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceSkeletalMesh::ConstructComputeParameters() const
-{
-	return new FNiagaraDataInterfaceParametersCS_SkeletalMesh();
-}
-
 
 void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse)
 {

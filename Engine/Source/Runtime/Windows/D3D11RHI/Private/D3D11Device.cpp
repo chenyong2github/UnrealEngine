@@ -483,17 +483,7 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		check(!GIsCriticalError);
 
 		// Ask all initialized FRenderResources to release their RHI resources.
-		for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			FRenderResource* Resource = *ResourceIt;
-			check(Resource->IsInitialized());
-			Resource->ReleaseRHI();
-		}
-
-		for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->ReleaseDynamicRHI();
-		}
+		FRenderResource::ReleaseRHIForAllResources();
 
 		extern void EmptyD3DSamplerStateCache();
 		EmptyD3DSamplerStateCache();

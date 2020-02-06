@@ -63,17 +63,86 @@ struct ENGINE_API FMaterialParameterInfo
 		Ar << Ref.Name << Ref.Association << Ref.Index;
 		return Ar;
 	}
-
-	FORCEINLINE bool operator==(const FMaterialParameterInfo& Other) const
-	{
-		return Name.IsEqual(Other.Name) && Association == Other.Association && Index == Other.Index;
-	}
-
-	FORCEINLINE bool operator!=(const FMaterialParameterInfo& Other) const
-	{
-		return !Name.IsEqual(Other.Name) || Association != Other.Association || Index != Other.Index;
-	}
 };
+
+struct FHashedMaterialParameterInfo
+{
+	DECLARE_TYPE_LAYOUT(FHashedMaterialParameterInfo, NonVirtual);
+public:
+	FHashedMaterialParameterInfo(const FHashedName& InName = FHashedName(), EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(InName)
+		, Index(InIndex)
+		, Association(InAssociation)
+	{}
+
+	FHashedMaterialParameterInfo(const TCHAR* InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(InName)
+		, Index(InIndex)
+		, Association(InAssociation)
+	{}
+
+	FHashedMaterialParameterInfo(const FName& InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(InName)
+		, Index(InIndex)
+		, Association(InAssociation)
+	{}
+
+	FHashedMaterialParameterInfo(const FMaterialParameterInfo& Rhs)
+		: Name(Rhs.Name)
+		, Index(Rhs.Index)
+		, Association(Rhs.Association)
+	{}
+
+	FHashedMaterialParameterInfo(const FHashedMaterialParameterInfo& Rhs) = default;
+
+	friend FArchive& operator<<(FArchive& Ar, FHashedMaterialParameterInfo& Ref)
+	{
+		Ar << Ref.Name << Ref.Association << Ref.Index;
+		return Ar;
+	}
+
+	LAYOUT_FIELD(FHashedName, Name);
+	LAYOUT_FIELD(int32, Index);
+	LAYOUT_FIELD(TEnumAsByte<EMaterialParameterAssociation>, Association);
+};
+
+// For sorting/searching
+FORCEINLINE bool operator<(const FHashedMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+{
+	if (Lhs.Association != Rhs.Association) return Lhs.Association < Rhs.Association;
+	else if (Lhs.Index != Rhs.Index) return Lhs.Index < Rhs.Index;
+	return Lhs.Name < Rhs.Name;
+}
+
+FORCEINLINE bool operator==(const FMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
+{
+	return Lhs.Name.IsEqual(Rhs.Name) && Lhs.Association == Rhs.Association && Lhs.Index == Rhs.Index;
+}
+
+FORCEINLINE bool operator!=(const FMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FHashedMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+{
+	return Lhs.Name == Rhs.Name && Lhs.Association == Rhs.Association && Lhs.Index == Rhs.Index;
+}
+
+FORCEINLINE bool operator!=(const FHashedMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+{
+	return FHashedName(Lhs.Name) == Rhs.Name && Lhs.Index == Rhs.Index && Lhs.Association == Rhs.Association;
+}
+
+FORCEINLINE bool operator!=(const FMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
 
 USTRUCT()
 struct ENGINE_API FMaterialLayersFunctions

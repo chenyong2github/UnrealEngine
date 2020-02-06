@@ -12,7 +12,7 @@
 
 class FByteBufferShader : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER( FByteBufferShader );
+	DECLARE_INLINE_TYPE_LAYOUT( FByteBufferShader, NonVirtual );
 
 	FByteBufferShader() {}
 	FByteBufferShader( const ShaderMetaType::CompiledShaderInitializerType& Initializer )
@@ -42,7 +42,7 @@ class FByteBufferShader : public FGlobalShader
 				&& FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsByteBufferComputeShaders;
 				*/
 			// TODO: Workaround for FDataDrivenShaderPlatformInfo::GetInfo not being properly filled out yet.
-			return FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsByteBufferComputeShaders || Parameters.Platform == SP_PS4 || Parameters.Platform == SP_PCD3D_SM5 || Parameters.Platform == SP_XBOXONE_D3D12;
+			return FDataDrivenShaderPlatformInfo::GetSupportsByteBufferComputeShaders(Parameters.Platform) || Parameters.Platform == SP_PS4 || Parameters.Platform == SP_PCD3D_SM5 || Parameters.Platform == SP_XBOXONE_D3D12;
 		}
 	}
 

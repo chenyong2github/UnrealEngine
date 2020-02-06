@@ -213,13 +213,15 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 			{
 				if ( ArrayOuter )
 				{
-					const int32 Num = FScriptArrayHelper::Num(BaseAddr);
+					FScriptArrayHelper ArrayHelper(ArrayOuter, BaseAddr);
+					const int32 Num = ArrayHelper.Num();
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ++ObjIndex)
 					{
 						TempObject = GetUObject(ObjIndex);
 						BaseAddr = ParentPropertyNode->GetValueBaseAddressFromObject(TempObject);
 
-						if (BaseAddr && Num != FScriptArrayHelper::Num(BaseAddr))
+						ArrayHelper = FScriptArrayHelper(ArrayOuter, BaseAddr);
+						if (BaseAddr && Num != ArrayHelper.Num())
 						{
 							bAllTheSame = false;
 						}
@@ -241,15 +243,20 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 				}
 				else if ( MapOuter )
 				{
-					const int32 Num = FScriptMapHelper::Num(BaseAddr);
+					FScriptMapHelper MapHelper(MapOuter, BaseAddr);
+					const int32 Num = MapHelper.Num();
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ++ObjIndex)
 					{
 						TempObject = GetUObject(ObjIndex);
 						BaseAddr = ParentPropertyNode->GetValueBaseAddressFromObject(TempObject);
 
-						if (BaseAddr && Num != FScriptMapHelper::Num(BaseAddr))
+						if (BaseAddr)
 						{
-							bAllTheSame = false;
+							MapHelper = FScriptMapHelper(MapOuter, BaseAddr);
+							if (Num != MapHelper.Num())
+							{
+								bAllTheSame = false;
+							}
 						}
 					}
 				}
@@ -277,13 +284,18 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 
 				if (ArrayProp)
 				{
-					int32 const Num = FScriptArrayHelper::Num(BaseAddr);
+					FScriptArrayHelper ArrayHelper(ArrayProp, BaseAddr);
+					int32 const Num = ArrayHelper.Num();
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ObjIndex++)
 					{
 						TempObject = GetUObject(ObjIndex);
-						if (TempObject && Num != FScriptArrayHelper::Num(InNode.GetValueBaseAddressFromObject(TempObject)))
+						if (TempObject)
 						{
-							bAllTheSame = false;
+							ArrayHelper = FScriptArrayHelper(ArrayProp, InNode.GetValueBaseAddressFromObject(TempObject));
+							if (Num != ArrayHelper.Num())
+							{
+								bAllTheSame = false;
+							}
 						}
 					}
 				}
@@ -301,13 +313,18 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 				}
 				else if (MapProp)
 				{
-					int32 const Num = FScriptMapHelper::Num(BaseAddr);
+					FScriptMapHelper MapHelper(MapProp, BaseAddr);
+					int32 const Num = MapHelper.Num();
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ++ObjIndex)
 					{
 						TempObject = GetUObject(ObjIndex);
-						if (TempObject && Num != FScriptMapHelper::Num(InNode.GetValueBaseAddressFromObject(TempObject)))
+						if (TempObject)
 						{
-							bAllTheSame = false;
+							MapHelper = FScriptMapHelper(MapProp, InNode.GetValueBaseAddressFromObject(TempObject));
+							if (Num != MapHelper.Num())
+							{
+								bAllTheSame = false;
+							}
 						}
 					}
 				}

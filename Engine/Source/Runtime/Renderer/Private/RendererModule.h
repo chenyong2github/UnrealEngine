@@ -65,7 +65,7 @@ public:
 		float SizeV,
 		FIntPoint TargetSize,
 		FIntPoint TextureSize,
-		class FShader* VertexShader,
+		const TShaderRef<FShader>& VertexShader,
 		EDrawRectangleFlags Flags = EDRF_Default
 		) override;
 

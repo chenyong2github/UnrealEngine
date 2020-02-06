@@ -69,6 +69,12 @@ struct EArrayType
 	};
 };
 
+enum class EAllocatorType
+{
+	Default,
+	MemoryImage
+};
+
 struct ERefQualifier
 {
 	enum Type
@@ -99,6 +105,7 @@ public:
 	// Variables.
 	EPropertyType       Type;
 	EArrayType::Type    ArrayType;
+	EAllocatorType      AllocatorType = EAllocatorType::Default;
 	EPropertyFlags      PropertyFlags;
 	EPropertyFlags      ImpliedPropertyFlags;
 	ERefQualifier::Type RefQualifier; // This is needed because of legacy stuff - FString mangles the flags for reasons that have become lost in time but we need this info for testing for invalid replicated function signatures.

@@ -511,7 +511,7 @@ void USkinnedMeshComponent::OnUnregister()
 	}
 }
 
-void USkinnedMeshComponent::CreateRenderState_Concurrent()
+void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
@@ -572,7 +572,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent()
 		}
 	}
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	if (SkeletalMesh)
 	{

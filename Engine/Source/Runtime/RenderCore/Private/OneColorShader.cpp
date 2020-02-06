@@ -14,26 +14,21 @@ void FOneColorPS::SetColors(FRHICommandList& RHICmdList, const FLinearColor* Col
 	check(NumColors <= MaxSimultaneousRenderTargets);
 
 	auto& ClearUBParam = GetUniformBufferParameter<FClearShaderUB>();
-	if (ClearUBParam.IsInitialized())
+	if (ClearUBParam.IsBound())
 	{
-		if (ClearUBParam.IsBound())
+		FClearShaderUB ClearData;
+		FMemory::Memzero(ClearData.DrawColorMRT);
+		for (int32 i = 0; i < NumColors; ++i)
 		{
-			FClearShaderUB ClearData;
-			FMemory::Memzero(ClearData.DrawColorMRT);			
-			for (int32 i = 0; i < NumColors; ++i)
-			{
-				ClearData.DrawColorMRT[i].X = Colors[i].R;
-				ClearData.DrawColorMRT[i].Y = Colors[i].G;
-				ClearData.DrawColorMRT[i].Z = Colors[i].B;
-				ClearData.DrawColorMRT[i].W = Colors[i].A;
-			}
-
-			FLocalUniformBuffer LocalUB = TUniformBufferRef<FClearShaderUB>::CreateLocalUniformBuffer(RHICmdList, ClearData, UniformBuffer_SingleFrame);	
-			RHICmdList.SetLocalShaderUniformBuffer(GetPixelShader(), ClearUBParam.GetBaseIndex(), LocalUB);
+			ClearData.DrawColorMRT[i].X = Colors[i].R;
+			ClearData.DrawColorMRT[i].Y = Colors[i].G;
+			ClearData.DrawColorMRT[i].Z = Colors[i].B;
+			ClearData.DrawColorMRT[i].W = Colors[i].A;
 		}
-	}
 
-	
+		FLocalUniformBuffer LocalUB = TUniformBufferRef<FClearShaderUB>::CreateLocalUniformBuffer(RHICmdList, ClearData, UniformBuffer_SingleFrame);
+		RHICmdList.SetLocalShaderUniformBuffer(RHICmdList.GetBoundPixelShader(), ClearUBParam.GetBaseIndex(), LocalUB);
+	}
 }
 
 // #define avoids a lot of code duplication

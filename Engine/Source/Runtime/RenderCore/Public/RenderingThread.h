@@ -11,6 +11,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Templates/Atomic.h"
 #include "Trace/Trace.h"
+#include "Serialization/MemoryLayout.h"
 
 class FRHICommandListImmediate;
 

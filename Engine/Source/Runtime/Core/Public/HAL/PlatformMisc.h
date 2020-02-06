@@ -25,6 +25,10 @@
 #endif
 #endif
 
+#ifndef PLATFORM_EMPTY_BASES
+#define PLATFORM_EMPTY_BASES
+#endif
+
 // Master switch for scoped named events
 #define ENABLE_NAMED_EVENTS (!UE_BUILD_SHIPPING && 1)
 

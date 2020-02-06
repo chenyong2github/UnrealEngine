@@ -337,17 +337,19 @@ FString FPropertyValueImpl::GetPropertyValueArray() const
 				uint8* Addr = ReadAddresses.GetAddress(0);
 				if( Addr )
 				{
-					if ( NodeProperty->IsA<FArrayProperty>() )
+					if ( FArrayProperty* ArrayProperty = CastField<FArrayProperty>(NodeProperty) )
 					{
-						String = FString::Printf( TEXT("%(%d)"), FScriptArrayHelper::Num(Addr) );
+						FScriptArrayHelper ArrayHelper(ArrayProperty, Addr);
+						String = FString::Printf( TEXT("%(%d)"), ArrayHelper.Num() );
 					}
 					else if ( CastField<FSetProperty>(NodeProperty) != nullptr )	
 					{
 						String = FString::Printf( TEXT("%(%d)"), FScriptSetHelper::Num(Addr) );
 					}
-					else if (CastField<FMapProperty>(NodeProperty) != nullptr)
+					else if (FMapProperty* MapProperty = CastField<FMapProperty>(NodeProperty))
 					{
-						String = FString::Printf(TEXT("%(%d)"), FScriptMapHelper::Num(Addr));
+						FScriptMapHelper MapHelper(MapProperty, Addr);
+						String = FString::Printf(TEXT("%(%d)"), MapHelper.Num());
 					}
 					else
 					{
@@ -772,7 +774,8 @@ static int32 GetArrayPropertyLastValidIndex( FObjectPropertyNode* InObjectNode, 
 		if (ArrayProperty)
 		{
 			uint8* PropertyAddressBase = ArrayProperty->ContainerPtrToValuePtr<uint8>(ParentObject);
-			ClampMax = FScriptArrayHelper::Num(PropertyAddressBase) - 1;
+			FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyAddressBase);
+			ClampMax = ArrayHelper.Num() - 1;
 		}
 		else
 		{

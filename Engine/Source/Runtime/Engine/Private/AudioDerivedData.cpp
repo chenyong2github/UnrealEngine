@@ -183,18 +183,7 @@ static FName GetWaveFormatForRunningPlatform(USoundWave& SoundWave)
 
 static const FPlatformAudioCookOverrides* GetCookOverridesForRunningPlatform()
 {
-	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-	if (TPM)
-	{
-		ITargetPlatform* CurrentPlatform = GetRunningTargetPlatform(TPM);
-
-
-		return CurrentPlatform->GetAudioCompressionSettings();
-	}
-	else
-	{
-		return nullptr;
-	}
+	return FPlatformCompressionUtilities::GetCookOverrides(ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
 }
 
 /**
@@ -1100,7 +1089,9 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 		QualityInfo.NumChannels = *WaveInfo.pChannels;
 		QualityInfo.SampleRate = WaveSampleRate;
 		QualityInfo.SampleDataSize = Input.Num();
-		QualityInfo.bStreaming = SoundWave->IsStreaming();
+		// without overrides, we don't know the target platform's name to be able to look up, and passing nullptr will use editor platform's settings, which could be wrong
+		// @todo: Pass in TargetPlatform/PlatformName maybe?
+		QualityInfo.bStreaming = SoundWave->IsStreaming(CompressionOverrides ? *CompressionOverrides : FPlatformAudioCookOverrides());
 		QualityInfo.DebugName = SoundWave->GetFullName();
 
 		// Cook the data.
@@ -1306,7 +1297,7 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 			QualityInfo.NumChannels = ChannelCount;
 			QualityInfo.SampleRate = WaveSampleRate;
 			QualityInfo.SampleDataSize = SampleDataSize;
-			QualityInfo.bStreaming = SoundWave->IsStreaming();
+			QualityInfo.bStreaming = SoundWave->IsStreaming(CompressionOverrides ? *CompressionOverrides : FPlatformAudioCookOverrides());
 			QualityInfo.DebugName = SoundWave->GetFullName();
 			//@todo tighten up the checking for empty results here
 			if(Format.CookSurround(FormatName, SourceBuffers, QualityInfo, Output))
@@ -1448,7 +1439,7 @@ void USoundWave::SerializeCookedPlatformData(FArchive& Ar)
 		check(!Ar.CookingTarget()->IsServerOnly());
 
 		FName PlatformFormat = Ar.CookingTarget()->GetWaveFormat(this);
-		const FPlatformAudioCookOverrides* CompressionOverrides = Ar.CookingTarget()->GetAudioCompressionSettings();
+		const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*Ar.CookingTarget()->IniPlatformName());
 		FString DerivedDataKey;
 
 		GetStreamedAudioDerivedDataKeySuffix(*this, PlatformFormat, CompressionOverrides, DerivedDataKey);
@@ -1521,13 +1512,14 @@ void USoundWave::BeginCachePlatformData()
 
 void USoundWave::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform)
 {
-	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::AudioStreaming) && IsStreaming())
+	const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
+
+	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::AudioStreaming) && IsStreaming(*CompressionOverrides))
 	{
 		// Retrieve format to cache for targetplatform.
 		FName PlatformFormat = TargetPlatform->GetWaveFormat(this);
 		uint32 CacheFlags = EStreamedAudioCacheFlags::Async | EStreamedAudioCacheFlags::InlineChunks;
 
-		const FPlatformAudioCookOverrides* CompressionOverrides = TargetPlatform->GetAudioCompressionSettings();
 
 		// If source data is resident in memory then allow the streamed audio to be built
 		// in a background thread.
@@ -1560,11 +1552,12 @@ void USoundWave::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPl
 
 bool USoundWave::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform )
 {
-	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::AudioStreaming) && IsStreaming())
+	const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
+
+	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::AudioStreaming) && IsStreaming(*CompressionOverrides))
 	{
 		// Retrieve format to cache for targetplatform.
 		FName PlatformFormat = TargetPlatform->GetWaveFormat(this);
-		const FPlatformAudioCookOverrides* CompressionOverrides = TargetPlatform->GetAudioCompressionSettings();
 		// find format data by comparing derived data keys.
 		FString DerivedDataKey;
 		GetStreamedAudioDerivedDataKeySuffix(*this, PlatformFormat, CompressionOverrides, DerivedDataKey);
@@ -1607,11 +1600,12 @@ void USoundWave::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPla
 {
 	Super::ClearCachedCookedPlatformData(TargetPlatform);
 
-	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::AudioStreaming) && IsStreaming())
+	const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
+
+	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::AudioStreaming) && IsStreaming(*CompressionOverrides))
 	{
 		// Retrieve format to cache for targetplatform.
 		FName PlatformFormat = TargetPlatform->GetWaveFormat(this);
-		const FPlatformAudioCookOverrides* CompressionOverrides = TargetPlatform->GetAudioCompressionSettings();
 
 		// find format data by comparing derived data keys.
 		FString DerivedDataKey;

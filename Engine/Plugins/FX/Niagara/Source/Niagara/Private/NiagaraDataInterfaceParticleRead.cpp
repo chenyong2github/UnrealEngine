@@ -150,25 +150,25 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		return ENiagaraParticleDataValueType::Invalid;
 	}
 
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		NumSpawnedParticlesParam.Bind(ParameterMap, *(NumSpawnedParticlesBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		SpawnedParticlesAcquireTagParam.Bind(ParameterMap, *(SpawnedParticlesAcquireTagBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		SpawnedIDsBufferParam.Bind(ParameterMap, *(SpawnedIDsBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IDToIndexTableParam.Bind(ParameterMap, *(IDToIndexTableBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		InputFloatBufferParam.Bind(ParameterMap, *(InputFloatBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		InputIntBufferParam.Bind(ParameterMap, *(InputIntBufferBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		ParticleStrideFloatParam.Bind(ParameterMap, *(ParticleStrideFloatBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		ParticleStrideIntParam.Bind(ParameterMap, *(ParticleStrideIntBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		AttributeIndicesParam.Bind(ParameterMap, *(AttributeIndicesBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		AcquireTagRegisterIndexParam.Bind(ParameterMap, *(AcquireTagRegisterIndexBaseName + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		NumSpawnedParticlesParam.Bind(ParameterMap, *(NumSpawnedParticlesBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		SpawnedParticlesAcquireTagParam.Bind(ParameterMap, *(SpawnedParticlesAcquireTagBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		SpawnedIDsBufferParam.Bind(ParameterMap, *(SpawnedIDsBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		IDToIndexTableParam.Bind(ParameterMap, *(IDToIndexTableBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		InputFloatBufferParam.Bind(ParameterMap, *(InputFloatBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		InputIntBufferParam.Bind(ParameterMap, *(InputIntBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		ParticleStrideFloatParam.Bind(ParameterMap, *(ParticleStrideFloatBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		ParticleStrideIntParam.Bind(ParameterMap, *(ParticleStrideIntBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		AttributeIndicesParam.Bind(ParameterMap, *(AttributeIndicesBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
+		AcquireTagRegisterIndexParam.Bind(ParameterMap, *(AcquireTagRegisterIndexBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		int32 NumFuncs = ParamRef.ParameterInfo.GeneratedFunctions.Num();
+		int32 NumFuncs = ParameterInfo.GeneratedFunctions.Num();
 		AttributeNames.SetNum(NumFuncs);
 		AttributeTypes.SetNum(NumFuncs);
 		for (int32 FuncIdx = 0; FuncIdx < NumFuncs; ++FuncIdx)
 		{
-			const FNiagaraDataInterfaceGeneratedFunction& Func = ParamRef.ParameterInfo.GeneratedFunctions[FuncIdx];
+			const FNiagaraDataInterfaceGeneratedFunction& Func = ParameterInfo.GeneratedFunctions[FuncIdx];
 			static const FName NAME_Attribute("Attribute");
 			const FName* AttributeName = Func.FindSpecifierValue(NAME_Attribute);
 			if (AttributeName != nullptr)
@@ -184,25 +184,6 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 				AttributeTypes[FuncIdx] = ENiagaraParticleDataValueType::Invalid;
 			}
 		}
-
-		int NumAttrIndices = Align(AttributeNames.Num(), 4);
-		AttributeIndices.SetNum(NumAttrIndices);
-	}
-
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << NumSpawnedParticlesParam;
-		Ar << SpawnedParticlesAcquireTagParam;
-		Ar << SpawnedIDsBufferParam;
-		Ar << IDToIndexTableParam;
-		Ar << InputFloatBufferParam;
-		Ar << InputIntBufferParam;
-		Ar << ParticleStrideFloatParam;
-		Ar << ParticleStrideIntParam;
-		Ar << AttributeIndicesParam;
-		Ar << AcquireTagRegisterIndexParam;
-		Ar << AttributeNames;
-		Ar << AttributeTypes;
 
 		int NumAttrIndices = Align(AttributeNames.Num(), 4);
 		AttributeIndices.SetNum(NumAttrIndices);
@@ -318,11 +299,11 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		}
 	}
 
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShader = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
 
 		FNiagaraDataInterfaceProxyParticleRead* Proxy = static_cast<FNiagaraDataInterfaceProxyParticleRead*>(Context.DataInterface);
 		check(Proxy);
@@ -1307,11 +1288,6 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 	}
 
 	return false;
-}
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceParticleRead::ConstructComputeParameters() const
-{
-	return new FNiagaraDataInterfaceParametersCS_ParticleRead();
 }
 
 void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)

@@ -11,6 +11,7 @@
 #include "RenderResource.h"
 #include "Containers/DynamicRHIResourceArray.h"
 
+
 class FRawIndexBuffer : public FIndexBuffer
 {
 public:
@@ -290,7 +291,7 @@ private:
 	FIndexBufferRHIRef CreateRHIBuffer_Internal();
 
 	/** Storage for indices. */
-	TResourceArray<uint8,INDEXBUFFER_ALIGNMENT> IndexStorage;
+	TResourceArray<uint8, INDEXBUFFER_ALIGNMENT> IndexStorage;
 
 	/** If >= 0, represents the number of indices in this IB. Needed in cooked build since InitRHI may discard CPU data */
 	int32 CachedNumIndices;
@@ -446,7 +447,8 @@ public:
 
 	virtual void AssignNewBuffer(const TArray<INDEX_TYPE>& Buffer)
 	{
-		Indices = TArray<INDEX_TYPE,TAlignedHeapAllocator<INDEXBUFFER_ALIGNMENT> >(Buffer);
+		using IndexBufferType = typename TResourceArray<INDEX_TYPE, INDEXBUFFER_ALIGNMENT>::Super;
+		Indices = IndexBufferType(Buffer);
 		CachedNumIndices = Indices.Num();
 	}
 

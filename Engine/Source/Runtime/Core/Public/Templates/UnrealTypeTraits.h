@@ -17,6 +17,7 @@
 #include "Templates/IsEnum.h"
 #include "Templates/RemoveCV.h"
 #include "Traits/IsVoidType.h"
+#include "Templates/Models.h"
 
 #include "Templates/IsPODType.h"
 #include "Templates/IsTriviallyCopyConstructible.h"

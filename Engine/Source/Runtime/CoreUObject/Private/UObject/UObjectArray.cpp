@@ -14,6 +14,69 @@ DEFINE_LOG_CATEGORY_STATIC(LogUObjectArray, Log, All);
 
 FUObjectClusterContainer GUObjectClusters;
 
+#if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
+void FUObjectItem::CreateStatID() const
+{
+	// @todo can we put this in a header?
+//		SCOPE_CYCLE_COUNTER(STAT_CreateStatID);
+
+	FString LongName;
+	LongName.Reserve(255);
+	TArray<UObjectBase const*, TInlineAllocator<24>> ClassChain;
+
+	// Build class hierarchy
+	UObjectBase const* Target = Object;
+	do
+	{
+		ClassChain.Add(Target);
+		Target = Target->GetOuter();
+	} while (Target);
+
+	// Start with class name
+	if (Object->GetClass())
+	{
+		Object->GetClass()->GetFName().GetDisplayNameEntry()->AppendNameToString(LongName);
+	}
+
+	// Now process from parent -> child so we can append strings more efficiently.
+	bool bFirstEntry = true;
+	for (int32 i = ClassChain.Num() - 1; i >= 0; i--)
+	{
+		Target = ClassChain[i];
+		const FNameEntry* NameEntry = Target->GetFName().GetDisplayNameEntry();
+		if (bFirstEntry)
+		{
+			NameEntry->AppendNameToPathString(LongName);
+		}
+		else
+		{
+			if (!LongName.IsEmpty())
+			{
+				LongName += TEXT(".");
+			}
+			NameEntry->AppendNameToString(LongName);
+		}
+		bFirstEntry = false;
+	}
+
+#if STATS
+	StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_UObjects>(LongName);
+#else // ENABLE_STATNAMEDEVENTS
+	const auto& ConversionData = StringCast<PROFILER_CHAR>(*LongName);
+	const int32 NumStorageChars = (ConversionData.Length() + 1);	//length doesn't include null terminator
+
+	PROFILER_CHAR* StoragePtr = new PROFILER_CHAR[NumStorageChars];
+	FMemory::Memcpy(StoragePtr, ConversionData.Get(), NumStorageChars * sizeof(PROFILER_CHAR));
+
+	if (FPlatformAtomics::InterlockedCompareExchangePointer((void**)&StatIDStringStorage, StoragePtr, nullptr) != nullptr)
+	{
+		delete[] StoragePtr;
+	}
+
+	StatID = TStatId(StatIDStringStorage);
+#endif
+}
+#endif
 FUObjectArray::FUObjectArray()
 : ObjFirstGCIndex(0)
 , ObjLastNonGCIndex(INDEX_NONE)

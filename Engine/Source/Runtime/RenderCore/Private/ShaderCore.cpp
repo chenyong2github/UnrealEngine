@@ -93,7 +93,6 @@ DEFINE_STAT(STAT_Shaders_TotalRTShaderInitForRenderingTime);
 DEFINE_STAT(STAT_Shaders_FrameRTShaderInitForRenderingTime);
 DEFINE_STAT(STAT_Shaders_ShaderMemory);
 DEFINE_STAT(STAT_Shaders_ShaderResourceMemory);
-DEFINE_STAT(STAT_Shaders_ShaderMapMemory);
 
 DEFINE_STAT(STAT_Shaders_NumShadersRegistered);
 DEFINE_STAT(STAT_Shaders_NumShadersDuplicated);
@@ -377,12 +376,12 @@ void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBuffe
 			checkf(
 				ExpectedStructMetadata,
 				TEXT("Shader is requesting uniform buffer '%s' at slot %s with hash '%u', but a reverse lookup of the hash can't find it. The shader cache may be out of date."),
-				*Layout.GetDebugName().ToString(), *SlotRegistry.GetDebugDescription(Slot), ExpectedHash);
+				*Layout.GetDebugName(), *SlotRegistry.GetDebugDescription(Slot), ExpectedHash);
 
 			checkf(
 				false,
 				TEXT("Shader attempted to bind uniform buffer '%s' at slot %s with hash '%u', but the shader expected '%s' with hash '%u'."),
-				*Layout.GetDebugName().ToString(), *SlotRegistry.GetDebugDescription(Slot), ExpectedHash, ExpectedStructMetadata->GetShaderVariableName(), Layout.GetHash());
+				*Layout.GetDebugName(), *SlotRegistry.GetDebugDescription(Slot), ExpectedHash, ExpectedStructMetadata->GetShaderVariableName(), Layout.GetHash());
 		}
 	}
 #endif

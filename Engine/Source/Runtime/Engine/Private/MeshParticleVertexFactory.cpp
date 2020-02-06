@@ -11,9 +11,9 @@
 
 class FMeshParticleVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FMeshParticleVertexFactoryShaderParameters, NonVirtual);
 public:
-
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		Transform1.Bind(ParameterMap,TEXT("Transform1"));
 		Transform2.Bind(ParameterMap,TEXT("Transform2"));
@@ -30,24 +30,7 @@ public:
 		PrevTransformBuffer.Bind(ParameterMap, TEXT("PrevTransformBuffer"));
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << Transform1;
-		Ar << Transform2;
-		Ar << Transform3;
-		Ar << SubUVParams;
-		Ar << SubUVLerp;
-		Ar << ParticleDirection;
-		Ar << RelativeTime;
-		Ar << DynamicParameter;
-		Ar << ParticleColor;
-		Ar << PrevTransform0;
-		Ar << PrevTransform1;
-		Ar << PrevTransform2;
-		Ar << PrevTransformBuffer;
-	}
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -56,7 +39,7 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		const bool bInstanced = true;
 		FMeshParticleVertexFactory* MeshParticleVF = (FMeshParticleVertexFactory*)VertexFactory;
@@ -99,19 +82,19 @@ public:
 
 private:
 	// Used only when instancing is off (ES2)
-	FShaderParameter Transform1;
-	FShaderParameter Transform2;
-	FShaderParameter Transform3;
-	FShaderParameter SubUVParams;
-	FShaderParameter SubUVLerp;
-	FShaderParameter ParticleDirection;
-	FShaderParameter RelativeTime;
-	FShaderParameter DynamicParameter;
-	FShaderParameter ParticleColor;
-	FShaderParameter PrevTransform0;
-	FShaderParameter PrevTransform1;
-	FShaderParameter PrevTransform2;
-	FShaderResourceParameter PrevTransformBuffer;
+	LAYOUT_FIELD(FShaderParameter, Transform1);
+	LAYOUT_FIELD(FShaderParameter, Transform2);
+	LAYOUT_FIELD(FShaderParameter, Transform3);
+	LAYOUT_FIELD(FShaderParameter, SubUVParams);
+	LAYOUT_FIELD(FShaderParameter, SubUVLerp);
+	LAYOUT_FIELD(FShaderParameter, ParticleDirection);
+	LAYOUT_FIELD(FShaderParameter, RelativeTime);
+	LAYOUT_FIELD(FShaderParameter, DynamicParameter);
+	LAYOUT_FIELD(FShaderParameter, ParticleColor);
+	LAYOUT_FIELD(FShaderParameter, PrevTransform0);
+	LAYOUT_FIELD(FShaderParameter, PrevTransform1);
+	LAYOUT_FIELD(FShaderParameter, PrevTransform2);
+	LAYOUT_FIELD(FShaderResourceParameter, PrevTransformBuffer);
 };
 
 class FDummyPrevTransformBuffer : public FRenderResource
@@ -321,9 +304,24 @@ FRHIShaderResourceView* FMeshParticleVertexFactory::GetPreviousTransformBufferSR
 	return PrevTransformBuffer.SRV;
 }
 
-bool FMeshParticleVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+void FMeshParticleVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	return (Material->IsUsedWithMeshParticles() || Material->IsSpecialEngineMaterial());
+	FParticleVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+	// Set a define so we can tell in MaterialTemplate.usf when we are compiling a mesh particle vertex factory
+	OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_FACTORY"), TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_INSTANCED"), TEXT("1"));
+
+	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
+	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Parameters.Platform))
+	{
+		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
+	}
+}
+
+bool FMeshParticleVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	return (Parameters.MaterialParameters.bIsUsedWithMeshParticles || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 void FMeshParticleVertexFactory::SetData(const FDataType& InData)
@@ -333,11 +331,20 @@ void FMeshParticleVertexFactory::SetData(const FDataType& InData)
 	UpdateRHI();
 }
 
-
-FVertexFactoryShaderParameters* FMeshParticleVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
+bool FMeshParticleVertexFactoryEmulatedInstancing::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return ShaderFrequency == SF_Vertex ? new FMeshParticleVertexFactoryShaderParameters() : NULL;
+	return (Parameters.Platform == SP_OPENGL_ES2_ANDROID) // Android platforms that might not support hardware instancing
+		&& FMeshParticleVertexFactory::ShouldCompilePermutation(Parameters);
 }
+
+void FMeshParticleVertexFactoryEmulatedInstancing::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FMeshParticleVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_INSTANCED"), TEXT("0"));
+}
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FMeshParticleVertexFactory, SF_Vertex, FMeshParticleVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FMeshParticleVertexFactoryEmulatedInstancing, SF_Vertex, FMeshParticleVertexFactoryShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactory,"/Engine/Private/MeshParticleVertexFactory.ush",true,false,true,false,false);
 IMPLEMENT_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactoryEmulatedInstancing,"/Engine/Private/MeshParticleVertexFactory.ush",true,false,true,false,false);

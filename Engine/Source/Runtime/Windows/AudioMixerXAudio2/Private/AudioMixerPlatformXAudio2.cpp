@@ -1238,7 +1238,7 @@ namespace Audio
 		static FName NAME_ADPCM(TEXT("ADPCM"));
 
 #if WITH_ENGINE
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 			if (InSoundWave->IsSeekableStreaming())
 			{
@@ -1277,7 +1277,7 @@ namespace Audio
 #if WITH_ENGINE
 		check(InSoundWave);
 
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 			if (InSoundWave->IsSeekableStreaming())
 			{
@@ -1292,7 +1292,7 @@ namespace Audio
 		}
 #endif
 
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 #if USE_VORBIS_FOR_STREAMING
 			return new FVorbisAudioInfo();

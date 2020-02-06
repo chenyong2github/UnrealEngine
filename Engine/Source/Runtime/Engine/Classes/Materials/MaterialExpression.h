@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "MaterialShared.h"
+#include "MaterialCachedData.h"
 #include "MaterialExpressionIO.h"
 
 #include "MaterialExpression.generated.h"
@@ -95,29 +96,6 @@ struct FExpressionOutput
 #endif
 };
 #endif
-
-USTRUCT()
-struct FParameterChannelNames
-{
-	GENERATED_USTRUCT_BODY()
-
-		UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
-		FText R;
-
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
-		FText G;
-
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
-		FText B;
-
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
-		FText A;
-
-	FParameterChannelNames()
-	{
-
-	};
-};
 
 UCLASS(abstract, BlueprintType, hidecategories=Object)
 class ENGINE_API UMaterialExpression : public UObject
