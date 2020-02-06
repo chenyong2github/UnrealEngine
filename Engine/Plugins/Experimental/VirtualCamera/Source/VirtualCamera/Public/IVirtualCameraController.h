@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/DelegateCombinations.h"
+#include "LiveLinkRole.h"
+#include "Misc/CoreMiscDefines.h"
 #include "UObject/Interface.h"
 #include "UObject/ScriptInterface.h"
 
@@ -58,6 +61,19 @@ struct FTrackingOffset
 	};
 };
 
+USTRUCT(BlueprintType)
+struct FVirtualCameraTransform
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera")
+	FTransform Transform;
+};
+
+DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(FVirtualCameraTransform, FPreSetVirtualCameraTransform, FVirtualCameraTransform, CameraTransform);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVirtualCameraTickDelegateGroup, float, DeltaTime);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FVirtualCameraTickDelegate, float, DeltaTime);
+
 UINTERFACE(Blueprintable)
 class VIRTUALCAMERA_API UVirtualCameraController: public UInterface
 {
@@ -83,8 +99,41 @@ public:
 	ULevelSequencePlaybackController* GetSequenceController() const;
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Presets")
-	TScriptInterface<IVirtualCameraPresetContainer> GetPresetContainer() const;
+	TScriptInterface<IVirtualCameraPresetContainer> GetPresetContainer();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Options")
-	TScriptInterface<IVirtualCameraOptions> GetOptions() const;
+	TScriptInterface<IVirtualCameraOptions> GetOptions();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Movement")
+	FLiveLinkSubjectRepresentation GetLiveLinkRepresentation() const;
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Movement")
+	void SetLiveLinkRepresentation(const FLiveLinkSubjectRepresentation& InLiveLinkRepresenation);
+
+	virtual bool StartStreaming() PURE_VIRTUAL(IVirtualCameraController::StartStreaming, return false;);
+
+	virtual bool StopStreaming() PURE_VIRTUAL(IVirtualCameraController::StopStreaming, return false;);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Streaming")
+	bool IsStreaming() const;
+
+	/** Check whether settings should save when stream is stopped. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Settings")
+	bool ShouldSaveSettingsOnStopStreaming() const;
+
+	/** Sets whether settings should be saved when stream is stopped. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Settings")
+	void SetSaveSettingsOnStopStreaming(bool bShouldSettingsSave);
+
+	/** Delegate will be executed before transform is set onto VirtualCamera. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Movement")
+	void SetBeforeSetVirtualCameraTransformDelegate(const FPreSetVirtualCameraTransform& InDelegate);
+
+	/** Adds a delegate that will be executed every tick while streaming. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera")
+	void AddOnVirtualCameraUpdatedDelegate(const FVirtualCameraTickDelegate& InDelegate);
+
+	/** Remove delegate that is executed every tick while streaming. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera")
+	void RemoveOnVirtualCameraUpdatedDelegate(const FVirtualCameraTickDelegate& InDelegate);
 };

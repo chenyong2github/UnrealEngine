@@ -8,6 +8,7 @@
 #include "Engine/World.h"
 #include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
+#include "ILiveLinkClient.h"
 #include "IXRTrackingSystem.h"
 #include "RemoteSession.h"
 #include "Channels/RemoteSessionInputChannel.h"
@@ -1441,12 +1442,12 @@ ULevelSequencePlaybackController* AVirtualCameraPlayerControllerBase::GetSequenc
 	return LevelSequencePlaybackController;
 }
 
-TScriptInterface<IVirtualCameraPresetContainer> AVirtualCameraPlayerControllerBase::GetPresetContainer_Implementation() const
+TScriptInterface<IVirtualCameraPresetContainer> AVirtualCameraPlayerControllerBase::GetPresetContainer_Implementation()
 {
 	return GetVirtualCameraPawn();
 }
 
-TScriptInterface<IVirtualCameraOptions> AVirtualCameraPlayerControllerBase::GetOptions_Implementation() const
+TScriptInterface<IVirtualCameraOptions> AVirtualCameraPlayerControllerBase::GetOptions_Implementation()
 {
 	return GetVirtualCameraPawn();
 }

@@ -5,7 +5,6 @@
 #include "GameFramework/PlayerController.h"
 
 #include "CineCameraActor.h"
-#include "ILiveLinkClient.h"
 #include "InputCore.h"
 #include "IVirtualCameraController.h"
 #include "LevelSequencePlaybackController.h"
@@ -17,6 +16,7 @@
 #include "VirtualCameraPlayerControllerBase.generated.h"
 
 class AVPRootActor;
+class ILiveLinkClient;
 
 UENUM(BlueprintType)
 enum class ETrackerInputSource : uint8
@@ -909,7 +909,7 @@ private:
 	virtual UCineCameraComponent* GetStreamedCameraComponent_Implementation() const override;
 	virtual UCineCameraComponent* GetRecordingCameraComponent_Implementation() const override;
 	virtual ULevelSequencePlaybackController* GetSequenceController_Implementation() const override;
-	virtual TScriptInterface<IVirtualCameraPresetContainer> GetPresetContainer_Implementation() const override;
-	virtual TScriptInterface<IVirtualCameraOptions> GetOptions_Implementation() const override;
+	virtual TScriptInterface<IVirtualCameraPresetContainer> GetPresetContainer_Implementation() override;
+	virtual TScriptInterface<IVirtualCameraOptions> GetOptions_Implementation() override;
 	//~ End  IVirtualCameraController Interface
 };

@@ -20,6 +20,7 @@
 #include "PropertyEditorModule.h"
 #include "VirtualCameraActor.h"
 #include "VirtualCameraEditorStyle.h"
+#include "VirtualCameraSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "VirtualCameraTab"
 
@@ -116,6 +117,7 @@ void SVirtualCameraTab::Construct(const FArguments& InArgs)
 	DetailsViewArgs.ViewIdentifier = "VirtualCamera";
 	DetailView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailView->SetObject(WidgetUserData);
+	DetailView->OnFinishedChangingProperties().AddSP(this, &SVirtualCameraTab::OnPropertyChanged);
 
 	ChildSlot
 	[
@@ -189,9 +191,34 @@ TSharedRef<class SWidget> SVirtualCameraTab::MakeToolBar()
 	return ToolBarBuilder.MakeWidget();
 }
 
+void SVirtualCameraTab::OnPropertyChanged(const FPropertyChangedEvent& InEvent)
+{
+	if (InEvent.Property != nullptr)
+	{
+		const FName PropertyName(InEvent.Property->GetFName());
+
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UVirtualCameraTabUserData, VirtualCameraActor))
+		{
+			if (UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>())
+			{
+				SubSystem->SetVirtualCameraController(WidgetUserData->VirtualCameraActor.Get());
+			}
+		}
+	}
+}
+
 bool SVirtualCameraTab::IsStreaming() const
 {
-	return WidgetUserData->VirtualCameraActor.IsValid() && WidgetUserData->VirtualCameraActor->IsStreaming();
+	if (!WidgetUserData->VirtualCameraActor.IsValid())
+	{
+		return false;
+	}
+
+	{
+		FEditorScriptExecutionGuard ScriptGuard;
+		UObject* VirtualCameraControllerBase = WidgetUserData->VirtualCameraActor.Get();
+		return WidgetUserData->VirtualCameraActor.IsValid() && WidgetUserData->VirtualCameraActor->Execute_IsStreaming(VirtualCameraControllerBase);
+	}
 }
 
 bool SVirtualCameraTab::CanStream() const
@@ -210,7 +237,12 @@ bool SVirtualCameraTab::StartStreaming()
 	WidgetUserData->VirtualCameraActor->RemoteSessionPort = WidgetUserData->Port;
 	WidgetUserData->VirtualCameraActor->ViewportResolution = WidgetUserData->Resolution;
 
-	return WidgetUserData->VirtualCameraActor->StartStreaming();
+	if (UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>())
+	{
+		return SubSystem->StartStreaming();
+	}
+
+	return false;
 }
 
 bool SVirtualCameraTab::StopStreaming()
@@ -220,7 +252,12 @@ bool SVirtualCameraTab::StopStreaming()
 		return false;
 	}
 
-	return WidgetUserData->VirtualCameraActor->StopStreaming();
+	if (UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>())
+	{
+		return SubSystem->StopStreaming();
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

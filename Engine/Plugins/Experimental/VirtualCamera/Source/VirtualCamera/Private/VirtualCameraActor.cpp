@@ -14,6 +14,7 @@
 #include "Channels/RemoteSessionImageChannel.h"
 #include "Channels/RemoteSessionInputChannel.h"
 #include "ImageProviders/RemoteSessionMediaOutput.h"
+#include "Kismet/GameplayStatics.h"
 #include "RemoteSession.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
@@ -41,6 +42,7 @@ namespace
 {
 	static const FName AssetRegistryName(TEXT("AssetRegistry"));
 	static const FName LevelEditorName(TEXT("LevelEditor"));
+	static const FString SavedSettingsSlotName(TEXT("SavedVirtualCameraSettings"));
 	static const TCHAR* DefaultCameraUMG = TEXT("/VirtualCamera/VirtualCameraUI.VirtualCameraUI_C");
 	static const FName DefaultLiveLinkSubjectName(TEXT("CameraTransform"));
 	static const FVector2D DefaultViewportResolution(1280, 720);
@@ -106,6 +108,7 @@ struct FVirtualCameraViewportSettings
 	bool bAllowCinematicControl;
 };
 
+int32 AVirtualCameraActor::PresetIndex = 1;
 
 AVirtualCameraActor::AVirtualCameraActor(const FObjectInitializer& ObjectInitializer)
 	: LiveLinkSubject{ DefaultLiveLinkSubjectName, ULiveLinkTransformRole::StaticClass() }
@@ -113,6 +116,9 @@ AVirtualCameraActor::AVirtualCameraActor(const FObjectInitializer& ObjectInitial
 	, RemoteSessionPort(IRemoteSessionModule::kDefaultPort)
 	, ActorWorld(nullptr)
 	, PreviousViewTarget(nullptr)
+	, bAllowFocusVisualization(true)
+	, DesiredDistanceUnits(EUnit::Meters)
+	, bSaveSettingsOnStopStreaming(false)
 	, bIsStreaming(false)
 	, ViewportSettingsBackup(nullptr)
 {
@@ -162,6 +168,103 @@ bool AVirtualCameraActor::ShouldTickIfViewportsOnly() const
 }
 #endif
 
+bool AVirtualCameraActor::IsStreaming_Implementation() const
+{
+	return bIsStreaming;
+}
+
+bool AVirtualCameraActor::ShouldSaveSettingsOnStopStreaming_Implementation() const
+{
+	return bSaveSettingsOnStopStreaming;
+}
+
+void AVirtualCameraActor::SetSaveSettingsOnStopStreaming_Implementation(bool bShouldSave)
+{
+	bSaveSettingsOnStopStreaming = bShouldSave;
+}
+
+void AVirtualCameraActor::SetBeforeSetVirtualCameraTransformDelegate_Implementation(const FPreSetVirtualCameraTransform& InDelegate)
+{
+	OnPreSetVirtualCameraTransform = InDelegate;
+}
+
+void AVirtualCameraActor::AddOnVirtualCameraUpdatedDelegate_Implementation(const FVirtualCameraTickDelegate& InDelegate)
+{
+	OnVirtualCameraUpdatedDelegates.Add(InDelegate);
+}
+
+void AVirtualCameraActor::RemoveOnVirtualCameraUpdatedDelegate_Implementation(const FVirtualCameraTickDelegate& InDelegate)
+{
+	OnVirtualCameraUpdatedDelegates.Remove(InDelegate);
+}
+
+void AVirtualCameraActor::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (!bIsStreaming)
+	{
+		return;
+	}
+
+	if (RemoteSessionHost)
+	{
+		RemoteSessionHost->Tick(DeltaSeconds);
+	}
+
+	if (CameraScreenWidget && CameraUMGClass)
+	{
+		CameraScreenWidget->Tick(DeltaSeconds);
+	}
+
+	FMinimalViewInfo ViewInfo;
+	CalcCamera(DeltaSeconds, ViewInfo);
+
+	ILiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+	FLiveLinkSubjectFrameData SubjectData;
+	const bool bHasValidData = LiveLinkClient.EvaluateFrame_AnyThread(LiveLinkSubject.Subject, LiveLinkSubject.Role, SubjectData);
+	if (bHasValidData)
+	{
+		const FLiveLinkTransformFrameData& TransformFrameData = *SubjectData.FrameData.Cast<FLiveLinkTransformFrameData>();
+		FVirtualCameraTransform CameraTransform = FVirtualCameraTransform{TransformFrameData.Transform};
+
+		// execute delegates that want to manipulate camera transform before it is set onto the root
+		if (OnPreSetVirtualCameraTransform.IsBound())
+		{
+			FEditorScriptExecutionGuard ScriptGuard;
+			CameraTransform = OnPreSetVirtualCameraTransform.Execute(CameraTransform);
+		}
+
+		MovementComponent->SetLocalTransform(CameraTransform.Transform);
+		RootComponent->SetWorldTransform(MovementComponent->GetTransform());
+	}
+
+	if (OnVirtualCameraUpdatedDelegates.IsBound())
+	{
+		FEditorScriptExecutionGuard ScriptGuard;
+		OnVirtualCameraUpdatedDelegates.Broadcast(DeltaSeconds);
+	}
+}
+
+void AVirtualCameraActor::BeginPlay()
+{
+	Super::BeginPlay();
+
+	UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>();
+	if (!SubSystem->GetVirtualCameraController())
+	{
+		SubSystem->SetVirtualCameraController(this);
+	}
+
+	StartStreaming();
+}
+
+void AVirtualCameraActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	StopStreaming();
+}
+
 bool AVirtualCameraActor::StartStreaming()
 {
 	ActorWorld = GetWorld();
@@ -169,15 +272,16 @@ bool AVirtualCameraActor::StartStreaming()
 	{
 		return false;
 	}
-	if (!CameraUMGclass)
+
+	if (bSaveSettingsOnStopStreaming)
 	{
-		FSoftClassPath DefaultUMG(DefaultCameraUMG);
-		CameraUMGclass = DefaultUMG.TryLoadClass<UUserWidget>();
+		LoadSettings();
 	}
 
-	if (UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>())
+	if (!CameraUMGClass)
 	{
-		SubSystem->SetVirtualCameraController(this);
+		FSoftClassPath DefaultUMG(DefaultCameraUMG);
+		CameraUMGClass = DefaultUMG.TryLoadClass<UUserWidget>();
 	}
 
 #if WITH_EDITOR
@@ -203,7 +307,7 @@ bool AVirtualCameraActor::StartStreaming()
 			LevelViewportClient.bDrawAxes = false;
 			LevelViewportClient.bDisableInput = true;
 			LevelViewportClient.SetAllowCinematicControl(false);
-		
+
 			// add event listeners to stop streaming when necessary
 			LevelEditorModule.OnMapChanged().AddUObject(this, &AVirtualCameraActor::OnMapChanged);
 			GEditor->OnBlueprintPreCompile().AddUObject(this, &AVirtualCameraActor::OnBlueprintPreCompile);
@@ -228,9 +332,9 @@ bool AVirtualCameraActor::StartStreaming()
 		PlayerController->SetViewTarget(this, TransitionParams);
 	}
 
-	if (CameraUMGclass)
+	if (CameraUMGClass)
 	{
-		CameraScreenWidget->WidgetClass = CameraUMGclass;
+		CameraScreenWidget->WidgetClass = CameraUMGClass;
 		CameraScreenWidget->Display(ActorWorld);
 	}
 
@@ -287,7 +391,7 @@ bool AVirtualCameraActor::StopStreaming()
 
 			// unlock viewport resize
 			ActiveLevelViewport->GetSharedActiveViewport()->SetFixedViewportSize(0, 0);
-		
+
 			// remove event listeners
 			FEditorDelegates::OnAssetsCanDelete.RemoveAll(this);
 			LevelEditorModule.OnMapChanged().RemoveAll(this);
@@ -319,79 +423,131 @@ bool AVirtualCameraActor::StopStreaming()
 	SetActorTickEnabled(false);
 
 	bIsStreaming = false;
+
+	if (bSaveSettingsOnStopStreaming)
+	{
+		SaveSettings();
+	}
+
 	return true;
 }
 
-bool AVirtualCameraActor::IsStreaming() const
+UCineCameraComponent* AVirtualCameraActor::GetStreamedCameraComponent_Implementation() const
 {
-	return bIsStreaming;
+	return RecordingCamera;
 }
 
-void AVirtualCameraActor::Tick(float DeltaSeconds)
+UCineCameraComponent* AVirtualCameraActor::GetRecordingCameraComponent_Implementation() const
 {
-	Super::Tick(DeltaSeconds);
+	return StreamedCamera;
+}
 
-	if (!bIsStreaming)
+ULevelSequencePlaybackController* AVirtualCameraActor::GetSequenceController_Implementation() const
+{
+	UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>();
+	return SubSystem ? SubSystem->SequencePlaybackController : nullptr;
+}
+
+TScriptInterface<IVirtualCameraPresetContainer> AVirtualCameraActor::GetPresetContainer_Implementation()
+{
+	return this;
+}
+
+TScriptInterface<IVirtualCameraOptions> AVirtualCameraActor::GetOptions_Implementation()
+{
+	return this;
+}
+
+FLiveLinkSubjectRepresentation AVirtualCameraActor::GetLiveLinkRepresentation_Implementation() const
+{
+	return LiveLinkSubject;
+}
+
+void AVirtualCameraActor::SetLiveLinkRepresentation_Implementation(const FLiveLinkSubjectRepresentation& InLiveLinkRepresentation)
+{
+	LiveLinkSubject = InLiveLinkRepresentation;
+}
+
+FString AVirtualCameraActor::SavePreset_Implementation(const bool bSaveCameraSettings, const bool bSaveStabilization, const bool bSaveAxisLocking, const bool bSaveMotionScale)
+{
+	// Convert index to string with leading zeros
+	FString PresetName = FString::Printf(TEXT("Preset-%03i"), PresetIndex);
+
+	// Another preset has been created
+	PresetIndex++;
+	FVirtualCameraSettingsPreset::NextIndex++;
+
+	FVirtualCameraSettingsPreset PresetToAdd;
+	PresetToAdd.DateCreated = FDateTime::UtcNow();
+
+	PresetToAdd.bIsCameraSettingsSaved = bSaveCameraSettings;
+	PresetToAdd.bIsStabilizationSettingsSaved = bSaveStabilization;
+	PresetToAdd.bIsAxisLockingSettingsSaved = bSaveAxisLocking;
+	PresetToAdd.bIsMotionScaleSettingsSaved = bSaveMotionScale;
+
+	if (StreamedCamera)
 	{
-		return;
+		PresetToAdd.CameraSettings.FocalLength = StreamedCamera->CurrentFocalLength;
+		PresetToAdd.CameraSettings.Aperture = StreamedCamera->CurrentAperture;
+		PresetToAdd.CameraSettings.FilmbackWidth = StreamedCamera->Filmback.SensorWidth;
+		PresetToAdd.CameraSettings.FilmbackHeight = StreamedCamera->Filmback.SensorHeight;
 	}
 
-	if (RemoteSessionHost)
+	SettingsPresets.Add(PresetName, PresetToAdd);
+
+	return PresetName;
+}
+
+bool AVirtualCameraActor::LoadPreset_Implementation(const FString& PresetName)
+{
+	FVirtualCameraSettingsPreset* LoadedPreset = SettingsPresets.Find(PresetName);
+
+	if (LoadedPreset)
 	{
-		RemoteSessionHost->Tick(DeltaSeconds);
-	}
-
-	if (CameraScreenWidget && CameraUMGclass)
-	{
-		CameraScreenWidget->Tick(DeltaSeconds);
-	}
-
-	FMinimalViewInfo ViewInfo;
-	CalcCamera(DeltaSeconds, ViewInfo);
-
-	ILiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-	FLiveLinkSubjectFrameData SubjectData;
-	const bool bHasValidData = LiveLinkClient.EvaluateFrame_AnyThread(LiveLinkSubject.Subject, LiveLinkSubject.Role, SubjectData);
-	if (bHasValidData)
-	{
-		const FLiveLinkTransformFrameData& TransformFrameData = *SubjectData.FrameData.Cast<FLiveLinkTransformFrameData>();
-		FVirtualCameraTransform CameraTransform = FVirtualCameraTransform{TransformFrameData.Transform};
-
-		// execute delegates that want to manipulate camera transform before it is set onto the root
-#if WITH_EDITOR
-		if (GIsEditor && OnPreSetVirtualCameraTransform.IsBound())
+		if (StreamedCamera)
 		{
-			FEditorScriptExecutionGuard ScriptGuard;
-			CameraTransform = OnPreSetVirtualCameraTransform.Execute(CameraTransform);
+			if (LoadedPreset->bIsCameraSettingsSaved)
+			{
+				StreamedCamera->CurrentAperture = LoadedPreset->CameraSettings.Aperture;
+				StreamedCamera->CurrentFocalLength = LoadedPreset->CameraSettings.FocalLength;
+				StreamedCamera->Filmback.SensorWidth = LoadedPreset->CameraSettings.FilmbackWidth;
+				StreamedCamera->Filmback.SensorHeight = LoadedPreset->CameraSettings.FilmbackHeight;
+			}
 		}
-#else
-		if (OnPreSetVirtualCameraTransform.IsBound())
-		{
-			CameraTransform = OnPreSetVirtualCameraTransform.Execute(CameraTransform);
-		}
-#endif
-
-		MovementComponent->SetLocalTransform(CameraTransform.Transform);
-		RootComponent->SetWorldTransform(MovementComponent->GetTransform());
+		return true;
 	}
 
-	if (OnVirtualCameraUpdated.IsBound())
+	return false;
+}
+
+int32 AVirtualCameraActor::DeletePreset_Implementation(const FString& PresetName)
+{
+	return SettingsPresets.Remove(PresetName);
+}
+
+TMap<FString, FVirtualCameraSettingsPreset> AVirtualCameraActor::GetSettingsPresets_Implementation()
+{
+	SettingsPresets.KeySort([](const FString& a, const FString& b) -> bool
 	{
-		FEditorScriptExecutionGuard ScriptGuard;
-		OnVirtualCameraUpdated.Broadcast(DeltaSeconds);
-	}
+		return a < b;
+	});
+
+	return SettingsPresets;
 }
 
-void AVirtualCameraActor::BeginPlay()
+void AVirtualCameraActor::SetDesiredDistanceUnits_Implementation(const EUnit InDesiredUnits)
 {
-	Super::BeginPlay();
-	StartStreaming();
+	DesiredDistanceUnits = InDesiredUnits;
 }
 
-void AVirtualCameraActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+EUnit AVirtualCameraActor::GetDesiredDistanceUnits_Implementation()
 {
-	Super::EndPlay(EndPlayReason);
-	StopStreaming();
+	return DesiredDistanceUnits;
+}
+
+bool AVirtualCameraActor::IsFocusVisualizationAllowed_Implementation()
+{
+	return bAllowFocusVisualization;
 }
 
 void AVirtualCameraActor::OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode)
@@ -424,6 +580,83 @@ void AVirtualCameraActor::OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> 
 	}
 }
 
+void AVirtualCameraActor::SaveSettings()
+{
+	if (!StreamedCamera)
+	{
+		return;
+	}
+
+	UVirtualCameraSaveGame* SaveGameInstance = Cast<UVirtualCameraSaveGame>(UGameplayStatics::CreateSaveGameObject(UVirtualCameraSaveGame::StaticClass()));
+
+	// Save focal length and aperture
+	SaveGameInstance->CameraSettings.FocalLength = StreamedCamera->CurrentFocalLength;
+	SaveGameInstance->CameraSettings.Aperture = StreamedCamera->CurrentAperture;
+	SaveGameInstance->CameraSettings.bAllowFocusVisualization = bAllowFocusVisualization;
+	SaveGameInstance->CameraSettings.DebugFocusPlaneColor = StreamedCamera->FocusSettings.DebugFocusPlaneColor;
+
+	// Save filmback settings
+	SaveGameInstance->CameraSettings.FilmbackName = StreamedCamera->GetFilmbackPresetName();
+	SaveGameInstance->CameraSettings.FilmbackWidth = StreamedCamera->Filmback.SensorWidth;
+	SaveGameInstance->CameraSettings.FilmbackHeight = StreamedCamera->Filmback.SensorHeight;
+
+	// Save settings presets
+	SaveGameInstance->SettingsPresets = SettingsPresets;
+
+	// Save indices for naming
+	SaveGameInstance->WaypointIndex = FVirtualCameraWaypoint::NextIndex;
+	SaveGameInstance->ScreenshotIndex = FVirtualCameraScreenshot::NextIndex;
+	SaveGameInstance->PresetIndex = FVirtualCameraSettingsPreset::NextIndex;
+
+	SaveGameInstance->CameraSettings.DesiredDistanceUnits = DesiredDistanceUnits;
+
+	// Write save file to disk
+	UGameplayStatics::SaveGameToSlot(SaveGameInstance, SavedSettingsSlotName, 0);
+}
+
+void AVirtualCameraActor::LoadSettings()
+{
+	if (!StreamedCamera)
+	{
+		return;
+	}
+
+	UVirtualCameraSaveGame* SaveGameInstance = Cast<UVirtualCameraSaveGame>(UGameplayStatics::CreateSaveGameObject(UVirtualCameraSaveGame::StaticClass()));
+	SaveGameInstance = Cast<UVirtualCameraSaveGame>(UGameplayStatics::LoadGameFromSlot(SavedSettingsSlotName, 0));
+
+	if (!SaveGameInstance)
+	{
+		UE_LOG(LogVirtualCamera, Warning, TEXT("VirtualCamera could not find save game to load, using default settings."))
+		return;
+	}
+
+	bAllowFocusVisualization = SaveGameInstance->CameraSettings.bAllowFocusVisualization;
+
+	if (SaveGameInstance->CameraSettings.DebugFocusPlaneColor != FColor())
+	{
+		StreamedCamera->FocusSettings.DebugFocusPlaneColor = SaveGameInstance->CameraSettings.DebugFocusPlaneColor;
+	}
+
+	StreamedCamera->SetCurrentFocalLength(SaveGameInstance->CameraSettings.FocalLength);
+	StreamedCamera->CurrentAperture = SaveGameInstance->CameraSettings.Aperture;
+	StreamedCamera->Filmback.SensorWidth = SaveGameInstance->CameraSettings.FilmbackWidth;
+	StreamedCamera->Filmback.SensorHeight = SaveGameInstance->CameraSettings.FilmbackHeight;
+
+	DesiredDistanceUnits = SaveGameInstance->CameraSettings.DesiredDistanceUnits;
+
+	// load presets, but don't overwrite existing ones
+	SettingsPresets.Append(SaveGameInstance->SettingsPresets);
+
+	// If the saved preset index is smaller than total presets, set it so that it won't overwrite existing presets.
+	FVirtualCameraSettingsPreset::NextIndex = SaveGameInstance->PresetIndex;
+	if (SettingsPresets.Num() > FVirtualCameraSettingsPreset::NextIndex)
+	{
+		FVirtualCameraSettingsPreset::NextIndex = SettingsPresets.Num();
+	}
+
+	PresetIndex = FVirtualCameraSettingsPreset::NextIndex;
+}
+
 void AVirtualCameraActor::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 {
 	if (World == ActorWorld && ChangeType == EMapChangeType::TearDownWorld)
@@ -434,7 +667,7 @@ void AVirtualCameraActor::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 
 void AVirtualCameraActor::OnBlueprintPreCompile(UBlueprint* Blueprint)
 {
-	if (Blueprint && CameraUMGclass && Blueprint->GeneratedClass == CameraUMGclass)
+	if (Blueprint && CameraUMGClass && Blueprint->GeneratedClass == CameraUMGClass)
 	{
 		StopStreaming();
 	}
@@ -442,7 +675,7 @@ void AVirtualCameraActor::OnBlueprintPreCompile(UBlueprint* Blueprint)
 
 void AVirtualCameraActor::OnPrepareToCleanseEditorObject(UObject* Object)
 {
-	if (Object == CameraScreenWidget || Object == CameraUMGclass || Object == ActorWorld || Object == MediaCapture)
+	if (Object == CameraScreenWidget || Object == CameraUMGClass || Object == ActorWorld || Object == MediaCapture)
 	{
 		StopStreaming();
 	}
@@ -450,7 +683,7 @@ void AVirtualCameraActor::OnPrepareToCleanseEditorObject(UObject* Object)
 
 void AVirtualCameraActor::OnAssetRemoved(const FAssetData& AssetData)
 {
-	if (AssetData.GetPackage() == CameraUMGclass->GetOutermost())
+	if (AssetData.GetPackage() == CameraUMGClass->GetOutermost())
 	{
 		StopStreaming();
 	}
@@ -458,11 +691,11 @@ void AVirtualCameraActor::OnAssetRemoved(const FAssetData& AssetData)
 
 void AVirtualCameraActor::OnAssetsCanDelete(const TArray<UObject*>& InAssetsToDelete, FCanDeleteAssetResult& CanDeleteResult)
 {
-	if (CameraUMGclass)
+	if (CameraUMGClass)
 	{
 		for (UObject* Obj : InAssetsToDelete)
 		{
-			if (CameraUMGclass->GetOutermost() == Obj->GetOutermost())
+			if (CameraUMGClass->GetOutermost() == Obj->GetOutermost())
 			{
 				UE_LOG(LogVirtualCamera, Warning, TEXT("Asset '%s' can't be deleted because it is currently used by the Virtual Camera Stream."), *Obj->GetPathName());
 				CanDeleteResult.Set(false);

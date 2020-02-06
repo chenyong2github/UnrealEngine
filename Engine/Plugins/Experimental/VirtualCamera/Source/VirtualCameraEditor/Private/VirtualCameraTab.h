@@ -60,6 +60,7 @@ public:
 private:
 
 	TSharedRef<class SWidget> MakeToolBar();
+	void OnPropertyChanged(const FPropertyChangedEvent& InEvent);
 
 private:
 

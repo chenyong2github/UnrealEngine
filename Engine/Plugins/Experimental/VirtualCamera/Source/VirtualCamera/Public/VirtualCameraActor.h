@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "Delegates/DelegateCombinations.h"
 #include "GameFramework/Actor.h"
 #include "IRemoteSessionRole.h"
 #include "IVirtualCameraController.h"
+#include "IVirtualCameraOptions.h"
+#include "IVirtualCameraPresetContainer.h"
 #include "LiveLinkRole.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/NoExportTypes.h"
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
 #endif
@@ -30,18 +32,9 @@ struct FAssetData;
 struct FCanDeleteAssetResult;
 #endif
 
-USTRUCT(BlueprintType)
-struct FVirtualCameraTransform
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera")
-	FTransform Transform;
-};
-
 
 UCLASS(Blueprintable, BlueprintType, Category="VirtualCamera", DisplayName="VirtualCameraActor")
-class VIRTUALCAMERA_API AVirtualCameraActor : public AActor
+class VIRTUALCAMERA_API AVirtualCameraActor : public AActor, public IVirtualCameraController, public IVirtualCameraPresetContainer, public IVirtualCameraOptions
 {
 	GENERATED_BODY()
 
@@ -67,40 +60,13 @@ public:
 	URemoteSessionMediaOutput* MediaOutput;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera | UMG")
-	TSubclassOf<UUserWidget> CameraUMGclass;
+	TSubclassOf<UUserWidget> CameraUMGClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Streaming")
 	FVector2D ViewportResolution;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Streaming")
 	int32 RemoteSessionPort;
-
-	UFUNCTION(BlueprintCallable, Category = "VirtualCamera | Streaming")
-	bool StartStreaming();
-
-	UFUNCTION(BlueprintCallable, Category = "VirtualCamera | Streaming")
-	bool StopStreaming();
-
-	UFUNCTION(BlueprintCallable, Category = "VirtualCamera | Streaming")
-	bool IsStreaming() const;
-
-	DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(FVirtualCameraTransform, FPreSetVirtualCameraTransform, FVirtualCameraTransform, CameraTransform);
-	/**
-	 * Delegate that will is triggered before transform is set onto Actor.
-	 * @param FVirtualCameraTransform Transform data that is passed to delegate.
-	 * @return FVirtualCameraTransform Manipulated transform that will be set onto Actor.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Events, meta = (IsBindableEvent = "True"))
-	FPreSetVirtualCameraTransform OnPreSetVirtualCameraTransform;
-
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVirtualCameraTickDelegate, float, DeltaTime);
-	/**
-	 * This delegate is triggered at the end of a tick in editor/pie/game.
-	 * @note The Actor is only ticked while it is being streamed.
-	 * @param float Delta Time in seconds.
-	 */
-	UPROPERTY(BlueprintAssignable, Category = "LiveLink")
-	FVirtualCameraTickDelegate OnVirtualCameraUpdated;
 
 protected:
 
@@ -119,6 +85,39 @@ protected:
 	UPROPERTY(Transient)
 	AActor* PreviousViewTarget;
 
+	/** Should focus plane be shown on all touch focus events */
+	UPROPERTY(BlueprintReadOnly, Category = "VirtualCamera")
+	bool bAllowFocusVisualization;
+
+	/**
+	 * Delegate that will is triggered before transform is set onto Actor.
+	 * @param FVirtualCameraTransform Transform data that is passed to delegate.
+	 * @return FVirtualCameraTransform Manipulated transform that will be set onto Actor.
+	 */
+	UPROPERTY(EditAnywhere, Category = "VirtualCamera")
+	FPreSetVirtualCameraTransform OnPreSetVirtualCameraTransform;
+
+	/**
+	 * This delegate is triggered at the end of a tick in editor/pie/game.
+	 * @note The Actor is only ticked while it is being streamed.
+	 * @param float Delta Time in seconds.
+	 */
+	UPROPERTY(EditAnywhere, Category = "VirtualCamera")
+	FVirtualCameraTickDelegateGroup OnVirtualCameraUpdatedDelegates;
+
+	/** The next preset number */
+	static int32 PresetIndex;
+
+	/* Stores the list of settings presets, and saved presets */
+	UPROPERTY(EditAnywhere, Category = "VirtualCamera | Settings")
+	TMap<FString, FVirtualCameraSettingsPreset> SettingsPresets;
+
+	/** The desired unit in which to display focus distance */
+	EUnit DesiredDistanceUnits;
+
+	/** Whether to save all settings when streaming is stopped */
+	bool bSaveSettingsOnStopStreaming;
+
 public:
 
 	//~ Begin AActor interface
@@ -134,10 +133,50 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	//~ End AActor interface
 
+	//~ Begin IVirtualCameraController Interface
+public:
+	virtual bool StartStreaming() override;
+	virtual bool StopStreaming() override;
+protected:
+	virtual UCineCameraComponent* GetStreamedCameraComponent_Implementation() const override;
+	virtual UCineCameraComponent* GetRecordingCameraComponent_Implementation() const override;
+	virtual ULevelSequencePlaybackController* GetSequenceController_Implementation() const override;
+	virtual TScriptInterface<IVirtualCameraPresetContainer> GetPresetContainer_Implementation() override;
+	virtual TScriptInterface<IVirtualCameraOptions> GetOptions_Implementation() override;
+	virtual FLiveLinkSubjectRepresentation GetLiveLinkRepresentation_Implementation() const override;
+	virtual void SetLiveLinkRepresentation_Implementation(const FLiveLinkSubjectRepresentation& InLiveLinkRepresentation) override;
+	virtual bool IsStreaming_Implementation() const override;
+	virtual void SetSaveSettingsOnStopStreaming_Implementation(bool bShouldSettingsSave) override;
+	virtual bool ShouldSaveSettingsOnStopStreaming_Implementation() const override;
+	virtual void SetBeforeSetVirtualCameraTransformDelegate_Implementation(const FPreSetVirtualCameraTransform& InDelegate) override;
+	virtual void AddOnVirtualCameraUpdatedDelegate_Implementation(const FVirtualCameraTickDelegate& InDelegate) override;
+	virtual void RemoveOnVirtualCameraUpdatedDelegate_Implementation(const FVirtualCameraTickDelegate& InDelegate) override;
+	//~ End  IVirtualCameraController Interface
+
+	//~ Begin IVirtualCameraPresetContainer Interface
+protected:
+	virtual FString SavePreset_Implementation(const bool bSaveCameraSettings, const bool bSaveStabilization, const bool bSaveAxisLocking, const bool bSaveMotionScale) override;
+	virtual bool LoadPreset_Implementation(const FString& PresetName) override;
+	virtual int32 DeletePreset_Implementation(const FString& PresetName) override;
+	virtual TMap<FString, FVirtualCameraSettingsPreset> GetSettingsPresets_Implementation() override;
+	//~ End IVirtualCameraPresetContainer Interface
+
+	//~ Begin IVirtualCameraOptions Interface
+protected:
+	virtual void SetDesiredDistanceUnits_Implementation(const EUnit DesiredUnits) override;
+	virtual EUnit GetDesiredDistanceUnits_Implementation() override;
+	virtual bool IsFocusVisualizationAllowed_Implementation() override;
+	//~ End IVirtualCameraOptions Interface
+
 private:
 
 	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode);
 	void OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode);
+
+	/** Stores the current camera settings to a save game for later use. */
+	void SaveSettings();
+	/** Restores settings from save game. */
+	void LoadSettings();
 
 #if WITH_EDITOR
 	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
