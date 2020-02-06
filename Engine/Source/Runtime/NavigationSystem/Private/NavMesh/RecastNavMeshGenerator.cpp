@@ -32,6 +32,11 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BodySetup.h"
 
+#if RECAST_INTERNAL_DEBUG_DATA
+#include "DebugUtils/DebugDraw.h"
+#include "DebugUtils/RecastDebugDraw.h"
+#endif //RECAST_INTERNAL_DEBUG_DATA
+
 #ifndef OUTPUT_NAV_TILE_LAYER_COMPRESSION_DATA
 	#define OUTPUT_NAV_TILE_LAYER_COMPRESSION_DATA 0
 #endif
@@ -52,6 +57,19 @@
 CSV_DEFINE_CATEGORY(NAVREGEN, false);
 
 struct dtTileCacheAlloc;
+
+//Experimental debug tools
+static int32 GNavmeshSynchronousTileGeneration = 0;
+static FAutoConsoleVariableRef NavmeshVarSynchronous(TEXT("n.GNavmeshSynchronousTileGeneration"), GNavmeshSynchronousTileGeneration, TEXT(""), ECVF_Default);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+static int32 GNavmeshDisplayStep = 0;
+static int32 GNavmeshDebugTileX = 1;
+static int32 GNavmeshDebugTileY = 1;
+static FAutoConsoleVariableRef NavmeshVarDisplayStep(TEXT("n.GNavmeshDisplayStep"), GNavmeshDisplayStep, TEXT(""), ECVF_Default);
+static FAutoConsoleVariableRef NavmeshVarDebugTileX(TEXT("n.GNavmeshDebugTileX"), GNavmeshDebugTileX, TEXT(""), ECVF_Default);
+static FAutoConsoleVariableRef NavmeshVarDebugTileY(TEXT("n.GNavmeshDebugTileY"), GNavmeshDebugTileY, TEXT(""), ECVF_Default);
+#endif //RECAST_INTERNAL_DEBUG_DATA
 
 FORCEINLINE bool DoesBoxContainOrOverlapVector(const FBox& BigBox, const FVector& In)
 {
@@ -1623,10 +1641,18 @@ protected:
 class FNavMeshBuildContext : public rcContext, public dtTileCacheLogContext
 {
 public:
-	FNavMeshBuildContext()
+	FNavMeshBuildContext(FRecastTileGenerator& InTileGenerator)
 		: rcContext(true)
+#if RECAST_INTERNAL_DEBUG_DATA
+		, InternalDebugData(InTileGenerator.GetMutableDebugData())
+#endif
 	{
 	}
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	FRecastInternalDebugData& InternalDebugData;
+#endif
+
 protected:
 	/// Logs a message.
 	///  @param[in]		category	The category of the message.
@@ -2539,7 +2565,7 @@ void FRecastTileGenerator::AppendGeometry(const TNavStatArray<uint8>& RawCollisi
 
 ETimeSliceWorkResult FRecastTileGenerator::GenerateTileTimeSliced()
 {
-	FNavMeshBuildContext BuildContext;
+	FNavMeshBuildContext BuildContext(*this);
 	ETimeSliceWorkResult WorkResult = ETimeSliceWorkResult::Succeeded;
 
 	switch (GenerateTileTimeSlicedState)
@@ -2602,7 +2628,7 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateTileTimeSliced()
 
 bool FRecastTileGenerator::GenerateTile()
 {
-	FNavMeshBuildContext BuildContext;
+	FNavMeshBuildContext BuildContext(*this);
 	bool bSuccess = true;
 
 	if (bRegenerateCompressedLayers)
@@ -3339,23 +3365,58 @@ bool FRecastTileGenerator::GenerateCompressedLayers(FNavMeshBuildContext& BuildC
 		return true;
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (GNavmeshDisplayStep == 10 && IsTileToDebug())
+	{
+		duDebugDrawHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.SolidHF);
+	}
+#endif
+
 	// Reject voxels outside generation boundaries
 	if (TileConfig.bPerformVoxelFiltering && !bFullyEncapsulatedByInclusionBounds)
 	{
 		ApplyVoxelFilter(RasterContext.SolidHF, TileConfig.walkableRadius);
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (GNavmeshDisplayStep == 20 && IsTileToDebug())
+	{
+		duDebugDrawHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.SolidHF);
+	}
+#endif
+
 	GenerateRecastFilter(BuildContext, RasterContext);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (GNavmeshDisplayStep == 30 && IsTileToDebug())
+	{
+		duDebugDrawHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.SolidHF);
+	}
+#endif
 
 	if (!BuildCompactHeightField(BuildContext, RasterContext))
 	{
 		return false;
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (GNavmeshDisplayStep == 40 && IsTileToDebug())
+	{
+		duDebugDrawCompactHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.CompactHF);
+	}
+#endif
+
 	if (!RecastErodeWalkable(BuildContext, RasterContext))
 	{
 		return false;
 	}
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (GNavmeshDisplayStep == 50 && IsTileToDebug())
+	{
+		duDebugDrawCompactHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.CompactHF);
+	}
+#endif
 
 	if (!RecastBuildLayers(BuildContext, RasterContext))
 	{
@@ -4784,6 +4845,10 @@ TArray<uint32> FRecastNavMeshGenerator::RemoveTileLayers(const int32 TileX, cons
 
 		// Remove compressed tile cache layers
 		DestNavMesh->RemoveTileCacheLayers(TileX, TileY);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+		DestNavMesh->RemoveTileDebugData(TileX, TileY);
+#endif
 	}
 
 	return UpdatedIndices;
@@ -5369,6 +5434,13 @@ void FRecastNavMeshGenerator::StoreCompressedTileCacheLayers(const FRecastTileGe
 	}
 }
 
+#if RECAST_INTERNAL_DEBUG_DATA
+void FRecastNavMeshGenerator::StoreDebugData(const FRecastTileGenerator& TileGenerator, int32 TileX, int32 TileY)
+{
+	DestNavMesh->AddTileDebugData(TileX, TileY, TileGenerator.GetDebugData());
+}
+#endif
+
 #if RECAST_ASYNC_REBUILDING
 TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTasksToProcess)
 {
@@ -5396,7 +5468,15 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTas
 			if (TileTask->GetTask().TileGenerator->HasDataToBuild())
 			{
 				RunningElement.AsyncTask = TileTask.Release();
-				RunningElement.AsyncTask->StartBackgroundTask();
+
+				if (!GNavmeshSynchronousTileGeneration)
+				{
+					RunningElement.AsyncTask->StartBackgroundTask();
+				}
+				else
+				{
+					RunningElement.AsyncTask->StartSynchronousTask();
+				}
 			
 				RunningDirtyTiles.Add(RunningElement);
 			}
@@ -5435,6 +5515,10 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTas
 				UpdatedTiles.Append(UpdatedTileIndices);
 			
 				StoreCompressedTileCacheLayers(TileGenerator, Element.Coord.X, Element.Coord.Y);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+				StoreDebugData(TileGenerator, Element.Coord.X, Element.Coord.Y);
+#endif
 			}
 
 			{
@@ -6388,3 +6472,10 @@ public:
 } NavigationGeomExec;
 
 #endif // WITH_RECAST
+
+#if RECAST_INTERNAL_DEBUG_DATA
+bool FRecastTileGenerator::IsTileToDebug()
+{
+	return TileX == GNavmeshDebugTileX && TileY == GNavmeshDebugTileY;
+}
+#endif //RECAST_INTERNAL_DEBUG_DATA
