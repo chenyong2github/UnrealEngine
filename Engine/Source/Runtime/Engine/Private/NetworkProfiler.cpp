@@ -12,10 +12,26 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
 #include "Serialization/MemoryWriter.h"
+#include "HAL/IConsoleManager.h"
 
 #if USE_NETWORK_PROFILER
 
 #define SCOPE_LOCK_REF(X) FScopeLock ScopeLock(&X);
+
+struct FNetworkProfilerCVarHelper
+{
+	static bool& GetNetProfilerIsComparisonTrackingEnabled()
+	{
+		return FNetworkProfiler::bIsComparisonTrackingEnabled;
+	}
+};
+
+bool FNetworkProfiler::bIsComparisonTrackingEnabled = false;
+static FAutoConsoleVariableRef CVarProfilerUseComparisonTracking(
+	TEXT("Net.ProfilerUseComparisonTracking"),
+	FNetworkProfilerCVarHelper::GetNetProfilerIsComparisonTrackingEnabled(),
+	TEXT("")
+);
 
 
 /**
@@ -559,7 +575,7 @@ void FNetworkProfiler::TrackCompareProperties_Unsafe(const FString& ObjectName, 
 
 void FNetworkProfiler::TrackReplicatePropertiesMetadata(const UObject* Object, TBitArray<>& InactiveProperties, bool bSentAllProperties, UNetConnection* Connection)
 {
-	if (bIsTrackingEnabled)
+	if (IsComparisonTrackingEnabled())
 	{
 		SCOPE_LOCK_REF(CriticalSection);
 
