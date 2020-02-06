@@ -8,6 +8,7 @@
 #include "DistanceFieldLightingShared.h"
 #include "RendererModule.h"
 #include "ClearQuad.h"
+#include "Engine/VolumeTexture.h"
 
 DECLARE_GPU_STAT(GlobalDistanceFieldUpdate);
 
@@ -109,6 +110,18 @@ FAutoConsoleVariableRef CVarGlobalDistanceFieldHeightFieldThicknessScale(
 	TEXT("Thickness of the height field when it's entered into the global distance field, measured in distance field voxels. Defaults to 4 which means 4x the voxel size as thickness."),
 	ECVF_RenderThreadSafe
 	);
+
+// For reading back the distance field data
+static FGlobalDistanceFieldReadback* GDFReadbackRequest = nullptr;
+void RequestGlobalDistanceFieldReadback(FGlobalDistanceFieldReadback* Readback)
+{
+	if (ensure(GDFReadbackRequest == nullptr))
+	{
+		ensure(Readback->ReadbackComplete.IsBound());
+		ensure(Readback->CallbackThread != ENamedThreads::UnusedAnchor);
+		GDFReadbackRequest = Readback;
+	}
+}
 
 void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance)
 {
@@ -1008,7 +1021,8 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				|| ClipmapViewState.CachedGlobalDistanceFieldViewDistance != Scene->GlobalDistanceFieldViewDistance
 				|| ClipmapViewState.CacheMostlyStaticSeparately != GAOGlobalDistanceFieldCacheMostlyStaticSeparately
 				|| ClipmapViewState.LastUsedSceneDataForFullUpdate != &Scene->DistanceFieldSceneData
-				|| GAOGlobalDistanceFieldForceFullUpdate;
+				|| GAOGlobalDistanceFieldForceFullUpdate
+				|| GDFReadbackRequest != nullptr;
 
 			if (ShouldUpdateClipmapThisFrame(ClipmapIndex, View.ViewState->GlobalDistanceFieldUpdateIndex)
 				|| bForceFullUpdate)
@@ -1308,6 +1322,29 @@ void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShad
 	ViewUniformShaderParameters.GlobalDistanceFieldSampler3 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 }
 
+void ReadbackDistanceFieldClipmap(FRHICommandListImmediate& RHICmdList, FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
+{
+	FGlobalDistanceFieldReadback* Readback = GDFReadbackRequest;
+	GDFReadbackRequest = nullptr;
+
+	FGlobalDistanceFieldClipmap& ClipMap = GlobalDistanceFieldInfo.Clipmaps[0];
+	FTextureRHIRef SourceTexture = ClipMap.RenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+	FIntVector Size = SourceTexture->GetSizeXYZ();
+	
+	RHICmdList.Read3DSurfaceFloatData(SourceTexture, FIntRect(0, 0, Size.X, Size.Y), FIntPoint(0, Size.Z), Readback->ReadbackData);
+	Readback->Bounds = ClipMap.Bounds;
+	Readback->Size = Size;
+	
+	// Fire the callback to notify that the request is complete
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.DistanceFieldReadbackDelegate"), STAT_FSimpleDelegateGraphTask_DistanceFieldReadbackDelegate, STATGROUP_TaskGraphTasks);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+		Readback->ReadbackComplete,
+		GET_STATID(STAT_FSimpleDelegateGraphTask_DistanceFieldReadbackDelegate),
+		nullptr,
+		Readback->CallbackThread
+		);	
+}
+
 /** 
  * Updates the global distance field for a view.  
  * Typically issues updates for just the newly exposed regions of the volume due to camera movement.
@@ -1580,6 +1617,12 @@ void UpdateGlobalDistanceFieldVolume(
 				GObjectGridBuffers.DiscardTransientResource();
 			}
 		}
+	}
+
+	if (GDFReadbackRequest && GlobalDistanceFieldInfo.Clipmaps.Num() > 0)
+	{
+		// Read back a clipmap
+		ReadbackDistanceFieldClipmap(RHICmdList, GlobalDistanceFieldInfo);
 	}
 }
 
