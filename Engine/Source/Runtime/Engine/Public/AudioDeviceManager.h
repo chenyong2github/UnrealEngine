@@ -123,21 +123,25 @@ public:
 	// For safety, we still require explicit casting to an FAudioDevice* to ensure ownership isn't lost due to programmer error.
 	const FAudioDevice& operator*() const
 	{
+		check(IsValid());
 		return *Device;
 	}
 
 	FAudioDevice& operator*()
 	{
+		check(IsValid());
 		return *Device;
 	}
 
 	const FAudioDevice* operator->() const
 	{
+		check(IsValid());
 		return Device;
 	}
 
 	FAudioDevice* operator->()
 	{
+		check(IsValid());
 		return Device;
 	}
 
@@ -168,6 +172,7 @@ public:
 
 	explicit operator FAudioDevice*() const
 	{
+		check(IsValid());
 		return Device;
 	}
 
