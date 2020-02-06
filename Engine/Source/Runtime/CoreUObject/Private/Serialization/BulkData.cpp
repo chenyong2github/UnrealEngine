@@ -737,12 +737,12 @@ void FUntypedBulkData::ForceBulkDataResident()
  */
 void FUntypedBulkData::SetBulkDataFlags( uint32 BulkDataFlagsToSet )
 {
-	BulkDataFlags |= BulkDataFlagsToSet;
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags | BulkDataFlagsToSet);
 }
 
 void FUntypedBulkData::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
 {
-	BulkDataFlags = BulkDataFlagsToSet;
+	BulkDataFlags = (EBulkDataFlags)BulkDataFlagsToSet;
 }
 
 /**
@@ -782,7 +782,7 @@ uint32 FUntypedBulkData::GetBulkDataAlignment() const
  */
 void FUntypedBulkData::ClearBulkDataFlags( uint32 BulkDataFlagsToClear )
 {
-	BulkDataFlags &= ~BulkDataFlagsToClear;
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
 }
 
 /**
@@ -931,7 +931,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			// and BulkDataSizeOnDisk need to be held as int64s, so set a flag indicating the new format.
 			if (Ar.IsSaving() && GetBulkDataSize() >= (1LL << 31))
 			{
-				BulkDataFlags |= BULKDATA_Size64Bit;
+				SetBulkDataFlags(BULKDATA_Size64Bit);
 			}
 			Ar << BulkDataFlags;
 		}
@@ -960,13 +960,13 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				// Bulk data that is being serialized via seekfree loading is single use only. This allows us 
 				// to free the memory as e.g. the bulk data won't be attached to an archive in the case of
 				// seek free loading.
-				BulkDataFlags |= BULKDATA_SingleUse;
+				SetBulkDataFlags(BULKDATA_SingleUse);
 			}
 
 			// Hacky fix for using cooked data in editor. Cooking sets BULKDATA_SingleUse for textures, but PIEing needs to keep bulk data around.
 			if (GIsEditor)
 			{
-				BulkDataFlags &= ~BULKDATA_SingleUse;
+				ClearBulkDataFlags(BULKDATA_SingleUse);
 			}
 
 			// Size on disk, which in the case of compression is != GetBulkDataSize()
@@ -988,7 +988,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				uint16 DummyValue;
 				Ar << DummyValue;
 
-				BulkDataFlags &= ~BULKDATA_BadDataVersion;		
+				ClearBulkDataFlags(BULKDATA_BadDataVersion);	
 			}
 			
 			// determine whether the payload is stored inline or at the end of the file
@@ -1080,7 +1080,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					{
 						Filename = OptionalFilename;
 						Ar << BulkDataFlags;
-						BulkDataFlags |= BULKDATA_OptionalPayload;
+						SetBulkDataFlags(BULKDATA_OptionalPayload);
 
 						if (BulkDataFlags & BULKDATA_Size64Bit)
 						{
@@ -1211,7 +1211,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 		else if( Ar.IsSaving() )
 		{
 			// Remove single element serialization requirement before saving out bulk data flags.
-			BulkDataFlags &= ~BULKDATA_ForceSingleElementSerialization;
+			ClearBulkDataFlags(BULKDATA_ForceSingleElementSerialization);
 
 			// Make sure bulk data is loaded.
 			MakeSureBulkDataIsLoaded();
@@ -1258,7 +1258,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			if (!bStoreInline)
 			{
 				// set the flag indicating where the payload is stored
-				BulkDataFlags |= BULKDATA_PayloadAtEndOfFile;
+				SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile);
 
 				// with no LinkerSave we have to store the data inline
 				check(LinkerSave != NULL);				
@@ -1324,7 +1324,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			else
 			{
 				// set the flag indicating where the payload is stored
-				BulkDataFlags &= ~BULKDATA_PayloadAtEndOfFile;
+				ClearBulkDataFlags(BULKDATA_PayloadAtEndOfFile);
 
 				int64 SavedBulkDataStartPos = Ar.Tell();
 
@@ -1433,16 +1433,17 @@ void FUntypedBulkData::StoreCompressedOnDisk( FName CompressionFormat )
 		if( CompressionFormat == NAME_None )
 		{
 			// clear all compression settings
-			BulkDataFlags &= ~BULKDATA_SerializeCompressed;
+			ClearBulkDataFlags(BULKDATA_SerializeCompressed);
 		}
 		else
 		{
 			// right BulkData only knows zlib
 			check(CompressionFormat == NAME_Zlib);
-			BulkDataFlags |= (CompressionFormat == NAME_Zlib) ? BULKDATA_SerializeCompressedZLIB : BULKDATA_None;
+			const uint32 FlagToSet = CompressionFormat == NAME_Zlib ? BULKDATA_SerializeCompressedZLIB : BULKDATA_None;
+			SetBulkDataFlags(FlagToSet);
 
 			// make sure we are not forcing the bulkdata to be stored inline if we use compression
-			BulkDataFlags &= ~BULKDATA_ForceInlinePayload;
+			ClearBulkDataFlags(BULKDATA_ForceInlinePayload);
 		}
 	}
 }

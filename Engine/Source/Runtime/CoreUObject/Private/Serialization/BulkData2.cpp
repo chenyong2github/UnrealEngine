@@ -732,7 +732,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			const int64 BulkDataID = BulkDataSize > 0 ? BulkDataOffsetInFile : TNumericLimits<uint64>::Max();
 			ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, Type);
 
-			BulkDataFlags |= BULKDATA_UsesIoDispatcher; // Indicates that this BulkData should use the FIoChunkId rather than a filename
+			SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a filename
 		}
 		else
 		{
@@ -945,7 +945,7 @@ void FBulkDataBase::SetBulkDataFlags(uint32 BulkDataFlagsToSet)
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
 
-	BulkDataFlags |= BulkDataFlagsToSet;
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags | BulkDataFlagsToSet);
 }
 
 void FBulkDataBase::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
@@ -953,7 +953,7 @@ void FBulkDataBase::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
 
-	BulkDataFlags = BulkDataFlagsToSet;
+	BulkDataFlags = (EBulkDataFlags)BulkDataFlagsToSet;
 }
 
 void FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
@@ -961,19 +961,19 @@ void FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
 	check(!CanLoadFromDisk());	// We only want to allow the editing of flags if the BulkData
 								// was dynamically created at runtime, not loaded off disk
 
-	BulkDataFlags &= ~BulkDataFlagsToClear;
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
 }
 
 void FBulkDataBase::SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet)
 {
 	check(BulkDataFlagsToSet == BULKDATA_UsesIoDispatcher || BulkDataFlagsToSet == BULKDATA_DataIsMemoryMapped);
-	BulkDataFlags |= BulkDataFlagsToSet;
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags | BulkDataFlagsToSet);
 }
 
 void FBulkDataBase::ClearRuntimeBulkDataFlags(uint32 BulkDataFlagsToClear)
 {
 	check(BulkDataFlagsToClear == BULKDATA_UsesIoDispatcher || BulkDataFlagsToClear == BULKDATA_DataIsMemoryMapped);
-	BulkDataFlags &= ~BulkDataFlagsToClear;
+	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
 }
 
 int64 FBulkDataBase::GetBulkDataSize() const
@@ -1209,7 +1209,7 @@ void FBulkDataBase::RemoveBulkData()
 		Fallback.Token = InvalidToken;
 	}
 
-	BulkDataFlags = 0;
+	BulkDataFlags = BULKDATA_None;
 
 }
 
@@ -1336,7 +1336,7 @@ void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile)
 {
 	// We need to load the optional bulkdata info as we might need to create a FIoChunkId based on it!
-	uint32 NewFlags;
+	EBulkDataFlags NewFlags;
 	int64 NewSizeOnDisk;
 	int64 NewOffset;
 
@@ -1350,7 +1350,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 
 		if (IoDispatcher->DoesChunkExist(OptionalChunkId))
 		{
-			BulkDataFlags = NewFlags | BULKDATA_UsesIoDispatcher;
+			BulkDataFlags = EBulkDataFlags(NewFlags | BULKDATA_UsesIoDispatcher);
 			InOutSizeOnDisk = NewSizeOnDisk;
 			InOutOffsetInFile = NewOffset;
 
@@ -1376,7 +1376,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 #endif
 }
 
-void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile)
+void FBulkDataBase::SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile)
 {
 	Ar << OutBulkDataFlags;
 

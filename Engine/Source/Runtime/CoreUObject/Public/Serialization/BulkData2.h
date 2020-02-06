@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BulkDataCommon.h"
 #include "BulkDataBuffer.h"
 #include "Async/AsyncFileHandle.h"
 #include "IO/IoDispatcher.h"
@@ -149,7 +150,7 @@ private:
 	void LoadDataDirectly(void** DstBuffer);
 
 	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile);
-	void SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
+	void SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 
 	bool MemoryMapBulkData(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead);
@@ -216,7 +217,7 @@ private:
 	}; // Note that the union will end up being 16 bytes with padding
 	
 	FBulkDataAllocation DataAllocation;
-	uint32 BulkDataFlags = 0;
+	EBulkDataFlags BulkDataFlags = BULKDATA_None;
 	mutable uint8 LockStatus = 0; // Mutable so that the read only lock can be const
 };
 
