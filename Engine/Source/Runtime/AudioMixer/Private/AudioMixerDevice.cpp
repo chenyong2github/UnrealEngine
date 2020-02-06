@@ -3,6 +3,7 @@
 #include "AudioMixerDevice.h"
 
 #include "AudioMixerSource.h"
+#include "AudioMixerSourceManager.h"
 #include "AudioMixerSubmix.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioPluginUtilities.h"
@@ -46,7 +47,6 @@ namespace Audio
 		, AudioClockDelta(0.0)
 		, AudioClock(0.0)
 		, PreviousMasterVolume((float)INDEX_NONE)
-		, SourceManager(this)
 		, GameOrAudioThreadId(INDEX_NONE)
 		, AudioPlatformThreadId(INDEX_NONE)
 		, bDebugOutputEnabled(false)
@@ -54,6 +54,8 @@ namespace Audio
 	{
 		// This audio device is the audio mixer
 		bAudioMixerModuleLoaded = true;
+
+		SourceManager = MakeUnique<FMixerSourceManager>(this);
 	}
 
 	FMixerDevice::~FMixerDevice()
@@ -83,7 +85,7 @@ namespace Audio
 			ListenerTransforms.Add(Listener.Transform);
 		}
 
-		SourceManager.SetListenerTransforms(ListenerTransforms);
+		SourceManager->SetListenerTransforms(ListenerTransforms);
 	}
 
 	void FMixerDevice::ResetAudioRenderingThreadId()
@@ -213,7 +215,7 @@ namespace Audio
 				// TODO: Migrate this to project settings properly
 				SourceManagerInitParams.NumSourceWorkers = 4;
 
-				SourceManager.Init(SourceManagerInitParams);
+				SourceManager->Init(SourceManagerInitParams);
 
 				AudioClock = 0.0;
 				AudioClockDelta = (double)OpenStreamParams.NumFrames / OpenStreamParams.SampleRate;
@@ -304,7 +306,7 @@ namespace Audio
 
 		if (AudioMixerPlatform)
 		{
-			SourceManager.Update();
+			SourceManager->Update();
 
 			AudioMixerPlatform->UnregisterDeviceChangedListener();
 			AudioMixerPlatform->StopAudioStream();
@@ -349,7 +351,7 @@ namespace Audio
 			PanningMethod = AudioSettings->PanningMethod;
 		}
 
-		SourceManager.Update();
+		SourceManager->Update();
 
 		AudioMixerPlatform->OnHardwareUpdate();
 
@@ -362,7 +364,7 @@ namespace Audio
 			InitializeChannelAzimuthMap(PlatformInfo.NumChannels);
 
 			// Update the channel device count in case it changed
-			SourceManager.UpdateDeviceChannelCount(PlatformInfo.NumChannels);
+			SourceManager->UpdateDeviceChannelCount(PlatformInfo.NumChannels);
 
 			// Audio rendering was suspended in CheckAudioDeviceChange if it changed.
 			AudioMixerPlatform->ResumePlaybackOnNewDevice();
@@ -510,7 +512,7 @@ namespace Audio
 		PumpCommandQueue();
 
 		// Compute the next block of audio in the source manager
-		SourceManager.ComputeNextBlockOfSamples();
+		SourceManager->ComputeNextBlockOfSamples();
 
 		FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
 
@@ -526,7 +528,7 @@ namespace Audio
 		}
 
 		// Reset stopping sounds and clear their state after submixes have been mixed
-		SourceManager.ClearStoppingSounds();
+		SourceManager->ClearStoppingSounds();
 
 		// Do any debug output performing
 		if (bDebugOutputEnabled)
@@ -544,11 +546,11 @@ namespace Audio
 	{
 		// Make sure the source manager pumps any final commands on shutdown. These allow for cleaning up sources, interfacing with plugins, etc.
 		// Because we double buffer our command queues, we call this function twice to ensure all commands are successfully pumped.
-		SourceManager.PumpCommandQueue();
-		SourceManager.PumpCommandQueue();
+		SourceManager->PumpCommandQueue();
+		SourceManager->PumpCommandQueue();
 
 		// Make sure we force any pending release data to happen on shutdown
-		SourceManager.UpdatePendingReleaseData(true);
+		SourceManager->UpdatePendingReleaseData(true);
 	}
 
 	void FMixerDevice::LoadMasterSoundSubmix(EMasterSubmixType::Type InType, const FString& InDefaultName, bool bInDefaultMuteWhenBackgrounded, FSoftObjectPath& InObjectPath)
@@ -842,7 +844,7 @@ namespace Audio
 
 	void FMixerDevice::UpdateModulationControls(const uint32 InSourceId, const FSoundModulationControls& InControls)
 	{
-		SourceManager.UpdateModulationControls(InSourceId, InControls);
+		SourceManager->UpdateModulationControls(InSourceId, InControls);
 	}
 
 	void FMixerDevice::UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails)
@@ -857,7 +859,7 @@ namespace Audio
 			SourceEffectChainOverrides.Add(SourceEffectChainId, SourceEffectChain);
 		}
 
-		SourceManager.UpdateSourceEffectChain(SourceEffectChainId, SourceEffectChain, bPlayEffectChainTails);
+		SourceManager->UpdateSourceEffectChain(SourceEffectChainId, SourceEffectChain, bPlayEffectChainTails);
 	}
 
 	void FMixerDevice::UpdateSubmixProperties(USoundSubmix* InSoundSubmix)
@@ -934,11 +936,11 @@ namespace Audio
 	{
 		if (IsInitialized() && (FPlatformProcess::SupportsMultithreading() && !AudioMixerPlatform->IsNonRealtime()))
 		{
-			SourceManager.FlushCommandQueue(bPumpSynchronously);
+			SourceManager->FlushCommandQueue(bPumpSynchronously);
 		}
 		else if (AudioMixerPlatform->IsNonRealtime())
 		{
-			SourceManager.FlushCommandQueue(true);
+			SourceManager->FlushCommandQueue(true);
 		}
 		else
 		{
@@ -946,10 +948,10 @@ namespace Audio
 			PumpCommandQueue();
 
 			// And also directly pump the source manager command queue
-			SourceManager.PumpCommandQueue();
-			SourceManager.PumpCommandQueue();
+			SourceManager->PumpCommandQueue();
+			SourceManager->PumpCommandQueue();
 
-			SourceManager.UpdatePendingReleaseData(true);
+			SourceManager->UpdatePendingReleaseData(true);
 		}
 	}
 
@@ -1137,7 +1139,7 @@ namespace Audio
 
 	int32 FMixerDevice::GetNumActiveSources() const
 	{
-		return SourceManager.GetNumActiveSources();
+		return SourceManager->GetNumActiveSources();
 	}
 
 	void FMixerDevice::Get3DChannelMap(const ESubmixChannelFormat InSubmixType, const FWaveInstance* InWaveInstance, float EmitterAzimith, float NormalizedOmniRadius, Audio::AlignedFloatBuffer& OutChannelMap)
@@ -1295,7 +1297,7 @@ namespace Audio
 
 	const TArray<FTransform>* FMixerDevice::GetListenerTransforms()
 	{
-		return SourceManager.GetListenerTransforms();
+		return SourceManager->GetListenerTransforms();
 	}
 
 	void FMixerDevice::StartRecording(USoundSubmix* InSubmix, float ExpectedRecordingDuration)
@@ -1683,7 +1685,7 @@ namespace Audio
 
 	FMixerSourceManager* FMixerDevice::GetSourceManager()
 	{
-		return &SourceManager;
+		return SourceManager.Get();
 	}
 
 	bool FMixerDevice::IsMainAudioDevice() const

@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundWaveDecoder.h"
-#include "Engine/Public/AudioThread.h"
+#include "AudioThread.h"
+#include "AudioDecompress.h"
 #include "AudioMixer.h"
+#include "AudioMixerBuffer.h"
+#include "AudioMixerSourceBuffer.h"
 
 namespace Audio
 {
