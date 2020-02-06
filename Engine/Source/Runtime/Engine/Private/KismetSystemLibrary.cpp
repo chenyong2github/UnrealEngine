@@ -203,6 +203,12 @@ bool UKismetSystemLibrary::IsStandalone(UObject* WorldContextObject)
 	return World ? (World->GetNetMode() == NM_Standalone) : false;
 }
 
+bool UKismetSystemLibrary::IsSplitScreen(UObject* WorldContextObject)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	return World ? GEngine->IsSplitScreen(World) : false;
+}
+
 bool UKismetSystemLibrary::IsPackagedForDistribution()
 {
 	return FPlatformMisc::IsPackagedForDistribution();
