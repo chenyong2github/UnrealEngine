@@ -1198,14 +1198,18 @@ void FAudioDeviceHandle::AddStackDumpToAudioDeviceContainer()
 
 FAudioDeviceHandle::~FAudioDeviceHandle()
 {
-	if (GEngine && IsValid())
+	if (IsValid())
 	{
-		GEngine->GetAudioDeviceManager()->DecrementDevice(DeviceId, World);
+		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+		if (AudioDeviceManager)
+		{
+			AudioDeviceManager->DecrementDevice(DeviceId, World);
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		check(StackWalkID != INDEX_NONE);
-		GEngine->GetAudioDeviceManager()->RemoveStackWalkForContainer(DeviceId, StackWalkID);
+			check(StackWalkID != INDEX_NONE);
+			AudioDeviceManager->RemoveStackWalkForContainer(DeviceId, StackWalkID);
 #endif
+		}
 	}
 }
 
@@ -1221,7 +1225,7 @@ Audio::FDeviceId FAudioDeviceHandle::GetDeviceID() const
 
 bool FAudioDeviceHandle::IsValid() const
 {
-	return Device != nullptr;
+	return GEngine && GEngine->GetAudioDeviceManager() && Device != nullptr;
 }
 
 void FAudioDeviceHandle::Reset()
@@ -1231,7 +1235,6 @@ void FAudioDeviceHandle::Reset()
 
 FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Other)
 {
-	// If this chunk was previously referencing another chunk, remove that chunk here.
 	if (IsValid())
 	{
 		check(FAudioDeviceManager::Get());
@@ -1243,12 +1246,15 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Othe
 
 	if (IsValid())
 	{
-		// Increment the reference count for the new streaming chunk.
-		FAudioDeviceManager::Get()->IncrementDevice(DeviceId);
+		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+		if (AudioDeviceManager)
+		{
+			AudioDeviceManager->IncrementDevice(DeviceId);
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-		AddStackDumpToAudioDeviceContainer();
+			AddStackDumpToAudioDeviceContainer();
 #endif
+		}
 	}
 
 	return *this;
@@ -1256,7 +1262,6 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(const FAudioDeviceHandle& Othe
 
 FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 {
-	// If this chunk was previously referencing another chunk, remove that chunk here.
 	if (FAudioDeviceManager::Get() && IsValid())
 	{
 #if INSTRUMENT_AUDIODEVICE_HANDLES
@@ -1270,7 +1275,6 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 	Device = Other.Device;
 	DeviceId = Other.DeviceId;
 
-	// If the chunk we're moving from is valid, we null it out without needing to decrement.
 	Other.Device = nullptr;
 	Other.DeviceId = INDEX_NONE;
 
