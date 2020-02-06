@@ -458,8 +458,10 @@ void Main(
 	ApplyPixelDepthOffsetForMobileBasePass(MaterialParameters, PixelMaterialInputs, OutDepth);
 #endif
 	  
+#if !EARLY_Z_PASS_ONLY_MATERIAL_MASKING
 	//Clip if the blend mode requires it.
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
+#endif
 
 	half Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	const float BaseMaterialCoverageOverWater = Opacity;

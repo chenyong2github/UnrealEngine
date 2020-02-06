@@ -77,6 +77,16 @@ static TAutoConsoleVariable<int32> CVarEarlyZPassOnlyMaterialMasking(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
+/** Affects MobileBasePassPixelShader.usf so must relaunch editor to recompile shaders. */
+static TAutoConsoleVariable<int32> CVarMobileEarlyZPassOnlyMaterialMasking(
+	TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"),
+	0,
+	TEXT("Whether to compute materials' mask opacity only in early Z pass for Mobile platform. Changing this setting requires restarting the editor.\n")
+	TEXT("<=0: off\n")
+	TEXT("  1: on\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
 TAutoConsoleVariable<int32> CVarEarlyZPass(
 	TEXT("r.EarlyZPass"),
 	3,
@@ -3203,7 +3213,7 @@ bool ShouldForceFullDepthPass(EShaderPlatform ShaderPlatform)
 	static const auto AOComputeCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AmbientOcclusion.Compute"));
 	const bool bAOCompute		= AOComputeCVar->GetValueOnAnyThread() > 0;
 
-	const bool bEarlyZMaterialMasking = CVarEarlyZPassOnlyMaterialMasking.GetValueOnAnyThread() != 0;
+	const bool bEarlyZMaterialMasking = MaskedInEarlyPass(ShaderPlatform);
 
 	// Note: ShouldForceFullDepthPass affects which static draw lists meshes go into, so nothing it depends on can change at runtime, unless you do a FGlobalComponentRecreateRenderStateContext to propagate the cvar change
 	return bAOCompute || bDBufferAllowed || bStencilLODDither || bEarlyZMaterialMasking || IsForwardShadingEnabled(ShaderPlatform) || IsUsingSelectiveBasePassOutputs(ShaderPlatform);
@@ -3244,6 +3254,17 @@ void FScene::UpdateEarlyZPassMode()
 			&& CVarBasePassWriteDepthEvenWithFullPrepass.GetValueOnAnyThread() == 0)
 		{
 			DefaultBasePassDepthStencilAccess = FExclusiveDepthStencil::DepthRead_StencilWrite;
+		}
+	}
+	else if (GetShadingPath(GetFeatureLevel()) == EShadingPath::Mobile)
+	{
+		if (MaskedInEarlyPass(GetFeatureLevelShaderPlatform(FeatureLevel)))
+		{
+			EarlyZPassMode = DDM_MaskedOnly;
+		}
+		else
+		{
+			EarlyZPassMode = DDM_None;
 		}
 	}
 }

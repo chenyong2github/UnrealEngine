@@ -239,8 +239,7 @@ void SetDepthStencilStateForBasePass(
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	bool bEnableReceiveDecalOutput)
 {
-	static IConsoleVariable* EarlyZPassOnlyMaterialMaskingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPassOnlyMaterialMasking"));
-	const bool bMaskInEarlyPass = (Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->IsMasked() || Mesh.bDitheredLODTransition) && EarlyZPassOnlyMaterialMaskingCVar->GetInt();
+	const bool bMaskedInEarlyPass = (Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel)->IsMasked() || Mesh.bDitheredLODTransition) && MaskedInEarlyPass(GShaderPlatformForFeatureLevel[FeatureLevel]);
 
 	if (bEnableReceiveDecalOutput)
 	{
@@ -249,7 +248,7 @@ void SetDepthStencilStateForBasePass(
 		const uint8 StencilValue = GET_STENCIL_BIT_MASK(RECEIVE_DECAL, PrimitiveSceneProxy ? !!PrimitiveSceneProxy->ReceivesDecals() : 0x00)
 			| STENCIL_LIGHTING_CHANNELS_MASK(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetLightingChannelStencilValue() : 0x00);
 
-		if (bMaskInEarlyPass)
+		if (bMaskedInEarlyPass)
 		{
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
 				false, CF_Equal,
@@ -280,7 +279,7 @@ void SetDepthStencilStateForBasePass(
 			DrawRenderState.SetStencilRef(StencilValue);
 		}
 	}
-	else if (bMaskInEarlyPass)
+	else if (bMaskedInEarlyPass)
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
 	}
