@@ -1322,6 +1322,8 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 						if (Property == CurrentProperty)
 						{
+							// Property wasn't found.
+							Property = nullptr;
 						}
 					}
 
