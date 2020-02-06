@@ -34,6 +34,7 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	DisplayClusterRootComponent->AttachToComponent(RootComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
 
 	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
 	bFindCameraComponentWhenViewTarget = false;
 	bReplicates = false;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
@@ -100,8 +101,7 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 				APlayerCameraManager* const CurPlayerCameraManager = CurPlayerController->PlayerCameraManager;
 				if (CurPlayerCameraManager)
 				{
-					SetActorLocation(CurPlayerCameraManager->GetCameraLocation());
-					SetActorRotation(CurPlayerCameraManager->GetCameraRotation());
+					SetActorLocationAndRotation(CurPlayerCameraManager->GetCameraLocation(), CurPlayerCameraManager->GetCameraRotation());
 				}
 
 				if (bExitOnEsc)

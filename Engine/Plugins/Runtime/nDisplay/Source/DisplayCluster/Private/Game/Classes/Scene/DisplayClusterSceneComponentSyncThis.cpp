@@ -8,7 +8,7 @@
 UDisplayClusterSceneComponentSyncThis::UDisplayClusterSceneComponentSyncThis(const FObjectInitializer& ObjectInitializer) :
 	UDisplayClusterSceneComponentSync(ObjectInitializer)
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 }
 
 void UDisplayClusterSceneComponentSyncThis::BeginPlay()

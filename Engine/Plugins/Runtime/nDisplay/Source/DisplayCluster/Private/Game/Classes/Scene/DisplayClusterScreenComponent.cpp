@@ -28,6 +28,7 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("StaticMesh'/Engine/BasicShapes/Cube.Cube'"));
 
 		ScreenGeometryComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+		ScreenGeometryComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator, false);
 		ScreenGeometryComponent->SetStaticMesh(ScreenMesh.Object);
 		ScreenGeometryComponent->SetMobility(EComponentMobility::Movable);
 		ScreenGeometryComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -75,16 +76,11 @@ bool UDisplayClusterScreenComponent::ApplySettings()
 {
 	Super::ApplySettings();
 
-#if WITH_EDITOR
+	SetRelativeScale3D(FVector(0.005f, Size.X, Size.Y));
 	if (ScreenGeometryComponent)
 	{
 		ScreenGeometryComponent->RegisterComponent();
-		ScreenGeometryComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		ScreenGeometryComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator, false);
 	}
-#endif
-
-	SetRelativeScale3D(FVector(0.0001f, Size.X, Size.Y));
 
 	return true;
 }

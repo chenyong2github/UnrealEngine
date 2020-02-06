@@ -77,7 +77,7 @@ namespace nDisplayLauncher.Cluster
 
 			if (!Config.Windows.ContainsKey(Node.Window))
 			{
-				throw new Exception("Node {0} has no windows property specified");
+				throw new Exception(string.Format("Node {0} has no windows property specified", Node.Id));
 			}
 
 			// Get window settings for the node
