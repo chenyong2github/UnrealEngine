@@ -7,7 +7,10 @@
 #include "MaterialCachedData.generated.h"
 
 class UTexture;
+class UCurveLinearColor;
+class UCurveLinearColorAtlas;
 class UFont;
+class UMaterialExpression;
 class URuntimeVirtualTexture;
 class ULandscapeGrassType;
 

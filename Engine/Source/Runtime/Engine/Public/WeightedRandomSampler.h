@@ -23,6 +23,7 @@ GetEntryIndex takes two random floating values. This does not generate randoms f
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Serialization/MemoryImage.h"
 #include "Serialization/MemoryLayout.h"
 
 struct ENGINE_API FWeightedRandomSampler
