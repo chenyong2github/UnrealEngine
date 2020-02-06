@@ -326,7 +326,7 @@ namespace Audio
 
 				// Initialize W of M:
 				float OmegaMReal = FMath::Cos(PI / M2);
-				float OmegaMImag = FMath::Sin(PI / M2);
+				float OmegaMImag = -FMath::Sin(PI / M2);
 
 				for (uint32 j = 0; j < M2; j++)
 				{
@@ -375,7 +375,7 @@ namespace Audio
 
 						float Phase = -2.0f * PI * K / ((float)BitPosition);
 						float TwiddleReal = FMath::Cos(Phase);
-						float TwiddleImag = FMath::Sin(Phase);
+						float TwiddleImag = -FMath::Sin(Phase);
 
 						ComplexMultiply(TwiddleReal, TwiddleImag, OddReal, OddImag, TwiddleReal, TwiddleImag);
 
@@ -502,6 +502,154 @@ namespace Audio
 		{
 			FFTIntrinsics::PerformIterativeIFFT(InputParams, OutputParams);
 		}
+	}
+
+	// Implementation of fft algorithm interface
+	class FAudioFFTAlgorithm : public IFFTAlgorithm
+	{
+			const int32 FFTSize;
+			const int32 NumOutputFFTElements;
+			FFTFreqDomainData FreqDomainData;
+
+			AlignedFloatBuffer FreqRealBuffer;
+			AlignedFloatBuffer FreqImagBuffer;
+			
+
+		public:
+
+			FAudioFFTAlgorithm(int32 InFFTSize)
+			:	FFTSize(InFFTSize)
+			,	NumOutputFFTElements((InFFTSize / 2) + 1)
+			{
+				// For freq domain data, we need separate buffers since we are expecting
+				// interleaved [real, imag] data.
+				FreqRealBuffer.AddUninitialized(FFTSize);
+				FreqImagBuffer.AddUninitialized(FFTSize);
+
+				FreqDomainData.OutReal = FreqRealBuffer.GetData();
+				FreqDomainData.OutImag = FreqImagBuffer.GetData();
+			}
+
+			// virtual destructor for inheritance.
+			virtual ~FAudioFFTAlgorithm() {}
+
+			// Number of elements in FFT
+			virtual int32 Size() const override { return FFTSize; }
+
+			// Scaling applied when performing forward FFT.
+			virtual EFFTScaling ForwardScaling() const { return EFFTScaling::None; }
+
+			/* Scaling applied when performing inverse FFT. */
+			virtual EFFTScaling InverseScaling() const { return EFFTScaling::None; }
+
+			
+			// ForwardRealToComplex
+			// InReal - Array of floats to input into fourier transform. Must have FFTSize() elements.
+			// OutComplex - Array of floats to store output of fourier transform. Must have (FFTSize() + 2) float elements which represent ((FFTSize() / 2) + 1) complex numbers in interleaved format.
+			virtual void ForwardRealToComplex(const float* RESTRICT InReal, float* RESTRICT OutComplex) override
+			{
+				const FFTTimeDomainData TimeDomainData = {const_cast<float*>(InReal), FFTSize};
+				PerformFFT(TimeDomainData, FreqDomainData);
+
+				// Convert FFT output data to interleaved format.
+				int32 OutPos = 0;
+				for (int32 i = 0; i < NumOutputFFTElements; i++)
+				{
+					OutComplex[OutPos] = FreqDomainData.OutReal[i];
+					OutPos++;
+					OutComplex[OutPos] = FreqDomainData.OutImag[i];
+					OutPos++;
+				}
+			}
+
+			// InverseComplexToReal
+			// InComplex - Array of floats to input into inverse fourier transform. Must have (FFTSize() + 2) float elements which represent ((FFTSize() / 2) + 1) complex numbers in interleaved format.
+			// OutReal - Array of floats to store output of inverse fourier transform. Must have FFTSize() elements.
+			virtual void InverseComplexToReal(const float* RESTRICT InComplex, float* RESTRICT OutReal) override
+			{
+
+				// For the complex data the phase must be flipped for negative frequencies (or frequencies above nyquist depending on the way you think about it.)
+				
+				// Copy from 0Hz -> Nyquist
+				int32 ComplexPos = 0;
+				for (int32 i = 0; i < NumOutputFFTElements; i++)
+				{
+					FreqDomainData.OutReal[i] = InComplex[ComplexPos];
+					ComplexPos++;
+					FreqDomainData.OutImag[i] = InComplex[ComplexPos];
+					ComplexPos++;
+				}
+
+				// Perform mirror
+				int32 InFreqPos = NumOutputFFTElements - 2;
+				for (int32 MirrorPos = NumOutputFFTElements; MirrorPos < FFTSize; MirrorPos++)
+				{
+					FreqDomainData.OutReal[MirrorPos] = FreqDomainData.OutReal[InFreqPos];
+					FreqDomainData.OutImag[MirrorPos] = -FreqDomainData.OutImag[InFreqPos];
+					InFreqPos--;
+				}
+
+				FFTTimeDomainData TimeDomainData = {OutReal, FFTSize};
+				PerformIFFT(FreqDomainData, TimeDomainData);
+			}
+
+			// BatchForwardRealToComplex
+			virtual void BatchForwardRealToComplex(int32 InCount, const float* const RESTRICT InReal[], float* RESTRICT OutComplex[]) override
+			{
+				for (int32 i = 0; i < InCount; i++)
+				{
+					ForwardRealToComplex(InReal[i], OutComplex[i]);
+				}
+			}
+
+			// BatchInverseComplexToReal
+			virtual void BatchInverseComplexToReal(int32 InCount, const float* const RESTRICT InComplex[], float* RESTRICT OutReal[]) override
+			{
+				for (int32 i = 0; i < InCount; i++)
+				{
+					InverseComplexToReal(InComplex[i], OutReal[i]);
+				}
+			}
+	};
+
+
+	// FFT Algorithm factory for this FFT implementation
+	FAudioFFTAlgorithmFactory::~FAudioFFTAlgorithmFactory() {}
+
+	// Name of this fft algorithm factory. 
+	FName FAudioFFTAlgorithmFactory::GetFactoryName() const 
+	{
+		static const FName FactoryName = FName(TEXT("OriginalFFT_Deprecated"));
+		return FactoryName;
+	}
+
+	// If true, this implementation uses hardware acceleration.
+	bool FAudioFFTAlgorithmFactory::IsHardwareAccelerated() const
+	{
+		return false;
+	}
+
+	// If true, this implementation requires input and output arrays to be 128 bit aligned.
+	bool FAudioFFTAlgorithmFactory::Expects128BitAlignedArrays() const
+	{
+		return false;
+	}
+
+	// Returns true if the input settings are supported by this factory.
+	bool FAudioFFTAlgorithmFactory::AreFFTSettingsSupported(const FFFTSettings& InSettings) const 
+	{
+		return (InSettings.Log2Size > 1) && (InSettings.Log2Size < 30);
+	}
+
+	// Create a new FFT algorithm.
+	TUniquePtr<IFFTAlgorithm> FAudioFFTAlgorithmFactory::NewFFTAlgorithm(const FFFTSettings& InSettings)
+	{
+		check(AreFFTSettingsSupported(InSettings));
+
+		// equivalent of 2^(InSettings.Log2Size)
+		int32 FFTSize = 1 << InSettings.Log2Size;
+
+		return MakeUnique<FAudioFFTAlgorithm>(FFTSize);
 	}
 
 	void ComputePowerSpectrumNoScaling(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, AlignedFloatBuffer& OutBuffer)

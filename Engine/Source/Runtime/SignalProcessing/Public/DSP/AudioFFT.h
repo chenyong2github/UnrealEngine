@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Dsp.h"
+#include "DSP/FFTAlgorithm.h"
 
 namespace Audio
 {
@@ -142,6 +143,29 @@ namespace Audio
 	// applied to FFTInputParams.InBuffer.
 	SIGNALPROCESSING_API void PerformFFT(const FFTTimeDomainData& InputParams, FFTFreqDomainData& OutputParams);
 	SIGNALPROCESSING_API void PerformIFFT(FFTFreqDomainData& InputParams, FFTTimeDomainData& OutputParams);
+
+
+	// FFT Algorithm factory for this FFT implementation
+	class SIGNALPROCESSING_API FAudioFFTAlgorithmFactory : public IFFTAlgorithmFactory
+	{
+		public:
+			virtual ~FAudioFFTAlgorithmFactory();
+
+			// Name of this fft algorithm factory. 
+			virtual FName GetFactoryName() const override;
+
+			// If true, this implementation uses hardware acceleration.
+			virtual bool IsHardwareAccelerated() const override;
+
+			// If true, this implementation requires input and output arrays to be 128 bit aligned.
+			virtual bool Expects128BitAlignedArrays() const override;
+
+			// Returns true if the input settings are supported by this factory.
+			virtual bool AreFFTSettingsSupported(const FFFTSettings& InSettings) const override;
+
+			// Create a new FFT algorithm.
+			virtual TUniquePtr<IFFTAlgorithm> NewFFTAlgorithm(const FFFTSettings& InSettings) override;
+	};
 
 	struct FrequencyBuffer
 	{

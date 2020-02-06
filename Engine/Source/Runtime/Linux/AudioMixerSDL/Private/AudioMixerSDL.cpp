@@ -19,6 +19,9 @@ public:
 		FString SDL2_Dll = DllPath + "SDL2.dll";
 		FPlatformProcess::GetDllHandle(*DllPath);
 #endif
+		IAudioDeviceModule::StartupModule();
+
+		FModuleManager::Get().LoadModuleChecked(TEXT("AudioMixerCore"));
 	}
 
 	virtual FAudioDevice* CreateAudioDevice() override
