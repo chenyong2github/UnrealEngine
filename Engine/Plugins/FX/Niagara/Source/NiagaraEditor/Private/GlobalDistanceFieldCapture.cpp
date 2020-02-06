@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "GlobalDistanceFieldCapture.h"
 #include "Editor.h"
 #include "Stats/Stats2.h"
