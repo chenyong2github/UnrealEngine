@@ -26,7 +26,7 @@ UDisplayClusterRootComponent::UDisplayClusterRootComponent(const FObjectInitiali
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 
 	// This component settings
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 }
 
 void UDisplayClusterRootComponent::BeginPlay()
