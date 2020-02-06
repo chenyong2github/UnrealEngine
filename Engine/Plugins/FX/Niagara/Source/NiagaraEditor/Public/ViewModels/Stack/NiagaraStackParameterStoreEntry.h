@@ -131,11 +131,10 @@ private:
 	FOnParameterDeleted ParameterDeletedDelegate;
 
 	/** A pointer to the data interface object for this input if one is available. */
-	UPROPERTY()
-	UObject* ValueObject;
+	TWeakObjectPtr<UObject> ValueObject;
 
-	UPROPERTY()
-	UObject* Owner;
+	/** A pointer to the owner of the parameter store that owns this entry. */
+	TWeakObjectPtr<UObject> Owner;
 
 	FNiagaraParameterStore* ParameterStore;
 
