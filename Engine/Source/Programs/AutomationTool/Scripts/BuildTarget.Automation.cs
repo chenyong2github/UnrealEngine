@@ -107,7 +107,18 @@ namespace AutomationTool
 					throw new AutomationException("Unable to find uproject file for {0}", ProjectName);
 				}
 
-				TargetSource = DirectoryReference.Combine(ProjectFile.Directory, "Source");
+				DirectoryReference ProjectSource = DirectoryReference.Combine(ProjectFile.Directory, "Source");
+
+				bool IsSourceProject = DirectoryReference.Exists(ProjectSource) && DirectoryReference.EnumerateFiles(ProjectSource, "*.Target.cs").Any();
+
+				if (IsSourceProject)
+				{
+					TargetSource = ProjectSource;
+				}
+				else
+				{
+					Log.TraceInformation("Project is content only, will build vanilla UE4 binaries");
+				}
 			}
 			else
 			{
