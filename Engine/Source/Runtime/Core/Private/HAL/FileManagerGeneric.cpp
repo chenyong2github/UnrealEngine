@@ -660,7 +660,7 @@ FArchiveFileReaderGeneric::FArchiveFileReaderGeneric( IFileHandle* InHandle, con
 	, BufferBase( 0 )
 	, Handle( InHandle )
 {
-	BufferSize = FMath::RoundUpToPowerOfTwo64((int64)InBufferSize);
+	BufferSize = FMath::Min(FMath::RoundUpToPowerOfTwo64((int64)InBufferSize), (uint64)Size);
 	BufferArray.Reserve(BufferSize);
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
@@ -672,7 +672,18 @@ void FArchiveFileReaderGeneric::Seek( int64 InPos )
 	checkf(InPos >= 0, TEXT("Attempted to seek to a negative location (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 	checkf(InPos <= Size, TEXT("Attempted to seek past the end of file (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 
-	if (!SeekLowLevel(InPos))
+	int64 SeekPos;
+	const bool bIsPosInsideBufferWindow = (InPos < BufferBase) || (InPos >= (BufferBase + BufferArray.Num()));
+	if (bIsPosInsideBufferWindow)
+	{
+		SeekPos = InPos;
+	}
+	else
+	{
+		SeekPos = BufferBase + BufferArray.Num();
+	}
+
+	if (!SeekLowLevel(SeekPos))
 	{
 		TCHAR ErrorBuffer[1024];
 		ArIsError = true;
@@ -680,8 +691,6 @@ void FArchiveFileReaderGeneric::Seek( int64 InPos )
 	}
 
 	Pos = InPos;
-	BufferBase = Pos;
-	BufferArray.Reset();
 }
 
 FArchiveFileReaderGeneric::~FArchiveFileReaderGeneric()
@@ -760,6 +769,14 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 		ArIsError = true;
 		UE_LOG(LogFileManager, Error, TEXT("Requested read of %d bytes when %d bytes remain (file=%s, size=%d)"), Length, Size-Pos, *Filename, Size);
 		return;
+	}
+
+	const bool bIsOutsideBufferWindow = (Pos < BufferBase) || (Pos >= (BufferBase + BufferArray.Num()));
+	if (bIsOutsideBufferWindow)
+	{
+		// This is likely due to a seek that has happened in the meantime.
+		BufferBase = Pos;
+		BufferArray.Reset();
 	}
 
 	while( Length>0 )

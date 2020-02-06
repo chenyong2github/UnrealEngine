@@ -1241,7 +1241,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 				*GetArchiveName())
 		}
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS && DO_GUARD_SLOW
 		if (!FPlatformProperties::RequiresCookedData() && 
 			// We can't check the post tag if the file is an EDL cooked package
 			!((Summary.PackageFlags & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
