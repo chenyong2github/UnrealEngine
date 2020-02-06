@@ -15,7 +15,9 @@ struct FIoStoreTocHeader
 	uint32	TocHeaderSize;
 	uint32	TocEntryCount;
 	uint32	TocEntrySize;	// For sanity checking
-	uint32	TocPad[25];
+	uint32	CompressionBlockCount;
+	uint32	CompressionBlockSize;
+	uint32	TocPad[23];
 
 	void MakeMagic()
 	{
@@ -109,3 +111,10 @@ struct FIoStoreTocEntry
 		OffsetAndLength.SetLength(Length);
 	}
 };
+
+struct FIoStoreCompressedBlockEntry
+{
+	FIoOffsetAndLength OffsetAndLength;
+	uint8 CompressionMethod;
+};
+

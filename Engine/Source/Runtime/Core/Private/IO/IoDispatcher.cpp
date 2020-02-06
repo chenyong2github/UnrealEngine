@@ -278,17 +278,15 @@ private:
 	void ProcessCompletedBlocks()
 	{
 		EventQueue.Poll();
-		while (FileIoStore.ProcessCompletedBlock())
-		{
-			ProcessCompletedRequests();
-		}
+		FileIoStore.ProcessCompletedBlocks();
+		ProcessCompletedRequests();
 	}
 
 	void ProcessCompletedRequests()
 	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedRequests);
 		while (SubmittedRequestsHead && SubmittedRequestsHead->UnfinishedReadsCount == 0)
 		{
-			//TRACE_CPUPROFILER_EVENT_SCOPE(CompleteRequest);
 			FIoRequestImpl* NextRequest = SubmittedRequestsHead->NextRequest;
 			CompleteRequest(SubmittedRequestsHead);
 			SubmittedRequestsHead = NextRequest;
@@ -301,6 +299,7 @@ private:
 
 	void CompleteRequest(FIoRequestImpl* Request)
 	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(CompleteRequest);
 		if (!Request->Status.IsCompleted())
 		{
 			Request->Status = EIoErrorCode::Ok;
@@ -358,23 +357,25 @@ private:
 				RequestsToSubmitTail = nullptr;
 			}
 
-			//TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
 
-			EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
-			if (Result == IoStoreResolveResult_NotFound)
-			{
-				Request->Status = FIoStatus(EIoErrorCode::NotFound);
+				EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
+				if (Result == IoStoreResolveResult_NotFound)
+				{
+					Request->Status = FIoStatus(EIoErrorCode::NotFound);
+				}
+				if (!SubmittedRequestsTail)
+				{
+					SubmittedRequestsHead = SubmittedRequestsTail = Request;
+				}
+				else
+				{
+					SubmittedRequestsTail->NextRequest = Request;
+					SubmittedRequestsTail = Request;
+				}
+				Request->NextRequest = nullptr;
 			}
-			if (!SubmittedRequestsTail)
-			{
-				SubmittedRequestsHead = SubmittedRequestsTail = Request;
-			}
-			else
-			{
-				SubmittedRequestsTail->NextRequest = Request;
-				SubmittedRequestsTail = Request;
-			}
-			Request->NextRequest = nullptr;
 
 			ProcessCompletedBlocks();
 		}
@@ -387,6 +388,7 @@ private:
 
 	virtual uint32 Run()
 	{
+		FMemory::SetupTLSCachesOnCurrentThread();
 		while (!bStopRequested)
 		{
 			EventQueue.Wait();
