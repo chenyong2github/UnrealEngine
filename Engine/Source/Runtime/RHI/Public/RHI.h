@@ -389,6 +389,9 @@ extern RHI_API bool GRHIRequiresRenderTargetForPixelShaderUAVs;
 /** true if the RHI supports unordered access view format aliasing */
 extern RHI_API bool GRHISupportsUAVFormatAliasing;
 
+/** true if the pointer returned by Lock is a persistent direct pointer to gpu memory */
+extern RHI_API bool GRHISupportsDirectGPUMemoryLock;
+
 /** The minimum Z value in clip space for the RHI. */
 extern RHI_API float GMinClipZ;
 
