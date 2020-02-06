@@ -478,15 +478,15 @@ namespace ChaosTest {
 		Box2->P() = Box2->X();
 
 		TPBDRigidsEvolutionGBF<FReal, 3> Evolution(Particles);
-		TArray<TVector<TGeometryParticleHandle<FReal, 3>*,2>> Constraints = { TVector<TGeometryParticleHandle<FReal,3>*, 2>(StaticBox, Box2) };
-		TArray<FVec3> Points0 = { FVec3((FReal)100, (FReal)0, (FReal)1000) };
-		TArray<FVec3> Points1 = { FVec3((FReal)400, (FReal)0, (FReal)1000) };
+		TVector<TGeometryParticleHandle<FReal, 3>*,2> ConstrainedParticles = TVector<TGeometryParticleHandle<FReal,3>*, 2>(StaticBox, Box2);
+		TVector<FVec3, 2> Points = { FVec3((FReal)100, (FReal)0, (FReal)1000), FVec3((FReal)400, (FReal)0, (FReal)1000) };
 
 		Evolution.SetPhysicsMaterial(StaticBox, MakeSerializable(PhysicalMaterial));
 		Evolution.SetPhysicsMaterial(Box2, MakeSerializable(PhysicalMaterial));
 
-		auto JointConstraints = Chaos::TPBDRigidSpringConstraints<FReal, 3>(Points0, Points1, MoveTemp(Constraints), 1.f);
-		auto JointRule = Chaos::TPBDConstraintIslandRule<Chaos::TPBDRigidSpringConstraints<FReal, 3>>(JointConstraints);
+		auto JointConstraints = FPBDRigidSpringConstraints();
+		JointConstraints.AddConstraint(ConstrainedParticles, Points, 1.0f, 0.0f, (Points[0] - Points[1]).Size());
+		auto JointRule = Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidSpringConstraints>(JointConstraints);
 		Evolution.AddConstraintRule(&JointRule);
 
 		const FReal Dt = 0.01f;
@@ -494,7 +494,7 @@ namespace ChaosTest {
 		{
 			Evolution.AdvanceOneTimeStep(Dt);
 			Evolution.EndFrame(Dt);
-			EXPECT_LT(FMath::Abs((Box2->R().RotateVector(FVec3((FReal)-100, (FReal)0, (FReal)0)) + Box2->X() - Points0[0]).Size() - 300.f), 0.1);
+			EXPECT_LT(FMath::Abs((Box2->R().RotateVector(FVec3((FReal)-100, (FReal)0, (FReal)0)) + Box2->X() - Points[0]).Size() - 300.f), 0.1);
 		}
 	}
 
