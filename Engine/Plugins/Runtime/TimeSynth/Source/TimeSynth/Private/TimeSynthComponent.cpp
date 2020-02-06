@@ -16,6 +16,7 @@ UTimeSynthComponent::UTimeSynthComponent(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 	, MaxPoolSize(20)
 	, TimeSynthEventListener(this)
+	, bHasActiveClips(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
@@ -175,6 +176,11 @@ void UTimeSynthComponent::SetFFTSize(ETimeSynthFFTSize InFFTSize)
 		SpectrumAnalyzerSettings.FFTSize = NewFFTSize;
 		SpectrumAnalyzer.SetSettings(SpectrumAnalyzerSettings);
 	});
+}
+
+bool UTimeSynthComponent::HasActiveClips()
+{
+	return bHasActiveClips;
 }
 
 void UTimeSynthComponent::OnQuantizationEvent(Audio::EEventQuantization EventQuantizationType, int32 Bars, float Beat)
@@ -355,18 +361,18 @@ void UTimeSynthComponent::ShutdownPlayingClips()
 		int32 ClipIndex = ActivePlayingClipIndices_AudioRenderThread[i];
 		FPlayingClipInfo& PlayingClip = PlayingClipsPool_AudioRenderThread[ClipIndex];
 
-		// Block until the decoder has initialized
-		while (!SoundWaveDecoder.IsInitialized(PlayingClip.DecodingSoundSourceHandle))
+		// try to wait for the decoder to be initialized
+		// if we time out, this is probably in shutdown and the decoder won't ever init.
+		if(!SoundWaveDecoder.IsInitialized(PlayingClip.DecodingSoundSourceHandle))
 		{
-			FPlatformProcess::Sleep(0);
+			FPlatformProcess::Sleep(0.5f);
 		}
 
 		SoundWaveDecoder.RemoveDecodingSource(PlayingClip.DecodingSoundSourceHandle);
 		ActivePlayingClipIndices_AudioRenderThread.RemoveAtSwap(i, 1, false);
 		FreePlayingClipIndices_AudioRenderThread.Add(ClipIndex);
 	}
-
-	SoundWaveDecoder.Reset();
+	bHasActiveClips.AtomicSet(false);
 }
 
 void UTimeSynthComponent::OnEndGenerate() 
@@ -386,13 +392,17 @@ int32 UTimeSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	// to begin rendering. THe lambda callback will then enqueue any new rendering clips
 	// to the list of active clips. So we only need to loop through active clip indices to render the audio output
 	EventQuantizer.NotifyEvents(NumFrames);
+	const int32 NumActiveClips = ActivePlayingClipIndices_AudioRenderThread.Num();
+
+	bHasActiveClips.AtomicSet(NumActiveClips);
 
 	// Loop through all active loops and render their audio
-	for (int32 i = ActivePlayingClipIndices_AudioRenderThread.Num() - 1; i >= 0; --i)
+	for (int32 i = NumActiveClips - 1; i >= 0; --i)
 	{
 		// Grab the playing clip at the active index
 		int32 ClipIndex = ActivePlayingClipIndices_AudioRenderThread[i];
 		FPlayingClipInfo& PlayingClip = PlayingClipsPool_AudioRenderThread[ClipIndex];
+		PlayingClip.bHasStartedPlaying = true;
 
 		// Compute the number of frames we need to read
 		int32 NumFramesToRead = NumFrames - PlayingClip.StartFrameOffset;
@@ -733,6 +743,7 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 	DecodeInit.VolumeScale = VolumeScale;
 	DecodeInit.SoundWave = ChosenSound.SoundWave;
 	DecodeInit.SeekTime = 0;
+	DecodeInit.bForceSyncDecode = true;
 
 	// Update the synth component on the audio thread
 	FAudioThread::RunCommandOnAudioThread([this, DecodeInit]()
@@ -801,13 +812,15 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 		if(bCurrentPoolSizeChanged)
 		{
 			PlayingClipsPool_AudioRenderThread.Add(NewClipInfo);
+			PlayingClipsPool_AudioRenderThread[PlayingClipsPool_AudioRenderThread.Num() - 1].bIsInitialized = true;
 
 			UE_LOG(LogTimeSynth, Warning, TEXT("Reallocating PlayingClipsPool to %i (which is a performance hit.) If this wasn't caused by a hitch, consider initializing Pool Size to a larger value.")
 				, PlayingClipsPool_AudioRenderThread.Num());
 		}
 		else
 		{
-			PlayingClipsPool_AudioRenderThread[FreeClipIndex] = NewClipInfo;	
+			PlayingClipsPool_AudioRenderThread[FreeClipIndex] = NewClipInfo;
+			PlayingClipsPool_AudioRenderThread[FreeClipIndex].bIsInitialized = true;
 		}
 
 		// Add a mapping of the clip handle id to the free index
@@ -823,6 +836,12 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 			[this, FreeClipIndex, ClipDuration, FadeInTime, FadeOutTime](uint32 NumFramesOffset)
 			{
 				FPlayingClipInfo& PlayingClipInfo = PlayingClipsPool_AudioRenderThread[FreeClipIndex];
+
+				// early exit.  Quantized stop event was just proccessed for this same Quantization step
+				if (PlayingClipInfo.bHasBeenStopped)
+				{
+					return;
+				}
 
 				// Setup the duration of various things using the event quantizer
 				PlayingClipInfo.DurationFrames = EventQuantizer.GetDurationInFrames(ClipDuration.NumBars, (float)ClipDuration.NumBeats);
@@ -854,14 +873,43 @@ void UTimeSynthComponent::StopClip(FTimeSynthClipHandle InClipHandle, ETimeSynth
 
 			[this, InClipHandle](uint32 NumFramesOffset)
 			{
-				int32* PlayingClipIndex = ClipIdToClipIndexMap_AudioRenderThread.Find(InClipHandle.ClipId);
-				if (PlayingClipIndex)
+				int32* PlayingClipIndexPtr = ClipIdToClipIndexMap_AudioRenderThread.Find(InClipHandle.ClipId);
+				if (PlayingClipIndexPtr)
 				{
+					const int32 PlayingClipIndex = *PlayingClipIndexPtr;
 					// Grab the clip info
-					FPlayingClipInfo& PlayingClipInfo = PlayingClipsPool_AudioRenderThread[*PlayingClipIndex];
+					FPlayingClipInfo& PlayingClipInfo = PlayingClipsPool_AudioRenderThread[PlayingClipIndex];
 
-					// Only do anything if the clip is not yet already fading
-					if (PlayingClipInfo.CurrentFrameCount < PlayingClipInfo.DurationFrames)
+					if (!PlayingClipInfo.bHasStartedPlaying)
+					{
+						// add index back to free pool
+						FreePlayingClipIndices_AudioRenderThread.Add(PlayingClipIndex);
+
+						// remove map entry
+						ClipIdToClipIndexMap_AudioRenderThread.Remove(InClipHandle.ClipId);
+
+						// Clip may have been staged to play, so we can search and remove it manually
+						bool bFoundClip = false;
+						int32 NumActivePlayingClipIndices = ActivePlayingClipIndices_AudioRenderThread.Num();
+
+						for (int i = 0; i < NumActivePlayingClipIndices; ++i)
+						{
+							if (ActivePlayingClipIndices_AudioRenderThread[i] == PlayingClipIndex)
+							{
+								ActivePlayingClipIndices_AudioRenderThread.RemoveAtSwap(i, 1, false);
+								bFoundClip = true;
+								--NumActivePlayingClipIndices;
+							}
+						}
+
+						// clip wasn't staged to play yet. Raise the flag for the Notify
+						if (!bFoundClip)
+						{
+							PlayingClipInfo.bHasBeenStopped = true;
+						}
+					}
+					// Already playing the clip, so force the clip to start fading if its already playing
+					else if (PlayingClipInfo.CurrentFrameCount < PlayingClipInfo.DurationFrames)
 					{
 						// Adjust the duration of the clip to "spoof" it's code which triggers a fade this render callback block.
 						PlayingClipInfo.DurationFrames = PlayingClipInfo.CurrentFrameCount + NumFramesOffset;

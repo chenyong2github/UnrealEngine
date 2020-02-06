@@ -288,7 +288,8 @@ struct ISoundWaveClient
 	ISoundWaveClient() {}
 	virtual ~ISoundWaveClient() {}
 	
-	virtual void OnBeginDestroy(class USoundWave* Wave) = 0;
+	// OnBeginDestroy() returns true to unsubscribe as an ISoundWaveClient
+	virtual bool OnBeginDestroy(class USoundWave* Wave) = 0;
 	virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const = 0;
 	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
 };

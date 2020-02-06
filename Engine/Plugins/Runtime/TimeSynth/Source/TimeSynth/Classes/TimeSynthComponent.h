@@ -569,6 +569,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Spectral Analysis", meta = (WorldContext = "WorldContextObject"))
 	void SetFFTSize(ETimeSynthFFTSize InFFTSize);
 
+	// Check to see if clips are actively generating sound on the TimeSynth
+	UFUNCTION(BlueprintCallable, Category = "Playback State", meta = (WorldContext = "WorldContextObject"))
+	bool HasActiveClips();
+
 private:
 	// Called when a new event happens when registered
 	void OnQuantizationEvent(Audio::EEventQuantization EventQuantizationType, int32 Bars, float Beat);
@@ -621,6 +625,12 @@ private:
 
 		bool bIsGloballyQuantized;
 
+		bool bIsInitialized;
+
+		bool bHasStartedPlaying;
+
+		bool bHasBeenStopped;
+
 		FPlayingClipInfo()
 			: ClipQuantization(Audio::EEventQuantization::Bar)
 			, VolumeScale(1.0f)
@@ -633,6 +643,9 @@ private:
 			, VolumeGroupId(INDEX_NONE)
 			, SynthClip(nullptr)
 			, bIsGloballyQuantized(false)
+			, bIsInitialized(false)
+			, bHasStartedPlaying(false)
+			, bHasBeenStopped(false)
 		{}
 	};
 
@@ -743,6 +756,8 @@ private:
 
 	// Need to limit output to prevent wrap around issues when converting to int16
 	Audio::FDynamicsProcessor DynamicsProcessor;
+
+	FThreadSafeBool bHasActiveClips;
 
 	friend class FTimeSynthEventListener;
 };
