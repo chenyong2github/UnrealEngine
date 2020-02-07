@@ -223,8 +223,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				.Padding(4.f)
 				[
 					SNew(SButton)
-					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "FlatButton")
-					.ForegroundColor(FSlateColor::UseForeground())
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
 					.ToolTipText(LOCTEXT("ResetErrors_ToolTip", "Reset Errors"))
 					.ContentPadding(FMargin(4, 4))
 					.HAlign(HAlign_Center)
@@ -234,6 +233,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 						SNew(STextBlock)
 						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
 						.Text(FEditorFontGlyphs::Undo)
+						.ColorAndOpacity(FLinearColor::White)
 					]
 				]
 				// show buffers
@@ -244,8 +244,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				.Padding(4.f)
 				[
 					SNew(SButton)
-					.ForegroundColor(FSlateColor::UseForeground())
-					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "FlatButton")
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
 					.ToolTipText(LOCTEXT("ShowBuffers_ToolTip", "Open the buffer visualizer"))
 					.ContentPadding(FMargin(4, 2))
 					.HAlign(HAlign_Center)
@@ -263,27 +262,21 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				]
 				// Settings button
 				+ SHorizontalBox::Slot()
-				.Padding(.0f)
+				.Padding(4.f)
 				.AutoWidth()
 				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Center)
 				[
-					SNew(SBox)
-					.WidthOverride(ButtonBoxSize)
-					.HeightOverride(ButtonBoxSize)
+					SNew(SButton)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+					.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show the general user settings"))
+					.ContentPadding(FMargin(4, 2))
+					.OnClicked(this, &STimedDataMonitorPanel::OnGeneralUserSettingsClicked)
 					[
-						SNew(SCheckBox)
-						.Padding(4.f)
-						.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show the general user settings"))
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-						.ForegroundColor(FSlateColor::UseForeground())
-						.IsChecked_Lambda([]() { return ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged_Lambda([](ECheckBoxState CheckState) { FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "Plugins", "Timed Data Monitor"); })
-						[
-							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-							.Text(FEditorFontGlyphs::Cogs)
-						]
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+						.Text(FEditorFontGlyphs::Cogs)
+						.ColorAndOpacity(FLinearColor::White)
 					]
 				]
 			]
@@ -488,6 +481,13 @@ FReply STimedDataMonitorPanel::OnShowBuffersClicked()
 }
 
 
+FReply STimedDataMonitorPanel::OnGeneralUserSettingsClicked()
+{
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "Plugins", "Timed Data Monitor");
+	return FReply::Handled();
+}
+
+
 EVisibility STimedDataMonitorPanel::ShowMessageLog() const
 {
 	return MessageLogListing && MessageLogListing->NumMessages(EMessageSeverity::Info) > 0 ? EVisibility::Visible : EVisibility::Collapsed;
@@ -561,7 +561,7 @@ void STimedDataMonitorPanel::CalibrateWithTimecode()
 			break;
 		case ETimedDataMonitorCalibrationReturnCode::Failed_IncreaseBufferSize:
 			{
-				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("CalibrationFailed_IncreaseBufferSize", "No  No interval could be found. Increase the buffer size.")));
+				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("CalibrationFailed_IncreaseBufferSize", "No interval could be found. Increase the buffer size.")));
 			}
 			break;
 		default:
@@ -582,70 +582,77 @@ void STimedDataMonitorPanel::ApplyTimeCorrection()
 	MessageLogListing->ClearMessages();
 
 	TArray<FTimedDataMonitorInputIdentifier> AllInputs = TimedDataMonitorSubsystem->GetAllInputs();
+	bool bAllSucceeded = true;
 	for (const FTimedDataMonitorInputIdentifier& InputIndentifier : AllInputs)
 	{
-		const FTimedDataMonitorTimeCorrectionResult Result = TimedDataMonitorSubsystem->ApplyTimeCorrection(InputIndentifier);
-		switch (Result.ReturnCode)
+		if (TimedDataMonitorSubsystem->GetInputEnabled(InputIndentifier) != ETimedDataMonitorInputEnabled::Disabled)
 		{
-		case ETimedDataMonitorTimeCorrectionReturnCode::Succeeded:
-			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Info
-				, LOCTEXT("JamSucceeded", "Time Correction succeeded.")));
-			break;
-		case ETimedDataMonitorTimeCorrectionReturnCode::Failed_InvalidInput:
-			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-				, LOCTEXT("JamFailed_InvalidInput", "The input identifier was invalid.")));
-			break;
-		case ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoTimecode:
-			MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-				, LOCTEXT("JamFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value.")));
-			break;
-		case ETimedDataMonitorTimeCorrectionReturnCode::Failed_UnresponsiveInput:
-			for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
+			const FTimedDataMonitorTimeCorrectionResult Result = TimedDataMonitorSubsystem->ApplyTimeCorrection(InputIndentifier);
+			bAllSucceeded = bAllSucceeded && (Result.ReturnCode == ETimedDataMonitorTimeCorrectionReturnCode::Succeeded);
+			switch (Result.ReturnCode)
 			{
+			case ETimedDataMonitorTimeCorrectionReturnCode::Failed_InvalidInput:
 				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-					, FText::Format(LOCTEXT("JamFailed_UnresponsiveInput", "The channel '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
-			}
-			break;
-		case ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoDataBuffered:
-			for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
-			{
+					, LOCTEXT("JamFailed_InvalidInput", "The input identifier was invalid.")));
+				break;
+			case ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoTimecode:
 				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-					, FText::Format(LOCTEXT("JamFailed_NoDataBuffered", "The channel '{0}' has not data buffered."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
-			}
-			break;
-		case ETimedDataMonitorTimeCorrectionReturnCode::Failed_BufferSizeCouldNotBeResized:
-			if (Result.FailureChannelIdentifiers.Num() > 0)
-			{
+					, LOCTEXT("JamFailed_NoTimecode", "The timecode provider doesn't have a proper timecode value.")));
+				break;
+			case ETimedDataMonitorTimeCorrectionReturnCode::Failed_UnresponsiveInput:
 				for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
 				{
 					MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-						, FText::Format(LOCTEXT("Failed_BufferSizeHaveBeenMaxed_Channel", "The buffer size of channel '{0}' could not be increased."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
+						, FText::Format(LOCTEXT("JamFailed_UnresponsiveInput", "The channel '{0}' is unresponsive."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
 				}
-			}
-			else
-			{
-				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-					, FText::Format(LOCTEXT("Failed_BufferSizeHaveBeenMaxed_Input", "The buffer size of input '{0}' could not be increased."), TimedDataMonitorSubsystem->GetInputDisplayName(InputIndentifier))));
-			}
-			break;
-		case ETimedDataMonitorTimeCorrectionReturnCode::Retry_BufferSizeHasBeenIncreased:
-			if (Result.FailureChannelIdentifiers.Num() > 0)
-			{
-				for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+				break;
+			case ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoDataBuffered:
+				for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
 				{
-					MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning
-						, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Channel", "The buffer size of channel '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+					MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+						, FText::Format(LOCTEXT("JamFailed_NoDataBuffered", "The channel '{0}' has not data buffered."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
 				}
+				break;
+			case ETimedDataMonitorTimeCorrectionReturnCode::Failed_BufferSizeCouldNotBeResized:
+				if (Result.FailureChannelIdentifiers.Num() > 0)
+				{
+					for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Result.FailureChannelIdentifiers)
+					{
+						MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+							, FText::Format(LOCTEXT("Failed_BufferSizeHaveBeenMaxed_Channel", "The buffer size of channel '{0}' could not be increased."), TimedDataMonitorSubsystem->GetChannelDisplayName(ChannelIdentifier))));
+					}
+				}
+				else
+				{
+					MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+						, FText::Format(LOCTEXT("Failed_BufferSizeHaveBeenMaxed_Input", "The buffer size of input '{0}' could not be increased."), TimedDataMonitorSubsystem->GetInputDisplayName(InputIndentifier))));
+				}
+				break;
+			case ETimedDataMonitorTimeCorrectionReturnCode::Retry_BufferSizeHasBeenIncreased:
+				if (Result.FailureChannelIdentifiers.Num() > 0)
+				{
+					for (const FTimedDataMonitorChannelIdentifier& Identifier : Result.FailureChannelIdentifiers)
+					{
+						MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning
+							, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Channel", "The buffer size of channel '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetChannelDisplayName(Identifier))));
+					}
+				}
+				else
+				{
+					MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
+						, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Input", "The buffer size of input '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetInputDisplayName(InputIndentifier))));
+				}
+				break;
+			default:
+				break;
 			}
-			else
-			{
-				MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error
-					, FText::Format(LOCTEXT("JamRetry_BufferSizeHasBeenIncrease_Input", "The buffer size of input '{0}' needed to be increased. Retry."), TimedDataMonitorSubsystem->GetInputDisplayName(InputIndentifier))));
-			}
-			break;
-		default:
-			break;
 		}
+	}
+
+	if (bAllSucceeded)
+	{
+		MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Info
+			, LOCTEXT("JamSucceeded", "Time Correction succeeded.")));
 	}
 
 	GetMutableDefault<UTimedDataMonitorEditorSettings>()->LastCalibrationType = ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode;

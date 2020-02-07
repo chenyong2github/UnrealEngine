@@ -21,6 +21,8 @@
 #define LOCTEXT_NAMESPACE "TimedDataBufferVisualizer"
 
 
+class STimedDataMonitorBufferVisualizerListView;
+
 /* TimedDataBufferVisualizer
  *****************************************************************************/
 
@@ -51,9 +53,10 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<FTimedDataMonitorBuffervisualizerItem>, Item)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwnerTableView)
+	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwnerTableView, const TSharedRef<STimedDataMonitorBufferVisualizerListView>& InListView)
 	{
 		Item = Args._Item;
+		ListView = InListView;
 
 		SMultiColumnTableRow<TSharedPtr<FTimedDataMonitorBuffervisualizerItem>>::Construct(
 			FSuperRowType::FArguments()
@@ -73,7 +76,12 @@ public:
 		{
 			return SAssignNew(DiagramWidget, STimingDiagramWidget, false)
 				.ChannelIdentifier(Item->ChannelIdentifier)
-				.ShowFurther(true);
+				.ShowFurther(true)
+				.ShowMean(true)
+				.ShowSigma(true)
+				.ShowSnapshot(true)
+				.UseNiceBrush(false)
+				.SizePerSeconds(this, &STimedDataMonitorBufferVisualizerRow::GetSizeOfSeconds);
 		}
 
 		return SNullWidget::NullWidget;
@@ -87,9 +95,12 @@ public:
 		}
 	}
 
+	float GetSizeOfSeconds() const;
+
 private:
 	TSharedPtr<FTimedDataMonitorBuffervisualizerItem> Item;
 	TSharedPtr<STimingDiagramWidget> DiagramWidget;
+	TWeakPtr<STimedDataMonitorBufferVisualizerListView> ListView;
 };
 
 
@@ -107,10 +118,31 @@ public:
 	{
 		return FReply::Unhandled();
 	}
+	virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		float Scale = 2.f;
+		float MinValue = 2.f;
+		SizePerSeconds = FMath::Max(MinValue, SizePerSeconds + MouseEvent.GetWheelDelta() * Scale);
+		return FReply::Handled();
+	}
 
+	float GetSizeOfSeconds() const
+	{
+		return SizePerSeconds;
+	}
 
+	float SizePerSeconds = 100.f;
 };
 
+
+float STimedDataMonitorBufferVisualizerRow::GetSizeOfSeconds() const
+{
+	if (TSharedPtr<STimedDataMonitorBufferVisualizerListView> ListViewPin = ListView.Pin())
+	{
+		return ListViewPin->GetSizeOfSeconds();
+	}
+	return 100.f;
+}
 
 /* STimedDataMonitorBufferVisualizer implementation
  *****************************************************************************/
@@ -127,7 +159,7 @@ void STimedDataMonitorBufferVisualizer::Construct(const FArguments& InArgs)
 		.ListItemsSource(&ListItemsSource)
 		.OnGenerateRow(this, &STimedDataMonitorBufferVisualizer::MakeListViewWidget)
 		.OnRowReleased(this, &STimedDataMonitorBufferVisualizer::ReleaseListViewWidget)
-		.ItemHeight(35)
+		.ItemHeight(60)
 		.HeaderRow(
 			SNew(SHeaderRow)
 			+ SHeaderRow::Column(TimedDataBufferVisualizer::HeaderIdName_DisplayName)
@@ -234,7 +266,7 @@ void STimedDataMonitorBufferVisualizer::RebuiltListItemsSource()
 
 TSharedRef<ITableRow> STimedDataMonitorBufferVisualizer::MakeListViewWidget(TSharedPtr<FTimedDataMonitorBuffervisualizerItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	TSharedRef<STimedDataMonitorBufferVisualizerRow> Row = SNew(STimedDataMonitorBufferVisualizerRow, OwnerTable)
+	TSharedRef<STimedDataMonitorBufferVisualizerRow> Row = SNew(STimedDataMonitorBufferVisualizerRow, OwnerTable, StaticCastSharedRef<STimedDataMonitorBufferVisualizerListView>(OwnerTable))
 		.Item(Item);
 	ListRowWidgets.Add(Row);
 	return Row;

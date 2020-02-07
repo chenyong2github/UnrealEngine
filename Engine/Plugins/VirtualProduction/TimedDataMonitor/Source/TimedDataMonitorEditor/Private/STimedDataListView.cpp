@@ -17,6 +17,7 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "STimedDataMonitorPanel.h"
+#include "STimedDataNumericEntryBox.h"
 #include "STimingDiagramWidget.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -107,7 +108,8 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 			CachedInputEvaluationOffset = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputIdentifier);
 			CachedState = TimedDataMonitorSubsystem->GetInputState(InputIdentifier);
 			CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(InputIdentifier);
-			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifier);
+			bControlBufferSize = TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifier);
+			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && bControlBufferSize;
 
 			NewestDataTime = TimedDataMonitorSubsystem->GetInputNewestDataTime(InputIdentifier);
 
@@ -135,7 +137,8 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 			CachedStatsBufferUnderflow = TimedDataMonitorSubsystem->GetChannelBufferUnderflowStat(ChannelIdentifier);
 			CachedStatsBufferOverflow = TimedDataMonitorSubsystem->GetChannelBufferOverflowStat(ChannelIdentifier);
 			CachedStatsFrameDropped = TimedDataMonitorSubsystem->GetChannelFrameDroppedStat(ChannelIdentifier);
-			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && !TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifier);
+			bControlBufferSize = !TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifier);
+			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && bControlBufferSize;
 
 			NewestDataTime = TimedDataMonitorSubsystem->GetChannelNewestDataTime(ChannelIdentifier);
 		}
@@ -182,6 +185,7 @@ public:
 	int32 CachedStatsBufferUnderflow = 0;
 	int32 CachedStatsBufferOverflow = 0;
 	int32 CachedStatsFrameDropped = 0;
+	bool bControlBufferSize = false;
 	bool bCachedCanEditBufferSize = false;
 };
 
@@ -263,9 +267,7 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 		if (Item->bIsInput)
 		{
 			return SNew(SComboButton)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.ButtonColorAndOpacity(FLinearColor(0, 0, 0, 0))
+				.ComboButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleComboButton")
 				.HAlign(HAlign_Center)
 				.OnGetMenuContent(this, &STimedDataInputTableRow::OnEvaluationImageBuildMenu)
 				.ButtonContent()
@@ -314,67 +316,87 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 	{
 		if (Item->bIsInput)
 		{
-			return SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.TextStyle(ItemTextBlockStyle)
-					.Text(this, &STimedDataInputTableRow::GetEvaluationOffsetText)
-				];
+			return SNew(STimedDataNumericEntryBox<float>)
+				.TextStyle(ItemTextBlockStyle)
+				.MinValue(1)
+				.ToolTipText(LOCTEXT("TimeCorrection_ToolTip", "Time Correction."))
+				.Value(this, &STimedDataInputTableRow::GetEvaluationOffset)
+				.EditLabel(LOCTEXT("TimeCorrection_EditLable", "In Seconds: "))
+				.OnValueCommitted(this, &STimedDataInputTableRow::SetEvaluationOffset);
 		}
 		return SNullWidget::NullWidget;
 	}
 	if (TimedDataListView::HeaderIdName_BufferSize == ColumnName)
 	{
-		//@todo put proper editing widget
-		if (Item->bIsInput) // bCachedCanEditBufferSize
+		if (Item->bControlBufferSize)
 		{
-			return SNew(SNumericEntryBox<int32>)
-				.ToolTipText(LOCTEXT("BufferSize_ToolTip", "Buffer Size."))
+			return SNew(STimedDataNumericEntryBox<int32>)
+				.TextStyle(ItemTextBlockStyle)
 				.MinValue(1)
-				.MinDesiredValueWidth(50)
+				.ToolTipText(LOCTEXT("BufferSize_ToolTip", "Buffer Size."))
 				.Value(this, &STimedDataInputTableRow::GetBufferSize)
+				.EditLabel(LOCTEXT("BufferSize_EditLable", "Number of buffer: "))
 				.OnValueCommitted(this, &STimedDataInputTableRow::SetBufferSize)
+				.CanEdit(Item->bControlBufferSize)
 				.IsEnabled(this, &STimedDataInputTableRow::CanEditBufferSize);
 		}
 		else
 		{
-			return SNew(STextBlock)
-				.TextStyle(ItemTextBlockStyle)
-				.Text(this, &STimedDataInputTableRow::GetBufferSizeText);
+			return SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(STextBlock)
+					.TextStyle(ItemTextBlockStyle)
+					.Text(this, &STimedDataInputTableRow::GetBufferSizeText)
+				];
 		}
 	}
 	if (TimedDataListView::HeaderIdName_BufferUnder == ColumnName)
 	{
-		return SNew(STextBlock)
-			.Text(this, &STimedDataInputTableRow::GetBufferUnderflowCount)
-			.TextStyle(ItemTextBlockStyle);
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &STimedDataInputTableRow::GetBufferUnderflowCount)
+				.TextStyle(ItemTextBlockStyle)
+			];
 	}
 	if (TimedDataListView::HeaderIdName_BufferOver == ColumnName)
 	{
-		return SNew(STextBlock)
-			.Text(this, &STimedDataInputTableRow::GetBufferOverflowCount)
-			.TextStyle(ItemTextBlockStyle);
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &STimedDataInputTableRow::GetBufferOverflowCount)
+				.TextStyle(ItemTextBlockStyle)
+			];
 	}
 	if (TimedDataListView::HeaderIdName_FrameDrop == ColumnName)
 	{
-		return SNew(STextBlock)
-			.Text(this, &STimedDataInputTableRow::GetFrameDroppedCount)
-			.TextStyle(ItemTextBlockStyle);
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &STimedDataInputTableRow::GetFrameDroppedCount)
+				.TextStyle(ItemTextBlockStyle)
+			];
 	}
 	if (TimedDataListView::HeaderIdName_TimingDiagram == ColumnName)
 	{
-		return /*SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.HAlign(EHorizontalAlignment::HAlign_Fill)
-			[*/
-				SAssignNew(DiagramWidget, STimingDiagramWidget, Item->bIsInput)
+		return SAssignNew(DiagramWidget, STimingDiagramWidget, Item->bIsInput)
 				.ChannelIdentifier(Item->ChannelIdentifier)
-				.InputIdentifier(Item->InputIdentifier)
-			//]
-			;
+				.InputIdentifier(Item->InputIdentifier);
 	}
 
 	return SNullWidget::NullWidget;
@@ -445,7 +467,26 @@ FText STimedDataInputTableRow::GetEvaluationOffsetText() const
 }
 
 
-TOptional<int32> STimedDataInputTableRow::GetBufferSize() const
+float STimedDataInputTableRow::GetEvaluationOffset() const
+{
+	return Item->CachedInputEvaluationOffset;
+}
+
+
+void STimedDataInputTableRow::SetEvaluationOffset(float InValue, ETextCommit::Type CommitType)
+{
+	if (GetEvaluationOffset() != InValue && Item->bIsInput)
+	{
+		UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+		check(TimedDataMonitorSubsystem);
+
+		TimedDataMonitorSubsystem->SetInputEvaluationOffsetInSeconds(Item->InputIdentifier, InValue);
+		OwnerTreeView->RequestRefresh();
+	}
+}
+
+
+int32 STimedDataInputTableRow::GetBufferSize() const
 {
 	return Item->CachedBufferSize;
 }
@@ -459,7 +500,7 @@ FText STimedDataInputTableRow::GetBufferSizeText() const
 
 void STimedDataInputTableRow::SetBufferSize(int32 InValue, ETextCommit::Type InType)
 {
-	if (InType == ETextCommit::OnEnter || InType == ETextCommit::OnUserMovedFocus)
+	if (GetBufferSize() != InValue)
 	{
 		UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 		check(TimedDataMonitorSubsystem);
@@ -467,10 +508,12 @@ void STimedDataInputTableRow::SetBufferSize(int32 InValue, ETextCommit::Type InT
 		if (Item->bIsInput)
 		{
 			TimedDataMonitorSubsystem->SetInputDataBufferSize(Item->InputIdentifier, InValue);
+			Item->CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(Item->InputIdentifier);
 		}
 		else
 		{
 			TimedDataMonitorSubsystem->SetChannelDataBufferSize(Item->ChannelIdentifier, InValue);
+			Item->CachedBufferSize = TimedDataMonitorSubsystem->GetChannelDataBufferSize(Item->ChannelIdentifier);
 		}
 		OwnerTreeView->RequestRefresh();
 	}
@@ -615,24 +658,24 @@ void STimedDataInputListView::Construct(const FArguments& InArgs, TSharedPtr<STi
 			.HAlignCell(EHorizontalAlignment::HAlign_Left)
 			.DefaultLabel(LOCTEXT("HeaderName_Name", "Name"))
 
-			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_EvaluationMode)
-			.FixedWidth(48)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
-			.DefaultLabel(LOCTEXT("HeaderName_EvaluationMode", ""))
-
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_Description)
 			.FillWidth(0.33f)
 			.HAlignCell(EHorizontalAlignment::HAlign_Left)
 			.DefaultLabel(LOCTEXT("HeaderName_Description", "Description"))
 
+			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_EvaluationMode)
+			.FixedWidth(48)
+			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.DefaultLabel(LOCTEXT("HeaderName_EvaluationMode", ""))
+
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_TimeCorrection)
 			.FixedWidth(100)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Fill)
 			.DefaultLabel(LOCTEXT("HeaderName_TimeCorrection", "Time Correction"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferSize)
 			.FixedWidth(100)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Fill)
 			.DefaultLabel(LOCTEXT("HeaderName_BufferSize", "Buffer Size"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferUnder)

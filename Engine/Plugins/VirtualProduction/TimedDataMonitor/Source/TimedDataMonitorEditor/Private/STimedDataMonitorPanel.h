@@ -53,6 +53,7 @@ private:
 	FText GetCalibrateButtonText() const;
 	FReply OnResetErrorsClicked();
 	FReply OnShowBuffersClicked();
+	FReply OnGeneralUserSettingsClicked();
 
 	EVisibility ShowMessageLog() const;
 	EVisibility ShowEditorPerformanceThrottlingWarning() const;

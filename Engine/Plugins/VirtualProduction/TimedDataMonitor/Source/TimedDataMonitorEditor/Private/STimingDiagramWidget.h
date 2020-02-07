@@ -21,10 +21,19 @@ private:
 public:
 	SLATE_BEGIN_ARGS(STimingDiagramWidget)
 			: _ShowFurther(false)
+			, _ShowMean(true)
+			, _ShowSigma(false)
+			, _ShowSnapshot(false)
+			, _SizePerSeconds(100)
 		{ }
 		SLATE_ARGUMENT(FTimedDataMonitorChannelIdentifier, ChannelIdentifier)
 		SLATE_ARGUMENT(FTimedDataMonitorInputIdentifier, InputIdentifier)
 		SLATE_ARGUMENT(bool, ShowFurther)
+		SLATE_ARGUMENT(bool, ShowMean)
+		SLATE_ARGUMENT(bool, ShowSigma)
+		SLATE_ARGUMENT(bool, ShowSnapshot)
+		SLATE_ARGUMENT(bool, UseNiceBrush)
+		SLATE_ATTRIBUTE(float, SizePerSeconds)
 	SLATE_END_ARGS()
 	
 public:

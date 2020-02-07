@@ -2,6 +2,7 @@
 
 #include "TimedDataMonitorEditorStyle.h"
 
+#include "EditorStyleSet.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
@@ -57,6 +58,8 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 		Set("Img.BufferVisualization", new FSlateImageBrush(RootToContentDir(TEXT("Widgets/BufferVisualization_24x.png")), Icon24x24));
 		Set("Img.Calibration", new FSlateImageBrush(RootToContentDir(TEXT("Widgets/Calibration_24x.png")), Icon24x24));
 		Set("Img.TimeCorrection", new FSlateImageBrush(RootToContentDir(TEXT("Widgets/TimeCorrection_24x.png")), Icon24x24));
+		Set("Img.Edit", new FSlateImageBrush(RootToContentDir(TEXT("Widgets/Edit_24x.png")), Icon24x24));
+		
 	}
 
 	// font
@@ -102,17 +105,40 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 			.SetMenuBorderBrush(FSlateNoResource());
 		SectionComboButton.UnlinkColors();
 		Set("FlatComboButton", SectionComboButton);
+
+		const FCheckBoxStyle& ToggleButtonStyle = FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox");
+		FComboButtonStyle ToggleComboButton = FComboButtonStyle()
+			.SetButtonStyle(
+				FButtonStyle()
+				.SetNormal(ToggleButtonStyle.UncheckedImage)
+				.SetHovered(ToggleButtonStyle.UncheckedHoveredImage)
+				.SetPressed(ToggleButtonStyle.UncheckedPressedImage)
+				.SetNormalPadding(FMargin(0, 0, 0, 0))
+				.SetPressedPadding(FMargin(0, 1, 0, 0))
+			)
+			.SetDownArrowImage(FSlateNoResource())
+			.SetMenuBorderBrush(FSlateNoResource());
+		Set("ToggleComboButton", ToggleComboButton);
 	}
 
 	// Button
 	{
-		FButtonStyle Button = FButtonStyle()
+		FButtonStyle FlatButton = FButtonStyle()
 			.SetNormal(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.15f)))
 			.SetHovered(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.25f)))
 			.SetPressed(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.30f)))
 			.SetNormalPadding(FMargin(0, 0, 0, 1))
 			.SetPressedPadding(FMargin(0, 1, 0, 0));
-		Set("FlatButton", Button);
+		Set("FlatButton", FlatButton);
+
+		const FCheckBoxStyle& ToggleButtonStyle = FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox");
+		FButtonStyle ToggleButton = FButtonStyle()
+			.SetNormal(ToggleButtonStyle.UncheckedImage)
+			.SetHovered(ToggleButtonStyle.UncheckedHoveredImage)
+			.SetPressed(ToggleButtonStyle.UncheckedPressedImage)
+			.SetNormalPadding(FMargin(0, 0, 0, 0))
+			.SetPressedPadding(FMargin(0, 1, 0, 0));
+		Set("ToggleButton", ToggleButton);
 	}
 	
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
