@@ -29,6 +29,7 @@
 #include "ScopedTransaction.h"
 #include "SourceCodeNavigation.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Subsystems/PanelExtensionSubsystem.h"
 
 
 IConsoleVariable* SActorDetails::ShowComponents = IConsoleManager::Get().RegisterConsoleVariable(TEXT("ShowFlag.DetailsPanelComponents"), true, TEXT("Show components in editor details panel."), ECVF_Cheat);
@@ -152,6 +153,13 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		.AutoHeight()
 		[
 			DetailsView->GetNameAreaWidget().ToSharedRef()
+		]
+		+ SVerticalBox::Slot()
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+		.AutoHeight()
+		[
+			SNew(SExtensionPanel)
+			.ExtensionPanelID("ActorDetailsPanel")
 		]
 		+SVerticalBox::Slot()
 		[
