@@ -563,11 +563,18 @@ void UTimeSynthComponent::SetQuantizationSettings(const FTimeSynthQuantizationSe
 
 void UTimeSynthComponent::SetBPM(const float InBeatsPerMinute)
 {
-	QuantizationSettings.BeatsPerMinute = InBeatsPerMinute;
+	float NewBeatsPerMinute = FMath::Clamp(InBeatsPerMinute, 0.0f, 999.0f);
 
-	SynthCommand([this, InBeatsPerMinute]
+	if (!FMath::IsNearlyEqual(NewBeatsPerMinute, InBeatsPerMinute))
 	{
-		EventQuantizer.SetBPM(InBeatsPerMinute);
+		UE_LOG(LogTimeSynth, Warning, TEXT("Clapming provided BPM from %f to %f"), InBeatsPerMinute, NewBeatsPerMinute);
+	}
+
+	QuantizationSettings.BeatsPerMinute = NewBeatsPerMinute;
+
+	SynthCommand([this, NewBeatsPerMinute]
+	{
+		EventQuantizer.SetBPM(NewBeatsPerMinute);
 	});
 }
 
