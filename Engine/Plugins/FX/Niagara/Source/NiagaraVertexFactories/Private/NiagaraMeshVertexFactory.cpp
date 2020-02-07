@@ -10,7 +10,7 @@
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters,"NiagaraMeshVF");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, "NiagaraMeshVF");
 
 class FNiagaraMeshVertexFactoryShaderParametersVS : public FVertexFactoryShaderParameters
 {
@@ -31,6 +31,7 @@ public:
 		NiagaraParticleDataMaterialParam2.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam2"));
 		NiagaraParticleDataMaterialParam3.Bind(ParameterMap, TEXT("NiagaraParticleDataMaterialParam3"));
 		NiagaraParticleDataSubImage.Bind(ParameterMap, TEXT("NiagaraParticleDataSubImage"));
+		NiagaraParticleDataCameraOffset.Bind(ParameterMap, TEXT("NiagaraParticleDataCameraOffset"));
 
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 
@@ -38,7 +39,6 @@ public:
 		// 		FloatDataOffset.Bind(ParameterMap, TEXT("NiagaraInt32DataOffset"));
 		// 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraInt3DataStride"));
 
-		MeshFacingMode.Bind(ParameterMap, TEXT("MeshFacingMode"));
 		SortedIndices.Bind(ParameterMap, TEXT("SortedIndices"));
 		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
 	}
@@ -57,8 +57,6 @@ public:
 		FNiagaraMeshVertexFactory* NiagaraMeshVF = (FNiagaraMeshVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraMeshUniformParameters>(), NiagaraMeshVF->GetUniformBuffer());
 
-		ShaderBindings.Add(MeshFacingMode, NiagaraMeshVF->GetMeshFacingMode());
-
 		ShaderBindings.Add(NiagaraParticleDataPosition, NiagaraMeshVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataVelocity, NiagaraMeshVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataColor, NiagaraMeshVF->GetParticleDataFloatSRV());
@@ -71,6 +69,7 @@ public:
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam2, NiagaraMeshVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataMaterialParam3, NiagaraMeshVF->GetParticleDataFloatSRV());
 		ShaderBindings.Add(NiagaraParticleDataSubImage, NiagaraMeshVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(NiagaraParticleDataCameraOffset, NiagaraMeshVF->GetParticleDataFloatSRV());
 
 		ShaderBindings.Add(FloatDataStride, NiagaraMeshVF->GetFloatDataStride());
 
@@ -81,7 +80,7 @@ public:
 
 private:
 
-	
+
 		//LAYOUT_FIELD(FShaderResourceParameter, PrevTransformBuffer)
 
 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataPosition);
@@ -96,16 +95,15 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam2);
 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam3);
 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataSubImage);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataCameraOffset);
 	LAYOUT_FIELD(FShaderParameter, FloatDataStride);
 
 		// 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataInt)
 		// 	LAYOUT_FIELD(FShaderParameter, Int32DataOffset)
 		// 	LAYOUT_FIELD(FShaderParameter, Int32DataStride)
-
-		LAYOUT_FIELD(FShaderParameter, MeshFacingMode)
 		LAYOUT_FIELD(FShaderResourceParameter, SortedIndices)
 		LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset)
-	
+
 };
 
 class FNiagaraMeshVertexFactoryShaderParametersPS : public FVertexFactoryShaderParameters

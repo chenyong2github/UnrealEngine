@@ -48,8 +48,13 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(int, MaterialParam3DataOffset)
 	SHADER_PARAMETER(int, NormalizedAgeDataOffset)
 	SHADER_PARAMETER(int, MaterialRandomDataOffset)
+	SHADER_PARAMETER(int, CameraOffsetDataOffset)
 	SHADER_PARAMETER(FVector4, DefaultPos)
 	SHADER_PARAMETER(int, SubImageBlendMode)
+	SHADER_PARAMETER(uint32, FacingMode)
+	SHADER_PARAMETER(uint32, bLockedAxisEnable)
+	SHADER_PARAMETER(FVector, LockedAxis)
+	SHADER_PARAMETER(uint32, LockedAxisSpace)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FNiagaraMeshUniformParameters> FNiagaraMeshUniformBufferRef;
@@ -69,7 +74,6 @@ public:
 	FNiagaraMeshVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
 		: FNiagaraVertexFactoryBase(InType, InFeatureLevel)
 		, LODIndex(-1)
-		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
 		, SortedIndicesOffset(0)
@@ -78,7 +82,6 @@ public:
 	FNiagaraMeshVertexFactory()
 		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num)
 		, LODIndex(-1)
-		, MeshFacingMode(0)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
 		, SortedIndicesOffset(0)
@@ -173,14 +176,10 @@ public:
 
 	int32 GetLODIndex() const { return LODIndex; }
 	void SetLODIndex(int32 InLODIndex) { LODIndex = InLODIndex; }
-
-	uint32 GetMeshFacingMode() const { return MeshFacingMode; }
-	void SetMeshFacingMode(uint32 InMode) { MeshFacingMode = InMode; }
-
+	
 protected:
 	FStaticMeshDataType Data;
-	int32 LODIndex;
-	uint32 MeshFacingMode;
+	int32 LODIndex;	
 
 	/** Uniform buffer with mesh particle parameters. */
 	FRHIUniformBuffer* MeshParticleUniformBuffer;
