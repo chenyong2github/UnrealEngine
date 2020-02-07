@@ -300,7 +300,7 @@ FMetalTexture FMetalRHIBuffer::AllocLinearTexture(EPixelFormat Format, NSUIntege
 		{
 			Stride = 4;
 		}
-		NSUInteger NewSize = Size;
+		NSUInteger NewSize = Size - Offset;
 
 		if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesTextureBuffers))
 		{
@@ -309,7 +309,7 @@ FMetalTexture FMetalRHIBuffer::AllocLinearTexture(EPixelFormat Format, NSUIntege
 		}
 		else
 		{
-			uint32 NumElements = (Buffer.GetLength() / Stride);
+			uint32 NumElements = ((Buffer.GetLength() - Offset) / Stride);
 			uint32 SizeX = NumElements;
 			uint32 SizeY = 1;
 			if (NumElements > GMaxTextureDimensions)
@@ -326,9 +326,11 @@ FMetalTexture FMetalRHIBuffer::AllocLinearTexture(EPixelFormat Format, NSUIntege
 				checkf(SizeX <= GMaxTextureDimensions, TEXT("Calculated height %u is greater than maximum permitted %d when converting buffer of size %llu with element stride %u to a 2D texture with %u elements."), SizeY, (int32)GMaxTextureDimensions, Buffer.GetLength(), Stride, NumElements);
 			}
 			
-			check(((SizeX*Stride) % 1024) == 0);
 			NewSize = SizeX*Stride;
-			
+
+			check((NewSize % 1024) == 0);
+			check((NewSize + Offset) <= Buffer.GetLength());
+
 			Desc = mtlpp::TextureDescriptor::Texture2DDescriptor(MTLFormat, SizeX, SizeY, NO);
 			Desc.SetStorageMode(Mode);
 			Desc.SetCpuCacheMode(Buffer.GetCpuCacheMode());
