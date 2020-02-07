@@ -111,16 +111,7 @@ void FSmartNameMapping::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::MoveCurveTypesToSkeleton)
 	{
-#if WITH_EDITORONLY_DATA
-		if (Ar.IsCooking())
-		{
-			Ar << LoadDataCurveMetaDataMap; // Cook out loaded data for determinism
-		}
-		else
-#endif
-		{
-			Ar << CurveMetaDataMap;
-		}
+		Ar << CurveMetaDataMap;
 	}
 
 	if (Ar.IsLoading())
@@ -128,10 +119,6 @@ void FSmartNameMapping::Serialize(FArchive& Ar)
 		CurveMetaDataMap.GenerateKeyArray(CurveNameList);
 #if !WITH_EDITOR
 		CurveMetaDataMap.GenerateValueArray(CurveMetaDataList);
-#endif
-
-#if WITH_EDITORONLY_DATA
-		LoadDataCurveMetaDataMap = CurveMetaDataMap;
 #endif
 	}
 }
@@ -306,7 +293,24 @@ const FSmartNameMapping* FSmartNameContainer::GetContainer(FName ContainerName) 
 
 void FSmartNameContainer::Serialize(FArchive& Ar)
 {
-	Ar << NameMappings;
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsCooking())
+	{
+		Ar << LoadedNameMappings;
+	}
+	else
+#endif
+	{
+		Ar << NameMappings;
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading())
+	{
+		//To preserve 
+		LoadedNameMappings = NameMappings;
+	}
+#endif
 }
 
 FSmartNameMapping* FSmartNameContainer::GetContainerInternal(const FName& ContainerName)
