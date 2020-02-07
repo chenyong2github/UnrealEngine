@@ -241,7 +241,7 @@ public:
 	void Cleanup();
 
 	/** Reinitializes all System instances, and rebuilds emitter handle view models and tracks. */
-	void RefreshAll();
+	NIAGARAEDITOR_API void RefreshAll();
 
 	/** Called to notify the system view model that one of the data objects in the system was modified. */
 	void NotifyDataObjectChanged(UObject* ChangedObject);

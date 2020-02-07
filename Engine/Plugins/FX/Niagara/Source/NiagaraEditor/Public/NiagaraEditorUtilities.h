@@ -226,6 +226,7 @@ namespace FNiagaraEditorUtilities
 
 	void ShowParentEmitterInContentBrowser(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 
+	void OpenParentEmitterForEdit(TSharedRef<FNiagaraEmitterViewModel> Emitter);
 	ECheckBoxState GetSelectedEmittersEnabledCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
 	void ToggleSelectedEmittersEnabled(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
 
