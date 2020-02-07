@@ -7,7 +7,7 @@
 
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetDMXPacket);
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetPollPacket);
-REGISTER_DMX_ARCHIVE(FArtNetPacketReply);
+REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetPacketReply);
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetTodRequest);
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetTodData);
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetTodControl);
@@ -54,7 +54,7 @@ void FDMXProtocolArtNetPollPacket::Serialize(FArchive & Ar)
 	Ar << Priority;
 }
 
-void FArtNetPacketReply::Serialize(FArchive & Ar)
+void FDMXProtocolArtNetPacketReply::Serialize(FArchive & Ar)
 {
 	Ar.Serialize((void*)ID, ARTNET_STRING_SIZE);
 	Ar << OpCode;

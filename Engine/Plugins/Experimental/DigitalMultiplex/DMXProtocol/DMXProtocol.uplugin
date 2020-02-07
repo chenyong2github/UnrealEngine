@@ -10,13 +10,13 @@
   "DocsURL": "",
   "MarketplaceURL": "",
   "SupportURL": "",
-  "CanContainContent": true,
+  "CanContainContent": false,
   "IsBetaVersion": true,
   "Modules": [
     {
       "Name": "DMXProtocol",
       "Type": "Runtime",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "PreDefault"
     },
     {
       "Name": "DMXProtocolArtNet",

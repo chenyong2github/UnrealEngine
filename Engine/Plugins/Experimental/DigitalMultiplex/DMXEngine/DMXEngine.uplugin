@@ -1,0 +1,38 @@
+{
+  "FileVersion": 1,
+  "Version": 1,
+  "VersionName": "1.0",
+  "FriendlyName": "DMX Engine",
+  "Description": "Functionality and assets for communication with DigitalMultiplexer (DMX) enabled devices",
+  "Category": "Media",
+  "CreatedBy": "Epic Games, Inc.",
+  "CreatedByURL": "http://epicgames.com",
+  "DocsURL": "",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "Modules": [
+    {
+      "Name": "DMXRuntime",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "DMXEditor",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    },
+	{
+      "Name": "DMXBlueprintGraph",
+      "Type": "UncookedOnly",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "DMXProtocol",
+      "Enabled": true
+    }
+  ]
+}

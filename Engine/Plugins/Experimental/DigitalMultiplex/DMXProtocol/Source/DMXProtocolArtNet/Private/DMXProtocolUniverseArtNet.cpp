@@ -4,28 +4,45 @@
 #include "Dom/JsonObject.h"
 
 #include "Interfaces/IDMXProtocol.h"
-#include "Interfaces/IDMXProtocolPort.h"
-#include "Interfaces/IDMXProtocolDevice.h"
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolTypes.h"
 
-FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(IDMXProtocol* InDMXProtocol, TSharedPtr<IDMXProtocolPort> InPort)
-	: DMXProtocol(InDMXProtocol)
-	, Port(InPort)
-	, Priority(0)
-	, UniverseID(InPort->GetUniverseID())
-{
-	checkf(DMXProtocol, TEXT("DMXProtocol pointer is nullptr"));
-	checkf(Port.IsValid(), TEXT("DMXProtocol port is not valid"));
+//~ Artnet specific constants
+static const uint8 HIGH_NIBBLE = 0xF0;
+static const uint8 LOW_NIBBLE = 0x0F;
+static const uint8 MAX_NET = 0x7f;
 
-	InputDMXBuffer = MakeShared<FDMXBuffer>();
+FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(TSharedPtr<IDMXProtocol> InDMXProtocol, const FJsonObject& InSettings)
+	: WeakDMXProtocol(InDMXProtocol)
+{
+	checkf(WeakDMXProtocol.IsValid(), TEXT("DMXProtocol pointer is nullptr"));
+
+	Priority = 100;
 	OutputDMXBuffer = MakeShared<FDMXBuffer>();
+	InputDMXBuffer = MakeShared<FDMXBuffer>();
+
+	Settings = MakeShared<FJsonObject>(InSettings);
+	checkf(Settings->HasField(TEXT("PortID")), TEXT("DMXProtocol PortID is not valid"));
+	checkf(Settings->HasField(TEXT("UniverseID")), TEXT("DMXProtocol Universe is not valid"));
+	PortID = Settings->GetNumberField(TEXT("PortID"));
+
+	/* Bits 15 			Bits 14-8        | Bits 7-4      | Bits 3-0
+	* 0 				Net 			 | Sub-Net 		 | Universe
+	* 0				    (0b1111111 << 8) | (0b1111 << 4) | (0b111)
+	*/
+	UniverseID = Settings->GetNumberField(TEXT("UniverseID"));
+	uint8 Net = (uint8)((UniverseID & 0b0111111100000000) >> 8);
+	uint8 Subnet = (uint8)((UniverseID & 0b11110000) >> 4);
+	uint8 Universe = (uint8)((UniverseID & 0b1111));
+	SetNetAddress(Net);
+	SetSubnetAddress(Subnet);
+	SetUniverse(Universe);
 }
 
 
-IDMXProtocol * FDMXProtocolUniverseArtNet::GetProtocol() const
+TSharedPtr<IDMXProtocol> FDMXProtocolUniverseArtNet::GetProtocol() const
 {
-	return DMXProtocol;
+	return WeakDMXProtocol.Pin();
 }
 
 TSharedPtr<FDMXBuffer> FDMXProtocolUniverseArtNet::GetOutputDMXBuffer() const
@@ -40,8 +57,7 @@ TSharedPtr<FDMXBuffer> FDMXProtocolUniverseArtNet::GetInputDMXBuffer() const
 
 bool FDMXProtocolUniverseArtNet::SetDMXFragment(const IDMXFragmentMap & DMXFragment)
 {
-	OutputDMXBuffer->SetDMXFragment(DMXFragment);
-	return false;
+	return OutputDMXBuffer->SetDMXFragment(DMXFragment);
 }
 
 uint8 FDMXProtocolUniverseArtNet::GetPriority() const
@@ -49,12 +65,99 @@ uint8 FDMXProtocolUniverseArtNet::GetPriority() const
 	return Priority;
 }
 
-uint16 FDMXProtocolUniverseArtNet::GetUniverseID() const
+uint32 FDMXProtocolUniverseArtNet::GetUniverseID() const
 {
 	return UniverseID;
 }
 
-TWeakPtr<IDMXProtocolPort> FDMXProtocolUniverseArtNet::GetCachedUniversePort() const
+TSharedPtr<FJsonObject> FDMXProtocolUniverseArtNet::GetSettings() const
 {
-	return Port;
+	return Settings;
 }
+
+bool FDMXProtocolUniverseArtNet::IsSupportRDM() const
+{
+	return true;
+}
+
+uint8 FDMXProtocolUniverseArtNet::GetPortID()
+{
+	return PortID;
+}
+
+bool FDMXProtocolUniverseArtNet::SetNetAddress(uint8 InNet)
+{
+	if (InNet & 0x80)
+	{
+		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Art-Net net address > 127, truncating!"));
+		NetAddress = InNet & MAX_NET;
+		return true;
+	}
+	if (NetAddress == InNet)
+	{
+		return false;
+	}
+
+	NetAddress = InNet;
+	return true;
+}
+
+bool FDMXProtocolUniverseArtNet::SetSubnetAddress(uint8 InSubnetAddress)
+{
+	// Bits 7-4
+	// Shift for 4 bytes
+	SubnetAddress = InSubnetAddress << 4;
+	if (SubnetAddress == (PortAddress & HIGH_NIBBLE))
+	{
+		return false;
+	}
+
+	PortAddress = SubnetAddress | (PortAddress & LOW_NIBBLE);
+
+	return true;
+}
+
+bool FDMXProtocolUniverseArtNet::SetUniverse(uint8 InUniverse)
+{
+	// Bits 1-3
+	UniverseAddress = InUniverse & LOW_NIBBLE;
+	if ((PortAddress & LOW_NIBBLE) == UniverseAddress)
+	{
+		return false;
+	}
+
+	PortAddress = ((PortAddress & HIGH_NIBBLE) | UniverseAddress);
+
+	return true;
+}
+
+uint8 FDMXProtocolUniverseArtNet::GetPortAddress() const
+{
+	return PortAddress;
+}
+
+uint8 FDMXProtocolUniverseArtNet::GetNetAddress() const
+{
+	return NetAddress;
+}
+
+uint8 FDMXProtocolUniverseArtNet::GetSubnetAddress() const
+{
+	return SubnetAddress;
+}
+
+uint8 FDMXProtocolUniverseArtNet::GetUniverseAddress() const
+{
+	return UniverseAddress;
+}
+
+const TArray<FRDMUID>& FDMXProtocolUniverseArtNet::GetTODUIDs() const
+{
+	return TODUIDs;
+}
+
+void FDMXProtocolUniverseArtNet::AddTODUID(const FRDMUID& InUID)
+{
+	TODUIDs.Add(InUID);
+}
+

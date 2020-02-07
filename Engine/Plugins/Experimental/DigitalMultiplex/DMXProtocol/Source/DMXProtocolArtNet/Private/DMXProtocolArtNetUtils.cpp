@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXProtocolArtNetUtils.h"
-#include "DMXProtocolArtNetPublicUtils.h"
 
 namespace ArtNet
 {
@@ -20,14 +19,5 @@ namespace ArtNet
 		}
 
 		return OpCode;
-	}
-
-	uint16 ComputeUniverseID(const uint8 Net, const uint8 Subnet, const uint8 Universe)
-	{
-		/* Bits 15 			Bits 14-8        | Bits 7-4      | Bits 3-0
-		* 0 				Net 			 | Sub-Net 		 | Universe
-		* 0				    (0b1111111 << 8) | (0b1111 << 4) | (0b1111)
-		*/
-		return (Net << 8) | (Subnet << 4) | Universe;
 	}
 }

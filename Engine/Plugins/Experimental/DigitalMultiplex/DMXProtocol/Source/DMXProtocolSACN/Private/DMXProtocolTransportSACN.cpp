@@ -199,7 +199,7 @@ void FDMXProtocolReceiverSACN::Update(const FTimespan& SocketWaitTime)
 
 	while (Socket->HasPendingData(Size))
 	{
-		FArrayReaderPtr Reader = MakeShareable(new FArrayReader(true));
+		FArrayReaderPtr Reader = MakeShared<FArrayReader, ESPMode::ThreadSafe>(true);
 		Reader->SetNumUninitialized(FMath::Min(Size, 65507u));
 
 		int32 Read = 0;

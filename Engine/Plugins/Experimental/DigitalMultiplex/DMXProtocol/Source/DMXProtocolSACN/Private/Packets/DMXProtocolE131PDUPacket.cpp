@@ -28,8 +28,7 @@ void FDMXProtocolE131RootLayerPacket::Serialize(FArchive & Ar)
 	Ar.SetByteSwapping(false);
 	Ar.Serialize((void*)ACNPacketIdentifier, ACN_IDENTIFIER_SIZE);
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar.SetByteSwapping(false);
 	Ar.Serialize((void*)CID, ACN_CIDBYTES);
@@ -47,8 +46,7 @@ TSharedPtr<FBufferArchive> FDMXProtocolE131FramingLayerPacket::Pack()
 void FDMXProtocolE131FramingLayerPacket::Serialize(FArchive & Ar)
 {
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar.SetByteSwapping(false);
 	Ar.Serialize((void*)SourceName, ACN_SOURCE_NAME_SIZE);
@@ -72,8 +70,7 @@ TSharedPtr<FBufferArchive> FDMXProtocolE131DMPLayerPacket::Pack()
 void FDMXProtocolE131DMPLayerPacket::Serialize(FArchive & Ar)
 {
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar << AddressTypeAndDataType;
 	Ar << FirstPropertyAddress;
@@ -96,8 +93,7 @@ TSharedPtr<FBufferArchive> FDMXProtocolUDPE131FramingLayerPacket::Pack()
 void FDMXProtocolUDPE131FramingLayerPacket::Serialize(FArchive & Ar)
 {
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar.SetByteSwapping(false);
 	Ar.Serialize((void*)SourceName, ACN_SOURCE_NAME_SIZE);
@@ -115,8 +111,7 @@ TSharedPtr<FBufferArchive> FDMXProtocolUDPE131DiscoveryLayerPacket::Pack()
 void FDMXProtocolUDPE131DiscoveryLayerPacket::Serialize(FArchive & Ar)
 {
 	Ar.SetByteSwapping(true);
-	Ar << Flags;
-	Ar << Length;
+	Ar << FlagsAndLength;
 	Ar << Vector;
 	Ar << Page;
 	Ar << Last;
