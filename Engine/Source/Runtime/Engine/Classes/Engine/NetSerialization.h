@@ -1847,15 +1847,15 @@ bool ReadFixedCompressedFloat(float &Value, FArchive& Ar)
 	float UnscaledValue = static_cast<float>( static_cast<int32>(Delta) - Details::Bias );
 
 #if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
-	if constexpr (MaxValue > MaxBitValue)
+	if constexpr (MaxValue > Details::MaxBitValue)
 	{
 		// We have to scale down, scale needs to be a float:
-		const float InvScale = MaxValue / (float)MaxBitValue;
+		const float InvScale = MaxValue / (float)Details::MaxBitValue;
 		Value = UnscaledValue * InvScale;
 	}
 	else
 	{
-		enum { scale = MaxBitValue / MaxValue };
+		enum { scale = Details::MaxBitValue / MaxValue };
 		const float InvScale = 1.f / (float)scale;
 
 		Value = UnscaledValue * InvScale;
