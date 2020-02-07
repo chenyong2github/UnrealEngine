@@ -6,6 +6,7 @@
 #include "AbcUtilities.h"
 #include "AbcImportSettings.h"
 #include "GeometryCacheHelpers.h"
+#include "AbcImportSettings.h"
 
 UGeometryCacheTrackAbcFile::UGeometryCacheTrackAbcFile()
 : EndFrameIndex(0)
@@ -44,7 +45,7 @@ const bool UGeometryCacheTrackAbcFile::UpdateBoundsData(const float Time, const 
 	return false;
 }
 
-bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath)
+bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImportSettings* AbcSettings)
 {
 	if (!FilePath.IsEmpty())
 	{
@@ -57,14 +58,14 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath)
 			return false;
 		}
 
-		// #ueent_todo: Expose some conversion settings in the component to use with the AbcFile
-		UAbcImportSettings* ImportSettings = DuplicateObject(GetMutableDefault<UAbcImportSettings>(), GetTransientPackage());
-
+		// Set the end frame from the Abc if none is specified in the settings
 		EndFrameIndex = FMath::Max(AbcFile->GetMaxFrameIndex() - 1, 1);
-		ImportSettings->SamplingSettings.FrameEnd = EndFrameIndex;
-		ImportSettings->ImportType = EAlembicImportType::GeometryCache;
+		if (AbcSettings->SamplingSettings.FrameEnd == 0)
+		{
+			AbcSettings->SamplingSettings.FrameEnd = EndFrameIndex;
+		}
 
-		Result = AbcFile->Import(ImportSettings);
+		Result = AbcFile->Import(AbcSettings);
 
 		if (Result != EAbcImportError::AbcImportError_NoError)
 		{

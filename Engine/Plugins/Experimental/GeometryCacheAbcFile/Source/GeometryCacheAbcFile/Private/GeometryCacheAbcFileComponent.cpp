@@ -7,6 +7,12 @@
 
 #define LOCTEXT_NAMESPACE "GeometryCacheAbcFileComponent"
 
+UGeometryCacheAbcFileComponent::UGeometryCacheAbcFileComponent()
+{
+	AbcSettings = NewObject<UAbcImportSettings>(this, TEXT("AbcSettings"));
+	AbcSettings->ImportType = EAlembicImportType::GeometryCache;
+}
+
 #if WITH_EDITOR
 void UGeometryCacheAbcFileComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -19,9 +25,32 @@ void UGeometryCacheAbcFileComponent::PostEditChangeProperty(FPropertyChangedEven
 		InvalidateTrackSampleIndices();
 	}
 
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	UMeshComponent::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+void UGeometryCacheAbcFileComponent::ReloadAbcFile()
+{
+	if (!GeometryCache || GeometryCache->Tracks.Num() == 0 || AlembicFilePath.FilePath.IsEmpty())
+	{
+		return;
+	}
+
+	UGeometryCacheTrackAbcFile* AbcFileTrack = Cast<UGeometryCacheTrackAbcFile>(GeometryCache->Tracks[0]);
+
+	AbcSettings->SamplingSettings = SamplingSettings;
+	AbcSettings->MaterialSettings = MaterialSettings;
+	AbcSettings->ConversionSettings = ConversionSettings;
+
+	bool bIsValid = AbcFileTrack->SetSourceFile(AlembicFilePath.FilePath, AbcSettings);
+	if (bIsValid)
+	{
+		// Also store the number of frames in the cache
+		GeometryCache->SetFrameStartEnd(0, AbcFileTrack->GetEndFrameIndex());
+	}
+
+	MarkRenderStateDirty();
+}
 
 void UGeometryCacheAbcFileComponent::InitializeGeometryCache()
 {
@@ -41,15 +70,8 @@ void UGeometryCacheAbcFileComponent::InitializeGeometryCache()
 	// #ueent_todo: Should be able to clear the Alembic file
 	if (!AlembicFilePath.FilePath.IsEmpty() && (AlembicFilePath.FilePath != AbcFileTrack->GetSourceFile()))
 	{
-		bool bIsValid = AbcFileTrack->SetSourceFile(AlembicFilePath.FilePath);
-		if (bIsValid)
-		{
-			// Also store the number of frames in the cache
-			GeometryCache->SetFrameStartEnd(0, AbcFileTrack->GetEndFrameIndex());
-		}
+		ReloadAbcFile();
 	}
-
-	MarkRenderStateDirty();
 }
 
 void UGeometryCacheAbcFileComponent::PostLoad()
