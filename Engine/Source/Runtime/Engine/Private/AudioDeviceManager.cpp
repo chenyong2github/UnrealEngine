@@ -243,11 +243,8 @@ void FAudioDeviceManager::ToggleAudioMixer()
 
 				check(AudioDevice);
 
-				// Set the new audio device handle to the old audio device handle
-				AudioDevice->DeviceID = DeviceID;
-
 				// Re-init the new audio device using appropriate settings so it behaves the same
-				if (AudioDevice->Init(AudioSettings->GetHighestMaxChannels()))
+				if (AudioDevice->Init(DeviceID, AudioSettings->GetHighestMaxChannels()))
 				{
 					AudioDevice->SetMaxChannels(QualityLevelMaxChannels);
 				}
@@ -465,7 +462,7 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 FAudioDeviceHandle FAudioDeviceManager::CreateNewDevice(const FAudioDeviceParams& InParams)
 {
 	Audio::FDeviceId DeviceID = GetNewDeviceID();
-	Devices.Emplace(DeviceID, FAudioDeviceContainer(InParams, this));
+	Devices.Emplace(DeviceID, FAudioDeviceContainer(InParams, DeviceID, this));
 	FAudioDeviceContainer* ContainerPtr = Devices.Find(DeviceID);
 	check(ContainerPtr);
 	if (!ContainerPtr->Device)
@@ -1291,7 +1288,7 @@ FAudioDeviceHandle& FAudioDeviceHandle::operator=(FAudioDeviceHandle&& Other)
 	return *this;
 }
 
-FAudioDeviceManager::FAudioDeviceContainer::FAudioDeviceContainer(const FAudioDeviceParams& InParams, FAudioDeviceManager* DeviceManager)
+FAudioDeviceManager::FAudioDeviceContainer::FAudioDeviceContainer(const FAudioDeviceParams& InParams, Audio::FDeviceId InDeviceID, FAudioDeviceManager* DeviceManager)
 	: NumberOfHandlesToThisDevice(0)
 	, Scope(InParams.Scope)
 	, bIsNonRealtime(InParams.bIsNonRealtime)
@@ -1326,7 +1323,7 @@ FAudioDeviceManager::FAudioDeviceContainer::FAudioDeviceContainer(const FAudioDe
 	// runtime is supported.
 	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
 	const int32 HighestMaxChannels = AudioSettings ? AudioSettings->GetHighestMaxChannels() : 0;
-	if (Device->Init(HighestMaxChannels))
+	if (Device->Init(InDeviceID, HighestMaxChannels))
 	{
 		const FAudioQualitySettings& QualitySettings = Device->GetQualityLevelSettings();
 		Device->SetMaxChannels(QualitySettings.MaxChannels);

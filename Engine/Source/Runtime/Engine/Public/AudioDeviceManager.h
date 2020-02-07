@@ -459,7 +459,7 @@ private:
 		/** Module this was created with. If nullptr, this device was created with the default module. */
 		IAudioDeviceModule* SpecifiedModule;
 
-		FAudioDeviceContainer(const FAudioDeviceParams& InParams, FAudioDeviceManager* DeviceManager);
+		FAudioDeviceContainer(const FAudioDeviceParams& InParams, Audio::FDeviceId InDeviceID, FAudioDeviceManager* DeviceManager);
 		~FAudioDeviceContainer();
 
 		FAudioDeviceContainer(const FAudioDeviceContainer& Other)

@@ -322,7 +322,7 @@ const FAudioQualitySettings& FAudioDevice::GetQualityLevelSettings()
 	return AudioSettings->GetQualityLevelSettings(QualityLevel);
 }
 
-bool FAudioDevice::Init(int32 InMaxSources)
+bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 {
 	SCOPED_BOOT_TIMING("FAudioDevice::Init");
 
@@ -332,6 +332,13 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	{
 		return true;
 	}
+
+	if (InDeviceID == INDEX_NONE)
+	{
+		return false;
+	}
+
+	DeviceID = InDeviceID;
 
 	bool bDeferStartupPrecache = false;
 
