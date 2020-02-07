@@ -948,7 +948,7 @@ static void BuildBundles(FExportGraph& ExportGraph, const TArray<FPackage*>& Pac
 	}
 }
 
-static void CreateDiskLayout(const TArray<FPackage*>& Packages, const TMap<FString, uint64> PackageOrderMap, const TMap<FString, uint64>& CookerFileOpenOrderMap)
+static void CreateDiskLayout(const TArray<FPackage*>& Packages, const TMap<FName, uint64> PackageOrderMap, const TMap<FName, uint64>& CookerOrderMap)
 {
 	IOSTORE_CPU_SCOPE(CreateDiskLayout);
 
@@ -989,12 +989,12 @@ static void CreateDiskLayout(const TArray<FPackage*>& Packages, const TMap<FStri
 	{
 		FPackageAndOrder& Entry = SortedPackages.AddDefaulted_GetRef();
 		Entry.Package = Package;
-		const uint64* FindPackageLoadOrder = PackageOrderMap.Find(Package->Name.ToString());
+		const uint64* FindPackageLoadOrder = PackageOrderMap.Find(Package->Name);
 		Entry.PackageLoadOrder = FindPackageLoadOrder ? *FindPackageLoadOrder : MAX_uint64;
-		const uint64* FindCookerOpenOrder = CookerFileOpenOrderMap.Find(Package->RelativeFileName);
+		const uint64* FindCookerOpenOrder = CookerOrderMap.Find(Package->Name);
 		/*if (!FindCookerOpenOrder)
 		{
-			UE_LOG(LogIoStore, Warning, TEXT("Missing cooker order for package: %s"), *Package->RelativeFileName);
+			UE_LOG(LogIoStore, Warning, TEXT("Missing cooker order for package: %s"), *Package->Name.ToString());
 		}*/
 		Entry.CookerOpenOrder = FindCookerOpenOrder ? *FindCookerOpenOrder : MAX_uint64;
 	}
@@ -2132,8 +2132,8 @@ int32 CreateTarget(
 	const TCHAR* CookedDir,
 	const TArray<FContainerSourceSpec>& Containers,
 	const FCookedFileStatMap& CookedFileStatMap,
-	const TMap<FString, uint64>& PackageOrderMap,
-	const TMap<FString, uint64>& CookerFileOpenOrderMap)
+	const TMap<FName, uint64>& PackageOrderMap,
+	const TMap<FName, uint64>& CookerOrderMap)
 {
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 
@@ -2651,7 +2651,7 @@ int32 CreateTarget(
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
-	CreateDiskLayout(Packages, PackageOrderMap, CookerFileOpenOrderMap);
+	CreateDiskLayout(Packages, PackageOrderMap, CookerOrderMap);
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
 	{
@@ -2931,7 +2931,7 @@ static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceF
 	return true;
 }
 
-static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FString, uint64>& OutMap)
+static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FName, uint64>& OutMap)
 {
 	TArray<FString> OrderFileContents;
 	if (!FFileHelper::LoadFileToStringArray(OrderFileContents, FilePath))
@@ -2950,7 +2950,12 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FString, uint64>& OutM
 			UE_LOG(LogIoStore, Error, TEXT("Invalid line in order file '%s'."), *OrderLine);
 			return false;
 		}
-		FPaths::NormalizeFilename(Path);
+		FString PackageName;
+		if (!FPackageName::TryConvertFilenameToLongPackageName(Path, PackageName, nullptr))
+		{
+			continue;;
+		}
+
 		uint64 Order = LineNumber;
 		FString OrderStr;
 		if (FParse::Token(OrderLinePtr, OrderStr, false))
@@ -2963,9 +2968,10 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FString, uint64>& OutM
 			Order = FCString::Atoi64(*OrderStr);
 		}
 
-		if (!OutMap.Contains(Path))
+		FName PackageFName(MoveTemp(PackageName));
+		if (!OutMap.Contains(PackageFName))
 		{
-			OutMap.Emplace(MoveTemp(Path), Order);
+			OutMap.Emplace(PackageFName, Order);
 		}
 
 		++LineNumber;
@@ -3044,7 +3050,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	UE_LOG(LogIoStore, Display, TEXT("==================== IoStore Utils ===================="));
 
-	TMap<FString, uint64> PackageOrderMap;
+	TMap<FName, uint64> PackageOrderMap;
 	FString PackageOrderFilePath;
 	if (FParse::Value(FCommandLine::Get(), TEXT("PackageOrder="), PackageOrderFilePath))
 	{
@@ -3054,11 +3060,11 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
-	TMap<FString, uint64> CookerFileOpenOrderMap;
-	FString CookerFileOpenOrderFilePath;
-	if (FParse::Value(FCommandLine::Get(), TEXT("CookerOrder="), CookerFileOpenOrderFilePath))
+	TMap<FName, uint64> CookerOrderMap;
+	FString CookerOrderFilePath;
+	if (FParse::Value(FCommandLine::Get(), TEXT("CookerOrder="), CookerOrderFilePath))
 	{
-		if (!ParsePakOrderFile(*CookerFileOpenOrderFilePath, CookerFileOpenOrderMap))
+		if (!ParsePakOrderFile(*CookerOrderFilePath, CookerOrderMap))
 		{
 			return -1;
 		}
@@ -3120,7 +3126,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		IFileManager::Get().IterateDirectoryStatRecursively(*CookedDirectory, CookedFileVistor);
 		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), CookedFileStatMap.Num());
 
-		int32 ReturnValue = CreateTarget(*OutputDirectory, *CookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerFileOpenOrderMap);
+		int32 ReturnValue = CreateTarget(*OutputDirectory, *CookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerOrderMap);
 		if (ReturnValue != 0)
 		{
 			return ReturnValue;
@@ -3147,7 +3153,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 			UE_LOG(LogIoStore, Display, TEXT("Creating target: '%s' using output path: '%s'"), *TargetPlatform->PlatformName(), *TargetCookedProjectDirectory);
 
-			int32 ReturnValue = CreateTarget(*TargetCookedProjectDirectory, *TargetCookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerFileOpenOrderMap);
+			int32 ReturnValue = CreateTarget(*TargetCookedProjectDirectory, *TargetCookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerOrderMap);
 			if (ReturnValue != 0)
 			{
 				return ReturnValue;
