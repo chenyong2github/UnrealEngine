@@ -117,7 +117,10 @@ FGlobalDistanceFieldCapture::~FGlobalDistanceFieldCapture()
 
 void FGlobalDistanceFieldCapture::OnReadbackComplete()
 {
-	ensure(Readback);
+	if (!ensureMsgf(Readback, TEXT("FGlobalDistanceFieldCapture::OnReadbackComplete called without a pending request!")))
+	{
+		return;
+	}
 
 	float MaxDist = -MAX_FLT;
 	float MinDist = MAX_FLT;
