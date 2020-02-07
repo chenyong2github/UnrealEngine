@@ -47,6 +47,7 @@ void FMaterialCachedExpressionData::Reset()
 	QualityLevelsUsed.Reset();
 	QualityLevelsUsed.AddDefaulted(EMaterialQualityLevel::Num);
 	bHasRuntimeVirtualTextureOutput = false;
+	bHasSceneColor = false;
 }
 
 static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& Entry, const FHashedMaterialParameterInfo& HashedParameterInfo)
@@ -298,6 +299,10 @@ void FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 		else if (Expression->IsA(UMaterialExpressionRuntimeVirtualTextureOutput::StaticClass()))
 		{
 			bHasRuntimeVirtualTextureOutput = true;
+		}
+		else if (Expression->IsA(UMaterialExpressionSceneColor::StaticClass()))
+		{
+			bHasSceneColor = true;
 		}
 		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{

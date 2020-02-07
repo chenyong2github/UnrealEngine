@@ -4484,13 +4484,7 @@ bool UMaterial::CanBeClusterRoot() const
 
 void UMaterial::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
-#if WITH_EDITORONLY_DATA
-	// Search for any scene color nodes
-	bool bHasSceneColor = HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSceneColor>();
-	OutTags.Add(FAssetRegistryTag("HasSceneColor", bHasSceneColor ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
-#else
-	check(false); // TODO Do we need to handle this??
-#endif
+	OutTags.Add(FAssetRegistryTag("HasSceneColor", CachedExpressionData.bHasSceneColor ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
 	Super::GetAssetRegistryTags(OutTags);
 }
 
