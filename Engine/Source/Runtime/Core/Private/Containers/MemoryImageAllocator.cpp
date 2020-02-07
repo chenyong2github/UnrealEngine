@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/ResourceArray.h"
 #include "Serialization/MemoryImage.h"
