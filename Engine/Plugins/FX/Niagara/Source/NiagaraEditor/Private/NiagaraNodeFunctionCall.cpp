@@ -294,6 +294,7 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 		ComputeNodeName();
 	}
 
+	UpdateNodeErrorMessage();
 }
 
 // Returns true if this node is deprecated
@@ -684,11 +685,6 @@ void UNiagaraNodeFunctionCall::UpdateNodeErrorMessage()
 			}
 		}
 	}
-}
-
-void UNiagaraNodeFunctionCall::PostPlacedNewNode()
-{
-	UpdateNodeErrorMessage();
 }
 
 bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
