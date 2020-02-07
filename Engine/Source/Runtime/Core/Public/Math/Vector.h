@@ -65,6 +65,15 @@ public:
 	/** Unreal left vector (0,-1,0) */
 	static CORE_API const FVector LeftVector;
 
+	/** Unit X axis vector (1,0,0) */
+	static CORE_API const FVector XAxisVector;
+
+	/** Unit Y axis vector (0,1,0) */
+	static CORE_API const FVector YAxisVector;
+
+	/** Unit Z axis vector (0,0,1) */
+	static CORE_API const FVector ZAxisVector;
+
 public:
 
 #if ENABLE_NAN_DIAGNOSTIC
