@@ -140,7 +140,6 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 #if WITH_EDITORONLY_DATA
 		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash ||
 #endif
-		DetailLevelMask != ReferenceSet.DetailLevelMask ||
 		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams ||
 		bInterpolatedSpawn != ReferenceSet.bInterpolatedSpawn ||
 		bRequiresPersistentIDs != ReferenceSet.bRequiresPersistentIDs )
@@ -212,14 +211,6 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 		KeyString += TEXT("[AdditionalDefines]") + Delimiter;
 	}
 
-	if (DetailLevelMask != 0xFFFFFFFF)
-	{
-		KeyString += FString::Printf(TEXT("DL_%d"), DetailLevelMask);
-	}
-	else
-	{
-		KeyString += TEXT("ALLDL") + Delimiter;
-	}
 
 	if (bUsesRapidIterationParams)
 	{
@@ -315,7 +306,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	Id.bUsesRapidIterationParams = true;
 	Id.bInterpolatedSpawn = false;
 	Id.bRequiresPersistentIDs = false;
-	Id.DetailLevelMask = 0xFFFFFFFF; // Unused for now.
 	
 	// Ideally we wouldn't want to do this but rather than push the data down
 	// from the emitter.
@@ -347,10 +337,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		if (Emitter->bDeterminism)
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.Determinism"));
-		}
-		if (Emitter->bOverrideGlobalSpawnCountScale)
-		{
-			Id.AdditionalDefines.Add(TEXT("Emitter.OverrideGlobalSpawnCountScale"));
 		}
 
 		if (!Emitter->bBakeOutRapidIteration)
@@ -1643,7 +1629,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 
 			NewResource->SetScript(this, (ERHIFeatureLevel::Type)TargetFeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.DetailLevelMask, GetFullName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFullName());
 			ResourceToCache = NewResource;
 
 			check(ResourceToCache);
@@ -1709,7 +1695,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 			ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
 			ScriptResource.SetScript(this, FeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.DetailLevelMask, GetFullName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFullName());
 
 			//if (ScriptResourcesByFeatureLevel[FeatureLevel])
 			{

@@ -15,6 +15,9 @@
 #include "GameFramework/PlayerController.h"
 
 
+PRAGMA_DISABLE_INLINING
+PRAGMA_DISABLE_OPTIMIZATION
+
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Deactivate [GT]"), STAT_NiagaraSystemDeactivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Complete [GT]"), STAT_NiagaraSystemComplete, STATGROUP_Niagara);
@@ -1386,18 +1389,6 @@ bool FNiagaraSystemInstance::GetPerInstanceDataAndOffsets(void*& OutData, uint32
 	return DataInterfaceInstanceDataOffsets.Num() != 0;
 }
 
-int32 FNiagaraSystemInstance::GetDetailLevel()const
-{
-	int32 DetailLevel = INiagaraModule::GetDetailLevel();
-#if WITH_EDITOR
-	if (Component && Component->bEnablePreviewDetailLevel)
-	{
-		DetailLevel = Component->PreviewDetailLevel;
-	}
-#endif
-	return DetailLevel;
-}
-
 void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSimulate)
 {
 	if (!GetSystem() || !Component || IsDisabled())
@@ -1519,6 +1510,8 @@ float FNiagaraSystemInstance::GetLODDistance()
 			LODDistance = FMath::Sqrt(LODDistanceSqr);
 		}
 	}
+
+	bLODDistanceIsValid = true;
 	return LODDistance;
 }
 
@@ -1630,7 +1623,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 		{
 			CurrentEmitterParameters.EmitterNumParticles = Emitter->GetNumParticles();
 			CurrentEmitterParameters.EmitterTotalSpawnedParticles = Emitter->GetTotalSpawnedParticles();
-			CurrentEmitterParameters.EmitterSpawnCountScale = Emitter->GetSpawnCountScale(EffectsQualityLevel);
+			const FNiagaraEmitterScalabilitySettings& ScalabilitySettings = Emitter->GetScalabilitySettings();
+			CurrentEmitterParameters.EmitterSpawnCountScale = ScalabilitySettings.bScaleSpawnCount ? ScalabilitySettings.SpawnCountScale : 1.0f;
 			++GatheredInstanceParameters.NumAlive;
 		}
 		else
@@ -2242,3 +2236,6 @@ FNiagaraSystemInstance::FOnDestroyed& FNiagaraSystemInstance::OnDestroyed()
 	return OnDestroyedDelegate;
 }
 #endif
+
+PRAGMA_ENABLE_INLINING
+PRAGMA_ENABLE_OPTIMIZATION

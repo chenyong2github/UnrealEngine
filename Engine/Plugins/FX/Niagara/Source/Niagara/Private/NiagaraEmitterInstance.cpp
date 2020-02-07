@@ -209,10 +209,9 @@ void FNiagaraEmitterInstance::Dump()const
 
 bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 {
-	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
 	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
 	return EmitterHandle.GetIsEnabled() &&
-		CachedEmitter->IsAllowedByDetailLevel(DetailLevel) &&
+		CachedEmitter->IsAllowedByScalability() &&
 		// TODO: fall back to CPU sim instead once we have scalability functionality to do so
 		(CachedEmitter->SimTarget != ENiagaraSimTarget::GPUComputeSim || (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform())));
 }
