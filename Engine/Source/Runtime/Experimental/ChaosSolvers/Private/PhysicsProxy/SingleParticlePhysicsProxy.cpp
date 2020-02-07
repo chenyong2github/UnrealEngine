@@ -419,6 +419,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccum
 {
 	Particle->SetF(Chaos::TVector<float, 3>(0));
 	Particle->SetTorque(Chaos::TVector<float, 3>(0));
+	Particle->SetLinearImpulse(Chaos::TVector<float, 3>(0));
+	Particle->SetAngularImpulse(Chaos::TVector<float, 3>(0));
 	Particle->ClearDirtyFlags();
 }
 
