@@ -404,10 +404,12 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		}
 		FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, MakeArrayView(Scripts), ScriptDefinedDataInterfaceParameters);
 
-		// Initialize bounds calculators
-		//-OPT: Could skip creating this if we won't ever use it
+		// Initialize bounds calculators - skip creating if we won't ever use it.  We leave the GPU sims in there with the editor so that we can
+		// generate the bounds from the readback in the tool.
+#if !WITH_EDITOR
 		bool bUseDynamicBounds = !CachedSystemFixedBounds.IsSet() && !CachedEmitter->bFixedBounds && CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim;
 		if (bUseDynamicBounds)
+#endif
 		{
 			BoundsCalculators.Reserve(CachedEmitter->GetRenderers().Num());
 			for (UNiagaraRendererProperties* RendererProperties : CachedEmitter->GetRenderers())
@@ -764,18 +766,44 @@ int FNiagaraEmitterInstance::GetTotalBytesUsed()
 	return BytesUsed;
 }
 
-FBox FNiagaraEmitterInstance::CalculateDynamicBounds(const bool bReadGPUSimulation)
+FBox FNiagaraEmitterInstance::InternalCalculateDynamicBounds(int32 ParticleCount) const
 {
-	if (IsComplete() || !BoundsCalculators.Num() || CachedEmitter == nullptr)
+	if (!ParticleCount || !BoundsCalculators.Num())
+	{
 		return FBox(ForceInit);
+	}
+
+	FBox Ret;
+	Ret.Init();
+
+	for (const TUniquePtr<FNiagaraBoundsCalculator>& BoundsCalculator : BoundsCalculators)
+	{
+		BoundsCalculator->RefreshAccessors();
+		Ret += BoundsCalculator->CalculateBounds(ParticleCount);
+	}
+
+	return Ret;
+}
+
+#if WITH_EDITOR
+void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpace)
+{
+	check(CachedEmitter);
+
+	if (IsComplete() || CachedEmitter == nullptr)
+	{
+		return ;
+	}
 
 	FScopedNiagaraDataSetGPUReadback ScopedGPUReadback;
 
 	int32 NumInstances = 0;
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
-		if (!bReadGPUSimulation || (GPUExecContext == nullptr))
-			return FBox(ForceInit);
+		if (GPUExecContext == nullptr)
+		{
+			return;
+		}
 
 		ScopedGPUReadback.ReadbackData(Batcher, GPUExecContext->MainDataSet);
 		NumInstances = ScopedGPUReadback.GetNumInstances();
@@ -786,40 +814,11 @@ FBox FNiagaraEmitterInstance::CalculateDynamicBounds(const bool bReadGPUSimulati
 	}
 
 	if (NumInstances == 0)
-		return FBox(ForceInit);
-
-	FBox Ret;
-	Ret.Init();
-
-	bool bContainsNaN = false;
-	for ( const TUniquePtr<FNiagaraBoundsCalculator>& BoundsCalculator : BoundsCalculators )
 	{
-		Ret += BoundsCalculator->CalculateBounds(NumInstances, bContainsNaN);
+		return;
 	}
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (bContainsNaN && ParentSystemInstance != nullptr && CachedEmitter != nullptr && ParentSystemInstance->GetSystem() != nullptr)
-	{
-		const FString OnScreenMessage = FString::Printf(TEXT("Niagara Particle position data contains NaNs. Likely a divide by zero somewhere in your modules. Emitter \"%s\" in System \"%s\".  Use fx.Niagara.DumpNansOnce to get full log."), *CachedEmitter->GetName(), *ParentSystemInstance->GetSystem()->GetName());
-		GEngine->AddOnScreenDebugMessage((uint64)((PTRINT)this), 3.f, FColor::Red, OnScreenMessage);
-
-		if (GbNiagaraDumpNans || GbNiagaraDumpNansOnce)
-		{
-			GbNiagaraDumpNansOnce = 0;
-			UE_LOG(LogNiagara, Warning, TEXT("Particle position data contains NaNs. Likely a divide by zero somewhere in your modules. Emitter \"%s\" in System \"%s\""), *CachedEmitter->GetName(), *ParentSystemInstance->GetSystem()->GetName());
-			ParentSystemInstance->Dump();
-		}
-	}
-#endif
-
-	return Ret;
-}
-
-void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpace)
-{
-	check(CachedEmitter);
-
-	FBox Bounds = CalculateDynamicBounds(true);
+	FBox Bounds = InternalCalculateDynamicBounds(NumInstances);
 	if (!Bounds.IsValid)
 		return;
 
@@ -836,6 +835,7 @@ void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpac
 
 	CachedBounds = Bounds;
 }
+#endif
 
 /** 
   * Do any post work such as calculating dynamic bounds.
@@ -859,7 +859,7 @@ void FNiagaraEmitterInstance::PostTick()
 	}
 	else
 	{
-		FBox DynamicBounds = CalculateDynamicBounds();
+		FBox DynamicBounds = InternalCalculateDynamicBounds(ParticleDataSet->GetCurrentDataChecked().GetNumInstances());
 		if (DynamicBounds.IsValid)
 		{
 			if (CachedEmitter->bLocalSpace)

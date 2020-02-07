@@ -1026,6 +1026,7 @@ void FNiagaraDataBuffer::ReleaseGPUInstanceCount(FNiagaraGPUInstanceCountManager
 }
 
 
+#if WITH_EDITOR
 void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatcher* InBatcher, FNiagaraDataSet* InDataSet)
 {
 	check(DataSet == nullptr);
@@ -1083,6 +1084,7 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatche
 	);
 	FlushRenderingCommands();
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
