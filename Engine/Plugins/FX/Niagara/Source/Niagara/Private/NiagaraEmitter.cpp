@@ -16,9 +16,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/ITargetPlatform.h"
 
-PRAGMA_DISABLE_INLINING
-PRAGMA_DISABLE_OPTIMIZATION
-
 #if WITH_EDITOR
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, EventHandlerScriptProps);
 
@@ -1536,6 +1533,3 @@ void UNiagaraEmitter::InitFastPathAttributeNames()
 	InitParameters(SpawnScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, SpawnFastPathAttributeNames);
 	InitParameters(UpdateScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, UpdateFastPathAttributeNames);
 }
-
-PRAGMA_ENABLE_INLINING
-PRAGMA_ENABLE_OPTIMIZATION

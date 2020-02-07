@@ -15,9 +15,6 @@
 #include "GameFramework/PlayerController.h"
 
 
-PRAGMA_DISABLE_INLINING
-PRAGMA_DISABLE_OPTIMIZATION
-
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Deactivate [GT]"), STAT_NiagaraSystemDeactivate, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("System Complete [GT]"), STAT_NiagaraSystemComplete, STATGROUP_Niagara);
@@ -2236,6 +2233,3 @@ FNiagaraSystemInstance::FOnDestroyed& FNiagaraSystemInstance::OnDestroyed()
 	return OnDestroyedDelegate;
 }
 #endif
-
-PRAGMA_ENABLE_INLINING
-PRAGMA_ENABLE_OPTIMIZATION
