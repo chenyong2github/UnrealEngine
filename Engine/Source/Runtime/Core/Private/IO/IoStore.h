@@ -17,7 +17,8 @@ struct FIoStoreTocHeader
 	uint32	TocEntrySize;	// For sanity checking
 	uint32	CompressionBlockCount;
 	uint32	CompressionBlockSize;
-	uint32	TocPad[23];
+	uint32	CompressionNameCount;
+	uint32	TocPad[22];
 
 	void MakeMagic()
 	{
@@ -111,10 +112,54 @@ struct FIoStoreTocEntry
 		OffsetAndLength.SetLength(Length);
 	}
 };
-
+/**
+ * Compression block entry.
+ */
 struct FIoStoreCompressedBlockEntry
 {
+	/** Offset and size of the compressed block. */
 	FIoOffsetAndLength OffsetAndLength;
-	uint8 CompressionMethod;
+	/** Index into the compression methods array. */
+	uint8 CompressionMethodIndex;
+};
+
+/**
+ * I/O store compresssion info.
+ */
+struct FIoStoreCompressionInfo
+{
+	enum
+	{
+		/** Compression method name max length. */
+		CompressionMethodNameLen = 32,
+		/** No compression. */
+		InvalidCompressionIndex = 255,
+	};
+
+	uint8 GetCompressionMethodIndex(FName CompressionMethod)
+	{
+		if (CompressionMethod == NAME_None)
+		{
+			return InvalidCompressionIndex;
+		}
+
+		for (int32 Idx = 0; Idx < CompressionMethods.Num(); ++Idx)
+		{
+			if (CompressionMethods[Idx] == CompressionMethod)
+			{
+				return uint8(Idx);
+			}
+		}
+
+		const uint8 Idx = uint8(CompressionMethods.Num());
+		CompressionMethods.Add(CompressionMethod);
+
+		return Idx;
+	}
+
+	/** Offset, length and compression method of each block in the container file. */
+	TArray<FIoStoreCompressedBlockEntry> BlockEntries;
+	/** Compression methods. */
+	TArray<FName> CompressionMethods;
 };
 

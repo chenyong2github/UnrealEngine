@@ -104,12 +104,13 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 		? reinterpret_cast<const FIoStoreCompressedBlockEntry*>(TocEntry + TocEntryCount)
 		: nullptr;
 
+	const ANSICHAR* CompressionMethodNames = reinterpret_cast<const ANSICHAR*>(CompressedBlockEntry + CompressedBlockEntryCount);
+
 	Toc.Reserve(TocEntryCount);
 	while (TocEntryCount--)
 	{
 		if (!CompressedBlockEntryCount && (TocEntry->GetOffset() + TocEntry->GetLength()) > ContainerFile.FileSize)
 		{
-			// TODO: add details
 			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocEntry out of container bounds while reading '") << *TocFilePath << TEXT("'");
 		}
 
@@ -120,8 +121,6 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 	if (CompressedBlockEntryCount > 0)
 	{
 		UE_LOG(LogIoDispatcher, Display, TEXT("Loading compressed toc: %s"), *TocFilePath);
-		ContainerFile.CompressionMethods.Add(FName());
-		ContainerFile.CompressionMethods.Add(FName("ZLib"));
 		ContainerFile.CompressionBlockSize = Header->CompressionBlockSize;
 		ContainerFile.CompressionBlocks.Reserve(Header->CompressionBlockCount);
 
@@ -129,7 +128,6 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 		{
 			if (CompressedBlockEntry->OffsetAndLength.GetOffset() + CompressedBlockEntry->OffsetAndLength.GetLength() > ContainerFile.FileSize)
 			{
-				// TODO: add details
 				return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC TocCompressedBlockEntry out of container bounds while reading '") << *TocFilePath << TEXT("'");
 			}
 
@@ -140,6 +138,12 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 	else
 	{
 		UE_LOG(LogIoDispatcher, Display, TEXT("Loading uncompressed toc: %s"), *TocFilePath);
+	}
+
+	for (uint32 CompressonNameIndex = 0; CompressonNameIndex < Header->CompressionNameCount; CompressonNameIndex++)
+	{
+		const ANSICHAR* CompressionMethodName = CompressionMethodNames + CompressonNameIndex * FIoStoreCompressionInfo::CompressionMethodNameLen;
+		ContainerFile.CompressionMethods.Add(FName(CompressionMethodName));
 	}
 
 	return FIoStatus::Ok;
@@ -253,7 +257,7 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 				{
 					if (ContainerFile.CompressionBlockSize > 0)
 					{
-						return ContainerFile.CompressionBlocks[BlockIndex].CompressionMethod != 0;
+						return ContainerFile.CompressionBlocks[BlockIndex].CompressionMethodIndex != FIoStoreCompressionInfo::InvalidCompressionIndex;
 					}
 					else
 					{
@@ -595,7 +599,7 @@ void FFileIoStore::ReadBlockAndScatter(uint32 ReaderIndex, uint32 BlockIndex, co
 		{
 			const FIoStoreCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[BlockIndex];
 			CompressedBlock->Size = ContainerFile.CompressionBlockSize;
-			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.CompressionMethod];
+			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.CompressionMethodIndex];
 			RawOffset = CompressionBlockEntry.OffsetAndLength.GetOffset();
 			RawSize = CompressionBlockEntry.OffsetAndLength.GetLength();
 		}

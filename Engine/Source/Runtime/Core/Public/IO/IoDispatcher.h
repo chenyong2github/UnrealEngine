@@ -797,6 +797,13 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
+struct FIoStoreWriterSettings
+{
+	FName CompressionMethod = NAME_None;
+	int64 CompressionBlockSize = 0;
+	bool bEnableCsvOutput;
+};
+
 class FIoStoreWriter
 {
 public:
@@ -806,8 +813,7 @@ public:
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
-	CORE_API FIoStatus	Initialize();
-	CORE_API FIoStatus	EnableCsvOutput();
+	CORE_API FIoStatus	Initialize(const FIoStoreWriterSettings& Settings);
 	CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name);
 
 	/**

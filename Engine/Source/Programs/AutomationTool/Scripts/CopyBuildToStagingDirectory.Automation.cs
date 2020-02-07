@@ -163,7 +163,15 @@ public partial class Project : CommandUtils
 		return CmdLine.ToString();
 	}
 
-	static private string GetIoStoreCommand(Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, FileReference PakOrderFileLocation, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, string EncryptionKeyGuid, FileReference SecondaryPakOrderFileLocation=null)
+	static private string GetIoStoreCommandArguments(
+		Dictionary<string, string> UnrealPakResponseFile,
+		FileReference OutputLocation,
+		FileReference PakOrderFileLocation,
+		string PlatformOptions,
+		bool Compressed,
+		EncryptionAndSigning.CryptoSettings CryptoSettings,
+		string EncryptionKeyGuid,
+		FileReference SecondaryPakOrderFileLocation=null)
 	{
 		StringBuilder CmdLine = new StringBuilder();
 		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(OutputLocation.FullName, null)));
@@ -175,6 +183,8 @@ public partial class Project : CommandUtils
 		string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakListIoStore_" + PakName + ".txt");
 		WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, Compressed, CryptoSettings, bForceEncryption);
 		CmdLine.AppendFormat(" -ResponseFile={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakResponseFileName));
+
+		CmdLine.Append(PlatformOptions);
 
 		return CmdLine.ToString();
 	}
@@ -2187,7 +2197,7 @@ public partial class Project : CommandUtils
 						AdditionalArgs += " -fallbackOrderForNonUassetFiles";
 					}
 
-					Dictionary<string, string> UnrealPakResponseFile;
+					Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile; 
 					if (ShouldCreateIoStoreContainerFiles(Params, SC))
 					{
 						UnrealPakResponseFile = new Dictionary<string, string>();
@@ -2206,13 +2216,31 @@ public partial class Project : CommandUtils
 								UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
 							}
 						}
-						IoStoreCommands.Add(GetIoStoreCommand(IoStoreResponseFile, OutputLocation, PrimaryOrderFile, PakParams.bCompressed, CryptoSettings, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+
+						IoStoreCommands.Add(GetIoStoreCommandArguments(
+							IoStoreResponseFile,
+							OutputLocation,
+							PrimaryOrderFile,
+							SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions,
+							PakParams.bCompressed,
+							CryptoSettings,
+							PakParams.EncryptionKeyGuid,
+							SecondaryOrderFile));
 					}
-					else
-					{
-						UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
-					}
-					Commands.Add(GetUnrealPakArguments(Params.RawProjectPath, UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+
+					Commands.Add(GetUnrealPakArguments(
+						Params.RawProjectPath,
+						UnrealPakResponseFile,
+						OutputLocation,
+						PrimaryOrderFile,
+						SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions,
+						PakParams.bCompressed,
+						CryptoSettings,
+						CryptoKeysCacheFilename,
+						PatchSourceContentPath,
+						PakParams.EncryptionKeyGuid,
+						SecondaryOrderFile));
+
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 				}
 			}
@@ -2256,7 +2284,7 @@ public partial class Project : CommandUtils
 					CookerOpenOrderFileLocation = FileLocation;
 				}
 			}
-			RunIoStore(Params, SC, IoStoreCommandsFileName, PackageOpenOrderFileLocation, CookerOpenOrderFileLocation);
+			RunIoStore(Params, SC, IoStoreCommandsFileName, PackageOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalCompressionOptionsOnCommandLine);
 		}
 
 		// Do any additional processing on the command output
@@ -2400,7 +2428,7 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference PackageOrderFileLocation, FileReference CookerOpenOrderFileLocation)
+	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference PackageOrderFileLocation, FileReference CookerOpenOrderFileLocation, string AdditionalCompressionOptionsOnCommandLine)
 	{
 		FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name);
 		string CommandletParams = String.Format("-OutputDirectory={0} -CookedDirectory={1} -Commands={2}", OutputLocation.FullName, SC.PlatformCookDir, MakePathSafeToUseWithCommandLine(CommandsFileName));
@@ -2411,6 +2439,10 @@ public partial class Project : CommandUtils
 		if (CookerOpenOrderFileLocation != null)
 		{
 			CommandletParams += String.Format(" -CookerOrder={0}", CookerOpenOrderFileLocation.FullName);
+		}
+		if (!string.IsNullOrWhiteSpace(AdditionalCompressionOptionsOnCommandLine))
+		{
+			CommandletParams += String.Format(" {0}", AdditionalCompressionOptionsOnCommandLine);
 		}
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
 		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);

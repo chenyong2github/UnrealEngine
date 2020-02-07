@@ -45,11 +45,14 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 #define OUTPUT_NAMEMAP_CSV 0
 #define OUTPUT_IMPORTMAP_CSV 0
 #define SKIP_WRITE_CONTAINER 0
-#define OUTPUT_CONTAINER_CSV 0
+
+const FName DefaultCompressionMethod = NAME_Zlib;
+const int64 DefaultCompressionBlockSize = 64 << 10;
 
 struct FContainerSourceFile 
 {
 	FString NormalizedPath;
+	bool bNeedsCompression = false;
 };
 
 struct FContainerSourceSpec
@@ -1793,7 +1796,8 @@ static void ParsePackageAssets(
 
 			IOSTORE_CPU_SCOPE_DATA(ReadPackage, TCHAR_TO_ANSI(*Package.FileName));
 
-			UE_CLOG(++ReadCount % 1000 == 0, LogIoStore, Display, TEXT("Reading %d/%d: '%s'"), ReadCount.Load(), Packages.Num(), *Package.FileName);
+			const int32 Count = ReadCount.IncrementExchange();
+			UE_CLOG(Count % 1000 == 0, LogIoStore, Display, TEXT("Reading %d/%d: '%s'"), Count, Packages.Num(), *Package.FileName);
 
 			{
 				TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileReader(*Package.FileName));
@@ -1862,7 +1866,8 @@ static void ParsePackageAssets(
 
 			IOSTORE_CPU_SCOPE_DATA(ParsePackage, TCHAR_TO_ANSI(*Package.FileName));
 
-			UE_CLOG(++ParseCount % 1000 == 0, LogIoStore, Display, TEXT("Parsing %d/%d: '%s'"), ParseCount.Load(), Packages.Num(), *Package.FileName);
+			const int32 Count = ParseCount.IncrementExchange();
+			UE_CLOG(Count % 1000 == 0, LogIoStore, Display, TEXT("Parsing %d/%d: '%s'"), Count, Packages.Num(), *Package.FileName);
 
 			if (Summary.NameCount > 0)
 			{
@@ -2133,7 +2138,8 @@ int32 CreateTarget(
 	const TArray<FContainerSourceSpec>& Containers,
 	const FCookedFileStatMap& CookedFileStatMap,
 	const TMap<FName, uint64>& PackageOrderMap,
-	const TMap<FName, uint64>& CookerOrderMap)
+	const TMap<FName, uint64>& CookerOrderMap,
+	const FIoStoreWriterSettings& GeneralIoWriterSettings)
 {
 	TGuardValue<int32> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, 1);
 
@@ -2166,12 +2172,8 @@ int32 CreateTarget(
 		GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv);
 		IoStoreWriters.Add(GlobalIoStoreWriter);
 #if !SKIP_WRITE_CONTAINER
-		FIoStatus IoStatus = GlobalIoStoreWriter->Initialize();
+		FIoStatus IoStatus = GlobalIoStoreWriter->Initialize(FIoStoreWriterSettings { NAME_None, 0 });
 		check(IoStatus.IsOk());
-#if OUTPUT_CONTAINER_CSV
-		IoStatus = GlobalIoStoreWriter->EnableCsvOutput();
-		check(IoStatus.IsOk());
-#endif
 #endif
 	}
 
@@ -2195,12 +2197,23 @@ int32 CreateTarget(
 				ContainerTarget.IoStoreWriter = new FIoStoreWriter(*ContainerTarget.IoStoreEnv);
 				IoStoreWriters.Add(ContainerTarget.IoStoreWriter);
 #if !SKIP_WRITE_CONTAINER
-				FIoStatus IoStatus = ContainerTarget.IoStoreWriter->Initialize();
+
+				const bool bUseCompression = nullptr != Algo::FindByPredicate(Container.SourceFiles, [](const FContainerSourceFile& SourceFile)
+				{
+					return SourceFile.bNeedsCompression;
+				});
+
+				FIoStoreWriterSettings IoStoreWriterSettings = GeneralIoWriterSettings;
+				if (!bUseCompression)
+				{
+					IoStoreWriterSettings.CompressionMethod = NAME_None;
+					IoStoreWriterSettings.CompressionBlockSize = 0;
+				}
+
+				check(!bUseCompression || IoStoreWriterSettings.CompressionMethod != NAME_None);
+
+				FIoStatus IoStatus = ContainerTarget.IoStoreWriter->Initialize(IoStoreWriterSettings);
 				check(IoStatus.IsOk());
-#if OUTPUT_CONTAINER_CSV
-				IoStatus = ContainerTarget.IoStoreWriter->EnableCsvOutput();
-				check(IoStatus.IsOk());
-#endif
 #endif
 			}
 
@@ -2662,7 +2675,8 @@ int32 CreateTarget(
 		{
 			TotalFileCount += ContainerTarget.TargetFiles.Num();
 		}
-		int32 CurrentFileIndex = 0;
+		
+		TAtomic<int32> CurrentFileIndex {0};
 
 		ParallelFor(ContainerTargets.Num(),[
 			&CurrentFileIndex,
@@ -2685,8 +2699,9 @@ int32 CreateTarget(
 			});
 			for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
 			{
-				UE_CLOG(CurrentFileIndex % 1000 == 0, LogIoStore, Display, TEXT("Serializing %d/%d: '%s'"), CurrentFileIndex, TotalFileCount, *TargetFile.NormalizedSourcePath);
-				++CurrentFileIndex;
+				const int32 Count = CurrentFileIndex.IncrementExchange();
+				UE_CLOG(Count % 1000 == 0, LogIoStore, Display, TEXT("Serializing %d/%d: '%s'"), Count, TotalFileCount, *TargetFile.NormalizedSourcePath);
+
 				if (TargetFile.bIsBulkData)
 				{
 					if (bWithBulkDataManifest)
@@ -2788,6 +2803,7 @@ int32 CreateTarget(
 
 	for (FIoStoreWriter* IoStoreWriter : IoStoreWriters)
 	{
+		IoStoreWriter->FlushMetadata();
 		delete IoStoreWriter;
 	}
 	IoStoreWriters.Empty();
@@ -2927,6 +2943,14 @@ static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceF
 
 		FContainerSourceFile& FileEntry = OutFiles.AddDefaulted_GetRef();
 		FileEntry.NormalizedPath = MoveTemp(SourceAndDest[0]);
+
+		for (int32 Index = 0; Index < Switches.Num(); ++Index)
+		{
+			if (Switches[Index] == TEXT("compress"))
+			{
+				FileEntry.bNeedsCompression = true;
+			}
+		}
 	}
 	return true;
 }
@@ -3070,6 +3094,56 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
+	FIoStoreWriterSettings GeneralIoWriterSettings { DefaultCompressionMethod, DefaultCompressionBlockSize, false };
+	GeneralIoWriterSettings.bEnableCsvOutput = FParse::Param(CmdLine, TEXT("-csvoutput"));
+
+	TArray<FName> CompressionFormats;
+	FString DesiredCompressionFormats;
+	if (FParse::Value(CmdLine, TEXT("-compressionformats="), DesiredCompressionFormats) ||
+		FParse::Value(CmdLine, TEXT("-compressionformat="), DesiredCompressionFormats))
+	{
+		TArray<FString> Formats;
+		DesiredCompressionFormats.ParseIntoArray(Formats, TEXT(","));
+		for (FString& Format : Formats)
+		{
+			// look until we have a valid format
+			FName FormatName = *Format;
+
+			if (FCompression::IsFormatValid(FormatName))
+			{
+				GeneralIoWriterSettings.CompressionMethod = FormatName;
+				break;
+			}
+		}
+
+		if (GeneralIoWriterSettings.CompressionMethod == NAME_None)
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("Failed to find desired compression format(s) '%s'. Using falling back to '%s'"),
+				*DesiredCompressionFormats, *DefaultCompressionMethod.ToString());
+		}
+		else
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("Using compression format '%s'"), *GeneralIoWriterSettings.CompressionMethod.ToString());
+		}
+	}
+
+	FString CompressionBlockSizeString;
+	if (FParse::Value(CmdLine, TEXT("-compressionblocksize="), CompressionBlockSizeString))
+	{
+		FParse::Value(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize);
+
+		if (CompressionBlockSizeString.EndsWith(TEXT("MB")))
+		{
+			GeneralIoWriterSettings.CompressionBlockSize *= 1024 * 1024;
+		}
+		else if (CompressionBlockSizeString.EndsWith(TEXT("KB")))
+		{
+			GeneralIoWriterSettings.CompressionBlockSize *= 1024;
+		}
+
+		UE_LOG(LogIoStore, Warning, TEXT("Using compression blocksize '%ld'"), GeneralIoWriterSettings.CompressionBlockSize);
+	}
+
 	FString CommandListFile;
 	if (FParse::Value(FCommandLine::Get(), TEXT("Commands="), CommandListFile))
 	{
@@ -3126,7 +3200,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		IFileManager::Get().IterateDirectoryStatRecursively(*CookedDirectory, CookedFileVistor);
 		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), CookedFileStatMap.Num());
 
-		int32 ReturnValue = CreateTarget(*OutputDirectory, *CookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerOrderMap);
+		int32 ReturnValue = CreateTarget(*OutputDirectory, *CookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerOrderMap, GeneralIoWriterSettings);
 		if (ReturnValue != 0)
 		{
 			return ReturnValue;
@@ -3153,7 +3227,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 			UE_LOG(LogIoStore, Display, TEXT("Creating target: '%s' using output path: '%s'"), *TargetPlatform->PlatformName(), *TargetCookedProjectDirectory);
 
-			int32 ReturnValue = CreateTarget(*TargetCookedProjectDirectory, *TargetCookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerOrderMap);
+			int32 ReturnValue = CreateTarget(*TargetCookedProjectDirectory, *TargetCookedDirectory, Containers, CookedFileStatMap, PackageOrderMap, CookerOrderMap, GeneralIoWriterSettings);
 			if (ReturnValue != 0)
 			{
 				return ReturnValue;
