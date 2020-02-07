@@ -403,6 +403,15 @@ public:
 	/** Callback issued whenever a VM compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnEmitterCompiled& OnEmitterVMCompiled();
 
+	/** Callback issued whenever a VM compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
+	NIAGARA_API FOnEmitterCompiled& OnEmitterGPUCompiled();
+
+	/** Callback issued whenever a GPU compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
+	NIAGARA_API FOnEmitterCompiled& OnGPUCompilationComplete()
+	{
+		return OnGPUScriptCompiledDelegate;
+	}
+	
 	NIAGARA_API static bool GetForceCompileOnLoad();
 
 	/** Whether or not this emitter is synchronized with its parent emitter. */
@@ -541,6 +550,11 @@ private:
 
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnVMScriptCompiledDelegate;
+
+	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
+	FOnEmitterCompiled OnGPUScriptCompiledDelegate;
+
+	void RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript);
 #endif
 
 	UPROPERTY()

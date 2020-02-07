@@ -677,13 +677,17 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 	{
 		const UNiagaraEmitter* EmitterInSystem = Handle.GetInstance();
 		TArray<UNiagaraScript*> EmitterScripts;
-		EmitterInSystem->GetScripts(EmitterScripts);
+		EmitterInSystem->GetScripts(EmitterScripts, false);
 		for (UNiagaraScript* EmitterScript : EmitterScripts)
 		{
 			ScriptsToGetCompileEventsFrom.Add(FNiagaraScriptAndOwningScriptNameString(EmitterScript, EmitterInSystem->GetUniqueEmitterName()));
 		}
 	}
 
+	// Clear out existing compile event messages from compile event message jobs for this asset.
+	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(SystemMessageLogGuidKey.GetValue(), ENiagaraMessageJobType::CompileEventMessageJob);
+
+	// Make new messages and messages jobs from the compile.
 	TArray<TSharedPtr<const INiagaraMessageJob>> JobBatchToQueue;
 	// Iterate from back to front to avoid reordering the events when they are queued
 	for (int i = ScriptsToGetCompileEventsFrom.Num()-1; i >=0; --i)
@@ -704,9 +708,33 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 
 			JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), ScriptInfo.OwningScriptNameString));
 		}
+		
+		// Check if there are any GPU compile errors and if so push them.
+		const FNiagaraShaderScript* ShaderScript = ScriptInfo.Script->GetRenderThreadScript();
+		if (ShaderScript != nullptr && ShaderScript->IsCompilationFinished() && 
+			ScriptInfo.Script->Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
+		{
+			const TArray<FString>& GPUCompileErrors = ShaderScript->GetCompileErrors();
+			for (const FString& String : GPUCompileErrors)
+			{
+				FNiagaraCompileEventSeverity Severity = FNiagaraCompileEventSeverity::Warning;
+				if (String.Contains(TEXT("err0r")))
+				{
+					Severity = FNiagaraCompileEventSeverity::Error;
+					ErrorCount++;
+				}
+				else
+				{
+					WarningCount++;
+				}
+				FNiagaraCompileEvent CompileEvent = FNiagaraCompileEvent(Severity, String);
+				JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)),
+					ScriptInfo.OwningScriptNameString));
+			}
+		}
+		
 	}
 	JobBatchToQueue.Insert(MakeShared<FNiagaraMessageJobPostCompileSummary>(ErrorCount, WarningCount, GetLatestCompileStatus(), FText::FromString("System")), 0);
-	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(SystemMessageLogGuidKey.GetValue(), ENiagaraMessageJobType::CompileEventMessageJob);
 	FNiagaraMessageManager::Get()->QueueMessageJobBatch(JobBatchToQueue, SystemMessageLogGuidKey.GetValue());
 }
 

@@ -449,6 +449,7 @@ public:
 	virtual int32 GetParameter(const FNiagaraVariable& Parameter);
 	virtual int32 GetRapidIterationParameter(const FNiagaraVariable& Parameter);
 
+	bool IsCompileOptionDefined(const TCHAR* InDefineStr);
 
 	virtual int32 GetAttribute(const FNiagaraVariable& Attribute);
 

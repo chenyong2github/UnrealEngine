@@ -537,6 +537,12 @@ public:
 	{
 		return &ScriptResource;
 	}
+	const FNiagaraShaderScript *GetRenderThreadScript() const
+	{
+		return &ScriptResource;
+	}
+
+	
 
 	FComputeShaderRHIRef GetScriptShader() 
 	{
@@ -597,9 +603,12 @@ public:
 	/** Creates a string key for the derived data cache */
 	FString GetNiagaraDDCKeyString();
 
-	/** Callback issued whenever a compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
+	/** Callback issued whenever a VM script compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnScriptCompiled& OnVMScriptCompiled();
-	
+
+	/** Callback issued whenever a GPU script compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
+	NIAGARA_API FOnScriptCompiled& OnGPUScriptCompiled();
+
 	/** External call used to identify the values for a successful VM script compilation. OnVMScriptCompiled will be issued in this case.*/
 	void SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FNiagaraCompileRequestDataBase* InRequestData);
 
@@ -609,10 +618,12 @@ public:
 	NIAGARA_API bool SynchronizeExecutablesWithMaster(const UNiagaraScript* Script, const TMap<FString, FString>& RenameMap);
 
 	NIAGARA_API void SyncAliases(const TMap<FString, FString>& RenameMap);
+
 #endif
 	
 	UFUNCTION()
-	void OnCompilationComplete();
+	void RaiseOnGPUCompilationComplete();
+
 
 	NIAGARA_API FNiagaraVMExecutableData& GetVMExecutableData() { return CachedScriptVM; }
 	NIAGARA_API const FNiagaraVMExecutableData& GetVMExecutableData() const { return CachedScriptVM; }
@@ -633,7 +644,7 @@ public:
 	void InvalidateExecutionReadyParameterStores();
 
 private:
-
+	bool OwnerCanBeRunOnGpu() const;
 	bool LegacyCanBeRunOnGpu()const;
 
 	/** Return the expected SimTarget for this script. Only returns a valid target if there is valid data to run with. */
@@ -668,6 +679,7 @@ private:
 	
 	/** A multicast delegate which is called whenever the script has been compiled (successfully or not). */
 	FOnScriptCompiled OnVMScriptCompiledDelegate;
+	FOnScriptCompiled OnGPUScriptCompiledDelegate;
 
 	mutable FNiagaraVMExecutableDataId LastReportedVMId;
 
