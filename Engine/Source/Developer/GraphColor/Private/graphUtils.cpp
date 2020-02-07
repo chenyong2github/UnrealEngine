@@ -610,7 +610,9 @@ int  e, degree;
 
 void gp_AttachArc(graphP theGraph, int v, int e, int link, int newArc)
 {
-     if (gp_IsArc(e))
+	CA_ASSUME(theGraph);
+	CA_ASSUME(theGraph->E);
+	if (gp_IsArc(e))
      {
     	 int e2 = gp_GetAdjacentArc(theGraph, e, link);
 
@@ -636,8 +638,7 @@ void gp_AttachArc(graphP theGraph, int v, int e, int link, int newArc)
     	 gp_SetAdjacentArc(theGraph, newArc, 1^link, NIL);
 
     	 // newArcs's elink is e2
-		 CA_ASSUME(theGraph);
-		 gp_SetAdjacentArc(theGraph, newArc, link, e2);
+    	 gp_SetAdjacentArc(theGraph, newArc, link, e2);
 
     	 // if e2 is an arc, then e2's 1^link is newArc, else v's 1^link is newArc
     	 if (gp_IsArc(e2))
@@ -1070,9 +1071,8 @@ int _IdentifyVertices(graphP theGraph, int u, int v, int eBefore)
         	gp_SetLastArc(theGraph, u, gp_GetLastArc(theGraph, v));
         }
 
-		CA_ASSUME(theGraph);
-		gp_SetFirstArc(theGraph, v, NIL);
-		gp_SetLastArc(theGraph, v, NIL);
+        gp_SetFirstArc(theGraph, v, NIL);
+        gp_SetLastArc(theGraph, v, NIL);
     }
 
     return OK;
