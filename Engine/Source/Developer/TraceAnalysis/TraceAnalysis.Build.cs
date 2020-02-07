@@ -11,11 +11,5 @@ public class TraceAnalysis : ModuleRules
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("Sockets");
 		PrivateDependencyModuleNames.Add("TraceLog");
-
-		PrivateDefinitions.Add("ASIO_SEPARATE_COMPILATION");
-		PrivateDefinitions.Add("ASIO_STANDALONE");
-		PrivateDefinitions.Add("ASIO_NO_EXCEPTIONS");
-		PrivateDefinitions.Add("ASIO_NO_TYPEID");
-		PrivateIncludePaths.Add("Developer/TraceAnalysis/Private/Asio");
 	}
 }
