@@ -811,7 +811,7 @@ void APlayerController::ClientRestart_Implementation(APawn* NewPawn)
 void APlayerController::OnPossess(APawn* PawnToPossess)
 {
 	if ( PawnToPossess != NULL && 
-		(PlayerState == NULL || !PlayerState->bOnlySpectator) )
+		(PlayerState == NULL || !PlayerState->IsOnlyASpectator()) )
 	{
 		const bool bNewPawn = (GetPawn() != PawnToPossess);
 
@@ -1221,7 +1221,7 @@ void APlayerController::Reset()
 	SetViewTarget(this);
 	ResetCameraMode();
 
-	bPlayerIsWaiting = !PlayerState->bOnlySpectator;
+	bPlayerIsWaiting = !PlayerState->IsOnlyASpectator();
 	ChangeState(NAME_Spectating);
 }
 
@@ -1232,7 +1232,7 @@ void APlayerController::ClientReset_Implementation()
 	ResetCameraMode();
 	SetViewTarget(this);
 
-	bPlayerIsWaiting = (PlayerState == nullptr) || !PlayerState->bOnlySpectator;
+	bPlayerIsWaiting = (PlayerState == nullptr) || !PlayerState->IsOnlyASpectator();
 	ChangeState(NAME_Spectating);
 }
 
@@ -3048,7 +3048,7 @@ void APlayerController::ServerRestartPlayer_Implementation()
 
 bool APlayerController::CanRestartPlayer()
 {
-	return PlayerState && !PlayerState->bOnlySpectator && HasClientLoadedCurrentWorld() && PendingSwapConnection == NULL;
+	return PlayerState && !PlayerState->IsOnlyASpectator() && HasClientLoadedCurrentWorld() && PendingSwapConnection == NULL;
 }
 
 /// @cond DOXYGEN_WARNINGS
@@ -4845,8 +4845,8 @@ bool APlayerController::DefaultCanUnpause()
 void APlayerController::StartSpectatingOnly()
 {
 	ChangeState(NAME_Spectating);
-	PlayerState->bIsSpectator = true;
-	PlayerState->bOnlySpectator = true;
+	PlayerState->SetIsSpectator(true);
+	PlayerState->SetIsOnlyASpectator(true);
 	bPlayerIsWaiting = false; // Can't spawn, we are only allowed to be a spectator.
 }
 
@@ -5030,11 +5030,11 @@ void APlayerController::EndSpectatingState()
 {
 	if ( PlayerState != NULL )
 	{
-		if ( PlayerState->bOnlySpectator )
+		if ( PlayerState->IsOnlyASpectator() )
 		{
 			UE_LOG(LogPlayerController, Warning, TEXT("Spectator only UPlayer* leaving spectating state"));
 		}
-		PlayerState->bIsSpectator = false;
+		PlayerState->SetIsSpectator(false);
 	}
 
 	bPlayerIsWaiting = false;
