@@ -1268,6 +1268,11 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
 						View->SpecularOverrideParameter = FVector4(.1f, .1f, .1f, 0.0f);
 					}
+					else if (View->Family->EngineShowFlags.LightingOnlyOverride)
+					{
+						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+						View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
+					}
 					else if (View->Family->EngineShowFlags.ReflectionOverride)
 					{
 						View->DiffuseOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
