@@ -15,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "NiagaraEditorDataBase.h"
 
 #if WITH_EDITOR
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, EventHandlerScriptProps);
@@ -515,6 +516,11 @@ void UNiagaraEmitter::PostLoad()
 		{
 			Renderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 		}
+
+		if (EditorData != nullptr)
+		{
+			EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
+		}
 	}
 #endif
 
@@ -816,6 +822,26 @@ bool UNiagaraEmitter::RequiresPersistantIDs()const
 FGuid UNiagaraEmitter::GetChangeId() const
 {
 	return ChangeId;
+}
+
+UNiagaraEditorDataBase* UNiagaraEmitter::GetEditorData() const
+{
+	return EditorData;
+}
+
+void UNiagaraEmitter::SetEditorData(UNiagaraEditorDataBase* InEditorData)
+{
+	if (EditorData != nullptr)
+	{
+		EditorData->OnPersistentDataChanged().RemoveAll(this);
+	}
+
+	EditorData = InEditorData;
+	
+	if (EditorData != nullptr)
+	{
+		EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
+	}
 }
 
 bool UNiagaraEmitter::AreAllScriptAndSourcesSynchronized() const
@@ -1132,6 +1158,8 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 		MergedRenderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 	}
 
+	SetEditorData(MergedEmitter->GetEditorData());
+
 	// Update the change id since we don't know what's changed.
 	UpdateChangeId(TEXT("Updated from merged copy"));
 }
@@ -1352,6 +1380,11 @@ void UNiagaraEmitter::RendererChanged()
 void UNiagaraEmitter::GraphSourceChanged()
 {
 	UpdateChangeId(TEXT("Graph source changed."));
+}
+
+void UNiagaraEmitter::PersistentEditorDataChanged()
+{
+	UpdateChangeId(TEXT("Persistent editor data changed."));
 }
 #endif
 

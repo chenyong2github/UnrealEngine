@@ -93,7 +93,6 @@ void SNiagaraStackParameterStoreEntryValue::Construct(const FArguments& InArgs, 
 			.IsFocusable(false)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ToolTipText(LOCTEXT("DeleteToolTip", "Delete this parameter"))
-			.Visibility(this, &SNiagaraStackParameterStoreEntryValue::GetDeleteButtonVisibility)
 			.OnClicked(this, &SNiagaraStackParameterStoreEntryValue::DeleteClicked)
 			.Content()
 			[
@@ -248,11 +247,6 @@ void SNiagaraStackParameterStoreEntryValue::ParameterValueChanged(TSharedRef<SNi
 void SNiagaraStackParameterStoreEntryValue::ParameterPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	StackEntry->NotifyValueChanged();
-}
-
-EVisibility SNiagaraStackParameterStoreEntryValue::GetDeleteButtonVisibility() const
-{
-	return StackEntry->CanRenameInput() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SNiagaraStackParameterStoreEntryValue::GetReferenceVisibility() const

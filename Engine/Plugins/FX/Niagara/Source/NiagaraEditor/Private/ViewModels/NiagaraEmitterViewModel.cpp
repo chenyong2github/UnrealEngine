@@ -239,7 +239,7 @@ const UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetEditorData() const
 {
 	check(Emitter.IsValid());
 
-	const UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->EditorData);
+	const UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData());
 	if (EditorData == nullptr)
 	{
 		EditorData = GetDefault<UNiagaraEmitterEditorData>();
@@ -250,12 +250,12 @@ const UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetEditorData() const
 UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetOrCreateEditorData()
 {
 	check(Emitter.IsValid());
-	UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->EditorData);
+	UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData());
 	if (EditorData == nullptr)
 	{
 		EditorData = NewObject<UNiagaraEmitterEditorData>(Emitter.Get(), NAME_None, RF_Transactional);
-		Emitter->Modify();
-		Emitter->EditorData = EditorData;
+		Emitter->Modify(); 
+		Emitter->SetEditorData(EditorData);
 	}
 	return *EditorData;
 }

@@ -2,15 +2,15 @@
 
 #include "NiagaraStackEditorData.h"
 
-bool UNiagaraStackEditorData::GetModuleInputIsRenamePending(const FString& ModuleInputKey) const
+bool UNiagaraStackEditorData::GetStackEntryIsRenamePending(const FString& StackEntryKey) const
 {
-	const bool* bIsRenamePendingPtr = ModuleInputKeyToRenamePendingMap.Find(ModuleInputKey);
+	const bool* bIsRenamePendingPtr = StackEntryKeyToRenamePendingMap.Find(StackEntryKey);
 	return bIsRenamePendingPtr != nullptr && *bIsRenamePendingPtr;
 }
 
-void UNiagaraStackEditorData::SetModuleInputIsRenamePending(const FString& ModuleInputKey, bool bIsRenamePending)
+void UNiagaraStackEditorData::SetStackEntryIsRenamePending(const FString& StackEntryKey, bool bIsRenamePending)
 {
-	ModuleInputKeyToRenamePendingMap.FindOrAdd(ModuleInputKey) = bIsRenamePending;
+	StackEntryKeyToRenamePendingMap.FindOrAdd(StackEntryKey) = bIsRenamePending;
 }
 
 bool UNiagaraStackEditorData::GetStackEntryIsExpanded(const FString& StackEntryKey, bool bIsExpandedDefault) const
@@ -52,6 +52,33 @@ void UNiagaraStackEditorData::SetStackItemShowAdvanced(const FString& StackEntry
 	if (ensureMsgf(StackEntryKey.IsEmpty() == false, TEXT("Can not set the show advanced state with an empty key")))
 	{
 		StackItemKeyToShowAdvancedMap.FindOrAdd(StackEntryKey) = bShowAdvanced;
+	}
+}
+
+const FText* UNiagaraStackEditorData::GetStackEntryDisplayName(const FString& StackEntryKey) const
+{
+	return StackEntryKeyToDisplayName.Find(StackEntryKey);
+}
+
+void UNiagaraStackEditorData::SetStackEntryDisplayName(const FString& StackEntryKey, const FText& InDisplayName)
+{
+	bool bBroadcast = false;
+
+	if (InDisplayName.IsEmptyOrWhitespace())
+	{
+		// we assume here that the display name has changed
+		StackEntryKeyToDisplayName.Remove(StackEntryKey);
+		bBroadcast = true;
+	}
+	else if (ensureMsgf(StackEntryKey.IsEmpty() == false, TEXT("Can not set the display name with an empty key")))
+	{
+		StackEntryKeyToDisplayName.FindOrAdd(StackEntryKey) = InDisplayName;
+		bBroadcast = true;
+	}
+
+	if (bBroadcast)
+	{
+		OnPersistentDataChanged().Broadcast();
 	}
 }
 

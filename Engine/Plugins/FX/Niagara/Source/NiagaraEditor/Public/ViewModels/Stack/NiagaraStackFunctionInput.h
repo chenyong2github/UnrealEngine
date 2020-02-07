@@ -184,16 +184,10 @@ public:
 	void ResetToBase();
 
 	/** Returns whether or not this input can be renamed. */
-	bool CanRenameInput() const;
-
-	/** Gets whether this input has a rename pending. */
-	bool GetIsRenamePending() const;
-
-	/** Sets whether this input has a rename pending. */
-	void SetIsRenamePending(bool bIsRenamePending);
+	virtual bool SupportsRename() const override;
 
 	/** Renames this input to the name specified. */
-	void RenameInput(FName NewName);
+	virtual void OnRenamed(FText NewName) override;
 
 	/** Returns whether or not this input can be deleted. */
 	bool CanDeleteInput() const;
