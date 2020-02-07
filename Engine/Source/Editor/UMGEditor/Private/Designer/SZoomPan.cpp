@@ -8,6 +8,8 @@
 
 void SZoomPan::Construct(const FArguments& InArgs)
 {
+	bHasRelativeLayoutScale = true;
+
 	ViewOffset = InArgs._ViewOffset;
 	ZoomAmount = InArgs._ZoomAmount;
 
@@ -20,9 +22,9 @@ void SZoomPan::Construct(const FArguments& InArgs)
 void SZoomPan::SetContent(const TSharedRef< SWidget >& InContent)
 {
 	ChildSlot
-		[
-			InContent
-		];
+	[
+		InContent
+	];
 }
 
 void SZoomPan::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
@@ -43,7 +45,7 @@ void SZoomPan::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChi
 	}
 }
 
-float SZoomPan::GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const
+float SZoomPan::GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const
 {
 	return ZoomAmount.Get();
 }
