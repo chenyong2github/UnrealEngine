@@ -11,6 +11,11 @@ public class Asio : ModuleRules
 		string AsioPath = Target.UEThirdPartySourceDirectory + "asio/1.12.2/";
 
 		PublicSystemIncludePaths.Add(AsioPath);
+
+		PublicDefinitions.Add("ASIO_SEPARATE_COMPILATION");
+		PublicDefinitions.Add("ASIO_STANDALONE");
+		PublicDefinitions.Add("ASIO_NO_EXCEPTIONS");
+		PublicDefinitions.Add("ASIO_NO_TYPEID");
 	}
 }
 
