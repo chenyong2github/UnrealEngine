@@ -180,13 +180,11 @@ struct FMinimalBoundShaderStateInput
 	}
 
 	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
-	// TODO - all of these resources should always (?) come from the same shader map
-	// can we enforce this, and only store a single resource pointer?
-	class FShaderMapResource* VertexShaderResource = nullptr;
-	class FShaderMapResource* HullShaderResource = nullptr;
-	class FShaderMapResource* DomainShaderResource = nullptr;
-	class FShaderMapResource* PixelShaderResource = nullptr;
-	class FShaderMapResource* GeometryShaderResource = nullptr;
+	TRefCountPtr<FShaderMapResource> VertexShaderResource;
+	TRefCountPtr<FShaderMapResource> HullShaderResource;
+	TRefCountPtr<FShaderMapResource> DomainShaderResource;
+	TRefCountPtr<FShaderMapResource> PixelShaderResource;
+	TRefCountPtr<FShaderMapResource> GeometryShaderResource;
 	int32 VertexShaderIndex = INDEX_NONE;
 	int32 HullShaderIndex = INDEX_NONE;
 	int32 DomainShaderIndex = INDEX_NONE;
