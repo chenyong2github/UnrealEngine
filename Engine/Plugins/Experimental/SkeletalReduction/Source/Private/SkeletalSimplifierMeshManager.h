@@ -73,8 +73,6 @@ namespace SkeletalSimplifier
 
 		~FSimplifierMeshManager()
 		{
-			if (VertArray) delete[] VertArray;
-			if (TriArray)  delete[] TriArray;
 		}
 
 		// Extract the currently valid verts / indices from this object.  If LockedVerts != NULL
@@ -425,8 +423,11 @@ namespace SkeletalSimplifier
 		int32   ReducedNumVerts;
 		int32   ReducedNumTris;
 
-		SimpVertType*		VertArray;
-		SimpTriType*		TriArray;
+		// Note after these arrays are constructed, they should never be resized.
+		// code holds pointers to array elements.
+		TArray<SimpVertType>  VertArray;
+		TArray<SimpTriType>   TriArray;
+
 
 		// Hash based on the Ids of the edge's verts.
 		// used to map verts to edges.
@@ -441,8 +442,8 @@ namespace SkeletalSimplifier
 
 		// Methods used in the initial construction of the simplifier mesh
 
-		void GroupVerts(SimpVertType* Verts, const int32 NumVerts);
-		void MakeEdges(const SimpVertType* Verts, const int32 NumVerts, const int32 NumTris, TArray<SimpEdgeType>& Edges);
+		void GroupVerts(TArray<SimpVertType>& Verts);
+		void MakeEdges(const TArray<SimpVertType>& Verts, const int32 NumTris, TArray<SimpEdgeType>& Edges);
 		void AppendConnectedEdges(const SimpVertType* Vert, TArray<SimpEdgeType>& Edges);
 		void GroupEdges(TArray< SimpEdgeType >& Edges);
 

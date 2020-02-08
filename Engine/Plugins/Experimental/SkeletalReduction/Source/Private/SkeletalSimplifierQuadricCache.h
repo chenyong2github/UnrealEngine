@@ -28,7 +28,7 @@ namespace SkeletalSimplifier
 		*/
 		void RegisterMesh(const FSimplifierMeshManager& Mesh)
 		{
-			RegisterCache(Mesh.VertArray, Mesh.NumSrcVerts, Mesh.TriArray, Mesh.NumSrcTris);
+			RegisterCache(Mesh.VertArray, Mesh.TriArray);
 		}
 
 		/**
@@ -88,12 +88,10 @@ namespace SkeletalSimplifier
 		* Associate the cache with the simplifier vert and triangle arrays.
 		* This must be done before the cache can be used.
 		*
-		* @param VertOffset  Pointer to the array of verts in the source mesh
-		* @param NumVerts    Number of Verts in the source mesh
-		* @param TriOffset   Pointer to the array of Tris in the source mesh
-		* @param NumTris     Number of tris in the source mesh
+		* @param VertArray   Array of verts in the source mesh
+		* @param TriArray    Array of Tris in the source mesh
 		*/
-		void RegisterCache(const SimpVertType* VertOffset, const int32 NumVerts, const SimpTriType* TriOffset, const int32 NumTris);
+		void RegisterCache(const TArray<SimpVertType>& VertArray, const TArray<SimpTriType>& TriArray);
 
 		/**
 		* Allocate the member arrays with the size required
@@ -148,10 +146,13 @@ namespace SkeletalSimplifier
 
 
 	template <typename WedgeQuadricType>
-	void TQuadricCache< WedgeQuadricType>::RegisterCache(const SimpVertType* VertOffset, const int32 NumVerts, const SimpTriType* TriOffset, const int32 NumTris)
+	void TQuadricCache< WedgeQuadricType>::RegisterCache(const TArray<SimpVertType>& VertArray,  const TArray<SimpTriType>& TriArray )
 	{
-		sVerts = VertOffset;
-		sTris = TriOffset;
+		const int32 NumVerts = VertArray.Num();
+		const int32 NumTris  = TriArray.Num();
+	
+		sVerts = VertArray.GetData();
+		sTris  = TriArray.GetData();
 
 		AllocateCacheArrays(NumVerts, NumTris);
 	}

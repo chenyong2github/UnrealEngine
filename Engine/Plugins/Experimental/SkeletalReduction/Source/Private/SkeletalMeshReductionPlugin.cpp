@@ -1455,7 +1455,8 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 
 			//  Create a structure that allows us to look-up by SourceModel Vertex ID 
 			
-			BoneIdWeightMap* VtxToBoneIdWeightMap             = new  BoneIdWeightMap[NumImportVertex];
+			TArray<BoneIdWeightMap> VtxToBoneIdWeightMap;
+			VtxToBoneIdWeightMap.AddDefaulted(NumImportVertex);
 
 			for (int32 i = 0; i < SrcModelInfluences.Num(); ++i)
 			{
@@ -1541,7 +1542,6 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 				}
 			}
 
-			delete[] VtxToBoneIdWeightMap;
 		}
 
 	}
