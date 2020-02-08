@@ -10,6 +10,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
@@ -71,6 +72,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 	, bCompilePendingCompletion(false)
 	, SystemStackViewModel(nullptr)
 	, SelectionViewModel(nullptr)
+	, ScriptScratchPadViewModel(nullptr)
 {
 	GEditor->RegisterForUndo(this);
 }
@@ -100,6 +102,11 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	SystemStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
 	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
 	SystemStackViewModel->OnStructureChanged().AddSP(this, &FNiagaraSystemViewModel::StackViewModelStructureChanged);
+
+	ScriptScratchPadViewModel = NewObject<UNiagaraScratchPadViewModel>(GetTransientPackage());
+	ScriptScratchPadViewModel->Initialize(this->AsShared());
+	ScriptScratchPadViewModel->OnScriptRenamed().AddSP(this, &FNiagaraSystemViewModel::ScratchPadScriptsChanged);
+	ScriptScratchPadViewModel->OnScriptDeleted().AddSP(this, &FNiagaraSystemViewModel::ScratchPadScriptsChanged);
 
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
@@ -177,6 +184,14 @@ void FNiagaraSystemViewModel::Cleanup()
 		SelectionViewModel->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		SelectionViewModel->Finalize();
 		SelectionViewModel = nullptr;
+	}
+
+	if (ScriptScratchPadViewModel != nullptr)
+	{
+		ScriptScratchPadViewModel->OnScriptRenamed().RemoveAll(this);
+		ScriptScratchPadViewModel->OnScriptDeleted().RemoveAll(this);
+		ScriptScratchPadViewModel->Finalize();
+		ScriptScratchPadViewModel = nullptr;
 	}
 }
 
@@ -478,6 +493,10 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 	{
 		Collector.AddReferencedObject(SelectionViewModel);
 	}
+	if (ScriptScratchPadViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(ScriptScratchPadViewModel);
+	}
 }
 
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
@@ -580,6 +599,16 @@ FNiagaraSystemViewModel::FOnPreClose& FNiagaraSystemViewModel::OnPreClose()
 	return OnPreCloseDelegate;
 }
 
+FNiagaraSystemViewModel::FOnRequestFocusTab& FNiagaraSystemViewModel::OnRequestFocusTab()
+{
+	return OnRequestFocusTabDelegate;
+}
+
+void FNiagaraSystemViewModel::FocusTab(FName TabName)
+{
+	OnRequestFocusTabDelegate.Broadcast(TabName);
+}
+
 TSharedPtr<FUICommandList> FNiagaraSystemViewModel::GetToolkitCommands()
 {
 	return ToolkitCommands.Pin();
@@ -640,6 +669,11 @@ UNiagaraStackViewModel* FNiagaraSystemViewModel::GetSystemStackViewModel()
 UNiagaraSystemSelectionViewModel* FNiagaraSystemViewModel::GetSelectionViewModel()
 {
 	return SelectionViewModel;
+}
+
+UNiagaraScratchPadViewModel* FNiagaraSystemViewModel::GetScriptScratchPadViewModel()
+{
+	return ScriptScratchPadViewModel;
 }
 
 TStatId FNiagaraSystemViewModel::GetStatId() const
@@ -765,6 +799,7 @@ void FNiagaraSystemViewModel::RefreshAll()
 	RefreshEmitterHandleViewModels();
 	RefreshSequencerTracks();
 	ResetCurveData();
+	ScriptScratchPadViewModel->RefreshScriptViewModels();
 }
 
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
@@ -1887,6 +1922,15 @@ void FNiagaraSystemViewModel::StackViewModelStructureChanged()
 	if (SelectionViewModel != nullptr)
 	{
 		SelectionViewModel->RefreshDeferred();
+	}
+}
+
+void FNiagaraSystemViewModel::ScratchPadScriptsChanged()
+{
+	SystemStackViewModel->GetRootEntry()->RefreshChildren();
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->RefreshChildren();
 	}
 }
 

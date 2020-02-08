@@ -144,6 +144,9 @@ public:
 	/** Sets the dynamic custom expression script for this input. */
 	void SetCustomExpression(const FString& InCustomExpression);
 
+	/** Create a new scratch pad dynamic inputs and set this input to use it. */
+	void SetScratch();
+
 	/** Gets the current struct value of this input is there is one. */
 	TSharedPtr<const FStructOnScope> GetLocalValueStruct();
 

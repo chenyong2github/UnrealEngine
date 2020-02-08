@@ -36,6 +36,7 @@ struct FEdGraphEditAction;
 class UNiagaraNodeFunctionCall;
 class FNiagaraEmitterViewModel;
 class FNiagaraOverviewGraphViewModel;
+class UNiagaraScratchPadViewModel;
 
 /** Defines different editing modes for this system view model. */
 enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
@@ -101,6 +102,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedCurvesChanged);
 
 	DECLARE_MULTICAST_DELEGATE(FOnPreClose);
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRequestFocusTab, FName /* TabName */);
 
 public:
 	struct FEmitterHandleToDuplicate
@@ -275,6 +278,10 @@ public:
 	NIAGARAEDITOR_API void NotifyPreClose();
 
 	NIAGARAEDITOR_API FOnPreClose& OnPreClose();
+
+	FOnRequestFocusTab& OnRequestFocusTab();
+
+	void FocusTab(FName TabName);
 	
 	/** Gets the system toolkit command list. */
 	NIAGARAEDITOR_API TSharedPtr<FUICommandList> GetToolkitCommands();
@@ -296,6 +303,8 @@ public:
 
 	/** Gets the a view model representing the selected entries in the overview. */
 	NIAGARAEDITOR_API UNiagaraSystemSelectionViewModel* GetSelectionViewModel();
+
+	NIAGARAEDITOR_API UNiagaraScratchPadViewModel* GetScriptScratchPadViewModel();
 
 	/** Duplicates a set of emitters and refreshes everything.*/
 	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
@@ -424,6 +433,9 @@ private:
 	/** Called whenever one of the owned stack viewmodels structure changes. */
 	void StackViewModelStructureChanged();
 
+	/** Called whenever one of the scripts in the scratch pad changes. */
+	void ScratchPadScriptsChanged();
+
 private:
 	/** The System being viewed and edited by this view model. */
 	UNiagaraSystem* System;
@@ -487,6 +499,8 @@ private:
 
 	/** A multicast delegate which is called whenever this has been notified it's owner will be closing. */
 	FOnPreClose OnPreCloseDelegate;
+
+	FOnRequestFocusTab OnRequestFocusTabDelegate;
 
 	/** A flag for preventing reentrancy when syncrhonizing sequencer data. */
 	bool bUpdatingEmittersFromSequencerDataChange;
@@ -553,4 +567,6 @@ private:
 	UNiagaraStackViewModel* SystemStackViewModel;
 
 	UNiagaraSystemSelectionViewModel* SelectionViewModel;
+
+	UNiagaraScratchPadViewModel* ScriptScratchPadViewModel;
 };

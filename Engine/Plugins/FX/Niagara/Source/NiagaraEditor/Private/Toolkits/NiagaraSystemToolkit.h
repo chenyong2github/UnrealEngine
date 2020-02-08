@@ -107,6 +107,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_GeneratedCode(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_MessageLog(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemOverview(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_ScratchPad(const FSpawnTabArgs& Args);
 
 	/** Builds the toolbar widget */
 	void ExtendToolbar();	
@@ -134,6 +135,7 @@ private:
 	void OnPinnedCurvesChanged();
 	void RefreshParameters();
 	void OnSystemSelectionChanged();
+	void OnViewModelRequestFocusTab(FName TabName);
 
 	TSharedRef<SWidget> GenerateBoundsMenuContent(TSharedRef<FUICommandList> InCommandList);
 	const FName GetNiagaraSystemMessageLogName(UNiagaraSystem* InSystem) const;
@@ -175,6 +177,7 @@ private:
 
 	bool bChangesDiscarded;
 
+public:
 	static const FName ViewportTabID;
 	static const FName CurveEditorTabID;
 	static const FName SequencerTabID;
@@ -188,7 +191,9 @@ private:
 	static const FName GeneratedCodeTabID;
 	static const FName MessageLogTabID;
 	static const FName SystemOverviewTabID;
+	static const FName ScratchPadTabID;
 
+private:
 	static bool bShowLibraryOnly;
 	static bool bShowTemplateOnly;
 };

@@ -3,6 +3,8 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraNodeParameterMapGet.h"
@@ -30,6 +32,7 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraClipboard.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
@@ -148,7 +151,6 @@ void UNiagaraStackFunctionInput::Initialize(
 	InputParameterHandlePath.Add(InputParameterHandle);
 
 	DisplayName = FText::FromName(InputParameterHandle.GetName());
-	AliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(InputParameterHandle, OwningFunctionCallNode.Get());
 
 	InputType = InInputType;
 	StackEditorDataKey = FNiagaraStackGraphUtilities::GenerateStackFunctionInputEditorDataKey(*OwningFunctionCallNode.Get(), InputParameterHandle);
@@ -389,6 +391,7 @@ FText UNiagaraStackFunctionInput::GetValueToolTip() const
 
 void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
+	AliasedInputParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(InputParameterHandle, OwningFunctionCallNode.Get());
 	RapidIterationParameter = CreateRapidIterationVariable(AliasedInputParameterHandle.GetParameterHandleString());
 
 	RefreshFromMetaData();
@@ -1030,28 +1033,45 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 	DynamicInputScriptFilterOptions.bIncludeNonLibraryScripts = bIncludeNonLibraryInputs;
 	FNiagaraEditorUtilities::GetFilteredScriptAssets(DynamicInputScriptFilterOptions, DynamicInputAssets);
 
+	auto MatchesInputType = [this](UNiagaraScript* Script)
+	{
+		UNiagaraScriptSource* DynamicInputScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
+		TArray<UNiagaraNodeOutput*> OutputNodes;
+		DynamicInputScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
+		if (OutputNodes.Num() == 1)
+		{
+			TArray<UEdGraphPin*> InputPins;
+			OutputNodes[0]->GetInputPins(InputPins);
+			if (InputPins.Num() == 1)
+			{
+				const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+				FNiagaraTypeDefinition PinType = NiagaraSchema->PinToTypeDefinition(InputPins[0]);
+				if (PinType == InputType)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+
 	for (const FAssetData& DynamicInputAsset : DynamicInputAssets)
 	{
 		UNiagaraScript* DynamicInputScript = Cast<UNiagaraScript>(DynamicInputAsset.GetAsset());
 		if (DynamicInputScript != nullptr)
 		{
-			UNiagaraScriptSource* DynamicInputScriptSource = Cast<UNiagaraScriptSource>(DynamicInputScript->GetSource());
-			TArray<UNiagaraNodeOutput*> OutputNodes;
-			DynamicInputScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
-			if (OutputNodes.Num() == 1)
+			if(MatchesInputType(DynamicInputScript))
 			{
-				TArray<UEdGraphPin*> InputPins;
-				OutputNodes[0]->GetInputPins(InputPins);
-				if (InputPins.Num() == 1)
-				{
-					const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
-					FNiagaraTypeDefinition PinType = NiagaraSchema->PinToTypeDefinition(InputPins[0]);
-					if (PinType == InputType)
-					{
-						AvailableDynamicInputs.Add(DynamicInputScript);
-					}
-				}
+				AvailableDynamicInputs.Add(DynamicInputScript);
 			}
+		}
+	}
+
+	for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel : GetSystemViewModel()->GetScriptScratchPadViewModel()->GetScriptViewModels())
+	{
+		if (MatchesInputType(ScratchPadScriptViewModel->GetScript()))
+		{
+			AvailableDynamicInputs.Add(ScratchPadScriptViewModel->GetScript());
 		}
 	}
 }
@@ -1097,6 +1117,18 @@ void UNiagaraStackFunctionInput::SetCustomExpression(const FString& InCustomExpr
 	FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
 
 	RefreshChildren();
+}
+
+void UNiagaraStackFunctionInput::SetScratch()
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("SetScratch", "Make new scratch dynamic input"));
+	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchScriptViewModel = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScript(ENiagaraScriptUsage::DynamicInput, SourceScript->GetUsage(), InputType);
+	if (ScratchScriptViewModel.IsValid())
+	{
+		SetDynamicInput(ScratchScriptViewModel->GetScript());
+		ScratchScriptViewModel->SetIsPendingRename(true);
+	}
+	GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::ScratchPadTabID);
 }
 
 TSharedPtr<const FStructOnScope> UNiagaraStackFunctionInput::GetLocalValueStruct()
@@ -1730,7 +1762,11 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			if (ensureMsgf(ClipboardFunctionInput.Dynamic->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset,
 				TEXT("Can not set dynamic input value from clipboard, only script asset funcitons can be set.")))
 			{
-				SetDynamicInput(ClipboardFunctionInput.Dynamic->Script, ClipboardFunctionInput.Dynamic->FunctionName);
+				UNiagaraScript* ClipboardScript = ClipboardFunctionInput.Dynamic->Script->IsAsset()
+					? ClipboardFunctionInput.Dynamic->Script
+					: GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionInput.Dynamic->Script)->GetScript();
+				SetDynamicInput(ClipboardScript, ClipboardFunctionInput.Dynamic->FunctionName);
+
 				TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
 				GetUnfilteredChildrenOfType(DynamicInputCollections);
 				for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)

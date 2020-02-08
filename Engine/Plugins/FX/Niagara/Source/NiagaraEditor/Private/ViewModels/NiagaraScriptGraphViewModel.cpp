@@ -17,7 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptGraphViewModel"
 
-FNiagaraScriptGraphViewModel::FNiagaraScriptGraphViewModel(FText InDisplayName)
+FNiagaraScriptGraphViewModel::FNiagaraScriptGraphViewModel(TAttribute<FText> InDisplayName)
 	: DisplayName(InDisplayName)
 	, Commands(MakeShareable(new FUICommandList()))
 	, NodeSelection(MakeShareable(new FNiagaraObjectSelection()))
@@ -41,7 +41,7 @@ void FNiagaraScriptGraphViewModel::SetScriptSource(UNiagaraScriptSource* InScrip
 
 FText FNiagaraScriptGraphViewModel::GetDisplayName() const
 {
-	return DisplayName;
+	return DisplayName.Get();
 }
 
 UNiagaraScriptSource* FNiagaraScriptGraphViewModel::GetScriptSource()

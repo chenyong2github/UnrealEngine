@@ -19,6 +19,7 @@ public:
 		FMergeEmitterResults()
 			: MergeResult(EMergeEmitterResult::None)
 			, bModifiedGraph(false)
+			, MergedInstance(nullptr)
 		{
 		}
 

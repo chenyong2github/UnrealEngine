@@ -237,6 +237,20 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 
 	Style->Set("NiagaraEditor.ShowInCurveEditorIcon", new IMAGE_PLUGIN_BRUSH("Icons/ShowInCurveEditor", Icon16x16, FLinearColor::White));
 
+	// Scratch pad
+	FSlateFontInfo ScratchPadLargeHeaderFont = DEFAULT_FONT("Bold", 11);
+	FTextBlockStyle ScratchPadLargeHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadLargeHeaderFont);
+	Style->Set("NiagaraEditor.ScratchPad.LargeHeaderText", ScratchPadLargeHeaderText);
+
+	FSlateFontInfo ScratchPadSmallHeaderFont = DEFAULT_FONT("Bold", 9);
+	FTextBlockStyle ScratchPadSmallHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadSmallHeaderFont);
+	Style->Set("NiagaraEditor.ScratchPad.SmallHeaderText", ScratchPadSmallHeaderText);
+
+	Style->Set("NiagaraEditor.ScratchPad.HeaderColor", FLinearColor(FColor(48, 48, 48)));
+
+
 	return Style;
 }
 
