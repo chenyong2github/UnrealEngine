@@ -28,7 +28,7 @@ public:
 	 * The parent DMX library of the Entity
 	 * Automatically set when calling SetEntity with a valid Entity.
 	 */
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "DMX")
 	UDMXLibrary* DMXLibrary;
 
 	/** Display the DMX Library asset picker. True by default, for Blueprint variables */
@@ -65,7 +65,7 @@ private:
 	
 private:
 	/** The entity's unique ID */
-	UPROPERTY(EditAnywhere) // Without EditAnywhere here the value is not saved on components in a Level
+	UPROPERTY(EditAnywhere, Category = "DMX") // Without EditAnywhere here the value is not saved on components in a Level
 	FGuid EntityId;
 };
 

@@ -106,7 +106,7 @@ public:
 	 * @param	InFixturePatch	pointer to set the UDMXEntityFixturePatch to
 	 * @return	The literal UDMXEntityFixturePatch
 	 */
-	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "TRUE"))
+	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "TRUE"), Category = "DMX")
 	UDMXEntityFixturePatch* GetFixturePatch(FDMXEntityFixturePatchRef InFixturePatch);
 
 	/**
@@ -116,7 +116,7 @@ public:
 	 * @param	OutFunctionsMap Function and Channel value output map
 	 * @return	True if outputting was successfully
 	 */
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "SelectedProtocol"))
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "SelectedProtocol"), Category = "DMX")
 	bool GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, const FDMXProtocolName& SelectedProtocol, TMap<FName, int32>& OutFunctionsMap);
 
 	/**
@@ -125,7 +125,7 @@ public:
 	 * @param	InFunctionsMap Function and Channel value input map
 	 * @return	Function channel value
 	 */
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InName, InFunctionsMap"))
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InName, InFunctionsMap"), Category = "DMX")
 	int32 GetFunctionsValue(const FName& InName, const TMap<FName, int32>& InFunctionsMap);
 
 public:

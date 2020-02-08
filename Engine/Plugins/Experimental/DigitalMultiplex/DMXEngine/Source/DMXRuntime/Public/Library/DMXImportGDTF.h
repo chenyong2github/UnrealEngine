@@ -120,7 +120,7 @@ struct DMXRUNTIME_API FDMXImportGDTFActivationGroup
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 };
 
@@ -129,7 +129,7 @@ struct DMXRUNTIME_API FDMXImportGDTFFeature
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 };
 
@@ -138,13 +138,13 @@ struct DMXRUNTIME_API FDMXImportGDTFFeatureGroup
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FString Pretty;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFFeature> Features;
 };
 
@@ -153,25 +153,25 @@ struct DMXRUNTIME_API FDMXImportGDTFAttribute
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FString Pretty;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFActivationGroup ActivationGroup;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFFeature Feature;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FString MainAttribute;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFPhysicalUnit PhysicalUnit = EDMXImportGDTFPhysicalUnit::None;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXColorCIE Color;
 };
 
@@ -180,10 +180,10 @@ struct FDMXImportGDTFFilter
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXColorCIE Color;
 };
 
@@ -193,13 +193,13 @@ struct FDMXImportGDTFWheelSlot
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXColorCIE Color;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFFilter Filter;
 
     UPROPERTY(VisibleAnywhere, Category = "Fixture Type")
@@ -211,10 +211,10 @@ struct FDMXImportGDTFWheel
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFWheelSlot> Slots;
 };
 
@@ -223,10 +223,10 @@ struct FDMXImportGDTFMeasurementPoint
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float WaveLength = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float Energy = 0.f;
 };
 
@@ -236,19 +236,19 @@ struct FDMXImportGDTFMeasurement
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float Physical = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float LuminousIntensity = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float Transmission = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFInterpolationTo InterpolationTo = EDMXImportGDTFInterpolationTo::Linear;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFMeasurementPoint> MeasurementPoints;
 };
 
@@ -257,19 +257,19 @@ struct FDMXImportGDTFEmitter
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXColorCIE Color;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float DominantWaveLength = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FString DiodePart;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFMeasurement Measurement;
 };
 
@@ -278,22 +278,22 @@ struct FDMXImportGDTFColorSpace
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFMode Mode = EDMXImportGDTFMode::sRGB;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FString Description;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXColorCIE Red;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXColorCIE Green;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXColorCIE Blue;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXColorCIE WhitePoint;
 };
 
@@ -315,19 +315,19 @@ struct FDMXImportGDTFModel
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float Length = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float Width = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float Height = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFPrimitiveType PrimitiveType = EDMXImportGDTFPrimitiveType::Undefined;
 };
 
@@ -336,13 +336,13 @@ struct FDMXImportGDTFGeometryBase
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Model;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FMatrix Position;
 };
 
@@ -352,31 +352,31 @@ struct FDMXImportGDTFBeam
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFLampType LampType = EDMXImportGDTFLampType::Discharge;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float PowerConsumption = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float LuminousFlux = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float ColorTemperature = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float BeamAngle = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float FieldAngle = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float BeamRadius = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFBeamType BeamType = EDMXImportGDTFBeamType::Wash;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     uint8 ColorRenderingIndex = 0;
 };
 
@@ -386,7 +386,7 @@ struct FDMXImportGDTFTypeAxis
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFBeam> Beams;
 };
 
@@ -396,7 +396,7 @@ struct FDMXImportGDTFGeneralAxis
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFTypeAxis> Axis;
 };
 
@@ -440,10 +440,10 @@ struct FDMXImportGDTFBreak
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     int32 DMXOffset = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     uint8 DMXBreak = 0;
 };
 
@@ -453,7 +453,7 @@ struct FDMXImportGDTFGeometryReference
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFBreak> Breaks;
 };
 
@@ -463,25 +463,25 @@ struct FDMXImportGDTFGeneralGeometry
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFGeneralAxis Axis;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFTypeGeometry Geometry;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFFilterBeam FilterBeam;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFFilterColor FilterColor;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFFilterGobo FilterGobo;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFFilterShaper FilterShaper;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFGeometryReference GeometryReference;
 };
 
@@ -498,10 +498,10 @@ struct DMXRUNTIME_API FDMXImportGDTFDMXValue
 
     FDMXImportGDTFDMXValue(const FString& InDMXValueStr);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     int32 Value;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     uint8 ValueSize;
 };
 
@@ -510,19 +510,19 @@ struct FDMXImportGDTFChannelSet
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FString Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFDMXValue DMXFrom;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float PhysicalFrom = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float PhysicalTo = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     int32 WheelSlotIndex = 0;
 };
 
@@ -531,52 +531,52 @@ struct FDMXImportGDTFChannelFunction
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFAttribute Attribute;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FString OriginalAttribute;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFDMXValue DMXFrom;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFDMXValue DMXValue;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float PhysicalFrom = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float PhysicalTo = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float RealFade = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFWheel Wheel;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFEmitter Emitter;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFFilter Filter;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFDMXInvert DMXInvert = EDMXImportGDTFDMXInvert::No;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FString ModeMaster;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFDMXValue ModeFrom;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFDMXValue ModeTo;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFChannelSet> ChannelSets;
 };
 
@@ -585,22 +585,22 @@ struct FDMXImportGDTFLogicalChannel
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFAttribute Attribute;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFSnap Snap = EDMXImportGDTFSnap::No;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFMaster Master = EDMXImportGDTFMaster::None;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float MibFade = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     float DMXChangeTimeLimit = 0.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFChannelFunction ChannelFunction;
 };
 
@@ -611,22 +611,22 @@ struct DMXRUNTIME_API FDMXImportGDTFDMXChannel
 
     void ParseOffset(const FString& InOffsetStr);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     int32 DMXBreak = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     TArray<int32> Offset;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFDMXValue Default;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFDMXValue Highlight;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FName Geometry;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFLogicalChannel LogicalChannel;
 };
 
@@ -635,16 +635,16 @@ struct FDMXImportGDTFRelation
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FString Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FString Master;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FString Follower;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     EDMXImportGDTFType Type = EDMXImportGDTFType::Multiply;
 };
 
@@ -653,7 +653,7 @@ struct FDMXImportGDTFFTMacro
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FName Name;
 };
 
@@ -662,19 +662,19 @@ struct FDMXImportGDTFDMXMode
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FName Name;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     FName Geometry;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFDMXChannel> DMXChannels;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFRelation> Relations;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFFTMacro> FTMacros;
 };
 
@@ -722,13 +722,13 @@ public:
     bool FindAtributeByName(const FName& InName, FDMXImportGDTFAttribute& OutAttribute) const;
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFActivationGroup> ActivationGroups;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFFeatureGroup> FeatureGroups;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFAttribute> Attributes;
 };
 
@@ -742,7 +742,7 @@ public:
     bool FindWeelByName(const FName& InName, FDMXImportGDTFWheel& OutWheel) const;
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFWheel> Wheels;
 };
 
@@ -756,16 +756,16 @@ public:
     bool FindEmitterByName(const FName& InName, FDMXImportGDTFEmitter& OutEmitter) const;
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFEmitter> Emitters;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFColorSpace ColorSpace;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFDMXProfiles DMXProfiles;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     FDMXImportGDTFCRIs CRIs;
 };
 
@@ -777,7 +777,7 @@ class DMXRUNTIME_API UDMXImportGDTFModels
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFModel> Models;
 };
 
@@ -788,7 +788,7 @@ class DMXRUNTIME_API UDMXImportGDTFGeometries
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFGeneralGeometry> GeneralGeometry;
 };
 
@@ -799,7 +799,7 @@ class DMXRUNTIME_API UDMXImportGDTFDMXModes
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FDMXImportGDTFDMXMode> DMXModes;
 
 public:
@@ -814,7 +814,7 @@ class DMXRUNTIME_API UDMXImportGDTFProtocols
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX")
     TArray<FName> Protocols;
 };
 

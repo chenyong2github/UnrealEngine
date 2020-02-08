@@ -224,7 +224,7 @@ public:
 		StructPropertyHandle = InPropertyHandle;
 		TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
 
-		check(CastChecked<UStructProperty>(StructPropertyHandle->GetProperty())->Struct == TStructType::StaticStruct());
+		check(CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty())->Struct == TStructType::StaticStruct());
 
 		InHeaderRow
 			.NameContent()
@@ -266,7 +266,7 @@ private:
 
 	void SetValue(FName NewValue)
 	{
-		UStructProperty* StructProperty = CastChecked<UStructProperty>(StructPropertyHandle->GetProperty());
+		FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty());
 
 		TArray<void*> RawData;
 		StructPropertyHandle->AccessRawData(RawData);

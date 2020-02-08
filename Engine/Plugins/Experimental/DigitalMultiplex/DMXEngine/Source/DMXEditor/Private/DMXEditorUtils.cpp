@@ -520,15 +520,15 @@ bool FDMXEditorUtils::AreFixtureTypesIdentical(const UDMXEntityFixtureType* A, c
 
 	// Compare each UProperty in the projects
 	const UStruct* Struct = UDMXEntityFixtureType::StaticClass();
-	TPropertyValueIterator<const UProperty> ItA(Struct, A);
-	TPropertyValueIterator<const UProperty> ItB(Struct, B);
+	TPropertyValueIterator<const FProperty> ItA(Struct, A);
+	TPropertyValueIterator<const FProperty> ItB(Struct, B);
 
 	static const FName NAME_ParentLibrary = TEXT("ParentLibrary");
 	static const FName NAME_Id = TEXT("Id");
 
 	for (; ItA && ItB; ++ItA, ++ItB)
 	{
-		const UProperty* Property = ItA->Key;
+		const FProperty* Property = ItA->Key;
 
 		// Name and Id don't have to be identical
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UDMXEntity, Name)

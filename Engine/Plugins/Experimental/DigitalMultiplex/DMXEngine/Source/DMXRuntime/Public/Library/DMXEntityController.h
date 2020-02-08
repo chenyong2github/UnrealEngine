@@ -13,7 +13,7 @@ class DMXRUNTIME_API UDMXEntityController
 
 public:
 	/**  Defines where DMX data is sent to. */
-	UPROPERTY(EditAnywhere) // Hidden. For now it has just a single value. More values will be added in the future.
+	UPROPERTY(EditAnywhere, Category = "DMX") // Hidden. For now it has just a single value. More values will be added in the future.
 	EDMXCommunicationTypes CommunicationMode;
 
 	/**  First Universe ID on this Controller's range. */
@@ -61,7 +61,7 @@ public:
 	}
 
 	/** Returns the currently assigned protocol for this controller */
-	UFUNCTION(BlueprintPure)
+	UFUNCTION(BlueprintPure, Category = "DMX")
 	FName GetProtocol() const { return DeviceProtocol.Name; }
 
 #if WITH_EDITOR
