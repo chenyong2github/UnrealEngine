@@ -7,6 +7,8 @@
 #include "Misc/Paths.h"
 #include "Misc/Compression.h"
 #include "Serialization/BufferWriter.h"
+#include "Async/Async.h"
+#include "Async/Future.h"
 #include "Async/ParallelFor.h"
 
 //////////////////////////////////////////////////////////////////////////
