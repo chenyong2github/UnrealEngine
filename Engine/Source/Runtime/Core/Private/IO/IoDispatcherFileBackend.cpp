@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Async/AsyncWork.h"
 #include "HAL/RunnableThread.h"
+#include "Misc/ScopeLock.h"
 
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalBytesRead, TEXT("IoDispatcher/TotalBytesRead"));
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalBytesScattered, TEXT("IoDispatcher/TotalBytesScattered"));
