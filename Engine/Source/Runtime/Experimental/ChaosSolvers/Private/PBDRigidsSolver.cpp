@@ -30,11 +30,19 @@ FAutoConsoleVariableRef CVarChaosSolverDrawCollisions(TEXT("p.Chaos.Solver.Debug
 FAutoConsoleVariableRef CVarChaosSolverDrawBPBounds(TEXT("p.Chaos.Solver.DrawBPBounds"), ChaosSolverDrawBPBounds, TEXT("Draw bounding volumes inside the broadphase (0 = never; 1 = end of frame)."));
 #endif
 
+bool ChaosSolverUseParticlePool = true;
+FAutoConsoleVariableRef CVarChaosSolverUseParticlePool(TEXT("p.Chaos.Solver.UseParticlePool"), ChaosSolverUseParticlePool, TEXT("Whether or not to use dirty particle pool (Optim)"));
+
+int32 ChaosSolverParticlePoolNumFrameUntilShrink = 30;
+FAutoConsoleVariableRef CVarChaosSolverParticlePoolNumFrameUntilShrink(TEXT("p.Chaos.Solver.ParticlePoolNumFrameUntilShrink"), ChaosSolverParticlePoolNumFrameUntilShrink, TEXT("Num Frame until we can potentially shrink the pool"));
+
 float ChaosSolverCollisionDefaultIterationsCVar = 1;
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultIterations(TEXT("p.ChaosSolverCollisionDefaultIterations"), ChaosSolverCollisionDefaultIterationsCVar, TEXT("Default collision iterations for the solver.[def:1]"));
 
 int32 ChaosSolverCleanupCommandsOnDestruction = 1;
 FAutoConsoleVariableRef CVarChaosSolverCleanupCommandsOnDestruction(TEXT("p.Chaos.Solver.CleanupCommandsOnDestruction"), ChaosSolverCleanupCommandsOnDestruction, TEXT("Whether or not to run internal command queue cleanup on solver destruction (0 = no cleanup, >0 = cleanup all commands)"));
+
+
 
 namespace Chaos
 {
@@ -553,6 +561,77 @@ namespace Chaos
 		}
 	}
 
+	template<typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
+	void FlushExec(FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles, Chaos::IDispatcher* Dispatcher, FPBDRigidsSolver * Solver)
+	{
+		Dispatcher->EnqueueCommandImmediate([Solver, &PoolParticles](Chaos::FPersistentPhysicsTask* PhysThread)
+		{
+			for (int32 i = 0; i < PoolParticles.GetEntryCount(); i++)
+			{
+				auto& Entry = PoolParticles.GetEntry(i);
+				// make sure the handle is still valid
+				if (auto* Handle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Entry.Proxy->GetHandle()))
+				{
+					Solver->GetEvolution()->DirtyParticle(*Handle);
+					Entry.Proxy->PushToPhysicsState(&Entry.Particle);
+				}
+				Entry.Particle.Reset();
+			}
+		});
+	}
+
+	template<typename ProxyType, typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
+	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles, Chaos::IDispatcher* Dispatcher)
+	{
+		auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Proxy->GetHandle());
+		if (RigidHandle == nullptr)
+		{
+			return;
+		}
+
+		// get a new entry in the pool
+		auto& Entry = PoolParticles.GetNewEntry();
+		Entry.Particle.Init(*Proxy->GetParticle());
+		Entry.Proxy = Proxy;
+
+		Solver->RemoveDirtyProxy(Proxy);
+		Proxy->ClearAccumulatedData();
+	}
+
+	void FPBDRigidsSolver::PushPhysicsStatePooled(IDispatcher* Dispatcher)
+	{
+
+		ensure(Dispatcher != nullptr);
+
+		// reset the per frame pool
+		RigidParticlePool.ResetPool();
+		KinematicGeometryParticlePool.ResetPool();
+		GeometryParticlePool.ResetPool();
+
+		TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
+		for (auto & Proxy : DirtyProxiesArray)
+		{
+			switch (Proxy->GetType())
+			{
+			case EPhysicsProxyType::SingleRigidParticleType:
+				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(Proxy), RigidParticlePool, Dispatcher);
+				break;
+			case EPhysicsProxyType::SingleKinematicParticleType:
+				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*>(Proxy), KinematicGeometryParticlePool, Dispatcher);
+				break;
+			case EPhysicsProxyType::SingleGeometryParticleType:
+				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*>(Proxy), GeometryParticlePool, Dispatcher);
+				break;
+			default:
+				ensure("Unknown proxy type in physics solver.");
+			}
+		}
+
+		FlushExec(RigidParticlePool, Dispatcher, this);
+		FlushExec(KinematicGeometryParticlePool, Dispatcher, this);
+		FlushExec(GeometryParticlePool, Dispatcher, this);
+	}
+	
 	void PushPhysicsStateExec(FPBDRigidsSolver* Solver, FGeometryCollectionPhysicsProxy* Proxy, Chaos::IDispatcher* Dispatcher)
 	{
 		Proxy->NewData();
@@ -594,33 +673,40 @@ namespace Chaos
 
 	void FPBDRigidsSolver::PushPhysicsState(IDispatcher* Dispatcher)
 	{
-		if (DirtyProxiesSet.Num() == 0)
-			return;
-		TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
-		for (auto & Proxy : DirtyProxiesArray)
+		if (ChaosSolverUseParticlePool)
 		{
-			switch (Proxy->GetType())
+			PushPhysicsStatePooled(Dispatcher);
+		}
+		else
+		{
+			if (DirtyProxiesSet.Num() == 0)
+				return;
+			TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
+			for (auto & Proxy : DirtyProxiesArray)
 			{
-			//case EPhysicsProxyType::NoneType: // 0
-			//case EPhysicsProxyType::StaticMeshType: // 1
-			case EPhysicsProxyType::GeometryCollectionType: // 2
-				PushPhysicsStateExec(this, static_cast<FGeometryCollectionPhysicsProxy*>(Proxy), Dispatcher);
-				break;
-			case EPhysicsProxyType::FieldType: // 3
-				PushPhysicsStateExec(this, static_cast<FFieldSystemPhysicsProxy*>(Proxy), Dispatcher);
-				break;
-			//case EPhysicsProxyType::SkeletalMeshType: // 4
-			case EPhysicsProxyType::SingleRigidParticleType: // 7
-				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(Proxy), Dispatcher);
-				break;
-			case EPhysicsProxyType::SingleKinematicParticleType: // 6
-				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
-				break;
-			case EPhysicsProxyType::SingleGeometryParticleType: // 5
-				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
-				break;
-			default:
-				ensure("Unknown proxy type in physics solver.");
+				switch (Proxy->GetType())
+				{
+					//case EPhysicsProxyType::NoneType: // 0
+					//case EPhysicsProxyType::StaticMeshType: // 1
+				case EPhysicsProxyType::GeometryCollectionType: // 2
+					PushPhysicsStateExec(this, static_cast<FGeometryCollectionPhysicsProxy*>(Proxy), Dispatcher);
+					break;
+				case EPhysicsProxyType::FieldType: // 3
+					PushPhysicsStateExec(this, static_cast<FFieldSystemPhysicsProxy*>(Proxy), Dispatcher);
+					break;
+					//case EPhysicsProxyType::SkeletalMeshType: // 4
+				case EPhysicsProxyType::SingleRigidParticleType: // 7
+					PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(Proxy), Dispatcher);
+					break;
+				case EPhysicsProxyType::SingleKinematicParticleType: // 6
+					PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
+					break;
+				case EPhysicsProxyType::SingleGeometryParticleType: // 5
+					PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
+					break;
+				default:
+					ensure("Unknown proxy type in physics solver.");
+				}
 			}
 		}
 	}
