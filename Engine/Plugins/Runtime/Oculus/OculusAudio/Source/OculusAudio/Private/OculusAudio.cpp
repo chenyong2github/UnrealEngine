@@ -27,11 +27,6 @@ TAudioSpatializationPtr FOculusSpatializationPluginFactory::CreateNewSpatializat
 }
 
 
-TAmbisonicsMixerPtr FOculusSpatializationPluginFactory::CreateNewAmbisonicsMixer(FAudioDevice* OwningDevice)
-{
-	return TAmbisonicsMixerPtr(new FOculusAmbisonicsMixer());
-}
-
 TAudioReverbPtr FOculusReverbPluginFactory::CreateNewReverbPlugin(FAudioDevice* OwningDevice)
 {
 	FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");

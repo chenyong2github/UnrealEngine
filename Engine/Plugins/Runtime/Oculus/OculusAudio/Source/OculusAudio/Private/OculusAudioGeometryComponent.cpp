@@ -34,15 +34,6 @@ UOculusAudioGeometryComponent::UOculusAudioGeometryComponent()
 
 UOculusAudioGeometryComponent::~UOculusAudioGeometryComponent()
 {
-	if (CachedContext != nullptr)
-	{
-		ovrAudioContext PluginContext = FOculusAudioLibraryManager::Get().GetPluginContext();
-		if (PluginContext != nullptr)
-		{
-			check(*CachedContext == PluginContext);
-			delete CachedContext;
-		}
-	}
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -306,8 +297,7 @@ ovrAudioContext UOculusAudioGeometryComponent::GetContext(UWorld* World)
 		ovrAudioContext PluginContext = FOculusAudioLibraryManager::Get().GetPluginContext();
 		if (PluginContext != nullptr)
 		{
-			CachedContext = new ovrAudioContext;
-			*CachedContext = PluginContext;
+			CachedContext = PluginContext;
 		}
 		else
 		{
@@ -332,22 +322,22 @@ ovrAudioContext UOculusAudioGeometryComponent::GetContext(UWorld* World)
 				if (AudioDevice == nullptr)
 				{
 					// This happens when cooking for native UE4 AudioMixer integration
-					return FOculusAudioContextManager::GetOrCreateSerializationContext(this);
+					CachedContext = FOculusAudioContextManager::GetOrCreateSerializationContext(this);
 				}
-
-				OculusAudioSpatializationAudioMixer* Spatializer = static_cast<OculusAudioSpatializationAudioMixer*>(AudioDevice->SpatializationPluginInterface.Get());
-				check(Spatializer != nullptr);
-				if (Spatializer->ClassID != OculusAudioSpatializationAudioMixer::MIXER_CLASS_ID)
+				else
 				{
-					UE_LOG(LogAudio, Warning, TEXT("Invalid Spatialization Plugin specified, make sure the Spatialization Plugin is set to OculusAudio and AudioMixer is enabled!"));
-					return nullptr;
+					CachedContext = FOculusAudioContextManager::GetContextForAudioDevice(AudioDevice);
+
+					if (!CachedContext)
+					{
+						CachedContext = FOculusAudioContextManager::CreateContextForAudioDevice(AudioDevice);
+					}
 				}
-				CachedContext = Spatializer->GetContext();
 			}
 		}
 	}
 
-	return (CachedContext != nullptr) ? *CachedContext : nullptr;
+	return CachedContext;
 }
 
 void UOculusAudioGeometryComponent::Serialize(FArchive & Ar)

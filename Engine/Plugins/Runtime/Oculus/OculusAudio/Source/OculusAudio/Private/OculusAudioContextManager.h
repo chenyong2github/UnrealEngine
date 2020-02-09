@@ -16,9 +16,20 @@ public:
 	virtual void OnListenerShutdown(FAudioDevice* AudioDevice) override;
 
 	static ovrAudioContext GetOrCreateSerializationContext(UActorComponent* Parent);
+
+	// Returns an ovrAudioContext for the given audio device, or nullptr if one does not exist.
+	static ovrAudioContext GetContextForAudioDevice(const FAudioDevice* InAudioDevice);
+
+	// Creates a new ovrAudioContext for a given audio device.
+	// the InAudioDevice ptr is no longer used for anything besides looking up contexts after this call is completed.
+	static ovrAudioContext CreateContextForAudioDevice(FAudioDevice* InAudioDevice);
+	static void DestroyContextForAudioDevice(const FAudioDevice* InAudioDevice);
+
 private:
 	// FIXME: can we do something better than global static variables?
 	static ovrAudioContext SerializationContext;
 	static UActorComponent* SerializationParent;
-	ovrAudioContext Context;
+
+	static TMap<const FAudioDevice*, ovrAudioContext> ContextMap;
+	static FCriticalSection ContextCritSection;
 };

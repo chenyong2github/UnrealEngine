@@ -22,7 +22,7 @@ class IAudioDeviceModule;
 class UAudioComponent;
 class USoundClass;
 class USoundMix;
-class USoundSubmix;
+class USoundSubmixBase;
 class USoundWave;
 class UWorld;
 class FAudioDevice;
@@ -300,10 +300,10 @@ public:
 	void InitSoundClasses();
 
 	/** Registers the Sound Mix for all active devices. */
-	void RegisterSoundSubmix(USoundSubmix* SoundSubmix);
+	void RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix);
 
 	/** Registers the Sound Mix for all active devices. */
-	void UnregisterSoundSubmix(USoundSubmix* SoundSubmix);
+	void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix);
 
 	/** Initializes the sound mixes for all active devices. */
 	void InitSoundSubmixes();
@@ -315,7 +315,7 @@ public:
 	void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
 
 	/** Updates this submix for any changes made. Broadcasts to all submix instances. */
-	void UpdateSubmix(USoundSubmix* SoundSubmix);
+	void UpdateSubmix(USoundSubmixBase* SoundSubmix);
 
 	/** Sets which audio device is the active audio device. */
 	void SetActiveDevice(uint32 InAudioDeviceHandle);

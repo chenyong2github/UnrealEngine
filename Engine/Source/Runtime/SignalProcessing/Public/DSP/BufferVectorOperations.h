@@ -237,6 +237,12 @@ namespace Audio
 	SIGNALPROCESSING_API void DownmixBuffer(int32 NumSourceChannels, int32 NumDestinationChannels, const AlignedFloatBuffer& SourceBuffer, AlignedFloatBuffer& DestinationBuffer, float* RESTRICT StartGains, const float* RESTRICT EndGains);
 	SIGNALPROCESSING_API void DownmixBuffer(int32 NumSourceChannels, int32 NumDestinationChannels, const float* RESTRICT SourceBuffer, float* RESTRICT DestinationBuffer, int32 NumFrames, float* RESTRICT StartGains, const float* RESTRICT EndGains);
 
+	/**
+	 * This is similar to DownmixBuffer, except that it sums into DestinationBuffer rather than overwriting it.
+	 */
+	SIGNALPROCESSING_API void DownmixAndSumIntoBuffer(int32 NumSourceChannels, int32 NumDestinationChannels, const AlignedFloatBuffer& SourceBuffer, AlignedFloatBuffer& BufferToSumTo, const float* RESTRICT Gains);
+	SIGNALPROCESSING_API void DownmixAndSumIntoBuffer(int32 NumSourceChannels, int32 NumDestinationChannels, const float* RESTRICT SourceBuffer, float* RESTRICT BufferToSumTo, int32 NumFrames, const float* RESTRICT Gains);
+
 	/** Interleaves samples from two input buffers */
 	SIGNALPROCESSING_API void BufferInterleave2ChannelFast(const AlignedFloatBuffer& InBuffer1, const AlignedFloatBuffer& InBuffer2, AlignedFloatBuffer& OutBuffer);
 
@@ -266,4 +272,32 @@ namespace Audio
 
 	/** Compute magnitude of complex data. Out[i] = Sqrt(Real[i] * Real[i] + Imaginary[i] * Imaginary[i]) */
 	SIGNALPROCESSING_API void BufferComplexToMagnitudeFast(const float* RESTRICT InRealSamples, const float* RESTRICT InImaginarySamples, float* RESTRICT OutPowerSamples, const int32 InNum);
+
+	/** Class which handles a vectorized interpolation of an entire buffer to the values of a target buffer */
+	class SIGNALPROCESSING_API FBufferLinearEase
+	{
+	public:
+		FBufferLinearEase();
+		FBufferLinearEase(const AlignedFloatBuffer& InSourceValues, const AlignedFloatBuffer& InTargetValues, int32 InLerpLength);
+		~FBufferLinearEase();
+
+		/** will cache SourceValues ptr and manually update SourceValues on Update() */
+		void Init(const AlignedFloatBuffer& InSourceValues, const AlignedFloatBuffer& InTargetValues, int32 InLerpLength);
+
+		/** Performs Vectorized update of SourceValues float buffer. Returns true if interpolation is complete */
+		bool Update(AlignedFloatBuffer& InSourceValues);
+
+		/** Update overloaded to let you jump forward more than a single time-step */
+		bool Update(uint32 StepsToJumpForward, AlignedFloatBuffer& InSourceValues);
+
+		/** returns const reference to the deltas buffer for doing interpolation elsewhere */
+		const AlignedFloatBuffer& GetDeltaBuffer();
+
+	private:
+		int32 BufferLength {0};
+		int32 LerpLength {0};
+		int32 CurrentLerpStep{0};
+		AlignedFloatBuffer DeltaBuffer;
+
+	}; // class BufferLerper
 }

@@ -44,7 +44,7 @@ class USoundConcurrency;
 class USoundEffectSourcePreset;
 class USoundEffectSubmixPreset;
 class USoundMix;
-class USoundSubmix;
+class USoundSubmixBase;
 class USoundSourceBus;
 class USoundWave;
 class UWorld;
@@ -662,11 +662,6 @@ public:
 	const TArray<FListener>& GetListeners() const { check(IsInAudioThread()); return Listeners; }
 
 	/**
-	* Get ambisonics mixer, if one is available
-	*/
-	TAmbisonicsMixerPtr GetAmbisonicsMixer() { return AmbisonicsMixer; };
-
-	/**
 	 * Returns the currently applied reverb effect if there is one.
 	 */
 	UReverbEffect* GetCurrentReverbEffect() const
@@ -830,10 +825,10 @@ public:
 	virtual void InitSoundSubmixes() {}
 
 	/** Registers the sound submix */
-	virtual void RegisterSoundSubmix(USoundSubmix* SoundSubmix, bool bInit) {}
+	virtual void RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix, bool bInit) {}
 
 	/** Unregisters the sound submix */
-	virtual void UnregisterSoundSubmix(USoundSubmix* SoundSubmix) {}
+	virtual void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix) {}
 
 	/**
 	 * Registers the submix buffer listener with the given submix.
@@ -1244,7 +1239,7 @@ public:
 	virtual bool GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries) { return false; }
 
 	/** Updates the submix properties of any playing submix instances. Allows editor to make changes to submix properties and hear them propagate live.*/
-	virtual void UpdateSubmixProperties(USoundSubmix* InSubmix)
+	virtual void UpdateSubmixProperties(USoundSubmixBase* InSubmix)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
@@ -1723,9 +1718,6 @@ public:
 
 	/** 3rd party modulation interface */
 	TAudioModulationPtr ModulationInterface;
-
-	/** This devices ambisonics pointer, if one exists */
-	TAmbisonicsMixerPtr AmbisonicsMixer;
 
 	/** 3rd party listener observers registered to this audio device. */
 	TArray<TAudioPluginListenerPtr> PluginListeners;

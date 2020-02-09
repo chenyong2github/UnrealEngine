@@ -15,6 +15,7 @@ THIRD_PARTY_INCLUDES_END
 
 #include "UObject/ObjectMacros.h"
 #include "ResonanceAudioEnums.h"
+#include "ISoundfieldFormat.h"
 
 namespace ResonanceAudio
 {
@@ -38,6 +39,7 @@ namespace ResonanceAudio
 
 	// Converts between Unreal and Resonance Audio position coordinates.
 	FVector ConvertToResonanceAudioCoordinates(const FVector& UnrealVector);
+	FVector ConvertToResonanceAudioCoordinates(const Audio::FChannelPositionInfo& ChannelPositionInfo);
 
 	// Converts between Unreal and Resonance Audio rotation quaternions.
 	FQuat ConvertToResonanceAudioRotation(const FQuat& UnrealQuat);

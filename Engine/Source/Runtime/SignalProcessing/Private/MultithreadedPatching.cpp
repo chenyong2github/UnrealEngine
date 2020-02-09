@@ -265,6 +265,12 @@ namespace Audio
 		}
 	}
 
+	void FPatchMixer::DisconnectAllInputs()
+	{
+		FScopeLock ScopeLock(&CurrentPatchesCriticalSection);
+		CurrentInputs.Reset();
+	}
+
 	void FPatchMixer::ConnectNewPatches()
 	{
 		FScopeLock ScopeLock(&PendingNewInputsCriticalSection);

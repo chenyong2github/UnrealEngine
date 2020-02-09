@@ -17,6 +17,8 @@
 #include "DSP/ParamInterpolator.h"
 #include "DSP/BufferVectorOperations.h"
 #include "IAudioExtensionPlugin.h"
+#include "ISoundfieldFormat.h"
+#include "Containers/Queue.h"
 
 
 namespace Audio
@@ -73,6 +75,10 @@ namespace Audio
 
 		// Whather or not this is the primary send (i.e. first in the send chain)
 		bool bIsMainSend;
+
+		// If this is a soundfield submix, this is a pointer to the submix's Soundfield Factory.
+		// If this is nullptr, the submix is not a soundfield submix.
+		ISoundfieldFactory* SoundfieldFactory;
 	};
 
 	// Struct holding mappings of bus ids (unique ids) to send level
@@ -225,7 +231,7 @@ namespace Audio
 		void SetVolume(const int32 SourceId, const float Volume);
 		void SetDistanceAttenuation(const int32 SourceId, const float DistanceAttenuation);
 		void SetSpatializationParams(const int32 SourceId, const FSpatializationParams& InParams);
-		void SetChannelMap(const int32 SourceId, const ESubmixChannelFormat SubmixChannelType, const uint32 NumInputChannels, const Audio::AlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly);
+		void SetChannelMap(const int32 SourceId, const uint32 NumInputChannels, const Audio::AlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly);
 		void SetLPFFrequency(const int32 SourceId, const float Frequency);
 		void SetHPFFrequency(const int32 SourceId, const float Frequency);
 
@@ -238,7 +244,13 @@ namespace Audio
 		bool NeedsSpeakerMap(const int32 SourceId) const;
 		void ComputeNextBlockOfSamples();
 		void ClearStoppingSounds();
-		void MixOutputBuffers(const int32 SourceId, const ESubmixChannelFormat InSubmixChannelType, const float SendLevel, AlignedFloatBuffer& OutWetBuffer) const;
+		void MixOutputBuffers(const int32 SourceId, int32 InNumOutputChannels, const float SendLevel, AlignedFloatBuffer& OutWetBuffer) const;
+
+		// Called by a soundfield submix to get encoded audio.
+		// If this source wasn't encoded (possibly because it is paused or finished playing),
+		// this returns nullptr.
+		// Returned nonnull pointers are only guaranteed to be valid on the audio mixer render thread.
+		const ISoundfieldAudioPacket* GetEncodedOutput(const int32 SourceId, const FSoundfieldEncodingKey& InKey) const;
 
 		void SetSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& SubmixSend);
 		void SetBusSendInfo(const int32 SourceId, EBusSendType InBusSendType, FMixerBusSend& BusSend);
@@ -333,15 +345,14 @@ namespace Audio
 
 		TArray<int32> DebugSoloSources;
 
-		struct FSubmixChannelTypeInfo
+		// All state having to do with a non-soundfield downmix.
+		struct FSubmixChannelData
 		{
 			FSourceChannelMap ChannelMap;
 			Audio::AlignedFloatBuffer OutputBuffer;
-			bool bInUse;
 
-			FSubmixChannelTypeInfo(uint32 InNumInChannels, uint32 InNumOutputChannels, uint32 NumFrames)
+			FSubmixChannelData(uint32 InNumInChannels, uint32 InNumOutputChannels, uint32 NumFrames)
 				: ChannelMap(InNumInChannels, InNumOutputChannels)
-				, bInUse(false)
 			{
 				OutputBuffer.Reset();
 				OutputBuffer.AddUninitialized(NumFrames * InNumOutputChannels);
@@ -356,6 +367,17 @@ namespace Audio
 			}
 		};
 
+		struct FSubmixSoundfieldData
+		{
+			TUniquePtr<ISoundfieldEncoderStream> Encoder;
+			// If this is an ambisonics source, we use a transcoder stream.
+			TUniquePtr<ISoundfieldTranscodeStream> AmbiTranscoder;
+			TUniquePtr<ISoundfieldEncodingSettingsProxy> EncoderSettings;
+			TUniquePtr<ISoundfieldAudioPacket> EncodedPacket;
+			// If this is a unreal ambisonics soundfield buffer, we hand it the submixed buffer directly.
+			bool bIsUnrealAmbisonicsSubmix;
+		};
+
 		struct FSourceDownmixData
 		{
 			// Output data, after computing a block of sample data, this is read back from mixers
@@ -363,26 +385,25 @@ namespace Audio
 			Audio::AlignedFloatBuffer* PostEffectBuffers;
 
 			// Data needed for outputting to submixes for each channel configuration.
-			FSubmixChannelTypeInfo DeviceSubmixInfo;
-			FSubmixChannelTypeInfo StereoSubmixInfo;
-			FSubmixChannelTypeInfo QuadSubmixInfo;
-			FSubmixChannelTypeInfo FiveOneSubmixInfo;
-			FSubmixChannelTypeInfo SevenOneSubmixInfo;
-			FSubmixChannelTypeInfo AmbisonicsSubmixInfo;
+			FSubmixChannelData DeviceSubmixInfo;
+			
+			TMap<FSoundfieldEncodingKey, FSubmixSoundfieldData> EncodedSoundfieldDownmixes;
+			TArray<Audio::FChannelPositionInfo> InputChannelPositions;
 
 			uint32 NumInputChannels;
 			const uint32 NumFrames;
 			uint32 NumDeviceChannels;
 			uint8 bIsInitialDownmix : 1;
 
+			// cached parameters for encoding to a soundfield format.
+			FSoundfieldSpeakerPositionalData PositionalData;
+
+			// If this source is an ambisonics source, we use this to downmix the source to our output.
+			TUniquePtr<ISoundfieldDecoderStream> AmbisonicsDecoder;
+
 			FSourceDownmixData(uint32 SourceNumChannels, uint32 NumDeviceOutputChannels, uint32 InNumFrames)
 				: PostEffectBuffers(nullptr)
-				, DeviceSubmixInfo(FSubmixChannelTypeInfo(SourceNumChannels, NumDeviceOutputChannels, InNumFrames))
-				, StereoSubmixInfo(FSubmixChannelTypeInfo(SourceNumChannels, 2, InNumFrames))
-				, QuadSubmixInfo(FSubmixChannelTypeInfo(SourceNumChannels, 4, InNumFrames))
-				, FiveOneSubmixInfo(FSubmixChannelTypeInfo(SourceNumChannels, 6, InNumFrames))
-				, SevenOneSubmixInfo(FSubmixChannelTypeInfo(SourceNumChannels, 8, InNumFrames))
-				, AmbisonicsSubmixInfo(FSubmixChannelTypeInfo(SourceNumChannels, 4, InNumFrames))
+				, DeviceSubmixInfo(FSubmixChannelData(SourceNumChannels, NumDeviceOutputChannels, InNumFrames))
 				, NumInputChannels(SourceNumChannels)
 				, NumFrames(InNumFrames)
 				, NumDeviceChannels(NumDeviceOutputChannels)
@@ -403,11 +424,8 @@ namespace Audio
 				PostEffectBuffers = nullptr;
 
 				DeviceSubmixInfo.Reset(NumInputChannels, NumDeviceChannels, NumFrames);
-				StereoSubmixInfo.Reset(NumInputChannels, 2, NumFrames);
-				QuadSubmixInfo.Reset(NumInputChannels, 4, NumFrames);
-				FiveOneSubmixInfo.Reset(NumInputChannels, 6, NumFrames);
-				SevenOneSubmixInfo.Reset(NumInputChannels, 8, NumFrames);
-				AmbisonicsSubmixInfo.Reset(NumInputChannels, 4, NumFrames);
+				EncodedSoundfieldDownmixes.Reset();
+				AmbisonicsDecoder.Reset();
 				bIsInitialDownmix = true;
 			}
 		};
@@ -503,9 +521,14 @@ namespace Audio
 			uint8 bIsLastBuffer:1;
 			uint8 bOutputToBusOnly:1;
 			uint8 bIsVorbis:1;
+
+			// TODO: Make this generic to soundfield formats as a whole.
+			// For now, if this is true we just wrap the audio buffer in an FAmbisonicsSoundfieldBuffer.
+			uint8 bIsAmbisonics:1;
 			uint8 bIsBypassingLPF:1;
 			uint8 bIsBypassingHPF:1;
 			uint8 bIsModulationUpdated:1;
+
 			// Source format info
 			int32 NumInputChannels;
 			int32 NumPostEffectChannels;
@@ -523,14 +546,19 @@ namespace Audio
 		static void ApplyDistanceAttenuation(FSourceInfo& InSourceInfo, int32 NumSamples);
 		void ComputePluginAudio(FSourceInfo& InSourceInfo, FSourceDownmixData& DownmixData, int32 SourceId, int32 NumSamples);
 
-		static void ComputeDownmix3D(FSourceDownmixData& DownmixData);
-		static void ComputeDownmix2D(FSourceDownmixData& DownmixData);
+		static void ComputeDownmix3D(FSourceDownmixData& DownmixData, FMixerDevice* MixerDevice);
+		static void ComputeDownmix2D(FSourceDownmixData& DownmixData, FMixerDevice* MixerDevice);
+		static void EncodeToSoundfieldFormats(FSourceDownmixData& DownmixData, const FSourceInfo& InSource, FMixerDevice* InDevice);
+		static void ConvertCartesianToSpherical(const FVector& InVector, float& OutAzimuth, float& OutElevation, float& OutRadius);
 
 		// This function is effectively equivalent to calling DownmixDataArray.EmplaceAt_GetRef(args...), but bypasses that function's intrinsic call to AddUninitialized.
 		FSourceDownmixData& InitializeDownmixForSource(const int32 SourceId, const int32 NumInputChannels, const int32 NumOutputChannels, const int32 InNumOutputFrames);
 
-		const FSubmixChannelTypeInfo& GetChannelInfoForFormat(const ESubmixChannelFormat InFormat, const FSourceDownmixData& InDownmixData) const;
-		FSubmixChannelTypeInfo& GetChannelInfoForFormat(const ESubmixChannelFormat InFormat, FSourceDownmixData& InDownmixData);
+		const FSubmixChannelData& GetChannelInfoForDevice(const FSourceDownmixData& InDownmixData) const;
+		FSubmixChannelData& GetChannelInfoForDevice(FSourceDownmixData& InDownmixData);
+
+		const FSubmixSoundfieldData& GetChannelInfoForFormat(const FSoundfieldEncodingKey& InFormat, const FSourceDownmixData& InDownmixData) const;
+		FSubmixSoundfieldData& GetChannelInfoForFormat(const FSoundfieldEncodingKey& InFormat, FSourceDownmixData& InDownmixData);
 
 		// Array of listener transforms
 		TArray<FTransform> ListenerTransforms;

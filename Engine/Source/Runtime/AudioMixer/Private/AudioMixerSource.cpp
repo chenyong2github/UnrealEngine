@@ -219,6 +219,7 @@ namespace Audio
 					SubmixSend.Submix = SubmixPtr;
 					SubmixSend.SendLevel = 1.0f;
 					SubmixSend.bIsMainSend = true;
+					SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
 					InitParams.SubmixSends.Add(SubmixSend);
 				}
 
@@ -231,6 +232,7 @@ namespace Audio
 						SubmixSend.Submix = MixerDevice->GetSubmixInstance(SendInfo.SoundSubmix);
 						SubmixSend.SendLevel = SendInfo.SendLevel;
 						SubmixSend.bIsMainSend = false;
+						SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
 						InitParams.SubmixSends.Add(SubmixSend);
 					}
 				}
@@ -242,9 +244,7 @@ namespace Audio
 				FMixerSubmixPtr SubmixPtr = Send.Submix.Pin();
 				if (SubmixPtr.IsValid())
 				{
-					ESubmixChannelFormat SubmixChannelType = SubmixPtr->GetSubmixChannels();
-					ChannelMaps[(int32)SubmixChannelType].bUsed = true;
-					ChannelMaps[(int32)SubmixChannelType].ChannelMap.Reset();
+					ChannelMap.Reset();
 				}
 			}
 
@@ -799,11 +799,7 @@ namespace Audio
 		}
 
 		// Reset the source's channel maps
-		for (int32 i = 0; i < (int32)ESubmixChannelFormat::Count; ++i)
-		{
-			ChannelMaps[i].bUsed = false;
-			ChannelMaps[i].ChannelMap.Reset();
-		}
+		ChannelMap.Reset();
 
 		InitializationState = EMixerSourceInitializationState::NotInitialized;
 	}
@@ -904,7 +900,6 @@ namespace Audio
 		if (bReverbApplied)
 		{
 			float ReverbSendLevel = 0.0f;
-			ChannelMaps[(int32)ESubmixChannelFormat::Device].bUsed = true;
 
 			if (WaveInstance->ReverbSendMethod == EReverbSendMethod::Manual)
 			{
@@ -948,7 +943,7 @@ namespace Audio
 			if (SendInfo.SoundSubmix != nullptr)
 			{
 				FMixerSubmixWeakPtr SubmixInstance = MixerDevice->GetSubmixInstance(SendInfo.SoundSubmix);
-				float SendLevel = 0.0f;
+				float SendLevel = 1.0f;
 
 				// calculate send level based on distance if that method is enabled
 				if (SendInfo.SendLevelControlMethod == ESendLevelControlMethod::Manual)
@@ -975,10 +970,6 @@ namespace Audio
 
 				// set the level for this send
 				MixerSourceVoice->SetSubmixSendInfo(SubmixInstance, SendLevel);
-
-				// Make sure we flag that we're using this submix sends since these can be dynamically added from BP
-				// If we don't flag this then these channel maps won't be generated for this channel format
-				ChannelMaps[(int32)SendInfo.SoundSubmix->ChannelFormat].bUsed = true;
 			}
 		}
  	}
@@ -1043,24 +1034,14 @@ namespace Audio
 		const FAudioPlatformDeviceInfo& DeviceInfo = MixerDevice->GetPlatformDeviceInfo();
 
 		// Compute a new speaker map for each possible output channel mapping for the source
-		for (int32 i = 0; i < (int32)ESubmixChannelFormat::Count; ++i)
+		const uint32 NumChannels = Buffer->NumChannels;
+		if (ComputeChannelMap(Buffer->NumChannels, ChannelMap))
 		{
-			FChannelMapInfo& ChannelMapInfo = ChannelMaps[i];
-			if (ChannelMapInfo.bUsed)
-			{
-				ESubmixChannelFormat ChannelType = (ESubmixChannelFormat)i;
-
-				check(Buffer);
-				const uint32 NumChannels = Buffer->NumChannels;
-				if (ComputeChannelMap(ChannelType, Buffer->NumChannels, ChannelMapInfo.ChannelMap))
-				{
-					MixerSourceVoice->SetChannelMap(ChannelType, NumChannels, ChannelMapInfo.ChannelMap, bIs3D, WaveInstance->bCenterChannelOnly);
-				}
-			}
+			MixerSourceVoice->SetChannelMap(NumChannels, ChannelMap, bIs3D, WaveInstance->bCenterChannelOnly);
 		}
 	}
 
-	bool FMixerSource::ComputeMonoChannelMap(const ESubmixChannelFormat SubmixChannelType, Audio::AlignedFloatBuffer& OutChannelMap)
+	bool FMixerSource::ComputeMonoChannelMap(Audio::AlignedFloatBuffer& OutChannelMap)
 	{
 		if (IsUsingObjectBasedSpatialization())
 		{
@@ -1071,20 +1052,20 @@ namespace Audio
 			}
 
 			// Treat the source as if it is a 2D stereo source:
-			return ComputeStereoChannelMap(SubmixChannelType, OutChannelMap);
+			return ComputeStereoChannelMap(OutChannelMap);
 		}
 		else if (WaveInstance->GetUseSpatialization() && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
 		{
 			// Don't need to compute the source channel map if the absolute azimuth hasn't changed much
 			PreviousAzimuth = WaveInstance->AbsoluteAzimuth;
 			OutChannelMap.Reset();
-			MixerDevice->Get3DChannelMap(SubmixChannelType, WaveInstance, WaveInstance->AbsoluteAzimuth, SpatializationParams.NormalizedOmniRadius, OutChannelMap);
+			MixerDevice->Get3DChannelMap(MixerDevice->GetNumDeviceChannels(), WaveInstance, WaveInstance->AbsoluteAzimuth, SpatializationParams.NormalizedOmniRadius, OutChannelMap);
 			return true;
 		}
 		else if (!OutChannelMap.Num())
 		{
 			// Only need to compute the 2D channel map once
-			MixerDevice->Get2DChannelMap(bIsVorbis, SubmixChannelType, 1, WaveInstance->bCenterChannelOnly, OutChannelMap);
+			MixerDevice->Get2DChannelMap(bIsVorbis, 1, WaveInstance->bCenterChannelOnly, OutChannelMap);
 			return true;
 		}
 
@@ -1092,7 +1073,7 @@ namespace Audio
 		return false;
 	}
 
-	bool FMixerSource::ComputeStereoChannelMap(const ESubmixChannelFormat InSubmixChannelType, Audio::AlignedFloatBuffer& OutChannelMap)
+	bool FMixerSource::ComputeStereoChannelMap(Audio::AlignedFloatBuffer& OutChannelMap)
 	{
 		// Only recalculate positional data if the source has moved a significant amount:
 		if (WaveInstance->GetUseSpatialization() && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
@@ -1134,8 +1115,10 @@ namespace Audio
 				// Reset the channel map, the stereo spatialization channel mapping calls below will append their mappings
 				OutChannelMap.Reset();
 
-				MixerDevice->Get3DChannelMap(InSubmixChannelType, WaveInstance, LeftAzimuth, SpatializationParams.NormalizedOmniRadius, OutChannelMap);
-				MixerDevice->Get3DChannelMap(InSubmixChannelType, WaveInstance, RightAzimuth, SpatializationParams.NormalizedOmniRadius, OutChannelMap);
+				const int32 NumOutputChannels = MixerDevice->GetNumDeviceChannels();
+
+				MixerDevice->Get3DChannelMap(NumOutputChannels, WaveInstance, LeftAzimuth, SpatializationParams.NormalizedOmniRadius, OutChannelMap);
+				MixerDevice->Get3DChannelMap(NumOutputChannels, WaveInstance, RightAzimuth, SpatializationParams.NormalizedOmniRadius, OutChannelMap);
 
 				return true;
 			}
@@ -1143,26 +1126,26 @@ namespace Audio
 
 		if (!OutChannelMap.Num())
 		{
-			MixerDevice->Get2DChannelMap(bIsVorbis, InSubmixChannelType, 2, WaveInstance->bCenterChannelOnly, OutChannelMap);
+			MixerDevice->Get2DChannelMap(bIsVorbis, 2, WaveInstance->bCenterChannelOnly, OutChannelMap);
 			return true;
 		}
 
 		return false;
 	}
 
-	bool FMixerSource::ComputeChannelMap(const ESubmixChannelFormat InSubmixChannelType, const int32 NumSourceChannels, Audio::AlignedFloatBuffer& OutChannelMap)
+	bool FMixerSource::ComputeChannelMap(const int32 NumSourceChannels, Audio::AlignedFloatBuffer& OutChannelMap)
 	{
 		if (NumSourceChannels == 1)
 		{
-			return ComputeMonoChannelMap(InSubmixChannelType, OutChannelMap);
+			return ComputeMonoChannelMap(OutChannelMap);
 		}
 		else if (NumSourceChannels == 2)
 		{
-			return ComputeStereoChannelMap(InSubmixChannelType, OutChannelMap);
+			return ComputeStereoChannelMap(OutChannelMap);
 		}
 		else if (!OutChannelMap.Num())
 		{
-			MixerDevice->Get2DChannelMap(bIsVorbis, InSubmixChannelType, NumSourceChannels, WaveInstance->bCenterChannelOnly, OutChannelMap);
+			MixerDevice->Get2DChannelMap(bIsVorbis, NumSourceChannels, WaveInstance->bCenterChannelOnly, OutChannelMap);
 			return true;
 		}
 		return false;

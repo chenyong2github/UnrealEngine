@@ -8,7 +8,8 @@
 #include "DSP/Dsp.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-
+#include "Templates/Function.h"
+#include "Containers/Queue.h"
 #include "MixedRealityInterop.h"
 
 // Struct to hold dynamic object data for Microsoft Spatial Sound API

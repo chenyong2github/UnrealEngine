@@ -8,23 +8,13 @@
 
 
 UENUM()
-enum class EAmbisonicMode : uint8
+enum class EOculusAudioAmbisonicsMode : uint8
 {
 	// High quality ambisonic spatialization method
 	SphericalHarmonics,
 
 	// Alternative ambisonic spatialization method
 	VirtualSpeakers,
-};
-
-UENUM()
-enum class EAmbisonicFormat : uint8
-{
-	// Standard B-Format, WXYZ
-	FuMa UMETA(DisplayName = "FuMa (B-Format, WXYZ)"),
-
-	// ACN/SN3D Standard, WYZX
-	AmbiX UMETA(DisplayName = "AmbiX (ACN/SN3D, WYZX)"),
 };
 
 USTRUCT(BlueprintType)
@@ -34,25 +24,49 @@ struct OCULUSAUDIO_API FSubmixEffectOculusAmbisonicSpatializerSettings
 
 		// Ambisonic spatialization mode
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Realtime)
-	EAmbisonicMode AmbisonicMode;
+	EOculusAudioAmbisonicsMode AmbisonicMode;
 
 	FSubmixEffectOculusAmbisonicSpatializerSettings()
-		: AmbisonicMode(EAmbisonicMode::SphericalHarmonics)
+		: AmbisonicMode(EOculusAudioAmbisonicsMode::SphericalHarmonics)
 	{
 	}
 };
 
+class FOculusAudioSoundfieldSettingsProxy : public ISoundfieldEncodingSettingsProxy
+{
+
+public:
+	const EOculusAudioAmbisonicsMode SpatailizationMode;
+
+	FOculusAudioSoundfieldSettingsProxy(EOculusAudioAmbisonicsMode InSpatializationMode)
+		: SpatailizationMode(InSpatializationMode)
+	{}
+
+	virtual uint32 GetUniqueId() const override
+	{
+		return (uint32)SpatailizationMode;
+	}
+
+
+	virtual TUniquePtr<ISoundfieldEncodingSettingsProxy> Duplicate() const override
+	{
+		return TUniquePtr<ISoundfieldEncodingSettingsProxy>(new FOculusAudioSoundfieldSettingsProxy(SpatailizationMode));
+	}
+
+};
+
 UCLASS()
-class OCULUSAUDIO_API UOculusAmbisonicsSettings : public UAmbisonicsSubmixSettingsBase
+class OCULUSAUDIO_API UOculusAudioSoundfieldSettings : public USoundfieldEncodingSettingsBase
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Ambisonics)
-	EAmbisonicMode SpatializationMode;
+	EOculusAudioAmbisonicsMode SpatializationMode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Ambisonics)
-	EAmbisonicFormat ChannelOrder;
-
+	virtual TUniquePtr<ISoundfieldEncodingSettingsProxy> GetProxy() const override
+	{
+		return TUniquePtr<ISoundfieldEncodingSettingsProxy>(new FOculusAudioSoundfieldSettingsProxy(SpatializationMode));
+	}
 };
 

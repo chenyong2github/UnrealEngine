@@ -711,7 +711,7 @@ void FAudioDeviceManager::InitSoundClasses()
 	}
 }
 
-void FAudioDeviceManager::RegisterSoundSubmix(USoundSubmix* SoundSubmix)
+void FAudioDeviceManager::RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	for (auto& DeviceContainer : Devices)
@@ -720,7 +720,7 @@ void FAudioDeviceManager::RegisterSoundSubmix(USoundSubmix* SoundSubmix)
 	}
 }
 
-void FAudioDeviceManager::UnregisterSoundSubmix(USoundSubmix* SoundSubmix)
+void FAudioDeviceManager::UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	for (auto& DeviceContainer : Devices)
@@ -756,7 +756,7 @@ void FAudioDeviceManager::UpdateSourceEffectChain(const uint32 SourceEffectChain
 	}
 }
 
-void FAudioDeviceManager::UpdateSubmix(USoundSubmix* SoundSubmix)
+void FAudioDeviceManager::UpdateSubmix(USoundSubmixBase* SoundSubmix)
 {
 	FScopeLock ScopeLock(&DeviceMapCriticalSection);
 	for (auto& DeviceContainer : Devices)

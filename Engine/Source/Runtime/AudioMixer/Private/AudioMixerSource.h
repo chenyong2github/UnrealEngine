@@ -86,13 +86,13 @@ namespace Audio
 		void UpdateChannelMaps();
 
 		/** Computes the mono-channel map. */
-		bool ComputeMonoChannelMap(const ESubmixChannelFormat SubmixChannelType, Audio::AlignedFloatBuffer& OutChannelMap);
+		bool ComputeMonoChannelMap(Audio::AlignedFloatBuffer& OutChannelMap);
 
 		/** Computes the stereo-channel map. */
-		bool ComputeStereoChannelMap(const ESubmixChannelFormat SubmixChannelType, Audio::AlignedFloatBuffer& OutChannelMap);
+		bool ComputeStereoChannelMap(Audio::AlignedFloatBuffer& OutChannelMap);
 
 		/** Compute the channel map based on the number of output and source channels. */
-		bool ComputeChannelMap(const ESubmixChannelFormat SubmixChannelType, const int32 NumSourceChannels, Audio::AlignedFloatBuffer& OutChannelMap);
+		bool ComputeChannelMap(const int32 NumSourceChannels, Audio::AlignedFloatBuffer& OutChannelMap);
 
 		/** Whether or not we should create the source voice with the HRTF spatializer. */
 		bool UseObjectBasedSpatialization() const;
@@ -118,16 +118,6 @@ namespace Audio
 		FMixerBuffer* MixerBuffer;
 		TSharedPtr<FMixerSourceBuffer> MixerSourceBuffer;
 		FMixerSourceVoice* MixerSourceVoice;
-
-		struct FChannelMapInfo
-		{
-			Audio::AlignedFloatBuffer ChannelMap;
-			bool bUsed;
-
-			FChannelMapInfo()
-				: bUsed(false)
-			{}
-		};
 
 		// This holds data copied from FSoundSourceBusSendInfo when a new sound starts playing
 		// so that distance-based level control can be calculated during rendering
@@ -156,7 +146,7 @@ namespace Audio
 		};
 
 		// Mapping of channel map types to channel maps. Determined by what submixes this source sends its audio to.
-		FChannelMapInfo ChannelMaps[(int32) ESubmixChannelFormat::Count];
+		Audio::AlignedFloatBuffer ChannelMap;
 
 		float PreviousAzimuth;
 		mutable float PreviousPlaybackPercent;

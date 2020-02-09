@@ -90,8 +90,9 @@ public class Engine : ModuleRules
 				"PakFile",
 				"NetworkReplayStreaming",
 				"PhysicsCore",
-                "SignalProcessing"
-			}
+                "SignalProcessing",
+                "AudioExtensions"
+            }
 		);
 
 		PrivateDependencyModuleNames.AddRange(
