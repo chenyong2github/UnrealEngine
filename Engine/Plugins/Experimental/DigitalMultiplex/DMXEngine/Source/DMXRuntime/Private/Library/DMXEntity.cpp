@@ -38,12 +38,14 @@ void UDMXEntity::ReplicateID(UDMXEntity* Other)
 	Id = Other->Id;
 }
 
+#if WITH_EDITOR
 void UDMXEntity::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 {
 	Super::PostDuplicate(DuplicateMode);
 
 	RefreshID();
 }
+#endif // WITH_EDITOR
 
 void UDMXEntityUniverseManaged::PostLoad()
 {

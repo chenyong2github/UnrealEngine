@@ -35,9 +35,9 @@ UDMXEntity* UDMXLibrary::GetOrCreateEntityObject(const FString& InName, TSubclas
 
 UDMXEntity* UDMXLibrary::FindEntity(const FString& InSearchName) const
 {
-	UDMXEntity*const* Entity = Entities.FindByPredicate([&InSearchName](const UDMXEntity* Entity)->bool
+	UDMXEntity*const* Entity = Entities.FindByPredicate([&InSearchName](const UDMXEntity* InEntity)->bool
 		{
-			return Entity->GetDisplayName().Equals(InSearchName);
+			return InEntity->GetDisplayName().Equals(InSearchName);
 		});
 
 	if (Entity != nullptr)
