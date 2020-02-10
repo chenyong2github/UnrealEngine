@@ -157,9 +157,9 @@ struct FIoStoreCompressionInfo
 		return Idx;
 	}
 
-	/** Offset, length and compression method of each block in the container file. */
 	TArray<FIoStoreCompressedBlockEntry> BlockEntries;
-	/** Compression methods. */
 	TArray<FName> CompressionMethods;
+	int64 UncompressedContainerSize = 0;
+	int64 CompressedContainerSize = 0;
 };
 

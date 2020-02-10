@@ -59,6 +59,9 @@ public:
 
 	FIoStatus Flush()
 	{
+		CompressionInfo.UncompressedContainerSize = FileHandle.IsValid() ? FileHandle->Tell() : 0;
+		CompressionInfo.CompressedContainerSize = 0;
+
 		return FlushWriter();
 	}
 
@@ -193,6 +196,9 @@ private:
 			check(WriterBuffers->UncompressedBufferWriter->Tell() == 0);
 		}
 
+		CompressionInfo.UncompressedContainerSize = UncompressedFileOffset;
+		CompressionInfo.CompressedContainerSize = FileHandle->Tell();
+
 		return FIoStatus::Ok;
 	}
 
@@ -309,6 +315,9 @@ public:
 
 		FString TocFilePath = Environment.GetPath() + TEXT(".utoc");
 		FString ContainerFilePath = Environment.GetPath() + TEXT(".ucas");
+
+		Result.ContainerName = FPaths::GetBaseFilename(Environment.GetPath());
+		Result.CompressionMethod = InIoWriterSettings.CompressionMethod;
 
 		Ipf.CreateDirectoryTree(*FPaths::GetPath(ContainerFilePath));
 
@@ -438,11 +447,11 @@ public:
 		return FIoStatus::Ok;
 	}
 
-	UE_NODISCARD FIoStatus FlushMetadata()
+	TIoStatusOr<FIoStoreWriterResult> Flush()
 	{
 		if (!IsMetadataDirty)
 		{
-			return FIoStatus::Ok;
+			return Result;
 		}
 
 		IsMetadataDirty = false;
@@ -501,7 +510,12 @@ public:
 			}
 		}
 
-		return FIoStatus::Ok;
+		Result.TocSize = TocFileHandle->Tell();
+		Result.TocEntryCount = TocHeader.TocEntryCount;
+		Result.UncompressedContainerSize = CompressionInfo.UncompressedContainerSize;
+		Result.CompressedContainerSize = CompressionInfo.CompressedContainerSize;
+
+		return Result;
 	}
 
 private:
@@ -510,6 +524,7 @@ private:
 	TUniquePtr<FChunkWriter>			ChunkWriter;
 	TUniquePtr<IFileHandle>				TocFileHandle;
 	TUniquePtr<FArchive>				CsvArchive;
+	FIoStoreWriterResult				Result;
 	bool								IsMetadataDirty = true;
 };
 
@@ -520,7 +535,7 @@ FIoStoreWriter::FIoStoreWriter(FIoStoreEnvironment& InEnvironment)
 
 FIoStoreWriter::~FIoStoreWriter()
 {
-	Impl->FlushMetadata();
+	Impl->Flush();
 }
 
 FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterSettings& Settings)
@@ -538,7 +553,7 @@ FIoStatus FIoStoreWriter::MapPartialRange(FIoChunkId OriginalChunkId, uint64 Off
 	return Impl->MapPartialRange(OriginalChunkId, Offset, Length, ChunkIdPartialRange);
 }
 
-FIoStatus FIoStoreWriter::FlushMetadata()
+TIoStatusOr<FIoStoreWriterResult> FIoStoreWriter::Flush()
 {
-	return Impl->FlushMetadata();
+	return Impl->Flush();
 }

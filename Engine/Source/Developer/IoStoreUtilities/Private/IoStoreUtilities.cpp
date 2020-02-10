@@ -2801,9 +2801,11 @@ int32 CreateTarget(
 #endif
 	}
 
+	TArray<FIoStoreWriterResult> IoStoreWriterResults;
+	IoStoreWriterResults.Reserve(IoStoreWriters.Num());
 	for (FIoStoreWriter* IoStoreWriter : IoStoreWriters)
 	{
-		IoStoreWriter->FlushMetadata();
+		IoStoreWriterResults.Emplace(IoStoreWriter->Flush().ConsumeValueOrDie());
 		delete IoStoreWriter;
 	}
 	IoStoreWriters.Empty();
@@ -2876,7 +2878,29 @@ int32 CreateTarget(
 
 	PackageHeaderSize = PackageSummarySize + NameMapSize + ImportMapSize + ExportMapSize + UGraphSize;
 
-	UE_LOG(LogIoStore, Display, TEXT("-------------------- IoStore Summary --------------------"));
+	UE_LOG(LogIoStore, Display, TEXT("--------------------------------------------- IoStore Summary -----------------------------------------------"));
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
+	UE_LOG(LogIoStore, Display, TEXT("%-35s %15s %15s %15s %25s"), TEXT("Container"), TEXT("TOC Size (KB)"), TEXT("TOC Entries"), TEXT("Size (MB)"), TEXT("Compressed (MB)"));
+	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------------------------------------------------------------------------"));
+	for (const FIoStoreWriterResult& Result : IoStoreWriterResults)
+	{
+		const double Compression = Result.CompressionMethod == NAME_None
+			? 0.0
+			: (double(Result.UncompressedContainerSize - Result.CompressedContainerSize) / double(Result.UncompressedContainerSize)) * 100.0;
+
+		UE_LOG(LogIoStore, Display, TEXT("%-35s %15.2lf %15d %15.2lf %25s"),
+			*Result.ContainerName,
+			(double)Result.TocSize / 1024.0,
+			Result.TocEntryCount,
+			(double)Result.UncompressedContainerSize / 1024.0 / 1024.0,
+			*FString::Printf(TEXT("%.2lf (%.2lf%% %s)"),
+				(double)Result.CompressedContainerSize / 1024.0 / 1024.0,
+				Compression,
+				*Result.CompressionMethod.ToString()));
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no preload dependencies, %d no import dependencies"),
 		PackageMap.Num(), CircularPackagesCount, PackagesWithoutPreloadDependenciesCount, PackagesWithoutImportDependenciesCount);
 	UE_LOG(LogIoStore, Display, TEXT("Bundles:  %8d total, %d entries, %d export objects"), BundleCount, BundleEntryCount, GlobalPackageData.Exports.Objects.Num());

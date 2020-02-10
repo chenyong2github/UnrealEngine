@@ -801,7 +801,17 @@ struct FIoStoreWriterSettings
 {
 	FName CompressionMethod = NAME_None;
 	int64 CompressionBlockSize = 0;
-	bool bEnableCsvOutput;
+	bool bEnableCsvOutput = false;
+};
+
+struct FIoStoreWriterResult
+{
+	FString ContainerName;
+	int64 TocSize = 0;
+	int64 TocEntryCount = 0;
+	int64 UncompressedContainerSize = 0;
+	int64 CompressedContainerSize = 0;
+	FName CompressionMethod = NAME_None;
 };
 
 class FIoStoreWriter
@@ -825,7 +835,7 @@ public:
 	 * @param ChunkIdPartialRange The FIoChunkId that will map to the range
 	 */
 	CORE_API FIoStatus	MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange);
-	CORE_API FIoStatus	FlushMetadata();
+	CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
 
 private:
 	FIoStoreWriterImpl*		Impl;
