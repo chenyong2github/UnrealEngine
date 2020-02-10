@@ -2004,6 +2004,50 @@ public partial class Project : CommandUtils
 			}
 		}
 
+		string BulkOption = "";
+		{
+			ConfigHierarchy PlatformEngineConfig;
+			if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
+			{
+				bool bMasterEnable = false;
+				PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
+				if (bMasterEnable)
+				{
+					int Value = 0;
+					PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
+					if (Value > 0)
+					{
+						BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
+					}
+				}
+			}
+		}
+
+		string PatchOptions = String.Empty;
+		if (bShouldGeneratePatch)
+		{
+			string PatchSeekOptMode = String.Empty;
+			string PatchSeekOptMaxGapSize = String.Empty;
+			string PatchSeekOptMaxInflationPercent = String.Empty;
+			string PatchSeekOptMaxAdjacentOrderDiff = String.Empty;
+			if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMode", out PatchSeekOptMode))
+			{
+				PatchOptions += String.Format(" -PatchSeekOptMode={0}", PatchSeekOptMode);
+			}
+			if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxGapSize", out PatchSeekOptMaxGapSize))
+			{
+				PatchOptions += String.Format(" -PatchSeekOptMaxGapSize={0}", PatchSeekOptMaxGapSize);
+			}
+			if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxInflationPercent", out PatchSeekOptMaxInflationPercent))
+			{
+				PatchOptions += String.Format(" -PatchSeekOptMaxInflationPercent={0}", PatchSeekOptMaxInflationPercent);
+			}
+			if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxAdjacentOrderDiff", out PatchSeekOptMaxAdjacentOrderDiff))
+			{
+				PatchOptions += String.Format(" -PatchSeekOptMaxAdjacentOrderDiff={0}", PatchSeekOptMaxAdjacentOrderDiff);
+			}
+		}
+
 		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
 		foreach (CreatePakParams PakParams in PakParamsList)
 		{
@@ -2146,48 +2190,10 @@ public partial class Project : CommandUtils
 						SecondaryOrderFile = PakOrderFileLocations[1];
 					}
 
-					string BulkOption = "";
-                    {
-                        ConfigHierarchy PlatformEngineConfig;
-                        if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
-                        {
-                            bool bMasterEnable = false;
-							PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
-                            if (bMasterEnable)
-                            {
-                                int Value = 0;
-								PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
-                                if (Value > 0)
-                                {
-                                    BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
-                                }
-                            }
-                        }
-					}
-
-					string AdditionalArgs = String.Empty;
-					if (bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
+					string AdditionalArgs = PatchOptions;
+					if (bShouldGeneratePatch && ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
 					{
-						string PatchSeekOptMode = String.Empty;
-						string PatchSeekOptMaxGapSize = String.Empty;
-						string PatchSeekOptMaxInflationPercent = String.Empty;
-						string PatchSeekOptMaxAdjacentOrderDiff = String.Empty;
-						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMode", out PatchSeekOptMode))
-						{
-							AdditionalArgs += String.Format(" -PatchSeekOptMode={0}", PatchSeekOptMode);
-						}
-						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxGapSize", out PatchSeekOptMaxGapSize))
-						{
-							AdditionalArgs += String.Format(" -PatchSeekOptMaxGapSize={0}", PatchSeekOptMaxGapSize);
-						}
-						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxInflationPercent", out PatchSeekOptMaxInflationPercent))
-						{
-							AdditionalArgs += String.Format(" -PatchSeekOptMaxInflationPercent={0}", PatchSeekOptMaxInflationPercent);
-						}
-						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxAdjacentOrderDiff", out PatchSeekOptMaxAdjacentOrderDiff))
-						{
-							AdditionalArgs += String.Format(" -PatchSeekOptMaxAdjacentOrderDiff={0}", PatchSeekOptMaxAdjacentOrderDiff);
-						}
+						AdditionalArgs = " -SkipPatch";
 					}
 
 					bool bPakFallbackOrderForNonUassetFiles = false;
@@ -2221,7 +2227,7 @@ public partial class Project : CommandUtils
 							IoStoreResponseFile,
 							OutputLocation,
 							PrimaryOrderFile,
-							SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions,
+							AdditionalArgs,
 							PakParams.bCompressed,
 							CryptoSettings,
 							PakParams.EncryptionKeyGuid,
@@ -2284,7 +2290,15 @@ public partial class Project : CommandUtils
 					CookerOpenOrderFileLocation = FileLocation;
 				}
 			}
-			RunIoStore(Params, SC, IoStoreCommandsFileName, PackageOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalCompressionOptionsOnCommandLine);
+
+			string AdditionalArgs = SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC)
+				+ PatchOptions
+				+ BulkOption
+				+ CompressionFormats
+				+ " " + AdditionalCompressionOptionsOnCommandLine
+				+ " " + Params.AdditionalPakOptions;
+
+			RunIoStore(Params, SC, IoStoreCommandsFileName, PackageOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
 		}
 
 		// Do any additional processing on the command output
@@ -2428,7 +2442,7 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference PackageOrderFileLocation, FileReference CookerOpenOrderFileLocation, string AdditionalCompressionOptionsOnCommandLine)
+	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference PackageOrderFileLocation, FileReference CookerOpenOrderFileLocation, string AdditionalArgs)
 	{
 		FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name);
 		string CommandletParams = String.Format("-OutputDirectory={0} -CookedDirectory={1} -Commands={2}", OutputLocation.FullName, SC.PlatformCookDir, MakePathSafeToUseWithCommandLine(CommandsFileName));
@@ -2440,9 +2454,9 @@ public partial class Project : CommandUtils
 		{
 			CommandletParams += String.Format(" -CookerOrder={0}", CookerOpenOrderFileLocation.FullName);
 		}
-		if (!string.IsNullOrWhiteSpace(AdditionalCompressionOptionsOnCommandLine))
+		if (!string.IsNullOrWhiteSpace(AdditionalArgs))
 		{
-			CommandletParams += String.Format(" {0}", AdditionalCompressionOptionsOnCommandLine);
+			CommandletParams += AdditionalArgs;
 		}
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
 		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
