@@ -50,6 +50,8 @@ enum class ENiagaraParticleDataValueType : uint8
 	Quat
 };
 
+DECLARE_INTRINSIC_TYPE_LAYOUT(ENiagaraParticleDataValueType);
+
 static const TCHAR* NiagaraParticleDataValueTypeName(ENiagaraParticleDataValueType Type)
 {
 	switch (Type)
@@ -131,7 +133,10 @@ private:
 
 struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInterfaceParametersCS
 {
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ParticleRead, NonVirtual);
+
 	FNiagaraDataInterfaceParametersCS_ParticleRead() : 
+		AcquireTagRegisterIndex(-1),
 		CachedDataSet(nullptr),
 		bSourceEmitterNotGPUErrorShown(false)
 	{
@@ -150,7 +155,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		return ENiagaraParticleDataValueType::Invalid;
 	}
 
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const FShaderParameterMap& ParameterMap)
 	{
 		NumSpawnedParticlesParam.Bind(ParameterMap, *(NumSpawnedParticlesBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
 		SpawnedParticlesAcquireTagParam.Bind(ParameterMap, *(SpawnedParticlesAcquireTagBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
@@ -184,9 +189,6 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 				AttributeTypes[FuncIdx] = ENiagaraParticleDataValueType::Invalid;
 			}
 		}
-
-		int NumAttrIndices = Align(AttributeNames.Num(), 4);
-		AttributeIndices.SetNum(NumAttrIndices);
 	}
 
 	void SetErrorParams(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader, bool bSkipSpawnInfo) const
@@ -233,7 +235,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 
 	void FindAttributeIndices(const FNiagaraDataSet* SourceDataSet, const TCHAR* SourceEmitterName) const
 	{
-		check(AttributeIndices.Num() == Align(AttributeNames.Num(), 4));
+		check(AttributeNames.Num() == AttributeTypes.Num());
 
 		const TArray<FNiagaraVariable>& SourceEmitterVariables = SourceDataSet->GetVariables();
 		const TArray<FNiagaraVariableLayoutInfo>& SourceEmitterVariableLayouts = SourceDataSet->GetVariableLayouts();
@@ -302,6 +304,12 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
+
+		if (AttributeIndices.Num() == 0)
+		{
+			int NumAttrIndices = Align(AttributeNames.Num(), 4);
+			AttributeIndices.SetNum(NumAttrIndices);
+		}
 
 		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
 
@@ -409,23 +417,25 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 	}
 	
 private:
-	FShaderParameter NumSpawnedParticlesParam;
-	FShaderParameter SpawnedParticlesAcquireTagParam;
-	FShaderResourceParameter SpawnedIDsBufferParam;
-	FShaderResourceParameter IDToIndexTableParam;
-	FShaderResourceParameter InputFloatBufferParam;
-	FShaderResourceParameter InputIntBufferParam;
-	FShaderParameter ParticleStrideFloatParam;
-	FShaderParameter ParticleStrideIntParam;
-	FShaderParameter AttributeIndicesParam;
-	FShaderParameter AcquireTagRegisterIndexParam;
-	TArray<FName> AttributeNames;
-	TArray<ENiagaraParticleDataValueType> AttributeTypes;
-	mutable TArray<int32> AttributeIndices;
-	mutable int32 AcquireTagRegisterIndex;
-	mutable FNiagaraDataSet* CachedDataSet;
-	mutable bool bSourceEmitterNotGPUErrorShown;
+	LAYOUT_FIELD(FShaderParameter, NumSpawnedParticlesParam);
+	LAYOUT_FIELD(FShaderParameter, SpawnedParticlesAcquireTagParam);
+	LAYOUT_FIELD(FShaderResourceParameter, SpawnedIDsBufferParam);
+	LAYOUT_FIELD(FShaderResourceParameter, IDToIndexTableParam);
+	LAYOUT_FIELD(FShaderResourceParameter, InputFloatBufferParam);
+	LAYOUT_FIELD(FShaderResourceParameter, InputIntBufferParam);
+	LAYOUT_FIELD(FShaderParameter, ParticleStrideFloatParam);
+	LAYOUT_FIELD(FShaderParameter, ParticleStrideIntParam);
+	LAYOUT_FIELD(FShaderParameter, AttributeIndicesParam);
+	LAYOUT_FIELD(FShaderParameter, AcquireTagRegisterIndexParam);
+	LAYOUT_FIELD(TMemoryImageArray<FName>, AttributeNames);
+	LAYOUT_FIELD(TMemoryImageArray<ENiagaraParticleDataValueType>, AttributeTypes);
+	LAYOUT_MUTABLE_FIELD(TArray<int32>, AttributeIndices);
+	LAYOUT_MUTABLE_FIELD_INITIALIZED(int32, AcquireTagRegisterIndex, -1);
+	LAYOUT_MUTABLE_FIELD_INITIALIZED(FNiagaraDataSet*, CachedDataSet, nullptr);
+	LAYOUT_MUTABLE_FIELD_INITIALIZED(bool, bSourceEmitterNotGPUErrorShown, false);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ParticleRead);
 
 UNiagaraDataInterfaceParticleRead::UNiagaraDataInterfaceParticleRead(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -1313,5 +1323,7 @@ void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(void* PerInstance
 		Dependencies.Add(PIData->EmitterInstance);
 	}
 }
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceParticleRead, FNiagaraDataInterfaceParametersCS_ParticleRead);
 
 #undef LOCTEXT_NAMESPACE
