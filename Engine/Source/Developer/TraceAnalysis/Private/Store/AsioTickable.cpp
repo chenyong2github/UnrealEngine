@@ -53,11 +53,6 @@ bool FAsioTickable::StartTick(uint32 InMillisecondRate)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAsioTickable::StopTick()
 {
-	if (!MillisecondRate)
-	{
-		return false;
-	}
-
 	MillisecondRate = 0;
 	Timer.cancel();
 	return true;
