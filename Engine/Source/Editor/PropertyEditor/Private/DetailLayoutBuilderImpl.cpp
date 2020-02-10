@@ -327,7 +327,7 @@ void FDetailLayoutBuilderImpl::GenerateDetailLayout()
 	}
 
 	TSharedPtr<FComplexPropertyNode> RootNodePinned = RootNode.Pin();
-	if(DetailsView->GetRootObjectCustomization() && RootNodePinned->GetInstancesNum())
+	if(DetailsView && DetailsView->GetRootObjectCustomization() && RootNodePinned->GetInstancesNum())
 	{
 		// This should always exist here
 		UObject* RootObject = RootNodePinned->AsObjectNode()->GetUObject(0);
