@@ -361,9 +361,9 @@ void FSoundFieldDecoder::DecodeAudioToSevenOneAndDownmixToDevice(const FAmbisoni
 	if (!bShouldInterpolate) // Non-Interpolated decode
 	{
 		// for each output frame...
-		for (int32 OutSample = 0; OutSample < NumVirtualOutputSamples; ++OutSample)
+		for (uint64 OutSample = 0; OutSample < NumVirtualOutputSamples; ++OutSample)
 		{
-			const int32 ChannelOffset = OutSample & OutputChannelIndexWrapMask;
+			const uint64 ChannelOffset = OutSample & OutputChannelIndexWrapMask;
 
 			// (non bit-shift versions:)
 			// CurrAmbiFrame = VectorLoadAligned(AmbiInputBufferPtr + OutSample / 8 * NumAmbiChannels);
@@ -382,10 +382,10 @@ void FSoundFieldDecoder::DecodeAudioToSevenOneAndDownmixToDevice(const FAmbisoni
 		VectorRegister CurrSpeakerGainDelta = VectorRegister();
 
 		// for each output frame...
-		for (int32 OutSample = 0; OutSample < NumVirtualOutputSamples; ++OutSample)
+		for (uint64 OutSample = 0; OutSample < NumVirtualOutputSamples; ++OutSample)
 		{
-			const int32 ChannelOffset = OutSample & OutputChannelIndexWrapMask;
-			const int32 SpeakerGainOffset = ChannelOffset << 2;
+			const uint64 ChannelOffset = OutSample & OutputChannelIndexWrapMask;
+			const uint64 SpeakerGainOffset = ChannelOffset << 2;
 
 			// (non bit-shift versions:)
 			// CurrAmbiFrame = VectorLoadAligned(AmbiInputBufferPtr + OutSample / 8 * NumAmbiChannels);
@@ -548,9 +548,9 @@ void FSoundFieldDecoder::FirstOrderToSevenOneLoop(const int32 NumFrames, const i
 	constexpr const int32 AmbiChannelIndexWrapMask = ~0x3; // 8 virtual output channels, so to mod we clear out all but the 2 LS bits 111111100b
 
 	// for each output frame...
-	for (int32 OutSample = 0; OutSample < NumVirtualOutputSamples; ++OutSample)
+	for (uint64 OutSample = 0; OutSample < NumVirtualOutputSamples; ++OutSample)
 	{
-		const int32 ChannelOffset = OutSample & OutputChannelIndexWrapMask;
+		const uint64 ChannelOffset = OutSample & OutputChannelIndexWrapMask;
 
 		// (non bit-shift versions:)
 		// CurrAmbiFrame = VectorLoadAligned(AmbiInputBufferPtr + OutSample / 8 * NumAmbiChannels);

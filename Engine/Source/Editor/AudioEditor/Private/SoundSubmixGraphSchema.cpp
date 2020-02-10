@@ -50,8 +50,10 @@ FSoundSubmixGraphConnectionDrawingPolicy::FSoundSubmixGraphConnectionDrawingPoli
 // Give specific editor modes a chance to highlight this connection or darken non-interesting connections
 void FSoundSubmixGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, FConnectionParams& OutParams)
 {
-	check(GraphObj);
-	check(OutputPin);
+	if (!ensure(OutputPin && InputPin && GraphObj))
+	{
+		return;
+	}
 
 	OutParams.AssociatedPin1 = InputPin;
 	OutParams.AssociatedPin2 = OutputPin;

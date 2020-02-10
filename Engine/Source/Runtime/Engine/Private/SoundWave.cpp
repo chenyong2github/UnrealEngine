@@ -532,7 +532,10 @@ bool USoundWave::HasCompressedData(FName Format, ITargetPlatform* TargetPlatform
 
 	if (GIsEditor)
 	{
-		CompressionOverrides = (TargetPlatform) ? FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName()) : nullptr;
+		if (TargetPlatform)
+		{
+			CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
+		}
 	}
 	else
 	{
@@ -1493,7 +1496,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		// Regenerate on save any compressed sound formats or if analysis needs to be re-done
-		if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+		if (UProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 		{
 			const FName& Name = PropertyThatChanged->GetFName();
 			if (Name == CompressionQualityFName || Name == StreamingFName || Name == SeekableStreamingFName)
