@@ -28,7 +28,9 @@ private:
 FTraceDataStream::FTraceDataStream(asio::ip::tcp::socket& InSocket)
 : Socket(MoveTemp(InSocket))
 {
-};
+	asio::socket_base::receive_buffer_size RecvBufferSize(4 << 20);
+	Socket.set_option(RecvBufferSize);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 FTraceDataStream::~FTraceDataStream()
