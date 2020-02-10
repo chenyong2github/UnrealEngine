@@ -33,8 +33,6 @@
     - LZ4 source repository : https://github.com/lz4/lz4
 */
 
-#include "CoreMinimal.h"
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
