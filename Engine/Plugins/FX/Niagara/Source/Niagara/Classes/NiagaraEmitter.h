@@ -438,7 +438,7 @@ public:
 	/** Returns true if this emitter's platform filter allows it on this platform and EffectsQuality level. */
 	NIAGARA_API bool IsAllowedByScalability()const;
 
-	NIAGARA_API bool RequiresPersistantIDs()const;
+	NIAGARA_API bool RequiresPersistentIDs() const;
 
 	NIAGARA_API bool IsValid()const;
 	NIAGARA_API bool IsReadyToRun() const;

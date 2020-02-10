@@ -823,7 +823,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		return TranslateResults;
 	}
 
-	bool bNeedsPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
+	bool bRequiresPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
 
 	TranslationStages.Empty();
 	ActiveStageIdx = 0;
@@ -928,7 +928,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				UNiagaraNodeOutput* TargetOutputNode = TranslationStages[ParamMapIdx].OutputNode;
 				if (FoundHistory.GetFinalOutputNode() == TargetOutputNode)
 				{
-					if (bNeedsPersistentIDs)
+					if (bRequiresPersistentIDs)
 					{
 						//TODO: Setup alias for current level to decouple from "Particles". Would we ever want emitter or system persistent IDs?
 						FNiagaraVariable Var = FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particles.ID"));
@@ -1878,7 +1878,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		return false;
 	}();
 
-	const bool bNeedsPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
+	const bool bRequiresPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
 
 	// A list of constant to reset after Emitter_SpawnGroup gets modified by GetEmitterSpawnInfoForParticle()
 	TArray<FString> EmitterSpawnGroupReinit;
@@ -1937,7 +1937,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			HlslOutput += TEXT("\n") + ContextName + TEXT("DataInstance.Alive=true;\n");
 		}
 
-		if (bNeedsPersistentIDs)
+		if (bRequiresPersistentIDs)
 		{
 			HlslOutput += TEXT("\n\tint IDIndex, IDAcquireTag;\n\tAcquireID(0, IDIndex, IDAcquireTag);\n");
 			HlslOutput += ContextName + TEXT("Particles.ID.Index = IDIndex;\n");
@@ -2048,7 +2048,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 		HlslOutput += TEXT("\tif (bValid)\n\t{\n");
 
-		if (bNeedsPersistentIDs)
+		if (bRequiresPersistentIDs)
 		{
 			HlslOutput += FString::Printf(TEXT("\t\tUpdateID(0, %sParticles.ID.Index, WriteIndex);\n"), *ContextName);
 		}
@@ -2136,8 +2136,8 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 		DefineDataSetVariableReads(HlslOutput, DataSetID, VarArrayIdx, ArrayRef);
 	}
 
-	bool bNeedsPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
-	if (bNeedsPersistentIDs && UNiagaraScript::IsSpawnScript(CompileOptions.TargetUsage))
+	bool bRequiresPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
+	if (bRequiresPersistentIDs && UNiagaraScript::IsSpawnScript(CompileOptions.TargetUsage))
 	{
 		FString MapName = UNiagaraScript::IsInterpolatedParticleSpawnScript(CompileOptions.TargetUsage) ? TEXT("Context.MapSpawn") : TEXT("Context.Map");
 		//Add code to handle persistent IDs.
@@ -2286,8 +2286,8 @@ void FHlslNiagaraTranslator::DefineDataSetVariableWrites(FString &OutHlslOutput,
 		OutHlslOutput += "\tint TmpWriteIndex = OutputIndex(0, true, true);\n";
 	}
 
-	bool bNeedsPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
-	if (bNeedsPersistentIDs && DataSetIndex == 0)
+	bool bRequiresPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
+	if (bRequiresPersistentIDs && DataSetIndex == 0)
 	{
 		FString MapName = GetParameterMapInstanceName(0);
 		OutHlslOutput += FString::Printf(TEXT("\tUpdateID(0, %s.Particles.ID.Index, TmpWriteIndex);\n"), *MapName);

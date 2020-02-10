@@ -52,7 +52,7 @@ public:
 	void PostTick();
 	bool HandleCompletion(bool bForce = false);
 
-	bool RequiredPersistentID()const;
+	bool RequiresPersistentIDs() const;
 
 	FORCEINLINE bool ShouldTick()const { return ExecutionState == ENiagaraExecutionState::Active || GetNumParticles() > 0; }
 

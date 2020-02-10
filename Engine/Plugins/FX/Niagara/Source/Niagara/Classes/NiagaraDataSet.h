@@ -246,7 +246,7 @@ struct NIAGARA_API FNiagaraDataSetCompiledData
 
 	/** Whether or not this dataset require persistent IDs. */
 	UPROPERTY()
-	uint32 bNeedsPersistentIDs : 1;
+	uint32 bRequiresPersistentIDs : 1;
 
 	/** Unique ID for this DataSet. Used to allow referencing from other emitters and Systems. */
 	UPROPERTY()
@@ -302,10 +302,10 @@ public:
 	/** Returns size in bytes for all data buffers currently allocated by this dataset. */
 	uint32 GetSizeBytes()const;
 
-	FORCEINLINE bool IsInitialized()const { return bInitialized; }
-	FORCEINLINE ENiagaraSimTarget GetSimTarget()const { return CompiledData.SimTarget; }
-	FORCEINLINE FNiagaraDataSetID GetID()const { return CompiledData.ID; }	
-	FORCEINLINE bool GetNeedsPersistentIDs()const { return CompiledData.bNeedsPersistentIDs; }
+	FORCEINLINE bool IsInitialized() const { return bInitialized; }
+	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return CompiledData.SimTarget; }
+	FORCEINLINE FNiagaraDataSetID GetID() const { return CompiledData.ID; }	
+	FORCEINLINE bool RequiresPersistentIDs() const { return CompiledData.bRequiresPersistentIDs; }
 
 	FORCEINLINE TArray<int32>& GetFreeIDTable() { return FreeIDsTable; }
 	FORCEINLINE TArray<int32>& GetSpawnedIDsTable() { return SpawnedIDsTable; }

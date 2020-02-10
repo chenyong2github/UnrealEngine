@@ -388,7 +388,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 				continue;
 			}
 
-			const bool bNeedsPersistentIDs = Context->MainDataSet->GetNeedsPersistentIDs();
+			const bool bRequiresPersistentIDs = Context->MainDataSet->RequiresPersistentIDs();
 
 			//The buffer containing current simulation state.
 			Instance.CurrentData = Context->MainDataSet->GetCurrentData();
@@ -407,7 +407,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 			const uint32 RequiredInstances = FMath::Max(PrevNumInstances, NewNumInstances);
 			const uint32 AllocatedInstances = FMath::Max(RequiredInstances, Instance.SpawnInfo.MaxParticleCount);
 
-			if (bNeedsPersistentIDs)
+			if (bRequiresPersistentIDs)
 			{
 				Context->MainDataSet->AllocateGPUFreeIDs(AllocatedInstances + 1, RHICmdList, FeatureLevel, Context->GetDebugSimName());
 				ReadBuffers.Add(Context->MainDataSet->GetGPUFreeIDs().UAV);
@@ -443,7 +443,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 				}
 			}
 
-			if (bNeedsPersistentIDs)
+			if (bRequiresPersistentIDs)
 			{
 				WriteBuffers.Add(DestinationData.GetGPUIDToIndexTable().UAV);
 			}
@@ -1208,8 +1208,8 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 	// set the shader and data set params 
 	//
-	const bool bNeedsPersistentIDs = Context->MainDataSet->GetNeedsPersistentIDs();
-	SetSRVParameter(RHICmdList, Shader.GetComputeShader(), Shader->FreeIDBufferParam, bNeedsPersistentIDs ? Context->MainDataSet->GetGPUFreeIDs().SRV : FNiagaraRenderer::GetDummyIntBuffer().SRV);
+	const bool bRequiresPersistentIDs = Context->MainDataSet->RequiresPersistentIDs();
+	SetSRVParameter(RHICmdList, Shader.GetComputeShader(), Shader->FreeIDBufferParam, bRequiresPersistentIDs ? Context->MainDataSet->GetGPUFreeIDs().SRV : FNiagaraRenderer::GetDummyIntBuffer().SRV);
 	CurrentData.SetShaderParams(Shader.GetShader(), RHICmdList, true);
 	DestinationData.SetShaderParams(Shader.GetShader(), RHICmdList, false);
 

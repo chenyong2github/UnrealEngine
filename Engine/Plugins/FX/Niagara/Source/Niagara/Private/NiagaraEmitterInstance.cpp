@@ -899,10 +899,10 @@ bool FNiagaraEmitterInstance::HandleCompletion(bool bForce)
 	return false;
 }
 
-bool FNiagaraEmitterInstance::RequiredPersistentID()const
+bool FNiagaraEmitterInstance::RequiresPersistentIDs() const
 {
 	//TODO: can we have this be enabled at runtime from outside the system?
-	return GetEmitterHandle().GetInstance()->RequiresPersistantIDs() || ParticleDataSet->HasVariable(SYS_PARAM_PARTICLES_ID);
+	return GetEmitterHandle().GetInstance()->RequiresPersistentIDs() || ParticleDataSet->HasVariable(SYS_PARAM_PARTICLES_ID);
 }
 
 /** 
