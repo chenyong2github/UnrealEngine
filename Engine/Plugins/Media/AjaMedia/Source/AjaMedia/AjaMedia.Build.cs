@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"TimeManagement",
 					"RenderCore",
+					"SlateCore"
 				});
 
 			PrivateIncludePathModuleNames.AddRange(

@@ -421,7 +421,9 @@ FBlackmagicMediaPlayer::FBlackmagicMediaPlayer(IMediaEventSink& InEventSink)
 	, AudioSamplePool(new FBlackmagicMediaAudioSamplePool)
 	, TextureSamplePool(new FBlackmagicMediaTextureSamplePool)
 	, bVerifyFrameDropCount(false)
+	, SupportedSampleTypes(static_cast<EMediaIOSampleType>(static_cast<uint8>(EMediaIOSampleType::Video) | static_cast<uint8>(EMediaIOSampleType::Audio)))
 {
+	Samples->EnableTimedDataChannels(SupportedSampleTypes);
 }
 
 FBlackmagicMediaPlayer::~FBlackmagicMediaPlayer()
@@ -511,8 +513,11 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 
 	bVerifyFrameDropCount = Options->GetMediaOption(BlackmagicMediaOption::LogDropFrame, false);
 	const bool bEncodeTimecodeInTexel = TimecodeFormat != EMediaIOTimecodeFormat::None && Options->GetMediaOption(BlackmagicMediaOption::EncodeTimecodeInTexel, false);
-	int32 MaxNumAudioFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxAudioFrameBuffer, (int64)8);
-	int32 MaxNumVideoFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxVideoFrameBuffer, (int64)8);
+	MaxNumAudioFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxAudioFrameBuffer, (int64)8);
+	MaxNumVideoFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxVideoFrameBuffer, (int64)8);
+
+	// Setup our different supported channels based on source settings
+	SetupSampleChannels();
 
 	bool bSuccess = EventCallback->Initialize(ChannelOptions, bEncodeTimecodeInTexel, MaxNumAudioFrameBuffer, MaxNumVideoFrameBuffer, bIsSRGBInput);
 
@@ -554,14 +559,22 @@ void FBlackmagicMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 	TickTimeManagement();
 }
 
-void FBlackmagicMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
+void FBlackmagicMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 {
+	Super::TickFetch(DeltaTime, Timecode);
 	if (IsHardwareReady())
 	{
 		ProcessFrame();
 		VerifyFrameDropCount();
 	}
 }
+
+#if WITH_EDITOR
+const FSlateBrush* FBlackmagicMediaPlayer::GetDisplayIcon() const
+{
+	return IBlackmagicMediaModule::Get().GetStyle()->GetBrush("BlackmagicMediaIcon");
+}
+#endif //WITH_EDITOR
 
 void FBlackmagicMediaPlayer::ProcessFrame()
 {
@@ -576,6 +589,17 @@ void FBlackmagicMediaPlayer::VerifyFrameDropCount()
 bool FBlackmagicMediaPlayer::IsHardwareReady() const
 {
 	return EventCallback && EventCallback->GetMediaState() == EMediaState::Playing;
+}
+
+void FBlackmagicMediaPlayer::SetupSampleChannels()
+{
+	FMediaIOSamplingSettings VideoSettings = BaseSettings;
+	VideoSettings.BufferSize = MaxNumVideoFrameBuffer;
+	Samples->InitializeVideoBuffer(VideoSettings);
+
+	FMediaIOSamplingSettings AudioSettings = BaseSettings;
+	AudioSettings.BufferSize = MaxNumAudioFrameBuffer;
+	Samples->InitializeAudioBuffer(AudioSettings);
 }
 
 #undef LOCTEXT_NAMESPACE

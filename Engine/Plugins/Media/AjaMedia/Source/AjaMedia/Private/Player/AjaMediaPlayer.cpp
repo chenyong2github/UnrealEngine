@@ -10,6 +10,7 @@
 
 #include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformProcess.h"
+#include "IAjaMediaModule.h"
 #include "IMediaEventSink.h"
 #include "IMediaOptions.h"
 #include "Misc/ScopeLock.h"
@@ -69,7 +70,10 @@ FAjaMediaPlayer::FAjaMediaPlayer(IMediaEventSink& InEventSink)
 	, bUseVideo(false)
 	, bVerifyFrameDropCount(true)
 	, InputChannel(nullptr)
-{ }
+	, SupportedSampleTypes(static_cast<EMediaIOSampleType>(static_cast<uint8>(EMediaIOSampleType::Video) | static_cast<uint8>(EMediaIOSampleType::Audio) | static_cast<uint8>(EMediaIOSampleType::Metadata)))
+{
+	Samples->EnableTimedDataChannels(SupportedSampleTypes);
+}
 
 
 FAjaMediaPlayer::~FAjaMediaPlayer()
@@ -206,6 +210,9 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 		InputChannel = nullptr;
 	}
 
+	// Setup our different supported channels based on source settings
+	SetupSampleChannels();
+
 	// configure format information for base class
 	AudioTrackFormat.BitsPerSample = 32;
 	AudioTrackFormat.NumChannels = 0;
@@ -295,16 +302,22 @@ FString FAjaMediaPlayer::GetStats() const
 	return Stats;
 }
 
-
-void FAjaMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
+#if WITH_EDITOR
+const FSlateBrush* FAjaMediaPlayer::GetDisplayIcon() const
 {
+	return IAjaMediaModule::Get().GetStyle()->GetBrush("AjaMediaIcon");
+}
+#endif //WITH_EDITOR
+
+void FAjaMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
+{
+	Super::TickFetch(DeltaTime, Timecode);
 	if (InputChannel && CurrentState == EMediaState::Playing)
 	{
 		ProcessFrame();
 		VerifyFrameDropCount();
 	}
 }
-
 
 void FAjaMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 {
@@ -761,6 +774,21 @@ bool FAjaMediaPlayer::OnOutputFrameCopied(const AJA::AJAOutputFrameData& InFrame
 bool FAjaMediaPlayer::IsHardwareReady() const
 {
 	return AjaThreadNewState == EMediaState::Playing ? true : false;
+}
+
+void FAjaMediaPlayer::SetupSampleChannels()
+{
+	FMediaIOSamplingSettings VideoSettings = BaseSettings;
+	VideoSettings.BufferSize = MaxNumVideoFrameBuffer;
+	Samples->InitializeVideoBuffer(VideoSettings);
+
+	FMediaIOSamplingSettings AudioSettings = BaseSettings;
+	AudioSettings.BufferSize = MaxNumAudioFrameBuffer;
+	Samples->InitializeAudioBuffer(AudioSettings);
+
+	FMediaIOSamplingSettings MetadataSettings = BaseSettings;
+	MetadataSettings.BufferSize = MaxNumMetadataFrameBuffer;
+	Samples->InitializeMetadataBuffer(MetadataSettings);
 }
 
 #undef LOCTEXT_NAMESPACE

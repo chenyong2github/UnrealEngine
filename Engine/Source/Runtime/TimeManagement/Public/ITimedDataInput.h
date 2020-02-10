@@ -120,6 +120,12 @@ public:
 
 	/** If the input does supported it, set the size of the buffer used by the input. */
 	virtual void SetDataBufferSize(int32 BufferSize) { }
+	
+	/** Add a channel belonging to this input */
+	virtual void AddChannel(ITimedDataInputChannel* Channel) = 0;
+
+	/** Remove channel from the input */
+	virtual void RemoveChannel(ITimedDataInputChannel* Channel) = 0;
 
 #if WITH_EDITOR
 	/** Get the icon that represent the input. */
