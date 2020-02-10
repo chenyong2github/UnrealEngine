@@ -1702,6 +1702,17 @@ TSharedRef<SWidget> SLevelEditor::CreateActorDetails( const FName TabIdentifier 
 }
 
 
+void SLevelEditor::SetActorDetailsFilter(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsFilter)
+{
+	for (TWeakPtr<SActorDetails> Details : AllActorDetailPanels)
+	{
+		if (Details.IsValid())
+		{
+			Details.Pin()->SetActorDetailsFilter(ActorDetailsFilter);
+		}
+	}
+}
+
 TSharedRef<SWidget> SLevelEditor::CreateToolBox()
 {
 	TSharedRef<SLevelEditorToolBox> NewToolBox =

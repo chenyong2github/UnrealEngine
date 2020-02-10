@@ -234,7 +234,7 @@ SActorDetails::~SActorDetails()
 	}
 }
 
-void SActorDetails::OnDetailsViewObjectArrayChanged(const FString& InTitle, const TArray<TWeakObjectPtr<UObject>>& InObjects)
+void SActorDetails::OnDetailsViewObjectArrayChanged(const FString& InTitle, const TArray<UObject*>& InObjects)
 {
 	// The DetailsView will already check validity every tick and hide itself when invalid, so this piggy-backs on that code instead of needing a second tick function.
 	if (InObjects.Num() == 0 && !LockedActorSelection.IsValid())
@@ -316,6 +316,11 @@ void SActorDetails::PostUndo(bool bSuccess)
 void SActorDetails::PostRedo(bool bSuccess)
 {
 	PostUndo(bSuccess);
+}
+
+void SActorDetails::SetActorDetailsFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter)
+{
+	DetailsView->SetObjectFilter(InFilter);
 }
 
 void SActorDetails::OnComponentsEditedInWorld()

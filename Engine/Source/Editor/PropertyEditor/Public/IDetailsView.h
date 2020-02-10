@@ -15,7 +15,7 @@ class IDetailKeyframeHandler;
 class IDetailPropertyExtensionHandler;
 class IDetailRootObjectCustomization;
 class IPropertyTypeIdentifier;
-
+class FDetailsViewObjectFilter;
 
 enum class EEditDefaultsOnlyNodeVisibility : uint8
 {
@@ -51,6 +51,8 @@ struct FDetailsViewArgs
 	TSharedPtr<class FUICommandList> HostCommandList;
 	/** The tab manager from the host of the details view, allowing child widgets to spawn tabs */
 	TSharedPtr<FTabManager> HostTabManager;
+	/** Optional object filter to use for more complex handling of what a details panel is viewing. */
+	TSharedPtr<FDetailsViewObjectFilter> ObjectFilter;
 
 	/** Identifier for this details view; NAME_None if this view is anonymous */
 	FName ViewIdentifier;
@@ -353,6 +355,9 @@ public:
 	/** Force refresh */
 	virtual void ForceRefresh() = 0;
 	
+	/** Sets an optional object filter to use for more complex handling of what a details panel is viewing. */
+	virtual void SetObjectFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter) = 0;
+
 	/** Allows other systems to add a custom filter in the details panel */
 	virtual void SetCustomFilterDelegate(FSimpleDelegate InDelegate) = 0;
 

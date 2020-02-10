@@ -30,7 +30,7 @@ class IDetailKeyframeHandler;
 class IDetailPropertyExtensionHandler;
 class SDetailNameArea;
 class IPropertyGenerationUtilities;
-
+struct FDetailsViewObjectRoot;
 
 
 typedef STreeView< TSharedRef<class FDetailTreeNode> > SDetailTree;
