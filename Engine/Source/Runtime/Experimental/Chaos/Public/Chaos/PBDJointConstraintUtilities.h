@@ -18,6 +18,13 @@ namespace Chaos
 			FRotation3& R01Swing, 
 			FRotation3& R01Twist);
 		
+		static void GetSwingTwistAngles(
+			const FRotation3& R0, 
+			const FRotation3& R1, 
+			FReal& TwistAngle, 
+			FReal& Swing1Angle, 
+			FReal& Swing2Angle);
+
 		static FReal GetTwistAngle(
 			const FRotation3& InTwist);
 		
@@ -32,6 +39,14 @@ namespace Chaos
 			const FRotation3& R1,
 			const FReal AngleTolerance,
 			FVec3& AxisLocal,
+			FReal& Angle);
+
+		static void GetDualConeSwingAxisAngle(
+			const FRotation3& R0,
+			const FRotation3& R1,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex,
+			FVec3& Axis,
 			FReal& Angle);
 
 		static void GetSwingAxisAngle(

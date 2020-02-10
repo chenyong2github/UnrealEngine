@@ -696,6 +696,8 @@ namespace Chaos
 		FJointSolverResult NetResult;
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
+			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("  Pair Iteration %d / %d"), PairIt, NumIts);
+
 			NetResult += Solver.ApplyConstraints(Dt, Settings, JointSettings);
 			NetResult +=  Solver.ApplyDrives(Dt, Settings, JointSettings);
 
@@ -714,7 +716,7 @@ namespace Chaos
 	FJointSolverResult FPBDJointConstraints::ProjectPosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
 		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
-		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
+		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Project Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
 		FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
