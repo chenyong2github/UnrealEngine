@@ -8,6 +8,7 @@
 #include "BlackmagicMediaPlayer.h"
 #include "Brushes/SlateImageBrush.h"
 #include "IMediaIOCoreModule.h"
+#include "Interfaces/IPluginManager.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/SlateStyle.h"
 

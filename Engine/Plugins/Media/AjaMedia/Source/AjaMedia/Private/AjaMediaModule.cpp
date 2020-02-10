@@ -8,6 +8,7 @@
 #include "Brushes/SlateImageBrush.h"
 #include "CoreMinimal.h"
 #include "IMediaIOCoreModule.h"
+#include "Interfaces/IPluginManager.h"
 #include "Modules/ModuleManager.h"
 #include "Player/AjaMediaPlayer.h"
 #include "Styling/SlateStyle.h"
