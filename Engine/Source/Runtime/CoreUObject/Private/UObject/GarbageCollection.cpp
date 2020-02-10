@@ -341,6 +341,7 @@ class FAsyncPurge : public FRunnable
 		{
 			Object->~UObject();
 			GUObjectAllocator.FreeUObject(Object);
+			ProcessedObjectsCount++;
 
 			if (bUseTimeLimit && (ProcessedObjectsCount == TimeLimitEnforcementGranularityForDeletion) && !GameThreadObjects.IsEmpty())
 			{
