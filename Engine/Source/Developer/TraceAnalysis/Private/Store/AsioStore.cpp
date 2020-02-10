@@ -41,7 +41,6 @@ public:
 ////////////////////////////////////////////////////////////////////////////////
 FAsioStore::FTrace::FTrace(const TCHAR* InPath)
 : Path(InPath)
-, Id(QuickStoreHash(InPath))
 {
 	// Extract the trace's name
 	const TCHAR* Dot = FCString::Strrchr(*Path, '.');
@@ -58,6 +57,8 @@ FAsioStore::FTrace::FTrace(const TCHAR* InPath)
 			break;
 		}
 	}
+
+	Id = QuickStoreHash(Name);
 
 	// Calculate that trace's timestamp
 	uint64 InTimestamp = 0;
