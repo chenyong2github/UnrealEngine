@@ -70,6 +70,7 @@ bool FAsioTraceRelay::IsOpen() const
 bool FAsioTraceRelay::OnAccept(asio::ip::tcp::socket& Socket)
 {
 	Output = new FAsioSocket(Socket);
+	StopTick();
 	OnIoComplete(OpStart, 0);
 	return false;
 }
