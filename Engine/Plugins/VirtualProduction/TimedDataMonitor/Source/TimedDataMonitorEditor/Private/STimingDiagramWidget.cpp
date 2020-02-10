@@ -4,6 +4,7 @@
 
 #include "Engine/Engine.h"
 #include "Misc/App.h"
+#include "TimedDataMonitorEditorSettings.h"
 #include "TimedDataMonitorSubsystem.h"
 
 #include "TimedDataMonitorEditorStyle.h"
@@ -44,6 +45,8 @@ public:
 		bShowSnapshot = InArgs._ShowSnapshot;
 		SizePerSecondsAttibute = InArgs._SizePerSeconds;
 
+		NumberOfSigma = GetDefault<UTimedDataMonitorEditorSettings>()->NumberOfSampleStandardDeviation;
+
 		if (InArgs._UseNiceBrush)
 		{
 			DarkBrush = &FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox").BackgroundImageFocused;
@@ -60,17 +63,18 @@ public:
 	{
 		LayerId++;
 
-		const int32 SizeY = AllottedGeometry.GetLocalSize().Y;
 		const float SizeX = AllottedGeometry.GetLocalSize().X;
+		const float SizeY = AllottedGeometry.GetLocalSize().Y;
 
-		const float SizeOfFurthur = bShowFurther ? 10.f : 0.f;
+		const float SizeOfFurthur = bShowFurther ? 20.f : 0.f;
 		const float LocationOfCenter = FMath::Max((SizeX - SizeOfFurthur - SizeOfFurthur) * 0.5f, 0.f);
 		const float SizePerSeconds = SizePerSecondsAttibute.Get();
-		const float SizeOfBoxY = (bShowMean && bShowSnapshot) ? SizeY/2.f : SizeY;
-		const float LocationOfMeanBoxY = (bShowMean && bShowSnapshot) ? SizeY/2.f : 0.f;
+		const float SizeOfBoxY = (bShowMean && bShowSnapshot) ? SizeY / 2.f : SizeY - 2.f;
+		const float LocationOfSnapshotBoxY = (bShowMean && bShowSnapshot) ? 0.f : 2.f;
+		const float LocationOfMeanBoxY = (bShowMean && bShowSnapshot) ? SizeY / 2.f : 2.f;
 
 		const float SnapshotLocationMinX = LocationOfCenter - ((EvaluationTime - MinSampleTime) * SizePerSeconds);
-		const float SnapshotLocationMaxX = LocationOfCenter + (MaxSampleTime - EvaluationTime) * SizePerSeconds;
+		const float SnapshotLocationMaxX = LocationOfCenter + ((MaxSampleTime - EvaluationTime) * SizePerSeconds);
 		const float MeanLocationMinX = LocationOfCenter - (OldestMean * SizePerSeconds);
 		const float MeanLocationMaxX = LocationOfCenter + (NewestMean * SizePerSeconds);
 
@@ -80,10 +84,11 @@ public:
 			if (bShowSnapshot && SnapshotLocationMinX < SizeOfFurthur)
 			{
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(0, 0), FVector2D(SizeOfFurthur, SizeOfBoxY)),
+					AllottedGeometry.ToPaintGeometry(FVector2D(0, LocationOfSnapshotBoxY), FVector2D(SizeOfFurthur, SizeOfBoxY)),
 					DarkBrush, ESlateDrawEffect::None,
 					BrightBrush->GetTint(InWidgetStyle) * FLinearColor::Yellow);
 			}
+
 			if (bShowMean && MeanLocationMinX < SizeOfFurthur)
 			{
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
@@ -97,76 +102,87 @@ public:
 		if (bShowSnapshot)
 		{
 			const float DrawLocationX = FMath::Clamp(SnapshotLocationMinX, SizeOfFurthur, SizeX - SizeOfFurthur);
-			const float DrawSizeX = FMath::Clamp(SnapshotLocationMaxX - SnapshotLocationMinX, 0.f, SizeX - SizeOfFurthur);
+			const float DrawSizeX = FMath::Clamp(SnapshotLocationMaxX - DrawLocationX, 1.f, SizeX - SizeOfFurthur);
 			FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(DrawLocationX, 0), FVector2D(DrawSizeX, SizeOfBoxY)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(DrawLocationX, LocationOfSnapshotBoxY), FVector2D(DrawSizeX, SizeOfBoxY)),
 				DarkBrush, ESlateDrawEffect::None,
-				BrightBrush->GetTint(InWidgetStyle) * FLinearColor::Green);
+				BrightBrush->GetTint(InWidgetStyle) * FLinearColor(0.5f, 0.5f, 0.5f));
 		}
 
 		if (bShowMean)
 		{
 			const float DrawLocationX = FMath::Clamp(MeanLocationMinX, SizeOfFurthur, SizeX - SizeOfFurthur);
-			const float DrawSizeX = FMath::Clamp(MeanLocationMaxX - MeanLocationMinX, 0.f, SizeX - SizeOfFurthur);
+			const float DrawSizeX = FMath::Clamp(MeanLocationMaxX - DrawLocationX, 1.f, SizeX - SizeOfFurthur);
 			if (bShowMean)
 			{
 				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
 					AllottedGeometry.ToPaintGeometry(FVector2D(DrawLocationX, LocationOfMeanBoxY), FVector2D(DrawSizeX, SizeOfBoxY)),
 					DarkBrush, ESlateDrawEffect::None,
-					BrightBrush->GetTint(InWidgetStyle) * FLinearColor::Blue);
-			}
-		}
-
-		// square to show that the data goes further
-		if (bShowFurther)
-		{
-			if (bShowSnapshot && SnapshotLocationMaxX > SizeX-SizeOfFurthur)
-			{
-				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(SizeX - SizeOfFurthur, 0), FVector2D(SizeOfFurthur, SizeOfBoxY)),
-					DarkBrush, ESlateDrawEffect::None,
-					BrightBrush->GetTint(InWidgetStyle) * FLinearColor::Yellow);
-			}
-			if (bShowMean && MeanLocationMaxX > SizeX - SizeOfFurthur)
-			{
-				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(SizeX - SizeOfFurthur, LocationOfMeanBoxY), FVector2D(SizeOfFurthur, SizeOfBoxY)),
-					DarkBrush, ESlateDrawEffect::None,
-					BrightBrush->GetTint(InWidgetStyle) * FLinearColor::Yellow);
+					BrightBrush->GetTint(InWidgetStyle) * FLinearColor(0.2f, 0.2f, 0.2f));
 			}
 		}
 
 		// show the sigma
 		if (bShowSigma)
 		{
-			int32 NumberOfSigma = 3;
+			const float SizeOfSigmaY = 4.f;
+			const float LocationOfSigmaY = (SizeY / 2.f) - 2.f;
 			{
-				float SigmaLocationMinX = MeanLocationMinX - (OldestSigma * SizePerSeconds * NumberOfSigma);
-				float SigmaLocationMaxX = MeanLocationMinX + (OldestSigma * SizePerSeconds * NumberOfSigma);
-				const float DrawLocationX = FMath::Clamp(SigmaLocationMinX, SizeOfFurthur, SizeX - SizeOfFurthur);
-				const float DrawSizeX = FMath::Clamp(SigmaLocationMaxX - SigmaLocationMinX, 0.f, SizeX - SizeOfFurthur);
-				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(DrawLocationX, SizeY/2.f), FVector2D(DrawSizeX, 1)),
-					DarkBrush, ESlateDrawEffect::None,
-					BrightBrush->GetTint(InWidgetStyle) * FLinearColor::White);
+				const float SigmaLocationMinX = MeanLocationMinX - (OldestSigma * SizePerSeconds * NumberOfSigma);
+				const float SigmaLocationMaxX = MeanLocationMinX + (OldestSigma * SizePerSeconds * NumberOfSigma);
+				if (SigmaLocationMaxX > SizeOfFurthur)
+				{
+					const float DrawLocationX = FMath::Clamp(SigmaLocationMinX, SizeOfFurthur, SizeX - SizeOfFurthur);
+					const float DrawSizeX = FMath::Clamp(SigmaLocationMaxX - DrawLocationX, 0.f, SizeX - SizeOfFurthur);
+					FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
+						AllottedGeometry.ToPaintGeometry(FVector2D(DrawLocationX, LocationOfSigmaY), FVector2D(DrawSizeX, SizeOfSigmaY)),
+						DarkBrush, ESlateDrawEffect::None,
+						BrightBrush->GetTint(InWidgetStyle) * FLinearColor::White);
+				}
 			}
 			{
-				float SigmaLocationMinX = MeanLocationMaxX - (NewestSigma * SizePerSeconds * NumberOfSigma);
-				float SigmaLocationMaxX = MeanLocationMaxX + (NewestSigma * SizePerSeconds * NumberOfSigma);
-				const float DrawLocationX = FMath::Clamp(SigmaLocationMinX, SizeOfFurthur, SizeX - SizeOfFurthur);
-				const float DrawSizeX = FMath::Clamp(SigmaLocationMaxX - SigmaLocationMinX, 0.f, SizeX - SizeOfFurthur);
-				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-					AllottedGeometry.ToPaintGeometry(FVector2D(DrawLocationX, SizeY / 2.f), FVector2D(DrawSizeX, 1)),
-					DarkBrush, ESlateDrawEffect::None,
-					BrightBrush->GetTint(InWidgetStyle) * FLinearColor::White);
+				const float SigmaLocationMinX = MeanLocationMaxX - (NewestSigma * SizePerSeconds * NumberOfSigma);
+				const float SigmaLocationMaxX = MeanLocationMaxX + (NewestSigma * SizePerSeconds * NumberOfSigma);
+				if (SigmaLocationMinX < SizeX - SizeOfFurthur)
+				{
+					const float DrawLocationX = FMath::Clamp(SigmaLocationMinX, SizeOfFurthur, SizeX - SizeOfFurthur);
+					const float DrawSizeX = FMath::Clamp(SigmaLocationMaxX - DrawLocationX, 0.f, SizeX - SizeOfFurthur);
+					FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
+						AllottedGeometry.ToPaintGeometry(FVector2D(DrawLocationX, LocationOfSigmaY), FVector2D(DrawSizeX, SizeOfSigmaY)),
+						DarkBrush, ESlateDrawEffect::None,
+						BrightBrush->GetTint(InWidgetStyle) * FLinearColor::White);
+				}
 			}
 		}
 
-		// Draw red line
-		FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
-			AllottedGeometry.ToPaintGeometry(FVector2D(LocationOfCenter, 0), FVector2D(1, SizeY)),
-			DarkBrush, ESlateDrawEffect::None,
-			DarkBrush->GetTint(InWidgetStyle) * FLinearColor::Red);
+		// square to show that the data goes further
+		if (bShowFurther)
+		{
+			if (bShowSnapshot && SnapshotLocationMaxX > SizeX - SizeOfFurthur)
+			{
+				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
+					AllottedGeometry.ToPaintGeometry(FVector2D(SizeX - SizeOfFurthur, LocationOfSnapshotBoxY), FVector2D(SizeOfFurthur, SizeOfBoxY)),
+					DarkBrush, ESlateDrawEffect::None,
+					BrightBrush->GetTint(InWidgetStyle) * FLinearColor::Yellow);
+			}
+
+			if (bShowMean && MeanLocationMaxX > SizeX - SizeOfFurthur)
+			{
+				FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
+					AllottedGeometry.ToPaintGeometry(FVector2D(SizeX - SizeOfFurthur, LocationOfSnapshotBoxY), FVector2D(SizeOfFurthur, SizeOfBoxY)),
+					DarkBrush, ESlateDrawEffect::None,
+					BrightBrush->GetTint(InWidgetStyle) * FLinearColor::Yellow);
+			}
+		}
+
+		// Draw evaluation line
+		{
+			FLinearColor EvaluationColor = (EvaluationTime >= MinSampleTime && EvaluationTime<= MaxSampleTime) ? FLinearColor::Green : FLinearColor::Red;
+			FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
+				AllottedGeometry.ToPaintGeometry(FVector2D(LocationOfCenter, 0), FVector2D(1, SizeY)),
+				DarkBrush, ESlateDrawEffect::None,
+				DarkBrush->GetTint(InWidgetStyle) * EvaluationColor);
+		}
 
 		return LayerId;
 	}
@@ -192,6 +208,7 @@ public:
 	double NewestMean = 0.0;
 	double OldestSigma = 0.0;
 	double NewestSigma = 0.0;
+	int32 NumberOfSigma = 3;
 	ETimedDataInputEvaluationType EvaluationType;
 };
 
@@ -256,6 +273,10 @@ void STimingDiagramWidget::UpdateCachedValue()
 	{
 		MinSampleTime = GetSeconds(GraphicWidget->EvaluationType, TimedDataMonitorSubsystem->GetInputOldestDataTime(InputIdentifier));
 		MaxSampleTime = GetSeconds(GraphicWidget->EvaluationType, TimedDataMonitorSubsystem->GetInputNewestDataTime(InputIdentifier));
+		GraphicWidget->OldestMean = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleMean(InputIdentifier);
+		GraphicWidget->NewestMean = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleMean(InputIdentifier);
+		GraphicWidget->OldestSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleStandardDeviation(InputIdentifier);
+		GraphicWidget->NewestSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleStandardDeviation(InputIdentifier);
 	}
 	else
 	{
@@ -293,10 +314,22 @@ FText STimingDiagramWidget::GetTooltipText() const
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 	
-	const float DistanceToNewestSampleAverage = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleMean(ChannelIdentifier);
-	const float DistanceToOldestSampleAverage = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleMean(ChannelIdentifier);
-	const float DistanceToNewestSampleSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleStandardDeviation(ChannelIdentifier);
-	const float DistanceToOldestSampleSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleStandardDeviation(ChannelIdentifier);
+	float DistanceToNewestSampleAverage, DistanceToOldestSampleAverage, DistanceToNewestSampleSigma, DistanceToOldestSampleSigma = 0.f;
+	if (bIsInput)
+	{
+		DistanceToNewestSampleAverage = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleMean(InputIdentifier);
+		DistanceToOldestSampleAverage = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleMean(InputIdentifier);
+		DistanceToNewestSampleSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleStandardDeviation(InputIdentifier);
+		DistanceToOldestSampleSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleStandardDeviation(InputIdentifier);
+	}
+	else
+	{
+		DistanceToNewestSampleAverage = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleMean(ChannelIdentifier);
+		DistanceToOldestSampleAverage = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleMean(ChannelIdentifier);
+		DistanceToNewestSampleSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleStandardDeviation(ChannelIdentifier);
+		DistanceToOldestSampleSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleStandardDeviation(ChannelIdentifier);
+	}
+
 	
 	return FText::Format(LOCTEXT("TimingDiagramTooltip", "Distance to newest:\nMean: {0}\nSigma: {1}\n\nDistance to oldest:\nMean: {2}\nSigma: {3}")
 		, DistanceToNewestSampleAverage

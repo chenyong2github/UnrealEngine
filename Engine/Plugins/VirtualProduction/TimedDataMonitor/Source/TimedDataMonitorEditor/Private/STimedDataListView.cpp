@@ -108,6 +108,7 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 			CachedInputEvaluationOffset = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputIdentifier);
 			CachedState = TimedDataMonitorSubsystem->GetInputState(InputIdentifier);
 			CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(InputIdentifier);
+			CachedCurrentAmountOfBuffer = 0;
 			bControlBufferSize = TimedDataMonitorSubsystem->IsDataBufferSizeControlledByInput(InputIdentifier);
 			bCachedCanEditBufferSize = (CachedEnabled == ECheckBoxState::Checked || CachedEnabled == ECheckBoxState::Undetermined) && bControlBufferSize;
 
@@ -133,7 +134,8 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 			CachedInputEvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifier);
 			CachedInputEvaluationOffset = 0.f;
 			CachedState = TimedDataMonitorSubsystem->GetChannelState(ChannelIdentifier);
-			CachedBufferSize = TimedDataMonitorSubsystem->GetChannelNumberOfSamples(ChannelIdentifier);
+			CachedBufferSize = TimedDataMonitorSubsystem->GetChannelDataBufferSize(ChannelIdentifier);
+			CachedCurrentAmountOfBuffer = TimedDataMonitorSubsystem->GetChannelNumberOfSamples(ChannelIdentifier);
 			CachedStatsBufferUnderflow = TimedDataMonitorSubsystem->GetChannelBufferUnderflowStat(ChannelIdentifier);
 			CachedStatsBufferOverflow = TimedDataMonitorSubsystem->GetChannelBufferOverflowStat(ChannelIdentifier);
 			CachedStatsFrameDropped = TimedDataMonitorSubsystem->GetChannelFrameDroppedStat(ChannelIdentifier);
@@ -182,6 +184,7 @@ public:
 	ETimedDataInputState CachedState = ETimedDataInputState::Disconnected;
 	FText CachedDescription;
 	int32 CachedBufferSize = 0;
+	int32 CachedCurrentAmountOfBuffer = 0;
 	int32 CachedStatsBufferUnderflow = 0;
 	int32 CachedStatsBufferOverflow = 0;
 	int32 CachedStatsFrameDropped = 0;
@@ -396,7 +399,9 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 	{
 		return SAssignNew(DiagramWidget, STimingDiagramWidget, Item->bIsInput)
 				.ChannelIdentifier(Item->ChannelIdentifier)
-				.InputIdentifier(Item->InputIdentifier);
+				.InputIdentifier(Item->InputIdentifier)
+				.ShowSigma(true)
+				.ShowFurther(true);
 	}
 
 	return SNullWidget::NullWidget;
@@ -494,7 +499,14 @@ int32 STimedDataInputTableRow::GetBufferSize() const
 
 FText STimedDataInputTableRow::GetBufferSizeText() const
 {
-	return FText::AsNumber(Item->CachedBufferSize);
+	if (Item->bIsInput)
+	{
+		return FText::GetEmpty();
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("ChannelBufferSizeFormat", "{0}/{1}"), Item->CachedCurrentAmountOfBuffer, Item->CachedBufferSize);
+	}
 }
 
 
@@ -661,37 +673,41 @@ void STimedDataInputListView::Construct(const FArguments& InArgs, TSharedPtr<STi
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_Description)
 			.FillWidth(0.33f)
 			.HAlignCell(EHorizontalAlignment::HAlign_Left)
-			.DefaultLabel(LOCTEXT("HeaderName_Description", "Description"))
+			.DefaultLabel(LOCTEXT("HeaderName_Description", "Last Sample Time"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_EvaluationMode)
 			.FixedWidth(48)
 			.HAlignCell(EHorizontalAlignment::HAlign_Left)
-			.DefaultLabel(LOCTEXT("HeaderName_EvaluationMode", ""))
+			.DefaultLabel(LOCTEXT("HeaderName_EvaluationMode", "Eval."))
+			.DefaultTooltip(LOCTEXT("HeaderTooltip_EvaluationMode", "How the input is evaluated"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_TimeCorrection)
 			.FixedWidth(100)
-			.HAlignCell(EHorizontalAlignment::HAlign_Fill)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_TimeCorrection", "Time Correction"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferSize)
 			.FixedWidth(100)
-			.HAlignCell(EHorizontalAlignment::HAlign_Fill)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_BufferSize", "Buffer Size"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferUnder)
 			.FixedWidth(50)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_BufferUnder", "B.U."))
+			.DefaultTooltip(LOCTEXT("HeaderTooltip_BufferUnder", "Number of buffer underflows detected"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferOver)
 			.FixedWidth(50)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_BufferOver", "B.O."))
+			.DefaultTooltip(LOCTEXT("HeaderTooltip_BufferOver", "Number of buffer overflows detected"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_FrameDrop)
 			.FixedWidth(50)
-			.HAlignCell(EHorizontalAlignment::HAlign_Left)
+			.HAlignCell(EHorizontalAlignment::HAlign_Right)
 			.DefaultLabel(LOCTEXT("HeaderName_FrameDrop", "F.D."))
+			.DefaultTooltip(LOCTEXT("HeaderTooltip_FrameDrop", "Number of frame drop detected"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_TimingDiagram)
 			.FillWidth(0.33f)

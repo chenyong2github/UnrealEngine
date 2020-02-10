@@ -59,6 +59,8 @@ private:
 	EVisibility ShowEditorPerformanceThrottlingWarning() const;
 	FReply DisableEditorPerformanceThrottling();
 
+	EVisibility GetThrobberVisibility() const;
+
 	void BuildCalibrationArray();
 	void CalibrateWithTimecode();
 	void ApplyTimeCorrection();
@@ -75,6 +77,7 @@ private:
 	FText CalibrationName[CalibrationArrayCount];
 	FText CalibrationTooltip[CalibrationArrayCount];
 
+	bool bIsWaitingForCalibration = false;
 	bool bRefreshRequested = true;
 	double LastCachedValueUpdateTime = 0.0;
 

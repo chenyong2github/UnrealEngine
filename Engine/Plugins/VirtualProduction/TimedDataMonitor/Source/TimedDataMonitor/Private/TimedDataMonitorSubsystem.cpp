@@ -169,8 +169,8 @@ namespace TimedDataMonitorSubsystem
 	struct FSmallestBiggestSample
 	{
 		double SmallestMinInSeconds = TNumericLimits<double>::Max();
-		double BiggestMaxInSeconds = TNumericLimits<double>::Min();
-		double BiggerMinInSeconds = TNumericLimits<double>::Min();
+		double BiggestMaxInSeconds = TNumericLimits<double>::Lowest();
+		double BiggerMinInSeconds = TNumericLimits<double>::Lowest();
 		double SmallestMaxInSeconds = TNumericLimits<double>::Max();
 	};
 
@@ -826,7 +826,10 @@ void UTimedDataMonitorSubsystem::SetInputDataBufferSize(const FTimedDataMonitorI
 
 	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
 	{
-		return SourceItem->Input->SetDataBufferSize(BufferSize);
+		if (SourceItem->Input->IsDataBufferSizeControlledByInput())
+		{
+			SourceItem->Input->SetDataBufferSize(BufferSize);
+		}
 	}
 }
 
@@ -859,6 +862,43 @@ ETimedDataInputState UTimedDataMonitorSubsystem::GetInputState(const FTimedDataM
 	}
 
 	return bHasAtLeastOneItem ? WorstState : ETimedDataInputState::Disconnected;
+}
+
+
+
+float UTimedDataMonitorSubsystem::GetInputEvaluationDistanceToNewestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+	
+	float WorstNewestMean = 0.f;
+	if (FTimeDataInputItem* InputItem = InputMap.Find(Identifier))
+	{
+		WorstNewestMean = TNumericLimits<float>::Lowest();
+		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItem->ChannelIdentifiers)
+		{
+			WorstNewestMean = FMath::Max(ChannelMap[ChannelIdentifier].Statistics.IncrementalAverageNewestDistance, WorstNewestMean);
+		}
+	}
+
+	return WorstNewestMean;
+}
+
+
+float UTimedDataMonitorSubsystem::GetInputEvaluationDistanceToOldestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	float WorstOldesttMean = 0.f;
+	if (FTimeDataInputItem* InputItem = InputMap.Find(Identifier))
+	{
+		WorstOldesttMean = TNumericLimits<float>::Max();
+		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItem->ChannelIdentifiers)
+		{
+			WorstOldesttMean = FMath::Min(ChannelMap[ChannelIdentifier].Statistics.IncrementalAverageOldestDistance, WorstOldesttMean);
+		}
+	}
+
+	return WorstOldesttMean;
 }
 
 
@@ -1013,6 +1053,10 @@ int32 UTimedDataMonitorSubsystem::GetChannelDataBufferSize(const FTimedDataMonit
 	if (FTimeDataChannelItem* SourceItem = ChannelMap.Find(Identifier))
 	{
 		if (InputMap[SourceItem->InputIdentifier].Input->IsDataBufferSizeControlledByInput())
+		{
+			return InputMap[SourceItem->InputIdentifier].Input->GetDataBufferSize();
+		}
+		else
 		{
 			return SourceItem->Channel->GetDataBufferSize();
 		}

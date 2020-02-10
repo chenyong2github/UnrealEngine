@@ -24,7 +24,11 @@ class UTimedDataMonitorEditorSettings : public UObject
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(Config, EditAnywhere, Category ="Timed Data Monitor")
+	/** Number of standard deviation for the newest sample to used when calibration. */
+	UPROPERTY(Config, EditAnywhere, Category = "Calibration", meta=(ClampMin=0, ClampMax=5))
+	int32 NumberOfSampleStandardDeviation = 3;
+
+	UPROPERTY(Config, EditAnywhere, Category ="UI", meta=(ClampMin=0.0f))
 	float RefreshRate = 0.2f;
 
 	UPROPERTY(Config)

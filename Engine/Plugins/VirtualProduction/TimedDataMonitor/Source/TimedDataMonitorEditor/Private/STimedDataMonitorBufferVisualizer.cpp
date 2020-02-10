@@ -15,6 +15,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Views/STableRow.h"
 
@@ -69,8 +70,12 @@ public:
 	{
 		if (ColumnName == TimedDataBufferVisualizer::HeaderIdName_DisplayName)
 		{
-			return	SNew(STextBlock)
-				.Text(Item->ChannelDisplayName);
+			return SNew(SBox)
+				.MinDesiredHeight(40)
+				[
+					SNew(STextBlock)
+					.Text(Item->ChannelDisplayName)
+				];
 		}
 		else if (ColumnName == TimedDataBufferVisualizer::HeaderIdName_Visual)
 		{

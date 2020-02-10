@@ -320,6 +320,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	ETimedDataInputState GetInputState(const FTimedDataMonitorInputIdentifier& Identifier);
 
+	/** Returns the max average distance, in seconds, between evaluation time and newest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetInputEvaluationDistanceToNewestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Returns the min average distance, in seconds, between evaluation time and oldest sample */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetInputEvaluationDistanceToOldestSampleMean(const FTimedDataMonitorInputIdentifier& Identifier);
+
 	/** Returns the standard deviation of the distance, in seconds, between evaluation time and newest sample */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	float GetInputEvaluationDistanceToNewestSampleStandardDeviation(const FTimedDataMonitorInputIdentifier& Identifier);

@@ -28,12 +28,13 @@
 #include "STimedDataListView.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SThrobber.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSpacer.h"
-
+#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "STimedDataMonitorPanel"
 
@@ -145,213 +146,24 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 
 	BuildCalibrationArray();
 
-	TSharedRef<class SWidget> MessageLogListingWidget = MessageLogListing.IsValid() ? MessageLogModule.CreateLogListingWidget(MessageLogListing.ToSharedRef()) : SNullWidget::NullWidget;
+	TSharedRef<SWidget> MessageLogListingWidget = MessageLogListing.IsValid() ? MessageLogModule.CreateLogListingWidget(MessageLogListing.ToSharedRef()) : SNullWidget::NullWidget;
 
-	FProperty* PerformanceThrottlingProperty = FindFieldChecked<FProperty>(UEditorPerformanceSettings::StaticClass(), GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bThrottleCPUWhenNotForeground));
-	PerformanceThrottlingProperty->GetDisplayNameText();
-	FFormatNamedArguments Arguments;
-	Arguments.Add(TEXT("PropertyName"), PerformanceThrottlingProperty->GetDisplayNameText());
-	FText PerformanceWarningText = FText::Format(LOCTEXT("PerformanceWarningMessage", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
+	TSharedPtr<SWidget> PerformanceWidget;
+	{
+		FProperty* PerformanceThrottlingProperty = FindFieldChecked<FProperty>(UEditorPerformanceSettings::StaticClass(), GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bThrottleCPUWhenNotForeground));
+		PerformanceThrottlingProperty->GetDisplayNameText();
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("PropertyName"), PerformanceThrottlingProperty->GetDisplayNameText());
+		FText PerformanceWarningText = FText::Format(LOCTEXT("PerformanceWarningMessage", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
 
-	const int32 ButtonBoxSize = 28;
-
-	ChildSlot
-	[
-		SNew(SVerticalBox)
-		// toolbar
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10.f, 10.f, 10.f, 10.f)
-		[
-			SNew(SBorder)
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
-			[
-				SNew(SHorizontalBox)
-				// Calibrate button
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(0.f, 0.f, 10.f, 0.f)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.f)
-					[
-						SNew(SButton)
-						.ToolTipText(this, &STimedDataMonitorPanel::GetCalibrateButtonTooltip)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FLinearColor::White)
-						.ContentPadding(FMargin(4, 0))
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.OnClicked(this, &STimedDataMonitorPanel::OnCalibrateClicked)
-						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								SNew(SImage)
-								.Image(this, &STimedDataMonitorPanel::GetCalibrateButtonImage)
-							]
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(10.f, 4.f, 4.f, 4.f)
-							[
-								SNew(STextBlock)
-								.TextStyle(FTimedDataMonitorEditorStyle::Get(), "TextBlock.Large")
-								.Text(this, &STimedDataMonitorPanel::GetCalibrateButtonText)
-							]
-						]
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SComboButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FLinearColor::White)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.OnGetMenuContent(this, &STimedDataMonitorPanel::OnCalibrateBuildMenu)
-					]
-				]
-				// reset errors button
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.Padding(4.f)
-				[
-					SNew(SButton)
-					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
-					.ToolTipText(LOCTEXT("ResetErrors_ToolTip", "Reset Errors"))
-					.ContentPadding(FMargin(4, 4))
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.OnClicked(this, &STimedDataMonitorPanel::OnResetErrorsClicked)
-					[
-						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-						.Text(FEditorFontGlyphs::Undo)
-						.ColorAndOpacity(FLinearColor::White)
-					]
-				]
-				// show buffers
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.Padding(4.f)
-				[
-					SNew(SButton)
-					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
-					.ToolTipText(LOCTEXT("ShowBuffers_ToolTip", "Open the buffer visualizer"))
-					.ContentPadding(FMargin(4, 2))
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.OnClicked(this, &STimedDataMonitorPanel::OnShowBuffersClicked)
-					[
-						SNew(SImage)
-						.Image(FTimedDataMonitorEditorStyle::Get().GetBrush("Img.BufferVisualization"))
-					]
-				]
-				// Spacer
-				+ SHorizontalBox::Slot()
-				[
-					SNew(SSpacer)
-				]
-				// Settings button
-				+ SHorizontalBox::Slot()
-				.Padding(4.f)
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
-					.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show the general user settings"))
-					.ContentPadding(FMargin(4, 2))
-					.OnClicked(this, &STimedDataMonitorPanel::OnGeneralUserSettingsClicked)
-					[
-						SNew(STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-						.Text(FEditorFontGlyphs::Cogs)
-						.ColorAndOpacity(FLinearColor::White)
-					]
-				]
-			]
-		]
-		// timing element
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10.f, 0.f, 10.f, 10.f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.5f)
-			.Padding(0.f, 0.f, 10.f, 0.f)
-			[
-				SNew(SBorder)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
-				[
-					SAssignNew(TimedDataGenlockWidget, STimedDataGenlock, SharedThis<STimedDataMonitorPanel>(this))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.5f)
-			.Padding(0.f)
-			[
-				SNew(SBorder)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SAssignNew(TimedDataTimecodeWidget, STimedDataTimecodeProvider, SharedThis<STimedDataMonitorPanel>(this))
-				]
-			]
-		]
-		// sources list
-		+ SVerticalBox::Slot()
-		.FillHeight(1.f)
-		.Padding(10.f, 0.f, 10.f, 10.f)
-		[
-			SNew(SScrollBox)
-			.Orientation(Orient_Vertical)
-			+ SScrollBox::Slot()
-			[
-				SAssignNew(TimedDataSourceList, STimedDataInputListView, SharedThis<STimedDataMonitorPanel>(this))
-			]
-		]
-		// sources list
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10.f, 0.f, 10.f, 10.f)
-		[
-			SNew(SBorder)
-			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
-			.Visibility(this, &STimedDataMonitorPanel::ShowMessageLog)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					MessageLogListingWidget
-				]
-			]
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10.f, 0.f, 10.f, 10.f)
-		[
-			SNew(SBorder)
+		PerformanceWidget = SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
 			.BorderBackgroundColor(FColor(166, 137, 0))
 			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
 			.Visibility(this, &STimedDataMonitorPanel::ShowEditorPerformanceThrottlingWarning)
 			[
 				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.FillWidth(1.0f)
 				.VAlign(VAlign_Center)
 				[
@@ -361,7 +173,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.ShadowColorAndOpacity(FLinearColor::Black.CopyWithNewOpacity(0.3f))
 					.ShadowOffset(FVector2D::UnitVector)
 				]
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.Padding(FMargin(0.f, 0.f, 10.f, 0.f))
 				.AutoWidth()
 				.VAlign(VAlign_Center)
@@ -369,6 +181,228 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					SNew(SButton)
 					.OnClicked(this, &STimedDataMonitorPanel::DisableEditorPerformanceThrottling)
 					.Text(LOCTEXT("PerformanceWarningDisable", "Disable"))
+				]
+			];
+	}
+
+	TSharedRef<SWidget> Toolbar = SNew(SBorder)
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
+		[
+			SNew(SHorizontalBox)
+			// Calibrate button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.f, 0.f, 10.f, 0.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SNew(SButton)
+					.ToolTipText(this, &STimedDataMonitorPanel::GetCalibrateButtonTooltip)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ForegroundColor(FLinearColor::White)
+					.ContentPadding(FMargin(4, 0))
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnClicked(this, &STimedDataMonitorPanel::OnCalibrateClicked)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(SImage)
+							.Image(this, &STimedDataMonitorPanel::GetCalibrateButtonImage)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(10.f, 4.f, 4.f, 4.f)
+						[
+							SNew(STextBlock)
+							.TextStyle(FTimedDataMonitorEditorStyle::Get(), "TextBlock.Large")
+							.Text(this, &STimedDataMonitorPanel::GetCalibrateButtonText)
+						]
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SComboButton)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ForegroundColor(FLinearColor::White)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnGetMenuContent(this, &STimedDataMonitorPanel::OnCalibrateBuildMenu)
+				]
+			]
+			// reset errors button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+				.ToolTipText(LOCTEXT("ResetErrors_ToolTip", "Reset Errors"))
+				.ContentPadding(FMargin(4, 4))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &STimedDataMonitorPanel::OnResetErrorsClicked)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FEditorFontGlyphs::Undo)
+					.ColorAndOpacity(FLinearColor::White)
+				]
+			]
+			// show buffers
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+				.ToolTipText(LOCTEXT("ShowBuffers_ToolTip", "Open the buffer visualizer"))
+				.ContentPadding(FMargin(4, 2))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &STimedDataMonitorPanel::OnShowBuffersClicked)
+				[
+					SNew(SImage)
+					.Image(FTimedDataMonitorEditorStyle::Get().GetBrush("Img.BufferVisualization"))
+				]
+			]
+			// Spacer
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SSpacer)
+			]
+			// Settings button
+			+ SHorizontalBox::Slot()
+			.Padding(4.f)
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+				.ToolTipText(LOCTEXT("ShowUserSettings_Tip", "Show the general user settings"))
+				.ContentPadding(FMargin(4, 2))
+				.OnClicked(this, &STimedDataMonitorPanel::OnGeneralUserSettingsClicked)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FEditorFontGlyphs::Cogs)
+					.ColorAndOpacity(FLinearColor::White)
+				]
+			]
+		];
+
+	ChildSlot
+	[
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SNew(SVerticalBox)
+			// toolbar
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 10.f, 10.f, 10.f)
+			[
+				Toolbar
+			]
+			// timing element
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 0.f, 10.f, 10.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
+				.Padding(0.f, 0.f, 10.f, 0.f)
+				[
+					SNew(SBorder)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
+					[
+						SAssignNew(TimedDataGenlockWidget, STimedDataGenlock, SharedThis<STimedDataMonitorPanel>(this))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
+				.Padding(0.f)
+				[
+					SNew(SBorder)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SAssignNew(TimedDataTimecodeWidget, STimedDataTimecodeProvider, SharedThis<STimedDataMonitorPanel>(this))
+					]
+				]
+			]
+			// sources list
+			+ SVerticalBox::Slot()
+			.FillHeight(1.f)
+			.Padding(10.f, 0.f, 10.f, 10.f)
+			[
+				SNew(SScrollBox)
+				.Orientation(Orient_Vertical)
+				+ SScrollBox::Slot()
+				[
+					SAssignNew(TimedDataSourceList, STimedDataInputListView, SharedThis<STimedDataMonitorPanel>(this))
+				]
+			]
+			// message log
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 0.f, 10.f, 10.f)
+			[
+				SNew(SBorder)
+				.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
+				.Visibility(this, &STimedDataMonitorPanel::ShowMessageLog)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						MessageLogListingWidget
+					]
+				]
+			]
+			// show performance warning
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 0.f, 10.f, 10.f)
+			[
+				PerformanceWidget.ToSharedRef()
+			]
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
+			.BorderBackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f, 0.5f))
+			.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
+			.Visibility(this, &STimedDataMonitorPanel::GetThrobberVisibility)
+			[
+				SNew(SBox)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Clipping(EWidgetClipping::ClipToBounds)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Center)
+					[
+						SNew(SCircularThrobber)
+					]
 				]
 			]
 		]
@@ -508,6 +542,12 @@ FReply STimedDataMonitorPanel::DisableEditorPerformanceThrottling()
 	Settings->PostEditChange();
 	Settings->SaveConfig();
 	return FReply::Handled();
+}
+
+
+EVisibility STimedDataMonitorPanel::GetThrobberVisibility() const
+{
+	return bIsWaitingForCalibration ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 
