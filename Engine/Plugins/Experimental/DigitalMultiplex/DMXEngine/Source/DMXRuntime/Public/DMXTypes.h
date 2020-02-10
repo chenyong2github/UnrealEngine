@@ -2,7 +2,11 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
 #include "DMXTypes.generated.h"
+
+class UDMXLibrary;
 
 USTRUCT(BlueprintType)
 struct FDMXRequestBase
@@ -25,7 +29,7 @@ struct FDMXRequest : public FDMXRequestBase
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX|Request")
-	TSubclassOf<class UDMXLibrary> DMXLibrary = nullptr;
+	TSubclassOf<UDMXLibrary> DMXLibrary;
 
 };
 

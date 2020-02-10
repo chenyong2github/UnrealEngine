@@ -134,8 +134,8 @@ protected:
 private:
 	EVisibility GetSubFunctionsVisibility() const;
 	
-	void AddChannelInputFields(IDetailChildrenBuilder& InStructBuilder) const;
-	TSharedRef<SWidget> CreateChannelField(uint8 Channel, const FLinearColor& LabelColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f)) const;
+	void AddChannelInputFields(IDetailChildrenBuilder& InStructBuilder);
+	TSharedRef<SWidget> CreateChannelField(uint8 Channel, const FLinearColor& LabelColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
 	TOptional<uint8> GetChannelValue(uint8 Channel) const;
 	EVisibility GetChannelInputVisibility(uint8 Channel) const;
 

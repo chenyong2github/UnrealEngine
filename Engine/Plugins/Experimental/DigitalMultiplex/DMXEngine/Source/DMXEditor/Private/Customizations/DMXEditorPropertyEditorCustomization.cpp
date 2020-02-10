@@ -288,7 +288,7 @@ EVisibility FDMXFixtureFunctionDetails::GetSubFunctionsVisibility() const
 	return EVisibility::Collapsed;
 }
 
-void FDMXFixtureFunctionDetails::AddChannelInputFields(IDetailChildrenBuilder& InStructBuilder) const
+void FDMXFixtureFunctionDetails::AddChannelInputFields(IDetailChildrenBuilder& InStructBuilder)
 {
 	const FMargin Padding = FMargin(2.0f, 0.0f, 0.0f, 0.0f);
 
@@ -340,7 +340,7 @@ void FDMXFixtureFunctionDetails::AddChannelInputFields(IDetailChildrenBuilder& I
 		.Visibility(MakeAttributeSP(this, &FDMXFixtureFunctionDetails::GetChannelInputVisibility, (uint8)1));
 }
 
-TSharedRef<SWidget> FDMXFixtureFunctionDetails::CreateChannelField(uint8 Channel, const FLinearColor& LabelColor /*= FLinearColor(0.0f, 0.0f, 0.0f, 0.5f)*/) const
+TSharedRef<SWidget> FDMXFixtureFunctionDetails::CreateChannelField(uint8 Channel, const FLinearColor& LabelColor /*= FLinearColor(0.0f, 0.0f, 0.0f, 0.5f)*/)
 {
 	return SNew(SNumericEntryBox<uint8>)
 		.MinValue(0)

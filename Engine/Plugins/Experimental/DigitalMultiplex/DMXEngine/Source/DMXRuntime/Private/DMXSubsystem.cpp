@@ -11,7 +11,9 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEventHandler.h"
+
 #include "EngineUtils.h"
+#include "UObject/UObjectIterator.h"
 
 void UDMXSubsystem::SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixturePatch* FixturePatch, TMap<FName, int32> Address, EDMXSendResult& OutResult)
 {
