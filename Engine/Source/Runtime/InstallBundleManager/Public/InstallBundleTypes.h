@@ -153,7 +153,10 @@ struct FInstallBundleSourceInitInfo
 {
 	EInstallBundleManagerInitResult Result = EInstallBundleManagerInitResult::OK;
 	bool bShouldUseFallbackSource = false;
+};
 
+struct FInstallBundleSourceAsyncInitInfo : public FInstallBundleSourceInitInfo
+{
 	TMap<FName, bool> BundleUpToDate;
 };
 
