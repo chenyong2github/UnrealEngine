@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorDelegates.h"
 
 class FDMXGraphPanelPinFactory;
 class FDMXFixturePatchPinFactory;

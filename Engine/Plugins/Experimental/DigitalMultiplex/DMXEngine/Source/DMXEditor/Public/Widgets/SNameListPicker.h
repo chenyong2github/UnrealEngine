@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
+#include "Styling/SlateWidgetStyleAsset.h"
 
 template <typename OptionType>
 class SComboBox;

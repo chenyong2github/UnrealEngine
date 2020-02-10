@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "UObject/StrongObjectPtr.h"
 
 class FDMXEditor;

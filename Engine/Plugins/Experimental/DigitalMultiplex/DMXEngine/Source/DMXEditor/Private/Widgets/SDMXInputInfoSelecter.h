@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "Interfaces/IDMXProtocol.h"
 #include "DMXProtocolTypes.h"
