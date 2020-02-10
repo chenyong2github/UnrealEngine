@@ -78,10 +78,9 @@ bool FAsioTraceRelay::OnAccept(asio::ip::tcp::socket& Socket)
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioTraceRelay::OnTick()
 {
-	if (!bTimedOut && FAsioTcpServer::IsOpen())
+	if (FAsioTcpServer::IsOpen())
 	{
 		Close();
-		bTimedOut = true;
 		return;
 	}
 
