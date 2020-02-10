@@ -212,6 +212,7 @@ bool FAsyncIODelete::Delete(const FStringView& PathToDelete, EPathType ExpectedT
 	if (!Setup())
 	{
 		// Setup failed; we are not able to provide asynchronous deletes; fall back to synchronous
+		UE_LOG(LogCook, Warning, TEXT("Failed to setup an async delete, falling back to synchronous delete."));
 		return SynchronousDelete(PathToDeleteSZ, ExpectedType);
 	}
 
