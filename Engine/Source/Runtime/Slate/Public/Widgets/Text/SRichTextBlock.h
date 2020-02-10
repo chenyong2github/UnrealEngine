@@ -216,9 +216,8 @@ public:
 	 */
 	void Refresh();
 
-	/** set the multiplier affected at the font in the text */
-	void SetFontSizeMultiplier(const float NewFontSizeMultiplier);
-
+	/** set the scale value at the TextLayout*/
+	void SetTextBlockScale(const float NewTextBlockScale);
 
 protected:
 	//~ SWidget interface
@@ -260,6 +259,9 @@ private:
 
 	/** Prevents the text block from being smaller than desired in certain cases (e.g. when it is empty) */
 	TAttribute<float> MinDesiredWidth;
+
+	/** Use to Scale the entire Text Block*/
+	float TextBlockScale = 1.0f;
 
 	/**  */
 	TSharedPtr<FRichTextLayoutMarshaller> Marshaller;
