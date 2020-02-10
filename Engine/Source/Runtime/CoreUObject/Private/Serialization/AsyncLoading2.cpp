@@ -1714,6 +1714,14 @@ private:
 	FCriticalSection LoadedPackagesCritical;
 	TArray<FAsyncPackage2*> LoadedPackagesToProcess;
 	TArray<FAsyncPackage2*> PackagesToDelete;
+	
+	struct FQueuedFailedPackageCallback
+	{
+		FName PackageName;
+		TUniquePtr<FLoadPackageAsyncDelegate> Callback;
+	};
+	TArray<FQueuedFailedPackageCallback> QueuedFailedPackageCallbacks;
+	
 #if WITH_EDITOR
 	TArray<FWeakObjectPtr> LoadedAssets;
 #endif
@@ -3541,7 +3549,12 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 	}
 
 		
-	bDidSomething = LoadedPackagesToProcess.Num() > 0;
+	bDidSomething = LoadedPackagesToProcess.Num() > 0 || QueuedFailedPackageCallbacks.Num() > 0;
+	for (FQueuedFailedPackageCallback& QueuedFailedPackageCallback : QueuedFailedPackageCallbacks)
+	{
+		QueuedFailedPackageCallback.Callback->ExecuteIfBound(QueuedFailedPackageCallback.PackageName, nullptr, EAsyncLoadingResult::Failed);
+	}
+	QueuedFailedPackageCallbacks.Empty();
 	for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num() && !IsAsyncLoadingSuspended(); ++PackageIndex)
 	{
 		FAsyncPackage2* Package = LoadedPackagesToProcess[PackageIndex];
@@ -4958,7 +4971,13 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 	{
 		FAsyncPackageDesc2 PackageDesc(RequestID, PackageId, PackageIdToLoad, PackageName, PackageNameToLoad);
 		UE_ASYNC_PACKAGE_LOG(Warning, PackageDesc, TEXT("LoadPackage: SkipPackage"), TEXT("Skipping unknown package, the provided package does not exist"));
-		InCompletionDelegate.ExecuteIfBound(PackageName, nullptr, EAsyncLoadingResult::Failed);
+		if (InCompletionDelegate.IsBound())
+		{
+			// Queue completion callback and execute at next process loaded packages call to maintain behavior compatibility with old loader
+			FQueuedFailedPackageCallback& QueuedFailedPackageCallback = QueuedFailedPackageCallbacks.AddDefaulted_GetRef();
+			QueuedFailedPackageCallback.PackageName = PackageName;
+			QueuedFailedPackageCallback.Callback.Reset(new FLoadPackageAsyncDelegate(InCompletionDelegate));
+		}
 	}
 
 	return RequestID;
