@@ -248,6 +248,10 @@ void MainPS_VideoOverlay(
 
 #else // FEATURE_LEVEL_ES3_1
 
+Texture2D<uint> MobileCustomStencilTexture;
+
+int MobileStencilValueRef; // Use integer cause it has to be negative to make the less function to pass the test as always
+
 uint bFlipYAxis;
 
 //
@@ -290,12 +294,48 @@ void MainVS(
 #endif
 }
 
+#define MOBILE_STENCIL_COMPARE_LESS				0
+#define MOBILE_STENCIL_COMPARE_LESSEQUAL		1
+#define MOBILE_STENCIL_COMPARE_GREATE			2
+#define MOBILE_STENCIL_COMPARE_GREATEEQUAL		3
+#define MOBILE_STENCIL_COMPARE_EQUAL			4
+#define MOBILE_STENCIL_COMPARE_NOTEQUAL			5
+#define MOBILE_STENCIL_COMPARE_NEVER			6
+#define MOBILE_STENCIL_COMPARE_ALWAYS			7
+
 void MainPS(
 	in FPostProcessMaterialVSToPS Input,
 	in float2 InViewportUV : TEXCOORD8,
 	out half4 OutColor : SV_Target0
 	)
 {
+	float ClipValue = 1.0f;
+
+#if MOBILE_STENCIL_COMPARE_FUNCTION != MOBILE_STENCIL_COMPARE_NEVER && MOBILE_STENCIL_COMPARE_FUNCTION != MOBILE_STENCIL_COMPARE_ALWAYS
+	int MobileStencilValue = MobileCustomStencilTexture.Load(int3(Input.Position.xy, 0));
+#endif
+
+#if MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_LESS
+	ClipValue = MobileStencilValueRef < MobileStencilValue ? 1.0f : -1.0f;
+#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_LESSEQUAL
+	ClipValue = MobileStencilValueRef <= MobileStencilValue ? 1.0f : -1.0f;
+#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_GREATE
+	ClipValue = MobileStencilValueRef > MobileStencilValue ? 1.0f : -1.0f;
+#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_GREATEEQUAL
+	ClipValue = MobileStencilValueRef >= MobileStencilValue ? 1.0f : -1.0f;
+#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_EQUAL
+	ClipValue = MobileStencilValueRef == MobileStencilValue ? 1.0f : -1.0f;
+#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_NOTEQUAL
+	ClipValue = MobileStencilValueRef != MobileStencilValue ? 1.0f : -1.0f;
+#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_NEVER
+#elif MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_ALWAYS
+	ClipValue = MobileStencilValueRef == 256 ? 1.0f : -1.0f;
+#endif
+
+#if MOBILE_STENCIL_COMPARE_FUNCTION != MOBILE_STENCIL_COMPARE_NEVER
+	clip(ClipValue);
+#endif
+
 	ResolvedView = ResolveView();
 	FMaterialPixelParameters Parameters = MakeInitializedMaterialPixelParameters();
 	FPixelMaterialInputs PixelMaterialInputs;

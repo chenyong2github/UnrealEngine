@@ -19,7 +19,7 @@ public:
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
 private:
-	template<bool bPositionOnly>
+	template<bool bPositionOnly, bool bUsesMobileColorValue>
 	void Process(
 		const FMeshBatch& MeshBatch,
 		uint64 BatchElementMask,
@@ -29,8 +29,7 @@ private:
 		const FMaterial& RESTRICT MaterialResource,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
-		float MobileColorValue,
-		bool bUsesMobileColorValue);
+		float MobileColorValue);
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
@@ -71,7 +70,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 
 
 		const bool bWriteCustomStencilValues = FSceneRenderTargets::IsCustomDepthPassWritingStencil();
-		float bMobileColorValue = 0.0f;
+		float MobileColorValue = 0.0f;
 
 		if (bWriteCustomStencilValues)
 		{
@@ -97,7 +96,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 			if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 			{
 				// On mobile platforms write custom stencil value to color target
-				bMobileColorValue = CustomDepthStencilValue / 255.0f;
+				MobileColorValue = CustomDepthStencilValue;
 			}
 		}
 		else
@@ -105,7 +104,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 			PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 		}
 
-		const bool bUsesMobileColorValue = bMobileColorValue != 0.0f;
+		const bool bUsesMobileColorValue = FeatureLevel <= ERHIFeatureLevel::ES3_1;
 
 
 		if (BlendMode == BLEND_Opaque
@@ -116,7 +115,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		{
 			const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 			const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterial(FeatureLevel);
-			Process<true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode, bMobileColorValue, bUsesMobileColorValue);
+			Process<true, false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode, MobileColorValue);
 		}
 		else if (!IsTranslucentBlendMode(BlendMode) || Material.IsTranslucencyWritingCustomDepth())
 		{
@@ -132,12 +131,19 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 				EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterial(FeatureLevel);
 			}
 
-			Process<false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode, bMobileColorValue, bUsesMobileColorValue);
+			if (bUsesMobileColorValue)
+			{
+				Process<false, true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode, MobileColorValue);
+			}
+			else
+			{
+				Process<false, false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode, MobileColorValue);
+			}
 		}
 	}
 }
 
-template<bool bPositionOnly>
+template<bool bPositionOnly, bool bUsesMobileColorValue>
 void FCustomDepthPassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
@@ -147,8 +153,7 @@ void FCustomDepthPassMeshProcessor::Process(
 	const FMaterial& RESTRICT MaterialResource,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
-	float MobileColorValue,
-	bool bUsesMobileColorValue)
+	float MobileColorValue)
 {
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
@@ -156,10 +161,10 @@ void FCustomDepthPassMeshProcessor::Process(
 		TDepthOnlyVS<bPositionOnly>,
 		FDepthOnlyHS,
 		FDepthOnlyDS,
-		FDepthOnlyPS> DepthPassShaders;
+		FDepthOnlyPS<bUsesMobileColorValue>> DepthPassShaders;
 
 	FShaderPipelineRef ShaderPipeline;
-	GetDepthPassShaders<bPositionOnly>(
+	GetDepthPassShaders<bPositionOnly, bUsesMobileColorValue>(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
@@ -167,8 +172,7 @@ void FCustomDepthPassMeshProcessor::Process(
 		DepthPassShaders.DomainShader,
 		DepthPassShaders.VertexShader,
 		DepthPassShaders.PixelShader,
-		ShaderPipeline,
-		bUsesMobileColorValue
+		ShaderPipeline
 		);
 
 	FDepthOnlyShaderElementData ShaderElementData(MobileColorValue);

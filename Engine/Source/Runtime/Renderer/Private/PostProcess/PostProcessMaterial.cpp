@@ -261,6 +261,15 @@ public:
 	FPostProcessMaterialPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FPostProcessMaterialShader(Initializer)
 	{}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		uint32 StencilCompareFunction = Parameters.MaterialParameters.bIsStencilTestEnabled ? Parameters.MaterialParameters.StencilCompare : EMaterialStencilCompare::MSC_Never;
+
+		OutEnvironment.SetDefine(TEXT("MOBILE_STENCIL_COMPARE_FUNCTION"), StencilCompareFunction);
+	}
 };
 
 IMPLEMENT_SHADER_TYPE(,FPostProcessMaterialVS, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainVS"), SF_Vertex);
@@ -422,19 +431,49 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "PostProcessMaterial %dx%d Material=%s", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height(), *Material->GetFriendlyName());
 
+	const uint32 MaterialStencilRef = Material->GetStencilRefValue();
+
 	FPostProcessMaterialParameters* PostProcessMaterialParameters = GraphBuilder.AllocParameters<FPostProcessMaterialParameters>();
 
 	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(OutputViewport);
-	PostProcessMaterialParameters->CustomDepth = DepthStencilTexture;
+	PostProcessMaterialParameters->MobileCustomStencilTexture = DepthStencilTexture;
+	PostProcessMaterialParameters->MobileStencilValueRef = MaterialStencilRef;
 	PostProcessMaterialParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-	if (DepthStencilTexture)
+	bool bMobilePlatform = IsMobilePlatform(View.GetShaderPlatform());
+
+	if (DepthStencilTexture && !bMobilePlatform)
 	{
 		PostProcessMaterialParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthRead_StencilRead);
+	}
+	else if (!DepthStencilTexture && bMobilePlatform && Material->IsStencilTestEnabled()) // we have to set a default texture for MobileStencilTexture and override the MobileStencilValueRef to make all function to pass the stencil test
+	{
+		PostProcessMaterialParameters->MobileCustomStencilTexture = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
+		
+		switch (Material->GetStencilCompare())
+		{
+		case EMaterialStencilCompare::MSC_Less:
+			PostProcessMaterialParameters->MobileStencilValueRef = -1;
+			break;
+		case EMaterialStencilCompare::MSC_LessEqual:
+		case EMaterialStencilCompare::MSC_GreaterEqual:
+		case EMaterialStencilCompare::MSC_Equal:
+			PostProcessMaterialParameters->MobileStencilValueRef = 0;
+			break;
+		case EMaterialStencilCompare::MSC_Greater:
+		case EMaterialStencilCompare::MSC_NotEqual:
+			PostProcessMaterialParameters->MobileStencilValueRef = 1;
+			break;
+		case EMaterialStencilCompare::MSC_Always:
+			PostProcessMaterialParameters->MobileStencilValueRef = 256;
+			break;
+		default:
+			break;
+		}
 	}
 
 	PostProcessMaterialParameters->PostProcessInput_BilinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
@@ -469,8 +508,6 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	TShaderRef<FPostProcessMaterialVS> VertexShader = MaterialShaderMap->GetShader<FPostProcessMaterialVS>(PermutationVector);
 	TShaderRef<FPostProcessMaterialPS> PixelShader = MaterialShaderMap->GetShader<FPostProcessMaterialPS>(PermutationVector);
 	ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
-
-	const uint32 MaterialStencilRef = Material->GetStencilRefValue();
 
 	EScreenPassDrawFlags ScreenPassFlags = EScreenPassDrawFlags::AllowHMDHiddenAreaMask;
 
@@ -691,7 +728,9 @@ FRenderingCompositePass* AddPostProcessMaterialPass(
 
 		Inputs.bFlipYAxis = ShouldMobilePassFlipVerticalAxis(InContext, Pass);
 
-		if (TRefCountPtr<IPooledRenderTarget> CustomDepthTarget = FSceneRenderTargets::Get(InContext.RHICmdList).CustomDepth)
+		bool bMobilePlatform = IsMobilePlatform(InContext.View.GetShaderPlatform());
+
+		if (TRefCountPtr<IPooledRenderTarget> CustomDepthTarget = bMobilePlatform ? FSceneRenderTargets::Get(InContext.RHICmdList).MobileCustomStencil : FSceneRenderTargets::Get(InContext.RHICmdList).CustomDepth)
 		{
 			Inputs.CustomDepthTexture = GraphBuilder.RegisterExternalTexture(CustomDepthTarget, TEXT("CustomDepth"));
 		}

@@ -138,6 +138,7 @@ public:
 /**
 * A pixel shader for rendering the depth of a mesh.
 */
+template <bool bUsesMobileColorValue>
 class FDepthOnlyPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FDepthOnlyPS,MeshMaterial);
@@ -145,9 +146,9 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return 
-			// Compile for materials that are masked.
-			(!Parameters.MaterialParameters.bWritesEveryPixel || Parameters.MaterialParameters.bHasPixelDepthOffsetConnected || Parameters.MaterialParameters.bIsTranslucencyWritingCustomDepth)
+		return
+			// Compile for materials that are masked, avoid generating permutation for other platforms if bUsesMobileColorValue is true
+			((!Parameters.MaterialParameters.bWritesEveryPixel || Parameters.MaterialParameters.bHasPixelDepthOffsetConnected || Parameters.MaterialParameters.bIsTranslucencyWritingCustomDepth) && (!bUsesMobileColorValue || IsMobilePlatform(Parameters.Platform)))
 			// Mobile uses material pixel shader to write custom stencil to color target
 			|| (IsMobilePlatform(Parameters.Platform) && (Parameters.MaterialParameters.bIsDefaultMaterial || Parameters.MaterialParameters.bMaterialMayModifyMeshPosition));
 	}
@@ -168,6 +169,12 @@ public:
 		{
 			// No access to scene textures during depth rendering on mobile
 			OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1u);
+
+			OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_COLOR_VALUE"), bUsesMobileColorValue ? 1u : 0u);
+		}
+		else
+		{
+			OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_COLOR_VALUE"), 0u);
 		}
 	}
 
@@ -191,7 +198,7 @@ public:
 	LAYOUT_FIELD(FShaderParameter, MobileColorValue);
 };
 
-template <bool bPositionOnly>
+template <bool bPositionOnly, bool bUsesMobileColorValue>
 void GetDepthPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
@@ -199,9 +206,8 @@ void GetDepthPassShaders(
 	TShaderRef<FDepthOnlyHS>& HullShader,
 	TShaderRef<FDepthOnlyDS>& DomainShader,
 	TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader,
-	TShaderRef<FDepthOnlyPS>& PixelShader,
-	FShaderPipelineRef& ShaderPipeline,
-	bool bUsesMobileColorValue);
+	TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader,
+	FShaderPipelineRef& ShaderPipeline);
 
 extern void CreateDepthPassUniformBuffer(
 	FRHICommandListImmediate& RHICmdList, 

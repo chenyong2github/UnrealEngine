@@ -79,6 +79,15 @@ static TAutoConsoleVariable<int32> CVarCustomDepth(
 	ECVF_RenderThreadSafe
 	);
 
+static TAutoConsoleVariable<int32> CVarMobileCustomDepthDownSample(
+	TEXT("r.Mobile.CustomDepthDownSample"),
+	0,
+	TEXT("Perform Mobile CustomDepth at HalfRes \n ")
+	TEXT("0: Off (default)\n ")
+	TEXT("1: On \n "),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarMSAACount(
 	TEXT("r.MSAACount"),
 	4,
@@ -263,6 +272,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, ScreenSpaceGTAOHorizons(GRenderTargetPool.MakeSnapshot(SnapshotSource.ScreenSpaceGTAOHorizons))
 	, QuadOverdrawBuffer(GRenderTargetPool.MakeSnapshot(SnapshotSource.QuadOverdrawBuffer))
 	, CustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.CustomDepth))
+	, MobileCustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomDepth))
 	, MobileCustomStencil(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomStencil))
 	, CustomStencilSRV(SnapshotSource.CustomStencilSRV)
 	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
@@ -1430,21 +1440,24 @@ bool FSceneRenderTargets::BeginRenderingCustomDepth(FRHICommandListImmediate& RH
 		FRHIRenderPassInfo RPInfo;
 
 		const bool bWritesCustomStencilValues = IsCustomDepthPassWritingStencil();
-		const bool bRequiresStencilColorTarget = (bWritesCustomStencilValues && CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1);
+		const bool bRequiresStencilColorTarget = (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1);
 
 		int32 NumColorTargets = 0;
-		FRHIRenderTargetView ColorView = {};
 		if (bRequiresStencilColorTarget)
 		{
-			checkSlow(MobileCustomStencil.IsValid());
+			checkSlow(MobileCustomDepth.IsValid() && MobileCustomStencil.IsValid());
 
 			RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
 			RPInfo.ColorRenderTargets[0].ArraySlice = -1;
 			RPInfo.ColorRenderTargets[0].MipIndex = 0;
-			RPInfo.ColorRenderTargets[0].RenderTarget = MobileCustomStencil->GetRenderTargetItem().ShaderResourceTexture;
+			RPInfo.ColorRenderTargets[0].RenderTarget = MobileCustomDepth->GetRenderTargetItem().ShaderResourceTexture;
 
-			ColorView =	FRHIRenderTargetView(MobileCustomStencil->GetRenderTargetItem().ShaderResourceTexture, 0, -1, ERenderTargetLoadAction::EClear, ERenderTargetStoreAction::EStore);
-			NumColorTargets = 1;
+			RPInfo.ColorRenderTargets[1].Action = bWritesCustomStencilValues ? ERenderTargetActions::Clear_Store : ERenderTargetActions::DontLoad_DontStore;
+			RPInfo.ColorRenderTargets[1].ArraySlice = -1;
+			RPInfo.ColorRenderTargets[1].MipIndex = 0;
+			RPInfo.ColorRenderTargets[1].RenderTarget = MobileCustomStencil->GetRenderTargetItem().ShaderResourceTexture;
+
+			NumColorTargets = 2;
 		}
 
 		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, ERenderTargetActions::Load_Store);
@@ -1476,12 +1489,15 @@ void FSceneRenderTargets::FinishRenderingCustomDepth(FRHICommandListImmediate& R
 
 	RHICmdList.EndRenderPass();
 	
-	if (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1 && IsCustomDepthPassWritingStencil() && MobileCustomStencil.IsValid())
+	if (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{
+		RHICmdList.CopyToResolveTarget(MobileCustomDepth->GetRenderTargetItem().TargetableTexture, MobileCustomDepth->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(ResolveRect));
 		RHICmdList.CopyToResolveTarget(MobileCustomStencil->GetRenderTargetItem().TargetableTexture, MobileCustomStencil->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(ResolveRect));
 	}
-
-	RHICmdList.CopyToResolveTarget(CustomDepth->GetRenderTargetItem().TargetableTexture, CustomDepth->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(ResolveRect));
+	else
+	{
+		RHICmdList.CopyToResolveTarget(CustomDepth->GetRenderTargetItem().TargetableTexture, CustomDepth->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(ResolveRect));
+	}
 
 	bCustomDepthIsValid = true;
 }
@@ -2753,6 +2769,7 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	SceneColorSubPixel.SafeRelease();
 	DirectionalOcclusion.SafeRelease();
 	CustomDepth.SafeRelease();
+	MobileCustomDepth.SafeRelease();
 	MobileCustomStencil.SafeRelease();
 	CustomStencilSRV.SafeRelease();
 
@@ -2870,14 +2887,19 @@ IPooledRenderTarget* FSceneRenderTargets::RequestCustomDepth(FRHICommandListImme
 	int Value = CVarCustomDepth.GetValueOnRenderThread();
 	const bool bCustomDepthPassWritingStencil = IsCustomDepthPassWritingStencil();
 	const bool bMobilePath = (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1);
+	int32 DownsampleFactor = bMobilePath && CVarMobileCustomDepthDownSample.GetValueOnRenderThread() > 0 ? 2 : 1;
+
+	FIntPoint CustomDepthBufferSize = FIntPoint::DivideAndRoundUp(BufferSize, DownsampleFactor);
 
 	if ((Value == 1 && bPrimitives) || Value == 2 || bCustomDepthPassWritingStencil)
 	{
-		bool bHasValidCustomDepth = (CustomDepth.IsValid() && BufferSize == CustomDepth->GetDesc().Extent && !GFastVRamConfig.bDirty);
+		bool bHasValidCustomDepth = (CustomDepth.IsValid() && CustomDepthBufferSize == CustomDepth->GetDesc().Extent && !GFastVRamConfig.bDirty);
 		bool bHasValidCustomStencil;
 		if (bMobilePath)
 		{
-			bHasValidCustomStencil = (MobileCustomStencil.IsValid() && BufferSize == MobileCustomStencil->GetDesc().Extent);
+			bHasValidCustomStencil = (MobileCustomStencil.IsValid() && CustomDepthBufferSize == MobileCustomStencil->GetDesc().Extent) && 
+									//Use memory less when stencil writing is disabled and vice versa
+									bCustomDepthPassWritingStencil == ((MobileCustomStencil->GetDesc().TargetableFlags & TexCreate_Memoryless) == 0);
 		}
 		else
 		{
@@ -2891,14 +2913,32 @@ IPooledRenderTarget* FSceneRenderTargets::RequestCustomDepth(FRHICommandListImme
 			uint32 CustomDepthFlags = TexCreate_NoFastClear;
 
 			// Todo: Could check if writes stencil here and create min viable target
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_DepthStencil, FClearValueBinding::DepthFar, CustomDepthFlags, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_DepthStencil, FClearValueBinding::DepthFar, CustomDepthFlags, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
 			Desc.Flags |= GFastVRamConfig.CustomDepth;
+			
+			if (bMobilePath)
+			{
+				Desc.TargetableFlags |= TexCreate_Memoryless;
+			}
+
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, CustomDepth, TEXT("CustomDepth"), true, ERenderTargetTransience::NonTransient);
 			
 			if (bMobilePath)
 			{
-				FPooledRenderTargetDesc MobileCustomStencilDesc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+				uint32 CustomDepthStencilTargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
+
+				FPooledRenderTargetDesc MobileCustomDepthDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_R16F, FClearValueBinding(FLinearColor(65500.0f, 65500.0f, 65500.0f)), TexCreate_None, CustomDepthStencilTargetableFlags, false));
+				GRenderTargetPool.FindFreeElement(RHICmdList, MobileCustomDepthDesc, MobileCustomDepth, TEXT("MobileCustomDepth"));
+
+				if (!bCustomDepthPassWritingStencil)
+				{
+					CustomDepthStencilTargetableFlags |= TexCreate_Memoryless;
+				}
+
+				FPooledRenderTargetDesc MobileCustomStencilDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_R8_UINT, FClearValueBinding::Transparent, TexCreate_None, CustomDepthStencilTargetableFlags, false));
 				GRenderTargetPool.FindFreeElement(RHICmdList, MobileCustomStencilDesc, MobileCustomStencil, TEXT("MobileCustomStencil"));
+
+				CustomStencilSRV.SafeRelease();
 			}
 			else
 			{
@@ -3203,6 +3243,7 @@ void SetupMobileSceneTextureUniformParameters(
 {
 	FRHITexture* BlackDefault2D = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 	FRHITexture* DepthDefault = GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture;
+	FRHITexture* ZeroUIntDummy = GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
 
 	SceneTextureParameters.SceneColorTexture = bSceneTexturesValid ? SceneContext.GetSceneColorTexture().GetReference() : BlackDefault2D;
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -3214,11 +3255,11 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.SceneAlphaCopyTexture = bSceneTexturesValid && SceneContext.HasSceneAlphaCopyTexture() ? SceneContext.GetSceneAlphaCopyTexture() : BlackDefault2D;
 	SceneTextureParameters.SceneAlphaCopyTextureSampler = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 
-	FRHITexture* CustomDepth = DepthDefault;
+	FRHITexture* CustomDepth = BlackDefault2D;
 
 	// if there is no custom depth it's better to have the far distance there
 	// we should update all pass uniform buffers at the start of frame on mobile, SceneContext.bCustomDepthIsValid is invalid at InitView, so pass the parameter from View.bUsesCustomDepthStencil
-	IPooledRenderTarget* CustomDepthTarget = bCustomDepthIsValid ? SceneContext.CustomDepth.GetReference() : 0;
+	IPooledRenderTarget* CustomDepthTarget = bCustomDepthIsValid ? SceneContext.MobileCustomDepth.GetReference() : 0;
 	if (CustomDepthTarget)
 	{
 		CustomDepth = CustomDepthTarget->GetRenderTargetItem().ShaderResourceTexture;
@@ -3227,15 +3268,14 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.CustomDepthTexture = CustomDepth;
 	SceneTextureParameters.CustomDepthTextureSampler = TStaticSamplerState<>::GetRHI();
 
-	FRHITexture* MobileCustomStencil = BlackDefault2D;
+	FRHITexture* MobileCustomStencil = ZeroUIntDummy;
 
 	if (SceneContext.MobileCustomStencil.IsValid())
 	{
 		MobileCustomStencil = SceneContext.MobileCustomStencil->GetRenderTargetItem().ShaderResourceTexture;
 	}
 
-	SceneTextureParameters.MobileCustomStencilTexture = MobileCustomStencil;
-	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SceneTextureParameters.CustomStencilTexture = MobileCustomStencil;
 	
 	if (SceneContext.VirtualTextureFeedback.FeedbackBufferUAV.IsValid())
 	{
