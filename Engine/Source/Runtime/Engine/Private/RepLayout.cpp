@@ -1210,18 +1210,18 @@ static bool CompareParentProperty(
 	const FComparePropertiesSharedParams& SharedParams,
 	FComparePropertiesStackParams& StackParams)
 {
-	const FRepParentCmd& Parent = SharedParams.Parents[ParentIndex];
-	const bool bIsLifetime = EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsLifetime);
+		const FRepParentCmd& Parent = SharedParams.Parents[ParentIndex];
+		const bool bIsLifetime = EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsLifetime);
 
-	// Active state of a property applies to *all* connections.
-	// If the property is inactive, we can skip comparing it because we know it won't be sent.
-	// Further, this will keep the last active state of the property in the shadow buffer,
-	// meaning the next time the property becomes active it will be sent to all connections.
+		// Active state of a property applies to *all* connections.
+		// If the property is inactive, we can skip comparing it because we know it won't be sent.
+		// Further, this will keep the last active state of the property in the shadow buffer,
+		// meaning the next time the property becomes active it will be sent to all connections.
 	const bool bIsActive = !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->Parents[ParentIndex].Active;
-	const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
+		const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
 
-	if (bShouldSkip)
-	{
+		if (bShouldSkip)
+		{
 		return false;
 	}
 
@@ -1229,26 +1229,26 @@ static bool CompareParentProperty(
 	if (SharedParams.bIsNetworkProfilerActive)
 	{
 		const_cast<TBitArray<>&>(SharedParams.PropertiesCompared)[ParentIndex] = true;
-	}
+		}
 #endif
 
 	const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
 
 	if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
-	{
-		if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::Role))
 		{
+			if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::Role))
+			{
 			return CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::Role, SharedParams.RepState->SavedRole);
-		}
+			}
 		if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::RemoteRole))
-		{
+			{
 			return CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::RemoteRole, SharedParams.RepState->SavedRemoteRole);
+			}
 		}
-	}
-	
+		
 	const int32 NumChanges = StackParams.Changed.Num();
 
-	// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
+		// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
 	CompareProperties_r(SharedParams, StackParams, Parent.CmdStart, Parent.CmdEnd, Cmd.RelativeHandle - 1);
 
 	return !!(StackParams.Changed.Num() - NumChanges);

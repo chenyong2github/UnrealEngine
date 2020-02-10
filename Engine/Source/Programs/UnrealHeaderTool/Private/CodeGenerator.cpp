@@ -166,12 +166,12 @@ namespace
 		if (!Class->HasAnyClassFlags(CLASS_ReplicationDataIsSetUp))
 		{
 			for (TFieldIterator<FProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		{
+			if ((It->PropertyFlags & CPF_Net) != 0)
 			{
-				if ((It->PropertyFlags & CPF_Net) != 0)
-				{
-					return true;
-				}
+				return true;
 			}
+		}
 		}
 
 		return Class->FirstOwnedClassRep < Class->ClassReps.Num();
@@ -3661,8 +3661,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
 
 				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMOperandMemory[%d];"),
-					*VariableType,
-					*ParamNameOriginal,
+				*VariableType,
+				*ParamNameOriginal,
 					*ParameterCast,
 					OperandIndex));
 
@@ -4001,20 +4001,20 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			Out.Log(TEXT("}\r\n"));
 		}
 
-		Out.Log(TEXT("\r\n"));
+			Out.Log(TEXT("\r\n"));
 
 		bool bHasGetMaxArraySize = false;
 		for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
-		{
-			if (!StructMember.MaxArraySize.IsEmpty())
 			{
+			if (!StructMember.MaxArraySize.IsEmpty())
+				{
 				bHasGetMaxArraySize = true;
 				break;
+				}
 			}
-		}
 
 		if (bHasGetMaxArraySize)
-		{
+			{
 			Out.Logf(TEXT("int32 %s::GetMaxArraySize(const FName& InMemberName, const FRigVMUserDataArray& RigVMUserData)\r\n"), *StructNameCPP);
 			Out.Log(TEXT("{\r\n"));
 			for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)

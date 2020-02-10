@@ -2576,7 +2576,7 @@ FString GetFieldPythonNameImpl(const FFieldVariant& InField, const FName InMetaD
 
 		// Strip the "E" prefix from enum names
 		if (InField.IsA<UEnum>() && FieldName.Len() >= 2 && FieldName[0] == TEXT('E') && FChar::IsUpper(FieldName[1]))
-		{
+	{
 			FieldName.RemoveAt(0, 1, /*bAllowShrinking*/false);
 		}
 

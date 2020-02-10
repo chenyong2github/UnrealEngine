@@ -11,7 +11,7 @@ static FPropertyNameAndIndex GetActorPropertyNameAndIndexForComponent(const AAct
 {
 	if (Actor != nullptr && Component != nullptr)
 	{
-		// Iterate over UObject* fields of this actor
+			// Iterate over UObject* fields of this actor
 		UClass* ActorClass = Actor->GetClass();
 		for (TFieldIterator<FObjectProperty> It(ActorClass); It; ++It)
 		{

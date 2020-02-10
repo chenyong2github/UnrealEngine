@@ -10627,4 +10627,3 @@ UDelegateFunction* FHeaderParser::CreateDelegateFunction(const FFuncInfo &FuncIn
 	UObject* CurrentPackage = LocSourceFile ? LocSourceFile->GetPackage() : nullptr;
 	return CreateFunctionImpl<T>(FuncInfo, IsInAClass() ? (UObject*)GetCurrentClass() : CurrentPackage, GetCurrentScope());
 }
-
