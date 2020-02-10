@@ -238,7 +238,7 @@ void FMD5::Transform( uint32* state, const uint8* block )
 	state[3] += d;
 
 	// Zeroize sensitive information.
-	FMemory::Memset( x, 0, sizeof(x) );
+	FMemory::Memset( x, 0, sizeof(x) ); //-V597
 }
 
 void FMD5::Encode( uint8* output, const uint32* input, int32 len )
