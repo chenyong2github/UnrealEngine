@@ -27,25 +27,25 @@ typedef FString FPresenceKey;
 typedef FOnlineKeyValuePairs<FPresenceKey, FVariantData> FPresenceProperties;
 
 /** The default key that will update presence text in the platform's UI */
-const FString DefaultPresenceKey = TEXT("RichPresence");
+extern ONLINESUBSYSTEM_API const FString DefaultPresenceKey;
 
 /** Custom presence data that is not seen by users but can be polled */
-const FString CustomPresenceDataKey = TEXT("CustomData");
+extern ONLINESUBSYSTEM_API const FString CustomPresenceDataKey;
 
 /** Name of the client that sent the presence update */
-const FString DefaultAppIdKey = TEXT("AppId");
+extern ONLINESUBSYSTEM_API const FString DefaultAppIdKey;
 
 /** Platform of the client that sent the presence update */
-const FString DefaultPlatformKey = TEXT("Platform");
+extern ONLINESUBSYSTEM_API const FString DefaultPlatformKey;
 
 /** Override Id of the client to set the presence state to */
-const FString OverrideAppIdKey = TEXT("OverrideAppId");
+extern ONLINESUBSYSTEM_API const FString OverrideAppIdKey;
 
 /** Id of the session for the presence update. @todo samz - SessionId on presence data should be FUniqueNetId not uint64 */
-const FString DefaultSessionIdKey = TEXT("SessionId");
+extern ONLINESUBSYSTEM_API const FString DefaultSessionIdKey;
 
 /** Resource the client is logged in with */
-const FString PresenceResourceKey = TEXT("ResourceKey");
+extern ONLINESUBSYSTEM_API const FString PresenceResourceKey;
 
 namespace EOnlinePresenceState
 {
