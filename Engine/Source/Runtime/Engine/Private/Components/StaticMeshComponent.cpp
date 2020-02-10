@@ -179,6 +179,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	StaticMeshImportVersion = BeforeImportStaticMeshVersionWasAdded;
 	bCustomOverrideVertexColorPerLOD = false;
 	bDisplayVertexColors = false;
+	bDisplayPhysicalMaterialMasks = false;
 #endif
 }
 
@@ -912,7 +913,7 @@ bool UStaticMeshComponent::DoesSocketExist(FName InSocketName) const
 bool UStaticMeshComponent::ShouldRenderSelected() const
 {
 	const bool bShouldRenderSelected = UMeshComponent::ShouldRenderSelected();
-	return bShouldRenderSelected || bDisplayVertexColors;
+	return bShouldRenderSelected || bDisplayVertexColors || bDisplayPhysicalMaterialMasks;
 }
 #endif // WITH_EDITOR
 

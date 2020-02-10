@@ -32,6 +32,7 @@ public:
 	/**  */
 	TSharedPtr< FUICommandInfo > SetShowWireframe;
 	TSharedPtr< FUICommandInfo > SetShowVertexColor;
+	TSharedPtr< FUICommandInfo > SetShowPhysicalMaterialMasks;
 	TSharedPtr< FUICommandInfo > SetDrawUVs;
 	TSharedPtr< FUICommandInfo > SetShowGrid;
 	TSharedPtr< FUICommandInfo > SetShowBounds;

@@ -322,6 +322,7 @@ private:
 		SetTestImage(false);
 		SetVisualizeDOF(false);
 		SetVertexColors(false);
+		SetPhysicalMaterialMasks(false);
 		SetVisualizeMotionBlur(false);
 		SetSelectionOutline(false);
 		SetDebugAI(false);
