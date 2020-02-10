@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "DSP/FFTAlgorithm.h"
 #include "DSP/BufferVectorOperations.h"
-
-#pragma once
 
 namespace Audio
 {
