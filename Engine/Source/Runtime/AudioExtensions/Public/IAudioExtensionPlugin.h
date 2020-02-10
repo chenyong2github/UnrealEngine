@@ -552,7 +552,7 @@ struct AUDIOEXTENSIONS_API FSoundModulationControls
 
 /** Parameter allowing modulation control override for systems opting in to the Modulation System. */
 USTRUCT(BlueprintType)
-struct AUDIOEXTENSIONS_API FSoundModulationParameter
+struct  FSoundModulationParameter
 {
 	GENERATED_BODY()
 
