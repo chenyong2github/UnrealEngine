@@ -5,6 +5,7 @@
 #include "Blackmagic.h"
 #include "BlackmagicMediaPrivate.h"
 #include "BlackmagicMediaSource.h"
+#include "IBlackmagicMediaModule.h"
 
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformProcess.h"
@@ -22,6 +23,7 @@
 #include "Misc/App.h"
 #include "Slate/SceneViewport.h"
 #include "Stats/Stats2.h"
+#include "Styling/SlateStyle.h"
 
 #include "BlackmagicMediaSource.h"
 

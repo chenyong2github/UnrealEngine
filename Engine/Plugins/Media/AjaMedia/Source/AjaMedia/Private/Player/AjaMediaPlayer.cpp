@@ -15,6 +15,7 @@
 #include "IMediaOptions.h"
 #include "Misc/ScopeLock.h"
 #include "Stats/Stats2.h"
+#include "Styling/SlateStyle.h"
 
 #include "AjaMediaAudioSample.h"
 #include "AjaMediaBinarySample.h"
