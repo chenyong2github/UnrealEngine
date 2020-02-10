@@ -43,7 +43,7 @@ namespace
 	static const FName AssetRegistryName(TEXT("AssetRegistry"));
 	static const FName LevelEditorName(TEXT("LevelEditor"));
 	static const FString SavedSettingsSlotName(TEXT("SavedVirtualCameraSettings"));
-	static const TCHAR* DefaultCameraUMG = TEXT("/VirtualCamera/VirtualCameraUI.VirtualCameraUI_C");
+	static const TCHAR* DefaultCameraUMG = TEXT("/VirtualCamera/V2/Widgets/VCam2UI.VCam2UI_C");
 	static const FName DefaultLiveLinkSubjectName(TEXT("CameraTransform"));
 	static const FVector2D DefaultViewportResolution(1280, 720);
 
@@ -434,12 +434,12 @@ bool AVirtualCameraActor::StopStreaming()
 
 UCineCameraComponent* AVirtualCameraActor::GetStreamedCameraComponent_Implementation() const
 {
-	return RecordingCamera;
+	return StreamedCamera;
 }
 
 UCineCameraComponent* AVirtualCameraActor::GetRecordingCameraComponent_Implementation() const
 {
-	return StreamedCamera;
+	return RecordingCamera;
 }
 
 ULevelSequencePlaybackController* AVirtualCameraActor::GetSequenceController_Implementation() const
