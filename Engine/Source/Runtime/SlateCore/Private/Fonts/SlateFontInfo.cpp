@@ -6,7 +6,6 @@
 #include "Fonts/FontProviderInterface.h"
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
-#include "UObject/UObjectThreadContext.h"
 
 /* FSlateFontInfo structors
  *****************************************************************************/
@@ -200,21 +199,6 @@ void FSlateFontInfo::PostSerialize(const FArchive& Ar)
 	if (Ar.UE4Ver() < VER_UE4_SLATE_COMPOSITE_FONTS && !FontObject)
 	{
 		UpgradeLegacyFontInfo(FontName_DEPRECATED, Hinting_DEPRECATED);
-	}
-
-	// @fixme Temporary logging to track NDC issue.
-	if (Ar.IsCooking() && Ar.IsSaving())
-	{
-		FUObjectSerializeContext* SaveContext = const_cast<FArchive*>(&Ar)->GetSerializeContext();
-		if (SaveContext && SaveContext->SerializedObject)
-		{
-			UE_LOG(LogSlate, Display, TEXT("TEXT_STYLE_NDC: Serialized SlateFontInfo in object %s (0x%016x). Font=%s, FontMaterial=%s, Size=%d"),
-				*(SaveContext->SerializedObject->GetPathName()),
-				SaveContext->SerializedObject,
-				(FontObject ? *FontObject->GetFullName() : TEXT("None")),
-				(FontMaterial ? *FontMaterial->GetFullName() : TEXT("None")),
-				Size);
-		}
 	}
 }
 #endif
