@@ -269,6 +269,12 @@ public:
 	/** Find the event node for the component property with the given event name */
 	static const class UK2Node_ComponentBoundEvent* FindBoundEventForComponent(const UBlueprint* Blueprint, FName EventName, FName PropertyName);
 
+	/** Finds all bound component nodes for the given property on this blueprint */
+	static void FindAllBoundEventsForComponent(const UBlueprint* Blueprint, FName PropertyName, TArray<UK2Node_ComponentBoundEvent*>& OutNodes);
+
+	/** Returns true if the given property name has any bound component events in any blueprint graphs */
+	static bool PropertyHasBoundEvents(const UBlueprint* Blueprint, FName PropertyName);
+
 	/** Checks to see if a given class implements a blueprint-accesable interface */
 	static bool IsClassABlueprintInterface (const UClass* Class);
 

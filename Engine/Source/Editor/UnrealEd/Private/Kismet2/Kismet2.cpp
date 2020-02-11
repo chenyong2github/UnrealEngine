@@ -2120,6 +2120,29 @@ const UK2Node_ComponentBoundEvent* FKismetEditorUtilities::FindBoundEventForComp
 	return Node;
 }
 
+void FKismetEditorUtilities::FindAllBoundEventsForComponent(const UBlueprint* Blueprint, FName PropertyName, TArray<UK2Node_ComponentBoundEvent*>& OutNodes)
+{
+	if (Blueprint && PropertyName != NAME_None)
+	{
+		TArray<UK2Node_ComponentBoundEvent*> EventNodes;
+		FBlueprintEditorUtils::GetAllNodesOfClass(Blueprint, EventNodes);
+		for (UK2Node_ComponentBoundEvent* CurNode : EventNodes)
+		{
+			if (CurNode && CurNode->ComponentPropertyName == PropertyName)
+			{
+				OutNodes.Add(CurNode);
+			}
+		}
+	}
+}
+
+bool FKismetEditorUtilities::PropertyHasBoundEvents(const UBlueprint* Blueprint, FName PropertyName)
+{
+	TArray<UK2Node_ComponentBoundEvent*> EventNodes;
+	FKismetEditorUtilities::FindAllBoundEventsForComponent(Blueprint, PropertyName, EventNodes);
+	return EventNodes.Num() > 0;
+}
+
 bool FKismetEditorUtilities::IsClassABlueprintInterface(const UClass* Class)
 {
 	if (Class->HasAnyClassFlags(CLASS_Interface) && !Class->HasAnyClassFlags(CLASS_NewerVersionExists))
