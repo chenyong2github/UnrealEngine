@@ -321,7 +321,10 @@ FAsioStoreCborServer::FAsioStoreCborServer(
 , Store(InStore)
 , Recorder(InRecorder)
 {
-	StartServer();
+	if (!StartServer(1988))
+	{
+		StartServer();
+	}
 	StartTick(500);
 }
 
