@@ -8,6 +8,7 @@
 #include "NiagaraShaderModule.h"
 #include "NiagaraShaderType.h"
 #include "NiagaraShader.h"
+#include "NiagaraScript.h"
 #include "Stats/StatsMisc.h"
 #include "UObject/CoreObjectVersion.h"
 #include "Misc/App.h"
@@ -272,6 +273,18 @@ void FNiagaraShaderScript::SetScript(UNiagaraScript *InScript, ERHIFeatureLevel:
 	FriendlyName = InFriendlyName;
 	SetFeatureLevel(InFeatureLevel);
 }
+
+#if WITH_EDITOR
+bool FNiagaraShaderScript::MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, const FNiagaraVMExecutableDataId& ScriptId) const
+{
+	return CompilerVersionId == ScriptId.CompilerVersionID
+		&& AdditionalDefines == ScriptId.AdditionalDefines
+		&& bUsesRapidIterationParams == ScriptId.bUsesRapidIterationParams
+		&& BaseCompileHash == ScriptId.BaseScriptCompileHash
+		&& ReferencedCompileHashes == ScriptId.ReferencedCompileHashes
+		&& FeatureLevel == InFeatureLevel;
+}
+#endif
 
 NIAGARASHADER_API  void FNiagaraShaderScript::SetRenderingThreadShaderMap(FNiagaraShaderMap* InShaderMap)
 {
