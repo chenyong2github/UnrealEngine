@@ -120,7 +120,10 @@ void SDMXEntityEditor::OnSelectionUpdated(TArray<TSharedPtr<FDMXTreeNodeBase>> I
 			}
 		}
 
-		if (SelectedObjects.Num() > 0)
+		// Update property inspector if we changed the selection or if there are no entities in the list.
+		// So, if the user de-selects all entities, the last one's properties is still shown. But if they
+		// delete all entities, we empty the inspector.
+		if (SelectedObjects.Num() > 0 || ListWidget->IsListEmpty())
 		{
 			GetInspectorWidget()->ShowDetailsForEntities(SelectedObjects);
 		}

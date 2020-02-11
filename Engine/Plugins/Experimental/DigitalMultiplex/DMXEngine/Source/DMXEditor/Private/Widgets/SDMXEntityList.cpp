@@ -1700,7 +1700,7 @@ void SDMXEntityList::OnDeleteNodes()
 
 	{
 		// Clears references to the Entities and delete them
-		const FScopedTransaction Transaction(EntitiesToDelete.Num() > 0 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
+		const FScopedTransaction Transaction(EntitiesToDelete.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
 		FDMXEditorUtils::RemoveEntities(GetDMXLibrary(), MoveTemp(EntitiesToDelete));
 	}
 
@@ -1854,6 +1854,7 @@ void SDMXEntityList::InitializeNodes()
 	check(Library != nullptr);
 
 	RootNode->ClearChildren();
+	EntitiesCount = 0;
 	
 	// Category type for current tab (set below)
 	FDMXTreeNodeBase::ECategoryType CategoryType;
@@ -2064,6 +2065,7 @@ TSharedPtr<FDMXEntityBaseTreeNode> SDMXEntityList::CreateEntityTreeNode(UDMXEnti
 		NewNode->SetErrorStatus(InvalidReason);
 	}
 
+	++EntitiesCount;
 	return NewNode;
 }
 
@@ -2469,7 +2471,7 @@ void SDMXEntityList::OnTreeSelectionChanged(TSharedPtr<FDMXTreeNodeBase> InSelec
 	}
 }
 
-void SDMXEntityList::UpdateSelectionFromNodes(TArray<TSharedPtr<FDMXTreeNodeBase>> SelectedNodes)
+void SDMXEntityList::UpdateSelectionFromNodes(const TArray<TSharedPtr<FDMXTreeNodeBase>>& SelectedNodes)
 {
 	bUpdatingSelection = true;
 
@@ -2547,6 +2549,7 @@ void SDMXEntityList::UpdateTree(bool bRegenerateTreeNodes /*= true*/)
 		UDMXLibrary* Library = GetDMXLibrary();
 		check(Library != nullptr);
 
+		bool bSelectedAnEntity = false;
 		// Find the first non filtered out entity
 		Library->ForEachEntityOfTypeWithBreak(ListType, [this](UDMXEntity* Entity)
 			{
@@ -2560,6 +2563,12 @@ void SDMXEntityList::UpdateTree(bool bRegenerateTreeNodes /*= true*/)
 				}
 				return true;
 			});
+
+		if (!bSelectedAnEntity)
+		{
+			// There are no entities. Update the property inspector to empty it
+			UpdateSelectionFromNodes({});
+		}
 	}
 }
 

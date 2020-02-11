@@ -431,8 +431,8 @@ public:
 		: _OnSelectionUpdated()
 		{}
 
-		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>,				DMXEditor)
-		SLATE_EVENT(FOnSelectionUpdated,					OnSelectionUpdated)
+		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>,	DMXEditor)
+		SLATE_EVENT(FOnSelectionUpdated,		OnSelectionUpdated)
 
 	SLATE_END_ARGS()
 
@@ -444,7 +444,7 @@ public:
 	/** SWidget interface */
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
 
-	const TArray<TSharedPtr<SDMXEntityRow>>& GetEntityRows() const { return EntityRows; }
+	bool IsListEmpty() const { return EntitiesCount == 0; }
 
 	/** Cut selected node(s) */
 	void OnCutSelectedNodes();
@@ -483,7 +483,7 @@ public:
 	void OnTreeSelectionChanged(TSharedPtr<FDMXTreeNodeBase> InSelectedNodePtr, ESelectInfo::Type SelectInfo);
 
 	/** Update any associated selection from the passed in nodes */
-	void UpdateSelectionFromNodes(TArray<TSharedPtr<FDMXTreeNodeBase>> SelectedNodes);
+	void UpdateSelectionFromNodes(const TArray<TSharedPtr<FDMXTreeNodeBase>>& SelectedNodes);
 
 	/**
 	 * Set the expansion state of a node
@@ -561,8 +561,6 @@ protected:
 	 */
 	TSharedPtr<FDMXTreeNodeBase> RootNode;
 
-	TArray<TSharedPtr<SDMXEntityRow>> EntityRows;
-
 private:
 	/** Empty Nodes array and create a FDMXEntityListTreeNode for each relevant entity and category */
 	void InitializeNodes();
@@ -622,4 +620,7 @@ private:
 	/** The green Add Button. We need to reference it in Fixture Patches tab to update its list */
 	TSharedPtr<SComboButton> AddComboButton;
 	TSharedPtr<SDMXEntityDropdownMenu<UDMXEntityFixtureType>> AddButtonDropdownList;
+
+	/** Keeps the current number of entities for quick checking */
+	int32 EntitiesCount;
 };
