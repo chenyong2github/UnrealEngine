@@ -1828,6 +1828,64 @@ struct FBoundShaderStateInput
 	{
 	}
 
+	void AddRefResources()
+	{
+		check(VertexDeclarationRHI);
+		VertexDeclarationRHI->AddRef();
+
+		check(VertexShaderRHI);
+		VertexShaderRHI->AddRef();
+
+		if (HullShaderRHI)
+		{
+			HullShaderRHI->AddRef();
+		}
+
+		if (DomainShaderRHI)
+		{
+			DomainShaderRHI->AddRef();
+		}
+
+		if (PixelShaderRHI)
+		{
+			PixelShaderRHI->AddRef();
+		}
+
+		if (GeometryShaderRHI)
+		{
+			GeometryShaderRHI->AddRef();
+		}
+	}
+
+	void ReleaseResources()
+	{
+		check(VertexDeclarationRHI);
+		VertexDeclarationRHI->Release();
+
+		check(VertexShaderRHI);
+		VertexShaderRHI->Release();
+
+		if (HullShaderRHI)
+		{
+			HullShaderRHI->Release();
+		}
+
+		if (DomainShaderRHI)
+		{
+			DomainShaderRHI->Release();
+		}
+
+		if (PixelShaderRHI)
+		{
+			PixelShaderRHI->Release();
+		}
+
+		if (GeometryShaderRHI)
+		{
+			GeometryShaderRHI->Release();
+		}
+	}
+
 	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
 	FRHIVertexShader* VertexShaderRHI = nullptr;
 	FRHIHullShader* HullShaderRHI = nullptr;
