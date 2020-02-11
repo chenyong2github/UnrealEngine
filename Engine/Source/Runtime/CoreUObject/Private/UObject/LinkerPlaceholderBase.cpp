@@ -356,10 +356,8 @@ FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::FPlaceholderValueProperty
 				check(InnerStruct);
 				if (DEFERRED_DEPENDENCY_ENSURE(InnerStruct->IsChildOf(StructOwner)))
 				{
-					// With FProperties this should never happen
-					check(false);
-					//PropertyOuter = SerializingStructProp;
-					//PropertyChain.Add(SerializingStructProp);
+					PropertyOuter = SerializingStructProp;
+					PropertyChain.Add(SerializingStructProp);
 				}
 				else
 				{
