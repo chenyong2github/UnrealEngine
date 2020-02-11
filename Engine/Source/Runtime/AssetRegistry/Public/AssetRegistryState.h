@@ -109,12 +109,31 @@ public:
 	bool GetAssets(const FARFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const;
 
 	/**
+	 * Enumerate asset data for all assets that match the filter.
+	 * Assets returned must satisfy every filter component if there is at least one element in the component's array.
+	 * Assets will satisfy a component if they match any of the elements in it.
+	 *
+	 * @param Filter filter to apply to the assets in the AssetRegistry
+	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
+	 * @param Callback function to call for each asset data enumerated
+	 */
+	bool EnumerateAssets(const FARFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const;
+
+	/**
 	 * Gets asset data for all assets in the registry state.
 	 *
 	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
 	 * @param OutAssetData the list of assets
 	 */
 	bool GetAllAssets(const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const;
+
+	/**
+	 * Enumerates asset data for all assets in the registry state.
+	 *
+	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
+	 * @param Callback function to call for each asset data enumerated
+	 */
+	bool EnumerateAllAssets(const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const;
 
 	/**
 	 * Gets a list of packages and searchable names that are referenced by the supplied package or name. (On disk references ONLY)
