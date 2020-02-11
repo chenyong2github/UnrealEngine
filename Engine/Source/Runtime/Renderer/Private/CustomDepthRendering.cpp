@@ -96,7 +96,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 			if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 			{
 				// On mobile platforms write custom stencil value to color target
-				MobileColorValue = CustomDepthStencilValue;
+				MobileColorValue = CustomDepthStencilValue / 255.0f;
 			}
 		}
 		else
