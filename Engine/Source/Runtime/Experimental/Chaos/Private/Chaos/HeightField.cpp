@@ -259,6 +259,16 @@ namespace Chaos
 
 							if(Time <= 0) //initial overlap or MTD, so stop
 							{
+								// This is incorrect. To prevent objects pushing through the surface of the heightfield
+								// we adopt the triangle normal but this leaves us with an incorrect MTD from the GJK call
+								// above. #TODO possibly re-do GJK with a plane, or some geom vs.plane special case to solve
+								// both triangles as planes 
+								const TVector<T, 3> AB = B - A;
+								const TVector<T, 3> AC = C - A;
+
+								TVector<T, 3> TriNormal = TVector<T, 3>::CrossProduct(AB, AC);
+
+								OutNormal = TriNormal;
 								CurrentLength = 0;
 								return false;
 							}
