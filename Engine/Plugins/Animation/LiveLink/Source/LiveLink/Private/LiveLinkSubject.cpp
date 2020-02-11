@@ -71,40 +71,15 @@ void FLiveLinkSubject::Update()
 
 	if (GetMode() == ELiveLinkSourceMode::EngineTime)
 	{
-		double ValidEngineTime = FApp::GetCurrentTime() - CachedSettings.BufferSettings.EngineTimeOffset - CachedSettings.BufferSettings.ValidEngineTime;
-		int32 FrameIndex = 0;
-		for (const FLiveLinkFrameDataStruct& SourceFrameData : FrameData)
+		if (CachedSettings.BufferSettings.bValidEngineTimeEnabled)
 		{
-			double FrameTime = SourceFrameData.GetBaseData()->WorldTime.GetOffsettedTime();
-			double OffsetTime = ValidEngineTime;
-			if (FrameTime > OffsetTime)
-			{
-				break;
-			}
-			++FrameIndex;
-		}
-
-		if (FrameIndex - 1 >= 0)
-		{
-			const int32 Count = CachedSettings.BufferSettings.bKeepAtLeastOneFrame && FrameData.Num() == FrameIndex ? FrameIndex - 1 : FrameIndex;
-			if (Count > 0)
-			{
-				FrameData.RemoveAt(0, Count, false);
-			}
-		}
-	}
-	else if (GetMode() == ELiveLinkSourceMode::Timecode)
-	{
-		if (FApp::GetCurrentFrameTime().IsSet())
-		{
-			const FQualifiedFrameTime CurrentSyncTime = FApp::GetCurrentFrameTime().GetValue();
-			const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
+			double ValidEngineTime = FApp::GetCurrentTime() - CachedSettings.BufferSettings.EngineTimeOffset - CachedSettings.BufferSettings.ValidEngineTime;
 			int32 FrameIndex = 0;
 			for (const FLiveLinkFrameDataStruct& SourceFrameData : FrameData)
 			{
-				FFrameTime UsedFrameTime = CurrentFrameTimeInFrameSpace - FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset) - CachedSettings.BufferSettings.ValidTimecodeFrame;
-				FFrameTime FrameTime = SourceFrameData.GetBaseData()->MetaData.SceneTime.Time;
-				if (FrameTime > UsedFrameTime)
+				double FrameTime = SourceFrameData.GetBaseData()->WorldTime.GetOffsettedTime();
+				double OffsetTime = ValidEngineTime;
+				if (FrameTime > OffsetTime)
 				{
 					break;
 				}
@@ -117,6 +92,37 @@ void FLiveLinkSubject::Update()
 				if (Count > 0)
 				{
 					FrameData.RemoveAt(0, Count, false);
+				}
+			}
+		}
+	}
+	else if (GetMode() == ELiveLinkSourceMode::Timecode)
+	{
+		if (CachedSettings.BufferSettings.bValidTimecodeFrameEnabled)
+		{
+			if (FApp::GetCurrentFrameTime().IsSet())
+			{
+				const FQualifiedFrameTime CurrentSyncTime = FApp::GetCurrentFrameTime().GetValue();
+				const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
+				int32 FrameIndex = 0;
+				for (const FLiveLinkFrameDataStruct& SourceFrameData : FrameData)
+				{
+					FFrameTime UsedFrameTime = CurrentFrameTimeInFrameSpace - FFrameTime::FromDecimal(CachedSettings.BufferSettings.TimecodeFrameOffset) - CachedSettings.BufferSettings.ValidTimecodeFrame;
+					FFrameTime FrameTime = SourceFrameData.GetBaseData()->MetaData.SceneTime.Time;
+					if (FrameTime > UsedFrameTime)
+					{
+						break;
+					}
+					++FrameIndex;
+				}
+
+				if (FrameIndex - 1 >= 0)
+				{
+					const int32 Count = CachedSettings.BufferSettings.bKeepAtLeastOneFrame && FrameData.Num() == FrameIndex ? FrameIndex - 1 : FrameIndex;
+					if (Count > 0)
+					{
+						FrameData.RemoveAt(0, Count, false);
+					}
 				}
 			}
 		}
@@ -369,12 +375,15 @@ void FLiveLinkSubject::AddFrameData(FLiveLinkFrameDataStruct&& InFrameData)
 
 int32 FLiveLinkSubject::FindNewFrame_WorldTime(const FLiveLinkWorldTime& WorldTime) const
 {
-	const double ValidEngineTime = FApp::GetCurrentTime() - CachedSettings.BufferSettings.EngineTimeOffset - CachedSettings.BufferSettings.ValidEngineTime;
-	const double WorldOffsettedTime = WorldTime.GetOffsettedTime();
-	if (WorldOffsettedTime < ValidEngineTime)
+	if (CachedSettings.BufferSettings.bValidEngineTimeEnabled)
 	{
-		static const FName NAME_InvalidWorldTime = "LiveLinkSubject_InvalidWorldTIme";
-		FLiveLinkLog::WarningOnce(NAME_InvalidWorldTime, SubjectKey, TEXT("Trying to add a frame in which the world time has a value too low compare to the engine's time. Do you have an invalid offset? The Subject is '%s'."), *SubjectKey.SubjectName.ToString());
+		const double ValidEngineTime = FApp::GetCurrentTime() - CachedSettings.BufferSettings.EngineTimeOffset - CachedSettings.BufferSettings.ValidEngineTime;
+		const double WorldOffsettedTime = WorldTime.GetOffsettedTime();
+		if (WorldOffsettedTime < ValidEngineTime)
+		{
+			static const FName NAME_InvalidWorldTime = "LiveLinkSubject_InvalidWorldTIme";
+			FLiveLinkLog::WarningOnce(NAME_InvalidWorldTime, SubjectKey, TEXT("Trying to add a frame in which the world time has a value too low compare to the engine's time. Do you have an invalid offset? The Subject is '%s'."), *SubjectKey.SubjectName.ToString());
+		}
 	}
 
 	return FindNewFrame_WorldTimeInternal(WorldTime);
@@ -418,7 +427,7 @@ int32 FLiveLinkSubject::FindNewFrame_SceneTime(const FQualifiedFrameTime& Qualif
 	}
 
 	// If we do not have a TC set, keep buffering, the TC may be unresponsive for a moment. We do not want to loose data.
-	if (FApp::GetCurrentFrameTime().IsSet())
+	if (FApp::GetCurrentFrameTime().IsSet() && CachedSettings.BufferSettings.bValidTimecodeFrameEnabled)
 	{
 		const FQualifiedFrameTime CurrentSyncTime = FApp::GetCurrentFrameTime().GetValue();
 		const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
