@@ -2220,6 +2220,10 @@ void USkeletalMesh::PostLoad()
 	// Consolidate the shared cloth configs once all cloth assets are loaded
 	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)
 	{
+		MeshClothingAsset->ConditionalPostLoad();  // Make sure the cloth asset has finished loading
+	}
+	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)  // PostUpdateAllAssets will also iterate through all clothing assets so this cannot be merged with the loop above
+	{
 		MeshClothingAsset->PostUpdateAllAssets();
 	}
 
