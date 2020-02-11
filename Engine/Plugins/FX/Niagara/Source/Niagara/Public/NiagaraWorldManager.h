@@ -126,6 +126,7 @@ public:
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 
 	void PreGarbageCollect();
+	void PostReachabilityAnalysis();
 	void PostGarbageCollect();
 	void PreGarbageCollectBeginDestroy();
 	
@@ -182,6 +183,9 @@ private:
 	// Callback to handle any pre GC processing needed.
 	static void OnPreGarbageCollect();
 
+	// Callback post reachability
+	static void OnPostReachabilityAnalysis();
+
 	// Callback to handle any post GC processing needed.
 	static void OnPostGarbageCollect();
 
@@ -208,6 +212,7 @@ private:
 	static FDelegateHandle OnWorldBeginTearDownHandle;
 	static FDelegateHandle TickWorldHandle;
 	static FDelegateHandle PreGCHandle;
+	static FDelegateHandle PostReachabilityAnalysisHandle;
 	static FDelegateHandle PostGCHandle;
 	static FDelegateHandle PreGCBeginDestroyHandle;
 

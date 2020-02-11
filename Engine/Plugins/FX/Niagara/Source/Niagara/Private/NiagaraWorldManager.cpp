@@ -61,6 +61,7 @@ FDelegateHandle FNiagaraWorldManager::OnPreWorldFinishDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldBeginTearDownHandle;
 FDelegateHandle FNiagaraWorldManager::TickWorldHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCHandle;
+FDelegateHandle FNiagaraWorldManager::PostReachabilityAnalysisHandle;
 FDelegateHandle FNiagaraWorldManager::PostGCHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCBeginDestroyHandle; 
 TMap<class UWorld*, class FNiagaraWorldManager*> FNiagaraWorldManager::WorldManagers;
@@ -179,6 +180,7 @@ void FNiagaraWorldManager::OnStartup()
 	TickWorldHandle = FWorldDelegates::OnWorldPostActorTick.AddStatic(&FNiagaraWorldManager::TickWorld);
 
 	PreGCHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddStatic(&FNiagaraWorldManager::OnPreGarbageCollect);
+	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddStatic(&FNiagaraWorldManager::OnPostReachabilityAnalysis);
 	PostGCHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddStatic(&FNiagaraWorldManager::OnPostGarbageCollect);
 	PreGCBeginDestroyHandle = FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddStatic(&FNiagaraWorldManager::OnPreGarbageCollectBeginDestroy);
 }
@@ -192,6 +194,7 @@ void FNiagaraWorldManager::OnShutdown()
 	FWorldDelegates::OnWorldPostActorTick.Remove(TickWorldHandle);
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(PreGCHandle);
+	FCoreUObjectDelegates::PostReachabilityAnalysis.Remove(PostReachabilityAnalysisHandle);
 	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGCHandle);
 	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.Remove(PreGCBeginDestroyHandle);
 
@@ -368,6 +371,8 @@ void FNiagaraWorldManager::PreGarbageCollect()
 {
 	if (GNiagaraWaitOnPreGC)
 	{
+		// We must wait for system simulation & instance async ticks to complete before garbage collection can start
+		// The reason for this is that our async ticks could be referencing GC objects, i.e. skel meshes, etc, and we don't want them to become unreachable while we are potentially using them
 		for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 		{
 			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations[TG])
@@ -377,6 +382,15 @@ void FNiagaraWorldManager::PreGarbageCollect()
 		}
 	}
 }
+
+void FNiagaraWorldManager::PostReachabilityAnalysis()
+{
+	for (TObjectIterator<UNiagaraComponent> ComponentIt; ComponentIt; ++ComponentIt)
+	{
+		ComponentIt->GetOverrideParameters().MarkUObjectsDirty();
+	}
+}
+
 
 void FNiagaraWorldManager::PostGarbageCollect()
 {
@@ -465,6 +479,14 @@ void FNiagaraWorldManager::OnPreGarbageCollect()
 	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
 	{
 		Pair.Value->PreGarbageCollect();
+	}
+}
+
+void FNiagaraWorldManager::OnPostReachabilityAnalysis()
+{
+	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
+	{
+		Pair.Value->PostReachabilityAnalysis();
 	}
 }
 
