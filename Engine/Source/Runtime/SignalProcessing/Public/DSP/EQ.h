@@ -42,14 +42,14 @@ namespace Audio
 
 	private:
 
-		// The number of bands in the equalizer
-		int32 NumBands;
-
 		// The number of channels in the equalizer
 		int32 NumChannels;
 
 		// The array of biquad filters
-		FBiquadFilter* FilterBands;
+		TArray<FBiquadFilter> FilterBands;
+		
+		// Temporary array for processing audio.
+		TArray<float> WorkBuffer;
 	};
 
 }
