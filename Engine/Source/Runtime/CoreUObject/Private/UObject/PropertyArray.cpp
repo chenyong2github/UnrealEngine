@@ -416,12 +416,12 @@ void FArrayProperty::ExportTextItem( FString& ValueStr, const void* PropertyValu
 	ExportTextInnerItem(ValueStr, Inner, ArrayHelper.GetRawPtr(0), ArrayHelper.Num(), DefaultValue, DefaultSize, Parent, PortFlags, ExportRootScope);
 }
 
-void FArrayProperty::ExportTextInnerItem(FString& ValueStr, FProperty* Inner, const void* PropertyValue, int32 PropertySize, const void* DefaultValue, int32 DefaultSize, UObject* Parent, int32 PortFlags, UObject* ExportRootScope)
+void FArrayProperty::ExportTextInnerItem(FString& ValueStr, const FProperty* Inner, const void* PropertyValue, int32 PropertySize, const void* DefaultValue, int32 DefaultSize, UObject* Parent, int32 PortFlags, UObject* ExportRootScope)
 {
 	checkSlow(Inner);
 
 	uint8* StructDefaults = NULL;
-	FStructProperty* StructProperty = CastField<FStructProperty>(Inner);
+	const FStructProperty* StructProperty = CastField<FStructProperty>(Inner);
 
 	const bool bReadableForm = (0 != (PPF_BlueprintDebugView & PortFlags));
 	const bool bExternalEditor = (0 != (PPF_ExternalEditor & PortFlags));
@@ -502,7 +502,7 @@ const TCHAR* FArrayProperty::ImportText_Internal(const TCHAR* Buffer, void* Data
 	return ImportTextInnerItem(Buffer, Inner, Data, PortFlags, OwnerObject, &ArrayHelper, ErrorText);
 }
 
-const TCHAR* FArrayProperty::ImportTextInnerItem( const TCHAR* Buffer, FProperty* Inner, void* Data, int32 PortFlags, UObject* Parent, FScriptArrayHelper* ArrayHelper, FOutputDevice* ErrorText )
+const TCHAR* FArrayProperty::ImportTextInnerItem( const TCHAR* Buffer, const FProperty* Inner, void* Data, int32 PortFlags, UObject* Parent, FScriptArrayHelper* ArrayHelper, FOutputDevice* ErrorText )
 {
 	checkSlow(Inner);
 

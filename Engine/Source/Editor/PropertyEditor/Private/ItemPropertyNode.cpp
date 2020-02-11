@@ -20,14 +20,14 @@ FItemPropertyNode::~FItemPropertyNode(void)
 
 }
 
-uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData)
+uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) const
 {
-	FProperty* MyProperty = GetProperty();
+	const FProperty* MyProperty = GetProperty();
 	if( MyProperty && ParentNodeWeakPtr.IsValid())
 	{
-		FArrayProperty* OuterArrayProp = MyProperty->GetOwner<FArrayProperty>();
-		FSetProperty* OuterSetProp = MyProperty->GetOwner<FSetProperty>();
-		FMapProperty* OuterMapProp = MyProperty->GetOwner<FMapProperty>();
+		const FArrayProperty* OuterArrayProp = MyProperty->GetOwner<FArrayProperty>();
+		const FSetProperty* OuterSetProp = MyProperty->GetOwner<FSetProperty>();
+		const FMapProperty* OuterMapProp = MyProperty->GetOwner<FMapProperty>();
 
 		uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(StartAddress, bIsSparseData);
 
@@ -84,19 +84,19 @@ uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSpars
 	return nullptr;
 }
 
-uint8* FItemPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseData)
+uint8* FItemPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseData) const
 {
 	uint8* Result = GetValueBaseAddress(StartAddress, bIsSparseData);
 
-	FProperty* MyProperty = GetProperty();
+	const FProperty* MyProperty = GetProperty();
 
-	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(MyProperty);
-	FSetProperty* SetProperty = CastField<FSetProperty>(MyProperty);
-	FMapProperty* MapProperty = CastField<FMapProperty>(MyProperty);
+	const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(MyProperty);
+	const FSetProperty* SetProperty = CastField<FSetProperty>(MyProperty);
+	const FMapProperty* MapProperty = CastField<FMapProperty>(MyProperty);
 
 	if( Result && ArrayProperty)
 	{
-		FScriptArrayHelper ArrayHelper(ArrayProperty,Result);
+		FScriptArrayHelper ArrayHelper(ArrayProperty, Result);
 		Result = ArrayHelper.GetRawPtr();
 	}
 	else if (Result && SetProperty)
