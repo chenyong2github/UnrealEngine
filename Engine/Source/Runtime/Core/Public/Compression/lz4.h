@@ -33,6 +33,8 @@
     - LZ4 source repository : https://github.com/lz4/lz4
 */
 
+#include "CoreMinimal.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -557,7 +559,7 @@ LZ4LIB_STATIC_API void LZ4_attach_dictionary(LZ4_stream_t* workingStream, const 
 #define LZ4_HASHTABLESIZE (1 << LZ4_MEMORY_USAGE)
 #define LZ4_HASH_SIZE_U32 (1 << LZ4_HASHLOG)       /* required as macro for static allocation */
 
-#if 0// defined(__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
+#if defined(__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
 
 typedef struct LZ4_stream_t_internal LZ4_stream_t_internal;
 struct LZ4_stream_t_internal {
