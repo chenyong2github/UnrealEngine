@@ -4,11 +4,12 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Platform.h"
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Protocol.h"
 #include "Trace/Detail/Channel.h"
-#include "Trace/Platform.h"
 #include "Trace/Trace.h"
+#include "WriteBufferRedirect.h"
 
 namespace Trace {
 namespace Private {
@@ -35,6 +36,8 @@ UE_TRACE_EVENT_BEGIN($Trace, Memory)
 UE_TRACE_EVENT_END()
 #endif // TRACE_PRIVATE_PERF
 
+
+
 ////////////////////////////////////////////////////////////////////////////////
 static uint64 GStartCycle = 0;
 
@@ -48,15 +51,6 @@ inline uint64 Writer_GetTimestamp()
 void Writer_InitializeTiming()
 {
 	GStartCycle = TimeGetTimestamp();
-
-	UE_TRACE_EVENT_BEGIN($Trace, Timing, Important)
-		UE_TRACE_EVENT_FIELD(uint64, StartCycle)
-		UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
-	UE_TRACE_EVENT_END()
-
-	UE_TRACE_LOG($Trace, Timing, TraceLogChannel)
-		<< Timing.StartCycle(GStartCycle)
-		<< Timing.CycleFrequency(TimeGetFrequency());
 }
 
 
@@ -556,52 +550,89 @@ static void Writer_ConsumeEvents()
 	}
 }
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_LogHeader()
+{
+	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync|Important)
+		UE_TRACE_EVENT_FIELD(uint16, Endian)
+		UE_TRACE_EVENT_FIELD(uint8, Version)
+		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
+	UE_TRACE_EVENT_END()
+
+	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
+		<< NewTrace.Version(2)
+		<< NewTrace.Endian(0x524d)
+		<< NewTrace.PointerSize(sizeof(void*));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_LogTimingHeader()
+{
+	UE_TRACE_EVENT_BEGIN($Trace, Timing, NoSync|Important)
+		UE_TRACE_EVENT_FIELD(uint64, StartCycle)
+		UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
+	UE_TRACE_EVENT_END()
+
+	UE_TRACE_LOG($Trace, Timing, TraceLogChannel)
+		<< Timing.StartCycle(GStartCycle)
+		<< Timing.CycleFrequency(TimeGetFrequency());
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_UpdateData()
 {
-	if (GPendingDataHandle)
+	if (!GPendingDataHandle)
 	{
-		// Reject the pending connection if we've already got a connection
-		if (GDataHandle)
-		{
-			IoClose(GPendingDataHandle);
-			GPendingDataHandle = 0;
-			return;
-		}
-
-		GDataHandle = GPendingDataHandle;
-		GPendingDataHandle = 0;
-
-		// Handshake.
-		const uint32 Magic = 'TRCE';
-		bool bOk = IoWrite(GDataHandle, &Magic, sizeof(Magic));
-
-		// Stream header
-		const struct {
-			uint8 TransportVersion	= ETransport::TidPacket;
-			uint8 ProtocolVersion	= EProtocol::Id;
-		} TransportHeader;
-		bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
-
-		// Passively collected data
-		if (GHoldBuffer->GetSize())
-		{
-			bOk &= IoWrite(GDataHandle, GHoldBuffer->GetData(), GHoldBuffer->GetSize());
-		}
-
-		if (bOk)
-		{
-			GDataState = EDataState::Sending;
-			GHoldBuffer->Shutdown();
-		}
-		else
-		{
-			IoClose(GDataHandle);
-			GDataHandle = 0;
-		}
+		return;
 	}
 
-	Writer_ConsumeEvents();
+	// Reject the pending connection if we've already got a connection
+	if (GDataHandle)
+	{
+		IoClose(GPendingDataHandle);
+		GPendingDataHandle = 0;
+		return;
+	}
+
+	GDataHandle = GPendingDataHandle;
+	GPendingDataHandle = 0;
+
+	// Handshake.
+	const uint32 Magic = 'TRCE';
+	bool bOk = IoWrite(GDataHandle, &Magic, sizeof(Magic));
+
+	// Stream header
+	const struct {
+		uint8 TransportVersion	= ETransport::TidPacket;
+		uint8 ProtocolVersion	= EProtocol::Id;
+	} TransportHeader;
+	bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
+
+	if (!bOk)
+	{
+		IoClose(GDataHandle);
+		GDataHandle = 0;
+		return;
+	}
+
+	GDataState = EDataState::Sending;
+
+	// Send the header events
+	{
+		TWriteBufferRedirect<512> HeaderEvents;
+		Writer_LogHeader();
+		Writer_LogTimingHeader();
+		Writer_SendData(0, HeaderEvents.GetData(), HeaderEvents.GetSize());
+	}
+	
+	// Passively collected data
+	if (GHoldBuffer->GetSize())
+	{
+		bOk &= IoWrite(GDataHandle, GHoldBuffer->GetData(), GHoldBuffer->GetSize());
+	}
+	GHoldBuffer->Shutdown();
 }
 
 
@@ -620,27 +651,13 @@ static void Writer_WorkerThread()
 
 		Writer_UpdateControl();
 		Writer_UpdateData();
+		Writer_ConsumeEvents();
 	}
 
 	Writer_ConsumeEvents();
 }
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-static void Writer_LogHeader()
-{
-	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Important)
-		UE_TRACE_EVENT_FIELD(uint16, Endian)
-		UE_TRACE_EVENT_FIELD(uint8, Version)
-		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
-	UE_TRACE_EVENT_END()
-
-	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
-		<< NewTrace.Version(2)
-		<< NewTrace.Endian(0x524d)
-		<< NewTrace.PointerSize(sizeof(void*));
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_InternalInitialize()
@@ -652,7 +669,6 @@ static void Writer_InternalInitialize()
 	GInitialized = true;
 
 	Writer_InitializeBuffers();
-	Writer_LogHeader();
 
 	GHoldBuffer->Init();
 
