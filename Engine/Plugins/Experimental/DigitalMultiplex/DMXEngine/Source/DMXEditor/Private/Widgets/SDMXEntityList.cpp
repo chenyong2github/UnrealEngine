@@ -2021,7 +2021,7 @@ void SDMXEntityList::InitializeNodes()
 				{
 					const int32 ChannelSpan = Patch->GetChannelSpan();
 
-					if (Patch->GetStartingChannel() < AvailableChannel)
+					if (Patch->GetStartingChannel() < AvailableChannel && PreviousPatch != nullptr)
 					{
 						// This Patch is overlapping occupied channels
 						Node->SetWarningStatus(FText::Format(
@@ -2569,7 +2569,7 @@ void SDMXEntityList::UpdateNodesExpansion(TSharedRef<FDMXTreeNodeBase> InRootNod
 	if (!InRootNode->IsEntityNode())
 	{
 		// If the filter is not empty, all nodes should be expanded
-		EntitiesTreeWidget->SetItemExpansion(InRootNode, !bFilterIsEmpty | InRootNode->GetExpansionState());
+		EntitiesTreeWidget->SetItemExpansion(InRootNode, !bFilterIsEmpty || InRootNode->GetExpansionState());
 
 		for (const TSharedPtr<FDMXTreeNodeBase>& Child : InRootNode->GetChildren())
 		{

@@ -509,11 +509,15 @@ bool FDMXEditorUtils::AreFixtureTypesIdentical(const UDMXEntityFixtureType* A, c
 	{
 		return true;
 	}
-	if (A->GetClass() != B->GetClass())
+	if ((A == nullptr) != (B == nullptr)) // XOR
 	{
 		return false;
 	}
-	if ((A == nullptr) != (B == nullptr)) // XOR
+
+	// A and B are both valid pointers. We know it because if they were both nullptr, A == B would've been true.
+	// And if only one was nullptr, the XOR above would've been true as well.
+
+	if (A->GetClass() != B->GetClass())
 	{
 		return false;
 	}
