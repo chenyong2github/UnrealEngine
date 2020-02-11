@@ -678,6 +678,7 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
+	case Protocol3::EProtocol::Id:
 		OnNewEventProtocol1(Builder, EventData.Ptr);
 		break;
 	}
@@ -846,10 +847,15 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
+	case Protocol3::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol2;
 		{
 			FDispatchBuilder Builder;
 			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
+			if (ProtocolVersion >= Protocol3::EProtocol::Id)
+			{
+				Builder.SetNoSync();
+			}
 			AddDispatch(Builder.Finalize());
 		}
 		break;
@@ -999,7 +1005,8 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 		const FDispatch* Dispatch = Dispatches[Uid];
 		if (Dispatch == nullptr)
 		{
-			return -1;
+			// Event-types may not to be discovered in Uid order.
+			break;
 		}
 
 		uint32 BlockSize = Header->Size;
@@ -1021,6 +1028,7 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 				break;
 
 			case Protocol2::EProtocol::Id:
+			case Protocol3::EProtocol::Id:
 				{
 					const auto* HeaderSync = (Protocol2::FEventHeaderSync*)Header;
 					uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);

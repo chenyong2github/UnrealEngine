@@ -6,7 +6,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 #if UE_TRACE_ENABLED
-#	define TRACE_PRIVATE_PROTOCOL_2
+#	define TRACE_PRIVATE_PROTOCOL_3
 #endif
 
 #if defined(_MSC_VER)
@@ -17,6 +17,7 @@
 #include "Protocols/Protocol0.h"
 #include "Protocols/Protocol1.h"
 #include "Protocols/Protocol2.h"
+#include "Protocols/Protocol3.h"
 
 #if defined(_MSC_VER)
 	#pragma warning(pop)

@@ -788,7 +788,7 @@ void Writer_EventCreate(
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * FieldCount;
 	EventSize += NamesSize;
 
-	FLogInstance LogInstance = Writer_BeginLog(EventUid, EventSize, false);
+	FLogInstance LogInstance = Writer_BeginLogNoSync(EventUid, EventSize, false);
 	auto& Event = *(FNewEventEvent*)(LogInstance.Ptr);
 
 	// Write event's main properties.
