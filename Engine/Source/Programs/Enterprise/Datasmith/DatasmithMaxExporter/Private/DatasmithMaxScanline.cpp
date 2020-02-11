@@ -427,7 +427,7 @@ FString FDatasmithMaxMatWriter::DumpAutodeskBitmap(TSharedPtr<IDatasmithComposit
 	}
 
 	bool bInvertTexture = false;
-	if (AutodeskBitmapParameters.InvertImage)
+	if (AutodeskBitmapParameters.bInvertImage)
 	{
 		bInvertTexture = true;
 	}
