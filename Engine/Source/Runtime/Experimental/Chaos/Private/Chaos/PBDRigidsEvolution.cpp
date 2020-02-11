@@ -280,7 +280,7 @@ namespace Chaos
 			}
 		}
 
-		AccelerationStructure->SetAllAsyncTrasksComplete(!IsTimeSlicingProgressing);
+		AccelerationStructure->SetAllAsyncTasksComplete(!IsTimeSlicingProgressing);
 
 		// If it's not progressing then it is finished so we can perform the final copy if required
 		if (!IsTimeSlicingProgressing)
@@ -454,11 +454,11 @@ namespace Chaos
 		if (AsyncComplete)
 		{
 			// only copy when the acceleration structures have completed time-slicing
-			if (AccelerationStructureTaskComplete && AsyncInternalAcceleration->IsAllAsyncTrasksComplete())
+			if (AccelerationStructureTaskComplete && AsyncInternalAcceleration->IsAllAsyncTasksComplete())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_SwapAccelerationStructures);
 
-				check(AsyncInternalAcceleration->IsAllAsyncTrasksComplete());
+				check(AsyncInternalAcceleration->IsAllAsyncTasksComplete());
 
 				FlushAsyncAccelerationQueue();
 
