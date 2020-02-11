@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorStyleSet.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
@@ -22,6 +23,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Input/SEditableText.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
