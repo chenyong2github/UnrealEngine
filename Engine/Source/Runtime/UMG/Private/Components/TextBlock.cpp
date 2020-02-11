@@ -137,7 +137,7 @@ void UTextBlock::SetAutoWrapText(bool InAutoWrapText)
 
 UMaterialInstanceDynamic* UTextBlock::GetDynamicFontMaterial()
 {
-	if (ensure(Font.FontMaterial))
+	if (Font.FontMaterial)
 	{
 		UMaterialInterface* Material = CastChecked<UMaterialInterface>(Font.FontMaterial);
 
@@ -159,7 +159,7 @@ UMaterialInstanceDynamic* UTextBlock::GetDynamicFontMaterial()
 
 UMaterialInstanceDynamic* UTextBlock::GetDynamicOutlineMaterial()
 {
-	if (ensure(Font.OutlineSettings.OutlineMaterial))
+	if (Font.OutlineSettings.OutlineMaterial)
 	{
 		UMaterialInterface* Material = CastChecked<UMaterialInterface>(Font.OutlineSettings.OutlineMaterial);
 
