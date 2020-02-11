@@ -133,7 +133,7 @@ void FMiscTrace::OutputBeginFrame(ETraceFrameType FrameType)
 	uint64 Cycle = FPlatformTime::Cycles64();
 	uint64 CycleDiff = Cycle - FMiscTraceInternal::LastFrameCycle[FrameType];
 	FMiscTraceInternal::LastFrameCycle[FrameType] = Cycle;
-	uint8 Buffer[9];
+	uint8 Buffer[10];
 	uint8* BufferPtr = Buffer;
 	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
 	uint16 BufferSize = (uint16)(BufferPtr - Buffer);
@@ -158,7 +158,7 @@ void FMiscTrace::OutputEndFrame(ETraceFrameType FrameType)
 	uint64 Cycle = FPlatformTime::Cycles64();
 	uint64 CycleDiff = Cycle - FMiscTraceInternal::LastFrameCycle[FrameType];
 	FMiscTraceInternal::LastFrameCycle[FrameType] = Cycle;
-	uint8 Buffer[9];
+	uint8 Buffer[10];
 	uint8* BufferPtr = Buffer;
 	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
 	uint16 BufferSize = (uint16)(BufferPtr - Buffer);

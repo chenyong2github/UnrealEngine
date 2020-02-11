@@ -31,8 +31,8 @@ struct FCpuProfilerTraceInternal
 {
 	enum
 	{
-		MaxBufferSize = 255,
-		MaxEncodedEventSize = 14, // 9 + 5
+		MaxBufferSize = 256,
+		MaxEncodedEventSize = 15, // 10 + 5
 		FullBufferThreshold = MaxBufferSize - MaxEncodedEventSize,
 	};
 

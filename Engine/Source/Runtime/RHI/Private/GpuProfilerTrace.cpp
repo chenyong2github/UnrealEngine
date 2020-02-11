@@ -104,7 +104,7 @@ void FGpuProfilerTrace::BeginEventByName(const FName& Name, uint32 FrameNumber, 
 		return;
 	}
 
-	if (GCurrentFrame.EventBufferSize >= MaxEventBufferSize - 17) // 9 + 8
+	if (GCurrentFrame.EventBufferSize >= MaxEventBufferSize - 18) // 10 + 8
 	{
 		return;
 	}

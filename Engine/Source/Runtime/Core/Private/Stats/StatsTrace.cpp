@@ -29,7 +29,7 @@ public:
 	enum
 	{
 		MaxBufferSize = 512,
-		MaxEncodedEventSize = 27, // 9 + 9 + 9
+		MaxEncodedEventSize = 30, // 10 + 10 + 10
 		FullBufferThreshold = MaxBufferSize - MaxEncodedEventSize,
 	};
 
