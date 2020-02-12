@@ -71,7 +71,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::RemoveOutputPin(UEdGraphPin* Pin)
 
 FText UK2Node_GetDMXActiveModeFunctionValues::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("NodeTitle", "Get DMX Active Mode Function Values");
+	return LOCTEXT("NodeTitle", "Get DMX Function Values");
 }
 
 void UK2Node_GetDMXActiveModeFunctionValues::AllocateDefaultPins()
