@@ -492,6 +492,7 @@ struct FPackage
 	int32 SourceGlobalPackageId = -1; // for localized packages
 	int32 ImportedPackagesSerializeCount = 0; // < ImportedPackages.Num() for source packages that have localized packages
 	uint32 PackageFlags = 0;
+	uint32 CookedHeaderSize = 0;
 	int32 NameCount = 0;
 	int32 ImportCount = 0;
 	int32 ExportCount = 0;
@@ -501,7 +502,6 @@ struct FPackage
 	int32 ExportIndexOffset = -1;
 	int32 PreloadIndexOffset = -1;
 	int32 FirstExportBundleMetaEntry = -1;
-	int64 BulkDataStartOffset = -1;
 	int64 UExpSize = 0;
 	int64 UAssetSize = 0;
 	int64 SummarySize = 0;
@@ -1468,51 +1468,51 @@ static bool ConformLocalizedPackage(
 			++LocalizedIndex;
 			++SourceIndex;
 
-		if (SourceExportData.GlobalImportIndex != -1)
-		{
-				if (LocalizedExportData.ClassIndex != SourceExportData.ClassIndex)
+			if (SourceExportData.GlobalImportIndex != -1)
 			{
+				if (LocalizedExportData.ClassIndex != SourceExportData.ClassIndex)
+				{
 					const FImportData& LocalizedImportData = GlobalImports[LocalizedExportData.ClassIndex.ToImport()];
 					const FImportData& SourceImportData = GlobalImports[SourceExportData.ClassIndex.ToImport()];
 
 					FailReason.Appendf(TEXT("Public export '%s' has class %s (%d) vs. %s (%d)"),
-					*LocalizedExportData.ObjectName.ToString(),
+						*LocalizedExportData.ObjectName.ToString(),
 						*LocalizedImportData.ObjectName.ToString(),
 						LocalizedExportData.ClassIndex.ForDebugging(),
 						*SourceImportData.ObjectName.ToString(),
 						SourceExportData.ClassIndex.ForDebugging());
-			}
+				}
 				else if (LocalizedExportData.TemplateIndex != SourceExportData.TemplateIndex)
-			{
+				{
 					const FImportData& LocalizedImportData = GlobalImports[LocalizedExportData.TemplateIndex.ToImport()];
 					const FImportData& SourceImportData = GlobalImports[SourceExportData.TemplateIndex.ToImport()];
 
 					FailReason.Appendf(TEXT("Public export '%s' has template %s (%d) vs. %s (%d)"),
 						*LocalizedExportData.ObjectName.ToString(),
-					*LocalizedImportData.ObjectName.ToString(),
-					LocalizedExportData.ClassIndex.ForDebugging(),
-					*SourceImportData.ObjectName.ToString(),
-					SourceExportData.ClassIndex.ForDebugging());
-			}
-			else if (LocalizedExportData.SuperIndex != SourceExportData.SuperIndex)
-			{
-				const FImportData& LocalizedImportData = GlobalImports[LocalizedExportData.ClassIndex.ToImport()];
-				const FImportData& SourceImportData = GlobalImports[SourceExportData.ClassIndex.ToImport()];
+						*LocalizedImportData.ObjectName.ToString(),
+						LocalizedExportData.ClassIndex.ForDebugging(),
+						*SourceImportData.ObjectName.ToString(),
+						SourceExportData.ClassIndex.ForDebugging());
+				}
+				else if (LocalizedExportData.SuperIndex != SourceExportData.SuperIndex)
+				{
+					const FImportData& LocalizedImportData = GlobalImports[LocalizedExportData.ClassIndex.ToImport()];
+					const FImportData& SourceImportData = GlobalImports[SourceExportData.ClassIndex.ToImport()];
 
 					FailReason.Appendf(TEXT("Public export '%s' has super %s (%d) vs. %s (%d)"),
 						*LocalizedExportData.ObjectName.ToString(),
-					*LocalizedImportData.ObjectName.ToString(),
-					LocalizedExportData.ClassIndex.ForDebugging(),
-					*SourceImportData.ObjectName.ToString(),
-					SourceExportData.ClassIndex.ForDebugging());
-			}
-			else
-			{
+						*LocalizedImportData.ObjectName.ToString(),
+						LocalizedExportData.ClassIndex.ForDebugging(),
+						*SourceImportData.ObjectName.ToString(),
+						SourceExportData.ClassIndex.ForDebugging());
+				}
+				else
+				{
 					MatchingPublicExports.Emplace(LocalizedIndex - 1, SourceIndex - 1);
+				}
 			}
-		}
-		else if (LocalizedExportData.GlobalImportIndex != -1)
-		{
+			else if (LocalizedExportData.GlobalImportIndex != -1)
+			{
 				FailReason.Appendf(TEXT("Public localized export '%s' exists in the source package")
 					TEXT(", but is not part of the source package interface (it is not imported by any other package)."),
 					*LocalizedExportData.ObjectName.ToString());
@@ -1599,7 +1599,8 @@ void FinalizePackageHeader(
 		const FExportData& ExportData = GlobalExports[Package->Exports[I]];
 
 		FExportMapEntry ExportMapEntry;
-		ExportMapEntry.SerialSize = ObjectExport.SerialSize;
+		ExportMapEntry.CookedSerialOffset = ObjectExport.SerialOffset;
+		ExportMapEntry.CookedSerialSize = ObjectExport.SerialSize;
 		ExportMapEntry.ObjectName[0] = NameMapBuilder.MapName(ObjectExport.ObjectName);
 		ExportMapEntry.ObjectName[1] = ObjectExport.ObjectName.GetNumber();
 		ExportMapEntry.OuterIndex = ExportData.OuterIndex;
@@ -1657,8 +1658,8 @@ void FinalizePackageHeader(
 	FPackageSummary* PackageSummary = reinterpret_cast<FPackageSummary*>(PackageHeaderBuffer);
 
 	PackageSummary->PackageFlags = Package->PackageFlags;
+	PackageSummary->CookedHeaderSize = Package->CookedHeaderSize;
 	PackageSummary->GraphDataSize = Package->UGraphSize;
-	PackageSummary->BulkDataStartOffset = Package->BulkDataStartOffset;
 	const int32* FindGlobalImportIndexForPackage = GlobalImportsByFullName.Find(Package->Name.ToString());
 	PackageSummary->GlobalImportIndex = FindGlobalImportIndexForPackage ? *FindGlobalImportIndexForPackage : -1;
 
@@ -1818,7 +1819,7 @@ static void ParsePackageAssets(
 			Package.ImportCount = Summary.ImportCount;
 			Package.ExportCount = Summary.ExportCount;
 			Package.PackageFlags = Summary.PackageFlags;
-			Package.BulkDataStartOffset = Summary.BulkDataStartOffset;
+			Package.CookedHeaderSize = Summary.TotalHeaderSize;
 
 			if (Summary.ImportCount > 0)
 			{
@@ -2096,40 +2097,9 @@ void ProcessLocalizedPackages(
 						Package->GlobalPackageId,
 						*ImportData.FullName);
 				}
-
-				// FString SourceImport = RemapLocalizationPathIfNeeded(Package->ImportedFullNames[I], nullptr);
-				// if (int32* SourceImportIndex = GlobalImportsByFullName.Find(SourceImport))
-				// {
-				// 	UE_LOG(LogIoStore, Warning,
-				// 		TEXT("Remap import index from %d to %d with new name %s"),
-				// 		GlobalImportIndex, *SourceImportIndex, *SourceImport);
-
-				// 	ensure(GlobalImports[*SourceImportIndex].GlobalIndex == *SourceImportIndex);
-				// 	Package->Imports.Add(GlobalImports[*SourceImportIndex].GlobalIndex);
-				// }
-				// else
-				// {
-				// 	UE_LOG(LogIoStore, Warning,
-				// 		TEXT("Failed to remap import index from %d"),
-				// 		GlobalImportIndex);
-
-				// 	ensure(ImportData.GlobalIndex == GlobalImportIndex);
-				// 	Package->Imports.Add(ImportData.GlobalIndex);
-				// }
 			}
-			// else
-			// {
-			// 	ensure(ImportData.GlobalIndex == GlobalImportIndex);
-			// 	Package->Imports.Add(ImportData.GlobalIndex);
-			// }
-
-			// if (ImportData.Package)
-			// {
-			// 	Package->ImportedPackages.Add(ImportData.Package);
-			// 	ImportData.Package->ImportedByPackages.Add(Package);
-			// }
 		}
-}
+	}
 }
 
 int32 CreateTarget(

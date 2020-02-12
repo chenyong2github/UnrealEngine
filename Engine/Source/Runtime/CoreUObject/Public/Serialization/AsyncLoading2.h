@@ -44,15 +44,14 @@ enum class EExportFilterFlags : uint8
 struct FPackageSummary
 {
 	uint32 PackageFlags;
+	uint32 CookedHeaderSize;
 	int32 NameMapOffset;
 	int32 ImportMapOffset;
 	int32 ExportMapOffset;
 	int32 ExportBundlesOffset;
 	int32 GraphDataOffset;
 	int32 GraphDataSize;
-	int32 BulkDataStartOffset;
 	int32 GlobalImportIndex;
-	int32 Pad;
 };
 
 /**
@@ -96,7 +95,8 @@ struct FExportBundleHeader
  */
 struct FExportMapEntry
 {
-	uint64 SerialSize;
+	uint64 CookedSerialOffset;
+	uint64 CookedSerialSize;
 	int32 ObjectName[2];
 	FPackageIndex OuterIndex;
 	FPackageIndex ClassIndex;
@@ -110,6 +110,12 @@ struct FExportMapEntry
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };
 
+#ifndef WITH_ASYNCLOADING2
+#define WITH_ASYNCLOADING2 !WITH_EDITORONLY_DATA
+#endif
+
+#if WITH_ASYNCLOADING2
+
 /**
  * Creates a new instance of the AsyncPackageLoader #2.
  *
@@ -119,3 +125,5 @@ struct FExportMapEntry
  * @return The async package loader.
  */
 IAsyncPackageLoader* MakeAsyncPackageLoader2(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager);
+
+#endif
