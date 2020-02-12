@@ -70,11 +70,11 @@ FDMXFixtureCategory::FDMXFixtureCategory(const FName& InName)
 
 bool FDMXBuffer::SetDMXFragment(const IDMXFragmentMap & InDMXFragment)
 {
-	for (TMap<uint32, uint8>::TConstIterator It = InDMXFragment.CreateConstIterator(); It; ++It)
+	for (const TPair<uint32, uint8>& It : InDMXFragment)
 	{
-		if (It->Key <= (DMX_UNIVERSE_SIZE) && It->Key > 0)
+		if (It.Key <= (DMX_UNIVERSE_SIZE) && It.Key > 0)
 		{
-			DMXData[It->Key-1] = It->Value;
+			DMXData[It.Key-1] = It.Value;
 		}
 		else
 		{
