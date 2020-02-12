@@ -40,22 +40,15 @@ struct FARFilter
 
 	/** If true, PackagePath components will be recursive */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category=AssetRegistry)
-	bool bRecursivePaths;
+	bool bRecursivePaths = false;
 
 	/** If true, subclasses of ClassNames will also be included and RecursiveClassesExclusionSet will be excluded. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category=AssetRegistry)
-	bool bRecursiveClasses;
+	bool bRecursiveClasses = false;
 
 	/** If true, only on-disk assets will be returned. Be warned that this is rarely what you want and should only be used for performance reasons */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category=AssetRegistry)
-	bool bIncludeOnlyOnDiskAssets;
-
-	FARFilter()
-	{
-		bRecursivePaths = false;
-		bRecursiveClasses = false;
-		bIncludeOnlyOnDiskAssets = false;
-	}
+	bool bIncludeOnlyOnDiskAssets = false;
 
 	/** Appends the other filter to this one */
 	void Append(const FARFilter& Other)
@@ -81,6 +74,12 @@ struct FARFilter
 	bool IsEmpty() const
 	{
 		return PackageNames.Num() + PackagePaths.Num() + ObjectPaths.Num() + ClassNames.Num() + TagsAndValues.Num() == 0;
+	}
+
+	/** Returns true if this filter is recursive */
+	bool IsRecursive() const
+	{
+		return bRecursivePaths || bRecursiveClasses;
 	}
 
 	/** Clears this filter of all entries */

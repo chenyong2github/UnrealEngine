@@ -1689,7 +1689,7 @@ bool FAssetRegistryState::IsFilterValid(const FARFilter& Filter, bool bAllowRecu
 		}
 	}
 
-	if (!bAllowRecursion && (Filter.bRecursiveClasses || Filter.bRecursivePaths))
+	if (!bAllowRecursion && Filter.IsRecursive())
 	{
 		return false;
 	}

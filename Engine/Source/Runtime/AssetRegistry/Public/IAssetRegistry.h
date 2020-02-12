@@ -319,9 +319,15 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void RunAssetsThroughFilter(UPARAM(ref) TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const = 0;
 
-	/** Trims items out of the asset data list that do not pass the supplied filter */
+	/** Trims items out of the asset data list that pass the supplied filter */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void UseFilterToExcludeAssets(UPARAM(ref) TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const = 0;
+
+	/** Tests to see whether the given asset would be included (passes) the given filter (note: the filter should have been expanded first, @see ExpandRecursiveFilter */
+	virtual bool IsAssetIncludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const = 0;
+
+	/** Tests to see whether the given asset would be excluded (fails) the given filter (note: the filter should have been expanded first, @see ExpandRecursiveFilter */
+	virtual bool IsAssetExcludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const = 0;
 
 	/** Modifies passed in filter to make it safe for use on FAssetRegistryState. This expands recursive paths and classes */
 	virtual void ExpandRecursiveFilter(const FARFilter& InFilter, FARFilter& ExpandedFilter) const = 0;

@@ -61,6 +61,8 @@ public:
 	virtual void EnumerateSubPaths(const FName InBasePath, TFunctionRef<bool(FName)> Callback, bool bInRecurse) const override;
 	virtual void RunAssetsThroughFilter (TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const override;
 	virtual void UseFilterToExcludeAssets(TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const override;
+	virtual bool IsAssetIncludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const override;
+	virtual bool IsAssetExcludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const override;
 	virtual void ExpandRecursiveFilter(const FARFilter& InFilter, FARFilter& ExpandedFilter) const override;
 	virtual void SetTemporaryCachingMode(bool bEnable) override;
 	virtual bool GetTemporaryCachingMode() const override;
@@ -247,6 +249,30 @@ private:
 
 	/** Internal helper which processes a given state and adds its contents to the current registry */
 	void CachePathsFromState(const FAssetRegistryState& InState);
+
+	enum class EARFilterMode : uint8
+	{
+		/** Include things that pass the filter; include everything if the filter is empty */
+		Inclusive,
+		/** Exclude things that pass the filter; exclude nothing if the filter is empty */
+		Exclusive,
+	};
+
+	/**
+	 * Given an asset data, say whether it would pass the filter based on the inclusion/exclusion mode used.
+	 *  - If an asset data passes a filter, then in inclusive mode it will return true, and in exclusive mode it will return false.
+	 *  - If an asset data fails a filter, then in inclusive mode it will return false, and in exclusive mode it will return true.
+	 *  - If the filter is empty, then in inclusive mode it will return true, and in exclusive mode it will return false.
+	 */
+	bool RunAssetThroughFilterImpl(const FAssetData& AssetData, const FARFilter& Filter, const EARFilterMode FilterMode) const;
+	bool RunAssetThroughFilterImpl_Unchecked(const FAssetData& AssetData, const FARFilter& Filter, const bool bPassFilterValue) const;
+
+	/**
+	 * Given an array of asset data, trim the items that fail the filter based on the inclusion/exclusion mode used.
+	 *  - In inclusive mode it will remove all assets that fail the filter, and in exclusive mode it will remove all assets that pass the filter.
+	 *  - If the filter is empty, then the array will be untouched.
+	 */
+	void RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDataList, const FARFilter& Filter, const EARFilterMode FilterMode) const;
 
 private:
 	
