@@ -7,7 +7,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/SNiagaraGraphPinAdd.h"
 #include "NiagaraCommon.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSource.h"
