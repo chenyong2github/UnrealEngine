@@ -39,6 +39,7 @@
 #endif
 #include "HAL/ThreadManager.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
+#include "Containers/StringView.h"
 #include "Containers/Ticker.h"
 
 #include "Interfaces/IPluginManager.h"
@@ -1313,13 +1314,24 @@ DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STA
 
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
-#if UE_TRACE_ENABLED
 	{
+		SCOPED_BOOT_TIMING("InitTrace")
+
 		Trace::Initialize();
 
-		FString EnabledChannels;
-		FParse::Value(CmdLine, TEXT("-trace="), EnabledChannels, false);
-		UE::String::ParseTokens(EnabledChannels, TEXT(","), [](FStringView Token) {
+		FString Parameter;
+		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
+		{
+			Trace::SendTo(*Parameter);
+		}
+		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
+		{
+			Trace::WriteTo(*Parameter);
+		}
+
+		FParse::Value(CmdLine, TEXT("-trace="), Parameter, false);
+		UE::String::ParseTokens(Parameter, TEXT(","), [] (const FStringView& Token)
+		{
 			TCHAR ChannelName[64];
 			const size_t ChannelNameSize = Token.CopyString(ChannelName, 64);
 			ChannelName[ChannelNameSize] = '\0';
@@ -1331,7 +1343,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		TRACE_PLATFORMFILE_INIT(CmdLine);
 		TRACE_COUNTERS_INIT(CmdLine);
 	}
-#endif
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
@@ -1428,21 +1439,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		// Fail, shipping builds will crash if setting command line fails
 		return -1;
-	}
-
-	{
-		SCOPED_BOOT_TIMING("InitTrace")
-
-		FString Parameter;
-		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
-		{
-			Trace::SendTo(*Parameter);
-		}
-
-		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
-		{
-			Trace::WriteTo(*Parameter);
-		}
 	}
 
 #if WITH_ENGINE
