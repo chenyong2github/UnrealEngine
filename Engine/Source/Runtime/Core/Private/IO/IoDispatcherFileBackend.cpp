@@ -253,52 +253,49 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 				{
 					ResolvedRequest.Request->IoBuffer.SetSize(ResolvedRequest.ResolvedSize);
 				}
+
 				const FFileIoStoreContainerFile& ContainerFile = Reader->GetContainerFile();
-				auto IsBlockCompressed = [&ContainerFile](int32 BlockIndex)
-				{
-					if (ContainerFile.CompressionBlockSize > 0)
-					{
-						return ContainerFile.CompressionBlocks[BlockIndex].CompressionMethodIndex != FIoStoreCompressionInfo::InvalidCompressionIndex;
-					}
-					else
-					{
-						return false;
-					}
-				};
-				
-				uint64 BlockSize = ContainerFile.CompressionBlockSize > 0 ? ContainerFile.CompressionBlockSize : ReadBufferSize;
-				int32 RequestBeginBlockIndex = int32(ResolvedRequest.ResolvedOffset / BlockSize);
+				const bool bIsCompressed = ContainerFile.CompressionBlockSize > 0;
+				const uint64 BlockSize = bIsCompressed ? ContainerFile.CompressionBlockSize : ReadBufferSize;
 				const uint64 RequestEndOffset = ResolvedRequest.ResolvedOffset + ResolvedRequest.ResolvedSize;
-				const int32 RequestEndBlockIndex = int32((RequestEndOffset - 1) / BlockSize + 1);
-				bool bFirstBlockIsPartial = ResolvedRequest.ResolvedOffset % BlockSize != 0;
-				if (bFirstBlockIsPartial || IsBlockCompressed(RequestBeginBlockIndex))
+				int32 RequestBeginBlockIndex = int32(ResolvedRequest.ResolvedOffset / BlockSize);
+				int32 RequestEndBlockIndex = int32((RequestEndOffset - 1) / BlockSize + 1);
+
+				if (bIsCompressed)
 				{
-					ReadBlockAndScatter(ReaderIndex, RequestBeginBlockIndex, ResolvedRequest);
-					++RequestBeginBlockIndex;
-				}
-				uint64 MergedReadOffset = RequestBeginBlockIndex * BlockSize;
-				uint64 MergedReadSize = 0;
-				for (int32 BlockIndex = RequestBeginBlockIndex; BlockIndex < RequestEndBlockIndex; ++BlockIndex)
-				{
-					const uint64 NextBlockOffset = (BlockIndex + 1) * BlockSize;
-					if (RequestEndOffset >= NextBlockOffset && !IsBlockCompressed(BlockIndex))
+					for (int32 BlockIndex = RequestBeginBlockIndex; BlockIndex < RequestEndBlockIndex; ++BlockIndex)
 					{
-						MergedReadSize += BlockSize;
-					}
-					else
-					{
-						if (MergedReadSize)
-						{
-							ReadNoScatter(ReaderIndex, MergedReadOffset, MergedReadSize, ResolvedRequest);
-						}
-						MergedReadOffset = NextBlockOffset;
-						MergedReadSize = 0;
 						ReadBlockAndScatter(ReaderIndex, BlockIndex, ResolvedRequest);
 					}
 				}
-				if (MergedReadSize)
+				else
 				{
-					ReadNoScatter(ReaderIndex, MergedReadOffset, MergedReadSize, ResolvedRequest);
+					int32 NumBlocks = RequestEndBlockIndex - RequestBeginBlockIndex;
+
+					const bool bFirstBlockIsPartial = ResolvedRequest.ResolvedOffset % BlockSize != 0;
+					if (bFirstBlockIsPartial)
+					{
+						ReadBlockAndScatter(ReaderIndex, RequestBeginBlockIndex, ResolvedRequest);
+						++RequestBeginBlockIndex;
+						--NumBlocks;
+					}
+
+					if (NumBlocks > 0)
+					{
+						const bool bLastBlockIsPartial = RequestEndOffset % BlockSize != 0;
+						const int32 NumMergedBlocks = bLastBlockIsPartial ? NumBlocks - 1  : NumBlocks;
+						if (NumMergedBlocks > 0)
+						{
+							const uint64 MergedReadOffset = RequestBeginBlockIndex * BlockSize;
+							const uint64 MergedReadSize = NumMergedBlocks * BlockSize;
+							ReadNoScatter(ReaderIndex, MergedReadOffset, MergedReadSize, ResolvedRequest);
+						}
+
+						if (bLastBlockIsPartial)
+						{
+							ReadBlockAndScatter(ReaderIndex, RequestEndBlockIndex - 1, ResolvedRequest);
+						}
+					}
 				}
 			}
 
@@ -600,7 +597,10 @@ void FFileIoStore::ReadBlockAndScatter(uint32 ReaderIndex, uint32 BlockIndex, co
 		{
 			const FIoStoreCompressedBlockEntry& CompressionBlockEntry = ContainerFile.CompressionBlocks[BlockIndex];
 			CompressedBlock->Size = ContainerFile.CompressionBlockSize;
-			CompressedBlock->CompressionMethod = ContainerFile.CompressionMethods[CompressionBlockEntry.CompressionMethodIndex];
+			CompressedBlock->CompressionMethod = 
+				(CompressionBlockEntry.CompressionMethodIndex == FIoStoreCompressionInfo::InvalidCompressionIndex) ?
+				NAME_None :
+				ContainerFile.CompressionMethods[CompressionBlockEntry.CompressionMethodIndex];
 			RawOffset = CompressionBlockEntry.OffsetAndLength.GetOffset();
 			RawSize = CompressionBlockEntry.OffsetAndLength.GetLength();
 		}
