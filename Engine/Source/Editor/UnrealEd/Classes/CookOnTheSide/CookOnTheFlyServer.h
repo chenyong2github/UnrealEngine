@@ -156,8 +156,8 @@ private:
 	TUniquePtr<class FSandboxPlatformFile> SandboxFile;
 	TUniquePtr<FAsyncIODelete> AsyncIODelete; // Helper for deleting the old cook directory asynchronously
 	bool bIsInitializingSandbox = false; // stop recursion into callbacks when we are initializing sandbox
-	mutable bool bIgnoreMarkupPackageAlreadyLoaded = false; // avoid marking up packages as already loaded (want to put this around some functionality as we want to load packages fully some times)
 	bool bIsSavingPackage = false; // used to stop recursive mark package dirty functions
+	bool bSaveAsyncAllowed = false; // True if and only if command line options and all other restrictions allow the use of SAVE_Async
 
 
 	TMap<FName, int32> MaxAsyncCacheForType; // max number of objects of a specific type which are allowed to async cache at once
@@ -681,9 +681,9 @@ private:
 	 * @param Timer FCookerTimer struct which defines the timeslicing behavior 
 	 * @param FirstUnsolicitedPackage first package which was not actually requested, unsolicited packages are prioritized differently, they are saved the same way
 	 * @param Result (in+out) used to modify the result of the operation and add any relevant flags
-	 * @return returns true if we saved all the packages false if we bailed early for any reason
+	 * @return returns true if and only if we saved the requested package
 	 */
-	void SaveCookedPackages(UPackage* PackageToSave, const TArray<const ITargetPlatform*>& InTargetPlatforms, struct FCookerTimer& Timer, uint32& CookedPackageCount, uint32& Result);
+	bool SaveCookedPackages(UPackage* PackageToSave, const TArray<const ITargetPlatform*>& InTargetPlatforms, struct FCookerTimer& Timer, uint32& CookedPackageCount, uint32& Result);
 
 	/**
 	 * Attempts to update the metadata for a package in an asset registry generator

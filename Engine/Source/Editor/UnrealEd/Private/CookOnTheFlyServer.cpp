@@ -1273,7 +1273,7 @@ struct FThreadSafeUnsolicitedPackagesList
 		CookedPackages.Add(PlatformRequest);
 	}
 
-	void GetPackagesForPlatformAndRemove(const ITargetPlatform* Platform, TArray<FName> PackageNames)
+	void GetPackagesForPlatformAndRemove(const ITargetPlatform* Platform, TArray<FName>& PackageNames)
 	{
 		FScopeLock _(&SyncObject);
 
@@ -1863,11 +1863,18 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitial
 	CookByTheBookOptions(nullptr),
 	CookFlags(ECookInitializationFlags::None),
 	bIsInitializingSandbox(false),
-	bIgnoreMarkupPackageAlreadyLoaded(false),
 	bIsSavingPackage(false),
 	AssetRegistry(nullptr)
 {
 	PlatformManager = MakeUnique<FPlatformManager>(RequestLock);
+
+	bSaveAsyncAllowed = true;
+	FString Temp;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-diffagainstcookdirectory="), Temp) || FParse::Value(FCommandLine::Get(), TEXT("-breakonfile="), Temp))
+	{
+		// async save doesn't work with any of these flags
+		bSaveAsyncAllowed = false;
+	}
 }
 
 UCookOnTheFlyServer::UCookOnTheFlyServer(FVTableHelper& Helper) :Super(Helper) {}
@@ -2860,7 +2867,13 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 			}
 		}
 
-		SaveCookedPackages(PackageForCooking, TargetPlatforms, Timer, /* out */ CookedPackageCount, /* out */ Result);
+		if (!SaveCookedPackages(PackageForCooking, TargetPlatforms, Timer, /* out */ CookedPackageCount, /* out */ Result))
+		{
+			// Push the request back onto the queue since SaveCookedPackages could not save it this tick.
+			// In CookOnTheFly we have a FIFO contract. CookByTheBook doesn't care about FIFO or not because it would have pushed to the end already if it could.  So honor CookOnTheFly's contract and requeue the request at the front instead of the back
+			PackageTracker->EnqueueUniqueCookRequest(ToBuild, /* bForceFrontOfQueue */ true);
+		}
+
 
 		if (Timer.IsTimeUp())
 		{
@@ -3163,7 +3176,7 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages()
 	}
 }
 
-void UCookOnTheFlyServer::SaveCookedPackages(
+bool UCookOnTheFlyServer::SaveCookedPackages(
 	UPackage*								PackageToSave, 
 	const TArray<const ITargetPlatform*>&	InTargetPlatforms,
 	FCookerTimer&							Timer,
@@ -3197,6 +3210,15 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 		}
 	}
 
+	bool bHandledRequestedPackage = false;
+	auto MarkRequestHandled = [&bHandledRequestedPackage, PackageToSave](const UPackage* PackageThatWasHandled)
+	{
+		if (PackageThatWasHandled == PackageToSave)
+		{
+			bHandledRequestedPackage = true;
+		}
+	};
+
 	// Loop over array and save as many packages as we can during our
 	// time slice
 
@@ -3213,6 +3235,7 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 			if (Package->IsLoadedByEditorPropertiesOnly() && PackageTracker->UncookedEditorOnlyPackages.Contains(Package->GetFName()))
 			{
 				// We already attempted to cook this package and it's still not referenced by any non editor-only properties.
+				MarkRequestHandled(Package);
 				continue;
 			}
 
@@ -3224,6 +3247,7 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 			if (PackageTracker->NeverCookPackageList.Contains(PackageFName))
 			{
 				// refuse to save this package, it's clearly one of the undesirables
+				MarkRequestHandled(Package);
 				continue;
 			}
 
@@ -3255,6 +3279,7 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 				{
 					PackageTracker->RemovePendingSavePackage(Package);
 				}
+				MarkRequestHandled(Package);
 				continue;
 			}
 
@@ -3263,154 +3288,100 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 			// we want to do this in cook on the fly also, if there is a new network package request instead of saving unsolicited packages we can process the requested package
 
 			bool bShouldFinishTick = false;
-
-			if (Timer.IsTimeUp() && IsCookByTheBookMode() )
-			{
-				// our timeslice is up
-				bShouldFinishTick = true;
-			}
-
-			// if we are cook the fly then save the package which was requested as fast as we can because the client is waiting on it
-
-			bool bForceSavePackage = false;
-
+			bool bShouldPostponePackage = false;
 			if (IsCookOnTheFlyMode())
 			{
 				if (bProcessingUnsolicitedPackages)
 				{
-					SCOPE_TIMER(WaitingForCachedCookedPlatformData);
 					if (HasCookRequests())
 					{
 						bShouldFinishTick = true;
 					}
 					if (Timer.IsTimeUp())
 					{
-						bShouldFinishTick = true;
 						// our timeslice is up
+						bShouldFinishTick = true;
 					}
-					bool bFinishedCachingCookedPlatformData = false;
-					// if we are in realtime mode then don't wait forever for the package to be ready
-					while ((!Timer.IsTimeUp()) && IsRealtimeMode() && (bShouldFinishTick == false))
-					{
-						if (FinishPackageCacheForCookedPlatformData(Package, PlatformsForPackage, Timer) == true)
-						{
-							bFinishedCachingCookedPlatformData = true;
-							break;
-						}
-
-						GShaderCompilingManager->ProcessAsyncResults(true, false);
-						// sleep for a bit
-						FPlatformProcess::Sleep(0.0f);
-					}
-					bShouldFinishTick |= !bFinishedCachingCookedPlatformData;
 				}
 				else
 				{
-					if (!IsRealtimeMode())
-					{
-						bForceSavePackage = true;
-					}
+					// if we are cook the fly then save the requested package as fast as we can because the client is waiting on it
+					// Until we are blocked on async work, ignore the timer
 				}
 			}
-
-			bool AllObjectsCookedDataCached = true;
-			bool HasCheckedAllPackagesAreCached = (I >= OriginalPackagesToSaveCount);
+			else // !IsCookOnTheFlyMode
+			{
+				check(IsCookByTheBookMode());
+				if (Timer.IsTimeUp())
+				{
+					// our timeslice is up
+					bShouldFinishTick = true;
+				}
+			}
+			if (bShouldFinishTick)
+			{
+				return bHandledRequestedPackage;
+			}
 
 			MakePackageFullyLoaded(Package);
 
-			if (IsCookOnTheFlyMode())
+			// Always call FinishPackageCacheForCookedPlatformData before attempting to save the package
+			bool AllObjectsCookedDataCached = false;
+			AllObjectsCookedDataCached = FinishPackageCacheForCookedPlatformData(Package, PlatformsForPackage, Timer);
+			if (AllObjectsCookedDataCached == false)
 			{
-				// never want to requeue packages
-				HasCheckedAllPackagesAreCached = true;
-			}
-
-			// if we are forcing save the package then it doesn't matter if we call FinishPackageCacheForCookedPlatformData
-			if (!bShouldFinishTick && !bForceSavePackage)
-			{
+				GShaderCompilingManager->ProcessAsyncResults(true, false);
 				AllObjectsCookedDataCached = FinishPackageCacheForCookedPlatformData(Package, PlatformsForPackage, Timer);
-				if (AllObjectsCookedDataCached == false)
-				{
-					GShaderCompilingManager->ProcessAsyncResults(true, false);
-					AllObjectsCookedDataCached = FinishPackageCacheForCookedPlatformData(Package, PlatformsForPackage, Timer);
-				}
 			}
 
-			// if we are in realtime mode and this package isn't ready to be saved then we should exit the tick here so we don't save it while in launch on
-			if (IsRealtimeMode() &&
-				(AllObjectsCookedDataCached == false) &&
-				HasCheckedAllPackagesAreCached)
+			// If the package cache is not ready, postpone the package, exit, or wait for it as appropriate
+			if (!AllObjectsCookedDataCached)
 			{
-				bShouldFinishTick = true;
-			}
-
-			if (bShouldFinishTick && (!bForceSavePackage))
-			{
-				SCOPE_TIMER(EnqueueUnsavedPackages);
-				// enqueue all the packages which we were about to save
-				Timer.SavedPackage();  // this is a special case to prevent infinite loop, if we only have one package we might fall through this and could loop forever.  
-				int32 NumPackagesToRequeue = PackagesToSave.Num();
-
-				if (IsCookOnTheFlyMode())
+				// Can we postpone?
+				bool bIsUrgent = IsCookOnTheFlyMode() && !bProcessingUnsolicitedPackages;
+				if (!bIsUrgent)
 				{
-					NumPackagesToRequeue = FirstUnsolicitedPackage;
+					bool HasCheckedAllPackagesAreCached = (I >= OriginalPackagesToSaveCount);
+					if (!HasCheckedAllPackagesAreCached)
+					{
+						PackagesToSave.Add(Package);
+						continue;
+					}
 				}
-				
-				for (int32 RemainingIndex = I; RemainingIndex < NumPackagesToRequeue; ++RemainingIndex)
+				// Should we wait?
+				if (bIsUrgent && !IsRealtimeMode())
 				{
-					FName StandardFilename = PackageNameCache->GetCachedStandardPackageFileFName(PackagesToSave[RemainingIndex]);
-					PackageTracker->EnqueueUniqueCookRequest(FFilePlatformRequest(StandardFilename, PlatformsForPackage));
+					SCOPE_TIMER(WaitingForCachedCookedPlatformData);
+					do
+					{
+						GShaderCompilingManager->ProcessAsyncResults(true, false);
+						// sleep for a bit
+						FPlatformProcess::Sleep(0.0f);
+						AllObjectsCookedDataCached = FinishPackageCacheForCookedPlatformData(Package, PlatformsForPackage, Timer);
+					} while (!Timer.IsTimeUp() && !AllObjectsCookedDataCached);
 				}
-				Result |= COSR_WaitingOnCache;
-
-				// break out of the loop
-				return;
-			}
-
-			// don't precache other packages if our package isn't ready but we are going to save it.   This will fill up the worker threads with extra shaders which we may need to flush on 
-			if ((!IsCookOnTheFlyMode()) &&
-				(!IsRealtimeMode() || AllObjectsCookedDataCached == true))
-			{
-				// precache platform data for next package 
-				UPackage *NextPackage = PackagesToSave[FMath::Min(PackagesToSave.Num() - 1, I + 1)];
-				UPackage *NextNextPackage = PackagesToSave[FMath::Min(PackagesToSave.Num() - 1, I + 2)];
-				if (NextPackage != Package)
+				// If we couldn't postpone or wait, then we need to exit and try again later
+				if (!AllObjectsCookedDataCached)
 				{
-					SCOPE_TIMER(PrecachePlatformDataForNextPackage);
+					Result |= COSR_WaitingOnCache;
+					return bHandledRequestedPackage;
+				}
+			}
+			check(AllObjectsCookedDataCached == true); // We are not allowed to save until FinishPackageCacheForCookedPlatformData returns true.  We should have early exited above if it didn't
+
+			// precache the next few packages
+			if (!IsCookOnTheFlyMode() && !IsRealtimeMode() && I < PackagesToSave.Num())
+			{
+				SCOPE_TIMER(PrecachePlatformDataForNextPackage);
+				const int32 NumberToPrecache = 2;
+				int32 PrecacheEnd = FMath::Min(PackagesToSave.Num(), I + 1 + NumberToPrecache);
+				for (int32 PrecacheIndex = I + 1; PrecacheIndex < PrecacheEnd; ++PrecacheIndex)
+				{
+					UPackage* NextPackage = PackagesToSave[PrecacheIndex];
+					bool bNextIsUnsolicited = NextPackage != PackageToSave;
+					const TArray<const ITargetPlatform*>& PossiblePlatformsForNextPackage{ bNextIsUnsolicited ? PlatformManager->GetSessionPlatforms() : InTargetPlatforms };
 					BeginPackageCacheForCookedPlatformData(NextPackage, PlatformsForPackage, Timer);
 				}
-				if (NextNextPackage != NextPackage)
-				{
-					SCOPE_TIMER(PrecachePlatformDataForNextNextPackage);
-					BeginPackageCacheForCookedPlatformData(NextNextPackage, PlatformsForPackage, Timer);
-				}
-			}
-
-			// if we are running the cook commandlet
-			// if we already went through the entire package list then don't keep requeuing requests
-			if ((HasCheckedAllPackagesAreCached == false) &&
-				(AllObjectsCookedDataCached == false) &&
-				(bForceSavePackage == false) &&
-				IsCookByTheBookMode() )
-			{
-				// check(IsCookByTheBookMode() || ProcessingUnsolicitedPackages == true);
-				// add to back of queue
-				PackagesToSave.Add(Package);
-				// UE_LOG(LogCook, Display, TEXT("Delaying save for package %s"), *PackageFName.ToString());
-				continue;
-			}
-
-			if ( HasCheckedAllPackagesAreCached && (AllObjectsCookedDataCached == false) )
-			{
-				UE_LOG(LogCook, Verbose, TEXT("Forcing save package %s because was already requeued once"), *PackageFName.ToString());
-			}
-
-
-			bool bShouldSaveAsync = true;
-			FString Temp;
-			if (FParse::Value(FCommandLine::Get(), TEXT("-diffagainstcookdirectory="), Temp) || FParse::Value(FCommandLine::Get(), TEXT("-breakonfile="), Temp))
-			{
-				// async save doesn't work with this flags
-				bShouldSaveAsync = false;
 			}
 
 			TArray<bool> SucceededSavePackage;
@@ -3418,7 +3389,7 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 			{
 				COOK_STAT(FScopedDurationTimer TickCookOnTheSideSaveCookedPackageTimer(DetailedCookStats::TickCookOnTheSideSaveCookedPackageTimeSec));
 				SCOPE_TIMER(SaveCookedPackage);
-				uint32 SaveFlags = SAVE_KeepGUID | (bShouldSaveAsync ? SAVE_Async : SAVE_None) | (IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
+				uint32 SaveFlags = SAVE_KeepGUID | (bSaveAsyncAllowed ? SAVE_Async : SAVE_None) | (IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
 
 				bool KeepEditorOnlyPackages = false;
 				// removing editor only packages only works when cooking in commandlet and non iterative cooking
@@ -3480,6 +3451,7 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 				}
 				check(SavePackageResults.Num() == SucceededSavePackage.Num());
 				Timer.SavedPackage();
+				MarkRequestHandled(Package);
 			}
 
 			if (IsCookingInEditor() == false)
@@ -3493,7 +3465,6 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 				}
 			}
 
-			//@todo ResetLoaders outside of this (ie when Package is NULL) causes problems w/ default materials
 			FName StandardFilename = PackageNameCache->GetCachedStandardPackageFileFName(Package);
 
 			// We always want to mark package as processed unless it wasn't saved because it was referenced by editor-only data
@@ -3515,7 +3486,7 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 				{
 					PackageTracker->OnPackageCooked(FileRequest, Package);
 
-					if ((CurrentCookMode == ECookMode::CookOnTheFly) && (I >= FirstUnsolicitedPackage))
+					if ((CurrentCookMode == ECookMode::CookOnTheFly) && bProcessingUnsolicitedPackages)
 					{
 						// this is an unsolicited package
 						if (FPaths::FileExists(FileRequest.GetFilename().ToString()) == true)
@@ -3542,6 +3513,8 @@ void UCookOnTheFlyServer::SaveCookedPackages(
 			}
 		}
 	}
+
+	return bHandledRequestedPackage;
 }
 
 void UCookOnTheFlyServer::UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const FName& PackageName, FSavePackageResultStruct& SavePackageResult)
@@ -7891,11 +7864,6 @@ void UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded(UPackage *Package)
 	// can't use this optimization while cooking in editor
 	check(IsCookingInEditor()==false);
 	check(IsCookByTheBookMode());
-
-	if (bIgnoreMarkupPackageAlreadyLoaded == true)
-	{
-		return;
-	}
 
 	if (bIsInitializingSandbox)
 	{
