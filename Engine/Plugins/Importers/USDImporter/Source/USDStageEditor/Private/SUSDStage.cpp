@@ -602,7 +602,12 @@ void SUsdStage::OnReloadStage()
 		if ( UsdStage )
 		{
 			UsdUtils::StartMonitoringErrors();
-			UsdStage->Reload();
+			{
+				FScopedUsdAllocs Allocs;
+				const std::vector<pxr::SdfLayerHandle>& HandleVec = UsdStage->GetUsedLayers();
+				bool bForce = true;
+				pxr::SdfLayer::ReloadLayers({HandleVec.begin(), HandleVec.end()}, bForce);
+			}
 			if (UsdUtils::ShowErrorsAndStopMonitoring())
 			{
 				return;
