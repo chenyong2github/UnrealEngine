@@ -7,14 +7,17 @@
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
-//#pragma optimize("", off)
+//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
 	namespace Collisions
 	{
 		int32 Chaos_Collision_EnergyClampEnabled = 1;
-		FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.Chaos.Collision.EnergyClampEnabled"), Chaos_Collision_EnergyClampEnabled, TEXT("Whether to use energy clamping in collision apply step"));
+		FAutoConsoleVariableRef CVarChaosCollisionEnergyClampEnabled(TEXT("p.Chaos.Collision.EnergyClampEnabled"), Chaos_Collision_EnergyClampEnabled, TEXT("Whether to use energy clamping in collision apply step"));
+
+		int32 Chaos_Collision_ForceApplyType = 0;
+		FAutoConsoleVariableRef CVarChaosCollisionAlternativeApply(TEXT("p.Chaos.Collision.ForceApplyType"), Chaos_Collision_ForceApplyType, TEXT("Force Apply step to use Velocity(1) or Position(2) modes"));
 
 		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FCollisionContext& Context)
 		{
@@ -209,6 +212,115 @@ namespace Chaos
 			return AccumulatedImpulse;
 		}
 
+		// A PBD collision penetration correction.
+		FVec3 ApplyContact2(FCollisionContact& Contact,
+			TGenericParticleHandle<FReal, 3> Particle0,
+			TGenericParticleHandle<FReal, 3> Particle1,
+			const TContactIterationParameters<FReal>& IterationParameters,
+			const TContactParticleParameters<FReal>& ParticleParameters)
+		{
+			FVec3 AccumulatedImpulse(0);
+
+			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+
+			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
+			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+
+			FVec3 X0 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle0);
+			FVec3 X1 = FParticleUtilitiesXR::GetCoMWorldPosition(Particle1);
+			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+			FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0);
+			FRotation3 R1 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle1);
+			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+			FVec3 VectorToPoint0 = Contact.Location - P0;
+			FVec3 VectorToPoint1 = Contact.Location - P1;
+
+			if (Contact.Phi < 0)
+			{
+				FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
+				FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
+				FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : FMatrix33(0);
+				FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : FMatrix33(0);
+				FMatrix33 ContactInvI =
+					(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint0, InvI0, InvM0) : FMatrix33(0)) +
+					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint1, InvI1, InvM1) : FMatrix33(0));
+
+				// Calculate the normal correction
+				// @todo(chaos): support restitution in this mode (requires a small-impact cutoff threshold)
+				FReal Restitution = 0.0f;//Contact.Restitution;
+				FVec3 NormalError = Contact.Phi * Contact.Normal;
+				FReal NormalImpulseDenominator = FVec3::DotProduct(Contact.Normal, ContactInvI * Contact.Normal);
+				FVec3 NormalImpulseNumerator = -(1.0f + Restitution) * NormalError;
+				FVec3 NormalCorrection = NormalImpulseNumerator / NormalImpulseDenominator;
+
+				// Calculate the lateral correction
+				FVec3 LateralCorrection = FVec3(0);
+				if (Contact.Friction > 0)
+				{
+					// Get contact velocity
+					FVec3 V0 = FVec3::CalculateVelocity(X0, P0, IterationParameters.Dt);
+					FVec3 W0 = FRotation3::CalculateAngularVelocity(R0, Q0, IterationParameters.Dt);
+					FVec3 V1 = FVec3::CalculateVelocity(X1, P1, IterationParameters.Dt);
+					FVec3 W1 = FRotation3::CalculateAngularVelocity(R1, Q1, IterationParameters.Dt);
+					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
+					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
+					FVec3 CV = CV0 - CV1;
+
+					// Calculate lateral correction, clamped to the friction cone. Kinda.
+					FReal CVNormalMag = FVec3::DotProduct(CV, Contact.Normal);
+					if (CVNormalMag < 0.0f)
+					{
+						FVec3 CVLateral = CV - CVNormalMag * Contact.Normal;
+						FReal CVLateralMag = CVLateral.Size();
+						if (CVLateralMag > KINDA_SMALL_NUMBER)
+						{
+							FVec3 DirLateral = CVLateral / CVLateralMag;
+							FVec3 LateralImpulseNumerator = -CVLateral * IterationParameters.Dt;
+							FReal LateralImpulseDenominator = FVec3::DotProduct(DirLateral, ContactInvI * DirLateral);
+							LateralCorrection = LateralImpulseNumerator / LateralImpulseDenominator;
+							FReal LateralImpulseMag = LateralCorrection.Size();
+							FReal NormalImpulseMag = NormalCorrection.Size();
+							if (LateralImpulseMag > Contact.Friction * NormalImpulseMag)
+							{
+								LateralCorrection *= Contact.Friction * NormalImpulseMag / LateralImpulseMag;
+							}
+						}
+					}
+				}
+
+				// Net Correction
+				FVec3 DX = NormalCorrection + LateralCorrection;
+				
+				if (bIsRigidDynamic0)
+				{
+					FVec3 DP0 = InvM0 * DX;
+					FVec3 DR0 = Utilities::Multiply(InvI0, FVec3::CrossProduct(VectorToPoint0, DX));
+					PBDRigid0->V() += DP0 / IterationParameters.Dt;
+					PBDRigid0->W() += DR0 / IterationParameters.Dt;
+					P0 += DP0;
+					Q0 += FRotation3::FromElements(DR0, 0.f) * Q0 * IterationParameters.Dt * FReal(0.5);
+					Q0.Normalize();
+					FParticleUtilities::SetCoMWorldTransform(PBDRigid0, P0, Q0);
+				}
+				if (bIsRigidDynamic1)
+				{
+					FVec3 DP1 = InvM1 * -DX;
+					FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(VectorToPoint1, -DX));
+					PBDRigid1->V() += DP1 / IterationParameters.Dt;
+					PBDRigid1->W() += DR1 / IterationParameters.Dt;
+					P1 += DP1;
+					Q1 += FRotation3::FromElements(DR1, 0.f) * Q1 * IterationParameters.Dt * FReal(0.5);
+					Q1.Normalize();
+					FParticleUtilities::SetCoMWorldTransform(PBDRigid1, P1, Q1);
+				}
+			}
+			return AccumulatedImpulse;
+		}
+
+
 		template<typename T_CONSTRAINT>
 		void ApplyImpl(T_CONSTRAINT& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
@@ -231,7 +343,6 @@ namespace Chaos
 					return;
 				}
 
-				// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO what's the best way to manage external per-particle data?
 				if (ParticleParameters.Collided)
 				{
 					Particle0->AuxilaryValue(*ParticleParameters.Collided) = true;
@@ -244,9 +355,21 @@ namespace Chaos
 				//   For example, and iterative constraint might have 4 penetrating points that need to be resolved. 
 				//
 
+				// What Apply algorithm should we use? Controlled by the solver, with forcable cvar override for now...
+				bool bUseVelocityMode = (IterationParameters.ApplyType == ECollisionApplyType::Velocity);
+				if (Chaos_Collision_ForceApplyType != 0)
+				{
+					bUseVelocityMode = (Chaos_Collision_ForceApplyType == (int32)ECollisionApplyType::Velocity);
+				}
 
-				Constraint.AccumulatedImpulse +=
-					ApplyContact(Constraint.Manifold, Particle0, Particle1, IterationParameters, ParticleParameters);
+				if (bUseVelocityMode)
+				{
+					Constraint.AccumulatedImpulse += ApplyContact(Constraint.Manifold, Particle0, Particle1, IterationParameters, ParticleParameters);
+				}
+				else
+				{
+					Constraint.AccumulatedImpulse += ApplyContact2(Constraint.Manifold, Particle0, Particle1, IterationParameters, ParticleParameters);
+				}
 			}
 		}
 
