@@ -281,13 +281,14 @@ int _IsConstantTimeContractible(ColorVerticesContext *context, int v)
 
 int _GetContractibleNeighbors(ColorVerticesContext *context, int v, int *pu, int *pw)
 {
+
+	int lowDegreeNeighbors[5], i, j, n=0, e;
+	graphP theGraph = context->theGraph;
+
 	// Avoid false positive static analysis C6011 warning. Remove when it is fixed
 	CA_ASSUME(theGraph);
 	CA_ASSUME(theGraph->E);
 	CA_ASSUME(theGraph->V);
-
-	int lowDegreeNeighbors[5], i, j, n=0, e;
-	graphP theGraph = context->theGraph;
 
 	// This method is only applicable to degree 5 vertices
 	if (_GetVertexDegree(context, v) != 5)
