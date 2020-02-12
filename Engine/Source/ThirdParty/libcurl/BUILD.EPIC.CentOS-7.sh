@@ -18,8 +18,13 @@ set -x
 
 # the following is needed for Ubuntu 16.04 and up
 # - https://robinwinslow.uk/2016/06/23/fix-docker-networking-dns/
+if [ $(uname -o) = "Msys" ]; then
+DNS=""
+else
 DNS_IP4=`nmcli device list | grep IP4.DNS | head -1 | awk '{print $2}'`
 DNS="--dns $DNS_IP4"
+fi
+
 
 if [ -z "${ARCH}" ]; then
 	ARCH=
