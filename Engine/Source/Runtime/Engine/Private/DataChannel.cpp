@@ -2829,7 +2829,6 @@ int32 GNumReplicateActorCalls = 0;
 int64 UActorChannel::ReplicateActor()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateActorTime);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ReplicateActor);
 
 	check(Actor);
 	check(!Closing);
@@ -2845,6 +2844,8 @@ int64 UActorChannel::ReplicateActor()
 #endif
 
 	const bool bReplay = ActorWorld->DemoNetDriver == Connection->GetDriver();
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(ReplicateActor, !bReplay);
+
 	const bool bEnableScopedCycleCounter = !bReplay && GReplicateActorTimingEnabled;
 	FSimpleScopeSecondsCounter ScopedSecondsCounter(GReplicateActorTimeSeconds, bEnableScopedCycleCounter);
 
