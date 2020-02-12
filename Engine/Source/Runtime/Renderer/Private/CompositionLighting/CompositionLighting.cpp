@@ -525,6 +525,7 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GBufferC);
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GBufferD);
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GBufferE);
+	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GBufferF);
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.SceneVelocity);
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.ScreenSpaceAO);
 	

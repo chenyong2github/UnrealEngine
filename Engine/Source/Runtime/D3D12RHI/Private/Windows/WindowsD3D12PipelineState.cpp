@@ -22,6 +22,10 @@
 #define D3D12RHI_USE_ASYNC_PRELOAD 0
 #endif
 
+#ifndef D3D12RHI_USE_D3DDISASSEMBLE
+#define D3D12RHI_USE_D3DDISASSEMBLE 1
+#endif
+
 // D3D12RHI PSO file cache doesn't work anymore. Use FPipelineFileCache instead
 static TAutoConsoleVariable<int32> CVarPipelineStateDiskCache(
 	TEXT("D3D12.PSO.DiskCache"),
@@ -70,7 +74,7 @@ FD3D12_GRAPHICS_PIPELINE_STATE_STREAM FD3D12_GRAPHICS_PIPELINE_STATE_DESC::Pipel
 
 D3D12_GRAPHICS_PIPELINE_STATE_DESC FD3D12_GRAPHICS_PIPELINE_STATE_DESC::GraphicsDescV0() const
 {
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC D;
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC D = {};
 	D.Flags = this->Flags;
 	D.NodeMask = this->NodeMask;
 	D.pRootSignature = this->pRootSignature;
@@ -108,7 +112,7 @@ FD3D12_COMPUTE_PIPELINE_STATE_STREAM FD3D12_COMPUTE_PIPELINE_STATE_DESC::Pipelin
 
 D3D12_COMPUTE_PIPELINE_STATE_DESC FD3D12_COMPUTE_PIPELINE_STATE_DESC::ComputeDescV0() const
 {
-	D3D12_COMPUTE_PIPELINE_STATE_DESC D;
+	D3D12_COMPUTE_PIPELINE_STATE_DESC D = {};
 	D.Flags = this->Flags;
 	D.NodeMask = this->NodeMask;
 	D.pRootSignature = this->pRootSignature;
@@ -603,6 +607,7 @@ DECLARE_CYCLE_STAT(TEXT("Create time"), STAT_PSOCreateTime, STATGROUP_D3D12Pipel
 
 static void DumpShaderAsm(const D3D12_SHADER_BYTECODE& Shader, const TCHAR* Stage)
 {
+#if D3D12RHI_USE_D3DDISASSEMBLE
 	if (Shader.pShaderBytecode)
 	{
 		ID3DBlob* blob = nullptr;
@@ -612,6 +617,7 @@ static void DumpShaderAsm(const D3D12_SHADER_BYTECODE& Shader, const TCHAR* Stag
 			blob->Release();
 		}
 	}
+#endif
 }
 
 // Thread-safe create graphics/compute pipeline state. Conditionally load/store the PSO using a Pipeline Library.
@@ -640,6 +646,11 @@ static HRESULT CreatePipelineState(ID3D12PipelineState*&PSO, ID3D12Device* Devic
 	{
 		SCOPE_CYCLE_COUNTER(STAT_PSOCreateTime);
 		hr = Device->CreateComputePipelineState(Desc, IID_PPV_ARGS(&PSO));
+		if (FAILED(hr))
+		{
+			UE_LOG(LogD3D12RHI, Error, TEXT("Failed to create PipelineState with hash %s"), Name);
+		}
+		VERIFYD3D12RESULT(hr);
 	}
 
 	if (Library && SUCCEEDED(hr))
@@ -679,6 +690,11 @@ static HRESULT CreatePipelineStateFromStream(ID3D12PipelineState*& PSO, ID3D12De
 	{
 		SCOPE_CYCLE_COUNTER(STAT_PSOCreateTime);
 		hr = Device->CreatePipelineState(Desc, IID_PPV_ARGS(&PSO));
+		if (FAILED(hr))
+		{
+			UE_LOG(LogD3D12RHI, Error, TEXT("Failed to create PipelineState with hash %s"), Name);
+		}
+		VERIFYD3D12RESULT(hr);
 	}
 
 	return hr;

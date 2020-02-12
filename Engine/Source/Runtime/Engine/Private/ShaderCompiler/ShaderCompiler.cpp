@@ -155,7 +155,7 @@ static FAutoConsoleVariableRef CVarDumpShaderDebugSCWCommandLine(
 
 static int32 GDumpSCWJobInfoOnCrash = 0;
 static FAutoConsoleVariableRef CVarDumpSCWJobInfoOnCrash(
-	TEXT("r.DumpSCWQueuedJobs"),
+	TEXT("r.ShaderCompiler.DumpQueuedJobs"),
 	GDumpSCWJobInfoOnCrash,
 	TEXT("When set to 1, it will dump a job list to help track down crashes that happened on ShaderCompileWorker.")
 );
@@ -254,13 +254,21 @@ static TAutoConsoleVariable<int32> CVarMetalForceDXC(
 	(PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_IOS),
 	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all Metal shaders instead of hlslcc.\n")
 	TEXT(" 0: Disable\n")
-	TEXT(" 1: Use new compiler for all shaders (Default)"),
+	TEXT(" 1: Use new compiler for all shaders (default)"),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarOpenGLForceDXC(
 	TEXT("r.OpenGL.ForceDXC"),
 	0,
 	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all OpenGL shaders instead of hlslcc.\n")
+	TEXT(" 0: Disable (default)\n")
+	TEXT(" 1: Force new compiler for all shaders"),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarVulkanForceDXC(
+	TEXT("r.Vulkan.ForceDXC"),
+	0,
+	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all Vulkan shaders instead of hlslcc.\n")
 	TEXT(" 0: Disable (default)\n")
 	TEXT(" 1: Force new compiler for all shaders"),
 	ECVF_ReadOnly);
@@ -2667,13 +2675,15 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 						// NOTE: MaterialTemplate.usf will not be reloaded when retrying!
 						bRetryCompile = GRetryShaderCompilation;
 					}
-					else 
+					else
 #endif	//UE_BUILD_DEBUG
-						if (FPlatformMisc::MessageBoxExt( EAppMsgType::YesNo, *FText::Format(NSLOCTEXT("UnrealEd", "Error_RetryShaderCompilation", "{0}\r\n\r\nRetry compilation?"),
+					{
+						if (FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *FText::Format(NSLOCTEXT("UnrealEd", "Error_RetryShaderCompilation", "{0}\r\n\r\nRetry compilation?"),
 							FText::FromString(ErrorString)).ToString(), TEXT("Error")) == EAppReturnType::Type::Yes)
 						{
 							bRetryCompile = true;
 						}
+					}
 				}
 
 				if (bRetryCompile)
@@ -3580,7 +3590,16 @@ void GlobalBeginCompileShader(
 		}
 	}
 
-	if (IsOpenGLPlatform((EShaderPlatform)Target.Platform) && 
+	if (IsVulkanPlatform((EShaderPlatform)Target.Platform))
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.ForceDXC"));
+		if (CVar && CVar->GetInt() != 0)
+		{
+			Input.Environment.CompilerFlags.Add(CFLAG_ForceDXC);
+		}
+	}
+
+	if (IsOpenGLPlatform((EShaderPlatform)Target.Platform) &&
 		IsMobilePlatform((EShaderPlatform)Target.Platform))
 	{
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OpenGL.UseEmulatedUBs"));
@@ -3629,6 +3648,10 @@ void GlobalBeginCompileShader(
 
 	{
 		Input.Environment.SetDefine(TEXT("GBUFFER_HAS_VELOCITY"), IsUsingBasePassVelocity((EShaderPlatform)Target.Platform) ? 1 : 0);
+	}
+
+	{
+		Input.Environment.SetDefine(TEXT("GBUFFER_HAS_TANGENT"), BasePassCanOutputTangent(Target.GetPlatform()) ? 1 : 0);
 	}
 
 	{

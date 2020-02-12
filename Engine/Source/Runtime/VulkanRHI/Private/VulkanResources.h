@@ -109,9 +109,9 @@ public:
 #endif
 
 	// Name should be pointing to "main_"
-	void GetEntryPoint(ANSICHAR* Name)
+	void GetEntryPoint(ANSICHAR* Name, int32 NameLength)
 	{
-		FCStringAnsi::Sprintf(Name, "main_%0.8x_%0.8x", Spirv.Num() * sizeof(uint32), CodeHeader.SpirvCRC);
+		FCStringAnsi::Snprintf(Name, NameLength, "main_%0.8x_%0.8x", Spirv.Num() * sizeof(uint32), CodeHeader.SpirvCRC);
 	}
 
 	FORCEINLINE const FVulkanShaderHeader& GetCodeHeader() const
@@ -265,9 +265,17 @@ private:
 class FVulkanSurface
 {
 public:
+	struct FImageCreateInfo
+	{
+		VkImageCreateInfo ImageCreateInfo;
+		//only used when HasImageFormatListKHR is supported. Otherise VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT is used.
+		VkImageFormatListCreateInfoKHR ImageFormatListCreateInfo;
+		VkFormat FormatsUsed[2];
+	};
 
 	// Seperate method for creating VkImageCreateInfo
-	static VkImageCreateInfo GenerateImageCreateInfo(
+	static void GenerateImageCreateInfo(
+		FImageCreateInfo& OutImageCreateInfo,
 		FVulkanDevice& InDevice,
 		VkImageViewType ResourceType,
 		EPixelFormat InFormat,
@@ -404,6 +412,11 @@ public:
 		{
 			return 0;
 		}
+	}
+
+	inline TRefCountPtr<VulkanRHI::FOldResourceAllocation> GetResourceAllocation()
+	{
+		return ResourceAllocation;
 	}
 
 	FVulkanDevice* Device;
@@ -1114,10 +1127,22 @@ public:
 		return Current.Offset;
 	}
 
+	inline uint64 GetCurrentSize() const
+	{
+		return Current.Size;
+	}
+
+
 	inline VkBufferUsageFlags GetBufferUsageFlags() const
 	{
 		return BufferUsageFlags;
 	}
+
+	inline uint32 GetUEUsage() const
+	{
+		return BufferUsageFlags;
+	}
+
 
 	void* Lock(bool bFromRenderingThread, EResourceLockMode LockMode, uint32 Size, uint32 Offset);
 	void Unlock(bool bFromRenderingThread);
@@ -1142,6 +1167,7 @@ protected:
 		VulkanRHI::FBufferAllocation* BufferAllocation = nullptr;
 		VkBuffer Handle = VK_NULL_HANDLE;
 		uint64 Offset = 0;
+		uint64 Size = 0;
 	} Current;
 	VulkanRHI::FTempFrameAllocationBuffer::FTempAllocInfo VolatileLockInfo;
 

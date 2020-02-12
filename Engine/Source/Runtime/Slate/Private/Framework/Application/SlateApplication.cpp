@@ -1636,6 +1636,8 @@ TSharedRef< FGenericWindow > FSlateApplication::MakeWindow( TSharedRef<SWindow> 
 	{
 		TSharedRef< FGenericWindow > NewWindow = MakeShareable(new FGenericWindow());
 		InSlateWindow->SetNativeWindow(NewWindow);
+
+		FSlateApplicationBase::Get().GetRenderer()->CreateViewport(InSlateWindow);
 		return NewWindow;
 	}
 
@@ -1952,7 +1954,7 @@ TSharedRef<SWindow> FSlateApplication::AddWindowAsNativeChild( TSharedRef<SWindo
 	InParentWindow->AddChildWindow( InSlateWindow );
 
 	// Only make native generic windows if the parent has one. Nullrhi makes only generic windows, whose handles are always null
-	if ( InParentWindow->GetNativeWindow()->GetOSWindowHandle() || !FApp::CanEverRender() )
+	if ( InParentWindow->GetNativeWindow()->GetOSWindowHandle() || !FApp::CanEverRender() || bRenderOffScreen )
 	{
 		TSharedRef<FGenericWindow> NewWindow = MakeWindow(InSlateWindow, bShowImmediately);
 
@@ -2635,7 +2637,7 @@ bool FSlateApplication::SetUserFocus(FSlateUser& User, const FWidgetPath& InFocu
 		}
 	}
 
-	//UE_LOG(LogSlate, Warning, TEXT("Focus for user %i set to %s."), User->GetUserIndex(), NewFocusedWidget.IsValid() ? *NewFocusedWidget->ToString() : TEXT("Invalid"));
+	//UE_LOG(LogSlate, Warning, TEXT("Focus for user %i set to %s."), User.GetUserIndex(), NewFocusedWidget.IsValid() ? *NewFocusedWidget->ToString() : TEXT("Invalid"));
 
 	// Figure out if we should show focus for this focus entry
 	bool ShowFocus = false;

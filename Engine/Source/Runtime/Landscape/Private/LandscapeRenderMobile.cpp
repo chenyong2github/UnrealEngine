@@ -23,7 +23,7 @@ static TAutoConsoleVariable<int32> CVarMobileLandscapeHoleMesh(
 bool FLandscapeVertexFactoryMobile::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
 	auto FeatureLevel = GetMaxSupportedFeatureLevel(Parameters.Platform);
-	return (FeatureLevel == ERHIFeatureLevel::ES2 || FeatureLevel == ERHIFeatureLevel::ES3_1) &&
+	return (FeatureLevel == ERHIFeatureLevel::ES3_1) &&
 		(Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 

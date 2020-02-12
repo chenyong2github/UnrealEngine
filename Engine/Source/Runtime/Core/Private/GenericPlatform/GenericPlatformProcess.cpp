@@ -18,6 +18,7 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/LazySingleton.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Async/TaskGraphInterfaces.h"
 
 #ifndef DEFAULT_NO_THREADING
 	#define DEFAULT_NO_THREADING 0
@@ -613,3 +614,19 @@ void FGenericPlatformProcess::TearDown()
 	TLazySingleton<FEventPool<EEventPoolTypes::AutoReset>>::TearDown();
 	TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::TearDown();
 }
+
+ENamedThreads::Type FGenericPlatformProcess::GetDesiredThreadForUObjectReferenceCollector()
+{
+	return ENamedThreads::AnyThread;
+}
+
+void FGenericPlatformProcess::ModifyThreadAssignmentForUObjectReferenceCollector( int32& NumThreads, int32& NumBackgroundThreads, ENamedThreads::Type& NormalThreadName, ENamedThreads::Type& BackgroundThreadName )
+{
+#if PLATFORM_ANDROID
+	// On devices with overridden affinity only HiPri threads can run on big cores
+	NormalThreadName = ENamedThreads::AnyHiPriThreadHiPriTask; 
+	NumBackgroundThreads = 0; // run on single group
+#endif
+}
+
+

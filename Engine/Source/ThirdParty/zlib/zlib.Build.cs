@@ -83,10 +83,5 @@ public class zlib : ModuleRules
 				PublicAdditionalLibraries.Add(OldzlibPath + "/Lib/XboxOne/VS" + VersionName.ToString() + "/zlib125_XboxOne.lib");
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			PublicIncludePaths.Add(OldzlibPath + "/inc");
-			PublicAdditionalLibraries.Add(Path.Combine(OldzlibPath, "Lib/Switch/libz.a"));
-		}
 	}
 }

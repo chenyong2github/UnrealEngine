@@ -56,50 +56,12 @@ static void ClearQuadSetup( FRHICommandList& RHICmdList, bool bClearColor, int32
 	// Set the new shaders
 	TShaderMapRef<TOneColorVS<true> > VertexShader(ShaderMap);
 
-	TShaderRef<FOneColorPS> PixelShader;
-
 	// Set the shader to write to the appropriate number of render targets
 	// On AMD PC hardware, outputting to a color index in the shader without a matching render target set has a significant performance hit
-	if (NumClearColors <= 1)
-	{
-		TShaderMapRef<TOneColorPixelShaderMRT<1> > MRTPixelShader(ShaderMap);
-		PixelShader = MRTPixelShader;
-	}
-	else if (NumClearColors == 2)
-	{
-		TShaderMapRef<TOneColorPixelShaderMRT<2> > MRTPixelShader(ShaderMap);
-		PixelShader = MRTPixelShader;
-	}
-	else if (NumClearColors == 3)
-	{
-		TShaderMapRef<TOneColorPixelShaderMRT<3> > MRTPixelShader(ShaderMap);
-		PixelShader = MRTPixelShader;
-	}
-	else if (NumClearColors == 4)
-	{
-		TShaderMapRef<TOneColorPixelShaderMRT<4> > MRTPixelShader(ShaderMap);
-		PixelShader = MRTPixelShader;
-	}
-	else if (NumClearColors == 5)
-	{
-		TShaderMapRef<TOneColorPixelShaderMRT<5> > MRTPixelShader(ShaderMap);
-		PixelShader = MRTPixelShader;
-	}
-	else if (NumClearColors == 6)
-	{
-		TShaderMapRef<TOneColorPixelShaderMRT<6> > MRTPixelShader(ShaderMap);
-		PixelShader = MRTPixelShader;
-	}
-	else if (NumClearColors == 7)
-	{
-		TShaderMapRef<TOneColorPixelShaderMRT<7> > MRTPixelShader(ShaderMap);
-		PixelShader = MRTPixelShader;
-	}
-	else if (NumClearColors == 8)
-	{
-		TShaderMapRef<TOneColorPixelShaderMRT<8> > MRTPixelShader(ShaderMap);
-		PixelShader = MRTPixelShader;
-	}
+	TOneColorPixelShaderMRT::FPermutationDomain PermutationVector;
+	PermutationVector.Set<TOneColorPixelShaderMRT::TOneColorPixelShaderNumOutputs>(NumClearColors ? NumClearColors : 1);
+	PermutationVector.Set<TOneColorPixelShaderMRT::TOneColorPixelShader128bitRT>(PlatformRequires128bitRT((EPixelFormat)GraphicsPSOInit.RenderTargetFormats[0]));
+	TShaderMapRef<TOneColorPixelShaderMRT > PixelShader(ShaderMap, PermutationVector);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();

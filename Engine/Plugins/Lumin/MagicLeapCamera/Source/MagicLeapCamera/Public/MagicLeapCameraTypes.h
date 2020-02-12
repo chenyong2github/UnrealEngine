@@ -4,8 +4,42 @@
 #include "Engine/Engine.h"
 #include "MagicLeapCameraTypes.generated.h"
 
-USTRUCT()
-struct FMagicLeapCameraDummyStruct { GENERATED_BODY() };
+USTRUCT(BlueprintType)
+struct FMagicLeapCameraPlaneInfo
+{
+	GENERATED_BODY()
+	/** Width of the output image in pixels. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|MagicLeap")
+	int32 Width;
+	/** Height of the output image in pixels. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|MagicLeap")
+	int32 Height;
+	/** Stride of the output image in bytes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|MagicLeap")
+	int32 Stride;
+	/** Number of bytes used to represent a pixel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|MagicLeap")
+	int32 BytesPerPixel;
+	/** Image data. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|MagicLeap")
+	TArray<uint8> Data;
+};
+
+USTRUCT(BlueprintType)
+struct FMagicLeapCameraOutput
+{
+	GENERATED_BODY()
+	/**
+		Output image plane info. The number of output planes is determined by the format:
+		1 for compressed output such as JPEG stream,
+		3 for separate color component output such as YUV/RGB.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|MagicLeap")
+	TArray<FMagicLeapCameraPlaneInfo> Planes;
+	/** Supported output format specified by MLCameraOutputFormat. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|MagicLeap")
+	TEnumAsByte<EPixelFormat> Format;
+};
 
 /** Delegate used to notify the initiating blueprint when the camera connect task has completed. */
 DECLARE_DYNAMIC_DELEGATE_OneParam(FMagicLeapCameraConnect, const bool, bSuccess);

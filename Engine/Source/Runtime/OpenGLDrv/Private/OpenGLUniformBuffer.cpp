@@ -21,7 +21,7 @@ constexpr EUniformBufferValidation UniformBufferValidation = EUniformBufferValid
 
 namespace OpenGLConsoleVariables
 {
-#if (PLATFORM_WINDOWS || PLATFORM_ANDROIDESDEFERRED)
+#if (PLATFORM_WINDOWS)
 	int32 RequestedUBOPoolSize = 1024*1024*16;
 #else
 	int32 RequestedUBOPoolSize = 0;

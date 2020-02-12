@@ -37,6 +37,10 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	{
 		return false;
 	}
+	else if (IsPureSpecularTransmission(Payload))
+	{
+		return false;
+	}
 	else if (IsDefaultLitMaterial(Payload))
 	{
 		return true;
@@ -44,10 +48,6 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	else if (IsClearCoatMaterial(Payload))
 	{
 		return true;
-	}
-	else if (IsPureSpecularTransmission(Payload))
-	{
-		return false;
 	}
 	else if(IsLambert(Payload))
 	{

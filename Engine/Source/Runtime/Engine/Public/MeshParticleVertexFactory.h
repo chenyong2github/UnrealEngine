@@ -12,6 +12,7 @@
 #include "VertexFactory.h"
 #include "Components.h"
 #include "SceneManagement.h"
+#include "VertexFactory.h"
 #include "ParticleVertexFactory.h"
 //@todo - parallelrendering - remove once FOneFrameResource no longer needs to be referenced in header
 
@@ -199,24 +200,6 @@ protected:
 	FMeshParticleInstanceVertices* InstanceVerticesCPU;
 };
 
-
-class ENGINE_API FMeshParticleVertexFactoryEmulatedInstancing : public FMeshParticleVertexFactory
-{
-	DECLARE_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactoryEmulatedInstancing);
-
-public:
-	FMeshParticleVertexFactoryEmulatedInstancing(EParticleVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride)
-		: FMeshParticleVertexFactory(InType, InFeatureLevel, InDynamicVertexStride, InDynamicParameterVertexStride)
-	{}
-
-	FMeshParticleVertexFactoryEmulatedInstancing(ERHIFeatureLevel::Type InFeatureLevel)
-		: FMeshParticleVertexFactory(InFeatureLevel)
-	{}
-
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
-
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-};
 
 inline FMeshParticleVertexFactory* ConstructMeshParticleVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
 {

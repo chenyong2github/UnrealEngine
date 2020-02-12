@@ -25,7 +25,7 @@ public:
 	/**
 		Initiates the creation of a new contact.
 		@param Contact The contact to be created.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts | MagicLeap")
 	FGuid AddContactAsync(const FMagicLeapContact& Contact);
@@ -33,7 +33,7 @@ public:
 	/**
 		Initiates the update of an existing contact.
 		@param Contact The contact to be updated.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts | MagicLeap")
 	FGuid EditContactAsync(const FMagicLeapContact& Contact);
@@ -41,52 +41,57 @@ public:
 	/**
 		Initiates the deletion of an existing contact.
 		@param Contact The contact to be deleted.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts | MagicLeap")
 	FGuid DeleteContactAsync(const FMagicLeapContact& Contact);
 
 	/**
 		Initiates the retrieval of the entire contacts list from the cloud.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@param MaxNumResults The maximum number of results to return.
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts | MagicLeap")
-	FGuid RequestContactsAsync();
+	FGuid RequestContactsAsync(int32 MaxNumResults);
+
+	/**
+		Pops up a dialog allowing the user to manually select the contacts they wish to query.
+		@param MaxNumResults The maximum number of contacts to display (values greater than number of contacts will result in an invalid param error).
+		@param SearchField Specifies which field(s) to retrieve for each selected contact.
+		@return A unique identifier for this request.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Contacts | MagicLeap")
+	FGuid SelectContactsAsync(int32 MaxNumResults, EMagicLeapContactsSearchField SearchField);
 
 	/**
 		Initiates a search for contacts with a given query across specified fields.
 		@param Query The search string to look for instances of.
 		@param SearchField The field within the contact to match the query against.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts | MagicLeap")
 	FGuid SearchContactsAsync(const FString& Query, EMagicLeapContactsSearchField SearchField);
 
-	/**
-		Cancels a request corresponding to the FGuid.
-		@param RequestHandle The unique identifier of the request (returned by all contact request functions).
-		@return True if the cancellation succeeded, false otherwise.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Contacts | MagicLeap")
-	bool CancelRequest(const FGuid& RequestHandle);
-
 private:
 	// Delegate instances
 	UPROPERTY(BlueprintAssignable, Category = "Contacts | MagicLeap", meta = (AllowPrivateAccess = true))
-	FSingleContactResultDelegateMulti OnAddContactResult;
+	FMagicLeapSingleContactResultDelegateMulti OnAddContactResult;
 
 	UPROPERTY(BlueprintAssignable, Category = "Contacts | MagicLeap", meta = (AllowPrivateAccess = true))
-	FSingleContactResultDelegateMulti OnEditContactResult;
+	FMagicLeapSingleContactResultDelegateMulti OnEditContactResult;
 
 	UPROPERTY(BlueprintAssignable, Category = "Contacts | MagicLeap", meta = (AllowPrivateAccess = true))
-	FSingleContactResultDelegateMulti OnDeleteContactResult;
+	FMagicLeapSingleContactResultDelegateMulti OnDeleteContactResult;
 
 	UPROPERTY(BlueprintAssignable, Category = "Contacts | MagicLeap", meta = (AllowPrivateAccess = true))
-	FMultipleContactsResultDelegateMulti OnRequestContactsResult;
+	FMagicLeapMultipleContactsResultDelegateMulti OnRequestContactsResult;
 
 	UPROPERTY(BlueprintAssignable, Category = "Contacts | MagicLeap", meta = (AllowPrivateAccess = true))
-	FMultipleContactsResultDelegateMulti OnSearchContactsResult;
+	FMagicLeapMultipleContactsResultDelegateMulti OnSelectContactsResult;
 
 	UPROPERTY(BlueprintAssignable, Category = "Contacts | MagicLeap", meta = (AllowPrivateAccess = true))
-	FContactsLogMessageMulti OnLogMessage;
+	FMagicLeapMultipleContactsResultDelegateMulti OnSearchContactsResult;
+
+	UPROPERTY(BlueprintAssignable, Category = "Contacts | MagicLeap", meta = (AllowPrivateAccess = true))
+	FMagicLeapContactsLogMessageMulti OnLogMessage;
 };

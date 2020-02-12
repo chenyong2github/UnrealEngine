@@ -5,7 +5,7 @@
 #if PLATFORM_MAC
 #include "Mac/OpenGL/SlateOpenGLMac.h"
 #endif
-#define USE_DEPRECATED_OPENGL_FUNCTIONALITY			(!PLATFORM_USES_ES2 && !PLATFORM_LINUX)
+#define USE_DEPRECATED_OPENGL_FUNCTIONALITY			(!PLATFORM_USES_GLES && !PLATFORM_LINUX)
 
 GLuint FSlateOpenGLTexture::NullTexture = 0;
 
@@ -87,7 +87,7 @@ void FSlateOpenGLTexture::UpdateTextureRaw(const void* Buffer, const FIntRect& D
 #endif // USE_DEPRECATED_OPENGL_FUNCTIONALITY
 	
 	// Upload the texture data
-#if !PLATFORM_USES_ES2
+#if !PLATFORM_USES_GLES
 
 	if (bHasPendingResize || Dirty.Area() == 0)
 	{
@@ -183,7 +183,7 @@ GLint FSlateFontTextureOpenGL::GetGLTextureInternalFormat() const
 		return GL_RED;
 #endif // USE_DEPRECATED_OPENGL_FUNCTIONALITY
 	}
-#if !PLATFORM_USES_ES2
+#if !PLATFORM_USES_GLES
 	return GL_SRGB8_ALPHA8;
 #else
 	return GL_SRGB8_ALPHA8_EXT;

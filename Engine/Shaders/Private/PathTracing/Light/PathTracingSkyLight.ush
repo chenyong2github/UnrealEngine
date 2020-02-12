@@ -72,7 +72,9 @@ void SkyLight_EstimateLight(
 )
 {
 	float3 WorldNormal = Payload.WorldNormal;
-	float3 SkyLightIrradiance = GetColor(LightId) * GetSkySHDiffuse(WorldNormal);
+	// Modifying diffuse contribution to prevent false negatives with PDF estimation
+	float3 SkySHDiffuse = max(GetSkySHDiffuse(WorldNormal), 0.01);
+	float3 SkyLightIrradiance = GetColor(LightId) * SkySHDiffuse;
 	float SkyLightIlluminance = Luminance(SkyLightIrradiance);
 
 	OutIrradiance = SkyLightIlluminance * 2.0f * PI;

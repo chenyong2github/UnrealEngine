@@ -128,7 +128,7 @@ void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 
 #if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 	// main_00000000_00000000
 	ANSICHAR EntryPoint[24];
-	GetEntryPoint(EntryPoint);
+	GetEntryPoint(EntryPoint, 24);
 	DebugEntryPoint = EntryPoint;
 #endif
 }
@@ -310,7 +310,6 @@ uint32 FVulkanDescriptorSetWriter::SetupDescriptorWrites(
 	HashableDescriptorInfos = InHashableDescriptorInfos;
 	WriteDescriptors = InWriteDescriptors;
 	NumWrites = Types.Num();
-	checkf(Types.Num() <= 64, TEXT("Out of bits for Dirty Mask! More than 64 resources in one descriptor set!"));
 
 	BindingToDynamicOffsetMap = InBindingToDynamicOffsetMap;
 

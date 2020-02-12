@@ -203,7 +203,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	}
 #if USE_PIX
 	// PIX (note that DXGIGetDebugInterface1 requires Windows 8.1 and up)
-	if (FWindowsPlatformMisc::VerifyWindowsVersion(6, 3))
+	if (FPlatformMisc::VerifyWindowsVersion(6, 3))
 	{
 		FDXGIGetDebugInterface1 DXGIGetDebugInterface1FnPtr = nullptr;
 

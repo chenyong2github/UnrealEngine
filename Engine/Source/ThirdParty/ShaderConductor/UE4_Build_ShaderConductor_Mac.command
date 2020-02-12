@@ -24,11 +24,22 @@ cd ShaderConductor
 # p4 edit $THIRD_PARTY_CHANGELIST lib/Mac/...
 
 # compile Mac
-python BuildAll.py ninja clang x64 RelWithDebInfo
 
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib ../../../../Binaries/Mac/libdxcompiler.3.7.dylib
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib ../../../../Binaries/Mac/libdxcompiler.dylib
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libShaderConductor.dylib ../../../../Binaries/Mac/libShaderConductor.dylib
+if [ "$#" -eq 1 ] && [ "$1" == "-debug" ]; then
+	# Debug
+	python BuildAll.py ninja clang x64 Debug
+
+	cp -f Build/ninja-osx-clang-x64-Debug/Lib/libdxcompiler.dylib ../../../../Binaries/Mac/libdxcompiler.3.7.dylib
+	cp -f Build/ninja-osx-clang-x64-Debug/Lib/libdxcompiler.dylib ../../../../Binaries/Mac/libdxcompiler.dylib
+	cp -f Build/ninja-osx-clang-x64-Debug/Lib/libShaderConductor.dylib ../../../../Binaries/Mac/libShaderConductor.dylib
+else
+	# Release
+	python BuildAll.py ninja clang x64 RelWithDebInfo
+
+	cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib ../../../../Binaries/Mac/libdxcompiler.3.7.dylib
+	cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib ../../../../Binaries/Mac/libdxcompiler.dylib
+	cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libShaderConductor.dylib ../../../../Binaries/Mac/libShaderConductor.dylib
+fi
 
 dsymutil ../../../../Binaries/Mac/libdxcompiler.dylib
 dsymutil ../../../../Binaries/Mac/libdxcompiler.3.7.dylib

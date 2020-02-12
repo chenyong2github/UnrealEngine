@@ -412,9 +412,8 @@ bool FConfigSection::HandleArrayOfKeyedStructsCommand(FName Key, FString&& Value
 					ExtractPropertyValue(It.Value().GetValue(), StructKeyMatch, ExistingStructValueKey);
 					if (ExistingStructValueKey == StructKeyValueToMatch)
 					{
-						// we matched ther key, so remove the existing line item (Value) and plop in the new one
-						RemoveSingle(Key, It.Value().GetValue());
-						Add(Key, Value);
+						// we matched the key, so replace the existing value in place (so as not to reorder)
+						It.Value() = Value;
 
 						// mark that the key was found and the add has been processed
 						bHandledWithKey = true;

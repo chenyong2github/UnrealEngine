@@ -26,9 +26,9 @@
 
 #include "XRThreadUtils.h"
 
-#if !PLATFORM_MAC
+#if PLATFORM_SUPPORTS_VULKAN
 #include "MagicLeapHelperVulkan.h"
-#endif //!PLATFORM_MAC
+#endif //PLATFORM_SUPPORTS_VULKAN
 
 #include "MagicLeapUtils.h"
 #include "MagicLeapPluginUtil.h"
@@ -38,22 +38,29 @@
 #include "GeneralProjectSettings.h"
 #include "MagicLeapSettings.h"
 
-#if !PLATFORM_MAC
+
+#if PLATFORM_SUPPORTS_VULKAN
 #include "OpenGLDrv.h"
-#include "VulkanRHIPrivate.h"
 #include "VulkanRHIBridge.h"
-#else
+#elif PLATFORM_MAC
 #include "MetalRHI.h"
-#endif // !PLATFORM_MAC
+#endif // PLATFORM_SUPPORTS_VULKAN
 
 #include "Lumin/CAPIShims/LuminAPIPerception.h"
 #include "Lumin/CAPIShims/LuminAPIRemote.h"
 #include "Lumin/CAPIShims/LuminAPIGraphics.h"
 #include "Lumin/CAPIShims/LuminAPIPrivileges.h"
+#include "Lumin/CAPIShims/LuminAPIInput.h"
 
+#if WITH_MLSDK
 #if !PLATFORM_LUMIN
 #include "Misc/MessageDialog.h"
 #endif
+#endif //WITH_MLSDK
+
+#if PLATFORM_LUMIN
+#include "Lumin/LuminApplication.h"
+#endif //PLATFORM_LUMIN
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -78,6 +85,7 @@ public:
 		: bIsVDZIEnabled(false)
 		, bUseVulkanForZI(false)
 		, bUseMLAudioForZI(false)
+		, PrevUnfocusedVolumeMultiplier(0.0f)
 	{
 	}
 
@@ -145,6 +153,10 @@ public:
 				ExtraCommandLineFlags.Append(AudioMixerFlag);
 			}
 
+			PrevUnfocusedVolumeMultiplier = FApp::GetUnfocusedVolumeMultiplier();
+			// Ensure that audio doesn't cut out when switching focus between the simulator window and the zi window.
+			FApp::SetUnfocusedVolumeMultiplier(1.0f);
+
 			CommandLine.Append(ExtraCommandLineFlags);
 			FCommandLine::Set(*CommandLine);
 
@@ -153,6 +165,9 @@ public:
 			// itself using the current command line. Hence to avoid the RHI option stick when
 			// we change the VDZI option we need to remove before the EngineExit.
 			FEditorDelegates::OnShutdownPostPackagesSaved.AddRaw(this, &FMagicLeapPlugin::UndoCommandLine);
+
+			// PIE isn't fully setup when we get OnBeginPlay, so register for a call when it's fully setup
+			FEditorDelegates::PostPIEStarted.AddRaw(this, &FMagicLeapPlugin::PostPIEStarted);
 		}
 #endif // (PLATFORM_WINDOWS || PLATFORM_MAC) && WITH_EDITOR
 
@@ -178,6 +193,11 @@ public:
 		{
 			GConfig->SetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), *PreviousAudioMixer, GEngineIni);
 		}
+
+		if (bIsVDZIEnabled)
+		{
+			FApp::SetUnfocusedVolumeMultiplier(PrevUnfocusedVolumeMultiplier);
+		}
 	}
 #endif
 
@@ -196,6 +216,9 @@ public:
 		// Early out if VDZI is not enabled on non-Lumin platforms.  We don't want it reporting as available when no MLSDK is present
 		if (!bIsVDZIEnabled)
 		{
+#if WITH_EDITOR
+			UE_LOG(LogMagicLeap, Warning, TEXT("VR disabled because ZI is not enabled.  To enable, in the editor, Edit -> Project Settings -> Plugins -> Magic Leap Plugin -> Enable Zero Iteration"));
+#endif // WITH_EDITOR
 			return nullptr;
 		}
 #endif //PLATFORM_LUMIN
@@ -383,6 +406,13 @@ private:
 		}
 	}
 
+	void PostPIEStarted(bool bInSimulateInEditor)
+	{
+		// We disable input globally for editor play as all input must come from the
+		// Virtual Device / Zero Iteration system.
+		SetIgnoreInput(true);
+	}
+
 	void RemoveEditorSettings()
 	{
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
@@ -402,6 +432,7 @@ private:
 	TSet<IMagicLeapTrackerEntity*> TrackerEntities;
 	FString ExtraCommandLineFlags;
 	FString PreviousAudioMixer;
+	float PrevUnfocusedVolumeMultiplier;
 };
 
 IMPLEMENT_MODULE(FMagicLeapPlugin, MagicLeap)
@@ -510,7 +541,7 @@ bool FMagicLeapHMD::IsHMDConnected()
 			{
 				bool bIsZIServerRunning;
 				MLResult Result = MLRemoteIsServerConfigured(&bIsZIServerRunning);
-				if (Result != MLResult_Ok && Result != MLResult_Timeout)
+				if (Result != MLResult_Ok && Result != MLResult_Timeout && Result != MLResult_NotImplemented)
 				{
 					UE_LOG(LogMagicLeap, Error, TEXT("MLRemoteIsServerConfigured failed with error %s!"), UTF8_TO_TCHAR(MLGetResultString(Result)));
 				}
@@ -759,6 +790,8 @@ void FMagicLeapHMD::RefreshTrackingFrame()
 	bHeadposeMapEventsAvailable = (Result == MLResult_Ok);
 	if (bHeadposeMapEventsAvailable)
 	{
+		PreviousHeadposeMapEvents = HeadposeMapEvents;
+
 		static TArray<MLHeadTrackingMapEvent> AllMLFlags({
 			MLHeadTrackingMapEvent_Lost,
 			MLHeadTrackingMapEvent_Recovered,
@@ -772,7 +805,26 @@ void FMagicLeapHMD::RefreshTrackingFrame()
 		{
 			if ((MapEventsFlags & static_cast<MLHeadTrackingMapEvent>(flag)) != 0)
 			{
-				HeadposeMapEvents.Add(MLToUnrealHeadTrackingMapEvent(flag));
+				auto Event = MLToUnrealHeadTrackingMapEvent(flag);
+				HeadposeMapEvents.Add(Event);
+
+				if (!PreviousHeadposeMapEvents.Contains(Event))
+				{
+					switch (Event)
+					{
+						case EMagicLeapHeadTrackingMapEvent::Lost:
+						{
+							FCoreDelegates::VRHeadsetLost.Broadcast();
+							break;
+						}
+						case EMagicLeapHeadTrackingMapEvent::Recovered:
+						case EMagicLeapHeadTrackingMapEvent::NewSession:
+						{
+							FCoreDelegates::VRHeadsetReconnected.Broadcast();
+							break;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -914,7 +966,7 @@ void FMagicLeapHMD::DisplayWarningIfVDZINotEnabled()
 		VREnabled = (GetDefault<ULevelEditorPlaySettings>()->LastExecutedPlayModeType == PlayMode_InVR);
 	}
 	else
-#endif
+#endif // WITH_EDITOR
 	{
 		VREnabled = FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR;
 	}
@@ -933,7 +985,7 @@ void FMagicLeapHMD::DisplayWarningIfVDZINotEnabled()
 	}
 #endif //WITH_MLSDK
 }
-#endif
+#endif // !PLATFORM_LUMIN
 
 void FMagicLeapHMD::GetClipExtents()
 {
@@ -1041,15 +1093,6 @@ bool FMagicLeapHMD::EnableStereo(bool bStereo)
 	bStereoDesired = bShouldStereo;
 #endif //!PLATFORM_LUMIN
 
-#if WITH_EDITOR
-	// We disable input globally for editor play as all input must come from the
-	// Virtual Device / Zero Iteration system.
-	//
-	// NOTE: We do this here in addition to OnBeginPlay because the game viewport client
-	// is not defined yet when the HMD begin play is invoked while doing PIE.
-	//
-	SetIgnoreInput(true);
-#endif
 	bStereoEnabled = bShouldStereo;
 
 	// Uncap fps to enable FPS higher than 62
@@ -1061,23 +1104,26 @@ bool FMagicLeapHMD::EnableStereo(bool bStereo)
 bool FMagicLeapHMD::SetIgnoreInput(bool Ignore)
 {
 #if WITH_EDITOR
-	UGameViewportClient* ViewportClient = GetGameViewportClient();
-	// Change input settings only if running in the editor.
-	// Without the GIsEditor check input doesnt work in "Play in Standalone Mode" since that uses the editor dlls itself.
-	if (ViewportClient && GIsEditor)
+	// Only necessary in PIE
+	auto WorldContext = CastChecked<UEditorEngine>(GEngine)->GetPIEWorldContext();
+	if (IsStereoEnabled() && WorldContext != nullptr)
 	{
-		bool Result = ViewportClient->IgnoreInput();
-		ViewportClient->SetIgnoreInput(Ignore);
-		if (DisableInputForBeginPlay && !Ignore)
+		auto ViewportClient = WorldContext->GameViewport;
+		if (ViewportClient != nullptr)
 		{
-			// First time around we call this to disable the input globally. Hence we
-			// also set mouse options. On subsequent calls we only set the input ignore flags.
-			DisableInputForBeginPlay = false;
-			ViewportClient->SetCaptureMouseOnClick(EMouseCaptureMode::NoCapture);
-			ViewportClient->SetMouseLockMode(EMouseLockMode::DoNotLock);
-			ViewportClient->SetHideCursorDuringCapture(false);
+			bool Result = ViewportClient->IgnoreInput();
+			ViewportClient->SetIgnoreInput(Ignore);
+			if (DisableInputForBeginPlay && !Ignore)
+			{
+				// First time around we call this to disable the input globally. Hence we
+				// also set mouse options. On subsequent calls we only set the input ignore flags.
+				DisableInputForBeginPlay = false;
+				ViewportClient->SetCaptureMouseOnClick(EMouseCaptureMode::NoCapture);
+				ViewportClient->SetMouseLockMode(EMouseLockMode::DoNotLock);
+				ViewportClient->SetHideCursorDuringCapture(false);
+			}
+			return Result;
 		}
-		return Result;
 	}
 #endif
 	return false;
@@ -1134,6 +1180,30 @@ void FMagicLeapHMD::UpdateViewportRHIBridge(bool /* bUseSeparateRenderTarget */,
 	{
 		CP->UpdateViewport(InViewport, ViewportRHI);
 	}
+}
+
+bool FMagicLeapHMD::NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget)
+{
+	check(IsInRenderingThread());
+
+	return bNeedReAllocateDepthTexture;
+}
+
+bool FMagicLeapHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 FlagsIn, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
+{
+	// From AllocateRenderTargetTexture
+	if (!IsStereoEnabled())
+	{
+		return false;
+	}
+
+	FRHIResourceCreateInfo CreateInfo(FClearValueBinding::DepthFar);
+	RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_DepthStencil, 1, FlagsIn, TargetableTextureFlags | TexCreate_InputAttachmentRead, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture);
+
+	DepthBuffer = OutTargetableTexture;
+	bNeedReAllocateDepthTexture = false;
+
+	return true;
 }
 
 bool FMagicLeapHMD::GetHeadTrackingState(FMagicLeapHeadTrackingState& State) const
@@ -1231,6 +1301,8 @@ bool FMagicLeapHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint
 	FRHIResourceCreateInfo CreateInfo;
 	RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_R8G8B8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture);
 
+	bNeedReAllocateDepthTexture = true;
+
 	return true;
 }
 
@@ -1247,6 +1319,8 @@ FMagicLeapHMD::FMagicLeapHMD(IMagicLeapPlugin* InMagicLeapPlugin, IARSystemSuppo
 #if WITH_MLSDK
 	GraphicsClient(ML_INVALID_HANDLE),
 #endif //WITH_MLSDK
+	DepthBuffer(nullptr),
+	bNeedReAllocateDepthTexture(false),
 	bDeviceInitialized(0),
 	bDeviceWasJustInitialized(0),
 	bHmdEnabled(true),
@@ -1364,6 +1438,8 @@ void FMagicLeapHMD::Shutdown()
 	DisableDeviceFeatures();
 
 	AppFramework.Shutdown();
+
+	bNeedReAllocateDepthTexture = false;
 }
 
 void FMagicLeapHMD::LoadFromIni()
@@ -1411,9 +1487,6 @@ void FMagicLeapHMD::OnBeginPlay(FWorldContext& InWorldContext)
 #if WITH_EDITOR
 	InWorldContext.AddRef(World);
 	DisableInputForBeginPlay = true;
-	// We disable input globally for editor play as all input must come from the
-	// Virtual Device / Zero Iteration system.
-	SetIgnoreInput(true);
 #endif
 
 	// Reset CurrentFrameTimingHint so that proper value from config can be updated after device is initialized.
@@ -1446,6 +1519,22 @@ void FMagicLeapHMD::EnableDeviceFeatures()
 	// In this case, just skip these steps since their timeouts may cause the game to appear to hang.
 	if (IsHMDConnected())
 	{
+#if PLATFORM_LUMIN
+		// On-platform we pull the input tracker from LuminApplication
+		InputTracker = static_cast<FLuminApplication *>
+			(FSlateApplication::Get().GetPlatformApplication().Get())->GetInputTracker();
+#elif WITH_MLSDK
+		// Everywhere else we create it
+		MLInputConfiguration InputConfig = { { MLInputControllerDof_6, MLInputControllerDof_6 } };
+
+		const MLResult Result = MLInputCreate(&InputConfig, &InputTracker);
+		if (Result != MLResult_Ok)
+		{
+			UE_LOG(LogMagicLeap, Error,
+				TEXT("MLInputCreate failed with error %s."),
+				UTF8_TO_TCHAR(MLGetResultString(Result)));
+		}
+#endif
 		EnablePrivileges();
 		EnablePerception();
 		EnableHeadTracking();
@@ -1471,6 +1560,20 @@ void FMagicLeapHMD::DisableDeviceFeatures()
 	}
 	bIsPlaying = false;
 	bVDZIWarningDisplayed = false;
+
+#if !PLATFORM_LUMIN && WITH_MLSDK
+	if (MLHandleIsValid(InputTracker))
+	{
+		MLResult Result = MLInputDestroy(InputTracker);
+		if (Result != MLResult_Ok)
+		{
+			UE_LOG(LogMagicLeap, Error,
+				TEXT("MLInputDestroy failed with error %s!"),
+				UTF8_TO_TCHAR(MLGetResultString(Result)));
+		}
+	}
+	InputTracker = ML_INVALID_HANDLE;
+#endif
 }
 
 
@@ -1780,7 +1883,7 @@ bool FMagicLeapHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQ
 		const FTrackingFrame& Frame = GetCurrentFrame();
 		const int EyeIdx = (Eye == eSSP_LEFT_EYE) ? 0 : 1;
 
-		const FTransform EyeToWorld = MagicLeap::ToFTransform(Frame.FrameInfo.virtual_camera_info_array.virtual_cameras[EyeIdx].transform, Frame.WorldToMetersScale);		// "world" here means the HMDs tracking space
+		const FTransform EyeToWorld = MagicLeap::ToFTransform(Frame.FrameInfo.virtual_cameras[EyeIdx].transform, Frame.WorldToMetersScale);		// "world" here means the HMDs tracking space
 		const FTransform EyeToHMD = EyeToWorld * Frame.RawPose.Inverse();		// RawPose is HMDToWorld
 		OutPosition = EyeToHMD.GetTranslation();
 		OutOrientation = EyeToHMD.GetRotation();

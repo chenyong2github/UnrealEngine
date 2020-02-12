@@ -71,7 +71,7 @@ static const FString& GetSkeletalMeshDerivedDataVersion()
 	return CachedVersionString;
 }
 
-static FString BuildSkeletalMeshDerivedDataKey(USkeletalMesh* SkelMesh)
+static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh)
 {
 	FString KeySuffix(TEXT(""));
 
@@ -105,8 +105,6 @@ static FString BuildSkeletalMeshDerivedDataKey(USkeletalMesh* SkelMesh)
 	KeySuffix += SkelMesh->bHasVertexColors ? "1" : "0";
 	KeySuffix += SkelMesh->VertexColorGuid.ToString(EGuidFormats::Digits);
 
-	const ITargetPlatform* TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-	check(TargetPlatform);
 	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
 	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
 
@@ -129,7 +127,7 @@ static FString BuildSkeletalMeshDerivedDataKey(USkeletalMesh* SkelMesh)
 	);
 }
 
-void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
+void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner)
 {
 	check(Owner);
 
@@ -145,7 +143,7 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 	{
 		COOK_STAT(auto Timer = SkeletalMeshCookStats::UsageStats.TimeSyncWork());
 		int32 T0 = FPlatformTime::Cycles();
-		FString DerivedDataKey = BuildSkeletalMeshDerivedDataKey(Owner);
+		FString DerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
 
 		TArray<uint8> DerivedData;
 		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, Owner->GetPathName()))
@@ -257,7 +255,7 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 				bool bRawDataEmpty = Owner->IsLODImportedDataEmpty(LODIndex);
 				bool bRawBuildDataAvailable = Owner->IsLODImportedDataBuildAvailable(LODIndex);
 				//Build the source model before the render data, if we are a purely generated LOD we do not need to be build
-				IMeshBuilderModule& MeshBuilderModule = FModuleManager::Get().LoadModuleChecked<IMeshBuilderModule>("MeshBuilder");
+				IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
 				if (!bRawDataEmpty && bRawBuildDataAvailable)
 				{
 					MeshBuilderModule.BuildSkeletalMesh(Owner, LODIndex, true);

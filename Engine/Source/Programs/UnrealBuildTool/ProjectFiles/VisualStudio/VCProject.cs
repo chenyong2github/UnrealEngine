@@ -1115,6 +1115,11 @@ namespace UnrealBuildTool
 			VCProjectFileContent.AppendLine("  <ItemDefinitionGroup>");
 			VCProjectFileContent.AppendLine("  </ItemDefinitionGroup>");
 			VCProjectFileContent.AppendLine("  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.targets\" />");
+			// Make sure CleanDependsOn is defined empty so the CppClean task isn't run when cleaning targets (use makefile instead)
+			VCProjectFileContent.AppendLine("  <PropertyGroup>");
+			VCProjectFileContent.AppendLine("    <CleanDependsOn> $(CleanDependsOn); </CleanDependsOn>");
+			VCProjectFileContent.AppendLine("    <CppCleanDependsOn></CppCleanDependsOn>");
+			VCProjectFileContent.AppendLine("  </PropertyGroup>");
 			if (!IsStubProject)
 			{
 				foreach (UnrealTargetPlatform Platform in ProjectPlatforms)
@@ -1562,7 +1567,7 @@ namespace UnrealBuildTool
 				{
 					TargetRules TargetRulesObject = Combination.ProjectTarget.TargetRules;
 
-					if ((Combination.Platform == UnrealTargetPlatform.Win32) || (Combination.Platform == UnrealTargetPlatform.Win64) || (Combination.Platform == UnrealTargetPlatform.HoloLens))
+					if (Combination.Platform.Value.IsInGroup(UnrealPlatformGroup.Windows) || (Combination.Platform == UnrealTargetPlatform.HoloLens))
 					{
 						VCUserFileContent.AppendLine("  <PropertyGroup {0}>", ConditionString);
 						if (TargetRulesObject.Type != TargetType.Game)

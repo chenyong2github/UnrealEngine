@@ -789,7 +789,8 @@ void FLightPropagationVolume::InitSettings(FRHICommandListImmediate& RHICmdList,
 			TexCreate_HideInVisualizeTexture | GFastVRamConfig.LPV,
 			TexCreate_ShaderResource | TexCreate_UAV,
 			false,
-			1));
+			1,
+			false));
 
 		{
 			const TCHAR* Names[] = { TEXT("LPV_A0"), TEXT("LPV_B0"), TEXT("LPV_A1"), TEXT("LPV_B1"), TEXT("LPV_A2"), TEXT("LPV_B2"), TEXT("LPV_A3"), TEXT("LPV_B3"), TEXT("LPV_A4"), TEXT("LPV_B4"), TEXT("LPV_A5"), TEXT("LPV_B5"), TEXT("LPV_A6"), TEXT("LPV_B6") };
@@ -938,8 +939,8 @@ void FLightPropagationVolume::Clear(FRHICommandListImmediate& RHICmdList, FViewI
 	}
 	LpvWriteUniformBuffer.SetContents( *LpvWriteUniformBufferParams );
 
-	// TODO: these could be run in parallel... 
-	RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
+	// Allow the three clear compute shaders to run in parallel...
+	RHICmdList.BeginUAVOverlap();
 
 	// Clear the list buffers
 	{
@@ -977,8 +978,7 @@ void FLightPropagationVolume::Clear(FRHICommandListImmediate& RHICmdList, FViewI
 		DispatchComputeShader(RHICmdList, Shader.GetShader(), LPV_GRIDRES/4, LPV_GRIDRES/4, LPV_GRIDRES/4 );
 		Shader->UnbindBuffers(RHICmdList, ShaderParams);
 	}
-	RHICmdList.AutomaticCacheFlushAfterComputeShader(true);
-	RHICmdList.FlushComputeShaderCache();
+	RHICmdList.EndUAVOverlap();
 
 	RHICmdList.SetUAVParameter( FComputeShaderRHIRef(), 7, mVplListBuffer->UAV, 0 );
 	RHICmdList.SetUAVParameter( FComputeShaderRHIRef(), 7, GvListBuffer->UAV, 0 );
@@ -1120,7 +1120,6 @@ void FLightPropagationVolume::ComputeDirectionalOcclusion( FRHICommandListImmedi
 			Shader->UnbindBuffers(RHICmdList, ShaderParams);
 		}
 	}
-	RHICmdList.FlushComputeShaderCache();
 }
 
 /**
@@ -1156,7 +1155,6 @@ void FLightPropagationVolume::Update( FRHICommandListImmediate& RHICmdList, FVie
 		Shader->SetParameters(RHICmdList, ShaderParams );
 
 		DispatchComputeShader(RHICmdList, Shader.GetShader(), LPV_GRIDRES/4, LPV_GRIDRES/4, LPV_GRIDRES/4 );
-		RHICmdList.FlushComputeShaderCache();
 
 		Shader->UnbindBuffers(RHICmdList, ShaderParams);
 	}
@@ -1196,12 +1194,6 @@ void FLightPropagationVolume::Update( FRHICommandListImmediate& RHICmdList, FVie
 			Shader->SetParameters(RHICmdList, ShaderParams );
 
 			DispatchComputeShader(RHICmdList, Shader.GetShader(), LPV_GRIDRES/4, LPV_GRIDRES/4, LPV_GRIDRES/4 );
-
-			// Insert a flush for all iterations except the last - these dispatches can't overlap!
-			if ( i < LPVNumPropagationSteps - 1 )
-			{
-				RHICmdList.FlushComputeShaderCache();
-			}
 
 			Shader->UnbindBuffers(RHICmdList, ShaderParams);
 		}

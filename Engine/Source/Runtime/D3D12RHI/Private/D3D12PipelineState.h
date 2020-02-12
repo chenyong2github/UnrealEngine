@@ -16,7 +16,9 @@
 #ifndef D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
 #define D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE 0
 #endif
-#define D3D12_USE_DERIVED_PSO PLATFORM_XBOXONE
+#ifndef D3D12_USE_DERIVED_PSO
+	#define D3D12_USE_DERIVED_PSO 0
+#endif
 
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Graphics: Num high-level cache entries"), STAT_PSOGraphicsNumHighlevelCacheEntries, STATGROUP_D3D12PipelineState);
@@ -107,7 +109,7 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 
 	FORCEINLINE FString GetName() const { return FString::Printf(TEXT("%llu"), CombinedHash); }
 
-#if PLATFORM_XBOXONE
+#if D3D12_USE_DERIVED_PSO
 	void Destroy();
 #endif
 };
@@ -138,7 +140,7 @@ struct FD3D12ComputePipelineStateDesc
 
 	FORCEINLINE FString GetName() const { return FString::Printf(TEXT("%llu"), CombinedHash); }
 
-#if PLATFORM_XBOXONE
+#if D3D12_USE_DERIVED_PSO
 	void Destroy();
 #endif
 };
@@ -299,7 +301,7 @@ public:
 	void Create(const ComputePipelineCreationArgs& InCreationArgs);
 	void CreateAsync(const ComputePipelineCreationArgs& InCreationArgs);
 
-#if PLATFORM_XBOXONE
+#if D3D12_USE_DERIVED_PSO
 	void Create(const FGraphicsPipelineStateInitializer& Initializer, FD3D12PipelineState* BasePSO);
 #endif
 

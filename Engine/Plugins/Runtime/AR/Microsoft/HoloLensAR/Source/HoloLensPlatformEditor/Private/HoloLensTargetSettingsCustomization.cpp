@@ -274,8 +274,6 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 		OnCapabilityStateChanged(ECheckBoxState::Checked, CapabilityList, TEXT("privateNetworkClientServer"));
 		// Our AR apps expect to get spatial mesh updates, so make this opt out for users that know what they are doing
 		OnCapabilityStateChanged(ECheckBoxState::Checked, Uap2CapabilityList, TEXT("spatialPerception"));
-		// Our AR apps expect to get a camera image each frame, so make this opt out for users that know what they are doing
-		OnCapabilityStateChanged(ECheckBoxState::Checked, DeviceCapabilityList, TEXT("webcam"));
 
 		SetDefaultCapabilitiesProperty->NotifyPreChange();
 		SetDefaultCapabilitiesProperty->SetValue(false);

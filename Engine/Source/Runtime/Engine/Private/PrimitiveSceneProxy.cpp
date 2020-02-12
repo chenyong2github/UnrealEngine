@@ -400,6 +400,12 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	LocalBounds = InLocalBounds;
 	ActorPosition = InActorPosition;
 	
+	// Update cached reflection capture.
+	if (PrimitiveSceneInfo)
+	{
+		PrimitiveSceneInfo->bNeedsCachedReflectionCaptureUpdate = true;
+	}
+	
 	UpdateUniformBuffer();
 	
 	// Notify the proxy's implementation of the change.

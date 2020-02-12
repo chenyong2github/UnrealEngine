@@ -40,7 +40,7 @@ enum EBasePassDrawListType
  * An interface to the private scene manager implementation of a scene.  Use GetRendererModule().AllocateScene to create.
  * The scene
  */
-class ENGINE_VTABLE FSceneInterface
+class FSceneInterface
 {
 public:
 	FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel)
@@ -210,6 +210,9 @@ public:
 
 	/** Updates all static draw lists. */
 	virtual void UpdateStaticDrawLists() {}
+
+	/** Update render states that possibly cached inside renderer, like mesh draw commands. More lightweight than re-registering the scene proxy. */
+	virtual void UpdateCachedRenderStates(class FPrimitiveSceneProxy* SceneProxy) {}
 
 	/** 
 	 * Adds a new exponential height fog component to the scene
@@ -429,7 +432,7 @@ public:
 	 * Initialize the pixel inspector buffers.
 	 * @return True if implemented false otherwise.
 	 */
-	virtual bool InitializePixelInspector(FRenderTarget* BufferFinalColor, FRenderTarget* BufferSceneColor, FRenderTarget* BufferDepth, FRenderTarget* BufferHDR, FRenderTarget* BufferA, FRenderTarget* BufferBCDE, int32 BufferIndex)
+	virtual bool InitializePixelInspector(FRenderTarget* BufferFinalColor, FRenderTarget* BufferSceneColor, FRenderTarget* BufferDepth, FRenderTarget* BufferHDR, FRenderTarget* BufferA, FRenderTarget* BufferBCDEF, int32 BufferIndex)
 	{
 		return false;
 	}

@@ -388,6 +388,15 @@ uint32 FD3D11DynamicRHI::GetMaxMSAAQuality(uint32 SampleCount)
 
 static bool GFormatSupportsTypedUAVLoad[PF_MAX];
 
+// The D3D11 header is not recent enough to check support for this
+static const D3D11_FEATURE D3D11_FEATURE_FORMAT_SUPPORT3 = (D3D11_FEATURE)15;
+#if !PLATFORM_HOLOLENS
+typedef struct D3D11_FEATURE_DATA_D3D11_OPTIONS3
+{
+	BOOL VPAndRTArrayIndexFromAnyShaderFeedingRasterizer;
+} D3D11_FEATURE_DATA_D3D11_OPTIONS3;
+#endif
+
 void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 {
 	// without that the first RHIClear would get a scissor rect of (0,0)-(0,0) which means we get a draw call clear 
@@ -403,6 +412,16 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 	{
 		UE_LOG(LogD3D11RHI, Log, TEXT("Async texture creation disabled: %s"),
 			D3D11RHI_ShouldAllowAsyncResourceCreation() ? TEXT("no driver support") : TEXT("disabled by user"));
+	}
+
+	{
+		D3D11_FEATURE_DATA_D3D11_OPTIONS3 Data;
+		HRESULT Result = Direct3DDevice->CheckFeatureSupport(D3D11_FEATURE_FORMAT_SUPPORT3, &Data, sizeof(Data));
+		GRHISupportsArrayIndexFromAnyShader = SUCCEEDED(Result) && Data.VPAndRTArrayIndexFromAnyShaderFeedingRasterizer;
+		if (GRHISupportsArrayIndexFromAnyShader)
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("Array index from any shader is supported"));
+		}
 	}
 
 	// Check for typed UAV load support

@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+
+#if WINDOWS_USE_FEATURE_WINDOW
+
 #include "GenericPlatform/GenericWindow.h"
 #include "Templates/SharedPointer.h"
 #include "Windows/WindowsHWrapper.h"
@@ -208,3 +211,5 @@ private:
 	/** when true the window is responsible for its own size adjustments in response to a DPI change */
 	bool bHandleManualDPIChanges = false;
 };
+
+#endif

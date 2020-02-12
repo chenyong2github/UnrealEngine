@@ -92,7 +92,8 @@ namespace UnrealBuildTool.Rules
 				if (Target.bBuildEditor == true)
 				{
 					PrivateDependencyModuleNames.Add("UnrealEd");
-				}
+                    PrivateDependencyModuleNames.Add("WindowsMixedRealityRuntimeSettings");
+                }
 
 				if (Target.Platform != UnrealTargetPlatform.HoloLens)
 				{
@@ -129,13 +130,13 @@ namespace UnrealBuildTool.Rules
 
             if (Target.Platform == UnrealTargetPlatform.Win64 || (Target.Platform == UnrealTargetPlatform.HoloLens && Target.WindowsPlatform.Architecture == WindowsArchitecture.x64))
             {
-                RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "QRCodesTrackerPlugin.dll"));
+                RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "Microsoft.MixedReality.QR.dll"));
 
             }
             else if (Target.Platform == UnrealTargetPlatform.HoloLens)
             {
-				PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
-                RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "QRCodesTrackerPlugin.dll"));
+				PublicDelayLoadDLLs.Add("Microsoft.MixedReality.QR.dll");
+                RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "Microsoft.MixedReality.QR.dll"));
 
 				string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");
 				if (File.Exists(SceneUnderstandingPath))
@@ -147,6 +148,16 @@ namespace UnrealBuildTool.Rules
 					PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
 				}
             }
+			
+			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.bBuildEditor == true)
+			{
+				PrivateDependencyModuleNames.Add("WindowsMixedRealityInputSimulation");
+				PrivateDefinitions.Add("WITH_INPUT_SIMULATION=1");
+			}
+			else
+			{
+				PrivateDefinitions.Add("WITH_INPUT_SIMULATION=0");
+			}
 		}
 	}
 }

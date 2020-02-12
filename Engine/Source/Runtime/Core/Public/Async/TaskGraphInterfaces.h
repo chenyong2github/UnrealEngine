@@ -48,7 +48,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("ParallelForTask"), STAT_ParallelForTask, STATGRO
 
 namespace ENamedThreads
 {
-	enum Type
+	enum Type : int32
 	{
 		UnusedAnchor = -1,
 		/** The always-present, named threads are listed next **/

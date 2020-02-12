@@ -25,7 +25,7 @@
 #endif
 
 // Non-windows platform don't load Dlls
-#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+#if !WITH_OGGVORBIS_DLL
 static FThreadSafeBool bDllLoaded = true;
 #else
 static FThreadSafeBool bDllLoaded;
@@ -693,7 +693,7 @@ void LoadVorbisLibraries()
 	if (!bIsInitialized)
 	{
 		bIsInitialized = true;
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS) && WITH_OGGVORBIS
+#if WITH_OGGVORBIS_DLL && WITH_OGGVORBIS
 		//@todo if ogg is every ported to another platform, then use the platform abstraction to load these DLLs
 		// Load the Ogg dlls
 #  if _MSC_VER >= 1900
@@ -750,7 +750,7 @@ void LoadVorbisLibraries()
 		}
 #elif WITH_OGGVORBIS
 		bDllLoaded = true;
-#endif	//(PLATFORM_WINDOWS || PLATFORM_HOLOLENS) && WITH_OGGVORBIS
+#endif	//WITH_OGGVORBIS_DLL
 	}
 }
 

@@ -75,8 +75,9 @@ class FMaterialSortCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FMaterialSortCS, FGlobalShader);
 
 	class FSortSize : SHADER_PERMUTATION_INT("DIM_SORT_SIZE", 5);
+	class FWaveOps  : SHADER_PERMUTATION_BOOL("DIM_WAVE_OPS");
 
-	using FPermutationDomain = TShaderPermutationDomain<FSortSize>;
+	using FPermutationDomain = TShaderPermutationDomain<FSortSize, FWaveOps>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int, NumTotalEntries)
@@ -85,7 +86,31 @@ class FMaterialSortCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return RHISupportsRayTracingShaders(Parameters.Platform);
+		if (!GRHISupportsRayTracing || !ShouldCompileRayTracingShadersForProject(Parameters.Platform))
+		{
+			return false;
+		}
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FWaveOps>() && !RHISupportsWaveOperations(Parameters.Platform))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FWaveOps>())
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+		}
 	}
 };
 
@@ -112,6 +137,7 @@ void SortDeferredMaterials(
 
 	FMaterialSortCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FMaterialSortCS::FSortSize>(SortSize - 1);
+	PermutationVector.Set<FMaterialSortCS::FWaveOps>(GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32);
 
 	// Sort size represents an index into pow2 sizes, not an actual size, so convert to the actual number of elements being sorted
 	const uint32 ElementBlockSize = 256 * (1 << (SortSize - 1));
@@ -123,7 +149,7 @@ void SortDeferredMaterials(
 		RDG_EVENT_NAME("MaterialSort SortSize=%d NumElements=%d", ElementBlockSize, NumElements),
 		SortShader,
 		PassParameters,
-		FIntVector(DispatchWidth, 1, 1));		
+		FIntVector(DispatchWidth, 1, 1));
 }
 
 #else // RHI_RAYTRACING

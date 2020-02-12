@@ -16,7 +16,7 @@ struct FWeakObjectPtr;
 /**
  * UObject Memory Reader Archive. Reads from InBytes, writes to Obj.
  */
-class COREUOBJECT_VTABLE FObjectReader : public FMemoryArchive
+class FObjectReader : public FMemoryArchive
 {
 public:
 	FObjectReader(UObject* Obj, TArray<uint8>& InBytes, bool bIgnoreClassRef = false, bool bIgnoreArchetypeRef = false)

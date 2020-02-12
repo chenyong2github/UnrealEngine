@@ -144,8 +144,8 @@
 		//------------------------------------------------------------------------
 		Platform::Enum Platform::GetPlatformEnum()
 		{
-			#if PLATFORM_XBOXONE
-				return Platform::XBoxOne;
+			#if defined(FRAMEPRO_UE4_PLATFORM) //@EPIC: allow external definition
+				return FRAMEPRO_UE4_PLATFORM;  //@EPIC end
 			#elif PLATFORM_WINDOWS
 				return Platform::Windows;
 			#elif PLATFORM_LINUX
@@ -161,7 +161,9 @@
 			#elif PLATFORM_SWITCH
 				return Platform::Switch;
 			#else
-				#error
+				//@EPIC: begin - useful error
+				#error unknown platform or FRAMEPRO_UE4_PLATFORM not defined
+				//@EPIC: end
 			#endif
 		}
 

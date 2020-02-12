@@ -696,13 +696,19 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			NumChunksAllocatedForGPU = RecommendedNumChunks; 
 			const uint32 NumElementsToAlloc = NumChunksAllocatedForGPU * ALLOC_CHUNKSIZE;
 
+			uint32 DataBufferFlags = BUF_Static;
+#if WITH_EDITORONLY_DATA
+			// This needs to be set if debug readback is supported.
+			DataBufferFlags |= BUF_SourceCopy;
+#endif
+
 			if (Owner->GetNumFloatComponents())
 			{
 				if (GPUBufferFloat.Buffer)
 				{
 					GPUBufferFloat.Release();
 				}
-				GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
+				GPUBufferFloat.Initialize(sizeof(float), NumElementsToAlloc * Owner->GetNumFloatComponents(), EPixelFormat::PF_R32_FLOAT, DataBufferFlags, TEXT("NiagaraFloatDataBuffer"));
 			}
 			if (Owner->GetNumInt32Components())
 			{
@@ -710,7 +716,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 				{
 					GPUBufferInt.Release();
 				}
-				GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static);
+				GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, DataBufferFlags, TEXT("NiagaraIntDataBuffer"));
 			}
 		}
 

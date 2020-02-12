@@ -8,15 +8,15 @@ float EyeAdaptation_ExposureLowPercent;
 float EyeAdaptation_ExposureHighPercent;
 float EyeAdaptation_MinAverageLuminance;
 float EyeAdaptation_MaxAverageLuminance;
-float EyeAdaptation_ExposureCompensation;
+float EyeAdaptation_ExposureCompensationSettings;
+float EyeAdaptation_ExposureCompensationCurve;
 float EyeAdaptation_DeltaWorldTime;
 float EyeAdaptation_ExposureSpeedUp;
 float EyeAdaptation_ExposureSpeedDown;
 float EyeAdaptation_HistogramScale;
 float EyeAdaptation_HistogramBias;
 float EyeAdaptation_LuminanceMin;
-float EyeAdaptation_CalibrationConstantInverse;
-float EyeAdaptation_WeightSlope;
+float EyeAdaptation_BlackHistogramBucketInfluence;
 float EyeAdaptation_GreyMult;
 float EyeAdaptation_ExponentialUpM;
 float EyeAdaptation_ExponentialDownM;
@@ -57,22 +57,11 @@ float ComputeLogLuminanceFromHistogramPosition(float HistogramPosition)
 
 float4 ComputeARGBStripeMaskInt(uint x)
 {
-#if ES2_PROFILE
-	// Integer modulo/remainder is not an allowed operation on ES 2
-	// todo: move function to central spot, here we assume unsigned
-	uint Temp = x - (x / 4) * 4;
-	return float4(
-		Temp == 0,
-		Temp == 1,
-		Temp == 2,
-		Temp == 3);
-#else
 	return float4(
 		(x % 4) == 0,
 		(x % 4) == 1,
 		(x % 4) == 2,
 		(x % 4) == 3);
-#endif
 }
 
 float GetHistogramBucket(Texture2D HistogramTexture, uint BucketIndex)
@@ -81,27 +70,12 @@ float GetHistogramBucket(Texture2D HistogramTexture, uint BucketIndex)
 	
 	float4 HistogramColor = HistogramTexture.Load(int3(Texel, 0, 0));
 
-	// WAR for a GLSL shader compiler bug in the driver
-#if 0
-	float UnweightedValue = dot(HistogramColor, ComputeARGBStripeMaskInt(BucketIndex));
-#else
-#if ES2_PROFILE
-	// Integer modulo/remainder is not an allowed operation on ES 2
-	// todo: move function to central spot, here we assume unsigned
-	uint channel = BucketIndex - (BucketIndex / 4) * 4;
-#else
 	uint channel = BucketIndex % 4;
-#endif
 	float UnweightedValue = HistogramColor.r;
 	UnweightedValue = (channel == 1) ? HistogramColor.g : UnweightedValue;
 	UnweightedValue = (channel == 2) ? HistogramColor.b : UnweightedValue;
 	UnweightedValue = (channel == 3) ? HistogramColor.a : UnweightedValue;
-#endif
 
-	// because of the logarithmic scale we need to weight the buckets ?
-
-//	return UnweightedValue * pow(2, BucketIndex);
-//	return UnweightedValue * pow(2, BucketIndex / HISTOGRAM_SIZE * (2 * HDRLogRadius));
 	return UnweightedValue;
 }
 
@@ -142,7 +116,6 @@ float ComputeAverageLuminanceWithoutOutlier(Texture2D HistogramTexture, float Mi
 		SumWithoutOutliers += float2(LogLuminanceAtBucket, 1) * LocalValue;
 	}
 
-	//return SumWithoutOutliers.x / max(0.0001f, SumWithoutOutliers.y);
 	float AvgLogLuminance = SumWithoutOutliers.x / max(0.0001f, SumWithoutOutliers.y);
 
 	return exp2(AvgLogLuminance);
@@ -152,7 +125,7 @@ float ComputeEyeAdaptationExposure(Texture2D HistogramTexture)
 {
 	const float HistogramSum = ComputeHistogramSum(HistogramTexture);
 	const float AverageSceneLuminance = ComputeAverageLuminanceWithoutOutlier(HistogramTexture, HistogramSum * EyeAdaptation_ExposureLowPercent, HistogramSum * EyeAdaptation_ExposureHighPercent);
-	const float LumAve = AverageSceneLuminance * EyeAdaptation_CalibrationConstantInverse;
+	const float LumAve = AverageSceneLuminance;
 
 	const float ClampedLumAve = LumAve;
 		
@@ -164,4 +137,49 @@ float ComputeEyeAdaptationExposure(Texture2D HistogramTexture)
 float AdaptationWeightTexture(float2 UV)
 {
 	return Texture2DSampleLevel(EyeAdaptation_MeterMaskTexture, EyeAdaptation_MeterMaskSampler, UV, 0).x;
+}
+
+float ExponentialAdaption(float Current, float Target, float FrameTime, float AdaptionSpeed, float M)
+{
+	const float Factor = 1.0f - exp2(-FrameTime * AdaptionSpeed);
+	const float Value = Current + (Target - Current) * Factor * M;
+	return Value;
+}
+
+float LinearAdaption(float Current, float Target, float FrameTime, float AdaptionSpeed)
+{
+	const float Offset = FrameTime * AdaptionSpeed;
+
+	const float Value = (Current < Target) ? min(Target, Current + Offset) : max(Target, Current - Offset);
+
+	return Value;
+}
+
+float ComputeEyeAdaptation(float OldExposure, float TargetExposure, float FrameTime)
+{
+	const float LogTargetExposure = log2(TargetExposure);
+	const float LogOldExposure = log2(OldExposure);
+
+	const float LogDiff = LogTargetExposure - LogOldExposure;
+
+	const float AdaptionSpeed = (LogDiff > 0) ? EyeAdaptation_ExposureSpeedUp : EyeAdaptation_ExposureSpeedDown;
+	const float M = (LogDiff > 0) ? EyeAdaptation_ExponentialUpM : EyeAdaptation_ExponentialDownM;
+
+	const float AbsLogDiff = abs(LogDiff);
+
+	// blended exposure
+	const float LogAdaptedExposure_Exponential = ExponentialAdaption(LogOldExposure, LogTargetExposure, FrameTime, AdaptionSpeed, M);
+	const float LogAdaptedExposure_Linear = LinearAdaption(LogOldExposure, LogTargetExposure, FrameTime, AdaptionSpeed);
+
+	const float LogAdaptedExposure = AbsLogDiff > EyeAdaptation_StartDistance ? LogAdaptedExposure_Linear : LogAdaptedExposure_Exponential;
+
+	// Note: no clamping here. The target exposure should always be clamped so if we are below the min or above the max,
+	// instead of clamping, we will gradually transition to the target exposure. If were to clamp, the then we would have a harsh transition
+	// when going from postFX volumes with different min/max luminance values.
+	const float AdaptedExposure = exp2(LogAdaptedExposure);
+
+	// for manual mode or camera cuts, just lerp to the target
+	const float AdjustedExposure = lerp(AdaptedExposure,TargetExposure,EyeAdaptation_ForceTarget);
+	
+	return AdjustedExposure;
 }

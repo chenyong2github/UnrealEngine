@@ -211,6 +211,9 @@ void InterpolateVolumetricLightmap(
 			2.0f * 0.546274f / 0.282095f);
 
 		FLinearColor SHCoefficientEncoded = FilteredVolumeLookup<FColor>(BrickTextureCoordinate, VolumetricLightmapData.BrickDataDimensions, (const FColor*)VolumetricLightmapData.BrickData.SHCoefficients[CoefficientIndex].Data.GetData());
+		//Swap R and B channel because it was swapped at ImportVolumetricLightmap for changing format from BGRA to RGBA
+		Swap(SHCoefficientEncoded.R, SHCoefficientEncoded.B);
+
 		const FLinearColor& DenormalizationScales = ((CoefficientIndex & 1) == 0) ? SHDenormalizationScales0 : SHDenormalizationScales1;
 		return FVector4((SHCoefficientEncoded * 2.0f - FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)) * AmbientVector[CoefficientIndex / 2] * DenormalizationScales);
 	};
@@ -234,6 +237,9 @@ void InterpolateVolumetricLightmap(
 		// Add stationary direct lighting to match ILC's LQ behavior.
 		FLinearColor LQLightColour = FilteredVolumeLookup<FFloat3Packed>(BrickTextureCoordinate, VolumetricLightmapData.BrickDataDimensions, (const FFloat3Packed*)VolumetricLightmapData.BrickData.LQLightColor.Data.GetData());
 		FVector LQLightDirection = (FVector)FilteredVolumeLookup<FColor>(BrickTextureCoordinate, VolumetricLightmapData.BrickDataDimensions, (const FColor*)VolumetricLightmapData.BrickData.LQLightDirection.Data.GetData());
+		//Swap X and Z channel because it was swapped at ImportVolumetricLightmap for changing format from BGRA to RGBA
+		Swap(LQLightDirection.X, LQLightDirection.Z);
+
 		LQLightDirection = LQLightDirection*2.0f - FVector(1.0f, 1.0f, 1.0f);
 		LQLightDirection.Normalize();
 
@@ -258,6 +264,8 @@ void InterpolateVolumetricLightmap(
 		const FVector SkyBentNormal(SkyBentNormalUnpacked.R, SkyBentNormalUnpacked.G, SkyBentNormalUnpacked.B);
 		const float BentNormalLength = SkyBentNormal.Size();
 		OutInterpolation.PointSkyBentNormal = FVector4(SkyBentNormal / FMath::Max(BentNormalLength, .0001f), BentNormalLength);
+		//Swap X and Z channel because it was swapped at ImportVolumetricLightmap for changing format from BGRA to RGBA
+		Swap(OutInterpolation.PointSkyBentNormal.X, OutInterpolation.PointSkyBentNormal.Z);
 	}
 	else
 	{

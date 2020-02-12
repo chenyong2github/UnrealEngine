@@ -2234,7 +2234,6 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 	return OutputPayload;
 }
 
-
 //------------------------------------------------------- ENTRY POINT
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]

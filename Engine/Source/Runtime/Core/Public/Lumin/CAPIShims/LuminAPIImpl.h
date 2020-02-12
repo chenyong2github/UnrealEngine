@@ -109,6 +109,10 @@ public:
 			DllSearchPaths.Add(FPaths::Combine(*MLSDK, TEXT("lib"), TEXT("osx")));
 #endif // PLATFORM_WINDOWS
 		}
+		else
+		{
+			UE_LOG(LogInit, Warning, TEXT("MLSDK not found.  This likely means the MLSDK environment variable is not set."));
+		}
 
 #endif // PLATFORM_LUMIN
 

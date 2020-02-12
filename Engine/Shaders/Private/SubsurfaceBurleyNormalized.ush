@@ -47,14 +47,11 @@
 // one of these must be true
 #define ROOT_APROXIMATE 1
 #define ROOT_FINDING 0
+#define ROOT_ANALYTIC 0
 
 // one of these must be true
 #define SAMPLE_ANGLE_RANDOM 0
 #define SAMPLE_ANGLE_FIBONACCI 1
-
-// in first tests performance seems exactly the same (might be that we are not ALU bound), keeping it around
-// for more testing on different platforms
-#define USE_FIBONACCI_LOOKUP 0
 
 // Texture local cash does not help on 2080TI with regular layout
 #define TEXTURE_CACHE_DISABLED 0
@@ -100,16 +97,16 @@
 #define ROOT_FINDING 0
 #endif
 
+#ifndef ROOT_ANALYTIC
+#define ROOT_ANALYTIC 0
+#endif
+
 #ifndef SAMPLE_ANGLE_RANDOM
 #define SAMPLE_ANGLE_RANDOM 0
 #endif
 
 #ifndef SAMPLE_ANGLE_FIBONACCI
 #define SAMPLE_ANGLE_FIBONACCI 0
-#endif
-
-#ifndef USE_FIBONACCI_LOOKUP
-#define USE_FIBONACCI_LOOKUP 0
 #endif
 
 #ifndef TEXTURE_CACHE_DISABLED
@@ -221,6 +218,28 @@ float GetCDFDeriv2(float D, float X)
 	return exp(-X / D)*(-0.0833333*exp(2 * X / (3 * D)) - 0.25) / (D*D);
 }
 
+float RadiusRootFindAnalytic(float D, float RandomNumber)
+{
+	// solve for:
+	//     F(X) = .25*exp(-X) + .75*exp(-X/3)
+	//     cdf(X) = 1 - F(X/D)
+	// so to find X s.t.
+	//     cdf(X) = RandomNumber
+	// we need to solve:
+	//     1 - RandomNumber = F(X/D)
+	//     Finv(1 - RandomNumber) * D = X
+	// Finv(X) actually has an analytic solution:
+	//     G = 1 + 4*U*(2*U + sqrt(1+4*U*U));
+	//     Inv3 = 1.0 / 3.0;
+	//     X/D = 3 * log((1+pow(G,-Inv3)+pow(G,Inv3))/(4*U));
+
+	float U = 1 - RandomNumber;
+	float G = 1.0f + 4*U*(2*U + sqrt(1+4*U*U));
+	float Inv3 = 1.0f / 3.0f;
+	float X = D * (3 * log( (1+pow(G,-Inv3)+pow(G,Inv3))/(4*U)));
+	return X;
+}
+
 // Without clamp, the result will be zero which will lead to infinity for R/pdf. and Nan for the weighted sum.
 // We need to clamp pdf to a very small value. this clamp is based on value below
 #define CLAMP_PDF 0.00001
@@ -234,7 +253,7 @@ float RadiusRootFinding(float D, float RandomNumber, float X0)
 	//  =cdf^(-1)(1-ClAMP_PDF) P>=1-CLAMP_PDF
 	// RandomNumber = clamp(RandomNumber,0,1-CLAMP_PDF);
  
-	const int NumOfIteration = 3;
+	const int NumOfIteration = 10;
 	float Xn = X0;
 
 	UNROLL for (int i = 0; i < NumOfIteration; ++i)
@@ -285,77 +304,6 @@ struct FBurleySampleInfo
 // angle, cosine, and sine
 #define FIBONACCI_SEQUENCE_TRIPLE(x) { FIBONACCI_SEQUENCE_ANGLE(x), cos(FIBONACCI_SEQUENCE_ANGLE(x)), sin(FIBONACCI_SEQUENCE_ANGLE(x)) }
 
-#if USE_FIBONACCI_LOOKUP
-// precalculated, if you increase BURLEY_NUM_SAMPLES, make sure to add to this array
-static float PrecomputedFibonacci[BURLEY_NUM_SAMPLES][3] = 
-{
-	FIBONACCI_SEQUENCE_TRIPLE( 0),
-	FIBONACCI_SEQUENCE_TRIPLE( 1),
-	FIBONACCI_SEQUENCE_TRIPLE( 2),
-	FIBONACCI_SEQUENCE_TRIPLE( 3),
-	FIBONACCI_SEQUENCE_TRIPLE( 4),
-	FIBONACCI_SEQUENCE_TRIPLE( 5),
-	FIBONACCI_SEQUENCE_TRIPLE( 6),
-	FIBONACCI_SEQUENCE_TRIPLE( 7),
-	FIBONACCI_SEQUENCE_TRIPLE( 8),
-	FIBONACCI_SEQUENCE_TRIPLE( 9),
-	FIBONACCI_SEQUENCE_TRIPLE(10),
-	FIBONACCI_SEQUENCE_TRIPLE(11),
-	FIBONACCI_SEQUENCE_TRIPLE(12),
-	FIBONACCI_SEQUENCE_TRIPLE(13),
-	FIBONACCI_SEQUENCE_TRIPLE(14),
-	FIBONACCI_SEQUENCE_TRIPLE(15),
-	FIBONACCI_SEQUENCE_TRIPLE(16),
-	FIBONACCI_SEQUENCE_TRIPLE(17),
-	FIBONACCI_SEQUENCE_TRIPLE(18),
-	FIBONACCI_SEQUENCE_TRIPLE(19),
-	FIBONACCI_SEQUENCE_TRIPLE(20),
-	FIBONACCI_SEQUENCE_TRIPLE(21),
-	FIBONACCI_SEQUENCE_TRIPLE(22),
-	FIBONACCI_SEQUENCE_TRIPLE(23),
-	FIBONACCI_SEQUENCE_TRIPLE(24),
-	FIBONACCI_SEQUENCE_TRIPLE(25),
-	FIBONACCI_SEQUENCE_TRIPLE(26),
-	FIBONACCI_SEQUENCE_TRIPLE(27),
-	FIBONACCI_SEQUENCE_TRIPLE(28),
-	FIBONACCI_SEQUENCE_TRIPLE(29),
-	FIBONACCI_SEQUENCE_TRIPLE(30),
-	FIBONACCI_SEQUENCE_TRIPLE(31),
-	FIBONACCI_SEQUENCE_TRIPLE(32),
-	FIBONACCI_SEQUENCE_TRIPLE(33),
-	FIBONACCI_SEQUENCE_TRIPLE(34),
-	FIBONACCI_SEQUENCE_TRIPLE(35),
-	FIBONACCI_SEQUENCE_TRIPLE(36),
-	FIBONACCI_SEQUENCE_TRIPLE(37),
-	FIBONACCI_SEQUENCE_TRIPLE(38),
-	FIBONACCI_SEQUENCE_TRIPLE(39),
-	FIBONACCI_SEQUENCE_TRIPLE(40),
-	FIBONACCI_SEQUENCE_TRIPLE(41),
-	FIBONACCI_SEQUENCE_TRIPLE(42),
-	FIBONACCI_SEQUENCE_TRIPLE(43),
-	FIBONACCI_SEQUENCE_TRIPLE(44),
-	FIBONACCI_SEQUENCE_TRIPLE(45),
-	FIBONACCI_SEQUENCE_TRIPLE(46),
-	FIBONACCI_SEQUENCE_TRIPLE(47),
-	FIBONACCI_SEQUENCE_TRIPLE(48),
-	FIBONACCI_SEQUENCE_TRIPLE(49),
-	FIBONACCI_SEQUENCE_TRIPLE(50),
-	FIBONACCI_SEQUENCE_TRIPLE(51),
-	FIBONACCI_SEQUENCE_TRIPLE(52),
-	FIBONACCI_SEQUENCE_TRIPLE(53),
-	FIBONACCI_SEQUENCE_TRIPLE(54),
-	FIBONACCI_SEQUENCE_TRIPLE(55),
-	FIBONACCI_SEQUENCE_TRIPLE(56),
-	FIBONACCI_SEQUENCE_TRIPLE(57),
-	FIBONACCI_SEQUENCE_TRIPLE(58),
-	FIBONACCI_SEQUENCE_TRIPLE(59),
-	FIBONACCI_SEQUENCE_TRIPLE(60),
-	FIBONACCI_SEQUENCE_TRIPLE(61),
-	FIBONACCI_SEQUENCE_TRIPLE(62),
-	FIBONACCI_SEQUENCE_TRIPLE(63),
-};
-#endif
-
 FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathForSample, float SpectralForSample, uint SequenceId)
 {
 	FBurleySampleInfo BurleySampleInfo;
@@ -364,7 +312,11 @@ FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathFo
 	// However, FIB has better quality when dmfp and world unit scale is large.
 
 	// Sample radius
-#if ROOT_FINDING
+#if ROOT_ANALYTIC
+	// clever analytical solution
+	float FoundRoot = RadiusRootFindAnalytic(DiffuseMeanFreePathForSample / SpectralForSample, Rand0T1.x);
+#elif ROOT_FINDING
+	// root finding using derivatives
 	float FoundRoot = RadiusRootFinding(DiffuseMeanFreePathForSample / SpectralForSample, Rand0T1.x, DiffuseMeanFreePathForSample);
 #elif ROOT_APROXIMATE
 	//Approximation
@@ -382,16 +334,9 @@ FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathFo
 #elif SAMPLE_ANGLE_FIBONACCI
 	// Fibonacci sequence for angle. Randoness is expensive for converging.
 
-#if USE_FIBONACCI_LOOKUP
-	// We only need CosTheta and SinTheta, but keeping Theta around for debugging
-	BurleySampleInfo.Theta = PrecomputedFibonacci[SequenceId][0];
-	BurleySampleInfo.CosTheta = PrecomputedFibonacci[SequenceId][1];
-	BurleySampleInfo.SinTheta = PrecomputedFibonacci[SequenceId][2];
-#else
 	BurleySampleInfo.Theta = FIBONACCI_SEQUENCE_ANGLE(SequenceId);
 	BurleySampleInfo.CosTheta = cos(BurleySampleInfo.Theta);
 	BurleySampleInfo.SinTheta = sin(BurleySampleInfo.Theta);
-#endif
 
 #endif
 
@@ -747,6 +692,13 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	int NumOfSamples = GetNumOfSamplesBasedOnQuality(BufferUV);
 	float InvNumOfSamples = 1.0f / NumOfSamples;
 #endif
+
+	const int SSSOverrideNumSamples = SubsurfaceParams.z;
+	if (SSSOverrideNumSamples > 0)
+	{
+		NumOfSamples = SSSOverrideNumSamples;
+		InvNumOfSamples = 1.0f / float(SSSOverrideNumSamples);
+	}
 
 	int3  Seed3D = int3(BufferUV*SubsurfaceInput0_Extent, 0);
 

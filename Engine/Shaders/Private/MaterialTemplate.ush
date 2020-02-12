@@ -50,6 +50,8 @@
 #define PPI_StoredBaseColor 26
 #define PPI_StoredSpecular 27
 #define PPI_Velocity 28
+#define PPI_WorldTangent 29
+#define PPI_Anisotropy 30
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -213,6 +215,9 @@ struct FMaterialPixelParameters
 
 	/** Normalized world space normal. */
 	half3 WorldNormal;
+	
+	/** Normalized world space tangent. */
+	half3 WorldTangent;
 
 	/** Normalized world space reflected camera vector. */
 	half3 ReflectionVector;
@@ -296,7 +301,7 @@ struct FMaterialPixelParameters
 	/** Per-particle properties. Only valid for particle vertex factories. */
 	FMaterialParticleParameters Particle;
 
-#if (ES2_PROFILE || ES3_1_PROFILE)
+#if ES3_1_PROFILE
 	float4 LayerWeights;
 #endif
 
@@ -391,7 +396,7 @@ struct FMaterialVertexParameters
 	half4 VertexColor;
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	float2 TexCoords[NUM_MATERIAL_TEXCOORDS_VERTEX];
-	#if (ES2_PROFILE || ES3_1_PROFILE)
+	#if ES3_1_PROFILE
 	float2 TexCoordOffset; // Offset for UV localization for large UV values
 	#endif
 #endif
@@ -1116,16 +1121,14 @@ float3 MaterialExpressionAtmosphericLightColor(FMaterialPixelParameters Paramete
 float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters Parameters, float3 WorldPosition, uint LightIndex)
 {
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
-	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
-	const float3 WorldPos = WorldPosition * CM_TO_SKY_UNIT;
-	const float3 PlanetCenterToWorldPos = WorldPos - PlanetCenter;
-	const float WorldPosHeight = length(PlanetCenterToWorldPos);
-	const float3 UpVector = PlanetCenterToWorldPos / WorldPosHeight;
-	const float SunZenithCosAngle = dot(ResolvedView.AtmosphereLightDirection[LightIndex].xyz, UpVector);
+	const float3 PlanetCenterToWorldPos = (WorldPosition - ResolvedView.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
 
-	float2 TransmittanceLutUv;
-	getTransmittanceLutUvs(WorldPosHeight, SunZenithCosAngle, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyAtmosphereTopRadius, TransmittanceLutUv);
-	return ResolvedView.AtmosphereLightColor[LightIndex].rgb * Texture2DSampleLevel(View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler, TransmittanceLutUv, 0.0f).rgb;
+	// GetAtmosphereTransmittance does a shadow test against the virtual planet.
+	const float3 TransmittanceToLight = GetAtmosphereTransmittance(
+		PlanetCenterToWorldPos, ResolvedView.AtmosphereLightDirection[LightIndex].xyz, ResolvedView.SkyAtmosphereBottomRadiusKm, ResolvedView.SkyAtmosphereTopRadiusKm,
+		View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler);
+
+	return ResolvedView.AtmosphereLightColor[LightIndex].rgb * TransmittanceToLight;
 #else
 	return float3(0.0f, 0.0f, 0.0f);
 #endif
@@ -1146,11 +1149,12 @@ float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameter
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	if (ResolvedView.RenderingReflectionCaptureMask == 0.0f) // Do not render light disk when in reflection capture in order to avoid double specular. The sun contribution is already computed analyticaly.
 	{
-		const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
-		const float3 PlanetCenterToWorldCameraPos = ResolvedView.SkyWorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
+		const float3 PlanetCenterToWorldCameraPos = (ResolvedView.SkyWorldCameraOrigin - ResolvedView.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+		const float ViewHeight = ResolvedView.SkyPlanetCenterAndViewHeight.w * CM_TO_SKY_UNIT;
 		const float3 ViewDir = -Parameters.CameraVector;
 
-		LightDiskLuminance =  GetLightDiskLuminance(PlanetCenterToWorldCameraPos, ViewDir, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyAtmosphereTopRadius,
+		// GetLightDiskLuminance does a test against the virtual planet but SkyWorldCameraOrigin is always put safely setup above it (to never have the camera into the virtual planet with a black screen)
+		LightDiskLuminance =  GetLightDiskLuminance(PlanetCenterToWorldCameraPos, ViewDir, ResolvedView.SkyAtmosphereBottomRadiusKm, ResolvedView.SkyAtmosphereTopRadiusKm,
 			View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler,
 			ResolvedView.AtmosphereLightDirection[LightIndex].xyz, ResolvedView.AtmosphereLightDiscCosHalfApexAngle[LightIndex].x, ResolvedView.AtmosphereLightDiscLuminance[LightIndex].xyz);
 	}
@@ -1161,9 +1165,8 @@ float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameter
 float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Parameters)
 {
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
-	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
-	const float3 PlanetCenterToWorldCameraPos = ResolvedView.SkyWorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
-	const float ViewHeight = length(PlanetCenterToWorldCameraPos);
+	const float3 PlanetCenterToWorldCameraPos = (ResolvedView.SkyWorldCameraOrigin - ResolvedView.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+	const float ViewHeight = ResolvedView.SkyPlanetCenterAndViewHeight.w * CM_TO_SKY_UNIT;
 	const float3 ViewDir = -Parameters.CameraVector;
 
 	// The referencial used to build the Sky View lut
@@ -1174,11 +1177,11 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 	float3 WorldDirLocal = mul(ViewDir, LocalReferencial);
 	float ViewZenithCosAngle = dot(WorldDirLocal, UpVectorLocal);
 
-	float2 Sol = RayIntersectSphere(WorldPosLocal, WorldDirLocal, float4(0.0f, 0.0f, 0.0f, ResolvedView.SkyAtmosphereBottomRadius));
+	float2 Sol = RayIntersectSphere(WorldPosLocal, WorldDirLocal, float4(0.0f, 0.0f, 0.0f, ResolvedView.SkyAtmosphereBottomRadiusKm));
 	const bool IntersectGround = any(Sol > 0.0f);
 
 	float2 SkyViewLutUv;
-	SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDirLocal, ViewHeight, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyViewLutSizeAndInvSize, SkyViewLutUv);
+	SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDirLocal, ViewHeight, ResolvedView.SkyAtmosphereBottomRadiusKm, ResolvedView.SkyViewLutSizeAndInvSize, SkyViewLutUv);
 	float3 SkyAtmosphereViewLuminance = Texture2DSampleLevel(View.SkyViewLutTexture, View.SkyViewLutTextureSampler, SkyViewLutUv, 0.0f).rgb;
 	SkyAtmosphereViewLuminance *= ResolvedView.SkyAtmosphereSkyLuminanceFactor;
 #if USE_PREEXPOSURE
@@ -1195,7 +1198,6 @@ float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
 
-	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
 	const float3 WorldPos = WorldPosition * CM_TO_SKY_UNIT;
 	const float3 CameraPos = ResolvedView.SkyWorldCameraOrigin.xyz*CM_TO_SKY_UNIT;
 
@@ -1209,9 +1211,9 @@ float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters
 		View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
-		ResolvedView.SkyAtmosphereAerialPerspectiveStartDepth,
-		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
-		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
+		ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm,
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
 		OneOverPreExposure);
 	return AerialPerspective;
 #else
@@ -1276,32 +1278,12 @@ MaterialFloat2 GetParticleMacroUV(FMaterialPixelParameters Parameters)
 
 MaterialFloat4 ProcessMaterialColorTextureLookup(MaterialFloat4 TextureValue)
 {
-#if (FEATURE_LEVEL == FEATURE_LEVEL_ES2) // ES2 does not support sRGB sampling
-	#if MOBILE_EMULATION
-	if( ResolvedView.MobilePreviewMode > 0.5f)
-	{
-		// undo HW srgb->lin
-		TextureValue.rgb = pow(TextureValue.rgb, 1.0f / 2.2f); // TODO: replace with a more accurate lin -> sRGB conversion.
-	}
-	#endif
-	// sRGB read approximation (in highp if possible)
-	float3 LinRGB = TextureValue.rgb;
-	LinRGB *= LinRGB; 
-	return MaterialFloat4(LinRGB, TextureValue.a);
-#endif 
 	return TextureValue;
 }
 
 MaterialFloat4 ProcessMaterialExternalTextureLookup(MaterialFloat4 TextureValue)
 {
-#if FEATURE_LEVEL == FEATURE_LEVEL_ES2
-	// As per https://www.khronos.org/registry/OpenGL/extensions/OES/OES_EGL_image_external.txt
-	// sampling an external texture does not change the color space, so we always need to
-	// perform manual approximate sRGB conversion
-	float3 LinRGB = TextureValue.rgb;
-	LinRGB *= LinRGB; 
-	return MaterialFloat4(LinRGB, TextureValue.a);
-#elif COMPILER_GLSL_ES3_1
+#if COMPILER_GLSL_ES3_1
 	return MaterialFloat4(pow(TextureValue.rgb, 2.2f), TextureValue.a);
 #else
 	return ProcessMaterialColorTextureLookup(TextureValue);
@@ -1315,7 +1297,7 @@ MaterialFloat4 ProcessMaterialLinearColorTextureLookup(MaterialFloat4 TextureVal
 
 MaterialFloat ProcessMaterialGreyscaleTextureLookup(MaterialFloat TextureValue)
 {
-#if (FEATURE_LEVEL == FEATURE_LEVEL_ES2) || COMPILER_GLSL_ES3_1 || VULKAN_PROFILE // ES2, OpenGLES3.1, Vulkan3.1 do not support sRGB sampling from R8
+#if (COMPILER_GLSL_ES3_1 || VULKAN_PROFILE) // OpenGLES3.1, Vulkan3.1 do not support sRGB sampling from R8
 	#if MOBILE_EMULATION
 	if( ResolvedView.MobilePreviewMode > 0.5f )
 	{
@@ -1626,24 +1608,26 @@ MaterialFloat2 GetLightmapUVs(FMaterialPixelParameters Parameters)
 
 #if USES_EYE_ADAPTATION
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-
 // Allow passes to reroute which uniform buffer struct EyeAdaptation comes from
 #ifndef EyeAdaptationStruct
-#define EyeAdaptationStruct SceneTexturesStruct
+	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+		#define EyeAdaptationStruct SceneTexturesStruct
+	#else
+		#define EyeAdaptationStruct MobileSceneTextures
+	#endif
 #endif
 
-//Provides access to the EyeAdaptation RT. Only available in SM5.
+//Provides access to the EyeAdaptation RT. 
 float EyeAdaptationLookup()
 {
-#if EYE_ADAPTATION_DISABLED
+#if EYE_ADAPTATION_DISABLED || SCENE_TEXTURES_DISABLED
 	return 0.0;
-#else
+#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	return EyeAdaptationStruct.EyeAdaptation.Load(int3(0, 0, 0)).x;
+#else
+	return EyeAdaptationStruct.EyeAdaptationBuffer[0].x;
 #endif
 }
-#endif
-
 #endif
 
 #if NEEDS_SCENE_TEXTURES
@@ -1669,7 +1653,6 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 #if POST_PROCESS_MATERIAL
 		MaterialFloat4 Input0 = Texture2DSample(PostProcessInput_0_Texture, PostProcessInput_0_SharedSampler, UV);
 		#if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
-			Input0 = Decode32BPPHDR(Input0);
 			#if METAL_PROFILE
 				// If MSAA is in use undo PreTonemapMSAA, it is reapplied at the end of post process material
 				Input0.rgb = lerp(Input0.rgb, Input0.rgb * rcp(Input0.r*(-0.299) + Input0.g*(-0.587) + Input0.b*(-0.114) + 1.0), ResolvedView.IsMobileMSAA);
@@ -1794,6 +1777,10 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 		case PPI_Velocity:
 			return float4(PostProcessVelocityLookup(ScreenSpaceData.GBuffer.Depth, UV), 0, 0);
 #endif
+		case PPI_WorldTangent:
+			return float4(ScreenSpaceData.GBuffer.WorldTangent, 0);
+		case PPI_Anisotropy:
+			return ScreenSpaceData.GBuffer.Anisotropy;
 		default:
 			return float4(0, 0, 0, 0);
 	}
@@ -1841,7 +1828,7 @@ half3 GetMaterialNormal(FMaterialPixelParameters Parameters, FPixelMaterialInput
 
 	RetNormal = GetMaterialNormalRaw(PixelMaterialInputs);
 		
-	#if (USE_EDITOR_SHADERS && !(ES2_PROFILE || ES3_1_PROFILE || ESDEFERRED_PROFILE)) || MOBILE_EMULATION
+	#if (USE_EDITOR_SHADERS && !(ES3_1_PROFILE || ESDEFERRED_PROFILE)) || MOBILE_EMULATION
 	{
 		// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 		half3 OverrideNormal = ResolvedView.NormalOverrideParameter.xyz;
@@ -1855,6 +1842,16 @@ half3 GetMaterialNormal(FMaterialPixelParameters Parameters, FPixelMaterialInput
 	#endif
 
 	return RetNormal;
+}
+
+half3 GetMaterialTangentRaw(FPixelMaterialInputs PixelMaterialInputs)
+{
+	return PixelMaterialInputs.Tangent;
+}
+
+half3 GetMaterialTangent(FPixelMaterialInputs PixelMaterialInputs)
+{
+	return GetMaterialTangentRaw(PixelMaterialInputs);
 }
 
 half3 GetMaterialEmissiveRaw(FPixelMaterialInputs PixelMaterialInputs)
@@ -1922,30 +1919,9 @@ half GetMaterialRoughness(FPixelMaterialInputs PixelMaterialInputs)
 #if MATERIAL_FULLY_ROUGH
 	return 1;
 #endif
-#if (ES2_PROFILE || ES3_1_PROFILE)
-	// The smallest normalized value that can be represented in IEEE 754 (FP16) is 2^-14 = 6.1e-5.
-	// The code will make the following computation involving roughness: 1.0 / Roughness^4.
-	// Therefore to prevent division by zero on devices that do not support denormals, Roughness^4
-	// must be >= 6.1e-5. We will clamp to 0.09 because 0.09^4 = 6.5e-5.
-	//
-	// Note that we also clamp to 1.0 to match the deferred renderer on PC where the roughness is 
-	// stored in an 8-bit value and thus automatically clamped at 1.0.
-
-	half Roughness = GetMaterialRoughnessRaw(PixelMaterialInputs);
-
-	#if MOBILE_EMULATION
-	{
-		// this is only needed for mobile preview on PC
-		Roughness = Roughness * ResolvedView.RoughnessOverrideParameter.y + ResolvedView.RoughnessOverrideParameter.x;
-	}
-	#endif
-
-	// Increase value from 0.09 to 0.12 to fix missing specular lobe problem on device
-	return clamp( Roughness, 0.12, 1.0 );
-#else
 	half Roughness = saturate(GetMaterialRoughnessRaw(PixelMaterialInputs));
 	
-	#if (USE_EDITOR_SHADERS && !ESDEFERRED_PROFILE)
+	#if (USE_EDITOR_SHADERS && !ESDEFERRED_PROFILE) || MOBILE_EMULATION
 	{
 		// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 		Roughness = Roughness * ResolvedView.RoughnessOverrideParameter.y + ResolvedView.RoughnessOverrideParameter.x;
@@ -1953,7 +1929,16 @@ half GetMaterialRoughness(FPixelMaterialInputs PixelMaterialInputs)
 	#endif
 	
 	return Roughness;
-#endif
+}
+
+half GetMaterialAnisotropyRaw(FPixelMaterialInputs PixelMaterialInputs)
+{
+	return PixelMaterialInputs.Anisotropy;
+}
+
+half GetMaterialAnisotropy(FPixelMaterialInputs PixelMaterialInputs)
+{
+	return clamp(GetMaterialAnisotropyRaw(PixelMaterialInputs), -1.0f, 1.0f);
 }
 
 half GetMaterialTranslucencyDirectionalLightingIntensity()
@@ -2201,6 +2186,31 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 
 	// Now the rest of the inputs
 %s
+
+#if GBUFFER_HAS_TANGENT
+	#if MATERIAL_TANGENTSPACENORMAL
+		
+		#if SIMPLE_FORWARD_SHADING
+			Parameters.WorldTangent = float3(1, 0, 0);
+		#endif
+
+			float3 MaterialTangent = GetMaterialTangent(PixelMaterialInputs);
+
+		#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
+			MaterialTangent = normalize(MaterialTangent);
+		#endif
+
+		Parameters.WorldTangent = TransformTangentNormalToWorld(Parameters.TangentToWorld, MaterialTangent);
+
+		// flip the tangent for backfaces being rendered with a two-sided material
+		Parameters.WorldTangent *= Parameters.TwoSidedSign;
+	
+	#else //MATERIAL_TANGENTSPACENORMAL
+		Parameters.WorldTangent = normalize(GetMaterialTangent(PixelMaterialInputs));
+	#endif //MATERIAL_TANGENTSPACENORMAL
+#else
+	Parameters.WorldTangent = 0;
+#endif
 }
 
 // Programmatically set the line number after all the material inputs which have a variable number of line endings
@@ -2386,18 +2396,12 @@ void CalcMaterialParametersEx(
 	Parameters.SvPosition = SvPosition;
 	Parameters.ScreenPosition = ScreenPosition;
 
-#if COMPILER_GLSL_ES2
-	// ES2 normalize isn't done accurately. This seems to fix it.
-	// Originally this was normalize(normalize(TranslatedWorldPosition.xyz)) but tegra4 appears to optimize that out.
-	Parameters.CameraVector = normalize(-0.01 * Parameters.WorldPosition_CamRelative.xyz);
-#else
 	#if !RAYHITGROUPSHADER
 		// TranslatedWorldPosition is the world position translated to the camera position, which is just -CameraVector
 		Parameters.CameraVector = normalize(-Parameters.WorldPosition_CamRelative.xyz);
 	#else
 		Parameters.CameraVector = -WorldRayDirection();
 	#endif
-#endif
 
 	Parameters.LightVector = 0;
 
@@ -2462,7 +2466,7 @@ half3x3 AssembleTangentToWorld( half3 TangentToWorld0, half4 TangentToWorld2 )
 }
 
 // Whether the material shader should output pixel depth offset
-#define OUTPUT_PIXEL_DEPTH_OFFSET (WANT_PIXEL_DEPTH_OFFSET && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !ES2_PROFILE)
+#define OUTPUT_PIXEL_DEPTH_OFFSET (WANT_PIXEL_DEPTH_OFFSET && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED))
 
 // Whether to use the hidden d3d11 feature that supports depth writes with ZCull by only pushing into the screen
 //@todo - use for other SM5 platforms

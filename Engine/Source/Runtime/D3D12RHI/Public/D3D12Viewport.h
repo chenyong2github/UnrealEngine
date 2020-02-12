@@ -154,6 +154,7 @@ private:
 	HRESULT PresentInternal(int32 SyncInterval);
 
 	void ResizeInternal();
+	void FinalDestroyInternal();
 
 	uint64 LastFlipTime;
 	uint64 LastFrameComplete;

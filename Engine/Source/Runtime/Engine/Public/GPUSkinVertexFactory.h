@@ -677,6 +677,8 @@ public:
 		FVertexBufferAndSRV& GetClothBufferForWriting(uint32 FrameNumber)
 		{
 			uint32 Index = GetOldestIndex(FrameNumber);
+			Index = (BufferFrameNumber[0] == FrameNumber) ? 0 : Index;
+			Index = (BufferFrameNumber[1] == FrameNumber) ? 1 : Index;
 
 			// we don't write -1 as that is used to invalidate the entry
 			if(FrameNumber == -1)
@@ -708,6 +710,8 @@ public:
 		FMatrix& GetClothLocalToWorldForWriting(uint32 FrameNumber)
 		{
 			uint32 Index = GetOldestIndex(FrameNumber);
+			Index = (BufferFrameNumber[0] == FrameNumber) ? 0 : Index;
+			Index = (BufferFrameNumber[1] == FrameNumber) ? 1 : Index;
 
 			return ClothLocalToWorld[Index];
 		}

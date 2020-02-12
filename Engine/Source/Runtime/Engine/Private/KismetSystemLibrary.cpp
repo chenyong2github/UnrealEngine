@@ -159,6 +159,11 @@ FString UKismetSystemLibrary::GetPlatformUserName()
 	return FString(FPlatformProcess::UserName());
 }
 
+FString UKismetSystemLibrary::GetPlatformUserDir()
+{
+	return FString(FPlatformProcess::UserDir());
+}
+
 bool UKismetSystemLibrary::DoesImplementInterface(UObject* TestObject, TSubclassOf<UInterface> Interface)
 {
 	if (Interface != NULL && TestObject != NULL)
@@ -3094,5 +3099,4 @@ void UKismetSystemLibrary::GetPrimaryAssetsWithBundleState(const TArray<FName>& 
 		Manager->GetPrimaryAssetsWithBundleState(OutPrimaryAssetIdList, ValidTypes, RequiredBundles, ExcludedBundles, bForceCurrentState);
 	}
 }
-
 #undef LOCTEXT_NAMESPACE

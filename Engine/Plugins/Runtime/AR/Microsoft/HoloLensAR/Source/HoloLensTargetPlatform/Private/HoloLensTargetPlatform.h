@@ -11,7 +11,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "HoloLensTargetDevice.h"
 #include "Misc/ScopeLock.h"
-#include "IHoloLensDeviceDetectorModule.h"
+#include "IHoloLensDeviceDetector.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -45,7 +45,7 @@ public:
 
 	//~ Begin ITargetPlatform Interface
 
-	virtual bool AddDevice(const FString& DeviceName, bool bDefault) override { return false; }
+	virtual bool AddDevice(const FString& DeviceId, const FString& DeviceUserFriendlyName, const FString& Username, const FString& Password, bool bDefault) override;
 
 	virtual void EnableDeviceCheck(bool OnOff) override {}
 
@@ -63,7 +63,7 @@ public:
 
 	virtual bool SupportsFeature(ETargetPlatformFeatures Feature) const override;
 
-	virtual bool SupportsBuildTarget(EBuildTargetType TargetType) const override;
+	virtual bool SupportsBuildTarget(EBuildTargetType BuildTarget) const override;
 
 #if WITH_ENGINE
 	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override;
@@ -116,9 +116,9 @@ public:
 		return DeviceLostEvent;
 	}
 
-	virtual bool RequiresUserCredentials() const override
+	virtual EPlatformAuthentication RequiresUserCredentials() const override
 	{
-		return true;
+		return EPlatformAuthentication::Possible;
 	}
 
 	virtual bool SupportsVariants() const override
@@ -131,15 +131,28 @@ public:
 		return LOCTEXT("HoloLensVariantTitle", "Build Type");
 	}
 
+	virtual FString PlatformName() const override
+	{
+		return TEXT("HoloLens");
+	}
+
+	virtual FText GetVariantDisplayName() const override
+	{
+		return LOCTEXT("HoloLensVariantDisplayName", "HoloLens");
+	}
+
+	virtual float GetVariantPriority() const override
+	{
+		return 1.0f;
+	}
+
 	virtual bool IsSdkInstalled(bool bProjectHasCode, FString& OutDocumentationPath) const override;
+
 	virtual int32 CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const override;
 	//~ End ITargetPlatform Interface
 
-protected:
-
-	virtual bool SupportsDevice(FName DeviceType, bool DeviceIs64Bits) = 0;
-
 private:
+	IHoloLensDeviceDetectorPtr DeviceDetector;
 
 	void OnDeviceDetected(const FHoloLensDeviceInfo& Info);
 
@@ -166,11 +179,11 @@ private:
 
 	// Holds an event delegate that is executed when a target device has been lost, i.e. disconnected or timed out.
 	FOnTargetDeviceLost DeviceLostEvent;
-
-	IHoloLensDeviceDetectorModule& HoloLensDeviceDetectorModule;
 };
 
 
 #undef LOCTEXT_NAMESPACE
 
 #include "Windows/HideWindowsPlatformTypes.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogHoloLensTargetPlatform, Log, All);

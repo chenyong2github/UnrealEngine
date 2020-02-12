@@ -52,7 +52,7 @@ namespace OpenGLConsoleVariables
 	static FAutoConsoleVariable CVarUseEmulatedUBs(
 		TEXT("OpenGL.UseEmulatedUBs"),
 		0,
-		TEXT("If true, enable using emulated uniform buffers on ES2 mode."),
+		TEXT("If true, enable using emulated uniform buffers on ES3.1 mode."),
 		ECVF_ReadOnly
 		);
 
@@ -826,6 +826,8 @@ void FOpenGLDynamicRHI::SetupTexturesForDraw( FOpenGLContextState& ContextState,
 					FOpenGL::BindSampler(TextureStageIndex, PendingSampler ? PendingSampler->Resource : 0);
 					ContextState.SamplerStates[TextureStageIndex] = PendingSampler;
 				}
+				//Clean the Pending Sampler State so the textures sampled by TexelFetch without setting point sampler could use sampler 0.
+				PendingState.SamplerStates[TextureStageIndex] = nullptr;
 			}
 			else if (TextureStage.Target != GL_TEXTURE_BUFFER)
 			{
@@ -943,7 +945,7 @@ void FOpenGLDynamicRHI::UpdateSRV(FOpenGLShaderResourceView* SRV)
 {
 	check(SRV);
 	// For Depth/Stencil textures whose Stencil component we wish to sample we must blit the stencil component out to an intermediate texture when we 'Store' the texture.
-#if PLATFORM_DESKTOP || PLATFORM_ANDROIDESDEFERRED || PLATFORM_LUMINGL4
+#if PLATFORM_DESKTOP || PLATFORM_LUMINGL4
 	if (FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5 && FOpenGL::SupportsPixelBuffers() && IsValidRef(SRV->Texture2D))
 	{
 		FOpenGLTexture2D* Texture2D = ResourceCast(SRV->Texture2D.GetReference());
@@ -1540,43 +1542,6 @@ void FOpenGLDynamicRHI::RHISetRenderTargets(
 	}
 
 	FOpenGLTextureBase* NewDepthStencilRT = GetOpenGLTextureFromRHITexture(NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->Texture : nullptr);
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (IsES2Platform(GMaxRHIShaderPlatform) && !IsPCPlatform(GMaxRHIShaderPlatform))
-	{
-		// @todo-mobile
-
-		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-		GLuint NewColorRTResource = PendingState.RenderTargets[0] ? PendingState.RenderTargets[0]->Resource : 0;
-		GLenum NewColorTargetType = PendingState.RenderTargets[0] ? PendingState.RenderTargets[0]->Target : 0;
-		// If the color buffer did not change and we are disabling depth, do not switch depth and assume
-		// the high level will disable depth test/write (so we can avoid a logical buffer store);
-		// if both are set to nothing, then it's an endframe so we don't want to switch either...
-		if (NewDepthStencilRT == NULL && PendingState.DepthStencil != NULL)
-		{
-			const bool bColorBufferUnchanged = ContextState.LastES2ColorRTResource == NewColorRTResource && ContextState.LastES2ColorTargetType == NewColorTargetType;
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
-			//color RT being 0 means backbuffer is being used. Hence taking only comparison with previous RT into consideration. Fixes black screen issue.
-			if (bColorBufferUnchanged)
-#else
-			if (NewColorRTResource == 0 || bColorBufferUnchanged)
-#endif
-			{
-				return;
-			}
-			else
-			{
-				ContextState.LastES2ColorRTResource = NewColorRTResource;
-				ContextState.LastES2ColorTargetType = NewColorTargetType;
-			}
-		}
-		else
-		{
-				ContextState.LastES2ColorRTResource = NewColorRTResource;
-				ContextState.LastES2ColorTargetType = NewColorTargetType;
-		}
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	PendingState.DepthStencil = NewDepthStencilRT;
 	PendingState.StencilStoreAction = NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->GetStencilStoreAction() : ERenderTargetStoreAction::ENoAction;

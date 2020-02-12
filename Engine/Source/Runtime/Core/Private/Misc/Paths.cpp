@@ -20,6 +20,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
 
+#if !defined(SUPPORTS_LOGS_IN_USERDIR)
+	#define SUPPORTS_LOGS_IN_USERDIR 0
+#endif
+
 struct FPaths::FStaticData
 {
 	FCriticalSection GameProjectFilePathLock;
@@ -368,7 +372,7 @@ FString FPaths::ProjectLogDir()
 	{
 		return *OverrideDir;
 	}
-#elif PLATFORM_MAC || PLATFORM_XBOXONE
+#elif PLATFORM_MAC || SUPPORTS_LOGS_IN_USERDIR
 	if (CustomUserDirArgument().IsEmpty())
 	{
 		return FPlatformProcess::UserLogsDir();
@@ -1510,7 +1514,7 @@ bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 	MakeStandardFilename(TmpA);
 	MakeStandardFilename(TmpB);
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
+#if PLATFORM_MICROSOFT
 	return FCString::Stricmp(*TmpA, *TmpB) == 0;
 #else
 	return FCString::Strcmp(*TmpA, *TmpB) == 0;
@@ -1527,7 +1531,7 @@ bool FPaths::IsUnderDirectory(const FString& InPath, const FString& InDirectory)
 		Directory.RemoveAt(Directory.Len() - 1);
 	}
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
+#if PLATFORM_MICROSOFT
 	int Compare = FCString::Strnicmp(*Path, *Directory, Directory.Len());
 #else
 	int Compare = FCString::Strncmp(*Path, *Directory, Directory.Len());

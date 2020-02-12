@@ -99,6 +99,12 @@ namespace
 		TEXT("1: Automatic. The subsurface will only switch to separable in half resolution. (default)"),
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
+
+	TAutoConsoleVariable<int32> CVarSSSBurleyNumSamplesOverride(
+		TEXT("r.SSS.Burley.NumSamplesOverride"),
+		0,
+		TEXT("When zero, Burley SSS adaptively determines the number of samples. When non-zero, this value overrides the sample count.\n"),
+		ECVF_RenderThreadSafe);
 }
 
 // Define to use a custom ps to clear UAV.
@@ -214,8 +220,10 @@ FSubsurfaceParameters GetSubsurfaceCommonParameters(FRHICommandListImmediate& RH
 	const float SSSScaleZ = DistanceToProjectionWindow * GetSubsurfaceRadiusScale();
 	const float SSSScaleX = SSSScaleZ / SUBSURFACE_KERNEL_SIZE * 0.5f;
 
+	const float SSSOverrideNumSamples = float(CVarSSSBurleyNumSamplesOverride.GetValueOnRenderThread());
+
 	FSubsurfaceParameters Parameters;
-	Parameters.SubsurfaceParams = FVector4(SSSScaleX, SSSScaleZ, 0, 0);
+	Parameters.SubsurfaceParams = FVector4(SSSScaleX, SSSScaleZ, SSSOverrideNumSamples, 0);
 	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters.SceneUniformBuffer = CreateSceneTextureUniformBuffer(
 		SceneContext, View.FeatureLevel, ESceneTextureSetupMode::All, EUniformBufferUsage::UniformBuffer_SingleFrame);

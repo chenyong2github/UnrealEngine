@@ -3396,7 +3396,7 @@ void FLightmapResourceCluster::InitRHI()
 	// Lightmap resources are normally created before the feature level is known, so we'll use defaults and rely on a subsequent call to UpdateUniformBuffer()
 	// to set the correct level and update things accordingly. However, when we're coming from FRenderResource::ChangeFeatureLevel(), the feature level
 	// has already been set, so we can go ahead and use the correct level and input from the start (UpdateUniformBuffer() is not being called in that case).
-	if (GetFeatureLevel() < ERHIFeatureLevel::Num)
+	if (HasValidFeatureLevel())
 	{
 		GetLightmapClusterResourceParameters(GetFeatureLevel(), Input, GetUseVirtualTexturing() ? AcquireAllocatedVT() : nullptr, Parameters);
 	}

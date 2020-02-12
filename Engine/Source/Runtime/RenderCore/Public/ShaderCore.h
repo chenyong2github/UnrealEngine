@@ -178,7 +178,7 @@ enum ECompilerFlags
 	CFLAG_OnChip,
 	CFLAG_KeepDebugInfo,
 	CFLAG_NoFastMath,
-	// Explicitly enforce zero initialisation on shader platforms that may omit it.
+	// Explicitly enforce zero initialization on shader platforms that may omit it.
 	CFLAG_ZeroInitialise,
 	// Explicitly enforce bounds checking on shader platforms that may omit it.
 	CFLAG_BoundsChecking,
@@ -188,8 +188,10 @@ enum ECompilerFlags
 	CFLAG_ForceRemoveUnusedInterpolators,
 	// Set default precision to highp in a pixel shader (default is mediump on ES2 platforms)
 	CFLAG_UseFullPrecisionInPS,
-	// Hint that its a vertex to geometry shader
+	// Hint that it is a vertex to geometry shader
 	CFLAG_VertexToGeometryShader,
+	// Hint that it is a vertex to primitive shader
+	CFLAG_VertexToPrimitiveShader,
 	// Prepare the shader for archiving in the native binary shader cache format
 	CFLAG_Archive,
 	// Shaders uses external texture so may need special runtime handling
@@ -203,6 +205,8 @@ enum ECompilerFlags
 	// Use DirectX Shader Compiler (DXC) to compile all shaders, intended for compatibility testing.
 	CFLAG_ForceDXC,
 	CFLAG_SkipOptimizations,
+	// Temporarily disable optimizations with DXC compiler only, intended to workaround shader compiler bugs until they can be resolved with 1st party
+	CFLAG_SkipOptimizationsDXC
 };
 
 enum class EShaderParameterType : uint8

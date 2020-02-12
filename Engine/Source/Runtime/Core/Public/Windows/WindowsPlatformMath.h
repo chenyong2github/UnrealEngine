@@ -9,8 +9,6 @@
 #if PLATFORM_WINDOWS
 #include <intrin.h>
 #include <smmintrin.h>
-#elif PLATFORM_XBOXONE
-#include "XboxOne/XboxOneSystemIncludes.h"
 #endif
 
 #include "Math/UnrealPlatformMathSSE4.h"

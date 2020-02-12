@@ -6,13 +6,14 @@
 
 #include "D3D12Resources.h"
 #include "Containers/DynamicRHIResourceArray.h"
-#include "Containers/BitArray.h"
+#include "Experimental/Containers/SherwoodHashTable.h"
 #include "BuiltInRayTracingShaders.h"
 #include "RayTracingBuiltInResources.h"
 #include "Hash/CityHash.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ScopeLock.h"
+#include "RayTracingInstanceCopyShader.h" 
 
 static int32 GRayTracingDebugForceOpaque = 0;
 static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
@@ -981,16 +982,16 @@ public:
 		checkSlow(Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || Type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 		FD3D12RayTracingDescriptorHeap& Heap = (Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) ? ViewHeap : SamplerHeap;
-		TMap<uint64, uint32>& Map = (Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) ? ViewDescriptorTableCache : SamplerDescriptorTableCache;
+		TDescriptorHashMap& Map = (Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) ? ViewDescriptorTableCache : SamplerDescriptorTableCache;
 
 		const uint64 Key = CityHash64((const char*)Descriptors, sizeof(Descriptors[0]) * NumDescriptors);
 
-		uint32 DescriptorTableBaseIndex = ~0u;
-		const uint32* FoundDescriptorTableBaseIndex = Map.Find(Key);
+		const uint32 InvalidIndex = ~0u;
+		uint32& DescriptorTableBaseIndex = Map.FindOrAdd(Key, InvalidIndex);
 
-		if (FoundDescriptorTableBaseIndex)
+		if (DescriptorTableBaseIndex != InvalidIndex)
 		{
-			DescriptorTableBaseIndex = *FoundDescriptorTableBaseIndex;
+			return DescriptorTableBaseIndex;
 		}
 		else
 		{
@@ -1000,8 +1001,6 @@ public:
 			checkf(Heap.CPUBase.ptr, TEXT("Ray tracing descriptor heap of type %d assigned to descriptor cache is invalid."), Type);
 			GetParentDevice()->GetDevice()->CopyDescriptors(1, &DestDescriptor, &NumDescriptors, NumDescriptors, Descriptors, nullptr, Type);
 
-			Map.Add(Key, DescriptorTableBaseIndex);
-
 			if (Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
 			{
 				INC_DWORD_STAT_BY(STAT_D3D12RayTracingUsedViewDescriptors, NumDescriptors);
@@ -1010,16 +1009,30 @@ public:
 			{
 				INC_DWORD_STAT_BY(STAT_D3D12RayTracingUsedSamplerDescriptors, NumDescriptors);
 			}
-		}
 
-		return DescriptorTableBaseIndex;
+			return DescriptorTableBaseIndex;
+		}
 	}
 
 	FD3D12RayTracingDescriptorHeap ViewHeap;
 	FD3D12RayTracingDescriptorHeap SamplerHeap;
 
-	TMap<uint64, uint32> ViewDescriptorTableCache;
-	TMap<uint64, uint32> SamplerDescriptorTableCache;
+	template<typename KeyType>
+	struct TIdentityHash
+	{
+		static FORCEINLINE bool Matches(KeyType A, KeyType B)
+		{
+			return A == B;
+		}
+		static FORCEINLINE uint32 GetKeyHash(KeyType Key)
+		{
+			return (uint32)Key;
+		}
+	};
+
+	using TDescriptorHashMap = Experimental::TSherwoodMap<uint64, uint32, TIdentityHash<uint64>>;
+	TDescriptorHashMap ViewDescriptorTableCache;
+	TDescriptorHashMap SamplerDescriptorTableCache;
 };
 
 class FD3D12RayTracingShaderTable
@@ -1369,7 +1382,7 @@ public:
 
 	// A set of all resources referenced by this shader table for the purpose of updating residency before ray tracing work dispatch.
 	// #dxr_todo UE-72159: remove resources from this set when SBT slot entries are replaced
-	TSet<void*> ReferencedD3D12ResourceSet;
+	Experimental::TSherwoodSet<void*> ReferencedD3D12ResourceSet;
 	TArray<TRefCountPtr<FD3D12Resource>> ReferencedD3D12Resources;
 	TArray<TRefCountPtr<FRHIResource>> ReferencedResources;
 	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* Resource)
@@ -2345,7 +2358,7 @@ FD3D12RayTracingScene::~FD3D12RayTracingScene()
 
 void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& CommandContext, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags)
 {
-	TRefCountPtr<FD3D12MemBuffer> InstanceBuffer;
+	TRefCountPtr<FD3D12StructuredBuffer> InstanceBuffer;
 	TRefCountPtr<FD3D12MemBuffer> ScratchBuffer;
 
 	const uint32 GPUIndex = CommandContext.GetGPUIndex();
@@ -2357,7 +2370,8 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	uint32 NumDxrInstances = 0;
 	for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
 	{
-		NumDxrInstances += Instances[InstanceIndex].Transforms.Num();
+		const FRayTracingGeometryInstance& Instance = Instances[InstanceIndex];
+		NumDxrInstances += Instance.NumTransforms;
 	}
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS PrebuildDescInputs = {};
@@ -2409,17 +2423,14 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	{
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
-
+		
 		D3D12_RESOURCE_DESC InstanceBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 			sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * PrebuildDescInputs.NumDescs,
-			D3D12_RESOURCE_FLAG_NONE, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT);
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-		// Create a temporary (volatile) buffer to hold instance data that we're about to upload.
-		// The buffer does not need to persist for longer than one frame and can be discarded immediately
-		// after the top level acceleration structure build is complete.
-		InstanceBuffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
+		InstanceBuffer = Adapter->CreateRHIBuffer<FD3D12StructuredBuffer>(
 			nullptr, InstanceBufferDesc, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT,
-			0, InstanceBufferDesc.Width, BUF_Volatile, CreateInfo);
+			sizeof(D3D12_RAYTRACING_INSTANCE_DESC), InstanceBufferDesc.Width, BUF_UnorderedAccess, CreateInfo);
 
 		D3D12_RAYTRACING_INSTANCE_DESC* MappedData = (D3D12_RAYTRACING_INSTANCE_DESC*)Adapter->GetOwningRHI()->LockBuffer(
 			nullptr, InstanceBuffer.GetReference(), 0, InstanceBufferDesc.Width, RLM_WriteOnly);
@@ -2428,6 +2439,8 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 		TSet<FD3D12RayTracingGeometry*> UniqueGeometries;
 		uint32 DxrInstanceIndex = 0;
+
+		bool bShouldCopyIndirectInstances = false;
 
 		for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
 		{
@@ -2463,7 +2476,9 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 				BottomLevelAccelerationStructureBuffers[GPUIndex].Add(Geometry->AccelerationStructureBuffers[GPUIndex]);
 			}
 
-			const uint32 NumTransforms = Instance.Transforms.Num();
+			bool bHasGPUTransforms = Instance.GPUTransformsSRV.IsValid();
+
+			const uint32 NumTransforms = Instance.NumTransforms;
 
 			checkf(Instance.UserData.Num() == 0 || Instance.UserData.Num() == 1 || Instance.UserData.Num() == NumTransforms, 
 				TEXT("User data array must be either be empty (implicit 0 is assumed), contain a single entry (same value applied to all instances) or contain one entry per entry in Transforms array."));
@@ -2471,30 +2486,72 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 			const bool bUseUniqueUserData = Instance.UserData.Num() > 1;
 			const uint32 CommonUserData = Instance.UserData.Num() == 1 ? Instance.UserData[0] : 0;
 
+			bShouldCopyIndirectInstances |= bHasGPUTransforms;
+
 			for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 			{
 				InstanceDesc.InstanceID = bUseUniqueUserData ? Instance.UserData[TransformIndex] : CommonUserData;
 
-				FMatrix TransformTransposed = Instance.Transforms[TransformIndex].GetTransposed();
+				if (!bHasGPUTransforms)
+				{
+					FMatrix TransformTransposed = Instance.Transforms[TransformIndex].GetTransposed();
+					
+					// Ensure the last row of the original Transform is <0,0,0,1>
+					check((TransformTransposed.M[3][0] == 0)
+						&& (TransformTransposed.M[3][1] == 0)
+						&& (TransformTransposed.M[3][2] == 0)
+						&& (TransformTransposed.M[3][3] == 1));
 
-				// Ensure the last row of the original Transform is <0,0,0,1>
-				check((TransformTransposed.M[3][0] == 0)
-					&& (TransformTransposed.M[3][1] == 0)
-					&& (TransformTransposed.M[3][2] == 0)
-					&& (TransformTransposed.M[3][3] == 1));
+					FMemory::Memcpy(&InstanceDesc.Transform, &TransformTransposed.M[0][0], sizeof(InstanceDesc.Transform));
+				}
 
-				FMemory::Memcpy(&InstanceDesc.Transform, &TransformTransposed.M[0][0], sizeof(InstanceDesc.Transform));
 				MappedData[DxrInstanceIndex++] = InstanceDesc;
 			}
 
-			TotalPrimitiveCount += Geometry->TotalPrimitiveCount * Instance.Transforms.Num();
+			TotalPrimitiveCount += Geometry->TotalPrimitiveCount * NumTransforms;
 		}
 
 		Adapter->GetOwningRHI()->UnlockBuffer(nullptr, InstanceBuffer.GetReference());
 
 		InstanceBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
-	}
 
+		if(bShouldCopyIndirectInstances)
+		{
+			TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(&CommandContext);
+			FUnorderedAccessViewRHIRef InstancesDescUAV = RHICreateUnorderedAccessView(InstanceBuffer, false, false);
+
+			FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, InstanceBuffer.GetReference()->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0);
+
+			RHICmdList.BeginUAVOverlap();
+
+			uint32 DescOffset = 0;
+			for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
+			{
+				const FRayTracingGeometryInstance& Instance = Instances[InstanceIndex];
+				FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
+
+				const uint32 NumTransforms = Instance.NumTransforms;
+
+				if (NumTransforms > 0 && Instance.GPUTransformsSRV.IsValid())
+				{
+					FRHIShaderResourceView* TransformsSRV = Instance.GPUTransformsSRV.GetReference();
+
+					CopyRayTracingGPUInstances(RHICmdList, NumTransforms, DescOffset, TransformsSRV, InstancesDescUAV);
+
+					Instance.GPUTransformsSRV.GetReference()->Release();					
+				}
+
+				DescOffset += NumTransforms;
+			}
+
+			RHICmdList.EndUAVOverlap();	
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToCompute, InstancesDescUAV);
+		}
+
+		FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, InstanceBuffer.GetReference()->GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0);
+	}
+	
+	
 	// Build the actual acceleration structure
 
 	const bool bIsUpdateMode = false; // Top level acceleration structure is always built from scratch
@@ -2656,7 +2713,7 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 				}
 			}
 
-			BaseInstanceIndex += Instance.Transforms.Num();
+			BaseInstanceIndex += Instance.NumTransforms;
 		}
 	}
 

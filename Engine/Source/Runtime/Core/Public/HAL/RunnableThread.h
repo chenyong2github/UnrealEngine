@@ -44,7 +44,8 @@ public:
 		const TCHAR* ThreadName,
 		uint32 InStackSize = 0,
 		EThreadPriority InThreadPri = TPri_Normal,
-		uint64 InThreadAffinityMask = FPlatformAffinity::GetNoAffinityMask() );
+		uint64 InThreadAffinityMask = FPlatformAffinity::GetNoAffinityMask(),
+		EThreadCreateFlags InCreateFlags = EThreadCreateFlags::None);
 
 	/**
 	 * Changes the thread priority of the currently running thread
@@ -117,7 +118,8 @@ protected:
 	 */
 	virtual bool CreateInternal( FRunnable* InRunnable, const TCHAR* InThreadName,
 		uint32 InStackSize = 0,
-		EThreadPriority InThreadPri = TPri_Normal, uint64 InThreadAffinityMask = 0 ) = 0;
+		EThreadPriority InThreadPri = TPri_Normal, uint64 InThreadAffinityMask = 0, 
+		EThreadCreateFlags InCreateFlags = EThreadCreateFlags::None) = 0;
 
 	/** Stores this instance in the runnable thread TLS slot. */
 	void SetTls();

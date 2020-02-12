@@ -561,9 +561,9 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& R
 		// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
 		ExecuteAll(RHICmdList, ViewUniformBuffer, !GPUInstanceCounterManager.HasPendingGPUReadback(), ETickStage::PostOpaqueRender);
 
-		RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
+		RHICmdList.BeginUAVOverlap();
 		UpdateFreeIDBuffers(RHICmdList, DeferredIDBufferUpdates);
-		RHICmdList.AutomaticCacheFlushAfterComputeShader(true);
+		RHICmdList.EndUAVOverlap();
 
 		DeferredIDBufferUpdates.SetNum(0, false);
 
@@ -750,7 +750,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 		}
 	}
 
-	RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
+	RHICmdList.BeginUAVOverlap();
 
 	FEmitterInstanceList InstancesWithPersistentIDs;
 	FNiagaraBufferArray ReadBuffers, WriteBuffers, OutputGraphicsBuffers;
@@ -803,7 +803,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 	OutputGraphicsBuffers.Add(GPUInstanceCounterManager.GetInstanceCountBuffer().UAV);
 	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, OutputGraphicsBuffers.GetData(), OutputGraphicsBuffers.Num());
 
-	RHICmdList.AutomaticCacheFlushAfterComputeShader(true);
+	RHICmdList.EndUAVOverlap();
 }
 
 void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)

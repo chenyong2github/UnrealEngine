@@ -19,6 +19,7 @@
 #include "RHI.h"
 #include "RHIResources.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "HAL/ThreadSafeBool.h"
 #include "Containers/Queue.h"
 #include "Serialization/Archive.h"
 #include "Serialization/ArrayReader.h"

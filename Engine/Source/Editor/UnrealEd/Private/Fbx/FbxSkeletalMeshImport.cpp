@@ -1891,7 +1891,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			//Set the build options
 			SkeletalMesh->GetLODInfo(ImportLODModelIndex)->BuildSettings = BuildOptions;
 			//New MeshDescription build process
-			IMeshBuilderModule& MeshBuilderModule = FModuleManager::Get().LoadModuleChecked<IMeshBuilderModule>("MeshBuilder");
+			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForRunningPlatform();
 			//We must build the LODModel so we can restore properly the mesh, but we do not have to regenerate LODs
 			bBuildSuccess = MeshBuilderModule.BuildSkeletalMesh(SkeletalMesh, ImportLODModelIndex, false);
 		}

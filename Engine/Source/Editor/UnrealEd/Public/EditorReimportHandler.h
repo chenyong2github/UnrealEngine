@@ -10,7 +10,7 @@
 class FReimportHandler;
 
 /** Reimport manager for package resources with associated source files on disk. */
-class UNREALED_VTABLE FReimportManager : FGCObject
+class FReimportManager : FGCObject
 {
 public:
 	/**
@@ -169,7 +169,7 @@ namespace EReimportResult
 /** 
 * Reimport handler for package resources with associated source files on disk.
 */
-class UNREALED_VTABLE FReimportHandler
+class FReimportHandler
 {
 public:
 	/** Constructor. Add self to manager */

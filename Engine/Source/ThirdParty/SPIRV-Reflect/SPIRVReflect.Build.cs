@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class SPIRVReflect : ModuleRules
 {
@@ -8,35 +9,38 @@ public class SPIRVReflect : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "SPIRV-Reflect/SPIRV-Reflect");
+		PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "SPIRV-Reflect/SPIRV-Reflect"));
 
-		string LibPath = Target.UEThirdPartySourceDirectory + "SPIRV-Reflect/lib/";
+		string LibPath = Path.Combine(Target.UEThirdPartySourceDirectory, "SPIRV-Reflect/lib/");
 		if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				PublicAdditionalLibraries.Add(LibPath + "Mac/libspirv-reflectd.a");
+				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "Mac/libSPIRV-Reflectd.a"));
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(LibPath + "Mac/libspirv-reflect.a");
+				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "Mac/libSPIRV-Reflect.a"));
 			}
 		}
         else if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-			LibPath = LibPath + (Target.Platform == UnrealTargetPlatform.Win32 ? "Win32/" : "Win64/");
-            LibPath = LibPath + "VS2017/";
+			LibPath = Path.Combine(LibPath, (Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64"), "VS2017");
 
             if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
             {
-                PublicAdditionalLibraries.Add(LibPath + "SPIRV-Reflectd.lib");
+                PublicAdditionalLibraries.Add(Path.Combine(LibPath, "SPIRV-Reflectd.lib"));
             }
             else
             {
-                PublicAdditionalLibraries.Add(LibPath + "SPIRV-Reflect.lib");
+                PublicAdditionalLibraries.Add(Path.Combine(LibPath, "SPIRV-Reflect.lib"));
             }
         }
-        else
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "Linux", Target.Architecture, "libSPIRV-Reflect.a"));
+		}
+		else
 		{
 			string Err = string.Format("Attempt to build against SPIRV-Reflect on unsupported platform {0}", Target.Platform);
 			System.Console.WriteLine(Err);

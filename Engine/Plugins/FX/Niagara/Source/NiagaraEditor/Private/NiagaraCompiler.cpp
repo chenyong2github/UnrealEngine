@@ -657,7 +657,7 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 		}
 	}
 
-	int32 JobID = Compiler->CompileScript(CompileRequest, InCompileOptions, &Translator.GetTranslateOutput(), Translator.GetTranslatedHLSL());
+	int32 JobID = Compiler->CompileScript(CompileRequest, InCompileOptions, TranslateResults, &Translator.GetTranslateOutput(), Translator.GetTranslatedHLSL());
 	ActiveCompilations.Add(JobID, Compiler);
 	return JobID;
 }
@@ -780,11 +780,14 @@ ENiagaraScriptCompileStatus FNiagaraCompileResults::CompileResultsToSummary(cons
 	return SummaryStatus;
 }
 
-int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, FNiagaraTranslatorOutput *TranslatorOutput, FString &TranslatedHLSL)
+int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput *TranslatorOutput, FString &TranslatedHLSL)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslCompiler_CompileScript);
 
 	CompileResults.Data = MakeShared<FNiagaraVMExecutableData>();
+
+	CompileResults.AppendCompileEvents(MakeArrayView(InTranslateResults.CompileEvents));
+	CompileResults.Data->LastCompileEvents.Append(InTranslateResults.CompileEvents);
 
 	//TODO: This should probably be done via the same route that other shaders take through the shader compiler etc.
 	//But that adds the complexity of a new shader type, new shader class and a new shader map to contain them etc.
@@ -827,21 +830,12 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	CompilationJob = MakeUnique<FNiagaraCompilerJob>();
 	CompilationJob->TranslatorOutput = TranslatorOutput ? *TranslatorOutput : FNiagaraTranslatorOutput();
 
-	bool bGPUScript = InOptions.TargetUsage == ENiagaraScriptUsage::ParticleGPUComputeScript;
-	if (bGPUScript)
+	CompileResults.bVMSucceeded = (CompilationJob->TranslatorOutput.Errors.Len() == 0) && (TranslatedHLSL.Len() > 0) && !InTranslateResults.NumErrors;
+
+	if (InOptions.TargetUsage == ENiagaraScriptUsage::ParticleGPUComputeScript)
 	{
 		CompileResults.bComputeSucceeded = false;
-		if (TranslatorOutput != nullptr && TranslatorOutput->Errors.Len() > 0)
-		{
-			Error(FText::Format(LOCTEXT("HlslTranslateErrorMessageFormat", "The HLSL Translator failed.  Errors:\n{0}"), FText::FromString(TranslatorOutput->Errors)));
-			CompileResults.bVMSucceeded = false;
-		}
-		else if (TranslatedHLSL.Len() == 0)
-		{
-			CompileResults.NumErrors++;
-			CompileResults.bVMSucceeded = false;
-		}
-		else
+		if (CompileResults.bVMSucceeded)
 		{
 			*(CompileResults.Data) = CompilationJob->TranslatorOutput.ScriptData;
 			CompileResults.Data->ByteCode.Empty();
@@ -855,18 +849,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	CompilationJob->TranslatorOutput.ScriptData.LastHlslTranslation = TranslatedHLSL;
 
 	bool bJobScheduled = false;
-	if (TranslatorOutput != nullptr && TranslatorOutput->Errors.Len() > 0)
-	{
-		//TODO: Map Lines of HLSL to their source Nodes and flag those nodes with errors associated with their lines.
-		Error(FText::Format(LOCTEXT("HlslTranslateErrorMessageFormat", "The HLSL Translator failed.  Errors:\n{0}"), FText::FromString(TranslatorOutput->Errors)));
-		CompileResults.bVMSucceeded = false;
-	}
-	else if (TranslatedHLSL.Len() == 0)
-	{
-		CompileResults.NumErrors++;
-		CompileResults.bVMSucceeded = false;
-	}
-	else
+	if (CompileResults.bVMSucceeded)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslCompiler_CompileShader_VectorVM);
 		CompilationJob->StartTime = FPlatformTime::Seconds();
@@ -900,19 +883,19 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 
 	if (!bJobScheduled)
 	{
-		//Some error. Clear script and exit.
+
 		CompileResults.Data->ByteCode.Empty();
 		CompileResults.Data->Attributes.Empty();
 		CompileResults.Data->Parameters.Empty();
 		CompileResults.Data->InternalParameters.Empty();
 		CompileResults.Data->DataInterfaceInfo.Empty();
-		//Script->NumUserPtrs = 0;
+
 	}
 	CompilationJob->CompileResults = CompileResults;
 
 	return JobID;
 }
-
+			//TODO: Map Lines of HLSL to their source Nodes and flag those nodes with errors associated with their lines.
 void FHlslNiagaraCompiler::DumpDebugInfo(FNiagaraCompileResults& CompileResult, bool bGPUScript)
 {
 	if (GShaderCompilingManager->GetDumpShaderDebugInfo() && CompileResults.Data.IsValid())
@@ -997,24 +980,24 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 
 	if (!Results.bVMSucceeded)
 	{
-		//Some error. Clear script and exit.
+		//For now we just copy the shader code over into the script. 
 		Results.Data->ByteCode.Empty();
 		Results.Data->Attributes.Empty();
 		Results.Data->Parameters.Empty();
 		Results.Data->InternalParameters.Empty();
 		Results.Data->DataInterfaceInfo.Empty();
-		//		Script->NumUserPtrs = 0;
+		//Eventually Niagara will have all the shader plumbing and do things like materials.
 	}
 	else
 	{
-		// Copy the shader code over into the script.
+			//Build internal parameters
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslCompiler_CompileShader_VectorVMSucceeded);
 		*Results.Data = CompilationJob->TranslatorOutput.ScriptData;
 		Results.Data->ByteCode = CompilationOutput.ByteCode;
 		Results.Data->NumTempRegisters = CompilationOutput.MaxTempRegistersUsed + 1;
 		Results.Data->LastAssemblyTranslation = CompilationOutput.AssemblyAsString;
 		Results.Data->LastOpCount = CompilationOutput.NumOps;
-		//Build internal parameters
+
 		Results.Data->InternalParameters.Empty();
 		for (int32 i = 0; i < CompilationOutput.InternalConstantOffsets.Num(); ++i)
 		{
@@ -1045,11 +1028,11 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.CompileTime = (float)(FPlatformTime::Seconds() - CompilationJob->StartTime);
 		Results.Data->CompileTime = Results.CompileTime;
 
-		//Extract the external function call table binding info.
+
 		Results.Data->CalledVMExternalFunctions.Empty(CompilationOutput.CalledVMFunctionTable.Num());
 		for (FCalledVMFunction& FuncInfo : CompilationOutput.CalledVMFunctionTable)
 		{
-			//Find the interface corresponding to this call.
+			//Extract the external function call table binding info.
 			const FNiagaraFunctionSignature* Sig = nullptr;
 			for (FNiagaraScriptDataInterfaceCompileInfo& NDIInfo : CompilationJob->TranslatorOutput.ScriptData.DataInterfaceInfo)
 			{

@@ -28,6 +28,7 @@
 #endif
 
 DEFINE_LOG_CATEGORY(LogShaders);
+DECLARE_LOG_CATEGORY_CLASS(LogShaderWarnings, Log, Log);
 
 IMPLEMENT_TYPE_LAYOUT(FShader);
 IMPLEMENT_TYPE_LAYOUT(FShaderParameterBindings);
@@ -43,9 +44,8 @@ IMPLEMENT_EXPORTED_INTRINSIC_TYPE_LAYOUT(TIndexedPtr<FVertexFactoryType>);
 
 RENDERCORE_API bool UsePreExposure(EShaderPlatform Platform)
 {
-	// Mobile platforms are excluded because they use a different pre-exposure logic in MobileBasePassPixelShader.usf
 	static const auto CVarUsePreExposure = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.UsePreExposure"));
-	return CVarUsePreExposure->GetValueOnAnyThread() != 0 && !IsMobilePlatform(Platform) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+	return CVarUsePreExposure->GetValueOnAnyThread() != 0;
 }
 
 static TAutoConsoleVariable<int32> CVarUsePipelines(
@@ -54,11 +54,18 @@ static TAutoConsoleVariable<int32> CVarUsePipelines(
 	TEXT("Enable using Shader pipelines."));
 
 static TAutoConsoleVariable<int32> CVarSkipShaderCompression(
-	TEXT("r.SkipShaderCompression"),
+	TEXT("r.Shaders.SkipCompression"),
 	0,
 	TEXT("Skips shader compression after compiling. Shader compression time can be quite significant when using debug shaders. This CVar is only valid in non-shipping/test builds."),
 	ECVF_ReadOnly | ECVF_Cheat
 	);
+
+static TAutoConsoleVariable<int32> CVarShaderCompilerEmitWarningsOnLoad(
+	TEXT("r.ShaderCompiler.EmitWarningsOnLoad"),
+	0,
+	TEXT("When 1, shader compiler warnings are emitted to the log for all shaders as they are loaded."),
+	ECVF_Default
+);
 
 static TLinkedList<FShaderType*>*			GShaderTypeList = nullptr;
 static TLinkedList<FShaderPipelineType*>*	GShaderPipelineList = nullptr;
@@ -1288,6 +1295,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 	{
 		KeyString += IsUsingBasePassVelocity(Platform) ? TEXT("_GV") : TEXT("");
+	}
+
+	{
+		KeyString += BasePassCanOutputTangent(Platform) ? TEXT("_GT") : TEXT("");
 	}
 
 	{

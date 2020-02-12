@@ -175,7 +175,7 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
+		RayTracingDynamicVertexBuffer.Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FNiagaraRendererSprites::RayTracingDynamicVertexBuffer"));
 
 		FRayTracingGeometryInitializer Initializer;
 		Initializer.IndexBuffer = nullptr;

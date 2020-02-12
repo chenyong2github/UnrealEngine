@@ -41,7 +41,7 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #endif
 
 // FORT-93125
-#define CHECK_SHADER_CREATION (PLATFORM_XBOXONE)
+#define CHECK_SHADER_CREATION (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
 
 DEFINE_LOG_CATEGORY(LogShaderLibrary);
 

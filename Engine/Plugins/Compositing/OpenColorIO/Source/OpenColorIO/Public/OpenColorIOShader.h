@@ -46,7 +46,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FOpenColorIOShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
+		return true;
 	}
 
 	FOpenColorIOPixelShader(const FOpenColorIOShaderType::CompiledShaderInitializerType& Initializer);
@@ -67,5 +67,3 @@ protected:
 private:
 	LAYOUT_FIELD(FMemoryImageString, DebugDescription)
 };
-
-

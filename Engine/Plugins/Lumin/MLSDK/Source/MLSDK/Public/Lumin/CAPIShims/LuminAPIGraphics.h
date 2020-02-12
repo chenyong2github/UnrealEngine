@@ -4,10 +4,12 @@
 
 #include "Lumin/CAPIShims/LuminAPI.h"
 
-#if !PLATFORM_MAC && defined(MLSDK_API_USE_VULKAN) && MLSDK_API_USE_VULKAN
+#define PLATFORM_SUPPORTS_VULKAN (PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_LUMIN)
+
+#if PLATFORM_SUPPORTS_VULKAN && defined(MLSDK_API_USE_VULKAN) && MLSDK_API_USE_VULKAN
 // Need all this for: class FVulkanTexture2D, and other Vulkan types.
 #include "VulkanRHIPrivate.h"
-#endif // !PLATFORM_MAC && defined(MLSDK_API_USE_VULKAN) && MLSDK_API_USE_VULKAN
+#endif // PLATFORM_SUPPORTS_VULKAN && defined(MLSDK_API_USE_VULKAN) && MLSDK_API_USE_VULKAN
 
 #if !defined(WITH_MLSDK) || WITH_MLSDK
 
@@ -38,15 +40,15 @@ CREATE_FUNCTION_SHIM(ml_graphics, MLResult, MLGraphicsDestroyClient)
 #define MLGraphicsDestroyClient ::MLSDK_API::MLGraphicsDestroyClientShim
 CREATE_FUNCTION_SHIM(ml_graphics, MLResult, MLGraphicsSetFrameTimingHint)
 #define MLGraphicsSetFrameTimingHint ::MLSDK_API::MLGraphicsSetFrameTimingHintShim
-CREATE_FUNCTION_SHIM(ml_graphics, MLResult, MLGraphicsInitFrameParams)
+CREATE_DEPRECATED_SHIM(ml_graphics, MLResult, MLGraphicsInitFrameParams)
 #define MLGraphicsInitFrameParams ::MLSDK_API::MLGraphicsInitFrameParamsShim
-CREATE_FUNCTION_SHIM(ml_graphics, MLResult, MLGraphicsBeginFrame)
+CREATE_DEPRECATED_MSG_SHIM(ml_graphics, MLResult, MLGraphicsBeginFrame, "Replaced by MLGraphicsBeginFrameEx.")
 #define MLGraphicsBeginFrame ::MLSDK_API::MLGraphicsBeginFrameShim
 CREATE_FUNCTION_SHIM(ml_graphics, MLResult, MLGraphicsBeginFrameEx)
 #define MLGraphicsBeginFrameEx ::MLSDK_API::MLGraphicsBeginFrameExShim
 CREATE_FUNCTION_SHIM(ml_graphics, MLResult, MLGraphicsSignalSyncObjectGL)
 #define MLGraphicsSignalSyncObjectGL ::MLSDK_API::MLGraphicsSignalSyncObjectGLShim
-CREATE_FUNCTION_SHIM(ml_graphics, MLResult, MLGraphicsGetClipExtents)
+CREATE_DEPRECATED_MSG_SHIM(ml_graphics, MLResult, MLGraphicsGetClipExtents, "Replaced by MLGraphicsGetClipExtentsEx.")
 #define MLGraphicsGetClipExtents ::MLSDK_API::MLGraphicsGetClipExtentsShim
 CREATE_FUNCTION_SHIM(ml_graphics, MLResult, MLGraphicsGetClipExtentsEx)
 #define MLGraphicsGetClipExtentsEx ::MLSDK_API::MLGraphicsGetClipExtentsExShim

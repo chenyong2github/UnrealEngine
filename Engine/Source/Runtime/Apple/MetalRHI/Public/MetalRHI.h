@@ -134,7 +134,7 @@ public:
 	virtual void RHIExecuteCommandList(FRHICommandList* CmdList) final override;
 	virtual void* METALRHI_API RHIGetNativeDevice() final override;
 	virtual void* METALRHI_API RHIGetNativeInstance() final override;
-	virtual class IRHICommandContext* RHIGetDefaultContext() final override;
+	virtual class IRHICommandContext* METALRHI_API RHIGetDefaultContext() final override;
 	virtual IRHIComputeContext* RHIGetDefaultAsyncComputeContext() final override;
 	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) final override;
 	

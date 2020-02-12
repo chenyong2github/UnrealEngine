@@ -258,8 +258,10 @@ public:
 		case MP_BaseColor: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportBaseColor; break;
 		case MP_Specular: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportSpecular; break;
 		case MP_Normal: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportNormal; break;
+		case MP_Tangent: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportTangent; break;
 		case MP_Metallic: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportMetallic; break;
 		case MP_Roughness: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportRoughness; break;
+		case MP_Anisotropy: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportAnisotropy; break;
 		case MP_AmbientOcclusion: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportAO; break;
 		case MP_EmissiveColor: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportEmissive; break;
 		case MP_Opacity: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportOpacity; break;
@@ -363,6 +365,7 @@ public:
 				break;
 			case MP_Specular:
 			case MP_Roughness:
+			case MP_Anisotropy:
 			case MP_Metallic:
 			case MP_AmbientOcclusion:
 				// Only return for Opaque and Masked...
@@ -378,11 +381,12 @@ public:
 				return MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate);
 			}
 			case MP_Normal:
+			case MP_Tangent:
 				// Only return for Opaque and Masked...
 				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
 				{
 					return Compiler->Add(
-						Compiler->Mul(MaterialInterface->CompileProperty(&ProxyCompiler, MP_Normal, ForceCast_Exact_Replicate), Compiler->Constant(0.5f)), // [-1,1] * 0.5
+						Compiler->Mul(MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate), Compiler->Constant(0.5f)), // [-1,1] * 0.5
 						Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
 				}
 				break;
@@ -571,8 +575,10 @@ public:
 			case MP_BaseColor:				return true;
 			case MP_Specular:				return true;
 			case MP_Normal:					return true;
+			case MP_Tangent:				return true;
 			case MP_Metallic:				return true;
 			case MP_Roughness:				return true;
+			case MP_Anisotropy:				return true;
 			case MP_AmbientOcclusion:		return true;
 			}
 		}

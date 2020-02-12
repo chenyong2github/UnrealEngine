@@ -184,8 +184,9 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 		Input.PrimitiveId = GetInstanceUserData();
 	#endif
 
-	// SV_InstanceId can be emulated like so:
-	// Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex();
+#if USE_INSTANCING
+	Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex();
+#endif
 
 	return Input;
 }
@@ -334,10 +335,10 @@ float4x4 GetInstanceTransform(FPositionOnlyVertexFactoryInput Input)
 	#if MANUAL_VERTEX_FETCH && !USE_INSTANCING_BONEMAP
 	uint InstanceId = GetInstanceId(Input.InstanceId);
 	return float4x4(
-		float4(VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0].xyz, 0.0f),
-		float4(VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1].xyz, 0.0f),
-		float4(VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2].xyz, 0.0f),
-		float4(VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)].xyz, 1.0f));
+			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0].xyz, 0.0f),
+			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1].xyz, 0.0f),
+			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2].xyz, 0.0f),
+			float4(InstanceVF.VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)].xyz, 1.0f));
 	#elif MANUAL_VERTEX_FETCH && USE_INSTANCING_BONEMAP
 	uint InstanceIndex = VertexFetch_InstanceBoneMapBuffer[LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId];
 	return float4x4(
@@ -359,10 +360,10 @@ float4x4 GetInstanceTransform(FPositionAndNormalOnlyVertexFactoryInput Input)
 	#if MANUAL_VERTEX_FETCH && !USE_INSTANCING_BONEMAP
 	uint InstanceId = GetInstanceId(Input.InstanceId);
 	return float4x4(
-		float4(VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0].xyz, 0.0f),
-		float4(VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1].xyz, 0.0f),
-		float4(VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2].xyz, 0.0f),
-		float4(VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)].xyz, 1.0f));
+			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0].xyz, 0.0f),
+			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1].xyz, 0.0f),
+			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2].xyz, 0.0f),
+			float4(InstanceVF.VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)].xyz, 1.0f));
 	#elif MANUAL_VERTEX_FETCH && USE_INSTANCING_BONEMAP
 		uint InstanceIndex = VertexFetch_InstanceBoneMapBuffer[LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId];
 		return float4x4(
@@ -450,12 +451,12 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 #if LIGHTMAP_UV_ACCESS
 #if NEEDS_LIGHTMAP_COORDINATE
-	#if (ES2_PROFILE || ES3_1_PROFILE)
+	#if (ES3_1_PROFILE)
 		// Not supported in pixel shader
 		Result.LightmapUVs = float2(0, 0);
 	#else
 		Result.LightmapUVs = Interpolants.LightMapCoordinate.xy;
-	#endif	// ES2_PROFILE
+	#endif	// ES3_1_PROFILE
 #endif	// NEEDS_LIGHTMAP_COORDINATE
 #endif	// LIGHTMAP_UV_ACCESS
 
@@ -743,11 +744,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 #if USE_INSTANCING && MANUAL_VERTEX_FETCH && !USE_INSTANCING_BONEMAP
 	uint InstanceId = GetInstanceId(Input.InstanceId);
-	Intermediates.InstanceTransform1 = VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0];
-	Intermediates.InstanceTransform2 = VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1];
-	Intermediates.InstanceTransform3 = VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2];
-	Intermediates.InstanceOrigin = VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)];
-	Intermediates.InstanceLightmapAndShadowMapUVBias = VertexFetch_InstanceLightmapBuffer[(InstanceId + InstanceOffset)];
+	Intermediates.InstanceTransform1 = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0];
+	Intermediates.InstanceTransform2 = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1];
+	Intermediates.InstanceTransform3 = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2];
+	Intermediates.InstanceOrigin = InstanceVF.VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)];
+	Intermediates.InstanceLightmapAndShadowMapUVBias = InstanceVF.VertexFetch_InstanceLightmapBuffer[(InstanceId + InstanceOffset)];
 #elif MANUAL_VERTEX_FETCH && USE_INSTANCING_BONEMAP
 	uint InstanceIndex = VertexFetch_InstanceBoneMapBuffer[LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId];
 	Intermediates.InstanceTransform1 = VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 0];

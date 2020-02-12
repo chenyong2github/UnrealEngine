@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Windows/WindowsApplication.h"
+
+#if WINDOWS_USE_FEATURE_APPLICATION
+
 #include "Containers/StringConv.h"
 #include "CoreGlobals.h"
 #include "Internationalization/Text.h"
@@ -2819,3 +2822,5 @@ TSharedRef<FTaskbarList> FTaskbarList::Create()
 #pragma pop_macro("IsMaximized")
 
 #include "Windows/HideWindowsPlatformTypes.h"
+
+#endif

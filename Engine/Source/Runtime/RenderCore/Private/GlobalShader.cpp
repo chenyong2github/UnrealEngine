@@ -211,7 +211,7 @@ FGlobalShader::FGlobalShader(const ShaderMetaType::CompiledShaderInitializerType
 void BackupGlobalShaderMap(FGlobalShaderBackupData& OutGlobalShaderBackup)
 {
 #if 0
-	for (int32 i = (int32)ERHIFeatureLevel::ES2; i < (int32)ERHIFeatureLevel::Num; ++i)
+	for (int32 i = (int32)ERHIFeatureLevel::ES2_REMOVED; i < (int32)ERHIFeatureLevel::Num; ++i)
 	{
 		EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform((ERHIFeatureLevel::Type)i);
 		if (ShaderPlatform < EShaderPlatform::SP_NumPlatforms && GGlobalShaderMap[ShaderPlatform] != nullptr)
@@ -237,7 +237,7 @@ void BackupGlobalShaderMap(FGlobalShaderBackupData& OutGlobalShaderBackup)
 void RestoreGlobalShaderMap(const FGlobalShaderBackupData& GlobalShaderBackup)
 {
 #if 0
-	for (int32 i = (int32)ERHIFeatureLevel::ES2; i < (int32)ERHIFeatureLevel::Num; ++i)
+	for (int32 i = (int32)ERHIFeatureLevel::ES2_REMOVED; i < (int32)ERHIFeatureLevel::Num; ++i)
 	{
 		EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform((ERHIFeatureLevel::Type)i);		
 		if (GlobalShaderBackup.FeatureLevelShaderData[i] != nullptr

@@ -591,7 +591,6 @@ public:
 	TSharedPtr< FUICommandInfo > ToggleFeatureLevelPreview;
 
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM5;
-	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES2;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES31;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidVulkanES31;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_IOSMetalES31;

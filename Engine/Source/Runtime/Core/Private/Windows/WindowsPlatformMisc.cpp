@@ -1910,7 +1910,7 @@ bool FWindowsPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FSt
 FString FWindowsPlatformMisc::GetDefaultLanguage()
 {
 	// Only use GetUserPreferredUILanguages on Windows 8+ as older versions didn't always have language packs available
-	if (FWindowsPlatformMisc::VerifyWindowsVersion(6, 2))
+	if (FPlatformMisc::VerifyWindowsVersion(6, 2))
 	{
 		ULONG NumLanguages = 0;
 		ULONG LangBufferSize = 0;

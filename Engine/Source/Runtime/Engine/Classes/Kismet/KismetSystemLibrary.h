@@ -162,6 +162,10 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Utilities|Platform")
 	static FString GetPlatformUserName();
 
+	/** Get the current user dir from the OS */
+	UFUNCTION(BlueprintPure, Category = "Utilities|Platform")
+	static FString GetPlatformUserDir();
+
 	UFUNCTION(BlueprintPure, Category="Utilities")
 	static bool DoesImplementInterface(UObject* TestObject, TSubclassOf<UInterface> Interface);
 

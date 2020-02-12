@@ -137,9 +137,5 @@ public class libOpus : ModuleRules
             PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
             PublicAdditionalLibraries.Add(LibraryPath + "speex_resampler.lib");
         }
-        else if (Target.Platform == UnrealTargetPlatform.Switch)
-        {
-            PublicAdditionalLibraries.Add(LibraryPath +  "Switch/libOpus-1.1/NX64/Release/" + "libOpus-1.1.a");
-        }
     }
 }

@@ -307,6 +307,11 @@ public:
 
 		// Requires MSL 2.1, use the native support for texel buffers.
 		bool texture_buffer_native = false;
+		
+		// Adds a specific dimension in the range [1, 4] to a subpass input attachment that will be other than a 4D vector.
+		// The base type will remain, i.e. the default is float4 or half4.
+		// Key: binding, Value: Dimension.
+		std::map<uint32_t, int> subpass_input_dimensions;
 
 		bool is_ios()
 		{

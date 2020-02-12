@@ -201,54 +201,14 @@ static void PlatformCreateDummyGLWindow(FPlatformOpenGLContext* OutContext)
 }
 
 /**
- * Determine OpenGL Context version based on command line arguments
+ * Set OpenGL Context version to fixed version
  */
 
-static bool PlatformOpenGL3()
+static void GetOpenGLVersionForCoreProfile(int& OutMajorVersion, int& OutMinorVersion)
 {
-	// OpenGL3 is our default platform for Windows XP
-#if (WINVER < 0x0600)
-	return true;
-#else
-	return FParse::Param(FCommandLine::Get(),TEXT("opengl3"));
-#endif
-}
-
-static bool PlatformOpenGL4()
-{
-	return FParse::Param(FCommandLine::Get(), TEXT("opengl")) || FParse::Param(FCommandLine::Get(),TEXT("opengl4"));
-}
-
-static void PlatformOpenGLVersionFromCommandLine(int& OutMajorVersion, int& OutMinorVersion)
-{
-	bool bGL3 = PlatformOpenGL3();
-	bool bGL4 = PlatformOpenGL4();
-	if (!bGL3 && !bGL4)
-	{
-		if (GRequestedFeatureLevel >= ERHIFeatureLevel::SM5)
-		{
-			bGL4 = true;
-		}
-		else
-		{
-			bGL3 = true;
-		}
-	}
-
-	if (bGL3)
-	{
-		OutMajorVersion = 3;
-		OutMinorVersion = 2;
-	}
-	else if (bGL4)
-	{
-		OutMajorVersion = 4;
-		OutMinorVersion = 3;
-	}
-	else
-	{
-		verifyf(false, TEXT("OpenGLRHI initialized with invalid command line, must be one of: -opengl, -opengl3, -opengl4"));
-	}
+	// Always initialize GL context with version 4.3, it's the only GL desktop version we support now
+	OutMajorVersion = 4;
+	OutMinorVersion = 3;
 }
 
 /**
@@ -329,7 +289,7 @@ struct FPlatformOpenGLDevice
 
 		int MajorVersion = 0;
 		int MinorVersion = 0;
-		PlatformOpenGLVersionFromCommandLine(MajorVersion, MinorVersion);
+		GetOpenGLVersionForCoreProfile(MajorVersion, MinorVersion);
 	
 		// Need to call this before we set the debug callback, otherwise if we're not running under RD, the debug extension will assert (invalid enum)
 		GRunningUnderRenderDoc = glIsEnabled(GL_DEBUG_TOOL_EXT) != GL_FALSE;
@@ -408,7 +368,7 @@ FPlatformOpenGLContext* PlatformCreateOpenGLContext(FPlatformOpenGLDevice* Devic
 
 	int MajorVersion = 0;
 	int MinorVersion = 0;
-	PlatformOpenGLVersionFromCommandLine(MajorVersion, MinorVersion);
+	GetOpenGLVersionForCoreProfile(MajorVersion, MinorVersion);
 
 	PlatformCreateOpenGLContextCore(Context, MajorVersion, MinorVersion, Device->SharedContext.OpenGLContext);	
 	check(Context->OpenGLContext);
@@ -832,7 +792,7 @@ bool PlatformInitOpenGL()
 
 			ContextMakeCurrent(NULL,NULL);
 			wglDeleteContext(DummyContext.OpenGLContext);
-			PlatformOpenGLVersionFromCommandLine(MajorVersion, MinorVersion);
+			GetOpenGLVersionForCoreProfile(MajorVersion, MinorVersion);
 			PlatformCreateOpenGLContextCore(&DummyContext, MajorVersion, MinorVersion, NULL);	
 			if (DummyContext.OpenGLContext)
 			{

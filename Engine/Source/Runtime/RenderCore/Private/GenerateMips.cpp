@@ -62,7 +62,7 @@ class FMipsShadersVS : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	FMipsShadersVS() { }
@@ -89,7 +89,7 @@ class FMipsShadersPS : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	FMipsShadersPS() { }
@@ -292,13 +292,12 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 	//Select compute shader variant (normal vs. sRGB etc.)
 #if PLATFORM_ANDROID
 	const bool bIsUsingVulkan = FAndroidMisc::ShouldUseVulkan();
-	const bool bCanDoSRGB = (GMaxRHIFeatureLevel > ERHIFeatureLevel::ES2);
 #else
 	const bool bIsUsingVulkan = false;
-	const bool bCanDoSRGB = true;
 #endif
+
 	FGenerateMipsCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FGenerateMipsCS::FGenMipsSRGB>(!!(InTexture->GetFlags() & TexCreate_SRGB) && bCanDoSRGB);
+	PermutationVector.Set<FGenerateMipsCS::FGenMipsSRGB>(!!(InTexture->GetFlags() & TexCreate_SRGB));
 	// TEMP: On Vulkan we experience RGB being swizzled around, this little switch here circumvents the issue
 	PermutationVector.Set<FGenerateMipsCS::FGenMipsSwizzle>(bIsUsingVulkan);
 	TShaderMapRef<FGenerateMipsCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);

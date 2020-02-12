@@ -131,6 +131,8 @@ extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithUAV;
 
 extern RENDERCORE_API class FVertexBufferWithSRV* GEmptyVertexBufferWithUAV;
 
+extern RENDERCORE_API class FVertexBufferWithSRV* GWhiteVertexBufferWithSRV;
+
 /** A global black array texture. */
 extern RENDERCORE_API class FTexture* GBlackArrayTexture;
 
@@ -506,6 +508,22 @@ inline bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform)
 {
 	extern RENDERCORE_API uint64 GBasePassVelocityPlatformMask;
 	return !!(GBasePassVelocityPlatformMask & (1ull << Platform));
+}
+
+inline bool IsUsingAnisotropicBRDF(EShaderPlatform Platform)
+{
+	extern RENDERCORE_API uint64 GAnisotropicBRDFPlatformMask;
+	return (!!(GAnisotropicBRDFPlatformMask & (1ull << Platform)));
+}
+
+inline bool BasePassCanOutputTangent(EShaderPlatform Platform)
+{
+	return IsUsingAnisotropicBRDF(Platform) && !IsUsingBasePassVelocity(Platform);
+}
+
+inline bool BasePassCanOutputTangent(ERHIFeatureLevel::Type FeatureLevel)
+{
+	return BasePassCanOutputTangent(GetFeatureLevelShaderPlatform(FeatureLevel));
 }
 
 /** Returns whether the base pass should use selective outputs for a given shader platform */

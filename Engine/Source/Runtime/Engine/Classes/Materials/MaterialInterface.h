@@ -201,7 +201,7 @@ private:
 };
 
 UCLASS(abstract, BlueprintType, MinimalAPI, HideCategories = (Thumbnail))
-class ENGINE_VTABLE UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
+class UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 

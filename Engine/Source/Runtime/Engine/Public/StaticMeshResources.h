@@ -335,10 +335,8 @@ struct FStaticMeshLODResources
 
 	FAdditionalStaticMeshIndexBuffers* AdditionalIndexBuffers;
 
-#if RHI_RAYTRACING
-	/** Geometry for ray tracing. */
+	/** Resources used for ray tracing */
 	FRayTracingGeometry RayTracingGeometry;
-#endif // RHI_RAYTRACING
 
 	/** Sections for this LOD. */
 	using FStaticMeshSectionArray = TArray<FStaticMeshSection, TInlineAllocator<1>>;
@@ -365,6 +363,9 @@ struct FStaticMeshLODResources
 	uint32 bHasColorVertexData : 1;
 
 	uint32 bHasWireframeIndices : 1;
+
+	/** True if the ray tracing resources struct contained data at init. */
+	uint32 bHasRayTracingGeometry : 1;
 
 	/** True if vertex and index data are serialized inline */
 	uint32 bBuffersInlined : 1;
@@ -427,6 +428,7 @@ private:
 		CDSF_AdjacencyData = 1,
 		CDSF_MinLodData = 2,
 		CDSF_ReversedIndexBuffer = 4,
+		CDSF_RayTracingResources = 8
 	};
 
 	/**
@@ -474,6 +476,9 @@ private:
 	/** Compute the size of IndexBuffer and add the result to OutSize */
 	static void AccumIndexBufferSize(const FRawStaticIndexBuffer& IndexBuffer, uint32& OutSize);
 
+	/** Compute the size of RayTracingGeometry and add the result to OutSize */
+	static void AccumRayTracingGeometrySize(const FRayTracingGeometry& RayTracingGeometry, uint32& OutSize);
+
 	/**
 	 * Serialize vertex and index buffer data for this LOD
 	 * OutBuffersSize - Size of all serialized data in bytes
@@ -493,8 +498,6 @@ private:
 
 	template <bool bIncrement>
 	void UpdateVertexMemoryStats() const;
-
-	void ConditionalForce16BitIndexBuffer(EShaderPlatform MaxShaderPlatform, UStaticMesh* Parent);
 
 	void IncrementMemoryStats();
 
@@ -608,7 +611,7 @@ public:
 	 * Cache derived renderable data for the static mesh with the provided
 	 * level of detail settings.
 	 */
-	ENGINE_API void Cache(UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings);
+	ENGINE_API void Cache(const ITargetPlatform* TargetPlatform, UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings);
 #endif // #if WITH_EDITORONLY_DATA
 
 	/** Serialization. */

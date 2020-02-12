@@ -103,20 +103,6 @@ static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShader
 	}
 	break;
 
-	case SP_OPENGL_ES2_ANDROID:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Android_ES2_loc", "Android ES2");
-		return Description;
-	}
-	break;
-
-	case SP_OPENGL_ES2_WEBGL:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "WebGL_ES2_loc", "WebGL ES2");
-		return Description;
-	}
-	break;
-
 	default:
 		break;
 	};

@@ -2668,7 +2668,7 @@ TArray<FString> GetDeprecatedFieldPythonNamesImpl(const FFieldVariant& InField, 
 			FieldName.RemoveAt(0, 1, /*bAllowShrinking*/false);
 		}
 
-		FieldNames.Add(MoveTemp(FieldName));
+		FieldNames.AddUnique(MoveTemp(FieldName));
 	}
 
 	return FieldNames;

@@ -108,19 +108,9 @@ float CalcSceneDepth(float2 ScreenUV)
 		// instead fetch depth from SceneColor.A 
 		return Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, ScreenUV).a;
 	#else
-		#if COMPILER_GLSL_ES2
-			#if IOS
-				// Only call FramebufferFetch when actually compiling for IOS ES2.
-				return FramebufferFetchES2().w;
-			#elif WEBGL
-				return Texture2DSampleLevel(MobileSceneTextures.SceneAlphaCopyTexture, MobileSceneTextures.SceneAlphaCopyTextureSampler, ScreenUV, 0).r;
-			#else 
-				float SceneW = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV, 0).r);		
-				return DepthbufferFetchES2(SceneW, View.InvDeviceZToWorldZTransform[2], View.InvDeviceZToWorldZTransform[3]);
-			#endif 
-		#elif METAL_PROFILE && !MAC
+		#if METAL_PROFILE && !MAC
 			#if PIXELSHADER
-				return FramebufferFetchES2().w;
+				return DepthbufferFetchES2();
 			#else
 				return ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV, 0).r);
 			#endif
@@ -153,7 +143,7 @@ float LookupDeviceZ( float2 ScreenUV )
 #elif POST_PROCESS_MATERIAL
 	// SceneDepth texture is not accessible during post-processing, CalcSceneDepth will do the right thing
 	return ConvertToDeviceZ(CalcSceneDepth(ScreenUV));
-#elif COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1
+#elif COMPILER_GLSL_ES3_1
 	// todo: can be optimized
 	return ConvertToDeviceZ(CalcSceneDepth(ScreenUV));
 #elif VULKAN_SUBPASS_DEPTHFETCH

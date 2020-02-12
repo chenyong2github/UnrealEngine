@@ -47,8 +47,7 @@ public class Core : ModuleRules
 			DynamicallyLoadedModuleNames.Add("DirectoryWatcher");
 		}
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"zlib");
@@ -61,7 +60,7 @@ public class Core : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"mimalloc");
 
-			if(Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.bUseBundledDbgHelp)
+			if(Target.Platform != UnrealTargetPlatform.Win32 && Target.WindowsPlatform.bUseBundledDbgHelp)
 			{
 				PublicDelayLoadDLLs.Add("DBGHELP.DLL");
 				PrivateDefinitions.Add("USE_BUNDLED_DBGHELP=1");
@@ -71,6 +70,7 @@ public class Core : ModuleRules
 			{
 				PrivateDefinitions.Add("USE_BUNDLED_DBGHELP=0");
 			}
+			PrivateDefinitions.Add("YIELD_BETWEEN_TASKS=1");
 		}
 		else if ((Target.Platform == UnrealTargetPlatform.HoloLens))
 		{
@@ -159,10 +159,10 @@ public class Core : ModuleRules
 
 		
 		// On Windows platform, VSPerfExternalProfiler.cpp needs access to "VSPerf.h".  This header is included with Visual Studio, but it's not in a standard include path.
-		if( Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 )
+		if(Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			var VisualStudioVersionNumber = "11.0";
-			var SubFolderName = ( Target.Platform == UnrealTargetPlatform.Win64 ) ? "x64/PerfSDK" : "PerfSDK";
+			var SubFolderName = ( Target.Platform == UnrealTargetPlatform.Win32 ) ? "PerfSDK" : "x64/PerfSDK";
 
 			string PerfIncludeDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), String.Format("Microsoft Visual Studio {0}/Team Tools/Performance Tools/{1}", VisualStudioVersionNumber, SubFolderName));
 
@@ -184,8 +184,7 @@ public class Core : ModuleRules
 
 		WhitelistRestrictedFolders.Add("Private/NoRedist");
 
-        if (Target.Platform == UnrealTargetPlatform.XboxOne ||
-            (Target.bWithDirectXMath && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)))
+        if (Target.bWithDirectXMath && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))
         {
             PublicDefinitions.Add("WITH_DIRECTXMATH=1");
         }

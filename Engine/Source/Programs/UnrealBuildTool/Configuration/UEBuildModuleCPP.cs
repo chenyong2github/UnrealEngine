@@ -965,7 +965,6 @@ namespace UnrealBuildTool
 						{
 							// Remove the module _API definition for cases where there are circular dependencies between the shared PCH module and modules using it
 							Writer.WriteLine("#undef {0}", ModuleApiDefine);
-							Writer.WriteLine("#undef {0}", ModuleVTableDefine);
 
 							// Games may choose to use shared PCHs from the engine, so allow them to change the value of these macros
 							if(!Rules.bTreatAsEngineModule)
@@ -1158,8 +1157,7 @@ namespace UnrealBuildTool
 				case "VulkanRHI":
 				case "OpenGLDrv":
 				case "MetalRHI":
-				case "PS4RHI":
-                case "Gnmx":
+				case "Gnmx":
 					return true;
 			}
 			return false;

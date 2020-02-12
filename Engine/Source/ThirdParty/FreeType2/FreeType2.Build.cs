@@ -167,13 +167,5 @@ public class FreeType2 : ModuleRules
 				PublicAdditionalLibraries.Add(LibPath);
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			LibPath = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT
-				? "Debug"
-				: "Release";
-
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Switch", LibPath, "libFreetype.a"));
-		}
 	}
 }

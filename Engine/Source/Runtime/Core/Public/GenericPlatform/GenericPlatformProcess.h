@@ -37,6 +37,12 @@ namespace ELaunchVerb
 	};
 }
 
+/** Forward declaration for ENamedThreads */
+namespace ENamedThreads
+{
+	enum Type : int32;
+}
+
 
 /** Generic implementation for the process handle. */
 template< typename T, T InvalidHandleValue >
@@ -641,6 +647,17 @@ struct CORE_API FGenericPlatformProcess
 	 * force skip calling FThreadStats::WaitForStats()
 	 */
 	static bool SkipWaitForStats() { return false; }
+
+	/**
+	 * specifies the thread to use for UObject reference collection
+	 */
+	static ENamedThreads::Type GetDesiredThreadForUObjectReferenceCollector();
+
+	/**
+	 * allows a platform to override the threading configuration for reference collection
+	 */
+	static void ModifyThreadAssignmentForUObjectReferenceCollector( int32& NumThreads, int32& NumBackgroundThreads, ENamedThreads::Type& NormalThreadName, ENamedThreads::Type& BackgroundThreadName );
+
 };
 
 

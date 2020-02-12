@@ -331,21 +331,7 @@ void FMeshParticleVertexFactory::SetData(const FDataType& InData)
 	UpdateRHI();
 }
 
-bool FMeshParticleVertexFactoryEmulatedInstancing::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
-{
-	return (Parameters.Platform == SP_OPENGL_ES2_ANDROID) // Android platforms that might not support hardware instancing
-		&& FMeshParticleVertexFactory::ShouldCompilePermutation(Parameters);
-}
-
-void FMeshParticleVertexFactoryEmulatedInstancing::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-{
-	FMeshParticleVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_INSTANCED"), TEXT("0"));
-}
-
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FMeshParticleVertexFactory, SF_Vertex, FMeshParticleVertexFactoryShaderParameters);
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FMeshParticleVertexFactoryEmulatedInstancing, SF_Vertex, FMeshParticleVertexFactoryShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactory,"/Engine/Private/MeshParticleVertexFactory.ush",true,false,true,false,false);
-IMPLEMENT_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactoryEmulatedInstancing,"/Engine/Private/MeshParticleVertexFactory.ush",true,false,true,false,false);
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMeshParticleUniformParameters,"MeshParticleVF");

@@ -28,17 +28,17 @@ namespace UnrealBuildTool
 
 		public static readonly string[] AllGpuSuffixes =
 		{
-			"-es2",
+			"",
 		};
 
 		// sh0rt names for the above suffixes
 		public static readonly Dictionary<string, string> ShortArchNames = new Dictionary<string, string>()
 		{
+			{ "", "" },
 			{ "-armv7", "a7" },
 			{ "-arm64", "a8" },
 			{ "-x86", "x3" },
 			{ "-x64", "x6" },
-			{ "-es2", "" }, // since there's only one gpu arch now, we can strip it
 			//LUMIN_MERGE
 			{ "-lumingl4", "" },
 			{ "-lumin", "" }
@@ -415,17 +415,9 @@ namespace UnrealBuildTool
 				Arches.Add("-armv7");
 			}
 
-			// Parse selected GPU architectures
+			// For android just set the GPUArchitecture to an empty string
 			GPUArchitectures = new List<string>();
-			if (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForES2", out bBuild) && bBuild
-				|| (AdditionalGPUArches != null && AdditionalGPUArches.Contains("es2", StringComparer.OrdinalIgnoreCase)))
-			{
-				GPUArchitectures.Add("-es2");
-			}
-			if (GPUArchitectures.Count == 0)
-			{
-				GPUArchitectures.Add("-es2");
-			}
+			GPUArchitectures.Add("");
 
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bUseNEONForArmV7", out bUseNEONForArmV7);
 
@@ -434,24 +426,11 @@ namespace UnrealBuildTool
 							 select Arch + GPUArch).ToList();
 		}
 
-		static public string GetGLESVersionFromGPUArch(string GPUArch, bool bES30Minimum, bool bBuildForES2, bool bBuildForES31)
+		static public string GetGLESVersion(bool bBuildForES31)
 		{
-			GPUArch = GPUArch.Substring(1); // drop the '-' from the start
-			string GLESversion = "";
-			switch (GPUArch)
-			{
-				case "es2":
-					GLESversion = "0x00020000";
-					break;
-				default:
-					GLESversion = "0x00020000";
-					break;
-			}
-			if (bES30Minimum && (GLESversion[6] < '3'))
-			{
-				GLESversion = "0x00030000";
-			}
-			if (!bBuildForES2 && bBuildForES31)
+			string GLESversion = "0x00030000";
+
+			if (bBuildForES31)
 			{
 				GLESversion = "0x00030001";
 			}
@@ -626,6 +605,7 @@ namespace UnrealBuildTool
 			Result += " -Wno-logical-op-parentheses";   // needed for external headers we can't change
 			if (BuildWithHiddenSymbolVisibility(CompileEnvironment))
 			{
+				// Result += " -fvisibility-ms-compat -fvisibility-inlines-hidden"; // This hides all symbols by default but exports all type info (vtable/rtti) for a non-monolithic setup
 				Result += " -fvisibility=hidden -fvisibility-inlines-hidden"; // Symbols default to hidden.
 			}
 
@@ -1499,7 +1479,7 @@ namespace UnrealBuildTool
 						if (SourceFile.AbsolutePath.Equals(NativeGluePath))
 						{
 							// Remove visibility settings for android native glue. Since it doesn't decorate with visibility attributes.
-							AllArguments = AllArguments.Replace("-fvisibility=hidden -fvisibility-inlines-hidden", "");
+							AllArguments = AllArguments.Replace("-fvisibility-ms-compat -fvisibility-inlines-hidden", "");
 						}
 
 						AllArguments = Utils.ExpandVariables(AllArguments);
@@ -1531,7 +1511,15 @@ namespace UnrealBuildTool
 							CompileAction.CommandArguments = ResponseArgument;
 						}
 						CompileAction.PrerequisiteItems.Add(ResponseFileItem);
-						CompileAction.StatusDescription = string.Format("{0} [{1}-{2}]", Path.GetFileName(SourceFile.AbsolutePath), Arch.Replace("-", ""), GPUArchitecture.Replace("-", ""));
+
+						if (GPUArchitecture.Length > 0)
+						{
+							CompileAction.StatusDescription = string.Format("{0} [{1}-{2}]", Path.GetFileName(SourceFile.AbsolutePath), Arch.Replace("-", ""), GPUArchitecture.Replace("-", ""));
+						}
+						else
+						{
+							CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(SourceFile.AbsolutePath), Arch.Replace("-", ""));
+						}
 
 						// VC++ always outputs the source file name being compiled, so we don't need to emit this ourselves
 						CompileAction.bShouldOutputStatusDescription = true;
@@ -1900,7 +1888,15 @@ namespace UnrealBuildTool
 
 						// Add the source file and its included files to the prerequisite item list.
 						CompileAction.PrerequisiteItems.Add(ISPCFile);
-						CompileAction.StatusDescription = string.Format("{0} [{1}-{2}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""), GPUArchitecture.Replace("-", ""));
+
+						if (GPUArchitecture.Length > 0)
+						{
+							CompileAction.StatusDescription = string.Format("{0} [{1}-{2}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""), GPUArchitecture.Replace("-", ""));
+						}
+						else
+						{
+							CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(ISPCFile.AbsolutePath), Arch.Replace("-", ""));
+						}
 
 						Actions.Add(CompileAction);
 

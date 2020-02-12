@@ -21,6 +21,12 @@ void UARBasicLightEstimate::SetLightEstimate(FVector InRGBScaleFactor, float InP
 	// TODO: Try to convert ambient color to color tempature?
 }
 
+void UARBasicLightEstimate::SetLightEstimate(float InColorTemperatureKelvin, FLinearColor InAmbientColor)
+{
+	AmbientColorTemperatureKelvin = InColorTemperatureKelvin;
+	AmbientColor = InAmbientColor;
+}
+
 float UARBasicLightEstimate::GetAmbientIntensityLumens() const
 {
 	return AmbientIntensityLumens;

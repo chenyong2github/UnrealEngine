@@ -12,3 +12,7 @@
 ..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\Lib\x64\MixedRealityInteropHoloLens.lib
 ..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\Lib\x64\MixedRealityInteropHoloLens.pri
 ..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\Lib\x64\MixedRealityInteropHoloLensDebug.lib
+..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\Lib\arm64\Microsoft.Azure.SpatialAnchors.dll
+..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\Lib\arm64\Microsoft.Azure.SpatialAnchors.winmd
+..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\Lib\x64\Microsoft.Azure.SpatialAnchors.dll
+..\..\..\..\Engine\Source\ThirdParty\WindowsMixedRealityInterop\Lib\x64\Microsoft.Azure.SpatialAnchors.winmd

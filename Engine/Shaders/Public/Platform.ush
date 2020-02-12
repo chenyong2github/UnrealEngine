@@ -9,26 +9,24 @@
 #include "FP16Math.ush"
 
 // Values of FEATURE_LEVEL.
-#define FEATURE_LEVEL_ES2	1
-#define FEATURE_LEVEL_ES3_1	2
-#define FEATURE_LEVEL_SM3	3
-#define FEATURE_LEVEL_SM4	4
-#define FEATURE_LEVEL_SM5	5
-#define FEATURE_LEVEL_MAX	6
+#define FEATURE_LEVEL_ES2_REMOVED	1
+#define FEATURE_LEVEL_ES3_1			2
+#define FEATURE_LEVEL_SM3			3
+#define FEATURE_LEVEL_SM4			4
+#define FEATURE_LEVEL_SM5			5
+#define FEATURE_LEVEL_MAX			6
 
 // ---------------------------------------------------- Profile or compiler specific includes
 // TODO: Have shader compiler including these platform specific USF files, that needs to work
 // with ShaderCore.cpp's GetShaderIncludes().
 
-#ifdef PLATFORM_COMMON_USH
-	#include PLATFORM_COMMON_USH
+#ifdef OVERRIDE_PLATFORMCOMMON_USH
+	#include "/Platform/Public/PlatformCommon.ush"
 #elif PS4_PROFILE  
 	// always #include PS4Common.usf so it can #define override anything in any other included file.
 	#include "Platform/PS4/PS4Common.ush"
 #elif XBOXONE_PROFILE
 	#include "Platform/XboxOne/XboxOneCommon.ush"
-#elif SWITCH_PROFILE || SWITCH_PROFILE_FORWARD
-	#include "Platform/Switch/SwitchCommon.ush"
 #elif COMPILER_METAL
 	// Helps with iteration when changing Metal shader code generation backend.
 	#include "Platform/Metal/MetalCommon.ush"
@@ -38,7 +36,6 @@
 #elif SM5_PROFILE || SM4_PROFILE
 	#include "Platform/D3D/D3DCommon.ush"
 #endif
-// @todo platplug: Inject a platform's XXXCommon.ush externally, somehow
 
 
 // ---------------------------------------------------- DDC invalidation
@@ -58,10 +55,6 @@
 
 #ifndef COMPILER_GLSL
 #define COMPILER_GLSL 0
-#endif
-
-#ifndef COMPILER_GLSL_ES2
-#define COMPILER_GLSL_ES2 0
 #endif
 
 #ifndef COMPILER_GLSL_ES3_1
@@ -84,6 +77,10 @@
 #define COMPILER_SUPPORTS_QUAD_PASS 0
 #endif
 
+#ifndef COMPILER_SUPPORTS_PRIMITIVE_SHADERS
+#define COMPILER_SUPPORTS_PRIMITIVE_SHADERS 0
+#endif
+
 #ifndef PLATFORM_SUPPORTS_SRV_UB
 #define PLATFORM_SUPPORTS_SRV_UB 0
 #endif
@@ -98,10 +95,6 @@
 
 #ifndef OPENGL_PROFILE
 #define OPENGL_PROFILE 0
-#endif
-
-#ifndef ES2_PROFILE
-#define ES2_PROFILE 0
 #endif
 
 #ifndef ES3_1_PROFILE
@@ -149,7 +142,7 @@
 #endif
 
 // 'static' asserts
-#if COMPILER_GLSL || COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || COMPILER_VULKAN || COMPILER_METAL
+#if COMPILER_GLSL || COMPILER_GLSL_ES3_1 || COMPILER_VULKAN || COMPILER_METAL
 #if !COMPILER_HLSLCC
 #error "Missing COMPILER_HLSLCC define!"
 #endif
@@ -176,14 +169,20 @@
 #define COMPILER_SUPPORTS_PACK_INTRINSICS 0
 #endif
 
+#ifndef COMPILER_SUPPORTS_WAVE_32_64_MODE
+#define COMPILER_SUPPORTS_WAVE_32_64_MODE 0
+#define COMPILE_MODE_WAVE_32
+#define COMPILE_MODE_WAVE_64
+#endif
+
 // ---------------------------------------------------- Alternative floating point types
 
 #ifndef FORCE_FLOATS
 #define FORCE_FLOATS 0
 #endif
 
-#if (!(COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || METAL_PROFILE) || FORCE_FLOATS)
-	// Always use floats when not using the ES2 compiler, because low precision modifiers are currently only tweaked for ES2, 
+#if (!(COMPILER_GLSL_ES3_1 || METAL_PROFILE) || FORCE_FLOATS)
+	// Always use floats when using the ES3/METAL compiler, because platforms not optimized for lower precision, 
 	// And we don't want potential side effects on other platforms
 	#define half float
 	#define half1 float1
@@ -281,16 +280,10 @@
 	#define FMANUALFETCH_COLOR_COMPONENT_SWIZZLE .bgra
 	#define STENCIL_COMPONENT_SWIZZLE .x
 
-#elif ES2_PROFILE || ES3_1_PROFILE
-	#if ES3_1_PROFILE
-		#define FEATURE_LEVEL FEATURE_LEVEL_ES3_1
-	#else
-		//@todo ES3_1 GL
-		#define FEATURE_LEVEL FEATURE_LEVEL_ES2
-	#endif
-
-	#if COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1
-		// Swizzle as we only support GL_BGRA on non-ES2 platforms that have that extension
+#elif ES3_1_PROFILE
+	#define FEATURE_LEVEL FEATURE_LEVEL_ES3_1
+	
+	#if COMPILER_GLSL_ES3_1
 		#define FCOLOR_COMPONENT_SWIZZLE .bgra  
 		#define FMANUALFETCH_COLOR_COMPONENT_SWIZZLE .bgra
 	#else 
@@ -346,7 +339,7 @@
 #endif
 
 #ifndef MOBILE_EMULATION
-#define MOBILE_EMULATION ((FEATURE_LEVEL == FEATURE_LEVEL_ES2 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && (!(COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES2) && USE_DEVELOPMENT_SHADERS && (!(METAL_PROFILE) || MAC) && !VULKAN_PROFILE))
+#define MOBILE_EMULATION ((FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && (!(COMPILER_GLSL_ES3_1) && USE_DEVELOPMENT_SHADERS && (!(METAL_PROFILE) || MAC) && !VULKAN_PROFILE))
 #endif
 
 // Whether the platform supports independent texture and samplers
@@ -423,6 +416,11 @@
 //	float WaveLaneSwizzleGCN(float x, const uint and_mask, const uint or_mask, const uint xor_mask)
 #ifndef COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN
 #define COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN 0
+#endif
+
+// Mirrors GRHISupportsPrimitiveShaders.
+#ifndef COMPILER_SUPPORTS_PRIMITIVE_SHADERS
+#define COMPILER_SUPPORTS_PRIMITIVE_SHADERS 0
 #endif
 
 // Mirrors GRHISupportsRectTopology.
@@ -575,7 +573,7 @@
 
 // ---------------------------------------------------- Compiler missing implementations
 
-#if COMPILER_GLSL_ES2 || COMPILER_SWITCH
+#if COMPILER_SWITCH
 
 	float determinant(float3x3 M)
 	{

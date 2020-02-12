@@ -59,7 +59,37 @@ float3 ContrastAndNormalizeMulAdd;
 float OcclusionExponent;
 float OcclusionCombineMode;
 
-float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 BufferUV, float2 ScreenPosition, float3 BentNormal)
+void RemapClearCoatDiffuseAndSpecularColor(FGBufferData GBuffer, float2 ScreenPosition, inout float3 DiffuseColor, inout float3 SpecularColor)
+{
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		// Attenuate base color and recompute diffuse color
+		float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
+		float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
+		float3 V = -CameraToPixel;
+		float NoV = saturate(dot(GBuffer.WorldNormal, V));
+		float RefractionScale = ((NoV * 0.5 + 0.5) * NoV - 1) * saturate(1.25 - 1.25 * GBuffer.Roughness) + 1;
+
+		float MetalSpec = 0.9;
+		float3 AbsorptionColor = GBuffer.BaseColor * (1 / MetalSpec);
+		float3 Absorption = AbsorptionColor * ((NoV - 1) * 0.85 * (1 - lerp(AbsorptionColor, Square(AbsorptionColor), -0.78)) + 1);
+
+		float F0 = 0.04;
+		float Fc = Pow5(1 - NoV);
+		float F = Fc + (1 - Fc) * F0;
+		float ClearCoat = GBuffer.CustomData.x;
+		float LayerAttenuation = lerp(1, (1 - F), ClearCoat);
+
+		float3 BaseColor = lerp(GBuffer.BaseColor * LayerAttenuation, MetalSpec * Absorption * RefractionScale, GBuffer.Metallic * ClearCoat);
+		//BaseColor += Dither / 255.f;
+		DiffuseColor = BaseColor - BaseColor * GBuffer.Metallic;
+
+		float3 Specular = lerp(1, RefractionScale, ClearCoat);
+		SpecularColor = ComputeF0(Specular, BaseColor, GBuffer.Metallic);
+	}
+}
+
+float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 BufferUV, float2 ScreenPosition, float3 BentNormal, float3 DiffuseColor)
 {
 	float2 UV = BufferUV;
 	float3 Lighting = 0;
@@ -121,8 +151,6 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 
 	float ScalarFactors = SkyVisibility;
 
-	float3 DiffuseColor = GBuffer.DiffuseColor;
-
 	BRANCH
 	if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 	{
@@ -179,7 +207,7 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 	return Lighting;
 }
 
-float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float2 BufferUV, float2 ScreenPosition, float4 SvPosition, float3 BentNormal)
+float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float2 BufferUV, float2 ScreenPosition, float4 SvPosition, float3 BentNormal, float3 SpecularColor)
 {
 #if USE_PREEXPOSURE
 	const float PreExposure = View.PreExposure;
@@ -203,9 +231,13 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 	}
 #endif
 
-
 	float3 N = GBuffer.WorldNormal;
 	float3 V = -CameraToPixel;
+
+#if GBUFFER_HAS_TANGENT
+	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, N, V);
+#endif
+
 	float3 R = 2 * dot( V, N ) * N - V;
 	float NoV = saturate( dot( N, V ) );
 
@@ -267,7 +299,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 
 		// TODO EnvBRDF should have a mask param
 		float2 AB = PreIntegratedGF.SampleLevel( PreIntegratedGFSampler, float2( NoV, GBuffer.Roughness ), 0 ).rg;
-		Color.rgb *= GBuffer.SpecularColor * AB.x + AB.y * saturate( 50 * GBuffer.SpecularColor.g ) * (1 - ClearCoat);
+		Color.rgb *= SpecularColor * AB.x + AB.y * saturate( 50 * SpecularColor.g ) * (1 - ClearCoat);
 		
 		// F_Schlick
 		float F = EnvBRDF( 0.04, ClearCoatRoughness, NoV ).x;
@@ -294,7 +326,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 	}
 	else
 	{
-		Color.rgb *= EnvBRDF( GBuffer.SpecularColor, GBuffer.Roughness, NoV );
+		Color.rgb *= EnvBRDF( SpecularColor, GBuffer.Roughness, NoV );
 	}
 
 	// Transform NaNs to black, transform negative colors to black.
@@ -310,6 +342,10 @@ void ReflectionEnvironmentSkyLighting(
 
 	// Sample scene textures.
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+
+	float3 DiffuseColor = GBuffer.DiffuseColor;
+	float3 SpecularColor = GBuffer.SpecularColor;
+	RemapClearCoatDiffuseAndSpecularColor(GBuffer, ScreenPosition, DiffuseColor, SpecularColor);
 
 	// Sample the ambient occlusion that is dynamically generated every frame.
 	float AmbientOcclusion = AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, BufferUV, 0).r;
@@ -329,7 +365,7 @@ void ReflectionEnvironmentSkyLighting(
 	// Only light pixels marked as lit
 	if (ShadingModelID != SHADINGMODELID_UNLIT)
 	{
-		float3 SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal);
+		float3 SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
 
 		// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
 		FLightAccumulator LightAccumulator = (FLightAccumulator)0;
@@ -344,7 +380,7 @@ void ReflectionEnvironmentSkyLighting(
 	BRANCH
 	if (ShadingModelID != SHADINGMODELID_UNLIT && ShadingModelID != SHADINGMODELID_HAIR)
 	{
-		OutColor.xyz += ReflectionEnvironment(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, SvPosition, BentNormal);
+		OutColor.xyz += ReflectionEnvironment(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, SvPosition, BentNormal, SpecularColor);
 	}
 }
 

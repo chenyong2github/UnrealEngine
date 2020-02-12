@@ -100,6 +100,8 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
+#include "ThinTranslucentCommon.ush"
+
 #if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #include "ForwardLightingCommon.ush"
 #endif
@@ -777,10 +779,15 @@ void FPixelShaderInOut_MainPS(
 
 	// Velocity
 	float4 OutVelocity = 0;
+	
 	// CustomData
 	float4 OutGBufferD = 0;
+	
 	// PreShadowFactor
 	float4 OutGBufferE = 0;
+	
+	// Wolrd Space Tangent 
+	float4 OutGBufferF = 0;
 
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, In.SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
@@ -853,7 +860,16 @@ void FPixelShaderInOut_MainPS(
 
 	float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	float Roughness = GetMaterialRoughness(PixelMaterialInputs);
+	float Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
 	uint ShadingModel = GetMaterialShadingModel(PixelMaterialInputs);
+
+	half Opacity = GetMaterialOpacity(PixelMaterialInputs);
+
+// Opacity for this model is the coverage of the top layer over the transmission surface. Since the
+// underlying material isn't allowed to be metallic, we are scaling the metallic value by the coverage.
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	Metallic *= Opacity;
+#endif
 
 	// 0..1, SubsurfaceProfileId = int(x * 255)
 	float SubsurfaceProfile = 0;
@@ -915,7 +931,6 @@ void FPixelShaderInOut_MainPS(
 		}
 #endif
 
-	half Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	const float BaseMaterialCoverageOverWater = Opacity;
 	const float WaterVisibility = 1.0 - BaseMaterialCoverageOverWater;
 
@@ -942,10 +957,12 @@ void FPixelShaderInOut_MainPS(
 		Metallic,
 		Specular,
 		Roughness,
+		Anisotropy,
 		SubsurfaceColor,
 		SubsurfaceProfile,
 		GBufferDither,
-ShadingModel);
+		ShadingModel
+		);
 
 #if USES_GBUFFER
 	GBuffer.SelectiveOutputMask = GetSelectiveOutputMask();
@@ -954,7 +971,7 @@ ShadingModel);
 
 #if WRITES_VELOCITY_TO_GBUFFER
 	BRANCH
-	if (GetPrimitiveData(MaterialParameters.PrimitiveId).OutputVelocity>0)
+	if (GetPrimitiveData(MaterialParameters.PrimitiveId).OutputVelocity > 0)
 	{
 		// 2d velocity, includes camera an object motion
 	#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
@@ -1040,6 +1057,9 @@ ShadingModel);
 	half3 Color = 0;
 	float IndirectIrradiance = 0;
 
+	half3 ColorSeparateSpecular = 0;
+	half3 ColorSeparateEmissive = 0;
+
 	#if !MATERIAL_SHADINGMODEL_UNLIT
 
 		float3 DiffuseDir = BentNormal;
@@ -1116,23 +1136,37 @@ ShadingModel);
 
 				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 					const float Dither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
-					float3 ForwardDirectLighting = GetForwardDirectLighting(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightShadow);
-					Color += ForwardDirectLighting;
+					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(GridIndex, MaterialParameters.AbsoluteWorldPosition, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, DirectionalLightShadow);
+					
+					#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+						DiffuseColor += ForwardDirectLighting.DiffuseLighting.rgb;
+						ColorSeparateSpecular += ForwardDirectLighting.SpecularLighting.rgb;
+					#else
+						Color += ForwardDirectLighting.DiffuseLighting.rgb;
+						Color += ForwardDirectLighting.SpecularLighting.rgb;
+					#endif
 				#endif
 			#endif
 				// No IBL for water in deferred: that is skipped because it is done in the water composite pass. It should however be applied when using forward shading in order to get reflection without the water composite pass.
-			#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR) && (!MATERIAL_SHADINGMODEL_SINGLELAYERWATER || FORWARD_SHADING) 
+			#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR) && (!MATERIAL_SHADINGMODEL_SINGLELAYERWATER || FORWARD_SHADING)
 				if (GBuffer.ShadingModelID != SHADINGMODELID_HAIR)
 				{
 					int SingleCaptureIndex = GetPrimitiveData(MaterialParameters.PrimitiveId).SingleCaptureIndex;
-					Color += GetImageBasedReflectionLighting(MaterialParameters, GBuffer.Roughness, GBuffer.SpecularColor, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex)
+
+					half3 ReflectionColor = GetImageBasedReflectionLighting(MaterialParameters, GBuffer.Roughness, GBuffer.SpecularColor, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex)
 						* IndirectOcclusion
 						* AOMultiBounce(GBuffer.SpecularColor, SpecOcclusion);
+
+					#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+						ColorSeparateSpecular += ReflectionColor;
+					#else
+						Color += ReflectionColor;
+					#endif
 				}
 			#endif
         #endif
 
-		#if SIMPLE_FORWARD_DIRECTIONAL_LIGHT
+		#if SIMPLE_FORWARD_DIRECTIONAL_LIGHT && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 
 			float3 DirectionalLighting = GetSimpleForwardLightingDirectionalLight(
 				GBuffer,
@@ -1186,9 +1220,9 @@ ShadingModel);
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
-			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepth,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv, 
+			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
 			OneOverPreExposure, Fogging);
 	}
 #endif
@@ -1226,11 +1260,15 @@ ShadingModel);
 	#endif
 #endif
 
-#if !POST_PROCESS_SUBSURFACE
- 	// For non-skin, we just add diffuse and non-diffuse color together, otherwise we need to keep them separate
+#if !POST_PROCESS_SUBSURFACE && !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+ 	// For skin we need to keep them separate. We also keep them separate for thin translucent.
+	// Otherwise just add them together.
 	Color += DiffuseColor;
 #endif
+
+#if !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	Color += Emissive;
+#endif
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	{
@@ -1272,6 +1310,29 @@ ShadingModel);
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+
+	float3 DualBlendColorAdd = 0.0f;
+	float3 DualBlendColorMul = 1.0f;
+
+	{
+		AccumulateThinTranslucentModel(
+								DualBlendColorAdd,
+								DualBlendColorMul,
+								MaterialParameters,
+								GBuffer,
+								DiffuseColor,
+								ColorSeparateSpecular,
+								Emissive,
+								Opacity);
+
+		Color = 0;
+		Opacity = 1.0f;
+	}
+
+#endif
+
+
 	#if MATERIAL_DOMAIN_POSTPROCESS
 		#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
 			Out.MRT[0] = half4(Color, Opacity);
@@ -1279,6 +1340,31 @@ ShadingModel);
 			Out.MRT[0] = half4(Color, 0);
 		#endif
 		Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
+	// MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT must come first because it also has MATERIALBLENDING_TRANSLUCENT defined
+	#elif MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+		// After thin translucency, the final color is going to be:
+		//    FinalColor = DualBlendColorAdd + DualBlendColorMul * BackgroundColor;
+	    // To apply fogging, we want the final equation to be:
+		//    FinalColor = Fogging.rgb + Fogging.a * (DualBlendColorAdd + DualBlendColorMul * BackgroundColor);
+		//    FinalColor = (Fogging.rgb + Fogging.a * DualBlendColorAdd) + Fogging.a * DualBlendColorMul * BackgroundColor;
+		// Or in other words:
+		//    AdjustedDualBlendAdd = Fogging.rgb + Fogging.a * DualBlendColorAdd;
+		//    AdjustedDualBlendMul = Fogging.a * DualBlendColorMul;
+		//    FinalColor = AdjustedDualBlendAdd + AdjustedDualBlendMul * BackgroundColor;
+
+		float3 AdjustedDualBlendAdd = Fogging.rgb + Fogging.a * DualBlendColorAdd;
+		float3 AdjustedDualBlendMul =               Fogging.a * DualBlendColorMul;
+
+		#if THIN_TRANSLUCENT_USE_DUAL_BLEND
+			// no RETURN_COLOR because these values are explicit multiplies and adds
+			Out.MRT[0] = half4(AdjustedDualBlendAdd,0.0);
+			Out.MRT[1] = half4(AdjustedDualBlendMul,1.0);
+		#else
+			// In the fallback case, we are blending with the mode 
+			float AdjustedAlpha = saturate(1-dot(AdjustedDualBlendMul,float3(1.0f,1.0f,1.0f)/3.0f));
+			Out.MRT[0] = half4(AdjustedDualBlendAdd,AdjustedAlpha);
+			Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
+		#endif
 	#elif MATERIALBLENDING_ALPHAHOLDOUT
 		// not implemented for holdout
 		Out.MRT[0] = half4(Color * Fogging.a + Fogging.rgb * Opacity, Opacity);
@@ -1333,7 +1419,7 @@ ShadingModel);
 
 		// -0.5 .. 0.5, could be optimzed as lower quality noise would be sufficient
 		float QuantizationBias = PseudoRandom( MaterialParameters.SvPosition.xy ) - 0.5f;
-		EncodeGBuffer(GBuffer, Out.MRT[1], Out.MRT[2], Out.MRT[3], OutGBufferD, OutGBufferE, OutVelocity, QuantizationBias);
+		EncodeGBuffer(GBuffer, Out.MRT[1], Out.MRT[2], Out.MRT[3], OutGBufferD, OutGBufferE, OutGBufferF, OutVelocity, QuantizationBias);
 	#endif 
 
 	if(bEditorWeightedZBuffering)
@@ -1365,12 +1451,14 @@ ShadingModel);
 #if USES_GBUFFER
 	#if GBUFFER_HAS_VELOCITY
 		Out.MRT[4] = OutVelocity;
+	#elif GBUFFER_HAS_TANGENT
+		Out.MRT[4] = OutGBufferF;
 	#endif
 
-	Out.MRT[GBUFFER_HAS_VELOCITY ? 5 : 4] = OutGBufferD;
+	Out.MRT[GBUFFER_HAS_VELOCITY || GBUFFER_HAS_TANGENT ? 5 : 4] = OutGBufferD;
 
 	#if GBUFFER_HAS_PRECSHADOWFACTOR
-		Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = OutGBufferE;
+		Out.MRT[GBUFFER_HAS_VELOCITY || GBUFFER_HAS_TANGENT ? 6 : 5] = OutGBufferE;
 	#endif
 #else
 	// If not using the full gbuffer (forward shading) the velocity buffer can still be written to in the basepass.
@@ -1380,7 +1468,15 @@ ShadingModel);
 #endif
 
 #if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
-	Out.MRT[0].xyz *= View.PreExposure;
+	// We need to multiply pre-exposure by all components including A, otherwise the ratio of
+	// diffuse to specular lighting will get messed up in the SSS pass.
+	// RGB: Full color (Diffuse + Specular)
+	// A:   Diffuse Intensity, but only if we are not blending
+	#if MATERIAL_DOMAIN_POSTPROCESS || MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || MATERIALBLENDING_ALPHAHOLDOUT || MATERIALBLENDING_ALPHACOMPOSITE || MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE
+		Out.MRT[0].rgb *= View.PreExposure;
+	#else
+		Out.MRT[0].rgba *= View.PreExposure;
+	#endif
 #endif
 #if MATERIAL_IS_SKY
 	// Sky materials can result in high luminance values, e.g. the sun disk. So we make sure to at least stay within the boundaries of fp10 for some platforms.
@@ -1418,17 +1514,18 @@ ShadingModel);
 #define PIXELSHADEROUTPUT_MRT1 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
 #define PIXELSHADEROUTPUT_MRT2 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
 #define PIXELSHADEROUTPUT_MRT3 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
-	#if GBUFFER_HAS_VELOCITY
-		#define PIXELSHADEROUTPUT_MRT4 WRITES_VELOCITY_TO_GBUFFER
+	#if GBUFFER_HAS_VELOCITY || GBUFFER_HAS_TANGENT
+		#define PIXELSHADEROUTPUT_MRT4 WRITES_VELOCITY_TO_GBUFFER || GBUFFER_HAS_TANGENT
 		#define PIXELSHADEROUTPUT_MRT5 (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_CUSTOMDATA_TO_GBUFFER)
 		#define PIXELSHADEROUTPUT_MRT6 (GBUFFER_HAS_PRECSHADOWFACTOR && (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_PRECSHADOWFACTOR_TO_GBUFFER && !MATERIAL_SHADINGMODEL_UNLIT))
-	#else //GBUFFER_HAS_VELOCITY
+	#else //GBUFFER_HAS_VELOCITY || GBUFFER_HAS_TANGENT
 		#define PIXELSHADEROUTPUT_MRT4 (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_CUSTOMDATA_TO_GBUFFER)
 		#define PIXELSHADEROUTPUT_MRT5 (GBUFFER_HAS_PRECSHADOWFACTOR && (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_PRECSHADOWFACTOR_TO_GBUFFER && !MATERIAL_SHADINGMODEL_UNLIT))
 	#endif //GBUFFER_HAS_VELOCITY
 #else //USES_GBUFFER
 	#define PIXELSHADEROUTPUT_MRT0 1
-	#define PIXELSHADEROUTPUT_MRT1 WRITES_VELOCITY_TO_GBUFFER
+	// we also need MRT for thin translucency due to dual blending if we are not on the fallback path
+	#define PIXELSHADEROUTPUT_MRT1 (WRITES_VELOCITY_TO_GBUFFER || (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT && THIN_TRANSLUCENT_USE_DUAL_BLEND))
 #endif //USES_GBUFFER
 #define PIXELSHADEROUTPUT_A2C ((EDITOR_ALPHA2COVERAGE) != 0)
 #define PIXELSHADEROUTPUT_COVERAGE (MATERIALBLENDING_MASKED_USING_COVERAGE && !EARLY_Z_PASS_ONLY_MATERIAL_MASKING)

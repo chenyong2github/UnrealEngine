@@ -67,6 +67,7 @@ void FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 		FeatureLevel,
 		bRenderAtmosphericFog,
 		bRenderSkylight,
+		false,
 		BasePassShaders.HullShader,
 		BasePassShaders.DomainShader,
 		BasePassShaders.VertexShader,
@@ -77,8 +78,8 @@ void FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 
 	if (bTranslucentBasePass)
 	{
-		extern void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FMaterial& Material);
-		SetTranslucentRenderState(DrawRenderState, Material);
+		extern void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FMaterial& Material, const EShaderPlatform Platform, ETranslucencyPass::Type InTranslucencyPassType);
+		SetTranslucentRenderState(DrawRenderState, Material, Scene->GetShaderPlatform(), ETranslucencyPass::TPT_StandardTranslucency);
 	}
 
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);

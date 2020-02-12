@@ -2,7 +2,9 @@
 
 #include "RtAudio.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_XBOXONE
+#if WITH_RTAUDIO
+
+#if PLATFORM_MICROSOFT || PLATFORM_MAC
 /************************************************************************/
 /*! \class RtAudio
     \brief Realtime audio i/o C++ classes.
@@ -3188,7 +3190,7 @@ bool RtApiAsio :: probeDeviceOpen( unsigned int device, StreamMode mode, unsigne
   if ( result != ASE_OK ) {
     // Standard method failed. This can happen with strict/misbehaving drivers that return valid buffer size ranges
     // but only accept the preferred buffer size as parameter for ASIOCreateBuffers. eg. Creatives ASIO driver
-    // in that case, let's be naïve and try that instead
+    // in that case, let's be naÃƒÂ¯ve and try that instead
     *bufferSize = preferSize;
     stream_.bufferSize = *bufferSize;
     result = ASIOCreateBuffers( handle->bufferInfos, nChannels, stream_.bufferSize, &asioCallbacks );
@@ -10205,3 +10207,5 @@ void RtApi :: byteSwapBuffer( char *buffer, unsigned int samples, RtAudioFormat 
   // vim: et sts=2 sw=2
 
 #endif // PLATFORM_WINDOWS
+
+#endif // WITH_RTAUDIO

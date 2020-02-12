@@ -31,7 +31,7 @@ namespace WindowsMixedReality
 
 		static bool GetControllerOrientationAndPosition(HMDHand hand, FRotator& OutOrientation, FVector& OutPosition);
 
-		static bool GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition);
+		static bool GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition, float& OutRadius);
 
 		static bool PollInput();
 		static bool PollHandTracking();

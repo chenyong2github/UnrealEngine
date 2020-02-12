@@ -21,6 +21,8 @@ CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioCreateStreamedResource)
 #define MLAudioCreateStreamedResource ::MLSDK_API::MLAudioCreateStreamedResourceShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioCheckResource)
 #define MLAudioCheckResource ::MLSDK_API::MLAudioCheckResourceShim
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetResourceSize)
+#define MLAudioCheckReMLAudioGetResourceSizesource ::MLSDK_API::MLAudioGetResourceSizeShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioRefreshResource)
 #define MLAudioRefreshResource ::MLSDK_API::MLAudioRefreshResourceShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioDestroyResource)
@@ -33,8 +35,10 @@ CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioCreateSoundWithLoadedFile)
 #define MLAudioCreateSoundWithLoadedFile ::MLSDK_API::MLAudioCreateSoundWithLoadedFileShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioCreateSoundWithStreamedFile)
 #define MLAudioCreateSoundWithStreamedFile ::MLSDK_API::MLAudioCreateSoundWithStreamedFileShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioCreateSoundWithOutputStream)
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioCreateSoundWithOutputStream, "Replaced by MLCreateSoundWithBufferedOutput.")
 #define MLAudioCreateSoundWithOutputStream ::MLSDK_API::MLAudioCreateSoundWithOutputStreamShim
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioCreateSoundWithBufferedOutput)
+#define MLAudioCreateSoundWithBufferedOutput ::MLSDK_API::MLAudioCreateSoundWithBufferedOutputShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioDestroySound)
 #define MLAudioDestroySound ::MLSDK_API::MLAudioDestroySoundShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioStartSound)
@@ -87,6 +91,10 @@ CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioSetSpatialSoundControlFrequencie
 #define MLAudioSetSpatialSoundControlFrequencies ::MLSDK_API::MLAudioSetSpatialSoundControlFrequenciesShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetSpatialSoundControlFrequencies)
 #define MLAudioGetSpatialSoundControlFrequencies ::MLSDK_API::MLAudioGetSpatialSoundControlFrequenciesShim
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioSetSpatialSoundHeadRelative)
+#define MLAudioSetSpatialSoundHeadRelative ::MLSDK_API::MLAudioSetSpatialSoundHeadRelativeShim
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioIsSpatialSoundHeadRelative)
+#define MLAudioIsSpatialSoundHeadRelative ::MLSDK_API::MLAudioIsSpatialSoundHeadRelativeShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioSetSoundVolumeLinear)
 #define MLAudioSetSoundVolumeLinear ::MLSDK_API::MLAudioSetSoundVolumeLinearShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetSoundVolumeLinear)
@@ -113,16 +121,26 @@ CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetStreamedFileOffset)
 #define MLAudioGetStreamedFileOffset ::MLSDK_API::MLAudioGetStreamedFileOffsetShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetOutputDevice)
 #define MLAudioGetOutputDevice ::MLSDK_API::MLAudioGetOutputDeviceShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetOutputStreamDefaults)
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioGetOutputStreamDefaults, "Replaced by MLAudioGetBufferedOutputDefaults.")
 #define MLAudioGetOutputStreamDefaults ::MLSDK_API::MLAudioGetOutputStreamDefaultsShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetOutputStreamLatency)
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetBufferedOutputDefaults)
+#define MLAudioGetBufferedOutputDefaults ::MLSDK_API::MLAudioGetBufferedOutputDefaultsShim
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioGetOutputStreamLatency, "Replaced by MLAudioGetBufferedOutputLatency.")
 #define MLAudioGetOutputStreamLatency ::MLSDK_API::MLAudioGetOutputStreamLatencyShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetOutputStreamFramesPlayed)
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetBufferedOutputLatency)
+#define MLAudioGetBufferedOutputLatency ::MLSDK_API::MLAudioGetBufferedOutputLatencyShim
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioGetOutputStreamFramesPlayed, "Replaced by MLAudioGetBufferedOutputFramesPlayed.")
 #define MLAudioGetOutputStreamFramesPlayed ::MLSDK_API::MLAudioGetOutputStreamFramesPlayedShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetOutputStreamBuffer)
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetBufferedOutputFramesPlayed)
+#define MLAudioGetBufferedOutputFramesPlayed ::MLSDK_API::MLAudioGetBufferedOutputFramesPlayedShim
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioGetOutputStreamBuffer, "Replaced by MLAudioGetOutputBuffer.")
 #define MLAudioGetOutputStreamBuffer ::MLSDK_API::MLAudioGetOutputStreamBufferShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioReleaseOutputStreamBuffer)
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetOutputBuffer)
+#define MLAudioGetOutputBuffer ::MLSDK_API::MLAudioGetOutputBufferShim
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioReleaseOutputStreamBuffer, "Replaced by MLAudioReleaseOutputBuffer.")
 #define MLAudioReleaseOutputStreamBuffer ::MLSDK_API::MLAudioReleaseOutputStreamBufferShim
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioReleaseOutputBuffer)
+#define MLAudioReleaseOutputBuffer ::MLSDK_API::MLAudioReleaseOutputBufferShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetMasterVolume)
 #define MLAudioGetMasterVolume ::MLSDK_API::MLAudioGetMasterVolumeShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioSetMasterVolumeCallback)
@@ -141,14 +159,22 @@ CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetInputState)
 #define MLAudioGetInputState ::MLSDK_API::MLAudioGetInputStateShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioSetInputEventCallback)
 #define MLAudioSetInputEventCallback ::MLSDK_API::MLAudioSetInputEventCallbackShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetInputStreamDefaults)
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioGetInputStreamDefaults, "Replaced by MLAudioGetBufferedInputDefaults.")
 #define MLAudioGetInputStreamDefaults ::MLSDK_API::MLAudioGetInputStreamDefaultsShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetInputStreamLatency)
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetBufferedInputDefaults)
+#define MLAudioGetBufferedInputDefaults ::MLSDK_API::MLAudioGetBufferedInputDefaultsShim
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioGetInputStreamLatency, "Replaced by MLAudioGetBufferedInputLatency.")
 #define MLAudioGetInputStreamLatency ::MLSDK_API::MLAudioGetInputStreamLatencyShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetInputStreamBuffer)
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetBufferedInputLatency)
+#define MLAudioGetBufferedInputLatency ::MLSDK_API::MLAudioGetBufferedInputLatencyShim
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioGetInputStreamBuffer, "Replaced by MLAudioGetInputBuffer.")
 #define MLAudioGetInputStreamBuffer ::MLSDK_API::MLAudioGetInputStreamBufferShim
-CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioReleaseInputStreamBuffer)
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioGetInputBuffer)
+#define MLAudioGetInputBuffer ::MLSDK_API::MLAudioGetInputBufferShim
+CREATE_DEPRECATED_MSG_SHIM(ml_audio, MLResult, MLAudioReleaseInputStreamBuffer, "Replaced by MLAudioReleaseInputBuffer.")
 #define MLAudioReleaseInputStreamBuffer ::MLSDK_API::MLAudioReleaseInputStreamBufferShim
+CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioReleaseInputBuffer)
+#define MLAudioReleaseInputBuffer ::MLSDK_API::MLAudioReleaseInputBufferShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioSetMicMute)
 #define MLAudioSetMicMute ::MLSDK_API::MLAudioSetMicMuteShim
 CREATE_FUNCTION_SHIM(ml_audio, MLResult, MLAudioIsMicMuted)

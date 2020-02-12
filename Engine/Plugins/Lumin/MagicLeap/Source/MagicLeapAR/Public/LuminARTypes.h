@@ -3,7 +3,6 @@
 
 #include "CoreMinimal.h"
 
-#include "Lumin/CAPIShims/LuminAPI.h"
 #include "MagicLeapHandle.h"
 
 #include "ARTypes.h"
@@ -11,107 +10,12 @@
 #include "ARTraceResult.h"
 #include "ARSystem.h"
 #include "ARPin.h"
+#include "ARLightEstimate.h"
 
 #include "LuminARTypes.generated.h"
 
 /// @defgroup LuminARBase
 /// The base module for LuminAR plugin
-
-typedef enum
-{
-	LUMIN_AR_TRACKABLE_NOT_VALID,
-	LUMIN_AR_TRACKABLE_PLANE,
-	LUMIN_AR_TRACKABLE_POINT
-}
-ArTrackableType;
-
-//TODO - Proper data?
-struct ArPose
-{
-	FVector Pos;
-	FQuat Quat;
-};
-
-struct LuminArTrackable
-{
-	LuminArTrackable(ArPose InPose)
-#if WITH_MLSDK
-		: Handle(MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE))
-#endif // WITH_MLSDK
-	{
-	}
-
-	// Use FGuid since a LuminArTrackable can either be an MLHandle or an MLCFUID (currently only for PCFs)
-	FGuid Handle;
-};
-
-struct LuminArAnchor : public LuminArTrackable
-{
-	LuminArAnchor(ArPose InPose)
-		: LuminArTrackable(InPose)
-#if WITH_MLSDK
-		, ParentTrackable(MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE))
-#endif // WITH_MLSDK
-	{}
-
-	LuminArAnchor(ArPose InPose, const FGuid& InParentTrackable)
-		: LuminArTrackable(InPose)
-		, ParentTrackable(InParentTrackable)
-	{}
-
-	void Detach()
-	{
-#if WITH_MLSDK
-		ParentTrackable = MagicLeap::MLHandleToFGuid(ML_INVALID_HANDLE);
-#endif // WITH_MLSDK
-	}
-
-	// Use FGuid since a LuminArTrackable can either be an MLHandle or an MLCFUID (currently only for PCFs)
-	FGuid ParentTrackable;
-};
-
-typedef struct MLPlane ArPlane;
-typedef struct MLPlane ArPoint;
-
-//TODO - Add details for ArImage
-struct ArImage
-{
-};
-
-UENUM(BlueprintType)
-enum class ELuminARAvailability : uint8
-{
-	/* An internal error occurred while determining Lumin AR availability. */
-	UnknownError = 0,
-
-	/* ARCore is supported, installed, and available to use. */
-	SupportedInstalled = 200
-};
-
-/**
- * @ingroup LuminARBase
- * Describes the status of most LuminAR functions.
- */
-UENUM(BlueprintType)
-enum class ELuminARFunctionStatus : uint8
-{
-	/** Function returned successfully. */
-	Success,
-	/** Function failed due to Fatal error. */
-	Fatal,
-	/** Function failed due to the session isn't running. */
-	SessionPaused,
-	/** Function failed due to ARCore session isn't in tracking state. */
-	NotTracking,
-	/** Function failed due to the requested resource is exhausted. */
-	ResourceExhausted,
-	/** Function failed due to the requested resource isn't available yet. */
-	NotAvailable,
-	/** Function failed due to the function augment has invalid type. */
-	InvalidType,
-	/** Function failed with unknown reason. */
-	Unknown
-};
 
 /**
  * @ingroup LuminARBase
@@ -126,29 +30,6 @@ enum class ELuminARTrackingState : uint8
 	NotTracking = 1,
 	/** Tracking is lost will not recover. */
 	StoppedTracking = 2
-};
-
-/**
- * A struct describes the ARCore light estimation.
- */
-USTRUCT(BlueprintType)
-struct FLuminARLightEstimate
-{
-	GENERATED_BODY()
-
-	/** Whether this light estimation is valid. */
-	UPROPERTY(BlueprintReadOnly, Category = "LuminAR|LightEstimate")
-	bool bIsValid;
-
-	/** The average pixel intensity of the passthrough camera image. */
-	UPROPERTY(BlueprintReadOnly, Category = "LuminAR|LightEstimate")
-	float PixelIntensity;
-	
-	/**
-	 * The RGB scale to match the color of the light in the real environment.
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "LuminAR|LightEstimate")
-	FVector RGBScaleFactor;
 };
 
 /**
@@ -175,4 +56,59 @@ enum class ELuminARLineTraceChannel : uint8
 };
 ENUM_CLASS_FLAGS(ELuminARLineTraceChannel);
 
+UCLASS(BlueprintType, Category = "AR AugmentedReality|Light Estimation")
+class ULuminARLightEstimate : public UARBasicLightEstimate
+{
+	GENERATED_BODY()
 
+public:
+	using UARBasicLightEstimate::SetLightEstimate;
+
+	void SetLightEstimate(TArray<float> InAmbientIntensityNits, float InColorTemperatureKelvin, FLinearColor InAmbientColor)
+	{
+		SetLightEstimate(InColorTemperatureKelvin, InAmbientColor);
+		AmbientIntensityNits = InAmbientIntensityNits;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Light Estimation")
+	TArray<float> GetAmbientIntensityNits() const { return AmbientIntensityNits; }
+
+private:
+	UPROPERTY()
+	TArray<float> AmbientIntensityNits;
+};
+
+UCLASS(BlueprintType, Category = "Lumin AR Candidate Image")
+class ULuminARCandidateImage : public UARCandidateImage
+{
+	GENERATED_BODY()
+
+public:
+	static ULuminARCandidateImage* CreateNewLuminARCandidateImage(UTexture2D* InCandidateTexture, FString InFriendlyName, float InPhysicalWidth, float InPhysicalHeight, EARCandidateImageOrientation InOrientation, bool bInUseUnreliablePose, bool bInImageIsStationary)
+	{
+		ULuminARCandidateImage* NewARCandidateImage = NewObject<ULuminARCandidateImage>();
+		NewARCandidateImage->CandidateTexture = InCandidateTexture;
+		NewARCandidateImage->FriendlyName = InFriendlyName;
+		NewARCandidateImage->Width = InPhysicalWidth;
+		NewARCandidateImage->Height = InPhysicalHeight;
+		NewARCandidateImage->Orientation = InOrientation;
+		NewARCandidateImage->bUseUnreliablePose = bInUseUnreliablePose;
+		NewARCandidateImage->bImageIsStationary = bInImageIsStationary;
+
+		return NewARCandidateImage;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Lumin AR Candidate Image")
+	bool GetUseUnreliablePose() const { return bUseUnreliablePose; }
+
+	/** @see FriendlyName */
+	UFUNCTION(BlueprintPure, Category = "Lumin AR Candidate Image")
+	bool GetImageIsStationary() const { return bImageIsStationary; }
+
+private:
+	UPROPERTY(EditAnywhere, Category="Lumin AR Candidate Image")
+	bool bUseUnreliablePose;
+
+	UPROPERTY(EditAnywhere, Category="Lumin AR Candidate Image")
+	bool bImageIsStationary;
+};

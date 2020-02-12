@@ -24,11 +24,8 @@
 	#include "Runtime/OpenGLDrv/Private/Linux/OpenGLLinux.h"
 #elif PLATFORM_LUMIN
 	// these guys will self-select
-	#include "Lumin/LuminESDeferredOpenGL.h"
 	#include "Lumin/LuminOpenGL.h"
 	#include "Lumin/LuminGL4.h"
-#elif PLATFORM_ANDROIDESDEFERRED
-	#include "Android/AndroidESDeferredOpenGL.h"
 #elif PLATFORM_ANDROID
 	#include "Android/AndroidOpenGL.h"
 #else
@@ -299,9 +296,6 @@ class OPENGLDRV_API FOpenGLDynamicRHI  final : public FDynamicRHI, public IRHICo
 public:
 
 	friend class FOpenGLViewport;
-#if PLATFORM_ANDROIDESDEFERRED // Flithy hack to workaround radr://16011763
-	friend class FOpenGLTextureBase;
-#endif
 
 	/** Initialization constructor. */
 	FOpenGLDynamicRHI();

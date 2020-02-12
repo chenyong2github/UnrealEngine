@@ -10,7 +10,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FEmptyOnlineDelegate);
 
 UCLASS(MinimalAPI)
-class ENGINE_VTABLE UOnlineBlueprintCallProxyBase : public UObject
+class UOnlineBlueprintCallProxyBase : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

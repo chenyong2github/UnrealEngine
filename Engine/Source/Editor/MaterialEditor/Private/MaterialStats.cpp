@@ -419,7 +419,6 @@ void FMaterialStats::BuildShaderPlatformDB()
 
 	// Android
 	AddShaderPlatform(EPlatformCategoryType::Android, SP_OPENGL_ES3_1_ANDROID, TEXT("Android GLES 3.1"), true, true, TEXT("Android, OpenGLES 3.1"));
-	AddShaderPlatform(EPlatformCategoryType::Android, SP_OPENGL_ES2_ANDROID, TEXT("Android GLES 2.0"), true, true, TEXT("Android, OpenGLES 2.0"));
 	AddShaderPlatform(EPlatformCategoryType::Android, SP_VULKAN_ES3_1_ANDROID, TEXT("Android Vulkan"), true, true, TEXT("Android, Vulkan"));
 
 	// Apple

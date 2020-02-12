@@ -15,6 +15,10 @@
 #pragma comment(lib,"xaudio2_9redist.lib")
 #endif
 
+#ifndef XAUDIO_SUPPORTS_DEVICE_DETAILS
+    #define XAUDIO_SUPPORTS_DEVICE_DETAILS		1
+#endif	//XAUDIO_SUPPORTS_DEVICE_DETAILS
+
 // Any platform defines
 namespace Audio
 {

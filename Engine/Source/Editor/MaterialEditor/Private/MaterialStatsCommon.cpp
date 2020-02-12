@@ -129,10 +129,6 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 			return FString("XBOXONE_D3D12");
 		case SP_OPENGL_SM5:
 			return FString("OPENGL_SM5");
-		case SP_OPENGL_ES2_ANDROID:
-			return FString("OPENGL_ES2_ANDROID");
-		case SP_OPENGL_ES2_WEBGL:
-			return FString("OPENGL_ES2_WEBGL");
 		case SP_METAL:
 			return FString("METAL");
 		case SP_METAL_MRT:
@@ -181,7 +177,6 @@ FString FMaterialStatsUtils::GetPlatformOfflineCompilerPath(const EShaderPlatfor
 {
 	switch (ShaderPlatform)
 	{
-		case SP_OPENGL_ES2_ANDROID:
 		case SP_OPENGL_ES3_1_ANDROID:
 		case SP_VULKAN_ES3_1_ANDROID:
 			return FPaths::ConvertRelativePathToFull(GetDefault<UMaterialEditorSettings>()->MaliOfflineCompilerPath.FilePath);
@@ -210,10 +205,8 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 	{
 		case SP_PS4:
 		case SP_OPENGL_SM5:
-		case SP_OPENGL_ES2_ANDROID:
 		case SP_OPENGL_ES31_EXT:
 		case SP_OPENGL_PCES3_1:
-		case SP_OPENGL_ES2_WEBGL:
 		case SP_VULKAN_PCES3_1:
 		case SP_VULKAN_SM5:
 		case SP_VULKAN_ES3_1_ANDROID:

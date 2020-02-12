@@ -120,10 +120,6 @@ public class UElibPNG : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "XboxOne", "VS" + VersionName.ToString(), "libpng125_XboxOne.lib"));
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Switch)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Switch", "libPNG.a"));
-		}
 
 		PublicIncludePaths.Add(IncPNGPath);
 	}

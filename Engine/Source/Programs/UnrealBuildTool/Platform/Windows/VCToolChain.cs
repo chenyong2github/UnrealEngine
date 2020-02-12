@@ -182,7 +182,7 @@ namespace UnrealBuildTool
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 			{
 				// Tell the Clang compiler whether we want to generate 32-bit code or 64-bit code
-				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
+				if (CompileEnvironment.Platform != UnrealTargetPlatform.Win32)
 				{
 					Arguments.Add("--target=x86_64-pc-windows-msvc");
 				}
@@ -288,11 +288,8 @@ namespace UnrealBuildTool
 					Arguments.Add("/Ob2");
 				}
 
-				if ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
-					(CompileEnvironment.Platform == UnrealTargetPlatform.Win64))
-				{
-					Arguments.Add("/RTCs");
-				}
+				// Always include runtime error checks
+				Arguments.Add("/RTCs");
 			}
 			//
 			//	Development and LTCG
@@ -316,9 +313,7 @@ namespace UnrealBuildTool
 					Arguments.Add("/GF");
 
 					// Only omit frame pointers on the PC (which is implied by /Ox) if wanted.
-					if (CompileEnvironment.bOmitFramePointers == false
-					&& ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
-						(CompileEnvironment.Platform == UnrealTargetPlatform.Win64)))
+					if (CompileEnvironment.bOmitFramePointers == false)
 					{
 						Arguments.Add("/Oy-");
 					}
@@ -340,48 +335,44 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
-				(CompileEnvironment.Platform == UnrealTargetPlatform.Win64))
+			if (CompileEnvironment.bUseAVX)
 			{
-				if (CompileEnvironment.bUseAVX)
-				{
-					// Define /arch:AVX for the current compilation unit.  Machines without AVX support will crash on any SSE/AVX instructions if they run this compilation unit.
-					Arguments.Add("/arch:AVX");
+				// Define /arch:AVX for the current compilation unit.  Machines without AVX support will crash on any SSE/AVX instructions if they run this compilation unit.
+				Arguments.Add("/arch:AVX");
 
-					// AVX available implies sse4 and sse2 available.
-					// Inform Unreal code that we have sse2, sse4, and AVX, both available to compile and available to run
-					// By setting the ALWAYS_HAS defines, we we direct Unreal code to skip cpuid checks to verify that the running hardware supports sse/avx.
-					AddDefinition(Arguments, "PLATFORM_ENABLE_VECTORINTRINSICS=1");
-					AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_SSE4_1=1");
-					AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_SSE4_1=1");
-					AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_AVX=1");
-					AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_AVX=1");
-				}
-				// SSE options are not allowed when using the 64 bit toolchain
-				// (enables SSE2 automatically)
-				else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x86)
-				{
-					// Allow the compiler to generate SSE2 instructions.
-					Arguments.Add("/arch:SSE2");
-				}
+				// AVX available implies sse4 and sse2 available.
+				// Inform Unreal code that we have sse2, sse4, and AVX, both available to compile and available to run
+				// By setting the ALWAYS_HAS defines, we we direct Unreal code to skip cpuid checks to verify that the running hardware supports sse/avx.
+				AddDefinition(Arguments, "PLATFORM_ENABLE_VECTORINTRINSICS=1");
+				AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_SSE4_1=1");
+				AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_SSE4_1=1");
+				AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_AVX=1");
+				AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_AVX=1");
+			}
+			// SSE options are not allowed when using the 64 bit toolchain
+			// (enables SSE2 automatically)
+			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x86)
+			{
+				// Allow the compiler to generate SSE2 instructions.
+				Arguments.Add("/arch:SSE2");
+			}
 
-				if (Target.WindowsPlatform.Compiler != WindowsCompiler.Intel)
-				{
-					// Prompt the user before reporting internal errors to Microsoft.
-					Arguments.Add("/errorReport:prompt");
-				}
+			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Intel)
+			{
+				// Prompt the user before reporting internal errors to Microsoft.
+				Arguments.Add("/errorReport:prompt");
+			}
 
-				// Enable C++ exceptions when building with the editor or when building UHT.
-				if (CompileEnvironment.bEnableExceptions)
-				{
-					// Enable C++ exception handling, but not C exceptions.
-					Arguments.Add("/EHsc");
-				}
-				else
-				{
-					// This is required to disable exception handling in VC platform headers.
-					CompileEnvironment.Definitions.Add("_HAS_EXCEPTIONS=0");
-				}
+			// Enable C++ exceptions when building with the editor or when building UHT.
+			if (CompileEnvironment.bEnableExceptions)
+			{
+				// Enable C++ exception handling, but not C exceptions.
+				Arguments.Add("/EHsc");
+			}
+			else
+			{
+				// This is required to disable exception handling in VC platform headers.
+				CompileEnvironment.Definitions.Add("_HAS_EXCEPTIONS=0");
 			}
 
 			// If enabled, create debug information.
@@ -467,15 +458,15 @@ namespace UnrealBuildTool
 				Arguments.Add("/Zo");
 			}
 
-			if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
-			{
-				// Pack struct members on 8-byte boundaries.
-				Arguments.Add("/Zp8");
-			}
-			else
+			if (CompileEnvironment.Platform == UnrealTargetPlatform.Win32)
 			{
 				// Pack struct members on 4-byte boundaries.
 				Arguments.Add("/Zp4");
+			}
+			else
+			{
+				// Pack struct members on 8-byte boundaries.
+				Arguments.Add("/Zp8");
 			}
 
 			//@todo: Disable warnings for VS2015. These should be reenabled as we clear the reasons for them out of the engine source and the VS2015 toolchain evolves.
@@ -535,7 +526,7 @@ namespace UnrealBuildTool
  			}
 		}
 
-		void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang)
 			{
@@ -700,7 +691,7 @@ namespace UnrealBuildTool
 			Arguments.Add("/W0");
 		}
 
-		void AppendLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
+		protected virtual void AppendLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
 			{
@@ -757,8 +748,7 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if ((LinkEnvironment.Platform == UnrealTargetPlatform.Win32) ||
-				(LinkEnvironment.Platform == UnrealTargetPlatform.Win64))
+			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				Arguments.Add(string.Format("/MACHINE:{0}", WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)));
 
@@ -804,7 +794,7 @@ namespace UnrealBuildTool
 
 				// E&C can't use /SAFESEH.  Also, /SAFESEH isn't compatible with 64-bit linking
 				if (!LinkEnvironment.bSupportEditAndContinue &&
-					LinkEnvironment.Platform != UnrealTargetPlatform.Win64)
+					LinkEnvironment.Platform == UnrealTargetPlatform.Win32)
 				{
 					// Generates a table of Safe Exception Handlers.  Documentation isn't clear whether they actually mean
 					// Structured Exception Handlers.
@@ -899,7 +889,7 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if (LinkEnvironment.Platform == UnrealTargetPlatform.Win32 || LinkEnvironment.Platform == UnrealTargetPlatform.Win64)
+			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				Arguments.Add(string.Format("/MACHINE:{0}", WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)));
 
@@ -1765,10 +1755,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler, string CompilerVersion)
 		{
-			Debug.Assert(Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64);
-
 			// Make sure we've got the environment variables set up for this target
-			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, Platform, WindowsArchitecture.x64, CompilerVersion, null);
+			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, Platform, WindowsArchitecture.x64, CompilerVersion, null, null);
 
 			// Also add any include paths from the INCLUDE environment variable.  MSVC is not necessarily running with an environment that
 			// matches what UBT extracted from the vcvars*.bat using SetEnvironmentVariablesFromBatchFile().  We'll use the variables we

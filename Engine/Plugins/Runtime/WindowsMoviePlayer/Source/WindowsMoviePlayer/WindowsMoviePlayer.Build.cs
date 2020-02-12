@@ -42,7 +42,7 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				PublicDelayLoadDLLs.Add("shlwapi.dll");
 				PublicDelayLoadDLLs.Add("mf.dll");

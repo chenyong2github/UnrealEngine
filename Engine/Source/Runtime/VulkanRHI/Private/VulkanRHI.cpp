@@ -67,6 +67,21 @@ bool GGPUCrashDebuggingEnabled = false;
 extern TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar;
 
 
+#if VULKAN_HAS_VALIDATION_FEATURES
+static inline TArray<VkValidationFeatureEnableEXT> GetValidationFeaturesEnabled()
+{
+	TArray<VkValidationFeatureEnableEXT> Features;
+	Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+	extern TAutoConsoleVariable<int32> GGPUValidationCvar;
+	if (GGPUValidationCvar.GetValueOnAnyThread() > 1)
+	{
+		Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+	}
+
+	return Features;
+}
+#endif
+
 DEFINE_LOG_CATEGORY(LogVulkan)
 
 bool FVulkanDynamicRHIModule::IsSupported()
@@ -78,8 +93,8 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 {
 	if (!GIsEditor &&
 		(FVulkanPlatform::RequiresMobileRenderer() ||
-			InRequestedFeatureLevel == ERHIFeatureLevel::ES3_1 || InRequestedFeatureLevel == ERHIFeatureLevel::ES2 ||
-			FParse::Param(FCommandLine::Get(), TEXT("featureleveles31")) || FParse::Param(FCommandLine::Get(), TEXT("featureleveles2"))))
+			InRequestedFeatureLevel == ERHIFeatureLevel::ES3_1 ||
+			FParse::Param(FCommandLine::Get(), TEXT("featureleveles31"))))
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
 		GMaxRHIShaderPlatform = PLATFORM_LUMIN ? SP_VULKAN_ES3_1_LUMIN : (PLATFORM_ANDROID ? SP_VULKAN_ES3_1_ANDROID : SP_VULKAN_PCES3_1);
@@ -371,6 +386,23 @@ void FVulkanDynamicRHI::CreateInstance()
 		{ 
 			return Key && !FCStringAnsi::Strcmp(Key, VK_EXT_DEBUG_REPORT_EXTENSION_NAME); 
 		});
+
+#if VULKAN_HAS_VALIDATION_FEATURES
+	bool bHasGPUValidation = InstanceExtensions.ContainsByPredicate([](const ANSICHAR* Key)
+		{
+			return Key && !FCStringAnsi::Strcmp(Key, VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+		});
+	VkValidationFeaturesEXT ValidationFeatures;
+	TArray<VkValidationFeatureEnableEXT> ValidationFeaturesEnabled = GetValidationFeaturesEnabled();
+	if (bHasGPUValidation)
+	{
+		ZeroVulkanStruct(ValidationFeatures, VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT);
+		ValidationFeatures.pNext = InstInfo.pNext;
+		ValidationFeatures.enabledValidationFeatureCount = (uint32)ValidationFeaturesEnabled.Num();
+		ValidationFeatures.pEnabledValidationFeatures = ValidationFeaturesEnabled.GetData();
+		InstInfo.pNext = &ValidationFeatures;
+	}
+#endif
 #endif
 
 	VkResult Result = VulkanRHI::vkCreateInstance(&InstInfo, VULKAN_CPU_ALLOCATOR, &Instance);

@@ -174,7 +174,7 @@ static void RestoreReferencesToRendererModuleClasses(
 	RestoreGlobalShaderMap(GlobalShaderBackup);
 	UMaterial::RestoreMaterialShadersFromMemory(ShaderMapToSerializedShaderData);
 
-	for (int32 i = (int32)ERHIFeatureLevel::ES2; i < (int32)ERHIFeatureLevel::Num; ++i)
+	for (int32 i = (int32)ERHIFeatureLevel::ES3_1; i < (int32)ERHIFeatureLevel::Num; ++i)
 	{
 		if (GlobalShaderBackup.FeatureLevelShaderData[i] != nullptr)
 		{

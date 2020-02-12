@@ -30,4 +30,6 @@ struct APPLICATIONCORE_API FWindowsPlatformApplicationMisc : public FGenericPlat
 	/** End Windows platform only */
 };
 
+#if WINDOWS_USE_FEATURE_APPLICATIONMISC_CLASS
 typedef FWindowsPlatformApplicationMisc FPlatformApplicationMisc;
+#endif

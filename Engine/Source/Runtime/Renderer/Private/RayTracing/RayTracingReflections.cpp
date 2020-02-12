@@ -506,7 +506,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	FRayTracingReflectionsRGS::FParameters CommonParameters;
 
 	CommonParameters.SamplesPerPixel = SamplePerPixel;
-	CommonParameters.MaxBounces = GRayTracingReflectionsMaxBounces > -1? GRayTracingReflectionsMaxBounces : View.FinalPostProcessSettings.RayTracingReflectionsMaxBounces;
+	CommonParameters.MaxBounces = FMath::Max(1, GRayTracingReflectionsMaxBounces > -1? GRayTracingReflectionsMaxBounces : View.FinalPostProcessSettings.RayTracingReflectionsMaxBounces);
 	CommonParameters.HeightFog = GRayTracingReflectionsHeightFog;
 	CommonParameters.UseReflectionCaptures = GRayTracingReflectionsCaptures;
 	CommonParameters.ShouldDoDirectLighting = GRayTracingReflectionsDirectLighting;

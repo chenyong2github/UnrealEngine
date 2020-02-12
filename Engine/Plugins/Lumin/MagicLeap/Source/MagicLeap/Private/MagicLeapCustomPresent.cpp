@@ -35,7 +35,6 @@ FMagicLeapCustomPresent::FMagicLeapCustomPresent(FMagicLeapHMD* plugin)
 , Plugin(plugin)
 , bNotifyLifecycleOfFirstPresent(true)
 , bCustomPresentIsSet(false)
-, PlatformAPILevel(FMagicLeapAPISetup::GetPlatformLevel())
 , HFOV(80)
 , VFOV(60)
 {
@@ -67,7 +66,12 @@ bool FMagicLeapCustomPresent::Present(int32& SyncInterval)
 	bool bHostPresent = Plugin->GetWindowMirrorMode() > 0;
 #endif
 
-	FinishRendering();
+	if (Plugin->GetCurrentFrame().bFrameRenderingInProgress)
+	{
+		FinishRendering();
+
+		Plugin->GetCurrentFrameMutable().bFrameRenderingInProgress = false;
+	}
 
 	bCustomPresentIsSet = false;
 
@@ -134,39 +138,15 @@ void FMagicLeapCustomPresent::BeginFrame(FTrackingFrame& Frame)
 	if (bCustomPresentIsSet && !Plugin->IsRenderingPaused())
 	{
 		TUnion< MLGraphicsFrameParams, MLGraphicsFrameParamsEx > camera_params;
-		if (PlatformAPILevel >= 2)
-		{
-			camera_params.SetSubtype<MLGraphicsFrameParamsEx>(MLGraphicsFrameParamsEx());
-			MLGraphicsFrameParamsExInit(&camera_params.GetSubtype<MLGraphicsFrameParamsEx>());
-			InitCameraParams(camera_params.GetSubtype<MLGraphicsFrameParamsEx>(), Frame);
-			SET_FLOAT_STAT(STAT_FarClip, camera_params.GetSubtype<MLGraphicsFrameParamsEx>().far_clip);
-			SET_FLOAT_STAT(STAT_StabilizationDepth, camera_params.GetSubtype<MLGraphicsFrameParamsEx>().stabilization_depth);
-			SET_FLOAT_STAT(STAT_FocusDistance, camera_params.GetSubtype<MLGraphicsFrameParamsEx>().focus_distance);
-			SET_FLOAT_STAT(STAT_NearClip, camera_params.GetSubtype<MLGraphicsFrameParamsEx>().near_clip);
-		}
-		else
-		{
-			camera_params.SetSubtype<MLGraphicsFrameParams>(MLGraphicsFrameParams());
-			MLResult Result = MLGraphicsInitFrameParams(&camera_params.GetSubtype<MLGraphicsFrameParams>());
-			if (Result != MLResult_Ok)
-			{
-				UE_LOG(LogMagicLeap, Error, TEXT("MLGraphicsInitFrameParams failed with status %d"), Result);
-			}
-			InitCameraParams(camera_params.GetSubtype<MLGraphicsFrameParams>(), Frame);
-			SET_FLOAT_STAT(STAT_FarClip, camera_params.GetSubtype<MLGraphicsFrameParams>().far_clip);
-			SET_FLOAT_STAT(STAT_FocusDistance, camera_params.GetSubtype<MLGraphicsFrameParams>().focus_distance);
-			SET_FLOAT_STAT(STAT_NearClip, camera_params.GetSubtype<MLGraphicsFrameParams>().near_clip);
-		}		
+		camera_params.SetSubtype<MLGraphicsFrameParamsEx>(MLGraphicsFrameParamsEx());
+		MLGraphicsFrameParamsExInit(&camera_params.GetSubtype<MLGraphicsFrameParamsEx>());
+		InitCameraParams(camera_params.GetSubtype<MLGraphicsFrameParamsEx>(), Frame);
+		SET_FLOAT_STAT(STAT_FarClip, camera_params.GetSubtype<MLGraphicsFrameParamsEx>().far_clip);
+		SET_FLOAT_STAT(STAT_StabilizationDepth, camera_params.GetSubtype<MLGraphicsFrameParamsEx>().stabilization_depth);
+		SET_FLOAT_STAT(STAT_FocusDistance, camera_params.GetSubtype<MLGraphicsFrameParamsEx>().focus_distance);
+		SET_FLOAT_STAT(STAT_NearClip, camera_params.GetSubtype<MLGraphicsFrameParamsEx>().near_clip);
 
-		MLResult Result = MLResult_Ok;
-		if (PlatformAPILevel >= 2)
-		{
-			Result = MLGraphicsBeginFrameEx(Plugin->GraphicsClient, &camera_params.GetSubtype<MLGraphicsFrameParamsEx>(), &Frame.FrameInfo);
-		}
-		else
-		{
-			Result = MLGraphicsBeginFrame(Plugin->GraphicsClient, &camera_params.GetSubtype<MLGraphicsFrameParams>(), &Frame.FrameInfo.handle, &Frame.FrameInfo.virtual_camera_info_array);
-		}
+		MLResult Result = MLGraphicsBeginFrameEx(Plugin->GraphicsClient, &camera_params.GetSubtype<MLGraphicsFrameParamsEx>(), &Frame.FrameInfo);
 		Frame.bBeginFrameSucceeded = (Result == MLResult_Ok);
 		if (!Frame.bBeginFrameSucceeded)
 		{
@@ -176,10 +156,10 @@ void FMagicLeapCustomPresent::BeginFrame(FTrackingFrame& Frame)
 			}
 			// TODO: See if this is only needed for ZI.
 			Frame.FrameInfo.handle = ML_INVALID_HANDLE;
-			MagicLeap::ResetVirtualCameraInfoArray(Frame.FrameInfo.virtual_camera_info_array);
+			MagicLeap::ResetFrameInfo(Frame.FrameInfo);
 		}
 
-		const MLGraphicsVirtualCameraInfo& VCamInfo = Frame.FrameInfo.virtual_camera_info_array.virtual_cameras[0];
+		const MLGraphicsVirtualCameraInfo& VCamInfo = Frame.FrameInfo.virtual_cameras[0];
 		FPlatformAtomics::AtomicStore(&HFOV, static_cast<int64>(FMath::RadiansToDegrees((VCamInfo.left_half_angle + VCamInfo.right_half_angle)*2.0f)));
 		FPlatformAtomics::AtomicStore(&VFOV, static_cast<int64>(FMath::RadiansToDegrees((VCamInfo.top_half_angle + VCamInfo.bottom_half_angle)*2.0f)));
 	}
@@ -187,6 +167,8 @@ void FMagicLeapCustomPresent::BeginFrame(FTrackingFrame& Frame)
 	{
 		Frame.bBeginFrameSucceeded = false;
 	}
+
+	Frame.bFrameRenderingInProgress = Frame.bBeginFrameSucceeded;
 #endif // WITH_MLSDK
 }
 
@@ -216,9 +198,14 @@ void FMagicLeapCustomPresent::RenderToTextureSlice_RenderThread(FRHICommandListI
 	FRHIRenderPassInfo RPInfo(DstTexture, ERenderTargetActions::DontLoad_Store, nullptr, 0, ArraySlice);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("MagicLeap_RenderToMLSurface"));
 	{
-		const MLGraphicsVirtualCameraInfoArray& vp_array = Plugin->GetCurrentFrame().FrameInfo.virtual_camera_info_array;
-		const uint32 vp_width = static_cast<uint32>(vp_array.viewport.w);
-		const uint32 vp_height = static_cast<uint32>(vp_array.viewport.h);
+		// Clear the MLGraphics textures ourselves. This is ok for now because this function is only used by
+		// MagicLeapCustomPresentMetal. We can remove this once the metal interface adheres to the ml_graphics
+		// api contract of clearing the textures before sending it to the app.
+		DrawClearQuad(RHICmdList, FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+		const MLGraphicsFrameInfo& FrameInfo = Plugin->GetCurrentFrame().FrameInfo;
+		const uint32 vp_width = static_cast<uint32>(FrameInfo.viewport.w);
+		const uint32 vp_height = static_cast<uint32>(FrameInfo.viewport.h);
 
 		RHICmdList.SetViewport(0, 0, 0, vp_width, vp_height, 1.0f);
 

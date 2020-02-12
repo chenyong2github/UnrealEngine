@@ -560,7 +560,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNiagaraScriptCompilationComplete);
 /**
  * FNiagaraShaderScript represents a Niagara script to the shader compilation process
  */
-class NIAGARASHADER_VTABLE FNiagaraShaderScript
+class FNiagaraShaderScript
 {
 public:
 

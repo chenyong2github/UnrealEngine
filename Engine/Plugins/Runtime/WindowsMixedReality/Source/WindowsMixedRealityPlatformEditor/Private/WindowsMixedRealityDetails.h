@@ -6,6 +6,7 @@
 #include "PropertyHandle.h"
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
+#include "Widgets/Text/STextBlock.h"
 
 class FWindowsMixedRealityDetails : public IDetailCustomization
 {
@@ -18,4 +19,9 @@ private:
 	FReply OnConnectButtonClicked();
 	FReply OnDisconnectButtonClicked();
 	bool AreButtonsEnabled() const;
+	
+	void SetStatusText(FString message, FLinearColor statusColor);
+
+	FString StatusText;
+	TSharedPtr<STextBlock> statusTextWidget;
 };

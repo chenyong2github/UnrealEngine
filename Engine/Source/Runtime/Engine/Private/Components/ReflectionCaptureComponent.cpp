@@ -764,7 +764,7 @@ void UReflectionCaptureComponent::SendRenderTransform_Concurrent()
 void UReflectionCaptureComponent::OnRegister()
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GetWorld()->FeatureLevel;
-	const bool bEncodedDataRequired = (FeatureLevel == ERHIFeatureLevel::ES2 || FeatureLevel == ERHIFeatureLevel::ES3_1);
+	const bool bEncodedDataRequired = (FeatureLevel == ERHIFeatureLevel::ES3_1);
 
 	if (bEncodedDataRequired)
 	{
@@ -1104,7 +1104,7 @@ void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldT
 #if WITH_EDITOR
 void UReflectionCaptureComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFeatureLevel)
 {
-	if (PendingFeatureLevel == ERHIFeatureLevel::ES2 || PendingFeatureLevel == ERHIFeatureLevel::ES3_1)
+	if (PendingFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		FReflectionCaptureMapBuildData* MapBuildData = GetMapBuildData();
 

@@ -49,7 +49,7 @@ THIRD_PARTY_INCLUDES_END
 #undef GetTempFileName
 
 // Undefine all the atomics. AllowWindowsPlatformAtomics/HideWindowsPlatformAtomics temporarily defining these macros.
-#if !PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#undef InterlockedIncrement
 	#undef InterlockedDecrement
 	#undef InterlockedAdd

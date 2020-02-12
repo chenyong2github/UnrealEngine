@@ -23,12 +23,12 @@ bool FDeviceBrowserDefaultPlatformWidgetCreator::IsAddDeviceInputValid(const FSt
 	ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(*InPlatformName);
 	check(Platform);
 
-	FString TextCheck = CustomWidget.DeviceNameTextBox->GetText().ToString();
+	FString TextCheck = CustomWidget.DeviceIdTextBox->GetText().ToString();
 	TextCheck.TrimStartAndEndInline();
 
 	if (!TextCheck.IsEmpty())
 	{
-		if (!Platform->RequiresUserCredentials())
+		if (Platform->RequiresUserCredentials() != EPlatformAuthentication::Always)
 		{
 			return true;
 		}
@@ -55,27 +55,12 @@ void FDeviceBrowserDefaultPlatformWidgetCreator::AddDevice(const FString& InPlat
 	check(Platform);
 
 	FString DeviceIdString = CustomWidget.DeviceIdTextBox->GetText().ToString();
-	bool bAdded = Platform->AddDevice(DeviceIdString, false);
+	FString UserNameString = CustomWidget.UserNameTextBox->GetText().ToString();
+	FString UserPassString = CustomWidget.UserPasswordTextBox->GetText().ToString();
+	FString DeviceUserFriendlyNameString = CustomWidget.DeviceNameTextBox->GetText().ToString();
+	bool bAdded = Platform->AddDevice(DeviceIdString, DeviceUserFriendlyNameString, UserNameString, UserPassString, false);
 	if (bAdded)
 	{
-		// pass credentials to the newly added device
-		if (Platform->RequiresUserCredentials())
-		{
-			// We cannot guess the device id, so we have to look it up by name
-			TArray<ITargetDevicePtr> Devices;
-			Platform->GetAllDevices(Devices);
-			for (ITargetDevicePtr Device : Devices)
-			{
-				if (Device.IsValid() && Device->GetId().GetDeviceName() == DeviceIdString)
-				{
-					FString UserNameString = CustomWidget.UserNameTextBox->GetText().ToString();
-					FString UserPassString = CustomWidget.UserPasswordTextBox->GetText().ToString();
-
-					Device->SetUserCredentials(UserNameString, UserPassString);
-				}
-			}
-		}
-
 		CustomWidget.DeviceIdTextBox->SetText(FText::GetEmpty());
 		CustomWidget.DeviceNameTextBox->SetText(FText::GetEmpty());
 		CustomWidget.UserNameTextBox->SetText(FText::GetEmpty());

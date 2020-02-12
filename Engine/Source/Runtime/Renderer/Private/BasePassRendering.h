@@ -518,6 +518,32 @@ public:
 	TBasePassPS() {}
 };
 
+//Alternative base pass PS for 128 bit canvas render targets that need to be set at shader compilation time.
+class F128BitRTBasePassPS : public TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, false>
+{
+	DECLARE_SHADER_TYPE(F128BitRTBasePassPS, MeshMaterial);
+public:
+
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+	{
+		return FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(Parameters.Platform);		
+	}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
+		TBasePassPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	/** Initialization constructor. */
+	F128BitRTBasePassPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer): 
+		TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, false>(Initializer)
+	{}
+
+	/** Default constructor. */
+	F128BitRTBasePassPS() {}
+};
+
 /**
  * Get shader templates allowing to redirect between compatible shaders.
  */
@@ -530,6 +556,7 @@ void GetBasePassShaders(
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableAtmosphericFog,
 	bool bEnableSkyLight,
+	bool bUse128bitRT,
 	TShaderRef<FBaseHS>& HullShader,
 	TShaderRef<FBaseDS>& DomainShader,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<LightMapPolicyType>>& VertexShader,
@@ -583,6 +610,7 @@ void GetBasePassShaders<FUniformLightMapPolicy>(
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableAtmosphericFog,
 	bool bEnableSkyLight,
+	bool bUse128bitRT,
 	TShaderRef<FBaseHS>& HullShader,
 	TShaderRef<FBaseDS>& DomainShader,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
@@ -599,7 +627,8 @@ public:
 		None = 0,
 
 		// Informs the processor whether a depth-stencil target is bound when processed draw commands are issued.
-		CanUseDepthStencil = (1 << 0)
+		CanUseDepthStencil = (1 << 0),
+		bRequires128bitRT = (1 << 1)
 	};
 
 	FBasePassMeshProcessor(
@@ -614,6 +643,16 @@ public:
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
+
+	FORCEINLINE_DEBUGGABLE void Set128BitRequirement(const bool Required)
+	{
+		bRequiresExplicit128bitRT = Required;
+	}
+
+	FORCEINLINE_DEBUGGABLE bool Get128BitRequirement() const
+	{
+		return bRequiresExplicit128bitRT;
+	}
 
 private:
 
@@ -651,6 +690,7 @@ private:
 	const bool bTranslucentBasePass;
 	const bool bEnableReceiveDecalOutput;
 	EDepthDrawingMode EarlyZPassMode;
+	bool bRequiresExplicit128bitRT;
 };
 
 ENUM_CLASS_FLAGS(FBasePassMeshProcessor::EFlags);

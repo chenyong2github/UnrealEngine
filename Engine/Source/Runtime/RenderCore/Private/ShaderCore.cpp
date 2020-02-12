@@ -363,7 +363,14 @@ void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBuffe
 
 	if (!UniformBuffer)
 	{
-		UE_LOG(LogShaders, Warning, TEXT("Shader requested a global uniform buffer at static slot %s, but it was null."), *SlotRegistry.GetDebugDescription(Slot));
+		const FShaderParametersMetadata* ExpectedStructMetadata = FindUniformBufferStructByLayoutHash(ExpectedHash);
+
+		checkf(
+			ExpectedStructMetadata,
+			TEXT("Shader is requesting a uniform buffer at slot %s with hash '%u', but a reverse lookup of the hash can't find it. The shader cache may be out of date."),
+			*SlotRegistry.GetDebugDescription(Slot), ExpectedHash);
+
+		UE_LOG(LogShaders, Warning, TEXT("Shader requested a global uniform buffer of type '%s' at static slot '%s', but it was null."), ExpectedStructMetadata->GetShaderVariableName(), *SlotRegistry.GetDebugDescription(Slot));
 	}
 	else
 	{

@@ -185,6 +185,8 @@ typedef enum {
   ovrpOverlayFlag_offCenterCubemap = (ovrpShape_OffcenterCubemap << ovrpOverlayFlag_ShapeShift),
   ovrpOverlayFlag_ShapeMask = (0xF << ovrpOverlayFlag_ShapeShift),
 
+  ovrpOverlayFlag_Hidden = 0x00000200,
+
   // Internal flags
   /// If true, the overlay is a loading screen.
   ovrpOverlayFlag_LoadingScreen = 0x40000000,

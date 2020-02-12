@@ -62,9 +62,9 @@ private:
 /**
  * Pixel shader for rendering a single, constant color.
  */
-class FOneColorPS : public FGlobalShader
+class RENDERCORE_API FOneColorPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FOneColorPS,Global,RENDERCORE_API);
+	DECLARE_GLOBAL_SHADER(FOneColorPS);
 public:
 	
 	FOneColorPS( )	{ }
@@ -74,7 +74,7 @@ public:
 		//ColorParameter.Bind( Initializer.ParameterMap, TEXT("DrawColorMRT"), SPF_Mandatory);
 	}
 
-	RENDERCORE_API void SetColors(FRHICommandList& RHICmdList, const FLinearColor* Colors, int32 NumColors);
+	void SetColors(FRHICommandList& RHICmdList, const FLinearColor* Colors, int32 NumColors);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -88,11 +88,14 @@ public:
 /**
  * Pixel shader for rendering a single, constant color to MRTs.
  */
-template<int32 NumOutputs>
-class TOneColorPixelShaderMRT : public FOneColorPS
+class RENDERCORE_API TOneColorPixelShaderMRT : public FOneColorPS
 {
-	DECLARE_EXPORTED_SHADER_TYPE(TOneColorPixelShaderMRT,Global,RENDERCORE_API);
+	DECLARE_GLOBAL_SHADER(TOneColorPixelShaderMRT);
 public:
+	class TOneColorPixelShader128bitRT : SHADER_PERMUTATION_BOOL("b128BITRENDERTARGET");
+	class TOneColorPixelShaderNumOutputs : SHADER_PERMUTATION_RANGE_INT("NUM_OUTPUTS", 1, 8);
+	using FPermutationDomain = TShaderPermutationDomain<TOneColorPixelShaderNumOutputs, TOneColorPixelShader128bitRT>;
+
 	TOneColorPixelShaderMRT( )	{ }
 	TOneColorPixelShaderMRT(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 	:	FOneColorPS( Initializer )
@@ -101,17 +104,26 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if( NumOutputs > 1 )
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if(PermutationVector.Get<TOneColorPixelShaderMRT::TOneColorPixelShaderNumOutputs>())
 		{
-			return IsFeatureLevelSupported( Parameters.Platform, ERHIFeatureLevel::ES3_1);
+			return IsFeatureLevelSupported( Parameters.Platform, ERHIFeatureLevel::ES3_1) && 
+				(PermutationVector.Get<TOneColorPixelShaderMRT::TOneColorPixelShader128bitRT>() ? FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(Parameters.Platform) : true);
 		}
+
 		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FOneColorPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("NUM_OUTPUTS"), NumOutputs);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<TOneColorPixelShaderMRT::TOneColorPixelShader128bitRT>())
+		{
+			OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
+		}
 	}
 };
 
