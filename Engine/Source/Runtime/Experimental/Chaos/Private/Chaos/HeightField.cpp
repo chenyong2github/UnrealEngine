@@ -267,6 +267,7 @@ namespace Chaos
 								const TVector<T, 3> AC = C - A;
 
 								TVector<T, 3> TriNormal = TVector<T, 3>::CrossProduct(AB, AC);
+								TriNormal.SafeNormalize();
 
 								OutNormal = TriNormal;
 								CurrentLength = 0;
