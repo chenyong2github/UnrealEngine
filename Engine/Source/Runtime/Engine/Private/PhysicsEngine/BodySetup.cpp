@@ -966,6 +966,7 @@ void UBodySetup::FinishDestroy()
 void UBodySetup::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 
 	// Load GUID (or create one for older versions)
 	Ar << BodySetupGuid;
@@ -1040,6 +1041,29 @@ void UBodySetup::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 	AggGeom.FixupDeprecated( Ar );
+#endif
+
+#if WITH_CHAOS && WITH_EDITOR
+
+	if (Ar.IsLoading())
+	{
+		const bool bForceIndexRebuild = Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ForceRebuildBodySetupIndices;
+		for (FKConvexElem& Convex : AggGeom.ConvexElems)
+		{
+			// Reset potentially corrupted index data to correctly rebuild below
+			if (bForceIndexRebuild)
+			{
+				Convex.IndexData.Reset();
+			}
+			// Build an index buffer if we don't have one, either as a consequence of the check above or loading in a mesh that has never been
+			// processed with Chaos previously
+			Convex.ComputeChaosConvexIndices();
+		}
+		if (bForceIndexRebuild)
+		{
+			BodySetupGuid = FGuid::NewGuid(); // change the guid for dependents (navigation)
+		}
+	}
 #endif
 }
 
