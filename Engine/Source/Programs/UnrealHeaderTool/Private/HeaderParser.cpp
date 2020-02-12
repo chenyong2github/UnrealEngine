@@ -22,6 +22,7 @@
 #include "UnrealTypeDefinitionInfo.h"
 #include "Containers/EnumAsByte.h"
 #include "Algo/AllOf.h"
+#include "Algo/Find.h"
 #include "Algo/FindSortedStringCaseInsensitive.h"
 
 #include "Specifiers/CheckedMetadataSpecifiers.h"
@@ -9384,10 +9385,7 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 		int32 InputLineLocal = InputLine;
 		auto AddDependencyIfNeeded = [Filename, InputLineLocal, &ParsedClassArray, &out_RequiredIncludes, &out_ClassName, &ClassNameWithoutPrefixStr](const FString& DependencyClassName)
 		{
-			if (!ParsedClassArray.ContainsByPredicate([&DependencyClassName](const FSimplifiedParsingClassInfo& Info)
-				{
-					return Info.GetClassName() == DependencyClassName;
-				}))
+			if (!Algo::FindBy(ParsedClassArray, DependencyClassName, &FSimplifiedParsingClassInfo::GetClassName))
 			{
 				if (out_ClassName == DependencyClassName)
 				{
