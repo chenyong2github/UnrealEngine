@@ -304,7 +304,6 @@ namespace UsdGeomMeshTranslatorImpl
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::PostBuildStaticMesh );
 
-		FStaticMeshComponentRecreateRenderStateContext RecreateContext(&StaticMesh, false, false);
 		StaticMesh.InitResources();
 
 		if ( const FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription( 0 ) )
@@ -378,6 +377,8 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 		Then( !bIsAsyncTask,
 			[ this ]()
 			{
+				RecreateRenderStateContextPtr = MakeShared<FStaticMeshComponentRecreateRenderStateContext>( StaticMesh, true, true );
+
 				UsdGeomMeshTranslatorImpl::PreBuildStaticMesh( Schema.Get().GetPrim(), *StaticMesh, Context->PrimPathsToAssets, Context->Time );
 
 				return true;
@@ -403,6 +404,8 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 			[ this ]()
 			{
 				UsdGeomMeshTranslatorImpl::PostBuildStaticMesh( *StaticMesh );
+
+				RecreateRenderStateContextPtr.Reset();
 
 				return true;
 			} );

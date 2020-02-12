@@ -157,7 +157,7 @@ AUsdStageActor::AUsdStageActor()
 
 					if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) ) )
 					{
-						while ( SchemaTranslator->IsCollapsed( FUsdSchemaTranslator::ECollapsingType::Assets ) )
+						while ( SchemaTranslator->IsCollapsed( CollapsingType ) )
 						{
 							UsdPrimPath = UsdPrimPath.Get().GetParentPath();
 							UsdPrim = this->GetUsdStage()->GetPrimAtPath( UsdPrimPath.Get() );
@@ -186,7 +186,7 @@ AUsdStageActor::AUsdStageActor()
 					this->UpdatePrim( ComponentsPrimPath.Get(), bResync, *TranslationContext );
 					TranslationContext->CompleteTasks();
 				}
-				
+
 				this->RefreshVisibilityBasedOnPurpose();
 
 				if ( this->HasAutorithyOverStage() )
