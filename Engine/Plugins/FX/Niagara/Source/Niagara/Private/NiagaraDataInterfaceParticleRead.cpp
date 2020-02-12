@@ -77,6 +77,8 @@ struct FNDIParticleRead_InstanceData
 
 struct FNDIParticleRead_GameToRenderData
 {
+	FNDIParticleRead_GameToRenderData() : SourceEmitterGPUContext(nullptr) {}
+
 	FNiagaraComputeExecutionContext* SourceEmitterGPUContext;
 	FString SourceEmitterName;
 };
