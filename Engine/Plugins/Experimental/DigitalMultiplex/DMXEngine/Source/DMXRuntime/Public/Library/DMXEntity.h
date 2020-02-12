@@ -79,6 +79,9 @@ class DMXRUNTIME_API UDMXEntityUniverseManaged
 	GENERATED_BODY()
 
 public:
+
+	UDMXEntityUniverseManaged();
+
 	UPROPERTY(EditAnywhere, Category = "Communication Properties", meta = (DisplayName = "Protocol", DisplayPriority = "1"))
 	FDMXProtocolName DeviceProtocol;
 

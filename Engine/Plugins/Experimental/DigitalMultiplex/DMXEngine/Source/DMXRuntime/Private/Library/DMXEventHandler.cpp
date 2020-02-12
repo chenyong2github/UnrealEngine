@@ -10,20 +10,20 @@ void UDMXEventHandler::BufferReceivedBroadcast(FName Protocol, uint16 UniverseID
 
 UDMXEventHandler::UDMXEventHandler()
 {
-	AddToRoot();
-
-	for (const FName& ProtocolName : IDMXProtocol::GetProtocolNames())
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
-		if (TSharedPtr<IDMXProtocol> Protocol = IDMXProtocol::Get(ProtocolName))
+		for (const FName& ProtocolName : IDMXProtocol::GetProtocolNames())
 		{
-			Protocol->GetOnUniverseInputUpdate().AddUObject(this, &UDMXEventHandler::BufferReceivedBroadcast);
+			if (TSharedPtr<IDMXProtocol> Protocol = IDMXProtocol::Get(ProtocolName))
+			{
+				Protocol->GetOnUniverseInputUpdate().AddUObject(this, &UDMXEventHandler::BufferReceivedBroadcast);
+			}
 		}
 	}
 }
 
 bool UDMXEventHandler::ConditionalBeginDestroy()
 {
-	RemoveFromRoot();
 	OnProtocolReceived.RemoveAll(this);
 
 	return Super::ConditionalBeginDestroy();

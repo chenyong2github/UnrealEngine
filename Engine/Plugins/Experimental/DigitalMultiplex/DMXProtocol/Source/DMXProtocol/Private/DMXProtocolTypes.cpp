@@ -17,11 +17,6 @@ FDMXProtocolName::FDMXProtocolName(TSharedPtr<IDMXProtocol> InProtocol)
 	}
 }
 
-FDMXProtocolName::FDMXProtocolName()
-{
-	Name = IDMXProtocol::GetFirstProtocolName();
-}
-
 FDMXProtocolName::FDMXProtocolName(const FName& InName)
 	: Name(InName)
 {}

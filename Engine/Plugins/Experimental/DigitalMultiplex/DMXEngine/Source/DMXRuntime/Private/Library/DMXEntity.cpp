@@ -47,6 +47,14 @@ void UDMXEntity::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 }
 #endif // WITH_EDITOR
 
+UDMXEntityUniverseManaged::UDMXEntityUniverseManaged()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		DeviceProtocol = FDMXProtocolName(IDMXProtocol::GetFirstProtocolName());
+	}
+}
+
 void UDMXEntityUniverseManaged::PostLoad()
 {
 	Super::PostLoad();

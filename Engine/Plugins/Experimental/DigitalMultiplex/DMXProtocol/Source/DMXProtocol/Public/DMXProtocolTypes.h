@@ -60,7 +60,7 @@ public:
 
 	static TArray<FName> GetPossibleValues();
 
-	FDMXProtocolName();
+	FDMXProtocolName() = default;
 	/** Construct from a protocol name */
 	explicit FDMXProtocolName(const FName& InName);
 	/** Construct from a protocol */
