@@ -83,6 +83,9 @@ protected:
 	USceneComponent* DefaultSceneRoot;
 
 	UPROPERTY(Transient)
+	USceneComponent* SceneOffset;
+
+	UPROPERTY(Transient)
 	AActor* PreviousViewTarget;
 
 	/** Should focus plane be shown on all touch focus events */
@@ -147,6 +150,8 @@ protected:
 	virtual void SetLiveLinkRepresentation_Implementation(const FLiveLinkSubjectRepresentation& InLiveLinkRepresentation) override;
 	virtual bool IsStreaming_Implementation() const override;
 	virtual void SetSaveSettingsOnStopStreaming_Implementation(bool bShouldSettingsSave) override;
+	virtual void SetRelativeTransform_Implementation(const FTransform& InControllerTransform) override;
+	virtual FTransform GetRelativeTransform_Implementation() const override;
 	virtual bool ShouldSaveSettingsOnStopStreaming_Implementation() const override;
 	virtual void SetBeforeSetVirtualCameraTransformDelegate_Implementation(const FPreSetVirtualCameraTransform& InDelegate) override;
 	virtual void AddOnVirtualCameraUpdatedDelegate_Implementation(const FVirtualCameraTickDelegate& InDelegate) override;
@@ -177,6 +182,8 @@ private:
 	void SaveSettings();
 	/** Restores settings from save game. */
 	void LoadSettings();
+
+	void SetRelativeTransformInternal(const FTransform& InRelativeTransform);
 
 #if WITH_EDITOR
 	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);

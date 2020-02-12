@@ -125,6 +125,12 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Settings")
 	void SetSaveSettingsOnStopStreaming(bool bShouldSettingsSave);
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Movement")
+	void SetRelativeTransform(const FTransform& InControllerTransform);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Movement")
+	FTransform GetRelativeTransform() const;
+
 	/** Delegate will be executed before transform is set onto VirtualCamera. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Movement")
 	void SetBeforeSetVirtualCameraTransformDelegate(const FPreSetVirtualCameraTransform& InDelegate);

@@ -129,10 +129,13 @@ AVirtualCameraActor::AVirtualCameraActor(const FObjectInitializer& ObjectInitial
 	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>("DefaultSceneRoot");
 	SetRootComponent(DefaultSceneRoot);
 
+	SceneOffset = CreateDefaultSubobject<USceneComponent>("SceneOffset");
+	SceneOffset->SetupAttachment(DefaultSceneRoot);
+
 	RecordingCamera = CreateDefaultSubobject<UCineCameraComponent>("Recording Camera");
-	RecordingCamera->SetupAttachment(DefaultSceneRoot);
+	RecordingCamera->SetupAttachment(SceneOffset);
 	StreamedCamera = CreateDefaultSubobject<UCineCameraComponent>("Streamed Camera");
-	StreamedCamera->SetupAttachment(DefaultSceneRoot);
+	StreamedCamera->SetupAttachment(SceneOffset);
 
 	MovementComponent = CreateDefaultSubobject<UVirtualCameraMovement>("Movement Component");
 	MediaOutput = CreateDefaultSubobject<URemoteSessionMediaOutput>("Media Output");
@@ -181,6 +184,16 @@ bool AVirtualCameraActor::ShouldSaveSettingsOnStopStreaming_Implementation() con
 void AVirtualCameraActor::SetSaveSettingsOnStopStreaming_Implementation(bool bShouldSave)
 {
 	bSaveSettingsOnStopStreaming = bShouldSave;
+}
+
+void AVirtualCameraActor::SetRelativeTransform_Implementation(const FTransform& InControllerTransform)
+{
+	SetRelativeTransformInternal(InControllerTransform);
+}
+
+FTransform AVirtualCameraActor::GetRelativeTransform_Implementation() const
+{
+	return StreamedCamera->GetRelativeTransform();
 }
 
 void AVirtualCameraActor::SetBeforeSetVirtualCameraTransformDelegate_Implementation(const FPreSetVirtualCameraTransform& InDelegate)
@@ -235,8 +248,7 @@ void AVirtualCameraActor::Tick(float DeltaSeconds)
 			CameraTransform = OnPreSetVirtualCameraTransform.Execute(CameraTransform);
 		}
 
-		MovementComponent->SetLocalTransform(CameraTransform.Transform);
-		RootComponent->SetWorldTransform(MovementComponent->GetTransform());
+		SetRelativeTransformInternal(CameraTransform.Transform);
 	}
 
 	if (OnVirtualCameraUpdatedDelegates.IsBound())
@@ -659,6 +671,14 @@ void AVirtualCameraActor::LoadSettings()
 	}
 
 	PresetIndex = FVirtualCameraSettingsPreset::NextIndex;
+}
+
+void AVirtualCameraActor::SetRelativeTransformInternal(const FTransform& InRelativeTransform)
+{
+	MovementComponent->SetLocalTransform(InRelativeTransform);
+	const FTransform ModifiedTransform = MovementComponent->GetTransform();
+	RecordingCamera->SetRelativeTransform(ModifiedTransform);
+	StreamedCamera->SetRelativeTransform(ModifiedTransform);
 }
 
 void AVirtualCameraActor::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
