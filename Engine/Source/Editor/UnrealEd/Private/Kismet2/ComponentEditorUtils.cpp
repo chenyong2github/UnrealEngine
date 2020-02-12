@@ -164,18 +164,17 @@ bool FComponentEditorUtils::CanEditComponentInstance(const UActorComponent* Acto
 		&& (!ActorComp->IsVisualizationComponent())
 		&& (ActorComp->CreationMethod != EComponentCreationMethod::UserConstructionScript || bAllowUserContructionScript)
 		&& (ParentSceneComp == nullptr || !ParentSceneComp->IsCreatedByConstructionScript() || !ActorComp->HasAnyFlags(RF_DefaultSubObject)))
-		&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::CanEditNativeComponent(ActorComp));
+		&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ActorComp));
 }
 
-bool FComponentEditorUtils::CanEditNativeComponent(const UActorComponent* NativeComponent)
+FProperty* FComponentEditorUtils::GetPropertyForEditableNativeComponent(const UActorComponent* NativeComponent)
 {
 	// A native component can be edited if it is bound to a member variable and that variable is marked as visible in the editor
-	// Note: We aren't concerned with whether the component is marked editable - the component itself is responsible for determining which of its properties are editable
-
-	bool bCanEdit = false;
-	
+	// Note: We aren't concerned with whether the component is marked editable - the component itself is responsible for determining which of its properties are editable	
 	UObject* ComponentOuter = (NativeComponent ? NativeComponent->GetOuter() : nullptr);
 	UClass* OwnerClass = (ComponentOuter ? ComponentOuter->GetClass() : nullptr);
+	UObject* OwnerCDO = (OwnerClass ? OwnerClass->GetDefaultObject() : nullptr);
+
 	if (OwnerClass != nullptr)
 	{
 		for (TFieldIterator<FObjectProperty> It(OwnerClass); It; ++It)
@@ -183,22 +182,111 @@ bool FComponentEditorUtils::CanEditNativeComponent(const UActorComponent* Native
 			FObjectProperty* ObjectProp = *It;
 
 			// Must be visible - note CPF_Edit is set for all properties that should be visible, not just those that are editable
-			if (( ObjectProp->PropertyFlags & ( CPF_Edit ) ) == 0)
+			if ((ObjectProp->PropertyFlags & (CPF_Edit)) == 0)
 			{
 				continue;
 			}
 
 			UObject* Object = ObjectProp->GetObjectPropertyValue(ObjectProp->ContainerPtrToValuePtr<void>(ComponentOuter));
-			bCanEdit = Object != nullptr && Object->GetFName() == NativeComponent->GetFName();
-
-			if (bCanEdit)
+			if (Object != nullptr && Object->GetFName() == NativeComponent->GetFName())
 			{
-				break;
+				return ObjectProp;
+			}
+		}	
+	
+		// We have to check for array properties as well because they are not FObjectProperties and we want to be able to
+		// edit the inside of it
+		if (OwnerCDO != nullptr)
+		{
+			for (TFieldIterator<FArrayProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+			{
+				FArrayProperty* TestProperty = *PropIt;
+				void* ArrayPropInstAddress = TestProperty->ContainerPtrToValuePtr<void>(OwnerCDO);
+
+				// Ensure that this property is valid
+				FObjectProperty* ArrayEntryProp = CastField<FObjectProperty>(TestProperty->Inner);
+				if ((ArrayEntryProp == nullptr) || !ArrayEntryProp->PropertyClass->IsChildOf<UActorComponent>() || ((TestProperty->PropertyFlags & CPF_Edit) == 0))
+				{
+					continue;
+				}
+
+				// For each object in this array
+				FScriptArrayHelper ArrayHelper(TestProperty, ArrayPropInstAddress);
+				for (int32 ComponentIndex = 0; ComponentIndex < ArrayHelper.Num(); ++ComponentIndex)
+				{
+					// If this object is the native component we are looking for, then we should be allowed to edit it
+					const uint8* ArrayValRawPtr = ArrayHelper.GetRawPtr(ComponentIndex);
+					UObject* ArrayElement = ArrayEntryProp->GetObjectPropertyValue(ArrayValRawPtr);			
+					
+					if (ArrayElement != nullptr && ArrayElement->GetFName() == NativeComponent->GetFName())
+					{
+						return ArrayEntryProp;
+					}
+				}				
+			}			
+
+			// Check for map properties as well
+			for (TFieldIterator<FMapProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+			{
+				FMapProperty* TestProperty = *PropIt;
+				void* MapPropInstAddress = TestProperty->ContainerPtrToValuePtr<void>(OwnerCDO);
+				
+				// Ensure that this property is valid and that it is marked as visible in the editor
+				FObjectProperty* MapValProp = CastField<FObjectProperty>(TestProperty->ValueProp);
+				if ((MapValProp == nullptr) || !MapValProp->PropertyClass->IsChildOf<UActorComponent>() || ((TestProperty->PropertyFlags & CPF_Edit) == 0))
+				{
+					continue;
+				}
+
+				FScriptMapHelper MapHelper(TestProperty, MapPropInstAddress);
+				for (int32 MapSparseIndex = 0; MapSparseIndex < MapHelper.GetMaxIndex(); ++MapSparseIndex)
+				{
+					// For each value in the map (don't bother checking the keys, they won't be what the user can edit in this case)
+					if (MapHelper.IsValidIndex(MapSparseIndex))
+					{
+						const uint8* MapValueData = MapHelper.GetValuePtr(MapSparseIndex);						
+						UObject* ValueElement = MapValProp->GetObjectPropertyValue(MapValueData);
+						if (ValueElement != nullptr && ValueElement->GetFName() == NativeComponent->GetFName())
+						{
+							return MapValProp;
+						}
+					}
+				}
+			}
+
+			// Finally we should check for set properties
+			for (TFieldIterator<FSetProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+			{
+				FSetProperty* TestProperty = *PropIt;
+				void* SetPropInstAddress = TestProperty->ContainerPtrToValuePtr<void>(OwnerCDO);
+
+				// Ensure that this property is valid and that it is marked visible
+				FObjectProperty* SetValProp = CastField<FObjectProperty>(TestProperty->ElementProp);
+				if ((SetValProp == nullptr) || !SetValProp->PropertyClass->IsChildOf<UActorComponent>() || ((TestProperty->PropertyFlags & CPF_Edit) == 0))
+				{
+					continue;
+				}
+				
+				// For each item in the set
+				FScriptSetHelper SetHelper(TestProperty, SetPropInstAddress);
+				for (int32 i = 0; i < SetHelper.Num(); ++i)
+				{
+					if (SetHelper.IsValidIndex(i))
+					{
+						const uint8* SetValData = SetHelper.GetElementPtr(i);
+						UObject* SetValueElem = SetValProp->GetObjectPropertyValue(SetValData);
+						
+						if (SetValueElem != nullptr && SetValueElem->GetFName() == NativeComponent->GetFName())
+						{
+							return SetValProp;
+						}
+					}
+				}
 			}
 		}
-	}
+	}	
 
-	return bCanEdit;
+	return nullptr;
 }
 
 bool FComponentEditorUtils::IsValidVariableNameString(const UActorComponent* InComponent, const FString& InString)

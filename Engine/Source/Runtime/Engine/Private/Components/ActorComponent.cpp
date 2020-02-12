@@ -1895,7 +1895,7 @@ bool UActorComponent::IsEditableWhenInherited() const
 #if WITH_EDITOR
 		if (CreationMethod == EComponentCreationMethod::Native && !IsTemplate())
 		{
-			bCanEdit = FComponentEditorUtils::CanEditNativeComponent(this);
+			bCanEdit = FComponentEditorUtils::GetPropertyForEditableNativeComponent(this) != nullptr;
 		}
 		else
 #endif
