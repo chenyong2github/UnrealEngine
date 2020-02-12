@@ -8,7 +8,7 @@
 #include "Dom/JsonObject.h"
 
 template<class TUniverse>
-class DMXPROTOCOL_API FDMXProtocolUniverseManager
+class FDMXProtocolUniverseManager
 {
 public:
 	using TUniversesPtr = TSharedPtr<TUniverse, ESPMode::ThreadSafe>;
