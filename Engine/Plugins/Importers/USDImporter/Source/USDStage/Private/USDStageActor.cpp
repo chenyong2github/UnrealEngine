@@ -235,6 +235,33 @@ AUsdStageActor::~AUsdStageActor()
 #endif // #if USE_USD_SDK
 }
 
+USDSTAGE_API void AUsdStageActor::Reset()
+{
+	Super::Reset();
+
+	Modify();
+
+	Clear();
+	AssetsCache.Reset();
+
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
+	LevelSequence = nullptr;
+	StartTimeCode = 0.0f;
+	EndTimeCode = 100.0f;
+	TimeCodesPerSecond = 24.0f;
+	Time = 0;
+
+	RootUsdTwin.Clear();
+	RootUsdTwin.PrimPath = TEXT("/");
+	GEditor->BroadcastLevelActorListChanged();
+
+	RootLayer.FilePath.Empty();
+	UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
+	UsdStageStore = TUsdStore< pxr::UsdStageRefPtr >();
+
+	OnStageChanged.Broadcast();
+}
+
 #if USE_USD_SDK
 
 FUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const pxr::SdfPath& UsdPrimPath )
@@ -395,8 +422,8 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootLayer ) )
 	{
 		UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
-
 		UsdStageStore = TUsdStore< pxr::UsdStageRefPtr >();
+
 		AssetsCache.Reset(); // We've changed USD file, clear the cache
 		LoadUsdStage();
 	}
@@ -429,6 +456,7 @@ void AUsdStageActor::Clear()
 {
 	PrimPathsToAssets.Reset();
 	ObjectsToWatch.Reset();
+	SubLayerLevelSequencesByIdentifier.Reset();
 }
 
 void AUsdStageActor::OpenUsdStage()
@@ -565,37 +593,44 @@ void AUsdStageActor::ReloadAnimations()
 #endif // #if USE_USD_SDK
 }
 
-void AUsdStageActor::PostRegisterAllComponents()
+void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
 {
-	Super::PostRegisterAllComponents();
-
-#if USE_USD_SDK
-	if ( HasAutorithyOverStage() )
+	if (TransactionEvent.HasPendingKillChange())
 	{
-		LoadUsdStage();
-	}
-	else
-	{
-		const pxr::UsdStageRefPtr& UsdStage = GetUsdStage();
-
-		if ( UsdStage )
+		// Fires when being deleted in editor, redo delete
+		if (this->IsPendingKill())
 		{
-			TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, RootUsdTwin.PrimPath );
+			OnActorDestroyed.Broadcast();
+		}
+		// This fires when being spawned, undo delete, redo spawn
+		else
+		{
+			OnActorLoaded.Broadcast( this );
 
-			LoadAssets( *TranslationContext, UsdStage->GetPseudoRoot() );
-			UpdatePrim( UsdStage->GetPseudoRoot().GetPrimPath(), true, *TranslationContext );
+			if (HasAutorithyOverStage())
+			{
+				LoadUsdStage();
+			}
+
+			OnStageChanged.Broadcast();
 		}
 	}
-#endif // #if USE_USD_SDK
-}
-
-void AUsdStageActor::PostLoad()
-{
-	Super::PostLoad();
-
-	if ( HasAutorithyOverStage() )
+	// Fires on Close and undo Close
+	else if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
 	{
-		OnActorLoaded.Broadcast( this );
+		// UsdStageStore can't be a UPROPERTY, so we have to make sure that it
+		// is kept in sync with the state of RootLayer, because LoadUsdStage will
+		// do the job of clearing our components and etc if the path is empty
+		if (RootLayer.FilePath.IsEmpty())
+		{
+			UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
+			UsdStageStore = TUsdStore< pxr::UsdStageRefPtr >();
+		}
+
+		if ( HasAutorithyOverStage() )
+		{
+			LoadUsdStage();
+		}
 	}
 }
 

@@ -264,6 +264,9 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 
 			if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
 			{
+				// Need to make sure the mesh's resources are initialized here as it may have just been built in another thread
+				PrimStaticMesh->InitResources();
+
 				if ( StaticMeshComponent->IsRegistered() )
 				{
 					StaticMeshComponent->UnregisterComponent();

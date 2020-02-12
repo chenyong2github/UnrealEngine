@@ -346,6 +346,11 @@ void FUsdLevelSequenceHelperImpl::CreateTimeTrack(const FUsdLevelSequenceHelperI
 	else
 	{
 		TimeTrack = MovieScene->AddTrack<UMovieSceneFloatTrack>(StageActorBinding);
+		if (!TimeTrack)
+		{
+			return;
+		}
+
 		TimeTrack->SetPropertyNameAndPath(FName(TIME_TRACK_NAME), "Time");
 
 		MovieScene->SetEvaluationType(EMovieSceneEvaluationType::FrameLocked);
