@@ -8,9 +8,9 @@
 void UDMXEntityController::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName&& PropertyName = PropertyChangedEvent.GetPropertyName();
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, RemoteOffset)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseLocalStart)
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseLocalStart)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseLocalNum)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseRemoteStart)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol))
 	{
 		ValidateRangeValues();
@@ -30,16 +30,17 @@ void UDMXEntityController::ValidateRangeValues()
 		const int32 MinUniverseID = Protocol->GetMinUniverseID();
 		const int32 MaxUniverseID = Protocol->GetMaxUniverses();
 
+		// To make sure all protocols have a minimum local value of 1, we offset their min values
+		const int32 LocalMinOffset = 1 - MinUniverseID;
+
 		// Clamp local values
-		UniverseLocalStart = FMath::Clamp(UniverseLocalStart, MinUniverseID, MaxUniverseID);
-		UniverseLocalNum = FMath::Clamp(UniverseLocalNum, 1, MaxUniverseID - UniverseLocalStart + 1);
+		UniverseLocalStart = FMath::Clamp(UniverseLocalStart, 1, MaxUniverseID + LocalMinOffset);
+		UniverseLocalNum = FMath::Clamp(UniverseLocalNum, 1, MaxUniverseID + LocalMinOffset - UniverseLocalStart + 1);
 
 		UniverseLocalEnd = UniverseLocalStart + UniverseLocalNum - 1;
 
-		// Clamp remote offset to have valid remote range
-		RemoteOffset = FMath::Clamp(RemoteOffset, MinUniverseID - UniverseLocalStart, MaxUniverseID - UniverseLocalStart);
-		// Offset can't make UniverseRemoteEnd overflow the max Universe ID
-		RemoteOffset = FMath::Min(RemoteOffset, MaxUniverseID - UniverseLocalEnd);
+		// Clamp remote start to have valid remote range
+		UniverseRemoteStart = FMath::Clamp(UniverseRemoteStart, MinUniverseID, MaxUniverseID - UniverseLocalNum + 1);
 	}
 	else
 	{
@@ -55,8 +56,8 @@ void UDMXEntityController::ValidateRangeValues()
 		UniverseLocalEnd = UniverseLocalStart + UniverseLocalNum - 1;
 	}
 
-	UniverseRemoteStart = UniverseLocalStart + RemoteOffset;
-	UniverseRemoteEnd = UniverseLocalEnd + RemoteOffset;
+	UniverseRemoteEnd = UniverseRemoteStart + UniverseLocalNum - 1;
+	RemoteOffset = UniverseRemoteStart - UniverseLocalStart;
 }
 
 void UDMXEntityController::UpdateUniversesFromRange()

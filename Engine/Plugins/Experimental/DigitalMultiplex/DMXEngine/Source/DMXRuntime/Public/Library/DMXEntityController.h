@@ -17,7 +17,7 @@ public:
 	EDMXCommunicationTypes CommunicationMode;
 
 	/**  First Universe ID on this Controller's range. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Universe Properties", meta = (DisplayName = "Universe Start", DisplayPriority = 1))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Universe Properties", meta = (DisplayName = "Universe Start", DisplayPriority = 1, ClampMin = 1))
 	int32 UniverseLocalStart;
 
 	/**  Number of Universe IDs on this Controller's range, starting from Universe Start value. */
@@ -36,14 +36,14 @@ public:
 	 * This allows the user to change all Universe IDs used by the Fixture Patches and
 	 * avoid conflicts with other devices by updating only the Controller's Remote Offset.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Universe Properties", meta = (DisplayPriority = 20))
+	UPROPERTY()
 	int32 RemoteOffset;
 
 	/**
 	 * First Universe ID on this Controller's range that is sent over the network.
 	 * Universe Start + Remote Offset
 	 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Universe Properties", meta = (DisplayName = "Remote Universe Range Start", DisplayPriority = 21))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Universe Properties", meta = (DisplayName = "Remote Universe Range Start", DisplayPriority = 21))
 	int32 UniverseRemoteStart;
 
 	/**
