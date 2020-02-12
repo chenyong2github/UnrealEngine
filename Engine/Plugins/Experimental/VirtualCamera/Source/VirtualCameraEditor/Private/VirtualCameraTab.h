@@ -24,7 +24,7 @@ class UVirtualCameraTabUserData : public UObject
 public:
 
 	UPROPERTY(EditAnywhere, Category = "VirtualCamera")
-	FVector2D Resolution;
+	FVector2D TargetDeviceResolution;
 
 	UPROPERTY(EditAnywhere, Category = "VirtualCamera")
 	TSoftObjectPtr<AVirtualCameraActor> VirtualCameraActor;

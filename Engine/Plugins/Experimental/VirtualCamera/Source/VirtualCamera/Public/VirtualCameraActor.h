@@ -63,7 +63,7 @@ public:
 	TSubclassOf<UUserWidget> CameraUMGClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Streaming")
-	FVector2D ViewportResolution;
+	FVector2D TargetDeviceResolution;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Streaming")
 	int32 RemoteSessionPort;

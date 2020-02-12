@@ -28,7 +28,7 @@ namespace VirtualCamera
 {
 	static const FName VirtualCameraApp = "SVirtualCameraApp";
 	static const FName LevelEditorModuleName = "LevelEditor";
-	static const FVector2D DefaultResolution{ 1280, 720 };
+	static const FVector2D DefaultResolution{ 1280, 960 };
 	static FDelegateHandle LevelEditorTabManagerChangedHandle;
 
 	TSharedRef<SDockTab> CreateVirtualCameraViewportTab(const FSpawnTabArgs& Args)
@@ -44,7 +44,7 @@ namespace VirtualCamera
 
 UVirtualCameraTabUserData::UVirtualCameraTabUserData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, Resolution(VirtualCamera::DefaultResolution)
+	, TargetDeviceResolution(VirtualCamera::DefaultResolution)
 	, Port(IRemoteSessionModule::kDefaultPort)
 {
 }
@@ -223,7 +223,7 @@ bool SVirtualCameraTab::IsStreaming() const
 
 bool SVirtualCameraTab::CanStream() const
 {
-	return WidgetUserData && WidgetUserData->VirtualCameraActor.IsValid() && WidgetUserData->Resolution.X > 1 && WidgetUserData->Resolution.Y > 1;
+	return WidgetUserData && WidgetUserData->VirtualCameraActor.IsValid() && WidgetUserData->TargetDeviceResolution.X > 1 && WidgetUserData->TargetDeviceResolution.Y > 1;
 }
 
 bool SVirtualCameraTab::StartStreaming()
@@ -235,7 +235,7 @@ bool SVirtualCameraTab::StartStreaming()
 
 	// override the actor's settings
 	WidgetUserData->VirtualCameraActor->RemoteSessionPort = WidgetUserData->Port;
-	WidgetUserData->VirtualCameraActor->ViewportResolution = WidgetUserData->Resolution;
+	WidgetUserData->VirtualCameraActor->TargetDeviceResolution = WidgetUserData->TargetDeviceResolution;
 
 	if (UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>())
 	{

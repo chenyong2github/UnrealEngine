@@ -112,7 +112,7 @@ int32 AVirtualCameraActor::PresetIndex = 1;
 
 AVirtualCameraActor::AVirtualCameraActor(const FObjectInitializer& ObjectInitializer)
 	: LiveLinkSubject{ DefaultLiveLinkSubjectName, ULiveLinkTransformRole::StaticClass() }
-	, ViewportResolution(DefaultViewportResolution)
+	, TargetDeviceResolution(DefaultViewportResolution)
 	, RemoteSessionPort(IRemoteSessionModule::kDefaultPort)
 	, ActorWorld(nullptr)
 	, PreviousViewTarget(nullptr)
@@ -293,7 +293,7 @@ bool AVirtualCameraActor::StartStreaming()
 		TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
 		if (ActiveLevelViewport.IsValid())
 		{
-			ActiveLevelViewport->GetSharedActiveViewport()->SetFixedViewportSize(ViewportResolution.X, ViewportResolution.Y);
+			ActiveLevelViewport->GetSharedActiveViewport()->SetFixedViewportSize(TargetDeviceResolution.X, TargetDeviceResolution.Y);
 
 			FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
 			ViewportSettingsBackup->ActorLock = LevelViewportClient.GetActiveActorLock();
@@ -331,6 +331,10 @@ bool AVirtualCameraActor::StartStreaming()
 		FViewTargetTransitionParams TransitionParams;
 		PlayerController->SetViewTarget(this, TransitionParams);
 	}
+	
+	// use the aspect ratio of the device we're streaming to, so the UMG and the camera capture fit together and span the device's surface
+	StreamedCamera->Filmback.SensorWidth = TargetDeviceResolution.X / 100.0f;
+	StreamedCamera->Filmback.SensorHeight = TargetDeviceResolution.Y / 100.0f;
 
 	if (CameraUMGClass)
 	{
