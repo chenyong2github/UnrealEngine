@@ -49,7 +49,7 @@ namespace Gauntlet
 			return ExitCode;
 		}
 
-		public void Kill()
+		virtual public void Kill()
 		{
 			if (!HasExited)
 			{
