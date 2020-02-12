@@ -1252,8 +1252,8 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	// Set gravity, using the legacy priority: 1) config override, 2) game override, 3) world gravity
 	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
-		(ClothSharedSimConfig && ClothSharedSimConfig->bUseGravityOverride) ? ClothSharedSimConfig->Gravity :
 		bOverrideGravity ? Gravity :
+		(ClothSharedSimConfig && ClothSharedSimConfig->bUseGravityOverride) ? ClothSharedSimConfig->Gravity :
 		ClothSharedSimConfig ? Context->WorldGravity * ClothSharedSimConfig->GravityScale :
 		Context->WorldGravity));
 
