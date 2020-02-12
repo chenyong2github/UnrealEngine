@@ -415,16 +415,6 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(ClassificationColors);
 }
 
-FVertexFactoryShaderParameters* FLidarPointCloudVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	if (ShaderFrequency == SF_Vertex)
-	{
-		return new FLidarPointCloudVertexFactoryShaderParameters();
-	}
-
-	return nullptr;
-}
-
 FLidarPointCloudVertexFactory::~FLidarPointCloudVertexFactory()
 {
 	FRenderCommandFence Fence;
@@ -461,6 +451,8 @@ void FLidarPointCloudVertexFactory::ReleaseRHI()
 	FVertexFactory::ReleaseRHI();
 	VertexBuffer.ReleaseResource();
 }
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLidarPointCloudVertexFactory, SF_Vertex, FLidarPointCloudVertexFactoryShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FLidarPointCloudVertexFactory, "/Plugin/LidarPointCloud/Private/LidarPointCloudVertexFactory.ush", /* bUsedWithMaterials */ true, /* bSupportsStaticLighting */ false, /* bSupportsDynamicLighting */ true, /* bPrecisePrevWorldPos */ false, /* bSupportsPositionOnly */ true);
 

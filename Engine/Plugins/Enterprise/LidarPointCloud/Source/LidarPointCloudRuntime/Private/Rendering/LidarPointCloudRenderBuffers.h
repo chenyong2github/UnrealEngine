@@ -209,8 +209,6 @@ class FLidarPointCloudVertexFactory : public FVertexFactory
 	DECLARE_VERTEX_FACTORY_TYPE(FLidarPointCloudVertexFactory);
 
 public:
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
-
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) {}
 
