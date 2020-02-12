@@ -268,94 +268,6 @@ static void Writer_ShutdownBuffers()
 
 
 
-////////////////////////////////////////////////////////////////////////////
-template <typename Class>
-class alignas(Class) TSafeStatic
-{
-public:
-	Class* operator -> ()				{ return (Class*)Buffer; }
-	Class const* operator -> () const	{ return (Class const*)Buffer; }
-
-protected:
-	alignas(Class) uint8 Buffer[sizeof(Class)];
-};
-
-
-
-////////////////////////////////////////////////////////////////////////////
-class FHoldBufferImpl
-{
-public:
-	void				Init();
-	void				Shutdown();
-	void				Write(const void* Data, uint32 Size);
-	bool				IsFull() const	{ return bFull; }
-	const uint8*		GetData() const { return Base; }
-	uint32				GetSize() const { return Used; }
-
-private:
-	static const uint32	PageShift = 16;
-	static const uint32	PageSize = 1 << PageShift;
-	static const uint32	MaxPages = (4 * 1024 * 1024) >> PageShift;
-	uint8*				Base;
-	int32				Used;
-	uint16				MappedPageCount;
-	bool				bFull;
-};
-
-typedef TSafeStatic<FHoldBufferImpl> FHoldBuffer;
-
-////////////////////////////////////////////////////////////////////////////////
-void FHoldBufferImpl::Init()
-{
-	Base = MemoryReserve(FHoldBufferImpl::PageSize * FHoldBufferImpl::MaxPages);
-	Used = 0;
-	MappedPageCount = 0;
-	bFull = false;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FHoldBufferImpl::Shutdown()
-{
-	if (Base == nullptr)
-	{
-		return;
-	}
-
-	MemoryFree(Base, FHoldBufferImpl::PageSize * FHoldBufferImpl::MaxPages);
-	Base = nullptr;
-	MappedPageCount = 0;
-	Used = 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FHoldBufferImpl::Write(const void* Data, uint32 Size)
-{
-	int32 NextUsed = Used + Size;
-
-	uint16 HotPageCount = uint16((NextUsed + (FHoldBufferImpl::PageSize - 1)) >> FHoldBufferImpl::PageShift);
-	if (HotPageCount > MappedPageCount)
-	{
-		if (HotPageCount > FHoldBufferImpl::MaxPages)
-		{
-			bFull = true;
-			return;
-		}
-
-		void* MapStart = Base + (UPTRINT(MappedPageCount) << FHoldBufferImpl::PageShift);
-		uint32 MapSize = (HotPageCount - MappedPageCount) << FHoldBufferImpl::PageShift;
-		MemoryMap(MapStart, MapSize);
-
-		MappedPageCount = HotPageCount;
-	}
-
-	memcpy(Base + Used, Data, Size);
-
-	Used = NextUsed;
-}
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 enum class EDataState : uint8
 {
@@ -363,41 +275,17 @@ enum class EDataState : uint8
 	Partial,			// Passive, but buffers are full so some events are lost
 	Sending,			// Events are being sent to an IO handle
 };
-static FHoldBuffer				GHoldBuffer;		// will init to zero.
 static UPTRINT					GDataHandle;		// = 0
-static EDataState				GDataState;			// = EDataState::Passive
 UPTRINT							GPendingDataHandle;	// = 0
 static FWriteBuffer* __restrict GActiveThreadList;	// = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
 static uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 {
-	auto SendInner = [] (uint8* __restrict SendData, uint32 SendSize)
+	if (!GDataHandle)
 	{
-		if (GDataState == EDataState::Sending)
-		{
-			// Transmit data to the io handle
-			if (GDataHandle)
-			{
-				if (!IoWrite(GDataHandle, SendData, SendSize))
-				{
-					IoClose(GDataHandle);
-					GDataHandle = 0;
-				}
-			}
-		}
-		else
-		{
-			GHoldBuffer->Write(SendData, SendSize);
-
-			// Did we overflow? Enter partial mode.
-			bool bOverflown = GHoldBuffer->IsFull();
-			if (bOverflown && GDataState != EDataState::Partial)
-			{
-				GDataState = EDataState::Partial;
-			}
-		}
-	};
+		return 0;
+	}
 
 	struct FPacketBase
 	{
@@ -416,7 +304,12 @@ static uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Si
 		Packet->ThreadId = uint16(ThreadId & 0x7fff);
 		Packet->PacketSize = uint16(Size);
 
-		SendInner(Data, Size);
+		if (!IoWrite(GDataHandle, Data, Size))
+		{
+			IoClose(GDataHandle);
+			GDataHandle = 0;
+		}
+
 		return Size;
 	}
 
@@ -438,7 +331,12 @@ static uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Si
 	Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
 	Packet.PacketSize += sizeof(FPacketEncoded);
 
-	SendInner((uint8*)&Packet, Packet.PacketSize);
+	if (!IoWrite(GDataHandle, (uint8*)&Packet, Packet.PacketSize))
+	{
+		IoClose(GDataHandle);
+		GDataHandle = 0;
+	}
+
 	return Packet.PacketSize;
 }
 
@@ -617,8 +515,6 @@ static void Writer_UpdateData()
 		return;
 	}
 
-	GDataState = EDataState::Sending;
-
 	// Send the header events
 	{
 		TWriteBufferRedirect<512> HeaderEvents;
@@ -626,13 +522,6 @@ static void Writer_UpdateData()
 		Writer_LogTimingHeader();
 		Writer_SendData(0, HeaderEvents.GetData(), HeaderEvents.GetSize());
 	}
-	
-	// Passively collected data
-	if (GHoldBuffer->GetSize())
-	{
-		bOk &= IoWrite(GDataHandle, GHoldBuffer->GetData(), GHoldBuffer->GetSize());
-	}
-	GHoldBuffer->Shutdown();
 }
 
 
@@ -644,6 +533,12 @@ static volatile bool	GWorkerThreadQuit	= false;
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_WorkerThread()
 {
+	// At this point we haven't never collected any trace events. So we'll stall
+	// for just a little bit to give the user a chance to set up sending the trace
+	// somewhere and we they'll get all events since boot. Otherwise they'll be
+	// unceremoniously dropped.
+	ThreadSleep(67);
+
 	while (!GWorkerThreadQuit)
 	{
 		const uint32 SleepMs = 24;
@@ -680,9 +575,6 @@ static void Writer_InternalInitializeImpl()
 	GInitialized = true;
 
 	Writer_InitializeBuffers();
-
-	GHoldBuffer->Init();
-
 	Writer_InitializeControl();
 	Writer_InitializeTiming();
 }
@@ -700,8 +592,6 @@ static void Writer_InternalShutdown()
 	ThreadDestroy(GWorkerThread);
 
 	Writer_ShutdownControl();
-
-	GHoldBuffer->Shutdown();
 	Writer_ShutdownBuffers();
 
 	GInitialized = false;
