@@ -55,7 +55,7 @@ public:
 	GENERATED_BODY()
 
 	/** Selected protocol name */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "DMX|Protocol")
 	FName Name;
 
 	static TArray<FName> GetPossibleValues();
@@ -95,7 +95,7 @@ public:
 	GENERATED_BODY()
 
 	/** Selected protocol name */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "DMX|Category")
 	FName Name;
 
 	static FSimpleMulticastDelegate OnPossibleValuesUpdated;
