@@ -1760,7 +1760,7 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 	return bResult;
 }
 
-ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>& PkgsToCheckOut, TArray<UPackage*>* OutPackagesCheckedOut, const bool bErrorIfAlreadyCheckedOut)
+ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>& PkgsToCheckOut, TArray<UPackage*>* OutPackagesCheckedOut, const bool bErrorIfAlreadyCheckedOut, const bool bConfirmPackageBranchCheckOutStatus)
 {
 	ECommandResult::Type CheckOutResult = ECommandResult::Succeeded;
 	FString PkgsWhichFailedCheckout;
@@ -1779,7 +1779,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 	if(CheckOutResult != ECommandResult::Cancelled)
 	{
 		// If any packages are checked out or modified in another branch, prompt for confirmation
-		if (!ConfirmPackageBranchCheckOutStatus(PkgsToCheckOut))
+		if (bConfirmPackageBranchCheckOutStatus && !ConfirmPackageBranchCheckOutStatus(PkgsToCheckOut))
 		{
 			return ECommandResult::Cancelled;
 		}
@@ -4237,8 +4237,8 @@ static bool InternalCheckoutAndSavePackages(const TArray<UPackage*>& PackagesToS
 			TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 			const bool bErrorIfAlreadyCheckedOut = false;
-			const bool bShowDialogIfFailure = false;
-			FEditorFileUtils::CheckoutPackages(PackagesToSave, nullptr, bErrorIfAlreadyCheckedOut);
+			const bool bConfirmPackageBranchCheckOutStatus = bUseDialog;
+			FEditorFileUtils::CheckoutPackages(PackagesToSave, nullptr, bErrorIfAlreadyCheckedOut, bConfirmPackageBranchCheckOutStatus);
 
 			TArray<UPackage*> FailedPackages;
 			FEditorFileUtils::EPromptReturnCode ReturnResponse = InternalPromptForCheckoutAndSave(PackagesToSave, bUseDialog, FailedPackages);
