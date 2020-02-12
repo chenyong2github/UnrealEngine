@@ -36,6 +36,10 @@ public:
 	bool GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData);
 
 private:
+	void Reset();
+	void ShowNotification(const FText& Text);
+
+private:
 	FGeometryCacheMeshData MeshData;
 	FGeometryCacheTrackSampleInfo SampleInfo;
 	TUniquePtr<FAbcFile> AbcFile;
