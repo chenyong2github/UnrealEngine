@@ -1244,12 +1244,6 @@ public:
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
 
-	/** Sets the dynamic volume of the given submix. */
-	virtual void SetSubmixOutputVolume(USoundSubmix* InSubmix, float NewVolume)
-	{
-		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
-	}
-
 	/** This is called by a USoundSubmix to start recording a submix instance on this device. */
 	virtual void StartRecording(USoundSubmix* InSubmix, float ExpectedRecordingDuration)
 	{
@@ -1275,6 +1269,30 @@ public:
 	virtual void StopEnvelopeFollowing(USoundSubmix* InSubmix)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Envelope following submixes only works with the audio mixer. Please run using -audiomixer or set INI file to use submix recording."));
+	}
+
+	/** Set the wet-dry level of the given submix */
+	virtual void SetSubmixWetDryLevel(USoundSubmix* InSoundSubmix, float InOutputVolume, float InWetLevel, float InDryLevel)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Set the wet-dry level of the given submix */
+	virtual void SetSubmixOutputVolume(USoundSubmix* InSoundSubmix, float InOutputVolume)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Set the wet-dry level of the given submix */
+	virtual void SetSubmixWetLevel(USoundSubmix* InSoundSubmix, float InWetLevel)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Set the wet-dry level of the given submix */
+	virtual void SetSubmixDryLevel(USoundSubmix* InSoundSubmix, float InDryLevel)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
 
 	/** Adds an envelope follower delegate to the submix for this audio device. */
