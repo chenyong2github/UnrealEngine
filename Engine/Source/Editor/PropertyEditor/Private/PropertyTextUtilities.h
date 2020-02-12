@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
 #include "UObject/PropertyPortFlags.h"
 
 class FPropertyNode;
