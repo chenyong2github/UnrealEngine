@@ -684,4 +684,6 @@ private:
 	TArray<FNiagaraVariable> InitialNamespaceVariablesMissingDefault;
 	// Variables that need to be initialized in the body or at the end of spawn.
 	TArray<FNiagaraVariable> DeferredVariablesMissingDefault;
+
+	TMap<FName, TSet<FNiagaraFunctionSignature>> DataInterfaceRegisteredFunctions;
 };
