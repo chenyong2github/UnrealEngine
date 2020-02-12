@@ -21,26 +21,6 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
-class FControlRigRootCustomization : public IDetailRootObjectCustomization
-{
-public:
-	// IDetailRootObjectCustomization interface
-	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject) override
-	{
-		return SNullWidget::NullWidget;
-	}
-
-	virtual bool IsObjectVisible(const UObject* InRootObject) const override
-	{
-		return true;
-	}
-
-	virtual bool ShouldDisplayHeader(const UObject* InRootObAject) const override
-	{
-		return false;
-	}
-};
-
 void SControlRigEditModeTools::SetControlRig(UControlRig* ControlRig)
 {
 	ControlHierarchy->SetControlRig(ControlRig);
@@ -70,7 +50,6 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 	DetailsView->SetKeyframeHandler(SharedThis(this));
 	DetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization));
 	DetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization));
-	DetailsView->SetRootObjectCustomizationInstance(MakeShareable(new FControlRigRootCustomization));
 
 	ChildSlot
 	[

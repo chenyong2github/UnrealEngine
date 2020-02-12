@@ -3,6 +3,7 @@
 #include "DetailMultiTopLevelObjectRootNode.h"
 #include "IDetailRootObjectCustomization.h"
 #include "DetailWidgetRow.h"
+#include "ObjectPropertyNode.h"
 
 void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView )
 {
@@ -79,20 +80,50 @@ FReply SDetailMultiTopLevelObjectTableRow::OnMouseButtonDoubleClick( const FGeom
 }
 
 
-FDetailMultiTopLevelObjectRootNode::FDetailMultiTopLevelObjectRootNode( const FDetailNodeList& InChildNodes, const TSharedPtr<IDetailRootObjectCustomization>& InRootObjectCustomization, IDetailsViewPrivate* InDetailsView, const UObject& InRootObject )
+FDetailMultiTopLevelObjectRootNode::FDetailMultiTopLevelObjectRootNode( const FDetailNodeList& InChildNodes, const TSharedPtr<IDetailRootObjectCustomization>& InRootObjectCustomization, IDetailsViewPrivate* InDetailsView, const FObjectPropertyNode* RootNode)
 	: ChildNodes(InChildNodes)
 	, DetailsView(InDetailsView)
 	, RootObjectCustomization(InRootObjectCustomization)
-	, RootObject(const_cast<UObject*>(&InRootObject))
-	, NodeName(InRootObject.GetFName())
 	, bShouldBeVisible(false)
+	, bHasFilterStrings(false)
 {
+	RootObjectSet.RootObjects.Reserve(RootNode->GetNumObjects());
+	for (int32 ObjectIndex = 0; ObjectIndex < RootNode->GetNumObjects(); ++ObjectIndex)
+	{
+		RootObjectSet.RootObjects.Add(RootNode->GetUObject(ObjectIndex));
+	}
+
+	RootObjectSet.CommonBaseClass = RootNode->GetObjectBaseClass();
+
+	NodeName = RootObjectSet.CommonBaseClass->GetFName();
+}
+
+void FDetailMultiTopLevelObjectRootNode::OnItemExpansionChanged(bool bIsExpanded, bool bShouldSaveState)
+{
+	if (bShouldSaveState)
+	{
+		GConfig->SetBool(TEXT("DetailMultiObjectNodeExpansion"), *NodeName.ToString(), bIsExpanded, GEditorPerProjectIni);
+	}
+}
+
+bool FDetailMultiTopLevelObjectRootNode::ShouldBeExpanded() const
+{
+	if (bHasFilterStrings)
+	{
+		return true;
+	}
+	else
+	{
+		bool bShouldBeExpanded = true;
+		GConfig->GetBool(TEXT("DetailMultiObjectNodeExpansion"), *NodeName.ToString(), bShouldBeExpanded, GEditorPerProjectIni);
+		return bShouldBeExpanded;
+	}
 }
 
 ENodeVisibility FDetailMultiTopLevelObjectRootNode::GetVisibility() const
 {
 	ENodeVisibility FinalVisibility = ENodeVisibility::Visible;
-	if(RootObjectCustomization.IsValid() && RootObject.IsValid() && !RootObjectCustomization.Pin()->IsObjectVisible(RootObject.Get()))
+	if(RootObjectCustomization.IsValid() && !RootObjectCustomization.Pin()->AreObjectsVisible(RootObjectSet))
 	{
 		FinalVisibility = ENodeVisibility::ForcedHidden;
 	}
@@ -156,6 +187,8 @@ void FDetailMultiTopLevelObjectRootNode::GetChildren(FDetailNodeList& OutChildre
 void FDetailMultiTopLevelObjectRootNode::FilterNode( const FDetailFilter& InFilter )
 {
 	bShouldBeVisible = false;
+	bHasFilterStrings = InFilter.FilterStrings.Num() > 0;
+
 	for( int32 ChildIndex = 0; ChildIndex < ChildNodes.Num(); ++ChildIndex )
 	{
 		TSharedRef<FDetailTreeNode>& Child = ChildNodes[ChildIndex];
@@ -176,25 +209,15 @@ void FDetailMultiTopLevelObjectRootNode::FilterNode( const FDetailFilter& InFilt
 
 bool FDetailMultiTopLevelObjectRootNode::ShouldShowOnlyChildren() const
 {
-	return RootObjectCustomization.IsValid() && RootObject.IsValid() ? !RootObjectCustomization.Pin()->ShouldDisplayHeader(RootObject.Get()) : bShouldShowOnlyChildren;
+	return RootObjectCustomization.IsValid() && RootObjectSet.RootObjects.Num() ? !RootObjectCustomization.Pin()->ShouldDisplayHeader(RootObjectSet) : bShouldShowOnlyChildren;
 }
 
 void FDetailMultiTopLevelObjectRootNode::GenerateWidget_Internal(FDetailWidgetRow& OutRow, TSharedPtr<SDetailMultiTopLevelObjectTableRow> TableRowWidget) const
 {
 	TSharedPtr<SWidget> HeaderWidget;
-	if (RootObjectCustomization.IsValid() && RootObject.IsValid())
+	if (RootObjectCustomization.IsValid() && RootObjectSet.RootObjects.Num())
 	{
-		HeaderWidget = RootObjectCustomization.Pin()->CustomizeObjectHeader(RootObject.Get(), TableRowWidget);
-	}
-
-	if (!HeaderWidget.IsValid())
-	{
-		// no customization was supplied or was passed back from the interface as invalid
-		// just make a text block with the name
-		HeaderWidget =
-			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-			.Text(FText::FromName(NodeName));
+		HeaderWidget = RootObjectCustomization.Pin()->CustomizeObjectHeader(RootObjectSet, TableRowWidget);
 	}
 
 	OutRow.NameContent()

@@ -329,14 +329,12 @@ void FDetailLayoutBuilderImpl::GenerateDetailLayout()
 	TSharedPtr<FComplexPropertyNode> RootNodePinned = RootNode.Pin();
 	if(DetailsView && DetailsView->GetRootObjectCustomization() && RootNodePinned->GetInstancesNum())
 	{
-		// This should always exist here
-		UObject* RootObject = RootNodePinned->AsObjectNode()->GetUObject(0);
-		check(RootObject);
+		FObjectPropertyNode* ObjectNode = RootNodePinned->AsObjectNode();
 
 		TSharedPtr<IDetailRootObjectCustomization> RootObjectCustomization = DetailsView->GetRootObjectCustomization();
 
 		// there are multiple objects in the details panel.  Separate each one with a unique object name node to differentiate them
-		AllRootTreeNodes.Add( MakeShareable( new FDetailMultiTopLevelObjectRootNode( CategoryNodes, RootObjectCustomization, DetailsView, *RootObject) ) );
+		AllRootTreeNodes.Add(MakeShared<FDetailMultiTopLevelObjectRootNode>(CategoryNodes, RootObjectCustomization, DetailsView, ObjectNode));
 	}
 	else
 	{
