@@ -256,8 +256,11 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	GEditor->BroadcastLevelActorListChanged();
 
 	RootLayer.FilePath.Empty();
+
+#if USE_USD_SDK
 	UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
 	UsdStageStore = TUsdStore< pxr::UsdStageRefPtr >();
+#endif // #if USE_USD_SDK
 
 	OnStageChanged.Broadcast();
 }
@@ -621,11 +624,13 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		// UsdStageStore can't be a UPROPERTY, so we have to make sure that it
 		// is kept in sync with the state of RootLayer, because LoadUsdStage will
 		// do the job of clearing our components and etc if the path is empty
+#if USE_USD_SDK
 		if (RootLayer.FilePath.IsEmpty())
 		{
 			UnrealUSDWrapper::GetUsdStageCache().Erase( UsdStageStore.Get() );
 			UsdStageStore = TUsdStore< pxr::UsdStageRefPtr >();
 		}
+#endif // #if USE_USD_SDK
 
 		if ( HasAutorithyOverStage() )
 		{
