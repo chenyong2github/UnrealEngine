@@ -108,7 +108,7 @@ void UDMXSubsystem::GetAllFixturesOfType(const UDMXLibrary* DMXLibrary, const FN
 	{
 		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Fixture)
 			{
-				if (Fixture->ParentFixtureTypeTemplate->GetDisplayName() == FixtureType.ToString())
+				if (Fixture->ParentFixtureTypeTemplate != nullptr && Fixture->ParentFixtureTypeTemplate->GetDisplayName() == FixtureType.ToString())
 				{
 					OutResult.Add(Fixture);
 				}
@@ -124,7 +124,7 @@ void UDMXSubsystem::GetAllFixturesOfCategory(const UDMXLibrary* DMXLibrary, FDMX
 	{
 		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Fixture)
 			{
-				if (Fixture->ParentFixtureTypeTemplate->DMXCategory == Category)
+				if (Fixture->ParentFixtureTypeTemplate != nullptr && Fixture->ParentFixtureTypeTemplate->DMXCategory == Category)
 				{
 					OutResult.Add(Fixture);
 				}
