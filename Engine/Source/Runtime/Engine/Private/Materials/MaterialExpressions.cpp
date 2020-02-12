@@ -727,12 +727,6 @@ void UMaterialExpression::Serialize(FStructuredArchive::FRecord Record)
 #endif // WITH_EDITORONLY_DATA
 }
 
-bool UMaterialExpression::NeedsLoadForClient() const
-{
-	// Expressions that reference texture objects need to be cooked
-	return CanReferenceTexture() || GetReferencedTexture() != nullptr;
-}
-
 void UMaterialExpression::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -7199,12 +7193,6 @@ void UMaterialExpressionParameter::ValidateParameterName(const bool bAllowDuplic
 }
 #endif
 
-bool UMaterialExpressionParameter::NeedsLoadForClient() const
-{
-	// Keep named parameters
-	return ParameterName != NAME_None;
-}
-
 //
 //	UMaterialExpressionVectorParameter
 //
@@ -8165,11 +8153,6 @@ bool UMaterialExpressionQualitySwitch::IsResultMaterialAttributes(int32 OutputIn
 }
 #endif // WITH_EDITOR
 
-bool UMaterialExpressionQualitySwitch::NeedsLoadForClient() const
-{
-	return true;
-}
-
 //
 //	UMaterialExpressionFeatureLevelSwitch
 //
@@ -8296,11 +8279,6 @@ void UMaterialExpressionFeatureLevelSwitch::Serialize(FStructuredArchive::FRecor
 	}
 }
 
-bool UMaterialExpressionFeatureLevelSwitch::NeedsLoadForClient() const
-{
-	return true;
-}
-
 //
 //	UMaterialExpressionShadingPathSwitch
 //
@@ -8419,11 +8397,6 @@ bool UMaterialExpressionShadingPathSwitch::IsResultMaterialAttributes(int32 Outp
 	return false;
 }
 #endif // WITH_EDITOR
-
-bool UMaterialExpressionShadingPathSwitch::NeedsLoadForClient() const
-{
-	return true;
-}
 
 //
 //	UMaterialExpressionNormalize
@@ -8731,11 +8704,6 @@ void UMaterialExpressionDynamicParameter::PostLoad()
 	{
 		DefaultValue = FLinearColor::Black;//Old data should default to 0.0f;
 	}
-}
-
-bool UMaterialExpressionDynamicParameter::NeedsLoadForClient() const
-{
-	return true;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -12613,11 +12581,6 @@ void UMaterialExpressionMaterialFunctionCall::PostLoad()
 	Super::PostLoad();
 }
 
-bool UMaterialExpressionMaterialFunctionCall::NeedsLoadForClient() const
-{
-	return true;
-}
-
 #if WITH_EDITORONLY_DATA
 bool UMaterialExpressionMaterialFunctionCall::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
@@ -13720,11 +13683,6 @@ void UMaterialExpressionCollectionParameter::PostLoad()
 	}
 
 	Super::PostLoad();
-}
-
-bool UMaterialExpressionCollectionParameter::NeedsLoadForClient() const
-{
-	return true;
 }
 
 #if WITH_EDITOR

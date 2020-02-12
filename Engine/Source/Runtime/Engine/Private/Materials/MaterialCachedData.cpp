@@ -96,11 +96,21 @@ static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMater
 	return INDEX_NONE;
 }
 
-void FMaterialCachedExpressionData::UpdateForFunction(UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex)
+bool FMaterialCachedExpressionData::UpdateForFunction(UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex)
 {
 	if (!Function)
 	{
-		return;
+		return true;
+	}
+
+	bool bResult = true;
+	const TArray<UMaterialExpression*>* FunctionExpressions = Function->GetFunctionExpressions();
+	if (FunctionExpressions)
+	{
+		if (!UpdateForExpressions(*FunctionExpressions, Association, ParameterIndex))
+		{
+			bResult = false;
+		}
 	}
 
 	FMaterialFunctionInfo NewFunctionInfo;
@@ -163,30 +173,41 @@ void FMaterialCachedExpressionData::UpdateForFunction(UMaterialFunctionInterface
 		}
 	}
 
-	const TArray<UMaterialExpression*>* FunctionExpressions = Function->GetFunctionExpressions();
-	if (FunctionExpressions)
-	{
-		UpdateForExpressions(*FunctionExpressions, Association, ParameterIndex);
-	}
+	return bResult;
 }
 
-void FMaterialCachedExpressionData::UpdateForLayerFunctions(const FMaterialLayersFunctions& LayerFunctions)
+bool FMaterialCachedExpressionData::UpdateForLayerFunctions(const FMaterialLayersFunctions& LayerFunctions)
 {
+	bool bResult = true;
 	for (int32 LayerIndex = 0; LayerIndex < LayerFunctions.Layers.Num(); ++LayerIndex)
 	{
-		UpdateForFunction(LayerFunctions.Layers[LayerIndex], LayerParameter, LayerIndex);
+		if (!UpdateForFunction(LayerFunctions.Layers[LayerIndex], LayerParameter, LayerIndex))
+		{
+			bResult = false;
+		}
 	}
 
 	for (int32 BlendIndex = 0; BlendIndex < LayerFunctions.Blends.Num(); ++BlendIndex)
 	{
-		UpdateForFunction(LayerFunctions.Blends[BlendIndex], BlendParameter, BlendIndex);
+		if (!UpdateForFunction(LayerFunctions.Blends[BlendIndex], BlendParameter, BlendIndex))
+		{
+			bResult = false;
+		}
 	}
+	return bResult;
 }
 
-void FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialExpression*>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex)
+bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialExpression*>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex)
 {
+	bool bResult = true;
 	for (UMaterialExpression* Expression : Expressions)
 	{
+		if (!Expression)
+		{
+			bResult = false;
+			continue;
+		}
+
 		UObject* ReferencedTexture = Expression->GetReferencedTexture();
 		checkf(!ReferencedTexture || Expression->CanReferenceTexture(), TEXT("This expression type missing an override for CanReferenceTexture?"));
 		if (Expression->CanReferenceTexture())
@@ -306,7 +327,10 @@ void FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 		}
 		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{
-			UpdateForFunction(FunctionCall->MaterialFunction, GlobalParameter, -1);
+			if (!UpdateForFunction(FunctionCall->MaterialFunction, GlobalParameter, -1))
+			{
+				bResult = false;
+			}
 
 			// Update the function call node, so it can relink inputs and outputs as needed
 			// Update even if MaterialFunctionNode->MaterialFunction is NULL, because we need to remove the invalid inputs in that case
@@ -315,11 +339,16 @@ void FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 		else if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{
 			checkf(Association == GlobalParameter, TEXT("UMaterialExpressionMaterialAttributeLayers can't be nested"));
-			UpdateForLayerFunctions(LayersExpression->DefaultLayers);
+			if (!UpdateForLayerFunctions(LayersExpression->DefaultLayers))
+			{
+				bResult = false;
+			}
 
 			LayersExpression->RebuildLayerGraph(false);
 		}
 	}
+
+	return bResult;
 }
 #endif // WITH_EDITOR
 
