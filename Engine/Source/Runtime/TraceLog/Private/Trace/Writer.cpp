@@ -657,6 +657,17 @@ static void Writer_WorkerThread()
 	Writer_ConsumeEvents();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+static void Writer_WorkerCreate()
+{
+	if (GWorkerThread)
+	{
+		return;
+	}
+
+	GWorkerThread = ThreadCreate("TraceWorker", Writer_WorkerThread);
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -671,8 +682,6 @@ static void Writer_InternalInitializeImpl()
 	Writer_InitializeBuffers();
 
 	GHoldBuffer->Init();
-
-	GWorkerThread = ThreadCreate("TraceWorker", Writer_WorkerThread);
 
 	Writer_InitializeControl();
 	Writer_InitializeTiming();
@@ -717,6 +726,12 @@ static void Writer_InternalInitialize()
 			}
 		} Initializer;
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void Writer_Initialize()
+{
+	Writer_WorkerCreate();
 }
 
 
