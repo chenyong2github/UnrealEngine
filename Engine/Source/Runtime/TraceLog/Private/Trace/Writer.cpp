@@ -660,7 +660,7 @@ static void Writer_WorkerThread()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_InternalInitialize()
+static void Writer_InternalInitializeImpl()
 {
 	if (GInitialized)
 	{
@@ -679,7 +679,7 @@ static void Writer_InternalInitialize()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_Shutdown()
+static void Writer_InternalShutdown()
 {
 	if (!GInitialized)
 	{
@@ -699,7 +699,7 @@ static void Writer_Shutdown()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Writer_Initialize()
+static void Writer_InternalInitialize()
 {
 	using namespace Private;
 
@@ -709,11 +709,11 @@ void Writer_Initialize()
 		{
 			FInitializer()
 			{
-				Writer_InternalInitialize();
+				Writer_InternalInitializeImpl();
 			}
 			~FInitializer()
 			{
-				Writer_Shutdown();
+				Writer_InternalShutdown();
 			}
 		} Initializer;
 	}
@@ -729,7 +729,7 @@ bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
 		return false;
 	}
 
-	Writer_Initialize();
+	Writer_InternalInitialize();
 
 	UPTRINT DataHandle = TcpSocketConnect(Host, Port);
 	if (!DataHandle)
@@ -749,7 +749,7 @@ bool Writer_WriteTo(const ANSICHAR* Path)
 		return false;
 	}
 
-	Writer_Initialize();
+	Writer_InternalInitialize();
 
 	UPTRINT DataHandle = FileOpen(Path);
 	if (!DataHandle)
@@ -775,7 +775,7 @@ void Writer_EventCreate(
 	uint32 FieldCount,
 	uint32 Flags)
 {
-	Writer_Initialize();
+	Writer_InternalInitialize();
 
 	// Assign a unique ID for this event
 	uint32 Uid = AtomicIncrementRelaxed(&GEventUidCounter) + uint32(EKnownEventUids::User);
