@@ -8,7 +8,7 @@ class SScrollBar;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FAxisViewportDouble
+class TRACEINSIGHTS_API FAxisViewportDouble
 {
 private:
 	static constexpr float SLATE_UNITS_TOLERANCE = 0.1f;
