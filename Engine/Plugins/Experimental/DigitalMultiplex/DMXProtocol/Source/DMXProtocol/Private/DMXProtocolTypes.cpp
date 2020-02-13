@@ -63,6 +63,26 @@ FDMXFixtureCategory::FDMXFixtureCategory(const FName& InName)
 	: Name(InName)
 {}
 
+FString UDMXNameContainersConversions::Conv_DMXProtocolNameToString(const FDMXProtocolName & InProtocolName)
+{
+	return InProtocolName.Name.ToString();
+}
+
+FName UDMXNameContainersConversions::Conv_DMXProtocolNameToName(const FDMXProtocolName & InProtocolName)
+{
+	return InProtocolName.Name;
+}
+
+FString UDMXNameContainersConversions::Conv_DMXFixtureCategoryToString(const FDMXFixtureCategory & InFixtureCategory)
+{
+	return InFixtureCategory.Name.ToString();
+}
+
+FName UDMXNameContainersConversions::Conv_DMXFixtureCategoryToName(const FDMXFixtureCategory & InFixtureCategory)
+{
+	return InFixtureCategory.Name;
+}
+
 bool FDMXBuffer::SetDMXFragment(const IDMXFragmentMap & InDMXFragment)
 {
 	for (const TPair<uint32, uint8>& It : InDMXFragment)

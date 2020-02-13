@@ -7,6 +7,8 @@
 #include "DMXProtocolMacros.h"
 #include "Dom/JsonObject.h"
 
+#include "Kismet/BlueprintFunctionLibrary.h"
+
 #include "DMXProtocolTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -118,6 +120,27 @@ public:
 	bool operator==(const FDMXFixtureCategory& Other) const { return Name == Other.Name; }
 	bool operator==(const FName& Other) const { return Name == Other; }
 };
+
+UCLASS()
+class UDMXNameContainersConversions
+	: public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (DMX Protocol Name)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|DMX")
+	static FString Conv_DMXProtocolNameToString(const FDMXProtocolName& InProtocolName);
+
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToName (DMX Protocol Name)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|DMX")
+	static FName Conv_DMXProtocolNameToName(const FDMXProtocolName& InProtocolName);
+
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToString (DMX Fixture Category)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|DMX")
+	static FString Conv_DMXFixtureCategoryToString(const FDMXFixtureCategory& InFixtureCategory);
+
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToName (DMX Fixture Category)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|DMX")
+	static FName Conv_DMXFixtureCategoryToName(const FDMXFixtureCategory& InFixtureCategory);
+};
+
 
 USTRUCT()
 struct DMXPROTOCOL_API FDMXUniverse
