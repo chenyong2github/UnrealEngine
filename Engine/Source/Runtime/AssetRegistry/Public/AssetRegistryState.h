@@ -7,7 +7,7 @@
 #include "Misc/AssetRegistryInterface.h"
 
 class FDependsNode;
-struct FARFilter;
+struct FARCompiledFilter;
 
 #ifndef ASSET_REGISTRY_STATE_DUMPING_ENABLED
 	#define ASSET_REGISTRY_STATE_DUMPING_ENABLED !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -106,7 +106,7 @@ public:
 	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
 	 * @param OutAssetData the list of assets in this path
 	 */
-	bool GetAssets(const FARFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const;
+	bool GetAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const;
 
 	/**
 	 * Enumerate asset data for all assets that match the filter.
@@ -117,7 +117,7 @@ public:
 	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
 	 * @param Callback function to call for each asset data enumerated
 	 */
-	bool EnumerateAssets(const FARFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const;
+	bool EnumerateAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const;
 
 	/**
 	 * Gets asset data for all assets in the registry state.
@@ -313,7 +313,7 @@ public:
 	uint32 GetAllocatedSize(bool bLogDetailed = false) const;
 
 	/** Checks a filter to make sure there are no illegal entries */
-	static bool IsFilterValid(const FARFilter& Filter, bool bAllowRecursion);
+	static bool IsFilterValid(const FARCompiledFilter& Filter);
 
 	/** Returns the number of assets in this state */
 	int32 GetNumAssets() const { return NumAssets; }

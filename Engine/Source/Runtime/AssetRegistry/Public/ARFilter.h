@@ -9,7 +9,10 @@
 
 struct FAssetData;
 
-/** A struct to serve as a filter for Asset Registry queries. Each component element is processed as an 'OR' operation while all the components are processed together as an 'AND' operation. */
+/**
+ * A struct to serve as a filter for Asset Registry queries.
+ * Each component element is processed as an 'OR' operation while all the components are processed together as an 'AND' operation.
+ */
 USTRUCT(BlueprintType)
 struct FARFilter
 {
@@ -94,6 +97,52 @@ struct FARFilter
 
 		bRecursivePaths = false;
 		bRecursiveClasses = false;
+		bIncludeOnlyOnDiskAssets = false;
+
+		ensure(IsEmpty());
+	}
+};
+
+/**
+ * A struct to serve as a filter for Asset Registry queries.
+ * Each component element is processed as an 'OR' operation while all the components are processed together as an 'AND' operation.
+ * This is a version of FARFilter optimized for querying, and can be generated from an FARFilter by calling IAssetRegistry::CompileFilter to resolve any recursion.
+ */
+struct FARCompiledFilter
+{
+	/** The filter component for package names */
+	TSet<FName> PackageNames;
+
+	/** The filter component for package paths */
+	TSet<FName> PackagePaths;
+
+	/** The filter component containing specific object paths */
+	TSet<FName> ObjectPaths;
+
+	/** The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
+	TSet<FName> ClassNames;
+
+	/** The filter component for properties marked with the AssetRegistrySearchable flag */
+	TMultiMap<FName, TOptional<FString>> TagsAndValues;
+
+	/** If true, only on-disk assets will be returned. Be warned that this is rarely what you want and should only be used for performance reasons */
+	bool bIncludeOnlyOnDiskAssets = false;
+
+	/** Returns true if this filter has no entries */
+	bool IsEmpty() const
+	{
+		return PackageNames.Num() + PackagePaths.Num() + ObjectPaths.Num() + ClassNames.Num() + TagsAndValues.Num() == 0;
+	}
+
+	/** Clears this filter of all entries */
+	void Clear()
+	{
+		PackageNames.Empty();
+		PackagePaths.Empty();
+		ObjectPaths.Empty();
+		ClassNames.Empty();
+		TagsAndValues.Empty();
+
 		bIncludeOnlyOnDiskAssets = false;
 
 		ensure(IsEmpty());

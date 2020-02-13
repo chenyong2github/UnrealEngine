@@ -61,9 +61,10 @@ public:
 	virtual void EnumerateSubPaths(const FName InBasePath, TFunctionRef<bool(FName)> Callback, bool bInRecurse) const override;
 	virtual void RunAssetsThroughFilter (TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const override;
 	virtual void UseFilterToExcludeAssets(TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const override;
-	virtual bool IsAssetIncludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const override;
-	virtual bool IsAssetExcludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const override;
+	virtual bool IsAssetIncludedByFilter(const FAssetData& AssetData, const FARCompiledFilter& Filter) const override;
+	virtual bool IsAssetExcludedByFilter(const FAssetData& AssetData, const FARCompiledFilter& Filter) const override;
 	virtual void ExpandRecursiveFilter(const FARFilter& InFilter, FARFilter& ExpandedFilter) const override;
+	virtual void CompileFilter(const FARFilter& InFilter, FARCompiledFilter& OutCompiledFilter) const override;
 	virtual void SetTemporaryCachingMode(bool bEnable) override;
 	virtual bool GetTemporaryCachingMode() const override;
 	virtual EAssetAvailability::Type GetAssetAvailability(const FAssetData& AssetData) const override;	
@@ -264,8 +265,8 @@ private:
 	 *  - If an asset data fails a filter, then in inclusive mode it will return false, and in exclusive mode it will return true.
 	 *  - If the filter is empty, then in inclusive mode it will return true, and in exclusive mode it will return false.
 	 */
-	bool RunAssetThroughFilterImpl(const FAssetData& AssetData, const FARFilter& Filter, const EARFilterMode FilterMode) const;
-	bool RunAssetThroughFilterImpl_Unchecked(const FAssetData& AssetData, const FARFilter& Filter, const bool bPassFilterValue) const;
+	bool RunAssetThroughFilterImpl(const FAssetData& AssetData, const FARCompiledFilter& Filter, const EARFilterMode FilterMode) const;
+	bool RunAssetThroughFilterImpl_Unchecked(const FAssetData& AssetData, const FARCompiledFilter& Filter, const bool bPassFilterValue) const;
 
 	/**
 	 * Given an array of asset data, trim the items that fail the filter based on the inclusion/exclusion mode used.

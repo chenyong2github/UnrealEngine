@@ -11,6 +11,7 @@
 
 
 struct FARFilter;
+struct FARCompiledFilter;
 struct FAssetRegistrySerializationOptions;
 class FAssetRegistryState;
 
@@ -323,14 +324,18 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void UseFilterToExcludeAssets(UPARAM(ref) TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const = 0;
 
-	/** Tests to see whether the given asset would be included (passes) the given filter (note: the filter should have been expanded first, @see ExpandRecursiveFilter */
-	virtual bool IsAssetIncludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const = 0;
+	/** Tests to see whether the given asset would be included (passes) the given filter */
+	virtual bool IsAssetIncludedByFilter(const FAssetData& AssetData, const FARCompiledFilter& Filter) const = 0;
 
-	/** Tests to see whether the given asset would be excluded (fails) the given filter (note: the filter should have been expanded first, @see ExpandRecursiveFilter */
-	virtual bool IsAssetExcludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const = 0;
+	/** Tests to see whether the given asset would be excluded (fails) the given filter */
+	virtual bool IsAssetExcludedByFilter(const FAssetData& AssetData, const FARCompiledFilter& Filter) const = 0;
 
 	/** Modifies passed in filter to make it safe for use on FAssetRegistryState. This expands recursive paths and classes */
+	UE_DEPRECATED(4.26, "ExpandRecursiveFilter is deprecated in favor of CompileFilter")
 	virtual void ExpandRecursiveFilter(const FARFilter& InFilter, FARFilter& ExpandedFilter) const = 0;
+
+	/** Modifies passed in filter optimize it for query and expand any recursive paths and classes */
+	virtual void CompileFilter(const FARFilter& InFilter, FARCompiledFilter& OutCompiledFilter) const = 0;
 
 	/** Enables or disable temporary search caching, when this is enabled scanning/searching is faster because we assume no objects are loaded between scans. Disabling frees any caches created */
 	virtual void SetTemporaryCachingMode(bool bEnable) = 0;

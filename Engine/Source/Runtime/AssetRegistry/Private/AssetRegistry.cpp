@@ -626,30 +626,23 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 bool UAssetRegistryImpl::EnumerateAssets(const FARFilter& InFilter, TFunctionRef<bool(const FAssetData&)> Callback) const
 {
 	// Verify filter input. If all assets are needed, use EnumerateAllAssets() instead.
-	if (!FAssetRegistryState::IsFilterValid(InFilter, true) || InFilter.IsEmpty())
+	if (InFilter.IsEmpty())
 	{
 		return false;
 	}
 
 	// Expand recursion on filter
-	FARFilter Filter;
-	ExpandRecursiveFilter(InFilter, Filter);
+	FARCompiledFilter CompiledFilter;
+	CompileFilter(InFilter, CompiledFilter);
+	if (!FAssetRegistryState::IsFilterValid(CompiledFilter))
+	{
+		return false;
+	}
 
 	// Start with in memory assets
 	TSet<FName> PackagesToSkip = CachedEmptyPackages;
-
-	if (!Filter.bIncludeOnlyOnDiskAssets)
+	if (!CompiledFilter.bIncludeOnlyOnDiskAssets)
 	{
-		// Prepare a set of each filter component for fast searching
-		TSet<FName> FilterPackageNames(Filter.PackageNames);
-		TSet<FName> FilterPackagePaths(Filter.PackagePaths);
-		TSet<FName> FilterClassNames(Filter.ClassNames);
-		TSet<FName> FilterObjectPaths(Filter.ObjectPaths);
-		const int32 NumFilterPackageNames = FilterPackageNames.Num();
-		const int32 NumFilterPackagePaths = FilterPackagePaths.Num();
-		const int32 NumFilterClasses = FilterClassNames.Num();
-		const int32 NumFilterObjectPaths = FilterObjectPaths.Num();
-
 		// Reusable structures to avoid memory allocations
 		TArray<UObject::FAssetRegistryTag> ObjectTags;
 
@@ -670,16 +663,16 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARFilter& InFilter, TFunctionRef
 
 				PackagesToSkip.Add(PackageName);
 
-				if (NumFilterPackageNames && !FilterPackageNames.Contains(PackageName))
+				if (CompiledFilter.PackageNames.Num() && !CompiledFilter.PackageNames.Contains(PackageName))
 				{
 					return;
 				}
 
 				// Object Path
-				if (NumFilterObjectPaths)
+				if (CompiledFilter.ObjectPaths.Num() > 0)
 				{
 					const FName ObjectPath = FName(*Obj->GetPathName(), FNAME_Find);
-					if (!FilterObjectPaths.Contains(ObjectPath))
+					if (!CompiledFilter.ObjectPaths.Contains(ObjectPath))
 					{
 						return;
 					}
@@ -687,7 +680,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARFilter& InFilter, TFunctionRef
 
 				// Package path
 				const FName PackagePath = FName(*FPackageName::GetLongPackagePath(InMemoryPackage->GetName()));
-				if (NumFilterPackagePaths && !FilterPackagePaths.Contains(PackagePath))
+				if (CompiledFilter.PackagePaths.Num() > 0 && !CompiledFilter.PackagePaths.Contains(PackagePath))
 				{
 					return;
 				}
@@ -695,10 +688,10 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARFilter& InFilter, TFunctionRef
 				// Tags and values
 				check(ObjectTags.Num() == 0);
 				Obj->GetAssetRegistryTags(ObjectTags);
-				if (Filter.TagsAndValues.Num())
+				if (CompiledFilter.TagsAndValues.Num() > 0)
 				{
 					bool bMatch = false;
-					for (auto FilterTagIt = Filter.TagsAndValues.CreateConstIterator(); FilterTagIt; ++FilterTagIt)
+					for (auto FilterTagIt = CompiledFilter.TagsAndValues.CreateConstIterator(); FilterTagIt; ++FilterTagIt)
 					{
 						const FName Tag = FilterTagIt.Key();
 						const TOptional<FString>& Value = FilterTagIt.Value();
@@ -746,10 +739,10 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARFilter& InFilter, TFunctionRef
 		};
 
 		// Iterate over all in-memory assets to find the ones that pass the filter components
-		if (NumFilterClasses)
+		if (CompiledFilter.ClassNames.Num() > 0)
 		{
 			TArray<UObject*> InMemoryObjects;
-			for (FName ClassName : FilterClassNames)
+			for (FName ClassName : CompiledFilter.ClassNames)
 			{
 				UClass* Class = FindObjectFast<UClass>(nullptr, ClassName, false, true, RF_NoFlags);
 				if (Class != nullptr)
@@ -782,7 +775,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARFilter& InFilter, TFunctionRef
 		}
 	}
 
-	State.EnumerateAssets(Filter, PackagesToSkip, Callback);
+	State.EnumerateAssets(CompiledFilter, PackagesToSkip, Callback);
 
 	return true;
 }
@@ -1047,20 +1040,18 @@ void UAssetRegistryImpl::UseFilterToExcludeAssets(TArray<FAssetData>& AssetDataL
 	RunAssetsThroughFilterImpl(AssetDataList, Filter, EARFilterMode::Exclusive);
 }
 
-bool UAssetRegistryImpl::IsAssetIncludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const
+bool UAssetRegistryImpl::IsAssetIncludedByFilter(const FAssetData& AssetData, const FARCompiledFilter& Filter) const
 {
 	return RunAssetThroughFilterImpl(AssetData, Filter, EARFilterMode::Inclusive);
 }
 
-bool UAssetRegistryImpl::IsAssetExcludedByFilter(const FAssetData& AssetData, const FARFilter& Filter) const
+bool UAssetRegistryImpl::IsAssetExcludedByFilter(const FAssetData& AssetData, const FARCompiledFilter& Filter) const
 {
 	return RunAssetThroughFilterImpl(AssetData, Filter, EARFilterMode::Exclusive);
 }
 
-bool UAssetRegistryImpl::RunAssetThroughFilterImpl(const FAssetData& AssetData, const FARFilter& Filter, const EARFilterMode FilterMode) const
+bool UAssetRegistryImpl::RunAssetThroughFilterImpl(const FAssetData& AssetData, const FARCompiledFilter& Filter, const EARFilterMode FilterMode) const
 {
-	checkf(!Filter.IsRecursive(), TEXT("Filter should have been expanded with ExpandRecursiveFilter before calling this function!"));
-
 	const bool bPassFilterValue = FilterMode == EARFilterMode::Inclusive;
 	if (Filter.IsEmpty())
 	{
@@ -1071,7 +1062,7 @@ bool UAssetRegistryImpl::RunAssetThroughFilterImpl(const FAssetData& AssetData, 
 	return bFilterResult == bPassFilterValue;
 }
 
-bool UAssetRegistryImpl::RunAssetThroughFilterImpl_Unchecked(const FAssetData& AssetData, const FARFilter& Filter, const bool bPassFilterValue) const
+bool UAssetRegistryImpl::RunAssetThroughFilterImpl_Unchecked(const FAssetData& AssetData, const FARCompiledFilter& Filter, const bool bPassFilterValue) const
 {
 	// Package Names
 	if (Filter.PackageNames.Num() > 0)
@@ -1138,19 +1129,17 @@ bool UAssetRegistryImpl::RunAssetThroughFilterImpl_Unchecked(const FAssetData& A
 
 void UAssetRegistryImpl::RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDataList, const FARFilter& Filter, const EARFilterMode FilterMode) const
 {
-	if (Filter.IsEmpty() || !FAssetRegistryState::IsFilterValid(Filter, true))
+	if (Filter.IsEmpty())
 	{
 		return;
 	}
 
-	const FARFilter* FilterPtr = &Filter;
-	FARFilter TempExpandedFilter;
-	if (Filter.IsRecursive())
+	FARCompiledFilter CompiledFilter;
+	CompileFilter(Filter, CompiledFilter);
+	if (!FAssetRegistryState::IsFilterValid(CompiledFilter))
 	{
-		ExpandRecursiveFilter(Filter, TempExpandedFilter);
-		FilterPtr = &TempExpandedFilter;
+		return;
 	}
-	check(FilterPtr);
 
 	const int32 OriginalArrayCount = AssetDataList.Num();
 	const bool bPassFilterValue = FilterMode == EARFilterMode::Inclusive;
@@ -1158,7 +1147,7 @@ void UAssetRegistryImpl::RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDat
 	// Spin the array backwards to minimize the number of elements that are repeatedly moved down
 	for (int32 AssetDataIndex = AssetDataList.Num() - 1; AssetDataIndex >= 0; --AssetDataIndex)
 	{
-		const bool bFilterResult = RunAssetThroughFilterImpl_Unchecked(AssetDataList[AssetDataIndex], *FilterPtr, bPassFilterValue);
+		const bool bFilterResult = RunAssetThroughFilterImpl_Unchecked(AssetDataList[AssetDataIndex], CompiledFilter, bPassFilterValue);
 		if (bFilterResult != bPassFilterValue)
 		{
 			AssetDataList.RemoveAt(AssetDataIndex, 1, /*bAllowShrinking*/false);
@@ -1174,60 +1163,52 @@ void UAssetRegistryImpl::RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDat
 
 void UAssetRegistryImpl::ExpandRecursiveFilter(const FARFilter& InFilter, FARFilter& ExpandedFilter) const
 {
-	TSet<FName> FilterPackagePaths;
-	TSet<FName> FilterClassNames;
-	const int32 NumFilterPackagePaths = InFilter.PackagePaths.Num();
-	const int32 NumFilterClasses = InFilter.ClassNames.Num();
+	FARCompiledFilter CompiledFilter;
+	CompileFilter(InFilter, CompiledFilter);
 
-	ExpandedFilter = InFilter;
+	ExpandedFilter.Clear();
+	ExpandedFilter.PackageNames = CompiledFilter.PackageNames.Array();
+	ExpandedFilter.PackagePaths = CompiledFilter.PackagePaths.Array();
+	ExpandedFilter.ObjectPaths = CompiledFilter.ObjectPaths.Array();
+	ExpandedFilter.ClassNames = CompiledFilter.ClassNames.Array();
+	ExpandedFilter.TagsAndValues = CompiledFilter.TagsAndValues;
+	ExpandedFilter.bIncludeOnlyOnDiskAssets = CompiledFilter.bIncludeOnlyOnDiskAssets;
+}
 
-	FilterPackagePaths.Reserve(NumFilterPackagePaths);
-	for (int32 PathIdx = 0; PathIdx < NumFilterPackagePaths; ++PathIdx)
-	{
-		FilterPackagePaths.Add(InFilter.PackagePaths[PathIdx]);
-	}
+void UAssetRegistryImpl::CompileFilter(const FARFilter& InFilter, FARCompiledFilter& OutCompiledFilter) const
+{
+	OutCompiledFilter.Clear();
+	OutCompiledFilter.PackageNames.Append(InFilter.PackageNames);
+	OutCompiledFilter.PackagePaths.Append(InFilter.PackagePaths);
+	OutCompiledFilter.ObjectPaths.Append(InFilter.ObjectPaths);
+	OutCompiledFilter.ClassNames.Append(InFilter.ClassNames);
+	OutCompiledFilter.TagsAndValues = InFilter.TagsAndValues;
+	OutCompiledFilter.bIncludeOnlyOnDiskAssets = InFilter.bIncludeOnlyOnDiskAssets;
 
 	if (InFilter.bRecursivePaths)
 	{
-		// Add subpaths to all the input paths to the list
-		for (int32 PathIdx = 0; PathIdx < NumFilterPackagePaths; ++PathIdx)
+		// Add the sub-paths of all the input paths to the expanded list
+		for (const FName PackagePath : InFilter.PackagePaths)
 		{
-			CachedPathTree.GetSubPaths(InFilter.PackagePaths[PathIdx], FilterPackagePaths);
+			CachedPathTree.GetSubPaths(PackagePath, OutCompiledFilter.PackagePaths);
 		}
 	}
-
-	ExpandedFilter.bRecursivePaths = false;
-	ExpandedFilter.PackagePaths = FilterPackagePaths.Array();
 
 	if (InFilter.bRecursiveClasses)
 	{
+		// Add the sub-classes of all the input classes to the expanded list, excluding any that were requested
 		if (InFilter.RecursiveClassesExclusionSet.Num() > 0 && InFilter.ClassNames.Num() == 0)
 		{
-			// Build list of all classes then remove excluded classes
 			TArray<FName> ClassNamesObject;
 			ClassNamesObject.Add(UObject::StaticClass()->GetFName());
 
-			// GetSubClasses includes the base classes
-			GetSubClasses(ClassNamesObject, InFilter.RecursiveClassesExclusionSet, FilterClassNames);
+			GetSubClasses(ClassNamesObject, InFilter.RecursiveClassesExclusionSet, OutCompiledFilter.ClassNames);
 		}
 		else
 		{
-			// GetSubClasses includes the base classes
-			GetSubClasses(InFilter.ClassNames, InFilter.RecursiveClassesExclusionSet, FilterClassNames);
+			GetSubClasses(InFilter.ClassNames, InFilter.RecursiveClassesExclusionSet, OutCompiledFilter.ClassNames);
 		}
 	}
-	else
-	{
-		FilterClassNames.Reserve(NumFilterClasses);
-		for (int32 ClassIdx = 0; ClassIdx < NumFilterClasses; ++ClassIdx)
-		{
-			FilterClassNames.Add(InFilter.ClassNames[ClassIdx]);
-		}
-	}
-
-	ExpandedFilter.ClassNames = FilterClassNames.Array();
-	ExpandedFilter.bRecursiveClasses = false;
-	ExpandedFilter.RecursiveClassesExclusionSet.Empty();
 }
 
 EAssetAvailability::Type UAssetRegistryImpl::GetAssetAvailability(const FAssetData& AssetData) const
@@ -2741,12 +2722,10 @@ void UAssetRegistryImpl::GetSubClasses(const TArray<FName>& InClassNames, const 
 	UpdateTemporaryCaches();
 
 	TSet<FName> ProcessedClassNames;
-
 	for (FName ClassName : InClassNames)
 	{
 		// Now find all subclass names
 		GetSubClasses_Recursive(ClassName, SubClassNames, ProcessedClassNames, TempReverseInheritanceMap, ExcludedClassNames);
-		ProcessedClassNames.Reset();
 	}
 
 	ClearTemporaryCaches();
