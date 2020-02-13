@@ -1155,7 +1155,7 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 		UActorComponent* ActorComponent = Components[CompIndex];
 
 		// Filter out nulls and the components we won't be able to create.
-		if (ActorComponent && ActorComponent->GetClass()->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent))
+		if (ActorComponent && FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(ActorComponent->GetClass()))
 		{
 			USceneComponent* SceneComponent = Cast<USceneComponent>(Components[CompIndex]);
 			if (SceneComponent)
@@ -2179,6 +2179,13 @@ bool FKismetEditorUtilities::CanBlueprintImplementInterface(UBlueprint const* Bl
 	}
 
 	return bCanImplementInterface;
+}
+
+bool FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(const UClass* Class)
+{
+	return (!Class->HasAnyClassFlags(CLASS_Abstract) &&
+	        Class->IsChildOf<UActorComponent>() &&
+	        Class->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent));
 }
 
 bool FKismetEditorUtilities::IsClassABlueprintSkeleton(const UClass* Class)
