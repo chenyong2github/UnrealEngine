@@ -473,11 +473,11 @@ static void Writer_LogTimingHeader()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void Writer_UpdateData()
+static bool Writer_UpdateData()
 {
 	if (!GPendingDataHandle)
 	{
-		return;
+		return false;
 	}
 
 	// Reject the pending connection if we've already got a connection
@@ -485,7 +485,7 @@ static void Writer_UpdateData()
 	{
 		IoClose(GPendingDataHandle);
 		GPendingDataHandle = 0;
-		return;
+		return false;
 	}
 
 	GDataHandle = GPendingDataHandle;
@@ -506,7 +506,7 @@ static void Writer_UpdateData()
 	{
 		IoClose(GDataHandle);
 		GDataHandle = 0;
-		return;
+		return false;
 	}
 
 	// Send the header events
@@ -516,6 +516,8 @@ static void Writer_UpdateData()
 		Writer_LogTimingHeader();
 		Writer_SendData(0, HeaderEvents.GetData(), HeaderEvents.GetSize());
 	}
+
+	return true;
 }
 
 
@@ -531,7 +533,19 @@ static void Writer_WorkerThread()
 	// for just a little bit to give the user a chance to set up sending the trace
 	// somewhere and we they'll get all events since boot. Otherwise they'll be
 	// unceremoniously dropped.
-	ThreadSleep(67);
+	int32 PrologueMs = 2000;
+	do
+	{
+		const uint32 SleepMs = 100;
+		ThreadSleep(SleepMs);
+		PrologueMs -= SleepMs;
+
+		if (Writer_UpdateData())
+		{
+			break;
+		}
+	}
+	while (PrologueMs > 0);
 
 	while (!GWorkerThreadQuit)
 	{
