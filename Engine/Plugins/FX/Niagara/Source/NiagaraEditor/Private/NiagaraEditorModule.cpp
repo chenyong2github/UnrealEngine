@@ -715,6 +715,12 @@ class FNiagaraSystemColorParameterTrackEditor : public FNiagaraSystemParameterTr
 	}
 };
 
+// This will be called before UObjects are destroyed, so clean up anything we need to related to UObjects here
+void FNiagaraEditorModule::OnPreExit()
+{
+	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
+}
+
 void FNiagaraEditorModule::StartupModule()
 {
 	bThumbnailRenderersRegistered = false;
@@ -741,6 +747,7 @@ void FNiagaraEditorModule::StartupModule()
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FNiagaraEditorModule::OnPostEngineInit);
 
 	DeviceProfileManagerUpdatedHandle = UDeviceProfileManager::Get().OnManagerUpdated().AddRaw(this, &FNiagaraEditorModule::OnDeviceProfileManagerUpdated);
+	FCoreDelegates::OnPreExit.AddRaw(this, &FNiagaraEditorModule::OnPreExit);
 	
 	// register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -1017,7 +1024,7 @@ void FNiagaraEditorModule::ShutdownModule()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
-	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
+	FCoreDelegates::OnPreExit.RemoveAll(this);
 	
 	if (GEditor)
 	{
