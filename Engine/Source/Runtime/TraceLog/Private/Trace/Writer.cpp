@@ -269,12 +269,6 @@ static void Writer_ShutdownBuffers()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-enum class EDataState : uint8
-{
-	Passive = 0,		// Data is being collected in-process
-	Partial,			// Passive, but buffers are full so some events are lost
-	Sending,			// Events are being sent to an IO handle
-};
 static UPTRINT					GDataHandle;		// = 0
 UPTRINT							GPendingDataHandle;	// = 0
 static FWriteBuffer* __restrict GActiveThreadList;	// = nullptr;
