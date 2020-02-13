@@ -136,7 +136,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		{
 			if (!AtomicCompareExchangeRelaxed(&GPoolFreeList, Owned->NextBuffer, Owned))
 			{
-				Private::PlatformYield();
+				PlatformYield();
 				continue;
 			}
 		}
@@ -188,7 +188,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		}
 
 		// And insert the block list into the freelist. 'Block' is now the last block
-		for (auto* ListNode = (FWriteBuffer*)Block;; Private::PlatformYield())
+		for (auto* ListNode = (FWriteBuffer*)Block;; PlatformYield())
 		{
 			ListNode->NextBuffer = AtomicLoadRelaxed(&GPoolFreeList);
 			if (AtomicCompareExchangeRelease(&GPoolFreeList, (FWriteBuffer*)FirstBlock, ListNode->NextBuffer))
@@ -212,7 +212,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		NextBuffer->ThreadId = uint16(GTlsContext.GetThreadId());
 
 		// Add this next buffer to the active list.
-		for (;; Private::PlatformYield())
+		for (;; PlatformYield())
 		{
 			NextBuffer->NextThread = AtomicLoadRelaxed(&GNewThreadList);
 			if (AtomicCompareExchangeRelease(&GNewThreadList, NextBuffer, NextBuffer->NextThread))
@@ -366,7 +366,7 @@ static void Writer_ConsumeEvents()
 
 	// Claim ownership of any new thread buffer lists
 	FWriteBuffer* __restrict NewThreadList;
-	for (;; Private::PlatformYield())
+	for (;; PlatformYield())
 	{
 		NewThreadList = AtomicLoadRelaxed(&GNewThreadList);
 		if (AtomicCompareExchangeAcquire(&GNewThreadList, (FWriteBuffer*)nullptr, NewThreadList))
@@ -439,7 +439,7 @@ static void Writer_ConsumeEvents()
 	// Put the retirees we found back into the system again.
 	if (RetireList.Head != nullptr)
 	{
-		for (FWriteBuffer* ListNode = RetireList.Tail;; Private::PlatformYield())
+		for (FWriteBuffer* ListNode = RetireList.Tail;; PlatformYield())
 		{
 			ListNode->NextBuffer = AtomicLoadRelaxed(&GPoolFreeList);
 			if (AtomicCompareExchangeRelease(&GPoolFreeList, RetireList.Head, ListNode->NextBuffer))
