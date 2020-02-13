@@ -3287,6 +3287,7 @@ static void BindShaderStage(FOpenGLLinkedProgramConfiguration& Config, CrossComp
 }
 
 // ============================================================================================================================
+static FCriticalSection GProgramBinaryCacheCS;
 
 FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThread(
 	FRHIVertexDeclaration* VertexDeclarationRHI,
@@ -3299,6 +3300,8 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 	)
 {
 	check(IsInRenderingThread() || IsInRHIThread());
+
+	FScopeLock Lock(&GProgramBinaryCacheCS);
 
 	VERIFY_GL_SCOPE();
 
@@ -4382,16 +4385,11 @@ struct FGLProgramBinaryFileCacheEntry
 	}
 };
 
-static FCriticalSection GProgramBinaryCacheCS;
 static FCriticalSection GPendingGLProgramCreateRequestsCS;
 
 // Scan the binary cache file and build a record of all programs.
 void FOpenGLProgramBinaryCache::ScanProgramCacheFile(const FGuid& ShaderPipelineCacheVersionGuid)
 {
-	// Flush any pending BSS create requests, this ensures we do not have RT/RHI thread creating programs while this step adds programs to the LRU.
-	check(IsInGameThread());
-	FlushRenderingCommands();
-
 	UE_LOG(LogRHI, Log, TEXT("OnShaderScanProgramCacheFile"));
 	FScopeLock Lock(&GProgramBinaryCacheCS);
 	FString ProgramCacheFilename = GetProgramBinaryCacheFilePath();
