@@ -1564,7 +1564,7 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 		PerformMovement(DeltaSeconds);
 
 		// After movement correction, smooth out error in position if any.
-		if( bCorrectedToServer )
+		if( bCorrectedToServer || CurrentRootMotion.NeedsSimulatedSmoothing() )
 		{
 			SmoothCorrection(OldLocation, OldRotation, UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentQuat());
 		}
@@ -2443,6 +2443,16 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 
 			// Root Motion has been used, clear
 			RootMotionParams.Clear();
+		}
+		else if (CurrentRootMotion.HasActiveRootMotionSources())
+		{
+			FQuat RootMotionRotationQuat;
+			if (CurrentRootMotion.GetOverrideRootMotionRotation(DeltaSeconds, *CharacterOwner, *this, RootMotionRotationQuat))
+			{
+				const FQuat OldActorRotationQuat = UpdatedComponent->GetComponentQuat();
+				const FQuat NewActorRotationQuat = RootMotionRotationQuat * OldActorRotationQuat;
+				MoveUpdatedComponent(FVector::ZeroVector, NewActorRotationQuat, true);
+			}
 		}
 
 		// consume path following requested velocity
