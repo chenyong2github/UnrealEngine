@@ -43,7 +43,7 @@ void FCADInterfacesModule::StartupModule()
 
 	if (!FPaths::FileExists(KernelIODll))
 	{
-		UE_LOG(CADInterfaces, Error, TEXT("Failed to find the binary folder for the CoreTech dll. Plug-in will not be functional."));
+		UE_LOG(CADInterfaces, Warning, TEXT("Failed to find the binary folder for the CoreTech dll. Plug-in will not be functional."));
 		return;
 	}
 
