@@ -1391,14 +1391,16 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			Trace::WriteTo(*Parameter);
 		}
 
-		FParse::Value(CmdLine, TEXT("-trace="), Parameter, false);
-		UE::String::ParseTokens(Parameter, TEXT(","), [] (const FStringView& Token)
+		if (FParse::Value(CmdLine, TEXT("-trace="), Parameter, false))
 		{
-			TCHAR ChannelName[64];
-			const size_t ChannelNameSize = Token.CopyString(ChannelName, 64);
-			ChannelName[ChannelNameSize] = '\0';
-			Trace::ToggleChannel(ChannelName, true);
-		});
+			UE::String::ParseTokens(Parameter, TEXT(","), [] (const FStringView& Token)
+			{
+				TCHAR ChannelName[64];
+				const size_t ChannelNameSize = Token.CopyString(ChannelName, 64);
+				ChannelName[ChannelNameSize] = '\0';
+				Trace::ToggleChannel(ChannelName, true);
+			});
+		}
 
 		TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
 		TRACE_CPUPROFILER_INIT(CmdLine);
