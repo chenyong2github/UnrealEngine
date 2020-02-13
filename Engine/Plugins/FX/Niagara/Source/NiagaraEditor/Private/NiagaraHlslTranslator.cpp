@@ -1742,19 +1742,13 @@ void FHlslNiagaraTranslator::DefineDataSetWriteFunction(FString &HlslOutputStrin
 	HlslOutput += TEXT("}\n\n");
 }
 
-void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
+void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString& InHlslOutput)
 {
 	FString InterfaceCommonHLSL;
 	FString InterfaceUniformHLSL;
 	FString InterfaceFunctionHLSL;
-	TArray<FString> BufferParamNames;
 	TSet<FName> InterfaceClasses;
-	for (uint32 i = 0; i < 32; i++)
-	{
-		BufferParamNames.Add(TEXT("DataInterfaceBuffer_") + FString::FromInt(i));
-	}
 
-	uint32 CurBufferIndex = 0;
 	for (int32 i = 0; i < CompilationOutput.ScriptData.DataInterfaceInfo.Num(); i++)
 	{
 		FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[i];
@@ -1773,37 +1767,38 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 			FString OwnerIDString = Info.Name.ToString();
 			FString SanitizedOwnerIDString = GetSanitizedSymbolName(OwnerIDString, true);
 
-			// grab the buffer definition from the interface
-			//
 			FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo = DIParamInfo.AddDefaulted_GetRef();
 			DIInstanceInfo.DataInterfaceHLSLSymbol = SanitizedOwnerIDString;
 			DIInstanceInfo.DIClassName = Info.Type.GetClass()->GetName();
 
 			// Build a list of function instances that will be generated for this DI.
-			const TSet<FNiagaraFunctionSignature>* DataInterfaceFunctions = DataInterfaceRegisteredFunctions.Find(Info.Type.GetFName());
-			if (DataInterfaceFunctions != nullptr)
+			TSet<FNiagaraFunctionSignature> SeenFunctions;
+			DIInstanceInfo.GeneratedFunctions.Reserve(Info.RegisteredFunctions.Num());
+			for (const FNiagaraFunctionSignature& OriginalSig : Info.RegisteredFunctions)
 			{
-				DIInstanceInfo.GeneratedFunctions.Reserve(DataInterfaceFunctions->Num());
-				for (const FNiagaraFunctionSignature& OriginalSig : *DataInterfaceFunctions)
+				if (SeenFunctions.Contains(OriginalSig))
 				{
-					if (!OriginalSig.bSupportsGPU)
-					{
-						Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotSupported", "DataInterface {0} function {1} cannot run on the GPU."), FText::FromName(Info.Type.GetFName()), FText::FromName(OriginalSig.Name)), nullptr, nullptr);
-						continue;
-					}
+					continue;
+				}
+				SeenFunctions.Add(OriginalSig);
 
-					// make a copy so we can modify the owner id and get the correct hlsl signature
-					FNiagaraFunctionSignature Sig = OriginalSig;
-					Sig.OwnerName = Info.Name;
+				if (!OriginalSig.bSupportsGPU)
+				{
+					Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotSupported", "DataInterface {0} function {1} cannot run on the GPU."), FText::FromName(Info.Type.GetFName()), FText::FromName(OriginalSig.Name)), nullptr, nullptr);
+					continue;
+				}
 
-					FNiagaraDataInterfaceGeneratedFunction& DIFunc = DIInstanceInfo.GeneratedFunctions.AddDefaulted_GetRef();
-					DIFunc.DefinitionName = Sig.Name;
-					DIFunc.InstanceName = GetFunctionSignatureSymbol(Sig);
-					DIFunc.Specifiers.Empty(Sig.FunctionSpecifiers.Num());
-					for (const TTuple<FName, FName>& Specifier : Sig.FunctionSpecifiers)
-					{
-						DIFunc.Specifiers.Add(Specifier);
-					}
+				// make a copy so we can modify the owner id and get the correct hlsl signature
+				FNiagaraFunctionSignature Sig = OriginalSig;
+				Sig.OwnerName = Info.Name;
+
+				FNiagaraDataInterfaceGeneratedFunction& DIFunc = DIInstanceInfo.GeneratedFunctions.AddDefaulted_GetRef();
+				DIFunc.DefinitionName = Sig.Name;
+				DIFunc.InstanceName = GetFunctionSignatureSymbol(Sig);
+				DIFunc.Specifiers.Empty(Sig.FunctionSpecifiers.Num());
+				for (const TTuple<FName, FName>& Specifier : Sig.FunctionSpecifiers)
+				{
+					DIFunc.Specifiers.Add(Specifier);
 				}
 			}
 
@@ -5067,7 +5062,6 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 				if (NumFound != 0)
 				{
 					AddedFuncs.Add(Sig);
-					DataInterfaceRegisteredFunctions.FindOrAdd(Input.GetType().GetFName()).Add(Sig);
 
 					if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
 					{
@@ -5553,9 +5547,6 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 						Error(FText::Format(LOCTEXT("FunctionCallDataInterfaceGPUMissing", "Function call \"{0}\" does not work on GPU sims."), FText::FromName(OutSignature.Name)), nullptr, nullptr);
 					}
 				}
-
-				// We only use this for GPU systems currently so that we emit only the functionality required
-				DataInterfaceRegisteredFunctions.FindOrAdd(Info.Type.GetFName()).Add(OutSignature);
 
 				if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
 				{
