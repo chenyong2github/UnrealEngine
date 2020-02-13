@@ -13,7 +13,8 @@
 class UDMXLibrary;
 class IDMXProtocol;
 class UDMXEntityFixturePatch;
-class UDMXEventHandler;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FProtocolReceivedDelegate, FDMXProtocolName, Protocol, int32, Universe, const TArray<uint8>&, DMXBuffer);
 
 /**
  * UDMXSubsystem
@@ -95,13 +96,6 @@ public:
 	int32 BytesToInt(const TArray<uint8>& Bytes);
 
 	/**
-	 * Return a reference to the Protocol events broadcaster.
-	 * Bind to its OnProtocolReceived event to listen to when new data is available on DMX communications.
-	 */
-	UFUNCTION(BlueprintPure, Category = "DMX", meta = (DisplayName = "Get DMX Event Handler", Keywords = "delegate dispatch"))
-	UDMXEventHandler* GetDMXEventHandler() const;
-
-	/**
 	 * Creates a literal UDMXEntityFixturePatch reference
 	 * @param	InFixturePatch	pointer to set the UDMXEntityFixturePatch to
 	 * @return	The literal UDMXEntityFixturePatch
@@ -128,13 +122,18 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InName, InFunctionsMap"), Category = "DMX")
 	int32 GetFunctionsValue(const FName& InName, const TMap<FName, int32>& InFunctionsMap);
 
+	UPROPERTY(BlueprintAssignable, Category = "DMX")
+	FProtocolReceivedDelegate OnProtocolReceived;
+
 public:
 	//~ USubsystem interface begin
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	//~ USubsystem interface end
 
 private:
-	/** Reference to broadcast event handler */
-	UPROPERTY(Transient)
-	UDMXEventHandler* DMXEventHandler;
+
+	// This function is a delegate for when protocols have input updates
+	UFUNCTION()
+	void BufferReceivedBroadcast(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values);
+
 };

@@ -10,7 +10,6 @@
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEventHandler.h"
 
 #include "EngineUtils.h"
 #include "UObject/UObjectIterator.h"
@@ -457,12 +456,18 @@ int32 UDMXSubsystem::BytesToInt(const TArray<uint8>& Bytes)
 	return IntVal;
 }
 
-UDMXEventHandler* UDMXSubsystem::GetDMXEventHandler() const
-{
-	return DMXEventHandler;
-}
-
 void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	DMXEventHandler = NewObject<UDMXEventHandler>();
+	for (const FName& ProtocolName : IDMXProtocol::GetProtocolNames())
+	{
+		if (TSharedPtr<IDMXProtocol> Protocol = IDMXProtocol::Get(ProtocolName))
+		{
+			Protocol->GetOnUniverseInputUpdate().AddUObject(this, &UDMXSubsystem::BufferReceivedBroadcast);
+		}
+	}
+}
+
+void UDMXSubsystem::BufferReceivedBroadcast(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
+{
+	OnProtocolReceived.Broadcast(FDMXProtocolName(Protocol), UniverseID, Values);
 }
