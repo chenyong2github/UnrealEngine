@@ -44,7 +44,7 @@ void FDMXEditorModule::StartupModule()
 	RegisterObjectCustomizations();
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	DMXEditorAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Media")), LOCTEXT("DmxCategory", "Media"));
+	DMXEditorAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("DMX")), LOCTEXT("DmxCategory", "DMX"));
 	RegisterAssetTypeAction(AssetTools, MakeShared<FAssetTypeActions_DMXEditorLibrary>());
 
 	PropertyModule.NotifyCustomizationModuleChanged();

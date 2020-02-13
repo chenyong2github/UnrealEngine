@@ -4,6 +4,7 @@
 #include "AssetTypeCategories.h"
 #include "Library/DMXLibrary.h"
 #include "DMXEditorLog.h"
+#include "DMXEditorModule.h"
 
 #include "Widgets/SWindow.h"
 #include "Widgets/Input/SButton.h"
@@ -46,7 +47,7 @@ UObject * UDMXEditorFactoryNew::FactoryCreateNew(UClass * Class, UObject * InPar
 
 uint32 UDMXEditorFactoryNew::GetMenuCategories() const
 {
-	return EAssetTypeCategories::Media;
+	return (uint32)FDMXEditorModule::GetAssetCategory();
 }
 
 UDMXLibrary * UDMXEditorFactoryNew::MakeNewEditor(UObject * InParent, FName Name, EObjectFlags Flags)
