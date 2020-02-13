@@ -2328,12 +2328,13 @@ void FLevelEditorActionCallbacks::CreateBlankBlueprintClass()
 
 bool FLevelEditorActionCallbacks::CanConvertSelectedActorsIntoBlueprintClass()
 {
-	return GEditor->GetSelectedActorCount() > 0;
+	return (FCreateBlueprintFromActorDialog::GetValidCreationMethods() != ECreateBlueprintFromActorMode::None);
 }
 
 void FLevelEditorActionCallbacks::ConvertSelectedActorsIntoBlueprintClass()
 {
-	const ECreateBlueprintFromActorMode DefaultCreateMode = (GEditor->GetSelectedActorCount() == 1 ? ECreateBlueprintFromActorMode::Subclass : ECreateBlueprintFromActorMode::ChildActor);
+	const ECreateBlueprintFromActorMode ValidCreateModes = FCreateBlueprintFromActorDialog::GetValidCreationMethods();
+	const ECreateBlueprintFromActorMode DefaultCreateMode = ((GEditor->GetSelectedActorCount() == 1 && !!(ValidCreateModes & ECreateBlueprintFromActorMode::Subclass)) ? ECreateBlueprintFromActorMode::Subclass : ECreateBlueprintFromActorMode::ChildActor);
 	FCreateBlueprintFromActorDialog::OpenDialog(DefaultCreateMode);
 }
 
