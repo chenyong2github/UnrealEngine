@@ -38,11 +38,10 @@ static void ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Initialize(const FInitializeDesc& Desc)
+void Initialize(const FInitializeDesc& Desc)
 {
 	Private::Writer_Initialize(Desc);
 	FChannel::ToggleAll(false);
-	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
