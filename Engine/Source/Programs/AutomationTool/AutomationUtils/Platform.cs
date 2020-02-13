@@ -611,6 +611,11 @@ namespace AutomationTool
 			return new UnrealTargetPlatform[] { PlatformType };
 		}
 
+		public virtual DirectoryReference GetProjectRootForStage(DirectoryReference RuntimeRoot, StagedDirectoryReference RelativeProjectRootForStage)
+		{
+			return DirectoryReference.Combine(RuntimeRoot, RelativeProjectRootForStage.Name);
+		}
+
 		// let the platform set the exe extension if it chooses (otherwise, use
 		// the switch statement in GetExeExtension below)
 		protected virtual string GetPlatformExeExtension()

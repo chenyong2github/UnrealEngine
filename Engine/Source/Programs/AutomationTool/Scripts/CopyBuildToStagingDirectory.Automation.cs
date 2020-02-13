@@ -2444,7 +2444,8 @@ public partial class Project : CommandUtils
 
 	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference PackageOrderFileLocation, FileReference CookerOpenOrderFileLocation, string AdditionalArgs)
 	{
-		FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name);
+		DirectoryReference OutputLocation = SC.StageTargetPlatform.GetProjectRootForStage(SC.RuntimeRootDir, SC.RelativeProjectRootForStage);
+
 		string CommandletParams = String.Format("-OutputDirectory={0} -CookedDirectory={1} -Commands={2}", OutputLocation.FullName, SC.PlatformCookDir, MakePathSafeToUseWithCommandLine(CommandsFileName));
 		if (PackageOrderFileLocation != null)
 		{

@@ -1770,4 +1770,9 @@ public class IOSPlatform : Platform
 	}
 
 	#endregion
+
+	public override DirectoryReference GetProjectRootForStage(DirectoryReference RuntimeRoot, StagedDirectoryReference RelativeProjectRootForStage)
+	{
+		return DirectoryReference.Combine(RuntimeRoot, "cookeddata/" + RelativeProjectRootForStage.Name);
+	}
 }
