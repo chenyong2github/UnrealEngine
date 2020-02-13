@@ -138,6 +138,8 @@ $ CppStandard : Which C++ stanard to use for compiling this target
 
 $ bStripSymbols : Whether to strip iOS symbols or not (implied by Shipping config).
 
+$ bEnableMemorySanitizer : Enables memory sanitizer (MSan)
+
 $ bIgnoreOutdatedImportLibraries : Whether to ignore import library files that are out of date when building targets. Set this to true to improve iteration time. By default, we do not bother re-linking targets if only a dependent .lib has changed, as chances are that the import library was not actually different unless a dependent header file of this target was also changed, in which case the target would automatically be rebuilt.
 
 $ bPrintDebugInfo : Whether debug info should be written to the console.
