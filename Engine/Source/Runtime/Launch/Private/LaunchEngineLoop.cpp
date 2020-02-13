@@ -1379,7 +1379,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		SCOPED_BOOT_TIMING("InitTrace")
 
-		Trace::Initialize();
+		Trace::FInitializeDesc Desc;
+		Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
+		Trace::Initialize(Desc);
+
+		FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
 
 		FString Parameter;
 		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))

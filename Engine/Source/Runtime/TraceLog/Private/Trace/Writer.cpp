@@ -527,6 +527,14 @@ static UPTRINT			GWorkerThread		= 0;
 static volatile bool	GWorkerThreadQuit	= false;
 
 ////////////////////////////////////////////////////////////////////////////////
+static void Writer_WorkerUpdate()
+{
+	Writer_UpdateControl();
+	Writer_UpdateData();
+	Writer_ConsumeEvents();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 static void Writer_WorkerThread()
 {
 	// At this point we haven't never collected any trace events. So we'll stall
@@ -549,12 +557,10 @@ static void Writer_WorkerThread()
 
 	while (!GWorkerThreadQuit)
 	{
+		Writer_WorkerUpdate();
+
 		const uint32 SleepMs = 24;
 		ThreadSleep(SleepMs);
-
-		Writer_UpdateControl();
-		Writer_UpdateData();
-		Writer_ConsumeEvents();
 	}
 
 	Writer_ConsumeEvents();
@@ -595,9 +601,13 @@ static void Writer_InternalShutdown()
 		return;
 	}
 
-	GWorkerThreadQuit = true;
-	ThreadJoin(GWorkerThread);
-	ThreadDestroy(GWorkerThread);
+	if (GWorkerThread)
+	{
+		GWorkerThreadQuit = true;
+		ThreadJoin(GWorkerThread);
+		ThreadDestroy(GWorkerThread);
+		GWorkerThread = 0;
+	}
 
 	Writer_ShutdownControl();
 	Writer_ShutdownBuffers();
@@ -627,9 +637,21 @@ static void Writer_InternalInitialize()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Writer_Initialize()
+void Writer_Initialize(const FInitializeDesc& Desc)
 {
-	Writer_WorkerCreate();
+	if (Desc.bUseWorkerThread)
+	{
+		Writer_WorkerCreate();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void Writer_Update()
+{
+	if (!GWorkerThread)
+	{
+		Writer_WorkerUpdate();
+	}
 }
 
 

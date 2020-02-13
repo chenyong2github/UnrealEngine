@@ -18,7 +18,13 @@
 namespace Trace
 {
 
-UE_TRACE_API bool	Initialize() UE_TRACE_IMPL(false);
+struct FInitializeDesc
+{
+	bool			bUseWorkerThread;
+};
+
+UE_TRACE_API bool	Initialize(const FInitializeDesc& Desc) UE_TRACE_IMPL(false);
+UE_TRACE_API void	Update() UE_TRACE_IMPL();
 UE_TRACE_API bool	SendTo(const TCHAR* Host, uint32 Port=1980) UE_TRACE_IMPL(false);
 UE_TRACE_API bool	WriteTo(const TCHAR* Path) UE_TRACE_IMPL(false);
 UE_TRACE_API bool	ToggleChannel(const TCHAR* ChannelName, bool bEnabled) UE_TRACE_IMPL(false);

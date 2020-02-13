@@ -13,7 +13,8 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-void	Writer_Initialize();
+void	Writer_Initialize(const FInitializeDesc&);
+void	Writer_Update();
 bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
 
@@ -37,11 +38,17 @@ static void ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const WIDECHAR* Src)
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Initialize()
+bool Initialize(const FInitializeDesc& Desc)
 {
-	Private::Writer_Initialize();
+	Private::Writer_Initialize(Desc);
 	FChannel::ToggleAll(false);
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void Update()
+{
+	Private::Writer_Update();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
