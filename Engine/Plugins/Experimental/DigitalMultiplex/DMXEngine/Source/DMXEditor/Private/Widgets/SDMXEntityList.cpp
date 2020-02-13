@@ -1608,6 +1608,8 @@ void SDMXEntityList::OnDuplicateNodes()
 		TArray<UDMXEntity*> NewEntities;
 		NewEntities.Reserve(SelectedEntities.Num());
 
+		// We'll have the duplicates be placed right after their original counterparts
+		int32 NewEntityIndex = Library->FindEntityIndex(SelectedEntities.Last(0));
 		// Duplicate each selected entity
 		for (UDMXEntity* Entity : SelectedEntities)
 		{
@@ -1617,6 +1619,7 @@ void SDMXEntityList::OnDuplicateNodes()
 				EntityCopy->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, EntityCopy->GetClass(), EntityCopy->GetDisplayName()));
 				Library->AddEntity(EntityCopy);
 				NewEntities.Add(EntityCopy);
+				Library->SetEntityIndex(EntityCopy, ++NewEntityIndex);
 			}
 		}
 
