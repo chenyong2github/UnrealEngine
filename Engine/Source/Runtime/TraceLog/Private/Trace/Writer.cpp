@@ -57,7 +57,7 @@ void Writer_InitializeTiming()
 
 ////////////////////////////////////////////////////////////////////////////////
 static bool						GInitialized;		// = false;
-static FWriteBuffer				GNullWriteBuffer	= { 0, 0, nullptr, nullptr, (uint8*)&GNullWriteBuffer };
+static FWriteBuffer				GNullWriteBuffer	= { 0, 0, 0, nullptr, nullptr, (uint8*)&GNullWriteBuffer };
 thread_local FWriteBuffer*		GTlsWriteBuffer		= &GNullWriteBuffer;
 TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
 
@@ -162,17 +162,27 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		// it to the free list.
 		MemoryMap(PageBase, PageGrowth);
 
+		uint32 BufferSize = GPoolBlockSize;
+		BufferSize -= sizeof(FWriteBuffer);
+		BufferSize -= sizeof(uint32); // to preceed event data with a small header when sending.
+
 		// The first block in the page we'll use for the next buffer. Note that the
 		// buffer objects are at the _end_ of their blocks.
-		PageBase += GPoolBlockSize - sizeof(FWriteBuffer);
-		NextBuffer = (FWriteBuffer*)PageBase;
-		uint8* FirstBlock = PageBase + GPoolBlockSize;
+		NextBuffer = (FWriteBuffer*)(PageBase + GPoolBlockSize - sizeof(FWriteBuffer));
+		NextBuffer->Size = BufferSize;
 
 		// Link subsequent blocks together
+		uint8* FirstBlock = (uint8*)NextBuffer + GPoolBlockSize;
 		uint8* Block = FirstBlock;
-		for (int i = 2, n = PageGrowth / GPoolBlockSize; i < n; ++i)
+		for (int i = 2, n = PageGrowth / GPoolBlockSize; ; ++i)
 		{
 			auto* Buffer = (FWriteBuffer*)Block;
+			Buffer->Size = BufferSize;
+			if (i >= n)
+			{
+				break;
+			}
+
 			Buffer->NextBuffer = (FWriteBuffer*)(Block + GPoolBlockSize);
 			Block += GPoolBlockSize;
 		}
@@ -190,18 +200,16 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 		break;
 	}
 
-	NextBuffer->Cursor = ((uint8*)NextBuffer - GPoolBlockSize + sizeof(FWriteBuffer));
-	NextBuffer->Cursor += sizeof(uint32); // this is so we can preceed event data with a small header when sending.
+	NextBuffer->Cursor = (uint8*)NextBuffer - NextBuffer->Size;
 	NextBuffer->Committed = NextBuffer->Cursor;
 	NextBuffer->Reaped = NextBuffer->Cursor;
 	NextBuffer->EtxOffset = UPTRINT(0) - sizeof(FWriteBuffer);
 	NextBuffer->NextBuffer = nullptr;
 
-
 	FWriteBuffer* CurrentBuffer = GTlsWriteBuffer;
 	if (CurrentBuffer == &GNullWriteBuffer)
 	{
-		NextBuffer->ThreadId = GTlsContext.GetThreadId();
+		NextBuffer->ThreadId = uint16(GTlsContext.GetThreadId());
 
 		// Add this next buffer to the active list.
 		for (;; Private::PlatformYield())
