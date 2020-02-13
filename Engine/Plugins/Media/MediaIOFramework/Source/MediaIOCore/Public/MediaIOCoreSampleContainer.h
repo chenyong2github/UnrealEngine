@@ -51,10 +51,84 @@ public:
 
 public:
 	/** Update this sample container settings */
-	void UpdateSettings(const FMediaIOSamplingSettings& InSettings);
+	void UpdateSettings(const FMediaIOSamplingSettings& InSettings)
+	{
+		EvaluationSettings = InSettings;
+		ResetBufferStats();
+	}
 
 	/** Caches the current sample container states before samples will be taken out of it */
-	void CacheState(FTimespan PlayerTime);
+	void CacheState(FTimespan PlayerTime)
+	{
+		FScopeLock Lock(&CriticalSection);
+
+		//Cache data for that tick. The player has decided the current time so we know the evaluation point. 
+		const int32 SampleCount = Samples.Num();
+		CachedSamplesData.Reset(SampleCount);
+		if (SampleCount)
+		{
+			//Cache all times / timecode of each sample
+			double CachedSampleDurationSeconds = 0.0;
+			for (const TSharedPtr<SampleType, ESPMode::ThreadSafe>& Sample : Samples)
+			{
+				if (Sample.IsValid())
+				{
+					FTimedDataChannelSampleTime& NewSampleTime = CachedSamplesData.Emplace_GetRef();
+					CachedSampleDurationSeconds = Sample->GetDuration().GetTotalSeconds() - SMALL_NUMBER; //Offsetting the duration slightly to avoid going over the next frame
+					NewSampleTime.PlatformSecond = Sample->GetTime().GetTotalSeconds() - EvaluationSettings.PlayerTimeOffset;
+					if (Sample->GetTimecode().IsSet())
+					{
+						NewSampleTime.Timecode = FQualifiedFrameTime(Sample->GetTimecode().GetValue(), EvaluationSettings.FrameRate);
+					}
+				}
+			}
+
+			//Update our latest sample to include the duration of it. A sample is valid if its sample time including duration overlaps evaluation time
+			CachedSamplesData[0].PlatformSecond += CachedSampleDurationSeconds;
+			const FFrameTime SampleDurationTime = FFrameTime(FFrameNumber(0), 0.99f);;
+			CachedSamplesData[0].Timecode.Time += SampleDurationTime;
+
+
+			//Update statistics about evaluation time. Distance for newest sample will be clamped to 0 if its spans overlaps eval time.
+			if (IsBufferStatsEnabled())
+			{
+				double NewestSampleInSeconds = 0.0;
+				double OldestSampleInSeconds = 0.0;
+				const double EvaluationInSeconds = PlayerTime.GetTotalSeconds();
+				if (EvaluationSettings.EvaluationType == ETimedDataInputEvaluationType::Timecode)
+				{
+					//Compute the distance with Timespan resolution. Going through FQualifiedFrameTime gives a different result (~10ns)
+					NewestSampleInSeconds = Samples[0]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds() + CachedSampleDurationSeconds;
+					OldestSampleInSeconds = Samples[CachedSamplesData.Num() - 1]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds();
+				}
+				else //Platform time
+				{
+					NewestSampleInSeconds = Samples[0]->GetTime().GetTotalSeconds();
+					OldestSampleInSeconds = Samples[CachedSamplesData.Num() - 1]->GetTime().GetTotalSeconds();
+				}
+
+				//Compute distance to evaluation taking into account duration of our samples for the newest one.
+				CachedEvaluationData.DistanceToNewestSampleSeconds = NewestSampleInSeconds - EvaluationInSeconds;
+				if (CachedEvaluationData.DistanceToNewestSampleSeconds >= 0.0 && CachedEvaluationData.DistanceToNewestSampleSeconds <= CachedSampleDurationSeconds)
+				{
+					CachedEvaluationData.DistanceToNewestSampleSeconds = 0.0;
+				}
+
+				//Oldest distance just uses delta with evaluation directly
+				CachedEvaluationData.DistanceToOldestSampleSeconds = EvaluationInSeconds - OldestSampleInSeconds;
+
+				if (!FMath::IsNearlyZero(CachedEvaluationData.DistanceToNewestSampleSeconds) && CachedEvaluationData.DistanceToNewestSampleSeconds < 0.0f)
+				{
+					++BufferOverflow;
+				}
+
+				if (!FMath::IsNearlyZero(CachedEvaluationData.DistanceToOldestSampleSeconds) && CachedEvaluationData.DistanceToOldestSampleSeconds < 0.0f)
+				{
+					++BufferUnderflow;
+				}
+			}
+		}
+	}
 
 	/** Channel is disabled by default. It won't be added to the Timed Data collection if not enabled */
 	void EnableChannel(bool bShouldEnable)
@@ -161,26 +235,141 @@ public:
 
 public:
 	//~ Begin ITimedDataInputChannel
-	virtual FText GetDisplayName() const override;
-	virtual ETimedDataInputState GetState() const override;
-	virtual FTimedDataChannelSampleTime GetOldestDataTime() const override;
-	virtual FTimedDataChannelSampleTime GetNewestDataTime() const override;
-	virtual TArray<FTimedDataChannelSampleTime> GetDataTimes() const override;
-	virtual int32 GetNumberOfSamples() const override;
-	virtual int32 GetDataBufferSize() const override;
-	virtual void SetDataBufferSize(int32 BufferSize) override;
-	virtual bool IsBufferStatsEnabled() const override;
-	virtual void SetBufferStatsEnabled(bool bEnable) override;
-	virtual int32 GetBufferUnderflowStat() const override;
-	virtual int32 GetBufferOverflowStat() const override;
-	virtual int32 GetFrameDroppedStat() const override;
-	virtual void GetLastEvaluationData(FTimedDataInputEvaluationData& OutEvaluationData) const override;
-	virtual void ResetBufferStats() override;
+	
+	virtual FText GetDisplayName() const override
+	{
+		return FText::FromName(ChannelName);
+	}
+
+	virtual ETimedDataInputState GetState() const override
+	{
+		return ETimedDataInputState::Connected;
+	}
+
+	virtual FTimedDataChannelSampleTime GetOldestDataTime() const override
+	{
+		if (CachedSamplesData.Num())
+		{
+			return CachedSamplesData[0];
+		}
+
+		return FTimedDataChannelSampleTime();
+	}
+
+	virtual FTimedDataChannelSampleTime GetNewestDataTime() const override
+	{
+		if (CachedSamplesData.Num())
+		{
+			return CachedSamplesData[CachedSamplesData.Num() - 1];
+		}
+
+		return FTimedDataChannelSampleTime();
+	}
+
+	virtual TArray<FTimedDataChannelSampleTime> GetDataTimes() const override
+	{
+		return CachedSamplesData;
+	}
+
+	virtual int32 GetNumberOfSamples() const override
+	{
+		return CachedSamplesData.Num();
+	}
+
+	virtual int32 GetDataBufferSize() const override
+	{
+		return EvaluationSettings.BufferSize;
+	}
+
+	virtual void SetDataBufferSize(int32 BufferSize) override
+	{
+		FScopeLock Lock(&CriticalSection);
+		EvaluationSettings.BufferSize = FMath::Clamp(BufferSize, 1, EvaluationSettings.AbsoluteMaxBufferSize);
+		const int32 ToRemove = Samples.Num() - EvaluationSettings.BufferSize;
+		for (int32 i = 0; i < ToRemove; ++i)
+		{
+			PopSample();
+		}
+	}
+
+	virtual bool IsBufferStatsEnabled() const override
+	{
+		return bIsStatEnabled;
+	}
+
+	virtual void SetBufferStatsEnabled(bool bEnable) override
+	{
+		if (bEnable && !bIsStatEnabled)
+		{
+			//When enabling stat tracking, start clean
+			ResetBufferStats();
+		}
+
+		bIsStatEnabled = bEnable;
+	}
+
+	virtual int32 GetBufferUnderflowStat() const override
+	{
+		return BufferUnderflow;
+	}
+
+	virtual int32 GetBufferOverflowStat() const override
+	{
+		return BufferOverflow;
+	}
+
+	virtual int32 GetFrameDroppedStat() const override
+	{
+		FScopeLock Lock(&CriticalSection);
+		return FrameDrop;
+	}
+
+	virtual void GetLastEvaluationData(FTimedDataInputEvaluationData& OutEvaluationData) const override
+	{
+		OutEvaluationData = CachedEvaluationData;
+	}
+
+	virtual void ResetBufferStats() override
+	{
+		FScopeLock Lock(&CriticalSection);
+		BufferUnderflow = 0;
+		BufferOverflow = 0;
+		FrameDrop = 0;
+		CachedEvaluationData = FTimedDataInputEvaluationData();
+	}
 
 public:
 
-	bool FetchSample(TRange<FTimespan> TimeRange, TSharedPtr<SampleType, ESPMode::ThreadSafe>& OutSample);
-	void FlushSamples();
+	bool FetchSample(TRange<FTimespan> TimeRange, TSharedPtr<SampleType, ESPMode::ThreadSafe>& OutSample)
+	{
+		FScopeLock Lock(&CriticalSection);
+
+		const int32 SampleCount = Samples.Num();
+		if (SampleCount > 0)
+		{
+			TSharedPtr<SampleType, ESPMode::ThreadSafe> Sample = Samples[SampleCount - 1];
+			if (Sample.IsValid())
+			{
+				const FTimespan SampleTime = Sample->GetTime();
+
+				if (TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
+				{
+					Samples.RemoveAt(SampleCount - 1);
+					OutSample = Sample;
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	void FlushSamples()
+	{
+		FScopeLock Lock(&CriticalSection);
+		Samples.Empty();
+	}
+
 
 protected:
 

@@ -140,6 +140,12 @@ struct FTimedDataChannelEvaluationStatistics
 	/** Current number of samples used for the running average and variance */
 	int32 SampleCount = 0;
 
+	/** Last distance from evaluation time to oldest sample used for statistics */
+	float LastDistanceToOldest = 0.0f;
+
+	/** Last distance from evaluation time to newest sample used for statistics */
+	float LastDistanceToNewest = 0.0f;
+
 	/** Running average of the distance between last evaluation time and oldest sample in the buffer */
 	float IncrementalAverageOldestDistance = 0.0f;
 

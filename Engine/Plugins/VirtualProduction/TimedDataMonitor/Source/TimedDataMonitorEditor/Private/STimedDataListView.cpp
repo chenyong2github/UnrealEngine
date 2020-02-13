@@ -338,6 +338,8 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 				.MinValue(1)
 				.ToolTipText(LOCTEXT("BufferSize_ToolTip", "Buffer Size."))
 				.Value(this, &STimedDataInputTableRow::GetBufferSize)
+				.ShowAmount(!Item->bIsInput)
+				.Amount(this, &STimedDataInputTableRow::GetCurrentSampleCount)
 				.EditLabel(LOCTEXT("BufferSize_EditLable", "Number of buffer: "))
 				.OnValueCommitted(this, &STimedDataInputTableRow::SetBufferSize)
 				.CanEdit(Item->bControlBufferSize)
@@ -537,6 +539,11 @@ bool STimedDataInputTableRow::CanEditBufferSize() const
 	return Item->bCachedCanEditBufferSize;
 }
 
+
+int32 STimedDataInputTableRow::GetCurrentSampleCount() const
+{
+	return Item->CachedCurrentAmountOfBuffer;
+}
 
 TSharedRef<SWidget> STimedDataInputTableRow::OnEvaluationImageBuildMenu()
 {

@@ -21,6 +21,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 
+
 template<class NumericType>
 class STimedDataNumericEntryBox : public SCompoundWidget
 {
@@ -33,11 +34,15 @@ public:
 			: _Value(0)
 			, _MinValue(0)
 			, _CanEdit(true)
+			, _Amount(0)
+			, _ShowAmount(false)
 		{ }
 		SLATE_ATTRIBUTE(NumericType, Value)
 		SLATE_ARGUMENT(NumericType, MinValue)
 		SLATE_ARGUMENT(FText, EditLabel)
 		SLATE_ARGUMENT(bool, CanEdit);
+		SLATE_ATTRIBUTE(NumericType, Amount);
+		SLATE_ARGUMENT(bool, ShowAmount);
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_EVENT(FOnValueCommitted, OnValueCommitted)
 	SLATE_END_ARGS()
@@ -48,6 +53,8 @@ public:
 		Value = InArgs._Value;
 		MinValue = InArgs._MinValue;
 		EditLabel = InArgs._EditLabel;
+		Amount = InArgs._Amount;
+		bShowAmount = InArgs._ShowAmount;
 		OnValueCommitted = InArgs._OnValueCommitted;
 
 		TSharedRef<STextBlock> TextBlock = SNew(STextBlock)
@@ -98,7 +105,17 @@ public:
 	}
 	
 private:
-	FText GetValueText() const { return FText::AsNumber(Value.Get()); }
+	FText GetValueText() const 
+	{
+		if (bShowAmount)
+		{
+			return FText::Format(NSLOCTEXT("TimedDataNumericEntryBox", "TimedNumericDataState", "{0}/{1}"), Amount.Get(), Value.Get());
+		}
+		else
+		{
+			return FText::AsNumber(Value.Get()); 
+		}
+	}
 
 	TSharedRef<SWidget> OnCreateEditMenu()
 	{
@@ -178,9 +195,12 @@ private:
 
 private:
 	TAttribute<NumericType> Value;
+	TAttribute<NumericType> Amount;
 	NumericType MinValue;
 	FText EditLabel;
+	bool bShowAmount;
 	FOnValueCommitted OnValueCommitted;
 	TSharedPtr<SComboButton> ComboButton;
 	bool bCloseRequested = false;
 };
+

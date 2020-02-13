@@ -328,28 +328,41 @@ FText STimingDiagramWidget::GetTooltipText() const
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 	
-	float DistanceToNewestSampleAverage, DistanceToOldestSampleAverage, DistanceToNewestSampleSigma, DistanceToOldestSampleSigma = 0.f;
 	if (bIsInput)
 	{
-		DistanceToNewestSampleAverage = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleMean(InputIdentifier);
-		DistanceToOldestSampleAverage = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleMean(InputIdentifier);
-		DistanceToNewestSampleSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleStandardDeviation(InputIdentifier);
-		DistanceToOldestSampleSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleStandardDeviation(InputIdentifier);
+		const float DistanceToNewestSampleAverage = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleMean(InputIdentifier);
+		const float DistanceToOldestSampleAverage = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleMean(InputIdentifier);
+		const float DistanceToNewestSampleSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleStandardDeviation(InputIdentifier);
+		const float DistanceToOldestSampleSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleStandardDeviation(InputIdentifier);
+
+		return FText::Format(LOCTEXT("TimingDiagramTooltip", "Distance to newest:\nMean: {0}\nSigma: {1}\n\nDistance to oldest:\nMean: {2}\nSigma: {3}")
+			, DistanceToNewestSampleAverage
+			, DistanceToNewestSampleSigma
+			, DistanceToOldestSampleAverage
+			, DistanceToOldestSampleSigma);
 	}
 	else
 	{
-		DistanceToNewestSampleAverage = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleMean(ChannelIdentifier);
-		DistanceToOldestSampleAverage = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleMean(ChannelIdentifier);
-		DistanceToNewestSampleSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleStandardDeviation(ChannelIdentifier);
-		DistanceToOldestSampleSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleStandardDeviation(ChannelIdentifier);
+		const int32 SampleCount = TimedDataMonitorSubsystem->GetChannelNumberOfSamples(ChannelIdentifier);
+		const float DistanceToNewestSampleAverage = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleMean(ChannelIdentifier);
+		const float DistanceToOldestSampleAverage = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleMean(ChannelIdentifier);
+		const float DistanceToNewestSampleSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleStandardDeviation(ChannelIdentifier);
+		const float DistanceToOldestSampleSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleStandardDeviation(ChannelIdentifier);
+		FTimedDataInputEvaluationData LastEvalData;
+		TimedDataMonitorSubsystem->GetChannelLastEvaluationDataStat(ChannelIdentifier, LastEvalData);
+	
+		return FText::Format(LOCTEXT("TimingDiagramTooltip", "Sample count: {0}\n\nDistance to newest:\nLast Value: {1}\nMean: {2}\nSigma: {3}\n\nDistance to oldest:\nLast Value: {4}\nMean: {5}\nSigma: {6}")
+		, SampleCount
+		, LastEvalData.DistanceToNewestSampleSeconds
+		, DistanceToNewestSampleAverage
+		, DistanceToNewestSampleSigma
+		, LastEvalData.DistanceToOldestSampleSeconds
+		, DistanceToOldestSampleAverage
+		, DistanceToOldestSampleSigma);
 	}
 
 	
-	return FText::Format(LOCTEXT("TimingDiagramTooltip", "Distance to newest:\nMean: {0}\nSigma: {1}\n\nDistance to oldest:\nMean: {2}\nSigma: {3}")
-		, DistanceToNewestSampleAverage
-		, DistanceToNewestSampleSigma
-		, DistanceToOldestSampleAverage
-		, DistanceToOldestSampleSigma);
+
 }
 
 #undef LOCTEXT_NAMESPACE

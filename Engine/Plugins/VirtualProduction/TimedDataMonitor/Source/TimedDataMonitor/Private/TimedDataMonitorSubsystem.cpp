@@ -1072,7 +1072,7 @@ void UTimedDataMonitorSubsystem::SetChannelDataBufferSize(const FTimedDataMonito
 
 	if (FTimeDataChannelItem* SourceItem = ChannelMap.Find(Identifier))
 	{
-		if (InputMap[SourceItem->InputIdentifier].Input->IsDataBufferSizeControlledByInput())
+		if (!InputMap[SourceItem->InputIdentifier].Input->IsDataBufferSizeControlledByInput())
 		{
 			SourceItem->Channel->SetDataBufferSize(BufferSize);
 		}
@@ -1399,6 +1399,9 @@ void FTimedDataChannelEvaluationStatistics::Update(float DistanceToOldest, float
 	//Square root of that average gives us sigma (standard deviation)
 	DistanceToNewestSTD = FMath::Sqrt(IncrementalVarianceDistanceNewest);
 	DistanceToOldestSTD = FMath::Sqrt(IncrementalVarianceDistanceOldest);
+
+	LastDistanceToOldest = DistanceToOldest;
+	LastDistanceToNewest = DistanceToNewest;
 }
 
 void FTimedDataChannelEvaluationStatistics::Reset()

@@ -41,9 +41,6 @@ public:
 
 public:
 
-	template<typename VideoSampleType, typename AudioSampleType = void, typename MetadataSampleType = void, typename SubtitlesSampleType = void, typename CaptionSampleType = void>
-	static FMediaIOCoreSamples* MakeMediaIOSamples(ITimedDataInput* ChannelsOwner);
-
 	/**
 	 * Add the given audio sample to the cache.
 	 *
@@ -223,6 +220,56 @@ public:
 	FTimespan GetNextVideoSampleTime()
 	{
 		return VideoSamples.GetNextSampleTime();
+	}
+
+	/**
+	 * Get Audio Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetAudioFrameDropCount() const
+	{
+		return AudioSamples.GetFrameDroppedStat();
+	}
+
+	/**
+	 * Get Video Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetVideoFrameDropCount() const
+	{
+		return VideoSamples.GetFrameDroppedStat();
+	}
+	
+	/**
+	 * Get Metadata Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetMetadataFrameDropCount() const
+	{
+		return MetadataSamples.GetFrameDroppedStat();
+	}
+
+	/**
+	 * Get Subtitles Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetSubtitlesFrameDropCount() const
+	{
+		return SubtitleSamples.GetFrameDroppedStat();
+	}
+
+	/**
+	 * Get Caption Samples frame dropped count.
+	 *
+	 * @return Number of frames dropped
+	 */
+	int32 GetCaptionsFrameDropCount() const
+	{
+		return CaptionSamples.GetFrameDroppedStat();
 	}
 
 	/**

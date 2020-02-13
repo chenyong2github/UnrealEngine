@@ -130,9 +130,9 @@ private:
 
 	/** Number of frames drop from the last tick. */
 	int32 AjaThreadFrameDropCount;
-	int32 AjaThreadAutoCirculateAudioFrameDropCount;
-	int32 AjaThreadAutoCirculateMetadataFrameDropCount;
-	int32 AjaThreadAutoCirculateVideoFrameDropCount;
+	int32 PreviousMetadataFrameDropCount;
+	int32 PreviousAudioFrameDropCount;
+	int32 PreviousVideoFrameDropCount;
 
 	/** Number of frames drop from the last tick. */
 	uint32 LastFrameDropCount;

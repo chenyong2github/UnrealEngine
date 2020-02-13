@@ -61,6 +61,7 @@ private:
 	FText GetBufferSizeText() const;
 	void SetBufferSize(int32 NewValue, ETextCommit::Type CommitType);
 	bool CanEditBufferSize() const;
+	int32 GetCurrentSampleCount() const;
 	TSharedRef<SWidget> OnEvaluationImageBuildMenu();
 	const FSlateBrush* GetEvaluationImage() const;
 	void SetInputEvaluationType(ETimedDataInputEvaluationType EvaluationType);
