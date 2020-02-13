@@ -180,7 +180,7 @@ public:
 	// Simple Rule API
 	//
 
-	void Apply(const T Dt, const int32 It, const int32 NumIts);
+	bool Apply(const T Dt, const int32 It, const int32 NumIts);
 	bool ApplyPushOut(const T Dt, const int32 It, const int32 NumIts);
 
 	//
@@ -188,7 +188,7 @@ public:
 	//
 	// @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
 
-	void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
+	bool Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 	bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, 
 		const TSet<const TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
 

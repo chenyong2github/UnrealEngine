@@ -414,14 +414,15 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 Iterations, const int32 NumIterations)
+	bool TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 
+		bool bNeedsAnotherIteration = false;
 		if (MApplyPairIterations > 0)
 		{
 			const Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-			const Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, nullptr };
+			const Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration };
 
 			for (FPointContactConstraint& Contact : PointConstraints)
 			{
@@ -438,6 +439,8 @@ namespace Chaos
 		{
 			PostApplyCallback(Dt, Handles);
 		}
+
+		return bNeedsAnotherIteration;
 	}
 
 	template<typename T, int d>
@@ -473,19 +476,27 @@ namespace Chaos
 
 
 	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)
+	bool TPBDCollisionConstraints<T, d>::Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 
+		TAtomic<bool> bNeedsAnotherIterationAtomic;
+		bNeedsAnotherIterationAtomic.Store(false);
 		if (MApplyPairIterations > 0)
 		{
 			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
 				FConstraintContainerHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 				check(ConstraintHandle != nullptr);
 
+				bool bNeedsAnotherIteration = false;
 				Collisions::TContactParticleParameters<T> ParticleParameters = { MCullDistance, MShapePadding, &MCollided };
-				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, nullptr };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, ApplyType, &bNeedsAnotherIteration };
 				Collisions::Apply(ConstraintHandle->GetContact(), IterationParameters, ParticleParameters);
+
+				if (bNeedsAnotherIteration)
+				{
+					bNeedsAnotherIterationAtomic.Store(true);
+				}
 
 			}, bDisableCollisionParallelFor);
 		}
@@ -494,6 +505,8 @@ namespace Chaos
 		{
 			PostApplyCallback(Dt, InConstraintHandles);
 		}
+
+		return bNeedsAnotherIterationAtomic.Load();
 	}
 
 
