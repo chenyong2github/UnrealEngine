@@ -1511,6 +1511,13 @@ struct FMultipleInheritanceBaseClass
 	}
 };
 
+enum class EParsedInterface
+{
+	NotAnInterface,
+	ParsedUInterface,
+	ParsedIInterface
+};
+
 /**
  * Class for storing compiler metadata about a class's properties.
  */
@@ -1800,6 +1807,9 @@ public:
 	// GENERATED_BODY access specifier to preserve.
 	EAccessSpecifier GeneratedBodyMacroAccessSpecifier;
 
+	/** Parsed interface state */
+	EParsedInterface ParsedInterface = EParsedInterface::NotAnInterface;
+
 	friend struct FClassMetaDataArchiveProxy;
 };
 
@@ -1810,6 +1820,8 @@ public:
  */
 class FCompilerMetadataManager : protected TMap<UStruct*, TUniquePtr<FClassMetaData> >
 {
+	using Super = TMap<UStruct*, TUniquePtr<FClassMetaData>>;
+
 public:
 	/**
 	 * Adds a new class to be tracked
@@ -1852,6 +1864,11 @@ public:
 			MetaData->Shrink();
 		}
 	}
+
+	/**
+	 * Throws an exception if a UInterface was parsed but not the corresponding IInterface.
+	 */
+	void CheckForNoIInterfaces() const;
 
 	friend struct FCompilerMetadataManagerArchiveProxy;
 };
