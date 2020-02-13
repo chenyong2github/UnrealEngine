@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Insights/Viewmodels/AxisViewportDouble.h"
+#include "Insights/ViewModels/AxisViewportDouble.h"
 
 #include "Widgets/Layout/SScrollBar.h"
 
