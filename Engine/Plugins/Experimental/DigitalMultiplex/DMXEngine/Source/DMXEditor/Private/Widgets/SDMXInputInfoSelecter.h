@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Types/SlateEnums.h"
 
 #include "Interfaces/IDMXProtocol.h"
 #include "DMXProtocolTypes.h"
@@ -55,8 +56,12 @@ protected:
 	/** Handles new selection from the Directionality combo box */
 	void HandleProtocolChanged(FName SelectedProtocol);
 
-	/** Handles when the user changes the universe value */
+	/** Handles when the user changes the universe value, including while spinning the value */
 	void HandleUniverseIDChanged(uint16 NewValue);
 
+	/** Handles when the user commit the Universe value. Doesn't fire while spinning the value */
+	void HandleUniverseIDValueCommitted(uint16 NewValue, ETextCommit::Type CommitType);
+
+protected:
 	FOnUniverseSelectionChanged OnUniverseSelectionChanged;
 }; 

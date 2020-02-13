@@ -6,6 +6,7 @@
 #include "Library/DMXLibrary.h"
 #include "DMXEditorLog.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "DMXProtocolSettings.h"
 #include "Widgets/SNameListPicker.h"
 
 #include "Widgets/Input/SSpinBox.h"
@@ -24,6 +25,21 @@ void SDMXInputInfoSelecter::Construct(const FArguments& InArgs)
 	const float PaddingKeyVal = 10.0f;
 	const float PaddingNewInput = 35.0f;
 	const FVector2D PaddingInner(PaddingNewInput, 10.0f);
+
+	// Get values from plugin settings
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	CurrentUniverseID = ProtocolSettings->InputConsoleUniverseID;
+	if (ProtocolSettings->InputConsoleProtocol.IsNone())
+	{
+		// Create default ProtocolName struct, which will have a valid protocol name
+		CurrentProtocol = FDMXProtocolName();
+		ProtocolSettings->InputConsoleProtocol = CurrentProtocol;
+		ProtocolSettings->SaveConfig();
+	}
+	else
+	{
+		CurrentProtocol = FDMXProtocolName(ProtocolSettings->InputConsoleProtocol);
+	}
 
 	ChildSlot
 	.Padding(PaddingBorders)
@@ -81,6 +97,7 @@ void SDMXInputInfoSelecter::Construct(const FArguments& InArgs)
 				SAssignNew(UniverseIDField, SSpinBox<uint16>)
 				.Value(this, &SDMXInputInfoSelecter::GetCurrentUniverseID)
 				.OnValueChanged(this, &SDMXInputInfoSelecter::HandleUniverseIDChanged)
+				.OnValueCommitted(this, &SDMXInputInfoSelecter::HandleUniverseIDValueCommitted)
 				.MinValue(0).MaxValue(MAX_uint16)
 				.MinSliderValue(0).MaxSliderValue(MAX_uint16)
 				.MinDesiredWidth(50.0f)
@@ -128,6 +145,12 @@ void SDMXInputInfoSelecter::HandleProtocolChanged(FName SelectedProtocol)
 
 	// Execute delegate
 	OnUniverseSelectionChanged.ExecuteIfBound(SelectedProtocol);
+
+	// Update stored settings
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	ProtocolSettings->InputConsoleProtocol = SelectedProtocol;
+	ProtocolSettings->InputConsoleUniverseID = CurrentUniverseID;
+	ProtocolSettings->SaveConfig();
 }
 
 void SDMXInputInfoSelecter::HandleUniverseIDChanged(uint16 NewValue)
@@ -136,6 +159,19 @@ void SDMXInputInfoSelecter::HandleUniverseIDChanged(uint16 NewValue)
 	{
 		CurrentUniverseID = NewValue;
 	}
+}
+
+void SDMXInputInfoSelecter::HandleUniverseIDValueCommitted(uint16 NewValue, ETextCommit::Type CommitType)
+{
+	if (CurrentUniverseID != NewValue)
+	{
+		CurrentUniverseID = NewValue;
+	}
+
+	// Update stored settings
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	ProtocolSettings->InputConsoleUniverseID = CurrentUniverseID;
+	ProtocolSettings->SaveConfig();
 }
 
 #undef LOCTEXT_NAMESPACE
