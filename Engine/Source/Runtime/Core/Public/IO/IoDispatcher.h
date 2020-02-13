@@ -823,8 +823,8 @@ public:
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
-	CORE_API FIoStatus	Initialize(const FIoStoreWriterSettings& Settings);
-	CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name);
+	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreWriterSettings& Settings);
+	UE_NODISCARD CORE_API FIoStatus Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name);
 
 	/**
 	 * Creates an addressable range in an already mapped Chunk.
@@ -834,8 +834,8 @@ public:
 	 * @param Length The length of the range in bytes
 	 * @param ChunkIdPartialRange The FIoChunkId that will map to the range
 	 */
-	CORE_API FIoStatus	MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange);
-	CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
+	UE_NODISCARD CORE_API FIoStatus MapPartialRange(FIoChunkId OriginalChunkId, uint64 Offset, uint64 Length, FIoChunkId ChunkIdPartialRange);
+	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
 
 private:
 	FIoStoreWriterImpl*		Impl;

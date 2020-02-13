@@ -309,7 +309,7 @@ public:
 	{
 	}
 
-	FIoStatus Initialize(const FIoStoreWriterSettings& InIoWriterSettings)
+	UE_NODISCARD FIoStatus Initialize(const FIoStoreWriterSettings& InIoWriterSettings)
 	{
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 
@@ -447,7 +447,7 @@ public:
 		return FIoStatus::Ok;
 	}
 
-	TIoStatusOr<FIoStoreWriterResult> Flush()
+	UE_NODISCARD TIoStatusOr<FIoStoreWriterResult> Flush()
 	{
 		if (!IsMetadataDirty)
 		{
@@ -535,7 +535,8 @@ FIoStoreWriter::FIoStoreWriter(FIoStoreEnvironment& InEnvironment)
 
 FIoStoreWriter::~FIoStoreWriter()
 {
-	Impl->Flush();
+	TIoStatusOr<FIoStoreWriterResult> Status = Impl->Flush();
+	check(Status.IsOk());
 }
 
 FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterSettings& Settings)

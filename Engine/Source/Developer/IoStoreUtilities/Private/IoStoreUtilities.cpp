@@ -1755,7 +1755,8 @@ void SerializePackageData(
 	}
 
 	FIoBuffer IoBuffer(FIoBuffer::Wrap, BundleBuffer, BundleBufferSize);
-	IoStoreWriter->Append(CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::ExportBundleData, *Package->FileName), IoBuffer, *FPaths::GetCleanFilename(Package->FileName));
+	FIoStatus Status = IoStoreWriter->Append(CreateChunkId(Package->GlobalPackageId, 0, EIoChunkType::ExportBundleData, *Package->FileName), IoBuffer, *FPaths::GetCleanFilename(Package->FileName));
+	UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file"));
 	FMemory::Free(BundleBuffer);
 	FMemory::Free(ExportsBuffer);
 #endif
