@@ -190,7 +190,7 @@ public:
 
 		// Draw evaluation line
 		{
-			FLinearColor EvaluationColor = (EvaluationTime >= MinSampleTime && EvaluationTime<= MaxSampleTime) ? FLinearColor::Green : FLinearColor::Red;
+			FLinearColor EvaluationColor = (EvaluationTime >= MinSampleTime && EvaluationTime <= MaxSampleTime) ? FLinearColor::Green : FLinearColor::Red;
 			FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
 				AllottedGeometry.ToPaintGeometry(FVector2D(LocationOfCenter, 0), FVector2D(1, SizeY)),
 				DarkBrush, ESlateDrawEffect::None,
@@ -269,11 +269,6 @@ void STimingDiagramWidget::Construct(const FArguments& InArgs, bool bInIsInput)
 
 void STimingDiagramWidget::UpdateCachedValue()
 {
-	auto GetSeconds = [](ETimedDataInputEvaluationType Evaluation, const FTimedDataChannelSampleTime & SampleTime) -> double
-	{
-		return Evaluation == ETimedDataInputEvaluationType::Timecode ? SampleTime.Timecode.AsSeconds() : SampleTime.PlatformSecond;
-	};
-
 	UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 	check(TimedDataMonitorSubsystem);
 
@@ -285,8 +280,8 @@ void STimingDiagramWidget::UpdateCachedValue()
 	double NewestMean = 0.0;
 	if (bIsInput)
 	{
-		MinSampleTime = GetSeconds(GraphicWidget->EvaluationType, TimedDataMonitorSubsystem->GetInputOldestDataTime(InputIdentifier));
-		MaxSampleTime = GetSeconds(GraphicWidget->EvaluationType, TimedDataMonitorSubsystem->GetInputNewestDataTime(InputIdentifier));
+		MinSampleTime = TimedDataMonitorSubsystem->GetInputOldestDataTime(InputIdentifier).AsSeconds(GraphicWidget->EvaluationType);
+		MaxSampleTime = TimedDataMonitorSubsystem->GetInputNewestDataTime(InputIdentifier).AsSeconds(GraphicWidget->EvaluationType);
 		GraphicWidget->OldestMean = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleMean(InputIdentifier);
 		GraphicWidget->NewestMean = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToNewestSampleMean(InputIdentifier);
 		GraphicWidget->OldestSigma = TimedDataMonitorSubsystem->GetInputEvaluationDistanceToOldestSampleStandardDeviation(InputIdentifier);
@@ -294,8 +289,8 @@ void STimingDiagramWidget::UpdateCachedValue()
 	}
 	else
 	{
-		MinSampleTime = GetSeconds(GraphicWidget->EvaluationType, TimedDataMonitorSubsystem->GetChannelOldestDataTime(ChannelIdentifier));
-		MaxSampleTime = GetSeconds(GraphicWidget->EvaluationType, TimedDataMonitorSubsystem->GetChannelNewestDataTime(ChannelIdentifier));
+		MinSampleTime = TimedDataMonitorSubsystem->GetChannelOldestDataTime(ChannelIdentifier).AsSeconds(GraphicWidget->EvaluationType);
+		MaxSampleTime = TimedDataMonitorSubsystem->GetChannelNewestDataTime(ChannelIdentifier).AsSeconds(GraphicWidget->EvaluationType);
 		GraphicWidget->OldestMean = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleMean(ChannelIdentifier);
 		GraphicWidget->NewestMean = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToNewestSampleMean(ChannelIdentifier);
 		GraphicWidget->OldestSigma = TimedDataMonitorSubsystem->GetChannelEvaluationDistanceToOldestSampleStandardDeviation(ChannelIdentifier);
@@ -304,22 +299,7 @@ void STimingDiagramWidget::UpdateCachedValue()
 	GraphicWidget->MinSampleTime = MinSampleTime + EvaluationOffset;
 	GraphicWidget->MaxSampleTime = MaxSampleTime + EvaluationOffset;
 
-	switch (GraphicWidget->EvaluationType)
-	{
-	case ETimedDataInputEvaluationType::Timecode:
-		if (FApp::GetCurrentFrameTime().IsSet())
-		{
-			GraphicWidget->EvaluationTime = FApp::GetCurrentFrameTime().GetValue().AsSeconds();
-		}
-		break;
-	case ETimedDataInputEvaluationType::PlatformTime:
-		GraphicWidget->EvaluationTime = FApp::GetCurrentTime();
-		break;
-	case ETimedDataInputEvaluationType::None:
-	default:
-		GraphicWidget->EvaluationTime = 0.0;
-		break;
-	}
+	GraphicWidget->EvaluationTime = UTimedDataMonitorSubsystem::GetEvaluationTime(GraphicWidget->EvaluationType);
 }
 
 

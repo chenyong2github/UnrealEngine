@@ -23,6 +23,7 @@ class STimedDataInputListView;
 class STimedDataTimecodeProvider;
 class SWidget;
 
+enum class ETimedDataMonitorEvaluationState : uint8;
 
 class STimedDataMonitorPanel : public SCompoundWidget
 {
@@ -54,6 +55,8 @@ private:
 	FReply OnResetErrorsClicked();
 	FReply OnShowBuffersClicked();
 	FReply OnGeneralUserSettingsClicked();
+	FSlateColor GetEvaluationStateColorAndOpacity() const;
+	FText GetEvaluationStateText() const;
 
 	EVisibility ShowMessageLog() const;
 	EVisibility ShowEditorPerformanceThrottlingWarning() const;
@@ -76,6 +79,8 @@ private:
 	FSlateIcon CalibrationSlateIcon[CalibrationArrayCount];
 	FText CalibrationName[CalibrationArrayCount];
 	FText CalibrationTooltip[CalibrationArrayCount];
+
+	ETimedDataMonitorEvaluationState CachedGlobalEvaluationState;
 
 	bool bIsWaitingForCalibration = false;
 	bool bRefreshRequested = true;

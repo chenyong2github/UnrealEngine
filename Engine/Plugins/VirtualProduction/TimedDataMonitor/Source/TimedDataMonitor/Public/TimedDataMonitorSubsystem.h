@@ -65,6 +65,16 @@ enum class ETimedDataMonitorInputEnabled : uint8
 
 
 UENUM()
+enum class ETimedDataMonitorEvaluationState : uint8
+{
+	NoSample = 0,
+	OutsideRange = 1,
+	InsideRange = 2,
+	Disabled = 3,
+};
+
+
+UENUM()
 enum class ETimedDataMonitorCalibrationReturnCode : uint8
 {
 	/** Success. The values were synchronized. */
@@ -234,6 +244,9 @@ public:
 	/** Get the interface for a specific channel identifier. */
 	ITimedDataInputChannel* GetTimedDataChannel(const FTimedDataMonitorChannelIdentifier& Identifier);
 
+	/** Get the current evaluation time. */
+	static double GetEvaluationTime(ETimedDataInputEvaluationType EvaluationType);
+
 public:
 	/** Get the list of all the inputs. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
@@ -261,6 +274,10 @@ public:
 	/** Reset the stat of all the inputs. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	void ResetAllBufferStats();
+
+	/** Get the worst evaluation state of all the inputs. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
+	ETimedDataMonitorEvaluationState GetEvaluationState();
 
 	/** Return true if the identifier is a valid input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
@@ -322,9 +339,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputDataBufferSize(const FTimedDataMonitorInputIdentifier& Identifier, int32 BufferSize);
 
-	/** Get the worst state of all the channel state of that input. */
+	/** Get the worst state of all the channels of that input. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
-	ETimedDataInputState GetInputState(const FTimedDataMonitorInputIdentifier& Identifier);
+	ETimedDataInputState GetInputConnectionState(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Get the worst evaluation state of all the channels of that input. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	ETimedDataMonitorEvaluationState GetInputEvaluationState(const FTimedDataMonitorInputIdentifier& Identifier);
 
 	/** Returns the max average distance, in seconds, between evaluation time and newest sample */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
@@ -365,9 +386,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
 	FText GetChannelDisplayName(const FTimedDataMonitorChannelIdentifier& Identifier);
 
-	/** Get the worst state of all the input state of that channel. */
+	/** Get the state the channel. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
-	ETimedDataInputState GetChannelState (const FTimedDataMonitorChannelIdentifier& Identifier);
+	ETimedDataInputState GetChannelConnectionState (const FTimedDataMonitorChannelIdentifier& Identifier);
+
+	/** Get the evaluation state of the channel. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")
+	ETimedDataMonitorEvaluationState GetChannelEvaluationState(const FTimedDataMonitorChannelIdentifier& Identifier);
 
 	/** Get the channel oldest sample time. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Channel")

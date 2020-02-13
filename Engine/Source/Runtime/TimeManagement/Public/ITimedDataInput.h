@@ -57,6 +57,8 @@ struct FTimedDataChannelSampleTime
 	double PlatformSecond = 0.0;
 	/** Timecode value of the sample */
 	FQualifiedFrameTime Timecode;
+
+	double AsSeconds(ETimedDataInputEvaluationType EvaluationType) const { return EvaluationType == ETimedDataInputEvaluationType::Timecode ? Timecode.AsSeconds() : PlatformSecond; }
 };
 
 

@@ -194,7 +194,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(0.f, 0.f, 10.f, 0.f)
+			.Padding(4.f)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -202,8 +202,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.ToolTipText(this, &STimedDataMonitorPanel::GetCalibrateButtonTooltip)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-					.ForegroundColor(FLinearColor::White)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
 					.ContentPadding(FMargin(4, 0))
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
@@ -223,6 +222,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 							SNew(STextBlock)
 							.TextStyle(FTimedDataMonitorEditorStyle::Get(), "TextBlock.Large")
 							.Text(this, &STimedDataMonitorPanel::GetCalibrateButtonText)
+							.ColorAndOpacity(FLinearColor::White)
 						]
 					]
 				]
@@ -230,18 +230,34 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 				.AutoWidth()
 				[
 					SNew(SComboButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-					.ForegroundColor(FLinearColor::White)
+					.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.OnGetMenuContent(this, &STimedDataMonitorPanel::OnCalibrateBuildMenu)
+				]
+			]
+			// show buffers
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
+				.ToolTipText(LOCTEXT("ShowBuffers_ToolTip", "Open the buffer visualizer"))
+				.ContentPadding(FMargin(4, 2))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &STimedDataMonitorPanel::OnShowBuffersClicked)
+				[
+					SNew(SImage)
+					.Image(FTimedDataMonitorEditorStyle::Get().GetBrush("Img.BufferVisualization"))
 				]
 			]
 			// reset errors button
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
 			.Padding(4.f)
 			[
 				SNew(SButton)
@@ -258,36 +274,11 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.ColorAndOpacity(FLinearColor::White)
 				]
 			]
-			// show buffers
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
-			.Padding(4.f)
-			[
-				SNew(SButton)
-				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
-				.ToolTipText(LOCTEXT("ShowBuffers_ToolTip", "Open the buffer visualizer"))
-				.ContentPadding(FMargin(4, 2))
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &STimedDataMonitorPanel::OnShowBuffersClicked)
-				[
-					SNew(SImage)
-					.Image(FTimedDataMonitorEditorStyle::Get().GetBrush("Img.BufferVisualization"))
-				]
-			]
-			// Spacer
-			+ SHorizontalBox::Slot()
-			[
-				SNew(SSpacer)
-			]
 			// Settings button
 			+ SHorizontalBox::Slot()
 			.Padding(4.f)
 			.AutoWidth()
 			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
 				.ButtonStyle(FTimedDataMonitorEditorStyle::Get(), "ToggleButton")
@@ -300,6 +291,34 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 					.Text(FEditorFontGlyphs::Cogs)
 					.ColorAndOpacity(FLinearColor::White)
 				]
+			]
+			// Spacer
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SSpacer)
+			]
+			// Status
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.18"))
+				.Text(FEditorFontGlyphs::Circle)
+				.ColorAndOpacity(this, &STimedDataMonitorPanel::GetEvaluationStateColorAndOpacity)
+			]
+			// Status test
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f)
+			[
+				SNew(STextBlock)
+				.MinDesiredWidth(100)
+				.TextStyle(FTimedDataMonitorEditorStyle::Get(), "TextBlock.Large")
+				.Text(this, &STimedDataMonitorPanel::GetEvaluationStateText)
+				.ColorAndOpacity(FLinearColor::White)
 			]
 		];
 
@@ -419,6 +438,12 @@ void STimedDataMonitorPanel::Tick(const FGeometry& AllottedGeometry, const doubl
 		bRefreshRequested = false;
 		LastCachedValueUpdateTime = FApp::GetCurrentTime();
 
+		{
+			UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
+			check(TimedDataMonitorSubsystem);
+			CachedGlobalEvaluationState = TimedDataMonitorSubsystem->GetEvaluationState();
+		}
+
 		if (TimedDataGenlockWidget)
 		{
 			TimedDataGenlockWidget->UpdateCachedValue();
@@ -519,6 +544,28 @@ FReply STimedDataMonitorPanel::OnGeneralUserSettingsClicked()
 {
 	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "Plugins", "Timed Data Monitor");
 	return FReply::Handled();
+}
+
+
+FSlateColor STimedDataMonitorPanel::GetEvaluationStateColorAndOpacity() const
+{
+	return (CachedGlobalEvaluationState == ETimedDataMonitorEvaluationState::InsideRange) ? FLinearColor::Green : FLinearColor::Red;
+}
+
+
+FText STimedDataMonitorPanel::GetEvaluationStateText() const
+{
+	switch(CachedGlobalEvaluationState)
+	{
+	case ETimedDataMonitorEvaluationState::NoSample:
+		return LOCTEXT("EvalState_NoSample", "No Samples");
+	case ETimedDataMonitorEvaluationState::OutsideRange:
+		return LOCTEXT("EvalState_OutsideRange", "Outside Range");
+	case ETimedDataMonitorEvaluationState::InsideRange:
+		return LOCTEXT("EvalState_InsideRange", "Synchronized");
+	}
+
+	return LOCTEXT("EvalState_Disabled", "Disabled");
 }
 
 
