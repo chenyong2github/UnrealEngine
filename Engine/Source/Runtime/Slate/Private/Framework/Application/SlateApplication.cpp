@@ -4400,7 +4400,7 @@ bool FSlateApplication::OnMouseDown(const TSharedPtr< FGenericWindow >& Platform
 bool FSlateApplication::OnMouseDown( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
 	// convert a left mouse button click to touch event if we are faking it
-	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
+	if (IsFakingTouchEvents() && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = true;
 		return OnTouchStarted( PlatformWindow, PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0 );
@@ -5057,7 +5057,7 @@ bool FSlateApplication::OnMouseDoubleClick( const TSharedPtr< FGenericWindow >& 
 
 bool FSlateApplication::OnMouseDoubleClick( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
-	if (bIsFakingTouch || bIsGameFakingTouch)
+	if (IsFakingTouchEvents())
 	{
 		bIsFakingTouched = true;
 		return OnTouchStarted(PlatformWindow, PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0);
@@ -5144,7 +5144,7 @@ bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button )
 bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
 	// convert left mouse click to touch event if we are faking it	
-	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
+	if (IsFakingTouchEvents() && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = false;
 		return OnTouchEnded(PlatformApplication->Cursor->GetPosition(), 0, 0);
@@ -5318,7 +5318,7 @@ FReply FSlateApplication::RouteMouseWheelOrGestureEvent(const FWidgetPath& Widge
 bool FSlateApplication::OnMouseMove()
 {
 	// If the left button is pressed we fake 
-	if ((bIsFakingTouched || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
+	if (IsFakingTouchEvents() && (GetPressedMouseButtons().Num() == 0 || GetPressedMouseButtons().Contains(EKeys::LeftMouseButton)))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)
@@ -5362,7 +5362,7 @@ bool FSlateApplication::OnMouseMove()
 bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 {
     // We fake a move only if the left mous button is down
-	if ((bIsFakingTouch || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
+	if (IsFakingTouchEvents() && (GetPressedMouseButtons().Num() == 0 || GetPressedMouseButtons().Contains(EKeys::LeftMouseButton)))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)

@@ -606,13 +606,9 @@ public:
 	/** FViewport interface */
 	virtual bool ShouldDPIScaleSceneCanvas() const override { return false; }
 
-#if WITH_EDITOR
-	void SetPlayInEditorUseMouseForTouch(bool bUseMouseForTouch);
-#endif
+	bool GetUseMouseForTouch() const;
 
 protected:
-
-	bool GetUseMouseForTouch() const;
 	void SetCurrentBufferVisualizationMode(FName NewBufferVisualizationMode) { CurrentBufferVisualizationMode = NewBufferVisualizationMode; }
 	FName GetCurrentBufferVisualizationMode() const { return CurrentBufferVisualizationMode; }
 	bool HasAudioFocus() const { return bHasAudioFocus; }
