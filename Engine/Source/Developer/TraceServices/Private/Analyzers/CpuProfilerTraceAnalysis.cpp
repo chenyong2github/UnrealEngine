@@ -40,15 +40,15 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 	case RouteId_EventSpec:
 	{
-		uint32 Id = EventData.GetValue<uint32>("Id");
+		uint32 SpecId = EventData.GetValue<uint32>("Id");
 		uint8 CharSize = EventData.GetValue<uint8>("CharSize");
 		if (CharSize == sizeof(ANSICHAR))
 		{
-			DefineScope(Id, Session.StoreString(StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get()));
+			DefineScope(SpecId, Session.StoreString(StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get()));
 		}
 		else if (CharSize == 0 || CharSize == sizeof(TCHAR)) // 0 for backwards compatibility
 		{
-			DefineScope(Id, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+			DefineScope(SpecId, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
 		}
 		break;
 	}
@@ -72,10 +72,10 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 				EventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
 				ScopeState.StartCycle = ActualCycle;
 				uint32 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-				uint32* FindIt = ScopeIdToEventIdMap.Find(SpecId);
+				uint32* FindIt = SpecIdToTimerIdMap.Find(SpecId);
 				if (!FindIt)
 				{
-					ScopeState.EventTypeId = ScopeIdToEventIdMap.Add(SpecId, TimingProfilerProvider.AddCpuTimer(TEXT("<unknown>")));
+					ScopeState.EventTypeId = SpecIdToTimerIdMap.Add(SpecId, TimingProfilerProvider.AddCpuTimer(TEXT("<unknown>")));
 				}
 				else
 				{
@@ -151,25 +151,26 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	return true;
 }
 
-void FCpuProfilerAnalyzer::DefineScope(uint32 Id, const TCHAR* Name)
+void FCpuProfilerAnalyzer::DefineScope(uint32 SpecId, const TCHAR* Name)
 {
-	if (ScopeIdToEventIdMap.Contains(Id))
+	uint32* FindTimerIdByName = ScopeNameToTimerIdMap.Find(Name);
+	if (FindTimerIdByName)
 	{
-		TimingProfilerProvider.SetTimerName(ScopeIdToEventIdMap[Id], Name);
-		ScopeNameToEventIdMap.Add(Name, Id);
+		SpecIdToTimerIdMap.Add(SpecId, *FindTimerIdByName);
 	}
 	else
 	{
-		uint32* FindEventIdByName = ScopeNameToEventIdMap.Find(Name);
-		if (FindEventIdByName)
+		uint32* FindTimerId = SpecIdToTimerIdMap.Find(SpecId);
+		if (FindTimerId)
 		{
-			ScopeIdToEventIdMap.Add(Id, *FindEventIdByName);
+			TimingProfilerProvider.SetTimerName(*FindTimerId, Name);
+			ScopeNameToTimerIdMap.Add(Name, *FindTimerId);
 		}
 		else
 		{
 			uint32 NewTimerId = TimingProfilerProvider.AddCpuTimer(Name);
-			ScopeIdToEventIdMap.Add(Id, NewTimerId);
-			ScopeNameToEventIdMap.Add(Name, NewTimerId);
+			SpecIdToTimerIdMap.Add(SpecId, NewTimerId);
+			ScopeNameToTimerIdMap.Add(Name, NewTimerId);
 		}
 	}
 }

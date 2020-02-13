@@ -31,10 +31,10 @@ private:
 	{
 		TArray<EventScopeState> ScopeStack;
 		Trace::FTimingProfilerProvider::TimelineInternal* Timeline;
-		double LastCycle = 0.0;
+		uint64 LastCycle = 0;
 	};
 
-	void DefineScope(uint32 Id, const TCHAR* ScopeName);
+	void DefineScope(uint32 SpecId, const TCHAR* ScopeName);
 	FThreadState& GetThreadState(uint32 ThreadId);
 
 	enum : uint16
@@ -49,8 +49,8 @@ private:
 	Trace::IAnalysisSession& Session;
 	Trace::FTimingProfilerProvider& TimingProfilerProvider;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
-	TMap<uint32, uint32> ScopeIdToEventIdMap;
-	TMap<const TCHAR*, uint32> ScopeNameToEventIdMap;
+	TMap<uint32, uint32> SpecIdToTimerIdMap;
+	TMap<const TCHAR*, uint32> ScopeNameToTimerIdMap;
 	uint64 TotalEventSize = 0;
 	uint64 TotalScopeCount = 0;
 	uint32 CpuChannelId = 0;
