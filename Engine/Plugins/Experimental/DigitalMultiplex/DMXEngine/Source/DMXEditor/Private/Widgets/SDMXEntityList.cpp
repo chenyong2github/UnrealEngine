@@ -1522,6 +1522,8 @@ void SDMXEntityList::OnPasteNodes()
 				}
 				else
 				{
+					check(CopiedPatchTemplate != nullptr);
+
 					// Is there already a suitable replacement registered for this template?
 					if (PatchTemplateReplacements.Contains(CopiedPatchTemplate))
 					{
