@@ -726,6 +726,7 @@ void UDebugSkelMeshComponent::ResetMeshSectionVisibility()
 void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts()
 {
 	FSkeletalMeshModel* Resource = SkeletalMesh->GetImportedModel();
+	FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(SkeletalMesh);
 
 	const int32 NumLods = Resource->LODModels.Num();
 	for (FSkeletalMeshLODModel& LodModel : Resource->LODModels)
@@ -758,11 +759,11 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts()
 							VertData.SourceMeshVertIndices[3] = 0;
 						}
 					}
+					//We must dirty the DDC key
+					SkeletalMesh->InvalidateDeriveDataCacheGUID();
 				}
 			}
 		}
-
-		SkeletalMesh->PostEditChange();
 	}
 
 	ReregisterComponent();
