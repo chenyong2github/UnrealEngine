@@ -523,8 +523,8 @@ static bool Writer_UpdateData()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-static UPTRINT			GWorkerThread		= 0;
-static volatile bool	GWorkerThreadQuit	= false;
+static UPTRINT			GWorkerThread;		// = 0;
+static volatile bool	GWorkerThreadQuit;	// = false;
 
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_WorkerUpdate()
