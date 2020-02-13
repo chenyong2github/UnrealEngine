@@ -63,7 +63,7 @@ public:
 	virtual bool IsClassAllowed(const UClass* InClass) const;
 
 	/** Sends a requests to the Class Viewer to refresh itself the next chance it gets */
-	void Refresh();
+	CLASSVIEWER_API void Refresh();
 
 	/** Destroys the internal Class Hierarchy database */
 	static void DestroyClassHierarchy();
