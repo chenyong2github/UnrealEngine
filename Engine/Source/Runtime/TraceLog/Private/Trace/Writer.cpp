@@ -429,7 +429,7 @@ static void Writer_ConsumeEvents()
 #if TRACE_PRIVATE_PERF
 	UE_TRACE_LOG($Trace, WorkerThread, TraceLogChannel)
 		<< WorkerThread.Cycles(uint32(TimeGetTimestamp() - StartTsc))
-		<< WorkerThread.BytesReaped(BytesReaped);
+		<< WorkerThread.BytesReaped(BytesReaped)
 		<< WorkerThread.BytesSent(BytesSent);
 
 	UE_TRACE_LOG($Trace, Memory, TraceLogChannel)
