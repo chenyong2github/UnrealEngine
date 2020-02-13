@@ -458,7 +458,11 @@ public:
 	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const override
 	{
 		const TVector<T, d> UnscaledPoint = MInvScale * Point;
-		return MObject->Overlap(UnscaledPoint, MInternalThickness + Thickness);
+
+		// TODO: consider alternative that handles thickness scaling properly in 3D, only works for uniform scaling right now
+		const T UnscaleThickness = MInvScale[0] * Thickness; 
+
+		return MObject->Overlap(UnscaledPoint, MInternalThickness + UnscaleThickness);
 	}
 
 	virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override
