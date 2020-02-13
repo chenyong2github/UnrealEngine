@@ -39,6 +39,12 @@ bool UNiagaraEffectType::IsReadyForFinishDestroy()
 	return ReleaseFence.IsFenceComplete() && Super::IsReadyForFinishDestroy();
 }
 
+void UNiagaraEffectType::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+}
+
 void UNiagaraEffectType::PostLoad()
 {
 	Super::PostLoad();
