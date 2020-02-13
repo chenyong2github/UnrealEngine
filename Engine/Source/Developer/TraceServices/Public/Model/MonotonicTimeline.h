@@ -63,14 +63,17 @@ public:
 
 			if (CurrentDepthState.PendingScopeEnterIndex < 0 || StartTime >= CurrentDepthState.EnterTime + DetailLevel.Resolution)
 			{
-				for (int32 Depth = DetailLevel.InsertionState.PendingDepth; Depth >= CurrentDepth; --Depth)
+				if (CurrentDepthState.PendingEventIndex >= 0)
 				{
-					FDetailLevelDepthState& DepthState = DetailLevel.InsertionState.DepthStates[Depth];
-					check(DepthState.PendingScopeEnterIndex >= 0);
-					AddScopeEntry(DetailLevel, DepthState.ExitTime, false);
+					for (int32 Depth = DetailLevel.InsertionState.PendingDepth; Depth >= CurrentDepth; --Depth)
+					{
+						FDetailLevelDepthState& DepthState = DetailLevel.InsertionState.DepthStates[Depth];
+						check(DepthState.PendingScopeEnterIndex >= 0);
+						AddScopeEntry(DetailLevel, DepthState.ExitTime, false);
 
-					DepthState.PendingScopeEnterIndex = -1;
-					DepthState.PendingEventIndex = -1;
+						DepthState.PendingScopeEnterIndex = -1;
+						DepthState.PendingEventIndex = -1;
+					}
 				}
 				DetailLevel.InsertionState.PendingDepth = CurrentDepth;
 
@@ -110,6 +113,22 @@ public:
 			DetailLevel.InsertionState.DepthStates[CurrentDepth].ExitTime = EndTime;
 
 			UpdateDominatingEvent(DetailLevel, CurrentDepth, EndTime);
+
+			FDetailLevelDepthState& CurrentDepthState = DetailLevel.InsertionState.DepthStates[CurrentDepth];
+			check(CurrentDepthState.PendingScopeEnterIndex >= 0);
+			if (EndTime >= CurrentDepthState.EnterTime + DetailLevel.Resolution)
+			{
+				for (int32 Depth = DetailLevel.InsertionState.PendingDepth; Depth >= CurrentDepth; --Depth)
+				{
+					FDetailLevelDepthState& DepthState = DetailLevel.InsertionState.DepthStates[Depth];
+					check(DepthState.PendingScopeEnterIndex >= 0);
+					AddScopeEntry(DetailLevel, DepthState.ExitTime, false);
+
+					DepthState.PendingScopeEnterIndex = -1;
+					DepthState.PendingEventIndex = -1;
+				}
+				DetailLevel.InsertionState.PendingDepth = CurrentDepth - 1;
+			}
 		}
 		++ModCount;
 	}
