@@ -1400,7 +1400,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			UE::String::ParseTokens(Parameter, TEXT(","), [] (const FStringView& Token)
 			{
 				TCHAR ChannelName[64];
-				const size_t ChannelNameSize = Token.CopyString(ChannelName, 64);
+				const size_t ChannelNameSize = Token.CopyString(ChannelName, 63);
 				ChannelName[ChannelNameSize] = '\0';
 				Trace::ToggleChannel(ChannelName, true);
 			});
