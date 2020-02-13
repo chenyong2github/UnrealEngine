@@ -1314,36 +1314,6 @@ DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STA
 
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
-	{
-		SCOPED_BOOT_TIMING("InitTrace")
-
-		Trace::Initialize();
-
-		FString Parameter;
-		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
-		{
-			Trace::SendTo(*Parameter);
-		}
-		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
-		{
-			Trace::WriteTo(*Parameter);
-		}
-
-		FParse::Value(CmdLine, TEXT("-trace="), Parameter, false);
-		UE::String::ParseTokens(Parameter, TEXT(","), [] (const FStringView& Token)
-		{
-			TCHAR ChannelName[64];
-			const size_t ChannelNameSize = Token.CopyString(ChannelName, 64);
-			ChannelName[ChannelNameSize] = '\0';
-			Trace::ToggleChannel(ChannelName, true);
-		});
-
-		TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
-		TRACE_CPUPROFILER_INIT(CmdLine);
-		TRACE_PLATFORMFILE_INIT(CmdLine);
-		TRACE_COUNTERS_INIT(CmdLine);
-	}
-
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
 	// The GLog singleton is lazy initialised and by default will assume that
@@ -1360,42 +1330,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #if UE_BUILD_DEVELOPMENT && defined(UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME) && UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME
 	FApp::SetDebugGame(true);
 #endif
-
-	// Trace out information about this session
-	{
-		uint8 Payload[1024];
-		int32 PayloadSize = 0;
-
-		auto AddToPayload = [&] (const TCHAR* String) -> uint8
-		{
-			int32 Length = FCString::Strlen(String);
-			Length = FMath::Min<int32>(Length, sizeof(Payload) - PayloadSize - 1);
-			for (int32 i = 0, n = Length; i < n; ++i)
-			{
-				Payload[PayloadSize] = uint8(String[i] & 0x7f);
-				++PayloadSize;
-			}
-			return uint8(PayloadSize - Length);
-		};
-
-		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
-		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
-		uint8 CommandLineOffset = AddToPayload(CmdLine);
-
-		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
-			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
-			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
-			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
-			UE_TRACE_EVENT_FIELD(uint8, TargetType)
-		UE_TRACE_EVENT_END()
-
-		UE_TRACE_LOG(Diagnostics, Session, TraceLogChannel, PayloadSize)
-			<< Session.AppNameOffset(AppNameOffset)
-			<< Session.CommandLineOffset(CommandLineOffset)
-			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
-			<< Session.TargetType(uint8(FApp::GetBuildTargetType()))
-			<< Session.Attachment(Payload, PayloadSize);
-	}
 
 #if PLATFORM_WINDOWS
 	// Register a handler for Ctrl-C so we've effective signal handling from the outset.
@@ -1439,6 +1373,73 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		// Fail, shipping builds will crash if setting command line fails
 		return -1;
+	}
+
+	// Initialize trace
+	{
+		SCOPED_BOOT_TIMING("InitTrace")
+
+		Trace::Initialize();
+
+		FString Parameter;
+		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
+		{
+			Trace::SendTo(*Parameter);
+		}
+		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
+		{
+			Trace::WriteTo(*Parameter);
+		}
+
+		FParse::Value(CmdLine, TEXT("-trace="), Parameter, false);
+		UE::String::ParseTokens(Parameter, TEXT(","), [] (const FStringView& Token)
+		{
+			TCHAR ChannelName[64];
+			const size_t ChannelNameSize = Token.CopyString(ChannelName, 64);
+			ChannelName[ChannelNameSize] = '\0';
+			Trace::ToggleChannel(ChannelName, true);
+		});
+
+		TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
+		TRACE_CPUPROFILER_INIT(CmdLine);
+		TRACE_PLATFORMFILE_INIT(CmdLine);
+		TRACE_COUNTERS_INIT(CmdLine);
+	}
+
+	// Trace out information about this session
+	{
+		uint8 Payload[1024];
+		int32 PayloadSize = 0;
+
+		auto AddToPayload = [&] (const TCHAR* String) -> uint8
+		{
+			int32 Length = FCString::Strlen(String);
+			Length = FMath::Min<int32>(Length, sizeof(Payload) - PayloadSize - 1);
+			for (int32 i = 0, n = Length; i < n; ++i)
+			{
+				Payload[PayloadSize] = uint8(String[i] & 0x7f);
+				++PayloadSize;
+			}
+			return uint8(PayloadSize - Length);
+		};
+
+		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
+		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
+		uint8 CommandLineOffset = AddToPayload(CmdLine);
+
+		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
+			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
+			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
+			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
+			UE_TRACE_EVENT_FIELD(uint8, TargetType)
+		UE_TRACE_EVENT_END()
+
+		UE_TRACE_LOG(Diagnostics, Session, TraceLogChannel, PayloadSize)
+			<< Session.AppNameOffset(AppNameOffset)
+			<< Session.CommandLineOffset(CommandLineOffset)
+			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
+			<< Session.TargetType(uint8(FApp::GetBuildTargetType()))
+			<< Session.Attachment(Payload, PayloadSize);
 	}
 
 #if WITH_ENGINE
