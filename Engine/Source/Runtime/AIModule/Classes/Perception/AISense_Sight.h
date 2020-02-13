@@ -131,6 +131,8 @@ public:
 		float SightRadiusSq;
 		float AutoSuccessRangeSqFromLastSeenLocation;
 		float LoseSightRadiusSq;
+		float PointOfViewBackwardOffset;
+		float NearClippingRadiusSq;
 		uint8 AffiliationFlags;
 
 		FDigestedSightProperties();
