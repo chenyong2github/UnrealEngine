@@ -286,7 +286,13 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, cons
 		return false;
 	}
 
+	// Read the correct amount of channels for each function and store each in the correct byte of an int32
 	const FDMXFixtureMode& Mode = TypeTemplate->Modes[InFixturePatch->ActiveMode];
+	const TArray<uint8>& DMXData = InputDMXBuffer->GetDMXData();
+	
+	// Unsigned to make sure there won't be any system that changes how the bytes sum is done with int32
+	uint32 ChannelValue = 0;
+
 	for (const FDMXFixtureFunction& Function : Mode.Functions)
 	{
 		if (Function.Channel > DMX_MAX_ADDRESS)
@@ -296,9 +302,23 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, cons
 			return false;
 		}
 
-		int32 ChannelValue = InputDMXBuffer->GetDMXData()[Function.Channel - 1];
-		OutFunctionsMap.Add(*Function.FunctionName, ChannelValue);
+		if (UDMXEntityFixtureType::GetFunctionLastChannel(Function) > Mode.ChannelSpan)
+		{
+			// We reached the functions outside the valid channels for this mode
+			break;
+		}
 
+		// Always reset all bytes to zero on our int, in case the new ones don't use all bytes.
+		// Otherwise, the bytes not used now could have values from the previous function's channels.
+		ChannelValue = 0;
+
+		const int32 NumChannelsToRead = UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType);
+		for (int32 ChannelIndex = 0; ChannelIndex < NumChannelsToRead && ChannelIndex + Function.Channel < DMXData.Num() && ChannelIndex < 4; ++ChannelIndex)
+		{
+			ChannelValue += DMXData[Function.Channel + ChannelIndex] << ChannelIndex * 8;
+		}
+
+		OutFunctionsMap.Add(*Function.FunctionName, ChannelValue);
 	}
 
 	return true;
