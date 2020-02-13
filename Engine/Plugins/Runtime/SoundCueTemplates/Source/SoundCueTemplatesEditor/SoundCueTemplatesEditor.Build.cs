@@ -25,7 +25,8 @@ public class SoundCueTemplatesEditor : ModuleRules
                 "Engine",
                 "UnrealEd",
                 "Slate",
-                "SlateCore"
+                "SlateCore",
+                "ContentBrowser"
             }
         );
 
