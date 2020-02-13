@@ -1856,15 +1856,6 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 					NAME_None,
 					EUserInterfaceActionType::ToggleButton
 				);
-
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("RenameEmitter", "Rename Emitter"),
-					LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(EmitterHandleViewModel, &FNiagaraEmitterHandleViewModel::SetIsRenamePending, true)
-					)
-				);
 			}
 
 			MenuBuilder.AddMenuEntry(

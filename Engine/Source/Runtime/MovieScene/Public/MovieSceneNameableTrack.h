@@ -34,6 +34,14 @@ public:
 	 */
 	MOVIESCENE_API virtual bool CanRename() const { return true; }
 
+	/** 
+	 * Validate the new display name. 
+	 *
+	 * @return True if the given display name is valid, false if it is not. 
+	 * Error message should be set if the name is not valid.
+	 */
+	MOVIESCENE_API virtual bool ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const { return true; }
+
 public:
 
 	// UMovieSceneTrack interface

@@ -14,9 +14,9 @@
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraScriptOutputCollectionViewModel.h"
+#include "Algo/Find.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-
 #include "ScopedTransaction.h"
 #include "NiagaraRendererProperties.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
@@ -208,10 +208,27 @@ void FNiagaraEmitterHandleViewModel::OnNameTextComitted(const FText& InText, ETe
 
 bool FNiagaraEmitterHandleViewModel::VerifyNameTextChanged(const FText& NewText, FText& OutErrorMessage)
 {
-	FName NewName = *NewText.ToString();
-	if (NewName == FName())
+	static const FString ReservedNames[] =
+	{
+		TEXT("Particles"),
+		TEXT("Local"),
+		TEXT("Engine"),
+		TEXT("Transient"),
+		TEXT("User"),
+		TEXT("Emitter"),
+		TEXT("Module"),
+		TEXT("NPC")
+	};
+
+	FString NewString = NewText.ToString();
+	if (NewText.IsEmptyOrWhitespace())
 	{
 		OutErrorMessage = NSLOCTEXT("NiagaraEmitterEditor", "NiagaraInputNameEmptyWarn", "Cannot have empty name!");
+		return false;
+	}
+	else if (Algo::Find(ReservedNames, NewString) != nullptr)
+	{
+		OutErrorMessage = FText::Format(NSLOCTEXT("NiagaraEmitterEditor", "NiagaraInputNameReservedWarn", "Cannot use reserved name \"{0}\"!"), NewText);
 		return false;
 	}
 	return true;
