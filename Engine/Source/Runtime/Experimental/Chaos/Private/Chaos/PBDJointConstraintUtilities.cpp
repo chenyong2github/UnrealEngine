@@ -73,6 +73,22 @@ namespace Chaos
 	}
 
 
+	void FPBDJointUtilities::GetLockedSwingAxisAngle(
+		const FRotation3& R0,
+		const FRotation3& R1,
+		const EJointAngularConstraintIndex SwingConstraintIndex,
+		FVec3& Axis,
+		FReal& Angle)
+	{
+		// NOTE: this differs from GetDualConeSwingAxisAngle in that it returns an axis with length Sin(SwingAngle)
+		// and an Angle that is actually Sin(SwingAngle). This allows it to be used when we get closer to degenerate twist angles.
+		FVec3 Twist1 = R1 * FJointConstants::TwistAxis();
+		FVec3 Swing0 = R0 * FJointConstants::OtherSwingAxis(SwingConstraintIndex);
+		Axis = FVec3::CrossProduct(Swing0, Twist1);
+		Angle = -FVec3::DotProduct(Swing0, Twist1);
+	}
+
+
 	void FPBDJointUtilities::GetDualConeSwingAxisAngle(
 		const FRotation3& R0,
 		const FRotation3& R1,
