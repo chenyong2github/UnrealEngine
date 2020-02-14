@@ -1228,12 +1228,21 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const int32 Actual, const
 	return true;
 }
 
-
 bool FAutomationTestBase::TestEqual(const TCHAR* What, const int64 Actual, const int64 Expected)
 {
 	if (Actual != Expected)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %" PRId64 ", but it was %" PRId64 "."), What, Expected, Actual), 1);
+		return false;
+	}
+	return true;
+}
+
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const SIZE_T Actual, const SIZE_T Expected)
+{
+	if (Actual != Expected)
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %" PRIuPTR ", but it was %" PRIuPTR "."), What, Expected, Actual), 1);
 		return false;
 	}
 	return true;
