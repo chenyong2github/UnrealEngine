@@ -7084,6 +7084,17 @@ void UParticleSystemComponent::SetBoolParameter(FName Name, bool Value)
 	SetFloatParameter(Name, (Value ? 1.0f : 0.0f));
 
 }
+/**
+ *	Set a named float instance parameter on this ParticleSystemComponent.
+ *	Updates the parameter if it already exists, or creates a new entry if not.
+	This maps a int to a float for parity as cascade doesn't have booleans.
+	This for adding functionality to the parent UFXSystemComponent to set int
+	variables.
+ */
+void UParticleSystemComponent::SetIntParameter(FName Name, int Value)
+{
+	SetFloatParameter(Name, float(Value));
+}
 
 /** 
  *	Set a named float instance parameter on this ParticleSystemComponent. 

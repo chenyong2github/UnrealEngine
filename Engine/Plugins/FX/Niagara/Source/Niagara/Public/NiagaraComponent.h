@@ -48,6 +48,7 @@ public:
 
 	/********* UFXSystemComponent *********/
 	void SetBoolParameter(FName ParameterName, bool Param) override;
+	void SetIntParameter(FName ParameterName, int Param) override;
 	void SetFloatParameter(FName ParameterName, float Param) override;
 	void SetVectorParameter(FName ParameterName, FVector Param) override;
 	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
