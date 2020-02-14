@@ -378,6 +378,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bReceiveMobileCSMShadows = true;
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = true;
+	HitProxyPriority = HPP_World;
 #endif // WITH_EDITORONLY_DATA
 }
 

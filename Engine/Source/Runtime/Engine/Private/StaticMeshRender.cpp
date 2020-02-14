@@ -924,7 +924,7 @@ HHitProxy* FStaticMeshSceneProxy::CreateHitProxies(UPrimitiveComponent* Componen
 				}
 				else
 				{
-					ActorHitProxy = new HActor(Component->GetOwner(), Component, SectionIndex, MaterialIndex);
+					ActorHitProxy = new HActor(Component->GetOwner(), Component, Component->HitProxyPriority, SectionIndex, MaterialIndex);
 				}
 
 				FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
