@@ -22,7 +22,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Editor.h"
 
-#define LOCTEXT_NAMESPACE "GroomOptions"
+#define LOCTEXT_NAMESPACE "GroomCreateBindingOptionsWindow"
 
 void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 {
@@ -54,7 +54,7 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
-					.Text(LOCTEXT("GroomBindingOptionsWindow_CurrentFile", "Current File: "))
+					.Text(LOCTEXT("CurrentFile", "Current File: "))
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(5, 0, 0, 0)
@@ -94,7 +94,7 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 			[
 				SNew(SButton)
 				.HAlign(HAlign_Center)
-				.Text(LOCTEXT("GroomBindingOptionsWindow_Cancel", "Cancel"))
+				.Text(LOCTEXT("Cancel", "Cancel"))
 				.OnClicked(this, &SGroomCreateBindingOptionsWindow::OnCancel)
 			]
 		]
@@ -148,7 +148,7 @@ TSharedPtr<SGroomCreateBindingOptionsWindow> DisplayOptions(UGroomCreateBindingO
 
 TSharedPtr<SGroomCreateBindingOptionsWindow> SGroomCreateBindingOptionsWindow::DisplayCreateBindingOptions(UGroomCreateBindingOptions* BindingOptions)
 {
-	return DisplayOptions(BindingOptions, EGroomBindingOptionsVisibility::BuildOptions, LOCTEXT("GroomBuildOptionsWindow_WindowTitle", "Groom Binding Options"), LOCTEXT("GroomBindingOptionsWindow_Build", "Create"));
+	return DisplayOptions(BindingOptions, EGroomBindingOptionsVisibility::BuildOptions, LOCTEXT("WindowTitle", "Groom Binding Options"), LOCTEXT("Build", "Create"));
 }
 
 static UObject* InternalCreateNewBindAsset(FName InAssetName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh)

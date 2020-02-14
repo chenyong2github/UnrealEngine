@@ -242,7 +242,7 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneOb
 
 		auto OnSetObjectLambda = [KeyEditor](const FAssetData& Asset) mutable
 		{
-			FScopedTransaction Transaction(LOCTEXT("SetKey", "Set Enum Key Value"));
+			FScopedTransaction Transaction(LOCTEXT("SetEnumKey", "Set Enum Key Value"));
 			KeyEditor.SetValueWithNotify(Asset.GetAsset(), EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
 		};
 
@@ -379,7 +379,7 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneAc
 
 	auto OnSetCurrentValueLambda = [KeyEditor](FMovieSceneActorReferenceKey& ActorKey) mutable
 	{
-		FScopedTransaction Transaction(LOCTEXT("SetKey", "Set Actor Reference Key Value"));
+		FScopedTransaction Transaction(LOCTEXT("SetActorReferenceKey", "Set Actor Reference Key Value"));
 		KeyEditor.SetValueWithNotify(ActorKey, EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
 
 		// Look for components to choose

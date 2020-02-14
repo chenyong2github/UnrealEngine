@@ -352,7 +352,7 @@ void SFilterPresetList::GenerateCommonPresetEntries(FMenuBuilder& InSubMenuBuild
 		, FText::GetEmpty()
 	);
 	
-	const FText DisplayText = UserPreset->IsLocal() ? LOCTEXT("MakeSharedPresetLabel", "Make Shared Preset") : LOCTEXT("MakeSharedPresetLabel", "Make Local Preset");
+	const FText DisplayText = UserPreset->IsLocal() ? LOCTEXT("MakeSharedPresetLabel", "Make Shared Preset") : LOCTEXT("MakeLocalPresetLabel", "Make Local Preset");
 	const FText TooltipText = UserPreset->IsLocal() ? LOCTEXT("MakeSharedPresetToolTip", "Makes this preset a Shared User Preset (Config INI file has to be writable)") : LOCTEXT("MakeLocalPresetToolTip", "Makes this preset a Local Preset");
 
 	InSubMenuBuilder.AddMenuEntry(DisplayText,

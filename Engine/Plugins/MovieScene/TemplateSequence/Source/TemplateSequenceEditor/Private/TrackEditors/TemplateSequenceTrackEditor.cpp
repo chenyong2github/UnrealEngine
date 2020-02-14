@@ -222,9 +222,9 @@ public:
 						.Text_Lambda([this]() { return !bShowingHiddenAssets ? 
 								LOCTEXT("ShowOutdatedAssetsButton", "Show Outdated Assets") : 
 								LOCTEXT("HideOutdatedAssetsButton", "Hide Outdated Assets"); })
-						.ToolTipText(LOCTEXT(
-							"ShowAssetsRequiringSaveButtonTooltip",
-							"Show or hide legacy assets (like CameraAnim) and template sequences that are potentially incompatible with the currently selected object binding (re-save those to fix the issue)."))
+						.ToolTipText(
+							LOCTEXT("ShowAssetsRequiringSaveButtonTooltip", "Show or hide legacy assets (like CameraAnim) and template sequences that are potentially incompatible with the currently selected object binding (re-save those to fix the issue).")
+							)
 						.OnClicked(this, &STemplateSequenceAssetSubMenu::OnShowHiddenAssets)
 					]
 				]
