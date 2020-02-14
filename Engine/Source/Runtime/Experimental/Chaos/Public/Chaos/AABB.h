@@ -424,6 +424,13 @@ namespace Chaos
 			MMax += AbsThickness;
 		}
 
+		/** Grow along a vector (as if swept by the vector's direction and magnitude) */
+		FORCEINLINE void GrowByVector(const TVector<T, d>& V)
+		{
+			MMin += V.ComponentwiseMin(TVector<T, d>(0));
+			MMax += V.ComponentwiseMax(TVector<T, d>(0));
+		}
+
 		FORCEINLINE TVector<T, d> Center() const { return (MMax - MMin) / (T)2 + MMin; }
 		FORCEINLINE TVector<T, d> GetCenter() const { return Center(); }
 		FORCEINLINE TVector<T, d> GetCenterOfMass() const { return GetCenter(); }

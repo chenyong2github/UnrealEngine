@@ -29,8 +29,7 @@
 #include "PBDCollisionConstraints.ispc.generated.h"
 #endif
 
-//#pragma optimize("", off)
-//PRAGMA_DISABLE_OPTIMIZATION_ACTUAL
+//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
