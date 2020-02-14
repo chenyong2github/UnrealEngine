@@ -9,7 +9,6 @@
 #include "BurleyNormalizedSSSCommon.ush"
 #include "DeferredShadingCommon.ush"
 
-
 // Setup the max number of Burley samples
 #define BURLEY_NUM_SAMPLES	64
 #define BURLEY_INV_NUM_SAMPLES (1.0f/BURLEY_NUM_SAMPLES)
@@ -135,6 +134,7 @@ struct FBurleyParameter
 	float4 SurfaceAlbedo;
 	float4 DiffuseMeanFreePath;
 	float  WorldUnitScale;
+	float  SurfaceOpacity; // 1.0 means full Burley, 0.0 means full Default Lit
 };
 
 //Surface albedo and mean free path length
@@ -190,7 +190,8 @@ FBurleyParameter GetBurleyParameters(FGBufferData GBuffer)
 
 	// Mask should always be true, we can probably ignore it?
 	float Mask = UseSubsurfaceProfile(GBuffer.ShadingModelID) ? 1.0f : 0.0f;
-	BurleyParameter.DiffuseMeanFreePath *= Mask * GBuffer.CustomData.a;
+	BurleyParameter.SurfaceOpacity = Mask * GBuffer.CustomData.a;
+	BurleyParameter.DiffuseMeanFreePath *= BurleyParameter.SurfaceOpacity;
 
 	return BurleyParameter;
 }
@@ -646,14 +647,10 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
 	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
 
-#if SUBSURFACE_SINGLE_PASS
-	float DepthAtDiscCenter = CalcSceneDepth(BufferUV);
-	uint ReconstructMethod = (SUBSURFACE_RECOMBINE_QUALITY == SUBSURFACE_RECOMBINE_QUALITY_HIGH) ? 3 : 1;
-#else
-	//float DepthAtDiscCenter = SampleSSSColorConsideringLocalShared(BufferUV, 0, GroupThreadID, 0).DiffuseLighting.w;
 	BurleySampleDiffuseNormal CenterSample = SampleSSSColorConsideringLocalShared(BufferUV, 0, GroupThreadID, 0);
 	float DepthAtDiscCenter = CenterSample.DiffuseLighting.w;
-#endif
+
+	float3 OriginalColor = CenterSample.DiffuseLighting.rgb;
 
 	float4 OutColor = 0;
 
@@ -817,7 +814,13 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	RadianceAccumulated.xyz *= (WeightingFactor == 0)? 0:(1.0f /WeightingFactor*EnergyNormalization);
 #endif
 
-	OutColor.xyz = RadianceAccumulated.xyz;
+	// The opacity works by reducing the radius based on opacity, but this runs into precision issues with low opacity values.
+	// So as the opacity goes from 0.02 to 0.01, we transition to fully disabling SSS by the time we get to 0.01.
+	float LowOpacityEps = SSSS_OPACITY_THRESHOLD_EPS;
+
+	float OriginalLerp = saturate((BurleyParameter.SurfaceOpacity - LowOpacityEps) / LowOpacityEps);
+
+	OutColor.xyz = lerp(OriginalColor,RadianceAccumulated.xyz,OriginalLerp);
 	OutColor.w = NumOfSamples;
 
 	return OutColor;
