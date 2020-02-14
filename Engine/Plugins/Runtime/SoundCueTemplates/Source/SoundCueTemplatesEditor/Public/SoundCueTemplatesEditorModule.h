@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/Set.h"
 #include "Modules/ModuleInterface.h"
 
 SOUNDCUETEMPLATESEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(SoundCueTemplatesEditor, Log, All);
@@ -17,4 +16,5 @@ public:
 
 private:
 	void RegisterAssetActions();
+	void RegisterMenus();
 };

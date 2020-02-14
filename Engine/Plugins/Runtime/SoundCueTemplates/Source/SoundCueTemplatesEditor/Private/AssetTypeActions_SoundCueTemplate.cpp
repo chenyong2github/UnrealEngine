@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "AssetTypeActions_SoundCueTemplate.h"
 
 #include "SoundCueTemplate.h"
 #include "SoundCueTemplateFactory.h"
 
 #include "Components/AudioComponent.h"
+#include "ToolMenus.h"
 #include "ToolMenuSection.h"
 #include "ContentBrowserModule.h"
+#include "ContentBrowserMenuContexts.h"
 #include "IContentBrowserSingleton.h"
+#include "ObjectEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -108,5 +112,63 @@ void FAssetTypeActions_SoundCueTemplate::ExecuteCopyToSoundCue(TArray<TWeakObjec
 			ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackagePath), USoundCue::StaticClass(), Factory);
 		}
 	}
+}
+
+void FAssetActionExtender_SoundCueTemplate::RegisterMenus()
+{
+	if (!UToolMenus::IsToolMenuUIEnabled())
+	{
+		return;
+	}
+
+	FToolMenuOwnerScoped MenuOwner("SoundCueTemplate");
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundWave");
+	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+
+	Section.AddDynamicEntry("SoundCueTemplateSoundWaveAsset", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+		if (!Context || Context->SelectedObjects.Num() == 0)
+		{
+			return;
+		}
+
+		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateSoundCueTemplate", "Create SoundCueTemplate");
+		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateSoundCueTemplateToolTip", "Creates a SoundCueTemplate from the selected sound waves.");
+		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue");
+		const FToolMenuExecuteAction UIExecuteAction = FToolMenuExecuteAction::CreateStatic(&FAssetActionExtender_SoundCueTemplate::ExecuteCreateSoundCueTemplate);
+
+		InSection.AddMenuEntry("SoundWave_CreateSoundCueTemplate", Label, ToolTip, Icon, UIExecuteAction);
+	}));
+}
+
+void FAssetActionExtender_SoundCueTemplate::ExecuteCreateSoundCueTemplate(const struct FToolMenuContext& MenuContext)
+{
+	UContentBrowserAssetContextMenuContext* Context = MenuContext.FindContext<UContentBrowserAssetContextMenuContext>();
+	if (!Context || Context->SelectedObjects.Num() == 0)
+	{
+		return;
+	}
+
+	USoundWave* SoundWave = Cast<USoundWave>(Context->SelectedObjects[0]);
+	if (SoundWave == nullptr)
+	{
+		return;
+	}
+
+	FString PackagePath;
+	FString Name;
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(SoundWave->GetOutermost()->GetName(), TEXT(""), PackagePath, Name);
+
+	USoundCueTemplateFactory* Factory = NewObject<USoundCueTemplateFactory>();
+	Factory->ConfigureProperties();
+
+	Name = Factory->GetDefaultNewAssetName();
+	Factory->SoundWaves = FObjectEditorUtils::GetTypedWeakObjectPtrs<USoundWave>(Context->GetSelectedObjects());
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackagePath), USoundCueTemplate::StaticClass(), Factory);
 }
 #undef LOCTEXT_NAMESPACE
