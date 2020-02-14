@@ -70,15 +70,17 @@ private:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	//~ FGCObject
 	
-	void RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion);
+	void RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion, const bool bRespectAllOrientations);
 	void UpdateOcclusionTextures(const FAppleARKitFrame& Frame);
+	void UpdateVideoTextures(const FAppleARKitFrame& Frame);
 
 	UMaterialInstanceDynamic* MID_CameraOverlay;
 
 	// Cache UV offset to be used by GetPassthroughCameraUVs_RenderThread
 	FVector2D UVOffset;
-
-	FVertexBufferRHIRef OverlayVertexBufferRHI[2];
+	
+	FVertexBufferRHIRef OverlayVertexBufferRHITwoOrientations[2];
+	FVertexBufferRHIRef OverlayVertexBufferRHIFourOrientations[4];
 	FIndexBufferRHIRef IndexBufferRHI;
 	
 	bool bEnablePersonOcclusion = false;
@@ -93,4 +95,9 @@ private:
 	UAppleARKitOcclusionTexture* OcclusionDepthTexture = nullptr;
 	UMaterialInstanceDynamic* MID_DepthOcclusionOverlay = nullptr;
 	UMaterialInstanceDynamic* MID_MatteOcclusionOverlay = nullptr;
+	
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	FTextureRHIRef VideoTextureY;
+	FTextureRHIRef VideoTextureCbCr;
+#endif
 };

@@ -59,5 +59,7 @@ public class AppleARKit : ModuleRules
             string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
             AdditionalPropertiesForReceipt.Add("IOSPlugin", Path.Combine(PluginPath, "AppleARKit_IOS_UPL.xml"));
 		}
+		
+		PublicDefinitions.Add("MATERIAL_CAMERAIMAGE_CONVERSION=1");
 	}
 }

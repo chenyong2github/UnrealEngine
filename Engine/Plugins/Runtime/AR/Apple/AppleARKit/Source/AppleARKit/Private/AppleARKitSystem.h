@@ -176,6 +176,11 @@ private:
 	// ARKit Session Delegate
 	FAppleARKitSessionDelegate* Delegate = nullptr;
 
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	/** The Metal texture cache for unbuffered texture uploads. */
+	CVMetalTextureCacheRef MetalTextureCache = nullptr;
+#endif
+	
 	/** Cache of images that we've converted previously to prevent repeated conversion */
 	TMap< FString, CGImage* > ConvertedCandidateImages;
 
@@ -187,7 +192,9 @@ private:
 	TMap< FGuid, UARTrackedGeometry* > TrackedGeometries;
 	TArray<UARPin*> Pins;
 	UARLightEstimate* LightEstimate;
-	UAppleARKitTextureCameraImage* CameraImage;
+#if !MATERIAL_CAMERAIMAGE_CONVERSION
+	UAppleARKitTextureCameraImage* CameraImage = nullptr;
+#endif
 	UAppleARKitTextureCameraDepth* CameraDepth;
 	TMap< FString, UARCandidateImage* > CandidateImages;
 	TMap< FString, UARCandidateObject* > CandidateObjects;

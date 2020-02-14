@@ -13,6 +13,10 @@
 	FAppleARKitSystem* _AppleARKitSystem;
 	TArray<FVector2D> PassthroughCameraUVs;
 	FCriticalSection CameraUVsLock;
+
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	CVMetalTextureCacheRef _metalTextureCache;
+#endif
 }
 
 
@@ -24,14 +28,41 @@
 	{
 		UE_LOG(LogAppleARKit, Log, TEXT("Delegate created with session: %p"), InAppleARKitSystem);
 		_AppleARKitSystem = InAppleARKitSystem;
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+		_metalTextureCache = NULL;
+#endif
 	}
 	return self;
 }
 
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+- (void)setMetalTextureCache:(CVMetalTextureCacheRef)InMetalTextureCache
+{
+	// Release current?
+	if ( _metalTextureCache != nullptr )
+	{
+		CFRelease( _metalTextureCache );
+	}
+	// Set new & retain
+	_metalTextureCache = InMetalTextureCache;
+	if ( _metalTextureCache != nullptr )
+	{
+		CFRetain( _metalTextureCache );
+	}
+}
+#endif
 #pragma mark - ARSessionDelegate Methods
 
 - (void)session:(ARSession *)session didUpdateFrame:(ARFrame *)frame 
 {
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	if (!_metalTextureCache)
+	{
+		UE_LOG(LogAppleARKit, Log, TEXT("Delegate didUpdateFrame with no valid _metalTextureCache (ignoring)"));
+		return;
+	}
+#endif
+	
 	// Update the camera UVs
 	TSharedPtr<IXRCamera, ESPMode::ThreadSafe> Camera = _AppleARKitSystem->GetXRCamera(0);
 	if (Camera)
@@ -55,7 +86,11 @@
 	}
 	
 	// Bundle results into FAppleARKitFrame
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > AppleARKitFrame( new FAppleARKitFrame( frame, MinCameraUV, MaxCameraUV, _metalTextureCache ) );
+#else
 	TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > AppleARKitFrame( new FAppleARKitFrame( frame, MinCameraUV, MaxCameraUV ) );
+#endif
 	
 	// Pass result to session
 	_AppleARKitSystem->SessionDidUpdateFrame_DelegateThread( AppleARKitFrame );

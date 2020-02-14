@@ -31,7 +31,11 @@ struct APPLEARKIT_API FAppleARKitFrame
 	 * @param MinCameraUV 		- The minimum (top left) UV used to render the passthrough camera
 	 * @param MaxCameraUV 		- The maximum (bottom right) UV used to render the passthrough camera
 	 */
-	FAppleARKitFrame( ARFrame* InARFrame, const FVector2D MinCameraUV, const FVector2D MaxCameraUV );
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	FAppleARKitFrame(ARFrame* InARFrame, const FVector2D MinCameraUV, const FVector2D MaxCameraUV, CVMetalTextureCacheRef MetalTextureCache);
+#else
+	FAppleARKitFrame(ARFrame* InARFrame, const FVector2D MinCameraUV, const FVector2D MaxCameraUV);
+#endif
 
 	/** 
 	 * Copy contructor. CapturedImage is skipped as we don't need / want to retain access to the 
@@ -55,12 +59,28 @@ struct APPLEARKIT_API FAppleARKitFrame
 #if SUPPORTS_ARKIT_1_0
 
 	/** The raw camera buffer from ARKit */
-	CVPixelBufferRef CameraImage;
+	CVPixelBufferRef CameraImage = nullptr;
 	/** The raw camera depth info from ARKit (needs iPhone X) */
-	AVDepthData* CameraDepth;
-	void* NativeFrame;
+	AVDepthData* CameraDepth = nullptr;
+	void* NativeFrame = nullptr;
+	
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	/** The frame's captured images */
+    CVMetalTextureRef CapturedYImage = nullptr;
+    CVMetalTextureRef CapturedCbCrImage = nullptr;
 #endif
-
+	
+#endif
+	
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	/** The width and height in pixels of the frame's captured images. */
+	uint32 CapturedYImageWidth = 0;
+	uint32 CapturedYImageHeight = 0;
+    
+    uint32 CapturedCbCrImageWidth = 0;
+    uint32 CapturedCbCrImageHeight = 0;
+#endif
+	
 	/** The camera used to capture the frame's image. */
 	FAppleARKitCamera Camera;
 

@@ -35,9 +35,71 @@ DECLARE_FLOAT_COUNTER_STAT(TEXT("ARKit Frame to Render Delay (ms)"), STAT_ARKitF
 
 DECLARE_CYCLE_STAT(TEXT("Update Occlusion Textures"), STAT_UpdateOcclusionTextures, STATGROUP_ARKIT);
 
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+const FString UARKitCameraOverlayMaterialLoader::OverlayMaterialPath(TEXT("/AppleARKit/ARKitCameraMaterial.ARKitCameraMaterial"));
+#else
 const FString UARKitCameraOverlayMaterialLoader::OverlayMaterialPath(TEXT("/AppleARKit/M_CameraOverlay.M_CameraOverlay"));
+#endif
+
 const FString UARKitCameraOverlayMaterialLoader::DepthOcclusionOverlayMaterialPath(TEXT("/AppleARKit/MI_DepthOcclusionOverlay.MI_DepthOcclusionOverlay"));
 const FString UARKitCameraOverlayMaterialLoader::MatteOcclusionOverlayMaterialPath(TEXT("/AppleARKit/MI_MatteOcclusionOverlay.MI_MatteOcclusionOverlay"));
+
+#if SUPPORTS_ARKIT_1_0 && MATERIAL_CAMERAIMAGE_CONVERSION
+/**
+* Passes a CVMetalTextureRef through to the RHI to wrap in an RHI texture without traversing system memory.
+* @see FAvfTexture2DResourceWrapper & FMetalSurface::FMetalSurface
+*/
+class FAppleARKitCameraTextureResourceWrapper : public FResourceBulkDataInterface
+{
+public:
+	FAppleARKitCameraTextureResourceWrapper(CFTypeRef InImageBuffer)
+		: ImageBuffer(InImageBuffer)
+	{
+		check(ImageBuffer);
+		CFRetain(ImageBuffer);
+	}
+
+	/**
+	* @return ptr to the resource memory which has been preallocated
+	*/
+	virtual const void* GetResourceBulkData() const override
+	{
+		return ImageBuffer;
+	}
+
+	/**
+	* @return size of resource memory
+	*/
+	virtual uint32 GetResourceBulkDataSize() const override
+	{
+		return 0;
+	}
+
+	/**
+	* @return the type of bulk data for special handling
+	*/
+	virtual EBulkDataType GetResourceType() const override
+	{
+		return EBulkDataType::MediaTexture;
+	}
+
+	/**
+	* Free memory after it has been used to initialize RHI resource
+	*/
+	virtual void Discard() override
+	{
+		delete this;
+	}
+
+	virtual ~FAppleARKitCameraTextureResourceWrapper()
+	{
+		CFRelease(ImageBuffer);
+		ImageBuffer = nullptr;
+	}
+
+	CFTypeRef ImageBuffer;
+};
+#endif
 
 FAppleARKitVideoOverlay::FAppleARKitVideoOverlay()
 	: MID_CameraOverlay(nullptr)
@@ -165,6 +227,48 @@ using FARKitCameraOverlayMobilePS = TARKitCameraOverlayPS<true>;
 IMPLEMENT_SHADER_TYPE(template<>, FARKitCameraOverlayPS, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_VideoOverlay"), SF_Pixel);
 IMPLEMENT_SHADER_TYPE(template<>, FARKitCameraOverlayMobilePS, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS"), SF_Pixel);
 
+void FAppleARKitVideoOverlay::UpdateVideoTextures(const FAppleARKitFrame& Frame)
+{
+#if SUPPORTS_ARKIT_1_0 && MATERIAL_CAMERAIMAGE_CONVERSION
+	if (FAppleARKitAvailability::SupportsARKit10())
+	{
+		check(IsMetalPlatform(GMaxRHIShaderPlatform));
+		
+		if (Frame.CapturedYImage && Frame.CapturedCbCrImage)
+		{
+			FRHIResourceCreateInfo CreateInfo;
+			const uint32 CreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
+			CreateInfo.BulkData = new FAppleARKitCameraTextureResourceWrapper(Frame.CapturedYImage);
+			CreateInfo.ResourceArray = nullptr;
+
+			// pull the Y and CbCr textures out of the captured image planes (format is fake here, it will get the format from the FAppleARKitCameraTextureResourceWrapper)
+			VideoTextureY = RHICreateTexture2D(Frame.CapturedYImageWidth, Frame.CapturedYImageHeight, /*Format=*/PF_B8G8R8A8, /*NumMips=*/1, /*NumSamples=*/1, CreateFlags, CreateInfo);
+
+			CreateInfo.BulkData = new FAppleARKitCameraTextureResourceWrapper(Frame.CapturedCbCrImage);
+			VideoTextureCbCr = RHICreateTexture2D(Frame.CapturedCbCrImageWidth, Frame.CapturedCbCrImageHeight, /*Format=*/PF_B8G8R8A8, /*NumMips=*/1, /*NumSamples=*/1, CreateFlags, CreateInfo);
+
+			// todo: Add an update call to the registry instead of this unregister/re-register
+			FExternalTextureRegistry::Get().UnregisterExternalTexture(ARKitPassthroughCameraExternalTextureYGuid);
+			FExternalTextureRegistry::Get().UnregisterExternalTexture(ARKitPassthroughCameraExternalTextureCbCrGuid);
+
+			FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap);
+			FSamplerStateRHIRef SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+
+			FExternalTextureRegistry::Get().RegisterExternalTexture(ARKitPassthroughCameraExternalTextureYGuid, VideoTextureY, SamplerStateRHI);
+			FExternalTextureRegistry::Get().RegisterExternalTexture(ARKitPassthroughCameraExternalTextureCbCrGuid, VideoTextureCbCr, SamplerStateRHI);
+			
+			//Make sure AR camera pass through materials are updated properly
+			FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+
+			//CFRelease(Frame.CapturedYImage);
+			//CFRelease(Frame.CapturedCbCrImage);
+			//Frame.CapturedYImage = nullptr;
+			//Frame.CapturedCbCrImage = nullptr;
+		}
+	}
+#endif
+}
+
 void FAppleARKitVideoOverlay::UpdateOcclusionTextures(const FAppleARKitFrame& Frame)
 {
 #if SUPPORTS_ARKIT_3_0
@@ -215,7 +319,7 @@ void FAppleARKitVideoOverlay::UpdateOcclusionTextures(const FAppleARKitFrame& Fr
 #endif
 }
 
-void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion)
+void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion, const bool bRespectAllOrientations)
 {
 	if (RenderingOverlayMaterial == nullptr || !RenderingOverlayMaterial->IsValidLowLevel())
 	{
@@ -230,7 +334,7 @@ void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImme
 	
 	SCOPED_DRAW_EVENTF(RHICmdList, RenderVideoOverlay, bRenderingOcclusion ? TEXT("VideoOverlay (Occlusion)") : TEXT("VideoOverlay (Background)"));
 	
-	if (OverlayVertexBufferRHI[0] == nullptr || !OverlayVertexBufferRHI[0].IsValid())
+	if (OverlayVertexBufferRHITwoOrientations[0] == nullptr || !OverlayVertexBufferRHITwoOrientations[0].IsValid())
 	{
 		const FVector2D ViewSize(InView.UnconstrainedViewRect.Max.X, InView.UnconstrainedViewRect.Max.Y);
 
@@ -268,43 +372,100 @@ void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImme
 			FVector4(1.0f, 0.0f, 0.0f, 1.0f)
 		};
 
-		const FVector2D UVs[] =
+		// 2 orientations
 		{
-			// Landscape
-			FVector2D(UVOffset.X, 1.0f - UVOffset.Y),
-			FVector2D(UVOffset.X, UVOffset.Y),
-			FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y),
-			FVector2D(1.0f - UVOffset.X, UVOffset.Y),
-            
-			// Portrait
-			FVector2D(UVOffset.Y, 1.0f - UVOffset.X),
-            FVector2D(UVOffset.Y, UVOffset.X),
-			FVector2D(1.0f - UVOffset.Y, 1.0f - UVOffset.X),
-			FVector2D(1.0f - UVOffset.Y, UVOffset.X),
-		};
+			const FVector2D UVs[] =
+			{
+				// Landscape
+				FVector2D(UVOffset.X, 1.0f - UVOffset.Y),
+				FVector2D(UVOffset.X, UVOffset.Y),
+				FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y),
+				FVector2D(1.0f - UVOffset.X, UVOffset.Y),
+				
+				// Portrait
+				FVector2D(UVOffset.Y, 1.0f - UVOffset.X),
+				FVector2D(UVOffset.Y, UVOffset.X),
+				FVector2D(1.0f - UVOffset.Y, 1.0f - UVOffset.X),
+				FVector2D(1.0f - UVOffset.Y, UVOffset.X),
+			};
 
-		uint32 UVIndex = 0;
-		for (uint32 OrientationIter = 0; OrientationIter < 2; ++OrientationIter)
+			uint32 UVIndex = 0;
+			for (uint32 OrientationIter = 0; OrientationIter < 2; ++OrientationIter)
+			{
+				TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
+				Vertices.SetNumUninitialized(4);
+
+				Vertices[0].Position = Positions[0];
+				Vertices[0].UV = UVs[UVIndex];
+
+				Vertices[1].Position = Positions[1];
+				Vertices[1].UV = UVs[UVIndex + 1];
+
+				Vertices[2].Position = Positions[2];
+				Vertices[2].UV = UVs[UVIndex + 2];
+
+				Vertices[3].Position = Positions[3];
+				Vertices[3].UV = UVs[UVIndex + 3];
+
+				UVIndex += 4;
+
+				FRHIResourceCreateInfo CreateInfoVB(&Vertices);
+				OverlayVertexBufferRHITwoOrientations[OrientationIter] = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);
+			}
+		}
+		
+		// 4 orientations
 		{
-			TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
-			Vertices.SetNumUninitialized(4);
+			const FVector2D UVs[] =
+			{
+				// Landscape left
+				FVector2D(UVOffset.X, 1.0f - UVOffset.Y),
+				FVector2D(UVOffset.X, UVOffset.Y),
+				FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y),
+				FVector2D(1.0f - UVOffset.X, UVOffset.Y),
 
-			Vertices[0].Position = Positions[0];
-			Vertices[0].UV = UVs[UVIndex];
+				// Landscape right
+				FVector2D(1.0f - UVOffset.X, UVOffset.Y),
+				FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y),
+				FVector2D(UVOffset.X, UVOffset.Y),
+				FVector2D(UVOffset.X, 1.0f - UVOffset.Y),
 
-			Vertices[1].Position = Positions[1];
-			Vertices[1].UV = UVs[UVIndex + 1];
+				// Portrait
+				FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y),
+				FVector2D(UVOffset.X, 1.0f - UVOffset.Y),
+				FVector2D(1.0f - UVOffset.X, UVOffset.Y),
+				FVector2D(UVOffset.X, UVOffset.Y),
 
-			Vertices[2].Position = Positions[2];
-			Vertices[2].UV = UVs[UVIndex + 2];
+				// Portrait Upside Down
+				FVector2D(UVOffset.X, UVOffset.Y),
+				FVector2D(1.0f - UVOffset.X, UVOffset.Y),
+				FVector2D(UVOffset.X, 1.0f - UVOffset.Y),
+				FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y)
+			};
 
-			Vertices[3].Position = Positions[3];
-			Vertices[3].UV = UVs[UVIndex + 3];
+			uint32 UVIndex = 0;
+			for (uint32 OrientationIter = 0; OrientationIter < 4; ++OrientationIter)
+			{
+				TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
+				Vertices.SetNumUninitialized(4);
 
-			UVIndex += 4;
+				Vertices[0].Position = Positions[0];
+				Vertices[0].UV = UVs[UVIndex];
 
-			FRHIResourceCreateInfo CreateInfoVB(&Vertices);
-			OverlayVertexBufferRHI[OrientationIter] = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);
+				Vertices[1].Position = Positions[1];
+				Vertices[1].UV = UVs[UVIndex + 1];
+
+				Vertices[2].Position = Positions[2];
+				Vertices[2].UV = UVs[UVIndex + 2];
+
+				Vertices[3].Position = Positions[3];
+				Vertices[3].UV = UVs[UVIndex + 3];
+
+				UVIndex += 4;
+
+				FRHIResourceCreateInfo CreateInfoVB(&Vertices);
+				OverlayVertexBufferRHIFourOrientations[OrientationIter] = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);
+			}
 		}
 	}
 
@@ -401,21 +562,49 @@ void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImme
 	}
 
 	FRHIVertexBuffer* VertexBufferRHI = nullptr;
-	switch (DeviceOrientation)
+	if (bRespectAllOrientations)
 	{
-		case EDeviceScreenOrientation::LandscapeRight:
-		case EDeviceScreenOrientation::LandscapeLeft:
-			VertexBufferRHI = OverlayVertexBufferRHI[0];
-			break;
+		switch (DeviceOrientation)
+		{
+			case EDeviceScreenOrientation::LandscapeRight:
+				VertexBufferRHI = OverlayVertexBufferRHIFourOrientations[0];
+				break;
 
-		case EDeviceScreenOrientation::Portrait:
-		case EDeviceScreenOrientation::PortraitUpsideDown:
-			VertexBufferRHI = OverlayVertexBufferRHI[1];
-			break;
+			case EDeviceScreenOrientation::LandscapeLeft:
+				VertexBufferRHI = OverlayVertexBufferRHIFourOrientations[1];
+				break;
 
-		default:
-			VertexBufferRHI = OverlayVertexBufferRHI[0];
-			break;
+			case EDeviceScreenOrientation::Portrait:
+				VertexBufferRHI = OverlayVertexBufferRHIFourOrientations[2];
+				break;
+
+			case EDeviceScreenOrientation::PortraitUpsideDown:
+				VertexBufferRHI = OverlayVertexBufferRHIFourOrientations[3];
+				break;
+				
+			default:
+				VertexBufferRHI = OverlayVertexBufferRHIFourOrientations[0];
+				break;
+		}
+	}
+	else
+	{
+		switch (DeviceOrientation)
+		{
+			case EDeviceScreenOrientation::LandscapeRight:
+			case EDeviceScreenOrientation::LandscapeLeft:
+				VertexBufferRHI = OverlayVertexBufferRHITwoOrientations[0];
+				break;
+
+			case EDeviceScreenOrientation::Portrait:
+			case EDeviceScreenOrientation::PortraitUpsideDown:
+				VertexBufferRHI = OverlayVertexBufferRHITwoOrientations[1];
+				break;
+
+			default:
+				VertexBufferRHI = OverlayVertexBufferRHITwoOrientations[0];
+				break;
+		}
 	}
 
 
@@ -436,9 +625,14 @@ void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImme
 
 void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation, const float WorldToMeterScale)
 {
+	UpdateVideoTextures(Frame);
 	UpdateOcclusionTextures(Frame);
 	
-	RenderVideoOverlayWithMaterial(RHICmdList, InView, Frame, DeviceOrientation, MID_CameraOverlay, false);
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	RenderVideoOverlayWithMaterial(RHICmdList, InView, Frame, DeviceOrientation, MID_CameraOverlay, false, true);
+#else
+	RenderVideoOverlayWithMaterial(RHICmdList, InView, Frame, DeviceOrientation, MID_CameraOverlay, false, false);
+#endif
 	
 	if (bEnablePersonOcclusion)
 	{
@@ -458,7 +652,7 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 		static const FName DepthTextureUVParamName(TEXT("DepthTextureUVParam"));
 		OcclusionMaterial->SetVectorParameterValue(DepthTextureUVParamName, DepthTextureUVParamValue);
 		
-		RenderVideoOverlayWithMaterial(RHICmdList, InView, Frame, DeviceOrientation, OcclusionMaterial, true);
+		RenderVideoOverlayWithMaterial(RHICmdList, InView, Frame, DeviceOrientation, OcclusionMaterial, true, false);
 		bOcclusionDepthTextureRecentlyUpdated = false;
 	}
 }
@@ -466,7 +660,8 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation)
 {
 #if SUPPORTS_ARKIT_1_0
-	if (OverlayVertexBufferRHI[0] != nullptr && OverlayVertexBufferRHI[0].IsValid())
+	// UVOffset is initialized when OverlayVertexBufferRHITwoOrientations is created
+	if (OverlayVertexBufferRHITwoOrientations[0] != nullptr && OverlayVertexBufferRHITwoOrientations[0].IsValid())
 	{
 		OutUVs.SetNumUninitialized(4);
 

@@ -219,7 +219,6 @@ FAppleARKitSystem::FAppleARKitSystem()
 , DeviceOrientation(EDeviceScreenOrientation::Unknown)
 , DerivedTrackingToUnrealRotation(FRotator::ZeroRotator)
 , LightEstimate(nullptr)
-, CameraImage(nullptr)
 , CameraDepth(nullptr)
 , LastTrackedGeometry_DebugId(0)
 , FaceARSupport(nullptr)
@@ -251,7 +250,10 @@ void FAppleARKitSystem::Shutdown()
 	}
 #endif
 	CameraDepth = nullptr;
+
+#if !MATERIAL_CAMERAIMAGE_CONVERSION
 	CameraImage = nullptr;
+#endif
 	
 	PersonSegmentationImage = nullptr;
 	PersonSegmentationDepthImage = nullptr;
@@ -415,12 +417,13 @@ void FAppleARKitSystem::UpdateFrame()
 		if (GameThreadFrame.IsValid())
 		{
 #if SUPPORTS_ARKIT_1_0
+#if !MATERIAL_CAMERAIMAGE_CONVERSION
 			if (GameThreadFrame->CameraImage != nullptr)
 			{
 				// Reuse the UObjects because otherwise the time between GCs causes ARKit to be starved of resources
                 CameraImage->Init(FPlatformTime::Seconds(), GameThreadFrame->CameraImage);
 			}
-
+#endif
 			if (GameThreadFrame->CameraDepth != nullptr)
 			{
 				// Reuse the UObjects because otherwise the time between GCs causes ARKit to be starved of resources
@@ -516,7 +519,10 @@ void FAppleARKitSystem::OnBeginRendering_GameThread()
 {
 #if PLATFORM_MAC || PLATFORM_IOS
     // Queue an update on the render thread
+
+#if !MATERIAL_CAMERAIMAGE_CONVERSION
 	CameraImage->Init_RenderThread();
+#endif
 	
 	if (PersonSegmentationImage)
 	{
@@ -800,7 +806,11 @@ TArray<UARPin*> FAppleARKitSystem::OnGetAllPins() const
 
 UARTextureCameraImage* FAppleARKitSystem::OnGetCameraImage()
 {
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+	return nullptr;
+#else
 	return CameraImage;
+#endif
 }
 
 UARTextureCameraDepth* FAppleARKitSystem::OnGetCameraDepth()
@@ -1222,7 +1232,9 @@ void FAppleARKitSystem::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Collector.AddReferencedObjects( TrackedGeometries );
 	Collector.AddReferencedObjects( Pins );
+#if !MATERIAL_CAMERAIMAGE_CONVERSION
 	Collector.AddReferencedObject( CameraImage );
+#endif
 	Collector.AddReferencedObject( CameraDepth );
 	Collector.AddReferencedObjects( CandidateImages );
 	Collector.AddReferencedObjects( CandidateObjects );
@@ -1273,6 +1285,8 @@ void FAppleARKitSystem::ClearTrackedGeometries()
 void FAppleARKitSystem::SetupCameraTextures()
 {
 #if SUPPORTS_ARKIT_1_0
+
+#if !MATERIAL_CAMERAIMAGE_CONVERSION
 	if (CameraImage == nullptr)
 	{
 		CameraImage = NewObject<UAppleARKitTextureCameraImage>();
@@ -1281,6 +1295,8 @@ void FAppleARKitSystem::SetupCameraTextures()
 		check(Camera);
 		Camera->SetOverlayTexture(CameraImage);
 	}
+#endif
+	
 	if (CameraDepth == nullptr)
 	{
 		CameraDepth = NewObject<UAppleARKitTextureCameraDepth>();
@@ -1342,7 +1358,23 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		{
 			Delegate = [[FAppleARKitSessionDelegate alloc] initWithAppleARKitSystem:this];
 		}
+		
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+		// Create MetalTextureCache
+		if (IsMetalPlatform(GMaxRHIShaderPlatform))
+		{
+			id<MTLDevice> Device = (id<MTLDevice>)GDynamicRHI->RHIGetNativeDevice();
+			check(Device);
 
+			CVReturn Return = CVMetalTextureCacheCreate(nullptr, nullptr, Device, nullptr, &MetalTextureCache);
+			check(Return == kCVReturnSuccess);
+			check(MetalTextureCache);
+
+			// Pass to session delegate to use for Metal texture creation
+			[Delegate setMetalTextureCache : MetalTextureCache];
+		}
+#endif
+		
 		if (Session == nullptr)
 		{
 			// Start a new ARSession
@@ -1426,6 +1458,18 @@ bool FAppleARKitSystem::Pause()
 		// Suspend the session
 		[Session pause];
 		
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+		// Release MetalTextureCache created in Start
+		if (MetalTextureCache)
+		{
+			// Tell delegate to release it
+			[Delegate setMetalTextureCache:nullptr];
+		
+			CFRelease(MetalTextureCache);
+			MetalTextureCache = nullptr;
+		}
+#endif
+		
 		if (CVarReleaseSessionWhenStopped.GetValueOnAnyThread())
 		{
 			[Session release];
@@ -1481,10 +1525,13 @@ void FAppleARKitSystem::SessionDidUpdateFrame_DelegateThread(TSharedPtr< FAppleA
 			WriteCameraImageToDisk(Frame->CameraImage);
 		}
 		
+#if !MATERIAL_CAMERAIMAGE_CONVERSION
 		if (CameraImage != nullptr)
 		{
 			CameraImage->EnqueueNewCameraImage(Frame->CameraImage);
 		}
+#endif
+		
 #endif
 	}
 }

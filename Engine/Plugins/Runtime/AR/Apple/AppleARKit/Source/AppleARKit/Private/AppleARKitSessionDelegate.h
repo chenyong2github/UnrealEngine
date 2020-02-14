@@ -16,6 +16,10 @@
 
 - (id)initWithAppleARKitSystem:(class FAppleARKitSystem*)InAppleARKitSystem;
 
+#if MATERIAL_CAMERAIMAGE_CONVERSION
+- (void)setMetalTextureCache:(CVMetalTextureCacheRef)InMetalTextureCache;
+#endif
+
 @end
 
 #endif
