@@ -36,6 +36,8 @@
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
+#include "Chaos/MassProperties.h"
+#include "Chaos/Utilities.h"
 
 #if WITH_CHAOS
 #include "Chaos/ParticleHandle.h"
@@ -3069,8 +3071,15 @@ void FBodyInstance::UpdateMassProperties()
 
 				// #PHYS2 Refactor out PxMassProperties (Our own impl?)
 				PxQuat MassOrientation;
+#if WITH_CHAOS
+				const PxMat33& IT = TotalMassProperties.inertiaTensor;
+				Chaos::PMatrix<float, 3, 3> InertiaTensor(IT[0][0], IT[0][1], IT[0][2], IT[1][1], IT[1][2], IT[2][2]);
+				const Chaos::TRotation<float, 3> Rotation = Chaos::TransformToLocalSpace(InertiaTensor);
+				const FVector MassSpaceInertiaTensor(InertiaTensor.M[0][0], InertiaTensor.M[1][1], InertiaTensor.M[2][2]);
+				MassOrientation = U2PQuat(Rotation);
+#else
 				const FVector MassSpaceInertiaTensor = P2UVector(PxMassProperties::getMassSpaceInertia(TotalMassProperties.inertiaTensor, MassOrientation));
-
+#endif
 				FPhysicsInterface::SetMass_AssumesLocked(Actor, TotalMassProperties.mass);
 				FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, MassSpaceInertiaTensor);
 

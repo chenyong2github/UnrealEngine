@@ -1776,33 +1776,17 @@ bool CalculateMassPropertiesOfImplicitType(
 				return false;
 			}
 		else*/ 
-		if (ImplicitObject->GetType(true) & Chaos::ImplicitObjectType::Transformed)
-		{
-			// TODO:  This all very wrong, but is wrong in the same way as scaled. Rotation/Translation are ignored though. The three methods on Transformed no implemented.
-			// Only adding this to hack around CastHelper, as TransformedImplicit is very not supported in that path.
-			const Chaos::TImplicitObjectTransformed<FReal, 3>& Object = ImplicitObject->template GetObjectChecked<Chaos::TImplicitObjectTransformed<FReal, 3>>();
-
-
-			OutMassProperties.Volume = Object.GetVolume();
-			OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
-			OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
-			OutMassProperties.CenterOfMass = Object.GetCenterOfMass();
-			OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
-			return true;
-		}
-		else
-		{
-			//question: is LocalTM enough to merge these two branches?
-			Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
+		
+		//todo: Still need to handle scaled
+		Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
 			{
 				OutMassProperties.Volume = Object.GetVolume();
 				OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
 				OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
-				OutMassProperties.CenterOfMass = Object.GetCenterOfMass();
-				OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+				OutMassProperties.CenterOfMass = LocalTM.TransformPosition(Object.GetCenterOfMass());
+				OutMassProperties.RotationOfMass = LocalTM.GetRotation();
 			});
-			return true;
-		}
+		return true;
 	}
 	return false;
 }
@@ -1838,7 +1822,7 @@ void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(physx::PxM
 	Chaos::PMatrix<float, 3, 3> Tensor;
 	if (MassPropertiesList.Num())
 	{
-		Tensor = Chaos::Combine<float, 3>(MassPropertiesList).InertiaTensor;
+		Tensor = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList,  InDensityKGPerCM).InertiaTensor;
 	}
 	else 
 	{
