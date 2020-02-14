@@ -248,6 +248,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromSkeletalMesh(USkeletalMesh*
 
 	if(ImportToLodInternal(TargetMesh, Params.LodIndex, Params.SourceSection, NewAsset, LodData))
 	{
+		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(TargetMesh);
 		if(Params.bRemoveFromMesh)
 		{
 			// User doesn't want the section anymore as a renderable, get rid of it
