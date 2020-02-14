@@ -20,6 +20,7 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
+#include "HitProxies.h"
 #include "PrimitiveComponent.generated.h"
 
 class AController;
@@ -522,6 +523,12 @@ public:
 	/** If true then DoCustomNavigableGeometryExport will be called to collect navigable geometry of this component. */
 	UPROPERTY()
 	TEnumAsByte<EHasCustomNavigableGeometry::Type> bHasCustomNavigableGeometry;
+
+public:
+#if WITH_EDITORONLY_DATA
+		UPROPERTY()
+			TEnumAsByte<enum EHitProxyPriority> HitProxyPriority;
+#endif
 
 private:
 #if WITH_EDITORONLY_DATA
