@@ -1004,7 +1004,6 @@ void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, FBodyMesh& Ou
 	CT_BODY_IO::AskVerticesArray(BodyId, VerticesArray.GetData());
 
 	FBox& BBox = OutBodyMesh.BBox;
-	BBox.Init();
 	for (const CT_COORDINATE& Point : VerticesArray)
 	{
 		BBox += FVector((float)Point.xyz[0], (float)Point.xyz[1], (float)Point.xyz[2]);
