@@ -29,11 +29,11 @@ class DMXRUNTIME_API UDMXSubsystem
 public:
 	/**  Send DMX using function names and integer values. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixturePatch* FixturePatch, TMap<FName, int32> Address, EDMXSendResult& OutResult);
+	void SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixturePatch* FixturePatch, TMap<FName, int32> FunctionMap, EDMXSendResult& OutResult);
 
 	/**  Send DMX using channel and value raw values. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> Address, EDMXSendResult& OutResult);
+	void SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> ChannelValuesMap, EDMXSendResult& OutResult);
 
 	/**  Return reference to array of Fixture Patch objects of a given type. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "FixtureType"))

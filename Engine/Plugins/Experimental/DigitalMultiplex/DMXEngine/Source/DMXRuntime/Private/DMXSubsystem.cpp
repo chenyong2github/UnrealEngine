@@ -14,14 +14,14 @@
 #include "EngineUtils.h"
 #include "UObject/UObjectIterator.h"
 
-void UDMXSubsystem::SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixturePatch* FixturePatch, TMap<FName, int32> Address, EDMXSendResult& OutResult)
+void UDMXSubsystem::SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixturePatch* FixturePatch, TMap<FName, int32> FunctionMap, EDMXSendResult& OutResult)
 {
 	OutResult = EDMXSendResult::ErrorSetBuffer;
 
 	if (FixturePatch != nullptr)
 	{
 		IDMXFragmentMap DMXFragmentMap;
-		for (auto& Elem : Address)
+		for (const TPair<FName, int32>& Elem : FunctionMap)
 		{
 			const int32& ActiveMode = FixturePatch->ActiveMode;
 			const FDMXFixtureMode& RelevantMode = FixturePatch->ParentFixtureTypeTemplate->Modes[ActiveMode];
@@ -81,14 +81,14 @@ void UDMXSubsystem::SendDMX(FDMXProtocolName SelectedProtocol, UDMXEntityFixture
 	}
 }
 
-void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> Address, EDMXSendResult& OutResult)
+void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TMap<int32, uint8> ChannelValuesMap, EDMXSendResult& OutResult)
 {
 	OutResult = EDMXSendResult::ErrorSetBuffer;
 
 	if (SelectedProtocol)
 	{
 		IDMXFragmentMap DMXFragmentMap;
-		for (auto& Elem : Address)
+		for (auto& Elem : ChannelValuesMap)
 		{
 			if (Elem.Key != 0)
 			{
