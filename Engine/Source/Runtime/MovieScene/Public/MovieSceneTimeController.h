@@ -117,11 +117,20 @@ struct MOVIESCENE_API FMovieSceneTimeController_AudioClock : FMovieSceneTimeCont
 
 
 /**
-* A timing manager that retrieves its time from the Timecode clock
+* A timing manager that retrieves its time relative to the Timecode clock
 */
-struct MOVIESCENE_API FMovieSceneTimeController_TimecodeClock : FMovieSceneTimeController_ExternalClock
+struct MOVIESCENE_API FMovieSceneTimeController_RelativeTimecodeClock : FMovieSceneTimeController_ExternalClock
 {
 	virtual double GetCurrentTime() const override;
+};
+
+
+/**
+* A timing manager that retrieves its time from the Timecode clock
+*/
+struct MOVIESCENE_API FMovieSceneTimeController_TimecodeClock : FMovieSceneTimeController
+{
+	virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
 };
 
 
