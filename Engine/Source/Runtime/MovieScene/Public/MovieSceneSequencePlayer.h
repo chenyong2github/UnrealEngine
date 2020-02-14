@@ -635,7 +635,7 @@ protected:
 
 	struct FLatentAction
 	{
-		enum class EType : uint8 { Stop, Pause, Update };
+		enum class EType : uint8 { Stop, Pause, Update, Play };
 
 		FLatentAction(EType InType, FFrameTime DesiredTime = 0)
 			: Type(InType), Position(DesiredTime)
