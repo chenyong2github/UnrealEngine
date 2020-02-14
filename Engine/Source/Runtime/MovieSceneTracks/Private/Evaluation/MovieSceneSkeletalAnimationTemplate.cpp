@@ -270,10 +270,19 @@ namespace MovieScene
 			UAnimInstance* ExistingAnimInstance = GetSourceAnimInstance(SkeletalMeshComponent);
 			bool bWasCreated = false;
 			ISequencerAnimationSupport* SequencerInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UAnimSequencerInstance>(SkeletalMeshComponent,bWasCreated);
-			if (SequencerInstance && bWasCreated)
+			if (SequencerInstance)
 			{
-				SequencerInstance->SavePose();
+				if (bWasCreated)
+				{
+					SequencerInstance->SavePose();
+				}
+				else
+				{
+					SequencerInstance->ConstructNodes();
+				}
 			}
+
+
 
 			const bool bPreviewPlayback = ShouldUsePreviewPlayback(Player, *SkeletalMeshComponent);
 
