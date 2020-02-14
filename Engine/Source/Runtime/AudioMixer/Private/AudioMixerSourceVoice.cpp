@@ -60,7 +60,7 @@ namespace Audio
 			AUDIO_MIXER_CHECK(InitParams.NumInputChannels > 0);
 
 			bOutputToBusOnly = InitParams.bOutputToBusOnly;
-			bIsBus = InitParams.BusId != INDEX_NONE;
+			bIsBus = InitParams.AudioBusId != INDEX_NONE;
 
 			for (int32 i = 0; i < InitParams.SubmixSends.Num(); ++i)
 			{
@@ -296,11 +296,11 @@ namespace Audio
 		}
 	}
 
-	void FMixerSourceVoice::SetBusSendInfo(EBusSendType InBusSendType, FMixerBusSend& BusSend)
+	void FMixerSourceVoice::SetAudioBusSendInfo(EBusSendType InBusSendType, uint32 AudioBusId, float BusSendLevel)
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
-		SourceManager->SetBusSendInfo(SourceId, InBusSendType, BusSend);
+		SourceManager->SetBusSendInfo(SourceId, InBusSendType, AudioBusId, BusSendLevel);
 	}
 
 	void FMixerSourceVoice::OnMixBus(FMixerSourceVoiceBuffer* OutMixerSourceBuffer)

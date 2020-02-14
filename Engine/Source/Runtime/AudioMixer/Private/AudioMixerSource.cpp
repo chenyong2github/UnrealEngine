@@ -156,12 +156,24 @@ namespace Audio
 				}
 
 				// Setup the bus Id if this source is a bus
-				if (WaveInstance->WaveData->bIsBus)
+				if (WaveInstance->WaveData->bIsSourceBus)
 				{
-					InitParams.BusId = WaveInstance->WaveData->GetUniqueID();
+					// We need to check if the source bus has an audio bus specified
+					USoundSourceBus* SoundSourceBus = CastChecked<USoundSourceBus>(WaveInstance->WaveData);
+
+					// If it does, we will use that audio bus as the source of the audio data for the source bus
+					if (SoundSourceBus->AudioBus)
+					{
+						InitParams.AudioBusId = SoundSourceBus->AudioBus->GetUniqueID();
+					}
+					else
+					{
+						InitParams.AudioBusId = WaveInstance->WaveData->GetUniqueID();
+					}
+
 					if (!WaveInstance->WaveData->IsLooping())
 					{
-						InitParams.BusDuration = WaveInstance->WaveData->GetDuration();
+						InitParams.SourceBusDuration = WaveInstance->WaveData->GetDuration();
 					}
 				}
 
@@ -170,38 +182,7 @@ namespace Audio
 				InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
 				DynamicBusSendInfos.Reset();
 
-				// If this source is sending its audio to a bus
-				for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
-				{
-					// And add all the source bus sends
-					for (FSoundSourceBusSendInfo& SendInfo : WaveInstance->SoundSourceBusSends[BusSendType])
-					{
-						if (SendInfo.SoundSourceBus != nullptr)
-						{
-							FMixerBusSend BusSend;
-							BusSend.BusId = SendInfo.SoundSourceBus->GetUniqueID();
-							BusSend.SendLevel = SendInfo.SendLevel;
-							InitParams.BusSends[BusSendType].Add(BusSend);
-
-							FDynamicBusSendInfo DynamicBusSendInfo;
-							DynamicBusSendInfo.SendLevel = SendInfo.SendLevel;
-							DynamicBusSendInfo.BusId = BusSend.BusId;
-							DynamicBusSendInfo.BusSendLevelControlMethod = SendInfo.SourceBusSendLevelControlMethod;
-							DynamicBusSendInfo.BusSendType = (EBusSendType)BusSendType;
-							DynamicBusSendInfo.MinSendLevel = SendInfo.MinSendLevel;
-							DynamicBusSendInfo.MaxSendLevel = SendInfo.MaxSendLevel;
-							DynamicBusSendInfo.MinSendDistance = SendInfo.MinSendDistance;
-							DynamicBusSendInfo.MaxSendDistance = SendInfo.MaxSendDistance;
-							DynamicBusSendInfo.CustomSendLevelCurve = SendInfo.CustomSendLevelCurve;
-
-							// Copy the bus SourceBusSendInfo structs to a local copy so we can update it in the update tick
-							DynamicBusSendInfos.Add(DynamicBusSendInfo);
-
-							// Flag that we're sending audio to buses so we can check for updates to send levels
-							bSendingAudioToBuses = true;
-						}
-					}
-				}
+				InitBusSends(WaveInstance, InitParams);
 			}
 
 			// Don't set up any submixing if we're set to output to bus only
@@ -341,6 +322,71 @@ namespace Audio
 		return false;
 	}
 
+	void FMixerSource::InitBusSends(FWaveInstance* InWaveInstance, FMixerSourceVoiceInitParams& InitParams)
+	{
+		for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
+		{
+			// And add all the source bus sends
+			for (FSoundSourceBusSendInfo& SendInfo : InWaveInstance->BusSends[BusSendType])
+			{
+				// Avoid redoing duplicate code for sending audio to source bus or audio bus. Most of it is the same other than the bus id.
+				auto InitBusSend = [this](FMixerSourceVoiceInitParams& InInitParams, const FSoundSourceBusSendInfo& InSendInfo, int32 BusSendType, uint32 InBusId)
+				{
+					FInitAudioBusSend BusSend;
+					BusSend.AudioBusId = InBusId;
+					BusSend.SendLevel = InSendInfo.SendLevel;
+					InInitParams.AudioBusSends[BusSendType].Add(BusSend);
+
+					FDynamicBusSendInfo DynamicBusSendInfo;
+					DynamicBusSendInfo.SendLevel = InSendInfo.SendLevel;
+					DynamicBusSendInfo.BusId = BusSend.AudioBusId;
+					DynamicBusSendInfo.BusSendLevelControlMethod = InSendInfo.SourceBusSendLevelControlMethod;
+					DynamicBusSendInfo.BusSendType = (EBusSendType)BusSendType;
+					DynamicBusSendInfo.MinSendLevel = InSendInfo.MinSendLevel;
+					DynamicBusSendInfo.MaxSendLevel = InSendInfo.MaxSendLevel;
+					DynamicBusSendInfo.MinSendDistance = InSendInfo.MinSendDistance;
+					DynamicBusSendInfo.MaxSendDistance = InSendInfo.MaxSendDistance;
+					DynamicBusSendInfo.CustomSendLevelCurve = InSendInfo.CustomSendLevelCurve;
+
+					// Copy the bus SourceBusSendInfo structs to a local copy so we can update it in the update tick
+					DynamicBusSendInfos.Add(DynamicBusSendInfo);
+
+					// Flag that we're sending audio to buses so we can check for updates to send levels
+					bSendingAudioToBuses = true;
+				};
+
+				// Retrieve bus id of the audio bus to use
+				if (SendInfo.SoundSourceBus)
+				{						
+					uint32 BusId;
+
+					// Either use the bus id of the source bus's audio bus id if it was specified
+					if (SendInfo.SoundSourceBus->AudioBus)
+					{
+						BusId = SendInfo.SoundSourceBus->AudioBus->GetUniqueID();
+					}
+					else
+					{
+						// otherwise, use the id of the source bus itself (for an automatic source bus)
+						BusId = SendInfo.SoundSourceBus->GetUniqueID();
+					}
+
+					// Call lambda w/ the correctly derived bus id
+					InitBusSend(InitParams, SendInfo, BusSendType, BusId);
+				}
+
+				if (SendInfo.AudioBus)
+				{
+					// Only need to send audio to just the specified audio bus
+					uint32 BusId = SendInfo.AudioBus->GetUniqueID();
+
+					// Note we will be sending audio to both the specified source bus and the audio bus with the same send level
+					InitBusSend(InitParams, SendInfo, BusSendType, BusId);
+				}
+			}
+		}
+	}
+
 	void FMixerSource::Update()
 	{
 		CSV_SCOPED_TIMING_STAT(Audio, UpdateSources);
@@ -429,7 +475,7 @@ namespace Audio
 		// Not all wave data types have a non-zero duration
 		if (SoundWave.Duration > 0.0f)
 		{
-			if (!SoundWave.bIsBus)
+			if (!SoundWave.bIsSourceBus)
 			{
 				NumTotalFrames = SoundWave.Duration * SoundWave.GetSampleRateForCurrentPlatform();
 				check(NumTotalFrames > 0);
@@ -476,7 +522,7 @@ namespace Audio
 			}
 			else if (WaveInstance)
 			{
-				if (WaveInstance->WaveData->bIsBus)
+				if (WaveInstance->WaveData->bIsSourceBus)
 				{
 					// Buses don't need to do anything to play audio
 					return true;
@@ -488,7 +534,7 @@ namespace Audio
 					if ((BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming) && WaveInstance->WaveData)
 					{
 						// If any of these conditions meet, we need to do an initial async decode before we're ready to start playing the sound
-						if (WaveInstance->StartTime > 0.0f || WaveInstance->WaveData->bProcedural || WaveInstance->WaveData->bIsBus || !WaveInstance->WaveData->CachedRealtimeFirstBuffer)
+						if (WaveInstance->StartTime > 0.0f || WaveInstance->WaveData->bProcedural || WaveInstance->WaveData->bIsSourceBus || !WaveInstance->WaveData->CachedRealtimeFirstBuffer)
 						{
 							// Before reading more PCMRT data, we first need to seek the buffer
 							if (WaveInstance->IsSeekable())
@@ -1017,11 +1063,7 @@ namespace Audio
 			{
 				DynamicBusSendInfo.SendLevel = SendLevel;
 
-				FMixerBusSend BusSend;
-				BusSend.BusId = DynamicBusSendInfo.BusId;
-				BusSend.SendLevel = SendLevel;
-
-				MixerSourceVoice->SetBusSendInfo(DynamicBusSendInfo.BusSendType, BusSend);
+				MixerSourceVoice->SetAudioBusSendInfo(DynamicBusSendInfo.BusSendType, DynamicBusSendInfo.BusId, SendLevel);
 			}
 		}
 	}

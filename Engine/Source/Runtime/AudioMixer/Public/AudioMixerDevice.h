@@ -7,7 +7,7 @@
 #include "AudioDevice.h"
 #include "Sound/SoundSubmix.h"
 #include "DSP/BufferVectorOperations.h"
-
+#include "DSP/MultithreadedPatching.h"
 
 // Forward Declarations
 class FOnSubmixEnvelopeBP;
@@ -213,6 +213,13 @@ namespace Audio
 
 		static bool IsEndpointSubmix(const USoundSubmixBase* InSubmix);
 
+		// Audio bus API
+		void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic);
+		void StopAudioBus(uint32 InAudioBusId);
+		bool IsAudioBusActive(uint32 InAudioBusId);
+		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain);
+
+
 	protected:
 
 		virtual void InitSoundSubmixes() override;
@@ -259,6 +266,9 @@ namespace Audio
 
 		TArray<USoundSubmix*> MasterSubmixes;
 		TArray<FMixerSubmixPtr> MasterSubmixInstances;
+
+		// The active audio bus list accessible on the game thread
+		TArray<int32> ActiveAudioBuses_GameThread;
 
 		/** Ptr to the platform interface, which handles streaming audio to the hardware device. */
 		IAudioMixerPlatformInterface* AudioMixerPlatform;

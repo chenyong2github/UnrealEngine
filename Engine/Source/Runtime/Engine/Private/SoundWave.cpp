@@ -1903,7 +1903,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 	for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 	{
-		WaveInstance->SoundSourceBusSends[BusSendType] = ParseParams.SoundSourceBusSends[BusSendType];
+		WaveInstance->BusSends[BusSendType] = ParseParams.BusSends[BusSendType];
 	}
 
 	// Pass along plugin settings to the wave instance

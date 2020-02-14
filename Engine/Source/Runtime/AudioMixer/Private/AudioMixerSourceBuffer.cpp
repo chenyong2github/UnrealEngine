@@ -92,7 +92,7 @@ namespace Audio
 		, bIsSeeking(bInIsSeeking)
 		, bLoopCallback(false)
 		, bProcedural(InWave.bProcedural)
-		, bIsBus(InWave.bIsBus)
+		, bIsBus(InWave.bIsSourceBus)
 		, bForceSyncDecode(bInForceSyncDecode)
 	{
 		InWave.AddPlayingSource(this);

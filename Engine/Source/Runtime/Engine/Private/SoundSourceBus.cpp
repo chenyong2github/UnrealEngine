@@ -12,7 +12,7 @@ USoundSourceBus::USoundSourceBus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// This is a bus. This will result in the decompression type to be set as DTYPE_Bus. Audio won't be generated from this object but from instance data in audio mixer.
-	bIsBus = true;
+	bIsSourceBus = true;
 
 	Init();
 }

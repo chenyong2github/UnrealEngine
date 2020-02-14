@@ -1078,7 +1078,7 @@ bool FWaveInstance::IsSeekable() const
 		return false;
 	}
 
-	if (WaveData->bIsBus || WaveData->bProcedural)
+	if (WaveData->bIsSourceBus || WaveData->bProcedural)
 	{
 		return false;
 	}
