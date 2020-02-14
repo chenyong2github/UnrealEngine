@@ -441,6 +441,10 @@ void FRHICommandWriteGPUFence::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(WriteGPUFence);
 	INTERNAL_DECORATOR_COMPUTE(RHIWriteGPUFence)(Fence);
+	if (Fence)
+	{
+		Fence->NumPendingWriteCommands.Decrement();
+	}
 }
 
 void FRHICommandSetGlobalUniformBuffers::Execute(FRHICommandListBase& CmdList)
