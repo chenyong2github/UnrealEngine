@@ -36,7 +36,7 @@ void SLidarPointCloudOptionWindow::Construct(const FArguments& InArgs)
 
 	ImportButton = SNew(SButton)
 					.HAlign(HAlign_Center)
-					.Text(bIsReimport ? LOCTEXT("LidarPointCloudOptionWindow_Import", "Reimport") : LOCTEXT("LidarPointCloudOptionWindow_Import", "Import"))
+					.Text(bIsReimport ? LOCTEXT("LidarPointCloudOptionWindow_Reimport", "Reimport") : LOCTEXT("LidarPointCloudOptionWindow_Import", "Import"))
 					.IsEnabled(this, &SLidarPointCloudOptionWindow::CanImport)
 					.OnClicked(this, &SLidarPointCloudOptionWindow::OnImport);
 
