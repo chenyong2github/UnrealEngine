@@ -131,6 +131,7 @@ static const uint32						GPoolBlockSize		= 4 << 10;
 static const uint32						GPoolPageSize		= GPoolBlockSize << 5;
 static const uint32						GPoolInitPageSize	= GPoolBlockSize << 6;
 T_ALIGN static FWriteBuffer* volatile	GPoolFreeList;		// = nullptr;
+T_ALIGN static UPTRINT volatile			GPoolFutex;			// = 0
 T_ALIGN static FWriteBuffer* volatile	GNewThreadList;		// = nullptr;
 T_ALIGN static FPoolPage* volatile		GPoolPageList;		// = nullptr;
 #if TRACE_PRIVATE_PERF
@@ -173,6 +174,16 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageSize)
 			break;
 		}
 
+		// The free list is empty. Map some more memory.
+		UPTRINT Futex = AtomicLoadRelaxed(&GPoolFutex);
+		if (Futex || !AtomicCompareExchangeAcquire(&GPoolFutex, Futex + 1, Futex))
+		{
+			// Someone else is mapping memory so we'll briefly yield and try the
+			// free list again.
+			ThreadSleep(0);
+			continue;
+		}
+
 		// The free list is empty so we have to populate it with some new blocks.
 		uint8* PageBase = (uint8*)Writer_MemoryAllocate(PageSize, PLATFORM_CACHE_LINE_SIZE);
 #if TRACE_PRIVATE_PERF
@@ -206,21 +217,23 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageSize)
 
 		// Keep track of allocation base so we can free it on shutdown
 		NextBuffer->Size -= sizeof(FPoolPage);
-		for (auto* ListNode = (FPoolPage*)PageBase;; PlatformYield())
-		{
-			ListNode->AllocSize = PageSize;
-			ListNode->NextPage = AtomicLoadRelaxed(&GPoolPageList);
-			if (AtomicCompareExchangeRelaxed(&GPoolPageList, ListNode, ListNode->NextPage))
-			{
-				break;
-			}
-		}
+		FPoolPage* PageListNode = (FPoolPage*)PageBase;
+		PageListNode->NextPage = GPoolPageList;
+		GPoolPageList = PageListNode;
 
 		// And insert the block list into the freelist. 'Block' is now the last block
 		for (auto* ListNode = (FWriteBuffer*)Block;; PlatformYield())
 		{
 			ListNode->NextBuffer = AtomicLoadRelaxed(&GPoolFreeList);
 			if (AtomicCompareExchangeRelease(&GPoolFreeList, (FWriteBuffer*)FirstBlock, ListNode->NextBuffer))
+			{
+				break;
+			}
+		}
+
+		for (;; Private::PlatformYield())
+		{
+			if (AtomicCompareExchangeRelease<UPTRINT>(&GPoolFutex, 0, 1))
 			{
 				break;
 			}
