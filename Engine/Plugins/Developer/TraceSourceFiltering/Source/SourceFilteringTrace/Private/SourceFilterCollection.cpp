@@ -50,7 +50,7 @@ UDataSourceFilter* USourceFilterCollection::AddFilterOfClassToSet(const TSubclas
 
 		TRACE_FILTER_INSTANCE(NewFilter);
 
-		TRACE_FILTER_OPERATION(NewFilter, ESourceActorFilterOperation::MoveFilter, FObjectTrace::GetObjectId(FilterSet));
+		TRACE_FILTER_OPERATION(NewFilter, ESourceActorFilterOperation::MoveFilter, TRACE_FILTER_IDENTIFIER(FilterSet));
 
 		return NewFilter;
 	}
@@ -131,6 +131,7 @@ void USourceFilterCollection::AddFiltersFromPreset(const TArray<FString>& ClassN
 			}
 			else
 			{
+#if SOURCE_FILTER_TRACE_ENABLED
 				// This is a filter, so create it according to the class name				
 				if (UClass* Class = FSourceFilterTrace::RetrieveClassByName(ClassNames[FilterIndex]))
 				{
@@ -140,6 +141,7 @@ void USourceFilterCollection::AddFiltersFromPreset(const TArray<FString>& ClassN
 						AddFilter(Filter);
 					}
 				}
+#endif // SOURCE_FILTER_TRACE_ENABLED
 			}
 
 			// In case we were unable to retrieve a Filter instance its class replace it with an empty 'stub' filter instance, indicating to the user that it, and its class, is missing
@@ -199,7 +201,7 @@ void USourceFilterCollection::RemoveFilter(UDataSourceFilter* ToRemoveFilter)
 		FilterSet->Filters.Empty();
 	}
 
-	TRACE_FILTER_OPERATION(ToRemoveFilter, ESourceActorFilterOperation::RemoveFilter, FObjectTrace::GetObjectId(Cast<UDataSourceFilterSet>(ToRemoveFilter)));
+	TRACE_FILTER_OPERATION(ToRemoveFilter, ESourceActorFilterOperation::RemoveFilter, TRACE_FILTER_IDENTIFIER(Cast<UDataSourceFilterSet>(ToRemoveFilter)));
 
 	if (OuterFilterSet)
 	{
@@ -235,12 +237,12 @@ void USourceFilterCollection::RemoveFilterRecursive(UDataSourceFilter* ToRemoveF
 		}
 	}
 
-	TRACE_FILTER_OPERATION(ToRemoveFilter, ESourceActorFilterOperation::RemoveFilter, FObjectTrace::GetObjectId(Cast<UDataSourceFilterSet>(ToRemoveFilter)));
+	TRACE_FILTER_OPERATION(ToRemoveFilter, ESourceActorFilterOperation::RemoveFilter, TRACE_FILTER_IDENTIFIER(Cast<UDataSourceFilterSet>(ToRemoveFilter)));
 }
 
 void USourceFilterCollection::ReplaceFilter(UDataSourceFilter* Destination, UDataSourceFilter* Source)
 {
-	TRACE_FILTER_OPERATION(Source, ESourceActorFilterOperation::ReplaceFilter, FObjectTrace::GetObjectId(Destination));
+	TRACE_FILTER_OPERATION(Source, ESourceActorFilterOperation::ReplaceFilter, TRACE_FILTER_IDENTIFIER(Destination));
 
 	UDataSourceFilterSet* OuterFilterSet = ChildToParent.FindChecked(Destination);
 	if (OuterFilterSet)
@@ -261,7 +263,7 @@ void USourceFilterCollection::ReplaceFilter(UDataSourceFilter* Destination, UDat
 
 void USourceFilterCollection::MoveFilter(UDataSourceFilter* Filter, UDataSourceFilterSet* Destination)
 {
-	TRACE_FILTER_OPERATION(Filter, ESourceActorFilterOperation::MoveFilter, Destination ? FObjectTrace::GetObjectId(Destination) : 0);
+	TRACE_FILTER_OPERATION(Filter, ESourceActorFilterOperation::MoveFilter, Destination ? TRACE_FILTER_IDENTIFIER(Destination) : 0);
 
 	UDataSourceFilterSet*& FilterParent = ChildToParent.FindChecked(Filter);
 

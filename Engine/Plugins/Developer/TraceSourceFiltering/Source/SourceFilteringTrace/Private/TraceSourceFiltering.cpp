@@ -36,6 +36,7 @@ UTraceSourceFilteringSettings* FTraceSourceFiltering::GetSettings()
 	return Settings;
 }
 
+#if SOURCE_FILTER_TRACE_ENABLED
 static UClass* ConvertArgumentToClass(FString Argument)
 {
 	const uint64 ClassId = FCString::Atoi64(*Argument);
@@ -79,6 +80,7 @@ static UWorld* ConvertArgumentToWorld(FString Argument)
 
 	return World;
 }
+#endif // SOURCE_FILTER_TRACE_ENABLED
 
 void FTraceSourceFiltering::ProcessRemoteCommand(const FString& Command, const TArray<FString>& Arguments)
 {
@@ -97,6 +99,7 @@ void FTraceSourceFiltering::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FTraceSourceFiltering::PopulateRemoteTraceCommands()
 {
+#if SOURCE_FILTER_TRACE_ENABLED
 	CommandMap.Add(TEXT("AddFilterById"), { [this](const TArray<FString>& Arguments) -> void { FilterCollection->AddFilterOfClass(ConvertArgumentToClass(Arguments[0])); }, 1 });
 
 	CommandMap.Add(TEXT("AddFilterClassToSet"),
@@ -219,4 +222,5 @@ void FTraceSourceFiltering::PopulateRemoteTraceCommands()
 			2
 		}
 	);
+#endif // SOURCE_FILTER_TRACE_ENABLED
 }
