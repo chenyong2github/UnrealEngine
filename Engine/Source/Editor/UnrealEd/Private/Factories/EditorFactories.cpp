@@ -23,6 +23,7 @@
 #include "Fonts/CompositeFont.h"
 #include "Misc/Attribute.h"
 #include "Input/Reply.h"
+#include "Internationalization/Regex.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SBoxPanel.h"
@@ -3037,6 +3038,8 @@ UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 
 	bCreateNew = false;
 	bEditorImport = true;
+
+	UdimRegexPattern = TEXT(R"((.+?)[._](\d{4})$)");
 }
 
 bool UTextureFactory::FactoryCanImport(const FString& Filename)
@@ -4124,39 +4127,37 @@ bool UTextureFactory::DoesSupportClass(UClass* Class)
 	return Class == UTexture2D::StaticClass() || Class == UTextureCube::StaticClass();
 }
 
-static int32 ParseUDIMName(const FString& Name, FString& OutRootName)
+static int32 ParseUDIMName(const FString& Name, const FString& UdimRegexPattern, FString& OutRootName)
 {
-	int32 SeparatorIndex = INDEX_NONE;
-	if (!Name.FindLastChar('.', SeparatorIndex))
+	FRegexPattern RegexPattern( UdimRegexPattern );
+	FRegexMatcher RegexMatcher( RegexPattern, Name );
+
+	int32 UdimValue = INDEX_NONE;
+
+	if ( RegexMatcher.FindNext() )
 	{
-		// '.' is the standard UDIM separator, but we'll accept '_' as well
-		if (!Name.FindLastChar('_', SeparatorIndex))
+		const int32 StartOfCaptureGroup1 = RegexMatcher.GetCaptureGroupBeginning(1);
+		const int32 EndOfCaptureGroup1 = RegexMatcher.GetCaptureGroupEnding(1);
+		const int32 StartOfCaptureGroup2 = RegexMatcher.GetCaptureGroupBeginning(2);
+		const int32 EndOfCaptureGroup2 = RegexMatcher.GetCaptureGroupEnding(2);
+		const int32 StartOfCaptureGroup3 = RegexMatcher.GetCaptureGroupBeginning(3);
+		const int32 EndOfCaptureGroup3 = RegexMatcher.GetCaptureGroupEnding(3);
+
+		if ( StartOfCaptureGroup1 != INDEX_NONE && StartOfCaptureGroup2 != INDEX_NONE &&
+			 EndOfCaptureGroup1 != INDEX_NONE && EndOfCaptureGroup2 != INDEX_NONE )
 		{
-			return INDEX_NONE;
+			LexFromString( UdimValue, *Name.Mid( StartOfCaptureGroup2, EndOfCaptureGroup2 - StartOfCaptureGroup2 ) );
+
+			OutRootName = Name.Mid( StartOfCaptureGroup1, EndOfCaptureGroup1 - StartOfCaptureGroup1 );
+
+			if ( StartOfCaptureGroup3 != INDEX_NONE && EndOfCaptureGroup3 != INDEX_NONE )
+			{
+				OutRootName.Append( Name.Mid( StartOfCaptureGroup3, EndOfCaptureGroup3 - StartOfCaptureGroup3 ) );
+			}
 		}
 	}
-	if (SeparatorIndex + 5 != Name.Len())
-	{
-		return INDEX_NONE;
-	}
-	const TCHAR Digit0 = Name[SeparatorIndex + 4];
-	const TCHAR Digit1 = Name[SeparatorIndex + 3];
-	const TCHAR Digit2 = Name[SeparatorIndex + 2];
-	const TCHAR Digit3 = Name[SeparatorIndex + 1];
-	if (Digit0 < '0' || Digit0 > '9') return INDEX_NONE;
-	if (Digit1 < '0' || Digit1 > '9') return INDEX_NONE;
-	if (Digit2 < '0' || Digit2 > '9') return INDEX_NONE;
-	if (Digit3 < '0' || Digit3 > '9') return INDEX_NONE;
-
-	const int32 Value = (int32)(Digit0 - '0') + (int32)(Digit1 - '0') * 10 + (int32)(Digit2 - '0') * 100 + (int32)(Digit3 - '0') * 1000;
-	if (Value < 1001)
-	{
-		// UDIM starts with 1001 as the origin
-		return INDEX_NONE;
-	}
-
-	OutRootName = Name.Left(SeparatorIndex);
-	return Value;
+	
+	return UdimValue;
 }
 
 UObject* UTextureFactory::FactoryCreateBinary
@@ -4182,7 +4183,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 	{
 		const FString FilenameNoExtension = FPaths::GetBaseFilename(CurrentFilename);
 		FString BaseUDIMName;
-		const int32 BaseUDIMIndex = ParseUDIMName(FilenameNoExtension, BaseUDIMName);
+		const int32 BaseUDIMIndex = ParseUDIMName(FilenameNoExtension, UdimRegexPattern, BaseUDIMName);
 		if (BaseUDIMIndex != INDEX_NONE)
 		{
 			UDIMIndexToFile.Add(BaseUDIMIndex, CurrentFilename);
@@ -4199,7 +4200,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 				if (!CurrentFilename.EndsWith(UDIMFile) && FactoryCanImport(UDIMFile))
 				{
 					FString UDIMName;
-					const int32 UDIMIndex = ParseUDIMName(FPaths::GetBaseFilename(UDIMFile), UDIMName);
+					const int32 UDIMIndex = ParseUDIMName(FPaths::GetBaseFilename(UDIMFile), UdimRegexPattern, UDIMName);
 					if (!UDIMIndexToFile.Contains(UDIMIndex) && UDIMName == BaseUDIMName)
 					{
 						UDIMIndexToFile.Add(UDIMIndex, Path / UDIMFile);
@@ -4219,7 +4220,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 				InParent->GetName(PackageName);
 
 				FString PackageUDIMName;
-				const int32 PackageUDIMIndex = ParseUDIMName(PackageName, PackageUDIMName);
+				const int32 PackageUDIMIndex = ParseUDIMName(PackageName, UdimRegexPattern, PackageUDIMName);
 				if (PackageUDIMIndex == -1)
 				{
 					// If we're re-importing UDIM texture, the package will already be correctly named after the UDIM base name

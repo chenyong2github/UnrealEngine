@@ -17,13 +17,14 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Materials/Material.h"
-#include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
+#include "StaticMeshResources.h"
 #include "UObject/SoftObjectPath.h"
 
 #include "USDIncludesStart.h"
@@ -174,7 +175,7 @@ namespace UsdGeomMeshTranslatorImpl
 					Material = MaterialInstance;
 				}
 			}
-			
+
 			FStaticMaterial StaticMaterial( Material, MaterialSlotName );
 
 			if ( !StaticMesh.StaticMaterials.IsValidIndex( MaterialIndex ) )
@@ -302,6 +303,7 @@ namespace UsdGeomMeshTranslatorImpl
 	void PostBuildStaticMesh( UStaticMesh& StaticMesh )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::PostBuildStaticMesh );
+
 		StaticMesh.InitResources();
 
 		if ( const FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription( 0 ) )
@@ -375,6 +377,8 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 		Then( !bIsAsyncTask,
 			[ this ]()
 			{
+				RecreateRenderStateContextPtr = MakeShared<FStaticMeshComponentRecreateRenderStateContext>( StaticMesh, true, true );
+
 				UsdGeomMeshTranslatorImpl::PreBuildStaticMesh( Schema.Get().GetPrim(), *StaticMesh, Context->PrimPathsToAssets, Context->Time );
 
 				return true;
@@ -401,6 +405,8 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 			{
 				UsdGeomMeshTranslatorImpl::PostBuildStaticMesh( *StaticMesh );
 
+				RecreateRenderStateContextPtr.Reset();
+
 				return true;
 			} );
 	}
@@ -412,7 +418,7 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 
 	// Create mesh description (Async)
 	constexpr bool bIsAsyncTask = true;
-	Do( bIsAsyncTask, 
+	Do( bIsAsyncTask,
 		[ this ]() -> bool
 		{
 			MeshDescription = UsdGeomMeshTranslatorImpl::LoadMeshDescription( pxr::UsdGeomMesh( Schema.Get() ), pxr::UsdTimeCode( Context->Time ) );

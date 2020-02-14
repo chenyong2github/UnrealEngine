@@ -12,9 +12,10 @@
 #include "Widgets/SCompoundWidget.h"
 
 class AUsdStageActor;
-enum class EUsdInitialLoadSet;
 class FLevelCollectionModel;
 class FMenuBuilder;
+enum class EMapChangeType : uint8;
+enum class EUsdInitialLoadSet;
 struct FSlateBrush;
 
 #if USE_USD_SDK
@@ -30,6 +31,7 @@ class SUsdStage : public SCompoundWidget
 
 protected:
 	void SetupStageActorDelegates();
+	void ClearStageActorDelegates();
 
 	TSharedRef< SWidget > MakeMainMenu();
 	void FillFileMenu( FMenuBuilder& MenuBuilder );
@@ -43,15 +45,21 @@ protected:
 	void OnOpen();
 	void OnSave();
 	void OnReloadStage();
+	void OnClose();
 
 	void OnImport();
 
 	void OnPrimSelected( FString PrimPath );
 
 	void OpenStage( const TCHAR* FilePath );
+	void CloseStage();
+
+	void Refresh();
 
 	void OnStageActorLoaded( AUsdStageActor* InUsdStageActor );
 	void OnStageActorPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
+
+	void OnMapChanged( UWorld* World, EMapChangeType ChangeType );
 
 protected:
 	TSharedPtr< class SUsdStageInfo > UsdStageInfoWidget;
@@ -62,10 +70,12 @@ protected:
 	TWeakObjectPtr< AUsdStageActor > UsdStageActor;
 
 	FDelegateHandle OnActorLoadedHandle;
+	FDelegateHandle OnActorDestroyedHandle;
 	FDelegateHandle OnStageActorPropertyChangedHandle;
 	FDelegateHandle OnStageChangedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
 	FDelegateHandle OnPrimChangedHandle;
+	FDelegateHandle OnMapChangedHandle;
 
 	FString SelectedPrimPath;
 };
