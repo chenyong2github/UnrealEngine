@@ -6,7 +6,7 @@
 #include "HAL/Platform.h"
 
 struct FEditorAnalyticsSession;
-class IAnalyticsProvider;
+class IAnalyticsProviderET;
 
 /**
   * Sender of SessionSummary events from all editor sessions in-between runs.
@@ -15,7 +15,7 @@ class IAnalyticsProvider;
 class EDITORANALYTICSSESSION_API FEditorSessionSummarySender
 {
 public:
-	FEditorSessionSummarySender(IAnalyticsProvider& InAnalyticsProvider, const FString& InSenderName, const int32 InCurrentSessionProcessId);
+	FEditorSessionSummarySender(IAnalyticsProviderET& InAnalyticsProvider, const FString& InSenderName, const int32 InCurrentSessionProcessId);
 	~FEditorSessionSummarySender();
 
 	void Tick(float DeltaTime);
@@ -31,7 +31,7 @@ private:
 
 private:
 	float HeartbeatTimeElapsed;
-	IAnalyticsProvider& AnalyticsProvider;
+	IAnalyticsProviderET& AnalyticsProvider;
 	FString Sender;
 
 	int32 CurrentSessionProcessId;
