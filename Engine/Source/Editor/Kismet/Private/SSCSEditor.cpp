@@ -6575,15 +6575,15 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 					}
 				}
 			}
-		}
 
-		// Compile the BP outside of the transaction
- 		if (NumChangedProperties > 0)
- 		{
-			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-			FKismetEditorUtilities::CompileBlueprint(Blueprint);
-			RestoreSelectedInstanceComponent.Restore();
- 		}
+			// Compile the BP outside of the transaction
+			if (NumChangedProperties > 0)
+			{
+				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+				FKismetEditorUtilities::CompileBlueprint(Blueprint);
+				RestoreSelectedInstanceComponent.Restore();
+			}
+		}
 
 		// Set up a notification record to indicate success/failure
 		FNotificationInfo NotificationInfo(FText::GetEmpty());
