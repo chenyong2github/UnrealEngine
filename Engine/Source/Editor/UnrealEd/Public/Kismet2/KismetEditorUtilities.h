@@ -278,6 +278,9 @@ public:
 	/** Check to see if a given class is blueprint skeleton class. */
 	static bool IsClassABlueprintSkeleton (const UClass* Class);
 
+	/** Check to see if a given class is blueprint spawnable component class. */
+	static bool IsClassABlueprintSpawnableComponent(const UClass* Class);
+
 	/** Check to see if a given class is a blueprint macro library */
 	static bool IsClassABlueprintMacroLibrary(const UClass* Class);
 

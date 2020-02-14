@@ -287,8 +287,7 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 				!bBlueprintSkeletonClass &&
 				bPassesAllowedClasses)
 			{
-				if (!Class->HasAnyClassFlags(CLASS_Abstract) &&
-					Class->HasMetaData(FBlueprintMetadata::MD_BlueprintSpawnableComponent)) //@TODO: Fold this logic together with the one in UEdGraphSchema_K2::GetAddComponentClasses
+				if (FKismetEditorUtilities::IsClassABlueprintSpawnableComponent(Class))
 				{
 					TArray<FString> ClassGroupNames;
 					Class->GetClassGroupNames(ClassGroupNames);
