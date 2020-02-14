@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_MAPEDITOR_H
-#define SDF_MAPEDITOR_H
+#ifndef PXR_USD_SDF_MAP_EDITOR_H
+#define PXR_USD_SDF_MAP_EDITOR_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/sdf/allowed.h"
@@ -94,4 +94,4 @@ Sdf_CreateMapEditor(const SdfSpecHandle& owner, const TfToken& field);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_MAPEDITOR_H
+#endif // PXR_USD_SDF_MAP_EDITOR_H

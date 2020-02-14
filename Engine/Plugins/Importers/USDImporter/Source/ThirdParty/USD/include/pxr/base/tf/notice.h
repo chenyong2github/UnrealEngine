@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_NOTICE_H
-#define TF_NOTICE_H
+#ifndef PXR_BASE_TF_NOTICE_H
+#define PXR_BASE_TF_NOTICE_H
 
 /// \file tf/notice.h
 /// \ingroup group_tf_Notification
@@ -251,7 +251,7 @@ public:
     ///
     /// When a listener is registered by \c TfNotice::Register(), an object of
     /// type \c TfNotice::Key is returned; this key object can be given to \c
-    /// Revoke() to subequently unregister the listener with respect to that
+    /// Revoke() to subsequently unregister the listener with respect to that
     /// particular notice type and callback method.
     class Key {
     public:
@@ -789,4 +789,4 @@ TfNotice::Send(SenderPtr const &s) const
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_NOTICE_H
+#endif // PXR_BASE_TF_NOTICE_H

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_SHADERDEF_UTILS_H
-#define USD_SHADERDEF_UTILS_H
+#ifndef PXR_USD_USD_SHADE_SHADER_DEF_UTILS_H
+#define PXR_USD_USD_SHADE_SHADER_DEF_UTILS_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usdShade/api.h"

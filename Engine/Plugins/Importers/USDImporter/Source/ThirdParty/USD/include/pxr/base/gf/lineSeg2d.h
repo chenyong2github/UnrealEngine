@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef GF_LINESEG2D_H
-#define GF_LINESEG2D_H
+#ifndef PXR_BASE_GF_LINE_SEG2D_H
+#define PXR_BASE_GF_LINE_SEG2D_H
 
 /// \file gf/lineSeg2d.h
 /// \ingroup group_gf_BasicGeometry
@@ -128,4 +128,4 @@ bool GfFindClosestPoints( const GfLineSeg2d &seg1, const GfLineSeg2d &seg2,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // GF_LINESEG2D_H
+#endif // PXR_BASE_GF_LINE_SEG2D_H

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYOBJECTFINDER_H
-#define TF_PYOBJECTFINDER_H
+#ifndef PXR_BASE_TF_PY_OBJECT_FINDER_H
+#define PXR_BASE_TF_PY_OBJECT_FINDER_H
 
 #include "pxr/pxr.h"
 
@@ -68,4 +68,4 @@ Tf_FindPythonObject(void const *objPtr, std::type_info const &type);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYOBJECTFINDER_H
+#endif // PXR_BASE_TF_PY_OBJECT_FINDER_H

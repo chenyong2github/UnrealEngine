@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_SHD_UTILS_H
-#define USD_SHD_UTILS_H
+#ifndef PXR_USD_USD_SHADE_UTILS_H
+#define PXR_USD_USD_SHADE_UTILS_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usdShade/api.h"
@@ -39,13 +39,10 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// 
 /// Specifies the type of a shading attribute.
 /// 
-/// "Parameter" and "InterfaceAttribute" are deprecated shading attribute types.
-/// 
 enum class UsdShadeAttributeType {
+    Invalid,
     Input,
     Output,
-    Parameter,
-    InterfaceAttribute
 };
 
 /// \class UsdShadeUtils
@@ -72,16 +69,6 @@ public:
     USDSHADE_API
     static TfToken GetFullName(const TfToken &baseName, 
                                const UsdShadeAttributeType type);
-
-    /// Whether the env-setting that enables the reading of old-style encoding 
-    /// of shading networks is set to 'true'.
-    USDSHADE_API
-    static bool ReadOldEncoding();
-
-    /// Whether the env-setting that enables the writing of new-style encoding 
-    /// of shading networks is set to 'true'.
-    USDSHADE_API
-    static bool WriteNewEncoding();
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

@@ -162,7 +162,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDGEOM_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -174,7 +174,7 @@ private:
 
     // override SchemaBase virtuals.
     USDGEOM_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -183,11 +183,13 @@ public:
     /// The type of element that the indices target. Currently only 
     /// allows "face" and defaults to it.
     ///
-    /// \n  C++ Type: TfToken
-    /// \n  Usd Type: SdfValueTypeNames->Token
-    /// \n  Variability: SdfVariabilityUniform
-    /// \n  Fallback Value: face
-    /// \n  \ref UsdGeomTokens "Allowed Values": [face]
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform token elementType = "face"` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
+    /// | \ref UsdGeomTokens "Allowed Values" | face |
     USDGEOM_API
     UsdAttribute GetElementTypeAttr() const;
 
@@ -206,10 +208,11 @@ public:
     /// The set of indices included in this subset. The indices need not 
     /// be sorted, but the same index should not appear more than once.
     ///
-    /// \n  C++ Type: VtArray<int>
-    /// \n  Usd Type: SdfValueTypeNames->IntArray
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: []
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `int[] indices = []` |
+    /// | C++ Type | VtArray<int> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->IntArray |
     USDGEOM_API
     UsdAttribute GetIndicesAttr() const;
 
@@ -249,10 +252,12 @@ public:
     /// APIs, however they can be checked using UsdGeomSubset::ValidateFamily().
     /// 
     ///
-    /// \n  C++ Type: TfToken
-    /// \n  Usd Type: SdfValueTypeNames->Token
-    /// \n  Variability: SdfVariabilityUniform
-    /// \n  Fallback Value: 
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform token familyName = ""` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
     USDGEOM_API
     UsdAttribute GetFamilyNameAttr() const;
 
@@ -288,7 +293,7 @@ public:
     USDGEOM_API
     static UsdGeomSubset CreateGeomSubset(
         const UsdGeomImageable &geom, 
-        const std::string &subsetName,
+        const TfToken &subsetName,
         const TfToken &elementType,
         const VtIntArray &indices,
         const TfToken &familyName=TfToken(),
@@ -306,7 +311,7 @@ public:
     USDGEOM_API
     static UsdGeomSubset CreateUniqueGeomSubset(
         const UsdGeomImageable &geom, 
-        const std::string &subsetName,
+        const TfToken &subsetName,
         const TfToken &elementType,
         const VtIntArray &indices,
         const TfToken &familyName=TfToken(),

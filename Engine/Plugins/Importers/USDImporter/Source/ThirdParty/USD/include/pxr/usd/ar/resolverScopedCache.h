@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_RESOLVER_SCOPED_CACHE_H
-#define AR_RESOLVER_SCOPED_CACHE_H
+#ifndef PXR_USD_AR_RESOLVER_SCOPED_CACHE_H
+#define PXR_USD_AR_RESOLVER_SCOPED_CACHE_H
 
 /// \file ar/resolverScopedCache.h
 
@@ -80,4 +80,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // AR_RESOLVER_SCOPED_CACHE_H
+#endif // PXR_USD_AR_RESOLVER_SCOPED_CACHE_H

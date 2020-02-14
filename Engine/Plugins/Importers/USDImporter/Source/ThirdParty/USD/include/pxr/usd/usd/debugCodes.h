@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_DEBUGCODES_H
-#define USD_DEBUGCODES_H
+#ifndef PXR_USD_USD_DEBUG_CODES_H
+#define PXR_USD_USD_DEBUG_CODES_H
 
 #include "pxr/pxr.h"
 #include "pxr/base/tf/debug.h"
@@ -41,6 +41,7 @@ TF_DEBUG_CODES(
     USD_PATH_RESOLUTION,
     USD_PAYLOADS,
     USD_PRIM_LIFETIMES,
+    USD_SCHEMA_REGISTRATION,
     USD_STAGE_CACHE,
     USD_STAGE_LIFETIMES,
     USD_STAGE_OPEN,
@@ -53,4 +54,4 @@ TF_DEBUG_CODES(
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USD_DEBUGCODES_H
+#endif // PXR_USD_USD_DEBUG_CODES_H

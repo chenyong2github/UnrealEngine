@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_LAYER_UTILS_H
-#define SDF_LAYER_UTILS_H
+#ifndef PXR_USD_SDF_LAYER_UTILS_H
+#define PXR_USD_SDF_LAYER_UTILS_H
 
 /// \file sdf/layerUtils.h
 
@@ -39,11 +39,14 @@ TF_DECLARE_REF_PTRS(SdfLayer);
 SDF_DECLARE_HANDLES(SdfLayer);
 
 /// Returns the path to the asset specified by \p assetPath, using the
-/// \p anchor layer to anchor the path if it is relative.
-/// If that path cannot be resolved and \p layerPath is a search path,
-/// \p layerPath will be returned.  If \p layerPath is not relative,
-/// \p layerPath will be returned.  Otherwise, the anchored path will
-/// be returned.
+/// \p anchor layer to anchor the path if it is relative.  If the result of
+/// anchoring \p assetPath to \p anchor's path cannot be resolved and
+/// \p assetPath is a search path, \p assetPath will be returned.  If
+/// \p assetPath is not relative, \p assetPath will be returned.  Otherwise,
+/// the anchored path will be returned.
+///
+/// Note that if \p anchor is an anonymous layer, we will always return
+/// the untouched \p assetPath.
 SDF_API std::string
 SdfComputeAssetPathRelativeToLayer(
     const SdfLayerHandle& anchor,
@@ -66,4 +69,4 @@ SdfFindOrOpenRelativeToLayer(
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_LAYER_UTILS_H
+#endif // PXR_USD_SDF_LAYER_UTILS_H

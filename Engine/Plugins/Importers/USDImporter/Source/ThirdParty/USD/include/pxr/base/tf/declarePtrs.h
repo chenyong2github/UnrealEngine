@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_DECLARE_PTR_H
-#define TF_DECLARE_PTR_H
+#ifndef PXR_BASE_TF_DECLARE_PTRS_H
+#define PXR_BASE_TF_DECLARE_PTRS_H
 
 /// \file tf/declarePtrs.h
 /// Standard pointer typedefs.

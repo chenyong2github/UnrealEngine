@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_DEFINE_RESOLVER_CONTEXT_H
-#define AR_DEFINE_RESOLVER_CONTEXT_H
+#ifndef PXR_USD_AR_DEFINE_RESOLVER_CONTEXT_H
+#define PXR_USD_AR_DEFINE_RESOLVER_CONTEXT_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/ar/api.h"
@@ -53,4 +53,4 @@ struct ArIsContextObject<context>                      \
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // AR_DEFINE_RESOLVER_CONTEXT_H
+#endif // PXR_USD_AR_DEFINE_RESOLVER_CONTEXT_H

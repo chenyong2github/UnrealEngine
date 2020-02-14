@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_RESOLVER_H
-#define USD_RESOLVER_H
+#ifndef PXR_USD_USD_RESOLVER_H
+#define PXR_USD_USD_RESOLVER_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/api.h"
@@ -92,6 +92,11 @@ public:
     USD_API
     const SdfPath& GetLocalPath() const;
 
+    SdfPath GetLocalPath(TfToken const &propName) const {
+        return propName.IsEmpty() ? GetLocalPath() :
+            GetLocalPath().AppendProperty(propName);
+    }
+
     /// Returns the PcpPrimIndex. 
     ///
     /// This value is initialized when the resolver is constructed and does not
@@ -110,6 +115,10 @@ public:
         PcpNodeRef GetNode() const { return *_curNode; }
         const SdfLayerRefPtr& GetLayer() const { return *_curLayer; }
         const SdfPath& GetLocalPath() const { return _curNode->GetPath(); }
+        SdfPath GetLocalPath(TfToken const &propName) const {
+            return propName.IsEmpty() ? GetLocalPath() :
+                GetLocalPath().AppendProperty(propName);
+        }
 
     private:
         friend class Usd_Resolver;
@@ -142,4 +151,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USD_RESOLVER_H
+#endif // PXR_USD_USD_RESOLVER_H

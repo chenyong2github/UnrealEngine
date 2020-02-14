@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYCONTAINERCONVERSIONS_H
-#define TF_PYCONTAINERCONVERSIONS_H
+#ifndef PXR_BASE_TF_PY_CONTAINER_CONVERSIONS_H
+#define PXR_BASE_TF_PY_CONTAINER_CONVERSIONS_H
 
 /// \file tf/pyContainerConversions.h
 /// Utilities for providing C++ <-> Python container support.
@@ -256,7 +256,7 @@ namespace TfPyContainerConversions {
         bool is_range = PyRange_Check(obj_ptr);
         std::size_t i=0;
         if (!all_elements_convertible(obj_iter, is_range, i)) return 0;
-        if (!is_range) assert(i == obj_size);
+        if (!is_range) assert(i == (std::size_t)obj_size);
       }
       return obj_ptr;
     }
@@ -438,4 +438,4 @@ void TfPyRegisterStlSequencesFromPython()
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYCONTAINERCONVERSIONS_H
+#endif // PXR_BASE_TF_PY_CONTAINER_CONVERSIONS_H
