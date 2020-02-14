@@ -299,7 +299,6 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraints);
 
-		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int32 i = 0; i < NumApplyIterations; ++i)
 		{
 			bool bNeedsAnotherIteration = false;
@@ -330,16 +329,17 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyPushOut);
 
-		bool bNeedsAnotherIteration = true;
-		for (int32 It = 0; bNeedsAnotherIteration && (It < NumApplyPushOutIterations); ++It)
+		for (int32 It = 0; It < NumApplyPushOutIterations; ++It)
 		{
-			bNeedsAnotherIteration = false;
+			bool bNeedsAnotherIteration = false;
 			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				if (ConstraintRule->ApplyPushOut(Dt, It, NumApplyPushOutIterations))
-				{
-					bNeedsAnotherIteration = true;
-				}
+				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, It, NumApplyPushOutIterations);
+			}
+
+			if (!bNeedsAnotherIteration)
+			{
+				break;
 			}
 		}
 	}
