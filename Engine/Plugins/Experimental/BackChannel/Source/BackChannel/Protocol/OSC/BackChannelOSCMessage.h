@@ -165,7 +165,7 @@ public:
 	template<typename T>
 	void Write(const TArray64<T>& Value)
 	{
-		ensureMsgf(Value.Num() == (int32)Value.Num(), TEXT("Tried to write array with " INT64_FMT " elements, which would overflow because the element count is 32-bit"), Value.Num());
+		ensureMsgf(Value.Num() == (int32)Value.Num(), TEXT("Tried to write array with %" INT64_FMT " elements, which would overflow because the element count is 32-bit"), Value.Num());
 		Write((int32)Value.Num());
 		Write(Value.GetData(), Value.Num() * sizeof(T));
 	}
