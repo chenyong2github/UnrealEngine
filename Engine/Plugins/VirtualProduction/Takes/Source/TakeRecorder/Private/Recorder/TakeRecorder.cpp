@@ -749,7 +749,7 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 		UMovieScene*   MovieScene = SequenceAsset->GetMovieScene();
 		if (MovieScene)
 		{
-			MovieScene->SetClockSource(EUpdateClockSource::Timecode);
+			MovieScene->SetClockSource(EUpdateClockSource::RelativeTimecode);
 			Sequencer->ResetTimeController();
 
 			FFrameRate FrameRate = MovieScene->GetDisplayRate();
