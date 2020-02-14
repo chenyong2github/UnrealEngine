@@ -73,6 +73,11 @@ void FDMXProtocolArtNet::CollectUniverses(const TArray<FDMXUniverse>& Universes)
 {
 	for (const FDMXUniverse& Universe : Universes)
 	{
+		if (UniverseManager->GetAllUniverses().Contains(Universe.UniverseNumber))
+		{
+			continue;
+		}
+
 		FJsonObject UniverseSettings;
 		UniverseSettings.SetNumberField(TEXT("UniverseID"), Universe.UniverseNumber);
 		UniverseSettings.SetNumberField(TEXT("PortID"), 0); // TODO get correct PortID
