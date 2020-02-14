@@ -730,6 +730,36 @@ void FUntypedBulkData::ForceBulkDataResident()
 #endif // WITH_EDITOR
 }
 
+bool FUntypedBulkData::StartAsyncLoading()
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::StartAsyncLoading"), STAT_UBD_StartSerializingBulkData, STATGROUP_Memory);
+
+	if (!IsAsyncLoadingComplete())
+	{
+		return true; // Early out if an asynchronous load is already in progress.
+	}
+
+	if (IsBulkDataLoaded())
+	{
+		return false; // Early out if we do not need to actually load any data
+	}
+
+	if (!CanLoadFromDisk())
+	{
+		return false; // Early out if we cannot load from disk
+	}
+
+	check(SerializeFuture.IsValid() == false);
+
+	SerializeFuture = Async(EAsyncExecution::ThreadPool, [=]()
+	{
+		AsyncLoadBulkData();
+		return true;
+	});
+
+	return true;
+}
+
 /**
  * Sets the passed in bulk data flags.
  *
@@ -785,16 +815,9 @@ void FUntypedBulkData::ClearBulkDataFlags( uint32 BulkDataFlagsToClear )
 	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
 }
 
-/**
- * Load the resource data in the BulkDataAsync
- *
- * @param BulkDataFlagsToClear	Bulk data flags to clear
- */
 void FUntypedBulkData::AsyncLoadBulkData()
 {
 	BulkDataAsync.Reallocate(GetBulkDataSize(), BulkDataAlignment);
-
-	UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to stream bulk data with EDL enabled. This is not desireable. File %s"), *Filename);
 
 	FArchive* FileReaderAr = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
 	checkf(FileReaderAr != NULL, TEXT("Attempted to load bulk data from an invalid filename '%s'."), *Filename);
@@ -804,7 +827,6 @@ void FUntypedBulkData::AsyncLoadBulkData()
 	SerializeBulkData(*FileReaderAr, BulkDataAsync.Get());
 	delete FileReaderAr;
 }
-
 
 /*-----------------------------------------------------------------------------
 	Serialization.
@@ -817,7 +839,9 @@ void FUntypedBulkData::StartSerializingBulkData(FArchive& Ar, UObject* Owner, in
 
 	SerializeFuture = Async(EAsyncExecution::ThreadPool, [=]() 
 	{ 
-		AsyncLoadBulkData(); 
+		UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to stream bulk data with EDL enabled. This is not desireable. File %s"), *Filename);
+		AsyncLoadBulkData();
+
 		return true;
 	});
 

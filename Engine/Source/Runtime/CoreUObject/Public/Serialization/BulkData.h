@@ -567,6 +567,16 @@ public:
 	 * Forces the bulk data to be resident in memory and detaches the archive.
 	 */
 	void ForceBulkDataResident();
+
+	/** 
+	* Initiates a new asynchronous operation to load the dulkdata from disk assuming that it is not already
+	* loaded.
+	* Note that a new asynchronous loading operation will not be created if one is already in progress.
+	*
+	* @return True if an asynchronous loading operation is in progress by the time that the method returns
+	* and false if the data is already loaded or cannot be loaded from disk.
+	*/
+	bool StartAsyncLoading();
 	
 	/**
 	 * Sets whether we should store the data compressed on disk.

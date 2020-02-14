@@ -12,6 +12,7 @@
 #include "UObject/Object.h"
 #include "UObject/Package.h"
 #include "IO/IoDispatcher.h"
+#include "Async/Async.h"
 #include "Async/MappedFileHandle.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
@@ -661,6 +662,8 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 
 FBulkDataBase::~FBulkDataBase()
 {
+	FlushAsyncLoading();
+	
 	check(LockStatus == LOCKSTATUS_Unlocked);
 
 	FreeData();
@@ -825,7 +828,7 @@ void* FBulkDataBase::Lock(uint32 LockFlags)
 {
 	check(LockStatus == LOCKSTATUS_Unlocked);
 	
-	ForceBulkDataResident(); // Will load 
+	ForceBulkDataResident(); 	// If nothing is currently loaded then load from disk
 
 	if (LockFlags & LOCK_READ_WRITE)
 	{
@@ -895,6 +898,9 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 
 	check(LockStatus == LOCKSTATUS_Unlocked);
 	check(DstBuffer);
+
+	// Wait for anything that might be currently loading
+	FlushAsyncLoading();
 
 	UE_CLOG(IsDataMemoryMapped(), LogSerialization, Warning, TEXT("FBulkDataBase::GetCopy being called on a memory mapped BulkData object, call ::StealFileMapping instead!"));
 
@@ -966,13 +972,19 @@ void FBulkDataBase::ClearBulkDataFlags(uint32 BulkDataFlagsToClear)
 
 void FBulkDataBase::SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet)
 {
-	check(BulkDataFlagsToSet == BULKDATA_UsesIoDispatcher || BulkDataFlagsToSet == BULKDATA_DataIsMemoryMapped);
+	check(	BulkDataFlagsToSet == BULKDATA_UsesIoDispatcher || 
+			BulkDataFlagsToSet == BULKDATA_DataIsMemoryMapped || 
+			BulkDataFlagsToSet == BULKDATA_HasAsyncReadPending);
+			
 	BulkDataFlags = EBulkDataFlags(BulkDataFlags | BulkDataFlagsToSet);
 }
 
 void FBulkDataBase::ClearRuntimeBulkDataFlags(uint32 BulkDataFlagsToClear)
 {
-	check(BulkDataFlagsToClear == BULKDATA_UsesIoDispatcher || BulkDataFlagsToClear == BULKDATA_DataIsMemoryMapped);
+	check(	BulkDataFlagsToClear == BULKDATA_UsesIoDispatcher ||
+			BulkDataFlagsToClear == BULKDATA_DataIsMemoryMapped ||
+			BulkDataFlagsToClear == BULKDATA_HasAsyncReadPending);
+
 	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
 }
 
@@ -1181,6 +1193,10 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkData
 
 void FBulkDataBase::ForceBulkDataResident()
 {
+	// First wait for any async load requests to finish
+	FlushAsyncLoading();
+
+	// Then check if we actually need to load or not
 	if (!IsBulkDataLoaded())
 	{
 		void* DataBuffer = nullptr;
@@ -1211,6 +1227,57 @@ void FBulkDataBase::RemoveBulkData()
 
 	BulkDataFlags = BULKDATA_None;
 
+}
+
+bool FBulkDataBase::StartAsyncLoading()
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::StartAsyncLoading"), STAT_UBD_StartSerializingBulkData, STATGROUP_Memory);
+
+	if (!IsAsyncLoadingComplete())
+	{
+		return true; // Early out if an asynchronous load is already in progress.
+	}
+
+	if (IsBulkDataLoaded())
+	{
+		return false; // Early out if we do not need to actually load any data
+	}
+
+	if (!CanLoadFromDisk())
+	{
+		return false; // Early out if we cannot load from disk
+	}
+
+	check(LockStatus == LOCKSTATUS_Unlocked)
+
+	LockStatus = LOCKSTATUS_ReadWriteLock; // Bulkdata is effectively locked while streaming!
+
+	// Indicate that we have an async read in flight
+	SetRuntimeBulkDataFlags(BULKDATA_HasAsyncReadPending);
+	FPlatformMisc::MemoryBarrier();
+
+	AsyncCallback Callback = [this](TIoStatusOr<FIoBuffer> Result)
+	{
+		check(Result.IsOk());
+		FIoBuffer IoBuffer = Result.ConsumeValueOrDie();
+
+		check(!IoBuffer.IsMemoryOwned());
+		DataAllocation.SetData(this, IoBuffer.Data());
+
+		FPlatformMisc::MemoryBarrier();
+
+		ClearRuntimeBulkDataFlags(BULKDATA_HasAsyncReadPending);
+		LockStatus = LOCKSTATUS_Unlocked;
+	};
+
+	LoadDataAsynchronously(MoveTemp(Callback));
+
+	return true;
+}
+
+bool FBulkDataBase::IsAsyncLoadingComplete() const
+{
+	return (GetBulkDataFlags() & BULKDATA_HasAsyncReadPending) == 0;
 }
 
 int64 FBulkDataBase::GetBulkDataOffsetInFile() const
@@ -1259,7 +1326,6 @@ bool FBulkDataBase::CanDiscardInternalData() const
 void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::LoadDataDirectly"), STAT_UBD_LoadDataDirectly, STATGROUP_Memory);
-	
 	if (!CanLoadFromDisk())
 	{
 		UE_LOG(LogSerialization, Warning, TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
@@ -1268,69 +1334,134 @@ void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 
 	if (!IsIoDispatcherEnabled())
 	{
-		const int64 BulkDataSize = GetBulkDataSize();
-		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Fallback.Token);
-
-		FString Filename; 
-		int64 Offset = FileData.BulkDataOffsetInFile;
-
-		// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
-		if (IsInlined() && (FileData.PackageHeaderFilename.EndsWith(TEXT(".uasset")) || FileData.PackageHeaderFilename.EndsWith(TEXT(".umap"))))
-		{
-			Offset -= IFileManager::Get().FileSize(*FileData.PackageHeaderFilename);
-			Filename = FPaths::GetBaseFilename(FileData.PackageHeaderFilename, false) + TEXT(".uexp");
-		}
-		else
-		{
-			Filename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
-		}
-
-		// If the data is inlined then we already loaded is during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
-		// Disabled at the moment
-		UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. Filename: '%s'."), *Filename);
-
-		FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
-		checkf(Ar != nullptr, TEXT("Failed to open the file to load bulk data from. Filename: '%s'."), *Filename);
-
-		// Seek to the beginning of the bulk data in the file.
-		Ar->Seek(Offset);
-
-		if (*DstBuffer == nullptr)
-		{
-			*DstBuffer = FMemory::Malloc(BulkDataSize, 0);
-		}
-
-		SerializeBulkData(*Ar, *DstBuffer, BulkDataSize);
-
-		delete Ar;
+		InternalLoadFromFileSystem(DstBuffer);
 	}
 	else if (IsUsingIODispatcher())
 	{
-		// Allocate the buffer if needed
-		if (*DstBuffer == nullptr)
-		{
-			*DstBuffer = FMemory::Malloc(GetBulkDataSize(), 0);
-		}
 
-		// Set up our options (we only need to set the target)
-		FIoReadOptions Options;
-		Options.SetTargetVa(*DstBuffer);
-		
-		FIoBatch NewBatch = GetIoDispatcher()->NewBatch();
-		FIoRequest Request = NewBatch.Read(ChunkID, Options);
-
-		NewBatch.Issue();
-		NewBatch.Wait(); // Blocking wait until all requests in the batch are done
-
-		check(Request.IsOk());
-
-		FBulkDataBase::GetIoDispatcher()->FreeBatch(NewBatch);
+		InternalLoadFromIoStore(DstBuffer);
 	}
 	else
 	{
 		// Note that currently this shouldn't be reachable as we should early out due to the ::CanLoadFromDisk check at the start of the method
 		UE_LOG(LogSerialization, Error, TEXT("Attempting to reload inline BulkData when the IoDispatcher is enabled, this operation is not supported! (%d)"), IsInlined());
 	}
+}
+
+void FBulkDataBase::LoadDataAsynchronously(AsyncCallback&& Callback)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::LoadDataDirectly"), STAT_UBD_LoadDataDirectly, STATGROUP_Memory);
+	if (!CanLoadFromDisk())
+	{
+		UE_LOG(LogSerialization, Warning, TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
+		return; // Early out if there is nothing to load anyway
+	}
+
+	if (!IsIoDispatcherEnabled())
+	{
+		Async(EAsyncExecution::ThreadPool, [this, Callback]()
+			{
+				void* DataPtr = nullptr;
+				InternalLoadFromFileSystem(&DataPtr);
+
+				FIoBuffer Buffer(FIoBuffer::Wrap, DataPtr, GetBulkDataSize());
+				TIoStatusOr<FIoBuffer> Status(Buffer);
+
+				Callback(Status);
+			});
+	}
+	else if (IsUsingIODispatcher())
+	{
+		void* DummyPointer = nullptr;
+		InternalLoadFromIoStoreAsync(&DummyPointer, MoveTemp(Callback));
+	}
+	else
+	{
+		// Note that currently this shouldn't be reachable as we should early out due to the ::CanLoadFromDisk check at the start of the method
+		UE_LOG(LogSerialization, Error, TEXT("Attempting to reload inline BulkData when the IoDispatcher is enabled, this operation is not supported!"));
+	}
+}
+
+void FBulkDataBase::InternalLoadFromFileSystem(void** DstBuffer)
+{
+	const int64 BulkDataSize = GetBulkDataSize();
+	FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Fallback.Token);
+
+	FString Filename;
+	int64 Offset = FileData.BulkDataOffsetInFile;
+
+	// Fix up the Filename/Offset to work with streaming if EDL is enabled and the filename is still referencing a uasset or umap
+	if (IsInlined() && (FileData.PackageHeaderFilename.EndsWith(TEXT(".uasset")) || FileData.PackageHeaderFilename.EndsWith(TEXT(".umap"))))
+	{
+		Offset -= IFileManager::Get().FileSize(*FileData.PackageHeaderFilename);
+		Filename = FPaths::GetBaseFilename(FileData.PackageHeaderFilename, false) + TEXT(".uexp");
+	}
+	else
+	{
+		Filename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
+	}
+
+	// If the data is inlined then we already loaded is during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
+	// Disabled at the moment
+	UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. Filename: '%s'."), *Filename);
+
+	FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename, FILEREAD_Silent);
+	checkf(Ar != nullptr, TEXT("Failed to open the file to load bulk data from. Filename: '%s'."), *Filename);
+
+	// Seek to the beginning of the bulk data in the file.
+	Ar->Seek(Offset);
+
+	if (*DstBuffer == nullptr)
+	{
+		*DstBuffer = FMemory::Malloc(BulkDataSize, 0);
+	}
+
+	SerializeBulkData(*Ar, *DstBuffer, BulkDataSize);
+
+	delete Ar;
+}
+
+void FBulkDataBase::InternalLoadFromIoStore(void** DstBuffer)
+{
+	// Allocate the buffer if needed
+	if (*DstBuffer == nullptr)
+	{
+		*DstBuffer = FMemory::Malloc(GetBulkDataSize(), 0);
+	}
+
+	// Set up our options (we only need to set the target)
+	FIoReadOptions Options;
+	Options.SetTargetVa(*DstBuffer);
+
+	FIoBatch NewBatch = GetIoDispatcher()->NewBatch();
+	FIoRequest Request = NewBatch.Read(ChunkID, Options);
+
+	NewBatch.Issue();
+	NewBatch.Wait(); // Blocking wait until all requests in the batch are done
+
+	check(Request.IsOk());
+
+	FBulkDataBase::GetIoDispatcher()->FreeBatch(NewBatch);
+}
+
+void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback&& Callback)
+{
+	// Allocate the buffer if needed
+	if (*DstBuffer == nullptr)
+	{
+		*DstBuffer = FMemory::Malloc(GetBulkDataSize(), 0);
+	}
+
+	// Set up our options (we only need to set the target)
+	FIoReadOptions Options;
+	Options.SetTargetVa(*DstBuffer);
+
+	auto OnRequestLoaded = [Callback](TIoStatusOr<FIoBuffer> Result)
+	{
+		Callback(Result);
+	};
+
+	GetIoDispatcher()->ReadWithCallback(ChunkID, Options, MoveTemp(Callback));
 }
 
 void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile)
@@ -1341,6 +1472,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 	int64 NewOffset;
 
 	SerializeDuplicateData(Ar, NewFlags, NewSizeOnDisk, NewOffset);
+
 
 #if ALLOW_OPTIONAL_DATA
 	if (IsUsingIODispatcher())
@@ -1457,6 +1589,33 @@ bool FBulkDataBase::MemoryMapBulkData(const FString& Filename, int64 OffsetInBul
 	DataAllocation.SetMemoryMappedData(this, MappedHandle, MappedRegion);
 
 	return true;
+}
+
+void FBulkDataBase::FlushAsyncLoading()
+{
+	if (!IsAsyncLoadingComplete())
+	{
+		DECLARE_SCOPE_CYCLE_COUNTER(TEXT(" FBulkDataBase::FlushAsyncLoading"), STAT_UBD_WaitForAsyncLoading, STATGROUP_Memory);
+
+#if NO_LOGGING
+		while (IsAsyncLoadingComplete() == false)
+		{
+			FPlatformProcess::Sleep(0);
+		}
+#else
+		uint64 StartTime = FPlatformTime::Cycles64();
+		while (IsAsyncLoadingComplete() == false)
+		{
+			if (FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime))
+			{
+				UE_LOG(LogSerialization, Warning, TEXT("Waiting for %s bulk data (%lld) to be loaded longer than 1000ms"), *GetFilename(), GetBulkDataSize());
+				StartTime = FPlatformTime::Cycles64(); // Reset so we spam the log every second or so that we are stalled!
+			}
+
+			FPlatformProcess::Sleep(0);
+		}
+#endif
+	}	
 }
 
 FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const

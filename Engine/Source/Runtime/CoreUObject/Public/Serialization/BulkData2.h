@@ -46,7 +46,7 @@ public:
 	using BulkDataRangeArray = TArray<FBulkDataBase*, TInlineAllocator<8>>;
 
 	static void				SetIoDispatcher(FIoDispatcher* InIoDispatcher) { IoDispatcher = InIoDispatcher; }
-	static FIoDispatcher* GetIoDispatcher() { return IoDispatcher; }
+	static FIoDispatcher*	GetIoDispatcher() { return IoDispatcher; }
 public:
 	using FileToken = int32;
 	static constexpr FileToken InvalidToken = INDEX_NONE;
@@ -124,7 +124,16 @@ public:
 
 	void RemoveBulkData();
 
-	bool IsAsyncLoadingComplete() const { return true; }
+	/**
+	* Initiates a new asynchronous operation to load the dulkdata from disk assuming that it is not already
+	* loaded.
+	* Note that a new asynchronous loading operation will not be created if one is already in progress.
+	*
+	* @return True if an asynchronous loading operation is in progress by the time that the method returns
+	* and false if the data is already loaded or cannot be loaded from disk.
+	*/
+	bool StartAsyncLoading();
+	bool IsAsyncLoadingComplete() const;
 
 	// Added for compatibility with the older BulkData system
 	int64 GetBulkDataOffsetInFile() const;
@@ -147,8 +156,6 @@ private:
 	 */
 	bool CanDiscardInternalData() const;
 
-	void LoadDataDirectly(void** DstBuffer);
-
 	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile);
 	void SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
@@ -161,7 +168,21 @@ private:
 	FORCEINLINE void* GetDataBufferForWrite() const { return DataAllocation.GetAllocationForWrite(this); }
 	FORCEINLINE const void* GetDataBufferReadOnly() const { return DataAllocation.GetAllocationReadOnly(this); }
 
+	/** Blocking call that waits until any pending async load finishes */
+	void FlushAsyncLoading();
+	
 	FString ConvertFilenameFromFlags(const FString& Filename) const;
+
+private:
+	using AsyncCallback = TFunction<void(TIoStatusOr<FIoBuffer>)>;
+
+	void LoadDataDirectly(void** DstBuffer);
+	void LoadDataAsynchronously(AsyncCallback&& Callback);
+
+	// Used by LoadDataDirectly/LoadDataAsynchronously
+	void InternalLoadFromFileSystem(void** DstBuffer);
+	void InternalLoadFromIoStore(void** DstBuffer);
+	void InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback&& Callback);
 
 private:
 	/**
