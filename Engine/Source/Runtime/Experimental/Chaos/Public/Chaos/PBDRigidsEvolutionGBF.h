@@ -26,77 +26,63 @@ namespace Chaos
 	CHAOS_API extern float HackLinearDrag;
 	CHAOS_API extern float HackAngularDrag;
 
-	template<typename T, int d>
-	class TPBDRigidsEvolutionGBF;
+	class FPBDRigidsEvolutionGBF;
 
-	template<typename T, int d>
-	using TPBDRigidsEvolutionCallback = TFunction<void()>;
+	using FPBDRigidsEvolutionCallback = TFunction<void()>;
 
-	template<typename T, int d>
-	using TPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
+	using FPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
 
-	template<typename T, int d>
-	class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraints<T, d>, T, d>
+	class FPBDRigidsEvolutionGBF : public FPBDRigidsEvolutionBase
 	{
 	public:
-		using Base = TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraints<T, d>, T, d>;
-		using Base::AddConstraintRule;
-		using Base::AddForceFunction;
-		using Base::ApplyKinematicTargets;
-		using Base::Clustering;
-		using Base::ForceRules;
-		using Base::Particles;
-		using Base::ParticleUpdatePosition;
-		using Base::SetParticleUpdatePositionFunction;
-		using Base::SetParticleUpdateVelocityFunction;
-		using Base::GenerateUniqueIdx;
-		using typename Base::FForceRule;
-		using FGravityForces = TPerParticleGravity<T, d>;
-		using FCollisionConstraints = TPBDCollisionConstraints<T, d>;
+		using Base = FPBDRigidsEvolutionBase;
+
+		using FGravityForces = TPerParticleGravity<FReal, 3>;
+		using FCollisionConstraints = TPBDCollisionConstraints<FReal, 3>;
 		using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 		using FCollisionDetector = TCollisionDetector<FSpatialAccelerationBroadPhase, FNarrowPhase, FAsyncCollisionReceiver, FCollisionConstraints>;
-		using FExternalForces = TPerParticleExternalForces<T, d>;
+		using FExternalForces = TPerParticleExternalForces<FReal, 3>;
 
 		static constexpr int32 DefaultNumIterations = 1;
 		static constexpr int32 DefaultNumPairIterations = 1;
 		static constexpr int32 DefaultNumPushOutIterations = 5;
 		static constexpr int32 DefaultNumPushOutPairIterations = 2;
 
-		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
-		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
+		CHAOS_API FPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
+		CHAOS_API ~FPBDRigidsEvolutionGBF() {}
 
-		void SetPostIntegrateCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
+		void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PostIntegrateCallback = Cb;
 		}
 
-		void SetPostDetectCollisionsCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
+		void SetPostDetectCollisionsCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PostDetectCollisionsCallback = Cb;
 		}
 
-		void SetCollisionModifierCallback(const TCollisionModifierCallback<T, d>& Cb)
+		void SetCollisionModifierCallback(const TCollisionModifierCallback<FReal, 3>& Cb)
 		{
 			CollisionModifierCallback = Cb;
 		}
 
-		void SetPreApplyCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
+		void SetPreApplyCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PreApplyCallback = Cb;
 		}
 
-		void SetPostApplyCallback(const TPBDRigidsEvolutionIslandCallback<T, d>& Cb)
+		void SetPostApplyCallback(const FPBDRigidsEvolutionIslandCallback& Cb)
 		{
 			PostApplyCallback = Cb;
 		}
 
-		void SetPostApplyPushOutCallback(const TPBDRigidsEvolutionIslandCallback<T, d>& Cb)
+		void SetPostApplyPushOutCallback(const FPBDRigidsEvolutionIslandCallback& Cb)
 		{
 			PostApplyPushOutCallback = Cb;
 		}
 
-		CHAOS_API void Advance(const T Dt, const T MaxStepDt, const int32 MaxSteps);
-		CHAOS_API void AdvanceOneTimeStep(const T dt, const T StepFraction = (T)1.0);
+		CHAOS_API void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
+		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FReal StepFraction = (FReal)1.0);
 
 		using Base::PrepareConstraints;
 		using Base::UnprepareConstraints;
@@ -115,26 +101,29 @@ namespace Chaos
 		FGravityForces& GetGravityForces() { return GravityForces; }
 		const FGravityForces& GetGravityForces() const { return GravityForces; }
 
-		CHAOS_API inline void EndFrame(T Dt)
+		const auto& GetRigidClustering() const { return Clustering; }
+		auto& GetRigidClustering() { return Clustering; }
+
+		CHAOS_API inline void EndFrame(FReal Dt)
 		{
 			Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle, int32 Index) {
-				Particle.F() = TVector<T, 3>(0);
-				Particle.Torque() = TVector<T, 3>(0);
+				Particle.F() = FVec3(0);
+				Particle.Torque() = FVec3(0);
 			});
 		}
 
 		template<typename TParticleView>
-		void Integrate(const TParticleView& InParticles, T Dt)
+		void Integrate(const TParticleView& InParticles, FReal Dt)
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_Integrate);
 			CHAOS_SCOPED_TIMER(Integrate);
-			TPerParticleEulerStepVelocity<T, d> EulerStepVelocityRule;
-			TPerParticleAddImpulses<T, d> AddImpulsesRule;
-			TPerParticleEtherDrag<T, d> EtherDragRule;
-			TPerParticlePBDEulerStep<T, d> EulerStepRule;
+			TPerParticleEulerStepVelocity<FReal, 3> EulerStepVelocityRule;
+			TPerParticleAddImpulses<FReal, 3> AddImpulsesRule;
+			TPerParticleEtherDrag<FReal, 3> EtherDragRule;
+			TPerParticlePBDEulerStep<FReal, 3> EulerStepRule;
 
-			const T MaxAngularSpeedSq = HackMaxAngularVelocity * HackMaxAngularVelocity;
-			const T MaxSpeedSq = HackMaxVelocity * HackMaxVelocity;
+			const FReal MaxAngularSpeedSq = HackMaxAngularVelocity * HackMaxAngularVelocity;
+			const FReal MaxSpeedSq = HackMaxVelocity * HackMaxVelocity;
 			InParticles.ParallelFor([&](auto& GeomParticle, int32 Index) {
 				//question: can we enforce this at the API layer? Right now islands contain non dynamic which makes this hard
 				auto PBDParticle = GeomParticle.CastToRigidParticle();
@@ -156,7 +145,7 @@ namespace Chaos
 
 					if (HackMaxAngularVelocity >= 0.f)
 					{
-						const T AngularSpeedSq = Particle.W().SizeSquared();
+						const FReal AngularSpeedSq = Particle.W().SizeSquared();
 						if (AngularSpeedSq > MaxAngularSpeedSq)
 						{
 							Particle.W() = Particle.W() * (HackMaxAngularVelocity / FMath::Sqrt(AngularSpeedSq));
@@ -165,7 +154,7 @@ namespace Chaos
 
 					if (HackMaxVelocity >= 0.f)
 					{
-						const T SpeedSq = Particle.V().SizeSquared();
+						const FReal SpeedSq = Particle.V().SizeSquared();
 						if (SpeedSq > MaxSpeedSq)
 						{
 							Particle.V() = Particle.V() * (HackMaxVelocity / FMath::Sqrt(SpeedSq));
@@ -176,8 +165,8 @@ namespace Chaos
 
 					if (Particle.HasBounds())
 					{
-						const TAABB<T, d>& LocalBounds = Particle.LocalBounds();
-						TAABB<T, d> WorldSpaceBounds = LocalBounds.TransformedAABB(TRigidTransform<T, d>(Particle.P(), Particle.Q()));
+						const FAABB3& LocalBounds = Particle.LocalBounds();
+						FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
 						WorldSpaceBounds.ThickenSymmetrically(Particle.V());
 						Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 					}
@@ -193,16 +182,7 @@ namespace Chaos
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
 	protected:
-		using Base::Collided;
-		using Base::ConstraintRules;
-		using Base::CreateConstraintGraph;
-		using Base::CreateIslands;
-		using Base::GetConstraintGraph;
-		using Base::InternalAcceleration;
-		using Base::ParticleDisableCount;
-		using Base::PhysicsMaterials;
-		using Base::UpdateConstraintPositionBasedState;
-		using Base::UpdateVelocities;
+		TPBDRigidClustering<FPBDRigidsEvolutionGBF, TPBDCollisionConstraints<FReal, 3>, FReal, 3> Clustering;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;
@@ -210,11 +190,11 @@ namespace Chaos
 		FSpatialAccelerationBroadPhase BroadPhase;
 		FCollisionDetector CollisionDetector;
 
-		TPBDRigidsEvolutionCallback<T, d> PostIntegrateCallback;
-		TPBDRigidsEvolutionCallback<T, d> PostDetectCollisionsCallback;
-		TCollisionModifierCallback<T, d> CollisionModifierCallback;
-		TPBDRigidsEvolutionCallback<T, d> PreApplyCallback;
-		TPBDRigidsEvolutionIslandCallback<T, d> PostApplyCallback;
-		TPBDRigidsEvolutionIslandCallback<T, d> PostApplyPushOutCallback;
+		FPBDRigidsEvolutionCallback PostIntegrateCallback;
+		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;
+		TCollisionModifierCallback<FReal, 3> CollisionModifierCallback;
+		FPBDRigidsEvolutionCallback PreApplyCallback;
+		FPBDRigidsEvolutionIslandCallback PostApplyCallback;
+		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
 	};
 }
