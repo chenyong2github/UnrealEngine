@@ -138,6 +138,12 @@ void UMovieSceneSequencePlayer::PlayLooping(int32 NumLoops)
 
 void UMovieSceneSequencePlayer::PlayInternal()
 {
+	if (bIsEvaluating)
+	{
+		LatentActions.Emplace(FLatentAction::EType::Play);
+		return;
+	}
+
 	if (!IsPlaying() && Sequence && CanPlay())
 	{
 		float PlayRate = bReversePlayback ? -PlaybackSettings.PlayRate : PlaybackSettings.PlayRate;
@@ -221,14 +227,14 @@ void UMovieSceneSequencePlayer::PlayInternal()
 
 void UMovieSceneSequencePlayer::Pause()
 {
+	if (bIsEvaluating)
+	{
+		LatentActions.Emplace(FLatentAction::EType::Pause);
+		return;
+	}
+
 	if (IsPlaying())
 	{
-		if (bIsEvaluating)
-		{
-			LatentActions.Emplace(FLatentAction::EType::Pause);
-			return;
-		}
-
 		Status = EMovieScenePlayerStatus::Paused;
 		TimeController->StopPlaying(GetCurrentTime());
 
@@ -292,14 +298,15 @@ void UMovieSceneSequencePlayer::StopAtCurrentTime()
 
 void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 {
+	if (bIsEvaluating)
+	{
+		LatentActions.Emplace(FLatentAction::EType::Stop, TimeToResetTo);
+		return;
+	}
+
 	if (IsPlaying() || IsPaused())
 	{
-		if (bIsEvaluating)
-		{
-			LatentActions.Emplace(FLatentAction::EType::Stop, TimeToResetTo);
-			return;
-		}
-
+		bIsEvaluating = true;
 		Status = EMovieScenePlayerStatus::Stopped;
 
 		// Put the cursor at the specified position
@@ -353,6 +360,9 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		{
 			OnStop.Broadcast();
 		}
+		bIsEvaluating = false;
+
+		ApplyLatentActions();
 	}
 }
 
@@ -942,6 +952,7 @@ void UMovieSceneSequencePlayer::ApplyLatentActions()
 		{
 		case FLatentAction::EType::Stop:   StopInternal(LatentAction.Position); continue;
 		case FLatentAction::EType::Pause:  Pause();                             continue;
+		case FLatentAction::EType::Play:   PlayInternal();                      continue;
 		}
 
 		check(LatentAction.Type == FLatentAction::EType::Update);
