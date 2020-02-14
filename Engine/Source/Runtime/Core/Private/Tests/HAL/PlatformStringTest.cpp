@@ -6,6 +6,25 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+template <typename CharType, SIZE_T Size>
+static void InvokePlatformStringGetVarArgs(CharType (&Dest)[Size], const CharType* Fmt, ...)
+{
+	va_list ap;
+	va_start(ap, Fmt);
+	FPlatformString::GetVarArgs(Dest, Size, Fmt, ap);
+	va_end(ap);
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlatformStringTestGetVarArgs, "System.Core.HAL.PlatformString.GetVarArgs", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FPlatformStringTestGetVarArgs::RunTest(const FString& Parameters)
+{
+	TCHAR Buffer[128];
+	InvokePlatformStringGetVarArgs(Buffer, TEXT("A%.*sZ"), 4, TEXT(" to B"));
+	TestEqual(TEXT("GetVarArgs(%.*s)"), Buffer, TEXT("A to Z"));
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlatformStringTestStrnlen, "System.Core.HAL.PlatformString.Strnlen", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 bool FPlatformStringTestStrnlen::RunTest(const FString& Parameters)
 {
