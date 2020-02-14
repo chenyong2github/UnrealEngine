@@ -57,7 +57,7 @@ void SetGBufferForShadingModel(
 	{
 		// Optimization: if opacity is 0 then revert to default shading model 
 	#if SUBSURFACE_PROFILE_OPACITY_THRESHOLD
-		if (Opacity > 0.0)
+		if (Opacity > SSSS_OPACITY_THRESHOLD_EPS)
 	#endif
 		{
 			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SubsurfaceProfile);
@@ -67,8 +67,9 @@ void SetGBufferForShadingModel(
 			uint SubsurfaceProfileUInt = uint(SubsurfaceProfile * 255.0f + 0.5f);
 			float MaterialRoughnessToAverage = ActualSSProfilesTexture.Load(int3(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileUInt, 0)).w * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
 
-			// Smooth blend out dual specular when opacity is low.
-			MaterialRoughnessToAverage = lerp(1.0f, MaterialRoughnessToAverage, saturate(Opacity * 10.0f));
+			// Smooth blend out dual specular when opacity is low, we have the extra SSSS_OPACITY_THRESHOLD_EPS so that we fade out by the time we
+			// get to 0.01, as opposed to 0.0.
+			MaterialRoughnessToAverage = lerp(1.0f, MaterialRoughnessToAverage, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
 
 			GBuffer.Roughness = saturate(GBuffer.Roughness * MaterialRoughnessToAverage);
 		}
