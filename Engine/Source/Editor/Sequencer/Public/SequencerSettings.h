@@ -203,11 +203,6 @@ public:
 	/** Sets whether or not to snap curve values to the interval. */
 	void SetSnapCurveValueToInterval(bool InbSnapCurveValueToInterval);
 
-	/** Gets whether or not the label browser is visible. */
-	bool GetLabelBrowserVisible() const;
-	/** Sets whether or not the label browser is visible. */
-	void SetLabelBrowserVisible(bool Visible);
-
 	/** Gets whether or not to show selected nodes only. */
 	bool GetShowSelectedNodesOnly() const;
 	/** Sets whether or not to show selected nodes only. */
@@ -434,10 +429,6 @@ protected:
 	/** Enable or disable snapping the curve value to the curve value interval. */
 	UPROPERTY( config, EditAnywhere, Category=Snapping )
 	bool bSnapCurveValueToInterval;
-
-	/** Enable or disable the label browser. */
-	UPROPERTY( config, EditAnywhere, Category=General )
-	bool bLabelBrowserVisible;
 
 	/** Only show selected nodes in the tree view. */
 	UPROPERTY( config, EditAnywhere, Category=General )

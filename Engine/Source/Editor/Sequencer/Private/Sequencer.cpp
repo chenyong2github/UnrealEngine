@@ -10840,14 +10840,6 @@ void FSequencer::BindCommands()
 		FIsActionChecked::CreateLambda( [this]{ return Settings->GetShowChannelColors(); } ) );
 
 	SequencerCommandBindings->MapAction(
-		Commands.ToggleLabelBrowser,
-		FExecuteAction::CreateLambda( [this]{
-			Settings->SetLabelBrowserVisible( !Settings->GetLabelBrowserVisible() );
-		} ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->GetLabelBrowserVisible(); } ) );
-
-	SequencerCommandBindings->MapAction(
 		Commands.ToggleShowSelectedNodesOnly,
 		FExecuteAction::CreateLambda( [this]{
 			Settings->SetShowSelectedNodesOnly( !Settings->GetShowSelectedNodesOnly() );
