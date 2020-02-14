@@ -3192,6 +3192,8 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 		UnrealMaterial->D3D11TessellationMode = EMaterialTessellationMode::MTM_FlatTessellation;
 	}
 
+	UnrealMaterial->UpdateCachedExpressionData();
+
 	UMaterialEditingLibrary::LayoutMaterialExpressions( UnrealMaterial );
 
 	return UnrealMaterial;
