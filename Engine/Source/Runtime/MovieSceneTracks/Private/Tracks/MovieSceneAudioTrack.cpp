@@ -108,7 +108,8 @@ UMovieSceneSection* UMovieSceneAudioTrack::AddNewSoundOnRow(USoundBase* Sound, F
 
 bool UMovieSceneAudioTrack::IsAMasterTrack() const
 {
-	return Cast<UMovieScene>(GetOuter())->IsAMasterTrack(*this);
+	UMovieScene* MovieScene = Cast<UMovieScene>(GetOuter());
+	return MovieScene ? MovieScene->IsAMasterTrack(*this) : false;
 }
 
 
@@ -130,5 +131,16 @@ UMovieSceneSection* UMovieSceneAudioTrack::CreateNewSection()
 	return NewObject<UMovieSceneAudioSection>(this, NAME_None, RF_Transactional);
 }
 
+void UMovieSceneAudioTrack::PostRename(UObject* OldOuter, const FName OldName)
+{
+	// If this audio track is outered to something new, update the channel proxy because the channel can depend on whether this is a master track or not
+	for (UMovieSceneSection* Section : AudioSections)
+	{
+		if (UMovieSceneAudioSection* AudioSection =Cast<UMovieSceneAudioSection>(Section))
+		{
+			AudioSection->UpdateChannelProxy();
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

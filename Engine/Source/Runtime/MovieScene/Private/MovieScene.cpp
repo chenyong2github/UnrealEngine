@@ -862,8 +862,8 @@ bool UMovieScene::AddGivenMasterTrack(UMovieSceneTrack* InTrack)
 	if (!MasterTracks.Contains(InTrack))
 	{
 		Modify();
-		InTrack->Rename(nullptr, this);
 		MasterTracks.Add(InTrack);
+		InTrack->Rename(nullptr, this);
 		return true;
 	}
 	return false;
