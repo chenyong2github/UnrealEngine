@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_TRAITS_H
-#define TF_TRAITS_H
+#ifndef PXR_BASE_TF_TRAITS_H
+#define PXR_BASE_TF_TRAITS_H
 
 /// \file tf/traits.h
 /// \ingroup group_tf_RuntimeTyping
@@ -387,4 +387,4 @@ struct TfTraits::Type<const void*> {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_TRAITS_H
+#endif // PXR_BASE_TF_TRAITS_H

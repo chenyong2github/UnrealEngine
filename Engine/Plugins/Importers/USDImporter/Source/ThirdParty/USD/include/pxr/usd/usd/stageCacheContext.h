@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_STAGECACHECONTEXT_H
-#define USD_STAGECACHECONTEXT_H
+#ifndef PXR_USD_USD_STAGE_CACHE_CONTEXT_H
+#define PXR_USD_USD_STAGE_CACHE_CONTEXT_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/api.h"
@@ -158,4 +158,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USD_STAGECACHECONTEXT_H
+#endif // PXR_USD_USD_STAGE_CACHE_CONTEXT_H

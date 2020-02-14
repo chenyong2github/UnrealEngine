@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_SPEC_H
-#define SDF_SPEC_H
+#ifndef PXR_USD_SDF_SPEC_H
+#define PXR_USD_SDF_SPEC_H
 
 /// \file sdf/spec.h
 
@@ -48,8 +48,9 @@ PXR_NAMESPACE_OPEN_SCOPE
 ///
 /// Base class for all Sdf spec classes.
 ///
-class SdfSpec {
-    SDF_DECLARE_BASE_SPEC(SdfSchema, SdfSpec);
+class SdfSpec 
+{
+    SDF_DECLARE_BASE_SPEC(SdfSpec);
 
 public:
     SDF_API
@@ -272,4 +273,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_SPEC_H
+#endif // PXR_USD_SDF_SPEC_H

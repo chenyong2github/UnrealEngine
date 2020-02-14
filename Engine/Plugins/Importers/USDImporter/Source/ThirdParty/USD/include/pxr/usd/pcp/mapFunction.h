@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PCP_MAPFUNCTION_H
-#define PCP_MAPFUNCTION_H
+#ifndef PXR_USD_PCP_MAP_FUNCTION_H
+#define PXR_USD_PCP_MAP_FUNCTION_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/pcp/api.h"
@@ -300,4 +300,4 @@ size_t hash_value(const PcpMapFunction& x)
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PCP_MAPFUNCTION_H
+#endif // PXR_USD_PCP_MAP_FUNCTION_H

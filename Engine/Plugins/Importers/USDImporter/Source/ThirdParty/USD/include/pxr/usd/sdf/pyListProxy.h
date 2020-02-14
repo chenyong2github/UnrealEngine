@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_PYLISTPROXY_H
-#define SDF_PYLISTPROXY_H
+#ifndef PXR_USD_SDF_PY_LIST_PROXY_H
+#define PXR_USD_SDF_PY_LIST_PROXY_H
 
 /// \file sdf/pyListProxy.h
 
@@ -79,6 +79,7 @@ private:
             .def("remove", &Type::Remove)
             .def("replace", &Type::Replace)
             .def("ApplyList", &Type::ApplyList)
+            .def("ApplyEditsToList", &This::_ApplyEditsToList)
             .add_property("expired", &This::_IsExpired)
             .def(self == self)
             .def(self != self)
@@ -258,8 +259,16 @@ private:
     {
         return x.IsExpired();
     }
+
+    static value_vector_type _ApplyEditsToList(Type& x, 
+                                               const value_vector_type& values)
+    {
+        value_vector_type newValues = values;
+        x.ApplyEditsToList(&newValues);
+        return newValues;
+    }
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PYLISTPROXY_H
+#endif // PXR_USD_SDF_PY_LIST_PROXY_H

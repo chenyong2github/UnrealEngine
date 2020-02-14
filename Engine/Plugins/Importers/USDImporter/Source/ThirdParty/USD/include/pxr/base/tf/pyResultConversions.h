@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYRESULTCONVERSIONS_H
-#define TF_PYRESULTCONVERSIONS_H
+#ifndef PXR_BASE_TF_PY_RESULT_CONVERSIONS_H
+#define PXR_BASE_TF_PY_RESULT_CONVERSIONS_H
 
 #include "pxr/pxr.h"
 

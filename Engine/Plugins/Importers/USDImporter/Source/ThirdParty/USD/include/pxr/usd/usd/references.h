@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_REFERENCES_H
-#define USD_REFERENCES_H
+#ifndef PXR_USD_USD_REFERENCES_H
+#define PXR_USD_USD_REFERENCES_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/api.h"
@@ -34,8 +34,6 @@
 #include "pxr/usd/sdf/reference.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
-
-SDF_DECLARE_HANDLES(SdfPrimSpec);
 
 /// \class UsdReferences
 ///
@@ -227,28 +225,28 @@ public:
     /// composition of listOps.
     USD_API
     bool AddReference(const SdfReference& ref,
-                      UsdListPosition position=UsdListPositionTempDefault);
+                  UsdListPosition position=UsdListPositionBackOfPrependList);
 
     /// \overload 
     USD_API
     bool AddReference(const std::string &identifier,
-                      const SdfPath &primPath,
-                      const SdfLayerOffset &layerOffset = SdfLayerOffset(),
-                      UsdListPosition position=UsdListPositionTempDefault);
+                  const SdfPath &primPath,
+                  const SdfLayerOffset &layerOffset = SdfLayerOffset(),
+                  UsdListPosition position=UsdListPositionBackOfPrependList);
 
     /// \overload
     /// \sa \ref Usd_DefaultPrim_References "References Without Prim Paths"
     USD_API
     bool AddReference(const std::string &identifier,
-                      const SdfLayerOffset &layerOffset = SdfLayerOffset(),
-                      UsdListPosition position=UsdListPositionTempDefault);
+                  const SdfLayerOffset &layerOffset = SdfLayerOffset(),
+                  UsdListPosition position=UsdListPositionBackOfPrependList);
 
     /// Add an internal reference to the specified prim.
     /// \sa \ref Usd_Internal_References "Internal References"
     USD_API
     bool AddInternalReference(const SdfPath &primPath,
-                      const SdfLayerOffset &layerOffset = SdfLayerOffset(),
-                      UsdListPosition position=UsdListPositionTempDefault);
+                  const SdfLayerOffset &layerOffset = SdfLayerOffset(),
+                  UsdListPosition position=UsdListPositionBackOfPrependList);
 
     /// Removes the specified reference from the references listOp at the
     /// current EditTarget.  This does not necessarily eliminate the 
@@ -284,11 +282,9 @@ public:
     explicit operator bool() { return bool(_prim); }
 
 private:
-
-    SdfPrimSpecHandle _CreatePrimSpecForEditing();
     UsdPrim _prim;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USD_REFERENCES_H
+#endif // PXR_USD_USD_REFERENCES_H

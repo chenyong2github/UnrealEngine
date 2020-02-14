@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_PATHTABLE_H
-#define SDF_PATHTABLE_H
+#ifndef PXR_USD_SDF_PATH_TABLE_H
+#define PXR_USD_SDF_PATH_TABLE_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/sdf/api.h"
@@ -507,6 +507,7 @@ public:
     void ClearInParallel() {
         Sdf_ClearPathTableInParallel(reinterpret_cast<void **>(_buckets.data()),
                                      _buckets.size(), _DeleteEntryChain);
+        _size = 0;
     }        
 
     /// Swap this table's contents with \a other.
@@ -703,4 +704,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PATHTABLE_H
+#endif // PXR_USD_SDF_PATH_TABLE_H

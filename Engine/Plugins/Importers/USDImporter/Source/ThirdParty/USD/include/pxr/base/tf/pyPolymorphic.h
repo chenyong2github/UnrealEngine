@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PYPOLYMORPHIC_H
-#define TF_PYPOLYMORPHIC_H
+#ifndef PXR_BASE_TF_PY_POLYMORPHIC_H
+#define PXR_BASE_TF_PY_POLYMORPHIC_H
 
 /// \file tf/pyPolymorphic.h
 
@@ -38,11 +38,11 @@
 #include "pxr/base/tf/type.h"
 
 #include <boost/python/object/class_detail.hpp>
-#include <boost/function.hpp>
 #include <boost/python/wrapper.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/python/has_back_reference.hpp>
 
+#include <functional>
 #include <type_traits>
 
 // TODO: All this stuff with holding onto the class needs to go away.
@@ -147,13 +147,13 @@ struct TfPyPolymorphic :
     }
 
     template <class Ret, class Cls, typename... Arg>
-    boost::function<Ret (Arg...)>
+    std::function<Ret (Arg...)>
     CallVirtual(
         char const *fname,
         Ret (Cls::*defaultImpl)(Arg...));
 
     template <class Ret, class Cls, typename... Arg>
-    boost::function<Ret (Arg...)>
+    std::function<Ret (Arg...)>
     CallVirtual(
         char const *fname,
         Ret (Cls::*defaultImpl)(Arg...) const) const;
@@ -197,7 +197,7 @@ TfPyPolymorphic<Derived>::~TfPyPolymorphic()
 template <typename Derived>
 template <class Ret, class Cls, typename... Args>
 inline
-boost::function<Ret (Args...)>
+std::function<Ret (Args...)>
 TfPyPolymorphic<Derived>::CallVirtual(
     char const *fname,
     Ret (Cls::*defaultImpl)(Args...))
@@ -206,7 +206,7 @@ TfPyPolymorphic<Derived>::CallVirtual(
                   "This must be a base of Cls.");
     TfPyLock lock;
     if (Override o = GetOverride(fname))
-        return boost::function<Ret (Args...)>(TfPyCall<Ret>(o));
+        return std::function<Ret (Args...)>(TfPyCall<Ret>(o));
     return _BindMemFn<Ret, Cls, Args...>(
         defaultImpl, static_cast<Cls *>(this));
 }
@@ -214,7 +214,7 @@ TfPyPolymorphic<Derived>::CallVirtual(
 template <typename Derived>
 template <class Ret, class Cls, typename... Args>
 inline
-boost::function<Ret (Args...)>
+std::function<Ret (Args...)>
 TfPyPolymorphic<Derived>::CallVirtual(
     char const *fname,
     Ret (Cls::*defaultImpl)(Args...) const) const
@@ -223,7 +223,7 @@ TfPyPolymorphic<Derived>::CallVirtual(
                   "This must be a base of Cls.");
     TfPyLock lock;
     if (Override o = GetOverride(fname))
-        return boost::function<Ret (Args...)>(TfPyCall<Ret>(o));
+        return std::function<Ret (Args...)>(TfPyCall<Ret>(o));
     return _BindMemFn<Ret, Cls const, Args...>(
         defaultImpl, static_cast<Cls const *>(this));
 }
@@ -269,4 +269,4 @@ TfPyProtectedVirtual( Fn fn )
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PYPOLYMORPHIC_H
+#endif // PXR_BASE_TF_PY_POLYMORPHIC_H

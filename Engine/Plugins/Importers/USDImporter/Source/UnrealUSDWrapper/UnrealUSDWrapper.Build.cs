@@ -43,6 +43,7 @@ namespace UnrealBuildTool.Rules
 
 					var USDLibs = new string[]
 					{
+						"ar",
 						"arch",
 						"gf",
 						"js",

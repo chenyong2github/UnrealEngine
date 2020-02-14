@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef COMMON_TF_TYPE_NOTICE_H
-#define COMMON_TF_TYPE_NOTICE_H
+#ifndef PXR_BASE_TF_TYPE_NOTICE_H
+#define PXR_BASE_TF_TYPE_NOTICE_H
 
 #include "pxr/pxr.h"
 
@@ -49,4 +49,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // COMMON_TF_TYPE_NOTICE_H
+#endif // PXR_BASE_TF_TYPE_NOTICE_H

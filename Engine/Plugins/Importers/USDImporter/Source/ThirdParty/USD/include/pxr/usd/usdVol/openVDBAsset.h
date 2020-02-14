@@ -140,7 +140,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDVOL_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -152,7 +152,7 @@ private:
 
     // override SchemaBase virtuals.
     USDVOL_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -161,10 +161,11 @@ public:
     /// Name of an individual grid within the file specified by
     /// the filePath attribute.
     ///
-    /// \n  C++ Type: TfToken
-    /// \n  Usd Type: SdfValueTypeNames->Token
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `token fieldName` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
     USDVOL_API
     UsdAttribute GetFieldNameAttr() const;
 

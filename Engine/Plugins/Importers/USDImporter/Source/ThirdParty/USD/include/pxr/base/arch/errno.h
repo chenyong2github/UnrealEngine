@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_ERRNO_H
-#define ARCH_ERRNO_H
+#ifndef PXR_BASE_ARCH_ERRNO_H
+#define PXR_BASE_ARCH_ERRNO_H
 
 /// \file arch/errno.h
 /// \ingroup group_arch_SystemFunctions
@@ -61,4 +61,4 @@ ARCH_API std::string ArchStrSysError(unsigned long errorCode);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_ERRNO_H
+#endif // PXR_BASE_ARCH_ERRNO_H
