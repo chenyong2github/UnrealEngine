@@ -74,7 +74,6 @@ public:
 				if (Sample.IsValid())
 				{
 					FTimedDataChannelSampleTime& NewSampleTime = CachedSamplesData.Emplace_GetRef();
-					CachedSampleDurationSeconds = Sample->GetDuration().GetTotalSeconds() - SMALL_NUMBER; //Offsetting the duration slightly to avoid going over the next frame
 					NewSampleTime.PlatformSecond = Sample->GetTime().GetTotalSeconds() - EvaluationSettings.PlayerTimeOffset;
 					if (Sample->GetTimecode().IsSet())
 					{
@@ -83,33 +82,29 @@ public:
 				}
 			}
 
-			//Update our latest sample to include the duration of it. A sample is valid if its sample time including duration overlaps evaluation time
-			CachedSamplesData[0].PlatformSecond += CachedSampleDurationSeconds;
-			const FFrameTime SampleDurationTime = FFrameTime(FFrameNumber(0), 0.99f);;
-			CachedSamplesData[0].Timecode.Time += SampleDurationTime;
-
-
 			//Update statistics about evaluation time. Distance for newest sample will be clamped to 0 if its spans overlaps eval time.
 			if (IsBufferStatsEnabled())
 			{
+				const double Duration = EvaluationSettings.FrameRate.AsInterval() - SMALL_NUMBER;
+
 				double NewestSampleInSeconds = 0.0;
 				double OldestSampleInSeconds = 0.0;
 				const double EvaluationInSeconds = PlayerTime.GetTotalSeconds();
 				if (EvaluationSettings.EvaluationType == ETimedDataInputEvaluationType::Timecode)
 				{
 					//Compute the distance with Timespan resolution. Going through FQualifiedFrameTime gives a different result (~10ns)
-					NewestSampleInSeconds = Samples[0]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds() + CachedSampleDurationSeconds;
+					NewestSampleInSeconds = Samples[0]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds() + Duration;
 					OldestSampleInSeconds = Samples[CachedSamplesData.Num() - 1]->GetTimecode().GetValue().ToTimespan(EvaluationSettings.FrameRate).GetTotalSeconds();
 				}
 				else //Platform time
 				{
-					NewestSampleInSeconds = Samples[0]->GetTime().GetTotalSeconds();
+					NewestSampleInSeconds = Samples[0]->GetTime().GetTotalSeconds() + Duration;
 					OldestSampleInSeconds = Samples[CachedSamplesData.Num() - 1]->GetTime().GetTotalSeconds();
 				}
 
 				//Compute distance to evaluation taking into account duration of our samples for the newest one.
 				CachedEvaluationData.DistanceToNewestSampleSeconds = NewestSampleInSeconds - EvaluationInSeconds;
-				if (CachedEvaluationData.DistanceToNewestSampleSeconds >= 0.0 && CachedEvaluationData.DistanceToNewestSampleSeconds <= CachedSampleDurationSeconds)
+				if (CachedEvaluationData.DistanceToNewestSampleSeconds >= 0.0 && CachedEvaluationData.DistanceToNewestSampleSeconds <= Duration)
 				{
 					CachedEvaluationData.DistanceToNewestSampleSeconds = 0.0;
 				}
@@ -250,7 +245,7 @@ public:
 	{
 		if (CachedSamplesData.Num())
 		{
-			return CachedSamplesData[0];
+			return CachedSamplesData[CachedSamplesData.Num() - 1];
 		}
 
 		return FTimedDataChannelSampleTime();
@@ -260,7 +255,14 @@ public:
 	{
 		if (CachedSamplesData.Num())
 		{
-			return CachedSamplesData[CachedSamplesData.Num() - 1];
+			//Newest data has to take into account the duration of the frame. A frame is considered valid when it's start time with duration overlaps the evaluation time
+			const double Duration = EvaluationSettings.FrameRate.AsInterval() - SMALL_NUMBER;
+			const FFrameTime SampleDurationTime = FFrameTime(FFrameNumber(0), 0.99f);
+
+			FTimedDataChannelSampleTime ModifiedTime = CachedSamplesData[0];
+			ModifiedTime.PlatformSecond += Duration;
+			ModifiedTime.Timecode.Time += SampleDurationTime;
+			return ModifiedTime;
 		}
 
 		return FTimedDataChannelSampleTime();

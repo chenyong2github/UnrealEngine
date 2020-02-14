@@ -1089,7 +1089,8 @@ ETimedDataMonitorEvaluationState UTimedDataMonitorSubsystem::GetChannelEvaluatio
 		const double OldestSampleTime = SourceItem->Channel->GetOldestDataTime().AsSeconds(EvaluationType);
 		const double NewstedSampleTime = SourceItem->Channel->GetNewestDataTime().AsSeconds(EvaluationType);
 		const double EvaluationTime = GetEvaluationTime(EvaluationType);
-		bool bIsInRange = (EvaluationTime >= OldestSampleTime - EvaluationOffset) && (EvaluationTime <= NewstedSampleTime - EvaluationOffset);
+		const double OffsettedEvaluationTime = EvaluationTime - EvaluationOffset;
+		bool bIsInRange = (OffsettedEvaluationTime >= OldestSampleTime) && (OffsettedEvaluationTime <= NewstedSampleTime);
 		return bIsInRange ? ETimedDataMonitorEvaluationState::InsideRange : ETimedDataMonitorEvaluationState::OutsideRange;
 	}
 
