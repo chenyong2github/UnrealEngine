@@ -828,14 +828,14 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					PlatformFile.IterateDirectoryRecursively(*(ContentDir / TEXT("Paks") / FPlatformProperties::PlatformName()), PakVisitor);
 					for (const FString& PakPath : FoundPaks)
 					{
-						if (FCoreDelegates::OnMountPak.IsBound())
+						if (FCoreDelegates::MountPak.IsBound())
 						{
-							FCoreDelegates::OnMountPak.Execute(PakPath, 0, nullptr);
+							FCoreDelegates::MountPak.Execute(PakPath, 0);
 							PluginsWithPakFile.AddUnique(Plugin);
 						}
 						else
 						{
-							UE_LOG(LogPluginManager, Warning, TEXT("PAK file (%s) could not be mounted because OnMountPak is not bound"), *PakPath)
+							UE_LOG(LogPluginManager, Warning, TEXT("PAK file (%s) could not be mounted because MountPak is not bound"), *PakPath)
 						}
 					}
 				}
