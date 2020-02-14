@@ -4645,7 +4645,7 @@ HHitProxy* FSkeletalMeshSceneProxy::CreateHitProxies(UPrimitiveComponent* Compon
 					}
 					else
 					{
-						ActorHitProxy = new HActor(Component->GetOwner(), Component, SectionIndex, MaterialIndex);
+						ActorHitProxy = new HActor(Component->GetOwner(), Component, Component->HitProxyPriority, SectionIndex, MaterialIndex);
 					}
 
 					// Set the hitproxy.
