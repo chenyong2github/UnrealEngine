@@ -2238,11 +2238,17 @@ void FRootMotionSourceGroup::AddStructReferencedObjects(class FReferenceCollecto
 {
 	for (const auto& RootMotionSource : RootMotionSources)
 	{
-		RootMotionSource->AddReferencedObjects(Collector);
+		if (RootMotionSource.IsValid())
+		{
+			RootMotionSource->AddReferencedObjects(Collector);
+		}
 	}
 
 	for (const auto& RootMotionSource : PendingAddRootMotionSources)
 	{
-		RootMotionSource->AddReferencedObjects(Collector);
+		if (RootMotionSource.IsValid())
+		{
+			RootMotionSource->AddReferencedObjects(Collector);
+		}
 	}
 }
