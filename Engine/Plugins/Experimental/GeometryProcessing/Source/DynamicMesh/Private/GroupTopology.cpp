@@ -501,6 +501,7 @@ void FGroupTopology::ForGroupSetEdges(const TArray<int>& GroupIDs,
 void FGroupTopology::ExtractGroupEdges(FGroup& Group)
 {
 	FMeshRegionBoundaryLoops BdryLoops(Mesh, Group.Triangles, true);
+	ensure(!BdryLoops.bFailed); // TODO: handle failure to find boundary loops?
 	int NumLoops = BdryLoops.Loops.Num();
 
 	Group.Boundaries.SetNum(NumLoops);

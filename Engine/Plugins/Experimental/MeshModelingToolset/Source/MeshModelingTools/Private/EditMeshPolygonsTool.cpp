@@ -1414,7 +1414,7 @@ void UEditMeshPolygonsTool::ApplyRetriangulate()
 		const TArray<int32>& Triangles = Topology->GetGroupTriangles(GroupID);
 		ChangeTracker.SaveTriangles(Triangles, true);
 		FMeshRegionBoundaryLoops RegionLoops(Mesh, Triangles, true);
-		if (RegionLoops.Loops.Num() == 1 && Triangles.Num() > 1)
+		if (!RegionLoops.bFailed && RegionLoops.Loops.Num() == 1 && Triangles.Num() > 1)
 		{
 			Editor.RemoveTriangles(Topology->GetGroupTriangles(GroupID), true);
 			RegionLoops.Loops[0].Reverse();
