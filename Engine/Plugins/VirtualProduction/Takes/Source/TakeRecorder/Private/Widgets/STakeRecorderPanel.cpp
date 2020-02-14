@@ -280,10 +280,10 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 				SNew(SButton)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.ToolTipText(LOCTEXT("Add", "Create a New Take"))
+				.ToolTipText(LOCTEXT("ClearPendingTake", "Clear Pending Take"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.OnClicked(this, &STakeRecorderPanel::OnNewTake)
+				.OnClicked(this, &STakeRecorderPanel::OnClearPendingTake)
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
@@ -448,19 +448,32 @@ UTakeMetaData* STakeRecorderPanel::GetTakeMetaData() const
 	return CockpitWidget->GetMetaData();
 }
 
-void STakeRecorderPanel::NewTake()
+void STakeRecorderPanel::ClearPendingTake()
 {
 	if (CockpitWidget->Reviewing())
 	{
 		LastRecordedLevelSequence = SuppliedLevelSequence;
 	}
 
+	UTakeRecorderSources* BaseSources = nullptr;
+
+	if (ULevelSequence* CurrentLevelSequence = GetLevelSequence())
+	{
+		BaseSources = CurrentLevelSequence->FindMetaData<UTakeRecorderSources>();
+	}
+
 	SuppliedLevelSequence = nullptr;
 
-	FScopedTransaction Transaction(LOCTEXT("NewTake_Transaction", "New Take"));
+	FScopedTransaction Transaction(LOCTEXT("ClearPendingTake_Transaction", "Clear Pending Take"));
 
 	TransientPreset->Modify();
 	TransientPreset->CreateLevelSequence();
+
+	ULevelSequence* LevelSequence = TransientPreset->GetLevelSequence();
+	if (LevelSequence && BaseSources)
+	{
+		LevelSequence->CopyMetaData(BaseSources);
+	}
 }
 
 UTakePreset* STakeRecorderPanel::AllocateTransientPreset()
@@ -708,15 +721,15 @@ FReply STakeRecorderPanel::OnBackToPendingTake()
 	return FReply::Handled();
 }
 
-FReply STakeRecorderPanel::OnNewTake()
+FReply STakeRecorderPanel::OnClearPendingTake()
 {
-	FText WarningMessage (LOCTEXT("Warning_NewTake", "Are you sure you want to create a new empty take setup? Your current changes will be discarded."));
+	FText WarningMessage (LOCTEXT("Warning_ClearPendingTake", "Are you sure you want to clear the pending take? Your current tracks will be discarded."));
 	if (EAppReturnType::No == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
 	{
 		return FReply::Handled();
 	}
 
-	NewTake();
+	ClearPendingTake();
 	return FReply::Handled();
 }
 
