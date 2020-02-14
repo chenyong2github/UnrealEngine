@@ -2937,9 +2937,9 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 	}
 }
 
-void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects) const
+void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects, bool bCheckoutDialogPrompt) const
 {
-	AssetFixUpRedirectors->FixupReferencers(Objects);
+	AssetFixUpRedirectors->FixupReferencers(Objects, bCheckoutDialogPrompt);
 }
 
 bool UAssetToolsImpl::IsFixupReferencersInProgress() const
