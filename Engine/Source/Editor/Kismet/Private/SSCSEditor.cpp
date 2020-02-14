@@ -3975,33 +3975,42 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 							BlueprintSCSSection.AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
 						}
 
-						// Collect the classes of all selected objects
-						TArray<UClass*> SelectionClasses;
-						for( auto NodeIter = SelectedNodes.CreateConstIterator(); NodeIter; ++NodeIter )
+						// Create an "Add Event" option in the context menu only if we can edit
+						// the currently selected objects
+						if (IsEditingAllowed())
 						{
-							auto TreeNode = *NodeIter;
-							if( UActorComponent* ComponentTemplate = TreeNode->GetComponentTemplate() )
+							// Collect the classes of all selected objects
+							TArray<UClass*> SelectionClasses;
+							for (auto NodeIter = SelectedNodes.CreateConstIterator(); NodeIter; ++NodeIter)
 							{
-								SelectionClasses.Add(ComponentTemplate->GetClass());
+								FSCSEditorTreeNodePtrType TreeNode = *NodeIter;
+								if (UActorComponent* ComponentTemplate = TreeNode->GetComponentTemplate())
+								{
+									// If the component is native then we need to ensure it can actually be edited before we display it
+									if (!TreeNode->IsNative() || FComponentEditorUtils::GetPropertyForEditableNativeComponent(ComponentTemplate))
+									{
+										SelectionClasses.Add(ComponentTemplate->GetClass());
+									}
+								}
 							}
-						}
 
-						if ( SelectionClasses.Num() )
-						{
-							// Find the common base class of all selected classes
-							UClass* SelectedClass = UClass::FindCommonBase( SelectionClasses );
-							// Build an event submenu if we can generate events
-							if( FBlueprintEditorUtils::CanClassGenerateEvents( SelectedClass ))
+							if (SelectionClasses.Num())
 							{
-								BlueprintSCSSection.AddSubMenu(
-									"AddEventSubMenu",
-									LOCTEXT("AddEventSubMenu", "Add Event"), 
-									LOCTEXT("ActtionsSubMenu_ToolTip", "Add Event"), 
-									FNewMenuDelegate::CreateStatic( &SSCSEditor::BuildMenuEventsSection,
-									GetBlueprint(), SelectedClass, FCanExecuteAction::CreateSP(this, &SSCSEditor::IsEditingAllowed),
-									FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu)));
+								// Find the common base class of all selected classes
+								UClass* SelectedClass = UClass::FindCommonBase(SelectionClasses);
+								// Build an event submenu if we can generate events
+								if (FBlueprintEditorUtils::CanClassGenerateEvents(SelectedClass))
+								{
+									BlueprintSCSSection.AddSubMenu(
+										"AddEventSubMenu",
+										LOCTEXT("AddEventSubMenu", "Add Event"),
+										LOCTEXT("ActtionsSubMenu_ToolTip", "Add Event"),
+										FNewMenuDelegate::CreateStatic(&SSCSEditor::BuildMenuEventsSection,
+											GetBlueprint(), SelectedClass, FCanExecuteAction::CreateSP(this, &SSCSEditor::IsEditingAllowed),
+											FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu)));
+								}
 							}
-						}
+						}						
 					}					
 
 					FComponentEditorUtils::FillComponentContextMenuOptions(Menu, SelectedComponents);
@@ -4073,7 +4082,7 @@ void SSCSEditor::BuildMenuEventsSection(FMenuBuilder& Menu, UBlueprint* Blueprin
 	// Build Events entries
 	for (TFieldIterator<FMulticastDelegateProperty> PropertyIt(SelectedClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		FProperty* Property = *PropertyIt;
+		FMulticastDelegateProperty* Property = *PropertyIt;
 
 		// Check for multicast delegates that we can safely assign
 		if (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable))
@@ -4101,14 +4110,14 @@ void SSCSEditor::BuildMenuEventsSection(FMenuBuilder& Menu, UBlueprint* Blueprin
 			}
 			if( ComponentEventViewEntries < SelectedNodes.Num() )
 			{
-			// Create menu Add entry
+				// Create menu Add entry
 				FMenuEntry NewEntry;
 				NewEntry.Label = FText::Format( LOCTEXT("AddEvent_ToolTip", "Add {0}" ), FText::FromName( EventName ));
 				NewEntry.UIAction =	FUIAction(FExecuteAction::CreateStatic( &SSCSEditor::CreateEventsForSelection, Blueprint, EventName, GetSelectedObjectsDelegate), CanExecuteActionDelegate);
 				Actions.Add( NewEntry );
+			}
 		}
 	}
-}
 	// Build Menu Sections
 	Menu.BeginSection("AddComponentActions", LOCTEXT("AddEventHeader", "Add Event"));
 	for (auto ItemIter = Actions.CreateConstIterator(); ItemIter; ++ItemIter )
