@@ -65,7 +65,45 @@ void UDMXEntityUniverseManaged::PostLoad()
 
 void UDMXEntityUniverseManaged::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	static const FName NAME_Universes = GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Universes);
+
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXUniverse, UniverseNumber) 
+		|| PropertyChangedEvent.GetPropertyName() == NAME_Universes
+		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, DeviceProtocol))
+	{
+		// Keep the Universe ID values within the valid range for the current protocol
+		if (DeviceProtocol.IsValid())
+		{
+			const TSharedPtr<IDMXProtocol> Protocol = DeviceProtocol.GetProtocol();
+			const int32 ChangedUniverseIndex = PropertyChangedEvent.GetArrayIndex(NAME_Universes.ToString());
+
+			if (ChangedUniverseIndex != INDEX_NONE)
+			{
+				FDMXUniverse& ChangedUniverse = Universes[ChangedUniverseIndex];
+				ChangedUniverse.UniverseNumber = FMath::Clamp(ChangedUniverse.UniverseNumber, (uint32)Protocol->GetMinUniverseID(), (uint32)Protocol->GetMaxUniverses());
+			}
+			else
+			{
+				const uint32 MinUniverseID = Protocol->GetMinUniverseID();
+				const uint32 MaxUniverseID = Protocol->GetMaxUniverses();
+
+				for (FDMXUniverse& Universe : Universes)
+				{
+					Universe.UniverseNumber = FMath::Clamp(Universe.UniverseNumber, MinUniverseID, MaxUniverseID);
+				}
+			}
+		}
+
+		// New Universes will have their directionality set to Output
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd
+			&& PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Universes))
+		{
+			Universes.Last(0).DMXProtocolDirectionality = EDMXProtocolDirectionality::EOutput;
+		}
+	}
+
 	UpdateProtocolUniverses();
 }
 

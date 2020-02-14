@@ -147,10 +147,10 @@ struct DMXPROTOCOL_API FDMXUniverse
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 65535), Category = "DMX")
+	UPROPERTY(EditAnywhere, Category = "DMX")
 	uint32 UniverseNumber;
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 512, UIMin = 0, UIMax = 512), Category = "DMX")
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "Address", ClampMin = 0, ClampMax = 512, UIMin = 0, UIMax = 512), Category = "DMX")
 	uint32 Channel;
 
 	UPROPERTY()

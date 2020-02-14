@@ -155,7 +155,7 @@ void SDMXFader::Construct(const FArguments& InArgs)
 										[
 											SNew(STextBlock)
 											.Justification(ETextJustify::Center)
-											.Text(LOCTEXT("Channel", "Ch"))
+											.Text(LOCTEXT("Address", "Addr"))
 										]
 										+ SVerticalBox::Slot()
 										.VAlign(VAlign_Fill)

@@ -75,7 +75,7 @@ void SDMXInputInfoSelecter::Construct(const FArguments& InArgs)
 			]
 		]
 
-		// Final Universe ID
+		// Universe ID
 		+ SWrapBox::Slot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
@@ -87,7 +87,7 @@ void SDMXInputInfoSelecter::Construct(const FArguments& InArgs)
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("UniverseIDLabel", "Final Universe ID"))
+				.Text(LOCTEXT("UniverseIDLabel", "Universe ID"))
 			]
 			// Final Universe ID current value text.
 			+ SHorizontalBox::Slot()

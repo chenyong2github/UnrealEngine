@@ -30,10 +30,6 @@ public:
 	~SDMXOutputConsole();
 
 private:
-	/** Callback for when some property has changed in the fader inspector */
-	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
-
-private:
 	/** The fader used in the output console to display fader properties */
 	TStrongObjectPtr<UDMXEntityFader> OutputConsoleFaderTemplateGuard;
 

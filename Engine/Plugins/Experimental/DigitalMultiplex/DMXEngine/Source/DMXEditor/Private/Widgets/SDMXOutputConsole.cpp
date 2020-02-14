@@ -18,8 +18,7 @@ void SDMXOutputConsole::Construct(const FArguments& InArgs)
 	check(DMXEditorPtr.Pin().IsValid());
 
 	TSharedPtr<SDMXEntityInspectorFaders> Inspector = SNew(SDMXEntityInspectorFaders)
-		.DMXEditor(DMXEditorPtr)
-		.OnFinishedChangingProperties(this, &SDMXOutputConsole::OnFinishedChangingProperties);
+		.DMXEditor(DMXEditorPtr);
 
 	// GC can't delete this object
 	OutputConsoleFaderTemplateGuard = TStrongObjectPtr<UDMXEntityFader>(FDMXEditorUtils::CreateFaderTemplate(DMXEditorPtr.Pin()->GetDMXLibrary()));
@@ -54,22 +53,4 @@ void SDMXOutputConsole::Construct(const FArguments& InArgs)
 SDMXOutputConsole::~SDMXOutputConsole()
 {
 	OutputConsoleFaderTemplateGuard.Reset(); // GC can now delete this object
-}
-
-void SDMXOutputConsole::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
-	{
-		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Universes))
-		{
-			if (UDMXEntityFader* OutputConsole = OutputConsoleFaderTemplateGuard.Get())
-			{
-				// Check is the array not empty
-				if (OutputConsole->Universes.Num())
-				{
-					OutputConsole->Universes.Last(0).DMXProtocolDirectionality = EDMXProtocolDirectionality::EOutput;
-				}
-			}
-		}
-	}
 }
