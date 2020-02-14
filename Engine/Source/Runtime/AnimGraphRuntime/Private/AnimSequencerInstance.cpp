@@ -35,6 +35,11 @@ void UAnimSequencerInstance::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, 
 	GetProxyOnGameThread<FAnimSequencerInstanceProxy>().UpdateAnimTrack(InAnimSequence, SequenceId, InFromPosition, InToPosition, Weight, bFireNotifies);
 }
 
+void UAnimSequencerInstance::ConstructNodes()
+{
+	GetProxyOnGameThread<FAnimSequencerInstanceProxy>().ConstructNodes();
+}
+
 void UAnimSequencerInstance::ResetNodes()
 {
 	GetProxyOnGameThread<FAnimSequencerInstanceProxy>().ResetNodes();
