@@ -73,7 +73,6 @@ namespace Chaos
 		
 		return FinalRotation;
 	}
-	template TRotation<float, 3> TransformToLocalSpace(PMatrix<float, 3, 3>& Inertia);
 
 	template<typename T, int d, typename TSurfaces>
 	void CalculateVolumeAndCenterOfMass(const TParticles<T, d>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVector<T, d>& OutCenterOfMass)
