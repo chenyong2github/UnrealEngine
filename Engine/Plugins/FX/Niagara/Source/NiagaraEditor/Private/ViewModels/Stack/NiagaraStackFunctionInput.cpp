@@ -205,19 +205,8 @@ const FNiagaraTypeDefinition& UNiagaraStackFunctionInput::GetInputType() const
 
 FText UNiagaraStackFunctionInput::GetTooltipText() const
 {
-	if (InputMetaData.IsSet() && InputMetaData->Description.IsEmptyOrWhitespace() == false)
-	{
-		return FText::Format(LOCTEXT("FunctionInputTooltipWithDescription", "Name: {0} \nType: {1} \nDesc: {2}"),
-			GetDisplayName(),
-			InputType.GetNameText(),
-			InputMetaData->Description);
-	}
-	else
-	{
-		return FText::Format(LOCTEXT("FunctionInputTooltip", "Name: {0} \nType: {1}"),
-			GetDisplayName(),
-			InputType.GetNameText());
-	}
+	FText Description = InputMetaData.IsSet() ? InputMetaData->Description : FText::GetEmpty();
+	return FNiagaraEditorUtilities::FormatVariableDescription(Description, GetDisplayName(), InputType.GetNameText());
 }
 
 bool UNiagaraStackFunctionInput::GetIsEnabled() const

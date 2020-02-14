@@ -200,6 +200,8 @@ namespace FNiagaraEditorUtilities
 
 	NIAGARAEDITOR_API FText FormatScriptDescription(FText Description, FName Path, bool bIsInLibrary);
 
+	NIAGARAEDITOR_API FText FormatVariableDescription(FText Description, FText Name, FText Type);
+
 	void ResetSystemsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel);
 
 	TArray<UNiagaraComponent*> GetComponentsThatReferenceSystem(const UNiagaraSystem& ReferencedSystem);

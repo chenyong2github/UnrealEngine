@@ -1438,7 +1438,17 @@ FText FNiagaraEditorUtilities::FormatScriptDescription(FText Description, FName 
 
 	return Description.IsEmptyOrWhitespace()
 		? FText::Format(LOCTEXT("ScriptAssetDescriptionFormatPathOnly", "Path: {0}{1}"), FText::FromName(Path), LibrarySuffix)
-		: FText::Format(LOCTEXT("ScriptAssetDescriptionFormat", "Description: {1}\nPath: {0}{2}"), FText::FromName(Path), Description, LibrarySuffix);
+		: FText::Format(LOCTEXT("ScriptAssetDescriptionFormat", "{1}\nPath: {0}{2}"), FText::FromName(Path), Description, LibrarySuffix);
+}
+
+FText FNiagaraEditorUtilities::FormatVariableDescription(FText Description, FText Name, FText Type)
+{
+	if (Description.IsEmptyOrWhitespace() == false)
+	{
+		return FText::Format(LOCTEXT("VariableDescriptionFormat", "{0}\nName: \"{1}\"\nType: {2}"), Description, Name, Type);
+	}
+
+	return FText::Format(LOCTEXT("VariableDescriptionFormat_NoDesc", "Name: \"{0}\"\nType: {1}"), Name, Type);
 }
 
 void FNiagaraEditorUtilities::ResetSystemsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel)
