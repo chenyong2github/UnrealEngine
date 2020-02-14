@@ -247,7 +247,7 @@ void FMeshRefinerBase::DoDebugChecks(bool bEndOfPass)
 
 	if ((DEBUG_CHECK_LEVEL > 2) || (bEndOfPass && DEBUG_CHECK_LEVEL > 1))
 	{
-		Mesh->CheckValidity(true);
+		Mesh->CheckValidity(FDynamicMesh3::FValidityOptions::Permissive());
 		DebugCheckUVSeamConstraints();
 	}
 }

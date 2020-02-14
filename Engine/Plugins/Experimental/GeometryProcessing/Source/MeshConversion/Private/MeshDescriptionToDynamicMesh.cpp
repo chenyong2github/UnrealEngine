@@ -215,6 +215,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			int VertexID1 = MeshIn->GetVertexInstanceVertex(InstanceTri[1]).GetValue();
 			int VertexID2 = MeshIn->GetVertexInstanceVertex(InstanceTri[2]).GetValue();
 			int NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
+
+			if (NewTriangleID == FDynamicMesh3::DuplicateTriangleID)
+			{
+				continue;
+			}
 			
 			// if append failed due to non-manifold, duplicate verts
 			if (NewTriangleID == FDynamicMesh3::NonManifoldID)
@@ -265,6 +270,8 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 				NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
 				checkSlow(NewTriangleID != FDynamicMesh3::NonManifoldID);
 			}
+
+			checkSlow(NewTriangleID >= 0);
 
 			FIndex3i Tri(VertexID0, VertexID1, VertexID2);
 
