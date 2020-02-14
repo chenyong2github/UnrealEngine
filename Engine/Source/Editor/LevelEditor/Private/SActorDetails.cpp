@@ -319,9 +319,11 @@ void SActorDetails::PostRedo(bool bSuccess)
 	PostUndo(bSuccess);
 }
 
-void SActorDetails::SetActorDetailsFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter)
+void SActorDetails::SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization)
 {
-	DetailsView->SetObjectFilter(InFilter);
+	DetailsView->SetObjectFilter(ActorDetailsObjectFilter);
+	DetailsView->SetRootObjectCustomizationInstance(ActorDetailsRootCustomization);
+	DetailsView->ForceRefresh();
 }
 
 void SActorDetails::OnComponentsEditedInWorld()

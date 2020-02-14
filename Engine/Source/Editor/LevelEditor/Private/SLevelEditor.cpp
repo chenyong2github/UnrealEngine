@@ -1702,13 +1702,13 @@ TSharedRef<SWidget> SLevelEditor::CreateActorDetails( const FName TabIdentifier 
 }
 
 
-void SLevelEditor::SetActorDetailsFilter(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsFilter)
+void SLevelEditor::SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization)
 {
 	for (TWeakPtr<SActorDetails> Details : AllActorDetailPanels)
 	{
-		if (Details.IsValid())
+		if (TSharedPtr<SActorDetails> DetailsPinned = Details.Pin())
 		{
-			Details.Pin()->SetActorDetailsFilter(ActorDetailsFilter);
+			DetailsPinned->SetActorDetailsRootCustomization(ActorDetailsObjectFilter, ActorDetailsRootCustomization);
 		}
 	}
 }

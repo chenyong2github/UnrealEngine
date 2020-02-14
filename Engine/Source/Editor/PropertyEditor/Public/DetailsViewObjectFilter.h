@@ -12,18 +12,15 @@
  */
 struct FDetailsViewObjectRoot
 {
-	FDetailsViewObjectRoot(bool bInShowRootHeader = true)
-		: bShowRootHeader(bInShowRootHeader)
+	FDetailsViewObjectRoot()
 	{}
 
-	FDetailsViewObjectRoot(UObject* InObject, bool bInShowRootHeader=true)
-		: bShowRootHeader(bInShowRootHeader)
+	FDetailsViewObjectRoot(UObject* InObject)
 	{
 		Objects.Add(InObject);
 	}
 
-	FDetailsViewObjectRoot(const TArray<UObject*>& InObjects, bool bInShowRootHeader=true)
-		: bShowRootHeader(bInShowRootHeader)
+	FDetailsViewObjectRoot(const TArray<UObject*>& InObjects)
 	{
 		Objects.Reserve(InObjects.Num());
 		for (UObject* Object : InObjects)
@@ -33,7 +30,6 @@ struct FDetailsViewObjectRoot
 	}
 
 	TArray<UObject*> Objects;
-	bool bShowRootHeader;
 };
 
 /**
