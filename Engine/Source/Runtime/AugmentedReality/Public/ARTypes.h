@@ -446,6 +446,11 @@ public:
 	{
 		
 	}
+
+	bool operator==(const FARVideoFormat& Other) const
+	{
+		return FPS == Other.FPS && Width == Other.Width && Height == Other.Height;
+	}
 	
 	/** The desired or supported number of frames per second for this video format */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AR AugmentedReality|Session")

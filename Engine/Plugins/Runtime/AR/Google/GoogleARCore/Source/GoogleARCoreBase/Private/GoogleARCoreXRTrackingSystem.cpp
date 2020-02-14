@@ -319,6 +319,37 @@ void FGoogleARCoreXRTrackingSystem::OnRemovePin(UARPin* PinToRemove)
 	FGoogleARCoreDevice::GetInstance()->RemoveARPin(PinToRemove);
 }
 
+TArray<FARVideoFormat> FGoogleARCoreXRTrackingSystem::OnGetSupportedVideoFormats(EARSessionType SessionType) const
+{
+	if (SessionType == EARSessionType::None)
+	{
+		return {};
+	}
+
+	// We're creating a temp session here as the "current" session from FGoogleARCoreDevice may not be available
+	// or it may use a different session type
+	const bool bUseFrontCamera = SessionType == EARSessionType::Face;
+	TSharedPtr<FGoogleARCoreSession> NewARCoreSession = FGoogleARCoreSession::CreateARCoreSession(bUseFrontCamera);
+	if (NewARCoreSession && NewARCoreSession->GetSessionCreateStatus() == EGoogleARCoreAPIStatus::AR_SUCCESS)
+	{
+		TArray<FGoogleARCoreCameraConfig> SupportedCameraConfig = NewARCoreSession->GetSupportedCameraConfig();
+
+		TArray<FARVideoFormat> VideoFormats;
+
+		for (const FGoogleARCoreCameraConfig& CameraConfig : SupportedCameraConfig)
+		{
+			// FPS is not exposed so we assume it's 30...
+			// Note that we're using CameraTextureResolution rather than CameraImageResolution as the former is relevant
+			// to the camera passthrough rendering
+			VideoFormats.AddUnique({ 30, CameraConfig.CameraTextureResolution.X, CameraConfig.CameraTextureResolution.Y });
+		}
+
+		return VideoFormats;
+	}
+
+	return {};
+}
+
 TArray<FVector> FGoogleARCoreXRTrackingSystem::OnGetPointCloud() const
 {
 	TArray<FVector> PointCloudPoints;
