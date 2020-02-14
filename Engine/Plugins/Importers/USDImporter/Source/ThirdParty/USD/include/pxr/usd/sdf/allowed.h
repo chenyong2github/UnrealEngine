@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_ALLOWED_H
-#define SDF_ALLOWED_H
+#ifndef PXR_USD_SDF_ALLOWED_H
+#define PXR_USD_SDF_ALLOWED_H
 
 /// \file sdf/allowed.h
 
@@ -119,4 +119,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_ALLOWED_H
+#endif // PXR_USD_SDF_ALLOWED_H

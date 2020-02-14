@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_SCOPEDESCRIPTION_H
-#define TF_SCOPEDESCRIPTION_H
+#ifndef PXR_BASE_TF_SCOPE_DESCRIPTION_H
+#define PXR_BASE_TF_SCOPE_DESCRIPTION_H
 
 #include "pxr/pxr.h"
 
@@ -140,4 +140,4 @@ TfGetThisThreadScopeDescriptionStack();
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_SCOPEDESCRIPTION_H
+#endif // PXR_BASE_TF_SCOPE_DESCRIPTION_H

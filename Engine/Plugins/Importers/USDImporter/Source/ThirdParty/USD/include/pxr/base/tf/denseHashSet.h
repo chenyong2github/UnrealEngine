@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_DENSE_HASH_SET_H
-#define TF_DENSE_HASH_SET_H
+#ifndef PXR_BASE_TF_DENSE_HASH_SET_H
+#define PXR_BASE_TF_DENSE_HASH_SET_H
 
 /// \file tf/denseHashSet.h
 
@@ -119,10 +119,24 @@ public:
         insert(begin, end);
     }
 
+    /// Construct from an initializer_list.
+    ///
+    TfDenseHashSet(std::initializer_list<Element> l) {
+        insert(l.begin(), l.end());
+    }
+
     /// Assignment operator.
     ///
     TfDenseHashSet &operator=(TfDenseHashSet rhs) {
         swap(rhs);
+        return *this;
+    }
+
+    /// Assignment from an initializer_list.
+    ///
+    TfDenseHashSet &operator=(std::initializer_list<Element> l) {
+        clear();
+        insert(l.begin(), l.end());
         return *this;
     }
 
@@ -429,4 +443,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_DENSE_HASH_SET_H
+#endif // PXR_BASE_TF_DENSE_HASH_SET_H

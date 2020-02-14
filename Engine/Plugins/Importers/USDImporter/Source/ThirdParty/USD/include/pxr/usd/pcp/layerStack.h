@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PCP_LAYER_STACK_H
-#define PCP_LAYER_STACK_H
+#ifndef PXR_USD_PCP_LAYER_STACK_H
+#define PXR_USD_PCP_LAYER_STACK_H
 
 /// \file pcp/layerStack.h
 
@@ -205,13 +205,13 @@ private:
 
     // It's a coding error to construct a layer stack with a NULL root layer.
     PcpLayerStack(const PcpLayerStackIdentifier &identifier,
-                  const std::string &targetSchema,
+                  const std::string &fileFormatTarget,
                   const Pcp_MutedLayers &mutedLayers,
                   bool isUsd);
 
     void _BlowLayers();
     void _BlowRelocations();
-    void _Compute(const std::string &targetSchema,
+    void _Compute(const std::string &fileFormatTarget,
                   const Pcp_MutedLayers &mutedLayers);
 
     SdfLayerTreeHandle _BuildLayerStack(
@@ -330,4 +330,4 @@ Pcp_NeedToRecomputeDueToAssetPathChange(const PcpLayerStackPtr& layerStack);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PCP_LAYER_STACK_H
+#endif // PXR_USD_PCP_LAYER_STACK_H

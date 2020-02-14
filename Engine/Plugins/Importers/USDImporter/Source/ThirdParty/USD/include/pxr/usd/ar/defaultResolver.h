@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_DEFAULT_RESOLVER_H
-#define AR_DEFAULT_RESOLVER_H
+#ifndef PXR_USD_AR_DEFAULT_RESOLVER_H
+#define PXR_USD_AR_DEFAULT_RESOLVER_H
 
 /// \file ar/defaultResolver.h
 
@@ -216,4 +216,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // AR_DEFAULT_RESOLVER_H
+#endif // PXR_USD_AR_DEFAULT_RESOLVER_H

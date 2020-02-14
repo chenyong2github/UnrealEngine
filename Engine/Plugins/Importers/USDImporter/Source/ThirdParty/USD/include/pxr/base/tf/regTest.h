@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_REGTEST_H
-#define TF_REGTEST_H
+#ifndef PXR_BASE_TF_REG_TEST_H
+#define PXR_BASE_TF_REG_TEST_H
 
 /// \file tf/regTest.h
 /// \ingroup group_tf_Internal

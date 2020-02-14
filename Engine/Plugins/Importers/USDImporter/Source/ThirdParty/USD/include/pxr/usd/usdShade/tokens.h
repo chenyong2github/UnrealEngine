@@ -70,14 +70,10 @@ struct UsdShadeTokensType {
     /// 
     /// Token valued metadata key authored on a material  binding relationship to indicate the strength of the binding  relative to bindings authored on descendants. 
     const TfToken bindMaterialAs;
-    /// \brief "connectedSourceFor:"
+    /// \brief "coordSys:"
     /// 
-    /// The prefix on UsdShadeShader relationships associated with a Parameter.  This prefixed relationship has a suffix matching the associated attribute name, and denotes a logical shader connection between UsdShadeShaders. 
-    const TfToken connectedSourceFor;
-    /// \brief "derivesFrom"
-    /// 
-    /// A legacy relationship name specifying a specializes composition on a UsdShadeMaterial. 
-    const TfToken derivesFrom;
+    /// Namespace prefix for relationships that bind coordinate systems.
+    const TfToken coordSys;
     /// \brief "displacement"
     /// 
     /// Describes the <i>displacement</i> output  terminal on a UsdShadeMaterial. It is used to define the  terminal UsdShadeShader describing the displacement of a  UsdShadeMaterial. 
@@ -88,7 +84,7 @@ struct UsdShadeTokensType {
     const TfToken fallbackStrength;
     /// \brief "full"
     /// 
-    /// Possible value for the 'materialPurpose'  parameter in UsdShadeMaterialBindingAPI, to be used when the  purpose of the render is entirely about visualizing the truest representation of a scene, considering all lighting and material information, at highest fidelity.  Also a possible value for 'connectability' metadata on  a UsdShadeInput. When connectability of an input is set to  "full", it implies that it can be connected to any input or  output. 
+    /// Possible value for 'connectability' metadata on a UsdShadeInput. When connectability of an input is set to "full", it implies that it can be connected to any input or output. , Possible value for the 'materialPurpose' parameter in UsdShadeMaterialBindingAPI, to be used when the purpose of the render is entirely about visualizing the truest representation of a scene, considering all lighting and material information, at highest fidelity. 
     const TfToken full;
     /// \brief "id"
     /// 
@@ -106,18 +102,10 @@ struct UsdShadeTokensType {
     /// 
     /// The prefix on shading attributes denoting an input. 
     const TfToken inputs;
-    /// \brief "interface:"
-    /// 
-    /// (DEPRECATED) The prefix on UsdShadeNodeGraph  attributes denoting an interface attribute. 
-    const TfToken interface_;
     /// \brief "interfaceOnly"
     /// 
     /// Possible value for 'connectability' metadata on  a UsdShadeInput. It implies that the input can only connect to  a NodeGraph Input (which represents an interface override, not  a render-time dataflow connection), or another Input whose  connectability is also 'interfaceOnly'. 
     const TfToken interfaceOnly;
-    /// \brief "interfaceRecipientsOf:"
-    /// 
-    /// (DEPRECATED) The prefix on UsdShadeNodeGraph relationships denoting the target of an interface attribute. 
-    const TfToken interfaceRecipientsOf;
     /// \brief "materialBind"
     /// 
     /// The name of the GeomSubset family used to  identify face subsets defined for the purpose of binding  materials to facesets. 
@@ -168,8 +156,12 @@ struct UsdShadeTokensType {
     const TfToken sourceCode;
     /// \brief "strongerThanDescendants"
     /// 
-    /// Possible value for 'bindMaterialAs' metadata on the  collection-based material binding relationship. Indicates  that the binding represented by the relationship is weaker than  any bindings authored on the descendants.
+    /// Possible value for 'bindMaterialAs' metadata on the  collection-based material binding relationship. Indicates  that the binding represented by the relationship is stronger than  any bindings authored on the descendants.
     const TfToken strongerThanDescendants;
+    /// \brief "subIdentifier"
+    /// 
+    /// This identifier is used in conjunction with a specific source asset to indicate a particular definition within the source asset, if the source asset specifies more than one shader node definition. 
+    const TfToken subIdentifier;
     /// \brief "surface"
     /// 
     /// Describes the <i>surface</i> output  terminal on a UsdShadeMaterial. It is used to define the  terminal UsdShadeShader describing the surface of a  UsdShadeMaterial. 

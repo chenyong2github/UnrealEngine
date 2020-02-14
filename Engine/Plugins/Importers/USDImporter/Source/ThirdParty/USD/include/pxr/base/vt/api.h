@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef VT_API_H
-#define VT_API_H
+#ifndef PXR_BASE_VT_API_H
+#define PXR_BASE_VT_API_H
 
 #include "pxr/base/arch/export.h"
 

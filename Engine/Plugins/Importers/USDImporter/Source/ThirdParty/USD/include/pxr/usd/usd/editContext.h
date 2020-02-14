@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_EDITCONTEXT_H
-#define USD_EDITCONTEXT_H
+#ifndef PXR_USD_USD_EDIT_CONTEXT_H
+#define PXR_USD_USD_EDIT_CONTEXT_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usd/api.h"
@@ -107,4 +107,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // USD_EDITCONTEXT_H
+#endif // PXR_USD_USD_EDIT_CONTEXT_H

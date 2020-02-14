@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef GF_INTERVAL_SET_H
-#define GF_INTERVAL_SET_H
+#ifndef PXR_BASE_GF_MULTI_INTERVAL_H
+#define PXR_BASE_GF_MULTI_INTERVAL_H
 
 /// \file gf/multiInterval.h
 /// \ingroup group_gf_BasicMath
@@ -182,4 +182,4 @@ GF_API std::ostream & operator<<(std::ostream &out, const GfMultiInterval &s);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // GF_INTERVAL_SET_H
+#endif // PXR_BASE_GF_MULTI_INTERVAL_H

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDRI_RMANUTILITIES_H
-#define USDRI_RMANUTILITIES_H
+#ifndef PXR_USD_USD_RI_RMAN_UTILITIES_H
+#define PXR_USD_USD_RI_RMAN_UTILITIES_H
 
 /// \file usdRi/rmanUtilities.h
 /// Utilities for converting between USD encodings and Renderman encodings in
@@ -67,4 +67,4 @@ const TfToken &UsdRiConvertFromRManTriangleSubdivisionRule(int i);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif //USDRI_RMANUTILITIES_H
+#endif //PXR_USD_USD_RI_RMAN_UTILITIES_H

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_EXPIRYNOTIFIER_H
-#define TF_EXPIRYNOTIFIER_H
+#ifndef PXR_BASE_TF_EXPIRY_NOTIFIER_H
+#define PXR_BASE_TF_EXPIRY_NOTIFIER_H
 
 /// \file tf/expiryNotifier.h
 

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_CHILDREN_POLICIES_H
-#define SDF_CHILDREN_POLICIES_H
+#ifndef PXR_USD_SDF_CHILDREN_POLICIES_H
+#define PXR_USD_SDF_CHILDREN_POLICIES_H
 
 // These policies are used as template arguments to SdfChildrenView to
 // determine how the view maps between keys (the child's name or path) and
@@ -39,8 +39,6 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 SDF_DECLARE_HANDLES(SdfAttributeSpec);
-SDF_DECLARE_HANDLES(SdfMapperSpec);
-SDF_DECLARE_HANDLES(SdfMapperArgSpec);
 SDF_DECLARE_HANDLES(SdfPrimSpec);
 SDF_DECLARE_HANDLES(SdfPropertySpec);
 SDF_DECLARE_HANDLES(SdfRelationshipSpec);
@@ -154,7 +152,7 @@ public:
 };
 
 class Sdf_MapperArgChildPolicy :
-    public Sdf_TokenChildPolicy<SdfMapperArgSpecHandle>
+    public Sdf_TokenChildPolicy<SdfSpecHandle>
 {
 public:
 
@@ -255,7 +253,7 @@ public:
 };
 
 class Sdf_MapperChildPolicy :
-    public Sdf_PathChildPolicy<SdfMapperSpecHandle>
+    public Sdf_PathChildPolicy<SdfSpecHandle>
 {
 public:
     static SdfPath GetChildPath(const SdfPath &parentPath, const FieldType &key) {
@@ -292,4 +290,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_CHILDREN_POLICIES_H
+#endif // PXR_USD_SDF_CHILDREN_POLICIES_H

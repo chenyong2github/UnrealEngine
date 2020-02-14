@@ -11,7 +11,7 @@
                     "NdrParserPlugin": {}
                 }
             },
-            "LibraryPath": "../../../../../Binaries/Win64/libndr.dll", 
+            "LibraryPath": "../../../../../Binaries/Win64/ndr.dll", 
             "Name": "ndr", 
             "ResourcePath": "resources", 
             "Root": "..", 

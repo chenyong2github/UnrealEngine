@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_PSEUDOROOTSPEC_H
-#define SDF_PSEUDOROOTSPEC_H
+#ifndef PXR_USD_SDF_PSEUDO_ROOT_SPEC_H
+#define PXR_USD_SDF_PSEUDO_ROOT_SPEC_H
 
 /// \file sdf/pseudoRootSpec.h
 
@@ -36,10 +36,9 @@ SDF_DECLARE_HANDLES(SdfPseudoRootSpec);
 
 class SdfPseudoRootSpec : public SdfPrimSpec
 {
-    SDF_DECLARE_SPEC(SdfSchema, SdfSpecTypePseudoRoot,
-                     SdfPseudoRootSpec, SdfPrimSpec);
+    SDF_DECLARE_SPEC(SdfPseudoRootSpec, SdfPrimSpec);
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PSEUDOROOTSPEC_H
+#endif // PXR_USD_SDF_PSEUDO_ROOT_SPEC_H

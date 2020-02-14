@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_WEAKPTR_H
-#define TF_WEAKPTR_H
+#ifndef PXR_BASE_TF_WEAK_PTR_H
+#define PXR_BASE_TF_WEAK_PTR_H
 
 /// \file tf/weakPtr.h
 /// \ingroup group_tf_Memory
@@ -263,8 +263,7 @@ TfCreateRefPtrFromProtectedWeakPtr(TfWeakPtr<T> const &p) {
     typedef typename TfRefPtr<T>::_Counter Counter;
     if (T *rawPtr = get_pointer(p)) {
         // Atomically increment the ref-count iff it's nonzero.
-        if (Counter::AddRefIfNonzero(
-                rawPtr, TfRefBase::_uniqueChangedListener)) {
+        if (Counter::AddRefIfNonzero(rawPtr)) {
             // There was at least 1 other ref at the time we acquired our ref,
             // so this object is safe from destruction.  Transfer ownership of
             // the ref to a new TfRefPtr.
@@ -435,4 +434,4 @@ struct Tf_SupportsWeakPtr
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_WEAKPTR_H
+#endif // PXR_BASE_TF_WEAK_PTR_H

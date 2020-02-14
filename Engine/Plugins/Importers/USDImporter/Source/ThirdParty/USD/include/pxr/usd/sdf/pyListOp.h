@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_PYLISTOP_H
-#define SDF_PYLISTOP_H
+#ifndef PXR_USD_SDF_PY_LIST_OP_H
+#define PXR_USD_SDF_PY_LIST_OP_H
 
 #include "pxr/pxr.h"
 #include "pxr/usd/sdf/listOp.h"
@@ -71,11 +71,25 @@ private:
     {
         using namespace boost::python;
 
+        using ItemVector = typename T::ItemVector;
+
         class_<T>(name.c_str())
             .def("__str__", &This::_GetStr)
 
+            .def("Create", &T::Create,
+                 (arg("prependedItems") = ItemVector(),
+                  arg("appendedItems") = ItemVector(),
+                  arg("deletedItems") = ItemVector()))
+            .staticmethod("Create")
+
+            .def("CreateExplicit", &T::CreateExplicit,
+                 (arg("explicitItems") = ItemVector()))
+            .staticmethod("CreateExplicit")
+
             .def(self == self)
             .def(self != self)
+
+            .def("HasItem", &T::HasItem)
 
             .def("Clear", &T::Clear)
             .def("ClearAndMakeExplicit", &T::ClearAndMakeExplicit)
@@ -117,7 +131,7 @@ private:
 
     static std::string _GetStr(const T& listOp)
     {
-        return boost::lexical_cast<std::string>(listOp);
+        return TfStringify(listOp);
     }
     
     static 
@@ -132,4 +146,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PYLISTOP_H
+#endif // PXR_USD_SDF_PY_LIST_OP_H

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_PYCHILDRENPROXY_H
-#define SDF_PYCHILDRENPROXY_H
+#ifndef PXR_USD_SDF_PY_CHILDREN_PROXY_H
+#define PXR_USD_SDF_PY_CHILDREN_PROXY_H
 
 /// \file sdf/pyChildrenProxy.h
 
@@ -245,9 +245,7 @@ private:
 
     mapped_type _GetItemByIndex(int index) const
     {
-        if (index >= _proxy.size()) {
-            TfPyThrowIndexError("list index out of range");
-        }
+        index = TfPyNormalizeIndex(index, _proxy.size(), true /*throwError*/);
         return _GetView()[index];
     }
 
@@ -295,9 +293,11 @@ private:
 
     void _InsertItemByIndex(int index, const mapped_type& value)
     {
-        if (index < -1 || index > static_cast<int>(_proxy.size())) {
-            TfPyThrowIndexError("list index out of range");
-        }
+        // Note that -1 below means to insert at end for the _proxy._Insert API.
+        index = index < (int)_proxy.size() 
+            ? TfPyNormalizeIndex(index, _proxy.size(), false /*throwError*/)
+            : -1;
+
         _proxy._Insert(value, index);
     }
 
@@ -389,4 +389,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PYCHILDRENPROXY_H
+#endif // PXR_USD_SDF_PY_CHILDREN_PROXY_H

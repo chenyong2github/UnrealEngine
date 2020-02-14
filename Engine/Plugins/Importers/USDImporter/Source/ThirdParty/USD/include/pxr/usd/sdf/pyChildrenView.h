@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_PYCHILDRENVIEW_H
-#define SDF_PYCHILDRENVIEW_H
+#ifndef PXR_USD_SDF_PY_CHILDREN_VIEW_H
+#define PXR_USD_SDF_PY_CHILDREN_VIEW_H
 
 /// \file sdf/pyChildrenView.h
 
@@ -281,4 +281,4 @@ private:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_PYCHILDRENVIEW_H
+#endif // PXR_USD_SDF_PY_CHILDREN_VIEW_H

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDLUX_BLACKBODY_H
-#define USDLUX_BLACKBODY_H
+#ifndef PXR_USD_USD_LUX_BLACKBODY_H
+#define PXR_USD_USD_LUX_BLACKBODY_H
 
 /// \file usdLux/blackbody.h
 

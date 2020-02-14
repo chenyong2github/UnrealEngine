@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USD_OBJECT_H
-#define USD_OBJECT_H
+#ifndef PXR_USD_USD_OBJECT_H
+#define PXR_USD_USD_OBJECT_H
 
 /// \file usd/object.h
 
@@ -30,11 +30,10 @@
 #include "pxr/usd/usd/api.h"
 #include "pxr/usd/usd/common.h"
 #include "pxr/usd/usd/primData.h"
+#include "pxr/usd/usd/stage.h"
 
 #include "pxr/usd/sdf/abstractData.h"
 #include "pxr/usd/sdf/path.h"
-
-#include <boost/mpl/assert.hpp>
 
 #include <type_traits>
 
@@ -68,8 +67,8 @@ namespace _Detail {
 template <UsdObjType Type>
 struct Const { static const UsdObjType Value = Type; };
 template <class T> struct GetObjType {
-    BOOST_MPL_ASSERT_MSG(false,
-                         Type_must_be_UsdObject_subclass, (T));
+    static_assert(std::is_base_of<UsdObject, T>::value,
+                  "Type T must be a subclass of UsdObject.");
 };
 template <> struct GetObjType<UsdObject> : Const<UsdTypeObject> {};
 template <> struct GetObjType<UsdPrim> : Const<UsdTypePrim> {};
@@ -247,9 +246,8 @@ public:
     /// \endcode
     template <class T>
     bool Is() const {
-        BOOST_MPL_ASSERT_MSG((std::is_base_of<UsdObject, T>::value),
-                             Provided_type_must_derive_or_be_UsdObject,
-                             (T));
+        static_assert(std::is_base_of<UsdObject, T>::value,
+                      "Provided type T must derive from or be UsdObject");
         return UsdIsConvertible(_type, _Detail::GetObjType<T>::Value);
     }
 
@@ -641,9 +639,18 @@ private:
     bool _GetMetadataImpl(const TfToken& key,
                           T* value,
                           const TfToken &keyPath=TfToken()) const;
+
+    bool _GetMetadataImpl(const TfToken& key,
+                          VtValue* value,
+                          const TfToken &keyPath=TfToken()) const;
+
     template <class T>
     bool _SetMetadataImpl(const TfToken& key,
                           const T& value,
+                          const TfToken &keyPath=TfToken()) const;
+
+    bool _SetMetadataImpl(const TfToken& key,
+                          const VtValue& value,
                           const TfToken &keyPath=TfToken()) const;
 
 protected:
@@ -708,8 +715,7 @@ inline
 bool
 UsdObject::GetMetadata(const TfToken& key, T* value) const
 {
-    SdfAbstractDataTypedValue<T> result(value);
-    return _GetMetadataImpl<SdfAbstractDataValue>(key, &result);
+    return _GetMetadataImpl(key, value);
 }
 
 template<typename T>
@@ -717,8 +723,7 @@ inline
 bool 
 UsdObject::SetMetadata(const TfToken& key, const T& value) const
 {
-    SdfAbstractDataConstTypedValue<T> in(&value);
-    return _SetMetadataImpl<SdfAbstractDataConstValue>(key, in);
+    return _SetMetadataImpl(key, value);
 }
 
 template <typename T>
@@ -728,8 +733,7 @@ UsdObject::GetMetadataByDictKey(const TfToken& key,
                                 const TfToken &keyPath, 
                                 T *value) const
 {
-    SdfAbstractDataTypedValue<T> result(value);
-    return _GetMetadataImpl<SdfAbstractDataValue>(key, &result, keyPath);
+    return _GetMetadataImpl(key, value, keyPath);
 }
 
 template <typename T>
@@ -739,11 +743,28 @@ UsdObject::SetMetadataByDictKey(const TfToken& key,
                                 const TfToken &keyPath, 
                                 const T& value) const
 {
-    SdfAbstractDataConstTypedValue<T> in(&value);
-    return _SetMetadataImpl<SdfAbstractDataConstValue>(key, in, keyPath);
+    return _SetMetadataImpl(key, value, keyPath);
 }
 
+template <class T>
+bool 
+UsdObject::_GetMetadataImpl(const TfToken& key,
+                            T* value,
+                            const TfToken &keyPath) const
+{
+    return _GetStage()->_GetMetadata(
+        *this, key, keyPath, /*useFallbacks=*/true, value);
+}
+
+template <class T>
+bool 
+UsdObject::_SetMetadataImpl(const TfToken& key,
+                            const T& value,
+                            const TfToken &keyPath) const
+{
+    return _GetStage()->_SetMetadata(*this, key, keyPath, value);
+}
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif //USD_OBJECT_H
+#endif //PXR_USD_USD_OBJECT_H
