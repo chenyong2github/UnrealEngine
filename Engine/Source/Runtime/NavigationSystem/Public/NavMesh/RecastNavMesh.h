@@ -862,7 +862,7 @@ public:
 	/** Returns query extent including adjustments for voxelization error compensation */
 	FVector GetModifiedQueryExtent(const FVector& QueryExtent) const
 	{
-		return FVector(QueryExtent.X, QueryExtent.Y, QueryExtent.Z + FMath::Max(0.0f, VerticalDeviationFromGroundCompensation));
+		return FVector(QueryExtent.X, QueryExtent.Y, QueryExtent.Z >= BIG_NUMBER ? BIG_NUMBER : (QueryExtent.Z + FMath::Max(0.0f, VerticalDeviationFromGroundCompensation)));
 	}
 
 	//----------------------------------------------------------------------//
