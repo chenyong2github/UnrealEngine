@@ -128,7 +128,7 @@ struct FPoolPage
 ////////////////////////////////////////////////////////////////////////////////
 #define T_ALIGN alignas(PLATFORM_CACHE_LINE_SIZE)
 static const uint32						GPoolBlockSize		= 4 << 10;
-static const uint32						GPoolPageSize		= GPoolBlockSize << 5;
+static const uint32						GPoolPageSize		= GPoolBlockSize << 4;
 static const uint32						GPoolInitPageSize	= GPoolBlockSize << 6;
 T_ALIGN static FWriteBuffer* volatile	GPoolFreeList;		// = nullptr;
 T_ALIGN static UPTRINT volatile			GPoolFutex;			// = 0
