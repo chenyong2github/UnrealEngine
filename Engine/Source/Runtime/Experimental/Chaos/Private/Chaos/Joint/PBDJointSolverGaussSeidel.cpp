@@ -337,7 +337,10 @@ namespace Chaos
 			}
 			else if (TwistMotion == EJointMotionType::Locked)
 			{
-				NetResult += ApplyTwistConstraint(Dt, SolverSettings, JointSettings, false);
+				// Covered below
+			}
+			else if (TwistMotion == EJointMotionType::Free)
+			{
 			}
 		}
 
@@ -351,7 +354,7 @@ namespace Chaos
 			}
 			else if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Locked))
 			{
-				NetResult += ApplyLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
+				NetResult += ApplySingleLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
 				if (!bDegenerate)
 				{
 					NetResult += ApplySwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, bSwingSoft);
@@ -366,7 +369,7 @@ namespace Chaos
 			}
 			else if ((Swing1Motion == EJointMotionType::Locked) && (Swing2Motion == EJointMotionType::Limited))
 			{
-				NetResult += ApplyLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
+				NetResult += ApplySingleLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
 				if (!bDegenerate)
 				{
 					NetResult += ApplySwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, bSwingSoft);
@@ -374,12 +377,11 @@ namespace Chaos
 			}
 			else if ((Swing1Motion == EJointMotionType::Locked) && (Swing2Motion == EJointMotionType::Locked))
 			{
-				NetResult += ApplyLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
-				NetResult += ApplyLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
+				// Covered below
 			}
 			else if ((Swing1Motion == EJointMotionType::Locked) && (Swing2Motion == EJointMotionType::Free))
 			{
-				NetResult += ApplyLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
+				NetResult += ApplySingleLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, false);
 			}
 			else if ((Swing1Motion == EJointMotionType::Free) && (Swing2Motion == EJointMotionType::Limited))
 			{
@@ -390,11 +392,22 @@ namespace Chaos
 			}
 			else if ((Swing1Motion == EJointMotionType::Free) && (Swing2Motion == EJointMotionType::Locked))
 			{
-				NetResult += ApplyLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
+				NetResult += ApplySingleLockedSwingConstraint(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, false);
 			}
 			else if ((Swing1Motion == EJointMotionType::Free) && (Swing2Motion == EJointMotionType::Free))
 			{
 			}
+		}
+
+		// Note: single-swing locks are already handled above so we only need to do something here if both are locked
+		bool bLockedTwist = SolverSettings.bEnableTwistLimits 
+			&& (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked);
+		bool bLockedSwing = SolverSettings.bEnableSwingLimits 
+			&& (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Locked) 
+			&& (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Locked);
+		if (bLockedTwist || bLockedSwing)
+		{
+			NetResult += ApplyLockedRotationConstraints(Dt, SolverSettings, JointSettings, bLockedTwist, bLockedSwing);
 		}
 
 		return NetResult;
@@ -994,6 +1007,37 @@ namespace Chaos
 	//
 	//
 
+	FJointSolverResult FJointSolverGaussSeidel::ApplyLockedRotationConstraints(
+		const FReal Dt,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings,
+		const bool bApplyTwist,
+		const bool bApplySwing)
+	{
+		FVec3 Axis0, Axis1, Axis2;
+		FPBDJointUtilities::GetLockedAxes(Rs[0], Rs[1], Axis0, Axis1, Axis2);
+
+		const FRotation3 R01 = Rs[0].Inverse() * Rs[1];
+
+		FJointSolverResult NetResult;
+		if (bApplyTwist)
+		{
+			FReal TwistStiffness = FPBDJointUtilities::GetTwistStiffness(SolverSettings, JointSettings);
+			ApplyRotationConstraint(TwistStiffness, Axis0, R01.X);
+			NetResult += FJointSolverResult::MakeActive();
+		}
+
+		if (bApplySwing)
+		{
+			FReal SwingStiffness = FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
+			ApplyRotationConstraint(SwingStiffness, Axis1, R01.Y);
+			ApplyRotationConstraint(SwingStiffness, Axis2, R01.Z);
+			NetResult += FJointSolverResult::MakeActive();
+			NetResult += FJointSolverResult::MakeActive();
+		}
+
+		return NetResult;
+	}
 
 	FJointSolverResult FJointSolverGaussSeidel::ApplyTwistConstraint(
 		const FReal Dt,
@@ -1160,7 +1204,7 @@ namespace Chaos
 	}
 
 
-	FJointSolverResult FJointSolverGaussSeidel::ApplyLockedSwingConstraint(
+	FJointSolverResult FJointSolverGaussSeidel::ApplySingleLockedSwingConstraint(
 		const FReal Dt,
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings,
