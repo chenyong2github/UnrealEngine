@@ -1059,10 +1059,6 @@ void UBodySetup::Serialize(FArchive& Ar)
 			// processed with Chaos previously
 			Convex.ComputeChaosConvexIndices();
 		}
-		if (bForceIndexRebuild)
-		{
-			BodySetupGuid = FGuid::NewGuid(); // change the guid for dependents (navigation)
-		}
 	}
 #endif
 }

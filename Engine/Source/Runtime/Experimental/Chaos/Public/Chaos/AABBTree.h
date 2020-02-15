@@ -229,8 +229,8 @@ struct TAABBTreeNode
 		ChildrenBounds[1] = TAABB<T, 3>();
 	}
 	TAABB<T, 3> ChildrenBounds[2];
-	int32 ChildrenNodes[2];
-	bool bLeaf;
+	int32 ChildrenNodes[2] = { 0, 0 };
+	bool bLeaf = false;
 
 	void Serialize(FChaosArchive& Ar)
 	{
