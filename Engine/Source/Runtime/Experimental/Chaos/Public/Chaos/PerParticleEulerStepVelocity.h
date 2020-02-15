@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/PerParticleRule.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
 namespace Chaos
@@ -39,14 +40,22 @@ class TPerParticleEulerStepVelocity : public TPerParticleRule<T, d>
 		//       Just using W += InvI * (Torque - W x (I * W)) * dt is not correct, since Torque
 		//		 and W are in an inertial frame.
 		//
+#if CHAOS_PARTICLE_ACTORTRANSFORM
 		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index) * InParticles.RotationOfMass(Index), InParticles.InvI(Index));
+#else
+		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index), InParticles.InvI(Index));
+#endif
 		InParticles.W(Index) += WorldInvI * InParticles.Torque(Index) * Dt;
 	}
 	
 	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
 	{
 		Particle.V() += Particle.F() * Particle.InvM() * Dt;
+#if CHAOS_PARTICLE_ACTORTRANSFORM
 		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R() * Particle.RotationOfMass(), Particle.InvI());
+#else
+		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R(Index), Particle.InvI());
+#endif
 		Particle.W() += WorldInvI * Particle.Torque() * Dt;
 	}
 };

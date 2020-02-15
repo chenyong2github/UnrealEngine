@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/PerParticleRule.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
 namespace Chaos
@@ -38,7 +39,12 @@ namespace Chaos
 			//       Just using W += InvI * (Torque - W x (I * W)) * dt is not correct, since Torque
 			//		 and W are in an inertial frame.
 			//
+#if CHAOS_PARTICLE_ACTORTRANSFORM
+			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index) * InParticles.RotationOfMass(Index), InParticles.InvI(Index));
+#else
 			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index), InParticles.InvI(Index));
+#endif
+
 			InParticles.W(Index) += WorldInvI * InParticles.AngularImpulse(Index);
 			InParticles.LinearImpulse(Index) = TVector<T, 3>(0);
 			InParticles.AngularImpulse(Index) = TVector<T, 3>(0);
@@ -47,7 +53,11 @@ namespace Chaos
 		inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
 		{
 			Particle.V() += Particle.LinearImpulse() * Particle.InvM();
+#if CHAOS_PARTICLE_ACTORTRANSFORM
+			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R() * Particle.RotationOfMass(), Particle.InvI());
+#else
 			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R(), Particle.InvI());
+#endif
 			Particle.W() += WorldInvI * Particle.AngularImpulse();
 			Particle.LinearImpulse() = TVector<T, 3>(0);
 			Particle.AngularImpulse() = TVector<T, 3>(0);
