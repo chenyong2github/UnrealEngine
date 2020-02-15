@@ -1135,6 +1135,8 @@ namespace ChaosTest
 
 			Normal = TriMeshTransform.TransformVectorNoScale(Normal);
 			Position = TriMeshTransform.TransformPositionNoScale(Position);
+
+			EXPECT_GT(FVec3::DotProduct(ExpectedNormal, Normal), 0);
 			
 		}
 }
