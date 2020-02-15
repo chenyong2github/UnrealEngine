@@ -184,6 +184,13 @@ void UMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
+	else if (ShutdownType == EToolShutdownType::Cancel)
+	{
+		for (AActor* Spawned : SpawnedActors)
+		{
+			Spawned->Destroy();
+		}
+	}
 }
 
 
@@ -1329,6 +1336,7 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 	{
 		AssignMaterial(NewActor, ComponentTarget);
 	}
+	SpawnedActors.Add(NewActor);
 	GetToolManager()->EndUndoTransaction();
 
 	// todo: undo won't remove this asset...
