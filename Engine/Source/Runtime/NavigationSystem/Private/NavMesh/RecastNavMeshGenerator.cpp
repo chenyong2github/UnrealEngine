@@ -750,9 +750,7 @@ void ExportChaosHeightField(const Chaos::THeightField<float>* const HeightField,
 	{
 		for(int32 X = 0; X < NumCols - 1; X++)
 		{
-			// #PHYSTODO Hole support for chaos heightfields
-			const bool bIsHole = false;
-			if(bIsHole)
+			if(HeightField->IsHole(X, Y))
 			{
 				continue;
 			}

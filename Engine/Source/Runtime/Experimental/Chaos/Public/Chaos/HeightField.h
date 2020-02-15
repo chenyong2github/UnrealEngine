@@ -41,6 +41,10 @@ namespace Chaos
 		void EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
 		T GetHeight(int32 InIndex) const;
 		T GetHeight(int32 InX, int32 InY) const;
+		uint8 GetMaterialIndex(int32 InIndex) const;
+		uint8 GetMaterialIndex(int32 InX, int32 InY) const;
+		bool IsHole(int32 InIndex) const;
+		bool IsHole(int32 InCellX, int32 InCellY) const;
 		T GetHeightAt(const TVector<T, 2>& InGridLocationLocal) const;
 
 		int32 GetNumRows() const { return GeomData.NumRows; }

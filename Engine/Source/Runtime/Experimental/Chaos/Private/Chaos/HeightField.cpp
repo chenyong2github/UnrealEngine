@@ -568,6 +568,38 @@ namespace Chaos
 	}
 
 	template<typename T>
+	uint8 Chaos::THeightField<T>::GetMaterialIndex(int32 InIndex) const
+	{
+		if(CHAOS_ENSURE(InIndex >= 0 && InIndex < GeomData.MaterialIndices.Num()))
+		{
+			return GeomData.MaterialIndices[InIndex];
+		}
+
+		return TNumericLimits<uint8>::Max();
+	}
+
+	template<typename T>
+	uint8 Chaos::THeightField<T>::GetMaterialIndex(int32 InX, int32 InY) const
+	{
+		const int32 Index = InY * GeomData.NumCols + InX;
+		return GetMaterialIndex(Index);
+	}
+
+	template<typename T>
+	bool Chaos::THeightField<T>::IsHole(int32 InIndex) const
+	{
+		return GetMaterialIndex(InIndex) == TNumericLimits<uint8>::Max();
+	}
+
+	template<typename T>
+	bool Chaos::THeightField<T>::IsHole(int32 InCellX, int32 InCellY) const
+	{
+		// Convert to single cell index
+		const int32 Index = InCellY * (GeomData.NumCols - 1) + InCellX;
+		return IsHole(Index);
+	}
+
+	template<typename T>
 	T Chaos::THeightField<T>::GetHeightAt(const TVector<T, 2>& InGridLocationLocal) const
 	{
 		if(CHAOS_ENSURE(InGridLocationLocal == FlatGrid.Clamp(InGridLocationLocal)))
