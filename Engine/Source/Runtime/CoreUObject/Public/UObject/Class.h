@@ -3052,6 +3052,8 @@ public:
 	/** 
 	 * Purges out the properties of this class in preparation for it to be regenerated
 	 * @param bRecompilingOnLoad - true if we are recompiling on load
+	 *
+	 * In editor, properties are not freed until DestroyPropertiesPendingDestruction is called.
 	 */
 	virtual void PurgeClass(bool bRecompilingOnLoad);
 
