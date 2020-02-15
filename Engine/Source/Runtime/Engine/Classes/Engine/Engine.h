@@ -2669,7 +2669,7 @@ public:
 			, bCopyDeprecatedProperties(false)
 			, bPreserveRootComponent(true)
 			, bSkipCompilerGeneratedDefaults(false)
-			, bNotifyObjectReplacement(true)
+			, bNotifyObjectReplacement(false)
 			, bClearReferences(true)
 		{}
 	};

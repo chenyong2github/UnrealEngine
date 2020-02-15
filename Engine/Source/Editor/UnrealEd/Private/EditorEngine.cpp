@@ -5168,7 +5168,9 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 			if (Blueprint->GeneratedClass->IsChildOf(OldActorClass) && NewActor != NULL)
 			{
 				NewActor->UnregisterAllComponents();
-				UEditorEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor);
+				FCopyPropertiesForUnrelatedObjectsParams Options;
+				Options.bNotifyObjectReplacement = true;
+				UEditorEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor, Options);
 				NewActor->RegisterAllComponents();
 			}
 		}
