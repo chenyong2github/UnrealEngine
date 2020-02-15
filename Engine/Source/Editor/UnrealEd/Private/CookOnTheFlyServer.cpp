@@ -6609,13 +6609,22 @@ void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
 			FConfigFile PlatformIniFile;
 			FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
 			PlatformIniFile.GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bNeedShaderStableKeys);
-            
+
+			bool bNeedsDeterministicOrder = PackagingSettings->bDeterministicShaderCodeOrder;
+			FConfigFile PlatformGameIniFile;
+			FConfigCacheIni::LoadLocalIniFile(PlatformGameIniFile, TEXT("Game"), true, *TargetPlatform->IniPlatformName());
+			PlatformGameIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bDeterministicShaderCodeOrder"), bNeedsDeterministicOrder);
+
             TArray<FName> ShaderFormats;
             TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
-			TArray<TPair<FName, bool>> ShaderFormatsWithStableKeys;
+			TArray<FShaderCodeLibrary::FShaderFormatDescriptor> ShaderFormatsWithStableKeys;
 			for (FName& Format : ShaderFormats)
 			{
-				ShaderFormatsWithStableKeys.Push(MakeTuple(Format, bNeedShaderStableKeys));
+				FShaderCodeLibrary::FShaderFormatDescriptor NewDesc;
+				NewDesc.ShaderFormat = Format;
+				NewDesc.bNeedsStableKeys = bNeedShaderStableKeys;
+				NewDesc.bNeedsDeterministicOrder = bNeedsDeterministicOrder;
+				ShaderFormatsWithStableKeys.Push(NewDesc);
 			}
 
             if (ShaderFormats.Num() > 0)

@@ -181,9 +181,15 @@ struct RENDERCORE_API FShaderCodeLibrary
 	// Clean the cook directories
 	static void CleanDirectories(TArray<FName> const& ShaderFormats);
     
-    // Specify the shader formats to cook and which ones needs stable keys. Provide an array of tuples
-	// with names and whether the format needs stable keys.
-    static void CookShaderFormats(TArray<TTuple<FName,bool>> const& ShaderFormats);
+	struct FShaderFormatDescriptor
+	{
+		FName ShaderFormat;
+		bool bNeedsStableKeys;
+		bool bNeedsDeterministicOrder;
+	};
+
+	// Specify the shader formats to cook and which ones needs stable keys. Provide an array of FShaderFormatDescriptors
+    static void CookShaderFormats(TArray<FShaderFormatDescriptor> const& ShaderFormats);
 	
 	// At cook time, add shader code to collection
 	static bool AddShaderCode(EShaderPlatform ShaderPlatform, const FShaderMapResourceCode* Code);
@@ -209,7 +215,7 @@ struct RENDERCORE_API FShaderCodeLibrary
 	static void DumpShaderCodeStats();
 	
 	// Create a smaller 'patch' library that only contains data from 'NewMetaDataDir' not contained in any of 'OldMetaDataDirs'
-	static bool CreatePatchLibrary(TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat);
+	static bool CreatePatchLibrary(TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat, bool bNeedsDeterministicOrder);
 #endif
 	
 	// Safely assign the hash to a shader object

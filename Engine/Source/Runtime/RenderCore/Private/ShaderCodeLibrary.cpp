@@ -800,9 +800,10 @@ struct FShaderCodeStats
 
 struct FEditorShaderCodeArchive
 {
-	FEditorShaderCodeArchive(FName InFormat)
+	FEditorShaderCodeArchive(FName InFormat, bool bInNeedsDeterministicOrder)
 		: FormatName(InFormat)
 		, Format(nullptr)
+		, bNeedsDeterministicOrder(bInNeedsDeterministicOrder)
 	{
 		Format = GetTargetPlatformManagerRef().FindShaderFormat(InFormat);
 		check(Format);
@@ -1090,8 +1091,6 @@ struct FEditorShaderCodeArchive
 
 		bool bSuccess = IFileManager::Get().MakeDirectory(*OutputDir, true);
 
-		EShaderPlatform Platform = ShaderFormatToLegacyShaderPlatform(FormatName);
-
 		// Shader library
 		if (bSuccess && SerializedShaders.GetNumShaderMaps() > 0)
 		{
@@ -1153,6 +1152,11 @@ struct FEditorShaderCodeArchive
 			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*TempFilePath, FILEWRITE_NoFail);
 
 			*FileWriter << GShaderPipelineArchiveVersion;
+
+			if (bNeedsDeterministicOrder)
+			{
+				Pipelines.Sort([](const FShaderCodeLibraryPipeline& A, const FShaderCodeLibraryPipeline& B){ return A.Hash <= B.Hash; });
+			}
 
 			*FileWriter << Pipelines;
 
@@ -1248,12 +1252,12 @@ struct FEditorShaderCodeArchive
 		}
 	}
 	
-	static bool CreatePatchLibrary(FName FormatName, FString const& LibraryName, TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat)
+	static bool CreatePatchLibrary(FName FormatName, FString const& LibraryName, TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat, bool bNeedsDeterministicOrder)
 	{
 		TArray<FEditorShaderCodeArchive*> OldLibraries;
 		for (FString const& OldMetaDataDir : OldMetaDataDirs)
 		{
-			FEditorShaderCodeArchive* OldLibrary = new FEditorShaderCodeArchive(FormatName);
+			FEditorShaderCodeArchive* OldLibrary = new FEditorShaderCodeArchive(FormatName, bNeedsDeterministicOrder);
 			OldLibrary->OpenLibrary(LibraryName);
 			if (OldLibrary->LoadExistingShaderCodeLibrary(OldMetaDataDir))
 			{
@@ -1261,12 +1265,12 @@ struct FEditorShaderCodeArchive
 			}
 		}
 
-		FEditorShaderCodeArchive NewLibrary(FormatName);
+		FEditorShaderCodeArchive NewLibrary(FormatName, bNeedsDeterministicOrder);
 		NewLibrary.OpenLibrary(LibraryName);
 		bool bOK = NewLibrary.LoadExistingShaderCodeLibrary(NewMetaDataDir);
 		if (bOK)
 		{
-			FEditorShaderCodeArchive OutLibrary(FormatName);
+			FEditorShaderCodeArchive OutLibrary(FormatName, bNeedsDeterministicOrder);
 			OutLibrary.OpenLibrary(LibraryName);
 			OutLibrary.MakePatchLibrary(OldLibraries, NewLibrary);
 			bOK = OutLibrary.SerializedShaders.GetNumShaderMaps() > 0;
@@ -1305,6 +1309,7 @@ private:
 	FSerializedShaderArchive SerializedShaders;
 	TArray<TArray<uint8>> ShaderCode;
 	const IShaderFormat* Format;
+	bool bNeedsDeterministicOrder;
 };
 
 struct FEditorShaderStableInfo
@@ -1718,27 +1723,27 @@ public:
 		}
 	}
 
-	void CookShaderFormats(TArray<TTuple<FName,bool>> const& ShaderFormats)
+	void CookShaderFormats(TArray<FShaderCodeLibrary::FShaderFormatDescriptor> const& ShaderFormats)
 	{
-		for (auto Pair : ShaderFormats)
+		for (const FShaderCodeLibrary::FShaderFormatDescriptor& Descriptor : ShaderFormats)
 		{
-			FName const& Format = Pair.Get<0>();
+			FName const& Format = Descriptor.ShaderFormat;
 
 			EShaderPlatform Platform = ShaderFormatToLegacyShaderPlatform(Format);
 			FName PossiblyAdjustedFormat = LegacyShaderPlatformToShaderFormat(Platform);	// Vulkan and GL switch between name variants depending on CVars (e.g. see r.Vulkan.UseRealUBs)
 			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[Platform];
 			if (!CodeArchive)
 			{
-				CodeArchive = new FEditorShaderCodeArchive(PossiblyAdjustedFormat);
+				CodeArchive = new FEditorShaderCodeArchive(PossiblyAdjustedFormat, Descriptor.bNeedsDeterministicOrder);
 				EditorShaderCodeArchive[Platform] = CodeArchive;
 				EditorArchivePipelines[Platform] = !bNativeFormat;
 			}
 			check(CodeArchive);
 		}
-		for (auto Pair : ShaderFormats)
+		for (const FShaderCodeLibrary::FShaderFormatDescriptor& Descriptor : ShaderFormats)
 		{
-			FName const& Format = Pair.Get<0>();
-			bool bUseStableKeys = Pair.Get<1>();
+			FName const& Format = Descriptor.ShaderFormat;
+			bool bUseStableKeys = Descriptor.bNeedsStableKeys;
 
 			EShaderPlatform Platform = ShaderFormatToLegacyShaderPlatform(Format);
 			FName PossiblyAdjustedFormat = LegacyShaderPlatformToShaderFormat(Platform);	// Vulkan and GL switch between name variants depending on CVars (e.g. see r.Vulkan.UseRealUBs)
@@ -2091,7 +2096,7 @@ void FShaderCodeLibrary::CleanDirectories(TArray<FName> const& ShaderFormats)
 	}
 }
 
-void FShaderCodeLibrary::CookShaderFormats(TArray<TTuple<FName,bool>> const& ShaderFormats)
+void FShaderCodeLibrary::CookShaderFormats(TArray<FShaderFormatDescriptor> const& ShaderFormats)
 {
 	if (FShaderCodeLibraryImpl::Impl)
 	{
@@ -2172,7 +2177,7 @@ void FShaderCodeLibrary::DumpShaderCodeStats()
 	}
 }
 
-bool FShaderCodeLibrary::CreatePatchLibrary(TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat)
+bool FShaderCodeLibrary::CreatePatchLibrary(TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat, bool bNeedsDeterministicOrder)
 {
 	TMap<FName, TSet<FString>> FormatLibraryMap;
 	TArray<FString> LibraryFiles;
@@ -2198,7 +2203,7 @@ bool FShaderCodeLibrary::CreatePatchLibrary(TArray<FString> const& OldMetaDataDi
 	{
 		for (auto const& Library : Entry.Value)
 		{
-			bOK |= FEditorShaderCodeArchive::CreatePatchLibrary(Entry.Key, Library, OldMetaDataDirs, NewMetaDataDir, OutDir, bNativeFormat);
+			bOK |= FEditorShaderCodeArchive::CreatePatchLibrary(Entry.Key, Library, OldMetaDataDirs, NewMetaDataDir, OutDir, bNativeFormat, bNeedsDeterministicOrder);
 		}
 	}
 	return bOK;
