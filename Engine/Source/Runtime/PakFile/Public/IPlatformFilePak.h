@@ -1485,6 +1485,26 @@ public:
 		}
 	}
 
+	/**
+	 * Helper function to return Child's relative path from the mount point.  Returns false if Child is not equal to MountPoint and is not a child path under MountPoint, else returns true.
+	 * Edits Child only if returning true, setting it to the relative path.
+	 * If child equals MountPoint, returns true and sets Child to the relative path to the MountPoint, which is "/"
+	 */
+	static bool GetRelativePathFromMountInline(FString& Child, const FString& MountPoint)
+	{
+		if (!Child.StartsWith(MountPoint))
+		{
+			return false;
+		}
+		Child = Child.Mid(MountPoint.Len());
+		if (Child.IsEmpty())
+		{
+			// Child equals the MountPoint
+			Child = TEXT("/");
+		}
+		return true;
+	}
+
 	/* Returns the global,const flag for whether the current process is allowing PakFiles to keep their entire DirectoryIndex (if it exists in the PakFile on disk) rather than pruning it */
 	static bool IsPakKeepFullDirectory();
 
