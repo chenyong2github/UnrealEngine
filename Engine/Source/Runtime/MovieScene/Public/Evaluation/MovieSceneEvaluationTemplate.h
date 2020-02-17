@@ -78,7 +78,7 @@ struct FMovieSceneTrackFieldData
 	/** Only called for serialization. Returns false to always serialize. */
 	bool Identical(const FMovieSceneTrackFieldData* Other, uint32 PortFlags) const
 	{
-		return false;
+		return Field == Other->Field;
 	}
 
 	TMovieSceneEvaluationTree<FMovieSceneTrackIdentifier> Field;
@@ -133,7 +133,7 @@ struct FMovieSceneSubSectionFieldData
 	/** Only called for serialization. Returns false to always serialize. */
 	bool Identical(const FMovieSceneSubSectionFieldData* Other, uint32 PortFlags) const
 	{
-		return false;
+		return Field == Other->Field;
 	}
 
 	TMovieSceneEvaluationTree<FMovieSceneSubSectionData> Field;
