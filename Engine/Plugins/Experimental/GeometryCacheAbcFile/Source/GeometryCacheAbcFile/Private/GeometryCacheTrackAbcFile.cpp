@@ -13,6 +13,15 @@ UGeometryCacheTrackAbcFile::UGeometryCacheTrackAbcFile()
 {
 }
 
+const bool UGeometryCacheTrackAbcFile::UpdateMatrixData(const float Time, const bool bLooping, int32& InOutMatrixSampleIndex, FMatrix& OutWorldMatrix)
+{
+	if (AbcFile)
+	{
+		return Super::UpdateMatrixData(Time, bLooping, InOutMatrixSampleIndex, OutWorldMatrix);
+	}
+	return false;
+}
+
 const bool UGeometryCacheTrackAbcFile::UpdateMeshData(const float Time, const bool bLooping, int32& InOutMeshSampleIndex, FGeometryCacheMeshData*& OutMeshData)
 {
 	const int32 SampleIndex = FindSampleIndexFromTime(Time, bLooping);
@@ -72,6 +81,9 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 			AbcFile.Reset();
 			return false;
 		}
+
+		MatrixSamples.Reset();
+		MatrixSampleTimes.Reset();
 
 		TArray<FMatrix> Mats;
 		Mats.Add(FMatrix::Identity);
@@ -137,7 +149,7 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackAbcFile::GetSampleInfo(f
 
 bool UGeometryCacheTrackAbcFile::GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData)
 {
-	if (AbcFile.IsValid())
+	if (AbcFile)
 	{
 		// #ueent_todo: Implement optimized Alembic querying
 		FAbcUtilities::GetFrameMeshData(*AbcFile, SampleIndex, OutMeshData);
