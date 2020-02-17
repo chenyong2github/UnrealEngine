@@ -283,6 +283,11 @@ UObject* UFbxFactory::FactoryCreateFile
 		}
 		ImportUI = OverrideImportUI;
 	}
+	else if(AssetImportTask && AssetImportTask->Options)
+	{
+		UE_LOG(LogFbx, Warning, TEXT("The options set in the Asset Import Task are not of type UFbxImportUI and will be ignored"));
+	}
+
 	//We are not re-importing
 	ImportUI->bIsReimport = false;
 	ImportUI->ReimportMesh = nullptr;
