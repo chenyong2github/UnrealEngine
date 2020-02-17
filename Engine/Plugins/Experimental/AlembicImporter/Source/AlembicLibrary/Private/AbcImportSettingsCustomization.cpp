@@ -77,6 +77,12 @@ void FAbcSamplingSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 	{
 		TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
 
+		// Skip properties that are already marked hidden
+		if (ChildHandle->IsCustomized())
+		{
+			continue;
+		}
+
 		if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FAbcSamplingSettings, SamplingType))
 		{
 			SamplingTypeHandle = ChildHandle; 
