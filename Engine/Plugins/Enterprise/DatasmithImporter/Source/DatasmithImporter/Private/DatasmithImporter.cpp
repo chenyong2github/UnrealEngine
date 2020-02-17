@@ -1455,6 +1455,8 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 	{
 		ImportContext.Hierarchy.Push( ImportSceneActor->GetRootComponent() );
 
+		FDatasmithActorUniqueLabelProvider UniqueNameProvider;
+
 		for (int32 i = 0; i < ActorsCount && !ImportContext.bUserCancelled; ++i)
 		{
 			ImportContext.bUserCancelled |= DatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
@@ -1467,7 +1469,7 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 
 				if ( ActorElement->IsAComponent() )
 				{
-					ImportActorAsComponent( ImportContext, ActorElement.ToSharedRef(), ImportSceneActor );
+					ImportActorAsComponent( ImportContext, ActorElement.ToSharedRef(), ImportSceneActor, UniqueNameProvider );
 				}
 				else
 				{
@@ -1517,11 +1519,13 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportActor);
 
+	FDatasmithActorUniqueLabelProvider UniqueNameProvider;
+
 	AActor* ImportedActor = nullptr;
 	if (ActorElement->IsA(EDatasmithElementType::HierarchicalInstanceStaticMesh))
 	{
 		TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement > HISMActorElement = StaticCastSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement >( ActorElement );
-		ImportedActor =  FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshAsActor( ImportContext, HISMActorElement );
+		ImportedActor =  FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshAsActor( ImportContext, HISMActorElement, UniqueNameProvider );
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 	{
@@ -1542,7 +1546,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::CustomActor))
 	{
-		ImportedActor = FDatasmithActorImporter::ImportCustomActor( ImportContext, StaticCastSharedRef< IDatasmithCustomActorElement >(ActorElement) );
+		ImportedActor = FDatasmithActorImporter::ImportCustomActor( ImportContext, StaticCastSharedRef< IDatasmithCustomActorElement >(ActorElement), UniqueNameProvider );
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::Landscape))
 	{
@@ -1582,7 +1586,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 			}
 			else if ( ImportedActor ) // Don't import the components of an actor that we didn't import
 			{
-				ImportActorAsComponent( ImportContext, ChildActorElement.ToSharedRef(), ImportedActor );
+				ImportActorAsComponent( ImportContext, ChildActorElement.ToSharedRef(), ImportedActor, UniqueNameProvider );
 			}
 		}
 	}
@@ -1595,7 +1599,7 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 	return ImportedActor;
 }
 
-void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithActorElement >& ActorElement, AActor* InRootActor)
+void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithActorElement >& ActorElement, AActor* InRootActor, FDatasmithActorUniqueLabelProvider& UniqueNameProvider)
 {
 	if (!InRootActor)
 	{
@@ -1607,12 +1611,12 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 	if (ActorElement->IsA(EDatasmithElementType::HierarchicalInstanceStaticMesh))
 	{
 		TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement > HierarchicalInstancedStaticMeshElement = StaticCastSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement >(ActorElement);
-		SceneComponent = FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshComponent(ImportContext, HierarchicalInstancedStaticMeshElement, InRootActor);
+		SceneComponent = FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshComponent(ImportContext, HierarchicalInstancedStaticMeshElement, InRootActor, UniqueNameProvider);
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 	{
 		TSharedRef< IDatasmithMeshActorElement > MeshActorElement = StaticCastSharedRef< IDatasmithMeshActorElement >(ActorElement);
-		SceneComponent = FDatasmithActorImporter::ImportStaticMeshComponent(ImportContext, MeshActorElement, InRootActor);
+		SceneComponent = FDatasmithActorImporter::ImportStaticMeshComponent(ImportContext, MeshActorElement, InRootActor, UniqueNameProvider);
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::Light))
 	{
@@ -1621,7 +1625,7 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 			return;
 		}
 
-		SceneComponent = FDatasmithLightImporter::ImportLightComponent(StaticCastSharedRef< IDatasmithLightActorElement >(ActorElement), ImportContext, InRootActor);
+		SceneComponent = FDatasmithLightImporter::ImportLightComponent(StaticCastSharedRef< IDatasmithLightActorElement >(ActorElement), ImportContext, InRootActor, UniqueNameProvider);
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::Camera))
 	{
@@ -1630,11 +1634,11 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 			return;
 		}
 
-		SceneComponent = FDatasmithCameraImporter::ImportCineCameraComponent(StaticCastSharedRef< IDatasmithCameraActorElement >(ActorElement), ImportContext, InRootActor);
+		SceneComponent = FDatasmithCameraImporter::ImportCineCameraComponent(StaticCastSharedRef< IDatasmithCameraActorElement >(ActorElement), ImportContext, InRootActor, UniqueNameProvider);
 	}
 	else
 	{
-		SceneComponent = FDatasmithActorImporter::ImportBaseActorAsComponent(ImportContext, ActorElement, InRootActor);
+		SceneComponent = FDatasmithActorImporter::ImportBaseActorAsComponent(ImportContext, ActorElement, InRootActor, UniqueNameProvider);
 	}
 
 	if (SceneComponent)
@@ -1654,7 +1658,7 @@ void FDatasmithImporter::ImportActorAsComponent(FDatasmithImportContext& ImportC
 			ImportContext.Hierarchy.Push(SceneComponent);
 		}
 
-		ImportActorAsComponent(ImportContext, ActorElement->GetChild(i).ToSharedRef(), InRootActor);
+		ImportActorAsComponent(ImportContext, ActorElement->GetChild(i).ToSharedRef(), InRootActor, UniqueNameProvider);
 
 		if (SceneComponent)
 		{
