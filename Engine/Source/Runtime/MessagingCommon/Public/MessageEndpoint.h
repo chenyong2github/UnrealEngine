@@ -928,8 +928,11 @@ public:
 	 */
 	static void SafeRelease(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>& Endpoint)
 	{
-		Endpoint->ClearHandlers();
-		Endpoint.Reset();
+		if (Endpoint.IsValid())
+		{
+			Endpoint->ClearHandlers();
+			Endpoint.Reset();
+		}
 	}
 
 protected:
