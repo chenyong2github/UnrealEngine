@@ -1550,7 +1550,7 @@ namespace WindowsMixedReality
 
 		HMD->CommitDepthBuffer(stereoDepthTexture);
 		// Third camera depth
-		if (HMD->IsThirdCameraActive() && remappedDepthTexture != nullptr)
+		if (HMD->IsThirdCameraActive() && remappedDepthTexture != nullptr && monoDepthTexture != nullptr)
 		{
 			ID3D11Texture2D* sourceDepth = (ID3D11Texture2D*)remappedDepthTexture->GetNativeResource();
 			int w, h;
