@@ -74,8 +74,7 @@ namespace Chaos
 		virtual void DestroyContext(IClothingSimulationContext* InContext) override { delete InContext; }
 		virtual void GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const override;
 
-		virtual FBoxSphereBounds GetBounds(const USkeletalMeshComponent* InOwnerComponent) const override
-		{ return FBoxSphereBounds(Evolution->Particles().X().GetData(), Evolution->Particles().Size()); }
+		virtual FBoxSphereBounds GetBounds(const USkeletalMeshComponent* InOwnerComponent) const override;
 
 		virtual void AddExternalCollisions(const FClothCollisionData& InData) override;
 		virtual void ClearExternalCollisions() override;
@@ -83,6 +82,11 @@ namespace Chaos
 		// End of IClothingSimulation interface
 
 	private:
+#if CHAOS_DEBUG_DRAW
+		// Runtime only debug draw functions
+		void DebugDrawBounds() const;
+#endif  // #if CHAOS_DEBUG_DRAW
+
 		void UpdateSimulationFromSharedSimConfig();
 		void BuildMesh(const FClothPhysicalMeshData& PhysMesh, int32 InSimDataIndex);
 
