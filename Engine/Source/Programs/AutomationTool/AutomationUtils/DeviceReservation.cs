@@ -308,7 +308,7 @@ namespace AutomationTool.DeviceReservation
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("Failed to delete device reservation: {0}", ex.Message);
+				Console.WriteLine("Failed to delete device reservation: {0}", SanitizeErrorMessage(ex.Message));
 			}
 		}
 
@@ -327,7 +327,7 @@ namespace AutomationTool.DeviceReservation
 			}
 			catch (Exception Ex)
 			{
-				Console.WriteLine("Failed to report device: {0} : {1}", DeviceName, Ex.Message);
+				Console.WriteLine("Failed to report device: {0} : {1}", DeviceName, SanitizeErrorMessage(Ex.Message));
 			}
 		}
 
