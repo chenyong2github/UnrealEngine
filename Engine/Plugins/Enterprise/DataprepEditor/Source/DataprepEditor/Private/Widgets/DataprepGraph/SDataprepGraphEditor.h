@@ -93,12 +93,18 @@ public:
 	void DuplicateNodes();
 	bool CanDuplicateNodes() const;
 
-	void OnCreateComment();
-
 	void DeleteSelectedDuplicatableNodes();
+	/** End of set of methods necessary for copy/paste of action nodes*/
 
+	/** Set of callbacks to rename an action node */
 	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage);
 	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
+
+	/** Callback to create contextual menu on graph panel */
+	FActionMenuContent OnCreateActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
+
+	/** Callback to create contextual menu for graph nodes in graph panel */
+	FActionMenuContent OnCreateNodeOrPinMenu(UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging);
 
 private:
 	/** Recompute the layout of the displayed graph after a pan, resize and/or zoom */
