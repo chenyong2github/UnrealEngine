@@ -528,10 +528,13 @@ int32 MovieSceneToolHelpers::FindAvailableRowIndex(UMovieSceneTrack* InTrack, UM
 	return InTrack->GetMaxRowIndex() + 1;
 }
 
-TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum, TAttribute<int32> InCurrentValue, SEnumCombobox::FOnEnumSelectionChanged InOnSelectionChanged)
+TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum, TAttribute<int32> InCurrentValue, SEnumComboBox::FOnEnumSelectionChanged InOnSelectionChanged)
 {
-	return SNew(SEnumCombobox, InEnum)
+	return SNew(SEnumComboBox, InEnum)
 		.CurrentValue(InCurrentValue)
+		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+		.ContentPadding(FMargin(2, 0))
+		.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
 		.OnEnumSelectionChanged(InOnSelectionChanged);
 }
 
