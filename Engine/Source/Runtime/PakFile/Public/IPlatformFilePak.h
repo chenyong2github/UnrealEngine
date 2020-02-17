@@ -210,11 +210,6 @@ struct FPakInfo
 			{
 				EncryptionKeyGuid.Invalidate();
 			}
-
-			if (Version == PakFile_Version_FrozenIndex)
-			{
-				UE_LOG(LogPakFile, Fatal, TEXT("FPakInfo version PakFile_Version_FrozenIndex is no longer supported; regenerate Pak files"));
-			}
 		}
 
 		if (Version >= PakFile_Version_FrozenIndex && Version < PakFile_Version_PathHashIndex)
