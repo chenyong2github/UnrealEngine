@@ -25,7 +25,7 @@ public:
 	SLATE_BEGIN_ARGS(SDataprepGraphActionStepNode) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode);
+	void Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode, const TSharedPtr<SDataprepGraphActionNode>& InParent);
 
 	// SWidget interface
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
@@ -48,15 +48,6 @@ public:
 	virtual TSharedPtr<SWidget> GetStepTitleWidget() const;
 
 	void SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode);
-	void SetParentNode(TSharedPtr<SDataprepGraphActionNode> InParentNode)
-	{
-		ParentNodePtr = InParentNode;
-	}
-
-	void ShowInsertionSlot(bool bShow)
-	{
-		bShowInsertionSlot = bShow;
-	}
 
 private:
 	/**
@@ -74,9 +65,6 @@ private:
 
 	/** Index of the represented action step in the list of the parent action */
 	int32 StepIndex;
-
-	/** Indicates if the widget is hovered during a drag and drop operation */
-	bool bShowInsertionSlot;
 
 	/** Pointer to the SDataprepGraphTrackNode displayed in the graph editor  */
 	TWeakPtr<SDataprepGraphTrackNode> ParentTrackNodePtr;

@@ -35,7 +35,6 @@ public:
 	const UDataprepAsset* GetDataprepAsset() const { return DataprepAssetPtr.Get(); }
 	UDataprepAsset* GetDataprepAsset() { return DataprepAssetPtr.Get(); }
 
-
 private:
 	/** Dataprep asset associated with this graph */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
