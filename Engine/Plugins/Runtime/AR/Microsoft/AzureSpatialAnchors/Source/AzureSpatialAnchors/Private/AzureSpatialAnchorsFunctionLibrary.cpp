@@ -76,6 +76,18 @@ void UAzureSpatialAnchorsLibrary::GetCloudAnchor(UARPin* ARPin, UAzureCloudSpati
 	MSA->GetCloudAnchor(ARPin, OutAzureCloudSpatialAnchor);
 }
 
+void UAzureSpatialAnchorsLibrary::GetCloudAnchors(TArray<UAzureCloudSpatialAnchor*>& OutCloudAnchors)
+{
+	IAzureSpatialAnchors* MSA = IAzureSpatialAnchors::Get();
+	if (MSA == nullptr)
+	{
+		OutCloudAnchors.Empty();
+		return;
+	}
+
+	MSA->GetCloudAnchors(OutCloudAnchors);
+}
+
 struct FAzureSpatialAnchorsSavePinToAction : public FPendingLatentAction
 {
 public:
@@ -149,7 +161,7 @@ public:
 		else
 		{
 			// See if the operation is done.
-			if (MSA->SaveCloudAnchorAsync_Update(this, OutResult, OutErrorString))
+			if (MSA->SaveCloudAnchorAsync_Update(this, OutAzureCloudSpatialAnchor, OutResult, OutErrorString))
 			{
 				Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
 				return;

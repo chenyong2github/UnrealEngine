@@ -648,45 +648,40 @@ public:
 		Success
 	};
 
-	struct SaveAsyncData
+	struct AsyncData
 	{
-		std::wstring CloudAnchorId;
 		AsyncResult Result = AsyncResult::NotStarted;
 		std::wstring OutError;
 		std::atomic<bool> Completed = { false };
 
 		void Complete() { Completed = true; }
+	};
+
+	struct SaveAsyncData : public AsyncData
+	{
+		std::wstring LocalAnchorId;
+		std::wstring CloudAnchorIdentifier;
 	};
 	typedef std::shared_ptr<SaveAsyncData> SaveAsyncDataPtr;
 
-	struct DeleteAsyncData
+	struct DeleteAsyncData : public AsyncData
 	{
-		std::wstring CloudAnchorId;
-		AsyncResult Result = AsyncResult::NotStarted;
-		std::wstring OutError;
-		std::atomic<bool> Completed = { false };
-
-		void Complete() { Completed = true; }
+		std::wstring LocalAnchorId;
 	};
 	typedef std::shared_ptr<DeleteAsyncData> DeleteAsyncDataPtr;
 
-	struct LoadByIDAsyncData
+	struct LoadByIDAsyncData : public AsyncData
 	{
-		std::wstring CloudAnchorId;
+		std::wstring CloudAnchorIdentifier;
 		std::wstring LocalAnchorId;
-		AsyncResult Result = AsyncResult::NotStarted;
-		std::wstring OutError;
-		std::atomic<bool> Completed = { false };
-
-		void Complete() { Completed = true; }
 	};
 	typedef std::shared_ptr<LoadByIDAsyncData> LoadByIDAsyncDataPtr;
 
 	// Things you can do while your session is running.
 	// AsyncDataPtr objects are created by UE4, and passed in here.
 	virtual bool HasEnoughDataForSaving() = 0;
-	virtual bool CreateCloudAnchor(const wchar_t* anchorId) = 0;
-	virtual bool SetCloudAnchorExpiration(const wchar_t* anchorId, int minutesFromNow) = 0;
+	virtual bool CreateCloudAnchor(const wchar_t* localAnchorId) = 0;
+	virtual bool SetCloudAnchorExpiration(const wchar_t* localAnchorId, int minutesFromNow) = 0;
 	virtual bool SaveCloudAnchor(SaveAsyncDataPtr Data) = 0;
 	virtual bool DeleteCloudAnchor(DeleteAsyncDataPtr Data) = 0;
 	virtual bool LoadCloudAnchorByID(LoadByIDAsyncDataPtr Data) = 0;
