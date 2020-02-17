@@ -232,8 +232,6 @@ const FViewInfo* UpdateEditorPrimitiveView(
 
 	EditorView->CachedViewUniformShaderParameters = MoveTemp(ViewParameters);
 
-	SceneUniformBuffers.UpdateViewUniformBufferImmediate(*EditorView->CachedViewUniformShaderParameters);
-
 	EditorView->ViewUniformBuffer = SceneUniformBuffers.ViewUniformBuffer;
 
 	return EditorView;
