@@ -3,22 +3,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Types/SlateEnums.h"
 #include "EditorStyleSet.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/SToolTip.h"
 
 /*
 * Editor only widget for creating a combo-box which allows the user to pick the values from a dropdown combo-box. 
 */
-class SEnumCombobox : public SComboBox<TSharedPtr<int32>>
-{
+class SEnumComboBox : public SComboBox<TSharedPtr<int32>>
+ {
 public:
 	DECLARE_DELEGATE_TwoParams(FOnEnumSelectionChanged, int32 /*Selection*/, ESelectInfo::Type /*SelectionType*/);
 public:
-	SLATE_BEGIN_ARGS(SEnumCombobox) {}
+	SLATE_BEGIN_ARGS(SEnumComboBox)
+		: _CurrentValue()
+		, _ContentPadding(FMargin(4.0, 2.0))
+		, _OnEnumSelectionChanged()
+		, _ButtonStyle(nullptr)
+	{}
 
 		SLATE_ATTRIBUTE(int32, CurrentValue)
+		SLATE_ATTRIBUTE(FMargin, ContentPadding)
+		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
 		SLATE_ARGUMENT(FOnEnumSelectionChanged, OnEnumSelectionChanged)
+		SLATE_STYLE_ARGUMENT(FButtonStyle, ButtonStyle)
 
 	SLATE_END_ARGS()
 
@@ -28,7 +37,7 @@ public:
 		CurrentValue = InArgs._CurrentValue;
 		check(CurrentValue.IsBound());
 		OnEnumSelectionChangedDelegate = InArgs._OnEnumSelectionChanged;
-
+		Font = InArgs._Font;
 		bUpdatingSelectionInternally = false;
 
 		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
@@ -38,22 +47,25 @@ public:
 				VisibleEnumNameIndices.Add(MakeShareable(new int32(i)));
 			}
 		}
-
+		
 		SComboBox::Construct(SComboBox<TSharedPtr<int32>>::FArguments()
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+			.ButtonStyle(InArgs._ButtonStyle)
 			.OptionsSource(&VisibleEnumNameIndices)
 			.OnGenerateWidget_Lambda([this](TSharedPtr<int32> InItem)
-		{
-			return SNew(STextBlock)
-				.Text(Enum->GetDisplayNameTextByIndex(*InItem));
-		})
-			.OnSelectionChanged(this, &SEnumCombobox::OnComboSelectionChanged)
-			.OnComboBoxOpening(this, &SEnumCombobox::OnComboMenuOpening)
-			.ContentPadding(FMargin(2, 0))
+			{
+				return SNew(STextBlock)
+					.Font(Font)
+					.Text(Enum->GetDisplayNameTextByIndex(*InItem))
+					.ToolTipText(Enum->GetToolTipTextByIndex(*InItem));
+			})
+			.OnSelectionChanged(this, &SEnumComboBox::OnComboSelectionChanged)
+			.OnComboBoxOpening(this, &SEnumComboBox::OnComboMenuOpening)
+			.ContentPadding(InArgs._ContentPadding)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-			.Text(this, &SEnumCombobox::GetCurrentValue)
+					.Font(Font)
+					.Text(this, &SEnumComboBox::GetCurrentValue)
+					.ToolTipText(this, &SEnumComboBox::GetCurrentValueTooltip)
 			]);
 	}
 
@@ -64,10 +76,17 @@ private:
 		return Enum->GetDisplayNameTextByIndex(CurrentNameIndex);
 	}
 
+	FText GetCurrentValueTooltip() const
+	{
+		int32 CurrentNameIndex = Enum->GetIndexByValue(CurrentValue.Get());
+		return Enum->GetToolTipTextByIndex(CurrentNameIndex);
+	}
+
 	TSharedRef<SWidget> OnGenerateWidget(TSharedPtr<int32> InItem)
 	{
 		return SNew(STextBlock)
-			.Text(Enum->GetDisplayNameTextByIndex(*InItem));
+			.Text(Enum->GetDisplayNameTextByIndex(*InItem))
+			.Font(Font);
 	}
 
 	void OnComboSelectionChanged(TSharedPtr<int32> InSelectedItem, ESelectInfo::Type SelectInfo)
@@ -102,6 +121,8 @@ private:
 	const UEnum* Enum;
 
 	TAttribute<int32> CurrentValue;
+
+	TAttribute< FSlateFontInfo > Font;
 
 	TArray<TSharedPtr<int32>> VisibleEnumNameIndices;
 

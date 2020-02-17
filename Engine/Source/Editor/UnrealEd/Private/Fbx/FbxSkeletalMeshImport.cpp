@@ -3105,21 +3105,18 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 
 
 	TArray<UMaterialInterface*> Materials;
-	if (ImportOptions->bImportMaterials)
+	const bool bForSkeletalMesh = true;
+
+	FindOrImportMaterialsFromNode(Node, Materials, UVSets, bForSkeletalMesh);
+	if (!ImportOptions->bImportMaterials && ImportOptions->bImportTextures)
 	{
-		bool bForSkeletalMesh = true;
-		CreateNodeMaterials(Node, Materials, UVSets, bForSkeletalMesh);
-	}
-	else if (ImportOptions->bImportTextures)
-	{
+		//If we are not importing any new material, we might still want to import new textures.
 		ImportTexturesFromNode(Node);
 	}
 
 	// Maps local mesh material index to global material index
+	const int32 MaterialCount = Node->GetMaterialCount();
 	TArray<int32> MaterialMapping;
-
-	int32 MaterialCount = Node->GetMaterialCount();
-
 	MaterialMapping.AddUninitialized(MaterialCount);
 
 	for( int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex )
