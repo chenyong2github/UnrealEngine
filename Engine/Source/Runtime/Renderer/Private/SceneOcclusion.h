@@ -38,7 +38,7 @@ public:
 
 	void SetParametersWithBoundingSphere(FRHICommandList& RHICmdList, const FViewInfo& View, const FSphere& BoundingSphere)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(), View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
 
 		FVector4 StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, BoundingSphere, View.ViewMatrices.GetPreViewTranslation());
@@ -46,36 +46,26 @@ public:
 
 		if (GEngine && GEngine->StereoRenderingDevice)
 		{
-			SetShaderValue(RHICmdList, GetVertexShader(), ViewId, GEngine->StereoRenderingDevice->GetViewIndexForPass(View.StereoPass));
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, GEngine->StereoRenderingDevice->GetViewIndexForPass(View.StereoPass));
 		}
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(),View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(),View.ViewUniformBuffer);
 
 		// Don't transform if rendering frustum
 		StencilingGeometryParameters.Set(RHICmdList, this, FVector4(0,0,0,1));
 
 		if (GEngine && GEngine->StereoRenderingDevice)
 		{
-			SetShaderValue(RHICmdList, GetVertexShader(), ViewId, GEngine->StereoRenderingDevice->GetViewIndexForPass(View.StereoPass));
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, GEngine->StereoRenderingDevice->GetViewIndexForPass(View.StereoPass));
 		}
 	}
 
-	//~ Begin FShader Interface
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << StencilingGeometryParameters;
-		Ar << ViewId;
-		return bShaderHasOutdatedParameters;
-	}
-	//~ Begin  End FShader Interface 
-
 private:
-	FStencilingGeometryShaderParameters StencilingGeometryParameters;
-	FShaderParameter ViewId;
+	LAYOUT_FIELD(FStencilingGeometryShaderParameters, StencilingGeometryParameters)
+	LAYOUT_FIELD(FShaderParameter, ViewId)
 };
 
 /**

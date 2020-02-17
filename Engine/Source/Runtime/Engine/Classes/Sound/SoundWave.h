@@ -288,7 +288,8 @@ struct ISoundWaveClient
 	ISoundWaveClient() {}
 	virtual ~ISoundWaveClient() {}
 	
-	virtual void OnBeginDestroy(class USoundWave* Wave) = 0;
+	// OnBeginDestroy() returns true to unsubscribe as an ISoundWaveClient
+	virtual bool OnBeginDestroy(class USoundWave* Wave) = 0;
 	virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const = 0;
 	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
 };
@@ -339,7 +340,7 @@ public:
 	uint8 bPlayingProcedural : 1;
 
 	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
-	uint8 bIsBus:1;
+	uint8 bIsSourceBus:1;
 
 	/** Set to true for procedural waves that can be processed asynchronously. */
 	uint8 bCanProcessAsync:1;
@@ -886,7 +887,8 @@ public:
 #endif // WITH_EDITOR
 
 	/** Checks whether sound has been categorised as streaming. */
-	bool IsStreaming(const FPlatformAudioCookOverrides* Overrides = nullptr) const;
+	bool IsStreaming(const TCHAR* PlatformName = nullptr) const;
+	bool IsStreaming(const FPlatformAudioCookOverrides& Overrides) const;
 
 	/** Checks whether sound has seekable streaming enabled. */
 	bool IsSeekableStreaming() const;

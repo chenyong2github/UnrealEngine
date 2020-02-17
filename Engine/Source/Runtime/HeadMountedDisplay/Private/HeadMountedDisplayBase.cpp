@@ -21,6 +21,9 @@
 #include "IXRSystemAssets.h"
 
 
+constexpr float FHeadMountedDisplayBase::PixelDensityMin;
+constexpr float FHeadMountedDisplayBase::PixelDensityMax;
+
 FHeadMountedDisplayBase::FHeadMountedDisplayBase(IARSystemSupport* InARImplementation)
 	: FXRTrackingSystemBase(InARImplementation)
 	, bHeadTrackingEnforced(false)

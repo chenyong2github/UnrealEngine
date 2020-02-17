@@ -72,7 +72,7 @@ struct EMovieSceneCameraCutParams
  * Interface for movie scene players
  * Provides information for playback of a movie scene
  */
-class MOVIESCENE_VTABLE IMovieScenePlayer
+class IMovieScenePlayer
 {
 public:
 	virtual ~IMovieScenePlayer() { }

@@ -14,6 +14,8 @@ class FBaseTimingTrack;
 
 class TRACEINSIGHTS_API FTimingEvent : public ITimingEvent
 {
+	INSIGHTS_DECLARE_RTTI(FTimingEvent, ITimingEvent)
+
 public:
 	FTimingEvent(const TSharedRef<const FBaseTimingTrack> InTrack, double InStartTime, double InEndTime, uint32 InDepth, uint64 InType = uint64(-1))
 		: Track(InTrack)
@@ -35,8 +37,6 @@ public:
 	//////////////////////////////////////////////////
 	// ITimingEvent interface
 
-	virtual const FName& GetTypeName() const override { return FTimingEvent::TypeName; }
-
 	virtual const TSharedRef<const FBaseTimingTrack> GetTrack() const override { return Track; }
 
 	virtual uint32 GetDepth() const override { return Depth; }
@@ -52,7 +52,7 @@ public:
 			return false;
 		}
 
-		const FTimingEvent& OtherTimingEvent = static_cast<const FTimingEvent&>(Other);
+		const FTimingEvent& OtherTimingEvent = Other.As<FTimingEvent>();
 		return Track == Other.GetTrack()
 			&& Depth == OtherTimingEvent.GetDepth()
 			&& StartTime == OtherTimingEvent.GetStartTime()
@@ -67,9 +67,6 @@ public:
 	void SetExclusiveTime(double InExclusiveTime) { ExclusiveTime = InExclusiveTime; }
 
 	uint64 GetType() const { return Type; }
-
-	static const FName& GetStaticTypeName() { return FTimingEvent::TypeName; }
-	static bool CheckTypeName(const ITimingEvent& Event) { return Event.GetTypeName() == FTimingEvent::TypeName; }
 
 private:
 	// The track this timing event is contained within
@@ -92,22 +89,185 @@ private:
 
 	// The event type (category, group id, etc.).
 	uint64 Type;
+};
 
-	static const FName TypeName;
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FAcceptNoneTimingEventFilter : public ITimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FAcceptNoneTimingEventFilter, ITimingEventFilter)
+
+public:
+	FAcceptNoneTimingEventFilter() {}
+	virtual ~FAcceptNoneTimingEventFilter() {}
+
+	virtual bool FilterTrack(const FBaseTimingTrack& InTrack) const override { return false; }
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override { return false; }
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override { return false; }
+	virtual uint32 GetChangeNumber() const override { return 0; }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FAcceptAllTimingEventFilter : public ITimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FAcceptAllTimingEventFilter, ITimingEventFilter)
+
+public:
+	FAcceptAllTimingEventFilter() {}
+	virtual ~FAcceptAllTimingEventFilter() {}
+
+	virtual bool FilterTrack(const FBaseTimingTrack& InTrack) const override { return true; }
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override { return true; }
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override { return true; }
+	virtual uint32 GetChangeNumber() const override { return 0; }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FAggregatedTimingEventFilter : public ITimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FAggregatedTimingEventFilter, ITimingEventFilter)
+
+public:
+	FAggregatedTimingEventFilter() : ChangeNumber(0) {}
+	virtual ~FAggregatedTimingEventFilter() {}
+
+	//////////////////////////////////////////////////
+	// ITimingEventFilter interface
+
+	//virtual bool FilterTrack(const FBaseTimingTrack& InTrack) const = 0;
+	//virtual bool FilterEvent(const ITimingEvent& InEvent) const = 0;
+	//virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName = nullptr, uint64 InEventType = 0, uint32 InEventColor = 0) const = 0;
+	virtual uint32 GetChangeNumber() const override { return ChangeNumber; }
+
+	//////////////////////////////////////////////////
+
+	const TArray<TSharedPtr<ITimingEventFilter>> GetChildren() const { return Children; }
+	void AddChild(TSharedPtr<ITimingEventFilter> InFilter) { Children.Add(InFilter); ChangeNumber++; }
+
+protected:
+	uint32 ChangeNumber;
+	TArray<TSharedPtr<ITimingEventFilter>> Children;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FAllAggregatedTimingEventFilter : public FAggregatedTimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FAllAggregatedTimingEventFilter, FAggregatedTimingEventFilter)
+
+public:
+	FAllAggregatedTimingEventFilter() {}
+	virtual ~FAllAggregatedTimingEventFilter() {}
+
+	//////////////////////////////////////////////////
+	// ITimingEventFilter interface
+
+	virtual bool FilterTrack(const FBaseTimingTrack& InTrack) const override
+	{
+		for (TSharedPtr<ITimingEventFilter> Filter : Children)
+		{
+			if (!FilterTrack(InTrack))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override
+	{
+		for (TSharedPtr<ITimingEventFilter> Filter : Children)
+		{
+			if (FilterEvent(InEvent))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override
+	{
+		for (TSharedPtr<ITimingEventFilter> Filter : Children)
+		{
+			if (!FilterEvent(InEventStartTime, InEventEndTime, InEventDepth, InEventName, InEventType, InEventColor))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	//////////////////////////////////////////////////
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FAnyAggregatedTimingEventFilter : public FAggregatedTimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FAnyAggregatedTimingEventFilter, FAggregatedTimingEventFilter)
+
+public:
+	FAnyAggregatedTimingEventFilter() {}
+	virtual ~FAnyAggregatedTimingEventFilter() {}
+
+	//////////////////////////////////////////////////
+	// ITimingEventFilter interface
+
+	virtual bool FilterTrack(const FBaseTimingTrack& InTrack) const override
+	{
+		for (TSharedPtr<ITimingEventFilter> Filter : Children)
+		{
+			if (FilterTrack(InTrack))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override
+	{
+		for (TSharedPtr<ITimingEventFilter> Filter : Children)
+		{
+			if (FilterEvent(InEvent))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override
+	{
+		for (TSharedPtr<ITimingEventFilter> Filter : Children)
+		{
+			if (FilterEvent(InEventStartTime, InEventEndTime, InEventDepth, InEventName, InEventType, InEventColor))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	//////////////////////////////////////////////////
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class TRACEINSIGHTS_API FTimingEventFilter : public ITimingEventFilter
 {
+	INSIGHTS_DECLARE_RTTI(FTimingEventFilter, ITimingEventFilter)
+
 public:
 	FTimingEventFilter()
-		: bFilterByTrackType(false)
-		, TrackType(NAME_None)
-		, bFilterByEventType(false)
-		, EventType(uint64(-1))
-		, bFilterByMinDuration(false)
-		, MinDuration(0.0)
+		: bFilterByTrackTypeName(false)
+		, TrackTypeName(NAME_None)
+		, bFilterByTrackInstance(false)
+		, TrackInstance(nullptr)
+		, ChangeNumber(0)
 	{}
 
 	virtual ~FTimingEventFilter() {}
@@ -121,70 +281,171 @@ public:
 	//////////////////////////////////////////////////
 	// ITimingEventFilter interface
 
-	virtual const FName& GetTypeName() const override { return FTimingEventFilter::TypeName; }
-
 	virtual bool FilterTrack(const FBaseTimingTrack& InTrack) const override;
-
-	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override
-	{
-		return (!bFilterByEventType || InEventType == EventType)
-			&& (!bFilterByMinDuration || InEventEndTime - InEventStartTime >= MinDuration)
-			&& (!bFilterByMaxDuration || InEventEndTime - InEventStartTime <= MaxDuration);
-	}
-
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override { return true; }
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override { return true; }
 	virtual uint32 GetChangeNumber() const override { return ChangeNumber; }
 
 	//////////////////////////////////////////////////
 
-	bool IsFilteringByTrackType() const { return bFilterByTrackType; }
-	const FName& GetTrackType() const { return TrackType; }
-	void SetFilterByTrackType(bool bInFilterByTrackType) { if (bFilterByTrackType != bInFilterByTrackType) { bFilterByTrackType = bInFilterByTrackType; ChangeNumber++; } }
-	void SetTrackType(const FName InTrackType) { if (TrackType != InTrackType) { TrackType = InTrackType; ChangeNumber++; } }
+	bool IsFilteringByTrackTypeName() const { return bFilterByTrackTypeName; }
+	const FName& GetTrackTypeName() const { return TrackTypeName; }
+	void SetFilterByTrackTypeName(bool bInFilterByTrackTypeName) { if (bFilterByTrackTypeName != bInFilterByTrackTypeName) { bFilterByTrackTypeName = bInFilterByTrackTypeName; ChangeNumber++; } }
+	void SetTrackTypeName(const FName InTrackTypeName) { if (TrackTypeName != InTrackTypeName) { TrackTypeName = InTrackTypeName; ChangeNumber++; } }
 
-	bool IsFilteringByEventType() const { return bFilterByEventType; }
-	uint64 GetEventType() const { return EventType; }
-	void SetFilterByEventType(bool bInFilterByEventType) { if (bFilterByEventType != bInFilterByEventType) { bFilterByEventType = bInFilterByEventType; ChangeNumber++; } }
-	void SetEventType(uint64 InEventType) { if (EventType != InEventType) { EventType = InEventType; ChangeNumber++; } }
+	bool IsFilteringByTrackInstance() const { return bFilterByTrackInstance; }
+	TSharedPtr<FBaseTimingTrack> GetTrackInstance() const { return TrackInstance; }
+	void SetFilterByTrackInstance(bool bInFilterByTrackInstance) { if (bFilterByTrackInstance != bInFilterByTrackInstance) { bFilterByTrackInstance = bInFilterByTrackInstance; ChangeNumber++; } }
+	void SetTrackInstance(TSharedPtr<FBaseTimingTrack> InTrackInstance) { if (TrackInstance != InTrackInstance) { TrackInstance = InTrackInstance; ChangeNumber++; } }
 
-	bool IsFilteringByMinDuration() const { return bFilterByMinDuration; }
-	double GetMinDuration() const { return MinDuration; }
+	//////////////////////////////////////////////////
 
-	bool IsFilteringByMaxDuration() const { return bFilterByMaxDuration; }
-	double GetMaxDuration() const { return MaxDuration; }
+protected:
+	bool bFilterByTrackTypeName;
+	FName TrackTypeName;
 
-	static const FName& GetStaticTypeName() { return FTimingEventFilter::TypeName; }
-	static bool CheckTypeName(const ITimingEventFilter& EventFilter) { return EventFilter.GetTypeName() == FTimingEventFilter::TypeName; }
+	bool bFilterByTrackInstance;
+	TSharedPtr<FBaseTimingTrack> TrackInstance;
 
-private:
-	bool FilterEventByType(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType, uint32 InEventColor) const
+	uint32 ChangeNumber;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimingEventFilterByMinDuration : public FTimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FTimingEventFilterByMinDuration, FTimingEventFilter)
+
+public:
+	FTimingEventFilterByMinDuration(double InMinDuration) : MinDuration(InMinDuration) {}
+	virtual ~FTimingEventFilterByMinDuration() {}
+
+	//////////////////////////////////////////////////
+	// ITimingEventFilter interface
+
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override
 	{
-		return InEventType == EventType;
+		return InEvent.GetDuration() >= MinDuration;
 	}
-	bool FilterEventByMinDuration(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType, uint32 InEventColor) const
+
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override
 	{
 		return InEventEndTime - InEventStartTime >= MinDuration;
 	}
-	bool FilterEventByMaxDuration(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType, uint32 InEventColor) const
+
+	//////////////////////////////////////////////////
+
+	double GetMinDuration() const { return MinDuration; }
+	void SetMinDuration(double InMinDuration) { if (MinDuration != InMinDuration) { MinDuration = InMinDuration; ChangeNumber++; } }
+
+private:
+	double MinDuration;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimingEventFilterByMaxDuration : public FTimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FTimingEventFilterByMaxDuration, FTimingEventFilter)
+
+public:
+	FTimingEventFilterByMaxDuration(double InMaxDuration) : MaxDuration(InMaxDuration) {}
+	virtual ~FTimingEventFilterByMaxDuration() {}
+
+	//////////////////////////////////////////////////
+	// ITimingEventFilter interface
+
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override
+	{
+		return InEvent.GetDuration() <= MaxDuration;
+	}
+
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override
 	{
 		return InEventEndTime - InEventStartTime <= MaxDuration;
 	}
 
+	//////////////////////////////////////////////////
+
+	double GetMaxDuration() const { return MaxDuration; }
+	void SetMaxDuration(double InMaxDuration) { if (MaxDuration != InMaxDuration) { MaxDuration = InMaxDuration; ChangeNumber++; } }
+
 private:
-	bool bFilterByTrackType;
-	FName TrackType;
-
-	bool bFilterByEventType;
-	uint64 EventType;
-
-	bool bFilterByMinDuration;
-	double MinDuration;
-
-	bool bFilterByMaxDuration;
 	double MaxDuration;
+};
 
-	uint32 ChangeNumber;
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	static const FName TypeName;
+class TRACEINSIGHTS_API FTimingEventFilterByEventType : public FTimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FTimingEventFilterByEventType, FTimingEventFilter)
+
+public:
+	FTimingEventFilterByEventType(uint64 InEventType) : EventType(InEventType) {}
+	virtual ~FTimingEventFilterByEventType() {}
+
+	//////////////////////////////////////////////////
+	// ITimingEventFilter interface
+
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override
+	{
+		if (InEvent.Is<FTimingEvent>())
+		{
+			const FTimingEvent& Event = InEvent.As<FTimingEvent>();
+			return Event.GetType() == EventType;
+		}
+		return false;
+	}
+
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const override
+	{
+		return InEventType == EventType;
+	}
+
+	//////////////////////////////////////////////////
+
+	uint64 GetEventType() const { return EventType; }
+	void SetEventType(uint64 InEventType) { if (EventType != InEventType) { EventType = InEventType; ChangeNumber++; } }
+
+private:
+	uint64 EventType;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimingEventFilterByFrameIndex : public FTimingEventFilter
+{
+	INSIGHTS_DECLARE_RTTI(FTimingEventFilterByFrameIndex, FTimingEventFilter)
+
+public:
+	FTimingEventFilterByFrameIndex(uint64 InFrameIndex) : FrameIndex(InFrameIndex) {}
+	virtual ~FTimingEventFilterByFrameIndex() {}
+
+	//////////////////////////////////////////////////
+	// ITimingEventFilter interface
+
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const override
+	{
+		if (InEvent.Is<FTimingEvent>())
+		{
+			const FTimingEvent& Event = InEvent.As<FTimingEvent>();
+			return Event.GetType() == FrameIndex;
+		}
+		return false;
+	}
+
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InFrameIndex = 0, uint32 InEventColor = 0) const override
+	{
+		return InFrameIndex == FrameIndex;
+	}
+
+	//////////////////////////////////////////////////
+
+	uint64 GetFrameIndex() const { return FrameIndex; }
+	void SetFrameIndex(uint64 InFrameIndex) { if (FrameIndex != InFrameIndex) { FrameIndex = InFrameIndex; ChangeNumber++; } }
+
+private:
+	uint64 FrameIndex;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

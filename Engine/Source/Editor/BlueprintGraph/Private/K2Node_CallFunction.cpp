@@ -77,12 +77,24 @@ struct FCustomStructureParamHelper
 			{
 				UEdGraphPin* LinkedTo = Pin->LinkedTo[0];
 				check(LinkedTo);
-				ensure(!LinkedTo->PinType.IsContainer());
+
+				if (UK2Node* Node = Cast<UK2Node>(Pin->GetOwningNode()))
+				{
+					ensure(
+						!LinkedTo->PinType.IsContainer() ||
+						Node->DoesWildcardPinAcceptContainer(Pin)
+					);
+				}
+				else
+				{
+					ensure( !LinkedTo->PinType.IsContainer() );
+				}
 
 				Pin->PinType = LinkedTo->PinType;
 			}
 			else
 			{
+				Pin->PinType = FEdGraphPinType();
 				Pin->PinType.PinCategory = UEdGraphSchema_K2::PC_Wildcard;
 				Pin->PinType.PinSubCategory = NAME_None;
 				Pin->PinType.PinSubCategoryObject = nullptr;

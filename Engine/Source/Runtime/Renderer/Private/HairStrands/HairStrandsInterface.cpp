@@ -244,7 +244,7 @@ void RunMeshTransfer(
 	TArray<FRWBuffer>& OutTransferedPositions)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(FeatureLevel);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 
@@ -269,7 +269,7 @@ void RunProjection(
 	FHairStrandsProjectionHairData& SimProjectionHairData)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(FeatureLevel);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	auto Project = [&RHICmdList, ShaderMap, &TargetMeshData, LocalToWorld](FHairStrandsProjectionHairData& ProjectionHairData)
 	{
@@ -295,7 +295,7 @@ void RunHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList, 
 	EWorldType::Type WorldType, 
 	const FShaderDrawDebugData* ShaderDrawData,
-	TShaderMap<FGlobalShaderType>* ShaderMap, 
+	FGlobalShaderMap* ShaderMap, 
 	EHairStrandsInterpolationType Type,
 	FHairStrandClusterData* ClusterData)
 {
@@ -463,7 +463,7 @@ FHairStrandsDebugInfos GetHairStandsDebugInfos()
 
 		const uint32 GroupCount = Info.HairGroups.Num();
 		for (uint32 GroupIt=0; GroupIt < GroupCount; ++GroupIt)
-		{		
+		{
 			FHairStrandsDebugInfo::HairGroup& GroupInfo = Info.HairGroups[GroupIt];
 			if (GroupIt < uint32(E.RenProjectionHairDatas.HairGroups.Num()))
 			{
@@ -502,7 +502,6 @@ bool IsHairStrandsEnable(EShaderPlatform Platform)
 		GHairStrandsRenderingEnable == 1 && 
 		GHairManager.Elements.Num() > 0; 
 }
-
 bool IsHairRayTracingEnabled()
 {
 	return IsRayTracingEnabled();
@@ -530,7 +529,7 @@ bool HasHairStrandsProjectionQuery(EShaderPlatform Platform)
 		!GBindingQueries.IsEmpty();
 }
 
-void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, TShaderMap<FGlobalShaderType>* ShaderMap)
+void RunHairStrandsBindingQueries(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap)
 {
 	FBindingQuery Q;
 	while (GBindingQueries.Dequeue(Q))

@@ -43,7 +43,7 @@ public:
 	}
 
 	/**
-	 * An even should return FReply::Handled().SetMousePos to ask Slate to move the mouse cursor to a different location
+	 * An event should return FReply::Handled().SetMousePos to ask Slate to move the mouse cursor to a different location
 	 */
 	FReply& SetMousePos( const FIntPoint& NewMousePos );
 
@@ -58,6 +58,13 @@ public:
 
 	/** An event should return a FReply::Handled().ClearUserFocus() to ask the system to clear user focus*/
 	FReply& ClearUserFocus(EFocusCause ReasonFocusIsChanging, bool bInAllUsers = false);
+
+	/** 
+	 *	An event should rarely invoke FReply::CancelFocusRequest. This will change the reply
+	 *  so that it no longer contains a request for the system to set or clear focus. 
+	 *  This is most useful when a reply has been cached for use in async operations.
+	 */
+	FReply& CancelFocusRequest();
 
 	/** An event should return FReply::Handled().SetNavigation( NavigationType ) as a means of asking the system to attempt a navigation*/
 	FReply& SetNavigation(EUINavigation InNavigationType, const ENavigationGenesis InNavigationGenesis, const ENavigationSource InNavigationSource = ENavigationSource::FocusedWidget)

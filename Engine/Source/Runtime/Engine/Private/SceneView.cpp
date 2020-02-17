@@ -163,6 +163,11 @@ static TAutoConsoleVariable<int32> CVarDefaultAutoExposureMethod(
 	TEXT(" 0: Histogram based (requires compute shader, default)\n")
 	TEXT(" 1: Basic AutoExposure"));
 
+static TAutoConsoleVariable<float> CVarDefaultAutoExposureBias(
+	TEXT("r.DefaultFeature.AutoExposure.Bias"),
+	1.0f,
+	TEXT("Engine default (project setting) for AutoExposure Exposure Bias (postprocess volume/camera/game setting still can override)\n"));
+
 static TAutoConsoleVariable<int32> CVarDefaultAutoExposureExtendDefaultLuminanceRange(
 	TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"),
 	0,
@@ -646,6 +651,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, bIsGameView(false)
 	, bIsViewInfo(false)
 	, bIsSceneCapture(false)
+	, bSceneCaptureUsesRayTracing(false)
 	, bIsReflectionCapture(false)
 	, bIsPlanarReflection(false)
 	, bIsOfflineRender(false)
@@ -752,19 +758,17 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	static const auto MultiViewCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MultiView"));
 	bIsMultiViewEnabled = RHISupportsMultiView(ShaderPlatform) && (MultiViewCVar && MultiViewCVar->GetValueOnAnyThread() != 0);
 
-#if PLATFORM_ANDROID
 	static const auto MobileMultiViewCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	bIsMobileMultiViewEnabled = RHISupportsMobileMultiView(ShaderPlatform) && (MobileMultiViewCVar && MobileMultiViewCVar->GetValueOnAnyThread() != 0);
 
 	// TODO: Test platform support for direct
 	static const auto MobileMultiViewDirectCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView.Direct"));
 	bIsMobileMultiViewDirectEnabled = (MobileMultiViewDirectCVar && MobileMultiViewDirectCVar->GetValueOnAnyThread() != 0);
-#endif
 
 	bShouldBindInstancedViewUB = bIsInstancedStereoEnabled || bIsMobileMultiViewEnabled;
 
 	// If the device doesn't support mobile multi-view, disable it.
-	bIsMobileMultiViewEnabled = bIsMobileMultiViewEnabled && GSupportsMobileMultiView && IStereoRendering::IsStereoEyePass(StereoPass);
+	bIsMobileMultiViewEnabled = bIsMobileMultiViewEnabled && (GSupportsMobileMultiView || GRHISupportsArrayIndexFromAnyShader) && IStereoRendering::IsStereoEyePass(StereoPass);
 
 	SetupAntiAliasingMethod();
 
@@ -2499,7 +2503,7 @@ bool FSceneViewFamily::SupportsScreenPercentage() const
 	}
 
 	// Mobile renderer does not support screen percentage with LDR.
-	if ((GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && !IsMobileHDR()) || (GetShaderPlatform() == SP_OPENGL_ES2_WEBGL))
+	if ((GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && !IsMobileHDR()))
 	{
 		return false;
 	}

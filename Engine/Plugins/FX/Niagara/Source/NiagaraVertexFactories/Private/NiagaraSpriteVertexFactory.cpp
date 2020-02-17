@@ -21,21 +21,17 @@ TGlobalResource<FNullDynamicParameterVertexBuffer> GNullNiagaraDynamicParameterV
  */
 class FNiagaraSpriteVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraSpriteVertexFactoryShaderParameters, NonVirtual);
 public:
-
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
-	{
-	}
-
-	virtual void Serialize(FArchive& Ar) override
-	{
-	}
+	
+	
 };
 
 class FNiagaraSpriteVertexFactoryShaderParametersVS : public FNiagaraSpriteVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraSpriteVertexFactoryShaderParametersVS, NonVirtual);
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		NumCutoutVerticesPerFrame.Bind(ParameterMap, TEXT("NumCutoutVerticesPerFrame"));
 		CutoutGeometry.Bind(ParameterMap, TEXT("CutoutGeometry"));
@@ -71,42 +67,7 @@ public:
 		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << NumCutoutVerticesPerFrame;
-		Ar << CutoutGeometry;
-		Ar << ParticleFacingMode;
-		Ar << ParticleAlignmentMode;
-
-		Ar << NiagaraParticleDataPosition;
-		Ar << NiagaraParticleDataVelocity;
-		Ar << NiagaraParticleDataColor;
-		Ar << NiagaraParticleDataRotation;
-		Ar << NiagaraParticleDataSize;
-		Ar << NiagaraParticleDataFacing;
-		Ar << NiagaraParticleDataAlignment;
-		Ar << NiagaraParticleDataSubImage;
-		Ar << NiagaraParticleDataCameraOffset;
-		Ar << NiagaraParticleDataUVScale;
-		Ar << NiagaraParticleDataNormalizedAge;
-		Ar << NiagaraParticleDataMaterialRandom;
-		Ar << NiagaraParticleDataCustomSorting;
-		Ar << NiagaraParticleDataMaterialParam0;
-		Ar << NiagaraParticleDataMaterialParam1;
-		Ar << NiagaraParticleDataMaterialParam2;
-		Ar << NiagaraParticleDataMaterialParam3;
-
-		Ar << FloatDataStride;
-
-//  		Ar << NiagaraParticleDataInt;
-//  		Ar << Int32DataOffset;
-//  		Ar << Int32DataStride;
-
-		Ar << SortedIndices;
-		Ar << SortedIndicesOffset;
-	}
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -115,7 +76,7 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		FNiagaraSpriteVertexFactory* SpriteVF = (FNiagaraSpriteVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
@@ -151,46 +112,48 @@ public:
 		ShaderBindings.Add(SortedIndices, SpriteVF->GetSortedIndicesSRV() ? SpriteVF->GetSortedIndicesSRV() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference());
 		ShaderBindings.Add(SortedIndicesOffset, SpriteVF->GetSortedIndicesOffset());
 	}
+
 private:
-	FShaderParameter NumCutoutVerticesPerFrame;
-
-	FShaderParameter ParticleAlignmentMode;
-	FShaderParameter ParticleFacingMode;
-
-	FShaderResourceParameter CutoutGeometry;
-
-	FShaderResourceParameter NiagaraParticleDataPosition;
-	FShaderResourceParameter NiagaraParticleDataVelocity;
-	FShaderResourceParameter NiagaraParticleDataColor;
-	FShaderResourceParameter NiagaraParticleDataRotation;
-	FShaderResourceParameter NiagaraParticleDataSize;
-	FShaderResourceParameter NiagaraParticleDataFacing;
-	FShaderResourceParameter NiagaraParticleDataAlignment;
-	FShaderResourceParameter NiagaraParticleDataSubImage;
-	FShaderResourceParameter NiagaraParticleDataCameraOffset;
-	FShaderResourceParameter NiagaraParticleDataUVScale;
-	FShaderResourceParameter NiagaraParticleDataNormalizedAge;
-	FShaderResourceParameter NiagaraParticleDataMaterialRandom;
-	FShaderResourceParameter NiagaraParticleDataCustomSorting;
-	FShaderResourceParameter NiagaraParticleDataMaterialParam0;
-	FShaderResourceParameter NiagaraParticleDataMaterialParam1;
-	FShaderResourceParameter NiagaraParticleDataMaterialParam2;
-	FShaderResourceParameter NiagaraParticleDataMaterialParam3;
-	FShaderParameter FloatDataStride;
-
-//  	FShaderResourceParameter NiagaraParticleDataInt;
-//  	FShaderParameter Int32DataOffset;
-//  	FShaderParameter Int32DataStride;
 	
-	FShaderResourceParameter SortedIndices;
-	FShaderParameter SortedIndicesOffset;
+		LAYOUT_FIELD(FShaderParameter, NumCutoutVerticesPerFrame);
+
+		LAYOUT_FIELD(FShaderParameter, ParticleAlignmentMode);
+		LAYOUT_FIELD(FShaderParameter, ParticleFacingMode);
+
+		LAYOUT_FIELD(FShaderResourceParameter, CutoutGeometry);
+
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataPosition);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataVelocity);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataColor);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataRotation);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataSize);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFacing);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataAlignment);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataSubImage);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataCameraOffset);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataUVScale);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataNormalizedAge);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialRandom);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataCustomSorting);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam0);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam1);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam2);
+		LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam3);
+		LAYOUT_FIELD(FShaderParameter, FloatDataStride);
+
+	//  	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataInt);
+	//  	LAYOUT_FIELD(FShaderParameter, Int32DataOffset);
+	//  	LAYOUT_FIELD(FShaderParameter, Int32DataStride);
+	
+		LAYOUT_FIELD(FShaderResourceParameter, SortedIndices);
+		LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset);
+	
 };
 
 class FNiagaraSpriteVertexFactoryShaderParametersPS : public FNiagaraSpriteVertexFactoryShaderParameters
 {
 public:
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -199,7 +162,7 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		FNiagaraSpriteVertexFactory* SpriteVF = (FNiagaraSpriteVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
@@ -251,17 +214,17 @@ public:
 /** The simple element vertex declaration. */
 static TGlobalResource<FNiagaraSpriteVertexDeclaration> GParticleSpriteVertexDeclaration;
 
-bool FNiagaraSpriteVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FNiagaraSpriteVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (FNiagaraUtilities::SupportsNiagaraRendering(Platform)) && (Material->IsUsedWithNiagaraSprites() || Material->IsSpecialEngineMaterial());
+	return (FNiagaraUtilities::SupportsNiagaraRendering(Parameters.Platform)) && (Parameters.MaterialParameters.bIsUsedWithNiagaraSprites || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 /**
  * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
  */
-void FNiagaraSpriteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FNiagaraSpriteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 	OutEnvironment.SetDefine(TEXT("NiagaraVFLooseParameters"),TEXT("NiagaraSpriteVFLooseParameters"));
 
@@ -293,27 +256,10 @@ void FNiagaraSpriteVertexFactory::SetTexCoordBuffer(const FVertexBuffer* InTexCo
 	TexCoordStream.VertexBuffer = InTexCoordBuffer;
 }
 
-FVertexFactoryShaderParameters* FNiagaraSpriteVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	if (ShaderFrequency == SF_Vertex)
-	{
-		return new FNiagaraSpriteVertexFactoryShaderParametersVS();
-	}
-	else if (ShaderFrequency == SF_Pixel)
-	{
-		return new FNiagaraSpriteVertexFactoryShaderParametersPS();
-	}
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraSpriteVertexFactory, SF_Vertex, FNiagaraSpriteVertexFactoryShaderParametersVS);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraSpriteVertexFactory, SF_Pixel, FNiagaraSpriteVertexFactoryShaderParametersPS);
 #if RHI_RAYTRACING
-	else if (ShaderFrequency == SF_Compute)
-	{
-		return new FNiagaraSpriteVertexFactoryShaderParametersVS();
-	}
-	else if (ShaderFrequency == SF_RayHitGroup)
-	{
-		return new FNiagaraSpriteVertexFactoryShaderParametersVS();
-	}
-#endif
-	return NULL;
-}
-
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraSpriteVertexFactory, SF_Compute, FNiagaraSpriteVertexFactoryShaderParametersVS);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraSpriteVertexFactory, SF_RayHitGroup, FNiagaraSpriteVertexFactoryShaderParametersVS);
+#endif // RHI_RAYTRACING
 IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraSpriteVertexFactory,"/Plugin/FX/Niagara/Private/NiagaraSpriteVertexFactory.ush",true,false,true,false,false);

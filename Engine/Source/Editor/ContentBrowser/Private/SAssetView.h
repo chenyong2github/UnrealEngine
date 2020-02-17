@@ -829,10 +829,26 @@ public:
 	FOnFolderPathChanged OnFolderPathChanged;
 
 private:
+	struct FAssetDataKeyFuncs : BaseKeyFuncs<FAssetData, FName>
+	{
+		static FORCEINLINE const FName& GetSetKey(const FAssetData& AssetData)
+		{
+			return AssetData.ObjectPath;
+		}
+		static FORCEINLINE bool Matches(const FName& A, const FName& B)
+		{
+			return A.GetDisplayIndex() == B.GetDisplayIndex();
+		}
+		static FORCEINLINE uint32 GetKeyHash(const FName& Key)
+		{
+			return GetTypeHash(Key.GetDisplayIndex());
+		}
+	};
+	typedef TSet<FAssetData, FAssetDataKeyFuncs> FAssetDataSet;
 
 	/** The asset items being displayed in the view and the filtered list */
-	TArray<FAssetData> QueriedAssetItems;
-	TArray<FAssetData> AssetItems;
+	FAssetDataSet QueriedAssetItems;
+	FAssetDataSet AssetItems;
 	TArray<TSharedPtr<FAssetViewItem>> FilteredAssetItems;
 
 	/** The folder items being displayed in the view */

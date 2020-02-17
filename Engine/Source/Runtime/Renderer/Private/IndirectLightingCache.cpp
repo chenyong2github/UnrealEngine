@@ -375,7 +375,7 @@ void FIndirectLightingCache::ReleasePrimitive(FPrimitiveComponentId PrimitiveId)
 	}
 }
 
-FIndirectLightingCacheAllocation* FIndirectLightingCache::FindPrimitiveAllocation(FPrimitiveComponentId PrimitiveId)
+FIndirectLightingCacheAllocation* FIndirectLightingCache::FindPrimitiveAllocation(FPrimitiveComponentId PrimitiveId) const
 {
 	return PrimitiveAllocations.FindRef(PrimitiveId);
 }

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_TIMING_H
-#define ARCH_TIMING_H
+#ifndef PXR_BASE_ARCH_TIMING_H
+#define PXR_BASE_ARCH_TIMING_H
 
 /// \file arch/timing.h
 /// \ingroup group_arch_SystemFunctions
@@ -109,4 +109,4 @@ double ArchGetNanosecondsPerTick();
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_TIMING_H
+#endif // PXR_BASE_ARCH_TIMING_H

@@ -162,22 +162,6 @@ namespace DeploymentServer
             return OutName;
         }
 
-        /// <summary>
-        /// Tries to determine if the device will not be able to run a UE3 application
-        /// </summary>
-        bool CanRunUE3Applications(string DeviceType)
-        {
-            // Not perfect, but it will give it a go
-            if (DeviceType.StartsWith("iPhone1,") || DeviceType.StartsWith("iPod1,") || DeviceType.StartsWith("iPod2,"))
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
-        }
-
         void MobileDeviceConnected(object sender, Manzana.ConnectEventArgs args)
         {
             string DeviceName = "(unknown name)";
@@ -473,12 +457,6 @@ namespace DeploymentServer
                 string DeviceName = Device.DeviceName;
                 string UDID = Device.DeviceId;
                 string DeviceType = Device.ProductType;
-
-                // Check to see what kind of device it is
-                if (!CanRunUE3Applications(DeviceType))
-                {
-                    ReportIF.Warning(String.Format("Device '{0}' is a {1} model, which does not support OpenGL ES2.0.  The installation is likely to fail.", DeviceName, GetPrettyDeviceType(DeviceType)));
-                }
 
 				Console.WriteLine("Device '{0}' with id {1} of type {3} is being checked against {2}.", Device.DeviceName, Device.DeviceId, DeviceId, Device.ProductType);
 				if (String.IsNullOrEmpty(DeviceId) || Device.DeviceId == DeviceId ||

@@ -38,8 +38,9 @@ namespace UnrealBuildTool.Rules
                 });
                 PrivateIncludePaths.AddRange(
                     new string[] {
-                    "../../../../Source/Runtime/D3D12RHI/Private",
-                });
+                    "../../../../Platforms/XboxCommon/Source/Runtime/D3D12RHI/Private",
+					"../../../../Source/Runtime/D3D12RHI/Private",
+				});
             }
             else
             {

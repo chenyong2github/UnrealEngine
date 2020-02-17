@@ -58,7 +58,7 @@ public class Expat : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "expat.lib"));
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Switch)
+		else if (Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, Target.Platform.ToString(), ConfigName, "libexpat.a"));
 		}

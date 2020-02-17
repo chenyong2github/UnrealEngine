@@ -34,6 +34,11 @@ float GetRoughness(FMaterialClosestHitPayload HitInfo)
 	return HitInfo.Roughness;
 }
 
+float GetMetallic(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.Metallic;
+}
+
 float GetClearCoat(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.CustomData.x;
@@ -62,7 +67,8 @@ float3 GetClearCoatBottomNormal(FMaterialClosestHitPayload HitInfo)
 
 float GetClearCoatThickness(FMaterialClosestHitPayload HitInfo)
 {
-	return 0.1;
+	// Assume normalized thickness
+	return 1.0;
 }
 
 float GetClearCoatIor(FMaterialClosestHitPayload HitInfo)

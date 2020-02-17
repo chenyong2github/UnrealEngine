@@ -109,6 +109,18 @@ struct CORE_API FRenderingObjectVersion
 		// Removed emulated instancing from instanced static meshes
 		RemovedEmulatedInstancing,
 
+		// Added per instance custom data (for Instanced Static Meshes)
+		PerInstanceCustomData,
+
+		// Added material attributes to shader graph to support anisotropic materials 
+		AnisotropicMaterial,
+
+		// Add if anything has changed in the exposure, override the bias to avoid the new default propagating
+		AutoExposureForceOverrideBiasFlag,
+
+		// Override for a special case for objects that were serialized and deserialized between versions AutoExposureChanges and AutoExposureForceOverrideBiasFlag
+		AutoExposureDefaultFix,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

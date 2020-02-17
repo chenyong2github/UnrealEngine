@@ -54,6 +54,8 @@ protected:
 	 */
 	void ReloadProcessList(bool FullyReload);
 
+	void UpdateProcessTree();
+
 	/** Periodically refreshes the process list. */
 	EActiveTimerReturnType UpdateProcessList(double InCurrentTime, float InDeltaTime);
 

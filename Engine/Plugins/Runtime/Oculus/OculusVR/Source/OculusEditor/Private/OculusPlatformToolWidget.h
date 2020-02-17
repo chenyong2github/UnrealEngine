@@ -67,6 +67,7 @@ private:
 	bool Options2DCollapsed;
 	bool OptionsRedistPackagesCollapsed;
 	bool ActiveUploadButton;
+	bool RequestUploadButtonActive;
 	FProcHandle PlatformProcess;
 	FThreadSafeBool LogTextUpdated;
 

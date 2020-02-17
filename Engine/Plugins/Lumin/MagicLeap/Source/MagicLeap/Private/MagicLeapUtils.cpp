@@ -21,16 +21,16 @@ namespace MagicLeap
 		FMemory::Memcpy(&UpdateInfoArray.full_extents.transform, &MagicLeap::kIdentityTransform, sizeof(MagicLeap::kIdentityTransform));
 	}
 
-	void ResetVirtualCameraInfoArray(MLGraphicsVirtualCameraInfoArray& RenderInfoArray)
+	void ResetFrameInfo(MLGraphicsFrameInfo& FrameInfo)
 	{
-		RenderInfoArray.num_virtual_cameras = 0;
-		RenderInfoArray.color_id = 0;
-		RenderInfoArray.depth_id = 0;
-		RenderInfoArray.viewport.x = 0;
-		RenderInfoArray.viewport.y = 0;
-		RenderInfoArray.viewport.w = 0;
-		RenderInfoArray.viewport.h = 0;
-		for (MLGraphicsVirtualCameraInfo &ViewportInfo : RenderInfoArray.virtual_cameras)
+		FrameInfo.num_virtual_cameras = 0;
+		FrameInfo.color_id = 0;
+		FrameInfo.depth_id = 0;
+		FrameInfo.viewport.x = 0;
+		FrameInfo.viewport.y = 0;
+		FrameInfo.viewport.w = 0;
+		FrameInfo.viewport.h = 0;
+		for (MLGraphicsVirtualCameraInfo &ViewportInfo : FrameInfo.virtual_cameras)
 		{
 			FMemory::Memcpy(ViewportInfo.projection.matrix_colmajor, MagicLeap::kIdentityMatColMajor, sizeof(MagicLeap::kIdentityMatColMajor));
 			FMemory::Memcpy(&ViewportInfo.transform, &MagicLeap::kIdentityTransform, sizeof(MagicLeap::kIdentityTransform));

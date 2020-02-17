@@ -79,7 +79,7 @@ public partial class Project : CommandUtils
 			foreach (var Entry in ResponseFile)
 			{
 				string Line = String.Format("\"{0}\" \"{1}\"", Entry.Key, Entry.Value);
-				if (Compressed && !Path.GetExtension(Entry.Key).Contains(".mp4"))
+				if (Compressed && !Path.GetExtension(Entry.Key).Contains(".mp4") && !Path.GetExtension(Entry.Key).Contains("ushaderbytecode") && !Path.GetExtension(Entry.Key).Contains("upipelinecache"))
 				{
 					Line += " -compress";
 				}
@@ -159,6 +159,22 @@ public partial class Project : CommandUtils
 		}
 		
 		CmdLine.Append(PlatformOptions);
+
+		return CmdLine.ToString();
+	}
+
+	static private string GetIoStoreCommand(Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, FileReference PakOrderFileLocation, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, string EncryptionKeyGuid, FileReference SecondaryPakOrderFileLocation=null)
+	{
+		StringBuilder CmdLine = new StringBuilder();
+		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(OutputLocation.FullName, null)));
+
+		// Force encryption of ALL files if we're using specific encryption key. This should be made an option per encryption key in the settings, but for our initial
+		// implementation we will just assume that we require maximum security for this data.
+		bool bForceEncryption = !string.IsNullOrEmpty(EncryptionKeyGuid);
+		string PakName = Path.GetFileNameWithoutExtension(OutputLocation.FullName);
+		string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakListIoStore_" + PakName + ".txt");
+		WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, Compressed, CryptoSettings, bForceEncryption);
+		CmdLine.AppendFormat(" -ResponseFile={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakResponseFileName));
 
 		return CmdLine.ToString();
 	}
@@ -639,18 +655,17 @@ public partial class Project : CommandUtils
 				// Stage platform extension config files
 				{
 					string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
+					StagePlatformExtensionConfigFiles(SC, PlatformExtensionName);
 
-					DirectoryReference PlatformEngineConfigDir = DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformExtensionName, "Config");
-					DirectoryReference PlatformProjectConfigDir = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformExtensionName, "Config");
-
-					if (DirectoryReference.Exists(PlatformEngineConfigDir))
+					// and any ini parents it has
+					DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(PlatformExtensionName);
+					if (Info != null && Info.IniParentChain != null)
 					{
-						StageConfigFiles(SC, PlatformEngineConfigDir, PlatformExtensionName);
-					}
-
-					if (DirectoryReference.Exists(PlatformProjectConfigDir))
-					{
-						StageConfigFiles(SC, PlatformProjectConfigDir, PlatformExtensionName);
+						// the IniParentChain
+						foreach (string ParentPlatform in Info.IniParentChain)
+						{
+							StagePlatformExtensionConfigFiles(SC, ParentPlatform);
+						}
 					}
 				}
 
@@ -1051,6 +1066,27 @@ public partial class Project : CommandUtils
 			{
 				CommandUtils.LogInformation("Excluding config file {0}", ConfigFile);
 			}
+		}
+	}
+
+	/// <summary>
+	/// Looks for a potential PlatformExtension config directory
+	/// </summary>
+	/// <param name="SC">The staging context</param>
+	/// <param name="PlatformName">The name of the platform/platform parent</param>
+	static void StagePlatformExtensionConfigFiles(DeploymentContext SC, string PlatformName)
+	{
+		DirectoryReference PlatformEngineConfigDir = DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformName, "Config");
+		DirectoryReference PlatformProjectConfigDir = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformName, "Config");
+
+		if (DirectoryReference.Exists(PlatformEngineConfigDir))
+		{
+			StageConfigFiles(SC, PlatformEngineConfigDir, PlatformName);
+
+		}
+		if (DirectoryReference.Exists(PlatformProjectConfigDir))
+		{
+			StageConfigFiles(SC, PlatformProjectConfigDir, PlatformName);
 		}
 	}
 
@@ -1929,6 +1965,7 @@ public partial class Project : CommandUtils
 
 		List<string> Commands = new List<string>();
 		List<string> LogNames = new List<string>();
+		List<string> IoStoreCommands = new List<string>();
 
 		// Calculate target patch index by iterating all pak files in source build
 		int TargetPatchIndex = 0;
@@ -2120,23 +2157,21 @@ public partial class Project : CommandUtils
 					}
 
 					string BulkOption = "";
+                    ConfigHierarchy PlatformEngineConfig = null;
+                    if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
                     {
-                        ConfigHierarchy PlatformEngineConfig;
-                        if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
+                        bool bMasterEnable = false;
+						PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
+                        if (bMasterEnable)
                         {
-                            bool bMasterEnable = false;
-							PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
-                            if (bMasterEnable)
+                            int Value = 0;
+							PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
+                            if (Value > 0)
                             {
-                                int Value = 0;
-								PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
-                                if (Value > 0)
-                                {
-                                    BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
-                                }
+                                BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
                             }
                         }
-					}
+                    }
 
 					string AdditionalArgs = String.Empty;
 					if (bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
@@ -2170,7 +2205,48 @@ public partial class Project : CommandUtils
 						AdditionalArgs += " -fallbackOrderForNonUassetFiles";
 					}
 
-					Commands.Add(GetUnrealPakArguments(Params.RawProjectPath, PakParams.UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+					if (PlatformEngineConfig != null)
+					{
+						// if the runtime will want to reduce memory usage, we have to disable the pak index freezing
+						bool bUnloadPakEntries = false;
+						bool bShrinkPakEntries = false;
+						PlatformEngineConfig.GetBool("Pak", "UnloadPakEntryFilenamesIfPossible", out bUnloadPakEntries);
+						PlatformEngineConfig.GetBool("Pak", "ShrinkPakEntriesMemoryUsage", out bShrinkPakEntries);
+						if (bUnloadPakEntries || bShrinkPakEntries)
+						{
+							AdditionalArgs += " -allowForIndexUnload";
+						}
+					}
+
+					// pass the targetplatform so the index may be able to be frozen
+					AdditionalArgs += " -platform=" + ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
+
+					Dictionary<string, string> UnrealPakResponseFile;
+					if (ShouldCreateIoStoreContainerFiles(Params, SC))
+					{
+						UnrealPakResponseFile = new Dictionary<string, string>();
+						Dictionary<string, string> IoStoreResponseFile = new Dictionary<string, string>();
+						foreach (var Entry in PakParams.UnrealPakResponseFile)
+						{
+							if (Path.GetExtension(Entry.Key).Contains(".uasset") ||
+								Path.GetExtension(Entry.Key).Contains(".umap") ||
+								Path.GetExtension(Entry.Key).Contains(".ubulk") ||
+								Path.GetExtension(Entry.Key).Contains(".uptnl"))
+							{
+								IoStoreResponseFile.Add(Entry.Key, Entry.Value);
+							}
+							else if (!Path.GetExtension(Entry.Key).Contains(".uexp"))
+							{
+								UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
+							}
+						}
+						IoStoreCommands.Add(GetIoStoreCommand(IoStoreResponseFile, OutputLocation, PrimaryOrderFile, PakParams.bCompressed, CryptoSettings, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+					}
+					else
+					{
+						UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
+					}
+					Commands.Add(GetUnrealPakArguments(Params.RawProjectPath, UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 				}
 			}
@@ -2182,6 +2258,39 @@ public partial class Project : CommandUtils
 		if (Commands.Count > 0)
 		{
 			RunUnrealPakInParallel( Commands, LogNames, AdditionalCompressionOptionsOnCommandLine);
+		}
+
+		if (IoStoreCommands.Count > 0)
+		{
+			string IoStoreCommandsFileName = CombinePaths(CmdEnv.LogFolder, "IoStoreCommands.txt");
+			using (var Writer = new StreamWriter(IoStoreCommandsFileName, false, new System.Text.UTF8Encoding(true)))
+			{
+				foreach (string Command in IoStoreCommands)
+				{
+					Writer.WriteLine(Command);
+				}
+			}
+
+			FileReference PackageOpenOrderFileLocation = null;
+			FileReference CookerOpenOrderFileLocation = null;
+			// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
+			string[] OrderLocations = new string[] { SC.FinalCookPlatform, SC.StageTargetPlatform.GetTargetPlatformDescriptor().Type.ToString() };
+
+			foreach (string OrderLocation in OrderLocations.Reverse())
+			{
+				DirectoryReference IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+				FileReference FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "PackageOpenOrder.log");
+				if (FileExists_NoExceptions(FileLocation.FullName))
+				{
+					PackageOpenOrderFileLocation = FileLocation;
+				}
+				FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "CookerOpenOrder.log");
+				if (FileExists_NoExceptions(FileLocation.FullName))
+				{
+					CookerOpenOrderFileLocation = FileLocation;
+				}
+			}
+			RunIoStore(Params, SC, IoStoreCommandsFileName, PackageOpenOrderFileLocation, CookerOpenOrderFileLocation);
 		}
 
 		// Do any additional processing on the command output
@@ -2323,6 +2432,22 @@ public partial class Project : CommandUtils
 				}
 			}
 		}
+	}
+
+	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference PackageOrderFileLocation, FileReference CookerOpenOrderFileLocation)
+	{
+		FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name);
+		string CommandletParams = String.Format("-OutputDirectory={0} -CookedDirectory={1} -Commands={2}", OutputLocation.FullName, SC.PlatformCookDir, MakePathSafeToUseWithCommandLine(CommandsFileName));
+		if (PackageOrderFileLocation != null)
+		{
+			CommandletParams += String.Format(" -PackageOrder={0}", PackageOrderFileLocation.FullName);
+		}
+		if (CookerOpenOrderFileLocation != null)
+		{
+			CommandletParams += String.Format(" -CookerOrder={0}", CookerOpenOrderFileLocation.FullName);
+		}
+		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
+		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
 	}
 
 	private static void RunUnrealPakInParallel(List<string> Commands, List<string> LogNames, string AdditionalCompressionOptionsOnCommandLine)
@@ -2844,7 +2969,7 @@ public partial class Project : CommandUtils
 			return false;
 		}
 
-		return Params.IoStore;
+		return Params.IoStore && !Params.SkipIoStore;
 	}
 
 	private static bool ShouldCreatePak(ProjectParams Params, DeploymentContext SC)
@@ -2964,22 +3089,6 @@ public partial class Project : CommandUtils
 
 	public static void ApplyStagingManifest(ProjectParams Params, DeploymentContext SC)
 	{
-		if (ShouldCreateIoStoreContainerFiles(Params, SC))
-		{
-			foreach (var ClientPlatform in Params.ClientTargetPlatforms)
-			{
-				TargetPlatformDescriptor DataPlatformDesc = Params.GetCookedDataPlatformForClientTarget(ClientPlatform);
-				String TargetPlatformName = Platform.Platforms[DataPlatformDesc].GetCookPlatform(false, Params.Client);
-				DirectoryReference OutputDirectory = DirectoryReference.Combine(SC.RuntimeRootDir, SC.RelativeProjectRootForStage.Name, "Content", "Containers");
-				String CommandletParams = String.Format("-TargetPlatform={0} -OutputDirectory={1}", TargetPlatformName, OutputDirectory.FullName);
-				if (SC.PlatformUsesChunkManifests && DoesChunkPakManifestExist(Params, SC))
-				{
-					CommandletParams += String.Format(" -ChunkListFile={0}", GetChunkPakManifestListFilename(Params, SC));
-				}
-				RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
-			}
-		}
-
 		if (ShouldCreatePak(Params, SC))
 		{
 			if (SC.CrashReporterUFSFiles.Count > 0)

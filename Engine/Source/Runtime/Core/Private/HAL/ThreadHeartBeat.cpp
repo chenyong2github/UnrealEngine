@@ -19,7 +19,7 @@
 #include "Misc/App.h"
 
 #if PLATFORM_SWITCH
-#include "Switch/SwitchPlatformCrashContext.h"
+#include "SwitchPlatformCrashContext.h"
 #endif
 // When enabled, the heart beat thread will call abort() when a hang
 // is detected, rather than performing stack back-traces and logging.

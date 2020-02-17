@@ -21,7 +21,6 @@ class FIoRequestImpl;
 enum EIoStoreResolveResult
 {
 	IoStoreResolveResult_OK,
-	IoStoreResolveResult_Stalled,
 	IoStoreResolveResult_NotFound,
 };
 

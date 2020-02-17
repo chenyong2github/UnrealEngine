@@ -17,6 +17,7 @@ public class AudioEditor : ModuleRules
 			new string[] {
 				"AudioMixer",
 				"ToolMenus",
+				"AudioExtensions"
 			});
 
 		PublicDependencyModuleNames.AddRange(

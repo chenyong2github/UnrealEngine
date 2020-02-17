@@ -53,7 +53,6 @@ public:
 
 	FLpvVisualiseGS()																												{}
 	explicit FLpvVisualiseGS( const ShaderMetaType::CompiledShaderInitializerType& Initializer ) : FLpvVisualiseBase(Initializer)	{}
-	virtual bool Serialize( FArchive& Ar ) override																					{ return FLpvVisualiseBase::Serialize( Ar ); }
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -64,7 +63,7 @@ public:
 		FRHICommandList& RHICmdList, 
 		const FSceneView& View )
 	{
-		FRHIGeometryShader* ShaderRHI = GetGeometryShader();
+		FRHIGeometryShader* ShaderRHI = RHICmdList.GetBoundGeometryShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 	}
 };
@@ -76,7 +75,6 @@ public:
 
 	FLpvVisualiseVS()	{	}
 	explicit FLpvVisualiseVS( const ShaderMetaType::CompiledShaderInitializerType& Initializer ) : FLpvVisualiseBase(Initializer) {}
-	virtual bool Serialize( FArchive& Ar ) override																					{ return FLpvVisualiseBase::Serialize( Ar ); }
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)		{ return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && IsLPVSupported(Parameters.Platform); }
 
@@ -84,7 +82,7 @@ public:
 		FRHICommandList& RHICmdList, 
 		const FSceneView& View )
 	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 	}
 };
@@ -116,7 +114,7 @@ public:
 		const FLightPropagationVolume* LPV,
 		const FSceneView& View )
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		
 		for ( int i = 0; i < 7; i++ )
@@ -141,35 +139,14 @@ public:
 
 	}
 
-
-	// Serialization
-	virtual bool Serialize( FArchive& Ar ) override
-	{
-		bool bShaderHasOutdatedParameters = FLpvVisualiseBase::Serialize( Ar );
-		
-		for ( int i = 0; i < 7; i++ )
-		{
-			Ar << LpvBufferSRVParameters[i];
-		}
-
-		Ar << LpvVolumeTextureSampler;
-
-		for ( int i = 0; i < NUM_GV_TEXTURES; i++ ) 
-		{
-			Ar << GvBufferSRVParameters[i];
-		}
-		return bShaderHasOutdatedParameters;
-	}
-	FShaderResourceParameter LpvBufferSRVParameters[7];
-
-	FShaderResourceParameter LpvVolumeTextureSampler;
-
-	FShaderResourceParameter GvBufferSRVParameters[3];
+	LAYOUT_ARRAY(FShaderResourceParameter, LpvBufferSRVParameters, 7);
+	LAYOUT_FIELD(FShaderResourceParameter, LpvVolumeTextureSampler);
+	LAYOUT_ARRAY(FShaderResourceParameter, GvBufferSRVParameters, 3);
 
 	void UnbindBuffers(FRHICommandList& RHICmdList)
 	{
 		// TODO: Is this necessary here?
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		for ( int i = 0; i < 7; i++ )
 		{
 			if ( LpvBufferSRVParameters[i].IsBound() )
@@ -220,11 +197,11 @@ void FLightPropagationVolume::Visualise(FRHICommandList& RHICmdList, const FView
 	}
 	
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GSimpleElementVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GETSAFERHISHADER_GEOMETRY(*GeometryShader);
+	GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
 #endif
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PrimType;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);

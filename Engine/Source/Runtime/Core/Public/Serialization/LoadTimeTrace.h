@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Trace/Config.h"
+#include "Trace/Trace.h"
 #include "ProfilingDebugging/FormatArgsTrace.h"
 
 #if !defined(LOADTIMEPROFILERTRACE_ENABLED)
@@ -15,6 +16,8 @@
 #endif
 
 #if LOADTIMEPROFILERTRACE_ENABLED
+
+CORE_API UE_TRACE_CHANNEL_EXTERN(LoadTimeChannel);
 
 struct FLoadTimeProfilerTrace
 {
@@ -37,8 +40,6 @@ struct FLoadTimeProfilerTrace
 		uint16 FormatArgsSize = 0;
 		uint8 FormatArgsBuffer[1024];
 	};
-
-	CORE_API static void InitInternal();
 };
 
 #define TRACE_LOADTIME_REQUEST_GROUP_SCOPE(Format, ...) \

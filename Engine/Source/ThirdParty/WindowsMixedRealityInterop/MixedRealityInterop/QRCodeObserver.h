@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include <winrt/Windows.Perception.Spatial.h>
-#include <winrt/Windows.Perception.Spatial.Surfaces.h>
+#include <Windows.Perception.Spatial.h>
+#include <Windows.Perception.Spatial.Surfaces.h>
 
 using namespace Windows::Perception::Spatial;
 using namespace Windows::Perception::Spatial::Surfaces;
 using namespace Platform;
+using namespace Microsoft::MixedReality::QR;
 
 /**
  * The QR code observer singleton that notifies UE4 of changes
@@ -44,9 +45,9 @@ private:
 	static QRCodeUpdateObserver* ObserverInstance;
 
 	// WinRT handlers
-	static void OnAdded(QRCodesTrackerPlugin::QRCodeAddedEventArgs ^args);
-	static void OnUpdated(QRCodesTrackerPlugin::QRCodeUpdatedEventArgs ^args);
-	static void OnRemoved(QRCodesTrackerPlugin::QRCodeRemovedEventArgs ^args);
+	static void OnAdded(QRCodeWatcher ^sender, QRCodeAddedEventArgs^ args);
+	static void OnUpdated(QRCodeWatcher ^sender, QRCodeUpdatedEventArgs^ args);
+	static void OnRemoved(QRCodeWatcher ^sender, QRCodeRemovedEventArgs^ args);
 
-	QRCodesTrackerPlugin::QRTracker^ QRTrackerInstance;
+	Microsoft::MixedReality::QR::QRCodeWatcher^ QRTrackerInstance;
 };

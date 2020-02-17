@@ -19,7 +19,7 @@ bool URuntimeVirtualTextureComponent::IsVisible() const
 	return Super::IsVisible() && UseVirtualTexturing(GetScene()->GetFeatureLevel());
 }
 
-void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent()
+void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	if (ShouldRender() && VirtualTexture != nullptr)
 	{
@@ -27,7 +27,7 @@ void URuntimeVirtualTextureComponent::CreateRenderState_Concurrent()
 		GetScene()->AddRuntimeVirtualTexture(this);
 	}
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 }
 
 void URuntimeVirtualTextureComponent::SendRenderTransform_Concurrent()
@@ -97,7 +97,10 @@ void URuntimeVirtualTextureComponent::SetTransformToBounds()
 			{
 				const FTransform ComponentToActor = PrimitiveComponent->GetComponentTransform() * WorldToLocal;
 				FBoxSphereBounds LocalSpaceComponentBounds = PrimitiveComponent->CalcBounds(ComponentToActor);
-				BoundBox += LocalSpaceComponentBounds.GetBox();
+				if (LocalSpaceComponentBounds.GetBox().GetVolume() > 0.f)
+				{
+					BoundBox += LocalSpaceComponentBounds.GetBox();
+				}
 			}
 		}
 

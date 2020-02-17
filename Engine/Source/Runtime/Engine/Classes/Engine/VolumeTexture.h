@@ -116,7 +116,7 @@ public:
 
 #endif
 
-	ENGINE_API static bool ShaderPlatformSupportsCompression(EShaderPlatform ShaderPlatform);
+	ENGINE_API static bool ShaderPlatformSupportsCompression(FStaticShaderPlatform ShaderPlatform);
 
 protected:
 

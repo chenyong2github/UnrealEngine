@@ -79,7 +79,7 @@ bool CompileShader_VectorVM(const FShaderCompilerInput& Input, FShaderCompilerOu
 		SCOPE_CYCLE_COUNTER(STAT_VectorVM_Compiler_CompileShader_VectorVMPreprocessShader);
 
 		// Don't include shader definitions since it creates shader compilation errors.
-		if (!PreprocessShader(PreprocessedShader, Output, Input, AdditionalDefines, false))
+		if (!PreprocessShader(PreprocessedShader, Output, Input, AdditionalDefines, EDumpShaderDefines::DontIncludeDefines))
 		{
 			// The preprocessing stage will add any relevant errors.
 			if (Output.Errors.Num() != 0)

@@ -59,7 +59,7 @@ bool FMagicLeapContactsPlugin::Tick(float DeltaTime)
 			{
 				continue;
 			}
-			else if (Result == MLContactsResult_Completed || Result == MLContactsResult_Cancelled)
+			else if (Result == MLContactsResult_Completed)
 			{
 				ContactRequest.SingleContactResultDelegate.Broadcast(MLOpStatusToUEOpStatus(OpResult->operation_status));
 			}
@@ -138,10 +138,15 @@ bool FMagicLeapContactsPlugin::Shutdown()
 #endif // WITH_MLSDK
 }
 
-FGuid FMagicLeapContactsPlugin::AddContactAsync(const FMagicLeapContact& InContact, const FSingleContactResultDelegateMulti& ResultDelegate)
+FGuid FMagicLeapContactsPlugin::AddContactAsync(const FMagicLeapContact& InContact, const FMagicLeapSingleContactResultDelegateMulti& InResultDelegate)
 {
 #if WITH_MLSDK
-	if (TryAddPendingTask(EMagicLeapPrivilege::AddressBookWrite, FContactRequest::EType::Add, InContact, ResultDelegate))
+	FContactRequest ContactRequest;
+	ContactRequest.Type = FContactRequest::EType::Add;
+	ContactRequest.Contact = InContact;
+	ContactRequest.RequiredPrivilege = EMagicLeapPrivilege::AddressBookWrite;
+	ContactRequest.SingleContactResultDelegate = InResultDelegate;
+	if (TryAddPendingTask(ContactRequest))
 	{
 		return FGuid();
 	}
@@ -151,9 +156,9 @@ FGuid FMagicLeapContactsPlugin::AddContactAsync(const FMagicLeapContact& InConta
 
 	if (!ValidateUEContact(UEContact))
 	{
-		if (ResultDelegate.IsBound())
+		if (InResultDelegate.IsBound())
 		{
-			ResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
+			InResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
 		}
 		return FGuid();
 	}
@@ -165,16 +170,15 @@ FGuid FMagicLeapContactsPlugin::AddContactAsync(const FMagicLeapContact& InConta
 	DestroyMLContact(MLContact);
 	if (Result == MLResult_Ok)
 	{
-		FContactRequest& ContactRequest = ActiveRequests.AddDefaulted_GetRef();
 		ContactRequest.Handle = RequestHandle;
-		ContactRequest.SingleContactResultDelegate = ResultDelegate;
+		ActiveRequests.Add(ContactRequest);
 		return MLHandleToFGuid(RequestHandle);
 	}
 	else
 	{
-		if (ResultDelegate.IsBound())
+		if (InResultDelegate.IsBound())
 		{
-			ResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
+			InResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
 		}
 		Log(EMagicLeapContactsOperationStatus::Fail, FString::Printf(TEXT("MLContactsRequestInsert failed with error '%s'"), UTF8_TO_TCHAR(MLContactsGetResultString(Result))));
 	}
@@ -182,10 +186,15 @@ FGuid FMagicLeapContactsPlugin::AddContactAsync(const FMagicLeapContact& InConta
 	return FGuid();
 }
 
-FGuid FMagicLeapContactsPlugin::EditContactAsync(const FMagicLeapContact& InContact, const FSingleContactResultDelegateMulti& ResultDelegate)
+FGuid FMagicLeapContactsPlugin::EditContactAsync(const FMagicLeapContact& InContact, const FMagicLeapSingleContactResultDelegateMulti& InResultDelegate)
 {
 #if WITH_MLSDK
-	if (TryAddPendingTask(EMagicLeapPrivilege::AddressBookWrite, FContactRequest::EType::Edit, InContact, ResultDelegate))
+	FContactRequest ContactRequest;
+	ContactRequest.Type = FContactRequest::EType::Edit;
+	ContactRequest.Contact = InContact;
+	ContactRequest.RequiredPrivilege = EMagicLeapPrivilege::AddressBookWrite;
+	ContactRequest.SingleContactResultDelegate = InResultDelegate;
+	if (TryAddPendingTask(ContactRequest))
 	{
 		return FGuid();
 	}
@@ -195,9 +204,9 @@ FGuid FMagicLeapContactsPlugin::EditContactAsync(const FMagicLeapContact& InCont
 
 	if (!ValidateUEContact(UEContact))
 	{
-		if (ResultDelegate.IsBound())
+		if (InResultDelegate.IsBound())
 		{
-			ResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
+			InResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
 		}
 		return FGuid();
 	}
@@ -209,16 +218,15 @@ FGuid FMagicLeapContactsPlugin::EditContactAsync(const FMagicLeapContact& InCont
 	DestroyMLContact(MLContact);
 	if (Result == MLResult_Ok)
 	{
-		FContactRequest& ContactRequest = ActiveRequests.AddDefaulted_GetRef();
 		ContactRequest.Handle = RequestHandle;
-		ContactRequest.SingleContactResultDelegate = ResultDelegate;
+		ActiveRequests.Add(ContactRequest);
 		return MLHandleToFGuid(RequestHandle);
 	}
 	else
 	{
-		if (ResultDelegate.IsBound())
+		if (InResultDelegate.IsBound())
 		{
-			ResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
+			InResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
 		}
 		Log(EMagicLeapContactsOperationStatus::Fail, FString::Printf(TEXT("MLContactsRequestUpdate failed with error '%s'"), UTF8_TO_TCHAR(MLContactsGetResultString(Result))));
 	}
@@ -226,10 +234,15 @@ FGuid FMagicLeapContactsPlugin::EditContactAsync(const FMagicLeapContact& InCont
 	return FGuid();
 }
 
-FGuid FMagicLeapContactsPlugin::DeleteContactAsync(const FMagicLeapContact& InContact, const FSingleContactResultDelegateMulti& ResultDelegate)
+FGuid FMagicLeapContactsPlugin::DeleteContactAsync(const FMagicLeapContact& InContact, const FMagicLeapSingleContactResultDelegateMulti& InResultDelegate)
 {
 #if WITH_MLSDK
-	if (TryAddPendingTask(EMagicLeapPrivilege::AddressBookWrite, FContactRequest::EType::Delete, InContact, ResultDelegate))
+	FContactRequest ContactRequest;
+	ContactRequest.Type = FContactRequest::EType::Delete;
+	ContactRequest.Contact = InContact;
+	ContactRequest.RequiredPrivilege = EMagicLeapPrivilege::AddressBookWrite;
+	ContactRequest.SingleContactResultDelegate = InResultDelegate;
+	if (TryAddPendingTask(ContactRequest))
 	{
 		return FGuid();
 	}
@@ -239,9 +252,9 @@ FGuid FMagicLeapContactsPlugin::DeleteContactAsync(const FMagicLeapContact& InCo
 
 	if (!ValidateUEContact(UEContact))
 	{
-		if (ResultDelegate.IsBound())
+		if (InResultDelegate.IsBound())
 		{
-			ResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
+			InResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
 		}
 		return FGuid();
 	}
@@ -253,16 +266,15 @@ FGuid FMagicLeapContactsPlugin::DeleteContactAsync(const FMagicLeapContact& InCo
 	DestroyMLContact(MLContact);
 	if (Result == MLResult_Ok)
 	{
-		FContactRequest& ContactRequest = ActiveRequests.AddDefaulted_GetRef();
 		ContactRequest.Handle = RequestHandle;
-		ContactRequest.SingleContactResultDelegate = ResultDelegate;
+		ActiveRequests.Add(ContactRequest);
 		return MLHandleToFGuid(RequestHandle);
 	}
 	else
 	{
-		if (ResultDelegate.IsBound())
+		if (InResultDelegate.IsBound())
 		{
-			ResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
+			InResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
 		}
 		Log(EMagicLeapContactsOperationStatus::Fail, FString::Printf(TEXT("MLContactsRequestDelete failed with error '%s'"), UTF8_TO_TCHAR(MLContactsGetResultString(Result))));
 	}
@@ -270,31 +282,36 @@ FGuid FMagicLeapContactsPlugin::DeleteContactAsync(const FMagicLeapContact& InCo
 	return FGuid();
 }
 
-FGuid FMagicLeapContactsPlugin::RequestContactsAsync(const FMultipleContactsResultDelegateMulti& ResultDelegate)
+FGuid FMagicLeapContactsPlugin::RequestContactsAsync(const FMagicLeapMultipleContactsResultDelegateMulti& InResultDelegate, int32 MaxNumResults)
 {
 #if WITH_MLSDK
-	if (TryAddPendingTask(EMagicLeapPrivilege::AddressBookRead, FContactRequest::EType::GetAll, ResultDelegate))
+	FContactRequest ContactRequest;
+	ContactRequest.Type = FContactRequest::EType::GetAll;
+	ContactRequest.RequiredPrivilege = EMagicLeapPrivilege::AddressBookRead;
+	ContactRequest.MultipleContactsResultDelegate = InResultDelegate;
+	ContactRequest.MaxNumResults = MaxNumResults <= 0 ? MLContacts_DefaultFetchLimit : MaxNumResults;
+	if (TryAddPendingTask(ContactRequest))
 	{
 		return FGuid();
 	}
 
 	MLContactsListArgs Args;
 	MLContactsListArgsInit(&Args);
+	Args.limit = ContactRequest.MaxNumResults;
 	MLHandle RequestHandle;
 	MLResult Result = MLContactsRequestList(&Args, &RequestHandle);
 	if (Result == MLResult_Ok)
 	{
-		FContactRequest& ContactRequest = ActiveRequests.AddDefaulted_GetRef();
 		ContactRequest.Handle = RequestHandle;
-		ContactRequest.MultipleContactsResultDelegate = ResultDelegate;
+		ActiveRequests.Add(ContactRequest);
 		return MLHandleToFGuid(RequestHandle);
 	}
 	else
 	{
-		if (ResultDelegate.IsBound())
+		if (InResultDelegate.IsBound())
 		{
 			TArray<FMagicLeapContact> DummyContacts;
-			ResultDelegate.Broadcast(DummyContacts, EMagicLeapContactsOperationStatus::Fail);
+			InResultDelegate.Broadcast(DummyContacts, EMagicLeapContactsOperationStatus::Fail);
 		}
 		Log(EMagicLeapContactsOperationStatus::Fail, FString::Printf(TEXT("MLContactsRequestList failed with error '%s'"), UTF8_TO_TCHAR(MLContactsGetResultString(Result))));
 	}
@@ -302,10 +319,46 @@ FGuid FMagicLeapContactsPlugin::RequestContactsAsync(const FMultipleContactsResu
 	return FGuid();
 }
 
-FGuid FMagicLeapContactsPlugin::SearchContactsAsync(const FString& Query, EMagicLeapContactsSearchField SearchField, const FMultipleContactsResultDelegateMulti& ResultDelegate)
+FGuid FMagicLeapContactsPlugin::SelectContactsAsync(const FMagicLeapMultipleContactsResultDelegateMulti& InResultDelegate, int32 MaxNumResults, EMagicLeapContactsSearchField SelectionField)
 {
 #if WITH_MLSDK
-	if (TryAddPendingTask(EMagicLeapPrivilege::AddressBookRead, FContactRequest::EType::Search, ResultDelegate))
+	MLContactsSelectionArgs Args;
+	MLContactsSelectionArgsInit(&Args);
+	Args.limit = MaxNumResults <= 0 ? MLContacts_DefaultFetchLimit : MaxNumResults;
+	Args.fields = UESearchFieldToMLSelectionField(SelectionField);
+	MLHandle RequestHandle;
+	MLResult Result = MLContactsRequestSelection(&Args, &RequestHandle);
+	if (Result == MLResult_Ok)
+	{
+		FContactRequest ContactRequest;
+		ContactRequest.MultipleContactsResultDelegate = InResultDelegate;
+		ContactRequest.Handle = RequestHandle;
+		ActiveRequests.Add(ContactRequest);
+		return MLHandleToFGuid(RequestHandle);
+	}
+	else
+	{
+		if (InResultDelegate.IsBound())
+		{
+			TArray<FMagicLeapContact> DummyContacts;
+			InResultDelegate.Broadcast(DummyContacts, EMagicLeapContactsOperationStatus::Fail);
+		}
+		Log(EMagicLeapContactsOperationStatus::Fail, FString::Printf(TEXT("MLContactsRequestSelection failed with error '%s'"), UTF8_TO_TCHAR(MLContactsGetResultString(Result))));
+	}
+#endif // WITH_MLSDK
+	return FGuid();
+}
+
+FGuid FMagicLeapContactsPlugin::SearchContactsAsync(const FString& Query, EMagicLeapContactsSearchField SearchField, const FMagicLeapMultipleContactsResultDelegateMulti& InResultDelegate)
+{
+#if WITH_MLSDK
+	FContactRequest ContactRequest;
+	ContactRequest.Type = FContactRequest::EType::Search;
+	ContactRequest.RequiredPrivilege = EMagicLeapPrivilege::AddressBookRead;
+	ContactRequest.Query = Query;
+	ContactRequest.SearchField = SearchField;
+	ContactRequest.MultipleContactsResultDelegate = InResultDelegate;
+	if (TryAddPendingTask(ContactRequest))
 	{
 		return FGuid();
 	}
@@ -318,17 +371,16 @@ FGuid FMagicLeapContactsPlugin::SearchContactsAsync(const FString& Query, EMagic
 	MLResult Result = MLContactsRequestSearch(&Args, &RequestHandle);
 	if (Result == MLResult_Ok)
 	{
-		FContactRequest& ContactRequest = ActiveRequests.AddDefaulted_GetRef();
 		ContactRequest.Handle = RequestHandle;
-		ContactRequest.MultipleContactsResultDelegate = ResultDelegate;
+		ActiveRequests.Add(ContactRequest);
 		return MLHandleToFGuid(RequestHandle);
 	}
 	else
 	{
-		if (ResultDelegate.IsBound())
+		if (InResultDelegate.IsBound())
 		{
 			TArray<FMagicLeapContact> DummyContacts;
-			ResultDelegate.Broadcast(DummyContacts, EMagicLeapContactsOperationStatus::Fail);
+			InResultDelegate.Broadcast(DummyContacts, EMagicLeapContactsOperationStatus::Fail);
 		}
 		Log(EMagicLeapContactsOperationStatus::Fail, FString::Printf(TEXT("MLContactsRequestSearch failed with error '%s'"), UTF8_TO_TCHAR(MLContactsGetResultString(Result))));
 	}
@@ -336,22 +388,7 @@ FGuid FMagicLeapContactsPlugin::SearchContactsAsync(const FString& Query, EMagic
 	return FGuid();
 }
 
-bool FMagicLeapContactsPlugin::CancelRequest(const FGuid& RequestHandle)
-{
-	// needs newer api
-// #if WITH_MLSDK
-// 	MLResult Result = MLContactsCancelRequest(FGuidToMLHandle(RequestHandle));
-// 	if (MLContactsResult_Cancelled != Result)
-// 	{
-// 		Log(EMagicLeapContactsOperationStatus::Fail, FString::Printf(TEXT("MLContactsCancelRequest failed with error '%s'"), UTF8_TO_TCHAR(MLContactsGetResultString(Result))));
-// 	}
-// 	return Result == MLContactsResult_Cancelled;
-// #else
-	return false;
-// #endif // WITH_MLSDK
-}
-
-bool FMagicLeapContactsPlugin::SetLogDelegate(const FContactsLogMessageMulti& InLogDelegate)
+bool FMagicLeapContactsPlugin::SetLogDelegate(const FMagicLeapContactsLogMessageMulti& InLogDelegate)
 {
 	LogDelegate = InLogDelegate;
 	return true;
@@ -386,6 +423,20 @@ MLContactsSearchField FMagicLeapContactsPlugin::UESearchFieldToMLSearchField(EMa
 	}
 
 	return SearchField;
+}
+
+MLContactsSelectionField FMagicLeapContactsPlugin::UESearchFieldToMLSelectionField(EMagicLeapContactsSearchField SearchField)
+{
+	MLContactsSelectionField SelectionField = MLContactsSelectionField_All;
+	switch (SearchField)
+	{
+	case EMagicLeapContactsSearchField::Name: SelectionField = MLContactsSelectionField_Name; break;
+	case EMagicLeapContactsSearchField::Phone: SelectionField = MLContactsSelectionField_Phone; break;
+	case EMagicLeapContactsSearchField::Email: SelectionField = MLContactsSelectionField_Email; break;
+	case EMagicLeapContactsSearchField::All: SelectionField = MLContactsSelectionField_All; break;
+	}
+
+	return SelectionField;
 }
 
 #ifdef _MSC_VER
@@ -591,53 +642,31 @@ void FMagicLeapContactsPlugin::ForceEmailAddressessToLower(FMagicLeapContact& In
 	}
 }
 
-bool FMagicLeapContactsPlugin::TryAddPendingTask(EMagicLeapPrivilege InRequiredPrivilege, FContactRequest::EType InRequestType, const FMagicLeapContact& InContact, const FSingleContactResultDelegateMulti& InResultDelegate)
+bool FMagicLeapContactsPlugin::TryAddPendingTask(const FContactRequest& ContactRequest)
 {
 	bool bAddedTask = false;
-	EPrivilegeState PrivilegeStatus = PrivilegesManager.GetPrivilegeStatus(InRequiredPrivilege, false);
+	EPrivilegeState PrivilegeStatus = PrivilegesManager.GetPrivilegeStatus(ContactRequest.RequiredPrivilege, false);
 	if (PrivilegeStatus != EPrivilegeState::Granted)
 	{
-		if (PrivilegeStatus == EPrivilegeState::Pending)
+		if (PrivilegeStatus != EPrivilegeState::Pending)
 		{
-			FContactRequest& ContactRequest = PendingRequests.AddDefaulted_GetRef();
-			ContactRequest.Type = InRequestType;
-			ContactRequest.Contact = InContact;
-			ContactRequest.RequiredPrivilege = InRequiredPrivilege;
-			ContactRequest.SingleContactResultDelegate = InResultDelegate;
-		}
-		else if (InResultDelegate.IsBound())
-		{
-			InResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
-			FString ErrorMsg = FString::Printf(TEXT("TryAddPendingTask failed due to privilege '%s' having status '%s'"), *PrivilegesManager.PrivilegeToString(InRequiredPrivilege), PrivilegesManager.PrivilegeStateToString(PrivilegeStatus));
+			if (ContactRequest.SingleContactResultDelegate.IsBound())
+			{
+				ContactRequest.SingleContactResultDelegate.Broadcast(EMagicLeapContactsOperationStatus::Fail);
+			}
+			else if (ContactRequest.MultipleContactsResultDelegate.IsBound())
+			{
+				TArray<FMagicLeapContact> DummyContacts;
+				ContactRequest.MultipleContactsResultDelegate.Broadcast(DummyContacts, EMagicLeapContactsOperationStatus::Fail);
+			}
+
+			FString ErrorMsg = FString::Printf(TEXT("TryAddPendingTask failed due to privilege '%s' having status '%s'"), *PrivilegesManager.PrivilegeToString(ContactRequest.RequiredPrivilege), PrivilegesManager.PrivilegeStateToString(PrivilegeStatus));
 			Log(EMagicLeapContactsOperationStatus::Fail, ErrorMsg);
 		}
-
-		bAddedTask = true;
-	}
-
-	return bAddedTask;
-}
-
-bool FMagicLeapContactsPlugin::TryAddPendingTask(EMagicLeapPrivilege InRequiredPrivilege, FContactRequest::EType InRequestType, const FMultipleContactsResultDelegateMulti& InResultDelegate)
-{
-	bool bAddedTask = false;
-	EPrivilegeState PrivilegeStatus = PrivilegesManager.GetPrivilegeStatus(InRequiredPrivilege, false);
-	if (PrivilegeStatus != EPrivilegeState::Granted)
-	{
-		if (PrivilegeStatus == EPrivilegeState::Pending)
+		else
 		{
-			FContactRequest& ContactRequest = PendingRequests.AddDefaulted_GetRef();
-			ContactRequest.Type = InRequestType;
-			ContactRequest.RequiredPrivilege = InRequiredPrivilege;
-			ContactRequest.MultipleContactsResultDelegate = InResultDelegate;
+			PendingRequests.Add(ContactRequest);
 			bAddedTask = true;
-		}
-		else if (InResultDelegate.IsBound())
-		{
-			TArray<FMagicLeapContact> DummyContacts;
-			InResultDelegate.Broadcast(DummyContacts, EMagicLeapContactsOperationStatus::Fail);
-			FString ErrorMsg = FString::Printf(TEXT("TryAddPendingTask failed due to privilege '%s' having status '%s'"), *PrivilegesManager.PrivilegeToString(InRequiredPrivilege), PrivilegesManager.PrivilegeStateToString(PrivilegeStatus));
-			Log(EMagicLeapContactsOperationStatus::Fail, ErrorMsg);
 		}
 	}
 
@@ -686,17 +715,12 @@ void FMagicLeapContactsPlugin::ProcessPendingRequests()
 			break;
 			case FContactRequest::EType::GetAll:
 			{
-				RequestContactsAsync(PendingRequest.MultipleContactsResultDelegate);
+				RequestContactsAsync(PendingRequest.MultipleContactsResultDelegate, PendingRequest.MaxNumResults);
 			}
 			break;
 			case FContactRequest::EType::Search:
 			{
-				checkf(false, TEXT("Unexpected pending request 'Search' encountered!"));
-			}
-			break;
-			case FContactRequest::EType::Cancel:
-			{
-				checkf(false, TEXT("Unexpected pending request 'Cancel' encountered!"));
+				SearchContactsAsync(PendingRequest.Query, PendingRequest.SearchField, PendingRequest.MultipleContactsResultDelegate);
 			}
 			break;
 			}

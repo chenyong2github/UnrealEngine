@@ -109,7 +109,7 @@ enum EPackageFlags
 	PKG_ForDiffing					= 0x00000020,	///< This package was loaded just for the purposes of diffing
 	PKG_EditorOnly					= 0x00000040,	///< This is editor-only package (for example: editor module script package)
 	PKG_Developer					= 0x00000080,	///< Developer module
-//	PKG_Unused						= 0x00000100,
+	PKG_UncookedOnly				= 0x00000100,	///< Loaded only in uncooked builds (i.e. runtime in editor)
 //	PKG_Unused						= 0x00000200,
 //	PKG_Unused						= 0x00000400,
 //	PKG_Unused						= 0x00000800,
@@ -446,7 +446,29 @@ enum EPropertyFlags : uint64
 
 ENUM_CLASS_FLAGS(EPropertyFlags)
 
-/** 
+/**
+ * Extra flags for array properties.
+ */
+enum class EArrayPropertyFlags
+{
+	None,
+	UsesMemoryImageAllocator
+};
+
+ENUM_CLASS_FLAGS(EArrayPropertyFlags)
+
+/**
+ * Extra flags for map properties.
+ */
+enum class EMapPropertyFlags
+{
+	None,
+	UsesMemoryImageAllocator
+};
+
+ENUM_CLASS_FLAGS(EMapPropertyFlags)
+
+/**
  * Flags describing an object instance
  */
 enum EObjectFlags
@@ -1300,7 +1322,7 @@ namespace UM
 		/// [FunctionMetadata] This function is an internal implementation detail, used to implement another function or node.  It is never directly exposed in a graph.
 		BlueprintInternalUseOnly,
 
-		/// [FunctionMetadata] This function can only be called on 'this' in a blueprint. It cannot be called on another instance.
+		/// [FunctionMetadata] This function is only accessible from within its class and derived classes.
 		BlueprintProtected,
 
 		/// [FunctionMetadata] Used for BlueprintCallable functions that have a WorldContext pin to indicate that the function can be called even if the class does not implement the virtual function GetWorld().

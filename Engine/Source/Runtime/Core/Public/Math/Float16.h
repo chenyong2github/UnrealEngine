@@ -6,6 +6,7 @@
 #include "Serialization/Archive.h"
 #include "Math/UnrealMathUtility.h"
 #include "Math/Float32.h"
+#include "Serialization/MemoryLayout.h"
 
 /**
 * 16 bit float components and conversion
@@ -91,7 +92,9 @@ public:
 		return Ar << V.Encoded;
 	}
 };
+template<> struct TCanBulkSerialize<FFloat16> { enum { Value = true }; };
 
+DECLARE_INTRINSIC_TYPE_LAYOUT(FFloat16);
 
 FORCEINLINE FFloat16::FFloat16()
 	:	Encoded(0)

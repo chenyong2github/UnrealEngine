@@ -29,9 +29,9 @@ public:
 
 	TRTWriteMaskDecodeCS() {}
 
-	FShaderParameter PlatformDataParam;
-	FShaderParameter OutCombinedRTWriteMask;	// UAV
-	FShaderResourceParameter RTWriteMaskInputs;	// SRV 
+	LAYOUT_FIELD(FShaderParameter, PlatformDataParam);
+	LAYOUT_FIELD(FShaderParameter, OutCombinedRTWriteMask);	// UAV
+	LAYOUT_FIELD(FShaderResourceParameter, RTWriteMaskInputs);	// SRV 
 
 	TRTWriteMaskDecodeCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -41,31 +41,22 @@ public:
 		RTWriteMaskInputs.Bind(Initializer.ParameterMap, TEXT("RTWriteMaskInputs"), SPF_Mandatory);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PlatformDataParam;
-		Ar << OutCombinedRTWriteMask;
-		Ar << RTWriteMaskInputs;
-
-		return bShaderHasOutdatedParameters;
-	}
 
 	void SetParameters(FRHICommandListImmediate& RHICmdList, void* PlatformDataPtr, uint32 PlatformDataSize, IPooledRenderTarget* InRenderTargets[NumRenderTargets], IPooledRenderTarget* OutRTWriteMask)
 	{
-		RHICmdList.SetShaderParameter(GetComputeShader(), PlatformDataParam.GetBufferIndex(), PlatformDataParam.GetBaseIndex(), PlatformDataSize, PlatformDataPtr);
+		RHICmdList.SetShaderParameter(RHICmdList.GetBoundComputeShader(), PlatformDataParam.GetBufferIndex(), PlatformDataParam.GetBaseIndex(), PlatformDataSize, PlatformDataPtr);
 
 		for (int32 Index = 0; Index < NumRenderTargets; ++Index)
 		{
-			RHICmdList.SetShaderResourceViewParameter(GetComputeShader(), RTWriteMaskInputs.GetBaseIndex() + Index, InRenderTargets[Index]->GetRenderTargetItem().RTWriteMaskSRV);
+			RHICmdList.SetShaderResourceViewParameter(RHICmdList.GetBoundComputeShader(), RTWriteMaskInputs.GetBaseIndex() + Index, InRenderTargets[Index]->GetRenderTargetItem().RTWriteMaskSRV);
 		}
 
-		RHICmdList.SetUAVParameter(GetComputeShader(), OutCombinedRTWriteMask.GetBaseIndex(), OutRTWriteMask->GetRenderTargetItem().UAV);
+		RHICmdList.SetUAVParameter(RHICmdList.GetBoundComputeShader(), OutCombinedRTWriteMask.GetBaseIndex(), OutRTWriteMask->GetRenderTargetItem().UAV);
 	}
 
 	void UnsetParameters(FRHICommandListImmediate& RHICmdList)
 	{
-		RHICmdList.SetUAVParameter(GetComputeShader(), OutCombinedRTWriteMask.GetBaseIndex(), nullptr);
+		RHICmdList.SetUAVParameter(RHICmdList.GetBoundComputeShader(), OutCombinedRTWriteMask.GetBaseIndex(), nullptr);
 	}
 };
 
@@ -73,7 +64,7 @@ IMPLEMENT_SHADER_TYPE(template<>, TRTWriteMaskDecodeCS<1>, TEXT("/Engine/Private
 IMPLEMENT_SHADER_TYPE(template<>, TRTWriteMaskDecodeCS<3>, TEXT("/Engine/Private/RTWriteMaskDecode.usf"), TEXT("RTWriteMaskDecodeMain"), SF_Compute);
 
 template <uint32 NumRenderTargets>
-void FRenderTargetWriteMask::Decode(FRHICommandListImmediate& RHICmdList, TShaderMap<FGlobalShaderType>* ShaderMap, IPooledRenderTarget* InRenderTargets[NumRenderTargets], TRefCountPtr<IPooledRenderTarget>& OutRTWriteMask, uint32 RTWriteMaskFastVRamConfig, const TCHAR* RTWriteMaskDebugName)
+void FRenderTargetWriteMask::Decode(FRHICommandListImmediate& RHICmdList, FGlobalShaderMap* ShaderMap, IPooledRenderTarget* InRenderTargets[NumRenderTargets], TRefCountPtr<IPooledRenderTarget>& OutRTWriteMask, uint32 RTWriteMaskFastVRamConfig, const TCHAR* RTWriteMaskDebugName)
 {
 	static_assert(NumRenderTargets == 1 || NumRenderTargets == 3, TEXT("FRenderTargetWriteMask::Decode only supports 1 or 3 render targets"));
 	check(RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform));
@@ -90,7 +81,7 @@ void FRenderTargetWriteMask::Decode(FRHICommandListImmediate& RHICmdList, TShade
 	const uint32 MaskTileSizeY = 8;
 
 	FTextureRHIRef RenderTarget0Texture = InRenderTargets[0]->GetRenderTargetItem().TargetableTexture;
-	
+
 	FIntPoint RTWriteMaskDims(
 		FMath::DivideAndRoundUp(RenderTarget0Texture->GetTexture2D()->GetSizeX(), MaskTileSizeX),
 		FMath::DivideAndRoundUp(RenderTarget0Texture->GetTexture2D()->GetSizeY(), MaskTileSizeY));
@@ -127,9 +118,9 @@ void FRenderTargetWriteMask::Decode(FRHICommandListImmediate& RHICmdList, TShade
 
 	typedef TRTWriteMaskDecodeCS<NumRenderTargets> FRTWriteMaskDecodeCS;
 	TShaderMapRef<FRTWriteMaskDecodeCS> DecodeCS(ShaderMap);
-	RHICmdList.SetComputeShader(DecodeCS->GetComputeShader());
+	RHICmdList.SetComputeShader(DecodeCS.GetComputeShader());
 	DecodeCS->SetParameters(RHICmdList, PlatformDataPtr, PlatformDataSize, InRenderTargets, OutRTWriteMask);
-	
+
 	RHICmdList.DispatchComputeShader(
 		FMath::DivideAndRoundUp((uint32)RTWriteMaskDims.X, FRTWriteMaskDecodeCS::ThreadGroupSizeX),
 		FMath::DivideAndRoundUp((uint32)RTWriteMaskDims.Y, FRTWriteMaskDecodeCS::ThreadGroupSizeY),
@@ -138,5 +129,6 @@ void FRenderTargetWriteMask::Decode(FRHICommandListImmediate& RHICmdList, TShade
 	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, OutRTWriteMask->GetRenderTargetItem().UAV);
 }
 
-template RENDERER_API void FRenderTargetWriteMask::Decode<1>(FRHICommandListImmediate&, TShaderMap<FGlobalShaderType>*, IPooledRenderTarget*[1], TRefCountPtr<IPooledRenderTarget>&, uint32, const TCHAR*);
-template RENDERER_API void FRenderTargetWriteMask::Decode<3>(FRHICommandListImmediate&, TShaderMap<FGlobalShaderType>*, IPooledRenderTarget*[3], TRefCountPtr<IPooledRenderTarget>&, uint32, const TCHAR*);
+template RENDERER_API void FRenderTargetWriteMask::Decode<1>(FRHICommandListImmediate&, FGlobalShaderMap*, IPooledRenderTarget*[1], TRefCountPtr<IPooledRenderTarget>&, uint32, const TCHAR*);
+template RENDERER_API void FRenderTargetWriteMask::Decode<3>(FRHICommandListImmediate&, FGlobalShaderMap*, IPooledRenderTarget*[3], TRefCountPtr<IPooledRenderTarget>&, uint32, const TCHAR*);
+

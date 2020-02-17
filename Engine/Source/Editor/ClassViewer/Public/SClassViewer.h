@@ -62,6 +62,9 @@ public:
 	/** Test to see whether the given class would be allowed by this class viewer */
 	virtual bool IsClassAllowed(const UClass* InClass) const;
 
+	/** Sends a requests to the Class Viewer to refresh itself the next chance it gets */
+	CLASSVIEWER_API void Refresh();
+
 	/** Destroys the internal Class Hierarchy database */
 	static void DestroyClassHierarchy();
 private:
@@ -161,9 +164,6 @@ private:
 	 *	@param InItem		The current item to set the expansion state of.
 	 */
 	void SetExpansionStatesInTree( TSharedPtr<FClassViewerNode> InItem );
-
-	/** Sends a requests to the Class Viewer to refresh itself the next chance it gets */
-	void Refresh();
 
 	/** Populates the tree with items based on the current filter. */
 	void Populate();

@@ -8,6 +8,7 @@
 #include "NiagaraStackEditorData.h"
 #include "NiagaraScriptMergeManager.h"
 #include "Misc/SecureHash.h"
+#include "ScopedTransaction.h"
 
 const FName UNiagaraStackEntry::FExecutionCategoryNames::System = TEXT("System");
 const FName UNiagaraStackEntry::FExecutionCategoryNames::Emitter = TEXT("Emitter");
@@ -72,7 +73,11 @@ UNiagaraStackEntry::FStackIssue::FStackIssue(EStackIssueSeverity InSeverity, FTe
 	, Fixes(InFixes)
 {
 	checkf(ShortDescription.IsEmptyOrWhitespace() == false, TEXT("Short description can not be empty."));
-	checkf(LongDescription.IsEmptyOrWhitespace() == false, TEXT("Long description can not be empty."));
+	//checkf(LongDescription.IsEmptyOrWhitespace() == false, TEXT("Long description can not be empty."));
+	if (LongDescription.IsEmptyOrWhitespace())
+	{
+		LongDescription = ShortDescription;
+	}
 	checkf(InStackEditorDataKey.IsEmpty() == false, TEXT("Stack editor data key can not be empty."));
 }
 
@@ -174,6 +179,11 @@ bool UNiagaraStackEntry::IsFinalized() const
 }
 
 FText UNiagaraStackEntry::GetDisplayName() const
+{
+	return FText();
+}
+
+FText UNiagaraStackEntry::GetOriginalName() const
 {
 	return FText();
 }
@@ -735,5 +745,32 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackEntry::ChildReq
 		return OnRequestDropDelegate.IsBound()
 			? OnRequestDropDelegate.Execute(TargetChild, DropRequest)
 			: TOptional<FDropRequestResponse>();
+	}
+}
+
+bool UNiagaraStackEntry::GetIsRenamePending() const
+{
+	return SupportsRename() && GetStackEditorData().GetStackEntryIsRenamePending(StackEditorDataKey);
+}
+
+void UNiagaraStackEntry::SetIsRenamePending(bool bIsRenamePending)
+{
+	if (SupportsRename())
+	{
+		GetStackEditorData().SetStackEntryIsRenamePending(StackEditorDataKey, bIsRenamePending);
+	}
+}
+
+void UNiagaraStackEntry::OnRenamed(FText NewName)
+{
+	if (SupportsRename())
+	{
+		if (!NewName.EqualTo(GetDisplayName()))
+		{
+			FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraStackEntry", "RenameModule", "Rename Module"));
+
+			GetStackEditorData().Modify();
+			GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), NewName);
+		}
 	}
 }

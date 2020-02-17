@@ -13,7 +13,7 @@
 class UTimelineTemplate;
 
 USTRUCT()
-struct ENGINE_VTABLE FTTTrackBase
+struct FTTTrackBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -43,7 +43,7 @@ public:
 
 /** Structure storing information about one event track */
 USTRUCT()
-struct ENGINE_VTABLE FTTEventTrack : public FTTTrackBase
+struct FTTEventTrack : public FTTTrackBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -69,7 +69,7 @@ public:
 };
 
 USTRUCT()
-struct ENGINE_VTABLE FTTPropertyTrack : public FTTTrackBase
+struct FTTPropertyTrack : public FTTTrackBase
 {
 	GENERATED_USTRUCT_BODY()
 

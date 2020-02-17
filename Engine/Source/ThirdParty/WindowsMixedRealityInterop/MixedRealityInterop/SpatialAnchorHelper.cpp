@@ -6,9 +6,6 @@
 #include "stdafx.h"
 #include "SpatialAnchorHelper.h"
 
-#include "wrl/client.h"
-#include "wrl/wrappers/corewrappers.h"
-
 #include <Roapi.h>
 #include <queue>
 
@@ -19,14 +16,15 @@
 
 #include <HolographicSpaceInterop.h>
 #include <SpatialInteractionManagerInterop.h>
-#include <Windows.Graphics.Holographic.h>
-#include <windows.ui.input.spatial.h>
+#include <winrt/Windows.Graphics.Holographic.h>
+#include <winrt/windows.ui.input.spatial.h>
 
 #include <DXGI1_4.h>
 
 #include "winrt/Windows.Graphics.Holographic.h"
 #include "winrt/Windows.Graphics.DirectX.Direct3D11.h"
 #include <Windows.Graphics.DirectX.Direct3D11.interop.h>
+#include <winrt/Windows.Foundation.Collections.h>
 
 // Remoting
 #include <sstream>
@@ -437,6 +435,22 @@ namespace WindowsMixedReality
 		}
 
 		return false;
+	}
+
+	winrt::Windows::Perception::Spatial::SpatialAnchor* SpatialAnchorHelper::GetSpatialAnchor(const wchar_t* anchorId)
+	{
+		auto& iterator = m_spatialAnchorMap.find(anchorId);
+		if (iterator == m_spatialAnchorMap.end())
+		{
+			return nullptr;
+		}
+		return &(iterator->second);
+	}
+
+	void SpatialAnchorHelper::StoreSpatialAnchor(const std::wstring& anchorId, winrt::Windows::Perception::Spatial::SpatialAnchor& newAnchor)
+	{
+		auto pair = m_spatialAnchorMap.insert_or_assign(anchorId, newAnchor);
+		assert(pair.second);
 	}
 
 	void SpatialAnchorHelper::SetLogCallback(void(*functionPointer)(const wchar_t*))

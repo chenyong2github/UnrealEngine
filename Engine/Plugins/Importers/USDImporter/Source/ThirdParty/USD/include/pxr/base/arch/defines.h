@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_DEFINES_H
-#define ARCH_DEFINES_H
+#ifndef PXR_BASE_ARCH_DEFINES_H
+#define PXR_BASE_ARCH_DEFINES_H
 
 #include "pxr/pxr.h"
 
@@ -110,4 +110,4 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_DEFINES_H 
+#endif // PXR_BASE_ARCH_DEFINES_H 

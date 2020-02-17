@@ -43,9 +43,22 @@ public:
 	/** Is a planes tracker already created. */
 	virtual bool IsTrackerValid() const = 0;
 
+	/** Adds a new plane query. */
+	virtual FGuid AddQuery(EMagicLeapPlaneQueryType QueryType) = 0;
+	
+	/** Removes a plane query. */
+	virtual bool RemoveQuery(FGuid Handle) = 0;
+	
 	/** Initiates a plane query with a static delegate. */
-	virtual bool QueryBeginAsync(const FMagicLeapPlanesQuery& Query, const FMagicLeapPlanesResultStaticDelegate& ResultDelegate) = 0;
+	virtual bool QueryBeginAsync(const FMagicLeapPlanesQuery& QueryParams, const FMagicLeapPlanesResultStaticDelegate& InResultDelegate) = 0;
 
 	/** Initiates a plane query with a dynamic delegate. */
-	virtual bool QueryBeginAsync(const FMagicLeapPlanesQuery& QueryParams, const FMagicLeapPlanesResultDelegateMulti& ResultDelegate) = 0;
+	virtual bool QueryBeginAsync(const FMagicLeapPlanesQuery& QueryParams, const FMagicLeapPlanesResultDelegateMulti& InResultDelegate) = 0;
+
+	/** Initiates a persistent plane query with a static delegate. */
+	virtual bool PersistentQueryBeginAsync(const FMagicLeapPlanesQuery& QueryParams, const FGuid& QueryHandle, const FMagicLeapPersistentPlanesResultStaticDelegate& ResultDelegate) = 0;
+
+	/** Initiates a persistent plane query with a dynamic delegate. */
+	virtual bool PersistentQueryBeginAsync(const FMagicLeapPlanesQuery& QueryParams, const FGuid& QueryHandle, const FMagicLeapPersistentPlanesResultDelegateMulti& ResultDelegate) = 0;
+	
 };

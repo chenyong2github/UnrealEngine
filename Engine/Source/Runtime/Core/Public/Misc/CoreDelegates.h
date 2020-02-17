@@ -13,6 +13,7 @@
 
 class AActor;
 class Error;
+class IPakFile;
 
 // delegates for hotfixes
 namespace EHotfixDelegates
@@ -60,20 +61,26 @@ public:
 	// delegate type for prompting the pak system to mount all pak files, which haven't already been mounted, from all default locations
 	DECLARE_DELEGATE_RetVal_OneParam(int32, FOnMountAllPakFiles, const TArray<FString>&);
 
-	// delegate type for prompting the pak system to mount a new pak
+	// deprecated delegate type for prompting the pak system to mount a new pak
 	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnMountPak, const FString&, int32, IPlatformFile::FDirectoryVisitor*);
 
 	// delegate type for prompting the pak system to mount a new pak
+	DECLARE_DELEGATE_RetVal_TwoParams(IPakFile*, FMountPak, const FString&, int32);
+
+	// delegate type for prompting the pak system to unmount a pak
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnmountPak, const FString&);
 
 	// delegate type for prompting the pak system to optimize memory for mounted paks
 	DECLARE_DELEGATE(FOnOptimizeMemoryUsageForMountedPaks);
 
-	// delegate for handling when a new pak file is successfully mounted passes in the name of the mounted pak file
+	// deprecated delegate for handling when a new pak file is successfully mounted passes in the name of the mounted pak file
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPakFileMountedDelegate, const TCHAR*);
 
-	// delegate for handling when a new pak file is successfully mounted passes in the name of the pak file and its chunk ID (or INDEX_NONE)
+	// deprecated delegate for handling when a new pak file is successfully mounted passes in the name of the pak file and its chunk ID (or INDEX_NONE)
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPakFileMounted, const TCHAR*, const int32);
+
+	// delegate for handling when a new pak file is successfully mounted
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPakFileMounted2, const IPakFile&);
 
 	// delegate to let other systems no that no paks were mounted, in case something wants to handle that case
 	DECLARE_MULTICAST_DELEGATE(FNoPakFilesMountedDelegate);
@@ -154,18 +161,25 @@ public:
 	// Callback for mounting all the pak files in default locations
 	static FOnMountAllPakFiles OnMountAllPakFiles;
 
-	// Callback for mounting a new pak file.
+	// Callback to prompt the pak system to mount a pak file
+	static FMountPak MountPak;
+
+	UE_DEPRECATED(4.26, "OnMountPak is deprecated; use MountPak instead.")
 	static FOnMountPak OnMountPak;
 
-	// Callback for unmounting a pak file.
+	// Callback to prompt the pak system to unmount a pak file.
 	static FOnUnmountPak OnUnmountPak;
 
 	// Callback to optimize memeory for currently mounted paks
 	static FOnOptimizeMemoryUsageForMountedPaks OnOptimizeMemoryUsageForMountedPaks;
 
 	// After a pakfile is mounted this is called
+	static FOnPakFileMounted2 OnPakFileMounted2;
+
+	UE_DEPRECATED(4.26, "FCoreDelegates::OnPakFileMounted is deprecated; use OnPakFileMounted2 instead")
 	static FOnPakFileMounted OnPakFileMounted;
-	UE_DEPRECATED(4.25, "FCoreDelegates::PakFileMountedCallback is deprecated. Use FCoreDelegates::OnPakFileMounted instead.")
+
+	UE_DEPRECATED(4.25, "FCoreDelegates::PakFileMountedCallback is deprecated. Use FCoreDelegates::OnPakFileMounted2 instead.")
 	static FPakFileMountedDelegate PakFileMountedCallback;
 
 	// After a file is added this is called

@@ -300,6 +300,12 @@ private:
 	/** Issues a timestamp query for the end of the separate translucency pass. */
 	void EndTimingSeparateTranslucencyPass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
+	/** Issues a timestamp query for the beginning of the separate translucency modulate pass. */
+	void BeginTimingSeparateTranslucencyModulatePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+
+	/** Issues a timestamp query for the end of the separate translucency modulate pass. */
+	void EndTimingSeparateTranslucencyModulatePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+
 	/** Setup the downsampled view uniform parameters if it was not already built */
 	void SetupDownsampledTranslucencyViewParameters(
 		FRHICommandListImmediate& RHICmdList, 

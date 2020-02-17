@@ -17,6 +17,9 @@
 #include "PixelFormat.h"
 #include "Containers/LockFreeList.h"
 #include "Misc/SecureHash.h"
+#include "Hash/CityHash.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Serialization/MemoryImage.h"
 
 #define DISABLE_RHI_DEFFERED_DELETE 0
 
@@ -196,102 +199,72 @@ public:
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// for debugging only e.g. MaterialName:ShaderFile.usf or ShaderFile.usf/EntryFunc
 	FString ShaderName;
+	FORCEINLINE const TCHAR* GetShaderName() const { return *ShaderName; }
+#else
+	FORCEINLINE const TCHAR* GetShaderName() const { return TEXT(""); }
 #endif
 
-	enum class EType : uint8
-	{
-		Vertex,
-		Hull,
-		Domain,
-		Pixel,
-		Geometry,
-		RayTracing,
-		Compute,
-	};
-
-	FRHIShader(EType InType)
-		: Type(InType)
+	explicit FRHIShader(EShaderFrequency InFrequency)
+		: Frequency(InFrequency)
 	{
 	}
 
-	inline EType GetType() const
+	inline EShaderFrequency GetFrequency() const
 	{
-		return Type;
-	}
-
-	static inline EShaderFrequency ConvertTypeToShaderFrequency(EType Type)
-	{
-		switch (Type)
-		{
-		case EType::Vertex:		return SF_Vertex;
-		case EType::Hull:		return SF_Hull;
-		case EType::Domain:		return SF_Domain;
-		case EType::Pixel:		return SF_Pixel;
-		case EType::Geometry:	return SF_Geometry;
-		case EType::RayTracing:	return SF_RayGen;	// Not really supported in this API...
-		case EType::Compute:	return SF_Compute;
-		default: break;
-		}
-
-		return SF_NumFrequencies;
-	}
-
-	inline EShaderFrequency GetShaderFrequency() const
-	{
-		return ConvertTypeToShaderFrequency(Type);
+		return Frequency;
 	}
 
 private:
 	FSHAHash Hash;
-	EType Type;
+	EShaderFrequency Frequency;
 };
 
-class RHI_VTABLE FRHIGraphicsShader : public FRHIShader
+class FRHIGraphicsShader : public FRHIShader
 {
 public:
-	FRHIGraphicsShader(FRHIShader::EType InType) : FRHIShader(InType) {}
+	explicit FRHIGraphicsShader(EShaderFrequency InFrequency) : FRHIShader(InFrequency) {}
 };
 
-class RHI_VTABLE FRHIVertexShader : public FRHIGraphicsShader
+class FRHIVertexShader : public FRHIGraphicsShader
 {
 public:
-	FRHIVertexShader() : FRHIGraphicsShader(FRHIShader::EType::Vertex) {}
+	FRHIVertexShader() : FRHIGraphicsShader(SF_Vertex) {}
 };
 
-class RHI_VTABLE FRHIHullShader : public FRHIGraphicsShader
+class FRHIHullShader : public FRHIGraphicsShader
 {
 public:
-	FRHIHullShader() : FRHIGraphicsShader(FRHIShader::EType::Hull) {}
+	FRHIHullShader() : FRHIGraphicsShader(SF_Hull) {}
 };
 
-class RHI_VTABLE FRHIDomainShader : public FRHIGraphicsShader
+class FRHIDomainShader : public FRHIGraphicsShader
 {
 public:
-	FRHIDomainShader() : FRHIGraphicsShader(FRHIShader::EType::Domain) {}
+	FRHIDomainShader() : FRHIGraphicsShader(SF_Domain) {}
 };
 
-class RHI_VTABLE FRHIPixelShader : public FRHIGraphicsShader
+class FRHIPixelShader : public FRHIGraphicsShader
 {
 public:
-	FRHIPixelShader() : FRHIGraphicsShader(FRHIShader::EType::Pixel) {}
+	FRHIPixelShader() : FRHIGraphicsShader(SF_Pixel) {}
 };
 
-class RHI_VTABLE FRHIGeometryShader : public FRHIGraphicsShader
+class FRHIGeometryShader : public FRHIGraphicsShader
 {
 public:
-	FRHIGeometryShader() : FRHIGraphicsShader(FRHIShader::EType::Geometry) {}
+	FRHIGeometryShader() : FRHIGraphicsShader(SF_Geometry) {}
 };
 
-class RHI_VTABLE FRHIRayTracingShader : public FRHIShader
+class FRHIRayTracingShader : public FRHIShader
 {
 public:
-	FRHIRayTracingShader() : FRHIShader(FRHIShader::EType::RayTracing) {}
+	explicit FRHIRayTracingShader(EShaderFrequency InFrequency) : FRHIShader(InFrequency) {}
 };
 
 class RHI_API FRHIComputeShader : public FRHIShader
 {
 public:
-	FRHIComputeShader() : FRHIShader(FRHIShader::EType::Compute), Stats(nullptr) {}
+	FRHIComputeShader() : FRHIShader(SF_Compute), Stats(nullptr) {}
 	
 	inline void SetStats(struct FPipelineStateStats* Ptr) { Stats = Ptr; }
 	void UpdateStats();
@@ -322,28 +295,29 @@ class FRHIRayTracingPipelineState : public FRHIResource {};
 /** The layout of a uniform buffer in memory. */
 struct FRHIUniformBufferLayout
 {
+public:
 	/** Data structure to store information about resource parameter in a shader parameter structure. */
 	struct FResourceParameter
 	{
-		/** Byte offset to each resource in the uniform buffer memory. */
-		uint16 MemberOffset;
+		DECLARE_EXPORTED_TYPE_LAYOUT(FResourceParameter, RHI_API, NonVirtual);
+	public:
+		friend inline FArchive& operator<<(FArchive& Ar, FResourceParameter& Ref)
+		{
+			uint8 Type = (uint8)Ref.MemberType;
+			Ar << Ref.MemberOffset;
+			Ar << Type;
+			Ref.MemberType = (EUniformBufferBaseType)Type;
+			return Ar;
+		}
 
+		/** Byte offset to each resource in the uniform buffer memory. */
+		LAYOUT_FIELD(uint16, MemberOffset);
 		/** Type of the member that allow (). */
-		EUniformBufferBaseType MemberType;
+		LAYOUT_FIELD(EUniformBufferBaseType, MemberType);
 	};
 
-	/** The size of the constant buffer in bytes. */
-	uint32 ConstantBufferSize;
-
-	/** The static slot (if applicable). */
-	FUniformBufferStaticSlot StaticSlot = MAX_UNIFORM_BUFFER_STATIC_SLOTS;
-
-	/** The list of all resource inlined into the shader parameter structure. */
-	TArray<FResourceParameter> Resources;
-
-#if VALIDATE_UNIFORM_BUFFER_LAYOUT_LIFETIME
-	mutable int32 NumUsesForDebugging = 0;
-#endif
+	DECLARE_EXPORTED_TYPE_LAYOUT(FRHIUniformBufferLayout, RHI_API, NonVirtual);
+public:
 
 	inline uint32 GetHash() const
 	{
@@ -382,7 +356,7 @@ struct FRHIUniformBufferLayout
 		Hash = TmpHash;
 	}
 
-	explicit FRHIUniformBufferLayout(FName InName) :
+	explicit FRHIUniformBufferLayout(const TCHAR* InName) :
 		ConstantBufferSize(0),
 		Name(InName),
 		Hash(0)
@@ -395,7 +369,6 @@ struct FRHIUniformBufferLayout
 	};
 	explicit FRHIUniformBufferLayout(EInit) :
 		ConstantBufferSize(0),
-		Name(FName()),
 		Hash(0)
 	{
 	}
@@ -416,17 +389,36 @@ struct FRHIUniformBufferLayout
 		Hash = Source.Hash;
 	}
 
-	const FName GetDebugName() const { return Name; }
+	const FMemoryImageString& GetDebugName() const { return Name; }
 
 	uint32 NumRenderTargets()	const { return 0; }
 	uint32 NumTextures()		const { return 0; }
 	uint32 NumUAVs()			const { return 0; }
 
+	friend FArchive& operator<<(FArchive& Ar, FRHIUniformBufferLayout& Ref)
+	{
+		Ar << Ref.Name;
+		Ar << Ref.ConstantBufferSize;
+		Ar << Ref.Hash;
+		Ar << Ref.Resources;
+		return Ar;
+	}
+
+	/** The size of the constant buffer in bytes. */
+	LAYOUT_FIELD(uint32, ConstantBufferSize);
+
+	/** The static slot (if applicable). */
+	LAYOUT_FIELD_INITIALIZED(FUniformBufferStaticSlot, StaticSlot, MAX_UNIFORM_BUFFER_STATIC_SLOTS);
+
+	/** The list of all resource inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, Resources);
+
+	LAYOUT_MUTABLE_FIELD(int32, NumUsesForDebugging);
+
 private:
 	// for debugging / error message
-	FName Name;
-
-	uint32 Hash;
+	LAYOUT_FIELD(FMemoryImageString, Name);
+	LAYOUT_FIELD(uint32, Hash);
 };
 
 /** Compare two uniform buffer layouts. */
@@ -1004,6 +996,8 @@ public:
 	virtual bool Poll(FRHIGPUMask GPUMask) const { return Poll(); }
 
 	const FName& GetFName() const { return FenceName; }
+
+	FThreadSafeCounter NumPendingWriteCommands;
 
 protected:
 	FName FenceName;
@@ -1839,6 +1833,64 @@ struct FBoundShaderStateInput
 	{
 	}
 
+	void AddRefResources()
+	{
+		check(VertexDeclarationRHI);
+		VertexDeclarationRHI->AddRef();
+
+		check(VertexShaderRHI);
+		VertexShaderRHI->AddRef();
+
+		if (HullShaderRHI)
+		{
+			HullShaderRHI->AddRef();
+		}
+
+		if (DomainShaderRHI)
+		{
+			DomainShaderRHI->AddRef();
+		}
+
+		if (PixelShaderRHI)
+		{
+			PixelShaderRHI->AddRef();
+		}
+
+		if (GeometryShaderRHI)
+		{
+			GeometryShaderRHI->AddRef();
+		}
+	}
+
+	void ReleaseResources()
+	{
+		check(VertexDeclarationRHI);
+		VertexDeclarationRHI->Release();
+
+		check(VertexShaderRHI);
+		VertexShaderRHI->Release();
+
+		if (HullShaderRHI)
+		{
+			HullShaderRHI->Release();
+		}
+
+		if (DomainShaderRHI)
+		{
+			DomainShaderRHI->Release();
+		}
+
+		if (PixelShaderRHI)
+		{
+			PixelShaderRHI->Release();
+		}
+
+		if (GeometryShaderRHI)
+		{
+			GeometryShaderRHI->Release();
+		}
+	}
+
 	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
 	FRHIVertexShader* VertexShaderRHI = nullptr;
 	FRHIHullShader* HullShaderRHI = nullptr;
@@ -1876,179 +1928,6 @@ struct FImmutableSamplerState
 	TImmutableSamplers ImmutableSamplers;
 };
 
-/** 
- * Pipeline state without render target state 
- * Useful for mesh passes where the render target state is not changing between draws.
- * Note: the size of this class affects rendering mesh pass traversal performance. 
- */
-class FGraphicsMinimalPipelineStateInitializer
-{
-public:
-	// Can't use TEnumByte<EPixelFormat> as it changes the struct to be non trivially constructible, breaking memset
-	using TRenderTargetFormats		= TStaticArray<uint8/*EPixelFormat*/, MaxSimultaneousRenderTargets>;
-	using TRenderTargetFlags		= TStaticArray<uint32, MaxSimultaneousRenderTargets>;
-
-	FGraphicsMinimalPipelineStateInitializer()
-		: BlendState(nullptr)
-		, RasterizerState(nullptr)
-		, DepthStencilState(nullptr)
-		, PrimitiveType(PT_Num)
-	{
-		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
-		static_assert(PF_MAX < MAX_uint8, "TRenderTargetFormats assumes EPixelFormat can fit in a uint8!");
-	}
-
-	FGraphicsMinimalPipelineStateInitializer(
-		FBoundShaderStateInput		InBoundShaderState,
-		FRHIBlendState*				InBlendState,
-		FRHIRasterizerState*		InRasterizerState,
-		FRHIDepthStencilState*		InDepthStencilState,
-		FImmutableSamplerState		InImmutableSamplerState,
-		EPrimitiveType				InPrimitiveType
-		)
-		: BoundShaderState(InBoundShaderState)
-		, BlendState(InBlendState)
-		, RasterizerState(InRasterizerState)
-		, DepthStencilState(InDepthStencilState)
-		, ImmutableSamplerState(InImmutableSamplerState)
-		, PrimitiveType(InPrimitiveType)
-	{
-	}
-
-	FGraphicsMinimalPipelineStateInitializer(const FGraphicsMinimalPipelineStateInitializer& InMinimalState)
-		: BoundShaderState(InMinimalState.BoundShaderState)
-		, BlendState(InMinimalState.BlendState)
-		, RasterizerState(InMinimalState.RasterizerState)
-		, DepthStencilState(InMinimalState.DepthStencilState)
-		, ImmutableSamplerState(InMinimalState.ImmutableSamplerState)
-		, bDepthBounds(InMinimalState.bDepthBounds)
-		, bMultiView(InMinimalState.bMultiView)
-		, PrimitiveType(InMinimalState.PrimitiveType)
-	{
-	}
-
-	inline bool operator==(const FGraphicsMinimalPipelineStateInitializer& rhs) const
-	{
-		if (BoundShaderState.VertexDeclarationRHI != rhs.BoundShaderState.VertexDeclarationRHI || 
-			BoundShaderState.VertexShaderRHI != rhs.BoundShaderState.VertexShaderRHI ||
-			BoundShaderState.PixelShaderRHI != rhs.BoundShaderState.PixelShaderRHI ||
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			BoundShaderState.GeometryShaderRHI != rhs.BoundShaderState.GeometryShaderRHI ||
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			BoundShaderState.DomainShaderRHI != rhs.BoundShaderState.DomainShaderRHI ||
-			BoundShaderState.HullShaderRHI != rhs.BoundShaderState.HullShaderRHI ||	
-#endif		
-			BlendState != rhs.BlendState || 
-			RasterizerState != rhs.RasterizerState || 
-			DepthStencilState != rhs.DepthStencilState ||
-			ImmutableSamplerState != rhs.ImmutableSamplerState ||
-			bDepthBounds != rhs.bDepthBounds ||
-			bMultiView != rhs.bMultiView ||
-			PrimitiveType != rhs.PrimitiveType) 
-		{
-			return false;
-		}
-
-		return true;
-	}
-
-	inline bool operator!=(const FGraphicsMinimalPipelineStateInitializer& rhs) const
-	{
-		return !(*this == rhs);
-	}
-
-	inline friend uint32 GetTypeHash(const FGraphicsMinimalPipelineStateInitializer& Initializer)
-	{
-		return PointerHash(Initializer.BoundShaderState.VertexDeclarationRHI, 
-			PointerHash(Initializer.BoundShaderState.VertexShaderRHI, 
-				PointerHash(Initializer.BoundShaderState.PixelShaderRHI, 
-					PointerHash(Initializer.RasterizerState))));
-	}
-
-#define COMPARE_FIELD_BEGIN(Field) \
-		if (Field != rhs.Field) \
-		{ return Field COMPARE_OP rhs.Field; }
-
-#define COMPARE_FIELD(Field) \
-		else if (Field != rhs.Field) \
-		{ return Field COMPARE_OP rhs.Field; }
-
-#define COMPARE_FIELD_END \
-		else { return false; }
-
-	bool operator<(const FGraphicsMinimalPipelineStateInitializer& rhs) const
-	{
-#define COMPARE_OP <
-
-		COMPARE_FIELD_BEGIN(BoundShaderState.VertexDeclarationRHI)
-		COMPARE_FIELD(BoundShaderState.VertexShaderRHI)
-		COMPARE_FIELD(BoundShaderState.PixelShaderRHI)
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		COMPARE_FIELD(BoundShaderState.GeometryShaderRHI)
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		COMPARE_FIELD(BoundShaderState.DomainShaderRHI)
-		COMPARE_FIELD(BoundShaderState.HullShaderRHI)
-#endif
-		COMPARE_FIELD(BlendState)
-		COMPARE_FIELD(RasterizerState)
-		COMPARE_FIELD(DepthStencilState)
-		COMPARE_FIELD(bDepthBounds)
-		COMPARE_FIELD(bMultiView)
-		COMPARE_FIELD(PrimitiveType)
-		COMPARE_FIELD_END;
-
-#undef COMPARE_OP
-	}
-
-	bool operator>(const FGraphicsMinimalPipelineStateInitializer& rhs) const
-	{
-#define COMPARE_OP >
-
-		COMPARE_FIELD_BEGIN(BoundShaderState.VertexDeclarationRHI)
-		COMPARE_FIELD(BoundShaderState.VertexShaderRHI)
-		COMPARE_FIELD(BoundShaderState.PixelShaderRHI)
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		COMPARE_FIELD(BoundShaderState.GeometryShaderRHI)
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		COMPARE_FIELD(BoundShaderState.DomainShaderRHI)
-		COMPARE_FIELD(BoundShaderState.HullShaderRHI)
-#endif
-		COMPARE_FIELD(BlendState)
-		COMPARE_FIELD(RasterizerState)
-		COMPARE_FIELD(DepthStencilState)
-		COMPARE_FIELD(bDepthBounds)
-		COMPARE_FIELD(bMultiView)
-		COMPARE_FIELD(PrimitiveType)
-		COMPARE_FIELD_END;
-
-#undef COMPARE_OP
-	}
-
-#undef COMPARE_FIELD_BEGIN
-#undef COMPARE_FIELD
-#undef COMPARE_FIELD_END
-
-	// TODO: [PSO API] - As we migrate reuse existing API objects, but eventually we can move to the direct initializers. 
-	// When we do that work, move this to RHI.h as its more appropriate there, but here for now since dependent typdefs are here.
-	FBoundShaderStateInput	BoundShaderState;
-	FRHIBlendState*			BlendState;
-	FRHIRasterizerState*	RasterizerState;
-	FRHIDepthStencilState*	DepthStencilState;
-	FImmutableSamplerState	ImmutableSamplerState;
-
-	// Note: FGraphicsMinimalPipelineStateInitializer is 8-byte aligned and can't have any implicit padding,
-	// as it is sometimes hashed and compared as raw bytes. Explicit padding is therefore required between
-	// all data members and at the end of the structure.
-	bool							bDepthBounds = false;
-	bool							bMultiView = false;
-	uint8							Padding[2] = {};
-
-	EPrimitiveType			PrimitiveType;
-};
-
 // Hints for some RHIs that support subpasses
 enum class ESubpassHint : uint8
 {
@@ -2059,7 +1938,7 @@ enum class ESubpassHint : uint8
 	DepthReadSubpass,
 };
 
-class FGraphicsPipelineStateInitializer final : public FGraphicsMinimalPipelineStateInitializer
+class FGraphicsPipelineStateInitializer
 {
 public:
 	// Can't use TEnumByte<EPixelFormat> as it changes the struct to be non trivially constructible, breaking memset
@@ -2079,28 +1958,12 @@ public:
 		, NumSamples(0)
 		, SubpassHint(ESubpassHint::None)
 		, SubpassIndex(0)
+		, bDepthBounds(false)
+		, bMultiView(false)
 		, Flags(0)
 	{
 		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
 		static_assert(PF_MAX < MAX_uint8, "TRenderTargetFormats assumes EPixelFormat can fit in a uint8!");
-	}
-
-	FGraphicsPipelineStateInitializer(const FGraphicsMinimalPipelineStateInitializer& InMinimalState)
-		: FGraphicsMinimalPipelineStateInitializer(InMinimalState)
-		, RenderTargetsEnabled(0)
-		, RenderTargetFormats(PF_Unknown)
-		, RenderTargetFlags(0)
-		, DepthStencilTargetFormat(PF_Unknown)
-		, DepthStencilTargetFlag(0)
-		, DepthTargetLoadAction(ERenderTargetLoadAction::ENoAction)
-		, DepthTargetStoreAction(ERenderTargetStoreAction::ENoAction)
-		, StencilTargetLoadAction(ERenderTargetLoadAction::ENoAction)
-		, StencilTargetStoreAction(ERenderTargetStoreAction::ENoAction)
-		, NumSamples(0)
-		, SubpassHint(ESubpassHint::None)
-		, SubpassIndex(0)
-		, Flags(0)
-	{
 	}
 
 	FGraphicsPipelineStateInitializer(
@@ -2123,9 +1986,16 @@ public:
 		uint32						InNumSamples,
 		ESubpassHint				InSubpassHint,
 		uint8						InSubpassIndex,
-		uint16						InFlags
+		uint16						InFlags,
+		bool						bInDepthBounds,
+		bool						bInMultiView
 		)
-		: FGraphicsMinimalPipelineStateInitializer(InBoundShaderState, InBlendState, InRasterizerState, InDepthStencilState, InImmutableSamplerState, InPrimitiveType)
+		: BoundShaderState(InBoundShaderState)
+		, BlendState(InBlendState)
+		, RasterizerState(InRasterizerState)
+		, DepthStencilState(InDepthStencilState)
+		, ImmutableSamplerState(InImmutableSamplerState)
+		, PrimitiveType(InPrimitiveType)
 		, RenderTargetsEnabled(InRenderTargetsEnabled)
 		, RenderTargetFormats(InRenderTargetFormats)
 		, RenderTargetFlags(InRenderTargetFlags)
@@ -2139,22 +2009,31 @@ public:
 		, NumSamples(InNumSamples)
 		, SubpassHint(InSubpassHint)
 		, SubpassIndex(InSubpassIndex)
+		, bDepthBounds(bInDepthBounds)
+		, bMultiView(bInMultiView)
 		, Flags(InFlags)
 	{
 	}
 
 	bool operator==(const FGraphicsPipelineStateInitializer& rhs) const
 	{
-		if (!FGraphicsMinimalPipelineStateInitializer::operator ==(rhs) ||
-			VertexShaderHash != rhs.VertexShaderHash ||
-			PixelShaderHash != rhs.PixelShaderHash ||
+		if (BoundShaderState.VertexDeclarationRHI != rhs.BoundShaderState.VertexDeclarationRHI ||
+			BoundShaderState.VertexShaderRHI != rhs.BoundShaderState.VertexShaderRHI ||
+			BoundShaderState.PixelShaderRHI != rhs.BoundShaderState.PixelShaderRHI ||
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			GeometryShaderHash != rhs.GeometryShaderHash ||
+			BoundShaderState.GeometryShaderRHI != rhs.BoundShaderState.GeometryShaderRHI ||
 #endif
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			HullShaderHash != rhs.HullShaderHash ||
-			DomainShaderHash != rhs.DomainShaderHash ||
+			BoundShaderState.DomainShaderRHI != rhs.BoundShaderState.DomainShaderRHI ||
+			BoundShaderState.HullShaderRHI != rhs.BoundShaderState.HullShaderRHI ||
 #endif
+			BlendState != rhs.BlendState ||
+			RasterizerState != rhs.RasterizerState ||
+			DepthStencilState != rhs.DepthStencilState ||
+			ImmutableSamplerState != rhs.ImmutableSamplerState ||
+			PrimitiveType != rhs.PrimitiveType ||
+			bDepthBounds != rhs.bDepthBounds ||
+			bMultiView != rhs.bMultiView ||
 			RenderTargetsEnabled != rhs.RenderTargetsEnabled ||
 			RenderTargetFormats != rhs.RenderTargetFormats || 
 			RenderTargetFlags != rhs.RenderTargetFlags || 
@@ -2194,15 +2073,13 @@ public:
 		return RenderTargetsEnabled;
 	}
 
-	FSHAHash						VertexShaderHash;
-	FSHAHash						PixelShaderHash;
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	FSHAHash						GeometryShaderHash;
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	FSHAHash						HullShaderHash;
-	FSHAHash						DomainShaderHash;
-#endif
+	FBoundShaderStateInput			BoundShaderState;
+	FRHIBlendState*					BlendState;
+	FRHIRasterizerState*			RasterizerState;
+	FRHIDepthStencilState*			DepthStencilState;
+	FImmutableSamplerState			ImmutableSamplerState;
+
+	EPrimitiveType					PrimitiveType;
 	uint32							RenderTargetsEnabled;
 	TRenderTargetFormats			RenderTargetFormats;
 	TRenderTargetFlags				RenderTargetFlags;
@@ -2216,6 +2093,8 @@ public:
 	uint16							NumSamples;
 	ESubpassHint					SubpassHint;
 	uint8							SubpassIndex;
+	bool							bDepthBounds;
+	bool							bMultiView;
 	
 	// Note: these flags do NOT affect compilation of this PSO.
 	// The resulting object is invariant with respect to whatever is set here, they are
@@ -2379,55 +2258,20 @@ public:
 	virtual ~FRHIShaderLibrary() {}
 	
 	FORCEINLINE EShaderPlatform GetPlatform(void) const { return Platform; }
-	FORCEINLINE FString GetName(void) const { return LibraryName; }
+	FORCEINLINE const FString& GetName(void) const { return LibraryName; }
 	FORCEINLINE uint32 GetId(void) const { return LibraryId; }
 	
 	virtual bool IsNativeLibrary() const = 0;
-	
-	//Library iteration
-	struct FShaderLibraryEntry
-	{
-		FShaderLibraryEntry(): Frequency(SF_NumFrequencies), Platform(SP_NumPlatforms) {}
-		
-		FSHAHash Hash;
-		EShaderFrequency Frequency;
-		EShaderPlatform Platform;
-		
-		bool IsValid() const {return (Frequency < SF_NumFrequencies) && (Platform < SP_NumPlatforms);}
-	};
-	
-	class FShaderLibraryIterator : public FRHIResource
-	{
-	public:
-		FShaderLibraryIterator(FRHIShaderLibrary* ShaderLibrary) : ShaderLibrarySource(ShaderLibrary) {}
-		virtual ~FShaderLibraryIterator() {}
-	
-		//Is the iterator valid
-		virtual bool IsValid() const					 = 0;
-		
-		//Iterator position access
-		virtual FShaderLibraryEntry operator*()	const	 = 0;
-		
-		//Iterator next operation
-		virtual FShaderLibraryIterator& operator++()	 = 0;
-		
-		//Access the library we are iterating through - allow query e.g. GetPlatform from iterator object
-		FRHIShaderLibrary* GetLibrary() const			 {return ShaderLibrarySource;};
-		
-	protected:
-		//Control source object lifetime while iterator is 'active'
-		TRefCountPtr<FRHIShaderLibrary> ShaderLibrarySource;
-	};
-	
-	virtual TRefCountPtr<FShaderLibraryIterator> CreateIterator(void) = 0;
-	virtual bool RequestEntry(const FSHAHash& Hash, FArchive* Ar) = 0;
-	virtual bool RequestEntry(const FSHAHash& Hash, TArray<uint8>& OutRaw)
-	{
-		check(!"This shader code library does not support raw reads!");
-		return false;
-	}
-	virtual bool ContainsEntry(const FSHAHash& Hash) = 0;
-	virtual uint32 GetShaderCount(void) const = 0;
+	virtual int32 GetNumShaderMaps() const = 0;
+	virtual int32 GetNumShaders() const = 0;
+	virtual int32 GetNumShadersForShaderMap(int32 ShaderMapIndex) const = 0;
+	virtual int32 GetShaderIndex(int32 ShaderMapIndex, int32 i) const = 0;
+	virtual int32 FindShaderMapIndex(const FSHAHash& Hash) = 0;
+	virtual int32 FindShaderIndex(const FSHAHash& Hash) = 0;
+	virtual FGraphEventRef PreloadShader(int32 ShaderIndex) { return FGraphEventRef(); }
+	virtual FGraphEventRef PreloadShaderMap(int32 ShaderMapIndex) { return FGraphEventRef(); }
+
+	virtual TRefCountPtr<FRHIShader> CreateShader(int32 ShaderIndex) { return nullptr; }
 
 protected:
 	EShaderPlatform Platform;

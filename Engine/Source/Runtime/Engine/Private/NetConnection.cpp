@@ -174,6 +174,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,   OwningActor			( nullptr )
 ,	MaxPacket			( 0 )
 ,	InternalAck			( false )
+,	bInternalAck		( false )
 ,	RemoteAddr			( nullptr )
 ,	MaxPacketHandlerBits ( 0 )
 ,	State				( USOCK_Invalid )
@@ -1307,7 +1308,7 @@ void UNetConnection::ReceivedRawPacket( void* InData, int32 Count )
 
 void UNetConnection::PostTickDispatch()
 {
-	if (!InternalAck)
+	if (!IsInternalAck())
 	{
 #if DO_ENABLE_NET_TEST
 		ReinjectDelayedPackets();
@@ -1399,7 +1400,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 	TimeSensitive = 0;
 
 	// If there is any pending data to send, send it.
-	if (SendBuffer.GetNumBits() || HasDirtyAcks || ( Driver->GetElapsedTime() - LastSendTime > Driver->KeepAliveTime && !InternalAck && State != USOCK_Closed))
+	if (SendBuffer.GetNumBits() || HasDirtyAcks || ( Driver->GetElapsedTime() - LastSendTime > Driver->KeepAliveTime && !IsInternalAck() && State != USOCK_Closed))
 	{
 		// Due to the PacketHandler handshake code, servers must never send the client data,
 		// before first receiving a client control packet (which is taken as an indication of a complete handshake).
@@ -1436,7 +1437,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		SendBuffer.WriteBit(1);
 
 		// Refresh outgoing header with latest data
-		if ( !InternalAck )
+		if ( !IsInternalAck() )
 		{
 			// if we update ack, we also update received ack associated with outgoing seq
 			// so we know how many ack bits we need to write (which is updated in received packet)
@@ -1476,7 +1477,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 
 		// if the connection is closing/being destroyed/etc we need to send immediately regardless of settings
 		// because we won't be around to send it delayed
-		if (State != USOCK_Closed && !IsGarbageCollecting() && !bIgnoreSimulation && !InternalAck)
+		if (State != USOCK_Closed && !IsGarbageCollecting() && !bIgnoreSimulation && !IsInternalAck())
 		{
 			bWasPacketEmulated = CheckOutgoingPacketEmulation(Traits);
 		}
@@ -1510,7 +1511,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		OutBytesPerSecondHistory[Index]	= FMath::Min(OutBytesPerSecond / 1024, 255);
 
 		// Increase outgoing sequence number
-		if (!InternalAck)
+		if (!IsInternalAck())
 		{
 			PacketNotify.CommitAndIncrementOutSeq();
 		}
@@ -2025,7 +2026,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 	}
 
 #if DO_ENABLE_NET_TEST
-	if (!InternalAck && !bIsReinjectingDelayedPackets)
+	if (!IsInternalAck() && !bIsReinjectingDelayedPackets)
 	{
 		if (PacketSimulationSettings.PktIncomingLoss)
 		{
@@ -2071,7 +2072,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		LastReceiveRealtime = CurrentReceiveTimeInS;
 	}
 
-	if (InternalAck)
+	if (IsInternalAck())
 	{
 		++InPacketId;
 	}	
@@ -2259,7 +2260,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 	while( !Reader.AtEnd() && State!=USOCK_Closed )
 	{
 		// For demo backwards compatibility, old replays still have this bit
-		if (InternalAck && EngineNetworkProtocolVersion < EEngineNetworkVersionHistory::HISTORY_ACKS_INCLUDED_IN_HEADER)
+		if (IsInternalAck() && EngineNetworkProtocolVersion < EEngineNetworkVersionHistory::HISTORY_ACKS_INCLUDED_IN_HEADER)
 		{
 			const bool IsAckDummy = Reader.ReadBit() == 1u;
 		}
@@ -2318,7 +2319,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			if ( Bunch.bReliable )
 			{
-				if ( InternalAck )
+				if ( IsInternalAck() )
 				{
 					// We can derive the sequence for 100% reliable connections
 					Bunch.ChSequence = InReliable[Bunch.ChIndex] + 1;
@@ -2439,7 +2440,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				Driver->NetGUIDInBytes += (BunchDataBits + (HeaderPos - IncomingStartPos)) >> 3;
 
-				if ( InternalAck )
+				if ( IsInternalAck() )
 				{
 					// NOTE - For replays, we do this even earlier, to try and load this as soon as possible, in case there is an issue creating the channel
 					// If a replay fails to create a channel, we want to salvage as much as possible
@@ -2498,7 +2499,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// We're on a 100% reliable connection and we are rolling back some data.
 			// In that case, we can generally ignore these bunches.
-			if (InternalAck && Channel && bIgnoreAlreadyOpenedChannels)
+			if (IsInternalAck() && Channel && bIgnoreAlreadyOpenedChannels)
 			{
 				// This was an open bunch for a channel that's already opened.
 				// We can ignore future bunches from this channel.
@@ -2547,7 +2548,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			if ( Bunch.bReliable && Bunch.ChSequence <= InReliable[Bunch.ChIndex] )
 			{
 				UE_LOG( LogNetTraffic, Log, TEXT( "UNetConnection::ReceivedPacket: Received outdated bunch (Channel %d Current Sequence %i)" ), Bunch.ChIndex, InReliable[Bunch.ChIndex] );
-				check( !InternalAck );		// Should be impossible with 100% reliable connections
+				check( !IsInternalAck() );		// Should be impossible with 100% reliable connections
 				continue;
 			}
 			
@@ -2562,7 +2563,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				const bool ValidUnreliableOpen = Bunch.bOpen && (Bunch.bClose || Bunch.bPartial);
 				if (!ValidUnreliableOpen)
 				{
-					if ( InternalAck )
+					if ( IsInternalAck() )
 					{
 						// Should be impossible with 100% reliable connections
 						UE_LOG( LogNetTraffic, Error, TEXT( "      Received unreliable bunch before open with reliable connection (Channel %d Current Sequence %i)" ), Bunch.ChIndex, InReliable[Bunch.ChIndex] );
@@ -2607,7 +2608,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 
 				// peek for guid
-				if (InternalAck && bIgnoreActorBunches)
+				if (IsInternalAck() && bIgnoreActorBunches)
 				{
 					if (Bunch.bOpen && (!Bunch.bPartial || Bunch.bPartialInitial) && (Bunch.ChName == NAME_Actor))
 					{
@@ -2704,7 +2705,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		LastGoodPacketRealtime = FPlatformTime::Seconds();
 	}
 
-	if( !InternalAck )
+	if( !IsInternalAck() )
 	{
 		// We always call AckSequence even if we are explicitly rejecting the packet as this updates the expected InSeq used to drive future acks.
 		if ( bSkipAck )
@@ -2756,14 +2757,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UNetConnection::SetIgnoreAlreadyOpenedChannels(bool bInIgnoreAlreadyOpenedChannels)
 {
-	check(InternalAck);
+	check(IsInternalAck());
 	bIgnoreAlreadyOpenedChannels = bInIgnoreAlreadyOpenedChannels;
 	IgnoringChannels.Reset();
 }
 
 void UNetConnection::SetIgnoreActorBunches(bool bInIgnoreActorBunches, TSet<FNetworkGUID>&& InIgnoredBunchGuids)
 {
-	check(InternalAck);
+	check(IsInternalAck());
 	bIgnoreActorBunches = bInIgnoreActorBunches;
 
 	IgnoredBunchChannels.Empty();
@@ -2798,7 +2799,7 @@ void UNetConnection::PrepareWriteBitsToSendBuffer(const int32 SizeInBits, const 
 	}
 
 	// If this is the start of the queue, make sure to add the packet id
-	if ( SendBuffer.GetNumBits() == 0 && !InternalAck )
+	if ( SendBuffer.GetNumBits() == 0 && !IsInternalAck() )
 	{
 #if UE_NET_TRACE_ENABLED
 		// If tracing is enabled setup the NetTraceCollector for outgoing data
@@ -2953,7 +2954,7 @@ int32 UNetConnection::SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FN
 	SendBunchHeader.WriteBit( Bunch.bHasMustBeMappedGUIDs );
 	SendBunchHeader.WriteBit( Bunch.bPartial );
 
-	if ( Bunch.bReliable && !InternalAck )
+	if ( Bunch.bReliable && !IsInternalAck() )
 	{
 		SendBunchHeader.WriteIntWrapped(Bunch.ChSequence, MAX_CHSEQUENCE);
 	}
@@ -3212,7 +3213,7 @@ void UNetConnection::Tick()
 	const float MaxNetTickRateFloat = MaxNetTickRate > 0 ? float(MaxNetTickRate) : MAX_flt;
 	const float DesiredTickRate = FMath::Clamp(EngineTickRate, 0.0f, MaxNetTickRateFloat);
 	// Apply net tick rate limiting if the desired net tick rate is strictly less than the engine tick rate.
-	if (!InternalAck && MaxNetTickRateFloat < EngineTickRate && DesiredTickRate > 0.0f)
+	if (!IsInternalAck() && MaxNetTickRateFloat < EngineTickRate && DesiredTickRate > 0.0f)
 	{
 		const float MinNetFrameTime = 1.0f/DesiredTickRate;
 		if (FrameTime < MinNetFrameTime)
@@ -3232,7 +3233,7 @@ void UNetConnection::Tick()
 	}
 
 	// Pretend everything was acked, for 100% reliable connections or demo recording.
-	if( InternalAck )
+	if(IsInternalAck())
 	{
 		const bool bIsServer = Driver->IsServer();
 		OutAckPacketId = OutPacketId;
@@ -3247,7 +3248,7 @@ void UNetConnection::Tick()
 			UChannel* Channel = Channels[ChannelIndex];
 			if (Channel)
 			{
-				for(FOutBunch* OutBunch=Channel->OutRec; OutBunch; OutBunch=OutBunch->Next)
+				for (FOutBunch* OutBunch=Channel->OutRec; OutBunch; OutBunch=OutBunch->Next)
 				{
 					OutBunch->ReceivedAck = 1;
 				}
@@ -3596,7 +3597,8 @@ void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* 
 		if (*It != LocalPlayer)
 		{
 			// send server command for new child connection
-			It->SendSplitJoin();
+			TArray<FString> Options;
+			It->SendSplitJoin(Options);
 		}
 	}
 }
@@ -4169,7 +4171,7 @@ uint32 UNetConnection::GetParentConnectionId() const
 
 USimulatedClientNetConnection::USimulatedClientNetConnection( const FObjectInitializer& ObjectInitializer ) : Super( ObjectInitializer )
 {
-	InternalAck = true;
+	SetInternalAck(true);
 }
 
 void USimulatedClientNetConnection::HandleClientPlayer( class APlayerController* PC, class UNetConnection* NetConnection )

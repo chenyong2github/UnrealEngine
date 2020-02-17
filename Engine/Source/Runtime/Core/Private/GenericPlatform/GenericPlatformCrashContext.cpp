@@ -372,7 +372,7 @@ void FGenericCrashContext::InitializeFromConfig()
 	// Read the initial un-localized crash context text
 	UpdateLocalizedStrings();
 
-	// Set privacy settings
+	// Set privacy settings -> WARNING: Ensure those setting have a default values in Engine/Config/BaseEditorSettings.ini file, otherwise, they will not be found.
 	GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), NCached::UserSettings.bSendUnattendedBugReports, GEditorSettingsIni);
 	GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), NCached::UserSettings.bSendUsageData, GEditorSettingsIni);
 
@@ -575,7 +575,13 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 
 	// Legacy callstack element for current crash reporter
 	AddCrashProperty( TEXT( "NumMinidumpFramesToIgnore"), NumMinidumpFramesToIgnore );
-	AddCrashProperty( TEXT( "CallStack" ), TEXT("") );
+	// Allow platforms to override callstack property, on some platforms the callstack is not captured by native code, those callstacks can be substituted by platform code here.
+	{
+		CommonBuffer += TEXT("<CallStack>");
+		CommonBuffer += GetCallstackProperty();
+		CommonBuffer += TEXT("</CallStack>");
+		CommonBuffer += LINE_TERMINATOR;
+	}
 
 	// Add new portable callstack element with crash stack
 	AddPortableCallStack();
@@ -634,6 +640,11 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 #endif // PLATFORM_DESKTOP
 
 	AddFooter(CommonBuffer);
+}
+
+const TCHAR* FGenericCrashContext::GetCallstackProperty() const
+{
+	return TEXT("");
 }
 
 void FGenericCrashContext::SetNumMinidumpFramesToIgnore(int InNumMinidumpFramesToIgnore)

@@ -307,6 +307,29 @@ void UAIPerceptionSystem::UpdateListener(UAIPerceptionComponent& Listener)
 	}
 }
 
+void UAIPerceptionSystem::OnListenerConfigUpdated(FAISenseID SenseID, const UAIPerceptionComponent& Listener)
+{
+	SCOPE_CYCLE_COUNTER(STAT_AI_PerceptionSys);
+
+	if (!IsSenseInstantiated(SenseID))
+	{
+		UE_LOG(LogAIPerception, Warning, TEXT("Sense must exist to update its sense config"));
+		return;
+	}
+
+	const FPerceptionListenerID ListenerId = Listener.GetListenerId();
+	if (ListenerId == FPerceptionListenerID::InvalidID() || !ListenerContainer.Contains(ListenerId))
+	{
+		UE_LOG(LogAIPerception, Warning, TEXT("Listener must have a valid id to update its sense config"));
+		return;
+	}
+
+	FPerceptionListener& ListenerEntry = ListenerContainer[ListenerId];
+	check(ListenerEntry.Listener.IsValid() && ListenerEntry.Listener.Get() == &Listener);
+
+	Senses[SenseID]->OnListenerConfigUpdated(ListenerEntry);
+}
+
 void UAIPerceptionSystem::UnregisterListener(UAIPerceptionComponent& Listener)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_PerceptionSys);

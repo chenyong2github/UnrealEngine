@@ -20,6 +20,13 @@ static TAutoConsoleVariable<int32> CVarMobileLandscapeHoleMesh(
 	TEXT("Set to 0 to skip loading of landscape hole meshes on mobile."),
 	ECVF_Default);
 
+bool FLandscapeVertexFactoryMobile::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	auto FeatureLevel = GetMaxSupportedFeatureLevel(Parameters.Platform);
+	return (FeatureLevel == ERHIFeatureLevel::ES3_1) &&
+		(Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
+}
+
 void FLandscapeVertexFactoryMobile::InitRHI()
 {
 	// list of declaration items
@@ -44,12 +51,13 @@ void FLandscapeVertexFactoryMobile::InitRHI()
 /** Shader parameters for use with FLandscapeVertexFactory */
 class FLandscapeVertexFactoryMobileVertexShaderParameters : public FVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FLandscapeVertexFactoryMobileVertexShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
 	* @param	ParameterMap - mapping of named shader constants to indices
 	*/
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		LodValuesParameter.Bind(ParameterMap,TEXT("LodValues"));
 		ForcedLodParameter.Bind(ParameterMap,TEXT("ForcedLod"));
@@ -59,21 +67,7 @@ public:
 		SectionLodsParameter.Bind(ParameterMap,TEXT("SectionLods"));
 	}
 
-	/**
-	* Serialize shader params to an archive
-	* @param	Ar - archive to serialize to
-	*/
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << LodValuesParameter;
-		Ar << ForcedLodParameter;
-		Ar << LodTessellationParameter;
-		Ar << NeighborSectionLodParameter;
-		Ar << LodBiasParameter;
-		Ar << SectionLodsParameter;
-	}
-	
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
 		const FSceneView* InView,
 		const class FMeshMaterialShader* Shader,
@@ -83,7 +77,7 @@ public:
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-	) const override
+	) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
 
@@ -189,40 +183,31 @@ public:
 #endif
 	}
 protected:
-	FShaderParameter LodValuesParameter;
-	FShaderParameter ForcedLodParameter;
-	FShaderParameter LodTessellationParameter;
-	FShaderParameter NeighborSectionLodParameter;
-	FShaderParameter LodBiasParameter;
-	FShaderParameter SectionLodsParameter;
-	TShaderUniformBufferParameter<FLandscapeUniformShaderParameters> LandscapeShaderParameters;
+	LAYOUT_FIELD(FShaderParameter, LodValuesParameter);
+	LAYOUT_FIELD(FShaderParameter, ForcedLodParameter);
+	LAYOUT_FIELD(FShaderParameter, LodTessellationParameter);
+	LAYOUT_FIELD(FShaderParameter, NeighborSectionLodParameter);
+	LAYOUT_FIELD(FShaderParameter, LodBiasParameter);
+	LAYOUT_FIELD(FShaderParameter, SectionLodsParameter);
+	LAYOUT_FIELD(TShaderUniformBufferParameter<FLandscapeUniformShaderParameters>, LandscapeShaderParameters);
 };
 
 /** Shader parameters for use with FLandscapeVertexFactory */
 class FLandscapeVertexFactoryMobilePixelShaderParameters : public FLandscapeVertexFactoryPixelShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FLandscapeVertexFactoryMobilePixelShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
 	* @param	ParameterMap - mapping of named shader constants to indices
 	*/
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		FLandscapeVertexFactoryPixelShaderParameters::Bind(ParameterMap);
 		BlendableLayerMaskParameter.Bind(ParameterMap, TEXT("BlendableLayerMask"));
 	}
 
-	/**
-	* Serialize shader params to an archive
-	* @param	Ar - archive to serialize to
-	*/
-	virtual void Serialize(FArchive& Ar) override
-	{
-		FLandscapeVertexFactoryPixelShaderParameters::Serialize(Ar);
-		Ar << BlendableLayerMaskParameter;
-	}
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
 		const FSceneView* InView,
 		const class FMeshMaterialShader* Shader,
@@ -232,7 +217,7 @@ public:
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-	) const override final
+	) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimePS);
 		
@@ -253,34 +238,17 @@ public:
 	}
 
 protected:
-	FShaderParameter BlendableLayerMaskParameter;
+	LAYOUT_FIELD(FShaderParameter, BlendableLayerMaskParameter);
 };
 
-FVertexFactoryShaderParameters* FLandscapeVertexFactoryMobile::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	switch( ShaderFrequency )
-	{
-	case SF_Vertex:
-		return new FLandscapeVertexFactoryMobileVertexShaderParameters();
-	case SF_Pixel:
-		return new FLandscapeVertexFactoryMobilePixelShaderParameters();
-	default:
-		return NULL;
-	}
-}
-
-IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeVertexFactoryMobile, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false);
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeFixedGridVertexFactoryMobile, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false);
-
-
-/** 
+/**
   * Shader parameters for use with FLandscapeFixedGridVertexFactory
   * Simple grid rendering (without dynamic lod blend) needs a simpler fixed setup.
   */
 class FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters : public FLandscapeVertexFactoryMobileVertexShaderParameters
 {
 public:
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
 		const FSceneView* InView,
 		const class FMeshMaterialShader* Shader,
@@ -290,14 +258,14 @@ public:
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-	) const override
+	) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
 
 		const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
 		check(BatchElementParams);
 		const FLandscapeComponentSceneProxyMobile* SceneProxy = (const FLandscapeComponentSceneProxyMobile*)BatchElementParams->SceneProxy;
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(),*BatchElementParams->LandscapeUniformShaderParametersResource);
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
 
 		if (LodValuesParameter.IsBound())
 		{
@@ -316,30 +284,26 @@ public:
 	}
 };
 
-void FLandscapeFixedGridVertexFactoryMobile::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactoryMobile, SF_Vertex, FLandscapeVertexFactoryMobileVertexShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactoryMobile, SF_Pixel, FLandscapeVertexFactoryMobilePixelShaderParameters);
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeFixedGridVertexFactoryMobile, SF_Vertex, FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeFixedGridVertexFactoryMobile, SF_Pixel, FLandscapeVertexFactoryMobilePixelShaderParameters);
+
+IMPLEMENT_VERTEX_FACTORY_TYPE(FLandscapeVertexFactoryMobile, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeFixedGridVertexFactoryMobile, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false);
+
+void FLandscapeFixedGridVertexFactoryMobile::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FLandscapeVertexFactoryMobile::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	FLandscapeVertexFactoryMobile::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("FIXED_GRID"), TEXT("1"));
 }
-
-FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactoryMobile::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	switch (ShaderFrequency)
-	{
-	case SF_Vertex:
-		return new FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters();
-	case SF_Pixel:
-		return new FLandscapeVertexFactoryMobilePixelShaderParameters();
-	}
-	return nullptr;
-}
 	
-bool FLandscapeFixedGridVertexFactoryMobile::ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, const FShaderType* ShaderType)
+bool FLandscapeFixedGridVertexFactoryMobile::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1 &&
-		(Material->IsUsedWithLandscape() || Material->IsSpecialEngineMaterial());
+	return GetMaxSupportedFeatureLevel(Parameters.Platform) == ERHIFeatureLevel::ES3_1 &&
+		(Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
-
 
 /**
 * Initialize the RHI for this rendering resource

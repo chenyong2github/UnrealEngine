@@ -575,3 +575,19 @@ TArrayView<const T> MakeArrayView(std::initializer_list<T> List)
 {
 	return TArrayView<const T>(List);
 }
+
+template<typename InElementType, typename InAllocatorType>
+template<typename OtherElementType>
+FORCEINLINE TArray<InElementType, InAllocatorType>::TArray(const TArrayView<OtherElementType>& Other)
+{
+	CopyToEmpty(Other.GetData(), Other.Num(), 0, 0);
+}
+
+template<typename InElementType, typename InAllocatorType>
+template<typename OtherElementType>
+FORCEINLINE TArray<InElementType, InAllocatorType>& TArray<InElementType, InAllocatorType>::operator=(const TArrayView<OtherElementType>& Other)
+{
+	DestructItems(GetData(), ArrayNum);
+	CopyToEmpty(Other.GetData(), Other.Num(), ArrayMax, 0);
+	return *this;
+}

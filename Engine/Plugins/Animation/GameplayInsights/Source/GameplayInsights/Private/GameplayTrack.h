@@ -4,6 +4,14 @@
 
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+namespace GameplayTrackConstants
+{
+	constexpr float IndentSize = 12.0f;
+}
+
+struct FVariantTreeNode;
+class FGameplaySharedData;
+
 // Provides parent/child hierarchy structure and the owning object Id
 // Designed as a compositional member of outer timing tracks
 class FGameplayTrack
@@ -64,15 +72,11 @@ private:
 template <class Base>
 class TGameplayTrackMixin : public Base
 {
-public:
-	TGameplayTrackMixin(uint64 InObjectId, const FName& InSubType, const FText& InName)
-		: Base(InSubType, InName.ToString())
-		, GameplayTrack(*this, InObjectId)
-	{
-	}
+	//INSIGHTS_DECLARE_RTTI(TGameplayTrackMixin, Base) -- Commented to skip this class in the Simple RTTI class hierarchy. It will get same type name as its Base class.
 
-	TGameplayTrackMixin(uint64 InObjectId, const FName& InType, const FName& InSubType, const FText& InName)
-		: Base(InType, InSubType, InName.ToString())
+public:
+	TGameplayTrackMixin(uint64 InObjectId, const FText& InName)
+		: Base(InName.ToString())
 		, GameplayTrack(*this, InObjectId)
 	{
 	}
@@ -86,3 +90,26 @@ public:
 private:
 	FGameplayTrack GameplayTrack;
 };
+
+// Common base class for timing-event tracks
+class FGameplayTimingEventsTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+{
+	INSIGHTS_DECLARE_RTTI(FGameplayTimingEventsTrack, TGameplayTrackMixin<FTimingEventsTrack>)
+
+public:
+	FGameplayTimingEventsTrack(const FGameplaySharedData& InGameplaySharedData, uint64 InObjectId, const FText& InName)
+		: TGameplayTrackMixin<FTimingEventsTrack>(InObjectId, InName)
+		, GameplaySharedData(InGameplaySharedData)
+	{}
+
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+
+	/** Get all variants at the specified time */
+	virtual void GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const {}
+
+protected:
+	const FGameplaySharedData& GameplaySharedData;
+};
+
+//template <class Base>
+//INSIGHTS_IMPLEMENT_RTTI(TGameplayTrackMixin<Base>) // Note: All templated classes will return same type name as FName(TEXT"TGameplayTrackMixin<Base>") !!!

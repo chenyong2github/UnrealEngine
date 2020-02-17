@@ -23,6 +23,11 @@ class UActorComponent;
 class UAssetUserData;
 class ULevel;
 
+struct FRegisterComponentContext
+{
+	TArray<class UPrimitiveComponent*> AddPrimitiveBatches;
+};
+
 #if WITH_EDITOR
 class SWidget;
 struct FMinimalViewInfo;
@@ -119,6 +124,10 @@ protected:
 private:
 	/** Used for fast removal of end of frame update */
 	int32 MarkedForEndOfFrameUpdateArrayIndex;
+
+	/** Populated when the component is created and tracks the often used order of creation on a per archetype/per actor basis */
+	UPROPERTY()
+	int32 UCSSerializationIndex;
 
 protected:
 	/** 
@@ -219,6 +228,10 @@ private:
 	/** True if this component is only used for visualization, usually a sprite or text */
 	UPROPERTY()
 	uint8 bIsVisualizationComponent : 1;
+
+	/** Marks this component pending kill once PostLoad occurs. Used to clean up old native default subobjects that were removed from code */
+	UPROPERTY()
+	uint8 bNeedsUCSSerializationIndexEvaluted : 1;
 #endif
 
 private:
@@ -257,6 +270,25 @@ public:
 	EComponentCreationMethod CreationMethod;
 
 public:
+	/** Returns the UCS serialization index. This can be an expensive operation in the editor if you are dealing with a component that was saved before this information was present and it needs to be calculated. */
+	int32 GetUCSSerializationIndex() const
+	{
+#if WITH_EDITORONLY_DATA
+		if (bNeedsUCSSerializationIndexEvaluted)
+		{
+			const_cast<UActorComponent*>(this)->DetermineUCSSerializationIndexForLegacyComponent();
+		}
+#endif
+
+		return UCSSerializationIndex;
+	}
+
+private:
+	/** Calculate the UCS serialization index for a component that was saved before we started saving this data */
+	void DetermineUCSSerializationIndexForLegacyComponent();
+
+public:
+
 	/** Tracks whether the component has been added to one of the world's end of frame update lists */
 	uint32 GetMarkedForEndOfFrameUpdateState() const { return MarkedForEndOfFrameUpdateState; }
 
@@ -488,7 +520,7 @@ private:
 	void ExecuteUnregisterEvents();
 
 	/** Calls OnRegister, CreateRenderState_Concurrent and OnCreatePhysicsState. */
-	void ExecuteRegisterEvents();
+	void ExecuteRegisterEvents(FRegisterComponentContext* Context = nullptr);
 
 	/** Utility function for each of the PostEditChange variations to call for the same behavior */
 	void ConsolidatedPostEditChange(const FPropertyChangedEvent& PropertyChangedEvent);
@@ -514,7 +546,7 @@ protected:
 	 * Used to create any rendering thread information for this component
 	 * @warning This is called concurrently on multiple threads (but never the same component concurrently)
 	 */
-	virtual void CreateRenderState_Concurrent();
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context);
 
 	/** 
 	 * Called to send a transform update for this component to the rendering thread
@@ -650,7 +682,7 @@ public:
 	 * Registers a component with a specific world, which creates any visual/physical state
 	 * @param InWorld - The world to register the component with.
 	 */
-	void RegisterComponentWithWorld(UWorld* InWorld);
+	void RegisterComponentWithWorld(UWorld* InWorld, FRegisterComponentContext* Context = nullptr);
 
 	/** Overridable check for a component to indicate to its Owner that it should prevent the Actor from auto destroying when finished */
 	virtual bool IsReadyForOwnerToAutoDestroy() const { return true; }
@@ -921,6 +953,7 @@ private:
 	void ClearNeedEndOfFrameUpdate_Internal();
 
 	friend struct FMarkComponentEndOfFrameUpdateState;
+	friend struct FSetUCSSerializationIndex;
 	friend struct FActorComponentInstanceData;
 	friend class FActorComponentDetails;
 	friend class FComponentReregisterContextBase;

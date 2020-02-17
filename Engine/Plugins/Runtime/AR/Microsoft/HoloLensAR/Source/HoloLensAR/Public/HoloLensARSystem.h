@@ -8,6 +8,10 @@
 #include "ARPin.h"
 #include <functional>
 
+#pragma warning(disable:4668)  
+#include <DirectXMath.h>
+#pragma warning(default:4668)
+
 #include "HoloLensARSystem.generated.h"
 
 class UARSessionConfig;
@@ -114,6 +118,16 @@ public:
 private:
 	//~ Tracking notification callback
 
+	// Third camera
+public:
+	void SetEnabledMixedRealityCamera(bool enabled);
+	void ResizeMixedRealityCamera(/*inout*/ FIntPoint& size);
+	FTransform GetPVCameraToWorldTransform();
+	bool GetPVCameraIntrinsics(FVector2D& focalLength, int& width, int& height, FVector2D& principalPoint, FVector& radialDistortion, FVector2D& tangentialDistortion);
+	FVector GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate);
+	void StartCameraCapture();
+	void StopCameraCapture();
+
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	/** Starts the camera with the desired settings */
 	void SetupCameraImageSupport();
@@ -160,11 +174,11 @@ private:
 	 * Callback from the WinRT layer notifying us of a new camera frame.
 	 * Note: runs on an arbitrary thread!
 	 */
-	static void OnCameraImageReceived_Raw(struct ID3D11Texture2D* CameraFrame);
+	static void OnCameraImageReceived_Raw(void* handle, DirectX::XMFLOAT4X4 camToTracking);
 	/**
 	 * Callback for the camera image that runs on the game thread so we can do UObject stuff
 	 */
-	void OnCameraImageReceived_GameThread(struct ID3D11Texture2D* CameraFrame);
+	void OnCameraImageReceived_GameThread(void* handle, FTransform camToTracking);
 #endif
 	/** Callback so the interop layer can log messages that show up in the UE4 log */
 	static void OnLog(const wchar_t* LogMsg);
@@ -172,6 +186,7 @@ private:
 	// WMR Anchor Implementation
 public:
 	UWMRARPin* CreateNamedARPin(FName Name, const FTransform& PinToWorldTransform);
+	UWMRARPin* CreateNamedARPinAroundAnchor(FName Name, FString AnchorId);
 	bool PinComponentToARPin(USceneComponent* ComponentToPin, UWMRARPin* Pin);
 
 	bool IsWMRAnchorStoreReady() const;
@@ -218,4 +233,7 @@ private:
 	// ...
 	// PROPERTIES REPORTED TO FGCObject
 	//
+
+	FCriticalSection PVCamToWorldLock;
+	FTransform PVCameraToWorldMatrix;
 };

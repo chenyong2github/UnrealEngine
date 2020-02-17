@@ -34,10 +34,12 @@
 #define MAX_MEMORY_PER_BLOCK_SIZE (1ull << MAX_MEMORY_PER_BLOCK_SIZE_SHIFT) 
 
 // This choice depends on how efficient the OS is with sparse commits in large VM blocks
-#if PLATFORM_XBOXONE || PLATFORM_WINDOWS
-	#define BINNED3_USE_SEPARATE_VM_PER_POOL (1)
-#else
-	#define BINNED3_USE_SEPARATE_VM_PER_POOL (0)
+#if !defined(BINNED3_USE_SEPARATE_VM_PER_POOL)
+	#if PLATFORM_WINDOWS
+		#define BINNED3_USE_SEPARATE_VM_PER_POOL (1)
+	#else
+		#define BINNED3_USE_SEPARATE_VM_PER_POOL (0)
+	#endif
 #endif
 
 #define DEFAULT_GMallocBinned3PerThreadCaches 1

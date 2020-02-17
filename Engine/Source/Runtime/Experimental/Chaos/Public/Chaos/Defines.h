@@ -10,6 +10,7 @@
 #endif
 #include "Serializable.h"
 
+#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "Chaos/Core.h"
 
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
@@ -30,6 +31,7 @@ namespace Chaos
 		Chaos::FReal SleepingAngularThreshold;
 		Chaos::FReal DisabledLinearThreshold;
 		Chaos::FReal DisabledAngularThreshold;
+		int32 SleepCounterThreshold;
 		void* UserData;
 
 		FChaosPhysicsMaterial()
@@ -39,6 +41,7 @@ namespace Chaos
 			, SleepingAngularThreshold(1)
 			, DisabledLinearThreshold(0)
 			, DisabledAngularThreshold(0)
+			, SleepCounterThreshold(0)
 			, UserData(nullptr)
 		{
 		}
@@ -61,6 +64,11 @@ namespace Chaos
 		void Serialize(FArchive& Ar)
 		{
 			Ar << Friction << Restitution << SleepingLinearThreshold << SleepingAngularThreshold << DisabledLinearThreshold << DisabledAngularThreshold;
+
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::PhysicsMaterialSleepCounterThreshold)
+			{
+				Ar << SleepCounterThreshold;
+			}
 		}
 	};
 

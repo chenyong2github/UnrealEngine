@@ -15,6 +15,7 @@
 #include "LocalVertexFactory.h"
 #include "Math/GenericOctree.h"
 #include "StaticMeshResources.h"
+#include "NavigationSystemTypes.h"
 #include "NavMeshRenderingComponent.generated.h"
 
 class APlayerController;
@@ -91,6 +92,11 @@ struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNav
 #if WITH_RECAST
 	int32 GetDetailFlags(const ARecastNavMesh* NavMesh) const;
 	void GatherData(const ARecastNavMesh* NavMesh, int32 InNavDetailFlags, const TArray<int32>& TileSet);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	void AddMeshForInternalData(const struct FRecastInternalDebugData& InInternalData);
+#endif //RECAST_INTERNAL_DEBUG_DATA
+
 #endif
 };
 
@@ -133,7 +139,7 @@ private:
 };
 
 #if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-class NAVIGATIONSYSTEM_VTABLE FNavMeshDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
+class FNavMeshDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
 {
 	typedef FDebugDrawDelegateHelper Super;
 
@@ -186,7 +192,7 @@ public:
 	//~ End UPrimitiveComponent Interface
 
 	//~ Begin UActorComponent Interface
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface
 
@@ -221,5 +227,5 @@ namespace FNavMeshRenderingHelpers
 {
 	NAVIGATIONSYSTEM_API void AddVertex(FNavMeshSceneProxyData::FDebugMeshData& MeshData, const FVector& Pos, const FColor Color = FColor::White);
 
-	NAVIGATIONSYSTEM_API void AddTriangle(FNavMeshSceneProxyData::FDebugMeshData& MeshData, int32 V0, int32 V1, int32 V2);
+	NAVIGATIONSYSTEM_API void AddTriangleIndices(FNavMeshSceneProxyData::FDebugMeshData& MeshData, int32 V0, int32 V1, int32 V2);
 }

@@ -105,6 +105,13 @@ static FAutoConsoleVariableRef CVarQuantizeActorVelocityOnSpawn(
 	TEXT("When enabled, we will quantize Velocity for newly spawned actors to a single decimal of precision.")
 );
 
+static bool GbNetCheckNoLoadPackages = true;
+static FAutoConsoleVariableRef CVarNetCheckNoLoadPackages(
+	TEXT("net.CheckNoLoadPackages"),
+	GbNetCheckNoLoadPackages,
+	TEXT("If enabled, check the no load flag in GetObjectFromNetGUID before forcing a sync load on packages that are not marked IsFullyLoaded")
+);
+
 void BroadcastNetFailure(UNetDriver* Driver, ENetworkFailure::Type FailureType, const FString& ErrorStr)
 {
 	UWorld* World = Driver->GetWorld();
@@ -223,7 +230,7 @@ bool UPackageMapClient::SerializeObject( FArchive& Ar, UClass* Class, UObject*& 
 			}
 
 #if 0		// Enable this code to force any actor with missing/broken content to not load in replays
-			if (NetGUID.IsValid() && Connection->InternalAck && GuidCache->IsGUIDBroken(NetGUID, true))
+			if (NetGUID.IsValid() && Connection->IsInternalAck() && GuidCache->IsGUIDBroken(NetGUID, true))
 			{
 				Ar.SetError();
 				UE_LOG(LogNetPackageMap, Warning, TEXT("UPackageMapClient::SerializeObject: InternalAck GUID broken."));
@@ -261,7 +268,7 @@ bool UPackageMapClient::SerializeObject( FArchive& Ar, UClass* Class, UObject*& 
 				}
 			}
 
-			UE_CLOG(!bSuppressLogs, LogNetPackageMap, Log, TEXT("UPackageMapClient::SerializeObject Serialized Object %s as <%s>"), Object ? *Object->GetPathName() : TEXT("NULL"), *NetGUID.ToString());
+			UE_LOG(LogNetPackageMap, VeryVerbose, TEXT("UPackageMapClient::SerializeObject Serialized Object %s as <%s>"), Object ? *Object->GetPathName() : TEXT("NULL"), *NetGUID.ToString());
 		}
 		
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -894,7 +901,7 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 	{
 		Object = GetObjectFromNetGUID( NetGUID, GuidCache->IsExportingNetGUIDBunch );
 
-		UE_CLOG( !bSuppressLogs, LogNetPackageMap, Log, TEXT( "InternalLoadObject loaded %s from NetGUID <%s>" ), Object ? *Object->GetFullName() : TEXT( "NULL" ), *NetGUID.ToString() );
+		UE_LOG(LogNetPackageMap, VeryVerbose, TEXT( "InternalLoadObject loaded %s from NetGUID <%s>" ), Object ? *Object->GetFullName() : TEXT( "NULL" ), *NetGUID.ToString() );
 	}
 
 	// ----------------	
@@ -1126,7 +1133,7 @@ bool UPackageMapClient::ExportNetGUID( FNetworkGUID NetGUID, UObject* Object, FS
 	check( !NetGUID.IsDefault() );
 	check( Object == NULL || ShouldSendFullPath( Object, NetGUID ) );
 
-	if (Connection->InternalAck)
+	if (Connection->IsInternalAck())
 	{
 		return ExportNetGUIDForReplay(NetGUID, Object, PathName, ObjOuter);
 	}
@@ -1346,7 +1353,7 @@ void UPackageMapClient::AddNetFieldExportGroup( const FString& PathName, TShared
 
 void UPackageMapClient::TrackNetFieldExport( FNetFieldExportGroup* NetFieldExportGroup, const int32 NetFieldExportHandle )
 {
-	check(Connection->InternalAck);
+	check(Connection->IsInternalAck());
 	check(NetFieldExportGroup);
 
 	checkf(NetFieldExportGroup->NetFieldExports.IsValidIndex(NetFieldExportHandle),
@@ -1427,7 +1434,7 @@ void UPackageMapClient::SerializeNetFieldExportGroupMap( FArchive& Ar, bool bCle
 
 void UPackageMapClient::AppendExportData(FArchive& Archive)
 {
-	check(Connection->InternalAck);
+	check(Connection->IsInternalAck());
 
 	AppendNetFieldExports(Archive);
 	AppendNetExportGUIDs(Archive);
@@ -1435,7 +1442,7 @@ void UPackageMapClient::AppendExportData(FArchive& Archive)
 
 void UPackageMapClient::ReceiveExportData(FArchive& Archive)
 {
-	check(Connection->InternalAck);
+	check(Connection->IsInternalAck());
 
 	ReceiveNetFieldExports(Archive);
 	ReceiveNetExportGUIDs(Archive);
@@ -1489,7 +1496,7 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 
 void UPackageMapClient::AppendNetFieldExportsInternal(FArchive& Archive, const TSet<uint64>& InNetFieldExports, EAppendNetExportFlags Flags)
 {
-	check(Connection->InternalAck);
+	check(Connection->IsInternalAck());
 
 	uint32 NetFieldCount = InNetFieldExports.Num();
 	Archive.SerializeIntPacked(NetFieldCount);
@@ -1547,7 +1554,7 @@ void UPackageMapClient::AppendNetFieldExportsInternal(FArchive& Archive, const T
 
 void UPackageMapClient::ReceiveNetFieldExportsCompat(FInBunch &InBunch)
 {
-	if(!Connection->InternalAck)
+	if (!Connection->IsInternalAck())
 	{
 		UE_LOG(LogNetPackageMap, Error, TEXT("ReceiveNetFieldExportsCompat: connection is not a replay connection."));
 		InBunch.SetError();
@@ -1642,7 +1649,7 @@ void UPackageMapClient::ReceiveNetFieldExports(FArchive& Archive)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ReceiveNetFieldExports time"), STAT_ReceiveNetFieldExportsTime, STATGROUP_Net);
 
-	check(Connection->InternalAck);
+	check(Connection->IsInternalAck());
 
 	// Read number of net field exports
 	uint32 NumLayoutCmdExports = 0;
@@ -1716,7 +1723,7 @@ void UPackageMapClient::ReceiveNetFieldExports(FArchive& Archive)
 
 void UPackageMapClient::AppendNetExportGUIDs(FArchive& Archive)
 {
-	check(Connection->InternalAck);
+	check(Connection->IsInternalAck());
 
 	uint32 NumGUIDs = ExportGUIDArchives.Num();
 	Archive.SerializeIntPacked(NumGUIDs);
@@ -1733,7 +1740,7 @@ void UPackageMapClient::ReceiveNetExportGUIDs(FArchive& Archive)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ReceiveNetExportGUIDs time"), STAT_ReceiveNetExportGUIDsTime, STATGROUP_Net);
 
-	check(Connection->InternalAck);
+	check(Connection->IsInternalAck());
 	TGuardValue<bool> IsExportingGuard(GuidCache->IsExportingNetGUIDBunch, true);
 
 	uint32 NumGUIDs = 0;
@@ -1769,7 +1776,7 @@ void UPackageMapClient::ReceiveNetExportGUIDs(FArchive& Archive)
 
 void UPackageMapClient::AppendExportBunches(TArray<FOutBunch *>& OutgoingBunches)
 {
-	check(!Connection->InternalAck);
+	check(!Connection->IsInternalAck());
 	check(NetFieldExports.Num() == 0);
 
 	// Finish current in progress bunch if necessary
@@ -1868,7 +1875,7 @@ void UPackageMapClient::NotifyBunchCommit( const int32 OutPacketId, const FOutBu
 		// (GUID information doesn't change, so updating to the latest expected sequence is unnecessary)
 		if ( ExpectedPacketIdRef == GUID_PACKET_NOT_ACKED )
 		{
-			if ( Connection->InternalAck )
+			if ( Connection->IsInternalAck() )
 			{
 				// Auto ack now if the connection is 100% reliable
 				ExpectedPacketIdRef = GUID_PACKET_ACKED;
@@ -2550,15 +2557,15 @@ FNetworkGUID FNetGUIDCache::GetNetGUID(const UObject* Object) const
 	return NetGUID;
 }
 
+#define COMPOSE_NET_GUID( Index, IsStatic )	( ( ( Index ) << 1 ) | ( IsStatic ) )
+#define ALLOC_NEW_NET_GUID( IsStatic )		( COMPOSE_NET_GUID( ++UniqueNetIDs[ IsStatic ], IsStatic ) )
+
 /**
  *	Generate a new NetGUID for this object and assign it.
  */
 FNetworkGUID FNetGUIDCache::AssignNewNetGUID_Server( UObject* Object )
 {
 	check( IsNetGUIDAuthority() );
-
-#define COMPOSE_NET_GUID( Index, IsStatic )	( ( ( Index ) << 1 ) | ( IsStatic ) )
-#define ALLOC_NEW_NET_GUID( IsStatic )		( COMPOSE_NET_GUID( ++UniqueNetIDs[ IsStatic ], IsStatic ) )
 
 	// Generate new NetGUID and assign it
 	const int32 IsStatic = IsDynamicObject( Object ) ? 0 : 1;
@@ -2590,6 +2597,9 @@ FNetworkGUID FNetGUIDCache::AssignNewNetGUIDFromPath_Server( const FString& Path
 
 	return NewNetGuid;
 }
+
+#undef COMPOSE_NET_GUID
+#undef ALLOC_NEW_NET_GUID
 
 void FNetGUIDCache::RegisterNetGUID_Internal( const FNetworkGUID& NetGUID, const FNetGuidCacheObject& CacheObject )
 {
@@ -3161,11 +3171,16 @@ UObject* FNetGUIDCache::GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const
 				// We don't want to hook up this package into the cache yet or return it, because it's only partially loaded.
 				return nullptr;
 			}
-			else
+			else if (!GbNetCheckNoLoadPackages || !CacheObjectPtr->bNoLoad)
 			{
 				// If package isn't fully loaded, load it now
 				UE_LOG(LogNetPackageMap, Log, TEXT("GetObjectFromNetGUID: Blocking load of %s, NetGUID: %s"), *CacheObjectPtr->PathName.ToString(), *NetGUID.ToString());
-				Object = LoadPackage(NULL, *CacheObjectPtr->PathName.ToString(), LOAD_None);				
+				Object = LoadPackage(NULL, *CacheObjectPtr->PathName.ToString(), LOAD_None);
+			}
+			else
+			{
+				// Not fully loaded but we should not be loading it directly.
+				return nullptr;
 			}
 		}
 	}

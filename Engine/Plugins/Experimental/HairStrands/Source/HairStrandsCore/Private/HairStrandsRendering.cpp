@@ -197,13 +197,13 @@ static void AddDeformSimHairStrandsPass(
 	PermutationVector.Set<FDeformGuideCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 	PermutationVector.Set<FDeformGuideCS::FDeformationType>(InternalDeformationType);
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	TShaderMapRef<FDeformGuideCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("DeformSimHairStrands"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		FIntVector(DispatchCountX, DispatchCountY, 1));
 }
@@ -440,13 +440,13 @@ static void AddHairStrandsInterpolationPass(
 	PermutationVector.Set<FHairInterpolationCS::FSimulation>(bHasSimulationEnable ? 1 : 0);
 	PermutationVector.Set<FHairInterpolationCS::FScaleAndClip>(bNeedScaleOrClip ? 1 : 0);
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	TShaderMapRef<FHairInterpolationCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsInterpolation"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		DispatchCount);
 }
@@ -508,7 +508,7 @@ static void AddHairClusterAABBPass(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsClusterAABB"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		DispatchCount);
 }
@@ -554,13 +554,13 @@ static void AddHairTangentPass(
 	FHairTangentCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairTangentCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	TShaderMapRef<FHairTangentCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsTangent"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		DispatchCount);
 }
@@ -612,13 +612,13 @@ static void AddGenerateRaytracingGeometryPass(
 	FHairRaytracingGeometryCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairRaytracingGeometryCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	TShaderMapRef<FHairRaytracingGeometryCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsRaytracingGeometry"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		DispatchCount);
 }
@@ -661,14 +661,14 @@ static void AddClearClusterAABBPass(
 	Parameters->OutGroupAABBBuffer = OutGroupAABBuffer;
 
 	
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FClearClusterAABBCS> ComputeShader(ShaderMap);
 
 	const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(ClusterCount * 6, 1, 1) , FIntVector(64, 1, 1));
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsClearClusterAABB"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		DispatchCount);
 }

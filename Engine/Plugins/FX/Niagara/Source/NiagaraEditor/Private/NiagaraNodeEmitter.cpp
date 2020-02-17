@@ -11,7 +11,6 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
-#include "SNiagaraGraphPinAdd.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeOutput.h"

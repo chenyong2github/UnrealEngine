@@ -103,7 +103,7 @@ void UAsyncTaskDownloadImage::HandleImageRequest(FHttpRequestPtr HttpRequest, FH
 			if ( ImageWrapper.IsValid() && ImageWrapper->SetCompressed(HttpResponse->GetContent().GetData(), HttpResponse->GetContentLength()) )
 			{
 				TArray64<uint8>* RawData = new TArray64<uint8>();
-				const ERGBFormat InFormat = (GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel] == SP_OPENGL_ES2_WEBGL) ? ERGBFormat::RGBA : ERGBFormat::BGRA;
+				const ERGBFormat InFormat = ERGBFormat::BGRA;
 				if ( ImageWrapper->GetRaw(InFormat, 8, *RawData) )
 				{
 					if ( UTexture2DDynamic* Texture = UTexture2DDynamic::Create(ImageWrapper->GetWidth(), ImageWrapper->GetHeight()) )

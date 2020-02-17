@@ -77,6 +77,10 @@ class FNetworkProfiler
 private:
 
 	friend struct FNetworkProfilerScopedIgnoreReplicateProperties;
+	friend struct FNetworkProfilerCVarHelper;
+
+	/** Whether or not want to track granular information about comparisons. This can be very expensive. */
+	static bool bIsComparisonTrackingEnabled;
 
 	/** File writer used to serialize data.															*/
 	FArchive*								FileWriter;
@@ -106,6 +110,8 @@ private:
 
 	/** Delegate that's fired when tracking stops on the current network profile */
 	FOnNetworkProfileFinished				OnNetworkProfileFinishedDelegate;
+
+	FTimerHandle							AutoStopTimerHandle;
 
 	/** All the data required for writing sent bunches to the profiler stream						*/
 	struct FSendBunchInfo
@@ -177,6 +183,8 @@ private:
 
 	// Set of names that correspond to Object's whose top level property names have been exported.
 	TSet<FString> ExportedObjects;
+
+	void AutoStopTracking();
 
 public:
 	/**
@@ -348,7 +356,7 @@ public:
 	template<typename T, typename ProjectionType>
 	void TrackCompareProperties(const UObject* Object, uint32 Cycles, TBitArray<>& PropertiesCompared, TBitArray<>& PropertiesThatChanged, const TArray<T>& PropertyNameContainers, ProjectionType PropertyNameProjection)
 	{
-		if (bIsTrackingEnabled)
+		if (IsComparisonTrackingEnabled())
 		{
             FScopeLock ScopeLock(&CriticalSection);
 
@@ -460,9 +468,10 @@ public:
 	 *
 	 * @return			True if processed, false otherwise
 	 */
-	bool Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice & Ar );
+	ENGINE_API bool Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice & Ar );
 
 	bool FORCEINLINE IsTrackingEnabled() const { return bIsTrackingEnabled; }
+	bool IsComparisonTrackingEnabled() const { return bIsTrackingEnabled && bIsComparisonTrackingEnabled;  }
 
 	/** Return the network profile finished delegate */
 	FOnNetworkProfileFinished& OnNetworkProfileFinished() { return OnNetworkProfileFinishedDelegate; }

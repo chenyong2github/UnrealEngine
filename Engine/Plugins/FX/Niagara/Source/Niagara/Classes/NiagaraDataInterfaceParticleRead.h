@@ -12,6 +12,8 @@ class NIAGARA_API UNiagaraDataInterfaceParticleRead : public UNiagaraDataInterfa
 {
 	GENERATED_UCLASS_BODY()
 public:
+	DECLARE_NIAGARA_DI_PARAMETER();
+
 	UPROPERTY(EditAnywhere, Category = "ParticleRead")
 	FString EmitterName;
 
@@ -29,8 +31,8 @@ public:
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
+	virtual void GetEmitterDependencies(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, TArray<FNiagaraEmitterInstance*>& Dependencies) const override;
 	//UNiagaraDataInterface Interface End
 
 	void GetNumSpawnedParticles(FVectorVMContext& Context);

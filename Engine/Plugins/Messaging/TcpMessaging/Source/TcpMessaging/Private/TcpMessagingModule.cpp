@@ -127,8 +127,12 @@ public:
 #endif // WITH_EDITOR
 
 		// register application events
-		FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FTcpMessagingModule::HandleApplicationHasReactivated);
-		FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FTcpMessagingModule::HandleApplicationWillDeactivate);
+		const UTcpMessagingSettings* Settings = GetDefault<UTcpMessagingSettings>();
+		if (Settings->ShouldStopServiceWhenAppDeactivates())
+		{
+			FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FTcpMessagingModule::HandleApplicationHasReactivated);
+			FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FTcpMessagingModule::HandleApplicationWillDeactivate);
+		}
 
 		RestartServices();
 	}
@@ -380,6 +384,11 @@ void UTcpMessagingSettings::GetConnectToEndpoints(TArray<FString>& Endpoints) co
 int32 UTcpMessagingSettings::GetConnectionRetryDelay() const
 {
 	return ConnectionRetryDelay;
+}
+
+bool UTcpMessagingSettings::ShouldStopServiceWhenAppDeactivates() const
+{
+	return bStopServiceWhenAppDeactivates;
 }
 
 #undef LOCTEXT_NAMESPACE

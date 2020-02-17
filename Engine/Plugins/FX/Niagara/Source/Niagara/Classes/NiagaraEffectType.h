@@ -4,6 +4,7 @@
 
 #include "InGamePerformanceTracker.h"
 #include "RenderCommandFence.h"
+#include "NiagaraPlatformSet.h"
 #include "NiagaraEffectType.generated.h"
 
 #define DEBUG_SCALABILITY_STATE (!UE_BUILD_SHIPPING)
@@ -40,11 +41,17 @@ enum class ENiagaraScalabilityUpdateFrequency
 	Continuous,
 };
 
-/** Settings which control high level scalability of Niagara effects. Effects culled at this level stop ticking and where possible are not spawned at all. Costing the absolute minimum at runtime. */
+//////////////////////////////////////////////////////////////////////////
+
+/** Scalability settings for Niagara Systems for a particular platform set (unless overridden). */
 USTRUCT()
-struct FNiagaraScalabilitySettings
+struct FNiagaraSystemScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
+
+	/** The platforms on which these settings are active (unless overridden). */
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	FNiagaraPlatformSet Platforms;
 
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullByDistance : 1;
@@ -74,21 +81,29 @@ struct FNiagaraScalabilitySettings
 	/** Effects will be culled if they go more than this length of time without being rendered. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxTimeWithoutRender"))
 	float MaxTimeWithoutRender;
+	
+	FNiagaraSystemScalabilitySettings();
 
-	/** Scale factor applied to all spawn counts for effects of this type. */
-	//UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxTimeWithoutRender"))
-	//float SpawnCountScale;
+	void Clear();
+};
 
-	//TODO: Assess viability of progressive scaling via biasing the DetailLevel that effects use and reducing this with significance etc.
-	/** Settings that control whether we should bias the DetailLevel used by effects of this type. */
-	//TArray<FNiagaraDetailLevelBiasSettings> DetailLevelBiasSettings;
+/** Container struct for an array of system scalability settings. Enables details customization and data validation. */
+USTRUCT()
+struct FNiagaraSystemScalabilitySettingsArray
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	TArray<FNiagaraSystemScalabilitySettings> Settings;
 };
 
 USTRUCT()
-struct FNiagaraScalabilityOverrides : public FNiagaraScalabilitySettings
+struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
-		
+
+	FNiagaraSystemScalabilityOverride();
+
 	//TODO: Detail customization that effectively allows these values to be edit conditions for their respective properties inside FNiagaraScalabilitySettings.
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideDistanceSettings : 1;
@@ -98,9 +113,72 @@ struct FNiagaraScalabilityOverrides : public FNiagaraScalabilitySettings
 	uint32 bOverrideOwnerLODSettings : 1;
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideTimeSinceRendererSettings : 1;
+};
+
+/** Container struct for an array of system scalability overrides. Enables details customization and data validation. */
+USTRUCT()
+struct FNiagaraSystemScalabilityOverrides
+{
+	GENERATED_USTRUCT_BODY()
+	
+	UPROPERTY(EditAnywhere, Category = "Override")
+	TArray<FNiagaraSystemScalabilityOverride> Overrides;
+};
+
+/** Scalability settings for Niagara Emitters on a particular platform set. */
+USTRUCT()
+struct FNiagaraEmitterScalabilitySettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** The platforms on which these settings are active (unless overridden). */
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	FNiagaraPlatformSet Platforms;
+
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	uint32 bScaleSpawnCount : 1;
+
+	/** Effects of this type are culled beyond this distance. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bScaleSpawnCount"))
+	float SpawnCountScale;
+
+	FNiagaraEmitterScalabilitySettings();
+	void Clear();
+};
+
+/** Container struct for an array of emitter scalability settings. Enables details customization and data validation. */
+USTRUCT()
+struct FNiagaraEmitterScalabilitySettingsArray
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	TArray<FNiagaraEmitterScalabilitySettings> Settings;
+};
+
+USTRUCT()
+struct FNiagaraEmitterScalabilityOverride : public FNiagaraEmitterScalabilitySettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNiagaraEmitterScalabilityOverride();
+
+	//TODO: Detail customization that effectively allows these values to be edit conditions for their respective properties inside FNiagaraScalabilitySettings.
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideSpawnCountScale : 1;
 };
+
+/** Container struct for an array of emitter scalability overrides. Enables details customization and data validation. */
+USTRUCT()
+struct FNiagaraEmitterScalabilityOverrides
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Override")
+	TArray<FNiagaraEmitterScalabilityOverride> Overrides;
+};
+
+//////////////////////////////////////////////////////////////////////////
 
 /** Contains settings and working data shared among many NiagaraSystems that share some commonality of type. For example ImpactFX vs EnvironmentalFX. */
 UCLASS()
@@ -111,6 +189,7 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	//UObject Interface
 	virtual void BeginDestroy()override;
 	virtual bool IsReadyForFinishDestroy()override;
+	virtual void Serialize(FArchive& Ar)override;
 	virtual void PostLoad()override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
@@ -126,18 +205,26 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	ENiagaraCullReaction CullReaction;
 
 	/** Cull settings to use at each detail level. */
+	UPROPERTY()
+	TArray<FNiagaraSystemScalabilitySettings> DetailLevelScalabilitySettings_DEPRECATED;
+
 	UPROPERTY(EditAnywhere, Category = "Effect Type")
-	TArray<FNiagaraScalabilitySettings> DetailLevelScalabilitySettings;
+	FNiagaraSystemScalabilitySettingsArray SystemScalabilitySettings;
 	
+	UPROPERTY(EditAnywhere, Category = "Effect Type")
+	FNiagaraEmitterScalabilitySettingsArray EmitterScalabilitySettings;
+
 	FORCEINLINE int32* GetCycleCounter(bool bGameThread, bool bConcurrent);
 	void ProcessLastFrameCycleCounts();
 
 	//TODO: Dynamic budgetting from perf data.
 	//void ApplyDynamicBudget(float InDynamicBudget_GT, float InDynamicBudget_GT_CNC, float InDynamicBudget_RT);
 
-	void SetDetailLevel(int32 DetailLevel);
+	FORCEINLINE const FNiagaraSystemScalabilitySettingsArray& GetSystemScalabilitySettings()const { return SystemScalabilitySettings; }
+	FORCEINLINE const FNiagaraEmitterScalabilitySettingsArray& GetEmitterScalabilitySettings()const { return EmitterScalabilitySettings; }
 
-	FORCEINLINE const TArray<FNiagaraScalabilitySettings>& GetScalabilitySettings()const { return DetailLevelScalabilitySettings; }
+	const FNiagaraSystemScalabilitySettings& GetActiveSystemScalabilitySettings()const;
+	const FNiagaraEmitterScalabilitySettings& GetActiveEmitterScalabilitySettings()const;
 
 	float GetAverageFrameTime_GT() { return AvgTimeMS_GT; }
 	float GetAverageFrameTime_GT_CNC() { return AvgTimeMS_GT_CNC; }

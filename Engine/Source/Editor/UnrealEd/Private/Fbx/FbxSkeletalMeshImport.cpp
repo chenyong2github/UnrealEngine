@@ -1891,7 +1891,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			//Set the build options
 			SkeletalMesh->GetLODInfo(ImportLODModelIndex)->BuildSettings = BuildOptions;
 			//New MeshDescription build process
-			IMeshBuilderModule& MeshBuilderModule = FModuleManager::Get().LoadModuleChecked<IMeshBuilderModule>("MeshBuilder");
+			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForRunningPlatform();
 			//We must build the LODModel so we can restore properly the mesh, but we do not have to regenerate LODs
 			bBuildSuccess = MeshBuilderModule.BuildSkeletalMesh(SkeletalMesh, ImportLODModelIndex, false);
 		}
@@ -3540,9 +3540,13 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 					int32 UVIndex = (UVReferenceMode[UVLayerIndex] == FbxLayerElement::eDirect) ? 
 							UVMapIndex : LayerElementUV[UVLayerIndex]->GetIndexArray().GetAt(UVMapIndex);
 					FbxVector2	UVVector = LayerElementUV[UVLayerIndex]->GetDirectArray().GetAt(UVIndex);
+					const float U = static_cast<float>(UVVector[0]);
+					const float V = static_cast<float>(UVVector[1]);
+					const float VTile = FMath::FloorToFloat(V);
+					const float VOffset = V - VTile;
 
-					TmpWedges[UnrealVertexIndex].UVs[ UVLayerIndex ].X = static_cast<float>(UVVector[0]);
-					TmpWedges[UnrealVertexIndex].UVs[ UVLayerIndex ].Y = 1.f - static_cast<float>(UVVector[1]);
+					TmpWedges[UnrealVertexIndex].UVs[UVLayerIndex].X = U;
+					TmpWedges[UnrealVertexIndex].UVs[UVLayerIndex].Y = VTile + (1.f - VOffset);   //flip the Y of UVs for DirectX
 				}
 			}
 			else if( UVLayerIndex == 0 )
@@ -3718,14 +3722,20 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 	//
 	// clean up
 	//
-	if (UniqueUVCount > 0)
+	if (LayerElementUV)
 	{
 		delete[] LayerElementUV;
+	}
+	if (UVReferenceMode)
+	{
 		delete[] UVReferenceMode;
+	}
+	if (UVMappingMode)
+	{
 		delete[] UVMappingMode;
 	}
 	
-	return true; //-V773
+	return true;
 }
 
 void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkeletalMesh, USkeletalMesh* BaseSkeletalMesh, int32 DesiredLOD, UFbxSkeletalMeshImportData* TemplateImportData)

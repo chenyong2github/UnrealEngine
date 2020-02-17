@@ -39,9 +39,73 @@ bool UNiagaraEffectType::IsReadyForFinishDestroy()
 	return ReleaseFence.IsFenceComplete() && Super::IsReadyForFinishDestroy();
 }
 
+void UNiagaraEffectType::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+}
+
 void UNiagaraEffectType::PostLoad()
 {
 	Super::PostLoad();
+
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
+	{
+		for (int32 DL=0; DL < DetailLevelScalabilitySettings_DEPRECATED.Num(); ++DL)
+		{
+			//Transfer system settings to new platform structure.
+			FNiagaraSystemScalabilitySettings& DLSettings = DetailLevelScalabilitySettings_DEPRECATED[DL];
+			FNiagaraSystemScalabilitySettings& NewSettigns = SystemScalabilitySettings.Settings.AddDefaulted_GetRef();
+			NewSettigns = DLSettings;
+			NewSettigns.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(DL));
+		}
+
+		//Ensure all types replicate the former global spawn count scales
+		float LegacySpawnCountScales[5] = { 0.125f, 0.25f, 0.5f, 1.0f, 1.0f };
+		for (int32 DL = 0; DL < 5; ++DL)
+		{
+			if (LegacySpawnCountScales[DL] != 1.0f)//Don't bother adding one for levels with 1.0 as we'll fallback to no scaling.
+			{
+				FNiagaraEmitterScalabilitySettings& EmitterSettings = EmitterScalabilitySettings.Settings.AddDefaulted_GetRef();
+				EmitterSettings.bScaleSpawnCount = true;
+				EmitterSettings.SpawnCountScale = LegacySpawnCountScales[DL];
+				EmitterSettings.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(DL));
+			}
+		}
+	}
+}
+
+const FNiagaraSystemScalabilitySettings& UNiagaraEffectType::GetActiveSystemScalabilitySettings()const
+{
+	for (const FNiagaraSystemScalabilitySettings& Settings : SystemScalabilitySettings.Settings)
+	{
+		if (Settings.Platforms.IsActive())
+		{
+			return Settings;
+		}
+	}
+
+	//UE_LOG(LogNiagara, Warning, TEXT("Could not find active system scalability settings for EffectType %s"), *GetFullName());
+
+	static FNiagaraSystemScalabilitySettings Dummy;
+	return Dummy;
+}
+
+const FNiagaraEmitterScalabilitySettings& UNiagaraEffectType::GetActiveEmitterScalabilitySettings()const
+{
+	for (const FNiagaraEmitterScalabilitySettings& Settings : EmitterScalabilitySettings.Settings)
+	{
+		if (Settings.Platforms.IsActive())
+		{
+			return Settings;
+		}
+	}
+	
+	//UE_LOG(LogNiagara, Warning, TEXT("Could not find active emitter scalability settings for EffectType %s"), *GetFullName());
+
+	static FNiagaraEmitterScalabilitySettings Dummy;
+	return Dummy;
 }
 
 #if WITH_EDITOR
@@ -56,7 +120,7 @@ void UNiagaraEffectType::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 		UNiagaraSystem* System = *It;
 		if (System->GetEffectType() == this)
 		{
-			System->ResolveScalabilityOverrides();
+			System->OnEffectsQualityChanged();
 			UpdateContext.Add(System, true);
 		}
 	}
@@ -100,3 +164,48 @@ void UNiagaraEffectType::ProcessLastFrameCycleCounts()
 // 		MinSignificanceFromPerf = 0.0f;
 // 	}
 // }
+
+
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraSystemScalabilityOverride::FNiagaraSystemScalabilityOverride()
+	: bOverrideDistanceSettings(false)
+	, bOverrideInstanceCountSettings(false)
+	, bOverrideOwnerLODSettings(false)
+	, bOverrideTimeSinceRendererSettings(false)
+{
+}
+
+FNiagaraSystemScalabilitySettings::FNiagaraSystemScalabilitySettings()
+{
+	Clear();
+}
+
+void FNiagaraSystemScalabilitySettings::Clear()
+{
+	Platforms = FNiagaraPlatformSet();
+	bCullByDistance = false;
+	bCullByMaxOwnerLOD = false;
+	bCullByMaxTimeWithoutRender = false;
+	bCullMaxInstanceCount = false;
+	MaxDistance = 0.0f;
+	MaxInstances = 0;
+	MaxOwnerLOD = 0;
+	MaxTimeWithoutRender = 0.0f;
+}
+
+FNiagaraEmitterScalabilitySettings::FNiagaraEmitterScalabilitySettings()
+{
+	Clear();
+}
+
+void FNiagaraEmitterScalabilitySettings::Clear()
+{
+	SpawnCountScale = 1.0f;
+	bScaleSpawnCount = false;
+}
+
+FNiagaraEmitterScalabilityOverride::FNiagaraEmitterScalabilityOverride()
+	: bOverrideSpawnCountScale(false)
+{
+}

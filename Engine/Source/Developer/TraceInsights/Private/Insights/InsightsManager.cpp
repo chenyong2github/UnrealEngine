@@ -3,11 +3,14 @@
 #include "InsightsManager.h"
 
 #include "Framework/Application/SlateApplication.h"
+#include "Misc/CString.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/UniquePtr.h"
+#include "Trace/StoreClient.h"
 #include "TraceServices/Model/NetProfiler.h"
 
 // Insights
+#include "Insights/IUnrealInsightsModule.h"
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/TimingProfilerManager.h"
@@ -19,6 +22,7 @@
 #define LOCTEXT_NAMESPACE "InsightsManager"
 
 const FName FInsightsManagerTabs::StartPageTabId(TEXT("StartPage"));
+const FName FInsightsManagerTabs::SessionInfoTabId(TEXT("SessionInfo"));
 const FName FInsightsManagerTabs::TimingProfilerTabId(TEXT("TimingProfiler"));
 const FName FInsightsManagerTabs::LoadingProfilerTabId(TEXT("LoadingProfiler"));
 const FName FInsightsManagerTabs::NetworkingProfilerTabId(TEXT("NetworkingProfiler"));
@@ -28,16 +32,21 @@ TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FInsightsManager::FInsightsManager(TSharedRef<Trace::IAnalysisService> InTraceAnalysisService,
-								   TSharedRef<Trace::ISessionService> InTraceSessionService,
 								   TSharedRef<Trace::IModuleService> InTraceModuleService)
 	: AnalysisService(InTraceAnalysisService)
-	, SessionService(InTraceSessionService)
 	, ModuleService(InTraceModuleService)
+	, StoreDir()
+	, StoreClient()
 	, CommandList(new FUICommandList())
 	, ActionManager(this)
 	, Settings()
 	, bIsDebugInfoEnabled(false)
 	, bIsNetworkingProfilerAvailable(false)
+#if WITH_EDITOR
+	, bShouldOpenAnalysisInSeparateProcess(false)
+#else
+	, bShouldOpenAnalysisInSeparateProcess(true)
+#endif
 {
 }
 
@@ -66,6 +75,8 @@ void FInsightsManager::BindCommands()
 
 FInsightsManager::~FInsightsManager()
 {
+	ResetSession(false);
+
 	FInsightsCommands::Unregister();
 
 	// Unregister tick function.
@@ -84,13 +95,6 @@ TSharedPtr<FInsightsManager> FInsightsManager::Get()
 TSharedPtr<const Trace::IAnalysisSession> FInsightsManager::GetSession() const
 {
 	return Session;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-Trace::FSessionHandle FInsightsManager::GetSessionHandle() const
-{
-	return CurrentSessionHandle;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,6 +123,16 @@ FInsightsActionManager& FInsightsManager::GetActionManager()
 FInsightsSettings& FInsightsManager::GetSettings()
 {
 	return FInsightsManager::Instance->Settings;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
+{
+	using namespace Trace;
+	FStoreClient* Client = FStoreClient::Connect(Host, Port);
+	StoreClient = TUniquePtr<FStoreClient>(Client);
+	return StoreClient.IsValid();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,14 +169,21 @@ bool FInsightsManager::Tick(float DeltaTime)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::ResetSession()
+void FInsightsManager::ResetSession(bool bNotify)
 {
 	if (Session.IsValid())
 	{
+		Session->Stop(true);
 		Session.Reset();
-		CurrentSessionHandle = 0;
+
+		CurrentTraceId = 0;
+		CurrentTraceFilename.Reset();
 		bIsNetworkingProfilerAvailable = false;
-		OnSessionChanged();
+
+		if (bNotify)
+		{
+			OnSessionChanged();
+		}
 	}
 }
 
@@ -195,6 +216,12 @@ void FInsightsManager::OnSessionChanged()
 
 void FInsightsManager::SpawnAndActivateTabs()
 {
+	// Open Session Info tab.
+	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::SessionInfoTabId))
+	{
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::SessionInfoTabId);
+	}
+
 	// Open Timing Insights tab.
 	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::TimingProfilerTabId))
 	{
@@ -246,104 +273,86 @@ void FInsightsManager::ActivateTimingInsightsTab()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FInsightsManager::IsAnyLiveSessionAvailable(Trace::FSessionHandle& OutLastLiveSessionHandle) const
-{
-	TArray<Trace::FSessionHandle> LiveSessions;
-	SessionService->GetLiveSessions(LiveSessions);
-
-	if (LiveSessions.Num() > 0)
-	{
-		OutLastLiveSessionHandle = LiveSessions.Last();
-		return true;
-	}
-
-	return false;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FInsightsManager::IsAnySessionAvailable(Trace::FSessionHandle& OutLastSessionHandle) const
-{
-	TArray<Trace::FSessionHandle> AvailableSessions;
-	SessionService->GetAvailableSessions(AvailableSessions);
-
-	if (AvailableSessions.Num() > 0)
-	{
-		OutLastSessionHandle = AvailableSessions.Last();
-		return true;
-	}
-
-	return false;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FInsightsManager::LoadLastLiveSession()
 {
 	ResetSession();
 
-	TArray<Trace::FSessionHandle> AvailableSessions;
-	SessionService->GetAvailableSessions(AvailableSessions);
-
-	// Iterate in reverse order as we want the most recent live session first.
-	for (int32 SessionIndex = AvailableSessions.Num() - 1; SessionIndex >= 0; --SessionIndex)
+	if (!StoreClient.IsValid())
 	{
-		Trace::FSessionHandle SessionHandle = AvailableSessions[SessionIndex];
-
-		Trace::FSessionInfo SessionInfo;
-		SessionService->GetSessionInfo(SessionHandle, SessionInfo);
-
-		if (SessionInfo.bIsLive)
-		{
-			LoadSession(SessionHandle);
-			break;
-		}
+		return;
 	}
+
+	const int32 SessionCount = StoreClient->GetSessionCount();
+	if (SessionCount == 0)
+	{
+		return;
+	}
+
+	const Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
+	if (SessionInfo == nullptr)
+	{
+		return;
+	}
+
+	LoadTrace(SessionInfo->GetTraceId());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::LoadLastSession()
+void FInsightsManager::LoadTrace(uint32 InTraceId)
 {
 	ResetSession();
 
-	TArray<Trace::FSessionHandle> AvailableSessions;
-	SessionService->GetAvailableSessions(AvailableSessions);
-
-	if (AvailableSessions.Num() > 0)
+	if (StoreClient == nullptr)
 	{
-		LoadSession(AvailableSessions.Last());
+		return;
 	}
-}
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+	Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(InTraceId);
+	if (!TraceData)
+	{
+		return;
+	}
 
-void FInsightsManager::LoadSession(Trace::FSessionHandle SessionHandle)
-{
-	ResetSession();
+	FString TraceName;
+	const Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(InTraceId);
+	if (TraceInfo != nullptr)
+	{
+		FAnsiStringView Name = TraceInfo->GetName();
+		TraceName = FString(Name.Len(), Name.GetData());
+	}
 
-	Session = SessionService->StartAnalysis(SessionHandle);
+	Session = AnalysisService->StartAnalysis(*TraceName, MoveTemp(TraceData));
+
 	if (Session)
 	{
-		CurrentSessionHandle = SessionHandle;
+		CurrentTraceId = InTraceId;
+		CurrentTraceFilename = TraceName;
 		bIsNetworkingProfilerAvailable = false;
-		SpawnAndActivateTabs();
 		OnSessionChanged();
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
+void FInsightsManager::LoadTraceFile(const FString& InTraceFilename)
 {
+	IPlatformFile& PlatformFile = IPlatformFile::GetPlatformPhysical();
+	if (!PlatformFile.FileExists(*InTraceFilename))
+	{
+		const uint32 TraceId = uint32(FCString::Strtoui64(*InTraceFilename, nullptr, 10));
+		return LoadTrace(TraceId);
+	}
+
 	ResetSession();
 
-	Session = AnalysisService->StartAnalysis(*TraceFilepath);
+	Session = AnalysisService->StartAnalysis(*InTraceFilename);
+
 	if (Session)
 	{
-		CurrentSessionHandle = 0;
+		CurrentTraceId = 0;
+		CurrentTraceFilename = InTraceFilename;
 		bIsNetworkingProfilerAvailable = false;
-		SpawnAndActivateTabs();
 		OnSessionChanged();
 	}
 }

@@ -33,6 +33,8 @@ struct FWeakObjectPtr;
 template <typename ObjectPtrType>
 class FMulticastDelegateBase;
 
+ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename ElementType>, FDelegateAllocatorType::ForElementType<ElementType>, void*);
+
 /**
  * Base class for unicast delegates.
  */

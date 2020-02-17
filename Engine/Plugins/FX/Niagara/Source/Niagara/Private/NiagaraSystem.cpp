@@ -20,6 +20,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSettings.h"
+#include "Interfaces/ITargetPlatform.h"
 
 
 #if WITH_EDITOR
@@ -39,6 +40,14 @@ static FAutoConsoleVariableRef CVarNiagaraForceSystemsToCookOutRapidIterationOnL
 	TEXT("fx.NiagaraForceSystemsToCookOutRapidIterationOnLoad"),
 	GNiagaraForceSystemsToCookOutRapidIterationOnLoad,
 	TEXT("When enabled UNiagaraSystem's bBakeOutRapidIteration will be forced to true on PostLoad of the system."),
+	ECVF_Default
+);
+
+static int GNiagaraVerboseCookOutput = 0;
+static FAutoConsoleVariableRef CVarNiagaraVerboseCookOutput(
+	TEXT("fx.NiagaraVerboseCookOutput"),
+	GNiagaraVerboseCookOutput,
+	TEXT("When enabled UNiagaraSystems generate verbose output on cook."),
 	ECVF_Default
 );
 
@@ -123,7 +132,7 @@ void UNiagaraSystem::PostInitProperties()
 #endif
 	}
 
-	ResolveScalabilityOverrides();
+	ResolveScalabilitySettings();
 }
 
 bool UNiagaraSystem::IsLooping() const
@@ -201,7 +210,66 @@ void UNiagaraSystem::RequestCompileForEmitter(UNiagaraEmitter* InEmitter)
 
 void UNiagaraSystem::Serialize(FArchive& Ar)
 {
+	//TODO: Cook out emitters. This requires some wrangling on the compilation side for system scripts.
+// 	//When cooking we clear out any emitters that are disabled entirely or just for the target platform.
+// 	TArray<FNiagaraEmitterHandle> OldEmitters;
+// 	if (Ar.IsCooking())
+// 	{
+// 		OldEmitters = EmitterHandles;
+// 		const ITargetPlatform* Target = Ar.CookingTarget();
+// 		for (FNiagaraEmitterHandle& Handle : EmitterHandles)
+// 		{
+// 			if (Handle.GetIsEnabled() && Handle.GetInstance()->IsEnabledOnPlatform(Target->PlatformName()))
+// 			{
+// 				Handle.ClearEmitter();
+// 			}
+// 		}
+// 	}
+
+	//Some log spam to display emitters we should be cooking out.
+#if WITH_EDITOR && 0
+	if (Ar.IsCooking() && GNiagaraVerboseCookOutput)
+	{
+		TBitArray<TInlineAllocator<8>> EnabledEmitters;
+		EnabledEmitters.Reserve(EmitterHandles.Num());
+		int32 NumEnabled = 0;
+		const ITargetPlatform* Target = Ar.CookingTarget();
+		for (FNiagaraEmitterHandle& Handle : EmitterHandles)
+		{
+			bool bEnabled = Handle.GetInstance()->IsEnabledOnPlatform(Target->PlatformName());
+			EnabledEmitters.Add(bEnabled);
+			if (bEnabled)
+			{
+				NumEnabled++;
+			}
+		}
+
+		if (NumEnabled != EmitterHandles.Num())
+		{
+			UE_LOG(LogNiagara, Log, TEXT("==============================================="));
+			UE_LOG(LogNiagara, Log, TEXT("System has emitters that could be cooked out!"), *GetName());
+
+			for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
+			{
+				if (EnabledEmitters[EmitterIdx] == false)
+				{
+					UE_LOG(LogNiagara, Log, TEXT("%s"), *EmitterHandles[EmitterIdx].GetName().ToString());
+				}
+			}
+			UE_LOG(LogNiagara, Log, TEXT("==============================================="));
+		}
+	}
+
+#endif
+
 	Super::Serialize(Ar);
+
+	//TODO: Cook out emitters. This requires some wrangling on the compilation side for system scripts.
+// 	//Restore old emitters post cook pruning.
+// 	if (Ar.IsCooking())
+// 	{
+// 		EmitterHandles = OldEmitters;
+// 	}
 
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
 
@@ -274,7 +342,7 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 		}
 	}
 
-	ResolveScalabilityOverrides();
+	ResolveScalabilitySettings();
 
 	UpdateContext.CommitUpdate();
 }
@@ -285,6 +353,8 @@ void UNiagaraSystem::PostLoad()
 	Super::PostLoad();
 
 	ExposedParameters.PostLoad();
+	ExposedParameters.SanityCheckData();
+
 	SystemCompiledData.InstanceParamStore.PostLoad();
 
 	if (GIsEditor)
@@ -308,6 +378,18 @@ void UNiagaraSystem::PostLoad()
 				Emitter->ConditionalPostLoad();
 				Emitter->ClearFlags(RF_Standalone | RF_Public);
 			}
+		}
+	}
+
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
+	{
+		for (int32 DL = 0; DL < ScalabilityOverrides_DEPRECATED.Num(); ++DL)
+		{
+			FNiagaraSystemScalabilityOverride& LegacyOverride = ScalabilityOverrides_DEPRECATED[DL];
+			FNiagaraSystemScalabilityOverride& NewOverride = SystemScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			NewOverride = LegacyOverride;
+			NewOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(DL));
 		}
 	}
 
@@ -346,8 +428,6 @@ void UNiagaraSystem::PostLoad()
 			SystemUpdateScript->ConditionalPostLoad();
 		}
 		AllSystemScripts.Add(SystemUpdateScript);
-
-		const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 		//TODO: This causes a crash becuase the script source ptr is null? Fix
 		//For existing emitters before the lifecylce rework, ensure they have the system lifecycle module.
@@ -490,7 +570,7 @@ void UNiagaraSystem::PostLoad()
 		bIsReadyToRunCached = IsReadyToRunInternal();
 	}
 
-	ResolveScalabilityOverrides();
+	ResolveScalabilitySettings();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1056,7 +1136,7 @@ void UNiagaraSystem::InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData&
 		DataSetToInit.Variables.AddUnique(Var);
 	}
 
-	DataSetToInit.bNeedsPersistentIDs = InAssociatedEmitter->RequiresPersistantIDs() || DataSetToInit.Variables.Contains(SYS_PARAM_PARTICLES_ID);
+	DataSetToInit.bRequiresPersistentIDs = InAssociatedEmitter->RequiresPersistentIDs() || DataSetToInit.Variables.Contains(SYS_PARAM_PARTICLES_ID);
 	DataSetToInit.ID = FNiagaraDataSetID(InAssociatedEmitterHandle.GetIdName(), ENiagaraDataSetType::ParticleData);
 	DataSetToInit.SimTarget = InAssociatedEmitter->SimTarget;
 
@@ -1278,7 +1358,7 @@ void UNiagaraSystem::InitSystemCompiledData()
 			CompiledData.Variables.AddUnique(Var);
 		}
 
-		CompiledData.bNeedsPersistentIDs = false;
+		CompiledData.bRequiresPersistentIDs = false;
 		CompiledData.ID = FNiagaraDataSetID();
 		CompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
 
@@ -1288,9 +1368,9 @@ void UNiagaraSystem::InitSystemCompiledData()
 	CreateDataSetCompiledData(SystemCompiledData.DataSetCompiledData, GetSystemUpdateScript()->GetVMExecutableData().Attributes);
 
 	FNiagaraParameters* EngineParamsSpawn = GetSystemSpawnScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
-	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? EngineParamsSpawn->Parameters : TArrayView<FNiagaraVariable>());
+	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? TArrayView<FNiagaraVariable>(EngineParamsSpawn->Parameters) : TArrayView<FNiagaraVariable>());
 	FNiagaraParameters* EngineParamsUpdate = GetSystemUpdateScript()->GetVMExecutableData().DataSetToParameters.Find(TEXT("Engine"));
-	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? EngineParamsUpdate->Parameters : TArrayView<FNiagaraVariable>());
+	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? TArrayView<FNiagaraVariable>(EngineParamsUpdate->Parameters) : TArrayView<FNiagaraVariable>());
 
 	// create the bindings to be used with our constant buffers; geenrating the offsets to/from the data sets; we need
 	// editor data to build these bindings because of the constant buffer structs only having their variable definitions
@@ -1381,101 +1461,58 @@ UNiagaraEffectType* UNiagaraSystem::GetEffectType()const
 	return Settings->GetDefaultEffectType();
 }
 
-const FNiagaraScalabilitySettings& UNiagaraSystem::GetScalabilitySettings(int32 DetailLevel)
+void UNiagaraSystem::ResolveScalabilitySettings()
 {
-#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-	int32 UseDetailLevel = DetailLevel == INDEX_NONE ? INiagaraModule::GetDetailLevel() : DetailLevel;
-
-	int32 SettingsIndex = ResolvedScalabilitySettings.IsValidIndex(UseDetailLevel) ? UseDetailLevel : ResolvedScalabilitySettings.Num() - 1;
-	check(SettingsIndex != INDEX_NONE);//We should always have at least one entry in our settings array.
-	return ResolvedScalabilitySettings[SettingsIndex];
-#else
-	return CurrentScalabilitySettings;
-#endif
-}
-
-void UNiagaraSystem::ResolveScalabilityOverrides()
-{
-	ResolvedScalabilitySettings.Empty();
-
-	UNiagaraEffectType* ActualEffectType = GetEffectType();
-	int32 NumEffectTypeSettings = 0;
-	if (ActualEffectType)
+	CurrentScalabilitySettings.Clear();
+	if (UNiagaraEffectType* ActualEffectType = GetEffectType())
 	{
-		NumEffectTypeSettings = ActualEffectType->GetScalabilitySettings().Num();
+		CurrentScalabilitySettings = ActualEffectType->GetActiveSystemScalabilitySettings();
 	}
-	int32 NumOverrides = ScalabilityOverrides.Num();
 
-	int32 ResolvedCount = FMath::Max(NumEffectTypeSettings, NumOverrides);
-	if (ResolvedCount == 0)
+	for (FNiagaraSystemScalabilityOverride& Override : SystemScalabilityOverrides.Overrides)
 	{
-		//Just add a single defaulted entry to make other calling code simpler.
-		ResolvedScalabilitySettings.AddDefaulted();
-	}
-	else
-	{
-
-		ResolvedScalabilitySettings.Reserve(ResolvedCount);
-		for (int32 i = 0; i < ResolvedCount; ++i)
+		if (Override.Platforms.IsActive())
 		{
-			int32 NewIdx = ResolvedScalabilitySettings.AddDefaulted();
-			FNiagaraScalabilitySettings& NewSettings = ResolvedScalabilitySettings[NewIdx];
-			if (ActualEffectType)
+			if (Override.bOverrideDistanceSettings)
 			{
-				const TArray<FNiagaraScalabilitySettings>& EffectTypeSettings = ActualEffectType->GetScalabilitySettings();
-				int32 LastIndex = EffectTypeSettings.Num() - 1;
-				if (LastIndex >= 0)
-				{
-					NewSettings = EffectTypeSettings[FMath::Min(i, LastIndex)];
-				}
+				CurrentScalabilitySettings.bCullByDistance = Override.bCullByDistance;
+				CurrentScalabilitySettings.MaxDistance = Override.MaxDistance;
 			}
 
-			if (ScalabilityOverrides.IsValidIndex(i) && bOverrideScalabilitySettings)
+			if (Override.bOverrideInstanceCountSettings)
 			{
-				const FNiagaraScalabilityOverrides& Overrides = ScalabilityOverrides[i];
-
-				if (Overrides.bOverrideDistanceSettings)
-				{
-					NewSettings.bCullByDistance = Overrides.bCullByDistance;
-					NewSettings.MaxDistance = Overrides.MaxDistance;
-				}
-
-				if (Overrides.bOverrideOwnerLODSettings)
-				{
-					NewSettings.bCullByMaxOwnerLOD = Overrides.bCullByMaxOwnerLOD;
-					NewSettings.MaxOwnerLOD = Overrides.MaxOwnerLOD;
-				}
-
-				if (Overrides.bOverrideInstanceCountSettings)
-				{
-					NewSettings.bCullMaxInstanceCount = Overrides.bCullMaxInstanceCount;
-					NewSettings.MaxInstances = Overrides.MaxInstances;
-				}
-
-				if (Overrides.bOverrideTimeSinceRendererSettings)
-				{
-					NewSettings.bCullByMaxTimeWithoutRender = Overrides.bCullByMaxTimeWithoutRender;
-					NewSettings.MaxTimeWithoutRender = Overrides.MaxTimeWithoutRender;
-				}
-
-// 				if (Overrides.bOverrideSpawnCountScale)
-// 				{
-// 					NewSettings.SpawnCountScale = Overrides.SpawnCountScale;
-// 				}
+				CurrentScalabilitySettings.bCullMaxInstanceCount = Override.bCullMaxInstanceCount;
+				CurrentScalabilitySettings.MaxInstances = Override.MaxInstances;
 			}
+
+			if (Override.bOverrideOwnerLODSettings)
+			{
+				CurrentScalabilitySettings.bCullByMaxOwnerLOD = Override.bCullByMaxOwnerLOD;
+				CurrentScalabilitySettings.MaxOwnerLOD = Override.MaxOwnerLOD;
+			}
+
+			if (Override.bOverrideTimeSinceRendererSettings)
+			{
+				CurrentScalabilitySettings.bCullByMaxTimeWithoutRender = Override.bCullByMaxTimeWithoutRender;
+				CurrentScalabilitySettings.MaxTimeWithoutRender = Override.MaxTimeWithoutRender;
+			}
+			break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 		}
 	}
-
-	OnDetailLevelChanges(INiagaraModule::GetDetailLevel());
 }
 
-void UNiagaraSystem::OnDetailLevelChanges(int32 DetailLevel)
+void UNiagaraSystem::OnEffectsQualityChanged()
 {
-	int32 SettingsIndex = ResolvedScalabilitySettings.IsValidIndex(DetailLevel) ? DetailLevel : ResolvedScalabilitySettings.Num() - 1;
-	check(SettingsIndex != INDEX_NONE);//We should always have at least one entry in our settings array.
-	CurrentScalabilitySettings = ResolvedScalabilitySettings[SettingsIndex];
-}
+	ResolveScalabilitySettings();
 
+	for (FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		Handle.GetInstance()->OnEffectsQualityChanged();
+	}
+
+	FNiagaraSystemUpdateContext UpdateCtx;
+	UpdateCtx.Add(this, true);
+}
 
 FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 {
@@ -1531,7 +1568,16 @@ void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiag
 			}
 		}
 
-		ParameterOffset += Var.GetSizeInBytes();
+		// we need to take into account potential padding that is in the constant buffers based similar to what is done
+		// in the NiagaraHlslTranslator, where Vec2/Vec3 are treated as Vec4.
+		int32 ParameterSize = Var.GetSizeInBytes();
+		const FNiagaraTypeDefinition& Type = Var.GetType();
+		if (Type == FNiagaraTypeDefinition::GetVec2Def() || Type == FNiagaraTypeDefinition::GetVec3Def())
+		{
+			ParameterSize = Align(ParameterSize, FNiagaraTypeDefinition::GetVec4Def().GetSize());
+		}
+
+		ParameterOffset += ParameterSize;
 	}
 
 	FloatOffsets.Shrink();

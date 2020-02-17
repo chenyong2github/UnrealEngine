@@ -8,7 +8,7 @@
 /**
  * Implements a proxy archive that serializes FNames as string data.
  */
-struct CORE_VTABLE FNameAsStringProxyArchive : public FArchiveProxy
+struct FNameAsStringProxyArchive : public FArchiveProxy
 {
 	/**
 	 * Creates and initializes a new instance.

@@ -31,6 +31,9 @@ class ANIMGRAPHRUNTIME_API ISequencerAnimationSupport
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InPosition, float Weight, bool bFireNotifies) = 0;
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies) = 0;
 
+	/** Construct all nodes in this instance */
+	virtual void ConstructNodes() = 0;
+
 	/** Reset all nodes in this instance */
 	virtual void ResetNodes() = 0;
 

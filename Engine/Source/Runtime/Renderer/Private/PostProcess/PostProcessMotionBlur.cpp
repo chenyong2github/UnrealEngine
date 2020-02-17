@@ -488,7 +488,7 @@ void AddMotionBlurVelocityPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Velocity Flatten"),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewports.Velocity.Rect.Size(), FMotionBlurVelocityFlattenCS::ThreadGroupSize));
 	}
@@ -542,8 +542,8 @@ void AddMotionBlurVelocityPass(
 		TShaderMapRef<FMotionBlurVelocityDilateScatterVS> VertexShader(View.ShaderMap);
 		TShaderMapRef<FMotionBlurVelocityDilateScatterPS> PixelShader(View.ShaderMap);
 		
-		ValidateShaderParameters(*VertexShader, *PassParameters);
-		ValidateShaderParameters(*PixelShader, *PassParameters);
+		ValidateShaderParameters(VertexShader, *PassParameters);
+		ValidateShaderParameters(PixelShader, *PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("VelocityTileScatter %dx%d", VelocityTileCount.X, VelocityTileCount.Y),
@@ -551,12 +551,12 @@ void AddMotionBlurVelocityPass(
 			ERDGPassFlags::Raster,
 			[VertexShader, PixelShader, VelocityTileCount, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			FRHIVertexShader* RHIVertexShader = GETSAFERHISHADER_VERTEX(*VertexShader);
+			FRHIVertexShader* RHIVertexShader = VertexShader.GetVertexShader();
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = RHIVertexShader;
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -584,7 +584,7 @@ void AddMotionBlurVelocityPass(
 
 				PassParameters->ScatterPass = ScatterPassIndex;
 
-				SetShaderParameters(RHICmdList, *VertexShader, RHIVertexShader, *PassParameters);
+				SetShaderParameters(RHICmdList, VertexShader, RHIVertexShader, *PassParameters);
 
 				// Needs to be the same on shader side (faster on NVIDIA and AMD)
 				const int32 QuadsPerInstance = 8;
@@ -604,7 +604,7 @@ void AddMotionBlurVelocityPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("VelocityTileGatherCS %dx%d", VelocityTileCount.X, VelocityTileCount.Y),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(VelocityTileCount, FMotionBlurVelocityDilateGatherCS::ThreadGroupSize));
 	}
@@ -701,7 +701,7 @@ FRDGTextureRef AddMotionBlurFilterPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Motion Blur %dx%d (CS)", Viewports.Color.Rect.Width(), Viewports.Color.Rect.Height()),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewports.Color.Rect.Size(), FComputeShaderUtils::kGolden2DGroupSize));
 	}
@@ -719,7 +719,7 @@ FRDGTextureRef AddMotionBlurFilterPass(
 			View,
 			Viewports.Color,
 			Viewports.Color,
-			*PixelShader,
+			PixelShader,
 			PassParameters,
 			EScreenPassDrawFlags::AllowHMDHiddenAreaMask);
 	}
@@ -765,7 +765,7 @@ FRDGTextureRef AddVisualizeMotionBlurPass(
 
 	TShaderMapRef<FMotionBlurVisualizePS> PixelShader(View.ShaderMap);
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, ColorViewport, ColorViewport, *PixelShader, PassParameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, ColorViewport, ColorViewport, PixelShader, PassParameters);
 
 	Output.LoadAction = ERenderTargetLoadAction::ELoad;
 

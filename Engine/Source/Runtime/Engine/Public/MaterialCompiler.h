@@ -319,6 +319,7 @@ public:
 	virtual int32 RotateAboutAxis(int32 NormalizedRotationAxisAndAngleIndex, int32 PositionOnAxisIndex, int32 PositionIndex) = 0;
 	virtual int32 TwoSidedSign() = 0;
 	virtual int32 VertexNormal() = 0;
+	virtual int32 VertexTangent() = 0;
 	virtual int32 PixelNormalWS() = 0;
 
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) = 0;
@@ -330,6 +331,7 @@ public:
 
 	virtual int32 PerInstanceRandom() = 0;
 	virtual int32 PerInstanceFadeAmount() = 0;
+	virtual int32 PerInstanceCustomData(int32 DataIndex, int32 DefaultValueIndex) = 0;
 	virtual int32 AntialiasedTextureMask(int32 Tex, int32 UV, float Threshold, uint8 Channel) = 0;
 	virtual int32 Sobol(int32 Cell, int32 Index, int32 Seed) = 0;
 	virtual int32 TemporalSobol(int32 Index, int32 Seed) = 0;
@@ -579,6 +581,7 @@ public:
 	}
 	virtual int32 TwoSidedSign() override { return Compiler->TwoSidedSign(); }
 	virtual int32 VertexNormal() override { return Compiler->VertexNormal(); }
+	virtual int32 VertexTangent() override { return Compiler->VertexTangent(); }
 	virtual int32 PixelNormalWS() override { return Compiler->PixelNormalWS(); }
 
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override { return Compiler->CustomExpression(Custom,CompiledInputs); }
@@ -607,6 +610,7 @@ public:
 	virtual int32 DistanceFieldGradient(int32 PositionArg) override { return Compiler->DistanceFieldGradient(PositionArg); }
 	virtual int32 PerInstanceRandom() override { return Compiler->PerInstanceRandom(); }
 	virtual int32 PerInstanceFadeAmount() override { return Compiler->PerInstanceFadeAmount(); }
+	virtual int32 PerInstanceCustomData(int32 DataIndex, int32 DefaultValueIndex) override { return Compiler->PerInstanceCustomData(DataIndex, DefaultValueIndex); }
 	virtual int32 DepthOfFieldFunction(int32 Depth, int32 FunctionValueIndex) override
 	{
 		return Compiler->DepthOfFieldFunction(Depth, FunctionValueIndex);

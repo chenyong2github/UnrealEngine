@@ -110,6 +110,7 @@ public:
 template<typename LightMapPolicyType>
 class TMobileBasePassVSPolicyParamType : public FMeshMaterialShader, public LightMapPolicyType::VertexParametersType
 {
+	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TMobileBasePassVSPolicyParamType, NonVirtual, FMeshMaterialShader, typename LightMapPolicyType::VertexParametersType);
 protected:
 
 	TMobileBasePassVSPolicyParamType() {}
@@ -127,13 +128,6 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		LightMapPolicyType::VertexParametersType::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
 	}
 
 	void GetShaderBindings(
@@ -160,7 +154,7 @@ template<typename LightMapPolicyType>
 class TMobileBasePassVSBaseType : public TMobileBasePassVSPolicyParamType<LightMapPolicyType>
 {
 	typedef TMobileBasePassVSPolicyParamType<LightMapPolicyType> Super;
-
+	DECLARE_INLINE_TYPE_LAYOUT(TMobileBasePassVSBaseType, NonVirtual);
 protected:
 
 	TMobileBasePassVSBaseType() {}
@@ -178,6 +172,9 @@ public:
 		LightMapPolicyType::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
+
+	
+	
 };
 
 template< typename LightMapPolicyType, EOutputFormat OutputFormat >
@@ -217,6 +214,7 @@ public:
 template<typename LightMapPolicyType>
 class TMobileBasePassPSPolicyParamType : public FMeshMaterialShader, public LightMapPolicyType::PixelParametersType
 {
+	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TMobileBasePassPSPolicyParamType, NonVirtual, FMeshMaterialShader, typename LightMapPolicyType::PixelParametersType);
 public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -228,7 +226,7 @@ public:
 	{
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		// Modify compilation environment depending upon material shader quality level settings.
-		ModifyCompilationEnvironmentForQualityLevel(Parameters.Platform, Parameters.Material->GetQualityLevel(), OutEnvironment);
+		ModifyCompilationEnvironmentForQualityLevel(Parameters.Platform, Parameters.MaterialParameters.QualityLevel, OutEnvironment);
 	}
 
 	/** Initialization constructor. */
@@ -261,52 +259,24 @@ public:
 
 	TMobileBasePassPSPolicyParamType() {}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		LightMapPolicyType::PixelParametersType::Serialize(Ar);
-
-		Ar << MobileDirectionLightBufferParam;
-		Ar << ReflectionParameter;
-
-		Ar << HQReflectionCubemaps[0];
-		Ar << HQReflectionCubemaps[1];
-		Ar << HQReflectionCubemaps[2];
-		Ar << HQReflectionSamplers[0];
-		Ar << HQReflectionSamplers[1];
-		Ar << HQReflectionSamplers[2];
-		Ar << HQReflectionInvAverageBrigtnessParams;
-		Ar << HQReflectionPositionsAndRadii;
-		
-		Ar << LightPositionAndInvRadiusParameter;
-		Ar << LightColorAndFalloffExponentParameter;
-		Ar << NumDynamicPointLightsParameter;
-		Ar << SpotLightAnglesParameter;
-		Ar << SpotLightDirectionAndSpecularScaleParameter;
-			
-		Ar << CSMDebugHintParams;
-
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderUniformBufferParameter MobileDirectionLightBufferParam;
-	FShaderUniformBufferParameter ReflectionParameter;
+	LAYOUT_FIELD(FShaderUniformBufferParameter, MobileDirectionLightBufferParam);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, ReflectionParameter);
 
 	// HQ reflection bound as loose params
-	FShaderResourceParameter HQReflectionCubemaps[3];
-	FShaderResourceParameter HQReflectionSamplers[3];
-	FShaderParameter HQReflectionInvAverageBrigtnessParams;
-	FShaderParameter HQReflectionPositionsAndRadii;
+	LAYOUT_ARRAY(FShaderResourceParameter, HQReflectionCubemaps, 3);
+	LAYOUT_ARRAY(FShaderResourceParameter, HQReflectionSamplers, 3);
+	LAYOUT_FIELD(FShaderParameter, HQReflectionInvAverageBrigtnessParams);
+	LAYOUT_FIELD(FShaderParameter, HQReflectionPositionsAndRadii);
+
+	LAYOUT_FIELD(FShaderParameter, LightPositionAndInvRadiusParameter);
+	LAYOUT_FIELD(FShaderParameter, LightColorAndFalloffExponentParameter);
+	LAYOUT_FIELD(FShaderParameter, NumDynamicPointLightsParameter);
+	LAYOUT_FIELD(FShaderParameter, SpotLightDirectionAndSpecularScaleParameter);
+	LAYOUT_FIELD(FShaderParameter, SpotLightAnglesParameter);
+
+	LAYOUT_FIELD(FShaderParameter, CSMDebugHintParams);
 	
-	FShaderParameter LightPositionAndInvRadiusParameter;
-	FShaderParameter LightColorAndFalloffExponentParameter;
-	FShaderParameter NumDynamicPointLightsParameter;
-	FShaderParameter SpotLightDirectionAndSpecularScaleParameter;
-	FShaderParameter SpotLightAnglesParameter;
-
-	FShaderParameter CSMDebugHintParams;
-
 public:
 	void GetShaderBindings(
 		const FScene* Scene,
@@ -326,9 +296,8 @@ template<typename LightMapPolicyType>
 class TMobileBasePassPSBaseType : public TMobileBasePassPSPolicyParamType<LightMapPolicyType>
 {
 	typedef TMobileBasePassPSPolicyParamType<LightMapPolicyType> Super;
-
+	DECLARE_INLINE_TYPE_LAYOUT(TMobileBasePassPSBaseType, NonVirtual);
 public:
-
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return LightMapPolicyType::ShouldCompilePermutation(Parameters)
@@ -344,6 +313,9 @@ public:
 	/** Initialization constructor. */
 	TMobileBasePassPSBaseType(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) : Super(Initializer) {}
 	TMobileBasePassPSBaseType() {}
+
+	
+	
 };
 
 
@@ -364,8 +336,8 @@ namespace MobileBasePass
 		const FMaterial& MaterialResource,
 		FVertexFactoryType* VertexFactoryType,
 		bool bEnableSkyLight, 
-		TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>*& VertexShader,
-		TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*& PixelShader);
+		TShaderRef<TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
+		TShaderRef<TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>>& PixelShader);
 
 	const FLightSceneInfo* GetDirectionalLightInfo(const FScene* Scene, const FPrimitiveSceneProxy* PrimitiveSceneProxy);
 	int32 CalcNumMovablePointLights(const FMaterial& InMaterial, const FPrimitiveSceneProxy* InPrimitiveSceneProxy);
@@ -404,7 +376,7 @@ public:
 		const bool bMobileDynamicPointLightsUseStaticBranch = (MobileDynamicPointLightsUseStaticBranchCVar->GetValueOnAnyThread() == 1);
 		const int32 MobileNumDynamicPointLights = MobileNumDynamicPointLightsCVar->GetValueOnAnyThread();
 		const int32 MobileSkyLightPermutationOptions = MobileSkyLightPermutationCVar->GetValueOnAnyThread();
-		const bool bIsUnlit = Parameters.Material->GetShadingModels().IsUnlit();
+		const bool bIsUnlit = Parameters.MaterialParameters.ShadingModels.IsUnlit();
 
 		// Only compile skylight version for lit materials on ES2 (Metal) or higher
 		const bool bShouldCacheBySkylight = !bEnableSkyLight || !bIsUnlit;

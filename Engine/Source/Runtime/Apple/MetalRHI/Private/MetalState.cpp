@@ -530,8 +530,8 @@ FMetalBlendState::FMetalBlendState(const FBlendStateInitializerRHI& Initializer)
 		{
 			Key = &BlendSettingsToUniqueKeyMap.Add(BlendBitMask, NextKey++);
 
-			// only giving 5 bits to the key, since we need to pack a bunch of them into 64 bits
-			checkf(NextKey < 32, TEXT("Too many unique blend states to fit into the PipelineStateHash"));
+			// only giving limited bits to the key, since we need to pack 8 of them into a key
+			checkf(NextKey < (1 << NumBits_BlendState), TEXT("Too many unique blend states to fit into the PipelineStateHash [%d allowed]"), 1 << NumBits_BlendState);
 		}
 		// set the key
 		RenderTargetStates[RenderTargetIndex].BlendStateKey = *Key;

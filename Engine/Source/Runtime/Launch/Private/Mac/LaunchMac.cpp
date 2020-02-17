@@ -254,15 +254,15 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 	NSString* MinimumSystemVersionString = (NSString*)InfoDictionary[@"LSMinimumSystemVersion"];
 	NSOperatingSystemVersion MinimumSystemVersion = { 0 };
 	NSOperatingSystemVersion CurrentSystemVersion = [[NSProcessInfo processInfo] operatingSystemVersion];
-	NSOperatingSystemVersion MinSupportedMacOSVersion = { 10, 13, 6 };
-	NSString* MinSupportedMacOSVersionString = @"10.13.6";
+	NSOperatingSystemVersion MinSupportedMacOSVersion = { 10, 14, 6 };
+	NSString* MinSupportedMacOSVersionString = @"10.14.6";
 
 	NSArray<NSString*>* VersionComponents = [MinimumSystemVersionString componentsSeparatedByString:@"."];
 	MinimumSystemVersion.majorVersion = [[VersionComponents objectAtIndex:0] integerValue];
 	MinimumSystemVersion.minorVersion = VersionComponents.count > 1 ? [[VersionComponents objectAtIndex:1] integerValue] : 0;
 	MinimumSystemVersion.patchVersion = VersionComponents.count > 2 ? [[VersionComponents objectAtIndex:2] integerValue] : 0;
 
-	// Make sure that the min version in Info.plist is at least 10.13.6, as that's the absolute minimum
+	// Make sure that the min version in Info.plist is at least 10.14.6, as that's the absolute minimum
 	if (MacOSVersionCompare(MinimumSystemVersion, MinSupportedMacOSVersion) < 0)
 	{
 		MinimumSystemVersion = MinSupportedMacOSVersion;

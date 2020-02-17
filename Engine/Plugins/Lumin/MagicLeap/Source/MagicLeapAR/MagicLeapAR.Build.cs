@@ -27,8 +27,10 @@ namespace UnrealBuildTool.Rules
 					"MagicLeap",
 					"MLSDK",
 					"MagicLeapPlanes",
-					"HeadMountedDisplay",
+					"MagicLeapLightEstimation",
 					"AugmentedReality",
+					"MagicLeapARPin",
+					"MagicLeapImageTracker"
 				}
 			);
 		}

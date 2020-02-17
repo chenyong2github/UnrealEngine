@@ -153,7 +153,10 @@ struct FInstallBundleSourceInitInfo
 {
 	EInstallBundleManagerInitResult Result = EInstallBundleManagerInitResult::OK;
 	bool bShouldUseFallbackSource = false;
+};
 
+struct FInstallBundleSourceAsyncInitInfo : public FInstallBundleSourceInitInfo
+{
 	TMap<FName, bool> BundleUpToDate;
 };
 
@@ -173,6 +176,8 @@ struct FInstallBundleSourceRequestResultInfo
 	TSet<FString> NonUFSShaderLibPaths;
 
 	bool bContentWasInstalled = false;
+	
+	bool DidBundleSourceDoWork() const { return (ContentPaths.Num() != 0);} 
 };
 
 struct FInstallBundleSourceProgress

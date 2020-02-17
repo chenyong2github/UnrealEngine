@@ -77,7 +77,7 @@ uint32 FGlobalDynamicMeshPoolPolicy::BucketSizes[NumPoolBucketSizes] = {
 	512*1024, 1*1024*1024, 2*1024*1024
 };
 
-#if PLATFORM_USES_ES2
+#if PLATFORM_USES_GLES
 typedef uint16 DynamicMeshIndexType;
 #else
 typedef int32 DynamicMeshIndexType;

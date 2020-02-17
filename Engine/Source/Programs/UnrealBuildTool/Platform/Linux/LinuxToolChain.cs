@@ -173,10 +173,10 @@ namespace UnrealBuildTool
 				throw new BuildException("Unable to build: no compatible clang version found. Please run Setup.sh");
 			}
 			// prevent unknown clangs since the build is likely to fail on too old or too new compilers
-			else if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 80 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 60)
+			else if ((CompilerVersionMajor * 10 + CompilerVersionMinor) > 90 || (CompilerVersionMajor * 10 + CompilerVersionMinor) < 60)
 			{
 				throw new BuildException(
-					string.Format("This version of the Unreal Engine can only be compiled with clang 8.0, 7.0 and 6.0. clang {0} may not build it - please use a different version.",
+					string.Format("This version of the Unreal Engine can only be compiled with clang 9.0, 8.0, 7.0 and 6.0. clang {0} may not build it - please use a different version.",
 						CompilerVersionString)
 					);
 			}
@@ -586,7 +586,8 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.bHideSymbolsByDefault)
 			{
-				Result += " -fvisibility=hidden";
+				Result += " -fvisibility-ms-compat";
+				Result += " -fvisibility-inlines-hidden";
 			}
 
 			if (String.IsNullOrEmpty(ClangPath))
@@ -737,8 +738,8 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				// Don't over optimise if using AddressSanitizer or you'll get false positive errors due to erroneous optimisation of necessary AddressSanitizer instrumentation.
-				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
+				// Don't over optimise if using Address/MemorySanitizer or you'll get false positive errors due to erroneous optimisation of necessary Address/MemorySanitizer instrumentation.
+				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
 				{
 					Result += " -O1 -g -fno-optimize-sibling-calls -fno-omit-frame-pointer";
 				}
@@ -1667,14 +1668,19 @@ namespace UnrealBuildTool
 
 				if ((AdditionalLibrary.Contains("Plugins") || AdditionalLibrary.Contains("Binaries/ThirdParty") || AdditionalLibrary.Contains("Binaries\\ThirdParty")) && Path.GetDirectoryName(AdditionalLibrary) != Path.GetDirectoryName(OutputFile.AbsolutePath))
 				{
-					// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
-					string AdditionalLibraryRootPath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(UnrealBuildTool.RootDirectory);
+					string RelativePath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(OutputFile.Location.Directory);
 
-					// Figure out how many dirs we need to go back
-					string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+					if (LinkEnvironment.bIsBuildingDLL)
+					{
+						// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
+						string AdditionalLibraryRootPath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(UnrealBuildTool.RootDirectory);
 
-					// Combine the two together ie. number of ../ + the path after the root
-					string RelativePath = Path.Combine(RelativeRootPath, AdditionalLibraryRootPath);
+						// Figure out how many dirs we need to go back
+						string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+
+						// Combine the two together ie. number of ../ + the path after the root
+						RelativePath = Path.Combine(RelativeRootPath, AdditionalLibraryRootPath);
+					}
 
 					// On Windows, MakeRelativeTo can silently fail if the engine and the project are located on different drives
 					if (CrossCompiling() && RelativePath.StartsWith(UnrealBuildTool.RootDirectory.FullName))
@@ -1699,14 +1705,24 @@ namespace UnrealBuildTool
 
 				if(!RelativePath.StartsWith("$"))
 				{
-					// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
-					string RuntimeLibraryRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuildTool.RootDirectory);
+					if (LinkEnvironment.bIsBuildingDLL)
+					{
+						// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
+						string RuntimeLibraryRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuildTool.RootDirectory);
 
-					// Figure out how many dirs we need to go back
-					string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+						// Figure out how many dirs we need to go back
+						string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
 
-					// Combine the two together ie. number of ../ + the path after the root
-					RelativePath = Path.Combine(RelativeRootPath, RuntimeLibraryRootPath);
+						// Combine the two together ie. number of ../ + the path after the root
+						RelativePath = Path.Combine(RelativeRootPath, RuntimeLibraryRootPath);
+					}
+					else
+					{
+						string RelativeRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuildTool.RootDirectory);
+
+						// We're assuming that the binary will be placed according to our ProjectName/Binaries/Platform scheme
+						RelativePath = Path.Combine("..", "..", "..", RelativeRootPath);
+					}
 				}
 
 				// On Windows, MakeRelativeTo can silently fail if the engine and the project are located on different drives

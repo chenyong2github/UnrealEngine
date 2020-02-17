@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef NDR_PARSERPLUGIN_H
-#define NDR_PARSERPLUGIN_H
+#ifndef PXR_USD_NDR_PARSER_PLUGIN_H
+#define PXR_USD_NDR_PARSER_PLUGIN_H
 
 /// \file ndr/parserPlugin.h
 
@@ -187,4 +187,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // NDR_PARSERPLUGIN_H
+#endif // PXR_USD_NDR_PARSER_PLUGIN_H

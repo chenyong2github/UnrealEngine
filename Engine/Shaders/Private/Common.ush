@@ -38,7 +38,7 @@
 #define SetSceneColorLayoutToFloat4(dest,value) dest.rgb = (value).rgb
 #endif
 
-#define SUPPORTS_TEXTURE_EXTERNAL		(COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || COMPILER_VULKAN)
+#define SUPPORTS_TEXTURE_EXTERNAL		(COMPILER_GLSL_ES3_1 || COMPILER_VULKAN)
 
 #if !SUPPORTS_TEXTURE_EXTERNAL
 #define TextureExternal Texture2D
@@ -322,20 +322,28 @@ float4 PseudoVolumeTexture(Texture2D Tex, SamplerState TexSampler, float3 inPos,
 	float2 curframe = Tile1Dto2D(xysize.x, zframe) / xysize;
 	float2 nextframe = Tile1Dto2D(xysize.x, zframe + 1) / xysize;
 
+	float2 uvCurFrame = uv + curframe;
+	float2 uvNextFrame = uv + nextframe;
+
+	#if (COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
+	uvCurFrame.y = 1.0 - uvCurFrame.y;
+	uvNextFrame.y = 1.0 - uvNextFrame.y;
+	#endif
+
 	float4 sampleA = 0, sampleB = 0;
 	switch (mipmode)
 	{
 	case 0: // Mip level
-		sampleA = Tex.SampleLevel(TexSampler, uv + curframe, miplevel);
-		sampleB = Tex.SampleLevel(TexSampler, uv + nextframe, miplevel);
+		sampleA = Tex.SampleLevel(TexSampler, uvCurFrame, miplevel);
+		sampleB = Tex.SampleLevel(TexSampler, uvNextFrame, miplevel);
 		break;
 	case 1: // Gradients automatic from UV
-		sampleA = Texture2DSample(Tex, TexSampler, uv + curframe);
-		sampleB = Texture2DSample(Tex, TexSampler, uv + nextframe);
+		sampleA = Texture2DSample(Tex, TexSampler, uvCurFrame);
+		sampleB = Texture2DSample(Tex, TexSampler, uvNextFrame);
 		break;
 	case 2: // Deriviatives provided
-		sampleA = Tex.SampleGrad(TexSampler, uv + curframe,  InDDX, InDDY);
-		sampleB = Tex.SampleGrad(TexSampler, uv + nextframe, InDDX, InDDY);
+		sampleA = Tex.SampleGrad(TexSampler, uvCurFrame,  InDDX, InDDY);
+		sampleB = Tex.SampleGrad(TexSampler, uvNextFrame, InDDX, InDDY);
 		break;
 	default:
 		break;
@@ -894,64 +902,6 @@ MaterialFloat4 EncodeLightAttenuation(MaterialFloat4 InColor)
 	return sqrt(InColor);
 }
 
-//
-// MOBILE WITHOUT FP16 SUPPORT: 8-BIT/CHANNEL MOSAICING FOR LINEAR HDR
-//
-// This provides linear blending and a {0 to 2} dynamic range.
-// This works by splitting the image into a checkerboard of dark and light pixels.
-//   DLDL
-//   LDLD
-//   DLDL
-//   LDLD
-//
-// There is an extra scan line dither pattern to increase precision by 1-bit.
-// The HdrMosaic() function computes the exposure level per pixel for the forward render pass.
-// The HdrDemosaic() function reconstructs the proper image in the tonemapping pass.
-//
-
-// These have been carefully tuned and should probably not be adjusted.
-// Dark pixel range is {0 to 1/DRK_MUL}.
-#define DRK_MUL 6.0
-// Support {0 to 2} in dynamic range.
-#define HDR_MUL (1.0/2.0)
-
-#define MOSAIC_ADD   HDR_MUL
-// The blend factor causes a smooth blend between the light and dark pixels.
-#define MOSAIC_BLEND ((255.0-(DRK_MUL/HDR_MUL))/255.0)
-#define MOSAIC_MUL   ((DRK_MUL * MOSAIC_BLEND - MOSAIC_ADD) * 2.0)
-
-// Done during forward shading pass before blending.
-MaterialFloat3 HdrMosaic(MaterialFloat3 LinearColor, float2 VPos) 
-{
-	float2 V;
-	V = VPos.xy * 0.5;
-	V.y += V.x;
-	V = frac(V);
-	MaterialFloat2 C;
-	C = (V * MaterialFloat2(2.0 * (-0.5/255.0), MOSAIC_MUL)) + MaterialFloat2(-0.5/255.0, MOSAIC_ADD);
-	return (LinearColor * C.y) + C.x;
-}
-
-#define DEMOSAIC_MUL (((1.0/DRK_MUL) - (1.0/HDR_MUL)) * 2.0)
-#define DEMOSAIC_ADD (1.0/HDR_MUL)
-
-// Resolve pass to remove mosaic and restore color.
-MaterialFloat3 HdrDemosaic(MaterialFloat3 Pixel, MaterialFloat3 OtherPixel, float2 VPos)
-{
-	MaterialFloat A = frac(dot(VPos + View.DemosaicVposOffset, float2(0.5, 0.5)));
-	MaterialFloat B = 0.5 - A;
-	A = A * DEMOSAIC_MUL + DEMOSAIC_ADD;
-	B = B * DEMOSAIC_MUL + DEMOSAIC_ADD;
-
-	// On ES2 devices we demosaic during the tonemapping pass which renders upside down, account for that here.
-	#if COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1
-		return max((Pixel * B), (OtherPixel * A)); 
-	#else
-		return max((Pixel * A), (OtherPixel * B)); 
-	#endif
-}
-
-
 // Like RGBM but this can be interpolated.
 MaterialFloat4 RGBTEncode(MaterialFloat3 Color)
 {
@@ -1024,81 +974,6 @@ MaterialFloat3 RGBTDecode8BPC(MaterialFloat4 RGBT, MaterialFloat Range)
 {
 	RGBT.a = RGBT.a / (1 + 1 / Range - RGBT.a);
 	return RGBT.rgb * RGBT.a;
-}
-
-#define HDR_ENCODE_NONE 0.0		// 64bpp HDR
-#define HDR_ENCODE_MOSAIC 1.0	// 32bpp HDR using Mosaic encoding
-#define HDR_ENCODE_RGBE 2.0		// 32bpp HDR using RGBE encoding
-#define HDR_ENCODE_RGBA8 3.0	// 32bpp HDR mode without any actual encoding.
-
-half GetHDR32bppEncodeMode()
-{
-#if ES2_PROFILE
-	#if COMPILER_GLSL_ES2 && !IOS && !WEBGL // ANDROID
-		return intrinsic_GetHDR32bppEncodeModeES2();
-	#endif
-	#if MOBILE_EMULATION
-		// To enable editor runtime change without recompile, PC always eats the encode cost.
-		return View.HDR32bppEncodingMode;
-	#endif
-#endif
-	return HDR_ENCODE_NONE;
-}
-
-#define DEFAULT_32BPPHDR_ENCODED_RANGE 1024.0
-
-MaterialFloat4 Encode32BPPHDR(MaterialFloat4 Color, float2 SvPosition)
-{
-	half Mode = GetHDR32bppEncodeMode();
-	if (Mode == HDR_ENCODE_MOSAIC)
-	{ 
-		return MaterialFloat4(HdrMosaic(Color.rgb, SvPosition), Color.a);
-	}
-	else if (Mode == HDR_ENCODE_RGBE)
-	{ 
-		return RGBTEncode8BPC(Color.rgb, DEFAULT_32BPPHDR_ENCODED_RANGE);
-	}
-	else
-	{
-		// Mode == HDR_ENCODE_NONE || Mode == HDR_ENCODE_RGBA8
-		return Color;
-	}
-}
-
-MaterialFloat4 Decode32BPPHDR(MaterialFloat4 Encoded, MaterialFloat3 OtherEncoded = MaterialFloat3(0, 0, 0), float2 SvPosition = float2(0, 0))
-{
-	half Mode = GetHDR32bppEncodeMode();
-	if (Mode == HDR_ENCODE_MOSAIC)
-	{
-		return MaterialFloat4(HdrDemosaic(Encoded.rgb, OtherEncoded, SvPosition), 0.0f);
-	}
-	if (Mode == HDR_ENCODE_RGBE)
-	{ 
-		return MaterialFloat4(RGBTDecode8BPC(Encoded, DEFAULT_32BPPHDR_ENCODED_RANGE), 0.0f);
-	}
-	else
-	{
-		// Mode == HDR_ENCODE_NONE || Mode == HDR_ENCODE_RGBA8
-		return Encoded; 
-	}
-}
-
-// Demosaic capable 32bpp hdr decode.
-float4 Decode32BPPHDR(float4 Pixel, float2 SvPosition, Texture2D SourceTexture, SamplerState SourceSampler, float2 InTexCoords[4])
-{
-	half3 PixelColorN = SourceTexture.Sample(SourceSampler, InTexCoords[0].xy).rgb;
-	half3 PixelColorE = SourceTexture.Sample(SourceSampler, InTexCoords[1].xy).rgb;
-	half3 PixelColorW = SourceTexture.Sample(SourceSampler, InTexCoords[2].xy).rgb;
-	half3 PixelColorS = SourceTexture.Sample(SourceSampler, InTexCoords[3].xy).rgb;
-	half3 PixelColorV = PixelColorN * 0.5 + PixelColorS * 0.5;
-	half3 PixelColorH = PixelColorW * 0.5 + PixelColorE * 0.5;
-	if(abs(PixelColorN.g - PixelColorS.g) < abs(PixelColorW.g - PixelColorE.g)) 
-	{
-		PixelColorH = PixelColorV;
-	}
-	Pixel.rgb = Decode32BPPHDR(Pixel, PixelColorH, SvPosition.xy).rgb;
-	Pixel.a = 0.0;
-	return Pixel;
 }
 
 /** Get render target write mask value
@@ -1295,9 +1170,6 @@ MaterialFloat2 GetViewportCoordinates(MaterialFloat2 InFragmentCoordinates)
  */
 MaterialFloat4 UnpackNormalMap( MaterialFloat4 TextureSample )
 {
-#if COMPILER_GLSL_ES2 && IOS
-	return MaterialFloat4(TextureSample.rgb * 2 - 1, 1);
-#else
 	#if DXT5_NORMALMAPS
 		MaterialFloat2 NormalXY = TextureSample.ag;
 	#else
@@ -1307,7 +1179,6 @@ MaterialFloat4 UnpackNormalMap( MaterialFloat4 TextureSample )
 	NormalXY = NormalXY * MaterialFloat2(2.0f,2.0f) - MaterialFloat2(1.0f,1.0f);
 	MaterialFloat NormalZ = sqrt( saturate( 1.0f - dot( NormalXY, NormalXY ) ) );
 	return MaterialFloat4( NormalXY.xy, NormalZ, 1.0f );
-#endif
 }
 
 // Antialiased version of a binary comparison between ThresholdConst and a texture channel.

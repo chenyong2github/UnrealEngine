@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/CoreRedirects.h"
+
+#include "UObject/Linker.h"
 #include "UObject/Package.h"
 #include "UObject/PropertyHelper.h"
-#include "UObject/Linker.h"
-#include "Templates/Casts.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Serialization/DeferredMessageLog.h"
+
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/PackageName.h"
+#include "Serialization/DeferredMessageLog.h"
+#include "Templates/Casts.h"
 
 FCoreRedirectObjectName::FCoreRedirectObjectName(const FString& InString)
 {
@@ -350,10 +354,23 @@ const TCHAR* FCoreRedirect::ParseValueChanges(const TCHAR* Buffer)
 	}
 }
 
+static FORCEINLINE bool CheckRedirectFlagsMatch(ECoreRedirectFlags FlagsA, ECoreRedirectFlags FlagsB)
+{
+	// For type, check it includes the matching type
+	const bool bTypesOverlap = !!((FlagsA & FlagsB) & ECoreRedirectFlags::Type_AllMask);
+
+	// For category, the bits must be an exact match
+	const bool bCategoriesMatch = (FlagsA & ECoreRedirectFlags::Category_AllMask) == (FlagsB & ECoreRedirectFlags::Category_AllMask);
+
+	// Options are not considered in this function; Flags will match at this point regardless of their bits in Options_AllMask
+
+	return bTypesOverlap && bCategoriesMatch;
+}
+
 bool FCoreRedirect::Matches(ECoreRedirectFlags InFlags, const FCoreRedirectObjectName& InName) const
 {
-	// Check flags for exact match
-	if (InFlags != RedirectFlags)
+	// Check flags for Type/Category match
+	if (!CheckRedirectFlagsMatch(InFlags, RedirectFlags))
 	{
 		return false;
 	}
@@ -489,24 +506,13 @@ const TMap<FString, FString>* FCoreRedirects::GetValueRedirects(ECoreRedirectFla
 	return nullptr;
 }
 
-static FORCEINLINE bool CheckRedirectFlagsMatch(ECoreRedirectFlags FlagsA, ECoreRedirectFlags FlagsB)
-{
-	// For type, check it includes the matching type
-	const bool bTypeMatches = !!((FlagsA & FlagsB) & ECoreRedirectFlags::Type_AllMask);
-
-	// For options, instance/remove must match exactly but allow both substring and non-substring matches
-	const bool bOptionsMatch = (FlagsA & ECoreRedirectFlags::Option_ExactMatchMask) == (FlagsB & ECoreRedirectFlags::Option_ExactMatchMask);
-
-	return bTypeMatches && bOptionsMatch;
-}
-
 bool FCoreRedirects::GetMatchingRedirects(ECoreRedirectFlags SearchFlags, const FCoreRedirectObjectName& OldObjectName, TArray<const FCoreRedirect*>& FoundRedirects)
 {
 	// Look for all redirects that match the given names and flags
 	bool bFound = false;
 	
-	// If we're not explicitly searching for packages or looking for removed things, add the implicit package redirects
-	const bool bSearchPackageRedirects = !(SearchFlags & ECoreRedirectFlags::Type_Package) && !(SearchFlags & ECoreRedirectFlags::Option_Removed);
+	// If we're not explicitly searching for packages or looking for removed things, add the implicit (Type=Package,Category=None) redirects
+	const bool bSearchPackageRedirects = !(SearchFlags & ECoreRedirectFlags::Type_Package) && !(SearchFlags & ECoreRedirectFlags::Category_Removed);
 
 	// Determine list of maps to look over, need to handle being passed multiple types in a bit mask
 	for (const TPair<ECoreRedirectFlags, FRedirectNameMap>& Pair : RedirectTypeMap)
@@ -540,8 +546,8 @@ bool FCoreRedirects::FindPreviousNames(ECoreRedirectFlags SearchFlags, const FCo
 	// Look for reverse direction redirects
 	bool bFound = false;
 
-	// If we're not explicitly searching for packages or looking for removed things, add the implicit package redirects
-	const bool bSearchPackageRedirects = !(SearchFlags & ECoreRedirectFlags::Type_Package) && !(SearchFlags & ECoreRedirectFlags::Option_Removed);
+	// If we're not explicitly searching for packages or looking for removed things, add the implicit (Type=Package,Category=None) redirects
+	const bool bSearchPackageRedirects = !(SearchFlags & ECoreRedirectFlags::Type_Package) && !(SearchFlags & ECoreRedirectFlags::Category_Removed);
 
 	// Determine list of maps to look over, need to handle being passed multiple Flagss in a bit mask
 	for (const TPair<ECoreRedirectFlags, FRedirectNameMap>& Pair : RedirectTypeMap)
@@ -581,21 +587,30 @@ bool FCoreRedirects::FindPreviousNames(ECoreRedirectFlags SearchFlags, const FCo
 bool FCoreRedirects::IsKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName)
 {
 	TArray<const FCoreRedirect*> FoundRedirects;
-	return FCoreRedirects::GetMatchingRedirects(Type | ECoreRedirectFlags::Option_Removed, ObjectName, FoundRedirects);
+	return FCoreRedirects::GetMatchingRedirects(Type | ECoreRedirectFlags::Category_Removed, ObjectName, FoundRedirects);
 }
 
-bool FCoreRedirects::AddKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName)
+bool FCoreRedirects::AddKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel)
 {
+	check((Channel & ~ECoreRedirectFlags::Option_MissingLoad) == ECoreRedirectFlags::None);
 	TArray<FCoreRedirect> NewRedirects;
-	NewRedirects.Emplace(Type | ECoreRedirectFlags::Option_Removed, ObjectName, FCoreRedirectObjectName());
+	NewRedirects.Emplace(Type | ECoreRedirectFlags::Category_Removed | Channel, ObjectName, FCoreRedirectObjectName());
 	return AddRedirectList(NewRedirects, TEXT("AddKnownMissing"));
 }
 
-bool FCoreRedirects::RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName)
+bool FCoreRedirects::RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel)
 {
+	check((Channel & ~ECoreRedirectFlags::Option_MissingLoad) == ECoreRedirectFlags::None);
 	TArray<FCoreRedirect> RedirectsToRemove;
-	RedirectsToRemove.Emplace(Type | ECoreRedirectFlags::Option_Removed, ObjectName, FCoreRedirectObjectName());
+	RedirectsToRemove.Emplace(Type | ECoreRedirectFlags::Category_Removed | Channel, ObjectName, FCoreRedirectObjectName());
 	return RemoveRedirectList(RedirectsToRemove, TEXT("RemoveKnownMissing"));
+}
+
+void FCoreRedirects::ClearKnownMissing(ECoreRedirectFlags Type, ECoreRedirectFlags Channel)
+{
+	check((Channel & ~ECoreRedirectFlags::Option_MissingLoad) == ECoreRedirectFlags::None);
+	ECoreRedirectFlags RedirectFlags = Type | ECoreRedirectFlags::Category_Removed | Channel;
+	RedirectTypeMap.Remove(RedirectFlags);
 }
 
 bool FCoreRedirects::RunTests()
@@ -606,16 +621,17 @@ bool FCoreRedirects::RunTests()
 
 	TArray<FCoreRedirect> NewRedirects;
 
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Property, TEXT("Property"), TEXT("Property2"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Property, TEXT("Class.Property"), TEXT("Property3"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Property, TEXT("/game/PackageSpecific.Class.Property"), TEXT("Property4"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Property, TEXT("/game/Package.Class.OtherProperty"), TEXT("/game/Package.Class.OtherProperty2"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class, TEXT("Class"), TEXT("Class2"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class, TEXT("/game/Package.Class"), TEXT("Class3"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, TEXT("/game/Package.Class"), TEXT("/game/Package.ClassInstance"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package, TEXT("/game/Package"), TEXT("/game/Package2"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_MatchSubstring, TEXT("/oldgame"), TEXT("/newgame"));
-	new (NewRedirects) FCoreRedirect(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_Removed, TEXT("/game/RemovedPackage"), TEXT("/game/RemovedPackage"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("Property"), TEXT("Property2"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("Class.Property"), TEXT("Property3"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("/Game/PackageSpecific.Class.Property"), TEXT("Property4"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("/Game/Package.Class.OtherProperty"), TEXT("/Game/Package.Class.OtherProperty2"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("Class"), TEXT("Class2"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Game/Package.Class"), TEXT("Class3"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, TEXT("/Game/Package.Class"), TEXT("/Game/Package.ClassInstance"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Package, TEXT("/Game/Package"), TEXT("/Game/Package2"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Option_MatchSubstring, TEXT("/oldgame"), TEXT("/newgame"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Category_Removed, TEXT("/Game/RemovedPackage"), TEXT("/Game/RemovedPackage"));
+	NewRedirects.Emplace(ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Category_Removed | ECoreRedirectFlags::Option_MissingLoad, TEXT("/Game/MissingLoadPackage"), TEXT("/Game/MissingLoadPackage"));
 
 	AddRedirectList(NewRedirects, TEXT("RunTests"));
 
@@ -635,19 +651,19 @@ bool FCoreRedirects::RunTests()
 	UE_LOG(LogLinker, Log, TEXT("Running FCoreRedirect Tests"));
 
 	// Package-specific property rename and package rename apply
-	Tests.Emplace(TEXT("/game/PackageSpecific.Class:Property"), TEXT("/game/PackageSpecific.Class:Property4"), ECoreRedirectFlags::Type_Property);
+	Tests.Emplace(TEXT("/Game/PackageSpecific.Class:Property"), TEXT("/Game/PackageSpecific.Class:Property4"), ECoreRedirectFlags::Type_Property);
 	// Verify . works as well
-	Tests.Emplace(TEXT("/game/PackageSpecific.Class.Property"), TEXT("/game/PackageSpecific.Class:Property4"), ECoreRedirectFlags::Type_Property);
+	Tests.Emplace(TEXT("/Game/PackageSpecific.Class.Property"), TEXT("/Game/PackageSpecific.Class:Property4"), ECoreRedirectFlags::Type_Property);
 	// Wrong type, no replacement
-	Tests.Emplace(TEXT("/game/PackageSpecific.Class:Property"), TEXT("/game/PackageSpecific.Class:Property"), ECoreRedirectFlags::Type_Function);
+	Tests.Emplace(TEXT("/Game/PackageSpecific.Class:Property"), TEXT("/Game/PackageSpecific.Class:Property"), ECoreRedirectFlags::Type_Function);
 	// Class-specific property rename and package rename apply
-	Tests.Emplace(TEXT("/game/Package.Class:Property"), TEXT("/game/Package2.Class:Property3"), ECoreRedirectFlags::Type_Property);
+	Tests.Emplace(TEXT("/Game/Package.Class:Property"), TEXT("/Game/Package2.Class:Property3"), ECoreRedirectFlags::Type_Property);
 	// Package-Specific class rename applies
-	Tests.Emplace(TEXT("/game/Package.Class"), TEXT("/game/Package2.Class3"), ECoreRedirectFlags::Type_Class);
+	Tests.Emplace(TEXT("/Game/Package.Class"), TEXT("/Game/Package2.Class3"), ECoreRedirectFlags::Type_Class);
 	// Generic class rename applies
-	Tests.Emplace(TEXT("/game/PackageOther.Class"), TEXT("/game/PackageOther.Class2"), ECoreRedirectFlags::Type_Class);
+	Tests.Emplace(TEXT("/Game/PackageOther.Class"), TEXT("/Game/PackageOther.Class2"), ECoreRedirectFlags::Type_Class);
 	// Check instance option
-	Tests.Emplace(TEXT("/game/Package.Class"), TEXT("/game/Package2.ClassInstance"), ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly);
+	Tests.Emplace(TEXT("/Game/Package.Class"), TEXT("/Game/Package2.ClassInstance"), ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly);
 	// Substring test
 	Tests.Emplace(TEXT("/oldgame/Package.DefaultClass"), TEXT("/newgame/Package.DefaultClass"), ECoreRedirectFlags::Type_Class);
 
@@ -666,40 +682,79 @@ bool FCoreRedirects::RunTests()
 	// Check reverse lookup
 	TArray<FCoreRedirectObjectName> OldNames;
 
-	FindPreviousNames(ECoreRedirectFlags::Type_Class, FCoreRedirectObjectName(TEXT("/game/PackageOther.Class2")), OldNames);
+	FindPreviousNames(ECoreRedirectFlags::Type_Class, FCoreRedirectObjectName(TEXT("/Game/PackageOther.Class2")), OldNames);
 
-	if (OldNames.Num() != 1 || OldNames[0].ToString() != TEXT("/game/PackageOther.Class"))
+	if (OldNames.Num() != 1 || OldNames[0].ToString() != TEXT("/Game/PackageOther.Class"))
 	{
 		bSuccess = false;
 		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: ReverseLookup!"));
 	}
 
 	// Check removed
-	if (!IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/game/RemovedPackage"))))
+	if (!IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/RemovedPackage"))))
 	{
 		bSuccess = false;
-		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /game/RemovedPackage should be removed!"));
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /Game/RemovedPackage should be removed!"));
 	}
 
-	if (IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/game/NotRemovedPackage"))))
+	if (!IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/MissingLoadPackage"))))
 	{
 		bSuccess = false;
-		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /game/NotRemovedPackage should be removed!"));
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /Game/MissingLoadPackage should be removed!"));
 	}
 
-	AddKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/game/NotRemovedPackage")));
-
-	if (!IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/game/NotRemovedPackage"))))
+	if (IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedPackage"))))
 	{
 		bSuccess = false;
-		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /game/NotRemovedPackage should be removed now!"));
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /Game/NotRemovedPackage should be removed!"));
 	}
 
-	RemoveKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/game/NotRemovedPackage")));
+	AddKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedMissingLoad")), ECoreRedirectFlags::Option_MissingLoad);
 
-	if (IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/game/NotRemovedPackage"))))
+	if (!IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedMissingLoad"))))
 	{
-		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /game/NotRemovedPackage should be removed!"));
+		bSuccess = false;
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /Game/NotRemovedMissingLoad should be removed now!"));
+	}
+
+	RemoveKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedMissingLoad")), ECoreRedirectFlags::None);
+
+	if (!IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedMissingLoad"))))
+	{
+		bSuccess = false;
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: RemoveKnownMissing of /Game/NotRemovedMissingLoad but with bIsMissingLoad=false should not have removed the redirect!"));
+	}
+
+	RemoveKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedMissingLoad")), ECoreRedirectFlags::Option_MissingLoad);
+
+	if (IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedMissingLoad"))))
+	{
+		bSuccess = false;
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /Game/NotRemovedMissingLoad should no longer be removed!"));
+	}
+
+	AddKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedPackage")), ECoreRedirectFlags::None);
+
+	if (!IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedPackage"))))
+	{
+		bSuccess = false;
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /Game/NotRemovedPackage should be removed now!"));
+	}
+
+	RemoveKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedPackage")), ECoreRedirectFlags::Option_MissingLoad);
+
+	if (!IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedPackage"))))
+	{
+		bSuccess = false;
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: RemoveKnownMissing of /Game/NotRemovedPackage but with bIsMissingLoad=true should not have removed the redirect!"));
+	}
+
+	RemoveKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedPackage")), ECoreRedirectFlags::None);
+
+	if (IsKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(TEXT("/Game/NotRemovedPackage"))))
+	{
+		bSuccess = false;
+		UE_LOG(LogLinker, Error, TEXT("FCoreRedirect Test Failed: /Game/NotRemovedPackage should no longer be removed!"));
 	}
 
 	// Restore old state
@@ -771,12 +826,12 @@ bool FCoreRedirects::ReadRedirectsFromIni(const FString& IniName)
 
 					if (bInstanceOnly)
 					{
-						NewFlags |= ECoreRedirectFlags::Option_InstanceOnly;
+						NewFlags |= ECoreRedirectFlags::Category_InstanceOnly;
 					}
 
 					if (bRemoved)
 					{
-						NewFlags |= ECoreRedirectFlags::Option_Removed;
+						NewFlags |= ECoreRedirectFlags::Category_Removed;
 					}
 
 					if (bMatchSubstring)
@@ -784,7 +839,7 @@ bool FCoreRedirects::ReadRedirectsFromIni(const FString& IniName)
 						NewFlags |= ECoreRedirectFlags::Option_MatchSubstring;
 					}
 
-					FCoreRedirect* Redirect = new (NewRedirects) FCoreRedirect(NewFlags, FCoreRedirectObjectName(OldName), FCoreRedirectObjectName(NewName));
+					FCoreRedirect* Redirect = &NewRedirects.Emplace_GetRef(NewFlags, FCoreRedirectObjectName(OldName), FCoreRedirectObjectName(NewName));
 
 					if (!OverrideClassName.IsEmpty())
 					{
@@ -1038,13 +1093,13 @@ ECoreRedirectFlags FCoreRedirects::GetFlagsForTypeClass(UClass *TypeClass)
 PRAGMA_DISABLE_OPTIMIZATION
 
 // The compiler doesn't like having a massive string table in a single function so split it up
-#define CLASS_REDIRECT(OldName, NewName) new (Redirects) FCoreRedirect(ECoreRedirectFlags::Type_Class, TEXT(OldName), TEXT(NewName))
-#define CLASS_REDIRECT_INSTANCES(OldName, NewName) new (Redirects) FCoreRedirect(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Option_InstanceOnly, TEXT(OldName), TEXT(NewName))
-#define STRUCT_REDIRECT(OldName, NewName) new (Redirects) FCoreRedirect(ECoreRedirectFlags::Type_Struct, TEXT(OldName), TEXT(NewName))
-#define ENUM_REDIRECT(OldName, NewName) new (Redirects) FCoreRedirect(ECoreRedirectFlags::Type_Enum, TEXT(OldName), TEXT(NewName))
-#define PROPERTY_REDIRECT(OldName, NewName) new (Redirects) FCoreRedirect(ECoreRedirectFlags::Type_Property, TEXT(OldName), TEXT(NewName))
-#define FUNCTION_REDIRECT(OldName, NewName) new (Redirects) FCoreRedirect(ECoreRedirectFlags::Type_Function, TEXT(OldName), TEXT(NewName))
-#define PACKAGE_REDIRECT(OldName, NewName) new (Redirects) FCoreRedirect(ECoreRedirectFlags::Type_Package, TEXT(OldName), TEXT(NewName))
+#define CLASS_REDIRECT(OldName, NewName) Redirects.Emplace_GetRef(ECoreRedirectFlags::Type_Class, TEXT(OldName), TEXT(NewName))
+#define CLASS_REDIRECT_INSTANCES(OldName, NewName) Redirects.Emplace_GetRef(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, TEXT(OldName), TEXT(NewName))
+#define STRUCT_REDIRECT(OldName, NewName) Redirects.Emplace_GetRef(ECoreRedirectFlags::Type_Struct, TEXT(OldName), TEXT(NewName))
+#define ENUM_REDIRECT(OldName, NewName) Redirects.Emplace_GetRef(ECoreRedirectFlags::Type_Enum, TEXT(OldName), TEXT(NewName))
+#define PROPERTY_REDIRECT(OldName, NewName) Redirects.Emplace_GetRef(ECoreRedirectFlags::Type_Property, TEXT(OldName), TEXT(NewName))
+#define FUNCTION_REDIRECT(OldName, NewName) Redirects.Emplace_GetRef(ECoreRedirectFlags::Type_Function, TEXT(OldName), TEXT(NewName))
+#define PACKAGE_REDIRECT(OldName, NewName) Redirects.Emplace_GetRef(ECoreRedirectFlags::Type_Package, TEXT(OldName), TEXT(NewName))
 
 static void RegisterNativeRedirects40(TArray<FCoreRedirect>& Redirects)
 {
@@ -1316,77 +1371,77 @@ static void RegisterNativeRedirects40(TArray<FCoreRedirect>& Redirects)
 	PROPERTY_REDIRECT("SlateBrush.TextureObject", "SlateBrush.ResourceObject");
 	PROPERTY_REDIRECT("WorldSettings.DefaultGameType", "WorldSettings.DefaultGameMode");
 
-	FCoreRedirect* PointLightComponent = CLASS_REDIRECT("PointLightComponent", "PointLightComponent");
-	PointLightComponent->ValueChanges.Add(TEXT("PointLightComponent0"), TEXT("LightComponent0"));
+	FCoreRedirect& PointLightComponent = CLASS_REDIRECT("PointLightComponent", "PointLightComponent");
+	PointLightComponent.ValueChanges.Add(TEXT("PointLightComponent0"), TEXT("LightComponent0"));
 
-	FCoreRedirect* DirectionalLightComponent = CLASS_REDIRECT("DirectionalLightComponent", "DirectionalLightComponent");
-	DirectionalLightComponent->ValueChanges.Add(TEXT("DirectionalLightComponent0"), TEXT("LightComponent0"));
+	FCoreRedirect& DirectionalLightComponent = CLASS_REDIRECT("DirectionalLightComponent", "DirectionalLightComponent");
+	DirectionalLightComponent.ValueChanges.Add(TEXT("DirectionalLightComponent0"), TEXT("LightComponent0"));
 
-	FCoreRedirect* SpotLightComponent = CLASS_REDIRECT("SpotLightComponent", "SpotLightComponent");
-	SpotLightComponent->ValueChanges.Add(TEXT("SpotLightComponent0"), TEXT("LightComponent0"));
+	FCoreRedirect& SpotLightComponent = CLASS_REDIRECT("SpotLightComponent", "SpotLightComponent");
+	SpotLightComponent.ValueChanges.Add(TEXT("SpotLightComponent0"), TEXT("LightComponent0"));
 
-	FCoreRedirect* ETransitionGetterType = ENUM_REDIRECT("ETransitionGetterType", "ETransitionGetter");
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_ArbitraryState_GetBlendWeight"), TEXT("ETransitionGetter::ArbitraryState_GetBlendWeight"));
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_CurrentState_ElapsedTime"), TEXT("ETransitionGetter::CurrentState_ElapsedTime"));
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_CurrentState_GetBlendWeight"), TEXT("ETransitionGetter::CurrentState_GetBlendWeight"));
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_CurrentTransitionDuration"), TEXT("ETransitionGetter::CurrentTransitionDuration"));
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_SequencePlayer_GetCurrentTime"), TEXT("ETransitionGetter::AnimationAsset_GetCurrentTime"));
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_SequencePlayer_GetCurrentTimeFraction"), TEXT("ETransitionGetter::AnimationAsset_GetCurrentTimeFraction"));
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_SequencePlayer_GetLength"), TEXT("ETransitionGetter::AnimationAsset_GetLength"));
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_SequencePlayer_GetTimeFromEnd"), TEXT("ETransitionGetter::AnimationAsset_GetTimeFromEnd"));
-	ETransitionGetterType->ValueChanges.Add(TEXT("TGT_SequencePlayer_GetTimeFromEndFraction"), TEXT("ETransitionGetter::AnimationAsset_GetTimeFromEndFraction"));
+	FCoreRedirect& ETransitionGetterType = ENUM_REDIRECT("ETransitionGetterType", "ETransitionGetter");
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_ArbitraryState_GetBlendWeight"), TEXT("ETransitionGetter::ArbitraryState_GetBlendWeight"));
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_CurrentState_ElapsedTime"), TEXT("ETransitionGetter::CurrentState_ElapsedTime"));
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_CurrentState_GetBlendWeight"), TEXT("ETransitionGetter::CurrentState_GetBlendWeight"));
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_CurrentTransitionDuration"), TEXT("ETransitionGetter::CurrentTransitionDuration"));
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_SequencePlayer_GetCurrentTime"), TEXT("ETransitionGetter::AnimationAsset_GetCurrentTime"));
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_SequencePlayer_GetCurrentTimeFraction"), TEXT("ETransitionGetter::AnimationAsset_GetCurrentTimeFraction"));
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_SequencePlayer_GetLength"), TEXT("ETransitionGetter::AnimationAsset_GetLength"));
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_SequencePlayer_GetTimeFromEnd"), TEXT("ETransitionGetter::AnimationAsset_GetTimeFromEnd"));
+	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_SequencePlayer_GetTimeFromEndFraction"), TEXT("ETransitionGetter::AnimationAsset_GetTimeFromEndFraction"));
 
-	FCoreRedirect* EModifyFrequency = ENUM_REDIRECT("EModifyFrequency", "EComponentMobility");
-	EModifyFrequency->ValueChanges.Add(TEXT("MF_Dynamic"), TEXT("EComponentMobility::Movable"));
-	EModifyFrequency->ValueChanges.Add(TEXT("MF_OccasionallyModified"), TEXT("EComponentMobility::Stationary"));
-	EModifyFrequency->ValueChanges.Add(TEXT("MF_Static"), TEXT("EComponentMobility::Static"));
+	FCoreRedirect& EModifyFrequency = ENUM_REDIRECT("EModifyFrequency", "EComponentMobility");
+	EModifyFrequency.ValueChanges.Add(TEXT("MF_Dynamic"), TEXT("EComponentMobility::Movable"));
+	EModifyFrequency.ValueChanges.Add(TEXT("MF_OccasionallyModified"), TEXT("EComponentMobility::Stationary"));
+	EModifyFrequency.ValueChanges.Add(TEXT("MF_Static"), TEXT("EComponentMobility::Static"));
 
-	FCoreRedirect* EAttachLocationType = ENUM_REDIRECT("EAttachLocationType", "EAttachLocation");
-	EAttachLocationType->ValueChanges.Add(TEXT("EAttachLocationType_AbsoluteWorld"), TEXT("EAttachLocation::KeepWorldPosition"));
-	EAttachLocationType->ValueChanges.Add(TEXT("EAttachLocationType_RelativeOffset"), TEXT("EAttachLocation::KeepRelativeOffset"));
-	EAttachLocationType->ValueChanges.Add(TEXT("EAttachLocationType_SnapTo"), TEXT("EAttachLocation::SnapToTarget"));
+	FCoreRedirect& EAttachLocationType = ENUM_REDIRECT("EAttachLocationType", "EAttachLocation");
+	EAttachLocationType.ValueChanges.Add(TEXT("EAttachLocationType_AbsoluteWorld"), TEXT("EAttachLocation::KeepWorldPosition"));
+	EAttachLocationType.ValueChanges.Add(TEXT("EAttachLocationType_RelativeOffset"), TEXT("EAttachLocation::KeepRelativeOffset"));
+	EAttachLocationType.ValueChanges.Add(TEXT("EAttachLocationType_SnapTo"), TEXT("EAttachLocation::SnapToTarget"));
 
-	FCoreRedirect* EAxis = ENUM_REDIRECT("EAxis", "EAxis");
-	EAxis->ValueChanges.Add(TEXT("AXIS_BLANK"), TEXT("EAxis::None"));
-	EAxis->ValueChanges.Add(TEXT("AXIS_NONE"), TEXT("EAxis::None"));
-	EAxis->ValueChanges.Add(TEXT("AXIS_X"), TEXT("EAxis::X"));
-	EAxis->ValueChanges.Add(TEXT("AXIS_Y"), TEXT("EAxis::Y"));
-	EAxis->ValueChanges.Add(TEXT("AXIS_Z"), TEXT("EAxis::Z"));
+	FCoreRedirect& EAxis = ENUM_REDIRECT("EAxis", "EAxis");
+	EAxis.ValueChanges.Add(TEXT("AXIS_BLANK"), TEXT("EAxis::None"));
+	EAxis.ValueChanges.Add(TEXT("AXIS_NONE"), TEXT("EAxis::None"));
+	EAxis.ValueChanges.Add(TEXT("AXIS_X"), TEXT("EAxis::X"));
+	EAxis.ValueChanges.Add(TEXT("AXIS_Y"), TEXT("EAxis::Y"));
+	EAxis.ValueChanges.Add(TEXT("AXIS_Z"), TEXT("EAxis::Z"));
 
-	FCoreRedirect* EKeys = ENUM_REDIRECT("EKeys", "EKeys");
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_A"), TEXT("EKeys::Gamepad_FaceButton_Bottom"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_B"), TEXT("EKeys::Gamepad_FaceButton_Right"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_X"), TEXT("EKeys::Gamepad_FaceButton_Left"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_Y"), TEXT("EKeys::Gamepad_FaceButton_Top"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_Back"), TEXT("EKeys::Gamepad_Special_Left"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_Start"), TEXT("EKeys::Gamepad_Special_Right"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Down"), TEXT("EKeys::Gamepad_DPad_Down"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Left"), TEXT("EKeys::Gamepad_DPad_Left"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Right"), TEXT("EKeys::Gamepad_DPad_Right"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Up"), TEXT("EKeys::Gamepad_DPad_Up"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftShoulder"), TEXT("EKeys::Gamepad_LeftShoulder"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftThumbstick"), TEXT("EKeys::Gamepad_LeftThumbstick"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftTrigger"), TEXT("EKeys::Gamepad_LeftTrigger"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftTriggerAxis"), TEXT("EKeys::Gamepad_LeftTriggerAxis"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftX"), TEXT("EKeys::Gamepad_LeftX"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftY"), TEXT("EKeys::Gamepad_LeftY"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightShoulder"), TEXT("EKeys::Gamepad_RightShoulder"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightThumbstick"), TEXT("EKeys::Gamepad_RightThumbstick"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightTrigger"), TEXT("EKeys::Gamepad_RightTrigger"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightTriggerAxis"), TEXT("EKeys::Gamepad_RightTriggerAxis"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightX"), TEXT("EKeys::Gamepad_RightX"));
-	EKeys->ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightY"), TEXT("EKeys::Gamepad_RightY"));
+	FCoreRedirect& EKeys = ENUM_REDIRECT("EKeys", "EKeys");
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_A"), TEXT("EKeys::Gamepad_FaceButton_Bottom"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_B"), TEXT("EKeys::Gamepad_FaceButton_Right"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_X"), TEXT("EKeys::Gamepad_FaceButton_Left"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_Y"), TEXT("EKeys::Gamepad_FaceButton_Top"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_Back"), TEXT("EKeys::Gamepad_Special_Left"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_Start"), TEXT("EKeys::Gamepad_Special_Right"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Down"), TEXT("EKeys::Gamepad_DPad_Down"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Left"), TEXT("EKeys::Gamepad_DPad_Left"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Right"), TEXT("EKeys::Gamepad_DPad_Right"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Up"), TEXT("EKeys::Gamepad_DPad_Up"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftShoulder"), TEXT("EKeys::Gamepad_LeftShoulder"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftThumbstick"), TEXT("EKeys::Gamepad_LeftThumbstick"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftTrigger"), TEXT("EKeys::Gamepad_LeftTrigger"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftTriggerAxis"), TEXT("EKeys::Gamepad_LeftTriggerAxis"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftX"), TEXT("EKeys::Gamepad_LeftX"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftY"), TEXT("EKeys::Gamepad_LeftY"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightShoulder"), TEXT("EKeys::Gamepad_RightShoulder"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightThumbstick"), TEXT("EKeys::Gamepad_RightThumbstick"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightTrigger"), TEXT("EKeys::Gamepad_RightTrigger"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightTriggerAxis"), TEXT("EKeys::Gamepad_RightTriggerAxis"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightX"), TEXT("EKeys::Gamepad_RightX"));
+	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightY"), TEXT("EKeys::Gamepad_RightY"));
 
-	FCoreRedirect* EMaxConcurrentResolutionRule = ENUM_REDIRECT("EMaxConcurrentResolutionRule", "EMaxConcurrentResolutionRule");
-	EMaxConcurrentResolutionRule->ValueChanges.Add(TEXT("EMaxConcurrentResolutionRule::StopFarthest"), TEXT("EMaxConcurrentResolutionRule::StopFarthestThenPreventNew"));
+	FCoreRedirect& EMaxConcurrentResolutionRule = ENUM_REDIRECT("EMaxConcurrentResolutionRule", "EMaxConcurrentResolutionRule");
+	EMaxConcurrentResolutionRule.ValueChanges.Add(TEXT("EMaxConcurrentResolutionRule::StopFarthest"), TEXT("EMaxConcurrentResolutionRule::StopFarthestThenPreventNew"));
 
 
-	FCoreRedirect* EParticleEventType = ENUM_REDIRECT("EParticleEventType", "EParticleEventType");
-	EParticleEventType->ValueChanges.Add(TEXT("EPET_Kismet"), TEXT("EPET_Blueprint"));
+	FCoreRedirect& EParticleEventType = ENUM_REDIRECT("EParticleEventType", "EParticleEventType");
+	EParticleEventType.ValueChanges.Add(TEXT("EPET_Kismet"), TEXT("EPET_Blueprint"));
 
-	FCoreRedirect* ETranslucencyLightingMode = ENUM_REDIRECT("ETranslucencyLightingMode", "ETranslucencyLightingMode");
-	ETranslucencyLightingMode->ValueChanges.Add(TEXT("TLM_PerPixel"), TEXT("TLM_VolumetricDirectional"));
-	ETranslucencyLightingMode->ValueChanges.Add(TEXT("TLM_PerPixelNonDirectional"), TEXT("TLM_VolumetricNonDirectional"));
+	FCoreRedirect& ETranslucencyLightingMode = ENUM_REDIRECT("ETranslucencyLightingMode", "ETranslucencyLightingMode");
+	ETranslucencyLightingMode.ValueChanges.Add(TEXT("TLM_PerPixel"), TEXT("TLM_VolumetricDirectional"));
+	ETranslucencyLightingMode.ValueChanges.Add(TEXT("TLM_PerPixelNonDirectional"), TEXT("TLM_VolumetricNonDirectional"));
 }
 
 static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
@@ -1436,25 +1491,25 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 	PROPERTY_REDIRECT("SplineMeshComponent.SplineXDir", "SplineMeshComponent.SplineUpDir");
 	PROPERTY_REDIRECT("TextureFactory.LightingModel", "TextureFactory.ShadingModel");
 
-	FCoreRedirect* EKinematicBonesUpdateToPhysics = ENUM_REDIRECT("EKinematicBonesUpdateToPhysics", "EKinematicBonesUpdateToPhysics");
-	EKinematicBonesUpdateToPhysics->ValueChanges.Add(TEXT("EKinematicBonesUpdateToPhysics::SkipFixedAndSimulatingBones"), TEXT("EKinematicBonesUpdateToPhysics::SkipAllBones"));
+	FCoreRedirect& EKinematicBonesUpdateToPhysics = ENUM_REDIRECT("EKinematicBonesUpdateToPhysics", "EKinematicBonesUpdateToPhysics");
+	EKinematicBonesUpdateToPhysics.ValueChanges.Add(TEXT("EKinematicBonesUpdateToPhysics::SkipFixedAndSimulatingBones"), TEXT("EKinematicBonesUpdateToPhysics::SkipAllBones"));
 
-	FCoreRedirect* EMaterialLightingModel = ENUM_REDIRECT("EMaterialLightingModel", "EMaterialShadingModel");
-	EMaterialLightingModel->ValueChanges.Add(TEXT("MLM_DefaultLit"), TEXT("MSM_DefaultLit"));
-	EMaterialLightingModel->ValueChanges.Add(TEXT("MLM_PreintegratedSkin"), TEXT("MSM_PreintegratedSkin"));
-	EMaterialLightingModel->ValueChanges.Add(TEXT("MLM_Subsurface"), TEXT("MSM_Subsurface"));
-	EMaterialLightingModel->ValueChanges.Add(TEXT("MLM_Unlit"), TEXT("MSM_Unlit"));
+	FCoreRedirect& EMaterialLightingModel = ENUM_REDIRECT("EMaterialLightingModel", "EMaterialShadingModel");
+	EMaterialLightingModel.ValueChanges.Add(TEXT("MLM_DefaultLit"), TEXT("MSM_DefaultLit"));
+	EMaterialLightingModel.ValueChanges.Add(TEXT("MLM_PreintegratedSkin"), TEXT("MSM_PreintegratedSkin"));
+	EMaterialLightingModel.ValueChanges.Add(TEXT("MLM_Subsurface"), TEXT("MSM_Subsurface"));
+	EMaterialLightingModel.ValueChanges.Add(TEXT("MLM_Unlit"), TEXT("MSM_Unlit"));
 
-	FCoreRedirect* ESmartNavLinkDir = ENUM_REDIRECT("ESmartNavLinkDir", "ENavLinkDirection");
-	ESmartNavLinkDir->ValueChanges.Add(TEXT("ESmartNavLinkDir::BothWays"), TEXT("ENavLinkDirection::BothWays"));
-	ESmartNavLinkDir->ValueChanges.Add(TEXT("ESmartNavLinkDir::OneWay"), TEXT("ENavLinkDirection::LeftToRight"));
+	FCoreRedirect& ESmartNavLinkDir = ENUM_REDIRECT("ESmartNavLinkDir", "ENavLinkDirection");
+	ESmartNavLinkDir.ValueChanges.Add(TEXT("ESmartNavLinkDir::BothWays"), TEXT("ENavLinkDirection::BothWays"));
+	ESmartNavLinkDir.ValueChanges.Add(TEXT("ESmartNavLinkDir::OneWay"), TEXT("ENavLinkDirection::LeftToRight"));
 
-	FCoreRedirect* EPhysicsType = ENUM_REDIRECT("EPhysicsType", "EPhysicsType");
-	EPhysicsType->ValueChanges.Add(TEXT("PhysType_Fixed"), TEXT("PhysType_Kinematic"));
-	EPhysicsType->ValueChanges.Add(TEXT("PhysType_Unfixed"), TEXT("PhysType_Simulated"));
+	FCoreRedirect& EPhysicsType = ENUM_REDIRECT("EPhysicsType", "EPhysicsType");
+	EPhysicsType.ValueChanges.Add(TEXT("PhysType_Fixed"), TEXT("PhysType_Kinematic"));
+	EPhysicsType.ValueChanges.Add(TEXT("PhysType_Unfixed"), TEXT("PhysType_Simulated"));
 
-	FCoreRedirect* ESceneTextureId = ENUM_REDIRECT("ESceneTextureId", "ESceneTextureId");
-	ESceneTextureId->ValueChanges.Add(TEXT("PPI_LightingModel"), TEXT("PPI_ShadingModelColor"));
+	FCoreRedirect& ESceneTextureId = ENUM_REDIRECT("ESceneTextureId", "ESceneTextureId");
+	ESceneTextureId.ValueChanges.Add(TEXT("PPI_LightingModel"), TEXT("PPI_ShadingModelColor"));
 
 	// 4.5
 
@@ -1679,22 +1734,22 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	PROPERTY_REDIRECT("MeshComponent.Materials", "MeshComponent.OverrideMaterials");
 	PROPERTY_REDIRECT("Pawn.AutoPossess", "Pawn.AutoPossessPlayer");
 
-	FCoreRedirect* ECollisionChannel = ENUM_REDIRECT("ECollisionChannel", "ECollisionChannel");
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_Default"), TEXT("ECC_Visibility"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_Dynamic"), TEXT("ECC_WorldDynamic"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_OverlapAll"), TEXT("ECC_OverlapAll_Deprecated"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_OverlapAllDynamic"), TEXT("ECC_OverlapAll_Deprecated"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_OverlapAllDynamic_Deprecated"), TEXT("ECC_OverlapAll_Deprecated"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_OverlapAllStatic"), TEXT("ECC_OverlapAll_Deprecated"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_OverlapAllStatic_Deprecated"), TEXT("ECC_OverlapAll_Deprecated"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_PawnMovement"), TEXT("ECC_Pawn"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_RigidBody"), TEXT("ECC_PhysicsBody"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_RigidBodyInteractable"), TEXT("ECC_PhysicsBody"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_TouchAll"), TEXT("ECC_OverlapAll_Deprecated"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_TouchAllDynamic"), TEXT("ECC_OverlapAll_Deprecated"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_TouchAllStatic"), TEXT("ECC_OverlapAll_Deprecated"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_VehicleMovement"), TEXT("ECC_Vehicle"));
-	ECollisionChannel->ValueChanges.Add(TEXT("ECC_WorldTrace"), TEXT("ECC_WorldStatic"));
+	FCoreRedirect& ECollisionChannel = ENUM_REDIRECT("ECollisionChannel", "ECollisionChannel");
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_Default"), TEXT("ECC_Visibility"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_Dynamic"), TEXT("ECC_WorldDynamic"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_OverlapAll"), TEXT("ECC_OverlapAll_Deprecated"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_OverlapAllDynamic"), TEXT("ECC_OverlapAll_Deprecated"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_OverlapAllDynamic_Deprecated"), TEXT("ECC_OverlapAll_Deprecated"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_OverlapAllStatic"), TEXT("ECC_OverlapAll_Deprecated"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_OverlapAllStatic_Deprecated"), TEXT("ECC_OverlapAll_Deprecated"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_PawnMovement"), TEXT("ECC_Pawn"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_RigidBody"), TEXT("ECC_PhysicsBody"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_RigidBodyInteractable"), TEXT("ECC_PhysicsBody"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_TouchAll"), TEXT("ECC_OverlapAll_Deprecated"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_TouchAllDynamic"), TEXT("ECC_OverlapAll_Deprecated"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_TouchAllStatic"), TEXT("ECC_OverlapAll_Deprecated"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_VehicleMovement"), TEXT("ECC_Vehicle"));
+	ECollisionChannel.ValueChanges.Add(TEXT("ECC_WorldTrace"), TEXT("ECC_WorldStatic"));
 
 	// 4.8
 
@@ -1710,20 +1765,20 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	
 	STRUCT_REDIRECT("ProceduralFoliageTypeData", "/Script/Foliage.FoliageTypeObject");
 
-	FCoreRedirect* EComponentCreationMethod = ENUM_REDIRECT("EComponentCreationMethod", "EComponentCreationMethod");
-	EComponentCreationMethod->ValueChanges.Add(TEXT("EComponentCreationMethod::ConstructionScript"), TEXT("EComponentCreationMethod::SimpleConstructionScript"));
+	FCoreRedirect& EComponentCreationMethod = ENUM_REDIRECT("EComponentCreationMethod", "EComponentCreationMethod");
+	EComponentCreationMethod.ValueChanges.Add(TEXT("EComponentCreationMethod::ConstructionScript"), TEXT("EComponentCreationMethod::SimpleConstructionScript"));
 
-	FCoreRedirect* EConstraintTransform = ENUM_REDIRECT("EConstraintTransform", "EConstraintTransform");
-	EConstraintTransform->ValueChanges.Add(TEXT("EConstraintTransform::Absoluate"), TEXT("EConstraintTransform::Absolute"));
+	FCoreRedirect& EConstraintTransform = ENUM_REDIRECT("EConstraintTransform", "EConstraintTransform");
+	EConstraintTransform.ValueChanges.Add(TEXT("EConstraintTransform::Absoluate"), TEXT("EConstraintTransform::Absolute"));
 
-	FCoreRedirect* ELockedAxis = ENUM_REDIRECT("ELockedAxis", "EDOFMode");
-	ELockedAxis->ValueChanges.Add(TEXT("Custom"), TEXT("EDOFMode::CustomPlane"));
-	ELockedAxis->ValueChanges.Add(TEXT("X"), TEXT("EDOFMode::YZPlane"));
-	ELockedAxis->ValueChanges.Add(TEXT("Y"), TEXT("EDOFMode::XZPlane"));
-	ELockedAxis->ValueChanges.Add(TEXT("Z"), TEXT("EDOFMode::XYPlane"));
+	FCoreRedirect& ELockedAxis = ENUM_REDIRECT("ELockedAxis", "EDOFMode");
+	ELockedAxis.ValueChanges.Add(TEXT("Custom"), TEXT("EDOFMode::CustomPlane"));
+	ELockedAxis.ValueChanges.Add(TEXT("X"), TEXT("EDOFMode::YZPlane"));
+	ELockedAxis.ValueChanges.Add(TEXT("Y"), TEXT("EDOFMode::XZPlane"));
+	ELockedAxis.ValueChanges.Add(TEXT("Z"), TEXT("EDOFMode::XYPlane"));
 
-	FCoreRedirect* EEndPlayReason = ENUM_REDIRECT("EEndPlayReason", "EEndPlayReason");
-	EEndPlayReason->ValueChanges.Add(TEXT("EEndPlayReason::ActorDestroyed"), TEXT("EEndPlayReason::Destroyed"));
+	FCoreRedirect& EEndPlayReason = ENUM_REDIRECT("EEndPlayReason", "EEndPlayReason");
+	EEndPlayReason.ValueChanges.Add(TEXT("EEndPlayReason::ActorDestroyed"), TEXT("EEndPlayReason::Destroyed"));
 
 	FUNCTION_REDIRECT("ActorComponent.ReceiveInitializeComponent", "ActorComponent.ReceiveBeginPlay");
 	FUNCTION_REDIRECT("ActorComponent.ReceiveUninitializeComponent", "ActorComponent.ReceiveEndPlay");

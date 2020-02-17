@@ -119,7 +119,7 @@ public:
 		FRWBuffer& MipTree
 	)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
 		SetShaderValue(RHICmdList, ShaderRHI, MipLevelParameter, MipLevel);
@@ -136,30 +136,19 @@ public:
 		FRWBuffer& MipTree,
 		FRHIComputeFence* Fence)
 	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		MipTreeParameter.UnsetUAV(RHICmdList, ShaderRHI);
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTree.UAV, Fence);
 	}
 
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TextureParameter;
-		Ar << TextureSamplerParameter;
-		Ar << DimensionsParameter;
-		Ar << MipLevelParameter;
-		Ar << MipTreeParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderResourceParameter TextureParameter;
-	FShaderResourceParameter TextureSamplerParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, TextureParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, TextureSamplerParameter);
 
-	FShaderParameter DimensionsParameter;
-	FShaderParameter MipLevelParameter;
-	FRWShaderParameter MipTreeParameter;
+	LAYOUT_FIELD(FShaderParameter, DimensionsParameter);
+	LAYOUT_FIELD(FShaderParameter, MipLevelParameter);
+	LAYOUT_FIELD(FRWShaderParameter, MipTreeParameter);
 };
 
 IMPLEMENT_SHADER_TYPE(, FBuildRectLightMipTreeCS, TEXT("/Engine/Private/Raytracing/BuildMipTreeCS.usf"), TEXT("BuildRectLightMipTreeCS"), SF_Compute)
@@ -176,7 +165,7 @@ FRectLightRayTracingData BuildRectLightMipTree(FRHICommandListImmediate& RHICmdL
 
 	const auto ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FBuildRectLightMipTreeCS> BuildRectLightMipTreeComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(BuildRectLightMipTreeComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(BuildRectLightMipTreeComputeShader.GetComputeShader());
 
 	// Allocate MIP tree
 	FIntVector TextureSize = RhiTexture->GetSizeXYZ();
@@ -198,7 +187,7 @@ FRectLightRayTracingData BuildRectLightMipTree(FRHICommandListImmediate& RHICmdL
 		BuildRectLightMipTreeComputeShader->SetParameters(RHICmdList, RhiTexture, Data.RectLightMipTreeDimensions, MipLevel, Data.RectLightMipTree);
 		FIntVector MipLevelDimensions = FIntVector(Data.RectLightMipTreeDimensions.X >> MipLevel, Data.RectLightMipTreeDimensions.Y >> MipLevel, 1);
 		FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildRectLightMipTreeCS::GetGroupSize());
-		DispatchComputeShader(RHICmdList, *BuildRectLightMipTreeComputeShader, NumGroups.X, NumGroups.Y, 1);
+		DispatchComputeShader(RHICmdList, BuildRectLightMipTreeComputeShader.GetShader(), NumGroups.X, NumGroups.Y, 1);
 		BuildRectLightMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Data.RectLightMipTree, MipLevelFence);
 	}
 	FComputeFenceRHIRef TransitionFence = RHICmdList.CreateComputeFence(TEXT("RectLightMipTree Transition"));
@@ -226,7 +215,7 @@ public:
 	}
 
 	FRectLightRGS() {}
-	virtual ~FRectLightRGS() {}
+	~FRectLightRGS() {}
 
 	FRectLightRGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -242,7 +231,7 @@ public:
 		RayDistanceUAVParameter.Bind(Initializer.ParameterMap, TEXT("RWRayDistanceUAV"));
 	}
 
-	bool Serialize(FArchive& Ar)
+	/*bool Serialize(FArchive& Ar)
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 		Ar << ViewParameter;
@@ -254,10 +243,11 @@ public:
 		Ar << LuminanceUAVParameter;
 		Ar << RayDistanceUAVParameter;
 		return bShaderHasOutdatedParameters;
-	}
+	}*/
 
 	void Dispatch(
 		FRHICommandListImmediate& RHICmdList,
+		FRHIRayTracingShader* ShaderRHI,
 		const FRayTracingScene& RayTracingScene,
 		FRHIUniformBuffer* ViewUniformBuffer,
 		FRHIUniformBuffer* SceneTexturesUniformBuffer,
@@ -269,7 +259,7 @@ public:
 	{
 		FRayTracingPipelineStateInitializer Initializer;
 
-		FRHIRayTracingShader* RayGenShaderTable[] = { GetRayTracingShader() };
+		FRHIRayTracingShader* RayGenShaderTable[] = { ShaderRHI };
 		Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
 		FRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
@@ -298,23 +288,23 @@ public:
 			GlobalResources.SetSampler(TransmissionProfilesLinearSamplerParameter.GetBaseIndex(), TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 		}
 
-		RHICmdList.RayTraceDispatch(Pipeline, GetRayTracingShader(), RayTracingScene.RayTracingSceneRHI, GlobalResources, Width, Height);
+		RHICmdList.RayTraceDispatch(Pipeline, ShaderRHI, RayTracingScene.RayTracingSceneRHI, GlobalResources, Width, Height);
 	}
 
 private:
 	// Input
-	FShaderResourceParameter TLASParameter;
-	FShaderUniformBufferParameter ViewParameter;
-	FShaderUniformBufferParameter SceneTexturesParameter;
-	FShaderUniformBufferParameter RectLightParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, TLASParameter);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, ViewParameter);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, SceneTexturesParameter);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, RectLightParameter);
 
 	// SSS Profile
-	FShaderResourceParameter TransmissionProfilesTextureParameter;
-	FShaderResourceParameter TransmissionProfilesLinearSamplerParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTextureParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesLinearSamplerParameter);
 
 	// Output
-	FShaderResourceParameter LuminanceUAVParameter;
-	FShaderResourceParameter RayDistanceUAVParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, LuminanceUAVParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, RayDistanceUAVParameter);
 };
 
 #define IMPLEMENT_RECT_LIGHT_TYPE(TextureImportanceSampling) \
@@ -360,24 +350,16 @@ public:
 		const FRWBuffer& MipTree,
 		const FIntVector Dimensions)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
 		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
 		SetSRVParameter(RHICmdList, ShaderRHI, MipTreeParameter, MipTree.SRV);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << DimensionsParameter;
-		Ar << MipTreeParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter DimensionsParameter;
-	FShaderResourceParameter MipTreeParameter;
+	LAYOUT_FIELD(FShaderParameter, DimensionsParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MipTreeParameter);
 };
 
 IMPLEMENT_SHADER_TYPE(, FVisualizeRectLightMipTreePS, TEXT("/Engine/Private/PathTracing/VisualizeMipTreePixelShader.usf"), TEXT("VisualizeMipTreePS"), SF_Pixel)
@@ -415,8 +397,8 @@ void FDeferredShadingSceneRenderer::VisualizeRectLightMipTree(
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -434,7 +416,7 @@ void FDeferredShadingSceneRenderer::VisualizeRectLightMipTree(
 		View.ViewRect.Width(), View.ViewRect.Height(),
 		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
 		SceneContext.GetBufferSizeXY(),
-		*VertexShader);
+		VertexShader);
 	ResolveSceneColor(RHICmdList);
 	RHICmdList.EndRenderPass();
 	GVisualizeTexture.SetCheckPoint(RHICmdList, RectLightMipTreeRT);
@@ -450,8 +432,8 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingRectLight(const FViewInfo& 
 	TShaderMapRef<FRectLightRGS<0>> Shader0(GetGlobalShaderMap(View.FeatureLevel));
 	TShaderMapRef<FRectLightRGS<1>> Shader1(GetGlobalShaderMap(View.FeatureLevel));
 
-	OutRayGenShaders.Add(Shader0->GetRayTracingShader());
-	OutRayGenShaders.Add(Shader1->GetRayTracingShader());
+	OutRayGenShaders.Add(Shader0.GetRayTracingShader());
+	OutRayGenShaders.Add(Shader1.GetRayTracingShader());
 }
 
 template <int TextureImportanceSampling>
@@ -537,6 +519,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingRectLightInternal(
 		// Dispatch
 		RectLightRayGenerationShader->Dispatch(
 			RHICmdList,
+			RectLightRayGenerationShader.GetRayTracingShader(),
 			View.RayTracingScene,
 			View.ViewUniformBuffer,
 			SceneTexturesUniformBuffer,

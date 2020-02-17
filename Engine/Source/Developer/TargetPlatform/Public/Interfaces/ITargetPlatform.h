@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Interfaces/ITargetDevice.h"
 
-
 namespace PlatformInfo
 {
 	// Forward declare type from DesktopPlatform rather than add an include dependency to everything using ITargetPlatform
@@ -92,6 +91,12 @@ enum class ETargetPlatformFeatures
 	VirtualTextureStreaming,
 };
 
+enum class EPlatformAuthentication
+{
+	Never,
+	Possible,
+	Always,
+};
 
 /**
  * Flags specifying what is needed to be able to complete and deploy a build.
@@ -147,6 +152,18 @@ public:
 	 * @return true if the device was added, false otherwise.
 	 */
 	virtual bool AddDevice( const FString& DeviceName, bool bDefault ) = 0;
+
+	/**
+	 * Add a target device.
+	 *
+	 * @param DeviceId The id of the device to add.
+	 * @param DeviceUserFriendlyName The user friendly name of the device to add.
+	 * @param Username The username for the device to add.
+	 * @param Password The password for the device to add.
+	 * @param bDefault Whether the added device should be the default.
+	 * @return true if the device was added, false otherwise.
+	 */
+	virtual bool AddDevice(const FString& DeviceId, const FString& DeviceUserFriendlyName, const FString& Username, const FString& Password, bool bDefault) = 0;
 
 	/**
 	* Returns the name of this platform
@@ -319,13 +336,13 @@ public:
 	* @return true if this platform requires cooked data, false otherwise.
 	*/
 	virtual bool HasSecurePackageFormat() const = 0;
-
+	
 	/**
 	 * Checks whether this platform requires user credentials (typically server platforms).
 	 *
-	 * @return true if this platform requires user credentials, false otherwise.
+	 * @return enum if this platform requires user credentials.
 	 */
-	virtual bool RequiresUserCredentials() const = 0;
+	virtual EPlatformAuthentication RequiresUserCredentials() const = 0;
 
 	/**
 	 * Returns true if the platform supports the AutoSDK system
@@ -373,6 +390,11 @@ public:
 	virtual bool UsesBasePassVelocity() const = 0;
 
 	/**
+	* Gets whether the platform should use Anisotropic BRDF in the base pass.
+	*/
+	virtual bool UsesAnisotropicBRDF() const = 0;
+
+	/**
 	* Gets whether the platform will use selective outputs in the base pass shaders.
 	*/
 	virtual bool UsesSelectiveBasePassOutputs() const = 0; 
@@ -381,6 +403,11 @@ public:
 	* Gets whether the platform will use distance fields.
 	*/
 	virtual bool UsesDistanceFields() const = 0;
+
+	/**
+	* Gets whether the platform will use ray tracing.
+	*/
+	virtual bool UsesRayTracing() const = 0;
 
 	/**
 	* Gets down sample mesh distance field divider.
@@ -462,13 +489,6 @@ public:
 	virtual FName GetWaveFormat( const class USoundWave* Wave ) const = 0;
 
 	/**
-	* Get the audio compression settings for this platform.
-	* 
-	* @return the compression overrides for this platform, or the default platform overrides.
-	*/
-	virtual const struct FPlatformAudioCookOverrides* GetAudioCompressionSettings() const = 0;
-
-	/**
 	* Gets all the formats which can be returned from GetWaveFormat
 	*
 	* @param output array of all the formats
@@ -493,6 +513,14 @@ public:
 	 * @return A static mesh LOD settings structure.
 	 */
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const = 0;
+
+	/** 
+	 * Gets the name of the mesh builder module that is responsible for 
+	 * building static and skeletal mesh derived data for this platform.
+	 *
+	 * @return The name of a mesh builder module.
+	 */
+	virtual FName GetMeshBuilderModuleName() const = 0;
 #endif
 
 	/** 
@@ -567,6 +595,10 @@ public:
 	 */
 	virtual TSharedPtr<IDeviceManagerCustomPlatformWidgetCreator> GetCustomWidgetCreator() const = 0;
 
+	/**
+	 * Returns wheter or not this 16bit index buffer should be promoted to 32bit
+	 */
+	virtual bool ShouldExpandTo32Bit(const uint16* Indices, const int32 NumIndices) const = 0;
 public:
 
 	/**

@@ -41,6 +41,7 @@
 #include "ChaosSolvers/Public/EventsData.h"
 #include "ChaosSolvers/Public/EventManager.h"
 #include "Physics/Experimental/PhysicsUserData_Chaos.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #if !UE_BUILD_SHIPPING
 #include "Engine/World.h"
@@ -59,6 +60,10 @@ TAutoConsoleVariable<int32> CVar_ChaosUpdateKinematicsOnDeferredSkelMeshes(TEXT(
 TAutoConsoleVariable<int32> CVar_ChaosSimulationEnable(TEXT("P.Chaos.Simulation.Enable"), 1, TEXT("Enable / disable chaos simulation. If disabled, physics will not tick."));
 
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_UpdateKinematicsOnDeferredSkelMeshesChaos, STATGROUP_Physics);
+
+#if WITH_CHAOS
+CSV_DEFINE_CATEGORY(ChaosPhysics, true);
+#endif // WITH_CHAOS
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -1522,7 +1527,7 @@ void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInsta
 				const Chaos::TVector<float, 3> CurrentTorque = Rigid->Torque();
 				if (bAccelChange)
 				{
-					Rigid->SetTorque(CurrentTorque + (Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->I()) * Torque));
+					Rigid->SetTorque(CurrentTorque + (FParticleUtilitiesXR::GetWorldInertia(Rigid) * Torque));
 				}
 				else
 				{
@@ -1834,11 +1839,6 @@ void FPhysScene_ChaosInterface::StartFrame()
 
 	if (Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher())
 	{
-		if (FPhysicsSolver* Solver = GetSolver())
-		{
-			Solver->PushPhysicsState(Dispatcher);
-		}
-
 		switch (Dispatcher->GetMode())
 		{
 		case EChaosThreadingMode::SingleThread:
@@ -1846,6 +1846,10 @@ void FPhysScene_ChaosInterface::StartFrame()
 			OnPhysScenePreTick.Broadcast(this, Dt);
 			OnPhysSceneStep.Broadcast(this, Dt);
 
+			if (FPhysicsSolver* Solver = GetSolver())
+			{
+				Solver->PushPhysicsState(Dispatcher);
+			}
 			// Here we can directly tick the scene. Single threaded mode doesn't buffer any commands
 			// that would require pumping here - everything is done on demand.
 			Scene.Tick(Dt);
@@ -1865,6 +1869,11 @@ void FPhysScene_ChaosInterface::StartFrame()
 
 			OnPhysScenePreTick.Broadcast(this, Dt);
 			OnPhysSceneStep.Broadcast(this, Dt);
+
+			if (FPhysicsSolver* Solver = GetSolver())
+			{
+				Solver->PushPhysicsState(Dispatcher);
+			}
 
 			FGraphEventRef SimulationCompleteEvent = FGraphEvent::CreateGraphEvent();
 
@@ -1891,14 +1900,44 @@ void FPhysScene_ChaosInterface::StartFrame()
 		// this case. (See FChaosSolversModule::SyncTask and FPhysicsThreadSyncCaller)
 		case EChaosThreadingMode::DedicatedThread:
 		default:
+			if (FPhysicsSolver* Solver = GetSolver())
+			{
+				Solver->PushPhysicsState(Dispatcher);
+			}
+			break;
 			break;
 		}
 	}
 }
 
+// Find the number of dirty elements in all substructures that has dirty elements that we know of
+// This is non recursive for now
+// Todo: consider making DirtyElementsCount a method on ISpatialAcceleration instead
+int32 FPhysScene_ChaosInterface::DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<Chaos::FReal, 3>, Chaos::FReal, 3>& Collection)
+{
+	using namespace Chaos;
+	int32 DirtyElements = 0;
+	TArray<FSpatialAccelerationIdx> SpatialIndices = Collection.GetAllSpatialIndices();
+	for (const FSpatialAccelerationIdx SpatialIndex : SpatialIndices)
+	{
+		auto SubStructure = Collection.GetSubstructure(SpatialIndex);
+		if (const auto AABBTree = SubStructure->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>>())
+		{
+			DirtyElements += AABBTree->NumDirtyElements();
+		}
+		else if (const auto AABBTreeBV = SubStructure->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>>())
+		{
+			DirtyElements += AABBTree->NumDirtyElements();
+		}
+	}
+	return DirtyElements;
+}
+
+
 void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 {
 	using namespace Chaos;
+	using SpatialAccelerationCollection = Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
 
 	SCOPE_CYCLE_COUNTER(STAT_Scene_EndFrame);
 
@@ -1911,6 +1950,9 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 	checkSlow(SolverModule);
 
 	Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher();
+
+	int32 DirtyElements = DirtyElementCount(Scene.GetSpacialAcceleration()->AsChecked<SpatialAccelerationCollection>());
+	CSV_CUSTOM_STAT(ChaosPhysics, AABBTreeDirtyElementCount, DirtyElements, ECsvCustomStatOp::Set);
 
 	switch(Dispatcher->GetMode())
 	{

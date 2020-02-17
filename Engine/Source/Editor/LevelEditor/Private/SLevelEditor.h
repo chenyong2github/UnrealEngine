@@ -121,6 +121,7 @@ public:
 	virtual void OnToolkitHostingFinished( const TSharedRef< class IToolkit >& Toolkit ) override;
 	virtual UWorld* GetWorld() const override;
 	virtual TSharedRef<SWidget> CreateActorDetails( const FName TabIdentifier ) override;
+	virtual void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization) override;
 	virtual TSharedRef<SWidget> CreateToolBox() override;
 
 	/** SWidget overrides */

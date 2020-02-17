@@ -2294,7 +2294,7 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 				if (PackageName.Left(1) == TEXT("/"))
 				{
 					// Trim the leading slash so the file manager doesn't get confused
-					PackageName.MidInline(1, false);
+					PackageName.MidInline(1, MAX_int32, false);
 				}
 
 				FPaths::NormalizeFilename(PackageName);
@@ -2937,9 +2937,9 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 	}
 }
 
-void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects) const
+void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects, bool bCheckoutDialogPrompt) const
 {
-	AssetFixUpRedirectors->FixupReferencers(Objects);
+	AssetFixUpRedirectors->FixupReferencers(Objects, bCheckoutDialogPrompt);
 }
 
 bool UAssetToolsImpl::IsFixupReferencersInProgress() const

@@ -166,6 +166,12 @@ bool UMagicLeapSecureStorage::PutSecureSaveGame(const FString& Key, USaveGame* O
 	return PutSecureBlobImpl(Key, Bytes.GetData(), Bytes.Num());
 }
 
+bool UMagicLeapSecureStorage::PutSecureArray(const FString& Key, const TArray<int32>& DataToStore)
+{
+	checkf(0, TEXT("'PutSecureArray' has a CustomThunk, so this should never execute"));
+	return false;
+}
+
 bool UMagicLeapSecureStorage::GenericPutSecureArray(const FString& Key, const FArrayProperty* ArrayProperty, void* TargetArray)
 {
 
@@ -209,6 +215,12 @@ bool UMagicLeapSecureStorage::GetSecureSaveGame(const FString& Key, USaveGame*& 
 	}
 
 	return bSuccess;
+}
+
+bool UMagicLeapSecureStorage::GetSecureArray(const FString& Key, TArray<int32>& DataToRetrieve)
+{
+	checkf(0, TEXT("'GetSecureArray' has a CustomThunk, so this should never execute"));
+	return false;
 }
 
 bool UMagicLeapSecureStorage::GenericGetSecureArray(const FString& Key, FArrayProperty* ArrayProperty, void* TargetArray)

@@ -44,7 +44,6 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 			.IsSelected(this, &SNiagaraStackFunctionInputName::GetIsNameWidgetSelected)
 			.OnTextCommitted(this, &SNiagaraStackFunctionInputName::OnNameTextCommitted)
 			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.ColorAndOpacity(this, &SNiagaraStackFunctionInputName::GetTextColorForSearch, FSlateColor::UseForeground())
 			.ToolTipText(this, &SNiagaraStackFunctionInputName::GetToolTipText)
 		]
 	];
@@ -77,7 +76,7 @@ void SNiagaraStackFunctionInputName::OnEditConditionCheckStateChanged(ECheckBoxS
 
 bool SNiagaraStackFunctionInputName::GetIsNameReadOnly() const
 {
-	return FunctionInput->CanRenameInput() == false;
+	return FunctionInput->SupportsRename() == false;
 }
 
 bool SNiagaraStackFunctionInputName::GetIsNameWidgetSelected() const
@@ -98,10 +97,10 @@ FText SNiagaraStackFunctionInputName::GetToolTipText() const
 	{
 		return FText();
 	}
-	return FunctionInput->GetTooltipText(UNiagaraStackFunctionInput::EValueMode::Local);
+	return FunctionInput->GetTooltipText();
 }
 
 void SNiagaraStackFunctionInputName::OnNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType)
 {
-	FunctionInput->RenameInput(*InText.ToString());
+	FunctionInput->OnRenamed(InText);
 }

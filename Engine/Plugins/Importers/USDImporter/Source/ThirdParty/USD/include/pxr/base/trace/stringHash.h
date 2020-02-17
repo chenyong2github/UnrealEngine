@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef TRACE_STRING_HASH_H
-#define TRACE_STRING_HASH_H
+#ifndef PXR_BASE_TRACE_STRING_HASH_H
+#define PXR_BASE_TRACE_STRING_HASH_H
 
 #include "pxr/pxr.h"
 
@@ -64,4 +64,4 @@ constexpr std::uint32_t TraceStringHash::djb2HashStr<0>(const char* str) {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif //TRACE_STRING_HASH_H
+#endif //PXR_BASE_TRACE_STRING_HASH_H

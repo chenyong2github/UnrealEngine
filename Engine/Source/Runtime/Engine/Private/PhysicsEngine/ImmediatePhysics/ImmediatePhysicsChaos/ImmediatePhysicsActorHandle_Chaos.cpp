@@ -177,7 +177,7 @@ namespace ImmediatePhysics_Chaos
 		return true;
 	}
 
-	bool CreateGeometry(FBodyInstance* BodyInstance, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>>& OutShapes)
+	bool CreateGeometry(FBodyInstance* BodyInstance, EActorType ActorType, const FVector& Scale, float& OutMass, Chaos::TVector<float, 3>& OutInertia, Chaos::TRigidTransform<float, 3>& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>>& OutShapes)
 	{
 		using namespace Chaos;
 
@@ -189,22 +189,27 @@ namespace ImmediatePhysics_Chaos
 		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();
 
 #if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
-		TMassProperties<float, 3> MassProperties;
-		CalculateMassProperties(Scale, FTransform::Identity, BodySetup->AggGeom, MassProperties);
-		float Density = 1.e-3f;	// 1g/cm3	@todo(ccaulfield): should come from material
-		if (BodyInstance->bOverrideMass)
+		OutMass = 0.0f;
+		OutInertia = FVector::ZeroVector;
+		OutCoMTransform = FTransform::Identity;
+		if (ActorType == EActorType::DynamicActor)
 		{
-			Density = BodyInstance->GetMassOverride() / MassProperties.Volume;
+			TMassProperties<float, 3> MassProperties;
+			CalculateMassProperties(Scale, FTransform::Identity, BodySetup->AggGeom, MassProperties);
+			float Density = 1.e-3f;	// 1g/cm3	@todo(ccaulfield): should come from material
+			if (BodyInstance->bOverrideMass)
+			{
+				Density = BodyInstance->GetMassOverride() / MassProperties.Volume;
+			}
+			OutMass = Density * BodyInstance->MassScale * MassProperties.Volume;
+			OutInertia = Utilities::ScaleInertia(Density * TVector<float, 3>(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1], MassProperties.InertiaTensor.M[2][2]), BodyInstance->InertiaTensorScale, true);	// bScaleMass true to match legacy, but not correct
+			OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass + BodyInstance->COMNudge);
 		}
-		OutMass = Density * BodyInstance->MassScale * MassProperties.Volume;
-		OutInertia = Utilities::ScaleInertia(Density * TVector<float, 3>(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1], MassProperties.InertiaTensor.M[2][2]), BodyInstance->InertiaTensorScale, true);	// bScaleMass true to match legacy, but not correct
-		OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass + BodyInstance->COMNudge);
 #else
 		OutMass = BodyInstance->GetBodyMass();
 		OutInertia = BodyInstance->GetBodyInertiaTensor();
 		OutCoMTransform = BodyInstance->GetMassSpaceLocal();
 #endif
-
 
 		FBodyCollisionData BodyCollisionData;
 		BodyInstance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
@@ -271,7 +276,7 @@ namespace ImmediatePhysics_Chaos
 		float Mass = 0;
 		FVec3 Inertia = FVec3::OneVector;
 		FRigidTransform3 CoMTransform = FRigidTransform3::Identity;
-		if (CreateGeometry(BodyInstance, FVector::OneVector, Mass, Inertia, CoMTransform, Geometry, Shapes))
+		if (CreateGeometry(BodyInstance, ActorType, FVector::OneVector, Mass, Inertia, CoMTransform, Geometry, Shapes))
 		{
 			switch (ActorType)
 			{

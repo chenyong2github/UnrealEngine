@@ -13,15 +13,15 @@ class FStringStore;
 
 struct FBookmarkSpec
 {
-	const TCHAR* File;
-	const TCHAR* FormatString;
-	int32 Line;
+	const TCHAR* File = nullptr;
+	const TCHAR* FormatString = nullptr;
+	int32 Line = 0;
 };
 
 struct FBookmarkInternal
 {
-	double Time;
-	const TCHAR* Text;
+	double Time = 0.0;
+	const TCHAR* Text = nullptr;
 };
 
 class FBookmarkProvider

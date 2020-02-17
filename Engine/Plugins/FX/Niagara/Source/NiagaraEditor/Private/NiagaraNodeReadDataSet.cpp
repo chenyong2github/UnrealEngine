@@ -100,6 +100,13 @@ void UNiagaraNodeReadDataSet::Compile(class FHlslNiagaraTranslator* Translator, 
 {
 	TArray<int32> Inputs;
 	CompileInputPins(Translator, Inputs);
+	
+	bool bGPUSim = Translator->IsCompileOptionDefined(TEXT("GPUComputeSim"));
+
+	if (bGPUSim)
+	{
+		Translator->Error(LOCTEXT("CannotRunReadDataSetGPU", "Cannot use an event read node on GPU sims!"), this, nullptr);
+	}
 
 	FString IssuesWithStruct;
 	if (!IsSynchronizedWithStruct(false, &IssuesWithStruct, false))

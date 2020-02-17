@@ -8,7 +8,8 @@
 #include "DSP/Dsp.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-
+#include "Templates/Function.h"
+#include "Containers/Queue.h"
 #include "MixedRealityInterop.h"
 
 // Struct to hold dynamic object data for Microsoft Spatial Sound API
@@ -114,7 +115,7 @@ public:
 
 	virtual bool SupportsPlatform(const FString& PlatformName) override
 	{
-		return (PlatformName == TEXT("Windows")) || (PlatformName == TEXT("XboxOne"));
+		return (PlatformName == TEXT("Windows")) || (PlatformName == TEXT("XboxOne")) || (PlatformName == TEXT("HoloLens"));
 	}
 
 	// Microsoft spatial sound dynamic objects render objects externally from the audio renderer

@@ -436,11 +436,6 @@ void USoundCue::AudioQualityChanged()
 void USoundCue::BeginDestroy()
 {
 	Super::BeginDestroy();
-	
-	if (bIsRetainingAudio)
-	{
-		ReleaseRetainedAudio();
-	}
 }
 
 FString USoundCue::GetDesc()

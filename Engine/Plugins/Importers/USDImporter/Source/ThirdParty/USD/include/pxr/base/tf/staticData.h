@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_STATICDATA_H
-#define TF_STATICDATA_H
+#ifndef PXR_BASE_TF_STATIC_DATA_H
+#define PXR_BASE_TF_STATIC_DATA_H
 
 /// \file tf/staticData.h
 /// \ingroup group_tf_Initialization
@@ -141,7 +141,7 @@ private:
         if (ARCH_LIKELY(_data.compare_exchange_strong(n, tmp)))
             return tmp;
 
-        // Another thread won the intitialization race.
+        // Another thread won the initialization race.
         delete tmp;
         return _data;
     }

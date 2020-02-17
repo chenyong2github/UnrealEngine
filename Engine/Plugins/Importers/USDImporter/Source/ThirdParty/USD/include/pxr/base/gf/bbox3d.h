@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef GF_BBOX3D_H
-#define GF_BBOX3D_H
+#ifndef PXR_BASE_GF_BBOX3D_H
+#define PXR_BASE_GF_BBOX3D_H
 
 /// \file gf/bbox3d.h
 /// \ingroup group_gf_BasicGeometry
@@ -182,7 +182,7 @@ class GfBBox3d {
         _SetMatrices(_matrix * matrix);
     }
 
-    /// Returns the axis-aligned range (as a \c GfRange3d) that wesults from
+    /// Returns the axis-aligned range (as a \c GfRange3d) that results from
     /// applying the transformation matrix to the wxis-aligned box and
     /// aligning the result.
     GF_API
@@ -266,4 +266,4 @@ GF_API std::ostream& operator<<(std::ostream&, const GfBBox3d&);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // GF_BBOX3D_H
+#endif // PXR_BASE_GF_BBOX3D_H

@@ -98,8 +98,8 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateFloat(ui
 	FScopeLock ScopeLock(&FloatBufferPool->CriticalSection);
 	FAllocation Allocation;
 
-	// The codepath using FShaderResourceViewInitializer, requires the SRV to be aligned on 16 bytes on some platforms.
-	Num = Align(Num, 4);
+	// The codepath using FShaderResourceViewInitializer, requires the SRV to be aligned on some platforms.
+	Num = Align(Num, RHIGetMinimumAlignmentForBufferBackedSRV(PF_R32_FLOAT) / sizeof(float));
 
 	TotalAllocatedSinceLastCommit += Num;
 	if (IsRenderAlarmLoggingEnabled())
@@ -159,7 +159,7 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateInt32(ui
 	FAllocation Allocation;
 
 	// The codepath using FShaderResourceViewInitializer, requires the SRV to be aligned on 16 bytes on some platforms.
-	Num = Align(Num, 4);
+	Num = Align(Num, RHIGetMinimumAlignmentForBufferBackedSRV(PF_R32_SINT) / sizeof(int32));
 
 	TotalAllocatedSinceLastCommit += Num;
 	if (IsRenderAlarmLoggingEnabled())

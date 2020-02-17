@@ -35,8 +35,12 @@ FPrimitiveIdVertexBufferPool::~FPrimitiveIdVertexBufferPool()
 	check(!Entries.Num());
 }
 
-FRHIVertexBuffer* FPrimitiveIdVertexBufferPool::Allocate(int32 BufferSize)
+FPrimitiveIdVertexBufferPoolEntry FPrimitiveIdVertexBufferPool::Allocate(int32 BufferSize)
 {
+	check(IsInRenderingThread());
+
+	FScopeLock Lock(&AllocationCS);
+
 	BufferSize = Align(BufferSize, 1024);
 
 	// First look for a smallest unused one.
@@ -59,11 +63,13 @@ FRHIVertexBuffer* FPrimitiveIdVertexBufferPool::Allocate(int32 BufferSize)
 		}
 	}
 	
-	if (BestFitBufferIndex >=0 )
+	if (BestFitBufferIndex >= 0)
 	{
 		// Reuse existing buffer.
-		Entries[BestFitBufferIndex].LastDiscardId = DiscardId;
-		return Entries[BestFitBufferIndex].BufferRHI;
+		FPrimitiveIdVertexBufferPoolEntry ReusedEntry = MoveTemp(Entries[BestFitBufferIndex]);
+		ReusedEntry.LastDiscardId = DiscardId;
+		Entries.RemoveAt(BestFitBufferIndex);
+		return ReusedEntry;
 	}
 	else
 	{
@@ -73,14 +79,23 @@ FRHIVertexBuffer* FPrimitiveIdVertexBufferPool::Allocate(int32 BufferSize)
 		NewEntry.BufferSize = BufferSize;
 		FRHIResourceCreateInfo CreateInfo;
 		NewEntry.BufferRHI = RHICreateVertexBuffer(NewEntry.BufferSize, BUF_Volatile, CreateInfo);
-		Entries.Add(NewEntry);
 
-		return NewEntry.BufferRHI;
+		return NewEntry;
 	}
+}
+
+void FPrimitiveIdVertexBufferPool::ReturnToFreeList(FPrimitiveIdVertexBufferPoolEntry Entry)
+{
+	// Entries can be returned from RHIT or RT, depending on if FParallelMeshDrawCommandPass::DispatchDraw() takes the parallel path
+	FScopeLock Lock(&AllocationCS);
+
+	Entries.Add(MoveTemp(Entry));
 }
 
 void FPrimitiveIdVertexBufferPool::DiscardAll()
 {
+	FScopeLock Lock(&AllocationCS);
+
 	++DiscardId;
 
 	// Remove old unused pool entries.
@@ -504,7 +519,8 @@ void GenerateDynamicMeshDrawCommands(
 	int32 MaxNumBuildRequestElements,
 	FMeshCommandOneFrameArray& VisibleCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
-	FGraphicsMinimalPipelineStateSet& MinimalPipelineStatePassSet
+	FGraphicsMinimalPipelineStateSet& MinimalPipelineStatePassSet,
+	bool& NeedsShaderInitialisation
 )
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_GenerateDynamicMeshDrawCommands);
@@ -514,7 +530,8 @@ void GenerateDynamicMeshDrawCommands(
 	FDynamicPassMeshDrawListContext DynamicPassMeshDrawListContext(
 		MeshDrawCommandStorage,
 		VisibleCommands,
-		MinimalPipelineStatePassSet
+		MinimalPipelineStatePassSet,
+		NeedsShaderInitialisation
 	);
 	PassMeshProcessor->SetDrawListContext(&DynamicPassMeshDrawListContext);
 
@@ -574,7 +591,8 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 	int32 MaxNumBuildRequestElements,
 	FMeshCommandOneFrameArray& VisibleCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
-	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet
+	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	bool& NeedsShaderInitialisation
 )
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_GenerateMobileBasePassDynamicMeshDrawCommands);
@@ -584,7 +602,8 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 	FDynamicPassMeshDrawListContext DynamicPassMeshDrawListContext(
 		MeshDrawCommandStorage,
 		VisibleCommands,
-		GraphicsMinimalPipelineStateSet
+		GraphicsMinimalPipelineStateSet,
+		NeedsShaderInitialisation
 	);
 	PassMeshProcessor->SetDrawListContext(&DynamicPassMeshDrawListContext);
 	MobilePassCSMPassMeshProcessor->SetDrawListContext(&DynamicPassMeshDrawListContext);
@@ -662,6 +681,7 @@ void ApplyViewOverridesToMeshDrawCommands(
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
 	FGraphicsMinimalPipelineStateSet& MinimalPipelineStatePassSet,
+	bool& NeedsShaderInitialisation,
 	FMeshCommandOneFrameArray& TempVisibleMeshDrawCommands
 	)
 {
@@ -693,7 +713,7 @@ void ApplyViewOverridesToMeshDrawCommands(
 					PipelineState.DepthStencilState = PassDrawRenderState.GetDepthStencilState();
 				}
 
-				const FGraphicsMinimalPipelineStateId PipelineId = FGraphicsMinimalPipelineStateId::GetPipelineStateId(PipelineState, MinimalPipelineStatePassSet);
+				const FGraphicsMinimalPipelineStateId PipelineId = FGraphicsMinimalPipelineStateId::GetPipelineStateId(PipelineState, MinimalPipelineStatePassSet, NeedsShaderInitialisation);
 				NewMeshCommand.Finalize(PipelineId, nullptr);
 
 				FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
@@ -752,6 +772,7 @@ public:
 
 	void AnyThreadTask()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MeshDrawCommandPassSetupTask);
 		// Mobile base pass is a special case, as final lists is created from two mesh passes based on CSM visibility.
 		const bool bMobileBasePass = Context.ShadingPath == EShadingPath::Mobile && Context.PassType == EMeshPass::BasePass;
 
@@ -777,7 +798,8 @@ public:
 				Context.NumDynamicMeshCommandBuildRequestElements,
 				Context.MeshDrawCommands,
 				Context.MeshDrawCommandStorage,
-				Context.MinimalPipelineStatePassSet
+				Context.MinimalPipelineStatePassSet,
+				Context.NeedsShaderInitialisation
 			);
 		}
 		else
@@ -794,7 +816,8 @@ public:
 				Context.NumDynamicMeshCommandBuildRequestElements,
 				Context.MeshDrawCommands,
 				Context.MeshDrawCommandStorage,
-				Context.MinimalPipelineStatePassSet
+				Context.MinimalPipelineStatePassSet,
+				Context.NeedsShaderInitialisation
 			);
 		}
 
@@ -812,6 +835,7 @@ public:
 					Context.MeshDrawCommands,
 					Context.MeshDrawCommandStorage,
 					Context.MinimalPipelineStatePassSet,
+					Context.NeedsShaderInitialisation,
 					Context.TempVisibleMeshDrawCommands
 				);
 			}
@@ -872,6 +896,54 @@ private:
 	FMeshDrawCommandPassSetupTaskContext& Context;
 };
 
+/**
+ * Task for shader initialization. This will run on the RenderThread after Commands have been generated.
+ */
+class FMeshDrawCommandInitResourcesTask
+{
+public:
+	FMeshDrawCommandInitResourcesTask(FMeshDrawCommandPassSetupTaskContext& InContext)
+		: Context(InContext)
+	{
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FMeshDrawCommandInitResourcesTask, STATGROUP_TaskGraphTasks);
+	}
+
+	ENamedThreads::Type GetDesiredThread()
+	{
+		return ENamedThreads::GetRenderThread_Local();
+	}
+
+	static ESubsequentsMode::Type GetSubsequentsMode()
+	{
+		return ESubsequentsMode::TrackSubsequents;
+	}
+
+	void AnyThreadTask()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MeshDrawCommandInitResourcesTask);
+		if (Context.NeedsShaderInitialisation)
+		{
+			for (const FGraphicsMinimalPipelineStateInitializer& Initializer : Context.MinimalPipelineStatePassSet)
+			{
+				Initializer.BoundShaderState.LazilyInitShaders();
+			}
+		}
+	}
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		AnyThreadTask();
+	}
+
+
+private:
+	FMeshDrawCommandPassSetupTaskContext& Context;
+};
+
 /*
  * Used by various dynamic passes to sort/merge mesh draw commands immediately on a rendering thread.
  */
@@ -903,7 +975,8 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 			}
 
 			const int32 PrimitiveIdBufferDataSize = InstanceFactor * NumDrawCommands * sizeof(int32);
-			OutPrimitiveIdVertexBuffer = GPrimitiveIdVertexBufferPool.Allocate(PrimitiveIdBufferDataSize);
+			FPrimitiveIdVertexBufferPoolEntry Entry = GPrimitiveIdVertexBufferPool.Allocate(PrimitiveIdBufferDataSize);
+			OutPrimitiveIdVertexBuffer = Entry.BufferRHI;
 			void* PrimitiveIdBufferData = RHILockVertexBuffer(OutPrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
 
 			BuildMeshDrawCommandPrimitiveIdBuffer(
@@ -921,6 +994,7 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 			);
 
 			RHIUnlockVertexBuffer(OutPrimitiveIdVertexBuffer);
+			GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
 		}
 	}
 }
@@ -942,6 +1016,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	FMeshCommandOneFrameArray* InOutMobileBasePassCSMMeshDrawCommands
 )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParallelMdcDispatchPassSetup);
 	check(!TaskEventRef.IsValid() && MeshPassProcessor != nullptr && TaskContext.PrimitiveIdBufferData == nullptr);
 	check((PassType == EMeshPass::Num) == (DynamicMeshElementsPassRelevance == nullptr));
 
@@ -981,6 +1056,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	{
 		case EMeshPass::TranslucencyStandard: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_StandardTranslucency; break;
 		case EMeshPass::TranslucencyAfterDOF: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_TranslucencyAfterDOF; break;
+		case EMeshPass::TranslucencyAfterDOFModulate: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_TranslucencyAfterDOFModulate; break;
 		case EMeshPass::TranslucencyAll: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_AllTranslucency; break;
 		case EMeshPass::MobileInverseOpacity: TaskContext.TranslucencyPass = ETranslucencyPass::TPT_StandardTranslucency; break;
 	}
@@ -1003,7 +1079,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 		bPrimitiveIdBufferDataOwnedByRHIThread = false;
 		TaskContext.PrimitiveIdBufferDataSize = TaskContext.InstanceFactor * MaxNumDraws * sizeof(int32);
 		TaskContext.PrimitiveIdBufferData = FMemory::Malloc(TaskContext.PrimitiveIdBufferDataSize);
-		PrimitiveIdVertexBufferRHI = GPrimitiveIdVertexBufferPool.Allocate(TaskContext.PrimitiveIdBufferDataSize);
+		PrimitiveIdVertexBufferPoolEntry = GPrimitiveIdVertexBufferPool.Allocate(TaskContext.PrimitiveIdBufferDataSize);
 		TaskContext.MeshDrawCommands.Reserve(MaxNumDraws);
 		TaskContext.TempVisibleMeshDrawCommands.Reserve(MaxNumDraws);
 
@@ -1013,14 +1089,17 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 
 		if (bExecuteInParallel)
 		{
-			TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(
-				nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
+			FGraphEventArray DependentGraphEvents;
+			DependentGraphEvents.Add(TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext));
+			TaskEventRef = TGraphTask<FMeshDrawCommandInitResourcesTask>::CreateTask(&DependentGraphEvents, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
 		}
 		else
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_MeshPassSetupImmediate);
 			FMeshDrawCommandPassSetupTask Task(TaskContext);
 			Task.AnyThreadTask();
+			FMeshDrawCommandInitResourcesTask DependentTask(TaskContext);
+			DependentTask.AnyThreadTask();
 		}
 	}
 }
@@ -1052,6 +1131,20 @@ void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty()
 	{
 		TaskContext.MobileBasePassCSMMeshPassProcessor->~FMeshPassProcessor();
 		TaskContext.MobileBasePassCSMMeshPassProcessor = nullptr;
+	}
+
+	if (MaxNumDraws > 0)
+	{
+		if (bPrimitiveIdBufferDataOwnedByRHIThread)
+		{
+			FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([PrimitiveIdVertexBufferPoolEntry = PrimitiveIdVertexBufferPoolEntry](FRHICommandListImmediate&) {
+				GPrimitiveIdVertexBufferPool.ReturnToFreeList(PrimitiveIdVertexBufferPoolEntry);
+			});
+		}
+		else
+		{
+			GPrimitiveIdVertexBufferPool.ReturnToFreeList(PrimitiveIdVertexBufferPoolEntry);
+		}
 	}
 
 	if (!bPrimitiveIdBufferDataOwnedByRHIThread)
@@ -1126,6 +1219,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DrawVisibleMeshCommandsAnyThreadTask);
 		checkSlow(RHICmdList.IsInsideRenderPass());
 
 		// Recompute draw range.
@@ -1143,12 +1237,13 @@ public:
 
 void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ParallelMdcDispatchDraw);
 	if (MaxNumDraws <= 0)
 	{
 		return;
 	}
 
-	FRHIVertexBuffer* PrimitiveIdsBuffer = PrimitiveIdVertexBufferRHI;
+	FRHIVertexBuffer* PrimitiveIdsBuffer = PrimitiveIdVertexBufferPoolEntry.BufferRHI;
 	const int32 BasePrimitiveIdsOffset = 0;
 
 	if (ParallelCommandListSet)
@@ -1166,7 +1261,8 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 			RHICommandList.EnqueueLambda([
 				VertexBuffer = PrimitiveIdsBuffer,
 				VertexBufferData = TaskContext.PrimitiveIdBufferData, 
-				VertexBufferDataSize = TaskContext.PrimitiveIdBufferDataSize](FRHICommandListImmediate& CmdList)
+				VertexBufferDataSize = TaskContext.PrimitiveIdBufferDataSize,
+				PrimitiveIdVertexBufferPoolEntry = PrimitiveIdVertexBufferPoolEntry](FRHICommandListImmediate& CmdList)
 			{
 				// Upload vertex buffer data.
 				void* RESTRICT Data = (void* RESTRICT)CmdList.LockVertexBuffer(VertexBuffer, 0, VertexBufferDataSize, RLM_WriteOnly);
@@ -1221,9 +1317,9 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		if (TaskContext.bUseGPUScene)
 		{
 			// Can immediately upload vertex buffer data, as there is no parallel draw task.
-			void* RESTRICT Data = RHILockVertexBuffer(PrimitiveIdVertexBufferRHI, 0, TaskContext.PrimitiveIdBufferDataSize, RLM_WriteOnly);
+			void* RESTRICT Data = RHILockVertexBuffer(PrimitiveIdVertexBufferPoolEntry.BufferRHI, 0, TaskContext.PrimitiveIdBufferDataSize, RLM_WriteOnly);
 			FMemory::Memcpy(Data, TaskContext.PrimitiveIdBufferData, TaskContext.PrimitiveIdBufferDataSize);
-			RHIUnlockVertexBuffer(PrimitiveIdVertexBufferRHI);
+			RHIUnlockVertexBuffer(PrimitiveIdVertexBufferPoolEntry.BufferRHI);
 		}
 
 		SubmitMeshDrawCommandsRange(TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, TaskContext.bDynamicInstancing, 0, TaskContext.MeshDrawCommands.Num(), TaskContext.InstanceFactor, RHICmdList);

@@ -129,10 +129,6 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 			return FString("XBOXONE_D3D12");
 		case SP_OPENGL_SM5:
 			return FString("OPENGL_SM5");
-		case SP_OPENGL_ES2_ANDROID:
-			return FString("OPENGL_ES2_ANDROID");
-		case SP_OPENGL_ES2_WEBGL:
-			return FString("OPENGL_ES2_WEBGL");
 		case SP_METAL:
 			return FString("METAL");
 		case SP_METAL_MRT:
@@ -181,7 +177,6 @@ FString FMaterialStatsUtils::GetPlatformOfflineCompilerPath(const EShaderPlatfor
 {
 	switch (ShaderPlatform)
 	{
-		case SP_OPENGL_ES2_ANDROID:
 		case SP_OPENGL_ES3_1_ANDROID:
 		case SP_VULKAN_ES3_1_ANDROID:
 			return FPaths::ConvertRelativePathToFull(GetDefault<UMaterialEditorSettings>()->MaliOfflineCompilerPath.FilePath);
@@ -210,10 +205,8 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 	{
 		case SP_PS4:
 		case SP_OPENGL_SM5:
-		case SP_OPENGL_ES2_ANDROID:
 		case SP_OPENGL_ES31_EXT:
 		case SP_OPENGL_PCES3_1:
-		case SP_OPENGL_ES2_WEBGL:
 		case SP_VULKAN_PCES3_1:
 		case SP_VULKAN_SM5:
 		case SP_VULKAN_ES3_1_ANDROID:
@@ -237,7 +230,7 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 			return false;
 
 		default:
-			return FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bNeedsOfflineCompiler;
+			return FDataDrivenShaderPlatformInfo::GetNeedsOfflineCompiler(ShaderPlatform);
 	}
 
 	return false;
@@ -626,8 +619,8 @@ void FMaterialStatsUtils::GetRepresentativeInstructionCounts(TArray<FShaderInstr
 				const FMeshMaterialShaderMap* MeshShaderMap = MaterialShaderMap->GetMeshShaderMap(FactoryType);
 				if (MeshShaderMap)
 				{
-					TMap<FName, FShader*> ShaderMap;
-					MeshShaderMap->GetShaderList(ShaderMap);
+					TMap<FHashedName, TShaderRef<FShader>> ShaderMap;
+					MeshShaderMap->GetShaderList(*MaterialShaderMap, ShaderMap);
 
 					auto& DescriptionArray = DescriptionPair.Value;
 
@@ -635,12 +628,12 @@ void FMaterialStatsUtils::GetRepresentativeInstructionCounts(TArray<FShaderInstr
 					{
 						const FRepresentativeShaderInfo& ShaderInfo = DescriptionArray[i];
 
-						FShader** ShaderEntry = ShaderMap.Find(ShaderInfo.ShaderName);
+						TShaderRef<FShader>* ShaderEntry = ShaderMap.Find(ShaderInfo.ShaderName);
 						if (ShaderEntry != nullptr)
 						{
-							FShaderType* ShaderType = (*ShaderEntry)->GetType();
+							FShaderType* ShaderType = (*ShaderEntry).GetType();
 							{
-								const int32 NumInstructions = MeshShaderMap->GetMaxNumInstructionsForShader(ShaderType);
+								const int32 NumInstructions = MeshShaderMap->GetMaxNumInstructionsForShader(*MaterialShaderMap, ShaderType);
 
 								FShaderInstructionsInfo Info;
 								Info.ShaderType = ShaderInfo.ShaderType;

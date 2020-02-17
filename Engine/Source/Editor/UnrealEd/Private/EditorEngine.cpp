@@ -5168,7 +5168,9 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 			if (Blueprint->GeneratedClass->IsChildOf(OldActorClass) && NewActor != NULL)
 			{
 				NewActor->UnregisterAllComponents();
-				UEditorEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor);
+				FCopyPropertiesForUnrelatedObjectsParams Options;
+				Options.bNotifyObjectReplacement = true;
+				UEditorEngine::CopyPropertiesForUnrelatedObjects(OldActor, NewActor, Options);
 				NewActor->RegisterAllComponents();
 			}
 		}
@@ -7490,7 +7492,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		FlushRenderingCommands();
 
 		// Set only require the preview feature level and the max feature level. The Max feature level is required for the toggle feature.
-		for (uint32 i = (uint32)ERHIFeatureLevel::ES2; i < (uint32)ERHIFeatureLevel::Num; i++)
+		for (uint32 i = (uint32)ERHIFeatureLevel::ES3_1; i < (uint32)ERHIFeatureLevel::Num; i++)
 		{
 			ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)i;
 			UMaterialInterface::SetGlobalRequiredFeatureLevel(FeatureLevel, FeatureLevel == PreviewPlatform.PreviewFeatureLevel || FeatureLevel == GMaxRHIFeatureLevel);

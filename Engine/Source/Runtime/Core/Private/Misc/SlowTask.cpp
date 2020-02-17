@@ -105,10 +105,8 @@ void FSlowTask::EnterProgressFrame(float ExpectedWorkThisFrame, FText Text)
 	FrameMessage = Text;
 	CompletedWork += CurrentFrameScope;
 
-#if PLATFORM_XBOXONE
 	// Make sure OS events are getting through while the task is being processed
-	FXboxOneMisc::PumpMessages(true);
-#endif
+	FPlatformMisc::PumpMessagesForSlowTask();
 
 	const float WorkRemaining = TotalAmountOfWork - CompletedWork;
 	// Add a small threshold here because when there are a lot of tasks, numerical imprecision can add up and trigger this.

@@ -40,26 +40,57 @@ namespace Chaos
 		Swing1,
 	};
 
-	/**
-	 * The constraint-space axis about which each rotation constraint is applied
-	 */
-	enum class EJointAngularAxisIndex : int32
-	{
-		Twist = 0,		// Twist Axis = X
-		Swing2 = 1,		// Swing2 Axis = Y
-		Swing1 = 2,		// Swing1 Axis = Z
-	};
-
 	struct FJointConstants
 	{
 		/** The constraint-space twist axis (X Axis) */
-		static const FVec3 TwistAxis() { return FVec3(1, 0, 0); }
+		static inline const FVec3 TwistAxis() { return FVec3(1, 0, 0); }
 
 		/** The constraint-space Swing1 axis (Z Axis) */
-		static const FVec3 Swing1Axis() { return FVec3(0, 0, 1); }
+		static inline const FVec3 Swing1Axis() { return FVec3(0, 0, 1); }
 
 		/** The constraint-space Swing2 axis (Y Axis) */
-		static const FVec3 Swing2Axis() { return FVec3(0, 1, 0); }
+		static inline const FVec3 Swing2Axis() { return FVec3(0, 1, 0); }
+
+		/** Get the local-space axis for the specified constraint type. This will be one of the cardinal axes. */
+		static inline const FVec3 Axis(const EJointAngularConstraintIndex ConstraintIndex)
+		{
+			switch (ConstraintIndex)
+			{
+			case EJointAngularConstraintIndex::Twist:
+				return TwistAxis();
+			case EJointAngularConstraintIndex::Swing1:
+				return Swing1Axis();
+			case EJointAngularConstraintIndex::Swing2:
+				return Swing2Axis();
+			}
+		}
+
+		static inline const FVec3 SwingAxis(const EJointAngularConstraintIndex ConstraintIndex)
+		{
+			return (ConstraintIndex == EJointAngularConstraintIndex::Swing1) ? Swing1Axis() : Swing2Axis();
+		}
+
+		static inline const FVec3 OtherSwingAxis(const EJointAngularConstraintIndex ConstraintIndex)
+		{
+			return (ConstraintIndex == EJointAngularConstraintIndex::Swing1) ? Swing2Axis() : Swing1Axis();
+		}
+
+		/** Get the local-space axis index for the specified constraint type. This can be used to index the vectors of a transform matrix for example. */
+		static inline const int32 AxisIndex(const EJointAngularConstraintIndex ConstraintIndex)
+		{
+			if (ConstraintIndex == EJointAngularConstraintIndex::Twist)
+			{
+				return 0;	// X
+			}
+			else if (ConstraintIndex == EJointAngularConstraintIndex::Swing1)
+			{
+				return 2;	// Z
+			}
+			else
+			{
+				return 1;	// Y
+			}
+		}
 	};
 
 	class CHAOS_API FPBDJointSettings

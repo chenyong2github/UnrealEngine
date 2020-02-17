@@ -790,13 +790,13 @@ struct FStreamingLevelsToConsider
 		: bStreamingLevelsBeingConsidered(false)
 	{}
 
+private:
+
 	/** Priority sorted array of streaming levels actively being considered. */
 	UPROPERTY()
 	TArray<FLevelStreamingWrapper> StreamingLevels;
 
-private:
-
-	enum class EProcessReason
+	enum class EProcessReason : uint8
 	{
 		Add,
 		Reevaluate
@@ -816,6 +816,8 @@ private:
 
 public:
 
+	const TArray<FLevelStreamingWrapper>& GetStreamingLevels() const { return StreamingLevels; }
+
 	void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	void BeginConsideration();
@@ -826,6 +828,9 @@ public:
 
 	/* Remove an element from the container. */
 	bool Remove(ULevelStreaming* StreamingLevel);
+
+	/* Remove the element at a given index from the container. */
+	void RemoveAt(int32 Index);
 
 	/* Returns if an element is in the container. */
 	bool Contains(ULevelStreaming* StreamingLevel) const;
@@ -1004,7 +1009,7 @@ public:
 
 private:
 	/** DefaultPhysicsVolume used for whole game **/
-	UPROPERTY()
+	UPROPERTY(Transient)
 	APhysicsVolume*								DefaultPhysicsVolume;
 
 public:
@@ -2425,7 +2430,7 @@ public:
 	 * @param	bRerunConstructionScripts	If we should rerun construction scripts on actors
 	 * @param	bCurrentLevelOnly			If true, affect only the current level.
 	 */
-	void UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly);
+	void UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly, FRegisterComponentContext* Context = nullptr);
 
 	/**
 	 * Updates cull distance volumes for a specified component or a specified actor or all actors
@@ -3169,7 +3174,7 @@ public:
 	 * @param InURL commandline URL
 	 * @param bResetTime (optional) whether the WorldSettings's TimeSeconds should be reset to zero
 	 */
-	void InitializeActorsForPlay(const FURL& InURL, bool bResetTime = true);
+	void InitializeActorsForPlay(const FURL& InURL, bool bResetTime = true, FRegisterComponentContext* Context = nullptr);
 
 	/**
 	 * Start gameplay. This will cause the game mode to transition to the correct state and call BeginPlay on all actors

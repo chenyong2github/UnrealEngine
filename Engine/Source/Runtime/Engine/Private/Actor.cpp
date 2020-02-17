@@ -1009,6 +1009,8 @@ void AActor::TickActor( float DeltaSeconds, ELevelTick TickType, FActorTickFunct
 
 void AActor::Tick( float DeltaSeconds )
 {
+	bool bShouldAutoDestroy = bAutoDestroyWhenFinished;
+
 	if (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint) || !GetClass()->HasAnyClassFlags(CLASS_Native))
 	{
 		// Blueprint code outside of the construction script should not run in the editor
@@ -1028,25 +1030,28 @@ void AActor::Tick( float DeltaSeconds )
 		UWorld* MyWorld = GetWorld();
 		if (MyWorld)
 		{
-			MyWorld->GetLatentActionManager().ProcessLatentActions(this, MyWorld->GetDeltaSeconds());
+			FLatentActionManager& LatentActionManager = MyWorld->GetLatentActionManager();
+			LatentActionManager.ProcessLatentActions(this, MyWorld->GetDeltaSeconds());
+			if (bShouldAutoDestroy)
+			{
+				bShouldAutoDestroy = (LatentActionManager.GetNumActionsForObject(this) == 0);
+			}
 		}
 	}
 
-	if (bAutoDestroyWhenFinished)
+	if (bShouldAutoDestroy)
 	{
-		bool bOKToDestroy = true;
-
 		for (UActorComponent* const Comp : GetComponents())
 		{
 			if (Comp && !Comp->IsReadyForOwnerToAutoDestroy())
 			{
-				bOKToDestroy = false;
+				bShouldAutoDestroy = false;
 				break;
 			}
 		}
 
 		// die!
-		if (bOKToDestroy)
+		if (bShouldAutoDestroy)
 		{
 			Destroy();
 		}
@@ -4395,7 +4400,7 @@ static USceneComponent* GetUnregisteredParent(UActorComponent* Component)
 	return ParentComponent;
 }
 
-bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
+bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegisterComponentContext* Context)
 {
 	if (NumComponentsToRegister == 0)
 	{
@@ -4425,7 +4430,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
 			// This should prevent unwanted components hanging around when undoing a copy/paste or duplication action.
 			RootComponent->Modify(false);
 
-			RootComponent->RegisterComponentWithWorld(World);
+			RootComponent->RegisterComponentWithWorld(World, Context);
 		}
 	}
 
@@ -4465,7 +4470,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
 			// This should prevent unwanted components hanging around when undoing a copy/paste or duplication action.
 			Component->Modify(false);
 
-			Component->RegisterComponentWithWorld(World);
+			Component->RegisterComponentWithWorld(World, Context);
 			NumRegisteredComponentsThisRun++;
 		}
 

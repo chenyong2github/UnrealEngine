@@ -753,10 +753,10 @@ private:
 	/** Whether this actor is temporarily hidden within the editor; used for show/hide/etc functionality w/o dirtying the actor. */
 	UPROPERTY(Transient)
 	uint8 bHiddenEdTemporary:1;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Set while actor is being constructed. Used to ensure that construction is not re-entrant. */
-	uint8 bActorIsBeingConstructed:1;
-#endif // WITH_EDITORONLY_DATA
+	uint8 bActorIsBeingConstructed : 1;
 
 public:
 	/** Array of tags that can be used for grouping and categorizing. */
@@ -2352,7 +2352,7 @@ public:
 	 * @param NumComponentsToRegister  Number of components to register in this run, 0 for all
 	 * @return true when all components were registered for this actor
 	 */
-	bool IncrementalRegisterComponents(int32 NumComponentsToRegister);
+	bool IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegisterComponentContext* Context = nullptr);
 
 	/** Flags all component's render state as dirty	 */
 	void MarkComponentsRenderStateDirty();

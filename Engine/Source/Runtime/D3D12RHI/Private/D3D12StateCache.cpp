@@ -32,6 +32,10 @@ static FAutoConsoleVariableRef CVarGlobalViewHeapSize(
 	ECVF_ReadOnly
 );
 
+#if !defined(D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES)
+	#define D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES 1
+#endif
+
 extern bool D3D12RHI_ShouldCreateWithD3DDebug();
 
 inline bool operator!=(D3D12_CPU_DESCRIPTOR_HANDLE lhs, D3D12_CPU_DESCRIPTOR_HANDLE rhs)
@@ -790,8 +794,8 @@ void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootS
 
 bool FD3D12StateCacheBase::AssertResourceStates(ED3D12PipelineType PipelineType)
 {
-// This requires the debug layer and isn't an option for Xbox. 
-#if PLATFORM_XBOXONE
+// This requires the debug layer
+#if !D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES
 	UE_LOG(LogD3D12RHI, Log, TEXT("*** VerifyResourceStates requires the debug layer ***"), this);
 	return true;
 #else

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Joint/PBDJointSolverCholesky.h"
+#include "Chaos/Joint/ChaosJointLog.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/Utilities.h"
-#include "ChaosLog.h"
 #include "ChaosStats.h"
 
 //#pragma optimize("", off)

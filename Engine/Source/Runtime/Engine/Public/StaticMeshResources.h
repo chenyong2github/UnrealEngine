@@ -250,7 +250,7 @@ protected:
 	FStaticMeshLODResources* Owner;
 };
 
-typedef TArray<FStaticMeshSectionAreaWeightedTriangleSampler> FStaticMeshSectionAreaWeightedTriangleSamplerArray;
+typedef TArray<FStaticMeshSectionAreaWeightedTriangleSampler, FMemoryImageAllocator> FStaticMeshSectionAreaWeightedTriangleSamplerArray;
 
 /** Represents GPU resource needed for area weighted uniform sampling of a mesh surface. */
 class FStaticMeshSectionAreaWeightedTriangleSamplerBuffer : public FRenderResource
@@ -335,13 +335,12 @@ struct FStaticMeshLODResources
 
 	FAdditionalStaticMeshIndexBuffers* AdditionalIndexBuffers;
 
-#if RHI_RAYTRACING
-	/** Geometry for ray tracing. */
+	/** Resources used for ray tracing */
 	FRayTracingGeometry RayTracingGeometry;
-#endif // RHI_RAYTRACING
 
 	/** Sections for this LOD. */
-	TArray<FStaticMeshSection> Sections;
+	using FStaticMeshSectionArray = TArray<FStaticMeshSection, TInlineAllocator<1>>;
+	FStaticMeshSectionArray Sections;
 
 	/** Distance field data associated with this mesh, null if not present.  */
 	class FDistanceFieldVolumeData* DistanceFieldData; 
@@ -359,11 +358,14 @@ struct FStaticMeshLODResources
 	uint32 bHasReversedIndices : 1;
 
 	/** True if the reversed index buffers contained data at init. Needed as it will not be available to the CPU afterwards. */
-	uint32 bHasReversedDepthOnlyIndices: 1;
+	uint32 bHasReversedDepthOnlyIndices : 1;
 
 	uint32 bHasColorVertexData : 1;
 
 	uint32 bHasWireframeIndices : 1;
+
+	/** True if the ray tracing resources struct contained data at init. */
+	uint32 bHasRayTracingGeometry : 1;
 
 	/** True if vertex and index data are serialized inline */
 	uint32 bBuffersInlined : 1;
@@ -426,6 +428,7 @@ private:
 		CDSF_AdjacencyData = 1,
 		CDSF_MinLodData = 2,
 		CDSF_ReversedIndexBuffer = 4,
+		CDSF_RayTracingResources = 8
 	};
 
 	/**
@@ -473,6 +476,9 @@ private:
 	/** Compute the size of IndexBuffer and add the result to OutSize */
 	static void AccumIndexBufferSize(const FRawStaticIndexBuffer& IndexBuffer, uint32& OutSize);
 
+	/** Compute the size of RayTracingGeometry and add the result to OutSize */
+	static void AccumRayTracingGeometrySize(const FRayTracingGeometry& RayTracingGeometry, uint32& OutSize);
+
 	/**
 	 * Serialize vertex and index buffer data for this LOD
 	 * OutBuffersSize - Size of all serialized data in bytes
@@ -492,8 +498,6 @@ private:
 
 	template <bool bIncrement>
 	void UpdateVertexMemoryStats() const;
-
-	void ConditionalForce16BitIndexBuffer(EShaderPlatform MaxShaderPlatform, UStaticMesh* Parent);
 
 	void IncrementMemoryStats();
 
@@ -548,6 +552,9 @@ struct ENGINE_API FStaticMeshVertexFactories
 	void ReleaseResources();
 };
 
+using FStaticMeshLODResourcesArray = TArray<FStaticMeshLODResources>;
+using FStaticMeshVertexFactoriesArray = TArray<FStaticMeshVertexFactories>;
+
 /**
  * FStaticMeshRenderData - All data needed to render a static mesh.
  */
@@ -558,8 +565,8 @@ public:
 	ENGINE_API FStaticMeshRenderData();
 
 	/** Per-LOD resources. */
-	TIndirectArray<FStaticMeshLODResources> LODResources;
-	TIndirectArray<FStaticMeshVertexFactories> LODVertexFactories;
+	FStaticMeshLODResourcesArray LODResources;
+	FStaticMeshVertexFactoriesArray LODVertexFactories;
 
 	/** Screen size to switch LODs */
 	FPerPlatformFloat ScreenSize[MAX_STATIC_MESH_LODS];
@@ -583,6 +590,7 @@ public:
 	uint8 CurrentFirstLODIdx;
 
 #if WITH_EDITORONLY_DATA
+
 	/** The derived data key associated with this render data. */
 	FString DerivedDataKey;
 
@@ -592,16 +600,18 @@ public:
 	/** UV data used for streaming accuracy debug view modes. In sync for rendering thread */
 	TArray<FMeshUVChannelInfo> UVChannelDataPerMaterial;
 
-	void SyncUVChannelData(const TArray<FStaticMaterial>& ObjectData);
 
 	/** The next cached derived data in the list. */
 	TUniquePtr<class FStaticMeshRenderData> NextCachedRenderData;
+
+
+	void SyncUVChannelData(const TArray<FStaticMaterial>& ObjectData);
 
 	/**
 	 * Cache derived renderable data for the static mesh with the provided
 	 * level of detail settings.
 	 */
-	ENGINE_API void Cache(UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings);
+	ENGINE_API void Cache(const ITargetPlatform* TargetPlatform, UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings);
 #endif // #if WITH_EDITORONLY_DATA
 
 	/** Serialization. */
@@ -748,7 +758,7 @@ public:
 
 				if (Component->IsRegistered() && !Component->bRenderStateCreated)
 				{
-					Component->CreateRenderState_Concurrent();
+					Component->CreateRenderState_Concurrent(nullptr);
 					Scenes.Add(Component->GetScene());
 				}
 			}
@@ -799,7 +809,7 @@ public:
 	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const override;
 
 	virtual void CreateRenderThreadResources() override;
-		
+
 	virtual void DestroyRenderThreadResources() override;
 
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
@@ -931,7 +941,7 @@ protected:
 		};
 
 		/** Per-section information. */
-		TArray<FSectionInfo> Sections;
+		TArray<FSectionInfo, TInlineAllocator<1>> Sections;
 
 		/** Vertex color data for this LOD (or NULL when not overridden), FStaticMeshComponentLODInfo handle the release of the memory */
 		FColorVertexBuffer* OverrideColorVertexBuffer;
@@ -941,7 +951,7 @@ protected:
 		const FRawStaticIndexBuffer* PreCulledIndexBuffer;
 
 		/** Initialization constructor. */
-		FLODInfo(const UStaticMeshComponent* InComponent, const TIndirectArray<FStaticMeshVertexFactories>& InLODVertexFactories, int32 InLODIndex, int32 InClampedMinLOD, bool bLODsShareStaticLighting);
+		FLODInfo(const UStaticMeshComponent* InComponent, const FStaticMeshVertexFactoriesArray& InLODVertexFactories, int32 InLODIndex, int32 InClampedMinLOD, bool bLODsShareStaticLighting);
 
 		bool UsesMeshModifyingMaterials() const { return bUsesMeshModifyingMaterials; }
 
@@ -959,7 +969,7 @@ protected:
 
 	FStaticMeshOccluderData* OccluderData;
 
-	TIndirectArray<FLODInfo> LODs;
+	TArray<FLODInfo> LODs;
 
 	const FDistanceFieldVolumeData* DistanceFieldData;	
 
@@ -1115,19 +1125,22 @@ public:
 		delete InstanceOriginData;
 		delete InstanceLightmapData;
 		delete InstanceTransformData;
+		delete InstanceCustomData;
 	}
 
 	void Serialize(FArchive& Ar);
 	
-	void AllocateInstances(int32 InNumInstances, EResizeBufferFlags BufferFlags, bool DestroyExistingInstances)
+	void AllocateInstances(int32 InNumInstances, int32 InNumCustomDataFloats, EResizeBufferFlags BufferFlags, bool DestroyExistingInstances)
 	{
 		NumInstances = InNumInstances;
+		NumCustomDataFloats = InNumCustomDataFloats;
 
 		if (DestroyExistingInstances)
 		{
 			InstanceOriginData->Empty(NumInstances);
 			InstanceLightmapData->Empty(NumInstances);
 			InstanceTransformData->Empty(NumInstances);
+			InstanceCustomData->Empty(NumCustomDataFloats * NumInstances);
 		}
 
 		// We cannot write directly to the data on all platforms,
@@ -1140,6 +1153,9 @@ public:
 
 		InstanceTransformData->ResizeBuffer(NumInstances, BufferFlags);
 		InstanceTransformDataPtr = InstanceTransformData->GetDataPointer();
+
+		InstanceCustomData->ResizeBuffer(NumCustomDataFloats * NumInstances, BufferFlags);
+		InstanceCustomDataPtr = InstanceCustomData->GetDataPointer();
 	}
 
 	FORCEINLINE_DEBUGGABLE int32 IsValidIndex(int32 Index) const
@@ -1197,6 +1213,11 @@ public:
 		GetInstanceOriginInternal(InstanceIndex, InstanceOrigin);
 	}
 
+	FORCEINLINE_DEBUGGABLE void GetInstanceShaderCustomDataValues(int32 InstanceIndex, TArray<float>& CustomData) const
+	{
+		GetInstanceCustomDataInternal(InstanceIndex, CustomData);
+	}
+
 	FORCEINLINE_DEBUGGABLE void SetInstance(int32 InstanceIndex, const FMatrix& Transform, float RandomInstanceID)
 	{
 		FVector4 Origin(Transform.M[3][0], Transform.M[3][1], Transform.M[3][2], RandomInstanceID);
@@ -1217,6 +1238,11 @@ public:
 		}
 
 		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(0, 0, 0, 0));
+
+		for (int32 i = 0; i < NumCustomDataFloats; ++i)
+		{
+			SetInstanceCustomDataInternal(InstanceIndex, i, 0);
+		}
 	}
 	
 	FORCEINLINE_DEBUGGABLE void SetInstance(int32 InstanceIndex, const FMatrix& Transform, float RandomInstanceID, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
@@ -1239,6 +1265,11 @@ public:
 		}
 
 		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
+
+		for (int32 i = 0; i < NumCustomDataFloats; ++i)
+		{
+			SetInstanceCustomDataInternal(InstanceIndex, i, 0);
+		}
 	}
 
 	FORCEINLINE void SetInstance(int32 InstanceIndex, const FMatrix& Transform, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
@@ -1264,11 +1295,21 @@ public:
 		}
 
 		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
+
+		for (int32 i = 0; i < NumCustomDataFloats; ++i)
+		{
+			SetInstanceCustomDataInternal(InstanceIndex, i, 0);
+		}
 	}
 
 	FORCEINLINE void SetInstanceLightMapData(int32 InstanceIndex, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
 	{
 		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
+	}
+	
+	FORCEINLINE void SetInstanceCustomData(int32 InstanceIndex, int32 Index, float CustomData)
+	{
+		SetInstanceCustomDataInternal(InstanceIndex, Index, CustomData);
 	}
 	
 	FORCEINLINE_DEBUGGABLE void NullifyInstance(int32 InstanceIndex)
@@ -1290,6 +1331,11 @@ public:
 		}
 
 		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(0, 0, 0, 0));
+
+		for (int32 i = 0; i < NumCustomDataFloats; ++i)
+		{
+			SetInstanceCustomDataInternal(InstanceIndex, i, 0);
+		}
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetInstanceEditorData(int32 InstanceIndex, FColor HitProxyColor, bool bSelected)
@@ -1387,11 +1433,35 @@ public:
 			ElementData[Index1] = ElementData[Index2];
 			ElementData[Index2] = TempStore;
 		}
+		{
+			float* ElementData = reinterpret_cast<float*>(InstanceCustomDataPtr);
+			const uint32 CurrentSize = InstanceCustomData->Num() * InstanceCustomData->GetStride();
+
+			for (int32 i = 0; i < NumCustomDataFloats; ++i)
+			{
+				const int32 CustomDataIndex1 = NumCustomDataFloats * Index1 + i;
+				const int32 CustomDataIndex2 = NumCustomDataFloats * Index2 + i;
+
+				check((void*)((&ElementData[CustomDataIndex1]) + 1) <= (void*)(InstanceCustomDataPtr + CurrentSize));
+				check((void*)((&ElementData[CustomDataIndex1]) + 0) >= (void*)(InstanceCustomDataPtr));
+				check((void*)((&ElementData[CustomDataIndex2]) + 1) <= (void*)(InstanceCustomDataPtr + CurrentSize));
+				check((void*)((&ElementData[CustomDataIndex2]) + 0) >= (void*)(InstanceCustomDataPtr));
+
+				float TempStore = ElementData[CustomDataIndex1];
+				ElementData[CustomDataIndex1] = ElementData[CustomDataIndex2];
+				ElementData[CustomDataIndex2] = TempStore;
+			}
+		}
 	}
 
 	FORCEINLINE_DEBUGGABLE int32 GetNumInstances() const
 	{
 		return NumInstances;
+	}
+
+	FORCEINLINE_DEBUGGABLE int32 GetNumCustomDataFloats() const
+	{
+		return NumCustomDataFloats;
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetAllowCPUAccess(bool InNeedsCPUAccess)
@@ -1407,6 +1477,10 @@ public:
 		if (InstanceTransformData)
 		{
 			InstanceTransformData->GetResourceArray()->SetAllowCPUAccess(InNeedsCPUAccess);
+		}
+		if (InstanceCustomData)
+		{
+			InstanceCustomData->GetResourceArray()->SetAllowCPUAccess(InNeedsCPUAccess);
 		}
 	}
 
@@ -1430,6 +1504,11 @@ public:
 		return InstanceLightmapData->GetResourceArray();
 	}
 
+	FORCEINLINE_DEBUGGABLE FResourceArrayInterface* GetCustomDataResourceArray()
+	{
+		return InstanceCustomData->GetResourceArray();
+	}
+
 	FORCEINLINE_DEBUGGABLE uint32 GetOriginStride()
 	{
 		return InstanceOriginData->GetStride();
@@ -1445,11 +1524,17 @@ public:
 		return InstanceLightmapData->GetStride();
 	}
 
+	FORCEINLINE_DEBUGGABLE uint32 GetCustomDataStride()
+	{
+		return InstanceCustomData->GetStride();
+	}
+
 	FORCEINLINE_DEBUGGABLE SIZE_T GetResourceSize() const
 	{
 		return	InstanceOriginData->GetResourceSize() + 
 				InstanceTransformData->GetResourceSize() + 
-				InstanceLightmapData->GetResourceSize();
+				InstanceLightmapData->GetResourceSize() +
+				InstanceCustomData->GetResourceSize();
 	}
 
 private:
@@ -1503,6 +1588,24 @@ private:
 		);
 	}
 
+	FORCEINLINE_DEBUGGABLE void GetInstanceCustomDataInternal(int32 InstanceIndex, TArray<float>& CustomData) const
+	{
+		check(CustomData.Num() == NumCustomDataFloats);
+
+		float* ElementData = reinterpret_cast<float*>(InstanceCustomDataPtr);
+		const uint32 CurrentSize = InstanceCustomData->Num() * InstanceCustomData->GetStride();
+
+		for (int32 i = 0; i < NumCustomDataFloats; ++i)
+		{
+			int32 CustomDataIndex = NumCustomDataFloats * InstanceIndex + i;
+			
+			check((void*)((&ElementData[CustomDataIndex]) + 1) <= (void*)(InstanceCustomDataPtr + CurrentSize));
+			check((void*)((&ElementData[CustomDataIndex]) + 0) >= (void*)(InstanceCustomDataPtr));
+
+			CustomData[i] = ElementData[CustomDataIndex];
+		}
+	}
+
 	template<typename T>
 	FORCEINLINE_DEBUGGABLE void SetInstanceTransformInternal(int32 InstanceIndex, FVector4(Transform)[3]) const
 	{
@@ -1550,6 +1653,24 @@ private:
 		ElementData[InstanceIndex].InstanceLightmapAndShadowMapUVBias[3] = FMath::Clamp<int32>(FMath::TruncToInt(LightmapData.W * 32767.0f), MIN_int16, MAX_int16);
 	}
 
+	FORCEINLINE_DEBUGGABLE void SetInstanceCustomDataInternal(int32 InstanceIndex, int32 DataIndex, float CustomData)
+	{
+		if (DataIndex >= NumCustomDataFloats)
+		{
+			return;
+		}
+
+		float* ElementData = reinterpret_cast<float*>(InstanceCustomDataPtr);
+		const uint32 CurrentSize = InstanceCustomData->Num() * InstanceCustomData->GetStride();
+
+		const int32 CustomDataIndex = NumCustomDataFloats * InstanceIndex + DataIndex;
+
+		check((void*)((&ElementData[CustomDataIndex]) + 1) <= (void*)(InstanceCustomDataPtr + CurrentSize));
+		check((void*)((&ElementData[CustomDataIndex]) + 0) >= (void*)(InstanceCustomDataPtr));
+
+		ElementData[CustomDataIndex] = CustomData;
+	}
+
 	void AllocateBuffers(int32 InNumInstances, EResizeBufferFlags BufferFlags = EResizeBufferFlags::None)
 	{
 		delete InstanceOriginData;
@@ -1560,6 +1681,9 @@ private:
 		
 		delete InstanceLightmapData;
 		InstanceLightmapDataPtr = nullptr;
+		 		
+		delete InstanceCustomData;
+		InstanceCustomData = nullptr;
 		 		
 		InstanceOriginData = new TStaticMeshVertexData<FVector4>();
 		InstanceOriginData->ResizeBuffer(InNumInstances, BufferFlags);
@@ -1574,6 +1698,9 @@ private:
 			InstanceTransformData = new TStaticMeshVertexData<FInstanceTransformMatrix<float>>();
 		}
 		InstanceTransformData->ResizeBuffer(InNumInstances, BufferFlags);
+		
+		InstanceCustomData = new TStaticMeshVertexData<float>();
+		InstanceCustomData->ResizeBuffer(NumCustomDataFloats * InNumInstances, BufferFlags);
 	}
 
 	FStaticMeshVertexDataInterface* InstanceOriginData = nullptr;
@@ -1585,7 +1712,11 @@ private:
 	FStaticMeshVertexDataInterface* InstanceLightmapData = nullptr;
 	uint8* InstanceLightmapDataPtr = nullptr;	
 
+	FStaticMeshVertexDataInterface* InstanceCustomData = nullptr;
+	uint8* InstanceCustomDataPtr = nullptr;
+
 	int32 NumInstances = 0;
+	int32 NumCustomDataFloats = 0;
 	bool bUseHalfFloat = false;
 };
 	

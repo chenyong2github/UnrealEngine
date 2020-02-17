@@ -112,7 +112,7 @@ void FAYUVConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FAYUVConvertUB> Data = TUniformBufferRef<FAYUVConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FAYUVConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FAYUVConvertUB>(), Data);
 }
 
 
@@ -141,7 +141,7 @@ void FBMPConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRH
 	}
 
 	TUniformBufferRef<FBMPConvertUB> Data = TUniformBufferRef<FBMPConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FBMPConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FBMPConvertUB>(), Data);
 }
 
 
@@ -176,7 +176,7 @@ void FNV12ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FNV12ConvertUB> Data = TUniformBufferRef<FNV12ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FNV12ConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FNV12ConvertUB>(), Data);
 }
 
 
@@ -211,7 +211,7 @@ void FNV21ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FNV21ConvertUB> Data = TUniformBufferRef<FNV21ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FNV21ConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FNV21ConvertUB>(), Data);
 }
 
 
@@ -240,7 +240,7 @@ void FRGBConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRH
 	}
 
 	TUniformBufferRef<FRGBConvertUB> Data = TUniformBufferRef<FRGBConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FRGBConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGBConvertUB>(), Data);
 }
 
 
@@ -277,7 +277,7 @@ void FYCbCrConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<F
 	}
 
 	TUniformBufferRef<FYCbCrConvertUB> Data = TUniformBufferRef<FYCbCrConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FYCbCrConvertUB>(), Data);	
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYCbCrConvertUB>(), Data);	
 }
 
 
@@ -310,7 +310,7 @@ void FUYVYConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FUYVYConvertUB> Data = TUniformBufferRef<FUYVYConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FUYVYConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FUYVYConvertUB>(), Data);
 }
 
 
@@ -349,7 +349,7 @@ void FYUVConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRH
 	}
 
 	TUniformBufferRef<FYUVConvertUB> Data = TUniformBufferRef<FYUVConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FYUVConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYUVConvertUB>(), Data);
 }
 
 
@@ -380,7 +380,7 @@ void FYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr
 	}
 
 	TUniformBufferRef<FYUVv210ConvertUB> Data = TUniformBufferRef<FYUVv210ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FYUVv210ConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYUVv210ConvertUB>(), Data);
 }
 
 
@@ -415,7 +415,7 @@ void FYUY2ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FYUY2ConvertUB> Data = TUniformBufferRef<FYUY2ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FYUY2ConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYUY2ConvertUB>(), Data);
 }
 
 
@@ -448,7 +448,7 @@ void FYVYUConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FYVYUConvertUB> Data = TUniformBufferRef<FYVYUConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FYVYUConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FYVYUConvertUB>(), Data);
 }
 
 
@@ -479,7 +479,7 @@ void FRGB8toUYVY8ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCoun
 	}
 
 	TUniformBufferRef<FRGB8toUYVY8ConvertUB> Data = TUniformBufferRef<FRGB8toUYVY8ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FRGB8toUYVY8ConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGB8toUYVY8ConvertUB>(), Data);
 }
 
 
@@ -510,7 +510,7 @@ void FRGB10toYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefC
 	}
 
 	TUniformBufferRef<FRGB10toYUVv210ConvertUB> Data = TUniformBufferRef<FRGB10toYUVv210ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FRGB10toYUVv210ConvertUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGB10toYUVv210ConvertUB>(), Data);
 }
 
 
@@ -535,7 +535,7 @@ void FInvertAlphaPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FInvertAlphaUB> Data = TUniformBufferRef<FInvertAlphaUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FInvertAlphaUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FInvertAlphaUB>(), Data);
 }
 
 
@@ -560,7 +560,7 @@ void FSetAlphaOnePS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	}
 
 	TUniformBufferRef<FSetAlphaOneUB> Data = TUniformBufferRef<FSetAlphaOneUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FSetAlphaOneUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FSetAlphaOneUB>(), Data);
 }
 
 
@@ -589,5 +589,5 @@ void FReadTextureExternalPS::SetParameters(FRHICommandList& CommandList, FTextur
 	}
 
 	TUniformBufferRef<FReadTextureExternalUB> Data = TUniformBufferRef<FReadTextureExternalUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FReadTextureExternalUB>(), Data);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FReadTextureExternalUB>(), Data);
 }

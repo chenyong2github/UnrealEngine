@@ -14,6 +14,8 @@
 #include "Containers/SortedMap.h"
 #include "SkinnedMeshComponent.generated.h"
 
+enum class ESkinCacheUsage : uint8;
+
 class FPrimitiveSceneProxy;
 class FColorVertexBuffer;
 class FSkinWeightVertexBuffer;
@@ -230,6 +232,12 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent
 	 */
 	UPROPERTY(BlueprintReadOnly, Category="Mesh")
 	TWeakObjectPtr<USkinnedMeshComponent> MasterPoseComponent;
+
+	/**
+	 * How this Component's LOD uses the skin cache feature. Auto will defer to the asset's (SkeletalMesh) option. If Ray Tracing is enabled, will imply Enabled
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TArray<ESkinCacheUsage> SkinCacheUsage;
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const
@@ -800,6 +808,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	bool GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const;
 
+	bool IsSkinCacheAllowed(int32 LodIdx) const;
+
 public:
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
@@ -815,7 +825,7 @@ protected:
 	//~ Begin UActorComponent Interface
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
 	virtual bool RequiresGameThreadEndOfFrameRecreate() const override
@@ -1558,7 +1568,7 @@ public:
 
 		if (bWasRenderStateCreated && bIsRegistered)
 		{
-			Component->CreateRenderState_Concurrent();
+			Component->CreateRenderState_Concurrent(nullptr);
 		}
 	}
 };

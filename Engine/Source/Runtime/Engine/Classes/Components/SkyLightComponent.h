@@ -310,7 +310,7 @@ protected:
 	static FCriticalSection SkyCapturesToUpdateLock;
 
 	//~ Begin UActorComponent Interface
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
 	//~ Begin UActorComponent Interface
 

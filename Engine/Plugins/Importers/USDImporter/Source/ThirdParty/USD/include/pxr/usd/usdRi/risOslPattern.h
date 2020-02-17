@@ -136,7 +136,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDRI_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -148,7 +148,7 @@ private:
 
     // override SchemaBase virtuals.
     USDRI_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -156,10 +156,11 @@ public:
     // --------------------------------------------------------------------- //
     /// 
     ///
-    /// \n  C++ Type: SdfAssetPath
-    /// \n  Usd Type: SdfValueTypeNames->Asset
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: @PxrOSL@
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `asset info:filePath = @PxrOSL@` |
+    /// | C++ Type | SdfAssetPath |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Asset |
     USDRI_API
     UsdAttribute GetFilePathAttr() const;
 
@@ -177,10 +178,11 @@ public:
     // --------------------------------------------------------------------- //
     /// 
     ///
-    /// \n  C++ Type: SdfAssetPath
-    /// \n  Usd Type: SdfValueTypeNames->Asset
-    /// \n  Variability: SdfVariabilityVarying
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `asset info:oslPath` |
+    /// | C++ Type | SdfAssetPath |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Asset |
     USDRI_API
     UsdAttribute GetOslPathAttr() const;
 

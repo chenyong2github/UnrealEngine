@@ -46,7 +46,7 @@ public:
 private:
 	virtual TSharedRef< ITableRow > OnGenerateRow( FUsdStageTreeItemRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable ) override;
 	virtual void OnGetChildren( FUsdStageTreeItemRef InParent, TArray< FUsdStageTreeItemRef >& OutChildren ) const override;
-	
+
 	void ScrollItemIntoView( FUsdStageTreeItemRef TreeItem );
 	virtual void OnTreeItemScrolledIntoView( FUsdStageTreeItemRef TreeItem, const TSharedPtr< ITableRow >& Widget ) override ;
 
@@ -62,6 +62,7 @@ private:
 	void OnAddReference();
 	void OnClearReferences();
 
+	bool CanAddPrim() const;
 	bool CanExecutePrimAction() const;
 
 	TOptional< FString > BrowseFile();

@@ -1027,6 +1027,14 @@ public:
 	UPROPERTY(globalconfig)
 	FSoftObjectPath ClothPaintMaterialWireframeName;
 
+	/** A material used to render physical material mask on mesh. */
+	UPROPERTY()
+	class UMaterial* PhysicalMaterialMaskMaterial;
+
+	/** A material used to render physical material mask on mesh. */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath PhysicalMaterialMaskMaterialName;
+
 	/** A material used to render debug meshes. */
 	UPROPERTY()
 	class UMaterial* DebugEditorMaterial;
@@ -1125,9 +1133,6 @@ public:
 	*/
 	UPROPERTY(globalconfig)
 	float MaxPixelShaderAdditiveComplexityCount;
-
-	UPROPERTY(globalconfig)
-	float MaxES2PixelShaderAdditiveComplexityCount;
 
 	UPROPERTY(globalconfig)
 	float MaxES3PixelShaderAdditiveComplexityCount;
@@ -2472,7 +2477,7 @@ public:
 	FAudioDeviceHandle GetActiveAudioDevice();
 
 	/** @return whether we're currently running in split screen (more than one local player) */
-	bool IsSplitScreen(UWorld *InWorld);
+	virtual bool IsSplitScreen(UWorld *InWorld);
 
 	/** @return whether we're currently running with stereoscopic 3D enabled for the specified viewport (or globally, if viewport is nullptr) */
 	bool IsStereoscopic3D(FViewport* InViewport = nullptr);
@@ -2664,7 +2669,7 @@ public:
 			, bCopyDeprecatedProperties(false)
 			, bPreserveRootComponent(true)
 			, bSkipCompilerGeneratedDefaults(false)
-			, bNotifyObjectReplacement(true)
+			, bNotifyObjectReplacement(false)
 			, bClearReferences(true)
 		{}
 	};

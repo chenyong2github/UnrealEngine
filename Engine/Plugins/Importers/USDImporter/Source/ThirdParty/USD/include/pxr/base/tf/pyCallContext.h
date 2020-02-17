@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_PY_CALL_CONTEXT_H
-#define TF_PY_CALL_CONTEXT_H
+#ifndef PXR_BASE_TF_PY_CALL_CONTEXT_H
+#define PXR_BASE_TF_PY_CALL_CONTEXT_H
 
 #include "pxr/base/tf/callContext.h"
 
@@ -36,4 +36,4 @@ Tf_PythonCallContext(char const *fileName,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_PY_CALL_CONTEXT_H
+#endif // PXR_BASE_TF_PY_CALL_CONTEXT_H

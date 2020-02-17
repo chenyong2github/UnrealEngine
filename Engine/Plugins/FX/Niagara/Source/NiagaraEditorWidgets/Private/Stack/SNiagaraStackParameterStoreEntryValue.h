@@ -37,8 +37,6 @@ private:
 
 	void ParameterPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 
-	EVisibility GetDeleteButtonVisibility() const;
-
 	EVisibility GetReferenceVisibility() const;
 
 	EVisibility GetResetButtonVisibility() const;

@@ -5,6 +5,7 @@
 #include "OnlineStoreGooglePlay.h"
 #include "OnlineError.h"
 #include "Misc/Base64.h"
+#include "Async/TaskGraphInterfaces.h"
 #include <jni.h>
 #include "Android/AndroidJavaEnv.h"
 #include "Async/TaskGraphInterfaces.h"

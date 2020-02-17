@@ -22,10 +22,12 @@ public:
 
 	static void RecacheCookOverrides();
 
-	static const FPlatformAudioCookOverrides* GetCookOverridesForCurrentPlatform(bool bForceRecache = false);
+	// null platformname means to use current platform
+	static const FPlatformAudioCookOverrides* GetCookOverrides(const TCHAR* PlatformName=nullptr, bool bForceRecache = false);
 
 	static bool IsCurrentPlatformUsingStreamCaching();
 
+	// null platformname means to use current platform
 	static const FAudioStreamCachingSettings& GetStreamCachingSettingsForCurrentPlatform();
 
 	/** This is used at runtime to initialize FCachedAudioStreamingManager. */

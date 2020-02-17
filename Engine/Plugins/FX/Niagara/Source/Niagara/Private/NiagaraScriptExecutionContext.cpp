@@ -318,9 +318,9 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
 	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
 	uint32 InstanceIndex = 0;
-	for (int32 i = 0; i < InSystemInstance->GetEmitters().Num(); i++)
+	for (int32 EmitterIdx : InSystemInstance->GetEmitterExecutionOrder())
 	{
-		FNiagaraEmitterInstance* Emitter = &InSystemInstance->GetEmitters()[i].Get();
+		FNiagaraEmitterInstance* Emitter = &InSystemInstance->GetEmitters()[EmitterIdx].Get();
 
 		if (Emitter && Emitter->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Emitter->GetGPUContext() != nullptr && Emitter->GetExecutionState() != ENiagaraExecutionState::Complete)
 		{
@@ -351,8 +351,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			FMemory::Memcpy(InstanceData->SystemParamData + sizeof(FNiagaraSystemParameters), &InSystemInstance->GetSystemParameters(true), sizeof(FNiagaraSystemParameters));
 			FMemory::Memcpy(InstanceData->OwnerParamData, &InSystemInstance->GetOwnerParameters(), sizeof(FNiagaraOwnerParameters));
 			FMemory::Memcpy(InstanceData->OwnerParamData + sizeof(FNiagaraOwnerParameters), &InSystemInstance->GetOwnerParameters(true), sizeof(FNiagaraOwnerParameters));
-			FMemory::Memcpy(InstanceData->EmitterParamData, &InSystemInstance->GetEmitterParameters(i), sizeof(FNiagaraEmitterParameters));
-			FMemory::Memcpy(InstanceData->EmitterParamData + sizeof(FNiagaraEmitterParameters), &InSystemInstance->GetEmitterParameters(i, true), sizeof(FNiagaraEmitterParameters));
+			FMemory::Memcpy(InstanceData->EmitterParamData, &InSystemInstance->GetEmitterParameters(EmitterIdx), sizeof(FNiagaraEmitterParameters));
+			FMemory::Memcpy(InstanceData->EmitterParamData + sizeof(FNiagaraEmitterParameters), &InSystemInstance->GetEmitterParameters(EmitterIdx, true), sizeof(FNiagaraEmitterParameters));
 
 			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, ParmSize);
 
@@ -479,18 +479,22 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 	HasInterpolationParameters = GPUScript && GPUScript->GetComputedVMCompilationId().HasInterpolatedParameters();
 	
 #if DO_CHECK
-	FNiagaraShader *Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
-	DIParamInfo.Empty();
-	if (Shader)
+	FNiagaraShaderRef Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
+	if (Shader.IsValid())
 	{
-		for (FNiagaraDataInterfaceParamRef& DIParams : Shader->GetDIParameters())
+		DIClassNames.Empty(Shader->GetDIParameters().Num());
+		for (const FNiagaraDataInterfaceParamRef& DIParams : Shader->GetDIParameters())
 		{
-			DIParamInfo.Add(DIParams.ParameterInfo);
+			DIClassNames.Add(DIParams.DIType.Get(Shader.GetPointerTable().DITypes)->GetClass()->GetName());
 		}
 	}
 	else
 	{
-		DIParamInfo = InGPUComputeScript->GetRenderThreadScript()->GetDataInterfaceParamInfo();
+		DIClassNames.Empty(InGPUComputeScript->GetRenderThreadScript()->GetDataInterfaceParamInfo().Num());
+		for (const FNiagaraDataInterfaceGPUParamInfo& DIParams : InGPUComputeScript->GetRenderThreadScript()->GetDataInterfaceParamInfo())
+		{
+			DIClassNames.Add(DIParams.DIClassName);
+		}
 	}
 #endif
 }
@@ -507,19 +511,19 @@ bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemI
 #if DO_CHECK
 		const TArray<UNiagaraDataInterface*> &DataInterfaces = CombinedParamStore.GetDataInterfaces();
 		// We must make sure that the data interfaces match up between the original script values and our overrides...
-		if (DIParamInfo.Num() != DataInterfaces.Num())
+		if (DIClassNames.Num() != DataInterfaces.Num())
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Mismatch between Niagara GPU Execution Context data interfaces and those in its script!"));
 			return false;
 		}
 
-		for (int32 i = 0; i < DIParamInfo.Num(); ++i)
+		for (int32 i = 0; i < DIClassNames.Num(); ++i)
 		{
 			FString UsedClassName = DataInterfaces[i]->GetClass()->GetName();
-			if (DIParamInfo[i].DIClassName != UsedClassName)
+			if (DIClassNames[i] != UsedClassName)
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Mismatched class between Niagara GPU Execution Context data interfaces and those in its script!\nIndex:%d\nShader:%s\nScript:%s")
-					, i, *DIParamInfo[i].DIClassName, *UsedClassName);
+					, i, *DIClassNames[i], *UsedClassName);
 			}
 		}
 #endif

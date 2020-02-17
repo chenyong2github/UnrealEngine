@@ -78,15 +78,6 @@ class FAndroidPlatformEditorModule
 			);
 
 			{
-				static FName NAME_OPENGL_ES2(TEXT("GLSL_ES2"));
-				UShaderPlatformQualitySettings* AndroidMaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(NAME_OPENGL_ES2);
-				SettingsModule->RegisterSettings("Project", "Platforms", "AndroidES2Quality",
-					LOCTEXT("AndroidES2QualitySettingsName", "Android Material Quality - ES2"),
-					LOCTEXT("AndroidES2QualitySettingsDescription", "Settings for Android ES2 material quality"),
-					AndroidMaterialQualitySettings
-				);
-			}
-			{
 				static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
 				UShaderPlatformQualitySettings* AndroidMaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(NAME_GLSL_ES3_1_ANDROID);
 				SettingsModule->RegisterSettings("Project", "Platforms", "AndroidES31Quality",
@@ -122,13 +113,6 @@ class FAndroidPlatformEditorModule
 							return;
 						}
 
-						if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES2) &&
-							AndroidRuntimeSettings->bBuildForES2 == false)
-						{
-							FCoreDelegates::OnFeatureLevelDisabled.Broadcast(ERHIFeatureLevel::ES2, FName());
-							return;
-						}
-
 						if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bSupportsVulkan) &&
 							AndroidRuntimeSettings->bSupportsVulkan == false)
 						{
@@ -157,7 +141,6 @@ class FAndroidPlatformEditorModule
 		{
 			SettingsModule->UnregisterSettings("Project", "Platforms", "Android");
 			SettingsModule->UnregisterSettings("Project", "Platforms", "AndroidSDK");
-			SettingsModule->UnregisterSettings("Project", "Platforms", "AndroidES2Quality");
 			SettingsModule->UnregisterSettings("Project", "Platforms", "AndroidES31Quality");
 			SettingsModule->UnregisterSettings("Project", "Platforms", "AndroidVulkanQuality");
 		}

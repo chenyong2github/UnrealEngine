@@ -440,7 +440,9 @@ void UChildActorComponent::SetChildActorClass(TSubclassOf<AActor> Class, AActor*
 				{
 					if (ActorTemplate == nullptr)
 					{
-						UEngine::CopyPropertiesForUnrelatedObjects(ChildActorTemplate, NewChildActorTemplate);
+						UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+						Options.bNotifyObjectReplacement = true;
+						UEngine::CopyPropertiesForUnrelatedObjects(ChildActorTemplate, NewChildActorTemplate, Options);
 					}
 					ChildActorTemplate->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
 				}
@@ -594,7 +596,11 @@ void UChildActorComponent::CreateChildActor()
 					const FComponentInstanceDataCache* ComponentInstanceData = (CachedInstanceData ? CachedInstanceData->ComponentInstanceData.Get() : nullptr);
 					ChildActor->FinishSpawning(GetComponentTransform(), false, ComponentInstanceData);
 
-					ChildActor->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					if (USceneComponent* ChildRoot = ChildActor->GetRootComponent())
+					{
+						TGuardValue<TEnumAsByte<EComponentMobility::Type>> MobilityGuard(ChildRoot->Mobility, Mobility);
+						ChildRoot->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+					}
 
 					SetIsReplicated(ChildActor->GetIsReplicated());
 

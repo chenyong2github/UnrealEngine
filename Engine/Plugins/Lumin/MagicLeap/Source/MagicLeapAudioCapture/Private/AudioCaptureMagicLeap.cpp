@@ -22,11 +22,11 @@ namespace
 		Audio::FAudioCaptureMagicLeapStream* AudioCapture = (Audio::FAudioCaptureMagicLeapStream*)CallbackContext;
 		check(MLHandleIsValid(AudioCapture->InputDeviceHandle));
 		MLAudioBuffer OutputBuffer;
-		MLResult Result = MLAudioGetInputStreamBuffer(AudioCapture->InputDeviceHandle, &OutputBuffer);
+		MLResult Result = MLAudioGetInputBuffer(AudioCapture->InputDeviceHandle, &OutputBuffer);
 		if (Result == MLResult_Ok)
 		{
 			AudioCapture->OnAudioCapture(OutputBuffer.ptr, OutputBuffer.size / sizeof(int16), 0.0, false);
-			Result = MLAudioReleaseInputStreamBuffer(AudioCapture->InputDeviceHandle);
+			Result = MLAudioReleaseInputBuffer(AudioCapture->InputDeviceHandle);
 		}
 	}
 }
@@ -42,7 +42,7 @@ bool Audio::FAudioCaptureMagicLeapStream::GetCaptureDeviceInfo(FCaptureDeviceInf
 	uint32 MinBufferSize = 0;
 	uint32 UnsignedSampleRate = SampleRate;
 
-	MLResult Result = MLAudioGetInputStreamDefaults(ChannelCount, UnsignedSampleRate, &DefaultBufferFormat, &BufferSize, &MinBufferSize);
+	MLResult Result = MLAudioGetBufferedInputDefaults(ChannelCount, UnsignedSampleRate, &DefaultBufferFormat, &BufferSize, &MinBufferSize);
 	if (Result == MLResult_Ok)
 	{
 		OutInfo.DeviceName = TEXT("MLAudio Microphones");
@@ -75,7 +75,7 @@ bool Audio::FAudioCaptureMagicLeapStream::OpenCaptureStream(const FAudioCaptureD
 	uint32 UnsignedSampleRate = SampleRate;
 	uint32 BufferSize = NumFramesDesired * NumChannels * sizeof(int16);
 
-	MLResult Result = MLAudioGetInputStreamDefaults(ChannelCount, UnsignedSampleRate, &DefaultBufferFormat, &RecommendedBufferSize, &MinBufferSize);
+	MLResult Result = MLAudioGetBufferedInputDefaults(ChannelCount, UnsignedSampleRate, &DefaultBufferFormat, &RecommendedBufferSize, &MinBufferSize);
 	if (Result != MLResult_Ok)
 	{
 		return false;

@@ -732,9 +732,9 @@ UReflectionCaptureComponent::UReflectionCaptureComponent(const FObjectInitialize
 	bNeedsRecaptureOrUpload = false;
 }
 
-void UReflectionCaptureComponent::CreateRenderState_Concurrent()
+void UReflectionCaptureComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	UpdatePreviewShape();
 
@@ -764,7 +764,7 @@ void UReflectionCaptureComponent::SendRenderTransform_Concurrent()
 void UReflectionCaptureComponent::OnRegister()
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GetWorld()->FeatureLevel;
-	const bool bEncodedDataRequired = (FeatureLevel == ERHIFeatureLevel::ES2 || FeatureLevel == ERHIFeatureLevel::ES3_1);
+	const bool bEncodedDataRequired = (FeatureLevel == ERHIFeatureLevel::ES3_1);
 
 	if (bEncodedDataRequired)
 	{
@@ -906,7 +906,7 @@ void UReflectionCaptureComponent::SerializeLegacyData(FArchive& Ar)
 					FReflectionCaptureMapBuildLegacyData LegacyComponentData;
 					LegacyComponentData.Id = MapBuildDataId;
 					LegacyComponentData.MapBuildData = LegacyMapBuildData;
-					GReflectionCapturesWithLegacyBuildData.AddAnnotation(this, LegacyComponentData);
+					GReflectionCapturesWithLegacyBuildData.AddAnnotation(this, MoveTemp(LegacyComponentData));
 				}
 			}
 		}
@@ -1104,7 +1104,7 @@ void UReflectionCaptureComponent::UpdateReflectionCaptureContents(UWorld* WorldT
 #if WITH_EDITOR
 void UReflectionCaptureComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFeatureLevel)
 {
-	if (PendingFeatureLevel == ERHIFeatureLevel::ES2 || PendingFeatureLevel == ERHIFeatureLevel::ES3_1)
+	if (PendingFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		FReflectionCaptureMapBuildData* MapBuildData = GetMapBuildData();
 

@@ -14,6 +14,8 @@
 #include "NiagaraStats.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "NiagaraEditorDataBase.h"
 
 #if WITH_EDITOR
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, EventHandlerScriptProps);
@@ -53,30 +55,13 @@ static FAutoConsoleVariableRef CVarEnableEmitterChangeIdMergeLogging(
 	ECVF_Default
 );
 
-float UNiagaraEmitter::GetSpawnCountScale(int EffectsQuality)
-{
-	if (bOverrideGlobalSpawnCountScale)
-	{
-		switch (EffectsQuality)
-		{
-		case 0: return GlobalSpawnCountScaleOverrides.Low;
-		case 1: return GlobalSpawnCountScaleOverrides.Medium;
-		case 2: return GlobalSpawnCountScaleOverrides.High;
-		case 3: return GlobalSpawnCountScaleOverrides.Epic;
-		case 4: return GlobalSpawnCountScaleOverrides.Cine;
-		}
-	}
-	
-	return INiagaraModule::GetGlobalSpawnCountScale(); // default to the global spawn scale when invalid effects quality
-}
-
 FNiagaraDetailsLevelScaleOverrides::FNiagaraDetailsLevelScaleOverrides()
 {
-	GConfig->GetFloat(TEXT("EffectsQuality@0"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Low, GScalabilityIni);
-	GConfig->GetFloat(TEXT("EffectsQuality@1"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Medium, GScalabilityIni);
-	GConfig->GetFloat(TEXT("EffectsQuality@2"), TEXT("fx.NiagaraGlobalSpawnCountScale"), High, GScalabilityIni);
-	GConfig->GetFloat(TEXT("EffectsQuality@3"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Epic, GScalabilityIni);
-	GConfig->GetFloat(TEXT("EffectsQuality@Cine"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Cine, GScalabilityIni);
+	Low = 0.125f;
+	Medium = 0.25f;
+	High = 0.5f;
+	Epic = 1.0f;
+	Cine = 1.0f;
 }
 
 void FNiagaraEmitterScriptProperties::InitDataSetAccess()
@@ -128,12 +113,12 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 : Super(Initializer)
 , PreAllocationCount(0)
 , FixedBounds(FBox(FVector(-100), FVector(100)))
-, MinDetailLevel(0)
-, MaxDetailLevel(4)
+, MinDetailLevel_DEPRECATED(0)
+, MaxDetailLevel_DEPRECATED(4)
 , bInterpolatedSpawning(false)
 , bFixedBounds(false)
-, bUseMinDetailLevel(false)
-, bUseMaxDetailLevel(false)
+, bUseMinDetailLevel_DEPRECATED(false)
+, bUseMaxDetailLevel_DEPRECATED(false)
 , bRequiresPersistentIDs(false)
 , MaxDeltaTimePerTick(0.125)
 , DefaultShaderStageIndex(0)
@@ -167,7 +152,17 @@ void UNiagaraEmitter::PostInitProperties()
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
 
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (GPUComputeScript)
+	{
+		GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
+	}
+#endif
+
 	UniqueEmitterName = TEXT("Emitter");
+
+	ResolveScalabilitySettings();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -225,20 +220,11 @@ INiagaraMergeManager::FMergeEmitterResults UNiagaraEmitter::MergeChangesFromPare
 		return MergeResults;
 	}
 
-	if (ParentAtLastMerge == nullptr)
-	{
-		// If we don't have a copy of the last merged parent emitter, this emitter can't safely be
-		// merged.
-		INiagaraMergeManager::FMergeEmitterResults MergeResults;
-		MergeResults.MergeResult = INiagaraMergeManager::EMergeEmitterResult::FailedToDiff;
-		MergeResults.bModifiedGraph = false;
-		MergeResults.ErrorMessages.Add(NSLOCTEXT("NiagaraEmitter", "NoLastMergedParentErrorMessage", "This emitter has no 'ParentAtLastMerge' so changes can't be merged in."));
-		return MergeResults;
-	}
+	const bool bNoParentAtLastMerge = (ParentAtLastMerge == nullptr);
 
 	INiagaraModule& NiagaraModule = FModuleManager::Get().GetModuleChecked<INiagaraModule>("Niagara");
 	const INiagaraMergeManager& MergeManager = NiagaraModule.GetMergeManager();
-	INiagaraMergeManager::FMergeEmitterResults MergeResults = MergeManager.MergeEmitter(*Parent, *ParentAtLastMerge, *this);
+	INiagaraMergeManager::FMergeEmitterResults MergeResults = MergeManager.MergeEmitter(*Parent, ParentAtLastMerge, *this);
 	if (MergeResults.MergeResult == INiagaraMergeManager::EMergeEmitterResult::SucceededDifferencesApplied || MergeResults.MergeResult == INiagaraMergeManager::EMergeEmitterResult::SucceededNoDifferences)
 	{
 		if (MergeResults.MergeResult == INiagaraMergeManager::EMergeEmitterResult::SucceededDifferencesApplied)
@@ -308,6 +294,55 @@ void UNiagaraEmitter::PostLoad()
 		}
 	}
 
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
+	{
+		int32 MinDetailLevel = bUseMaxDetailLevel_DEPRECATED ? MinDetailLevel_DEPRECATED : 0;
+		int32 MaxDetailLevel = bUseMaxDetailLevel_DEPRECATED ? MaxDetailLevel_DEPRECATED : 4;
+		int32 NewEQMask = 0;
+		//Currently all detail levels were direct mappings to effects quality so just transfer them over to the new mask in PlatformSet.
+		for (int32 EQ = MinDetailLevel; EQ <= MaxDetailLevel; ++EQ)
+		{
+			NewEQMask |= (1 << EQ);
+		}
+
+		Platforms = FNiagaraPlatformSet(NewEQMask);
+
+		//Transfer spawn rate scaling overrides
+		if (bOverrideGlobalSpawnCountScale_DEPRECATED)
+		{
+			FNiagaraEmitterScalabilityOverride& LowOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			LowOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(0));
+			LowOverride.bOverrideSpawnCountScale = true;
+			LowOverride.bScaleSpawnCount = true;
+			LowOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Low;
+
+			FNiagaraEmitterScalabilityOverride& MediumOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			MediumOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(1));
+			MediumOverride.bOverrideSpawnCountScale = true;
+			MediumOverride.bScaleSpawnCount = true;
+			MediumOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Medium;
+
+			FNiagaraEmitterScalabilityOverride& HighOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			HighOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(2));
+			HighOverride.bOverrideSpawnCountScale = true;
+			HighOverride.bScaleSpawnCount = true;
+			HighOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.High;
+
+			FNiagaraEmitterScalabilityOverride& EpicOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			EpicOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(3));
+			EpicOverride.bOverrideSpawnCountScale = true;
+			EpicOverride.bScaleSpawnCount = true;
+			EpicOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Epic;
+
+			FNiagaraEmitterScalabilityOverride& CineOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			CineOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(4));
+			CineOverride.bOverrideSpawnCountScale = true;
+			CineOverride.bScaleSpawnCount = true;
+			CineOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Cine;
+		}
+	}
+
 	if (!GPUComputeScript)
 	{
 		GPUComputeScript = NewObject<UNiagaraScript>(this, "GPUComputeScript", EObjectFlags::RF_Transactional);
@@ -316,6 +351,14 @@ void UNiagaraEmitter::PostLoad()
 		GPUComputeScript->SetSource(SpawnScriptProps.Script ? SpawnScriptProps.Script->GetSource() : nullptr);
 #endif
 	}
+
+
+#if WITH_EDITORONLY_DATA
+	if (GPUComputeScript)
+	{
+		GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
+	}
+#endif
 
 	if (EmitterSpawnScriptProps.Script == nullptr || EmitterUpdateScriptProps.Script == nullptr)
 	{
@@ -480,8 +523,15 @@ void UNiagaraEmitter::PostLoad()
 		{
 			Renderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 		}
+
+		if (EditorData != nullptr)
+		{
+			EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
+		}
 	}
 #endif
+
+	ResolveScalabilitySettings();
 }
 
 #if WITH_EDITOR
@@ -492,6 +542,8 @@ UNiagaraEmitter* UNiagaraEmitter::CreateWithParentAndOwner(UNiagaraEmitter& InPa
 	NewEmitter->Parent = &InParentEmitter;
 	NewEmitter->ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(&InParentEmitter, NewEmitter));
 	NewEmitter->ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
+	NewEmitter->ParentScratchPadScripts.Append(NewEmitter->ScratchPadScripts);
+	NewEmitter->ScratchPadScripts.Empty();
 	NewEmitter->SetUniqueEmitterName(InName.GetPlainNameString());
 	NewEmitter->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
 	return NewEmitter;
@@ -545,6 +597,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		PropertyName = PropertyChangedEvent.Property->GetFName();
 	}
 
+	bool bNeedsRecompile = false;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bInterpolatedSpawning))
 	{
 		bool bActualInterpolatedSpawning = SpawnScriptProps.Script->IsInterpolatedParticleSpawnScript();
@@ -557,9 +610,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 			{
 				GraphSource->MarkNotSynchronized(TEXT("Emitter interpolated spawn changed"));
 			}
-#if WITH_EDITORONLY_DATA
-			UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+			bNeedsRecompile = true;
 		}
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, SimTarget))
@@ -568,10 +619,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		{
 			GraphSource->MarkNotSynchronized(TEXT("Emitter simulation target changed."));
 		}
-
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+		bNeedsRecompile = true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bRequiresPersistentIDs))
 	{
@@ -579,10 +627,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		{
 			GraphSource->MarkNotSynchronized(TEXT("Emitter Requires Persistent IDs changed."));
 		}
-
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+		bNeedsRecompile = true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bLocalSpace))
 	{
@@ -591,9 +636,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 			GraphSource->MarkNotSynchronized(TEXT("Emitter LocalSpace changed."));
 		}
 
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+		bNeedsRecompile = true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeterminism))
 	{
@@ -606,21 +649,19 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		UNiagaraSystem::RequestCompileForEmitter(this);
 #endif
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bOverrideGlobalSpawnCountScale))
-	{
-		if (GraphSource != nullptr)
-		{
-			GraphSource->MarkNotSynchronized(TEXT("Emitter Override Global Spawn Count Scale changed."));
-		}
 
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
-	}
+	ResolveScalabilitySettings();
 
 	ThumbnailImageOutOfDate = true;
 	UpdateChangeId(TEXT("PostEditChangeProperty"));
 	OnPropertiesChangedDelegate.Broadcast();
+
+#if WITH_EDITORONLY_DATA
+	if (bNeedsRecompile)
+	{
+		UNiagaraSystem::RequestCompileForEmitter(this);
+	}
+#endif
 }
 
 
@@ -632,6 +673,12 @@ UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnPropertiesChanged()
 UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnRenderersChanged()
 {
 	return OnRenderersChangedDelegate;
+}
+
+bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)
+{
+	bool bCanPrune = FNiagaraPlatformSet::ShouldPruneEmittersOnCook(PlatformName);
+	return bCanPrune && Platforms.IsEnabledForPlatform(PlatformName);
 }
 #endif
 
@@ -767,17 +814,12 @@ UNiagaraScript* UNiagaraEmitter::GetScript(ENiagaraScriptUsage Usage, FGuid Usag
 	return nullptr;
 }
 
-bool UNiagaraEmitter::IsAllowedByDetailLevel(int32 DetailLevel)const
+bool UNiagaraEmitter::IsAllowedByScalability()const
 {
-	if ((bUseMinDetailLevel && DetailLevel < MinDetailLevel) || (bUseMaxDetailLevel && DetailLevel > MaxDetailLevel))
-	{
-		return false;
-	}
-
-	return true;
+	return Platforms.IsActive();
 }
 
-bool UNiagaraEmitter::RequiresPersistantIDs()const
+bool UNiagaraEmitter::RequiresPersistentIDs() const
 {
 	return bRequiresPersistentIDs;
 }
@@ -787,6 +829,26 @@ bool UNiagaraEmitter::RequiresPersistantIDs()const
 FGuid UNiagaraEmitter::GetChangeId() const
 {
 	return ChangeId;
+}
+
+UNiagaraEditorDataBase* UNiagaraEmitter::GetEditorData() const
+{
+	return EditorData;
+}
+
+void UNiagaraEmitter::SetEditorData(UNiagaraEditorDataBase* InEditorData)
+{
+	if (EditorData != nullptr)
+	{
+		EditorData->OnPersistentDataChanged().RemoveAll(this);
+	}
+
+	EditorData = InEditorData;
+	
+	if (EditorData != nullptr)
+	{
+		EditorData->OnPersistentDataChanged().AddUObject(this, &UNiagaraEmitter::PersistentEditorDataChanged);
+	}
 }
 
 bool UNiagaraEmitter::AreAllScriptAndSourcesSynchronized() const
@@ -841,6 +903,11 @@ UNiagaraEmitter::FOnEmitterCompiled& UNiagaraEmitter::OnEmitterVMCompiled()
 	return OnVMScriptCompiledDelegate;
 }
 
+UNiagaraEmitter::FOnEmitterCompiled& UNiagaraEmitter::OnEmitterGPUCompiled()
+{
+	return OnGPUScriptCompiledDelegate;
+}
+
 void  UNiagaraEmitter::InvalidateCompileResults()
 {
 	TArray<UNiagaraScript*> Scripts;
@@ -888,6 +955,12 @@ void UNiagaraEmitter::OnPostCompile()
 		{
 			Scripts[i]->InvalidateCompileResults(TEXT("Console variable forced recompile.")); 
 		}
+	}
+
+	// If we have a GPU script but the SimTarget isn't GPU, we need to clear out the old results.
+	if (SimTarget != ENiagaraSimTarget::GPUComputeSim && GPUComputeScript->GetLastCompileStatus() != ENiagaraScriptCompileStatus::NCS_Unknown)
+	{
+		GPUComputeScript->InvalidateCompileResults(TEXT("Not a GPU emitter."));
 	}
 
 	RuntimeEstimation = MemoryRuntimeEstimation();
@@ -1103,6 +1176,17 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 		MergedRenderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 	}
 
+	// Copy parent scratch pad scripts.
+	ParentScratchPadScripts.Empty();
+
+	for (UNiagaraScript* MergedParentScratchPadScript : MergedEmitter->ParentScratchPadScripts)
+	{
+		ReouterMergedObject(this, MergedParentScratchPadScript);
+		ParentScratchPadScripts.Add(MergedParentScratchPadScript);
+	}
+
+	SetEditorData(MergedEmitter->GetEditorData());
+
 	// Update the change id since we don't know what's changed.
 	UpdateChangeId(TEXT("Updated from merged copy"));
 }
@@ -1285,6 +1369,10 @@ void UNiagaraEmitter::BeginDestroy()
 	{
 		GraphSource->OnChanged().RemoveAll(this);
 	}
+	if (GPUComputeScript)
+	{
+		GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
+	}
 #endif
 	Super::BeginDestroy();
 }
@@ -1323,6 +1411,16 @@ void UNiagaraEmitter::RendererChanged()
 void UNiagaraEmitter::GraphSourceChanged()
 {
 	UpdateChangeId(TEXT("Graph source changed."));
+}
+
+void UNiagaraEmitter::RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript)
+{
+	OnGPUScriptCompiledDelegate.Broadcast(this);
+}
+
+void UNiagaraEmitter::PersistentEditorDataChanged()
+{
+	UpdateChangeId(TEXT("Persistent editor data changed."));
 }
 #endif
 
@@ -1442,7 +1540,44 @@ void UNiagaraEmitter::SetParent(UNiagaraEmitter& InParent)
 	ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
 	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 }
+
+void UNiagaraEmitter::Reparent(UNiagaraEmitter& InParent)
+{
+	Parent = &InParent;
+	ParentAtLastMerge = nullptr;
+	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
+}
 #endif
+
+void UNiagaraEmitter::ResolveScalabilitySettings()
+{
+	CurrentScalabilitySettings.Clear();
+
+	if (UNiagaraSystem* Owner = GetTypedOuter<UNiagaraSystem>())
+	{
+		if(UNiagaraEffectType* ActualEffectType = Owner->GetEffectType())
+		{
+			CurrentScalabilitySettings = ActualEffectType->GetActiveEmitterScalabilitySettings();
+		}
+	}
+
+	for (FNiagaraEmitterScalabilityOverride& Override : ScalabilityOverrides.Overrides)
+	{
+		if (Override.Platforms.IsActive())
+		{
+			if (Override.bOverrideSpawnCountScale)
+			{
+				CurrentScalabilitySettings.bScaleSpawnCount = Override.bScaleSpawnCount;
+				CurrentScalabilitySettings.SpawnCountScale = Override.SpawnCountScale;
+			}
+		}
+	}
+}
+
+void UNiagaraEmitter::OnEffectsQualityChanged()
+{
+	ResolveScalabilitySettings();
+}
 
 void UNiagaraEmitter::InitFastPathAttributeNames()
 {

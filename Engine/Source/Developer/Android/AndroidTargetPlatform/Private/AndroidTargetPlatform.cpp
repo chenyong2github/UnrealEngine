@@ -222,16 +222,6 @@ static bool UsesVirtualTextures()
 	return CVarMobileVirtualTextures->GetValueOnAnyThread() != 0;
 }
 
-bool FAndroidTargetPlatform::SupportsES2() const
-{
-	// default to support ES2
-	bool bBuildForES2 = true;
-#if WITH_ENGINE
-	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bBuildForES2"), bBuildForES2, GEngineIni);
-#endif
-	return bBuildForES2;
-}
-
 bool FAndroidTargetPlatform::SupportsES31() const
 {
 	// default no support for ES31
@@ -350,7 +340,7 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 
 		case ETargetPlatformFeatures::LowQualityLightmaps:
 		case ETargetPlatformFeatures::MobileRendering:
-			return SupportsES31() || SupportsES2() || SupportsVulkan();
+			return SupportsES31() || SupportsVulkan();
 
 		case ETargetPlatformFeatures::HighQualityLightmaps:
 		case ETargetPlatformFeatures::Tessellation:
@@ -375,7 +365,6 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 
 void FAndroidTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const
 {
-	static FName NAME_OPENGL_ES2(TEXT("GLSL_ES2"));
 	static FName NAME_GLSL_310_ES_EXT(TEXT("GLSL_310_ES_EXT"));
 	static FName NAME_SF_VULKAN_ES31_ANDROID(TEXT("SF_VULKAN_ES31_ANDROID_NOUB"));
 	static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
@@ -383,11 +372,6 @@ void FAndroidTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutForm
 	if (SupportsVulkan())
 	{
 		OutFormats.AddUnique(NAME_SF_VULKAN_ES31_ANDROID);
-	}
-
-	if (SupportsES2())
-	{
-		OutFormats.AddUnique(NAME_OPENGL_ES2);
 	}
 
 	if (SupportsES31())
@@ -665,141 +649,6 @@ void FAndroidTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormats) const
 	OutFormats.Add(NAME_ADPCM);
 }
 
-namespace Android
-{
-	void CachePlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides)
-	{
-		const TCHAR* CategoryName = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
-
-		int32 SoundCueQualityIndex = INDEX_NONE;
-		if (GConfig->GetInt(CategoryName, TEXT("SoundCueCookQualityIndex"), SoundCueQualityIndex, GEngineIni))
-		{
-			OutOverrides.SoundCueCookQualityIndex = SoundCueQualityIndex;
-		}
-
-		GConfig->GetBool(CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching, GEngineIni);
-
-		/** Memory Load On Demand Settings */
-		if (OutOverrides.bUseStreamCaching)
-		{
-			// Cache size:
-			int32 RetrievedCacheSize = 32 * 1024;
-			GConfig->GetInt(CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize, GEngineIni);
-			OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
-		}
-
-		GConfig->GetBool(CategoryName, TEXT("bResampleForDevice"), OutOverrides.bResampleForDevice, GEngineIni);
-
-		GConfig->GetFloat(CategoryName, TEXT("CompressionQualityModifier"), OutOverrides.CompressionQualityModifier, GEngineIni);
-
-		GConfig->GetFloat(CategoryName, TEXT("AutoStreamingThreshold"), OutOverrides.AutoStreamingThreshold, GEngineIni);
-
-		//Cache sample rate map:
-		float RetrievedSampleRate = -1.0f;
-
-		GConfig->GetFloat(CategoryName, TEXT("MaxSampleRate"), RetrievedSampleRate, GEngineIni);
-		float* FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Max);
-
-		if (FoundSampleRate)
-		{
-			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
-			{
-				*FoundSampleRate = RetrievedSampleRate;
-			}
-
-		}
-		else
-		{
-			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Max, RetrievedSampleRate);
-		}
-
-		RetrievedSampleRate = -1.0f;
-
-		GConfig->GetFloat(CategoryName, TEXT("HighSampleRate"), RetrievedSampleRate, GEngineIni);
-		FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::High);
-
-		if (FoundSampleRate)
-		{
-			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
-			{
-				*FoundSampleRate = RetrievedSampleRate;
-			}
-
-		}
-		else
-		{
-			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::High, RetrievedSampleRate);
-		}
-
-
-		RetrievedSampleRate = -1.0f;
-
-		GConfig->GetFloat(CategoryName, TEXT("MedSampleRate"), RetrievedSampleRate, GEngineIni);
-		FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Medium);
-
-		if (FoundSampleRate)
-		{
-			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
-			{
-				*FoundSampleRate = RetrievedSampleRate;
-			}
-		}
-		else
-		{
-			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Medium, RetrievedSampleRate);
-		}
-
-		RetrievedSampleRate = -1.0f;
-
-		GConfig->GetFloat(CategoryName, TEXT("LowSampleRate"), RetrievedSampleRate, GEngineIni);
-		FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Low);
-
-		if (FoundSampleRate)
-		{
-			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
-			{
-				*FoundSampleRate = RetrievedSampleRate;
-			}
-		}
-		else
-		{
-			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Low, RetrievedSampleRate);
-		}
-
-		RetrievedSampleRate = -1.0f;
-
-		GConfig->GetFloat(CategoryName, TEXT("MinSampleRate"), RetrievedSampleRate, GEngineIni);
-		FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Min);
-
-		if (FoundSampleRate)
-		{
-			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
-			{
-				*FoundSampleRate = RetrievedSampleRate;
-			}
-		}
-		else
-		{
-			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Min, RetrievedSampleRate);
-		}
-	}
-}
-
-FPlatformAudioCookOverrides* FAndroidTargetPlatform::GetAudioCompressionSettings() const
-{
-	static FPlatformAudioCookOverrides Settings;
-
-	static bool bCachedPlatformSettings = false;
-
-	if (!bCachedPlatformSettings)
-	{
-		Android::CachePlatformAudioCookOverrides(Settings);
-		bCachedPlatformSettings = true;
-	}
-
-	return &Settings;
-}
-
 #endif //WITH_ENGINE
 
 bool FAndroidTargetPlatform::SupportsVariants() const
@@ -841,6 +690,28 @@ void FAndroidTargetPlatform::InitializeDeviceDetection()
 #endif
 		TEXT("shell getprop"), true);
 }
+
+bool FAndroidTargetPlatform::ShouldExpandTo32Bit(const uint16* Indices, const int32 NumIndices) const
+{
+	bool bIsMaliBugIndex = false;
+	const uint16 MaliBugIndexMaxDiff = 16;
+	uint16 LastIndex = Indices[0];
+	for (int32 i = 1; i < NumIndices; ++i)
+	{
+		uint16 CurrentIndex = Indices[i];
+		if ((FMath::Abs(LastIndex - CurrentIndex) > MaliBugIndexMaxDiff))
+		{
+			bIsMaliBugIndex = true;
+			break;
+		}
+		else
+		{
+			LastIndex = CurrentIndex;
+		}
+	}
+	return bIsMaliBugIndex;
+}
+
 /* FAndroidTargetPlatform callbacks
  *****************************************************************************/
 

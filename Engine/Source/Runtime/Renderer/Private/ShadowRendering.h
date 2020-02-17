@@ -42,7 +42,7 @@ class FViewInfo;
 /** Renders a cone with a spherical cap, used for rendering spot lights in deferred passes. */
 extern void DrawStencilingCone(const FMatrix& ConeToWorld, float ConeAngle, float SphereRadius, const FVector& PreViewTranslation);
 
-template <bool bRenderingReflectiveShadowMaps> class TShadowDepthBasePS;
+class FShadowDepthBasePS;
 
 /** 
  * Overrides a material used for shadow depth rendering with the default material when appropriate.
@@ -582,6 +582,7 @@ private:
 
 	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+	bool NeedsShaderInitialisation;
 
 	/**
 	 * Bias during in shadowmap rendering, stored redundantly for better performance 
@@ -651,7 +652,7 @@ private:
 		bool bCameraInsideShadowFrustum) const;
 
 	friend class FShadowDepthVS;
-	template <bool bRenderingReflectiveShadowMaps> friend class TShadowDepthBasePS;
+	friend class FShadowDepthBasePS;
 	friend class FShadowVolumeBoundProjectionVS;
 	friend class FShadowProjectionPS;
 };
@@ -661,13 +662,17 @@ private:
 */
 class FShadowProjectionVertexShaderInterface : public FGlobalShader
 {
+	DECLARE_TYPE_LAYOUT(FShadowProjectionVertexShaderInterface, NonVirtual);
 public:
 	FShadowProjectionVertexShaderInterface() {}
 	FShadowProjectionVertexShaderInterface(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{ }
 
-	virtual void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo) = 0;
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo) {}
+
+	
+	
 };
 
 /**
@@ -696,19 +701,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_TRANSFORM"), (uint32)1);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo) override;
-
-	//~ Begin FShader Interface
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << StencilingGeometryParameters;
-		return bShaderHasOutdatedParameters;
-	}
-	//~ Begin  End FShader Interface 
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo);
 
 private:
-	FStencilingGeometryShaderParameters StencilingGeometryParameters;
+	LAYOUT_FIELD(FStencilingGeometryShaderParameters, StencilingGeometryParameters);
 };
 
 class FShadowProjectionNoTransformVS : public FShadowProjectionVertexShaderInterface
@@ -738,12 +734,12 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(), ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewUniformBuffer);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo*) override
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FProjectedShadowInfo*)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(), View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
 	}
 };
 
@@ -753,7 +749,7 @@ public:
 
 class FShadowProjectionPixelShaderInterface : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FShadowProjectionPixelShaderInterface,Global);
+	DECLARE_TYPE_LAYOUT(FShadowProjectionPixelShaderInterface, NonVirtual);
 public:
 
 	FShadowProjectionPixelShaderInterface() 
@@ -773,22 +769,21 @@ public:
 	 * @param View - current view
 	 * @param ShadowInfo - projected shadow info for a single light
 	 */
-	virtual void SetParameters(
+	void SetParameters(
 		FRHICommandList& RHICmdList, 
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FHairStrandsVisibilityData* HairVisibilityData,
 		const FProjectedShadowInfo* ShadowInfo)
 	{ 
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetPixelShader(), View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
 	}
-
 };
 
 /** Shadow projection parameters used by multiple shaders. */
-template<bool bModulatedShadows>
-class TShadowProjectionShaderParameters
+class FShadowProjectionShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FShadowProjectionShaderParameters, NonVirtual);
 public:
 	void Bind(const FShader::CompiledShaderInitializerType& Initializer)
 	{
@@ -809,9 +804,9 @@ public:
 		InvPerObjectShadowFadeLength.Bind(ParameterMap, TEXT("InvPerObjectShadowFadeLength"));
 	}
 
-	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo, const FHairStrandsVisibilityData* HairVisibilityData)
+	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FProjectedShadowInfo* ShadowInfo, const FHairStrandsVisibilityData* HairVisibilityData, bool bModulatedShadows)
 	{
-		FRHIPixelShader* ShaderRHI = Shader->GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
@@ -908,7 +903,7 @@ public:
 	}
 
 	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar, TShadowProjectionShaderParameters& P)
+	/*friend FArchive& operator<<(FArchive& Ar, TShadowProjectionShaderParameters& P)
 	{
 		Ar << P.SceneTextureParameters;
 		Ar << P.ScreenToShadowMatrix;
@@ -925,24 +920,23 @@ public:
 		Ar << P.PerObjectShadowFadeStart;
 		Ar << P.InvPerObjectShadowFadeLength;
 		return Ar;
-	}
+	}*/
 
 private:
-
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderParameter ScreenToShadowMatrix;
-	FShaderParameter SoftTransitionScale;
-	FShaderParameter ShadowBufferSize;
-	FShaderResourceParameter ShadowDepthTexture;
-	FShaderResourceParameter ShadowDepthTextureSampler;
-	FShaderParameter ProjectionDepthBias;
-	FShaderParameter FadePlaneOffset;
-	FShaderParameter InvFadePlaneLength;
-	FShaderParameter ShadowTileOffsetAndSizeParam;
-	FShaderParameter LightPositionOrDirection;
-	FShaderResourceParameter HairCategorizationTexture;
-	FShaderParameter PerObjectShadowFadeStart;
-	FShaderParameter InvPerObjectShadowFadeLength;
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD(FShaderParameter, ScreenToShadowMatrix);
+	LAYOUT_FIELD(FShaderParameter, SoftTransitionScale);
+	LAYOUT_FIELD(FShaderParameter, ShadowBufferSize);
+	LAYOUT_FIELD(FShaderResourceParameter, ShadowDepthTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, ShadowDepthTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, ProjectionDepthBias);
+	LAYOUT_FIELD(FShaderParameter, FadePlaneOffset);
+	LAYOUT_FIELD(FShaderParameter, InvFadePlaneLength);
+	LAYOUT_FIELD(FShaderParameter, ShadowTileOffsetAndSizeParam);
+	LAYOUT_FIELD(FShaderParameter, LightPositionOrDirection);
+	LAYOUT_FIELD(FShaderResourceParameter, HairCategorizationTexture);
+	LAYOUT_FIELD(FShaderParameter, PerObjectShadowFadeStart);
+	LAYOUT_FIELD(FShaderParameter, InvPerObjectShadowFadeLength);
 };
 
 /**
@@ -998,18 +992,18 @@ public:
 	 * @param View - current view
 	 * @param ShadowInfo - projected shadow info for a single light
 	 */
-	virtual void SetParameters(
-		FRHICommandList& RHICmdList,
+	void SetParameters(
+		FRHICommandList& RHICmdList, 
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FHairStrandsVisibilityData* HairVisibilityData,
-		const FProjectedShadowInfo* ShadowInfo) override
+		const FProjectedShadowInfo* ShadowInfo)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FShadowProjectionPixelShaderInterface::SetParameters(RHICmdList, ViewIndex, View, HairVisibilityData, ShadowInfo);
 
-		ProjectionParameters.Set(RHICmdList, this, View, ShadowInfo, HairVisibilityData);
+		ProjectionParameters.Set(RHICmdList, this, View, ShadowInfo, HairVisibilityData, bModulatedShadows);
 		const FLightSceneProxy& LightProxy = *(ShadowInfo->GetLightSceneInfo().Proxy);
 
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex] );
@@ -1047,28 +1041,12 @@ public:
 		}
 	}
 
-	/**
-	 * Serialize the parameters for this shader
-	 * @param Ar - archive to serialize to
-	 */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShadowProjectionPixelShaderInterface::Serialize(Ar);
-		Ar << ProjectionParameters;
-		Ar << ShadowFadeFraction;
-		Ar << ShadowSharpen;
-		Ar << TransmissionProfilesTexture;
-		Ar << LightPosition;
-		
-		return bShaderHasOutdatedParameters;
-	}
-
 protected:
-	TShadowProjectionShaderParameters<bModulatedShadows> ProjectionParameters;
-	FShaderParameter ShadowFadeFraction;
-	FShaderParameter ShadowSharpen;
-	FShaderParameter LightPosition;
-	FShaderResourceParameter TransmissionProfilesTexture;
+	LAYOUT_FIELD(FShadowProjectionShaderParameters, ProjectionParameters);
+	LAYOUT_FIELD(FShaderParameter, ShadowFadeFraction);
+	LAYOUT_FIELD(FShaderParameter, ShadowSharpen);
+	LAYOUT_FIELD(FShaderParameter, LightPosition);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
 };
 
 /** Pixel shader to project modulated shadows onto the scene. */
@@ -1097,31 +1075,20 @@ public:
 		ModulatedShadowColorParameter.Bind(Initializer.ParameterMap, TEXT("ModulatedShadowColor"));
 	}
 
-	virtual void SetParameters(
+	void SetParameters(
 		FRHICommandList& RHICmdList,
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FHairStrandsVisibilityData* HairVisibilityData,
-		const FProjectedShadowInfo* ShadowInfo) override
+		const FProjectedShadowInfo* ShadowInfo)
 	{
 		TShadowProjectionPS<Quality, false, true>::SetParameters(RHICmdList, ViewIndex, View, HairVisibilityData, ShadowInfo);
-		FRHIPixelShader* ShaderRHI = this->GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetShaderValue(RHICmdList, ShaderRHI, ModulatedShadowColorParameter, ShadowInfo->GetLightSceneInfo().Proxy->GetModulatedShadowColor());
 	}
 
-	/**
-	* Serialize the parameters for this shader
-	* @param Ar - archive to serialize to
-	*/
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = TShadowProjectionPS<Quality, false, true>::Serialize(Ar);
-		Ar << ModulatedShadowColorParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 protected:
-	FShaderParameter ModulatedShadowColorParameter;
+	LAYOUT_FIELD(FShaderParameter, ModulatedShadowColorParameter);
 };
 
 /** Translucency shadow projection uniform buffer containing data needed for Fourier opacity maps. */
@@ -1176,28 +1143,18 @@ public:
 	{
 	}
 
-	virtual void SetParameters(
+	void SetParameters(
 		FRHICommandList& RHICmdList, 
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FHairStrandsVisibilityData* HairVisibilityData,
-		const FProjectedShadowInfo* ShadowInfo) override
+		const FProjectedShadowInfo* ShadowInfo)
 	{
 		TShadowProjectionPS<Quality>::SetParameters(RHICmdList, ViewIndex, View, HairVisibilityData, ShadowInfo);
 
 		FTranslucentSelfShadowUniformParameters TranslucentSelfShadowUniformParameters;
 		SetupTranslucentSelfShadowUniformParameters(ShadowInfo, TranslucentSelfShadowUniformParameters);
-		SetUniformBufferParameterImmediate(RHICmdList, this->GetPixelShader(), this->template GetUniformBufferParameter<FTranslucentSelfShadowUniformParameters>(), TranslucentSelfShadowUniformParameters);
-	}
-
-	/**
-	 * Serialize the parameters for this shader
-	 * @param Ar - archive to serialize to
-	 */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = TShadowProjectionPS<Quality>::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
+		SetUniformBufferParameterImmediate(RHICmdList, RHICmdList.GetBoundPixelShader(), this->template GetUniformBufferParameter<FTranslucentSelfShadowUniformParameters>(), TranslucentSelfShadowUniformParameters);
 	}
 };
 
@@ -1205,6 +1162,7 @@ public:
 /** One pass point light shadow projection parameters used by multiple shaders. */
 class FOnePassPointShadowProjectionShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FOnePassPointShadowProjectionShaderParameters, NonVirtual);
 public:
 
 	void Bind(const FShaderParameterMap& ParameterMap)
@@ -1288,7 +1246,7 @@ public:
 	}
 
 	/** Serializer. */ 
-	friend FArchive& operator<<(FArchive& Ar,FOnePassPointShadowProjectionShaderParameters& P)
+	/*friend FArchive& operator<<(FArchive& Ar,FOnePassPointShadowProjectionShaderParameters& P)
 	{
 		Ar << P.ShadowDepthTexture;
 		Ar << P.ShadowDepthTexture2;
@@ -1297,15 +1255,15 @@ public:
 		Ar << P.InvShadowmapResolution;
 		Ar << P.LightPositionOrDirection;
 		return Ar;
-	}
+	}*/
 
 private:
-	FShaderResourceParameter ShadowDepthTexture;
-	FShaderResourceParameter ShadowDepthTexture2;
-	FShaderResourceParameter ShadowDepthCubeComparisonSampler;
-	FShaderParameter ShadowViewProjectionMatrices;
-	FShaderParameter InvShadowmapResolution;
-	FShaderParameter LightPositionOrDirection;
+	LAYOUT_FIELD(FShaderResourceParameter, ShadowDepthTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, ShadowDepthTexture2);
+	LAYOUT_FIELD(FShaderResourceParameter, ShadowDepthCubeComparisonSampler);
+	LAYOUT_FIELD(FShaderParameter, ShadowViewProjectionMatrices);
+	LAYOUT_FIELD(FShaderParameter, InvShadowmapResolution);
+	LAYOUT_FIELD(FShaderParameter, LightPositionOrDirection);
 };
 
 /**
@@ -1355,7 +1313,7 @@ public:
 		const FHairStrandsVisibilityData* HairVisibilityData,
 		const FProjectedShadowInfo* ShadowInfo)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
@@ -1413,35 +1371,17 @@ public:
 		}
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SceneTextureParameters;
-		Ar << OnePassShadowParameters;
-		Ar << ShadowDepthTextureSampler;
-		Ar << LightPosition;
-		Ar << ShadowFadeFraction;
-		Ar << ShadowSharpen;
-		Ar << PointLightDepthBias;
-		Ar << PointLightProjParameters;
-		Ar << TransmissionProfilesTexture;
-		Ar << HairCategorizationTexture;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FOnePassPointShadowProjectionShaderParameters OnePassShadowParameters;
-	FShaderResourceParameter ShadowDepthTextureSampler;
-	FShaderParameter LightPosition;
-	FShaderParameter ShadowFadeFraction;
-	FShaderParameter ShadowSharpen;
-	FShaderParameter PointLightDepthBias;
-	FShaderParameter PointLightProjParameters;
-	FShaderResourceParameter TransmissionProfilesTexture;
-	FShaderResourceParameter HairCategorizationTexture;
-
-
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD(FOnePassPointShadowProjectionShaderParameters, OnePassShadowParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, ShadowDepthTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, LightPosition);
+	LAYOUT_FIELD(FShaderParameter, ShadowFadeFraction);
+	LAYOUT_FIELD(FShaderParameter, ShadowSharpen);
+	LAYOUT_FIELD(FShaderParameter, PointLightDepthBias);
+	LAYOUT_FIELD(FShaderParameter, PointLightProjParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, HairCategorizationTexture);
 };
 
 /** A transform the remaps depth and potentially projects onto some plane. */
@@ -1484,16 +1424,16 @@ public:
 			&& (Parameters.Platform == SP_PCD3D_SM5 || IsVulkanSM5Platform(Parameters.Platform) || Parameters.Platform == SP_METAL_SM5 || Parameters.Platform == SP_METAL_SM5_NOTESS);
 	}
 
-	virtual void SetParameters(
+	void SetParameters(
 		FRHICommandList& RHICmdList,
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FHairStrandsVisibilityData* HairVisibilityData,
-		const FProjectedShadowInfo* ShadowInfo) override
+		const FProjectedShadowInfo* ShadowInfo)
 	{
 		TShadowProjectionPS<Quality, bUseFadePlane>::SetParameters(RHICmdList, ViewIndex, View, HairVisibilityData, ShadowInfo);
 
-		FRHIPixelShader* ShaderRHI = this->GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		// GetLightSourceAngle returns the full angle.
 		float TanLightSourceAngle = FMath::Tan(0.5 * FMath::DegreesToRadians(ShadowInfo->GetLightSceneInfo().Proxy->GetLightSourceAngle()));
@@ -1509,19 +1449,8 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, PCSSParameters, PCSSParameterValues);
 	}
 
-	/**
-	* Serialize the parameters for this shader
-	* @param Ar - archive to serialize to
-	*/
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = TShadowProjectionPS<Quality, bUseFadePlane>::Serialize(Ar);
-		Ar << PCSSParameters;
-		return bShaderHasOutdatedParameters;
-	}
-
 protected:
-	FShaderParameter PCSSParameters;
+	LAYOUT_FIELD(FShaderParameter, PCSSParameters);
 };
 
 
@@ -1552,18 +1481,18 @@ public:
 		OutEnvironment.SetDefine(TEXT("SPOT_LIGHT_PCSS"), 1);
 	}
 
-	virtual void SetParameters(
+	void SetParameters(
 		FRHICommandList& RHICmdList,
 		int32 ViewIndex,
 		const FSceneView& View,
 		const FHairStrandsVisibilityData* HairVisibilityData,
-		const FProjectedShadowInfo* ShadowInfo) override
+		const FProjectedShadowInfo* ShadowInfo)
 	{
 		check(ShadowInfo->GetLightSceneInfo().Proxy->GetLightType() == LightType_Spot);
 
 		TShadowProjectionPS<Quality, bUseFadePlane>::SetParameters(RHICmdList, ViewIndex, View, HairVisibilityData, ShadowInfo);
 
-		FRHIPixelShader* ShaderRHI = this->GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		static IConsoleVariable* CVarMaxSoftShadowKernelSize = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.MaxSoftKernelSize"));
 		check(CVarMaxSoftShadowKernelSize);
@@ -1573,19 +1502,8 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, PCSSParameters, PCSSParameterValues);
 	}
 
-	/**
-	* Serialize the parameters for this shader
-	* @param Ar - archive to serialize to
-	*/
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = TShadowProjectionPS<Quality, bUseFadePlane>::Serialize(Ar);
-		Ar << PCSSParameters;
-		return bShaderHasOutdatedParameters;
-	}
-
 protected:
-	FShaderParameter PCSSParameters;
+	LAYOUT_FIELD(FShaderParameter, PCSSParameters);
 };
 
 

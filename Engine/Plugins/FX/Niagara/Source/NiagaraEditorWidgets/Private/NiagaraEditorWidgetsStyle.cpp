@@ -71,7 +71,15 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	FTextBlockStyle StackGroupText = FTextBlockStyle(NormalText)
 		.SetFont(StackGroupFont)
 		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
-	Style->Set("NiagaraEditor.Stack.GroupText", StackGroupText);
+	
+	FEditableTextBoxStyle EditableGroupText = FEditableTextBoxStyle(NormalEditableTextBox)
+		.SetFont(StackGroupFont);
+
+	FInlineEditableTextBlockStyle StackEditableGroupText = FInlineEditableTextBlockStyle()
+		.SetEditableTextBoxStyle(EditableGroupText)
+		.SetTextStyle(StackGroupText); 
+
+	Style->Set("NiagaraEditor.Stack.GroupText", StackEditableGroupText);
 
 	FSlateFontInfo StackDefaultFont = DEFAULT_FONT("Regular", 10);
 	FTextBlockStyle StackDefaultText = FTextBlockStyle(NormalText)
@@ -97,13 +105,24 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	FSlateFontInfo StackItemFont = DEFAULT_FONT("Regular", 11);
 	FTextBlockStyle StackItemText = FTextBlockStyle(NormalText)
 		.SetFont(StackItemFont);
-	Style->Set("NiagaraEditor.Stack.ItemText", StackItemText);
+	
+	FEditableTextBoxStyle EditableItemText = FEditableTextBoxStyle(NormalEditableTextBox)
+		.SetFont(StackItemFont);
+
+	FInlineEditableTextBlockStyle StackEditableItemText = FInlineEditableTextBlockStyle()
+		.SetTextStyle(StackItemText)
+		.SetEditableTextBoxStyle(EditableItemText);
+	Style->Set("NiagaraEditor.Stack.ItemText", StackEditableItemText);
+
+	FSlateFontInfo TypeNameFont = DEFAULT_FONT("Regular", 9);
+	FTextBlockStyle TypeNameText = FTextBlockStyle(NormalText)
+		.SetFont(TypeNameFont);
+	Style->Set("NiagaraEditor.Stack.TypeNameText", TypeNameText);
 
 	FSlateFontInfo SystemOverviewListHeaderFont = DEFAULT_FONT("Bold", 12);
 	FTextBlockStyle SystemOverviewListHeaderText = FTextBlockStyle(NormalText)
 		.SetFont(SystemOverviewListHeaderFont);
 	Style->Set("NiagaraEditor.SystemOverview.ListHeaderText", SystemOverviewListHeaderText);
-
 
 	FSlateFontInfo SystemOverviewItemFont = DEFAULT_FONT("Regular", 9);
 	FTextBlockStyle SystemOverviewItemText = FTextBlockStyle(NormalText)
@@ -217,6 +236,20 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.Stack.ModuleHighlightLarge", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlightLarge", Icon8x8, FLinearColor::White));
 
 	Style->Set("NiagaraEditor.ShowInCurveEditorIcon", new IMAGE_PLUGIN_BRUSH("Icons/ShowInCurveEditor", Icon16x16, FLinearColor::White));
+
+	// Scratch pad
+	FSlateFontInfo ScratchPadLargeHeaderFont = DEFAULT_FONT("Bold", 11);
+	FTextBlockStyle ScratchPadLargeHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadLargeHeaderFont);
+	Style->Set("NiagaraEditor.ScratchPad.LargeHeaderText", ScratchPadLargeHeaderText);
+
+	FSlateFontInfo ScratchPadSmallHeaderFont = DEFAULT_FONT("Bold", 9);
+	FTextBlockStyle ScratchPadSmallHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(ScratchPadSmallHeaderFont);
+	Style->Set("NiagaraEditor.ScratchPad.SmallHeaderText", ScratchPadSmallHeaderText);
+
+	Style->Set("NiagaraEditor.ScratchPad.HeaderColor", FLinearColor(FColor(48, 48, 48)));
+
 
 	return Style;
 }

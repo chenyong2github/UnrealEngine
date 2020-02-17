@@ -1455,7 +1455,8 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 
 			//  Create a structure that allows us to look-up by SourceModel Vertex ID 
 			
-			BoneIdWeightMap* VtxToBoneIdWeightMap             = new  BoneIdWeightMap[NumImportVertex];
+			TArray<BoneIdWeightMap> VtxToBoneIdWeightMap;
+			VtxToBoneIdWeightMap.AddDefaulted(NumImportVertex);
 
 			for (int32 i = 0; i < SrcModelInfluences.Num(); ++i)
 			{
@@ -1541,7 +1542,6 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 				}
 			}
 
-			delete[] VtxToBoneIdWeightMap;
 		}
 
 	}
@@ -2083,6 +2083,16 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 						Section.ChunkedParentSectionIndex = bIsChunkedSection ? CurrentParentSectionIndex : INDEX_NONE;
 						//If we reduce inline the source model, we want to use the real source original section
 						Section.OriginalDataSectionIndex = bReducingSourceModel ? SectionData.OriginalDataSectionIndex : OriginalSectionIndex;
+
+						if (!bLODModelAdded)
+						{
+							if (FSkelMeshSourceSectionUserData* BackUpUserSectionData = BackupUserSectionsData.Find(SectionData.OriginalDataSectionIndex))
+							{
+								FSkelMeshSourceSectionUserData& ReducedUserSectionData = ImportedModelLOD.UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
+								ReducedUserSectionData = *BackUpUserSectionData;
+							}
+						}
+
 						SectionMatched = true; //a backup section can be restore only once
 						break;
 					}
@@ -2091,8 +2101,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 			if (!bLODModelAdded)
 			{
-				//If its an existing LOD re-apply the UserSectionData
-				ImportedModelLOD.UserSectionsData = BackupUserSectionsData;
+				//If its an existing LOD put back the buildStringID
 				ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
 			}
 		}

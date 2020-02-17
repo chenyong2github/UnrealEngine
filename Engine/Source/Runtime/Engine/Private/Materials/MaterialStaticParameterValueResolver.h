@@ -8,6 +8,7 @@
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
 
+#if WITH_EDITORONLY_DATA
 template <typename ParameterType, typename OutputType>
 class TMaterialStaticParameterValueResolver
 {
@@ -25,7 +26,7 @@ public:
 	 * @param ParameterInfo The info associated with the parameter to try to resolve.
 	 * @param Function The function from which to try and obtain the value for the parameter.
 	 */
-	void AttemptResolve(int32 ParamIndex, const FMaterialParameterInfo& ParameterInfo, UMaterialFunctionInterface* Function)
+	void AttemptResolve(int32 ParamIndex, const FHashedMaterialParameterInfo& ParameterInfo, UMaterialFunctionInterface* Function)
 	{
 		if (!Function)
 		{
@@ -108,7 +109,7 @@ public:
 						continue;
 
 					int32 ParamIndex = ParameterIndicesForFunction[FunctionParameterIdx];
-					const FMaterialParameterInfo* ParameterInfo = EvalContext.GetParameterInfo(ParamIndex);
+					const FHashedMaterialParameterInfo* ParameterInfo = EvalContext.GetParameterInfo(ParamIndex);
 					bool bIsOverride = ExtractValueFromFunction(ParamIndex, *ParameterInfo, ParameterAndOwner.Owner, ParameterAndOwner.Parameter);
 					EvalContext.MarkParameterResolved(ParamIndex, bIsOverride);
 				}
@@ -126,7 +127,7 @@ private:
 	 * @param Parameter If non-null, the parameter from which to try and obtain the default value if no overrides exist for the parameter on the function.
 	 * @return true if a *non-default* or override value was obtained for the parameter, if no value was obtained, or if we fell back to obtaining the default value, then false will be returned.
 	 */
-	bool ExtractValueFromFunction(int32 ParamIndex, const FMaterialParameterInfo& ParameterInfo, UMaterialFunctionInterface* Function, ParameterType* Parameter)
+	bool ExtractValueFromFunction(int32 ParamIndex, const FHashedMaterialParameterInfo& ParameterInfo, UMaterialFunctionInterface* Function, ParameterType* Parameter)
 	{
 		static_assert(TIsSame<ParameterType,void>::Value, "Must provide explicit specialization for value retrieval method when using TMaterialStaticParameterValueResolver");
 		return false;
@@ -140,7 +141,7 @@ private:
 
 
 template<>
-inline bool TMaterialStaticParameterValueResolver<UMaterialExpressionStaticBoolParameter, TBitArray<>>::ExtractValueFromFunction(int32 ParamIndex, const FMaterialParameterInfo& ParameterInfo, UMaterialFunctionInterface* Function, UMaterialExpressionStaticBoolParameter* Parameter)
+inline bool TMaterialStaticParameterValueResolver<UMaterialExpressionStaticBoolParameter, TBitArray<>>::ExtractValueFromFunction(int32 ParamIndex, const FHashedMaterialParameterInfo& ParameterInfo, UMaterialFunctionInterface* Function, UMaterialExpressionStaticBoolParameter* Parameter)
 {
 	bool bTempVal;
 	if (Function->OverrideNamedStaticSwitchParameter(ParameterInfo, bTempVal, OutExpressionGuids[ParamIndex]))
@@ -160,7 +161,7 @@ inline bool TMaterialStaticParameterValueResolver<UMaterialExpressionStaticBoolP
 }
 
 template<>
-inline bool TMaterialStaticParameterValueResolver<UMaterialExpressionStaticComponentMaskParameter, TBitArray<>>::ExtractValueFromFunction(int32 ParamIndex, const FMaterialParameterInfo& ParameterInfo, UMaterialFunctionInterface* Function, UMaterialExpressionStaticComponentMaskParameter* Parameter)
+inline bool TMaterialStaticParameterValueResolver<UMaterialExpressionStaticComponentMaskParameter, TBitArray<>>::ExtractValueFromFunction(int32 ParamIndex, const FHashedMaterialParameterInfo& ParameterInfo, UMaterialFunctionInterface* Function, UMaterialExpressionStaticComponentMaskParameter* Parameter)
 {
 	bool bTempR, bTempG, bTempB, bTempA;
 	if (Function->OverrideNamedStaticComponentMaskParameter(ParameterInfo, bTempR, bTempG, bTempB, bTempA, OutExpressionGuids[ParamIndex]))
@@ -185,3 +186,5 @@ inline bool TMaterialStaticParameterValueResolver<UMaterialExpressionStaticCompo
 
 	return false;
 }
+
+#endif // WITH_EDITORONLY_DATA

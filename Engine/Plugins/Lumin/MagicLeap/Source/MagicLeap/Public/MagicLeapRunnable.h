@@ -45,27 +45,11 @@ public:
 		{
 			OnAppResume();
 		});
-
-		AppEventHandler.SetOnAppShutDownHandler([this]()
-		{
-			OnAppShutDown();
-		});
 	}
 
 	virtual ~FMagicLeapRunnable()
 	{
-		StopTaskCounter.Increment();
-
-		if (Semaphore)
-		{
-			Semaphore->Trigger();
-			Thread->WaitForCompletion();
-			FGenericPlatformProcess::ReturnSynchEventToPool(Semaphore);
-			Semaphore = nullptr;
-		}
-
-		delete Thread;
-		Thread = nullptr;
+		Stop();
 	}
 
 	uint32 Run() override
@@ -94,6 +78,28 @@ public:
 		return 0;
 	}
 
+	virtual void Start()
+	{
+		StopTaskCounter.Reset();
+		Semaphore = FGenericPlatformProcess::GetSynchEventFromPool(false);
+		Thread = FRunnableThread::Create(this, *Name, 0, ThreadPriority, FPlatformAffinity::GetPoolThreadMask());
+	}
+
+	void Stop() override
+	{
+		StopTaskCounter.Increment();
+
+		if (Semaphore)
+		{
+			Semaphore->Trigger();
+			Thread->WaitForCompletion();
+			FGenericPlatformProcess::ReturnSynchEventToPool(Semaphore);
+			Semaphore = nullptr;
+			delete Thread;
+			Thread = nullptr;
+		}
+	}
+
 	void OnAppPause()
 	{
 		bPaused = true;
@@ -112,18 +118,12 @@ public:
 		}
 	}
 
-	void OnAppShutDown()
-	{
-		Stop();
-	}
-
-	void PushNewTask(TTaskType InTask)
+	void PushNewTask(const TTaskType& InTask)
 	{
 		// on demand thread creation
 		if (!Thread)
 		{
-			Semaphore = FGenericPlatformProcess::GetSynchEventFromPool(false);
-			Thread = FRunnableThread::Create(this, *Name, 0, ThreadPriority, FPlatformAffinity::GetPoolThreadMask());
+			Start();
 		}
 
 		IncomingTasks.Enqueue(InTask);
@@ -146,6 +146,11 @@ public:
 		}
 #endif //PLATFORM_LUMIN
 		return false;
+	}
+
+	bool IsRunning() const
+	{
+		return StopTaskCounter.GetValue() == 0;
 	}
 
 protected:
@@ -171,7 +176,7 @@ protected:
 	FEvent* Semaphore;
 	FThreadSafeBool bPaused;
 	TQueue<TTaskType, EQueueMode::Spsc> IncomingTasks;
-	TQueue<TTaskType, EQueueMode::Spsc> CompletedTasks;
+	TQueue<TTaskType, EQueueMode::Mpsc> CompletedTasks; // allow multiple (binder) threads to push completed tasks
 	TTaskType CurrentTask;
 
 private:

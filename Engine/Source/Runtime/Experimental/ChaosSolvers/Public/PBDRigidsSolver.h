@@ -32,6 +32,12 @@ class FStaticMeshPhysicsProxy;
 class FGeometryCollectionPhysicsProxy;
 class FFieldSystemPhysicsProxy;
 
+#define PBDRIGID_PREALLOC_COUNT 1024
+#define KINEMATIC_GEOM_PREALLOC_COUNT 100
+#define GEOMETRY_PREALLOC_COUNT 100
+
+extern int32 ChaosSolverParticlePoolNumFrameUntilShrink;
+
 /**
 *
 */
@@ -88,7 +94,7 @@ namespace Chaos
 
 		typedef Chaos::TGeometryParticle<float, 3> FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
-		typedef Chaos::TPBDRigidsEvolutionGBF<float, 3> FPBDRigidsEvolution;
+		typedef Chaos::FPBDRigidsEvolutionGBF FPBDRigidsEvolution;
 		typedef Chaos::TPBDCollisionConstraints<float, 3> FPBDCollisionConstraints;
 
 		typedef FPBDCollisionConstraints FCollisionConstraints;
@@ -220,6 +226,9 @@ namespace Chaos
 
 		/**/
 		void PushPhysicsState(IDispatcher* Dispatcher = nullptr);
+
+		/**/
+		void PushPhysicsStatePooled(IDispatcher* Dispatcher);
 
 		/**/
 		void BufferPhysicsResults();
@@ -381,6 +390,87 @@ namespace Chaos
 
 		template<ELockType>
 		friend struct TSolverQueryMaterialScope;
+
+	public:
+
+		template<typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
+		class TFramePool
+		{
+		public:
+
+			struct TPoolEntry
+			{
+				TPoolEntry()
+				{
+					Proxy = nullptr;
+				}
+
+				ParticleEntry Particle;
+				ProxyEntry    Proxy;
+			};
+
+			TFramePool()
+			{
+				EntryCount = 0;
+				MaxEntryCount = 0;
+				FrameCount = 0;
+				// Prealloc default object in the pool. 
+				// Must call DirtyParticleData.Init + DirtyParticleData.Reset each 
+				// time you use an entry in the pool.
+				Pool.AddDefaulted(PreAllocCount);
+			}
+
+			void ResetPool() 
+			{ 
+				// try to shrink each (n) frames
+				MaxEntryCount = (EntryCount >= MaxEntryCount) ? EntryCount : MaxEntryCount;
+				
+				if (FrameCount % ChaosSolverParticlePoolNumFrameUntilShrink == 0)
+				{
+					int32 NextLowerBound = (Pool.Num() / PreAllocCount) - 1;
+					NextLowerBound = (NextLowerBound >= 1) ? NextLowerBound : 1;
+					NextLowerBound *= PreAllocCount;
+					if (MaxEntryCount < NextLowerBound)
+					{
+						Pool.SetNum(NextLowerBound);
+					}
+					MaxEntryCount = 0;
+				}
+
+				FrameCount++;
+				EntryCount = 0;
+			}
+
+			int32 GetEntryCount()
+			{
+				return EntryCount;
+			}
+
+			TPoolEntry& GetEntry(int32 Index)
+			{
+				ensure(Index < Pool.Num());
+				return Pool[Index];
+			}
+
+			TPoolEntry& GetNewEntry()
+			{
+				if (EntryCount >= Pool.Num())
+				{
+					Pool.Add(TPoolEntry());
+				}
+				return Pool[EntryCount++];
+			}
+
+		private:
+			TArray<TPoolEntry> Pool;
+			int32 EntryCount;
+			int32 MaxEntryCount;
+			int32 FrameCount;
+		};
+
+		TFramePool<Chaos::TPBDRigidParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*, PBDRIGID_PREALLOC_COUNT> RigidParticlePool;
+		TFramePool<Chaos::TKinematicGeometryParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*, KINEMATIC_GEOM_PREALLOC_COUNT> KinematicGeometryParticlePool;
+		TFramePool<Chaos::TGeometryParticleData<float, 3>, FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*, GEOMETRY_PREALLOC_COUNT> GeometryParticlePool;
 	};
 
 	template<>

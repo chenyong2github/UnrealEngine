@@ -9,8 +9,8 @@
 #include "Layout/Visibility.h"
 #include "Misc/Guid.h"
 #include "SlateFwd.h"
+#include "Trace/StoreClient.h"
 #include "TraceServices/ModuleService.h"
-#include "TraceServices/SessionService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -27,6 +27,12 @@ class FActiveTimerHandle;
 class SVerticalBox;
 class SEditableTextBox;
 
+namespace Insights
+{
+	class FStoreBrowser;
+	struct FStoreBrowserTraceInfo;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Type definition for shared pointers to instances of SNotificationItem. */
@@ -40,35 +46,41 @@ typedef TWeakPtr<class SNotificationItem> SNotificationItemWeak;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FTraceSession
+struct FTraceViewModel
 {
-	Trace::FSessionHandle SessionHandle;
+	uint32 TraceId = 0;
+
+	uint64 ChangeSerial = 0;
+	int32 TraceIndex = -1; // debug
+
 	FText Name;
 	FText Uri;
+
+	FDateTime Timestamp = 0;
+	uint64 Size = 0;
+
+	bool bIsLive = false;
+	uint32 IpAddress = 0;
+
+	bool bIsMetadataUpdated = false;
 	FText Platform;
 	FText AppName;
 	FText CommandLine;
-	EBuildConfiguration ConfigurationType;
-	EBuildTargetType TargetType;
-	FDateTime TimeStamp;
-	uint64 Size;
-	bool bIsLive;
+	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
+	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 
-	FTraceSession(const Trace::FSessionHandle InSessionHandle, const Trace::FSessionInfo& InSessionInfo)
-		: SessionHandle(InSessionHandle)
-		, Name(FText::FromString(InSessionInfo.Name))
-		, Uri(FText::FromString(InSessionInfo.Uri))
-		, Platform(FText::FromString(InSessionInfo.Platform))
-		, AppName(FText::FromString(InSessionInfo.AppName))
-		, CommandLine(FText::FromString(InSessionInfo.CommandLine))
-		//, ConfigurationType(EBuildConfiguration::Unknown)
-		, ConfigurationType(InSessionInfo.ConfigurationType)
-		//, TargetType(EBuildTargetType::Unknown)
-		, TargetType(InSessionInfo.TargetType)
-		, TimeStamp(InSessionInfo.TimeStamp)
-		, Size(InSessionInfo.Size)
-		, bIsLive(InSessionInfo.bIsLive)
-	{}
+	FTraceViewModel() = default;
+
+	static FDateTime ConvertTimestamp(uint64 InTimestamp)
+	{
+		return FDateTime(static_cast<int64>(InTimestamp));
+	}
+
+	static FText AnsiStringViewToText(const FAnsiStringView& AnsiStringView)
+	{
+		FString FatString(AnsiStringView.Len(), AnsiStringView.GetData());
+		return FText::FromString(FatString);
+	}
 };
 
 /** Implements the Start Page window. */
@@ -93,35 +105,65 @@ public:
 private:
 	TSharedRef<SWidget> ConstructSessionsPanel();
 	TSharedRef<SWidget> ConstructLoadPanel();
-	TSharedRef<SWidget> ConstructLocalSessionDirectoryPanel();
+	TSharedRef<SWidget> ConstructTraceStoreDirectoryPanel();
+	TSharedRef<SWidget> ConstructAutoStartPanel();
 	TSharedRef<SWidget> ConstructRecorderPanel();
 	TSharedRef<SWidget> ConstructConnectPanel();
 
-	/** Generate a new row for the TraceSessions list view. */
-	TSharedRef<ITableRow> TraceSessions_OnGenerateRow(TSharedPtr<FTraceSession> InConnection, const TSharedRef<STableViewBase>& OwnerTable);
+	/** Generate a new row for the Traces list view. */
+	TSharedRef<ITableRow> TraceList_OnGenerateRow(TSharedPtr<FTraceViewModel> InTrace, const TSharedRef<STableViewBase>& OwnerTable);
 
-	/** Callback for determining the visibility of the 'Please select a trace' overlay. */
-	EVisibility IsSessionOverlayVisible() const;
+	//////////////////////////////////////////////////
+	// "Starting Analysis" Splash Screen
 
-	bool IsSessionValid() const;
+	void ShowSplashScreenOverlay();
+	void TickSplashScreenOverlay(const float InDeltaTime);
+	float SplashScreenOverlayOpacity() const;
+
+	EVisibility SplashScreenOverlay_Visibility() const;
+	FSlateColor SplashScreenOverlay_ColorAndOpacity() const;
+	FSlateColor SplashScreenOverlay_TextColorAndOpacity() const;
+	FText GetSplashScreenOverlayText() const;
+
+	//////////////////////////////////////////////////
 
 	bool Open_IsEnabled() const;
 	FReply Open_OnClicked();
 
 	void OpenFileDialog();
-	void LoadTraceFile(const TCHAR* TraceFile);
-	void LoadSession(Trace::FSessionHandle SessionHandle);
 
-	TSharedRef<SWidget> MakeSessionListMenu();
+	void LoadTraceSession(TSharedPtr<FTraceViewModel> InTrace);
+	void LoadTraceFile(const FString& InTraceFile);
+	void LoadTrace(uint32 InTraceId);
 
-	void RefreshTraceSessionList();
-	void TraceSessions_OnSelectionChanged(TSharedPtr<FTraceSession> TraceSession, ESelectInfo::Type SelectInfo);
-	void TraceSessions_OnMouseButtonDoubleClick(TSharedPtr<FTraceSession> TraceSession);
-	EVisibility TraceSessions_Visibility() const;
-	FReply RefreshTraceSessions_OnClicked();
+	//////////////////////////////////////////////////
+	// Traces
 
-	FText GetLocalSessionDirectory() const;
-	FReply ExploreLocalSessionDirectory_OnClicked();
+	TSharedRef<SWidget> MakeTraceListMenu();
+
+	FReply RefreshTraces_OnClicked();
+
+	void RefreshTraceList();
+	void UpdateTrace(FTraceViewModel& InOutTrace, const Insights::FStoreBrowserTraceInfo& InSourceTrace);
+	void OnTraceListChanged();
+
+	void TraceList_OnSelectionChanged(TSharedPtr<FTraceViewModel> InTrace, ESelectInfo::Type SelectInfo);
+	void TraceList_OnMouseButtonDoubleClick(TSharedPtr<FTraceViewModel> InTrace);
+
+	//////////////////////////////////////////////////
+	// Auto Start Analysis
+
+	ECheckBoxState AutoStart_IsChecked() const;
+	void AutoStart_OnCheckStateChanged(ECheckBoxState NewState);
+
+	//////////////////////////////////////////////////
+	// Trace Store Directory
+
+	FText GetTraceStoreDirectory() const;
+	FReply ExploreTraceStoreDirectory_OnClicked();
+
+	//////////////////////////////////////////////////
+	// Recorder
 
 	FText GetRecorderStatusText() const;
 	EVisibility StartTraceRecorder_Visibility() const;
@@ -129,11 +171,12 @@ private:
 	FReply StartTraceRecorder_OnClicked();
 	FReply StopTraceRecorder_OnClicked();
 
-	//EVisibility Modules_Visibility() const;
-	//ECheckBoxState Module_IsChecked(int32 ModuleIndex) const;
-	//void Module_OnCheckStateChanged(ECheckBoxState NewRadioState, int32 ModuleIndex);
+	//////////////////////////////////////////////////
+	// New Connection
 
 	FReply Connect_OnClicked();
+
+	//////////////////////////////////////////////////
 
 	/** Updates the amount of time the profiler has been active. */
 	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
@@ -212,15 +255,27 @@ private:
 	/** Holds all widgets for the profiler window like menu bar, toolbar and tabs. */
 	TSharedPtr<SVerticalBox> MainContentPanel;
 
-	int32 AvailableSessionCount;
 	int32 LiveSessionCount;
 
-	TSharedPtr<SListView<TSharedPtr<FTraceSession>>> TraceSessionsListView;
-	TArray<TSharedPtr<FTraceSession>> TraceSessions;
-	TMap<Trace::FSessionHandle, TSharedPtr<FTraceSession>> TraceSessionsMap;
-	TSharedPtr<SEditableTextBox> HostTextBox;
-	TSharedPtr<FTraceSession> SelectedTraceSession;
+	bool bAutoStartAnalysisForLiveSessions;
+	TArray<uint32> AutoStartedSessions; // tracks sessions that were auto started (in order to not start them again)
 
-	//TArray<Trace::FModuleInfo> AvailableModules;
-	//TArray<bool> AvailableModulesEnabledState;
+	TSharedPtr<SSearchBox> AutoStartPlatformFilter;
+	TSharedPtr<SSearchBox> AutoStartAppNameFilter;
+	EBuildConfiguration AutoStartConfigurationTypeFilter;
+	EBuildTargetType AutoStartTargetTypeFilter;
+
+	TUniquePtr<Insights::FStoreBrowser> StoreBrowser;
+	uint64 TracesChangeSerial;
+
+	TArray<TSharedPtr<FTraceViewModel>> TraceViewModels;
+	TMap<uint32, TSharedPtr<FTraceViewModel>> TraceViewModelMap;
+
+	TSharedPtr<SListView<TSharedPtr<FTraceViewModel>>> TraceListView;
+	TSharedPtr<FTraceViewModel> SelectedTrace;
+
+	TSharedPtr<SEditableTextBox> HostTextBox;
+
+	FString SplashScreenOverlayTraceFile;
+	float SplashScreenOverlayFadeTime;
 };

@@ -11,7 +11,7 @@ UWindowsMixedRealityRuntimeSettings* UWindowsMixedRealityRuntimeSettings::WMRSet
 
 void UWindowsMixedRealityRuntimeSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	GConfig->Flush(1);
+	GConfig->Flush(false);
 }
 
 #endif

@@ -534,7 +534,6 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs[0]);
 }
 
-
 FSequencer::FSequencer()
 	: SequencerCommandBindings( new FUICommandList )
 	, SequencerSharedBindings(new FUICommandList)
@@ -691,11 +690,11 @@ void FSequencer::Tick(float InDeltaTime)
 	}
 
 	// Animate the autoscrub offset if it's set
-	if (AutoscrubOffset.IsSet())
+	if (AutoscrubOffset.IsSet() && PlaybackState == EMovieScenePlayerStatus::Scrubbing )
 	{
 		FQualifiedFrameTime CurrentTime = GetLocalTime();
 		FFrameTime Offset = (AutoscrubOffset.GetValue() * AutoScrollFactor) * CurrentTime.Rate;
-		SetLocalTimeDirectly(CurrentTime.Time + Offset);
+		SetLocalTimeLooped(CurrentTime.Time + Offset);
 	}
 
 	if (GetSelectionRange().IsEmpty() && GetLoopMode() == SLM_LoopSelectionRange)
@@ -2915,11 +2914,11 @@ void FSequencer::UpdateAutoScroll(double NewTime, float ThresholdPercentage)
 	{
 		if (AutoscrollOffset.GetValue() < 0 && LocalTime.AsSeconds() > ViewRange.GetLowerBoundValue() + Threshold)
 		{
-			SetLocalTimeDirectly( (ViewRange.GetLowerBoundValue() + Threshold) * LocalTime.Rate );
+			SetLocalTimeLooped( (ViewRange.GetLowerBoundValue() + Threshold) * LocalTime.Rate );
 		}
 		else if (AutoscrollOffset.GetValue() > 0 && LocalTime.AsSeconds() < ViewRange.GetUpperBoundValue() - Threshold)
 		{
-			SetLocalTimeDirectly( (ViewRange.GetUpperBoundValue() - Threshold) * LocalTime.Rate );
+			SetLocalTimeLooped( (ViewRange.GetUpperBoundValue() - Threshold) * LocalTime.Rate );
 		}
 	}
 
@@ -10476,73 +10475,16 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 			FMovieSceneSequenceIDRef Template = GetFocusedTemplateID();
 			UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, this, Template);
 
-			// Helper to make spawnables persist throughout the export process and then restore properly afterwards
-			struct FSpawnableRestoreState
-			{
-				FSpawnableRestoreState(FSequencer& InSequencer) :
-					bWasChanged(false)
-				{
-					WeakMovieScene = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
-
-					for (int32 SpawnableIndex = 0; SpawnableIndex < WeakMovieScene->GetSpawnableCount(); ++SpawnableIndex)
-					{
-						FMovieSceneSpawnable& Spawnable = WeakMovieScene->GetSpawnable(SpawnableIndex);
-
-						UMovieSceneSpawnTrack* SpawnTrack = WeakMovieScene->FindTrack<UMovieSceneSpawnTrack>(Spawnable.GetGuid());
-
-						if (SpawnTrack)
-						{
-							bWasChanged = true;
-
-							// Spawnable could be in a subscene, so temporarily override it to persist throughout
-							SpawnOwnershipMap.Add(Spawnable.GetGuid(), Spawnable.GetSpawnOwnership());
-							Spawnable.SetSpawnOwnership(ESpawnOwnership::MasterSequence);
-
-							// Spawnable could have animated spawned state, so temporarily override it to spawn infinitely
-							UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->CreateNewSection());
-							SpawnSection->Modify();
-							SpawnSection->GetChannel().Reset();
-							SpawnSection->GetChannel().SetDefault(true);
-						}
-					}
-
-					if (bWasChanged)
-					{
-						// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
-						InSequencer.SetLocalTimeDirectly(MovieScene::DiscreteInclusiveLower(InSequencer.GetTimeBounds()));
-					}
-				}
-
-				~FSpawnableRestoreState()
-				{
-					if (!bWasChanged || !WeakMovieScene.IsValid())
-					{
-						return;
-					}
-
-					// Restore spawnable owners
-					for (int32 SpawnableIndex = 0; SpawnableIndex < WeakMovieScene->GetSpawnableCount(); ++SpawnableIndex)
-					{
-						FMovieSceneSpawnable& Spawnable = WeakMovieScene->GetSpawnable(SpawnableIndex);
-						Spawnable.SetSpawnOwnership(SpawnOwnershipMap[Spawnable.GetGuid()]);
-					}
-
-					// Restore modified spawned sections
-					bool bOrigSquelchTransactionNotification = GEditor->bSquelchTransactionNotification;
-					GEditor->bSquelchTransactionNotification = true;
-					GEditor->UndoTransaction(false);
-					GEditor->bSquelchTransactionNotification = bOrigSquelchTransactionNotification;
-				}
-
-				bool bWasChanged;
-				TMap<FGuid, ESpawnOwnership> SpawnOwnershipMap;
-				TWeakObjectPtr<UMovieScene> WeakMovieScene;
-			};
-
 			FScopedTransaction ExportFBXTransaction(NSLOCTEXT("Sequencer", "ExportFBX", "Export FBX"));
 
 			{
-				FSpawnableRestoreState SpawnableRestoreState(*this);
+				FSpawnableRestoreState SpawnableRestoreState(MovieScene);
+				if (SpawnableRestoreState.bWasChanged)
+				{
+					// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
+					SetLocalTimeDirectly(MovieScene::DiscreteInclusiveLower(GetTimeBounds()));
+				}
+
 				if (MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform))
 				{
 					FNotificationInfo Info(NSLOCTEXT("Sequencer", "ExportFBXSucceeded", "FBX Export Succeeded."));
@@ -10896,14 +10838,6 @@ void FSequencer::BindCommands()
 		} ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ),
 		FIsActionChecked::CreateLambda( [this]{ return Settings->GetShowChannelColors(); } ) );
-
-	SequencerCommandBindings->MapAction(
-		Commands.ToggleLabelBrowser,
-		FExecuteAction::CreateLambda( [this]{
-			Settings->SetLabelBrowserVisible( !Settings->GetLabelBrowserVisible() );
-		} ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->GetLabelBrowserVisible(); } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleShowSelectedNodesOnly,
@@ -11518,6 +11452,7 @@ void FSequencer::ResetTimeController()
 	{
 	case EUpdateClockSource::Audio:    TimeController = MakeShared<FMovieSceneTimeController_AudioClock>();         break;
 	case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>();      break;
+	case EUpdateClockSource::RelativeTimecode: TimeController = MakeShared<FMovieSceneTimeController_RelativeTimecodeClock>();      break;
 	case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>();      break;
 	case EUpdateClockSource::Custom:   TimeController = MovieScene->MakeCustomTimeController(GetPlaybackContext()); break;
 	default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();               break;

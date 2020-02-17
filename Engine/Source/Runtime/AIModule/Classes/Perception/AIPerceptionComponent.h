@@ -371,7 +371,8 @@ protected:
 private:
 	friend UAIPerceptionSystem;
 
+	void RegisterSenseConfig(UAISenseConfig& SenseConfig, UAIPerceptionSystem& AIPerceptionSys);
 	void StoreListenerId(FPerceptionListenerID InListenerId) { PerceptionListenerId = InListenerId; }
-	void SetMaxStimulusAge(int32 ConfigIndex, float MaxAge);
+	void SetMaxStimulusAge(FAISenseID SenseId, float MaxAge);
 };
 

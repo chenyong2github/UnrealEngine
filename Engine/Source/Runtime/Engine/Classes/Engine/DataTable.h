@@ -53,7 +53,7 @@ struct FTableRowBase
  * Imported spreadsheet table.
  */
 UCLASS(MinimalAPI, BlueprintType, AutoExpandCategories = "DataTable,ImportOptions")
-class ENGINE_VTABLE UDataTable
+class UDataTable
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

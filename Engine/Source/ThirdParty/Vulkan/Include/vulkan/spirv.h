@@ -53,12 +53,12 @@
 
 typedef unsigned int SpvId;
 
-#define SPV_VERSION 0x10300
-#define SPV_REVISION 7
+#define SPV_VERSION 0x10500
+#define SPV_REVISION 1
 
 static const unsigned int SpvMagicNumber = 0x07230203;
-static const unsigned int SpvVersion = 0x00010300;
-static const unsigned int SpvRevision = 7;
+static const unsigned int SpvVersion = 0x00010500;
+static const unsigned int SpvRevision = 1;
 static const unsigned int SpvOpCodeMask = 0xffff;
 static const unsigned int SpvWordCountShift = 16;
 
@@ -95,6 +95,7 @@ typedef enum SpvAddressingModel_ {
     SpvAddressingModelLogical = 0,
     SpvAddressingModelPhysical32 = 1,
     SpvAddressingModelPhysical64 = 2,
+    SpvAddressingModelPhysicalStorageBuffer64 = 5348,
     SpvAddressingModelPhysicalStorageBuffer64EXT = 5348,
     SpvAddressingModelMax = 0x7fffffff,
 } SpvAddressingModel;
@@ -103,6 +104,7 @@ typedef enum SpvMemoryModel_ {
     SpvMemoryModelSimple = 0,
     SpvMemoryModelGLSL450 = 1,
     SpvMemoryModelOpenCL = 2,
+    SpvMemoryModelVulkan = 3,
     SpvMemoryModelVulkanKHR = 3,
     SpvMemoryModelMax = 0x7fffffff,
 } SpvMemoryModel;
@@ -158,6 +160,12 @@ typedef enum SpvExecutionMode_ {
     SpvExecutionModeDerivativeGroupQuadsNV = 5289,
     SpvExecutionModeDerivativeGroupLinearNV = 5290,
     SpvExecutionModeOutputTrianglesNV = 5298,
+    SpvExecutionModePixelInterlockOrderedEXT = 5366,
+    SpvExecutionModePixelInterlockUnorderedEXT = 5367,
+    SpvExecutionModeSampleInterlockOrderedEXT = 5368,
+    SpvExecutionModeSampleInterlockUnorderedEXT = 5369,
+    SpvExecutionModeShadingRateInterlockOrderedEXT = 5370,
+    SpvExecutionModeShadingRateInterlockUnorderedEXT = 5371,
     SpvExecutionModeMax = 0x7fffffff,
 } SpvExecutionMode;
 
@@ -181,6 +189,7 @@ typedef enum SpvStorageClass_ {
     SpvStorageClassHitAttributeNV = 5339,
     SpvStorageClassIncomingRayPayloadNV = 5342,
     SpvStorageClassShaderRecordBufferNV = 5343,
+    SpvStorageClassPhysicalStorageBuffer = 5349,
     SpvStorageClassPhysicalStorageBufferEXT = 5349,
     SpvStorageClassMax = 0x7fffffff,
 } SpvStorageClass;
@@ -309,10 +318,16 @@ typedef enum SpvImageOperandsShift_ {
     SpvImageOperandsConstOffsetsShift = 5,
     SpvImageOperandsSampleShift = 6,
     SpvImageOperandsMinLodShift = 7,
+    SpvImageOperandsMakeTexelAvailableShift = 8,
     SpvImageOperandsMakeTexelAvailableKHRShift = 8,
+    SpvImageOperandsMakeTexelVisibleShift = 9,
     SpvImageOperandsMakeTexelVisibleKHRShift = 9,
+    SpvImageOperandsNonPrivateTexelShift = 10,
     SpvImageOperandsNonPrivateTexelKHRShift = 10,
+    SpvImageOperandsVolatileTexelShift = 11,
     SpvImageOperandsVolatileTexelKHRShift = 11,
+    SpvImageOperandsSignExtendShift = 12,
+    SpvImageOperandsZeroExtendShift = 13,
     SpvImageOperandsMax = 0x7fffffff,
 } SpvImageOperandsShift;
 
@@ -326,10 +341,16 @@ typedef enum SpvImageOperandsMask_ {
     SpvImageOperandsConstOffsetsMask = 0x00000020,
     SpvImageOperandsSampleMask = 0x00000040,
     SpvImageOperandsMinLodMask = 0x00000080,
+    SpvImageOperandsMakeTexelAvailableMask = 0x00000100,
     SpvImageOperandsMakeTexelAvailableKHRMask = 0x00000100,
+    SpvImageOperandsMakeTexelVisibleMask = 0x00000200,
     SpvImageOperandsMakeTexelVisibleKHRMask = 0x00000200,
+    SpvImageOperandsNonPrivateTexelMask = 0x00000400,
     SpvImageOperandsNonPrivateTexelKHRMask = 0x00000400,
+    SpvImageOperandsVolatileTexelMask = 0x00000800,
     SpvImageOperandsVolatileTexelKHRMask = 0x00000800,
+    SpvImageOperandsSignExtendMask = 0x00001000,
+    SpvImageOperandsZeroExtendMask = 0x00002000,
 } SpvImageOperandsMask;
 
 typedef enum SpvFPFastMathModeShift_ {
@@ -410,6 +431,7 @@ typedef enum SpvDecoration_ {
     SpvDecorationNonWritable = 24,
     SpvDecorationNonReadable = 25,
     SpvDecorationUniform = 26,
+    SpvDecorationUniformId = 27,
     SpvDecorationSaturatedConversion = 28,
     SpvDecorationStream = 29,
     SpvDecorationLocation = 30,
@@ -441,11 +463,17 @@ typedef enum SpvDecoration_ {
     SpvDecorationPerViewNV = 5272,
     SpvDecorationPerTaskNV = 5273,
     SpvDecorationPerVertexNV = 5285,
+    SpvDecorationNonUniform = 5300,
     SpvDecorationNonUniformEXT = 5300,
+    SpvDecorationRestrictPointer = 5355,
     SpvDecorationRestrictPointerEXT = 5355,
+    SpvDecorationAliasedPointer = 5356,
     SpvDecorationAliasedPointerEXT = 5356,
+    SpvDecorationCounterBuffer = 5634,
     SpvDecorationHlslCounterBufferGOOGLE = 5634,
     SpvDecorationHlslSemanticGOOGLE = 5635,
+    SpvDecorationUserSemantic = 5635,
+    SpvDecorationUserTypeGOOGLE = 5636,
     SpvDecorationMax = 0x7fffffff,
 } SpvDecoration;
 
@@ -548,6 +576,10 @@ typedef enum SpvBuiltIn_ {
     SpvBuiltInHitTNV = 5332,
     SpvBuiltInHitKindNV = 5333,
     SpvBuiltInIncomingRayFlagsNV = 5351,
+    SpvBuiltInWarpsPerSMNV = 5374,
+    SpvBuiltInSMCountNV = 5375,
+    SpvBuiltInWarpIDNV = 5376,
+    SpvBuiltInSMIDNV = 5377,
     SpvBuiltInMax = 0x7fffffff,
 } SpvBuiltIn;
 
@@ -568,6 +600,11 @@ typedef enum SpvLoopControlShift_ {
     SpvLoopControlDontUnrollShift = 1,
     SpvLoopControlDependencyInfiniteShift = 2,
     SpvLoopControlDependencyLengthShift = 3,
+    SpvLoopControlMinIterationsShift = 4,
+    SpvLoopControlMaxIterationsShift = 5,
+    SpvLoopControlIterationMultipleShift = 6,
+    SpvLoopControlPeelCountShift = 7,
+    SpvLoopControlPartialCountShift = 8,
     SpvLoopControlMax = 0x7fffffff,
 } SpvLoopControlShift;
 
@@ -577,6 +614,11 @@ typedef enum SpvLoopControlMask_ {
     SpvLoopControlDontUnrollMask = 0x00000002,
     SpvLoopControlDependencyInfiniteMask = 0x00000004,
     SpvLoopControlDependencyLengthMask = 0x00000008,
+    SpvLoopControlMinIterationsMask = 0x00000010,
+    SpvLoopControlMaxIterationsMask = 0x00000020,
+    SpvLoopControlIterationMultipleMask = 0x00000040,
+    SpvLoopControlPeelCountMask = 0x00000080,
+    SpvLoopControlPartialCountMask = 0x00000100,
 } SpvLoopControlMask;
 
 typedef enum SpvFunctionControlShift_ {
@@ -606,9 +648,13 @@ typedef enum SpvMemorySemanticsShift_ {
     SpvMemorySemanticsCrossWorkgroupMemoryShift = 9,
     SpvMemorySemanticsAtomicCounterMemoryShift = 10,
     SpvMemorySemanticsImageMemoryShift = 11,
+    SpvMemorySemanticsOutputMemoryShift = 12,
     SpvMemorySemanticsOutputMemoryKHRShift = 12,
+    SpvMemorySemanticsMakeAvailableShift = 13,
     SpvMemorySemanticsMakeAvailableKHRShift = 13,
+    SpvMemorySemanticsMakeVisibleShift = 14,
     SpvMemorySemanticsMakeVisibleKHRShift = 14,
+    SpvMemorySemanticsVolatileShift = 15,
     SpvMemorySemanticsMax = 0x7fffffff,
 } SpvMemorySemanticsShift;
 
@@ -624,17 +670,24 @@ typedef enum SpvMemorySemanticsMask_ {
     SpvMemorySemanticsCrossWorkgroupMemoryMask = 0x00000200,
     SpvMemorySemanticsAtomicCounterMemoryMask = 0x00000400,
     SpvMemorySemanticsImageMemoryMask = 0x00000800,
+    SpvMemorySemanticsOutputMemoryMask = 0x00001000,
     SpvMemorySemanticsOutputMemoryKHRMask = 0x00001000,
+    SpvMemorySemanticsMakeAvailableMask = 0x00002000,
     SpvMemorySemanticsMakeAvailableKHRMask = 0x00002000,
+    SpvMemorySemanticsMakeVisibleMask = 0x00004000,
     SpvMemorySemanticsMakeVisibleKHRMask = 0x00004000,
+    SpvMemorySemanticsVolatileMask = 0x00008000,
 } SpvMemorySemanticsMask;
 
 typedef enum SpvMemoryAccessShift_ {
     SpvMemoryAccessVolatileShift = 0,
     SpvMemoryAccessAlignedShift = 1,
     SpvMemoryAccessNontemporalShift = 2,
+    SpvMemoryAccessMakePointerAvailableShift = 3,
     SpvMemoryAccessMakePointerAvailableKHRShift = 3,
+    SpvMemoryAccessMakePointerVisibleShift = 4,
     SpvMemoryAccessMakePointerVisibleKHRShift = 4,
+    SpvMemoryAccessNonPrivatePointerShift = 5,
     SpvMemoryAccessNonPrivatePointerKHRShift = 5,
     SpvMemoryAccessMax = 0x7fffffff,
 } SpvMemoryAccessShift;
@@ -644,8 +697,11 @@ typedef enum SpvMemoryAccessMask_ {
     SpvMemoryAccessVolatileMask = 0x00000001,
     SpvMemoryAccessAlignedMask = 0x00000002,
     SpvMemoryAccessNontemporalMask = 0x00000004,
+    SpvMemoryAccessMakePointerAvailableMask = 0x00000008,
     SpvMemoryAccessMakePointerAvailableKHRMask = 0x00000008,
+    SpvMemoryAccessMakePointerVisibleMask = 0x00000010,
     SpvMemoryAccessMakePointerVisibleKHRMask = 0x00000010,
+    SpvMemoryAccessNonPrivatePointerMask = 0x00000020,
     SpvMemoryAccessNonPrivatePointerKHRMask = 0x00000020,
 } SpvMemoryAccessMask;
 
@@ -655,6 +711,7 @@ typedef enum SpvScope_ {
     SpvScopeWorkgroup = 2,
     SpvScopeSubgroup = 3,
     SpvScopeInvocation = 4,
+    SpvScopeQueueFamily = 5,
     SpvScopeQueueFamilyKHR = 5,
     SpvScopeMax = 0x7fffffff,
 } SpvScope;
@@ -755,6 +812,8 @@ typedef enum SpvCapability_ {
     SpvCapabilityGroupNonUniformShuffleRelative = 66,
     SpvCapabilityGroupNonUniformClustered = 67,
     SpvCapabilityGroupNonUniformQuad = 68,
+    SpvCapabilityShaderLayer = 69,
+    SpvCapabilityShaderViewportIndex = 70,
     SpvCapabilitySubgroupBallotKHR = 4423,
     SpvCapabilityDrawParameters = 4427,
     SpvCapabilitySubgroupVoteKHR = 4431,
@@ -783,6 +842,7 @@ typedef enum SpvCapability_ {
     SpvCapabilityFragmentMaskAMD = 5010,
     SpvCapabilityStencilExportEXT = 5013,
     SpvCapabilityImageReadWriteLodAMD = 5015,
+    SpvCapabilityShaderClockKHR = 5055,
     SpvCapabilitySampleMaskOverrideCoverageNV = 5249,
     SpvCapabilityGeometryShaderPassthroughNV = 5251,
     SpvCapabilityShaderViewportIndexLayerEXT = 5254,
@@ -798,28 +858,49 @@ typedef enum SpvCapability_ {
     SpvCapabilityFragmentDensityEXT = 5291,
     SpvCapabilityShadingRateNV = 5291,
     SpvCapabilityGroupNonUniformPartitionedNV = 5297,
+    SpvCapabilityShaderNonUniform = 5301,
     SpvCapabilityShaderNonUniformEXT = 5301,
+    SpvCapabilityRuntimeDescriptorArray = 5302,
     SpvCapabilityRuntimeDescriptorArrayEXT = 5302,
+    SpvCapabilityInputAttachmentArrayDynamicIndexing = 5303,
     SpvCapabilityInputAttachmentArrayDynamicIndexingEXT = 5303,
+    SpvCapabilityUniformTexelBufferArrayDynamicIndexing = 5304,
     SpvCapabilityUniformTexelBufferArrayDynamicIndexingEXT = 5304,
+    SpvCapabilityStorageTexelBufferArrayDynamicIndexing = 5305,
     SpvCapabilityStorageTexelBufferArrayDynamicIndexingEXT = 5305,
+    SpvCapabilityUniformBufferArrayNonUniformIndexing = 5306,
     SpvCapabilityUniformBufferArrayNonUniformIndexingEXT = 5306,
+    SpvCapabilitySampledImageArrayNonUniformIndexing = 5307,
     SpvCapabilitySampledImageArrayNonUniformIndexingEXT = 5307,
+    SpvCapabilityStorageBufferArrayNonUniformIndexing = 5308,
     SpvCapabilityStorageBufferArrayNonUniformIndexingEXT = 5308,
+    SpvCapabilityStorageImageArrayNonUniformIndexing = 5309,
     SpvCapabilityStorageImageArrayNonUniformIndexingEXT = 5309,
+    SpvCapabilityInputAttachmentArrayNonUniformIndexing = 5310,
     SpvCapabilityInputAttachmentArrayNonUniformIndexingEXT = 5310,
+    SpvCapabilityUniformTexelBufferArrayNonUniformIndexing = 5311,
     SpvCapabilityUniformTexelBufferArrayNonUniformIndexingEXT = 5311,
+    SpvCapabilityStorageTexelBufferArrayNonUniformIndexing = 5312,
     SpvCapabilityStorageTexelBufferArrayNonUniformIndexingEXT = 5312,
     SpvCapabilityRayTracingNV = 5340,
+    SpvCapabilityVulkanMemoryModel = 5345,
     SpvCapabilityVulkanMemoryModelKHR = 5345,
+    SpvCapabilityVulkanMemoryModelDeviceScope = 5346,
     SpvCapabilityVulkanMemoryModelDeviceScopeKHR = 5346,
+    SpvCapabilityPhysicalStorageBufferAddresses = 5347,
     SpvCapabilityPhysicalStorageBufferAddressesEXT = 5347,
     SpvCapabilityComputeDerivativeGroupLinearNV = 5350,
     SpvCapabilityCooperativeMatrixNV = 5357,
+    SpvCapabilityFragmentShaderSampleInterlockEXT = 5363,
+    SpvCapabilityFragmentShaderShadingRateInterlockEXT = 5372,
+    SpvCapabilityShaderSMBuiltinsNV = 5373,
+    SpvCapabilityFragmentShaderPixelInterlockEXT = 5378,
+    SpvCapabilityDemoteToHelperInvocationEXT = 5379,
     SpvCapabilitySubgroupShuffleINTEL = 5568,
     SpvCapabilitySubgroupBufferBlockIOINTEL = 5569,
     SpvCapabilitySubgroupImageBlockIOINTEL = 5570,
     SpvCapabilitySubgroupImageMediaBlockIOINTEL = 5579,
+    SpvCapabilityIntegerFunctions2INTEL = 5584,
     SpvCapabilitySubgroupAvcMotionEstimationINTEL = 5696,
     SpvCapabilitySubgroupAvcMotionEstimationIntraINTEL = 5697,
     SpvCapabilitySubgroupAvcMotionEstimationChromaINTEL = 5698,
@@ -1167,6 +1248,10 @@ typedef enum SpvOp_ {
     SpvOpGroupNonUniformLogicalXor = 364,
     SpvOpGroupNonUniformQuadBroadcast = 365,
     SpvOpGroupNonUniformQuadSwap = 366,
+    SpvOpCopyLogical = 400,
+    SpvOpPtrEqual = 401,
+    SpvOpPtrNotEqual = 402,
+    SpvOpPtrDiff = 403,
     SpvOpSubgroupBallotKHR = 4421,
     SpvOpSubgroupFirstInvocationKHR = 4422,
     SpvOpSubgroupAllKHR = 4428,
@@ -1183,6 +1268,7 @@ typedef enum SpvOp_ {
     SpvOpGroupSMaxNonUniformAMD = 5007,
     SpvOpFragmentMaskFetchAMD = 5011,
     SpvOpFragmentFetchAMD = 5012,
+    SpvOpReadClockKHR = 5056,
     SpvOpImageSampleFootprintNV = 5283,
     SpvOpGroupNonUniformPartitionNV = 5296,
     SpvOpWritePackedPrimitiveIndices4x8NV = 5299,
@@ -1197,6 +1283,10 @@ typedef enum SpvOp_ {
     SpvOpCooperativeMatrixStoreNV = 5360,
     SpvOpCooperativeMatrixMulAddNV = 5361,
     SpvOpCooperativeMatrixLengthNV = 5362,
+    SpvOpBeginInvocationInterlockEXT = 5364,
+    SpvOpEndInvocationInterlockEXT = 5365,
+    SpvOpDemoteToHelperInvocationEXT = 5380,
+    SpvOpIsHelperInvocationEXT = 5381,
     SpvOpSubgroupShuffleINTEL = 5571,
     SpvOpSubgroupShuffleDownINTEL = 5572,
     SpvOpSubgroupShuffleUpINTEL = 5573,
@@ -1207,7 +1297,23 @@ typedef enum SpvOp_ {
     SpvOpSubgroupImageBlockWriteINTEL = 5578,
     SpvOpSubgroupImageMediaBlockReadINTEL = 5580,
     SpvOpSubgroupImageMediaBlockWriteINTEL = 5581,
+    SpvOpUCountLeadingZerosINTEL = 5585,
+    SpvOpUCountTrailingZerosINTEL = 5586,
+    SpvOpAbsISubINTEL = 5587,
+    SpvOpAbsUSubINTEL = 5588,
+    SpvOpIAddSatINTEL = 5589,
+    SpvOpUAddSatINTEL = 5590,
+    SpvOpIAverageINTEL = 5591,
+    SpvOpUAverageINTEL = 5592,
+    SpvOpIAverageRoundedINTEL = 5593,
+    SpvOpUAverageRoundedINTEL = 5594,
+    SpvOpISubSatINTEL = 5595,
+    SpvOpUSubSatINTEL = 5596,
+    SpvOpIMul32x16INTEL = 5597,
+    SpvOpUMul32x16INTEL = 5598,
+    SpvOpDecorateString = 5632,
     SpvOpDecorateStringGOOGLE = 5632,
+    SpvOpMemberDecorateString = 5633,
     SpvOpMemberDecorateStringGOOGLE = 5633,
     SpvOpVmeImageINTEL = 5699,
     SpvOpTypeVmeImageINTEL = 5700,
@@ -1675,6 +1781,10 @@ inline void SpvHasResultAndType(SpvOp opcode, bool *hasResult, bool *hasResultTy
     case SpvOpGroupNonUniformLogicalXor: *hasResult = true; *hasResultType = true; break;
     case SpvOpGroupNonUniformQuadBroadcast: *hasResult = true; *hasResultType = true; break;
     case SpvOpGroupNonUniformQuadSwap: *hasResult = true; *hasResultType = true; break;
+    case SpvOpCopyLogical: *hasResult = true; *hasResultType = true; break;
+    case SpvOpPtrEqual: *hasResult = true; *hasResultType = true; break;
+    case SpvOpPtrNotEqual: *hasResult = true; *hasResultType = true; break;
+    case SpvOpPtrDiff: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupBallotKHR: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupFirstInvocationKHR: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupAllKHR: *hasResult = true; *hasResultType = true; break;
@@ -1691,6 +1801,9 @@ inline void SpvHasResultAndType(SpvOp opcode, bool *hasResult, bool *hasResultTy
     case SpvOpGroupSMaxNonUniformAMD: *hasResult = true; *hasResultType = true; break;
     case SpvOpFragmentMaskFetchAMD: *hasResult = true; *hasResultType = true; break;
     case SpvOpFragmentFetchAMD: *hasResult = true; *hasResultType = true; break;
+    case SpvOpReadClockKHR: *hasResult = true; *hasResultType = true; break;
+    case SpvOpImageSampleFootprintNV: *hasResult = true; *hasResultType = true; break;
+    case SpvOpGroupNonUniformPartitionNV: *hasResult = true; *hasResultType = true; break;
     case SpvOpWritePackedPrimitiveIndices4x8NV: *hasResult = false; *hasResultType = false; break;
     case SpvOpReportIntersectionNV: *hasResult = true; *hasResultType = true; break;
     case SpvOpIgnoreIntersectionNV: *hasResult = false; *hasResultType = false; break;
@@ -1698,6 +1811,15 @@ inline void SpvHasResultAndType(SpvOp opcode, bool *hasResult, bool *hasResultTy
     case SpvOpTraceNV: *hasResult = false; *hasResultType = false; break;
     case SpvOpTypeAccelerationStructureNV: *hasResult = true; *hasResultType = false; break;
     case SpvOpExecuteCallableNV: *hasResult = false; *hasResultType = false; break;
+    case SpvOpTypeCooperativeMatrixNV: *hasResult = true; *hasResultType = false; break;
+    case SpvOpCooperativeMatrixLoadNV: *hasResult = true; *hasResultType = true; break;
+    case SpvOpCooperativeMatrixStoreNV: *hasResult = false; *hasResultType = false; break;
+    case SpvOpCooperativeMatrixMulAddNV: *hasResult = true; *hasResultType = true; break;
+    case SpvOpCooperativeMatrixLengthNV: *hasResult = true; *hasResultType = true; break;
+    case SpvOpBeginInvocationInterlockEXT: *hasResult = false; *hasResultType = false; break;
+    case SpvOpEndInvocationInterlockEXT: *hasResult = false; *hasResultType = false; break;
+    case SpvOpDemoteToHelperInvocationEXT: *hasResult = false; *hasResultType = false; break;
+    case SpvOpIsHelperInvocationEXT: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupShuffleINTEL: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupShuffleDownINTEL: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupShuffleUpINTEL: *hasResult = true; *hasResultType = true; break;
@@ -1708,6 +1830,22 @@ inline void SpvHasResultAndType(SpvOp opcode, bool *hasResult, bool *hasResultTy
     case SpvOpSubgroupImageBlockWriteINTEL: *hasResult = false; *hasResultType = false; break;
     case SpvOpSubgroupImageMediaBlockReadINTEL: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupImageMediaBlockWriteINTEL: *hasResult = false; *hasResultType = false; break;
+    case SpvOpUCountLeadingZerosINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpUCountTrailingZerosINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpAbsISubINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpAbsUSubINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpIAddSatINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpUAddSatINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpIAverageINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpUAverageINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpIAverageRoundedINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpUAverageRoundedINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpISubSatINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpUSubSatINTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpIMul32x16INTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpUMul32x16INTEL: *hasResult = true; *hasResultType = true; break;
+    case SpvOpDecorateString: *hasResult = false; *hasResultType = false; break;
+    case SpvOpMemberDecorateString: *hasResult = false; *hasResultType = false; break;
     case SpvOpVmeImageINTEL: *hasResult = true; *hasResultType = true; break;
     case SpvOpTypeVmeImageINTEL: *hasResult = true; *hasResultType = false; break;
     case SpvOpTypeAvcImePayloadINTEL: *hasResult = true; *hasResultType = false; break;
@@ -1826,15 +1964,6 @@ inline void SpvHasResultAndType(SpvOp opcode, bool *hasResult, bool *hasResultTy
     case SpvOpSubgroupAvcSicGetPackedSkcLumaCountThresholdINTEL: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupAvcSicGetPackedSkcLumaSumThresholdINTEL: *hasResult = true; *hasResultType = true; break;
     case SpvOpSubgroupAvcSicGetInterRawSadsINTEL: *hasResult = true; *hasResultType = true; break;
-    case SpvOpDecorateStringGOOGLE: *hasResult = false; *hasResultType = false; break;
-    case SpvOpMemberDecorateStringGOOGLE: *hasResult = false; *hasResultType = false; break;
-    case SpvOpGroupNonUniformPartitionNV: *hasResult = true; *hasResultType = true; break;
-    case SpvOpImageSampleFootprintNV: *hasResult = true; *hasResultType = true; break;
-    case SpvOpTypeCooperativeMatrixNV: *hasResult = true; *hasResultType = false; break;
-    case SpvOpCooperativeMatrixLoadNV: *hasResult = true; *hasResultType = true; break;
-    case SpvOpCooperativeMatrixStoreNV: *hasResult = false; *hasResultType = false; break;
-    case SpvOpCooperativeMatrixMulAddNV: *hasResult = true; *hasResultType = true; break;
-    case SpvOpCooperativeMatrixLengthNV: *hasResult = true; *hasResultType = true; break;
     }
 }
 #endif /* SPV_ENABLE_UTILITY_CODE */

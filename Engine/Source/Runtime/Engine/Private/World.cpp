@@ -90,7 +90,6 @@
 
 #if WITH_EDITOR
 	#include "DerivedDataCacheInterface.h"
-	#include "Kismet2/KismetEditorUtilities.h"
 	#include "ThumbnailRendering/WorldThumbnailInfo.h"
 	#include "Editor/UnrealEdTypes.h"
 	#include "Settings/LevelEditorPlaySettings.h"
@@ -1043,17 +1042,6 @@ void UWorld::PostLoad()
 
 bool UWorld::PreSaveRoot(const TCHAR* Filename)
 {
-#if WITH_EDITOR
-	// Rebuild all level blueprints now to ensure no stale data is stored on the actors
-	if( !IsRunningCommandlet() )
-	{
-		for (UBlueprint* Blueprint : PersistentLevel->GetLevelBlueprints())
-		{
-			FKismetEditorUtilities::CompileBlueprint(Blueprint, EBlueprintCompileOptions::SkipGarbageCollection | EBlueprintCompileOptions::SkipSave);
-		}
-	}
-#endif
-
 	// Update components and keep track off whether we need to clean them up afterwards.
 	bool bCleanupIsRequired = false;
 	if(!PersistentLevel->bAreComponentsCurrentlyRegistered)
@@ -1328,7 +1316,9 @@ void UWorld::RepairWorldSettings()
 		if (ExistingWorldSettings)
 		{
 			NewWorldSettings->UnregisterAllComponents();
-			UEngine::CopyPropertiesForUnrelatedObjects(ExistingWorldSettings, NewWorldSettings);
+			UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
+			CopyParams.bNotifyObjectReplacement = true;
+			UEngine::CopyPropertiesForUnrelatedObjects(ExistingWorldSettings, NewWorldSettings, CopyParams);
 			NewWorldSettings->RegisterAllComponents();
 		}
 
@@ -1824,7 +1814,7 @@ void UWorld::ClearWorldComponents()
 }
 
 
-void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly)
+void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly, FRegisterComponentContext* Context)
 {
 	if ( !IsRunningDedicatedServer() )
 	{
@@ -1836,7 +1826,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!LineBatcher->IsRegistered())
 		{	
-			LineBatcher->RegisterComponentWithWorld(this);
+			LineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 
 		if(!PersistentLineBatcher)
@@ -1847,7 +1837,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!PersistentLineBatcher->IsRegistered())	
 		{
-			PersistentLineBatcher->RegisterComponentWithWorld(this);
+			PersistentLineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 
 		if(!ForegroundLineBatcher)
@@ -1858,7 +1848,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 
 		if(!ForegroundLineBatcher->IsRegistered())	
 		{
-			ForegroundLineBatcher->RegisterComponentWithWorld(this);
+			ForegroundLineBatcher->RegisterComponentWithWorld(this, Context);
 		}
 	}
 
@@ -1868,7 +1858,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 		ULevel* CurrentLevel = PersistentLevel;
 #endif
 		check( CurrentLevel );
-		CurrentLevel->UpdateLevelComponents(bRerunConstructionScripts);
+		CurrentLevel->UpdateLevelComponents(bRerunConstructionScripts, Context);
 	}
 	else
 	{
@@ -1879,7 +1869,7 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 			// Update the level only if it is visible (or not a streamed level)
 			if(!StreamingLevel || Level->bIsVisible)
 			{
-				Level->UpdateLevelComponents(bRerunConstructionScripts);
+				Level->UpdateLevelComponents(bRerunConstructionScripts, Context);
 				IStreamingManager::Get().AddLevel(Level);
 			}
 		}
@@ -2580,6 +2570,8 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 	check(!Level->IsPendingKill());
 	check(!Level->IsUnreachable());
 
+	Level->bIsDisassociatingLevel = true;
+
 	// To be removed from the world a world must be visible and not pending being made visible (this may be redundent, but for safety)
 	// If the level may be removed incrementally then there must also be no level pending visibility
 	if ( ((CurrentLevelPendingVisibility == nullptr) || (!bAllowIncrementalRemoval && (CurrentLevelPendingVisibility != Level))) && Level->bIsVisible )
@@ -2698,6 +2690,8 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 
 			Level->bIsBeingRemoved = false;
 		} // if ( bFinishRemovingLevel )
+
+		Level->bIsDisassociatingLevel = false;
 
 #if PERF_TRACK_DETAILED_ASYNC_STATS
 		UE_LOG(LogStreaming, Display, TEXT("UWorld::RemoveFromWorld for %s took %5.2f ms"), *Level->GetOutermost()->GetName(), (FPlatformTime::Seconds() - StartTime) * 1000.0);
@@ -3144,10 +3138,35 @@ bool FStreamingLevelsToConsider::Remove(ULevelStreaming* StreamingLevel)
 	if (StreamingLevel)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ManageLevelsToConsider);
-		bRemoved = (StreamingLevels.Remove(StreamingLevel) > 0);
-		bRemoved |= (LevelsToProcess.Remove(StreamingLevel) > 0);
+		if (bStreamingLevelsBeingConsidered)
+		{
+			int32 Index;
+			if (StreamingLevels.Find(StreamingLevel, Index))
+			{
+				// While we are considering we must null here because we are iterating the array and changing the size would be undesirable
+				StreamingLevels[Index] = nullptr;
+				bRemoved = true;
+			}
+			bRemoved |= (LevelsToProcess.Remove(StreamingLevel) > 0);
+		}
+		else
+		{
+			bRemoved = (StreamingLevels.Remove(StreamingLevel) > 0);
+		}
 	}
 	return bRemoved;
+}
+
+void FStreamingLevelsToConsider::RemoveAt(const int32 Index)
+{
+	if (bStreamingLevelsBeingConsidered)
+	{
+		if (ULevelStreaming* StreamingLevel = StreamingLevels[Index].Get())
+		{
+			LevelsToProcess.Remove(StreamingLevel);
+		}
+	}
+	StreamingLevels.RemoveAt(Index, 1, false);
 }
 
 void FStreamingLevelsToConsider::Reevaluate(ULevelStreaming* StreamingLevel)
@@ -3245,11 +3264,10 @@ void UWorld::UpdateLevelStreaming()
 	const int32 NumLevelsPendingPurge = FLevelStreamingGCHelper::GetNumLevelsPendingPurge();
 
 	StreamingLevelsToConsider.BeginConsideration();
-	TArray<FLevelStreamingWrapper> StreamingLevelsBeingConsidered = MoveTemp(StreamingLevelsToConsider.StreamingLevels);
 
-	for (int32 Index = StreamingLevelsBeingConsidered.Num() - 1; Index >= 0; --Index)
+	for (int32 Index = StreamingLevelsToConsider.GetStreamingLevels().Num() - 1; Index >= 0; --Index)
 	{
-		if (ULevelStreaming* StreamingLevel = StreamingLevelsBeingConsidered[Index].Get())
+		if (ULevelStreaming* StreamingLevel = StreamingLevelsToConsider.GetStreamingLevels()[Index].Get())
 		{
 			bool bUpdateAgain = true;
 			bool bShouldContinueToConsider = true;
@@ -3266,17 +3284,15 @@ void UWorld::UpdateLevelStreaming()
 
 			if (!bShouldContinueToConsider)
 			{
-				StreamingLevelsBeingConsidered.RemoveAt(Index, 1, false);
-				StreamingLevelsToConsider.Remove(StreamingLevel); // In case something had added it to the list while we're in this loop
+				StreamingLevelsToConsider.RemoveAt(Index);
 			}
 		}
 		else
 		{
-			StreamingLevelsBeingConsidered.RemoveAt(Index, 1, false);
+			StreamingLevelsToConsider.RemoveAt(Index);
 		}
 	}
 
-	StreamingLevelsToConsider.StreamingLevels = MoveTemp(StreamingLevelsBeingConsidered);
 	StreamingLevelsToConsider.EndConsideration();
 
 
@@ -3367,7 +3383,7 @@ void UWorld::SetStreamingLevels(TArrayView<ULevelStreaming* const> InStreamingLe
 
 void UWorld::SetStreamingLevels(TArray<ULevelStreaming*>&& InStreamingLevels)
 {
-	StreamingLevels = MoveTempIfPossible(InStreamingLevels);
+	StreamingLevels = MoveTemp(InStreamingLevels);
 
 	PopulateStreamingLevelsToConsider();
 }
@@ -3952,7 +3968,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 	return false;
 }
 
-void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
+void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime, FRegisterComponentContext* Context)
 {
 	TRACE_OBJECT_EVENT(this, InitializeActorsForPlay);
 
@@ -3992,7 +4008,7 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 	// We don't need to rerun construction scripts if we have cooked data or we are playing in editor unless the PIE world was loaded
 	// from disk rather than duplicated
 	const bool bRerunConstructionScript = !(FPlatformProperties::RequiresCookedData() || (IsGameWorld() && (PersistentLevel->bHasRerunConstructionScripts || PersistentLevel->bWasDuplicatedForPIE || !bRerunConstructionDuringEditorStreaming)));
-	UpdateWorldComponents( bRerunConstructionScript, true );
+	UpdateWorldComponents( bRerunConstructionScript, true, Context);
 
 	// Init level gameplay info.
 	if( !AreActorsInitialized() )
@@ -5253,7 +5269,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 							// Successfully spawned in game.
 							UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Succeeded: %s PlayerId: %s"),
 								*ChildConn->PlayerController->PlayerState->GetPlayerName(),
-								*ChildConn->PlayerController->PlayerState->UniqueId.ToDebugString());
+								*ChildConn->PlayerController->PlayerState->GetUniqueId().ToDebugString());
 						}
 					}
 				}
@@ -6587,7 +6603,6 @@ bool UWorld::IsPlayInMobilePreview() const
 {
 #if WITH_EDITOR
 	if (FPIEPreviewDeviceModule::IsRequestingPreviewDevice()
-		|| FParse::Param(FCommandLine::Get(), TEXT("featureleveles2"))
 		|| FParse::Param(FCommandLine::Get(), TEXT("featureleveles31")))
 	{
 		return true;
@@ -7447,6 +7462,8 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 	float DistanceToPoint = 0.0f;
 	float LocalWeight = FMath::Clamp(VolumeProperties.BlendWeight, 0.0f, 1.0f);
 
+	ensureMsgf((LocalWeight >= 0 && LocalWeight <= 1.0f), TEXT("Invalid post process blend weight retrieved from volume (%f)"), LocalWeight);
+
 	if (!VolumeProperties.bIsUnbound)
 	{
 		float SquaredBlendRadius = VolumeProperties.BlendRadius * VolumeProperties.BlendRadius;
@@ -7466,7 +7483,12 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 				{
 					LocalWeight *= 1.0f - DistanceToPoint / VolumeProperties.BlendRadius;
 
-					check(LocalWeight >= 0 && LocalWeight <= 1.0f);
+					if(!(LocalWeight >= 0 && LocalWeight <= 1.0f))
+					{
+						// Mitigate crash here by disabling this volume and generating info regarding the calculation that went wrong.
+						ensureMsgf(false, TEXT("Invalid LocalWeight after post process volume weight calculation (Local: %f, DtP: %f, Radius: %f, SettingsWeight: %f)"), LocalWeight, DistanceToPoint, VolumeProperties.BlendRadius, VolumeProperties.BlendWeight);
+						LocalWeight = 0.0f;
+					}
 				}
 			}
 		}

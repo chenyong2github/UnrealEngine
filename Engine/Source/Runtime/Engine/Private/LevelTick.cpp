@@ -959,12 +959,16 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
 		[SendAllEndOfFrameUpdates](FRHICommandList& RHICmdList)
 	{
-#if RHI_RAYTRACING
 		if (SendAllEndOfFrameUpdates->GPUSkinCache)
 		{
+			// Flush any remaining pending resource barriers.
+			SendAllEndOfFrameUpdates->GPUSkinCache->TransitionAllToReadable(RHICmdList);
+
+		#if RHI_RAYTRACING
 			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
+		#endif
 		}
-#endif
+
 		delete SendAllEndOfFrameUpdates;
 	});
 }

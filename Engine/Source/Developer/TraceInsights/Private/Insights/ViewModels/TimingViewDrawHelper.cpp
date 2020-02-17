@@ -109,9 +109,12 @@ void FTimingEventsTrackDrawStateBuilder::AddEvent(double EventStartTime, double 
 	if (Color == 0)
 	{
 		uint32 NameHash = 0;
-		for (const TCHAR* c = EventName; *c; ++c)
+		if (EventName != nullptr)
 		{
-			NameHash = (NameHash + *c) * 0x2c2c57ed;
+			for (const TCHAR* c = EventName; *c; ++c)
+			{
+				NameHash = (NameHash + *c) * 0x2c2c57ed;
+			}
 		}
 
 		Color = NameHash | 0xFF000000;
@@ -243,7 +246,7 @@ void FTimingEventsTrackDrawStateBuilder::AddEvent(double EventStartTime, double 
 	// Draw the name of the timing event.
 	if (EventW > 8.0f)
 	{
-		FString Name = EventName;// +TEXT(" [") + FText::AsNumber(Event.Type->Id).ToString() + TEXT("]");
+		FString Name = EventName; //+ TEXT(" [") + FText::AsNumber(Event.Type->Id).ToString() + TEXT("]");
 		if (EventW > Name.Len() * 2.0f + 48.0f)
 		{
 			const double Duration = EventEndTime - EventStartTime;
@@ -487,6 +490,34 @@ void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& D
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTimingViewDrawHelper::DrawMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity) const
+{
+	if (LineH > 0.0f)
+	{
+		const FTimingViewLayout& Layout = Viewport.GetLayout();
+
+		// Draw markers from filled boxes (merged borders).
+		for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Boxes)
+		{
+			DrawContext.DrawBox(Box.X, LineY, Box.W, LineH, WhiteBrush, Box.Color.CopyWithNewOpacity(Opacity));
+		}
+
+		// Draw markers from borders.
+		for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Borders)
+		{
+			DrawContext.DrawBox(Box.X, LineY, 1.0f, LineH, WhiteBrush, Box.Color.CopyWithNewOpacity(Opacity));
+			if (Box.W > 1.0f)
+			{
+				DrawContext.DrawBox(Box.X + Box.W - 1.0f, LineY, 1.0f, LineH, WhiteBrush, Box.Color.CopyWithNewOpacity(Opacity));
+			}
+		}
+
+		DrawContext.LayerId++;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTimingViewDrawHelper::DrawTrackHeader(const FTimingEventsTrack& Track) const
 {
 	const float TrackY = Track.GetPosY();
@@ -504,28 +535,38 @@ void FTimingViewDrawHelper::DrawTrackHeader(const FTimingEventsTrack& Track) con
 		if (TrackH > 4.0f)
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			float NameWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;
+			float TextWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;
 
-			float TextX = 2.0f;
+			constexpr float PinWidth = 8.0f;
 			if (Track.IsSelected())
 			{
-				NameWidth += 8.0f;
-				TextX += 8.0f;
+				TextWidth += PinWidth;
 			}
 
+			const float HeaderX = 0.0f;
+			const float HeaderW = TextWidth + 4.0f;
+
+			const float HeaderY = TrackY + 1.0f;
 			const float HeaderH = FMath::Min(12.0f, Track.GetHeight() - 1.0f);
-			DrawContext.DrawBox(HeaderLayerId, 0.0f, TrackY + 1.0f, NameWidth + 4.0f, HeaderH, WhiteBrush, EdgeColor);
 
-			const FLinearColor TextColor = GetTrackNameTextColor(Track);
-
-			const float TextY = TrackY + FMath::Min(0.0f, (Track.GetHeight() - 13.0f) / 2.0f);
-			const int32 HeaderTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::HeaderText);
-			DrawContext.DrawText(HeaderTextLayerId, TextX, TextY, Track.GetName(), EventFont, TextColor);
-
-			if (Track.IsSelected())
+			if (HeaderH > 0)
 			{
-				// TODO: Use a "pin" image brush instead.
-				DrawContext.DrawText(HeaderTextLayerId, 2.0f, TextY, TEXT(">"), EventFont, TextColor);
+				DrawContext.DrawBox(HeaderLayerId, HeaderX, HeaderY, HeaderW, HeaderH, WhiteBrush, EdgeColor);
+
+				const FLinearColor TextColor = GetTrackNameTextColor(Track);
+
+				float TextX = HeaderX + 2.0f;
+				const float TextY = HeaderY + HeaderH / 2.0f - 7.0f;
+				const int32 HeaderTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::HeaderText);
+
+				if (Track.IsSelected())
+				{
+					// TODO: Use a "pin" image brush instead.
+					DrawContext.DrawText(HeaderTextLayerId, TextX, TextY, TEXT(">"), EventFont, TextColor);
+					TextX += PinWidth;
+				}
+
+				DrawContext.DrawText(HeaderTextLayerId, TextX, TextY, Track.GetName(), EventFont, TextColor);
 			}
 		}
 	}

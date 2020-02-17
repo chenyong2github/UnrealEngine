@@ -99,15 +99,15 @@ protected:
 		ToolTip = "Batching granularity used to unregister actor components during level streaming."))
 	int32 LevelStreamingComponentsUnregistrationGranularity;
 
-	UPROPERTY(config, EditAnywhere, Category = PackageStreaming, meta = (
-		ConsoleVariable = "s.EventDrivenLoaderEnabled", DisplayName = "Event Driven Loader Enabled",
-		ToolTip = "Enables the event driven loader in cooked builds."))
-	uint32 EventDrivenLoaderEnabled : 1;
-
 	UPROPERTY(EditAnywhere, config, Category = General, meta = (
 		ConsoleVariable = "s.FlushStreamingOnExit", DisplayName = "Flush Streaming when exiting the application",
 		ToolTip = "If enabled, streaming will be flushed when exiting application, otherwise it will be cancelled."))
 	uint32 FlushStreamingOnExit : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = "Deprecated Settings", meta = (
+		ConsoleVariable = "s.EventDrivenLoaderEnabled", DisplayName = "Use Event Driven Loader (disabling not recommended)",
+		ToolTip = "Enables the event driven loader in cooked builds (default). Disabling EDL will result in using deprecated loading path."))
+		uint32 EventDrivenLoaderEnabled : 1;
 
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;

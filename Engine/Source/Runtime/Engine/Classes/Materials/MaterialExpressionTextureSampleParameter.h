@@ -55,7 +55,7 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	//~ End UMaterialExpression Interface
 
 	/** Return whether this is the named parameter, and fill in its value */
-	bool IsNamedParameter(const FMaterialParameterInfo& ParameterInfo, UTexture*& OutValue) const;
+	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue) const;
 
 #if WITH_EDITOR
 	bool SetParameterValue(FName InParameterName, UTexture* InValue);

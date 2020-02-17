@@ -260,11 +260,6 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Switch = FindOrAddByName("Switch");
 
 		/// <summary>
-		/// NDA'd platform Quail
-		/// </summary>
-		public static UnrealTargetPlatform Quail = FindOrAddByName("Quail");
-
-		/// <summary>
 		/// Confidential platform
 		/// </summary>
 		public static UnrealTargetPlatform Lumin = FindOrAddByName("Lumin");
@@ -473,9 +468,20 @@ namespace UnrealBuildTool
 		public static UnrealPlatformGroup Sony = FindOrAddByName("Sony");
 
 		/// <summary>
+		/// XboxCommon group
+		/// </summary>
+		public static UnrealPlatformGroup XboxCommon = FindOrAddByName("XboxCommon");
+
+		/// <summary>
 		/// Target all desktop platforms (Win64, Mac, Linux) simultaneously
 		/// </summary>
 		public static UnrealPlatformGroup AllDesktop = FindOrAddByName("AllDesktop");
+
+		/// <summary>
+		/// Desktop group - used by UnrealPlatformClass.Desktop
+		/// </summary>
+		public static UnrealPlatformGroup Desktop = FindOrAddByName("Desktop");
+
 	}
 
 	/// <summary>
@@ -1623,7 +1629,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.HoloLens;
+					IsCurrentPlatform = Platform.IsInGroup(UnrealPlatformGroup.Windows) || Platform == UnrealTargetPlatform.HoloLens;
 				}
 
 				if (IsCurrentPlatform)
@@ -1713,6 +1719,8 @@ namespace UnrealBuildTool
 			{
 				Binary.PrepareRuntimeDependencies(RuntimeDependencies, RuntimeDependencyTargetFileToSourceFile, ExeDir);
 			}
+			TargetToolChain.PrepareRuntimeDependencies(RuntimeDependencies, RuntimeDependencyTargetFileToSourceFile, ExeDir);
+
 			foreach(KeyValuePair<FileReference, FileReference> Pair in RuntimeDependencyTargetFileToSourceFile)
 			{
 				if(!UnrealBuildTool.IsFileInstalled(Pair.Key))

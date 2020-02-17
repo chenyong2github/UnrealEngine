@@ -251,7 +251,7 @@ bool FChunkCacheWorker::CheckSignature(const FChunkRequest& ChunkInfo)
 			}
 
 			const FPakChunkSignatureCheckFailedData Data(Reader->GetArchiveName(), Signatures->ChunkHashes[ChunkInfo.Index], ChunkHash, ChunkInfo.Index);
-			FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler().Broadcast(Data);
+			FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(Data);
 		}
 	}
 	

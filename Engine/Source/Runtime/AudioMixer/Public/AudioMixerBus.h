@@ -4,24 +4,45 @@
 
 #include "CoreMinimal.h"
 #include "Audio.h"
+#include "DSP/MultithreadedPatching.h"
 
 namespace Audio
 {
 	class FMixerSourceManager;
 
 	// Struct holding mappings of runtime source ids (bus instances) to bus send level
-	struct FBusSend
+	struct FAudioBusSend
 	{
-		int32 SourceId;
-		float SendLevel;
+		int32 SourceId = INDEX_NONE;
+		uint32 AudioBusId = INDEX_NONE;
+		float SendLevel = 0.0f;
 	};
 
 	// Bus instance data. Holds source id bus instances and bus sends data
-	class FMixerBus
+	class FMixerAudioBus
 	{
 	public:
-		FMixerBus(FMixerSourceManager* SourceManager, const int32 InNumChannels, const int32 InNumFrames);
+		// Allow anybody to add a patch to retrieve the audio from any thread.
+		FPatchOutputStrongPtr AddNewPatch(int32 MaxLatencyInSamples, float InGain);
+
+	private:
+
+		// Creates an audio bus.
+		// SourceMnager		The owning source manager object.
+		// bInIsAutomatic	Whether or not this audio bus was created automatically via source buses.
+		// InNumChannels	The number of channels of the source bus.
+		// InNumFrames		The number of frames to mix per mix buffer call. I.e. source manager render size.
+		FMixerAudioBus(FMixerSourceManager* SourceManager, bool bInIsAutomatic, int32 InNumChannels);
 		
+		// Sets whether or not this audio bus is automatic.
+		void SetAutomatic(bool bInIsAutomatic) { bIsAutomatic = bInIsAutomatic; }
+
+		// Returns if this is a manual audio bus vs automatic
+		bool IsAutomatic() const { return bIsAutomatic; }
+
+		// Returns the number of channels of the audio bus
+		int32 GetNumChannels() const { return NumChannels; }
+
 		// Update the mixer bus after a render block
 		void Update();
 
@@ -32,10 +53,10 @@ namespace Audio
 		bool RemoveInstanceId(const int32 InSourceId);
 
 		// Adds a buss end to the bus
-		void AddBusSend(EBusSendType BusSendType, const FBusSend& InBusSend);
+		void AddSend(EBusSendType BusSendType, const FAudioBusSend& InBusSend);
 
 		// Removes the source instance from this bus's send list
-		bool RemoveBusSend(EBusSendType BusSendType, const int32 InSourceId);
+		bool RemoveSend(EBusSendType BusSendType, const int32 InSourceId);
 
 		// Gets the current mixed bus buffer
 		const float* GetCurrentBusBuffer() const;
@@ -45,8 +66,6 @@ namespace Audio
 
 		// Compute the mixed buffer
 		void MixBuffer();
-
-	private:
 
 		// If this bus was constructed before
 		void SetNumOutputChannels(int32 InNumOutputChannels);
@@ -58,7 +77,7 @@ namespace Audio
 		TArray<int32> InstanceIds;
 
 		// Bus sends to this instance
-		TArray<FBusSend> BusSends[(int32)EBusSendType::Count];
+		TArray<FAudioBusSend> AudioBusSends[(int32)EBusSendType::Count];
 
 		// The mixed source data. This is double-buffered to allow buses to send audio to themselves.
 		// Buses feed audio to each other by storing their previous buffer. Current buses mix in previous other buses (including themselves)
@@ -76,7 +95,12 @@ namespace Audio
 		// Owning soruce manager
 		FMixerSourceManager* SourceManager;
 
-		FMixerBus();
+		Audio::FPatchSplitter PatchSplitter;
+
+		// Was created manually, not via source buses.
+		bool bIsAutomatic;
+
+		friend FMixerSourceManager;
 	};
 
 }

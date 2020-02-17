@@ -11,23 +11,19 @@
  * Allows sparse allocations and updates from CPU.
  * Float4 versions exist for platforms that don't yet support byte address buffers.
  */
- 
-// Must be aligned to 4 bytes
-RENDERCORE_API void MemsetBuffer( FRHICommandList& RHICmdList, const FRWByteAddressBuffer& DstBuffer, uint32 Value, uint32 NumBytes, uint32 DstOffset = 0 );
-RENDERCORE_API void MemcpyBuffer( FRHICommandList& RHICmdList, const FRWByteAddressBuffer& DstBuffer, const FRWByteAddressBuffer& SrcBuffer, uint32 NumBytes, uint32 DstOffset = 0, uint32 SrcOffset = 0 );
-RENDERCORE_API bool ResizeBuffer( FRHICommandList& RHICmdList, FRWByteAddressBuffer& Buffer, uint32 NumBytes, const TCHAR* DebugName );
 
-// Must be aligned to 16 bytes
-RENDERCORE_API void MemsetBufferFloat4( FRHICommandList& RHICmdList, const FRWBufferStructured& DstBuffer, uint32 Value, uint32 NumBytes, uint32 DstOffset = 0 );
-RENDERCORE_API void MemcpyBufferFloat4( FRHICommandList& RHICmdList, const FRWBufferStructured& DstBuffer, const FRWBufferStructured& SrcBuffer, uint32 NumBytes, uint32 SrcOffset = 0, uint32 DstOffset = 0 );
-RENDERCORE_API bool ResizeBufferFloat4( FRHICommandList& RHICmdList, FRWBufferStructured& Buffer, uint32 NumBytes, const TCHAR* InDebugName );
-
-RENDERCORE_API void MemcpyTextureToTexture( FRHICommandList& RHICmdList, const FTextureRWBuffer2D& SrcTexture, const FTextureRWBuffer2D& DstTexture, uint32 SrcOffset, uint32 DstOffset, uint32 NumBytes, uint32 BytesPerLine );
-RENDERCORE_API bool ResizeTexture( FRHICommandList& RHICmdList, FTextureRWBuffer2D& Texture, uint32 NumBytes, uint32 BytesPerLine );
+template<typename ResourceType>
+extern RENDERCORE_API void MemsetResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, uint32 Value, uint32 NumBytes, uint32 DstOffset = 0);
+template<typename ResourceType>
+extern RENDERCORE_API void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, const ResourceType& SrcBuffer, uint32 NumBytes, uint32 DstOffset = 0, uint32 SrcOffset = 0);
+template<typename ResourceType>
+extern RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, ResourceType& Texture, uint32 NumBytes, const TCHAR* DebugName);
 
 class FScatterUploadBuffer
 {
 public:
+	enum { PrimitiveDataStrideInFloat4s = 35 };
+
 	FByteAddressBuffer ScatterBuffer;
 	FByteAddressBuffer UploadBuffer;
 
@@ -42,8 +38,9 @@ public:
 	bool	bFloat4Buffer = false;
 
 	RENDERCORE_API void Init( uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName );
-	RENDERCORE_API void UploadToBuffer( FRHICommandList& RHICmdList, FRHIUnorderedAccessView* DstBufferUAV, bool bFlush );
-	RENDERCORE_API void UploadToTexture( FRHICommandList& RHICmdList, FTextureRWBuffer2D& DstTexture, uint32 BytesPerLine, bool bFlush );
+
+	template<typename ResourceType>
+	RENDERCORE_API void ResourceUploadTo(FRHICommandList& RHICmdList, ResourceType& DstBuffer, bool bFlush = false);
 
 	void Add( uint32 Index, const void* Data, uint32 Num = 1 )
 	{

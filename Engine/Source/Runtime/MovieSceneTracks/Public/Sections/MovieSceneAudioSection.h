@@ -104,7 +104,15 @@ public:
 		return AttenuationSettings;
 	}
 
+	/*
+	 * @return The attach actor data
+	 */
 	const FMovieSceneActorReferenceData& GetAttachActorData() const { return AttachActorData; }
+
+	/*
+	 * @return The attach component given the bound actor and the actor attach key with the component and socket names
+	 */
+	USceneComponent* GetAttachComponent(const AActor* InParentActor, const FMovieSceneActorReferenceKey& Key) const;
 
 	/** ~UObject interface */
 	virtual void PostLoad() override;
@@ -143,6 +151,8 @@ public:
 		return OnAudioPlaybackPercent;
 	}
 
+	void UpdateChannelProxy();
+
 public:
 
 	//~ UMovieSceneSection interface
@@ -151,6 +161,11 @@ public:
 	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys) override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override;
 	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
+
+protected:
+
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostEditImport() override;
 
 private:
 

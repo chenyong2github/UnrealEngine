@@ -140,6 +140,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Streaming/Texture2DUpdate.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Async/ParallelFor.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -232,6 +233,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "ObjectTrace.h"
 #include "Animation/AnimTrace.h"
 #include "StudioAnalytics.h"
+#include "TraceFilter.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
@@ -269,17 +271,17 @@ void FEngineModule::StartupModule()
 	USkinnedMeshComponent::BindWorldDelegates();
 #endif
 
-#if OBJECT_TRACE_ENABLED
-	FObjectTrace::Init();
-#endif
-
-#if ANIM_TRACE_ENABLED
-	FAnimTrace::Init();
+#if TRACE_FILTERING_ENABLED
+	FTraceFilter::Init();
 #endif
 }
 
 void FEngineModule::ShutdownModule()
 {
+#if TRACE_FILTERING_ENABLED
+	FTraceFilter::Destroy();
+#endif
+
 	FParticleSystemWorldManager::OnShutdown();
 }
 
@@ -2517,6 +2519,7 @@ void UEngine::InitializeObjectReferences()
 		LoadSpecialMaterial(TEXT("ClothPaintMaterialName"), ClothPaintMaterialName.ToString(), ClothPaintMaterial, false);
 		LoadSpecialMaterial(TEXT("ClothPaintMaterialWireframeName"), ClothPaintMaterialWireframeName.ToString(), ClothPaintMaterialWireframe, false);
 		LoadSpecialMaterial(TEXT("DebugEditorMaterialName"), DebugEditorMaterialName.ToString(), DebugEditorMaterial, false);
+		LoadSpecialMaterial(TEXT("PhysicalMaterialMaskMaterialName"), PhysicalMaterialMaskMaterialName.ToString(), PhysicalMaterialMaskMaterial, false);
 
 		ClothPaintMaterialInstance = UMaterialInstanceDynamic::Create(ClothPaintMaterial, nullptr);
 		ClothPaintMaterialWireframeInstance = UMaterialInstanceDynamic::Create(ClothPaintMaterialWireframe, nullptr);
@@ -9969,6 +9972,17 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 		MessageY += FontSizeY;
 	}
 
+	static const auto CVarAnisotropicBRDF			= IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
+	static const auto CVarBasePassOutputVelocity	= IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
+
+	if (CVarAnisotropicBRDF && CVarBasePassOutputVelocity && CVarAnisotropicBRDF->GetInt() && CVarBasePassOutputVelocity->GetInt())
+	{
+		SmallTextItem.SetColor(FLinearColor::Red);
+		SmallTextItem.Text = LOCTEXT("AnisotropicBRDF_or_BasePassVelocity", "Anisotropic BRDF and 'output velocity during base pass' options are mutually exclusive.\nSee Project Settings (Rendering) or r.AnisotropicBRDF, r.BasePassOutputsVelocity");
+		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+		MessageY += FontSizeY;
+	}
+
 	/* @todo ue4 temporarily disabled
 	AWorldSettings* WorldSettings = World->GetWorldSettings();
 	if( !WorldSettings->IsNavigationRebuilt() )
@@ -12828,8 +12842,21 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	// Note that AI system will be created only if ai-system-creation conditions are met
 	WorldContext.World()->CreateAISystem();
 
+	FRegisterComponentContext Context;
 	// Initialize gameplay for the level.
-	WorldContext.World()->InitializeActorsForPlay(URL);		
+	WorldContext.World()->InitializeActorsForPlay(URL, true, &Context);
+
+	UWorld* ParallelWorld = WorldContext.World();
+	ParallelFor(Context.AddPrimitiveBatches.Num(),
+		[&Context, ParallelWorld](int32 Index)
+		{
+			if (!Context.AddPrimitiveBatches[Index]->IsPendingKill())
+			{
+				ParallelWorld->Scene->AddPrimitive(Context.AddPrimitiveBatches[Index]);
+			}
+		},
+		!FApp::ShouldUseThreadingForPerformance()
+	);
 
 	// calling it after InitializeActorsForPlay has been called to have all potential bounding boxed initialized
 	FNavigationSystem::AddNavigationSystemToWorld(*WorldContext.World(), FNavigationSystemRunMode::GameMode);
@@ -14450,7 +14477,7 @@ static TAutoConsoleVariable<int32> CVarAllowHighQualityLightMaps(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 
-bool AllowHighQualityLightmaps(ERHIFeatureLevel::Type FeatureLevel)
+bool AllowHighQualityLightmaps(const FStaticFeatureLevel FeatureLevel)
 {
 	return FPlatformProperties::SupportsHighQualityLightmaps()
 		&& (FeatureLevel > ERHIFeatureLevel::ES3_1)

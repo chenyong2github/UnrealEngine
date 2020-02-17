@@ -373,10 +373,11 @@ public:
 	 *
 	 * @param MasterSequence  The master sequence that contains the sequence
 	 * @param Binding The binding proxy to generate the binding id from
+	 * @param Space The object binding space to resolve from (Root or Local)
 	 * @return The new object binding id
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
-	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding);
+	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
 
 	/**
 	 * Get the root folders in the provided sequence

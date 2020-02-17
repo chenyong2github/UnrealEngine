@@ -156,7 +156,7 @@ protected:
 	// Begin SWidget overrides.
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 	virtual FVector2D ComputeDesiredSize(float InScale) const override;
-	virtual float GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const override;
+	virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
 	// End SWidget overrides.
 
 	bool DoesScaleRequireNormalizingPrepassOrLocalGeometry() const;

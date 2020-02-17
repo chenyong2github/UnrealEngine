@@ -171,9 +171,9 @@ public:
 	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial, ERHIFeatureLevel::Type FeatureLevel)
 		: Id(StaticMesh.Id)
 		, ScreenSize(InScreenSize)
+		, NumElements(StaticMesh.Elements.Num())
 		, CommandInfosBase(0)
 		, LODIndex(StaticMesh.LODIndex)
-		, NumElements(StaticMesh.Elements.Num())
 		, bDitheredLODTransition(StaticMesh.bDitheredLODTransition)
 		, bRequiresPerElementVisibility(StaticMesh.bRequiresPerElementVisibility)
 		, bSelectable(StaticMesh.bSelectable)
@@ -190,23 +190,23 @@ public:
 	{
 	}
 
+	/** Starting offset into continuous array of command infos for this mesh in FPrimitiveSceneInfo::CachedMeshDrawCommandInfos. */
+	FMeshPassMask CommandInfosMask;
+
 	/** The index of the mesh in the scene's static meshes array. */
 	int32 Id;
 
 	/** The screen space size to draw this primitive at */
 	float ScreenSize;
 
-	/** Starting offset into continuous array of command infos for this mesh in FPrimitiveSceneInfo::CachedMeshDrawCommandInfos. */
-	FMeshPassMask CommandInfosMask;
+	/** Number of elements in this mesh. */
+	uint16 NumElements;
 
 	/* Every bit corresponds to one MeshPass. If bit is set, then FPrimitiveSceneInfo::CachedMeshDrawCommandInfos contains this mesh pass. */
 	uint16 CommandInfosBase;
 
 	/** LOD index of the mesh, used for fading LOD transitions. */
 	int8 LODIndex;
-
-	/** Number of elements in this mesh. */
-	uint16 NumElements;
 
 	/** Whether the mesh batch should apply dithered LOD. */
 	uint8 bDitheredLODTransition : 1;

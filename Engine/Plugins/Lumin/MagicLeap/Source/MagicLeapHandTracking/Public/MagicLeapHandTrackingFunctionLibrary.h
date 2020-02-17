@@ -159,6 +159,15 @@ public:
 
 
 	/**
+	  Whether or not the given hand is holding a control.
+
+	  @param Hand Hand to query for. Only Left and Right hand are supported.
+	  @return true if the hand is holding a control.
+	*/
+	UFUNCTION(BlueprintPure, Category = "HandTracking|MagicLeap")
+	static bool IsHoldingControl(EControllerHand Hand);
+
+	/**
 	Get a LiveLinkSourceHandle for magic leap hand tracking.
 
 	@param SourceHandle Output parameter SourceHandle that will be filled in.
@@ -166,5 +175,26 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
 	static bool GetMagicLeapHandTrackingLiveLinkSource(struct FLiveLinkSourceHandle& SourceHandle);
+
+	/**
+		Get the motion source for a hand tracking key point.
+
+		@param Hand The hand to retrieve the keypoint motion source for (must be Left or Right for a valid OutMotionSource value).
+		@param Keypoint The keypoint to retrieve the motion source for.
+		@param OutMotionSource The name of the motion source associated with the provided keypoint (only valid if function returns true).
+		@return True if the lookup succeeded, false othewise.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
+	static bool GetMotionSourceForHandKeypoint(EControllerHand Hand, EMagicLeapHandTrackingKeypoint Keypoint, FName& OutMotionSource);
+
+	/**
+		Get the hand tracking keypoint for a motion source.
+
+		@param MotionSource The motion source to retrieve the associated keypoint for.
+		@param OutKeyPoint The keypoint associated with the provided motion source (only valid if function returns true).
+		@return True if the lookup succeeded, false othewise.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "HandTracking|MagicLeap")
+	static bool GetHandKeypointForMotionSource(FName MotionSource, EMagicLeapHandTrackingKeypoint& OutKeyPoint);
 
 };

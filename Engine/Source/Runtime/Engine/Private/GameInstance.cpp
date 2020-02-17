@@ -143,14 +143,14 @@ void UGameInstance::Shutdown()
 	WorldContext = nullptr;
 }
 
-void UGameInstance::InitializeStandalone()
+void UGameInstance::InitializeStandalone(const FName InPackageName, UPackage* InWorldPackage)
 {
 	// Creates the world context. This should be the only WorldContext that ever gets created for this GameInstance.
 	WorldContext = &GetEngine()->CreateNewWorldContext(EWorldType::Game);
 	WorldContext->OwningGameInstance = this;
 
 	// In standalone create a dummy world from the beginning to avoid issues of not having a world until LoadMap gets us our real world
-	UWorld* DummyWorld = UWorld::CreateWorld(EWorldType::Game, false);
+	UWorld* DummyWorld = UWorld::CreateWorld(EWorldType::Game, false, InPackageName, InWorldPackage);
 	DummyWorld->SetGameInstance(this);
 	WorldContext->SetCurrentWorld(DummyWorld);
 
@@ -728,7 +728,8 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 			else
 			{
 				// client; ask the server to let the new player join
-				NewPlayer->SendSplitJoin();
+				TArray<FString> Options;
+				NewPlayer->SendSplitJoin(Options);
 			}
 		}
 	}
@@ -907,7 +908,7 @@ APlayerController* UGameInstance::GetPrimaryPlayerController() const
 	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		APlayerController* NextPlayer = Iterator->Get();
-		if (NextPlayer && NextPlayer->PlayerState && NextPlayer->PlayerState->UniqueId.IsValid() && NextPlayer->IsPrimaryPlayer())
+		if (NextPlayer && NextPlayer->PlayerState && NextPlayer->PlayerState->GetUniqueId().IsValid() && NextPlayer->IsPrimaryPlayer())
 		{
 			PrimaryController = NextPlayer;
 			break;

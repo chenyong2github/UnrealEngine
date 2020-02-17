@@ -266,9 +266,9 @@ class TOpenGLShader : public RHIResourceType
 public:
 	enum
 	{
-		StaticFrequency = FrequencyT
+		StaticFrequency = FrequencyT,
+		TypeEnum = GLTypeEnum,
 	};
-	static const GLenum TypeEnum = GLTypeEnum;
 
 	/** The OpenGL resource ID. */
 	GLuint Resource;

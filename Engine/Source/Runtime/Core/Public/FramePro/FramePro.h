@@ -915,7 +915,11 @@ namespace FramePro
 	#define FRAMEPRO_PLATFORM_UE4 1
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
 	#define FRAMEPRO_PLATFORM_HOLOLENS 0
+#if defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__WIN32__) || defined(__WINDOWS__)
+	#define FRAMEPRO_PLATFORM_WIN 1
+#else
 	#define FRAMEPRO_PLATFORM_WIN 0
+#endif
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
 	#define FRAMEPRO_PLATFORM_ANDROID 0

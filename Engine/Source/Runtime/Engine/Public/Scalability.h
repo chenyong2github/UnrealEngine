@@ -170,4 +170,6 @@ namespace Scalability
 	/** Set an Editor preview scalability platform */
 	void ENGINE_API ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName);
 #endif
+
+	ENGINE_API FText GetQualityLevelText(int32 Value, int32 NumLevels);
 }

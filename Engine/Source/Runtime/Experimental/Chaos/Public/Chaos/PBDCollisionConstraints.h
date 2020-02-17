@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/ConstraintHandle.h"
-#include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDConstraintContainer.h"
-#include "Chaos/CollisionResolutionTypes.h"
 #include "Framework/BufferedData.h"
 
 #include <memory>
@@ -99,6 +100,14 @@ public:
 	void DisableHandles();
 
 	/**
+	 * Set the solver method to use in the Apply step
+	 */
+	void SetApplyType(ECollisionApplyType InApplyType)
+	{
+		ApplyType = InApplyType;
+	}
+
+	/**
 	*  Add the constraint to the container. 
 	*
 	*  @todo(chaos) : Collision Constraints 
@@ -171,7 +180,7 @@ public:
 	// Simple Rule API
 	//
 
-	void Apply(const T Dt, const int32 It, const int32 NumIts);
+	bool Apply(const T Dt, const int32 It, const int32 NumIts);
 	bool ApplyPushOut(const T Dt, const int32 It, const int32 NumIts);
 
 	//
@@ -179,7 +188,7 @@ public:
 	//
 	// @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
 
-	void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
+	bool Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 	bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, 
 		const TSet<const TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
 
@@ -315,6 +324,7 @@ private:
 	bool bUseCCD;
 	bool bEnableCollisions;
 	bool bHandlesEnabled;
+	ECollisionApplyType ApplyType;
 
 	int32 LifespanCounter;
 

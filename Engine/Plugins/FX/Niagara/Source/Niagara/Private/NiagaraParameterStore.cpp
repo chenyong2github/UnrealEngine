@@ -646,6 +646,8 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 	// Additional protections were added for safety.
 	bool OwnerDirtied = false;
 
+	int32 ParameterDataSize = 0;
+
 	TArray<FNiagaraVariableWithOffset>::TConstIterator It = SortedParameterOffsets.CreateConstIterator();
 	while (It)
 	{
@@ -695,8 +697,14 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 
 					OwnerDirtied = true;
 				}
+				ParameterDataSize = FMath::Max(ParameterDataSize, SrcIndex + Size);
 			}
 		}
+	}
+
+	if (ParameterData.Num() < ParameterDataSize)
+	{
+		ParameterData.AddZeroed(ParameterDataSize - ParameterData.Num());
 	}
 
 	if (Owner && OwnerDirtied)

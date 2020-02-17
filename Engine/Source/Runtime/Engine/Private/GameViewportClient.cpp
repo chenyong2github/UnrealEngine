@@ -536,6 +536,8 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 		GEngine->RemapGamepadControllerIdForPIE(this, ControllerId);
 	}
 
+	OnInputKeyEvent.Broadcast(EventArgs);
+
 #if WITH_EDITOR
 	// Give debugger commands a chance to process key binding
 	if (GameViewportInputKeyDelegate.IsBound())
@@ -602,6 +604,8 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, F
 		GEngine->RemapGamepadControllerIdForPIE(this, ControllerId);
 	}
 
+	OnInputAxisEvent.Broadcast(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+	
 	bool bResult = false;
 
 	// Don't allow mouse/joystick input axes while in PIE and the console has forced the cursor to be visible.  It's
@@ -1263,6 +1267,11 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 					{
 						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
 						View->SpecularOverrideParameter = FVector4(.1f, .1f, .1f, 0.0f);
+					}
+					else if (View->Family->EngineShowFlags.LightingOnlyOverride)
+					{
+						View->DiffuseOverrideParameter = FVector4(GEngine->LightingOnlyBrightness.R, GEngine->LightingOnlyBrightness.G, GEngine->LightingOnlyBrightness.B, 0.0f);
+						View->SpecularOverrideParameter = FVector4(0.f, 0.f, 0.f, 0.f);
 					}
 					else if (View->Family->EngineShowFlags.ReflectionOverride)
 					{
@@ -2438,6 +2447,9 @@ void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, GWhiteTexture, UnsafeZoneColor);
 	TileItem.BlendMode = SE_BLEND_Translucent;
 
+	// Command line override used by mobile PIE.
+	static bool bDrawUnSafeZones = FParse::Param(FCommandLine::Get(), TEXT("DrawUnSafeZones"));
+
 	// CalculateSafeZoneValues() can be slow, so we only want to run it if we have boundaries to draw
 	if (FDisplayMetrics::GetDebugTitleSafeZoneRatio() < 1.f)
 	{
@@ -2463,7 +2475,7 @@ void UGameViewportClient::DrawTitleSafeArea( UCanvas* Canvas )
 		TileItem.Size = FVector2D(SafeZone.Right, HeightOfSides);
 		Canvas->DrawItem(TileItem);
 	}
-	else if (!FSlateApplication::Get().GetCustomSafeZone().GetDesiredSize().IsZero())
+	else if (!FSlateApplication::Get().GetCustomSafeZone().GetDesiredSize().IsZero() || bDrawUnSafeZones)
 	{
 		ULevelEditorPlaySettings* PlaySettings = GetMutableDefault<ULevelEditorPlaySettings>();
 		PlaySettings->CalculateCustomUnsafeZones(PlaySettings->CustomUnsafeZoneStarts, PlaySettings->CustomUnsafeZoneDimensions, PlaySettings->DeviceToEmulate, FVector2D(Width, Height));
@@ -3808,17 +3820,10 @@ bool UGameViewportClient::IsSimulateInEditorViewport() const
 	return GameViewport ? GameViewport->GetPlayInEditorIsSimulate() : false;
 }
 
-#if WITH_EDITOR
-void UGameViewportClient::SetPlayInEditorUseMouseForTouch(bool bInUseMouseForTouch)
-{
-	bUseMouseForTouchInEditor = bInUseMouseForTouch;
-}
-#endif
-
 bool UGameViewportClient::GetUseMouseForTouch() const
 {
 #if WITH_EDITOR
-	return bUseMouseForTouchInEditor || GetDefault<UInputSettings>()->bUseMouseForTouch;
+	return GetDefault<ULevelEditorPlaySettings>()->UseMouseForTouch || GetDefault<UInputSettings>()->bUseMouseForTouch;
 #else
 	return GetDefault<UInputSettings>()->bUseMouseForTouch;
 #endif

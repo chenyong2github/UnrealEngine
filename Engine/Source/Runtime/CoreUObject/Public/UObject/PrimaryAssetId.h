@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/StringBuilder.h"
 
 /**
  * A primary asset type, represented as an FName internally and implicitly convertible back and forth
@@ -88,24 +89,21 @@ struct FPrimaryAssetId
 	static COREUOBJECT_API const FName PrimaryAssetTypeTag;
 	static COREUOBJECT_API const FName PrimaryAssetNameTag;
 
+	FPrimaryAssetId() {}
+
 	FPrimaryAssetId(FPrimaryAssetType InAssetType, FName InAssetName)
 		: PrimaryAssetType(InAssetType), PrimaryAssetName(InAssetName)
 	{}
 
-	FPrimaryAssetId(const FString& InString)
+	static COREUOBJECT_API FPrimaryAssetId ParseTypeAndName(const TCHAR* TypeAndName, uint32 Len);
+	static COREUOBJECT_API FPrimaryAssetId ParseTypeAndName(FName TypeAndName);
+	static FPrimaryAssetId ParseTypeAndName(const FString& TypeAndName)
 	{
-		FString TypeString;
-		FString NameString;
-
-		if (InString.Split(TEXT(":"), &TypeString, &NameString, ESearchCase::CaseSensitive))
-		{
-			PrimaryAssetType = *TypeString;
-			PrimaryAssetName = *NameString;
-		}
+		return ParseTypeAndName(*TypeAndName, static_cast<uint32>(TypeAndName.Len()));
 	}
 
-	FPrimaryAssetId()
-		: PrimaryAssetType(NAME_None), PrimaryAssetName(NAME_None)
+	explicit FPrimaryAssetId(const FString& TypeAndName)
+		: FPrimaryAssetId(ParseTypeAndName(TypeAndName))
 	{}
 
 	/** Returns true if this is a valid identifier */
@@ -166,3 +164,8 @@ struct FPrimaryAssetId
 
 	friend struct Z_Construct_UScriptStruct_FPrimaryAssetId_Statics;
 };
+
+inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FPrimaryAssetId& Id)
+{
+	return Builder << Id.PrimaryAssetType.GetName() << ":" << Id.PrimaryAssetName;
+}

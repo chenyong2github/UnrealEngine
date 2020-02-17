@@ -95,6 +95,15 @@
 #include "Customizations/NiagaraTypeCustomizations.h"
 #include "Customizations/NiagaraEventScriptPropertiesCustomization.h"
 #include "Customizations/NiagaraScriptVariableCustomization.h"
+#include "Customizations/NiagaraScriptDetails.h"
+
+#include "NiagaraComponent.h"
+#include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraScriptVariable.h"
+#include "NiagaraScript.h"
+#include "NiagaraCommon.h"
+#include "NiagaraScriptHighlight.h"
+
 #include "HAL/IConsoleManager.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraThumbnailRenderer.h"
@@ -104,7 +113,6 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "Engine/Selection.h"
 #include "NiagaraActor.h"
-#include "NiagaraNodeFunctionCall.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
 
 #include "Editor.h"
@@ -118,6 +126,9 @@
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "DeviceProfiles/DeviceProfile.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -704,6 +715,12 @@ class FNiagaraSystemColorParameterTrackEditor : public FNiagaraSystemParameterTr
 	}
 };
 
+// This will be called before UObjects are destroyed, so clean up anything we need to related to UObjects here
+void FNiagaraEditorModule::OnPreExit()
+{
+	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
+}
+
 void FNiagaraEditorModule::StartupModule()
 {
 	bThumbnailRenderersRegistered = false;
@@ -728,61 +745,83 @@ void FNiagaraEditorModule::StartupModule()
 	
 	// Any attempt to use GEditor right now will fail as it hasn't been initialized yet. Waiting for post engine init resolves that.
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FNiagaraEditorModule::OnPostEngineInit);
+
+	DeviceProfileManagerUpdatedHandle = UDeviceProfileManager::Get().OnManagerUpdated().AddRaw(this, &FNiagaraEditorModule::OnDeviceProfileManagerUpdated);
+	FCoreDelegates::OnPreExit.AddRaw(this, &FNiagaraEditorModule::OnPreExit);
 	
 	// register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomClassLayout("NiagaraComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraComponentDetails::MakeInstance));
 
-	PropertyModule.RegisterCustomClassLayout("NiagaraNodeStaticSwitch", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraStaticSwitchNodeDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraComponent::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraComponentDetails::MakeInstance));
 
-	PropertyModule.RegisterCustomClassLayout("NiagaraScriptVariable", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptVariableDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraNodeStaticSwitch::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraStaticSwitchNodeDetails::MakeInstance));
 
-	PropertyModule.RegisterCustomClassLayout("NiagaraNodeFunctionCall", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraFunctionCallNodeDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraScriptVariable::StaticClass()->GetFName(), 
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptVariableDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraNodeFunctionCall::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraFunctionCallNodeDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraScript::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptDetails::MakeInstance));
 	
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraFloat",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraFloat::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraInt32",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraInt32::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraNumeric",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraNumeric::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraParameterMap",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraParameterMap::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance));
 
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraBool::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraBoolCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraBool",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraBoolCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraMatrix::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraMatrixCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraMatrix",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraMatrixCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraVariableAttributeBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableAttributeBindingCustomization::MakeInstance));
+	
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraScriptVariableBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptVariableBindingCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraVariableAttributeBinding",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableAttributeBindingCustomization::MakeInstance)
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraPlatformSet::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetTypeCustomization::MakeInstance)
 	);
 	
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraScriptVariableBinding",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptVariableBindingCustomization::MakeInstance)
-	);
-		
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraUserParameterBinding",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraUserParameterBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));
 
 	FNiagaraEditorStyle::Initialize();
 	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.NiagaraEditor.ReinitializeStyle"),
 		TEXT("Reinitializes the style for the niagara editor module.  Used in conjuction with live coding for UI tweaks.  May crash the editor if style objects are in use."),
 		FConsoleCommandDelegate::CreateRaw(this, &FNiagaraEditorModule::ReinitializeStyle));
-
-
 
 	FNiagaraEditorCommands::Register();
 
@@ -818,7 +857,6 @@ void FNiagaraEditorModule::StartupModule()
 
 	GraphPanelPinFactory->RegisterTypePin(FNiagaraTypeDefinition::GetParameterMapStruct(), FNiagaraScriptGraphPanelPinFactory::FCreateGraphPin::CreateLambda(
 		[](UEdGraphPin* GraphPin) -> TSharedRef<SGraphPin> { return SNew(SGraphPinExec, GraphPin); }));
-
 
 	EnumTypeUtilities = MakeShareable(new FNiagaraEditorEnumTypeUtilities());
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetFloatDef(), MakeShareable(new FNiagaraEditorFloatTypeUtilities()));
@@ -986,6 +1024,7 @@ void FNiagaraEditorModule::ShutdownModule()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	FCoreDelegates::OnPreExit.RemoveAll(this);
 	
 	if (GEditor)
 	{
@@ -1080,6 +1119,11 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	{
 		UE_LOG(LogNiagaraEditor, Warning, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
+}
+
+void FNiagaraEditorModule::OnDeviceProfileManagerUpdated()
+{
+	FNiagaraPlatformSet::InvalidateCachedData();
 }
 
 FNiagaraEditorModule& FNiagaraEditorModule::Get()

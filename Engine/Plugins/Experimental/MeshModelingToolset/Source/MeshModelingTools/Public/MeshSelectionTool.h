@@ -318,6 +318,9 @@ protected:
 	UPROPERTY()
 	UMeshSelectionSet* Selection;
 
+	UPROPERTY()
+	TArray<AActor*> SpawnedActors;
+
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 

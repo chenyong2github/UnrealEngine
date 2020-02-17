@@ -133,7 +133,7 @@ public:
  * Base class for movie scene sections
  */
 UCLASS(abstract, DefaultToInstanced, MinimalAPI, BlueprintType)
-class MOVIESCENE_VTABLE UMovieSceneSection
+class UMovieSceneSection
 	: public UMovieSceneSignedObject
 {
 	GENERATED_UCLASS_BODY()

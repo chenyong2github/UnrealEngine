@@ -100,8 +100,9 @@ public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
 	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
 
-	DECLARE_EVENT( AUsdStageActor, FOnStageChanged );
-	FOnStageChanged OnStageChanged;
+	DECLARE_EVENT( AUsdStageActor, FOnStageActorEvent );
+	FOnStageActorEvent OnStageChanged;
+	FOnStageActorEvent OnActorDestroyed;
 
 	DECLARE_EVENT_TwoParams( AUsdStageActor, FOnPrimChanged, const FString&, bool );
 	FOnPrimChanged OnPrimChanged;
@@ -113,13 +114,13 @@ public:
 	AUsdStageActor();
 	virtual ~AUsdStageActor();
 
+	USDSTAGE_API void Reset() override;
 	void Refresh() const;
 	void ReloadAnimations();
 
 public:
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
-	virtual void PostRegisterAllComponents() override;
-	virtual void PostLoad() override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 
 private:
 	void Clear();
@@ -145,9 +146,11 @@ private:
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
+	/** Hash based assets cache */
 	UPROPERTY( NonPIEDuplicateTransient )
 	TMap< FString, UObject* > AssetsCache;
 
+	/** Map of USD Prim Paths to UE assets */
 	UPROPERTY( NonPIEDuplicateTransient )
 	TMap< FString, UObject* > PrimPathsToAssets;
 

@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "MagicLeapHandle.h"
 #include "MagicLeapMath.h"
+#include "MagicLeap/Private/MagicLeapHMD.h"
 
 DEFINE_LOG_CATEGORY(LogMagicLeapTablet);
 
@@ -27,14 +28,7 @@ FMagicLeapTabletPlugin::~FMagicLeapTabletPlugin()
 void FMagicLeapTabletPlugin::CreateEntityTracker()
 {
 #if WITH_MLSDK
-	MLInputConfiguration InputConfig = { { MLInputControllerDof_6, MLInputControllerDof_6 } };
-	MLResult Result = MLInputCreate(&InputConfig, &InputTracker);
-	if (Result != MLResult_Ok)
-	{
-		UE_LOG(LogMagicLeapTablet, Error, TEXT("MLInputCreate failed with error %s."), UTF8_TO_TCHAR(MLGetResultString(Result)));
-		return;
-	}
-
+	InputTracker = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->InputTracker;
 	MLInputTabletDeviceCallbacksInit(&Callbacks);
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapTabletPlugin::Tick);
 	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
@@ -48,9 +42,7 @@ void FMagicLeapTabletPlugin::DestroyEntityTracker()
 	{
 		MLResult Result = MLInputSetTabletDeviceCallbacks(InputTracker, nullptr, nullptr);
 		UE_CLOG(Result != MLResult_Ok, LogMagicLeapTablet, Error, TEXT("MLInputSetTabletDeviceCallbacks failed with error %s!"), UTF8_TO_TCHAR(MLGetResultString(Result)));
-		Result = MLInputDestroy(InputTracker);
 		InputTracker = ML_INVALID_HANDLE;
-		UE_CLOG(Result != MLResult_Ok, LogMagicLeapTablet, Error, TEXT("MLInputDestroy failed with error %s!"), UTF8_TO_TCHAR(MLGetResultString(Result)));
 	}
 
 	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);

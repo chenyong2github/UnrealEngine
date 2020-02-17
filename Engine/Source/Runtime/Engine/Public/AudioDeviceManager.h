@@ -22,7 +22,7 @@ class IAudioDeviceModule;
 class UAudioComponent;
 class USoundClass;
 class USoundMix;
-class USoundSubmix;
+class USoundSubmixBase;
 class USoundWave;
 class UWorld;
 class FAudioDevice;
@@ -123,21 +123,25 @@ public:
 	// For safety, we still require explicit casting to an FAudioDevice* to ensure ownership isn't lost due to programmer error.
 	const FAudioDevice& operator*() const
 	{
+		check(IsValid());
 		return *Device;
 	}
 
 	FAudioDevice& operator*()
 	{
+		check(IsValid());
 		return *Device;
 	}
 
 	const FAudioDevice* operator->() const
 	{
+		check(IsValid());
 		return Device;
 	}
 
 	FAudioDevice* operator->()
 	{
+		check(IsValid());
 		return Device;
 	}
 
@@ -168,6 +172,7 @@ public:
 
 	explicit operator FAudioDevice*() const
 	{
+		check(IsValid());
 		return Device;
 	}
 
@@ -295,10 +300,10 @@ public:
 	void InitSoundClasses();
 
 	/** Registers the Sound Mix for all active devices. */
-	void RegisterSoundSubmix(USoundSubmix* SoundSubmix);
+	void RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix);
 
 	/** Registers the Sound Mix for all active devices. */
-	void UnregisterSoundSubmix(USoundSubmix* SoundSubmix);
+	void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix);
 
 	/** Initializes the sound mixes for all active devices. */
 	void InitSoundSubmixes();
@@ -310,7 +315,7 @@ public:
 	void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
 
 	/** Updates this submix for any changes made. Broadcasts to all submix instances. */
-	void UpdateSubmix(USoundSubmix* SoundSubmix);
+	void UpdateSubmix(USoundSubmixBase* SoundSubmix);
 
 	/** Sets which audio device is the active audio device. */
 	void SetActiveDevice(uint32 InAudioDeviceHandle);
@@ -421,6 +426,9 @@ private:
 	*/
 	bool ShutdownAllAudioDevices();
 
+	/** Application enters background handler */
+	void AppWillEnterBackground();
+
 	/** Audio device module which creates (old backend) audio devices. */
 	IAudioDeviceModule* AudioDeviceModule;
 
@@ -454,7 +462,7 @@ private:
 		/** Module this was created with. If nullptr, this device was created with the default module. */
 		IAudioDeviceModule* SpecifiedModule;
 
-		FAudioDeviceContainer(const FAudioDeviceParams& InParams, FAudioDeviceManager* DeviceManager);
+		FAudioDeviceContainer(const FAudioDeviceParams& InParams, Audio::FDeviceId InDeviceID, FAudioDeviceManager* DeviceManager);
 		~FAudioDeviceContainer();
 
 		FAudioDeviceContainer(const FAudioDeviceContainer& Other)

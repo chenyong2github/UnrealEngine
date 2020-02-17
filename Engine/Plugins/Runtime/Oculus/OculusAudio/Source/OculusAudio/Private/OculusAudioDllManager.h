@@ -20,7 +20,7 @@ static const TCHAR* GetOculusErrorString(ovrResult Result)
 		case ovrError_AudioMissingDLL:						return TEXT("Missing DLL");
 		case ovrError_AudioBadAlignment:					return TEXT("Pointers did not meet 16 byte alignment requirements");
 		case ovrError_AudioUninitialized:					return TEXT("Function called before initialization");
-		case ovrError_AudioHRTFInitFailure:				 return TEXT("HRTF Profider initialization failed");
+		case ovrError_AudioHRTFInitFailure:					return TEXT("HRTF Profider initialization failed");
 		case ovrError_AudioBadVersion:						return TEXT("Bad audio version");
 		case ovrError_AudioSymbolNotFound:					return TEXT("DLL symbol not found");
 		case ovrError_SharedReverbDisabled:					return TEXT("Shared reverb disabled");
@@ -28,13 +28,8 @@ static const TCHAR* GetOculusErrorString(ovrResult Result)
 	}
 }
 
-#if PLATFORM_WINDOWS
 #define OVRA_CALL(Function) \
-	[]() { static decltype(&Function) fp = reinterpret_cast<decltype(&Function)>(FPlatformProcess::GetDllExport(FOculusAudioLibraryManager::Get().DllHandle(), TEXT(#Function))); return fp; }()
-#else
-#define OVRA_CALL(Function) \
-	Function
-#endif
+	[]() { typedef decltype(&Function) FunctionType; static FunctionType fp = (FunctionType)(FPlatformProcess::GetDllExport(FOculusAudioLibraryManager::Get().DllHandle(), TEXT(#Function))); return fp; }()
 
 
 #define OVR_AUDIO_CHECK_RETURN_VALUE(Result, Context, FailureReturnValue)								\

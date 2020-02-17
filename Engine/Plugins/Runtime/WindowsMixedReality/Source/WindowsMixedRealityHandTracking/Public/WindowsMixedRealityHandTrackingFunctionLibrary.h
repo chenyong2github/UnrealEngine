@@ -17,14 +17,22 @@ class WINDOWSMIXEDREALITYHANDTRACKING_API UWindowsMixedRealityHandTrackingFuncti
 	GENERATED_BODY()
 
 public:
+
+	/**
+	Returns true if hand tracking available.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "HandTracking|WindowsMixedReality")
+	static bool SupportsHandTracking();
+
 	/**
 	Get Transform for a point on the hand.
 
 	@param Hand
 	@param Keypoint the specific joint or wrist point to fetch.
-	@param Transform Output parameter to write the data to.
-	@return true if the output param was populated with a valid value, false means that is is either unchanged or populated with a stale value.
+	@param Transform The joint's transform.
+	@param Radius The distance from the joint position to the surface of the hand.
+	@return true if the output param was populated with a valid value, false means that the tracking is lost and output is undefined.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "HandTracking|WindowsMixedReality")
-	static bool GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& Transform);
+	static bool GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& Transform, float& Radius);
 };

@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef TF_CALL_CONTEXT_H
-#define TF_CALL_CONTEXT_H
+#ifndef PXR_BASE_TF_CALL_CONTEXT_H
+#define PXR_BASE_TF_CALL_CONTEXT_H
 
 /// \file tf/callContext.h
 /// Functions for recording call locations.
@@ -107,4 +107,4 @@ public:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // TF_CALL_CONTEXT_H
+#endif // PXR_BASE_TF_CALL_CONTEXT_H

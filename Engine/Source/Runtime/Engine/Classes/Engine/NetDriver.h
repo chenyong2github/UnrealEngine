@@ -647,7 +647,7 @@ struct FDisconnectedClient
 
 
 UCLASS(Abstract, customConstructor, transient, MinimalAPI, config=Engine)
-class ENGINE_VTABLE UNetDriver : public UObject, public FExec
+class UNetDriver : public UObject, public FExec
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1601,6 +1601,8 @@ public:
 	inline void IncreaseOutTotalNotifiedPackets() { ++OutTotalNotifiedPackets; }
 
 	bool DidHitchLastFrame() const;
+
+	static bool IsDormInitialStartupActor(AActor* Actor);
 
 protected:
 

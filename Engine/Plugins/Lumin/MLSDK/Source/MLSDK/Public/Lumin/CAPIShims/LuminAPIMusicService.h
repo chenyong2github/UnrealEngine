@@ -62,10 +62,12 @@ CREATE_FUNCTION_SHIM(ml_musicservice, MLResult, MLMusicServiceGetShuffleState)
 #define MLMusicServiceGetShuffleState ::MLSDK_API::MLMusicServiceGetShuffleStateShim
 CREATE_FUNCTION_SHIM(ml_musicservice, MLResult, MLMusicServiceGetVolume)
 #define MLMusicServiceGetVolume ::MLSDK_API::MLMusicServiceGetVolumeShim
-CREATE_FUNCTION_SHIM(ml_musicservice, MLResult, MLMusicServiceGetMetadata)
+CREATE_DEPRECATED_MSG_SHIM(ml_musicservice, MLResult, MLMusicServiceGetMetadata, "Replaced by MLMusicServiceGetMetadataForIndex.")
 #define MLMusicServiceGetMetadata ::MLSDK_API::MLMusicServiceGetMetadataShim
-CREATE_FUNCTION_SHIM(ml_musicservice, MLResult, MLMusicServiceGetMetadataEx)
+CREATE_DEPRECATED_MSG_SHIM(ml_musicservice, MLResult, MLMusicServiceGetMetadataEx, "Replaced by MLMusicServiceGetMetadataForIndex.")
 #define MLMusicServiceGetMetadataEx ::MLSDK_API::MLMusicServiceGetMetadataExShim
+CREATE_FUNCTION_SHIM(ml_musicservice, MLResult, MLMusicServiceGetMetadataForIndex)
+#define MLMusicServiceGetMetadataForIndex ::MLSDK_API::MLMusicServiceGetMetadataForIndexShim
 CREATE_FUNCTION_SHIM(ml_musicservice, MLResult, MLMusicServiceReleaseMetadata)
 #define MLMusicServiceReleaseMetadata ::MLSDK_API::MLMusicServiceReleaseMetadataShim
 

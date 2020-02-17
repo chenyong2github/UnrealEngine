@@ -2511,6 +2511,38 @@ namespace UE4CodeGen_Private
 #endif
 	};
 
+	struct FArrayPropertyParams // : FPropertyParamsBaseWithOffset
+	{
+		const char*         NameUTF8;
+		const char*         RepNotifyFuncUTF8;
+		EPropertyFlags      PropertyFlags;
+		EPropertyGenFlags   Flags;
+		EObjectFlags        ObjectFlags;
+		int32               ArrayDim;
+		int32               Offset;
+		EArrayPropertyFlags ArrayFlags;
+#if WITH_METADATA
+		const FMetaDataPairParam* MetaDataArray;
+		int32                     NumMetaData;
+#endif
+	};
+
+	struct FMapPropertyParams // : FPropertyParamsBaseWithOffset
+	{
+		const char*       NameUTF8;
+		const char*       RepNotifyFuncUTF8;
+		EPropertyFlags    PropertyFlags;
+		EPropertyGenFlags Flags;
+		EObjectFlags      ObjectFlags;
+		int32             ArrayDim;
+		int32             Offset;
+		EMapPropertyFlags MapFlags;
+#if WITH_METADATA
+		const FMetaDataPairParam* MetaDataArray;
+		int32                     NumMetaData;
+#endif
+	};
+
 	// These property types don't add new any construction parameters to their base property
 	typedef FGenericPropertyParams FInt8PropertyParams;
 	typedef FGenericPropertyParams FInt16PropertyParams;
@@ -2525,8 +2557,6 @@ namespace UE4CodeGen_Private
 	typedef FGenericPropertyParams FDoublePropertyParams;
 	typedef FGenericPropertyParams FNamePropertyParams;
 	typedef FGenericPropertyParams FStrPropertyParams;
-	typedef FGenericPropertyParams FArrayPropertyParams;
-	typedef FGenericPropertyParams FMapPropertyParams;
 	typedef FGenericPropertyParams FSetPropertyParams;
 	typedef FGenericPropertyParams FTextPropertyParams;
 	typedef FObjectPropertyParams  FWeakObjectPropertyParams;

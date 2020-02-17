@@ -30,6 +30,8 @@ public:
 
 	EFixedFoveatedRenderingLevel FFRLevel; // OnStartGameFrame
 
+	ovrpFovf Fov[ovrpEye_Count];	// UpdateStereoRenderingParams
+
 	union
 	{
 		struct

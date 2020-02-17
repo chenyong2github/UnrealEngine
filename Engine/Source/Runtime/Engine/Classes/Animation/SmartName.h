@@ -170,11 +170,6 @@ private:
 #endif
 
 	TMap<FName, FCurveMetaData> CurveMetaDataMap;
-
-#if WITH_EDITORONLY_DATA
-	// Editor copy of the data we loaded, used to preserve determinism during cooking
-	TMap<FName, FCurveMetaData> LoadDataCurveMetaDataMap;
-#endif
 };
 
 USTRUCT()
@@ -201,6 +196,11 @@ protected:
 
 private:
 	TMap<FName, FSmartNameMapping> NameMappings;	// List of smartname mappings
+
+#if WITH_EDITORONLY_DATA
+	// Editor copy of the data we loaded, used to preserve determinism during cooking
+	TMap<FName, FSmartNameMapping> LoadedNameMappings;
+#endif
 };
 
 USTRUCT()

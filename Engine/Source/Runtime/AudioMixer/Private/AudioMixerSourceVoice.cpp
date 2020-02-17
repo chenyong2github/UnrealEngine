@@ -60,7 +60,7 @@ namespace Audio
 			AUDIO_MIXER_CHECK(InitParams.NumInputChannels > 0);
 
 			bOutputToBusOnly = InitParams.bOutputToBusOnly;
-			bIsBus = InitParams.BusId != INDEX_NONE;
+			bIsBus = InitParams.AudioBusId != INDEX_NONE;
 
 			for (int32 i = 0; i < InitParams.SubmixSends.Num(); ++i)
 			{
@@ -141,11 +141,11 @@ namespace Audio
 		}
 	}
 
-	void FMixerSourceVoice::SetChannelMap(ESubmixChannelFormat InChannelType, const uint32 NumInputChannels, const Audio::AlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly)
+	void FMixerSourceVoice::SetChannelMap(const uint32 NumInputChannels, const Audio::AlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly)
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
-		SourceManager->SetChannelMap(SourceId, InChannelType, NumInputChannels, InChannelMap, bInIs3D, bInIsCenterChannelOnly);
+		SourceManager->SetChannelMap(SourceId, NumInputChannels, InChannelMap, bInIs3D, bInIsCenterChannelOnly);
 	}
 
 	void FMixerSourceVoice::SetSpatializationParams(const FSpatializationParams& InParams)
@@ -249,13 +249,22 @@ namespace Audio
 		return SourceManager->GetEnvelopeValue(SourceId);
 	}
 
-	void FMixerSourceVoice::MixOutputBuffers(const ESubmixChannelFormat InSubmixChannelType, const float SendLevel, AlignedFloatBuffer& OutWetBuffer) const
+	void FMixerSourceVoice::MixOutputBuffers(int32 InNumOutputChannels, const float SendLevel, AlignedFloatBuffer& OutWetBuffer) const
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		check(!bOutputToBusOnly);
 
-		return SourceManager->MixOutputBuffers(SourceId, InSubmixChannelType, SendLevel, OutWetBuffer);
+		return SourceManager->MixOutputBuffers(SourceId, InNumOutputChannels, SendLevel, OutWetBuffer);
+	}
+
+	const ISoundfieldAudioPacket* FMixerSourceVoice::GetEncodedOutput(const FSoundfieldEncodingKey& InKey) const
+	{
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+		check(!bOutputToBusOnly);
+
+		return SourceManager->GetEncodedOutput(SourceId, InKey);
 	}
 
 	void FMixerSourceVoice::SetSubmixSendInfo(FMixerSubmixWeakPtr Submix, const float SendLevel)
@@ -287,11 +296,11 @@ namespace Audio
 		}
 	}
 
-	void FMixerSourceVoice::SetBusSendInfo(EBusSendType InBusSendType, FMixerBusSend& BusSend)
+	void FMixerSourceVoice::SetAudioBusSendInfo(EBusSendType InBusSendType, uint32 AudioBusId, float BusSendLevel)
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
-		SourceManager->SetBusSendInfo(SourceId, InBusSendType, BusSend);
+		SourceManager->SetBusSendInfo(SourceId, InBusSendType, AudioBusId, BusSendLevel);
 	}
 
 	void FMixerSourceVoice::OnMixBus(FMixerSourceVoiceBuffer* OutMixerSourceBuffer)

@@ -22,6 +22,9 @@ public:
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InPosition, float Weight, bool bFireNotifies);
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 
+	/** Construct all nodes in this instance */
+	virtual void ConstructNodes() override;
+
 	/** Reset all nodes in this instance */
 	virtual void ResetNodes() override;
 

@@ -258,9 +258,11 @@ void BuildExpressionMap()
 		Info = &VMExpressionMap.Add(ir_binop_equal);
 		Info->Add(FVMExpresssionInfo(EVectorVMOp::cmpeq, glsl_type::bool_type, glsl_type::float_type, glsl_type::float_type));
 		Info->Add(FVMExpresssionInfo(EVectorVMOp::cmpeqi, glsl_type::bool_type, glsl_type::int_type, glsl_type::int_type));
+		Info->Add(FVMExpresssionInfo(EVectorVMOp::cmpeqi, glsl_type::bool_type, glsl_type::bool_type, glsl_type::bool_type));
 		Info = &VMExpressionMap.Add(ir_binop_nequal);
 		Info->Add(FVMExpresssionInfo(EVectorVMOp::cmpneq, glsl_type::bool_type, glsl_type::float_type, glsl_type::float_type));
 		Info->Add(FVMExpresssionInfo(EVectorVMOp::cmpneqi, glsl_type::bool_type, glsl_type::int_type, glsl_type::int_type));
+		Info->Add(FVMExpresssionInfo(EVectorVMOp::cmpneqi, glsl_type::bool_type, glsl_type::bool_type, glsl_type::bool_type));
 
 		/**
 		* Returns single boolean for whether all components of operands[0]
@@ -685,6 +687,8 @@ struct op_hook : public op_base
 
 #if WITH_EDITOR
 		Args.Add(VectorVM::GetOpName(op_code));
+#else
+		Args.Add(FString::Printf(TEXT("OP_%d"), op_code));
 #endif
 
 		if(source_component)
@@ -749,6 +753,8 @@ struct op_standard : public op_base
 
 #if WITH_EDITOR
 		Args.Add(VectorVM::GetOpName(op_code));
+#else
+		Args.Add(FString::Printf(TEXT("OP_%d"), op_code));
 #endif
 
 		Args.Add(get_location_string(dest_component->owner->location));

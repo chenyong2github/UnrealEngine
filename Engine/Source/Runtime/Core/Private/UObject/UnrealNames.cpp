@@ -24,6 +24,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Serialization/MemoryImage.h"
 #include "Hash/CityHash.h"
 #include "Templates/AlignmentTemplates.h"
 
@@ -725,6 +726,7 @@ public:
 	{
 		uint32 WantedCapacity = FMath::RoundUpToPowerOfTwo(Num * LoadFactorDivisor / LoadFactorQuotient);
 
+		FWriteScopeLock _(Lock);
 		if (WantedCapacity > Capacity())
 		{
 			Grow(WantedCapacity);
@@ -1878,7 +1880,7 @@ struct FNameHelper
 		// Make NAME_None == TEXT("") or nullptr consistent with NAME_None == FName(TEXT("")) or FName(nullptr)
 		if (Str == nullptr || Str[0] == '\0')
 		{
-			return Name == NAME_None;
+			return Name.IsNone();
 		}
 
 		const FNameEntry& Entry = *Name.GetComparisonNameEntry();
@@ -3201,6 +3203,11 @@ uint8** FNameDebugVisualizer::GetBlocks()
 	static_assert(OffsetBits == FNameBlockOffsetBits,			"Natvis constants out of sync with actual constants");
 
 	return ((FNamePool*)(NamePoolData))->GetBlocksForDebugVisualizer();
+}
+
+void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FName& Object, const FTypeLayoutDesc&)
+{
+	Writer.WriteFName(Object);
 }
 
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

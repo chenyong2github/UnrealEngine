@@ -344,7 +344,7 @@ namespace Audio
 			return false;
 		}
 		OutNumOutputDevices = AllAudioDevices->Size;
-#elif PLATFORM_WINDOWS
+#elif PLATFORM_WINDOWS && XAUDIO_SUPPORTS_DEVICE_DETAILS
 
 		IMMDeviceEnumerator* DeviceEnumerator = nullptr;
 		IMMDeviceCollection* DeviceCollection = nullptr;
@@ -859,15 +859,6 @@ namespace Audio
 				nullptr,
 				nullptr,
 				AudioCategory_GameEffects);
-
-#elif PLATFORM_XBOXONE
-			Result = XAudio2System->CreateMasteringVoice(
-				&OutputAudioStreamMasteringVoice,
-				AudioStreamInfo.DeviceInfo.NumChannels,
-				AudioStreamInfo.DeviceInfo.SampleRate,
-				0,
-				nullptr,
-				nullptr);
 #elif PLATFORM_HOLOLENS
 		// XAudio2 for HoloLens has different parameters to CreateMasteringVoice
 		// See https://blogs.msdn.microsoft.com/chuckw/2012/04/02/xaudio2-and-windows-8/
@@ -878,6 +869,14 @@ namespace Audio
 			0, 
 			AllAudioDevices->GetAt(AudioStreamInfo.OutputDeviceIndex)->Id->Data(), 
 			nullptr);
+#else
+			Result = XAudio2System->CreateMasteringVoice(
+				&OutputAudioStreamMasteringVoice,
+				AudioStreamInfo.DeviceInfo.NumChannels,
+				AudioStreamInfo.DeviceInfo.SampleRate,
+				0,
+				nullptr,
+				nullptr);
 #endif // #if PLATFORM_WINDOWS
 
 			XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result);
@@ -1049,7 +1048,7 @@ namespace Audio
 
 	bool FMixerPlatformXAudio2::MoveAudioStreamToNewAudioDevice(const FString& InNewDeviceId)
 	{
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS && XAUDIO_SUPPORTS_DEVICE_DETAILS
 
 		uint32 NumDevices = 0;
 		// XAudio2 for HoloLens doesn't have GetDeviceCount, use local wrapper instead
@@ -1238,7 +1237,7 @@ namespace Audio
 		static FName NAME_ADPCM(TEXT("ADPCM"));
 
 #if WITH_ENGINE
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 			if (InSoundWave->IsSeekableStreaming())
 			{
@@ -1277,7 +1276,7 @@ namespace Audio
 #if WITH_ENGINE
 		check(InSoundWave);
 
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 			if (InSoundWave->IsSeekableStreaming())
 			{
@@ -1292,7 +1291,7 @@ namespace Audio
 		}
 #endif
 
-		if (InSoundWave->IsStreaming())
+		if (InSoundWave->IsStreaming(nullptr))
 		{
 #if USE_VORBIS_FOR_STREAMING
 			return new FVorbisAudioInfo();

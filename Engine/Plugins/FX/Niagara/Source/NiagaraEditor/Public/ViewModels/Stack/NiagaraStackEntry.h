@@ -225,6 +225,8 @@ public:
 
 	virtual FText GetDisplayName() const;
 
+	virtual FText GetOriginalName() const;
+
 	virtual UObject* GetDisplayedObject() const;
 
 	UNiagaraStackEditorData& GetStackEditorData() const;
@@ -376,6 +378,18 @@ public:
 	virtual FText GetDeleteTransactionText() const { return FText(); }
 
 	virtual void Delete() { }
+
+	/** Returns whether or not this entry can be renamed. */
+	virtual bool SupportsRename() const { return false; }
+
+	/** Gets whether this entry has a rename pending. */
+	virtual bool GetIsRenamePending() const;
+
+	/** Sets whether this entry has a rename pending. */
+	virtual void SetIsRenamePending(bool bIsRenamePending);
+
+	/** Handler for when a rename is committed for this stack entry. */
+	virtual void OnRenamed(FText NewName);
 
 protected:
 	virtual void BeginDestroy() override;

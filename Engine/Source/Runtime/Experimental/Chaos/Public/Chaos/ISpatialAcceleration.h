@@ -28,7 +28,7 @@ struct CHAOS_API FQueryFastData
 
 	const bool bParallel[3];
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#ifdef _MSC_VER
 	#pragma warning (push)
 	#pragma warning(disable:4723)
 #endif
@@ -45,7 +45,7 @@ struct CHAOS_API FQueryFastData
 		}
 	}
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#ifdef _MSC_VER
 	#pragma warning(pop)
 #endif
 
@@ -194,6 +194,12 @@ FORCEINLINE FUniqueIdx GetUniqueIdx(const int32 Payload)
 {
 	ensure(Payload >=0);	//-1 idx implies it was never set
 	return FUniqueIdx(Payload);
+}
+
+FORCEINLINE FUniqueIdx GetUniqueIdx(const FUniqueIdx Payload)
+{
+	ensure(Payload.IsValid());
+	return Payload;
 }
 
 
@@ -435,6 +441,15 @@ public:
 	void Add(const TKey& Key, const TValue& Value)
 	{
 		Add(Key) = Value;
+	}
+
+	void RemoveChecked(const TKey& Key)
+	{
+		const int32 Idx = GetUniqueIdx(Key).Idx;
+		Entries[Idx] = FEntry();	//Mark as free, also resets default values for next use of value
+#if CHAOS_SERIALIZE_OUT
+		KeysToSerializeOut[Idx] = TKey();
+#endif
 	}
 
 	void Remove(const TKey& Key)

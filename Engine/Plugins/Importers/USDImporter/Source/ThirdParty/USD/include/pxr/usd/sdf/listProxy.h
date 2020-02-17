@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDF_LISTPROXY_H
-#define SDF_LISTPROXY_H
+#ifndef PXR_USD_SDF_LIST_PROXY_H
+#define PXR_USD_SDF_LIST_PROXY_H
 
 /// \file sdf/listProxy.h
 
@@ -508,6 +508,14 @@ public:
         }
     }
 
+    /// Apply the edits in this list to the given \p vec.
+    void ApplyEditsToList(value_vector_type* vec)
+    {
+        if (_Validate()) {
+            _listEditor->ApplyEditsToList(vec);
+        }
+    }
+
 private:
     bool _Validate()
     {
@@ -605,4 +613,4 @@ struct Tf_ShouldIterateOverCopy<SdfListProxy<T> > : boost::true_type
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDF_LISTPROXY_H
+#endif // PXR_USD_SDF_LIST_PROXY_H

@@ -2007,12 +2007,14 @@ namespace UnrealBuildTool
 		private XmlNode GetDefaultTile(int ApplicationIndex)
 		{
 			XmlElement DefaultTile = AppxManifestXmlDocument.CreateElement("uap:DefaultTile", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+			bool bIsWideLogoUsed = false;
 
 			XmlAttribute WideLogo = AppxManifestXmlDocument.CreateAttribute("Wide310x150Logo");
 			if (CopyAndReplaceBinaryIntermediate("WideLogo.png"))
 			{
 				WideLogo.Value = BuildResourceSubPath + "\\WideLogo.png";
 				DefaultTile.Attributes.Append(WideLogo);
+				bIsWideLogoUsed = true;
 				if (CopyAndReplaceBinaryIntermediate("3DLogo.glb", false, (string from, string to) => 
 				{
 					//we need to process the logo with the gltf tool
@@ -2047,41 +2049,26 @@ namespace UnrealBuildTool
 				Log.TraceError("Unable to stage application wide logo.");
 			}
 
-			// Calculate the short name display conditions and the short name if it will be used
-			XmlAttribute ShowName = AppxManifestXmlDocument.CreateAttribute("ShowName");
-			ShowName.Value = "noLogos";
-			bool bUseShortNameForLogo = false;
-			bool bUseShortNameForWideLogo = false;
-			bool bShortNameForLogoValueRead = EngineIni.GetBool(TargetSettings, "bUseShortNameForLogo", out bUseShortNameForLogo);
-			bool bShortNameForWideLogoValueRead = EngineIni.GetBool(TargetSettings, "bUseShortNameForWideLogo", out bUseShortNameForWideLogo);
-			if (bShortNameForLogoValueRead || bShortNameForWideLogoValueRead)
+			bool bUseNameForLogo;
+			if(EngineIni.GetBool(TargetSettings, "bUseNameForLogo", out bUseNameForLogo) && bUseNameForLogo)
 			{
-				if (bUseShortNameForLogo && bUseShortNameForWideLogo)
+				XmlElement ShowNameOnTiles = AppxManifestXmlDocument.CreateElement("uap:ShowNameOnTiles", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+				Func<string, bool> addShowOnTile = (string s) => 
 				{
-					ShowName.Value = "allLogos";
-				}
-				else if (bUseShortNameForLogo)
-				{
-					ShowName.Value = "logoOnly";
-				}
-				else if (bUseShortNameForWideLogo)
-				{
-					ShowName.Value = "wideLogoOnly";
-				}
-			}
-			else
-			{
-				ShowName.Value = GetInterprettedSettingValue("Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DefaultTile.ShowName");
-			}
-			if (ShowName.Value != null && ShowName.Value.Length > 0 && !ShowName.Value.Equals("noLogos"))
+					XmlElement ShowOn = AppxManifestXmlDocument.CreateElement("uap:ShowOn", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+					XmlAttribute Tile = AppxManifestXmlDocument.CreateAttribute("Tile");
+					Tile.Value = s;
+					ShowOn.Attributes.Append(Tile);
+					ShowNameOnTiles.AppendChild(ShowOn);
+					return true;
+				};
 
-			{
-				XmlAttribute ShortName = AppxManifestXmlDocument.CreateAttribute("ShortName");// CreateStringAttribute("ShortName", "ApplicationShortName", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DefaultTile.ShortName", null, null, "");
-				ShortName.Value = "ms-resource:AppShortName";
-				AddResourceEntry("AppShortName", "ApplicationShortName", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.DefaultTile.ShortName", null, null, "UE4Game");
-
-				DefaultTile.Attributes.Append(ShortName);
-				DefaultTile.Attributes.Append(ShowName);
+				addShowOnTile("square150x150Logo");
+				if (bIsWideLogoUsed)
+				{
+					addShowOnTile("wide310x150Logo");
+				}
+				DefaultTile.AppendChild(ShowNameOnTiles);
 			}
 
 			return DefaultTile;

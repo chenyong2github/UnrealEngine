@@ -166,12 +166,12 @@ namespace
 		if (!Class->HasAnyClassFlags(CLASS_ReplicationDataIsSetUp))
 		{
 			for (TFieldIterator<FProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		{
+			if ((It->PropertyFlags & CPF_Net) != 0)
 			{
-				if ((It->PropertyFlags & CPF_Net) != 0)
-				{
-					return true;
-				}
+				return true;
 			}
+		}
 		}
 
 		return Class->FirstOwnedClassRep < Class->ClassReps.Num();
@@ -1547,7 +1547,7 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 		DeclOut.Logf(TEXT("%sstatic const UE4CodeGen_Private::FArrayPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
-			TEXT("%sconst UE4CodeGen_Private::FArrayPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UE4CodeGen_Private::EPropertyGenFlags::Array, %s, %s, %s, %s };%s\r\n"),
+			TEXT("%sconst UE4CodeGen_Private::FArrayPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UE4CodeGen_Private::EPropertyGenFlags::Array, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
 			Name,
 			*PropName,
@@ -1556,6 +1556,7 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			FPropertyObjectFlags,
 			*ArrayDim,
 			OffsetStr,
+			GPropertyUsesMemoryImageAllocator.Contains(TypedProp) ? TEXT("EArrayPropertyFlags::UsesMemoryImageAllocator") : TEXT("EArrayPropertyFlags::None"),
 			*MetaDataParams,
 			*PropTag
 		);
@@ -1568,7 +1569,7 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 		DeclOut.Logf(TEXT("%sstatic const UE4CodeGen_Private::FMapPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
 		Out.Logf(
-			TEXT("%sconst UE4CodeGen_Private::FMapPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UE4CodeGen_Private::EPropertyGenFlags::Map, %s, %s, %s, %s };%s\r\n"),
+			TEXT("%sconst UE4CodeGen_Private::FMapPropertyParams %s = { %s, %s, (EPropertyFlags)0x%016llx, UE4CodeGen_Private::EPropertyGenFlags::Map, %s, %s, %s, %s, %s };%s\r\n"),
 			Spaces,
 			Name,
 			*PropName,
@@ -1577,6 +1578,7 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 			FPropertyObjectFlags,
 			*ArrayDim,
 			OffsetStr,
+			GPropertyUsesMemoryImageAllocator.Contains(TypedProp) ? TEXT("EMapPropertyFlags::UsesMemoryImageAllocator") : TEXT("EMapPropertyFlags::None"),
 			*MetaDataParams,
 			*PropTag
 		);
@@ -2117,7 +2119,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(InPackage->GetName()));
 	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), SingletonArray);
 	Out.Logf(TEXT("\t\t\t\t%s,\r\n"), SingletonCount);
-	Out.Logf(TEXT("\t\t\t\tPKG_CompiledIn | 0x%08X,\r\n"), InPackage->GetPackageFlags() & (PKG_ClientOptional | PKG_ServerSideOnly | PKG_EditorOnly | PKG_Developer));
+	Out.Logf(TEXT("\t\t\t\tPKG_CompiledIn | 0x%08X,\r\n"), InPackage->GetPackageFlags() & (PKG_ClientOptional | PKG_ServerSideOnly | PKG_EditorOnly | PKG_Developer | PKG_UncookedOnly));
 	Out.Logf(TEXT("\t\t\t\t0x%08X,\r\n"), Hash);
 	Out.Logf(TEXT("\t\t\t\t0x%08X,\r\n"), GenerateTextHash(InDeclarations));
 	Out.Logf(TEXT("\t\t\t\t%s\r\n"), *MetaDataParams);
@@ -2957,7 +2959,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FUHTStringBuilder EnhancedUObjectConstructorsMacroCall;
 
 	FClassMetaData* ClassData = GScriptHelper.FindClassData(Class);
-	check(ClassData);
+	checkf(ClassData, TEXT("No class data generated for file %s"), *SourceFile.GetFilename());
 
 	// C++ -> VM stubs (native function execs)
 	FUHTStringBuilder ClassMacroCalls;
@@ -3659,8 +3661,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
 
 				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMOperandMemory[%d];"),
-					*VariableType,
-					*ParamNameOriginal,
+				*VariableType,
+				*ParamNameOriginal,
 					*ParameterCast,
 					OperandIndex));
 
@@ -3999,20 +4001,20 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			Out.Log(TEXT("}\r\n"));
 		}
 
-		Out.Log(TEXT("\r\n"));
+			Out.Log(TEXT("\r\n"));
 
 		bool bHasGetMaxArraySize = false;
 		for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
-		{
-			if (!StructMember.MaxArraySize.IsEmpty())
 			{
+			if (!StructMember.MaxArraySize.IsEmpty())
+				{
 				bHasGetMaxArraySize = true;
 				break;
+				}
 			}
-		}
 
 		if (bHasGetMaxArraySize)
-		{
+			{
 			Out.Logf(TEXT("int32 %s::GetMaxArraySize(const FName& InMemberName, const FRigVMUserDataArray& RigVMUserData)\r\n"), *StructNameCPP);
 			Out.Log(TEXT("{\r\n"));
 			for (const FRigVMParameter& StructMember : StructRigVMInfo->Members)
@@ -6415,14 +6417,22 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 		//       want to make sure our flags get set
 		Package->SetPackageFlags(PKG_ContainsScript | PKG_Compiling);
 		Package->ClearPackageFlags(PKG_ClientOptional | PKG_ServerSideOnly);
-		if (Module.ModuleType == EBuildModuleType::GameEditor || Module.ModuleType == EBuildModuleType::EngineEditor)
+		switch (Module.ModuleType)
 		{
+		case EBuildModuleType::GameEditor:
+		case EBuildModuleType::EngineEditor:
 			Package->SetPackageFlags(PKG_EditorOnly);
-		}
+			break;
 
-		if (Module.ModuleType == EBuildModuleType::GameDeveloper || Module.ModuleType == EBuildModuleType::EngineDeveloper)
-		{
-			Package->SetPackageFlags(Package->GetPackageFlags() | PKG_Developer);
+		case EBuildModuleType::GameDeveloper:
+		case EBuildModuleType::EngineDeveloper:
+			Package->SetPackageFlags(PKG_Developer);
+			break;
+
+		case EBuildModuleType::GameUncooked:
+		case EBuildModuleType::EngineUncooked:
+			Package->SetPackageFlags(PKG_UncookedOnly);
+			break;
 		}
 
 		// Add new module or overwrite whatever we had loaded, that data is obsolete.
@@ -6587,29 +6597,6 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 
 	return Result;
 }
-
-struct FTestCollector
-{
-	void HandleObjectReference(UObject*& Obj)
-	{
-
-	}
-
-	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<T, FField>::IsDerived, void>::Type AddReferencedObject(T*& Field)
-	{
-		if (Field)
-		{
-			UObject* Owner = Field->GetOwnerUObject();
-			UObject* OldOwnerPtr = nullptr;
-			HandleObjectReference(Owner);
-			if (Owner == nullptr && OldOwnerPtr != nullptr)
-			{
-				Field = nullptr;
-			}
-		}
-	}
-};
 
 ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename)
 {

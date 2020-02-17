@@ -11,6 +11,7 @@
 #include "RenderResource.h"
 #include "Containers/DynamicRHIResourceArray.h"
 
+
 class FRawIndexBuffer : public FIndexBuffer
 {
 public:
@@ -118,7 +119,7 @@ private:
 	bool b32Bit;
 };
 
-class ENGINE_VTABLE FRawStaticIndexBuffer : public FIndexBuffer
+class FRawStaticIndexBuffer : public FIndexBuffer
 {
 public:	
 	/**
@@ -205,11 +206,20 @@ public:
 	 */
 	ENGINE_API void GetCopy(TArray<uint32>& OutIndices) const;
 
+	/** Expands the 16bit index buffer to 32bit */
+	void ExpandTo32Bit();
+
 	/**
 	 * Get the direct read access to index data 
 	 * Only valid if NeedsCPUAccess = true and indices are 16 bit
 	 */
 	ENGINE_API const uint16* AccessStream16() const;
+
+	/**
+	 * Get the direct read access to index data
+	 * Only valid if NeedsCPUAccess = true and indices are 32 bit
+	 */
+	ENGINE_API const uint32* AccessStream32() const;
 
 	/**
 	 * Retrieves an array view in to the index buffer. The array view allows code
@@ -290,13 +300,16 @@ private:
 	FIndexBufferRHIRef CreateRHIBuffer_Internal();
 
 	/** Storage for indices. */
-	TResourceArray<uint8,INDEXBUFFER_ALIGNMENT> IndexStorage;
+	TResourceArray<uint8, INDEXBUFFER_ALIGNMENT> IndexStorage;
 
 	/** If >= 0, represents the number of indices in this IB. Needed in cooked build since InitRHI may discard CPU data */
 	int32 CachedNumIndices;
 
 	/** 32bit or 16bit? */
 	bool b32Bit;
+
+	/** Set when cooking for Android if the 16-bit index data potentially needs to be converted to 32-bit on load to work around bugs on certain devices. Only when FPlatformMisc::Expand16BitIndicesTo32BitOnLoad equals true*/
+	bool bShouldExpandTo32Bit;
 };
 
 /**
@@ -446,7 +459,8 @@ public:
 
 	virtual void AssignNewBuffer(const TArray<INDEX_TYPE>& Buffer)
 	{
-		Indices = TArray<INDEX_TYPE,TAlignedHeapAllocator<INDEXBUFFER_ALIGNMENT> >(Buffer);
+		using IndexBufferType = typename TResourceArray<INDEX_TYPE, INDEXBUFFER_ALIGNMENT>::Super;
+		Indices = IndexBufferType(Buffer);
 		CachedNumIndices = Indices.Num();
 	}
 

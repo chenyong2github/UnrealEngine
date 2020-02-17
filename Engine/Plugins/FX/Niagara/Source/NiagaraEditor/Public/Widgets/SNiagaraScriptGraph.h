@@ -16,13 +16,14 @@ class SNiagaraScriptGraph : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraScriptGraph)
+		: _ZoomToFitOnLoad(false)
 	{}
 		/** The text displayed in the title bar of the graph. */
 		SLATE_ATTRIBUTE(FText, GraphTitle)
-
+		SLATE_ARGUMENT(bool, ZoomToFitOnLoad)
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel);
 
 	const TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; };
 

@@ -10,6 +10,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
@@ -71,6 +72,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 	, bCompilePendingCompletion(false)
 	, SystemStackViewModel(nullptr)
 	, SelectionViewModel(nullptr)
+	, ScriptScratchPadViewModel(nullptr)
 {
 	GEditor->RegisterForUndo(this);
 }
@@ -100,6 +102,11 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	SystemStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
 	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
 	SystemStackViewModel->OnStructureChanged().AddSP(this, &FNiagaraSystemViewModel::StackViewModelStructureChanged);
+
+	ScriptScratchPadViewModel = NewObject<UNiagaraScratchPadViewModel>(GetTransientPackage());
+	ScriptScratchPadViewModel->Initialize(this->AsShared());
+	ScriptScratchPadViewModel->OnScriptRenamed().AddSP(this, &FNiagaraSystemViewModel::ScratchPadScriptsChanged);
+	ScriptScratchPadViewModel->OnScriptDeleted().AddSP(this, &FNiagaraSystemViewModel::ScratchPadScriptsChanged);
 
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
@@ -177,6 +184,14 @@ void FNiagaraSystemViewModel::Cleanup()
 		SelectionViewModel->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		SelectionViewModel->Finalize();
 		SelectionViewModel = nullptr;
+	}
+
+	if (ScriptScratchPadViewModel != nullptr)
+	{
+		ScriptScratchPadViewModel->OnScriptRenamed().RemoveAll(this);
+		ScriptScratchPadViewModel->OnScriptDeleted().RemoveAll(this);
+		ScriptScratchPadViewModel->Finalize();
+		ScriptScratchPadViewModel = nullptr;
 	}
 }
 
@@ -478,6 +493,10 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 	{
 		Collector.AddReferencedObject(SelectionViewModel);
 	}
+	if (ScriptScratchPadViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(ScriptScratchPadViewModel);
+	}
 }
 
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
@@ -495,6 +514,11 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 		bCompilePendingCompletion = false;
 		OnSystemCompiled().Broadcast();
 		SendLastCompileMessageJobs();
+	}
+
+	if (!SystemScriptViewModel.IsValid())
+	{
+		return;
 	}
 
 	if (bForceAutoCompileOnce || (GetDefault<UNiagaraEditorSettings>()->GetAutoCompile() && bCanAutoCompile))
@@ -580,6 +604,16 @@ FNiagaraSystemViewModel::FOnPreClose& FNiagaraSystemViewModel::OnPreClose()
 	return OnPreCloseDelegate;
 }
 
+FNiagaraSystemViewModel::FOnRequestFocusTab& FNiagaraSystemViewModel::OnRequestFocusTab()
+{
+	return OnRequestFocusTabDelegate;
+}
+
+void FNiagaraSystemViewModel::FocusTab(FName TabName)
+{
+	OnRequestFocusTabDelegate.Broadcast(TabName);
+}
+
 TSharedPtr<FUICommandList> FNiagaraSystemViewModel::GetToolkitCommands()
 {
 	return ToolkitCommands.Pin();
@@ -642,6 +676,11 @@ UNiagaraSystemSelectionViewModel* FNiagaraSystemViewModel::GetSelectionViewModel
 	return SelectionViewModel;
 }
 
+UNiagaraScratchPadViewModel* FNiagaraSystemViewModel::GetScriptScratchPadViewModel()
+{
+	return ScriptScratchPadViewModel;
+}
+
 TStatId FNiagaraSystemViewModel::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemViewModel, STATGROUP_Tickables);
@@ -677,13 +716,17 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 	{
 		const UNiagaraEmitter* EmitterInSystem = Handle.GetInstance();
 		TArray<UNiagaraScript*> EmitterScripts;
-		EmitterInSystem->GetScripts(EmitterScripts);
+		EmitterInSystem->GetScripts(EmitterScripts, false);
 		for (UNiagaraScript* EmitterScript : EmitterScripts)
 		{
 			ScriptsToGetCompileEventsFrom.Add(FNiagaraScriptAndOwningScriptNameString(EmitterScript, EmitterInSystem->GetUniqueEmitterName()));
 		}
 	}
 
+	// Clear out existing compile event messages from compile event message jobs for this asset.
+	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(SystemMessageLogGuidKey.GetValue(), ENiagaraMessageJobType::CompileEventMessageJob);
+
+	// Make new messages and messages jobs from the compile.
 	TArray<TSharedPtr<const INiagaraMessageJob>> JobBatchToQueue;
 	// Iterate from back to front to avoid reordering the events when they are queued
 	for (int i = ScriptsToGetCompileEventsFrom.Num()-1; i >=0; --i)
@@ -704,9 +747,33 @@ void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 
 			JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), ScriptInfo.OwningScriptNameString));
 		}
+		
+		// Check if there are any GPU compile errors and if so push them.
+		const FNiagaraShaderScript* ShaderScript = ScriptInfo.Script->GetRenderThreadScript();
+		if (ShaderScript != nullptr && ShaderScript->IsCompilationFinished() && 
+			ScriptInfo.Script->Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
+		{
+			const TArray<FString>& GPUCompileErrors = ShaderScript->GetCompileErrors();
+			for (const FString& String : GPUCompileErrors)
+			{
+				FNiagaraCompileEventSeverity Severity = FNiagaraCompileEventSeverity::Warning;
+				if (String.Contains(TEXT("err0r")))
+				{
+					Severity = FNiagaraCompileEventSeverity::Error;
+					ErrorCount++;
+				}
+				else
+				{
+					WarningCount++;
+				}
+				FNiagaraCompileEvent CompileEvent = FNiagaraCompileEvent(Severity, String);
+				JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)),
+					ScriptInfo.OwningScriptNameString));
+			}
+		}
+		
 	}
 	JobBatchToQueue.Insert(MakeShared<FNiagaraMessageJobPostCompileSummary>(ErrorCount, WarningCount, GetLatestCompileStatus(), FText::FromString("System")), 0);
-	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(SystemMessageLogGuidKey.GetValue(), ENiagaraMessageJobType::CompileEventMessageJob);
 	FNiagaraMessageManager::Get()->QueueMessageJobBatch(JobBatchToQueue, SystemMessageLogGuidKey.GetValue());
 }
 
@@ -737,6 +804,7 @@ void FNiagaraSystemViewModel::RefreshAll()
 	RefreshEmitterHandleViewModels();
 	RefreshSequencerTracks();
 	ResetCurveData();
+	ScriptScratchPadViewModel->RefreshScriptViewModels();
 }
 
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
@@ -1859,6 +1927,15 @@ void FNiagaraSystemViewModel::StackViewModelStructureChanged()
 	if (SelectionViewModel != nullptr)
 	{
 		SelectionViewModel->RefreshDeferred();
+	}
+}
+
+void FNiagaraSystemViewModel::ScratchPadScriptsChanged()
+{
+	SystemStackViewModel->GetRootEntry()->RefreshChildren();
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->RefreshChildren();
 	}
 }
 

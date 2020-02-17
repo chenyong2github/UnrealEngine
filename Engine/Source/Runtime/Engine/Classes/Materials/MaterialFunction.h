@@ -34,9 +34,11 @@ class UMaterialFunction : public UMaterialFunctionInterface
 	UPROPERTY(EditAnywhere, Category=MaterialFunction, AssetRegistrySearchable)
 	FString Description;
 
+#if WITH_EDITORONLY_DATA
 	/** Array of material expressions, excluding Comments.  Used by the material editor. */
 	UPROPERTY()
 	TArray<UMaterialExpression*> FunctionExpressions;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Whether to list this function in the material function library, which is a window in the material editor that lists categorized functions. */
 	UPROPERTY(EditAnywhere, Category=MaterialFunction, AssetRegistrySearchable)
@@ -112,6 +114,7 @@ public:
 	virtual void UnlinkFromCaller() override;
 #endif
 
+#if WITH_EDITORONLY_DATA
 	/** @return true if this function is dependent on the passed in function, directly or indirectly. */
 	virtual bool IsDependent(UMaterialFunctionInterface* OtherFunction) override;
 
@@ -126,9 +129,7 @@ public:
 
 	/** Returns an array of the functions that this function is dependent on, directly or indirectly. */
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const override;
-
-	/** Appends textures referenced by the expressions in this function. */
-	virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const override;
+#endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	virtual UMaterialInterface* GetPreviewMaterial() override;
@@ -145,7 +146,9 @@ public:
 
 	virtual UMaterialFunctionInterface* GetBaseFunction() override { return this; }
 	virtual const UMaterialFunctionInterface* GetBaseFunction() const override { return this; }
+#if WITH_EDITORONLY_DATA
 	virtual const TArray<UMaterialExpression*>* GetFunctionExpressions() const override { return &FunctionExpressions; }
+#endif
 	virtual const FString* GetDescription() const override { return &Description; }
 
 	virtual bool GetReentrantFlag() const override { return bReentrantFlag; }

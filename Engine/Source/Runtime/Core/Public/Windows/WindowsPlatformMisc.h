@@ -259,4 +259,6 @@ struct CORE_API FWindowsPlatformMisc
 };
 
 
+#if WINDOWS_USE_FEATURE_PLATFORMMISC_CLASS
 typedef FWindowsPlatformMisc FPlatformMisc;
+#endif

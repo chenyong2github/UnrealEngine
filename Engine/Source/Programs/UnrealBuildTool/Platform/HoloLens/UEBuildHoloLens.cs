@@ -217,7 +217,7 @@ namespace UnrealBuildTool
 			}
 
 			// Initialize the VC environment for the target, and set all the version numbers to the concrete values we chose.
-			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.HoloLensPlatform.Win10SDKVersionString);
+			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.HoloLensPlatform.Win10SDKVersionString, null);
 			Target.WindowsPlatform.Environment = Environment;
 			Target.WindowsPlatform.Compiler = Environment.Compiler;
 			Target.WindowsPlatform.CompilerVersion = Environment.CompilerVersion.ToString();
@@ -601,6 +601,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("HOLOLENS=1");
 
 			CompileEnvironment.Definitions.Add("WINAPI_FAMILY=WINAPI_FAMILY_APP");
+			CompileEnvironment.Definitions.Add("PLATFORM_MICROSOFT=1");
 
 			// No D3DX on HoloLens!
 			CompileEnvironment.Definitions.Add("NO_D3DX_LIBS=1");

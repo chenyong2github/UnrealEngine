@@ -4,10 +4,10 @@
 
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/IUnrealInsightsModule.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/SLogView.h"
@@ -36,14 +36,13 @@ FTimingProfilerManager::FTimingProfilerManager(TSharedRef<FUICommandList> InComm
 	: CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
-	, bIsFramesTrackVisible(true)
-	, bIsGraphTrackVisible(false)
-	, bIsTimingViewVisible(true)
-	, bIsTimersViewVisible(true)
-	, bIsCallersTreeViewVisible(true)
-	, bIsCalleesTreeViewVisible(true)
-	, bIsStatsCountersViewVisible(true)
-	, bIsLogViewVisible(true)
+	, bIsFramesTrackVisible(false)
+	, bIsTimingViewVisible(false)
+	, bIsTimersViewVisible(false)
+	, bIsCallersTreeViewVisible(false)
+	, bIsCalleesTreeViewVisible(false)
+	, bIsStatsCountersViewVisible(false)
+	, bIsLogViewVisible(false)
 	, SelectionStartTime(0.0)
 	, SelectionEndTime(0.0)
 	, SelectedTimerId(InvalidTimerId)

@@ -231,7 +231,7 @@ void UVariantObjectBinding::SortCapturedProperties()
 
 		if (OrderA == OrderB)
 		{
-			return A.GetFullDisplayString() < B.GetFullDisplayString();
+		return A.GetFullDisplayString() < B.GetFullDisplayString();
 		}
 
 		return OrderA < OrderB;

@@ -2,6 +2,8 @@
 
 #include "CopyTextureShaders.h"
 
+IMPLEMENT_TYPE_LAYOUT(FCopyTextureCS);
+
 #define IMPLEMENT_COPY_RESOURCE_SHADER(SrcType,DstType,ValueType)\
 	typedef TCopyResourceCS<ECopyTextureResourceType::SrcType, ECopyTextureResourceType::DstType, ECopyTextureValueType::ValueType, 4> FCopyTextureCS_##SrcType##_##DstType##_##ValueType##4;\
 	IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<>, FCopyTextureCS_##SrcType##_##DstType##_##ValueType##4, SF_Compute);

@@ -42,7 +42,6 @@ class UMaterialExpressionDynamicParameter : public UMaterialExpression
 #endif // WITH_EDITOR
 
 	virtual void PostLoad() override;
-	virtual bool NeedsLoadForClient() const override;
 	//~ End UObject Interface
 
 	//~ Begin UMaterialExpression Interface
@@ -53,14 +52,17 @@ class UMaterialExpressionDynamicParameter : public UMaterialExpression
 	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
 	virtual int32 GetWidth() const override;
 	virtual int32 GetLabelPadding() override { return 8; }
+	virtual FText GetKeywords() const override { return FText::FromString(TEXT("dynamic")); }
 #endif
 	//~ End UMaterialExpression Interface
 
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Iterate through all of the expression nodes until we find another 
 	 * dynamic parameter we can copy the properties from
 	 */
 	ENGINE_API void UpdateDynamicParameterProperties();
+#endif // WITH_EDITORONLY_DATA
 
 	/**
 	 * Copy the properties from the specified dynamic parameter

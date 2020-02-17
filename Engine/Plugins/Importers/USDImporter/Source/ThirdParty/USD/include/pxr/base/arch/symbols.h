@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef ARCH_SYMBOLS_H
-#define ARCH_SYMBOLS_H
+#ifndef PXR_BASE_ARCH_SYMBOLS_H
+#define PXR_BASE_ARCH_SYMBOLS_H
 
 /// \file arch/symbols.h
 /// \ingroup group_arch_Diagnostics
@@ -37,8 +37,8 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// Returns information about the address \p address in the running program.
 ///
 /// Returns \c false if no information can be found, otherwise returns \c true
-/// and modifies the other arguments: \p objectPath is set to the path to the
-/// executable or library the address is found in, \p baseAddress is the
+/// and modifies the other arguments: \p objectPath is set to the absolute path 
+/// to the executable or library the address is found in, \p baseAddress is the
 /// address where that object is loaded, \p symbolName is the symbolic name of
 /// the thing containing the address, and \p symbolAddress is the starting
 /// address of that thing.  If no thing is found to contain the address then
@@ -54,4 +54,4 @@ bool ArchGetAddressInfo(void* address,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // ARCH_SYMBOLS_H
+#endif // PXR_BASE_ARCH_SYMBOLS_H

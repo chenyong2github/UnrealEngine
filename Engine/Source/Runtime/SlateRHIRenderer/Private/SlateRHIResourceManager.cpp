@@ -24,6 +24,7 @@
 #include "Slate/SlateTextureAtlasInterface.h"
 #include "SlateAtlasedTextureResource.h"
 #include "ImageUtils.h"
+#include "Async/ParallelFor.h"
 
 #define LOCTEXT_NAMESPACE "Slate"
 
@@ -310,45 +311,58 @@ void FSlateRHIResourceManager::Tick(float DeltaSeconds)
 
 void FSlateRHIResourceManager::CreateTextures( const TArray< const FSlateBrush* >& Resources )
 {
-	TMap<FName,FNewTextureInfo> TextureInfoMap;
+	FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 
-	const uint32 Stride = GPixelFormats[PF_R8G8B8A8].BlockBytes;
-	for( int32 ResourceIndex = 0; ResourceIndex < Resources.Num(); ++ResourceIndex )
+	TMap<FName,FNewTextureInfo> TextureInfoMap;
+	FCriticalSection Lock;
+
+	// reserve space so we don't reallocate memory during the ParallelFor
+	TextureInfoMap.Reserve(Resources.Num());
+
+	ParallelFor(Resources.Num(), [this, &Resources, &Lock, &TextureInfoMap](int32 ResourceIndex)
 	{
+		const uint32 Stride = GPixelFormats[PF_R8G8B8A8].BlockBytes;
 		const FSlateBrush& Brush = *Resources[ResourceIndex];
 		const FName TextureName = Brush.GetResourceName();
 		if( TextureName != NAME_None && !Brush.HasUObject() && !Brush.IsDynamicallyLoaded() && !ResourceMap.Contains(TextureName) )
 		{
 			// Find the texture or add it if it doesnt exist (only load the texture once)
-			FNewTextureInfo& Info = TextureInfoMap.FindOrAdd( TextureName );
+			FNewTextureInfo* Info;
+			{
+				FScopeLock Locker(&Lock);
+				Info = &TextureInfoMap.FindOrAdd(TextureName);
+			}
 	
-			Info.bSrgb = (Brush.ImageType != ESlateBrushImageType::Linear);
+			Info->bSrgb = (Brush.ImageType != ESlateBrushImageType::Linear);
 
 			// Only atlas the texture if none of the brushes that use it tile it and the image is srgb
 		
-			Info.bShouldAtlas &= ( Brush.Tiling == ESlateBrushTileType::NoTile && Info.bSrgb && AtlasSize > 0 );
+			Info->bShouldAtlas &= ( Brush.Tiling == ESlateBrushTileType::NoTile && Info->bSrgb && AtlasSize > 0 );
 
 			// Texture has been loaded if the texture data is valid
-			if( !Info.TextureData.IsValid() )
+			if( !Info->TextureData.IsValid() )
 			{
 				uint32 Width = 0;
 				uint32 Height = 0;
 				TArray<uint8> RawData;
-				bool bSucceeded = LoadTexture( Brush, Width, Height, RawData );
-
-				Info.TextureData = MakeShareable( new FSlateTextureData( Width, Height, Stride, RawData ) );
-
-				const bool bTooLargeForAtlas = (Width >= (uint32)MaxAltasedTextureSize.X || Height >= (uint32)MaxAltasedTextureSize.Y || Width >= AtlasSize || Height >= AtlasSize );
-
-				Info.bShouldAtlas &= !bTooLargeForAtlas;
-
-				if( !bSucceeded || !ensureMsgf( Info.TextureData->GetRawBytes().Num() > 0, TEXT("Slate resource: (%s) contains no data"), *TextureName.ToString() ) )
+				const bool bSucceeded = LoadTexture( Brush, Width, Height, RawData );
+				if (bSucceeded)
 				{
+					Info->TextureData = MakeShareable(new FSlateTextureData(Width, Height, Stride, RawData));
+
+					const bool bTooLargeForAtlas = (Width >= (uint32)MaxAltasedTextureSize.X || Height >= (uint32)MaxAltasedTextureSize.Y || Width >= AtlasSize || Height >= AtlasSize);
+
+					Info->bShouldAtlas &= !bTooLargeForAtlas;
+				}
+
+				if( !bSucceeded || !ensureMsgf( Info->TextureData->GetRawBytes().Num() > 0, TEXT("Slate resource: (%s) contains no data"), *TextureName.ToString() ) )
+				{
+					FScopeLock Locker(&Lock);
 					TextureInfoMap.Remove( TextureName );
 				}
 			}
 		}
-	}
+	});
 
 	// Sort textures by size.  The largest textures are atlased first which creates a more compact atlas
 	TextureInfoMap.ValueSort( FCompareFNewTextureInfoByTextureSize() );
@@ -380,7 +394,8 @@ bool FSlateRHIResourceManager::LoadTexture( const FSlateBrush& InBrush, uint32& 
  */
 bool FSlateRHIResourceManager::LoadTexture( const FName& TextureName, const FString& ResourcePath, uint32& Width, uint32& Height, TArray<uint8>& DecodedImage )
 {
-	checkSlow( IsThreadSafeForSlateRendering() );
+	// @todo loadtime: nothing in this function uses SlateRendering, so why is this here? I think it's a bad check, and breaks ParallelFor above
+//	checkSlow( IsThreadSafeForSlateRendering() );
 
 	bool bSucceeded = false;
 	uint32 BytesPerPixel = 4;

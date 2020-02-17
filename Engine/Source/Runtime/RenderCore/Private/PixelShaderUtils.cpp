@@ -52,8 +52,8 @@ void FPixelShaderUtils::DrawFullscreenQuad(FRHICommandList& RHICmdList, uint32 I
 // static
 void FPixelShaderUtils::InitFullscreenPipelineState(
 	FRHICommandList& RHICmdList,
-	const TShaderMap<FGlobalShaderType>* GlobalShaderMap,
-	const FShader* PixelShader,
+	const FGlobalShaderMap* GlobalShaderMap,
+	const TShaderRef<FShader>& PixelShader,
 	FGraphicsPipelineStateInitializer& GraphicsPSOInit)
 {
 	TShaderMapRef<FScreenVertexShaderVS> VertexShader(GlobalShaderMap);
@@ -64,8 +64,8 @@ void FPixelShaderUtils::InitFullscreenPipelineState(
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 }
 

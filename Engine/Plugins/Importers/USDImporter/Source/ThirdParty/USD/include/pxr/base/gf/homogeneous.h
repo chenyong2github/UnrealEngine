@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef GF_HOMOGENEOUS_H
-#define GF_HOMOGENEOUS_H
+#ifndef PXR_BASE_GF_HOMOGENEOUS_H
+#define PXR_BASE_GF_HOMOGENEOUS_H
 
 /// \file gf/homogeneous.h
 /// \ingroup group_gf_LinearAlgebra
@@ -76,4 +76,4 @@ inline GfVec3d GfProject(const GfVec4d &v) {
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif /* GF_HOMOGENEOUS_H */
+#endif /* PXR_BASE_GF_HOMOGENEOUS_H */

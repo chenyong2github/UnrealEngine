@@ -222,7 +222,7 @@ public:
 	void HandleTravelError(ETravelFailure::Type FailureType);
 
 	/* Called to initialize the game instance for standalone instances of the game */
-	void InitializeStandalone();
+	void InitializeStandalone(const FName InWorldName = NAME_None, UPackage* InWorldPackage = nullptr);
 
 	/* Called to initialize the game instance with a minimal world suitable for basic network RPC */
 	void InitializeForMinimalNetRPC(const FName InPackageName);

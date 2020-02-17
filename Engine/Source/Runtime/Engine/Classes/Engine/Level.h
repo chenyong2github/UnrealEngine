@@ -589,8 +589,10 @@ public:
 	uint8										bAlreadyRoutedActorInitialize:1;
 	/** Whether we already sorted the actor list.											*/
 	uint8										bAlreadySortedActorList:1;
-	/** Whether this level is in the process of being associated with its world				*/
+	/** Whether this level is in the process of being associated with its world	(i.e. we are within AddToWorld for this level */
 	uint8										bIsAssociatingLevel:1;
+	/** Whether this level is in the process of being disassociated with its world (i.e. we are within RemoveFromWorld for this level */
+	uint8										bIsDisassociatingLevel : 1;
 	/** Whether this level should be fully added to the world before rendering his components	*/
 	uint8										bRequireFullVisibilityToRender:1;
 	/** Whether this level is specific to client, visibility state will not be replicated to server	*/
@@ -764,7 +766,7 @@ public:
 	 * creates the BSP model components.
 	 * @param bRerunConstructionScripts	If we want to rerun construction scripts on actors in level
 	 */
-	ENGINE_API void UpdateLevelComponents(bool bRerunConstructionScripts);
+	ENGINE_API void UpdateLevelComponents(bool bRerunConstructionScripts, struct FRegisterComponentContext* Context = nullptr);
 
 	/**
 	 * Incrementally updates all components of actors associated with this level.
@@ -772,7 +774,7 @@ public:
 	 * @param NumComponentsToUpdate		Number of components to update in this run, 0 for all
 	 * @param bRerunConstructionScripts	If we want to rerun construction scripts on actors in level
 	 */
-	void IncrementalUpdateComponents( int32 NumComponentsToUpdate, bool bRerunConstructionScripts );
+	void IncrementalUpdateComponents( int32 NumComponentsToUpdate, bool bRerunConstructionScripts, struct FRegisterComponentContext* Context = nullptr);
 
 	/**
 	* Incrementally unregisters all components of actors associated with this level.

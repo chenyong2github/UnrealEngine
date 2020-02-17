@@ -289,7 +289,7 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	#else
 		Color = GetMaterialEmissive(PixelMaterialInputs);
 	
-		#if (ES2_PROFILE || ES3_1_PROFILE) // only for mobile
+		#if (ES3_1_PROFILE) // only for mobile
 			Color+= BaseColor;
 		#endif
 	#endif

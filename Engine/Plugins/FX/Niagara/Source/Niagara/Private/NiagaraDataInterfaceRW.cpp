@@ -7,6 +7,33 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRW"
 
+// Global HLSL variable base names, used by HLSL.
+NIAGARA_API extern const FString NumVoxelsName(TEXT("NumVoxels_"));
+NIAGARA_API extern const FString VoxelSizeName(TEXT("VoxelSize_"));
+NIAGARA_API extern const FString WorldBBoxSizeName(TEXT("WorldBBoxSize_"));
+
+NIAGARA_API extern const FString NumCellsName(TEXT("NumCells_"));
+NIAGARA_API extern const FString CellSizeName(TEXT("CellSize_"));
+
+// Global VM function names, also used by the shaders code generation methods.
+NIAGARA_API extern const FName NumVoxelsFunctionName("GetNumVoxels");
+NIAGARA_API extern const FName VoxelSizeFunctionName("GetVoxelSize");
+
+NIAGARA_API extern const FName NumCellsFunctionName("GetNumCells");
+NIAGARA_API extern const FName CellSizeFunctionName("GetCellSize");
+
+NIAGARA_API extern const FName WorldBBoxSizeFunctionName("GetWorldBBoxSize");
+
+NIAGARA_API extern const FName SimulationToUnitFunctionName("SimulationToUnit");
+NIAGARA_API extern const FName UnitToSimulationFunctionName("UnitToSimulation");
+NIAGARA_API extern const FName UnitToIndexFunctionName("UnitToIndex");
+NIAGARA_API extern const FName IndexToUnitFunctionName("IndexToUnit");
+NIAGARA_API extern const FName IndexToUnitStaggeredXFunctionName("IndexToUnitStaggeredX");
+NIAGARA_API extern const FName IndexToUnitStaggeredYFunctionName("IndexToUnitStaggeredY");
+
+NIAGARA_API extern const FName IndexToLinearFunctionName("IndexToLinear");
+NIAGARA_API extern const FName LinearToIndexFunctionName("LinearToIndex");
+
 
 UNiagaraDataInterfaceRWBase::UNiagaraDataInterfaceRWBase(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -275,11 +302,6 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	}
 
 	return false;
-}
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceGrid3D::ConstructComputeParameters()const
-{
-	return nullptr;
 }
 
 
@@ -674,12 +696,6 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 
 	return false;
 }
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceGrid2D::ConstructComputeParameters()const
-{
-	return nullptr;
-}
-
 
 
 bool UNiagaraDataInterfaceGrid2D::CopyToInternal(UNiagaraDataInterface* Destination) const

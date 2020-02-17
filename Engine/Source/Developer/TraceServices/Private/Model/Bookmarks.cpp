@@ -26,6 +26,8 @@ FBookmarkSpec& FBookmarkProvider::GetSpec(uint64 BookmarkPoint)
 	else
 	{
 		TSharedPtr<FBookmarkSpec> Spec = MakeShared<FBookmarkSpec>();
+		Spec->File = TEXT("<unknown>");
+		Spec->FormatString = TEXT("<unknown>");
 		SpecMap.Add(BookmarkPoint, Spec);
 		return *Spec.Get();
 	}

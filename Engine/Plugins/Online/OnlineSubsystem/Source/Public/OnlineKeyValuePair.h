@@ -351,6 +351,13 @@ public:
 	void GetValue(TSharedPtr<class FJsonObject>& OutData) const;
 
 	/**
+	* Copies the data after verifying the type
+	*
+	* @param OutData out value that receives the copied data
+	*/
+	void GetValue(TArray<TSharedPtr<class FJsonValue>>& OutData) const;
+
+	/**
 	 * Returns true if Type is numeric
 	 */
 	bool IsNumeric() const

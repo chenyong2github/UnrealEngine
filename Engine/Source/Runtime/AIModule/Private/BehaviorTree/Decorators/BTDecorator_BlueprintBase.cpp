@@ -244,7 +244,11 @@ bool UBTDecorator_BlueprintBase::IsDecoratorObserverActive() const
 
 FString UBTDecorator_BlueprintBase::GetStaticDescription() const
 {
-	FString ReturnDesc = Super::GetStaticDescription();
+	FString ReturnDesc =
+#if WITH_EDITORONLY_DATA
+		CustomDescription.Len() ? CustomDescription :
+#endif // WITH_EDITORONLY_DATA
+		Super::GetStaticDescription();
 
 	UBTDecorator_BlueprintBase* CDO = (UBTDecorator_BlueprintBase*)(GetClass()->GetDefaultObject());
 	if (bShowPropertyDetails && CDO)

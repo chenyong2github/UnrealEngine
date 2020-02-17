@@ -157,8 +157,8 @@ void FD3D12CommandContext::ResolveTextureUsingShader(
 	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
 	TShaderMapRef<TPixelShader> ResolvePixelShader(ShaderMap);
 
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ResolveVertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ResolvePixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::DoNothing);
@@ -317,16 +317,16 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 							const uint32 XBytes = (uint32)srcDesc.Width * BlockBytes;
 							const uint32 XBytesAligned = Align(XBytes, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
-							D3D12_SUBRESOURCE_FOOTPRINT destSubresource;
-							destSubresource.Depth = 1;
-							destSubresource.Height = srcDesc.Height;
-							destSubresource.Width = srcDesc.Width;
-							destSubresource.Format = srcDesc.Format;
-							destSubresource.RowPitch = XBytesAligned;
+							D3D12_SUBRESOURCE_FOOTPRINT DestSubresource;
+							DestSubresource.Depth = 1;
+							DestSubresource.Height = srcDesc.Height;
+							DestSubresource.Width = srcDesc.Width;
+							DestSubresource.Format = srcDesc.Format;
+							DestSubresource.RowPitch = XBytesAligned;
 
 							D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedTexture2D = {0};
 							placedTexture2D.Offset = 0;
-							placedTexture2D.Footprint = destSubresource;
+							placedTexture2D.Footprint = DestSubresource;
 
 							CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(DestTexture2D->GetResource()->GetResource(), placedTexture2D);
 							CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(SourceTexture2D->GetResource()->GetResource(), ResolveParams.SourceArrayIndex);
@@ -694,17 +694,17 @@ TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FRHITexture* Te
 	}
 
 	uint32 BytesPerPixel = ComputeBytesPerPixel(SourceDesc.Format);
-	D3D12_SUBRESOURCE_FOOTPRINT destSubresource;
-	destSubresource.Depth = 1;
-	destSubresource.Height = SourceDesc.Height;
-	destSubresource.Width = SourceDesc.Width;
-	destSubresource.Format = SourceDesc.Format;
-	destSubresource.RowPitch = XBytesAligned;
-	check(destSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);	// Make sure we align correctly.
+	D3D12_SUBRESOURCE_FOOTPRINT DestSubresource;
+	DestSubresource.Depth = 1;
+	DestSubresource.Height = SourceDesc.Height;
+	DestSubresource.Width = SourceDesc.Width;
+	DestSubresource.Format = SourceDesc.Format;
+	DestSubresource.RowPitch = XBytesAligned;
+	check(DestSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);	// Make sure we align correctly.
 
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedTexture2D = { 0 };
 	placedTexture2D.Offset = 0;
-	placedTexture2D.Footprint = destSubresource;
+	placedTexture2D.Footprint = DestSubresource;
 
 	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TempTexture2D->GetResource(), placedTexture2D);
 	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(Texture->GetResource()->GetResource(), Subresource);
@@ -1320,17 +1320,17 @@ void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 	}
 
 	// Setup the descriptions for the copy to the readback heap.
-	D3D12_SUBRESOURCE_FOOTPRINT destSubresource;
-	destSubresource.Depth = 1;
-	destSubresource.Height = SizeY;
-	destSubresource.Width = SizeX;
-	destSubresource.Format = TextureDesc.Format;
-	destSubresource.RowPitch = XBytesAligned;
-	check(destSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);	// Make sure we align correctly.
+	D3D12_SUBRESOURCE_FOOTPRINT DestSubresource;
+	DestSubresource.Depth = 1;
+	DestSubresource.Height = SizeY;
+	DestSubresource.Width = SizeX;
+	DestSubresource.Format = TextureDesc.Format;
+	DestSubresource.RowPitch = XBytesAligned;
+	check(DestSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);	// Make sure we align correctly.
 
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedTexture2D = { 0 };
 	placedTexture2D.Offset = 0;
-	placedTexture2D.Footprint = destSubresource;
+	placedTexture2D.Footprint = DestSubresource;
 
 	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(StagingTexture2D->GetResource(), placedTexture2D);
 	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(NonMSAATexture2D->GetResource(), Subresource);
@@ -1552,17 +1552,17 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 	}
 
 	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc.Format);
-	D3D12_SUBRESOURCE_FOOTPRINT destSubresource;
-	destSubresource.Depth = 1;
-	destSubresource.Height = TextureDesc.Height;
-	destSubresource.Width = TextureDesc.Width;
-	destSubresource.Format = TextureDesc.Format;
-	destSubresource.RowPitch = XBytesAligned;
-	check(destSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);	// Make sure we align correctly.
+	D3D12_SUBRESOURCE_FOOTPRINT DestSubresource;
+	DestSubresource.Depth = 1;
+	DestSubresource.Height = TextureDesc.Height;
+	DestSubresource.Width = TextureDesc.Width;
+	DestSubresource.Format = TextureDesc.Format;
+	DestSubresource.RowPitch = XBytesAligned;
+	check(DestSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);	// Make sure we align correctly.
 
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedTexture2D = { 0 };
 	placedTexture2D.Offset = 0;
-	placedTexture2D.Footprint = destSubresource;
+	placedTexture2D.Footprint = DestSubresource;
 
 	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TempTexture2D->GetResource(), placedTexture2D);
 	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(Texture->GetResource()->GetResource(), Subresource);
@@ -1625,8 +1625,10 @@ void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRe
 	uint32 SizeZ = ZMinMax.Y - ZMinMax.X;
 
 	// Check the format of the surface
-	D3D12_RESOURCE_DESC const& TextureDesc11 = Texture->GetResource()->GetDesc();
-	check(TextureDesc11.Format == GPixelFormats[PF_FloatRGBA].PlatformFormat);
+	D3D12_RESOURCE_DESC const& TextureDesc = Texture->GetResource()->GetDesc();
+	bool bIsRGBAFmt = TextureDesc.Format == GPixelFormats[PF_FloatRGBA].PlatformFormat;
+	bool bIsR16FFmt = TextureDesc.Format == GPixelFormats[PF_R16F].PlatformFormat;
+	check(bIsRGBAFmt || bIsR16FFmt);	
 
 	// Allocate the output buffer.
 	OutData.Empty(SizeX * SizeY * SizeZ * sizeof(FFloat16Color));
@@ -1643,27 +1645,27 @@ void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRe
 	// create a temp 3d texture to copy render target to
 	TRefCountPtr<FD3D12Resource> TempTexture3D;
 	const uint32 BlockBytes = GPixelFormats[TextureRHI->GetFormat()].BlockBytes;
-	const uint32 XBytesAligned = Align(TextureDesc11.Width * BlockBytes, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-	const uint32 DepthBytesAligned = XBytesAligned * TextureDesc11.Height;
-	const uint32 MipBytesAligned = DepthBytesAligned * TextureDesc11.DepthOrArraySize;
+	const uint32 XBytesAligned = Align(TextureDesc.Width * BlockBytes, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const uint32 DepthBytesAligned = XBytesAligned * TextureDesc.Height;
+	const uint32 MipBytesAligned = DepthBytesAligned * TextureDesc.DepthOrArraySize;
 	VERIFYD3D12RESULT(Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, Node, Node, MipBytesAligned, TempTexture3D.GetInitReference(), nullptr));
 
 	// Copy the data to a staging resource.
 	uint32 Subresource = 0;
-	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc11.Format);
-	D3D12_SUBRESOURCE_FOOTPRINT destSubresource;
-	destSubresource.Depth = TextureDesc11.DepthOrArraySize;
-	destSubresource.Height = TextureDesc11.Height;
-	destSubresource.Width = TextureDesc11.Width;
-	destSubresource.Format = TextureDesc11.Format;
-	destSubresource.RowPitch = XBytesAligned;
-	check(destSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);	// Make sure we align correctly.
+	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc.Format);
+	D3D12_SUBRESOURCE_FOOTPRINT DestSubresource;
+	DestSubresource.Depth = TextureDesc.DepthOrArraySize;
+	DestSubresource.Height = TextureDesc.Height;
+	DestSubresource.Width = TextureDesc.Width;
+	DestSubresource.Format = TextureDesc.Format;
+	DestSubresource.RowPitch = XBytesAligned;
+	check(DestSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);	// Make sure we align correctly.
 
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placedTexture3D = { 0 };
-	placedTexture3D.Offset = 0;
-	placedTexture3D.Footprint = destSubresource;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT PlacedTexture3D = { 0 };
+	PlacedTexture3D.Offset = 0;
+	PlacedTexture3D.Footprint = DestSubresource;
 
-	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TempTexture3D->GetResource(), placedTexture3D);
+	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TempTexture3D->GetResource(), PlacedTexture3D);
 	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(Texture->GetResource()->GetResource(), Subresource);
 
 	{
@@ -1695,17 +1697,38 @@ void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRe
 		OutData.AddZeroed(TotalCount);
 	}
 
-	// Read the data out of the buffer, converting it from ABGR to ARGB.
-	for (int32 Z = ZMinMax.X; Z < ZMinMax.Y; ++Z)
+	// Read the data out of the buffer
+	if (bIsRGBAFmt)
 	{
-		for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; ++Y)
+		// Texture is RGBA16F format
+		for (int32 Z = ZMinMax.X; Z < ZMinMax.Y; ++Z)
 		{
-			FFloat16Color* SrcPtr = (FFloat16Color*)((uint8*)pData + (Y - InRect.Min.Y) * XBytesAligned + (Z - ZMinMax.X) * DepthBytesAligned);
-			int32 Index = (Y - InRect.Min.Y) * SizeX + (Z - ZMinMax.X) * SizeX * SizeY;
-			check(Index < OutData.Num());
-			FFloat16Color* DestColor = &OutData[Index];
-			FFloat16* DestPtr = (FFloat16*)(DestColor);
-			FMemory::Memcpy(DestPtr, SrcPtr, SizeX * sizeof(FFloat16) * 4);
+			for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; ++Y)
+			{
+				const FFloat16Color* SrcPtr = (const FFloat16Color*)((const uint8*)pData + (Y - InRect.Min.Y) * XBytesAligned + (Z - ZMinMax.X) * DepthBytesAligned);
+				int32 Index = (Y - InRect.Min.Y) * SizeX + (Z - ZMinMax.X) * SizeX * SizeY;
+				check(Index < OutData.Num());
+				FFloat16Color* DestPtr = &OutData[Index];
+				FMemory::Memcpy(DestPtr, SrcPtr, SizeX * sizeof(FFloat16Color));
+			}
+		}
+	}
+	else if (bIsR16FFmt)
+	{
+		// Texture is R16F format
+		for (int32 Z = ZMinMax.X; Z < ZMinMax.Y; ++Z)
+		{
+			for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; ++Y)
+			{
+				const FFloat16* SrcPtr = (const FFloat16*)((const uint8*)pData + (Y - InRect.Min.Y) * XBytesAligned + (Z - ZMinMax.X) * DepthBytesAligned);
+				for (int32 X = InRect.Min.X; X < InRect.Max.X; ++X)
+				{
+					int32 Index = (Y - InRect.Min.Y) * SizeX + (Z - ZMinMax.X) * SizeX * SizeY + X;
+					check(Index < OutData.Num());
+					OutData[Index].R = SrcPtr[X];
+					OutData[Index].A = FFloat16(1.0f); // ensure full alpha (as if you sampled on GPU)
+				}
+			}
 		}
 	}
 

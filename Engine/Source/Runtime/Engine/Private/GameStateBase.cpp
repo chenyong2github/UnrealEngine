@@ -110,14 +110,14 @@ void AGameStateBase::SeamlessTravelTransitionCheckpoint(bool bToTransitionMap)
 	// mark all existing player states as from previous level for various bookkeeping
 	for (int32 i = 0; i < PlayerArray.Num(); i++)
 	{
-		PlayerArray[i]->bFromPreviousLevel = true;
+		PlayerArray[i]->SetIsFromPreviousLevel(true);
 	}
 }
 
 void AGameStateBase::AddPlayerState(APlayerState* PlayerState)
 {
 	// Determine whether it should go in the active or inactive list
-	if (!PlayerState->bIsInactive)
+	if (!PlayerState->IsInactive())
 	{
 		// make sure no duplicates
 		PlayerArray.AddUnique(PlayerState);
@@ -255,7 +255,7 @@ APlayerState* AGameStateBase::GetPlayerStateFromUniqueNetId(const FUniqueNetIdWr
 	const TArray<APlayerState*>& Players = PlayerArray;
 	for (APlayerState* Player : Players)
 	{
-		if (Player && Player->UniqueId == InPlayerId)
+		if (Player && Player->GetUniqueId() == InPlayerId)
 		{
 			return Player;
 		}

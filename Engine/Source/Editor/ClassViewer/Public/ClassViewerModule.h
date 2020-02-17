@@ -118,6 +118,9 @@ public:
 	/** false by default, restricts the class picker to only showing editor module classes */
 	bool bEditorClassesOnly;
 
+	/** Will set the initially selected row, if possible, to this class when the viewer is created */
+	UClass* InitiallySelectedClass;
+
 public:
 
 	/** Constructor */
@@ -135,6 +138,7 @@ public:
 		, NameTypeToDisplay(EClassViewerNameTypeToDisplay::ClassName)
 		, bAllowViewOptions(true)
 		, bEditorClassesOnly(false)
+		, InitiallySelectedClass(nullptr)
 	{
 	}
 };

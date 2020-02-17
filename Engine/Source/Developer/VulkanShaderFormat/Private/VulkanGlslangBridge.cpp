@@ -332,6 +332,25 @@ static void ComputeMovableWordIndices(FSpirv& Spirv)
 	}
 }
 
+static void PathSpirvEntryPoint(FSpirv& OutSpirv, uint32 OffsetToName)
+{
+	char* EntryPointName = (char*)(OutSpirv.Data.GetData() + OffsetToName);
+	check(!FCStringAnsi::Strcmp(EntryPointName, "main_00000000_00000000"));
+	FCStringAnsi::Sprintf(EntryPointName, "main_%0.8x_%0.8x", OutSpirv.Data.Num() * sizeof(uint32), OutSpirv.CRC);
+};
+
+bool PathSpirvReflectionEntriesAndEntryPoint(FSpirv& OutSpirv)
+{
+	// Re-compuite movable word indices and update CRC code
+	ComputeMovableWordIndices(OutSpirv);
+	OutSpirv.CRC = FCrc::MemCrc32(OutSpirv.Data.GetData(), OutSpirv.Data.Num() * sizeof(uint32));
+
+	// Patch the entry point name
+	PathSpirvEntryPoint(OutSpirv, OutSpirv.OffsetToMainName);
+	PathSpirvEntryPoint(OutSpirv, OutSpirv.OffsetToEntryPoint);
+	return true;
+}
+
 bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString& OutErrors, const FString& DumpDebugInfoPath, FSpirv& OutSpirv)
 {
 	glslang::TProgram* Program = new glslang::TProgram;
@@ -422,18 +441,8 @@ bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString&
 			OutSpirv.ReflectionInfo.Add(Entry);
 		}
 
-		ComputeMovableWordIndices(OutSpirv);
-		OutSpirv.CRC = FCrc::MemCrc32(OutSpirv.Data.GetData(), OutSpirv.Data.Num() * sizeof(uint32));
+		PathSpirvReflectionEntriesAndEntryPoint(OutSpirv);
 
-		// Patch the entry point name
-		auto FixEntryPoint = [&](uint32 OffsetToName)
-		{
-			char* EntryPointName = (char*)(OutSpirv.Data.GetData() + OffsetToName);
-			check(!FCStringAnsi::Strcmp(EntryPointName, "main_00000000_00000000"));
-			FCStringAnsi::Sprintf(EntryPointName, "main_%0.8x_%0.8x", OutSpirv.Data.Num() * sizeof(uint32), OutSpirv.CRC);
-		};
-		FixEntryPoint(OutSpirv.OffsetToMainName);
-		FixEntryPoint(OutSpirv.OffsetToEntryPoint);
 		// Copy back to original spirv data as it is used for dumping information
 		FMemory::Memcpy(&Spirv[0], OutSpirv.Data.GetData(), SizeInWords * sizeof(uint32));
 

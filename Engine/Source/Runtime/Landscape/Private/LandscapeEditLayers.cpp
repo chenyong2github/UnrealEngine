@@ -363,18 +363,11 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& InProjectionMatrix)
 	{
-		SetShaderValue(RHICmdList, GetVertexShader(), TransformParam, InProjectionMatrix);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << TransformParam;
-		return bShaderHasOutdatedParameters;
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), TransformParam, InProjectionMatrix);
 	}
 
 private:
-	FShaderParameter TransformParam;
+	LAYOUT_FIELD(FShaderParameter, TransformParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeLayersVS, "/Engine/Private/LandscapeLayersVS.usf", "VSMain", SF_Vertex);
@@ -444,45 +437,30 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FLandscapeLayersHeightmapShaderParameters& InParams)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadHeightmap1->Resource->TextureRHI);
-		SetTextureParameter(RHICmdList, GetPixelShader(), ReadTexture2Param, ReadTexture2SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadHeightmap2 != nullptr ? InParams.ReadHeightmap2->Resource->TextureRHI : GWhiteTexture->TextureRHI);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadHeightmap1->Resource->TextureRHI);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), ReadTexture2Param, ReadTexture2SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadHeightmap2 != nullptr ? InParams.ReadHeightmap2->Resource->TextureRHI : GWhiteTexture->TextureRHI);
 
 		FVector4 LayerInfo(InParams.LayerAlpha, InParams.LayerVisible ? 1.0f : 0.0f, InParams.LayerBlendMode == LSBM_AlphaBlend ? 1.0f : 0.f, 0.f);
 		FVector4 OutputConfig(InParams.ApplyLayerModifiers ? 1.0f : 0.0f, 0.0f /*unused*/, InParams.ReadHeightmap2 ? 1.0f : 0.0f, InParams.GenerateNormals ? 1.0f : 0.0f);
 		FVector2D TextureSize(InParams.HeightmapSize.X, InParams.HeightmapSize.Y);
 
-		SetShaderValue(RHICmdList, GetPixelShader(), LayerInfoParam, LayerInfo);
-		SetShaderValue(RHICmdList, GetPixelShader(), OutputConfigParam, OutputConfig);
-		SetShaderValue(RHICmdList, GetPixelShader(), TextureSizeParam, TextureSize);
-		SetShaderValue(RHICmdList, GetPixelShader(), LandscapeGridScaleParam, InParams.GridSize);
-		SetShaderValue(RHICmdList, GetPixelShader(), ComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << ReadTexture1Param;
-		Ar << ReadTexture2Param;
-		Ar << ReadTexture1SamplerParam;
-		Ar << ReadTexture2SamplerParam;
-		Ar << LayerInfoParam;
-		Ar << OutputConfigParam;
-		Ar << TextureSizeParam;
-		Ar << LandscapeGridScaleParam;
-		Ar << ComponentVertexCountParam;
-		return bShaderHasOutdatedParameters;
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), LayerInfoParam, LayerInfo);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputConfigParam, OutputConfig);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), TextureSizeParam, TextureSize);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), LandscapeGridScaleParam, InParams.GridSize);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
 	}
 
 private:
-	FShaderResourceParameter ReadTexture1Param;
-	FShaderResourceParameter ReadTexture2Param;
-	FShaderResourceParameter ReadTexture1SamplerParam;
-	FShaderResourceParameter ReadTexture2SamplerParam;
-	FShaderParameter LayerInfoParam;
-	FShaderParameter OutputConfigParam;
-	FShaderParameter TextureSizeParam;
-	FShaderParameter LandscapeGridScaleParam;
-	FShaderParameter ComponentVertexCountParam;
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1Param);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture2Param);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1SamplerParam);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture2SamplerParam);
+	LAYOUT_FIELD(FShaderParameter, LayerInfoParam);
+	LAYOUT_FIELD(FShaderParameter, OutputConfigParam);
+	LAYOUT_FIELD(FShaderParameter, TextureSizeParam);
+	LAYOUT_FIELD(FShaderParameter, LandscapeGridScaleParam);
+	LAYOUT_FIELD(FShaderParameter, ComponentVertexCountParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeLayersHeightmapPS, "/Engine/Private/LandscapeLayersPS.usf", "PSHeightmapMain", SF_Pixel);
@@ -516,31 +494,19 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FLandscapeLayersHeightmapShaderParameters& InParams)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadHeightmap1->Resource->TextureRHI);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadHeightmap1->Resource->TextureRHI);
 
-		SetShaderValue(RHICmdList, GetPixelShader(), CurrentMipSizeParam, FVector2D(InParams.CurrentMipSize.X, InParams.CurrentMipSize.Y));
-		SetShaderValue(RHICmdList, GetPixelShader(), ParentMipSizeParam, FVector2D(InParams.ParentMipSize.X, InParams.ParentMipSize.Y));
-		SetShaderValue(RHICmdList, GetPixelShader(), CurrentMipComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << ReadTexture1Param;
-		Ar << ReadTexture1SamplerParam;
-		Ar << CurrentMipSizeParam;
-		Ar << ParentMipSizeParam;
-		Ar << CurrentMipComponentVertexCountParam;
-
-		return bShaderHasOutdatedParameters;
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), CurrentMipSizeParam, FVector2D(InParams.CurrentMipSize.X, InParams.CurrentMipSize.Y));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ParentMipSizeParam, FVector2D(InParams.ParentMipSize.X, InParams.ParentMipSize.Y));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), CurrentMipComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
 	}
 
 private:
-	FShaderResourceParameter ReadTexture1Param;
-	FShaderResourceParameter ReadTexture1SamplerParam;
-	FShaderParameter CurrentMipSizeParam;
-	FShaderParameter ParentMipSizeParam;
-	FShaderParameter CurrentMipComponentVertexCountParam;
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1Param);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1SamplerParam);
+	LAYOUT_FIELD(FShaderParameter, CurrentMipSizeParam);
+	LAYOUT_FIELD(FShaderParameter, ParentMipSizeParam);
+	LAYOUT_FIELD(FShaderParameter, CurrentMipComponentVertexCountParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeLayersHeightmapMipsPS, "/Engine/Private/LandscapeLayersPS.usf", "PSHeightmapMainMips", SF_Pixel);
@@ -605,38 +571,25 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FLandscapeLayersWeightmapShaderParameters& InParams)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadWeightmap1->Resource->TextureRHI);
-		SetTextureParameter(RHICmdList, GetPixelShader(), ReadTexture2Param, ReadTexture2SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadWeightmap2 != nullptr ? InParams.ReadWeightmap2->Resource->TextureRHI : GWhiteTexture->TextureRHI);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadWeightmap1->Resource->TextureRHI);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), ReadTexture2Param, ReadTexture2SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadWeightmap2 != nullptr ? InParams.ReadWeightmap2->Resource->TextureRHI : GWhiteTexture->TextureRHI);
 
 		FVector4 LayerInfo(InParams.LayerAlpha, InParams.LayerVisible ? 1.0f : 0.0f, InParams.LayerBlendMode == LSBM_AlphaBlend ? 1.0f : 0.f, 0.f);
 		FVector4 OutputConfig(InParams.ApplyLayerModifiers ? 1.0f : 0.0f, InParams.OutputAsSubstractive ? 1.0f : 0.0f, InParams.ReadWeightmap2 != nullptr ? 1.0f : 0.0f, InParams.OutputAsNormalized ? 1.0f : 0.0f);
 
-		SetShaderValue(RHICmdList, GetPixelShader(), LayerInfoParam, LayerInfo);
-		SetShaderValue(RHICmdList, GetPixelShader(), OutputConfigParam, OutputConfig);
-		SetShaderValue(RHICmdList, GetPixelShader(), ComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << ReadTexture1Param;
-		Ar << ReadTexture2Param;
-		Ar << ReadTexture1SamplerParam;
-		Ar << ReadTexture2SamplerParam;
-		Ar << LayerInfoParam;
-		Ar << OutputConfigParam;
-		Ar << ComponentVertexCountParam;
-		return bShaderHasOutdatedParameters;
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), LayerInfoParam, LayerInfo);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputConfigParam, OutputConfig);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
 	}
 
 private:
-	FShaderResourceParameter ReadTexture1Param;
-	FShaderResourceParameter ReadTexture2Param;
-	FShaderResourceParameter ReadTexture1SamplerParam;
-	FShaderResourceParameter ReadTexture2SamplerParam;
-	FShaderParameter LayerInfoParam;
-	FShaderParameter OutputConfigParam;
-	FShaderParameter ComponentVertexCountParam;
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1Param);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture2Param);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1SamplerParam);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture2SamplerParam);
+	LAYOUT_FIELD(FShaderParameter, LayerInfoParam);
+	LAYOUT_FIELD(FShaderParameter, OutputConfigParam);
+	LAYOUT_FIELD(FShaderParameter, ComponentVertexCountParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeLayersWeightmapPS, "/Engine/Private/LandscapeLayersPS.usf", "PSWeightmapMain", SF_Pixel);
@@ -670,31 +623,19 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FLandscapeLayersWeightmapShaderParameters& InParams)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadWeightmap1->Resource->TextureRHI);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadWeightmap1->Resource->TextureRHI);
 
-		SetShaderValue(RHICmdList, GetPixelShader(), CurrentMipSizeParam, FVector2D(InParams.CurrentMipSize.X, InParams.CurrentMipSize.Y));
-		SetShaderValue(RHICmdList, GetPixelShader(), ParentMipSizeParam, FVector2D(InParams.ParentMipSize.X, InParams.ParentMipSize.Y));
-		SetShaderValue(RHICmdList, GetPixelShader(), CurrentMipComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << ReadTexture1Param;
-		Ar << ReadTexture1SamplerParam;
-		Ar << CurrentMipSizeParam;
-		Ar << ParentMipSizeParam;
-		Ar << CurrentMipComponentVertexCountParam;
-
-		return bShaderHasOutdatedParameters;
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), CurrentMipSizeParam, FVector2D(InParams.CurrentMipSize.X, InParams.CurrentMipSize.Y));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ParentMipSizeParam, FVector2D(InParams.ParentMipSize.X, InParams.ParentMipSize.Y));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), CurrentMipComponentVertexCountParam, (float)InParams.CurrentMipComponentVertexCount);
 	}
 
 private:
-	FShaderResourceParameter ReadTexture1Param;
-	FShaderResourceParameter ReadTexture1SamplerParam;
-	FShaderParameter CurrentMipSizeParam;
-	FShaderParameter ParentMipSizeParam;
-	FShaderParameter CurrentMipComponentVertexCountParam;
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1Param);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1SamplerParam);
+	LAYOUT_FIELD(FShaderParameter, CurrentMipSizeParam);
+	LAYOUT_FIELD(FShaderParameter, ParentMipSizeParam);
+	LAYOUT_FIELD(FShaderParameter, CurrentMipComponentVertexCountParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeLayersWeightmapMipsPS, "/Engine/Private/LandscapeLayersPS.usf", "PSWeightmapMainMips", SF_Pixel);
@@ -743,20 +684,12 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* TextureRHI)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), TextureRHI);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << ReadTexture1Param;
-		Ar << ReadTexture1SamplerParam;
-		return bShaderHasOutdatedParameters;
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), TextureRHI);
 	}
 
 private:
-	FShaderResourceParameter ReadTexture1Param;
-	FShaderResourceParameter ReadTexture1SamplerParam;
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1Param);
+	LAYOUT_FIELD(FShaderResourceParameter, ReadTexture1SamplerParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeCopyTextureVS, "/Engine/Private/LandscapeLayersPS.usf", "CopyTextureVS", SF_Vertex);
@@ -866,33 +799,22 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FLandscapeLayerWeightmapExtractMaterialLayersComputeShaderParameters& InParams)
 	{
-		SetTextureParameter(RHICmdList, GetComputeShader(), ComponentWeightmapParam, InParams.ComponentWeightmapResource->TextureRHI);
-		SetUAVParameter(RHICmdList, GetComputeShader(), AtlasPaintListsParam, InParams.AtlasWeightmapsPerLayer->TextureUAV);
-		SetSRVParameter(RHICmdList, GetComputeShader(), ComponentsDataParam, InParams.ComputeShaderResource->ComponentsDataSRV);
-		SetShaderValue(RHICmdList, GetComputeShader(), ComponentSizeParam, InParams.ComponentSize);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ComponentWeightmapParam, InParams.ComponentWeightmapResource->TextureRHI);
+		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), AtlasPaintListsParam, InParams.AtlasWeightmapsPerLayer->TextureUAV);
+		SetSRVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ComponentsDataParam, InParams.ComputeShaderResource->ComponentsDataSRV);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundComputeShader(), ComponentSizeParam, InParams.ComponentSize);
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList)
 	{
-		SetUAVParameter(RHICmdList, GetComputeShader(), AtlasPaintListsParam, nullptr);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << ComponentWeightmapParam;
-		Ar << AtlasPaintListsParam;
-		Ar << ComponentsDataParam;
-		Ar << ComponentSizeParam;
-
-		return bShaderHasOutdatedParameters;
+		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), AtlasPaintListsParam, nullptr);
 	}
 
 private:
-	FShaderResourceParameter ComponentWeightmapParam;
-	FShaderResourceParameter AtlasPaintListsParam;
-	FShaderResourceParameter ComponentsDataParam;
-	FShaderParameter ComponentSizeParam;
+	LAYOUT_FIELD(FShaderResourceParameter, ComponentWeightmapParam);
+	LAYOUT_FIELD(FShaderResourceParameter, AtlasPaintListsParam);
+	LAYOUT_FIELD(FShaderResourceParameter, ComponentsDataParam);
+	LAYOUT_FIELD(FShaderParameter, ComponentSizeParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeLayerWeightmapExtractMaterialLayersCS, "/Engine/Private/LandscapeLayersCS.usf", "ComputeWeightmapPerPaintLayer", SF_Compute);
@@ -911,14 +833,14 @@ public:
 		SCOPED_GPU_STAT(InRHICmdList, LandscapeLayersRender);
 
 		TShaderMapRef<FLandscapeLayerWeightmapExtractMaterialLayersCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-		InRHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+		InRHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 		ComputeShader->SetParameters(InRHICmdList, ShaderParams);
 
 		uint32 ThreadGroupCountX = FMath::CeilToInt((float)ShaderParams.ComponentSize / (float)GLandscapeLayerWeightmapThreadGroupSizeX);
 		uint32 ThreadGroupCountY = FMath::CeilToInt((float)ShaderParams.ComponentSize / (float)GLandscapeLayerWeightmapThreadGroupSizeY);
 		check(ThreadGroupCountX > 0 && ThreadGroupCountY > 0);
 
-		DispatchComputeShader(InRHICmdList, *ComputeShader, ThreadGroupCountX, ThreadGroupCountY, ShaderParams.ComputeShaderResource->GetComponentsDataCount());
+		DispatchComputeShader(InRHICmdList, ComputeShader.GetShader(), ThreadGroupCountX, ThreadGroupCountY, ShaderParams.ComputeShaderResource->GetComponentsDataCount());
 		ComputeShader->UnsetParameters(InRHICmdList);
 		ShaderParams.ComputeShaderResource->ReleaseResource();
 		delete ShaderParams.ComputeShaderResource;
@@ -1062,38 +984,26 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FLandscapeLayerWeightmapPackMaterialLayersComputeShaderParameters& InParams)
 	{
-		SetUAVParameter(RHICmdList, GetComputeShader(), ComponentWeightmapParam, InParams.ComponentWeightmapResource->TextureUAV);
-		SetTextureParameter(RHICmdList, GetComputeShader(), AtlasPaintListsParam, InParams.AtlasWeightmapsPerLayer->TextureRHI);
-		SetSRVParameter(RHICmdList, GetComputeShader(), ComponentsDataParam, InParams.ComputeShaderResource->ComponentsDataSRV);
-		SetShaderValue(RHICmdList, GetComputeShader(), ComponentSizeParam, InParams.ComponentSize);
-		SetSRVParameter(RHICmdList, GetComputeShader(), WeightmapWeightBlendModeParam, InParams.ComputeShaderResource->WeightmapWeightBlendModeSRV);
-		SetSRVParameter(RHICmdList, GetComputeShader(), WeightmapTextureOutputOffsetParam, InParams.ComputeShaderResource->WeightmapTextureOutputOffsetSRV);
+		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ComponentWeightmapParam, InParams.ComponentWeightmapResource->TextureUAV);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), AtlasPaintListsParam, InParams.AtlasWeightmapsPerLayer->TextureRHI);
+		SetSRVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ComponentsDataParam, InParams.ComputeShaderResource->ComponentsDataSRV);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundComputeShader(), ComponentSizeParam, InParams.ComponentSize);
+		SetSRVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), WeightmapWeightBlendModeParam, InParams.ComputeShaderResource->WeightmapWeightBlendModeSRV);
+		SetSRVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), WeightmapTextureOutputOffsetParam, InParams.ComputeShaderResource->WeightmapTextureOutputOffsetSRV);
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList)
 	{
-		SetUAVParameter(RHICmdList, GetComputeShader(), ComponentWeightmapParam, nullptr);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-		Ar << ComponentWeightmapParam;
-		Ar << AtlasPaintListsParam;
-		Ar << ComponentsDataParam;
-		Ar << ComponentSizeParam;
-		Ar << WeightmapWeightBlendModeParam;
-		Ar << WeightmapTextureOutputOffsetParam;
-		return bShaderHasOutdatedParameters;
+		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ComponentWeightmapParam, nullptr);
 	}
 
 private:
-	FShaderResourceParameter ComponentWeightmapParam;
-	FShaderResourceParameter AtlasPaintListsParam;
-	FShaderResourceParameter ComponentsDataParam;
-	FShaderParameter ComponentSizeParam;
-	FShaderResourceParameter WeightmapWeightBlendModeParam;
-	FShaderResourceParameter WeightmapTextureOutputOffsetParam;
+	LAYOUT_FIELD(FShaderResourceParameter, ComponentWeightmapParam);
+	LAYOUT_FIELD(FShaderResourceParameter, AtlasPaintListsParam);
+	LAYOUT_FIELD(FShaderResourceParameter, ComponentsDataParam);
+	LAYOUT_FIELD(FShaderParameter, ComponentSizeParam);
+	LAYOUT_FIELD(FShaderResourceParameter, WeightmapWeightBlendModeParam);
+	LAYOUT_FIELD(FShaderResourceParameter, WeightmapTextureOutputOffsetParam);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeLayerWeightmapPackMaterialLayersCS, "/Engine/Private/LandscapeLayersCS.usf", "PackPaintLayerToWeightmap", SF_Compute);
@@ -1112,14 +1022,14 @@ public:
 		SCOPED_GPU_STAT(InRHICmdList, LandscapeLayersRender);
 
 		TShaderMapRef<FLandscapeLayerWeightmapPackMaterialLayersCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-		InRHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+		InRHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 		ComputeShader->SetParameters(InRHICmdList, ShaderParams);
 
 		uint32 ThreadGroupCountX = FMath::CeilToInt((float)ShaderParams.ComponentSize / (float)GLandscapeLayerWeightmapThreadGroupSizeX);
 		uint32 ThreadGroupCountY = FMath::CeilToInt((float)ShaderParams.ComponentSize / (float)GLandscapeLayerWeightmapThreadGroupSizeY);
 		check(ThreadGroupCountX > 0 && ThreadGroupCountY > 0);
 
-		DispatchComputeShader(InRHICmdList, *ComputeShader, ThreadGroupCountX, ThreadGroupCountY, ShaderParams.ComputeShaderResource->GetComponentsDataCount());
+		DispatchComputeShader(InRHICmdList, ComputeShader.GetShader(), ThreadGroupCountX, ThreadGroupCountY, ShaderParams.ComputeShaderResource->GetComponentsDataCount());
 		ComputeShader->UnsetParameters(InRHICmdList);
 		ShaderParams.ComputeShaderResource->ReleaseResource();
 		delete ShaderParams.ComputeShaderResource;
@@ -1301,8 +1211,8 @@ public:
 			TShaderMapRef<FLandscapeLayersVS> VertexShader(GetGlobalShaderMap(View->GetFeatureLevel()));
 			TShaderMapRef<ShaderPixelClass> PixelShader(GetGlobalShaderMap(View->GetFeatureLevel()));
 
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			InRHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
 
@@ -1319,8 +1229,8 @@ public:
 			TShaderMapRef<FLandscapeLayersVS> VertexShader(GetGlobalShaderMap(View->GetFeatureLevel()));
 			TShaderMapRef<ShaderPixelMipsClass> PixelShader(GetGlobalShaderMap(View->GetFeatureLevel()));
 
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			InRHICmdList.SetViewport(0.0f, 0.0f, 0.0f, WriteRenderTargetSize.X, WriteRenderTargetSize.Y, 1.0f);
 
@@ -1952,7 +1862,7 @@ void ALandscape::CopyTexturePS(const FString& InSourceDebugName, FTextureResourc
 		FRHIRenderPassInfo RPInfo(InDestResource->TextureRHI, ERenderTargetActions::DontLoad_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyTexture"));
 
-		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 		TShaderMapRef< FLandscapeCopyTextureVS > VertexShader(GlobalShaderMap);
 		TShaderMapRef< FLandscapeCopyTexturePS > PixelShader(GlobalShaderMap);
 
@@ -1963,8 +1873,8 @@ void ALandscape::CopyTexturePS(const FString& InSourceDebugName, FTextureResourc
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		PixelShader->SetParameters(RHICmdList, InSourceResource->TextureRHI);
@@ -2809,7 +2719,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 	{
 		return 0;
 	}
-		
+
 	// Nothing to do (return that we did the processing)
 	if (InLandscapeComponentsToResolve.Num() == 0)
 	{
@@ -3801,7 +3711,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 	{
 		return 0;
 	}
-		
+
 	if (InLandscapeComponentsToResolve.Num() == 0)
 	{
 		return WeightmapUpdateModes;

@@ -496,7 +496,7 @@ UObject* USoundFactory::CreateObject
 		Sound->InvalidateCompressedData(true /* bFreeResources */);
 
 		// If stream caching is enabled, we need to make sure this asset is ready for playback.
-		if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && Sound->IsStreaming())
+		if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && Sound->IsStreaming(nullptr))
 		{
 			Sound->EnsureZerothChunkIsLoaded();
 		}

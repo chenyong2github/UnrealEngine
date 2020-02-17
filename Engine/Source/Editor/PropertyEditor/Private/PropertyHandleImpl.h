@@ -346,25 +346,6 @@ public:
 	void ShowInvalidOperationError(const FText& ErrorText);
 
 protected:
-	/**
-	 * 
-	 * @param InPropertyNode				The property to get value from
-	 * @param OutText						The property formatted in a string
-	 * @param bAllowAlternateDisplayValue	Allow the function to potentially use an alternate form more suitable for display in the UI
-	 * @param PortFlags						Determines how the property's value is accessed. Defaults to PPF_PropertyWindow
-	 * @return true if the value was retrieved successfully
-	 */
-	FPropertyAccess::Result GetPropertyValueString( FString& OutString, FPropertyNode* InPropertyNode, const bool bAllowAlternateDisplayValue , EPropertyPortFlags PortFlags = PPF_PropertyWindow ) const;
-
-	/**
-	 * @param InPropertyNode	The property to get value from
-	 * @param OutText			The property formatted in text
-	 * @param bAllowAlternateDisplayValue Allow the function to potentially use an alternate form more suitable for display in the UI
-	 * @return true if the value was retrieved successfully
-	 */
-	FPropertyAccess::Result GetPropertyValueText( FText& OutText, FPropertyNode* InPropertyNode, const bool bAllowAlternateDisplayValue ) const;
-
-protected:
 	/** Property node used to access FProperty and address of object to change */
 	TWeakPtr<FPropertyNode> PropertyNode;
 	TWeakPtr<IPropertyUtilities> PropertyUtilities;
@@ -482,7 +463,7 @@ public:
 	virtual bool HasDocumentation() override { return false; }
 	virtual FString GetDocumentationLink() override { return FString(); }
 	virtual FString GetDocumentationExcerptName() override { return FString(); }
-	virtual uint8* GetValueBaseAddress( uint8* Base ) override;
+	virtual uint8* GetValueBaseAddress( uint8* Base ) const override;
 	virtual int32 GetNumPerObjectValues() const override;
 	virtual FPropertyAccess::Result SetPerObjectValues( const TArray<FString>& InPerObjectValues,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) override;
 	virtual FPropertyAccess::Result GetPerObjectValues( TArray<FString>& OutPerObjectValues ) const override;

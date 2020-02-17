@@ -26,6 +26,12 @@ bool UTexture2DArrayFactory::ConfigureProperties()
 	return true;
 }
 
+bool UTexture2DArrayFactory::CanCreateNew() const
+{
+	static const auto AllowTextureArrayAssetCreationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowTexture2DArrayCreation"));
+	return (AllowTextureArrayAssetCreationVar->GetValueOnGameThread() == 1);
+}
+
 UObject* UTexture2DArrayFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	static const auto AllowTextureArrayAssetCreationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowTexture2DArrayCreation"));

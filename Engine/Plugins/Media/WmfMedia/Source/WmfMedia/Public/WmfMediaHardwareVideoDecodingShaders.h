@@ -14,6 +14,7 @@
  */
 class FWmfMediaHardwareVideoDecodingShader : public FGlobalShader
 {
+	DECLARE_TYPE_LAYOUT(FWmfMediaHardwareVideoDecodingShader, NonVirtual);
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -77,21 +78,14 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, SrgbToLinear, InIsOutputSrgb ? 1 : 0); // Explicitly specify integer value, as using boolean falls over on XboxOne.
 	}
 
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TextureY << TextureUV << PointClampedSamplerY << BilinearClampedSamplerUV << ColorTransform << SrgbToLinear;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderResourceParameter TextureY;
-	FShaderResourceParameter TextureUV;
-	FShaderResourceParameter PointClampedSamplerY;
-	FShaderResourceParameter BilinearClampedSamplerUV;
-	FShaderParameter ColorTransform;
-	FShaderParameter SrgbToLinear;
+	
+	LAYOUT_FIELD(FShaderResourceParameter, TextureY);
+	LAYOUT_FIELD(FShaderResourceParameter, TextureUV);
+	LAYOUT_FIELD(FShaderResourceParameter, PointClampedSamplerY);
+	LAYOUT_FIELD(FShaderResourceParameter, BilinearClampedSamplerUV);
+	LAYOUT_FIELD(FShaderParameter, ColorTransform);
+	LAYOUT_FIELD(FShaderParameter, SrgbToLinear);
 };
 
 class FHardwareVideoDecodingVS : public FWmfMediaHardwareVideoDecodingShader

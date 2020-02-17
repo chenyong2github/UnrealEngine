@@ -64,10 +64,11 @@ class UCookCommandlet
 	 * @param  BindAnyPort					Whether to bind on any port or the default port.
 	 * @param  Timeout						Length of time to wait for connections before attempting to close
 	 * @param  bForceClose					Whether or not the server should always shutdown after a timeout or after a user disconnects
+	 * @param  TargetPlatforms				The list of platforms that should be initialized at startup.  Other platforms will be initialized when first requested
 	 *
 	 * @return true on success, false otherwise.
 	 */
-	bool CookOnTheFly( FGuid InstanceId, int32 Timeout = 180, bool bForceClose = false );
+	bool CookOnTheFly( FGuid InstanceId, int32 Timeout = 180, bool bForceClose = false, const TArray<ITargetPlatform*>& TargetPlatforms=TArray<ITargetPlatform*>() );
 
 	/** Cooks specified list of files */
 	bool CookByTheBook(const TArray<ITargetPlatform*>& Platforms, TArray<FString>& FilesInPath);

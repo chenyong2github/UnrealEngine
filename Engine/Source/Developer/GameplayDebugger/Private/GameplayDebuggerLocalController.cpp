@@ -195,7 +195,7 @@ void UGameplayDebuggerLocalController::DrawHeader(FGameplayDebuggerCanvasContext
 	CanvasContext.CursorY = UsePaddingTop;
 	if (bSimulateMode)
 	{
-		CanvasContext.Printf(TEXT("Clear {yellow}DebugAI{white} show flag to close, use %s to toggle catories."), *CategoryKeysDesc);
+		CanvasContext.Printf(TEXT("Clear {yellow}DebugAI{white} show flag to close, use %s to toggle categories."), *CategoryKeysDesc);
 
 		// reactivate editor mode when this is being drawn = show flag is set
 #if WITH_EDITOR
@@ -204,7 +204,7 @@ void UGameplayDebuggerLocalController::DrawHeader(FGameplayDebuggerCanvasContext
 	}
 	else
 	{
-		CanvasContext.Printf(TEXT("Tap {yellow}%s{white} to close, use %s to toggle catories."), *ActivationKeyDesc, *CategoryKeysDesc);
+		CanvasContext.Printf(TEXT("Tap {yellow}%s{white} to close, use %s to toggle categories."), *ActivationKeyDesc, *CategoryKeysDesc);
 	}
 
 	const FString DebugActorDesc = FString::Printf(TEXT("Debug actor: {cyan}%s"), *CachedReplicator->GetDebugActorName().ToString());
@@ -705,20 +705,19 @@ void UGameplayDebuggerLocalController::OnSelectionChanged(UObject* Object)
 	USelection* Selection = Cast<USelection>(Object);
 	if (Selection && CachedReplicator)
 	{
-		APawn* SelectedPawn = nullptr;
+		AActor* SelectedActor = nullptr;
 		for (int32 Idx = 0; Idx < Selection->Num(); Idx++)
 		{
-			AController* SelectedController = Cast<AController>(Selection->GetSelectedObject(Idx));
-			SelectedPawn = SelectedController ? SelectedController->GetPawn() : Cast<APawn>(Selection->GetSelectedObject(Idx));
-			if (SelectedPawn)
+			SelectedActor = Cast<AActor>(Selection->GetSelectedObject(Idx));
+			if (SelectedActor)
 			{
 				break;
 			}
 		}
 
-		if (SelectedPawn)
+		if (SelectedActor)
 		{
-			CachedReplicator->SetDebugActor(SelectedPawn, false);
+			CachedReplicator->SetDebugActor(SelectedActor, false);
 			CachedReplicator->CollectCategoryData(/*bForce=*/true);
 		}
 	}

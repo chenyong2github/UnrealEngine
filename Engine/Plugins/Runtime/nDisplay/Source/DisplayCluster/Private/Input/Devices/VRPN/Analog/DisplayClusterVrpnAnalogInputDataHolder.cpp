@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Input/Devices/VRPN/Analog/DisplayClusterVrpnAnalogInputDataHolder.h"
+#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 #include "DisplayClusterLog.h"
 
 
@@ -33,7 +34,7 @@ FString FDisplayClusterVrpnAnalogInputDataHolder::SerializeToString() const
 
 	for (auto it = DeviceData.CreateConstIterator(); it; ++it)
 	{
-		result += FString::Printf(TEXT("%d%s%f%s"), it->Key, SerializationDelimiter, it->Value.axisValue, SerializationDelimiter);
+		result += FString::Printf(TEXT("%d%s%f%s"), it->Key, SerializationDelimiter, *FDisplayClusterTypesConverter::template ToHexString(it->Value.axisValue), SerializationDelimiter);
 	}
 
 	return result;
@@ -52,8 +53,8 @@ bool FDisplayClusterVrpnAnalogInputDataHolder::DeserializeFromString(const FStri
 
 	for (int i = 0; i < parsed.Num(); i += SerializationItems)
 	{
-		const int   ch = FCString::Atoi(*parsed[i]);
-		const float val = FCString::Atof(*parsed[i + 1]);
+		const int   ch  = FCString::Atoi(*parsed[i]);
+		const float val = FDisplayClusterTypesConverter::template FromString<float>(*parsed[i + 1]);
 		DeviceData.Add(ch, FDisplayClusterVrpnAnalogChannelData{ val });
 	}
 

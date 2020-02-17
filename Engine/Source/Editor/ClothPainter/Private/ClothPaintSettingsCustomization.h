@@ -41,17 +41,6 @@ private:
 };
 
 
-class FClothPaintSettingsRootObjectCustomization : public IDetailRootObjectCustomization
-{
-public:
-
-	/** IDetailRootObjectCustomization interface */
-	virtual TSharedPtr<SWidget> CustomizeObjectHeader(const UObject* InRootObject) override { return SNullWidget::NullWidget; }
-	virtual bool IsObjectVisible(const UObject* InRootObject) const override { return true; }
-	virtual bool ShouldDisplayHeader(const UObject* InRootObject) const override { return false; }
-};
-
-
 class FClothPaintBrushSettingsCustomization : public IDetailCustomization
 {
 public:

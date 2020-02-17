@@ -10,6 +10,7 @@
 #include "FXSystem.h"
 #include "VectorField.h"
 #include "ParticleSortingGPU.h"
+#include "GPUSortManager.h"
 
 class FCanvas;
 class FGlobalDistanceFieldParameterData;
@@ -60,7 +61,7 @@ inline bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EPartic
 	switch (InCollisionShaderMode)
 	{
 	case PCM_None:
-		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::ES3_1);
 	case PCM_DepthBuffer:
 		// we only need to check for simple forward if we're NOT currently attempting to cache the shader
 		// since SF is a runtime change, we need to compile the shader regardless, because we could be switching to deferred at any time
@@ -130,7 +131,7 @@ class FFXSystem : public FFXSystemInterface
 public:
 
 	/** Default constructoer. */
-	FFXSystem(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform);
+	FFXSystem(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager);
 
 	/** Destructor. */
 	virtual ~FFXSystem();
@@ -196,18 +197,45 @@ public:
 		return ParticleSimulationResources;
 	}
 
-	/**
-	 * Prepares a GPU simulation to be sorted for a particular view.
+	/** 
+	 * Register work for GPU sorting (using the GPUSortManager). 
+	 * The initial keys and values are generated in the GenerateSortKeys() callback.
+	 *
 	 * @param Simulation The simulation to be sorted.
 	 * @param ViewOrigin The origin of the view from which to sort.
-	 * @returns an offset in to the sorted buffer from which the simulation may render.
+	 * @param bIsTranslucent Whether this is for sorting translucent particles or opaque particles, affect when the data is required for the rendering.
+	 * @param OutInfo The bindings for this GPU sort task, if success. 
+	 * @returns true if the work was registered, or false it GPU sorting is not available or impossible.
 	 */
-	int32 AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, const FVector& ViewOrigin);
+	bool AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, const FVector& ViewOrigin, bool bIsTranslucent, FGPUSortManager::FAllocationInfo& OutInfo);
 
 	void PrepareGPUSimulation(FRHICommandListImmediate& RHICmdList);
 	void FinalizeGPUSimulation(FRHICommandListImmediate& RHICmdList);
 
+	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
+	virtual FGPUSortManager* GetGPUSortManager() const override;
+
 private:
+
+	/**
+	 * Generate all the initial keys and values for a GPUSortManager sort batch.
+	 * Sort batches are created when GPU sort tasks are registered in AddSortedGPUSimulation().
+	 * Each sort task defines constraints about when the initial sort data can generated and
+	 * and when the sorted results are needed (see EGPUSortFlags for details).
+	 * Currently, for Cascade, all the sort tasks have the EGPUSortFlags::KeyGenAfterPostRenderOpaque flag
+	 * and so the callback registered in GPUSortManager->Register() only has the EGPUSortFlags::KeyGenAfterPostRenderOpaque usage.
+	 * This garanties that GenerateSortKeys() only gets called after PostRenderOpaque(), which is a constraint required because
+	 * cascade renders the GPU emitters after they have been ticked in PostRenderOpaque.
+	 * Note that this callback must only initialize the content for the elements that relates to the tasks it has registered in this batch.
+	 *
+	 * @param RHICmdList The command list used to initiate the keys and values on GPU.
+	 * @param BatchId The GPUSortManager batch id (regrouping several similar sort tasks).
+	 * @param NumElementsInBatch The number of elements grouped in the batch (each element maps to a sort task)
+	 * @param Flags Details about the key precision (see EGPUSortFlags::AnyKeyPrecision) and the keygen location (see EGPUSortFlags::AnyKeyGenLocation).
+	 * @param KeysUAV The UAV that holds all the initial keys used to sort the values (being the particle indices here). 
+	 * @param ValuesUAV The UAV that holds the initial values (particle indices) to be sorted accordingly to the keys.
+	 */
+	void GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV);
 
 	/*--------------------------------------------------------------------------
 		Private interface for GPU simulations.
@@ -237,12 +265,6 @@ private:
 	 * Prepares GPU particles for simulation and rendering in the next frame.
 	 */
 	void AdvanceGPUParticleFrame(bool bAllowGPUParticleUpdate);
-
-	/**
-	 * Sorts all GPU particles that have called AddSortedGPUSimulation since the
-	 * last reset.
-	 */
-	void SortGPUParticles(FRHICommandListImmediate& RHICmdList);
 
 	bool UsesGlobalDistanceFieldInternal() const;
 	bool UsesDepthBufferInternal() const;
@@ -299,6 +321,11 @@ private:
 	ERHIFeatureLevel::Type FeatureLevel;
 	/** Shader platform that will be rendering this effects system */
 	EShaderPlatform ShaderPlatform;
+
+	/** The shared GPUSortManager, used to register GPU sort tasks in order to generate sorted particle indices per emitter. */
+	TRefCountPtr<FGPUSortManager> GPUSortManager;
+	/** All sort tasks registered in AddSortedGPUSimulation(). Holds all the data required in GenerateSortKeys(). */
+	TArray<FParticleSimulationSortInfo> SimulationsToSort;
 
 	/** Previous frame new particles for multi-gpu simulation*/
 	TArray<FNewParticle> LastFrameNewParticles;

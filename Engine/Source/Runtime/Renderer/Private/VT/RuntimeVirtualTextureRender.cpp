@@ -29,7 +29,7 @@ namespace RuntimeVirtualTexture
 		static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 		{
 			return UseVirtualTexturing(GetMaxSupportedFeatureLevel(Parameters.Platform)) &&
-				(Parameters.Material->GetMaterialDomain() == MD_RuntimeVirtualTexture || Parameters.Material->HasRuntimeVirtualTextureOutput());
+				(Parameters.MaterialParameters.MaterialDomain == MD_RuntimeVirtualTexture || Parameters.MaterialParameters.bHasRuntimeVirtualTextureOutput || Parameters.MaterialParameters.bIsDefaultMaterial);
 		}
 
 		static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -53,7 +53,7 @@ namespace RuntimeVirtualTexture
 		{
 			FMeshMaterialShader::SetParameters(
 				RHICmdList,
-				GetPixelShader(),
+				RHICmdList.GetBoundPixelShader(),
 				&MaterialProxy,
 				*MaterialProxy.GetMaterial(View.FeatureLevel),
 				View,
@@ -274,8 +274,9 @@ namespace RuntimeVirtualTexture
 
 			DrawRenderState.SetBlendState(MaterialPolicy::GetBlendState(OutputAttributeMask));
 
-			ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource);
-			ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, MaterialResource);
+			const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+			ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource, OverrideSettings);
+			ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, MaterialResource, OverrideSettings);
 
 			FMeshMaterialShaderElementData ShaderElementData;
 			ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
@@ -358,7 +359,9 @@ namespace RuntimeVirtualTexture
 		FDynamicMeshDrawCommandStorage MeshDrawCommandStorage;
 		FMeshCommandOneFrameArray AllocatedCommands;
 		FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-		FDynamicPassMeshDrawListContext DynamicMeshPassContext(MeshDrawCommandStorage, AllocatedCommands, GraphicsMinimalPipelineStateSet);
+		bool NeedsShaderInitialisation;
+
+		FDynamicPassMeshDrawListContext DynamicMeshPassContext(MeshDrawCommandStorage, AllocatedCommands, GraphicsMinimalPipelineStateSet, NeedsShaderInitialisation);
 		FRuntimeVirtualTextureMeshProcessor MeshProcessor(Scene, View, &DynamicMeshPassContext);
 
 		// Pre-calculate view factors used for culling
@@ -430,7 +433,7 @@ namespace RuntimeVirtualTexture
 							FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = PrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
 
 							const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
-								? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
+								? &Scene->CachedMeshDrawCommandStateBuckets[EMeshPass::VirtualTexture].GetByElementId(CachedMeshDrawCommand.StateBucketId).Key
 								: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
 
 							FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
@@ -539,13 +542,13 @@ namespace RuntimeVirtualTexture
 	template< ERuntimeVirtualTextureMaterialType MaterialType >
 	void AddCompressPass(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FShader_VirtualTextureCompress::FParameters* Parameters, FIntVector GroupCount)
 	{
-		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 		TShaderMapRef< FShader_VirtualTextureCompress_CS< MaterialType > > ComputeShader(GlobalShaderMap);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("VirtualTextureCompress"),
-			*ComputeShader, Parameters, GroupCount);
+			ComputeShader, Parameters, GroupCount);
 	}
 
 	/** Set up the BC compression pass for the given MaterialType. */
@@ -643,7 +646,7 @@ namespace RuntimeVirtualTexture
 	template< ERuntimeVirtualTextureMaterialType MaterialType >
 	void AddCopyPass(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FShader_VirtualTextureCopy::FParameters* Parameters, FIntPoint TextureSize)
 	{
-		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 		TShaderMapRef< FShader_VirtualTextureCopy_VS > VertexShader(GlobalShaderMap);
 		TShaderMapRef< FShader_VirtualTextureCopy_PS< MaterialType > > PixelShader(GlobalShaderMap);
 
@@ -660,12 +663,12 @@ namespace RuntimeVirtualTexture
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *Parameters);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *Parameters);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *Parameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
 
 			RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, TextureSize[0], TextureSize[1], 1.0f);
 			RHICmdList.DrawIndexedPrimitive(GTwoTrianglesIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2, 1);
@@ -1025,6 +1028,14 @@ namespace RuntimeVirtualTexture
 		// Execute the graph
 		GraphBuilder.Execute();
 
+		FRHITexture* TexturesToTransition[] =
+		{
+			OutputTexture0 ? OutputTexture0->GetTexture2D() : nullptr,
+			OutputTexture1 ? OutputTexture1->GetTexture2D() : nullptr,
+			OutputTexture2 ? OutputTexture2->GetTexture2D() : nullptr
+		};
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, TexturesToTransition, UE_ARRAY_COUNT(TexturesToTransition));
+
 		// Copy to final destination
 		if (GraphSetup.OutputAlias0 != nullptr && OutputTexture0 != nullptr)
 		{
@@ -1052,6 +1063,8 @@ namespace RuntimeVirtualTexture
 
 			RHICmdList.CopyTexture(GraphOutputTexture2->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D(), OutputTexture2->GetTexture2D(), Info);
 		}
+
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, TexturesToTransition, UE_ARRAY_COUNT(TexturesToTransition));
 
 		View->CachedViewUniformShaderParameters.Reset();
 	}

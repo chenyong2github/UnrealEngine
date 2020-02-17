@@ -23,9 +23,13 @@ class FNiagaraObjectSelection;
 class FNiagaraScriptViewModel : public TSharedFromThis<FNiagaraScriptViewModel>, public FEditorUndoClient, public TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>
 {
 public:
-	FNiagaraScriptViewModel(FText DisplayName, ENiagaraParameterEditMode InParameterEditMode);
+	FNiagaraScriptViewModel(TAttribute<FText> DisplayName, ENiagaraParameterEditMode InParameterEditMode);
 
-	~FNiagaraScriptViewModel();
+	virtual ~FNiagaraScriptViewModel();
+
+	NIAGARAEDITOR_API FText GetDisplayName() const;
+
+	NIAGARAEDITOR_API const TArray<TWeakObjectPtr<UNiagaraScript>>& GetScripts() const;
 
 	/** Sets the view model to a different script. */
 	void SetScript(UNiagaraScript* InScript);
@@ -42,7 +46,7 @@ public:
 	TSharedRef<INiagaraParameterCollectionViewModel> GetOutputParameterMapViewModel();
 
 	/** Gets the view model for the graph. */
-	TSharedRef<FNiagaraScriptGraphViewModel> GetGraphViewModel();
+	NIAGARAEDITOR_API TSharedRef<FNiagaraScriptGraphViewModel> GetGraphViewModel();
 
 	/** Gets the currently selected script variables. */
 	TSharedRef<FNiagaraObjectSelection> GetVariableSelection();
@@ -97,6 +101,8 @@ protected:
 	TArray<TWeakObjectPtr<UNiagaraScript>> Scripts;
 
 	virtual void OnVMScriptCompiled(UNiagaraScript* InScript);
+
+	virtual void OnGPUScriptCompiled(UNiagaraScript* InScript);
 
 	TWeakObjectPtr<UNiagaraScriptSource> Source;
 

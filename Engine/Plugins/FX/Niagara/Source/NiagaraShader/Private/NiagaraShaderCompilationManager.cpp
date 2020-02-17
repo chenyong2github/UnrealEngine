@@ -245,6 +245,8 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(TMap<int
 						}
 						else
 						{
+							Script->SetCompileErrors(Errors);
+
 							// if we succeeded and our shader map is not complete this could be because the script was being edited quicker then the compile could be completed
 							// Don't modify scripts for which the compiled shader map is no longer complete
 							// This can happen if a script being compiled is edited

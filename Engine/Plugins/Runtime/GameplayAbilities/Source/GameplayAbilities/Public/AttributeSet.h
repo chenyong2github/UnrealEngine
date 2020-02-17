@@ -104,7 +104,7 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 		return CastChecked<UClass>(Attribute->GetOwner<UObject>());
 	}
 
-	/** Returns true if this is one of the special attributes defined on the bBilitySystemComponent itself */
+	/** Returns true if this is one of the special attributes defined on the AbilitySystemComponent itself */
 	bool IsSystemAttribute() const;
 
 	/** Returns true if the variable associated with Property is of type FGameplayAttributeData or one of its subclasses */
@@ -495,16 +495,16 @@ private:
 /**
  *	This is a helper macro that can be used in RepNotify functions to handle attributes that will be predictively modified by clients.
  *	
- *	void UMyHealthSet::OnRep_Health()
+ *	void UMyHealthSet::OnRep_Health(const FFortGameplayAttributeData& OldValue)
  *	{
- *		GAMEPLAYATTRIBUTE_REPNOTIFY(UMyHealthSet, Health);
+ *		GAMEPLAYATTRIBUTE_REPNOTIFY(UMyHealthSet, Health, OldValue);
  *	}
  */
 
-#define GAMEPLAYATTRIBUTE_REPNOTIFY(C, P) \
+#define GAMEPLAYATTRIBUTE_REPNOTIFY(ClassName, PropertyName, OldValue) \
 { \
-	static FProperty* ThisProperty = FindFieldChecked<FProperty>(C::StaticClass(), GET_MEMBER_NAME_CHECKED(C, P)); \
-	GetOwningAbilitySystemComponent()->SetBaseAttributeValueFromReplication(P, FGameplayAttribute(ThisProperty)); \
+	static FProperty* ThisProperty = FindFieldChecked<FProperty>(ClassName::StaticClass(), GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
+	GetOwningAbilitySystemComponent()->SetBaseAttributeValueFromReplication(FGameplayAttribute(ThisProperty), PropertyName, OldValue); \
 }
 
 /**

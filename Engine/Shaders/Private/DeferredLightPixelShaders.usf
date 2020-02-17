@@ -25,6 +25,10 @@
 	#endif
 #endif
 
+#if USE_ATMOSPHERE_TRANSMITTANCE
+#include "/Engine/Private/SkyAtmosphereCommon.ush"
+#endif
+
 struct FInputParams
 {
 	float2 PixelPos;
@@ -244,6 +248,23 @@ void ComputeHairLighting(
 
 #endif // USE_HAIR_LIGHTING
 
+#if USE_ATMOSPHERE_TRANSMITTANCE
+
+float3 GetAtmosphericLightTransmittance(in float4 SVPos, in float2 ScreenUV, in float3 LightDirection)
+{
+	// The following is the only way to retrieve a world space position that is always stable under camera movement + long view distance. (DerivedParams.WorldPosition is not stable)
+	float DeviceZ = LookupDeviceZ(ScreenUV);
+	float3 WorldPosition = SvPositionToWorld(float4(SVPos.xy, DeviceZ, 1.0));
+	const float3 PlanetCenterToWorldPos = (WorldPosition - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+
+	const float3 AtmosphereTransmittance = GetAtmosphereTransmittance(
+		PlanetCenterToWorldPos, LightDirection, View.SkyAtmosphereBottomRadiusKm, View.SkyAtmosphereTopRadiusKm,
+		View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler);
+
+	return AtmosphereTransmittance;
+}
+
+#endif // USE_ATMOSPHERE_TRANSMITTANCE
 
 void DeferredLightPixelMain(
 #if LIGHT_SOURCE_SHAPE > 0
@@ -320,6 +341,10 @@ void DeferredLightPixelMain(
 		OutColor  = PerceptualToLinear(OutColor);
 #else
 		OutColor += (Radiance * Attenuation);
+#endif
+
+#if USE_ATMOSPHERE_TRANSMITTANCE
+		OutColor.rgb *= GetAtmosphericLightTransmittance(SVPos, InputParams.ScreenUV, DeferredLightUniforms.Direction.xyz);
 #endif
 	}
 

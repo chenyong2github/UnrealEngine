@@ -18,7 +18,6 @@
 
 TArray<MagicLeap::IAppEventHandler*> FAppFramework::EventHandlers;
 FCriticalSection FAppFramework::EventHandlersCriticalSection;
-MagicLeap::FAsyncDestroyer* FAppFramework::AsyncDestroyer = nullptr;
 
 FAppFramework::FAppFramework()
 {}
@@ -38,9 +37,9 @@ void FAppFramework::Startup()
 	FLuminDelegates::DeviceHasReactivatedDelegate.AddRaw(this, &FAppFramework::OnDeviceActive);
 	FLuminDelegates::DeviceWillEnterRealityModeDelegate.AddRaw(this, &FAppFramework::OnDeviceRealityMode);
 	FLuminDelegates::DeviceWillGoInStandbyDelegate.AddRaw(this, &FAppFramework::OnDeviceStandby);
+	FCoreDelegates::VRHeadsetLost.AddRaw(this, &FAppFramework::OnDeviceHeadposeLost);
+	FCoreDelegates::VRHeadsetReconnected.AddRaw(this, &FAppFramework::OnDeviceActive);
 #endif // PLATFORM_LUMIN
-
-	AsyncDestroyer = new MagicLeap::FAsyncDestroyer();
 
 	bInitialized = true;
 
@@ -50,9 +49,6 @@ void FAppFramework::Startup()
 void FAppFramework::Shutdown()
 {
 	bInitialized = false;
-
-	delete AsyncDestroyer;
-	AsyncDestroyer = nullptr;
 
 	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
 	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.RemoveAll(this);
@@ -157,6 +153,12 @@ void FAppFramework::OnDeviceStandby()
 	PauseRendering(true);
 }
 
+void FAppFramework::OnDeviceHeadposeLost()
+{
+	UE_LOG(LogMagicLeap, Log, TEXT("+++++++ ML AppFramework DEVICE HEADPOSE LOST ++++++"));
+	PauseRendering(true);
+}
+
 void FAppFramework::PauseRendering(bool bPause)
 {
 	FMagicLeapHMD * const HMD = GEngine ? static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice()) : nullptr;
@@ -182,7 +184,7 @@ uint32 FAppFramework::GetViewportCount() const
 {
 #if WITH_MLSDK
 	const FTrackingFrame *frame = GetOldFrame();
-	return frame ? frame->FrameInfo.virtual_camera_info_array.num_virtual_cameras : 2;
+	return frame ? frame->FrameInfo.num_virtual_cameras : 2;
 #else
 	return 1;
 #endif //WITH_MLSDK
@@ -260,15 +262,4 @@ void FAppFramework::RemoveEventHandler(MagicLeap::IAppEventHandler* EventHandler
 {
 	FScopeLock Lock(&EventHandlersCriticalSection);
 	EventHandlers.Remove(EventHandler);
-}
-
-bool FAppFramework::AsyncDestroy(MagicLeap::IAppEventHandler* InEventHandler)
-{
-	if (AsyncDestroyer != nullptr)
-	{
-		AsyncDestroyer->AddRaw(InEventHandler);
-		return true;
-	}
-
-	return false;
 }

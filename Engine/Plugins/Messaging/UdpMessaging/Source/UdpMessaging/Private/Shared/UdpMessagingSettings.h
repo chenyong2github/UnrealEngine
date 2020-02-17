@@ -55,6 +55,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
 	bool bAutoRepair = true;
 
+	/** Whether to stop the transport service when the application deactivates, and restart it when the application is reactivated */
+	UPROPERTY(config)
+	bool bStopServiceWhenAppDeactivates = true;
+
 	/**
 	 * The IP endpoint to listen to and send packets from.
 	 *

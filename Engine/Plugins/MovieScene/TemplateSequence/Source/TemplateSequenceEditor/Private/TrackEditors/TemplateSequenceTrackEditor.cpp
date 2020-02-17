@@ -129,9 +129,8 @@ public:
 		Filter.ClassNames.Add(BaseClass->GetFName());
 
 		IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
-		FARFilter ExpandedFilter;
-		AssetRegistry.ExpandRecursiveFilter(Filter, ExpandedFilter);
-		TSet<FName> ChildClassNames(ExpandedFilter.ClassNames);
+		FARCompiledFilter CompiledFilter;
+		AssetRegistry.CompileFilter(Filter, CompiledFilter);
 
 		FAssetPickerConfig AssetPickerConfig;
 		{
@@ -150,7 +149,7 @@ public:
 			}
 
 			AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda(
-				[this, ChildClassNames](const FAssetData& AssetData) -> bool
+				[this, ChildClassNames = CompiledFilter.ClassNames](const FAssetData& AssetData) -> bool
 				{
 					if (LegacyBaseClass == nullptr || AssetData.AssetClass != LegacyBaseClass->GetFName())
 					{
@@ -223,9 +222,9 @@ public:
 						.Text_Lambda([this]() { return !bShowingHiddenAssets ? 
 								LOCTEXT("ShowOutdatedAssetsButton", "Show Outdated Assets") : 
 								LOCTEXT("HideOutdatedAssetsButton", "Hide Outdated Assets"); })
-						.ToolTipText(LOCTEXT(
-							"ShowAssetsRequiringSaveButtonTooltip",
-							"Show or hide legacy assets (like CameraAnim) and template sequences that are potentially incompatible with the currently selected object binding (re-save those to fix the issue)."))
+						.ToolTipText(
+							LOCTEXT("ShowAssetsRequiringSaveButtonTooltip", "Show or hide legacy assets (like CameraAnim) and template sequences that are potentially incompatible with the currently selected object binding (re-save those to fix the issue).")
+							)
 						.OnClicked(this, &STemplateSequenceAssetSubMenu::OnShowHiddenAssets)
 					]
 				]

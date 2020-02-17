@@ -41,7 +41,8 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"InputCore",
 					"Projects",
-					"AudioMixer"
+					"AudioMixer",
+					"AudioExtensions"
 				}
 			);
 

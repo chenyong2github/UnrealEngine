@@ -93,7 +93,8 @@ void FNavTestSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 			{
 				for (int32 PointIndex = 1; PointIndex < PathPoints.Num(); PointIndex++)
 				{
-					PDI->DrawLine(PathPoints[PointIndex-1], PathPoints[PointIndex], FLinearColor::Red, SDPG_World, 2.0f, 0.0f, true);
+					PDI->DrawLine(PathPoints[PointIndex-1], PathPoints[PointIndex], FLinearColor::Red, SDPG_World, 2.0f, 0.0f);
+					DrawArrowHead(PDI, PathPoints[PointIndex], PathPoints[PointIndex - 1], 25.f, FLinearColor::Red, SDPG_World, 2.0f);
 				}
 			}
 
@@ -460,9 +461,9 @@ FBoxSphereBounds UNavTestRenderingComponent::CalcBounds(const FTransform& LocalT
 	return FBoxSphereBounds(BoundingBox);
 }
 
-void UNavTestRenderingComponent::CreateRenderState_Concurrent()
+void UNavTestRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 #if WITH_RECAST && WITH_EDITOR
 	NavTestDebugDrawDelegateHelper.RegisterDebugDrawDelgate();

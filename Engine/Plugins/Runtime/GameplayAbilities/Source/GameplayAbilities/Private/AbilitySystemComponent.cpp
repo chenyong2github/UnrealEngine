@@ -469,6 +469,55 @@ FOnGivenActiveGameplayEffectRemoved& UAbilitySystemComponent::OnAnyGameplayEffec
 	return ActiveGameplayEffects.OnActiveGameplayEffectRemovedDelegate;
 }
 
+void UAbilitySystemComponent::UpdateTagMap_Internal(const FGameplayTagContainer& Container, const int32 CountDelta)
+{
+	// For removal, reorder calls so that FillParentTags is only called once
+	if (CountDelta > 0)
+	{
+		for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
+		{
+			const FGameplayTag& Tag = *TagIt;
+			if (GameplayTagCountContainer.UpdateTagCount(Tag, CountDelta))
+			{
+				OnTagUpdated(Tag, true);
+			}
+		}
+	}
+	else if (CountDelta < 0)
+	{
+		// Defer FillParentTags and calling delegates until all Tags have been removed
+		TArray<FGameplayTag> RemovedTags;
+		RemovedTags.Reserve(Container.Num()); // pre-allocate max number (if all are removed)
+		TArray<FDeferredTagChangeDelegate> DeferredTagChangeDelegates;
+
+		for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
+		{
+			const FGameplayTag& Tag = *TagIt;
+			if (GameplayTagCountContainer.UpdateTagCount_DeferredParentRemoval(Tag, CountDelta, DeferredTagChangeDelegates))
+			{
+				RemovedTags.Add(Tag);
+			}
+		}
+
+		// now do the work that was deferred
+		if (RemovedTags.Num() > 0)
+		{
+			GameplayTagCountContainer.FillParentTags();
+		}
+
+		for (FDeferredTagChangeDelegate& Delegate : DeferredTagChangeDelegates)
+		{
+			Delegate.Execute();
+		}
+
+		// Notify last in case OnTagUpdated queries this container
+		for (FGameplayTag& Tag : RemovedTags)
+		{
+			OnTagUpdated(Tag, false);
+		}
+	}
+}
+
 FOnGameplayEffectTagCountChanged& UAbilitySystemComponent::RegisterGameplayTagEvent(FGameplayTag Tag, EGameplayTagEventType::Type EventType)
 {
 	return GameplayTagCountContainer.RegisterGameplayTagEvent(Tag, EventType);

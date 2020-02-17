@@ -1078,7 +1078,7 @@ bool FWaveInstance::IsSeekable() const
 		return false;
 	}
 
-	if (WaveData->bIsBus || WaveData->bProcedural)
+	if (WaveData->bIsSourceBus || WaveData->bProcedural)
 	{
 		return false;
 	}
@@ -1093,7 +1093,7 @@ bool FWaveInstance::IsSeekable() const
 
 bool FWaveInstance::IsStreaming() const
 {
-	return FPlatformProperties::SupportsAudioStreaming() && WaveData != nullptr && WaveData->IsStreaming();
+	return FPlatformProperties::SupportsAudioStreaming() && WaveData != nullptr && WaveData->IsStreaming(nullptr);
 }
 
 bool FWaveInstance::GetUseSpatialization() const

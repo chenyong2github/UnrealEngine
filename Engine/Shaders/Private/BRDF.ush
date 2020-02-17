@@ -13,6 +13,12 @@ struct BxDFContext
 	float VoL;
 	float NoH;
 	float VoH;
+	float XoV;
+	float XoL;
+	float XoH;
+	float YoV;
+	float YoL;
+	float YoH;
 #if 1	// Shit code until we get member functions
 };
 
@@ -26,6 +32,41 @@ void Init( inout BxDFContext Context, half3 N, half3 V, half3 L )
 	Context.VoH = saturate( InvLenH + InvLenH * Context.VoL );
 	//NoL = saturate( NoL );
 	//NoV = saturate( abs( NoV ) + 1e-5 );
+
+	Context.XoV = 0.0f;
+	Context.XoL = 0.0f;
+	Context.XoH = 0.0f;
+	Context.YoV = 0.0f;
+	Context.YoL = 0.0f;
+	Context.YoH = 0.0f;
+}
+
+void Init( inout BxDFContext Context, half3 N, half3 X, half3 Y, half3 V, half3 L )
+{
+	Context.NoL = dot(N, L);
+	Context.NoV = dot(N, V);
+	Context.VoL = dot(V, L);
+	float InvLenH = rsqrt( 2 + 2 * Context.VoL );
+	Context.NoH = saturate( ( Context.NoL + Context.NoV ) * InvLenH );
+	Context.VoH = saturate( InvLenH + InvLenH * Context.VoL );
+	//NoL = saturate( NoL );
+	//NoV = saturate( abs( NoV ) + 1e-5 );
+
+#if GBUFFER_HAS_TANGENT
+	Context.XoV = dot(X, V);
+	Context.XoL = dot(X, L);
+	Context.XoH = (Context.XoL + Context.XoV) * InvLenH;
+	Context.YoV = dot(Y, V);
+	Context.YoL = dot(Y, L);
+	Context.YoH = (Context.YoL + Context.YoV) * InvLenH;
+#else
+	Context.XoV = 0.0f;
+	Context.XoL = 0.0f;
+	Context.XoH = 0.0f;
+	Context.YoV = 0.0f;
+	Context.YoL = 0.0f;
+	Context.YoH = 0.0f;
+#endif
 }
 
 // [ de Carpentier 2017, "Decima Engine: Advances in Lighting and AA" ]
@@ -39,21 +80,29 @@ void SphereMaxNoH( inout BxDFContext Context, float SinAlpha, bool bNewtonIterat
 		if( RoL >= CosAlpha )
 		{
 			Context.NoH = 1;
+			Context.XoH = 0;
+			Context.YoH = 0;
 			Context.VoH = abs( Context.NoV );
 		}
 		else
 		{
 			float rInvLengthT = SinAlpha * rsqrt( 1 - RoL*RoL );
 			float NoTr = rInvLengthT * ( Context.NoV - RoL * Context.NoL );
+// Enable once anisotropic materials support area lights
+#if 0
+			float XoTr = rInvLengthT * ( Context.XoV - RoL * Context.XoL );
+			float YoTr = rInvLengthT * ( Context.YoV - RoL * Context.YoL );
+#endif
 			float VoTr = rInvLengthT * ( 2 * Context.NoV*Context.NoV - 1 - RoL * Context.VoL );
 
-			if( bNewtonIteration )
+			if (bNewtonIteration)
 			{
 				// dot( cross(N,L), V )
 				float NxLoV = sqrt( saturate( 1 - Pow2(Context.NoL) - Pow2(Context.NoV) - Pow2(Context.VoL) + 2 * Context.NoL * Context.NoV * Context.VoL ) );
 
 				float NoBr = rInvLengthT * NxLoV;
 				float VoBr = rInvLengthT * NxLoV * 2 * Context.NoV;
+
 				float NoLVTr = Context.NoL * CosAlpha + Context.NoV + NoTr;
 				float VoLVTr = Context.VoL * CosAlpha + 1   + VoTr;
 
@@ -70,16 +119,26 @@ void SphereMaxNoH( inout BxDFContext Context, float SinAlpha, bool bNewtonIterat
 				VoTr = CosTheta * VoTr + SinTheta * VoBr;
 			}
 
-			Context.NoL = Context.NoL * CosAlpha + NoTr;
+			Context.NoL = Context.NoL * CosAlpha + NoTr; // dot( N, L * CosAlpha + T * SinAlpha )
+// Enable once anisotropic materials support area lights
+#if 0
+			Context.XoL = Context.XoL * CosAlpha + XoTr;
+			Context.YoL = Context.YoL * CosAlpha + YoTr;
+#endif
 			Context.VoL = Context.VoL * CosAlpha + VoTr;
+
 			float InvLenH = rsqrt( 2 + 2 * Context.VoL );
 			Context.NoH = saturate( ( Context.NoL + Context.NoV ) * InvLenH );
+// Enable once anisotropic materials support area lights
+#if 0
+			Context.XoH = ((Context.XoL + Context.XoV) * InvLenH);	// dot(X, (L+V)/|L+V|)
+			Context.YoH = ((Context.YoL + Context.YoV) * InvLenH);
+#endif
 			Context.VoH = saturate( InvLenH + InvLenH * Context.VoL );
 		}
 	}
 }
 #else
-
 	void Init( half3 N, half3 V, half3 L )
 	{
 		NoL = dot(N, L);
@@ -90,6 +149,41 @@ void SphereMaxNoH( inout BxDFContext Context, float SinAlpha, bool bNewtonIterat
 		VoH = saturate( InvLenH + InvLenH * VoL );
 		//NoL = saturate( NoL );
 		//NoV = saturate( abs( NoV ) + 1e-5 );
+
+		XoV = 0.0f;
+		XoL = 0.0f;
+		XoH = 0.0f;
+		YoV = 0.0f;
+		YoL = 0.0f;
+		YoH = 0.0f;
+	}
+
+	void Init( half3 N, half3 X, half3 Y, half3 V, half3 L )
+	{
+		NoL = dot(N, L);
+		NoV = dot(N, V);
+		VoL = dot(V, L);
+		float InvLenH = rsqrt( 2 + 2 * VoL );
+		NoH = saturate( ( NoL + NoV ) * InvLenH );
+		VoH = saturate( InvLenH + InvLenH * VoL );
+		//NoL = saturate( NoL );
+		//NoV = saturate( abs( NoV ) + 1e-5 );
+
+#if GBUFFER_HAS_TANGENT
+		XoV = dot(X, V);
+		XoL = dot(X, L);
+		XoH = (XoL + XoV) * InvLenH;
+		YoV = dot(Y, V);
+		YoL = dot(Y, L);
+		YoH = (YoL + YoV) * InvLenH;
+#else
+		XoV = 0.0f;
+		XoL = 0.0f;
+		XoH = 0.0f;
+		YoV = 0.0f;
+		YoL = 0.0f;
+		YoH = 0.0f;
+#endif
 	}
 
 	// [ de Carpentier 2017, "Decima Engine: Advances in Lighting and AA" ]
@@ -101,21 +195,29 @@ void SphereMaxNoH( inout BxDFContext Context, float SinAlpha, bool bNewtonIterat
 		if( RoL >= CosAlpha )
 		{
 			NoH = 1;
+			XoH = 0;
+			YoH = 0;
 			VoH = abs( NoV );
 		}
 		else
 		{
 			float rInvLengthT = SinAlpha * rsqrt( 1 - RoL*RoL );
 			float NoTr = rInvLengthT * ( NoV - RoL * NoL );
+// Enable once anisotropic materials support area lights
+#if 0
+			float XoTr = rInvLengthT * ( XoV - RoL * XoL );
+			float YoTr = rInvLengthT * ( YoV - RoL * YoL );
+#endif
 			float VoTr = rInvLengthT * ( 2 * NoV*NoV - 1 - RoL * VoL );
 
-			if( bNewtonIteration && SinAlpha != 0 )
+			if (bNewtonIteration && SinAlpha != 0)
 			{
 				// dot( cross(N,L), V )
 				float NxLoV = sqrt( saturate( 1 - Pow2(NoL) - Pow2(NoV) - Pow2(VoL) + 2 * NoL * NoV * VoL ) );
 
 				float NoBr = rInvLengthT * NxLoV;
 				float VoBr = rInvLengthT * NxLoV * 2 * NoV;
+
 				float NoLVTr = NoL * CosAlpha + NoV + NoTr;
 				float VoLVTr = VoL * CosAlpha + 1   + VoTr;
 
@@ -133,9 +235,20 @@ void SphereMaxNoH( inout BxDFContext Context, float SinAlpha, bool bNewtonIterat
 			}
 
 			NoL = NoL * CosAlpha + NoTr;
+// Enable once anisotropic materials support area lights
+#if 0
+			XoL = XoL * CosAlpha + XoTr;
+			YoL = YoL * CosAlpha + YoTr;
+#endif
 			VoL = VoL * CosAlpha + VoTr;
+
 			float InvLenH = rsqrt( 2 + 2 * VoL );
 			NoH = saturate( ( NoL + NoV ) * InvLenH );
+// Enable once anisotropic materials support area lights
+#if 0
+			XoH = ((XoL + XoV) * InvLenH);	// dot(X, (L+V)/|L+V|)
+			YoH = ((YoL + YoV) * InvLenH);
+#endif
 			VoH = saturate( InvLenH + InvLenH * VoL );
 		}
 	}
@@ -228,12 +341,19 @@ float D_GGX( float a2, float NoH )
 
 // Anisotropic GGX
 // [Burley 2012, "Physically-Based Shading at Disney"]
-float D_GGXaniso( float ax, float ay, float NoH, float3 H, float3 X, float3 Y )
+float D_GGXaniso( float ax, float ay, float NoH, float XoH, float YoH )
 {
-	float XoH = dot( X, H );
-	float YoH = dot( Y, H );
+// The two formulations are mathematically equivalent
+#if 1
+	float a2 = ax * ay;
+	float3 V = float3(ay * XoH, ax * YoH, a2 * NoH);
+	float S = dot(V, V);
+
+	return (1.0f / PI) * a2 * Square(a2 / S);
+#else
 	float d = XoH*XoH / (ax*ax) + YoH*YoH / (ay*ay) + NoH*NoH;
-	return 1 / ( PI * ax*ay * d*d );
+	return 1.0f / ( PI * ax*ay * d*d );
+#endif
 }
 
 float Vis_Implicit()
@@ -283,6 +403,22 @@ float Vis_SmithJointApprox( float a2, float NoV, float NoL )
 	return 0.5 * rcp( Vis_SmithV + Vis_SmithL );
 }
 
+// [Heitz 2014, "Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs"]
+float Vis_SmithJoint(float a2, float NoV, float NoL) 
+{
+	float Vis_SmithV = NoL * sqrt(NoV * (NoV - NoV * a2) + a2);
+	float Vis_SmithL = NoV * sqrt(NoL * (NoL - NoL * a2) + a2);
+	return 0.5 * rcp(Vis_SmithV + Vis_SmithL);
+}
+
+// [Heitz 2014, "Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs"]
+float Vis_SmithJointAniso(float ax, float ay, float NoV, float NoL, float XoV, float XoL, float YoV, float YoL)
+{
+	float Vis_SmithV = NoL * length(float3(ax * XoV, ay * YoV, NoV));
+	float Vis_SmithL = NoV * length(float3(ax * XoL, ay * YoL, NoL));
+	return 0.5 * rcp(Vis_SmithV + Vis_SmithL);
+}
+
 float3 F_None( float3 SpecularColor )
 {
 	return SpecularColor;
@@ -312,6 +448,32 @@ float3 F_Fresnel( float3 SpecularColor, float VoH )
 //---------------
 // EnvBRDF
 //---------------
+
+#if GBUFFER_HAS_TANGENT
+void ModifyGGXAnisotropicNormalRoughness(float3 WorldTangent, float Anisotropy, inout float Roughness, inout float3 N, float3 V)
+{
+	float3 X = WorldTangent;
+	float3 Y = normalize(cross(N, X));
+
+	float3 AnisotropicDir = Anisotropy >= 0.0f ? Y : X;
+	float3 AnisotropicT   = cross(AnisotropicDir, V); 
+	float3 AnisotropicN   = cross(AnisotropicT, AnisotropicDir);
+
+	float AnisotropicStretch = abs(Anisotropy) * saturate(5.0f * Roughness);
+	N = normalize(lerp(N, AnisotropicN, AnisotropicStretch));
+#if 0
+	Roughness *= saturate(1.2f - abs(Anisotropy));
+#endif
+}
+
+void GetAnisotropicRoughness(float Alpha, float Anisotropy, out float ax, out float ay)
+{
+	// Anisotropic parameters: ax and ay are the roughness along the tangent and bitangent	
+	// Kulla 2017, "Revisiting Physically Based Shading at Imageworks"
+	ax = max(Alpha * (1.0 + Anisotropy), 0.001f);
+	ay = max(Alpha * (1.0 - Anisotropy), 0.001f);
+}
+#endif
 
 #ifndef PreIntegratedGF
 Texture2D		PreIntegratedGF;

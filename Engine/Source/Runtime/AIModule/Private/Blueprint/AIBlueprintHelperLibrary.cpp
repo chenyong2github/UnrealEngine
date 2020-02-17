@@ -181,7 +181,7 @@ void UAIBlueprintHelperLibrary::SendAIMessage(APawn* Target, FName Message, UObj
 	FAIMessage::Send(Target, FAIMessage(Message, MessageSource, bSuccess));
 }
 
-APawn* UAIBlueprintHelperLibrary::SpawnAIFromClass(UObject* WorldContextObject, TSubclassOf<APawn> PawnClass, UBehaviorTree* BehaviorTree, FVector Location, FRotator Rotation, bool bNoCollisionFail)
+APawn* UAIBlueprintHelperLibrary::SpawnAIFromClass(UObject* WorldContextObject, TSubclassOf<APawn> PawnClass, UBehaviorTree* BehaviorTree, FVector Location, FRotator Rotation, bool bNoCollisionFail, AActor *Owner)
 {
 	APawn* NewPawn = NULL;
 
@@ -189,6 +189,7 @@ APawn* UAIBlueprintHelperLibrary::SpawnAIFromClass(UObject* WorldContextObject, 
 	if (World && *PawnClass)
 	{
 		FActorSpawnParameters ActorSpawnParams;
+		ActorSpawnParams.Owner = Owner;
 		ActorSpawnParams.SpawnCollisionHandlingOverride = bNoCollisionFail ? ESpawnActorCollisionHandlingMethod::AlwaysSpawn : ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 
 		NewPawn = World->SpawnActor<APawn>(*PawnClass, Location, Rotation, ActorSpawnParams);

@@ -138,6 +138,7 @@ public:
 	virtual bool CloseWindow() override;
 	virtual bool IsPrimaryEditor() const override { return true; };
 	virtual void InvokeTab(const FTabId& TabId) override;
+	virtual FName GetToolbarTabId() const override { return ToolbarTabId; }
 	virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
 	virtual double GetLastActivationTime() override;
 	virtual void RemoveEditingAsset(UObject* Asset) override;
@@ -227,9 +228,6 @@ public:
 	/** Adds or removes widgets from the default toolbar in this asset editor */
 	void AddToolbarWidget(TSharedRef<SWidget> Widget);
 	void RemoveAllToolbarWidgets();
-
-	/** Gets the toolbar tab id */
-	FName GetToolbarTabId() const {return ToolbarTabId;}
 
 	/** True if this actually is editing an asset */
 	bool IsActuallyAnAsset() const;

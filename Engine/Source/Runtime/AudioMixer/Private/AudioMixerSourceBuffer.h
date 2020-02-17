@@ -121,6 +121,8 @@ namespace Audio
 		int32 NumPrecacheFrames;
 		TArray<uint8> CachedRealtimeFirstBuffer;
 
+		FCriticalSection DtorCritSec;
+
 		uint32 bInitialized : 1;
 		uint32 bBufferFinished : 1;
 		uint32 bPlayedCachedBuffer : 1;
@@ -130,7 +132,7 @@ namespace Audio
 		uint32 bIsBus : 1;
 		uint32 bForceSyncDecode : 1;
 	
-		virtual void OnBeginDestroy(class USoundWave* Wave) override;
+		virtual bool OnBeginDestroy(class USoundWave* Wave) override;
 		virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const override;
 		virtual void OnFinishDestroy(class USoundWave* Wave) override;
 	};

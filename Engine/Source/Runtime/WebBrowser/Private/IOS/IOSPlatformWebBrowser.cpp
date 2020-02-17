@@ -11,7 +11,6 @@
 
 #import <UIKit/UIKit.h>
 #import <MetalKit/MetalKit.h>
-#include <OpenGLES/ES2/glext.h>
 #include "ExternalTexture.h"
 #include "WebBrowserModule.h"
 #include "IWebBrowserSingleton.h"

@@ -105,6 +105,7 @@ public:
 	ENGINE_API ~FGPUSkinCache();
 
 	struct FCachedGeometrySection GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 SectionId);
+	void UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry);
 
 	void ProcessEntry(FRHICommandListImmediate& RHICmdList, FGPUBaseSkinVertexFactory* VertexFactory,
 		FGPUSkinPassthroughVertexFactory* TargetVertexFactory, const FSkelMeshRenderSection& BatchElement, FSkeletalMeshObjectGPUSkin* Skin,
@@ -112,7 +113,7 @@ public:
 		const FMatrix& ClothLocalToWorld, float ClothBlendWeight, uint32 RevisionNumber, int32 Section, FGPUSkinCacheEntry*& InOutEntry);
 
 	static void SetVertexStreams(FGPUSkinCacheEntry* Entry, int32 Section, FRHICommandList& RHICmdList,
-		class FShader* Shader, const FGPUSkinPassthroughVertexFactory* VertexFactory,
+		class FRHIVertexShader* ShaderRHI, const FGPUSkinPassthroughVertexFactory* VertexFactory,
 		uint32 BaseVertexIndex, FShaderResourceParameter PreviousStreamBuffer);
 
 	static void GetShaderBindings(

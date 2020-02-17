@@ -38,8 +38,8 @@
 //
 #if PLATFORM_XBOXONE
 
-#include "XboxOne/XboxOneAllowPlatformTypes.h"
-#include "XboxOne/XboxOnePreApi.h"
+#include "XboxCommonAllowPlatformTypes.h"
+#include "XboxCommonPreApi.h"
 		#include <d3d11_x.h>
 		#include <d3d12_x.h>
 		#include <d3dcompiler_x.h>
@@ -50,8 +50,8 @@
 		#include <mfidl.h>
 		#include <codecapi.h>
 		#include <mfreadwrite.h>
-#include "XboxOne/XboxOnePostApi.h"
-#include "XboxOne/XboxOneHidePlatformTypes.h"
+#include "XboxCommonPostApi.h"
+#include "XboxCommonHidePlatformTypes.h"
 
 #endif
 
@@ -83,7 +83,7 @@ inline const FString GetComErrorDescription(HRESULT Res)
 #if PLATFORM_WINDOWS
 	#include "Windows/AllowWindowsPlatformTypes.h"
 #elif PLATFORM_XBOXONE
-	#include "XboxOne/XboxOneAllowPlatformTypes.h"
+	#include "XboxCommonAllowPlatformTypes.h"
 #endif
 
 // macro to deal with COM calls inside a function that returns `false` on error
@@ -133,7 +133,7 @@ inline const FString GetComErrorDescription(HRESULT Res)
 #if PLATFORM_WINDOWS
 	#include "Windows/HideWindowsPlatformTypes.h"
 #elif PLATFORM_XBOXONE
-	#include "XboxOne/XboxOneHidePlatformTypes.h"
+	#include "XboxCommonHidePlatformTypes.h"
 #endif
 
 // following commented include causes name clash between UE4 and Windows `IMediaEventSink`,

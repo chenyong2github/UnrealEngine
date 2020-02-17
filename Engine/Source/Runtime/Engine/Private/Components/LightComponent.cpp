@@ -526,7 +526,7 @@ void ULightComponent::Serialize(FArchive& Ar)
 			FLightComponentLegacyMapBuildData LegacyLightData;
 			LegacyLightData.Id = LightGuid;
 			LegacyLightData.Data = LegacyData;
-			GLightComponentsWithLegacyBuildData.AddAnnotation(this, LegacyLightData);
+			GLightComponentsWithLegacyBuildData.AddAnnotation(this, MoveTemp(LegacyLightData));
 		}
 	}
 
@@ -775,9 +775,9 @@ void ULightComponent::OnRegister()
 	ValidateLightGUIDs();
 }
 
-void ULightComponent::CreateRenderState_Concurrent()
+void ULightComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	if (bAffectsWorld)
 	{

@@ -230,18 +230,18 @@ namespace Chaos
 		}
 
 		/**
-		 * Calculate the world-space inertia (or inverse inertia) for a body with rotation "Q" and local-space inertia/inverse-inertia "I".
+		 * Calculate the world-space inertia (or inverse inertia) for a body with center-of-mass rotation "CoMRotation" and local-space inertia/inverse-inertia "I".
 		 */
-		static FMatrix33 ComputeWorldSpaceInertia(const FRotation3& Q, const FMatrix33& I)
+		static FMatrix33 ComputeWorldSpaceInertia(const FRotation3& CoMRotation, const FMatrix33& I)
 		{
-			FMatrix33 QM = Q.ToMatrix();
+			FMatrix33 QM = CoMRotation.ToMatrix();
 			return MultiplyAB(QM, MultiplyABt(I, QM));
 		}
 
-		static FMatrix33 ComputeWorldSpaceInertia(const FRotation3& Q, const FVec3& I)
+		static FMatrix33 ComputeWorldSpaceInertia(const FRotation3& CoMRotation, const FVec3& I)
 		{
 			// @todo(ccaulfield): optimize ComputeWorldSpaceInertia
-			return ComputeWorldSpaceInertia(Q, FMatrix33(I.X, I.Y, I.Z));
+			return ComputeWorldSpaceInertia(CoMRotation, FMatrix33(I.X, I.Y, I.Z));
 		}
 
 		/**

@@ -18,10 +18,11 @@ public class DX11 : ModuleRules
 		{
 			DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
 		}
-		PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 		{
+			PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
+
 			PublicDefinitions.Add("WITH_D3DX_LIBS=1");
 
 			string LibDir = null;
@@ -56,6 +57,8 @@ public class DX11 : ModuleRules
 
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
+			PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
+
 			PublicDefinitions.Add("WITH_D3DX_LIBS=0");
 			PublicSystemLibraries.AddRange(
 				new string[] {

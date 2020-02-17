@@ -16,6 +16,7 @@ class UVectorFieldComponent;
 struct FGPUSpriteEmitterInfo;
 struct FGPUSpriteResourceData;
 struct FParticleEmitterInstance;
+class FGPUSortManager;
 
 /*-----------------------------------------------------------------------------
 	Forward declarations.
@@ -88,9 +89,7 @@ namespace FXConsoleVariables
  */
 inline bool SupportsGPUParticles(EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::ES3_1)
-		|| IsPCPlatform(Platform) // For editor mobile preview 
-		|| Platform == SP_OPENGL_ES2_ANDROID; // Android device might support it (ex. Adreno 420)
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::ES3_1) || IsPCPlatform(Platform); // For editor mobile preview 
 }
 
 /*
@@ -110,7 +109,8 @@ inline bool RHISupportsGPUParticles()
 }
 
 class FFXSystemInterface;
-DECLARE_DELEGATE_RetVal_TwoParams(FFXSystemInterface*, FCreateCustomFXSystemDelegate, ERHIFeatureLevel::Type, EShaderPlatform);
+class FGPUSortManager;
+DECLARE_DELEGATE_RetVal_ThreeParams(FFXSystemInterface*, FCreateCustomFXSystemDelegate, ERHIFeatureLevel::Type, EShaderPlatform, FGPUSortManager*);
 
 /*-----------------------------------------------------------------------------
 	The interface to the FX system runtime.
@@ -119,7 +119,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(FFXSystemInterface*, FCreateCustomFXSystemDele
 /**
  * The interface to an effects system.
  */
-class ENGINE_VTABLE FFXSystemInterface
+class FFXSystemInterface
 {
 public:
 
@@ -229,6 +229,9 @@ public:
 		bool bAllowGPUParticleUpdate) = 0;
 
 	bool IsPendingKill() const { return bIsPendingKill; }
+
+	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
+	virtual FGPUSortManager* GetGPUSortManager() const = 0;
 
 protected:
 	

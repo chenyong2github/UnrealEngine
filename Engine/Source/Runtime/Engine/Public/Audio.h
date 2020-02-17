@@ -92,6 +92,14 @@ struct FWaveInstance;
 struct FReverbSettings;
 struct FSampleLoop;
 
+namespace Audio
+{
+	/**
+	 * Typed identifier for Audio Device Id
+	 */
+	using FDeviceId = uint32;
+}
+
 enum ELoopingMode
 {
 	/** One shot sound */
@@ -166,13 +174,13 @@ struct ENGINE_API FWaveInstance
 	FSoundModulationControls SoundModulationControls;
 
 	/** Sound submix object to send audio to for mixing in audio mixer.  */
-	USoundSubmix* SoundSubmix;
+	USoundSubmixBase* SoundSubmix;
 
 	/** Sound submix sends */
 	TArray<FSoundSubmixSendInfo> SoundSubmixSends;
 
-	/** The sound source bus sends. */
-	TArray<FSoundSourceBusSendInfo> SoundSourceBusSends[(int32)EBusSendType::Count];
+	/** The source bus and/or audio bus sends. */
+	TArray<FSoundSourceBusSendInfo> BusSends[(int32)EBusSendType::Count];
 
 	/** Sound effect chain */
 	USoundEffectSourcePresetChain* SourceEffectChain;
@@ -449,7 +457,7 @@ inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }
 	FSoundBuffer.
 -----------------------------------------------------------------------------*/
 
-class ENGINE_VTABLE FSoundBuffer
+class FSoundBuffer
 {
 public:
 	FSoundBuffer(class FAudioDevice * InAudioDevice)
@@ -525,7 +533,7 @@ public:
 FSoundSource.
 -----------------------------------------------------------------------------*/
 
-class ENGINE_VTABLE FSoundSource
+class FSoundSource
 {
 public:
 	/** Constructor */

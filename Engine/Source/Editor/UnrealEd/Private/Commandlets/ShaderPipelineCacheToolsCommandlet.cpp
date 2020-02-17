@@ -412,13 +412,26 @@ static void StableShadersSerializationSelfTest(const TMultiMap<FStableShaderKeyA
 // for example, if they come from two different vertex factories, we return false because that situation cannot occur
 bool CouldBeUsedTogether(const FStableShaderKeyAndValue& A, const FStableShaderKeyAndValue& B)
 {
+	// if the shaders belong to the same FShaderPipeline, they can be used to together, otherwise they never match
+	if ((A.PipelineHash != FSHAHash()) || (B.PipelineHash != FSHAHash()))
+	{
+		if (A.PipelineHash != B.PipelineHash)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
 	static FName NAME_FDeferredDecalVS("FDeferredDecalVS");
 	static FName NAME_FWriteToSliceVS("FWriteToSliceVS");
 	static FName NAME_FPostProcessVS("FPostProcessVS");
+	static FName NAME_FWriteToSliceGS("FWriteToSliceGS");
 	if (
 		A.ShaderType == NAME_FDeferredDecalVS || B.ShaderType == NAME_FDeferredDecalVS ||
 		A.ShaderType == NAME_FWriteToSliceVS || B.ShaderType == NAME_FWriteToSliceVS ||
-		A.ShaderType == NAME_FPostProcessVS || B.ShaderType == NAME_FPostProcessVS
+		A.ShaderType == NAME_FPostProcessVS || B.ShaderType == NAME_FPostProcessVS ||
+		A.ShaderType == NAME_FWriteToSliceGS || B.ShaderType == NAME_FWriteToSliceGS
 		)
 	{
 		// oddball mix and match with any material shader.

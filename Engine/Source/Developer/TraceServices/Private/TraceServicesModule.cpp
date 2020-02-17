@@ -2,7 +2,6 @@
 
 #include "Modules/ModuleManager.h"
 #include "TraceServices/ITraceServicesModule.h"
-#include "SessionServicePrivate.h"
 #include "AnalysisServicePrivate.h"
 #include "ModuleServicePrivate.h"
 #include "Features/IModularFeatures.h"
@@ -17,10 +16,8 @@ class FTraceServicesModule
 	: public ITraceServicesModule
 {
 public:
-	virtual TSharedPtr<Trace::ISessionService> GetSessionService() override;
 	virtual TSharedPtr<Trace::IAnalysisService> GetAnalysisService() override;
 	virtual TSharedPtr<Trace::IModuleService> GetModuleService() override;
-	virtual TSharedPtr<Trace::ISessionService> CreateSessionService(const TCHAR*) override;
 	virtual TSharedPtr<Trace::IAnalysisService> CreateAnalysisService() override;
 	virtual TSharedPtr<Trace::IModuleService> CreateModuleService() override;
 
@@ -28,7 +25,6 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	TSharedPtr<Trace::FSessionService> SessionService;
 	TSharedPtr<Trace::FAnalysisService> AnalysisService;
 	TSharedPtr<Trace::FModuleService> ModuleService;
 
@@ -39,16 +35,6 @@ private:
 	Trace::FCountersModule CountersModule;
 	Trace::FNetProfilerModule NetProfilerModule;
 };
-
-TSharedPtr<Trace::ISessionService> FTraceServicesModule::GetSessionService()
-{
-	if (!SessionService.IsValid())
-	{
-		GetModuleService();
-		SessionService = MakeShared<Trace::FSessionService>(*ModuleService.Get(), *AnalysisService.Get());
-	}
-	return SessionService;
-}
 
 TSharedPtr<Trace::IAnalysisService> FTraceServicesModule::GetAnalysisService()
 {
@@ -67,14 +53,6 @@ TSharedPtr<Trace::IModuleService> FTraceServicesModule::GetModuleService()
 		ModuleService = MakeShared<Trace::FModuleService>();
 	}
 	return ModuleService;
-}
-
-TSharedPtr<Trace::ISessionService> FTraceServicesModule::CreateSessionService(const TCHAR* SessionDirectory)
-{
-	checkf(!SessionService.IsValid(), TEXT("A SessionService already exists."));
-	GetModuleService();
-	SessionService = MakeShared<Trace::FSessionService>(*ModuleService.Get(), *AnalysisService.Get(), SessionDirectory);
-	return SessionService;
 }
 
 TSharedPtr<Trace::IAnalysisService> FTraceServicesModule::CreateAnalysisService()
@@ -116,7 +94,6 @@ void FTraceServicesModule::ShutdownModule()
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &TimingProfilerModule);
 
 	AnalysisService.Reset();
-	SessionService.Reset();
 	ModuleService.Reset();
 }
 

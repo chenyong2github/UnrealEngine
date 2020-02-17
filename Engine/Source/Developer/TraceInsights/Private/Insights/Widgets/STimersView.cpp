@@ -17,6 +17,7 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
@@ -825,11 +826,11 @@ void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNodePtr)
 			bool bSameFilter = false;
 
 			const TSharedPtr<ITimingEventFilter> EventFilterPtr = TimingView->GetEventFilter();
-			if (EventFilterPtr.IsValid())
+			if (EventFilterPtr.IsValid() &&
+				EventFilterPtr->Is<FTimingEventFilterByEventType>())
 			{
-				const FTimingEventFilter& EventFilter = static_cast<const FTimingEventFilter&>(*EventFilterPtr);
-				if (EventFilter.IsFilteringByEventType() &&
-					EventFilter.GetEventType() == TimerNodePtr->GetId())
+				const FTimingEventFilterByEventType& EventFilter = EventFilterPtr->As<FTimingEventFilterByEventType>();
+				if (EventFilter.GetEventType() == TimerNodePtr->GetId())
 				{
 					bSameFilter = true;
 					TimingView->SetEventFilter(nullptr); // reset filter
@@ -838,9 +839,7 @@ void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNodePtr)
 
 			if (!bSameFilter)
 			{
-				TSharedRef<FTimingEventFilter> EventFilterRef = MakeShared<FTimingEventFilter>();
-				EventFilterRef->SetFilterByEventType(true);
-				EventFilterRef->SetEventType(TimerNodePtr->GetId());
+				TSharedRef<FTimingEventFilterByEventType> EventFilterRef = MakeShared<FTimingEventFilterByEventType>(TimerNodePtr->GetId());
 				TimingView->SetEventFilter(EventFilterRef); // set new filter
 			}
 		}
@@ -1601,6 +1600,10 @@ void STimersView::RebuildTree(bool bResync)
 
 void STimersView::UpdateStats(double StartTime, double EndTime)
 {
+	FStopwatch AggregationStopwatch;
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	StatsStartTime = StartTime;
 	StatsEndTime = EndTime;
 
@@ -1629,11 +1632,13 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 
 		TUniquePtr<Trace::ITable<Trace::FTimingProfilerAggregatedStats>> AggregationResultTable;
 
+		AggregationStopwatch.Start();
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
 			AggregationResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, ThreadFilter, bIsGpuTrackVisible));
 		}
+		AggregationStopwatch.Stop();
 
 		if (AggregationResultTable.IsValid())
 		{
@@ -1666,6 +1671,9 @@ void STimersView::UpdateStats(double StartTime, double EndTime)
 	{
 		TreeView->RequestScrollIntoView(SelectedNodes[0]);
 	}
+
+	Stopwatch.Stop();
+	UE_LOG(TimingProfiler, Log, TEXT("Timers updated in %.3fs (%.3fs)"), Stopwatch.GetAccumulatedTime(), AggregationStopwatch.GetAccumulatedTime());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -10,6 +10,7 @@
 #include "SNiagaraOverviewGraph.h"
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
+#include "SNiagaraScratchPad.h"
 
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -185,6 +186,11 @@ TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::C
 TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const
 {
 	return SNew(SNiagaraStackIssueIcon, &StackViewModel, &StackEntry);
+}
+
+TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateScriptScratchPad(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const
+{
+	return SNew(SNiagaraScratchPad, &ScriptScratchPadViewModel);
 }
 
 FLinearColor FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::GetColorForExecutionCategory(FName ExecutionCategory) const

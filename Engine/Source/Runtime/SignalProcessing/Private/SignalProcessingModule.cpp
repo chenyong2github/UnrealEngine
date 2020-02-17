@@ -2,16 +2,46 @@
 
 #include "SignalProcessingModule.h"
 #include "Modules/ModuleManager.h"
+#include "Features/IModularFeatures.h"
+#include "DSP/FFTAlgorithm.h"
+#include "DSP/ConvolutionAlgorithm.h"
+#include "DSP/AudioFFT.h"
+#include "VectorFFT.h"
+#include "UniformPartitionConvolution.h"
 
-class FSignalProcessingModule : public IModuleInterface
+namespace Audio
 {
-public:
-
-	virtual void StartupModule() override
+	class FSignalProcessingModule : public IModuleInterface
 	{
-	}
-};
+		FAudioFFTAlgorithmFactory AudioFFTAlgorithmFactory;
+		FVectorFFTFactory VectorFFTAlgorithmFactory;
+
+		FUniformPartitionConvolutionFactory UniformPartitionConvolutionFactory;
+
+	public:
+
+		virtual void StartupModule() override
+		{
+			// FFT factories to register
+			IModularFeatures::Get().RegisterModularFeature(IFFTAlgorithmFactory::GetModularFeatureName(), &AudioFFTAlgorithmFactory);
+			IModularFeatures::Get().RegisterModularFeature(IFFTAlgorithmFactory::GetModularFeatureName(), &VectorFFTAlgorithmFactory);
+
+			// Convolution factories to register
+			IModularFeatures::Get().RegisterModularFeature(IConvolutionAlgorithmFactory::GetModularFeatureName(), &UniformPartitionConvolutionFactory);
+		}
+
+		virtual void ShutdownModule() override
+		{
+			// FFT Factories to unregister
+			IModularFeatures::Get().UnregisterModularFeature(IFFTAlgorithmFactory::GetModularFeatureName(), &AudioFFTAlgorithmFactory);
+			IModularFeatures::Get().UnregisterModularFeature(IFFTAlgorithmFactory::GetModularFeatureName(), &VectorFFTAlgorithmFactory);
+
+			// Convolution factories to unregister
+			IModularFeatures::Get().UnregisterModularFeature(IConvolutionAlgorithmFactory::GetModularFeatureName(), &UniformPartitionConvolutionFactory);
+		}
+	};
+}
 
 DEFINE_LOG_CATEGORY(LogSignalProcessing);
 
-IMPLEMENT_MODULE(FSignalProcessingModule, SignalProcessing);
+IMPLEMENT_MODULE(Audio::FSignalProcessingModule, SignalProcessing);

@@ -56,6 +56,8 @@ void UAudioMixerBlueprintLibrary::AddMasterSubmixEffect(const UObject* WorldCont
 
 		FSoundEffectSubmixInitData InitData;
 		InitData.SampleRate = MixerDevice->GetSampleRate();
+		InitData.DeviceID = MixerDevice->DeviceID;
+		InitData.PresetSettings = nullptr;
 
 		// Initialize and set the preset immediately
 		SoundEffectSubmix->Init(InitData);
@@ -102,7 +104,7 @@ void UAudioMixerBlueprintLibrary::StartRecordingOutput(const UObject* WorldConte
 	}
 	else
 	{
-		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature. Please run the game with -audiomixer to enable this feature."));
+		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature."));
 	}
 }
 
@@ -160,7 +162,7 @@ USoundWave* UAudioMixerBlueprintLibrary::StopRecordingOutput(const UObject* Worl
 	}
 	else
 	{
-		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature. Please run the game with -audiomixer to enable this feature."));
+		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature."));
 	}
 
 	return nullptr;
@@ -174,7 +176,7 @@ void UAudioMixerBlueprintLibrary::PauseRecordingOutput(const UObject* WorldConte
 	}
 	else
 	{
-		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature. Please run the game with -audiomixer to enable this feature."));
+		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature."));
 	}
 }
 
@@ -186,7 +188,7 @@ void UAudioMixerBlueprintLibrary::ResumeRecordingOutput(const UObject* WorldCont
 	}
 	else
 	{
-		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature. Please run the game with -audiomixer to enable this feature."));
+		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature."));
 	}
 }
 
@@ -200,7 +202,7 @@ void UAudioMixerBlueprintLibrary::StartAnalyzingOutput(const UObject* WorldConte
 	}
 	else
 	{
-		UE_LOG(LogAudioMixer, Error, TEXT("Spectrum Analysis is an audio mixer only feature. Please run the game with -audiomixer to enable this feature."));
+		UE_LOG(LogAudioMixer, Error, TEXT("Spectrum Analysis is an audio mixer only feature."));
 	}
 }
 
@@ -212,7 +214,7 @@ void UAudioMixerBlueprintLibrary::StopAnalyzingOutput(const UObject* WorldContex
 	}
 	else
 	{
-		UE_LOG(LogAudioMixer, Error, TEXT("Spectrum Analysis is an audio mixer only feature. Please run the game with -audiomixer to enable this feature."));
+		UE_LOG(LogAudioMixer, Error, TEXT("Spectrum Analysis is an audio mixer only feature."));
 	}
 }
 
@@ -224,7 +226,7 @@ void UAudioMixerBlueprintLibrary::GetMagnitudeForFrequencies(const UObject* Worl
 	}
 	else
 	{
-		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature. Please run the game with -audiomixer to enable this feature."));
+		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature."));
 	}
 }
 
@@ -236,7 +238,7 @@ void UAudioMixerBlueprintLibrary::GetPhaseForFrequencies(const UObject* WorldCon
 	}
 	else
 	{
-		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature. Please run the game with -audiomixer to enable this feature."));
+		UE_LOG(LogAudioMixer, Error, TEXT("Output recording is an audio mixer only feature."));
 	}
 }
 
@@ -389,6 +391,47 @@ float UAudioMixerBlueprintLibrary::TrimAudioCache(float InMegabytesToFree)
 	uint64 NumBytesToFree = (uint64) (((double)InMegabytesToFree) * 1024.0 * 1024.0);
 	uint64 NumBytesFreed = IStreamingManager::Get().GetAudioStreamingManager().TrimMemory(NumBytesToFree);
 	return (float)(((double) NumBytesFreed / 1024) / 1024.0);
+}
+
+void UAudioMixerBlueprintLibrary::StartAudioBus(const UObject* WorldContextObject, UAudioBus* AudioBus)
+{
+	if (Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject))
+	{
+		uint32 AudioBusId = AudioBus->GetUniqueID();
+		int32 NumChannels = (int32)AudioBus->AudioBusChannels + 1;
+		MixerDevice->StartAudioBus(AudioBusId, NumChannels, false);
+	}
+	else
+	{
+		UE_LOG(LogAudioMixer, Error, TEXT("Audio buses are an audio mixer only feature. Please run the game with audio mixer enabled for this feature."));
+	}
+}
+
+void UAudioMixerBlueprintLibrary::StopAudioBus(const UObject* WorldContextObject, UAudioBus* AudioBus)
+{
+	if (Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject))
+	{
+		uint32 AudioBusId = AudioBus->GetUniqueID();
+		MixerDevice->StopAudioBus(AudioBusId);
+	}
+	else
+	{
+		UE_LOG(LogAudioMixer, Error, TEXT("Audio buses are an audio mixer only feature. Please run the game with audio mixer enabled for this feature."));
+	}
+}
+
+bool UAudioMixerBlueprintLibrary::IsAudioBusActive(const UObject* WorldContextObject, UAudioBus* AudioBus)
+{
+	if (Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject))
+	{
+		uint32 AudioBusId = AudioBus->GetUniqueID();
+		return MixerDevice->IsAudioBusActive(AudioBusId);
+	}
+	else
+	{
+		UE_LOG(LogAudioMixer, Error, TEXT("Audio buses are an audio mixer only feature. Please run the game with audio mixer enabled for this feature."));
+		return false;
+	}
 }
 
 void UAudioMixerBlueprintLibrary::PopulateSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, Audio::FSpectrumAnalyzerSettings &OutSettings)

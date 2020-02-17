@@ -140,7 +140,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDSKEL_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -152,7 +152,7 @@ private:
 
     // override SchemaBase virtuals.
     USDSKEL_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // --------------------------------------------------------------------- //
@@ -162,12 +162,15 @@ public:
     /// up the skeleton, and their order. Each token in the array must be valid
     /// when parsed as an SdfPath. The parent-child relationships of the
     /// corresponding paths determine the parent-child relationships of each
-    /// joint.
+    /// joint. It is not required that the name at the end of each path be
+    /// unique, but rather only that the paths themselves be unique.
     ///
-    /// \n  C++ Type: VtArray<TfToken>
-    /// \n  Usd Type: SdfValueTypeNames->TokenArray
-    /// \n  Variability: SdfVariabilityUniform
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform token[] joints` |
+    /// | C++ Type | VtArray<TfToken> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->TokenArray |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
     USDSKEL_API
     UsdAttribute GetJointsAttr() const;
 
@@ -181,15 +184,42 @@ public:
 
 public:
     // --------------------------------------------------------------------- //
+    // JOINTNAMES 
+    // --------------------------------------------------------------------- //
+    /// If authored, provides a unique name per joint. This may be
+    /// optionally set to provide better names when translating to DCC apps 
+    /// that require unique joint names.
+    ///
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform token[] jointNames` |
+    /// | C++ Type | VtArray<TfToken> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->TokenArray |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
+    USDSKEL_API
+    UsdAttribute GetJointNamesAttr() const;
+
+    /// See GetJointNamesAttr(), and also 
+    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
+    /// If specified, author \p defaultValue as the attribute's default,
+    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
+    /// the default for \p writeSparsely is \c false.
+    USDSKEL_API
+    UsdAttribute CreateJointNamesAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
+
+public:
+    // --------------------------------------------------------------------- //
     // BINDTRANSFORMS 
     // --------------------------------------------------------------------- //
     /// Specifies the bind-pose transforms of each joint in
     /// **world space**, in the ordering imposed by *joints*.
     ///
-    /// \n  C++ Type: VtArray<GfMatrix4d>
-    /// \n  Usd Type: SdfValueTypeNames->Matrix4dArray
-    /// \n  Variability: SdfVariabilityUniform
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform matrix4d[] bindTransforms` |
+    /// | C++ Type | VtArray<GfMatrix4d> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Matrix4dArray |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
     USDSKEL_API
     UsdAttribute GetBindTransformsAttr() const;
 
@@ -211,10 +241,12 @@ public:
     /// bound animation source, or when that animation source only contains
     /// animation for a subset of a Skeleton's joints.
     ///
-    /// \n  C++ Type: VtArray<GfMatrix4d>
-    /// \n  Usd Type: SdfValueTypeNames->Matrix4dArray
-    /// \n  Variability: SdfVariabilityUniform
-    /// \n  Fallback Value: No Fallback
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform matrix4d[] restTransforms` |
+    /// | C++ Type | VtArray<GfMatrix4d> |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Matrix4dArray |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
     USDSKEL_API
     UsdAttribute GetRestTransformsAttr() const;
 

@@ -9,8 +9,11 @@ struct FRedirectorRefs;
 class FAssetFixUpRedirectors : public TSharedFromThis<FAssetFixUpRedirectors>
 {
 public:
-	/** Fix up references to the specified redirectors */
-	void FixupReferencers(const TArray<UObjectRedirector*>& Objects) const;
+	/**
+	 * Fix up references to the specified redirectors.
+	 * @param bCheckoutDialogPrompt indicates whether to prompt the user with files checkout dialog or silently attempt to checkout all necessary files.
+	 */
+	void FixupReferencers(const TArray<UObjectRedirector*>& Objects, bool bCheckoutDialogPrompt = true) const;
 
 	/** Returns whether redirectors are being fixed up. */
 	bool IsFixupReferencersInProgress() const { return bIsFixupReferencersInProgress; }
@@ -18,7 +21,7 @@ public:
 private:
 
 	/** The core code of the fixup operation */
-	void ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects) const;
+	void ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects, bool bCheckoutDialogPrompt) const;
 
 	/** Fills out the Referencing packages for all the redirectors described in AssetsToPopulate */
 	void PopulateRedirectorReferencers(TArray<FRedirectorRefs>& RedirectorsToPopulate) const;
@@ -33,11 +36,11 @@ private:
 	void LoadReferencingPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& OutReferencingPackagesToSave) const;
 
 	/** 
-	  * Prompts to check out referencing packages and marks assets whose referencing packages were not checked out to not fix the redirector.
+	  * Check out referencing packages and marks assets whose referencing packages were not checked out to not fix the redirector.
 	  * Trims PackagesToSave when necessary.
 	  * Returns true if the user opted to continue the operation or no dialog was required.
 	  */
-	bool CheckOutReferencingPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& InOutReferencingPackagesToSave) const;
+	bool CheckOutReferencingPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& InOutReferencingPackagesToSave, bool bCheckoutDialogPrompt) const;
 
 	/** Finds any read only packages and removes them from the save list. Redirectors referenced by these packages will not be fixed up. */ 
 	void DetectReadOnlyPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& InOutReferencingPackagesToSave) const;

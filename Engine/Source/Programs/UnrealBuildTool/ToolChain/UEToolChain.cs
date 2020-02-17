@@ -78,6 +78,11 @@ namespace UnrealBuildTool
 		{
 		}
 
+		public virtual void PrepareRuntimeDependencies( List<RuntimeDependency> RuntimeDependencies, Dictionary<FileReference, FileReference> TargetFileToSourceFile, DirectoryReference ExeDir )
+		{
+			
+		}
+
 		/// <summary>
 		/// Adds a build product and its associated debug file to a receipt.
 		/// </summary>
@@ -118,8 +123,7 @@ namespace UnrealBuildTool
 		{
 			List<string> ISPCTargets = new List<string>();
 
-			if (Platform == UnrealTargetPlatform.Win32 ||
-				Platform == UnrealTargetPlatform.Win64 ||
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) ||
 				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxAArch64) ||
 				Platform == UnrealTargetPlatform.Mac)
 			{
@@ -157,7 +161,7 @@ namespace UnrealBuildTool
 		{
 			string ISPCOS = "";
 
-			if (Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64)
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows))
 			{
 				ISPCOS += "windows";
 			}
@@ -191,7 +195,7 @@ namespace UnrealBuildTool
 		{
 			string ISPCArch = "";
 
-			if (Platform == UnrealTargetPlatform.Win64 ||
+			if ((UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) && Platform != UnrealTargetPlatform.Win32) ||
 				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxAArch64) ||
 				Platform == UnrealTargetPlatform.Mac)
 			{
@@ -235,7 +239,7 @@ namespace UnrealBuildTool
 			string ISPCArchitecturePath = "";
 			string ExeExtension = ".exe";
 
-			if (Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32)
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows))
 			{
 				ISPCArchitecturePath = "Windows";
 			}
@@ -266,8 +270,7 @@ namespace UnrealBuildTool
 		{
 			string Suffix = "";
 
-			if (Platform == UnrealTargetPlatform.Win64 ||
-				Platform == UnrealTargetPlatform.Win32)
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows))
 			{
 				Suffix += ".obj";
 			}
@@ -346,8 +349,7 @@ namespace UnrealBuildTool
 				// PIC is needed for modular builds except on Windows
 				if ((CompileEnvironment.bIsBuildingDLL ||
 					CompileEnvironment.bIsBuildingLibrary) &&
-					(CompileEnvironment.Platform != UnrealTargetPlatform.Win32 &&
-					CompileEnvironment.Platform != UnrealTargetPlatform.Win64))
+					!UEBuildPlatform.IsPlatformInGroup(CompileEnvironment.Platform, UnrealPlatformGroup.Windows))
 				{
 					Arguments.Add("--pic");
 				}
@@ -532,8 +534,7 @@ namespace UnrealBuildTool
 				// PIC is needed for modular builds except on Windows
 				if ((CompileEnvironment.bIsBuildingDLL || 
 					CompileEnvironment.bIsBuildingLibrary) &&
-					(CompileEnvironment.Platform != UnrealTargetPlatform.Win32 &&
-					CompileEnvironment.Platform != UnrealTargetPlatform.Win64))
+					!UEBuildPlatform.IsPlatformInGroup(CompileEnvironment.Platform, UnrealPlatformGroup.Windows))
 				{
 					Arguments.Add("--pic");
 				}

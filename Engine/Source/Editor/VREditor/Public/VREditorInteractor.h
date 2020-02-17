@@ -60,6 +60,12 @@ public:
 		return *VRMode;
 	}
 
+	/** Gets the key-to-action map (const) */
+	const TMap<FKey, FViewportActionKeyInput>& GetKeyToActionMap() const
+	{
+		return KeyToActionMap;
+	}
+
 	/** Initialize default values */
 	UFUNCTION( BlueprintNativeEvent, CallInEditor, Category = "UVREditorInteractor" )
 	void Init( class UVREditorMode* InVRMode );
@@ -102,6 +108,10 @@ public:
 	/** Sets the EControllerHand for this motioncontroller */
 	UFUNCTION( BlueprintCallable, Category = "UVREditorInteractor" )
 	void SetControllerHandSide( const FName InControllerHandSide );
+
+	/** Sets the EControllerHand for this motioncontroller */
+	UFUNCTION( BlueprintCallable, Category = "UVREditorInteractor" )
+	FName GetControllerHandSide() const;
 
 	/** Returns the slide delta for pushing and pulling objects. Needs to be implemented by derived classes (e.g. touchpad for vive controller or scrollweel for mouse ) */
 	UFUNCTION( CallInEditor, BlueprintNativeEvent, Category = "UVREditorInteractor" )

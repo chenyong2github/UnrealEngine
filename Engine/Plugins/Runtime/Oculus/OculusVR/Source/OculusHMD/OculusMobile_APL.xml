@@ -146,6 +146,10 @@
     		<log text="Copying libOVRPlugin.so"/>
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/armeabi-v7a/libOVRPlugin.so"
             			dst="$S(BuildDir)/libs/armeabi-v7a/libOVRPlugin.so" />
+
+			<log text="Copying libOVRMrcLib.so"/>
+			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/armeabi-v7a/libOVRMrcLib.so"
+            			dst="$S(BuildDir)/libs/armeabi-v7a/libOVRMrcLib.so" />
 		</isArch>
         
         <isArch arch="arm64-v8a">
@@ -156,6 +160,10 @@
     		<log text="Copying libOVRPlugin.so"/>
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/arm64-v8a/libOVRPlugin.so"
             			dst="$S(BuildDir)/libs/arm64-v8a/libOVRPlugin.so" />
+
+			<log text="Copying libOVRMrcLib.so"/>
+			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/Lib/arm64-v8a/libOVRMrcLib.so"
+            			dst="$S(BuildDir)/libs/arm64-v8a/libOVRMrcLib.so" />
 		</isArch>
 
 		<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/VrApi.jar"

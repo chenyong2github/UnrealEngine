@@ -396,7 +396,7 @@ FScreenPassTexture AddGaussianBlurPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("GaussianBlur.%s %dx%d (CS)", Name, OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(OutputViewport.Rect.Size(), FIntPoint(GFilterComputeTileSizeX, GFilterComputeTileSizeY)));
 	}
@@ -424,13 +424,13 @@ FScreenPassTexture AddGaussianBlurPass(
 				View,
 				OutputViewport,
 				FScreenPassTextureViewport(Filter),
-				FScreenPassPipelineState(*VertexShader, *PixelShader),
+				FScreenPassPipelineState(VertexShader, PixelShader),
 				EScreenPassDrawFlags::None,
 				PassParameters,
 				[VertexShader, PixelShader, PassParameters] (FRHICommandListImmediate& RHICmdList)
 			{
-				SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), PassParameters->Filter);
-				SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->Filter);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 			});
 		}
 		else
@@ -441,7 +441,7 @@ FScreenPassTexture AddGaussianBlurPass(
 				View,
 				OutputViewport,
 				FScreenPassTextureViewport(Filter),
-				*PixelShader,
+				PixelShader,
 				PassParameters);
 		}
 	}

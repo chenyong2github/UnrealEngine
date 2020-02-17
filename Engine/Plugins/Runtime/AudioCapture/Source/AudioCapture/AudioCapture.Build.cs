@@ -16,16 +16,14 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 ||
-                Target.Platform == UnrealTargetPlatform.Win64 ||
-				Target.Platform == UnrealTargetPlatform.Mac   ||
-                Target.Platform == UnrealTargetPlatform.XboxOne)
+            if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
+				Target.Platform == UnrealTargetPlatform.Mac)
             {
                 PrivateDependencyModuleNames.Add("AudioCaptureRtAudio");
             }
             else if (Target.Platform == UnrealTargetPlatform.PS4)
             {
-                PrivateDependencyModuleNames.Add("AudioCapturePS4Voice");
+                PrivateDependencyModuleNames.Add("AudioCaptureSony");
             }
             else if (Target.Platform == UnrealTargetPlatform.IOS)
             {

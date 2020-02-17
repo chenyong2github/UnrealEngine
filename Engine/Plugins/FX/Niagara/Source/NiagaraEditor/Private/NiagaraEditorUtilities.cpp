@@ -52,6 +52,10 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "UObject/TextProperty.h"
+#include "Editor/EditorEngine.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Styling/CoreStyle.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -364,9 +368,9 @@ bool FNiagaraEditorUtilities::PODPropertyAppendCompileHash(const void* Container
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(FInt16Property::StaticClass()))
+	else if (Property->IsA(FUInt16Property::StaticClass()))
 	{
-		FInt16Property* CastProp = CastFieldChecked<FInt16Property>(Property);
+		FUInt16Property* CastProp = CastFieldChecked<FUInt16Property>(Property);
 		uint16 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
@@ -814,6 +818,14 @@ bool FNiagaraEditorUtilities::DataMatches(const FStructOnScope& StructOnScopeA, 
 	return FMemory::Memcmp(StructOnScopeA.GetStructMemory(), StructOnScopeB.GetStructMemory(), StructOnScopeA.GetStruct()->GetStructureSize()) == 0;
 }
 
+void FNiagaraEditorUtilities::CopyDataTo(FStructOnScope& DestinationStructOnScope, const FStructOnScope& SourceStructOnScope, bool bCheckTypes)
+{
+	checkf(DestinationStructOnScope.GetStruct()->GetStructureSize() == SourceStructOnScope.GetStruct()->GetStructureSize() &&
+		(bCheckTypes == false || DestinationStructOnScope.GetStruct() == SourceStructOnScope.GetStruct()),
+		TEXT("Can not copy data from one struct to another if their size is different or if the type is different and type checking is enabled."));
+	FMemory::Memcpy(DestinationStructOnScope.GetStructMemory(), SourceStructOnScope.GetStructMemory(), SourceStructOnScope.GetStruct()->GetStructureSize());
+}
+
 TSharedPtr<SWidget> FNiagaraEditorUtilities::CreateInlineErrorText(TAttribute<FText> ErrorMessage, TAttribute<FText> ErrorTooltip)
 {
 	TSharedPtr<SHorizontalBox> ErrorInternalBox = SNew(SHorizontalBox);
@@ -1067,6 +1079,36 @@ bool FNiagaraEditorUtilities::ResolveConstantValue(UEdGraphPin* Pin, int32& Valu
 		return Value != INDEX_NONE;
 	}
 	return false;
+}
+
+TSharedPtr<FStructOnScope> FNiagaraEditorUtilities::StaticSwitchDefaultIntToStructOnScope(int32 InStaticSwitchDefaultValue, FNiagaraTypeDefinition InSwitchType)
+{
+	if (InSwitchType == FNiagaraTypeDefinition::GetBoolDef())
+	{
+		checkf(FNiagaraBool::StaticStruct()->GetStructureSize() == InSwitchType.GetSize(), TEXT("Value to type def size mismatch."));
+
+		FNiagaraBool BoolValue;
+		BoolValue.SetValue(InStaticSwitchDefaultValue != 0);
+
+		TSharedPtr<FStructOnScope> StructValue = MakeShared<FStructOnScope>(InSwitchType.GetStruct());
+		FMemory::Memcpy(StructValue->GetStructMemory(), (uint8*)(&BoolValue), InSwitchType.GetSize());
+
+		return StructValue;
+	}
+	else if (InSwitchType == FNiagaraTypeDefinition::GetIntDef() || InSwitchType.IsEnum())
+	{
+		checkf(FNiagaraInt32::StaticStruct()->GetStructureSize() == InSwitchType.GetSize(), TEXT("Value to type def size mismatch."));
+
+		FNiagaraInt32 IntValue;
+		IntValue.Value = InStaticSwitchDefaultValue;
+
+		TSharedPtr<FStructOnScope> StructValue = MakeShared<FStructOnScope>(InSwitchType.GetStruct());
+		FMemory::Memcpy(StructValue->GetStructMemory(), (uint8*)(&IntValue), InSwitchType.GetSize());
+
+		return StructValue;
+	}
+
+	return TSharedPtr<FStructOnScope>();
 }
 
 /* Go through the graph and attempt to auto-detect the type of any numeric pins by working back from the leaves of the graph. Only change the types of pins, not FNiagaraVariables.*/
@@ -1361,11 +1403,52 @@ const FNiagaraEmitterHandle* FNiagaraEditorUtilities::GetEmitterHandleForEmitter
 		[&Emitter](const FNiagaraEmitterHandle& EmitterHandle) { return EmitterHandle.GetInstance() == &Emitter; });
 }
 
-FText FNiagaraEditorUtilities::FormatScriptAssetDescription(FText Description, FName Path)
+bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAssetData)
 {
+	bool bIsInLibrary;
+	bool bIsLibraryTagFound = ScriptAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExposeToLibrary), bIsInLibrary);
+	if (bIsLibraryTagFound == false)
+	{
+		if (ScriptAssetData.IsAssetLoaded())
+		{
+			UNiagaraScript* Script = static_cast<UNiagaraScript*>(ScriptAssetData.GetAsset());
+			if (Script != nullptr)
+			{
+				bIsInLibrary = Script->bExposeToLibrary;
+			}
+		}
+		else
+		{
+			bIsInLibrary = false;
+		}
+	}
+	return bIsInLibrary;
+}
+
+NIAGARAEDITOR_API FText FNiagaraEditorUtilities::FormatScriptName(FName Name, bool bIsInLibrary)
+{
+	return FText::FromString(FName::NameToDisplayString(Name.ToString(), false) + (bIsInLibrary ? TEXT("") : TEXT("*")));
+}
+
+FText FNiagaraEditorUtilities::FormatScriptDescription(FText Description, FName Path, bool bIsInLibrary)
+{
+	FText LibrarySuffix = bIsInLibrary
+		? LOCTEXT("LibrarySuffix", "\n* Script is not exposed to the library.")
+		: FText();
+
 	return Description.IsEmptyOrWhitespace()
-		? FText::Format(LOCTEXT("ScriptAssetDescriptionFormatPathOnly", "Path: {0}"), FText::FromName(Path))
-		: FText::Format(LOCTEXT("ScriptAssetDescriptionFormat", "Description: {1}\nPath: {0}"), FText::FromName(Path), Description);
+		? FText::Format(LOCTEXT("ScriptAssetDescriptionFormatPathOnly", "Path: {0}{1}"), FText::FromName(Path), LibrarySuffix)
+		: FText::Format(LOCTEXT("ScriptAssetDescriptionFormat", "{1}\nPath: {0}{2}"), FText::FromName(Path), Description, LibrarySuffix);
+}
+
+FText FNiagaraEditorUtilities::FormatVariableDescription(FText Description, FText Name, FText Type)
+{
+	if (Description.IsEmptyOrWhitespace() == false)
+	{
+		return FText::Format(LOCTEXT("VariableDescriptionFormat", "{0}\nName: \"{1}\"\nType: {2}"), Description, Name, Type);
+	}
+
+	return FText::Format(LOCTEXT("VariableDescriptionFormat_NoDesc", "Name: \"{0}\"\nType: {1}"), Name, Type);
 }
 
 void FNiagaraEditorUtilities::ResetSystemsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel)
@@ -1556,7 +1639,7 @@ bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariabl
 	bool bSuccess = TargetParameterStore.AddParameter(NewParameterVariable);
 	if (bSuccess)
 	{
-		StackEditorData.SetModuleInputIsRenamePending(NewParameterVariable.GetName().ToString(), true);
+		StackEditorData.SetStackEntryIsRenamePending(NewParameterVariable.GetName().ToString(), true);
 	}
 	return bSuccess;
 }
@@ -1565,6 +1648,15 @@ void FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser(TSharedRef<FNiag
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 	ContentBrowserModule.Get().SyncBrowserToAssets(TArray<FAssetData> { FAssetData(Emitter->GetParentEmitter()) });
+}
+
+void FNiagaraEditorUtilities::OpenParentEmitterForEdit(TSharedRef<FNiagaraEmitterViewModel> Emitter)
+{
+	UNiagaraEmitter* ParentEmitter = const_cast<UNiagaraEmitter*>(Emitter->GetParentEmitter());
+	if (ParentEmitter != nullptr)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentEmitter);
+	}
 }
 
 ECheckBoxState FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
@@ -1743,11 +1835,10 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 		TSharedRef<FNiagaraSystemViewModel> OwningSystemViewModel = EmitterHandleViewModel->GetOwningSystemViewModel();
 
 		bool bSingleSelection = OwningSystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() == 1;
-
+		TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel->GetEmitterViewModel();
 		MenuBuilder.BeginSection("EmitterActions", LOCTEXT("EmitterActions", "Emitter Actions"));
 		{
-			TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel->GetEmitterViewModel();
-
+		
 			if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 			{
 				MenuBuilder.AddMenuEntry(
@@ -1775,46 +1866,7 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 					NAME_None,
 					EUserInterfaceActionType::ToggleButton
 				);
-
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("RenameEmitter", "Rename Emitter"),
-					LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(EmitterHandleViewModel, &FNiagaraEmitterHandleViewModel::SetIsRenamePending, true)
-					)
-				);
 			}
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
-				LOCTEXT("RemoveParentEmitterToolTip", "Remove this emitter's parent, preventing inheritance of any further changes."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
-					FCanExecuteAction::CreateLambda(
-						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
-						{
-							return bSingleSelection && bHasParent;
-						}
-					)
-				)
-			);
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ShowEmitterInContentBrowser", "Show in Content Browser"),
-				LOCTEXT("ShowEmitterInContentBrowserToolTip", "Show the selected emitter in the Content Browser."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
-					FCanExecuteAction::CreateLambda(
-						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
-						{
-							return bSingleSelection && bHasParent;
-						}
-					)
-				)
-			);
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("CreateAssetFromThisEmitter", "Create Asset From This"),
@@ -1831,12 +1883,89 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 				)
 			);
 		}
+
+		MenuBuilder.EndSection();
+		MenuBuilder.BeginSection("EmitterActions", LOCTEXT("ParentActions", "Parent Actions"));
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("UpdateParentEmitter", "Update Parent Emitter"),
+				LOCTEXT("UpdateParentEmitterToolTip", "Change or add a parent emitter."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::CreateNewParentWindow, EmitterHandleViewModel),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection]()
+						{
+							return bSingleSelection;
+						}
+					)
+				)
+			);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
+			LOCTEXT("RemoveParentEmitterToolTip", "Remove this emitter's parent, preventing inheritance of any further changes."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
+				FCanExecuteAction::CreateLambda(
+					[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+					{
+						return bSingleSelection && bHasParent;
+					}
+				)
+			)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenParentEmitterForEdit", "Open Parent For Edit"),
+			LOCTEXT("OpenParentEmitterForEditToolTip", "Open and Focus Parent Emitter."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::OpenParentEmitterForEdit, EmitterViewModel),
+				FCanExecuteAction::CreateLambda(
+					[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+		{
+			return bSingleSelection && bHasParent;
+		}
+		)
+			)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowParentEmitterInContentBrowser", "Show Parent in Content Browser"),
+			LOCTEXT("ShowParentEmitterInContentBrowserToolTip", "Show the selected emitter's parent emitter in the Content Browser."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
+				FCanExecuteAction::CreateLambda(
+					[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+					{
+						return bSingleSelection && bHasParent;
+					}
+				)
+			)
+		);
+
+	
+		}
 		MenuBuilder.EndSection();
 
 		return true;
 	}
 
 	return false;
+}
+
+void FNiagaraEditorUtilities::WarnWithToastAndLog(FText WarningMessage)
+{
+	FNotificationInfo WarningNotification(WarningMessage);
+	WarningNotification.ExpireDuration = 5.0f;
+	WarningNotification.bFireAndForget = true;
+	WarningNotification.bUseLargeFont = false;
+	WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+	FSlateNotificationManager::Get().AddNotification(WarningNotification);
+	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
 }
 
 #undef LOCTEXT_NAMESPACE

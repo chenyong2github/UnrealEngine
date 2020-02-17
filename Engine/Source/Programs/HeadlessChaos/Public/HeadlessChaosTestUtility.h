@@ -19,7 +19,7 @@
 
 namespace Chaos
 {
-	template<class T, int d> class TPBDRigidsEvolutionGBF;
+	class FPBDRigidsEvolutionGBF;
 	template <typename T, int d> class TPBDRigidsSOAs;
 }
 
@@ -45,21 +45,21 @@ namespace ChaosTest {
 	template<class T>
 	int32 AppendAnalyticSphere(TPBDRigidParticles<T, 3> & InParticles, T Scale = (T)1);
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendAnalyticSphere2(TPBDRigidsEvolutionGBF<T, 3>& Evolution, T Scale = (T)1);
+	TPBDRigidParticleHandle<T, 3>* AppendAnalyticSphere2(FPBDRigidsEvolutionGBF& Evolution, T Scale = (T)1);
 
 	/**/
 	template<class T>
 	int32 AppendAnalyticBox(TPBDRigidParticles<T, 3>& InParticles, TVector<T, 3> Scale = TVector<T, 3>(1));
 	template<class T>
-	TKinematicGeometryParticleHandle<T, 3>* AppendKinematicAnalyticBox2(TPBDRigidsEvolutionGBF<T, 3>& Evolution, TVector<T, 3> Scale = TVector<T, 3>(1));
+	TKinematicGeometryParticleHandle<T, 3>* AppendKinematicAnalyticBox2(FPBDRigidsEvolutionGBF& Evolution, TVector<T, 3> Scale = TVector<T, 3>(1));
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicAnalyticBox2(TPBDRigidsEvolutionGBF<T, 3>& Evolution, TVector<T, 3> Scale = TVector<T, 3>(1));
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicAnalyticBox2(FPBDRigidsEvolutionGBF& Evolution, TVector<T, 3> Scale = TVector<T, 3>(1));
 
 	/**/
 	template<class T>
 	int32 AppendParticleBox(TPBDRigidParticles<T, 3>& InParticles, TVector<T, 3> Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsEvolutionGBF<T, 3>& Evolution, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(FPBDRigidsEvolutionGBF& Evolution, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
@@ -77,7 +77,7 @@ namespace ChaosTest {
 	TGeometryParticleHandle<T, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(TPBDRigidsEvolutionGBF<T, 3>& Evolution, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(FPBDRigidsEvolutionGBF& Evolution, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
@@ -86,7 +86,7 @@ namespace ChaosTest {
 	template<class T>
 	int32 AppendStaticAnalyticFloor(TPBDRigidParticles<T, 3>& InParticles);
 	template<class T>
-	TKinematicGeometryParticleHandle<T, 3>* AppendStaticAnalyticFloor(TPBDRigidsEvolutionGBF<T, 3>& Evolution);
+	TKinematicGeometryParticleHandle<T, 3>* AppendStaticAnalyticFloor(FPBDRigidsEvolutionGBF& Evolution);
 
 	template<class T>
 	TKinematicGeometryParticleHandle<T, 3>* AppendStaticAnalyticFloor(TPBDRigidsSOAs<T, 3>& SOAs);

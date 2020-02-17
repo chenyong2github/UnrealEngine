@@ -110,7 +110,7 @@ public:
 
 	/** Sets how much audio the sound should send to the given submix. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSubmixSend(USoundSubmix* Submix, float SendLevel);
+	void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
 
 	/** Auto destroy this component on completion */
 	UPROPERTY()
@@ -158,7 +158,7 @@ public:
 
 	/** Submix this sound belongs to */
 	UPROPERTY(EditAnywhere, Category = Effects)
-	USoundSubmix* SoundSubmix;
+	USoundSubmixBase* SoundSubmix;
 
 	/** An array of submix sends. Audio from this sound will send a portion of its audio to these effects.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)

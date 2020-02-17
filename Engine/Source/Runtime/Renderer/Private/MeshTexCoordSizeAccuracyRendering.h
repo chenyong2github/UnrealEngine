@@ -31,7 +31,7 @@ public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		return AllowDebugViewShaderMode(DVSM_MeshUVDensityAccuracy, Parameters.Platform, Parameters.Material->GetFeatureLevel()) && Parameters.Material->GetFriendlyName().Contains(TEXT("MeshTexCoordSizeAccuracy"));
+		return AllowDebugViewShaderMode(DVSM_MeshUVDensityAccuracy, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel) && Parameters.MaterialParameters.bIsMaterialMeshTexCoordSizeAccuracy;
 	}
 
 	FMeshTexCoordSizeAccuracyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -44,21 +44,24 @@ public:
 
 	FMeshTexCoordSizeAccuracyPS() {}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		Ar << CPUTexelFactorParameter;
-		Ar << PrimitiveAlphaParameter;
-		Ar << TexCoordAnalysisIndexParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("UNDEFINED_ACCURACY"), UndefinedStreamingAccuracyIntensity);
 	}
 
+	LAYOUT_FIELD(FShaderParameter, CPUTexelFactorParameter);
+	LAYOUT_FIELD(FShaderParameter, PrimitiveAlphaParameter);
+	LAYOUT_FIELD(FShaderParameter, TexCoordAnalysisIndexParameter);
+};
+
+class FMeshTexCoordSizeAccuracyInterface : public FDebugViewModeInterface
+{
+public:
+	FMeshTexCoordSizeAccuracyInterface() : FDebugViewModeInterface(TEXT("MeshTexCoordSizeAccuracy"), false, false, false) {}
+	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override { return InMaterial->GetShader<FMeshTexCoordSizeAccuracyPS>(VertexFactoryType); }
+
 	virtual void GetDebugViewModeShaderBindings(
+		const FDebugViewModePS& BaseShader,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT Material,
@@ -72,20 +75,6 @@ public:
 		FName ViewModeParamName,
 		FMeshDrawSingleShaderBindings& ShaderBindings
 	) const override;
-
-private:
-
-	FShaderParameter CPUTexelFactorParameter;
-	FShaderParameter PrimitiveAlphaParameter;
-	FShaderParameter TexCoordAnalysisIndexParameter;
-};
-
-class FMeshTexCoordSizeAccuracyInterface : public FDebugViewModeInterface
-{
-public:
-
-	FMeshTexCoordSizeAccuracyInterface() : FDebugViewModeInterface(TEXT("MeshTexCoordSizeAccuracy"), false, false, false) {}
-	virtual FDebugViewModePS* GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override { return InMaterial->GetShader<FMeshTexCoordSizeAccuracyPS>(VertexFactoryType); }
 };
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

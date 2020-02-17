@@ -21,8 +21,8 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef SDR_DECLARE_H
-#define SDR_DECLARE_H
+#ifndef PXR_USD_SDR_DECLARE_H
+#define PXR_USD_SDR_DECLARE_H
 
 /// \file sdr/declare.h
 
@@ -54,4 +54,4 @@ typedef std::unordered_map<TfToken, SdrShaderPropertyConstPtr,
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // SDR_DECLARE_H
+#endif // PXR_USD_SDR_DECLARE_H

@@ -98,10 +98,6 @@ void FAnimNode_HandIKRetargeting::EvaluateSkeletalControl_AnyThread(FComponentSp
 
 #if ANIM_TRACE_ENABLED
 	TRACE_ANIM_NODE_VALUE(Output, TEXT("Hand FK Weight"), HandFKWeight);
-	for (int32 BoneIndex = 0; BoneIndex < IKBonesToMove.Num(); BoneIndex++)
-	{
-		TRACE_ANIM_NODE_VALUE(Output, *FString::Printf(TEXT("Bone %d"), BoneIndex), IKBonesToMove[BoneIndex].BoneName);
-	}
 #endif
 }
 

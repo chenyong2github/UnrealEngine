@@ -5,6 +5,7 @@
 #include "AudioMixer.h"
 #include "Lumin/CAPIShims/LuminAPI.h"
 #include "FakeDeviceCallbackRunnable.h"
+#include "Lumin/CAPIShims/LuminAPIAudio.h"
 
 // Any platform defines
 namespace Audio
@@ -49,6 +50,7 @@ namespace Audio
 		virtual int32 GetNumFrames(const int32 InNumReqestedFrames) override;
 
 		void DeviceStandby();
+		void DevicePausedStandby();
 		void DeviceActive();
 
 	private:
@@ -60,13 +62,14 @@ namespace Audio
 		bool bInitialized;
 		bool bInCallback;
 
-		FFakeDeviceCallbackRunnable FakeCallback;
+		FCriticalSection CallbackCriticalSection;
+		FCriticalSection SuspendedCriticalSection;
 
 #if WITH_MLSDK
 		MLHandle StreamHandle;
-		FCriticalSection StreamHandleCriticalSection;
 		// Static callback used for MLAudio:
 		static void MLAudioCallback(MLHandle Handle, void* CallbackContext);
+		static void MLAudioEventImplCallback(MLHandle Handle, MLAudioEvent Event, void* CallbackContext);
 #endif //WITH_MLSDK
 	};
 

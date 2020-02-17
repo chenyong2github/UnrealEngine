@@ -1435,6 +1435,13 @@ struct FPostProcessSettings
 	UPROPERTY()
 	float AutoExposureBiasBackup;
 
+	/**
+	 * With the auto exposure changes, we are also changing the auto exposure override value, so we are storing 
+	 * that backup as well.
+	 */
+	UPROPERTY()
+	uint8 bOverride_AutoExposureBiasBackup : 1;
+
 	/** Enables physical camera exposure using ShutterSpeed/ISO/Aperture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens|Exposure", meta = (editcondition = "bOverride_AutoExposureApplyPhysicalCameraExposure", DisplayName = "Apply Physical Camera Exposure", tooltip = "Only affects Manual exposure mode."))
 	uint32 AutoExposureApplyPhysicalCameraExposure : 1;

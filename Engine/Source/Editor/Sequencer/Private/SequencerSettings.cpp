@@ -28,7 +28,6 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	CurveValueSnapInterval = 0.1f;
 	GridSpacing = TOptional<float>();
 	bSnapCurveValueToInterval = true;
-	bLabelBrowserVisible = false;
 	bShowSelectedNodesOnly = false;
 	bRewindOnRecord = true;
 	ZoomPosition = ESequencerZoomPosition::SZP_CurrentTime;
@@ -354,20 +353,6 @@ void USequencerSettings::SetSnapCurveValueToInterval( bool InbSnapCurveValueToIn
 	if ( bSnapCurveValueToInterval != InbSnapCurveValueToInterval )
 	{
 		bSnapCurveValueToInterval = InbSnapCurveValueToInterval;
-		SaveConfig();
-	}
-}
-
-bool USequencerSettings::GetLabelBrowserVisible() const
-{
-	return bLabelBrowserVisible;
-}
-
-void USequencerSettings::SetLabelBrowserVisible(bool Visible)
-{
-	if (bLabelBrowserVisible != Visible)
-	{
-		bLabelBrowserVisible = Visible;
 		SaveConfig();
 	}
 }

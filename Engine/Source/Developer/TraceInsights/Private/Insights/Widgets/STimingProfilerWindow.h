@@ -14,6 +14,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/IUnrealInsightsModule.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -27,21 +28,6 @@ class STimersView;
 class STimerTreeView;
 class STimingView;
 class SVerticalBox;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct FTimingProfilerTabs
-{
-	// Tab identifiers
-	static const FName ToolbarID;
-	static const FName FramesTrackID;
-	static const FName TimingViewID;
-	static const FName TimersID;
-	static const FName CallersID;
-	static const FName CalleesID;
-	static const FName StatsCountersID;
-	static const FName LogViewID;
-};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -202,4 +188,7 @@ private:
 
 	/** The number of seconds the profiler has been active */
 	float DurationActive;
+
+	/** Tab specific slate extender structure, has the lifetime of this widget */
+	TSharedPtr<FInsightsMajorTabExtender> Extension;
 };

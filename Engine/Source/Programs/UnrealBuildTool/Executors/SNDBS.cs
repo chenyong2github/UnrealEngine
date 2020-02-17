@@ -181,7 +181,7 @@ namespace UnrealBuildTool
 			int NumScriptedActions = 0;
 			List<Action> LocalActions = new List<Action>();
 			ActionThread DummyActionThread = new ActionThread(null, 1, 1);
-			bool PrintDebugInfo = false;
+			bool PrintDebugInfo = true;
 			foreach (Action Action in InActions)
 			{
 				ActionThread ActionProcess = null;
@@ -262,7 +262,7 @@ namespace UnrealBuildTool
 							}
 
 							// Add to script for execution by SN-DBS
-							string NewCommandArguments = "\"" + Action.CommandPath + "\"" + " " + AdditionalStubIncludes + " " + Action.CommandArguments;
+							string NewCommandArguments = "\"" + Action.CommandPath + "\"" + " " + Action.CommandArguments + " " + AdditionalStubIncludes;
 							ScriptFile.WriteLine(NewCommandArguments);
 							InActionThreadDictionary.Add(Action, DummyActionThread);
 							Action.StartTime = Action.EndTime = DateTimeOffset.Now;
@@ -294,7 +294,7 @@ namespace UnrealBuildTool
 				DirectoryReference TemplatesDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Programs", "UnrealBuildTool", "SndbsTemplates");
 				string IncludeRewriteRulesArg = String.Format("--include-rewrite-rules \"{0}\"", IncludeRewriteRulesFile.FullName);
 				string VerbosityLevel = PrintDebugInfo ? "-v" : "-q";
-                ProcessStartInfo PSI = new ProcessStartInfo(SNDBSExecutable, String.Format("{0} -p UE4 -s \"{1}\" -templates \"{2}\" {3}", VerbosityLevel, FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "sndbs.bat").FullName, TemplatesDir.FullName, IncludeRewriteRulesArg));
+                ProcessStartInfo PSI = new ProcessStartInfo(SNDBSExecutable, String.Format("{0} -p UE4Code -s \"{1}\" -templates \"{2}\" {3}", VerbosityLevel, FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "sndbs.bat").FullName, TemplatesDir.FullName, IncludeRewriteRulesArg));
 				PSI.RedirectStandardOutput = true;
 				PSI.RedirectStandardError = true;
 				PSI.UseShellExecute = false;
@@ -539,9 +539,14 @@ namespace UnrealBuildTool
 				IncludeRewriteRulesText.Add(String.Format("expansions2={0}", String.Join("|", PlatformExpansions)));
 			}
 			{
-				IncludeRewriteRulesText.Add(@"pattern3=ULANG_STRINGIFY\(\s*(\S*)ULANG_PLATFORM/ULANG_PLATFORM(\S*)\s*\)");
-				IEnumerable<string> PlatformExpansions = PlatformNames.Select(p => String.Format("$1{0}/{0}$2", p));
+				IncludeRewriteRulesText.Add(@"pattern3=^[A-Z]{5}_PLATFORM_HEADER_NAME\(\s*([^ ,]+)\)");
+				IEnumerable<string> PlatformExpansions = PlatformNames.Select(p => String.Format("{0}/{0}$1|{0}$1", p));
 				IncludeRewriteRulesText.Add(String.Format("expansions3={0}", String.Join("|", PlatformExpansions)));
+			}
+			{
+				IncludeRewriteRulesText.Add(@"pattern4=^[A-Z]{5}_PLATFORM_HEADER_NAME_WITH_PREFIX\(\s*([^ ,]+)\s*,\s*([^ ,]+)\)");
+				IEnumerable<string> PlatformExpansions = PlatformNames.Select(p => String.Format("$1/{0}/{0}$2|$1/{0}$2", p));
+				IncludeRewriteRulesText.Add(String.Format("expansions4={0}", String.Join("|", PlatformExpansions)));
 			}
 
 			File.WriteAllText(IncludeRewriteRulesFile.FullName, String.Join(Environment.NewLine, IncludeRewriteRulesText));

@@ -176,7 +176,7 @@ void FWmfMediaPlayer::TickFetch(FTimespan /*DeltaTime*/, FTimespan /*Timecode*/)
 	if (TrackSelectionChanged)
 	{
 		// less than windows 10, seem to be a problem switching stream. The issue is also present when hardware acceleration is enabled.
-		if (!FWindowsPlatformMisc::VerifyWindowsVersion(10, 0) /* Anything < Windows 10.0 */ || GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding)
+		if (!FPlatformMisc::VerifyWindowsVersion(10, 0) /* Anything < Windows 10.0 */ || GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding)
 		{
 			const auto Settings = GetDefault<UWmfMediaSettings>();
 			check(Settings != nullptr);

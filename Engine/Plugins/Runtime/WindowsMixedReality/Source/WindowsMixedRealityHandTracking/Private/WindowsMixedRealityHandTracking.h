@@ -29,6 +29,7 @@ public:
 		FHandState();
 
 		FTransform KeypointTransforms[EWMRHandKeypointCount];
+		float Radii[EWMRHandKeypointCount];
 		bool ReceivedJointPoses = false;
 
 		bool GetTransform(EWMRHandKeypoint KeyPoint, FTransform& OutTransform) const;
@@ -69,6 +70,7 @@ public:
 	bool IsHandTrackingStateValid() const;
 
 	bool GetKeypointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& OutTransform) const;
+	bool GetKeypointRadius(EControllerHand Hand, EWMRHandKeypoint Keypoint, float& OutRadius) const;
 
 	/** Parses the enum name removing the prefix */
 	static FName ParseEWMRHandKeypointEnumName(FName EnumName)

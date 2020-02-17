@@ -6,9 +6,6 @@
 #include "QRCodeObserver.h"
 #include "FastConversion.h"
 
-#include <wrl/client.h>
-#include <wrl/wrappers/corewrappers.h>
-
 #include <WindowsNumerics.h>
 #include <windows.foundation.numerics.h>
 #include <ppltasks.h>
@@ -114,45 +111,46 @@ static void CopyQRCodeDataManually(QRCodeData* code, Guid InId, int32 InVersion,
 		}
 	}
 
-	XMMATRIX ConvertTransform = XMMatrixIdentity();
-
 	if (LastCoordinateSystem != nullptr)
 	{
 		Windows::Perception::Spatial::SpatialCoordinateSystem^ qrCoordinateSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(InId);
-		auto CodeTransform = qrCoordinateSystem->TryGetTransformTo(LastCoordinateSystem);
-		if (CodeTransform != nullptr)
+		if (qrCoordinateSystem != nullptr)
 		{
-			XMMATRIX ConvertTransform = XMLoadFloat4x4(&CodeTransform->Value);
+			auto CodeTransform = qrCoordinateSystem->TryGetTransformTo(LastCoordinateSystem);
+			if (CodeTransform != nullptr)
+			{
+				XMMATRIX ConvertTransform = XMLoadFloat4x4(&CodeTransform->Value);
+
+				DirectX::XMVECTOR r;
+				DirectX::XMVECTOR t;
+				DirectX::XMVECTOR s;
+				DirectX::XMMatrixDecompose(&s, &r, &t, ConvertTransform);
+
+				DirectX::XMFLOAT3 Translation = ToUE4Translation(t);
+				DirectX::XMFLOAT4 Rotation = ToUE4Quat(r);
+				code->Translation[0] = Translation.x;
+				code->Translation[1] = Translation.y;
+				code->Translation[2] = Translation.z;
+				code->Rotation[0] = Rotation.x;
+				code->Rotation[1] = Rotation.y;
+				code->Rotation[2] = Rotation.z;
+				code->Rotation[3] = Rotation.w;
+			}
 		}
 	}
-
-	XMVECTOR TransformScale;
-	XMVECTOR TransformRot;
-	XMVECTOR TransformTrans;
-	XMMatrixDecompose(&TransformScale, &TransformRot, &TransformTrans, ConvertTransform);
-
-	XMFLOAT3 Translation = ToUE4Translation(TransformTrans);
-	XMFLOAT4 Rotation = ToUE4Quat(TransformRot);
-	code->Translation[0] = Translation.x;
-	code->Translation[1] = Translation.y;
-	code->Translation[2] = Translation.z;
-	code->Rotation[0] = Rotation.x;
-	code->Rotation[1] = Rotation.y;
-	code->Rotation[2] = Rotation.z;
-	code->Rotation[3] = Rotation.w;
 }
 
 #pragma warning(disable:4691)
 
 // Why are all of these *EventArgs different even though they seem to have the same data?
-void QRCodeUpdateObserver::OnAdded(QRCodesTrackerPlugin::QRCodeAddedEventArgs ^args)
+void QRCodeUpdateObserver::OnAdded(QRCodeWatcher ^sender, QRCodeAddedEventArgs^ args)
 {
 	if ((args != nullptr) && (args->Code != nullptr))
 	{
 		QRCodeData* code = new QRCodeData;
 		if (code != nullptr)
 		{
-			CopyQRCodeDataManually(code, args->Code->Id, args->Code->Version, args->Code->PhysicalSizeMeters, args->Code->LastDetectedQPCTicks, args->Code->Code->Length(), args->Code->Code);
+			CopyQRCodeDataManually(code, args->Code->SpatialGraphNodeId, (int)args->Code->Version, args->Code->PhysicalSideLength, args->Code->LastDetectedTime.UniversalTime, args->Code->Data->Length(), args->Code->Data);
 			ObserverInstance->OnAddedQRCode(code);
 			if (code->Data != nullptr)
 			{
@@ -163,14 +161,14 @@ void QRCodeUpdateObserver::OnAdded(QRCodesTrackerPlugin::QRCodeAddedEventArgs ^a
 	}
 }
 
-void QRCodeUpdateObserver::OnUpdated(QRCodesTrackerPlugin::QRCodeUpdatedEventArgs ^args)
+void QRCodeUpdateObserver::OnUpdated(QRCodeWatcher ^sender, QRCodeUpdatedEventArgs^ args)
 {
 	if ((args != nullptr) && (args->Code != nullptr))
 	{
 		QRCodeData* code = new QRCodeData;
 		if (code != nullptr)
 		{
-			CopyQRCodeDataManually(code, args->Code->Id, args->Code->Version, args->Code->PhysicalSizeMeters, args->Code->LastDetectedQPCTicks, args->Code->Code->Length(), args->Code->Code);
+			CopyQRCodeDataManually(code, args->Code->SpatialGraphNodeId, (int)args->Code->Version, args->Code->PhysicalSideLength, args->Code->LastDetectedTime.UniversalTime, args->Code->Data->Length(), args->Code->Data);
 			ObserverInstance->OnUpdatedQRCode(code);
 			if (code->Data != nullptr)
 			{
@@ -181,14 +179,14 @@ void QRCodeUpdateObserver::OnUpdated(QRCodesTrackerPlugin::QRCodeUpdatedEventArg
 	}
 }
 
-void QRCodeUpdateObserver::OnRemoved(QRCodesTrackerPlugin::QRCodeRemovedEventArgs ^args)
+void QRCodeUpdateObserver::OnRemoved(QRCodeWatcher ^sender, QRCodeRemovedEventArgs^ args)
 {
 	if ((args != nullptr) && (args->Code != nullptr))
 	{
 		QRCodeData* code = new QRCodeData;
 		if (code != nullptr)
 		{
-			CopyQRCodeDataManually(code, args->Code->Id, args->Code->Version, args->Code->PhysicalSizeMeters, args->Code->LastDetectedQPCTicks, args->Code->Code->Length(), args->Code->Code);
+			CopyQRCodeDataManually(code, args->Code->SpatialGraphNodeId, (int)args->Code->Version, args->Code->PhysicalSideLength, args->Code->LastDetectedTime.UniversalTime, args->Code->Data->Length(), args->Code->Data);
 			ObserverInstance->OnRemovedQRCode(code);
 			if (code->Data != nullptr)
 			{
@@ -226,23 +224,26 @@ void QRCodeUpdateObserver::StartQRCodeObserver(void(*AddedFunctionPointer)(QRCod
 	// Create the tracker and register the callbacks
 	if (QRTrackerInstance == nullptr)
 	{
-		QRTrackerInstance = ref new QRCodesTrackerPlugin::QRTracker();
-		OnAddedEventToken = QRTrackerInstance->Added += ref new QRCodesTrackerPlugin::QRCodeAddedHandler(&OnAdded);
-		OnUpdatedEventToken = QRTrackerInstance->Updated += ref new QRCodesTrackerPlugin::QRCodeUpdatedHandler(&OnUpdated);
-		OnRemovedEventToken = QRTrackerInstance->Removed += ref new QRCodesTrackerPlugin::QRCodeRemovedHandler(&OnRemoved);
-
-		// Start the tracker
-		QRCodesTrackerPlugin::QRTrackerStartResult ret = QRTrackerInstance->Start();
-		if (ret != QRCodesTrackerPlugin::QRTrackerStartResult::Success)
+		if (QRCodeWatcher::IsSupported())
 		{
-			{ std::wstringstream string; string << L"QRCodesTrackerPlugin failed to start! Aborting with error code " << static_cast<int32>(ret); Log(string); }
-			QRTrackerInstance->Stop();
-			QRTrackerInstance = nullptr;
+			auto RequestTask = concurrency::create_task(QRCodeWatcher::RequestAccessAsync());
+			RequestTask.then([this](QRCodeWatcherAccessStatus AccessStatus)
+			{
+				if (AccessStatus == QRCodeWatcherAccessStatus::Allowed)
+				{
+					QRTrackerInstance = ref new QRCodeWatcher();
+					OnAddedEventToken = QRTrackerInstance->Added += ref new TypedEventHandler<QRCodeWatcher^, QRCodeAddedEventArgs^>(&OnAdded);
+					OnUpdatedEventToken = QRTrackerInstance->Updated += ref new TypedEventHandler<QRCodeWatcher^, QRCodeUpdatedEventArgs^>(&OnUpdated);
+					OnRemovedEventToken = QRTrackerInstance->Removed += ref new TypedEventHandler<QRCodeWatcher^, QRCodeRemovedEventArgs^>(&OnRemoved);
 
-			return;
+					// Start the tracker
+					QRTrackerInstance->Start();
+					Log(L"Interop: StartQRCodeObserver() success!");
+				}
+
+				Log(L"Interop: StartQRCodeObserver() Access Denied!");
+			});
 		}
-
-		Log(L"Interop: StartQRCodeObserver() success!");
 	}
 	else
 	{

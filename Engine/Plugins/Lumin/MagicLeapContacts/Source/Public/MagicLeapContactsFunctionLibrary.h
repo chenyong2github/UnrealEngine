@@ -25,54 +25,57 @@ public:
 		Initiates the creation of a new contact.
 		@param Contact The contact to be created.
 		@param ResultDelegate The delegate to be notified upon creation of the contact.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts Function Library | MagicLeap")
-	static FGuid AddContactAsync(const FMagicLeapContact& Contact, const FSingleContactResultDelegate& ResultDelegate);
+	static FGuid AddContactAsync(const FMagicLeapContact& Contact, const FMagicLeapSingleContactResultDelegate& ResultDelegate);
 
 	/**
 		Initiates the update of an existing contact.
 		@param Contact The contact to be updated.
 		@param ResultDelegate The delegate to be notified upon update of the contact.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts Function Library | MagicLeap")
-	static FGuid EditContactAsync(const FMagicLeapContact& Contact, const FSingleContactResultDelegate& ResultDelegate);
+	static FGuid EditContactAsync(const FMagicLeapContact& Contact, const FMagicLeapSingleContactResultDelegate& ResultDelegate);
 
 	/** 
 		Initiates the deletion of an existing contact.
 		@param Contact The contact to be deleted.
 		@param ResultDelegate The delegate to be notified upon deletion of the contact.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts Function Library | MagicLeap")
-	static FGuid DeleteContactAsync(const FMagicLeapContact& Contact, const FSingleContactResultDelegate& ResultDelegate);
+	static FGuid DeleteContactAsync(const FMagicLeapContact& Contact, const FMagicLeapSingleContactResultDelegate& ResultDelegate);
 
 	/** 
 		Initiates the retrieval of the entire contacts list from the cloud.
+		@param MaxNumResults The maximum number of results to return.
 		@param ResultDelegate The delegate to be notified once the contacts list has been retrieved from the cloud.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts Function Library | MagicLeap")
-	static FGuid RequestContactsAsync(const FMultipleContactsResultDelegate& ResultDelegate);
+	static FGuid RequestContactsAsync(const FMagicLeapMultipleContactsResultDelegate& ResultDelegate, int32 MaxNumResults);
+
+
+	/**
+		Pops up a dialog allowing the user to manually select the contacts they wish to query.
+		@param MaxNumResults The maximum number of contacts to display (values greater than number of contacts will result in an invalid param error).
+		@param SearchField Specifies which field(s) to retrieve for each selected contact.
+		@return A unique identifier for this request.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Contacts | MagicLeap")
+	static FGuid SelectContactsAsync(const FMagicLeapMultipleContactsResultDelegate& ResultDelegate, int32 MaxNumResults, EMagicLeapContactsSearchField SearchField);
 
 	/**
 		Initiates a search for contacts with a given query across specified fields.
 		@param Query The search string to look for instances of.
 		@param SearchField The field within the contact to match the query against.
 		@param ResultDelegate The delegate to be notified upon completion of the query.
-		@return A unique identifier for this request (required if request needs to be cancelled).
+		@return A unique identifier for this request.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts Function Library | MagicLeap")
-	static FGuid SearchContactsAsync(const FString& Query, EMagicLeapContactsSearchField SearchField, const FMultipleContactsResultDelegate& ResultDelegate);
-
-	/**
-		Cancels a request corresponding to the FGuid.
-		@param RequestHandle The unique identifier of the request (returned by all contact request functions).
-		@return True if the cancellation succeeded, false otherwise.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Contacts Function Library | MagicLeap")
-	static bool CancelRequest(const FGuid& RequestHandle);
+	static FGuid SearchContactsAsync(const FString& Query, EMagicLeapContactsSearchField SearchField, const FMagicLeapMultipleContactsResultDelegate& ResultDelegate);
 
 	/**
 		Sets the delegate by which the system can pass log messages back to the calling blueprint.
@@ -80,5 +83,5 @@ public:
 		@return True if the call succeeds, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Contacts Function Library | MagicLeap")
-	static bool SetLogDelegate(const FContactsLogMessage& LogDelegate);
+	static bool SetLogDelegate(const FMagicLeapContactsLogMessage& LogDelegate);
 };

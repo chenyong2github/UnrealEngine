@@ -42,6 +42,10 @@ void SNiagaraScriptGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagar
 	GraphTitle = InArgs._GraphTitle;
 
 	GraphEditor = ConstructGraphEditor();
+	if (InArgs._ZoomToFitOnLoad)
+	{
+		GraphEditor->ZoomToFit(false);
+	}
 
 	ChildSlot
 	[
@@ -202,6 +206,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 
 	// Set a niagara node factory.
 	CreatedGraphEditor->SetNodeFactory(MakeShareable(new FNiagaraNodeFactory()));
+	CreatedGraphEditor->ZoomToFit(false);
 
 	return CreatedGraphEditor;
 }

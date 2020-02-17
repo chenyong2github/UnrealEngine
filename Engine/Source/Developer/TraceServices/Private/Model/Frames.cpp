@@ -114,6 +114,11 @@ void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 void FFrameProvider::EndFrame(ETraceFrameType FrameType, double Time)
 {
 	Session.WriteAccessCheck();
+	// If the EndFrame event is the first event that comes through
+	if (Frames[FrameType].Num() == 0)
+	{
+		return;
+	}
 	FFrame& Frame = Frames[FrameType][Frames[FrameType].Num() - 1];
 	Frame.EndTime = Time;
 	Session.UpdateDurationSeconds(Time);

@@ -164,6 +164,7 @@ public:
 	FORCEINLINE UNiagaraComponent *GetComponent() { return Component; }
 	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters() { return Emitters; }
 	FORCEINLINE const TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> >& GetEmitters() const { return Emitters; }
+	FORCEINLINE const TArray<int32>& GetEmitterExecutionOrder() const { return EmitterExecutionOrder; }
 	FORCEINLINE const FBox& GetLocalBounds() { return LocalBounds;  }
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
@@ -195,7 +196,7 @@ public:
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 
 	{
-		if (int32* InstDataOffset = DataInterfaceInstanceDataOffsets.Find(Interface))
+		if (int32* InstDataOffset = DataInterfaceInstanceDataOffsets.Find(MakeWeakObjectPtr(const_cast<UNiagaraDataInterface*>(Interface))))
 		{
 			return &DataInterfaceInstanceData[*InstDataOffset];
 		}
@@ -264,8 +265,6 @@ public:
 	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }*/
 	bool HasGPUEmitters() { return bHasGPUEmitters;  }
 
-	int32 GetDetailLevel()const;
-
 	FORCEINLINE void BeginAsyncWork()
 	{
 		bAsyncWorkInProgress = true;
@@ -311,6 +310,15 @@ private:
 
 	/** Calculates which tick group the instance should be in. */
 	ETickingGroup CalculateTickGroup();
+
+	/** Computes emitter priorities based on the dependency information. */
+	bool ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph);
+
+	/** Queries all the data interfaces in the array for emitter dependencies. */
+	void FindDataInterfaceDependencies(const TArray<UNiagaraDataInterface*>& DataInterfaces, TArray<FNiagaraEmitterInstance*>& Dependencies);
+
+	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
+	void ComputeEmittersExecutionOrder();
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;
@@ -424,6 +432,9 @@ private:
 	ENiagaraExecutionState ActualExecutionState;
 
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+
+	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
+	TArray<int32> EmitterExecutionOrder;
 
 public:
 	// Transient data that is accumulated during tick.

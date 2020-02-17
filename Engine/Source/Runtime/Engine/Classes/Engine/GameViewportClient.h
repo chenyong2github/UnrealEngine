@@ -35,6 +35,8 @@ class UNetDriver;
 
 /** Delegate for overriding the behavior when a navigation action is taken, Not to be confused with FNavigationDelegate which allows a specific widget to override behavior for itself */
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FCustomNavigationHandler, const uint32, TSharedPtr<SWidget>);
+DECLARE_MULTICAST_DELEGATE_SevenParams(FOnInputAxisSignature, FViewport* /*InViewport*/, int32 /*ControllerId*/, FKey /*Key*/, float /*Delta*/, float /*DeltaTime*/, int32 /*NumSamples*/, bool /*bGamepad*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputKeySignature, const FInputKeyEventArgs& /*EventArgs*/);
 
 /**
  * A game viewport (FViewport) is a high-level abstract interface for the
@@ -576,6 +578,18 @@ public:
 		return CustomNavigationEvent;
 	}
 
+	/** fetches OnInputKeyEvent reference */
+	FOnInputKeySignature& OnInputKey()
+	{
+		return OnInputKeyEvent;
+	}
+
+	/** fetches OnInputAxisEvent reference */
+	FOnInputAxisSignature& OnInputAxis()
+	{
+		return OnInputAxisEvent;
+	}
+
 	/** Return the engine show flags for this viewport */
 	virtual FEngineShowFlags* GetEngineShowFlags() override
 	{ 
@@ -592,13 +606,9 @@ public:
 	/** FViewport interface */
 	virtual bool ShouldDPIScaleSceneCanvas() const override { return false; }
 
-#if WITH_EDITOR
-	void SetPlayInEditorUseMouseForTouch(bool bUseMouseForTouch);
-#endif
+	bool GetUseMouseForTouch() const;
 
 protected:
-
-	bool GetUseMouseForTouch() const;
 	void SetCurrentBufferVisualizationMode(FName NewBufferVisualizationMode) { CurrentBufferVisualizationMode = NewBufferVisualizationMode; }
 	FName GetCurrentBufferVisualizationMode() const { return CurrentBufferVisualizationMode; }
 	bool HasAudioFocus() const { return bHasAudioFocus; }
@@ -961,6 +971,12 @@ private:
 
 	/** Delegate for custom navigation behavior */
 	FCustomNavigationHandler CustomNavigationEvent;
+
+	/** A broadcast delegate broadcasting from UGameViewportClient::InputKey */
+	FOnInputKeySignature OnInputKeyEvent;
+
+	/** A broadcast delegate broadcasting from UGameViewportClient::InputAxis */
+	FOnInputAxisSignature OnInputAxisEvent;
 
 	/** Data needed to display perframe stat tracking when STAT UNIT is enabled */
 	FStatUnitData* StatUnitData;

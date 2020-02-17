@@ -2,6 +2,30 @@
 
 #include "SplineMeshSceneProxy.h"
 #include "Materials/Material.h"
+#include "MeshMaterialShader.h"
+
+IMPLEMENT_TYPE_LAYOUT(FSplineMeshVertexFactoryShaderParameters);
+
+bool FSplineMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	return (Parameters.MaterialParameters.bIsUsedWithSplineMeshes || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
+		&& FLocalVertexFactory::ShouldCompilePermutation(Parameters);
+}
+
+/** Modify compile environment to enable spline deformation */
+void FSplineMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
+	if (!ContainsManualVertexFetch)
+	{
+		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("0"));
+	}
+
+	// We don't call this because we don't actually support speed tree wind, and this advertises support for that
+	//FLocalVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+
+	OutEnvironment.SetDefine(TEXT("USE_SPLINEDEFORM"), TEXT("1"));
+}
 
 FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) :
 	FStaticMeshSceneProxy(InComponent, false)

@@ -268,6 +268,27 @@ FTextureWithSRV* GBlackTextureWithUAV = new TGlobalResource<FColoredTexture<0,0,
 
 FVertexBufferWithSRV* GEmptyVertexBufferWithUAV = new TGlobalResource<FEmptyVertexBuffer>;
 
+class FWhiteVertexBuffer : public FVertexBufferWithSRV
+{
+public:
+	virtual void InitRHI() override
+	{
+		// Create the texture RHI.  		
+		FRHIResourceCreateInfo CreateInfo(TEXT("WhiteVertexBuffer"));
+
+		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+
+		FVector4* BufferData = (FVector4*)RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FVector4), RLM_WriteOnly);
+		*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		RHIUnlockVertexBuffer(VertexBufferRHI);
+
+		// Create a view of the buffer
+		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F);
+	}
+};
+
+FVertexBufferWithSRV* GWhiteVertexBufferWithSRV = new TGlobalResource<FWhiteVertexBuffer>;
+
 /**
  * Bulk data interface for providing a single black color used to initialize a
  * volume texture.
@@ -1008,27 +1029,27 @@ RENDERCORE_API FVertexDeclarationRHIRef& GetVertexDeclarationFVector2()
 	return GVector2VertexDeclaration.VertexDeclarationRHI;
 }
 
-RENDERCORE_API bool PlatformSupportsSimpleForwardShading(EShaderPlatform Platform)
+RENDERCORE_API bool PlatformSupportsSimpleForwardShading(const FStaticShaderPlatform Platform)
 {
 	static const auto SupportSimpleForwardShadingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportSimpleForwardShading"));
 	// Scalability feature only needed / used on PC
 	return IsPCPlatform(Platform) && SupportSimpleForwardShadingCVar->GetValueOnAnyThread() != 0;
 }
 
-RENDERCORE_API bool IsSimpleForwardShadingEnabled(EShaderPlatform Platform)
+RENDERCORE_API bool IsSimpleForwardShadingEnabled(const FStaticShaderPlatform Platform)
 {
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SimpleForwardShading"));
 	return CVar->GetValueOnAnyThread() != 0 && PlatformSupportsSimpleForwardShading(Platform);
 }
 
-RENDERCORE_API bool MobileSupportsGPUScene(EShaderPlatform Platform)
+RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform)
 {
 	// make it shader platform setting?
 	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));
 	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
 }
 
-RENDERCORE_API bool GPUSceneUseTexture2D(EShaderPlatform Platform)
+RENDERCORE_API bool GPUSceneUseTexture2D(const FStaticShaderPlatform Platform)
 {
 	if (IsMobilePlatform(Platform))
 	{
@@ -1045,7 +1066,21 @@ RENDERCORE_API bool GPUSceneUseTexture2D(EShaderPlatform Platform)
 	return false;
 }
 
-RENDERCORE_API bool AllowPixelDepthOffset(EShaderPlatform Platform)
+RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform)
+{
+	static IConsoleVariable* CVarMobileEarlyZPassOnlyMaterialMasking = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"));
+	static IConsoleVariable* CVarEarlyZPassOnlyMaterialMasking = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPassOnlyMaterialMasking"));
+	if (IsMobilePlatform(Platform))
+	{
+		return (CVarMobileEarlyZPassOnlyMaterialMasking && CVarMobileEarlyZPassOnlyMaterialMasking->GetInt() != 0);
+	}
+	else
+	{
+		return (CVarEarlyZPassOnlyMaterialMasking && CVarEarlyZPassOnlyMaterialMasking->GetInt() != 0);
+	}
+}
+
+RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform)
 {
 	if (IsMobilePlatform(Platform))
 	{
@@ -1084,11 +1119,17 @@ static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlat
 RENDERCORE_API uint64 GBasePassVelocityPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBasePassVelocityPlatformMask must be large enough to support all shader platforms");
 
+RENDERCORE_API uint64 GAnisotropicBRDFPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GAnisotropicBRDFPlatformMask) * 8, "GAnisotropicBRDFPlatformMask must be large enough to support all shader platforms");
+
 RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
 
 RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
+
+RENDERCORE_API uint64 GRayTracingPlaformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GRayTracingPlaformMask) * 8, "GRayTracingPlaformMask must be large enough to support all shader platforms");
 
 RENDERCORE_API void RenderUtilsInit()
 {
@@ -1109,6 +1150,12 @@ RENDERCORE_API void RenderUtilsInit()
 		GBasePassVelocityPlatformMask = ~0ull;
 	}
 
+	static const IConsoleVariable* AnisotropicBRDFCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AnisotropicBRDF"));
+	if (AnisotropicBRDFCVar && AnisotropicBRDFCVar->GetInt())
+	{
+		GAnisotropicBRDFPlatformMask = ~0ull;
+	}
+
 	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
 	if (SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt())
 	{
@@ -1119,6 +1166,12 @@ RENDERCORE_API void RenderUtilsInit()
 	if (DistanceFieldsCVar && DistanceFieldsCVar->GetInt())
 	{
 		GDistanceFieldsPlatformMask = ~0ull;
+	}
+
+	static IConsoleVariable* RayTracingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
+	if (RayTracingCVar && RayTracingCVar->GetInt())
+	{
+		GRayTracingPlaformMask = ~0ull;
 	}
 
 #if WITH_EDITOR
@@ -1161,6 +1214,15 @@ RENDERCORE_API void RenderUtilsInit()
 					GBasePassVelocityPlatformMask &= ~Mask;
 				}
 
+				if (TargetPlatform->UsesAnisotropicBRDF())
+				{
+					GAnisotropicBRDFPlatformMask |= Mask;
+				}
+				else
+				{
+					GAnisotropicBRDFPlatformMask &= ~Mask;
+				}
+
 				if (TargetPlatform->UsesSelectiveBasePassOutputs())
 				{
 					GSelectiveBasePassOutputsPlatformMask |= Mask;
@@ -1177,6 +1239,15 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GDistanceFieldsPlatformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->UsesRayTracing())
+				{
+					GRayTracingPlaformMask |= Mask;
+				}
+				else
+				{
+					GRayTracingPlaformMask &= ~Mask;
 				}
 			}
 		}
@@ -1270,7 +1341,7 @@ RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntP
 	OutBufferSize.Y = (InBufferSize.Y + DividableBy - 1) & Mask;
 }
 
-RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, const ITargetPlatform* TargetPlatform)
+RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel, const ITargetPlatform* TargetPlatform)
 {
 #if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING
 	if (GIsEditor == false)

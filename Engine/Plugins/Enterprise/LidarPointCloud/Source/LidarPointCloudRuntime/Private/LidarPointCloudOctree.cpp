@@ -1699,16 +1699,7 @@ FArchive& operator<<(FArchive& Ar, FLidarPointCloudOctree& O)
 FLidarPointCloudTraversalOctreeNode::FLidarPointCloudTraversalOctreeNode()
 	: DataNode(nullptr)
 	, Parent(nullptr)
-	, Children(nullptr)
 {
-}
-
-FLidarPointCloudTraversalOctreeNode::~FLidarPointCloudTraversalOctreeNode()
-{
-	if (Children)
-	{
-		delete[] Children;
-	}
 }
 
 void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld)
@@ -1717,12 +1708,10 @@ void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudOctreeNode* Node
 	Center = LocalToWorld.TransformPosition(Node->Center);
 	Depth = Node->Depth;
 
-	NumChildren = Node->Children.Num();
-	if (NumChildren > 0)
+	Children.AddZeroed(Node->Children.Num());
+	for (int32 i = 0; i < Children.Num(); i++)
 	{
-		Children = new FLidarPointCloudTraversalOctreeNode[NumChildren];
-
-		for (int32 i = 0; i < NumChildren; i++)
+		if (Node->Children[i])
 		{
 			Children[i].Build(Node->Children[i], LocalToWorld);
 			Children[i].Parent = this;
@@ -1745,11 +1734,11 @@ void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<flo
 	Nodes.Enqueue(this);
 	while (Nodes.Dequeue(CurrentNode))
 	{
-		for (int32 i = 0; i < CurrentNode->NumChildren; i++)
+		for (auto& Child : CurrentNode->Children)
 		{
-			if (CurrentNode->Children[i].bSelected)
+			if (Child.bSelected)
 			{
-				Nodes.Enqueue(&CurrentNode->Children[i]);
+				Nodes.Enqueue(&Child);
 			}
 		}
 
@@ -1757,7 +1746,7 @@ void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<flo
 
 		if (CurrentNode != this && PointSizeBias > 0)
 		{
-			LocalVDFactor /= (CurrentNode->Parent->NumChildren - 1) * PointSizeBias + 1;
+			LocalVDFactor /= (CurrentNode->Parent->Children.Num() - 1) * PointSizeBias + 1;
 		}
 
 		VDFactor += LocalVDFactor;
@@ -1768,11 +1757,11 @@ void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<flo
 	Nodes.Enqueue(this);
 	while (Nodes.Dequeue(CurrentNode))
 	{
-		for (int32 i = 0; i < CurrentNode->NumChildren; i++)
+		for (auto& Child : CurrentNode->Children)
 		{
-			if (CurrentNode->Children[i].bSelected)
+			if (Child.bSelected)
 			{
-				Nodes.Enqueue(&CurrentNode->Children[i]);
+				Nodes.Enqueue(&Child);
 			}
 		}
 
@@ -1897,9 +1886,9 @@ TArray<FLidarPointCloudTraversalOctreeNode*> FLidarPointCloudTraversalOctree::Ge
 
 			if (MaxDepth < 0 || CurrentNode->Depth < MaxDepth)
 			{
-				for (int32 i = 0; i < CurrentNode->NumChildren; i++)
+				for (auto& Child : CurrentNode->Children)
 				{
-					Nodes.Enqueue(&CurrentNode->Children[i]);
+					Nodes.Enqueue(&Child);
 				}
 			}
 		}

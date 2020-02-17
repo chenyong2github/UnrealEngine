@@ -20,15 +20,14 @@ class FAnimationSharedData;
 class FTimingEventSearchParameters;
 struct FSkeletalMeshPoseMessage;
 
-class FSkeletalMeshPoseTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+class FSkeletalMeshPoseTrack : public FGameplayTimingEventsTrack
 #if WITH_ENGINE
 	, public FGCObject
 #endif
 {
-public:
-	static const FName TypeName;
-	static const FName SubTypeName;
+	INSIGHTS_DECLARE_RTTI(FSkeletalMeshPoseTrack, FGameplayTimingEventsTrack)
 
+public:
 	FSkeletalMeshPoseTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
 	~FSkeletalMeshPoseTrack();
 
@@ -39,6 +38,7 @@ public:
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 	// Access drawing flags
+	void SetDrawPose(bool bInDrawPose) { bDrawPose = bInDrawPose; }
 	bool ShouldDrawPose() const { return bDrawPose; }
 	bool ShouldDrawSkeleton() const { return bDrawSkeleton; }
 
@@ -52,6 +52,7 @@ public:
 
 	// Handle worlds being torn down
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+	void RemoveWorld(UWorld* InWorld);
 
 	// Draw poses at the specified time
 	void DrawPoses(UWorld* InWorld, double InTime);
@@ -65,9 +66,10 @@ private:
 	// Helper function used to find a skeletal mesh pose
 	void FindSkeletalMeshPoseMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FSkeletalMeshPoseMessage&)> InFoundPredicate) const;
 
+#if WITH_ENGINE
 	// Updates component visibility based on draw pose flag
 	void UpdateComponentVisibility();
-
+#endif
 private:
 	/** The shared data */
 	const FAnimationSharedData& SharedData;
@@ -117,7 +119,9 @@ private:
 	/** Cached map of per-world data */
 	TMap<TWeakObjectPtr<UWorld>, FWorldComponentCache> WorldCache;
 
-	/** Handle used to deal with world switching */
-	FDelegateHandle OnWorldDestroyedHandle;
+	/** Handles used to deal with world switching */
+	FDelegateHandle OnWorldCleanupHandle;
+	FDelegateHandle OnWorldBeginTearDownHandle;
+	FDelegateHandle OnPreWorldFinishDestroyHandle;
 #endif
 };

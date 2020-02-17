@@ -2933,7 +2933,18 @@ void FKismetCompilerContext::CreateFunctionStubForEvent(UK2Node_Event* SrcEventN
 	EntryNode->FunctionReference = SrcEventNode->EventReference;
 	EntryNode->CustomGeneratedFunctionName = EventNodeName;
 
-	if (!SrcEventNode->bOverrideFunction && SrcEventNode->IsUsedByAuthorityOnlyDelegate())
+	// Resolve expansions to original custom event node before checking it for a server-only delegate association.
+	auto IsServerOnlyEvent = [&MessageLog = this->MessageLog](UK2Node_Event* TargetEventNode)
+	{
+		if (UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(MessageLog.FindSourceObject(TargetEventNode)))
+		{
+			TargetEventNode = CustomEventNode;
+		}
+
+		return TargetEventNode->IsUsedByAuthorityOnlyDelegate();
+	};
+
+	if (!SrcEventNode->bOverrideFunction && IsServerOnlyEvent(SrcEventNode))
 	{
 		EntryNode->AddExtraFlags(FUNC_BlueprintAuthorityOnly);
 	}
@@ -3294,7 +3305,6 @@ void FKismetCompilerContext::CreateAndProcessUbergraph()
 			bool bExistsAsGraph = false;
 
 			// Any function that can be implemented as an event needs to check to see if there is already an interface function graph
-			// If there is, we want to warn the user that this is unexpected but proceed to successfully compile the Blueprint
 			if (bCanImplementAsEvent)
 			{
 				for (UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
@@ -3302,9 +3312,6 @@ void FKismetCompilerContext::CreateAndProcessUbergraph()
 					if (InterfaceGraph->GetFName() == Function->GetFName())
 					{
 						bExistsAsGraph = true;
-
-						// Having an event override implemented as a function won't cause issues but is something the user should be aware of.
-						MessageLog.Warning(TEXT("Interface '@@' is already implemented as a function graph but is expected as an event. Remove the function graph and reimplement as an event."), InterfaceGraph);
 					}
 				}
 			}
@@ -4258,6 +4265,7 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 
 					UEditorEngine::FCopyPropertiesForUnrelatedObjectsParams CopyDetails;
 					CopyDetails.bCopyDeprecatedProperties = Blueprint->bIsRegeneratingOnLoad;
+					CopyDetails.bNotifyObjectReplacement = true; 
 					UEditorEngine::CopyPropertiesForUnrelatedObjects(OldCDO, NewCDO, CopyDetails);
 					FBlueprintEditorUtils::PatchCDOSubobjectsIntoExport(OldCDO, NewCDO);
 				}
@@ -4653,6 +4661,7 @@ const UK2Node_FunctionEntry* FKismetCompilerContext::FindLocalEntryPoint(const U
 	return NULL;
 }
 
+#ifndef PVS_STUDIO // Bogus warning using GET_FUNCTION_NAME_CHECKED (see UE-88111)
 void FKismetCompilerContext::SetCanEverTick() const
 {
 	FTickFunction* TickFunction = nullptr;
@@ -4755,6 +4764,7 @@ void FKismetCompilerContext::SetCanEverTick() const
 			TickFunction->bCanEverTick ? *(CoreTexts.True.ToString()) : *(CoreTexts.False.ToString()) );
 	}
 }
+#endif
 
 bool FKismetCompilerContext::UsePersistentUberGraphFrame() const
 {

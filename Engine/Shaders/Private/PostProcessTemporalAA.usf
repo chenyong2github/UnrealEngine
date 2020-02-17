@@ -9,7 +9,6 @@
 #include "EyeAdaptationCommon.ush"
 #include "TextureSampling.ush"
 
-
 //------------------------------------------------------- COMPILER CONFIG
 
 // Generate vector truncation warnings to errors.
@@ -2234,7 +2233,6 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 
 	return OutputPayload;
 }
-
 
 //------------------------------------------------------- ENTRY POINT
 

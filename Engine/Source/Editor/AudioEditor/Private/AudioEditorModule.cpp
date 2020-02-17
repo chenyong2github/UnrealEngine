@@ -33,6 +33,7 @@
 #include "AssetTypeActions/AssetTypeActions_SoundSubmix.h"
 #include "AssetTypeActions/AssetTypeActions_SoundEffectPreset.h"
 #include "AssetTypeActions/AssetTypeActions_SoundSourceBus.h"
+#include "AssetTypeActions/AssetTypeActions_AudioBus.h"
 #include "Utils.h"
 #include "UObject/UObjectIterator.h"
 #include "Styling/SlateStyle.h"
@@ -149,10 +150,19 @@ public:
 		{
 			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundSubmix));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundfieldSubmix));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_EndpointSubmix));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundfieldEndpointSubmix));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundfieldEncodingSettings));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundfieldEffectSettings));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundfieldEffect));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AudioEndpointSettings));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundfieldEndpointSettings));
 			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundEffectSubmixPreset));
 			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundEffectSourcePreset));
 			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundEffectSourcePresetChain));
 			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundSourceBus));
+			AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AudioBus));
 		}
 	}
 
@@ -195,7 +205,7 @@ public:
 		return NewSoundClassEditor;
 	}
 
-	virtual TSharedRef<FAssetEditorToolkit> CreateSoundSubmixEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, USoundSubmix* InSoundSubmix) override
+	virtual TSharedRef<FAssetEditorToolkit> CreateSoundSubmixEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, USoundSubmixBase* InSoundSubmix) override
 	{
 		TSharedPtr<FSoundSubmixEditor> NewSubmixEditor = MakeShared<FSoundSubmixEditor>();
 		NewSubmixEditor->Init(Mode, InitToolkitHost, InSoundSubmix);

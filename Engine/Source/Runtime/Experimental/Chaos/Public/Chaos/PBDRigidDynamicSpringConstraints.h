@@ -179,12 +179,15 @@ namespace Chaos
 
 		void UpdatePositionBasedState(const T Dt);
 
-		void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
+		bool Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 		{
 			for (FConstraintContainerHandle* ConstraintHandle : InConstraintHandles)
 			{
 				ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
 			}
+
+			// TODO: Return true only if more iteration are needed
+			return true;
 		}
 
 		bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)

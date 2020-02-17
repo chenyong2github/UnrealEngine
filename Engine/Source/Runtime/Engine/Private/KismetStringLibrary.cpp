@@ -46,6 +46,11 @@ int32 UKismetStringLibrary::Len(const FString& S)
 	return S.Len();
 }
 
+bool UKismetStringLibrary::IsEmpty(const FString& InString)
+{
+	return InString.IsEmpty();
+}
+
 FString UKismetStringLibrary::Conv_FloatToString(float InFloat)
 {
 	return FString::SanitizeFloat(InFloat);
@@ -74,6 +79,11 @@ FString UKismetStringLibrary::Conv_VectorToString(FVector InVec)
 FString UKismetStringLibrary::Conv_IntVectorToString(FIntVector InIntVec)
 {
 	return InIntVec.ToString();
+}
+
+FString UKismetStringLibrary::Conv_IntPointToString(FIntPoint InIntPoint)
+{
+	return InIntPoint.ToString();
 }
 
 FString UKismetStringLibrary::Conv_Vector2dToString(FVector2D InVec)

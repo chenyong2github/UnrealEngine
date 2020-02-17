@@ -276,6 +276,15 @@ namespace UE4_RepLayout_Private
 		NETWORK_PROFILER(return true;);
 		return false;
 	}
+
+	static bool IsNetworkProfilerComparisonTrackingEnabled()
+	{
+#if USE_NETWORK_PROFILER
+		return GNetworkProfiler.IsComparisonTrackingEnabled();
+#else
+		return false;
+#endif
+	}
 }
 
 //~ TODO: Consider moving the FastArray members into their own sub-struct to save memory for non fast array
@@ -783,7 +792,7 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 	const uint32			InChecksum)
 {
 	// Compatible checksums are only used for InternalAck connections
-	if (ServerConnection && !ServerConnection->InternalAck)
+	if (ServerConnection && !ServerConnection->IsInternalAck())
 	{
 		return 0;
 	}
@@ -1134,6 +1143,7 @@ struct FComparePropertiesSharedParams
 	FRepChangelistState* const RepChangelistState;
 	FRepChangedPropertyTracker* const RepChangedPropertyTracker;
 	UE4PushModelPrivate::FPushModelPerNetDriverState* const PushModelState = nullptr;
+	const TBitArray<>* const PushModelProperties = nullptr;
 	const bool bValidateProperties = false;
 	const bool bIsNetworkProfilerActive = false;
 #if (WITH_PUSH_VALIDATION_SUPPORT || USE_NETWORK_PROFILER)
@@ -1200,18 +1210,18 @@ static bool CompareParentProperty(
 	const FComparePropertiesSharedParams& SharedParams,
 	FComparePropertiesStackParams& StackParams)
 {
-	const FRepParentCmd& Parent = SharedParams.Parents[ParentIndex];
-	const bool bIsLifetime = EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsLifetime);
+		const FRepParentCmd& Parent = SharedParams.Parents[ParentIndex];
+		const bool bIsLifetime = EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsLifetime);
 
-	// Active state of a property applies to *all* connections.
-	// If the property is inactive, we can skip comparing it because we know it won't be sent.
-	// Further, this will keep the last active state of the property in the shadow buffer,
-	// meaning the next time the property becomes active it will be sent to all connections.
+		// Active state of a property applies to *all* connections.
+		// If the property is inactive, we can skip comparing it because we know it won't be sent.
+		// Further, this will keep the last active state of the property in the shadow buffer,
+		// meaning the next time the property becomes active it will be sent to all connections.
 	const bool bIsActive = !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->Parents[ParentIndex].Active;
-	const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
+		const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
 
-	if (bShouldSkip)
-	{
+		if (bShouldSkip)
+		{
 		return false;
 	}
 
@@ -1219,26 +1229,26 @@ static bool CompareParentProperty(
 	if (SharedParams.bIsNetworkProfilerActive)
 	{
 		const_cast<TBitArray<>&>(SharedParams.PropertiesCompared)[ParentIndex] = true;
-	}
+		}
 #endif
 
 	const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
 
 	if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::IsActor))
-	{
-		if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::Role))
 		{
+			if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::Role))
+			{
 			return CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::Role, SharedParams.RepState->SavedRole);
-		}
+			}
 		if (UNLIKELY(ParentIndex == (int32)AActor::ENetFields_Private::RemoteRole))
-		{
+			{
 			return CompareRoleProperty(SharedParams, StackParams, (int32)AActor::ENetFields_Private::RemoteRole, SharedParams.RepState->SavedRemoteRole);
+			}
 		}
-	}
-	
+		
 	const int32 NumChanges = StackParams.Changed.Num();
 
-	// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
+		// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
 	CompareProperties_r(SharedParams, StackParams, Parent.CmdStart, Parent.CmdEnd, Cmd.RelativeHandle - 1);
 
 	return !!(StackParams.Changed.Num() - NumChanges);
@@ -1269,7 +1279,7 @@ namespace UE4_RepLayout_Private
 		const FComparePropertiesSharedParams& SharedParams,
 		FComparePropertiesStackParams& StackParams)
 	{
-		return !EnumHasAnyFlags(SharedParams.Parents[ParentIndex].Flags, ERepParentFlags::UsePushModel) || SharedParams.PushModelState->IsPropertyDirty(ParentIndex);
+		return !(*SharedParams.PushModelProperties)[ParentIndex] || SharedParams.PushModelState->IsPropertyDirty(ParentIndex);
 	}
 #endif // WITH_PUSH_MODEL	
 }	
@@ -1313,7 +1323,7 @@ static void CompareParentProperties(
 				const bool bIsPropertyDirty = UE4_RepLayout_Private::IsPropertyDirty(ParentIndex, SharedParams, StackParams);
 				const bool bDidPropertyChange = UE4_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
 
-				ensureAlwaysMsgf(bDidPropertyChange && !bIsPropertyDirty, TEXT("Push Model Property changed value, but was not marked dirty! Property=%s"), *SharedParams.Parents[ParentIndex].Property->GetPathName());
+				ensureAlwaysMsgf(!bDidPropertyChange || bIsPropertyDirty, TEXT("Push Model Property changed value, but was not marked dirty! Property=%s"), *SharedParams.Parents[ParentIndex].Property->GetPathName());
 			}	
 		}
 #endif // WITH_PUSH_VALIDATION_SUPPORT
@@ -1482,6 +1492,12 @@ bool FRepLayout::CompareProperties(
 	TArray<uint16>& Changed = NewHistoryItem.Changed;
 	Changed.Empty(1);
 
+#if WITH_PUSH_MODEL
+		const TBitArray<>* const LocalPushModelProperties = &PushModelProperties;
+#else
+		const TBitArray<>* const LocalPushModelProperties = nullptr;
+#endif		
+
 	FComparePropertiesSharedParams SharedParams{
 		/*bIsInitial=*/ !!RepFlags.bNetInitial,
 		/*bForceFail=*/ false,
@@ -1492,8 +1508,9 @@ bool FRepLayout::CompareProperties(
 		RepChangelistState,
 		(RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr),
 		/*PushModelState=*/UE4_RepLayout_Private::GetPerNetDriverState(RepChangelistState),
+		/*PushModelProperties=*/ LocalPushModelProperties,	
 		/*bValidateProperties=*/GbPushModelValidateProperties,
-		/*bIsNetworkProfilerActive=*/UE4_RepLayout_Private::IsNetworkProfilerEnabled()
+		/*bIsNetworkProfilerActive=*/UE4_RepLayout_Private::IsNetworkProfilerComparisonTrackingEnabled()
 	};
 
 	FComparePropertiesStackParams StackParams{
@@ -1532,7 +1549,10 @@ bool FRepLayout::CompareProperties(
 	
 		CompareParentProperties(SharedParams, StackParams);
 
-		NETWORK_PROFILER(GNetworkProfiler.TrackCompareProperties(Owner, FPlatformTime::Cycles() - ReplicateParentPropertiesStartTime, SharedParams.PropertiesCompared, SharedParams.PropertiesChanged, Parents, &FPropertyNameHelper::ConvertParentCmdToPropertyName););
+		if (SharedParams.bIsNetworkProfilerActive)
+		{
+			NETWORK_PROFILER(GNetworkProfiler.TrackCompareProperties(Owner, FPlatformTime::Cycles() - ReplicateParentPropertiesStartTime, SharedParams.PropertiesCompared, SharedParams.PropertiesChanged, Parents, &FPropertyNameHelper::ConvertParentCmdToPropertyName););
+		}
 	}
 
 	if (Changed.Num() == 0)
@@ -1630,7 +1650,7 @@ bool FRepLayout::ReplicateProperties(
 
 	if (OwningChannel->Connection->ResendAllDataState != EResendAllDataState::None)
 	{
-		check(OwningChannel->Connection->InternalAck);
+		check(OwningChannel->Connection->IsInternalAck());
 
 		// If we are resending data since open, we don't want to affect the current state of channel/replication, so just do the minimum and send the data, and return
 		if (RepState->LifetimeChangelist.Num() > 0)
@@ -1743,7 +1763,7 @@ bool FRepLayout::ReplicateProperties(
 	check(Changed.Num() > 0);
 
 	// do not build shared state for InternalAck (demo) connections
-	if (!OwningChannel->Connection->InternalAck && (GNetSharedSerializedData != 0))
+	if (!OwningChannel->Connection->IsInternalAck() && (GNetSharedSerializedData != 0))
 	{
 		// if no shared serialization info exists, build it
 		if (!RepChangelistState->SharedSerialization.IsValid())
@@ -1768,7 +1788,7 @@ bool FRepLayout::ReplicateProperties(
 	}
 
 	// Send the final merged change list
-	if (OwningChannel->Connection->InternalAck)
+	if (OwningChannel->Connection->IsInternalAck())
 	{
 		// Remember all properties that have changed since this channel was first opened in case we need it (for bResendAllDataSinceOpen)
 		// We use UnfilteredChanged so LifetimeChangelist contains all properties, regardless of Active state.
@@ -3290,7 +3310,7 @@ bool FRepLayout::ReceiveProperties(
 
 	UE_NET_TRACE_SCOPE(Properties, InBunch, OwningChannel->Connection->GetInTraceCollector(), ENetTraceVerbosity::Trace);
 
-	if (OwningChannel->Connection->InternalAck)
+	if (OwningChannel->Connection->IsInternalAck())
 	{
 		return ReceiveProperties_BackwardsCompatible(OwningChannel->Connection, RepState, Data, InBunch, bOutHasUnmapped, bEnableRepNotifies, bOutGuidsChanged);
 	}
@@ -5454,6 +5474,10 @@ void FRepLayout::InitFromClass(
 
 	Object->GetLifetimeReplicatedProps(LifetimeProps);
 
+#if WITH_PUSH_MODEL
+	PushModelProperties.Init(false, Parents.Num());
+#endif
+
 	// Tracks the number of (non-delta) lifetime properties so we can check that against our
 	// Push Model Enabled properties.
 	int32 NumberOfLifetimeProperties = 0;
@@ -5499,7 +5523,7 @@ void FRepLayout::InitFromClass(
 			if (bIsPushModelEnabled && LifetimeProps[i].bIsPushBased)
 			{
 				++NumberOfPushModelProperties;
-				Parents[ParentIndex].Flags |= ERepParentFlags::UsePushModel;
+				PushModelProperties[ParentIndex] = true;
 			}
 #endif
 		}
@@ -6111,7 +6135,7 @@ void FRepLayout::SendPropertiesForRPC(
 
 	if (!IsEmpty())
 	{
-		if (Channel->Connection->InternalAck)
+		if (Channel->Connection->IsInternalAck())
 		{
 			TArray<uint16> Changed;
 
@@ -6182,7 +6206,7 @@ void FRepLayout::ReceivePropertiesForRPC(
 			}
 		}
 
-		if (Channel->Connection->InternalAck)
+		if (Channel->Connection->IsInternalAck())
 		{
 			bool bHasUnmapped = false;
 			bool bGuidsChanged = false;
@@ -6572,7 +6596,7 @@ void FRepLayout::PreSendCustomDeltaProperties(
 {
 	using namespace UE4_RepLayout_Private;
 
-	if (!Connection->InternalAck)
+	if (!Connection->IsInternalAck())
 	{
 		const FLifetimeCustomDeltaState& LocalLifetimeCustomPropertyState = *LifetimeCustomPropertyState;
 
@@ -6700,7 +6724,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 	UPackageMapClient* PackageMap = static_cast<UPackageMapClient*>(DeltaSerializeInfo.Map);
 	UNetConnection* Connection = DeltaSerializeInfo.Connection;
 	const bool bIsWriting = !!DeltaSerializeInfo.Writer;
-	const bool bInternalAck = !!Connection->InternalAck;
+	const bool bInternalAck = Connection->IsInternalAck();
 
 	FRepObjectDataBuffer ObjectData(Object);
 	FScriptArray* ObjectArray = GetTypedProperty<FScriptArray>(ObjectData, FastArrayItemCmd);
@@ -6734,10 +6758,6 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 			LocalNetFieldExportGroup = CreateNetfieldExportGroup();
 			PackageMap->AddNetFieldExportGroup(OwnerPathName, LocalNetFieldExportGroup);
 		}
-
-		checkf(LocalNetFieldExportGroup->NetFieldExports.Num() == Cmds.Num(),
-			TEXT("NetFieldExports.Num() does not match number of commands! PathName = %s, NetFieldExportGroup.PathName = %s, Cmds.Num() = %d, NetFieldExports.Num() = %d"),
-			*OwnerPathName, *(LocalNetFieldExportGroup->PathName), Cmds.Num(), LocalNetFieldExportGroup->NetFieldExports.Num());
 
 		NetFieldExportGroup = LocalNetFieldExportGroup.Get();
 	}

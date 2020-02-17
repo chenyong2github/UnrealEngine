@@ -71,6 +71,8 @@ protected:
 	}
 
 public:
+	DECLARE_NIAGARA_DI_PARAMETER();
+
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
 	uint32 bUseLUT : 1;
 
@@ -152,7 +154,6 @@ public:
 	virtual void GetCurveData(TArray<FCurveData>& OutCurveData) { }
 
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 
 	void SetDefaultLUT();
 #if WITH_EDITORONLY_DATA
@@ -197,4 +198,18 @@ struct TCurveUseLUTBinder
 			NextBinder::template Bind<ParamTypes..., TIntegralConstant<bool, false>>(Interface, BindingInfo, InstanceData, OutFunc);
 		}
 	}
+};
+
+struct FNiagaraDataInterfaceParametersCS_Curve : public FNiagaraDataInterfaceParametersCS
+{
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Curve, NonVirtual);
+
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap);
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const;
+
+	LAYOUT_FIELD(FShaderParameter, MinTime);
+	LAYOUT_FIELD(FShaderParameter, MaxTime);
+	LAYOUT_FIELD(FShaderParameter, InvTimeRange);
+	LAYOUT_FIELD(FShaderParameter, CurveLUTNumMinusOne);
+	LAYOUT_FIELD(FShaderResourceParameter, CurveLUT);
 };

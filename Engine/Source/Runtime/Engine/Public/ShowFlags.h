@@ -313,6 +313,7 @@ private:
 		SetVisualizeHDR(false);
 		SetVisualizeShadingModels(false);
 		SetOverrideDiffuseAndSpecular(false);
+		SetLightingOnlyOverride(false);
 		SetReflectionOverride(false);
 		SetVisualizeBuffer(false);
 		SetVectorFields(false);
@@ -321,6 +322,7 @@ private:
 		SetTestImage(false);
 		SetVisualizeDOF(false);
 		SetVertexColors(false);
+		SetPhysicalMaterialMasks(false);
 		SetVisualizeMotionBlur(false);
 		SetSelectionOutline(false);
 		SetDebugAI(false);

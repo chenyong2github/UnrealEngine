@@ -13,7 +13,7 @@
  * Base class for a simple asset containing data. The editor will list this in the content browser if you inherit from this class
  */
 UCLASS(abstract, MinimalAPI)
-class ENGINE_VTABLE UDataAsset : public UObject
+class UDataAsset : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -36,7 +36,7 @@ private:
  * To override this behavior, override GetPrimaryAssetId in your native class
  */
 UCLASS(abstract, MinimalAPI, Blueprintable)
-class ENGINE_VTABLE UPrimaryDataAsset : public UDataAsset
+class UPrimaryDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 

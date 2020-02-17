@@ -198,8 +198,8 @@ static void ResolvePendingRenderTarget(FRHICommandListImmediate& RHICmdList, FGr
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		RHICmdList.DrawIndexedPrimitive(
@@ -284,8 +284,8 @@ void FGoogleVRHMD::RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 			TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -300,7 +300,7 @@ void FGoogleVRHMD::RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 				1.0f, 1.0f,
 				FIntPoint(ViewportWidth, ViewportHeight),
 				FIntPoint(1, 1),
-				*VertexShader,
+				VertexShader,
 				EDRF_Default);
 		}
 		RHICmdList.EndRenderPass();
@@ -577,7 +577,7 @@ void FGoogleVRHMDCustomPresent::BeginRendering(const gvr_mat4f& RenderingHeadPos
 		gvr_frame_bind_buffer(CurrentFrame, 0);
 
 		// API returns framebuffer resource, but we need the texture resource for the pipeline
-		check(PLATFORM_USES_ES2); // Some craziness will only work on OpenGL platforms.
+		check(PLATFORM_USES_GLES); // Some craziness will only work on OpenGL platforms.
 		GLint TextureId = 0;
 		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &TextureId);
 		//override the texture set in custom present to the texture id we just bind so that unreal could render to it.

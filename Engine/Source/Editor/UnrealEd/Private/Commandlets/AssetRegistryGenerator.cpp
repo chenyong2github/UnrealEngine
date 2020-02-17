@@ -340,7 +340,10 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 				int32 PakchunkIndex = GetPakchunkIndex(ChunkID);
 				if (PakchunkIndex >= FinalChunkManifests.Num())
 				{
-					FinalChunkManifests.AddDefaulted(PakchunkIndex - FinalChunkManifests.Num() + 1);
+					// Extend the array until it is large enough to hold the requested index, filling it in with nulls on all the newly added indices.
+					// Note that this will temporarily break our contract that FinalChunkManifests does not contain null pointers; we fix up the contract
+					// by replacing any remaining null pointers in the loop over FinalChunkManifests at the bottom of this function.
+					FinalChunkManifests.AddZeroed(PakchunkIndex - FinalChunkManifests.Num() + 1);
 				}
 				checkf(PakchunkIndex < FinalChunkManifests.Num(), TEXT("Chunk %i out of range. %i manifests available"), PakchunkIndex, FinalChunkManifests.Num() - 1);
 				checkf(FinalChunkManifests[PakchunkIndex] == nullptr || FinalChunkManifests[PakchunkIndex]->Num() == 0, TEXT("Manifest already exists for chunk %i"), PakchunkIndex);
@@ -365,6 +368,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	}
 
 	// generate per-chunk pak list files
+	bool bSucceeded = true;
 	for (int32 PakchunkIndex = 0; PakchunkIndex < FinalChunkManifests.Num(); ++PakchunkIndex)
 	{
 		const FChunkPackageSet* Manifest = FinalChunkManifests[PakchunkIndex];
@@ -376,10 +380,12 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 		FString LayerString = FString::Printf(TEXT("%d\r\n"), TargetLayer);
 		ChunkLayerFile->Serialize(TCHAR_TO_ANSI(*LayerString), LayerString.Len());
 
-		// Is this chunk empty?
+		// Is this index a null placeholder that we added in the loop over EncryptedNonUFSFileGroups and then never filled in?  If so, 
+		// fill it in with an empty FChunkPackageSet
 		if (!Manifest)
 		{
-			continue;
+			FinalChunkManifests[PakchunkIndex] = new FChunkPackageSet;
+			Manifest = FinalChunkManifests[PakchunkIndex];
 		}
 
 		int32 FilenameIndex = 0;
@@ -398,7 +404,8 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 			if (!PakListFile)
 			{
 				UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Failed to open output paklist file %s"), *PakListFilename);
-				return false;
+				bSucceeded = false;
+				break;
 			}
 
 			FString PakChunkOptions;
@@ -489,7 +496,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	ChunkLayerFile->Close();
 	PakChunkListFile->Close();
 
-	return true;
+	return bSucceeded;
 }
 
 void FAssetRegistryGenerator::GenerateChunkManifestForPackage(const FName& PackageFName, const FString& PackagePathName, const FString& SandboxFilename, const FString& LastLoadedMapName, FSandboxPlatformFile* InSandboxFile)

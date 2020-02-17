@@ -81,6 +81,18 @@ namespace EVariableCategory
 	};
 }
 
+enum class ELayoutMacroType
+{
+	None = -1,
+	Array,
+	ArrayEditorOnly,
+	Bitfield,
+	BitfieldEditorOnly,
+	Field,
+	FieldEditorOnly,
+	FieldInitialized,
+};
+
 /** Information for a particular nesting level. */
 class FNestInfo
 {
@@ -671,7 +683,7 @@ protected:
 	bool IsValidDelegateDeclaration(const FToken& Token) const;
 
 	// Returns true if the current token is a bitfield type
-	bool IsBitfieldProperty();
+	bool IsBitfieldProperty(ELayoutMacroType LayoutMacroType);
 
 	// Parse the parameter list of a function or delegate declaration
 	void ParseParameterList(FClasses& AllClasses, UFunction* Function, bool bExpectCommaBeforeName = false, TMap<FName, FString>* MetaData = NULL);
@@ -843,7 +855,8 @@ protected:
 		const FToken*                   OuterPropertyType,
 		EPropertyDeclarationStyle::Type PropertyDeclarationStyle,
 		EVariableCategory::Type         VariableCategory,
-		FIndexRange*                    ParsedVarIndexRange = nullptr);
+		FIndexRange*                    ParsedVarIndexRange = nullptr,
+		ELayoutMacroType*               OutLayoutMacroType = nullptr);
 
 	/**
 	 * Parses a variable name declaration and creates a new FProperty object.
@@ -857,7 +870,8 @@ protected:
 	FProperty* GetVarNameAndDim(
 		UStruct* Struct,
 		FToken& VarProperty,
-		EVariableCategory::Type VariableCategory);
+		EVariableCategory::Type VariableCategory,
+		ELayoutMacroType LayoutMacroType = ELayoutMacroType::None);
 	
 	/**
 	 * Returns whether the specified class can be referenced from the class currently being compiled.

@@ -29,7 +29,7 @@ float GetHairClipLength() { return GHairClipLength > 0 ? GHairClipLength : 10000
 /**
  * An material render proxy which overrides the debug mode parameter.
  */
-class ENGINE_VTABLE FHairDebugModeMaterialRenderProxy : public FMaterialRenderProxy
+class FHairDebugModeMaterialRenderProxy : public FMaterialRenderProxy
 {
 public:
 	const FMaterialRenderProxy* const Parent;
@@ -56,17 +56,17 @@ public:
 		HairClipLengthParamName(NAME_BoolProperty)
 	{}
 
-	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
 	{
 		return Parent->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
 	}
 
-	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
 	}
 
-	virtual bool GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (ParameterInfo.Name == DebugModeParamName)
 		{
@@ -94,12 +94,12 @@ public:
 		}
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
@@ -1724,7 +1724,7 @@ FGroomComponentRecreateRenderStateContext::~FGroomComponentRecreateRenderStateCo
 		if (GroomComponent->IsRegistered() && !GroomComponent->IsRenderStateCreated())
 		{
 			GroomComponent->InitResources();
-			GroomComponent->CreateRenderState_Concurrent();
+			GroomComponent->CreateRenderState_Concurrent(nullptr);
 		}
 	}
 }

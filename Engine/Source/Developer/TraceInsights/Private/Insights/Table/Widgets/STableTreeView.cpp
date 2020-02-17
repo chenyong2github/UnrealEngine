@@ -202,14 +202,14 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 		]
 	];
 
-	InitializeAndShowHeaderColumns();
-	//BindCommands();
-
 	// Create the search filters: text based, type based etc.
 	TextFilter = MakeShared<FTableTreeNodeTextFilter>(FTableTreeNodeTextFilter::FItemToStringArray::CreateSP(this, &STableTreeView::HandleItemToStringArray));
 	Filters = MakeShared<FTableTreeNodeFilterCollection>();
 	Filters->Add(TextFilter);
 
+	//BindCommands();
+
+	InitializeAndShowHeaderColumns();
 	CreateGroupings();
 	CreateSortings();
 
@@ -445,6 +445,20 @@ void STableTreeView::InitializeAndShowHeaderColumns()
 			ShowColumn(ColumnRef->GetId());
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::RebuildColumns()
+{
+	TreeViewHeaderRow->ClearColumns();
+	InitializeAndShowHeaderColumns();
+
+	PreChangeGroupings();
+	CreateGroupings();
+	PostChangeGroupings();
+
+	CreateSortings();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -984,7 +998,8 @@ void STableTreeView::UpdateDoubleSumAggregationRec(FTableColumn& Column, FTableT
 
 void STableTreeView::CreateGroupings()
 {
-	AvailableGroupings.Reset(3);
+	AvailableGroupings.Reset();
+	CurrentGroupings.Reset();
 
 	AvailableGroupings.Add(MakeShared<FTreeNodeGroupingFlat>());
 	//AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByNameFirstLetter>());
@@ -1068,22 +1083,25 @@ void STableTreeView::PostChangeGroupings()
 
 	//////////////////////////////////////////////////
 
-	// Set with for the Hierarchy column.
-	SHeaderRow::FColumn& HierarchyColumn = const_cast<SHeaderRow::FColumn&>(TreeViewHeaderRow->GetColumns()[0]);
-	HierarchyColumn.SetWidth(HierarchyColumnWidth);
+	if (TreeViewHeaderRow->GetColumns().Num() > 0)
+	{
+		// Set width for the Hierarchy column.
+		SHeaderRow::FColumn& HierarchyColumn = const_cast<SHeaderRow::FColumn&>(TreeViewHeaderRow->GetColumns()[0]);
+		HierarchyColumn.SetWidth(HierarchyColumnWidth);
 
-	// Set name for the Hierarchy column.
-	//FTableColumn& HierarchyTableColumn = *Table->FindColumnChecked(HierarchyColumn.ColumnId);
-	//if (!GroupingStr.IsEmpty())
-	//{
-	//	const FText HierarchyColumnName = FText::Format(LOCTEXT("HierarchyShortNameFmt", "Hierarchy ({0})"), FText::FromString(GroupingStr));
-	//	HierarchyTableColumn.SetShortName(HierarchyColumnName);
-	//}
-	//else
-	//{
-	//	const FText HierarchyColumnName(LOCTEXT("HierarchyShortName", "Hierarchy"));
-	//	HierarchyTableColumn.SetShortName(HierarchyColumnName);
-	//}
+		// Set name for the Hierarchy column.
+		//FTableColumn& HierarchyTableColumn = *Table->FindColumnChecked(HierarchyColumn.ColumnId);
+		//if (!GroupingStr.IsEmpty())
+		//{
+		//	const FText HierarchyColumnName = FText::Format(LOCTEXT("HierarchyShortNameFmt", "Hierarchy ({0})"), FText::FromString(GroupingStr));
+		//	HierarchyTableColumn.SetShortName(HierarchyColumnName);
+		//}
+		//else
+		//{
+		//	const FText HierarchyColumnName(LOCTEXT("HierarchyShortName", "Hierarchy"));
+		//	HierarchyTableColumn.SetShortName(HierarchyColumnName);
+		//}
+	}
 
 	//////////////////////////////////////////////////
 
@@ -1817,6 +1835,17 @@ void STableTreeView::Reset()
 	StatsStartTime = 0.0;
 	StatsEndTime = 0.0;
 
+	RebuildTree(true);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTable)
+{
+	if (Table->UpdateSourceTable(SourceTable))
+	{
+		RebuildColumns();
+	}
 	RebuildTree(true);
 }
 

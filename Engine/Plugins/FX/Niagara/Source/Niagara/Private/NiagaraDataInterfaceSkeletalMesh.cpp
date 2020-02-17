@@ -117,9 +117,9 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 	if (Usage.NeedsDataImmediately())
 	{
 		check(IsInGameThread());
-		if (CurrBoneRefToLocals().Num() == 0)
+		if (CurrBoneRefToLocals().Num() == 0 || CurrComponentTransforms().Num() == 0 )
 		{
-			SkelComp->CacheRefToLocalMatrices(CurrBoneRefToLocals()); 
+			UpdateBoneTransforms();
 		}
 		
 		//Prime the prev matrices if they're missing.
@@ -128,10 +128,6 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 			PrevBoneRefToLocals() = CurrBoneRefToLocals();
 		}
 
-		if (CurrComponentTransforms().Num() == 0)
-		{
-			CurrComponentTransforms() = SkelComp->GetComponentSpaceTransforms();
-		}
 		if (PrevComponentTransforms().Num() != CurrComponentTransforms().Num())
 		{
 			PrevComponentTransforms() = CurrComponentTransforms();
@@ -187,6 +183,77 @@ bool FSkeletalMeshSkinningData::IsUsed()const
 	return false;
 }
 
+void FSkeletalMeshSkinningData::UpdateBoneTransforms()
+{
+	USkeletalMeshComponent* SkelComp = MeshComp.Get();
+	check(SkelComp);
+
+	const TArray<FTransform>& BaseCompSpaceTransforms = SkelComp->GetComponentSpaceTransforms();
+	TArray<FMatrix>& CurrBones = CurrBoneRefToLocals();
+	TArray<FTransform>& CurrTransforms = CurrComponentTransforms();
+
+	if (USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get())
+	{
+		const USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
+		const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
+		const int32 NumBones = MasterBoneMap.Num();
+
+		check(SkelMesh);
+		if (NumBones == 0)
+		{
+			// This case indicates an invalid master pose component (e.g. no skeletal mesh)
+			CurrBones.Empty(SkelMesh->RefSkeleton.GetNum());
+			CurrBones.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
+			CurrTransforms.Empty(SkelMesh->RefSkeleton.GetNum());
+			CurrTransforms.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
+		}
+		else
+		{
+			CurrBones.SetNumUninitialized(NumBones);
+			CurrTransforms.SetNumUninitialized(NumBones);
+
+			const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
+			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+			{
+				bool bFoundMaster = false;
+				FTransform CompSpaceTransform;
+				if (MasterBoneMap.IsValidIndex(BoneIndex))
+				{
+					const int32 MasterIndex = MasterBoneMap[BoneIndex];
+					if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
+					{
+						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
+						CurrBones[BoneIndex] = SkelMesh->RefBasesInvMatrix[BoneIndex] * MasterTransforms[MasterIndex].ToMatrixWithScale();
+						bFoundMaster = true;
+					}
+				}
+
+				if (!bFoundMaster)
+				{
+					const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
+
+					if (CurrTransforms.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex)
+					{
+						CurrTransforms[BoneIndex] = CurrTransforms[ParentIndex] * SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+					}
+					else
+					{
+						CurrTransforms[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+					}
+
+					CurrBones[BoneIndex] = CurrTransforms[BoneIndex].ToMatrixWithScale();
+
+				}
+			}
+		}
+	}
+	else
+	{
+		SkelComp->CacheRefToLocalMatrices(CurrBones);
+		CurrTransforms = SkelComp->GetComponentSpaceTransforms();
+	}
+}
+
 bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 {
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
@@ -196,57 +263,7 @@ bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 
 	if (BoneMatrixUsers > 0)
 	{
-		TArray<FMatrix>& CurrBones = CurrBoneRefToLocals();
-		if ( USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get() )
-		{
-			const USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
-			const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
-			const int32 NumBones = MasterBoneMap.Num();
-
-			check(SkelMesh);
-			if ( NumBones == 0 )
-			{
-				// This case indicates an invalid master pose component (e.g. no skeletal mesh)
-				CurrBones.Empty(SkelMesh->RefSkeleton.GetNum());
-				CurrBones.AddDefaulted(SkelMesh->RefSkeleton.GetNum());
-			}
-			else
-			{
-				CurrBones.SetNumUninitialized(NumBones);
-
-				const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
-				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
-				{
-					bool bFoundMaster = false;
-					if (MasterBoneMap.IsValidIndex(BoneIndex))
-					{
-						const int32 MasterIndex = MasterBoneMap[BoneIndex];
-						if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
-						{
-							CurrBones[BoneIndex] = MasterTransforms[MasterIndex].ToMatrixWithScale();
-							bFoundMaster = true;
-						}
-					}
-
-					if ( !bFoundMaster )
-					{
-						const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
-
-						CurrBones[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex].ToMatrixWithScale();
-						if ( CurrBones.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex )
-						{
-							CurrBones[BoneIndex] = CurrBones[ParentIndex] * CurrBones[BoneIndex];
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			SkelComp->CacheRefToLocalMatrices(CurrBones);
-		}
-
-		CurrComponentTransforms() = SkelComp->GetComponentSpaceTransforms();
+		UpdateBoneTransforms();
 	}
 
 	//Prime the prev matrices if they're missing.
@@ -488,8 +505,8 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 	if (bUseGpuUniformlyDistributedSampling)
 	{
 		const FSkeletalMeshAreaWeightedTriangleSampler& triangleSampler = SkeletalMeshSamplingLODBuiltData->AreaWeightedTriangleSampler;
-		const TArray<float>& Prob = triangleSampler.GetProb();
-		const TArray<int32>& Alias = triangleSampler.GetAlias();
+		const TArray<float, FMemoryImageAllocator>& Prob = triangleSampler.GetProb();
+		const TArray<int32, FMemoryImageAllocator>& Alias = triangleSampler.GetAlias();
 		check(TriangleCount == triangleSampler.GetNumEntries());
 
 		FRHIResourceCreateInfo CreateInfo;
@@ -611,24 +628,51 @@ void FSkeletalMeshGpuDynamicBufferProxy::ReleaseRHI()
 
 void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_InstanceData* InstanceData, int32 LODIndex)
 {
-	USkeletalMeshComponent* SkelComp = InstanceData != nullptr ? Cast<USkeletalMeshComponent>(InstanceData->Component.Get()) : nullptr;
-	if (SkelComp)
+	// Grab Skeletal Component / Mesh, we must have a mesh at minimum to set the data
+	USkeletalMeshComponent* SkelComp = nullptr;
+	USkeletalMesh* SkelMesh = nullptr;
+	if (InstanceData != nullptr)
+	{
+		SkelComp = Cast<USkeletalMeshComponent>(InstanceData->Component.Get());
+		if ( SkelComp != nullptr )
+		{
+			SkelMesh = SkelComp->SkeletalMesh;
+		}
+		if (SkelMesh == nullptr)
+		{
+			SkelMesh = InstanceData->MeshSafe.Get();
+		}
+	}
+
+	if ( SkelMesh == nullptr )
+	{
+		return;
+	}
+
+	// Create AllSectionsRefToLocalMatrices
+	TArray<FVector4> AllSectionsRefToLocalMatrices;
+	static_assert(sizeof(FVector4) == 4 * sizeof(float), "FVector4 should match 4 * floats");
 	{
 		TArray<FMatrix> RefToLocalMatrices;
-		SkelComp->CacheRefToLocalMatrices(RefToLocalMatrices);
+		if (SkelComp)
+		{
+			//-TODO: We need to handle MasterPoseComponent here
+			SkelComp->CacheRefToLocalMatrices(RefToLocalMatrices);
+		}
+		else
+		{
+			RefToLocalMatrices = SkelMesh->RefBasesInvMatrix;
+		}
 
-		TIndirectArray<FSkeletalMeshLODRenderData>& LODRenderDataArray = SkelComp->SkeletalMesh->GetResourceForRendering()->LODRenderData;
-		check(0 <= LODIndex  && LODIndex < LODRenderDataArray.Num());
+		TIndirectArray<FSkeletalMeshLODRenderData>& LODRenderDataArray = SkelMesh->GetResourceForRendering()->LODRenderData;
+		check(0 <= LODIndex && LODIndex < LODRenderDataArray.Num());
 		FSkeletalMeshLODRenderData& LODRenderData = LODRenderDataArray[LODIndex];
 		TArray<FSkelMeshRenderSection>& Sections = LODRenderData.RenderSections;
 		uint32 SectionCount = Sections.Num();
 
-		TArray<FVector4> AllSectionsRefToLocalMatrices;
-		static_assert(sizeof(FVector4) == 4*sizeof(float), "FVector4 should match 4 * floats");
-
 		// Count number of matrices we want before appending all of them according to the per section mapping from BoneMap
 		uint32 Float4Count = 0;
-		for ( const FSkelMeshRenderSection& Section : Sections )
+		for (const FSkelMeshRenderSection& Section : Sections)
 		{
 			Float4Count += Section.BoneMap.Num() * 3;
 		}
@@ -636,7 +680,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 		AllSectionsRefToLocalMatrices.AddUninitialized(Float4Count);
 
 		Float4Count = 0;
-		for ( const FSkelMeshRenderSection& Section : Sections )
+		for (const FSkelMeshRenderSection& Section : Sections)
 		{
 			const uint32 MatrixCount = Section.BoneMap.Num();
 			for (uint32 m = 0; m < MatrixCount; ++m)
@@ -645,58 +689,84 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 				Float4Count += 3;
 			}
 		}
+	}
 
-		// Generate information for bone sampling
-		TArray<FVector4> BoneSamplingData;
+	// Generate information for bone sampling
+	TArray<FVector4> BoneSamplingData;
+	{
+		BoneSamplingData.Reserve((SamplingBoneCount + SamplingSocketCount) * 2);
+
+		// Append bones
+		if (SkelComp != nullptr)
 		{
+			//-TODO: We need to handle MasterPoseComponent here
 			const TArray<FTransform>& ComponentTransforms = SkelComp->GetComponentSpaceTransforms();
 			check(ComponentTransforms.Num() == SamplingBoneCount);
 
-			BoneSamplingData.Reserve((SamplingBoneCount + SamplingSocketCount) * 2);
-
-			// Append bones
 			for (const FTransform& BoneTransform : ComponentTransforms)
 			{
 				const FQuat Rotation = BoneTransform.GetRotation();
 				BoneSamplingData.Add(BoneTransform.GetLocation());
 				BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
 			}
+		}
+		else
+		{
+			//-TODO: Opt and combine with MaterPostComponent
+			TArray<FTransform> TempBoneTransforms;
+			TempBoneTransforms.Reserve(SamplingBoneCount);
 
-			// Append sockets
-			for (const FTransform& SocketTransform : InstanceData->GetSpecificSocketsCurrBuffer())
+			const TArray<FTransform>& RefTransforms = SkelMesh->RefSkeleton.GetRefBonePose();
+			for (int32 i=0; i < RefTransforms.Num(); ++i)
 			{
-				const FQuat Rotation = SocketTransform.GetRotation();
-				BoneSamplingData.Add(SocketTransform.GetLocation());
+				FTransform BoneTransform = RefTransforms[i];
+				const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(i);
+				if (TempBoneTransforms.IsValidIndex(ParentIndex))
+				{
+					BoneTransform = BoneTransform * TempBoneTransforms[ParentIndex];
+				}
+				TempBoneTransforms.Add(BoneTransform);
+
+				const FQuat Rotation = BoneTransform.GetRotation();
+				BoneSamplingData.Add(BoneTransform.GetLocation());
 				BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
 			}
 		}
 
-		FSkeletalMeshGpuDynamicBufferProxy* ThisProxy = this;
-		ENQUEUE_RENDER_COMMAND(UpdateSpawnInfoForSkinnedMesh)(
-			[ThisProxy, AllSectionsRefToLocalMatrices = MoveTemp(AllSectionsRefToLocalMatrices), BoneSamplingData = MoveTemp(BoneSamplingData)](FRHICommandListImmediate& RHICmdList) mutable
-			{
-				ThisProxy->CurrentBoneBufferId = (ThisProxy->CurrentBoneBufferId + 1) % BufferBoneCount;
-				ThisProxy->bPrevBoneGpuBufferValid = ThisProxy->bBoneGpuBufferValid;
-				ThisProxy->bBoneGpuBufferValid = true;
-
-				// Copy bone remap data matrices
-				{
-					const uint32 NumBytes = AllSectionsRefToLocalMatrices.Num() * sizeof(FVector4);
-					void* DstData = RHILockVertexBuffer(ThisProxy->GetRWBufferBone().SectionBuffer, 0, NumBytes, RLM_WriteOnly);
-					FMemory::Memcpy(DstData, AllSectionsRefToLocalMatrices.GetData(), NumBytes);
-					RHIUnlockVertexBuffer(ThisProxy->GetRWBufferBone().SectionBuffer);
-				}
-
-				// Copy bone sampling data
-				{
-					const uint32 NumBytes = BoneSamplingData.Num() * sizeof(FVector4);
-					FVector4* DstData = reinterpret_cast<FVector4*>(RHILockVertexBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer, 0, NumBytes, RLM_WriteOnly));
-					FMemory::Memcpy(DstData, BoneSamplingData.GetData(), NumBytes);
-					RHIUnlockVertexBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer);
-				}
-			}
-		);
+		// Append sockets
+		for (const FTransform& SocketTransform : InstanceData->GetSpecificSocketsCurrBuffer())
+		{
+			const FQuat Rotation = SocketTransform.GetRotation();
+			BoneSamplingData.Add(SocketTransform.GetLocation());
+			BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
+		}
 	}
+
+	FSkeletalMeshGpuDynamicBufferProxy* ThisProxy = this;
+	ENQUEUE_RENDER_COMMAND(UpdateSpawnInfoForSkinnedMesh)(
+		[ThisProxy, AllSectionsRefToLocalMatrices = MoveTemp(AllSectionsRefToLocalMatrices), BoneSamplingData = MoveTemp(BoneSamplingData)](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			ThisProxy->CurrentBoneBufferId = (ThisProxy->CurrentBoneBufferId + 1) % BufferBoneCount;
+			ThisProxy->bPrevBoneGpuBufferValid = ThisProxy->bBoneGpuBufferValid;
+			ThisProxy->bBoneGpuBufferValid = true;
+
+			// Copy bone remap data matrices
+			{
+				const uint32 NumBytes = AllSectionsRefToLocalMatrices.Num() * sizeof(FVector4);
+				void* DstData = RHILockVertexBuffer(ThisProxy->GetRWBufferBone().SectionBuffer, 0, NumBytes, RLM_WriteOnly);
+				FMemory::Memcpy(DstData, AllSectionsRefToLocalMatrices.GetData(), NumBytes);
+				RHIUnlockVertexBuffer(ThisProxy->GetRWBufferBone().SectionBuffer);
+			}
+
+			// Copy bone sampling data
+			{
+				const uint32 NumBytes = BoneSamplingData.Num() * sizeof(FVector4);
+				FVector4* DstData = reinterpret_cast<FVector4*>(RHILockVertexBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer, 0, NumBytes, RLM_WriteOnly));
+				FMemory::Memcpy(DstData, BoneSamplingData.GetData(), NumBytes);
+				RHIUnlockVertexBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer);
+			}
+		}
+	);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -767,10 +837,12 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 
 struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_SkeletalMesh, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
 		FNDISkeletalMeshParametersName ParamNames;
-		GetNiagaraDataInterfaceParametersName(ParamNames, ParamRef.ParameterInfo.DataInterfaceHLSLSymbol);
+		GetNiagaraDataInterfaceParametersName(ParamNames, ParameterInfo.DataInterfaceHLSLSymbol);
 
 		MeshIndexBuffer.Bind(ParameterMap, *ParamNames.MeshIndexBufferName);
 		MeshVertexBuffer.Bind(ParameterMap, *ParamNames.MeshVertexBufferName);
@@ -802,43 +874,11 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 		EnabledFeatures.Bind(ParameterMap, *ParamNames.EnabledFeaturesName);
 	}
 
-	virtual void Serialize(FArchive& Ar)override
-	{
-		Ar << MeshIndexBuffer;
-		Ar << MeshVertexBuffer;
-		Ar << MeshSkinWeightBuffer;
-		Ar << MeshSkinWeightLookupBuffer;
-		Ar << MeshCurrBonesBuffer;
-		Ar << MeshPrevBonesBuffer;
-		Ar << MeshCurrSamplingBonesBuffer;
-		Ar << MeshPrevSamplingBonesBuffer;
-		Ar << MeshTangentBuffer;
-		Ar << MeshTexCoordBuffer;
-		Ar << MeshColorBuffer;
-		Ar << MeshTriangleSamplerProbaBuffer;
-		Ar << MeshTriangleSamplerAliasBuffer;
-		Ar << MeshTriangleMatricesOffsetBuffer;
-		Ar << MeshTriangleCount;
-		Ar << MeshVertexCount;
-		Ar << MeshWeightStride;
-		Ar << MeshSkinWeightIndexSize;
-		Ar << MeshNumTexCoord;
-		Ar << MeshNumWeights;
-		Ar << NumSpecificBones;
-		Ar << SpecificBones;
-		Ar << NumSpecificSockets;
-		Ar << SpecificSocketBoneOffset;
-		Ar << InstanceTransform;
-		Ar << InstancePrevTransform;
-		Ar << InstanceInvDeltaTime;
-		Ar << EnabledFeatures;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxySkeletalMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxySkeletalMesh*>(Context.DataInterface);
 		FNiagaraDataInterfaceProxySkeletalMeshData* InstanceData = InterfaceProxy->SystemInstancesToData.Find(Context.SystemInstance);
 		if (InstanceData && InstanceData->StaticBuffers)
@@ -966,38 +1006,40 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 		}
 	}
 
-
 private:
-
-	FShaderResourceParameter MeshIndexBuffer;
-	FShaderResourceParameter MeshVertexBuffer;
-	FShaderResourceParameter MeshSkinWeightBuffer;
-	FShaderResourceParameter MeshSkinWeightLookupBuffer;
-	FShaderResourceParameter MeshCurrBonesBuffer;
-	FShaderResourceParameter MeshPrevBonesBuffer;
-	FShaderResourceParameter MeshCurrSamplingBonesBuffer;
-	FShaderResourceParameter MeshPrevSamplingBonesBuffer;
-	FShaderResourceParameter MeshTangentBuffer;
-	FShaderResourceParameter MeshTexCoordBuffer;
-	FShaderResourceParameter MeshColorBuffer;
-	FShaderResourceParameter MeshTriangleSamplerProbaBuffer;
-	FShaderResourceParameter MeshTriangleSamplerAliasBuffer;
-	FShaderResourceParameter MeshTriangleMatricesOffsetBuffer;
-	FShaderParameter MeshTriangleCount;
-	FShaderParameter MeshVertexCount;
-	FShaderParameter MeshWeightStride;
-	FShaderParameter MeshSkinWeightIndexSize;
-	FShaderParameter MeshNumTexCoord;
-	FShaderParameter MeshNumWeights;
-	FShaderParameter NumSpecificBones;
-	FShaderResourceParameter SpecificBones;
-	FShaderParameter NumSpecificSockets;
-	FShaderParameter SpecificSocketBoneOffset;
-	FShaderParameter InstanceTransform;
-	FShaderParameter InstancePrevTransform;
-	FShaderParameter InstanceInvDeltaTime;
-	FShaderParameter EnabledFeatures;
+	LAYOUT_FIELD(FShaderResourceParameter, MeshIndexBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshVertexBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshSkinWeightBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshSkinWeightLookupBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshCurrBonesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshPrevBonesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshCurrSamplingBonesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshPrevSamplingBonesBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTangentBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTexCoordBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshColorBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleSamplerProbaBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleSamplerAliasBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleMatricesOffsetBuffer);
+	LAYOUT_FIELD(FShaderParameter, MeshTriangleCount);
+	LAYOUT_FIELD(FShaderParameter, MeshVertexCount);
+	LAYOUT_FIELD(FShaderParameter, MeshWeightStride);
+	LAYOUT_FIELD(FShaderParameter, MeshSkinWeightIndexSize);
+	LAYOUT_FIELD(FShaderParameter, MeshNumTexCoord);
+	LAYOUT_FIELD(FShaderParameter, MeshNumWeights);
+	LAYOUT_FIELD(FShaderParameter, NumSpecificBones);
+	LAYOUT_FIELD(FShaderResourceParameter, SpecificBones);
+	LAYOUT_FIELD(FShaderParameter, NumSpecificSockets);
+	LAYOUT_FIELD(FShaderParameter, SpecificSocketBoneOffset);
+	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
+	LAYOUT_FIELD(FShaderParameter, InstancePrevTransform);
+	LAYOUT_FIELD(FShaderParameter, InstanceInvDeltaTime);
+	LAYOUT_FIELD(FShaderParameter, EnabledFeatures);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_SkeletalMesh);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceSkeletalMesh, FNiagaraDataInterfaceParametersCS_SkeletalMesh);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1558,7 +1600,7 @@ bool FNDISkeletalMesh_InstanceData::Tick(UNiagaraDataInterfaceSkeletalMesh* Inte
 			PrevTransform = Transform;
 			PrevTransformInverseTransposed = TransformInverseTransposed;
 			Transform = Component->GetComponentToWorld().ToMatrixWithScale();
-			TransformInverseTransposed = Transform.InverseFast().GetTransposed();
+			TransformInverseTransposed = Transform.Inverse().GetTransposed();
 		}
 		else
 		{
@@ -2238,12 +2280,6 @@ void UNiagaraDataInterfaceSkeletalMesh::GetParameterDefinitionHLSL(const FNiagar
 {
 	OutHLSL += TEXT("DISKELMESH_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
 }
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceSkeletalMesh::ConstructComputeParameters() const
-{
-	return new FNiagaraDataInterfaceParametersCS_SkeletalMesh();
-}
-
 
 void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse)
 {

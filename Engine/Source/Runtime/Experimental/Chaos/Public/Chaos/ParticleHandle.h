@@ -139,10 +139,10 @@ FORCEINLINE_DEBUGGABLE bool PrePreFilterImp(const FCollisionFilterData& QueryFil
 		//since we're taking the union of shapes we can only support trace channel
 		//const ECollisionChannel QuerierChannel = GetCollisionChannel(QueryFilter.Word3);
 		const uint32 QuerierChannel = (QueryFilterData.Word3 << 6) >> (32 - 5);
-
+	
 		//uint32 const QuerierBit = ECC_TO_BITFIELD(QuerierChannel);
 		const uint32 QuerierBit = (1 << (QuerierChannel));
-
+	
 		// check if Querier wants a hit
 		const uint32 TouchOrBlock = (UnionFilterData.Word1 | UnionFilterData.Word2);
 		return !(QuerierBit & TouchOrBlock);
@@ -206,6 +206,14 @@ public:
 		}
 		
 		return false;
+	}
+
+	void UpdateFrom(const TAccelerationStructureHandle<T, d>& InOther)
+	{
+		UnionFilterData.Word0 = InOther.UnionFilterData.Word0;
+		UnionFilterData.Word1 = InOther.UnionFilterData.Word1;
+		UnionFilterData.Word2 = InOther.UnionFilterData.Word2;
+		UnionFilterData.Word3 = InOther.UnionFilterData.Word3;
 	}
 
 private:
@@ -1141,6 +1149,13 @@ public:
 		return TRotation<T, d>::FromIdentity();
 	}
 
+#if CHAOS_CHECKED
+	const FName& DebugName() const
+	{
+		return Handle->DebugName();
+	}
+#endif
+
 	int32 Island() const
 	{
 		if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
@@ -1660,7 +1675,33 @@ public:
 		DebugName = NAME_None;
 #endif
 	}
-
+	
+	void Init(const TGeometryParticle<T, d>& InParticle)
+		{
+			Type = EParticleType::Static;
+			X = InParticle.X();
+			R = InParticle.R();
+			Geometry = InParticle.GeometrySharedLowLevel();
+			SpatialIdx = InParticle.SpatialIdx();
+			UniqueIdx = InParticle.UniqueIdx();
+			UserData = InParticle.UserData();
+			DirtyFlags = InParticle.DirtyFlags();
+#if CHAOS_CHECKED
+			DebugName = InParticle.DebugName();
+#endif
+			const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
+			ShapeCollisionDisableFlags.Empty(Shapes.Num());
+			CollisionTraceType.Empty(Shapes.Num());
+			ShapeSimData.Empty(Shapes.Num());
+			ShapeQueryData.Empty(Shapes.Num());
+			for (const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
+			{
+				ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
+				CollisionTraceType.Add(ShapePtr->CollisionTraceType);
+				ShapeSimData.Add(ShapePtr->SimData);
+				ShapeQueryData.Add(ShapePtr->QueryData);
+			}
+	}
 	TVector<T, d> X;
 	TRotation<T, d> R;
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Geometry;
@@ -1787,6 +1828,14 @@ public:
 		MRotationOfMass = TRotation<T, d>(FQuat(EForceInit::ForceInit));
 	}
 
+	void Init(const TKinematicGeometryParticle<T, d>& InParticle) {
+			Base::Init(InParticle);
+			MV = InParticle.V();
+			MW = InParticle.W();
+			MCenterOfMass = InParticle.CenterOfMass();
+			MRotationOfMass = InParticle.RotationOfMass();
+			Type = EParticleType::Kinematic;
+	}
 	TVector<T, d> MV;
 	TVector<T, d> MW;
 	TVector<T, d> MCenterOfMass;
@@ -2115,8 +2164,8 @@ public:
 		, MP(InParticle.P())
 		, MF(InParticle.F())
 		, MTorque(InParticle.Torque())
-		, MLinearImpulse(TVector<T, d>(0))
-		, MAngularImpulse(TVector<T, d>(0))
+		, MLinearImpulse(InParticle.LinearImpulse())
+		, MAngularImpulse(InParticle.AngularImpulse())
 		, MI(InParticle.I())
 		, MInvI(InParticle.InvI())
 		, MCollisionParticles(nullptr)
@@ -2183,7 +2232,34 @@ public:
 		MDisabled = false;
 		MToBeRemovedOnFracture = false;
 		MGravityEnabled = false;
+		MInitialized = false;
 	}
+	void Init(const TPBDRigidParticle<T, d>& InParticle) {
+			Base::Init(InParticle);
+			MQ = InParticle.Q();
+			MPreV = InParticle.PreV();
+			MPreW = InParticle.PreW();
+			MP = InParticle.P();
+			MF = InParticle.F();
+			MTorque = InParticle.Torque();
+			MLinearImpulse = InParticle.LinearImpulse();
+			MAngularImpulse = InParticle.AngularImpulse();
+			MI = InParticle.I();
+			MInvI = InParticle.InvI();
+			MCollisionParticles = nullptr;
+			MM = InParticle.M();
+			MInvM = InParticle.InvM();
+			MLinearEtherDrag = InParticle.LinearEtherDrag();
+			MAngularEtherDrag = InParticle.AngularEtherDrag();
+			MIsland = InParticle.Island();
+			MCollisionGroup = InParticle.CollisionGroup();
+			MObjectState = InParticle.ObjectState();
+			MDisabled = InParticle.Disabled();
+			MToBeRemovedOnFracture = InParticle.ToBeRemovedOnFracture();
+			MGravityEnabled = InParticle.IsGravityEnabled();
+			MInitialized = InParticle.IsInitialized();
+			Type = EParticleType::Rigid;
+		}
 };
 
 

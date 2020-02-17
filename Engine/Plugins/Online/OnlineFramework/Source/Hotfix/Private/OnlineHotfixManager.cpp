@@ -1088,32 +1088,45 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 
 bool UOnlineHotfixManager::HotfixPakFile(const FCloudFileHeader& FileHeader)
 {
-	if (!FCoreDelegates::OnMountPak.IsBound())
+	if (!FCoreDelegates::MountPak.IsBound())
 	{
-		UE_LOG(LogHotfixManager, Error, TEXT("PAK file (%s) could not be mounted because OnMountPak is not bound"), *FileHeader.FileName);
+		UE_LOG(LogHotfixManager, Error, TEXT("PAK file (%s) could not be mounted because MountPak is not bound"), *FileHeader.FileName);
 		return false;
 	}
 	FString PakLocation = FString::Printf(TEXT("%s/%s"), *GetCachedDirectory(), *FileHeader.DLName);
-	FPakFileVisitor Visitor;
-	if (FCoreDelegates::OnMountPak.Execute(PakLocation, 0, &Visitor))
+	if (IPakFile* PakFile = FCoreDelegates::MountPak.Execute(PakLocation, 0))
 	{
 		MountedPakFiles.Add(FileHeader.DLName);
 		UE_LOG(LogHotfixManager, Log, TEXT("Hotfix mounted PAK file (%s)"), *FileHeader.FileName);
 		int32 NumInisReloaded = 0;
 		const double StartTime = FPlatformTime::Seconds();
+
+		// Iterate through the the pak file's contents for INI and asset reloading.
 		TArray<FString> IniList;
-		// Iterate through the pak file's contents for INI and asset reloading
+		FPakFileVisitor Visitor;
+		PakFile->PakVisitPrunedFilenames(Visitor);
 		for (const FString& InternalPakFileName : Visitor.Files)
 		{
 			if (InternalPakFileName.EndsWith(TEXT(".ini")))
 			{
 				IniList.Add(InternalPakFileName);
 			}
-			else if (!bHotfixNeedsMapReload && InternalPakFileName.EndsWith(FPackageName::GetMapPackageExtension()))
+		}
+
+		// Iterate through all loaded maps and see if they have patches in the pak file and therefore this hotfix needs to reload a map
+		for (TObjectIterator<UPackage> it; !bHotfixNeedsMapReload && it; ++it)
+		{
+			UPackage* Package = *it;
+			if (Package && Package->ContainsMap())
 			{
-				bHotfixNeedsMapReload = IsMapLoaded(InternalPakFileName);
+				const FString FileName = FPackageName::LongPackageNameToFilename(Package->FileName.ToString(), FPackageName::GetMapPackageExtension());
+				if (PakFile->PakContains(FileName))
+				{
+					bHotfixNeedsMapReload = true;
+				}
 			}
 		}
+
 		// Sort the INIs so they are processed consistently
 		IniList.Sort<FHotfixFileSortPredicate>(FHotfixFileSortPredicate(PlatformPrefix, ServerPrefix, DefaultPrefix));
 		// Now process the INIs in sorted order

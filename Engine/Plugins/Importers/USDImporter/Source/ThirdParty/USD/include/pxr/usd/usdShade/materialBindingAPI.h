@@ -31,11 +31,11 @@
 #include "pxr/usd/usd/apiSchemaBase.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
+#include "pxr/usd/usdShade/tokens.h"
 
 #include "pxr/usd/usd/collectionAPI.h"
 #include "pxr/usd/usdGeom/subset.h"
 #include "pxr/usd/usdShade/material.h"
-#include "pxr/usd/usdShade/tokens.h"
 #include <tbb/concurrent_unordered_map.h>
 
 #include "pxr/base/vt/value.h"
@@ -219,7 +219,7 @@ protected:
     ///
     /// \sa UsdSchemaType
     USDSHADE_API
-    virtual UsdSchemaType _GetSchemaType() const;
+    UsdSchemaType _GetSchemaType() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
@@ -231,7 +231,7 @@ private:
 
     // override SchemaBase virtuals.
     USDSHADE_API
-    virtual const TfType &_GetTfType() const;
+    const TfType &_GetTfType() const override;
 
 public:
     // ===================================================================== //

@@ -705,6 +705,7 @@ void FArchiveStackTrace::CompareWith(const TCHAR* InFilename, const int64 TotalH
 		DestPackage.StartOffset = 0;
 
 		UE_LOG(LogArchiveDiff, Display, TEXT("Comparing: %s"), *GetArchiveName());
+		UE_LOG(LogArchiveDiff, Display, TEXT("Asset class: %s"), *AssetClass.ToString());
 
 		int32 NumLoggedDiffs = 0;
 

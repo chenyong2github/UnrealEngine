@@ -12,13 +12,6 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Containers/ResourceArray.h"
 
-static TAutoConsoleVariable<int32> CVarAllowVolumeTextureAssetCreation(
-	TEXT("r.AllowVolumeTextureAssetCreation"),
-	0,
-	TEXT("Enable UVolumeTexture assets"),
-	ECVF_ReadOnly
-	);
-
 // Limit the possible depth of volume texture otherwise when the user converts 2D textures, he can crash the engine.
 const int32 MAX_VOLUME_TEXTURE_DEPTH = 512;
 
@@ -612,7 +605,7 @@ void UVolumeTexture::UpdateMipGenSettings()
 
 #endif // #if WITH_EDITOR
 
-bool UVolumeTexture::ShaderPlatformSupportsCompression(EShaderPlatform ShaderPlatform)
+bool UVolumeTexture::ShaderPlatformSupportsCompression(FStaticShaderPlatform ShaderPlatform)
 {
 	switch (ShaderPlatform)
 	{
@@ -624,7 +617,7 @@ bool UVolumeTexture::ShaderPlatformSupportsCompression(EShaderPlatform ShaderPla
 		return true;
 
 	default:
-		return FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bSupportsVolumeTextureCompression;
+		return FDataDrivenShaderPlatformInfo::GetSupportsVolumeTextureCompression(ShaderPlatform);
 	}
 }
 

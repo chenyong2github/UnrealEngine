@@ -80,11 +80,6 @@ public:
 	// this should be all the possible return values from the function GetWaveFormat
 	virtual void GetAllWaveFormats( TArray<FName>& OutFormats ) const override;
 
-	virtual FPlatformAudioCookOverrides* GetAudioCompressionSettings() const override
-	{
-		return nullptr;
-	}
-
 #endif // WITH_ENGINE
 
 	DECLARE_DERIVED_EVENT(FXXXTargetPlatform, ITargetPlatform::FOnTargetDeviceDiscovered, FOnTargetDeviceDiscovered);
