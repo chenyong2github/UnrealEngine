@@ -344,7 +344,7 @@ void FHoloLensDeviceDetector::OnDeviceWatcherDeviceAdded(IDeviceInformation* Inf
 		if (FAILED(hr)) { return; }
 
 		hr = PropertyValue->GetStringArray(&uiValue, &pArrayString);
-		if (FAILED(hr)) { return; }
+		if (FAILED(hr) || pArrayString == nullptr) { return; }
 
 		if (uiValue == 0) { return; }
 
