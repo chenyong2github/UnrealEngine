@@ -10,7 +10,9 @@
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepFilter.h"
+#include "SelectionSystem/DataprepSelectionTransform.h"
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
+#include "Widgets/DataprepGraph/SDataprepSelectionTransform.h"
 #include "Widgets/DataprepGraph/SDataprepOperation.h"
 #include "Widgets/SDataprepActionMenu.h"
 
@@ -36,6 +38,11 @@ namespace DataprepActionStepsWidgetUtils
 			{
 				UDataprepOperation* Operation = static_cast<UDataprepOperation*>( StepObject );
 				return SNew( SDataprepOperation, Operation, InStepData );
+			}
+			else if ( StepType == UDataprepSelectionTransform::StaticClass() )
+			{
+				UDataprepSelectionTransform* SelectionTransform = static_cast<UDataprepSelectionTransform*>( StepObject );
+				return SNew( SDataprepSelectionTransform, SelectionTransform, InStepData );
 			}
 			else if ( StepType == UDataprepFilter::StaticClass() )
 			{

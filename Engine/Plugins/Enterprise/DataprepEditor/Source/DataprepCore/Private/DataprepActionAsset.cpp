@@ -14,6 +14,7 @@
 #include "Parameterization/DataprepParameterization.h"
 #include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
+#include "SelectionSystem/DataprepSelectionTransform.h"
 
 // Engine include
 #include "ActorEditorUtils.h"
@@ -124,6 +125,13 @@ void UDataprepActionAsset::Execute(const TArray<UObject*>& InObjects)
 				UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
 				OperationContext->Context->Objects = Filter->FilterObjects( OperationContext->Context->Objects );
 			}
+			else if ( StepType == UDataprepSelectionTransform::StaticClass() )
+			{
+				UDataprepSelectionTransform* SelectionTransform = static_cast<UDataprepSelectionTransform*>(StepObject);
+				TArray<UObject*> TransformResult;
+				SelectionTransform->Execute(OperationContext->Context->Objects, TransformResult);
+				OperationContext->Context->Objects = TransformResult;
+			}
 		}
 	}
 
@@ -155,6 +163,17 @@ int32 UDataprepActionAsset::AddStep(TSubclassOf<UDataprepParameterizableObject> 
 			Modify();
 			UDataprepActionStep* ActionStep = NewObject< UDataprepActionStep >(this, UDataprepActionStep::StaticClass(), NAME_None, RF_Transactional);
 			ActionStep->StepObject = NewObject< UDataprepOperation >(ActionStep, StepType.Get(), NAME_None, RF_Transactional);
+			ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
+			ActionStep->bIsEnabled = true;
+			Steps.Add(ActionStep);
+			OnStepsOrderChanged.Broadcast();
+			return Steps.Num() - 1;
+		}
+		if ( ValidRootClass == UDataprepSelectionTransform::StaticClass() )
+		{
+			Modify();
+			UDataprepActionStep* ActionStep = NewObject< UDataprepActionStep >(this, UDataprepActionStep::StaticClass(), NAME_None, RF_Transactional);
+			ActionStep->StepObject = NewObject< UDataprepSelectionTransform >(ActionStep, StepType.Get(), NAME_None, RF_Transactional);
 			ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
 			ActionStep->bIsEnabled = true;
 			Steps.Add(ActionStep);
@@ -582,6 +601,13 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 		{
 			UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
 			SelectedObjects = Filter->FilterObjects( SelectedObjects );
+		}
+		else if ( StepType == UDataprepSelectionTransform::StaticClass() )
+		{
+			UDataprepSelectionTransform* SelectionTransform = static_cast<UDataprepSelectionTransform*>(StepObject);
+			TArray<UObject*> TransformResult;
+			SelectionTransform->Execute(SelectedObjects, TransformResult);
+			SelectedObjects = TransformResult;
 		}
 	};
 
