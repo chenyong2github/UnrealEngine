@@ -14,6 +14,7 @@
 #include "SelectionSystem/DataprepFilter.h"
 #include "Widgets/DataprepGraph/SDataprepActionSteps.h"
 #include "Widgets/DataprepGraph/SDataprepFilter.h"
+#include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 #include "Widgets/DataprepGraph/SDataprepOperation.h"
 
@@ -33,11 +34,11 @@
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 
-void SDataprepGraphActionStepNode::Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode)
+void SDataprepGraphActionStepNode::Construct(const FArguments& InArgs, UDataprepGraphActionStepNode* InActionStepNode, const TSharedPtr<SDataprepGraphActionNode>& InParent)
 {
 	StepIndex = InActionStepNode->GetStepIndex();
-	bShowInsertionSlot = false;
 
+	ParentNodePtr = InParent;
 	GraphNode = InActionStepNode;
 
 	SetCursor(EMouseCursor::ResizeUpDown);
@@ -150,10 +151,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 
 FSlateColor SDataprepGraphActionStepNode::GetDragAndDropColor() const
 {
-	static const FLinearColor BackgroundColor = FDataprepEditorStyle::GetColor("DataprepActionStep.BackgroundColor");
-	static const FLinearColor DragAndDrop = FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop");
-
-	return bShowInsertionSlot ? DragAndDrop : BackgroundColor;
+	return ParentNodePtr.Pin()->GetInsertColor(StepIndex);
 }
 
 FSlateColor SDataprepGraphActionStepNode::GetBorderBackgroundColor() const
@@ -180,11 +178,6 @@ FReply SDataprepGraphActionStepNode::OnMouseButtonDown(const FGeometry& MyGeomet
 
 FReply SDataprepGraphActionStepNode::OnMouseMove(const FGeometry& SenderGeometry, const FPointerEvent& MouseEvent)
 {
-	if (!MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton) && bShowInsertionSlot)
-	{
-		bShowInsertionSlot = false;
-	}
-
 	return FReply::Unhandled();
 }
 
@@ -194,6 +187,7 @@ FReply SDataprepGraphActionStepNode::OnDragDetected(const FGeometry & MyGeometry
 	{
 		if (UDataprepActionStep* ActionStep = ActionStepNode->GetDataprepActionStep())
 		{
+			ParentNodePtr.Pin()->SetDraggedIndex(StepIndex);
 			return FReply::Handled().BeginDragDrop(FDataprepDragDropOp::New( GetOwnerPanel().ToSharedRef(), SharedThis(this)));
 		}
 	}
@@ -211,7 +205,7 @@ void SDataprepGraphActionStepNode::OnDragEnter(const FGeometry& MyGeometry, cons
 
 		// Inform the Drag and Drop operation that we are hovering over this node.
 		DragNodeOp->SetHoveredNode(GraphNode);
-		bShowInsertionSlot = DragNodeOp->IsValidDrop();
+		ParentNodePtr.Pin()->SetHoveredIndex(StepIndex);
 
 		return;
 	}
@@ -227,7 +221,7 @@ FReply SDataprepGraphActionStepNode::OnDragOver(const FGeometry& MyGeometry, con
 	{
 		// Inform the Drag and Drop operation that we are hovering over this node.
 		DragNodeOp->SetHoveredNode(GraphNode);
-		bShowInsertionSlot = DragNodeOp->IsValidDrop();
+		ParentNodePtr.Pin()->SetHoveredIndex(StepIndex);
 
 		return FReply::Handled();
 	}
@@ -242,7 +236,7 @@ void SDataprepGraphActionStepNode::OnDragLeave(const FDragDropEvent& DragDropEve
 	{
 		// Inform the Drag and Drop operation that we are not this widget anymore
 		DragNodeOp->SetHoveredNode(nullptr);
-		bShowInsertionSlot = false;
+		ParentNodePtr.Pin()->SetHoveredIndex(INDEX_NONE);
 
 		return;
 	}
@@ -252,7 +246,7 @@ void SDataprepGraphActionStepNode::OnDragLeave(const FDragDropEvent& DragDropEve
 
 FReply SDataprepGraphActionStepNode::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	bShowInsertionSlot = false;
+	ParentNodePtr.Pin()->SetDraggedIndex(INDEX_NONE);
 
 	// Process OnDrop if done by FDataprepDragDropOp
 	TSharedPtr<FDataprepDragDropOp> DragActionStepNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
