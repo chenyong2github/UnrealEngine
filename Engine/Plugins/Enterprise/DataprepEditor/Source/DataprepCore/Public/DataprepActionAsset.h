@@ -330,10 +330,10 @@ public:
 
 	/** Getter and Setter on the UI text of the action */
 	const TCHAR* GetLabel() const { return *Label; }
-	void SetLabel( const TCHAR* InLabel ) { Label = InLabel ? InLabel : TEXT(""); }
+	void SetLabel( const TCHAR* InLabel ) { Modify(); Label = InLabel ? InLabel : TEXT(""); }
 
 	/**
-	 * Do the necessary notification so that the dataprep system can react properly to removal of this action
+	 * Do the necessary notification so that the Dataprep system can react properly to removal of this action
 	 */
 	void NotifyDataprepSystemsOfRemoval();
 
