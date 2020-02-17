@@ -110,7 +110,7 @@ private:
 
 	// Sync transforms
 	TMap<EDisplayClusterSyncGroup, TSet<IDisplayClusterClusterSyncObject*>> ObjectsToSync;
-	mutable FCriticalSection                     ObjectsToSyncCritSec;
+	mutable FCriticalSection ObjectsToSyncCritSec;
 
 	// Sync events - types
 	typedef TMap<FString, FDisplayClusterClusterEvent> FNamedEventMap;
@@ -123,6 +123,7 @@ private:
 	mutable FCriticalSection                     ClusterEventsCritSec;
 	FOnClusterEvent                              OnClusterEvent;
 	TArray<TScriptInterface<IDisplayClusterClusterEventListener>> ClusterEventListeners;
+	
 	// Sync native input
 	FEvent* NativeInputDataAvailableEvent = nullptr;
 	TMap<FString, FString> NativeInputDataCache;
