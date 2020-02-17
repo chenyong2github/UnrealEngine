@@ -421,13 +421,23 @@ void UDatasmithFileProducer::PreventNameCollision()
 		// Map containing mapping between previous package to new one
 		TMap<FSoftObjectPath, FSoftObjectPath> AssetRedirectorMap;
 
-		auto MoveAsset = [&AssetRedirectorMap, &PackagesToCheck](UObject* Object, UPackage* NewPackage, bool bCheckPackage)
+		UDatasmithContentBlueprintLibrary* DatasmithContentLibrary = Cast< UDatasmithContentBlueprintLibrary >( UDatasmithContentBlueprintLibrary::StaticClass()->GetDefaultObject() );
+
+		auto MoveAsset = [&DatasmithContentLibrary, &AssetRedirectorMap, &PackagesToCheck](UObject* Object, UPackage* NewPackage, bool bCheckPackage)
 		{
 			if(Object->GetOutermost()->GetName() != NewPackage->GetName())
 			{
 				FSoftObjectPath PreviousObjectPath(Object);
 
 				Object->Rename( nullptr, NewPackage, REN_DontCreateRedirectors | REN_NonTransactional );
+
+				// Replace unique name id with hash of package path to avoid asset's name collision
+				FString DatasmithUniqueId = DatasmithContentLibrary->GetDatasmithUserDataValueForKey( Object, UDatasmithAssetUserData::UniqueIdMetaDataKey );
+				const FString ObjectPath = Object->GetPathName();
+				FString NewUniqueId = FMD5::HashBytes( reinterpret_cast<const uint8*>(*ObjectPath), ObjectPath.Len() * sizeof(TCHAR) );
+
+				UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(Object, *(FString(TEXT("Old")) + UDatasmithAssetUserData::UniqueIdMetaDataKey), DatasmithUniqueId );
+				UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(Object, UDatasmithAssetUserData::UniqueIdMetaDataKey, NewUniqueId );
 
 				AssetRedirectorMap.Emplace( PreviousObjectPath, Object );
 				if(bCheckPackage)
