@@ -31,6 +31,13 @@
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
 
+bool IsTemplate(UObject* Obj)
+{
+	return Obj &&
+		(Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
+		(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)));
+}
+
 FPropertyValueImpl::FPropertyValueImpl( TSharedPtr<FPropertyNode> InPropertyNode, FNotifyHook* InNotifyHook, TSharedPtr<IPropertyUtilities> InPropertyUtilities )
 	: PropertyNode( InPropertyNode )
 	, PropertyUtilities( InPropertyUtilities )
@@ -924,13 +931,14 @@ void FPropertyValueImpl::AddChild()
 		{
 			// determines whether we actually changed any values (if the user clicks the "empty" button when the array is already empty,
 			// we don't want the objects to be marked dirty)
-			bool bNotifiedPreChange = false;
+			bool bHasChanges = false;
 
 			// If we added a new Map entry we need to rebuild children
 			bool bAddedMapEntry = false;
 
 			TArray< TMap<FString, int32> > ArrayIndicesPerObject;
-			TArray< TMap<UObject*, bool> > PropagationResultPerObject;
+			TArray< TArray< UObject* > > AffectedInstancesPerObject;
+			AffectedInstancesPerObject.SetNum(ReadAddresses.Num());
 
 			// List of top level objects sent to the PropertyChangedEvent
 			TArray<const UObject*> TopLevelObjects;
@@ -950,80 +958,93 @@ void FPropertyValueImpl::AddChild()
 				void* Addr = ReadAddresses.GetAddress(i);
 				if ( Addr )
 				{
-					if ( !bNotifiedPreChange )
+					bHasChanges = true;
+
+					if (!FApp::IsGame())
 					{
-						bNotifiedPreChange = true;
-
-						// send the PreEditChange notification to all selected objects
-						PropertyNodePin->NotifyPreChange( NodeProperty, NotifyHook );
-					}
-
-					//add on array index so we can tell which entry just changed
-					ArrayIndicesPerObject.Add(TMap<FString,int32>());
-					FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[i], PropertyNodePin.Get());
-
-					UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
-					if (Obj)
-					{
-						if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
-							(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
-							!FApp::IsGame())
+						UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
+						if (IsTemplate(Obj))
 						{
-							TMap<UObject*, bool> PropagationResult;
-							PropertyNodePin->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Add, -1, &PropagationResult);
-							PropagationResultPerObject.Add(MoveTemp(PropagationResult));
+							PropertyNodePin->GatherInstancesAffectedByContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Add, AffectedInstancesPerObject[i]);
 						}
-
-						TopLevelObjects.Add(Obj);
 					}
-
-					int32 Index = INDEX_NONE;
-
-					if (Array)
-					{
-						FScriptArrayHelper	ArrayHelper(Array, Addr);
-						Index = ArrayHelper.AddValue();
-					}
-					else if (Set)
-					{
-						FScriptSetHelper	SetHelper(Set, Addr);
-						Index = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
-						SetHelper.Rehash();
-
-					}
-					else if (Map)
-					{
-						FScriptMapHelper	MapHelper(Map, Addr);
-						Index = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
-						MapHelper.Rehash();
-
-						uint8* PairPtr = MapHelper.GetPairPtr(Index);
-						bAddedMapEntry = true;
-					}
-
-					ArrayIndicesPerObject[i].Add(NodeProperty->GetName(), Index);
 				}
 			}
 
-			FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayAdd, MakeArrayView(TopLevelObjects));
-			ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
-			ChangeEvent.SetInstancesChangedResultPerArchetype(PropagationResultPerObject);
-
-			if ( bNotifiedPreChange )
+			if ( bHasChanges )
 			{
+				TSet< UObject* > AllAffectedInstances;
+				for (const TArray<UObject*>& AffectedInstances : AffectedInstancesPerObject)
+				{
+					AllAffectedInstances.Append(AffectedInstances);
+				}
+
+				// send the PreEditChange notification to all selected objects
+				PropertyNodePin->NotifyPreChange(NodeProperty, NotifyHook, AllAffectedInstances);
+
+				for (int32 i = 0 ; i < ReadAddresses.Num() ; ++i )
+				{
+					void* Addr = ReadAddresses.GetAddress(i);
+					if ( Addr )
+					{
+						//add on array index so we can tell which entry just changed
+						ArrayIndicesPerObject.Add(TMap<FString, int32>());
+						FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[i], PropertyNodePin.Get());
+
+						UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
+						if (Obj)
+						{
+							if (IsTemplate(Obj) && !FApp::IsGame())
+							{
+								PropertyNodePin->PropagateContainerPropertyChange(Obj, Addr, AffectedInstancesPerObject[i], EPropertyArrayChangeType::Add, -1);
+							}
+
+							TopLevelObjects.Add(Obj);
+						}
+
+						int32 Index = INDEX_NONE;
+
+						if (Array)
+						{
+							FScriptArrayHelper	ArrayHelper(Array, Addr);
+							Index = ArrayHelper.AddValue();
+						}
+						else if (Set)
+						{
+							FScriptSetHelper	SetHelper(Set, Addr);
+							Index = SetHelper.AddDefaultValue_Invalid_NeedsRehash();
+							SetHelper.Rehash();
+
+						}
+						else if (Map)
+						{
+							FScriptMapHelper	MapHelper(Map, Addr);
+							Index = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
+							MapHelper.Rehash();
+							bAddedMapEntry = true;
+						}
+
+						ArrayIndicesPerObject[i].Add(NodeProperty->GetName(), Index);
+					}
+				}
+
+				FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayAdd, MakeArrayView(TopLevelObjects));
+				ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
+				ChangeEvent.SetInstancesChanged(MoveTemp(AllAffectedInstances));
+
 				// send the PostEditChange notification; it will be propagated to all selected objects
 				PropertyNodePin->NotifyPostChange(ChangeEvent, NotifyHook);
-			}
 
-			if (PropertyUtilities.IsValid())
-			{
-				PropertyNodePin->FixPropertiesInEvent(ChangeEvent);
-				PropertyUtilities.Pin()->NotifyFinishedChangingProperties(ChangeEvent);
-			}
+				if (PropertyUtilities.IsValid())
+				{
+					PropertyNodePin->FixPropertiesInEvent(ChangeEvent);
+					PropertyUtilities.Pin()->NotifyFinishedChangingProperties(ChangeEvent);
+				}
 
-			if (bAddedMapEntry)
-			{
-				PropertyNodePin->RebuildChildren();
+				if (bAddedMapEntry)
+				{
+					PropertyNodePin->RebuildChildren();
+				}
 			}
 		}
 	}
@@ -1046,11 +1067,14 @@ void FPropertyValueImpl::ClearChildren()
 		{
 			// determines whether we actually changed any values (if the user clicks the "emtpy" button when the array is already empty,
 			// we don't want the objects to be marked dirty)
-			bool bNotifiedPreChange = false;
+			bool bHasChanges = false;
 
 			// List of top level objects sent to the PropertyChangedEvent
 			TArray<const UObject*> TopLevelObjects;
 			TopLevelObjects.Reserve(ReadAddresses.Num());
+
+			TArray< TArray< UObject* > > AffectedInstancesPerObject;
+			AffectedInstancesPerObject.SetNum(ReadAddresses.Num());
 
 			// Begin a property edit transaction.
 			FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "ClearChildren", "Clear Children") );
@@ -1066,120 +1090,138 @@ void FPropertyValueImpl::ClearChildren()
 				void* Addr = ReadAddresses.GetAddress(i);
 				if ( Addr )
 				{
-					if ( !bNotifiedPreChange )
-					{
-						bNotifiedPreChange = true;
+					bHasChanges = true;
 
-						// send the PreEditChange notification to all selected objects
-						PropertyNodePin->NotifyPreChange( NodeProperty, NotifyHook );
-					}
-
-					UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
-					if (Obj)
+					if (!FApp::IsGame())
 					{
-						if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
-							(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
-							!FApp::IsGame())
+						UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
+						if (IsTemplate(Obj))
 						{
-							PropertyNodePin->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Clear, -1);
+							PropertyNodePin->GatherInstancesAffectedByContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Clear, AffectedInstancesPerObject[i]);
 						}
-
-						TopLevelObjects.Add(Obj);
-					}
-
-					if (ArrayProperty)
-					{
-						FScriptArrayHelper ArrayHelper(ArrayProperty, Addr);
-
-						// If the inner property is an instanced component property we must move the old components to the 
-						// transient package so resetting owned components on the parent doesn't find them
-						FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
-						if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && InnerObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
-						{
-							const int32 ArraySize = ArrayHelper.Num();
-							for (int32 Index = 0; Index < ArraySize; ++Index)
-							{
-								if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(ArrayHelper.GetRawPtr(Index)))
-								{
-									Component->Modify();
-									Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
-								}
-							}
-						}
-
-						ArrayHelper.EmptyValues();
-					}
-					else if (SetProperty)
-					{
-						FScriptSetHelper SetHelper(SetProperty, Addr);
-
-						// If the element property is an instanced component property we must move the old components to the 
-						// transient package so resetting owned components on the parent doesn't find them
-						FObjectProperty* ElementObjectProperty = CastField<FObjectProperty>(SetProperty->ElementProp);
-						if (ElementObjectProperty && ElementObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ElementObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
-						{
-							int32 ElementsToRemove = SetHelper.Num();
-							int32 Index = 0;
-							while (ElementsToRemove > 0)
-							{
-								if (SetHelper.IsValidIndex(Index))
-								{
-									if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(SetHelper.GetElementPtr(Index)))
-									{
-										Component->Modify();
-										Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
-									}
-									--ElementsToRemove;
-								}
-								++Index;
-							}
-						}
-
-						SetHelper.EmptyElements();
-					}
-					else if (MapProperty)
-					{
-						FScriptMapHelper MapHelper(MapProperty, Addr);
-
-						// If the map's value property is an instanced component property we must move the old components to the 
-						// transient package so resetting owned components on the parent doesn't find them
-						FObjectProperty* ValueObjectProperty = CastField<FObjectProperty>(MapProperty->ValueProp);
-						if (ValueObjectProperty && ValueObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ValueObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
-						{
-							int32 ElementsToRemove = MapHelper.Num();
-							int32 Index = 0;
-							while (ElementsToRemove > 0)
-							{
-								if (MapHelper.IsValidIndex(Index))
-								{
-									if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(MapHelper.GetValuePtr(Index)))
-									{
-										Component->Modify();
-										Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
-									}
-									--ElementsToRemove;
-								}
-								++Index;
-							}
-						}
-
-						MapHelper.EmptyValues();
 					}
 				}
 			}
 
-			FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayClear, MakeArrayView(TopLevelObjects));
-
-			if ( bNotifiedPreChange )
+			if (bHasChanges)
 			{
-				// send the PostEditChange notification; it will be propagated to all selected objects
+				TSet< UObject* > AllAffectedInstances;
+				for (const TArray<UObject*>& AffectedInstances : AffectedInstancesPerObject)
+				{
+					AllAffectedInstances.Append(AffectedInstances);
+				}
+
+				// Send the PreEditChange notification to all selected objects
+				PropertyNodePin->NotifyPreChange(NodeProperty, NotifyHook, AllAffectedInstances);
+
+				for ( int32 i = 0 ; i < ReadAddresses.Num() ; ++i )
+				{
+					void* Addr = ReadAddresses.GetAddress(i);
+					if ( Addr )
+					{
+						UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
+						if (Obj)
+						{
+							if (IsTemplate(Obj) && !FApp::IsGame())
+							{
+								PropertyNodePin->PropagateContainerPropertyChange(Obj, Addr, AffectedInstancesPerObject[i], EPropertyArrayChangeType::Clear, -1);
+							}
+
+							TopLevelObjects.Add(Obj);
+						}
+
+						if (ArrayProperty)
+						{
+							FScriptArrayHelper ArrayHelper(ArrayProperty, Addr);
+
+							// If the inner property is an instanced component property we must move the old components to the 
+							// transient package so resetting owned components on the parent doesn't find them
+							FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
+							if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && InnerObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+							{
+								const int32 ArraySize = ArrayHelper.Num();
+								for (int32 Index = 0; Index < ArraySize; ++Index)
+								{
+									if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(ArrayHelper.GetRawPtr(Index)))
+									{
+										Component->Modify();
+										Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+									}
+								}
+							}
+
+							ArrayHelper.EmptyValues();
+						}
+						else if (SetProperty)
+						{
+							FScriptSetHelper SetHelper(SetProperty, Addr);
+
+							// If the element property is an instanced component property we must move the old components to the 
+							// transient package so resetting owned components on the parent doesn't find them
+							FObjectProperty* ElementObjectProperty = CastField<FObjectProperty>(SetProperty->ElementProp);
+							if (ElementObjectProperty && ElementObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ElementObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+							{
+								int32 ElementsToRemove = SetHelper.Num();
+								int32 Index = 0;
+								while (ElementsToRemove > 0)
+								{
+									if (SetHelper.IsValidIndex(Index))
+									{
+										if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(SetHelper.GetElementPtr(Index)))
+										{
+											Component->Modify();
+											Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+										}
+										--ElementsToRemove;
+									}
+									++Index;
+								}
+							}
+
+							SetHelper.EmptyElements();
+						}
+						else if (MapProperty)
+						{
+							FScriptMapHelper MapHelper(MapProperty, Addr);
+
+							// If the map's value property is an instanced component property we must move the old components to the 
+							// transient package so resetting owned components on the parent doesn't find them
+							FObjectProperty* ValueObjectProperty = CastField<FObjectProperty>(MapProperty->ValueProp);
+							if (ValueObjectProperty && ValueObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ValueObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+							{
+								int32 ElementsToRemove = MapHelper.Num();
+								int32 Index = 0;
+								while (ElementsToRemove > 0)
+								{
+									if (MapHelper.IsValidIndex(Index))
+									{
+										if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(MapHelper.GetValuePtr(Index)))
+										{
+											Component->Modify();
+											Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+										}
+										--ElementsToRemove;
+									}
+									++Index;
+								}
+							}
+
+							MapHelper.EmptyValues();
+						}
+					}
+				}
+
+				FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayClear, MakeArrayView(TopLevelObjects));
+				ChangeEvent.SetInstancesChanged(MoveTemp(AllAffectedInstances));
+
+				// Send the PostEditChange notification; it will be propagated to all selected objects
 				PropertyNodePin->NotifyPostChange( ChangeEvent, NotifyHook );
-			}
 
-			if (PropertyUtilities.IsValid())
-			{
-				PropertyNodePin->FixPropertiesInEvent(ChangeEvent);
-				PropertyUtilities.Pin()->NotifyFinishedChangingProperties(ChangeEvent);
+				if (PropertyUtilities.IsValid())
+				{
+					PropertyNodePin->FixPropertiesInEvent(ChangeEvent);
+					PropertyUtilities.Pin()->NotifyFinishedChangingProperties(ChangeEvent);
+				}
 			}
 		}
 	}
@@ -1214,15 +1256,27 @@ void FPropertyValueImpl::InsertChild( TSharedPtr<FPropertyNode> ChildNodeToInser
 
 	if( Addr )
 	{
+		TArray< UObject* > AffectedInstances;
+
 		// Begin a property edit transaction.
 		FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "InsertChild", "Insert Child") );
 
-		ChildNodePtr->NotifyPreChange( ParentNode->GetProperty(), NotifyHook );
+		if (!FApp::IsGame())
+		{
+			UObject* Obj = ObjectNode ? ObjectNode->GetUObject(0) : nullptr;
+			if (IsTemplate(Obj))
+			{
+				ChildNodePtr->GatherInstancesAffectedByContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Add, AffectedInstances);
+			}
+		}
+
+		TSet< UObject* > AllAffectedInstances;
+		AllAffectedInstances.Append(AffectedInstances);
+
+		ChildNodePtr->NotifyPreChange( ParentNode->GetProperty(), NotifyHook, AllAffectedInstances );
 
 		FScriptArrayHelper	ArrayHelper(ArrayProperty,Addr);
 		int32 Index = ChildNodePtr->GetArrayIndex();
-
-		TArray< TMap<UObject*, bool> > PropagationResultPerObject;
 
 		// List of top level objects sent to the PropertyChangedEvent
 		TArray<const UObject*> TopLevelObjects;
@@ -1230,13 +1284,9 @@ void FPropertyValueImpl::InsertChild( TSharedPtr<FPropertyNode> ChildNodeToInser
 		UObject* Obj = ObjectNode ? ObjectNode->GetUObject(0) : nullptr;
 		if (Obj)
 		{
-			if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
-				(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
-				!FApp::IsGame())
+			if (IsTemplate(Obj) && !FApp::IsGame())
 			{
-				TMap<UObject*, bool> PropagationResult;
-				ChildNodePtr->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Insert, Index, &PropagationResult);
-				PropagationResultPerObject.Add(MoveTemp(PropagationResult));
+				ChildNodePtr->PropagateContainerPropertyChange(Obj, Addr, AffectedInstances, EPropertyArrayChangeType::Insert, Index);
 			}
 
 			TopLevelObjects.Add(Obj);
@@ -1255,7 +1305,7 @@ void FPropertyValueImpl::InsertChild( TSharedPtr<FPropertyNode> ChildNodeToInser
 
 		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayAdd, MakeArrayView(TopLevelObjects));
 		ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
-		ChangeEvent.SetInstancesChangedResultPerArchetype(PropagationResultPerObject);
+		ChangeEvent.SetInstancesChanged(MoveTemp(AllAffectedInstances));
 
 		PropertyNode.Pin()->NotifyPostChange(ChangeEvent, NotifyHook);
 
@@ -1292,7 +1342,6 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 	FMapProperty* MapProperty = NodeProperty->GetOwner<FMapProperty>();
 
 	TArray< TMap<FString, int32> > ArrayIndicesPerObject;
-	TArray< TMap<UObject*, bool> > PropagationResultPerObject;
 
 	check(ArrayProperty || SetProperty || MapProperty);
 
@@ -1300,119 +1349,150 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 	ParentNode->GetReadAddress( !!ParentNode->HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly), ReadAddresses ); 
 	if ( ReadAddresses.Num() )
 	{
-		FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "DeleteChild", "Delete Child") );
+		// determines whether we actually changed any values (if the user clicks the "empty" button when the array is already empty,
+		// we don't want the objects to be marked dirty)
+		bool bHasChanges = false;
 
-		ChildNodePtr->NotifyPreChange( NodeProperty, NotifyHook );
+		TArray< TArray< UObject* > > AffectedInstancesPerObject;
+		AffectedInstancesPerObject.SetNum(ReadAddresses.Num());
+
+		FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DeleteChild", "Delete Child"));
 
 		// List of top level objects sent to the PropertyChangedEvent
 		TArray<const UObject*> TopLevelObjects;
 		TopLevelObjects.Reserve(ReadAddresses.Num());
 
-		// perform the operation on the array for all selected objects
 		for ( int32 i = 0 ; i < ReadAddresses.Num() ; ++i )
 		{
 			uint8* Address = ReadAddresses.GetAddress(i);
 
 			if( Address ) 
 			{
-				int32 Index = ChildNodePtr->GetArrayIndex();
+				bHasChanges = true;
 
-				//add on array index so we can tell which entry just changed
-				ArrayIndicesPerObject.Add(TMap<FString, int32>());
-				FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[i], ChildNodePtr);
-
-				UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
-				if (Obj)
+				if (!FApp::IsGame())
 				{
-					if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
-						(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
-						!FApp::IsGame())
+					UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
+					if (IsTemplate(Obj))
 					{
-						TMap<UObject*, bool> PropagationResult;
-						ChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Delete, Index, &PropagationResult);
-
-						PropagationResultPerObject.Add(MoveTemp(PropagationResult));
+						ChildNodePtr->GatherInstancesAffectedByContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Delete, AffectedInstancesPerObject[i]);
 					}
-
-					TopLevelObjects.Add(Obj);
 				}
-
-				if (ArrayProperty)
-				{
-					FScriptArrayHelper ArrayHelper(ArrayProperty, Address);
-
-					// If the inner property is an instanced component property we must move the old component to the 
-					// transient package so resetting owned components on the parent doesn't find it
-					FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
-					if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && InnerObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
-					{
-						if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(ArrayHelper.GetRawPtr(ChildNodePtr->GetArrayIndex())))
-						{
-							Component->Modify();
-							Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
-						}
-					}
-
-					ArrayHelper.RemoveValues(ChildNodePtr->GetArrayIndex());
-				}
-				else if (SetProperty)
-				{
-					FScriptSetHelper SetHelper(SetProperty, Address);
-
-					// If the element property is an instanced component property we must move the old component to the 
-					// transient package so resetting owned components on the parent doesn't find it
-					FObjectProperty* ElementObjectProperty = CastField<FObjectProperty>(SetProperty->ElementProp);
-					if (ElementObjectProperty && ElementObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ElementObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
-					{
-						if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(SetHelper.GetElementPtr(ChildNodePtr->GetArrayIndex())))
-						{
-							Component->Modify();
-							Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
-						}
-					}
-
-					int32 InternalIndex = SetHelper.FindInternalIndex(ChildNodePtr->GetArrayIndex());
-					SetHelper.RemoveAt(InternalIndex);
-					SetHelper.Rehash();
-				}
-				else if (MapProperty)
-				{
-					FScriptMapHelper MapHelper(MapProperty, Address);
-
-					// If the map's value property is an instanced component property we must move the old component to the 
-					// transient package so resetting owned components on the parent doesn't find it
-					FObjectProperty* ValueObjectProperty = CastField<FObjectProperty>(MapProperty->ValueProp);
-					if (ValueObjectProperty && ValueObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ValueObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
-					{
-						if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(MapHelper.GetValuePtr(ChildNodePtr->GetArrayIndex())))
-						{
-							Component->Modify();
-							Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
-						}
-					}
-
-					int32 InternalIndex = MapHelper.FindInternalIndex(ChildNodePtr->GetArrayIndex());
-					MapHelper.RemoveAt(InternalIndex);
-					MapHelper.Rehash();
-				}
-
-				ArrayIndicesPerObject[i].Add(NodeProperty->GetName(), Index);
 			}
 		}
 
-		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayRemove, MakeArrayView(TopLevelObjects));
-		ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
-		ChangeEvent.SetInstancesChangedResultPerArchetype(PropagationResultPerObject);
-
-		PropertyNode.Pin()->NotifyPostChange(ChangeEvent, NotifyHook);
-
-		if (PropertyUtilities.IsValid())
+		if (bHasChanges)
 		{
-			ChildNodePtr->FixPropertiesInEvent(ChangeEvent);
-			PropertyUtilities.Pin()->NotifyFinishedChangingProperties(ChangeEvent);
-		}
+			TSet< UObject* > AllAffectedInstances;
+			for (const TArray<UObject*>& AffectedInstances : AffectedInstancesPerObject)
+			{
+				AllAffectedInstances.Append(AffectedInstances);
+			}
 
-		PropertyNode.Pin()->RebuildChildren();
+			// Send the PreEditChange notification to all selected objects
+			ChildNodePtr->NotifyPreChange(NodeProperty, NotifyHook, AllAffectedInstances);
+
+			// Perform the operation on the array for all selected objects
+			for (int32 i = 0; i < ReadAddresses.Num(); ++i)
+			{
+				uint8* Address = ReadAddresses.GetAddress(i);
+
+				if ( Address )
+				{
+					int32 Index = ChildNodePtr->GetArrayIndex();
+
+					// Add on array index so we can tell which entry just changed
+					ArrayIndicesPerObject.Add(TMap<FString, int32>());
+					FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[i], ChildNodePtr);
+
+					UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
+					if (Obj)
+					{
+						if (IsTemplate(Obj) && !FApp::IsGame())
+						{
+							ChildNodePtr->PropagateContainerPropertyChange(Obj, Address, AffectedInstancesPerObject[i], EPropertyArrayChangeType::Delete, Index);
+						}
+
+						TopLevelObjects.Add(Obj);
+					}
+
+					if (ArrayProperty)
+					{
+						FScriptArrayHelper ArrayHelper(ArrayProperty, Address);
+
+						// If the inner property is an instanced component property we must move the old component to the 
+						// transient package so resetting owned components on the parent doesn't find it
+						FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
+						if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && InnerObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+						{
+							if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(ArrayHelper.GetRawPtr(ChildNodePtr->GetArrayIndex())))
+							{
+								Component->Modify();
+								Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+							}
+						}
+
+						ArrayHelper.RemoveValues(ChildNodePtr->GetArrayIndex());
+					}
+					else if (SetProperty)
+					{
+						FScriptSetHelper SetHelper(SetProperty, Address);
+
+						// If the element property is an instanced component property we must move the old component to the 
+						// transient package so resetting owned components on the parent doesn't find it
+						FObjectProperty* ElementObjectProperty = CastField<FObjectProperty>(SetProperty->ElementProp);
+						if (ElementObjectProperty && ElementObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ElementObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+						{
+							if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(SetHelper.GetElementPtr(ChildNodePtr->GetArrayIndex())))
+							{
+								Component->Modify();
+								Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+							}
+						}
+
+						int32 InternalIndex = SetHelper.FindInternalIndex(ChildNodePtr->GetArrayIndex());
+						SetHelper.RemoveAt(InternalIndex);
+						SetHelper.Rehash();
+					}
+					else if (MapProperty)
+					{
+						FScriptMapHelper MapHelper(MapProperty, Address);
+
+						// If the map's value property is an instanced component property we must move the old component to the 
+						// transient package so resetting owned components on the parent doesn't find it
+						FObjectProperty* ValueObjectProperty = CastField<FObjectProperty>(MapProperty->ValueProp);
+						if (ValueObjectProperty && ValueObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ValueObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+						{
+							if (UActorComponent* Component = *reinterpret_cast<UActorComponent**>(MapHelper.GetValuePtr(ChildNodePtr->GetArrayIndex())))
+							{
+								Component->Modify();
+								Component->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+							}
+						}
+
+						int32 InternalIndex = MapHelper.FindInternalIndex(ChildNodePtr->GetArrayIndex());
+						MapHelper.RemoveAt(InternalIndex);
+						MapHelper.Rehash();
+					}
+
+					ArrayIndicesPerObject[i].Add(NodeProperty->GetName(), Index);
+				}
+			}
+
+			FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayRemove, MakeArrayView(TopLevelObjects));
+			ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
+			ChangeEvent.SetInstancesChanged(MoveTemp(AllAffectedInstances));
+
+			PropertyNode.Pin()->NotifyPostChange(ChangeEvent, NotifyHook);
+
+			if (PropertyUtilities.IsValid())
+			{
+				ChildNodePtr->FixPropertiesInEvent(ChangeEvent);
+				PropertyUtilities.Pin()->NotifyFinishedChangingProperties(ChangeEvent);
+			}
+
+			PropertyNode.Pin()->RebuildChildren();
+		}
 	}
 }
 
@@ -1468,7 +1548,7 @@ void FPropertyValueImpl::SwapChildren( TSharedPtr<FPropertyNode> FirstChildNode,
 					if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || (Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) 
 						&& !FApp::IsGame())
 					{
-						FirstChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Swap, FirstIndex, nullptr, SecondIndex);
+						FirstChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Swap, FirstIndex, SecondIndex);
 					}
 
 					TopLevelObjects.Add(Obj);
@@ -1691,7 +1771,7 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 						if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
 							(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))))
 						{
-							FirstChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Swap, FirstIndex, nullptr, SecondIndex);
+							FirstChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Swap, FirstIndex, SecondIndex);
 						}
 
 						TopLevelObjects.Add(Obj);
@@ -1831,28 +1911,37 @@ void FPropertyValueImpl::DuplicateChild( TSharedPtr<FPropertyNode> ChildNodeToDu
 
 	if( Addr )
 	{
+		TArray< UObject* > AffectedInstances;
+
 		// List of top level objects sent to the PropertyChangedEvent
 		TArray<const UObject*> TopLevelObjects;
 
 		FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "DuplicateChild", "Duplicate Child") );
 
-		ChildNodePtr->NotifyPreChange( ParentNode->GetProperty(), NotifyHook );
+		if (!FApp::IsGame())
+		{
+			UObject* Obj = ObjectNode ? ObjectNode->GetUObject(0) : nullptr;
+			if (IsTemplate(Obj))
+			{
+				ChildNodePtr->GatherInstancesAffectedByContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Duplicate, AffectedInstances);
+			}
+		}
+
+		TSet< UObject* > AllAffectedInstances;
+		AllAffectedInstances.Append(AffectedInstances);
+
+		ChildNodePtr->NotifyPreChange( ParentNode->GetProperty(), NotifyHook, AllAffectedInstances );
 
 		int32 Index = ChildNodePtr->GetArrayIndex();
 		UObject* Obj = ObjectNode ? ObjectNode->GetUObject(0) : nullptr;
 
 		TArray< TMap<FString, int32> > ArrayIndicesPerObject;
-		TArray< TMap<UObject*, bool> > PropagationResultPerObject;
 
 		if (Obj)
 		{
-			if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
-				(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
-				!FApp::IsGame())
+			if (IsTemplate(Obj) && !FApp::IsGame())
 			{
-				TMap<UObject*, bool> PropagationResult;
-				ChildNodePtr->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Duplicate, Index, &PropagationResult);
-				PropagationResultPerObject.Add(MoveTemp(PropagationResult));
+				ChildNodePtr->PropagateContainerPropertyChange(Obj, Addr, AffectedInstances, EPropertyArrayChangeType::Duplicate, Index);
 			}
 
 			TopLevelObjects.Add(Obj);
@@ -1905,7 +1994,7 @@ void FPropertyValueImpl::DuplicateChild( TSharedPtr<FPropertyNode> ChildNodeToDu
 
 		FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::Duplicate, MakeArrayView(TopLevelObjects));
 		ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
-		ChangeEvent.SetInstancesChangedResultPerArchetype(PropagationResultPerObject);
+		ChangeEvent.SetInstancesChanged(MoveTemp(AllAffectedInstances));
 
 		PropertyNode.Pin()->NotifyPostChange(ChangeEvent, NotifyHook);
 

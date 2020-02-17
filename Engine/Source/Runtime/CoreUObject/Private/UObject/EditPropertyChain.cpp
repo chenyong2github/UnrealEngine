@@ -53,6 +53,11 @@ bool FEditPropertyChain::SetActiveMemberPropertyNode( FProperty* NewActiveMember
 	return bResult;
 }
 
+bool FEditPropertyChain::IsArchetypeInstanceAffected( UObject* InInstance ) const
+{
+	return AffectedInstances.Contains(InInstance);
+}
+
 /**
  * Returns the node corresponding to the currently active property.
  */

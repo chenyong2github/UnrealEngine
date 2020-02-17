@@ -577,6 +577,8 @@ public:
 	bool IsChildOfFavorite(void) const;
 
 	void NotifyPreChange(FProperty* PropertyAboutToChange, class FNotifyHook* InNotifyHook);
+	void NotifyPreChange(FProperty* PropertyAboutToChange, class FNotifyHook* InNotifyHook, const TSet<UObject*>& AffectedInstances);
+	void NotifyPreChange(FProperty* PropertyAboutToChange, class FNotifyHook* InNotifyHook, TSet<UObject*>&& AffectedInstances);
 
 	void NotifyPostChange(FPropertyChangedEvent& InPropertyChangedEvent, class FNotifyHook* InNotifyHook);
 
@@ -600,7 +602,29 @@ public:
 	 * @param	Index						Index of the modified item
 	 */
 	void PropagateContainerPropertyChange(UObject* ModifiedObject, const void* OriginalContainerAddr,
-		EPropertyArrayChangeType::Type ChangeType, int32 Index, TMap<UObject*, bool>* PropagationResult = nullptr, int32 SwapIndex = INDEX_NONE);
+		EPropertyArrayChangeType::Type ChangeType, int32 Index, int32 SwapIndex = INDEX_NONE);
+
+	/**
+	 * Gather the list of all instances that will be affected by a container property change
+	 *
+	 * @param	ModifiedObject				Object which property has been modified
+	 * @param	OriginalContainerAddr		Original address holding the container value before the modification
+	 * @param	ChangeType					In which way is the container modified
+	 * @param	OutAffectedInstances		Instances affected by the property change
+	 */
+	void GatherInstancesAffectedByContainerPropertyChange(UObject* ModifiedObject, const void* OriginalContainerAddr, EPropertyArrayChangeType::Type ChangeType, TArray<UObject*>& OutAffectedInstances);
+
+	/**
+	 * Propagates the property change of a container property to the provided archetype instances
+	 *
+	 * @param	ModifiedObject				Object which property has been modified
+	 * @param	OriginalContainerAddr		Original address holding the container value before the modification
+	 * @param	AffectedInstances			Instances affected by the property change
+	 * @param	ChangeType					In which way was the container modified
+	 * @param	Index						Index of the modified item
+	 */
+	void PropagateContainerPropertyChange(UObject* ModifiedObject, const void* OriginalContainerAddr, const TArray<UObject*>& AffectedInstances,
+		EPropertyArrayChangeType::Type ChangeType, int32 Index, int32 SwapIndex = INDEX_NONE);
 
 	/** Broadcasts when a property value changes */
 	DECLARE_EVENT(FPropertyNode, FPropertyValueChangedEvent);
@@ -892,6 +916,10 @@ protected:
 	uint8* GetStartAddress(const UObject* Obj) const;
 
 	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange );
+	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange, const TSet<UObject*>& InAffectedArchetypeInstances );
+	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange, TSet<UObject*>&& InAffectedArchetypeInstances );
+
+	void NotifyPreChangeInternal(TSharedRef<FEditPropertyChain> PropertyChain, FProperty* PropertyAboutToChange, FNotifyHook* InNotifyHook);
 
 	/**
 	 * Destroys all node within the hierarchy
@@ -899,7 +927,7 @@ protected:
 	void DestroyTree(const bool bInDestroySelf=true);
 
 	/**
-	 * Interface function for Custom Setup of Node (priot to node flags being set)
+	 * Interface function for Custom Setup of Node (prior to node flags being set)
 	 */
 	virtual void InitBeforeNodeFlags () {};
 
