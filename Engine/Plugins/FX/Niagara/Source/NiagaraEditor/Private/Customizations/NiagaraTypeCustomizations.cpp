@@ -820,7 +820,7 @@ void FNiagaraPlatformSetTypeCustomization::GenerateEffectsQualitySelectionWidget
 			[
 				SNew(SBox)
 				.WidthOverride(100)
-				.VAlign(VAlign_Center)
+				.VAlign(VAlign_Top)
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot()
