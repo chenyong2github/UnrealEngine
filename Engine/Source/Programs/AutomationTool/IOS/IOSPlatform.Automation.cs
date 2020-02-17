@@ -1243,13 +1243,27 @@ public class IOSPlatform : Platform
 				int EndPos = Contents.IndexOf("</string>", Pos);
 				BundleIdentifier = Contents.Substring(Pos, EndPos - Pos);
 			}
-			RunAndLog(CmdEnv, DeployServer, "Backup -file \"" + CombinePaths(Params.BaseStageDirectory, PlatformName, SC.GetUFSDeployedManifestFileName(null)) + "\" -file \"" + CombinePaths(Params.BaseStageDirectory, PlatformName, SC.GetNonUFSDeployedManifestFileName(null)) + "\"" + (String.IsNullOrEmpty(Params.DeviceNames[0]) ? "" : " -device " + Params.DeviceNames[0]) + " -bundle " + BundleIdentifier);
+			
+			LogInformation("Checking if bundle {0} is installed", BundleIdentifier);
+			string Output = CommandUtils.RunAndLog(DeployServer, "ListApplications" + (String.IsNullOrEmpty(Params.DeviceNames[0]) ? "" : " -device " + Params.DeviceNames[0]), GetRunAndLogOnlyName(CmdEnv, DeployServer, null), 0, null, ERunOptions.SpewIsVerbose);
+			bool bBundleIsInstalled = Output.Contains(string.Format("CFBundleIdentifier -> {0}{1}", BundleIdentifier, Environment.NewLine)); 
 
-			string[] ManifestFiles = Directory.GetFiles(CombinePaths(Params.BaseStageDirectory, PlatformName), "*_Manifest_UFS*.txt");
-			UFSManifests.AddRange(ManifestFiles);
+			if (bBundleIsInstalled)
+			{
+				LogInformation("Bundle {0} found, retrieving deployed manifests...", BundleIdentifier);
 
-			ManifestFiles = Directory.GetFiles(CombinePaths(Params.BaseStageDirectory, PlatformName), "*_Manifest_NonUFS*.txt");
-			NonUFSManifests.AddRange(ManifestFiles);
+				RunAndLog(CmdEnv, DeployServer, "Backup -file \"" + CombinePaths(Params.BaseStageDirectory, PlatformName, SC.GetUFSDeployedManifestFileName(null)) + "\" -file \"" + CombinePaths(Params.BaseStageDirectory, PlatformName, SC.GetNonUFSDeployedManifestFileName(null)) + "\"" + (String.IsNullOrEmpty(Params.DeviceNames[0]) ? "" : " -device " + Params.DeviceNames[0]) + " -bundle " + BundleIdentifier);
+
+				string[] ManifestFiles = Directory.GetFiles(CombinePaths(Params.BaseStageDirectory, PlatformName), "*_Manifest_UFS*.txt");
+				UFSManifests.AddRange(ManifestFiles);
+
+				ManifestFiles = Directory.GetFiles(CombinePaths(Params.BaseStageDirectory, PlatformName), "*_Manifest_NonUFS*.txt");
+				NonUFSManifests.AddRange(ManifestFiles);
+			}
+			else
+			{
+				LogInformation("Bundle {0} not found, skipping retrieving deployed manifests", BundleIdentifier);
+			}
 		}
 		catch (System.Exception)
 		{
