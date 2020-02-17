@@ -215,6 +215,8 @@ namespace DatasmithMaxTexmapParser
 					NormalMapParameters.BumpMap.Weight = ParamBlock2->GetFloat( ParamDefinition.ID, GetCOREInterface()->GetTime() );
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return NormalMapParameters;
@@ -293,6 +295,8 @@ namespace DatasmithMaxTexmapParser
 					AutodeskBitmapParameters.MapChannel = (ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime));
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return AutodeskBitmapParameters;
