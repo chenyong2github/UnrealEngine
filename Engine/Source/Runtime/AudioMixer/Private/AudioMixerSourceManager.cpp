@@ -1848,7 +1848,8 @@ namespace Audio
 			FAmbisonicsSoundfieldBuffer AmbiBuffer;
 			AmbiBuffer.AudioBuffer = MoveTemp(*DownmixData.PostEffectBuffers);
 			AmbiBuffer.NumChannels = DownmixData.NumInputChannels;
-			AmbiBuffer.Rotation = DownmixData.PositionalData.Rotation;
+			AmbiBuffer.PreviousRotation = AmbiBuffer.Rotation;
+			AmbiBuffer.Rotation = DownmixData.SourceRotation;
 
 			DownmixData.PositionalData.NumChannels = DownmixData.NumDeviceChannels;
 			DownmixData.PositionalData.ChannelPositions = MixerDevice->GetDefaultPositionMap(DownmixData.NumDeviceChannels);
@@ -1922,7 +1923,8 @@ namespace Audio
 			FAmbisonicsSoundfieldBuffer AmbiBuffer;
 			AmbiBuffer.AudioBuffer = MoveTemp(*DownmixData.PostEffectBuffers);
 			AmbiBuffer.NumChannels = DownmixData.NumInputChannels;
-			AmbiBuffer.Rotation = DownmixData.PositionalData.Rotation;
+			AmbiBuffer.PreviousRotation = AmbiBuffer.Rotation;
+			AmbiBuffer.Rotation = DownmixData.SourceRotation;
 
 			DownmixData.PositionalData.NumChannels = DownmixData.NumDeviceChannels;
 			DownmixData.PositionalData.ChannelPositions = MixerDevice->GetDefaultPositionMap(DownmixData.NumDeviceChannels);
@@ -2051,6 +2053,8 @@ namespace Audio
 				FAmbisonicsSoundfieldBuffer AmbiBuffer;
 				AmbiBuffer.AudioBuffer = MoveTemp(*DownmixData.PostEffectBuffers);
 				AmbiBuffer.NumChannels = DownmixData.NumInputChannels;
+				AmbiBuffer.PreviousRotation = AmbiBuffer.Rotation;
+				AmbiBuffer.Rotation = DownmixData.SourceRotation;
 
 				SoundfieldData.AmbiTranscoder->Transcode(AmbiBuffer, GetAmbisonicsSourceDefaultSettings(), *SoundfieldData.EncodedPacket, *SoundfieldData.EncoderSettings);
 				*DownmixData.PostEffectBuffers = MoveTemp(AmbiBuffer.AudioBuffer);
@@ -2069,10 +2073,14 @@ namespace Audio
 			}
 			else if (SoundfieldData.bIsUnrealAmbisonicsSubmix)
 			{
+				ensure(InSource.bIsAmbisonics);
+
 				FAmbisonicsSoundfieldBuffer& OutputPacket = DowncastSoundfieldRef<FAmbisonicsSoundfieldBuffer>(*SoundfieldData.EncodedPacket);
 				// Fixme: This is an array copy. Can we serve DownmixData.PostEffectBuffers directly to this soundfield?
 				OutputPacket.AudioBuffer = *DownmixData.PostEffectBuffers;
 				OutputPacket.NumChannels = DownmixData.NumInputChannels;
+				OutputPacket.PreviousRotation = OutputPacket.Rotation;
+				OutputPacket.Rotation = DownmixData.SourceRotation;
 			}
 		}
 	}
@@ -2344,6 +2352,7 @@ namespace Audio
 			}
 
 			DownmixData.PositionalData.Rotation = SourceInfo.SpatParams.ListenerOrientation;
+			DownmixData.SourceRotation = SourceInfo.SpatParams.EmitterWorldRotation;
 
 			if (SourceInfo.bIs3D && !DownmixData.bIsInitialDownmix)
 			{

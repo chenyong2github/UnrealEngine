@@ -357,6 +357,10 @@ namespace Audio
 
 		struct FSourceDownmixData
 		{
+			// cached parameters for encoding to a soundfield format.
+			FSoundfieldSpeakerPositionalData PositionalData;
+			FQuat SourceRotation;
+
 			// Output data, after computing a block of sample data, this is read back from mixers
 			Audio::AlignedFloatBuffer ReverbPluginOutputBuffer;
 			Audio::AlignedFloatBuffer* PostEffectBuffers;
@@ -372,19 +376,17 @@ namespace Audio
 			uint32 NumDeviceChannels;
 			uint8 bIsInitialDownmix : 1;
 
-			// cached parameters for encoding to a soundfield format.
-			FSoundfieldSpeakerPositionalData PositionalData;
-
 			// If this source is an ambisonics source, we use this to downmix the source to our output.
 			TUniquePtr<ISoundfieldDecoderStream> AmbisonicsDecoder;
 
 			FSourceDownmixData(uint32 SourceNumChannels, uint32 NumDeviceOutputChannels, uint32 InNumFrames)
-				: PostEffectBuffers(nullptr)
+				: SourceRotation(FQuat::Identity)
+				, PostEffectBuffers(nullptr)
 				, DeviceSubmixInfo(FSubmixChannelData(SourceNumChannels, NumDeviceOutputChannels, InNumFrames))
 				, NumInputChannels(SourceNumChannels)
 				, NumFrames(InNumFrames)
 				, NumDeviceChannels(NumDeviceOutputChannels)
-				, bIsInitialDownmix(true)
+				, bIsInitialDownmix(true) 
 			{
 			}
 

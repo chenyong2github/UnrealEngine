@@ -170,6 +170,9 @@ public:
  */
 class FAmbisonicsMixer : public ISoundfieldMixerStream
 {
+private:
+	// This is a temp buffer that we use to rotate InputData in MixTogether to the world rotation.
+	FAmbisonicsSoundfieldBuffer RotatedAudio;
 public:
 	FAmbisonicsMixer() {}
 
@@ -186,10 +189,19 @@ public:
 			OutAudio.AudioBuffer.AddZeroed(InAudio.AudioBuffer.Num());
 		}
 
+		if (RotatedAudio.NumChannels == 0)
+		{
+			RotatedAudio.NumChannels = InAudio.NumChannels;
+			RotatedAudio.AudioBuffer.Reset();
+			RotatedAudio.AudioBuffer.AddZeroed(InAudio.AudioBuffer.Num());
+		}
+
 		check(OutAudio.NumChannels == InAudio.NumChannels);
 		check(InAudio.AudioBuffer.Num() == OutAudio.AudioBuffer.Num());
 
-		Audio::MixInBufferFast(InAudio.AudioBuffer, OutAudio.AudioBuffer, InputData.SendLevel);
+		// Rotate 
+		FSoundFieldDecoder::RotateFirstOrderAmbisonicsBed(InAudio, RotatedAudio, InAudio.Rotation, InAudio.PreviousRotation);
+		Audio::MixInBufferFast(RotatedAudio.AudioBuffer, OutAudio.AudioBuffer, InputData.SendLevel);
 	}
 };
 
