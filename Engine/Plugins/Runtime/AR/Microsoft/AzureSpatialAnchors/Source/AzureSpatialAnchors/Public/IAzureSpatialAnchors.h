@@ -59,10 +59,11 @@ public:
 	virtual void DestroySession() = 0;
 
 	virtual bool GetCloudAnchor(class UARPin*& InARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor) = 0;
+	virtual void GetCloudAnchors(TArray<class UAzureCloudSpatialAnchor*>& OutCloudAnchors) = 0;
 	virtual bool CreateCloudAnchor(class UARPin*& InARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor) = 0;
 	virtual bool SetCloudAnchorExpiration(class UAzureCloudSpatialAnchor*& InCloudAnchor, int MinutesFromNow) = 0;
 	virtual bool SaveCloudAnchorAsync_Start(class FPendingLatentAction* LatentAction, class UAzureCloudSpatialAnchor*& InCloudAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;
-	virtual bool SaveCloudAnchorAsync_Update(class FPendingLatentAction* LatentAction, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;
+	virtual bool SaveCloudAnchorAsync_Update(class FPendingLatentAction* LatentAction, class UAzureCloudSpatialAnchor*& InCloudAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;
 	virtual void SaveCloudAnchorAsync_Orphan(class FPendingLatentAction* LatentAction) = 0;
 	virtual bool DeleteCloudAnchorAsync_Start(class FPendingLatentAction* LatentAction, class UAzureCloudSpatialAnchor*& InCloudAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;
 	virtual bool DeleteCloudAnchorAsync_Update(class FPendingLatentAction* LatentAction, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString) = 0;

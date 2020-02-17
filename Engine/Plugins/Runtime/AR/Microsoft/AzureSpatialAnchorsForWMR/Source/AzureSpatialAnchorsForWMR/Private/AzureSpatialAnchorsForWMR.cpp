@@ -106,6 +106,11 @@ bool FAzureSpatialAnchorsForWMR::GetCloudAnchor(UARPin*& InARPin, UAzureCloudSpa
 	}
 }
 
+void FAzureSpatialAnchorsForWMR::GetCloudAnchors(TArray<UAzureCloudSpatialAnchor*>& OutCloudAnchors)
+{
+	CloudAnchorMap.GenerateValueArray(OutCloudAnchors);
+}
+
 bool FAzureSpatialAnchorsForWMR::CreateCloudAnchor(UARPin*& InARPin, UAzureCloudSpatialAnchor*& OutCloudAnchor)
 {
 	AzureSpatialAnchorsInterop& Interop = AzureSpatialAnchorsInterop::Get();
@@ -161,10 +166,10 @@ bool FAzureSpatialAnchorsForWMR::SaveCloudAnchorAsync_Start(FPendingLatentAction
 
 	const UWMRARPin* WMRPin = Cast<UWMRARPin>(InCloudAnchor->ARPin);
 	check(WMRPin);
-	const FString& AnchorId = WMRPin->GetAnchorId();
+	const FString& LocalAnchorId = WMRPin->GetAnchorId();
 
 	AzureSpatialAnchorsInterop::SaveAsyncDataPtr Data = std::make_shared<AzureSpatialAnchorsInterop::SaveAsyncData>();
-	Data->CloudAnchorId = *AnchorId;
+	Data->LocalAnchorId = *LocalAnchorId;
 
 	SaveAsyncDataMap.Add(LatentAction, Data);
 
@@ -176,11 +181,12 @@ bool FAzureSpatialAnchorsForWMR::SaveCloudAnchorAsync_Start(FPendingLatentAction
 
 	return bStarted;
 }
-bool FAzureSpatialAnchorsForWMR::SaveCloudAnchorAsync_Update(FPendingLatentAction* LatentAction, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
+bool FAzureSpatialAnchorsForWMR::SaveCloudAnchorAsync_Update(FPendingLatentAction* LatentAction, UAzureCloudSpatialAnchor*& InCloudAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
 {
 	AzureSpatialAnchorsInterop::SaveAsyncDataPtr& Data = SaveAsyncDataMap.FindChecked(LatentAction);
 	if (Data->Completed)
 	{
+		InCloudAnchor->CloudIdentifier = Data->CloudAnchorIdentifier.c_str();
 		OutResult = (EAzureSpatialAnchorsResult)Data->Result;
 		OutErrorString = Data->OutError.c_str();
 		SaveAsyncDataMap.Remove(LatentAction);
@@ -207,10 +213,10 @@ bool FAzureSpatialAnchorsForWMR::DeleteCloudAnchorAsync_Start(FPendingLatentActi
 
 	const UWMRARPin* WMRPin = Cast<UWMRARPin>(InCloudAnchor->ARPin);
 	check(WMRPin);
-	const FString& AnchorId = WMRPin->GetAnchorId();
+	const FString& LocalAnchorId = WMRPin->GetAnchorId();
 
 	AzureSpatialAnchorsInterop::DeleteAsyncDataPtr Data = std::make_shared<AzureSpatialAnchorsInterop::DeleteAsyncData>();
-	Data->CloudAnchorId = *AnchorId;
+	Data->LocalAnchorId = *LocalAnchorId;
 
 	DeleteAsyncDataMap.Add(LatentAction, Data);
 
@@ -243,16 +249,16 @@ void FAzureSpatialAnchorsForWMR::DeleteCloudAnchorAsync_Orphan(FPendingLatentAct
 	DeleteAsyncDataMap.Remove(LatentAction);
 }
 
-bool FAzureSpatialAnchorsForWMR::LoadCloudAnchorByIDAsync_Start(FPendingLatentAction* LatentAction, const FString& InCloudAnchorId, const FString& InLocalAnchorId, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
+bool FAzureSpatialAnchorsForWMR::LoadCloudAnchorByIDAsync_Start(FPendingLatentAction* LatentAction, const FString& InCloudAnchorIdentifier, const FString& InLocalAnchorId, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
 {
-	if (InCloudAnchorId.IsEmpty())
+	if (InCloudAnchorIdentifier.IsEmpty())
 	{
 		UE_LOG(LogAzureSpatialAnchors, Warning, TEXT("SaveCloudAnchor called with empty InCloudAnchorId.  Ignoring."));
 		return false;
 	}
 
 	AzureSpatialAnchorsInterop::LoadByIDAsyncDataPtr Data = std::make_shared<AzureSpatialAnchorsInterop::LoadByIDAsyncData>();
-	Data->CloudAnchorId = *InCloudAnchorId;
+	Data->CloudAnchorIdentifier = *InCloudAnchorIdentifier;
 	Data->LocalAnchorId = *InLocalAnchorId;
 	LoadByIDAsyncDataMap.Add(LatentAction, Data);
 
@@ -287,6 +293,7 @@ bool FAzureSpatialAnchorsForWMR::LoadCloudAnchorByIDAsync_Update(FPendingLatentA
 
 			UAzureCloudSpatialAnchor* NewCloudAnchor = NewObject<UAzureCloudSpatialAnchor>();
 			NewCloudAnchor->ARPin = OutARPin;
+			NewCloudAnchor->CloudIdentifier = Data->CloudAnchorIdentifier.c_str();
 			CloudAnchorMap.Add(Data->LocalAnchorId.c_str(), NewCloudAnchor);
 			OutCloudAnchor = NewCloudAnchor;
 			return true;
