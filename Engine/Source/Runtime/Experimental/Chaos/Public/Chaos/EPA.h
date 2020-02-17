@@ -310,8 +310,6 @@ void EPAComputeVisibilityBorder(TArray<TEPAEntry<T>>& Entries, int32 EntryIdx, c
 	}
 }
 
-extern CHAOS_API int32 FixEPAWhenSimplexOutside;
-
 template <typename T>
 void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEPAEntry<T>& Entry, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& OutA, TVec3<T>& OutB)
 {
@@ -334,7 +332,7 @@ void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEP
 		OutDir /= OutPenetration;
 	}
 
-	if (Entry.Distance < 0 && FixEPAWhenSimplexOutside)
+	if (Entry.Distance < 0)
 	{
 		//The origin is on the outside, so the direction is reversed
 		OutDir = -OutDir;
