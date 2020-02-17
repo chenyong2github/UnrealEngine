@@ -49,6 +49,7 @@ public:
 	void SwitchOn();
 
 	// Returns true if none of our properties are dirty
+	UFUNCTION(BlueprintCallable, Category="Variant")
 	bool IsActive();
 
 	// Sets the thumbnail to use for this variant. Can receive nullptr to clear it
