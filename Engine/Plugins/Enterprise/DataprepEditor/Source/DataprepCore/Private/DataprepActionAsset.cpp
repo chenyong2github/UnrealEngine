@@ -145,7 +145,7 @@ int32 UDataprepActionAsset::AddStep(TSubclassOf<UDataprepParameterizableObject> 
 			ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
 			ActionStep->bIsEnabled = true;
 			Steps.Add(ActionStep);
-			OnStepsChanged.Broadcast();
+			OnStepsOrderChanged.Broadcast();
 			return Steps.Num() - 1;
 		}
 		else if ( ValidRootClass == UDataprepFetcher::StaticClass() )
@@ -160,7 +160,7 @@ int32 UDataprepActionAsset::AddStep(TSubclassOf<UDataprepParameterizableObject> 
 				ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
 				ActionStep->bIsEnabled = true;
 				Steps.Add( ActionStep );
-				OnStepsChanged.Broadcast();
+				OnStepsOrderChanged.Broadcast();
 				return Steps.Num() - 1;
 			}
 			else
@@ -185,7 +185,7 @@ int32 UDataprepActionAsset::AddStep(const UDataprepActionStep* InActionStep)
 		Modify();
 		UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this );
 		Steps.Add( ActionStep );
-		OnStepsChanged.Broadcast();
+		OnStepsOrderChanged.Broadcast();
 		return Steps.Num() - 1;
 	}
 
@@ -212,7 +212,7 @@ int32 UDataprepActionAsset::AddSteps(const TArray<const UDataprepActionStep*>& I
 			}
 		}
 
-		OnStepsChanged.Broadcast();
+		OnStepsOrderChanged.Broadcast();
 		return Steps.Num() - 1;
 	}
 
@@ -236,7 +236,7 @@ int32 UDataprepActionAsset::AddStep(const UDataprepParameterizableObject* StepOb
 		ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
 		ActionStep->bIsEnabled = true;
 		Steps.Add(ActionStep);
-		OnStepsChanged.Broadcast();
+		OnStepsOrderChanged.Broadcast();
 		return Steps.Num() - 1;
 	}
 	else
@@ -262,7 +262,7 @@ bool UDataprepActionAsset::InsertStep(const UDataprepActionStep* InActionStep, i
 		Modify();
 		UDataprepActionStep* ActionStep = DuplicateObject<UDataprepActionStep>( InActionStep, this);
 		Steps.Insert( ActionStep, Index );
-		OnStepsChanged.Broadcast();
+		OnStepsOrderChanged.Broadcast();
 		return true;
 	}
 
@@ -296,7 +296,7 @@ bool UDataprepActionAsset::InsertSteps(const TArray<const UDataprepActionStep*>&
 			}
 		}
 
-		OnStepsChanged.Broadcast();
+		OnStepsOrderChanged.Broadcast();
 		return true;
 	}
 
@@ -363,7 +363,7 @@ bool UDataprepActionAsset::MoveStep(int32 StepIndex, int32 DestinationIndex)
 
 	if ( DataprepCorePrivateUtils::MoveArrayElement( Steps, StepIndex, DestinationIndex ) )
 	{
-		OnStepsChanged.Broadcast();
+		OnStepsOrderChanged.Broadcast();
 		return true;
 	}
 
@@ -392,7 +392,7 @@ bool UDataprepActionAsset::SwapSteps(int32 FirstIndex, int32 SecondIndex)
 		UDataprepActionStep* FirstStep = Steps[FirstIndex];
 		Steps[FirstIndex] = Steps[SecondIndex];
 		Steps[SecondIndex] = FirstStep;
-		OnStepsChanged.Broadcast();
+		OnStepsOrderChanged.Broadcast();
 		return true;
 	}
 
@@ -438,8 +438,9 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 			}
 		}
 
+		OnStepsAboutToBeRemoved.Broadcast( Steps[Index]->GetStepObject() );
 		Steps.RemoveAt( Index );
-		OnStepsChanged.Broadcast();
+		OnStepsOrderChanged.Broadcast();
 		return true;
 	}
 
@@ -449,7 +450,17 @@ bool UDataprepActionAsset::RemoveStep(int32 Index)
 
 FOnStepsOrderChanged& UDataprepActionAsset::GetOnStepsOrderChanged()
 {
-	return OnStepsChanged;
+	return OnStepsOrderChanged;
+}
+
+FOnStepAboutToBeRemoved& UDataprepActionAsset::GetOnStepAboutToBeRemoved()
+{
+	return OnStepsAboutToBeRemoved;
+}
+
+FOnStepWasEdited& UDataprepActionAsset::GetOnStepWasEdited()
+{
+	return OnStepWasEdited;
 }
 
 void UDataprepActionAsset::NotifyDataprepSystemsOfRemoval()

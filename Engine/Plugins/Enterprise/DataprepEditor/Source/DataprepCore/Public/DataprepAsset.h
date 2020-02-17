@@ -159,26 +159,6 @@ public:
 		return DataprepRecipeBP;
 	}
 
-	// struct to restrict the access scope
-	struct FDataprepBlueprintChangeNotifier
-	{
-	private:
-		friend class FDataprepEditorUtils;
-
-		static void NotifyDataprepBlueprintChange(UDataprepAsset& DataprepAsset, UObject* ModifiedObject)
-		{
-			// The asset is not complete yet. Skip this change
-			if(!DataprepAsset.HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
-			{
-				if(UDataprepActionAsset* ActionAsset = Cast<UDataprepActionAsset>(ModifiedObject))
-				{
-					DataprepAsset.UpdateActions();
-				}
-				DataprepAsset.OnBlueprintChanged.Broadcast( ModifiedObject );
-			}
-		}
-	};
-
 	//Todo Change the signature of this function when the new graph is ready (Hack to avoid a refactoring)
 	UDataprepActionAsset* AddActionUsingBP(class UEdGraphNode* NewActionNode);
 
@@ -186,12 +166,6 @@ public:
 
 	void RemoveActionUsingBP(int32 Index);
 
-	/**
-	 * Allow an observer to be notified of an change in the pipeline
-	 * return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
-	 */
-	DECLARE_EVENT_OneParam(UDataprepAsset, FOnDataprepBlueprintChange, UObject* /*The object that was modified*/)
-	FOnDataprepBlueprintChange& GetOnBlueprintChanged() { return OnBlueprintChanged; }
 	// end of temp code for nodes development
 #endif
 
@@ -204,8 +178,9 @@ public:
 	 * Note on the objects param: The parameterized objects that should refresh their ui. If nullptr all widgets that can display some info on the parameterization should be refreshed
 	 */
 	DECLARE_EVENT_OneParam(UDataprepParameterization, FDataprepParameterizationStatusForObjectsChanged, const TSet<UObject*>* /** Objects */)
-	FDataprepParameterizationStatusForObjectsChanged OnParameterizedObjectsChanged;
+	FDataprepParameterizationStatusForObjectsChanged OnParameterizedObjectsStatusChanged;
 
+	// Internal Use only (the current implementation might be subject to change)
 	virtual UObject* GetParameterizationObject() override;
 
 	void BindObjectPropertyToParameterization(UDataprepParameterizableObject* Object, const TArray<struct FDataprepPropertyLink>& InPropertyChain,const FName& Name);
@@ -218,6 +193,7 @@ public:
 
 	void GetExistingParameterNamesForType(FProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
+	// Internal only for now
 	UDataprepParameterization* GetDataprepParameterization() { return Parameterization; }
 
 protected:
@@ -259,9 +235,4 @@ private:
 
 	int32 CachedActionCount;
 
-#ifndef NO_BLUEPRINT
-	/** Event broadcasted when object in the pipeline was modified (Only broadcasted on changes that can affect the result of execution) */
-	FOnDataprepBlueprintChange OnBlueprintChanged;
-	// end of temp code for nodes development
-#endif
 };
