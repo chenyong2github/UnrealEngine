@@ -8,6 +8,7 @@
 #include "ITimedDataInput.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "Tickable.h"
+#include "TimedDataMonitorCalibration.h"
 #include "TimedDataMonitorTypes.h"
 
 #include "TimedDataMonitorSubsystem.generated.h"
