@@ -313,11 +313,28 @@ void FDataprepEditor::CopySelectedNodes()
 		if (UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter))
 		{
 			Node->PrepareForCopying();
+
+			// Temporarily set DataprepActionAsset's owner as ActionNode to serialize it with the EdGraphNode
+			if(UK2Node_DataprepAction* ActionNode = Cast<UK2Node_DataprepAction>(Node))
+			{
+				UDataprepActionAsset* ActionAsset = ActionNode->GetDataprepAction();
+				ActionAsset->Rename(nullptr, ActionNode, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			}
 		}
 	}
 
 	FEdGraphUtilities::ExportNodesToText(SelectedNodes, /*out*/ ExportedText);
 	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+
+	// Restore DataprepActionAssets' owner to the DataprepAsset
+	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
+	{
+		if(UK2Node_DataprepAction* ActionNode = Cast<UK2Node_DataprepAction>(*SelectedIter))
+		{
+			UDataprepActionAsset* ActionAsset = ActionNode->GetDataprepAction();
+			ActionAsset->Rename(nullptr, DataprepAssetInterfacePtr.Get(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		}
+	}
 }
 
 bool FDataprepEditor::CanCopyNodes() const
