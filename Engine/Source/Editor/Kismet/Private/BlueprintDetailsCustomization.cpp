@@ -89,86 +89,80 @@ namespace BlueprintDocumentationDetailDefs
 	static const float DetailsTitleWrapPadding = 32.0f;
 };
 
-void FBlueprintDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, FProperty* VariableProperty)
+void FBlueprintDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, FName PropertyName, UClass* PropertyClass)
 {
 	UBlueprint* BlueprintObj = GetBlueprintObj();
 	check(BlueprintObj);
 
-	if ( FObjectProperty* ComponentProperty = CastField<FObjectProperty>(VariableProperty) )
+	// Check for Ed Graph vars that can generate events
+	if ( PropertyClass && BlueprintObj->AllowsDynamicBinding() )
 	{
-		UClass* PropertyClass = ComponentProperty->PropertyClass;
-
-		// Check for Ed Graph vars that can generate events
-		if ( PropertyClass && BlueprintObj->AllowsDynamicBinding() )
+		if ( FBlueprintEditorUtils::CanClassGenerateEvents(PropertyClass) )
 		{
-			if ( FBlueprintEditorUtils::CanClassGenerateEvents(PropertyClass) )
+			for ( TFieldIterator<FMulticastDelegateProperty> PropertyIt(PropertyClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt )
 			{
-				for ( TFieldIterator<FMulticastDelegateProperty> PropertyIt(PropertyClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt )
+				FMulticastDelegateProperty* Property = *PropertyIt;
+
+				static const FName HideInDetailPanelName("HideInDetailPanel");
+				// Check for multicast delegates that we can safely assign
+				if ( !Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable) &&
+					!Property->HasMetaData(HideInDetailPanelName) )
 				{
-					FProperty* Property = *PropertyIt;
+					FName EventName = Property->GetFName();
+					FText EventText = Property->GetDisplayNameText();
 
-					FName PropertyName = ComponentProperty->GetFName();
-					static const FName HideInDetailPanelName("HideInDetailPanel");
-					// Check for multicast delegates that we can safely assign
-					if ( !Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable) &&
-						!Property->HasMetaData(HideInDetailPanelName) )
-					{
-						FName EventName = Property->GetFName();
-						FText EventText = Property->GetDisplayNameText();
+					IDetailCategoryBuilder& EventCategory = DetailBuilder.EditCategory(TEXT("Events"), LOCTEXT("Events", "Events"), ECategoryPriority::Uncommon);
 
-						IDetailCategoryBuilder& EventCategory = DetailBuilder.EditCategory(TEXT("Events"), LOCTEXT("Events", "Events"), ECategoryPriority::Uncommon);
+					EventCategory.AddCustomRow(EventText)
+					.NameContent()
+					[
+						SNew(SHorizontalBox)
+						.ToolTipText(Property->GetToolTipText())
 
-						EventCategory.AddCustomRow(EventText)
-						.NameContent()
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(0.0f, 0.0f, 5.0f, 0.0f)
 						[
-							SNew(SHorizontalBox)
-							.ToolTipText(Property->GetToolTipText())
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("GraphEditor.Event_16x"))
+						]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(0, 0, 5, 0)
-							[
-								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("GraphEditor.Event_16x"))
-							]
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+							.Text(EventText)
+						]
+					]
+					.ValueContent()
+					.MinDesiredWidth(150.0f)
+					.MaxDesiredWidth(200.0f)
+					[
+						SNew(SButton)
+						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+						.HAlign(HAlign_Center)
+						.OnClicked(this, &FBlueprintVarActionDetails::HandleAddOrViewEventForVariable, EventName, PropertyName, MakeWeakObjectPtr(PropertyClass))
+						.ForegroundColor(FSlateColor::UseForeground())
+						[
+							SNew(SWidgetSwitcher)
+							.WidgetIndex(this, &FBlueprintVarActionDetails::HandleAddOrViewIndexForButton, EventName, PropertyName)
 
-							+ SHorizontalBox::Slot()
-							.VAlign(VAlign_Center)
+							+ SWidgetSwitcher::Slot()
 							[
 								SNew(STextBlock)
-								.Font(IDetailLayoutBuilder::GetDetailFont())
-								.Text(EventText)
+								.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+								.Text(LOCTEXT("ViewEvent", "View"))
+							]
+
+							+ SWidgetSwitcher::Slot()
+							[
+								SNew(SImage)
+								.Image(FEditorStyle::GetBrush("Plus"))
 							]
 						]
-						.ValueContent()
-						.MinDesiredWidth(150)
-						.MaxDesiredWidth(200)
-						[
-							SNew(SButton)
-							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-							.HAlign(HAlign_Center)
-							.OnClicked(this, &FBlueprintVarActionDetails::HandleAddOrViewEventForVariable, EventName, PropertyName, MakeWeakObjectPtr(PropertyClass))
-							.ForegroundColor(FSlateColor::UseForeground())
-							[
-								SNew(SWidgetSwitcher)
-								.WidgetIndex(this, &FBlueprintVarActionDetails::HandleAddOrViewIndexForButton, EventName, PropertyName)
-
-								+ SWidgetSwitcher::Slot()
-								[
-									SNew(STextBlock)
-									.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
-									.Text(LOCTEXT("ViewEvent", "View"))
-								]
-
-								+ SWidgetSwitcher::Slot()
-								[
-									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("Plus"))
-								]
-							]
-						];
-					}
+					];
 				}
 			}
 		}
@@ -742,8 +736,11 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 
 	// Handle event generation
 	if ( FBlueprintEditorUtils::DoesSupportEventGraphs(BlueprintObj) )
-	{
-		AddEventsCategory(DetailLayout, VariableProperty);
+	{	
+		if (FObjectProperty* ComponentProperty = CastField<FObjectProperty>(VariableProperty))
+		{
+			AddEventsCategory(DetailLayout, ComponentProperty->GetFName(), ComponentProperty->PropertyClass);
+		}		
 	}
 
 	// Add in default value editing for properties that can be edited, local properties cannot be edited
@@ -5880,10 +5877,11 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 	// Handle event generation
 	if ( FBlueprintEditorUtils::DoesSupportEventGraphs(BlueprintObj) && Nodes.Num() == 1 )
 	{
-		FName PropertyName = CachedNodePtr->GetVariableName();
-		FObjectProperty* VariableProperty = FindField<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
-
-		AddEventsCategory(DetailLayout, VariableProperty);
+		// Use the component template to support native components as well
+		if (UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
+		{
+			AddEventsCategory(DetailLayout, CachedNodePtr->GetVariableName(), ComponentTemplate->GetClass());
+		}
 	}
 
 	// Don't show tick properties for components in the blueprint details
