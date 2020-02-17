@@ -9,6 +9,11 @@
 
 UMaterialInterface* UMaterialImportHelpers::FindExistingMaterialFromSearchLocation(const FString& MaterialFullName, const FString& BasePackagePath, EMaterialSearchLocation SearchLocation, FText& OutError)
 {
+	if (SearchLocation == EMaterialSearchLocation::DoNotSearch)
+	{
+		return nullptr;
+	}
+
 	//Search in memory
 	constexpr bool bExactClass = false;
 	UMaterialInterface* FoundMaterial = FindObject<UMaterialInterface>(nullptr, *MaterialFullName, bExactClass);

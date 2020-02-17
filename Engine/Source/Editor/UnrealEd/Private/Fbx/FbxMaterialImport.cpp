@@ -250,7 +250,7 @@ void LogPropertyAndChild(FbxSurfaceMaterial& FbxMaterial, const FbxProperty &Pro
 #endif
 
 bool UnFbx::FFbxImporter::CreateAndLinkExpressionForMaterialProperty(
-							FbxSurfaceMaterial& FbxMaterial,
+							const FbxSurfaceMaterial& FbxMaterial,
 							UMaterial* UnrealMaterial,
 							const char* MaterialProperty ,
 							FExpressionInput& MaterialInput, 
@@ -365,7 +365,7 @@ bool UnFbx::FFbxImporter::CreateAndLinkExpressionForMaterialProperty(
 //-------------------------------------------------------------------------
 //
 //-------------------------------------------------------------------------
-void UnFbx::FFbxImporter::FixupMaterial( FbxSurfaceMaterial& FbxMaterial, UMaterial* UnrealMaterial )
+void UnFbx::FFbxImporter::FixupMaterial( const FbxSurfaceMaterial& FbxMaterial, UMaterial* UnrealMaterial )
 {
 	// add a basic diffuse color if no texture is linked to diffuse
 	if (UnrealMaterial->BaseColor.Expression == NULL)
@@ -418,7 +418,7 @@ void UnFbx::FFbxImporter::FixupMaterial( FbxSurfaceMaterial& FbxMaterial, UMater
 //
 //-------------------------------------------------------------------------
 
-FString UnFbx::FFbxImporter::GetMaterialFullName(FbxSurfaceMaterial& FbxMaterial)
+FString UnFbx::FFbxImporter::GetMaterialFullName(const FbxSurfaceMaterial& FbxMaterial) const
 {
 	FString MaterialFullName = UTF8_TO_TCHAR(MakeName(FbxMaterial.GetName()));
 
@@ -443,12 +443,32 @@ FString UnFbx::FFbxImporter::GetMaterialFullName(FbxSurfaceMaterial& FbxMaterial
 	return MaterialFullName;
 }
 
+FString UnFbx::FFbxImporter::GetMaterialBasePackageName(const FString& MaterialFullName) const
+{
+	FString BasePackageName = FPackageName::GetLongPackagePath(Parent->GetOutermost()->GetName());
+	if (ImportOptions->MaterialBasePath != NAME_None)
+	{
+		BasePackageName = ImportOptions->MaterialBasePath.ToString();
+	}
+	else
+	{
+		BasePackageName += TEXT("/");
+	}
+
+	BasePackageName += MaterialFullName;
+	BasePackageName = UPackageTools::SanitizePackageName(BasePackageName);
+
+	return BasePackageName;
+}
+
+
 bool UnFbx::FFbxImporter::LinkMaterialProperty(
-	FbxSurfaceMaterial& FbxMaterial,
+	const FbxSurfaceMaterial& FbxMaterial,
 	UMaterialInstanceConstant* UnrealMaterial,
 	const char* MaterialProperty,
 	FName ParameterValue,
-	bool bSetupAsNormalMap) {
+	bool bSetupAsNormalMap) 
+{
 	bool bCreated = false;
 	FbxProperty FbxProperty = FbxMaterial.FindProperty(MaterialProperty);
 	if (FbxProperty.IsValid())
@@ -483,7 +503,7 @@ bool UnFbx::FFbxImporter::LinkMaterialProperty(
 	return bCreated;
 }
 
-bool CanUseMaterialWithInstance(FbxSurfaceMaterial& FbxMaterial, const char* MaterialProperty, FString ParameterValueName, UMaterialInterface *BaseMaterial, TArray<FString>& UVSet) {
+bool CanUseMaterialWithInstance(const FbxSurfaceMaterial& FbxMaterial, const char* MaterialProperty, FString ParameterValueName, UMaterialInterface *BaseMaterial, TArray<FString>& UVSet) {
 	FbxProperty FbxProperty = FbxMaterial.FindProperty(MaterialProperty);
 	if (FbxProperty.IsValid())
 	{
@@ -523,59 +543,39 @@ bool CanUseMaterialWithInstance(FbxSurfaceMaterial& FbxMaterial, const char* Mat
 	return true;
 }
 
-
-void UnFbx::FFbxImporter::CreateUnrealMaterial(FbxSurfaceMaterial& FbxMaterial, TArray<UMaterialInterface*>& OutMaterials, TArray<FString>& UVSets, bool bForSkeletalMesh)
+UMaterialInterface* UnFbx::FFbxImporter::FindExistingMaterialFromFbxMaterial(const FbxSurfaceMaterial& FbxMaterial, EMaterialSearchLocation MaterialSearchLocation)
 {
 	// Make sure we have a parent
-	if ( !ensure(Parent.IsValid()) )
+	if (!ensure(Parent.IsValid()))
 	{
-		return;
+		return nullptr;
 	}
-	if (ImportOptions->OverrideMaterials.Contains(FbxMaterial.GetUniqueID()))
+
+	if (UMaterialInterface** OverrideMaterial = ImportOptions->OverrideMaterials.Find(FbxMaterial.GetUniqueID()))
 	{
-		UMaterialInterface* FoundMaterial = *(ImportOptions->OverrideMaterials.Find(FbxMaterial.GetUniqueID()));
-		if (ImportedMaterialData.IsUnique(FbxMaterial, FName(*FoundMaterial->GetPathName())) == false)
+		if (!ImportedMaterialData.IsAlreadyImported(FbxMaterial, FName(*(*OverrideMaterial)->GetPathName())))
 		{
-			ImportedMaterialData.AddImportedMaterial(FbxMaterial, *FoundMaterial);
+			// Add the material override to the list of imported materials
+			ImportedMaterialData.AddImportedMaterial(FbxMaterial, **OverrideMaterial);
 		}
-		// The material is override add the existing one
-		OutMaterials.Add(FoundMaterial);
-		return;
+		return *OverrideMaterial;
 	}
-	FString MaterialFullName = GetMaterialFullName(FbxMaterial);
-	FString BasePackageName = FPackageName::GetLongPackagePath(Parent->GetOutermost()->GetName());
-	if (ImportOptions->MaterialBasePath != NAME_None)
-	{
-		BasePackageName = ImportOptions->MaterialBasePath.ToString();
-	}
-	else
-	{
-		BasePackageName += TEXT("/");
-	}
-	BasePackageName += MaterialFullName;
-	
-	BasePackageName = UPackageTools::SanitizePackageName(BasePackageName);
+
+	const FString MaterialFullName = GetMaterialFullName(FbxMaterial);
+	const FString BasePackageName = GetMaterialBasePackageName(MaterialFullName);
+	const FName ObjectPath = *(BasePackageName + TEXT(".") + MaterialFullName);
 
 	// The material could already exist in the project
-	FName ObjectPath = *(BasePackageName + TEXT(".") + MaterialFullName);
-
-	if( ImportedMaterialData.IsUnique( FbxMaterial, ObjectPath ) )
+	UMaterialInterface* FoundMaterial = nullptr;
+	if (ImportedMaterialData.IsAlreadyImported(FbxMaterial, ObjectPath))
 	{
-		UMaterialInterface* FoundMaterial = ImportedMaterialData.GetUnrealMaterial( FbxMaterial );
-		if (FoundMaterial)
-		{
-			// The material was imported from this FBX.  Reuse it
-			OutMaterials.Add(FoundMaterial);
-			return;
-		}
+		FoundMaterial = ImportedMaterialData.GetUnrealMaterial(FbxMaterial);
 	}
 	else
 	{
-		FBXImportOptions* FbxImportOptions = GetImportOptions();
-
 		FText Error;
-		UMaterialInterface* FoundMaterial = UMaterialImportHelpers::FindExistingMaterialFromSearchLocation(MaterialFullName, BasePackageName, FbxImportOptions->MaterialSearchLocation, Error);
-		
+		FoundMaterial = UMaterialImportHelpers::FindExistingMaterialFromSearchLocation(MaterialFullName, BasePackageName, MaterialSearchLocation, Error);
+
 		if (!Error.IsEmpty())
 		{
 			AddTokenizedErrorMessage(
@@ -585,57 +585,69 @@ void UnFbx::FFbxImporter::CreateUnrealMaterial(FbxSurfaceMaterial& FbxMaterial, 
 						Error)),
 				FFbxErrors::Generic_LoadingSceneFailed);
 		}
-		// do not override existing materials
+		
 		if (FoundMaterial)
 		{
-			ImportedMaterialData.AddImportedMaterial( FbxMaterial, *FoundMaterial );
-			OutMaterials.Add(FoundMaterial);
-			return;
+			ImportedMaterialData.AddImportedMaterial(FbxMaterial, *FoundMaterial);
 		}
 	}
-	
-	const FString Suffix(TEXT(""));
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	FString FinalPackageName;
-	AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, MaterialFullName);
 
-	UPackage* Package = CreatePackage(NULL, *FinalPackageName);
+	return FoundMaterial;
+}
+
+
+UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMaterial& FbxMaterial, TArray<FString>& OutUVSets, bool bForSkeletalMesh)
+{
+	// Make sure we have a parent
+	if ( !ensure(Parent.IsValid()) )
+	{
+		return nullptr;
+	}
+
+	const FString BasePackageName = GetMaterialBasePackageName(GetMaterialFullName(FbxMaterial));
+	const FString Suffix(TEXT(""));
+	FString FinalPackageName;
+	FString FinalMaterialName;
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, FinalMaterialName);
+
+	UPackage* Package = CreatePackage(nullptr, *FinalPackageName);
 	
 	// Check if we can use the specified base material to instance from it
 	FBXImportOptions* FbxImportOptions = GetImportOptions();
 	bool bCanInstance = false;
 	if (FbxImportOptions->BaseMaterial)
 	{
-		bCanInstance = false;
 		// try to use the material as a base for the new material to instance from
 		FbxProperty FbxDiffuseProperty = FbxMaterial.FindProperty(FbxSurfaceMaterial::sDiffuse);
 		if (FbxDiffuseProperty.IsValid())
 		{
-			bCanInstance = CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sDiffuse, FbxImportOptions->BaseDiffuseTextureName, FbxImportOptions->BaseMaterial, UVSets);
+			bCanInstance = CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sDiffuse, FbxImportOptions->BaseDiffuseTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
 		}
 		else
 		{
 			bCanInstance = !FbxImportOptions->BaseColorName.IsEmpty();
 		}
+
 		FbxProperty FbxEmissiveProperty = FbxMaterial.FindProperty(FbxSurfaceMaterial::sEmissive);
-		if (FbxDiffuseProperty.IsValid())
+		if (FbxEmissiveProperty.IsValid())
 		{
-			bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sEmissive, FbxImportOptions->BaseEmmisiveTextureName, FbxImportOptions->BaseMaterial, UVSets);
+			bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sEmissive, FbxImportOptions->BaseEmmisiveTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
 		}
 		else
 		{
 			bCanInstance &= !FbxImportOptions->BaseEmissiveColorName.IsEmpty();
 		}
-		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sSpecular, FbxImportOptions->BaseSpecularTextureName, FbxImportOptions->BaseMaterial, UVSets);
-		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sNormalMap, FbxImportOptions->BaseNormalTextureName, FbxImportOptions->BaseMaterial, UVSets);
-		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sTransparentColor, FbxImportOptions->BaseOpacityTextureName, FbxImportOptions->BaseMaterial, UVSets);
+		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sSpecular, FbxImportOptions->BaseSpecularTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
+		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sNormalMap, FbxImportOptions->BaseNormalTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
+		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sTransparentColor, FbxImportOptions->BaseOpacityTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
 	}
 
 	UMaterialInterface* UnrealMaterialFinal = nullptr;
 	if (bCanInstance) {
 		auto MaterialInstanceFactory = NewObject<UMaterialInstanceConstantFactoryNew>();
 		MaterialInstanceFactory->InitialParent = FbxImportOptions->BaseMaterial;
-		UMaterialInstanceConstant* UnrealMaterialConstant = (UMaterialInstanceConstant*)MaterialInstanceFactory->FactoryCreateNew(UMaterialInstanceConstant::StaticClass(), Package, *MaterialFullName, RF_Standalone | RF_Public, NULL, GWarn);
+		UMaterialInstanceConstant* UnrealMaterialConstant = (UMaterialInstanceConstant*)MaterialInstanceFactory->FactoryCreateNew(UMaterialInstanceConstant::StaticClass(), Package, *FinalMaterialName, RF_Standalone | RF_Public, NULL, GWarn);
 		if (UnrealMaterialConstant != NULL)
 		{
 			UnrealMaterialFinal = UnrealMaterialConstant;
@@ -735,7 +747,7 @@ void UnFbx::FFbxImporter::CreateUnrealMaterial(FbxSurfaceMaterial& FbxMaterial, 
 		auto MaterialFactory = NewObject<UMaterialFactoryNew>();
 	
 		UMaterial* UnrealMaterial = (UMaterial*)MaterialFactory->FactoryCreateNew(
-			UMaterial::StaticClass(), Package, *MaterialFullName, RF_Standalone|RF_Public, NULL, GWarn );
+			UMaterial::StaticClass(), Package, *FinalMaterialName, RF_Standalone|RF_Public, NULL, GWarn );
 
 		if (UnrealMaterial != NULL)
 		{
@@ -762,19 +774,19 @@ void UnFbx::FFbxImporter::CreateUnrealMaterial(FbxSurfaceMaterial& FbxMaterial, 
 				UE_LOG(LogFbxMaterialImport, Display, TEXT("-------------------------------"));
 			}
 #endif
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sDiffuse, UnrealMaterial->BaseColor, false, UVSets, FVector2D(240, -320));
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sEmissive, UnrealMaterial->EmissiveColor, false, UVSets, FVector2D(240, -64));
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sSpecular, UnrealMaterial->Specular, false, UVSets, FVector2D(240, -128));
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sSpecularFactor, UnrealMaterial->Roughness, false, UVSets, FVector2D(240, -180));
-			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sShininess, UnrealMaterial->Metallic, false, UVSets, FVector2D(240, -210));
-			if (!CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sNormalMap, UnrealMaterial->Normal, true, UVSets, FVector2D(240, 256)))
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sDiffuse, UnrealMaterial->BaseColor, false, OutUVSets, FVector2D(240, -320));
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sEmissive, UnrealMaterial->EmissiveColor, false, OutUVSets, FVector2D(240, -64));
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sSpecular, UnrealMaterial->Specular, false, OutUVSets, FVector2D(240, -128));
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sSpecularFactor, UnrealMaterial->Roughness, false, OutUVSets, FVector2D(240, -180));
+			CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sShininess, UnrealMaterial->Metallic, false, OutUVSets, FVector2D(240, -210));
+			if (!CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sNormalMap, UnrealMaterial->Normal, true, OutUVSets, FVector2D(240, 256)))
 			{
-				CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sBump, UnrealMaterial->Normal, true, UVSets, FVector2D(240, 256)); // no bump in unreal, use as normal map
+				CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sBump, UnrealMaterial->Normal, true, OutUVSets, FVector2D(240, 256)); // no bump in unreal, use as normal map
 			}
-			if (CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sTransparentColor, UnrealMaterial->Opacity, false, UVSets, FVector2D(200, 256)))
+			if (CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sTransparentColor, UnrealMaterial->Opacity, false, OutUVSets, FVector2D(200, 256)))
 			{
 				UnrealMaterial->BlendMode = BLEND_Translucent;
-				CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sTransparencyFactor, UnrealMaterial->OpacityMask, false, UVSets, FVector2D(150, 256));
+				CreateAndLinkExpressionForMaterialProperty(FbxMaterial, UnrealMaterial, FbxSurfaceMaterial::sTransparencyFactor, UnrealMaterial->OpacityMask, false, OutUVSets, FVector2D(150, 256));
 
 			}
 			FixupMaterial(FbxMaterial, UnrealMaterial); // add random diffuse if none exists
@@ -783,26 +795,24 @@ void UnFbx::FFbxImporter::CreateUnrealMaterial(FbxSurfaceMaterial& FbxMaterial, 
 		// compile shaders for PC (from UPrecompileShadersCommandlet::ProcessMaterial
 		// and FMaterialEditor::UpdateOriginalMaterial)
 	}
+
 	if (UnrealMaterialFinal)
 	{
 		// let the material update itself if necessary
 		UnrealMaterialFinal->PreEditChange(NULL);
 		UnrealMaterialFinal->PostEditChange();
-
 		ImportedMaterialData.AddImportedMaterial(FbxMaterial, *UnrealMaterialFinal);
-
-		OutMaterials.Add(UnrealMaterialFinal);
 	}
+	
+	return UnrealMaterialFinal;
 }
 
-int32 UnFbx::FFbxImporter::CreateNodeMaterials(FbxNode* FbxNode, TArray<UMaterialInterface*>& OutMaterials, TArray<FString>& UVSets, bool bForSkeletalMesh)
+void UnFbx::FFbxImporter::FindOrImportMaterialsFromNode(FbxNode* FbxNode, TArray<UMaterialInterface*>& OutMaterials, TArray<FString>& UVSets, bool bForSkeletalMesh)
 {
-	int32 MaterialCount = FbxNode->GetMaterialCount();
-	TArray<FbxSurfaceMaterial*> UsedSurfaceMaterials;
-	FbxMesh *MeshNode = FbxNode->GetMesh();
-	TSet<int32> UsedMaterialIndexes;
-	if (MeshNode)
+	if (FbxMesh *MeshNode = FbxNode->GetMesh())
 	{
+		TSet<int32> UsedMaterialIndexes;
+		
 		for (int32 ElementMaterialIndex = 0; ElementMaterialIndex < MeshNode->GetElementMaterialCount(); ++ElementMaterialIndex)
 		{
 			FbxGeometryElementMaterial *ElementMaterial = MeshNode->GetElementMaterial(ElementMaterialIndex);
@@ -826,25 +836,35 @@ int32 UnFbx::FFbxImporter::CreateNodeMaterials(FbxNode* FbxNode, TArray<UMateria
 				break;
 			}
 		}
-	}
-	for(int32 MaterialIndex=0; MaterialIndex < MaterialCount; ++MaterialIndex)
-	{
-		//Create only the material used by the mesh element material
-		if (MeshNode == nullptr || UsedMaterialIndexes.Contains(MaterialIndex))
-		{
-			FbxSurfaceMaterial *FbxMaterial = FbxNode->GetMaterial(MaterialIndex);
 
-			if (FbxMaterial)
-			{
-				CreateUnrealMaterial(*FbxMaterial, OutMaterials, UVSets, bForSkeletalMesh);
-			}
-		}
-		else
+		for (int32 MaterialIndex = 0, MaterialCount = FbxNode->GetMaterialCount(); MaterialIndex < MaterialCount; ++MaterialIndex)
 		{
-			OutMaterials.Add(nullptr);
+			const FbxSurfaceMaterial *FbxMaterial = FbxNode->GetMaterial(MaterialIndex);
+			UMaterialInterface* MaterialImported = nullptr;
+
+			//Only create the material used by the mesh element material
+			if (FbxMaterial && UsedMaterialIndexes.Contains(MaterialIndex))
+			{
+				if (UMaterialInterface* ExistingMaterial = FindExistingMaterialFromFbxMaterial(*FbxMaterial, ImportOptions->MaterialSearchLocation))
+				{
+					MaterialImported = ExistingMaterial;
+				}
+				else if (ImportOptions->bImportMaterials)
+				{
+					//Only create a new material if we are importing them and we could not find an existing one.
+					MaterialImported = CreateUnrealMaterial(*FbxMaterial, UVSets, bForSkeletalMesh);
+				}
+			}
+
+			//The fbxMaterial is not valid.
+			OutMaterials.Add(MaterialImported);			
 		}
 	}
-	return MaterialCount;
+	else
+	{
+		//Could not import the materials, no mesh found.
+		OutMaterials.AddDefaulted(FbxNode->GetMaterialCount());
+	}
 }
 
 

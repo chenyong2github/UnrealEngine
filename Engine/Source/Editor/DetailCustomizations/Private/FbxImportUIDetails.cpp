@@ -1,30 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FbxImportUIDetails.h"
-#include "Misc/Attribute.h"
-#include "Misc/Guid.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Factories/FbxSkeletalMeshImportData.h"
+
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Editor.h"
+#include "Engine/StaticMesh.h"
+#include "IDetailGroup.h"
+#include "IDetailPropertyRow.h"
 #include "Factories/FbxAnimSequenceImportData.h"
+#include "Factories/FbxSkeletalMeshImportData.h"
 #include "Factories/FbxStaticMeshImportData.h"
 #include "Factories/FbxTextureImportData.h"
-#include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
-#include "Engine/StaticMesh.h"
-#include "DetailWidgetRow.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Materials/MaterialInterface.h"
+#include "Misc/Attribute.h"
+#include "Misc/Guid.h"
 #include "PropertyHandle.h"
-#include "DetailLayoutBuilder.h"
-#include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/STextComboBox.h"
-#include "Widgets/SToolTip.h"
-#include "Widgets/Input/SButton.h"
+#include "SEnumCombobox.h"
+#include "Templates/Tuple.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
-#include "Editor.h"
-#include "IDetailGroup.h"
+#include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "FbxImportUIDetails"
 
@@ -32,10 +35,6 @@
 #define LodNumberID 1
 
 static FString DoNotOverrideString = FText(LOCTEXT("BaseColorPropertyDoNotOverride", "Do Not Override")).ToString();
-
-static FString CreateNewMaterialsString = FText(LOCTEXT("MaterialImportMethodCreateNewMaterials", "Create New Materials")).ToString();
-static FString CreateNewInstancedMaterialsString = FText(LOCTEXT("MaterialImportMethodCreateNewInstancedMaterials", "Create New Instanced Materials")).ToString();
-static FString DoNotCreateMaterialString = FText(LOCTEXT("MaterialImportMethodDoNotCreateMaterial", "Do Not Create Material")).ToString();
 
 //If the String is contain in the StringArray, it return the index. Otherwise return INDEX_NONE
 int FindString(const TArray<TSharedPtr<FString>> &StringArray, const FString &String) {
@@ -132,7 +131,7 @@ bool FFbxImportUIDetails::ShowCompareResult()
 		{
 			FName ConflictCategoryName = TEXT("Conflicts");
 			IDetailCategoryBuilder& CategoryBuilder = CachedDetailBuilder->EditCategory(ConflictCategoryName, LOCTEXT("CategoryConflictsName", "Conflicts"), ECategoryPriority::Important);
-			auto BuildConflictRow = [this, &CategoryBuilder](const FText& CategoryName, const FText& Conflict_NameContent, const FText& Conflict_ButtonTooltip, const FText& Conflict_ButtonText, ConflictDialogType DialogType, const FSlateBrush* Brush, const FText& Conflict_IconTooltip)
+			auto BuildConflictRow = [this, &CategoryBuilder](const FText& CategoryName, const FText& Conflict_NameContent, const FText& Conflict_ButtonTooltip, const FText& Conflict_ButtonText, EConflictDialogType DialogType, const FSlateBrush* Brush, const FText& Conflict_IconTooltip)
 			{
 				CategoryBuilder.AddCustomRow(CategoryName).WholeRowContent()
 				[
@@ -178,7 +177,7 @@ bool FFbxImportUIDetails::ShowCompareResult()
 					LOCTEXT("MaterialConflict_NameContent", "Unmatched Materials"),
 					LOCTEXT("MaterialConflict_ButtonShowTooltip", "Show a detailed view of the materials conflict."),
 					LOCTEXT("MaterialConflict_ButtonShow", "Show Conflict"),
-					ConflictDialogType::Conflict_Material,
+					EConflictDialogType::Conflict_Material,
 					FEditorStyle::GetBrush("Icons.Error"),
 					LOCTEXT("MaterialConflict_IconTooltip", "There is one or more material(s) that do not match.")
 				);
@@ -208,7 +207,7 @@ bool FFbxImportUIDetails::ShowCompareResult()
 					LOCTEXT("SkeletonConflict_NameContent", "Unmatched Skeleton joints"),
 					LOCTEXT("SkeletonConflict_ButtonShowTooltip", "Show a detailed view of the skeleton joints conflict."),
 					LOCTEXT("SkeletonConflict_ButtonShow", "Show Conflict"),
-					ConflictDialogType::Conflict_Skeleton,
+					EConflictDialogType::Conflict_Skeleton,
 					Brush,
 					IconTooltip);
 			}
@@ -687,22 +686,16 @@ void FFbxImportUIDetails::AddSubCategory(IDetailLayoutBuilder& DetailBuilder, FN
 
 void FFbxImportUIDetails::ConstructMaterialImportMethod(TSharedPtr<IPropertyHandle> ImportMaterialPropHandle, IDetailCategoryBuilder& MaterialCategory)
 {
-	//The import material is represent by a combobox with 3 choices
-	//1. Create New Materials
-	//2. Create New Instanced Materials (Using an existing base material)
-	//3. Do not Create Materials
-	ImportMethodNames.Reset();
-	ImportMethodNames.Add(MakeShareable(new FString(CreateNewMaterialsString)));
-	ImportMethodNames.Add(MakeShareable(new FString(CreateNewInstancedMaterialsString)));
-	ImportMethodNames.Add(MakeShareable(new FString(DoNotCreateMaterialString)));
-
 	if(ImportUI->TextureImportData->BaseMaterialName.IsValid())
 	{
 		//When we load the UI the first time we set this boolean to true in case the BaseMaterialName is valid.
 		ImportUI->TextureImportData->bUseBaseMaterial = true;
 	}
 
-	int32 InitialSelect = ImportUI->bImportMaterials ? (ImportUI->TextureImportData->bUseBaseMaterial ? 1 : 0) : 2;
+	const UEnum* MaterialImportMethodEnum = StaticEnum< EMaterialImportMethod >();
+	SelectedMaterialImportMethod = ImportUI->bImportMaterials
+		? (ImportUI->TextureImportData->bUseBaseMaterial ? EMaterialImportMethod::CreateNewInstancedMaterials : EMaterialImportMethod::CreateNewMaterials) 
+		: EMaterialImportMethod::DoNotCreateMaterialString;
 
 	MaterialCategory.AddCustomRow(LOCTEXT("MaterialImportMethod", "Material Import Method"))
 	.NameContent()
@@ -720,10 +713,9 @@ void FFbxImportUIDetails::ConstructMaterialImportMethod(TSharedPtr<IPropertyHand
 		[
 			SNew(SBox)
 			[
-				SNew(STextComboBox)
-				.OptionsSource(&ImportMethodNames)
-				.OnSelectionChanged(this, &FFbxImportUIDetails::OnMaterialImportMethodChanged)
-				.InitiallySelectedItem(ImportMethodNames[InitialSelect])
+				SNew(SEnumComboBox, MaterialImportMethodEnum)
+				.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateSP(this, &FFbxImportUIDetails::OnMaterialImportMethodChanged))
+				.CurrentValue(this, &FFbxImportUIDetails::GetMaterialImportMethodValue)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 		]
@@ -1221,32 +1213,40 @@ FReply FFbxImportUIDetails::MaterialBaseParamClearAllProperties()
 	return FReply::Handled();
 }
 
-void FFbxImportUIDetails::OnMaterialImportMethodChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo)
+int32 FFbxImportUIDetails::GetMaterialImportMethodValue() const
 {
-	FString SelectName = *Selection.Get();
-	if (SelectName.Equals(CreateNewMaterialsString))
+	return static_cast<int32>(SelectedMaterialImportMethod);
+}
+
+void FFbxImportUIDetails::OnMaterialImportMethodChanged(int32 Value, ESelectInfo::Type SelectInfo)
+{
+	SelectedMaterialImportMethod = static_cast<EMaterialImportMethod>(Value);
+
+	switch (SelectedMaterialImportMethod)
 	{
+	case EMaterialImportMethod::CreateNewMaterials:
 		ImportUI->bImportMaterials = true;
 		//Reset the base material and the UseBaseMaterial flag to hide the base material name property
 		ImportUI->TextureImportData->bUseBaseMaterial = false;
 		ImportUI->TextureImportData->BaseMaterialName.Reset();
-	}
-	else if (SelectName.Equals(CreateNewInstancedMaterialsString))
-	{
+		break;
+	case EMaterialImportMethod::CreateNewInstancedMaterials:
 		ImportUI->bImportMaterials = true;
 		ImportUI->TextureImportData->bUseBaseMaterial = true;
-	}
-	else
-	{
+		break;
+	case EMaterialImportMethod::DoNotCreateMaterialString:
 		ImportUI->bImportMaterials = false;
 		//Reset the base material and the UseBaseMaterial flag to hide the base material name property
 		ImportUI->TextureImportData->bUseBaseMaterial = false;
 		ImportUI->TextureImportData->BaseMaterialName.Reset();
+		break;
+	default:
+		break;
 	}
 	RefreshCustomDetail();
 }
 
-FReply FFbxImportUIDetails::ShowConflictDialog(ConflictDialogType DialogType)
+FReply FFbxImportUIDetails::ShowConflictDialog(EConflictDialogType DialogType)
 {
 	if (DialogType == Conflict_Material)
 	{
