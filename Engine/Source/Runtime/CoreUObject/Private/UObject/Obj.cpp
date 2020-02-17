@@ -466,7 +466,7 @@ void UObject::PropagatePreEditChange( TArray<UObject*>& AffectedObjects, FEditPr
 
 		// in order to ensure that all objects are saved properly, only process the objects which have this object as their
 		// ObjectArchetype since we are going to call Pre/PostEditChange on each object (which could potentially affect which data is serialized
-		if ( Obj->GetArchetype() == this )
+		if ( Obj->GetArchetype() == this || Obj->GetOuter()->GetArchetype() == this )
 		{
 			// add this object to the list that we're going to process
 			Instances.Add(Obj);
@@ -480,14 +480,17 @@ void UObject::PropagatePreEditChange( TArray<UObject*>& AffectedObjects, FEditPr
 	{
 		UObject* Obj = Instances[i];
 
-		// this object must now be included in any undo/redo operations
-		Obj->SetFlags(RF_Transactional);
+		if ( PropertyAboutToChange.IsArchetypeInstanceAffected(Obj) )
+		{
+			// this object must now be included in any undo/redo operations
+			Obj->SetFlags(RF_Transactional);
 
-		// This will call ClearComponents in the Actor case, so that we do not serialize more stuff than we need to.
-		Obj->PreEditChange(PropertyAboutToChange);
+			// This will call ClearComponents in the Actor case, so that we do not serialize more stuff than we need to.
+			Obj->PreEditChange(PropertyAboutToChange);
 
-		// now recurse into this object, saving its instances
-		Obj->PropagatePreEditChange(AffectedObjects, PropertyAboutToChange);
+			// now recurse into this object, saving its instances
+			Obj->PropagatePreEditChange(AffectedObjects, PropertyAboutToChange);
+		}
 	}
 }
 
@@ -517,11 +520,14 @@ void UObject::PropagatePostEditChange( TArray<UObject*>& AffectedObjects, FPrope
 	{
 		UObject* Obj = Instances[i];
 
-		// notify the object that all changes are complete
-		Obj->PostEditChangeChainProperty(PropertyChangedEvent);
+		if ( PropertyChangedEvent.HasArchetypeInstanceChanged(Obj) )
+		{
+			// notify the object that all changes are complete
+			Obj->PostEditChangeChainProperty(PropertyChangedEvent);
 
-		// now recurse into this object, loading its instances
-		Obj->PropagatePostEditChange(AffectedObjects, PropertyChangedEvent);
+			// now recurse into this object, loading its instances
+			Obj->PropagatePostEditChange(AffectedObjects, PropertyChangedEvent);
+		}
 	}
 }
 
