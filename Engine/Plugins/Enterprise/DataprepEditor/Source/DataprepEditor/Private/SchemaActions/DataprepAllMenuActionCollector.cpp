@@ -4,6 +4,7 @@
 
 #include "SchemaActions/DataprepFilterMenuActionCollector.h"
 #include "SchemaActions/DataprepOperationMenuActionCollector.h"
+#include "SchemaActions/DataprepSelectionTransformMenuActionCollector.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 
 namespace FDataprepAllMenuActionCollectorUtils
@@ -26,6 +27,11 @@ TArray<TSharedPtr<FDataprepSchemaAction>> FDataprepAllMenuActionCollector::Colle
 	FilterCollector.GroupingPriority = 1;
 	TArray< TSharedPtr< FDataprepSchemaAction > > Actions = FilterCollector.CollectActions();
 	FDataprepAllMenuActionCollectorUtils::AddRootCategoryToActions( Actions, FDataprepFilterMenuActionCollector::FilterCategory );
+
+	FDataprepSelectionTransformMenuActionCollector SelectionTransformCollector;
+	TArray< TSharedPtr< FDataprepSchemaAction > > TransformActions = SelectionTransformCollector.CollectActions();
+	FDataprepAllMenuActionCollectorUtils::AddRootCategoryToActions(TransformActions, FDataprepSelectionTransformMenuActionCollector::FilterCategory);
+	Actions.Append( MoveTemp( TransformActions ) );
 
 	FDataprepOperationMenuActionCollector OperationCollector;
 	TArray< TSharedPtr< FDataprepSchemaAction > > OperationActions = OperationCollector.CollectActions();

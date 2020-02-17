@@ -18,6 +18,7 @@
 #include "IDataprepProgressReporter.h"
 #include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
+#include "SelectionSystem/DataprepSelectionTransform.h"
 
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -369,6 +370,7 @@ bool FDataprepCoreUtils::IsClassValidForStepCreation(const TSubclassOf<UDataprep
 	UClass* DataprepTopLevelClass = UDataprepParameterizableObject::StaticClass();
 	UClass* DataprepOperationClass = UDataprepOperation::StaticClass();
 	UClass* DataprepFetcherClass = UDataprepFetcher::StaticClass();
+	UClass* DataprepTransformClass = UDataprepSelectionTransform::StaticClass();
 
 	while ( Class )
 	{
@@ -396,6 +398,12 @@ bool FDataprepCoreUtils::IsClassValidForStepCreation(const TSubclassOf<UDataprep
 			return true;
 		}
 
+		if ( Class == DataprepTransformClass )
+		{
+			OutValidRootClass = DataprepTransformClass;
+			return true;
+		}
+
 		Class = Class->GetSuperClass();
 	}
 
@@ -408,11 +416,13 @@ UClass* FDataprepCoreUtils::GetTypeOfActionStep(const UDataprepParameterizableOb
 
 	const UClass* DataprepFilterClass = UDataprepFilter::StaticClass();
 	const UClass* DataprepOperationClass = UDataprepOperation::StaticClass();
+	const UClass* DataprepTransformClass = UDataprepSelectionTransform::StaticClass();
 
 	while ( CurrentClass )
 	{
 		if ( CurrentClass == DataprepFilterClass
 			|| CurrentClass == DataprepOperationClass
+			|| CurrentClass == DataprepTransformClass
 			)
 		{
 			break;
