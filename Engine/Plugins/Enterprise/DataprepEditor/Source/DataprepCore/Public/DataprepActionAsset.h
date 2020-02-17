@@ -163,8 +163,10 @@ struct FDataprepActionContext
 	DataprepActionAsset::FActionsContextChangedFunc ContextChangedCallback;
 };
 
-// Delegates
-DECLARE_MULTICAST_DELEGATE(FOnStepsOrderChanged)
+class UDataprepActionAsset;
+DECLARE_EVENT(UDataprepActionAsset, FOnStepsOrderChanged);
+DECLARE_EVENT_OneParam(UDataprepActionAsset, FOnStepAboutToBeRemoved, UDataprepParameterizableObject* /** The step object */ );
+DECLARE_EVENT_TwoParams(UDataprepParameterizableObject, FOnStepWasEdited, UDataprepParameterizableObject* /** The step object of the step (The object edited might be a subobject of it) */, struct FPropertyChangedChainEvent&)
 
 UCLASS(Experimental)
 class DATAPREPCORE_API UDataprepActionAsset : public UObject
@@ -300,6 +302,18 @@ public:
 	 */
 	FOnStepsOrderChanged& GetOnStepsOrderChanged();
 
+	/**
+	 * Allow an observer to be notified when a step is about to be removed from the action
+	 * @return The event that will be broadcasted
+	 */
+	FOnStepAboutToBeRemoved& GetOnStepAboutToBeRemoved();
+
+	/**
+	 * Allow an observer to be notified when a step was edited (the step himself or a sub object of it)
+	 * @return The event that will be broadcasted
+	 */
+	FOnStepWasEdited& GetOnStepWasEdited();
+
 	UPROPERTY(Transient)
 	bool bExecutionInterrupted;
 
@@ -398,7 +412,13 @@ private:
 	TArray<UDataprepActionStep*> Steps;
 
 	/** Broadcasts any change to the stack of steps */
-	FOnStepsOrderChanged OnStepsChanged;
+	FOnStepsOrderChanged OnStepsOrderChanged;
+
+	/** Broadcast when a step is about to be removed */
+	FOnStepAboutToBeRemoved OnStepsAboutToBeRemoved;
+
+	/** Broacast when a subobject of a step or a step object was edited */
+	FOnStepWasEdited OnStepWasEdited;
 
 	FDelegateHandle OnAssetDeletedHandle;
 
