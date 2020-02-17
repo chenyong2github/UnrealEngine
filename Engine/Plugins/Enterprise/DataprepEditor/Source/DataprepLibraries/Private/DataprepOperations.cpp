@@ -349,4 +349,38 @@ void UDataprepRandomizeTransformOperation::OnExecution_Implementation(const FDat
 	UDataprepOperationsLibrary::RandomizeTransform(InContext.Objects, TransformType, ReferenceFrame, Min, Max);
 }
 
+void UDataprepFlipFacesOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("FlipFaces"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	TSet<UStaticMesh*> StaticMeshes;
+
+	// Re-create static meshes
+	for (UObject* Object : InContext.Objects)
+	{
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents(Actor);
+			for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
+			{
+				UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+
+				if (nullptr == StaticMesh)
+				{
+					continue;
+				}
+				StaticMeshes.Add(StaticMesh);
+			}
+		}
+	}
+
+	// Execute operation
+	UDataprepOperationsLibrary::FlipFaces(StaticMeshes);
+
+	// Re-create meshes render data
+	UStaticMesh::BatchBuild(StaticMeshes.Array());
+}
+
 #undef LOCTEXT_NAMESPACE
