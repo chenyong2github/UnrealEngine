@@ -24,7 +24,7 @@ void UDataprepGraph::Initialize(UDataprepAsset* InDataprepAsset)
 	DataprepAssetPtr = InDataprepAsset;
 
 	// Add recipe graph editor node which will be used as a start point to populate 
-	RecipeNode = TStrongObjectPtr<UDataprepGraphRecipeNode>( Cast<UDataprepGraphRecipeNode>(CreateNode(UDataprepGraphRecipeNode::StaticClass(), false)) );
+	UDataprepGraphRecipeNode* RecipeNode = Cast<UDataprepGraphRecipeNode>(CreateNode(UDataprepGraphRecipeNode::StaticClass(), false));
 	RecipeNode->SetEnabledState(ENodeEnabledState::Disabled, true);
 }
 
@@ -116,8 +116,6 @@ void FDataprepEditor::CreateGraphEditor()
 			.TitleBar(TitleBarWidget)
 			.GraphToEdit(DataprepGraph.Get())
 			.GraphEvents(Events);
-
-		DataprepGraph->SetEditor(GraphEditor);
 	}
 }
 
