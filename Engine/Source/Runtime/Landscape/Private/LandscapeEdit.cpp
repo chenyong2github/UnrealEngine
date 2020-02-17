@@ -2882,18 +2882,17 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 
 	if (CanHaveLayersContent())
 	{
-		// Components need to be registered to be able to import the layer content and we will remove them if they should have not been visible
-		bool ShouldComponentBeRegistered = GetLevel()->bIsVisible;
-		RegisterAllComponents();
-
+		// Create the default layer first
 		ALandscape* LandscapeActor = GetLandscapeActor();
 		check(LandscapeActor != nullptr);
-
-		// Create the default layer
 		if (LandscapeActor->GetLayerCount() == 0 && InImportLayers == nullptr)
 		{
 			LandscapeActor->CreateDefaultLayer();
 		}
+
+		// Components need to be registered to be able to import the layer content and we will remove them if they should have not been visible
+		bool ShouldComponentBeRegistered = GetLevel()->bIsVisible;
+		RegisterAllComponents();
 
 		TSet<ULandscapeComponent*> ComponentsToProcess;
 
