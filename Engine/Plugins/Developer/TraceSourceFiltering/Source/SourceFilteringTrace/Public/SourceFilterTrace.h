@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Misc/Build.h"
+#include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define SOURCE_FILTER_TRACE_ENABLED 1
@@ -13,7 +14,6 @@
 #if SOURCE_FILTER_TRACE_ENABLED
 
 #include "CoreTypes.h"
-#include "Trace/Config.h"
 #include "Trace/Trace.h"
 #include "UObject/ObjectKey.h"
 #include "Templates/SubclassOf.h"
