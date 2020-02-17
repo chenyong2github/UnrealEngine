@@ -26,3 +26,8 @@ void FAbcImportLogger::OutputMessages(const FString& PageName)
 
 	MessageLog.Open();
 }
+
+TArray<TSharedRef<FTokenizedMessage>> FAbcImportLogger::RetrieveMessages()
+{	
+	return MoveTemp(TokenizedErrorMessages);
+}

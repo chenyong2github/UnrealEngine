@@ -3,10 +3,18 @@
 #include "GeometryCacheTrackAbcFile.h"
 
 #include "AbcImporter.h"
+#include "AbcImportLogger.h"
+#include "AbcImportSettings.h"
 #include "AbcUtilities.h"
-#include "AbcImportSettings.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "GeometryCacheHelpers.h"
-#include "AbcImportSettings.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Widgets/Notifications/SNotificationList.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogGeometryCacheAbcFile, Log, All);
+
+#define LOCTEXT_NAMESPACE "GeometryCacheTrackAbcFile"
 
 UGeometryCacheTrackAbcFile::UGeometryCacheTrackAbcFile()
 : EndFrameIndex(0)
@@ -54,6 +62,31 @@ const bool UGeometryCacheTrackAbcFile::UpdateBoundsData(const float Time, const 
 	return false;
 }
 
+void UGeometryCacheTrackAbcFile::Reset()
+{
+	AbcFile.Reset();
+
+	EndFrameIndex = 0;
+	Duration = 0.f;
+
+	MatrixSamples.Reset();
+	MatrixSampleTimes.Reset();
+
+	MeshData = FGeometryCacheMeshData();
+	MeshData.BoundingBox = FBox(ForceInit);
+}
+
+void UGeometryCacheTrackAbcFile::ShowNotification(const FText& Text)
+{
+	FNotificationInfo Info(Text);
+	Info.bFireAndForget = true;
+	Info.bUseLargeFont = false;
+	Info.FadeOutDuration = 3.0f;
+	Info.ExpireDuration = 7.0f;
+
+	FSlateNotificationManager::Get().AddNotification(Info);
+}
+
 bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImportSettings* AbcSettings)
 {
 	if (!FilePath.IsEmpty())
@@ -61,9 +94,24 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 		AbcFile = MakeUnique<FAbcFile>(FilePath);
 		EAbcImportError Result = AbcFile->Open();
 
+		const FString Filename = FPaths::GetCleanFilename(FilePath);
+
 		if (Result != EAbcImportError::AbcImportError_NoError)
 		{
-			AbcFile.Reset();
+			Reset();
+
+			FText FailureMessage = LOCTEXT("OpenFailureReason_Unknown", "Unknown open failure");
+			switch (Result)
+			{
+			case EAbcImportError::AbcImportError_InvalidArchive:
+				FailureMessage = LOCTEXT("OpenFailureReason_InvalidArchive", "Not a valid Alembic file");
+				break;
+			case EAbcImportError::AbcImportError_NoValidTopObject:
+				FailureMessage = LOCTEXT("OpenFailureReason_InvalidRoot", "Alembic file has no valid root node");
+				break;
+			}
+			UE_LOG(LogGeometryCacheAbcFile, Warning, TEXT("Failed to open %s: %s"), *Filename, *FailureMessage.ToString());
+
 			return false;
 		}
 
@@ -78,7 +126,18 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 
 		if (Result != EAbcImportError::AbcImportError_NoError)
 		{
-			AbcFile.Reset();
+			Reset();
+
+			FText FailureMessage = LOCTEXT("LoadFailureReason_Unknown", "Unknown load failure");
+			TArray<TSharedRef<FTokenizedMessage>> Messages = FAbcImportLogger::RetrieveMessages();
+			if (Messages.Num() > 0)
+			{
+				FailureMessage = Messages[0]->ToText();
+			}
+			UE_LOG(LogGeometryCacheAbcFile, Warning, TEXT("Failed to load %s: %s"), *Filename, *FailureMessage.ToString());
+
+			ShowNotification(FText::Format(LOCTEXT("LoadErrorNotification", "{0} could not be loaded. See Output Log for details."), FText::FromString(Filename)));
+
 			return false;
 		}
 
@@ -98,16 +157,16 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 
 		// Fill out the MeshData with the sample from time 0
 		GetMeshData(0, MeshData);
+
+		if (MeshData.Positions.Num() == 0)
+		{
+			// This could happen if the Alembic has geometry but they are set as invisible in the source
+			ShowNotification(FText::Format(LOCTEXT("NoVisibleGeometry", "Warning: {0} has no visible geometry."), FText::FromString(Filename)));
+		}
 	}
 	else
 	{
-		AbcFile.Reset();
-
-		EndFrameIndex = 0;
-		Duration = 0.f;
-
-		MatrixSamples.Empty();
-		MatrixSampleTimes.Empty();
+		Reset();
 	}
 	SourceFile = FilePath;
 	return true;
@@ -157,3 +216,5 @@ bool UGeometryCacheTrackAbcFile::GetMeshData(int32 SampleIndex, FGeometryCacheMe
 	}
 	return false;
 }
+
+#undef LOCTEXT_NAMESPACE
