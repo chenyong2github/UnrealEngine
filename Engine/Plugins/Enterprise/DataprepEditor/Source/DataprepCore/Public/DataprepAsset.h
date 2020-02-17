@@ -70,8 +70,9 @@ public:
 
 	/**
 	 * Add a copy of the action to the Dataprep asset
-	 * @param Action The action we want to duplicate in the Dataprep asset
+	 * @param Action The action we want to duplicate in the Dataprep asset. Parameter can be null
 	 * @return The index of the added action or index none if the action is invalid
+	 * @remark If action is nullptr, a new DataprepActionAsset is simply created
 	 */
 	int32 AddAction(const UDataprepActionAsset* Action);
 

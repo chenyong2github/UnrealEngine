@@ -539,13 +539,14 @@ void UDataprepAsset::UpdateActions(bool bNotify)
 
 int32 UDataprepAsset::AddAction(const UDataprepActionAsset* InAction)
 {
-	if ( InAction )
+	UDataprepActionAsset* Action = InAction ? DuplicateObject<UDataprepActionAsset>( InAction, this) : NewObject<UDataprepActionAsset>( this, UDataprepActionAsset::StaticClass(), NAME_None, RF_Transactional );
+
+	if ( Action )
 	{
 		Modify();
 
-		UDataprepActionAsset* Action = DuplicateObject<UDataprepActionAsset>( InAction, this);
 		Action->SetFlags(EObjectFlags::RF_Transactional);
-		Action->SetLabel( InAction->GetLabel() );
+		Action->SetLabel( InAction ? InAction->GetLabel() : TEXT("New Action") );
 
 		ActionAssets.Add( Action );
 		OnActionChanged.Broadcast(Action, FDataprepAssetChangeType::ActionAdded);
