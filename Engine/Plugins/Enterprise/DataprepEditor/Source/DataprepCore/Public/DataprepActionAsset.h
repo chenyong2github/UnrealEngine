@@ -179,6 +179,10 @@ public:
 
 	virtual ~UDataprepActionAsset();
 
+	// Begin UObject Interface
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	// End UObject Interface
+
 	/**
 	 * Execute the action on a specific set of objects
 	 * @param Objects The objects on which the action will operate
@@ -295,6 +299,13 @@ public:
 	 * @return True if a step was removed
 	 */
 	bool RemoveStep(int32 Index);
+
+	/**
+	 * Remove an array of steps from the action
+	 * @param Indices Array of step indices to remove
+	 * @return True if at least one step has been removed
+	 */
+	bool RemoveSteps(const TArray<int32>& Indices);
 
 	/**
 	 * Allow an observer to be notified when the steps order changed that also include adding and removing steps

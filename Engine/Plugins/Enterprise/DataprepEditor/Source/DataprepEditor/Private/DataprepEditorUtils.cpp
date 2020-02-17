@@ -27,6 +27,41 @@ bool FDataprepParametrizationActionData::IsValid() const
 	return DataprepAsset && Object && PropertyChain.Num() > 0;
 }
 
+#ifndef NO_BLUEPRINT
+void FDataprepEditorUtils::NotifySystemOfChangeInPipeline(UObject* SourceObject)
+{
+	UBlueprint* Blueprint = nullptr;
+	UDataprepAsset* DataprepAsset = nullptr;
+	UObject* Object = SourceObject;
+	while ( Object )
+	{
+		UClass* Class = Object->GetClass();
+		if ( Class->IsChildOf<UBlueprint>() )
+		{
+			Blueprint = static_cast<UBlueprint*>( Object );
+		}
+		else if ( Class == UDataprepAsset::StaticClass() )
+		{
+			DataprepAsset = static_cast<UDataprepAsset*>( Object );
+			break;
+		}
+		Object = Object->GetOuter();
+	}
+
+	if ( DataprepAsset )
+	{
+		if(!DataprepAsset->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
+		{
+			DataprepAsset->GetRecipeBP()->OnChanged().Broadcast(DataprepAsset->GetRecipeBP());
+		}
+	}
+	else if ( Blueprint )
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsModified( Blueprint );
+	}
+}
+#endif
+
 void FDataprepEditorUtils::PopulateMenuForParameterization(FMenuBuilder& MenuBuilder, UDataprepAsset& DataprepAsset, UDataprepParameterizableObject& Object, const TArray<FDataprepPropertyLink>& PropertyChain)
 {
 	TSharedRef<FDataprepParametrizationActionData> ActionData = MakeShared<FDataprepParametrizationActionData>( DataprepAsset, Object, PropertyChain );
