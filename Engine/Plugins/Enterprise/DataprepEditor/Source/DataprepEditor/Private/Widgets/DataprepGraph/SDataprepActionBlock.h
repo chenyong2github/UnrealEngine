@@ -35,8 +35,10 @@ public:
 	/** Return the block title */
 	TSharedRef<SWidget> GetBlockTitleWidget();
 
-	/** Temporary while both graph editors coexist */
-	bool bDragEnabled;
+#ifndef NO_BLUEPRINT
+	// Temporary boolean to indicate if the widget has been instantiated in a regular BP graph or the simplified one
+	bool bIsSimplifiedGraph;
+#endif
 
 protected:
 

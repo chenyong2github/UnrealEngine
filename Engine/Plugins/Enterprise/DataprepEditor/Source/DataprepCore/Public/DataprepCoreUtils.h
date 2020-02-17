@@ -107,6 +107,30 @@ public:
 	 */
 	static void BuildAssets(const TArray< TWeakObjectPtr<UObject> >& Assets, const TSharedPtr<IDataprepProgressReporter>& ProgressReporterPtr );
 
+	/**
+	 * Helper function to remove a step from an action.
+	 * This function will remove the action from the Dataprep asset owning it if this is the last step.
+	 * 
+	 * @param	ActionAsset		Action asset to perform the operation on
+	 * @param	Indices			Array of step's indices to remove.
+	 * @param	ActionIndex		Set to INDEX_NONE if the action was not removed from its owning Dataprep asset. Valid index otherwise.
+	 * @return  Returns true if the removal was successful, false otherwise
+	 */
+	static bool RemoveSteps(UDataprepActionAsset* ActionAsset, const TArray<int32>& Indices, int32& ActionIndex );
+
+	/**
+	 * Helper function to remove a step from an action.
+	 * This function will remove the action from the Dataprep asset owning it if this is the last step.
+	 * 
+	 * @param	ActionAsset		Action asset to perform the operation on
+	 * @param	Index			Index of the step to remove.
+	 * @param	ActionIndex		Set to INDEX_NONE if the action was not removed from its owning Dataprep asset. Valid index otherwise.
+	 */
+	static bool RemoveStep(UDataprepActionAsset* ActionAsset, int32 Index, int32& ActionIndex)
+	{
+		return RemoveSteps(ActionAsset, { Index }, ActionIndex);
+	}
+
 	class DATAPREPCORE_API FDataprepLogger : public IDataprepLogger
 	{
 	public:
