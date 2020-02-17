@@ -2021,19 +2021,6 @@ void FFbxImporter::FillFbxMeshArray(FbxNode* Node, TArray<FbxNode*>& outMeshArra
 	}
 }
 
-void FFbxImporter::FillFbxSkeletonArray(FbxNode* Node, TArray<FbxNode*>& OutMeshArray)
-{
-	if (Node->GetSkeleton())
-	{
-		OutMeshArray.Add(Node);
-	}
-
-	for (int32 ChildIndex = 0; ChildIndex < Node->GetChildCount(); ++ChildIndex)
-	{
-		FillFbxSkeletonArray(Node->GetChild(ChildIndex), OutMeshArray);
-	}
-}
-
 void FFbxImporter::FillFbxMeshAndLODGroupArray(FbxNode* Node, TArray<FbxNode*>& outLODGroupArray, TArray<FbxNode*>& outMeshArray)
 {
 	// Is this node an LOD group

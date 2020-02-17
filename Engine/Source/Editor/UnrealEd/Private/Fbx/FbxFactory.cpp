@@ -606,13 +606,9 @@ UObject* UFbxFactory::FactoryCreateFile
 							{
 								FName OutputName = FbxImporter->MakeNameForMesh(Name.ToString(), SkelMeshNodeArray[0]);
 
-								TArray<FbxNode*> SkeletonNodeArray;
-								FbxImporter->FillFbxSkeletonArray(RootNodeToImport, SkeletonNodeArray);
-
 								UnFbx::FFbxImporter::FImportSkeletalMeshArgs ImportSkeletalMeshArgs;
 								ImportSkeletalMeshArgs.InParent = InParent;
 								ImportSkeletalMeshArgs.NodeArray = SkelMeshNodeArray;
-								ImportSkeletalMeshArgs.BoneNodeArray = SkeletonNodeArray;
 								ImportSkeletalMeshArgs.Name = OutputName;
 								ImportSkeletalMeshArgs.Flags = Flags;
 								ImportSkeletalMeshArgs.TemplateImportData = ImportUI->SkeletalMeshImportData;
