@@ -99,6 +99,9 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			ERDGPassFlags::Raster,
 			[&View, SceneColorViewport](FRHICommandList& RHICmdList)
 		{
+			FScene* Scene = View.Family->Scene->GetRenderScene();
+			Scene->UniformBuffers.UpdateViewUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
+
 			RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
 
 			// Run selection pass on static elements
