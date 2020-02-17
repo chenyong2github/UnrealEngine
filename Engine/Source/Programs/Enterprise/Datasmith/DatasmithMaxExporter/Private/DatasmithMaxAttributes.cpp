@@ -115,6 +115,8 @@ TOptional<FDatasmithMaxStaticMeshAttributes> FDatasmithMaxStaticMeshAttributes::
 					}
 				}
 			}
+
+			ParamBlock2->ReleaseDesc();
 		}
 	}
 	
