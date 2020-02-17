@@ -919,4 +919,9 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UMulticastDelegatePropertyWrapper, UPropertyWrapp
 	}
 );
 
+IMPLEMENT_CORE_INTRINSIC_CLASS(UMulticastInlineDelegatePropertyWrapper, UMulticastDelegatePropertyWrapper,
+	{
+	}
+);
+
 #include "UObject/DefineUPropertyMacros.h"
