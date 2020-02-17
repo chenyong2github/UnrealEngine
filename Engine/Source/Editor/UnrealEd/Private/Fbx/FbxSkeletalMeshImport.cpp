@@ -1326,14 +1326,12 @@ bool UnFbx::FFbxImporter::ImportBone(TArray<FbxNode*>& NodeArray, FSkeletalMeshI
 	return true;
 }
 
-bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport, const TMap<FVector, FColor>& ExistingVertexColorData)
+bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FbxNode*>& OutImportedSkeletonLinkNodes, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport, const TMap<FVector, FColor>& ExistingVertexColorData)
 {
 	if (NodeArray.Num() == 0)
 	{
 		return false;
 	}
-
-	int32 SkelType = 0; // 0 for skeletal mesh, 1 for rigid mesh
 
 	FbxNode* Node = NodeArray[0];
 	// find the mesh by its name
@@ -1344,16 +1342,11 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray
 		return false;
 	}
 
-	if (FbxMesh->GetDeformerCount(FbxDeformer::eSkin) == 0)
-	{
-		SkelType = 1;
-	}
-
 	// Fill with data from buffer - contains the full .FBX file. 	
 	FSkeletalMeshImportData* SkelMeshImportDataPtr = OutData;
 
-
-	TArray<FbxNode*> SortedLinkArray;
+	OutImportedSkeletonLinkNodes.Empty();
+	TArray<FbxNode*>& SortedLinkArray = OutImportedSkeletonLinkNodes;
 	FbxArray<FbxAMatrix> GlobalsPerLink;
 
 	SkelMeshImportDataPtr->bUseT0AsRefPose = ImportOptions->bUseT0AsRefPose;
@@ -1621,9 +1614,6 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	}
 
 	int32 SafeLODIndex = ImportSkeletalMeshArgs.LodIndex < 0 ? 0 : ImportSkeletalMeshArgs.LodIndex;
-
-	int32 SkelType = 0; // 0 for skeletal mesh, 1 for rigid mesh
-	
 	FbxNode* Node = ImportSkeletalMeshArgs.NodeArray[0];
 	// find the mesh by its name
 	FbxMesh* FbxMesh = Node->GetMesh();
@@ -1633,10 +1623,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_NodeInvalidSkeletalMesh", "Fbx node: '{0}' is not a valid skeletal mesh"), FText::FromString(Node->GetName()))), FFbxErrors::Generic_Mesh_MeshNotFound);
 		return nullptr;
 	}
-	if (FbxMesh->GetDeformerCount(FbxDeformer::eSkin) == 0)
-	{
-		SkelType = 1;
-	}
+
 	//Make sure the render thread is done
 	FlushRenderingCommands();
 
@@ -1687,8 +1674,8 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	//////////////////////////////////////////////////////////////////////////
 	// We must do a maximum of fail test before backing up the data since the backup is destructive on the existing skeletal mesh.
 	// See the comment later when we call the following function (SaveExistingSkelMeshData)
-
-	if (FillSkeletalMeshImportData(ImportSkeletalMeshArgs.NodeArray, ImportSkeletalMeshArgs.TemplateImportData, ImportSkeletalMeshArgs.FbxShapeArray, SkelMeshImportDataPtr, LastImportedMaterialNames, ExistingSkelMesh != nullptr, ExistingVertexColorData) == false)
+	TArray<FbxNode*> ImportedSkeletonLinkNodes;
+	if (FillSkeletalMeshImportData(ImportSkeletalMeshArgs.NodeArray, ImportSkeletalMeshArgs.TemplateImportData, ImportSkeletalMeshArgs.FbxShapeArray, SkelMeshImportDataPtr, ImportedSkeletonLinkNodes, LastImportedMaterialNames, ExistingSkelMesh != nullptr, ExistingVertexColorData) == false)
 	{
 		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("FbxSkeletaLMeshimport_FillupImportData", "Get Import Data has failed.")), FFbxErrors::SkeletalMesh_FillImportDataFailed);
 		if (SkeletalMesh)
@@ -2111,7 +2098,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	}
 
 	// Import bone metadata to Skeleton
-	for (FbxNode* SkeletonNode : ImportSkeletalMeshArgs.BoneNodeArray)
+	for (FbxNode* SkeletonNode : ImportedSkeletonLinkNodes)
 	{
 		ImportNodeCustomProperties(SkeletalMesh->Skeleton, SkeletonNode, true);
 	}
@@ -2538,14 +2525,10 @@ USkeletalMesh* UnFbx::FFbxImporter::ReimportSkeletalMesh(USkeletalMesh* Mesh, UF
 			FSkeletalMeshImportData OutData;
 			if (LODIndex == 0)
 			{
-				TArray<FbxNode*> SkeletonNodeArray;
-				FillFbxSkeletonArray(Scene->GetRootNode(), SkeletonNodeArray);
-
 				ImportMeshLodData.AddZeroed();
 				UnFbx::FFbxImporter::FImportSkeletalMeshArgs ImportSkeletalMeshArgs;
 				ImportSkeletalMeshArgs.InParent = Mesh->GetOuter();
 				ImportSkeletalMeshArgs.NodeArray = SkelMeshNodeArray;
-				ImportSkeletalMeshArgs.BoneNodeArray = SkeletonNodeArray;
 				ImportSkeletalMeshArgs.Name = *Mesh->GetName();
 				ImportSkeletalMeshArgs.Flags = RF_Public | RF_Standalone;
 				ImportSkeletalMeshArgs.TemplateImportData = TemplateImportData;
