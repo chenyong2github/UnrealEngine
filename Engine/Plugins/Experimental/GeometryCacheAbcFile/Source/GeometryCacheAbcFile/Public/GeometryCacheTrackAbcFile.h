@@ -25,7 +25,7 @@ public:
 	virtual const FGeometryCacheTrackSampleInfo& GetSampleInfo(float Time, const bool bLooping) override;
 	//~ End UGeometryCacheTrack Interface.
 
-	bool SetSourceFile(const FString& FilePath);
+	bool SetSourceFile(const FString& FilePath, class UAbcImportSettings* AbcSettings);
 	const FString& GetSourceFile() const { return SourceFile; }
 
 	const int32 FindSampleIndexFromTime(const float Time, const bool bLooping) const;
