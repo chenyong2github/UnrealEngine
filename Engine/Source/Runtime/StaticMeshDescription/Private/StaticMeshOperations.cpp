@@ -2235,4 +2235,29 @@ FSHAHash FStaticMeshOperations::ComputeSHAHash(const FMeshDescription& MeshDescr
 	return OutHash;
 }
 
+void FStaticMeshOperations::FlipPolygons(FMeshDescription& MeshDescription)
+{
+	TSet<FVertexInstanceID> VertexInstanceIDs;
+	for (FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
+	{
+		VertexInstanceIDs.Append(MeshDescription.GetPolygonVertexInstances(PolygonID));
+		MeshDescription.ReversePolygonFacing(PolygonID);
+	}
+
+	// Flip tangents and normals
+	const TVertexInstanceAttributesRef<FVector> VertexNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	const TVertexInstanceAttributesRef<FVector> VertexTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+
+	for (const FVertexInstanceID VertexInstanceID : VertexInstanceIDs)
+	{
+		// Just reverse the sign of the normals/tangents; note that since binormals are the cross product of normal with tangent, they are left untouched
+		FVector Normal = VertexNormals[VertexInstanceID] * -1.0f;
+		FVector Tangent = VertexTangents[VertexInstanceID] * -1.0f;
+
+		TAttributesSet<FVertexInstanceID>& AttributesSet = MeshDescription.VertexInstanceAttributes();
+		AttributesSet.SetAttribute(VertexInstanceID, MeshAttribute::VertexInstance::Normal, 0, Normal);
+		AttributesSet.SetAttribute(VertexInstanceID, MeshAttribute::VertexInstance::Tangent, 0, Tangent);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
