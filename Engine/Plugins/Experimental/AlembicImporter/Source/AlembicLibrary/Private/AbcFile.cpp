@@ -291,6 +291,25 @@ EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
 		}
 	}
 
+	// Populate the list of unique face set names from the meshes that should be imported regardless of the import material settings
+	bool bRequiresDefaultMaterial = false;
+	for (FAbcPolyMesh* PolyMesh : PolyMeshes)
+	{
+		if (PolyMesh->bShouldImport)
+		{
+			for (const FString& FaceSetName : PolyMesh->FaceSetNames)
+			{
+				UniqueFaceSetNames.AddUnique(FaceSetName);
+			}
+			bRequiresDefaultMaterial |= PolyMesh->FaceSetNames.Num() == 0;
+		}
+	}
+
+	if (bRequiresDefaultMaterial)
+	{
+		UniqueFaceSetNames.Insert(TEXT("DefaultMaterial"), 0);
+	}
+
 	return AbcImportError_NoError;
 }
 

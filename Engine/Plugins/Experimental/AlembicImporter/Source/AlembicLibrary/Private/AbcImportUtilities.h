@@ -32,7 +32,9 @@ THIRD_PARTY_INCLUDES_END
 #include "AbcImportLogger.h"
 #include "AbcImportSettings.h"
 
+class FAbcFile;
 class FAbcPolyMesh;
+class UMaterialInterface;
 struct FAbcMeshSample;
 struct FCompressedAbcData;
 
@@ -339,4 +341,7 @@ namespace AbcImporterUtilities
 	 * @param bConstantTopology		Flag to indicate if the merged PolyMeshes has constant topology
 	 */
 	void MergePolyMeshesToMeshData(int32 FrameIndex, int32 FrameStart, const TArray<FAbcPolyMesh*>& PolyMeshes, const TArray<FString>& UniqueFaceSetNames, FGeometryCacheMeshData& MeshData, int32& PreviousNumVertices, bool& bConstantTopology);
+
+	/** Retrieves a material from an AbcFile according to the given name and resaves it into the parent package */
+	UMaterialInterface* RetrieveMaterial(FAbcFile& AbcFile, const FString& MaterialName, UObject* InParent, EObjectFlags Flags);
 }
