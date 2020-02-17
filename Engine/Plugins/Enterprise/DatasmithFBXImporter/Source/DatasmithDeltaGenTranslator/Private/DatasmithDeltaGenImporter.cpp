@@ -579,6 +579,7 @@ TSharedPtr<IDatasmithTextureElement> CreateTextureAndTextureProperties(IDatasmit
 		MapEntry(TEXT("TexTransparent"), EDatasmithTextureMode::Other),
 		MapEntry(TEXT("TexEmissive"), EDatasmithTextureMode::Diffuse),
 		MapEntry(TEXT("TexAO"), EDatasmithTextureMode::Diffuse),
+		MapEntry(TEXT("TexShininess"), EDatasmithTextureMode::Specular),
 	});
 
 	// Create the actual texture (accompanying texture properties will all be packed as key-value pairs)
