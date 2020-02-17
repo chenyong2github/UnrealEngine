@@ -312,6 +312,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
 	static void RandomizeTransform(const TArray<UObject*>& SelectedObjects, ERandomizeTransformType TransformType, ERandomizeTransformReferenceFrame ReferenceFrame, const FVector& Min, const FVector& Max);
 
+	/**
+	 * Flip the faces of all elements of a set of Static Meshes or Static Mesh Actors
+	 * @param SelectedObjects	Objects to the flip the faces of
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void FlipFaces( const TSet< UStaticMesh* >& StaticMeshes );
+
 private:
 	static void SubstituteMaterial(const TArray<UObject*>& SelectedObjects, const FString& MaterialSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UMaterialInterface*>& MaterialList, UMaterialInterface* MaterialSubstitute);
 	static void SubstituteMesh(const TArray<UObject*>& SelectedObjects, const FString& MeshSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UStaticMesh*>& MeshList, UStaticMesh* MeshSubstitute);
