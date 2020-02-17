@@ -7,9 +7,12 @@
 #include "AbcImportSettings.h"
 #include "AbcUtilities.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "GeometryCache.h"
 #include "GeometryCacheHelpers.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
+#include "Misc/Paths.h"
+#include "PackageTools.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCacheAbcFile, Log, All);
@@ -215,6 +218,22 @@ bool UGeometryCacheTrackAbcFile::GetMeshData(int32 SampleIndex, FGeometryCacheMe
 		return true;
 	}
 	return false;
+}
+
+void UGeometryCacheTrackAbcFile::SetupGeometryCacheMaterials(UGeometryCache* GeometryCache)
+{
+	if (AbcFile)
+	{
+		// Create package where the materials will be saved into
+		static const FString DestinationPath(TEXT("/Game/GeometryCacheAbcFile/Materials"));
+		FString Name = FPaths::GetBaseFilename(SourceFile);
+		FString PackageName = UPackageTools::SanitizePackageName(FPaths::Combine(*DestinationPath, *Name, *Name));
+
+		UPackage* Package = CreatePackage(nullptr, *PackageName);
+		Package->FullyLoad();
+
+		FAbcUtilities::SetupGeometryCacheMaterials(*AbcFile, GeometryCache, Package);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

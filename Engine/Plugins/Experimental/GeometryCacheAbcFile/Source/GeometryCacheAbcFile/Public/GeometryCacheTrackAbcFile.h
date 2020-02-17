@@ -35,6 +35,8 @@ public:
 
 	bool GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData);
 
+	void SetupGeometryCacheMaterials(class UGeometryCache* GeometryCache);
+
 private:
 	void Reset();
 	void ShowNotification(const FText& Text);
