@@ -3,6 +3,7 @@
 #include "Widgets/DataprepGraph/SDataprepActionBlock.h"
 
 #include "DataprepActionAsset.h"
+#include "DataprepCoreUtils.h"
 #include "DataprepEditorStyle.h"
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/DataprepSchemaAction.h"
@@ -32,10 +33,11 @@ void SDataprepActionBlock::Construct(const FArguments& InArgs, const TSharedRef<
 {
 	DataprepActionContext = InDataprepActionContext;
 
-	bDragEnabled = true;
-
 	const float DefaultPadding = FDataprepEditorStyle::GetFloat( "DataprepAction.Padding" );
 	const FLinearColor OutlineColor = GetOutlineColor();
+#ifndef NO_BLUEPRINT
+	bIsSimplifiedGraph = false;
+#endif
 
 	ChildSlot
 	[
@@ -85,7 +87,7 @@ void SDataprepActionBlock::Construct(const FArguments& InArgs, const TSharedRef<
 			// The content zone of the action block
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding( bDragEnabled ? FMargin( DefaultPadding ) : FMargin( 2.f * DefaultPadding, 0.f, 0.f, 0.f ) )
+			.Padding( !bIsSimplifiedGraph ? FMargin( DefaultPadding ) : FMargin( 2.f * DefaultPadding, 0.f, 0.f, 0.f ) )
 			[
 				SNew( SConstraintCanvas )
 
@@ -144,15 +146,22 @@ TSharedRef<SWidget> SDataprepActionBlock::GetBlockTitleWidget()
 
 FReply SDataprepActionBlock::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if ( bDragEnabled && MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
+#ifndef NO_BLUEPRINT
+	if ( !bIsSimplifiedGraph && MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 	{
 		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 	}
+#else
+	if ( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
+	{
+		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
+	}
+#endif
 
 	// Take ownership of the mouse if right mouse button clicked to display contextual menu
 	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
 	{
-		return !bDragEnabled ? FReply::Handled().CaptureMouse( SharedThis(this) ) : FReply::Handled();
+		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();
@@ -373,14 +382,18 @@ TSharedRef<SWidget> SDataprepActionBlock::GetContentBackgroundWidget()
 
 void SDataprepActionBlock::PopulateMenuBuilder(FMenuBuilder& MenuBuilder)
 {
-	FUIAction DeleteAction;
-	DeleteAction.ExecuteAction.BindSP( this, &SDataprepActionBlock::DeleteStep );
+	MenuBuilder.BeginSection( FName( TEXT("NodeSection") ), LOCTEXT("NodeSection", "Common") );
+	{
+		FUIAction DeleteAction;
+		DeleteAction.ExecuteAction.BindSP( this, &SDataprepActionBlock::DeleteStep );
 
-	TSharedPtr<FUICommandInfo> DeleteCommand = FGenericCommands::Get().Delete;
-	MenuBuilder.AddMenuEntry( DeleteCommand->GetLabel(),
-		DeleteCommand->GetDescription(),
-		DeleteCommand->GetIcon(),
-		DeleteAction );
+		TSharedPtr<FUICommandInfo> DeleteCommand = FGenericCommands::Get().Delete;
+		MenuBuilder.AddMenuEntry( DeleteCommand->GetLabel(),
+			DeleteCommand->GetDescription(),
+			DeleteCommand->GetIcon(),
+			DeleteAction );
+	}
+	MenuBuilder.EndSection();
 }
 
 void SDataprepActionBlock::DeleteStep()
@@ -390,7 +403,12 @@ void SDataprepActionBlock::DeleteStep()
 		if ( UDataprepActionAsset* ActionAsset = ActionContext->DataprepActionPtr.Get() )
 		{
 			FScopedTransaction Transaction( LOCTEXT("DeleteStepTransaction", "Remove step from action") );
-			ActionAsset->RemoveStep( ActionContext->StepIndex );
+
+			int32 ActionIndex = INDEX_NONE;
+			if( !FDataprepCoreUtils::RemoveStep( ActionAsset, ActionContext->StepIndex, ActionIndex ) )
+			{
+				Transaction.Cancel();
+			}
 		}
 	}
 }
