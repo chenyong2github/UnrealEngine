@@ -163,9 +163,9 @@ namespace DataprepParameterization
 			}
 
 			if ( NumberOfObject == ValueTypeValidationData.Num() )
-				{
-					ValueTypeValidationData.Add( CurrentProperty->GetClass() );
-				}
+			{
+				ValueTypeValidationData.Add( CurrentProperty->GetClass() );
+			}
 		}
 	}
 
@@ -520,40 +520,6 @@ FDataprepParameterizationBinding::FDataprepParameterizationBinding(UDataprepPara
 			DataprepParameterization::PopulateValueTypeValidationData( Property, ValueTypeValidationData );
 		}
 	}
-}
-
-bool FDataprepParameterizationBinding::Serialize(FArchive& Ar)
-{
-	check(false); // @todo FProperties: if we never hit this, we don't need this
-
-	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
-
-	UScriptStruct* Struct = FDataprepParameterizationBinding::StaticStruct();
-	if (Ar.IsLoading() || Ar.IsSaving())
-	{
-		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
-	}
-
-#if WITH_EDITORONLY_DATA
-	//Take old data and put it in new data structure
-	if (Ar.IsLoading() && Ar.CustomVer(FCoreObjectVersion::GUID) < FCoreObjectVersion::FProperties)
-	{
-		//if (ValueType_DEPRECATED)
-		//{
-		//	ValueType = FFieldClass::GetNameToFieldClassMap().FindRef(ValueType_DEPRECATED->GetFName());
-		//}
-		//else
-		//{
-		//	ValueType = nullptr;
-		//}
-	}
-	else
-#endif // WITH_EDITORONLY_DATA
-	{
-		ValueTypeValidationData.Serialize(Ar);
-	}
-
-	return true;
 }
 
 bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
