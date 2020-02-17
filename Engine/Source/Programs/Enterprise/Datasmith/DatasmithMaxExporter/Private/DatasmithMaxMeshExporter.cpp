@@ -94,6 +94,7 @@ namespace
 					break;
 				}
 			}
+			ParamBlock2->ReleaseDesc();
 		}
 
 		return PrevDisplayValue;
