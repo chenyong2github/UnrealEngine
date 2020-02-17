@@ -62,6 +62,9 @@ void FDisplayClusterConfigManager::EndSession()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 
+	ConfigPath.Empty();
+	ClusterNodeId.Empty();
+
 	ResetConfigData();
 }
 
@@ -493,16 +496,19 @@ void FDisplayClusterConfigManager::ResetConfigData()
 	CfgWindows.Reset();
 	CfgScreens.Reset();
 	CfgViewports.Reset();
+	CfgPostprocess.Reset();
 	CfgCameras.Reset();
 	CfgSceneNodes.Reset();
 	CfgInputDevices.Reset();
 	CfgInputSetupRecords.Reset();
+	CfgProjections.Reset();
 
 	CfgInfo    = FDisplayClusterConfigInfo();
 	CfgGeneral = FDisplayClusterConfigGeneral();
 	CfgStereo  = FDisplayClusterConfigStereo();
-	CfgNetwork = FDisplayClusterConfigNetwork();
 	CfgRender  = FDisplayClusterConfigRender();
+	CfgNvidia  = FDisplayClusterConfigNvidia();
+	CfgNetwork = FDisplayClusterConfigNetwork();
 	CfgDebug   = FDisplayClusterConfigDebug();
 	CfgCustom  = FDisplayClusterConfigCustom();
 }
