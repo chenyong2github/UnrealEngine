@@ -124,7 +124,9 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 	{
 		if ( ExistingMesh->GetOuter() != Outer )
 		{
-			ResultStaticMesh = FDatasmithImporterUtils::DuplicateObject< UStaticMesh >( ExistingMesh, Outer, *StaticMeshName );
+			// We don't need to copy over the mesh BulkData as it is going to be recreated anyway, this also prevent ExistingMesh from being invalidated.
+			const bool bIgnoreBulkData = true;
+			ResultStaticMesh = FDatasmithImporterUtils::DuplicateStaticMesh( ExistingMesh, Outer, *StaticMeshName, bIgnoreBulkData);
 			IDatasmithImporterModule::Get().ResetOverrides( ResultStaticMesh ); // Don't copy the existing overrides
 		}
 		else
@@ -133,17 +135,6 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 		}
 
 		ResultStaticMesh->SetFlags( ObjectFlags );
-
-		// Get rid of data that is going to be recreated anyway
-		for (FStaticMeshSourceModel& SourceModel : ResultStaticMesh->GetSourceModels())
-		{
-			SourceModel.MeshDescription.Reset();
-			SourceModel.MeshDescriptionBulkData.Reset();
-			if (SourceModel.RawMeshBulkData)
-			{
-				SourceModel.RawMeshBulkData->Empty();
-			}
-		}
 	}
 	else
 	{
