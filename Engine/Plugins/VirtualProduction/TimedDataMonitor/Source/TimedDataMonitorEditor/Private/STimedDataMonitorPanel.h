@@ -16,6 +16,8 @@
 
 
 struct FSlateBrush;
+struct FTimedDataMonitorCalibrationResult;
+class FTimedDataMonitorCalibration;
 class FWorkspaceItem;
 class IMessageLogListing;
 class STimedDataGenlock;
@@ -57,6 +59,10 @@ private:
 	FReply OnGeneralUserSettingsClicked();
 	FSlateColor GetEvaluationStateColorAndOpacity() const;
 	FText GetEvaluationStateText() const;
+	TSharedPtr<SWidget> OnDataListConstructContextMenu();
+	bool IsSourceListSectionValid() const;
+	void ApplyTimeCorrectionOnSelection();
+	void ResetTimeCorrectionOnSelection();
 
 	EVisibility ShowMessageLog() const;
 	EVisibility ShowEditorPerformanceThrottlingWarning() const;
@@ -66,7 +72,10 @@ private:
 
 	void BuildCalibrationArray();
 	void CalibrateWithTimecode();
-	void ApplyTimeCorrection();
+	void CalibrateWithTimecodeCompleted(FTimedDataMonitorCalibrationResult);
+	void ApplyTimeCorrectionAll();
+	ETimedDataMonitorTimeCorrectionReturnCode ApplyTimeCorrection(const FTimedDataMonitorInputIdentifier& InputIndentifier);
+	FReply OnCancelCalibration();
 
 private:
 	TSharedPtr<STimedDataGenlock> TimedDataGenlockWidget;
@@ -82,7 +91,8 @@ private:
 
 	ETimedDataMonitorEvaluationState CachedGlobalEvaluationState;
 
-	bool bIsWaitingForCalibration = false;
+	TUniquePtr<FTimedDataMonitorCalibration> MonitorCalibration;
+
 	bool bRefreshRequested = true;
 	double LastCachedValueUpdateTime = 0.0;
 

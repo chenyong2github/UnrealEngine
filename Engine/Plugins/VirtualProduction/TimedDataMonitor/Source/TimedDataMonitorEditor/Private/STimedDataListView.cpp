@@ -651,6 +651,7 @@ void STimedDataInputListView::Construct(const FArguments& InArgs, TSharedPtr<STi
 		.OnGetChildren(this, &STimedDataInputListView::GetChildrenForInfo)
 		.OnSelectionChanged(this, &STimedDataInputListView::OnSelectionChanged)
 		.OnIsSelectableOrNavigable(this, &STimedDataInputListView::OnIsSelectableOrNavigable)
+		.OnContextMenuOpening(InArgs._OnContextMenuOpening)
 		.HighlightParentNodesForSelection(true)
 		.HeaderRow
 		(
@@ -809,6 +810,17 @@ void STimedDataInputListView::RebuildSources()
 }
 
 
+FTimedDataMonitorInputIdentifier STimedDataInputListView::GetSelectedInputIdentifier() const
+{
+	TArray<FTimedDataInputTableRowDataPtr> SelectedRows = GetSelectedItems();
+	if (SelectedRows.Num() > 0)
+	{
+		return SelectedRows[0]->InputIdentifier;
+	}
+	return FTimedDataMonitorInputIdentifier();
+}
+
+
 ECheckBoxState STimedDataInputListView::GetAllEnabledCheckState() const
 {
 	return ECheckBoxState::Checked;
@@ -856,7 +868,7 @@ void STimedDataInputListView::OnSelectionChanged(FTimedDataInputTableRowDataPtr 
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
-		if (InItem && InItem->bIsInput)
+		if (InItem && !InItem->bIsInput)
 		{
 			ClearSelection();
 		}
@@ -868,5 +880,6 @@ bool STimedDataInputListView::OnIsSelectableOrNavigable(FTimedDataInputTableRowD
 {
 	return InItem && !InItem->bIsInput;
 }
+
 
 #undef LOCTEXT_NAMESPACE

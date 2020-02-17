@@ -6,6 +6,7 @@
 
 #include "SlateFwd.h"
 #include "SlateOptMacros.h"
+#include "TimedDataMonitorTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -87,6 +88,7 @@ class STimedDataInputListView : public STreeView<FTimedDataInputTableRowDataPtr>
 
 public:
 	SLATE_BEGIN_ARGS(STimedDataInputListView) {}
+		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<STimedDataMonitorPanel> OwnerPanel);
@@ -94,6 +96,8 @@ public:
 
 	void RequestRefresh();
 	void UpdateCachedValue();
+
+	FTimedDataMonitorInputIdentifier GetSelectedInputIdentifier() const;
 
 private:
 	void RequestRebuildSources();
@@ -106,6 +110,7 @@ private:
 	void GetChildrenForInfo(FTimedDataInputTableRowDataPtr InItem, TArray<FTimedDataInputTableRowDataPtr>& OutChildren);
 	void OnSelectionChanged(FTimedDataInputTableRowDataPtr InItem, ESelectInfo::Type SelectInfo);
 	bool OnIsSelectableOrNavigable(FTimedDataInputTableRowDataPtr InItem) const;
+
 
 private:
 	TWeakPtr<STimedDataMonitorPanel> OwnerPanel;

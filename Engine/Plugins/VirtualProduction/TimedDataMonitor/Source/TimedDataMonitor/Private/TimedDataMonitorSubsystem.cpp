@@ -3,13 +3,15 @@
 #include "TimedDataMonitorSubsystem.h"
 
 #include "Engine/Engine.h"
-#include "Engine/TimecodeProvider.h"
-#include "HAL/PlatformTime.h"
+#include "Engine/World.h"
 #include "ITimeManagementModule.h"
+#include "LatentActions.h"
 #include "Misc/App.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "Stats/Stats2.h"
 #include "TimedDataInputCollection.h"
+#include "TimedDataMonitorCalibration.h"
+#include "UObject/Stack.h"
 
 
 static TAutoConsoleVariable<bool> CVarEnableTimedDataMonitorSubsystemStats(TEXT("TimedDataMonitor.EnableStatUpdate"), 1, TEXT("Enable calculating evaluation statistics of all registered channels."));
@@ -167,439 +169,71 @@ TArray<FTimedDataMonitorChannelIdentifier> UTimedDataMonitorSubsystem::GetAllEna
 }
 
 
-/** The algo for Calibration and TimeCorrection will use those data for their examples and comments. */
-// EvaluationTime == 50.
-//A1 10  11
-//A2                   48  49  50  51
-//A3     11  12
-//B1                                                 99  100
-//B2                                                     100
-//B3                                                     100  101
-//C1 10  11
-//C2                                                     100
-//D1                       49  50  51
-//D2                   48  49  50  51
-namespace TimedDataMonitorSubsystem
+void UTimedDataMonitorSubsystem::CalibrateLatent(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, const FTimedDataMonitorCalibrationParameters& CalibrationParameters, FTimedDataMonitorCalibrationResult& Result)
 {
-	struct FChannelSampleMinMax
+	struct FCalibrateAction : public FPendingLatentAction
 	{
-		FTimedDataMonitorChannelIdentifier ChannelIdentifier;
-		FTimedDataChannelSampleTime Min;
-		FTimedDataChannelSampleTime Max;
-	};
+	public:
+		FName ExecutionFunction;
+		int32 Linkage;
+		FWeakObjectPtr CallbackTarget;
+		FTimedDataMonitorCalibrationResult& Result;
+		TUniquePtr<FTimedDataMonitorCalibration> Calibration;
+		bool bOnCompleted;
 
-	struct FSmallestBiggestSample
-	{
-		double SmallestMinInSeconds = TNumericLimits<double>::Max();
-		double BiggestMaxInSeconds = TNumericLimits<double>::Lowest();
-		double BiggerMinInSeconds = TNumericLimits<double>::Lowest();
-		double SmallestMaxInSeconds = TNumericLimits<double>::Max();
-	};
-
-	TArray<FChannelSampleMinMax> GetChannelsMinMax(UTimedDataMonitorSubsystem* TimedDataMonitor, const TArray<FTimedDataMonitorChannelIdentifier>& Channels)
-	{
-		TArray<FChannelSampleMinMax> Result;
-		Result.Reset(Channels.Num());
-		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : Channels)
+		FCalibrateAction(const FLatentActionInfo& InLatentInfo, FTimedDataMonitorCalibrationResult& InResult)
+			: FPendingLatentAction()
+			, ExecutionFunction(InLatentInfo.ExecutionFunction)
+			, Linkage(InLatentInfo.Linkage)
+			, CallbackTarget(InLatentInfo.CallbackTarget)
+			, Result(InResult)
+			, Calibration(new FTimedDataMonitorCalibration)
+			, bOnCompleted(false)
 		{
-			check(TimedDataMonitor->GetChannelNumberOfSamples(ChannelIdentifier) > 0);
-			FChannelSampleMinMax NewItem;
-			NewItem.ChannelIdentifier = ChannelIdentifier;
-			NewItem.Min = TimedDataMonitor->GetChannelOldestDataTime(ChannelIdentifier);
-			NewItem.Max = TimedDataMonitor->GetChannelNewestDataTime(ChannelIdentifier);
-			Result.Add(NewItem);
 		}
-		return Result;
-	}
 
-	FSmallestBiggestSample GetSmallestBiggestSample(ETimedDataInputEvaluationType EvaluationType, const TArray<FChannelSampleMinMax>& Channels)
-	{
-		FSmallestBiggestSample Result;
-		for (const FChannelSampleMinMax& ChannelItt : Channels)
+		virtual void UpdateOperation(FLatentResponse& Response) override
 		{
-			Result.SmallestMinInSeconds = FMath::Min(ChannelItt.Min.AsSeconds(EvaluationType), Result.SmallestMinInSeconds);	//A == 10, B == 99, C == 10, D == 48
-			Result.BiggestMaxInSeconds = FMath::Max(ChannelItt.Max.AsSeconds(EvaluationType), Result.BiggestMaxInSeconds);	//A == 51, B == 101, C == 100, D == 51
-
-			Result.BiggerMinInSeconds = FMath::Max(ChannelItt.Min.AsSeconds(EvaluationType), Result.BiggerMinInSeconds);		//A == 48, B == 100, C == 10, D == 49
-			Result.SmallestMaxInSeconds = FMath::Min(ChannelItt.Max.AsSeconds(EvaluationType), Result.SmallestMaxInSeconds);	//A == 11, B == 100, C == 11, D == 51
-		}
-		return Result;
-	}
-
-	bool IsInRange(ETimedDataInputEvaluationType EvaluationType, const FChannelSampleMinMax& SampleMinMax, double InSeconds)
-	{
-		return InSeconds >= SampleMinMax.Min.AsSeconds(EvaluationType)
-			&& InSeconds <= SampleMinMax.Max.AsSeconds(EvaluationType);
-	}
-
-	bool IsInRange(ETimedDataInputEvaluationType EvaluationType, const TArray<FChannelSampleMinMax>& ChannelSamplesMinMax, double InSeconds)
-	{
-		if (ChannelSamplesMinMax.Num() == 0)
-		{
-			return false;
-		}
-		for (const TimedDataMonitorSubsystem::FChannelSampleMinMax& SampleMinMax : ChannelSamplesMinMax)
-		{
-			if (!IsInRange(EvaluationType, SampleMinMax, InSeconds))
+			if (bOnCompleted)
 			{
-				return false;
+				Response.FinishAndTriggerIf(true, ExecutionFunction, Linkage, CallbackTarget);
 			}
 		}
-		return true;
-	}
 
-	double CalculateAverageInDeltaTimeBetweenSample(ETimedDataInputEvaluationType EvaluationType, const TArray<FTimedDataChannelSampleTime>& SampleTimes)
-	{
-		double Average = 0.0;
-		if (SampleTimes.Num() >= 2)
+#if WITH_EDITOR
+		virtual FString GetDescription() const override
 		{
-			// Get the average of the last 10 samples in seconds
-			const int32 AvgCounter = FMath::Min(SampleTimes.Num() - 1, 10 - 1);
+			return FString::Printf(TEXT("Calibrating."));
+		}
+#endif
 
-			const int32 SampleTimeNum = SampleTimes.Num();
+		void OnCompleted(FTimedDataMonitorCalibrationResult InResult)
+		{
+			Result = InResult;
+			bOnCompleted = true;
+		}
+	};
 
-			for (int32 Index = 1; Index <= AvgCounter; ++Index)
-			{
-				double Delta = SampleTimes[SampleTimeNum - Index].AsSeconds(EvaluationType) - SampleTimes[SampleTimeNum - Index - 1].AsSeconds(EvaluationType);
-				Average += (Delta - Average) / (double)Index;
-			}
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		FLatentActionManager& LatentManager = World->GetLatentActionManager();
+		if (LatentManager.FindExistingAction<FCalibrateAction>(LatentInfo.CallbackTarget, LatentInfo.UUID) == nullptr)
+		{
+			FCalibrateAction* NewAction = new FCalibrateAction(LatentInfo, Result);
+			NewAction->Calibration->CalibrateWithTimecode(CalibrationParameters, FTimedDataMonitorCalibration::FOnCalibrationCompletedSignature::CreateRaw(NewAction, &FCalibrateAction::OnCompleted));
+			LatentManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, NewAction);
 		}
 		else
 		{
-			Average = FApp::GetDeltaTime(); // was not able to find a correct delta time. guess one.
+			FFrame::KismetExecutionMessage(TEXT("The calibration is already running."), ELogVerbosity::Warning, "CalibrationActionAlreadyStarted");
 		}
-		return Average;
 	}
-
-	double CalculateAverageInDeltaTimeBetweenSample(UTimedDataMonitorSubsystem* TimedDataMonitor, ETimedDataInputEvaluationType EvaluationType, const TArray<FTimedDataMonitorChannelIdentifier>& ChannelIdentifiers)
-	{
-		double AverageBetweenSample = 0.0;
-		int32 AverageCounter = 0;
-		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : ChannelIdentifiers)
-		{
-			TArray<FTimedDataChannelSampleTime> AllSamplesTimes = TimedDataMonitor->GetTimedDataChannel(ChannelIdentifier)->GetDataTimes();
-			if (AllSamplesTimes.Num() > 1)
-			{
-				const double CurrentAverageBetweenSample = CalculateAverageInDeltaTimeBetweenSample(EvaluationType, AllSamplesTimes);
-
-				++AverageCounter;
-				AverageBetweenSample += (CurrentAverageBetweenSample - AverageBetweenSample) / (double)AverageCounter;
-			}
-		}
-		if (FMath::IsNearlyZero(AverageBetweenSample))
-		{
-			AverageBetweenSample = FApp::GetDeltaTime();
-		}
-		return AverageBetweenSample;
-	}
-}
+};
 
 
-// With [A,B,C,D] We are not able to calibrate. (C:100-11 is too big of a gab)
-// With [A,D] We need to increase the buffer size of A2 (48-11), D1 and D2. Set the TimecodeProvider offset to 39 (50-11)
-FTimedDataMonitorCalibrationResult UTimedDataMonitorSubsystem::CalibrateWithTimecodeProvider()
+FTimedDataMonitorTimeCorrectionResult UTimedDataMonitorSubsystem::ApplyTimeCorrection(const FTimedDataMonitorInputIdentifier& InputIdentifier, const FTimedDataMonitorTimeCorrectionParameters& TimeCorrectionParameters)
 {
-	BuildSourcesListIfNeeded();
-
-	FTimedDataMonitorCalibrationResult Result;
-	Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Succeeded;
-
-
-	UTimecodeProvider* CurrentTimecodeProvider = GEngine->GetTimecodeProvider();
-	FQualifiedFrameTime CurrentFrameTime;
-	if (CurrentTimecodeProvider == nullptr || CurrentTimecodeProvider->GetSynchronizationState() != ETimecodeProviderSynchronizationState::Synchronized || !FApp::GetCurrentFrameTime().IsSet())
-	{
-		Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Failed_NoTimecode;
-		return Result;
-	}
-	CurrentFrameTime = CurrentTimecodeProvider->GetQualifiedFrameTime(); // Without offset
-
-	// Collect enabled input
-	struct FEnabledInput
-	{
-		FTimedDataMonitorInputIdentifier InputIdentifier;
-		TArray<FTimedDataMonitorChannelIdentifier> ChannelIdentifiers;
-	};
-	TArray<FEnabledInput> AllValidInputIndentifiers;
-	AllValidInputIndentifiers.Reset(InputMap.Num());
-
-	for (const auto& InputItt : InputMap)
-	{
-		if (ETimedDataMonitorInputEnabled::Disabled != GetInputEnabled(InputItt.Key))
-		{
-			FEnabledInput NewInput;
-			NewInput.InputIdentifier = InputItt.Key;
-			NewInput.ChannelIdentifiers.Reset(InputItt.Value.ChannelIdentifiers.Num());
-			for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItt.Value.ChannelIdentifiers)
-			{
-				if (ChannelMap[ChannelIdentifier].bEnabled)
-				{
-					NewInput.ChannelIdentifiers.Add(ChannelIdentifier);
-				}
-			}
-			AllValidInputIndentifiers.Add(MoveTemp(NewInput));
-		}
-	}
-
-	// Are they responsive?
-	for (const FEnabledInput& EnabledInput : AllValidInputIndentifiers)
-	{
-		if (GetInputConnectionState(EnabledInput.InputIdentifier) != ETimedDataInputState::Connected)
-		{
-			Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Failed_UnresponsiveInput;
-			Result.FailureInputIdentifiers.Add(EnabledInput.InputIdentifier);
-		}
-	}
-	if (Result.ReturnCode == ETimedDataMonitorCalibrationReturnCode::Failed_UnresponsiveInput)
-	{
-		return Result;
-	}
-
-	// Are they in evaluation type timecode?
-	for (const FEnabledInput& EnabledInput : AllValidInputIndentifiers)
-	{
-		if (GetInputEvaluationType(EnabledInput.InputIdentifier) != ETimedDataInputEvaluationType::Timecode)
-		{
-			Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Failed_InvalidEvaluationType;
-			Result.FailureInputIdentifiers.Add(EnabledInput.InputIdentifier);
-		}
-	}
-	if (Result.ReturnCode == ETimedDataMonitorCalibrationReturnCode::Failed_InvalidEvaluationType)
-	{
-		return Result;
-	}
-
-	// Do they have invalid frame rate?
-	for (const FEnabledInput& EnabledInput : AllValidInputIndentifiers)
-	{
-		if (InputMap[EnabledInput.InputIdentifier].Input->GetFrameRate() == ITimedDataInput::UnknownFrameRate)
-		{
-			Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Failed_InvalidFrameRate;
-			Result.FailureInputIdentifiers.Add(EnabledInput.InputIdentifier);
-		}
-	}
-	if (Result.ReturnCode == ETimedDataMonitorCalibrationReturnCode::Failed_InvalidFrameRate)
-	{
-		return Result;
-	}
-
-	// Do they all have buffers?
-	for (const FEnabledInput& EnabledInput : AllValidInputIndentifiers)
-	{
-		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : EnabledInput.ChannelIdentifiers)
-		{
-			if (ChannelMap[ChannelIdentifier].Channel->GetNumberOfSamples() <= 0)
-			{
-				Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Failed_NoDataBuffered;
-				Result.FailureInputIdentifiers.AddUnique(EnabledInput.InputIdentifier);
-			}
-		}
-	}
-	if (Result.ReturnCode == ETimedDataMonitorCalibrationReturnCode::Failed_NoDataBuffered)
-	{
-		return Result;
-	}
-
-	// Collect the min and max of all inputs
-	TArray<TimedDataMonitorSubsystem::FChannelSampleMinMax> AllInputsSampleMinMax;
-	for (const FEnabledInput& EnabledInput : AllValidInputIndentifiers)
-	{
-		AllInputsSampleMinMax.Append(TimedDataMonitorSubsystem::GetChannelsMinMax(this, EnabledInput.ChannelIdentifiers));
-	}
-
-	// Test if all the samples are in the range of the EvaluationTime
-	const double EvaluationTime = CurrentFrameTime.AsSeconds();
-	const bool bAllChannelInRangeOfEvaluationTime = TimedDataMonitorSubsystem::IsInRange(ETimedDataInputEvaluationType::Timecode, AllInputsSampleMinMax, EvaluationTime);
-	if (bAllChannelInRangeOfEvaluationTime)
-	{
-		CurrentTimecodeProvider->FrameDelay = 0.0f;
-		Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Succeeded;
-		return Result;
-	}
-
-	// Is there a range of data that everyone is happy with [A,D] == 11
-	TimedDataMonitorSubsystem::FSmallestBiggestSample InputsSmallestBiggestSample = TimedDataMonitorSubsystem::GetSmallestBiggestSample(ETimedDataInputEvaluationType::Timecode, AllInputsSampleMinMax);
-
-	const bool bAllChannelInRangeOfSmallestMax = TimedDataMonitorSubsystem::IsInRange(ETimedDataInputEvaluationType::Timecode, AllInputsSampleMinMax, InputsSmallestBiggestSample.SmallestMaxInSeconds);
-	if (bAllChannelInRangeOfSmallestMax)
-	{
-		const double OffsetInSeconds = EvaluationTime - InputsSmallestBiggestSample.SmallestMaxInSeconds; // If [A,D], 50-11=39
-		CurrentTimecodeProvider->FrameDelay = ITimedDataInput::ConvertSecondOffsetInFrameOffset(OffsetInSeconds, CurrentFrameTime.Rate);
-		Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Succeeded;
-		return Result;
-	}
-
-	Result.ReturnCode = ETimedDataMonitorCalibrationReturnCode::Failed_IncreaseBufferSize;
-	return Result;
-}
-
-
-// For InputA, we should increase the buffer size of A2 (48-11) and set an offset so that 11 == 50
-// For InputB, we set an offset so that 100 == 50
-// For InputC, we cannot find anything since the difference is too big. (100 - 11) Failed.
-// For InputD, we set an offset so that 50 == 50
-FTimedDataMonitorTimeCorrectionResult UTimedDataMonitorSubsystem::ApplyTimeCorrection(const FTimedDataMonitorInputIdentifier& InputIdentifier)
-{
-	BuildSourcesListIfNeeded();
-
-	FTimedDataMonitorTimeCorrectionResult Result;
-	Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Failed_InvalidInput;
-
-	FTimeDataInputItem* InputItem = InputMap.Find(InputIdentifier);
-	if (InputItem == nullptr)
-	{
-		Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Failed_InvalidInput;
-		return Result;
-	}
-
-	const ETimedDataInputEvaluationType EvaluationType = InputItem->Input->GetEvaluationType();
-	const double CurrentPlatformTime = FApp::GetCurrentTime();
-	UTimecodeProvider* CurrentTimecodeProvider = GEngine->GetTimecodeProvider();
-	FQualifiedFrameTime CurrentFrameTime;
-	if (EvaluationType == ETimedDataInputEvaluationType::Timecode)
-	{
-		if (CurrentTimecodeProvider == nullptr || CurrentTimecodeProvider->GetSynchronizationState() != ETimecodeProviderSynchronizationState::Synchronized || !FApp::GetCurrentFrameTime().IsSet())
-		{
-			Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoTimecode;
-			return Result;
-		}
-
-		CurrentFrameTime = CurrentTimecodeProvider->GetQualifiedFrameTime();
-	}
-
-	// Collect all enabled channel
-	TArray<FTimedDataMonitorChannelIdentifier> AllValidChannelIdentifiers;
-	AllValidChannelIdentifiers.Reset(InputItem->ChannelIdentifiers.Num());
-	for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItem->ChannelIdentifiers)
-	{
-		if (ChannelMap[ChannelIdentifier].bEnabled)
-		{
-			AllValidChannelIdentifiers.Add(ChannelIdentifier);
-		}
-	}
-
-	// Test all Channels for Failed_UnresponsiveInput
-	for (const FTimedDataMonitorChannelIdentifier& ChannelId : AllValidChannelIdentifiers)
-	{
-		if (ChannelMap[ChannelId].Channel->GetState() != ETimedDataInputState::Connected)
-		{
-			Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Failed_UnresponsiveInput;
-			Result.FailureChannelIdentifiers.Add(ChannelId);
-		}
-	}
-	if (Result.ReturnCode == ETimedDataMonitorTimeCorrectionReturnCode::Failed_UnresponsiveInput)
-	{
-		return Result;
-	}
-
-	if (EvaluationType == ETimedDataInputEvaluationType::None)
-	{
-		// Set the evaluation offset of everyone to 0
-		InputItem->Input->SetEvaluationOffsetInSeconds(0.0);
-
-		Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Succeeded;
-		return Result;
-	}
-
-	for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : AllValidChannelIdentifiers)
-	{
-		const FTimeDataChannelItem& ChannelItem = ChannelMap[ChannelIdentifier];
-		if (ChannelItem.Channel->GetNumberOfSamples() <= 0)
-		{
-			Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoDataBuffered;
-			Result.FailureChannelIdentifiers.Add(ChannelIdentifier);
-		}
-	}
-	if (Result.ReturnCode == ETimedDataMonitorTimeCorrectionReturnCode::Failed_NoDataBuffered)
-	{
-		return Result;
-	}
-
-	// Collect all DataTimes
-	TArray<TimedDataMonitorSubsystem::FChannelSampleMinMax> ChannelSamplesMinMax = TimedDataMonitorSubsystem::GetChannelsMinMax(this, AllValidChannelIdentifiers);
-	TimedDataMonitorSubsystem::FSmallestBiggestSample SmallestBiggestSample = TimedDataMonitorSubsystem::GetSmallestBiggestSample(EvaluationType, ChannelSamplesMinMax);
-
-	// Find what section that matches for each channel
-	const double EvaluationTime = EvaluationType == ETimedDataInputEvaluationType::Timecode ? CurrentFrameTime.AsSeconds() : CurrentPlatformTime;
-
-	//@todo use the stat when we are confident that they works properly
-	//const double DistanceToNewestSTD = GetInputEvaluationDistanceToNewestSampleStandardDeviation(InputId) * NumberOfSigmaOfSignification;
-	const double ExtraBufferWhenJamming = 0.25;
-
-	// Test if all the samples are in the range of the EvaluationTime 
-	const bool bAllChannelInRangeOfEvaluationTime = TimedDataMonitorSubsystem::IsInRange(EvaluationType, ChannelSamplesMinMax, EvaluationTime - ExtraBufferWhenJamming);
-	if (bAllChannelInRangeOfEvaluationTime)
-	{
-		// Set the evaluation offset for later (case D)
-		InputItem->Input->SetEvaluationOffsetInSeconds(ExtraBufferWhenJamming);
-
-		Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Succeeded;
-		return Result;
-	}
-
-	const bool bAllChannelInRangeOfSmallestMax = TimedDataMonitorSubsystem::IsInRange(EvaluationType, ChannelSamplesMinMax, SmallestBiggestSample.SmallestMaxInSeconds - ExtraBufferWhenJamming);
-	if (bAllChannelInRangeOfSmallestMax)
-	{
-		// Set the evaluation offset for later (case B)
-		InputItem->Input->SetEvaluationOffsetInSeconds(EvaluationTime - SmallestBiggestSample.SmallestMaxInSeconds + ExtraBufferWhenJamming);
-
-		Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Succeeded;
-		return Result;
-	}
-
-	// Test to see if we can increment the buffer size (case A or C)
-	if (InputItem->Input->IsDataBufferSizeControlledByInput())
-	{
-		// Get the average in delta time of the last 10 frames
-		double AverageBetweenSample = TimedDataMonitorSubsystem::CalculateAverageInDeltaTimeBetweenSample(this, EvaluationType, AllValidChannelIdentifiers);
-
-		const int32 TotalNumberOfFrames = (SmallestBiggestSample.BiggestMaxInSeconds - SmallestBiggestSample.SmallestMaxInSeconds - ExtraBufferWhenJamming) / AverageBetweenSample;
-
-		const int32 CurrentDataBufferSize = InputItem->Input->GetDataBufferSize();
-		InputItem->Input->SetDataBufferSize(TotalNumberOfFrames);
-		const int32 UpdatedDataBufferSize = InputItem->Input->GetDataBufferSize();
-		if (UpdatedDataBufferSize < TotalNumberOfFrames)
-		{
-			// We were not able to increase the buffer size (case C)
-			Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Failed_BufferSizeCouldNotBeResized;
-		}
-	}
-	else
-	{
-		// For each channel, check if we need to increase the buffer size. If so, by how much
-		for (const TimedDataMonitorSubsystem::FChannelSampleMinMax& SampleMinMax : ChannelSamplesMinMax)
-		{
-			if (!TimedDataMonitorSubsystem::IsInRange(EvaluationType, ChannelSamplesMinMax, SmallestBiggestSample.SmallestMaxInSeconds - ExtraBufferWhenJamming))
-			{
-				FTimeDataChannelItem& ChannelItem = ChannelMap[SampleMinMax.ChannelIdentifier];
-				TArray<FTimedDataChannelSampleTime> AllSamplesTimes = ChannelItem.Channel->GetDataTimes();
-				const double AverageBetweenSample = TimedDataMonitorSubsystem::CalculateAverageInDeltaTimeBetweenSample(EvaluationType, AllSamplesTimes);
-
-				const int32 NumberOfNewFrameRequested = (SampleMinMax.Min.AsSeconds(EvaluationType) - SmallestBiggestSample.SmallestMaxInSeconds - ExtraBufferWhenJamming) / AverageBetweenSample;
-
-				const int32 CurrentDataBufferSize = ChannelItem.Channel->GetDataBufferSize();
-				const int32 RequestedBufferSize = NumberOfNewFrameRequested + CurrentDataBufferSize;
-				ChannelItem.Channel->SetDataBufferSize(RequestedBufferSize);
-				const int32 UpdatedDataBufferSize = ChannelItem.Channel->GetDataBufferSize();
-				if (UpdatedDataBufferSize < RequestedBufferSize)
-				{
-					// We were not able to increase the buffer size (case C) 
-					Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Failed_BufferSizeCouldNotBeResized;
-					Result.FailureChannelIdentifiers.Add(SampleMinMax.ChannelIdentifier);
-				}
-			}
-		}
-	}
-	if (Result.ReturnCode == ETimedDataMonitorTimeCorrectionReturnCode::Failed_BufferSizeCouldNotBeResized)
-	{
-		return Result;
-	}
-
-	// We found something but the buffer size need to be increased
-	InputItem->Input->SetEvaluationOffsetInSeconds(EvaluationTime - SmallestBiggestSample.SmallestMaxInSeconds + ExtraBufferWhenJamming);
-
-	Result.ReturnCode = ETimedDataMonitorTimeCorrectionReturnCode::Retry_BufferSizeHasBeenIncreased;
-	return Result;
+	return FTimedDataMonitorCalibration::ApplyTimeCorrection(InputIdentifier, TimeCorrectionParameters);
 }
 
 

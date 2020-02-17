@@ -4,55 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/LatentActionManager.h"
 #include "ITimedDataInput.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "Tickable.h"
+#include "TimedDataMonitorTypes.h"
 
 #include "TimedDataMonitorSubsystem.generated.h"
-
-
-USTRUCT(BlueprintType)
-struct TIMEDDATAMONITOR_API FTimedDataMonitorInputIdentifier
-{
-	GENERATED_BODY()
-
-private:
-	UPROPERTY()
-	FGuid Identifier;
-
-public:
-	static FTimedDataMonitorInputIdentifier NewIdentifier();
-
-	bool IsValid() const { return Identifier.IsValid(); }
-
-	bool operator== (const FTimedDataMonitorInputIdentifier& Other) const { return Identifier == Other.Identifier; }
-	bool operator!= (const FTimedDataMonitorInputIdentifier& Other) const { return Identifier != Other.Identifier; }
-	bool operator< (const FTimedDataMonitorInputIdentifier& Other) const { return Identifier < Other.Identifier; }
-
-	friend uint32 GetTypeHash(const FTimedDataMonitorInputIdentifier& InIdentifier) { return GetTypeHash(InIdentifier.Identifier); }
-};
-
-
-USTRUCT(BlueprintType)
-struct TIMEDDATAMONITOR_API FTimedDataMonitorChannelIdentifier
-{
-	GENERATED_BODY()
-
-private:
-	UPROPERTY()
-	FGuid Identifier;
-
-public:
-	static FTimedDataMonitorChannelIdentifier NewIdentifier();
-
-	bool IsValid() const { return Identifier.IsValid(); }
-
-	bool operator== (const FTimedDataMonitorChannelIdentifier& Other) const { return Identifier == Other.Identifier; }
-	bool operator!= (const FTimedDataMonitorChannelIdentifier& Other) const { return Identifier != Other.Identifier; }
-	bool operator< (const FTimedDataMonitorChannelIdentifier& Other) const { return Identifier < Other.Identifier; }
-
-	friend uint32 GetTypeHash(const FTimedDataMonitorChannelIdentifier& InIdentifier) { return GetTypeHash(InIdentifier.Identifier); }
-};
 
 
 UENUM()
@@ -71,71 +29,6 @@ enum class ETimedDataMonitorEvaluationState : uint8
 	OutsideRange = 1,
 	InsideRange = 2,
 	Disabled = 3,
-};
-
-
-UENUM()
-enum class ETimedDataMonitorCalibrationReturnCode : uint8
-{
-	/** Success. The values were synchronized. */
-	Succeeded,
-	/** Failed. The timecode provider doesn't have a proper timecode value. */
-	Failed_NoTimecode,
-	/** Failed. At least one input is unresponsive. */
-	Failed_UnresponsiveInput,
-	/** Failed. At least one input has an evaluation type that is not timecode. */
-	Failed_InvalidEvaluationType,
-	/** Failed. At least one input doesn't have a defined frame rate. */
-	Failed_InvalidFrameRate,
-	/** Failed. At least one input doesn't have data buffered. */
-	Failed_NoDataBuffered,
-	/** Failed. No interval could be found. Increase the buffer size. */
-	Failed_IncreaseBufferSize
-};
-
-
-USTRUCT(BlueprintType)
-struct FTimedDataMonitorCalibrationResult
-{
-	GENERATED_BODY();
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	ETimedDataMonitorCalibrationReturnCode ReturnCode;
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	TArray<FTimedDataMonitorInputIdentifier> FailureInputIdentifiers;
-};
-
-
-UENUM()
-enum class ETimedDataMonitorTimeCorrectionReturnCode : uint8
-{
-	/** Success. The values were synchronized. */
-	Succeeded,
-	/** Failed. The provided input doesn't exist. */
-	Failed_InvalidInput,
-	/** Failed. The timecode provider was not existing or not synchronized. */
-	Failed_NoTimecode,
-	/** Failed. At least one channel is unresponsive. */
-	Failed_UnresponsiveInput,
-	/** Failed. The channel doesn't have any data in it's buffer to synchronized with. */
-	Failed_NoDataBuffered,
-	/** Failed. The channel or buffer size has been increase but it's still not enough. */
-	Failed_BufferSizeCouldNotBeResized,
-	/** Failed but we increased the number of buffer of at least one channel. You may retry to see if it works now. */
-	Retry_BufferSizeHasBeenIncreased,
-};
-
-USTRUCT(BlueprintType)
-struct FTimedDataMonitorTimeCorrectionResult
-{
-	GENERATED_BODY();
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Result")
-	ETimedDataMonitorTimeCorrectionReturnCode ReturnCode;
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Result")
-	TArray<FTimedDataMonitorChannelIdentifier> FailureChannelIdentifiers;
 };
 
 
@@ -260,16 +153,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
 	TArray<FTimedDataMonitorChannelIdentifier> GetAllEnabledChannels();
 
-	/**
-	 * Set evaluation offset for all inputs and the engine's timecode provider to align all the buffers.
-	 * If there is no data available, it may increase the buffer size of an input.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
-	FTimedDataMonitorCalibrationResult CalibrateWithTimecodeProvider();
+	/** Change the Timecode Provider offset to align all inputs and channels. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor", meta = (DisplayName = "Calibrate", Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject"))
+	void CalibrateLatent(UObject* WorldContextObject, FLatentActionInfo LatentInfo, const FTimedDataMonitorCalibrationParameters& CalibrationParameters, FTimedDataMonitorCalibrationResult& Result);
 
 	/** Assume all data samples were produce at the same time and align them with the current platform's time */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
-	FTimedDataMonitorTimeCorrectionResult ApplyTimeCorrection(const FTimedDataMonitorInputIdentifier& Identifier);
+	FTimedDataMonitorTimeCorrectionResult ApplyTimeCorrection(const FTimedDataMonitorInputIdentifier& Identifier, const FTimedDataMonitorTimeCorrectionParameters& TimeCorrectionParameters);
 
 	/** Reset the stat of all the inputs. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor")
