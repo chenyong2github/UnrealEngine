@@ -203,6 +203,11 @@ FVulkanComputePipeline::FVulkanComputePipeline(FVulkanDevice* InDevice)
 
 FVulkanComputePipeline::~FVulkanComputePipeline()
 {
+	if (ComputeShader)
+	{
+		ComputeShader->Release();
+	}
+
 	Device->NotifyDeletedComputePipeline(this);
 	DEC_DWORD_STAT(STAT_VulkanNumComputePSOs);
 }
@@ -1871,7 +1876,6 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::GetOrCreateComputePipe
 	double BeginTime = FPlatformTime::Seconds();
 
 	FVulkanComputePipeline* ComputePipeline = CreateComputePipelineFromShader(ComputeShader);
-	ComputePipeline->ComputeShader = ComputeShader;
 
 	double EndTime = FPlatformTime::Seconds();
 	double Delta = EndTime - BeginTime;
@@ -1894,6 +1898,9 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::GetOrCreateComputePipe
 FVulkanComputePipeline* FVulkanPipelineStateCacheManager::CreateComputePipelineFromShader(FVulkanComputeShader* Shader)
 {
 	FVulkanComputePipeline* Pipeline = new FVulkanComputePipeline(Device);
+
+	Pipeline->ComputeShader = Shader;
+	Pipeline->ComputeShader->AddRef();
 
 	FVulkanDescriptorSetsLayoutInfo DescriptorSetLayoutInfo;
 	const FVulkanShaderHeader& CSHeader = Shader->GetCodeHeader();
