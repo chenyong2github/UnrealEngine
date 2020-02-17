@@ -63,6 +63,11 @@ public:
 
 	const UDataprepActionAsset* GetAction(int32 Index) const;
 
+	int32 GetActionIndex(UDataprepActionAsset* ActionAsset) const
+	{
+		return ActionAssets.Find(ActionAsset);
+	}
+
 	/**
 	 * Add a copy of the action to the Dataprep asset
 	 * @param Action The action we want to duplicate in the Dataprep asset
@@ -219,7 +224,7 @@ protected:
 
 	// Temp code for the nodes development
 private:
-	void UpdateActions();
+	void UpdateActions(bool bNotify = true);
 
 private:
 	UPROPERTY()
