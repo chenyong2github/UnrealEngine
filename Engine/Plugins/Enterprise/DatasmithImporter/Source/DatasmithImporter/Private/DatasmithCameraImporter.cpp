@@ -39,9 +39,9 @@ AActor* FDatasmithCameraImporter::ImportCameraActor( const TSharedRef< IDatasmit
 	return CameraActor;
 }
 
-UCineCameraComponent* FDatasmithCameraImporter::ImportCineCameraComponent( const TSharedRef< IDatasmithCameraActorElement >& CameraElement, FDatasmithImportContext& ImportContext, UObject* Outer )
+UCineCameraComponent* FDatasmithCameraImporter::ImportCineCameraComponent( const TSharedRef< IDatasmithCameraActorElement >& CameraElement, FDatasmithImportContext& ImportContext, UObject* Outer, FDatasmithActorUniqueLabelProvider& UniqueNameProvider )
 {
-	UCineCameraComponent* CineCameraComponent = Cast< UCineCameraComponent >( FDatasmithActorImporter::ImportSceneComponent( UCineCameraComponent::StaticClass(), CameraElement, ImportContext, Outer ) );
+	UCineCameraComponent* CineCameraComponent = Cast< UCineCameraComponent >( FDatasmithActorImporter::ImportSceneComponent( UCineCameraComponent::StaticClass(), CameraElement, ImportContext, Outer, UniqueNameProvider ) );
 
 	if ( !CineCameraComponent )
 	{

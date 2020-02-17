@@ -140,7 +140,7 @@ struct DATASMITHIMPORTER_API FDatasmithImporter
 	 * @param ActorElement		The Datasmith element containing the data for the component
 	 * @param RootActor			The actor in which to add the component
 	 */
-	static void ImportActorAsComponent( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithActorElement >& ActorElement, AActor* InRootActor );
+	static void ImportActorAsComponent( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithActorElement >& ActorElement, AActor* InRootActor, FDatasmithActorUniqueLabelProvider& UniqueNameProvider );
 
 	/**
 	 * Finalizes all the actors
