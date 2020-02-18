@@ -27,6 +27,7 @@
 
 #include "Settings/EditorSettings.h"
 #include "Editor/EditorPerformanceSettings.h"
+#include "EditorViewportClient.h"
 
 #define LOCTEXT_NAMESPACE "PerformanceMonitor"
 
