@@ -1539,7 +1539,7 @@ namespace DatasmithRevitExporter
 			SiteLocation InSiteLocation
 		)
 		{
-			if (!InSiteLocation.IsValidObject)
+			if (InSiteLocation == null || !InSiteLocation.IsValidObject)
 			{
 				return;
 			}
