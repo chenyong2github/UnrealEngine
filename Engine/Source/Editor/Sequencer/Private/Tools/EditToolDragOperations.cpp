@@ -148,6 +148,10 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
 	{
 		UMovieSceneSection* Section = WeakSection.Get();
+		if (Section == nullptr)
+		{
+			continue;
+		}
 
 		if (bIsDilating)
 		{
@@ -190,6 +194,24 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 
 void FResizeSection::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
 {
+	bool bIsDilating = MouseEvent.IsControlDown();
+
+	if (!bIsDilating)
+	{
+		FMovieSceneSectionMovedParams SectionMovedParams(EPropertyChangeType::ValueSet);
+		for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : Sections)
+		{
+			if (UMovieSceneSection* Section = WeakSection.Get())
+			{
+				if (UMovieSceneTrack* OuterTrack = Section->GetTypedOuter<UMovieSceneTrack>())
+				{
+					OuterTrack->Modify();
+					OuterTrack->OnSectionMoved(*Section, SectionMovedParams);
+				}
+			}
+		}
+	}
+
 	EndTransaction();
 }
 
@@ -213,8 +235,10 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 		TArray<FFrameNumber> SectionTimes;
 		for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : Sections)
 		{
-			UMovieSceneSection* Section = WeakSection.Get();
-			SectionTimes.Add(SectionInitTimes[Section] + DeltaTime);
+			if (UMovieSceneSection* Section = WeakSection.Get())
+			{
+				SectionTimes.Add(SectionInitTimes[Section] + DeltaTime);
+			}
 		}
 
 		float SnapThresholdPx = VirtualTrackArea.PixelToSeconds(PixelSnapWidth) - VirtualTrackArea.PixelToSeconds(0.f);
@@ -369,7 +393,7 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 		if (OuterTrack)
 		{
 			OuterTrack->Modify();
-			OuterTrack->OnSectionMoved(*Section);
+			OuterTrack->OnSectionMoved(*Section, EPropertyChangeType::Interactive);
 		}
 	}
 
@@ -377,9 +401,12 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 		TSet<UMovieSceneTrack*> Tracks;
 		for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
 		{
-			if (UMovieSceneTrack* Track = WeakSection.Get()->GetTypedOuter<UMovieSceneTrack>())
+			if (UMovieSceneSection* Section = WeakSection.Get())
 			{
-				Tracks.Add(Track);
+				if (UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>())
+				{
+					Tracks.Add(Track);
+				}
 			}
 		}
 		for (UMovieSceneTrack* Track : Tracks)
@@ -459,6 +486,11 @@ void FManipulateSectionEasing::OnBeginDrag(const FPointerEvent& MouseEvent, FVec
 	Transaction.Reset( new FScopedTransaction(NSLOCTEXT("Sequencer", "DragSectionEasing", "Change Section Easing")) );
 
 	UMovieSceneSection* Section = WeakSection.Get();
+	if (Section == nullptr)
+	{
+		return;
+	}
+
 	Section->SetFlags( RF_Transactional );
 	Section->Modify();
 
@@ -485,6 +517,10 @@ void FManipulateSectionEasing::OnDrag(const FPointerEvent& MouseEvent, FVector2D
 	FFrameTime  DeltaTime = VirtualTrackArea.PixelToFrame(LocalMousePos.X) - MouseDownTime;
 
 	UMovieSceneSection* Section = WeakSection.Get();
+	if (Section == nullptr)
+	{
+		return;
+	}
 
 	// Snapping
 	if (Settings->GetIsSnapEnabled())
@@ -759,10 +795,14 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 
 	// Get a list of the unique tracks in this selection and update their easing so previews draw interactively as you drag.
 	TSet<UMovieSceneTrack*> Tracks;
+	FMovieSceneSectionMovedParams SectionMovedParams(EPropertyChangeType::Interactive);
 	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
 	{
 		if (UMovieSceneTrack* Track = WeakSection.Get()->GetTypedOuter<UMovieSceneTrack>())
 		{
+			Track->Modify();
+			Track->OnSectionMoved(*WeakSection.Get(), SectionMovedParams);
+
 			Tracks.Add(Track);
 		}
 	}
@@ -814,6 +854,7 @@ void FMoveKeysAndSections::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D 
 		Sequencer.NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 	}
 
+	FMovieSceneSectionMovedParams SectionMovedParams(EPropertyChangeType::ValueSet);
 	for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : Sections)
 	{
 		UMovieSceneSection* Section = WeakSection.Get();
@@ -822,7 +863,7 @@ void FMoveKeysAndSections::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D 
 		if (OuterTrack)
 		{
 			OuterTrack->Modify();
-			OuterTrack->OnSectionMoved(*Section);
+			OuterTrack->OnSectionMoved(*Section, SectionMovedParams);
 		}
 	}
 

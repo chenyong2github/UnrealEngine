@@ -53,7 +53,7 @@ public:
 #endif
 
 #if WITH_EDITOR
-	virtual void OnSectionMoved(UMovieSceneSection& Section) override;
+	virtual void OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) override;
 #endif
 
 protected:
