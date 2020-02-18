@@ -7557,7 +7557,6 @@ bool FSequencer::DoPaste()
 
 	return bAnythingPasted;
 }
-PRAGMA_DISABLE_OPTIMIZATION
 
 bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
@@ -7815,8 +7814,6 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	}
 	return true;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
