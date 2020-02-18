@@ -13,11 +13,20 @@ namespace EditorAnalyticsDefs
 	static const FString DefaultUserActivity(TEXT("Unknown"));
 	static const FString UnknownProjectValueString(TEXT("UnknownProject"));
 
+	static const FString UnknownAppIdString(TEXT("UnknownAppId"));
+	static const FString UnknownAppVersionString(TEXT("UnknownAppVersion"));
+	static const FString UnknownUserIdString(TEXT("UnknownUserID"));
+
 	// storage location
 	static const FString StoreId(TEXT("Epic Games"));
 	static const FString SessionSummarySection(TEXT("Unreal Engine/Session Summary/1_0"));
 	static const FString GlobalLockName(TEXT("UE4_SessionSummary_Lock"));
 	static const FString SessionListStoreKey(TEXT("SessionList"));
+
+	// capture context
+	static const FString AppIdStoreKey(TEXT("AppId"));
+	static const FString AppVersionStoreKey(TEXT("AppVersion"));
+	static const FString UserIdStoreKey(TEXT("UserId"));
 
 	// general values
 	static const FString ProjectNameStoreKey(TEXT("ProjectName"));
@@ -125,6 +134,10 @@ namespace EditorAnalyticsUtils
 
 		FString SectionName = EditorAnalyticsUtils::GetSessionStorageLocation(Session.SessionId);
 
+		GET_STORED_STRING(AppId);
+		GET_STORED_STRING(AppVersion);
+		GET_STORED_STRING(UserId);
+
 		GET_STORED_STRING(ProjectName);
 		GET_STORED_STRING(ProjectID);
 		GET_STORED_STRING(ProjectDescription);
@@ -223,6 +236,10 @@ FSystemWideCriticalSection* FEditorAnalyticsSession::StoredValuesLock = nullptr;
 
 FEditorAnalyticsSession::FEditorAnalyticsSession()
 {
+	AppId = EditorAnalyticsDefs::UnknownAppIdString;
+	AppVersion = EditorAnalyticsDefs::UnknownAppVersionString;
+	UserId = EditorAnalyticsDefs::UnknownUserIdString;
+
 	ProjectName = EditorAnalyticsDefs::UnknownProjectValueString;
 	PlatformProcessID = 0;
 	StartupTimestamp = FDateTime::MinValue();
@@ -334,6 +351,10 @@ bool FEditorAnalyticsSession::Save()
 		const FString PluginsString = FString::Join(Plugins, TEXT(","));
 		FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::PluginsStoreKey, PluginsString);
 
+		SET_STORED_STRING(AppId);
+		SET_STORED_STRING(AppVersion);
+		SET_STORED_STRING(UserId);
+	
 		bAlreadySaved = true;
 	}
 
@@ -413,6 +434,10 @@ bool FEditorAnalyticsSession::Delete() const
 	}
 
 	FString SectionName = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
+
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::AppIdStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::AppVersionStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::UserIdStoreKey);
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ProjectNameStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ProjectIDStoreKey);

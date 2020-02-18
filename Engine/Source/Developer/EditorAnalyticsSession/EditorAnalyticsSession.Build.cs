@@ -10,7 +10,8 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"Analytics"
+					"Analytics",
+					"AnalyticsET"
 				}
 			);
 		}
