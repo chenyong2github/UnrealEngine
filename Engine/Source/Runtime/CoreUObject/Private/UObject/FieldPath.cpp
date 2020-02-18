@@ -96,16 +96,20 @@ FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, int32* OutOwnerIn
 	UObject* LastOuter = nullptr;
 	int32 PathIndex = Path.Num() - 1;
 	for (; PathIndex > 0; --PathIndex)
-	{
-		UObject* Outer = StaticFindObjectFast(UObject::StaticClass(), LastOuter, Path[PathIndex]);		
-		if (!Outer && PathIndex == (Path.Num() - 1) && InCurrentStruct)
+	{				
+		UObject* Outer = StaticFindObjectFast(UObject::StaticClass(), LastOuter, Path[PathIndex]);;
+
+		if (InCurrentStruct && PathIndex == (Path.Num() - 1))
 		{
-			// Try to resolve the package with the provided struct
-			// Sometimes packages are renamed when loading
-			UPackage* StructPackage = InCurrentStruct->GetOutermost();
-			if (StructPackage->FileName == Path[PathIndex])
+			UObject* CurrentOutermost = InCurrentStruct->GetOutermost();
+			// If a struct has been passed to this function and it's different than ther outer we found
+			// use it instead - this happens when a package with the class has been renammed
+			if (CurrentOutermost != Outer)
 			{
-				Outer = StructPackage;
+				Outer = CurrentOutermost;
+				// If we don't update the path then after a GC when this needs resolving we would resolve back to the unrenamed class package
+				FFieldPath* MutableThis = const_cast<FFieldPath*>(this);
+				MutableThis->Path[PathIndex] = Outer->GetFName();
 			}
 		}
 		if (!Outer)
