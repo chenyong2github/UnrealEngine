@@ -503,12 +503,10 @@ static void Writer_LogHeader()
 {
 	UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync|Important)
 		UE_TRACE_EVENT_FIELD(uint16, Endian)
-		UE_TRACE_EVENT_FIELD(uint8, Version)
 		UE_TRACE_EVENT_FIELD(uint8, PointerSize)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
-		<< NewTrace.Version(2)
 		<< NewTrace.Endian(0x524d)
 		<< NewTrace.PointerSize(sizeof(void*));
 }
