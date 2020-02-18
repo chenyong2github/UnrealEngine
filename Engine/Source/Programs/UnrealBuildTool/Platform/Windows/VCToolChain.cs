@@ -271,6 +271,17 @@ namespace UnrealBuildTool
 				Arguments.Add("/execution-charset:utf-8");
 			}
 
+			// Do not allow inline method expansion if E&C support is enabled or inline expansion has been disabled
+			if (!CompileEnvironment.bSupportEditAndContinue && CompileEnvironment.bUseInlining)
+			{
+				Arguments.Add("/Ob2");
+			}
+			else
+			{
+				// Specifically disable inline expansion to override /O1,/O2/ or /Ox if set
+				Arguments.Add("/Ob0");
+			}
+
 			//
 			//	Debug
 			//
@@ -281,12 +292,6 @@ namespace UnrealBuildTool
 
 				// Favor code size (especially useful for embedded platforms).
 				Arguments.Add("/Os");
-
-				// Allow inline method expansion unless E&C support is requested
-				if (!CompileEnvironment.bSupportEditAndContinue && CompileEnvironment.bUseInlining)
-				{
-					Arguments.Add("/Ob2");
-				}
 
 				if ((CompileEnvironment.Platform == UnrealTargetPlatform.Win32) ||
 					(CompileEnvironment.Platform == UnrealTargetPlatform.Win64))
@@ -323,9 +328,6 @@ namespace UnrealBuildTool
 						Arguments.Add("/Oy-");
 					}
 				}
-
-				// Allow inline method expansion
-				Arguments.Add("/Ob2");
 
 				//
 				// LTCG
