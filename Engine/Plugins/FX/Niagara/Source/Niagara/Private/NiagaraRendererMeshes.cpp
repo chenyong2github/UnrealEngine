@@ -355,7 +355,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				{
 					SortInfo.ParticleCount = NumInstances;
 					SortInfo.SortMode = SortMode;
-					SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision, bHasTranslucentMaterials);
+					SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, bHasTranslucentMaterials); 
 					if (bCustomSorting)
 					{
 						SortVarIdx = ENiagaraMeshVFLayout::CustomSorting;

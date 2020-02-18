@@ -340,7 +340,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		{
 			SortInfo.ParticleCount = NumInstances;
 			SortInfo.SortMode = SortMode;
-			SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision, bHasTranslucentMaterials); 
+			SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, bHasTranslucentMaterials); 
 			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending || SortInfo.SortMode == ENiagaraSortMode::CustomDecending)
 			{
 				SortingVarIdx = ENiagaraSpriteVFLayout::CustomSorting;	
