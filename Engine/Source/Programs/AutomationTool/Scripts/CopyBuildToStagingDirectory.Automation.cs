@@ -2218,7 +2218,7 @@ public partial class Project : CommandUtils
 					}
 
 					// pass the targetplatform so the index may be able to be frozen
-					AdditionalArgs += " -platform=" + SC.StageTargetPlatform.IniPlatformType;
+					AdditionalArgs += " -platform=" + ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
 
 					Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile; 
 					if (ShouldCreateIoStoreContainerFiles(Params, SC))
