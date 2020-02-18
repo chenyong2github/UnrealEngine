@@ -553,17 +553,11 @@ bool UAssetRegistryImpl::HasAssets(const FName PackagePath, const bool bRecursiv
 
 	if (!bHasAssets && bRecursive)
 	{
-		TSet<FName> SubPaths;
-		CachedPathTree.GetSubPaths(PackagePath, SubPaths);
-
-		for (const FName& SubPath : SubPaths)
+		CachedPathTree.EnumerateSubPaths(PackagePath, [this, &bHasAssets](FName SubPath)
 		{
 			bHasAssets = State.HasAssets(SubPath);
-			if (bHasAssets)
-			{
-				break;
-			}
-		}
+			return !bHasAssets;
+		});
 	}
 
 	return bHasAssets;
@@ -616,9 +610,22 @@ bool UAssetRegistryImpl::GetAssetsByTagValues(const TMultiMap<FName, FString>& A
 
 bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>& OutAssetData) const
 {
-	double GetAssetsStartTime = FPlatformTime::Seconds();
+	const double GetAssetsStartTime = FPlatformTime::Seconds();
 
-	// Verify filter input. If all assets are needed, use GetAllAssets() instead.
+	const bool bResult = EnumerateAssets(InFilter, [&OutAssetData](const FAssetData& AssetData)
+	{
+		OutAssetData.Emplace(AssetData);
+		return true;
+	});
+
+	UE_LOG(LogAssetRegistry, Verbose, TEXT("GetAssets completed in %0.4f seconds"), FPlatformTime::Seconds() - GetAssetsStartTime);
+
+	return bResult;
+}
+
+bool UAssetRegistryImpl::EnumerateAssets(const FARFilter& InFilter, TFunctionRef<bool(const FAssetData&)> Callback) const
+{
+	// Verify filter input. If all assets are needed, use EnumerateAllAssets() instead.
 	if (!FAssetRegistryState::IsFilterValid(InFilter, true) || InFilter.IsEmpty())
 	{
 		return false;
@@ -646,7 +653,7 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 		// Reusable structures to avoid memory allocations
 		TArray<UObject::FAssetRegistryTag> ObjectTags;
 
-		auto FilterInMemoryObjectLambda = [&](const UObject* Obj)
+		auto FilterInMemoryObjectLambda = [&](const UObject* Obj, bool& OutContinue)
 		{
 			if (Obj->IsAsset())
 			{
@@ -734,7 +741,7 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 				ObjectTags.Reset();
 
 				// This asset is in memory and passes all filters
-				OutAssetData.Emplace(FAssetData(PackageName, PackagePath, Obj->GetFName(), Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
+				OutContinue = Callback(FAssetData(PackageName, PackagePath, Obj->GetFName(), Obj->GetClass()->GetFName(), MoveTemp(TagMap), InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags()));
 			}
 		};
 
@@ -753,21 +760,29 @@ bool UAssetRegistryImpl::GetAssets(const FARFilter& InFilter, TArray<FAssetData>
 
 			for (UObject* Object : InMemoryObjects)
 			{
-				FilterInMemoryObjectLambda(Object);
+				bool bContinue = true;
+				FilterInMemoryObjectLambda(Object, bContinue);
+				if (!bContinue)
+				{
+					return true;
+				}
 			}
 		}
 		else
 		{
 			for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
 			{
-				FilterInMemoryObjectLambda(*ObjIt);
+				bool bContinue = true;
+				FilterInMemoryObjectLambda(*ObjIt, bContinue);
+				if (!bContinue)
+				{
+					return true;
+				}
 			}
 		}
 	}
 
-	State.GetAssets(Filter, PackagesToSkip, OutAssetData);
-
-	UE_LOG(LogAssetRegistry, Verbose, TEXT("GetAssets completed in %0.4f seconds"), FPlatformTime::Seconds() - GetAssetsStartTime);
+	State.EnumerateAssets(Filter, PackagesToSkip, Callback);
 
 	return true;
 }
@@ -795,8 +810,22 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool
 
 bool UAssetRegistryImpl::GetAllAssets(TArray<FAssetData>& OutAssetData, bool bIncludeOnlyOnDiskAssets) const
 {
+	const double GetAllAssetsStartTime = FPlatformTime::Seconds();
+
+	const bool bResult = EnumerateAllAssets([&OutAssetData](const FAssetData& AssetData)
+	{
+		OutAssetData.Emplace(AssetData);
+		return true;
+	}, bIncludeOnlyOnDiskAssets);
+
+	UE_LOG(LogAssetRegistry, VeryVerbose, TEXT("GetAllAssets completed in %0.4f seconds"), FPlatformTime::Seconds() - GetAllAssetsStartTime);
+	
+	return bResult;
+}
+
+bool UAssetRegistryImpl::EnumerateAllAssets(TFunctionRef<bool(const FAssetData&)> Callback, bool bIncludeOnlyOnDiskAssets) const
+{
 	TSet<FName> PackageNamesToSkip = CachedEmptyPackages;
-	double GetAllAssetsStartTime = FPlatformTime::Seconds();
 
 	// All in memory assets
 	if (!bIncludeOnlyOnDiskAssets)
@@ -805,15 +834,17 @@ bool UAssetRegistryImpl::GetAllAssets(TArray<FAssetData>& OutAssetData, bool bIn
 		{
 			if (ObjIt->IsAsset())
 			{
-				const FAssetData& AssetData = OutAssetData[OutAssetData.Emplace(*ObjIt)];
+				const FAssetData AssetData(*ObjIt);
+				if (!Callback(AssetData))
+				{
+					return true;
+				}
 				PackageNamesToSkip.Add(AssetData.PackageName);
 			}
 		}
 	}
 
-	State.GetAllAssets(PackageNamesToSkip, OutAssetData);
-
-	UE_LOG(LogAssetRegistry, VeryVerbose, TEXT("GetAllAssets completed in %0.4f seconds"), FPlatformTime::Seconds() - GetAllAssetsStartTime);
+	State.EnumerateAllAssets(PackageNamesToSkip, Callback);
 
 	return true;
 }
@@ -964,26 +995,46 @@ void UAssetRegistryImpl::GetDerivedClassNames(const TArray<FName>& ClassNames, c
 
 void UAssetRegistryImpl::GetAllCachedPaths(TArray<FString>& OutPathList) const
 {
-	TSet<FName> PathList;
-	CachedPathTree.GetAllPaths(PathList);
-
-	OutPathList.Empty(PathList.Num());
-	for (FName PathName : PathList)
+	EnumerateAllCachedPaths([&OutPathList](FName Path)
 	{
-		OutPathList.Add(PathName.ToString());
-	}
+		OutPathList.Emplace(Path.ToString());
+		return true;
+	});
+}
+
+void UAssetRegistryImpl::EnumerateAllCachedPaths(TFunctionRef<bool(FString)> Callback) const
+{
+	EnumerateAllCachedPaths([&Callback](FName Path)
+	{
+		return Callback(Path.ToString());
+	});
+}
+
+void UAssetRegistryImpl::EnumerateAllCachedPaths(TFunctionRef<bool(FName)> Callback) const
+{
+	CachedPathTree.EnumerateAllPaths(Callback);
 }
 
 void UAssetRegistryImpl::GetSubPaths(const FString& InBasePath, TArray<FString>& OutPathList, bool bInRecurse) const
 {
-	TSet<FName> PathList;
-	CachedPathTree.GetSubPaths(FName(*InBasePath), PathList, bInRecurse);
-
-	OutPathList.Empty(PathList.Num());
-	for (FName PathName : PathList)
+	EnumerateSubPaths(*InBasePath, [&OutPathList](FName Path)
 	{
-		OutPathList.Add(PathName.ToString());
-	}
+		OutPathList.Emplace(Path.ToString());
+		return true;
+	}, bInRecurse);
+}
+
+void UAssetRegistryImpl::EnumerateSubPaths(const FString& InBasePath, TFunctionRef<bool(FString)> Callback, bool bInRecurse) const
+{
+	EnumerateSubPaths(*InBasePath, [&Callback](FName Path)
+	{
+		return Callback(Path.ToString());
+	}, bInRecurse);
+}
+
+void UAssetRegistryImpl::EnumerateSubPaths(const FName InBasePath, TFunctionRef<bool(FName)> Callback, bool bInRecurse) const
+{
+	CachedPathTree.EnumerateSubPaths(InBasePath, Callback, bInRecurse);
 }
 
 void UAssetRegistryImpl::RunAssetsThroughFilter(TArray<FAssetData>& AssetDataList, const FARFilter& Filter) const
@@ -1744,14 +1795,12 @@ void UAssetRegistryImpl::AppendState(const FAssetRegistryState& InState)
 	State.InitializeFromExisting(InState, SerializationOptions, FAssetRegistryState::EInitializationMode::Append);
 	CachePathsFromState(InState);
 
-	TArray<FAssetData> Assets;
-	InState.GetAllAssets(TSet<FName>(), Assets);
-	for (const FAssetData& Asset : Assets)
+	InState.EnumerateAllAssets(TSet<FName>(), [this](const FAssetData& AssetData)
 	{
 		// Let subscribers know that the new asset was added to the registry
-		AssetAddedEvent.Broadcast(Asset);
-	}
-
+		AssetAddedEvent.Broadcast(AssetData);
+		return true;
+	});
 }
 
 void UAssetRegistryImpl::CachePathsFromState(const FAssetRegistryState& InState)
