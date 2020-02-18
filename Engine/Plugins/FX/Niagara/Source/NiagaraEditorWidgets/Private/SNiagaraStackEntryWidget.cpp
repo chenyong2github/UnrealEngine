@@ -2,9 +2,11 @@
 
 #include "SNiagaraStackEntryWidget.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "NiagaraStackEditorData.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackEntryWidget"
 
@@ -13,6 +15,9 @@ void SNiagaraStackDisplayName::Construct(const FArguments& InArgs, UNiagaraStack
 	StackEntryItem = &InStackEntry;
 	StackViewModel = &InStackViewModel;
 	TextStyleName = InTextStyleName;
+
+	TypeNameStyle = InArgs._TypeNameStyle;
+	OnRenameCommitted = InArgs._OnRenameCommitted;
 
 	StackViewModel->OnStructureChanged().AddSP(this, &SNiagaraStackDisplayName::StackViewModelStructureChanged);
 
@@ -32,13 +37,52 @@ SNiagaraStackDisplayName::~SNiagaraStackDisplayName()
 
 TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 {
-	TSharedRef<STextBlock> BaseNameWidget = SNew(STextBlock)
-		.TextStyle(FNiagaraEditorWidgetsStyle::Get(), TextStyleName)
-		.ToolTipText_UObject(StackEntryItem, &UNiagaraStackEntry::GetTooltipText)
-		.Text_UObject(StackEntryItem, &UNiagaraStackEntry::GetDisplayName)
-		.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-		.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseForeground())
-		.IsEnabled(this, &SNiagaraStackDisplayName::GetIsEnabled);
+	const FInlineEditableTextBlockStyle& EditableStyle = FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>(TextStyleName);
+
+	TSharedPtr<SWidget> BaseNameWidget;
+	if (StackEntryItem->SupportsRename())
+	{
+		BaseNameWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Bottom)
+			[
+				SAssignNew(EditableTextBlock, SInlineEditableTextBlock)
+					.Style(&EditableStyle)
+					.ToolTipText_UObject(StackEntryItem, &UNiagaraStackEntry::GetTooltipText)
+					.Text_UObject(StackEntryItem, &UNiagaraStackEntry::GetDisplayName)
+					.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+					.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch, FSlateColor::UseForeground())
+					.OnTextCommitted(OnRenameCommitted)
+					.IsEnabled_UObject(StackEntryItem, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(5,0,0,0)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Bottom)
+			[
+				SNew(STextBlock)
+				.TextStyle(TypeNameStyle)
+				.ToolTipText_UObject(StackEntryItem, &UNiagaraStackEntry::GetTooltipText)
+				.Text(this, &SNiagaraStackDisplayName::GetOriginalName)
+				.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+				.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseSubduedForeground())
+				.IsEnabled_UObject(StackEntryItem, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
+				.Visibility(this, &SNiagaraStackDisplayName::ShouldShowOriginalName)
+			];
+	}
+	else
+	{
+		BaseNameWidget = SNew(STextBlock)
+			.TextStyle(&EditableStyle.TextStyle)
+			.ToolTipText_UObject(StackEntryItem, &UNiagaraStackEntry::GetTooltipText)
+			.Text_UObject(StackEntryItem, &UNiagaraStackEntry::GetDisplayName)
+			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseForeground())
+			.IsEnabled_UObject(StackEntryItem, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled);
+	}
 
 	int32 NumTopLevelEmitters = 0;
 	for (const TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel>& TopLevelViewModel : StackViewModel->GetTopLevelViewModels())
@@ -52,7 +96,7 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 	if (NumTopLevelEmitters <= 1)
 	{
 		TopLevelViewModelCountAtLastConstruction = 1;
-		return BaseNameWidget;
+		return BaseNameWidget.ToSharedRef();
 	}
 	else
 	{
@@ -71,11 +115,11 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 					.Text(this, &SNiagaraStackDisplayName::GetTopLevelDisplayName, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel>(TopLevelViewModel))
 					.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 					.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseForeground())
-					.IsEnabled(this, &SNiagaraStackDisplayName::GetIsEnabled)
+					.IsEnabled_UObject(StackEntryItem, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 				]
 				+ SWrapBox::Slot()
 				[
-					BaseNameWidget
+					BaseNameWidget.ToSharedRef()
 				];
 		}
 	}
@@ -109,24 +153,41 @@ void SNiagaraStackDisplayName::StackViewModelStructureChanged()
 	}
 }
 
-bool SNiagaraStackDisplayName::GetIsEnabled() const
+FText SNiagaraStackDisplayName::GetOriginalName() const
 {
-	return StackEntryItem->GetOwnerIsEnabled() && StackEntryItem->GetIsEnabled();
+	if (StackEntryItem->IsFinalized() == false)
+	{
+		return FText::Format(FTextFormat::FromString(TEXT("({0})")), StackEntryItem->GetOriginalName());
+	}
+	return FText::GetEmpty();
+}
+
+EVisibility SNiagaraStackDisplayName::ShouldShowOriginalName() const
+{
+	const FText* CurrentDisplayName = StackEntryItem->GetStackEditorData().GetStackEntryDisplayName(StackEntryItem->GetStackEditorDataKey());
+	return CurrentDisplayName != nullptr ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void SNiagaraStackDisplayName::StartRename()
+{
+	if (EditableTextBlock.IsValid())
+	{
+		EditableTextBlock->EnterEditingMode();
+	}
 }
 
 FSlateColor SNiagaraStackEntryWidget::GetTextColorForSearch(FSlateColor DefaultColor) const
 {
 	if (IsCurrentSearchMatch())
 	{
-		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.SearchHighlightColor");
-	} 
-	
+		return FSlateColor(FLinearColor(FColor::Orange));
+	}
 	return DefaultColor;
 }
 
 bool SNiagaraStackEntryWidget::IsCurrentSearchMatch() const
 {
-	auto FocusedEntry = StackViewModel->GetCurrentFocusedEntry();
+	UNiagaraStackEntry* FocusedEntry = StackViewModel->GetCurrentFocusedEntry();
 	return StackEntryItem != nullptr && FocusedEntry == StackEntryItem;
 }
 

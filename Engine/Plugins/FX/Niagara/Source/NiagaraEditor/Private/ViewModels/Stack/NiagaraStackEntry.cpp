@@ -8,6 +8,7 @@
 #include "NiagaraStackEditorData.h"
 #include "NiagaraScriptMergeManager.h"
 #include "Misc/SecureHash.h"
+#include "ScopedTransaction.h"
 
 const FName UNiagaraStackEntry::FExecutionCategoryNames::System = TEXT("System");
 const FName UNiagaraStackEntry::FExecutionCategoryNames::Emitter = TEXT("Emitter");
@@ -174,6 +175,11 @@ bool UNiagaraStackEntry::IsFinalized() const
 }
 
 FText UNiagaraStackEntry::GetDisplayName() const
+{
+	return FText();
+}
+
+FText UNiagaraStackEntry::GetOriginalName() const
 {
 	return FText();
 }
@@ -735,5 +741,32 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackEntry::ChildReq
 		return OnRequestDropDelegate.IsBound()
 			? OnRequestDropDelegate.Execute(TargetChild, DropRequest)
 			: TOptional<FDropRequestResponse>();
+	}
+}
+
+bool UNiagaraStackEntry::GetIsRenamePending() const
+{
+	return SupportsRename() && GetStackEditorData().GetStackEntryIsRenamePending(StackEditorDataKey);
+}
+
+void UNiagaraStackEntry::SetIsRenamePending(bool bIsRenamePending)
+{
+	if (SupportsRename())
+	{
+		GetStackEditorData().SetStackEntryIsRenamePending(StackEditorDataKey, bIsRenamePending);
+	}
+}
+
+void UNiagaraStackEntry::OnRenamed(FText NewName)
+{
+	if (SupportsRename())
+	{
+		if (!NewName.EqualTo(GetDisplayName()))
+		{
+			FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraStackEntry", "RenameModule", "Rename Module"));
+
+			GetStackEditorData().Modify();
+			GetStackEditorData().SetStackEntryDisplayName(GetStackEditorDataKey(), NewName);
+		}
 	}
 }

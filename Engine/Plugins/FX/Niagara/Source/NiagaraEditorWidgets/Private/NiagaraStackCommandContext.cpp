@@ -60,7 +60,8 @@ bool FNiagaraStackCommandContext::AddEditMenuItems(FMenuBuilder& MenuBuilder)
 	bool bSupportsCopy = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry) { return SelectedEntry->SupportsCopy(); });
 	bool bSupportsPaste = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry) { return SelectedEntry->SupportsPaste(); });
 	bool bSupportsDelete = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry) { return SelectedEntry->SupportsDelete(); });
-	if (bSupportsCut || bSupportsCopy || bSupportsPaste || bSupportsDelete)
+	bool bSupportsRename = SelectedEntries.ContainsByPredicate([](const UNiagaraStackEntry* SelectedEntry) { return SelectedEntry->SupportsRename(); });
+	if (bSupportsCut || bSupportsCopy || bSupportsPaste || bSupportsDelete || bSupportsRename)
 	{
 		MenuBuilder.BeginSection("EntryEdit", LOCTEXT("EntryEditActions", "Edit"));
 		{
@@ -84,6 +85,11 @@ bool FNiagaraStackCommandContext::AddEditMenuItems(FMenuBuilder& MenuBuilder)
 				TAttribute<FText> CanDeleteToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FNiagaraStackCommandContext::GetCanDeleteSelectedEntriesToolTip));
 				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete, NAME_None, TAttribute<FText>(), CanDeleteToolTip);
 			}
+			if (bSupportsRename)
+			{
+				TAttribute<FText> CanRenameToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FNiagaraStackCommandContext::GetCanRenameSelectedEntriesToolTip));
+				MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, TAttribute<FText>(), CanRenameToolTip);
+			}
 		}
 		MenuBuilder.EndSection();
 		return true;
@@ -105,6 +111,9 @@ void FNiagaraStackCommandContext::SetupCommands()
 	Commands->MapAction(FGenericCommands::Get().Delete, FUIAction(
 		FExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::DeleteSelectedEntries),
 		FCanExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::CanDeleteSelectedEntries)));
+	Commands->MapAction(FGenericCommands::Get().Rename, FUIAction(
+		FExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::RenameSelectedEntries),
+		FCanExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::CanRenameSelectedEntries)));
 }
 
 bool FNiagaraStackCommandContext::CanCutSelectedEntries() const
@@ -202,6 +211,39 @@ FText FNiagaraStackCommandContext::GetCanDeleteSelectedEntriesToolTip() const
 void FNiagaraStackCommandContext::DeleteSelectedEntries() const
 {
 	FNiagaraStackClipboardUtilities::DeleteSelection(SelectedEntries);
+}
+
+FText FNiagaraStackCommandContext::GetCanRenameSelectedEntriesToolTip() const
+{
+	if (SelectedEntries.Num() > 1)
+	{
+		LOCTEXT("CantRenameMultipleToolTip", "Can't rename multiple items.");
+	}
+
+	if (SelectedEntries[0]->SupportsRename())
+	{
+		return LOCTEXT("CantRenameToolTip", "The selected item cannot be renamed.");
+	}
+
+	return LOCTEXT("RenameToolTip", "Rename the selected item.");
+}
+
+bool FNiagaraStackCommandContext::CanRenameSelectedEntries() const
+{
+	if (SelectedEntries.Num() == 1)
+	{
+		return SelectedEntries[0]->SupportsRename();
+	}
+
+	return false;
+}
+
+void FNiagaraStackCommandContext::RenameSelectedEntries()
+{
+	if (SelectedEntries.Num() == 1)
+	{
+		SelectedEntries[0]->SetIsRenamePending(true);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

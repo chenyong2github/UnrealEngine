@@ -31,7 +31,6 @@ void SNiagaraStackParameterStoreEntryName::Construct(const FArguments& InArgs, U
 			.OnTextCommitted(this, &SNiagaraStackParameterStoreEntryName::OnNameTextCommitted)
 			.OnVerifyTextChanged(this, &SNiagaraStackParameterStoreEntryName::VerifyNameTextChanged)
 			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.ColorAndOpacity(this, &SNiagaraStackParameterStoreEntryName::GetTextColorForSearch, FSlateColor::UseForeground())
 		]
 	];
 }
@@ -42,14 +41,14 @@ void SNiagaraStackParameterStoreEntryName::Tick(const FGeometry& AllottedGeometr
 	if (StackEntry->GetIsRenamePending() && NameTextBlock.IsValid())
 	{
 		NameTextBlock->EnterEditingMode();
-		StackEntry->SetIsRenamePending(false);
 	}
+	StackEntry->SetIsRenamePending(false);
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
 bool SNiagaraStackParameterStoreEntryName::GetIsNameReadOnly() const
 {
-	return StackEntry->CanRenameInput() == false;
+	return StackEntry->SupportsRename() == false;
 }
 
 bool SNiagaraStackParameterStoreEntryName::GetIsNameWidgetSelected() const
@@ -75,9 +74,9 @@ bool SNiagaraStackParameterStoreEntryName::VerifyNameTextChanged(const FText& Ne
 
 void SNiagaraStackParameterStoreEntryName::OnNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType)
 {
-	if (StackEntry->GetDisplayName().ToString() != *InText.ToString())
+	if (!StackEntry->GetDisplayName().EqualTo(InText))
 	{
-		StackEntry->RenameInput(*InText.ToString());
+		StackEntry->OnRenamed(InText);
 		// toast notification
 		FNotificationInfo Info(FText::Format(LOCTEXT("NiagaraRenamedUserParameter", "System exposed parameter was renamed.\n{0}\n(All links to inner variables were updated in the process.)"), StackEntry->GetDisplayName()));
 		Info.ExpireDuration = 5.0f;

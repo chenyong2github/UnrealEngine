@@ -1433,28 +1433,16 @@ FNiagaraVariable UNiagaraStackFunctionInput::CreateRapidIterationVariable(const 
 	return FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OutputNode->GetUsage(), InName, InputType);
 }
 
-bool UNiagaraStackFunctionInput::CanRenameInput() const
+bool UNiagaraStackFunctionInput::SupportsRename() const
 {
 	// Only module level assignment node inputs can be renamed.
 	return OwningAssignmentNode.IsValid() && InputParameterHandlePath.Num() == 1 &&
 		OwningAssignmentNode->FindAssignmentTarget(InputParameterHandle.GetName()) != INDEX_NONE;
 }
 
-bool UNiagaraStackFunctionInput::GetIsRenamePending() const
+void UNiagaraStackFunctionInput::OnRenamed(FText NewNameText)
 {
-	return CanRenameInput() && GetStackEditorData().GetModuleInputIsRenamePending(StackEditorDataKey);
-}
-
-void UNiagaraStackFunctionInput::SetIsRenamePending(bool bIsRenamePending)
-{
-	if (CanRenameInput())
-	{
-		GetStackEditorData().SetModuleInputIsRenamePending(StackEditorDataKey, bIsRenamePending);
-	}
-}
-
-void UNiagaraStackFunctionInput::RenameInput(FName NewName)
-{
+	FName NewName(*NewNameText.ToString());
 	if (OwningAssignmentNode.IsValid() && InputParameterHandlePath.Num() == 1 && InputParameterHandle.GetName() != NewName)
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("RenameInput", "Rename this function's input."));

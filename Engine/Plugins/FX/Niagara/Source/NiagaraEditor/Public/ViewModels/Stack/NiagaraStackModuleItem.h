@@ -29,6 +29,7 @@ public:
 
 	virtual FText GetDisplayName() const override;
 	virtual UObject* GetDisplayedObject() const override;
+	virtual FText GetOriginalName() const override;
 	virtual FText GetTooltipText() const override;
 
 	INiagaraStackItemGroupAddUtilities* GetGroupAddUtilities();
@@ -36,6 +37,8 @@ public:
 	bool CanMoveAndDelete() const;
 	bool CanRefresh() const;
 	void Refresh();
+
+	virtual bool SupportsRename() const override { return true; }
 
 	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
@@ -100,8 +103,7 @@ private:
 	bool FilterLinkedInputCollection(const UNiagaraStackEntry& Child) const;
 	bool FilterLinkedInputCollectionChild(const UNiagaraStackEntry& Child) const;
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
-
-private:
+	void OnEditorDataChanged();
 	void RefreshIsEnabled();
 
 private:
@@ -110,6 +112,8 @@ private:
 	mutable TOptional<bool> bCanMoveAndDeleteCache;
 	bool bIsEnabled;
 	bool bCanRefresh;
+
+	TOptional<FText> CustomDisplayName;
 
 	UPROPERTY()
 	UNiagaraStackModuleItemLinkedInputCollection* LinkedInputCollection;
