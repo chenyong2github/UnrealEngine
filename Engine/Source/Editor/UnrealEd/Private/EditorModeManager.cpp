@@ -2069,6 +2069,7 @@ void FEditorModeTools::AddReferencedObjects( FReferenceCollector& Collector )
 	}
 
 	Collector.AddReferencedObjects(ActiveScriptableModes);
+	Collector.AddReferencedObjects(RecycledScriptableModes);
 }
 
 FEdMode* FEditorModeTools::GetActiveMode( FEditorModeID InID )

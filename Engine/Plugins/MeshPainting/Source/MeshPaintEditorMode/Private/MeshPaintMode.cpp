@@ -348,19 +348,19 @@ void UMeshPaintMode::FillWithVertexColor()
 			MeshAdapter->PreEdit();
 		}
 
-		if (UMeshColorPaintingToolProperties* ColorProperties = UMeshPaintMode::GetColorToolProperties())
-		{
-			const bool bPaintOnSpecificLOD = ColorProperties ? ColorProperties->bPaintOnSpecificLOD : false;
+		UMeshColorPaintingToolProperties* ColorProperties = UMeshPaintMode::GetColorToolProperties();
+		
+		const bool bPaintOnSpecificLOD = ColorProperties ? ColorProperties->bPaintOnSpecificLOD : false;
 
-			if (Component->IsA<UStaticMeshComponent>())
-			{
-				UMeshPaintingToolset::FillStaticMeshVertexColors(Cast<UStaticMeshComponent>(Component), bPaintOnSpecificLOD ? ColorProperties->LODIndex : -1, FillColor, MaskColor);
-			}
-			else if (Component->IsA<USkeletalMeshComponent>())
-			{
-				UMeshPaintingToolset::FillSkeletalMeshVertexColors(Cast<USkeletalMeshComponent>(Component), bPaintOnSpecificLOD ? ColorProperties->LODIndex : -1, FillColor, MaskColor);
-			}
+		if (Component->IsA<UStaticMeshComponent>())
+		{
+			UMeshPaintingToolset::FillStaticMeshVertexColors(Cast<UStaticMeshComponent>(Component), bPaintOnSpecificLOD ? ColorProperties->LODIndex : -1, FillColor, MaskColor);
 		}
+		else if (Component->IsA<USkeletalMeshComponent>())
+		{
+			UMeshPaintingToolset::FillSkeletalMeshVertexColors(Cast<USkeletalMeshComponent>(Component), bPaintOnSpecificLOD ? ColorProperties->LODIndex : -1, FillColor, MaskColor);
+		}
+		
 
 		if (MeshAdapter)
 		{
