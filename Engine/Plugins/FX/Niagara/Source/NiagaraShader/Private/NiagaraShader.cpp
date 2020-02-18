@@ -1390,10 +1390,13 @@ void FNiagaraDataInterfaceParamRef::Bind(const FNiagaraDataInterfaceGPUParamInfo
 	if (Base)
 	{
 		DIType = TIndexedPtr<UNiagaraDataInterfaceBase>(Base); // TODO - clean up TIndexedPtr::operator=()
-		Parameters = Base->ConstructComputeParameters();
-		checkf(Parameters != nullptr, TEXT("Niagara type '%s' is missing ComputeParameters, missing a IMPLEMENT_NIAGARA_DI_PARAMETER?"), *InParameterInfo.DIClassName);
-		Parameters->DIType = DIType;
-		Base->BindParameters(Parameters, InParameterInfo, ParameterMap);
+		Parameters = Base->CreateComputeParameters();
+		if (Parameters)
+		{
+			checkf(Base->GetComputeParametersTypeDesc(), TEXT("Missing TypeDesc for compute parameters for class %s"), *InParameterInfo.DIClassName);
+			Parameters->DIType = DIType;
+			Base->BindParameters(Parameters, InParameterInfo, ParameterMap);
+		}
 	}
 }
 

@@ -309,13 +309,13 @@ void UNiagaraDataInterfaceAudioOscilloscope::GetParameterDefinitionHLSL(const FN
 
 struct FNiagaraDataInterfaceParametersCS_AudioOscilloscope : public FNiagaraDataInterfaceParametersCS
 {
-	
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioOscilloscope, NonVirtual);
 
-	FNiagaraDataInterfaceParametersCS_AudioOscilloscope(UNiagaraDataInterfaceAudioOscilloscope* InDataInterface)
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
+		NumChannels.Bind(ParameterMap, *(NumChannelsName + ParameterInfo.DataInterfaceHLSLSymbol));
+		AudioBuffer.Bind(ParameterMap, *(AudioBufferName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
-
-	virtual ~FNiagaraDataInterfaceParametersCS_AudioOscilloscope() {}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
@@ -330,14 +330,11 @@ struct FNiagaraDataInterfaceParametersCS_AudioOscilloscope : public FNiagaraData
 		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, AudioBuffer.GetBaseIndex(), AudioBufferSRV.SRV);
 	}
 
-	FShaderParameter NumChannels;
-	FShaderResourceParameter AudioBuffer;
+	LAYOUT_FIELD(FShaderParameter, NumChannels);
+	LAYOUT_FIELD(FShaderResourceParameter, AudioBuffer);
 };
 
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceAudioOscilloscope::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_AudioOscilloscope(const_cast<UNiagaraDataInterfaceAudioOscilloscope*>(this));
-}
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceAudioOscilloscope, FNiagaraDataInterfaceParametersCS_AudioOscilloscope);
 
 void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResolution, float InScopeInMilliseconds)
 {
