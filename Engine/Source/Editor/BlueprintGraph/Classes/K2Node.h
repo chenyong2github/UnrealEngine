@@ -396,6 +396,7 @@ class BLUEPRINTGRAPH_VTABLE UK2Node : public UEdGraphNode
 
 	BLUEPRINTGRAPH_API virtual int32 GetNodeRefreshPriority() const { return EBaseNodeRefreshPriority::Normal; }
 
+	BLUEPRINTGRAPH_API bool DoesWildcardPinAcceptContainer(const UEdGraphPin* Pin);
 	BLUEPRINTGRAPH_API virtual bool DoesInputWildcardPinAcceptArray(const UEdGraphPin* Pin) const { return true; }
 	BLUEPRINTGRAPH_API virtual bool DoesOutputWildcardPinAcceptContainer(const UEdGraphPin* Pin) const { return true; }
 
