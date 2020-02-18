@@ -50,6 +50,7 @@ void FFieldPath::Generate(const TCHAR* InFieldPathString)
 	// Expected format is: FullPackageName.Subobject[:Subobject:...]:FieldName
 	check(InFieldPathString);
 	
+	Path.Empty();
 	{
 		TCHAR NameBuffer[NAME_SIZE];
 		int32 NameIndex = 0;
