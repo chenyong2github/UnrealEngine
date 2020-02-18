@@ -1405,6 +1405,13 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 				Trace::ToggleChannel(ChannelName, true);
 			});
 		}
+		else if (FParse::Value(CmdLine, TEXT("-trace"), Parameter, false))
+		{
+			Trace::ToggleChannel(TEXT("bookmark"), true);
+			Trace::ToggleChannel(TEXT("cpu"), true);
+			Trace::ToggleChannel(TEXT("frame"), true);
+			Trace::ToggleChannel(TEXT("log"), true);
+		}
 
 		TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
 		TRACE_CPUPROFILER_INIT(CmdLine);
