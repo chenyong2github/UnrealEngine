@@ -489,7 +489,7 @@ public:
 
 	/** Sets how much audio the sound should send to the given submix. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSubmixSend(USoundSubmix* Submix, float SendLevel);
+	void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
 
 	/** Sets how much audio the sound should send to the given Source Bus (PRE Source Effects).
 		if the Bus Send doesn't already exist, it will be added to the overrides on the active sound */

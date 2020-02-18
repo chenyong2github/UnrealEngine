@@ -515,7 +515,7 @@ void USynthComponent::SetVolumeMultiplier(float VolumeMultiplier)
 	}
 }
 
-void USynthComponent::SetSubmixSend(USoundSubmix* Submix, float SendLevel)
+void USynthComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 {
 	if (AudioComponent)
 	{

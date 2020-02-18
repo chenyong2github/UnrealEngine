@@ -12,7 +12,7 @@ void FSoundSubmixEditorUtilities::CreateSoundSubmix(const UEdGraph* Graph, UEdGr
 	check(Graph);
 
 	// Cast outer to SoundSubmix
-	USoundSubmix* SoundSubmix = CastChecked<USoundSubmix>(Graph->GetOuter());
+	USoundSubmixBase* SoundSubmix = CastChecked<USoundSubmixBase>(Graph->GetOuter());
 
 	if (SoundSubmix != nullptr)
 	{

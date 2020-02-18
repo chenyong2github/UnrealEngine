@@ -13,13 +13,9 @@ class FSubmixEffectOculusReverbPlugin : public FSoundEffectSubmix
 public:
 	FSubmixEffectOculusReverbPlugin();
 
-	void SetContext(ovrAudioContext* SharedContext);
 	void ClearContext();
 
-	virtual void Init(const FSoundEffectSubmixInitData& InSampleRate) override
-	{
-		return; // PAS
-	}
+	virtual void Init(const FSoundEffectSubmixInitData& InInitData) override;
 	virtual uint32 GetDesiredInputChannelCountOverride() const override
 	{
 		static const int STEREO = 2;
@@ -31,7 +27,7 @@ public:
 		return; // PAS
 	}
 private:
-	ovrAudioContext* Context;
+	ovrAudioContext Context;
 	FCriticalSection ContextLock;
 };
 
@@ -49,7 +45,6 @@ public:
 		// empty
 	}
 
-	void SetContext(ovrAudioContext* SharedContext);
 	void ClearContext();
 
 	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, UReverbPluginSourceSettingsBase* InSettings) override

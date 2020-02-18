@@ -137,6 +137,9 @@ namespace Audio
 		/** This function call gets the maximum number of samples that's safe to pop, based on the thread with the least amount of samples buffered. Thread safe, but blocks for PopAudio. */
 		int32 MaxNumberOfSamplesThatCanBePopped();
 
+		/** Disconnect everything currently connected to this mixer. */
+		void DisconnectAllInputs();
+
 	private:
 		/** Called within PopAudio. Flushes the PendingNewPatches array into CurrentPatches. During this function, AddNewPatch is blocked. */
 		void ConnectNewPatches();

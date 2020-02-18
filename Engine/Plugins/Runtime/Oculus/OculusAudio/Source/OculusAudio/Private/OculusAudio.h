@@ -8,6 +8,7 @@
 #include "OculusAudioLegacy.h"
 #endif
 #include "OculusAudioSourceSettings.h"
+#include "OculusAmbisonicSpatializer.h"
 
 /************************************************************************/
 /* FOculusSpatializationPluginFactory								   */
@@ -33,8 +34,6 @@ public:
 
 	virtual TAudioSpatializationPtr CreateNewSpatializationPlugin(FAudioDevice* OwningDevice) override;
 	//~ End IAudioSpatializationFactory
-
-	virtual TAmbisonicsMixerPtr CreateNewAmbisonicsMixer(FAudioDevice* OwningDevice) override;
 
 };
 

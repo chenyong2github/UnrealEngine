@@ -2,19 +2,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "AudioDefines.h"
 #include "Features/IModularFeature.h"
-#include "IAmbisonicsMixer.h"
+#include "ISoundfieldFormat.h"
 #include "Math/Interval.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Sound/SoundEffectSubmix.h"
 #include "UObject/ObjectMacros.h"
+#include "AudioDefines.h"
 
 #if !UE_BUILD_SHIPPING
-#include "CanvasTypes.h"
-#include "UnrealClient.h"
+class FCommonViewportClient;
+class FCanvas;
+class UFont;
+class FViewport;
 #endif // !UE_BUILD_SHIPPING
 
 #include "IAudioExtensionPlugin.generated.h"
@@ -42,6 +42,8 @@ class IAudioModulation;
 class IAudioOcclusion;
 class IAudioReverb;
 class IAudioPluginListener;
+class FSoundEffectSubmix;
+typedef TSharedPtr<FSoundEffectSubmix, ESPMode::ThreadSafe> FSoundEffectSubmixPtr;
 
 using TAudioSpatializationPtr = TSharedPtr<IAudioSpatialization, ESPMode::ThreadSafe>;
 using TAudioModulationPtr     = TSharedPtr<IAudioModulation, ESPMode::ThreadSafe>;
@@ -70,6 +72,9 @@ struct FSpatializationParams
 	/** The emitter world rotation. */
 	FQuat EmitterWorldRotation;
 
+	/** The emitter world rotation on callback ago. */
+	FQuat LastEmitterWorldRotation;
+
 	/** The left channel position. */
 	FVector LeftChannelPosition;
 
@@ -82,16 +87,21 @@ struct FSpatializationParams
 	/** The normalized omni radius, or the radius that will blend a sound to non-3d */
 	float NormalizedOmniRadius;
 
+	/** The time when this spatialization params was built. */
+	double AudioClock;
+
 	FSpatializationParams()
 		: ListenerPosition(FVector::ZeroVector)
 		, ListenerOrientation(FQuat::Identity)
 		, EmitterPosition(FVector::ZeroVector)
 		, EmitterWorldPosition(FVector::ZeroVector)
 		, EmitterWorldRotation(FQuat::Identity)
+		, LastEmitterWorldRotation(FQuat::Identity)
 		, LeftChannelPosition(FVector::ZeroVector)
 		, RightChannelPosition(FVector::ZeroVector)
 		, Distance(0.0f)
 		, NormalizedOmniRadius(0.0f)
+		, AudioClock(0.0)
 	{}
 };
 
@@ -153,7 +163,7 @@ struct FAudioPluginSourceOutputData
 
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */
 UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class ENGINE_API USpatializationPluginSourceSettingsBase : public UObject
+class AUDIOEXTENSIONS_API USpatializationPluginSourceSettingsBase : public UObject
 {
 	GENERATED_BODY()
 };
@@ -242,14 +252,6 @@ public:
 	* @return a new instance of your spatialization plugin, owned by a shared pointer.
 	*/
 	virtual TAudioSpatializationPtr CreateNewSpatializationPlugin(FAudioDevice* OwningDevice) = 0;
-
-	/**
-	* @return a new instance of an ambisonics mixer to use, owned by a shared pointer. This is optional.
-	*/
-	virtual TAmbisonicsMixerPtr CreateNewAmbisonicsMixer(FAudioDevice* OwningDevice)
-	{
-		return TAmbisonicsMixerPtr();
-	}
 
 	/** 
 	* @return the UClass type of your settings for spatialization. This allows us to only pass in user settings for your plugin.
@@ -360,7 +362,7 @@ public:
 
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */
 UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class ENGINE_API UOcclusionPluginSourceSettingsBase : public UObject
+class AUDIOEXTENSIONS_API UOcclusionPluginSourceSettingsBase : public UObject
 {
 	GENERATED_BODY()
 };
@@ -443,14 +445,14 @@ public:
 
 /** Override to provide users with modulation settings custom to individual sounds */
 UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class ENGINE_API USoundModulationPluginSourceSettingsBase : public UObject
+class AUDIOEXTENSIONS_API USoundModulationPluginSourceSettingsBase : public UObject
 {
 	GENERATED_BODY()
 };
 
 /** Collection of settings available on sound objects */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundModulation
+struct AUDIOEXTENSIONS_API FSoundModulation
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -462,7 +464,7 @@ public:
 /** Interface to sound that is modulateable, allowing for certain specific 
   * behaviors to be controlled on the sound level by the modulation system.
   */
-class ENGINE_API ISoundModulatable
+class AUDIOEXTENSIONS_API ISoundModulatable
 {
 public:
 	virtual ~ISoundModulatable() = default;
@@ -530,7 +532,7 @@ public:
  * Modulatable controls found on each sound instance
  * processed by the modulation plugin enabled
  */
-struct ENGINE_API FSoundModulationControls
+struct AUDIOEXTENSIONS_API FSoundModulationControls
 {
 	float Volume;
 	float Pitch;
@@ -550,7 +552,7 @@ struct ENGINE_API FSoundModulationControls
 
 /** Parameter allowing modulation control override for systems opting in to the Modulation System. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundModulationParameter
+struct AUDIOEXTENSIONS_API FSoundModulationParameter
 {
 	GENERATED_BODY()
 
@@ -704,7 +706,7 @@ public:
 
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */
 UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class ENGINE_API UReverbPluginSourceSettingsBase : public UObject
+class AUDIOEXTENSIONS_API UReverbPluginSourceSettingsBase : public UObject
 {
 	GENERATED_BODY()
 };

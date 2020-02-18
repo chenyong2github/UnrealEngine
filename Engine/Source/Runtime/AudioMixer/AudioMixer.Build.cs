@@ -33,7 +33,10 @@ namespace UnrealBuildTool.Rules
 					"Engine",
                     "NonRealtimeAudioRenderer",
                     "AudioMixerCore",
-                    "SignalProcessing"
+                    "SignalProcessing",
+					"AudioPlatformConfiguration",
+					"SoundFieldRendering",
+                    "AudioExtensions",
                 }
 			);
 

@@ -322,7 +322,7 @@ USoundClass* FActiveSound::GetSoundClass() const
 	return nullptr;
 }
 
-USoundSubmix* FActiveSound::GetSoundSubmix() const
+USoundSubmixBase* FActiveSound::GetSoundSubmix() const
 {
 	return Sound ? Sound->GetSoundSubmix() : nullptr;
 }
@@ -386,6 +386,8 @@ void FActiveSound::GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) c
 					bOverridden = true;
 					break;
 				}
+
+				ensure(OutSendInfo.SendLevel > 0.0f);
 			}
 
 			if (!bOverridden)
