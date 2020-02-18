@@ -1495,10 +1495,7 @@ struct FScalarKernelUpdateID
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
 			int32 InstanceId = IDRegister[i];
-			// The index passed into this function is the same as that given to the OutputData*() functions (FScalarKernelWriteOutputIndexed kernel).
-			// That value is local to the execution step (update or spawn), so we must offset it by the start instance number for the step, just like
-			// GetOutputRegister() does.
-			int32 Index = IndexRegister[i] + InstanceOffset;
+			int32 Index = IndexRegister[i];
 
 			if (Index == INDEX_NONE)
 			{
@@ -1508,8 +1505,11 @@ struct FScalarKernelUpdateID
 			}
 			else
 			{
-				//Update the actual index for this ID. No thread safety is needed as this ID slot can only ever be written by this instance and so a single thread.
-				IDTable[InstanceId] = Index;
+				// Update the actual index for this ID. No thread safety is needed as this ID slot can only ever be written by this instance and so a single thread.
+				// The index passed into this function is the same as that given to the OutputData*() functions (FScalarKernelWriteOutputIndexed kernel).
+				// That value is local to the execution step (update or spawn), so we must offset it by the start instance number for the step, just like
+				// GetOutputRegister() does.
+				IDTable[InstanceId] = Index + InstanceOffset;
 
 				//Update thread local max ID seen. We push this to the real value at the end of execution.
 				DataSetTempData.MaxID = FMath::Max(DataSetTempData.MaxID, InstanceId);
