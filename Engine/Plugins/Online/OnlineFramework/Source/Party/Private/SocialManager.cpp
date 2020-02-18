@@ -675,7 +675,7 @@ USocialToolkit& USocialManager::CreateSocialToolkit(ULocalPlayer& OwningLocalPla
 	return *NewToolkit;
 }
 
-void USocialManager::RegisterSecondaryPlayer(int32 LocalPlayerNum, const FOnJoinPartyComplete& Delegate)
+void USocialManager::RegisterSecondaryPlayer(int32 LocalPlayerNum, const FOnJoinPartyComplete& JoinDelegate)
 {
 	USocialToolkit* SocialToolkit = GetSocialToolkit(LocalPlayerNum);
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
@@ -688,12 +688,31 @@ void USocialManager::RegisterSecondaryPlayer(int32 LocalPlayerNum, const FOnJoin
 
 		if (PrimaryUserId.IsValid() && SecondaryUserId.IsValid())
 		{
+			// FORT-245799 If P2 is already in the party, leave first so we can join cleanly
+			if (PersistentParty->GetPartyMember(SecondaryUserId))
+			{
+				PersistentParty->RemoveLocalMember(SecondaryUserId, USocialParty::FOnLeavePartyAttemptComplete::CreateWeakLambda(this, [this, LocalPlayerNum, JoinDelegate](ELeavePartyCompletionResult LeaveResult)
+				{
+					if (LeaveResult == ELeavePartyCompletionResult::Succeeded)
+					{
+						RegisterSecondaryPlayer(LocalPlayerNum, JoinDelegate);
+					}
+					else
+					{
+						UE_LOG(LogParty, Warning, TEXT("RegisterSecondaryPlayer RemoveLocalMember failed LeaveResult=%s"), ToString(LeaveResult));
+						USocialToolkit* SocialToolkit = GetSocialToolkit(LocalPlayerNum);
+						USocialParty* PersistentParty = GetPersistentParty();
+						FUniqueNetIdRepl SecondaryUserId = SocialToolkit->GetLocalUser().GetUserId(ESocialSubsystem::Primary);
+						JoinDelegate.Execute(*SecondaryUserId, PersistentParty->GetPartyId(), EJoinPartyCompletionResult::UnknownClientFailure, 0);
+					}
+				}));
+			}
+
 			FString JoinInfoStr = PartyInterface->MakeJoinInfoJson(*PrimaryUserId, PersistentParty->GetPartyId());
 			IOnlinePartyJoinInfoConstPtr JoinInfo = PartyInterface->MakeJoinInfoFromJson(JoinInfoStr);
-
 			if (JoinInfo && JoinInfo->IsValid())
 			{
-				PartyInterface->JoinParty(*SecondaryUserId, *JoinInfo, Delegate);
+				PartyInterface->JoinParty(*SecondaryUserId, *JoinInfo, JoinDelegate);
 			}
 		}
 	}
