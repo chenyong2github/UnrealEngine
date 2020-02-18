@@ -2635,8 +2635,25 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 
 		if (RequestType == FPackageTracker::ERequestType::None)
 		{
-			// no more real work to do this tick, break out and do some other stuff
-			break;
+			// No requests remain; are any packages left in PackagesPendingSave?
+			auto& PackagesPendingSave = PackageTracker->GetPackagesPendingSave();
+			if (PackagesPendingSave.Num() > 0)
+			{
+				UPackage* Package = nullptr;
+				for (UPackage* PendingSavePackage : PackagesPendingSave)
+				{
+					Package = PendingSavePackage;
+					break;
+				}
+				RequestType = FPackageTracker::ERequestType::Cook;
+				FName StandardFilename = PackageNameCache->GetCachedStandardPackageFileFName(Package);
+				ToBuild = FFilePlatformRequest(StandardFilename, PlatformManager->GetSessionPlatforms());
+			}
+			else
+			{
+				// no more real work to do this tick, break out and do some other stuff
+				break;
+			}
 		}
 		else if (RequestType == FPackageTracker::ERequestType::TickCommand)
 		{
@@ -2899,7 +2916,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 		CookByTheBookOptions->CookTime += Timer.GetTimeTillNow();
 	}
 
-	if (IsCookByTheBookRunning() && !HasCookRequests())
+	if (IsCookByTheBookRunning() && !HasCookRequests() && PackageTracker->GetPackagesPendingSave().Num() == 0)
 	{
 		check(IsCookByTheBookMode());
 
