@@ -11,62 +11,75 @@
 // Set by FLightMapTexturePolicy
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
-/* SM4+:
-   x = unused
-   y = unused
-   z = Heightmap texture LOD difference from current LOD to highest LOD
-   w = XYOffset texture LOD difference from current LOD to highest LOD
+#if LANDSCAPE_XYOFFSET
+	#define XYOFFSET_SCALE (1.0f/256.f)
+#endif
 
-   ES3.1:
-   x = unused
-   y = unused
-   z = TexCoordOffset.x
-   w = TexCoordOffset.y
-*/
-float4 LodBias;
+#if (ES3_1_PROFILE)
+/* Offset for UV localization for large UV values. */
+float2 TexCoordOffset;
+#endif
 
-/* x = current LOD
-   y = unused
-   z = SectionSizeQuads in current LOD
-   w = 1/SectionSizeQuads in current LOD
-*/
-float4 LodValues;
-
-/* Fractional Lod values for each section */
-float4 SectionLods;
-
-int ForcedLod;
-
+/* Return index into buffers for this section instance. */
 int GetComponentLinearIndex()
 {
 	return (LandscapeParameters.ComponentBaseY - LandscapeContinuousLODParameters.Min.y) * LandscapeContinuousLODParameters.Size.x + (LandscapeParameters.ComponentBaseX - LandscapeContinuousLODParameters.Min.x);
 }
 
-float4 GetSectionLods()
+/**
+ * x = Current mesh LOD
+ * y = unused
+ * z = SectionSizeQuads in current mesh LOD
+ * w = 1/SectionSizeQuads in current mesh LOD
+ **/
+float4 GetLodValues()
 {
-	if (ForcedLod >= 0)
-	{
-		return LodValues.x;
-	}
-	
+#if FIXED_GRID 
+	// Fixed grid has fixed Lod
+	return LandscapeFixedGrid.LodValues;
+#elif FEATURE_LEVEL < FEATURE_LEVEL_SM4
+	// On mobile we always use the Lod 0 mesh data
+	return float4(0, 0, LandscapeParameters.SubsectionSizeVertsLayerUVPan.xy);
+#else
+	// Get Lod for the current section and infer the values
+	uint Lod = (uint)floor(LandscapeContinuousLODParameters.SectionLOD[GetComponentLinearIndex()]);
+	float LodSubSectionSizeQuads = (float)((LandscapeParameters.SubsectionSizeVerts >> Lod) - 1);
+	return float4(Lod, 0, LodSubSectionSizeQuads, rcp(LodSubSectionSizeQuads));
+#endif
+}
+
+/**
+ * x = Heightmap texture LOD difference from current LOD to highest LOD
+ * y = todo: XYOffset texture LOD difference from current LOD to highest LOD
+ */
+float2 GetLodBias()
+{
+#if FIXED_GRID || FEATURE_LEVEL < FEATURE_LEVEL_SM4
+	return 0;
+#else
+	float LodBias = LandscapeContinuousLODParameters.SectionLODBias[GetComponentLinearIndex()];
+	return float2(LodBias, 0.f);
+#endif
+}
+
+/* Get current Lod for this section instance. */
+float GetSectionLod()
+{
 	return min(LandscapeContinuousLODParameters.SectionLOD[GetComponentLinearIndex()] + View.FarShadowStaticMeshLODBias, LandscapeParameters.LastLOD);
 }
 
+/** 
+ * Get current Lods for neighbour section instances. 
+ *       -Y
+ *    - - 0 - -
+ *    |       |
+ * -X 1   P   2 +X
+ *    |       |
+ *    - - 3 - -
+ *       +Y
+ */
 float4 GetNeighborSectionLod()
 {
-	if (ForcedLod >= 0)
-	{
-		return LodValues.xxxx;
-	}
-
-	//       -Y       
-	//    - - 0 - -   
-	//    |       |   
-	// -X 1   P   2 +X
-	//    |       |   
-	//    - - 3 - -   
-	//       +Y
-
 	int2 NeighborOffset[4];
     NeighborOffset[0] = int2(0, -1);
     NeighborOffset[1] = int2(-1, 0);
@@ -78,40 +91,11 @@ float4 GetNeighborSectionLod()
 		int2 NeighborPos = NeighborOffset[i] + int2(LandscapeParameters.ComponentBaseX, LandscapeParameters.ComponentBaseY);
 		NeighborPos = max(LandscapeContinuousLODParameters.Min                                                     , NeighborPos);
 		NeighborPos = min(LandscapeContinuousLODParameters.Min + LandscapeContinuousLODParameters.Size - int2(1, 1), NeighborPos);
-		NeighborLod[i] = max(LandscapeContinuousLODParameters.SectionLOD[(NeighborPos.y - LandscapeContinuousLODParameters.Min.y) * LandscapeContinuousLODParameters.Size.x + (NeighborPos.x - LandscapeContinuousLODParameters.Min.x)], GetSectionLods());
+		NeighborLod[i] = max(LandscapeContinuousLODParameters.SectionLOD[(NeighborPos.y - LandscapeContinuousLODParameters.Min.y) * LandscapeContinuousLODParameters.Size.x + (NeighborPos.x - LandscapeContinuousLODParameters.Min.x)], GetSectionLod());
 		NeighborLod[i] = min(NeighborLod[i] + View.FarShadowStaticMeshLODBias, LandscapeParameters.LastLOD);
 	}
 	return float4(NeighborLod[0], NeighborLod[1], NeighborLod[2], NeighborLod[3]);
 }
-
-float4 GetLodBias()
-{
-#if FIXED_GRID || FEATURE_LEVEL < FEATURE_LEVEL_SM4
-	return LodBias;
-#else
-	return float4(
-		0,
-		0,
-		LandscapeContinuousLODParameters.SectionLODBias[GetComponentLinearIndex()],
-		0); // TODO: handle XY offset texture mipmap bias
-#endif
-}
-
-/* Array index is section
-   x = neighbor section's LOD in position 0               0     -> X
-   y = neighbor section's LOD in position 1        1   Current  2
-   z = neighbor section's LOD in position 2        |      3
-   w = neighbor section's LOD in position 3        V Y
-*/
-float4 NeighborSectionLod[4];
-
-#if LANDSCAPE_XYOFFSET
-	#define XYOFFSET_SCALE			(1.0f/256.f)
-#endif
-
-#if ES3_1_PROFILE
-float3 BlendableLayerMask;
-#endif
 
 struct FVertexFactoryInput
 {
@@ -129,6 +113,7 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 {
 	FVertexFactoryInput Input;
 
+	float4 LodValues = GetLodValues();
 	uint SubsectionSizeQuadsCurrentLOD = LodValues.z;
 	uint SubsectionSizeVertsCurrentLOD = LodValues.z + 1;
 
@@ -162,6 +147,7 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 {
 	FVertexFactoryInput Input;
 
+	float4 LodValues = GetLodValues();
 	uint SubsectionSizeQuadsCurrentLOD = LodValues.z;
 	uint SubsectionSizeVertsCurrentLOD = LodValues.z + 1;
 
@@ -272,6 +258,8 @@ struct FVertexFactoryIntermediates
 	float4 InputPosition;
 	float3 LocalPosition;
 	float3 WorldNormal;
+	float4 LodValues;
+	float2 LodBias;
 };
 
 float3 GetLocalPosition(FVertexFactoryIntermediates Intermediates)
@@ -318,7 +306,7 @@ FLandscapeTexCoords GetLandscapeTexCoords(FVertexFactoryInput Input, FVertexFact
 #endif
 
 #if NEEDS_LIGHTMAP_COORDINATE
-	Result.LightMapCoordinate			= (Intermediates.LocalPosition.xy * LandscapeParameters.LandscapeLightmapScaleBias.xy + LandscapeParameters.LandscapeLightmapScaleBias.wz + Intermediates.InputPosition.zw * LandscapeParameters.LightmapSubsectionOffsetParams.xy);
+	Result.LightMapCoordinate	= (Intermediates.LocalPosition.xy * LandscapeParameters.LandscapeLightmapScaleBias.xy + LandscapeParameters.LandscapeLightmapScaleBias.wz + Intermediates.InputPosition.zw * LandscapeParameters.LightmapSubsectionOffsetParams.xy);
 #endif
 	
 	return Result;
@@ -497,9 +485,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #endif
 
 #if (ES3_1_PROFILE) && PIXELSHADER
-
 	Result.LayerWeights.xy = Texture2DSample(LandscapeParameters.NormalmapTexture, LandscapeParameters.NormalmapTextureSampler, Interpolants.WeightMapTexCoord).rg;
-	Result.LayerWeights.z = saturate(BlendableLayerMask.z - dot(Result.LayerWeights.xy, BlendableLayerMask.xy));
+	Result.LayerWeights.z = saturate(LandscapeParameters.BlendableLayerMask.z - dot(Result.LayerWeights.xy, LandscapeParameters.BlendableLayerMask.xy));
 	Result.LayerWeights.w = 0; // Total weight need to be 1
 #endif
 
@@ -525,7 +512,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 #if NUM_MATERIAL_TEXCOORDS_VERTEX     // XY layer
 	Result.TexCoords[0] = LandscapeTexCoords.LayerTexCoord.xy;
 	#if (ES3_1_PROFILE)
-		Result.TexCoordOffset = LodBias.zw;
+		Result.TexCoordOffset = TexCoordOffset;
 	#endif
 #if NUM_MATERIAL_TEXCOORDS_VERTEX > 1 // XZ layer
 	Result.TexCoords[1] = float2(LandscapeTexCoords.LayerTexCoord.x, Intermediates.LocalPosition.z);
@@ -592,7 +579,7 @@ float CalcLOD(float2 xyLocalToSubsection, float2 Subsection)
 	// LOD value based on Barycentric coordinate
 	float4 L0 = float4(xy.y, xy.x, (1 - xy.x), (1 - xy.y)) * 2;
 
-	float4 LODCalculated4 = L0 * GetSectionLods() + (float4(1, 1, 1, 1) - L0) * GetNeighborSectionLod();
+	float4 LODCalculated4 = L0 * GetSectionLod() + (float4(1, 1, 1, 1) - L0) * GetNeighborSectionLod();
 
 	// Find which quadrant of the subsection we're in - top, left, right or bottom.
 	// 0 --------- 1 X  1 ----- 2  1          1 
@@ -610,6 +597,8 @@ float CalcLOD(float2 xyLocalToSubsection, float2 Subsection)
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
+	Intermediates.LodValues = GetLodValues();
+	Intermediates.LodBias = GetLodBias();
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	Intermediates.InputPosition = Input.Position;
@@ -622,10 +611,10 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float HoleVertexLod = (float)((uint)(Input.PackedPosition.w * 255.f) & 0xf);
 #endif
 
-	float2 xy = Intermediates.InputPosition.xy * LodValues.w;
+	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
 
 #if FIXED_GRID
-	float LODCalculated = floor(LodValues.x);
+	float LODCalculated = floor(Intermediates.LodValues.x);
 	float LodValue = LODCalculated;
 	float MorphAlpha = 0;
 #else
@@ -636,7 +625,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	// InputPositionLODAdjusted : Position for actual LOD in base LOD units
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
-	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - LodValues.x)));
+	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - Intermediates.LodValues.x)));
 	float InvLODScaleFactor = pow(2, -LodValue);
 #else
 
@@ -680,20 +669,20 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// Get the height and normal XY for current and next LOD out of the textures
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	float2 SampleCoords = InputPositionLODAdjusted * LandscapeParameters.HeightmapUVScaleBias.xy + LandscapeParameters.HeightmapUVScaleBias.zw + 0.5*LandscapeParameters.HeightmapUVScaleBias.xy + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.xy;
-	float4 SampleValue = Texture2DSampleLevel(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, SampleCoords, LodValue-GetLodBias().z);
+	float4 SampleValue = Texture2DSampleLevel(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, SampleCoords, LodValue-Intermediates.LodBias.x);
 	float Height = DecodePackedHeight(SampleValue.xy);
 
 	float2 SampleCoordsNextLOD = InputPositionNextLOD * LandscapeParameters.HeightmapUVScaleBias.xy + LandscapeParameters.HeightmapUVScaleBias.zw + 0.5*LandscapeParameters.HeightmapUVScaleBias.xy + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.xy;
-	float4 SampleValueNextLOD = Texture2DSampleLevel(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, SampleCoordsNextLOD, LodValue+1-GetLodBias().z);
+	float4 SampleValueNextLOD = Texture2DSampleLevel(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, SampleCoordsNextLOD, LodValue+1-Intermediates.LodBias.x);
 	float HeightNextLOD = DecodePackedHeight(SampleValueNextLOD.xy);
 #endif
 
 
 #if LANDSCAPE_XYOFFSET // FEATURE_LEVEL >= FEATURE_LEVEL_SM4 only
 	float2 SampleCoords2 = float2(InputPositionLODAdjusted * LandscapeParameters.WeightmapUVScaleBias.xy + LandscapeParameters.WeightmapUVScaleBias.zw + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.zz);
-	float4 OffsetValue = Texture2DSampleLevel( LandscapeParameters.XYOffsetmapTexture, LandscapeParameters.XYOffsetmapTextureSampler, SampleCoords2, LodValue-GetLodBias().w );
+	float4 OffsetValue = Texture2DSampleLevel( LandscapeParameters.XYOffsetmapTexture, LandscapeParameters.XYOffsetmapTextureSampler, SampleCoords2, LodValue- Intermediates.LodBias.y );
 	float2 SampleCoordsNextLOD2 = float2(InputPositionNextLOD * LandscapeParameters.WeightmapUVScaleBias.xy + LandscapeParameters.WeightmapUVScaleBias.zw + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.zz);
-	float4 OffsetValueNextLOD = Texture2DSampleLevel( LandscapeParameters.XYOffsetmapTexture, LandscapeParameters.XYOffsetmapTextureSampler, SampleCoordsNextLOD2, LodValue+1-GetLodBias().w );
+	float4 OffsetValueNextLOD = Texture2DSampleLevel( LandscapeParameters.XYOffsetmapTexture, LandscapeParameters.XYOffsetmapTextureSampler, SampleCoordsNextLOD2, LodValue+1-Intermediates.LodBias.y );
 	float2 XYOffset = float2(((OffsetValue.r * 255.0 * 256.0 + OffsetValue.g * 255.0) - 32768.0) * XYOFFSET_SCALE, ((OffsetValue.b * 255.0 * 256.0 + OffsetValue.a * 255.0) - 32768.0) * XYOFFSET_SCALE );
 	float2 XYOffsetNextLOD = float2(((OffsetValueNextLOD.r * 255.0 * 256.0 + OffsetValueNextLOD.g * 255.0) - 32768.0) * XYOFFSET_SCALE, ((OffsetValueNextLOD.b * 255.0 * 256.0 + OffsetValueNextLOD.a * 255.0) - 32768.0) * XYOFFSET_SCALE );
 
@@ -725,17 +714,17 @@ float2 LandscapeVertexFactorySampleHeight(FVertexFactoryInput Input, FVertexFact
 	return SampleValue.xy;
 	*/
 
-	float2 xy = Intermediates.InputPosition.xy * LodValues.w;
+	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
 	float LODCalculated = CalcLOD(xy, Intermediates.InputPosition.zw);
 	float LodValue = floor(LODCalculated);
 	float CoordTranslate_x = (LandscapeParameters.SubsectionSizeVertsLayerUVPan.x * pow(2, -LodValue) - 1) * LandscapeParameters.SubsectionSizeVertsLayerUVPan.y;
 
 	// InputPositionLODAdjusted : Position for actual LOD in base LOD units
-	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - LodValues.x)));
+	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - Intermediates.LodValues.x)));
 
 	float2 InputPositionLODAdjusted = ActualLODCoordsInt / CoordTranslate_x;
 	float2 SampleCoords = InputPositionLODAdjusted * LandscapeParameters.HeightmapUVScaleBias.xy + LandscapeParameters.HeightmapUVScaleBias.zw + 0.5*LandscapeParameters.HeightmapUVScaleBias.xy + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.xy;
-	float4 SampleValue = Texture2DSampleLevel(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, SampleCoords, LodValue-GetLodBias().z);
+	float4 SampleValue = Texture2DSampleLevel(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, SampleCoords, LodValue-Intermediates.LodBias.x);
 	return SampleValue.rg;
 }
 #endif
@@ -757,7 +746,7 @@ float3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFacto
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
 {
 #if RENDERING_LANDSCAPE_GRASS
-	float2 xy = Intermediates.InputPosition.xy * LodValues.w;
+	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
 	float LODCalculated = CalcLOD(xy, Intermediates.InputPosition.zw);
 	float LodValue = floor(LODCalculated);
 	float CoordTranslate_x = (LandscapeParameters.SubsectionSizeVertsLayerUVPan.x * pow(2, -LodValue) - 1) * LandscapeParameters.SubsectionSizeVertsLayerUVPan.y;
@@ -862,7 +851,7 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryGetInterpolantsVSToDS(FVertexFacto
 	Interpolants.TangentToWorld0 = TangentToWorld[0];
 	Interpolants.TangentToWorld2 = float4(TangentToWorld[2], 1);
 
-	float2 xy = Intermediates.InputPosition.xy * LodValues.w;
+	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
 	Interpolants.CalculatedLOD = CalcLOD(xy, Intermediates.InputPosition.zw);
 #endif
 	
