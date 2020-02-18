@@ -154,8 +154,6 @@ public:
 
 	virtual void Activate(bool bReset = false)override;
 	virtual void Deactivate()override;
-
-	UFUNCTION(BlueprintCallable, Category = Niagara)
 	void DeactivateImmediate();
 
 	FORCEINLINE ENiagaraExecutionState GetRequestedExecutionState()const { return SystemInstance ? SystemInstance->GetRequestedExecutionState() : ENiagaraExecutionState::Complete; }
