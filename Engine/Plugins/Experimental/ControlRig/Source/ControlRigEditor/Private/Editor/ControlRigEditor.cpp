@@ -659,6 +659,20 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 {
 	ClearDetailObject();
 
+	if (InObjects.Num() == 1)
+	{
+		if (InObjects[0]->GetClass()->GetDefaultObject() == InObjects[0])
+		{
+			EditClassDefaults_Clicked();
+			return;
+		}
+		else if (InObjects[0] == GetBlueprintObj())
+		{
+			EditGlobalOptions_Clicked();
+			return;
+		}
+	}
+
 	RigElementInDetailPanel = FRigElementKey();
 	StructToDisplay.Reset();
 	SKismetInspector::FShowDetailsOptions Options;
@@ -823,6 +837,8 @@ void FControlRigEditor::ClearDetailObject()
 
 	Inspector->ShowDetailsForObjects(TArray<UObject*>());
 	Inspector->ShowSingleStruct(TSharedPtr<FStructOnScope>());
+
+	SetUISelectionState(FBlueprintEditor::SelectionState_Graph);
 }
 
 
