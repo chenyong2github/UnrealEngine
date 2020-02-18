@@ -106,7 +106,7 @@ public:
 				bFailed = false;
 			}
 		}
-		if (FString(FCommandLine::Get()).Contains(TEXT("DerivedDataCache")) )
+		if (FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache")) )
 		{
 			bTouch = true; // we always touch files when running the DDC commandlet
 		}
