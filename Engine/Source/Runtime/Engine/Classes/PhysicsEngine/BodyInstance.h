@@ -114,6 +114,10 @@ struct FInitBodiesHelperBase
 	// #PHYS2 this used to return arrays of low-level physics bodies, which would be added to scene in InitBodies. Should it still do that, rather then later iterate over BodyInstances to get phys actor refs?
 	bool CreateShapesAndActors();
 	void InitBodies();
+
+protected:
+	void UpdateSimulatingAndBlendWeight();
+
 };
 
 template <bool bCompileStatic>
@@ -127,7 +131,7 @@ struct FInitBodiesHelper : public FInitBodiesHelperBase
 		SkelMeshComp = bCompileStatic ? nullptr : Cast<USkeletalMeshComponent>(PrimitiveComp);
 		if(SpawnParams.bPhysicsTypeDeterminesSimulation)
 		{
-			GetSimulatingAndBlendWeight(SkelMeshComp, BodySetup, InstanceBlendWeight, bInstanceSimulatePhysics);
+			this->UpdateSimulatingAndBlendWeight();
 		}
 	}
 };
@@ -144,7 +148,7 @@ struct FInitBodiesHelperWithData : public FInitBodiesHelperBase
 		SkelMeshComp = bCompileStatic ? nullptr : Cast<USkeletalMeshComponent>(PrimitiveComp);
 		if(SpawnParams.bPhysicsTypeDeterminesSimulation)
 		{
-			GetSimulatingAndBlendWeight(SkelMeshComp, BodySetup, InstanceBlendWeight, bInstanceSimulatePhysics);
+			this->UpdateSimulatingAndBlendWeight();
 		}
 	}
 
@@ -162,7 +166,7 @@ struct FInitBodiesHelperWithData : public FInitBodiesHelperBase
 		SkelMeshComp = bCompileStatic ? nullptr : Cast<USkeletalMeshComponent>(PrimitiveComp);
 		if(SpawnParams.bPhysicsTypeDeterminesSimulation)
 		{
-			GetSimulatingAndBlendWeight(SkelMeshComp, BodySetup, InstanceBlendWeight, bInstanceSimulatePhysics);
+			this->UpdateSimulatingAndBlendWeight();
 		}
 	}
 
