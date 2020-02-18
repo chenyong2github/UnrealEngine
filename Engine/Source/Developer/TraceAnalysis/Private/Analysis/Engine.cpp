@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine.h"
+#include "Algo/Find.h"
 #include "Algo/Sort.h"
 #include "Containers/ArrayView.h"
 #include "CoreGlobals.h"
@@ -456,12 +457,7 @@ enum ERouteId : uint16
 	RouteId_ChannelToggle,
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// This is used to influence the order of routes (routes are sorted by hash).
-enum EKnownRouteHashes : uint32
-{
-	RouteHash_AllEvents,	
-};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
@@ -489,7 +485,7 @@ void FAnalysisEngine::Begin()
 
 		virtual void RouteAllEvents(uint16 RouteId) override
 		{
-			Self->AddRoute(AnalyzerIndex, RouteId, RouteHash_AllEvents);
+			Self->AddRoute(AnalyzerIndex, RouteId, "", "");
 		}
 
 		FAnalysisEngine* Self;
@@ -513,21 +509,43 @@ void FAnalysisEngine::Begin()
 		}
 	}
 
-	Algo::SortBy(Routes, [] (const FRoute& Route) { return Route.Hash; });
+	auto RouteProjection = [] (const FRoute& Route) { return Route.Hash; };
 
-	FRoute* Cursor = Routes.GetData();
-	Cursor->Count = 1;
+	Algo::SortBy(Routes, RouteProjection);
 
+	auto FindRoute = [this, &RouteProjection] (uint32 Hash)
+	{
+		const FRoute* Route = Algo::FindBy(Routes, Hash, RouteProjection);
+		return (Route != nullptr) ? int32(PTRINT(Route - Routes.GetData())) : -1;
+	};
+
+	int32 AllEventsIndex = FindRoute(FFnv1aHash().Get());
+	auto FixupRoute = [this, &FindRoute, AllEventsIndex] (FRoute* Route) 
+	{
+		if (Route->ParentHash)
+		{
+			int32 ParentIndex = FindRoute(Route->ParentHash);
+			Route->Parent = int16((ParentIndex < 0) ? AllEventsIndex : ParentIndex);
+		}
+		else
+		{
+			Route->Parent = -1;
+		}
+		Route->Count = 1;
+		return Route;
+	};
+
+	FRoute* Cursor = FixupRoute(Routes.GetData());
 	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
 	{
-		if (Routes[i].Hash == Cursor->Hash)
+		FRoute* Route = Routes.GetData() + i;
+		if (Route->Hash == Cursor->Hash)
 		{
 			Cursor->Count++;
 		}
 		else
 		{
-			Cursor = Routes.GetData() + i;
-			Cursor->Count = 1;
+			Cursor = FixupRoute(Route);
 		}
 	}
 
@@ -600,24 +618,24 @@ void FAnalysisEngine::AddRoute(
 	const ANSICHAR* Logger,
 	const ANSICHAR* Event)
 {
+	check(AnalyzerIndex < Analyzers.Num());
+
+	uint32 ParentHash = 0;
+	if (Logger[0] && Event[0])
+	{
+		FFnv1aHash Hash;
+		Hash.Add(Logger);
+		ParentHash = Hash.Get();
+	}
+
 	FFnv1aHash Hash;
 	Hash.Add(Logger);
 	Hash.Add(Event);
-	AddRoute(AnalyzerIndex, Id, Hash.Get());
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::AddRoute(
-	uint16 AnalyzerIndex,
-	uint16 Id,
-	uint32 Hash)
-{
-	check(AnalyzerIndex < Analyzers.Num());
 
 	FRoute& Route = Routes.Emplace_GetRef();
 	Route.Id = Id;
-	Route.Hash = Hash;
-	Route.Count = 1;
+	Route.Hash = Hash.Get();
+	Route.ParentHash = ParentHash;
 	Route.AnalyzerIndex = AnalyzerIndex;
 }
 
@@ -693,22 +711,16 @@ template <typename ImplType>
 void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 {
 	uint32 RouteCount = Routes.Num();
-	if (Dispatch->FirstRoute < RouteCount)
+	if (Dispatch->FirstRoute >= RouteCount)
 	{
-		const FRoute* Route = Routes.GetData() + Dispatch->FirstRoute;
-		for (uint32 n = Route->Count; n--; ++Route)
-		{
-			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
-			if (Analyzer != nullptr)
-			{
-				Impl(Analyzer, Route->Id);
-			}
-		}
+		return;
 	}
 
-	const FRoute* Route = Routes.GetData();
-	if (RouteCount && Route->Hash == RouteHash_AllEvents)
+	const FRoute* FirstRoute = Routes.GetData();
+	const FRoute* Route = FirstRoute + Dispatch->FirstRoute;
+	do
 	{
+		const FRoute* NextRoute = FirstRoute + Route->Parent;
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
 			IAnalyzer* Analyzer = Analyzers[Route->AnalyzerIndex];
@@ -717,7 +729,9 @@ void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 				Impl(Analyzer, Route->Id);
 			}
 		}
+		Route = NextRoute;
 	}
+	while (Route >= FirstRoute);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -760,15 +774,15 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
 {
-	// Add the dispatch to the dispatch table, failing gently if the table slot
-	// is already occupied.
+	// Add the dispatch to the dispatch table. Usually duplicates are an error
+	// but due to backwards compatibility we'll override existing dispatches.
 	uint16 Uid = Dispatch->Uid;
 	if (Uid < Dispatches.Num())
  	{
 		if (Dispatches[Uid] != nullptr)
  		{
-			FMemory::Free(Dispatch);
-			return false;
+			FMemory::Free(Dispatches[Uid]);
+			Dispatches[Uid] = nullptr;
  		}
  	}
 	else
@@ -777,14 +791,23 @@ bool FAnalysisEngine::AddDispatch(FDispatch* Dispatch)
  	}
 
 	// Find routes that have subscribed to this event.
-	for (uint16 i = 0, n = Routes.Num(); i < n; ++i)
+	auto FindRoute = [this] (uint32 Hash)
 	{
-		if (Routes[i].Hash == Dispatch->Hash)
+		const FRoute* Route = Algo::FindBy(Routes, Hash, [] (const FRoute& Route) { return Route.Hash; });
+		return (Route != nullptr) ? int32(PTRINT(Route - Routes.GetData())) : -1;
+	};
+
+	int32 FirstRoute = FindRoute(Dispatch->Hash);
+	if (FirstRoute < 0)
+	{
+		FFnv1aHash LoggerHash;
+		LoggerHash.Add((const ANSICHAR*)Dispatch + Dispatch->LoggerNameOffset);
+		if ((FirstRoute = FindRoute(LoggerHash.Get())) < 0)
 		{
-			Dispatch->FirstRoute = i;
-			break;
+			FirstRoute = FindRoute(FFnv1aHash().Get());
 		}
 	}
+	Dispatch->FirstRoute = FirstRoute;
 
 	Dispatches[Uid] = Dispatch;
 	return true;

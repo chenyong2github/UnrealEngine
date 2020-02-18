@@ -30,10 +30,17 @@ private:
 	struct FRoute
 	{
 		uint32			Hash;
-		int16			Count;
-		uint16			Id;
 		uint16			AnalyzerIndex;
-		uint16			_Unused0;
+		uint16			Id;
+		union
+		{
+			uint32		ParentHash;
+			struct
+			{
+				int16	Count;
+				int16	Parent;
+			};
+		};
 	};
 
 	class				FDispatchBuilder;
@@ -56,7 +63,6 @@ private:
 	template <typename ImplType>
 	void				ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl);
 	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event);
-	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, uint32 Hash);
 	void				RetireAnalyzer(IAnalyzer* Analyzer);
 	FSessionContext		SessionContext;
 	TArray<FRoute>		Routes;
