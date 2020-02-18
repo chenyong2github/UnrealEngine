@@ -790,13 +790,13 @@ struct FStreamingLevelsToConsider
 		: bStreamingLevelsBeingConsidered(false)
 	{}
 
+private:
+
 	/** Priority sorted array of streaming levels actively being considered. */
 	UPROPERTY()
 	TArray<FLevelStreamingWrapper> StreamingLevels;
 
-private:
-
-	enum class EProcessReason
+	enum class EProcessReason : uint8
 	{
 		Add,
 		Reevaluate
@@ -816,6 +816,8 @@ private:
 
 public:
 
+	const TArray<FLevelStreamingWrapper>& GetStreamingLevels() const { return StreamingLevels; }
+
 	void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	void BeginConsideration();
@@ -826,6 +828,9 @@ public:
 
 	/* Remove an element from the container. */
 	bool Remove(ULevelStreaming* StreamingLevel);
+
+	/* Remove the element at a given index from the container. */
+	void RemoveAt(int32 Index);
 
 	/* Returns if an element is in the container. */
 	bool Contains(ULevelStreaming* StreamingLevel) const;
