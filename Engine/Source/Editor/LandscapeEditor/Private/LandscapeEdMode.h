@@ -487,7 +487,7 @@ public:
 	virtual bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient) override;
 
 	/** Forces real-time perspective viewports */
-	void ForceRealTimeViewports(const bool bEnable, const bool bStoreCurrentState);
+	void ForceRealTimeViewports(const bool bEnable);
 
 	/** Trace under the mouse cursor and return the landscape hit and the hit location (in landscape quad space) */
 	bool LandscapeMouseTrace(FEditorViewportClient* ViewportClient, float& OutHitX, float& OutHitY);

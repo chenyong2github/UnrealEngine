@@ -414,7 +414,7 @@ public:
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
 	/** Forces real-time perspective viewports */
-	void ForceRealTimeViewports(const bool bEnable, const bool bStoreCurrentState);
+	void ForceRealTimeViewports(const bool bEnable);
 
 	/** Start foliage tracing */
 	void StartFoliageBrushTrace(FEditorViewportClient* ViewportClient, class UViewportInteractor* Interactor = nullptr);

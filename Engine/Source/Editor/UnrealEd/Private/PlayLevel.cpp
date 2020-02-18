@@ -487,9 +487,8 @@ void UEditorEngine::EndPlayMap()
 		GEngine->StereoRenderingDevice->EnableStereo(false);
 	}
 
-
 	// Restores realtime viewports that have been disabled for PIE.
-	RestoreRealtimeViewports();
+	RemoveViewportsRealtimeOverride();
 
 	// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
 	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
@@ -1898,7 +1897,10 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 			GameViewport->GetGameViewport()->SetPlayInEditorIsSimulate(false);
 
 			// The editor viewport client wont be visible so temporarily disable it being realtime
-			EditorViewportClient.SetRealtime( false, true );
+			const bool bShouldBeRealtime = false;
+			// Remove any previous override since we already applied a override when entering PIE
+			EditorViewportClient.RemoveRealtimeOverride();
+			EditorViewportClient.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor"));
 
 			if (!SlatePlayInEditorSession.EditorPlayer.IsValid())
 			{
@@ -1941,7 +1943,10 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 			bIsSimulatingInEditor = true;
 
 			// Make sure the viewport is in real-time mode
-			EditorViewportClient.SetRealtime( true );
+			const bool bShouldBeRealtime = true;
+			// Remove any previous override since we already applied a override when entering PIE
+			EditorViewportClient.RemoveRealtimeOverride();
+			EditorViewportClient.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor"));
 
 			// The Simulate window should show stats
 			EditorViewportClient.SetShowStats( true );
@@ -2438,7 +2443,8 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	EditorWorld->bAllowAudioPlayback = false;
 
 	// Can't allow realtime viewports whilst in PIE so disable it for ALL viewports here.
-	DisableRealtimeViewports();
+	const bool bShouldBeRealtime = false;
+	SetViewportsRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverride_PIE", "Play in Editor"));
 
 	// Allow the global config to override our ability to create multiple PIE worlds.
 	if (!GEditor->bAllowMultiplePIEWorlds)
