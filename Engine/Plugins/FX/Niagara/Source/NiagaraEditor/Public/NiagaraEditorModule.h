@@ -127,6 +127,7 @@ private:
 	void OnExecParticleInvoked(const TCHAR* InStr);
 	void OnPostEngineInit();
 	void OnDeviceProfileManagerUpdated();
+	void OnPreExit();
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
