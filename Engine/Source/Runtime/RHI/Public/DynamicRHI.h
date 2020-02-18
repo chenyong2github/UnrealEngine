@@ -665,6 +665,13 @@ public:
 	virtual uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) = 0;
 
 	/**
+	* Gets the minimum alignment (in bytes) required for creating a shader resource view on a buffer-backed resource.
+	* @param Format - EPixelFormat texture format of the SRV.
+	*/
+	// FlushType: Thread safe
+	virtual uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format);
+
+	/**
 	* Retrieves texture memory stats.
 	* safe to call on the main thread
 	*/
@@ -1512,6 +1519,11 @@ FORCEINLINE uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint
 FORCEINLINE uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	return GDynamicRHI->RHICalcTextureCubePlatformSize(Size, Format, NumMips, Flags, CreateInfo, OutAlign);
+}
+
+FORCEINLINE uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
+{
+	return GDynamicRHI->RHIGetMinimumAlignmentForBufferBackedSRV(Format);
 }
 
 FORCEINLINE void RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
