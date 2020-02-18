@@ -30,6 +30,8 @@ class FNiagaraShaderMap;
 class FNiagaraShader;
 class FNiagaraShaderMapId;
 class UNiagaraScript;
+struct FNiagaraVMExecutableDataId;
+
 #define MAX_CONCURRENT_EVENT_DATASETS 4
 
 /** Defines the compile event types for translation/compilation.*/
@@ -713,6 +715,9 @@ public:
 	NIAGARASHADER_API void SetScript(UNiagaraScript *InScript, ERHIFeatureLevel::Type InFeatureLevel, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, FString InFriendlyName);
+#if WITH_EDITOR
+	NIAGARASHADER_API bool MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, const FNiagaraVMExecutableDataId& ScriptId) const;
+#endif
 
 	UNiagaraScript *GetBaseVMScript()
 	{
