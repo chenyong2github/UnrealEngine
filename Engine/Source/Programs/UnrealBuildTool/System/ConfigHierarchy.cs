@@ -761,7 +761,7 @@ namespace UnrealBuildTool
 			// public EConfigFlag Flag;
 		};
 
-		static ConfigLayer[] ConfigLayers = 
+		static ConfigLayer[] ConfigLayers =
 		{
 			// Engine/Base.ini
 			new ConfigLayer { Path = "{ENGINE}/Base.ini" }, //, Flag = EConfigFlag.Required },
