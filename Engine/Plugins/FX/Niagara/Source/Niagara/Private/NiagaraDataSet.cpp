@@ -240,9 +240,6 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 			//Free ID Table must always be at least as large as the data buffer + it's current size in the case all particles die this frame.
 			FreeIDsTable.AddUninitialized(NewNumIds);
 
-			// The spawned IDs table must be as large as the free IDs table, in case we allocate all of them this tick.
-			SpawnedIDsTable.Reserve(FreeIDsTable.Num());
-
 			//Free table should always have enough room for these new IDs.
 			check(NumFreeIDs + NewNumIds <= FreeIDsTable.Num());
 
@@ -284,6 +281,9 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 			//Drop in required size not great enough so just allocate same size.
 			RequiredIDs = ExistingNumIDs;
 		}
+
+		// We know that we can't spawn more than NumFreeIDs particles, so we can pre-allocate SpawnedIDsTable here, to avoid allocations during execution.
+		SpawnedIDsTable.Reserve(NumFreeIDs);
 
 		// We need to clear the ID to index table to -1 so we don't have stale entries for particles which died in the previous
 		// frame (when the results were written to another buffer). All the entries which are in use will be filled in by the script.
