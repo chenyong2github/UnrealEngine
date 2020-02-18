@@ -109,6 +109,14 @@ static TAutoConsoleVariable<int32> CVarGTAOUseNormals(
 	TEXT("1: On (default)\n "),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarGTAOFilterWidth(
+	TEXT("r.GTAO.FilterWidth"),
+	5,
+	TEXT("Size of the noise pattern and filter width\n ")
+	TEXT("5: 5x5 Pattern (default) \n ")
+	TEXT("4: 4x4 Pattern \n "),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 static TAutoConsoleVariable<float> CVarGTAOThicknessBlend(
 	TEXT("r.GTAO.ThicknessBlend"),
 	0.03f,
@@ -2620,10 +2628,10 @@ FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::
 }
 
 
-template<uint32 bComputeShader>
-class FPostProcessGTAOSpatialFilterPSandCS : public FGlobalShader
+template<uint32 FilterSize>
+class FPostProcessGTAOSpatialFilterCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessGTAOSpatialFilterPSandCS, Global);
+	DECLARE_SHADER_TYPE(FPostProcessGTAOSpatialFilterCS, Global);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -2633,15 +2641,22 @@ class FPostProcessGTAOSpatialFilterPSandCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), bComputeShader);
-		if (bComputeShader)
+		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), true);
+		OutEnvironment.SetDefine(TEXT("SPATIAL_FILTER_SIZE"), FilterSize);
+		if (FilterSize == 5)
+		{
+			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 16);
+		}
+		else
 		{
 			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 8);
-			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
 		}
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
+
+
 	}
 
-	FPostProcessGTAOSpatialFilterPSandCS() {}
+	FPostProcessGTAOSpatialFilterCS() {}
 	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
 	LAYOUT_FIELD(FShaderParameter, OutTexture);
 	LAYOUT_FIELD(FShaderParameter, FilterParams);
@@ -2652,7 +2667,7 @@ class FPostProcessGTAOSpatialFilterPSandCS : public FGlobalShader
 public:
 
 	/** Initialization constructor. */
-	FPostProcessGTAOSpatialFilterPSandCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FPostProcessGTAOSpatialFilterCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		PostprocessParameter.Bind(Initializer.ParameterMap);
@@ -2715,12 +2730,12 @@ public:
 
 	static const TCHAR* GetFunctionName()
 	{
-		return bComputeShader ? TEXT("GTAOSpatialFilterCS") : TEXT("GTAOSpatialFilterPS");
+		return FilterSize==4 ? TEXT("GTAOSpatialFilter4x4CS") : TEXT("GTAOSpatialFilter5x5CS");
 	}
 };
 
-IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOSpatialFilterPSandCS<true>,  SF_Compute);
-IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOSpatialFilterPSandCS<false>, SF_Pixel);
+IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOSpatialFilterCS<4>,  SF_Compute);
+IMPLEMENT_SHADER_TYPE2(FPostProcessGTAOSpatialFilterCS<5>,  SF_Compute);
 
 FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter::FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter(const FSceneView& View, uint32 InDownScaleFactor, const EGTAOType InAOType)
 	: AOType(InAOType),
@@ -2744,33 +2759,68 @@ void FRCPassPostProcessAmbientOcclusion_GTAO_SpatialFilter::Process(FRenderingCo
 
 	// Compute  Version
 	UnbindRenderTargets(Context.RHICmdList);
-	TShaderMapRef<FPostProcessGTAOSpatialFilterPSandCS<true>> ComputeShader(Context.GetShaderMap());
-	uint32 GroupSizeX = FMath::DivideAndRoundUp(OutputViewRect.Width(), 8);
-	uint32 GroupSizeY = FMath::DivideAndRoundUp(OutputViewRect.Height(), 8);
 
-	if (AOType == EGTAOType::EAsyncCombinedSpatial)
+	// Get filter size
+	uint32 FilterWidth = CVarGTAOFilterWidth.GetValueOnRenderThread();
+
+	if (FilterWidth == 4)
 	{
-		// If the Spatial Filter is running as part of the async then we'll render to the R channel of the horizons texture so it can be read in as part of the temporal
-		const FSceneRenderTargetItem& DestRenderTarget = SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem();
+		TShaderMapRef<FPostProcessGTAOSpatialFilterCS<4>> ComputeShader(Context.GetShaderMap());
+		uint32 GroupSizeX = FMath::DivideAndRoundUp(OutputViewRect.Width(), 8);
+		uint32 GroupSizeY = FMath::DivideAndRoundUp(OutputViewRect.Height(), 8);
+		if (AOType == EGTAOType::EAsyncCombinedSpatial)
+		{
+			const FSceneRenderTargetItem& DestRenderTarget = SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem();
 
-		FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
+			FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
+			RHICmdListComputeImmediate.SetComputeShader(ComputeShader->GetComputeShader());
+			RHICmdListComputeImmediate.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DestRenderTarget.UAV, nullptr);
+			ComputeShader->SetParametersCS(RHICmdListComputeImmediate, Context, InputTexSize, OutputViewRect, DestRenderTarget.UAV);
+			DispatchComputeShader(RHICmdListComputeImmediate, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+			ComputeShader->UnsetParameters(Context.RHICmdList);
+		}
+		else
+		{
+			const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
 
-		RHICmdListComputeImmediate.SetComputeShader(ComputeShader.GetComputeShader());
-		RHICmdListComputeImmediate.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DestRenderTarget.UAV, nullptr);
-		ComputeShader->SetParametersCS(RHICmdListComputeImmediate, Context, InputTexSize, OutputViewRect, DestRenderTarget.UAV);
-		DispatchComputeShader(RHICmdListComputeImmediate, ComputeShader, GroupSizeX, GroupSizeY, 1);
+			Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+			Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV, nullptr);
+			ComputeShader->SetParametersCS(Context.RHICmdList, Context, InputTexSize, OutputViewRect, DestRenderTarget.UAV);
+			DispatchComputeShader(Context.RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+			ComputeShader->UnsetParameters(Context.RHICmdList);
+		}
 	}
 	else
 	{
-		const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+		TShaderMapRef<FPostProcessGTAOSpatialFilterCS<5>> ComputeShader(Context.GetShaderMap());
+		uint32 GroupSizeX = FMath::DivideAndRoundUp(OutputViewRect.Width(), 16);
+		uint32 GroupSizeY = FMath::DivideAndRoundUp(OutputViewRect.Height(), 8);
+		if (AOType == EGTAOType::EAsyncCombinedSpatial)
+		{
+			const FSceneRenderTargetItem& DestRenderTarget = SceneContext.ScreenSpaceGTAOHorizons->GetRenderTargetItem();
 
-		Context.RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV, nullptr);
-		ComputeShader->SetParametersCS(Context.RHICmdList, Context, InputTexSize, OutputViewRect, DestRenderTarget.UAV);
-		DispatchComputeShader(Context.RHICmdList, ComputeShader, GroupSizeX, GroupSizeY, 1);
+			FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
+			RHICmdListComputeImmediate.SetComputeShader(ComputeShader->GetComputeShader());
+			RHICmdListComputeImmediate.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DestRenderTarget.UAV, nullptr);
+			ComputeShader->SetParametersCS(RHICmdListComputeImmediate, Context, InputTexSize, OutputViewRect, DestRenderTarget.UAV);
+			DispatchComputeShader(RHICmdListComputeImmediate, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+			ComputeShader->UnsetParameters(Context.RHICmdList);
+		}
+		else
+		{
+			const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+
+			Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+			Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV, nullptr);
+			ComputeShader->SetParametersCS(Context.RHICmdList, Context, InputTexSize, OutputViewRect, DestRenderTarget.UAV);
+			DispatchComputeShader(Context.RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
+			ComputeShader->UnsetParameters(Context.RHICmdList);
+		}
 	}
 
-	ComputeShader->UnsetParameters(Context.RHICmdList);
+
+
+
 }
 
 
