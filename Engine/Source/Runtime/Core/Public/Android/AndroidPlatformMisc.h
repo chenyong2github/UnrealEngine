@@ -215,7 +215,7 @@ public:
 	typedef TFunction<void()> OnPauseCallBackType;
 	static OnPauseCallBackType GetOnPauseCallback();
 	static void SetOnPauseCallback(OnPauseCallBackType InOnPauseCallback);
-	static void TriggerCrashHandler(const TCHAR* InErrorMessage, const TMap<FString, FString>& AdditionalProperties);
+	static void TriggerCrashHandler(const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack);
 	static void TriggerNonFatalCrashHandler(enum class ECrashContextType InType, const FString& Message);
 
 	static bool IsInSignalHandler();

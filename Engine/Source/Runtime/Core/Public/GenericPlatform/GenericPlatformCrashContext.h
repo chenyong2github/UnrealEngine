@@ -432,6 +432,9 @@ protected:
 	TArray<FCrashStackFrame> CallStack;
 	TArray<FThreadStackFrames> ThreadCallStacks;
 
+	/** Allow platform implementations to provide a callstack property. Primarily used when non-native code triggers a crash. */
+	virtual const TCHAR* GetCallstackProperty() const;
+
 private:
 
 	/** Serializes the session context section of the crash context to a temporary file. */

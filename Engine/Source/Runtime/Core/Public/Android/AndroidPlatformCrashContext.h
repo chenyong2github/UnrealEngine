@@ -50,6 +50,8 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 
 	void AddAndroidCrashProperty(const FString& Key, const FString& Value);
 
+	void SetOverrideCallstack(const FString& OverrideCallstackIN);
+
 	// generate an absolute path to a crash report folder.
 	static void GenerateReportDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
 
@@ -58,7 +60,14 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 	/** Async-safe ItoA */
 	static const ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0);
 
+protected:
+
+	/** Allow platform implementations to provide a callstack property. Primarily used when non-native code triggers a crash. */
+	virtual const TCHAR* GetCallstackProperty() const;
+
 private:
+	FString OverrideCallstack;
+
 	TMap<FString, FString> AdditionalProperties;
 
 	// The path used by this instance to store the report.
