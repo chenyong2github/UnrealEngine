@@ -1776,6 +1776,8 @@ void FNiagaraSystemSimulation::AddInstance(FNiagaraSystemInstance* Instance)
 	check(IsInGameThread());
 	check(Instance->SystemInstanceIndex == INDEX_NONE);
 
+	WaitForSystemTickComplete();
+
 	Instance->SetPendingSpawn(true);
 	Instance->SystemInstanceIndex = PendingSystemInstances.Add(Instance);
 
