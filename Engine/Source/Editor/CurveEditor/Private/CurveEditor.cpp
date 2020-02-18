@@ -253,6 +253,16 @@ const FCurveEditorTreeItem& FCurveEditor::GetTreeItem(FCurveEditorTreeItemID Ite
 	return Tree.GetItem(ItemID);
 }
 
+FCurveEditorTreeItem* FCurveEditor::FindTreeItem(FCurveEditorTreeItemID ItemID)
+{
+	return Tree.FindItem(ItemID);
+}
+
+const FCurveEditorTreeItem* FCurveEditor::FindTreeItem(FCurveEditorTreeItemID ItemID) const
+{
+	return Tree.FindItem(ItemID);
+}
+
 const TArray<FCurveEditorTreeItemID>& FCurveEditor::GetRootTreeItems() const
 {
 	return Tree.GetRootItems();
