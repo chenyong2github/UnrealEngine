@@ -1100,13 +1100,7 @@ void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDesc
 
 		//Set the corner angle data for a FVertexInstanceID
 		void SetCornerAngleData(FVertexInstanceID VertexInstanceID, float CornerAngle, int32 CornerIndex)
-			MeshDescription.DeletePolygonGroup(PolygonGroupID);
-		}
-		for (FVertexInstanceID VertexInstanceID : OrphanedVertexInstances)
 		{
-			MeshDescription.DeleteVertexInstance(VertexInstanceID, &OrphanedVertices);
-		}
-		for (FEdgeID EdgeID : OrphanedEdges)
 			CornerAngleDatas[CornerIndex].VertexInstanceID = VertexInstanceID;
 			CornerAngleDatas[CornerIndex].CornerAngle = CornerAngle;
 		}
@@ -1155,9 +1149,7 @@ void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDesc
 		TriangleDatas.Reserve(MeshDescription.Triangles().Num());
 
 		for (FTriangleID TriangleID : MeshDescription.Triangles().GetElementIDs())
-			MeshDescription.DeleteEdge(EdgeID, &OrphanedVertices);
-		}
-		for (FVertexID VertexID : OrphanedVertices)
+		{
 			TArrayView<const FVertexInstanceID> VertexInstanceIDs = MeshDescription.GetTriangleVertexInstances(TriangleID);
 			//Triangle should use 3 vertex instances
 			check(VertexInstanceIDs.Num() == 3);
@@ -1187,8 +1179,7 @@ void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDesc
 	//Iterate all vertex to compute normals for all vertex instance
 	ParallelFor(BatchCount,
 		[&Vertices, &BatchSize, &bComputeTangentWithMikkTSpace, &MeshDescription, bComputeWeightedNormals, &TriangleDatas](int32 BatchIndex)
-			MeshDescription.DeleteVertex(VertexID);
-		}
+		{
 			TVertexInstanceAttributesConstRef<FVector2D> VertexUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 			TVertexInstanceAttributesRef<FVector> VertexNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
 			TVertexInstanceAttributesRef<FVector> VertexTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
