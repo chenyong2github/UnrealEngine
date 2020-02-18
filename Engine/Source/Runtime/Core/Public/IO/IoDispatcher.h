@@ -28,6 +28,7 @@ class FIoStoreEnvironment;
 class FIoRequestImpl;
 class FIoBatchImpl;
 class FIoDispatcherImpl;
+class FIoStoreWriterContextImpl;
 class FIoStoreWriterImpl;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
@@ -814,6 +815,26 @@ struct FIoStoreWriterResult
 	FName CompressionMethod = NAME_None;
 };
 
+struct FIoWriteOptions
+{
+	const TCHAR* DebugName = nullptr;
+	bool bCompressed = false;
+};
+
+class FIoStoreWriterContext
+{
+public:
+	CORE_API FIoStoreWriterContext();
+	CORE_API ~FIoStoreWriterContext();
+
+	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreWriterSettings& InWriterSettings);
+
+private:
+	friend class FIoStoreWriter;
+	
+	FIoStoreWriterContextImpl* Impl;
+};
+
 class FIoStoreWriter
 {
 public:
@@ -823,8 +844,8 @@ public:
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
-	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreWriterSettings& Settings);
-	UE_NODISCARD CORE_API FIoStatus Append(FIoChunkId ChunkId, FIoBuffer Chunk, const TCHAR* Name);
+	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context);
+	UE_NODISCARD CORE_API FIoStatus	Append(FIoChunkId ChunkId, FIoBuffer Chunk, FIoWriteOptions WriteOptions);
 
 	/**
 	 * Creates an addressable range in an already mapped Chunk.

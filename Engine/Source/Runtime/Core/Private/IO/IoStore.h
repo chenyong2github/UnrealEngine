@@ -159,7 +159,7 @@ struct FIoStoreCompressionInfo
 
 	TArray<FIoStoreCompressedBlockEntry> BlockEntries;
 	TArray<FName> CompressionMethods;
+	int64 BlockSize = 0;
 	int64 UncompressedContainerSize = 0;
 	int64 CompressedContainerSize = 0;
 };
-
