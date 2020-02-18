@@ -498,7 +498,8 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 	// allow the platform to startup
 	if (!InitializeHardware())
 	{
-		// Could not initialize hardware, tear down anything that was set up during initialization
+		// Could not initialize hardware. Tear down anything that was set up during initialization.
+		UE_LOG(LogAudio, Warning, TEXT("Could not initialize hardware. Tearing down anything that was set up during initialization"));
 		Teardown();
 
 		return false;

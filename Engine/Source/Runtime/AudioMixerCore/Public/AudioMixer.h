@@ -337,7 +337,9 @@ namespace Audio
 		AlignedByteBuffer FormattedBuffer;
  		EAudioMixerStreamDataFormat::Type DataFormat;
  		FThreadSafeBool bIsReady;
- 	};
+
+		int32 CallCounterMixNextBuffer{ 0 };
+	};
 
 	/** Abstract interface for receiving audio device changed notifications */
 	class AUDIOMIXERCORE_API IAudioMixerDeviceChangedLister
@@ -597,6 +599,9 @@ namespace Audio
 
 		/** Struct used to store render time analysis data. */
 		FAudioRenderTimeAnalysis RenderTimeAnalysis;
+
+		int32 CallCounterApplyAttenuationInternal{ 0 };
+		int32 CallCounterReadNextBuffer{ 0 };
 
 		FThreadSafeBool bPerformingFade;
 		FThreadSafeBool bFadedOut;
