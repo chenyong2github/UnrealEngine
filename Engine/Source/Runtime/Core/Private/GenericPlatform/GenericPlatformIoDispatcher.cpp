@@ -8,6 +8,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/ScopeLock.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
