@@ -55,7 +55,7 @@ enum class EForEachResult : uint8
 template <typename T, class PREDICATE_CLASS>
 EForEachResult ForEach(T& Array, const PREDICATE_CLASS& Predicate)
 {
-	for (T::ElementType& Element : Array)
+	for (typename T::ElementType& Element : Array)
 	{
 		if (Predicate(Element) == EForEachResult::Break)
 		{
