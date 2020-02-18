@@ -167,6 +167,7 @@ namespace InstallBundleUtil
 		void StatsEnd(FName BundleName);
 		void StatsBegin(FName BundleName, const TCHAR* State);
 		void StatsEnd(FName BundleName, const TCHAR* State, uint64 DataSize = 0);
+		void StatsReset(FName BundleName);
 
 		const TMap<FName, InstallBundleUtil::FContentRequestStats>& GetMap() { return StatsMap; }
 	};
