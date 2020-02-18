@@ -268,11 +268,11 @@ private:
 						WorldNormal = ActorTM.TransformVectorNoScale(LocalNormal);
 					}
 				}
-				else if(SQ == ESQType::Sweep && CurData->CurrentLength > 0)
+				else if(SQ == ESQType::Sweep && CurData->CurrentLength > 0 && ensure(QueryGeom))
 				{
 					bHit = SweepQuery(*Geom, ActorTM, *QueryGeom, StartTM, CurData->Dir, CurData->CurrentLength, Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, bComputeMTD);
 				}
-				else if (SQ == ESQType::Overlap || (SQ == ESQType::Sweep && CurData->CurrentLength == 0))
+				else if ((SQ == ESQType::Overlap || (SQ == ESQType::Sweep && CurData->CurrentLength == 0)) && ensure(QueryGeom))
 				{
 					if (bComputeMTD)
 					{
