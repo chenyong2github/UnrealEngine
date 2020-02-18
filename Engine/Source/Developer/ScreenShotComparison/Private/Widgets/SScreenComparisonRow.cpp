@@ -257,6 +257,16 @@ TSharedRef<SWidget> SScreenComparisonRow::GenerateWidgetForColumn(const FName& C
 						.Text(LOCTEXT("AddAlternative", "Add As Alternative"))
 						.OnClicked(this, &SScreenComparisonRow::AddAlternative)
 					]
+
+					+ SHorizontalBox::Slot()
+					.Padding(10, 0, 0, 0)
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.IsEnabled(true)
+						.Text(LOCTEXT("Delete", "Delete"))
+						.OnClicked(this, &SScreenComparisonRow::Remove)
+					]
 				];
 		}
 	}
@@ -319,10 +329,26 @@ TSharedRef<SWidget> SScreenComparisonRow::BuildAddedView()
 		.AutoHeight()
 		.HAlign(HAlign_Center)
 		[
-			SNew(SButton)
-			.IsEnabled(this, &SScreenComparisonRow::CanUseSourceControl)
-			.Text(LOCTEXT("AddNew", "Add New!"))
-			.OnClicked(this, &SScreenComparisonRow::AddNew)
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.IsEnabled(this, &SScreenComparisonRow::CanUseSourceControl)
+				.Text(LOCTEXT("AddNew", "Add New!"))
+				.OnClicked(this, &SScreenComparisonRow::AddNew)
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(10, 0, 0, 0)
+			[
+				SNew(SButton)
+				.IsEnabled(true)
+				.Text(LOCTEXT("Delete", "Delete"))
+				.OnClicked(this, &SScreenComparisonRow::Remove)
+			]
 		];
 }
 
@@ -456,6 +482,13 @@ bool SScreenComparisonRow::CanAddAsAlternative() const
 FReply SScreenComparisonRow::AddAlternative()
 {
 	Model->AddAlternative(ScreenshotManager);
+
+	return FReply::Handled();
+}
+
+FReply SScreenComparisonRow::Remove()
+{
+	Model->Complete();
 
 	return FReply::Handled();
 }

@@ -61,6 +61,8 @@ private:
 	bool CanAddAsAlternative() const;
 	FReply AddAlternative();
 
+	FReply Remove();
+
 	FReply OnCompareImages(const FGeometry& InGeometry, const FPointerEvent& InEvent);
 	FReply OnCompareNewImage(const FGeometry& InGeometry, const FPointerEvent& InEvent);
 	FReply OnImageClicked(const FGeometry& InGeometry, const FPointerEvent& InEvent, TSharedPtr<FSlateDynamicImageBrush> Image);
