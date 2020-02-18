@@ -39,6 +39,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Subsystems/PanelExtensionSubsystem.h"
 #include "Classes/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
@@ -136,6 +137,12 @@ public:
 
 		SetToolTipText(RightContentTooltip);
 
+		TSharedRef<SWidget> DefaultNamePlate = SNew(STextBlock)
+			.Text(RightContentText)
+			.Visibility(EVisibility::HitTestInvisible)
+			.TextStyle(FEditorStyle::Get(), "SProjectBadge.Text")
+			.ColorAndOpacity(BadgeTextColor);
+
 		SBox::Construct(SBox::FArguments()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Top)
@@ -147,11 +154,9 @@ public:
 				.BorderBackgroundColor(BadgeBackgroundColor)
 				.VAlign(VAlign_Top)
 				[
-					SNew(STextBlock)
-					.Text(RightContentText)
-					.Visibility(EVisibility::HitTestInvisible)
-					.TextStyle(FEditorStyle::Get(),"SProjectBadge.Text")
-					.ColorAndOpacity(BadgeTextColor)
+					SNew(SExtensionPanel)
+					.ExtensionPanelID("LevelEditorProjectNamePlate")
+					.DefaultWidget(DefaultNamePlate)
 				]
 			]);
 	}
