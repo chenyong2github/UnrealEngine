@@ -948,9 +948,17 @@ void USoundWave::BeginDestroy()
 	
 	{
 		FScopeLock Lock(&SourcesPlayingCs);
-		for (ISoundWaveClient* i: SourcesPlaying)
+		int32 CurrNumSourcesPlaying = SourcesPlaying.Num();
+
+		for (int32 i = CurrNumSourcesPlaying - 1; i >= 0; --i)
 		{
-			i->OnBeginDestroy(this);
+			ISoundWaveClient* SoundWaveClientPtr = SourcesPlaying[i];
+
+			if (SoundWaveClientPtr && SoundWaveClientPtr->OnBeginDestroy(this))
+			{
+				// if OnBeginDestroy returned true, we are unsubscribing the SoundWaveClient...
+				SourcesPlaying.RemoveAtSwap(i, 1, false);
+			}
 		}
 	}
 
@@ -1620,12 +1628,11 @@ bool USoundWave::IsReadyForFinishDestroy()
 		
 		for (ISoundWaveClient* SoundWaveClientPtr : SourcesPlaying)
 		{
-			if(SoundWaveClientPtr)
-			{
-				SoundWaveClientPtr->OnIsReadyForFinishDestroy(this);
-			}
+			// Should never have a null element here, inactive elements are removed from the container
+			check(SoundWaveClientPtr);
+			SoundWaveClientPtr->OnIsReadyForFinishDestroy(this);
 		}
-	}
+	} 
 
 	const bool bIsStreamingInProgress = IStreamingManager::Get().GetAudioStreamingManager().IsStreamingInProgress(this);
 
@@ -1651,6 +1658,20 @@ bool USoundWave::IsReadyForFinishDestroy()
 void USoundWave::FinishDestroy()
 {
 	Super::FinishDestroy();
+
+	FScopeLock Lock(&SourcesPlayingCs);
+	int32 CurrNumSourcesPlaying = SourcesPlaying.Num();
+
+	for (int32 i = CurrNumSourcesPlaying - 1; i >= 0; --i)
+	{
+		ISoundWaveClient* SoundWaveClientPtr = SourcesPlaying[i];
+
+		if (SoundWaveClientPtr)
+		{
+			SoundWaveClientPtr->OnFinishDestroy(this);
+			SourcesPlaying.RemoveAtSwap(i, 1, false);
+		}
+	}
 
 	check(GetPrecacheState() != ESoundWavePrecacheState::InProgress);
 	check(AudioDecompressor == nullptr);

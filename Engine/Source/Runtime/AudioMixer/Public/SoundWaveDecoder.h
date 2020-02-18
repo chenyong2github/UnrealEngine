@@ -9,6 +9,8 @@
 #include "AudioMixer/Private/AudioMixerSourceBuffer.h"
 #include "DSP/SinOsc.h"
 #include "DSP/ParamInterpolator.h"
+#include "Misc/ScopeLock.h"
+
 
 class FAudioDevice;
 
@@ -44,7 +46,7 @@ namespace Audio
 		FDecodingSoundSourceHandle Handle;
 	};
 
-	class FDecodingSoundSource : public FGCObject
+	class FDecodingSoundSource
 	{
 	public:
 		FDecodingSoundSource(FAudioDevice* AudioDevice, const FSourceDecodeInit& InitData);
@@ -77,8 +79,8 @@ namespace Audio
 		// Get audio buffer
 		bool GetAudioBuffer(const int32 InNumFrames, const int32 InNumChannels, AlignedFloatBuffer& OutAudioBuffer);
 
-		// Override for FGCObject:
-		virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
+		// Return the underlying sound wave
+		USoundWave* GetSoundWave() { return SoundWave; }
 
 	private:
 
@@ -196,11 +198,15 @@ namespace Audio
 
 	typedef TSharedPtr<FDecodingSoundSource> FDecodingSoundSourcePtr;
 	
-	class AUDIOMIXER_API FSoundSourceDecoder
+	class AUDIOMIXER_API FSoundSourceDecoder : public FGCObject
 	{
 	public:
 		FSoundSourceDecoder();
 		virtual ~FSoundSourceDecoder();
+
+		//~ Begin FGCObject
+		virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
+		//~ End FGCObject
 
 		// Initialize the source decoder at the given output sample rate
 		// Sources will automatically sample rate convert to match this output
@@ -247,6 +253,7 @@ namespace Audio
 		int32 AudioThreadId;
 		FAudioDevice* AudioDevice;
 		int32 SampleRate;
+		FCriticalSection DecodingSourcesCritSec;
 		TMap<int32, FDecodingSoundSourcePtr> InitializingDecodingSources;
 		TMap<int32, FDecodingSoundSourcePtr> DecodingSources;
 		TMap<int32, FSourceDecodeInit> PrecachingSources;

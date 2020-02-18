@@ -361,11 +361,6 @@ namespace Audio
 		return true;
 	}
 
-	void FDecodingSoundSource::AddReferencedObjects(FReferenceCollector & Collector)
-	{
-		Collector.AddReferencedObject(SoundWave);
-	}
-
 	FSoundSourceDecoder::FSoundSourceDecoder()
 		: AudioThreadId(0)
 		, AudioDevice(nullptr)
@@ -376,6 +371,30 @@ namespace Audio
 	FSoundSourceDecoder::~FSoundSourceDecoder()
 	{
 		
+	}
+
+	void FSoundSourceDecoder::AddReferencedObjects(FReferenceCollector & Collector)
+	{
+		for (auto& Entry : PrecachingSources)
+		{
+			FSourceDecodeInit& DecodingSoundInitPtr = Entry.Value;
+			Collector.AddReferencedObject(DecodingSoundInitPtr.SoundWave);
+		}
+
+		for (auto& Entry : InitializingDecodingSources)
+		{
+			FDecodingSoundSourcePtr DecodingSoundSourcePtr = Entry.Value;
+			USoundWave* SoundWave = DecodingSoundSourcePtr->GetSoundWave();
+			Collector.AddReferencedObject(SoundWave);
+		}
+
+		FScopeLock Lock(&DecodingSourcesCritSec);
+		for (auto& Entry : DecodingSources)
+		{
+			FDecodingSoundSourcePtr DecodingSoundSourcePtr = Entry.Value;
+			USoundWave* SoundWave = DecodingSoundSourcePtr->GetSoundWave();
+			Collector.AddReferencedObject(SoundWave);
+		}
 	}
 
 	void FSoundSourceDecoder::Init(FAudioDevice* InAudioDevice, int32 InSampleRate)
@@ -422,6 +441,7 @@ namespace Audio
 			// Add this decoding sound wave to a data structure we can access safely from audio render thread
 			EnqueueDecoderCommand([this, InitData, DecodingSoundWaveDataPtr]()
 			{
+				FScopeLock Lock(&DecodingSourcesCritSec);
 				DecodingSources.Add(InitData.Handle.Id, DecodingSoundWaveDataPtr);
 
 				UE_LOG(LogAudioMixer, Verbose, TEXT("Decoding SoundWave '%s' (Num Decoding: %d)"),
@@ -489,6 +509,7 @@ namespace Audio
 
 	void FSoundSourceDecoder::RemoveDecodingSource(const FDecodingSoundSourceHandle& Handle)
 	{
+		FScopeLock Lock(&DecodingSourcesCritSec);
 		DecodingSources.Remove(Handle.Id);
 	}
 
