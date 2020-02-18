@@ -654,8 +654,7 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 {
-	const FEventData& EventData = Context.EventData;
-	SessionContext.Version = EventData.GetValue<uint16>("Version");
+	/* Once upon a time there was a need for this event. Now there isn't */
 }
 
 ////////////////////////////////////////////////////////////////////////////////
