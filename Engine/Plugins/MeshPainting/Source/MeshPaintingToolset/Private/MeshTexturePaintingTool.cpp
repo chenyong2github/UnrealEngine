@@ -33,7 +33,7 @@ bool UMeshTexturePaintingToolBuilder::CanBuildTool(const FToolBuilderState& Scen
 
 UInteractiveTool* UMeshTexturePaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
-	UMeshTexturePaintingTool* NewTool = NewObject<UMeshTexturePaintingTool>(SceneState.ToolManager, "ColorBrushTool");
+	UMeshTexturePaintingTool* NewTool = NewObject<UMeshTexturePaintingTool>(SceneState.ToolManager);
 	return NewTool;
 }
 
