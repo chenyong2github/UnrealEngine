@@ -73,16 +73,10 @@ public:
 	void Reset();
 
 	/** Returns whether or not this input can be renamed. */
-	bool CanRenameInput() const;
-
-	/** Gets whether this input has a rename pending. */
-	bool GetIsRenamePending() const;
-
-	/** Sets whether this input has a rename pending. */
-	void SetIsRenamePending(bool bIsRenamePending);
+	virtual bool SupportsRename() const override { return true; }
 
 	/** Renames this input to the name specified. */
-	void RenameInput(FString NewName);
+	virtual void OnRenamed(FText NewName) override;
 
 	/** Checks if the chosen name is unique (not duplicate) */
 	bool IsUniqueName(FString NewName);

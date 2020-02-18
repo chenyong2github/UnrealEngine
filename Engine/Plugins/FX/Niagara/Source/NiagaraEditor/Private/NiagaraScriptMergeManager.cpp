@@ -20,6 +20,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEmitterEditorData.h"
+#include "NiagaraStackEditorData.h"
 
 #include "UObject/PropertyPortFlags.h"
 
@@ -615,6 +616,8 @@ void FNiagaraEmitterMergeAdapter::Initialize(const UNiagaraEmitter& InEmitter, U
 	{
 		Renderers.Add(MakeShared<FNiagaraRendererMergeAdapter>(*RendererProperties));
 	}
+
+	EditorData = Cast<const UNiagaraEmitterEditorData>(Emitter->GetEditorData());
 }
 
 UNiagaraEmitter* FNiagaraEmitterMergeAdapter::GetEditableEmitter() const
@@ -655,6 +658,11 @@ const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> FNiagaraEmitterMergeAd
 const TArray<TSharedRef<FNiagaraRendererMergeAdapter>> FNiagaraEmitterMergeAdapter::GetRenderers() const
 {
 	return Renderers;
+}
+
+const UNiagaraEmitterEditorData* FNiagaraEmitterMergeAdapter::GetEditorData() const
+{
+	return EditorData.Get();
 }
 
 TSharedPtr<FNiagaraScriptStackMergeAdapter> FNiagaraEmitterMergeAdapter::GetScriptStack(ENiagaraScriptUsage Usage, FGuid ScriptUsageId)
@@ -808,7 +816,8 @@ bool FNiagaraEmitterDiffResults::IsEmpty() const
 		RemovedBaseRenderers.Num() == 0 &&
 		AddedOtherRenderers.Num() == 0 &&
 		ModifiedBaseRenderers.Num() == 0 &&
-		ModifiedOtherRenderers.Num() == 0;
+		ModifiedOtherRenderers.Num() == 0 &&
+		ModifiedStackEntryDisplayNames.Num() == 0;
 }
 
 void FNiagaraEmitterDiffResults::AddError(FText ErrorMessage)
@@ -1094,11 +1103,14 @@ INiagaraMergeManager::FMergeEmitterResults FNiagaraScriptMergeManager::MergeEmit
 		MergeResults.ErrorMessages.Append(RendererResults.ErrorMessages);
 
 		CopyPropertiesToBase(MergedInstance, &Instance, DiffResults.DifferentEmitterProperties);
-		if (Instance.EditorData != nullptr)
+
+		FApplyDiffResults StackEntryDisplayNameDiffs = ApplyStackEntryDisplayNameDiffs(*MergedInstance, DiffResults);
+		if (StackEntryDisplayNameDiffs.bSucceeded == false)
 		{
-			// We keep the instance editor data here so that the UI state in the system stays more consistent.
-			MergedInstance->EditorData = Cast<UNiagaraEmitterEditorData>(StaticDuplicateObject(Instance.EditorData, MergedInstance));
+			MergeResults.MergeResult = INiagaraMergeManager::EMergeEmitterResult::FailedToMerge;
 		}
+		MergeResults.bModifiedGraph |= StackEntryDisplayNameDiffs.bModifiedGraph;
+		MergeResults.ErrorMessages.Append(StackEntryDisplayNameDiffs.ErrorMessages);
 
 #if 0
 		UE_LOG(LogNiagaraEditor, Log, TEXT("A"));
@@ -1479,6 +1491,7 @@ FNiagaraEmitterDiffResults FNiagaraScriptMergeManager::DiffEmitters(UNiagaraEmit
 	DiffShaderStages(BaseEmitterAdapter->GetShaderStages(), OtherEmitterAdapter->GetShaderStages(), EmitterDiffResults);
 	DiffRenderers(BaseEmitterAdapter->GetRenderers(), OtherEmitterAdapter->GetRenderers(), EmitterDiffResults);
 	DiffEditableProperties(&BaseEmitter, &OtherEmitter, *UNiagaraEmitter::StaticClass(), EmitterDiffResults.DifferentEmitterProperties);
+	DiffStackEntryDisplayNames(BaseEmitterAdapter->GetEditorData(), OtherEmitterAdapter->GetEditorData(), EmitterDiffResults.ModifiedStackEntryDisplayNames);
 
 	return EmitterDiffResults;
 }
@@ -1774,6 +1787,23 @@ void FNiagaraScriptMergeManager::DiffEditableProperties(const void* BaseDataAddr
 				PropertyIterator->ContainerPtrToValuePtr<void>(OtherDataAddress), PPF_DeepComparison) == false)
 			{
 				OutDifferentProperties.Add(*PropertyIterator);
+			}
+		}
+	}
+}
+
+void FNiagaraScriptMergeManager::DiffStackEntryDisplayNames(const UNiagaraEmitterEditorData* BaseEditorData, const UNiagaraEmitterEditorData* OtherEditorData, TMap<FString, FText>& OutModifiedStackEntryDisplayNames) const
+{
+	if (BaseEditorData != nullptr && OtherEditorData != nullptr)
+	{
+		// find display names that have been added or changed in the instance
+		const TMap<FString, FText>& OtherRenames = OtherEditorData->GetStackEditorData().GetAllStackEntryDisplayNames();
+		for (auto& Pair : OtherRenames)
+		{
+			const FText* BaseDisplayName = BaseEditorData->GetStackEditorData().GetStackEntryDisplayName(Pair.Key);
+			if (BaseDisplayName == nullptr || !BaseDisplayName->EqualTo(Pair.Value))
+			{
+				OutModifiedStackEntryDisplayNames.Add(Pair.Key, Pair.Value);
 			}
 		}
 	}
@@ -2530,6 +2560,29 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyR
 	for (UNiagaraRendererProperties* RendererToAdd : RenderersToAdd)
 	{
 		BaseEmitter.AddRenderer(RendererToAdd);
+	}
+
+	FApplyDiffResults Results;
+	Results.bSucceeded = true;
+	Results.bModifiedGraph = false;
+	return Results;
+}
+
+FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyStackEntryDisplayNameDiffs(UNiagaraEmitter& Emitter, const FNiagaraEmitterDiffResults& DiffResults) const
+{
+	if (DiffResults.ModifiedStackEntryDisplayNames.Num() > 0)
+	{
+		UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter.GetEditorData());
+		if (EditorData == nullptr)
+		{
+			EditorData = NewObject<UNiagaraEmitterEditorData>(&Emitter, NAME_None, RF_Transactional);
+			Emitter.SetEditorData(EditorData);
+		}
+
+		for (auto& Pair : DiffResults.ModifiedStackEntryDisplayNames)
+		{
+			EditorData->GetStackEditorData().SetStackEntryDisplayName(Pair.Key, Pair.Value);
+		}
 	}
 
 	FApplyDiffResults Results;

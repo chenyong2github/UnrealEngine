@@ -18,6 +18,7 @@ class UNiagaraEmitter;
 class UNiagaraEventReceiverEmitterAction;
 class UNiagaraRendererProperties;
 class UNiagaraShaderStageBase;
+class UNiagaraEditorDataBase;
 
 //TODO: Event action that spawns other whole Systems?
 //One that calls a BP exposed delegate?
@@ -376,10 +377,10 @@ public:
 
 	/* Gets a Guid which is updated any time data in this emitter is changed. */
 	FGuid NIAGARA_API GetChangeId() const;
-	
-	/** Data used by the editor to maintain UI state etc.. */
-	UPROPERTY()
-	UObject* EditorData;
+
+	NIAGARA_API UNiagaraEditorDataBase* GetEditorData() const;
+
+	NIAGARA_API void SetEditorData(UNiagaraEditorDataBase* InEditorData);
 
 	/** Internal: The thumbnail image.*/
 	UPROPERTY()
@@ -525,10 +526,16 @@ private:
 
 	void GraphSourceChanged();
 
+	void PersistentEditorDataChanged();
+
 private:
 	/** Adjusted every time that we compile this emitter. Lets us know that we might differ from any cached versions.*/
 	UPROPERTY()
 	FGuid ChangeId;
+
+	/** Data used by the editor to maintain UI state etc.. */
+	UPROPERTY()
+	UNiagaraEditorDataBase* EditorData;
 
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnVMScriptCompiledDelegate;

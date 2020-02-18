@@ -49,6 +49,11 @@ class UNiagaraEditorDataBase : public UObject
 public:
 #if WITH_EDITORONLY_DATA
 	virtual void PostLoadFromOwner(UObject* InOwner) PURE_VIRTUAL(UNiagaraEditorDataBase::PostLoadFromOwner, );
+
+	NIAGARA_API FSimpleMulticastDelegate& OnPersistentDataChanged() { return PersistentDataChangedDelegate; }
+
+private:
+	FSimpleMulticastDelegate PersistentDataChangedDelegate;
 #endif
 };
 

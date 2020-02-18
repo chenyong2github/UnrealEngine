@@ -1594,7 +1594,7 @@ bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariabl
 	bool bSuccess = TargetParameterStore.AddParameter(NewParameterVariable);
 	if (bSuccess)
 	{
-		StackEditorData.SetModuleInputIsRenamePending(NewParameterVariable.GetName().ToString(), true);
+		StackEditorData.SetStackEntryIsRenamePending(NewParameterVariable.GetName().ToString(), true);
 	}
 	return bSuccess;
 }

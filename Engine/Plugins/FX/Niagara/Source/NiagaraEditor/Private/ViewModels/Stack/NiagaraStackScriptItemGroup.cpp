@@ -269,7 +269,7 @@ private:
 			FString FunctionInputEditorDataKey = FNiagaraStackGraphUtilities::GenerateStackFunctionInputEditorDataKey(*NewAssignmentModule, InputPins[0]->PinName);
 			if (bRenameParameterOnAdd)
 			{
-				StackEditorData.SetModuleInputIsRenamePending(FunctionInputEditorDataKey, true);
+				StackEditorData.SetStackEntryIsRenamePending(FunctionInputEditorDataKey, true);
 			}
 		}
 
