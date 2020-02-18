@@ -9,6 +9,9 @@
 
 namespace Chaos
 {
+	CHAOS_API int32 FixBadAccelerationStructureRemoval = 1;
+	FAutoConsoleVariableRef CVarFixBadAccelerationStructureRemoval(TEXT("p.FixBadAccelerationStructureRemoval"), FixBadAccelerationStructureRemoval, TEXT(""));
+
 	struct FAccelerationConfig
 	{
 		int32 BroadphaseType;
