@@ -17,6 +17,7 @@
 #include "Containers/BitArray.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/MemoryImageWriter.h"
+#include "Containers/UnrealString.h"
 
 
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
