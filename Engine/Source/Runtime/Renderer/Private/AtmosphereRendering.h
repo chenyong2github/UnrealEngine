@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "RenderResource.h"
 #include "Serialization/BulkData.h"
+#include "Shader.h"
 #include "RendererInterface.h"
 
 class FLightSceneInfo;
