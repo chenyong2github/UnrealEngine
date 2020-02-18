@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ShaderCodeArchive.h"
 #include "ShaderCodeLibrary.h"
 #include "Shader.h"
