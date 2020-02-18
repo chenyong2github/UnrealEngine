@@ -48,6 +48,11 @@ public:
 		 * @param Event Name of the event to subscribe to. */
 		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) = 0;
 
+		/** Subscribe to all events from a particular logger.
+		 * @param RouteId User-provided identifier for this event subscription.
+		 * @param Logger Name of the logger that emits the event. */
+		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger) = 0;
+
 		/** Subscribe to all events in the trace stream being analyzed.
 		 * @param RouteId User-provided identifier for this event subscription. */
 		virtual void RouteAllEvents(uint16 RouteId) = 0;

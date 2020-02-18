@@ -483,6 +483,11 @@ void FAnalysisEngine::Begin()
 			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
 		}
 
+		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, Logger, "");
+		}
+
 		virtual void RouteAllEvents(uint16 RouteId) override
 		{
 			Self->AddRoute(AnalyzerIndex, RouteId, "", "");
