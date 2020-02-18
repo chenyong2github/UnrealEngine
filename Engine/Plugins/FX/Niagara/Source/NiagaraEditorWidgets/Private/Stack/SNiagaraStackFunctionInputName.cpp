@@ -98,7 +98,7 @@ FText SNiagaraStackFunctionInputName::GetToolTipText() const
 	{
 		return FText();
 	}
-	return FunctionInput->GetTooltipText(UNiagaraStackFunctionInput::EValueMode::Local);
+	return FunctionInput->GetTooltipText();
 }
 
 void SNiagaraStackFunctionInputName::OnNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType)
