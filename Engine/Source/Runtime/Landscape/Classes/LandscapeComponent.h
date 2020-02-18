@@ -150,25 +150,25 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FLandscapeComponentDerivedData& Data);
 };
 
-/* Used to uniquely reference a landscape vertex in a component, and generate a key suitable for a TMap. */
+/* Used to uniquely reference a landscape vertex in a component. */
 struct FLandscapeVertexRef
 {
 	FLandscapeVertexRef(int16 InX, int16 InY, int8 InSubX, int8 InSubY)
-	: X(InX)
-	, Y(InY)
-	, SubX(InSubX)
-	, SubY(InSubY)
+		: X(InX)
+		, Y(InY)
+		, SubX(InSubX)
+		, SubY(InSubY)
 	{}
-	int16 X;
-	int16 Y;
-	int8 SubX;
-	int8 SubY;
 
-	uint64 MakeKey() const
+	uint32 X : 8;
+	uint32 Y : 8;
+	uint32 SubX : 8;
+	uint32 SubY : 8;
+
+	/** Helper to provide a standard ordering for vertex arrays. */
+	static int32 GetVertexIndex(FLandscapeVertexRef Vert, int32 SubsectionCount, int32 SubsectionVerts)
 	{
-		// this is very bad for TMap
-		//return (uint64)X << 32 | (uint64)Y << 16 | (uint64)SubX << 8 | (uint64)SubY;
-		return HashCombine((uint32(X) << 8) | uint32(SubY), (uint32(SubX) << 24) | uint32(Y));
+		return (Vert.SubY * SubsectionVerts + Vert.Y) * SubsectionVerts * SubsectionCount + Vert.SubX * SubsectionVerts + Vert.X;
 	}
 };
 
