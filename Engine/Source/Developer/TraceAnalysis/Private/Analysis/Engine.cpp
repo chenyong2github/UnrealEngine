@@ -460,7 +460,6 @@ enum ERouteId : uint16
 // This is used to influence the order of routes (routes are sorted by hash).
 enum EKnownRouteHashes : uint32
 {
-	RouteHash_NewEvent = 0, // must be 0 to match traces.
 	RouteHash_AllEvents,	
 };
 
@@ -470,13 +469,6 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 {
 	uint16 SelfIndex = Analyzers.Num();
 	Analyzers.Add(this);
-
-	// Manually add event routing for known events.
-	AddRoute(SelfIndex, RouteId_NewEvent, RouteHash_NewEvent);
-	AddRoute(SelfIndex, RouteId_NewTrace, "$Trace", "NewTrace");
-	AddRoute(SelfIndex, RouteId_Timing, "$Trace", "Timing");
-	AddRoute(SelfIndex, RouteId_ChannelAnnounce, "$Trace", "ChannelAnnounce");
-	AddRoute(SelfIndex, RouteId_ChannelToggle, "$Trace", "ChannelToggle");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -553,6 +545,8 @@ void FAnalysisEngine::Begin()
 		{
 			FDispatchBuilder Dispatch;
 			Dispatch.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
+			Dispatch.SetLoggerName("$Trace");
+			Dispatch.SetEventName("NewEvent");
 			AddDispatch(Dispatch.Finalize());
 		}
 		break;
@@ -561,6 +555,8 @@ void FAnalysisEngine::Begin()
 		{
 			FDispatchBuilder Dispatch;
 			Dispatch.SetUid(uint16(Protocol3::EKnownEventUids::NewEvent));
+			Dispatch.SetLoggerName("$Trace");
+			Dispatch.SetEventName("NewEvent");
 			Dispatch.SetNoSync();
 			AddDispatch(Dispatch.Finalize());
 		}
@@ -632,6 +628,21 @@ void FAnalysisEngine::AddRoute(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnAnalysisBegin(const FOnAnalysisContext& Context)
+{
+	auto& Builder = Context.InterfaceBuilder;
+
+	// Necessary events
+	Builder.RouteEvent(RouteId_NewTrace, "$Trace", "NewTrace");
+	Builder.RouteEvent(RouteId_NewEvent, "$Trace", "NewEvent");
+
+	// Aux events
+	Builder.RouteEvent(RouteId_Timing,			"$Trace", "Timing");
+	Builder.RouteEvent(RouteId_ChannelAnnounce,	"$Trace", "ChannelAnnounce");
+	Builder.RouteEvent(RouteId_ChannelToggle,	"$Trace", "ChannelToggle");
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	switch (RouteId)
@@ -678,8 +689,8 @@ void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 		}
 	}
 
-	const FRoute* Route = Routes.GetData() + 1;
-	if (RouteCount > 1 && Route->Hash == RouteHash_AllEvents)
+	const FRoute* Route = Routes.GetData();
+	if (RouteCount && Route->Hash == RouteHash_AllEvents)
 	{
 		for (uint32 n = Route->Count; n--; ++Route)
 		{
