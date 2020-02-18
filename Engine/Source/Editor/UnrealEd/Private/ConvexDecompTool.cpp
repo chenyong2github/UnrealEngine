@@ -11,10 +11,10 @@
 #include "PhysicsEngine/ConvexElem.h"
 
 #include "ThirdParty/VHACD/public/VHACD.h"
-
+#include "ThirdParty/VHACD/inc/btAlignedAllocator.h"
 
 #include "PhysicsEngine/BodySetup.h"
-
+#include "Async/Async.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogConvexDecompTool, Log, All);
 
@@ -28,26 +28,110 @@ public:
 
 	void Update(const double overallProgress, const double stageProgress, const double operationProgress, const char * const stage,	const char * const    operation)
 	{
-		FString StatusString = FString::Printf(TEXT("Processing [%s]..."), ANSI_TO_TCHAR(stage));
-		GWarn->StatusUpdate(stageProgress*10.f, 1000, FText::FromString(StatusString));
+		if (IsInGameThread())
+		{
+			FString StatusString = FString::Printf(TEXT("Processing [%s]..."), ANSI_TO_TCHAR(stage));
+			GWarn->StatusUpdate(stageProgress*10.f, 1000, FText::FromString(StatusString));
+		}
 	};
 };
 
 //#define DEBUG_VHACD
 #ifdef DEBUG_VHACD
-class VHACDLogger : public IVHACD::IUserLogger
+class FVHACDLogger : public IVHACD::IUserLogger
 {
 public:
-	virtual ~VHACDLogger() {};
+	virtual ~FVHACDLogger() {};
 	virtual void Log(const char * const msg) override
 	{
 		UE_LOG(LogConvexDecompTool, Log, TEXT("VHACD: %s"), ANSI_TO_TCHAR(msg));
 	}
 };
+static FVHACDLogger VHACDLogger;
 #endif // DEBUG_VHACD
+
+#if CPUPROFILERTRACE_ENABLED
+class FVHACDProfiler : public IVHACD::IUserProfiler
+{
+public:
+	virtual ~FVHACDProfiler() {};
+
+	virtual unsigned int AllocTagId(const char* const tagName) override
+	{
+		return FCpuProfilerTrace::OutputEventType(tagName);
+	}
+
+    virtual void EnterTag(unsigned int tagId) override
+	{
+		FCpuProfilerTrace::OutputBeginEvent(tagId);
+	}
+
+	virtual void ExitTag() override
+	{
+		FCpuProfilerTrace::OutputEndEvent();
+	}
+
+	virtual void Bookmark(const char* text) override
+	{
+		TRACE_BOOKMARK(TEXT("%s"), text);
+	}
+};
+static FVHACDProfiler VHACDProfiler;
+#endif
+
+class FVHACDTaskRunner : public IVHACD::IUserTaskRunner
+{
+public:
+	virtual ~FVHACDTaskRunner() {};
+
+	virtual void* StartTask(std::function<void()> func)
+	{
+		return new TFuture<void>(Async(EAsyncExecution::ThreadPool, [func](){func();}));
+	}
+
+	virtual void JoinTask(void* Task)
+	{
+		TFuture<void>* Future = (TFuture<void>*)Task;
+		Future->Wait();
+		delete Future;
+	}
+};
+
+static FVHACDTaskRunner VHACDTaskRunner;
+
+static void* btAlignedAllocImpl(size_t size, int32_t alignment)
+{
+	return GMalloc->Malloc(size, alignment);
+}
+
+static void btAlignedFreeImpl(void* memblock)
+{
+	GMalloc->Free(memblock);
+}
+
+static void* btAllocImpl(size_t size)
+{
+	return GMalloc->Malloc(size);
+}
+
+static void btFreeImpl(void* memblock)
+{
+	GMalloc->Free(memblock);
+}
 
 static void InitParameters(IVHACD::Parameters &VHACD_Params, uint32 InHullCount, uint32 InMaxHullVerts,uint32 InResolution)
 {
+	// Override VHACD allocator with ours
+	btAlignedAllocSetCustom(btAllocImpl, btFreeImpl);
+	btAlignedAllocSetCustomAligned(btAlignedAllocImpl, btAlignedFreeImpl);
+
+#ifdef DEBUG_VHACD
+	VHACD_Params.m_logger = &VHACDLogger;
+#endif //DEBUG_VHACD
+#if CPUPROFILERTRACE_ENABLED
+	VHACD_Params.m_profiler = &VHACDProfiler;
+#endif
+	VHACD_Params.m_taskRunner = &VHACDTaskRunner; // any async tasks will be run on existing UE thread pools.
 	VHACD_Params.m_resolution = InResolution; // Maximum number of voxels generated during the voxelization stage (default=100,000, range=10,000-16,000,000)
 	VHACD_Params.m_maxNumVerticesPerCH = InMaxHullVerts; // Controls the maximum number of triangles per convex-hull (default=64, range=4-1024)
 	VHACD_Params.m_concavity = 0;		// Concavity is set to zero so that we consider any concave shape as a potential hull. The number of output hulls is better controlled by recursion depth and the max convex hulls parameter
@@ -55,6 +139,7 @@ static void InitParameters(IVHACD::Parameters &VHACD_Params, uint32 InHullCount,
 	VHACD_Params.m_oclAcceleration = false;
 	VHACD_Params.m_minVolumePerCH = 0.003f; // this should be around 1 / (3 * m_resolution ^ (1/3))
 	VHACD_Params.m_projectHullVertices = true; // Project the approximate hull vertices onto the original source mesh and use highest precision results opssible.
+	VHACD_Params.m_pca = 1; // align mesh for more optimal processing of long diagonal meshes
 }
 
 void DecomposeMeshToHulls(UBodySetup* InBodySetup, const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, uint32 InHullCount, int32 InMaxHullVerts,uint32 InResolution)
@@ -76,6 +161,11 @@ void DecomposeMeshToHulls(UBodySetup* InBodySetup, const TArray<FVector>& InVert
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(DecomposeMeshToHulls)
+
+	btAlignedAllocSetCustom(btAllocImpl, btFreeImpl);
+	btAlignedAllocSetCustomAligned(btAlignedAllocImpl, btAlignedFreeImpl);
+
 	FVHACDProgressCallback VHACD_Callback;
 	IVHACD::Parameters VHACD_Params;
 
@@ -83,12 +173,10 @@ void DecomposeMeshToHulls(UBodySetup* InBodySetup, const TArray<FVector>& InVert
 
 	VHACD_Params.m_callback = &VHACD_Callback;		// callback interface for message/status updates
 
-#ifdef DEBUG_VHACD
-	VHACDLogger logger;
-	VHACD_Params.m_logger = &logger;
-#endif //DEBUG_VHACD
-
-	GWarn->BeginSlowTask(NSLOCTEXT("ConvexDecompTool", "BeginCreatingCollisionTask", "Creating Collision"), true, false);
+	if (IsInGameThread())
+	{
+		GWarn->BeginSlowTask(NSLOCTEXT("ConvexDecompTool", "BeginCreatingCollisionTask", "Creating Collision"), true, false);
+	}
 
 	IVHACD* InterfaceVHACD = CreateVHACD();
 	
@@ -98,7 +186,11 @@ void DecomposeMeshToHulls(UBodySetup* InBodySetup, const TArray<FVector>& InVert
 	const unsigned int NumTris = InIndices.Num() / 3;
 
 	bSuccess = InterfaceVHACD->Compute(Verts, NumVerts, Tris, NumTris, VHACD_Params);
-	GWarn->EndSlowTask();
+
+	if (IsInGameThread())
+	{
+		GWarn->EndSlowTask();
+	}
 
 	if(bSuccess)
 	{
@@ -122,7 +214,7 @@ void DecomposeMeshToHulls(UBodySetup* InBodySetup, const TArray<FVector>& InVert
 				V.Z = (float)(Hull.m_points[(VertIdx * 3) + 2]);
 
 				ConvexElem.VertexData.Add(V);
-			}			
+			}
 			ConvexElem.UpdateElemBox();
 
 			InBodySetup->AggGeom.ConvexElems.Add(ConvexElem);
