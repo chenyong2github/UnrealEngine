@@ -250,12 +250,8 @@ namespace Chaos
 		FJointSolverResult ApplyTwistConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		FJointSolverResult ApplyTwistConstraintSoft(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			const bool bUseSoftLimit);
 
 		FJointSolverResult ApplyTwistDrive(
 			const FReal Dt,
@@ -270,12 +266,8 @@ namespace Chaos
 		FJointSolverResult ApplyConeConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		FJointSolverResult ApplyConeConstraintSoft(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			const bool bUseSoftLimit);
 
 		FJointSolverResult ApplyConeDrive(
 			const FReal Dt,
@@ -287,19 +279,23 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
+		// One Swing axis is free, and the other limited or locked. This applies the lock/limit: Body1 Twist axis is confined to space between two cones.
+		FJointSolverResult ApplyDualConeSwingConstraint(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex,
+			const bool bUseSoftLimit);
+
+		// One swing axis is locked, the other limited or locked. This applies the Limited axis (ApplyDualConeSwingConstraint is used for the locked axis).
 		FJointSolverResult ApplySwingConstraint(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const EJointAngularAxisIndex SwingAxisIndex);
-
-		FJointSolverResult ApplySwingConstraintSoft(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const EJointAngularAxisIndex SwingAxisIndex);
+			const EJointAngularAxisIndex SwingAxisIndex,
+			const bool bUseSoftLimit);
 
 		FJointSolverResult ApplySwingDrive(
 			const FReal Dt,

@@ -4,32 +4,23 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Utilities.h"
 
-//#pragma optimize("", off)
+//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
-	void ToSwingTwistX(const FRotation3& Q, FRotation3& OutSwing, FRotation3& OutTwist)
-	{
-		FReal S = FMath::Sqrt(Q.X * Q.X + Q.W * Q.W);
-		if (S > KINDA_SMALL_NUMBER)
-		{
-			FReal SInv = 1.0f / S;
-			//OutTwist = FRotation3::FromElements(Q.X * SInv, 0, 0, Q.W * SInv);
-			//OutSwing = FRotation3::FromElements(0, (Q.W * Q.Y + Q.X * Q.Z) * SInv, (Q.W * Q.Z - Q.X * Q.Y) * SInv, S);
-			OutTwist = FRotation3::FromElements(Q.X * SInv, 0, 0, Q.W * SInv);
-			OutSwing = FRotation3::FromElements(0, (Q.W * Q.Y - Q.X * Q.Z) * SInv, (Q.W * Q.Z + Q.X * Q.Y) * SInv, S);
-		}
-		else
-		{
-			OutTwist = FRotation3::FromIdentity();
-			OutSwing = Q;
-		}
-	}
-
 	void FPBDJointUtilities::DecomposeSwingTwistLocal(const FRotation3& R0, const FRotation3& R1, FRotation3& R01Swing, FRotation3& R01Twist)
 	{
 		const FRotation3 R01 = R0.Inverse() * R1;
-		ToSwingTwistX(R01, R01Swing, R01Twist);
+		R01.ToSwingTwistX(R01Swing, R01Twist);
+	}
+
+	void FPBDJointUtilities::GetSwingTwistAngles(const FRotation3& R0, const FRotation3& R1, FReal& TwistAngle, FReal& Swing1Angle, FReal& Swing2Angle)
+	{
+		FRotation3 R01Twist, R01Swing;
+		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
+		TwistAngle = R01Twist.GetAngle();
+		Swing1Angle = 4.0f * FMath::Atan2(R01Swing.Z, 1.0f + R01Swing.W);
+		Swing2Angle = 4.0f * FMath::Atan2(R01Swing.Y, 1.0f + R01Swing.W);
 	}
 
 	FReal FPBDJointUtilities::GetTwistAngle(const FRotation3& InTwist)
@@ -58,7 +49,7 @@ namespace Chaos
 		FRotation3 R01Twist, R01Swing;
 		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
 
-		Axis = R0 * FJointConstants::TwistAxis();
+		Axis = R1 * FJointConstants::TwistAxis();
 		Angle = FPBDJointUtilities::GetTwistAngle(R01Twist);
 	}
 
@@ -82,6 +73,22 @@ namespace Chaos
 	}
 
 
+	void FPBDJointUtilities::GetDualConeSwingAxisAngle(
+		const FRotation3& R0,
+		const FRotation3& R1,
+		const EJointAngularConstraintIndex SwingConstraintIndex,
+		const EJointAngularAxisIndex SwingAxisIndex,
+		FVec3& Axis,
+		FReal& Angle)
+	{
+		FVec3 Twist1 = R1 * FJointConstants::TwistAxis();
+		FVec3 Swing0 = R0 * ((SwingConstraintIndex == EJointAngularConstraintIndex::Swing1)? FJointConstants::Swing2Axis() : FJointConstants::Swing1Axis());
+		Axis = FVec3::CrossProduct(Swing0, Twist1);
+		FReal SwingTwistDot = FVec3::DotProduct(Swing0, Twist1);
+		Angle = FMath::Asin(FMath::Clamp(-SwingTwistDot, -1.0f, 1.0f));
+	}
+
+
 	void FPBDJointUtilities::GetSwingAxisAngle(
 		const FRotation3& R0,
 		const FRotation3& R1,
@@ -91,64 +98,13 @@ namespace Chaos
 		FVec3& Axis,
 		FReal& Angle)
 	{
-#if 0
-		const FMatrix33 RM0 = R0.ToMatrix();
-		const FMatrix33 RM1 = R1.ToMatrix();
-		const FVec3& Twist0 = RM0.GetAxis((int32)EJointAngularAxisIndex::Twist);
-		const FVec3& Twist1 = RM1.GetAxis((int32)EJointAngularAxisIndex::Twist);
-
-		Axis = RM0.GetAxis((int32)SwingAxisIndex);
-		FReal SinAngle = FVec3::DotProduct(FVec3::CrossProduct(Twist1, Twist0), Axis);
-		Angle = FMath::Asin(FMath::Clamp(SinAngle, (FReal)-1, (FReal)1));
-#elif 0
 		// Decompose rotation of body 1 relative to body 0 into swing and twist rotations, assuming twist is X axis
 		FRotation3 R01Twist, R01Swing;
 		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
 		const FReal R01SwingYorZ = ((int32)SwingAxisIndex == 2) ? R01Swing.Z : R01Swing.Y;	// Can't index a quat :(
-		FReal Angle = 4.0f * FMath::Atan2(R01SwingYorZ, 1.0f + R01Swing.W);
-		if (R01Twist.X < 0)
-		{
-			if (Angle > 0)
-			{
-				Angle = (FReal)PI - Angle;
-			}
-			else
-			{
-				Angle = (FReal)-PI - Angle;
-			}
-		}
+		Angle = 4.0f * FMath::Atan2(R01SwingYorZ, 1.0f + R01Swing.W);
 		const FVec3& AxisLocal = (SwingConstraintIndex == EJointAngularConstraintIndex::Swing1) ? FJointConstants::Swing1Axis() : FJointConstants::Swing2Axis();
 		Axis = R0 * AxisLocal;
-#else
-		// Do something better than this!!
-		FRotation3 R01Twist, R01Swing;
-		FPBDJointUtilities::DecomposeSwingTwistLocal(R0, R1, R01Swing, R01Twist);
-		FVec3 TwistAxis01 = FJointConstants::TwistAxis();
-		const FVec3 TwistAxis = R0 * TwistAxis01;
-
-		const FRotation3 R1NoTwist = R1 * R01Twist.Inverse();
-		const FMatrix33 Axes0 = R0.ToMatrix();
-		const FMatrix33 Axes1 = R1NoTwist.ToMatrix();
-
-		Axis = Axes0.GetAxis((int32)SwingAxisIndex);
-		Angle = 0;
-
-		const EJointAngularAxisIndex OtherSwingAxis = (SwingAxisIndex == EJointAngularAxisIndex::Swing1) ? EJointAngularAxisIndex::Swing2 : EJointAngularAxisIndex::Swing1;
-		FVec3 SwingCross = FVec3::CrossProduct(Axes0.GetAxis((int32)OtherSwingAxis), Axes1.GetAxis((int32)OtherSwingAxis));
-		SwingCross = SwingCross - FVec3::DotProduct(TwistAxis, SwingCross) * TwistAxis;
-		const FReal SwingCrossLen = SwingCross.Size();
-		if (SwingCrossLen > KINDA_SMALL_NUMBER)
-		{
-			Axis = SwingCross / SwingCrossLen;
-
-			Angle = FMath::Asin(FMath::Clamp(SwingCrossLen, (FReal)0, (FReal)1));
-			const FReal SwingDot = FVec3::DotProduct(Axes0.GetAxis((int32)OtherSwingAxis), Axes1.GetAxis((int32)OtherSwingAxis));
-			if (SwingDot < (FReal)0)
-			{
-				Angle = (FReal)PI - Angle;
-			}
-		}
-#endif
 	}
 
 
