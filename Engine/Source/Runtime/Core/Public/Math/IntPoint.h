@@ -43,6 +43,14 @@ public:
 	FIntPoint(int32 InX, int32 InY);
 
 	/**
+	 * Create and initialize a new instance with a single int.
+	 * Both X and Y will be initialized to this value
+	 *
+	 * @param InXY The x and y-coordinate.
+	 */
+	FIntPoint(int32 InXY);
+
+	/**
 	 * Create and initialize a new instance to zero.
 	 *
 	 * @param EForceInit Force init enum
@@ -106,7 +114,15 @@ public:
 	 * @return Reference to this point after addition.
 	 */
 	FIntPoint& operator+=(const FIntPoint& Other);
-	
+
+	/**
+	 * Multiply another point component-wise from this point.
+	 *
+	 * @param Other The point to multiply with this point.
+	 * @return Reference to this point after multiplication.
+	 */
+	FIntPoint& operator*=(const FIntPoint& Other);
+
 	/**
 	 * Subtract another point component-wise from this point.
 	 *
@@ -162,6 +178,14 @@ public:
 	 * @return A new subtracted int point.
 	 */
 	FIntPoint operator-(const FIntPoint& Other) const;
+
+	/**
+	 * Get the result of multiplication on this point.
+	 *
+	 * @param Other The point to multiply with this point.
+	 * @return A new multiplied int point
+	 */
+	FIntPoint operator*(const FIntPoint& Other) const;
 
 	/**
 	 * Get the result of division on this point.
@@ -335,6 +359,10 @@ FORCEINLINE FIntPoint::FIntPoint(int32 InX, int32 InY)
 	, Y(InY)
 { }
 
+FORCEINLINE FIntPoint::FIntPoint(int32 InXY)
+	: X(InXY)
+	, Y(InXY)
+{ }
 
 FORCEINLINE FIntPoint::FIntPoint(EForceInit)
 	: X(0)
@@ -403,6 +431,15 @@ FORCEINLINE FIntPoint& FIntPoint::operator-=(const FIntPoint& Other)
 {
 	X -= Other.X;
 	Y -= Other.Y;
+
+	return *this;
+}
+
+
+FORCEINLINE FIntPoint& FIntPoint::operator*=(const FIntPoint& Other)
+{
+	X *= Other.X;
+	Y *= Other.Y;
 
 	return *this;
 }
@@ -488,6 +525,12 @@ FORCEINLINE FIntPoint FIntPoint::operator+(const FIntPoint& Other) const
 FORCEINLINE FIntPoint FIntPoint::operator-(const FIntPoint& Other) const
 {
 	return FIntPoint(*this) -= Other;
+}
+
+
+FORCEINLINE FIntPoint FIntPoint::operator*(const FIntPoint& Other) const
+{
+	return FIntPoint(*this) *= Other;
 }
 
 

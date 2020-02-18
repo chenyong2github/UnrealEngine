@@ -99,7 +99,7 @@ uint64 FObjectTrace::GetObjectId(const UObject* InObject)
 		if(Annotation.Id == 0)
 		{
 			Annotation.Id = CurrentId++;
-			GObjectTraceAnnotations.AddAnnotation(InObjectInner, Annotation);
+			GObjectTraceAnnotations.AddAnnotation(InObjectInner, MoveTemp(Annotation));
 		}
 
 		return Annotation.Id;
@@ -136,7 +136,7 @@ void FObjectTrace::OutputClass(const UClass* InClass)
 	}
 
 	Annotation.bTraced = true;
-	GObjectTraceAnnotations.AddAnnotation(InClass, Annotation);
+	GObjectTraceAnnotations.AddAnnotation(InClass, MoveTemp(Annotation));
 
 	int32 ClassNameStringLength = InClass->GetFName().GetStringLength() + 1;
 	int32 ClassFullNameStringLength = InClass->GetPathName().Len() + 1;
@@ -175,7 +175,7 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 	}
 
 	Annotation.bTraced = true;
-	GObjectTraceAnnotations.AddAnnotation(InObject, Annotation);
+	GObjectTraceAnnotations.AddAnnotation(InObject, MoveTemp(Annotation));
 
 	if(!ShouldTraceObjectsWorld(InObject))
 	{

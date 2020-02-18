@@ -257,7 +257,7 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbility(const FGameplayA
 	return OwnedSpec.Handle;
 }
 
-FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(const FGameplayAbilitySpec& Spec)
+FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(FGameplayAbilitySpec& Spec)
 {
 	check(Spec.Ability);
 
@@ -274,6 +274,8 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(c
 
 		return FGameplayAbilitySpecHandle();
 	}
+
+	Spec.bActivateOnce = true;
 
 	FGameplayAbilitySpecHandle AddedAbilityHandle = GiveAbility(Spec);
 
@@ -584,7 +586,14 @@ void UAbilitySystemComponent::DecrementAbilityListLock()
 		TArray<FGameplayAbilitySpec, TInlineAllocator<2> > LocalPendingAdds(MoveTemp(AbilityPendingAdds));
 		for (FGameplayAbilitySpec& Spec : LocalPendingAdds)
 		{
-			GiveAbility(Spec);
+			if (Spec.bActivateOnce)
+			{
+				GiveAbilityAndActivateOnce(Spec);
+			}
+			else
+			{
+				GiveAbility(Spec);
+			}
 		}
 
 		TArray<FGameplayAbilitySpecHandle, TInlineAllocator<2> > LocalPendingRemoves(MoveTemp(AbilityPendingRemoves));
@@ -1431,7 +1440,7 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 
 void UAbilitySystemComponent::ServerTryActivateAbility_Implementation(FGameplayAbilitySpecHandle Handle, bool InputPressed, FPredictionKey PredictionKey)
 {
-	InternalServerTryActiveAbility(Handle, InputPressed, PredictionKey, nullptr);
+	InternalServerTryActivateAbility(Handle, InputPressed, PredictionKey, nullptr);
 }
 
 bool UAbilitySystemComponent::ServerTryActivateAbility_Validate(FGameplayAbilitySpecHandle Handle, bool InputPressed, FPredictionKey PredictionKey)
@@ -1441,7 +1450,7 @@ bool UAbilitySystemComponent::ServerTryActivateAbility_Validate(FGameplayAbility
 
 void UAbilitySystemComponent::ServerTryActivateAbilityWithEventData_Implementation(FGameplayAbilitySpecHandle Handle, bool InputPressed, FPredictionKey PredictionKey, FGameplayEventData TriggerEventData)
 {
-	InternalServerTryActiveAbility(Handle, InputPressed, PredictionKey, &TriggerEventData);
+	InternalServerTryActivateAbility(Handle, InputPressed, PredictionKey, &TriggerEventData);
 }
 
 bool UAbilitySystemComponent::ServerTryActivateAbilityWithEventData_Validate(FGameplayAbilitySpecHandle Handle, bool InputPressed, FPredictionKey PredictionKey, FGameplayEventData TriggerEventData)
@@ -1467,7 +1476,7 @@ void UAbilitySystemComponent::ClientTryActivateAbility_Implementation(FGameplayA
 	InternalTryActivateAbility(Handle);
 }
 
-void UAbilitySystemComponent::InternalServerTryActiveAbility(FGameplayAbilitySpecHandle Handle, bool InputPressed, const FPredictionKey& PredictionKey, const FGameplayEventData* TriggerEventData)
+void UAbilitySystemComponent::InternalServerTryActivateAbility(FGameplayAbilitySpecHandle Handle, bool InputPressed, const FPredictionKey& PredictionKey, const FGameplayEventData* TriggerEventData)
 {
 #if WITH_SERVER_CODE
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1485,7 +1494,7 @@ void UAbilitySystemComponent::InternalServerTryActiveAbility(FGameplayAbilitySpe
 	if (!Spec)
 	{
 		// Can potentially happen in race conditions where client tries to activate ability that is removed server side before it is received.
-		ABILITY_LOG(Display, TEXT("InternalServerTryActiveAbility. Rejecting ClientActivation of ability with invalid SpecHandle!"));
+		ABILITY_LOG(Display, TEXT("InternalServerTryActivateAbility. Rejecting ClientActivation of ability with invalid SpecHandle!"));
 		ClientActivateAbilityFailed(Handle, PredictionKey.Current);
 		return;
 	}
@@ -1513,7 +1522,7 @@ void UAbilitySystemComponent::InternalServerTryActiveAbility(FGameplayAbilitySpe
 	}
 	else
 	{
-		ABILITY_LOG(Display, TEXT("InternalServerTryActiveAbility. Rejecting ClientActivation of %s. InternalTryActivateAbility failed: %s"), *GetNameSafe(Spec->Ability), *InternalTryActivateAbilityFailureTags.ToStringSimple() );
+		ABILITY_LOG(Display, TEXT("InternalServerTryActivateAbility. Rejecting ClientActivation of %s. InternalTryActivateAbility failed: %s"), *GetNameSafe(Spec->Ability), *InternalTryActivateAbilityFailureTags.ToStringSimple() );
 		ClientActivateAbilityFailed(Handle, PredictionKey.Current);
 		Spec->InputPressed = false;
 
@@ -1926,10 +1935,10 @@ int32 UAbilitySystemComponent::HandleGameplayEvent(FGameplayTag EventTag, const 
 		Delegate->Broadcast(Payload);
 	}
 
-	// Iterate with integers in case it changes due to callbacks
-	for (int32 Index = 0; Index < GameplayEventTagContainerDelegates.Num(); Index++)
+	// Make a copy in case it changes due to callbacks
+	TArray<TPair<FGameplayTagContainer, FGameplayEventTagMulticastDelegate>> LocalGameplayEventTagContainerDelegates = GameplayEventTagContainerDelegates;
+	for (TPair<FGameplayTagContainer, FGameplayEventTagMulticastDelegate>& SearchPair : LocalGameplayEventTagContainerDelegates)
 	{
-		TPair<FGameplayTagContainer, FGameplayEventTagMulticastDelegate>& SearchPair = GameplayEventTagContainerDelegates[Index];
 		if (SearchPair.Key.IsEmpty() || EventTag.MatchesAny(SearchPair.Key))
 		{
 			SearchPair.Value.Broadcast(EventTag, Payload);
@@ -2282,8 +2291,10 @@ void UAbilitySystemComponent::LocalInputCancel()
 
 void UAbilitySystemComponent::TargetConfirm()
 {
-	TArray<AGameplayAbilityTargetActor*> LeftoverTargetActors;
-	for (AGameplayAbilityTargetActor* TargetActor : SpawnedTargetActors)
+	// Callbacks may modify the spawned target actor array so iterate over a copy instead
+	TArray<AGameplayAbilityTargetActor*> LocalTargetActors = SpawnedTargetActors;
+	SpawnedTargetActors.Reset();
+	for (AGameplayAbilityTargetActor* TargetActor : LocalTargetActors)
 	{
 		if (TargetActor)
 		{
@@ -2292,30 +2303,30 @@ void UAbilitySystemComponent::TargetConfirm()
 				//TODO: There might not be any cases where this bool is false
 				if (!TargetActor->bDestroyOnConfirmation)
 				{
-					LeftoverTargetActors.Add(TargetActor);
+					SpawnedTargetActors.Add(TargetActor);
 				}
 				TargetActor->ConfirmTargeting();
 			}
 			else
 			{
-				LeftoverTargetActors.Add(TargetActor);
+				SpawnedTargetActors.Add(TargetActor);
 			}
 		}
 	}
-	SpawnedTargetActors = LeftoverTargetActors;		//These actors declined to confirm targeting, or are allowed to fire multiple times, so keep contact with them.
 }
 
 void UAbilitySystemComponent::TargetCancel()
 {
-	for (AGameplayAbilityTargetActor* TargetActor : SpawnedTargetActors)
+	// Callbacks may modify the spawned target actor array so iterate over a copy instead
+	TArray<AGameplayAbilityTargetActor*> LocalTargetActors = SpawnedTargetActors;
+	SpawnedTargetActors.Reset();
+	for (AGameplayAbilityTargetActor* TargetActor : LocalTargetActors)
 	{
 		if (TargetActor)
 		{
 			TargetActor->CancelTargeting();
 		}
 	}
-
-	SpawnedTargetActors.Empty();
 }
 
 // --------------------------------------------------------------------------

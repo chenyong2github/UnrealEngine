@@ -67,7 +67,7 @@ struct COREUOBJECT_API FUniqueObjectGuid
 	}
 
 	/** Returns true is this is the default value */
-	FORCEINLINE bool IsDefault()
+	FORCEINLINE bool IsDefault() const
 	{
 		// A default GUID is 0,0,0,0 and this is "invalid"
 		return !IsValid(); 

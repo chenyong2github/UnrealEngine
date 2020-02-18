@@ -190,7 +190,11 @@ void UBTTask_BlueprintBase::SetFinishOnMessageWithId(FName MessageName, int32 Re
 
 FString UBTTask_BlueprintBase::GetStaticDescription() const
 {
-	FString ReturnDesc = Super::GetStaticDescription();
+	FString ReturnDesc =
+#if WITH_EDITORONLY_DATA
+		CustomDescription.Len() ? CustomDescription :
+#endif // WITH_EDITORONLY_DATA
+		Super::GetStaticDescription();
 
 	UBTTask_BlueprintBase* CDO = (UBTTask_BlueprintBase*)(GetClass()->GetDefaultObject());
 	if (bShowPropertyDetails && CDO)

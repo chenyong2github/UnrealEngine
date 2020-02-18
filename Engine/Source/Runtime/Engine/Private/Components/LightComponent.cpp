@@ -526,7 +526,7 @@ void ULightComponent::Serialize(FArchive& Ar)
 			FLightComponentLegacyMapBuildData LegacyLightData;
 			LegacyLightData.Id = LightGuid;
 			LegacyLightData.Data = LegacyData;
-			GLightComponentsWithLegacyBuildData.AddAnnotation(this, LegacyLightData);
+			GLightComponentsWithLegacyBuildData.AddAnnotation(this, MoveTemp(LegacyLightData));
 		}
 	}
 

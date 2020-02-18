@@ -33,6 +33,9 @@ public:
 	typedef TMap<FName, TArray<UBlueprintNodeSpawner*>>	FUnloadedActionRegistry;
 
 public:
+	/** Destructor */
+	virtual ~FBlueprintActionDatabase();
+
 	/**
 	 * Getter to access the database singleton. Will populate the database first 
 	 * if this is the first time accessing it.
@@ -191,8 +194,18 @@ private:
 	FOnDatabaseEntryUpdated EntryRefreshDelegate;
 	FOnDatabaseEntryUpdated EntryRemovedDelegate;
 
-	/** Handle to the registered OnBlueprintChanged delegate. */
-	FDelegateHandle OnBlueprintChangedDelegateHandle;
+	/** Handles to registered delegates. */
+	FDelegateHandle OnAssetLoadedDelegateHandle;
+	FDelegateHandle OnAssetAddedDelegateHandle;
+	FDelegateHandle OnAssetRemovedDelegateHandle;
+	FDelegateHandle OnAssetRenamedDelegateHandle;
+	FDelegateHandle OnAssetsPreDeleteDelegateHandle;
+	FDelegateHandle OnBlueprintUnloadedDelegateHandle;
+	FDelegateHandle OnWorldAddedDelegateHandle;
+	FDelegateHandle OnWorldDestroyedDelegateHandle;
+	FDelegateHandle RefreshLevelScriptActionsDelegateHandle;
+	FDelegateHandle OnModulesChangedDelegateHandle;
+	FDelegateHandle OnHotReloadDelegateHandle;
 
 	/** Pointer to the shared list of currently existing component types */
 	const TArray<struct FComponentTypeEntry>* ComponentTypes;

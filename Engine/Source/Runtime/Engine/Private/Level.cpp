@@ -472,7 +472,7 @@ void ULevel::Serialize( FArchive& Ar )
 		FLevelLegacyMapBuildData LegacyLevelData;
 		LegacyLevelData.Id = LevelBuildDataId;
 		LegacyLevelData.Data = LegacyData;
-		GLevelsWithLegacyBuildData.AddAnnotation(this, LegacyLevelData);
+		GLevelsWithLegacyBuildData.AddAnnotation(this, MoveTemp(LegacyLevelData));
 	}
 
 	Ar << PrecomputedVisibilityHandler;

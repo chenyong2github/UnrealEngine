@@ -32,8 +32,16 @@ class AIMODULE_API UAIBlueprintHelperLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, Category="AI", meta=(DefaultToSelf="MessageSource"))
 	static void SendAIMessage(APawn* Target, FName Message, UObject* MessageSource, bool bSuccess = true);
 
-	UFUNCTION(BlueprintCallable, Category="AI", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static APawn* SpawnAIFromClass(UObject* WorldContextObject, TSubclassOf<APawn> PawnClass, UBehaviorTree* BehaviorTree, FVector Location, FRotator Rotation=FRotator::ZeroRotator, bool bNoCollisionFail=false);
+	/**	Spawns AI agent of a given class. The PawnClass needs to have AIController 
+	 *	set for the function to spawn a controller as well.
+	 *	@param BehaviorTree if set, and the function has successfully spawned 
+	 *		and AI controller, this BehaviorTree asset will be assigned to the AI 
+	 *		controller, and run.
+	 *	@param Owner lets you spawn the AI in a sublevel rather than in the 
+	 *		persistent level (which is the default behavior).
+	 */
+	UFUNCTION(BlueprintCallable, Category="AI", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true", AdvancedDisplay = "Owner"))
+	static APawn* SpawnAIFromClass(UObject* WorldContextObject, TSubclassOf<APawn> PawnClass, UBehaviorTree* BehaviorTree, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bNoCollisionFail = false, AActor* Owner = nullptr);
 
 	/** The way it works exactly is if the actor passed in is a pawn, then the function retrieves 
 	 *	pawn's controller cast to AIController. Otherwise the function returns actor cast to AIController. */

@@ -906,7 +906,7 @@ void UReflectionCaptureComponent::SerializeLegacyData(FArchive& Ar)
 					FReflectionCaptureMapBuildLegacyData LegacyComponentData;
 					LegacyComponentData.Id = MapBuildDataId;
 					LegacyComponentData.MapBuildData = LegacyMapBuildData;
-					GReflectionCapturesWithLegacyBuildData.AddAnnotation(this, LegacyComponentData);
+					GReflectionCapturesWithLegacyBuildData.AddAnnotation(this, MoveTemp(LegacyComponentData));
 				}
 			}
 		}
