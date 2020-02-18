@@ -449,6 +449,32 @@ bool FDynamicOutputHelper::CanConformPinType(const UK2Node_CallFunction* FuncNod
 	return bIsProperType;
 }
 
+static bool WantsExecPinsForParams(const UFunction* TargetFunction)
+{
+	check(TargetFunction);
+	return TargetFunction->HasMetaData(FBlueprintMetadata::MD_ExpandEnumAsExecs) ||
+		TargetFunction->HasMetaData(FBlueprintMetadata::MD_ExpandBoolAsExecs);
+}
+
+static FString GetAllExecParams(const UFunction* TargetFunction)
+{
+	check(TargetFunction);
+	FString Ret = TargetFunction->GetMetaData(FBlueprintMetadata::MD_ExpandEnumAsExecs);
+	const FString& ExpandBools = TargetFunction->GetMetaData(FBlueprintMetadata::MD_ExpandBoolAsExecs);
+	if (!ExpandBools.IsEmpty())
+	{
+		if(!Ret.IsEmpty())
+		{
+			Ret += ", " + ExpandBools;
+		}
+		else
+		{
+			Ret = ExpandBools;
+		}
+	}
+	return Ret;
+}
+
 /*******************************************************************************
  *  UK2Node_CallFunction
  ******************************************************************************/
@@ -786,8 +812,12 @@ void UK2Node_CallFunction::CreateExecPinsForFunctionCall(const UFunction* Functi
 					Prop = EnumProp;
 					Enum = EnumProp->GetEnum();
 				}
+				else if (FBoolProperty* BoolProp = FindField<FBoolProperty>(Function, EnumParamName))
+				{
+					Prop = BoolProp;
+				}
 
-				if (Prop != nullptr && Enum != nullptr)
+				if (Prop != nullptr)
 				{
 					const bool bIsFunctionInput = !Prop->HasAnyPropertyFlags(CPF_ReturnParm) &&
 						(!Prop->HasAnyPropertyFlags(CPF_OutParm) ||
@@ -806,45 +836,56 @@ void UK2Node_CallFunction::CreateExecPinsForFunctionCall(const UFunction* Functi
 						PreviousInput = Prop;
 					}
 
-					// yay, found it! Now create exec pin for each
-					int32 NumExecs = (Enum->NumEnums() - 1);
-					for (int32 ExecIdx = 0; ExecIdx < NumExecs; ExecIdx++)
+					if (Enum)
 					{
-						bool const bShouldBeHidden = Enum->HasMetaData(TEXT("Hidden"), ExecIdx) || Enum->HasMetaData(TEXT("Spacer"), ExecIdx);
-						if (!bShouldBeHidden)
+						// yay, found it! Now create exec pin for each
+						int32 NumExecs = (Enum->NumEnums() - 1);
+						for (int32 ExecIdx = 0; ExecIdx < NumExecs; ExecIdx++)
 						{
-							// Can't use Enum->GetNameByIndex here because it doesn't do namespace mangling
-							const FString NameStr = Enum->GetNameStringByIndex(ExecIdx);
-							
-							UEdGraphPin* CreatedPin = nullptr;
-
-							// todo: really only makes sense if there are multiple outputs
-							if (bIsFunctionInput || EnumNames.Num() == 1)
+							bool const bShouldBeHidden = Enum->HasMetaData(TEXT("Hidden"), ExecIdx) || Enum->HasMetaData(TEXT("Spacer"), ExecIdx);
+							if (!bShouldBeHidden)
 							{
-								CreatedPin = CreatePin(Direction, UEdGraphSchema_K2::PC_Exec, *NameStr);
-							}
-							else
-							{
-								CreatedPin = CreatePin(Direction, UEdGraphSchema_K2::PC_Exec, *NameStr);
-								CreatedPin->PinFriendlyName = FText::FromString(FString::Printf(TEXT("(%s) %s"), *Prop->GetDisplayNameText().ToString(), *NameStr));
-							}
+								// Can't use Enum->GetNameByIndex here because it doesn't do namespace mangling
+								const FString NameStr = Enum->GetNameStringByIndex(ExecIdx);
 
-							ExpandAsEnumPins.Add(CreatedPin);
+								UEdGraphPin* CreatedPin = nullptr;
 
-							if (Enum->HasMetaData(TEXT("Tooltip"), ExecIdx))
-							{
-								FString EnumTooltip = Enum->GetMetaData(TEXT("Tooltip"), ExecIdx);
-
-								if (const UEdGraphSchema_K2* const K2Schema = Cast<const UEdGraphSchema_K2>(GetSchema()))
+								// todo: really only makes sense if there are multiple outputs
+								if (bIsFunctionInput || EnumNames.Num() == 1)
 								{
-									K2Schema->ConstructBasicPinTooltip(*CreatedPin, FText::FromString(EnumTooltip), CreatedPin->PinToolTip);
+									CreatedPin = CreatePin(Direction, UEdGraphSchema_K2::PC_Exec, *NameStr);
 								}
 								else
 								{
-									CreatedPin->PinToolTip = EnumTooltip;
+									CreatedPin = CreatePin(Direction, UEdGraphSchema_K2::PC_Exec, *NameStr);
+									CreatedPin->PinFriendlyName = FText::FromString(FString::Printf(TEXT("(%s) %s"), *Prop->GetDisplayNameText().ToString(), *NameStr));
+								}
+
+								ExpandAsEnumPins.Add(CreatedPin);
+
+								if (Enum->HasMetaData(TEXT("Tooltip"), ExecIdx))
+								{
+									FString EnumTooltip = Enum->GetMetaData(TEXT("Tooltip"), ExecIdx);
+
+									if (const UEdGraphSchema_K2* const K2Schema = Cast<const UEdGraphSchema_K2>(GetSchema()))
+									{
+										K2Schema->ConstructBasicPinTooltip(*CreatedPin, FText::FromString(EnumTooltip), CreatedPin->PinToolTip);
+									}
+									else
+									{
+										CreatedPin->PinToolTip = EnumTooltip;
+									}
 								}
 							}
 						}
+					}
+					else
+					{
+						check(Prop->IsA<FBoolProperty>());
+						// Create a pin for true and false, note that the order here does not match the
+						// numeric order of bool, but it is more natural to put true first (e.g. to match branch node):
+						ExpandAsEnumPins.Add(CreatePin(Direction, UEdGraphSchema_K2::PC_Exec, TEXT("True")));
+						ExpandAsEnumPins.Add(CreatePin(Direction, UEdGraphSchema_K2::PC_Exec, TEXT("False")));
 					}
 
 					if (bIsFunctionInput)
@@ -883,7 +924,7 @@ void UK2Node_CallFunction::DetermineWantsEnumToExecExpansion(const UFunction* Fu
 {
 	bWantsEnumToExecExpansion = false;
 
-	if (Function->HasMetaData(FBlueprintMetadata::MD_ExpandEnumAsExecs))
+	if (WantsExecPinsForParams(Function))
 	{
 		TArray<FName> EnumNamesToCheck;
 		GetExpandEnumPinNames(Function, EnumNamesToCheck);
@@ -897,6 +938,15 @@ void UK2Node_CallFunction::DetermineWantsEnumToExecExpansion(const UFunction* Fu
 			{
 				bWantsEnumToExecExpansion = true;
 				EnumNamesToCheck.RemoveAt(i);
+			}
+			else
+			{
+				FBoolProperty* BoolProp = FindField<FBoolProperty>(Function, EnumParamName);
+				if (BoolProp)
+				{
+					bWantsEnumToExecExpansion = true;
+					EnumNamesToCheck.RemoveAt(i);
+				}
 			}
 		}
 		
@@ -934,7 +984,7 @@ void UK2Node_CallFunction::GetExpandEnumPinNames(const UFunction* Function, TArr
 	EnumNamesToCheck.Reset();
 
 	// todo: use metadatacache if/when that's accepted.
-	const FString& EnumParamString = Function->GetMetaData(FBlueprintMetadata::MD_ExpandEnumAsExecs);
+	const FString EnumParamString = GetAllExecParams(Function);
 
 	TArray<FString> RawGroupings;
 	EnumParamString.ParseIntoArray(RawGroupings, TEXT(","), false);
@@ -1992,10 +2042,10 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 		FText const WarningFormat = LOCTEXT("FunctionNotFoundFmt", "Could not find a function named \"{0}\" in '{1}'.\nMake sure '{2}' has been compiled for @@");
 		MessageLog.Error(*FText::Format(WarningFormat, FText::FromString(FunctName), FText::FromString(OwnerName), FText::FromString(OwnerName)).ToString(), this);
 	}
-	else if (Function->HasMetaData(FBlueprintMetadata::MD_ExpandEnumAsExecs) && bWantsEnumToExecExpansion == false)
+	else if (WantsExecPinsForParams(Function) && bWantsEnumToExecExpansion == false)
 	{
 		// will technically not have a properly formatted output for multiple params... but /shrug. 
-		const FString& EnumParamName = Function->GetMetaData(FBlueprintMetadata::MD_ExpandEnumAsExecs);
+		const FString EnumParamName = GetAllExecParams(Function);
 		MessageLog.Warning(*FText::Format(LOCTEXT("EnumToExecExpansionFailedFmt", "Unable to find enum parameter with name '{0}' to expand for @@"), FText::FromString(EnumParamName)).ToString(), this);
 	}
 	
@@ -2243,6 +2293,45 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 			UK2Node_ExecutionSequence* SpawnedSequenceNode = nullptr;
 			int32 OutSequenceIndex = 0;
 
+			const auto LinkIntoOutputChain = [&OutMainExecutePin, &SpawnedSequenceNode, &OutSequenceIndex, &CompilerContext, this, SourceGraph, Schema](UK2Node* Node)
+			{
+				if (!OutMainExecutePin)
+				{
+					// Create normal exec output -- only once though.
+					OutMainExecutePin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then);
+				}
+				else
+				{
+					// set up a sequence so we can call one after another.
+					if (!SpawnedSequenceNode)
+					{
+						SpawnedSequenceNode = CompilerContext.SpawnIntermediateNode<UK2Node_ExecutionSequence>(this, SourceGraph);
+						SpawnedSequenceNode->AllocateDefaultPins();
+						CompilerContext.MovePinLinksToIntermediate(*OutMainExecutePin, *SpawnedSequenceNode->GetThenPinGivenIndex(OutSequenceIndex++));
+						Schema->TryCreateConnection(OutMainExecutePin, SpawnedSequenceNode->Pins[0]);
+					}
+				}
+
+				// Hook up execution to the branch node
+				if (!SpawnedSequenceNode)
+				{
+					Schema->TryCreateConnection(OutMainExecutePin, Node->GetExecPin());
+				}
+				else
+				{
+					UEdGraphPin* SequenceOutput = SpawnedSequenceNode->GetThenPinGivenIndex(OutSequenceIndex);
+
+					if (!SequenceOutput)
+					{
+						SpawnedSequenceNode->AddInputPin();
+						SequenceOutput = SpawnedSequenceNode->GetThenPinGivenIndex(OutSequenceIndex);
+					}
+
+					Schema->TryCreateConnection(SequenceOutput, Node->GetExecPin());
+					OutSequenceIndex++;
+				}
+			};
+
 			for (const FName& EnumParamName : EnumNamesToCheck)
 			{
 				UEnum* Enum = nullptr;
@@ -2318,47 +2407,14 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 					// Expanded as output execs pins
 					else if (EnumParamPin->Direction == EGPD_Output)
 					{
-						if (!OutMainExecutePin)
-						{
-							// Create normal exec output -- only once though.
-							OutMainExecutePin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then);
-						}
-						else
-						{	
-							// set up a sequence so we can call one after another.
-							if (!SpawnedSequenceNode)
-							{
-								SpawnedSequenceNode = CompilerContext.SpawnIntermediateNode<UK2Node_ExecutionSequence>(this, SourceGraph);
-								SpawnedSequenceNode->AllocateDefaultPins();
-								CompilerContext.MovePinLinksToIntermediate(*OutMainExecutePin, *SpawnedSequenceNode->GetThenPinGivenIndex(OutSequenceIndex++));
-								Schema->TryCreateConnection(OutMainExecutePin, SpawnedSequenceNode->Pins[0]);
-							}
-						}
-
 						// Create a SwitchEnum node to switch on the output enum
 						UK2Node_SwitchEnum* SwitchEnumNode = CompilerContext.SpawnIntermediateNode<UK2Node_SwitchEnum>(this, SourceGraph);
 						UEnum* EnumObject = Cast<UEnum>(EnumParamPin->PinType.PinSubCategoryObject.Get());
 						SwitchEnumNode->SetEnum(EnumObject);
 						SwitchEnumNode->AllocateDefaultPins();
 
-						// Hook up execution to the switch node
-						if (!SpawnedSequenceNode)
-						{
-							Schema->TryCreateConnection(OutMainExecutePin, SwitchEnumNode->GetExecPin());
-						}
-						else
-						{
-							UEdGraphPin* SequenceOutput = SpawnedSequenceNode->GetThenPinGivenIndex(OutSequenceIndex);
+						LinkIntoOutputChain(SwitchEnumNode);
 
-							if (!SequenceOutput)
-							{
-								SpawnedSequenceNode->AddInputPin();
-								SequenceOutput = SpawnedSequenceNode->GetThenPinGivenIndex(OutSequenceIndex);
-							}
-
-							Schema->TryCreateConnection(SequenceOutput, SwitchEnumNode->GetExecPin());
-							OutSequenceIndex++;
-						}
 						// Connect (hidden) enum pin to switch node's selection pin
 						Schema->TryCreateConnection(EnumParamPin, SwitchEnumNode->GetSelectionPin());
 
@@ -2392,6 +2448,74 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 								}
 							}
 						}
+					}
+				}
+				else if(EnumParamPin && !EnumParamPin->PinType.IsContainer() && EnumParamPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
+				{
+					if (EnumParamPin->Direction == EGPD_Input)
+					{
+						// Create normal exec input
+						UEdGraphPin* ExecutePin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Execute);
+						// Create temp bool variable
+						UK2Node_TemporaryVariable* TempBoolVarNode = CompilerContext.SpawnIntermediateNode<UK2Node_TemporaryVariable>(this, SourceGraph);
+						TempBoolVarNode->VariableType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
+						TempBoolVarNode->AllocateDefaultPins();
+						// Get the output pin
+						UEdGraphPin* TempBoolVarOutput = TempBoolVarNode->GetVariablePin();
+						// Connect temp enum variable to (hidden) bool pin
+						Schema->TryCreateConnection(TempBoolVarOutput, EnumParamPin);
+						
+						// create a true entry and a false:
+						const auto CreateAssignNode = [Schema, &CompilerContext, this, SourceGraph, TempBoolVarOutput, ExecutePin](UEdGraphPin* FakePin, const TCHAR* DefaultValue)
+						{
+							UK2Node_AssignmentStatement* AssignNode = CompilerContext.SpawnIntermediateNode<UK2Node_AssignmentStatement>(this, SourceGraph);
+							AssignNode->AllocateDefaultPins();
+
+							// Move connections from fake 'enum exec' pint to this assignment node
+							CompilerContext.MovePinLinksToIntermediate(*FakePin, *AssignNode->GetExecPin());
+
+							// Connect this to out temp enum var
+							Schema->TryCreateConnection(AssignNode->GetVariablePin(), TempBoolVarOutput);
+
+							// Connect exec output to 'real' exec pin
+							Schema->TryCreateConnection(AssignNode->GetThenPin(), ExecutePin);
+
+							// set the literal enum value to set to
+							AssignNode->GetValuePin()->DefaultValue = DefaultValue;
+						};
+
+						UEdGraphPin* TruePin = FindPinChecked(TEXT("True"), EEdGraphPinDirection::EGPD_Input);
+						UEdGraphPin* FalsePin = FindPinChecked(TEXT("False"), EEdGraphPinDirection::EGPD_Input);
+
+						CreateAssignNode(TruePin, TEXT("True"));
+						CreateAssignNode(FalsePin, TEXT("False"));
+
+						// remove fake false/true nodes:
+						RemovePin(TruePin);
+						RemovePin(FalsePin);
+					}
+					else if (EnumParamPin->Direction == EGPD_Output)
+					{
+						// Create a Branch node to switch on the output bool:
+						UK2Node_IfThenElse* IfElseNode = CompilerContext.SpawnIntermediateNode<UK2Node_IfThenElse>(this, SourceGraph);
+						IfElseNode->AllocateDefaultPins();
+
+						LinkIntoOutputChain(IfElseNode);
+
+						// Connect (hidden) bool pin to branch node
+						Schema->TryCreateConnection(EnumParamPin, IfElseNode->GetConditionPin());
+
+						UEdGraphPin* TruePin = FindPinChecked(TEXT("True"), EEdGraphPinDirection::EGPD_Output);
+						UEdGraphPin* FalsePin = FindPinChecked(TEXT("False"), EEdGraphPinDirection::EGPD_Output);
+
+						// move true connection to branch node:
+						CompilerContext.MovePinLinksToIntermediate(*TruePin, *IfElseNode->GetThenPin());
+						// move false connection to branch node:
+						CompilerContext.MovePinLinksToIntermediate(*FalsePin, *IfElseNode->GetElsePin());
+
+						// remove fake false/true nodes:
+						RemovePin(TruePin);
+						RemovePin(FalsePin);
 					}
 				}
 			}

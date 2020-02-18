@@ -151,6 +151,7 @@ const FName FBlueprintMetadata::MD_ProhibitedInterfaces(TEXT("ProhibitedInterfac
 const FName FBlueprintMetadata::MD_FunctionKeywords(TEXT("Keywords"));
 
 const FName FBlueprintMetadata::MD_ExpandEnumAsExecs(TEXT("ExpandEnumAsExecs"));
+const FName FBlueprintMetadata::MD_ExpandBoolAsExecs(TEXT("ExpandBoolAsExecs"));
 
 const FName FBlueprintMetadata::MD_CommutativeAssociativeBinaryOperator(TEXT("CommutativeAssociativeBinaryOperator"));
 const FName FBlueprintMetadata::MD_MaterialParameterCollectionFunction(TEXT("MaterialParameterCollectionFunction"));

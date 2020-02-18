@@ -1347,7 +1347,11 @@ namespace UM
 		// DeprecationMessage, (Commented out so as to avoid duplicate name with version in the Class section, but still show in the function section)
 
 		/// [FunctionMetadata] For BlueprintCallable functions indicates that an input/output (determined by whether it is an input/output enum) exec pin should be created for each entry in the enum specified.
+		/// Use ReturnValue to refer to the return value of the function. Also works for bools.
 		ExpandEnumAsExecs,
+
+		// Synonym for ExpandEnumAsExecs
+		ExpandBoolAsExecs,
 
 		/// [ClassMetadata] [PropertyMetadata] [FunctionMetadata] The name to display for this class, property, or function instead of auto-generating it from the name.
 		// DisplayName, (Commented out so as to avoid duplicate name with version in the Class section, but still show in the function section)

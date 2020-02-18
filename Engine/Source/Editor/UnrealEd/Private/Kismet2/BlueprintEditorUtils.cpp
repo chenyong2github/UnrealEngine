@@ -4285,7 +4285,8 @@ void FBlueprintEditorUtils::GetHiddenPinsForFunction(UEdGraph const* Graph, UFun
 			{
 				HiddenPins.Add(*It.Value());
 			}
-			else if (Key == FBlueprintMetadata::MD_ExpandEnumAsExecs)
+			else if (Key == FBlueprintMetadata::MD_ExpandEnumAsExecs ||
+					Key == FBlueprintMetadata::MD_ExpandBoolAsExecs)
 			{
 				TArray<FName> EnumPinNames;
 				UK2Node_CallFunction::GetExpandEnumPinNames(Function, EnumPinNames);
