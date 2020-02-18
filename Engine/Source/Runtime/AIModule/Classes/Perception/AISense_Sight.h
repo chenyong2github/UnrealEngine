@@ -185,7 +185,8 @@ protected:
 
 	void OnNewListenerImpl(const FPerceptionListener& NewListener);
 	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
-	void OnListenerRemovedImpl(const FPerceptionListener& UpdatedListener);	
+	void OnListenerRemovedImpl(const FPerceptionListener& RemovedListener);
+	virtual void OnListenerConfigUpdated(const FPerceptionListener& UpdatedListener) override;
 	
 	void GenerateQueriesForListener(const FPerceptionListener& Listener, const FDigestedSightProperties& PropertyDigest, const TFunction<void(FAISightQuery&)>& OnAddedFunc = nullptr);
 

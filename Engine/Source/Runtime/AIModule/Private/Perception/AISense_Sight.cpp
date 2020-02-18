@@ -575,11 +575,33 @@ void UAISense_Sight::OnListenerUpdateImpl(const FPerceptionListener& UpdatedList
 	}
 }
 
-void UAISense_Sight::OnListenerRemovedImpl(const FPerceptionListener& UpdatedListener)
+void UAISense_Sight::OnListenerConfigUpdated(const FPerceptionListener& UpdatedListener)
 {
-	RemoveAllQueriesByListener(UpdatedListener);
+	bool bSkipListenerUpdate = false;
+	const FPerceptionListenerID ListenerID = UpdatedListener.GetListenerID();
 
-	DigestedProperties.FindAndRemoveChecked(UpdatedListener.GetListenerID());
+	FDigestedSightProperties* PropertiesDigest = DigestedProperties.Find(ListenerID);
+	if (PropertiesDigest)
+	{
+		// The only parameter we need to rebuild all the queries for this listener is if the affiliation mask changed, otherwise there is nothing to update.
+		const UAISenseConfig_Sight* SenseConfig = CastChecked<const UAISenseConfig_Sight>(UpdatedListener.Listener->GetSenseConfig(GetSenseID()));
+		FDigestedSightProperties NewPropertiesDigest(*SenseConfig);
+		bSkipListenerUpdate = NewPropertiesDigest.AffiliationFlags == PropertiesDigest->AffiliationFlags;
+		*PropertiesDigest = NewPropertiesDigest;
+	}
+
+	if (!bSkipListenerUpdate)
+	{
+		Super::OnListenerConfigUpdated(UpdatedListener);
+	}
+}
+
+
+void UAISense_Sight::OnListenerRemovedImpl(const FPerceptionListener& RemovedListener)
+{
+	RemoveAllQueriesByListener(RemovedListener);
+
+	DigestedProperties.FindAndRemoveChecked(RemovedListener.GetListenerID());
 
 	// note: there use to be code to remove all queries _to_ listener here as well
 	// but that was wrong - the fact that a listener gets unregistered doesn't have to

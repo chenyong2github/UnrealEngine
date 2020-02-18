@@ -307,6 +307,24 @@ void UAIPerceptionSystem::UpdateListener(UAIPerceptionComponent& Listener)
 	}
 }
 
+void UAIPerceptionSystem::OnListenerConfigUpdated(FAISenseID SenseID, const UAIPerceptionComponent& Listener)
+{
+	SCOPE_CYCLE_COUNTER(STAT_AI_PerceptionSys);
+
+	if (ensureMsgf(SenseID.IsValid() && Senses.IsValidIndex(SenseID) && Senses[SenseID], TEXT("Sense must exist to update its sense config")))
+	{
+		const FPerceptionListenerID ListenerId = Listener.GetListenerId();
+		if (ensureMsgf(ListenerId != FPerceptionListenerID::InvalidID(), TEXT("Listener must have a valid it to update the its sense config")))
+		{
+			FPerceptionListener& ListenerEntry = ListenerContainer[ListenerId];
+			if (ensureMsgf(ListenerEntry.Listener.IsValid() && ListenerEntry.Listener.Get() == &Listener, TEXT("Listener is not a valid registered listener")))
+			{
+				Senses[SenseID]->OnListenerConfigUpdated(ListenerEntry);
+			}
+		}
+	}
+}
+
 void UAIPerceptionSystem::UnregisterListener(UAIPerceptionComponent& Listener)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_PerceptionSys);
