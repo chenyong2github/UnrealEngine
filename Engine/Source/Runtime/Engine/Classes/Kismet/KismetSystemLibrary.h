@@ -189,6 +189,10 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Networking", meta=(WorldContext="WorldContextObject"))
 	static bool IsStandalone(UObject* WorldContextObject);
 	
+	/** Returns whether we're currently running in split screen (more than one local player). */
+	UFUNCTION(BlueprintPure, Category = "Utilities", meta = (WorldContext = "WorldContextObject"))
+	static bool IsSplitScreen(UObject* WorldContextObject);
+
 	/** Returns whether this is a build that is packaged for distribution */
 	UFUNCTION(BlueprintPure, Category="Development", meta=(BlueprintThreadSafe))
 	static bool IsPackagedForDistribution();
