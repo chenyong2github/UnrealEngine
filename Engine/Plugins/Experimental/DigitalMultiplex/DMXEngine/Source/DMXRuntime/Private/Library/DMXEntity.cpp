@@ -19,7 +19,6 @@ FString UDMXEntity::GetDisplayName() const
 
 void UDMXEntity::SetName(const FString& InNewName)
 {
-	// TODO check name for validity
 	Name = InNewName;
 }
 
@@ -38,15 +37,6 @@ void UDMXEntity::ReplicateID(UDMXEntity* Other)
 	Id = Other->Id;
 }
 
-#if WITH_EDITOR
-void UDMXEntity::PostDuplicate(EDuplicateMode::Type DuplicateMode)
-{
-	Super::PostDuplicate(DuplicateMode);
-
-	RefreshID();
-}
-#endif // WITH_EDITOR
-
 UDMXEntityUniverseManaged::UDMXEntityUniverseManaged()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
@@ -62,12 +52,11 @@ void UDMXEntityUniverseManaged::PostLoad()
 }
 
 #if WITH_EDITOR
-
-void UDMXEntityUniverseManaged::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+void UDMXEntityUniverseManaged::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	static const FName NAME_Universes = GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Universes);
 
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXUniverse, UniverseNumber) 
 		|| PropertyChangedEvent.GetPropertyName() == NAME_Universes

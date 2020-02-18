@@ -58,16 +58,12 @@ public:
 	/** Copy another Entity's ID. Used when copying, to not lose the original Entity's reference  */
 	void ReplicateID(UDMXEntity* Other);
 
-#if WITH_EDITOR
-	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
-#endif // WITH_EDITOR
-
 protected:
 	UPROPERTY()
 	TWeakObjectPtr<UDMXLibrary> ParentLibrary;
 	
 	/** Uniquely identifies the parameter, used for fixing up Blueprints that reference this Entity when renaming. */
-	UPROPERTY()
+	UPROPERTY(DuplicateTransient)
 	FGuid Id;
 };
 
@@ -77,10 +73,7 @@ class DMXRUNTIME_API UDMXEntityUniverseManaged
 	: public UDMXEntity
 {
 	GENERATED_BODY()
-
 public:
-
-	UDMXEntityUniverseManaged();
 
 	UPROPERTY(EditAnywhere, Category = "Communication Properties", meta = (DisplayName = "Protocol", DisplayPriority = "1"))
 	FDMXProtocolName DeviceProtocol;
@@ -89,10 +82,12 @@ public:
 	TArray<FDMXUniverse> Universes;
 
 public:
+	UDMXEntityUniverseManaged();
+
 	virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 
