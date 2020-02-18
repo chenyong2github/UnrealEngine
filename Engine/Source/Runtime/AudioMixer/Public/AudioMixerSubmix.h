@@ -159,10 +159,10 @@ namespace Audio
 		void UpdateEndpointSettings(TUniquePtr<ISoundfieldEndpointSettingsProxy>&& InSettings);
 
 		// This is called by the corresponding USoundSubmix when StartRecordingOutput is called.
-		AUDIOMIXER_API void OnStartRecordingOutput(float ExpectedDuration);
+		void OnStartRecordingOutput(float ExpectedDuration);
 
 		// This is called by the corresponding USoundSubmix when StopRecordingOutput is called.
-		AUDIOMIXER_API AlignedFloatBuffer& OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate);
+		AlignedFloatBuffer& OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate);
 
 		// This is called by the corresponding USoundSubmix when PauseRecording is called.
 		void PauseRecordingOutput();

@@ -473,7 +473,7 @@ void FSoundSubmixEditor::AddMissingEditableSubmixes()
 		for (UEdGraphNode* Node : Graph->Nodes)
 		{
 			USoundSubmixGraphNode* GraphNode = CastChecked<USoundSubmixGraphNode>(Node);
-			USoundSubmix* UntrackedSubmix = GraphNode->SoundSubmix;
+			USoundSubmixBase* UntrackedSubmix = GraphNode->SoundSubmix;
 			if (UntrackedSubmix && !GetEditingObjects().Contains(UntrackedSubmix))
 			{
 				bChanged = true;
