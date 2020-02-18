@@ -261,13 +261,11 @@ FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedSamplerFixup;
 /** Returns whether the given expression class is allowed. */
 bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunction)
 {
-	static const auto AllowVolumeTextureAssetCreationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowVolumeTextureAssetCreation"));
 	static const auto AllowTextureArrayAssetCreationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowTexture2DArrayCreation"));
 
 	// Exclude comments from the expression list, as well as the base parameter expression, as it should not be used directly
 	const bool bSharedAllowed = Class != UMaterialExpressionComment::StaticClass() 
-		&& Class != UMaterialExpressionParameter::StaticClass()
-		&& (Class != UMaterialExpressionTextureSampleParameterVolume::StaticClass() || AllowVolumeTextureAssetCreationVar->GetValueOnGameThread() != 0)
+		&& Class != UMaterialExpressionParameter::StaticClass() && Class != UMaterialExpressionTextureSampleParameterVolume::StaticClass()
 		&& (Class != UMaterialExpressionTextureSampleParameter2DArray::StaticClass() || AllowTextureArrayAssetCreationVar->GetValueOnGameThread() != 0);
 
 	if (bMaterialFunction)
@@ -16841,29 +16839,29 @@ int32 UMaterialExpressionCurveAtlasRowParameter::Compile(class FMaterialCompiler
 	{
 		// Retrieve the curve index directly from the atlas rather than relying on the scalar parameter defaults
 		int32 CurveIndex = 0;
-
+		
 		if (Atlas->GetCurveIndex(Curve, CurveIndex))
 		{
-		DefaultValue = (float)CurveIndex;
-		int32 Slot = Compiler->ScalarParameter(ParameterName, DefaultValue);
+			DefaultValue = (float)CurveIndex;
+			int32 Slot = Compiler->ScalarParameter(ParameterName, DefaultValue);
 
-		// Get Atlas texture object and texture size
-		int32 AtlasRef = INDEX_NONE;
-		int32 AtlasCode = Compiler->Texture(Atlas, AtlasRef, SAMPLERTYPE_LinearColor, SSM_Clamp_WorldGroupSettings, TMVM_None);
+			// Get Atlas texture object and texture size
+			int32 AtlasRef = INDEX_NONE;
+			int32 AtlasCode = Compiler->Texture(Atlas, AtlasRef, SAMPLERTYPE_LinearColor, SSM_Clamp_WorldGroupSettings, TMVM_None);
 			if (AtlasCode != INDEX_NONE)
 			{
-		int32 AtlasSize = Compiler->ForceCast(Compiler->TextureProperty(AtlasCode, TMTM_TextureSize), MCT_Float1);
+				int32 AtlasSize = Compiler->ForceCast(Compiler->TextureProperty(AtlasCode, TMTM_TextureSize), MCT_Float1);
 
-		// Calculate UVs from size and slot
-		// if the input is hooked up, use it, otherwise use the internal constant
-		int32 Arg1 = InputTime.GetTracedInput().Expression ? InputTime.Compile(Compiler) : Compiler->Constant(0);
-		int32 Arg2 = Compiler->Div(Compiler->Add(Slot, Compiler->Constant(0.5)), AtlasSize);
+				// Calculate UVs from size and slot
+				// if the input is hooked up, use it, otherwise use the internal constant
+				int32 Arg1 = InputTime.GetTracedInput().Expression ? InputTime.Compile(Compiler) : Compiler->Constant(0);
+				int32 Arg2 = Compiler->Div(Compiler->Add(Slot, Compiler->Constant(0.5)), AtlasSize);
 
-		int32 UV = Compiler->AppendVector(Arg1, Arg2);
+				int32 UV = Compiler->AppendVector(Arg1, Arg2);
 
-		// Sample texture
-		return Compiler->TextureSample(AtlasCode, UV, SAMPLERTYPE_LinearColor, INDEX_NONE, INDEX_NONE, TMVM_None, SSM_Clamp_WorldGroupSettings, AtlasRef, false);
-	}
+				// Sample texture
+				return Compiler->TextureSample(AtlasCode, UV, SAMPLERTYPE_LinearColor, INDEX_NONE, INDEX_NONE, TMVM_None, SSM_Clamp_WorldGroupSettings, AtlasRef, false);
+			}
 			else
 			{
 				return CompilerError(Compiler, TEXT("There was an error when compiling the texture."));

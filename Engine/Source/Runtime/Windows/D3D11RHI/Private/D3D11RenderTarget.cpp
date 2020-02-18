@@ -1008,7 +1008,9 @@ void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRec
 	D3D11_TEXTURE3D_DESC TextureDesc;
 	((ID3D11Texture3D*)Texture->GetResource())->GetDesc(&TextureDesc);
 
-	check(TextureDesc.Format == GPixelFormats[PF_FloatRGBA].PlatformFormat);
+	bool bIsRGBAFmt = TextureDesc.Format == GPixelFormats[PF_FloatRGBA].PlatformFormat;
+	bool bIsR16FFmt = TextureDesc.Format == GPixelFormats[PF_R16F].PlatformFormat;	
+	check(bIsRGBAFmt || bIsR16FFmt);
 
 	// Allocate the output buffer.
 	OutData.Empty(SizeX * SizeY * SizeZ * sizeof(FFloat16Color));
@@ -1052,17 +1054,38 @@ void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRec
 		OutData.AddZeroed(TotalCount);
 	}
 
-	// Read the data out of the buffer, converting it from ABGR to ARGB.
-	for (int32 Z = ZMinMax.X; Z < ZMinMax.Y; ++Z)
+	// Read the data out of the buffer
+	if (bIsRGBAFmt)
 	{
-		for(int32 Y = InRect.Min.Y; Y < InRect.Max.Y; ++Y)
+		// Texture data is RGBA16F
+		for (int32 Z = ZMinMax.X; Z < ZMinMax.Y; ++Z)
 		{
-			FFloat16Color* SrcPtr = (FFloat16Color*)((uint8*)LockedRect.pData + (Y - InRect.Min.Y) * LockedRect.RowPitch + (Z - ZMinMax.X) * LockedRect.DepthPitch);
-			int32 Index = (Y - InRect.Min.Y) * SizeX + (Z - ZMinMax.X) * SizeX * SizeY;
-			check(Index < OutData.Num());
-			FFloat16Color* DestColor = &OutData[Index];
-			FFloat16* DestPtr = (FFloat16*)(DestColor);
-			FMemory::Memcpy(DestPtr,SrcPtr,SizeX * sizeof(FFloat16) * 4);
+			for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; ++Y)
+			{
+				const FFloat16Color* SrcPtr = (const FFloat16Color*)((const uint8*)LockedRect.pData + (Y - InRect.Min.Y) * LockedRect.RowPitch + (Z - ZMinMax.X) * LockedRect.DepthPitch);
+				int32 Index = (Y - InRect.Min.Y) * SizeX + (Z - ZMinMax.X) * SizeX * SizeY;
+				check(Index < OutData.Num());
+				FFloat16Color* DestPtr = &OutData[Index];
+				FMemory::Memcpy(DestPtr, SrcPtr, SizeX * sizeof(FFloat16Color));
+			}
+		}
+	}
+	else if (bIsR16FFmt)
+	{
+		// Texture data is R16F
+		for (int32 Z = ZMinMax.X; Z < ZMinMax.Y; ++Z)
+		{
+			for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; ++Y)
+			{
+				const FFloat16* SrcPtr = (const FFloat16*)((const uint8*)LockedRect.pData + (Y - InRect.Min.Y) * LockedRect.RowPitch + (Z - ZMinMax.X) * LockedRect.DepthPitch);
+				for (int32 X = InRect.Min.X; X < InRect.Max.X; ++X)
+				{
+					int32 Index = (Y - InRect.Min.Y) * SizeX + (Z - ZMinMax.X) * SizeX * SizeY + X;
+					check(Index < OutData.Num());
+					OutData[Index].R = SrcPtr[X];
+					OutData[Index].A = FFloat16(1.0f); // ensure full alpha (as if you sampled on GPU)
+				}
+			}
 		}
 	}
 
