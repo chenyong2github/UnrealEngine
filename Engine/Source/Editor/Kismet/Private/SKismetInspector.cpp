@@ -33,6 +33,7 @@
 #include "IDetailCustomization.h"
 #include "Editor.h"
 #include "PropertyEditorModule.h"
+#include "Kismet2/ComponentEditorUtils.h"	// For CanEditNativeComponent()
 
 #include "IDetailsView.h"
 
@@ -254,7 +255,7 @@ FText SKismetInspector::GetContextualEditingWidgetTitle() const
 			}
 			else if (USCS_Node* SCSNode = Cast<USCS_Node>(Object))
 			{
-				if (SCSNode->ComponentTemplate != NULL)
+				if (SCSNode->ComponentTemplate != nullptr)
 				{
 					const FName VariableName = SCSNode->GetVariableName();
 					if (VariableName != NAME_None)
@@ -336,7 +337,7 @@ void SKismetInspector::Construct(const FArguments& InArgs)
 	// Create a property view
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-	FNotifyHook* NotifyHook = NULL;
+	FNotifyHook* NotifyHook = nullptr;
 	if(InArgs._SetNotifyHook)
 	{
 		NotifyHook = Kismet2.Get();
@@ -470,7 +471,7 @@ void SKismetInspector::ShowDetailsForSingleObject(UObject* Object, const FShowDe
 {
 	TArray<UObject*> PropertyObjects;
 
-	if (Object != NULL)
+	if (Object != nullptr)
 	{
 		PropertyObjects.Add(Object);
 	}
@@ -512,7 +513,7 @@ void SKismetInspector::ShowSingleStruct(TSharedPtr<FStructOnScope> InStructToDis
 
 void SKismetInspector::AddPropertiesRecursive(FProperty* Property)
 {
-	if (Property != NULL)
+	if (Property != nullptr)
 	{
 		// Add this property
 		SelectedObjectProperties.Add(Property);
@@ -520,8 +521,7 @@ void SKismetInspector::AddPropertiesRecursive(FProperty* Property)
 		// If this is a struct or an array of structs, recursively add the child properties
 		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
 		FStructProperty* StructProperty = CastField<FStructProperty>(Property);
-		if(	StructProperty != NULL && 
-			StructProperty->Struct != NULL)
+		if(	StructProperty != nullptr && StructProperty->Struct != nullptr)
 		{
 			for (TFieldIterator<FProperty> StructPropIt(StructProperty->Struct); StructPropIt; ++StructPropIt)
 			{
@@ -627,7 +627,7 @@ void SKismetInspector::UpdateFromObjects(const TArray<UObject*>& PropertyObjects
 			{
 				// Edit the component template
 				UActorComponent* NodeComponent = SCSNode->ComponentTemplate;
-				if (NodeComponent != NULL)
+				if (NodeComponent != nullptr)
 				{
 					SelectionInfo.ObjectsForPropertyEditing.Add(NodeComponent);
 					SelectionInfo.EditableComponentTemplates.Add(NodeComponent);
@@ -654,10 +654,9 @@ void SKismetInspector::UpdateFromObjects(const TArray<UObject*>& PropertyObjects
 			else if (UActorComponent* ActorComponent = Cast<UActorComponent>(Object))
 			{
 				AActor* Owner = ActorComponent->GetOwner();
-				if(Owner != NULL && Owner->HasAnyFlags(RF_ClassDefaultObject))
-				{
-					// We're editing a component that's owned by a CDO, so set the CDO to the property editor (so that propagation works) and then filter to just the component property that we want to edit
-					SelectionInfo.ObjectsForPropertyEditing.AddUnique(Owner);
+				if(Owner != nullptr && Owner->HasAnyFlags(RF_ClassDefaultObject))
+				{					
+					SelectionInfo.ObjectsForPropertyEditing.AddUnique(ActorComponent);
 					SelectionInfo.EditableComponentTemplates.Add(ActorComponent);
 				}
 				else
@@ -683,13 +682,13 @@ void SKismetInspector::UpdateFromObjects(const TArray<UObject*>& PropertyObjects
 		for (auto CompIt = SelectionInfo.EditableComponentTemplates.CreateIterator(); CompIt; ++CompIt)
 		{
 			UActorComponent* EditableComponentTemplate = *CompIt;
-			check(EditableComponentTemplate != NULL);
+			check(EditableComponentTemplate != nullptr);
 
 			// Add all properties belonging to the component template class
 			for (TFieldIterator<FProperty> PropIt(EditableComponentTemplate->GetClass()); PropIt; ++PropIt)
 			{
 				FProperty* Property = *PropIt;
-				check(Property != NULL);
+				check(Property != nullptr);
 
 				AddPropertiesRecursive(Property);
 			}
@@ -698,7 +697,7 @@ void SKismetInspector::UpdateFromObjects(const TArray<UObject*>& PropertyObjects
 			for (auto ObjIt = SelectionInfo.ObjectsForPropertyEditing.CreateIterator(); ObjIt; ++ObjIt)
 			{
 				UObject* Object = *ObjIt;
-				check(Object != NULL);
+				check(Object != nullptr);
 
 				if (Object != EditableComponentTemplate)
 				{
@@ -708,40 +707,12 @@ void SKismetInspector::UpdateFromObjects(const TArray<UObject*>& PropertyObjects
 					}
 					else
 					{
-						auto FindPropertyReferencingComponent = [Object](const UActorComponent* Component) -> FProperty*
-						{
-							if (AActor* Owner = Component->GetOwner())
-							{
-								if (UClass* OwnerClass = Owner->GetClass())
-								{
-									AActor* OwnerCDO = CastChecked<AActor>(OwnerClass->GetDefaultObject());
-									for (TFieldIterator<FObjectProperty> ObjPropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); ObjPropIt; ++ObjPropIt)
-									{
-										FObjectProperty* ObjectProperty = *ObjPropIt;
-										check(ObjectProperty != nullptr);
-
-										// If the property value matches the current archetype, add it as a selected property for filtering
-										if (Component->GetClass()->IsChildOf(ObjectProperty->PropertyClass)
-											&& Component == ObjectProperty->GetObjectPropertyValue_InContainer(OwnerCDO))
-										{
-											ObjectProperty = FindField<FObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
-											if (ObjectProperty != nullptr)
-											{
-												return ObjectProperty;
-											}
-										}
-									}
-								}
-							}
-							return nullptr;
-						};
-
-						FProperty* ReferencingProperty = FindPropertyReferencingComponent(EditableComponentTemplate);
+						FProperty* ReferencingProperty = FComponentEditorUtils::GetPropertyForEditableNativeComponent(EditableComponentTemplate);
 						if (ReferencingProperty == nullptr)
 						{
 							if (UActorComponent* Archetype = Cast<UActorComponent>(EditableComponentTemplate->GetArchetype()))
 							{
-								ReferencingProperty = FindPropertyReferencingComponent(Archetype);
+								ReferencingProperty = FComponentEditorUtils::GetPropertyForEditableNativeComponent(Archetype);
 							}
 						}
 						if (ReferencingProperty)
@@ -815,7 +786,7 @@ bool SKismetInspector::IsPropertyVisible( const FPropertyAndParent& PropertyAndP
 
 	if(const UClass* OwningClass = Property.GetOwner<UClass>())
 	{
-		const UBlueprint* BP = BlueprintEditorPtr.IsValid() ? BlueprintEditorPtr.Pin()->GetBlueprintObj() : NULL;
+		const UBlueprint* BP = BlueprintEditorPtr.IsValid() ? BlueprintEditorPtr.Pin()->GetBlueprintObj() : nullptr;
 		const bool VariableAddedInCurentBlueprint = (OwningClass->ClassGeneratedBy == BP);
 
 		// If we did not add this var, hide it!
@@ -830,9 +801,12 @@ bool SKismetInspector::IsPropertyVisible( const FPropertyAndParent& PropertyAndP
 
 	// figure out if this Blueprint variable is an Actor variable
 	const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(&Property);
+	const FSetProperty* SetProperty = CastField<const FSetProperty>(&Property);
+	const FMapProperty* MapProperty = CastField<const FMapProperty>(&Property);
+
 	const FProperty* TestProperty = ArrayProperty ? ArrayProperty->Inner : &Property;
 	const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(TestProperty);
-	bool bIsActorProperty = (ObjectProperty != NULL && ObjectProperty->PropertyClass->IsChildOf(AActor::StaticClass()));
+	bool bIsActorProperty = (ObjectProperty != nullptr && ObjectProperty->PropertyClass->IsChildOf(AActor::StaticClass()));
 
 	if (bEditOnTemplateDisabled && bIsActorProperty)
 	{
@@ -866,6 +840,19 @@ bool SKismetInspector::IsPropertyVisible( const FPropertyAndParent& PropertyAndP
 		else if ( IsAnyParentContainerSelected(PropertyAndParent) )
 		{
 			return true;
+		}
+	}
+	else if (ArrayProperty || MapProperty || SetProperty)
+	{
+		// .Find won't work here because the items inside of the container properties are not FProperties
+		for (const TWeakFieldPtr<FProperty>& CurProp : SelectedObjectProperties)
+		{
+			if ((ArrayProperty && (ArrayProperty->PropertyFlags & CPF_Edit) && CurProp->GetFName() == ArrayProperty->GetFName()) ||
+				(MapProperty && (MapProperty->PropertyFlags & CPF_Edit) && CurProp->GetFName() == MapProperty->GetFName()) ||
+				(SetProperty && (SetProperty->PropertyFlags & CPF_Edit) && CurProp->GetFName() == SetProperty->GetFName()))
+			{
+				return true;
+			}
 		}
 	}
 

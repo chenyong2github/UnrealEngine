@@ -53,7 +53,7 @@ namespace FActorEditorUtils
 				if (Component->CreationMethod == EComponentCreationMethod::Native)
 				{
 					// Make sure it's an exposed native component
-					if (FComponentEditorUtils::CanEditNativeComponent(Component))
+					if (FComponentEditorUtils::GetPropertyForEditableNativeComponent(Component))
 					{
 						OutEditableComponents.Add(Component);
 					}
