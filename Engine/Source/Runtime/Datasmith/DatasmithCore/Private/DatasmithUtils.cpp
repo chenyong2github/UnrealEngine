@@ -47,7 +47,7 @@ void FDatasmithUtils::SanitizeNameInplace(FString& InString)
 
 void FDatasmithUtils::SanitizeStringInplace(FString& InString)
 {
-	for (TCHAR& Char : InString.GetCharArray())
+	for (TCHAR& Char : InString)
 	{
 		if (!FChar::IsPrint(Char) && !FChar::IsWhitespace(Char))
 		{
