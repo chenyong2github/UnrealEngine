@@ -152,6 +152,14 @@ void UNiagaraEmitter::PostInitProperties()
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
 
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (GPUComputeScript)
+	{
+		GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
+	}
+#endif
+
 	UniqueEmitterName = TEXT("Emitter");
 
 	ResolveScalabilitySettings();
@@ -343,6 +351,14 @@ void UNiagaraEmitter::PostLoad()
 		GPUComputeScript->SetSource(SpawnScriptProps.Script ? SpawnScriptProps.Script->GetSource() : nullptr);
 #endif
 	}
+
+
+#if WITH_EDITORONLY_DATA
+	if (GPUComputeScript)
+	{
+		GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
+	}
+#endif
 
 	if (EmitterSpawnScriptProps.Script == nullptr || EmitterUpdateScriptProps.Script == nullptr)
 	{
@@ -579,6 +595,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		PropertyName = PropertyChangedEvent.Property->GetFName();
 	}
 
+	bool bNeedsRecompile = false;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bInterpolatedSpawning))
 	{
 		bool bActualInterpolatedSpawning = SpawnScriptProps.Script->IsInterpolatedParticleSpawnScript();
@@ -591,9 +608,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 			{
 				GraphSource->MarkNotSynchronized(TEXT("Emitter interpolated spawn changed"));
 			}
-#if WITH_EDITORONLY_DATA
-			UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+			bNeedsRecompile = true;
 		}
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, SimTarget))
@@ -602,10 +617,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		{
 			GraphSource->MarkNotSynchronized(TEXT("Emitter simulation target changed."));
 		}
-
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+		bNeedsRecompile = true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bRequiresPersistentIDs))
 	{
@@ -613,10 +625,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		{
 			GraphSource->MarkNotSynchronized(TEXT("Emitter Requires Persistent IDs changed."));
 		}
-
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+		bNeedsRecompile = true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bLocalSpace))
 	{
@@ -625,9 +634,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 			GraphSource->MarkNotSynchronized(TEXT("Emitter LocalSpace changed."));
 		}
 
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
+		bNeedsRecompile = true;
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bDeterminism))
 	{
@@ -646,6 +653,13 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	ThumbnailImageOutOfDate = true;
 	UpdateChangeId(TEXT("PostEditChangeProperty"));
 	OnPropertiesChangedDelegate.Broadcast();
+
+#if WITH_EDITORONLY_DATA
+	if (bNeedsRecompile)
+	{
+		UNiagaraSystem::RequestCompileForEmitter(this);
+	}
+#endif
 }
 
 
@@ -887,6 +901,11 @@ UNiagaraEmitter::FOnEmitterCompiled& UNiagaraEmitter::OnEmitterVMCompiled()
 	return OnVMScriptCompiledDelegate;
 }
 
+UNiagaraEmitter::FOnEmitterCompiled& UNiagaraEmitter::OnEmitterGPUCompiled()
+{
+	return OnGPUScriptCompiledDelegate;
+}
+
 void  UNiagaraEmitter::InvalidateCompileResults()
 {
 	TArray<UNiagaraScript*> Scripts;
@@ -934,6 +953,12 @@ void UNiagaraEmitter::OnPostCompile()
 		{
 			Scripts[i]->InvalidateCompileResults(TEXT("Console variable forced recompile.")); 
 		}
+	}
+
+	// If we have a GPU script but the SimTarget isn't GPU, we need to clear out the old results.
+	if (SimTarget != ENiagaraSimTarget::GPUComputeSim && GPUComputeScript->GetLastCompileStatus() != ENiagaraScriptCompileStatus::NCS_Unknown)
+	{
+		GPUComputeScript->InvalidateCompileResults(TEXT("Not a GPU emitter."));
 	}
 
 	RuntimeEstimation = MemoryRuntimeEstimation();
@@ -1333,6 +1358,10 @@ void UNiagaraEmitter::BeginDestroy()
 	{
 		GraphSource->OnChanged().RemoveAll(this);
 	}
+	if (GPUComputeScript)
+	{
+		GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
+	}
 #endif
 	Super::BeginDestroy();
 }
@@ -1371,6 +1400,11 @@ void UNiagaraEmitter::RendererChanged()
 void UNiagaraEmitter::GraphSourceChanged()
 {
 	UpdateChangeId(TEXT("Graph source changed."));
+}
+
+void UNiagaraEmitter::RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript)
+{
+	OnGPUScriptCompiledDelegate.Broadcast(this);
 }
 
 void UNiagaraEmitter::PersistentEditorDataChanged()

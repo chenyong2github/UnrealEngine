@@ -4520,7 +4520,10 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 	}
 }
 
-
+bool FHlslNiagaraTranslator::IsCompileOptionDefined(const TCHAR* InDefineStr)
+{
+	return CompileOptions.AdditionalDefines.Contains(InDefineStr);
+}
 
 void FHlslNiagaraTranslator::ReadDataSet(const FNiagaraDataSetID DataSet, const TArray<FNiagaraVariable>& Variables, ENiagaraDataSetAccessMode AccessMode, int32 InputChunk, TArray<int32>& Outputs)
 {
@@ -5531,11 +5534,24 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 				TArray<FNiagaraFunctionSignature> DataInterfaceFunctions;
 				CDO->GetFunctions(DataInterfaceFunctions);
 
-				const bool bFoundMatch = DataInterfaceFunctions.ContainsByPredicate([&](const FNiagaraFunctionSignature& Sig) -> bool { return Sig.EqualsIgnoringSpecifiers(OutSignature); });
-				if (!bFoundMatch)
+				const int32 FoundMatch = DataInterfaceFunctions.IndexOfByPredicate([&](const FNiagaraFunctionSignature& Sig) -> bool { return Sig.EqualsIgnoringSpecifiers(OutSignature); });
+				if (FoundMatch < 0)
 				{
 					Error(LOCTEXT("FunctionCallDataInterfaceMissing", "Function call signature does not match DataInterface possible signatures?"), nullptr, nullptr);
 					return;
+				}
+				else
+				{
+					bool bCPUSim = IsCompileOptionDefined(TEXT("CPUSim"));
+					bool bGPUSim = IsCompileOptionDefined(TEXT("GPUComputeSim"));
+					if (bCPUSim && !DataInterfaceFunctions[FoundMatch].bSupportsCPU)
+					{
+						Error(FText::Format(LOCTEXT("FunctionCallDataInterfaceCPUMissing", "Function call \"{0}\" does not work on CPU sims."), FText::FromName(OutSignature.Name)), nullptr, nullptr);
+					}
+					else if (bGPUSim && !DataInterfaceFunctions[FoundMatch].bSupportsGPU)
+					{
+						Error(FText::Format(LOCTEXT("FunctionCallDataInterfaceGPUMissing", "Function call \"{0}\" does not work on GPU sims."), FText::FromName(OutSignature.Name)), nullptr, nullptr);
+					}
 				}
 
 				// We only use this for GPU systems currently so that we emit only the functionality required

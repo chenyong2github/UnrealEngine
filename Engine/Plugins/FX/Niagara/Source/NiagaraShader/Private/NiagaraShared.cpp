@@ -82,6 +82,8 @@ NIAGARASHADER_API void FNiagaraShaderScript::Invalidate()
 {
 	CancelCompilation();
 	ReleaseShaderMap();
+	CompileErrors.Empty();
+	HlslOutput.Empty();
 }
 
 

@@ -256,7 +256,7 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 #endif
 {
 #if WITH_EDITORONLY_DATA
-	ScriptResource.OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::OnCompilationComplete);
+	ScriptResource.OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::RaiseOnGPUCompilationComplete);
 
 	RapidIterationParameters.DebugName = *GetFullName();
 #endif	
@@ -307,6 +307,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	Id.bInterpolatedSpawn = false;
 	Id.bRequiresPersistentIDs = false;
 	
+	ENiagaraSimTarget SimTargetToBuild = ENiagaraSimTarget::CPUSim;
 	// Ideally we wouldn't want to do this but rather than push the data down
 	// from the emitter.
 	UObject* Obj = GetOuter();
@@ -324,6 +325,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			Id.bInterpolatedSpawn = true;
 			Id.AdditionalDefines.Add(TEXT("InterpolatedSpawn"));
+		}
+		if (IsParticleScript(Usage))
+		{
+			SimTargetToBuild = Emitter->SimTarget;
 		}
 		if (Emitter->RequiresPersistantIDs())
 		{
@@ -368,6 +373,19 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			}
 		}
 	}
+
+	switch (SimTargetToBuild)
+	{
+	case ENiagaraSimTarget::CPUSim:
+		Id.AdditionalDefines.Add(TEXT("CPUSim"));
+		break;
+	case ENiagaraSimTarget::GPUComputeSim:
+		Id.AdditionalDefines.Add(TEXT("GPUComputeSim"));
+		break;
+	default:
+		checkf(false, TEXT("Unknown sim target type!"));
+	}
+
 
 	// If we aren't using rapid iteration parameters, we need to bake them into the hashstate for the compile id. This 
 	// makes their values part of the lookup. 
@@ -1288,6 +1306,8 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	CachedScriptVMId = InCompileId;
 	CachedScriptVM = InScriptVM;
 	CachedParameterCollectionReferences.Empty();
+	// Proactively clear out the script resource, because it might be stale now.
+	ScriptResource.Invalidate();
 	
 	if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Error)
 	{
@@ -1463,6 +1483,7 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ModuleUsageBitmask, GetPathName(), GetFullName(), GetName());
 		Options.AdditionalDefines = LastGeneratedVMId.AdditionalDefines;
 		OutAsyncHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), Options);
+		UE_LOG(LogNiagara, Verbose, TEXT("Script '%s' is requesting compile.."), *GetFullName());
 		return true;
 	}
 	else
@@ -1474,9 +1495,10 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 }
 #endif
 
-void UNiagaraScript::OnCompilationComplete()
+void UNiagaraScript::RaiseOnGPUCompilationComplete()
 {
 #if WITH_EDITORONLY_DATA
+	OnGPUScriptCompiled().Broadcast(this);
 	FNiagaraSystemUpdateContext(this, true);
 #endif
 }
@@ -1689,7 +1711,8 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 	if (CanBeRunOnGpu())
 	{
-		if (Source)
+		// Need to make sure the owner supports GPU scripts, otherwise this is a wasted compile.
+		if (Source && OwnerCanBeRunOnGpu())
 		{
 			FNiagaraShaderScript* ResourceToCache;
 			ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
@@ -1707,6 +1730,10 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 					ScriptResourcesByFeatureLevel[CacheFeatureLevel] = &ScriptResource;
 				}
 			}
+		}
+		else
+		{
+			ScriptResource.Invalidate();
 		}
 	}
 }
@@ -1820,6 +1847,11 @@ void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 UNiagaraScript::FOnScriptCompiled& UNiagaraScript::OnVMScriptCompiled()
 {
 	return OnVMScriptCompiledDelegate;
+}
+
+UNiagaraScript::FOnScriptCompiled& UNiagaraScript::OnGPUScriptCompiled()
+{
+	return OnGPUScriptCompiledDelegate;
 }
 
 
@@ -1998,6 +2030,19 @@ bool UNiagaraScript::CanBeRunOnGpu()const
 	return true;
 }
 
+
+bool UNiagaraScript::OwnerCanBeRunOnGpu() const
+{
+	if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
+	{
+		if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 bool UNiagaraScript::LegacyCanBeRunOnGpu() const
 {

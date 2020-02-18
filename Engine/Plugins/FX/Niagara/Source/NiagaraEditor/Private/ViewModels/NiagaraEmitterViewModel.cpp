@@ -95,6 +95,7 @@ void FNiagaraEmitterViewModel::SetEmitter(UNiagaraEmitter* InEmitter)
 	if (Emitter.IsValid())
 	{
 		Emitter->OnEmitterVMCompiled().RemoveAll(this);
+		Emitter->OnEmitterGPUCompiled().RemoveAll(this);
 		Emitter->OnPropertiesChanged().RemoveAll(this);
 		UnregisterViewModelWithMap(RegisteredHandle);
 	}
@@ -109,6 +110,7 @@ void FNiagaraEmitterViewModel::SetEmitter(UNiagaraEmitter* InEmitter)
 	{
 		Emitter->OnEmitterVMCompiled().AddSP(this, &FNiagaraEmitterViewModel::OnVMCompiled);
 		Emitter->OnPropertiesChanged().AddSP(this, &FNiagaraEmitterViewModel::OnEmitterPropertiesChanged);
+		Emitter->OnEmitterGPUCompiled().AddSP(this, &FNiagaraEmitterViewModel::OnGPUCompiled);
 	}
 
 	AddScriptEventHandlers();
@@ -326,6 +328,13 @@ UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetOrCreateEditorData()
 	return *EditorData;
 }
 
+
+void FNiagaraEmitterViewModel::OnGPUCompiled(UNiagaraEmitter* InEmitter)
+{
+	// Flush compilation logs just like the CPU script compiled.
+	OnVMCompiled(InEmitter);
+}
+
 void FNiagaraEmitterViewModel::OnVMCompiled(UNiagaraEmitter* InEmitter)
 {
 	if (Emitter.IsValid() && InEmitter == Emitter.Get())
@@ -371,14 +380,60 @@ void FNiagaraEmitterViewModel::OnVMCompiled(UNiagaraEmitter* InEmitter)
 
 		}
 
+		// Now handle any GPU sims..
+		TArray<UNiagaraScript*> GPUScripts;
+		
+		// Going ahead and making an array for future proofing..
+		{
+			UNiagaraScript* GPUScript = Emitter->GetGPUComputeScript();
+			GPUScripts.Add(GPUScript);
+		}
+
+		// Push in GPU script errors into the other scripts
+		for (UNiagaraScript* GPUScript : GPUScripts)
+		{
+			if (GPUScript)
+			{
+				const FNiagaraShaderScript* ShaderScript = GPUScript->GetRenderThreadScript();
+				if (!ShaderScript)
+					return;
+
+				for (int32 i = 0; i < Scripts.Num(); i++)
+				{
+					if (Scripts[i] != nullptr && CompileStatuses.Num() > i && CompileErrors.Num() > i && GPUScript->ContainsUsage(Scripts[i]->Usage))
+					{
+						const TArray<FString>& NewErrors = ShaderScript->GetCompileErrors();
+						bool bErrors = false;
+						for (const FString& ErrorStr : NewErrors)
+						{
+							if (ErrorStr.Contains(TEXT("err0r")))
+							{
+								CompileErrors[i] += ErrorStr + TEXT("\n");
+								bErrors = true;
+							}
+						}
+
+						if (bErrors)
+						{
+							CompileStatuses[i] = ENiagaraScriptCompileStatus::NCS_Error;
+						}
+					}
+				}
+
+			}
+		}
+
 		for (int32 i = 0; i < CompileStatuses.Num(); i++)
 		{
 			AggregateStatus = FNiagaraEditorUtilities::UnionCompileStatus(AggregateStatus, CompileStatuses[i]);
 			AggregateErrors += CompilePaths[i] + TEXT(" ") + FNiagaraEditorUtilities::StatusToText(CompileStatuses[i]).ToString() + TEXT("\n");
 			AggregateErrors += CompileErrors[i] + TEXT("\n");
 		}
-		check(SharedScriptViewModel.IsValid());
-		SharedScriptViewModel->UpdateCompileStatus(AggregateStatus, AggregateErrors, CompileStatuses, CompileErrors, CompilePaths, Scripts);
+		
+		if (SharedScriptViewModel.IsValid())
+		{
+			SharedScriptViewModel->UpdateCompileStatus(AggregateStatus, AggregateErrors, CompileStatuses, CompileErrors, CompilePaths, Scripts);
+		}
 	}
 	OnScriptCompiled().Broadcast();
 }
