@@ -132,7 +132,7 @@ struct TIMESYNTH_API FTimeSynthQuantizationSettings
 	GENERATED_USTRUCT_BODY()
 
 	// The beats per minute of the pulse. Musical convention gives this as BPM for "quarter notes" (BeatDivision = 4).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|TimeSynth|PlayClip", meta = (ClampMin = "1.0", UIMin = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|TimeSynth|PlayClip", meta = (ClampMin = "1.0", UIMin = "1.0", ClampMax = "999.0", UIMax = "999.0"))
 	float BeatsPerMinute;
 
 	// Defines numerator when determining beat time in seconds
