@@ -1257,9 +1257,9 @@ void FDatasmithImporter::ImportMaterials( FDatasmithImportContext& ImportContext
 
 		ImportContext.AssetsContext.MaterialsRequirements.Empty( ImportContext.FilteredScene->GetMaterialsCount() );
 
-		for ( int32 MaterialIndex = 0; MaterialIndex < ImportContext.FilteredScene->GetMaterialsCount(); ++MaterialIndex )
+		for (FDatasmithImporterUtils::FDatasmithMaterialImportIterator It(ImportContext); It; ++It)
 		{
-			TSharedRef< IDatasmithBaseMaterialElement > MaterialElement = ImportContext.FilteredScene->GetMaterial( MaterialIndex ).ToSharedRef();
+			TSharedRef< IDatasmithBaseMaterialElement > MaterialElement = It.Value().ToSharedRef();
 
 			UMaterialInterface* ExistingMaterial = nullptr;
 
