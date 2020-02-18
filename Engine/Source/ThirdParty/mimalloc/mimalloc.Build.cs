@@ -11,8 +11,8 @@ public class mimalloc : ModuleRules
 
 		string miPath = Target.UEThirdPartySourceDirectory + "mimalloc\\";
 
-	    if (Target.Platform == UnrealTargetPlatform.Win64)
-        {
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
+		{
             PublicAdditionalLibraries.Add(miPath + "out\\msvc-x64\\Release\\mimalloc-static.lib");
             PublicSystemIncludePaths.Add(miPath + "include");
         }
