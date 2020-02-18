@@ -14,13 +14,14 @@
 #include <memory>
 
 #if USE_USD_SDK
-
 #include "USDIncludesStart.h"
 	#include "pxr/pxr.h"
 	#include "pxr/base/tf/token.h"
 	#include "pxr/usd/usd/stageCache.h"
 #include "USDIncludesEnd.h"
+#endif // #if USE_USD_SDK
 
+#if USE_USD_SDK
 PXR_NAMESPACE_OPEN_SCOPE
 	class GfMatrix4d;
 	class SdfPath;
@@ -32,10 +33,10 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 	template< typename T > class TfRefPtr;
 PXR_NAMESPACE_CLOSE_SCOPE
-
 #endif // #if USE_USD_SDK
 
 class IUsdPrim;
+class FUsdDiagnosticDelegate;
 
 enum class EUsdInterpolationMethod
 {
@@ -168,8 +169,12 @@ public:
 	UNREALUSDWRAPPER_API static TUsdStore< pxr::TfRefPtr< pxr::UsdStage > > OpenUsdStage(const char* Path, const char* Filename);
 	UNREALUSDWRAPPER_API static pxr::UsdStageCache& GetUsdStageCache();
 #endif  // #if USE_USD_SDK
+
+	UNREALUSDWRAPPER_API static void SetupDiagnosticDelegate();
+	UNREALUSDWRAPPER_API static void ClearDiagnosticDelegate();
 private:
 	static bool bInitialized;
+	static TUniquePtr<FUsdDiagnosticDelegate> Delegate;
 };
 
 class FUsdAttribute

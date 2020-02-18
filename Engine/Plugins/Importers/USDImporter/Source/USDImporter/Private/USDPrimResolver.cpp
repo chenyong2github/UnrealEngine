@@ -5,6 +5,7 @@
 #include "USDConversionUtils.h"
 #include "USDImportOptions.h"
 #include "USDImporter.h"
+#include "USDLog.h"
 #include "USDTypesConversion.h"
 #include "UnrealUSDWrapper.h"
 
@@ -185,7 +186,7 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 						FText::FromString(SpawnData.AssetPath),
 						FText::FromString(UsdToUnreal::ConvertString(SpawnData.ActorPrim.Get().GetPath().GetString()))));
 
-				UE_LOG(LogUSDImport, Error, TEXT("Could not find Unreal Asset '%s' for USD prim '%s'"), *SpawnData.AssetPath, *SpawnData.ActorName.ToString());
+				UE_LOG(LogUsd, Error, TEXT("Could not find Unreal Asset '%s' for USD prim '%s'"), *SpawnData.AssetPath, *SpawnData.ActorName.ToString());
 			}
 		}
 
