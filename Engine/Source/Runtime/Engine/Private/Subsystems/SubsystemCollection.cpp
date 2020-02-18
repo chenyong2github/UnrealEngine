@@ -163,7 +163,7 @@ void FSubsystemCollectionBase::Deinitialize()
 	Outer = nullptr;
 }
 
-bool FSubsystemCollectionBase::InitializeDependency(TSubclassOf<USubsystem> SubsystemClass)
+USubsystem* FSubsystemCollectionBase::InitializeDependency(TSubclassOf<USubsystem> SubsystemClass)
 {
 	if (ensureMsgf(SubsystemClass, TEXT("Attempting to add invalid subsystem as dependancy."))
 		&& ensureMsgf(bPopulating, TEXT("InitializeDependancy() should only be called from System USubsystem::Initialization() implementations."))
@@ -171,7 +171,7 @@ bool FSubsystemCollectionBase::InitializeDependency(TSubclassOf<USubsystem> Subs
 	{
 		return AddAndInitializeSubsystem(SubsystemClass);
 	}
-	return false;
+	return nullptr;
 }
 
 void FSubsystemCollectionBase::AddReferencedObjects(FReferenceCollector& Collector)
@@ -184,7 +184,7 @@ FString FSubsystemCollectionBase::GetReferencerName() const
 	return TEXT("FSubsystemCollectionBase");
 }
 
-bool FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* SubsystemClass)
+USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* SubsystemClass)
 {
 	if (!SubsystemMap.Contains(SubsystemClass))
 	{
@@ -203,12 +203,13 @@ bool FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* SubsystemClass)
 				Subsystem->InternalOwningSubsystem = this;
 				Subsystem->Initialize(*this);
 				
-				return true;
+				return Subsystem;
 			}
 		}
-		return false;
+		return nullptr;
 	}
-	return true;
+
+	return SubsystemMap.FindRef(SubsystemClass);
 }
 
 void FSubsystemCollectionBase::RemoveAndDeinitializeSubsystem(USubsystem* Subsystem)
