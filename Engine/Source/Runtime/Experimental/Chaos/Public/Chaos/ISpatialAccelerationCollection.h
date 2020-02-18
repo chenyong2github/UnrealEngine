@@ -20,7 +20,7 @@ public:
 	ISpatialAccelerationCollection()
 	: ISpatialAcceleration<TPayloadType, T, d>(StaticType)
 	, ActiveBucketsMask(0)
-	, AllAsyncTrasksComplete(true)
+	, AllAsyncTasksComplete(true)
 	{}
 	static constexpr ESpatialAcceleration StaticType = ESpatialAcceleration::Collection;
 	virtual FSpatialAccelerationIdx AddSubstructure(TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>&& Substructure, uint16 Bucket) = 0;
@@ -37,12 +37,12 @@ public:
 		return (1 << BucketIdx) & ActiveBucketsMask;
 	}
 
-	bool IsAllAsyncTrasksComplete() const { return AllAsyncTrasksComplete; }
-	void SetAllAsyncTrasksComplete(bool State) { AllAsyncTrasksComplete = State; }
+	bool IsAllAsyncTasksComplete() const { return AllAsyncTasksComplete; }
+	void SetAllAsyncTasksComplete(bool State) { AllAsyncTasksComplete = State; }
 
 protected:
 	uint8 ActiveBucketsMask;
-	bool AllAsyncTrasksComplete;
+	bool AllAsyncTasksComplete;
 };
 
 }
