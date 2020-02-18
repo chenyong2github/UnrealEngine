@@ -45,6 +45,37 @@ DECLARE_GPU_STAT_NAMED(ShadowDepths, TEXT("Shadow Depths"));
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters, "ShadowDepthPass");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters, "MobileShadowDepthPass");
 
+template<bool bUsingVertexLayers = false>
+class TScreenVSForGS : public FScreenVS
+{
+	DECLARE_SHADER_TYPE(TScreenVSForGS, Global);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && (!bUsingVertexLayers || RHISupportsVertexShaderLayer(Parameters.Platform));
+	}
+
+	TScreenVSForGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FScreenVS(Initializer)
+	{
+	}
+	TScreenVSForGS() {}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FScreenVS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("USING_LAYERS"), (uint32)(bUsingVertexLayers ? 1 : 0));
+		if (!bUsingVertexLayers)
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_VertexToGeometryShader);
+		}
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(template<>, TScreenVSForGS<false>, TEXT("/Engine/Private/ScreenVertexShader.usf"), TEXT("MainForGS"), SF_Vertex);
+IMPLEMENT_SHADER_TYPE(template<>, TScreenVSForGS<true>, TEXT("/Engine/Private/ScreenVertexShader.usf"), TEXT("MainForGS"), SF_Vertex);
+
 
 static TAutoConsoleVariable<int32> CVarShadowForceSerialSingleRenderPass(
 	TEXT("r.Shadow.ForceSerialSingleRenderPass"),
