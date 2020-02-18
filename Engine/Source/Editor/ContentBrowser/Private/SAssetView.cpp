@@ -1516,37 +1516,30 @@ void SAssetView::ProcessQueriedItems(const double TickStartTime)
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	bool ListNeedsRefresh = false;
-	int32 AssetIndex = 0;
-	for (AssetIndex = QueriedAssetItems.Num() - 1; AssetIndex >= 0; AssetIndex--)
-	{
-		if (!OnShouldFilterAsset.Execute(QueriedAssetItems[AssetIndex]))
-		{
-			AssetItems.Add(QueriedAssetItems[AssetIndex]);
 
-			if (!IsFrontendFilterActive() || PassesCurrentFrontendFilter(QueriedAssetItems[AssetIndex]))
+	for (auto AssetIter = QueriedAssetItems.CreateIterator(); AssetIter; ++AssetIter)
+	{
+		const FAssetData& AssetData = *AssetIter;
+
+		if (!OnShouldFilterAsset.Execute(AssetData))
+		{
+			AssetItems.Add(AssetData);
+
+			if (!IsFrontendFilterActive() || PassesCurrentFrontendFilter(AssetData))
 			{
-				const FAssetData& AssetData = QueriedAssetItems[AssetIndex];
 				FilteredAssetItems.Add(MakeShareable(new FAssetViewAsset(AssetData)));
 				ListNeedsRefresh = true;
 				bPendingSortFilteredItems = true;
 			}
 		}
 
+		AssetIter.RemoveCurrent();
+
 		// Check to see if we have run out of time in this tick
 		if (!bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
 		{
 			break;
 		}
-	}
-
-	// Trim the results array
-	if (AssetIndex > 0)
-	{
-		QueriedAssetItems.RemoveAt(AssetIndex, QueriedAssetItems.Num() - AssetIndex);
-	}
-	else
-	{
-		QueriedAssetItems.Reset();
 	}
 
 	if (ListNeedsRefresh)
@@ -1999,7 +1992,7 @@ void SAssetView::RefreshSourceItems()
 	RelevantThumbnails.Reset();
 	Folders.Reset();
 
-	TArray<FAssetData>& Items = OnShouldFilterAsset.IsBound() ? QueriedAssetItems : AssetItems;
+	FAssetDataSet& Items = OnShouldFilterAsset.IsBound() ? QueriedAssetItems : AssetItems;
 
 	const FBlacklistPaths* FolderBlacklistToUse = (FolderBlacklist.IsValid() && FolderBlacklist->HasFiltering()) ? FolderBlacklist.Get() : nullptr;
 	const FBlacklistNames* AssetClassBlacklistToUse = (AssetClassBlacklist.IsValid() && AssetClassBlacklist->HasFiltering()) ? AssetClassBlacklist.Get() : nullptr;
@@ -2029,11 +2022,11 @@ void SAssetView::RefreshSourceItems()
 					continue;
 				}
 
-				int32 Index = Items.Emplace(*ObjIt);
+				FSetElementId Index = Items.Emplace(*ObjIt);
 				const FAssetData& AssetData = Items[Index];
 				if (!InitialAssetFilter.PassesRedirectorMainAssetFilter(AssetData))
 				{
-					Items.RemoveAtSwap(Index, 1, false);
+					Items.Remove(Index);
 					continue;
 				}
 
@@ -2107,7 +2100,9 @@ void SAssetView::RefreshSourceItems()
 		else
 		{
 			// Add assets found in the asset registry
-			AssetRegistryModule.Get().GetAssets(Filter, Items);
+			TArray<FAssetData> Assets;
+			AssetRegistryModule.Get().GetAssets(Filter, Assets);
+			Items.Append(Assets);
 		}
 
 		if ( bFilterAllowsClasses )
@@ -2137,14 +2132,16 @@ void SAssetView::RefreshSourceItems()
 		// Add any custom assets 
 		if (OnGetCustomSourceAssets.IsBound())
 		{
-			OnGetCustomSourceAssets.Execute(Filter, Items);
+			TArray<FAssetData> Assets;
+			OnGetCustomSourceAssets.Execute(Filter, Assets);
+			Items.Append(Assets);
 		}
 
-		for (int32 AssetIdx = Items.Num() - 1; AssetIdx >= 0; --AssetIdx)
+		for (auto AssetIter = QueriedAssetItems.CreateIterator(); AssetIter; ++AssetIter)
 		{
-			if (!InitialAssetFilter.PassesFilter(Items[AssetIdx]))
+			if (!InitialAssetFilter.PassesFilter(*AssetIter))
 			{
-				Items.RemoveAtSwap(AssetIdx);
+				AssetIter.RemoveCurrent();
 			}
 		}
 	}
@@ -2291,15 +2288,7 @@ void SAssetView::RefreshFilteredItems()
 
 			if (bGatherAssetTypeCount)
 			{
-				int32* TypeCount = AssetTypeCount.Find(AssetData.AssetClass);
-				if (TypeCount)
-				{
-					(*TypeCount)++;
-				}
-				else
-				{
-					AssetTypeCount.Add(AssetData.AssetClass, 1);
-				}
+				AssetTypeCount.FindOrAdd(AssetData.AssetClass)++;
 			}
 		}
 	}
@@ -2689,23 +2678,23 @@ void SAssetView::ProcessRecentlyAddedAssets()
 		double TickStartTime = FPlatformTime::Seconds();
 		bool bNeedsRefresh = false;
 
-		TSet<FName> ExistingObjectPaths;
-		ExistingObjectPaths.Reserve(AssetItems.Num());
-		Algo::Transform(AssetItems, ExistingObjectPaths, &FAssetData::ObjectPath);
-
 		int32 AssetIdx = 0;
 		for ( ; AssetIdx < FilteredRecentlyAddedAssets.Num(); ++AssetIdx )
 		{
+			if ((FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
+			{
+				break;
+			}
+
 			const FAssetData& AssetData = FilteredRecentlyAddedAssets[AssetIdx];
-			if ( !ExistingObjectPaths.Contains(AssetData.ObjectPath) )
+			if ( !AssetItems.Find(AssetData.ObjectPath) )
 			{
 				if ( AssetData.AssetClass != UObjectRedirector::StaticClass()->GetFName() || AssetData.IsUAsset() )
 				{
 					if ( !OnShouldFilterAsset.IsBound() || !OnShouldFilterAsset.Execute(AssetData) )
 					{
 						// Add the asset to the list
-						int32 AddedAssetIdx = AssetItems.Add(AssetData);
-						ExistingObjectPaths.Add(AssetData.ObjectPath);
+						AssetItems.Add(AssetData);
 						if (!IsFrontendFilterActive() || PassesCurrentFrontendFilter(AssetData))
 						{
 							FilteredAssetItems.Add(MakeShareable(new FAssetViewAsset(AssetData)));
@@ -2714,13 +2703,6 @@ void SAssetView::ProcessRecentlyAddedAssets()
 						}
 					}
 				}
-			}
-
-			if ( (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
-			{
-				// Increment the index to properly trim the buffer below
-				++AssetIdx;
-				break;
 			}
 		}
 
@@ -2831,17 +2813,7 @@ void SAssetView::OnFolderPopulated(const FString& Path)
 
 void SAssetView::RemoveAssetByPath( const FName& ObjectPath )
 {
-	bool bFoundAsset = false;
-	for (int32 AssetIdx = 0; AssetIdx < AssetItems.Num(); ++AssetIdx)
-	{
-		if ( AssetItems[AssetIdx].ObjectPath == ObjectPath )
-		{
-			// Found the asset in the cached list, remove it
-			AssetItems.RemoveAt(AssetIdx);
-			bFoundAsset = true;
-			break;
-		}
-	}
+	bool bFoundAsset = AssetItems.Remove(ObjectPath) > 0;
 
 	if ( bFoundAsset )
 	{
@@ -2862,17 +2834,8 @@ void SAssetView::RemoveAssetByPath( const FName& ObjectPath )
 	}
 	else
 	{
-		//Make sure we don't have the item still queued up for processing
-		for (int32 AssetIdx = 0; AssetIdx < QueriedAssetItems.Num(); ++AssetIdx)
-		{
-			if ( QueriedAssetItems[AssetIdx].ObjectPath == ObjectPath )
-			{
-				// Found the asset in the cached list, remove it
-				QueriedAssetItems.RemoveAt(AssetIdx);
-				bFoundAsset = true;
-				break;
-			}
-		}
+		// Make sure we don't have the item still queued up for processing
+		QueriedAssetItems.Remove(ObjectPath);
 	}
 }
 
