@@ -118,7 +118,7 @@ const FTransform& UOvrAvatarGazeTarget::GetGazeTransform() const
 
 void UOvrAvatarGazeTarget::EnableGazeTarget(bool DoEnable)
 {
-	if (!DoEnable && bIsEnabled && !bShuttingDown)
+	if (!DoEnable && bIsEnabled && !bShuttingDown && UOvrAvatarManager::Get().IsOVRPluginValid())
 	{
 		ovrAvatar_RemoveGazeTargets(1, &NativeTarget.targets[0].id);
 	}
