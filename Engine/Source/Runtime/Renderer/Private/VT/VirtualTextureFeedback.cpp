@@ -151,6 +151,11 @@ void FVirtualTextureFeedback::ReleaseResources()
 	FeedbackBufferUAV.SafeRelease();
 	FeedbackBuffer.SafeRelease();
 	
+	for (int i = 0; i < TargetCapacity; ++i)
+	{
+		FeedbackCPU[i].ReadbackBuffer.SafeRelease();
+	}
+
 	FeedBackFences->ReleaseAll();
 
 	CPUReadIndex = 0u;
