@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Misc/Timespan.h"
+#include "Serialization/StructuredArchive.h"
 #include "Templates/TypeHash.h"
 
 class FArchive;
