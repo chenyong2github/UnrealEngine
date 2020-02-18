@@ -196,6 +196,12 @@ FORCEINLINE FUniqueIdx GetUniqueIdx(const int32 Payload)
 	return FUniqueIdx(Payload);
 }
 
+FORCEINLINE FUniqueIdx GetUniqueIdx(const FUniqueIdx Payload)
+{
+	ensure(Payload.IsValid());
+	return Payload;
+}
+
 
 template <typename TPayloadType, typename T>
 struct TPayloadBoundsElement
@@ -435,6 +441,15 @@ public:
 	void Add(const TKey& Key, const TValue& Value)
 	{
 		Add(Key) = Value;
+	}
+
+	void RemoveChecked(const TKey& Key)
+	{
+		const int32 Idx = GetUniqueIdx(Key).Idx;
+		Entries[Idx] = FEntry();	//Mark as free, also resets default values for next use of value
+#if CHAOS_SERIALIZE_OUT
+		KeysToSerializeOut[Idx] = TKey();
+#endif
 	}
 
 	void Remove(const TKey& Key)

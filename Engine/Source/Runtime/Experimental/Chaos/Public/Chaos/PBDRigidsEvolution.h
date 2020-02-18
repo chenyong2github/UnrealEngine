@@ -318,20 +318,20 @@ class TPBDRigidsEvolutionBase
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<T, d, bPersistent>& Particle)
 	{
-		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(Particle.Handle());
-		SpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T,d>(Particle);
-		SpatialData.bUpdate = true;
-		SpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
+		//TODO: distinguish between new particles and dirty particles
+		const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
+		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
+		ensure(SpatialData.bDelete == false);
+		SpatialData.AccelerationHandle = TAccelerationStructureHandle<T,d>(Particle);
+		SpatialData.SpatialIdx = Particle.SpatialIdx();
 
-		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle.Handle());
-		AsyncSpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
-		AsyncSpatialData.bUpdate = true;
-		AsyncSpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
+		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
+		ensure(SpatialData.bDelete == false);
+		AsyncSpatialData = SpatialData;
 
-		auto& ExternalSpatialData = ExternalAccelerationQueue.FindOrAdd(Particle.Handle());
-		ExternalSpatialData.UpdateAccelerationHandle = TAccelerationStructureHandle<T, d>(Particle);
-		ExternalSpatialData.bUpdate = true;
-		ExternalSpatialData.UpdatedSpatialIdx = Particle.SpatialIdx();
+		auto& ExternalSpatialData = ExternalAccelerationQueue.FindOrAdd(UniqueIdx);
+		ensure(SpatialData.bDelete == false);
+		ExternalSpatialData = SpatialData;
 	}
 
 	void DestroyParticle(TGeometryParticleHandle<T, d>* Particle)
@@ -569,39 +569,23 @@ protected:
 	template <bool bPersistent>
 	FORCEINLINE_DEBUGGABLE void RemoveParticleFromAccelerationStructure(TGeometryParticleHandleImp<T, d, bPersistent>& ParticleHandle)
 	{
-		auto Particle = ParticleHandle.Handle();
-		FPendingSpatialData& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(Particle);
+		//TODO: at the moment we don't distinguish between the first time a particle is created and when it's just moved
+		// If we had this distinction we could simply remove the entry for the async queue
+		const FUniqueIdx UniqueIdx = ParticleHandle.UniqueIdx();
+		FPendingSpatialData& SpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
 
-		if (!AsyncSpatialData.bDelete)
-		{
-			//There are three cases to consider:
-			//Simple single delete happens, in that case just use the index you see (the first and only index)
-			//Delete followed by any number deletes and updates and finally an update, in that case we must delete the first particle and add the final (so use first index for delete)
-			//Delete followed by multiple updates and or deletes and a final delete. In that case we still only delete the first particle since the final delete is not really needed (add will be cancelled)
-			AsyncSpatialData.DeletedSpatialIdx = ParticleHandle.SpatialIdx();
+		SpatialData.bDelete = true;
+		SpatialData.SpatialIdx = ParticleHandle.SpatialIdx();
+		SpatialData.AccelerationHandle = TAccelerationStructureHandle<T, d>(ParticleHandle);
 
-			// We cannot overwrite this handle if delete is already pending. (If delete is pending, that means this is the third case, cancelling update is sufficient),
-			AsyncSpatialData.DeleteAccelerationHandle = TAccelerationStructureHandle<T, d>(ParticleHandle);
-		}
+		ExternalAccelerationQueue.FindOrAdd(UniqueIdx) = SpatialData;
 
-		AsyncSpatialData.bUpdate = false;
-		AsyncSpatialData.bDelete = true;
-
-		// Delete data should match async, and update is not set, so this operation should be safe.
-		ExternalAccelerationQueue.FindOrAdd(Particle) = AsyncSpatialData;
-
-		InternalAccelerationQueue.Remove(Particle);
+		//Internal acceleration has all moves pending, so cancel them all now
+		InternalAccelerationQueue.Remove(UniqueIdx);
 
 		//remove particle immediately for intermediate structure
-		if (FixBadAccelerationStructureRemoval)
-		{
-			InternalAcceleration->RemoveElementFrom(TAccelerationStructureHandle<T, d>(ParticleHandle), ParticleHandle.SpatialIdx());	//even though we remove immediately, future adds are still pending
-		}
-		else
-		{
-			// This is wrong! Be afraid!
-			InternalAcceleration->RemoveElementFrom(AsyncSpatialData.DeleteAccelerationHandle, AsyncSpatialData.DeletedSpatialIdx);	//even though we remove immediately, future adds are still pending
-		}
+		//TODO: if we distinguished between first time adds we could avoid this. We could also make the RemoveElementFrom more strict and ensure when it fails
+		InternalAcceleration->RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
 	}
 
 	void UpdateConstraintPositionBasedState(T Dt)
@@ -692,21 +676,17 @@ protected:
 	/** Used for updating intermediate spatial structures when they are finished */
 	struct FPendingSpatialData
 	{
-		TAccelerationStructureHandle<T, d> UpdateAccelerationHandle;
-		TAccelerationStructureHandle<T, d> DeleteAccelerationHandle;
-		FSpatialAccelerationIdx UpdatedSpatialIdx;
-		FSpatialAccelerationIdx DeletedSpatialIdx;	//need both updated and deleted in case memory is reused but a different idx is neede
-		bool bUpdate;
+		TAccelerationStructureHandle<T, d> AccelerationHandle;
+		FSpatialAccelerationIdx SpatialIdx;
 		bool bDelete;
 
 		FPendingSpatialData()
-			: bUpdate(false)
-			, bDelete(false)
+		: bDelete(false)
 		{}
 
 		void Serialize(FChaosArchive& Ar)
 		{
-			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			/*Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeHashResult)
 			{
 				Ar << UpdateAccelerationHandle;
@@ -722,20 +702,73 @@ protected:
 			Ar << bDelete;
 
 			Ar << UpdatedSpatialIdx;
-			Ar << DeletedSpatialIdx;
+			Ar << DeletedSpatialIdx;*/
+			ensure(false);	//Serialization of transient data like this is currently broken. Need to reevaluate
+		}
+
+		FUniqueIdx UniqueIdx() const
+		{
+			return AccelerationHandle.UniqueIdx();
+		}
+	};
+
+	struct FPendingSpatialDataQueue
+	{
+		TArray<FPendingSpatialData> PendingData;
+		TArrayAsMap<FUniqueIdx, int32> ParticleToPendingData;
+
+		void Reset()
+		{
+			PendingData.Reset();
+			ParticleToPendingData.Reset();
+		}
+
+		int32 Num() const
+		{
+			return PendingData.Num();
+		}
+
+		FPendingSpatialData& FindOrAdd(const FUniqueIdx UniqueIdx)
+		{
+			if (int32* Existing = ParticleToPendingData.Find(UniqueIdx))
+			{
+				return PendingData[*Existing];
+			}
+			else
+			{
+				const int32 NewIdx = PendingData.AddDefaulted(1);
+				ParticleToPendingData.Add(UniqueIdx, NewIdx);
+				return PendingData[NewIdx];
+			}
+		}
+
+		void Remove(const FUniqueIdx UniqueIdx)
+		{
+			if (int32* Existing = ParticleToPendingData.Find(UniqueIdx))
+			{
+				const int32 SlotIdx = *Existing;
+				if (SlotIdx + 1 < PendingData.Num())
+				{
+					const FUniqueIdx LastElemUniqueIdx = PendingData.Last().UniqueIdx();
+					ParticleToPendingData.FindChecked(LastElemUniqueIdx) = SlotIdx;	//We're going to swap elements so the last element is now in the position of the element we removed
+				}
+
+				PendingData.RemoveAtSwap(SlotIdx);
+				ParticleToPendingData.RemoveChecked(UniqueIdx);
+			}
 		}
 	};
 
 	/** Pending operations for the internal acceleration structure */
-	TMap<TGeometryParticleHandle<T, d>*, FPendingSpatialData> InternalAccelerationQueue;
+	FPendingSpatialDataQueue InternalAccelerationQueue;
 
 	/** Pending operations for the acceleration structures being rebuilt asynchronously */
-	TMap<TGeometryParticleHandle<T, d>*, FPendingSpatialData> AsyncAccelerationQueue;
+	FPendingSpatialDataQueue AsyncAccelerationQueue;
 
 	/** Pending operations for the external acceleration structure*/
-	TMap<TGeometryParticleHandle<T, d>*, FPendingSpatialData> ExternalAccelerationQueue;
+	FPendingSpatialDataQueue ExternalAccelerationQueue;
 
-	void SerializePendingMap(FChaosArchive& Ar, TMap<TGeometryParticleHandle<T, d>*, FPendingSpatialData>& Map)
+	/*void SerializePendingMap(FChaosArchive& Ar, TMap<TGeometryParticleHandle<T, d>*, FPendingSpatialData>& Map)
 	{
 		TArray<TGeometryParticleHandle<T, d>*> Keys;
 		if (!Ar.IsLoading())
@@ -748,10 +781,11 @@ protected:
 			FPendingSpatialData& PendingData = Map.FindOrAdd(Key);
 			PendingData.Serialize(Ar);
 		}
-	}
+		//TODO: fix serialization
+	}*/
 
 	/** Used for async acceleration rebuild */
-	TMap<TGeometryParticleHandle<T, d>*, uint32> ParticleToCacheInnerIdx;
+	TArrayAsMap<FUniqueIdx, uint32> ParticleToCacheInnerIdx;
 
 	TMap<FSpatialAccelerationIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>> SpatialAccelerationCache;
 
