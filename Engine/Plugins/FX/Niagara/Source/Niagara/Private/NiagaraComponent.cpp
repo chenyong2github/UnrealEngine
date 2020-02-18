@@ -449,6 +449,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bActivateShouldResetWhenReady(false)
 	, bDidAutoAttach(false)
 	, bAllowScalability(true)
+	, bIsCulledByScalability(false)
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
 	, OwnerLOD(0)
@@ -868,16 +869,19 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		UnregisterWithScalabilityManager();
 	}
 
-	if (!bIsScalabilityCull && ScalabilityManagerHandle != INDEX_NONE)
+	if (!bIsScalabilityCull && bIsCulledByScalability)
 	{
+		check(ScalabilityManagerHandle != INDEX_NONE);
 		//If this is a non scalability activate call and we're still registered with the manager.
 		//If we reach this point then we must have been previously culled by scalability so bail here.
 		return;
 	}
 
-	if (RegisterWithScalabilityManagerOrPreCull())
+	bIsCulledByScalability = false;
+	if (ShouldPreCull())
 	{
 		//We have decided to pre cull the system.
+		bIsCulledByScalability = true;
 		return;
 	}
 
@@ -936,6 +940,8 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
+	RegisterWithScalabilityManager();
+
 	SystemInstance->Activate(ResetMode);
 
 	/** We only need to tick the component if we require solo mode. */
@@ -949,10 +955,14 @@ void UNiagaraComponent::Deactivate()
 
 void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */)
 {
-	// Unregister with the scalability manager if this is a genuine deactivation from outside.
-	// The scalability manager itself can call this function when culling systems.
-	if (bIsScalabilityCull == false)
+	if (bIsScalabilityCull)
 	{
+		bIsCulledByScalability = true;
+	}
+	else
+	{
+		// Unregister with the scalability manager if this is a genuine deactivation from outside.
+		// The scalability manager itself can call this function when culling systems.
 		UnregisterWithScalabilityManager();
 	}
 
@@ -998,7 +1008,11 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 
 	//Unregister with the scalability manager if this is a genuine deactivation from outside.
 	//The scalability manager itself can call this function when culling systems.
-	if (bIsScalabilityCull == false)
+	if (bIsScalabilityCull)
+	{
+		bIsCulledByScalability = true;
+	}
+	else
 	{
 		UnregisterWithScalabilityManager();
 	}
@@ -1011,9 +1025,9 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	}
 }
 
-bool UNiagaraComponent::RegisterWithScalabilityManagerOrPreCull()
+bool UNiagaraComponent::ShouldPreCull()
 {
-	if (ScalabilityManagerHandle == INDEX_NONE && bAllowScalability)
+	if (bAllowScalability)
 	{
 		if (UNiagaraSystem* System = GetAsset())
 		{
@@ -1026,16 +1040,29 @@ bool UNiagaraComponent::RegisterWithScalabilityManagerOrPreCull()
 						//If we're just set to check on spawn then check for precull here.
 						return WorldMan->ShouldPreCull(GetAsset(), this);
 					}
-					else
-					{
-						WorldMan->RegisterWithScalabilityManager(this);
-					}
 				}
 			}
 		}
 	}
 
 	return false;
+}
+
+void UNiagaraComponent::RegisterWithScalabilityManager()
+{
+	if (ScalabilityManagerHandle == INDEX_NONE && bAllowScalability)
+	{
+		if (UNiagaraSystem* System = GetAsset())
+		{
+			if (UNiagaraEffectType* EffectType = System->GetEffectType())
+			{
+				if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(GetWorld()))
+				{
+					WorldMan->RegisterWithScalabilityManager(this);
+				}
+			}
+		}
+	}
 }
 
 void UNiagaraComponent::UnregisterWithScalabilityManager()
@@ -1047,6 +1074,7 @@ void UNiagaraComponent::UnregisterWithScalabilityManager()
 			WorldMan->UnregisterWithScalabilityManager(this);
 		}
 	}
+	bIsCulledByScalability = false;
 	ScalabilityManagerHandle = INDEX_NONE;//Just to be sure our state is unregistered.
 }
 
@@ -1081,6 +1109,24 @@ void UNiagaraComponent::OnSystemComplete()
 	else if (bAutoManageAttachment && ScalabilityManagerHandle == INDEX_NONE)//Do not detach from our parent if we were deactivated by scalability and we need to be considered for reactivation.
 	{
 		CancelAutoAttachment(/*bDetachFromParent=*/ true);
+	}
+
+	if (!bIsCulledByScalability && ScalabilityManagerHandle != INDEX_NONE)
+	{
+		//Can we be sure this isn't going to spam erroneously?
+		if (UNiagaraEffectType* EffectType = GetAsset()->GetEffectType())
+		{
+			//Only trigger warning if we're not being deactivated/completed from the outside and this is a natural completion by the system itself.
+			if (EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediateResume || EffectType->CullReaction == ENiagaraCullReaction::DeactivateResume)
+			{
+				//If we're completing naturally, i.e. we're a burst/non-looping system then we shouldn't be using a mode reactivates the effect.
+				UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has completed naturally but has an effect type with the \"Asleep\" cull reaction. If an effect like this is culled before it can complete then it could leak into the scalability manager and be reactivated incorrectly. Please verify this is using the correct EffctType.\nComponent:%s\nSystem:%s")
+					, *GetFullName(), *GetAsset()->GetFullName());
+			}
+		}
+
+		//We've completed naturally so unregister with the scalability manager.
+		UnregisterWithScalabilityManager();
 	}
 }
 

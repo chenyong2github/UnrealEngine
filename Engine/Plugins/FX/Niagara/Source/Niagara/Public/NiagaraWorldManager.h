@@ -241,5 +241,8 @@ private:
 
 	UPROPERTY(transient)
 	TMap<UNiagaraEffectType*, FNiagaraScalabilityManager> ScalabilityManagers;
+
+	/** True if the app has focus. We prevent some culling if the app doesn't have focus as it can interefre. */
+	bool bAppHasFocus;
 };
 

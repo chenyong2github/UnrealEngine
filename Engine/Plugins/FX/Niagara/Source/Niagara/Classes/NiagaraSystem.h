@@ -368,6 +368,7 @@ public:
 	uint32 bFixedBounds : 1;
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
+	void SetInstanceCountStat(int32 NumInstances)const;
 
 	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
 	ENiagaraFastPathMode FastPathMode;
@@ -499,6 +500,8 @@ protected:
 	mutable TStatId StatID_GT_CNC;
 	mutable TStatId StatID_RT;
 	mutable TStatId StatID_RT_CNC;
+
+	mutable TStatId StatID_InstanceCount;
 #endif
 
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;

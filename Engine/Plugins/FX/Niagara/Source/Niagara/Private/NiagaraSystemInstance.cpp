@@ -790,47 +790,66 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		bBindParams = !IsDisabled();
 	}
 	
-	if (bBindParams)
+	//If none of our emitters actually made it out of the init process we can just bail here before we ever tick.
+	bool bHasActiveEmitters = false;
+	for (auto& Inst : Emitters)
 	{
-		ResetParameters();
-		BindParameters();
-	}
-
-	SetRequestedExecutionState(ENiagaraExecutionState::Active);
-	SetActualExecutionState(ENiagaraExecutionState::Active);
-
-	if (bBindParams)
-	{
-		InitDataInterfaces();
-	}
-
-	//Interface init can disable the system.
-	if (!IsComplete())
-	{
-		ComputeEmittersExecutionOrder();
-
-		bPendingSpawn = true;
-		SystemSimulation->AddInstance(this);
-
-		UNiagaraSystem* System = GetSystem();
-		if (System->NeedsWarmup())
+		if (!Inst->IsComplete())
 		{
-			int32 WarmupTicks = System->GetWarmupTickCount();
-			float WarmupDt = System->GetWarmupTickDelta();
-			
-			AdvanceSimulation(WarmupTicks, WarmupDt);
-
-			//Reset age to zero.
-			Age = 0.0f;
-			TickCount = 0;
+			bHasActiveEmitters = true;
+			break;
 		}
 	}
 
-	if (Component)
+	SetRequestedExecutionState(ENiagaraExecutionState::Active);
+	if (bHasActiveEmitters)
 	{
-		// This system may not tick again immediately so we mark the render state dirty here so that
-		// the renderers will be reset this frame.
-		Component->MarkRenderDynamicDataDirty();
+		if (bBindParams)
+		{
+			ResetParameters();
+			BindParameters();
+		}
+
+		SetActualExecutionState(ENiagaraExecutionState::Active);
+
+		if (bBindParams)
+		{
+			InitDataInterfaces();
+		}
+
+		//Interface init can disable the system.
+		if (!IsComplete())
+		{
+			ComputeEmittersExecutionOrder();
+
+			bPendingSpawn = true;
+			SystemSimulation->AddInstance(this);
+
+			UNiagaraSystem* System = GetSystem();
+			if (System->NeedsWarmup())
+			{
+				int32 WarmupTicks = System->GetWarmupTickCount();
+				float WarmupDt = System->GetWarmupTickDelta();
+
+				AdvanceSimulation(WarmupTicks, WarmupDt);
+
+				//Reset age to zero.
+				Age = 0.0f;
+				TickCount = 0;
+			}
+		}
+
+		if (Component)
+		{
+			// This system may not tick again immediately so we mark the render state dirty here so that
+			// the renderers will be reset this frame.
+			Component->MarkRenderDynamicDataDirty();
+		}
+	}
+	else
+	{
+		SetActualExecutionState(ENiagaraExecutionState::Complete);
+		Complete();
 	}
 }
 
