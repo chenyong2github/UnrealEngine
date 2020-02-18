@@ -13,6 +13,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraFunctionLibrary.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceStaticMesh.h"
@@ -1060,6 +1061,18 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 				}
 			}
 
+			// Look in function library
+			if (Sig == nullptr)
+			{
+				Sig = UNiagaraFunctionLibrary::GetVectorVMFastPathOps(true).FindByPredicate(
+					[&](const FNiagaraFunctionSignature& CheckSig)
+				{
+					FString SigSymbol = FHlslNiagaraTranslator::GetFunctionSignatureSymbol(CheckSig);
+					return SigSymbol == FuncInfo.Name;
+				}
+				);
+			}
+
 			if (Sig)
 			{
 				int32 NewBindingIdx = Results.Data->CalledVMExternalFunctions.AddDefaulted();
@@ -1075,7 +1088,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			}
 			else
 			{
-				Error(FText::Format(LOCTEXT("VectorVMExternalFunctionBindingError", "Failed to bind the exernal function call:  {0}"), FText::FromString(FuncInfo.Name)));
+				Error(FText::Format(LOCTEXT("VectorVMExternalFunctionBindingError", "Failed to bind the external function call:  {0}"), FText::FromString(FuncInfo.Name)));
 				Results.bVMSucceeded = false;
 			}
 		}

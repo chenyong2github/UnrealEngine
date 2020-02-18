@@ -434,9 +434,9 @@ UNiagaraParameterCollectionInstance* UNiagaraFunctionLibrary::GetNiagaraParamete
 }
 
 
-const TArray<FNiagaraFunctionSignature>& UNiagaraFunctionLibrary::GetVectorVMFastPathOps()
+const TArray<FNiagaraFunctionSignature>& UNiagaraFunctionLibrary::GetVectorVMFastPathOps(bool bIgnoreConsoleVariable)
 {
-	if (GAllowFastPathFunctionLibrary == 0)
+	if (!bIgnoreConsoleVariable && (GAllowFastPathFunctionLibrary == 0))
 	{
 		static TArray<FNiagaraFunctionSignature> Empty;
 		return Empty;
