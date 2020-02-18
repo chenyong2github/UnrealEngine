@@ -17,6 +17,12 @@
 #include "NiagaraSystemInstance.h"
 
 #include "ScopedTransaction.h"
+#include "IContentBrowserSingleton.h"
+#include "Framework/Application/SlateApplication.h"
+#include "ContentBrowserModule.h"
+#include "Framework/Docking/TabManager.h"
+#include "Widgets/SWindow.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
 
 #define LOCTEXT_NAMESPACE "EmitterEditorViewModel"
 
@@ -42,6 +48,11 @@ FNiagaraEmitterViewModel::FNiagaraEmitterViewModel()
 
 void FNiagaraEmitterViewModel::Cleanup()
 {
+	if (NewParentWindow.IsValid())
+	{
+		NewParentWindow.Reset();
+	}
+
 	if (Emitter.IsValid())
 	{
 		Emitter->OnEmitterVMCompiled().RemoveAll(this);
@@ -151,6 +162,61 @@ FText FNiagaraEmitterViewModel::GetParentPathNameText() const
 		return FText::FromString(Emitter->GetParent()->GetPathName());
 	}
 	return FText();
+}
+
+void FNiagaraEmitterViewModel::CreateNewParentWindow(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel)
+{
+	FAssetPickerConfig AssetPickerConfig;
+	AssetPickerConfig.SelectionMode = ESelectionMode::SingleToggle;
+	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+	AssetPickerConfig.Filter.ClassNames.Add(UNiagaraEmitter::StaticClass()->GetFName());
+	AssetPickerConfig.OnAssetsActivated.BindSP(this, &FNiagaraEmitterViewModel::UpdateParentEmitter, EmitterHandleViewModel);
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	TSharedRef<SWidget> AssetPicker = ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig);
+
+	const FText TitleText = LOCTEXT("NewParentEmitter", "New Parent Emitter");
+	// Create the window to pick the class
+	SAssignNew(NewParentWindow, SWindow)
+		.Title(TitleText)
+		.SizingRule(ESizingRule::UserSized)
+		.ClientSize(FVector2D(700.f, 300.f))
+		.AutoCenter(EAutoCenter::PreferredWorkArea)
+		.SupportsMinimize(false);
+	NewParentWindow->SetContent(AssetPicker);
+	TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
+	if (RootWindow.IsValid())
+	{
+		FSlateApplication::Get().AddWindowAsNativeChild(NewParentWindow.ToSharedRef(), RootWindow.ToSharedRef());
+	}
+	else
+	{
+		FSlateApplication::Get().AddWindow(NewParentWindow.ToSharedRef());
+	}
+}
+
+void FNiagaraEmitterViewModel::UpdateParentEmitter(const TArray<FAssetData> & ActivatedAssets, EAssetTypeActivationMethod::Type ActivationMethod, TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel)
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("RemoveParentEmitterTransaction", "Remove Parent Emitter"));
+	if ((ActivationMethod == EAssetTypeActivationMethod::DoubleClicked || ActivationMethod == EAssetTypeActivationMethod::Opened) && ActivatedAssets.Num() == 1)
+	{
+		if (Emitter.IsValid())
+		{
+			FAssetData NewParentData = ActivatedAssets[0];
+			UNiagaraEmitter* NewParentPtr = Cast<UNiagaraEmitter>(NewParentData.GetAsset());
+			if (NewParentPtr && NewParentPtr != Emitter)
+			{
+				Emitter->PreEditChange(nullptr);
+				Emitter->Reparent(*NewParentPtr);
+				Emitter->MergeChangesFromParent();
+				Emitter->PostEditChange();
+				EmitterHandleViewModel->GetOwningSystemViewModel()->RefreshAll();
+				NewParentWindow->RequestDestroyWindow();
+			}
+			
+		}
+		
+	}
 }
 
 void FNiagaraEmitterViewModel::RemoveParentEmitter()

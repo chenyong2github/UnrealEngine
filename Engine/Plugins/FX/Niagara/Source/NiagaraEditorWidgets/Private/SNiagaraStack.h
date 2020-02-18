@@ -17,7 +17,7 @@ class SNiagaraStackTableRow;
 class SSearchBox;
 class FReply;
 class FNiagaraStackCommandContext;
-
+class SWidget;
 class SNiagaraStack : public SCompoundWidget
 {
 public:
@@ -27,6 +27,8 @@ public:
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel);
+
+	TSharedPtr<SWidget> GenerateStackMenu(TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModelWeak);
 
 private:
 	struct FRowWidgets
@@ -52,7 +54,7 @@ private:
 
 	TSharedRef<ITableRow> OnGenerateRowForTopLevelObject(TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
-	FReply OnTopLevelRowMouseButtonDown(const FGeometry&, const FPointerEvent& MouseEvent, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModelWeak);
+	
 
 	TSharedRef<SNiagaraStackTableRow> ConstructContainerForItem(UNiagaraStackEntry* Item);
 

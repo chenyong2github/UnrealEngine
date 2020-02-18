@@ -212,20 +212,11 @@ INiagaraMergeManager::FMergeEmitterResults UNiagaraEmitter::MergeChangesFromPare
 		return MergeResults;
 	}
 
-	if (ParentAtLastMerge == nullptr)
-	{
-		// If we don't have a copy of the last merged parent emitter, this emitter can't safely be
-		// merged.
-		INiagaraMergeManager::FMergeEmitterResults MergeResults;
-		MergeResults.MergeResult = INiagaraMergeManager::EMergeEmitterResult::FailedToDiff;
-		MergeResults.bModifiedGraph = false;
-		MergeResults.ErrorMessages.Add(NSLOCTEXT("NiagaraEmitter", "NoLastMergedParentErrorMessage", "This emitter has no 'ParentAtLastMerge' so changes can't be merged in."));
-		return MergeResults;
-	}
+	const bool bNoParentAtLastMerge = (ParentAtLastMerge == nullptr);
 
 	INiagaraModule& NiagaraModule = FModuleManager::Get().GetModuleChecked<INiagaraModule>("Niagara");
 	const INiagaraMergeManager& MergeManager = NiagaraModule.GetMergeManager();
-	INiagaraMergeManager::FMergeEmitterResults MergeResults = MergeManager.MergeEmitter(*Parent, *ParentAtLastMerge, *this);
+	INiagaraMergeManager::FMergeEmitterResults MergeResults = MergeManager.MergeEmitter(*Parent, ParentAtLastMerge, *this);
 	if (MergeResults.MergeResult == INiagaraMergeManager::EMergeEmitterResult::SucceededDifferencesApplied || MergeResults.MergeResult == INiagaraMergeManager::EMergeEmitterResult::SucceededNoDifferences)
 	{
 		if (MergeResults.MergeResult == INiagaraMergeManager::EMergeEmitterResult::SucceededDifferencesApplied)
@@ -1502,6 +1493,13 @@ void UNiagaraEmitter::SetParent(UNiagaraEmitter& InParent)
 	Parent = &InParent;
 	ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(&InParent, this));
 	ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
+	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
+}
+
+void UNiagaraEmitter::Reparent(UNiagaraEmitter& InParent)
+{
+	Parent = &InParent;
+	ParentAtLastMerge = nullptr;
 	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 }
 #endif

@@ -52,6 +52,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "UObject/TextProperty.h"
+#include "Editor/EditorEngine.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1605,6 +1606,15 @@ void FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser(TSharedRef<FNiag
 	ContentBrowserModule.Get().SyncBrowserToAssets(TArray<FAssetData> { FAssetData(Emitter->GetParentEmitter()) });
 }
 
+void FNiagaraEditorUtilities::OpenParentEmitterForEdit(TSharedRef<FNiagaraEmitterViewModel> Emitter)
+{
+	UNiagaraEmitter* ParentEmitter = const_cast<UNiagaraEmitter*>(Emitter->GetParentEmitter());
+	if (ParentEmitter != nullptr)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentEmitter);
+	}
+}
+
 ECheckBoxState FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
 {
 	bool bFirst = true;
@@ -1781,11 +1791,10 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 		TSharedRef<FNiagaraSystemViewModel> OwningSystemViewModel = EmitterHandleViewModel->GetOwningSystemViewModel();
 
 		bool bSingleSelection = OwningSystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() == 1;
-
+		TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel->GetEmitterViewModel();
 		MenuBuilder.BeginSection("EmitterActions", LOCTEXT("EmitterActions", "Emitter Actions"));
 		{
-			TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel->GetEmitterViewModel();
-
+		
 			if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 			{
 				MenuBuilder.AddMenuEntry(
@@ -1825,36 +1834,6 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 			}
 
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
-				LOCTEXT("RemoveParentEmitterToolTip", "Remove this emitter's parent, preventing inheritance of any further changes."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
-					FCanExecuteAction::CreateLambda(
-						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
-						{
-							return bSingleSelection && bHasParent;
-						}
-					)
-				)
-			);
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ShowEmitterInContentBrowser", "Show in Content Browser"),
-				LOCTEXT("ShowEmitterInContentBrowserToolTip", "Show the selected emitter in the Content Browser."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
-					FCanExecuteAction::CreateLambda(
-						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
-						{
-							return bSingleSelection && bHasParent;
-						}
-					)
-				)
-			);
-
-			MenuBuilder.AddMenuEntry(
 				LOCTEXT("CreateAssetFromThisEmitter", "Create Asset From This"),
 				LOCTEXT("CreateAssetFromThisEmitterToolTip", "Create an emitter asset from this emitter."),
 				FSlateIcon(),
@@ -1868,6 +1847,72 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 					)
 				)
 			);
+		}
+
+		MenuBuilder.EndSection();
+		MenuBuilder.BeginSection("EmitterActions", LOCTEXT("ParentActions", "Parent Actions"));
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("UpdateParentEmitter", "Update Parent Emitter"),
+				LOCTEXT("UpdateParentEmitterToolTip", "Change or add a parent emitter."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::CreateNewParentWindow, EmitterHandleViewModel),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection]()
+						{
+							return bSingleSelection;
+						}
+					)
+				)
+			);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
+			LOCTEXT("RemoveParentEmitterToolTip", "Remove this emitter's parent, preventing inheritance of any further changes."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
+				FCanExecuteAction::CreateLambda(
+					[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+					{
+						return bSingleSelection && bHasParent;
+					}
+				)
+			)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenParentEmitterForEdit", "Open Parent For Edit"),
+			LOCTEXT("OpenParentEmitterForEditToolTip", "Open and Focus Parent Emitter."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::OpenParentEmitterForEdit, EmitterViewModel),
+				FCanExecuteAction::CreateLambda(
+					[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+		{
+			return bSingleSelection && bHasParent;
+		}
+		)
+			)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowParentEmitterInContentBrowser", "Show Parent in Content Browser"),
+			LOCTEXT("ShowParentEmitterInContentBrowserToolTip", "Show the selected emitter's parent emitter in the Content Browser."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
+				FCanExecuteAction::CreateLambda(
+					[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+					{
+						return bSingleSelection && bHasParent;
+					}
+				)
+			)
+		);
+
+	
 		}
 		MenuBuilder.EndSection();
 

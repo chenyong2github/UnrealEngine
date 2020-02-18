@@ -478,6 +478,8 @@ public:
 	NIAGARA_API void RemoveParent();
 
 	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
+
+	NIAGARA_API	void Reparent(UNiagaraEmitter& InParent);
 #endif
 
 	void OnEffectsQualityChanged();
