@@ -32,6 +32,9 @@
     - LZ4 homepage : http://www.lz4.org
     - LZ4 source repository : https://github.com/lz4/lz4
 */
+
+#pragma once
+
 #include "CoreMinimal.h"
 
 #if defined (__cplusplus)

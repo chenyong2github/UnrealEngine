@@ -202,10 +202,6 @@ namespace IncludeTool
 			{
 				return true;
 			}
-			if (NormalizedPath.EndsWith("/lz4.h") || NormalizedPath.EndsWith("/lz4hc.h"))
-			{
-				return true;
-			}
 			return false;
 		}
 
