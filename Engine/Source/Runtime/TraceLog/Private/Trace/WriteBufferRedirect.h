@@ -15,6 +15,7 @@ public:
 					~TWriteBufferRedirect();
 	uint8*			GetData();
 	uint32			GetSize() const;
+	uint32			GetCapacity() const;
 	void			Reset();
 
 private:
@@ -51,6 +52,13 @@ template <int BufferSize>
 inline uint32 TWriteBufferRedirect<BufferSize>::GetSize() const
 {
 	return uint32(Buffer.Committed - Buffer.Reaped);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <int BufferSize>
+inline uint32 TWriteBufferRedirect<BufferSize>::GetCapacity() const
+{
+	return BufferSize;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
