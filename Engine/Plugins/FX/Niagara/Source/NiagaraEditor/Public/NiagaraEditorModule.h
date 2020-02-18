@@ -124,6 +124,7 @@ private:
 	void OnPreGarbageCollection();
 	void OnExecParticleInvoked(const TCHAR* InStr);
 	void OnPostEngineInit();
+	void OnDeviceProfileManagerUpdated();
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -160,6 +161,8 @@ private:
 	FDelegateHandle ScriptCompilerHandle;
 	FDelegateHandle CompileResultHandle;
 	FDelegateHandle PrecompilerHandle;
+
+	FDelegateHandle DeviceProfileManagerUpdatedHandle;
 
 	USequencerSettings* SequencerSettings;
 	

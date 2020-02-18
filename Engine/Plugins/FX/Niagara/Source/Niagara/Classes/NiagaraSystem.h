@@ -356,10 +356,9 @@ public:
 	FORCEINLINE int32* GetCycleCounter(bool bGameThread, bool bConcurrent);
 
 	UNiagaraEffectType* GetEffectType()const;
-	const FNiagaraScalabilitySettings& GetScalabilitySettings(int32 DetailLevel=INDEX_NONE);
+	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings() { return CurrentScalabilitySettings; }
 	
-	void ResolveScalabilityOverrides();
-	void OnDetailLevelChanges(int32 DetailLevel);
+	void OnEffectsQualityChanged();
 
 	/** Whether or not fixed bounds are enabled. */
 	UPROPERTY(EditAnywhere, Category = "System", meta = (InlineEditConditionToggle))
@@ -402,6 +401,7 @@ private:
 	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const UNiagaraEmitter* InAssociatedEmitter, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 #endif
 
+	void ResolveScalabilitySettings();
 	void UpdatePostCompileDIInfo();
 
 protected:
@@ -411,8 +411,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "System", meta=(InlineEditConditionToggle))
 	bool bOverrideScalabilitySettings;
 
+	UPROPERTY()
+	TArray<FNiagaraSystemScalabilityOverride> ScalabilityOverrides_DEPRECATED;
+
 	UPROPERTY(EditAnywhere, Category = "System", meta = (EditCondition="bOverrideScalabilitySettings"))
-	TArray<FNiagaraScalabilityOverrides> ScalabilityOverrides;
+	FNiagaraSystemScalabilityOverrides SystemScalabilityOverrides;
 
 	/** Handles to the emitter this System will simulate. */
 	UPROPERTY()
@@ -495,11 +498,7 @@ protected:
 	mutable TStatId StatID_RT_CNC;
 #endif
 
-	/** Resolved results of this system's overrides applied on top of it's effect type settings. */
-	UPROPERTY()
-	TArray<FNiagaraScalabilitySettings> ResolvedScalabilitySettings;
-
-	FNiagaraScalabilitySettings CurrentScalabilitySettings;
+	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;
 };
 
 extern int32 GEnableNiagaraRuntimeCycleCounts;

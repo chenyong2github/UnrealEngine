@@ -10,6 +10,7 @@
 #include "NiagaraCollision.h"
 #include "INiagaraMergeManager.h"
 #include "NiagaraSystemFastPath.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
@@ -177,31 +178,22 @@ struct FNiagaraEventScriptProperties : public FNiagaraEmitterScriptProperties
 	uint32 MinSpawnNumber;
 };
 
+/** Legacy struct for spawn count scale overrides. This is now done in FNiagaraEmitterScalabilityOverrides*/
 USTRUCT()
 struct FNiagaraDetailsLevelScaleOverrides 
 {
 	GENERATED_BODY()
 
 	FNiagaraDetailsLevelScaleOverrides();
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to Low instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float Low;
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to Medium instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float Medium;
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to High instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float High;
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to Epic instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float Epic;
-
-	/** The Scalability spawn count scale used when Effects Quality level is set to Cine instead of fx.NiagaraGlobalSpawnCountScale. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY()
 	float Cine;
 };
 
@@ -249,6 +241,7 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
+	bool IsEnabledOnPlatform(const FString& PlatformName);
 #endif
 	void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
@@ -302,17 +295,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Emitter", meta = (EditCondition = "bFixedBounds"))
 	FBox FixedBounds;
 	
-	/** If the current engine detail level is below MinDetailLevel then this emitter is disabled. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(EditCondition = "bUseMinDetailLevel"))
-	int32 MinDetailLevel;
+	UPROPERTY()
+	int32 MinDetailLevel_DEPRECATED;
+	UPROPERTY()
+	int32 MaxDetailLevel_DEPRECATED;
+	UPROPERTY()
+	FNiagaraDetailsLevelScaleOverrides GlobalSpawnCountScaleOverrides_DEPRECATED;
+	
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	FNiagaraPlatformSet Platforms;
 
-	/** If the current engine detail level is above MaxDetailLevel then this emitter is disabled. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(EditCondition = "bUseMaxDetailLevel"))
-	int32 MaxDetailLevel;
-
-	/** Custom Scalability spawn count scales to override the ones defined by fx.NiagaraGlobalSpawnCountScale in the GScalabilityIni config hierarchy. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bOverrideGlobalSpawnCountScale"))
-	FNiagaraDetailsLevelScaleOverrides GlobalSpawnCountScaleOverrides;
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	FNiagaraEmitterScalabilityOverrides ScalabilityOverrides;
 
 	/** When enabled, this will spawn using interpolated parameter values and perform a partial update at spawn time. This adds significant additional cost for spawning but will produce much smoother spawning for high spawn rates, erratic frame rates and fast moving emitters. */
 	UPROPERTY(EditAnywhere, Category = "Emitter")
@@ -323,16 +317,16 @@ public:
 	uint32 bFixedBounds : 1;
 
 	/** Whether to use the min detail or not. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bUseMinDetailLevel : 1;
+	UPROPERTY()
+	uint32 bUseMinDetailLevel_DEPRECATED : 1;
 	
 	/** Whether to use the min detail or not. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bUseMaxDetailLevel : 1;
+	UPROPERTY()
+	uint32 bUseMaxDetailLevel_DEPRECATED : 1;
 
-	/** Whether or not to override the global spawn count scale based on Effects Quality levels, as defined by fx.NiagaraGlobalSpawnCountScale in the GScalabilityIni config hierarchy. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
-	uint32 bOverrideGlobalSpawnCountScale : 1;
+	/** Legacy bool to control overriding the global spawn count scales. */
+	UPROPERTY()
+	uint32 bOverrideGlobalSpawnCountScale_DEPRECATED : 1;
 
 	/** Do particles in this emitter require a persistent ID? */
 	UPROPERTY(EditAnywhere, Category = "Emitter")
@@ -423,10 +417,11 @@ public:
 	NIAGARA_API UNiagaraEmitter* DuplicateWithoutMerging(UObject* InOuter);
 #endif
 
-	float GetSpawnCountScale(int EffectsQuality = -1); 
+	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
 
-	/** Is this emitter allowed to be enabled by the current system detail level. */
-	NIAGARA_API bool IsAllowedByDetailLevel(int32 DetailLevel)const;
+	/** Returns true if this emitter's platform filter allows it on this platform and EffectsQuality level. */
+	NIAGARA_API bool IsAllowedByScalability()const;
+
 	NIAGARA_API bool RequiresPersistantIDs()const;
 
 	NIAGARA_API bool IsValid()const;
@@ -484,6 +479,8 @@ public:
 	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
 #endif
 
+	void OnEffectsQualityChanged();
+
 	void InitFastPathAttributeNames();
 
 	UPROPERTY(EditAnywhere, Category = "Script Fast Path")
@@ -509,6 +506,8 @@ public:
 
 protected:
 	virtual void BeginDestroy() override;
+
+	void ResolveScalabilitySettings();
 
 #if WITH_EDITORONLY_DATA
 private:
@@ -576,6 +575,8 @@ private:
 
 	MemoryRuntimeEstimation RuntimeEstimation;
 	FCriticalSection EstimationCriticalSection;
+
+	FNiagaraEmitterScalabilitySettings CurrentScalabilitySettings;
 };
 
 

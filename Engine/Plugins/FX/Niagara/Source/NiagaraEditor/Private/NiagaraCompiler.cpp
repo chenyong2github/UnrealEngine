@@ -542,7 +542,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		// Create an array of variables that we *did* encounter when traversing the graphs.
 		TArray<FNiagaraVariable> EncounteredExposedVars;
 		check(System->GetSystemSpawnScript()->GetSource() == System->GetSystemUpdateScript()->GetSource());
-		uint32 DetailLevelMask = 0xFFFFFFFF;
 
 		// First deep copy all the emitter graphs referenced by the system so that we can later hook up emitter handles in the system traversal.
 		BasePtr->EmitterData.Empty();

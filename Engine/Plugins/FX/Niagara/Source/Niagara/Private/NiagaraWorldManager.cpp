@@ -30,6 +30,14 @@ static FAutoConsoleVariableRef CVarNiagaraAllowAsyncWorkToEndOfFrame(
 	GNiagaraAllowAsyncWorkToEndOfFrame,
 	TEXT("Allow async work to continue until the end of the frame, if false it will complete within the tick group it's started in."),
 	ECVF_Default
+); 
+
+static int GNiagaraWaitOnPreGC = 1;
+static FAutoConsoleVariableRef CVarNiagaraWaitOnPreGC(
+	TEXT("fx.Niagara.WaitOnPreGC"),
+	GNiagaraWaitOnPreGC,
+	TEXT("Toggles whether Niagara will wait for all async tasks to complete before any GC calls."),
+	ECVF_Default
 );
 
 FAutoConsoleCommandWithWorld DumpNiagaraWorldManagerCommand(
@@ -52,7 +60,8 @@ FDelegateHandle FNiagaraWorldManager::OnWorldCleanupHandle;
 FDelegateHandle FNiagaraWorldManager::OnPreWorldFinishDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldBeginTearDownHandle;
 FDelegateHandle FNiagaraWorldManager::TickWorldHandle;
-FDelegateHandle FNiagaraWorldManager::PostGCHandle; 
+FDelegateHandle FNiagaraWorldManager::PreGCHandle;
+FDelegateHandle FNiagaraWorldManager::PostGCHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCBeginDestroyHandle; 
 TMap<class UWorld*, class FNiagaraWorldManager*> FNiagaraWorldManager::WorldManagers;
 
@@ -169,6 +178,7 @@ void FNiagaraWorldManager::OnStartup()
 	OnWorldBeginTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddStatic(&FNiagaraWorldManager::OnWorldBeginTearDown);
 	TickWorldHandle = FWorldDelegates::OnWorldPostActorTick.AddStatic(&FNiagaraWorldManager::TickWorld);
 
+	PreGCHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddStatic(&FNiagaraWorldManager::OnPreGarbageCollect);
 	PostGCHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddStatic(&FNiagaraWorldManager::OnPostGarbageCollect);
 	PreGCBeginDestroyHandle = FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddStatic(&FNiagaraWorldManager::OnPreGarbageCollectBeginDestroy);
 }
@@ -181,6 +191,7 @@ void FNiagaraWorldManager::OnShutdown()
 	FWorldDelegates::OnWorldBeginTearDown.Remove(OnWorldBeginTearDownHandle);
 	FWorldDelegates::OnWorldPostActorTick.Remove(TickWorldHandle);
 
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(PreGCHandle);
 	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGCHandle);
 	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.Remove(PreGCBeginDestroyHandle);
 
@@ -353,6 +364,20 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	ScalabilityManagers.Empty();
 }
 
+void FNiagaraWorldManager::PreGarbageCollect()
+{
+	if (GNiagaraWaitOnPreGC)
+	{
+		for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
+		{
+			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations[TG])
+			{
+				SimPair.Value->WaitForInstancesTickComplete();
+			}
+		}
+	}
+}
+
 void FNiagaraWorldManager::PostGarbageCollect()
 {
 	//Clear out and scalability managers who's EffectTypes have been GCd.
@@ -433,6 +458,14 @@ void FNiagaraWorldManager::DestroyAllSystemSimulations(class UNiagaraSystem* Sys
 void FNiagaraWorldManager::TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds)
 {
 	Get(World)->PostActorTick(DeltaSeconds);
+}
+
+void FNiagaraWorldManager::OnPreGarbageCollect()
+{
+	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
+	{
+		Pair.Value->PreGarbageCollect();
+	}
 }
 
 void FNiagaraWorldManager::OnPostGarbageCollect()
@@ -672,7 +705,7 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, UNiagaraCompone
 			if (CanPreCull(EffectType))
 			{
 				FNiagaraScalabilityState State;
-				const FNiagaraScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings(Component->GetPreviewDetailLevel());
+				const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
 				CalculateScalabilityState(System, ScalabilitySettings, EffectType, Component, true, State);
 				return State.bCulled;
 			}
@@ -690,7 +723,7 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 			if (CanPreCull(EffectType))
 			{
 				FNiagaraScalabilityState State;
-				const FNiagaraScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
+				const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
 				CalculateScalabilityState(System, ScalabilitySettings, EffectType, Location, true, State);
 				return State.bCulled;
 			}
@@ -699,7 +732,7 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 	return false;
 }
 
-void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState)
 {
 	float DistSignificance = DistanceSignificance(EffectType, ScalabilitySettings, Location);
 
@@ -721,12 +754,9 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	OutState.bDirty = OutState.bCulled != bOldCulled;
 
 	//TODO: More progressive scalability options?
-	//We can possibly adjust the DetailLevel each effect can use so we can more gradually scale down effects at lower significance.
-	//Possibly do similar to the Significance manager and define a set budget of instances that are allowed at each level.
-	//E.g. 5 max quality environmental effects, 10 bias to -1 detail level, 20 biased to -2 etc.
 }
 
-void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState)
 {
 	float DistSignificance = DistanceSignificance(EffectType, ScalabilitySettings, Component);
 	
@@ -757,9 +787,6 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	OutState.bDirty = OutState.bCulled != bOldCulled;
 
 	//TODO: More progressive scalability options?
-	//We can possibly adjust the DetailLevel each effect can use so we can more gradually scale down effects at lower significance.
-	//Possibly do similar to the Significance manager and define a set budget of instances that are allowed at each level.
-	//E.g. 5 max quality environmental effects, 10 bias to -1 detail level, 20 biased to -2 etc.
 }
 
 bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)
@@ -768,7 +795,7 @@ bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)
 	return EffectType->CullReaction == ENiagaraCullReaction::Deactivate || EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediate;
 }
 
-void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, float Significance, int32 Index, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32 Index, FNiagaraScalabilityState& OutState)
 {
 	//Cull all but the N most significance FX.
 	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && Index >= ScalabilitySettings.MaxInstances;
@@ -778,7 +805,7 @@ void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType
 #endif
 }
 
-void FNiagaraWorldManager::SignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, float Significance, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::SignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, FNiagaraScalabilityState& OutState)
 {
 	float MinSignificance = 0.0f;
 
@@ -799,7 +826,7 @@ void FNiagaraWorldManager::SignificanceCull(UNiagaraEffectType* EffectType, cons
 #endif
 }
 
-void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
 {
 	float TimeSinceRendered = Component->GetSafeTimeSinceRendered(World->TimeSeconds);
 	bool bCull = ScalabilitySettings.bCullByMaxTimeWithoutRender && TimeSinceRendered > ScalabilitySettings.MaxTimeWithoutRender;
@@ -810,7 +837,7 @@ void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const 
 #endif
 }
 
-void FNiagaraWorldManager::OwnerLODCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::OwnerLODCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
 {
 	bool bCull = ScalabilitySettings.bCullByMaxOwnerLOD && Component->GetOwnerLOD() > ScalabilitySettings.MaxOwnerLOD;
 	OutState.bCulled |= bCull;
@@ -819,7 +846,7 @@ void FNiagaraWorldManager::OwnerLODCull(UNiagaraEffectType* EffectType, const FN
 #endif
 }
 
-void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState)
 {
 	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectType->NumInstances > ScalabilitySettings.MaxInstances;
 	OutState.bCulled |= bCull;
@@ -828,7 +855,7 @@ void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, con
 #endif
 }
 
-float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component)
+float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component)
 {
 	float LODDistance = 0.0f;
 
@@ -867,7 +894,7 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 	return 1.0f;
 }
 
-float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, FVector Location)
+float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location)
 {
 	if (ScalabilitySettings.bCullByDistance && bCachedPlayerViewLocationsValid)
 	{

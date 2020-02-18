@@ -265,8 +265,6 @@ public:
 	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }*/
 	bool HasGPUEmitters() { return bHasGPUEmitters;  }
 
-	int32 GetDetailLevel()const;
-
 	FORCEINLINE void BeginAsyncWork()
 	{
 		bAsyncWorkInProgress = true;

@@ -440,9 +440,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bAutoDestroy(false)
 	, MaxTimeBeforeForceUpdateTransform(5.0f)
 #if WITH_EDITOR
-	, PreviewDetailLevel(INDEX_NONE)
 	, PreviewLODDistance(0.0f)
-	, bEnablePreviewDetailLevel(false)
 	, bEnablePreviewLODDistance(false)
 	, bWaitForCompilationOnActivate(false)
 #endif
@@ -1795,25 +1793,12 @@ void UNiagaraComponent::SetMaxSimTime(float InMaxTime)
 }
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-void UNiagaraComponent::SetPreviewDetailLevel(bool bInEnablePreviewDetailLevel, int32 InPreviewDetailLevel)
-{
-	bool bReInit = bEnablePreviewDetailLevel != bInEnablePreviewDetailLevel || (bEnablePreviewDetailLevel && PreviewDetailLevel != InPreviewDetailLevel);
-
-	bEnablePreviewDetailLevel = bInEnablePreviewDetailLevel;
-	PreviewDetailLevel = InPreviewDetailLevel;
-	if (bReInit)
-	{
-		ReinitializeSystem();
-	}
-}
-
 void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance)
 {
 	bEnablePreviewLODDistance = bInEnablePreviewLODDistance;
 	PreviewLODDistance = InPreviewLODDistance;
 }
 #else
-void UNiagaraComponent::SetPreviewDetailLevel(bool bInEnablePreviewDetailLevel, int32 InPreviewDetailLevel){}
 void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance){}
 #endif
 

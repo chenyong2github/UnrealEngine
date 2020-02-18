@@ -189,7 +189,11 @@ void FNiagaraShaderMapId::Serialize(FArchive& Ar)
 	
 	if (NiagaraVer >= FNiagaraCustomVersion::AddRIAndDetailLevel)
 	{
-		Ar << DetailLevelMask;
+		if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
+		{
+			int32 Dummy;
+			Ar << Dummy;
+		}
 		Ar << bUsesRapidIterationParams;
 	}
 	
@@ -235,7 +239,6 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		|| */BaseCompileHash != ReferenceSet.BaseCompileHash
 		|| FeatureLevel != ReferenceSet.FeatureLevel
 		|| CompilerVersionID != ReferenceSet.CompilerVersionID 
-		|| DetailLevelMask != ReferenceSet.DetailLevelMask 
 		|| bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams)
 	{
 		return false;
@@ -304,15 +307,6 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 
 	KeyString += CompilerVersionID.ToString();
 	KeyString += TEXT("_");
-
-	if (DetailLevelMask != 0xFFFFFFFF)
-	{
-		KeyString += FString::Printf(TEXT("DL_%d"), DetailLevelMask);
-	}
-	else
-	{
-		KeyString += TEXT("ALLDL_");
-	}
 
 	if (bUsesRapidIterationParams)
 	{

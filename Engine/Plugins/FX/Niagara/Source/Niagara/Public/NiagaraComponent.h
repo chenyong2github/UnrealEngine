@@ -154,6 +154,8 @@ public:
 
 	virtual void Activate(bool bReset = false)override;
 	virtual void Deactivate()override;
+
+	UFUNCTION(BlueprintCallable, Category = Niagara)
 	void DeactivateImmediate();
 
 	FORCEINLINE ENiagaraExecutionState GetRequestedExecutionState()const { return SystemInstance ? SystemInstance->GetRequestedExecutionState() : ENiagaraExecutionState::Complete; }
@@ -403,20 +405,11 @@ public:
 #endif
 	//~ End UObject Interface
 
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	void SetPreviewDetailLevel(bool bEnablePreviewDetailLevel, int32 PreviewDetailLevel);
-
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance);
 
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	FORCEINLINE bool GetPreviewDetailLevelEnabled()const;
-
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	FORCEINLINE bool GetPreviewLODDistanceEnabled()const;
-
-	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
-	FORCEINLINE int32 GetPreviewDetailLevel()const;
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
 	FORCEINLINE int32 GetPreviewLODDistance()const;
@@ -507,9 +500,7 @@ public:
 	virtual void SetUseAutoManageAttachment(bool bAutoManage) override { bAutoManageAttachment = bAutoManage; }
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-	int32 PreviewDetailLevel;
 	float PreviewLODDistance;
-	uint32 bEnablePreviewDetailLevel : 1;
 	uint32 bEnablePreviewLODDistance : 1;
 #endif
 
@@ -564,14 +555,10 @@ private:
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
-FORCEINLINE bool UNiagaraComponent::GetPreviewDetailLevelEnabled()const { return bEnablePreviewDetailLevel; }
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return bEnablePreviewLODDistance; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewDetailLevel()const { return bEnablePreviewDetailLevel ? PreviewDetailLevel : INDEX_NONE; }
 FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
 #else
-FORCEINLINE bool UNiagaraComponent::GetPreviewDetailLevelEnabled()const { return false; }
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return false; }
-FORCEINLINE int32 UNiagaraComponent::GetPreviewDetailLevel()const { return INDEX_NONE; }
 FORCEINLINE int32 UNiagaraComponent::GetPreviewLODDistance()const { return 0.0f; }
 #endif
 
