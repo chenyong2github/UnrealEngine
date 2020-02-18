@@ -4214,21 +4214,34 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 						{
 							Scene->FlushAsyncLightPrimitiveInteractionCreation();
 
-							// Look for individual primitives with a dynamic shadow.
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false);
-								Interaction;
-								Interaction = Interaction->GetNextPrimitive()
-								)
-							{
-								SetupInteractionShadows(RHICmdList, Interaction, VisibleLightInfo, bStaticSceneOnly, ViewDependentWholeSceneShadows, PreShadows);
-							}
+							const TArray<FLightPrimitiveInteraction*>* InteractionShadowPrimitives = LightSceneInfo->GetInteractionShadowPrimitives(false);
 
-							for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false);
-								Interaction;
-								Interaction = Interaction->GetNextPrimitive()
-								)
+							if (InteractionShadowPrimitives)
 							{
-								SetupInteractionShadows(RHICmdList, Interaction, VisibleLightInfo, bStaticSceneOnly, ViewDependentWholeSceneShadows, PreShadows);
+								const int32 NumPrims = InteractionShadowPrimitives->Num();
+								for (int32 Idx = 0; Idx < NumPrims; ++Idx)
+								{
+									SetupInteractionShadows(RHICmdList, (*InteractionShadowPrimitives)[Idx], VisibleLightInfo, bStaticSceneOnly, ViewDependentWholeSceneShadows, PreShadows);
+								}
+							}
+							else
+							{
+								// Look for individual primitives with a dynamic shadow.
+								for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false);
+									Interaction;
+									Interaction = Interaction->GetNextPrimitive()
+									)
+								{
+									SetupInteractionShadows(RHICmdList, Interaction, VisibleLightInfo, bStaticSceneOnly, ViewDependentWholeSceneShadows, PreShadows);
+								}
+
+								for (FLightPrimitiveInteraction* Interaction = LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false);
+									Interaction;
+									Interaction = Interaction->GetNextPrimitive()
+									)
+								{
+									SetupInteractionShadows(RHICmdList, Interaction, VisibleLightInfo, bStaticSceneOnly, ViewDependentWholeSceneShadows, PreShadows);
+								}
 							}
 						}
 					}

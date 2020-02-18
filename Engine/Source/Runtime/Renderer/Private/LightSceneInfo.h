@@ -153,6 +153,9 @@ class FLightSceneInfo : public FRenderResource
 {
 	friend class FLightPrimitiveInteraction;
 
+	bool bRecordInteractionShadowPrimitives;
+	TArray<FLightPrimitiveInteraction*> InteractionShadowPrimitives;
+
 	/** The list of dynamic primitives affected by the light. */
 	FLightPrimitiveInteraction* DynamicInteractionOftenMovingPrimitiveList;
 
@@ -301,6 +304,8 @@ public:
 		// Movable lights get a channel assigned when they are added to the scene
 		return DynamicShadowMapChannel;
 	}
+
+	const TArray<FLightPrimitiveInteraction*>* GetInteractionShadowPrimitives(bool bSync = true) const;
 
 	FLightPrimitiveInteraction* GetDynamicInteractionOftenMovingPrimitiveList(bool bSync = true) const;
 
