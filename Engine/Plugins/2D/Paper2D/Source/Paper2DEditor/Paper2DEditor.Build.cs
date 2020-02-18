@@ -32,12 +32,12 @@ public class Paper2DEditor : ModuleRules
 				"Projects",
 				"NavigationSystem",
 				"ToolMenus",
-			});
+                "IntroTutorials"
+            });
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Settings",
-				"IntroTutorials",
 				"AssetTools",
 				"LevelEditor"
 			});
