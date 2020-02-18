@@ -561,6 +561,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> QuadOverdrawBuffer;
 	// used by the CustomDepth material feature, is allocated on demand or if r.CustomDepth is 2
 	TRefCountPtr<IPooledRenderTarget> CustomDepth;
+	// CustomDepth is memoryless on mobile, depth is saved in MobileCustomDepth Color RT 
+	TRefCountPtr<IPooledRenderTarget> MobileCustomDepth;
 	TRefCountPtr<IPooledRenderTarget> MobileCustomStencil;
 	// used by the CustomDepth material feature for stencil
 	TRefCountPtr<FRHIShaderResourceView> CustomStencilSRV;
