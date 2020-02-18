@@ -336,6 +336,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 
 				const int32 MinimumChunkSize = AudioFormat->GetMinimumSizeForInitialChunk(AudioFormatName, CompressedBuffer);
 				const bool bUseStreamCaching = CompressionOverrides && CompressionOverrides->bUseStreamCaching;
+				const bool bForceLegacyStreamChunking = SoundWave.bStreaming && CompressionOverrides && CompressionOverrides->StreamCachingSettings.bForceLegacyStreamChunking;
 
 				// If the initial chunk  for this sound wave was overridden, use that:
 				if (SoundWave.InitialChunkSize > 0)
@@ -347,8 +348,22 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 					// Ensure that the minimum chunk size is nonzero if our compressed buffer is not empty.
 					checkf(CompressedBuffer.Num() == 0 || MinimumChunkSize != 0, TEXT("To use Load On Demand, please override GetMinimumSizeForInitialChunk"));
 
-					// Otherwise if we're using Load On Demand, the first chunk should be as small as possible:
-					FirstChunkSize = MinimumChunkSize;
+					//
+					if (bForceLegacyStreamChunking)
+					{
+						int32 LegacyZerothChunkSize = CompressionOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB * 1024;
+						if (LegacyZerothChunkSize == 0)
+						{
+							LegacyZerothChunkSize = MaxChunkSize;
+						}
+
+						FirstChunkSize = LegacyZerothChunkSize;
+					}
+					else
+					{
+						// Otherwise if we're using Audio Stream Caching, the first chunk should be as small as possible:
+						FirstChunkSize = MinimumChunkSize;
+					}
 				}
 
 				if (bUseStreamCaching)
