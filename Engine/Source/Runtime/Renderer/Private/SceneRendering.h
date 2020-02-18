@@ -1823,6 +1823,8 @@ protected:
 
 	void InitViews(FRHICommandListImmediate& RHICmdList);
 
+	void RenderPrePass(FRHICommandListImmediate& RHICmdList);
+
 	/** Renders the opaque base pass for mobile. */
 	void RenderMobileBasePass(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews);
 
