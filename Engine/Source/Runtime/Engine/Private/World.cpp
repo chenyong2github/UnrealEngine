@@ -3132,10 +3132,35 @@ bool FStreamingLevelsToConsider::Remove(ULevelStreaming* StreamingLevel)
 	if (StreamingLevel)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ManageLevelsToConsider);
-		bRemoved = (StreamingLevels.Remove(StreamingLevel) > 0);
-		bRemoved |= (LevelsToProcess.Remove(StreamingLevel) > 0);
+		if (bStreamingLevelsBeingConsidered)
+		{
+			int32 Index;
+			if (StreamingLevels.Find(StreamingLevel, Index))
+			{
+				// While we are considering we must null here because we are iterating the array and changing the size would be undesirable
+				StreamingLevels[Index] = nullptr;
+				bRemoved = true;
+			}
+			bRemoved |= (LevelsToProcess.Remove(StreamingLevel) > 0);
+		}
+		else
+		{
+			bRemoved = (StreamingLevels.Remove(StreamingLevel) > 0);
+		}
 	}
 	return bRemoved;
+}
+
+void FStreamingLevelsToConsider::RemoveAt(const int32 Index)
+{
+	if (bStreamingLevelsBeingConsidered)
+	{
+		if (ULevelStreaming* StreamingLevel = StreamingLevels[Index].Get())
+		{
+			LevelsToProcess.Remove(StreamingLevel);
+		}
+	}
+	StreamingLevels.RemoveAt(Index, 1, false);
 }
 
 void FStreamingLevelsToConsider::Reevaluate(ULevelStreaming* StreamingLevel)
@@ -3233,11 +3258,10 @@ void UWorld::UpdateLevelStreaming()
 	const int32 NumLevelsPendingPurge = FLevelStreamingGCHelper::GetNumLevelsPendingPurge();
 
 	StreamingLevelsToConsider.BeginConsideration();
-	TArray<FLevelStreamingWrapper> StreamingLevelsBeingConsidered = MoveTemp(StreamingLevelsToConsider.StreamingLevels);
 
-	for (int32 Index = StreamingLevelsBeingConsidered.Num() - 1; Index >= 0; --Index)
+	for (int32 Index = StreamingLevelsToConsider.GetStreamingLevels().Num() - 1; Index >= 0; --Index)
 	{
-		if (ULevelStreaming* StreamingLevel = StreamingLevelsBeingConsidered[Index].Get())
+		if (ULevelStreaming* StreamingLevel = StreamingLevelsToConsider.GetStreamingLevels()[Index].Get())
 		{
 			bool bUpdateAgain = true;
 			bool bShouldContinueToConsider = true;
@@ -3254,17 +3278,15 @@ void UWorld::UpdateLevelStreaming()
 
 			if (!bShouldContinueToConsider)
 			{
-				StreamingLevelsBeingConsidered.RemoveAt(Index, 1, false);
-				StreamingLevelsToConsider.Remove(StreamingLevel); // In case something had added it to the list while we're in this loop
+				StreamingLevelsToConsider.RemoveAt(Index);
 			}
 		}
 		else
 		{
-			StreamingLevelsBeingConsidered.RemoveAt(Index, 1, false);
+			StreamingLevelsToConsider.RemoveAt(Index);
 		}
 	}
 
-	StreamingLevelsToConsider.StreamingLevels = MoveTemp(StreamingLevelsBeingConsidered);
 	StreamingLevelsToConsider.EndConsideration();
 
 
@@ -3355,7 +3377,7 @@ void UWorld::SetStreamingLevels(TArrayView<ULevelStreaming* const> InStreamingLe
 
 void UWorld::SetStreamingLevels(TArray<ULevelStreaming*>&& InStreamingLevels)
 {
-	StreamingLevels = MoveTempIfPossible(InStreamingLevels);
+	StreamingLevels = MoveTemp(InStreamingLevels);
 
 	PopulateStreamingLevelsToConsider();
 }
