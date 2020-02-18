@@ -361,15 +361,15 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 				LOCTEXT("VisibilitySubMenu_ToolTip", "Selected actor visibility options"),
 				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorVisibilityMenu));
 
-			// Build the menu for grouping actors
-			BuildGroupMenu(InMenu, SelectionInfo);
-
 			Section.AddSubMenu(
 				"LevelSubMenu",
 				LOCTEXT("LevelSubMenu", "Level"),
 				LOCTEXT("LevelSubMenu_ToolTip", "Options for interacting with this actor's level"),
 				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorLevelMenu));
 		}
+
+		// Build the menu for grouping actors
+		BuildGroupMenu(InMenu, SelectionInfo);
 
 		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport)
 		{
