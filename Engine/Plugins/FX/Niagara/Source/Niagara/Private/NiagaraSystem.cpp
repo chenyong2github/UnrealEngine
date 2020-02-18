@@ -285,6 +285,8 @@ void UNiagaraSystem::PostLoad()
 	Super::PostLoad();
 
 	ExposedParameters.PostLoad();
+	ExposedParameters.SanityCheckData();
+
 	SystemCompiledData.InstanceParamStore.PostLoad();
 
 	if (GIsEditor)
