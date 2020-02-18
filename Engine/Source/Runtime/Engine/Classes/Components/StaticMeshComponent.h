@@ -303,6 +303,10 @@ public:
 
 	UPROPERTY(transient)
 	uint8 bDisplayVertexColors:1;
+
+	UPROPERTY(transient)
+	uint8 bDisplayPhysicalMaterialMasks : 1;
+
 #endif
 
 	/**

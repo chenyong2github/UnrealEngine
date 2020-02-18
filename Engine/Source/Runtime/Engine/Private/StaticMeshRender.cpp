@@ -27,6 +27,7 @@
 #include "EngineUtils.h"
 #include "StaticMeshResources.h"
 #include "SpeedTreeWind.h"
+#include "PhysicalMaterials/PhysicalMaterialMask.h"
 
 #include "Engine/Engine.h"
 #include "Engine/LevelStreaming.h"
@@ -1321,8 +1322,42 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 								
 									if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, SDPG_World, bSectionIsSelected, true, MeshElement))
 									{
-	#if STATICMESH_ENABLE_DEBUG_RENDERING
-										if (bProxyIsSelected && EngineShowFlags.VertexColors && AllowDebugViewmodes())
+										bool bDebugMaterialRenderProxySet = false;
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+
+	#if WITH_EDITOR								
+										if (bProxyIsSelected && EngineShowFlags.PhysicalMaterialMasks && AllowDebugViewmodes())
+										{
+											// Override the mesh's material with our material that draws the physical material masks
+											UMaterial* PhysMatMaskVisualizationMaterial = GEngine->PhysicalMaterialMaskMaterial;
+											check(PhysMatMaskVisualizationMaterial);
+											
+											FMaterialRenderProxy* PhysMatMaskVisualizationMaterialInstance = nullptr;
+
+											const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
+											
+											if (UMaterialInterface* SectionMaterial = Section.Material)
+											{
+												if (UPhysicalMaterialMask* PhysicalMaterialMask = SectionMaterial->GetPhysicalMaterialMask())
+												{
+													if (PhysicalMaterialMask->MaskTexture)
+													{
+														PhysMatMaskVisualizationMaterialInstance = new FColoredTexturedMaterialRenderProxy(
+															PhysMatMaskVisualizationMaterial->GetRenderProxy(),
+															FLinearColor::White, NAME_Color, PhysicalMaterialMask->MaskTexture, NAME_LinearColor);
+													}
+
+													Collector.RegisterOneFrameMaterialProxy(PhysMatMaskVisualizationMaterialInstance);
+													MeshElement.MaterialRenderProxy = PhysMatMaskVisualizationMaterialInstance;
+
+													bDebugMaterialRenderProxySet = true;
+												}
+											}
+										}
+
+	#endif // WITH_EDITOR
+
+										if (!bDebugMaterialRenderProxySet && bProxyIsSelected && EngineShowFlags.VertexColors && AllowDebugViewmodes())
 										{
 											// Override the mesh's material with our material that draws the vertex colors
 											UMaterial* VertexColorVisualizationMaterial = NULL;
@@ -1357,11 +1392,13 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 											Collector.RegisterOneFrameMaterialProxy(VertexColorVisualizationMaterialInstance);
 											MeshElement.MaterialRenderProxy = VertexColorVisualizationMaterialInstance;
+
+											bDebugMaterialRenderProxySet = true;
 										}
-										else
-	#endif
+
+	#endif // STATICMESH_ENABLE_DEBUG_RENDERING
 	#if WITH_EDITOR
-										if (bSectionIsSelected)
+										if (!bDebugMaterialRenderProxySet && bSectionIsSelected)
 										{
 											// Override the mesh's material with our material that draws the collision color
 											MeshElement.MaterialRenderProxy = new FOverrideSelectionColorMaterialRenderProxy(
@@ -1632,6 +1669,7 @@ FPrimitiveViewRelevance FStaticMeshSceneProxy::GetViewRelevance(const FSceneView
 #endif
 #if WITH_EDITOR
 		(IsSelected() && View->Family->EngineShowFlags.VertexColors) ||
+		(IsSelected() && View->Family->EngineShowFlags.PhysicalMaterialMasks) ||
 #endif
 #if STATICMESH_ENABLE_DEBUG_RENDERING
 		bDrawMeshCollisionIfComplex ||

@@ -1027,6 +1027,14 @@ public:
 	UPROPERTY(globalconfig)
 	FSoftObjectPath ClothPaintMaterialWireframeName;
 
+	/** A material used to render physical material mask on mesh. */
+	UPROPERTY()
+	class UMaterial* PhysicalMaterialMaskMaterial;
+
+	/** A material used to render physical material mask on mesh. */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath PhysicalMaterialMaskMaterialName;
+
 	/** A material used to render debug meshes. */
 	UPROPERTY()
 	class UMaterial* DebugEditorMaterial;
