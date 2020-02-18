@@ -280,10 +280,10 @@ static bool UpdateScissorRect(
 	check(RHICmdList.IsInsideRenderPass());
 	bool bDidRestartRenderpass = false;
 
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_Slate_UpdateScissorRect);
-
 	if (RenderBatch.ClippingState != LastClippingState || bForceStateChange)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_Slate_UpdateScissorRect);
+
 		if (RenderBatch.ClippingState)
 		{
 			const FSlateClippingState& ClipState = *RenderBatch.ClippingState;
