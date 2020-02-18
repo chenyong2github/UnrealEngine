@@ -542,6 +542,8 @@ UNiagaraEmitter* UNiagaraEmitter::CreateWithParentAndOwner(UNiagaraEmitter& InPa
 	NewEmitter->Parent = &InParentEmitter;
 	NewEmitter->ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(&InParentEmitter, NewEmitter));
 	NewEmitter->ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
+	NewEmitter->ParentScratchPadScripts.Append(NewEmitter->ScratchPadScripts);
+	NewEmitter->ScratchPadScripts.Empty();
 	NewEmitter->SetUniqueEmitterName(InName.GetPlainNameString());
 	NewEmitter->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
 	return NewEmitter;
@@ -1172,6 +1174,15 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 		ReouterMergedObject(this, MergedRenderer);
 		RendererProperties.Add(MergedRenderer);
 		MergedRenderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
+	}
+
+	// Copy parent scratch pad scripts.
+	ParentScratchPadScripts.Empty();
+
+	for (UNiagaraScript* MergedParentScratchPadScript : MergedEmitter->ParentScratchPadScripts)
+	{
+		ReouterMergedObject(this, MergedParentScratchPadScript);
+		ParentScratchPadScripts.Add(MergedParentScratchPadScript);
 	}
 
 	SetEditorData(MergedEmitter->GetEditorData());

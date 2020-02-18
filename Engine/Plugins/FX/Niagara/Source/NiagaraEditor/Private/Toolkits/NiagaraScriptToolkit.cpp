@@ -341,13 +341,6 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabScriptDetails(const FSpawnTa
 	TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 	DetailsView->OnFinishedChangingProperties().AddRaw(this, &FNiagaraScriptToolkit::OnEditedScriptPropertyFinishedChanging);
-	DetailsView->RegisterInstancedCustomPropertyLayout(
-		UNiagaraScript::StaticClass(),
-		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptDetails::MakeInstance, ScriptViewModelWeakPtr));
-	DetailsView->RegisterInstancedCustomPropertyTypeLayout(
-		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));
-	
 	DetailsView->SetObjects(DetailsScriptSelection->GetSelectedObjects().Array());
 
 	return SNew(SDockTab)

@@ -95,6 +95,15 @@
 #include "Customizations/NiagaraTypeCustomizations.h"
 #include "Customizations/NiagaraEventScriptPropertiesCustomization.h"
 #include "Customizations/NiagaraScriptVariableCustomization.h"
+#include "Customizations/NiagaraScriptDetails.h"
+
+#include "NiagaraComponent.h"
+#include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraScriptVariable.h"
+#include "NiagaraScript.h"
+#include "NiagaraCommon.h"
+#include "NiagaraScriptHighlight.h"
+
 #include "HAL/IConsoleManager.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraThumbnailRenderer.h"
@@ -104,7 +113,6 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "Engine/Selection.h"
 #include "NiagaraActor.h"
-#include "NiagaraNodeFunctionCall.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
 
 #include "Editor.h"
@@ -736,46 +744,58 @@ void FNiagaraEditorModule::StartupModule()
 	
 	// register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomClassLayout("NiagaraComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraComponentDetails::MakeInstance));
 
-	PropertyModule.RegisterCustomClassLayout("NiagaraNodeStaticSwitch", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraStaticSwitchNodeDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraComponent::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraComponentDetails::MakeInstance));
 
-	PropertyModule.RegisterCustomClassLayout("NiagaraScriptVariable", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptVariableDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraNodeStaticSwitch::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraStaticSwitchNodeDetails::MakeInstance));
 
-	PropertyModule.RegisterCustomClassLayout("NiagaraNodeFunctionCall", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraFunctionCallNodeDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraScriptVariable::StaticClass()->GetFName(), 
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptVariableDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraNodeFunctionCall::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraFunctionCallNodeDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		UNiagaraScript::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptDetails::MakeInstance));
 	
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraFloat",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraFloat::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraInt32",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraInt32::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraNumeric",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraNumeric::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraParameterMap",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraParameterMap::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraNumericCustomization::MakeInstance));
 
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraBool::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraBoolCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraBool",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraBoolCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraMatrix::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraMatrixCustomization::MakeInstance));
 
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraMatrix",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraMatrixCustomization::MakeInstance)
-	);
-
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraVariableAttributeBinding",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableAttributeBindingCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraVariableAttributeBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableAttributeBindingCustomization::MakeInstance));
 	
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraScriptVariableBinding",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptVariableBindingCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraScriptVariableBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptVariableBindingCustomization::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraPlatformSet",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetTypeCustomization::MakeInstance)
@@ -785,9 +805,13 @@ void FNiagaraEditorModule::StartupModule()
 // 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraSystemScalabilitySettingsArrayTypeCustomization::MakeInstance)
 // 	);
 	
-	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraUserParameterBinding",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance)
-	);
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraUserParameterBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));
 
 	FNiagaraEditorStyle::Initialize();
 	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(

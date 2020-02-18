@@ -1252,6 +1252,20 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(FA
 	return NewModuleNode;
 }
 
+UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(UNiagaraScript* ModuleScript, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex)
+{
+	UEdGraph* Graph = TargetOutputNode.GetGraph();
+	Graph->Modify();
+
+	FGraphNodeCreator<UNiagaraNodeFunctionCall> ModuleNodeCreator(*Graph);
+	UNiagaraNodeFunctionCall* NewModuleNode = ModuleNodeCreator.CreateNode();
+	NewModuleNode->FunctionScript = ModuleScript;
+	ModuleNodeCreator.Finalize();
+
+	ConnectModuleNode(*NewModuleNode, TargetOutputNode, TargetIndex);
+	return NewModuleNode;
+}
+
 UNiagaraNodeAssignment* FNiagaraStackGraphUtilities::AddParameterModuleToStack(const TArray<FNiagaraVariable>& ParameterVariables, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex, const TArray<FString>& InDefaultValues)
 {
 	UEdGraph* Graph = TargetOutputNode.GetGraph();

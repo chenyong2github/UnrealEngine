@@ -334,12 +334,13 @@ void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions, UNiagaraSt
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
 		}
 
-		FString DisplayNameString = FName::NameToDisplayString(ModuleAsset.AssetName.ToString(), false);
-		FText DisplayName = FText::FromString(DisplayNameString);
+		bool bIsInLibrary = FNiagaraEditorUtilities::IsScriptAssetInLibrary(ModuleAsset);
+
+		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleAsset.AssetName, bIsInLibrary);
 
 		FText AssetDescription;
 		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Description), AssetDescription);
-		FText Description = FNiagaraEditorUtilities::FormatScriptAssetDescription(AssetDescription, ModuleAsset.ObjectPath);
+		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(AssetDescription, ModuleAsset.ObjectPath, bIsInLibrary);
 
 		FText Keywords;
 		ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Keywords), Keywords);

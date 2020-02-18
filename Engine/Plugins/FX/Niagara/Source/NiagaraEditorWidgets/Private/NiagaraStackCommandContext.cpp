@@ -2,6 +2,7 @@
 
 #include "NiagaraStackCommandContext.h"
 #include "NiagaraEditorCommon.h"
+#include "NiagaraEditorUtilities.h"
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 
@@ -13,18 +14,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackCommandContext"
-
-void WarnWithToastAndLog(FText WarningMessage)
-{
-	FText IncompleteDeleteMessage = LOCTEXT("DeleteIncompleteMessage", "Not all items could be deleted because they either\ndon't support being deleted or they are inherited.");
-	FNotificationInfo WarningNotification(WarningMessage);
-	WarningNotification.ExpireDuration = 5.0f;
-	WarningNotification.bFireAndForget = true;
-	WarningNotification.bUseLargeFont = false;
-	WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
-	FSlateNotificationManager::Get().AddNotification(WarningNotification);
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
-}
 
 FNiagaraStackCommandContext::FNiagaraStackCommandContext()
 	: Commands(MakeShared<FUICommandList>())
@@ -122,7 +111,7 @@ bool FNiagaraStackCommandContext::CanCutSelectedEntries() const
 	bool bCanCut = FNiagaraStackClipboardUtilities::TestCanCutSelectionWithMessage(SelectedEntries, CanCutMessage);
 	if (bProcessingCommandBindings && bCanCut == false && CanCutMessage.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(CanCutMessage);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(CanCutMessage);
 	}
 	return bCanCut;
 }
@@ -145,7 +134,7 @@ bool FNiagaraStackCommandContext::CanCopySelectedEntries() const
 	bool bCanCopy = FNiagaraStackClipboardUtilities::TestCanCopySelectionWithMessage(SelectedEntries, CanCopyMessage);
 	if (bProcessingCommandBindings && bCanCopy == false && CanCopyMessage.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(CanCopyMessage);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(CanCopyMessage);
 	}
 	return bCanCopy;
 }
@@ -168,7 +157,7 @@ bool FNiagaraStackCommandContext::CanPasteSelectedEntries() const
 	bool bCanPaste = FNiagaraStackClipboardUtilities::TestCanPasteSelectionWithMessage(SelectedEntries, CanPasteMessage);
 	if (bProcessingCommandBindings && bCanPaste == false && CanPasteMessage.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(CanPasteMessage);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(CanPasteMessage);
 	}
 	return bCanPaste;
 }
@@ -186,7 +175,7 @@ void FNiagaraStackCommandContext::PasteSelectedEntries() const
 	FNiagaraStackClipboardUtilities::PasteSelection(SelectedEntries, PasteWarning);
 	if (PasteWarning.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(PasteWarning);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(PasteWarning);
 	}
 }
 
@@ -196,7 +185,7 @@ bool FNiagaraStackCommandContext::CanDeleteSelectedEntries() const
 	bool bCanDelete = FNiagaraStackClipboardUtilities::TestCanDeleteSelectionWithMessage(SelectedEntries, CanDeleteMessage);
 	if (bProcessingCommandBindings && bCanDelete == false && CanDeleteMessage.IsEmptyOrWhitespace() == false)
 	{
-		WarnWithToastAndLog(CanDeleteMessage);
+		FNiagaraEditorUtilities::WarnWithToastAndLog(CanDeleteMessage);
 	}
 	return bCanDelete;
 }

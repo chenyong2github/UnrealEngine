@@ -193,6 +193,10 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 							else
 							{
 								DupeScript = DuplicateObject<UNiagaraScript>(FunctionScript, InNode, FunctionScript->GetFName());
+								if (DupeScript->GetSource()->GetOuter() != DupeScript)
+								{
+									DupeScript->SetSource(DuplicateObject<UNiagaraScriptSource>(CastChecked<UNiagaraScriptSource>(DupeScript->GetSource()), DupeScript, DupeScript->GetSource()->GetFName()));
+								}
 								ProcessedGraph = Cast<UNiagaraScriptSource>(DupeScript->GetSource())->NodeGraph;
 								FEdGraphUtilities::MergeChildrenGraphsIn(ProcessedGraph, ProcessedGraph, /*bRequireSchemaMatch=*/ true);
 								FNiagaraEditorUtilities::PreprocessFunctionGraph(Schema, ProcessedGraph, CallInputs, CallOutputs, ScriptUsage, ConstantResolver);

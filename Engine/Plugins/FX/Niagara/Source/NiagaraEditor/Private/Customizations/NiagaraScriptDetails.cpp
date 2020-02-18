@@ -109,17 +109,37 @@ private:
 	TSharedPtr<SComboButton> ComboButton;
 };
 
-TSharedRef<IDetailCustomization> FNiagaraScriptDetails::MakeInstance(TWeakPtr<FNiagaraScriptViewModel> ScriptViewModel)
+TSharedRef<IDetailCustomization> FNiagaraScriptDetails::MakeInstance()
 {
-	return MakeShared<FNiagaraScriptDetails>(ScriptViewModel.Pin());
+	return MakeShared<FNiagaraScriptDetails>();
 }
 
-FNiagaraScriptDetails::FNiagaraScriptDetails(TSharedPtr<FNiagaraScriptViewModel> InScriptViewModel)
-	: ScriptViewModel(InScriptViewModel)
-{}
+FNiagaraScriptDetails::FNiagaraScriptDetails()
+{
+}
 
 void FNiagaraScriptDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
+	if (ObjectsBeingCustomized.Num() != 1 || ObjectsBeingCustomized[0]->IsA<UNiagaraScript>() == false)
+	{
+		return;
+	}
+
+	UNiagaraScript* ScriptBeingCustomized = CastChecked<UNiagaraScript>(ObjectsBeingCustomized[0]);
+	TArray<TSharedPtr<FNiagaraScriptViewModel>> ExistingViewModels;
+	TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::GetAllViewModelsForObject(ScriptBeingCustomized, ExistingViewModels);
+	
+	if (ensureMsgf(ExistingViewModels.Num() == 1, TEXT("Missing or duplicate script view models detected.  Can not create script details customization.")))
+	{
+		ScriptViewModel = ExistingViewModels[0];
+	}
+	else
+	{
+		return;
+	}
+
 	static const FName InputParamCategoryName = TEXT("NiagaraScript_InputParams");
 	static const FName OutputParamCategoryName = TEXT("NiagaraScript_OutputParams");
 	static const FName ScriptCategoryName = TEXT("Script");

@@ -403,12 +403,11 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		FText Keywords;
 		ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Keywords), Keywords);
 
-		FString DisplayNameString = FName::NameToDisplayString(ScriptAsset.AssetName.ToString(), false);
+		bool bIsInLibrary = FNiagaraEditorUtilities::IsScriptAssetInLibrary(ScriptAsset);
+		const FText MenuDesc = FNiagaraEditorUtilities::FormatScriptName(ScriptAsset.AssetName, bIsInLibrary);
+		const FText TooltipDesc = FNiagaraEditorUtilities::FormatScriptDescription(AssetDesc, ScriptAsset.ObjectPath, bIsInLibrary);
 
-		const FText MenuDesc = FText::FromString(DisplayNameString);
-		const FText TooltipDesc = FNiagaraEditorUtilities::FormatScriptAssetDescription(AssetDesc, ScriptAsset.ObjectPath);
-
-		TSharedPtr<FNiagaraSchemaAction_NewNode> FunctionCallAction = AddNewNodeAction(NewActions, Category, MenuDesc, *DisplayNameString, TooltipDesc, Keywords);
+		TSharedPtr<FNiagaraSchemaAction_NewNode> FunctionCallAction = AddNewNodeAction(NewActions, Category, MenuDesc, ScriptAsset.AssetName, TooltipDesc, Keywords);
 
 		UNiagaraNodeFunctionCall* FunctionCallNode = NewObject<UNiagaraNodeFunctionCall>(OwnerOfTemporaries);
 		FunctionCallNode->FunctionScriptAssetObjectPath = ScriptAsset.ObjectPath;

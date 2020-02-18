@@ -1186,6 +1186,13 @@ INiagaraMergeManager::FMergeEmitterResults FNiagaraScriptMergeManager::MergeEmit
 		TMap<FGuid, FGuid> FinalChangeIds;
 		FNiagaraEditorUtilities::GatherChangeIds(*MergedInstance, FinalChangeIds, TEXT("Final"));
 	}
+
+	if(MergeResults.MergedInstance != nullptr)
+	{
+		MergeResults.MergedInstance->ParentScratchPadScripts.Append(MergeResults.MergedInstance->ScratchPadScripts);
+		MergeResults.MergedInstance->ScratchPadScripts.Empty();
+	}
+
 	return MergeResults;
 }
 
@@ -1725,8 +1732,13 @@ void FNiagaraScriptMergeManager::DiffScriptStacks(TSharedRef<FNiagaraScriptStack
 			DiffResults.EnabledChangedOtherModules.Add(CommonValuePair.OtherValue);
 		}
 
-		if (CommonValuePair.BaseValue->GetFunctionCallNode()->FunctionScript == CommonValuePair.OtherValue->GetFunctionCallNode()->FunctionScript ||
-			CommonValuePair.BaseValue->GetFunctionCallNode()->IsA<UNiagaraNodeAssignment>())
+		UNiagaraScript* BaseFunctionScript = CommonValuePair.BaseValue->GetFunctionCallNode()->FunctionScript;
+		UNiagaraScript* OtherFunctionScript = CommonValuePair.OtherValue->GetFunctionCallNode()->FunctionScript;
+		bool bFunctionScriptsMatch = BaseFunctionScript == OtherFunctionScript;
+		bool bFunctionScriptsAreNotAssets =
+			BaseFunctionScript != nullptr && BaseFunctionScript->IsAsset() == false &&
+			OtherFunctionScript != nullptr && OtherFunctionScript->IsAsset() == false;
+		if (bFunctionScriptsMatch || bFunctionScriptsAreNotAssets)
 		{
 			DiffFunctionInputs(CommonValuePair.BaseValue, CommonValuePair.OtherValue, DiffResults);
 		}

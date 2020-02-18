@@ -535,8 +535,8 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts, bIncludeNonLibraryInputs);
 		for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 		{
-			const FText DynamicInputText = FText::FromString(FName::NameToDisplayString(DynamicInputScript->GetName() + (DynamicInputScript->bExposeToLibrary ? "" : "*"), false));
-			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptAssetDescription(DynamicInputScript->Description, *(DynamicInputScript->GetPathName() + (DynamicInputScript->bExposeToLibrary ? "" : "\n*Not exposed to library")));
+			const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), DynamicInputScript->bExposeToLibrary);
+			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName(), DynamicInputScript->bExposeToLibrary);
 			TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::DynamicInputScriptSelected, DynamicInputScript)));
 
@@ -653,6 +653,15 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		OutAllActions.AddAction(ExpressionAction);
 	}
 
+	{
+		const FText CategoryName = LOCTEXT("ScratchCategory", "Scratch");
+		const FText CreateDisplayName = LOCTEXT("ScratchLabel", "Make New Scratch Dynamic Input");
+		const FText CreateTooltip = LOCTEXT("ScratchToolTipl", "Create a new dynamic input in the scratch pad.");
+		TSharedPtr<FNiagaraMenuAction> CreateScratchAction(new FNiagaraMenuAction(CategoryName, CreateDisplayName, CreateTooltip, 0, FText(),
+			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::CreateScratchSelected)));
+		OutAllActions.AddAction(CreateScratchAction);
+	}
+
 	if (FunctionInput->CanDeleteInput())
 	{
 		const FText NameText = LOCTEXT("DeleteInput", "Remove");
@@ -689,6 +698,11 @@ void SNiagaraStackFunctionInputValue::DynamicInputScriptSelected(UNiagaraScript*
 void SNiagaraStackFunctionInputValue::CustomExpressionSelected()
 {
 	FunctionInput->SetCustomExpression(TEXT("// Insert expression here"));
+}
+
+void SNiagaraStackFunctionInputValue::CreateScratchSelected()
+{
+	FunctionInput->SetScratch();
 }
 
 void SNiagaraStackFunctionInputValue::ParameterHandleSelected(FNiagaraParameterHandle Handle)
@@ -852,8 +866,8 @@ void CollectDynamicInputActions(FGraphActionListBuilderBase& DynamicInputActions
 	FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts);
 	for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 	{
-		const FText DynamicInputText = FText::FromString(FName::NameToDisplayString(DynamicInputScript->GetName(), false));
-		const FText Tooltip = FNiagaraEditorUtilities::FormatScriptAssetDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName());
+		const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), DynamicInputScript->bExposeToLibrary);
+		const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName(), DynamicInputScript->bExposeToLibrary);
 		TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateStatic(&ReassignDynamicInputScript, FunctionInput, DynamicInputScript)));
 		DynamicInputActions.AddAction(DynamicInputAction);

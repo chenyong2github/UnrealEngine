@@ -303,6 +303,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	FText TemplateAssetDescription;
 
+	UPROPERTY()
+	TArray<UNiagaraScript*> ScratchPadScripts;
+
 	bool GetIsolateEnabled() const;
 	void SetIsolateEnabled(bool bIsolate);
 	
