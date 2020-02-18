@@ -40,6 +40,8 @@ namespace Chaos
 			//
 			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index), InParticles.InvI(Index));
 			InParticles.W(Index) += WorldInvI * InParticles.AngularImpulse(Index);
+			InParticles.LinearImpulse(Index) = TVector<T, 3>(0);
+			InParticles.AngularImpulse(Index) = TVector<T, 3>(0);
 		}
 
 		inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
@@ -47,6 +49,8 @@ namespace Chaos
 			Particle.V() += Particle.LinearImpulse() * Particle.InvM();
 			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R(), Particle.InvI());
 			Particle.W() += WorldInvI * Particle.AngularImpulse();
+			Particle.LinearImpulse() = TVector<T, 3>(0);
+			Particle.AngularImpulse() = TVector<T, 3>(0);
 		}
 	};
 }

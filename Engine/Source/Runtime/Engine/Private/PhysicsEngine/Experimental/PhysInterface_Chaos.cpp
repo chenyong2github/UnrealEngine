@@ -782,7 +782,7 @@ void FPhysInterface_Chaos::AddImpulse_AssumesLocked(const FPhysicsActorHandle& I
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			AddVelocity_AssumesLocked(InActorReference, Rigid->InvM() * InForce);
+			Rigid->SetLinearImpulse(Rigid->LinearImpulse() + InForce);
 		}
 	}
 }
@@ -794,7 +794,7 @@ void FPhysInterface_Chaos::AddAngularImpulseInRadians_AssumesLocked(const FPhysi
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			AddAngularVelocityInRadians_AssumesLocked(InActorReference, Chaos::Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->InvI()) * InTorque);
+			Rigid->SetAngularImpulse(Rigid->AngularImpulse() + InTorque);
 		}
 	}
 }

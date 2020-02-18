@@ -333,6 +333,19 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			RigidHandle->SetTorque(Data->MTorque);
 			bDynamicPropertyUpdated = true;
 		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::LinearImpulse))
+		{
+			RigidHandle->SetLinearImpulse(Data->MLinearImpulse);
+			bDynamicPropertyUpdated = true;
+		}
+
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::AngularImpulse))
+		{
+			RigidHandle->SetAngularImpulse(Data->MAngularImpulse);
+			bDynamicPropertyUpdated = true;
+		}
+
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ObjectState))
 		{
 			GetSolver()->GetEvolution()->SetParticleObjectState(RigidHandle, Data->MObjectState);
