@@ -20,18 +20,29 @@ class UNREALED_API SEditorViewportToolBarButton : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SEditorViewportToolBarButton )
-		: _ButtonType( EUserInterfaceActionType::Button )
+		: _ButtonType(EUserInterfaceActionType::Button)
+		, _ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.Button"))
+		, _CheckBoxStyle(&FEditorStyle::Get().GetWidgetStyle<FCheckBoxStyle>("LevelViewportToolBar.CheckBoxButton"))
 		, _IsChecked(false)
 		{}
 
 		/** Called when the button is clicked */
-		SLATE_EVENT( FOnClicked, OnClicked )
+	SLATE_EVENT(FOnClicked, OnClicked)
+
 		/** The button type to use */
-		SLATE_ARGUMENT( EUserInterfaceActionType, ButtonType )
+		SLATE_ARGUMENT(EUserInterfaceActionType, ButtonType)
+
+		/** Style to use when this is a regular button type */
+		SLATE_STYLE_ARGUMENT(FButtonStyle, ButtonStyle)
+
+		/** Style to use when this is a check box type */
+		SLATE_STYLE_ARGUMENT(FCheckBoxStyle, CheckBoxStyle)
+
 		/** Checked state of the button */
-		SLATE_ATTRIBUTE( bool, IsChecked )
+		SLATE_ATTRIBUTE(bool, IsChecked)
+
 		/** Style name of an image to use. Simple two state images are supported.  An image can be different depending on checked/unchecked state */
-		SLATE_ATTRIBUTE( FName, Image )
+		SLATE_ATTRIBUTE(FName, Image)
 		/** Any custom content to show in the button in place of other content */
 		SLATE_DEFAULT_SLOT( FArguments, Content )
 	SLATE_END_ARGS()

@@ -234,6 +234,13 @@ private:
 	bool IsLandscapeLODSettingChecked(int32 Value) const;
 	void OnLandscapeLODChanged(int32 NewValue);
 
+	FReply OnRealtimeWarningClicked();
+	EVisibility GetRealtimeWarningVisibility() const;
+
+	FText GetScalabilityWarningLabel() const;
+	EVisibility GetScalabilityWarningVisibility() const;
+	TSharedRef<SWidget> GetScalabilityWarningMenuContent() const;
+
 private:
 	/**
 	 * Generates the toolbar show layers menu content 
