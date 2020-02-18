@@ -89,21 +89,12 @@ struct CADTOOLS_API FTessellationData
 {
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FTessellationData& Tessellation);
 
-	TArray<uint8> VertexArray;
-	TArray<uint8> NormalArray;
-	TArray<uint8> IndexArray;
-	TArray<uint8> TexCoordArray;
-	uint32        VertexCount = 0;
-	uint32        NormalCount = 0;
-	uint32        IndexCount = 0;
-	uint32        TexCoordCount = 0;
+	TArray<FVector> VertexArray;
+	TArray<FVector> NormalArray;
+	TArray<int32> IndexArray;
+	TArray<FVector2D> TexCoordArray;
 
 	uint32    StartVertexIndex = 0;
-
-	uint8 SizeOfVertexType = 0;
-	uint8 SizeOfTexCoordType = 0;
-	uint8 SizeOfNormalType = 0;
-	uint8 SizeOfIndexType = 0;
 
 	CADUUID ColorName = 0;
 	CADUUID MaterialName = 0;
