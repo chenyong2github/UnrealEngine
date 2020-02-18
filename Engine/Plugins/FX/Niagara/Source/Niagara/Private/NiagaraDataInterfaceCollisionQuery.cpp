@@ -33,6 +33,11 @@ bool UNiagaraDataInterfaceCollisionQuery::InitPerInstanceData(void* PerInstanceD
 	return true;
 }
 
+void UNiagaraDataInterfaceCollisionQuery::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance)
+{
+	CQDIPerInstanceData* InstData = (CQDIPerInstanceData*)PerInstanceData;
+	InstData->~CQDIPerInstanceData();
+}
 
 void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 {
