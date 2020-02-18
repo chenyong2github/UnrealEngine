@@ -152,7 +152,7 @@ public:
 			UpdateCachedRepLayout();
 			UPackageMapClient* PackageMapClient = ((UPackageMapClient*)Params.Map);
 
-			if (PackageMapClient && PackageMapClient->GetConnection()->InternalAck)
+			if (PackageMapClient && PackageMapClient->GetConnection()->IsInternalAck())
 			{
 				if (Ar.IsSaving())
 				{
@@ -321,7 +321,7 @@ bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, uint16 Custom
 	Parms.CustomDeltaIndex = CustomDeltaIndex;
 	Parms.bSupportsFastArrayDeltaStructSerialization = bSupportsFastArrayDelta;
 	Parms.Connection = Connection;
-	Parms.bInternalAck = Connection->InternalAck;
+	Parms.bInternalAck = Connection->IsInternalAck();
 
 	return FNetSerializeCB::SendCustomDeltaProperty(*RepLayout, Parms, CustomDeltaIndex);
 }
@@ -352,9 +352,9 @@ void FObjectReplicator::InitRecentProperties(uint8* Source)
 	// for replays (and the DemoNetDriver will be acts as a server during recording).
 	TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker = bCreateSendingState ? ConnectionDriver->FindOrCreateRepChangedPropertyTracker(MyObject) : nullptr;
 
-	// If acting as a server and are InternalAck, that means we're recording.
+	// If acting as a server and are IsInternalAck, that means we're recording.
 	// In that case, we don't need to create any receiving state, as no one will be sending data to us.
-	ECreateRepStateFlags Flags = (Connection->InternalAck && bIsServer) ? ECreateRepStateFlags::SkipCreateReceivingState : ECreateRepStateFlags::None;
+	ECreateRepStateFlags Flags = (Connection->IsInternalAck() && bIsServer) ? ECreateRepStateFlags::SkipCreateReceivingState : ECreateRepStateFlags::None;
 	RepState = LocalRepLayout.CreateRepState(Source, RepChangedPropertyTracker, Flags);
 
 	if (!bCreateSendingState)
@@ -374,7 +374,7 @@ void FObjectReplicator::InitRecentProperties(uint8* Source)
 		const uint16 NumLifetimeCustomDeltaProperties = FNetSerializeCB::GetNumLifetimeCustomDeltaProperties(LocalRepLayout);
 		SendingRepState->RecentCustomDeltaState.SetNum(NumLifetimeCustomDeltaProperties);
 
-		const bool bIsRecordingReplay = Connection->InternalAck;
+		const bool bIsRecordingReplay = Connection->IsInternalAck();
 
 		if (bIsRecordingReplay)
 		{
@@ -577,7 +577,7 @@ void FObjectReplicator::StartReplicating(class UActorChannel * InActorChannel)
 	if (ConnectionNetDriver->IsServer() || ConnectionNetDriver->MaySendProperties())
 	{
 		// We don't need to handle retirement if our connection is reliable.
-		if (!Connection->InternalAck)
+		if (!Connection->IsInternalAck())
 		{
 			if (FSendingRepState * SendingRepState = RepState.IsValid() ? RepState->GetSendingRepState() : nullptr)
 			{
@@ -1012,7 +1012,7 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 			Parms.Reader = &Reader;
 			Parms.NetSerializeCB = &NetSerializeCB;
 			Parms.Connection = Connection;
-			Parms.bInternalAck = Connection->InternalAck;
+			Parms.bInternalAck = Connection->IsInternalAck();
 			Parms.Object = Object;
 
 			if (!FNetSerializeCB::ReceiveCustomDeltaProperty(LocalRepLayout, ReceivingRepState, Parms, ReplicatedProp))
@@ -1261,7 +1261,7 @@ void FObjectReplicator::UpdateGuidToReplicatorMap()
 		Parms.GatherGuidReferences = &LocalReferencedGuids;
 		Parms.TrackedGuidMemoryBytes = &LocalTrackedGuidMemoryBytes;
 		Parms.Object = GetObject();
-		Parms.bInternalAck = Connection->InternalAck;
+		Parms.bInternalAck = Connection->IsInternalAck();
 
 		LocalRepLayout.GatherGuidReferences(RepState->GetReceivingRepState(), Parms, LocalReferencedGuids, LocalTrackedGuidMemoryBytes);
 	}
@@ -1318,7 +1318,7 @@ bool FObjectReplicator::MoveMappedObjectToUnmapped(const FNetworkGUID& GUID)
 	FNetSerializeCB NetSerializeCB(Connection->Driver);
 	FNetDeltaSerializeInfo Parms;
 	Parms.Connection = Connection;
-	Parms.bInternalAck = Connection->InternalAck;
+	Parms.bInternalAck = Connection->IsInternalAck();
 	Parms.Map = Connection->PackageMap;
 	Parms.Object = GetObject();
 	Parms.NetSerializeCB = &NetSerializeCB;
@@ -1474,7 +1474,7 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 		FPropertyRetirement** LastNext = nullptr;
 
-		if (!Connection->InternalAck)
+		if (!Connection->IsInternalAck())
 		{
 			// Get info.
 			FPropertyRetirement& Retire = SendingRepState->Retirement[CustomDeltaProperty];
@@ -1499,7 +1499,7 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 			continue;
 		}
 
-		if (!Connection->InternalAck)
+		if (!Connection->IsInternalAck())
 		{
 			*LastNext = new FPropertyRetirement();
 
@@ -1849,7 +1849,7 @@ void FObjectReplicator::QueueRemoteFunctionBunch( UFunction* Func, FOutBunch &Bu
 			PackageMapClient->GetMustBeMappedGuidsInLastBunch().Reset();
 		}
 
-		if (!Connection->InternalAck)
+		if (!Connection->IsInternalAck())
 		{
 			// Copy over any exported bunches
 			PackageMapClient->AppendExportBunches(OwningChannel->QueuedExportBunches);
@@ -1994,7 +1994,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	FNetDeltaSerializeInfo Parms;
 	Parms.Object = Object;
 	Parms.Connection = Connection;
-	Parms.bInternalAck = Connection->InternalAck;
+	Parms.bInternalAck = Connection->IsInternalAck();
 	Parms.Map = Connection->PackageMap;
 	Parms.NetSerializeCB = &NetSerializeCB;
 
@@ -2065,7 +2065,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 
 			if (!bSuccess)
 			{
-				if (bIsServer && !Connection->InternalAck)
+				if (bIsServer && !Connection->IsInternalAck())
 				{
 					// Close our connection and abort rpcs as things are invalid
 					PendingLocalRPCs.Empty();

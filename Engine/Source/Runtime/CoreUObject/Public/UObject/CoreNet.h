@@ -185,6 +185,7 @@ class COREUOBJECT_API UPackageMap : public UObject
 
 protected:
 
+	UE_DEPRECATED(4.25, "bSuppressLogs will be removed in a future release.")
 	bool					bSuppressLogs;
 
 	bool					bShouldTrackUnmappedGuids;
