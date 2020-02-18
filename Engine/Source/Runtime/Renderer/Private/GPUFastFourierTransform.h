@@ -8,6 +8,7 @@ GPUFastFourierTransform.h: Interface for Fast Fourier Transform (FFT) on GPU.
 
 #include "CoreMinimal.h"
 #include "Math/NumericLimits.h"
+#include "GlobalShader.h"
 #include "RendererInterface.h"
 #include "RHI.h"
 #include "RHIStaticStates.h"
