@@ -1643,7 +1643,6 @@ void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(FRHIC
 									}
 									else
 									{
-										check(NumMeshDistanceFieldCasters > 0);
 										TShaderMapRef<TCapsuleShadowingCS<ShapeShadow_MovableSkylightTiledCulling, IPT_MeshDistanceFields> > ComputeShader(View.ShaderMap);
 										ComputeShaderBase = *ComputeShader;
 									}
