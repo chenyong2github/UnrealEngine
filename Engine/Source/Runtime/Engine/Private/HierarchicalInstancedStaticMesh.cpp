@@ -2667,8 +2667,6 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyEmpty()
 
 	UnbuiltInstanceBoundsList.Empty();
 	BuiltInstanceBounds.Init();
-	PerInstanceRenderData.Reset();
-	MarkRenderStateDirty();
 }
 
 void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTree(FClusterBuilder& Builder)
