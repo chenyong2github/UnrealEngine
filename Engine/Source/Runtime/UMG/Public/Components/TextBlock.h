@@ -212,6 +212,11 @@ protected:
 	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
 #endif
 
+#if WITH_EDITOR
+	void LogFontChange(const FSlateFontInfo& NewFont) const;
+	void LogCallstack(int32 IgnoreCount=1) const;
+#endif //if WITH_EDITOR
+
 protected:
 
 	TSharedPtr<STextBlock> MyTextBlock;
