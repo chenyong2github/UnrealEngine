@@ -23,7 +23,10 @@ namespace EShowMapsChoices
 		ShowAllMaps,
 
 		/** Only show maps that are to be cooked. */
-		ShowCookedMaps
+		ShowCookedMaps,
+
+		/** Only show maps that are to be cooked but missing. */
+		ShowMissingMaps,
 	};
 }
 
