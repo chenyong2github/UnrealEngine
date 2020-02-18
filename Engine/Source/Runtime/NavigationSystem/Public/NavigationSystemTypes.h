@@ -9,8 +9,9 @@
 #include "Math/GenericOctreePublic.h"
 #include "AI/NavigationModifier.h"
 
-
 #define NAVSYS_DEBUG (0 && UE_BUILD_DEBUG)
+
+#define RECAST_INTERNAL_DEBUG_DATA (!UE_BUILD_SHIPPING)
 
 class UBodySetup;
 class UNavCollision;

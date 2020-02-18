@@ -20,6 +20,10 @@
 #include "Recast/Recast.h"
 #include "Detour/DetourNavMesh.h"
 
+#if RECAST_INTERNAL_DEBUG_DATA
+#include "NavMesh/RecastInternalDebugData.h"
+#endif
+
 class UBodySetup;
 class ARecastNavMesh;
 class FNavigationOctree;
@@ -322,6 +326,11 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override;
 	// FGCObject end
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	const FRecastInternalDebugData& GetDebugData() const { return DebugData; }
+	FRecastInternalDebugData& GetMutableDebugData() { return DebugData; }
+#endif
 		
 protected:
 	/** Does the actual TimeSliced tile generation. 
@@ -397,6 +406,10 @@ protected:
 
 	void DumpAsyncData();
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	bool IsTileToDebug();
+#endif
+
 protected:
 	uint32 bRegenerateCompressedLayers : 1;
 	uint32 bFullyEncapsulatedByInclusionBounds : 1;
@@ -462,6 +475,10 @@ protected:
 	TNavStatArray<TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> > NavigationRelevantData;
 	TSharedPtr<FNavigationOctree, ESPMode::ThreadSafe> NavOctree; 
 	FNavDataConfig NavDataConfig;
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	FRecastInternalDebugData DebugData;
+#endif
 };
 
 struct NAVIGATIONSYSTEM_API FRecastTileGeneratorWrapper : public FNonAbandonableTask
@@ -702,6 +719,11 @@ protected:
 	void RemoveLayers(const FIntPoint& Tile, TArray<uint32>& UpdatedTiles);
 	
 	void StoreCompressedTileCacheLayers(const FRecastTileGenerator& TileGenerator, int32 TileX, int32 TileY);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	void StoreDebugData(const FRecastTileGenerator& TileGenerator, int32 TileX, int32 TileY);
+#endif
+
 #if RECAST_ASYNC_REBUILDING
 	/** Processes pending tile generation tasks Async*/
 	TArray<uint32> ProcessTileTasksAsync(const int32 NumTasksToProcess);

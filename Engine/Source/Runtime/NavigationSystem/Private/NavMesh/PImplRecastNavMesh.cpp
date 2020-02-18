@@ -281,8 +281,11 @@ void FPImplRecastNavMesh::ReleaseDetourNavMesh()
 	}
 	DetourNavMesh = nullptr;
 	
-	//
 	CompressedTileCacheLayers.Empty();
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	DebugDataMap.Empty();
+#endif
 }
 
 /**
@@ -1525,7 +1528,7 @@ NavNodeRef FPImplRecastNavMesh::FindNearestPoly(FVector const& Loc, FVector cons
 
 bool FPImplRecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc, const float PathingDistance, 
 	const FNavigationQueryFilter& Filter, const UObject* Owner,
-	TArray<NavNodeRef>& FoundPolys, FRecastDebugPathfindingData* DebugData) const
+	TArray<NavNodeRef>& FoundPolys, FRecastDebugPathfindingData* OutDebugData) const
 {
 	ensure(PathingDistance > 0.0f && "PathingDistance <= 0 doesn't make sense");
 	
@@ -1569,9 +1572,9 @@ bool FPImplRecastNavMesh::GetPolysWithinPathingDistance(FVector const& StartLoc,
 	NavQuery.findPolysInPathDistance(StartPolyID, RecastStartPos, PathingDistance, QueryFilter, FoundPolys.GetData(), &NumPolys, MaxSearchNodes);
 	FoundPolys.RemoveAt(NumPolys, FoundPolys.Num() - NumPolys);
 
-	if (DebugData)
+	if (OutDebugData)
 	{
-		StorePathfindingDebugData(NavQuery, DetourNavMesh, *DebugData);
+		StorePathfindingDebugData(NavQuery, DetourNavMesh, *OutDebugData);
 	}
 
 	return FoundPolys.Num() > 0;
@@ -2276,7 +2279,11 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 	check(NavMeshOwner && DetourNavMesh);
 	dtMeshHeader const* const Header = Tile.header;
 	check(Header);
-	
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	OutGeometry.TilesToDisplayInternalData.Push(FIntPoint(Header->x, Header->y));
+#endif
+
 	const bool bIsBeingBuilt = Generator != nullptr && !!NavMeshOwner->bDistinctlyDrawTilesBeingBuilt
 		&& Generator->IsTileChanged(TileIdx == INDEX_NONE ? DetourNavMesh->decodePolyIdTile(DetourNavMesh->getTileRef(&Tile)) : TileIdx);
 
@@ -2288,6 +2295,7 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 		OutGeometry.MeshVerts.Add(VertPos);
 		F += 3;
 	}
+
 	int32 const DetailVertIndexBase = Header->vertCount;
 	// add the detail verts
 	F = Tile.detailVerts;
@@ -2756,7 +2764,11 @@ void FPImplRecastNavMesh::RemoveTileCacheLayer(int32 TileX, int32 TileY, int32 L
 		
 		if (ExistingLayersList->Num() == 0)
 		{
-			CompressedTileCacheLayers.Remove(FIntPoint(TileX, TileY));
+			RemoveTileCacheLayers(TileX, TileY);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+			NavMeshOwner->RemoveTileDebugData(TileX, TileY);
+#endif
 		}
 	}
 }

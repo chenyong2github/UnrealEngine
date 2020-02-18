@@ -177,6 +177,10 @@ struct FRecastDebugGeometry
 	TArray<FOffMeshSegment> OffMeshSegments;
 	TArray<int32> OffMeshSegmentAreas[RECAST_MAX_AREAS];
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	TArray<FIntPoint> TilesToDisplayInternalData;
+#endif
+
 	int32 bGatherPolyEdges : 1;
 	int32 bGatherNavMeshEdges : 1;
 	int32 bMarkForbiddenPolys : 1;
@@ -775,6 +779,11 @@ public:
 	/** Stores compressed tile data for given tile coord */
 	void AddTileCacheLayers(int32 TileX, int32 TileY, const TArray<FNavMeshTileData>& InLayers);
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	void RemoveTileDebugData(int32 TileX, int32 TileY);
+	void AddTileDebugData(int32 TileX, int32 TileY, const struct FRecastInternalDebugData& InTileDebugData);
+#endif
+
 	/** Marks tile coord as rebuild and empty */
 	void MarkEmptyTileCacheLayers(int32 TileX, int32 TileY);
 	
@@ -1018,6 +1027,10 @@ public:
 	virtual void UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& InvokerLocations);
 	virtual void RemoveTiles(const TArray<FIntPoint>& Tiles);
 	void RebuildTile(const TArray<FIntPoint>& Tiles);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+	const TMap<FIntPoint, struct FRecastInternalDebugData>* GetDebugDataMap() const;
+#endif
 
 protected:
 
