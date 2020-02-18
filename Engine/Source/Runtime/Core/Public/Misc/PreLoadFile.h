@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Misc/DelayedAutoRegister.h"
 
 struct CORE_API FPreLoadFile : public FDelayedAutoRegisterHelper

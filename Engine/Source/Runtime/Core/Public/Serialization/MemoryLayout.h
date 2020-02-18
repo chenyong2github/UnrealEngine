@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/EnumAsByte.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsPolymorphic.h"
 #include "Templates/IsTriviallyDestructible.h"

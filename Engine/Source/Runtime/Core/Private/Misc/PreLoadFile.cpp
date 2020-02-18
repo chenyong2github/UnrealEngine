@@ -1,8 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/PreLoadFile.h"
+#include "HAL/Event.h"
+#include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Async/AsyncFileHandle.h"
+#include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
 
 bool FPreLoadFile::bSystemNoLongerTakingRequests = false;
 

@@ -11,11 +11,15 @@ DebugViewModeInterface.h: Contains definitions for rendering debug viewmodes.
 #include "Engine/EngineTypes.h"
 #include "RHI.h"
 #include "RHIResources.h"
+#include "Shader.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 class FDebugViewModePS;
 class FMaterial;
+class FMaterialRenderProxy;
+class FMeshDrawSingleShaderBindings;
+class FPrimitiveSceneProxy;
 class FVertexFactoryType;
 struct FMeshPassProcessorRenderState;
 
