@@ -81,6 +81,13 @@ TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
 
 
 ////////////////////////////////////////////////////////////////////////////////
+enum EKnownThreadIds
+{
+	Tid_Header,
+	Tid_Process		= 8,
+};
+
+////////////////////////////////////////////////////////////////////////////////
 struct FWriteTlsContext
 {
 				~FWriteTlsContext();
@@ -110,7 +117,7 @@ uint32 FWriteTlsContext::GetThreadId()
 
 	static uint32 volatile Counter;
 	ThreadId = AtomicIncrementRelaxed(&Counter) + 1;
-	return ThreadId;
+	return ThreadId + Tid_Process;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -566,7 +573,7 @@ static bool Writer_UpdateData()
 		TWriteBufferRedirect<512> HeaderEvents;
 		Writer_LogHeader();
 		Writer_LogTimingHeader();
-		Writer_SendData(0, HeaderEvents.GetData(), HeaderEvents.GetSize());
+		Writer_SendData(Tid_Header, HeaderEvents.GetData(), HeaderEvents.GetSize());
 	}
 
 	return true;
