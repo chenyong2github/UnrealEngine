@@ -157,7 +157,7 @@ public:
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false );
+	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, bool bReplaceActor, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr);
 
 	/** 
 	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 
@@ -168,7 +168,7 @@ public:
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false);
+	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, bool bReplaceInWorld, bool bKeepMobility = false, UClass* ParentClassOverride = nullptr);
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
@@ -177,7 +177,7 @@ public:
 	 * @param bReplaceActor			If true, replace the actor in the scene with one based on the created blueprint
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceActor);
+	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceActor, UClass* ParentClass = AActor::StaticClass());
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
@@ -188,7 +188,7 @@ public:
 	 * @param bKeepMobility			If true, The mobility of each actor components will be copy
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld);
+	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
 	
 	/** 
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class. 
@@ -197,7 +197,7 @@ public:
 	 * @param bReplaceInWorld		If true, replace the selected actors in the scene with one based on the created blueprint
 	 * @return The blueprint created from the actors
 	 */
-	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld);
+	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
 
 	/**
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class.
@@ -207,7 +207,7 @@ public:
 	 * @param bReplaceInWorld		If true, replace the selected actors in the scene with one based on the created blueprint
 	 * @return The blueprint created from the actors
 	 */
-	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld);
+	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass = AActor::StaticClass());
 
 	/** 
 	 * Creates a new blueprint instance and replaces the provided actor list with the new actor
