@@ -466,4 +466,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
 	static int32 FindNextMarkedFrame(UMovieSceneSequence* Sequence, FFrameNumber InFrameNumber, bool bForward);
+
+	/*
+	 * Set read only
+	 *
+	 * @bInReadOnly Whether the movie scene should be read only or not
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SetReadOnly(UMovieSceneSequence* Sequence, bool bInReadOnly);
+
+	/*
+	 * Is read only
+	 *
+	 * @return Whether the movie scene is read only or not
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static bool IsReadOnly(UMovieSceneSequence* Sequence);
 };
