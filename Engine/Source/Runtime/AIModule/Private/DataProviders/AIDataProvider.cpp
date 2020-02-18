@@ -77,6 +77,7 @@ bool FAIDataProviderTypedValue::Serialize(FArchive& Ar)
 		if (PropertyType_DEPRECATED)
 		{
 			PropertyType = FFieldClass::GetNameToFieldClassMap().FindRef(PropertyType_DEPRECATED->GetFName());
+			PropertyType_DEPRECATED = nullptr;
 		}
 		else
 		{
