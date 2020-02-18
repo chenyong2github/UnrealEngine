@@ -30,6 +30,7 @@
 #include "SourceCodeNavigation.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Subsystems/PanelExtensionSubsystem.h"
+#include "DetailsViewObjectFilter.h"
 
 
 IConsoleVariable* SActorDetails::ShowComponents = IConsoleManager::Get().RegisterConsoleVariable(TEXT("ShowFlag.DetailsPanelComponents"), true, TEXT("Show components in editor details panel."), ECVF_Cheat);

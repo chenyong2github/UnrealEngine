@@ -15,6 +15,8 @@
 #include "SSettingsEditorCheckoutNotice.h"
 #include "DesktopPlatformModule.h"
 #include "IDetailsView.h"
+#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "SSettingsEditor"
 
