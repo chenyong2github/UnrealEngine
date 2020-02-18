@@ -37,6 +37,7 @@ private:
 	};
 
 	class				FDispatchBuilder;
+	void				Begin();
 	virtual bool		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	void				OnNewTrace(const FOnEventContext& Context);
 	void				OnTiming(const FOnEventContext& Context);

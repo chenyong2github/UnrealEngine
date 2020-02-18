@@ -485,6 +485,67 @@ FAnalysisEngine::~FAnalysisEngine()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::Begin()
+{
+	struct : IAnalyzer::FInterfaceBuilder
+	{
+		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
+		}
+
+		virtual void RouteAllEvents(uint16 RouteId) override
+		{
+			Self->AddRoute(AnalyzerIndex, RouteId, RouteHash_AllEvents);
+		}
+
+		FAnalysisEngine* Self;
+		uint16 AnalyzerIndex;
+	} Builder;
+	Builder.Self = this;
+
+	// Some internal routes have been established already. In case there's some
+	// dispatches that are already connected to these routes we won't sort them
+	uint32 FixedRouteCount = Routes.Num();
+
+	FOnAnalysisContext OnAnalysisContext = { { SessionContext }, Builder };
+	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
+	{
+		uint32 RouteCount = Routes.Num();
+
+		Builder.AnalyzerIndex = i;
+		IAnalyzer* Analyzer = Analyzers[i];
+		Analyzer->OnAnalysisBegin(OnAnalysisContext);
+
+		// If the analyzer didn't add any routes we'll retire it immediately
+		if (RouteCount == Routes.Num() && Analyzer != this)
+		{
+			RetireAnalyzer(Analyzer);
+		}
+	}
+
+	FixedRouteCount = 0; // Disabled for now until AddRoute([ExplicitHash]) has been removed
+	TArrayView<FRoute> RouteSubset(Routes.GetData() + FixedRouteCount, Routes.Num() - FixedRouteCount);
+	Algo::SortBy(RouteSubset, [] (const FRoute& Route) { return Route.Hash; });
+
+	FRoute* Cursor = Routes.GetData();
+	Cursor->Count = 1;
+
+	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
+	{
+		if (Routes[i].Hash == Cursor->Hash)
+		{
+			Cursor->Count++;
+		}
+		else
+		{
+			Cursor = Routes.GetData() + i;
+			Cursor->Count = 1;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::End()
 {
 	for (IAnalyzer* Analyzer : Analyzers)
@@ -567,63 +628,6 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 {
 	const FEventData& EventData = Context.EventData;
 	SessionContext.Version = EventData.GetValue<uint16>("Version");
-
-	struct : IAnalyzer::FInterfaceBuilder
-	{
-		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
-		{
-			Self->AddRoute(AnalyzerIndex, RouteId, Logger, Event);
-		}
-
-		virtual void RouteAllEvents(uint16 RouteId) override
-		{
-			Self->AddRoute(AnalyzerIndex, RouteId, RouteHash_AllEvents);
-		}
-
-		FAnalysisEngine* Self;
-		uint16 AnalyzerIndex;
-	} Builder;
-	Builder.Self = this;
-
-	// Some internal routes have been established already. In case there's some
-	// dispatches that are already connected to these routes we won't sort them
-	uint32 FixedRouteCount = Routes.Num();
-
-	FOnAnalysisContext OnAnalysisContext = { { SessionContext }, Builder };
-	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
-	{
-		uint32 RouteCount = Routes.Num();
-
-		Builder.AnalyzerIndex = i;
-		IAnalyzer* Analyzer = Analyzers[i];
-		Analyzer->OnAnalysisBegin(OnAnalysisContext);
-
-		// If the analyzer didn't add any routes we'll retire it immediately
-		if (RouteCount == Routes.Num() && Analyzer != this)
-		{
-			RetireAnalyzer(Analyzer);
-		}
-	}
-
-	FixedRouteCount = 0; // Disabled for now until AddRoute([ExplicitHash]) has been removed
-	TArrayView<FRoute> RouteSubset(Routes.GetData() + FixedRouteCount, Routes.Num() - FixedRouteCount);
-	Algo::SortBy(RouteSubset, [] (const FRoute& Route) { return Route.Hash; });
-
-	FRoute* Cursor = Routes.GetData();
-	Cursor->Count = 1;
-
-	for (uint16 i = 1, n = Routes.Num(); i < n; ++i)
-	{
-		if (Routes[i].Hash == Cursor->Hash)
-		{
-			Cursor->Count++;
-		}
-		else
-		{
-			Cursor = Routes.GetData() + i;
-			Cursor->Count = 1;
-		}
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -833,6 +837,8 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	//case 'E':	/* See the magic above */ break;
 	//case 'T':	/* See the magic above */ break;
 	}
+
+	Begin();
 
 	ProtocolVersion = Header->ProtocolVersion;
 	switch (ProtocolVersion)
