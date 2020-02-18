@@ -24,6 +24,7 @@ public:
 class FShaderMapLayout
 {
 public:
+	EShaderPlatform Platform;
 	TArray<FShaderLayoutEntry> Shaders;
 	TArray<FShaderPipelineType*> ShaderPipelines;
 };
