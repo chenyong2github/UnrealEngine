@@ -64,7 +64,6 @@ struct FDetailLayoutData
 
 	/** Customization class instances currently active in this view */
 	TArray<TSharedPtr<IDetailCustomization>> CustomizationClassInstances;
-
 };
 
 typedef TArray<FDetailLayoutData> FDetailLayoutList;

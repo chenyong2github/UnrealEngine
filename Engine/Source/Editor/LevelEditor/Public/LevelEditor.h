@@ -199,7 +199,9 @@ public:
 	DECLARE_EVENT(FLevelEditorModule, FTabContentChangedEvent);
 	virtual FTabContentChangedEvent& OnTabContentChanged() { return TabContentChangedEvent; }
 
-
+	/** Called when a level editor widget has been created */
+	DECLARE_EVENT_OneParam(FLevelEditorModule, FOnLevelEditorCreated, TSharedPtr<ILevelEditor>);
+	virtual FOnLevelEditorCreated& OnLevelEditorCreated() { return LevelEditorCreatedEvent; }
 	/**
 	 * Called when actor selection changes
 	 * 
@@ -400,6 +402,9 @@ private:
 
 	/** Multicast delegate executed when the tab content is changed */
 	FTabContentChangedEvent TabContentChangedEvent;
+
+	/** Multicast delegate executed when a level editor has been created */
+	FOnLevelEditorCreated LevelEditorCreatedEvent;
 
 	/** Multicast delegate executed when actor selection changes */
 	FActorSelectionChangedEvent ActorSelectionChangedEvent;

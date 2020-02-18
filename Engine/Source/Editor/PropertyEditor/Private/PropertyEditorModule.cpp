@@ -225,7 +225,7 @@ TSharedRef<SPropertyTreeViewImpl> FPropertyEditorModule::CreatePropertyView(
 
 	if( InObject )
 	{
-		TArray< TWeakObjectPtr< UObject > > Objects;
+		TArray<UObject*> Objects;
 		Objects.Add( InObject );
 		PropertyView->SetObjectArray( Objects );
 	}
@@ -256,9 +256,7 @@ TSharedRef<IDetailsView> FPropertyEditorModule::CreateDetailView( const FDetails
 		}
 	}
 
-	TSharedRef<SDetailsView> DetailView = 
-		SNew( SDetailsView )
-		.DetailsViewArgs( DetailsViewArgs );
+	TSharedRef<SDetailsView> DetailView = SNew(SDetailsView, DetailsViewArgs);
 
 	AllDetailViews.Add( DetailView );
 
