@@ -6541,6 +6541,7 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 			const FScopedTransaction Transaction(LOCTEXT("PushToBlueprintDefaults_Transaction", "Apply Changes to Blueprint"));
 
 			// The component selection state should be maintained
+			GEditor->GetSelectedActors()->Modify();
 			GEditor->GetSelectedComponents()->Modify();
 
 			Actor->Modify();
