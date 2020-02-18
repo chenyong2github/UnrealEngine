@@ -1209,8 +1209,8 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 						if (Entry->UniformBufferName == TableNames[j])
 						{
 							Entry->SetIndex = j;
-							BufferIndices &= ~(1ull << (uint64)(j + IABOffsetIndex));
-							TextureIndices &= ~(1ull << uint64(j + IABOffsetIndex));
+							BufferIndices &= ~(1ull << ((uint64)j + IABOffsetIndex));
+							TextureIndices &= ~(1ull << ((uint64)j + IABOffsetIndex));
 							break;
 						}
 					}
