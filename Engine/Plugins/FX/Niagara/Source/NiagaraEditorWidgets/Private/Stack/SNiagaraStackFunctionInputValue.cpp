@@ -30,6 +30,7 @@
 #include "NiagaraSystem.h"
 #include "SNiagaraGraphActionWidget.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -40,9 +41,7 @@ bool SNiagaraStackFunctionInputValue::bIncludeNonLibraryInputs = false;
 void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiagaraStackFunctionInput* InFunctionInput)
 {
 	FunctionInput = InFunctionInput;
-
 	FunctionInput->OnValueChanged().AddSP(this, &SNiagaraStackFunctionInputValue::OnInputValueChanged);
-	DisplayedLocalValueStruct = FunctionInput->GetLocalValueStruct();
 
 	FMargin ItemPadding = FMargin(0);
 	ChildSlot
@@ -79,91 +78,13 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 				]
 			]
 			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			[
-				// TODO Don't generate all of these widgets for every input, only generate the ones that are used based on the value type.
-
-				// Local struct
-				SNew(SOverlay)
-				+ SOverlay::Slot()
+				// Value container and widgets.
+				SAssignNew(ValueContainer, SBox)
+				.ToolTipText_UObject(FunctionInput, &UNiagaraStackFunctionInput::GetValueToolTip)
 				[
-					SAssignNew(LocalValueStructContainer, SBox)
-					.Visibility(this, &SNiagaraStackFunctionInputValue::GetValueWidgetVisibility, UNiagaraStackFunctionInput::EValueMode::Local)
-					[
-						ConstructLocalValueStructWidget()
-					]
-				]
-
-				// Linked handle
-				+ SOverlay::Slot()
-				.Padding(0.0f, 0.0f, 0.0f, 2.0f)
-				[
-					SNew(SBox)
-					.Visibility(this, &SNiagaraStackFunctionInputValue::GetValueWidgetVisibility, UNiagaraStackFunctionInput::EValueMode::Linked)
-					.ToolTipText_UObject(InFunctionInput, &UNiagaraStackFunctionInput::GetTooltipText, UNiagaraStackFunctionInput::EValueMode::Linked)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-						.Text(this, &SNiagaraStackFunctionInputValue::GetLinkedValueHandleText)
-						.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked)
-					]
-				]
-
-				// Data Object
-				+ SOverlay::Slot()
-				.Padding(0.0f, 0.0f, 0.0f, 2.0f)
-				[
-					SNew(SBox)
-					.Visibility(this, &SNiagaraStackFunctionInputValue::GetValueWidgetVisibility, UNiagaraStackFunctionInput::EValueMode::Data)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-						.Text(this, &SNiagaraStackFunctionInputValue::GetDataValueText)
-					]
-				]
-
-				// Dynamic input name
-				+ SOverlay::Slot()
-				[
-					SNew(SBox)
-					.Visibility(this, &SNiagaraStackFunctionInputValue::GetValueWidgetVisibility, UNiagaraStackFunctionInput::EValueMode::Dynamic)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-						.Text(this, &SNiagaraStackFunctionInputValue::GetDynamicValueText)
-						.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetDynamicValueToolTip)
-						.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked)
-					]
-				]
-
-				// Expression input
-				+ SOverlay::Slot()
-				[
-					SNew(SBox)
-					.Visibility(this, &SNiagaraStackFunctionInputValue::GetValueWidgetVisibility, UNiagaraStackFunctionInput::EValueMode::Expression)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SEditableTextBox)
-						.IsReadOnly(false)
-						.Text_UObject(FunctionInput, &UNiagaraStackFunctionInput::GetCustomExpressionText)
-						.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::OnExpressionTextCommitted)
-					]
-				]
-
-				// Invalid input
-				+ SOverlay::Slot()
-				[
-					SNew(SBox)
-					.Visibility(this, &SNiagaraStackFunctionInputValue::GetValueWidgetVisibility, UNiagaraStackFunctionInput::EValueMode::Invalid)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-						.Text(this, &SNiagaraStackFunctionInputValue::GetInvalidValueText)
-						.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetInvalidValueToolTipText)
-					]
+					ConstructValueWidgets()
 				]
 			]
 
@@ -226,6 +147,8 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 			]
 		]
 	];
+
+	ValueModeForGeneratedWidgets = FunctionInput->GetValueMode();
 }
 
 void SNiagaraStackFunctionInputValue::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -237,20 +160,81 @@ void SNiagaraStackFunctionInputValue::Tick(const FGeometry& AllottedGeometry, co
 	}
 }
 
+TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
+{
+	DisplayedLocalValueStruct.Reset();
+	LocalValueStructParameterEditor.Reset();
+	LocalValueStructDetailsView.Reset();
+
+	switch (FunctionInput->GetValueMode())
+	{
+	case UNiagaraStackFunctionInput::EValueMode::Local:
+	{
+		return ConstructLocalValueStructWidget();
+	}
+	case UNiagaraStackFunctionInput::EValueMode::Linked:
+	{
+		return SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text(this, &SNiagaraStackFunctionInputValue::GetLinkedValueHandleText)
+			.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked);
+	}
+	case UNiagaraStackFunctionInput::EValueMode::Data:
+	{
+		return SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text(this, &SNiagaraStackFunctionInputValue::GetDataValueText);
+	}
+	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
+	{
+		return SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text(this, &SNiagaraStackFunctionInputValue::GetDynamicValueText)
+			.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked);
+	}
+	case UNiagaraStackFunctionInput::EValueMode::DefaultFunction:
+	{
+		return SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text(this, &SNiagaraStackFunctionInputValue::GetDefaultFunctionText);
+	}
+	case UNiagaraStackFunctionInput::EValueMode::Expression:
+	{
+		return SNew(SEditableTextBox)
+			.IsReadOnly(false)
+			.Text_UObject(FunctionInput, &UNiagaraStackFunctionInput::GetCustomExpressionText)
+			.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::OnExpressionTextCommitted);
+	}
+	case UNiagaraStackFunctionInput::EValueMode::InvalidOverride:
+	{
+		return SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text(LOCTEXT("InvalidOverrideText", "Invalid Scirpt Value"));
+	}
+	case UNiagaraStackFunctionInput::EValueMode::UnsupportedDefault:
+	{
+		return SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text(LOCTEXT("UnsupportedDefault", "Custom Default"));
+	}
+	default:
+		return SNullWidget::NullWidget;
+	}
+}
+
+
 bool SNiagaraStackFunctionInputValue::GetInputEnabled() const
 {
 	return FunctionInput->GetHasEditCondition() == false || FunctionInput->GetEditConditionEnabled();
-}
-
-EVisibility SNiagaraStackFunctionInputValue::GetValueWidgetVisibility(UNiagaraStackFunctionInput::EValueMode ValidMode) const
-{
-	return FunctionInput->GetValueMode() == ValidMode ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructLocalValueStructWidget()
 {
 	LocalValueStructParameterEditor.Reset();
 	LocalValueStructDetailsView.Reset();
+
+	DisplayedLocalValueStruct = MakeShared<FStructOnScope>(FunctionInput->GetInputType().GetStruct());
+	FNiagaraEditorUtilities::CopyDataTo(*DisplayedLocalValueStruct.Get(), *FunctionInput->GetLocalValueStruct().Get());
 	if (DisplayedLocalValueStruct.IsValid())
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -299,23 +283,33 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructLocalValueStructWi
 
 void SNiagaraStackFunctionInputValue::OnInputValueChanged()
 {
-	TSharedPtr<FStructOnScope> NewLocalValueStruct = FunctionInput->GetLocalValueStruct();
-	if (DisplayedLocalValueStruct == NewLocalValueStruct)
+	if (ValueModeForGeneratedWidgets != FunctionInput->GetValueMode())
 	{
-		if (LocalValueStructParameterEditor.IsValid())
-		{
-			LocalValueStructParameterEditor->UpdateInternalValueFromStruct(DisplayedLocalValueStruct.ToSharedRef());
-		}
-		if (LocalValueStructDetailsView.IsValid())
-		{
-			LocalValueStructDetailsView->SetStructureData(TSharedPtr<FStructOnScope>());
-			LocalValueStructDetailsView->SetStructureData(DisplayedLocalValueStruct);
-		}
+		ValueContainer->SetContent(ConstructValueWidgets());
+		ValueModeForGeneratedWidgets = FunctionInput->GetValueMode();
 	}
 	else
 	{
-		DisplayedLocalValueStruct = NewLocalValueStruct;
-		LocalValueStructContainer->SetContent(ConstructLocalValueStructWidget());
+		if (ValueModeForGeneratedWidgets == UNiagaraStackFunctionInput::EValueMode::Local)
+		{
+			if (DisplayedLocalValueStruct->GetStruct() == FunctionInput->GetLocalValueStruct()->GetStruct())
+			{
+				FNiagaraEditorUtilities::CopyDataTo(*DisplayedLocalValueStruct.Get(), *FunctionInput->GetLocalValueStruct().Get());
+				if (LocalValueStructParameterEditor.IsValid())
+				{
+					LocalValueStructParameterEditor->UpdateInternalValueFromStruct(DisplayedLocalValueStruct.ToSharedRef());
+				}
+				if (LocalValueStructDetailsView.IsValid())
+				{
+					LocalValueStructDetailsView->SetStructureData(TSharedPtr<FStructOnScope>());
+					LocalValueStructDetailsView->SetStructureData(DisplayedLocalValueStruct);
+				}
+			}
+			else
+			{
+				ValueContainer->SetContent(ConstructLocalValueStructWidget());
+			}
+		}
 	}
 }
 
@@ -373,45 +367,21 @@ FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 	}
 }
 
-FText SNiagaraStackFunctionInputValue::GetDynamicValueToolTip() const
+FText SNiagaraStackFunctionInputValue::GetDefaultFunctionText() const
 {
-	if (FunctionInput->GetDynamicInputNode() != nullptr)
+	if (FunctionInput->GetDefaultFunctionNode() != nullptr)
 	{
-		return FunctionInput->GetDynamicInputNode()->GetTooltipText();
+		return FText::FromString(FName::NameToDisplayString(FunctionInput->GetDefaultFunctionNode()->GetFunctionName(), false));
 	}
 	else
 	{
-		return LOCTEXT("InvalidDynamicDisplayName", "(Invalid)");
+		return LOCTEXT("InvalidDefaultFunctionDisplayName", "(Invalid)");
 	}
 }
 
 void SNiagaraStackFunctionInputValue::OnExpressionTextCommitted(const FText& Name, ETextCommit::Type CommitInfo)
 {
 	FunctionInput->SetCustomExpression(Name.ToString());
-}
-
-FText SNiagaraStackFunctionInputValue::GetInvalidValueText() const
-{
-	if (FunctionInput->CanReset())
-	{
-		return LOCTEXT("InvalidResetLabel", "Unsupported value - Reset to fix.");
-	}
-	else
-	{
-		return LOCTEXT("InvalidLabel", "Custom value");
-	}
-}
-
-FText SNiagaraStackFunctionInputValue::GetInvalidValueToolTipText() const
-{
-	if (FunctionInput->CanReset())
-	{
-		return LOCTEXT("InvalidResetToolTip", "This input has an unsupported value assigned in the stack.\nUse the reset button to remove the unsupported value.");
-	}
-	else
-	{
-		return LOCTEXT("InvalidToolTip", "The script that defines the source of this input has\n a custom default value that can not be displayed in the stack view.\nYou can set a local override value using the drop down menu.");
-	}
 }
 
 FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
@@ -706,7 +676,7 @@ void SNiagaraStackFunctionInputValue::SetToLocalValue()
 		if (DefaultValueData.Num() == LocalValueStruct->GetStructureSize())
 		{
 			FMemory::Memcpy(LocalValue->GetStructMemory(), DefaultValueData.GetData(), DefaultValueData.Num());
-			FunctionInput->SetLocalValue(LocalValue, true);
+			FunctionInput->SetLocalValue(LocalValue);
 		}
 	}
 }
@@ -772,17 +742,19 @@ FText SNiagaraStackFunctionInputValue::GetInputIconText() const
 	switch (FunctionInput->GetValueMode())
 	{
 	case UNiagaraStackFunctionInput::EValueMode::Linked:
-		return FText::FromString(FString(TEXT("\xf0C1") /* fa-link */));
+		return FEditorFontGlyphs::Link;
 	case UNiagaraStackFunctionInput::EValueMode::Data:
-		return FText::FromString(FString(TEXT("\xf1C0") /* fa-database */));
+		return FEditorFontGlyphs::Database;
 	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
-		return FText::FromString(FString(TEXT("\xf201") /* fa-line-chart */));
+		return FEditorFontGlyphs::Line_Chart;
 	case UNiagaraStackFunctionInput::EValueMode::Expression:
-		return FText::FromString(FString(TEXT("\xf120") /* fa-terminal */));
-	case UNiagaraStackFunctionInput::EValueMode::Invalid:
-		return FunctionInput->CanReset()
-			? FText::FromString(FString(TEXT("\xf128") /* fa-question */))
-			: FText::FromString(FString(TEXT("\xf005") /* fa-star */));
+		return FEditorFontGlyphs::Terminal;
+	case UNiagaraStackFunctionInput::EValueMode::DefaultFunction:
+		return FEditorFontGlyphs::Plug;
+	case UNiagaraStackFunctionInput::EValueMode::InvalidOverride:
+		return FEditorFontGlyphs::Question;
+	case UNiagaraStackFunctionInput::EValueMode::UnsupportedDefault:
+		return FEditorFontGlyphs::Star;
 	default:
 		return FText::FromString(FString(TEXT("\xf128") /* fa-question */));
 	}
@@ -801,10 +773,12 @@ FText SNiagaraStackFunctionInputValue::GetInputIconToolTip() const
 		return LOCTEXT("DynamicInputIconToolTip", "Dynamic Value");
 	case UNiagaraStackFunctionInput::EValueMode::Expression:
 		return LOCTEXT("ExpressionInputIconToolTip", "Custom Expression");
-	case UNiagaraStackFunctionInput::EValueMode::Invalid:
-		return FunctionInput->CanReset()
-			? InvalidText
-			: LOCTEXT("CustomInputIconToolTip", "Custom value");
+	case UNiagaraStackFunctionInput::EValueMode::DefaultFunction:
+		return LOCTEXT("DefaultFunctionIconToolTip", "Script Defined Default Function");
+	case UNiagaraStackFunctionInput::EValueMode::InvalidOverride:
+		return LOCTEXT("InvalidOverrideIconToolTip", "Invalid Script State");
+	case UNiagaraStackFunctionInput::EValueMode::UnsupportedDefault:
+		return LOCTEXT("UnsupportedDefaultIconToolTip", "Script Defined Custom Default");
 	default:
 		return InvalidText;
 	}
@@ -822,7 +796,9 @@ FSlateColor SNiagaraStackFunctionInputValue::GetInputIconColor() const
 		return FLinearColor(FColor::Cyan);
 	case UNiagaraStackFunctionInput::EValueMode::Expression:
 		return FLinearColor(FColor::Green);
-	case UNiagaraStackFunctionInput::EValueMode::Invalid:
+	case UNiagaraStackFunctionInput::EValueMode::InvalidOverride:
+	case UNiagaraStackFunctionInput::EValueMode::UnsupportedDefault:
+	case UNiagaraStackFunctionInput::EValueMode::DefaultFunction:
 	default:
 		return FLinearColor(FColor::White);
 	}

@@ -19,6 +19,8 @@ public:
 
 	bool operator==(const FNiagaraParameterHandle& Other) const;
 
+	bool operator!=(const FNiagaraParameterHandle& Other) const { return (*this == Other) == false; }
+
 	static FNiagaraParameterHandle CreateAliasedModuleParameterHandle(const FNiagaraParameterHandle& ModuleParameterHandle, const UNiagaraNodeFunctionCall* ModuleNode);
 
 	static FNiagaraParameterHandle CreateEngineParameterHandle(const FNiagaraVariable& SystemVariable);
