@@ -89,7 +89,7 @@ void FFieldPath::Generate(const TCHAR* InFieldPathString)
 	}
 }
 
-FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, int32* OutOwnerIndex) const
+FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, int32* OutOwnerIndex, FFieldPath::EPathResolveType InResolveType /*= FFieldPath::UseStructIfOuterNotFound*/) const
 {
 	FField* Result = nullptr;
 
@@ -98,14 +98,15 @@ FField* FFieldPath::TryToResolvePath(UStruct* InCurrentStruct, int32* OutOwnerIn
 	int32 PathIndex = Path.Num() - 1;
 	for (; PathIndex > 0; --PathIndex)
 	{				
-		UObject* Outer = StaticFindObjectFast(UObject::StaticClass(), LastOuter, Path[PathIndex]);;
+		UObject* Outer = StaticFindObjectFast(UObject::StaticClass(), LastOuter, Path[PathIndex]);
 
 		if (InCurrentStruct && PathIndex == (Path.Num() - 1))
 		{
 			UObject* CurrentOutermost = InCurrentStruct->GetOutermost();
-			// If a struct has been passed to this function and it's different than ther outer we found
-			// use it instead - this happens when a package with the class has been renammed
-			if (CurrentOutermost != Outer)
+
+			if ((InResolveType == FFieldPath::UseStructIfOuterNotFound && !Outer) || // Outer is not found so try to use the provided struct Outer
+			    (InResolveType == FFieldPath::UseStructAlways && CurrentOutermost != Outer) // Prioritize the provided struct Outer over the resolved one
+			   )
 			{
 				Outer = CurrentOutermost;
 				// If we don't update the path then after a GC when this needs resolving we would resolve back to the unrenamed class package
