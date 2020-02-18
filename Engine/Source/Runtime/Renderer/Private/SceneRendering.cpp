@@ -3077,7 +3077,9 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 			{
 				FRHIUniformBuffer* PassUniformBuffer = nullptr;
 
-				if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
+				bool bMobilePath = FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile;
+
+				if (bMobilePath)
 				{
 					FMobileSceneTextureUniformParameters SceneTextureParameters;
 					SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, false, false, SceneTextureParameters);
@@ -3092,25 +3094,34 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 					PassUniformBuffer = Scene->UniformBuffers.CustomDepthPassUniformBuffer;
 				}
 				
+				static const auto CVarMobileCustomDepthDownSample = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.CustomDepthDownSample"));
+
+				bool bMobileCustomDepthDownSample = bMobilePath && CVarMobileCustomDepthDownSample && CVarMobileCustomDepthDownSample->GetValueOnRenderThread() > 0;
+
+				FIntRect ViewRect = bMobileCustomDepthDownSample ? FIntRect::DivideAndRoundUp(View.ViewRect, 2) : View.ViewRect;
+
 				if (!View.IsInstancedStereoPass())
 				{
-					RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+					RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 				}
 				else
 				{
 					if (View.bIsMultiViewEnabled)
 					{
-						const uint32 LeftMinX = Views[0].ViewRect.Min.X;
-						const uint32 LeftMaxX = Views[0].ViewRect.Max.X;
-						const uint32 RightMinX = Views[1].ViewRect.Min.X;
-						const uint32 RightMaxX = Views[1].ViewRect.Max.X;
-						const uint32 LeftMaxY = Views[0].ViewRect.Max.Y;
-						const uint32 RightMaxY = Views[1].ViewRect.Max.Y;
+						FIntRect ViewRect0 = bMobileCustomDepthDownSample ? FIntRect::DivideAndRoundUp(Views[0].ViewRect, 2) : Views[0].ViewRect;
+						FIntRect ViewRect1 = bMobileCustomDepthDownSample ? FIntRect::DivideAndRoundUp(Views[1].ViewRect, 2) : Views[1].ViewRect;
+
+						const uint32 LeftMinX = ViewRect0.Min.X;
+						const uint32 LeftMaxX = ViewRect0.Max.X;
+						const uint32 RightMinX = ViewRect1.Min.X;
+						const uint32 RightMaxX = ViewRect1.Max.X;
+						const uint32 LeftMaxY = ViewRect0.Max.Y;
+						const uint32 RightMaxY = ViewRect1.Max.Y;
 						RHICmdList.SetStereoViewport(LeftMinX, RightMinX, 0, 0, 0.0f, LeftMaxX, RightMaxX, LeftMaxY, RightMaxY, 1.0f);
 					}
 					else
 					{
-						RHICmdList.SetViewport(0, 0, 0, InstancedStereoWidth, View.ViewRect.Max.Y, 1);
+						RHICmdList.SetViewport(0, 0, 0, InstancedStereoWidth, ViewRect.Max.Y, 1);
 					}
 				}
 
