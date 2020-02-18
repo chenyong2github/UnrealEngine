@@ -454,17 +454,27 @@ namespace InstallBundleUtil
 
 		bool FPersistentStatsBase::LoadStatsFromDisk()
 		{
-			FString JSONStringOnDisk;
-			if (FPaths::FileExists(GetFullPathForStatFile()))
+			if (!bHasLoadedFromDisk)
 			{
-				FFileHelper::LoadFileToString(JSONStringOnDisk, *GetFullPathForStatFile());
-			}
+				FString JSONStringOnDisk;
+				if (FPaths::FileExists(GetFullPathForStatFile()))
+				{
+					FFileHelper::LoadFileToString(JSONStringOnDisk, *GetFullPathForStatFile());
+				}
 
-			if (!JSONStringOnDisk.IsEmpty())
-			{
-				return FromJson(JSONStringOnDisk);
+				if (!JSONStringOnDisk.IsEmpty())
+				{
+					bHasLoadedFromDisk = FromJson(JSONStringOnDisk);
+					
+					if (bHasLoadedFromDisk)
+					{
+						OnLoadingDataFromDisk();
+					}
+					
+					return bHasLoadedFromDisk;
+				}
 			}
-
+			
 			return false;
 		}
 
@@ -479,7 +489,7 @@ namespace InstallBundleUtil
 			TimingStatsMap.Reset();
 			CountStatMap.Reset();
 			AnalyticsSessionID = NewAnalyticsSessionID;
-
+			
 			bIsDirty = true;
 		}
 
@@ -606,10 +616,7 @@ namespace InstallBundleUtil
 		{
 			bIsActive = true;
 			
-			if (LoadStatsFromDisk())
-			{
-				OnLoadingDataFromDisk();
-			}
+			LoadStatsFromDisk();
 
 			//If our Analytics ID doesn't match our expected we need to reset the data as we have started a new persistent session
 			if (bForceResetData || !AnalyticsSessionID.Equals(ExpectedAnalyticsID))
@@ -727,6 +734,7 @@ namespace InstallBundleUtil
 			{
 				RequiredBundles.AddUnique(BundleName);
 			}
+			
 			bIsDirty = true;
 		}
 
@@ -762,7 +770,7 @@ namespace InstallBundleUtil
 
 		const FString FSessionPersistentStats::GetFullPathForStatFile() const
 		{
-			return FPaths::Combine(FPlatformMisc::GamePersistentDownloadDir(), TEXT("PersistentStats"), TEXT("ContentRequestStats"), (SessionName + TEXT(".json")));
+			return FPaths::Combine(FPlatformMisc::GamePersistentDownloadDir(), TEXT("PersistentStats"), TEXT("SessionStats"), (SessionName + TEXT(".json")));
 		}
 
 		FPersistentStatContainerBase::FPersistentStatContainerBase()
@@ -777,7 +785,6 @@ namespace InstallBundleUtil
 			, TimerAutoUpdateRate(10.0f)
 			, bShouldSaveDirtyStatsOnTick(true)
 			, DirtyStatSaveToDiskRate(5.f)
-			, bShouldSaveStatsOnUpdate(false)
 			, bShouldAutoHandleFGBGStats(true)
 		{
 			InitializeBase();
@@ -797,7 +804,6 @@ namespace InstallBundleUtil
 
 				GConfig->GetBool(TEXT("InstallBundleManager.PersistentStatSettings"), TEXT("bShouldSaveDirtyStatsOnTick"), bShouldSaveDirtyStatsOnTick, GEngineIni);
 				GConfig->GetFloat(TEXT("InstallBundleManager.PersistentStatSettings"), TEXT("DirtyStatSaveToDiskRate"), DirtyStatSaveToDiskRate, GEngineIni);
-				GConfig->GetBool(TEXT("InstallBundleManager.PersistentStatSettings"), TEXT("bShouldSaveStatsOnUpdate"), bShouldSaveStatsOnUpdate, GEngineIni);
 				
 				GConfig->GetBool(TEXT("InstallBundleManager.PersistentStatSettings"), TEXT("bShouldAutoHandleFGBGStats"), bShouldAutoHandleFGBGStats, GEngineIni);
 
@@ -903,14 +909,6 @@ namespace InstallBundleUtil
 			}
 		}
 
-		void FPersistentStatContainerBase::OnDataUpdatedForStat(FPersistentStatsBase& UpdatedBundleStat)
-		{
-			if (bShouldSaveStatsOnUpdate)
-			{
-				UpdatedBundleStat.SaveStatsToDisk();
-			}
-		}
-
 		void FPersistentStatContainerBase::ResetTimerUpdate()
 		{
 			TimerAutoUpdateTimeRemaining = TimerAutoUpdateRate;
@@ -955,8 +953,6 @@ namespace InstallBundleUtil
 
 			FBundlePersistentStats& FoundBundleStats = PerBundlePersistentStatMap.FindOrAdd(BundleName, FBundlePersistentStats(BundleName));
 			FoundBundleStats.StatsBegin(ExpectedAnalyticsToUse, bForceResetStatData);
-
-			OnDataUpdatedForStat(FoundBundleStats);
 		}
 
 		void FPersistentStatContainerBase::StartSessionPersistentStatTracking(const FString& SessionName, const TArray<FName>& RequiredBundles /* = TArray<FName>() */, const FString& ExpectedAnalyticsID /* = FString() */, bool bForceResetStatData /* = false */)
@@ -969,8 +965,9 @@ namespace InstallBundleUtil
 
 			//Also append starting required bundles as we may have new ones from the ones already in data
 			FoundSessionStats.AddRequiredBundles(RequiredBundles);
-
-			OnDataUpdatedForStat(FoundSessionStats);
+			
+			//Go ahead and load data for all bundles in our RequiredBundles list while we are starting our Session
+			LoadRequiredBundleDataFromDiskForSession(SessionName);
 		}
 		
 		void FPersistentStatContainerBase::StopBundlePersistentStatTracking(FName BundleName, bool bStopAllActiveTimers /* = true */)
@@ -979,7 +976,6 @@ namespace InstallBundleUtil
 			if (nullptr != FoundBundleStats)
 			{
 				FoundBundleStats->StatsEnd(bStopAllActiveTimers);
-				OnDataUpdatedForStat(*FoundBundleStats);
 			}
 		}
 
@@ -989,17 +985,42 @@ namespace InstallBundleUtil
 			if (nullptr != FoundSessionStats)
 			{
 				FoundSessionStats->StatsEnd(bStopAllActiveTimers);
-				OnDataUpdatedForStat(*FoundSessionStats);
 			}
 		}
 
+		void FPersistentStatContainerBase::LoadRequiredBundleDataFromDiskForSession(const FString& SessionName)
+		{
+			FSessionPersistentStats* FoundSessionStats = SessionPersistentStatMap.Find(SessionName);
+			if (nullptr != FoundSessionStats)
+			{
+				TArray<FString> RequiredBundles;
+				FoundSessionStats->GetRequiredBundles(RequiredBundles);
+				
+				for (const FString& Bundle : RequiredBundles)
+				{
+					FBundlePersistentStats* FoundBundleStats = PerBundlePersistentStatMap.Find(*Bundle);
+					if (nullptr == FoundBundleStats)
+					{
+						FBundlePersistentStats NewBundleStats = FBundlePersistentStats(*Bundle);
+						NewBundleStats.LoadStatsFromDisk();
+						PerBundlePersistentStatMap.Emplace(*Bundle, MoveTemp(NewBundleStats));
+					}
+					else
+					{
+						FoundBundleStats->LoadStatsFromDisk();
+					}
+				}
+			}
+		}
+	
 		void FPersistentStatContainerBase::StartBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToStart)
 		{
 			FBundlePersistentStats& FoundBundleStats = PerBundlePersistentStatMap.FindOrAdd(BundleName, FBundlePersistentStats(BundleName));
 			FoundBundleStats.StartTimingStat(TimerToStart);
 
+			ensureAlwaysMsgf(FoundBundleStats.IsActive(), TEXT("Invalid attempt to start %s on bundle %s that hasn't yet had StartBundlePersistentStatTracking called on it! Should always start tracking before using persistent stats!"), *LexToString(TimerToStart), *(BundleName.ToString()));
+			
 			OnTimerStartedForStat(FoundBundleStats, TimerToStart);
-			OnDataUpdatedForStat(FoundBundleStats);
 		}
 
 		void FPersistentStatContainerBase::StartSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToStart)
@@ -1007,8 +1028,9 @@ namespace InstallBundleUtil
 			FSessionPersistentStats& FoundSessionStats = SessionPersistentStatMap.FindOrAdd(SessionName, FSessionPersistentStats(SessionName));
 			FoundSessionStats.StartTimingStat(TimerToStart);
 
+			ensureAlwaysMsgf(FoundSessionStats.IsActive(), TEXT("Invalid attempt to start %s on session %s that hasn't yet had StartBundlePersistentStatTracking called on it! Should always start tracking before using persistent stats!"), *LexToString(TimerToStart), *SessionName);
+			
 			OnTimerStartedForStat(FoundSessionStats, TimerToStart);
-			OnDataUpdatedForStat(FoundSessionStats);
 		}
 
 		void FPersistentStatContainerBase::StopBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToStop)
@@ -1017,7 +1039,6 @@ namespace InstallBundleUtil
 			FoundBundleStats.StopTimingStat(TimerToStop);
 
 			OnTimerStoppedForStat(FoundBundleStats, TimerToStop);
-			OnDataUpdatedForStat(FoundBundleStats);
 		}
 
 		void FPersistentStatContainerBase::StopSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToStop)
@@ -1026,23 +1047,18 @@ namespace InstallBundleUtil
 			FoundSessionStats.StopTimingStat(TimerToStop);
 
 			OnTimerStoppedForStat(FoundSessionStats, TimerToStop);
-			OnDataUpdatedForStat(FoundSessionStats);
 		}
 
 		void FPersistentStatContainerBase::UpdateBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToUpdate)
 		{
 			FBundlePersistentStats& FoundBundleStats = PerBundlePersistentStatMap.FindOrAdd(BundleName, FBundlePersistentStats(BundleName));
 			FoundBundleStats.UpdateTimingStat(TimerToUpdate);
-
-			OnDataUpdatedForStat(FoundBundleStats);
 		}
 
 		void FPersistentStatContainerBase::UpdateSessionPersistentStatTimer(FString SessionName, ETimingStatNames TimerToUpdate)
 		{
 			FSessionPersistentStats& FoundSessionStats = SessionPersistentStatMap.FindOrAdd(SessionName, FSessionPersistentStats(SessionName));
 			FoundSessionStats.UpdateTimingStat(TimerToUpdate);
-
-			OnDataUpdatedForStat(FoundSessionStats);
 		}
 
 		void FPersistentStatContainerBase::IncrementBundlePersistentCounter(FName BundleName, ECountStatNames CounterToUpdate)
@@ -1050,7 +1066,7 @@ namespace InstallBundleUtil
 			FBundlePersistentStats& FoundBundleStats = PerBundlePersistentStatMap.FindOrAdd(BundleName, FBundlePersistentStats(BundleName));
 			FoundBundleStats.IncrementCountStat(CounterToUpdate);
 
-			OnDataUpdatedForStat(FoundBundleStats);
+			ensureAlwaysMsgf(FoundBundleStats.IsActive(), TEXT("Invalid attempt to increment %s on bundle %s that hasn't yet had StartBundlePersistentStatTracking called on it! Should always start tracking before using persistent stats!"), *LexToString(CounterToUpdate), *(BundleName.ToString()));
 		}
 
 		void FPersistentStatContainerBase::IncrementSessionPersistentCounter(FString SessionName, ECountStatNames CounterToUpdate)
@@ -1058,7 +1074,7 @@ namespace InstallBundleUtil
 			FSessionPersistentStats& FoundSessionStats = SessionPersistentStatMap.FindOrAdd(SessionName, FSessionPersistentStats(SessionName));
 			FoundSessionStats.IncrementCountStat(CounterToUpdate);
 
-			OnDataUpdatedForStat(FoundSessionStats);
+			ensureAlwaysMsgf(FoundSessionStats.IsActive(), TEXT("Invalid attempt to increment %s on session %s that hasn't yet had StartBundlePersistentStatTracking called on it! Should always start tracking before using persistent stats!"), *LexToString(CounterToUpdate), *SessionName);
 		}
 
 		void FPersistentStatContainerBase::OnApp_EnteringBackground()
@@ -1148,8 +1164,6 @@ namespace InstallBundleUtil
 				StatToUpdate.StartTimingStat(ETimingStatNames::PSOTime_BG);
 				StatToUpdate.StopTimingStat(ETimingStatNames::PSOTime_FG);
 			}
-
-			OnDataUpdatedForStat(StatToUpdate);
 		}
 
 		void FPersistentStatContainerBase::UpdateStatsForForeground(FPersistentStatsBase& StatToUpdate)
@@ -1179,8 +1193,6 @@ namespace InstallBundleUtil
 				StatToUpdate.StopTimingStat(ETimingStatNames::PSOTime_BG);
 				StatToUpdate.StartTimingStat(ETimingStatNames::PSOTime_FG);
 			}
-
-			OnDataUpdatedForStat(StatToUpdate);
 		}
 
 		void FPersistentStatContainerBase::UpdateAllBundlesActiveTimers()
@@ -1192,8 +1204,6 @@ namespace InstallBundleUtil
 			{
 				InstallBundleUtil::PersistentStats::FBundlePersistentStats& BundleStats = PerBundlePersistentStatMap.FindOrAdd(BundleName, FBundlePersistentStats(BundleName));
 				BundleStats.UpdateAllActiveTimers();
-
-				OnDataUpdatedForStat(BundleStats);
 			}
 		}
 
@@ -1206,8 +1216,6 @@ namespace InstallBundleUtil
 			{
 				InstallBundleUtil::PersistentStats::FSessionPersistentStats& SessionStats = SessionPersistentStatMap.FindOrAdd(SessionName, FSessionPersistentStats(SessionName));
 				SessionStats.UpdateAllActiveTimers();
-
-				OnDataUpdatedForStat(SessionStats);
 			}
 		}
 
