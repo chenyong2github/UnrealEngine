@@ -187,17 +187,35 @@ FPakCustomEncryptionDelegate& FPakPlatformFile::GetPakCustomEncryptionDelegate()
 	return Delegate;
 }
 
+FPakPlatformFile::FPakSigningFailureHandlerData& FPakPlatformFile::GetPakSigningFailureHandlerData()
+{
+	static FPakSigningFailureHandlerData Instance;
+	return Instance;
+}
+
 // Needs to be a global as multiple threads may try to access the failed delegate
-static FPakChunkSignatureCheckFailedHandler SignatureFailedDelegate;
 FPakChunkSignatureCheckFailedHandler& FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler()
 {
-	return SignatureFailedDelegate;
+	return GetPakSigningFailureHandlerData().ChunkSignatureCheckFailedDelegate;
 }
 
 FPakMasterSignatureTableCheckFailureHandler& FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler()
 {
-	static FPakMasterSignatureTableCheckFailureHandler Delegate;
-	return Delegate;
+	return GetPakSigningFailureHandlerData().MasterSignatureTableCheckFailedDelegate;
+}
+
+void FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(const FPakChunkSignatureCheckFailedData& InData)
+{
+	FPakSigningFailureHandlerData& HandlerData = GetPakSigningFailureHandlerData();
+	FScopeLock Lock(&HandlerData.Lock);
+	HandlerData.ChunkSignatureCheckFailedDelegate.Broadcast(InData);
+}
+
+void FPakPlatformFile::BroadcastPakMasterSignatureTableCheckFailure(const FString& InFilename)
+{
+	FPakSigningFailureHandlerData& HandlerData = GetPakSigningFailureHandlerData();
+	FScopeLock Lock(&HandlerData.Lock);
+	HandlerData.MasterSignatureTableCheckFailedDelegate.Broadcast(InFilename);
 }
 
 void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList) 
@@ -308,7 +326,7 @@ TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> FPakPlatformFile
 		else
 		{
 			UE_LOG(LogPakFile, Warning, TEXT("Couldn't find pak signature file '%s'"), InFilename);
-			FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
+			BroadcastPakMasterSignatureTableCheckFailure(InFilename);
 		}
 	}
 
@@ -3593,7 +3611,7 @@ void FPakPrecacher::DoSignatureCheck(bool bWasCanceled, IAsyncReadRequest* Reque
 				}
 
 				FPakChunkSignatureCheckFailedData FailedData(PakData->Name.ToString(), HashCache[SignedChunkIndex % MaxHashesToCache], ThisHash, SignatureIndex);
-				FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler().Broadcast(FailedData);
+				FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(FailedData);
 			}
 		}
 
@@ -5155,10 +5173,16 @@ bool FPakFile::Check()
 	// against the signature table and fire the handler
 	if (bSigned)
 	{
-		FDelegateHandle DelegateHandle = FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler().AddLambda([&bSuccess](const FPakChunkSignatureCheckFailedData&)
-		{ 
-			bSuccess = false; 
-		});
+		FDelegateHandle DelegateHandle;
+		FPakPlatformFile::FPakSigningFailureHandlerData& HandlerData = FPakPlatformFile::GetPakSigningFailureHandlerData();
+
+		{
+			FScopeLock Lock(&HandlerData.Lock);
+			DelegateHandle = HandlerData.ChunkSignatureCheckFailedDelegate.AddLambda([&bSuccess](const FPakChunkSignatureCheckFailedData&)
+			{
+				bSuccess = false;
+			});
+		}
 
 		int64 CurrentPos = 0;
 		const int64 Size = PakReader.TotalSize();
@@ -5170,7 +5194,11 @@ bool FPakFile::Check()
 			CurrentPos += FPakInfo::MaxChunkDataSize;
 		}
 
-		FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler().Remove(DelegateHandle);
+		if (DelegateHandle.IsValid())
+		{
+			FScopeLock Lock(&HandlerData.Lock);
+			HandlerData.ChunkSignatureCheckFailedDelegate.Remove(DelegateHandle);
+		}
 	}
 	else
 	{
