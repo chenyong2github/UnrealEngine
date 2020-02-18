@@ -95,11 +95,8 @@ public:
 	/** [ALL] set replicator state */
 	void SetEnabled(bool bEnable);
 
-	/** [ALL] set category state 
-	 *	@return false if no changes have been done. This can happen both when 
-	 *		CategoryId is not a valid category identifier as well as when indicated
-	 *		category is already in required state */
-	bool SetCategoryEnabled(int32 CategoryId, bool bEnable);
+	/** [ALL] set category state */
+	void SetCategoryEnabled(int32 CategoryId, bool bEnable);
 
 	/** [ALL] set actor for debugging */
 	void SetDebugActor(AActor* Actor, bool bSelectInEditor = false);
