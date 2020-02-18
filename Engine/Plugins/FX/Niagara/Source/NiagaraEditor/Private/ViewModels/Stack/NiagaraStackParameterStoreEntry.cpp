@@ -58,12 +58,12 @@ void UNiagaraStackParameterStoreEntry::RefreshChildrenInternal(const TArray<UNia
 {
 	RefreshValueAndHandle();
 
-	if (ValueObject != nullptr && ValueObject->IsA<UNiagaraDataInterface>())
+	if (ValueObject.IsValid() && ValueObject->IsA<UNiagaraDataInterface>())
 	{
 		if(ValueObjectEntry == nullptr || ValueObjectEntry->GetObject() != ValueObject)
 		{
 			ValueObjectEntry = NewObject<UNiagaraStackObject>(this);
-			ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), ValueObject, GetOwnerStackItemEditorDataKey());
+			ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), ValueObject.Get(), GetOwnerStackItemEditorDataKey());
 		}
 		NewChildren.Add(ValueObjectEntry);
 	}
@@ -106,7 +106,7 @@ TSharedPtr<FStructOnScope> UNiagaraStackParameterStoreEntry::GetValueStruct()
 
 UObject* UNiagaraStackParameterStoreEntry::GetValueObject()
 {
-	return ValueObject;
+	return ValueObject.Get();
 }
 
 void UNiagaraStackParameterStoreEntry::NotifyBeginValueChange()
