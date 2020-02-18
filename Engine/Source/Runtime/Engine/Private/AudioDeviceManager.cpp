@@ -498,6 +498,8 @@ bool FAudioDeviceManager::ShutdownAudioDevice(Audio::FDeviceId Handle)
 
 void FAudioDeviceManager::IncrementDevice(Audio::FDeviceId DeviceID)
 {
+	FScopeLock ScopeLock(&DeviceMapCriticalSection);
+
 	// If there is an FAudioDeviceHandle out in the world
 	check(Devices.Contains(DeviceID));
 
