@@ -12,6 +12,8 @@ class NIAGARA_API UNiagaraDataInterfaceParticleRead : public UNiagaraDataInterfa
 {
 	GENERATED_UCLASS_BODY()
 public:
+	DECLARE_NIAGARA_DI_PARAMETER();
+
 	UPROPERTY(EditAnywhere, Category = "ParticleRead")
 	FString EmitterName;
 
