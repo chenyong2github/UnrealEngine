@@ -217,7 +217,7 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 	CheckForNaNs();
 #endif
 
-	if (GetNeedsPersistentIDs())
+	if (RequiresPersistentIDs())
 	{
 		TArray<int32>& CurrentIDTable = CurrentData->GetIDTable();
 		TArray<int32>& DestinationIDTable = DestinationData->GetIDTable();
@@ -349,7 +349,7 @@ void FNiagaraDataSet::ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& 
 
 void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName)
 {
-	checkSlow(GetSimTarget() == ENiagaraSimTarget::GPUComputeSim && GetNeedsPersistentIDs());
+	checkSlow(GetSimTarget() == ENiagaraSimTarget::GPUComputeSim && RequiresPersistentIDs());
 
 	// Clearing and compacting the ID table must run over all the allocated elements, so we must use a chunk size which balances
 	// between reallocation frequency and the cost of processing unused elements.
@@ -714,7 +714,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			}
 		}
 
-		if (Owner->GetNeedsPersistentIDs())
+		if (Owner->RequiresPersistentIDs())
 		{
 			uint32 NumExistingElems = GPUIDToIndexTable.Buffer ? GPUIDToIndexTable.Buffer->GetSize() / sizeof(int32) : 0;
 			uint32 NumNeededElems = Owner->GetGPUNumAllocatedIDs();
@@ -1144,7 +1144,7 @@ FNiagaraDataSetCompiledData::FNiagaraDataSetCompiledData()
 
 void FNiagaraDataSetCompiledData::Empty()
 {
-	bNeedsPersistentIDs = 0;
+	bRequiresPersistentIDs = 0;
 	TotalFloatComponents = 0;
 	TotalInt32Components = 0;
 	Variables.Empty();

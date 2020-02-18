@@ -330,7 +330,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		{
 			SimTargetToBuild = Emitter->SimTarget;
 		}
-		if (Emitter->RequiresPersistantIDs())
+		if (Emitter->RequiresPersistentIDs())
 		{
 			Id.bRequiresPersistentIDs = true;
 			Id.AdditionalDefines.Add(TEXT("RequiresPersistentIDs"));
