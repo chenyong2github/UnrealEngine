@@ -1555,7 +1555,11 @@ namespace ObjectTools
 								Notification->SetCompletionState( CollectionCreated ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail );
 							}
 						}
-					} //-V773
+						if (ContentHelper)
+						{
+							delete ContentHelper;
+						}
+					}
 				}
 			}
 			else
