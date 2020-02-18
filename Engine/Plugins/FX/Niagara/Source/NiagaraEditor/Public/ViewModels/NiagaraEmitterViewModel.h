@@ -110,6 +110,7 @@ private:
 	void SetEmitter(UNiagaraEmitter* InEmitter);
 
 	void OnVMCompiled(UNiagaraEmitter* InEmitter);
+	void OnGPUCompiled(UNiagaraEmitter* InEmitter);
 
 	void AddScriptEventHandlers();
 

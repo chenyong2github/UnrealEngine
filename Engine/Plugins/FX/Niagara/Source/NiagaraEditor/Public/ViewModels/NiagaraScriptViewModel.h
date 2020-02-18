@@ -98,6 +98,8 @@ protected:
 
 	virtual void OnVMScriptCompiled(UNiagaraScript* InScript);
 
+	virtual void OnGPUScriptCompiled(UNiagaraScript* InScript);
+
 	TWeakObjectPtr<UNiagaraScriptSource> Source;
 
 	/** The view model for the input parameter collection. */

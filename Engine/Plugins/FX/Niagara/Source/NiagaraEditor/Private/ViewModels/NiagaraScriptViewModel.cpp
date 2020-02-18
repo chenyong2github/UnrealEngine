@@ -64,6 +64,11 @@ void FNiagaraScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript)
 	}
 }
 
+void FNiagaraScriptViewModel::OnGPUScriptCompiled(UNiagaraScript* InScript)
+{
+	// Do nothing in base implementation
+}
+
 bool FNiagaraScriptViewModel::IsGraphDirty() const
 {
 	for (int32 i = 0; i < Scripts.Num(); i++)
@@ -101,6 +106,7 @@ FNiagaraScriptViewModel::~FNiagaraScriptViewModel()
 		if (Scripts[i].IsValid())
 		{
 			Scripts[i]->OnVMScriptCompiled().RemoveAll(this);
+			Scripts[i]->OnGPUScriptCompiled().RemoveAll(this);
 		}
 	}
 
@@ -136,6 +142,7 @@ void FNiagaraScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, T
 		if (Scripts[i].IsValid())
 		{
 			Scripts[i]->OnVMScriptCompiled().RemoveAll(this);
+			Scripts[i]->OnGPUScriptCompiled().RemoveAll(this);
 		}
 	}
 
@@ -151,6 +158,7 @@ void FNiagaraScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, T
 		int32 i = Scripts.Add(Script);
 		check(Script->GetSource() == InScriptSource);
 		Scripts[i]->OnVMScriptCompiled().AddSP(this, &FNiagaraScriptViewModel::OnVMScriptCompiled);
+		Scripts[i]->OnGPUScriptCompiled().AddSP(this, &FNiagaraScriptViewModel::OnGPUScriptCompiled);
 	}
 	Source = InScriptSource;
 
