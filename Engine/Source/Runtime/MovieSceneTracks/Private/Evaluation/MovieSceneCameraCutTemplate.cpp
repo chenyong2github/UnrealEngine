@@ -316,7 +316,9 @@ void FMovieSceneCameraCutSectionTemplate::Evaluate(const FMovieSceneEvaluationOp
 				Params.EaseIn = Params.EaseOut;
 				Params.EaseOut = FBlendedCameraCutEasingInfo();
 				Params.PreviousCameraBindingID = Params.CameraBindingID;
+				Params.PreviousOperandSequenceID = Params.OperandSequenceID;
 				Params.CameraBindingID = FMovieSceneObjectBindingID();
+				Params.OperandSequenceID = FMovieSceneSequenceID();
 			}
 		}
 
