@@ -461,8 +461,6 @@ public:
 
 	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const override;
 
-	virtual const int32 GetUserIndexFromUserString(const FString& UserString) override;
-
 	virtual bool SupportsCompression() const { return false; }
 
 	UE_DEPRECATED(4.25, "No longer used")
