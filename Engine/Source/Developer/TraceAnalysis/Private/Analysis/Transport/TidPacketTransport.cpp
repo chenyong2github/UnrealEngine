@@ -47,7 +47,8 @@ bool FTidPacketTransport::ReadPacket()
 		uint16* DecodedSize = (uint16*)(PacketBase + 1);
 		uint8* Dest = Thread.Buffer.Append(*DecodedSize);
 		DataSize -= sizeof(*DecodedSize);
-		Private::Decode(DecodedSize + 1, DataSize, Dest, *DecodedSize);
+		int32 ResultSize = Private::Decode(DecodedSize + 1, DataSize, Dest, *DecodedSize);
+		check(int32(*DecodedSize) == ResultSize);
 	}
 	else
 	{
