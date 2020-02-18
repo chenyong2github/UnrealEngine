@@ -28,6 +28,7 @@
 #include "USDErrorUtils.h"
 #include "USDImportOptions.h"
 #include "USDImporterProjectSettings.h"
+#include "USDLog.h"
 #include "USDMemory.h"
 #include "USDPrimResolverKind.h"
 #include "USDSceneImportFactory.h"
@@ -45,8 +46,6 @@
 #endif // #if USE_USD_SDK
 
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
-
-DEFINE_LOG_CATEGORY(LogUSDImport);
 
 
 class SUSDOptionsWindow : public SCompoundWidget
@@ -595,7 +594,7 @@ void FUSDSceneImportContext::Init(UObject* InParent, const FString& InName, cons
 void FUsdImportContext::AddErrorMessage(EMessageSeverity::Type MessageSeverity, FText ErrorMessage)
 {
 	TokenizedErrorMessages.Add(FTokenizedMessage::Create(MessageSeverity, ErrorMessage));
-	UE_LOG(LogUSDImport, Error, TEXT("%s"), *ErrorMessage.ToString());
+	UE_LOG(LogUsd, Error, TEXT("%s"), *ErrorMessage.ToString());
 }
 
 void FUsdImportContext::DisplayErrorMessages(bool bAutomated)
@@ -619,7 +618,7 @@ void FUsdImportContext::DisplayErrorMessages(bool bAutomated)
 	{
 		for (const TSharedRef<FTokenizedMessage>& Message : TokenizedErrorMessages)
 		{
-			UE_LOG(LogUSDImport, Error, TEXT("%s"), *Message->ToText().ToString());
+			UE_LOG(LogUsd, Error, TEXT("%s"), *Message->ToText().ToString());
 		}
 	}
 }

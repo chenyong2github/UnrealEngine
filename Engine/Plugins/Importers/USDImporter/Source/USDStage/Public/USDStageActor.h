@@ -35,8 +35,6 @@ enum class EUsdPurpose : int32;
 struct FMeshDescription;
 struct FUsdSchemaTranslationContext;
 
-DECLARE_LOG_CATEGORY_EXTERN( LogUsdStage, Log, All );
-
 UENUM()
 enum class EUsdInitialLoadSet
 {
