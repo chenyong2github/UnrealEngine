@@ -560,7 +560,16 @@ bool FAssetRegistryState::HasAssets(const FName PackagePath) const
 
 bool FAssetRegistryState::GetAssets(const FARFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const
 {
-	// Verify filter input. If all assets are needed, use GetAllAssets() instead.
+	return EnumerateAssets(Filter, PackageNamesToSkip, [&OutAssetData](const FAssetData& AssetData)
+	{
+		OutAssetData.Emplace(AssetData);
+		return true;
+	});
+}
+
+bool FAssetRegistryState::EnumerateAssets(const FARFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const
+{
+	// Verify filter input. If all assets are needed, use EnumerateAllAssets() instead.
 	if (!IsFilterValid(Filter, false) || Filter.IsEmpty())
 	{
 		return false;
@@ -718,7 +727,10 @@ bool FAssetRegistryState::GetAssets(const FARFilter& Filter, const TSet<FName>& 
 				continue;
 			}
 
-			OutAssetData.Add(*AssetData);
+			if (!Callback(*AssetData))
+			{
+				return true;
+			}
 		}
 	}
 
@@ -726,6 +738,15 @@ bool FAssetRegistryState::GetAssets(const FARFilter& Filter, const TSet<FName>& 
 }
 
 bool FAssetRegistryState::GetAllAssets(const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const
+{
+	return EnumerateAllAssets(PackageNamesToSkip, [&OutAssetData](const FAssetData& AssetData)
+	{
+		OutAssetData.Emplace(AssetData);
+		return true;
+	});
+}
+
+bool FAssetRegistryState::EnumerateAllAssets(const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const
 {
 	// All unloaded disk assets
 	for (const TPair<FName, FAssetData*>& AssetDataPair : CachedAssetsByObjectPath)
@@ -737,7 +758,10 @@ bool FAssetRegistryState::GetAllAssets(const TSet<FName>& PackageNamesToSkip, TA
 			// Make sure the asset's package was not loaded then the object was deleted/renamed
 			if (!PackageNamesToSkip.Contains(AssetData->PackageName))
 			{
-				OutAssetData.Emplace(*AssetData);
+				if (!Callback(*AssetData))
+				{
+					return true;
+				}
 			}
 		}
 	}

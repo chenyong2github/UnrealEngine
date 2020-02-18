@@ -176,6 +176,16 @@ public:
 	virtual bool GetAssets(const FARFilter& Filter, TArray<FAssetData>& OutAssetData) const = 0;
 
 	/**
+	 * Enumerate asset data for all assets that match the filter.
+	 * Assets returned must satisfy every filter component if there is at least one element in the component's array.
+	 * Assets will satisfy a component if they match any of the elements in it.
+	 *
+	 * @param Filter filter to apply to the assets in the AssetRegistry
+	 * @param Callback function to call for each asset data enumerated
+	 */
+	virtual bool EnumerateAssets(const FARFilter& Filter, TFunctionRef<bool(const FAssetData&)> Callback) const = 0;
+
+	/**
 	 * Gets the asset data for the specified object path
 	 *
 	 * @param ObjectPath the path of the object to be looked up
@@ -193,6 +203,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual bool GetAllAssets(TArray<FAssetData>& OutAssetData, bool bIncludeOnlyOnDiskAssets = false) const = 0;
+
+	/**
+	 * Enumerate asset data for all assets in the registry.
+	 * This method may be slow, use a filter if possible to avoid iterating over the entire registry.
+	 *
+	 * @param Callback function to call for each asset data enumerated
+	 */
+	virtual bool EnumerateAllAssets(TFunctionRef<bool(const FAssetData&)> Callback, bool bIncludeOnlyOnDiskAssets = false) const = 0;
 
 	/**
 	 * Gets a list of packages and searchable names that are referenced by the supplied package or name. (On disk references ONLY)
@@ -281,9 +299,21 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void GetAllCachedPaths(TArray<FString>& OutPathList) const = 0;
 
+	/** Enumerate all the paths that are currently cached */
+	virtual void EnumerateAllCachedPaths(TFunctionRef<bool(FString)> Callback) const = 0;
+
+	/** Enumerate all the paths that are currently cached */
+	virtual void EnumerateAllCachedPaths(TFunctionRef<bool(FName)> Callback) const = 0;
+
 	/** Gets a list of all paths that are currently cached below the passed-in base path */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
 	virtual void GetSubPaths(const FString& InBasePath, TArray<FString>& OutPathList, bool bInRecurse) const = 0;
+
+	/** Enumerate the all paths that are currently cached below the passed-in base path */
+	virtual void EnumerateSubPaths(const FString& InBasePath, TFunctionRef<bool(FString)> Callback, bool bInRecurse) const = 0;
+
+	/** Enumerate the all paths that are currently cached below the passed-in base path */
+	virtual void EnumerateSubPaths(const FName InBasePath, TFunctionRef<bool(FName)> Callback, bool bInRecurse) const = 0;
 
 	/** Trims items out of the asset data list that do not pass the supplied filter */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry")
