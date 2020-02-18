@@ -297,57 +297,46 @@ namespace Chaos
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::ApplyParticlePendingData(const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache)
 	{
-		//Note: we collapsed several update delete events into one struct. If memory is reused this can lead to problems
-		//Luckily there are only 3 states we care about:
-		//While pending we updated an object several times, this collapses into one update
-		//While pending we may have updated an object, we may have also created and destroyed the object, but the final event is a delete, so just remove from acceleration structure
-		//While pending we destroyed, recreated using the same memory address, and then did an update. In this case we should remove first and then update as global bounds may have changed
-		//As long as we delete first and update second this will be respected
-
 		if (SpatialData.bDelete)
 		{
-			AccelerationStructure.RemoveElementFrom(SpatialData.DeleteAccelerationHandle, SpatialData.DeletedSpatialIdx);
-			TGeometryParticleHandle<T, d>* DeleteParticle = SpatialData.DeleteAccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
+			AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
 
 			if (bUpdateCache)
 			{
-				if (uint32* InnerIdxPtr = ParticleToCacheInnerIdx.Find(DeleteParticle))
+				if (uint32* InnerIdxPtr = ParticleToCacheInnerIdx.Find(SpatialData.UniqueIdx()))
 				{
-					const auto SpatialIdx = SpatialData.DeletedSpatialIdx;
-					TSpatialAccelerationCache<T, d>& Cache = *SpatialAccelerationCache.FindChecked(SpatialIdx);	//can't delete from cache that doesn't exist
+					TSpatialAccelerationCache<T, d>& Cache = *SpatialAccelerationCache.FindChecked(SpatialData.SpatialIdx);	//can't delete from cache that doesn't exist
 					const uint32 CacheInnerIdx = *InnerIdxPtr;
 					if (CacheInnerIdx + 1 < Cache.Size())	//will get swapped with last element, so update it
 					{
-						TGeometryParticleHandle<T, d>* LastParticleInCache = Cache.Payload(Cache.Size() - 1).GetGeometryParticleHandle_PhysicsThread();
-						ParticleToCacheInnerIdx.FindChecked(LastParticleInCache) = CacheInnerIdx;
+						const FUniqueIdx LastParticleInCacheUniqueIdx = Cache.Payload(Cache.Size() - 1).UniqueIdx();
+						ParticleToCacheInnerIdx.FindChecked(LastParticleInCacheUniqueIdx) = CacheInnerIdx;
 					}
 
 					Cache.DestroyElement(CacheInnerIdx);
-					ParticleToCacheInnerIdx.Remove(DeleteParticle);
+					ParticleToCacheInnerIdx.Remove(SpatialData.UniqueIdx());
 				}
 			}
 		}
-
-		if (SpatialData.bUpdate)
+		else
 		{
+			TGeometryParticleHandle<T, d>* UpdateParticle = SpatialData.AccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
 
-			TGeometryParticleHandle<T, d>* UpdateParticle = SpatialData.UpdateAccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
-
-			AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.UpdatedSpatialIdx);
+			AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.SpatialIdx);
 
 			if (bUpdateCache)
 			{
-				TUniquePtr<TSpatialAccelerationCache<T, d>>* CachePtrPtr = SpatialAccelerationCache.Find(SpatialData.UpdatedSpatialIdx);
+				TUniquePtr<TSpatialAccelerationCache<T, d>>* CachePtrPtr = SpatialAccelerationCache.Find(SpatialData.SpatialIdx);
 				if (CachePtrPtr == nullptr)
 				{
-					CachePtrPtr = &SpatialAccelerationCache.Add(SpatialData.UpdatedSpatialIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>(new TSpatialAccelerationCache<T, d>));
+					CachePtrPtr = &SpatialAccelerationCache.Add(SpatialData.SpatialIdx, TUniquePtr<TSpatialAccelerationCache<T, d>>(new TSpatialAccelerationCache<T, d>));
 				}
 
 				TSpatialAccelerationCache<T, d>& Cache = **CachePtrPtr;
 
 				//make sure in mapping
 				uint32 CacheInnerIdx;
-				if (uint32* CacheInnerIdxPtr = ParticleToCacheInnerIdx.Find(UpdateParticle))
+				if (uint32* CacheInnerIdxPtr = ParticleToCacheInnerIdx.Find(SpatialData.UniqueIdx()))
 				{
 					CacheInnerIdx = *CacheInnerIdxPtr;
 				}
@@ -355,13 +344,13 @@ namespace Chaos
 				{
 					CacheInnerIdx = Cache.Size();
 					Cache.AddElements(1);
-					ParticleToCacheInnerIdx.Add(UpdateParticle, CacheInnerIdx);
+					ParticleToCacheInnerIdx.Add(SpatialData.UniqueIdx(), CacheInnerIdx);
 				}
 
 				//update cache entry
 				Cache.HasBounds(CacheInnerIdx) = UpdateParticle->HasBounds();
 				Cache.Bounds(CacheInnerIdx) = UpdateParticle->WorldSpaceInflatedBounds();
-				Cache.Payload(CacheInnerIdx) = SpatialData.UpdateAccelerationHandle;
+				Cache.Payload(CacheInnerIdx) = SpatialData.AccelerationHandle;
 			}
 		}
 	}
@@ -369,49 +358,49 @@ namespace Chaos
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::FlushInternalAccelerationQueue()
 	{
-		for (auto Itr : InternalAccelerationQueue)
+		for (const FPendingSpatialData& PendingData : InternalAccelerationQueue.PendingData)
 		{
-			ApplyParticlePendingData(Itr.Value, *InternalAcceleration, false);
+			ApplyParticlePendingData(PendingData, *InternalAcceleration, false);
 		}
-		InternalAccelerationQueue.Empty();
+		InternalAccelerationQueue.Reset();
 	}
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::FlushAsyncAccelerationQueue()
 	{
-		for (auto Itr : AsyncAccelerationQueue)
+		for (const FPendingSpatialData& PendingData : AsyncAccelerationQueue.PendingData)
 		{
-			ApplyParticlePendingData(Itr.Value, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
+			ApplyParticlePendingData(PendingData, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
 			if (!bIsSingleThreaded)
 			{
-				ApplyParticlePendingData(Itr.Value, *AsyncExternalAcceleration, false);
+				ApplyParticlePendingData(PendingData, *AsyncExternalAcceleration, false);
 			}
 
 			// Async queue deletes complete, unique index free to be consumed by new particles.
-			if(Itr.Value.bDelete)
+			if(PendingData.bDelete)
 			{
 				//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
 				//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
 				//If we want to support that, the UniqueIndex must be kept around until GT goes away
 				//This is hard to do, but would probably mean the ownership of the index is in the proxy
-				Particles.GetUniqueIndices().ReleaseIdx(Itr.Value.DeleteAccelerationHandle.UniqueIdx());
+				Particles.GetUniqueIndices().ReleaseIdx(PendingData.UniqueIdx());
 			}
 		}
-		AsyncAccelerationQueue.Empty();
+		AsyncAccelerationQueue.Reset();
 
 		//other queues are no longer needed since we've flushed all operations and now have a pristine structure
-		InternalAccelerationQueue.Empty();
-		ExternalAccelerationQueue.Empty();
+		InternalAccelerationQueue.Reset();
+		ExternalAccelerationQueue.Reset();
 	}
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration)
 	{
-		for (auto Itr : ExternalAccelerationQueue)
+		for (const FPendingSpatialData& PendingData : ExternalAccelerationQueue.PendingData)
 		{
-			ApplyParticlePendingData(Itr.Value, Acceleration, false);
+			ApplyParticlePendingData(PendingData, Acceleration, false);
 		}
-		ExternalAccelerationQueue.Empty();
+		ExternalAccelerationQueue.Reset();
 	}
 
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
@@ -443,16 +432,16 @@ namespace Chaos
 			AsyncInternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
 			if (!bIsSingleThreaded)
 			{
-			ScratchExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
-			AsyncExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
+				ScratchExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
+				AsyncExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
 			}
 			FlushInternalAccelerationQueue();
 
 			if (!bIsSingleThreaded)
 			{
-			FlushExternalAccelerationQueue(*ScratchExternalAcceleration);
-			bExternalReady = true;
-		}
+				FlushExternalAccelerationQueue(*ScratchExternalAcceleration);
+				bExternalReady = true;
+			}
 		}
 
 		if (bBlock)
@@ -527,10 +516,10 @@ namespace Chaos
 	{
 		WaitOnAccelerationStructure();
 
-		ParticleToCacheInnerIdx.Empty();
-		AsyncAccelerationQueue.Empty();
-		InternalAccelerationQueue.Empty();
-		ExternalAccelerationQueue.Empty();
+		ParticleToCacheInnerIdx.Reset();
+		AsyncAccelerationQueue.Reset();
+		InternalAccelerationQueue.Reset();
+		ExternalAccelerationQueue.Reset();
 
 		AccelerationStructureTaskComplete = nullptr;
 		const auto& NonDisabled = Particles.GetNonDisabledView();
@@ -545,6 +534,7 @@ namespace Chaos
 	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidsEvolutionBase<FPBDRigidsEvolution, FPBDCollisionConstraint, T, d>::Serialize(FChaosArchive& Ar)
 	{
+		ensure(false);	//disabled transient data serialization. Need to rethink
 		int32 DefaultBroadphaseType = ConfigSettings.BroadphaseType;
 
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
@@ -588,12 +578,12 @@ namespace Chaos
 				SpatialCollectionFactory->Serialize(InternalAcceleration, Ar);
 			}
 
-			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::FlushEvolutionInternalAccelerationQueue)
+			/*if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::FlushEvolutionInternalAccelerationQueue)
 			{
 				SerializePendingMap(Ar, InternalAccelerationQueue);
 				SerializePendingMap(Ar, AsyncAccelerationQueue);
 				SerializePendingMap(Ar, ExternalAccelerationQueue);
-			}
+			}*/
 
 			ScratchExternalAcceleration = AsUniqueSpatialAccelerationChecked<FAccelerationStructure>(InternalAcceleration->Copy());
 		}
