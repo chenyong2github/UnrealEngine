@@ -1128,7 +1128,7 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 		{
 			checkfSlow(Script->AreScriptAndSourceSynchronized(), TEXT("Editable Emitter Script change ID is out of date when applying to Original Emitter!"));
 		}
-
+		Emitter->PreEditChange(nullptr);
 		// overwrite the original script in place by constructing a new one with the same name
 		Emitter = (UNiagaraEmitter*)StaticDuplicateObject(EditableEmitter, Emitter->GetOuter(),
 			Emitter->GetFName(), RF_AllFlags, Emitter->GetClass());
