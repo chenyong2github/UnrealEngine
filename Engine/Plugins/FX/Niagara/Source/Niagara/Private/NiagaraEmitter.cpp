@@ -819,7 +819,7 @@ bool UNiagaraEmitter::IsAllowedByScalability()const
 	return Platforms.IsActive();
 }
 
-bool UNiagaraEmitter::RequiresPersistantIDs()const
+bool UNiagaraEmitter::RequiresPersistentIDs() const
 {
 	return bRequiresPersistentIDs;
 }

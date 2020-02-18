@@ -1136,7 +1136,7 @@ void UNiagaraSystem::InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData&
 		DataSetToInit.Variables.AddUnique(Var);
 	}
 
-	DataSetToInit.bNeedsPersistentIDs = InAssociatedEmitter->RequiresPersistantIDs() || DataSetToInit.Variables.Contains(SYS_PARAM_PARTICLES_ID);
+	DataSetToInit.bRequiresPersistentIDs = InAssociatedEmitter->RequiresPersistentIDs() || DataSetToInit.Variables.Contains(SYS_PARAM_PARTICLES_ID);
 	DataSetToInit.ID = FNiagaraDataSetID(InAssociatedEmitterHandle.GetIdName(), ENiagaraDataSetType::ParticleData);
 	DataSetToInit.SimTarget = InAssociatedEmitter->SimTarget;
 
@@ -1358,7 +1358,7 @@ void UNiagaraSystem::InitSystemCompiledData()
 			CompiledData.Variables.AddUnique(Var);
 		}
 
-		CompiledData.bNeedsPersistentIDs = false;
+		CompiledData.bRequiresPersistentIDs = false;
 		CompiledData.ID = FNiagaraDataSetID();
 		CompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
 
