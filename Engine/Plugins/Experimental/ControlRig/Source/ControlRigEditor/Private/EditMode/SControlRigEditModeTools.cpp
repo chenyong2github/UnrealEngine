@@ -223,7 +223,7 @@ void SControlRigEditModeTools::OnKeyPropertyClicked(const IPropertyHandle& Keyed
 	{
 		UControlRigControlsProxy* Proxy = Cast< UControlRigControlsProxy>(Object);
 		if (Proxy)
-		{
+	{
 			Proxy->SetKey(KeyedPropertyHandle);
 		}
 	}

@@ -22,6 +22,7 @@
 #include "Misc/ScopeLock.h"
 #include "UObject/CoreObjectVersion.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "UObject/CoreObjectVersion.h"
 
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -76,7 +77,7 @@ void UBlueprintGeneratedClass::PostInitProperties()
 
 void UBlueprintGeneratedClass::PostLoad()
 {
-	Super::PostLoad();
+	Super::PostLoad();	
 
 #if WITH_EDITORONLY_DATA
 	UPackage* Package = GetOutermost();
@@ -1521,7 +1522,7 @@ void UBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties
 	Super::Link(Ar, bRelinkExistingProperties);
 
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
-	if(UsePersistentUberGraphFrame())
+	if (UsePersistentUberGraphFrame())
 	{
 		if (UberGraphFunction)
 		{

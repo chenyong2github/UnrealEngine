@@ -368,9 +368,9 @@ bool FNiagaraEditorUtilities::PODPropertyAppendCompileHash(const void* Container
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;
 	}
-	else if (Property->IsA(FInt16Property::StaticClass()))
+	else if (Property->IsA(FUInt16Property::StaticClass()))
 	{
-		FInt16Property* CastProp = CastFieldChecked<FInt16Property>(Property);
+		FUInt16Property* CastProp = CastFieldChecked<FUInt16Property>(Property);
 		uint16 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
 		return true;

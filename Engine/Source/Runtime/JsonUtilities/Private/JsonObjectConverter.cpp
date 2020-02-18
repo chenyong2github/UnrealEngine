@@ -891,13 +891,13 @@ bool FJsonObjectConverter::GetTextFromField(const FString& FieldName, const TSha
 
 				UE_LOG(LogJson, Error, TEXT("Unable to apply Json parameter %s (could not parse object)"), *FieldName);
 				break;
-				}
+			}
 			default:
-				{
+			{
 				UE_LOG(LogJson, Error, TEXT("Unable to apply Json parameter %s (bad type)"), *FieldName);
 				break;
-				}
 			}
+		}
 	}
 	return false;
 }
