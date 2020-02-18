@@ -2511,8 +2511,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.EarlyZPassOnlyMaterialMasking"));
-		if (CVar && CVar->GetValueOnAnyThread() > 0)
+		if (MaskedInEarlyPass(Platform))
 		{
 			KeyString += TEXT("_EZPMM");
 		}

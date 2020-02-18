@@ -2169,6 +2169,7 @@ struct FRelevancePacket
 			const bool bDrawDepthOnly = ViewData.bFullEarlyZPass || FMath::Square(Bounds.BoxSphereBounds.SphereRadius) > GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass * LODFactorDistanceSquared;
 
 			const bool bAddLightmapDensityCommands = View.Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
+			const bool bMobileMaskedInEarlyPass = MaskedInEarlyPass(Scene->GetShaderPlatform()) && Scene->EarlyZPassMode == DDM_MaskedOnly;
 
 			const int32 NumStaticMeshes = PrimitiveSceneInfo->StaticMeshRelevances.Num();
 			for(int32 MeshIndex = 0;MeshIndex < NumStaticMeshes;MeshIndex++)
@@ -2234,7 +2235,8 @@ struct FRelevancePacket
 							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass)
 							&& !bHiddenByHLODFade)
 						{
-							if (StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly)
+							bool bMobileIsInDepthPassMaskedMesh = (bMobileMaskedInEarlyPass && ViewRelevance.bMasked) && ShadingPath == EShadingPath::Mobile;
+							if ((StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly && ShadingPath != EShadingPath::Mobile) || bMobileIsInDepthPassMaskedMesh)
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DepthPass);
 							}

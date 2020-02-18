@@ -630,10 +630,16 @@ void FMobileBasePassMeshProcessor::Process(
 		BasePassShaders.VertexShader, 
 		BasePassShaders.PixelShader);
 
+	const bool bMaskedInEarlyPass = (MeshBatch.MaterialRenderProxy->GetMaterial(FeatureLevel)->IsMasked() || MeshBatch.bDitheredLODTransition) && MaskedInEarlyPass(Scene->GetShaderPlatform());
+	
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
 	if (bTranslucentBasePass)
 	{
 		MobileBasePass::SetTranslucentRenderState(DrawRenderState, MaterialResource);
+	}
+	else if (bMaskedInEarlyPass)
+	{
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
 	}
 	else
 	{

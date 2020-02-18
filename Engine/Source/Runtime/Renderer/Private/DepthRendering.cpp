@@ -774,6 +774,49 @@ bool FDeferredShadingSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHIC
 	return bDepthWasCleared;
 }
 
+void FMobileSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHICmdList)
+{
+	check(!RHICmdList.IsOutsideRenderPass());
+
+	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderPrePass, FColor::Emerald);
+	SCOPED_DRAW_EVENT(RHICmdList, MobileRenderPrePass);
+
+	SCOPE_CYCLE_COUNTER(STAT_DepthDrawTime);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPrePass);
+	SCOPED_GPU_STAT(RHICmdList, Prepass);
+
+	// Draw a depth pass to avoid overdraw in the other passes.
+	// Mobile only does MaskedOnly DepthPass for the moment
+	if (Scene->EarlyZPassMode == DDM_MaskedOnly)
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			const FViewInfo& View = Views[ViewIndex];
+
+			SCOPED_GPU_MASK(RHICmdList, !View.IsInstancedStereoPass() ? View.GPUMask : (Views[0].GPUMask | Views[1].GPUMask));
+			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+
+			TUniformBufferRef<FSceneTexturesUniformParameters> PassUniformBuffer;
+			CreateDepthPassUniformBuffer(RHICmdList, View, PassUniformBuffer);
+
+			FMeshPassProcessorRenderState DrawRenderState(View, PassUniformBuffer);
+
+			SetupDepthPassState(DrawRenderState);
+
+			if (View.ShouldRenderView())
+			{
+				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+
+				{
+					SetupPrePassView(RHICmdList, View, this);
+
+					View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList);
+				}
+			}
+		}
+	}
+}
+
 extern bool IsHMDHiddenAreaMaskActive();
 
 bool FDeferredShadingSceneRenderer::RenderPrePassHMD(FRHICommandListImmediate& RHICmdList)
@@ -937,6 +980,7 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 			&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
 		{
 			if (BlendMode == BLEND_Opaque
+				&& EarlyZPassMode != DDM_MaskedOnly
 				&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
 				&& !Material.MaterialModifiesMeshPosition_RenderThread()
 				&& Material.WritesEveryPixel())
@@ -948,8 +992,7 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 			else
 			{
 				const bool bMaterialMasked = !Material.WritesEveryPixel() || Material.IsTranslucencyWritingCustomDepth();
-
-				if (!bMaterialMasked || EarlyZPassMode != DDM_NonMaskedOnly)
+				if((!bMaterialMasked && EarlyZPassMode != DDM_MaskedOnly) || (bMaterialMasked && EarlyZPassMode != DDM_NonMaskedOnly))
 				{
 					const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
 					const FMaterial* EffectiveMaterial = &Material;
@@ -994,3 +1037,4 @@ FMeshPassProcessor* CreateDepthPassProcessor(const FScene* Scene, const FSceneVi
 }
 
 FRegisterPassProcessorCreateFunction RegisterDepthPass(&CreateDepthPassProcessor, EShadingPath::Deferred, EMeshPass::DepthPass, EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);
+FRegisterPassProcessorCreateFunction RegisterMobileDepthPass(&CreateDepthPassProcessor, EShadingPath::Mobile, EMeshPass::DepthPass, EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);

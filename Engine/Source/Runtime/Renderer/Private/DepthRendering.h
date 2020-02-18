@@ -27,6 +27,8 @@ enum EDepthDrawingMode
 	DDM_AllOccluders	= 2,
 	// Full prepass, every object must be drawn and every pixel must match the base pass depth
 	DDM_AllOpaque		= 3,
+	// Masked materials only
+	DDM_MaskedOnly = 4,
 };
 
 extern const TCHAR* GetDepthDrawingModeString(EDepthDrawingMode Mode);
