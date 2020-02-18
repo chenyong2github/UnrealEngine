@@ -8,6 +8,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Templates/SubclassOf.h"
 #include "Containers/Queue.h"
+#include "Widgets/SCompoundWidget.h"
 
 #include "PanelExtensionSubsystem.generated.h"
 
