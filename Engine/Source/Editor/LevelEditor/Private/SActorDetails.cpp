@@ -30,6 +30,10 @@
 #include "SourceCodeNavigation.h"
 #include "Widgets/Docking/SDockTab.h"
 
+
+IConsoleVariable* SActorDetails::ShowComponents = IConsoleManager::Get().RegisterConsoleVariable(TEXT("ShowFlag.DetailsPanelComponents"), true, TEXT("Show components in editor details panel."), ECVF_Cheat);
+
+
 class SActorDetailsUneditableComponentWarning : public SCompoundWidget
 {
 public:
@@ -257,7 +261,8 @@ void SActorDetails::SetObjects(const TArray<UObject*>& InObjects, bool bForceRef
 			}
 		}
 
-		ComponentsBox->SetVisibility(bShowingComponents ? EVisibility::Visible : EVisibility::Collapsed);
+		bool ShowComponentsInDetailsPanel = ShowComponents->GetBool();
+ 		ComponentsBox->SetVisibility((bShowingComponents & ShowComponentsInDetailsPanel) ? EVisibility::Visible : EVisibility::Collapsed);
 
 		if(DetailsView->GetHostTabManager().IsValid())
 		{

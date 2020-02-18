@@ -44,6 +44,8 @@ public:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 
+	static IConsoleVariable* ShowComponents;
+
 private:
 	AActor* GetSelectedActorInEditor() const;
 	AActor* GetActorContext() const;
