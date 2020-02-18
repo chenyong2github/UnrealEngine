@@ -5,9 +5,6 @@
 
 namespace Chaos
 {
-	constexpr float FConvexBuilder::TriQuadPrismInflation;
-
-
 	// CVars variables for controlling geometry complexity checking and simplification
 	int32 FConvexBuilder::PerformGeometryCheck = 0;
 
