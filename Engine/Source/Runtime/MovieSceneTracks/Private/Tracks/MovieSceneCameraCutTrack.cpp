@@ -185,7 +185,7 @@ FText UMovieSceneCameraCutTrack::GetDefaultDisplayName() const
 
 
 #if WITH_EDITOR
-void UMovieSceneCameraCutTrack::OnSectionMoved(UMovieSceneSection& Section)
+void UMovieSceneCameraCutTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
 {
 	MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, false, true, bCanBlend);
 }

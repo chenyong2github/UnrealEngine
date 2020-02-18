@@ -131,6 +131,16 @@ struct FMovieSceneSupportsEasingParams
 	FMovieSceneSupportsEasingParams(const UMovieSceneSection* InSection) : ForSection(InSection) {}
 };
 
+#if WITH_EDITOR
+/** Parameters for sections moving in the editor */
+struct FMovieSceneSectionMovedParams
+{
+	EPropertyChangeType::Type MoveType;
+
+	FMovieSceneSectionMovedParams(EPropertyChangeType::Type InMoveType) : MoveType(InMoveType) {}
+};
+#endif
+
 /**
  * Base class for a track in a Movie Scene
  */
@@ -449,7 +459,6 @@ public:
 	 *
 	 * @param Section The section that moved.
 	 */
-	virtual void OnSectionMoved(UMovieSceneSection& Section) { }
-
+	virtual void OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) {}
 #endif
 };
