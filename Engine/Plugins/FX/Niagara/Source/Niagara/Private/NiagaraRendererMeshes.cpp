@@ -78,6 +78,7 @@ namespace ENiagaraMeshVFLayout
 		DynamicParam1,
 		DynamicParam2,
 		DynamicParam3,
+		CameraOffset,
 
 		Num,
 	};
@@ -96,11 +97,20 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	MeshRenderData = Properties->ParticleMesh->RenderData.Get();
 
 	FacingMode = Properties->FacingMode;
+	bLockedAxisEnable = Properties->bLockedAxisEnable;
+	LockedAxis = Properties->LockedAxis;
+	LockedAxisSpace = Properties->LockedAxisSpace;
 	SortMode = Properties->SortMode;
 	bSortOnlyWhenTranslucent = Properties->bSortOnlyWhenTranslucent;
 	bOverrideMaterials = Properties->bOverrideMaterials;
 	SubImageSize = Properties->SubImageSize;
 	bSubImageBlend = Properties->bSubImageBlend;
+
+	// Ensure valid value for the locked axis
+	if (!LockedAxis.Normalize())
+	{
+		LockedAxis.Set(0.0f, 0.0f, 1.0f);
+	}
 
 	const FNiagaraDataSet& Data = Emitter->GetData();
 
@@ -116,6 +126,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	SetVertexFactoryVariable(Data, Properties->NormalizedAgeBinding.DataSetVariable, ENiagaraMeshVFLayout::NormalizedAge);
 	SetVertexFactoryVariable(Data, Properties->CustomSortingBinding.DataSetVariable, ENiagaraMeshVFLayout::CustomSorting);
 	SetVertexFactoryVariable(Data, Properties->SubImageIndexBinding.DataSetVariable, ENiagaraMeshVFLayout::SubImage);
+	SetVertexFactoryVariable(Data, Properties->CameraOffsetBinding.DataSetVariable, ENiagaraMeshVFLayout::CameraOffset);
 	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterialBinding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam0) ? 0x1 : 0;
 	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial1Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
 	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial2Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
@@ -310,7 +321,6 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					VertexFactories.Add(VertexFactory);
 
 					VertexFactory->SetParticleFactoryType(NVFT_Mesh);
-					VertexFactory->SetMeshFacingMode((uint32)FacingMode);
 					VertexFactory->SetLODIndex(LODIndex);
 					VertexFactory->InitResource();
 					SetupVertexFactory(VertexFactory, LODModel);
@@ -324,7 +334,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				PerViewUniformParameters.bLocalSpace = bLocalSpace;
 				PerViewUniformParameters.PrevTransformAvailable = false;
-				PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;
+				PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;				
 
 				PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
 				PerViewUniformParameters.VelocityDataOffset = VFVariables[ENiagaraMeshVFLayout::Velocity].GetGPUOffset();
@@ -338,12 +348,17 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				PerViewUniformParameters.MaterialParam1DataOffset = VFVariables[ENiagaraMeshVFLayout::DynamicParam1].GetGPUOffset();
 				PerViewUniformParameters.MaterialParam2DataOffset = VFVariables[ENiagaraMeshVFLayout::DynamicParam2].GetGPUOffset();
 				PerViewUniformParameters.MaterialParam3DataOffset = VFVariables[ENiagaraMeshVFLayout::DynamicParam3].GetGPUOffset();
+				PerViewUniformParameters.CameraOffsetDataOffset = VFVariables[ENiagaraMeshVFLayout::CameraOffset].GetGPUOffset();
 
 				PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 				PerViewUniformParameters.SizeDataOffset = INDEX_NONE;
 				PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());
 				PerViewUniformParameters.SubImageSize = FVector4(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
 				PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
+				PerViewUniformParameters.FacingMode = (uint32)FacingMode;
+				PerViewUniformParameters.bLockedAxisEnable = bLockedAxisEnable;
+				PerViewUniformParameters.LockedAxis = LockedAxis;
+				PerViewUniformParameters.LockedAxisSpace = (uint32)LockedAxisSpace;
 
 				//Sort particles if needed.
 				CollectorResources.VertexFactory->SetSortedIndices(nullptr, 0xFFFFFFFF);
