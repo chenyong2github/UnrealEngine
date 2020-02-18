@@ -614,6 +614,7 @@ private:
 				uint32 StartCycles = FPlatformTime::Cycles();
 #endif
 				CurrentObject = ObjectsToSerialize[CurrentIndex++];
+				checkSlow(CurrentObject);
 
 				// GetData() used to avoiding bounds checking (min and max)
 				// FMath::Min used to avoid out of bounds (without branching) on last iteration. Though anything can be passed into PrefetchBlock, 
