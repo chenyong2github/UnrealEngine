@@ -292,8 +292,7 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	for (FExposedValueHandler& Handler : EvaluateGraphExposedInputs)
 	{
 		// handle potential renames of the class package
-		Handler.ValueHandlerNodeProperty.ClearCachedField();
-		Handler.ValueHandlerNodeProperty.Get(this);
+		Handler.ValueHandlerNodeProperty.ResolveWithRenamedStructPackage(this);
 	}
 #endif // WITH_EDITORONLY_DATA
 
