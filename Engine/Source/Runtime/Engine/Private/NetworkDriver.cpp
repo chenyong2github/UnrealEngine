@@ -448,10 +448,13 @@ void UNetDriver::AddNetworkActor(AActor* Actor)
 	LLM_SCOPE(ELLMTag::Networking);
 	ensureMsgf(Actor == nullptr || !(Actor->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)), TEXT("%s is a CDO or Archetype and should not be replicated."), *GetFullNameSafe(Actor));
 
-	GetNetworkObjectList().FindOrAdd(Actor, this);
-	if (ReplicationDriver)
+	if (!IsDormInitialStartupActor(Actor))
 	{
-		ReplicationDriver->AddNetworkActor(Actor);
+		GetNetworkObjectList().FindOrAdd(Actor, this);
+		if (ReplicationDriver)
+		{
+			ReplicationDriver->AddNetworkActor(Actor);
+		}
 	}
 }
 
@@ -3868,7 +3871,7 @@ void UNetDriver::ServerReplicateActors_BuildConsiderList( TArray<FNetworkObjectI
 			continue;
 		}
 
-		if ( Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor() )
+		if ( IsDormInitialStartupActor(Actor) )
 		{
 			// This stat isn't that useful in its current form when using NetworkActors list
 			// We'll want to track initially dormant actors some other way to track them with stats
@@ -5737,6 +5740,11 @@ void UNetDriver::ResetAsyncLoadDelinquencyAnalytics()
 bool UNetDriver::DidHitchLastFrame() const
 {
 	return bDidHitchLastFrame;
+}
+
+bool UNetDriver::IsDormInitialStartupActor(AActor* Actor)
+{
+	return Actor && Actor->IsNetStartupActor() && (Actor->NetDormancy == DORM_Initial);
 }
 
 ECreateReplicationChangelistMgrFlags UNetDriver::GetCreateReplicationChangelistMgrFlags() const
