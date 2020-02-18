@@ -494,8 +494,8 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		if (SystemInstanceAllocation->SystemInstanceIndex != INDEX_NONE)
 		{
 			SystemSim->RemoveInstance(SystemInstanceAllocation.Get());
-			SystemInstanceAllocation->UnbindParameters();
 		}
+		SystemInstanceAllocation->UnbindParameters();
 
 		// If we have active GPU emitters make sure we remove any pending ticks from the RT
 		NiagaraEmitterInstanceBatcher* InstanceBatcher = SystemInstanceAllocation->GetBatcher();
