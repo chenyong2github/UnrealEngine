@@ -594,3 +594,23 @@ int32 UMovieSceneSequenceExtensions::FindNextMarkedFrame(UMovieSceneSequence* Se
 	}
 	return INDEX_NONE;
 }
+
+void UMovieSceneSequenceExtensions::SetReadOnly(UMovieSceneSequence* Sequence, bool bInReadOnly)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+		MovieScene->SetReadOnly(bInReadOnly);
+	}
+}
+
+bool UMovieSceneSequenceExtensions::IsReadOnly(UMovieSceneSequence* Sequence)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+		return MovieScene->IsReadOnly();
+	}
+
+	return false;
+}
