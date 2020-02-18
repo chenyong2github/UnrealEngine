@@ -215,9 +215,7 @@ void FStaticMeshStaticLightingTextureMapping::Apply(FQuantizedLightmapData* Quan
 
 	UStaticMeshComponent* StaticMeshComponent = Primitive.Get();
 
-	if (StaticMeshComponent && StaticMeshComponent->GetOwner() && StaticMeshComponent->GetOwner()->GetLevel() && 
-		(LODIndex >= StaticMeshComponent->LODData.Num() || StaticMeshComponent->LODData[LODIndex].MapBuildDataId.IsValid())
-		)
+	if (StaticMeshComponent && StaticMeshComponent->GetOwner() && StaticMeshComponent->GetOwner()->GetLevel())
 	{
 		// Should have happened at a higher level
 		check(!StaticMeshComponent->IsRenderStateCreated());
@@ -233,7 +231,14 @@ void FStaticMeshStaticLightingTextureMapping::Apply(FQuantizedLightmapData* Quan
 			StaticMeshComponent->MarkPackageDirty();
 		}
 
-		const FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[LODIndex];
+		FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[LODIndex];
+
+		// Ensure this LODInfo has a valid MapBuildDataId
+		if (ComponentLODInfo.CreateMapBuildDataId(LODIndex))
+		{
+			StaticMeshComponent->MarkPackageDirty();
+		}
+
 		ELightMapPaddingType PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
 		const bool bHasNonZeroData = (QuantizedData != NULL && QuantizedData->HasNonZeroData());
 
@@ -456,10 +461,7 @@ void UStaticMeshComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuild
 	for(int32 i = 0; i < LODData.Num(); i++)
 	{
 		FStaticMeshComponentLODInfo& LODDataElement = LODData[i];
-		LODDataElement.MapBuildDataId = FGuid::NewGuid();
-		#if WITH_EDITOR
-			LODDataElement.bMapBuildDataIdLoaded = false;
-		#endif
+		LODDataElement.MapBuildDataId.Invalidate();
 	}
 
 	MarkRenderStateDirty();
