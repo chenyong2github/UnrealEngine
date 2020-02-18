@@ -346,6 +346,9 @@ void UMaterialEditorPreviewParameters::RegenerateArrays()
 		// Only operate on base materials
 		UMaterial* ParentMaterial = PreviewMaterial;
 
+		// Ensure all cached data is up-to-date before looping over parameters
+		PreviewMaterial->UpdateCachedExpressionData();
+
 		// Loop through all types of parameters for this material and add them to the parameter arrays.
 		TArray<FMaterialParameterInfo> ParameterInfo;
 		TArray<FGuid> Guids;
