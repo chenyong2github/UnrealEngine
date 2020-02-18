@@ -12,7 +12,36 @@ namespace Chaos
 	class FPBDJointUtilities
 	{
 	public:
-		static void DecomposeSwingTwistLocal(const FRotation3& R0, const FRotation3& R1, FRotation3& R01Swing, FRotation3& R01Twist);
+		static void DecomposeSwingTwistLocal(
+			const FRotation3& R0, 
+			const FRotation3& R1, 
+			FRotation3& R01Swing, 
+			FRotation3& R01Twist);
+		
+		static FReal GetTwistAngle(
+			const FRotation3& InTwist);
+		
+		static void GetTwistAxisAngle(
+			const FRotation3& R0,
+			const FRotation3& R1,
+			FVec3& Axis,
+			FReal& Angle);
+
+		static void GetConeAxisAngleLocal(
+			const FRotation3& R0,
+			const FRotation3& R1,
+			const FReal AngleTolerance,
+			FVec3& AxisLocal,
+			FReal& Angle);
+
+		static void GetSwingAxisAngle(
+			const FRotation3& R0,
+			const FRotation3& R1,
+			const FReal AngleTolerance,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex,
+			FVec3& Axis,
+			FReal& Angle);
 
 		/**
 		 * Increase the lower inertia components to ensure that the maximum ratio between any pair of elements is MaxRatio.
