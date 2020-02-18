@@ -1772,9 +1772,16 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString& InHlslOutput)
 			DIInstanceInfo.DIClassName = Info.Type.GetClass()->GetName();
 
 			// Build a list of function instances that will be generated for this DI.
+			TSet<FNiagaraFunctionSignature> SeenFunctions;
 			DIInstanceInfo.GeneratedFunctions.Reserve(Info.RegisteredFunctions.Num());
 			for (const FNiagaraFunctionSignature& OriginalSig : Info.RegisteredFunctions)
 			{
+				if (SeenFunctions.Contains(OriginalSig))
+				{
+					continue;
+				}
+				SeenFunctions.Add(OriginalSig);
+
 				if (!OriginalSig.bSupportsGPU)
 				{
 					Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotSupported", "DataInterface {0} function {1} cannot run on the GPU."), FText::FromName(Info.Type.GetFName()), FText::FromName(OriginalSig.Name)), nullptr, nullptr);
