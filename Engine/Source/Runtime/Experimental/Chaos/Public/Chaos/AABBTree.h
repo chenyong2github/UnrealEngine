@@ -10,6 +10,12 @@
 #include "Templates/Models.h"
 #include "Chaos/BoundingVolume.h"
 
+struct FAABBTreeCVars
+{
+	static int32 UpdateDirtyElementPayloadData;
+	static FAutoConsoleVariableRef CVarUpdateDirtyElementPayloadData;
+};
+
 namespace Chaos
 {
 
@@ -272,6 +278,27 @@ inline FArchive& operator<<(FArchive& Ar, FAABBTreePayloadInfo& PayloadInfo)
 
 extern CHAOS_API int32 MaxDirtyElements;
 
+struct CIsUpdatableElement
+{
+	template<typename ElementT>
+	auto Requires(ElementT& InElem, const ElementT& InOtherElem) -> decltype(InElem.UpdateFrom(InOtherElem));
+};
+
+template<typename T, typename TEnableIf<!TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+static void UpdateElementHelper(T& InElem, const T& InFrom)
+{
+
+}
+
+template<typename T, typename TEnableIf<TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+static void UpdateElementHelper(T& InElem, const T& InFrom)
+{
+	if(FAABBTreeCVars::UpdateDirtyElementPayloadData != 0)
+	{
+		InElem.UpdateFrom(InFrom);
+	}
+}
+
 template <typename TPayloadType, typename TLeafType, typename T, bool bMutable = true>
 class TAABBTree final : public ISpatialAcceleration<TPayloadType, T, 3>
 {
@@ -494,6 +521,7 @@ public:
 				else
 				{
 					DirtyElements[PayloadInfo->DirtyPayloadIdx].Bounds = NewBounds;
+					UpdateElementHelper(DirtyElements[PayloadInfo->DirtyPayloadIdx].Payload, Payload);
 				}
 
 				// Handle something that previously did not have bounds that may be in global elements.
@@ -519,6 +547,7 @@ public:
 				else
 				{
 					GlobalPayloads[PayloadInfo->GlobalPayloadIdx].Bounds = GlobalBounds;
+					UpdateElementHelper(GlobalPayloads[PayloadInfo->GlobalPayloadIdx].Payload, Payload);
 				}
 
 				// Handle something that previously had bounds that may be in dirty elements.
