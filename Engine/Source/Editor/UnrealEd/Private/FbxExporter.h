@@ -313,7 +313,7 @@ private:
 
 	void ExportModel(UModel* Model, FbxNode* Node, const char* Name);
 	
-#if WITH_PHYSX
+#if (WITH_PHYSX && PHYSICS_INTERFACE_PHYSX) || WITH_CHAOS
 	FbxNode* ExportCollisionMesh(const UStaticMesh* StaticMesh, const TCHAR* MeshName, FbxNode* ParentActor);
 #endif
 
