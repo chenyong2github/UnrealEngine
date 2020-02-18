@@ -1642,9 +1642,19 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 		// spawn and update are combined on GPU, so we only compile spawn scripts
 		if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
 		{
-			FNiagaraShaderScript *ResourceToCache = nullptr;
 			ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+			const auto FindExistingScriptPredicate = [&](const FNiagaraShaderScript* ExistingScript)
+			{
+				return ExistingScript->MatchesScript(TargetFeatureLevel, CachedScriptVMId);
+			};
 
+			// see if the script has already been added before adding a new version
+			if (InOutCachedResources.ContainsByPredicate(FindExistingScriptPredicate))
+			{
+				return;
+			}
+			
+			FNiagaraShaderScript *ResourceToCache = nullptr;
 			FNiagaraShaderScript* NewResource = AllocateResource();
 			check(CachedScriptVMId.CompilerVersionID.IsValid());
 			check(CachedScriptVMId.BaseScriptCompileHash.IsValid());
