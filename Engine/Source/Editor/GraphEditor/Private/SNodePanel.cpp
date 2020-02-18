@@ -200,9 +200,10 @@ namespace NodePanelDefs
 };
 
 SNodePanel::SNodePanel()
-: Children(this)
-, VisibleChildren(this)
+	: Children(this)
+	, VisibleChildren(this)
 {
+	bHasRelativeLayoutScale = true;
 }
 
 void SNodePanel::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
@@ -1063,7 +1064,7 @@ FReply SNodePanel::OnTouchEnded( const FGeometry& MyGeometry, const FPointerEven
 	return FReply::Unhandled();
 }
 
-float SNodePanel::GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const
+float SNodePanel::GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const
 {
 	return GetZoomAmount();
 }
