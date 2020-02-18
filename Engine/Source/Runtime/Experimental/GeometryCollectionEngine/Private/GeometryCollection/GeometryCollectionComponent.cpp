@@ -232,7 +232,7 @@ void UGeometryCollectionComponent::BeginPlay()
 			}
 			if (Solver != nullptr)
 			{
-				ChaosModule->GetDispatcher()->EnqueueCommandImmediate(Solver, [&InPhysicsProxy = PhysicsProxy](Chaos::FPhysicsSolver* InSolver)
+				ChaosModule->GetDispatcher()->EnqueueCommandImmediate(Solver, [InPhysicsProxy = PhysicsProxy](Chaos::FPhysicsSolver* InSolver)
 				{
 					InPhysicsProxy->ActivateBodies();
 				});
