@@ -10,6 +10,7 @@
 #include "Templates/Invoke.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/MemoryLayout.h"
+#include "Templates/TypeHash.h"
 
 class FArchive;
 
@@ -385,6 +386,26 @@ namespace UE4Tuple_Private
 	{
 		enum { Value = sizeof...(Types) };
 	};
+
+	template <uint32 ArgToCombine, uint32 ArgCount>
+	struct TGetTupleHashHelper
+	{
+		template <typename TupleType>
+		FORCEINLINE static uint32 Do(uint32 Hash, const TupleType& Tuple)
+		{
+			return TGetTupleHashHelper<ArgToCombine + 1, ArgCount>::Do(HashCombine(Hash, GetTypeHash(Tuple.template Get<ArgToCombine>())), Tuple);
+		}
+	};
+
+	template <uint32 ArgIndex>
+	struct TGetTupleHashHelper<ArgIndex, ArgIndex>
+	{
+		template <typename TupleType>
+		FORCEINLINE static uint32 Do(uint32 Hash, const TupleType& Tuple)
+		{
+			return Hash;
+		}
+	};
 }
 
 template <typename... Types>
@@ -418,6 +439,17 @@ public:
 	TTuple& operator=(TTuple&&) = default;
 	TTuple& operator=(const TTuple&) = default;
 };
+
+template <typename... Types>
+FORCEINLINE uint32 GetTypeHash(const TTuple<Types...>& Tuple)
+{
+	return UE4Tuple_Private::TGetTupleHashHelper<1u, sizeof...(Types)>::Do(GetTypeHash(Tuple.template Get<0>()), Tuple);
+}
+
+FORCEINLINE uint32 GetTypeHash(const TTuple<>& Tuple)
+{
+	return 0;
+}
 
 namespace Freeze
 {

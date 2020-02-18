@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Templates/IsPODType.h"
 #include "Templates/IsEnumClass.h"
+#include "Templates/TypeHash.h"
 
 template <bool> struct TEnumAsByte_EnumClass;
 template <> struct UE_DEPRECATED(4.15, "TEnumAsByte is not intended for use with enum classes - please derive your enum class from uint8 instead.") TEnumAsByte_EnumClass<true> {};
@@ -101,8 +102,7 @@ private:
 
 	FORCEINLINE friend uint32 GetTypeHash(const TEnumAsByte& Enum)
 	{
-		// #include order makwes including TypeHash.h hard, but all GetTypeHash(uint8) does is return the uint8
-		return Enum.Value;
+		return GetTypeHash(Enum.Value);
 	}
 };
 
