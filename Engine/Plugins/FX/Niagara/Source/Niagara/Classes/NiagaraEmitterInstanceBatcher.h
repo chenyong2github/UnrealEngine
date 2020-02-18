@@ -23,20 +23,7 @@ the same VectorVM byte code / compute shader code
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraGPUInstanceCountManager.h"
 
-class FNiagaraIndicesVertexBuffer : public FParticleIndicesVertexBuffer
-{
-public:
-
-	FNiagaraIndicesVertexBuffer(int32 InIndexCount);
-
-	FUnorderedAccessViewRHIRef VertexBufferUAV;
-
-	// The allocation count.
-	const int32 IndexCount;
-
-	// Currently used count.
-	int32 UsedIndexCount = 0;
-};
+class FGPUSortManager;
 
 enum class ETickStage
 {
@@ -51,16 +38,7 @@ public:
 	using FNiagaraBufferArray = TArray<FRHIUnorderedAccessView*, TMemStackAllocator<>>;
 	using FOverlappableTicks = TArray<FNiagaraGPUSystemTick*, TMemStackAllocator<>>;
 
-	NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform)
-		: FeatureLevel(InFeatureLevel)
-		, ShaderPlatform(InShaderPlatform)
-		, ParticleSortBuffers(true)
-		// @todo REMOVE THIS HACK
-		, LastFrameThatDrainedData(GFrameNumberRenderThread)
-		, NumAllocatedFreeIDListSizes(0)
-		, bFreeIDListSizesBufferCleared(false)
-	{
-	}
+	NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager);
 
 	~NiagaraEmitterInstanceBatcher();
 
@@ -116,11 +94,16 @@ public:
 		FRHIUniformBuffer* SceneTexturesUniformBuffer,
 		bool bAllowGPUParticleUpdate) override;
 
-	int32 AddSortedGPUSimulation(const FNiagaraGPUSortInfo& SortInfo);
-	void SortGPUParticles(FRHICommandListImmediate& RHICmdList);
-	void ResolveParticleSortBuffers(FRHICommandListImmediate& RHICmdList, int32 ResultBufferIndex);
+	/** 
+	 * Register work for GPU sorting (using the GPUSortManager). 
+	 * The constraints of the sort request are defined in SortInfo.SortFlags.
+	 * The sort task bindings are set in SortInfo.AllocationInfo.
+	 * The initial keys and values are generated in the GenerateSortKeys() callback.
+	 *
+	 * Return true if the work was registered, or false it GPU sorting is not available or impossible.
+	 */
+	bool AddSortedGPUSimulation(FNiagaraGPUSortInfo& SortInfo);
 
-	const FParticleIndicesVertexBuffer& GetGPUSortedBuffer() const { return SortedVertexBuffers.Last(); }
 	const FGlobalDistanceFieldParameterData& GetGlobalDistanceFieldParameters() const { return GlobalDistanceFieldParams; }
 
 	void ProcessDebugInfo(FRHICommandList &RHICmdLis, const FNiagaraComputeExecutionContext* Context) const;
@@ -165,6 +148,9 @@ public:
 	/** Run the dispatch over multiple stages */
 	void DispatchMultipleStages(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraShader* ComputeShader);
 
+	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
+	virtual FGPUSortManager* GetGPUSortManager() const override;
+
 private:
 	using FEmitterInstanceList = TArray<FNiagaraComputeInstanceData*>;
 
@@ -173,6 +159,27 @@ private:
 	void DispatchAllOnCompute(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraBufferArray& ReadBuffers, FNiagaraBufferArray& WriteBuffers, bool bSetReadback);
 
 	bool ShouldTickForStage(const FNiagaraGPUSystemTick& Tick, ETickStage TickStage) const;
+
+	/**
+	 * Generate all the initial keys and values for a GPUSortManager sort batch.
+	 * Sort batches are created when GPU sort tasks are registered in AddSortedGPUSimulation().
+	 * Each sort task defines constraints about when the initial sort data can generated and
+	 * and when the sorted results are needed (see EGPUSortFlags for details).
+	 * Currently, for Niagara, all the sort tasks have the EGPUSortFlags::KeyGenAfterPreRender flag
+	 * and so the callback registered in GPUSortManager->Register() only has the EGPUSortFlags::KeyGenAfterPreRender usage.
+	 * This garanties that GenerateSortKeys() only gets called after PreRender(), which is a constraint required because
+	 * Niagara renders the current state of the GPU emitters, before the are ticked 
+	 * (Niagara GPU emitters are ticked at InitView and in PostRenderOpaque).
+	 * Note that this callback must only initialize the content for the elements that relates to the tasks it has registered in this batch.
+	 *
+	 * @param RHICmdList - The command list used to initiate the keys and values on GPU.
+	 * @param BatchId - The GPUSortManager batch id (regrouping several similar sort tasks).
+	 * @param NumElementsInBatch - The number of elements grouped in the batch (each element maps to a sort task)
+	 * @param Flags - Details about the key precision (see EGPUSortFlags::AnyKeyPrecision) and the keygen location (see EGPUSortFlags::AnyKeyGenLocation).
+	 * @param KeysUAV - The UAV that holds all the initial keys used to sort the values (being the particle indices here). 
+	 * @param ValuesUAV - The UAV that holds the initial values (particle indices) to be sorted accordingly to the keys.
+	 */
+	void GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV);
 
 //	void SimStepReadback(const FNiagaraComputeInstanceData& Instance, FRHICommandList& RHICmdList) const;
 
@@ -197,29 +204,24 @@ private:
 	/** Shader platform that will be rendering this effects system */
 	EShaderPlatform ShaderPlatform;
 
-	// Number of particle to sort this frame.
-	int32 SortedParticleCount = 0;
-	int32 NumFramesRequiringShrinking = 0;
+	/** The shared GPUSortManager, used to register GPU sort tasks in order to generate sorted particle indices per emitter. */
+	TRefCountPtr<FGPUSortManager> GPUSortManager;
+	/** All sort tasks registered in AddSortedGPUSimulation(). Holds all the data required in GenerateSortKeys(). */
 	TArray<FNiagaraGPUSortInfo> SimulationsToSort;
-	FParticleSortBuffers ParticleSortBuffers;
 
 	// GPU emitter instance count buffer. Contains the actual particle / instance count generate in the GPU tick.
 	FNiagaraGPUInstanceCountManager GPUInstanceCounterManager;
 
 	// @todo REMOVE THIS HACK
 	uint32 LastFrameThatDrainedData;
-
-	// The result of the GPU sort. Each next element replace the previous.
-	// The last entry is used to transfer the result of the ParticleSortBuffers.
-	TIndirectArray<FNiagaraIndicesVertexBuffer> SortedVertexBuffers;
 	
 	TArray<FNiagaraGPUSystemTick> Ticks_RT;
 	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
 
 	/** A buffer of list sizes used by UpdateFreeIDBuffers to allow overlapping several dispatches. */
 	FRWBuffer FreeIDListSizesBuffer;
-	uint32 NumAllocatedFreeIDListSizes;
-	bool bFreeIDListSizesBufferCleared;
+	uint32 NumAllocatedFreeIDListSizes = 0;
+	bool bFreeIDListSizesBufferCleared = false;
 
 	/** List of emitter instances which need their free ID buffers updated post render. */
 	FEmitterInstanceList DeferredIDBufferUpdates;
