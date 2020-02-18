@@ -7,31 +7,31 @@
 class FNiagaraSystemInstance;
 
 // Global HLSL variable base names, used by HLSL.
-static const FString NumVoxelsName(TEXT("NumVoxels_"));
-static const FString VoxelSizeName(TEXT("VoxelSize_"));
-static const FString WorldBBoxSizeName(TEXT("WorldBBoxSize_"));
+extern NIAGARA_API const FString NumVoxelsName;
+extern NIAGARA_API const FString VoxelSizeName;
+extern NIAGARA_API const FString WorldBBoxSizeName;
 
-static const FString NumCellsName(TEXT("NumCells_"));
-static const FString CellSizeName(TEXT("CellSize_"));
+extern NIAGARA_API const FString NumCellsName;
+extern NIAGARA_API const FString CellSizeName;
 
 // Global VM function names, also used by the shaders code generation methods.
-static const FName NumVoxelsFunctionName("GetNumVoxels");
-static const FName VoxelSizeFunctionName("GetVoxelSize");
+extern NIAGARA_API const FName NumVoxelsFunctionName;
+extern NIAGARA_API const FName VoxelSizeFunctionName;
 
-static const FName NumCellsFunctionName("GetNumCells");
-static const FName CellSizeFunctionName("GetCellSize");
+extern NIAGARA_API const FName NumCellsFunctionName;
+extern NIAGARA_API const FName CellSizeFunctionName;
 
-static const FName WorldBBoxSizeFunctionName("GetWorldBBoxSize");
+extern NIAGARA_API const FName WorldBBoxSizeFunctionName;
 
-static const FName SimulationToUnitFunctionName("SimulationToUnit");
-static const FName UnitToSimulationFunctionName("UnitToSimulation");
-static const FName UnitToIndexFunctionName("UnitToIndex");
-static const FName IndexToUnitFunctionName("IndexToUnit");
-static const FName IndexToUnitStaggeredXFunctionName("IndexToUnitStaggeredX");
-static const FName IndexToUnitStaggeredYFunctionName("IndexToUnitStaggeredY");
+extern NIAGARA_API const FName SimulationToUnitFunctionName;
+extern NIAGARA_API const FName UnitToSimulationFunctionName;
+extern NIAGARA_API const FName UnitToIndexFunctionName;
+extern NIAGARA_API const FName IndexToUnitFunctionName;
+extern NIAGARA_API const FName IndexToUnitStaggeredXFunctionName;
+extern NIAGARA_API const FName IndexToUnitStaggeredYFunctionName;
 
-static const FName IndexToLinearFunctionName("IndexToLinear");
-static const FName LinearToIndexFunctionName("LinearToIndex");
+extern NIAGARA_API const FName IndexToLinearFunctionName;
+extern NIAGARA_API const FName LinearToIndexFunctionName;
 
 
 
