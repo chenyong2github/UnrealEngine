@@ -319,7 +319,7 @@ bool ULocalPlayer::SpawnPlayActor(const FString& URL,FString& OutError, UWorld* 
 	return PlayerController != NULL;
 }
 
-void ULocalPlayer::SendSplitJoin()
+void ULocalPlayer::SendSplitJoin(TArray<FString>& Options)
 {
 	UNetDriver* NetDriver = NULL;
 
@@ -372,6 +372,11 @@ void ULocalPlayer::SendSplitJoin()
 			if (GameUrlOptions.Len() > 0)
 			{
 				URL.AddOption(*FString::Printf(TEXT("%s"), *GameUrlOptions));
+			}
+
+			for (FString& Option : Options)
+			{
+				URL.AddOption(*FString::Printf(TEXT("%s"), *Option));
 			}
 
 			// Send the player unique Id at login

@@ -386,8 +386,10 @@ public:
 	 * @note this happens automatically for all viewports that exist during the initial server connect
 	 * 	so it's only necessary to manually call this for viewports created after that
 	 * if the join fails (because the server was full, for example) all viewports on this client will be disconnected
+	 *
+	 * @param	Options		array of URL options to append.
 	 */
-	virtual void SendSplitJoin();
+	virtual void SendSplitJoin(TArray<FString>& Options);
 	
 	/**
 	 * Change the ControllerId for this player; if the specified ControllerId is already taken by another player, changes the ControllerId

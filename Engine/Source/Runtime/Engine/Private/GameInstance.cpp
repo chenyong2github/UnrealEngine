@@ -728,7 +728,8 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 			else
 			{
 				// client; ask the server to let the new player join
-				NewPlayer->SendSplitJoin();
+				TArray<FString> Options;
+				NewPlayer->SendSplitJoin(Options);
 			}
 		}
 	}
