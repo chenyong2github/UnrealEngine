@@ -26,11 +26,22 @@ namespace UnrealBuildTool
 		private int Id;
 
 		// shared string instance registry - pass in a delegate to create a new one with a name that wasn't made yet
-		private static UniqueStringRegistry StringRegistry = new UniqueStringRegistry();
+		private static UniqueStringRegistry StringRegistry;
+
+		// #jira UE-88908 if parts of a partial struct have each static member variables, their initialization order does not appear guaranteed
+		// here this means initializing "StringRegistry" directly to "new UniqueStringRegistry()" may not be executed before FindOrAddByName() has been called as part of initializing a static member variable of another part of the partial struct
+		private static UniqueStringRegistry GetUniqueStringRegistry()
+		{
+			if (StringRegistry == null)
+			{
+				StringRegistry = new UniqueStringRegistry();
+			}
+			return StringRegistry;
+		}
 
 		private UnrealTargetPlatform(string Name)
 		{
-			Id = StringRegistry.FindOrAddByName(Name);
+			Id = GetUniqueStringRegistry().FindOrAddByName(Name);
 		}
 
 		private UnrealTargetPlatform(int InId)
@@ -55,7 +66,7 @@ namespace UnrealBuildTool
 		/// <param name="Context"></param>
 		public UnrealTargetPlatform(SerializationInfo Info, StreamingContext Context)
 		{
-			Id = StringRegistry.FindOrAddByName((string)Info.GetValue("Name", typeof(string)));
+			Id = GetUniqueStringRegistry().FindOrAddByName((string)Info.GetValue("Name", typeof(string)));
 		}
 
 		/// <summary>
@@ -65,7 +76,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static private UnrealTargetPlatform FindOrAddByName(string Name)
 		{
-			return new UnrealTargetPlatform(StringRegistry.FindOrAddByName(Name));
+			return new UnrealTargetPlatform(GetUniqueStringRegistry().FindOrAddByName(Name));
 		}
 
 		/// <summary>
@@ -114,7 +125,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return StringRegistry.GetStringForId(Id);
+			return GetUniqueStringRegistry().GetStringForId(Id);
 		}
 
 		/// <summary>
@@ -125,9 +136,9 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static public bool TryParse(string Name, out UnrealTargetPlatform Platform)
 		{
-			if (StringRegistry.HasString(Name))
+			if (GetUniqueStringRegistry().HasString(Name))
 			{
-				Platform.Id = StringRegistry.FindOrAddByName(Name);
+				Platform.Id = GetUniqueStringRegistry().FindOrAddByName(Name);
 				return true;
 			}
 
@@ -142,13 +153,13 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static public UnrealTargetPlatform Parse(string Name)
 		{
-			if (StringRegistry.HasString(Name))
+			if (GetUniqueStringRegistry().HasString(Name))
 			{
 				return new UnrealTargetPlatform(Name);
 			}
 
 			throw new BuildException(string.Format("The platform name {0} is not a valid platform name. Valid names are ({1})", Name, 
-				string.Join(",", StringRegistry.GetStringNames())));
+				string.Join(",", GetUniqueStringRegistry().GetStringNames())));
 		}
 
 
@@ -158,7 +169,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static UnrealTargetPlatform[] GetValidPlatforms()
 		{
-			return Array.ConvertAll(StringRegistry.GetStringIds(), x => new UnrealTargetPlatform(x));
+			return Array.ConvertAll(GetUniqueStringRegistry().GetStringIds(), x => new UnrealTargetPlatform(x));
 		}
 
 		/// <summary>
@@ -167,7 +178,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static string[] GetValidPlatformNames()
 		{
-			return StringRegistry.GetStringNames();
+			return GetUniqueStringRegistry().GetStringNames();
 		}
 
 		/// <summary>
@@ -177,7 +188,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static bool IsValidName(string Name)
 		{
-			return StringRegistry.HasString(Name);
+			return GetUniqueStringRegistry().HasString(Name);
 		}
 
 		/// <summary>
@@ -301,11 +312,21 @@ namespace UnrealBuildTool
 		private int Id;
 
 		// shared string instance registry - pass in a delegate to create a new one with a name that wasn't made yet
-		private static UniqueStringRegistry StringRegistry = new UniqueStringRegistry();
+		private static UniqueStringRegistry StringRegistry;
+
+		// #jira UE-88908 (see above)
+		private static UniqueStringRegistry GetUniqueStringRegistry()
+		{
+			if (StringRegistry == null)
+			{
+				StringRegistry = new UniqueStringRegistry();
+			}
+			return StringRegistry;
+		}
 
 		private UnrealPlatformGroup(string Name)
 		{
-			Id = StringRegistry.FindOrAddByName(Name);
+			Id = GetUniqueStringRegistry().FindOrAddByName(Name);
 		}
 
 		private UnrealPlatformGroup(int InId)
@@ -330,7 +351,7 @@ namespace UnrealBuildTool
 		/// <param name="Context"></param>
 		public UnrealPlatformGroup(SerializationInfo Info, StreamingContext Context)
 		{
-			Id = StringRegistry.FindOrAddByName((string)Info.GetValue("Name", typeof(string)));
+			Id = GetUniqueStringRegistry().FindOrAddByName((string)Info.GetValue("Name", typeof(string)));
 		}
 
 		/// <summary>
@@ -340,7 +361,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static private UnrealPlatformGroup FindOrAddByName(string Name)
 		{
-			return new UnrealPlatformGroup(StringRegistry.FindOrAddByName(Name));
+			return new UnrealPlatformGroup(GetUniqueStringRegistry().FindOrAddByName(Name));
 		}
 
 		/// <summary>
@@ -390,7 +411,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return StringRegistry.GetStringForId(Id);
+			return GetUniqueStringRegistry().GetStringForId(Id);
 		}
 		/// <summary>
 		/// 
@@ -398,7 +419,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static UnrealPlatformGroup[] GetValidGroups()
 		{
-			return Array.ConvertAll(StringRegistry.GetStringIds(), x => new UnrealPlatformGroup(x));
+			return Array.ConvertAll(GetUniqueStringRegistry().GetStringIds(), x => new UnrealPlatformGroup(x));
 		}
 
 		/// <summary>
@@ -407,7 +428,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static string[] GetValidGroupNames()
 		{
-			return StringRegistry.GetStringNames();
+			return GetUniqueStringRegistry().GetStringNames();
 		}
 
 		/// <summary>
@@ -417,7 +438,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static bool IsValidName(string Name)
 		{
-			return StringRegistry.HasString(Name);
+			return GetUniqueStringRegistry().HasString(Name);
 		}
 
 
