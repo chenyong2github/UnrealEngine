@@ -1752,7 +1752,9 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 void FKConvexElem::SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex)
 {
 	ChaosConvex = MoveTemp(InChaosConvex);
-	ComputeChaosConvexIndices();
+	
+	const bool bForceCompute = true;
+	ComputeChaosConvexIndices(bForceCompute);
 }
 
 void FKConvexElem::ResetChaosConvexMesh()
@@ -1760,15 +1762,24 @@ void FKConvexElem::ResetChaosConvexMesh()
 	ChaosConvex.Reset();
 }
 
-ENGINE_API void FKConvexElem::ComputeChaosConvexIndices()
+ENGINE_API void FKConvexElem::ComputeChaosConvexIndices(bool bForceCompute)
 {
+	if (bForceCompute || IndexData.Num() == 0)
+	{
+		IndexData = GetChaosConvexIndices();
+	}
+}
+
+TArray<int32> FKConvexElem::GetChaosConvexIndices() const
+{
+	TArray<int32> ResultIndexData;
 	const int32 NumVerts = VertexData.Num();
-	if(NumVerts > 0 && IndexData.Num() == 0)
+	if (NumVerts > 0)
 	{
 		Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
 		ConvexParticles.AddParticles(NumVerts);
 
-		for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+		for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
 		{
 			ConvexParticles.X(VertIndex) = VertexData[VertIndex];
 		}
@@ -1776,14 +1787,16 @@ ENGINE_API void FKConvexElem::ComputeChaosConvexIndices()
 		TArray<Chaos::TVector<int32, 3>> Triangles;
 		Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles);
 
-		IndexData.Reset(Triangles.Num() * 3);
-		for(Chaos::TVector<int32, 3> Tri : Triangles)
+		ResultIndexData.Reserve(Triangles.Num() * 3);
+		for (Chaos::TVector<int32, 3> Tri : Triangles)
 		{
-			IndexData.Add(Tri[0]);
-			IndexData.Add(Tri[1]);
-			IndexData.Add(Tri[2]);
+			ResultIndexData.Add(Tri[0]);
+			ResultIndexData.Add(Tri[1]);
+			ResultIndexData.Add(Tri[2]);
 		}
 	}
+
+	return ResultIndexData;
 }
 #endif
 
