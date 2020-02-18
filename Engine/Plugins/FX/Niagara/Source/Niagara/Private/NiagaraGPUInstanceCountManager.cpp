@@ -4,6 +4,7 @@
 #include "NiagaraStats.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "GPUSortManager.h" // CopyUIntBufferToTargets
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 int32 GNiagaraMinGPUInstanceCount = 2048;
 static FAutoConsoleVariableRef CVarNiagaraMinGPUInstanceCount(
