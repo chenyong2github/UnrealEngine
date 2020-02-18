@@ -1918,7 +1918,7 @@ void FAssetRegistryGenerator::WriteCollection(FName CollectionName, const TArray
 	}
 }
 
-int32 FAssetRegistryGenerator::GetPakchunkIndex(int32 ChunkId)
+int32 FAssetRegistryGenerator::GetPakchunkIndex(int32 ChunkId) const
 {
 	if (ChunkIdPakchunkIndexMapping.Contains(ChunkId))
 	{
