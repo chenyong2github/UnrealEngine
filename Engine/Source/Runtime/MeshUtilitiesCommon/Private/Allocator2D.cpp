@@ -211,13 +211,12 @@ bool FAllocator2D::FindBitByBit( FRect& Rect, const FAllocator2D& Other )
 	return false;
 }
 
-bool FAllocator2D::FindWithSegments( FRect& Rect, const FRect& BestRect, const FAllocator2D& Other ) const
+bool FAllocator2D::FindWithSegments( FRect& Rect, const FAllocator2D& Other, TFunctionRef<bool (const FRect&)> IsBestRect) const
 {
 	FRect TestRect = Rect;
 
 	const uint32 MaxWidth    = Width - TestRect.W;
 	const uint32 MaxHeight   = Height - TestRect.H;
-	const uint32 BestArea    = BestRect.X + BestRect.Y * Width;
 
 	// For charts that are longer on the Y axis, its a lot faster to use
 	// another grid optimized for searching vertically because it will reduce
@@ -238,7 +237,7 @@ bool FAllocator2D::FindWithSegments( FRect& Rect, const FRect& BestRect, const F
 				Stats.FindWithSegmentsIterationsY++;
 
 				// Do not bother continue if another orientation had a better result
-				if( TestRect.X + TestRect.Y * Width >= BestArea)
+				if( !IsBestRect(Rect) )
 				{
 					Stats.FindWithSegmentsMovedPastPreviousBest++;
 					return false;
@@ -266,7 +265,7 @@ bool FAllocator2D::FindWithSegments( FRect& Rect, const FRect& BestRect, const F
 				Stats.FindWithSegmentsIterationsX++;
 
 				// Do not bother continue if another orientation had a better result
-				if( TestRect.X + TestRect.Y * Width >= BestArea)
+				if( !IsBestRect(Rect) )
 				{
 					Stats.FindWithSegmentsMovedPastPreviousBest++;
 					return false;
@@ -822,7 +821,7 @@ void FAllocator2D::ResetStats()
 #endif
 }
 
-void FAllocator2D::PublishStats(int32 ChartIndex, int32 Orientation, bool bFound, const FRect& Rect, const FRect& BestRect, const FMD5Hash& ChartMD5)
+void FAllocator2D::PublishStats(int32 ChartIndex, int32 Orientation, bool bFound, const FRect& Rect, const FRect& BestRect, const FMD5Hash& ChartMD5, TFunctionRef<bool (const FAllocator2D::FRect&)> IsBestRect)
 {
 	//This is super helpful in Insights to inspect long running charts behavior
 
@@ -865,7 +864,7 @@ void FAllocator2D::PublishStats(int32 ChartIndex, int32 Orientation, bool bFound
 			BestRect.Y,
 			BestRect.W,
 			BestRect.H,
-			(bFound && ((Rect.X + Rect.Y * Width) < (BestRect.X + BestRect.Y * Width))) ? 1 : 0,
+			(bFound && IsBestRect(Rect)) ? 1 : 0,
 			Stats.FindWithSegmentsIterationsY.GetValue(),
 			Stats.FindWithSegmentsIterationsX.GetValue(),
 			Stats.FindWithSegmentsMovedPastPreviousBest.GetValue(),
