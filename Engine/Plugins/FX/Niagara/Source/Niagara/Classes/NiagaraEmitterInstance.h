@@ -58,9 +58,10 @@ public:
 
 	uint32 CalculateEventSpawnCount(const FNiagaraEventScriptProperties &EventHandlerProps, TArray<int32, TInlineAllocator<16>>& EventSpawnCounts, FNiagaraDataSet *EventSet);
 
-	/** Generate system bounds, reading back data from the GPU will introduce a stall and should only be used for debug purposes. */
-	FBox CalculateDynamicBounds(const bool bReadGPUSimulation = false);
+#if WITH_EDITOR
+	/** Potentially reads back data from the GPU which will introduce a stall and should only be used for debug purposes. */
 	NIAGARA_API void CalculateFixedBounds(const FTransform& ToWorldSpace);
+#endif
 
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
 
@@ -133,6 +134,9 @@ private:
 	void BuildConstantBufferTable(
 		const FNiagaraScriptExecutionContext& ExecContext,
 		FScriptExecutionConstantBufferTable& ConstantBufferTable) const;
+
+	/** Generate emitter bounds */
+	FBox InternalCalculateDynamicBounds(int32 ParticleCount) const;
 
 	template<typename TBindingType, typename TVariableType>
 	static void AddBinding(FName ParameterName, TVariableType ParameterType, TBindingType* SourceValuePtr, FNiagaraParameterStore& TargetParameterStore, TArray<TNiagaraFastPathAttributeBinding<TBindingType>>& TargetBindings)

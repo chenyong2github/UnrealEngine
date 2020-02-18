@@ -71,8 +71,8 @@ FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator
 {
 	if (ParticleMesh)
 	{
-		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator = new FNiagaraBoundsCalculatorHelper<false, true, false>();
-		BoundsCalculator->MeshExtents = ParticleMesh->GetBounds().BoxExtent;
+		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator
+			= new FNiagaraBoundsCalculatorHelper<false, true, false>(ParticleMesh->GetBounds().BoxExtent);
 		return BoundsCalculator;
 	}
 

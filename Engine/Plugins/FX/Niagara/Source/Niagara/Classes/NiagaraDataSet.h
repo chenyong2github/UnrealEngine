@@ -768,6 +768,8 @@ struct FNiagaraDataSetAccessor<float> : public FNiagaraDataSetAccessorBase
 		DestBase[Index] = InValue;
 	}
 
+	FORCEINLINE const float* const GetX() const { return SrcBase; }
+
 private:
 	float* SrcBase;
 	float* DestBase;
@@ -852,6 +854,9 @@ struct FNiagaraDataSetAccessor<FVector2D> : public FNiagaraDataSetAccessorBase
 		DestXBase[Index] = InValue.X;
 		DestYBase[Index] = InValue.Y;
 	}
+
+	FORCEINLINE const float* const GetX() const { return SrcXBase; }
+	FORCEINLINE const float* const GetY() const { return SrcYBase; }
 
 private:
 
@@ -946,6 +951,10 @@ struct FNiagaraDataSetAccessor<FVector> : public FNiagaraDataSetAccessorBase
 		DestYBase[Index] = InValue.Y;
 		DestZBase[Index] = InValue.Z;
 	}
+
+	FORCEINLINE const float* const GetX() const { return SrcXBase; }
+	FORCEINLINE const float* const GetY() const { return SrcYBase; }
+	FORCEINLINE const float* const GetZ() const { return SrcZBase; }
 
 private:
 
@@ -1515,6 +1524,7 @@ private:
 	uint32 CurrIdx;
 };
 
+#if WITH_EDITOR
 /**
 Allows immediate access to GPU data on the CPU, you can then use FNiagaraDataSetAccessor to access the data.
 This will make a copy of the GPU data and will stall the CPU until the data is ready from the GPU,
@@ -1542,7 +1552,7 @@ private:
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 	uint32				NumInstances = 0;
 };
-
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
