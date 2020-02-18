@@ -589,9 +589,18 @@ void UWidget::SetUserFocus(APlayerController* PlayerController)
 		if ( ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer() )
 		{
 			TOptional<int32> UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
-			if (UserIndex.IsSet() && !FSlateApplication::Get().SetUserFocus(UserIndex.GetValue(), SafeWidget) )
+			if (UserIndex.IsSet())
 			{
-				LocalPlayer->GetSlateOperations().SetUserFocus(SafeWidget.ToSharedRef());
+				FReply& DelayedSlateOperations = LocalPlayer->GetSlateOperations();
+				if (FSlateApplication::Get().SetUserFocus(UserIndex.GetValue(), SafeWidget))
+				{
+					DelayedSlateOperations.CancelFocusRequest();
+				}
+				else
+				{
+					DelayedSlateOperations.SetUserFocus(SafeWidget.ToSharedRef());
+				}
+				
 			}
 		}
 	}
