@@ -1528,6 +1528,7 @@ void FDeferredShadingSceneRenderer::InjectTranslucentVolumeLightingArray(FRHICom
 	TArray<FTranslucentLightInjectionData, SceneRenderingAllocator> *LightInjectionData = new TArray<FTranslucentLightInjectionData, SceneRenderingAllocator>[Views.Num()];
 	for(int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
+		CA_SUPPRESS(6385);	// Doesn't like COM
 		LightInjectionData[ViewIndex].Empty(LightsEndIndex - FirstLightIndex);
 	}
 	
@@ -1540,6 +1541,7 @@ void FDeferredShadingSceneRenderer::InjectTranslucentVolumeLightingArray(FRHICom
 		{
 			if(LightSceneInfo->ShouldRenderLight(Views[ViewIndex]))
 			{
+				CA_SUPPRESS(6385);	// Doesn't like COM
 				AddLightForInjection(*this, *LightSceneInfo, NULL, LightInjectionData[ViewIndex]);
 			}
 		}

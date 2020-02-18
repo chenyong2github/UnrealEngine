@@ -2150,6 +2150,7 @@ public:
 
 	const TCHAR* const operator[] (uint32 Idx) const
 	{
+		CA_SUPPRESS(6385);	// Doesn't like COM
 		return *Names[Idx];
 	}
 
@@ -2166,6 +2167,7 @@ static const TCHAR* const GetVolumeName(uint32 Id, bool bDirectional)
 
 	check(Id < MaxNames);
 
+	CA_SUPPRESS(6385);	// Doesn't like COM
 	return bDirectional ? NamesDir[Id] : Names[Id];
 }
 
