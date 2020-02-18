@@ -140,6 +140,11 @@ namespace InstallBundleUtil
 		}
 	}
 
+	void FContentRequestStatsMap::StatsReset(FName BundleName)
+	{
+		StatsMap.Remove(BundleName);
+	}
+
 	void FContentRequestStatsMap::StatsBegin(FName BundleName, const TCHAR* State)
 	{
 		FContentRequestStats& Stats = StatsMap.FindOrAdd(BundleName);
