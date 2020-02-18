@@ -43,6 +43,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, "LandscapeFixedGrid");
 IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryPixelShaderParameters);
 
 int32 GLandscapeMeshLODBias = 0;
@@ -1128,6 +1129,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, BaseColorForGITexture(InComponent->GIBakedBaseColorTexture)
 	, HeightmapScaleBias(InComponent->HeightmapScaleBias)
 	, XYOffsetmapTexture(InComponent->XYOffsetmapTexture)
+	, BlendableLayerMask(InComponent->MobileBlendableLayerMask)
 	, SharedBuffersKey(0)
 	, SharedBuffers(nullptr)
 	, VertexFactory(nullptr)
@@ -1460,6 +1462,20 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	// Assign LandscapeUniformShaderParameters
 	LandscapeUniformShaderParameters.InitResource();
 
+	// Create per Lod uniform buffers
+	LandscapeFixedGridUniformShaderParameters.AddDefaulted(MaxLOD+1);
+	for (int32 LodIndex = 0; LodIndex <= MaxLOD; ++LodIndex)
+	{
+		LandscapeFixedGridUniformShaderParameters[LodIndex].InitResource();
+		FLandscapeFixedGridUniformShaderParameters Parameters;
+		Parameters.LodValues = FVector4(
+			LodIndex, 
+			0.f,
+			(float)((SubsectionSizeVerts >> LodIndex) - 1),
+			1.f / (float)((SubsectionSizeVerts >> LodIndex) - 1));
+		LandscapeFixedGridUniformShaderParameters[LodIndex].SetContents(Parameters);
+	}
+
 #if WITH_EDITOR
 	// Create MeshBatch for grass rendering
 	if (SharedBuffers->GrassIndexBuffer)
@@ -1483,13 +1499,9 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		// Combined grass rendering batch element
 		FMeshBatchElement* GrassBatchElement = &GrassMeshBatch.Elements[0];
 		FLandscapeBatchElementParams* BatchElementParams = &GrassBatchParams[0];
-		BatchElementParams->LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
 		BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
 		BatchElementParams->SceneProxy = this;
-		BatchElementParams->SubX = -1;
-		BatchElementParams->SubY = -1;
 		BatchElementParams->CurrentLOD = 0;
-		BatchElementParams->ForcedLOD = 0;
 		GrassBatchElement->UserData = BatchElementParams;
 		GrassBatchElement->PrimitiveUniformBuffer = GetUniformBuffer();
 		GrassBatchElement->IndexBuffer = SharedBuffers->GrassIndexBuffer;
@@ -1561,6 +1573,12 @@ FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
 {
 	// Free the subsection uniform buffer
 	LandscapeUniformShaderParameters.ReleaseResource();
+
+	// Free the lod uniform buffers
+	for (int32 i = 0; i < LandscapeFixedGridUniformShaderParameters.Num(); ++i)
+	{
+		LandscapeFixedGridUniformShaderParameters[i].ReleaseResource();
+	}
 
 	if (SharedBuffers)
 	{
@@ -1861,6 +1879,12 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 		0,
 		0
 	);
+	LandscapeParams.BlendableLayerMask = FVector4(
+		BlendableLayerMask & (1 << 0) ? 1 : 0,
+		BlendableLayerMask & (1 << 1) ? 1 : 0,
+		BlendableLayerMask & (1 << 2) ? 1 : 0,
+		0
+	);
 
 	if (HeightmapTexture)
 	{
@@ -1999,11 +2023,8 @@ void FLandscapeComponentSceneProxy::BuildDynamicMeshElement(const FViewCustomDat
 
 				if (!InToolMesh)
 				{
-					BatchElementParams.LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
 					BatchElementParams.LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
 					BatchElementParams.SceneProxy = this;
-					BatchElementParams.SubX = SubX;
-					BatchElementParams.SubY = SubY;
 					BatchElementParams.CurrentLOD = CurrentLOD;
 				}
 
@@ -2051,10 +2072,7 @@ void FLandscapeComponentSceneProxy::BuildDynamicMeshElement(const FViewCustomDat
 		{
 			FLandscapeBatchElementParams& BatchElementParams = OutStaticBatchParamArray[0];
 			BatchElementParams.LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
-			BatchElementParams.LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
 			BatchElementParams.SceneProxy = this;
-			BatchElementParams.SubX = -1;
-			BatchElementParams.SubY = -1;
 			BatchElementParams.CurrentLOD = CurrentLODIndex;
 
 			BatchElement.UserData = &BatchElementParams;
@@ -2121,10 +2139,7 @@ bool FLandscapeComponentSceneProxy::GetMeshElement(bool UseSeperateBatchForShado
 				{
 					FLandscapeBatchElementParams* BatchElementParams = new(OutStaticBatchParamArray) FLandscapeBatchElementParams;
 					BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
-					BatchElementParams->LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
 					BatchElementParams->SceneProxy = this;
-					BatchElementParams->SubX = SubX;
-					BatchElementParams->SubY = SubY;
 					BatchElementParams->CurrentLOD = i;
 
 					FMeshBatchElement BatchElement;
@@ -2153,10 +2168,7 @@ bool FLandscapeComponentSceneProxy::GetMeshElement(bool UseSeperateBatchForShado
 		// Combined batch element
 		FLandscapeBatchElementParams* BatchElementParams = new(OutStaticBatchParamArray) FLandscapeBatchElementParams;
 		BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
-		BatchElementParams->LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
 		BatchElementParams->SceneProxy = this;
-		BatchElementParams->SubX = -1;
-		BatchElementParams->SubY = -1;
 		BatchElementParams->CurrentLOD = i;
 
 		FMeshBatchElement BatchElement;
@@ -2205,10 +2217,7 @@ bool FLandscapeComponentSceneProxy::GetMeshElementForVirtualTexture(int32 InLodI
 	FLandscapeBatchElementParams* BatchElementParams = new(OutStaticBatchParamArray) FLandscapeBatchElementParams;
 	BatchElementParams->SceneProxy = this;
 	BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
-	BatchElementParams->LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
 	BatchElementParams->CurrentLOD = InLodIndex;
-	BatchElementParams->SubX = -1;
-	BatchElementParams->SubY = -1;
 
 	int32 LodSubsectionSizeVerts = SubsectionSizeVerts >> InLodIndex;
 
@@ -2315,12 +2324,8 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 
 		FLandscapeBatchElementParams* BatchElementParams = new(OutStaticBatchParamArray) FLandscapeBatchElementParams;
 		BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
-		BatchElementParams->LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
 		BatchElementParams->SceneProxy = this;
-		BatchElementParams->SubX = -1;
-		BatchElementParams->SubY = -1;
 		BatchElementParams->CurrentLOD = LODIndex;
-		BatchElementParams->ForcedLOD = bForcedLOD ? LODIndex : -1;
 
 		BatchElement.UserData = BatchElementParams;
 		BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
@@ -3636,13 +3641,9 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 			FMeshBatchElement BatchElement;
 			FLandscapeBatchElementParams& BatchElementParams = ParameterArray.ElementParams[SubSectionIdx];
 
-			BatchElementParams.LocalToWorldNoScalingPtr = &LocalToWorldNoScaling;
 			BatchElementParams.LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
 			BatchElementParams.SceneProxy = this;
-			BatchElementParams.SubX = SubX;
-			BatchElementParams.SubY = SubY;
 			BatchElementParams.CurrentLOD = CurrentLOD;
-			BatchElementParams.ForcedLOD = ForcedLODLevel;
 			BatchElement.UserData = &BatchElementParams;
 			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
@@ -4280,12 +4281,6 @@ public:
 	*/
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		LodBiasParameter.Bind(ParameterMap, TEXT("LodBias"));
-		LodValuesParameter.Bind(ParameterMap, TEXT("LodValues"));
-		ForcedLodParameter.Bind(ParameterMap, TEXT("ForcedLod"));
-		LodTessellationParameter.Bind(ParameterMap, TEXT("LodTessellationParams"));
-		SectionLodsParameter.Bind(ParameterMap, TEXT("SectionLods"));
-		NeighborSectionLodParameter.Bind(ParameterMap, TEXT("NeighborSectionLod"));
 	}
 
 	void GetElementShaderBindings(
@@ -4324,26 +4319,7 @@ public:
 			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeVertexFactoryMVFParameters>(), BatchElementParams->LandscapeVertexFactoryMVFUniformBuffer);
 		}
 #endif
-
-		if (LodValuesParameter.IsBound())
-		{
-			ShaderBindings.Add(LodValuesParameter, SceneProxy->GetShaderLODValues(BatchElementParams->CurrentLOD));
-		}
-
-		if (ForcedLodParameter.IsBound())
-		{
-			ShaderBindings.Add(ForcedLodParameter, BatchElementParams->ForcedLOD);
-		}
 	}
-
-protected:
-	LAYOUT_FIELD(FShaderParameter, LodTessellationParameter);
-	LAYOUT_FIELD(FShaderParameter, LodValuesParameter);
-	LAYOUT_FIELD(FShaderParameter, ForcedLodParameter);
-	LAYOUT_FIELD(FShaderParameter, NeighborSectionLodParameter);
-	LAYOUT_FIELD(FShaderParameter, LodBiasParameter);
-	LAYOUT_FIELD(FShaderParameter, SectionLodsParameter);
-	LAYOUT_FIELD(TShaderUniformBufferParameter<FLandscapeUniformShaderParameters>, LandscapeShaderParameters);
 };
 
 /** 
@@ -4374,25 +4350,8 @@ public:
 		check(SceneProxy);
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
-
-		if (LodValuesParameter.IsBound())
-		{
-			ShaderBindings.Add(LodValuesParameter, SceneProxy->GetShaderLODValues(BatchElementParams->CurrentLOD));
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeFixedGridUniformShaderParameters>(), SceneProxy->LandscapeFixedGridUniformShaderParameters[BatchElementParams->CurrentLOD]);
 		}
-
-		if (LodBiasParameter.IsBound())
-		{
-			ShaderBindings.Add(LodBiasParameter, FVector4(ForceInitToZero));
-		}
-
-		if (ForcedLodParameter.IsBound())
-		{
-			ShaderBindings.Add(ForcedLodParameter, BatchElementParams->ForcedLOD);
-		}
-	}
-
-	
-	
 };
 
 //
