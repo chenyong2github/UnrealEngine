@@ -998,6 +998,8 @@ void FCurlHttpRequest::TickThreadedRequest(float DeltaSeconds)
 
 void FCurlHttpRequest::CancelRequest()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_CancelRequest); 
+	
 	bCanceled = true;
 	UE_LOG(LogHttp, Verbose, TEXT("%p: HTTP request canceled.  URL=%s"), this, *GetURL());
 	

@@ -535,6 +535,8 @@ FHttpRetrySystem::FManager::FHttpRetryRequestEntry::FHttpRetryRequestEntry(TShar
 
 bool FHttpRetrySystem::FManager::ProcessRequest(TSharedRef<FHttpRetrySystem::FRequest>& HttpRetryRequest)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpRetrySystem_FManager_ProcessRequest);
+
 	bool bResult = HttpRetryRequest->HttpRequest->ProcessRequest();
 
 	if (bResult)
@@ -547,6 +549,8 @@ bool FHttpRetrySystem::FManager::ProcessRequest(TSharedRef<FHttpRetrySystem::FRe
 
 void FHttpRetrySystem::FManager::CancelRequest(TSharedRef<FHttpRetrySystem::FRequest>& HttpRetryRequest)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpRetrySystem_FManager_CancelRequest);
+
 	// Find the existing request entry if is was previously processed.
 	bool bFound = false;
 	for (int32 i = 0; i < RequestList.Num(); ++i)
