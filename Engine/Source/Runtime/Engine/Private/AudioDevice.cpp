@@ -5872,14 +5872,14 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 			if (bSynchronous)
 			{
 				// Create a worker to decompress the vorbis data
-				FAsyncAudioDecompress TempDecompress(SoundWave, GetNumPrecacheFrames());
+				FAsyncAudioDecompress TempDecompress(SoundWave, GetNumPrecacheFrames(), this);
 				TempDecompress.StartSynchronousTask();
 			}
 			else
 			{
 				// This is the one case where precaching will not be done when this function exits
 				checkf(SoundWave->GetPrecacheState() == ESoundWavePrecacheState::InProgress, TEXT("Bad PrecacheState %d on SoundWave %s"), static_cast<uint8>(SoundWave->GetPrecacheState()), *GetPathNameSafe(SoundWave));
-				SoundWave->AudioDecompressor = new FAsyncAudioDecompress(SoundWave, GetNumPrecacheFrames());
+				SoundWave->AudioDecompressor = new FAsyncAudioDecompress(SoundWave, GetNumPrecacheFrames(), this);
 				SoundWave->AudioDecompressor->StartBackgroundTask();
 				PrecachingSoundWaves.Add(SoundWave);
 			}

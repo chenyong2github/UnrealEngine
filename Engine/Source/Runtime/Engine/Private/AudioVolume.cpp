@@ -91,15 +91,18 @@ void AAudioVolume::AddProxy() const
 {
 	if (UWorld* World = GetWorld())
 	{
-		if (FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
+		if (FAudioDeviceHandle AudioDeviceHandle = World->GetAudioDevice())
 		{
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AddAudioVolumeProxy"), STAT_AudioAddAudioVolumeProxy, STATGROUP_TaskGraphTasks);
 
 			FAudioVolumeProxy Proxy(this);
 
-			FAudioThread::RunCommandOnAudioThread([AudioDevice, Proxy]()
+			FAudioThread::RunCommandOnAudioThread([AudioDeviceHandle, Proxy]() mutable
 			{
-				AudioDevice->AddAudioVolumeProxy(Proxy);
+				if (AudioDeviceHandle)
+				{
+					AudioDeviceHandle->AddAudioVolumeProxy(Proxy);
+				}
 			}, GET_STATID(STAT_AudioAddAudioVolumeProxy));
 		}
 	}
@@ -122,14 +125,17 @@ void AAudioVolume::RemoveProxy() const
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		if (FAudioDevice* AudioDevice = World->GetAudioDeviceRaw())
+		if (FAudioDeviceHandle AudioDeviceHandle = World->GetAudioDevice())
 		{
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.RemoveAudioVolumeProxy"), STAT_AudioRemoveAudioVolumeProxy, STATGROUP_TaskGraphTasks);
 
 			const uint32 AudioVolumeID = GetUniqueID();
-			FAudioThread::RunCommandOnAudioThread([AudioDevice, AudioVolumeID]()
+			FAudioThread::RunCommandOnAudioThread([AudioDeviceHandle, AudioVolumeID]() mutable
 			{
-				AudioDevice->RemoveAudioVolumeProxy(AudioVolumeID);
+				if (AudioDeviceHandle)
+				{
+					AudioDeviceHandle->RemoveAudioVolumeProxy(AudioVolumeID);
+				}
 			}, GET_STATID(STAT_AudioRemoveAudioVolumeProxy));
 		}
 	}
