@@ -815,12 +815,12 @@ public:
 		}
 	}
 
-/**
- * Serializes the keys & values for map
- *
- * @param Name the name of the property to serialize
- * @param Map the map to serialize
- */
+	/**
+	 * Serializes the keys & values for map
+	 *
+	 * @param Name the name of the property to serialize
+	 * @param Map the map to serialize
+	 */
 	virtual void SerializeMap(const TCHAR* Name, FJsonSerializableKeyValueMapFloat& Map) override
 	{
 		if (JsonObject->HasTypedField<EJson::Object>(Name))
