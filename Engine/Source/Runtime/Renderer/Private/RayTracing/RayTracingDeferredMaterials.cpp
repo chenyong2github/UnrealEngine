@@ -86,7 +86,7 @@ class FMaterialSortCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (!GRHISupportsRayTracing || !ShouldCompileRayTracingShadersForProject(Parameters.Platform))
+		if (!ShouldCompileRayTracingShadersForProject(Parameters.Platform))
 		{
 			return false;
 		}
@@ -137,7 +137,7 @@ void SortDeferredMaterials(
 
 	FMaterialSortCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FMaterialSortCS::FSortSize>(SortSize - 1);
-	PermutationVector.Set<FMaterialSortCS::FWaveOps>(GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32);
+	PermutationVector.Set<FMaterialSortCS::FWaveOps>(GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32 && RHISupportsWaveOperations(View.GetShaderPlatform()));
 
 	// Sort size represents an index into pow2 sizes, not an actual size, so convert to the actual number of elements being sorted
 	const uint32 ElementBlockSize = 256 * (1 << (SortSize - 1));
