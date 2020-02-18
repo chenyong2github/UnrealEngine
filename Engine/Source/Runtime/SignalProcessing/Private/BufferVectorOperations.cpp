@@ -8,7 +8,7 @@ namespace Audio
 {
 	static void RestrictedPtrAliasCheck(const float* RESTRICT Ptr1, const float* RESTRICT Ptr2, uint32 NumFloatsInArray)
 	{
-		checkf(FMath::Abs(Ptr1 - Ptr2) >= NumFloatsInArray,
+		checkf(static_cast<uint32>(FMath::Abs(Ptr1 - Ptr2)) >= NumFloatsInArray,
 			TEXT("Using this function as an in-place operation will result in undefined behavior!"));
 	}
 
