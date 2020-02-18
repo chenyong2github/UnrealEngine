@@ -18,8 +18,12 @@ public:
 	/** Is the instance component is editable */
 	static bool CanEditComponentInstance(const UActorComponent* ActorComp, const UActorComponent* ParentSceneComp, bool bAllowUserContructionScript);
 
-	/** Tests whether the native component is editable */
-	static bool CanEditNativeComponent(const UActorComponent* NativeComponent);
+	/** 
+	* Test if the native component is editable. If it is, return a valid pointer to it's FProperty
+	* Otherwise, return nullptr. A native component is editable if it is marked as EditAnywhere
+	* via meta data tags or is within an editable property container 
+	*/
+	static FProperty* GetPropertyForEditableNativeComponent(const UActorComponent* NativeComponent);
 
 	/** Test whether or not the given string is a valid variable name string for the given component instance */
 	static bool IsValidVariableNameString(const UActorComponent* InComponent, const FString& InString);
