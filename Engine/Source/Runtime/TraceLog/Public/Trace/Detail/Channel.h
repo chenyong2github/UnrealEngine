@@ -6,6 +6,8 @@
 
 #if UE_TRACE_ENABLED
 
+#include "CoreTypes.h"
+
 namespace Trace
 {
 
