@@ -55,8 +55,4 @@ void USoundNodeSoundClass::PostLoad()
 void USoundNodeSoundClass::BeginDestroy()
 {
 	Super::BeginDestroy();
-	if (bRetainingAudioDueToSoundClass)
-	{
-		ReleaseRetainerOnChildWavePlayers(true);
-	}
 }
