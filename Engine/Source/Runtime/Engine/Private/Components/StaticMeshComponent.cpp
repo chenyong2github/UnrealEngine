@@ -594,10 +594,10 @@ void UStaticMeshComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
-void UStaticMeshComponent::CreateRenderState_Concurrent()
+void UStaticMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	LLM_SCOPE(ELLMTag::StaticMesh);
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 }
 
 void UStaticMeshComponent::OnCreatePhysicsState()

@@ -34,10 +34,16 @@
 #include "Async/MappedFileHandle.h"
 #include "IO/IoDispatcher.h"
 
+#include "ProfilingDebugging/LoadTimeTracker.h"
+
 DEFINE_LOG_CATEGORY(LogPakFile);
 
 DEFINE_STAT(STAT_PakFile_Read);
 DEFINE_STAT(STAT_PakFile_NumOpenHandles);
+
+IMPLEMENT_TYPE_LAYOUT(FPakCompressedBlock);
+IMPLEMENT_TYPE_LAYOUT(FPakEntry);
+IMPLEMENT_TYPE_LAYOUT(FPakFileData);
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 
@@ -4244,7 +4250,7 @@ public:
 IAsyncReadFileHandle* FPakPlatformFile::OpenAsyncRead(const TCHAR* Filename)
 {
 	CSV_SCOPED_TIMING_STAT(FileIO, PakOpenAsyncRead);
-	check(GConfig);
+//	check(GConfig);
 #if USE_PAK_PRECACHE
 	if (FPlatformProcess::SupportsMultithreading() && GPakCache_Enable > 0)
 	{
@@ -4919,6 +4925,8 @@ void FPakFile::Initialize(FArchive* Reader, bool bLoadIndex)
 		{
 			Reader->Seek(FileInfoPos);
 
+			SCOPED_BOOT_TIMING("PakFile_SerilizeTrailer");
+
 			// Serialize trailer and check if everything is as expected.
 			Info.Serialize(*Reader, CompatibleVersion);
 			if (Info.Magic == FPakInfo::PakFile_Magic)
@@ -4932,7 +4940,7 @@ void FPakFile::Initialize(FArchive* Reader, bool bLoadIndex)
 	{
 		UE_CLOG(Info.Magic != FPakInfo::PakFile_Magic, LogPakFile, Fatal, TEXT("Trailing magic number (%ud) in '%s' is different than the expected one. Verify your installation."), Info.Magic, *PakFilename);
 		UE_CLOG(!(Info.Version >= FPakInfo::PakFile_Version_Initial && Info.Version <= CompatibleVersion), LogPakFile, Fatal, TEXT("Invalid pak file version (%d) in '%s'. Verify your installation."), Info.Version, *PakFilename);
-		UE_CLOG(!(Info.IndexOffset >= 0 && Info.IndexOffset < CachedTotalSize), LogPakFile, Fatal, TEXT("Index offset for pak file '%s' is invalid (%lld)"), *PakFilename, Info.IndexOffset);
+		UE_CLOG(!(Info.IndexOffset >= 0 && Info.IndexOffset < CachedTotalSize), LogPakFile, Fatal, TEXT("Index offset for pak file '%s' is invalid (%lld is bigger than file size %lld)"), *PakFilename, Info.IndexOffset, CachedTotalSize);
 		UE_CLOG(!((Info.IndexOffset + Info.IndexSize) >= 0 && (Info.IndexOffset + Info.IndexSize) <= CachedTotalSize), LogPakFile, Fatal, TEXT("Index end offset for pak file '%s' is invalid (%lld)"), *PakFilename, Info.IndexOffset + Info.IndexSize);
 
 		// If we aren't using a dynamic encryption key, process the pak file using the embedded key
@@ -4962,136 +4970,168 @@ void FPakFile::LoadIndex(FArchive* Reader)
 	}
 	else
 	{
-		// Load index into memory first.
-
-		// If we encounter a corrupt index, try again but gather some extra debugging information so we can try and understand where it failed.
-		bool bFirstPass = true;
-		TArray<uint8> IndexData;
-
-		while (true)
+		if (Info.Version >= FPakInfo::PakFile_Version_FrozenIndex && Info.bIndexIsFrozen)
 		{
+			SCOPED_BOOT_TIMING("PakFile_LoadFrozen");
+
+			// read frozen data
 			Reader->Seek(Info.IndexOffset);
-			IndexData.Empty(); // The next SetNum makes this Empty() logically redundant, but we want to try and force a memory reallocation for the re-attempt
-			IndexData.SetNum(Info.IndexSize);
-			Reader->Serialize(IndexData.GetData(), Info.IndexSize);
+			int32 FrozenSize = Info.IndexSize;
 
-			FSHAHash EncryptedDataHash;
-			if (!bFirstPass)
-			{
-				FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), EncryptedDataHash.Hash);
-			}
+			// read in the index, etc data in one lump
+			void* DataMemory = FMemory::Malloc(FrozenSize);
+			Reader->Serialize(DataMemory, FrozenSize);
+			Data = TUniquePtr<FPakFileData>((FPakFileData*)DataMemory);
 
-			// Decrypt if necessary
-			if (Info.bEncryptedIndex)
+			// cache the number of entries
+			NumEntries = Data->Files.Num();
+			// @todo loadtime: it is nice to serialize the mountpoint right into the Data so that IndexSize is right here
+			// but it takes this to copy it out, because it's too painful for the string manipulation when dealing with
+			// MemoryImageString everywhere MountPoint is used
+			MountPoint = Data->MountPoint;
+		}
+		else
+		{
+			// Load index into memory first.
+
+			// If we encounter a corrupt index, try again but gather some extra debugging information so we can try and understand where it failed.
+			bool bFirstPass = true;
+			TArray<uint8> IndexData;
+
+			while (true)
 			{
-				DecryptData(IndexData.GetData(), Info.IndexSize, Info.EncryptionKeyGuid);
-			}
-			// Check SHA1 value.
-			FSHAHash ComputedHash;
-			FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), ComputedHash.Hash);
-			if (Info.IndexHash != ComputedHash)
-			{
-				if (bFirstPass)
+				Reader->Seek(Info.IndexOffset);
+				IndexData.Empty(); // The next SetNum makes this Empty() logically redundant, but we want to try and force a memory reallocation for the re-attempt
+				IndexData.SetNum(Info.IndexSize);
 				{
-					UE_LOG(LogPakFile, Log, TEXT("Corrupt pak index detected!"));
-					UE_LOG(LogPakFile, Log, TEXT(" Filename: %s"), *PakFilename);
-					UE_LOG(LogPakFile, Log, TEXT(" Encrypted: %d"), Info.bEncryptedIndex);
-					UE_LOG(LogPakFile, Log, TEXT(" Total Size: %d"), Reader->TotalSize());
-					UE_LOG(LogPakFile, Log, TEXT(" Index Offset: %d"), Info.IndexOffset);
-					UE_LOG(LogPakFile, Log, TEXT(" Index Size: %d"), Info.IndexSize);
-					UE_LOG(LogPakFile, Log, TEXT(" Stored Index Hash: %s"), *Info.IndexHash.ToString());
-					UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash [Pass 0]: %s"), *ComputedHash.ToString());
-					bFirstPass = false;
+					SCOPED_BOOT_TIMING("PakFile_LoadIndex");
+					Reader->Serialize(IndexData.GetData(), Info.IndexSize);
 				}
-				else
-				{
-					UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash [Pass 1]: %s"), *ComputedHash.ToString());
-					UE_LOG(LogPakFile, Log, TEXT(" Encrypted Index Hash: %s"), *EncryptedDataHash.ToString());
 
-					// Compute an SHA1 hash of the whole file so we can tell if the file was modified on disc (obviously as long as this isn't an  IO bug that gives us the same bogus data again)
-					FSHA1 FileHash;
-					Reader->Seek(0);
-					int64 Remaining = Reader->TotalSize();
-					TArray<uint8> WorkingBuffer;
-					WorkingBuffer.SetNum(64 * 1024);
-					while (Remaining > 0)
-					{
-						int64 ToProcess = FMath::Min((int64)WorkingBuffer.Num(), Remaining);
-						Reader->Serialize(WorkingBuffer.GetData(), ToProcess);
-						FileHash.Update(WorkingBuffer.GetData(), ToProcess);
-						Remaining -= ToProcess;
-					}
-
-					FileHash.Final();
-					FSHAHash FinalFileHash;
-					FileHash.GetHash(FinalFileHash.Hash);
-					UE_LOG(LogPakFile, Log, TEXT(" File Hash: %s"), *FinalFileHash.ToString());
-
-					UE_LOG(LogPakFile, Fatal, TEXT("Corrupted index in pak file (SHA hash mismatch)."));
-				}
-			}
-			else
-			{
+				FSHAHash EncryptedDataHash;
 				if (!bFirstPass)
 				{
-					UE_LOG(LogPakFile, Log, TEXT("Pak index corruption appears to have recovered on the second attempt!"));
+					FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), EncryptedDataHash.Hash);
 				}
-				break;
-			}
-		}
 
-		FMemoryReader IndexReader(IndexData);
-
-		// Read the default mount point and all entries.
-		NumEntries = 0;
-		IndexReader << MountPoint;
-		IndexReader << NumEntries;
-
-		MakeDirectoryFromPath(MountPoint);
-		// Allocate enough memory to hold all entries (and not reallocate while they're being added to it).
-		Files.Empty(NumEntries);
-
-		for (int32 EntryIndex = 0; EntryIndex < NumEntries; EntryIndex++)
-		{
-			// Serialize from memory.
-			FPakEntry Entry;
-			FString Filename;
-			IndexReader << Filename;
-			Entry.Serialize(IndexReader, Info.Version);
-
-			// Add new file info.
-			Files.Add(Entry);
-
-			// Construct Index of all directories in pak file.
-			FString Path = FPaths::GetPath(Filename);
-			MakeDirectoryFromPath(Path);
-			FPakDirectory* Directory = Index.Find(Path);
-			if (Directory != NULL)
-			{
-				Directory->Add(FPaths::GetCleanFilename(Filename), EntryIndex);
-			}
-			else
-			{
-				FPakDirectory& NewDirectory = Index.Add(Path);
-				NewDirectory.Add(FPaths::GetCleanFilename(Filename), EntryIndex);
-
-				// add the parent directories up to the mount point
-				while (MountPoint != Path)
+				// Decrypt if necessary
+				if (Info.bEncryptedIndex)
 				{
-					Path.LeftInline(Path.Len() - 1, false);
-					int32 Offset = 0;
-					if (Path.FindLastChar('/', Offset))
+					DecryptData(IndexData.GetData(), Info.IndexSize, Info.EncryptionKeyGuid);
+				}
+				// Check SHA1 value.
+				FSHAHash ComputedHash;
+				{
+					SCOPED_BOOT_TIMING("PakFile_Hash");
+					FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), ComputedHash.Hash);
+				}
+				if (Info.IndexHash != ComputedHash)
+				{
+					if (bFirstPass)
 					{
-						Path.LeftInline(Offset, false);
-						MakeDirectoryFromPath(Path);
-						if (Index.Find(Path) == NULL)
-						{
-							Index.Add(Path);
-						}
+						UE_LOG(LogPakFile, Log, TEXT("Corrupt pak index detected!"));
+						UE_LOG(LogPakFile, Log, TEXT(" Filename: %s"), *PakFilename);
+						UE_LOG(LogPakFile, Log, TEXT(" Encrypted: %d"), Info.bEncryptedIndex);
+						UE_LOG(LogPakFile, Log, TEXT(" Total Size: %d"), Reader->TotalSize());
+						UE_LOG(LogPakFile, Log, TEXT(" Index Offset: %d"), Info.IndexOffset);
+						UE_LOG(LogPakFile, Log, TEXT(" Index Size: %d"), Info.IndexSize);
+						UE_LOG(LogPakFile, Log, TEXT(" Stored Index Hash: %s"), *Info.IndexHash.ToString());
+						UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash [Pass 0]: %s"), *ComputedHash.ToString());
+						bFirstPass = false;
 					}
 					else
 					{
-						Path = MountPoint;
+						UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash [Pass 1]: %s"), *ComputedHash.ToString());
+						UE_LOG(LogPakFile, Log, TEXT(" Encrypted Index Hash: %s"), *EncryptedDataHash.ToString());
+
+						// Compute an SHA1 hash of the whole file so we can tell if the file was modified on disc (obviously as long as this isn't an  IO bug that gives us the same bogus data again)
+						FSHA1 FileHash;
+						Reader->Seek(0);
+						int64 Remaining = Reader->TotalSize();
+						TArray<uint8> WorkingBuffer;
+						WorkingBuffer.SetNum(64 * 1024);
+						while (Remaining > 0)
+						{
+							int64 ToProcess = FMath::Min((int64)WorkingBuffer.Num(), Remaining);
+							Reader->Serialize(WorkingBuffer.GetData(), ToProcess);
+							FileHash.Update(WorkingBuffer.GetData(), ToProcess);
+							Remaining -= ToProcess;
+						}
+
+						FileHash.Final();
+						FSHAHash FinalFileHash;
+						FileHash.GetHash(FinalFileHash.Hash);
+						UE_LOG(LogPakFile, Log, TEXT(" File Hash: %s"), *FinalFileHash.ToString());
+
+						UE_LOG(LogPakFile, Fatal, TEXT("Corrupted index in pak file (SHA hash mismatch)."));
+					}
+				}
+				else
+				{
+					if (!bFirstPass)
+					{
+						UE_LOG(LogPakFile, Log, TEXT("Pak index corruption appears to have recovered on the second attempt!"));
+					}
+					break;
+				}
+			}
+
+			FMemoryReader IndexReader(IndexData);
+
+			// Read the default mount point and all entries.
+			NumEntries = 0;
+			IndexReader << MountPoint;
+			IndexReader << NumEntries;
+
+			MakeDirectoryFromPath(MountPoint);
+			// Allocate enough memory to hold all entries (and not reallocate while they're being added to it).
+
+			Data = MakeUnique<FPakFileData>();
+			Data->Files.Empty(NumEntries);
+			Data->Files.AddZeroed(NumEntries);
+
+			for (int32 EntryIndex = 0; EntryIndex < NumEntries; EntryIndex++)
+			{
+				// Serialize from memory.
+				FPakEntry& Entry = Data->Files[EntryIndex];
+				FString Filename;
+				IndexReader << Filename;
+				{
+					SCOPED_BOOT_TIMING("PakFile_SerializeEntry");
+					Entry.Serialize(IndexReader, Info.Version);
+				}
+
+				// Construct Index of all directories in pak file.
+				FString Path = FPaths::GetPath(Filename);
+				MakeDirectoryFromPath(Path);
+				FPakDirectory* Directory = Data->Index.Find(Path);
+				if (Directory != NULL)
+				{
+					Directory->Add(FPaths::GetCleanFilename(Filename), EntryIndex);
+				}
+				else
+				{
+					FPakDirectory& NewDirectory = Data->Index.Add(Path);
+					NewDirectory.Add(FPaths::GetCleanFilename(Filename), EntryIndex);
+
+					// add the parent directories up to the mount point
+					while (MountPoint != Path)
+					{
+						Path.LeftInline(Path.Len() - 1);
+						int32 Offset = 0;
+						if (Path.FindLastChar('/', Offset))
+						{
+							Path.LeftInline(Offset);
+							MakeDirectoryFromPath(Path);
+							if (Data->Index.Find(Path) == NULL)
+							{
+								Data->Index.Add(Path);
+							}
+						}
+						else
+						{
+							Path = MountPoint;
+						}
 					}
 				}
 			}
@@ -5222,6 +5262,12 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 	// Set this flag so if unloading fails, we don't try again
 	bAttemptedPakFilenameUnload = true;
 
+	if (Info.bIndexIsFrozen)
+	{
+		UE_LOG(LogPakFile, Warning, TEXT("FAILED unloading filenames for pak '%s' - its index was frozen and cannot be modified"), *PakFilename);
+		return false;
+	}
+
 	// Variables for the filename hashing and collision detection.
 	int NumRetries = 0;
 	const int MAX_RETRIES = bAllowRetries ? 10 : 1;
@@ -5245,7 +5291,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 		int32 EntryIndex = 0;
 		FString FinalFilename;
 		FinalFilename.Reset(1024);
-		for (TMap<FString, FPakDirectory>::TConstIterator It(Index); (It && !bHasCollision); ++It)
+		for (TMemoryImageMap<FMemoryImageString, FPakDirectory>::TConstIterator It(Data->Index); (It && !bHasCollision); ++It)
 		{
 			for (FPakDirectory::TConstIterator DirectoryIt(It.Value()); DirectoryIt; ++DirectoryIt)
 			{
@@ -5260,7 +5306,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 
 				const FPakEntry* EntryFromPreviousPaks = CrossPakCollisionChecker.Find(FilenameHash);
 				const FPakEntry* EntryFromCurrentPak = NewCollisionCheckEntries.Find(FilenameHash);
-				const FPakEntry& CurrentEntry = Files[DirectoryIt.Value()];
+				const FPakEntry& CurrentEntry = Data->Files[DirectoryIt.Value()];
 
 				if (EntryFromPreviousPaks && (FMemory::Memcmp(EntryFromPreviousPaks->Hash, CurrentEntry.Hash, sizeof(CurrentEntry.Hash))) != 0)
 				{
@@ -5390,7 +5436,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 	// Clear out those portions of the Index allowed by the user.
 	if (DirectoryRootsToKeep != nullptr)
 	{
-		for(auto It = Index.CreateIterator(); It; ++It)
+		for(auto It = Data->Index.CreateIterator(); It; ++It)
 		{
 			const FString DirectoryName = MountPoint / It.Key();
 
@@ -5410,7 +5456,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 			}
 		}
 
-		Index.Shrink();
+		Data->Index.Shrink();
 
 #if defined(FPAKFILE_UNLOADPAKENTRYFILENAMES_LOGKEPTFILENAMES)
 		for (TMap<FString, FPakDirectory>::TConstIterator It(Index); It; ++It)
@@ -5421,7 +5467,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 	}
 	else
 	{
-		Index.Empty(0);
+		Data->Index.Empty(0);
 	}
 
 	return true;
@@ -5442,13 +5488,20 @@ bool FPakFile::ShrinkPakEntriesMemoryUsage()
 	// Set this flag so if shrinking fails, we don't try again
 	bAttemptedPakEntryShrink = true;
 
+	// if the index was frozen, we can't unload parts of it, so skip on out
+	if (Info.bIndexIsFrozen)
+	{
+		UE_LOG(LogPakFile, Warning, TEXT("FAILED shrinking entries for pak file '%s' - its index was frozen and cannot be modified"), *PakFilename);
+		return false;
+	}
+
 	// Wander every file entry.
 	int TotalSizeOfCompressedEntries = 0;
 	bool bIsPossibleToShrink = true;
 	int32 EntryIndex = 0;
 	for (EntryIndex = 0; EntryIndex < NumEntries; ++EntryIndex)
 	{
-		FPakEntry& Entry = Files[EntryIndex];
+		FPakEntry& Entry = Data->Files[EntryIndex];
 
 		bool bIsOffset32BitSafe = Entry.Offset <= MAX_uint32;
 		bool bIsSize32BitSafe = Entry.Size <= MAX_uint32;
@@ -5538,7 +5591,7 @@ bool FPakFile::ShrinkPakEntriesMemoryUsage()
 	uint8* CurrentEntryPtr = MiniPakEntries;
 	for (EntryIndex = 0; EntryIndex < NumEntries; ++EntryIndex)
 	{
-		FPakEntry* FullEntry = &Files[EntryIndex];
+		FPakEntry* FullEntry = &Data->Files[EntryIndex];
 
 		MiniPakEntriesOffsets[EntryIndex] = CurrentEntryPtr - MiniPakEntries;
 
@@ -5650,7 +5703,7 @@ bool FPakFile::ShrinkPakEntriesMemoryUsage()
 
 	// Clear out the Files data. We compressed it, and we don't need the wasted
 	// space of the original anymore.
-	Files.Empty(0);
+	Data->Files.Empty(0);
 
 	static uint64 Total = 0;
 	Total += TotalSizeOfCompressedEntries;
@@ -5709,7 +5762,7 @@ public:
 
 void FPakFile::GetFilenames(TArray<FString>& OutFileList) const
 {
-	for (const TMap<FString, FPakDirectory>::ElementType& DirectoryElement : Index)
+	for (const TMemoryImageMap<FMemoryImageString, FPakDirectory>::ElementType& DirectoryElement : Data->Index)
 	{
 		const  FPakDirectory& Directory = DirectoryElement.Value;
 		for (const FPakDirectory::ElementType& FileElement : Directory)
@@ -5730,7 +5783,7 @@ void FPakFile::GetFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FStri
 		int32 ChunkEnd = ChunkStart + FPakInfo::MaxChunkDataSize;
 		int32 FileIndex = 0;
 
-		for (const FPakEntry& File : Files)
+		for (const FPakEntry& File : Data->Files)
 		{
 			int32 FileStart = File.Offset;
 			int32 FileEnd = File.Offset + File.Size;
@@ -5752,14 +5805,14 @@ void FPakFile::GetFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FStri
 	}
 
 	int32 Remaining = OverlappingEntries.Num();
-	for (const TMap<FString, FPakDirectory>::ElementType& DirectoryElement : Index)
+	for (const TMemoryImageMap<FMemoryImageString, FPakDirectory>::ElementType& DirectoryElement : Data->Index)
 	{
 		const  FPakDirectory& Directory = DirectoryElement.Value;
 		for (const FPakDirectory::ElementType& FileElement : Directory)
 		{
 			if (OverlappingEntries.Contains(FileElement.Value))
 			{
-				OutFileList.Add(DirectoryElement.Key / FileElement.Key);
+				OutFileList.Add(FString(DirectoryElement.Key) / FString(FileElement.Key));
 				if (--Remaining == 0)
 				{
 					break;
@@ -5874,7 +5927,7 @@ FPakFile::EFindResult FPakFile::Find(const FString& Filename, FPakEntry* OutEntr
 				}
 				else
 				{
-					const FPakEntry* FoundEntry = &Files[FoundEntryIndex];
+					const FPakEntry* FoundEntry = &Data->Files[FoundEntryIndex];
 
 					bDeleted = FoundEntry->IsDeleteRecord();
 
@@ -5900,7 +5953,7 @@ FPakFile::EFindResult FPakFile::Find(const FString& Filename, FPakEntry* OutEntr
 			const FPakDirectory* PakDirectory = FindDirectory(*Path);
 			if (PakDirectory != NULL)
 			{
-				FString RelativeFilename(Filename.Mid(Path.Len() + 1));
+				FMemoryImageString RelativeFilename(Filename.Mid(Path.Len() + 1));
 				int32 const* FoundEntryIndex = PakDirectory->Find(RelativeFilename);
 				if (FoundEntryIndex != NULL)
 				{
@@ -5932,7 +5985,7 @@ FPakFile::EFindResult FPakFile::Find(const FString& Filename, FPakEntry* OutEntr
 					}
 					else
 					{
-						const FPakEntry* FoundEntry = &Files[*FoundEntryIndex];
+						const FPakEntry* FoundEntry = &Data->Files[*FoundEntryIndex];
 						bDeleted = FoundEntry->IsDeleteRecord();
 
 						if (OutEntry != NULL)
@@ -6530,6 +6583,7 @@ int32 FPakPlatformFile::MountAllPakFiles(const TArray<FString>& PakFolders, cons
 
 			UE_LOG(LogPakFile, Display, TEXT("Mounting pak file %s."), *PakFilename);
 
+			SCOPED_BOOT_TIMING("Pak_Mount");
 			if (Mount(*PakFilename, PakOrder))
 			{
 				++NumPakFilesMounted;
@@ -6890,10 +6944,10 @@ void FPakFile::AddSpecialFile(FPakEntry Entry, const FString& Filename)
 {
 	MakeDirectoryFromPath(MountPoint);
 
-	int32 EntryIndex = Files.Num();
+	int32 EntryIndex = Data->Files.Num();
 
 	// Add new file info.
-	Files.Add(Entry);
+	Data->Files.Add(Entry);
 	NumEntries++;
 
 	// Construct Index of all directories in pak file.
@@ -6907,14 +6961,14 @@ void FPakFile::AddSpecialFile(FPakEntry Entry, const FString& Filename)
 
 
 
-	FPakDirectory* Directory = Index.Find(Path); 
+	FPakDirectory* Directory = Data->Index.Find(Path);
 	if (Directory != NULL)
 	{
 		Directory->Add(FPaths::GetCleanFilename(CleanFilename), EntryIndex);
 	}
 	else
 	{
-		FPakDirectory& NewDirectory = Index.Add(Path);
+		FPakDirectory& NewDirectory = Data->Index.Add(Path);
 		NewDirectory.Add(FPaths::GetCleanFilename(CleanFilename), EntryIndex);
 
 		// add the parent directories up to the mount point
@@ -6926,9 +6980,9 @@ void FPakFile::AddSpecialFile(FPakEntry Entry, const FString& Filename)
 			{
 				Path.LeftInline(Offset, false);
 				MakeDirectoryFromPath(Path);
-				if (Index.Find(Path) == NULL)
+				if (Data->Index.Find(Path) == NULL)
 				{
-					Index.Add(Path);
+					Data->Index.Add(Path);
 				}
 			}
 			else
@@ -6958,7 +7012,7 @@ void FPakPlatformFile::MakeUniquePakFilesForTheseFiles(TArray<TArray<FString>> I
 					// we successfully mounted the file, find the empty pak file we just added.
 					for (int j = 0; j < PakFiles.Num(); j++)
 					{
-						if (PakFiles[j].PakFile->Files.Num() == 0 && PakFiles[j].PakFile->CachedTotalSize == PakFile->CachedTotalSize)
+						if (PakFiles[j].PakFile->Data->Files.Num() == 0 && PakFiles[j].PakFile->CachedTotalSize == PakFile->CachedTotalSize)
 						{
 							NewPakFile = PakFiles[j].PakFile;
 							break;

@@ -14,6 +14,7 @@
 
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
+class TargetPlatform;
 
 /** Used to identify the global shader map in compile queues. */
 extern RENDERCORE_API const int32 GlobalShaderMapId;
@@ -27,7 +28,7 @@ public:
 	RENDERCORE_API FGlobalShaderMapId(EShaderPlatform Platform);
 
 	/** Append to a string that will be used as a DDC key. */
-	RENDERCORE_API void AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies) const;
+	RENDERCORE_API void AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies, const ITargetPlatform* TargetPlatform) const;
 
 	RENDERCORE_API const TMap<FString, TArray<FShaderTypeDependency>>& GetShaderFilenameToDependeciesMap() const { return ShaderFilenameToDependenciesMap; }
 
@@ -39,19 +40,7 @@ private:
 	TArray<FShaderPipelineTypeDependency> ShaderPipelineTypeDependencies;
 };
 
-struct FGlobalShaderPermutationParameters
-{
-	// Shader platform to compile to.
-	const EShaderPlatform Platform;
-
-	/** Unique permutation identifier of the global shader type. */
-	const int32 PermutationId;
-
-	FGlobalShaderPermutationParameters(EShaderPlatform InPlatform, int32 InPermutationId)
-		: Platform(InPlatform)
-		, PermutationId(InPermutationId)
-	{ }
-};
+using FGlobalShaderPermutationParameters = FShaderPermutationParameters;
 
 /**
  * A shader meta type for the simplest shaders; shaders which are not material or vertex factory linked.
@@ -63,12 +52,9 @@ class FGlobalShaderType : public FShaderType
 public:
 
 	typedef FShader::CompiledShaderInitializerType CompiledShaderInitializerType;
-	typedef FShader* (*ConstructCompiledType)(const CompiledShaderInitializerType&);
-	typedef bool (*ShouldCompilePermutationType)(const FGlobalShaderPermutationParameters&);
-	typedef bool(*ValidateCompiledResultType)(EShaderPlatform, const FShaderParameterMap&, TArray<FString>&);
-	typedef void (*ModifyCompilationEnvironmentType)(const FGlobalShaderPermutationParameters&, FShaderCompilerEnvironment&);
 
 	FGlobalShaderType(
+		FTypeLayoutDesc& InTypeLayout,
 		const TCHAR* InName,
 		const TCHAR* InSourceFilename,
 		const TCHAR* InFunctionName,
@@ -79,13 +65,17 @@ public:
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
+		uint32 InTypeSize,
 		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
 		):
-		FShaderType(EShaderTypeForDynamicCast::Global, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount, InConstructSerializedRef, InRootParametersMetadata),
-		ConstructCompiledRef(InConstructCompiledRef),
-		ShouldCompilePermutationRef(InShouldCompilePermutationRef),
-		ValidateCompiledResultRef(InValidateCompiledResultRef),
-		ModifyCompilationEnvironmentRef(InModifyCompilationEnvironmentRef)
+		FShaderType(EShaderTypeForDynamicCast::Global, InTypeLayout, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount,
+			InConstructSerializedRef,
+			InConstructCompiledRef,
+			InModifyCompilationEnvironmentRef,
+			InShouldCompilePermutationRef,
+			InValidateCompiledResultRef,
+			InTypeSize,
+			InRootParametersMetadata)
 	{
 		checkf(FPaths::GetExtension(InSourceFilename) == TEXT("usf"),
 			TEXT("Incorrect virtual shader path extension for global shader '%s': Only .usf files should be "
@@ -100,7 +90,7 @@ public:
 	 */
 	bool ShouldCompilePermutation(EShaderPlatform Platform, int32 PermutationId) const
 	{
-		return (*ShouldCompilePermutationRef)(FGlobalShaderPermutationParameters(Platform, PermutationId));
+		return FShaderType::ShouldCompilePermutation(FGlobalShaderPermutationParameters(Platform, PermutationId));
 	}
 
 	/**
@@ -111,28 +101,135 @@ public:
 	void SetupCompileEnvironment(EShaderPlatform Platform, int32 PermutationId, FShaderCompilerEnvironment& Environment)
 	{
 		// Allow the shader type to modify its compile environment.
-		(*ModifyCompilationEnvironmentRef)(FGlobalShaderPermutationParameters(Platform, PermutationId), Environment);
+		ModifyCompilationEnvironment(FGlobalShaderPermutationParameters(Platform, PermutationId), Environment);
+	}
+};
+
+class RENDERCORE_API FGlobalShaderMapContent : public FShaderMapContent
+{
+	using Super = FShaderMapContent;
+	friend class FGlobalShaderMap;
+	friend class FGlobalShaderMapSection;
+	DECLARE_TYPE_LAYOUT(FGlobalShaderMapContent, NonVirtual);
+public:
+	const FHashedName& GetHashedSourceFilename() const { return HashedSourceFilename; }
+
+private:
+	inline FGlobalShaderMapContent(EShaderPlatform InPlatform, const FHashedName& InHashedSourceFilename)
+		: Super(InPlatform)
+		, HashedSourceFilename(InHashedSourceFilename)
+	{}
+
+	LAYOUT_FIELD(FHashedName, HashedSourceFilename);
+};
+
+class RENDERCORE_API FGlobalShaderMapSection : public TShaderMap<FGlobalShaderMapContent, FShaderMapPointerTable>
+{
+	using Super = TShaderMap<FGlobalShaderMapContent, FShaderMapPointerTable>;
+	friend class FGlobalShaderMap;
+public:
+	static FGlobalShaderMapSection* CreateFromArchive(FArchive& Ar);
+
+	~FGlobalShaderMapSection() { ReleaseResourceBuilder(); }
+
+	void Serialize(FArchive& Ar);
+
+	FShaderMapResourceBuilder& GetResourceBuilder()
+	{
+		if (ResourceBuilder == nullptr)
+		{
+			ResourceBuilder = new FShaderMapResourceBuilder(GetResourceCode());
+		}
+		return *ResourceBuilder;
 	}
 
-	/**
-	* Checks if the shader type should pass compilation for a particular set of parameters.
-	* @param Platform - Platform to validate.
-	* @param ParameterMap - Shader parameters to validate.
-	* @param OutError - List for appending validation errors.
-	*/
-	bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError) const
+	void ReleaseResourceBuilder()
 	{
-		return (*ValidateCompiledResultRef)(Platform, ParameterMap, OutError);
+		if (ResourceBuilder)
+		{
+			delete ResourceBuilder;
+			ResourceBuilder = nullptr;
+		}
 	}
 
 private:
-	ConstructCompiledType ConstructCompiledRef;
-	ShouldCompilePermutationType ShouldCompilePermutationRef;
-	ValidateCompiledResultType ValidateCompiledResultRef;
-	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
+	inline FGlobalShaderMapSection() {}
+
+	inline FGlobalShaderMapSection(EShaderPlatform InPlatform, const FHashedName& InHashedSourceFilename)
+	{
+		AssignContent(new FGlobalShaderMapContent(InPlatform, InHashedSourceFilename));
+	}
+
+	TShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId = 0) const;
+	FShaderPipelineRef GetShaderPipeline(const FShaderPipelineType* PipelineType) const;
+
+	FShaderMapResourceBuilder* ResourceBuilder = nullptr;
 };
 
-extern RENDERCORE_API TShaderMap<FGlobalShaderType>* GGlobalShaderMap[SP_NumPlatforms];
+class RENDERCORE_API FGlobalShaderMap
+{
+public:
+	explicit FGlobalShaderMap(EShaderPlatform InPlatform);
+	~FGlobalShaderMap();
+
+	TShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId = 0) const;
+	FShaderPipelineRef GetShaderPipeline(const FShaderPipelineType* PipelineType) const;
+
+	template<typename ShaderType>
+	TShaderRef<ShaderType> GetShader(int32 PermutationId = 0) const
+	{
+		TShaderRef<FShader> Shader = GetShader(&ShaderType::StaticType, PermutationId);
+		checkf(Shader.IsValid(), TEXT("Failed to find shader type %s in Platform %s"), ShaderType::StaticType.GetName(), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
+		return TShaderRef<ShaderType>::Cast(Shader);
+	}
+
+	/** Finds the shader with the given type.  Asserts on failure. */
+	template<typename ShaderType>
+	TShaderRef<ShaderType> GetShader(const typename ShaderType::FPermutationDomain& PermutationVector) const
+	{
+		return GetShader<ShaderType>(PermutationVector.ToDimensionValueId());
+	}
+
+	bool HasShader(FShaderType* Type, int32 PermutationId) const
+	{
+		return GetShader(Type, PermutationId).IsValid();
+	}
+
+	bool HasShaderPipeline(const FShaderPipelineType* ShaderPipelineType) const
+	{
+		return GetShaderPipeline(ShaderPipelineType).IsValid();
+	}
+
+	bool IsEmpty() const;
+
+	void Empty();
+
+	FShader* FindOrAddShader(const FShaderType* ShaderType, FShader* Shader);
+	FShaderPipeline* FindOrAddShaderPipeline(const FShaderPipelineType* ShaderPipelineType, FShaderPipeline* ShaderPipeline);
+
+	void RemoveShaderTypePermutaion(const FShaderType* Type, int32 PermutationId);
+	void RemoveShaderPipelineType(const FShaderPipelineType* ShaderPipelineType);
+
+	void AddSection(FGlobalShaderMapSection* InSection);
+	FGlobalShaderMapSection* FindSection(const FHashedName& HashedShaderFilename);
+	FGlobalShaderMapSection* FindOrAddSection(const FShaderType* ShaderType);
+	
+	void LoadFromGlobalArchive(FArchive& Ar);
+	void SaveToGlobalArchive(FArchive& Ar);
+
+	void BeginCreateAllShaders();
+
+#if WITH_EDITOR
+	void GetOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const;
+	void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform);
+#endif // WITH_EDITOR
+
+private:
+	TMap<FHashedName, FGlobalShaderMapSection*> SectionMap;
+	EShaderPlatform Platform;
+};
+
+extern RENDERCORE_API FGlobalShaderMap* GGlobalShaderMap[SP_NumPlatforms];
 
 
 /**
@@ -142,8 +239,9 @@ extern RENDERCORE_API TShaderMap<FGlobalShaderType>* GGlobalShaderMap[SP_NumPlat
  */
 class FGlobalShader : public FShader
 {
-	DECLARE_SHADER_TYPE(FGlobalShader,Global);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FGlobalShader, RENDERCORE_API, NonVirtual);
 public:
+	using ShaderMetaType = FGlobalShaderType;
 
 	FGlobalShader() : FShader() {}
 
@@ -156,11 +254,8 @@ public:
 		SetUniformBufferParameter(RHICmdList, ShaderRHI, ViewUniformBufferParameter, ViewUniformBuffer);
 	}
 
-	typedef void (*ModifyCompilationEnvironmentType)(EShaderPlatform, FShaderCompilerEnvironment&);
-
-	// FShader interface.
-	RENDERCORE_API static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) {}
-	RENDERCORE_API static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors) { return true; }
+	
+	
 };
 
 /**
@@ -199,13 +294,13 @@ extern RENDERCORE_API void BackupGlobalShaderMap(FGlobalShaderBackupData& OutGlo
 extern RENDERCORE_API void RestoreGlobalShaderMap(const FGlobalShaderBackupData& GlobalShaderData);
 
 /**
- * Accesses the global shader map.  This is a global TShaderMap<FGlobalShaderType> which contains an instance of each global shader type.
+ * Accesses the global shader map.  This is a global FGlobalShaderMap which contains an instance of each global shader type.
  *
  * @param Platform Which platform's global shader map to use
  * @param bRefreshShaderMap If true, the existing global shader map will be tossed first
  * @return A reference to the global shader map.
  */
-extern RENDERCORE_API TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(EShaderPlatform Platform);
+extern RENDERCORE_API FGlobalShaderMap* GetGlobalShaderMap(EShaderPlatform Platform);
 
 /**
   * Overload for the above GetGlobalShaderMap which takes a feature level and translates to the appropriate shader platform
@@ -215,7 +310,7 @@ extern RENDERCORE_API TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(EShaderP
   * @return A reference to the global shader map.
   *
   **/
-inline TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(ERHIFeatureLevel::Type FeatureLevel) 
+inline FGlobalShaderMap* GetGlobalShaderMap(ERHIFeatureLevel::Type FeatureLevel)
 { 
 	return GetGlobalShaderMap(GShaderPlatformForFeatureLevel[FeatureLevel]); 
 }
@@ -249,10 +344,12 @@ inline TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(ERHIFeatureLevel::Type 
  *		// ...
  * };
  */
-#define DECLARE_GLOBAL_SHADER(ShaderClass) \
+/*#define DECLARE_GLOBAL_SHADER(ShaderClass) \
 	public: \
 	\
 	using ShaderMetaType = FGlobalShaderType; \
+	\
+	using ShaderMapType = FGlobalShaderMap; \
 	\
 	static ShaderMetaType StaticType; \
 	\
@@ -260,10 +357,8 @@ inline TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(ERHIFeatureLevel::Type 
 	static FShader* ConstructCompiledInstance(const ShaderMetaType::CompiledShaderInitializerType& Initializer) \
 	{ return new ShaderClass(Initializer); } \
 	\
-	virtual uint32 GetTypeSize() const override { return sizeof(*this); } \
-	\
 	static void ModifyCompilationEnvironmentImpl( \
-		const FGlobalShaderPermutationParameters& Parameters, \
+		const FShaderPermutationParameters& Parameters, \
 		FShaderCompilerEnvironment& OutEnvironment) \
 	{ \
 		FPermutationDomain PermutationVector(Parameters.PermutationId); \
@@ -280,8 +375,19 @@ inline TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(ERHIFeatureLevel::Type 
 		ShaderClass::FPermutationDomain::PermutationCount, \
 		ShaderClass::ConstructSerializedInstance, \
 		ShaderClass::ConstructCompiledInstance, \
+		ShaderClass::ConstructEditorContent, \
+		ShaderClass::DestroyInstance, \
+		ShaderClass::DestroyEditorContent, \
 		ShaderClass::ModifyCompilationEnvironmentImpl, \
 		ShaderClass::ShouldCompilePermutation, \
 		ShaderClass::ValidateCompiledResult, \
+		ShaderClass::FreezeMemoryImageImpl, \
+		ShaderClass::FreezeMemoryImageEditorImpl, \
+		sizeof(ShaderClass), \
+		sizeof(ShaderClass::FEditorContent), \
 		ShaderClass::GetRootParametersMetadata() \
 		)
+		*/
+
+#define DECLARE_GLOBAL_SHADER(ShaderClass) DECLARE_SHADER_TYPE(ShaderClass, Global)
+#define IMPLEMENT_GLOBAL_SHADER(ShaderClass,SourceFilename,FunctionName,Frequency) IMPLEMENT_SHADER_TYPE(,ShaderClass,TEXT(SourceFilename),TEXT(FunctionName),Frequency)

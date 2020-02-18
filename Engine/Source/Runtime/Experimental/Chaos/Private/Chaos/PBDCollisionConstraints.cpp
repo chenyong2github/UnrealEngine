@@ -114,7 +114,7 @@ namespace Chaos
 	{
 		PostApplyPushOutCallback = Callback;
 	}
-
+	
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::ClearPostApplyPushOutCallback()
 	{

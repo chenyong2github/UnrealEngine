@@ -229,7 +229,7 @@ public:
 	{
 		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
 		Material = InMaterialInterface->GetMaterial();
-		InMaterialInterface->AppendReferencedTextures(ReferencedTextures);
+		ReferencedTextures = InMaterialInterface->GetReferencedTextures();
 
 		const FMaterialResource* Resource = InMaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel);
 
@@ -240,8 +240,6 @@ public:
 		// to be able to set back GameThreadShaderMap after async compilation.
 		Id = ResourceId.BaseMaterialId;
 
-		FStaticParameterSet StaticParamSet;
-		Resource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 
 		{
 			TArray<FShaderType*> ShaderTypes;
@@ -272,7 +270,7 @@ public:
 			break;
 		};
 
-		CacheShaders(ResourceId, &StaticParamSet, GMaxRHIShaderPlatform);
+		CacheShaders(ResourceId, GMaxRHIShaderPlatform);
 	}
 
 	/** This override is required otherwise the shaders aren't ready for use when the surface is rendered resulting in a blank image */
@@ -296,7 +294,7 @@ public:
 		return bCorrectVertexFactory && bPCPlatform && bCorrectFrequency;
 	}
 
-	virtual const TArray<UObject*>& GetReferencedTextures() const override
+	virtual TArrayView<UObject* const> GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -316,22 +314,22 @@ public:
 		}
 	}
 
-	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return MaterialInterface->GetRenderProxy()->GetVectorValue(ParameterInfo, OutValue, Context);
 	}
 
-	virtual bool GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return MaterialInterface->GetRenderProxy()->GetScalarValue(ParameterInfo, OutValue, Context);
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
 	}

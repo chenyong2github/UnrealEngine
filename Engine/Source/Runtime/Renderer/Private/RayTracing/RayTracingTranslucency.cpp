@@ -165,7 +165,7 @@ public:
 	}
 
 	FCompositeTranslucencyPS() {}
-	virtual ~FCompositeTranslucencyPS() {}
+	~FCompositeTranslucencyPS() {}
 
 	FCompositeTranslucencyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -182,7 +182,7 @@ public:
 		FRHITexture* TranslucencyTexture,
 		FRHITexture* HitDistanceTexture)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
@@ -190,18 +190,10 @@ public:
 		// #dxr_todo: UE-72581 Use hit-distance texture for denoising
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TranslucencyTextureParameter;
-		Ar << TranslucencyTextureSamplerParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderResourceParameter TranslucencyTextureParameter;
-	FShaderResourceParameter TranslucencyTextureSamplerParameter;
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters)
+	LAYOUT_FIELD(FShaderResourceParameter, TranslucencyTextureParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, TranslucencyTextureSamplerParameter)
 };
 
 IMPLEMENT_SHADER_TYPE(, FCompositeTranslucencyPS, TEXT("/Engine/Private/RayTracing/CompositeTranslucencyPS.usf"), TEXT("CompositeTranslucencyPS"), SF_Pixel)
@@ -266,8 +258,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -282,7 +274,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
 				SceneContext.GetBufferSizeXY(),
-				*VertexShader);
+				VertexShader);
 		}
 
 		ResolveSceneColor(RHICmdList);

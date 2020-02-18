@@ -839,7 +839,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Tonemap %dx%d (CS GammaOnly=%d)", OutputViewport.Rect.Width(), OutputViewport.Rect.Height(), Inputs.bGammaOnly),
-			*ComputeShader,
+			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(OutputViewport.Rect.Size(), FIntPoint(GTonemapComputeTileSizeX, GTonemapComputeTileSizeY)));
 	}
@@ -870,13 +870,13 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 			View,
 			OutputViewport,
 			SceneColorViewport,
-			FScreenPassPipelineState(*VertexShader, *PixelShader, BlendState, DepthStencilState),
+			FScreenPassPipelineState(VertexShader, PixelShader, BlendState, DepthStencilState),
 			DrawFlags,
 			PassParameters,
 			[VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 		{
-			SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), PassParameters->Tonemap);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->Tonemap);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 		});
 	}
 
@@ -1211,27 +1211,27 @@ class FPostProcessTonemapPS_ES2 : public FGlobalShader
 	FPostProcessTonemapPS_ES2() {}
 
 public:
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderParameter ColorScale0;
-	FShaderParameter ColorScale1;
-	FShaderParameter TexScale;
-	FShaderParameter GrainScaleBiasJitter;
-	FShaderParameter InverseGamma;
-	FShaderParameter TonemapperParams;
+	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
+	LAYOUT_FIELD(FShaderParameter, ColorScale0);
+	LAYOUT_FIELD(FShaderParameter, ColorScale1);
+	LAYOUT_FIELD(FShaderParameter, TexScale);
+	LAYOUT_FIELD(FShaderParameter, GrainScaleBiasJitter);
+	LAYOUT_FIELD(FShaderParameter, InverseGamma);
+	LAYOUT_FIELD(FShaderParameter, TonemapperParams);
 
-	FShaderParameter ColorMatrixR_ColorCurveCd1;
-	FShaderParameter ColorMatrixG_ColorCurveCd3Cm3;
-	FShaderParameter ColorMatrixB_ColorCurveCm2;
-	FShaderParameter ColorCurve_Cm0Cd0_Cd2_Ch0Cm1_Ch3;
-	FShaderParameter ColorCurve_Ch1_Ch2;
-	FShaderParameter ColorShadow_Luma;
-	FShaderParameter ColorShadow_Tint1;
-	FShaderParameter ColorShadow_Tint2;
+	LAYOUT_FIELD(FShaderParameter, ColorMatrixR_ColorCurveCd1);
+	LAYOUT_FIELD(FShaderParameter, ColorMatrixG_ColorCurveCd3Cm3);
+	LAYOUT_FIELD(FShaderParameter, ColorMatrixB_ColorCurveCm2);
+	LAYOUT_FIELD(FShaderParameter, ColorCurve_Cm0Cd0_Cd2_Ch0Cm1_Ch3);
+	LAYOUT_FIELD(FShaderParameter, ColorCurve_Ch1_Ch2);
+	LAYOUT_FIELD(FShaderParameter, ColorShadow_Luma);
+	LAYOUT_FIELD(FShaderParameter, ColorShadow_Tint1);
+	LAYOUT_FIELD(FShaderParameter, ColorShadow_Tint2);
 
-	FShaderParameter OverlayColor;
-	FShaderParameter FringeIntensity;
-	FShaderParameter SRGBAwareTargetParam;
-	FShaderParameter DefaultEyeExposure;
+	LAYOUT_FIELD(FShaderParameter, OverlayColor);
+	LAYOUT_FIELD(FShaderParameter, FringeIntensity);
+	LAYOUT_FIELD(FShaderParameter, SRGBAwareTargetParam);
+	LAYOUT_FIELD(FShaderParameter, DefaultEyeExposure);
 
 	/** Initialization constructor. */
 	FPostProcessTonemapPS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -1262,28 +1262,13 @@ public:
 		DefaultEyeExposure.Bind(Initializer.ParameterMap, TEXT("DefaultEyeExposure"));
 	}
 	
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar  << PostprocessParameter << ColorScale0 << ColorScale1 << InverseGamma
-			<< TexScale << GrainScaleBiasJitter << TonemapperParams
-			<< ColorMatrixR_ColorCurveCd1 << ColorMatrixG_ColorCurveCd3Cm3 << ColorMatrixB_ColorCurveCm2 << ColorCurve_Cm0Cd0_Cd2_Ch0Cm1_Ch3 << ColorCurve_Ch1_Ch2 << ColorShadow_Luma << ColorShadow_Tint1 << ColorShadow_Tint2
-			<< OverlayColor
-			<< FringeIntensity
-			<< SRGBAwareTargetParam
-			<< DefaultEyeExposure;
-
-		return bShaderHasOutdatedParameters;
-	}
-
 	template <typename TRHICmdList>
 	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FPermutationDomain& PermutationVector, bool bSRGBAwareTarget)
 	{
 		const FPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
 		const FSceneViewFamily& ViewFamily = *(Context.View.Family);
 
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
 		
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
@@ -1402,13 +1387,13 @@ class FPostProcessTonemapVS_ES2 : public FGlobalShader
 	FPostProcessTonemapVS_ES2() { }
 
 public:
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderResourceParameter EyeAdaptation;
-	FShaderParameter GrainRandomFull;
-	FShaderParameter FringeIntensity;
-	FShaderParameter ScreenPosToViewportBias;
-	FShaderParameter ScreenPosToViewportScale;
-	bool bUsedFramebufferFetch;
+	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, EyeAdaptation);
+	LAYOUT_FIELD(FShaderParameter, GrainRandomFull);
+	LAYOUT_FIELD(FShaderParameter, FringeIntensity);
+	LAYOUT_FIELD(FShaderParameter, ScreenPosToViewportBias);
+	LAYOUT_FIELD(FShaderParameter, ScreenPosToViewportScale);
+	LAYOUT_FIELD(bool, bUsedFramebufferFetch);
 
 	FPostProcessTonemapVS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -1422,7 +1407,7 @@ public:
 
 	void SetVS(const FRenderingCompositePassContext& Context)
 	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = Context.RHICmdList.GetBoundVertexShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
 		PostprocessParameter.SetVS(ShaderRHI, Context, TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
@@ -1456,13 +1441,6 @@ public:
 			SetShaderValue(Context.RHICmdList, ShaderRHI, ScreenPosToViewportScale, FVector2D(ScreenPosToScenePixelValue.X, ScreenPosToScenePixelValue.Y));
 			SetShaderValue(Context.RHICmdList, ShaderRHI, ScreenPosToViewportBias, FVector2D(ScreenPosToScenePixelValue.Z, ScreenPosToScenePixelValue.W));
 		}
-	}
-	
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << GrainRandomFull << FringeIntensity << ScreenPosToViewportBias << ScreenPosToViewportScale;
-		return bShaderHasOutdatedParameters;
 	}
 };
 
@@ -1530,8 +1508,8 @@ void FRCPassPostProcessTonemapES2::Process(FRenderingCompositePassContext& Conte
 			VertexShader->bUsedFramebufferFetch = bUsedFramebufferFetch;
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
@@ -1548,7 +1526,7 @@ void FRCPassPostProcessTonemapES2::Process(FRenderingCompositePassContext& Conte
 			SrcRect.Width(), SrcRect.Height(),
 			DstSize,
 			SrcSize,
-			*VertexShader,
+			VertexShader,
 			EDRF_UseTriangleOptimization);
 	}
 	Context.RHICmdList.EndRenderPass();

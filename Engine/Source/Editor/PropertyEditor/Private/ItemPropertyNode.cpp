@@ -199,7 +199,8 @@ void FItemPropertyNode::InitChildNodes()
 
 		if( Array )
 		{
-			for( int32 Index = 0 ; Index < FScriptArrayHelper::Num(Array) ; Index++ )
+			FScriptArrayHelper ArrayHelper(ArrayProperty, Array);
+			for( int32 Index = 0 ; Index < ArrayHelper.Num(); Index++ )
 			{
 				TSharedPtr<FItemPropertyNode> NewItemNode( new FItemPropertyNode );
 

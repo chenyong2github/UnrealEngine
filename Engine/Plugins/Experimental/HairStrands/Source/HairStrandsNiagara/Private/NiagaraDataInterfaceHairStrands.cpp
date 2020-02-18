@@ -296,7 +296,7 @@ static void AddCopyBoundingBoxPass(
 	Parameters->OutNodeBoundBuffer = OutNodeBoundBuffer;
 	Parameters->NumElements = NumElements;
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
 
@@ -304,7 +304,7 @@ static void AddCopyBoundingBoxPass(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("CopyBoundingBox"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		FIntVector(DispatchCount, 1, 1));
 }
@@ -333,9 +333,6 @@ public:
 
 	/** Initialization constructor. */
 	explicit FDirectCopyBoundingBoxCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
-
-	/** Serialization. */
-	virtual bool Serialize(FArchive& Ar) override;
 
 	/**
 	 * Set parameters.
@@ -368,22 +365,13 @@ FDirectCopyBoundingBoxCS::FDirectCopyBoundingBoxCS(const ShaderMetaType::Compile
 	OutputBoundingBox.Bind(Initializer.ParameterMap, TEXT("OutNodeBoundBuffer"));
 }
 
-bool FDirectCopyBoundingBoxCS::Serialize(FArchive& Ar)
-{
-	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-	Ar << NumElements;
-	Ar << InputBoundingBox;
-	Ar << OutputBoundingBox;
-	return bShaderHasOutdatedParameters;
-}
-
 void FDirectCopyBoundingBoxCS::SetParameters(
 	FRHICommandList& RHICmdList,
 	FRHIUnorderedAccessView* InInputBoundingBox,
 	FRHIUnorderedAccessView* InOutputBoundingBox,
 	int32 InNumElements)
 {
-	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, InInputBoundingBox);
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, InputBoundingBox, InInputBoundingBox);
@@ -399,7 +387,7 @@ void FDirectCopyBoundingBoxCS::SetParameters(
 
 void FDirectCopyBoundingBoxCS::UnbindBuffers(FRHICommandList& RHICmdList)
 {
-	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, InputBoundingBox, nullptr);
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, OutputBoundingBox, nullptr);
 }
@@ -412,15 +400,15 @@ static void AddDirectCopyBoundingBoxPass(
 	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
 	const uint32 NumElements = 1;
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
 
 	TShaderMapRef<FDirectCopyBoundingBoxCS> ComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+	RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 	ComputeShader->SetParameters(RHICmdList, BoundingBoxBuffer, OutNodeBoundBuffer, NumElements);
 
-	DispatchComputeShader(RHICmdList, *ComputeShader, DispatchCount, 1, 1);
+	DispatchComputeShader(RHICmdList, ComputeShader, DispatchCount, 1, 1);
 	ComputeShader->UnbindBuffers(RHICmdList);
 }
 
@@ -623,9 +611,11 @@ bool FNDIHairStrandsData::Init(UNiagaraDataInterfaceHairStrands* Interface, FNia
 
 struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNDIHairStrandsParametersCS, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		FNDIHairStrandsParametersName ParamNames(ParamRef.ParameterInfo.DataInterfaceHLSLSymbol);
+		FNDIHairStrandsParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
 
 		WorldTransform.Bind(ParameterMap, *ParamNames.WorldTransformName);
 		WorldInverse.Bind(ParameterMap, *ParamNames.WorldInverseName);
@@ -713,47 +703,11 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 	}
 
-	virtual void Serialize(FArchive& Ar) override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
-		Ar << WorldTransform;
-		Ar << WorldInverse;
-		Ar << WorldRotation;
-		Ar << NumStrands;
-		Ar << StrandSize;
-		Ar << BoxCenter;
-		Ar << BoxExtent;
+		check(IsInRenderingThread());
 
-		Ar << DeformedPositionBuffer;
-		Ar << CurvesOffsetsBuffer;
-		Ar << RestPositionBuffer;
-
-		Ar << ResetSimulation;
-		Ar << HasRootAttached;
-		Ar << RestRootOffset;
-		Ar << DeformedRootOffset;
-
-		Ar << RootBarycentricCoordinatesBuffer;
-
-		Ar << RestTrianglePositionABuffer;
-		Ar << RestTrianglePositionBBuffer;
-		Ar << RestTrianglePositionCBuffer;
-
-		Ar << DeformedTrianglePositionABuffer;
-		Ar << DeformedTrianglePositionBBuffer;
-		Ar << DeformedTrianglePositionCBuffer;
-
-		Ar << RestPositionOffset;
-		Ar << DeformedPositionOffset;
-
-		Ar << BoundingBoxBuffer;
-		Ar << NodeBoundBuffer;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
-	{
-		check(IsInRenderingThread()); 
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FNDIHairStrandsProxy* InterfaceProxy =
 			static_cast<FNDIHairStrandsProxy*>(Context.DataInterface);
@@ -871,47 +825,52 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 	}
 
-	virtual void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
-		SetUAVParameter(RHICmdList, Context.Shader->GetComputeShader(), DeformedPositionBuffer, nullptr);
-		SetUAVParameter(RHICmdList, Context.Shader->GetComputeShader(), BoundingBoxBuffer, nullptr);
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+		SetUAVParameter(RHICmdList, ShaderRHI, DeformedPositionBuffer, nullptr);
+		SetUAVParameter(RHICmdList, ShaderRHI, BoundingBoxBuffer, nullptr);
 	}
 
 private:
 
-	FShaderParameter WorldTransform;
-	FShaderParameter WorldInverse;
-	FShaderParameter WorldRotation;
-	FShaderParameter NumStrands;
-	FShaderParameter StrandSize;
-	FShaderParameter BoxCenter;
-	FShaderParameter BoxExtent;
+	LAYOUT_FIELD(FShaderParameter, WorldTransform);
+	LAYOUT_FIELD(FShaderParameter, WorldInverse);
+	LAYOUT_FIELD(FShaderParameter, WorldRotation);
+	LAYOUT_FIELD(FShaderParameter, NumStrands);
+	LAYOUT_FIELD(FShaderParameter, StrandSize);
+	LAYOUT_FIELD(FShaderParameter, BoxCenter);
+	LAYOUT_FIELD(FShaderParameter, BoxExtent);
 
-	FShaderResourceParameter DeformedPositionBuffer;
-	FShaderResourceParameter CurvesOffsetsBuffer;
-	FShaderResourceParameter RestPositionBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedPositionBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, CurvesOffsetsBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, RestPositionBuffer);
 
-	FShaderParameter ResetSimulation;
-	FShaderParameter HasRootAttached;
-	FShaderParameter RestRootOffset;
-	FShaderParameter DeformedRootOffset;
+	LAYOUT_FIELD(FShaderParameter, ResetSimulation);
+	LAYOUT_FIELD(FShaderParameter, HasRootAttached);
+	LAYOUT_FIELD(FShaderParameter, RestRootOffset);
+	LAYOUT_FIELD(FShaderParameter, DeformedRootOffset);
 
-	FShaderResourceParameter RootBarycentricCoordinatesBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, RootBarycentricCoordinatesBuffer);
 
-	FShaderResourceParameter RestTrianglePositionABuffer;
-	FShaderResourceParameter RestTrianglePositionBBuffer;
-	FShaderResourceParameter RestTrianglePositionCBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, RestTrianglePositionABuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, RestTrianglePositionBBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, RestTrianglePositionCBuffer);
 
-	FShaderResourceParameter DeformedTrianglePositionABuffer;
-	FShaderResourceParameter DeformedTrianglePositionBBuffer;
-	FShaderResourceParameter DeformedTrianglePositionCBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedTrianglePositionABuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedTrianglePositionBBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedTrianglePositionCBuffer);
 
-	FShaderParameter RestPositionOffset;
-	FShaderParameter DeformedPositionOffset;
+	LAYOUT_FIELD(FShaderParameter, RestPositionOffset);
+	LAYOUT_FIELD(FShaderParameter, DeformedPositionOffset);
 
-	FShaderResourceParameter BoundingBoxBuffer;
-	FShaderResourceParameter NodeBoundBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, BoundingBoxBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, NodeBoundBuffer);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNDIHairStrandsParametersCS);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceHairStrands, FNDIHairStrandsParametersCS);
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -3398,7 +3357,7 @@ bool UNiagaraDataInterfaceHairStrands::GetFunctionHLSL(const FNiagaraDataInterfa
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
-	}
+	}	
 	else if (FunctionInfo.DefinitionName == UpdatePointPositionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
@@ -3837,12 +3796,6 @@ void UNiagaraDataInterfaceHairStrands::ProvidePerInstanceDataForRenderThread(voi
 	{
 		RenderThreadData->CopyDatas(GameThreadData);
 	}
-}
-
-FNiagaraDataInterfaceParametersCS*
-UNiagaraDataInterfaceHairStrands::ConstructComputeParameters() const
-{
-	return new FNDIHairStrandsParametersCS();
 }
 
 void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)

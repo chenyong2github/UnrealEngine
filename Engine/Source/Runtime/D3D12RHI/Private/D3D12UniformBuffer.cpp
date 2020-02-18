@@ -121,7 +121,11 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 	return UniformBufferOut;
 }
 
-struct FRHICommandD3D12UpdateUniformBuffer final : public FRHICommand<FRHICommandD3D12UpdateUniformBuffer>
+struct FRHICommandD3D12UpdateUniformBufferString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandD3D12UpdateUniformBuffer"); }
+};
+struct FRHICommandD3D12UpdateUniformBuffer final : public FRHICommand<FRHICommandD3D12UpdateUniformBuffer, FRHICommandD3D12UpdateUniformBufferString>
 {
 	FD3D12UniformBuffer* UniformBuffer;
 	FD3D12ResourceLocation UpdatedLocation;
@@ -195,7 +199,7 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 			}
 
 			checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."),
-				*Layout.GetDebugName().ToString(),
+				*Layout.GetDebugName(),
 				ResourceIndex,
 				Layout.Resources[ResourceIndex].MemberType);
 

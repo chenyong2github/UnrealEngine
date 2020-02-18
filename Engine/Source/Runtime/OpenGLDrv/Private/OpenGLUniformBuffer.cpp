@@ -747,7 +747,7 @@ void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferR
 				&& UniformBufferValidation == EUniformBufferValidation::ValidateResources)
 			{
 				checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."),
-					*Layout.GetDebugName().ToString(),
+					*Layout.GetDebugName(),
 					ResourceIndex,
 					Layout.Resources[ResourceIndex].MemberType);
 			}
@@ -775,7 +775,7 @@ void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferR
 					&& UniformBufferValidation == EUniformBufferValidation::ValidateResources)
 				{
 					checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."),
-						*Layout.GetDebugName().ToString(),
+						*Layout.GetDebugName(),
 						ResourceIndex,
 						(uint8)Layout.Resources[ResourceIndex].MemberType);
 				}

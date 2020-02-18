@@ -526,7 +526,7 @@ void FSkeletalMeshMerge::GenerateLODModel( int32 LODIdx )
 			// keep track of the lowest LOD displayfactor and hysteresis
 			MergeLODInfo.ScreenSize.Default = FMath::Min<float>(MergeLODInfo.ScreenSize.Default, SrcLODInfo.ScreenSize.Default);
 #if WITH_EDITORONLY_DATA
-			for(const TTuple<FName, float>& PerPlatform : SrcLODInfo.ScreenSize.PerPlatform)
+			for(const TPair<FName, float>& PerPlatform : SrcLODInfo.ScreenSize.PerPlatform)
 			{
 				float* Value = MergeLODInfo.ScreenSize.PerPlatform.Find(PerPlatform.Key);
 				if(Value)

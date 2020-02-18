@@ -245,7 +245,7 @@ public:
 
 	ENGINE_API void UploadToGPU();
 
-	EShaderPlatform ShaderPlatform;
+	EShaderPlatform ShaderPlatform=SP_NumPlatforms;
 
 	FPrimitiveSceneShaderData PrimitiveSceneData;
 	FLightmapSceneShaderData LightmapSceneData;

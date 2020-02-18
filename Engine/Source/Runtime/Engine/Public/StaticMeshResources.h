@@ -250,7 +250,7 @@ protected:
 	FStaticMeshLODResources* Owner;
 };
 
-typedef TArray<FStaticMeshSectionAreaWeightedTriangleSampler> FStaticMeshSectionAreaWeightedTriangleSamplerArray;
+typedef TArray<FStaticMeshSectionAreaWeightedTriangleSampler, FMemoryImageAllocator> FStaticMeshSectionAreaWeightedTriangleSamplerArray;
 
 /** Represents GPU resource needed for area weighted uniform sampling of a mesh surface. */
 class FStaticMeshSectionAreaWeightedTriangleSamplerBuffer : public FRenderResource
@@ -341,7 +341,8 @@ struct FStaticMeshLODResources
 #endif // RHI_RAYTRACING
 
 	/** Sections for this LOD. */
-	TArray<FStaticMeshSection> Sections;
+	using FStaticMeshSectionArray = TArray<FStaticMeshSection, TInlineAllocator<1>>;
+	FStaticMeshSectionArray Sections;
 
 	/** Distance field data associated with this mesh, null if not present.  */
 	class FDistanceFieldVolumeData* DistanceFieldData; 
@@ -359,7 +360,7 @@ struct FStaticMeshLODResources
 	uint32 bHasReversedIndices : 1;
 
 	/** True if the reversed index buffers contained data at init. Needed as it will not be available to the CPU afterwards. */
-	uint32 bHasReversedDepthOnlyIndices: 1;
+	uint32 bHasReversedDepthOnlyIndices : 1;
 
 	uint32 bHasColorVertexData : 1;
 
@@ -548,6 +549,9 @@ struct ENGINE_API FStaticMeshVertexFactories
 	void ReleaseResources();
 };
 
+using FStaticMeshLODResourcesArray = TArray<FStaticMeshLODResources>;
+using FStaticMeshVertexFactoriesArray = TArray<FStaticMeshVertexFactories>;
+
 /**
  * FStaticMeshRenderData - All data needed to render a static mesh.
  */
@@ -558,8 +562,8 @@ public:
 	ENGINE_API FStaticMeshRenderData();
 
 	/** Per-LOD resources. */
-	TIndirectArray<FStaticMeshLODResources> LODResources;
-	TIndirectArray<FStaticMeshVertexFactories> LODVertexFactories;
+	FStaticMeshLODResourcesArray LODResources;
+	FStaticMeshVertexFactoriesArray LODVertexFactories;
 
 	/** Screen size to switch LODs */
 	FPerPlatformFloat ScreenSize[MAX_STATIC_MESH_LODS];
@@ -583,6 +587,7 @@ public:
 	uint8 CurrentFirstLODIdx;
 
 #if WITH_EDITORONLY_DATA
+
 	/** The derived data key associated with this render data. */
 	FString DerivedDataKey;
 
@@ -592,10 +597,12 @@ public:
 	/** UV data used for streaming accuracy debug view modes. In sync for rendering thread */
 	TArray<FMeshUVChannelInfo> UVChannelDataPerMaterial;
 
-	void SyncUVChannelData(const TArray<FStaticMaterial>& ObjectData);
 
 	/** The next cached derived data in the list. */
 	TUniquePtr<class FStaticMeshRenderData> NextCachedRenderData;
+
+
+	void SyncUVChannelData(const TArray<FStaticMaterial>& ObjectData);
 
 	/**
 	 * Cache derived renderable data for the static mesh with the provided
@@ -748,7 +755,7 @@ public:
 
 				if (Component->IsRegistered() && !Component->bRenderStateCreated)
 				{
-					Component->CreateRenderState_Concurrent();
+					Component->CreateRenderState_Concurrent(nullptr);
 					Scenes.Add(Component->GetScene());
 				}
 			}
@@ -799,7 +806,7 @@ public:
 	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const override;
 
 	virtual void CreateRenderThreadResources() override;
-		
+
 	virtual void DestroyRenderThreadResources() override;
 
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
@@ -931,7 +938,7 @@ protected:
 		};
 
 		/** Per-section information. */
-		TArray<FSectionInfo> Sections;
+		TArray<FSectionInfo, TInlineAllocator<1>> Sections;
 
 		/** Vertex color data for this LOD (or NULL when not overridden), FStaticMeshComponentLODInfo handle the release of the memory */
 		FColorVertexBuffer* OverrideColorVertexBuffer;
@@ -941,7 +948,7 @@ protected:
 		const FRawStaticIndexBuffer* PreCulledIndexBuffer;
 
 		/** Initialization constructor. */
-		FLODInfo(const UStaticMeshComponent* InComponent, const TIndirectArray<FStaticMeshVertexFactories>& InLODVertexFactories, int32 InLODIndex, int32 InClampedMinLOD, bool bLODsShareStaticLighting);
+		FLODInfo(const UStaticMeshComponent* InComponent, const FStaticMeshVertexFactoriesArray& InLODVertexFactories, int32 InLODIndex, int32 InClampedMinLOD, bool bLODsShareStaticLighting);
 
 		bool UsesMeshModifyingMaterials() const { return bUsesMeshModifyingMaterials; }
 
@@ -959,7 +966,7 @@ protected:
 
 	FStaticMeshOccluderData* OccluderData;
 
-	TIndirectArray<FLODInfo> LODs;
+	TArray<FLODInfo> LODs;
 
 	const FDistanceFieldVolumeData* DistanceFieldData;	
 

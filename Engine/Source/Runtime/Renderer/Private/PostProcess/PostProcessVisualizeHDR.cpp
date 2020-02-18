@@ -92,7 +92,7 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 
 	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeComplexity");
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, OutputViewport, InputViewport, *PixelShader, PassParameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("Visualizer"), View, OutputViewport, InputViewport, PixelShader, PassParameters);
 
 	Output.LoadAction = ERenderTargetLoadAction::ELoad;
 

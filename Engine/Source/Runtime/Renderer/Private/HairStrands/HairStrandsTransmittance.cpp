@@ -279,7 +279,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsTransmittanceMask"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		IndirectArgsBuffer,
 		0);
@@ -430,12 +430,12 @@ static void AddDeepShadowOpaqueMaskPass(
 	const FIntPoint OutputResolution = SceneTextures.SceneDepthBuffer->Desc.Extent;
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FDeepShadowMaskPS> PixelShader(View.ShaderMap, PermutationVector);
-	const TShaderMap<FGlobalShaderType>* GlobalShaderMap = View.ShaderMap;
+	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
 	const FViewInfo* CapturedView = &View;
 
 	{
-		ClearUnusedGraphResources(*PixelShader, Parameters);
+		ClearUnusedGraphResources(PixelShader, Parameters);
 		FIntPoint Resolution = OutShadowMask->Desc.Extent;
 
 		GraphBuilder.AddPass(
@@ -451,14 +451,14 @@ static void AddDeepShadowOpaqueMaskPass(
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 			VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
 			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *Parameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
 
 			DrawRectangle(
 				RHICmdList,
@@ -468,7 +468,7 @@ static void AddDeepShadowOpaqueMaskPass(
 				Viewport.Width(), Viewport.Height(),
 				Viewport.Size(),
 				Resolution,
-				*VertexShader,
+				VertexShader,
 				EDRF_UseTriangleOptimization);
 		});
 	}

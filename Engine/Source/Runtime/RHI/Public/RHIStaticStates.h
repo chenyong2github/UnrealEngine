@@ -57,49 +57,13 @@ template<typename InitializerType,typename RHIRefType,typename RHIParamRefType>
 class TStaticStateRHI
 {
 public:
-
-	static void GetRHI_WithNoReturnValue()
-	{
-		GetRHI();
-	}
 	static RHIParamRefType GetRHI()
 	{
-		// This is super-duper nasty. We rely upon the fact that all compilers will assign uninitialized static, POD data (like StaticResource) to a zero seg and not do any construction on it whatsoever.
-		static FStaticStateResource* StaticResource; // Must be left uninitialized!
-
-		if (!StaticResource)
-		{
-			if (GIsRHIInitialized && GRHISupportsRHIThread)
-			{
-				FStaticStateResource* NewStaticResource = new FStaticStateResource();
-				FStaticStateResource* ValueWas = (FStaticStateResource*)FPlatformAtomics::InterlockedCompareExchangePointer((void**)&StaticResource, NewStaticResource, nullptr);
-				if (ValueWas)
-				{
-					// we made a redundant one...leak it
-				}
-			}
-			else
-			{
-				if (!IsInRenderingThread())
-				{
-					check(IsInParallelRenderingThread());
-					{
-						FScopedEvent Event;
-						TGraphTask<FInitStaticResourceRenderThreadTask>::CreateTask().ConstructAndDispatchWhenReady(&GetRHI_WithNoReturnValue, Event);
-					}
-				}
-				else
-				{
-					StaticResource = new FStaticStateResource();
-				}
-			}
-			CA_ASSUME(StaticResource);
-		}
-		return StaticResource->StateRHI;
+		checkSlow(StaticResource.StateRHI);
+		return StaticResource.StateRHI;
 	};
 
 private:
-
 	/** A resource which manages the RHI resource. */
 	class FStaticStateResource : public FRenderResource
 	{
@@ -113,8 +77,7 @@ private:
 			}
 			else
 			{
-				InitResource();
-
+				BeginInitResource(this);
 			}
 		}
 
@@ -136,7 +99,12 @@ private:
 			ReleaseResource();
 		}
 	};
+
+	static FStaticStateResource StaticResource;
 };
+
+template<typename InitializerType, typename RHIRefType, typename RHIParamRefType>
+typename TStaticStateRHI<InitializerType, RHIRefType, RHIParamRefType>::FStaticStateResource TStaticStateRHI<InitializerType, RHIRefType, RHIParamRefType>::StaticResource = TStaticStateRHI<InitializerType, RHIRefType, RHIParamRefType>::FStaticStateResource();
 
 /**
  * A static RHI sampler state resource.

@@ -9,6 +9,7 @@
 #include "Delegates/IntegerSequence.h"
 #include "Templates/Invoke.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/MemoryLayout.h"
 
 class FArchive;
 
@@ -418,6 +419,39 @@ public:
 	TTuple& operator=(const TTuple&) = default;
 };
 
+namespace Freeze
+{
+	template<typename KeyType, typename ValueType>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TTuple<KeyType, ValueType>& Object, const FTypeLayoutDesc&)
+	{
+		Writer.WriteObject(Object.Key);
+		Writer.WriteObject(Object.Value);
+	}
+
+	template<typename KeyType, typename ValueType>
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TTuple<KeyType, ValueType>& Object, void* OutDst)
+	{
+		TTuple<KeyType, ValueType>* DstObject = (TTuple<KeyType, ValueType>*)OutDst;
+		Context.UnfreezeObject(Object.Key, &DstObject->Key);
+		Context.UnfreezeObject(Object.Value, &DstObject->Value);
+	}
+
+	template<typename KeyType, typename ValueType>
+	uint32 IntrinsicAppendHash(const TTuple<KeyType, ValueType>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		return Freeze::AppendHashPair(StaticGetTypeLayoutDesc<KeyType>(), StaticGetTypeLayoutDesc<ValueType>(), LayoutParams, Hasher);
+	}
+
+	template<typename KeyType, typename ValueType>
+	uint32 IntrinsicGetTargetAlignment(const TTuple<KeyType, ValueType>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams)
+	{
+		const uint32 KeyAlignment = GetTargetAlignment(StaticGetTypeLayoutDesc<KeyType>(), LayoutParams);
+		const uint32 ValueAlignment = GetTargetAlignment(StaticGetTypeLayoutDesc<ValueType>(), LayoutParams);
+		return FMath::Min(FMath::Max(KeyAlignment, ValueAlignment), LayoutParams.MaxFieldAlignment);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename ValueType>), (TTuple<KeyType, ValueType>));
 
 /**
  * Traits class which calculates the number of elements in a tuple.

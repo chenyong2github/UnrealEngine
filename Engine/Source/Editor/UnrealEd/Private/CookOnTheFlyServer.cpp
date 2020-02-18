@@ -2453,6 +2453,11 @@ bool UCookOnTheFlyServer::IsCookByTheBookMode() const
 	return CurrentCookMode == ECookMode::CookByTheBookFromTheEditor || CurrentCookMode == ECookMode::CookByTheBook;
 }
 
+bool UCookOnTheFlyServer::IsUsingShaderCodeLibrary() const
+{
+	return IsCookByTheBookMode();
+}
+
 bool UCookOnTheFlyServer::IsUsingPackageStore() const
 {
 	return IsCookByTheBookMode() && CookByTheBookOptions->bPackageStore;
@@ -6592,7 +6597,7 @@ const FString UCookOnTheFlyServer::GetCookedAssetRegistryFilename(const FString&
 void UCookOnTheFlyServer::InitShaderCodeLibrary(void)
 {
     const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-    bool const bCacheShaderLibraries = (CurrentCookMode == ECookMode::CookByTheBook);
+	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
     if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
     {
         FShaderCodeLibrary::InitForCooking(PackagingSettings->bSharedMaterialNativeLibraries);
@@ -6634,7 +6639,7 @@ static FString GenerateShaderCodeLibraryName(FString const& Name, bool bIsIterat
 void UCookOnTheFlyServer::OpenShaderCodeLibrary(FString const& Name)
 {
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-    bool const bCacheShaderLibraries = (CurrentCookMode == ECookMode::CookByTheBook);
+	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
     if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
 	{
 		FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
@@ -6740,7 +6745,7 @@ void UCookOnTheFlyServer::ProcessShaderCodeLibraries(const FString& LibraryName)
 void UCookOnTheFlyServer::SaveShaderCodeLibrary(FString const& Name)
 {
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = (CurrentCookMode == ECookMode::CookByTheBook);
+    bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
 	{
 		FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
@@ -6796,7 +6801,7 @@ void UCookOnTheFlyServer::SaveShaderCodeLibrary(FString const& Name)
 void UCookOnTheFlyServer::CleanShaderCodeLibraries()
 {
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = (CurrentCookMode == ECookMode::CookByTheBook);
+    bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 	ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
 	// If not iterative then clean up our temporary files
 	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode && !IsCookFlagSet(ECookInitializationFlags::Iterative))
@@ -6830,7 +6835,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	UCookerSettings const* CookerSettings = GetDefault<UCookerSettings>();
 
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = (CurrentCookMode == ECookMode::CookByTheBook);
+	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 
 	{
 		if (IBlueprintNativeCodeGenModule::IsNativeCodeGenModuleLoaded())

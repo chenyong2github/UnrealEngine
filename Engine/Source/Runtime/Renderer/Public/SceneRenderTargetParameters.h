@@ -133,6 +133,7 @@ extern RENDERER_API void BindSceneTextureUniformBufferDependentOnShadingPath(
 /** Encapsulates scene texture shader parameter bindings. */
 class RENDERER_API FSceneTextureShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FSceneTextureShaderParameters, NonVirtual);
 public:
 	/** Binds the parameters using a compiled shader's parameter map. */
 	void Bind(const FShader::CompiledShaderInitializerType& Initializer)
@@ -183,5 +184,5 @@ public:
 	}
 
 private:
-	FShaderUniformBufferParameter SceneTexturesUniformBuffer;
+	LAYOUT_FIELD(FShaderUniformBufferParameter, SceneTexturesUniformBuffer);
 };

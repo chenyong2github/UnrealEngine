@@ -82,7 +82,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInf
 	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
 
 	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingPrimaryRaysRGS>(PermutationVector);
-	OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 }
 
 void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
@@ -187,7 +187,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 		SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
 
 		FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-		RHICmdList.RayTraceDispatch(Pipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+		RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
 	});
 }
 

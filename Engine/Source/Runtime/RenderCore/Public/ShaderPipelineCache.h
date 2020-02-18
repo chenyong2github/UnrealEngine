@@ -72,7 +72,6 @@ class RENDERCORE_API FShaderPipelineCache : public FTickableObjectRenderThread
 	{
 		FPipelineCacheFileFormatPSO PSO;
 		FShaderPipelineCacheArchive* ReadRequests;
-		TSet<FSHAHash> ShaderCodeReads;
 	};
 
 public:

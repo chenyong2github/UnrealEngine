@@ -27,6 +27,9 @@ class FSceneTexturesUniformParameters;
 class FGlobalDistanceFieldParameterData;
 struct FMeshBatch;
 struct FSynthBenchmarkResults;
+class FShader;
+class FShaderMapPointerTable;
+template<typename ShaderType, typename PointerTableType> class TShaderRefBase;
 
 // Shortcut for the allocator used by scene rendering.
 typedef TMemStackAllocator<> SceneRenderingAllocator;
@@ -722,7 +725,7 @@ public:
 		float SizeV,
 		FIntPoint TargetSize,
 		FIntPoint TextureSize,
-		class FShader* VertexShader,
+		const TShaderRefBase<FShader, FShaderMapPointerTable>& VertexShader,
 		EDrawRectangleFlags Flags = EDRF_Default
 		) = 0;
 

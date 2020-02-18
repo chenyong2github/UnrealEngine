@@ -64,7 +64,7 @@ FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 	check(Inputs.Quality != EFXAAQuality::MAX);
 
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
-
+	
 	if (!Output.IsValid())
 	{
 		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, View.GetOverwriteLoadAction(), TEXT("FXAA"));
@@ -111,13 +111,13 @@ FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		View,
 		OutputViewport,
 		FScreenPassTextureViewport(Inputs.SceneColor),
-		FScreenPassPipelineState(*VertexShader, *PixelShader),
+		FScreenPassPipelineState(VertexShader, PixelShader),
 		EScreenPassDrawFlags::AllowHMDHiddenAreaMask,
 		PassParameters,
 		[VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 	{
-		SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), *PassParameters);
-		SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 	});
 
 	return MoveTemp(Output);

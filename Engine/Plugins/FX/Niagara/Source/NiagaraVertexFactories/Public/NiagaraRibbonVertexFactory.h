@@ -105,12 +105,12 @@ public:
 	/**
 	* Should we cache the material's shadertype on this platform with this vertex factory?
 	*/
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	/**
 	* Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	*/
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	// FRenderResource interface.
 	virtual void InitRHI() override;
@@ -218,11 +218,6 @@ public:
 	{
 		return FacingMode;
 	}
-
-	/**
-	* Construct shader parameters for this type of vertex factory.
-	*/
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 	FIndexBuffer*& GetIndexBuffer()
 	{

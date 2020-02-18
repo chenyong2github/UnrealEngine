@@ -40,8 +40,10 @@ LandscapeRender.cpp: New terrain rendering
 #include "MeshMaterialShader.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "RayTracingInstance.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
+IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryPixelShaderParameters);
 
 int32 GLandscapeMeshLODBias = 0;
 FAutoConsoleVariableRef CVarLandscapeMeshLODBias(
@@ -1286,7 +1288,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		for (UMaterialInterface*& MaterialInterface : AvailableMaterials)
 		{
 			if (MaterialInterface == nullptr ||
-				(bHasStaticLighting && !MaterialInterface->CheckMaterialUsage(MATUSAGE_StaticLighting)))
+				(bHasStaticLighting && !MaterialInterface->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting)))
 			{
 				MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
 			}
@@ -1301,7 +1303,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	for (UMaterialInterface*& MaterialInterface : AvailableMaterials)
 	{
-		UMaterial* LandscapeMaterial = MaterialInterface != nullptr ? MaterialInterface->GetMaterial() : nullptr;
+		const UMaterial* LandscapeMaterial = MaterialInterface != nullptr ? MaterialInterface->GetMaterial_Concurrent() : nullptr;
 
 		if (LandscapeMaterial != nullptr)
 		{
@@ -1311,10 +1313,10 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 			// and since the MIC is not really valid, dont generate the relevance.
 			if (MaterialInstance == nullptr || MaterialInstance->IsChildOf(LandscapeMaterial))
 			{
-				MaterialRelevances.Add(MaterialInterface->GetRelevance(FeatureLevel));
+				MaterialRelevances.Add(MaterialInterface->GetRelevance_Concurrent(FeatureLevel));
 			}
 
-			bRequiresAdjacencyInformation |= MaterialSettingsRequireAdjacencyInformation_GameThread(MaterialInterface, XYOffsetmapTexture == nullptr ? &FLandscapeVertexFactory::StaticType : &FLandscapeXYOffsetVertexFactory::StaticType, InComponent->GetWorld()->FeatureLevel);
+			bRequiresAdjacencyInformation |= RequiresAdjacencyInformation(MaterialInterface, XYOffsetmapTexture == nullptr ? &FLandscapeVertexFactory::StaticType : &FLandscapeXYOffsetVertexFactory::StaticType, InComponent->GetWorld()->FeatureLevel.GetValue());
 
 			bool HasTessellationEnabled = false;
 
@@ -2076,7 +2078,7 @@ bool FLandscapeComponentSceneProxy::GetMeshElement(bool UseSeperateBatchForShado
 	}
 
 	// Could be different from bRequiresAdjacencyInformation during shader compilation
-	bool bCurrentRequiresAdjacencyInformation = MaterialRenderingRequiresAdjacencyInformation_RenderingThread(InMaterialInterface, VertexFactory->GetType(), GetScene().GetFeatureLevel());
+	bool bCurrentRequiresAdjacencyInformation = RequiresAdjacencyInformation(InMaterialInterface, VertexFactory->GetType(), GetScene().GetFeatureLevel());
 
 	if (bCurrentRequiresAdjacencyInformation)
 	{
@@ -2254,7 +2256,7 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 		}
 
 		UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(AvailableMaterials[MaterialIndex]);
-		bool HasTessellationEnabled = (GetScene().GetFeatureLevel() >= ERHIFeatureLevel::SM5) ? MaterialInstance != nullptr && MaterialInstance->GetMaterial()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation && MaterialIndexToDisabledTessellationMaterial[MaterialIndex] != INDEX_NONE : false;
+		bool HasTessellationEnabled = (GetScene().GetFeatureLevel() >= ERHIFeatureLevel::SM5) ? MaterialInstance != nullptr && MaterialInstance->GetMaterial_Concurrent()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation && MaterialIndexToDisabledTessellationMaterial[MaterialIndex] != INDEX_NONE : false;
 
 		if (HasTessellationEnabled)
 		{
@@ -2285,7 +2287,7 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 
 	// Based on the final material we selected, detect if it has tessellation
 	// Could be different from bRequiresAdjacencyInformation during shader compilation
-	bool bCurrentRequiresAdjacencyInformation = MaterialRenderingRequiresAdjacencyInformation_RenderingThread(MaterialInterface, VertexFactory->GetType(), GetScene().GetFeatureLevel());
+	bool bCurrentRequiresAdjacencyInformation = RequiresAdjacencyInformation(MaterialInterface, VertexFactory->GetType(), GetScene().GetFeatureLevel());
 
 	check(!bCurrentRequiresAdjacencyInformation || (bCurrentRequiresAdjacencyInformation && SharedBuffers->AdjacencyIndexBuffers));
 
@@ -3752,6 +3754,8 @@ int32 FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCo
 */
 void FLandscapeVertexBuffer::InitRHI()
 {
+	SCOPED_LOADTIMER(FLandscapeVertexBuffer_InitRHI);
+
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo;
 	void* BufferData = nullptr;
@@ -4313,12 +4317,13 @@ FLandscapeSharedAdjacencyIndexBuffer::~FLandscapeSharedAdjacencyIndexBuffer()
 /** Shader parameters for use with FLandscapeVertexFactory */
 class FLandscapeVertexFactoryVertexShaderParameters : public FVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FLandscapeVertexFactoryVertexShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
 	* @param	ParameterMap - mapping of named shader constants to indices
 	*/
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		LodBiasParameter.Bind(ParameterMap, TEXT("LodBias"));
 		LodValuesParameter.Bind(ParameterMap, TEXT("LodValues"));
@@ -4328,21 +4333,7 @@ public:
 		NeighborSectionLodParameter.Bind(ParameterMap, TEXT("NeighborSectionLod"));
 	}
 
-	/**
-	* Serialize shader params to an archive
-	* @param	Ar - archive to serialize to
-	*/
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << LodValuesParameter;
-		Ar << ForcedLodParameter;
-		Ar << LodTessellationParameter;
-		Ar << NeighborSectionLodParameter;
-		Ar << LodBiasParameter;
-		Ar << SectionLodsParameter;
-	}
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
 		const FSceneView* InView,
 		const class FMeshMaterialShader* Shader,
@@ -4352,7 +4343,7 @@ public:
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-		) const override
+	) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
 
@@ -4390,19 +4381,14 @@ public:
 		}
 	}
 
-	virtual uint32 GetSize() const override
-	{
-		return sizeof(*this);
-	}
-
 protected:
-	FShaderParameter LodTessellationParameter;
-	FShaderParameter LodValuesParameter;
-	FShaderParameter ForcedLodParameter;
-	FShaderParameter NeighborSectionLodParameter;
-	FShaderParameter LodBiasParameter;
-	FShaderParameter SectionLodsParameter;
-	TShaderUniformBufferParameter<FLandscapeUniformShaderParameters> LandscapeShaderParameters;
+	LAYOUT_FIELD(FShaderParameter, LodTessellationParameter);
+	LAYOUT_FIELD(FShaderParameter, LodValuesParameter);
+	LAYOUT_FIELD(FShaderParameter, ForcedLodParameter);
+	LAYOUT_FIELD(FShaderParameter, NeighborSectionLodParameter);
+	LAYOUT_FIELD(FShaderParameter, LodBiasParameter);
+	LAYOUT_FIELD(FShaderParameter, SectionLodsParameter);
+	LAYOUT_FIELD(TShaderUniformBufferParameter<FLandscapeUniformShaderParameters>, LandscapeShaderParameters);
 };
 
 /** 
@@ -4411,8 +4397,9 @@ protected:
   */
 class FLandscapeFixedGridVertexFactoryVertexShaderParameters : public FLandscapeVertexFactoryVertexShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FLandscapeFixedGridVertexFactoryVertexShaderParameters, NonVirtual);
 public:
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
 		const FSceneView* InView,
 		const class FMeshMaterialShader* Shader,
@@ -4422,7 +4409,7 @@ public:
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-	) const override
+	) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
 
@@ -4448,6 +4435,9 @@ public:
 			ShaderBindings.Add(ForcedLodParameter, BatchElementParams->ForcedLOD);
 		}
 	}
+
+	
+	
 };
 
 //
@@ -4496,30 +4486,25 @@ FLandscapeVertexFactory::FLandscapeVertexFactory(ERHIFeatureLevel::Type InFeatur
 {
 }
 
-FVertexFactoryShaderParameters* FLandscapeVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
+bool FLandscapeVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	switch (ShaderFrequency)
-	{
-	case SF_Vertex:
+	// only compile landscape materials for landscape vertex factory
+	// The special engine materials must be compiled for the landscape vertex factory because they are used with it for wireframe, etc.
+	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
+		(Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
+}
+
+void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+}
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_Vertex, FLandscapeVertexFactoryVertexShaderParameters);
 #if RHI_RAYTRACING
-	case SF_Compute:
-	case SF_RayHitGroup:
-#endif
-		return new FLandscapeVertexFactoryVertexShaderParameters();
-		break;
-	case SF_Pixel:
-		return new FLandscapeVertexFactoryPixelShaderParameters();
-		break;
-	default:
-		return nullptr;
-	}
-}
-
-void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
-{
-	FVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
-}
-
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_Compute, FLandscapeVertexFactoryVertexShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_RayHitGroup, FLandscapeVertexFactoryVertexShaderParameters);
+#endif // RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_Pixel, FLandscapeVertexFactoryPixelShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false);
 
@@ -4544,9 +4529,9 @@ void FLandscapeVertexFactory::Copy(const FLandscapeVertexFactory& Other)
 // FLandscapeXYOffsetVertexFactory
 //
 
-void FLandscapeXYOffsetVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FLandscapeXYOffsetVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FLandscapeVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	FLandscapeVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("LANDSCAPE_XYOFFSET"), TEXT("1"));
 }
 
@@ -4556,30 +4541,18 @@ IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeXYOffsetVertexFactory, "/Engine/Priva
 // FLandscapeFixedGridVertexFactory
 //
 
-void FLandscapeFixedGridVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FLandscapeFixedGridVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FLandscapeVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	FLandscapeVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("FIXED_GRID"), TEXT("1"));
 }
 
-FVertexFactoryShaderParameters* FLandscapeFixedGridVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	switch (ShaderFrequency)
-	{
-	case SF_Vertex:
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeFixedGridVertexFactory, SF_Vertex, FLandscapeFixedGridVertexFactoryVertexShaderParameters);
 #if RHI_RAYTRACING
-	case SF_Compute:
-	case SF_RayHitGroup:
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeFixedGridVertexFactory, SF_Compute, FLandscapeFixedGridVertexFactoryVertexShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeFixedGridVertexFactory, SF_RayHitGroup, FLandscapeFixedGridVertexFactoryVertexShaderParameters);
 #endif
-		return new FLandscapeFixedGridVertexFactoryVertexShaderParameters();
-		break;
-	case SF_Pixel:
-		return new FLandscapeVertexFactoryPixelShaderParameters();
-		break;
-	default:
-		return nullptr;
-	}
-}
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeFixedGridVertexFactory, SF_Pixel, FLandscapeVertexFactoryPixelShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeFixedGridVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false);
 
@@ -4590,6 +4563,80 @@ ULandscapeMaterialInstanceConstant::ULandscapeMaterialInstanceConstant(const FOb
 {
 	bIsLayerThumbnail = false;
 }
+
+void ULandscapeMaterialInstanceConstant::PostLoad()
+{
+	Super::PostLoad();
+#if WITH_EDITOR
+	UpdateCachedTextureStreaming();
+#endif // WITH_EDITOR
+}
+
+float ULandscapeMaterialInstanceConstant::GetLandscapeTexelFactor(const FName& TextureName) const
+{
+	for (const FLandscapeMaterialTextureStreamingInfo& Info : TextureStreamingInfo)
+	{
+		if (Info.TextureName == TextureName)
+		{
+			return Info.TexelFactor;
+		}
+	}
+	return 1.0f;
+}
+
+#if WITH_EDITOR
+
+void ULandscapeMaterialInstanceConstant::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	UpdateCachedTextureStreaming();
+}
+
+FLandscapeMaterialTextureStreamingInfo& ULandscapeMaterialInstanceConstant::AcquireTextureStreamingInfo(const FName& TextureName)
+{
+	for (FLandscapeMaterialTextureStreamingInfo& Info : TextureStreamingInfo)
+	{
+		if (Info.TextureName == TextureName)
+		{
+			return Info;
+		}
+	}
+	FLandscapeMaterialTextureStreamingInfo& Info = TextureStreamingInfo.AddDefaulted_GetRef();
+	Info.TextureName = TextureName;
+	Info.TexelFactor = 1.0f;
+	return Info;
+}
+
+void ULandscapeMaterialInstanceConstant::UpdateCachedTextureStreaming()
+{
+	const UMaterial* Material = GetMaterial();
+	if (Material)
+	{
+		int32 NumExpressions = Material->Expressions.Num();
+		for (int32 ExpressionIndex = 0; ExpressionIndex < NumExpressions; ExpressionIndex++)
+		{
+			UMaterialExpression* Expression = Material->Expressions[ExpressionIndex];
+			UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression);
+
+			// TODO: This is only works for direct Coordinate Texture Sample cases
+			if (TextureSample && TextureSample->Coordinates.IsConnected())
+			{
+				if (UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(TextureSample->Coordinates.Expression))
+				{
+					FLandscapeMaterialTextureStreamingInfo& Info = AcquireTextureStreamingInfo(TextureSample->Texture->GetFName());
+					Info.TexelFactor *= FPlatformMath::Max(TextureCoordinate->UTiling, TextureCoordinate->VTiling);
+				}
+				else if (UMaterialExpressionLandscapeLayerCoords* TerrainTextureCoordinate = Cast<UMaterialExpressionLandscapeLayerCoords>(TextureSample->Coordinates.Expression))
+				{
+					FLandscapeMaterialTextureStreamingInfo& Info = AcquireTextureStreamingInfo(TextureSample->Texture->GetFName());
+					Info.TexelFactor *= TerrainTextureCoordinate->MappingScale;
+				}
+			}
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 class FLandscapeMaterialResource : public FMaterialResource
 {
@@ -5057,6 +5104,9 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 		{
 			TArray<UTexture*> Textures;
 			MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::Num, false, FeatureLevel, false);
+
+			const ULandscapeMaterialInstanceConstant* LandscapeMaterial = Cast<ULandscapeMaterialInstanceConstant>(MaterialInterface);
+
 			// Add each texture to the output with the appropriate parameters.
 			// TODO: Take into account which UVIndex is being used.
 			for (int32 TextureIndex = 0; TextureIndex < Textures.Num(); TextureIndex++)
@@ -5068,56 +5118,11 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 				StreamingTexture.Bounds = BoundingSphere;
 				StreamingTexture.TexelFactor = TexelFactor;
 				StreamingTexture.RenderAsset = Texture2D;
-			}
 
-			const UMaterial* Material = MaterialInterface->GetMaterial();
-			if (Material)
-			{
-				int32 NumExpressions = Material->Expressions.Num();
-				for (int32 ExpressionIndex = 0; ExpressionIndex < NumExpressions; ExpressionIndex++)
+				if (LandscapeMaterial)
 				{
-					UMaterialExpression* Expression = Material->Expressions[ExpressionIndex];
-					UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression);
-
-					// TODO: This is only works for direct Coordinate Texture Sample cases
-					if (TextureSample && TextureSample->Coordinates.IsConnected())
-					{
-						UMaterialExpressionTextureCoordinate* TextureCoordinate = nullptr;
-						UMaterialExpressionLandscapeLayerCoords* TerrainTextureCoordinate = nullptr;
-
-						for (UMaterialExpression* FindExp : Material->Expressions)
-						{
-							if (FindExp && FindExp->GetFName() == TextureSample->Coordinates.ExpressionName)
-							{
-								TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(FindExp);
-								if (!TextureCoordinate)
-								{
-									TerrainTextureCoordinate = Cast<UMaterialExpressionLandscapeLayerCoords>(FindExp);
-								}
-								break;
-							}
-						}
-
-						if (TextureCoordinate || TerrainTextureCoordinate)
-						{
-							for (int32 i = 0; i < OutStreamingRenderAssets.Num(); ++i)
-							{
-								FStreamingRenderAssetPrimitiveInfo& StreamingTexture = OutStreamingRenderAssets[i];
-								if (StreamingTexture.RenderAsset == TextureSample->Texture)
-								{
-									if (TextureCoordinate)
-									{
-										StreamingTexture.TexelFactor = TexelFactor * FPlatformMath::Max(TextureCoordinate->UTiling, TextureCoordinate->VTiling);
-									}
-									else //if ( TerrainTextureCoordinate )
-									{
-										StreamingTexture.TexelFactor = TexelFactor * TerrainTextureCoordinate->MappingScale;
-									}
-									break;
-								}
-							}
-						}
-					}
+					const float MaterialTexelFactor = LandscapeMaterial->GetLandscapeTexelFactor(Texture2D->GetFName());
+					StreamingTexture.TexelFactor *= MaterialTexelFactor;
 				}
 			}
 

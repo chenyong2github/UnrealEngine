@@ -116,7 +116,7 @@ void FConcertSessionVersionInfo::Initialize()
 			}
 		}
 	}
-	
+
 	FCustomVersionContainer AllCurrentVersions = FCurrentCustomVersions::GetAll();
 	for (const FCustomVersion& EngineCustomVersion : AllCurrentVersions.GetAllVersions())
 	{

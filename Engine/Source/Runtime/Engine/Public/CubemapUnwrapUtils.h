@@ -59,16 +59,8 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& TransformValue);
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << Transform;
-
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter Transform;
+	LAYOUT_FIELD(FShaderParameter, Transform);
 };
 
 /**
@@ -95,24 +87,17 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float GammaValue);
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << CubeTexture << CubeTextureSampler << PackedProperties0 << ColorWeights << Gamma;
-		return bShaderHasOutdatedParameters;
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("HDR_OUTPUT"), bHDROutput ? TEXT("1") : TEXT("0"));
 	}
 private:
-	FShaderResourceParameter CubeTexture;
-	FShaderResourceParameter CubeTextureSampler;
-	FShaderParameter PackedProperties0;
-	FShaderParameter ColorWeights;
-	FShaderParameter Gamma;
+	LAYOUT_FIELD(FShaderResourceParameter, CubeTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, CubeTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, PackedProperties0);
+	LAYOUT_FIELD(FShaderParameter, ColorWeights);
+	LAYOUT_FIELD(FShaderParameter, Gamma);
 };
 
 
@@ -162,20 +147,11 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens);
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << IESTexture;
-		Ar << IESTextureSampler;
-		Ar << BrightnessInLumens;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
 	/** The texture to sample. */
-	FShaderResourceParameter IESTexture;
-	FShaderResourceParameter IESTextureSampler;
-	FShaderParameter BrightnessInLumens;
+	LAYOUT_FIELD(FShaderResourceParameter, IESTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, IESTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, BrightnessInLumens);
 };
 
 class ENGINE_API FIESLightProfileBatchedElementParameters : public FBatchedElementParameters

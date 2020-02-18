@@ -101,27 +101,14 @@ public:
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 
 	/**
 	 * Modify compile environment to enable instancing
 	 * @param OutEnvironment - shader compile environment to modify
 	 */
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FParticleVertexFactoryBase::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
-
-		// Set a define so we can tell in MaterialTemplate.usf when we are compiling a mesh particle vertex factory
-		OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_FACTORY"),TEXT("1"));
-		OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_INSTANCED"),TEXT("1"));
-
-		const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
-		if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Platform))
-		{
-			OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
-		}
-	}
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	
 	/**
 	 * An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
@@ -179,8 +166,6 @@ public:
 
 	static bool SupportsTessellationShaders() { return true; }
 
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
-
 	FMeshParticleInstanceVertices*& GetInstanceVerticesCPU()
 	{
 		return InstanceVerticesCPU;
@@ -228,18 +213,9 @@ public:
 		: FMeshParticleVertexFactory(InFeatureLevel)
 	{}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
-	{
-		return (Platform == SP_OPENGL_ES2_ANDROID) // Android platforms that might not support hardware instancing
-			&& FMeshParticleVertexFactory::ShouldCompilePermutation(Platform, Material, ShaderType);
-	}
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FMeshParticleVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
-
-		OutEnvironment.SetDefine(TEXT("PARTICLE_MESH_INSTANCED"),TEXT("0"));
-	}
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
 inline FMeshParticleVertexFactory* ConstructMeshParticleVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)

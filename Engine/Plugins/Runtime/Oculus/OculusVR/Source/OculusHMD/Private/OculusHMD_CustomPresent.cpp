@@ -387,7 +387,7 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 
 	if (DstTexture2D)
 	{
@@ -409,14 +409,14 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 			if (!sRGBSource)
 			{
 				TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI);
 			}
 			else
 			{
 				TShaderMapRef<FScreenPSsRGBSource> PixelShader(ShaderMap);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI);
 			}
@@ -429,7 +429,7 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 				U, V, USize, VSize,
 				TargetSize,
 				FIntPoint(1, 1),
-				*VertexShader,
+				VertexShader,
 				EDRF_Default);
 		}
 		RHICmdList.EndRenderPass();
@@ -451,7 +451,7 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 				TShaderMapRef<FOculusCubemapPS> PixelShader(ShaderMap);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				FRHISamplerState* SamplerState = DstRect.Size() == SrcRect.Size() ? TStaticSamplerState<SF_Point>::GetRHI() : TStaticSamplerState<SF_Bilinear>::GetRHI();
 				PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI, FaceIndex);
@@ -468,7 +468,7 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 #endif
 					TargetSize,
 					FIntPoint(1, 1),
-					*VertexShader,
+					VertexShader,
 					EDRF_Default);
 			}
 			RHICmdList.EndRenderPass();

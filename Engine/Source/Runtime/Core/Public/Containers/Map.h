@@ -17,7 +17,7 @@
 
 #define ExchangeB(A,B) {bool T=A; A=B; B=T;}
 
-template <typename KeyType,typename ValueType>
+template <typename KeyType, typename ValueType>
 using TPair = TTuple<KeyType, ValueType>;
 
 /** An initializer type for pairs that's passed to the pair set when adding a new pair. */
@@ -29,8 +29,8 @@ public:
 	typename TRValueToLValueReference<ValueInitType>::Type Value;
 
 	/** Initialization constructor. */
-	FORCEINLINE TPairInitializer(KeyInitType InKey,ValueInitType InValue)
-		: Key  (InKey  )
+	FORCEINLINE TPairInitializer(KeyInitType InKey, ValueInitType InValue)
+		: Key(InKey)
 		, Value(InValue)
 	{
 	}
@@ -72,7 +72,7 @@ public:
 
 /** Defines how the map's pairs are hashed. */
 template<typename KeyType, typename ValueType, bool bInAllowDuplicateKeys>
-struct TDefaultMapKeyFuncs : BaseKeyFuncs<TPair<KeyType,ValueType>,KeyType,bInAllowDuplicateKeys>
+struct TDefaultMapKeyFuncs : BaseKeyFuncs<TPair<KeyType, ValueType>, KeyType, bInAllowDuplicateKeys>
 {
 	typedef typename TTypeTraits<KeyType>::ConstPointerType KeyInitType;
 	typedef const TPairInitializer<typename TTypeTraits<KeyType>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>& ElementInitType;
@@ -81,7 +81,7 @@ struct TDefaultMapKeyFuncs : BaseKeyFuncs<TPair<KeyType,ValueType>,KeyType,bInAl
 	{
 		return Element.Key;
 	}
-	static FORCEINLINE bool Matches(KeyInitType A,KeyInitType B)
+	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
 	{
 		return A == B;
 	}
@@ -103,7 +103,7 @@ struct TDefaultMapHashableKeyFuncs : TDefaultMapKeyFuncs<KeyType, ValueType, bIn
 
 /** 
  * The base class of maps from keys to values.  Implemented using a TSet of key-value pairs with a custom KeyFuncs, 
- * with the same O(1) addition, removal, and finding.
+ * with the same O(1) addition, removal, and finding. 
  *
  * The ByHash() functions are somewhat dangerous but particularly useful in two scenarios:
  * -- Heterogeneous lookup to avoid creating expensive keys like FString when looking up by const TCHAR*.
@@ -122,6 +122,8 @@ class TMapBase
 	friend struct TContainerTraits<TMapBase>;
 
 public:
+	static const bool SupportsFreezeMemoryImage = TAllocatorTraits<SetAllocator>::SupportsFreezeMemoryImage;
+
 	typedef typename TTypeTraits<KeyType  >::ConstPointerType KeyConstPointerType;
 	typedef typename TTypeTraits<KeyType  >::ConstInitType    KeyInitType;
 	typedef typename TTypeTraits<ValueType>::ConstInitType    ValueInitType;
@@ -164,13 +166,13 @@ protected:
 
 public:
 	// Legacy comparison operators.  Note that these also test whether the map's key-value pairs were added in the same order!
-	friend bool LegacyCompareEqual(const TMapBase& A,const TMapBase& B)
+	friend bool LegacyCompareEqual(const TMapBase& A, const TMapBase& B)
 	{
-		return LegacyCompareEqual(A.Pairs,B.Pairs);
+		return LegacyCompareEqual(A.Pairs, B.Pairs);
 	}
-	friend bool LegacyCompareNotEqual(const TMapBase& A,const TMapBase& B)
+	friend bool LegacyCompareNotEqual(const TMapBase& A, const TMapBase& B)
 	{
-		return LegacyCompareNotEqual(A.Pairs,B.Pairs);
+		return LegacyCompareNotEqual(A.Pairs, B.Pairs);
 	}
 
 	/**
@@ -220,11 +222,11 @@ public:
 		Pairs.Empty(ExpectedNumElements);
 	}
 
-    /** Efficiently empties out the map but preserves all allocations and capacities */
-    FORCEINLINE void Reset()
-    {
-        Pairs.Reset();
-    }
+	/** Efficiently empties out the map but preserves all allocations and capacities */
+	FORCEINLINE void Reset()
+	{
+		Pairs.Reset();
+	}
 
 	/** Shrinks the pair set to avoid slack. */
 	FORCEINLINE void Shrink()
@@ -265,9 +267,9 @@ public:
 	template<typename Allocator> int32 GetKeys(TArray<KeyType, Allocator>& OutKeys) const
 	{
 		TSet<KeyType> VisitedKeys;
-		for(typename ElementSetType::TConstIterator It(Pairs);It;++It)
+		for (typename ElementSetType::TConstIterator It(Pairs); It; ++It)
 		{
-			if ( !VisitedKeys.Contains(It->Key) )
+			if (!VisitedKeys.Contains(It->Key))
 			{
 				OutKeys.Add(It->Key);
 				VisitedKeys.Add(It->Key);
@@ -306,10 +308,10 @@ public:
 	 * @param InValue The value to associate with the key.
 	 * @return A reference to the value as stored in the map. The reference is only valid until the next change to any key in the map.
 	 */
-	FORCEINLINE ValueType& Add(const KeyType&  InKey, const ValueType&  InValue) { return Emplace(                   InKey ,                    InValue ); }
-	FORCEINLINE ValueType& Add(const KeyType&  InKey,       ValueType&& InValue) { return Emplace(                   InKey , MoveTempIfPossible(InValue)); }
-	FORCEINLINE ValueType& Add(      KeyType&& InKey, const ValueType&  InValue) { return Emplace(MoveTempIfPossible(InKey),                    InValue ); }
-	FORCEINLINE ValueType& Add(      KeyType&& InKey,       ValueType&& InValue) { return Emplace(MoveTempIfPossible(InKey), MoveTempIfPossible(InValue)); }
+	FORCEINLINE ValueType& Add(const KeyType&  InKey, const ValueType&  InValue) { return Emplace(InKey, InValue); }
+	FORCEINLINE ValueType& Add(const KeyType&  InKey,		ValueType&& InValue) { return Emplace(InKey, MoveTempIfPossible(InValue)); }
+	FORCEINLINE ValueType& Add(		 KeyType&& InKey, const ValueType&  InValue) { return Emplace(MoveTempIfPossible(InKey), InValue); }
+	FORCEINLINE ValueType& Add(		 KeyType&& InKey,		ValueType&& InValue) { return Emplace(MoveTempIfPossible(InKey), MoveTempIfPossible(InValue)); }
 
 	/** See Add() and class documentation section on ByHash() functions */
 	FORCEINLINE ValueType& AddByHash(uint32 KeyHash, const KeyType&  InKey, const ValueType&  InValue) { return EmplaceByHash(KeyHash, InKey, InValue); }
@@ -323,8 +325,8 @@ public:
 	 * @param InKey The key to associate the value with.
 	 * @return A reference to the value as stored in the map. The reference is only valid until the next change to any key in the map.
 	 */
-	FORCEINLINE ValueType& Add(const KeyType&  InKey) { return Emplace(                   InKey ); }
-	FORCEINLINE ValueType& Add(      KeyType&& InKey) { return Emplace(MoveTempIfPossible(InKey)); }
+	FORCEINLINE ValueType& Add(const KeyType&  InKey) { return Emplace(InKey); }
+	FORCEINLINE ValueType& Add(		 KeyType&& InKey) { return Emplace(MoveTempIfPossible(InKey)); }
 
 	/** See Add() and class documentation section on ByHash() functions */
 	FORCEINLINE ValueType& AddByHash(uint32 KeyHash, const KeyType&  InKey) { return EmplaceByHash(KeyHash, InKey); }
@@ -336,8 +338,8 @@ public:
 	 * @param InKeyValue A Tuple containing the Key and Value to associate together
 	 * @return A reference to the value as stored in the map. The reference is only valid until the next change to any key in the map.
 	 */
-	FORCEINLINE ValueType& Add(const TTuple<KeyType,ValueType>&  InKeyValue) { return Emplace(                   InKeyValue.Key ,                    InKeyValue.Value ); }
-	FORCEINLINE ValueType& Add(      TTuple<KeyType,ValueType>&& InKeyValue) { return Emplace(MoveTempIfPossible(InKeyValue.Key), MoveTempIfPossible(InKeyValue.Value)); }
+	FORCEINLINE ValueType& Add(const TTuple<KeyType, ValueType>&  InKeyValue) { return Emplace(InKeyValue.Key, InKeyValue.Value); }
+	FORCEINLINE ValueType& Add(		 TTuple<KeyType, ValueType>&& InKeyValue) { return Emplace(MoveTempIfPossible(InKeyValue.Key), MoveTempIfPossible(InKeyValue.Value)); }
 
 	/**
 	 * Sets the value associated with a key.
@@ -417,9 +419,9 @@ public:
 	 */
 	const KeyType* FindKey(ValueInitType Value) const
 	{
-		for(typename ElementSetType::TConstIterator PairIt(Pairs);PairIt;++PairIt)
+		for (typename ElementSetType::TConstIterator PairIt(Pairs); PairIt; ++PairIt)
 		{
-			if(PairIt->Value == Value)
+			if (PairIt->Value == Value)
 			{
 				return &PairIt->Key;
 			}
@@ -552,7 +554,7 @@ public:
 	FORCEINLINE const ValueType& FindChecked(KeyConstPointerType Key) const
 	{
 		const auto* Pair = Pairs.Find(Key);
-		check( Pair != nullptr );
+		check(Pair != nullptr);
 		return Pair->Value;
 	}
 
@@ -565,7 +567,7 @@ public:
 	FORCEINLINE ValueType& FindChecked(KeyConstPointerType Key)
 	{
 		auto* Pair = Pairs.Find(Key);
-		check( Pair != nullptr );
+		check(Pair != nullptr);
 		return Pair->Value;
 	}
 
@@ -611,7 +613,7 @@ public:
 	template<typename Allocator> void GenerateKeyArray(TArray<KeyType, Allocator>& OutArray) const
 	{
 		OutArray.Empty(Pairs.Num());
-		for(typename ElementSetType::TConstIterator PairIt(Pairs);PairIt;++PairIt)
+		for (typename ElementSetType::TConstIterator PairIt(Pairs); PairIt; ++PairIt)
 		{
 			new(OutArray) KeyType(PairIt->Key);
 		}
@@ -625,14 +627,14 @@ public:
 	template<typename Allocator> void GenerateValueArray(TArray<ValueType, Allocator>& OutArray) const
 	{
 		OutArray.Empty(Pairs.Num());
-		for(typename ElementSetType::TConstIterator PairIt(Pairs);PairIt;++PairIt)
+		for (typename ElementSetType::TConstIterator PairIt(Pairs); PairIt; ++PairIt)
 		{
 			new(OutArray) ValueType(PairIt->Value);
 		}
 	}
 
 	/** Serializer. */
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar,TMapBase& Map)
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, TMapBase& Map)
 	{
 		return Ar << Map.Pairs;
 	}
@@ -697,13 +699,13 @@ protected:
 		typedef typename TChooseClass<
 			bConst,
 			typename TChooseClass<bRangedFor, typename ElementSetType::TRangedForConstIterator, typename ElementSetType::TConstIterator>::Result,
-			typename TChooseClass<bRangedFor, typename ElementSetType::TRangedForIterator,      typename ElementSetType::TIterator     >::Result
+			typename TChooseClass<bRangedFor, typename ElementSetType::TRangedForIterator, typename ElementSetType::TIterator     >::Result
 		>::Result PairItType;
 	private:
-		typedef typename TChooseClass<bConst,const TMapBase,TMapBase>::Result MapType;
-		typedef typename TChooseClass<bConst,const KeyType,KeyType>::Result ItKeyType;
-		typedef typename TChooseClass<bConst,const ValueType,ValueType>::Result ItValueType;
-		typedef typename TChooseClass<bConst,const typename ElementSetType::ElementType, typename ElementSetType::ElementType>::Result PairType;
+		typedef typename TChooseClass<bConst, const TMapBase, TMapBase>::Result MapType;
+		typedef typename TChooseClass<bConst, const KeyType, KeyType>::Result ItKeyType;
+		typedef typename TChooseClass<bConst, const ValueType, ValueType>::Result ItValueType;
+		typedef typename TChooseClass<bConst, const typename ElementSetType::ElementType, typename ElementSetType::ElementType>::Result PairType;
 
 	public:
 		FORCEINLINE TBaseIterator(const PairItType& InElementIt)
@@ -746,9 +748,9 @@ protected:
 	class TBaseKeyIterator
 	{
 	private:
-		typedef typename TChooseClass<bConst,typename ElementSetType::TConstKeyIterator,typename ElementSetType::TKeyIterator>::Result SetItType;
-		typedef typename TChooseClass<bConst,const KeyType,KeyType>::Result ItKeyType;
-		typedef typename TChooseClass<bConst,const ValueType,ValueType>::Result ItValueType;
+		typedef typename TChooseClass<bConst, typename ElementSetType::TConstKeyIterator, typename ElementSetType::TKeyIterator>::Result SetItType;
+		typedef typename TChooseClass<bConst, const KeyType, KeyType>::Result ItKeyType;
+		typedef typename TChooseClass<bConst, const ValueType, ValueType>::Result ItValueType;
 
 	public:
 		/** Initialization constructor. */
@@ -774,7 +776,7 @@ protected:
 			return !(bool)*this;
 		}
 
-		FORCEINLINE ItKeyType&   Key  () const { return SetIt->Key; }
+		FORCEINLINE ItKeyType&   Key() const { return SetIt->Key; }
 		FORCEINLINE ItValueType& Value() const { return SetIt->Value; }
 
 	protected:
@@ -785,6 +787,20 @@ protected:
 	ElementSetType Pairs;
 
 public:
+	void WriteMemoryImage(FMemoryImageWriter& Writer) const
+	{
+		Pairs.WriteMemoryImage(Writer);
+	}
+
+	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
+	{
+		Pairs.CopyUnfrozen(Context, Dst);
+	}
+
+	static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		ElementSetType::AppendHash(LayoutParams, Hasher);
+	}
 
 	/** Map iterator. */
 	class TIterator : public TBaseIterator<false>
@@ -793,8 +809,8 @@ public:
 
 		/** Initialization constructor. */
 		FORCEINLINE TIterator(TMapBase& InMap, bool bInRequiresRehashOnRemoval = false)
-			: TBaseIterator<false>    (InMap.Pairs.CreateIterator())
-			, Map                     (InMap)
+			: TBaseIterator<false>(InMap.Pairs.CreateIterator())
+			, Map(InMap)
 			, bElementsHaveBeenRemoved(false)
 			, bRequiresRehashOnRemoval(bInRequiresRehashOnRemoval)
 		{
@@ -803,7 +819,7 @@ public:
 		/** Destructor. */
 		FORCEINLINE ~TIterator()
 		{
-			if(bElementsHaveBeenRemoved && bRequiresRehashOnRemoval)
+			if (bElementsHaveBeenRemoved && bRequiresRehashOnRemoval)
 			{
 				Map.Pairs.Relax();
 			}
@@ -832,15 +848,15 @@ public:
 		}
 	};
 
-	using TRangedForIterator      = TBaseIterator<false, true>;
+	using TRangedForIterator = TBaseIterator<false, true>;
 	using TRangedForConstIterator = TBaseIterator<true, true>;
 
 	/** Iterates over values associated with a specified key in a const map. */
 	class TConstKeyIterator : public TBaseKeyIterator<true>
 	{
 	public:
-		FORCEINLINE TConstKeyIterator(const TMapBase& InMap,KeyInitType InKey)
-		:	TBaseKeyIterator<true>(typename ElementSetType::TConstKeyIterator(InMap.Pairs,InKey))
+		FORCEINLINE TConstKeyIterator(const TMapBase& InMap, KeyInitType InKey)
+			: TBaseKeyIterator<true>(typename ElementSetType::TConstKeyIterator(InMap.Pairs, InKey))
 		{}
 	};
 
@@ -848,8 +864,8 @@ public:
 	class TKeyIterator : public TBaseKeyIterator<false>
 	{
 	public:
-		FORCEINLINE TKeyIterator(TMapBase& InMap,KeyInitType InKey)
-		:	TBaseKeyIterator<false>(typename ElementSetType::TKeyIterator(InMap.Pairs,InKey))
+		FORCEINLINE TKeyIterator(TMapBase& InMap, KeyInitType InKey)
+			: TBaseKeyIterator<false>(typename ElementSetType::TKeyIterator(InMap.Pairs, InKey))
 		{}
 
 		/** Removes the current key-value pair from the map. */
@@ -888,12 +904,11 @@ public:
 	 * DO NOT USE DIRECTLY
 	 * STL-like iterators to enable range-based for loop support.
 	 */
-	FORCEINLINE TRangedForIterator      begin()       { return TRangedForIterator     (Pairs.begin()); }
+	FORCEINLINE TRangedForIterator      begin() { return TRangedForIterator(Pairs.begin()); }
 	FORCEINLINE TRangedForConstIterator begin() const { return TRangedForConstIterator(Pairs.begin()); }
-	FORCEINLINE TRangedForIterator      end  ()       { return TRangedForIterator     (Pairs.end());   }
-	FORCEINLINE TRangedForConstIterator end  () const { return TRangedForConstIterator(Pairs.end());   }
+	FORCEINLINE TRangedForIterator      end() { return TRangedForIterator(Pairs.end()); }
+	FORCEINLINE TRangedForConstIterator end() const { return TRangedForConstIterator(Pairs.end()); }
 };
-
 
 /** The base type of sortable maps. */
 template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
@@ -946,9 +961,9 @@ public:
 	 * Invoked using "MyMapVar.KeySort( PREDICATE_CLASS() );"
 	 */
 	template<typename PREDICATE_CLASS>
-	FORCEINLINE void KeySort( const PREDICATE_CLASS& Predicate )
+	FORCEINLINE void KeySort(const PREDICATE_CLASS& Predicate)
 	{
-		Super::Pairs.Sort( FKeyComparisonClass<PREDICATE_CLASS>( Predicate ) );
+		Super::Pairs.Sort(FKeyComparisonClass<PREDICATE_CLASS>(Predicate));
 	}
 
 	/**
@@ -966,9 +981,9 @@ public:
 	 * Invoked using "MyMapVar.ValueSort( PREDICATE_CLASS() );"
 	 */
 	template<typename PREDICATE_CLASS>
-	FORCEINLINE void ValueSort( const PREDICATE_CLASS& Predicate )
+	FORCEINLINE void ValueSort(const PREDICATE_CLASS& Predicate)
 	{
-		Super::Pairs.Sort( FValueComparisonClass<PREDICATE_CLASS>( Predicate ) );
+		Super::Pairs.Sort(FValueComparisonClass<PREDICATE_CLASS>(Predicate));
 	}
 
 	/**
@@ -992,13 +1007,13 @@ private:
 
 	public:
 
-		FORCEINLINE FKeyComparisonClass( const PREDICATE_CLASS& InPredicate )
-			: Predicate( InPredicate )
+		FORCEINLINE FKeyComparisonClass(const PREDICATE_CLASS& InPredicate)
+			: Predicate(InPredicate)
 		{}
 
-		FORCEINLINE bool operator()( const typename Super::ElementType& A, const typename Super::ElementType& B ) const
+		FORCEINLINE bool operator()(const typename Super::ElementType& A, const typename Super::ElementType& B) const
 		{
-			return Predicate( A.Key, B.Key );
+			return Predicate(A.Key, B.Key);
 		}
 	};
 
@@ -1010,25 +1025,28 @@ private:
 
 	public:
 
-		FORCEINLINE FValueComparisonClass( const PREDICATE_CLASS& InPredicate )
-			: Predicate( InPredicate )
+		FORCEINLINE FValueComparisonClass(const PREDICATE_CLASS& InPredicate)
+			: Predicate(InPredicate)
 		{}
 
-		FORCEINLINE bool operator()( const typename Super::ElementType& A, const typename Super::ElementType& B ) const
+		FORCEINLINE bool operator()(const typename Super::ElementType& A, const typename Super::ElementType& B) const
 		{
-			return Predicate( A.Value, B.Value );
+			return Predicate(A.Value, B.Value);
 		}
 	};
 };
 
-class FScriptMap;
+template <typename AllocatorType, typename InDerivedType = void>
+class TScriptMap;
 
 /** A TMapBase specialization that only allows a single value associated with each key.*/
-template<typename KeyType,typename ValueType,typename SetAllocator /*= FDefaultSetAllocator*/,typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,false>*/>
+template<typename KeyType, typename ValueType, typename SetAllocator /*= FDefaultSetAllocator*/, typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,false>*/>
 class TMap : public TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>
 {
 	friend struct TContainerTraits<TMap>;
-	friend class  FScriptMap;
+
+	template <typename, typename>
+	friend class TScriptMap;
 
 	static_assert(!KeyFuncs::bAllowDuplicateKeys, "TMap cannot be instantiated with a KeyFuncs which allows duplicate keys");
 
@@ -1102,10 +1120,10 @@ public:
 	 * @param OutRemovedValue If found, the value that was removed (not modified if the key was not found)
 	 * @return whether or not the key was found
 	 */
-	FORCEINLINE bool RemoveAndCopyValue(KeyInitType Key,ValueType& OutRemovedValue)
+	FORCEINLINE bool RemoveAndCopyValue(KeyInitType Key, ValueType& OutRemovedValue)
 	{
 		const FSetElementId PairId = Super::Pairs.FindId(Key);
-		if(!PairId.IsValidId())
+		if (!PairId.IsValidId())
 			return false;
 
 		OutRemovedValue = MoveTempIfPossible(Super::Pairs[PairId].Value);
@@ -1164,13 +1182,36 @@ public:
 		}
 	}
 
-	FORCEINLINE       ValueType& operator[](KeyConstPointerType Key)       { return this->FindChecked(Key); }
+	FORCEINLINE       ValueType& operator[](KeyConstPointerType Key) { return this->FindChecked(Key); }
 	FORCEINLINE const ValueType& operator[](KeyConstPointerType Key) const { return this->FindChecked(Key); }
 };
 
+namespace Freeze
+{
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Object, const FTypeLayoutDesc&)
+	{
+		Object.WriteMemoryImage(Writer);
+	}
+
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Object, void* OutDst)
+	{
+		Object.CopyUnfrozen(Context, OutDst);
+	}
+
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	uint32 IntrinsicAppendHash(const TMap<KeyType, ValueType, SetAllocator, KeyFuncs>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		TMap<KeyType, ValueType, SetAllocator, KeyFuncs>::AppendHash(LayoutParams, Hasher);
+		return DefaultAppendHash(TypeDesc, LayoutParams, Hasher);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>), (TMap<KeyType, ValueType, SetAllocator, KeyFuncs>));
 
 /** A TMapBase specialization that allows multiple values to be associated with each key. */
-template<typename KeyType,typename ValueType,typename SetAllocator /* = FDefaultSetAllocator */,typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,true>*/>
+template<typename KeyType, typename ValueType, typename SetAllocator /* = FDefaultSetAllocator */, typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,true>*/>
 class TMultiMap : public TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>
 {
 	friend struct TContainerTraits<TMultiMap>;
@@ -1247,14 +1288,14 @@ public:
 	 * @param OutValues Upon return, contains the values associated with the key.
 	 * @param bMaintainOrder true if the Values array should be in the same order as the map's pairs.
 	 */
-	template<typename Allocator> void MultiFind(KeyInitType Key,TArray<ValueType, Allocator>& OutValues,bool bMaintainOrder = false) const
+	template<typename Allocator> void MultiFind(KeyInitType Key, TArray<ValueType, Allocator>& OutValues, bool bMaintainOrder = false) const
 	{
-		for(typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs,Key);It;++It)
+		for (typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs, Key); It; ++It)
 		{
 			new(OutValues) ValueType(It->Value);
 		}
 
-		if(bMaintainOrder)
+		if (bMaintainOrder)
 		{
 			Algo::Reverse(OutValues);
 		}
@@ -1268,14 +1309,14 @@ public:
 	 *					Pointers are only valid until the next change to any key in the map.
 	 * @param bMaintainOrder true if the Values array should be in the same order as the map's pairs.
 	 */
-	template<typename Allocator> void MultiFindPointer(KeyInitType Key,TArray<const ValueType*, Allocator>& OutValues,bool bMaintainOrder = false) const
+	template<typename Allocator> void MultiFindPointer(KeyInitType Key, TArray<const ValueType*, Allocator>& OutValues, bool bMaintainOrder = false) const
 	{
-		for(typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs,Key);It;++It)
+		for (typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs, Key); It; ++It)
 		{
 			OutValues.Add(&It->Value);
 		}
 
-		if(bMaintainOrder)
+		if (bMaintainOrder)
 		{
 			Algo::Reverse(OutValues);
 		}
@@ -1302,10 +1343,10 @@ public:
 	 * @param InValue The value to associate.
 	 * @return A reference to the value as stored in the map; the reference is only valid until the next change to any key in the map.
 	 */
-	FORCEINLINE ValueType& AddUnique(const KeyType&  InKey, const ValueType&  InValue) { return EmplaceUnique(                   InKey ,                    InValue ); }
-	FORCEINLINE ValueType& AddUnique(const KeyType&  InKey,       ValueType&& InValue) { return EmplaceUnique(                   InKey , MoveTempIfPossible(InValue)); }
-	FORCEINLINE ValueType& AddUnique(      KeyType&& InKey, const ValueType&  InValue) { return EmplaceUnique(MoveTempIfPossible(InKey),                    InValue ); }
-	FORCEINLINE ValueType& AddUnique(      KeyType&& InKey,       ValueType&& InValue) { return EmplaceUnique(MoveTempIfPossible(InKey), MoveTempIfPossible(InValue)); }
+	FORCEINLINE ValueType& AddUnique(const KeyType&  InKey, const ValueType&  InValue) { return EmplaceUnique(InKey, InValue); }
+	FORCEINLINE ValueType& AddUnique(const KeyType&  InKey, ValueType&& InValue) { return EmplaceUnique(InKey, MoveTempIfPossible(InValue)); }
+	FORCEINLINE ValueType& AddUnique(KeyType&& InKey, const ValueType&  InValue) { return EmplaceUnique(MoveTempIfPossible(InKey), InValue); }
+	FORCEINLINE ValueType& AddUnique(KeyType&& InKey, ValueType&& InValue) { return EmplaceUnique(MoveTempIfPossible(InKey), MoveTempIfPossible(InValue)); }
 
 	/**
 	 * Add a key-value association to the map.
@@ -1348,14 +1389,14 @@ public:
 	 * @param InValue The value part of the pair to remove.
 	 * @return The number of associations removed.
 	 */
-	int32 Remove(KeyInitType InKey,ValueInitType InValue)
+	int32 Remove(KeyInitType InKey, ValueInitType InValue)
 	{
 		// Iterate over pairs with a matching key.
 		int32 NumRemovedPairs = 0;
-		for(typename Super::ElementSetType::TKeyIterator It(Super::Pairs,InKey);It;++It)
+		for (typename Super::ElementSetType::TKeyIterator It(Super::Pairs, InKey); It; ++It)
 		{
 			// If this pair has a matching value as well, remove it.
-			if(It->Value == InValue)
+			if (It->Value == InValue)
 			{
 				It.RemoveCurrent();
 				++NumRemovedPairs;
@@ -1371,14 +1412,14 @@ public:
 	 * @param InValue The value part of the pair to remove.
 	 * @return The number of associations removed.
 	 */
-	int32 RemoveSingle(KeyInitType InKey,ValueInitType InValue)
+	int32 RemoveSingle(KeyInitType InKey, ValueInitType InValue)
 	{
 		// Iterate over pairs with a matching key.
 		int32 NumRemovedPairs = 0;
-		for(typename Super::ElementSetType::TKeyIterator It(Super::Pairs,InKey);It;++It)
+		for (typename Super::ElementSetType::TKeyIterator It(Super::Pairs, InKey); It; ++It)
 		{
 			// If this pair has a matching value as well, remove it.
-			if(It->Value == InValue)
+			if (It->Value == InValue)
 			{
 				It.RemoveCurrent();
 				++NumRemovedPairs;
@@ -1398,7 +1439,7 @@ public:
 	 * @return If the map contains a matching association, a pointer to the value in the map is returned.  Otherwise nullptr is returned.
 	 *			The pointer is only valid as long as the map isn't changed.
 	 */
-	FORCEINLINE const ValueType* FindPair(KeyInitType Key,ValueInitType Value) const
+	FORCEINLINE const ValueType* FindPair(KeyInitType Key, ValueInitType Value) const
 	{
 		return const_cast<TMultiMap*>(this)->FindPair(Key, Value);
 	}
@@ -1411,13 +1452,13 @@ public:
 	 * @return If the map contains a matching association, a pointer to the value in the map is returned.  Otherwise nullptr is returned.
 	 *			The pointer is only valid as long as the map isn't changed.
 	 */
-	ValueType* FindPair(KeyInitType Key,ValueInitType Value)
+	ValueType* FindPair(KeyInitType Key, ValueInitType Value)
 	{
 		// Iterate over pairs with a matching key.
-		for(typename Super::ElementSetType::TKeyIterator It(Super::Pairs,Key);It;++It)
+		for (typename Super::ElementSetType::TKeyIterator It(Super::Pairs, Key); It; ++It)
 		{
 			// If the pair's value matches, return a pointer to it.
-			if(It->Value == Value)
+			if (It->Value == Value)
 			{
 				return &It->Value;
 			}
@@ -1431,7 +1472,7 @@ public:
 	{
 		// Iterate over pairs with a matching key.
 		int32 NumMatchingPairs = 0;
-		for(typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs,Key);It;++It)
+		for (typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs, Key); It; ++It)
 		{
 			++NumMatchingPairs;
 		}
@@ -1479,6 +1520,30 @@ public:
 	}
 };
 
+namespace Freeze
+{
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Object, const FTypeLayoutDesc&)
+	{
+		Object.WriteMemoryImage(Writer);
+	}
+
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	void IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Object, void* OutDst)
+	{
+		Object.CopyUnfrozen(Context, OutDst);
+	}
+
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	uint32 IntrinsicAppendHash(const TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+	{
+		TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>::AppendHash(LayoutParams, Hasher);
+		return DefaultAppendHash(TypeDesc, LayoutParams, Hasher);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>), (TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>));
+
 
 struct FScriptMapLayout
 {
@@ -1491,8 +1556,11 @@ struct FScriptMapLayout
 
 // Untyped map type for accessing TMap data, like FScriptArray for TArray.
 // Must have the same memory representation as a TMap.
-class FScriptMap
+template <typename AllocatorType, typename InDerivedType>
+class TScriptMap
 {
+	using DerivedType = typename TChooseClass<TIsVoidType<InDerivedType>::Value, TScriptMap, InDerivedType>::Result;
+
 public:
 	static FScriptMapLayout GetScriptLayout(int32 KeySize, int32 KeyAlignment, int32 ValueSize, int32 ValueAlignment)
 	{
@@ -1500,16 +1568,16 @@ public:
 
 		// TPair<Key, Value>
 		FStructBuilder PairStruct;
-		int32 KeyOffset    = PairStruct.AddMember(KeySize,   KeyAlignment);
+		int32 KeyOffset = PairStruct.AddMember(KeySize, KeyAlignment);
 		Result.ValueOffset = PairStruct.AddMember(ValueSize, ValueAlignment);
-		Result.SetLayout   = FScriptSet::GetScriptLayout(PairStruct.GetSize(),  PairStruct.GetAlignment());
+		Result.SetLayout = FScriptSet::GetScriptLayout(PairStruct.GetSize(), PairStruct.GetAlignment());
 
 		checkf(KeyOffset == 0, TEXT("The key inside the TPair is expected to be at the start of the struct"));
 
 		return Result;
 	}
 
-	FScriptMap()
+	TScriptMap()
 	{
 	}
 
@@ -1538,11 +1606,13 @@ public:
 		return Pairs.GetData(Index, Layout.SetLayout);
 	}
 
-	void MoveAssign(FScriptMap& Other, const FScriptMapLayout& Layout)
+	void MoveAssign(DerivedType& Other, const FScriptMapLayout& Layout)
 	{
-		checkSlow(this != &Other);
+		TScriptMap* TypedOther = (TScriptMap*)&Other;
+
+		checkSlow(this != TypedOther);
 		Empty(0, Layout);
-		Pairs.MoveAssign(Other.Pairs, Layout.SetLayout);
+		Pairs.MoveAssign(TypedOther->Pairs, Layout.SetLayout);
 	}
 
 	void Empty(int32 Slack, const FScriptMapLayout& Layout)
@@ -1566,13 +1636,13 @@ public:
 		return Pairs.AddUninitialized(Layout.SetLayout);
 	}
 
-	void Rehash(const FScriptMapLayout& Layout, TFunctionRef<uint32 (const void*)> GetKeyHash)
+	void Rehash(const FScriptMapLayout& Layout, TFunctionRef<uint32(const void*)> GetKeyHash)
 	{
 		Pairs.Rehash(Layout.SetLayout, GetKeyHash);
 	}
 	
 	/** Finds the associated key, value from hash of Key, rather than linearly searching */
-	int32 FindPairIndex(const void* Key, const FScriptMapLayout& MapLayout, TFunctionRef<uint32 (const void*)> GetKeyHash, TFunctionRef<bool (const void*, const void*)> KeyEqualityFn)
+	int32 FindPairIndex(const void* Key, const FScriptMapLayout& MapLayout, TFunctionRef<uint32(const void*)> GetKeyHash, TFunctionRef<bool(const void*, const void*)> KeyEqualityFn)
 	{
 		if (Pairs.Num())
 		{
@@ -1594,7 +1664,7 @@ public:
 	}
 
 	/** Finds the associated value from hash of Key, rather than linearly searching */
-	uint8* FindValue(const void* Key, const FScriptMapLayout& MapLayout, TFunctionRef<uint32 (const void*)> GetKeyHash, TFunctionRef<bool (const void*, const void*)> KeyEqualityFn)
+	uint8* FindValue(const void* Key, const FScriptMapLayout& MapLayout, TFunctionRef<uint32(const void*)> GetKeyHash, TFunctionRef<bool(const void*, const void*)> KeyEqualityFn)
 	{
 		int32 FoundIndex = FindPairIndex(Key, MapLayout, GetKeyHash, KeyEqualityFn);
 		if (FoundIndex != INDEX_NONE)
@@ -1625,15 +1695,15 @@ public:
 			GetKeyHash,
 			KeyEqualityFn,
 			[KeyConstructAndAssignFn, ValueConstructAndAssignFn, Layout](void* NewPair)
-			{
-				KeyConstructAndAssignFn((uint8*)NewPair);
-				ValueConstructAndAssignFn((uint8*)NewPair + Layout.ValueOffset);
-			},
+		{
+			KeyConstructAndAssignFn((uint8*)NewPair);
+			ValueConstructAndAssignFn((uint8*)NewPair + Layout.ValueOffset);
+		},
 			[DestructKeyFn, DestructValueFn, Layout](void* NewPair)
-			{
-				DestructValueFn((uint8*)NewPair + Layout.ValueOffset);
-				DestructKeyFn((uint8*)NewPair);
-			}
+		{
+			DestructValueFn((uint8*)NewPair + Layout.ValueOffset);
+			DestructKeyFn((uint8*)NewPair);
+		}
 		);
 	}
 
@@ -1666,48 +1736,55 @@ public:
 	}
 
 private:
-	FScriptSet Pairs;
+	TScriptSet<AllocatorType> Pairs;
 
 	// This function isn't intended to be called, just to be compiled to validate the correctness of the type.
 	static void CheckConstraints()
 	{
-		typedef FScriptMap        ScriptType;
+		typedef TScriptMap        ScriptType;
 		typedef TMap<int32, int8> RealType;
 
 		// Check that the class footprint is the same
-		static_assert(sizeof (ScriptType) == sizeof (RealType), "FScriptMap's size doesn't match TMap");
-		static_assert(alignof(ScriptType) == alignof(RealType), "FScriptMap's alignment doesn't match TMap");
+		static_assert(sizeof(ScriptType) == sizeof(RealType), "TScriptMap's size doesn't match TMap");
+		static_assert(alignof(ScriptType) == alignof(RealType), "TScriptMap's alignment doesn't match TMap");
 
 		// Check member sizes
-		static_assert(sizeof(DeclVal<ScriptType>().Pairs) == sizeof(DeclVal<RealType>().Pairs), "FScriptMap's Pairs member size does not match TMap's");
+		static_assert(sizeof(DeclVal<ScriptType>().Pairs) == sizeof(DeclVal<RealType>().Pairs), "TScriptMap's Pairs member size does not match TMap's");
 
 		// Check member offsets
-		static_assert(STRUCT_OFFSET(ScriptType, Pairs) == STRUCT_OFFSET(RealType, Pairs), "FScriptMap's Pairs member offset does not match TMap's");
+		static_assert(STRUCT_OFFSET(ScriptType, Pairs) == STRUCT_OFFSET(RealType, Pairs), "TScriptMap's Pairs member offset does not match TMap's");
 	}
 
 public:
 	// These should really be private, because they shouldn't be called, but there's a bunch of code
 	// that needs to be fixed first.
-	FScriptMap(const FScriptMap&) { check(false); }
-	void operator=(const FScriptMap&) { check(false); }
+	TScriptMap(const TScriptMap&) { check(false); }
+	void operator=(const TScriptMap&) { check(false); }
 };
 
 
-template <>
-struct TIsZeroConstructType<FScriptMap>
+template <typename AllocatorType>
+struct TIsZeroConstructType<TScriptMap<AllocatorType>>
 {
 	enum { Value = true };
 };
 
+class FScriptMap : public TScriptMap<FDefaultSetAllocator, FScriptMap>
+{
+	using Super = TScriptMap<FDefaultSetAllocator, FScriptMap>;
 
-template <typename KeyType, typename ValueType, typename SetAllocator,typename KeyFuncs>
+public:
+	using Super::Super;
+};
+
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
 struct TContainerTraits<TMap<KeyType, ValueType, SetAllocator, KeyFuncs>> : public TContainerTraitsBase<TMap<KeyType, ValueType, SetAllocator, KeyFuncs>>
 {
 	enum { MoveWillEmptyContainer = TContainerTraits<typename TMap<KeyType, ValueType, SetAllocator, KeyFuncs>::ElementSetType>::MoveWillEmptyContainer };
 };
 
 
-template <typename KeyType, typename ValueType, typename SetAllocator,typename KeyFuncs>
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
 struct TContainerTraits<TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>> : public TContainerTraitsBase<TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>>
 {
 	enum { MoveWillEmptyContainer = TContainerTraits<typename TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>::ElementSetType>::MoveWillEmptyContainer };

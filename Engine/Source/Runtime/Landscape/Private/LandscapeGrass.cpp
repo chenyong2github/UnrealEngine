@@ -218,13 +218,13 @@ static FAutoConsoleVariableSink CVarGrassSink(FConsoleCommandDelegate::CreateSta
 //
 
 #if WITH_EDITOR
-static bool ShouldCacheLandscapeGrassShaders(EShaderPlatform Platform, const FMaterial* Material, const FVertexFactoryType* VertexFactoryType)
+static bool ShouldCacheLandscapeGrassShaders(const FMeshMaterialShaderPermutationParameters& Parameters)
 {
 	// We only need grass weight shaders for Landscape vertex factories on desktop platforms
-	return (Material->IsUsedWithLandscape() || Material->IsSpecialEngineMaterial()) &&
-		IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) &&
-		((VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find))) || (VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find))))
-		&& !IsConsolePlatform(Platform);
+	return (Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
+		IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
+		((Parameters.VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find))) || (Parameters.VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find))))
+		&& !IsConsolePlatform(Parameters.Platform);
 }
 
 class FLandscapeGrassWeightShaderElementData : public FMeshMaterialShaderElementData
@@ -239,7 +239,7 @@ class FLandscapeGrassWeightVS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FLandscapeGrassWeightVS, MeshMaterial);
 
-	FShaderParameter RenderOffsetParameter;
+	LAYOUT_FIELD(FShaderParameter, RenderOffsetParameter);
 
 protected:
 
@@ -257,7 +257,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return ShouldCacheLandscapeGrassShaders(Parameters.Platform, Parameters.Material, Parameters.VertexFactoryType);
+		return ShouldCacheLandscapeGrassShaders(Parameters);
 	}
 
 	void GetShaderBindings(
@@ -274,13 +274,6 @@ public:
 
 		ShaderBindings.Add(RenderOffsetParameter, ShaderElementData.RenderOffset);
 	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		Ar << RenderOffsetParameter;
-		return bShaderHasOutdatedParameters;
-	}
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FLandscapeGrassWeightVS, TEXT("/Engine/Private/LandscapeGrassWeight.usf"), TEXT("VSMain"), SF_Vertex);
@@ -288,12 +281,12 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FLandscapeGrassWeightVS, TEXT("/Engine/Private/
 class FLandscapeGrassWeightPS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FLandscapeGrassWeightPS, MeshMaterial);
-	FShaderParameter OutputPassParameter;
+	LAYOUT_FIELD(FShaderParameter, OutputPassParameter);
 public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return ShouldCacheLandscapeGrassShaders(Parameters.Platform, Parameters.Material, Parameters.VertexFactoryType);
+		return ShouldCacheLandscapeGrassShaders(Parameters);
 	}
 
 	FLandscapeGrassWeightPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -319,13 +312,6 @@ public:
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
 
 		ShaderBindings.Add(OutputPassParameter, ShaderElementData.OutputPass);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		Ar << OutputPassParameter;
-		return bShaderHasOutdatedParameters;
 	}
 };
 
@@ -418,7 +404,8 @@ void FLandscapeGrassWeightMeshProcessor::Process(
 	PassShaders.PixelShader = MaterialResource.GetShader<FLandscapeGrassWeightPS>(VertexFactory->GetType());
 	PassShaders.VertexShader = MaterialResource.GetShader<FLandscapeGrassWeightVS>(VertexFactory->GetType());
 
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource);
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = CM_None;
 
 	FLandscapeGrassWeightShaderElementData ShaderElementData;
@@ -2058,28 +2045,24 @@ void ALandscapeProxy::GetGrassTypes(const UWorld* World, UMaterialInterface* Lan
 	ERHIFeatureLevel::Type FeatureLevel = World->Scene != nullptr? World->Scene->GetFeatureLevel() : GMaxRHIFeatureLevel;
 	if (LandscapeMat)
 	{
-		TArray<const UMaterialExpressionLandscapeGrassOutput*> GrassExpressions;
-		LandscapeMat->GetMaterial()->GetAllExpressionsOfType<UMaterialExpressionLandscapeGrassOutput>(GrassExpressions);
-		if (GrassExpressions.Num() > 0)
-		{
-			for (const FGrassInput& Type : GrassExpressions[0]->GrassTypes)
-			{
-				if (Type.GrassType)
-				{
-					GrassTypesOut.Add(Type.GrassType);
+		GrassTypesOut.Append(LandscapeMat->GetMaterial()->GetCachedExpressionData().GrassTypes);
 
-					for (auto& GrassVariety : Type.GrassType->GrassVarieties)
+		for (const ULandscapeGrassType* GrassType : LandscapeMat->GetMaterial()->GetCachedExpressionData().GrassTypes)
+		{
+			if (GrassType != nullptr)
+			{
+				for (auto& GrassVariety : GrassType->GrassVarieties)
+				{
+					const int32 EndCullDistance = GrassVariety.EndCullDistance.GetValueForFeatureLevel(FeatureLevel);
+					if (EndCullDistance > MaxDiscardDistance)
 					{
-						int32 EndCullDistance = GrassVariety.EndCullDistance.GetValueForFeatureLevel(FeatureLevel);
-						if (EndCullDistance > MaxDiscardDistance)
-						{
-							MaxDiscardDistance = EndCullDistance;
-						}
+						MaxDiscardDistance = EndCullDistance;
 					}
 				}
 			}
 		}
 	}
+
 	OutMaxSquareDiscardDistance = MaxDiscardDistance * MaxDiscardDistance;
 }
 

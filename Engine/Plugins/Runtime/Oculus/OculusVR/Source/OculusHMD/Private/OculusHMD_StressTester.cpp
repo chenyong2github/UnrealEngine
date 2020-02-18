@@ -142,7 +142,7 @@ public:
 	//This function is required to let us bind our runtime surface to the shader using an SRV.
 	void SetSurfaces(FRHICommandList& RHICmdList, FShaderResourceViewRHIRef TextureParameterSRV)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		if (TextureParameter.IsBound())
 		{
@@ -159,14 +159,14 @@ public:
 		ConstantParametersBuffer = FOculusPixelShaderConstantParametersRef::CreateUniformBufferImmediate(ConstantParameters, UniformBuffer_SingleDraw);
 		VariableParametersBuffer = FOculusPixelShaderVariableParametersRef::CreateUniformBufferImmediate(VariableParameters, UniformBuffer_SingleDraw);
 
-		SetUniformBufferParameter(RHICmdList, GetPixelShader(), GetUniformBufferParameter<FOculusPixelShaderConstantParameters>(), ConstantParametersBuffer);
-		SetUniformBufferParameter(RHICmdList, GetPixelShader(), GetUniformBufferParameter<FOculusPixelShaderVariableParameters>(), VariableParametersBuffer);
+		SetUniformBufferParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), GetUniformBufferParameter<FOculusPixelShaderConstantParameters>(), ConstantParametersBuffer);
+		SetUniformBufferParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), GetUniformBufferParameter<FOculusPixelShaderVariableParameters>(), VariableParametersBuffer);
 	}
 
 	//This is used to clean up the buffer binds after each invocation to let them be changed and used elsewhere if needed.
 	void UnbindBuffers(FRHICommandList& RHICmdList)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		if (TextureParameter.IsBound())
 		{
@@ -176,7 +176,7 @@ public:
 
 private:
 	//This is how you declare resources that are going to be made available in the HLSL
-	FShaderResourceParameter TextureParameter;
+	LAYOUT_FIELD(FShaderResourceParameter, TextureParameter)
 };
 
 
@@ -371,8 +371,8 @@ void FStressTester::DoTickGPU_RenderThread(FRHICommandListImmediate& RHICmdList,
 			TShaderMapRef<FOculusStressShadersPS> PixelShader(GetGlobalShaderMap(FeatureLevel));
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GOculusTextureVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);

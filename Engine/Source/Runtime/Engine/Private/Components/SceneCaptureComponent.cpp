@@ -850,11 +850,11 @@ void UPlanarReflectionComponent::Serialize(FArchive& Ar)
 	}
 }
 
-void UPlanarReflectionComponent::CreateRenderState_Concurrent()
+void UPlanarReflectionComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	UpdatePreviewShape();
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	if (ShouldComponentAddToScene() && ShouldRender())
 	{

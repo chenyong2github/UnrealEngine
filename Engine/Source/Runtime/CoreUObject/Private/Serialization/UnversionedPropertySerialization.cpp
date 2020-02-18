@@ -2,6 +2,8 @@
 
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "Serialization/UnversionedPropertySerializationTest.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Misc/ScopeRWLock.h"
 #include "UObject/UnrealType.h"
 
 // Caches a property array per UStruct to avoid link-walking and touching FProperty data.
@@ -704,6 +706,45 @@ bool CanUseUnversionedPropertySerialization()
 	return bAllow;
 }
 
+static bool CanUseUnversionedPropertySerialization(FConfigFile& TargetIni)
+{
+	bool bAllow;
+	return TargetIni.GetBool(TEXT("Core.System"), TEXT("CanUseUnversionedPropertySerialization"), /* out */ bAllow) && bAllow;
+}
+
+static struct
+{
+	FRWLock Lock;
+	TMap<uint32, bool> PlatformValues;
+}
+GUPSIniValueCache;
+
+bool CanUseUnversionedPropertySerialization(const ITargetPlatform* Target)
+{
+	if (!Target)
+	{
+		// Use current platform settings
+		return CanUseUnversionedPropertySerialization();
+	}
+
+	int32 TargetID = Target->GetPlatformOrdinal();
+
+	FWriteScopeLock Scope(GUPSIniValueCache.Lock);
+
+	if (const bool* CachedValue = GUPSIniValueCache.PlatformValues.Find(TargetID))
+	{
+		return *CachedValue;
+	}
+
+	FConfigFile TargetIni;
+	FConfigCacheIni::LoadLocalIniFile(TargetIni, TEXT("Engine"), /* base INI */ true, *Target->IniPlatformName());
+	bool bTargetValue = CanUseUnversionedPropertySerialization(TargetIni);
+			
+	GUPSIniValueCache.PlatformValues.Add(TargetID, bTargetValue);
+
+	return bTargetValue;
+}
+
 void DestroyUnversionedSchema(const UStruct* Struct)
 {
 #if CACHE_UNVERSIONED_PROPERTY_SCHEMA
@@ -714,13 +755,13 @@ void DestroyUnversionedSchema(const UStruct* Struct)
 
 void SerializeUnversionedProperties(const UStruct* Struct, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* DefaultsData)
 {
-	check(CanUseUnversionedPropertySerialization());
-
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	FStructuredArchive::FRecord StructRecord = Slot.EnterRecord();
 
 	if (UnderlyingArchive.IsLoading())
 	{
+		check(CanUseUnversionedPropertySerialization());
+
 		FUnversionedHeader Header;
 		Header.Load(StructRecord.EnterStream(SA_FIELD_NAME(TEXT("Header"))));
 

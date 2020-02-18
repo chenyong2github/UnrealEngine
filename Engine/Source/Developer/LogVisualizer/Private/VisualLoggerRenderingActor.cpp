@@ -114,9 +114,9 @@ FBoxSphereBounds UVisualLoggerRenderingComponent::CalcBounds(const FTransform& L
 	return MyBounds;
 }
 
-void UVisualLoggerRenderingComponent::CreateRenderState_Concurrent()
+void UVisualLoggerRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 #if WITH_EDITOR
 	DebugDrawDelegateHelper.RegisterDebugDrawDelgate();

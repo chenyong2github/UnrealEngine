@@ -16,14 +16,9 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonVFLooseParameters, "Niaga
 
 class FNiagaraRibbonVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParameters, NonVirtual);
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
-	{
-	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-	}
 };
 
 /**
@@ -31,8 +26,9 @@ public:
 */
 class FNiagaraRibbonVertexFactoryShaderParametersVS : public FNiagaraRibbonVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParametersVS, NonVirtual);
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		NiagaraParticleDataPosition.Bind(ParameterMap, TEXT("NiagaraParticleDataPosition"));
 		NiagaraParticleDataVelocity.Bind(ParameterMap, TEXT("NiagaraParticleDataVelocity"));
@@ -50,24 +46,7 @@ public:
 		FloatDataStride.Bind(ParameterMap, TEXT("NiagaraFloatDataStride"));
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << NiagaraParticleDataPosition;
-		Ar << NiagaraParticleDataVelocity;
-		Ar << NiagaraParticleDataColor;
-		Ar << NiagaraParticleDataWidth;
-		Ar << NiagaraParticleDataTwist;
-		Ar << NiagaraParticleDataFacing;
-		Ar << NiagaraParticleDataNormalizedAge;
-		Ar << NiagaraParticleDataMaterialRandom;
-		Ar << NiagaraParticleDataMaterialParam0;
-		Ar << NiagaraParticleDataMaterialParam1;
-		Ar << NiagaraParticleDataMaterialParam2;
-		Ar << NiagaraParticleDataMaterialParam3;
-		Ar << FloatDataStride;
-	}
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -76,7 +55,7 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		FNiagaraRibbonVertexFactory* RibbonVF = (FNiagaraRibbonVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonUniformParameters>(), RibbonVF->GetRibbonUniformBuffer());
@@ -97,20 +76,20 @@ public:
 	}
 
 private:
-	FShaderResourceParameter NiagaraParticleDataPosition;
-	FShaderResourceParameter NiagaraParticleDataVelocity;
-	FShaderResourceParameter NiagaraParticleDataColor;
-	FShaderResourceParameter NiagaraParticleDataWidth;
-	FShaderResourceParameter NiagaraParticleDataTwist;
-	FShaderResourceParameter NiagaraParticleDataFacing;
-	FShaderResourceParameter NiagaraParticleDataNormalizedAge;
-	FShaderResourceParameter NiagaraParticleDataMaterialRandom;
-	FShaderResourceParameter NiagaraParticleDataMaterialParam0;
-	FShaderResourceParameter NiagaraParticleDataMaterialParam1;
-	FShaderResourceParameter NiagaraParticleDataMaterialParam2;
-	FShaderResourceParameter NiagaraParticleDataMaterialParam3;
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataPosition);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataVelocity);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataColor);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataWidth);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataTwist);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFacing);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataNormalizedAge);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialRandom);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam0);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam1);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam2);
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataMaterialParam3);
 
-	FShaderParameter FloatDataStride;
+	LAYOUT_FIELD(FShaderParameter, FloatDataStride);
 };
 
 
@@ -120,16 +99,9 @@ private:
 */
 class FNiagaraRibbonVertexFactoryShaderParametersPS : public FNiagaraRibbonVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraRibbonVertexFactoryShaderParametersPS, NonVirtual);
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
-	{
-	}
-
-	virtual void Serialize(FArchive& Ar) override
-	{
-	}
-
-	virtual void GetElementShaderBindings(
+	 void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -138,7 +110,7 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		FNiagaraRibbonVertexFactory* RibbonVF = (FNiagaraRibbonVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraRibbonUniformParameters>(), RibbonVF->GetRibbonUniformBuffer());
@@ -185,17 +157,17 @@ static TGlobalResource<FNiagaraRibbonVertexDeclaration> GNiagaraRibbonVertexDecl
 
 ///////////////////////////////////////////////////////////////////////////////
 
-bool FNiagaraRibbonVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FNiagaraRibbonVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (FNiagaraUtilities::SupportsNiagaraRendering(Platform)) && (Material->IsUsedWithNiagaraRibbons() || Material->IsSpecialEngineMaterial());
+	return (FNiagaraUtilities::SupportsNiagaraRendering(Parameters.Platform)) && (Parameters.MaterialParameters.bIsUsedWithNiagaraRibbons || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 /**
 * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 */
-void FNiagaraRibbonVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FNiagaraRibbonVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 	OutEnvironment.SetDefine(TEXT("NiagaraVFLooseParameters"), TEXT("NiagaraRibbonVFLooseParameters"));
 	
@@ -214,29 +186,6 @@ void FNiagaraRibbonVertexFactory::InitRHI()
 	FVertexStream* DynamicParameter1Stream = new(Streams) FVertexStream;
 	FVertexStream* DynamicParameter2Stream = new(Streams) FVertexStream;
 	FVertexStream* DynamicParameter3Stream = new(Streams) FVertexStream;
-}
-
-FVertexFactoryShaderParameters* FNiagaraRibbonVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	if (ShaderFrequency == SF_Vertex)
-	{
-		return new FNiagaraRibbonVertexFactoryShaderParametersVS();
-	}
-	else if (ShaderFrequency == SF_Pixel)
-	{
-		return new FNiagaraRibbonVertexFactoryShaderParametersPS();
-	}
-#if RHI_RAYTRACING
-	else if (ShaderFrequency == SF_Compute)
-	{
-		return new FNiagaraRibbonVertexFactoryShaderParametersVS();
-	}
-	else if (ShaderFrequency == SF_RayHitGroup)
-	{
-		return new FNiagaraRibbonVertexFactoryShaderParametersVS();
-	}
-#endif
-	return NULL;
 }
 
 void FNiagaraRibbonVertexFactory::SetVertexBuffer(const FVertexBuffer* InBuffer, uint32 StreamOffset, uint32 Stride)
@@ -268,4 +217,10 @@ void FNiagaraRibbonVertexFactory::SetDynamicParameterBuffer(const FVertexBuffer*
 
 ///////////////////////////////////////////////////////////////////////////////
 
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraRibbonVertexFactory, SF_Vertex, FNiagaraRibbonVertexFactoryShaderParametersVS);
+#if RHI_RAYTRACING
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraRibbonVertexFactory, SF_Compute, FNiagaraRibbonVertexFactoryShaderParametersVS);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraRibbonVertexFactory, SF_RayHitGroup, FNiagaraRibbonVertexFactoryShaderParametersVS);
+#endif
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraRibbonVertexFactory, SF_Pixel, FNiagaraRibbonVertexFactoryShaderParametersPS);
 IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraRibbonVertexFactory, "/Plugin/FX/Niagara/Private/NiagaraRibbonVertexFactory.ush", true, false, true, false, false);

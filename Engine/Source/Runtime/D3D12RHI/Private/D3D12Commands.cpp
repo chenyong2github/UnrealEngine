@@ -57,12 +57,12 @@ void FD3D12DynamicRHI::SetupRecursiveResources()
 
 	{
 		TShaderMapRef<FLongGPUTaskPS> PixelShader(ShaderMap);
-		PixelShader->GetPixelShader();
+		PixelShader.GetPixelShader();
 	}
 
 	{
 		TShaderMapRef<FLongGPUTaskPS> PixelShader(ShaderMap);
-		PixelShader->GetPixelShader();
+		PixelShader.GetPixelShader();
 	}
 
 	// TODO: Waiting to integrate MSAA fix for ResolveShader.h
@@ -73,15 +73,15 @@ void FD3D12DynamicRHI::SetupRecursiveResources()
 	if (GMaxRHIShaderPlatform == SP_PCD3D_SM5 || GMaxRHIShaderPlatform == SP_XBOXONE_D3D12)
 	{
 		TShaderMapRef<FResolveDepthPS> ResolvePixelShader_Depth(ShaderMap);
-		ResolvePixelShader_Depth->GetPixelShader();
+		ResolvePixelShader_Depth.GetPixelShader();
 
 		TShaderMapRef<FResolveDepthPS> ResolvePixelShader_SingleSample(ShaderMap);
-		ResolvePixelShader_SingleSample->GetPixelShader();
+		ResolvePixelShader_SingleSample.GetPixelShader();
 	}
 	else
 	{
 		TShaderMapRef<FResolveDepthNonMSPS> ResolvePixelShader_DepthNonMS(ShaderMap);
-		ResolvePixelShader_DepthNonMS->GetPixelShader();
+		ResolvePixelShader_DepthNonMS.GetPixelShader();
 	}
 }
 
@@ -525,37 +525,37 @@ void FD3D12CommandContext::RHISetComputePipelineState(FRHIComputePipelineState* 
 void FD3D12CommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 	FD3D12TextureBase* const NewTexture = RetrieveTextureBase(NewTextureRHI);
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShaderRHI);
 		StateCache.SetShaderResourceView<SF_Vertex>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShaderRHI);
 		StateCache.SetShaderResourceView<SF_Hull>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShaderRHI);
 		StateCache.SetShaderResourceView<SF_Domain>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FRHIGeometryShader* GeometryShaderRHI = static_cast<FRHIGeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShaderRHI);
 		StateCache.SetShaderResourceView<SF_Geometry>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FRHIPixelShader* PixelShaderRHI = static_cast<FRHIPixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShaderRHI);
@@ -563,7 +563,7 @@ void FD3D12CommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, ui
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 
@@ -624,37 +624,37 @@ void FD3D12CommandContext::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRH
 void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 	FD3D12ShaderResourceView* const SRV = RetrieveObject<FD3D12ShaderResourceView>(SRVRHI);
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShaderRHI);
 		StateCache.SetShaderResourceView<SF_Vertex>(SRV, TextureIndex);
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShaderRHI);
 		StateCache.SetShaderResourceView<SF_Hull>(SRV, TextureIndex);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShaderRHI);
 		StateCache.SetShaderResourceView<SF_Domain>(SRV, TextureIndex);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FRHIGeometryShader* GeometryShaderRHI = static_cast<FRHIGeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShaderRHI);
 		StateCache.SetShaderResourceView<SF_Geometry>(SRV, TextureIndex);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FRHIPixelShader* PixelShaderRHI = static_cast<FRHIPixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShaderRHI);
@@ -662,7 +662,7 @@ void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIGraphicsShader*
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 
 }
@@ -677,37 +677,37 @@ void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIComputeShader* 
 void FD3D12CommandContext::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
 {
 	FD3D12SamplerState* NewState = RetrieveObject<FD3D12SamplerState>(NewStateRHI);
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShaderRHI);
 		StateCache.SetSamplerState<SF_Vertex>(NewState, SamplerIndex);
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShaderRHI);
 		StateCache.SetSamplerState<SF_Hull>(NewState, SamplerIndex);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShaderRHI);
 		StateCache.SetSamplerState<SF_Domain>(NewState, SamplerIndex);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FRHIGeometryShader* GeometryShaderRHI = static_cast<FRHIGeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShaderRHI);
 		StateCache.SetSamplerState<SF_Geometry>(NewState, SamplerIndex);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FRHIPixelShader* PixelShaderRHI = static_cast<FRHIPixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShaderRHI);
@@ -715,7 +715,7 @@ void FD3D12CommandContext::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI, ui
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 
@@ -731,9 +731,9 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 	//SCOPE_CYCLE_COUNTER(STAT_D3D12SetShaderUniformBuffer);
 	FD3D12UniformBuffer* Buffer = RetrieveObject<FD3D12UniformBuffer>(BufferRHI);
 	EShaderFrequency Stage = SF_NumFrequencies;
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShaderRHI);
@@ -741,7 +741,7 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 		Stage = SF_Vertex;
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShaderRHI);
@@ -749,7 +749,7 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 		Stage = SF_Hull;
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShaderRHI);
@@ -757,7 +757,7 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 		Stage = SF_Domain;
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FRHIGeometryShader* GeometryShaderRHI = static_cast<FRHIGeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShaderRHI);
@@ -765,7 +765,7 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 		Stage = SF_Geometry;
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FRHIPixelShader* PixelShaderRHI = static_cast<FRHIPixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShaderRHI);
@@ -774,7 +774,7 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 		return;
 	}
 
@@ -808,37 +808,37 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, 
 {
 	checkSlow(BufferIndex == 0);
 
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShaderRHI);
 		VSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(HullShaderRHI);
 		HSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		FRHIDomainShader* DomainShaderRHI = static_cast<FRHIDomainShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(DomainShaderRHI);
 		DSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
-	case FRHIShader::EType::Geometry:
+	case SF_Geometry:
 	{
 		FRHIGeometryShader* GeometryShaderRHI = static_cast<FRHIGeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShaderRHI);
 		GSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		FRHIPixelShader* PixelShaderRHI = static_cast<FRHIPixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShaderRHI);
@@ -846,7 +846,7 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, 
 	}
 	break;
 	default:
-		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("Undefined FRHIShader Type %d!"), (int32)ShaderRHI->GetFrequency());
 	}
 }
 

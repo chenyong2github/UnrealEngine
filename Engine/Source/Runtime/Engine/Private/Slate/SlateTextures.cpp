@@ -4,6 +4,7 @@
 #include "Slate/SlateTextures.h"
 #include "RenderUtils.h"
 #include "ClearQuad.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 FSlateTexture2DRHIRef::FSlateTexture2DRHIRef( FTexture2DRHIRef InRef, uint32 InWidth, uint32 InHeight )
 	: TSlateTexture( InRef )
@@ -39,6 +40,8 @@ void FSlateTexture2DRHIRef::Cleanup()
 
 void FSlateTexture2DRHIRef::InitDynamicRHI()
 {
+	SCOPED_LOADTIMER(FSlateTexture2DRHIRef_InitDynamicRHI);
+
 	check( IsInRenderingThread() );
 
 	if( Width > 0 && Height > 0 )
@@ -305,6 +308,8 @@ void FSlateTextureRenderTarget2DResource::ClampSize(int32 MaxSizeX,int32 MaxSize
 
 void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 {
+	SCOPED_LOADTIMER(FSlateTextureRenderTarget2DResource_InitDynamicRHI);
+
 	check(IsInRenderingThread());
 
 	if( TargetSizeX > 0 && TargetSizeY > 0 )

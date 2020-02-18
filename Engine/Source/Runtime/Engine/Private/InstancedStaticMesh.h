@@ -212,33 +212,13 @@ public:
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	/**
 	 * Modify compile environment to enable instancing
 	 * @param OutEnvironment - shader compile environment to modify
 	 */
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
-		if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Platform))
-		{
-			OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
-		}
-
-		OutEnvironment.SetDefine(TEXT("USE_INSTANCING"),TEXT("1"));
-		if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
-		{
-			OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES);
-		}
-		else
-		{
-			// On mobile dithered LOD transition has to be explicitly enabled in material and project settings
-			OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), Material->IsDitheredLODTransition() && ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES);
-		}
-		
-		FLocalVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
-	}
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	/**
 	 * An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
@@ -313,7 +293,9 @@ private:
 
 class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
 {
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FInstancedStaticMeshVertexFactoryShaderParameters, NonVirtual);
+public:
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		FLocalVertexFactoryShaderParametersBase::Bind(ParameterMap);
 
@@ -330,7 +312,7 @@ class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFac
 		InstanceOffset.Bind(ParameterMap, TEXT("InstanceOffset"));
 	}
 
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -340,49 +322,22 @@ class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFac
 		const FMeshBatchElement& BatchElement,
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
-		) const override;
-
-	void Serialize(FArchive& Ar) override
-	{
-		Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
-
-		FLocalVertexFactoryShaderParametersBase::Serialize(Ar);
-		Ar << InstancingFadeOutParamsParameter;
-		Ar << InstancingViewZCompareZeroParameter;
-		Ar << InstancingViewZCompareOneParameter;
-		Ar << InstancingViewZConstantParameter;
-		Ar << InstancingOffsetParameter;
-		Ar << InstancingWorldViewOriginZeroParameter;
-		Ar << InstancingWorldViewOriginOneParameter;
-		
-		if (Ar.IsLoading() && Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::RemovedEmulatedInstancing)
-		{
-			// Older version need to also load legacy emulated instancing shader parameters
-			FShaderParameter Dummy;
-			Ar << Dummy << Dummy << Dummy;
-		}
-
-		Ar << VertexFetch_InstanceOriginBufferParameter;
-		Ar << VertexFetch_InstanceTransformBufferParameter;
-		Ar << VertexFetch_InstanceLightmapBufferParameter;
-		Ar << InstanceOffset;
-	}
-
-	virtual uint32 GetSize() const override { return sizeof(*this); }
+		) const;
 
 private:
-	FShaderParameter InstancingFadeOutParamsParameter;
-	FShaderParameter InstancingViewZCompareZeroParameter;
-	FShaderParameter InstancingViewZCompareOneParameter;
-	FShaderParameter InstancingViewZConstantParameter;
-	FShaderParameter InstancingOffsetParameter;
-	FShaderParameter InstancingWorldViewOriginZeroParameter;
-	FShaderParameter InstancingWorldViewOriginOneParameter;
+	
+	LAYOUT_FIELD(FShaderParameter, InstancingFadeOutParamsParameter)
+	LAYOUT_FIELD(FShaderParameter, InstancingViewZCompareZeroParameter)
+	LAYOUT_FIELD(FShaderParameter, InstancingViewZCompareOneParameter)
+	LAYOUT_FIELD(FShaderParameter, InstancingViewZConstantParameter)
+	LAYOUT_FIELD(FShaderParameter, InstancingOffsetParameter);
+	LAYOUT_FIELD(FShaderParameter, InstancingWorldViewOriginZeroParameter)
+	LAYOUT_FIELD(FShaderParameter, InstancingWorldViewOriginOneParameter)
 
-	FShaderResourceParameter VertexFetch_InstanceOriginBufferParameter;
-	FShaderResourceParameter VertexFetch_InstanceTransformBufferParameter;
-	FShaderResourceParameter VertexFetch_InstanceLightmapBufferParameter;
-	FShaderParameter InstanceOffset;
+	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstanceOriginBufferParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstanceTransformBufferParameter)
+	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstanceLightmapBufferParameter)
+	LAYOUT_FIELD(FShaderParameter, InstanceOffset)
 };
 
 struct FInstanceUpdateCmdBuffer;
@@ -466,7 +421,7 @@ public:
 	TIndirectArray<FInstancedStaticMeshVertexFactory> VertexFactories;
 
 	/** LOD render data from the static mesh. */
-	TIndirectArray<FStaticMeshLODResources>& LODModels;
+	FStaticMeshLODResourcesArray& LODModels;
 
 	/** Feature level used when creating instance data */
 	ERHIFeatureLevel::Type FeatureLevel;

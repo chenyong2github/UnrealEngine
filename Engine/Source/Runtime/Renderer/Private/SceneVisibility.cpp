@@ -1795,7 +1795,7 @@ struct FDrawCommandRelevancePacket
 				FVisibleMeshDrawCommand& NewVisibleMeshDrawCommand = VisibleCachedDrawCommands[(uint32)PassType].Last();
 
 				const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
-					? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
+					? &Scene->CachedMeshDrawCommandStateBuckets[PassType].GetByElementId(CachedMeshDrawCommand.StateBucketId).Key
 					: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
 
 				NewVisibleMeshDrawCommand.Setup(
@@ -2505,6 +2505,8 @@ static void ComputeAndMarkRelevanceForViewParallel(
 	FPrimitiveViewMasks& HasViewCustomDataMasks
 	)
 {
+	SCOPED_NAMED_EVENT(FSceneRenderer_ComputeAndMarkRelevanceForViewParallel, FColor::Blue);
+
 	check(OutHasDynamicMeshElementsMasks.Num() == Scene->Primitives.Num());
 
 	FFrozenSceneViewMatricesGuard FrozenMatricesGuard(View);
@@ -2998,10 +3000,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				Scene->CachedDrawLists[RollingPassShrinkIndex].MeshDrawCommands.Shrink();
 			}
 			const int32 NumRemovedPerFrame = 10;
+			TArray<FPrimitiveSceneInfo*, TInlineAllocator<10>> SceneInfos;
 			for (int32 NumRemoved = 0; NumRemoved < NumRemovedPerFrame && RollingRemoveIndex < Scene->Primitives.Num(); NumRemoved++, RollingRemoveIndex++)
 			{
-				Scene->Primitives[RollingRemoveIndex]->UpdateStaticMeshes(RHICmdList, false);
+				SceneInfos.Add(Scene->Primitives[RollingRemoveIndex]);
 			}
+			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, SceneInfos, false);
 		}
 	}
 
@@ -3493,6 +3497,8 @@ static TAutoConsoleVariable<int32> CVarUseFastIntersect(
 void UpdateReflectionSceneData(FScene* Scene)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateReflectionSceneData)
+	SCOPED_NAMED_EVENT(UpdateReflectionScene, FColor::Red);
+
 
 	FReflectionEnvironmentSceneData& ReflectionSceneData = Scene->ReflectionSceneData;
 
@@ -3647,14 +3653,20 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_ConditionalUpdateStaticMeshesWithoutVisibilityCheck);
+		SCOPED_NAMED_EVENT(FSceneRenderer_ConditionalUpdateStaticMeshes, FColor::Red);
 
 		Scene->ConditionalMarkStaticMeshElementsForUpdate();
 
+		TArray<FPrimitiveSceneInfo*> UpdatedSceneInfos;
 		for (TSet<FPrimitiveSceneInfo*>::TIterator It(Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck); It; ++It)
 		{
 			FPrimitiveSceneInfo* Primitive = *It;
-			Primitive->ConditionalUpdateStaticMeshes(RHICmdList);
+			if (Primitive->NeedsUpdateStaticMeshes())
+			{
+				UpdatedSceneInfos.Add(Primitive);
+			}
 		}
+		FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, UpdatedSceneInfos);
 		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Reset();
 	}
 
@@ -3876,11 +3888,15 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_ConditionalUpdateStaticMeshes);
+			SCOPED_NAMED_EVENT(FSceneRenderer_UpdateStaticMeshes, FColor::Red);
+
+			TArray<FPrimitiveSceneInfo*> AddedSceneInfos;
 			for (TConstDualSetBitIterator<SceneRenderingBitArrayAllocator, FDefaultBitArrayAllocator> BitIt(View.PrimitiveVisibilityMap, Scene->PrimitivesNeedingStaticMeshUpdate); BitIt; ++BitIt)
 			{
 				int32 PrimitiveIndex = BitIt.GetIndex();
-				Scene->Primitives[PrimitiveIndex]->UpdateStaticMeshes(RHICmdList);
+				AddedSceneInfos.Add(Scene->Primitives[PrimitiveIndex]);
 			}
+			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, AddedSceneInfos);
 		}
 
 		// ISR views can't compute relevance until all views are frustum culled
@@ -3949,9 +3965,12 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		ViewBit <<= 1;
 	}
 
-	// Gather FMeshBatches from scene proxies
-	GatherDynamicMeshElements(Views, Scene, ViewFamily, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer,
-		HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, HasViewCustomDataMasks, MeshCollector);
+	{
+		SCOPED_NAMED_EVENT(FSceneRenderer_GatherDynamicMeshElements, FColor::Yellow);
+		// Gather FMeshBatches from scene proxies
+		GatherDynamicMeshElements(Views, Scene, ViewFamily, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer,
+			HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, HasViewCustomDataMasks, MeshCollector);
+	}
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

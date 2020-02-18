@@ -35,9 +35,9 @@ class FPostProcessNoiseBlurPS : public FGlobalShader
 	FPostProcessNoiseBlurPS() {}
 
 public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderParameter NoiseParams;
+	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD(FShaderParameter, NoiseParams);
 
 	/** Initialization constructor. */
 	FPostProcessNoiseBlurPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -48,18 +48,10 @@ public:
 		NoiseParams.Bind(Initializer.ParameterMap, TEXT("NoiseParams"));
 	}
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << NoiseParams;
-		return bShaderHasOutdatedParameters;
-	}
-
 	template <typename TRHICmdList>
 	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, float InRadius)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
@@ -111,8 +103,8 @@ static void SetNoiseBlurShader(const FRenderingCompositePassContext& Context, fl
 	TShaderMapRef<FPostProcessNoiseBlurPS<Method> > PixelShader(Context.GetShaderMap());
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
@@ -184,7 +176,7 @@ void FRCPassPostProcessNoiseBlur::Process(FRenderingCompositePassContext& Contex
 			SrcRect.Width(), SrcRect.Height(),
 			DestSize,
 			SrcSize,
-			*VertexShader,
+			VertexShader,
 			View.StereoPass,
 			Context.HasHmdMesh(),
 			EDRF_UseTriangleOptimization);

@@ -4,6 +4,12 @@
 
 IMPLEMENT_MODULE( FAESGCMHandlerComponentModule, AESGCMHandlerComponent )
 
+
+const int32 FAESGCMHandlerComponent::KeySizeInBytes;
+const int32 FAESGCMHandlerComponent::BlockSizeInBytes;
+const int32 FAESGCMHandlerComponent::IVSizeInBytes;
+const int32 FAESGCMHandlerComponent::AuthTagSizeInBytes;
+
 TSharedPtr<HandlerComponent> FAESGCMHandlerComponentModule::CreateComponentInstance(FString& Options)
 {
 	return MakeShared<FAESGCMHandlerComponent>();

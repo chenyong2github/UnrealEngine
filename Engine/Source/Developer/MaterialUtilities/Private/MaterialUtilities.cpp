@@ -410,16 +410,13 @@ public:
 	{
 		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
 		Material = InMaterialInterface->GetMaterial();
-		InMaterialInterface->AppendReferencedTextures(ReferencedTextures);
+		ReferencedTextures = InMaterialInterface->GetReferencedTextures();
 		FPlatformMisc::CreateGuid(Id);
 
 		FMaterialResource* Resource = InMaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel);
 
 		FMaterialShaderMapId ResourceId;
 		Resource->GetShaderMapId(GMaxRHIShaderPlatform, ResourceId);
-
-		FStaticParameterSet StaticParamSet;
-		Resource->GetStaticParameterSet(GMaxRHIShaderPlatform, StaticParamSet);
 
 		{
 			TArray<FShaderType*> ShaderTypes;
@@ -450,7 +447,7 @@ public:
 			break;
 		};
 		
-		CacheShaders(ResourceId, &StaticParamSet, GMaxRHIShaderPlatform);
+		CacheShaders(ResourceId, GMaxRHIShaderPlatform);
 	}
 
 	virtual bool IsUsedWithStaticLighting() const { return true; }
@@ -474,7 +471,7 @@ public:
 		return true;
 	}
 
-	virtual const TArray<UObject*>& GetReferencedTextures() const override
+	virtual TArrayView<UObject* const> GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -494,22 +491,22 @@ public:
 		}
 	}
 
-	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return MaterialInterface->GetRenderProxy()->GetVectorValue(ParameterInfo, OutValue, Context);
 	}
 
-	virtual bool GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return MaterialInterface->GetRenderProxy()->GetScalarValue(ParameterInfo, OutValue, Context);
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo,OutValue,Context);
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
 	}
@@ -2836,8 +2833,7 @@ void FMaterialUtilities::DetermineMaterialImportance(const TArray<UMaterialInter
 	int32 SummedSize = 0;
 	for (UMaterialInterface* Material : InMaterials)
 	{
-		TArray<UObject*> UsedTextures;
-		Material->AppendReferencedTextures(UsedTextures);
+		TArray<UObject*> UsedTextures(Material->GetReferencedTextures());
 		if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material))
 		{
 			for (const FTextureParameterValue& TextureParameter : MaterialInstance->TextureParameterValues)

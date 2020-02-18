@@ -37,6 +37,9 @@ DEFINE_STAT(STAT_VertexBufferMemory);
 DEFINE_STAT(STAT_StructuredBufferMemory);
 DEFINE_STAT(STAT_PixelBufferMemory);
 
+IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayout);
+IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayout::FResourceParameter);
+
 static FAutoConsoleVariable CVarUseVulkanRealUBs(
 	TEXT("r.Vulkan.UseRealUBs"),
 	1,
@@ -846,7 +849,7 @@ RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId)
 	return TEXT("Unknown");
 }
 
-RHI_API uint32 RHIGetShaderLanguageVersion(const EShaderPlatform Platform)
+RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
 {
 	uint32 Version = 0;
 	if (IsMetalPlatform(Platform))
@@ -885,7 +888,7 @@ RHI_API uint32 RHIGetShaderLanguageVersion(const EShaderPlatform Platform)
 	return Version;
 }
 
-RHI_API bool RHISupportsTessellation(const EShaderPlatform Platform)
+RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform)
 {
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
@@ -894,7 +897,7 @@ RHI_API bool RHISupportsTessellation(const EShaderPlatform Platform)
 	return false;
 }
 
-RHI_API bool RHISupportsPixelShaderUAVs(const EShaderPlatform Platform)
+RHI_API bool RHISupportsPixelShaderUAVs(const FStaticShaderPlatform Platform)
 {
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
@@ -903,10 +906,10 @@ RHI_API bool RHISupportsPixelShaderUAVs(const EShaderPlatform Platform)
 	return false;
 }
 
-RHI_API bool RHISupportsIndexBufferUAVs(const EShaderPlatform Platform)
+RHI_API bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform) || Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4 
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsIndexBufferUAVs;
+		|| FDataDrivenShaderPlatformInfo::GetSupportsIndexBufferUAVs(Platform);
 }
 
 
@@ -1204,14 +1207,14 @@ void LexFromString(EShaderPlatform& Value, const TCHAR* String)
 }
 
 
-FName LANGUAGE_D3D("D3D");
-FName LANGUAGE_Metal("Metal");
-FName LANGUAGE_OpenGL("OpenGL");
-FName LANGUAGE_Vulkan("Vulkan");
-FName LANGUAGE_Sony("Sony");
-FName LANGUAGE_Nintendo("Nintendo");
+const FName LANGUAGE_D3D("D3D");
+const FName LANGUAGE_Metal("Metal");
+const FName LANGUAGE_OpenGL("OpenGL");
+const FName LANGUAGE_Vulkan("Vulkan");
+const FName LANGUAGE_Sony("Sony");
+const FName LANGUAGE_Nintendo("Nintendo");
 
-RHI_API FDataDrivenShaderPlatformInfo FDataDrivenShaderPlatformInfo::Infos[SP_NumPlatforms];
+RHI_API FGenericDataDrivenShaderPlatformInfo FGenericDataDrivenShaderPlatformInfo::Infos[SP_NumPlatforms];
 
 // Gets a string from a section, or empty string if it didn't exist
 FString GetSectionString(const FConfigSection& Section, FName Key)
@@ -1225,7 +1228,7 @@ bool GetSectionBool(const FConfigSection& Section, FName Key)
 	return FCString::ToBool(*GetSectionString(Section, Key));
 }
 
-inline void ParseDataDrivenShaderInfo(const FConfigSection& Section, FDataDrivenShaderPlatformInfo& Info)
+void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info)
 {
 	Info.Language = *GetSectionString(Section, "Language");
 	GetFeatureLevelFromName(*GetSectionString(Section, "MaxFeatureLevel"), Info.MaxFeatureLevel);
@@ -1253,12 +1256,13 @@ inline void ParseDataDrivenShaderInfo(const FConfigSection& Section, FDataDriven
 	Info.bSupportsRayTracingMissShaderBindings = GetSectionBool(Section, "bSupportsRayTracingMissShaderBindings");
 	Info.bSupportsGPUSkinCache = GetSectionBool(Section, "bSupportsGPUSkinCache");
 	Info.bSupportsByteBufferComputeShaders = GetSectionBool(Section, "bSupportsByteBufferComputeShaders");
+	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
 
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
 	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");
 }
 
-void FDataDrivenShaderPlatformInfo::Initialize()
+void FGenericDataDrivenShaderPlatformInfo::Initialize()
 {
 	// look for the standard DataDriven ini files
 	int32 NumDDInfoFiles = FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles();
@@ -1287,6 +1291,7 @@ void FDataDrivenShaderPlatformInfo::Initialize()
 				
 				// at this point, we can start pulling information out
 				ParseDataDrivenShaderInfo(Section.Value, Infos[ShaderPlatform]);	
+				Infos[ShaderPlatform].bContainsValidPlatformInfo = true;
 			}
 		}
 	}

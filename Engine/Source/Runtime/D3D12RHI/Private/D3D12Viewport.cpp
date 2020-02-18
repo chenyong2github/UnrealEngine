@@ -945,7 +945,11 @@ void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, 
 	}
 }
 
-struct FRHICommandSignalFrameFence final : public FRHICommand<FRHICommandSignalFrameFence>
+struct FRHICommandSignalFrameFenceString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandSignalFrameFence"); }
+};
+struct FRHICommandSignalFrameFence final : public FRHICommand<FRHICommandSignalFrameFence, FRHICommandSignalFrameFenceString>
 {
 	ED3D12CommandQueueType QueueType;
 	FD3D12ManualFence* const Fence;

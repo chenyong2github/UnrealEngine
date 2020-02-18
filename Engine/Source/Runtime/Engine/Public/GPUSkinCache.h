@@ -112,7 +112,7 @@ public:
 		const FMatrix& ClothLocalToWorld, float ClothBlendWeight, uint32 RevisionNumber, int32 Section, FGPUSkinCacheEntry*& InOutEntry);
 
 	static void SetVertexStreams(FGPUSkinCacheEntry* Entry, int32 Section, FRHICommandList& RHICmdList,
-		class FShader* Shader, const FGPUSkinPassthroughVertexFactory* VertexFactory,
+		class FRHIVertexShader* ShaderRHI, const FGPUSkinPassthroughVertexFactory* VertexFactory,
 		uint32 BaseVertexIndex, FShaderResourceParameter PreviousStreamBuffer);
 
 	static void GetShaderBindings(

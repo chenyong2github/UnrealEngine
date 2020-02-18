@@ -45,14 +45,6 @@ public:
 		: FGlobalShader(Initializer)
 	{
 	}
-
-public:
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
 };
 
 
@@ -82,9 +74,9 @@ static void ProcessOCIOColorSpaceTransform_RenderThread(
 	InRHICmdList.SetViewport(0, 0, 0.f, Resolution.X, Resolution.Y, 1.f);
 
 	// Get shader from shader map.
-	TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(InFeatureLevel);
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(InFeatureLevel);
 	TShaderMapRef<FOpenColorIOVertexShader> VertexShader(GlobalShaderMap);
-	FOpenColorIOPixelShader* OCIOPixelShader = InOCIOColorTransformResource->GetShader();
+	TShaderRef<FOpenColorIOPixelShader> OCIOPixelShader = InOCIOColorTransformResource->GetShader();
 
 	// Set the graphic pipeline state.
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -94,8 +86,8 @@ static void ProcessOCIOColorSpaceTransform_RenderThread(
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(OCIOPixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = OCIOPixelShader.GetPixelShader();
 	SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
 
 	// Update pixel shader parameters
@@ -165,7 +157,7 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 
 	check(ShaderResource);
 
-	if (ShaderResource->GetShaderGameThread() == nullptr)
+	if (ShaderResource->GetShaderGameThread().IsNull())
 	{
 		UE_LOG(LogOpenColorIO, Warning, TEXT("OCIOPass - Shader was invalid for Resource %s"), *ShaderResource->GetFriendlyName());
 		return false;

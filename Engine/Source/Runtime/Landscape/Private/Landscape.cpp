@@ -2082,7 +2082,7 @@ void ALandscapeProxy::PreSave(const class ITargetPlatform* TargetPlatform)
 			Landscape->ClearDirtyData(LandscapeComponent);
 		}
 	}
-#endif
+#endif // WITH_EDITOR
 }
 
 void ALandscapeProxy::Serialize(FArchive& Ar)
@@ -3369,6 +3369,7 @@ void FLandscapeComponentDerivedData::SaveToDDC(const FGuid& StateId, UObject* Co
 	GetDerivedDataCacheRef().Put(*GetDDCKeyString(StateId), CompressedLandscapeData, Component->GetPathName());
 }
 
+#if WITH_EDITOR
 void LandscapeMaterialsParameterValuesGetter(FStaticParameterSet& OutStaticParameterSet, UMaterialInstance* Material)
 {
 	if (Material->Parent)
@@ -3420,6 +3421,7 @@ bool LandscapeMaterialsParameterSetUpdater(FStaticParameterSet& StaticParameterS
 {
 	return UpdateParameterSet<FStaticTerrainLayerWeightParameter, UMaterialExpressionLandscapeLayerWeight>(StaticParameterSet.TerrainLayerWeightParameters, ParentMaterial);
 }
+#endif // WITH_EDITOR
 
 ALandscapeProxy::~ALandscapeProxy()
 {
@@ -3510,8 +3512,7 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 
 	if (OverrideMaterial != nullptr)
 	{
-		UMaterialInterface::TMicRecursionGuard RecursionGuard;
-		FGuid LocalStateId = OverrideMaterial->GetMaterial_Concurrent(RecursionGuard)->StateId;
+		FGuid LocalStateId = OverrideMaterial->GetMaterial_Concurrent()->StateId;
 		Ar << LocalStateId;
 	}
 
@@ -3519,8 +3520,7 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 	{
 		if (MaterialOverride.Material != nullptr)
 		{
-			UMaterialInterface::TMicRecursionGuard RecursionGuard;
-			FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent(RecursionGuard)->StateId;
+			FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent()->StateId;
 			Ar << LocalStateId;
 			Ar << MaterialOverride.LODIndex;
 		}
@@ -3530,8 +3530,7 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 
 	if (Proxy->LandscapeMaterial != nullptr)
 	{
-		UMaterialInterface::TMicRecursionGuard RecursionGuard;
-		FGuid LocalStateId = Proxy->LandscapeMaterial->GetMaterial_Concurrent(RecursionGuard)->StateId;
+		FGuid LocalStateId = Proxy->LandscapeMaterial->GetMaterial_Concurrent()->StateId;
 		Ar << LocalStateId;
 	}
 
@@ -3539,8 +3538,7 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 	{
 		if (MaterialOverride.Material != nullptr)
 		{
-			UMaterialInterface::TMicRecursionGuard RecursionGuard;
-			FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent(RecursionGuard)->StateId;
+			FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent()->StateId;
 			Ar << LocalStateId;
 			Ar << MaterialOverride.LODIndex;
 		}

@@ -731,7 +731,7 @@ void FNiagaraRendererRibbons::AddDynamicParam(TArray<FNiagaraRibbonVertexDynamic
 
 bool FNiagaraRendererRibbons::IsMaterialValid(UMaterialInterface* Mat)const
 {
-	return Mat && Mat->CheckMaterialUsage(MATUSAGE_NiagaraRibbons);
+	return Mat && Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraRibbons);
 }
 
 

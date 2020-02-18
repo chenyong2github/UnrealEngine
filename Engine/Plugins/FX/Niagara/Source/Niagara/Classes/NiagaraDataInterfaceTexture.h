@@ -14,6 +14,8 @@ class NIAGARA_API UNiagaraDataInterfaceTexture : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 public:
 
+	DECLARE_NIAGARA_DI_PARAMETER();
+
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	UTexture* Texture;
 
@@ -41,7 +43,6 @@ public:
 	// GPU sim functionality
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters()const override;
 
 	void SetTexture(UTexture* InTexture);
 

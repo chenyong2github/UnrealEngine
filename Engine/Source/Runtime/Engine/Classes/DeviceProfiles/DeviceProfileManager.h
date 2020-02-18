@@ -83,13 +83,6 @@ public:
 
 
 	/**
-	 * Get the device profile .ini name.
-	 *
-	 * @return the device profile .ini name.
-	 */
-	const FString GetDeviceProfileIniName() const;
-
-	/**
 	 * Load the device profiles from the config file.
 	 */
 	void LoadProfiles();

@@ -179,6 +179,11 @@ protected:
 	// Uniform expressions used across all material properties
 	TArray<FShaderCodeChunk> UniformExpressions;
 
+	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformVectorExpressions;
+	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformScalarExpressions;
+	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformTextureExpressions[NumMaterialTextureParameterTypes];
+	TArray<TRefCountPtr<FMaterialUniformExpressionExternalTexture>> UniformExternalTextureExpressions;
+
 	/** Parameter collections referenced by this material.  The position in this array is used as an index on the shader parameter. */
 	TArray<UMaterialParameterCollection*> ParameterCollections;
 

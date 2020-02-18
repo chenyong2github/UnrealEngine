@@ -166,7 +166,7 @@ void ComputeMirroredSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSiz
 
 	// generate output (remove negative samples)
 	{
-		check(kernel[0].A == 0.0f);
+		check(FMath::IsNearlyZero(kernel[0].A));
 
 		// center sample
 		TargetBuffer[0] = kernel[0];

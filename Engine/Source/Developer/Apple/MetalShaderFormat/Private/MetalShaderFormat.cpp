@@ -6,7 +6,7 @@
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
 #include "ShaderCore.h"
-#include "Interfaces/IShaderFormatArchive.h"
+#include "ShaderCodeArchive.h"
 #include "hlslcc.h"
 #include "MetalShaderResources.h"
 #include "HAL/FileManager.h"
@@ -34,178 +34,6 @@ static FName NAME_SF_METAL_MACES3_1(TEXT("SF_METAL_MACES3_1"));
 static FName NAME_SF_METAL_MRT_MAC(TEXT("SF_METAL_MRT_MAC"));
 static FString METAL_LIB_EXTENSION(TEXT(".metallib"));
 static FString METAL_MAP_EXTENSION(TEXT(".metalmap"));
-
-class FMetalShaderFormatArchive : public IShaderFormatArchive
-{
-public:
-	FMetalShaderFormatArchive(FString const& InLibraryName, FName InFormat, FString const& WorkingDirectory)
-	: LibraryName(InLibraryName)
-	, Format(InFormat)
-	, WorkingDir(WorkingDirectory)
-	{
-		check(LibraryName.Len() > 0);
-		check(Format == NAME_SF_METAL || Format == NAME_SF_METAL_MRT || Format == NAME_SF_METAL_TVOS || Format == NAME_SF_METAL_MRT_TVOS || Format == NAME_SF_METAL_SM5_NOTESS || Format == NAME_SF_METAL_SM5 || Format == NAME_SF_METAL_MACES3_1 || Format == NAME_SF_METAL_MRT_MAC);
-		ArchivePath = (WorkingDir / Format.GetPlainNameString());
-		IFileManager::Get().DeleteDirectory(*ArchivePath, false, true);
-		IFileManager::Get().MakeDirectory(*ArchivePath);
-		Map.Format = Format.GetPlainNameString();
-	}
-	
-	virtual FName GetFormat( void ) const
-	{
-		return Format;
-	}
-	
-	virtual bool AddShader( uint8 Frequency, const FSHAHash& Hash, TArray<uint8>& Code )
-	{
-		uint64 ShaderId = AppendShader_Metal(Format, ArchivePath, Hash, Code);
-		if (ShaderId)
-		{
-			uint32 Index = 0;
-
-			// Add Id to our list of shaders processed successfully
-			uint32* IndexPtr = Shaders.Find(ShaderId);
-			if (IndexPtr)
-			{
-				Index = *IndexPtr;
-			}
-			else
-			{
-				Index = (Shaders.Num() / 10000);
-				Shaders.Add(ShaderId, Index);
-				if (SubLibraries.Num() <= (int32)Index)
-				{
-					SubLibraries.Add(TSet<uint64>());
-				}
-				SubLibraries[Index].Add(ShaderId);
-			}
-			
-			// Note code copy in the map is uncompressed
-			Map.HashMap.Add(Hash, FMetalShadeEntry(Code, Index, Frequency));
-		}
-		return (ShaderId > 0);
-	}
-	
-	virtual bool Finalize( FString OutputDir, FString DebugOutputDir, TArray<FString>* OutputFiles )
-	{
-		bool bOK = false;
-
-		FString LibraryPlatformName = FString::Printf(TEXT("%s_%s"), *LibraryName, *Format.GetPlainNameString());
-		volatile int32 CompiledLibraries = 0;
-		TArray<FGraphEventRef> Tasks;
-
-		for (uint32 Index = 0; Index < (uint32)SubLibraries.Num(); Index++)
-		{
-			TSet<uint64>& PartialShaders = SubLibraries[Index];
-
-			FString LibraryPath = (OutputDir / LibraryPlatformName) + FString::Printf(TEXT(".%d"), Index) + METAL_LIB_EXTENSION;
-			if (OutputFiles)
-			{
-				OutputFiles->Add(LibraryPath);
-			}
-
-			// Enqueue the library compilation as a task so we can go wide
-			FGraphEventRef CompletionFence = FFunctionGraphTask::CreateAndDispatchWhenReady([this, LibraryPath, PartialShaders, DebugOutputDir, &CompiledLibraries]()
-			{
-				if (FinalizeLibrary_Metal(Format, ArchivePath, LibraryPath, PartialShaders, DebugOutputDir))
-				{
-					FPlatformAtomics::InterlockedIncrement(&CompiledLibraries);
-				}
-			}, TStatId(), NULL, ENamedThreads::AnyThread);
-
-			Tasks.Add(CompletionFence);
-		}
-		
-#if WITH_ENGINE
-		FGraphEventRef DebugDataCompletionFence = FFunctionGraphTask::CreateAndDispatchWhenReady([this, OutputDir, LibraryPlatformName, DebugOutputDir]()
-		{
-			//TODO add a check in here - this will only work if we have shader archiving with debug info set.
-			
-			//We want to archive all the metal shader source files so that they can be unarchived into a debug location
-			//This allows the debugging of optimised metal shaders within the xcode tool set
-			//Currently using the 'tar' system tool to create a compressed tape archive
-			
-			//Place the archive in the same position as the .metallib file
-			FString CompressedDir = (OutputDir / TEXT("../MetaData/ShaderDebug/"));
-			IFileManager::Get().MakeDirectory(*CompressedDir, true);
-			
-			FString CompressedPath = (CompressedDir / LibraryPlatformName) + TEXT(".zip");
-			
-			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-			IFileHandle* ZipFile = PlatformFile.OpenWrite(*CompressedPath);
-			if (ZipFile)
-			{
-				FZipArchiveWriter* ZipWriter = new FZipArchiveWriter(ZipFile);
-				
-				//Find the metal source files
-				TArray<FString> FilesToArchive;
-				IFileManager::Get().FindFilesRecursive( FilesToArchive, *DebugOutputDir, TEXT("*.metal"), true, false, false );
-				
-				//Write the local file names into the target file
-				const FString DebugDir = DebugOutputDir / *Format.GetPlainNameString();
-				
-				for(FString FileName : FilesToArchive)
-				{
-					TArray<uint8> FileData;
-					FFileHelper::LoadFileToArray(FileData, *FileName);
-					FPaths::MakePathRelativeTo(FileName, *DebugDir);
-					
-					ZipWriter->AddFile(FileName, FileData, FDateTime::Now());
-				}
-				
-				delete ZipWriter;
-				ZipWriter = nullptr;
-			}
-			else
-			{
-				UE_LOG(LogShaders, Error, TEXT("Failed to create Metal debug .zip output file \"%s\". Debug .zip export will be disabled."), *CompressedPath);
-			}
-		}, TStatId(), NULL, ENamedThreads::AnyThread);
-		Tasks.Add(DebugDataCompletionFence);
-#endif
-
-		// Wait for tasks
-		for (auto& Task : Tasks)
-		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
-		}
-				
-		if (CompiledLibraries == SubLibraries.Num())
-		{
-			FString BinaryShaderFile = (OutputDir / LibraryPlatformName) + METAL_MAP_EXTENSION;
-			FArchive* BinaryShaderAr = IFileManager::Get().CreateFileWriter(*BinaryShaderFile);
-			if( BinaryShaderAr != NULL )
-			{
-				Map.Count = SubLibraries.Num();
-				*BinaryShaderAr << Map;
-				BinaryShaderAr->Flush();
-				delete BinaryShaderAr;
-				
-				if (OutputFiles)
-				{
-					OutputFiles->Add(BinaryShaderFile);
-				}
-				
-				bOK = true;
-			}
-		}
-
-		return bOK;
-	}
-	
-public:
-	virtual ~FMetalShaderFormatArchive() { }
-	
-private:
-	FString LibraryName;
-	FName Format;
-	FString WorkingDir;
-	FString ArchivePath;
-	TMap<uint64, uint32> Shaders;
-	TArray<TSet<uint64>> SubLibraries;
-	TSet<FString> SourceFiles;
-	FMetalShaderMap Map;
-};
 
 class FMetalShaderFormat : public IShaderFormat
 {
@@ -254,10 +82,170 @@ public:
 	{ 
 		return CanCompileBinaryShaders();
 	}
-    virtual class IShaderFormatArchive* CreateShaderArchive( FString const& LibraryName, FName Format, const FString& WorkingDirectory ) const override final
+    virtual bool CreateShaderArchive(FString const& LibraryName,
+		FName Format,
+		const FString& WorkingDirectory,
+		const FString& OutputDir,
+		const FString& DebugOutputDir,
+		const FSerializedShaderArchive& InSerializedShaders,
+		const TArray<TArray<uint8>>& ShaderCode,
+		TArray<FString>* OutputFiles) const override final
     {
-		return new FMetalShaderFormatArchive(LibraryName, Format, WorkingDirectory);
+		const int32 NumShadersPerLibrary = 10000;
+		check(LibraryName.Len() > 0);
+		check(Format == NAME_SF_METAL || Format == NAME_SF_METAL_MRT || Format == NAME_SF_METAL_TVOS || Format == NAME_SF_METAL_MRT_TVOS || Format == NAME_SF_METAL_SM5_NOTESS || Format == NAME_SF_METAL_SM5 || Format == NAME_SF_METAL_MACES3_1 || Format == NAME_SF_METAL_MRT_MAC);
+
+		const FString ArchivePath = (WorkingDirectory / Format.GetPlainNameString());
+		IFileManager::Get().DeleteDirectory(*ArchivePath, false, true);
+		IFileManager::Get().MakeDirectory(*ArchivePath);
+
+		FSerializedShaderArchive SerializedShaders(InSerializedShaders);
+		check(SerializedShaders.GetNumShaders() == ShaderCode.Num());
+
+		TArray<uint8> StrippedShaderCode;
+		TArray<uint8> TempShaderCode;
+
+		TArray<TSet<uint64>> SubLibraries;
+
+		for (int32 ShaderIndex = 0; ShaderIndex < SerializedShaders.GetNumShaders(); ++ShaderIndex)
+		{
+			SerializedShaders.DecompressShader(ShaderIndex, ShaderCode, TempShaderCode);
+			StripShader_Metal(TempShaderCode, DebugOutputDir, true);
+
+			uint64 ShaderId = AppendShader_Metal(Format, ArchivePath, SerializedShaders.ShaderHashes[ShaderIndex], TempShaderCode);
+			uint32 LibraryIndex = ShaderIndex / NumShadersPerLibrary;
+
+			if (ShaderId)
+			{
+				if (SubLibraries.Num() <= (int32)LibraryIndex)
+				{
+					SubLibraries.Add(TSet<uint64>());
+				}
+				SubLibraries[LibraryIndex].Add(ShaderId);
+			}
+
+			FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
+			ShaderEntry.Size = TempShaderCode.Num();
+			ShaderEntry.UncompressedSize = TempShaderCode.Num();
+
+			StrippedShaderCode.Append(TempShaderCode);
+		}
+
+		SerializedShaders.Finalize();
+
+		bool bOK = false;
+		FString LibraryPlatformName = FString::Printf(TEXT("%s_%s"), *LibraryName, *Format.GetPlainNameString());
+		volatile int32 CompiledLibraries = 0;
+		TArray<FGraphEventRef> Tasks;
+
+		for (uint32 Index = 0; Index < (uint32)SubLibraries.Num(); Index++)
+		{
+			TSet<uint64>& PartialShaders = SubLibraries[Index];
+
+			FString LibraryPath = (OutputDir / LibraryPlatformName) + FString::Printf(TEXT(".%d"), Index) + METAL_LIB_EXTENSION;
+			if (OutputFiles)
+			{
+				OutputFiles->Add(LibraryPath);
+			}
+
+			// Enqueue the library compilation as a task so we can go wide
+			FGraphEventRef CompletionFence = FFunctionGraphTask::CreateAndDispatchWhenReady([Format, ArchivePath, LibraryPath, PartialShaders, DebugOutputDir, &CompiledLibraries]()
+			{
+				if (FinalizeLibrary_Metal(Format, ArchivePath, LibraryPath, PartialShaders, DebugOutputDir))
+				{
+					FPlatformAtomics::InterlockedIncrement(&CompiledLibraries);
+				}
+			}, TStatId(), NULL, ENamedThreads::AnyThread);
+
+			Tasks.Add(CompletionFence);
+		}
+
+#if WITH_ENGINE
+		FGraphEventRef DebugDataCompletionFence = FFunctionGraphTask::CreateAndDispatchWhenReady([Format, OutputDir, LibraryPlatformName, DebugOutputDir]()
+		{
+			//TODO add a check in here - this will only work if we have shader archiving with debug info set.
+
+			//We want to archive all the metal shader source files so that they can be unarchived into a debug location
+			//This allows the debugging of optimised metal shaders within the xcode tool set
+			//Currently using the 'tar' system tool to create a compressed tape archive
+
+			//Place the archive in the same position as the .metallib file
+			FString CompressedDir = (OutputDir / TEXT("../MetaData/ShaderDebug/"));
+			IFileManager::Get().MakeDirectory(*CompressedDir, true);
+
+			FString CompressedPath = (CompressedDir / LibraryPlatformName) + TEXT(".zip");
+
+			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+			IFileHandle* ZipFile = PlatformFile.OpenWrite(*CompressedPath);
+			if (ZipFile)
+			{
+				FZipArchiveWriter* ZipWriter = new FZipArchiveWriter(ZipFile);
+
+				//Find the metal source files
+				TArray<FString> FilesToArchive;
+				IFileManager::Get().FindFilesRecursive(FilesToArchive, *DebugOutputDir, TEXT("*.metal"), true, false, false);
+
+				//Write the local file names into the target file
+				const FString DebugDir = DebugOutputDir / *Format.GetPlainNameString();
+
+				for (FString FileName : FilesToArchive)
+				{
+					TArray<uint8> FileData;
+					FFileHelper::LoadFileToArray(FileData, *FileName);
+					FPaths::MakePathRelativeTo(FileName, *DebugDir);
+
+					ZipWriter->AddFile(FileName, FileData, FDateTime::Now());
+				}
+
+				delete ZipWriter;
+				ZipWriter = nullptr;
+			}
+			else
+			{
+				UE_LOG(LogShaders, Error, TEXT("Failed to create Metal debug .zip output file \"%s\". Debug .zip export will be disabled."), *CompressedPath);
+			}
+		}, TStatId(), NULL, ENamedThreads::AnyThread);
+		Tasks.Add(DebugDataCompletionFence);
+#endif // WITH_ENGINE
+
+		// Wait for tasks
+		for (auto& Task : Tasks)
+		{
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
+		}
+
+		if (CompiledLibraries == SubLibraries.Num())
+		{
+			FString BinaryShaderFile = (OutputDir / LibraryPlatformName) + METAL_MAP_EXTENSION;
+			FArchive* BinaryShaderAr = IFileManager::Get().CreateFileWriter(*BinaryShaderFile);
+			if (BinaryShaderAr != NULL)
+			{
+				FMetalShaderLibraryHeader Header;
+				Header.Format = Format.GetPlainNameString();
+				Header.NumLibraries = SubLibraries.Num();
+				Header.NumShadersPerLibrary = NumShadersPerLibrary;
+
+				*BinaryShaderAr << Header;
+				*BinaryShaderAr << SerializedShaders;
+				*BinaryShaderAr << StrippedShaderCode;
+
+				BinaryShaderAr->Flush();
+				delete BinaryShaderAr;
+
+				if (OutputFiles)
+				{
+					OutputFiles->Add(BinaryShaderFile);
+				}
+
+				bOK = true;
+			}
+		}
+
+		return bOK;
+
+		//Map.Format = Format.GetPlainNameString();
     }
+
 	virtual bool CanCompileBinaryShaders() const override final
 	{
 #if PLATFORM_MAC

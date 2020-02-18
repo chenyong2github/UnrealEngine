@@ -397,7 +397,11 @@ namespace UnrealBuildTool
 						throw new BuildException("Found multiple platform group overrides ({0} and {1}) for module {2} without a platform specific override. Create a platform override with the class hierarchy as needed.", 
 							GroupRulesObjectType.Name, PlatformRulesObjectType.Name, ModuleName);
 					}
-					PlatformRulesObjectType = GroupRulesObjectType;
+					// remember the platform group if we found it, but keep searching to verify there isn't more than one
+					if (GroupRulesObjectType != null)
+					{
+						PlatformRulesObjectType = GroupRulesObjectType;
+					}
 				}
 			}
 
@@ -444,6 +448,10 @@ namespace UnrealBuildTool
 						{
 							RulesObject.DirectoriesForModuleSubClasses.Add(SubType, SubTypeFileName.Directory);
 							RulesObject.SubclassRules.Add(SubTypeFileName.FullName);
+						}
+						if (SubType.BaseType == null)
+						{
+							throw new BuildException("{0} is not derived from {1}", RulesObjectType.Name, BaseRulesObjectType.Name);
 						}
 						SubType = SubType.BaseType;
 					}

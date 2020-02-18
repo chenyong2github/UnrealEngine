@@ -441,9 +441,10 @@ FLidarPointCloudVertexFactory::~FLidarPointCloudVertexFactory()
 	Fence.Wait();
 }
 
-bool FLidarPointCloudVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FLidarPointCloudVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (IsPCPlatform(Platform) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && Material->GetMaterialDomain() == MD_Surface && Material->IsUsedWithLidarPointCloud()) || Material->IsSpecialEngineMaterial();
+	return (IsPCPlatform(Parameters.Platform) && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && 
+		Parameters.MaterialParameters.MaterialDomain == MD_Surface && Parameters.MaterialParameters.bIsUsedWithLidarPointCloud) || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
 }
 
 void FLidarPointCloudVertexFactory::InitRHI()

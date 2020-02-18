@@ -360,7 +360,7 @@ class ICompressedAudioInfo* FXAudio2Device::CreateCompressedAudioInfo(USoundWave
 {
 	check(SoundWave);
 
-	if (SoundWave->IsStreaming())
+	if (SoundWave->IsStreaming(nullptr))
 	{
 		if (SoundWave->IsSeekableStreaming())
 		{

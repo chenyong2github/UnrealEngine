@@ -5838,7 +5838,7 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 
 
 		// handle audio decompression
-		if (FPlatformProperties::SupportsAudioStreaming() && SoundWave->IsStreaming())
+		if (FPlatformProperties::SupportsAudioStreaming() && SoundWave->IsStreaming(nullptr))
 		{
 			SoundWave->DecompressionType = DTYPE_Streaming;
 			SoundWave->bCanProcessAsync = false;

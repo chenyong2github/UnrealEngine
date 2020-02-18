@@ -848,6 +848,7 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 	, bAsyncPSOCompileAllowed(true)
 	, GPUMask(InGPUMask)
 	, InitialGPUMask(InGPUMask)
+	, BoundComputeShaderRHI(nullptr)
 {
 	GRHICommandList.OutstandingCmdListCount.Increment();
 	Reset();
@@ -1993,7 +1994,7 @@ void* FDynamicRHI::RHILockVertexBuffer(class FRHICommandListImmediate& RHICmdLis
 	}
 
 	check(Result);
-	return Result;	
+	return Result;
 }
 
 void FDynamicRHI::RHIUnlockVertexBuffer(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer)
@@ -2031,7 +2032,7 @@ void FDynamicRHI::RHIUnlockVertexBuffer(class FRHICommandListImmediate& RHICmdLi
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockVertexBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
 			GLockTracker.TotalMemoryOutstanding = 0;
 		}
 	}
@@ -2111,7 +2112,7 @@ void FDynamicRHI::RHIUnlockIndexBuffer(class FRHICommandListImmediate& RHICmdLis
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockIndexBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
 			GLockTracker.TotalMemoryOutstanding = 0;
 		}
 	}
@@ -2191,7 +2192,7 @@ void FDynamicRHI::RHIUnlockStructuredBuffer(class FRHICommandListImmediate& RHIC
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
 			GLockTracker.TotalMemoryOutstanding = 0;
 		}
 	}
@@ -2273,88 +2274,46 @@ ETextureReallocationStatus FDynamicRHI::CancelAsyncReallocateTexture2D_RenderThr
 	return GDynamicRHI->RHICancelAsyncReallocateTexture2D(Texture2D, bBlockUntilCompleted);
 }
 
-FVertexShaderRHIRef FDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
+FVertexShaderRHIRef FDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateVertexShader_RenderThread);
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateVertexShader(Code);
+	return GDynamicRHI->RHICreateVertexShader(Code, Hash);
 }
 
-FVertexShaderRHIRef FDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateVertexShader_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateVertexShader(Library, Hash);
-}
-
-FPixelShaderRHIRef FDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
+FPixelShaderRHIRef FDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreatePixelShader_RenderThread);
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreatePixelShader(Code);
+	return GDynamicRHI->RHICreatePixelShader(Code, Hash);
 }
 
-FPixelShaderRHIRef FDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	CSV_SCOPED_TIMING_STAT(RHITStalls, CreatePixelShader_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreatePixelShader(Library, Hash);
-}
-
-FGeometryShaderRHIRef FDynamicRHI::CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
+FGeometryShaderRHIRef FDynamicRHI::CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateGeometryShader_RenderThread);
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateGeometryShader(Code);
+	return GDynamicRHI->RHICreateGeometryShader(Code, Hash);
 }
 
-FGeometryShaderRHIRef FDynamicRHI::CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
+FComputeShaderRHIRef FDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateGeometryShader_RenderThread);
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateGeometryShader(Library, Hash);
+	return GDynamicRHI->RHICreateComputeShader(Code, Hash);
 }
 
-FComputeShaderRHIRef FDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
-{
-	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateGeometryShader_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateComputeShader(Code);
-}
-
-FComputeShaderRHIRef FDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateComputeShader_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateComputeShader(Library, Hash);
-}
-
-FHullShaderRHIRef FDynamicRHI::CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
+FHullShaderRHIRef FDynamicRHI::CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateHullShader_RenderThread);
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateHullShader(Code);
+	return GDynamicRHI->RHICreateHullShader(Code, Hash);
 }
 
-FHullShaderRHIRef FDynamicRHI::CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateHullShader_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateHullShader(Library, Hash);
-}
-
-FDomainShaderRHIRef FDynamicRHI::CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
+FDomainShaderRHIRef FDynamicRHI::CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateDomainShader_RenderThread);
 	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateDomainShader(Code);
-}
-
-FDomainShaderRHIRef FDynamicRHI::CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateDomainShader_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateDomainShader(Library, Hash);
+	return GDynamicRHI->RHICreateDomainShader(Code, Hash);
 }
 
 void FDynamicRHI::UpdateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)

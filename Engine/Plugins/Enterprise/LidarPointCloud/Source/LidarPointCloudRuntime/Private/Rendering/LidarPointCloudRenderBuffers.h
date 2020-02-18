@@ -7,6 +7,7 @@
 #include "VertexFactory.h"
 #include "LidarPointCloudShared.h"
 #include "HAL/ThreadSafeBool.h"
+#include "GlobalShader.h"
 
 /**
  * Base class for the buffers
@@ -82,7 +83,7 @@ private:
 /**
  * Handles creation of the dynamic Instance Data
  */
-// #refactor: Can we avoid referencing FLidarPointCloudOctreeNode here?
+ // #refactor: Can we avoid referencing FLidarPointCloudOctreeNode here?
 struct FLidarPointCloudTraversalOctreeNode;
 class FLidarPointCloudInstanceBuffer
 {
@@ -169,16 +170,9 @@ struct FLidarPointCloudBatchElementUserData
 class FLidarPointCloudVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override;
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << DataBuffer << IndexDivisor << VDMultiplier << SizeOffset << RootCellSize << bUseLODColoration << SpriteSizeMultiplier << ViewRightVector << ViewUpVector
-			<< BoundsSize << BoundsOffset << ElevationColorBottom << ElevationColorTop << bUseCircle << bUseColorOverride << bUseElevationColor
-			<< Offset << Contrast << Saturation << Gamma << Tint << IntensityInfluence << bUseClassification << ClassificationColors;
-	}
-
-	virtual void GetElementShaderBindings(const class FSceneInterface* Scene, const FSceneView* View, const FMeshMaterialShader* Shader, const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
-		const FVertexFactory* VertexFactory, const FMeshBatchElement& BatchElement, class FMeshDrawSingleShaderBindings& ShaderBindings, FVertexInputStreamArray& VertexStreams) const override;
+	void Bind(const FShaderParameterMap& ParameterMap);
+	void GetElementShaderBindings(const class FSceneInterface* Scene, const FSceneView* View, const FMeshMaterialShader* Shader, const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory, const FMeshBatchElement& BatchElement, class FMeshDrawSingleShaderBindings& ShaderBindings, FVertexInputStreamArray& VertexStreams) const;
 
 private:
 	FShaderResourceParameter DataBuffer;
@@ -217,9 +211,8 @@ class FLidarPointCloudVertexFactory : public FVertexFactory
 public:
 	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
-	static bool ShouldCache(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType) { return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5); }
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType);
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment) {}
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) {}
 
 	FLidarPointCloudVertexFactory() : FVertexFactory(ERHIFeatureLevel::SM5) { }
 	~FLidarPointCloudVertexFactory();

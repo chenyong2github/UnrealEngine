@@ -68,7 +68,7 @@ CORE_API bool IsInParallelRenderingThread()
 {
 	if (!GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
 	{
-		return FPlatformTLS::GetCurrentThreadId() == GGameThreadId;
+		return true;
 	}
 	else
 	{

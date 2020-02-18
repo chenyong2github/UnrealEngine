@@ -74,8 +74,11 @@ template void TD3D12Texture2D<FD3D12BaseTexture2DArray>::GetReadBackHeapDesc(D3D
 template void TD3D12Texture2D<FD3D12BaseTextureCube>::GetReadBackHeapDesc(D3D12_PLACED_SUBRESOURCE_FOOTPRINT& OutFootprint, uint32 Subresource) const;
 
 /// @endcond
-
-struct FRHICommandUpdateTexture final : public FRHICommand<FRHICommandUpdateTexture>
+struct FRHICommandUpdateTextureString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandUpdateTexture"); }
+};
+struct FRHICommandUpdateTexture final : public FRHICommand<FRHICommandUpdateTexture, FRHICommandUpdateTextureString>
 {
 	FD3D12TextureBase* TextureBase;
 	D3D12_TEXTURE_COPY_LOCATION DestCopyLocation;
@@ -114,7 +117,11 @@ struct FRHICommandUpdateTexture final : public FRHICommand<FRHICommandUpdateText
 	}
 };
 
-struct FRHICommandCopySubTextureRegion final : public FRHICommand<FRHICommandCopySubTextureRegion>
+struct FRHICommandCopySubTextureRegionString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandCopySubTextureRegion"); }
+};
+struct FRHICommandCopySubTextureRegion final : public FRHICommand<FRHICommandCopySubTextureRegion, FRHICommandCopySubTextureRegionString>
 {
 	FD3D12TextureBase* DestTexture;
 	uint32 DestX;
@@ -143,7 +150,11 @@ struct FRHICommandCopySubTextureRegion final : public FRHICommand<FRHICommandCop
 	}
 };
 
-struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICommandInitializeTexture>
+struct FD3D12RHICommandInitializeTextureString
+{
+	static const TCHAR* TStr() { return TEXT("FD3D12RHICommandInitializeTexture"); }
+};
+struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICommandInitializeTexture, FD3D12RHICommandInitializeTextureString>
 {
 	FD3D12TextureBase* TextureBase;
 	FD3D12ResourceLocation SrcResourceLoc;
@@ -2067,7 +2078,11 @@ void FD3D12DynamicRHI::EndUpdateTexture3D_RenderThread(class FRHICommandListImme
 	EndUpdateTexture3D_Internal(UpdateData);
 }
 
-class FD3D12RHICmdEndMultiUpdateTexture3D : public FRHICommand<FD3D12RHICmdEndMultiUpdateTexture3D>
+struct FD3D12RHICmdEndMultiUpdateTexture3DString
+{
+	static const TCHAR* TStr() { return TEXT("FD3D12RHICmdEndMultiUpdateTexture3D"); }
+};
+class FD3D12RHICmdEndMultiUpdateTexture3D : public FRHICommand<FD3D12RHICmdEndMultiUpdateTexture3D, FD3D12RHICmdEndMultiUpdateTexture3DString>
 {
 public:
 	FD3D12RHICmdEndMultiUpdateTexture3D(TArray<FUpdateTexture3DData>& UpdateDataArray) :
@@ -2308,7 +2323,11 @@ FUpdateTexture3DData FD3D12DynamicRHI::BeginUpdateTexture3D_Internal(FRHITexture
 	return UpdateData;
 }
 
-class FD3D12RHICmdEndUpdateTexture3D : public FRHICommand<FD3D12RHICmdEndUpdateTexture3D>
+struct FD3D12RHICmdEndUpdateTexture3DString
+{
+	static const TCHAR* TStr() { return TEXT("FD3D12RHICmdEndUpdateTexture3D"); }
+};
+class FD3D12RHICmdEndUpdateTexture3D : public FRHICommand<FD3D12RHICmdEndUpdateTexture3D, FD3D12RHICmdEndUpdateTexture3DString>
 {
 public:
 	FD3D12RHICmdEndUpdateTexture3D(FUpdateTexture3DData& UpdateData) :

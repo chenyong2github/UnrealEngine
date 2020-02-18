@@ -82,7 +82,7 @@ protected:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsCompatibleWithHairStrands(Parameters.Material, Parameters.Platform);
+		return IsCompatibleWithHairStrands(Parameters.Platform, Parameters.MaterialParameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -116,7 +116,7 @@ protected:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsCompatibleWithHairStrands(Parameters.Material, Parameters.Platform);
+		return IsCompatibleWithHairStrands(Parameters.Platform, Parameters.MaterialParameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -151,7 +151,7 @@ protected:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsCompatibleWithHairStrands(Parameters.Material, Parameters.Platform);
+		return IsCompatibleWithHairStrands(Parameters.Platform, Parameters.MaterialParameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -186,7 +186,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsCompatibleWithHairStrands(Parameters.Material, Parameters.Platform);
+		return IsCompatibleWithHairStrands(Parameters.Platform, Parameters.MaterialParameters);
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FDeepShadowDepthMeshPS, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainDepth"), SF_Pixel);
@@ -211,13 +211,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsCompatibleWithHairStrands(Parameters.Material, Parameters.Platform);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
+		return IsCompatibleWithHairStrands(Parameters.Platform, Parameters.MaterialParameters);
 	}
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FDeepShadowDomMeshPS, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainDom"), SF_Pixel);
@@ -257,7 +251,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsCompatibleWithHairStrands(Parameters.Material, Parameters.Platform);
+		return IsCompatibleWithHairStrands(Parameters.Platform, Parameters.MaterialParameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -268,25 +262,12 @@ public:
 		OutEnvironment.SetDefine(TEXT("SUPPORT_SPARSE"), VoxelizationType == EVoxelMeshPSType::DensityVirtual ? 1 : 0);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
-		Ar << DensityTexture;
-		if (VoxelizationType == EVoxelMeshPSType::Material)
-		{
-			Ar << TangentXTexture;
-			Ar << TangentYTexture;
-			Ar << TangentZTexture;
-			Ar << MaterialTexture;
-		}
-		return bShaderHasOutdatedParameters;
-	}
 private:
-	FRWShaderParameter DensityTexture;
-	FRWShaderParameter TangentXTexture;
-	FRWShaderParameter TangentYTexture;
-	FRWShaderParameter TangentZTexture;
-	FRWShaderParameter MaterialTexture;
+	LAYOUT_FIELD(FRWShaderParameter, DensityTexture);
+	LAYOUT_FIELD(FRWShaderParameter, TangentXTexture);
+	LAYOUT_FIELD(FRWShaderParameter, TangentYTexture);
+	LAYOUT_FIELD(FRWShaderParameter, TangentZTexture);
+	LAYOUT_FIELD(FRWShaderParameter, MaterialTexture);
 };
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<EVoxelMeshPSType::Density>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FVoxelMeshPS<EVoxelMeshPSType::Material>, TEXT("/Engine/Private/HairStrands/HairStrandsDeepShadowPS.usf"), TEXT("MainVoxel"), SF_Pixel);
@@ -335,8 +316,9 @@ void FHairRasterMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
 	{
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material);
-		const ERasterizerCullMode MeshCullMode = RasterPassType == EHairStrandsRasterPassType::FrontDepth ? ComputeMeshCullMode(MeshBatch, Material) : CM_None;
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = RasterPassType == EHairStrandsRasterPassType::FrontDepth ? ComputeMeshCullMode(MeshBatch, Material, OverrideSettings) : CM_None;
 
 		if (RasterPassType == EHairStrandsRasterPassType::FrontDepth)
 			Process<FDeepShadowDepthMeshVS, FDeepShadowDepthMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
@@ -375,12 +357,12 @@ void FHairRasterMeshProcessor::Process(
 	{
 		const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
-		const bool bIsHairStrandsFactory = MeshBatch.VertexFactory->GetType()->GetId() == CompatibleVF->GetId();
+		const bool bIsHairStrandsFactory = MeshBatch.VertexFactory->GetType()->GetHashedName() == CompatibleVF->GetHashedName();
 		if (!bIsHairStrandsFactory)
 			return;
 
-		PassShaders.DomainShader = nullptr;
-		PassShaders.HullShader = nullptr;
+		PassShaders.DomainShader.Reset();
+		PassShaders.HullShader.Reset();
 		PassShaders.VertexShader = MaterialResource.GetShader<VertexShaderType>(VertexFactoryType);
 		PassShaders.PixelShader = MaterialResource.GetShader<PixelShaderType>(VertexFactoryType);
 	}
@@ -504,7 +486,8 @@ void AddHairStrandsRasterPass(
 		FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage; // << Were would thid be stored?
 		FMeshCommandOneFrameArray VisibleMeshDrawCommands;
 		FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-		FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet);
+		bool bNeedsInitialization;
+		FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, bNeedsInitialization);
 
 		FHairRasterMeshProcessor HairRasterMeshProcessor(Scene, ViewInfo /* is a SceneView */, DrawRenderState, &ShadowContext, RasterPassType);
 

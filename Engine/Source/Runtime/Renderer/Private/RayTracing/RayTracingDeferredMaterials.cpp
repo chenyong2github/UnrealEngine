@@ -38,8 +38,8 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredM
 	Initializer.MaxPayloadSizeInBytes = 12; // sizeof FDeferredMaterialPayload
 
 	// Get the ray tracing materials
-	auto* ClosestHitShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialCHS>();
-	FRHIRayTracingShader* HitShaderTable[] = { ClosestHitShader->GetRayTracingShader() };
+	auto ClosestHitShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialCHS>();
+	FRHIRayTracingShader* HitShaderTable[] = { ClosestHitShader.GetRayTracingShader() };
 	Initializer.SetHitGroupTable(HitShaderTable);
 
 	FRayTracingPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
@@ -121,7 +121,7 @@ void SortDeferredMaterials(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("MaterialSort SortSize=%d NumElements=%d", ElementBlockSize, NumElements),
-		*SortShader,
+		SortShader,
 		PassParameters,
 		FIntVector(DispatchWidth, 1, 1));		
 }

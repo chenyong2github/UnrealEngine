@@ -140,6 +140,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Streaming/Texture2DUpdate.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Async/ParallelFor.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -12829,8 +12830,21 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	// Note that AI system will be created only if ai-system-creation conditions are met
 	WorldContext.World()->CreateAISystem();
 
+	FRegisterComponentContext Context;
 	// Initialize gameplay for the level.
-	WorldContext.World()->InitializeActorsForPlay(URL);		
+	WorldContext.World()->InitializeActorsForPlay(URL, true, &Context);
+
+	UWorld* ParallelWorld = WorldContext.World();
+	ParallelFor(Context.AddPrimitiveBatches.Num(),
+		[&Context, ParallelWorld](int32 Index)
+		{
+			if (!Context.AddPrimitiveBatches[Index]->IsPendingKill())
+			{
+				ParallelWorld->Scene->AddPrimitive(Context.AddPrimitiveBatches[Index]);
+			}
+		},
+		!FApp::ShouldUseThreadingForPerformance()
+	);
 
 	// calling it after InitializeActorsForPlay has been called to have all potential bounding boxed initialized
 	FNavigationSystem::AddNavigationSystemToWorld(*WorldContext.World(), FNavigationSystemRunMode::GameMode);
@@ -14451,7 +14465,7 @@ static TAutoConsoleVariable<int32> CVarAllowHighQualityLightMaps(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 
-bool AllowHighQualityLightmaps(ERHIFeatureLevel::Type FeatureLevel)
+bool AllowHighQualityLightmaps(const FStaticFeatureLevel FeatureLevel)
 {
 	return FPlatformProperties::SupportsHighQualityLightmaps()
 		&& (FeatureLevel > ERHIFeatureLevel::ES3_1)

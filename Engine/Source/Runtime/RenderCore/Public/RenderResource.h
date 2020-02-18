@@ -10,32 +10,60 @@
 #include "Containers/List.h"
 #include "RHI.h"
 #include "RenderCore.h"
+#include "Serialization/MemoryLayout.h"
 
 /** Number of frames after which unused global resource allocations will be discarded. */
 extern int32 GGlobalBufferNumFramesUnusedThresold;
 
 /**
  * A rendering resource which is owned by the rendering thread.
+ * NOTE - Adding new virtual methods to this class may require stubs added to FViewport/FDummyViewport, otherwise certain modules may have link errors
  */
 class RENDERCORE_API FRenderResource
 {
 public:
+	template<typename FunctionType>
+	static void ForAllResources(const FunctionType& Function)
+	{
+		const TArray<FRenderResource*>& ResourceList = GetResourceList();
+		ResourceListIterationActive.Increment();
+		for (int32 Index = 0; Index < ResourceList.Num(); ++Index)
+		{
+			FRenderResource* Resource = ResourceList[Index];
+			if (Resource)
+			{
+				checkSlow(Resource->ListIndex == Index);
+				Function(Resource);
+			}
+		}
+		ResourceListIterationActive.Decrement();
+	}
 
-	/** @return The global initialized resource list. */
-	static TLinkedList<FRenderResource*>*& GetResourceList();
+	static void InitRHIForAllResources()
+	{
+		ForAllResources([](FRenderResource* Resource) { Resource->InitRHI(); });
+		// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
+		ForAllResources([](FRenderResource* Resource) { Resource->InitDynamicRHI(); });
+	}
+
+	static void ReleaseRHIForAllResources()
+	{
+		ForAllResources([](FRenderResource* Resource) { check(Resource->IsInitialized()); Resource->ReleaseRHI(); });
+		ForAllResources([](FRenderResource* Resource) { Resource->ReleaseDynamicRHI(); });
+	}
 
 	static void ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel);
 
 	/** Default constructor. */
 	FRenderResource()
-		: FeatureLevel(ERHIFeatureLevel::Num)
-		, bInitialized(false)
+		: ListIndex(INDEX_NONE)
+		, FeatureLevel(ERHIFeatureLevel::Num)
 	{}
 
 	/** Constructor when we know what feature level this resource should support */
 	FRenderResource(ERHIFeatureLevel::Type InFeatureLevel)
-		: FeatureLevel(InFeatureLevel)
-		, bInitialized(false)
+		: ListIndex(INDEX_NONE)
+		, FeatureLevel(InFeatureLevel)
 	{}
 
 	/** Destructor used to catch unreleased resources. */
@@ -89,32 +117,31 @@ public:
 	 */
 	void UpdateRHI();
 
-	// Probably temporary code that sends a task back to renderthread_local and blocks waiting for it to call InitResource
-	void InitResourceFromPossiblyParallelRendering();
-
 	/** @return The resource's friendly name.  Typically a UObject name. */
 	virtual FString GetFriendlyName() const { return TEXT("undefined"); }
 
 	// Accessors.
-	FORCEINLINE bool IsInitialized() const { return bInitialized; }
+	FORCEINLINE bool IsInitialized() const { return ListIndex != INDEX_NONE; }
 
 	/** Initialize all resources initialized before the RHI was initialized */
 	static void InitPreRHIResources();
 
+private:
+	/** @return The global initialized resource list. */
+	static TArray<FRenderResource*>& GetResourceList();
+
+	static FThreadSafeCounter ResourceListIterationActive;
+
+	int32 ListIndex;
+
 protected:
 	// This is used during mobile editor preview refactor, this will eventually be replaced with a parameter to InitRHI() etc..
-	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel == ERHIFeatureLevel::Num ? GMaxRHIFeatureLevel : FeatureLevel; }
+	void SetFeatureLevel(const FStaticFeatureLevel InFeatureLevel) { FeatureLevel = (ERHIFeatureLevel::Type)InFeatureLevel; }
+	const FStaticFeatureLevel GetFeatureLevel() const { return FeatureLevel == ERHIFeatureLevel::Num ? FStaticFeatureLevel(GMaxRHIFeatureLevel) : FeatureLevel; }
 	FORCEINLINE bool HasValidFeatureLevel() const { return FeatureLevel < ERHIFeatureLevel::Num; }
 
-	ERHIFeatureLevel::Type FeatureLevel;
-
 private:
-	/** True if the resource has been initialized. */
-	bool bInitialized;
-
-	#if PLATFORM_NEEDS_RHIRESOURCELIST
-	TLinkedList<FRenderResource*> ResourceLink;
-	#endif
+	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;
 };
 
 /**

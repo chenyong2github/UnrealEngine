@@ -65,12 +65,12 @@ static inline void InitUniformBufferStaticSlots(TShaderType* Shader)
 	}
 }
 
-FVertexShaderRHIRef FD3D12DynamicRHI::RHICreateVertexShader(const TArray<uint8>& Code)
+FVertexShaderRHIRef FD3D12DynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
 	FD3D12VertexShader* Shader = new FD3D12VertexShader;
 
-	FMemoryReader Ar(Code, true);
+	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -93,13 +93,13 @@ FVertexShaderRHIRef FD3D12DynamicRHI::RHICreateVertexShader(const TArray<uint8>&
 	return Shader;
 }
 
-FPixelShaderRHIRef FD3D12DynamicRHI::RHICreatePixelShader(const TArray<uint8>& Code)
+FPixelShaderRHIRef FD3D12DynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D12PixelShader* Shader = new FD3D12PixelShader;
 
-	FMemoryReader Ar(Code, true);
+	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -121,13 +121,13 @@ FPixelShaderRHIRef FD3D12DynamicRHI::RHICreatePixelShader(const TArray<uint8>& C
 	return Shader;
 }
 
-FHullShaderRHIRef FD3D12DynamicRHI::RHICreateHullShader(const TArray<uint8>& Code)
+FHullShaderRHIRef FD3D12DynamicRHI::RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D12HullShader* Shader = new FD3D12HullShader;
 
-	FMemoryReader Ar(Code, true);
+	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -149,13 +149,13 @@ FHullShaderRHIRef FD3D12DynamicRHI::RHICreateHullShader(const TArray<uint8>& Cod
 	return Shader;
 }
 
-FDomainShaderRHIRef FD3D12DynamicRHI::RHICreateDomainShader(const TArray<uint8>& Code)
+FDomainShaderRHIRef FD3D12DynamicRHI::RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D12DomainShader* Shader = new FD3D12DomainShader;
 
-	FMemoryReader Ar(Code, true);
+	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -177,13 +177,13 @@ FDomainShaderRHIRef FD3D12DynamicRHI::RHICreateDomainShader(const TArray<uint8>&
 	return Shader;
 }
 
-FGeometryShaderRHIRef FD3D12DynamicRHI::RHICreateGeometryShader(const TArray<uint8>& Code)
+FGeometryShaderRHIRef FD3D12DynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D12GeometryShader* Shader = new FD3D12GeometryShader;
 
-	FMemoryReader Ar(Code, true);
+	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -205,13 +205,13 @@ FGeometryShaderRHIRef FD3D12DynamicRHI::RHICreateGeometryShader(const TArray<uin
 	return Shader;
 }
 
-FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(const TArray<uint8>& Code)
+FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
 
 	FD3D12ComputeShader* Shader = new FD3D12ComputeShader;
 
-	FMemoryReader Ar(Code, true);
+	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
@@ -246,12 +246,12 @@ FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(const TArray<uint8
 
 #if D3D12_RHI_RAYTRACING
 
-FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(const TArray<uint8>& Code, EShaderFrequency ShaderFrequency)
+FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency)
 {
 	FShaderCodeReader ShaderCode(Code);
-	FD3D12RayTracingShader* Shader = new FD3D12RayTracingShader;
+	FD3D12RayTracingShader* Shader = new FD3D12RayTracingShader(ShaderFrequency);
 
-	FMemoryReader Ar(Code, true);
+	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	Ar << Shader->EntryPoint;
 	Ar << Shader->AnyHitEntryPoint;

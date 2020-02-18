@@ -8,6 +8,7 @@
 #include "Containers/UnrealString.h"
 #include "Misc/Parse.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/MemoryLayout.h"
 
 class FFloat16Color;
 
@@ -391,6 +392,7 @@ struct FLinearColor
 	static CORE_API const FLinearColor Blue;
 	static CORE_API const FLinearColor Yellow;
 };
+DECLARE_INTRINSIC_TYPE_LAYOUT(FLinearColor);
 
 FORCEINLINE FLinearColor operator*(float Scalar,const FLinearColor& Color)
 {
@@ -638,7 +640,7 @@ private:
 	 */
 	explicit FColor(const FLinearColor& LinearColor);
 };
-
+DECLARE_INTRINSIC_TYPE_LAYOUT(FColor);
 
 FORCEINLINE uint32 GetTypeHash( const FColor& Color )
 {

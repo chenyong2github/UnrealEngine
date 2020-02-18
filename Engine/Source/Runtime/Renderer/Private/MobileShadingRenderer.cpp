@@ -1013,8 +1013,8 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate
 					TShaderMapRef<FScreenPS> PixelShader(View.ShaderMap);
 					
 					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ScreenVertexShader);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ScreenVertexShader.GetVertexShader();
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -1029,7 +1029,7 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate
 						1, 1,
 						FIntPoint(1, 1),
 						FIntPoint(1, 1),
-						*ScreenVertexShader,
+						ScreenVertexShader,
 						EDRF_UseTriangleOptimization);
 				} // force depth resolve
 				RHICmdList.EndRenderPass();
@@ -1116,7 +1116,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FTextureRHIRef InMobileMultiViewSceneColorTexture)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, ViewUniformBuffer);
 		SetTextureParameter(
 			RHICmdList,
@@ -1127,16 +1127,8 @@ public:
 			InMobileMultiViewSceneColorTexture);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		const bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << MobileMultiViewSceneColorTexture;
-		Ar << MobileMultiViewSceneColorTextureSampler;
-		return bShaderHasOutdatedParameters;
-	}
-
-	FShaderResourceParameter MobileMultiViewSceneColorTexture;
-	FShaderResourceParameter MobileMultiViewSceneColorTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, MobileMultiViewSceneColorTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, MobileMultiViewSceneColorTextureSampler)
 };
 
 IMPLEMENT_SHADER_TYPE(, FCopyMobileMultiViewSceneColorPS, TEXT("/Engine/Private/MobileMultiView.usf"), TEXT("MainPS"), SF_Pixel);
@@ -1173,8 +1165,8 @@ void FMobileSceneRenderer::CopyMobileMultiViewSceneColor(FRHICommandListImmediat
 	extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -1197,7 +1189,7 @@ void FMobileSceneRenderer::CopyMobileMultiViewSceneColor(FRHICommandListImmediat
 			View.ViewRect.Width(), View.ViewRect.Height(),
 			TargetSize,
 			TargetSize,
-			*VertexShader,
+			VertexShader,
 			EDRF_UseTriangleOptimization);
 	}
 
@@ -1253,8 +1245,8 @@ void FMobileSceneRenderer::PreTonemapMSAA(FRHICommandListImmediate& RHICmdList)
 
 	extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -1270,6 +1262,6 @@ void FMobileSceneRenderer::PreTonemapMSAA(FRHICommandListImmediate& RHICmdList)
 		TargetSize.X, TargetSize.Y,
 		TargetSize,
 		TargetSize,
-		*VertexShader,
+		VertexShader,
 		EDRF_UseTriangleOptimization);
 }

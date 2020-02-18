@@ -815,7 +815,7 @@ public:
 	friend class UModelComponent;
 };
 
-void UModelComponent::CreateRenderState_Concurrent()
+void UModelComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 	{
@@ -829,7 +829,7 @@ void UModelComponent::CreateRenderState_Concurrent()
 		++GetModel()->VertexBuffer.RefCount;
 	}
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 }
 
 void UModelComponent::DestroyRenderState_Concurrent()

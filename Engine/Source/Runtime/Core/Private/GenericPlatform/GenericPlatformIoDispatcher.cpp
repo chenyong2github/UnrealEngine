@@ -5,7 +5,6 @@
 #include "Async/AsyncFileHandle.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformFilemanager.h"
-#include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/RunnableThread.h"
 

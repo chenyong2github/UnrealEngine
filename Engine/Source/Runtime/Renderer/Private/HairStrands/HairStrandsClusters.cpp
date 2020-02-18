@@ -69,7 +69,7 @@ static void AddClearClusterAABBPass(
 	Parameters->OutGroupAABBBuffer = OutGroupAABBuffer;
 
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FClearClusterAABBCS> ComputeShader(ShaderMap);
 
 	const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(ClusterCount * 6, 1, 1), FIntVector(64, 1, 1));
@@ -343,7 +343,7 @@ struct FHairHZBParameters
 
 static void AddClusterCullingPass(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const FViewInfo& View,
 	const FHairCullingParams& CullingParameters,
 	const FHairHZBParameters& HZBParameters,
@@ -386,7 +386,7 @@ static void AddClusterCullingPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("BufferClearCS"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			FIntVector(1, 1, 1));
 	}
@@ -446,7 +446,7 @@ static void AddClusterCullingPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ClusterCullingCS"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			DispatchCount);
 	}
@@ -463,7 +463,7 @@ static void AddClusterCullingPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("PrepareIndirectDrawsCS"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			FIntVector(2, 1, 1));
 	}
@@ -481,7 +481,7 @@ static void AddClusterCullingPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("WithinBlockIndexCountPreFixSumCS"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			DispatchIndirectParametersClusterCountDiv512, 0); // FIX ME, this could get over 65535
 		check(ClusterData.ClusterCount / 512 <= 65535);
@@ -499,7 +499,7 @@ static void AddClusterCullingPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("BlockIndexCountPreFixSumCS"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			DispatchIndirectParametersClusterCountDiv512Div512, 0); // FIX ME, this could get over 65535
 		check(ClusterData.ClusterCount / (512*512) <= 65535);
@@ -531,7 +531,7 @@ static void AddClusterCullingPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SplatCompactVertexIdsCS"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			DispatchIndirectParametersClusterCount2D, 0); // DispatchIndirectParametersClusterCount2D is used to avoid having any dispatch dimension going above 65535.
 	}
@@ -553,7 +553,7 @@ static void AddClusterCullingPass(
 
 static void AddClusterResetLod0(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	FHairStrandClusterData::FHairGroup& ClusterData)
 {
 	// Set as culling result not available
@@ -570,7 +570,7 @@ static void AddClusterResetLod0(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("BufferClearCS"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		FIntVector(1, 1, 1));
 }
@@ -579,7 +579,7 @@ static void AddClusterResetLod0(
 
 void ComputeHairStrandsClustersCulling(
 	FRHICommandListImmediate& RHICmdList,
-	TShaderMap<FGlobalShaderType>& ShaderMap,
+	FGlobalShaderMap& ShaderMap,
 	const TArray<FViewInfo>& Views,
 	const FHairCullingParams& CullingParameters,
 	FHairStrandClusterData& ClusterDatas)
@@ -654,7 +654,7 @@ void ComputeHairStrandsClustersCulling(
 
 void ResetHairStrandsClusterToLOD0(
 	FRHICommandListImmediate& RHICmdList,
-	TShaderMap<FGlobalShaderType>& ShaderMap,
+	FGlobalShaderMap& ShaderMap,
 	FHairStrandClusterData& ClusterDatas)
 {
 	DECLARE_GPU_STAT(HairStrandsResetLod0);

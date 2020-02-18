@@ -734,7 +734,7 @@ int FNiagaraRendererMeshes::GetDynamicDataSize()const
 
 bool FNiagaraRendererMeshes::IsMaterialValid(UMaterialInterface* Mat)const
 {
-	return Mat && Mat->CheckMaterialUsage(MATUSAGE_NiagaraMeshParticles);
+	return Mat && Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraMeshParticles);
 }
 
 

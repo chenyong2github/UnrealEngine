@@ -110,7 +110,7 @@ protected:
 	float SubtitlePriority;
 
 private:
-	float MaxAudibleDistance;
+	float MaxAudibleDistance;	
 
 public:
 	/* Indicates whether attenuation should use the Attenuation Overrides or the Attenuation Settings asset */
@@ -122,6 +122,8 @@ public:
 	uint8 bExcludeFromRandomNodeBranchCulling : 1;
 
 private:
+	UPROPERTY()
+	int32 CookedQualityIndex = INDEX_NONE;
 	
 	/** Whether a sound has play when silent enabled (i.e. for a sound cue, if any sound wave player has it enabled). */
 	UPROPERTY()
@@ -241,6 +243,9 @@ public:
 	static void StaticAudioQualityChanged(int32 NewQualityLevel);
 
 	FORCEINLINE static int32 GetCachedQualityLevel() { return CachedQualityLevel; }
+	
+	/** Set the Quality level that the Cue was cooked at, called by the SoundQualityNodes */
+	int32 GetCookedQualityIndex() const { return CookedQualityIndex; }
 
 	/** Call to cache any values which need to be computed from the sound cue graph. e.g. MaxDistance, Duration, etc. */
 	void CacheAggregateValues();
@@ -308,5 +313,7 @@ private:
 
 	/** Ptr to interface to sound cue editor operations. */
 	static TSharedPtr<ISoundCueAudioEditor> SoundCueAudioEditor;
+
+	FCriticalSection EditorOnlyCs;
 #endif // WITH_EDITOR
 };

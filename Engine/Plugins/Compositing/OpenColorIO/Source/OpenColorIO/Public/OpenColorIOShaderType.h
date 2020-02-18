@@ -30,6 +30,15 @@ class FUniformExpressionSet;
 /** Called for every OpenColorIO shader to update the appropriate stats. */
 extern void UpdateOpenColorIOShaderCompilingStats(const FOpenColorIOTransformResource* InShader);
 
+struct FOpenColorIOShaderPermutationParameters : public FShaderPermutationParameters
+{
+	const FOpenColorIOTransformResource* Transform;
+
+	FOpenColorIOShaderPermutationParameters(EShaderPlatform InPlatform, const FOpenColorIOTransformResource* InTransform)
+		: FShaderPermutationParameters(InPlatform)
+		, Transform(InTransform)
+	{}
+};
 
 /**
  * A shader meta type for OpenColorIO-linked shaders.
@@ -45,20 +54,17 @@ public:
 			FShaderType* InType,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
-			FShaderResource* InResource,
+			int32 InResourceIndex,
 			const FSHAHash& InOCIOShaderMapHash,
 			const FString& InDebugDescription
 			)
-		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput,InResource, InOCIOShaderMapHash,nullptr,nullptr)
+		: FGlobalShaderType::CompiledShaderInitializerType(InType,InPermutationId,CompilerOutput, InResourceIndex, InOCIOShaderMapHash,nullptr,nullptr)
 		, DebugDescription(InDebugDescription)
 		{}
 	};
-	typedef FShader* (*ConstructCompiledType)(const CompiledShaderInitializerType&);
-	typedef bool (*ShouldCompilePermutationType)(EShaderPlatform,const FOpenColorIOTransformResource*);
-	typedef bool(*ValidateCompiledResultType)(EShaderPlatform, const FShaderParameterMap&, TArray<FString>&);
-	typedef void (*ModifyCompilationEnvironmentType)(EShaderPlatform,const FOpenColorIOTransformResource*, FShaderCompilerEnvironment&);
 
 	FOpenColorIOShaderType(
+		FTypeLayoutDesc& InTypeLayout,
 		const TCHAR* InName,
 		const TCHAR* InSourceFilename,
 		const TCHAR* InFunctionName,
@@ -68,13 +74,18 @@ public:
 		ConstructCompiledType InConstructCompiledRef,
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
-		ValidateCompiledResultType InValidateCompiledResultRef
+		ValidateCompiledResultType InValidateCompiledResultRef,
+		uint32 InTypeSize,
+		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
 		):
-		FShaderType(EShaderTypeForDynamicCast::OCIO, InName, InSourceFilename, InFunctionName, SF_Pixel, InTotalPermutationCount, InConstructSerializedRef, nullptr),
-		ConstructCompiledRef(InConstructCompiledRef),
-		ShouldCompilePermutationRef(InShouldCompilePermutationRef),
-		ValidateCompiledResultRef(InValidateCompiledResultRef),
-		ModifyCompilationEnvironmentRef(InModifyCompilationEnvironmentRef)
+		FShaderType(EShaderTypeForDynamicCast::OCIO, InTypeLayout, InName, InSourceFilename, InFunctionName, SF_Pixel, InTotalPermutationCount,
+			InConstructSerializedRef,
+			InConstructCompiledRef,
+			InModifyCompilationEnvironmentRef,
+			InShouldCompilePermutationRef,
+			InValidateCompiledResultRef,
+			InTypeSize,
+			InRootParametersMetadata)
 	{
 		check(InTotalPermutationCount == 1);
 	}
@@ -99,7 +110,8 @@ public:
 	FShader* FinishCompileShader(
 		const FSHAHash& InOCIOShaderMapHash,
 		const FShaderCompileJob& CurrentJob,
-		const FString& InDebugDescription
+		const FString& InDebugDescription,
+		FShaderMapResourceBuilder& ResourceBuilder
 		);
 
 	/**
@@ -108,28 +120,20 @@ public:
 	 * @param InColorTransform - The color transform to check.
 	 * @return True if this shader type should be cached.
 	 */
-	bool ShouldCache(EShaderPlatform InPlatform,const FOpenColorIOTransformResource* InColorTransform) const
+	bool ShouldCache(EShaderPlatform InPlatform, const FOpenColorIOTransformResource* InColorTransform) const
 	{
-		return (*ShouldCompilePermutationRef)(InPlatform, InColorTransform);
+		return ShouldCompilePermutation(FOpenColorIOShaderPermutationParameters(InPlatform, InColorTransform));
 	}
 
 
 protected:
-
 	/**
 	 * Sets up the environment used to compile an instance of this shader type.
 	 * @param InPlatform - Platform to compile for.
 	 * @param OutEnvironment - The shader compile environment that the function modifies.
 	 */
-	void SetupCompileEnvironment(EShaderPlatform InPlatform, const FOpenColorIOTransformResource* InColorTransform, FShaderCompilerEnvironment& OutEnvironment)
+	void SetupCompileEnvironment(EShaderPlatform InPlatform, const FOpenColorIOTransformResource* InColorTransform, FShaderCompilerEnvironment& OutEnvironment) const
 	{
-		// Allow the shader type to modify its compile environment.
-		(*ModifyCompilationEnvironmentRef)(InPlatform, InColorTransform, OutEnvironment);
+		ModifyCompilationEnvironment(FOpenColorIOShaderPermutationParameters(InPlatform, InColorTransform), OutEnvironment);
 	}
-
-private:
-	ConstructCompiledType ConstructCompiledRef;
-	ShouldCompilePermutationType ShouldCompilePermutationRef;
-	ValidateCompiledResultType ValidateCompiledResultRef;
-	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
 };

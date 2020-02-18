@@ -3499,9 +3499,9 @@ void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName Parame
 			{
 				bool bUpdate = false;
 
-				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->MaterialFunctionInfos.Num(); FunctionIndex++)
+				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->GetCachedExpressionData().FunctionInfos.Num(); FunctionIndex++)
 				{
-					if (CurrentMaterial->MaterialFunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
+					if (CurrentMaterial->GetCachedExpressionData().FunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
 					{
 						bUpdate = true;
 						break;
@@ -3575,9 +3575,9 @@ void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName Parame
 			{
 				bool bUpdate = false;
 
-				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->MaterialFunctionInfos.Num(); FunctionIndex++)
+				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->GetCachedExpressionData().FunctionInfos.Num(); FunctionIndex++)
 				{
-					if (CurrentMaterial->MaterialFunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
+					if (CurrentMaterial->GetCachedExpressionData().FunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
 					{
 						bUpdate = true;
 						break;

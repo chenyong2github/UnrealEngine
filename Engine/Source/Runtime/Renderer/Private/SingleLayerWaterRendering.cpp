@@ -161,8 +161,9 @@ void FSingleLayerWaterPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT
 
 	if (Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
 	{
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material);
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material);
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 		Process(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
 	}
@@ -474,17 +475,17 @@ void FDeferredShadingSceneRenderer::CopySingleLayerWaterTextures(FRHICommandList
 	    PassParameters->SVPositionToSourceTextureUV = FVector2D(RefractionDownsampleFactor / float(SceneContext.GetBufferSizeXY().X), RefractionDownsampleFactor / float(SceneContext.GetBufferSizeXY().Y));
     
 	    PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneDepthWithoutSingleLayerWaterTexture, ERenderTargetLoadAction::ENoAction);
-    
+
 	    if (bCopyColor)
 	    {
 		    PassParameters->RenderTargets[1] = FRenderTargetBinding(SceneColorWithoutSingleLayerWaterTexture, ERenderTargetLoadAction::ENoAction);
 	    }
-    
+
 	    FWaterRefractionCopyPS::FPermutationDomain PermutationVector;
 	    PermutationVector.Set<FWaterRefractionCopyPS::FDownsampleRefraction>(RefractionDownsampleFactor > 1);
 	    PermutationVector.Set<FWaterRefractionCopyPS::FDownsampleColor>(bCopyColor);
 	    auto PixelShader = View.ShaderMap->GetShader<FWaterRefractionCopyPS>(PermutationVector);
-    
+
 		const FIntRect RefractionViewRect = FIntRect(FIntPoint::DivideAndRoundDown(View.ViewRect.Min, RefractionDownsampleFactor), FIntPoint::DivideAndRoundDown(View.ViewRect.Max, RefractionDownsampleFactor));
 
 		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterViewRect   = RefractionViewRect;
@@ -659,7 +660,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 				PassParameters->DispatchIndirectDataUAV = TiledScreenSpaceReflection.DispatchIndirectParametersBufferUAV;
 				PassParameters->WaterTileListDataUAV = TiledScreenSpaceReflection.TileListStructureBufferUAV;
 
-				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("WaterTileCategorisation"), *ComputeShader, PassParameters, TiledViewRes);
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("WaterTileCategorisation"), ComputeShader, PassParameters, TiledViewRes);
 			}
 		}
 
@@ -726,15 +727,15 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 			PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection.DispatchIndirectParametersBuffer;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
-			ValidateShaderParameters(*PixelShader, PassParameters->PS);
-			ClearUnusedGraphResources(*PixelShader, &PassParameters->PS);
+			ValidateShaderParameters(PixelShader, PassParameters->PS);
+			ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
 
 			if (bRunTiled)
 			{
 				FWaterTileVS::FPermutationDomain VsPermutationVector;
 				TShaderMapRef<FWaterTileVS> VertexShader(View.ShaderMap, VsPermutationVector);
-				ValidateShaderParameters(*VertexShader, PassParameters->VS);
-				ClearUnusedGraphResources(*VertexShader, &PassParameters->VS);
+				ValidateShaderParameters(VertexShader, PassParameters->VS);
+				ClearUnusedGraphResources(VertexShader, &PassParameters->VS);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("Water Composite %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
@@ -751,12 +752,12 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader->GetVertexShader();
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader->GetPixelShader();
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
 
-					SetShaderParameters(InRHICmdList, *VertexShader, VertexShader->GetVertexShader(), PassParameters->VS);
-					SetShaderParameters(InRHICmdList, *PixelShader, PixelShader->GetPixelShader(), PassParameters->PS);
+					SetShaderParameters(InRHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
+					SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
 					InRHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
 				});
@@ -772,13 +773,13 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 					InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 					FGraphicsPipelineStateInitializer GraphicsPSOInit;
-					FPixelShaderUtils::InitFullscreenPipelineState(InRHICmdList, View.ShaderMap, *PixelShader, GraphicsPSOInit);
+					FPixelShaderUtils::InitFullscreenPipelineState(InRHICmdList, View.ShaderMap, PixelShader, GraphicsPSOInit);
 
 					// Premultiplied alpha where alpha is transmittance.
 					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha>::GetRHI();
 
 					SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
-					SetShaderParameters(InRHICmdList, *PixelShader, PixelShader->GetPixelShader(), PassParameters->PS);
+					SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 					FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
 				});
 			}

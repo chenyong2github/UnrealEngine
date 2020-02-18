@@ -39,7 +39,6 @@ class FViewInfo;
 struct FILCUpdatePrimTaskData;
 class FPostprocessContext;
 struct FILCUpdatePrimTaskData;
-template<typename ShaderMetaType> class TShaderMap;
 class FRaytracingLightDataPacked;
 class FRayTracingLocalShaderBindingWriter;
 
@@ -1133,7 +1132,7 @@ public:
 
 	FHeightfieldLightingViewInfo HeightfieldLightingViewInfo;
 
-	TShaderMap<FGlobalShaderType>* ShaderMap;
+	FGlobalShaderMap* ShaderMap;
 
 	bool bIsSnapshot;
 
@@ -1773,7 +1772,6 @@ protected:
 	FRHITexture* GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const;
 
 	void UpdatePrimitiveIndirectLightingCacheBuffers();
-	void ClearPrimitiveSingleFrameIndirectLightingCacheBuffers();
 
 	void RenderPlanarReflection(class FPlanarReflectionSceneProxy* ReflectionSceneProxy);
 

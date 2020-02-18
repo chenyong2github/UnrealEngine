@@ -446,7 +446,29 @@ enum EPropertyFlags : uint64
 
 ENUM_CLASS_FLAGS(EPropertyFlags)
 
-/** 
+/**
+ * Extra flags for array properties.
+ */
+enum class EArrayPropertyFlags
+{
+	None,
+	UsesMemoryImageAllocator
+};
+
+ENUM_CLASS_FLAGS(EArrayPropertyFlags)
+
+/**
+ * Extra flags for map properties.
+ */
+enum class EMapPropertyFlags
+{
+	None,
+	UsesMemoryImageAllocator
+};
+
+ENUM_CLASS_FLAGS(EMapPropertyFlags)
+
+/**
  * Flags describing an object instance
  */
 enum EObjectFlags

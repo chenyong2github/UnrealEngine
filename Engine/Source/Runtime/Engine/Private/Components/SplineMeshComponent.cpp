@@ -91,13 +91,9 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshVertexFactory
 
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FSplineMeshVertexFactory, SF_Vertex, FSplineMeshVertexFactoryShaderParameters);
+
 IMPLEMENT_VERTEX_FACTORY_TYPE(FSplineMeshVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, true, true, true, true);
-
-
-FVertexFactoryShaderParameters* FSplineMeshVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new FSplineMeshVertexFactoryShaderParameters() : NULL;
-}
 
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshSceneProxy

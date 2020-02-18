@@ -28,6 +28,8 @@ class NIAGARA_API UNiagaraDataInterfaceCollisionQuery : public UNiagaraDataInter
 	GENERATED_UCLASS_BODY()
 public:
 
+	DECLARE_NIAGARA_DI_PARAMETER();
+
 #if WITH_EDITORONLY_DATA
 #endif
 	FNiagaraSystemInstance *SystemInstance;
@@ -66,7 +68,6 @@ public:
 
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 	
 private:
 

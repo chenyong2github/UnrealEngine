@@ -1596,8 +1596,8 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
@@ -1619,7 +1619,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			USize, VSize,
 			TargetSize,
 			FIntPoint(1, 1),
-			*VertexShader,
+			VertexShader,
 			EDRF_Default);
 	}
 	RHICmdList.EndRenderPass();

@@ -147,7 +147,7 @@ void FOpenGLDynamicRHI::SetupRecursiveResources()
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	{
 		TShaderMapRef<FNULLPS> PixelShader(ShaderMap);
-		PixelShader->GetPixelShader();
+		PixelShader.GetPixelShader();
 	}
 }
 
@@ -710,16 +710,46 @@ static typename TEnableIf<!TPointerIsConvertibleFromTo<TRHIType, const FRHIShade
  * @returns the compiled shader upon success.
  */
 template <typename ShaderType>
-ShaderType* CompileOpenGLShader(const TArray<uint8>& InShaderCode, const FSHAHash& LibraryHash, FRHIShader* RHIShader = nullptr)
+ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHAHash& LibraryHash, FRHIShader* RHIShader = nullptr)
 {
 	SCOPE_CYCLE_COUNTER(STAT_OpenGLShaderCompileTime);
 	VERIFY_GL_SCOPE();
 
+	ShaderType* Shader = nullptr;
+	{
+		FLibraryShaderCacheValue *Val = GetOpenGLCompiledLibraryShaderCache().Find(LibraryHash);
+		if (Val)
+		{
+			Shader = new ShaderType();
+			Shader->Resource = Val->GLShader;
+			Shader->Bindings = Val->Header->Bindings;
+			Shader->UniformBuffersCopyInfo = Val->Header->UniformBuffersCopyInfo;
+			if (FOpenGL::SupportsSeparateShaderObjects())
+			{
+				FSHAHash Hash;
+				// Just use the CRC - if it isn't being cached & logged we'll be dependent on the CRC alone anyway
+				FMemory::Memcpy(Hash.Hash, &Val->ShaderCrc, sizeof(uint32));
+				if (RHIShader)
+				{
+					SetShaderHash(Hash, RHIShader);
+				}
+				else
+				{
+					SetShaderHash(Hash, Shader);
+				}
+			}
+#if DEBUG_GL_SHADERS
+			Shader->GlslCode = Val->GlslCode;
+			Shader->GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();
+#endif
+			return Shader;
+		}
+	}
+
 	FShaderCodeReader ShaderCode(InShaderCode);
 
-	ShaderType* Shader = nullptr;
 	const GLenum TypeEnum = ShaderType::TypeEnum;
-	FMemoryReader Ar(InShaderCode, true);
+	FMemoryReaderView Ar(InShaderCode, true);
 
 	Ar.SetLimitSize(ShaderCode.GetActualShaderCodeSize());
 
@@ -887,47 +917,6 @@ ShaderType* CompileOpenGLShader(const TArray<uint8>& InShaderCode, const FSHAHas
 
 	return Shader;
 }
-
-template <typename ShaderType>
-ShaderType* CompileOpenGLShader(FRHIShaderLibrary* Library, FSHAHash LibraryHash, FRHIShader* RHIShader = nullptr)
-{
-	FLibraryShaderCacheValue *Val = GetOpenGLCompiledLibraryShaderCache().Find(LibraryHash);
-	ShaderType* Shader = nullptr;
-	if (Val)
-	{
-		Shader = new ShaderType();
-		Shader->Resource = Val->GLShader;
-		Shader->Bindings = Val->Header->Bindings;
-		Shader->UniformBuffersCopyInfo = Val->Header->UniformBuffersCopyInfo;
-		if (FOpenGL::SupportsSeparateShaderObjects())
-		{
-			FSHAHash Hash;
-			// Just use the CRC - if it isn't being cached & logged we'll be dependent on the CRC alone anyway
-			FMemory::Memcpy(Hash.Hash, &Val->ShaderCrc, sizeof(uint32));
-			if (RHIShader)
-			{
-				SetShaderHash(Hash, RHIShader);
-			}
-			else
-			{
-				SetShaderHash(Hash, Shader);
-			}
-		}
-#if DEBUG_GL_SHADERS
-		Shader->GlslCode = Val->GlslCode;
-		Shader->GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();
-#endif
-	}
-	else
-	{
-		TArray<uint8> InShaderCode;
-		bool bFound = Library->RequestEntry(LibraryHash, InShaderCode);
-		UE_CLOG(!bFound, LogRHI, Fatal, TEXT("Shader %s was supposed to be in a shader code library, however we looked for it later and it was not found."), *LibraryHash.ToString());
-		Shader = CompileOpenGLShader<ShaderType>(InShaderCode, LibraryHash, RHIShader);
-	}
-	return Shader;
-}
-
 
 void OPENGLDRV_API GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceCapabilities& Capabilities)
 {
@@ -1443,52 +1432,52 @@ static ANSICHAR* SetIndex(ANSICHAR* Str, int32 Offset, int32 Index)
 }
 
 template<typename RHIType, typename TOGLProxyType>
-RHIType* CreateProxyShader(const TArray<uint8>& Code)
+RHIType* CreateProxyShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
 	{
 		return new TOGLProxyType([&](RHIType* OwnerRHI)
 		{
-			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Code, FSHAHash(), OwnerRHI);
+			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Code, Hash, OwnerRHI);
 		});
 	}
 	else
 	{
 		// take a copy of the code for RHIT version.
-		TArray<uint8> CodeCopy = Code;
-		return new TOGLProxyType([Code = MoveTemp(CodeCopy)](RHIType* OwnerRHI)
+		TArray<uint8> CodeCopy(Code);
+		return new TOGLProxyType([Code = MoveTemp(CodeCopy), Hash](RHIType* OwnerRHI)
 		{
-			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Code, FSHAHash(), OwnerRHI);
+			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Code, Hash, OwnerRHI);
 		});
 	}
 }
 
-FVertexShaderRHIRef FOpenGLDynamicRHI::RHICreateVertexShader(const TArray<uint8>& Code)
+FVertexShaderRHIRef FOpenGLDynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIVertexShader, FOpenGLVertexShaderProxy>(Code);
+	return CreateProxyShader<FRHIVertexShader, FOpenGLVertexShaderProxy>(Code, Hash);
 }
 
-FPixelShaderRHIRef FOpenGLDynamicRHI::RHICreatePixelShader(const TArray<uint8>& Code)
+FPixelShaderRHIRef FOpenGLDynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIPixelShader, FOpenGLPixelShaderProxy>(Code);
+	return CreateProxyShader<FRHIPixelShader, FOpenGLPixelShaderProxy>(Code, Hash);
 }
 
-FGeometryShaderRHIRef FOpenGLDynamicRHI::RHICreateGeometryShader(const TArray<uint8>& Code)
+FGeometryShaderRHIRef FOpenGLDynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIGeometryShader, FOpenGLGeometryShaderProxy>(Code);
+	return CreateProxyShader<FRHIGeometryShader, FOpenGLGeometryShaderProxy>(Code, Hash);
 }
 
-FHullShaderRHIRef FOpenGLDynamicRHI::RHICreateHullShader(const TArray<uint8>& Code)
+FHullShaderRHIRef FOpenGLDynamicRHI::RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
-	return CreateProxyShader<FRHIHullShader, FOpenGLHullShaderProxy>(Code);
+	return CreateProxyShader<FRHIHullShader, FOpenGLHullShaderProxy>(Code, Hash);
 }
 
-FDomainShaderRHIRef FOpenGLDynamicRHI::RHICreateDomainShader(const TArray<uint8>& Code)
+FDomainShaderRHIRef FOpenGLDynamicRHI::RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
-	return CreateProxyShader<FRHIDomainShader, FOpenGLDomainShaderProxy>(Code);
+	return CreateProxyShader<FRHIDomainShader, FOpenGLDomainShaderProxy>(Code, Hash);
 }
 
 template<typename RHIType, typename TOGLProxyType>
@@ -1510,33 +1499,6 @@ RHIType* CreateProxyShader(FRHIShaderLibrary* Library, FSHAHash Hash)
 			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Library, Hash, OwnerRHI);
 		});
 	}
-}
-
-FVertexShaderRHIRef FOpenGLDynamicRHI::RHICreateVertexShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	return CreateProxyShader<FRHIVertexShader, FOpenGLVertexShaderProxy>(Library, Hash);
-}
-
-FPixelShaderRHIRef FOpenGLDynamicRHI::RHICreatePixelShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	return CreateProxyShader<FRHIPixelShader, FOpenGLPixelShaderProxy>(Library, Hash);
-}
-
-FGeometryShaderRHIRef FOpenGLDynamicRHI::RHICreateGeometryShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	return CreateProxyShader<FRHIGeometryShader, FOpenGLGeometryShaderProxy>(Library, Hash);
-}
-
-FHullShaderRHIRef FOpenGLDynamicRHI::RHICreateHullShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
-	return CreateProxyShader<FRHIHullShader, FOpenGLHullShaderProxy>(Library, Hash);
-}
-
-FDomainShaderRHIRef FOpenGLDynamicRHI::RHICreateDomainShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
-	return CreateProxyShader<FRHIDomainShader, FOpenGLDomainShaderProxy>(Library, Hash);
 }
 
 static void MarkShaderParameterCachesDirty(FOpenGLShaderParameterCache* ShaderParameters, bool UpdateCompute)
@@ -3285,16 +3247,10 @@ FOpenGLLinkedProgram* FOpenGLDynamicRHI::GetLinkedComputeProgram(FRHIComputeShad
 	return LinkedProgram;
 }
 
-FComputeShaderRHIRef FOpenGLDynamicRHI::RHICreateComputeShader(FRHIShaderLibrary* Library, FSHAHash Hash)
+FComputeShaderRHIRef FOpenGLDynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
-	return CreateProxyShader<FRHIComputeShader, FOpenGLComputeShaderProxy>(Library, Hash);
-}
-
-FComputeShaderRHIRef FOpenGLDynamicRHI::RHICreateComputeShader(const TArray<uint8>& Code)
-{
-	check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
-	return CreateProxyShader<FRHIComputeShader, FOpenGLComputeShaderProxy>(Code);
+	return CreateProxyShader<FRHIComputeShader, FOpenGLComputeShaderProxy>(Code, Hash);
 }
 
 template<class TOpenGLStage>
@@ -3582,7 +3538,7 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 	if(!PixelShaderRHI)
 	{
 		// use special null pixel shader when PixelShader was set to NULL
-		PixelShaderRHI = TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader();
+		PixelShaderRHI = TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
 	}
 
 	// Check for an existing bound shader state which matches the parameters

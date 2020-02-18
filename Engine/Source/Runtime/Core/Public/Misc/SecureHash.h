@@ -13,6 +13,7 @@
 #include "Serialization/BufferReader.h"
 #include "String/BytesToHex.h"
 #include "String/HexToBytes.h"
+#include "Serialization/MemoryLayout.h"
 
 class FAnsiStringBuilderBase;
 class FStringBuilderBase;
@@ -227,6 +228,11 @@ public:
 		return FMemory::Memcmp(&X.Hash, &Y.Hash, sizeof(X.Hash)) != 0;
 	}
 
+	friend bool operator<(const FSHAHash& X, const FSHAHash& Y)
+	{
+		return FMemory::Memcmp(&X.Hash, &Y.Hash, sizeof(X.Hash)) < 0;
+	}
+
 	friend CORE_API FArchive& operator<<( FArchive& Ar, FSHAHash& G );
 	
 	friend uint32 GetTypeHash(const FSHAHash& InKey)
@@ -237,6 +243,7 @@ public:
 	friend CORE_API FString LexToString(const FSHAHash&);
 	friend CORE_API void LexFromString(FSHAHash& Hash, const TCHAR*);
 };
+DECLARE_INTRINSIC_TYPE_LAYOUT(FSHAHash);
 
 inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSHAHash& Hash) { UE::String::BytesToHex(Hash.Hash, Builder); return Builder; }
 inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FSHAHash& Hash) { UE::String::BytesToHex(Hash.Hash, Builder); return Builder; }

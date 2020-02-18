@@ -658,7 +658,7 @@ struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
 #define INTERNAL_SHADER_PARAMETER_GET_STRUCT_METADATA(StructTypeName) \
 	static FShaderParametersMetadata StaticStructMetadata(\
 		FShaderParametersMetadata::EUseCase::ShaderParameterStruct, \
-		FName(TEXT(#StructTypeName)), \
+		TEXT(#StructTypeName), \
 		TEXT(#StructTypeName), \
 		nullptr, \
 		nullptr, \
@@ -738,6 +738,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByFName(
 /** Finds the FShaderParameterMetadata corresponding to the given uniform buffer layout hash, or null if not found. */
 extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByLayoutHash(uint32 Hash);
 
+extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShaderVariableName(const FHashedName& Name);
 
 /** Begins & ends a shader parameter structure.
  *
@@ -786,7 +787,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByLayout
 #define IMPLEMENT_UNIFORM_BUFFER_STRUCT(StructTypeName,ShaderVariableName) \
 	FShaderParametersMetadata StructTypeName::StaticStructMetadata( \
 	FShaderParametersMetadata::EUseCase::UniformBuffer, \
-	FName(TEXT(#StructTypeName)), \
+	TEXT(#StructTypeName), \
 	TEXT(#StructTypeName), \
 	TEXT(ShaderVariableName), \
 	nullptr, \
@@ -812,7 +813,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByLayout
 #define IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(StructTypeName,ShaderVariableName,StaticSlotName) \
 	FShaderParametersMetadata StructTypeName::StaticStructMetadata( \
 	FShaderParametersMetadata::EUseCase::UniformBuffer, \
-	FName(TEXT(#StructTypeName)), \
+	TEXT(#StructTypeName), \
 	TEXT(#StructTypeName), \
 	TEXT(ShaderVariableName), \
 	TEXT(#StaticSlotName), \

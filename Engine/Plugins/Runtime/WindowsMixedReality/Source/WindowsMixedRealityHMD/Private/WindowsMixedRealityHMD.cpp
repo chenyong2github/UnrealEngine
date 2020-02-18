@@ -69,27 +69,16 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* DepthTexture)
 	{
-		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FRHISamplerState* SamplerStateRHI = TStaticSamplerState<SF_Point>::GetRHI();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, InDepthTexture, InTextureSampler, SamplerStateRHI, DepthTexture);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-
-		// Serialize shader inputs.
-		Ar << InDepthTexture;
-		Ar << InTextureSampler;
-
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
 	// Shader parameters.
-	FShaderResourceParameter InDepthTexture;
-	FShaderResourceParameter InTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, InDepthTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
 };
 
 IMPLEMENT_SHADER_TYPE(, FDepthConversionPS, TEXT("/Plugin/WindowsMixedReality/Private/DepthConversion.usf"), TEXT("MainPixelShader"), SF_Pixel)
@@ -689,7 +678,7 @@ namespace WindowsMixedReality
 
 			TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 
 			const bool bSameSize = DstRect.Size() == SrcRect.Size();
 			FRHISamplerState* PixelSampler = bSameSize ? TStaticSamplerState<SF_Point>::GetRHI() : TStaticSamplerState<SF_Bilinear>::GetRHI();
@@ -697,7 +686,7 @@ namespace WindowsMixedReality
 			if ((SrcTexture->GetFlags() & TexCreate_SRGB) != 0)
 			{
 				TShaderMapRef<FScreenPSsRGBSource> PixelShader(ShaderMap);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, PixelSampler, SrcTexture);
@@ -705,7 +694,7 @@ namespace WindowsMixedReality
 			else
 			{
 				TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, PixelSampler, SrcTexture);
@@ -719,7 +708,7 @@ namespace WindowsMixedReality
 				USize, VSize,
 				TargetSize,
 				FIntPoint(1, 1),
-				*VertexShader,
+				VertexShader,
 				EDRF_Default);
 
 			RHICmdList.EndRenderPass();
@@ -1364,8 +1353,8 @@ namespace WindowsMixedReality
 			TShaderMapRef<FDepthConversionPS> pixelShader(shaderMap);
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*vertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*pixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = vertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = pixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -1380,7 +1369,7 @@ namespace WindowsMixedReality
 				1.0f, 1.0f, // SizeU, SizeV
 				FIntPoint(viewportWidth, viewportHeight), // TargetSize
 				FIntPoint(1, 1), // TextureSize
-				*vertexShader,
+				vertexShader,
 				EDRF_Default);
 		}
 		RHICmdList.EndRenderPass();

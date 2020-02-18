@@ -271,7 +271,7 @@ class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionComponent : public UMeshCo
 public:
 
 	//~ Begin UActorComponent Interface.
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	FORCEINLINE void SetRenderStateDirty() { bRenderStateDirty = true; }
 	virtual void BeginPlay() override;

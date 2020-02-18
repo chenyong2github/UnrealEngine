@@ -254,7 +254,7 @@ void FVulkanDynamicRHI::Init()
 void FVulkanDynamicRHI::PostInit()
 {
 	//work around layering violation
-	TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader();
+	TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
 }
 
 void FVulkanDynamicRHI::Shutdown()
@@ -285,17 +285,7 @@ void FVulkanDynamicRHI::Shutdown()
 		check(!GIsCriticalError);
 
 		// Ask all initialized FRenderResources to release their RHI resources.
-		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			FRenderResource* Resource = *ResourceIt;
-			check(Resource->IsInitialized());
-			Resource->ReleaseRHI();
-		}
-
-		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->ReleaseDynamicRHI();
-		}
+		FRenderResource::ReleaseRHIForAllResources();
 
 		{
 			for (auto& Pair : Device->SamplerMap)

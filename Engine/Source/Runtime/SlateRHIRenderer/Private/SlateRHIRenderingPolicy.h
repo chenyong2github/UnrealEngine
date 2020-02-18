@@ -13,12 +13,16 @@
 #include "SlateElementVertexBuffer.h"
 #include "SlateRHIResourceManager.h"
 #include "Shader.h"
+#include "GlobalShader.h"
 #include "Engine/TextureLODSettings.h"
 
 class FSlateFontServices;
 class FSlateRHIResourceManager;
 class FSlatePostProcessor;
 class UDeviceProfile;
+class FSlateElementPS;
+class FSlateMaterialShaderPS;
+class FSlateMaterialShaderVS;
 
 struct FSlateRenderingParams
 {
@@ -80,9 +84,9 @@ private:
 	 * @param DrawEffects	Draw effects being used
 	 * @return The pixel shader for use with the shader type and draw effects
 	 */
-	class FSlateElementPS* GetTexturePixelShader( TShaderMap<FGlobalShaderType>* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects );
-	class FSlateMaterialShaderPS* GetMaterialPixelShader( const class FMaterial* Material, ESlateShader ShaderType);
-	class FSlateMaterialShaderVS* GetMaterialVertexShader( const class FMaterial* Material, bool bUseInstancing );
+	TShaderRef<FSlateElementPS> GetTexturePixelShader(FGlobalShaderMap* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects );
+	TShaderRef<FSlateMaterialShaderPS> GetMaterialPixelShader( const class FMaterial* Material, ESlateShader ShaderType );
+	TShaderRef<FSlateMaterialShaderVS> GetMaterialVertexShader( const class FMaterial* Material, bool bUseInstancing );
 
 	/** @return The RHI primitive type from the Slate primitive type */
 	EPrimitiveType GetRHIPrimitiveType(ESlateDrawPrimitive SlateType);

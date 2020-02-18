@@ -54,7 +54,9 @@ static FVector2D LensUndistortViewportUVIntoViewSpace(
 
 class FLensDistortionUVGenerationShader : public FGlobalShader
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FLensDistortionUVGenerationShader, NonVirtual);
 public:
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
@@ -105,28 +107,20 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, OutputMultiplyAndAdd, CompiledCameraModel.OutputMultiplyAndAdd);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PixelUVSize << RadialDistortionCoefs << TangentialDistortionCoefs << DistortedCameraMatrix << UndistortedCameraMatrix << OutputMultiplyAndAdd;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter PixelUVSize;
-	FShaderParameter RadialDistortionCoefs;
-	FShaderParameter TangentialDistortionCoefs;
-	FShaderParameter DistortedCameraMatrix;
-	FShaderParameter UndistortedCameraMatrix;
-	FShaderParameter OutputMultiplyAndAdd;
-
+	
+	LAYOUT_FIELD(FShaderParameter, PixelUVSize);
+	LAYOUT_FIELD(FShaderParameter, RadialDistortionCoefs);
+	LAYOUT_FIELD(FShaderParameter, TangentialDistortionCoefs);
+	LAYOUT_FIELD(FShaderParameter, DistortedCameraMatrix);
+	LAYOUT_FIELD(FShaderParameter, UndistortedCameraMatrix);
+	LAYOUT_FIELD(FShaderParameter, OutputMultiplyAndAdd);
 };
 
 
 class FLensDistortionUVGenerationVS : public FLensDistortionUVGenerationShader
 {
 	DECLARE_SHADER_TYPE(FLensDistortionUVGenerationVS, Global);
-
 public:
 
 	/** Default constructor. */
@@ -143,7 +137,6 @@ public:
 class FLensDistortionUVGenerationPS : public FLensDistortionUVGenerationShader
 {
 	DECLARE_SHADER_TYPE(FLensDistortionUVGenerationPS, Global);
-
 public:
 
 	/** Default constructor. */
@@ -192,7 +185,7 @@ static void DrawUVDisplacementToRenderTarget_RenderThread(
 			DisplacementMapResolution.X, DisplacementMapResolution.Y, 1.f);
 
 		// Get shaders.
-		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 		TShaderMapRef< FLensDistortionUVGenerationVS > VertexShader(GlobalShaderMap);
 		TShaderMapRef< FLensDistortionUVGenerationPS > PixelShader(GlobalShaderMap);
 
@@ -204,8 +197,8 @@ static void DrawUVDisplacementToRenderTarget_RenderThread(
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		// Update viewport.
@@ -214,8 +207,8 @@ static void DrawUVDisplacementToRenderTarget_RenderThread(
 			OutTextureRenderTargetResource->GetSizeX(), OutTextureRenderTargetResource->GetSizeY(), 1.f);
 
 		// Update shader uniform parameters.
-		VertexShader->SetParameters(RHICmdList, VertexShader->GetVertexShader(), CompiledCameraModel, DisplacementMapResolution);
-		PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), CompiledCameraModel, DisplacementMapResolution);
+		VertexShader->SetParameters(RHICmdList, VertexShader.GetVertexShader(), CompiledCameraModel, DisplacementMapResolution);
+		PixelShader->SetParameters(RHICmdList, PixelShader.GetPixelShader(), CompiledCameraModel, DisplacementMapResolution);
 
 		// Draw grid.
 		uint32 PrimitiveCount = kGridSubdivisionX * kGridSubdivisionY * 2;

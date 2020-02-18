@@ -489,11 +489,11 @@ mtlpp::LanguageVersion ValidateVersion(uint8 Version)
 
 /** Initialization constructor. */
 template<typename BaseResourceType, int32 ShaderType>
-void TMetalBaseShader<BaseResourceType, ShaderType>::Init(const TArray<uint8>& InShaderCode, FMetalCodeHeader& Header, mtlpp::Library InLibrary)
+void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> InShaderCode, FMetalCodeHeader& Header, mtlpp::Library InLibrary)
 {
 	FShaderCodeReader ShaderCode(InShaderCode);
 
-	FMemoryReader Ar(InShaderCode, true);
+	FMemoryReaderView Ar(InShaderCode, true);
 	
 	Ar.SetLimitSize(ShaderCode.GetActualShaderCodeSize());
 
@@ -896,7 +896,7 @@ mtlpp::Function TMetalBaseShader<BaseResourceType, ShaderType>::GetCompiledFunct
 	return Func;
 }
 
-FMetalComputeShader::FMetalComputeShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary)
+FMetalComputeShader::FMetalComputeShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary)
 : NumThreadsX(0)
 , NumThreadsY(0)
 , NumThreadsZ(0)
@@ -1006,7 +1006,7 @@ mtlpp::Function FMetalComputeShader::GetFunction()
 	return GetCompiledFunction();
 }
 
-FMetalVertexShader::FMetalVertexShader(const TArray<uint8>& InCode)
+FMetalVertexShader::FMetalVertexShader(TArrayView<const uint8> InCode)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header);
@@ -1031,7 +1031,7 @@ FMetalVertexShader::FMetalVertexShader(const TArray<uint8>& InCode)
 #endif
 }
 
-FMetalVertexShader::FMetalVertexShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary)
+FMetalVertexShader::FMetalVertexShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header, InLibrary);
@@ -1061,13 +1061,13 @@ mtlpp::Function FMetalVertexShader::GetFunction()
 	return GetCompiledFunction();
 }
 
-FMetalPixelShader::FMetalPixelShader(const TArray<uint8>& InCode)
+FMetalPixelShader::FMetalPixelShader(TArrayView<const uint8> InCode)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header);
 }
 
-FMetalPixelShader::FMetalPixelShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary)
+FMetalPixelShader::FMetalPixelShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header, InLibrary);
@@ -1079,7 +1079,7 @@ mtlpp::Function FMetalPixelShader::GetFunction()
 }
 
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-FMetalHullShader::FMetalHullShader(const TArray<uint8>& InCode)
+FMetalHullShader::FMetalHullShader(TArrayView<const uint8> InCode)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header);
@@ -1119,7 +1119,7 @@ FMetalHullShader::FMetalHullShader(const TArray<uint8>& InCode)
 	}
 }
 
-FMetalHullShader::FMetalHullShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary)
+FMetalHullShader::FMetalHullShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header, InLibrary);
@@ -1164,7 +1164,7 @@ mtlpp::Function FMetalHullShader::GetFunction()
 	return GetCompiledFunction();
 }
 
-FMetalDomainShader::FMetalDomainShader(const TArray<uint8>& InCode)
+FMetalDomainShader::FMetalDomainShader(TArrayView<const uint8> InCode)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header);
@@ -1195,7 +1195,7 @@ FMetalDomainShader::FMetalDomainShader(const TArray<uint8>& InCode)
 	TessellationOutputAttribs = Tess.TessellationOutputAttribs;
 }
 
-FMetalDomainShader::FMetalDomainShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary)
+FMetalDomainShader::FMetalDomainShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header, InLibrary);
@@ -1232,7 +1232,7 @@ mtlpp::Function FMetalDomainShader::GetFunction()
 }
 #endif
 
-FVertexShaderRHIRef FMetalDynamicRHI::RHICreateVertexShader(const TArray<uint8>& Code)
+FVertexShaderRHIRef FMetalDynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
     @autoreleasepool {
 	FMetalVertexShader* Shader = new FMetalVertexShader(Code);
@@ -1240,19 +1240,7 @@ FVertexShaderRHIRef FMetalDynamicRHI::RHICreateVertexShader(const TArray<uint8>&
 	}
 }
 
-FVertexShaderRHIRef FMetalDynamicRHI::RHICreateVertexShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	@autoreleasepool {
-
-	checkSlow(Library && Library->IsNativeLibrary() && IsMetalPlatform(Library->GetPlatform()) && Library->GetPlatform() <= GMaxRHIShaderPlatform);
-	
-	FMetalShaderLibrary* MetalLibrary = ResourceCast(Library);
-	return MetalLibrary->CreateVertexShader(Hash);
-	
-	}
-}
-
-FPixelShaderRHIRef FMetalDynamicRHI::RHICreatePixelShader(const TArray<uint8>& Code)
+FPixelShaderRHIRef FMetalDynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	@autoreleasepool {
 	FMetalPixelShader* Shader = new FMetalPixelShader(Code);
@@ -1260,19 +1248,7 @@ FPixelShaderRHIRef FMetalDynamicRHI::RHICreatePixelShader(const TArray<uint8>& C
 	}
 }
 
-FPixelShaderRHIRef FMetalDynamicRHI::RHICreatePixelShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	@autoreleasepool {
-	
-	checkSlow(Library && Library->IsNativeLibrary() && IsMetalPlatform(Library->GetPlatform()) && Library->GetPlatform() <= GMaxRHIShaderPlatform);
-	
-	FMetalShaderLibrary* MetalLibrary = ResourceCast(Library);
-	return MetalLibrary->CreatePixelShader(Hash);
-	
-	}
-}
-
-FHullShaderRHIRef FMetalDynamicRHI::RHICreateHullShader(const TArray<uint8>& Code) 
+FHullShaderRHIRef FMetalDynamicRHI::RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	@autoreleasepool {
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
@@ -1286,19 +1262,7 @@ FHullShaderRHIRef FMetalDynamicRHI::RHICreateHullShader(const TArray<uint8>& Cod
 	}
 }
 
-FHullShaderRHIRef FMetalDynamicRHI::RHICreateHullShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	@autoreleasepool {
-	
-	checkSlow(Library && Library->IsNativeLibrary() && IsMetalPlatform(Library->GetPlatform()) && Library->GetPlatform() <= GMaxRHIShaderPlatform);
-	
-	FMetalShaderLibrary* MetalLibrary = ResourceCast(Library);
-	return MetalLibrary->CreateHullShader(Hash);
-	
-	}
-}
-
-FDomainShaderRHIRef FMetalDynamicRHI::RHICreateDomainShader(const TArray<uint8>& Code) 
+FDomainShaderRHIRef FMetalDynamicRHI::RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	@autoreleasepool {
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
@@ -1312,19 +1276,7 @@ FDomainShaderRHIRef FMetalDynamicRHI::RHICreateDomainShader(const TArray<uint8>&
 	}
 }
 
-FDomainShaderRHIRef FMetalDynamicRHI::RHICreateDomainShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	@autoreleasepool {
-	
-	checkSlow(Library && Library->IsNativeLibrary() && IsMetalPlatform(Library->GetPlatform()) && Library->GetPlatform() <= GMaxRHIShaderPlatform);
-	
-	FMetalShaderLibrary* MetalLibrary = ResourceCast(Library);
-	return MetalLibrary->CreateDomainShader(Hash);
-	
-	}
-}
-
-FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(const TArray<uint8>& Code) 
+FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	@autoreleasepool {
 	FMetalGeometryShader* Shader = new FMetalGeometryShader;
@@ -1334,100 +1286,59 @@ FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(const TArray<uin
 	}
 }
 
-FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	@autoreleasepool {
-	
-	checkSlow(Library && Library->IsNativeLibrary() && IsMetalPlatform(Library->GetPlatform()) && Library->GetPlatform() <= GMaxRHIShaderPlatform);
-
-	FMetalShaderLibrary* MetalLibrary = ResourceCast(Library);
-	return MetalLibrary->CreateGeometryShader(Hash);
-	
-	}
-}
-
-FComputeShaderRHIRef FMetalDynamicRHI::RHICreateComputeShader(const TArray<uint8>& Code) 
+FComputeShaderRHIRef FMetalDynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	@autoreleasepool {
 	return new FMetalComputeShader(Code);
 	}
 }
 
-FComputeShaderRHIRef FMetalDynamicRHI::RHICreateComputeShader(FRHIShaderLibrary* Library, FSHAHash Hash)
-{ 
-	@autoreleasepool {
-	
-	checkSlow(Library && Library->IsNativeLibrary() && IsMetalPlatform(Library->GetPlatform()) && Library->GetPlatform() <= GMaxRHIShaderPlatform);
-
-	FMetalShaderLibrary* MetalLibrary = ResourceCast(Library);
-	return MetalLibrary->CreateComputeShader(Hash);
-		
-	}
-}
-
-FVertexShaderRHIRef FMetalDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
+FVertexShaderRHIRef FMetalDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateVertexShader(Code);
+	return RHICreateVertexShader(Code, Hash);
 }
-FVertexShaderRHIRef FMetalDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
+FPixelShaderRHIRef FMetalDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateVertexShader(Library, Hash);
+	return RHICreatePixelShader(Code, Hash);
 }
-FPixelShaderRHIRef FMetalDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
+FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreatePixelShader(Code);
+	return RHICreateGeometryShader(Code, Hash);
 }
-FPixelShaderRHIRef FMetalDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
+FComputeShaderRHIRef FMetalDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreatePixelShader(Library, Hash);
+	return RHICreateComputeShader(Code, Hash);
 }
-FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
+FHullShaderRHIRef FMetalDynamicRHI::CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateGeometryShader(Code);
+	return RHICreateHullShader(Code, Hash);
 }
-FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
+FDomainShaderRHIRef FMetalDynamicRHI::CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return RHICreateGeometryShader(Library, Hash);
-}
-
-FComputeShaderRHIRef FMetalDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
-{
-	return RHICreateComputeShader(Code);
-}
-FComputeShaderRHIRef FMetalDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	return RHICreateComputeShader(Library, Hash);
-}
-FHullShaderRHIRef FMetalDynamicRHI::CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
-{
-	return RHICreateHullShader(Code);
-}
-FHullShaderRHIRef FMetalDynamicRHI::CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	return RHICreateHullShader(Library, Hash);
-}
-FDomainShaderRHIRef FMetalDynamicRHI::CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
-{
-	return RHICreateDomainShader(Code);
-}
-FDomainShaderRHIRef FMetalDynamicRHI::CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
-{
-	return RHICreateDomainShader(Library, Hash);
+	return RHICreateDomainShader(Code, Hash);
 }
 
 static FCriticalSection LoadedShaderLibraryMutex;
 static TMap<FString, FRHIShaderLibrary*> LoadedShaderLibraryMap;
 
-FMetalShaderLibrary::FMetalShaderLibrary(EShaderPlatform InPlatform, FString const& Name, TArray<mtlpp::Library> InLibrary, FMetalShaderMap const& InMap, const FString& InShaderLibraryFilename)
-: FRHIShaderLibrary(InPlatform, Name)
-, Library(InLibrary)
-, Map(InMap)
+FMetalShaderLibrary::FMetalShaderLibrary(EShaderPlatform Platform,
+	FString const& Name,
+	const FString& InShaderLibraryFilename,
+	const FMetalShaderLibraryHeader& InHeader,
+	const FSerializedShaderArchive& InSerializedShaders,
+	const TArray<uint8>& InShaderCode,
+	const TArray<mtlpp::Library>& InLibrary)
+: FRHIShaderLibrary(Platform, Name)
 , ShaderLibraryFilename(InShaderLibraryFilename)
+, Library(InLibrary)
+, Header(InHeader)
+, SerializedShaders(InSerializedShaders)
+, ShaderCode(InShaderCode)
 {
 #if !UE_BUILD_SHIPPING
 	DebugFile = nullptr;
 
-	FName PlatformName = LegacyShaderPlatformToShaderFormat(InPlatform);
+	FName PlatformName = LegacyShaderPlatformToShaderFormat(Platform);
 	FString LibName = FString::Printf(TEXT("%s_%s"), *Name, *PlatformName.GetPlainNameString());
 	LibName.ToLowerInline();
 	FString Path = FPaths::ProjectContentDir() / LibName + TEXT(".zip");
@@ -1445,142 +1356,47 @@ FMetalShaderLibrary::~FMetalShaderLibrary()
 	LoadedShaderLibraryMap.Remove(ShaderLibraryFilename);
 }
 
-bool FMetalShaderLibrary::ContainsEntry(const FSHAHash& Hash)
+template<typename ShaderType>
+static TRefCountPtr<FRHIShader> CreateMetalShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary)
 {
-	FMetalShadeEntry* Code = Map.HashMap.Find(Hash);
-	return (Code != nullptr);
-}
-
-bool FMetalShaderLibrary::RequestEntry(const FSHAHash& Hash, FArchive* Ar)
-{
-	FMetalShadeEntry* Code = Map.HashMap.Find(Hash);
-	return (Code != nullptr);
-}
-
-FPixelShaderRHIRef FMetalShaderLibrary::CreatePixelShader(const FSHAHash& Hash)
-{
-	FMetalShadeEntry* Code = Map.HashMap.Find(Hash);
-	if (Code)
+	ShaderType* Shader = new ShaderType(InCode, InLibrary);
+	if (!Shader->GetFunction())
 	{
-		FMetalPixelShader* Shader = new FMetalPixelShader(Code->Data, Library[Code->Index]);
-		if (Shader->GetFunction())
-		{
-			return Shader;
-		}
-		else
-		{
-			delete Shader;
-		}
+		delete Shader;
+		Shader = nullptr;
 	}
-	
-	UE_LOG(LogMetal, Error, TEXT("Failed to find Pixel Shader with SHA: %s"), *Hash.ToString());
-	return FPixelShaderRHIRef();
+
+	return TRefCountPtr<FRHIShader>(Shader);
 }
 
-FVertexShaderRHIRef FMetalShaderLibrary::CreateVertexShader(const FSHAHash& Hash)
+TRefCountPtr<FRHIShader> FMetalShaderLibrary::CreateShader(int32 Index)
 {
-	FMetalShadeEntry* Code = Map.HashMap.Find(Hash);
-	if (Code)
+	const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[Index];
+	check(ShaderEntry.Size == ShaderEntry.UncompressedSize); // don't handle compressed shaders here, since typically these are just tiny headers
+	const TArrayView<uint8> Code = MakeArrayView(ShaderCode.GetData() + ShaderEntry.Offset, ShaderEntry.Size);
+	const int32 LibraryIndex = Index / Header.NumShadersPerLibrary;
+
+	TRefCountPtr<FRHIShader> Shader;
+	switch (ShaderEntry.Frequency)
 	{
-		FMetalVertexShader* Shader = new FMetalVertexShader(Code->Data, Library[Code->Index]);
-		if (Shader->GetFunction())
-		{
-			return Shader;
-		}
-		else
-		{
-			delete Shader;
-		}
-	}
-	UE_LOG(LogMetal, Error, TEXT("Failed to find Vertex Shader with SHA: %s"), *Hash.ToString());
-	return FVertexShaderRHIRef();
-}
-
-FHullShaderRHIRef FMetalShaderLibrary::CreateHullShader(const FSHAHash& Hash)
-{
+	case SF_Vertex: Shader = CreateMetalShader<FMetalVertexShader>(Code, Library[LibraryIndex]); break;
+	case SF_Pixel: Shader = CreateMetalShader<FMetalPixelShader>(Code, Library[LibraryIndex]); break;
+	case SF_Geometry: checkf(false, TEXT("Geometry shaders not supported")); break;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	FMetalShadeEntry* Code = Map.HashMap.Find(Hash);
-	if (Code)
-	{
-		FMetalHullShader* Shader = new FMetalHullShader(Code->Data, Library[Code->Index]);
-		if(Shader->GetFunction())
-		{
-			return Shader;
-		}
-		else
-		{
-			delete Shader;
-		}
+	case SF_Hull: Shader = CreateMetalShader<FMetalHullShader>(Code, Library[LibraryIndex]); break;
+	case SF_Domain: Shader = CreateMetalShader<FMetalDomainShader>(Code, Library[LibraryIndex]); break;
+#endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	case SF_Compute: Shader = CreateMetalShader<FMetalComputeShader>(Code, Library[LibraryIndex]); break;
+	default: checkNoEntry(); break;
 	}
-	UE_LOG(LogMetal, Error, TEXT("Failed to find Hull Shader with SHA: %s"), *Hash.ToString());
-	return FHullShaderRHIRef();
-#else
-	checkf(0, TEXT("Not supported"));
-	return NULL;
-#endif
-}
 
-FDomainShaderRHIRef FMetalShaderLibrary::CreateDomainShader(const FSHAHash& Hash)
-{
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	FMetalShadeEntry* Code = Map.HashMap.Find(Hash);
-	if (Code)
+	if (Shader)
 	{
-		FMetalDomainShader* Shader = new FMetalDomainShader(Code->Data, Library[Code->Index]);
-		if (Shader->GetFunction())
-		{
-			return Shader;
-		}
-		else
-		{
-			delete Shader;
-		}
+		Shader->SetHash(SerializedShaders.ShaderHashes[Index]);
 	}
-	UE_LOG(LogMetal, Error, TEXT("Failed to find Domain Shader with SHA: %s"), *Hash.ToString());
-	return FDomainShaderRHIRef();
-#else
-	checkf(0, TEXT("Not supported"));
-	return NULL;
-#endif
-}
 
-FGeometryShaderRHIRef FMetalShaderLibrary::CreateGeometryShader(const FSHAHash& Hash)
-{
-	checkf(0, TEXT("Not supported"));
-	return NULL;
-}
+	return Shader;
 
-FComputeShaderRHIRef FMetalShaderLibrary::CreateComputeShader(const FSHAHash& Hash)
-{
-	FMetalShadeEntry* Code = Map.HashMap.Find(Hash);
-	if (Code)
-	{
-		FMetalComputeShader* Shader = new FMetalComputeShader(Code->Data, Library[Code->Index]);
-		if (Shader->GetPipeline())
-		{
-			return Shader;
-		}
-		else
-		{
-			delete Shader;
-		}
-	}
-	UE_LOG(LogMetal, Error, TEXT("Failed to find Compute Shader with SHA: %s"), *Hash.ToString());
-	return FComputeShaderRHIRef();
-}
-
-//
-//Library Iterator
-//
-FRHIShaderLibrary::FShaderLibraryEntry FMetalShaderLibrary::FMetalShaderLibraryIterator::operator*() const
-{
-	FShaderLibraryEntry Entry;
-	
-	Entry.Hash = IteratorImpl->Key;
-	Entry.Frequency = (EShaderFrequency)IteratorImpl->Value.Type;
-	Entry.Platform = GetLibrary()->GetPlatform();
-	
-	return Entry;
 }
 
 FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary_RenderThread(class FRHICommandListImmediate& RHICmdList, EShaderPlatform Platform, FString FilePath, FString Name)
@@ -1596,8 +1412,7 @@ FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Pl
 	FName PlatformName = LegacyShaderPlatformToShaderFormat(Platform);
 	FString LibName = FString::Printf(TEXT("%s_%s"), *Name, *PlatformName.GetPlainNameString());
 	LibName.ToLowerInline();
-	
-	FMetalShaderMap Map;
+
 	FString BinaryShaderFile = FilePath / LibName + METAL_MAP_EXTENSION;
 
 	if ( IFileManager::Get().FileExists(*BinaryShaderFile) == false )
@@ -1620,15 +1435,25 @@ FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Pl
 
 	if( BinaryShaderAr != NULL )
 	{
-		*BinaryShaderAr << Map;
+		FMetalShaderLibraryHeader Header;
+		FSerializedShaderArchive SerializedShaders;
+		TArray<uint8> ShaderCode;
+
+		*BinaryShaderAr << Header;
+		*BinaryShaderAr << SerializedShaders;
+		*BinaryShaderAr << ShaderCode;
 		BinaryShaderAr->Flush();
 		delete BinaryShaderAr;
 		
 		// Would be good to check the language version of the library with the archive format here.
-		if (Map.Format == PlatformName.GetPlainNameString())
+		if (Header.Format == PlatformName.GetPlainNameString())
 		{
+			check(SerializedShaders.GetNumShaders() / Header.NumShadersPerLibrary == Header.NumLibraries);
+
 			TArray<mtlpp::Library> Libraries;
-			for (uint32 i = 0; i < Map.Count; i++)
+			Libraries.Empty(Header.NumLibraries);
+
+			for (uint32 i = 0; i < Header.NumLibraries; i++)
 			{
 				FString MetalLibraryFilePath = (FilePath / LibName) + FString::Printf(TEXT(".%d"), i) + METAL_LIB_EXTENSION;
 				MetalLibraryFilePath = FPaths::ConvertRelativePathToFull(MetalLibraryFilePath);
@@ -1650,13 +1475,13 @@ FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Pl
 				}
 			}
 
-			Result = new FMetalShaderLibrary(Platform, Name, Libraries, Map, BinaryShaderFile);
+			Result = new FMetalShaderLibrary(Platform, Name, BinaryShaderFile, Header, SerializedShaders, ShaderCode, Libraries);
 			LoadedShaderLibraryMap.Add(BinaryShaderFile, Result.GetReference());
 		}
-		else
-		{
-			UE_LOG(LogMetal, Display, TEXT("Wrong shader platform wanted: %s, got: %s"), *LibName, *Map.Format);
-		}
+		//else
+		//{
+		//	UE_LOG(LogMetal, Display, TEXT("Wrong shader platform wanted: %s, got: %s"), *LibName, *Map.Format);
+		//}
 	}
 	else
 	{

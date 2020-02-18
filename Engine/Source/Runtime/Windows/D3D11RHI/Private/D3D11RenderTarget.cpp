@@ -132,8 +132,8 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
 	TShaderMapRef<TPixelShader> ResolvePixelShader(ShaderMap);
 
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ResolveVertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ResolvePixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 	CurrentDepthTexture = DestTexture;

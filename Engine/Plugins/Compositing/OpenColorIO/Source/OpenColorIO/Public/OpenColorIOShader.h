@@ -24,36 +24,32 @@ namespace OpenColorIOShader
 	static const uint32 Lut3dEdgeLength = 32;
 }
 
-
+class FOpenColorIOShader : public FShader
+{
+	DECLARE_TYPE_LAYOUT(FOpenColorIOShader, NonVirtual);
+public:
+	FOpenColorIOShader() = default;
+	FOpenColorIOShader(const FOpenColorIOShader::CompiledShaderInitializerType& Initializer) : FShader(Initializer) {}
+};
 
 /** Base class of all shaders that need OpenColorIO pixel shader parameters. */
-class OPENCOLORIO_API FOpenColorIOPixelShader : public FShader
+class OPENCOLORIO_API FOpenColorIOPixelShader : public FOpenColorIOShader
 {
 public:
 	DECLARE_SHADER_TYPE(FOpenColorIOPixelShader, OpenColorIO);
+
+	using FPermutationParameters = FOpenColorIOShaderPermutationParameters;
 
 	FOpenColorIOPixelShader()
 	{
 	}
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FOpenColorIOTransformResource*  InColorTransform)
+	static bool ShouldCompilePermutation(const FOpenColorIOShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::ES2);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
-
 
 	FOpenColorIOPixelShader(const FOpenColorIOShaderType::CompiledShaderInitializerType& Initializer);
-
-	typedef void (*ModifyCompilationEnvironmentType)(EShaderPlatform, const FOpenColorIOTransformResource* , FShaderCompilerEnvironment&);
-
-	static void ModifyCompilationEnvironment(EShaderPlatform InPlatform, const FOpenColorIOTransformResource*  InColorTransform, FShaderCompilerEnvironment& OutEnvironment)
-	{
-	}
-	
-	static bool ValidateCompiledResult(EShaderPlatform InPlatform, const FShaderParameterMap& InParameterMap, TArray<FString>& OutError)
-	{
-		return true;
-	}
 
 	void SetParameters(FRHICommandList& InRHICmdList, FTextureResource* InInputTexture);
 	void SetLUTParameter(FRHICommandList& InRHICmdList, FTextureResource* InLUT3dResource);
@@ -61,19 +57,15 @@ public:
 	// Bind parameters
 	void BindParams(const FShaderParameterMap &ParameterMap);
 
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override;
-	virtual uint32 GetAllocatedSize() const override;
-
 protected:
-	FShaderResourceParameter InputTexture;
-	FShaderResourceParameter InputTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, InputTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, InputTextureSampler)
 	
-	FShaderResourceParameter OCIO3dTexture;
-	FShaderResourceParameter OCIO3dTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, OCIO3dTexture)
+	LAYOUT_FIELD(FShaderResourceParameter, OCIO3dTextureSampler)
 
 private:
-	FString						DebugDescription;
+	LAYOUT_FIELD(FMemoryImageString, DebugDescription)
 };
 
 

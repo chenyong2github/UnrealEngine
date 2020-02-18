@@ -4282,81 +4282,49 @@ void FNiagaraDataInterfaceProxyChaosDestruction::ConsumePerInstanceDataFromGameT
 	}
 }
 
-struct FNiagaraDataInterfaceParametersCS_ChaosDestruction : public FNiagaraDataInterfaceParametersCS
+struct FNiagaraDataInterfaceParametersCS_ChaosDestruction :public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ChaosDestruction, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		PositionBuffer.Bind(ParameterMap, *("PositionBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		VelocityBuffer.Bind(ParameterMap, *("VelocityBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		ExtentMinBuffer.Bind(ParameterMap, *("ExtentMinBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		ExtentMaxBuffer.Bind(ParameterMap, *("ExtentMaxBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		VolumeBuffer.Bind(ParameterMap, *("VolumeBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		SolverIDBuffer.Bind(ParameterMap, *("SolverIDBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		DensityBuffer.Bind(ParameterMap, *("DensityBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		FrictionBuffer.Bind(ParameterMap, *("FrictionBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		RestitutionBuffer.Bind(ParameterMap, *("RestitutionBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		SurfaceTypeBuffer.Bind(ParameterMap, *("SurfaceTypeBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		ColorBuffer.Bind(ParameterMap, *("ColorBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		PositionBuffer.Bind(ParameterMap, *("PositionBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		VelocityBuffer.Bind(ParameterMap, *("VelocityBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		ExtentMinBuffer.Bind(ParameterMap, *("ExtentMinBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		ExtentMaxBuffer.Bind(ParameterMap, *("ExtentMaxBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		VolumeBuffer.Bind(ParameterMap, *("VolumeBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		SolverIDBuffer.Bind(ParameterMap, *("SolverIDBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		DensityBuffer.Bind(ParameterMap, *("DensityBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		FrictionBuffer.Bind(ParameterMap, *("FrictionBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		RestitutionBuffer.Bind(ParameterMap, *("RestitutionBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		SurfaceTypeBuffer.Bind(ParameterMap, *("SurfaceTypeBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		ColorBuffer.Bind(ParameterMap, *("ColorBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		IncomingLocationBuffer.Bind(ParameterMap, *("IncomingLocationBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingAccumulatedImpulseBuffer.Bind(ParameterMap, *("IncomingAccumulatedImpulseBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingNormalBuffer.Bind(ParameterMap, *("IncomingNormalBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingVelocity1Buffer.Bind(ParameterMap, *("IncomingVelocity1Buffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingVelocity2Buffer.Bind(ParameterMap, *("IncomingVelocity2Buffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingAngularVelocity1Buffer.Bind(ParameterMap, *("IncomingAngularVelocity1Buffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingAngularVelocity2Buffer.Bind(ParameterMap, *("IncomingAngularVelocity2Buffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingMass1Buffer.Bind(ParameterMap, *("IncomingMass1Buffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingMass2Buffer.Bind(ParameterMap, *("IncomingMass2Buffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingTimeBuffer.Bind(ParameterMap, *("IncomingTimeBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingLocationBuffer.Bind(ParameterMap, *("IncomingLocationBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingAccumulatedImpulseBuffer.Bind(ParameterMap, *("IncomingAccumulatedImpulseBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingNormalBuffer.Bind(ParameterMap, *("IncomingNormalBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingVelocity1Buffer.Bind(ParameterMap, *("IncomingVelocity1Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingVelocity2Buffer.Bind(ParameterMap, *("IncomingVelocity2Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingAngularVelocity1Buffer.Bind(ParameterMap, *("IncomingAngularVelocity1Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingAngularVelocity2Buffer.Bind(ParameterMap, *("IncomingAngularVelocity2Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingMass1Buffer.Bind(ParameterMap, *("IncomingMass1Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingMass2Buffer.Bind(ParameterMap, *("IncomingMass2Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		IncomingTimeBuffer.Bind(ParameterMap, *("IncomingTimeBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		TransformTranslationBuffer.Bind(ParameterMap, *("TransformTranslationBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		TransformRotationBuffer.Bind(ParameterMap, *("TransformRotationBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		TransformScaleBuffer.Bind(ParameterMap, *("TransformScaleBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		BoundsBuffer.Bind(ParameterMap, *("BoundsBuffer_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		TransformTranslationBuffer.Bind(ParameterMap, *("TransformTranslationBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		TransformRotationBuffer.Bind(ParameterMap, *("TransformRotationBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		TransformScaleBuffer.Bind(ParameterMap, *("TransformScaleBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		BoundsBuffer.Bind(ParameterMap, *("BoundsBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
 
-		LastSpawnedPointID.Bind(ParameterMap, *("LastSpawnedPointID_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
-		SolverTime.Bind(ParameterMap, *("SolverTime_" + ParamRef.ParameterInfo.DataInterfaceHLSLSymbol));
+		LastSpawnedPointID.Bind(ParameterMap, *("LastSpawnedPointID_" + ParameterInfo.DataInterfaceHLSLSymbol));
+		SolverTime.Bind(ParameterMap, *("SolverTime_" + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
-	virtual void Serialize(FArchive& Ar)override
-	{
-		Ar << PositionBuffer;
-		Ar << VelocityBuffer;
-		Ar << ExtentMinBuffer;
-		Ar << ExtentMaxBuffer;
-		Ar << VolumeBuffer;
-		Ar << SolverIDBuffer;
-		Ar << DensityBuffer;
-		Ar << FrictionBuffer;
-		Ar << RestitutionBuffer;
-		Ar << SurfaceTypeBuffer;
-		Ar << ColorBuffer;
-
-		Ar << IncomingLocationBuffer;
-		Ar << IncomingAccumulatedImpulseBuffer;
-		Ar << IncomingNormalBuffer;
-		Ar << IncomingVelocity1Buffer;
-		Ar << IncomingVelocity2Buffer;
-		Ar << IncomingAngularVelocity1Buffer;
-		Ar << IncomingAngularVelocity2Buffer;
-		Ar << IncomingMass1Buffer;
-		Ar << IncomingMass2Buffer;
-		Ar << IncomingTimeBuffer;
-
-		Ar << TransformTranslationBuffer;
-		Ar << TransformRotationBuffer;
-		Ar << TransformScaleBuffer;
-		Ar << BoundsBuffer;
-
-		Ar << LastSpawnedPointID;
-		Ar << SolverTime;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyChaosDestruction* ChaosDestructionInterfaceProxy = static_cast<FNiagaraDataInterfaceProxyChaosDestruction*>(Context.DataInterface);
 		if (ChaosDestructionInterfaceProxy)
 		{
@@ -4406,42 +4374,43 @@ struct FNiagaraDataInterfaceParametersCS_ChaosDestruction : public FNiagaraDataI
 
 private:
 	// TODO: Collect these into a small number of buffers to reduce the number of binding points
-	FShaderResourceParameter PositionBuffer;
-	FShaderResourceParameter VelocityBuffer;
-	FShaderResourceParameter ExtentMinBuffer;
-	FShaderResourceParameter ExtentMaxBuffer;
-	FShaderResourceParameter VolumeBuffer;
-	FShaderResourceParameter SolverIDBuffer;
-	FShaderResourceParameter DensityBuffer;
-	FShaderResourceParameter FrictionBuffer;
-	FShaderResourceParameter RestitutionBuffer;
-	FShaderResourceParameter SurfaceTypeBuffer;
-	FShaderResourceParameter ColorBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, PositionBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, VelocityBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, ExtentMinBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, ExtentMaxBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, VolumeBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, SolverIDBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, DensityBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, FrictionBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, RestitutionBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, SurfaceTypeBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, ColorBuffer);
 
-	FShaderResourceParameter IncomingLocationBuffer;
-	FShaderResourceParameter IncomingAccumulatedImpulseBuffer;
-	FShaderResourceParameter IncomingNormalBuffer;
-	FShaderResourceParameter IncomingVelocity1Buffer;
-	FShaderResourceParameter IncomingVelocity2Buffer;
-	FShaderResourceParameter IncomingAngularVelocity1Buffer;
-	FShaderResourceParameter IncomingAngularVelocity2Buffer;
-	FShaderResourceParameter IncomingMass1Buffer;
-	FShaderResourceParameter IncomingMass2Buffer;
-	FShaderResourceParameter IncomingTimeBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingLocationBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingAccumulatedImpulseBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingNormalBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingVelocity1Buffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingVelocity2Buffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingAngularVelocity1Buffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingAngularVelocity2Buffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingMass1Buffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingMass2Buffer);
+	LAYOUT_FIELD(FShaderResourceParameter, IncomingTimeBuffer);
 
-	FShaderResourceParameter TransformTranslationBuffer;
-	FShaderResourceParameter TransformRotationBuffer;
-	FShaderResourceParameter TransformScaleBuffer;
-	FShaderResourceParameter BoundsBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, TransformTranslationBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, TransformRotationBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, TransformScaleBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, BoundsBuffer);
 
-	FShaderParameter LastSpawnedPointID;
-	FShaderParameter SolverTime;
+	LAYOUT_FIELD(FShaderParameter, LastSpawnedPointID);
+	LAYOUT_FIELD(FShaderParameter, SolverTime);
 };
 
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceChaosDestruction::ConstructComputeParameters()const
-{
-	return new FNiagaraDataInterfaceParametersCS_ChaosDestruction();
-}
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ChaosDestruction);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceChaosDestruction, FNiagaraDataInterfaceParametersCS_ChaosDestruction);
+
+
 //#pragma optimize("", on)
 
 

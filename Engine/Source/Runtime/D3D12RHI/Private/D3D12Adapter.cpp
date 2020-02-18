@@ -666,17 +666,7 @@ void FD3D12Adapter::Cleanup()
 #endif
 
 	// Ask all initialized FRenderResources to release their RHI resources.
-	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-	{
-		FRenderResource* Resource = *ResourceIt;
-		check(Resource->IsInitialized());
-		Resource->ReleaseRHI();
-	}
-
-	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
-	{
-		ResourceIt->ReleaseDynamicRHI();
-	}
+	FRenderResource::ReleaseRHIForAllResources();
 
 	FRHIResource::FlushPendingDeletes();
 

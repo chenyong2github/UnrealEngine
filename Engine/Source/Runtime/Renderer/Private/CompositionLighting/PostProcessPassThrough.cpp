@@ -18,17 +18,17 @@ FPostProcessPassThroughPS::FPostProcessPassThroughPS(const ShaderMetaType::Compi
 	PostprocessParameter.Bind(Initializer.ParameterMap);
 }
 
-bool FPostProcessPassThroughPS::Serialize(FArchive& Ar)
+/*bool FPostProcessPassThroughPS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 	Ar << PostprocessParameter;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 
 template <typename TRHICmdList>
 void FPostProcessPassThroughPS::SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
 {
-	FRHIPixelShader* ShaderRHI = GetPixelShader();
+	FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 	FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
@@ -111,8 +111,8 @@ void FRCPassPostProcessPassThrough::Process(FRenderingCompositePassContext& Cont
 		TShaderMapRef<FPostProcessPassThroughPS> PixelShader(Context.GetShaderMap());
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
@@ -128,7 +128,7 @@ void FRCPassPostProcessPassThrough::Process(FRenderingCompositePassContext& Cont
 			SrcRect.Width(), SrcRect.Height(),
 			DestSize,
 			SrcSize,
-			*VertexShader,
+			VertexShader,
 			View.StereoPass,
 			Context.HasHmdMesh(),
 			EDRF_UseTriangleOptimization);

@@ -712,5 +712,5 @@ int FNiagaraRendererSprites::GetDynamicDataSize()const
 
 bool FNiagaraRendererSprites::IsMaterialValid(UMaterialInterface* Mat)const
 {
-	return Mat && Mat->CheckMaterialUsage(MATUSAGE_NiagaraSprites);
+	return Mat && Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraSprites);
 }

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FileCache.h"
+#include "FileCache/FileCache.h"
 #include "Containers/BinaryHeap.h"
 #include "Containers/Queue.h"
 #include "Containers/LockFreeList.h"
@@ -8,6 +8,7 @@
 #include "Misc/ScopeLock.h"
 #include "Async/AsyncFileHandle.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/IConsoleManager.h"
@@ -123,6 +124,25 @@ public:
 		EvictAll();
 	}
 
+	void PushCompletedRequest(IAsyncReadRequest* Request)
+	{
+		check(Request);
+		CompletedRequests.Push(Request);
+		if (((uint32)CompletedRequestsCounter.Increment() % 32u) == 0u)
+		{
+			FFunctionGraphTask::CreateAndDispatchWhenReady([this]()
+			{
+				while (IAsyncReadRequest* CompletedRequest = this->CompletedRequests.Pop())
+				{
+					// Requests are added to this list from the completed callback, but the final completion flag is not set until after callback is finished
+					// This means that there's a narrow window where the request is not technically considered to be complete yet
+					CompletedRequest->WaitCompletion();
+					delete CompletedRequest;
+				}
+			}, TStatId());
+		}
+	}
+
 	inline void UnlinkSlot(int32 SlotIndex)
 	{
 		check(SlotIndex != 0);
@@ -165,6 +185,7 @@ public:
 	FAutoConsoleCommand EvictFileCacheCommand;
 
 	TLockFreePointerListUnordered<IAsyncReadRequest, PLATFORM_CACHE_LINE_SIZE> CompletedRequests;
+	FThreadSafeCounter CompletedRequestsCounter;
 
 	// allocated with an extra dummy entry at index0 for linked list head
 	TArray<FSlotInfo> SlotInfo;
@@ -192,6 +213,8 @@ public:
 	// Block helper functions. These are just convenience around basic math.
 	// 
 
+ // templated uses of this may end up converting int64 to int32, but it's up to the user of the template to know
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 	/*
 	 * Get the block id that contains the specified offset
 	 */
@@ -199,6 +222,7 @@ public:
 	{
 		return BlockIDType(FMath::DivideAndRoundDown(Offset, (int64)BlockIDType::BlockSize));
 	}
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 	template<typename BlockIDType> inline int32 GetNumBlocks(int64 Offset, int64 Size)
 	{
@@ -220,7 +244,10 @@ public:
 		return FMath::Min((int64)(BlockIDType::BlockSize - OffsetInBlock), Size - Offset);
 	}
 
-	IMemoryReadStreamRef ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority) override;
+	virtual IMemoryReadStreamRef ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority) override;
+	virtual FGraphEventRef PreloadData(const FFileCachePreloadEntry* PreloadEntries, int32 NumEntries, EAsyncIOPriorityAndFlags Priority) override;
+
+	IMemoryReadStreamRef ReadDataUncached(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority);
 
 	void WaitAll() override;
 
@@ -231,6 +258,11 @@ private:
 	{
 		FGraphEventRef Event;
 	};
+
+	void CheckForSizeRequestComplete();
+
+	CacheSlotID AcquireSlotAndReadLine(FFileCache& Cache, CacheLineID LineID, EAsyncIOPriorityAndFlags Priority);
+	void ReadLine(FFileCache& Cache, CacheSlotID SlotID, CacheLineID LineID, EAsyncIOPriorityAndFlags Priority, const FGraphEventRef& CompletionEvent);
 
 	TArray<CacheSlotID> LineToSlot;
 	TArray<FPendingRequest> LineToRequest;
@@ -269,8 +301,6 @@ FFileCache::FFileCache(int32 NumSlots)
 
 CacheSlotID FFileCache::AcquireAndLockSlot(FFileCacheHandle* InHandle, CacheLineID InLineID)
 {
-	SCOPE_CYCLE_COUNTER(STAT_SFC_FindEvictionCandidate);
-
 	check(NumFreeSlots > 0);
 	--NumFreeSlots;
 
@@ -399,18 +429,64 @@ FFileCacheHandle::FFileCacheHandle(IAsyncReadFileHandle* InHandle)
 	FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
 	FAsyncFileCallBack SizeCallbackFunction = [this, CompletionEvent](bool bWasCancelled, IAsyncReadRequest* Request)
 	{
-		GetCache().CompletedRequests.Push(Request);
-
 		this->FileSize = Request->GetSizeResults();
 		check(this->FileSize > 0);
 
 		TArray<FBaseGraphTask*> NewTasks;
 		CompletionEvent->DispatchSubsequents(NewTasks);
+		GetCache().PushCompletedRequest(Request);
 	};
 
 	SizeRequestEvent = CompletionEvent;
 	IAsyncReadRequest* SizeRequest = InHandle->SizeRequest(&SizeCallbackFunction);
 	check(SizeRequest);
+}
+
+class FMemoryReadStreamAsyncRequest : public IMemoryReadStream
+{
+public:
+	FMemoryReadStreamAsyncRequest(IAsyncReadRequest* InRequest, int64 InSize)
+		: Request(InRequest), Size(InSize)
+	{
+	}
+
+	virtual const void* Read(int64& OutSize, int64 InOffset, int64 InSize) override
+	{
+		const uint8* ResultData = Request->GetReadResults();
+
+		check(InOffset < Size);
+		OutSize = FMath::Min(InSize, Size - InOffset);
+		return ResultData + InOffset;
+	}
+
+	virtual int64 GetSize() override
+	{
+		return Size;
+	}
+
+	virtual ~FMemoryReadStreamAsyncRequest()
+	{
+		Request->WaitCompletion();
+		delete Request;
+	}
+
+	IAsyncReadRequest* Request;
+	int64 Size;
+};
+
+IMemoryReadStreamRef FFileCacheHandle::ReadDataUncached(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority)
+{
+	FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
+
+	FAsyncFileCallBack ReadCallbackFunction = [CompletionEvent](bool bWasCancelled, IAsyncReadRequest* Request)
+	{
+		TArray<FBaseGraphTask*> NewTasks;
+		CompletionEvent->DispatchSubsequents(NewTasks);
+	};
+
+	OutCompletionEvents.Add(CompletionEvent);
+	IAsyncReadRequest* AsyncRequest = InnerHandle->ReadRequest(Offset, BytesToRead, Priority, &ReadCallbackFunction);
+	return new FMemoryReadStreamAsyncRequest(AsyncRequest, BytesToRead);
 }
 
 class FMemoryReadStreamCache : public IMemoryReadStream
@@ -422,7 +498,8 @@ public:
 
 		const int64 Offset = InitialSlotOffset + InOffset;
 		const int32 SlotIndex = (int32)FMath::DivideAndRoundDown(Offset, (int64)CacheSlotID::BlockSize);
-		const int32 OffsetInSlot = Offset - SlotIndex * CacheSlotID::BlockSize;
+		const int32 OffsetInSlot = (int32)(Offset - SlotIndex * CacheSlotID::BlockSize);
+		checkSlow(SlotIndex >= 0 && SlotIndex < NumCacheSlots);
 		const void* SlotMemory = Cache.GetSlotMemory(CacheSlots[SlotIndex]);
 
 		OutSize = FMath::Min(InSize, (int64)CacheSlotID::BlockSize - OffsetInSlot);
@@ -438,7 +515,7 @@ public:
 	{
 		FFileCache& Cache = GetCache();
 		FScopeLock CacheLock(&Cache.CriticalSection);
-		for (int i = 0; i < CacheSlots.Num(); ++i)
+		for (int i = 0; i < NumCacheSlots; ++i)
 		{
 			const CacheSlotID& SlotID = CacheSlots[i];
 			check(SlotID.IsValid());
@@ -446,18 +523,14 @@ public:
 		}
 	}
 
-	TArray<CacheSlotID> CacheSlots;
 	int64 InitialSlotOffset;
 	int64 Size;
+	int32 NumCacheSlots;
+	CacheSlotID CacheSlots[1]; // variable length, sized by NumCacheSlots
 };
 
-IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority)
+void FFileCacheHandle::CheckForSizeRequestComplete()
 {
-	SCOPE_CYCLE_COUNTER(STAT_SFC_ReadData);
-
-	const CacheLineID StartLine = GetBlock<CacheLineID>(Offset);
-	const CacheLineID EndLine = GetBlock<CacheLineID>(Offset + BytesToRead - 1);
-
 	if (SizeRequestEvent && SizeRequestEvent->IsComplete())
 	{
 		SizeRequestEvent.SafeRelease();
@@ -468,40 +541,90 @@ IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionE
 		const int64 TotalNumSlots = FMath::DivideAndRoundUp(FileSize, (int64)CacheLineSize);
 		check(NumSlots <= TotalNumSlots);
 		NumSlots = TotalNumSlots;
-		LineToSlot.SetNum(TotalNumSlots, false);
-		LineToRequest.SetNum(TotalNumSlots, false);
+		// TArray is max signed int
+		check(TotalNumSlots < MAX_int32);
+		LineToSlot.SetNum((int32)TotalNumSlots, false);
+		LineToRequest.SetNum((int32)TotalNumSlots, false);
 	}
+}
+
+void FFileCacheHandle::ReadLine(FFileCache& Cache, CacheSlotID SlotID, CacheLineID LineID, EAsyncIOPriorityAndFlags Priority, const FGraphEventRef& CompletionEvent)
+{
+	check(FileSize >= 0);
+	const int64 LineSizeInFile = LineID.GetSize(FileSize);
+	const int64 LineOffsetInFile = LineID.GetOffset();
+	uint8* CacheSlotMemory = Cache.GetSlotMemory(SlotID);
+
+	// callback triggered when async read operation is complete, used to signal task graph event
+	FAsyncFileCallBack ReadCallbackFunction = [CompletionEvent](bool bWasCancelled, IAsyncReadRequest* Request)
+	{
+		TArray<FBaseGraphTask*> NewTasks;
+		CompletionEvent->DispatchSubsequents(NewTasks);
+		GetCache().PushCompletedRequest(Request);
+	};
+
+	InnerHandle->ReadRequest(LineOffsetInFile, LineSizeInFile, Priority, &ReadCallbackFunction, CacheSlotMemory);
+}
+
+CacheSlotID FFileCacheHandle::AcquireSlotAndReadLine(FFileCache& Cache, CacheLineID LineID, EAsyncIOPriorityAndFlags Priority)
+{
+	SCOPED_LOADTIMER(FFileCacheHandle_AcquireSlotAndReadLine);
+
+	// no valid slot for this line, grab a new slot from cache and start a read request
+	CacheSlotID SlotID = Cache.AcquireAndLockSlot(this, LineID);
+
+	FPendingRequest& PendingRequest = LineToRequest[LineID.Get()];
+	if (PendingRequest.Event)
+	{
+		// previous async request/event (if any) should be completed, if this is back in the free list
+		check(PendingRequest.Event->IsComplete());
+	}
+
+	FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
+	PendingRequest.Event = CompletionEvent;
+	if (FileSize >= 0)
+	{
+		// If FileSize >= 0, that means the async file size request has completed, we can perform the read immediately
+		ReadLine(Cache, SlotID, LineID, Priority, CompletionEvent);
+	}
+	else
+	{
+		// Here we don't know the FileSize yet, so we schedule an async task to kick the read once the size request has completed
+		// It's important to know the size of the file before performing the read, to ensure that we don't read past end-of-file
+		FFunctionGraphTask::CreateAndDispatchWhenReady([this, SlotID, LineID, Priority, CompletionEvent]
+		{
+			this->ReadLine(GetCache(), SlotID, LineID, Priority, CompletionEvent);
+		},
+		TStatId(), SizeRequestEvent);
+	}
+
+	return SlotID;
+}
+
+IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority)
+{
+	SCOPE_CYCLE_COUNTER(STAT_SFC_ReadData);
+	SCOPED_LOADTIMER(FFileCacheHandle_ReadData);
+
+	const CacheLineID StartLine = GetBlock<CacheLineID>(Offset);
+	const CacheLineID EndLine = GetBlock<CacheLineID>(Offset + BytesToRead - 1);
+
+	CheckForSizeRequestComplete();
 
 	int32 NumSlotsNeeded = EndLine.Get() + 1 - StartLine.Get();
 
 	FFileCache& Cache = GetCache();
 
-	// Clean up any finished requests, this list is thread-safe, so can avoid taking the lock while we do this
-	uint32 NumCompletedRequests = 0u;
-	while (IAsyncReadRequest* Request = Cache.CompletedRequests.Pop())
-	{
-		// Requests are added to this list from the completed callback, but the final completion flag is not set until after callback is finished
-		// This means that there's a narrow window where the request is not technically considered to be complete yet
-		// If this happens, just push it back on the list for next time
-		if (!Request->PollCompletion())
-		{
-			Cache.CompletedRequests.Push(Request);
-			break;
-		}
-		delete Request;
-		++NumCompletedRequests;
-
-		// Throttle the number of requests we clean up to avoid stalling any single operation for too long
-		if (NumCompletedRequests >= 4u)
-		{
-			break;
-		}
-	}
-
 	FScopeLock CacheLock(&Cache.CriticalSection);
 	if (NumSlotsNeeded > Cache.NumFreeSlots)
 	{
 		// not enough free slots in the cache to service this request
+		CacheLock.Unlock();
+		if((Priority & AIOP_PRIORITY_MASK) >= AIOP_CriticalPath)
+		{
+			// Critical request can't fail, just read the requested data directly
+			return ReadDataUncached(OutCompletionEvents, Offset, BytesToRead, Priority);
+		}
 		return nullptr;
 	}
 
@@ -511,68 +634,29 @@ IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionE
 		// If this happens after SizeRequest has completed, that means something must have gone wrong
 		check(SizeRequestEvent);
 		NumSlots = EndLine.Get() + 1;
-		LineToSlot.SetNum(NumSlots, false);
-		LineToRequest.SetNum(NumSlots, false);
+		// TArray is max signed int
+		check(NumSlots < MAX_int32);
+		LineToSlot.SetNum((int32)NumSlots, false);
+		LineToRequest.SetNum((int32)NumSlots, false);
 	}
 
-	FMemoryReadStreamCache* Result = new FMemoryReadStreamCache();
-	Result->CacheSlots.AddUninitialized(EndLine.Get() + 1 - StartLine.Get());
+	const int32 NumCacheSlots = EndLine.Get() + 1 - StartLine.Get();
+	check(NumCacheSlots > 0);
+	const uint32 AllocSize = sizeof(FMemoryReadStreamCache) + sizeof(CacheSlotID) * (NumCacheSlots - 1);
+	void* ResultMemory = FMemory::Malloc(AllocSize, alignof(FMemoryReadStreamCache));
+	FMemoryReadStreamCache* Result = new(ResultMemory) FMemoryReadStreamCache();
+	Result->NumCacheSlots = NumCacheSlots;
 	Result->InitialSlotOffset = GetBlockOffset<CacheLineID>(Offset);
 	Result->Size = BytesToRead;
 
 	bool bHasPendingSlot = false;
 	for (CacheLineID LineID = StartLine; LineID.Get() <= EndLine.Get(); ++LineID)
 	{
-		FPendingRequest& PendingRequest = LineToRequest[LineID.Get()];
-
 		CacheSlotID& SlotID = LineToSlot[LineID.Get()];
 		if (!SlotID.IsValid())
 		{
 			// no valid slot for this line, grab a new slot from cache and start a read request
-			SlotID = Cache.AcquireAndLockSlot(this, LineID);
-
-			// previous async request/event (if any) should be completed, if this is back in the free list
-			// clean them up now
-			if (PendingRequest.Event)
-			{
-				check(PendingRequest.Event->IsComplete());
-				PendingRequest.Event.SafeRelease();
-			}
-
-			FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
-			PendingRequest.Event = CompletionEvent;
-
-			// Function that performs the actual read
-			auto ReadRequestLamba = [this, LineID, SlotID, Priority, CompletionEvent]
-			{
-				check(this->FileSize >= 0);
-				const int64 LineSizeInFile = LineID.GetSize(this->FileSize);
-				const int64 LineOffsetInFile = LineID.GetOffset();
-				uint8* CacheSlotMemory = GetCache().GetSlotMemory(SlotID);
-
-				// callback triggered when async read operation is complete, used to signal task graph event
-				FAsyncFileCallBack ReadCallbackFunction = [CompletionEvent](bool bWasCancelled, IAsyncReadRequest* Request)
-				{
-					GetCache().CompletedRequests.Push(Request);
-
-					TArray<FBaseGraphTask*> NewTasks;
-					CompletionEvent->DispatchSubsequents(NewTasks);
-				};
-
-				this->InnerHandle->ReadRequest(LineOffsetInFile, LineSizeInFile, Priority, &ReadCallbackFunction, CacheSlotMemory);
-			};
-
-			if (FileSize >= 0)
-			{
-				// If FileSize >= 0, that means the async file size request has completed, we can perform the read immediately
-				ReadRequestLamba();
-			}
-			else
-			{
-				// Here we don't know the FileSize yet, so we schedule an async task to kick the read once the size request has completed
-				// It's important to know the size of the file before performing the read, to ensure that we don't read past end-of-file
-				FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(ReadRequestLamba), TStatId(), SizeRequestEvent);
-			}
+			SlotID = AcquireSlotAndReadLine(Cache, LineID, Priority);
 		}
 		else
 		{
@@ -582,6 +666,7 @@ IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionE
 		check(SlotID.IsValid());
 		Result->CacheSlots[LineID.Get() - StartLine.Get()] = SlotID;
 
+		FPendingRequest& PendingRequest = LineToRequest[LineID.Get()];
 		if (PendingRequest.Event && !PendingRequest.Event->IsComplete())
 		{
 			// this line has a pending async request to read data
@@ -596,6 +681,115 @@ IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionE
 	}
 
 	return Result;
+}
+
+struct FFileCachePreloadTask
+{
+	explicit FFileCachePreloadTask(TArray<CacheSlotID>&& InLockedSlots) : LockedSlots(InLockedSlots) {}
+	TArray<CacheSlotID> LockedSlots;
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		FFileCache& Cache = GetCache();
+		FScopeLock CacheLock(&Cache.CriticalSection);
+		for (int i = 0; i < LockedSlots.Num(); ++i)
+		{
+			const CacheSlotID& SlotID = LockedSlots[i];
+			check(SlotID.IsValid());
+			Cache.UnlockSlot(SlotID);
+		}
+	}
+
+	FORCEINLINE static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+	FORCEINLINE ENamedThreads::Type GetDesiredThread() { return ENamedThreads::AnyNormalThreadNormalTask; }
+	FORCEINLINE TStatId GetStatId() const { return TStatId(); }
+};
+
+FGraphEventRef FFileCacheHandle::PreloadData(const FFileCachePreloadEntry* PreloadEntries, int32 NumEntries, EAsyncIOPriorityAndFlags Priority)
+{
+	SCOPED_LOADTIMER(FFileCacheHandle_PreloadData);
+
+	check(NumEntries > 0);
+
+	CheckForSizeRequestComplete();
+
+	FFileCache& Cache = GetCache();
+
+	FScopeLock CacheLock(&Cache.CriticalSection);
+
+	{
+		const FFileCachePreloadEntry& LastEntry = PreloadEntries[NumEntries - 1];
+		const CacheLineID EndLine = GetBlock<CacheLineID>(LastEntry.Offset + LastEntry.Size - 1);
+		if (EndLine.Get() >= NumSlots)
+		{
+			// If we're still waiting on SizeRequest, may need to lazily allocate some slots to service this request
+			// If this happens after SizeRequest has completed, that means something must have gone wrong
+			check(SizeRequestEvent);
+			NumSlots = EndLine.Get() + 1;
+			// TArray is max signed int
+			check(NumSlots < MAX_int32);
+			LineToSlot.SetNum((int32)NumSlots, false);
+			LineToRequest.SetNum((int32)NumSlots, false);
+		}
+	}
+
+	FGraphEventArray CompletionEvents;
+	TArray<CacheSlotID> LockedSlots;
+	LockedSlots.Empty(NumEntries);
+
+	CacheLineID CurrentLine(0);
+	int64 PrevOffset = -1;
+	for (int32 EntryIndex = 0; EntryIndex < NumEntries && Cache.NumFreeSlots > 0; ++EntryIndex)
+	{
+		const FFileCachePreloadEntry& Entry = PreloadEntries[EntryIndex];
+		const CacheLineID StartLine = GetBlock<CacheLineID>(Entry.Offset);
+		const CacheLineID EndLine = GetBlock<CacheLineID>(Entry.Offset + Entry.Size - 1);
+
+		check(Entry.Offset > PrevOffset);
+		PrevOffset = Entry.Offset;
+
+		CurrentLine = CacheLineID(FMath::Max(CurrentLine.Get(), StartLine.Get()));
+		while (CurrentLine.Get() <= EndLine.Get() && Cache.NumFreeSlots > 0)
+		{
+			CacheSlotID& SlotID = LineToSlot[CurrentLine.Get()];
+			if (!SlotID.IsValid())
+			{
+				// no valid slot for this line, grab a new slot from cache and start a read request
+				SlotID = AcquireSlotAndReadLine(Cache, CurrentLine, Priority);
+				LockedSlots.Add(SlotID);
+			}
+
+			FPendingRequest& PendingRequest = LineToRequest[CurrentLine.Get()];
+			if (PendingRequest.Event && !PendingRequest.Event->IsComplete())
+			{
+				// this line has a pending async request to read data
+				// will need to wait for this request to complete before data is valid
+				CompletionEvents.Add(PendingRequest.Event);
+			}
+			else
+			{
+				PendingRequest.Event.SafeRelease();
+			}
+
+			++CurrentLine;
+		}
+	}
+
+	FGraphEventRef CompletionEvent;
+	if (CompletionEvents.Num() > 0)
+	{
+		CompletionEvent = TGraphTask<FFileCachePreloadTask>::CreateTask(&CompletionEvents).ConstructAndDispatchWhenReady(MoveTemp(LockedSlots));
+	}
+	else if (LockedSlots.Num() > 0)
+	{
+		// Unusual case, we locked some slots, but the reads completed immediately, so we don't need to keep the slots locked
+		for (const CacheSlotID& SlotID : LockedSlots)
+		{
+			Cache.UnlockSlot(SlotID);
+		}
+	}
+
+	return CompletionEvent;
 }
 
 void FFileCacheHandle::Evict(CacheLineID LineID)

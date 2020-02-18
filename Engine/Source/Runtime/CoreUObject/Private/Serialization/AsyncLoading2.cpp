@@ -52,6 +52,7 @@
 #include "Serialization/BulkData.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "UObject/UObjectClusters.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -98,6 +99,8 @@ if ((Condition)) \
 #define UE_ASYNC_PACKAGE_LOG_VERBOSE(Verbosity, PackageDesc, LogDesc, Format, ...)
 #define UE_ASYNC_PACKAGE_CLOG_VERBOSE(Condition, Verbosity, PackageDesc, LogDesc, Format, ...)
 #endif
+
+TRACE_DECLARE_INT_COUNTER(PendingBundleIoRequests, TEXT("AsyncLoading/PendingBundleIoRequests"));
 
 struct FAsyncPackage2;
 class FAsyncLoadingThread2;
@@ -2282,6 +2285,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 			Package->GetExportBundleNode(EEventLoadNode2::ExportBundle_Process, 0)->ReleaseBarrier();
 			Package->AsyncLoadingThread.WaitingForIoBundleCounter.Decrement();
 		});
+		TRACE_COUNTER_DECREMENT(PendingBundleIoRequests);
 	}
 }
 
@@ -4155,16 +4159,35 @@ static void VerifyLoadFlagsWhenFinishedLoading()
 			const bool bHasAnyLoadIntermediateFlags = !!(Flags & LoadIntermediateFlags);
 			const bool bWasLoaded = !!(Flags & RF_WasLoaded);
 			const bool bLoadCompleted = !!(Flags & RF_LoadCompleted);
-			check(!bHasAnyAsyncFlags);
-			check(!bHasAnyLoadIntermediateFlags);
+
+			UE_CLOG(bHasAnyLoadIntermediateFlags, LogStreaming, Warning,
+				TEXT("Object '%s' (ObjectFlags=%d, InternalObjectFlags=%d) should not have any load flags now")
+				TEXT(", or this check is incorrectly reached during active loading."),
+				*Obj->GetFullName(),
+				Flags,
+				InternalFlags);
+
 			if (bWasLoaded)
 			{
 				const bool bIsPackage = Obj->IsA(UPackage::StaticClass());
-				check(bIsPackage || bLoadCompleted);
+
+				UE_CLOG(!bIsPackage && !bLoadCompleted, LogStreaming, Warning,
+					TEXT("Object '%s' (ObjectFlags=%d, InternalObjectFlags=%d) is a serialized object and should be completely loaded now")
+					TEXT(", or this check is incorrectly reached during active loading."),
+					*Obj->GetFullName(),
+					Flags,
+					InternalFlags);
+
+				UE_CLOG(bHasAnyAsyncFlags, LogStreaming, Warning,
+					TEXT("Object '%s' (ObjectFlags=%d, InternalObjectFlags=%d) is a serialized object and should not have any async flags now")
+					TEXT(", or this check is incorrectly reached during active loading."),
+					*Obj->GetFullName(),
+					Flags,
+					InternalFlags);
 			}
 		}
 	}
-	UE_LOG(LogStreaming, Log, TEXT("Verified load flags when finished loading"));
+	UE_LOG(LogStreaming, Log, TEXT("Verified load flags when finished active loading."));
 }
 
 void FGlobalImportStore::OnPreGarbageCollect(bool bInIsLoadingPackages)
@@ -5033,6 +5056,7 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 
 EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGameThread(TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessLoadingUntilComplete);
 	if (!IsAsyncLoading())
 	{
 		return EAsyncPackageState::Complete;

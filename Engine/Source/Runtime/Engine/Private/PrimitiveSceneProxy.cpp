@@ -39,22 +39,19 @@ bool CacheShadowDepthsFromPrimitivesUsingWPO()
 	return CVarCacheWPOPrimitives.GetValueOnAnyThread(true) != 0;
 }
 
-bool SupportsCachingMeshDrawCommands(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& MeshBatch)
+bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch)
 {
 	return
 		// Cached mesh commands only allow for a single mesh element per batch.
 		(MeshBatch.Elements.Num() == 1) &&
 
 		// Vertex factory needs to support caching.
-		MeshBatch.VertexFactory->GetType()->SupportsCachingMeshDrawCommands() &&
-
-		// Volumetric self shadow mesh commands need to be generated every frame, as they depend on single frame uniform buffers with self shadow data.
-		!PrimitiveSceneProxy->CastsVolumetricTranslucentShadow();
+		MeshBatch.VertexFactory->GetType()->SupportsCachingMeshDrawCommands();
 }
 
-bool SupportsCachingMeshDrawCommands(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& MeshBatch, ERHIFeatureLevel::Type FeatureLevel)
+bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch, ERHIFeatureLevel::Type FeatureLevel)
 {
-	if (SupportsCachingMeshDrawCommands(PrimitiveSceneProxy, MeshBatch))
+	if (SupportsCachingMeshDrawCommands(MeshBatch))
 	{
 		// External textures get mapped to immutable samplers (which are part of the PSO); the mesh must go through the dynamic path, as the media player might not have
 		// valid textures/samplers the first few calls; once they're available the PSO needs to get invalidated and recreated with the immutable samplers.

@@ -134,6 +134,7 @@ void SetSimpleDeferredLightParameters(
 /** Shader parameters needed to render a light function. */
 class FLightFunctionSharedParameters
 {
+	DECLARE_TYPE_LAYOUT(FLightFunctionSharedParameters, NonVirtual);
 public:
 
 	void Bind(const FShaderParameterMap& ParameterMap)
@@ -163,8 +164,9 @@ public:
 	}
 
 private:
-
-	FShaderParameter LightFunctionParameters;
+	
+		LAYOUT_FIELD(FShaderParameter, LightFunctionParameters)
+	
 };
 
 /** Utility functions for drawing a sphere */
@@ -434,6 +436,7 @@ namespace StencilingGeometry
 */
 class FStencilingGeometryShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FStencilingGeometryShaderParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -445,8 +448,8 @@ public:
 
 	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FVector4& InStencilingGeometryPosAndScale) const
 	{
-		SetShaderValue(RHICmdList, Shader->GetVertexShader(), StencilGeometryPosAndScale, InStencilingGeometryPosAndScale);
-		SetShaderValue(RHICmdList, Shader->GetVertexShader(), StencilConeParameters, FVector4(0.0f, 0.0f, 0.0f, 0.0f));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilGeometryPosAndScale, InStencilingGeometryPosAndScale);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeParameters, FVector4(0.0f, 0.0f, 0.0f, 0.0f));
 	}
 
 	void Set(FRHICommandList& RHICmdList, FShader* Shader, const FSceneView& View, const FLightSceneInfo* LightSceneInfo) const
@@ -456,22 +459,22 @@ public:
 			LightSceneInfo->Proxy->GetLightType() == LightType_Rect )
 		{
 			StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(GeometryPosAndScale, LightSceneInfo->Proxy->GetBoundingSphere(), View.ViewMatrices.GetPreViewTranslation());
-			SetShaderValue(RHICmdList, Shader->GetVertexShader(), StencilGeometryPosAndScale, GeometryPosAndScale);
-			SetShaderValue(RHICmdList, Shader->GetVertexShader(), StencilConeParameters, FVector4(0.0f, 0.0f, 0.0f, 0.0f));
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilGeometryPosAndScale, GeometryPosAndScale);
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeParameters, FVector4(0.0f, 0.0f, 0.0f, 0.0f));
 		}
 		else if(LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
 		{
-			SetShaderValue(RHICmdList, Shader->GetVertexShader(), StencilConeTransform, LightSceneInfo->Proxy->GetLightToWorld());
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilConeTransform, LightSceneInfo->Proxy->GetLightToWorld());
 			SetShaderValue(
 				RHICmdList, 
-				Shader->GetVertexShader(),
+				RHICmdList.GetBoundVertexShader(),
 				StencilConeParameters,
 				FVector4(
 					StencilingGeometry::FStencilConeIndexBuffer::NumSides,
 					StencilingGeometry::FStencilConeIndexBuffer::NumSlices,
 					LightSceneInfo->Proxy->GetOuterConeAngle(),
 					LightSceneInfo->Proxy->GetRadius()));
-			SetShaderValue(RHICmdList, Shader->GetVertexShader(), StencilPreViewTranslation, View.ViewMatrices.GetPreViewTranslation());
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), StencilPreViewTranslation, View.ViewMatrices.GetPreViewTranslation());
 		}
 	}
 
@@ -486,10 +489,12 @@ public:
 	}
 
 private:
-	FShaderParameter StencilGeometryPosAndScale;
-	FShaderParameter StencilConeParameters;
-	FShaderParameter StencilConeTransform;
-	FShaderParameter StencilPreViewTranslation;
+	
+		LAYOUT_FIELD(FShaderParameter, StencilGeometryPosAndScale)
+		LAYOUT_FIELD(FShaderParameter, StencilConeParameters)
+		LAYOUT_FIELD(FShaderParameter, StencilConeTransform)
+		LAYOUT_FIELD(FShaderParameter, StencilPreViewTranslation)
+	
 };
 
 
@@ -519,31 +524,22 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(),View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
 		StencilingGeometryParameters.Set(RHICmdList, this, View, LightSceneInfo);
 	}
 
 	void SetSimpleLightParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FSphere& LightBounds)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(),View.ViewUniformBuffer);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
 
 		FVector4 StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, LightBounds, View.ViewMatrices.GetPreViewTranslation());
 		StencilingGeometryParameters.Set(RHICmdList, this, StencilingSpherePosAndScale);
 	}
 
-	//~ Begin FShader Interface
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << StencilingGeometryParameters;
-		return bShaderHasOutdatedParameters;
-	}
-	//~ End FShader Interface
-
 private:
 
-	FStencilingGeometryShaderParameters StencilingGeometryParameters;
+	LAYOUT_FIELD(FStencilingGeometryShaderParameters, StencilingGeometryParameters);
 };
 
 extern void SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FSphere& LightBounds);

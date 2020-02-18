@@ -58,6 +58,7 @@
 #include "Serialization/Formatters/BinaryArchiveFormatter.h"
 #include "Serialization/Formatters/JsonArchiveOutputFormatter.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Serialization/UnversionedPropertySerialization.h"
 #include "UObject/AsyncWorkSequence.h"
 #include "Serialization/BulkDataManifest.h"
 #include "Misc/ScopeExit.h"
@@ -3764,6 +3765,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				Linker->SetPortFlags(ComparisonFlags);
 				Linker->SetFilterEditorOnly( FilterEditorOnly );
 				Linker->SetCookingTarget(TargetPlatform);
+
+				bool bUseUnversionedProperties = bSaveUnversioned && CanUseUnversionedPropertySerialization(TargetPlatform);
+				Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+				Linker->Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 
 				// Make sure the package has the same version as the linker
 				InOuter->LinkerPackageVersion = Linker->UE4Ver();
