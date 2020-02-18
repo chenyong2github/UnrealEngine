@@ -497,10 +497,6 @@ void FAnalysisEngine::Begin()
 	} Builder;
 	Builder.Self = this;
 
-	// Some internal routes have been established already. In case there's some
-	// dispatches that are already connected to these routes we won't sort them
-	uint32 FixedRouteCount = Routes.Num();
-
 	FOnAnalysisContext OnAnalysisContext = { { SessionContext }, Builder };
 	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
 	{
@@ -517,9 +513,7 @@ void FAnalysisEngine::Begin()
 		}
 	}
 
-	FixedRouteCount = 0; // Disabled for now until AddRoute([ExplicitHash]) has been removed
-	TArrayView<FRoute> RouteSubset(Routes.GetData() + FixedRouteCount, Routes.Num() - FixedRouteCount);
-	Algo::SortBy(RouteSubset, [] (const FRoute& Route) { return Route.Hash; });
+	Algo::SortBy(Routes, [] (const FRoute& Route) { return Route.Hash; });
 
 	FRoute* Cursor = Routes.GetData();
 	Cursor->Count = 1;
