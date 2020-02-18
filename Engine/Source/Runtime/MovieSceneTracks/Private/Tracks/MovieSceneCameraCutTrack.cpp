@@ -70,7 +70,14 @@ UMovieSceneCameraCutSection* UMovieSceneCameraCutTrack::AddNewCameraCut(const FM
 	MovieSceneHelpers::SortConsecutiveSections(Sections);
 
 	// Once CameraCuts are sorted fixup the surrounding CameraCuts to fix any gaps
-	MovieSceneHelpers::FixupConsecutiveSections(Sections, *NewSection, false, true, bCanBlend);
+	if (bCanBlend)
+	{
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, *NewSection, false);
+	}
+	else
+	{
+		MovieSceneHelpers::FixupConsecutiveSections(Sections, *NewSection, false);
+	}
 
 	return NewSection;
 }
@@ -131,8 +138,14 @@ void UMovieSceneCameraCutTrack::RemoveSection(UMovieSceneSection& Section)
 {
 	Sections.Remove(&Section);
 
-	MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, true, true, bCanBlend);
-	MovieSceneHelpers::SortConsecutiveSections(Sections);
+	if (bCanBlend)
+	{
+		MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, true);
+	}
+	else
+	{
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, Section, true);
+	}
 
 	// @todo Sequencer: The movie scene owned by the section is now abandoned.  Should we offer to delete it?  
 }
@@ -140,7 +153,14 @@ void UMovieSceneCameraCutTrack::RemoveSection(UMovieSceneSection& Section)
 void UMovieSceneCameraCutTrack::RemoveSectionAt(int32 SectionIndex)
 {
 	UMovieSceneSection* SectionToDelete = Sections[SectionIndex];
-	MovieSceneHelpers::FixupConsecutiveSections(Sections, *SectionToDelete, true, true, bCanBlend);
+	if (bCanBlend)
+	{
+		MovieSceneHelpers::FixupConsecutiveSections(Sections, *SectionToDelete, true);
+	}
+	else
+	{
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, *SectionToDelete, true);
+	}
 
 	Sections.RemoveAt(SectionIndex);
 	MovieSceneHelpers::SortConsecutiveSections(Sections);
@@ -187,7 +207,14 @@ FText UMovieSceneCameraCutTrack::GetDefaultDisplayName() const
 #if WITH_EDITOR
 void UMovieSceneCameraCutTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
 {
-	MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, false, true, bCanBlend);
+	if (bCanBlend)
+	{
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, Section, false);
+	}
+	else
+	{
+		MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, false);
+	}
 }
 #endif
 
