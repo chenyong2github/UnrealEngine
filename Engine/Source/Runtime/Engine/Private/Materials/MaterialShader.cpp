@@ -1867,7 +1867,7 @@ public:
 
 	const FMaterialShaderMapLayout& AcquireLayout(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters)
 	{
-		const uint64 ParameterHash = CityHash64((char*)&MaterialParameters, sizeof(MaterialParameters));
+		const uint64 ParameterHash = CityHash64WithSeed((char*)&MaterialParameters, sizeof(MaterialParameters), (uint64)Platform);
 		
 		int32 Index = INDEX_NONE;
 		for (Index = ShaderMapHashTable.First(ParameterHash); ShaderMapHashTable.IsValid(Index); Index = ShaderMapHashTable.Next(Index))
@@ -1885,9 +1885,11 @@ public:
 			FMaterialShaderMapLayout& Layout = ShaderMapLayouts.AddDefaulted_GetRef();
 			check(MaterialParameterHashes.Num() == ShaderMapLayouts.Num());
 			check(MaterialShaderParameters.Num() == ShaderMapLayouts.Num());
+			Layout.Platform = Platform;
 			CreateLayout(Layout, Platform, MaterialParameters);
 		}
 
+		check(ShaderMapLayouts[Index].Platform == Platform);
 		return ShaderMapLayouts[Index];
 	}
 
