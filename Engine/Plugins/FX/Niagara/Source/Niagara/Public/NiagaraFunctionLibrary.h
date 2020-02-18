@@ -14,6 +14,7 @@
 class UNiagaraComponent;
 class UNiagaraSystem;
 class USceneComponent;
+class UVolumeTexture;
 
 /**
 * A C++ and Blueprint accessible library of utility functions for accessing Niagara simulations
@@ -51,6 +52,10 @@ public:
 	/** Overrides the Texture Object for a Niagara Texture Data Interface User Parameter.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	static void SetTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UTexture* Texture);
+	
+	/** Overrides the Volume Texture for a Niagara Volume Texture Data Interface User Parameter.*/
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	static void SetVolumeTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UVolumeTexture* Texture);
 	
 	//This is gonna be totally reworked
 // 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara System", UnsafeDuringActorConstruction = "true"))
