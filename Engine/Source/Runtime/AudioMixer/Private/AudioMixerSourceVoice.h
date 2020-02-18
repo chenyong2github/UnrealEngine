@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AudioMixerDevice.h"
 #include "AudioMixerBuffer.h"
 #include "AudioMixerSourceManager.h"
 

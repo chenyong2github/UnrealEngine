@@ -5,11 +5,10 @@
 #include "CoreMinimal.h"
 #include "Engine/Public/AudioDevice.h"
 #include "Engine/Classes/Sound/SoundWave.h"
-#include "AudioMixer/Private/AudioMixerBuffer.h"
-#include "AudioMixer/Private/AudioMixerSourceBuffer.h"
 #include "DSP/SinOsc.h"
 #include "DSP/ParamInterpolator.h"
 #include "Misc/ScopeLock.h"
+
 
 
 class FAudioDevice;
@@ -18,6 +17,10 @@ class FAudioDevice;
 
 namespace Audio
 {
+	class FMixerBuffer;
+	class FMixerSourceBuffer;
+	struct FMixerSourceVoiceBuffer;
+
 	struct FDecodingSoundSourceHandle
 	{
 		FDecodingSoundSourceHandle()

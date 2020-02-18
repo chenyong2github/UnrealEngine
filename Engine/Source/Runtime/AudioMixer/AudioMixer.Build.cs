@@ -18,9 +18,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-            PublicIncludePaths.Add("Runtime/AudioMixer/Private");
-
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

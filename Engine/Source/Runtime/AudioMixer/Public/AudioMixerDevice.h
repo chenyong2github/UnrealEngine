@@ -4,18 +4,24 @@
 
 #include "Audio.h"
 #include "AudioMixer.h"
-#include "AudioMixerSourceManager.h"
 #include "AudioDevice.h"
+#include "Sound/SoundSubmix.h"
+#include "DSP/BufferVectorOperations.h"
 
 
 // Forward Declarations
 class FOnSubmixEnvelopeBP;
 class IAudioMixerPlatformInterface;
-class USoundSubmix;
 
 namespace Audio
 {
+	// Audio Namespace Forward Declarations
+	class FMixerSourceManager;
 	class FMixerSourceVoice;
+	class FMixerSubmix;
+
+	typedef TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixPtr;
+	typedef TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixWeakPtr;
 
 	struct FChannelPositionInfo
 	{
@@ -306,7 +312,7 @@ namespace Audio
 		TMap<uint32, TArray<FSourceEffectChainEntry>> SourceEffectChainOverrides;
 
 		/** The mixer source manager. */
-		FMixerSourceManager SourceManager;
+		TUniquePtr<FMixerSourceManager> SourceManager;
 
 		/** ThreadId for the game thread (or if audio is running a separate thread, that ID) */
 		mutable int32 GameOrAudioThreadId;
