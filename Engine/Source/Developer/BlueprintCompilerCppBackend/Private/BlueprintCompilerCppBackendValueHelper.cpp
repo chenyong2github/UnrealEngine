@@ -1201,7 +1201,7 @@ struct FFakeImportTableHelper
 				TArray<UObject*> ObjectsInsideStruct;
 				GetObjectsWithOuter(InStruct, ObjectsInsideStruct, true);
 				for (TFieldIterator<FProperty> It(InStruct); It; ++It)
-				{
+					{
 					FProperty* Property = *It;
 					const FProperty* OwnerProperty = Property->GetOwnerProperty();
 					if (!OwnerProperty)

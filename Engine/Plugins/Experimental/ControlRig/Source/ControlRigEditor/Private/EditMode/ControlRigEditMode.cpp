@@ -122,16 +122,16 @@ void FControlRigEditMode::SetUpDetailPanel()
 {
 	if (IsInLevelEditor())
 	{
-		TArray<TWeakObjectPtr<>> SelectedObjects;
+	TArray<TWeakObjectPtr<>> SelectedObjects;
 		if (WeakControlRigEditing.IsValid())
 		{
 			const TArray<UControlRigControlsProxy*>& Proxies = ControlProxy->GetSelectedProxies();
 			for (UControlRigControlsProxy* Proxy : Proxies)
-			{
+	{
 				SelectedObjects.Add(Proxy);
 			}
-			SelectedObjects.Add(Settings);
-		}
+		SelectedObjects.Add(Settings);
+	}
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSequencer(WeakSequencer.Pin());
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetDetailsObjects(SelectedObjects);
 	}
@@ -270,8 +270,8 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 						{
 							ControlProxy->AddProxy(SelectedKey.Name, WeakControlRigEditing.Get(), Control);
 						}
-					}
-				}
+			}
+		}
 			}
 		}
 		SetUpDetailPanel();
@@ -394,33 +394,33 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 			switch (Instruction.PrimitiveType)
 			{
 				case EControlRigDrawSettings::Points:
+			{
+				for (const FVector& Point : Instruction.Positions)
 				{
-					for (const FVector& Point : Instruction.Positions)
-					{
 						PDI->DrawPoint(InstructionTransform.TransformPosition(Point), Instruction.Color, Instruction.Thickness, SDPG_Foreground);
-					}
-					break;
 				}
+				break;
+			}
 				case EControlRigDrawSettings::Lines:
-				{
-					const TArray<FVector>& Points = Instruction.Positions;
+			{
+				const TArray<FVector>& Points = Instruction.Positions;
 					PDI->AddReserveLines(SDPG_Foreground, Points.Num() / 2, false, Instruction.Thickness > SMALL_NUMBER);
-					for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
-					{
-						PDI->DrawLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
-					}
-					break;
-				}
-				case EControlRigDrawSettings::LineStrip:
+				for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
 				{
-					const TArray<FVector>& Points = Instruction.Positions;
-					PDI->AddReserveLines(SDPG_Foreground, Points.Num() - 1, false, Instruction.Thickness > SMALL_NUMBER);
-					for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
-					{
 						PDI->DrawLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
-					}
-					break;
 				}
+				break;
+			}
+				case EControlRigDrawSettings::LineStrip:
+			{
+				const TArray<FVector>& Points = Instruction.Positions;
+					PDI->AddReserveLines(SDPG_Foreground, Points.Num() - 1, false, Instruction.Thickness > SMALL_NUMBER);
+				for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
+				{
+						PDI->DrawLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+				}
+				break;
+			}
 			}
 		}
 	}
@@ -464,7 +464,7 @@ bool FControlRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, F
 			bManipulatorMadeChange = false;
 			GEditor->EndTransaction();
 
-		}
+				}
 		bIsTransacting = false;
 		return true;
 	}
@@ -483,10 +483,10 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 		{
 			UObject* Blueprint = WeakControlRigEditing->GetClass()->ClassGeneratedBy;
 			if (Blueprint)
-			{
+		{
 				Blueprint->SetFlags(RF_Transactional);
 				Blueprint->Modify();
-			}
+		}
 
 			WeakControlRigEditing->SetFlags(RF_Transactional);
 			WeakControlRigEditing->Modify();
@@ -1247,12 +1247,12 @@ bool FControlRigEditMode::GizmoSelectionOverride(const UPrimitiveComponent* InCo
     //Think we only want to do this in regular editor, in the level editor we are driving selection
 	if (!IsInLevelEditor())
 	{
-		AControlRigGizmoActor* OwnerActor = Cast<AControlRigGizmoActor>(InComponent->GetOwner());
-		if (OwnerActor)
-		{
-			// See if the actor is in a selected unit proxy
-			return OwnerActor->IsSelected();
-		}
+	AControlRigGizmoActor* OwnerActor = Cast<AControlRigGizmoActor>(InComponent->GetOwner());
+	if (OwnerActor)
+	{
+		// See if the actor is in a selected unit proxy
+		return OwnerActor->IsSelected();
+	}
 	}
 
 	return false;
@@ -1289,12 +1289,12 @@ bool FControlRigEditMode::AreRigElementSelectedAndMovable() const
 	if (!IsInLevelEditor())
 	{
 		if (!IsTransformDelegateAvailable())
-		{
+	{
 			return false;
 		}
 	}
 
-	return true;
+		return true;
 }
 
 void FControlRigEditMode::OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
@@ -1359,7 +1359,7 @@ void FControlRigEditMode::OnRigElementSelected(FRigHierarchyContainer* Container
 						{
 							ControlProxy->SelectProxy(InKey.Name, true);
 						}
-					}
+			}
 				}
 				else
 				{

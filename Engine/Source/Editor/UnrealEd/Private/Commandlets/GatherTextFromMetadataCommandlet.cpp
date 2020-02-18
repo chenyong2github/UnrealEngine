@@ -276,28 +276,28 @@ template <typename TFieldType>
 void GatherTextFromFieldImplementation(TFieldType* const Field, const UGatherTextFromMetaDataCommandlet::FGatherParameters& Arguments, const FName InPlatformName, FLocTextHelper* GatherManifestHelper)
 {
 	for (int32 i = 0; i < Arguments.InputKeys.Num(); ++i)
-	{
-		FFormatNamedArguments PatternArguments;
+		{
+			FFormatNamedArguments PatternArguments;
 		PatternArguments.Add(TEXT("FieldPath"), FText::FromString(Field->GetFullGroupName(false)));
 
 		if (Field->HasMetaData(*Arguments.InputKeys[i]))
-		{
-			const FString& MetaDataValue = Field->GetMetaData(*Arguments.InputKeys[i]);
-			if (!MetaDataValue.IsEmpty())
 			{
+				const FString& MetaDataValue = Field->GetMetaData(*Arguments.InputKeys[i]);
+			if (!MetaDataValue.IsEmpty())
+				{
 				PatternArguments.Add(TEXT("MetaDataValue"), FText::FromString(MetaDataValue));
 
 				const UStruct* FieldOwnerType = Field->GetOwnerStruct();
-				const FString Namespace = Arguments.OutputNamespaces[i];
-				FLocItem LocItem(MetaDataValue);
-				FManifestContext Context;
-				Context.Key = FText::Format(Arguments.OutputKeys[i], PatternArguments).ToString();
+					const FString Namespace = Arguments.OutputNamespaces[i];
+					FLocItem LocItem(MetaDataValue);
+					FManifestContext Context;
+					Context.Key = FText::Format(Arguments.OutputKeys[i], PatternArguments).ToString();
 				Context.SourceLocation = FString::Printf(TEXT("From metadata for key %s of member %s in %s (type: %s, owner: %s)"), *Arguments.InputKeys[i], *Field->GetName(), *Field->GetFullGroupName(true), *Field->GetClass()->GetName(), FieldOwnerType ? *FieldOwnerType->GetName() : TEXT("<null>"));
-				Context.PlatformName = InPlatformName;
-				GatherManifestHelper->AddSourceText(Namespace, LocItem, Context);
+					Context.PlatformName = InPlatformName;
+					GatherManifestHelper->AddSourceText(Namespace, LocItem, Context);
+				}
 			}
 		}
-	}
 }
 
 

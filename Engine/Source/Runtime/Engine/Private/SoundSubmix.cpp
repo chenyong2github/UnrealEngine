@@ -388,8 +388,8 @@ void USoundSubmixBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 					}
 				}
 			}
-		}
-	}
+				}
+			}
 
 	if (GEngine)
 	{
@@ -441,7 +441,7 @@ void USoundSubmixWithParentBase::SetParentSubmix(USoundSubmixBase* InParentSubmi
 		Modify();
 		ParentSubmix = InParentSubmix;
 		ParentSubmix->ChildSubmixes.AddUnique(this);
-	}
+		}
 }
 
 void USoundSubmixWithParentBase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -546,21 +546,21 @@ FName USoundfieldSubmix::GetSubmixFormat() const
 			return ISoundfieldFactory::GetFormatNameForNoEncoding();
 		}
 		else
-		{
+			{
 			return SoundfieldEncodingFormat;
-		}
+			}
 
 	}
 	else if(ParentSoundfieldSubmix)
-	{
+			{
 		// If this submix matches the format of whatever submix it's plugged into, 
 		// Recurse into the submix graph to find it.
 		return ParentSoundfieldSubmix->GetSubmixFormat();
-	}
+			}
 	else
 	{
 		return ISoundfieldFactory::GetFormatNameForNoEncoding();
-	}
+		}
 }
 
 const USoundfieldEncodingSettingsBase* USoundfieldSubmix::GetEncodingSettings() const
@@ -574,16 +574,16 @@ const USoundfieldEncodingSettingsBase* USoundfieldSubmix::GetEncodingSettings() 
 		return EncodingSettings;
 	}
 	else if (ParentSoundfieldSubmix && SoundfieldEncodingFormat == ISoundfieldFactory::GetFormatNameForInheritedEncoding())
-	{
+		{
 		// If this submix matches the format of whatever it's plugged into,
 		// Recurse into the submix graph to match it's settings.
 		return ParentSoundfieldSubmix->GetEncodingSettings();
-	}
+		}
 	else if (ISoundfieldFactory* Factory = ISoundfieldFactory::Get(SubmixFormatName))
-	{
+		{
 		// If we don't have any encoding settings, use the default.
 		return Factory->GetDefaultEncodingSettings();
-	}
+		}
 	else
 	{
 		// If we don't have anything, exit.

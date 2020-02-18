@@ -6,7 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Field.h"
 
-#include "PropertyValue.generated.h"
+// WARNING: This should always be the last include in any file that needs it
+#include "UObject/UndefineUPropertyMacros.h"
 
 #define PATH_DELIMITER TEXT(" / ")
 #define ATTACH_CHILDREN_NAME TEXT("Children")
@@ -16,7 +17,7 @@ DECLARE_MULTICAST_DELEGATE(FOnPropertyApplied);
 
 class UVariantObjectBinding;
 class USCS_Node;
-class FProperty;
+class UProperty;
 
 UENUM()
 enum class EPropertyValueCategory : uint8
@@ -248,3 +249,4 @@ class VARIANTMANAGERCONTENT_API UPropertyValueVisibility : public UPropertyValue
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 };
+#include "UObject/DefineUPropertyMacros.h"

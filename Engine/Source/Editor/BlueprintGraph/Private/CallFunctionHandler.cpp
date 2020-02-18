@@ -749,9 +749,9 @@ void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGrap
 
 			// Iterate the properties looking for Out Params that are tied to Net Properties.
 			// This is similar to the loop in CreateCallFunction
-			for (TFieldIterator<UProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
+			for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
 			{
-				UProperty* Property = *It;
+				FProperty* Property = *It;
 				if (Property->HasAllPropertyFlags(CPF_OutParm | CPF_ReferenceParm))
 				{
 					for (int32 i = 0; i < RemainingPins.Num(); ++i)
@@ -763,7 +763,7 @@ void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGrap
 							{
 								if (UK2Node_VariableGet* GetPropertyNode = Cast<UK2Node_VariableGet>(PinToTry->GetOwningNode()))
 								{
-									UProperty* ToCheck = GetPropertyNode->GetPropertyForVariable();
+									FProperty* ToCheck = GetPropertyNode->GetPropertyForVariable();
 
 									// We only need to do this work if we actually found a net property.
 									if (UNLIKELY(ToCheck->HasAnyPropertyFlags(CPF_Net)))
@@ -794,7 +794,7 @@ void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGrap
 													if (UClass * UseClass = Blueprint->GeneratedClass)
 													{
 														OwningClass = UseClass;
-														ToCheck = FindFieldChecked<UProperty>(OwningClass, ToCheck->GetFName());
+														ToCheck = FindFieldChecked<FProperty>(OwningClass, ToCheck->GetFName());
 													}
 												}
 											}

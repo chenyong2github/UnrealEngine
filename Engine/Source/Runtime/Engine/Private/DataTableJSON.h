@@ -96,4 +96,3 @@ private:
 	const FString& JSONData;
 	TArray<FString>& ImportProblems;
 };
-

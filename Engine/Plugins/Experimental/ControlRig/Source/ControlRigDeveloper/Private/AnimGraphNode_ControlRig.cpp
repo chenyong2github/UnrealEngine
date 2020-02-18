@@ -365,18 +365,18 @@ void UAnimGraphNode_ControlRig::GetIOParameters(bool bInput, TMap<FName, FRigVMP
 	if (UControlRigBlueprintGeneratedClass* TargetClass = Cast<UControlRigBlueprintGeneratedClass>(GetTargetClass()))
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(TargetClass->ClassGeneratedBy))
-		{
+	{
 			RigBlueprint->InitializeModelIfRequired();
 
-			UControlRig* ControlRig = TargetClass->GetDefaultObject<UControlRig>();
-			if (ControlRig)
-			{
+		UControlRig* ControlRig = TargetClass->GetDefaultObject<UControlRig>();
+		if (ControlRig)
+		{
 				const TArray<FRigVMParameter>& Parameters = ControlRig->GetParameters();
 				for (const FRigVMParameter& Parameter : Parameters)
 				{
 					if ((bInput && Parameter.GetType() == ERigVMParameterType::Input) ||
 						(!bInput && Parameter.GetType() == ERigVMParameterType::Output))
-					{
+			{
 						OutParameters.Add(Parameter.GetName(), Parameter);
 					}
 				}

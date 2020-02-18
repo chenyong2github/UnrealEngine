@@ -1050,10 +1050,10 @@ T UNiagaraDataInterfaceParticleRead::RetrieveValueWithCheck(FNiagaraEmitterInsta
 		{
 			FNiagaraID ActualID = IDData.GetSafe(ParticleIndex, NIAGARA_INVALID_ID);
 			if (ActualID == ParticleID)
-			{
+		{
 				Value = ValueData.GetSafe(ParticleIndex, T());
 				bValid = true;
-			}
+		}
 		}
 
 		return Value;
@@ -1165,7 +1165,7 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 			break;
 		default:
 			UE_LOG(LogNiagara, Error, TEXT("Unknown component type %d while generating function %s"), ComponentType, *FunctionInfo.InstanceName);
-			return false;
+	return false;
 	}
 
 	FString ExtraDefaultValues;
