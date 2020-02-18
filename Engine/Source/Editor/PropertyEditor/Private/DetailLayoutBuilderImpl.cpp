@@ -18,8 +18,8 @@ FDetailLayoutBuilderImpl::FDetailLayoutBuilderImpl(TSharedPtr<FComplexPropertyNo
 	, PropertyGenerationUtilities( InPropertyGenerationUtilities )
 	, DetailsView( InDetailsView.Get() )
 	, CurrentCustomizationClass( nullptr )
+	, bLayoutForExternalRoot(bIsExternal)
 {
-	bLayoutForExternalRoot = bIsExternal;
 }
 
 
@@ -326,10 +326,11 @@ void FDetailLayoutBuilderImpl::GenerateDetailLayout()
 		CategoryNodes.AddUnique(AdvancedOnlyCategories[CategoryIndex]);
 	}
 
-	if(DetailsView && DetailsView->ContainsMultipleTopLevelObjects())
+	TSharedPtr<FComplexPropertyNode> RootNodePinned = RootNode.Pin();
+	if(DetailsView->GetRootObjectCustomization() && RootNodePinned->GetInstancesNum())
 	{
 		// This should always exist here
-		UObject* RootObject = RootNode.Pin()->AsObjectNode()->GetUObject(0);
+		UObject* RootObject = RootNodePinned->AsObjectNode()->GetUObject(0);
 		check(RootObject);
 
 		TSharedPtr<IDetailRootObjectCustomization> RootObjectCustomization = DetailsView->GetRootObjectCustomization();

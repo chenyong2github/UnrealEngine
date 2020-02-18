@@ -228,6 +228,7 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 			}
 		}
 
+		LevelEditorCreatedEvent.Broadcast(LevelEditorTmp);
 	}
 
 	IIntroTutorials& IntroTutorials = FModuleManager::LoadModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
