@@ -7,6 +7,7 @@
 #include "EditorModeTools.h"
 #include "EdMode.h"
 #include "Misc/FrameTime.h"
+#include "Engine/Texture2D.h"
 
 class FCanvas;
 class FEditorViewportClient;
@@ -72,6 +73,7 @@ public:
 protected:
 	void DrawTracks3D(FPrimitiveDrawInterface* PDI);
 	void DrawTransformTrack(const TSharedPtr<FSequencer>& Sequencer, FPrimitiveDrawInterface* PDI, UMovieScene3DTransformTrack* TransformTrack, TArrayView<const TWeakObjectPtr<>> BoundObjects, const bool bIsSelected);
+	void DrawAudioTracks(FPrimitiveDrawInterface* PDI);
 
 protected:
 	static void GetLocationAtTime(FMovieSceneEvaluationTrack* Track, UObject* BoundObject, FFrameTime KeyTime, FVector& KeyPos, FRotator& KeyRot, const TSharedPtr<FSequencer>& Sequencer);
@@ -89,6 +91,9 @@ private:
 
 	/** If true, draw mesh trails instead of debug lines*/
 	bool bDrawMeshTrails;
+
+	/** The audio texture used for drawing the audio spatialization points */
+	UTexture2D* AudioTexture;
 };
 
 /**
