@@ -157,7 +157,7 @@ FMovieSceneTrackRowSegmentBlenderPtr UMovieSceneCinematicShotTrack::GetRowSegmen
 }
 
 #if WITH_EDITOR
-void UMovieSceneCinematicShotTrack::OnSectionMoved(UMovieSceneSection& Section)
+void UMovieSceneCinematicShotTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
 {
 	//MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, false);
 }
