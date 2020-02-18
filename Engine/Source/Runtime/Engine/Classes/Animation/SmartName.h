@@ -184,7 +184,10 @@ struct ENGINE_API FSmartNameContainer
 	const FSmartNameMapping* GetContainer(FName ContainerName) const;
 
 	// Serialize this to the provided archive; required for TMap serialization
-	void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar, bool bIsTemplate);
+
+	// Called after load (serialize itself may not be called if the USkeleton we are on is old enough)
+	void PostLoad();
 
 	friend FArchive& operator<<(FArchive& Ar, FSmartNameContainer& Elem);
 

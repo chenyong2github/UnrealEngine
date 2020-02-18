@@ -291,10 +291,10 @@ const FSmartNameMapping* FSmartNameContainer::GetContainer(FName ContainerName) 
 	return NameMappings.Find(ContainerName);
 }
 
-void FSmartNameContainer::Serialize(FArchive& Ar)
+void FSmartNameContainer::Serialize(FArchive& Ar, bool bIsTemplate)
 {
 #if WITH_EDITORONLY_DATA
-	if (Ar.IsCooking())
+	if (Ar.IsCooking() && !bIsTemplate)
 	{
 		Ar << LoadedNameMappings;
 	}
@@ -303,13 +303,13 @@ void FSmartNameContainer::Serialize(FArchive& Ar)
 	{
 		Ar << NameMappings;
 	}
+}
 
+void FSmartNameContainer::PostLoad()
+{
 #if WITH_EDITORONLY_DATA
-	if (Ar.IsLoading())
-	{
-		//To preserve 
-		LoadedNameMappings = NameMappings;
-	}
+	// Preserve Load state for deterministic cooking
+	LoadedNameMappings = NameMappings;
 #endif
 }
 
