@@ -578,12 +578,39 @@ int32 GenerateSphylAsSimpleCollision(UStaticMesh* StaticMesh)
 
 void RefreshCollisionChange(UStaticMesh& StaticMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(RefreshCollisionChange)
+
 	StaticMesh.CreateNavCollision(/*bIsUpdate=*/true);
 
 	for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
 		if (StaticMeshComponent->GetStaticMesh() == &StaticMesh)
+		{
+			// it needs to recreate IF it already has been created
+			if (StaticMeshComponent->IsPhysicsStateCreated())
+			{
+				StaticMeshComponent->RecreatePhysicsState();
+			}
+		}
+	}
+
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+}
+
+void RefreshCollisionChanges(const TArray<UStaticMesh*>& StaticMeshes)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(RefreshCollisionChanges)
+
+	for (UStaticMesh* StaticMesh : StaticMeshes)
+	{
+		StaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
+	}
+
+	for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+	{
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
+		if (StaticMeshes.Contains(StaticMeshComponent->GetStaticMesh()))
 		{
 			// it needs to recreate IF it already has been created
 			if (StaticMeshComponent->IsPhysicsStateCreated())
