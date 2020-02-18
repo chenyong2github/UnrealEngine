@@ -217,8 +217,8 @@ void FStreamingGeometryCacheData::UpdateStreamingStatus()
 					continue;
 				}
 
-				checkf(Chunk.BulkData.GetFilename().Len(), TEXT("Bulk data is not loaded and not associated with a file."));
-				check(!Chunk.BulkData.IsStoredCompressedOnDisk());
+				checkf(Chunk.BulkData.CanLoadFromDisk(), TEXT("Bulk data is not loaded and cannot be loaded from disk!"));
+				check(!Chunk.BulkData.IsStoredCompressedOnDisk()); // We do not support compressed Bulkdata for this system
 
 				FResidentChunk &ResidentChunk = AddResidentChunk(NeededIndex, Chunk);
 

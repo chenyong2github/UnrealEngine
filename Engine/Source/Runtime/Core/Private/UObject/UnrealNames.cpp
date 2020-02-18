@@ -725,6 +725,7 @@ public:
 	{
 		uint32 WantedCapacity = FMath::RoundUpToPowerOfTwo(Num * LoadFactorDivisor / LoadFactorQuotient);
 
+		FWriteScopeLock _(Lock);
 		if (WantedCapacity > Capacity())
 		{
 			Grow(WantedCapacity);
@@ -1878,7 +1879,7 @@ struct FNameHelper
 		// Make NAME_None == TEXT("") or nullptr consistent with NAME_None == FName(TEXT("")) or FName(nullptr)
 		if (Str == nullptr || Str[0] == '\0')
 		{
-			return Name == NAME_None;
+			return Name.IsNone();
 		}
 
 		const FNameEntry& Entry = *Name.GetComparisonNameEntry();

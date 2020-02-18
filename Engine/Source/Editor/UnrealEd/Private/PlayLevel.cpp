@@ -1050,12 +1050,12 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 
 	// If our settings require us to launch a separate process in any form, we require the user to save
 	// their content so that when the new process reads the data from disk it will match what we have in-editor.
-	const bool bIsExternalMemoryProcess = PlaySessionRequest->SessionDestination != EPlaySessionDestinationType::InProcess;
-
 	bool bUserWantsInProcess;
 	EditorPlaySettings->GetRunUnderOneProcess(bUserWantsInProcess);
 
-	bool bRequestSave = bIsExternalMemoryProcess && !bUserWantsInProcess;
+	const bool bIsInProcess = PlaySessionRequest->SessionDestination == EPlaySessionDestinationType::InProcess && bUserWantsInProcess;
+
+	bool bRequestSave = !bIsInProcess;
 
 	if (bRequestSave && !SaveMapsForPlaySession())
 	{

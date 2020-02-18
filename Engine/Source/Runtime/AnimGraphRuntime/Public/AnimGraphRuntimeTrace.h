@@ -12,9 +12,6 @@ struct FAnimNode_BlendSpacePlayer;
 
 struct FAnimGraphRuntimeTrace
 {
-	/** Initialize animation graph runtime tracing */
-	ANIMGRAPHRUNTIME_API static void Init();
-
 	/** Helper function to output debug info for blendspace player nodes */
 	ANIMGRAPHRUNTIME_API static void OutputBlendSpacePlayer(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpacePlayer& InNode);
 };

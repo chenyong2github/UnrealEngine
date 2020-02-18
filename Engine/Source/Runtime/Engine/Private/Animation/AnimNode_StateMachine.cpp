@@ -561,13 +561,8 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 	ElapsedTime += Context.GetDeltaTime();
 
 #if ANIM_TRACE_ENABLED
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("State Machine Name"), GetMachineDescription()->MachineName);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), GetMachineDescription()->MachineName);
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Current State"), GetStateInfo().StateName);
-	for (int32 PoseIndex = 0; PoseIndex < StatePoseLinks.Num(); ++PoseIndex)
-	{
-		const FString StateName = FString::Printf(TEXT("State %s Weight"), *GetStateInfo(PoseIndex).StateName.ToString());
-		TRACE_ANIM_NODE_VALUE(Context, *StateName, GetStateWeight(PoseIndex));
-	}
 #endif
 }
 

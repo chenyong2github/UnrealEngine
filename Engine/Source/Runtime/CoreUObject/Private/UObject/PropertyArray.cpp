@@ -93,14 +93,29 @@ bool FArrayProperty::Identical( const void* A, const void* B, uint32 PortFlags )
 	return true;
 }
 
+static bool CanBulkSerialize(FProperty* Property)
+{
+#if PLATFORM_LITTLE_ENDIAN
+	// All numeric properties except TEnumAsByte
+	uint64 CastFlags = Property->GetClass()->GetCastFlags();
+	if (!!(CastFlags & CASTCLASS_FNumericProperty))
+	{
+		bool bEnumAsByte = (CastFlags & CASTCLASS_FByteProperty) != 0 && static_cast<FByteProperty*>(Property)->Enum;
+		return !bEnumAsByte;
+	}
+#endif
+
+	return false;
+}
+
 void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
-	checkSlow(Inner);
+	check(Inner);
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
+	const bool bUPS = Slot.GetArchiveState().UseUnversionedPropertySerialization();
 	TOptional<FPropertyTag> MaybeInnerTag;
 
-	if (UnderlyingArchive.IsTextFormat() && !Slot.GetArchiveState().UseUnversionedPropertySerialization()
-		&& Inner && Inner->IsA<FStructProperty>())
+	if (UnderlyingArchive.IsTextFormat() && !bUPS && Inner->IsA<FStructProperty>())
 	{
 		MaybeInnerTag.Emplace(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);	
 		Slot << SA_ATTRIBUTE(TEXT("InnerStructName"), MaybeInnerTag.GetValue().StructName);
@@ -130,6 +145,26 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 				ArrayHelper.RemoveValues(n, OldNum - n);
 			}
 		}
+		else if (bUPS)
+		{
+			if (CanBulkSerialize(Inner))
+			{
+				ArrayHelper.EmptyAndAddUninitializedValues(n);
+
+				UnderlyingArchive.Serialize(ArrayHelper.GetRawPtr(), n * Inner->ElementSize);
+			}
+			else
+			{
+				ArrayHelper.EmptyAndAddValues(n);
+
+				for (int32 i = 0; i < n; ++i)
+				{
+					Inner->SerializeItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i));
+				}
+			}
+			
+			return;
+		}
 		else
 		{
 			ArrayHelper.EmptyAndAddValues(n);
@@ -138,9 +173,7 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	ArrayHelper.CountBytes( UnderlyingArchive );
 
 	// Serialize a PropertyTag for the inner property of this array, allows us to validate the inner struct to see if it has changed
-	if (!Slot.GetArchiveState().UseUnversionedPropertySerialization() && 
-		UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO &&
-		Inner && Inner->IsA<FStructProperty>())
+	if (!bUPS && UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO && Inner->IsA<FStructProperty>())
 	{
 		if (!MaybeInnerTag)
 		{
@@ -186,12 +219,12 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 
 				if (!UnderlyingArchive.IsTextFormat())
 				{
-				// Skip the property
+					// Skip the property
 					const int64 StartOfProperty = UnderlyingArchive.Tell();
 					const int64 RemainingSize = InnerTag.Size - (UnderlyingArchive.Tell() - StartOfProperty);
-				uint8 B;
-				for (int64 i = 0; i < RemainingSize; i++)
-				{
+					uint8 B;
+					for (int64 i = 0; i < RemainingSize; i++)
+					{
 						UnderlyingArchive << B;
 					}
 				}

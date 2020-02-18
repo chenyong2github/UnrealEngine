@@ -6,7 +6,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -518,11 +517,15 @@ void FFileActivitySharedState::ToggleBackgroundEvents()
 // FFileActivityTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+INSIGHTS_IMPLEMENT_RTTI(FFileActivityTimingTrack)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
 {
-	if (InTooltipEvent.CheckTrack(this) && FTimingEvent::CheckTypeName(InTooltipEvent))
+	if (InTooltipEvent.CheckTrack(this) && InTooltipEvent.Is<FTimingEvent>())
 	{
-		const FTimingEvent& TooltipEvent = static_cast<const FTimingEvent&>(InTooltipEvent);
+		const FTimingEvent& TooltipEvent = InTooltipEvent.As<FTimingEvent>();
 
 		auto MatchEvent = [&TooltipEvent](double InStartTime, double InEndTime, uint32 InDepth)
 		{

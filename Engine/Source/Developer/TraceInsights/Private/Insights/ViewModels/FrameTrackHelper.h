@@ -136,6 +136,8 @@ public:
 	void DrawHoveredSample(const FFrameTrackSample& Sample) const;
 	void DrawHighlightedInterval(const FFrameTrackSeries& Series, const double StartTime, const double EndTime) const;
 
+	static const TCHAR* FrameTypeToString(int32 FrameType);
+	static uint32 GetColor32ByFrameType(int32 FrameType);
 	static FLinearColor GetColorByFrameType(int32 FrameType);
 
 	int32 GetNumFrames() const { return NumFrames; }

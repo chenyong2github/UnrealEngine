@@ -14,7 +14,6 @@ class SLoadingProfilerWindow;
 
 namespace Trace
 {
-	class ISessionService;
 	class IAnalysisService;
 	class IAnalysisSession;
 }

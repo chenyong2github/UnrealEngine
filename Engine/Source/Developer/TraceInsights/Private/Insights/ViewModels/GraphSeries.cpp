@@ -101,7 +101,7 @@ FString FGraphSeries::FormatValue(double Value) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphSeries::UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue)
+void FGraphSeries::UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue, const bool bIsAutoZoomAnimated)
 {
 	if (IsAutoZoomEnabled())
 	{
@@ -120,7 +120,6 @@ void FGraphSeries::UpdateAutoZoom(const float InTopY, const float InBottomY, con
 
 		if (MinValue < MaxValue)
 		{
-			constexpr bool bIsAutoZoomAnimated = true;
 			if (bIsAutoZoomAnimated)
 			{
 				// Interpolate the min-max interval (animating the vertical position and scale of the graph series).

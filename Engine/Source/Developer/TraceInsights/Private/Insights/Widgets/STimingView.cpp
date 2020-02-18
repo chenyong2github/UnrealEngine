@@ -19,7 +19,6 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
-#include "TraceServices/SessionService.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBar.h"
@@ -42,6 +41,7 @@
 #include "Insights/ViewModels/BaseTimingTrack.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/FileActivityTimingTrack.h"
+#include "Insights/ViewModels/FrameTimingTrack.h"
 #include "Insights/ViewModels/GraphSeries.h"
 #include "Insights/ViewModels/GraphTrack.h"
 #include "Insights/ViewModels/LoadingTimingTrack.h"
@@ -73,6 +73,7 @@ namespace Insights { const FName TimingViewExtenderFeatureName(TEXT("TimingViewE
 
 STimingView::STimingView()
 	: bScrollableTracksOrderIsDirty(false)
+	, FrameSharedState(MakeShared<FFrameSharedState>(this))
 	, ThreadTimingSharedState(MakeShared<FThreadTimingSharedState>(this))
 	, LoadingSharedState(MakeShared<FLoadingSharedState>(this))
 	, bAssetLoadingMode(false)
@@ -83,9 +84,12 @@ STimingView::STimingView()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
+	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, FrameSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, ThreadTimingSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, FileActivitySharedState.Get());
+
+	ExtensionOverlay = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible);
 
 	Reset();
 }
@@ -105,9 +109,10 @@ STimingView::~STimingView()
 		Extender->OnEndSession(*this);
 	}
 
-	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, ThreadTimingSharedState.Get());
-	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
 	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, FileActivitySharedState.Get());
+	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
+	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, ThreadTimingSharedState.Get());
+	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, FrameSharedState.Get());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,6 +187,13 @@ void STimingView::Construct(const FArguments& InArgs)
 				]
 			]
 		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		[
+			ExtensionOverlay.ToSharedRef()
+		]
 	];
 
 	UpdateHorizontalScrollBar();
@@ -231,6 +243,10 @@ void STimingView::Reset()
 	GraphTrack->AddDefaultFrameSeries();
 	GraphTrack->SetVisibilityFlag(false);
 	AddTopDockedTrack(GraphTrack);
+
+	//////////////////////////////////////////////////
+
+	ExtensionOverlay->ClearChildren();
 
 	//////////////////////////////////////////////////
 
@@ -295,7 +311,7 @@ void STimingView::Reset()
 
 	LastSelectionType = ESelectionType::None;
 
-	TimeMarker = std::numeric_limits<double>::infinity();
+	SetTimeMarker(std::numeric_limits<double>::infinity());
 	bIsScrubbing = false;
 
 	//ThisGeometry
@@ -1353,10 +1369,9 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 void STimingView::AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
-	UE_LOG(TimingProfiler, Log, TEXT("New Top Docked Track (%d) : %s - %s (\"%s\")"),
+	UE_LOG(TimingProfiler, Log, TEXT("New Top Docked Track (%d) : %s (\"%s\")"),
 		TopDockedTracks.Num() + 1,
-		*Track->GetType().ToString(),
-		*Track->GetSubType().ToString(),
+		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
@@ -1369,10 +1384,9 @@ void STimingView::AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 void STimingView::AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
-	UE_LOG(TimingProfiler, Log, TEXT("New Bottom Docked Track (%d) : %s - %s (\"%s\")"),
+	UE_LOG(TimingProfiler, Log, TEXT("New Bottom Docked Track (%d) : %s (\"%s\")"),
 		BottomDockedTracks.Num() + 1,
-		*Track->GetType().ToString(),
-		*Track->GetSubType().ToString(),
+		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
@@ -1385,10 +1399,9 @@ void STimingView::AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 void STimingView::AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
-	UE_LOG(TimingProfiler, Log, TEXT("New Scrollable Track (%d) : %s - %s (\"%s\")"),
+	UE_LOG(TimingProfiler, Log, TEXT("New Scrollable Track (%d) : %s (\"%s\")"),
 		ScrollableTracks.Num() + 1,
-		*Track->GetType().ToString(),
-		*Track->GetSubType().ToString(),
+		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
@@ -1419,10 +1432,9 @@ void STimingView::UpdateScrollableTracksOrder()
 void STimingView::AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
-	UE_LOG(TimingProfiler, Log, TEXT("New Foreground Track (%d) : %s - %s (\"%s\")"),
+	UE_LOG(TimingProfiler, Log, TEXT("New Foreground Track (%d) : %s (\"%s\")"),
 		ForegroundTracks.Num() + 1,
-		*Track->GetType().ToString(),
-		*Track->GetSubType().ToString(),
+		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
@@ -1432,9 +1444,68 @@ void STimingView::AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FReply STimingView::AllowTracksToProcessOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonDown(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonDown(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonDown(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ForegroundTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonDown(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	FReply Reply = FReply::Unhandled();
+	FReply Reply = AllowTracksToProcessOnMouseButtonDown(MyGeometry, MouseEvent);
+	if (Reply.IsEventHandled())
+	{
+		return Reply;
+	}
 
 	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 	MousePosition = MousePositionOnButtonDown;
@@ -1446,11 +1517,6 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (MarkersTrack->IsVisible() && MarkersTrack->IsHeaderHovered())
-		{
-			MarkersTrack->ToggleCollapsed();
-		}
-
 		if (!bIsRMB_Pressed)
 		{
 			bIsLMB_Pressed = true;
@@ -1546,9 +1612,68 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FReply STimingView::AllowTracksToProcessOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonUp(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonUp(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonUp(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ForegroundTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonUp(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	FReply Reply = FReply::Unhandled();
+	FReply Reply = AllowTracksToProcessOnMouseButtonUp(MyGeometry, MouseEvent);
+	if (Reply.IsEventHandled())
+	{
+		return Reply;
+	}
 
 	MousePositionOnButtonUp = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 	MousePosition = MousePositionOnButtonUp;
@@ -1640,17 +1765,72 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FReply STimingView::AllowTracksToProcessOnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonDoubleClick(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonDoubleClick(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonDoubleClick(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ForegroundTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			FReply Reply = TrackPtr->OnMouseButtonDoubleClick(MyGeometry, MouseEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FReply STimingView::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	FReply Reply = FReply::Unhandled();
+	FReply Reply = AllowTracksToProcessOnMouseButtonDoubleClick(MyGeometry, MouseEvent);
+	if (Reply.IsEventHandled())
+	{
+		return Reply;
+	}
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (MarkersTrack->IsVisible() && MarkersTrack->IsHovered())
-		{
-			MarkersTrack->ToggleCollapsed();
-		}
-		else if (HoveredEvent.IsValid())
+		if (HoveredEvent.IsValid())
 		{
 			if (MouseEvent.GetModifierKeys().IsControlDown())
 			{
@@ -2093,6 +2273,11 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		ShowHideGraphTrack_Execute();
 		return FReply::Handled();
 	}
+	else if (InKeyEvent.GetKey() == EKeys::R) // debug: toggles Frame tracks on/off
+	{
+		FrameSharedState->ShowHideAllFrameTracks();
+		return FReply::Handled();
+	}
 	else if (InKeyEvent.GetKey() == EKeys::Y) // debug: toggles GPU track on/off
 	{
 		ThreadTimingSharedState->ShowHideAllGpuTracks();
@@ -2424,6 +2609,28 @@ void STimingView::RaiseTimeMarkerChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimingView::SetTimeMarker(double InMarkerTime)
+{ 
+	TimeMarker = InMarkerTime; 
+
+	RaiseTimeMarkerChanged();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::AddOverlayWidget(const TSharedRef<SWidget>& InWidget)
+{
+	if (ExtensionOverlay.IsValid())
+	{
+		ExtensionOverlay->AddSlot()
+		[
+			InWidget
+		];
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::UpdateAggregatedStats()
 {
 	if (bAssetLoadingMode)
@@ -2440,7 +2647,7 @@ void STimingView::UpdateAggregatedStats()
 
 void STimingView::SetAndCenterOnTimeMarker(double Time)
 {
-	TimeMarker = Time;
+	SetTimeMarker(Time);
 
 	double MinT, MaxT;
 	Viewport.GetHorizontalScrollLimits(MinT, MaxT);
@@ -2466,7 +2673,7 @@ void STimingView::SelectToTimeMarker(double Time)
 		SelectTimeInterval(Time, TimeMarker - Time);
 	}
 
-	TimeMarker = Time;
+	SetTimeMarker(Time);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

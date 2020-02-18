@@ -9,6 +9,15 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/Field.h"
 
+FORCEINLINE bool UseCircularDependencyLoadDeferring()
+{
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	return !GEventDrivenLoaderEnabled;
+#else
+	return false;
+#endif
+}
+
 /*******************************************************************************
  * FPlaceholderContainerTracker / FScopedPlaceholderPropertyTracker
  ******************************************************************************/
@@ -23,11 +32,28 @@
 struct FScopedPlaceholderContainerTracker
 {
 public:
-	FScopedPlaceholderContainerTracker(UObject* PerspectivePlaceholderReferencer);
-	~FScopedPlaceholderContainerTracker();
+	FScopedPlaceholderContainerTracker(UObject* InPlaceholderContainerCandidate)
+	: bEnabled(UseCircularDependencyLoadDeferring())
+	{
+		if (bEnabled)
+		{
+			Push(InPlaceholderContainerCandidate);
+		}
+	}
+	~FScopedPlaceholderContainerTracker()
+	{
+		if (bEnabled)
+		{
+			Pop();
+		}
+	}
 
 private:
+	const bool bEnabled;
 	UObject* PlaceholderReferencerCandidate;
+
+	void Push(UObject* InIntermediateProperty);
+	void Pop();
 };
 
 /** 
@@ -40,11 +66,29 @@ private:
 struct FScopedPlaceholderPropertyTracker
 {
 public:
-	 FScopedPlaceholderPropertyTracker(FFieldVariant IntermediateProperty);
-	~FScopedPlaceholderPropertyTracker();
+	 FScopedPlaceholderPropertyTracker(FFieldVariant InIntermediateProperty)
+		 : bEnabled(UseCircularDependencyLoadDeferring())
+	 {
+		if (bEnabled)
+		{
+			Push(InIntermediateProperty);
+		}
+	 }
+	
+	~FScopedPlaceholderPropertyTracker()
+	{
+		if (bEnabled)
+		{
+			Pop();
+		}
+	}
 
 private:
+	const bool bEnabled;
 	FFieldVariant IntermediateProperty;
+	
+	void Push(FFieldVariant InIntermediateProperty);
+	void Pop();
 };
 
 /*******************************************************************************

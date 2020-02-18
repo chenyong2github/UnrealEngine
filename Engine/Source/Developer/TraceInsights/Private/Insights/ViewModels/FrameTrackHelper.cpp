@@ -103,22 +103,38 @@ void FFrameTrackDrawHelper::DrawBackground() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLinearColor FFrameTrackDrawHelper::GetColorByFrameType(int32 FrameType)
+const TCHAR* FFrameTrackDrawHelper::FrameTypeToString(int32 FrameType)
 {
-	const float Alpha = 0.9f;
 	switch (FrameType)
 	{
-	case TraceFrameType_Game:
-		return FLinearColor(0.75, 1.0, 1.0, Alpha);
+	case TraceFrameType_Game:      return TEXT("Game");
+	case TraceFrameType_Rendering: return TEXT("Rendering");
+	default:                       return TEXT("Misc");
+	}
+}
 
-	case TraceFrameType_Rendering:
-		return FLinearColor(1.0, 0.75, 0.75, Alpha);
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	//case 2:
-	//	return FLinearColor(0.75, 0.75, 1.0, Alpha);
+uint32 FFrameTrackDrawHelper::GetColor32ByFrameType(int32 FrameType)
+{
+	switch (FrameType)
+	{
+	case TraceFrameType_Game	:	return 0xFF5555FF;
+	case TraceFrameType_Rendering:	return 0xFFFF5555;
+	default:						return 0xFF666666;
+	}
+}
 
-	default:
-		return FLinearColor(1.0, 1.0, 1.0, Alpha);
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLinearColor FFrameTrackDrawHelper::GetColorByFrameType(int32 FrameType)
+{
+	constexpr float Alpha = 0.9f;
+	switch (FrameType)
+	{
+	case TraceFrameType_Game:		return FLinearColor(0.75f, 1.0f, 1.0f, Alpha);
+	case TraceFrameType_Rendering:	return FLinearColor(1.0f, 0.75f, 0.75f, Alpha);
+	default:						return FLinearColor(1.0f, 1.0f, 1.0f, Alpha);
 	}
 }
 

@@ -5,11 +5,19 @@
 #include "GameplaySharedData.h"
 #include "AnimationSharedData.h"
 #include "UObject/WeakObjectPtr.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+#if WITH_EDITOR
+#include "SGameplayInsightsTransportControls.h"
+#include "Widgets/Layout/SBorder.h"
+#endif
 
 #if WITH_ENGINE
 #include "Engine/World.h"
 #include "Editor/EditorEngine.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "GameplayTimingViewExtender"
 
 void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& InSession)
 {
@@ -19,10 +27,32 @@ void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& I
 		PerSessionData = &PerSessionDataMap.Add(&InSession);
 		PerSessionData->GameplaySharedData = new FGameplaySharedData();
 		PerSessionData->AnimationSharedData = new FAnimationSharedData(*PerSessionData->GameplaySharedData);
-	}
 
-	PerSessionData->GameplaySharedData->OnBeginSession(InSession);
-	PerSessionData->AnimationSharedData->OnBeginSession(InSession);
+		PerSessionData->GameplaySharedData->OnBeginSession(InSession);
+		PerSessionData->AnimationSharedData->OnBeginSession(InSession);
+
+#if WITH_EDITOR
+		InSession.AddOverlayWidget(
+			SNew(SOverlay)
+			.Visibility(EVisibility::SelfHitTestInvisible)
+			+SOverlay::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Bottom)
+			.Padding(20.0f)
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+				[
+					SAssignNew(PerSessionData->TransportControls, SGameplayInsightsTransportControls, *PerSessionData->GameplaySharedData)
+				]
+			]);
+#endif
+	}
+	else
+	{
+		PerSessionData->GameplaySharedData->OnBeginSession(InSession);
+		PerSessionData->AnimationSharedData->OnBeginSession(InSession);
+	}
 }
 
 void FGameplayTimingViewExtender::OnEndSession(Insights::ITimingViewSession& InSession)
@@ -37,6 +67,9 @@ void FGameplayTimingViewExtender::OnEndSession(Insights::ITimingViewSession& InS
 		PerSessionData->GameplaySharedData = nullptr;
 		delete PerSessionData->AnimationSharedData;
 		PerSessionData->AnimationSharedData = nullptr;
+#if WITH_EDITOR
+		PerSessionData->TransportControls.Reset();
+#endif
 	}
 
 	PerSessionDataMap.Remove(&InSession);
@@ -112,3 +145,5 @@ void FGameplayTimingViewExtender::GetCustomDebugObjects(const IAnimationBlueprin
 }
 
 #endif
+
+#undef LOCTEXT_NAMESPACE

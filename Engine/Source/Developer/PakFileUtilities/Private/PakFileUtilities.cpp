@@ -4858,12 +4858,6 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 			return false;
 		}
 
-		if (Entries.Num() == 0)
-		{
-			UE_LOG(LogPakFile, Error, TEXT("No files specified to add to pak file."));
-			return false;
-		}
-
 		int32 LowestSourcePakVersion = 0;
 		TMap<FString, FFileInfo> SourceFileHashes;
 

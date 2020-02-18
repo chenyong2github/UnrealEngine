@@ -245,14 +245,14 @@ void* FLinkerPlaceholderObjectImpl::FindRawPlaceholderContainer(const FLinkerPla
  ******************************************************************************/
 
 //------------------------------------------------------------------------------
-FScopedPlaceholderContainerTracker::FScopedPlaceholderContainerTracker(UObject* InPlaceholderContainerCandidate)
-	: PlaceholderReferencerCandidate(InPlaceholderContainerCandidate)
+void FScopedPlaceholderContainerTracker::Push(UObject* InPlaceholderContainerCandidate)
 {
+	PlaceholderReferencerCandidate = InPlaceholderContainerCandidate;
 	FPlaceholderContainerTracker::Get().PerspectiveReferencerStack.Add(InPlaceholderContainerCandidate);
 }
 
 //------------------------------------------------------------------------------
-FScopedPlaceholderContainerTracker::~FScopedPlaceholderContainerTracker()
+void FScopedPlaceholderContainerTracker::Pop()
 {
 	UObject* StackTop = FPlaceholderContainerTracker::Get().PerspectiveReferencerStack.Pop();
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
@@ -275,8 +275,7 @@ FScopedPlaceholderRawContainerTracker::~FScopedPlaceholderRawContainerTracker()
 }
 
 //------------------------------------------------------------------------------
-FScopedPlaceholderPropertyTracker::FScopedPlaceholderPropertyTracker(FFieldVariant InIntermediateProperty)
-	: IntermediateProperty() // leave null, as a sentinel value (implying that PerspectiveReferencerStack was empty)
+void FScopedPlaceholderPropertyTracker::Push(FFieldVariant InIntermediateProperty)
 {
 	FPlaceholderContainerTracker& ContainerRepository = FPlaceholderContainerTracker::Get();
 	if (ContainerRepository.PerspectiveReferencerStack.Num() > 0 || ContainerRepository.PerspectiveRootDataStack.Num() > 0)
@@ -291,7 +290,7 @@ FScopedPlaceholderPropertyTracker::FScopedPlaceholderPropertyTracker(FFieldVaria
 }
 
 //------------------------------------------------------------------------------
-FScopedPlaceholderPropertyTracker::~FScopedPlaceholderPropertyTracker()
+void FScopedPlaceholderPropertyTracker::Pop()
 {
 	FPlaceholderContainerTracker& ContainerRepository = FPlaceholderContainerTracker::Get();
 	if (IntermediateProperty.IsValid())

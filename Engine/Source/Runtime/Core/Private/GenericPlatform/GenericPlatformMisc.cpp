@@ -483,6 +483,12 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 		CurrentProfiler->StartScopedEvent(ANSI_TO_TCHAR(Text));
 	}
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 }
 
 void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text)
@@ -496,6 +502,12 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 		CurrentProfiler->StartScopedEvent(Text);
 	}
 #endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
+	}
+#endif
 }
 
 void FGenericPlatformMisc::EndNamedEvent()
@@ -507,6 +519,12 @@ void FGenericPlatformMisc::EndNamedEvent()
 	if (CurrentProfiler != NULL)
 	{
 		CurrentProfiler->EndScopedEvent();
+	}
+#endif
+#if CPUPROFILERTRACE_ENABLED
+	if (CpuChannel)
+	{
+		FCpuProfilerTrace::OutputEndEvent();
 	}
 #endif
 }

@@ -11,27 +11,25 @@
 #define LOCTEXT_NAMESPACE "TimingEventsTrack"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FTimingEvent, FTimingEventFilter
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FName FTimingEvent::TypeName = FName(TEXT("FTimingEvent"));
-const FName FTimingEventFilter::TypeName = FName(TEXT("FTimingEventFilter"));
-
-bool FTimingEventFilter::FilterTrack(const FBaseTimingTrack& InTrack) const
-{
-	return !bFilterByTrackType || InTrack.GetType() == TrackType;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// FTimingEventsTrack
-////////////////////////////////////////////////////////////////////////////////////////////////////
+INSIGHTS_IMPLEMENT_RTTI(FTimingEventsTrack)
 
 bool FTimingEventsTrack::bUseDownSampling = true;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingEventsTrack::FTimingEventsTrack(const FName& InType, const FName& InSubType, const FString& InName)
-	: FBaseTimingTrack(InType, InSubType, InName)
+FTimingEventsTrack::FTimingEventsTrack()
+	: FBaseTimingTrack()
+	, NumLanes(0)
+	, DrawState(MakeShared<FTimingEventsTrackDrawState>())
+	, FilteredDrawState(MakeShared<FTimingEventsTrackDrawState>())
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTimingEventsTrack::FTimingEventsTrack(const FString& InName)
+	: FBaseTimingTrack(InName)
 	, NumLanes(0)
 	, DrawState(MakeShared<FTimingEventsTrackDrawState>())
 	, FilteredDrawState(MakeShared<FTimingEventsTrackDrawState>())
@@ -247,6 +245,23 @@ void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, cons
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTimingEventsTrack::DrawMarkers(const ITimingTrackDrawContext& Context, float LineY, float LineH) const
+{
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
+
+	if (Context.GetEventFilter().IsValid())
+	{
+		Helper.DrawMarkers(*DrawState, LineY, LineH, 0.2f);
+		Helper.DrawMarkers(*FilteredDrawState, LineY, LineH, 0.75f * FilteredDrawStateInfo.Opacity);
+	}
+	else
+	{
+		Helper.DrawMarkers(*DrawState, LineY, LineH, 0.2f);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 int32 FTimingEventsTrack::GetHeaderBackgroundLayerId(const ITimingTrackDrawContext& Context) const
 {
 	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
@@ -273,9 +288,9 @@ void FTimingEventsTrack::DrawHeader(const ITimingTrackDrawContext& Context) cons
 
 void FTimingEventsTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimingEvent& InTimingEvent, EDrawEventMode InDrawMode) const
 {
-	if (InTimingEvent.CheckTrack(this) && FTimingEvent::CheckTypeName(InTimingEvent))
+	if (InTimingEvent.CheckTrack(this) && InTimingEvent.Is<FTimingEvent>())
 	{
-		const FTimingEvent& TrackEvent = static_cast<const FTimingEvent&>(InTimingEvent);
+		const FTimingEvent& TrackEvent = InTimingEvent.As<FTimingEvent>();
 		const FTimingViewLayout& Layout = Context.GetViewport().GetLayout();
 		const float Y = TrackEvent.GetTrack()->GetPosY() + Layout.GetLaneY(TrackEvent.GetDepth());
 
@@ -316,14 +331,10 @@ const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(float InPosX, 
 
 TSharedPtr<ITimingEventFilter> FTimingEventsTrack::GetFilterByEvent(const TSharedPtr<const ITimingEvent> InTimingEvent) const
 {
-	if (InTimingEvent.IsValid() && FTimingEvent::CheckTypeName(*InTimingEvent))
+	if (InTimingEvent.IsValid() && InTimingEvent->Is<FTimingEvent>())
 	{
-		const FTimingEvent& Event = *StaticCastSharedPtr<const FTimingEvent, const ITimingEvent>(InTimingEvent);
-
-		TSharedRef<FTimingEventFilter> EventFilterRef = MakeShared<FTimingEventFilter>();
-		EventFilterRef->SetFilterByEventType(true);
-		EventFilterRef->SetEventType(Event.GetType());
-
+		const FTimingEvent& Event = InTimingEvent->As<FTimingEvent>();
+		TSharedRef<FTimingEventFilter> EventFilterRef = MakeShared<FTimingEventFilterByEventType>(Event.GetType());
 		return EventFilterRef;
 	}
 	return nullptr;

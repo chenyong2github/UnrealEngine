@@ -21,7 +21,21 @@ class IFileCacheHandle
 public:
 	static void EvictAll();
 
-	static IFileCacheHandle *CreateFileCacheHandle(const TCHAR* InFileName);
+	/** 
+	 * Create a IFileCacheHandle from a filename.
+	 * @param	InFileName			A path to a file.
+	 * @return	A IFileCacheHandle that can be used to make read requests. This will be a nullptr if the target file can not be accessed 
+	 *			for any given reason.
+	 */
+	static IFileCacheHandle* CreateFileCacheHandle(const TCHAR* InFileName);
+
+	/**
+	 * Create a IFileCacheHandle from a IAsyncReadFileHandle.
+	 * @param	FileHandle			A valid IAsyncReadFileHandle that has already been created elsewhere.	
+	 * @return	A IFileCacheHandle that can be used to make read requests. This will be a nullptr if the FileHandle was not valid.
+	 */
+	static IFileCacheHandle* CreateFileCacheHandle(IAsyncReadFileHandle* FileHandle);
+
 	virtual ~IFileCacheHandle() {};
 
 	/** Return size of underlying file cache in bytes. */

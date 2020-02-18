@@ -232,6 +232,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "ObjectTrace.h"
 #include "Animation/AnimTrace.h"
 #include "StudioAnalytics.h"
+#include "TraceFilter.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
@@ -269,17 +270,17 @@ void FEngineModule::StartupModule()
 	USkinnedMeshComponent::BindWorldDelegates();
 #endif
 
-#if OBJECT_TRACE_ENABLED
-	FObjectTrace::Init();
-#endif
-
-#if ANIM_TRACE_ENABLED
-	FAnimTrace::Init();
+#if TRACE_FILTERING_ENABLED
+	FTraceFilter::Init();
 #endif
 }
 
 void FEngineModule::ShutdownModule()
 {
+#if TRACE_FILTERING_ENABLED
+	FTraceFilter::Destroy();
+#endif
+
 	FParticleSystemWorldManager::OnShutdown();
 }
 

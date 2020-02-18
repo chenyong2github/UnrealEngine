@@ -8,14 +8,15 @@
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "GameplaySharedData.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
+#include "TraceServices/Model/Frames.h"
+#include "VariantTreeNode.h"
 
 #define LOCTEXT_NAMESPACE "ObjectEventsTrack"
 
-const FName FObjectEventsTrack::TypeName(TEXT("Events"));
-const FName FObjectEventsTrack::SubTypeName(TEXT("Gameplay.ObjectEvents"));
+INSIGHTS_IMPLEMENT_RTTI(FObjectEventsTrack)
 
 FObjectEventsTrack::FObjectEventsTrack(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, TypeName, SubTypeName, MakeTrackName(InSharedData, InObjectID, InName))
+	: FGameplayTimingEventsTrack(InSharedData, InObjectID, MakeTrackName(InSharedData, InObjectID, InName))
 	, SharedData(InSharedData)
 {
 }
@@ -120,6 +121,33 @@ FText FObjectEventsTrack::MakeTrackName(const FGameplaySharedData& InSharedData,
 	}
 
 	return FText::Format(LOCTEXT("ObjectEventsTrackName", "{0} - {1}"), ClassName, FText::FromString(InName));
+}
+
+void FObjectEventsTrack::GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
+{
+	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+	if(GameplayProvider)
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData.GetAnalysisSession());
+
+		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName())));
+
+		// object events
+		GameplayProvider->ReadObjectEventsTimeline(GetGameplayTrack().GetObjectId(), [&InTime, &FramesProvider, &Header](const FGameplayProvider::ObjectEventsTimeline& InTimeline)
+		{
+			// round to nearest frame boundary
+			Trace::FFrame Frame;
+			if(FramesProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, InTime, Frame))
+			{
+				InTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [&Header](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
+				{
+					Header->AddChild(FVariantTreeNode::MakeFloat(FText::FromString(InMessage.Name), InStartTime));
+				});
+			}
+		});
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

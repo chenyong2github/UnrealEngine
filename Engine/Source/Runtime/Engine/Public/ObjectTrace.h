@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Trace/Config.h"
 
-#if !IS_PROGRAM && !UE_BUILD_SHIPPING
+#if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define OBJECT_TRACE_ENABLED 1
 #else
 #define OBJECT_TRACE_ENABLED 0

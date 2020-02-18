@@ -208,6 +208,7 @@ class FFeedbackContext;
 #if defined(WITH_LAUNCHERCHECK) && WITH_LAUNCHERCHECK
 	#include "ILauncherCheckModule.h"
 #endif
+#include <String/ParseTokens.h>
 
 #if WITH_COREUOBJECT
 	#ifndef USE_LOCALIZED_PACKAGE_CACHE
@@ -1312,12 +1313,37 @@ DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STA
 
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
-	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
-	TRACE_CPUPROFILER_INIT(CmdLine);
-	TRACE_PLATFORMFILE_INIT(CmdLine);
-	TRACE_COUNTERS_INIT(CmdLine);
+#if UE_TRACE_ENABLED
+	{
+		Trace::Initialize();
+
+		FString EnabledChannels;
+		FParse::Value(CmdLine, TEXT("-trace="), EnabledChannels, false);
+		UE::String::ParseTokens(EnabledChannels, TEXT(","), [](FStringView Token) {
+			TCHAR ChannelName[64];
+			const size_t ChannelNameSize = Token.CopyString(ChannelName, 64);
+			ChannelName[ChannelNameSize] = '\0';
+			Trace::ToggleChannel(ChannelName, true);
+		});
+
+		TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
+		TRACE_CPUPROFILER_INIT(CmdLine);
+		TRACE_PLATFORMFILE_INIT(CmdLine);
+		TRACE_COUNTERS_INIT(CmdLine);
+	}
+#endif
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
+
+	// The GLog singleton is lazy initialised and by default will assume that
+	// its "master thread" is the one it was created on. This lazy initialisation
+	// can happen during the dynamic init (e.g. static) of a DLL which modern
+	// Windows does on a worker thread thus makeing its master thread not this one.
+	// So we make it this one and GLog->TearDown() is happy.
+	if (GLog != nullptr)
+	{
+		GLog->SetCurrentThreadAsMasterThread();
+	}
 
 	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
 #if UE_BUILD_DEVELOPMENT && defined(UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME) && UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME
@@ -1345,14 +1371,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
 		uint8 CommandLineOffset = AddToPayload(CmdLine);
 
-		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important|Always)
+		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
 			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
 			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
 			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
 			UE_TRACE_EVENT_FIELD(uint8, TargetType)
 		UE_TRACE_EVENT_END()
 
-		UE_TRACE_LOG(Diagnostics, Session, PayloadSize)
+		UE_TRACE_LOG(Diagnostics, Session, TraceLogChannel, PayloadSize)
 			<< Session.AppNameOffset(AppNameOffset)
 			<< Session.CommandLineOffset(CommandLineOffset)
 			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
@@ -1417,19 +1443,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		{
 			Trace::WriteTo(*Parameter);
 		}
-
-#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
-		else
-		{
-			// If we can detect a named event then we can try and auto-connect to UnrealInsights.
-			HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
-			if (KnownEvent != nullptr)
-			{
-				Trace::SendTo(TEXT("127.0.0.1"));
-				::CloseHandle(KnownEvent);
-			}
-		}
-#endif // PLATFORM_WINDOWS
 	}
 
 #if WITH_ENGINE
@@ -1589,6 +1602,35 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		SCOPED_BOOT_TIMING("BeginPreInitTextLocalization");
 		BeginPreInitTextLocalization();
 	}
+
+#if !(IS_PROGRAM || WITH_EDITOR)
+	// Initialize I/O dispatcher if available
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
+		FIoStoreEnvironment IoStoreEnvironment;
+		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("global"));
+		bool bEnableIoDispatcher = false;
+		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
+		{
+			bEnableIoDispatcher = true;
+		}
+#if !UE_BUILD_SHIPPING
+		if (FParse::Param(CmdLine, TEXT("forceiodispatcher")))
+		{
+			bEnableIoDispatcher = true;
+		}
+		else if (FParse::Param(CmdLine, TEXT("noiodispatcher")))
+		{
+			bEnableIoDispatcher = false;
+		}
+#endif
+		if (bEnableIoDispatcher)
+		{
+			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
+			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
+		}
+	}
+#endif
 
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
@@ -1842,6 +1884,19 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	bHasEditorToken = false;
 #endif
 #endif	//UE_EDITOR
+
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
+	if (!bHasEditorToken)
+	{
+		// If we can detect a named event then we can try and auto-connect to UnrealInsights.
+		HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
+		if (KnownEvent != nullptr)
+		{
+			Trace::SendTo(TEXT("127.0.0.1"));
+			::CloseHandle(KnownEvent);
+		}
+	}
+#endif // PLATFORM_WINDOWS
 
 #if !UE_BUILD_SHIPPING
 	// Benchmarking.
@@ -4403,15 +4458,26 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 		IssueScalableLongGPUTask(RHICmdList);
 	}
 #endif
-	FString FrameString = FString::Printf(TEXT("Frame %d"), CurrentFrameCounter);
+
 #if ENABLE_NAMED_EVENTS
+	TCHAR IndexedFrameString[32] = { 0 };
+	const TCHAR* FrameString = nullptr;
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+	{
+		FrameString = TEXT("Frame");
+	}
+	else
+	{
 #if PLATFORM_LIMIT_PROFILER_UNIQUE_NAMED_EVENTS
-	FPlatformMisc::BeginNamedEvent(FColor::Yellow, TEXT("Frame"));
+		FrameString = TEXT("Frame");
 #else
-	FPlatformMisc::BeginNamedEvent(FColor::Yellow, *FrameString);
+		FCString::Snprintf(IndexedFrameString, 32, TEXT("Frame %d"), CurrentFrameCounter);
+		FrameString = IndexedFrameString;
 #endif
+	}
+	FPlatformMisc::BeginNamedEvent(FColor::Yellow, FrameString);
 #endif // ENABLE_NAMED_EVENTS
-	RHICmdList.PushEvent(*FrameString, FColor::Green);
+	RHICmdList.PushEvent(FrameString, FColor::Green);
 #endif // !UE_BUILD_SHIPPING
 
 	GPU_STATS_BEGINFRAME(RHICmdList);
@@ -4478,11 +4544,22 @@ void FEngineLoop::Tick()
 
 	uint64 CurrentFrameCounter = GFrameCounter;
 
+	TCHAR IndexedFrameString[32] = { 0 };
+	const TCHAR* FrameString = nullptr;
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+	{
+		FrameString = TEXT("FEngineLoop");
+	}
+	else
+	{
 #if PLATFORM_LIMIT_PROFILER_UNIQUE_NAMED_EVENTS
-	SCOPED_NAMED_EVENT(FEngineLoopTick, FColor::Red);
+		FrameString = TEXT("FEngineLoop");
 #else
-	SCOPED_NAMED_EVENT_F(TEXT("Frame %d"), FColor::Red, CurrentFrameCounter);
+		FCString::Snprintf(IndexedFrameString, 32, TEXT("Frame %d"), CurrentFrameCounter);
+		FrameString = IndexedFrameString;
 #endif
+	}
+	SCOPED_NAMED_EVENT_TCHAR(FrameString, FColor::Red);
 
 	// execute callbacks for cvar changes
 	{
@@ -5510,22 +5587,6 @@ bool FEngineLoop::AppInit( )
 
 	FEmbeddedCommunication::ForceTick(18);
 
-#if !(IS_PROGRAM || WITH_EDITOR)
-	// Initialize I/O dispatcher if available
-	if (!FParse::Param(FCommandLine::Get(), TEXT("noiodispatcher")))
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
-
-		FIoStoreEnvironment IoStoreEnvironment;
-		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("Content") / TEXT("Containers"));
-		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
-		{
-			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize(IoStoreEnvironment);
-			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
-		}
-	}
-#endif
-
 	// Init other systems.
 	{
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnInit.Broadcast");
@@ -5598,15 +5659,15 @@ void FEngineLoop::AppPreExit( )
 		GShaderCompilerStats = nullptr;
 	}
 #endif
+
+#if !(IS_PROGRAM || WITH_EDITOR)
+	FIoDispatcher::Shutdown();
+#endif
 }
 
 
 void FEngineLoop::AppExit( )
 {
-#if !(IS_PROGRAM || WITH_EDITOR)
-	FIoDispatcher::Shutdown();
-#endif
-
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();

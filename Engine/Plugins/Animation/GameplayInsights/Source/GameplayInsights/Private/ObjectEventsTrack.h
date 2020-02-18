@@ -9,18 +9,18 @@ class FGameplaySharedData;
 struct FObjectEventMessage;
 class FTimingEventSearchParameters;
 
-class FObjectEventsTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+class FObjectEventsTrack : public FGameplayTimingEventsTrack
 {
-public:
-	static const FName TypeName;
-	static const FName SubTypeName;
+	INSIGHTS_DECLARE_RTTI(FObjectEventsTrack, FGameplayTimingEventsTrack)
 
+public:
 	FObjectEventsTrack(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const override;
 	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
+	virtual void GetVariantsAtTime(double InTime, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 
 private:
 	// Helper function used to find an object event

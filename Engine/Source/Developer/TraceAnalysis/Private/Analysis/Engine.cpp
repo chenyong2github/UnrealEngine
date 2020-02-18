@@ -58,6 +58,7 @@ struct FAnalysisEngine::FDispatch
 	{
 		Flag_Important		= 1 << 0,
 		Flag_MaybeHasAux	= 1 << 1,
+		Flag_NoSync			= 1 << 2,
 	};
 
 	struct FField
@@ -111,6 +112,7 @@ public:
 	void				SetEventName(const ANSICHAR* Name, int32 NameSize=-1);
 	void				SetImportant();
 	void				SetMaybeHasAux();
+	void				SetNoSync();
 	FDispatch::FField&	AddField(const ANSICHAR* Name, int32 NameSize, uint16 Size);
 	FDispatch*			Finalize();
 
@@ -192,6 +194,13 @@ void FAnalysisEngine::FDispatchBuilder::SetMaybeHasAux()
 {
 	auto* Dispatch = (FDispatch*)(Buffer.GetData());
 	Dispatch->Flags |= FDispatch::Flag_MaybeHasAux;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::FDispatchBuilder::SetNoSync()
+{
+	auto* Dispatch = (FDispatch*)(Buffer.GetData());
+	Dispatch->Flags |= FDispatch::Flag_NoSync;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -332,7 +341,7 @@ uint32 IAnalyzer::FArrayReader::Num() const
 	const auto* Inner = (const FAuxData*)this;
 	int32 SizeAndType = Inner->FieldSizeAndType;
 	SizeAndType = (SizeAndType < 0) ? -SizeAndType : SizeAndType;
-	return Inner->DataSize / SizeAndType;
+	return (SizeAndType == 0) ? SizeAndType : (Inner->DataSize / SizeAndType);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -442,6 +451,8 @@ enum ERouteId : uint16
 	RouteId_NewEvent,
 	RouteId_NewTrace,
 	RouteId_Timing,
+	RouteId_ChannelAnnounce,
+	RouteId_ChannelToggle,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -463,10 +474,17 @@ FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers)
 	AddRoute(SelfIndex, RouteId_NewEvent, RouteHash_NewEvent);
 	AddRoute(SelfIndex, RouteId_NewTrace, "$Trace", "NewTrace");
 	AddRoute(SelfIndex, RouteId_Timing, "$Trace", "Timing");
+	AddRoute(SelfIndex, RouteId_ChannelAnnounce, "$Trace", "ChannelAnnounce");
+	AddRoute(SelfIndex, RouteId_ChannelToggle, "$Trace", "ChannelToggle");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisEngine::~FAnalysisEngine()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::End()
 {
 	for (IAnalyzer* Analyzer : Analyzers)
 	{
@@ -533,9 +551,11 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
 	switch (RouteId)
 	{
-	case RouteId_NewEvent:	OnNewEventInternal(Context);	break;
-	case RouteId_NewTrace:	OnNewTrace(Context);			break;
-	case RouteId_Timing:	OnTiming(Context);				break;
+	case RouteId_NewEvent:			OnNewEventInternal(Context);		break;
+	case RouteId_NewTrace:			OnNewTrace(Context);				break;
+	case RouteId_Timing:			OnTiming(Context);					break;
+	case RouteId_ChannelAnnounce:	OnChannelAnnounceInternal(Context);	break;
+	case RouteId_ChannelToggle:		OnChannelToggleInternal(Context);	break;
 	}
 
 	return true;
@@ -763,6 +783,11 @@ void FAnalysisEngine::OnNewEventProtocol1(FDispatchBuilder& Builder, const void*
 	{
 		Builder.SetMaybeHasAux();
 	}
+
+	if (NewEvent.Flags & int(Protocol1::EEventFlags::NoSync))
+	{
+		Builder.SetNoSync();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -967,7 +992,8 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 		uint16 Uid = Header->Uid & uint16(Protocol2::EKnownEventUids::UidMask);
 		if (Uid >= Dispatches.Num())
 		{
-			return -1;
+			// We don't know about this event yet
+			break;
 		}
 
 		const FDispatch* Dispatch = Dispatches[Uid];
@@ -977,9 +1003,12 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 		}
 
 		uint32 BlockSize = Header->Size;
-		
-		switch (ProtocolVersion)
+
+		// Make sure we consume events in the correct order
+		if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
 		{
+			switch (ProtocolVersion)
+			{
 			case Protocol1::EProtocol::Id:
 				{
 					const auto* HeaderV1 = (Protocol1::FEventHeader*)Header;
@@ -993,14 +1022,20 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 
 			case Protocol2::EProtocol::Id:
 				{
-					uint32 EventSerial = Header->SerialLow|(uint32(Header->SerialHigh) << 16);
+					const auto* HeaderSync = (Protocol2::FEventHeaderSync*)Header;
+					uint32 EventSerial = HeaderSync->SerialLow|(uint32(HeaderSync->SerialHigh) << 16);
 					if (EventSerial != (NextLogSerial & 0x00ffffff))
 					{
 						return EventCount;
 					}
-					BlockSize += sizeof(*Header);
+					BlockSize += sizeof(*HeaderSync);
 				}
 				break;
+			}
+		}
+		else
+		{
+			BlockSize += sizeof(*Header);
 		}
 
 		if (Reader.GetPointer(BlockSize) == nullptr)
@@ -1019,13 +1054,12 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 				Reader.RestoreMark(Mark);
 				break;
 			}
-			else if (AuxStatus < 0)
-			{
-				return -1;
-			}
 		}
 
-		++NextLogSerial;
+		if ((Dispatch->Flags & FDispatch::Flag_NoSync) == 0)
+		{
+			++NextLogSerial;
+		}
 
 		FEventDataInfo EventDataInfo = {
 			*Dispatch,
@@ -1090,6 +1124,30 @@ int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollect
 		Collector.Push(AuxData);
 
 		Reader.Advance(BlockSize);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnChannelAnnounceInternal(const FOnEventContext& Context)
+{
+	const ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
+	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnChannelToggleInternal(const FOnEventContext& Context)
+{
+	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+	const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
+
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		Analyzer->OnChannelToggle(ChannelId, bEnabled);
 	}
 }
 

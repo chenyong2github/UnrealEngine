@@ -9,7 +9,6 @@ public class TraceServices : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"Sockets",
 				"TraceAnalysis",
 			});
 

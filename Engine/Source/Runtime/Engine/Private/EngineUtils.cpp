@@ -20,6 +20,9 @@
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 #include "EngineModule.h"
+#include "Engine/AssetManager.h"
+#include "Misc/PathViews.h"
+#include "IO/IoDispatcher.h"
 
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -275,29 +278,57 @@ bool EngineUtils::FindOrLoadAssetsByPath(const FString& Path, TArray<UObject*>& 
 		return false;
 	}
 
-	// Convert the package path to a filename with no extension (directory)
-	const FString FilePath = FPackageName::LongPackageNameToFilename(Path);
+	using FPackageNames = TArray<FName, TInlineAllocator<16>>;
 
-	// Gather the package files in that directory and subdirectories
-	TArray<FString> Filenames;
-	FPackageName::FindPackagesInDirectory(Filenames, FilePath);
-
-	// Cull out map files
-	for (int32 FilenameIdx = Filenames.Num() - 1; FilenameIdx >= 0; --FilenameIdx)
+	auto GetPackageNamesFromPath = [](const FString& InPath, FPackageNames& OutPackageNames)
 	{
-		const FString Extension = FPaths::GetExtension(Filenames[FilenameIdx], true);
-		if ( Extension == FPackageName::GetMapPackageExtension() )
+		// There is no filesystem support for packages when using the I/O dispatcher
+		if (FIoDispatcher::IsInitialized())
 		{
-			Filenames.RemoveAt(FilenameIdx);
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+			TArray<FAssetData> Assets;
+			AssetRegistry.GetAssetsByPath(FName(*InPath), Assets, true);
+
+			for (const FAssetData& Asset : Assets)
+			{
+				// Cull packages containing maps
+				if ((Asset.PackageFlags & PKG_ContainsMap) != PKG_ContainsMap)
+				{
+					OutPackageNames.Emplace(Asset.PackageName);
+				}
+			}
 		}
-	}
+		else
+		{
+			// Convert the package path to a filename with no extension (directory)
+			const FString FilePath = FPackageName::LongPackageNameToFilename(InPath);
 
-	// Load packages or find existing ones and fully load them
-	for (int32 FileIdx = 0; FileIdx < Filenames.Num(); ++FileIdx)
+			// Gather the package files in that directory and subdirectories
+			TArray<FString> Filenames;
+			FPackageName::FindPackagesInDirectory(Filenames, FilePath);
+
+			// Cull out map files
+			for (const FString& Filename : Filenames)
+			{
+				FStringView Extension = FPathViews::GetExtension(Filename, true);
+				if (Extension != FPackageName::GetMapPackageExtension())
+				{
+					OutPackageNames.Emplace(*FPackageName::FilenameToLongPackageName(Filename));
+				}
+			}
+		}
+	};
+
+	FPackageNames PackageNames;
+	GetPackageNamesFromPath(Path, PackageNames);
+	TCHAR PackageName[FName::StringBufferSize];
+
+	for (const FName& Name : PackageNames)
 	{
-		const FString& Filename = Filenames[FileIdx];
-
-		UPackage* Package = FindPackage(NULL, *FPackageName::FilenameToLongPackageName(Filename));
+		Name.ToString(PackageName);
+		UPackage* Package = FindPackage(NULL, PackageName);
 
 		if (Package)
 		{
@@ -305,7 +336,7 @@ bool EngineUtils::FindOrLoadAssetsByPath(const FString& Path, TArray<UObject*>& 
 		}
 		else
 		{
-			Package = LoadPackage(NULL, *Filename, LOAD_None);
+			Package = LoadPackage(NULL, PackageName, LOAD_None);
 		}
 
 		if (Package)

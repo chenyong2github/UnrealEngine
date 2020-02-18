@@ -2233,7 +2233,7 @@ public:
 	template<typename EnumType>
 	FORCEINLINE static FName GetValueAsName(const TEnumAsByte<EnumType> EnumeratorValue)
 	{
-		return GetValueAsName((int64)EnumeratorValue.GetValue());
+		return GetValueAsName(EnumeratorValue.GetValue());
 	}
 
 	template<typename EnumType>
@@ -2258,7 +2258,7 @@ public:
 	template<typename EnumType>
 	FORCEINLINE static FString GetValueAsString(const TEnumAsByte<EnumType> EnumeratorValue)
 	{
-		return GetValueAsString((int64)EnumeratorValue.GetValue());
+		return GetValueAsString(EnumeratorValue.GetValue());
 	}
 
 	template<typename EnumType>
@@ -2286,7 +2286,7 @@ public:
 	template<typename EnumType>
 	FORCEINLINE static FText GetDisplayValueAsText(const TEnumAsByte<EnumType> EnumeratorValue)
 	{
-		return GetDisplayValueAsText((int64)EnumeratorValue.GetValue());
+		return GetDisplayValueAsText(EnumeratorValue.GetValue());
 	}
 
 	template<typename EnumType>

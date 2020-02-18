@@ -18,13 +18,16 @@ class AActor;
 class USkeletalMeshComponent;
 class UAnimInstance;
 
-class FAnimNodesTrack : public TGameplayTrackMixin<FTimingEventsTrack>
+class FAnimNodesTrack : public FGameplayTimingEventsTrack
+#if WITH_ENGINE
+	, public FGCObject
+#endif
 {
-public:
-	static const FName TypeName;
-	static const FName SubTypeName;
+	INSIGHTS_DECLARE_RTTI(FAnimNodesTrack, FGameplayTimingEventsTrack)
 
+public:
 	FAnimNodesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
+	~FAnimNodesTrack();
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
@@ -38,6 +41,16 @@ public:
 
 	// Get custom debug objects for integration with anim blueprint debugging
 	void GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList);
+#endif
+
+#if WITH_ENGINE
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("InsightsAnimNodesTrack"); }
+
+	// Handle worlds being torn down
+	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+	void RemoveWorld(UWorld* InWorld);
 #endif
 
 private:
@@ -54,9 +67,16 @@ private:
 
 #if WITH_EDITOR
 	/** Instance class, if any, used for instantiating debug info */
-	TWeakObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
+	TSoftObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
 
 	/** Data used for anim BP debugging */
 	UAnimInstance* AnimInstance;
+#endif
+
+#if WITH_ENGINE
+	/** Handles used to deal with world switching */
+	FDelegateHandle OnWorldCleanupHandle;
+	FDelegateHandle OnWorldBeginTearDownHandle;
+	FDelegateHandle OnPreWorldFinishDestroyHandle;
 #endif
 };

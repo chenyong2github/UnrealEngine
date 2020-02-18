@@ -4,6 +4,9 @@
 #include "HAL/IConsoleManager.h"
 #include "UObject/UnrealType.h"
 #include "Misc/App.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCoreSettings, Log, All);
 
@@ -157,6 +160,20 @@ void UStreamingSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	if (PropertyChangedEvent.Property)
 	{
 		ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
+
+		bool bDisableEDLWarning = false;
+		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.DisableEDLDeprecationWarnings"), /* out */ bDisableEDLWarning, GEngineIni);
+
+		if (PropertyChangedEvent.Property->GetFName() == NAME_EventDrivenLoaderEnabled && !EventDrivenLoaderEnabled && !bDisableEDLWarning)
+		{
+			FNotificationInfo Info(NSLOCTEXT("CoreSettings", "EventDrivenLoaderDisabled", "Disabling the Event Driven Loader will result in using deprecated loading path"));
+			Info.bFireAndForget = true;
+			Info.bUseLargeFont = true;
+			Info.bUseThrobber = false;
+			Info.bUseSuccessFailIcons = false;
+			Info.ExpireDuration = 3.0f;
+			FSlateNotificationManager::Get().AddNotification(Info);
+		}
 	}
 }
 #endif // #if WITH_EDITOR

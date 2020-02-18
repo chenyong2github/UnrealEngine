@@ -31,6 +31,7 @@ private:
 	Trace::FTimingProfilerProvider& TimingProfilerProvider;
 	Trace::FTimingProfilerProvider::TimelineInternal& Timeline;
 	TMap<uint64, uint32> EventTypeMap;
-	bool Calibrated;
 	uint64 GpuTimeOffset;
+	double MinTime = 0.0f;
+	bool Calibrated;
 };
