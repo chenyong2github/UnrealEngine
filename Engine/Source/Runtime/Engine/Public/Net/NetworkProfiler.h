@@ -77,6 +77,10 @@ class FNetworkProfiler
 private:
 
 	friend struct FNetworkProfilerScopedIgnoreReplicateProperties;
+	friend struct FNetworkProfilerCVarHelper;
+
+	/** Whether or not want to track granular information about comparisons. This can be very expensive. */
+	static bool bIsComparisonTrackingEnabled;
 
 	/** File writer used to serialize data.															*/
 	FArchive*								FileWriter;
@@ -348,7 +352,7 @@ public:
 	template<typename T, typename ProjectionType>
 	void TrackCompareProperties(const UObject* Object, uint32 Cycles, TBitArray<>& PropertiesCompared, TBitArray<>& PropertiesThatChanged, const TArray<T>& PropertyNameContainers, ProjectionType PropertyNameProjection)
 	{
-		if (bIsTrackingEnabled)
+		if (IsComparisonTrackingEnabled())
 		{
             FScopeLock ScopeLock(&CriticalSection);
 
@@ -463,6 +467,7 @@ public:
 	bool Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice & Ar );
 
 	bool FORCEINLINE IsTrackingEnabled() const { return bIsTrackingEnabled; }
+	bool IsComparisonTrackingEnabled() const { return bIsTrackingEnabled && bIsComparisonTrackingEnabled;  }
 
 	/** Return the network profile finished delegate */
 	FOnNetworkProfileFinished& OnNetworkProfileFinished() { return OnNetworkProfileFinishedDelegate; }

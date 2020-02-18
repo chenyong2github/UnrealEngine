@@ -276,6 +276,15 @@ namespace UE4_RepLayout_Private
 		NETWORK_PROFILER(return true;);
 		return false;
 	}
+
+	static bool IsNetworkProfilerComparisonTrackingEnabled()
+	{
+#if USE_NETWORK_PROFILER
+		return GNetworkProfiler.IsComparisonTrackingEnabled();
+#else
+		return false;
+#endif
+	}
 }
 
 //~ TODO: Consider moving the FastArray members into their own sub-struct to save memory for non fast array
@@ -1501,7 +1510,7 @@ bool FRepLayout::CompareProperties(
 		/*PushModelState=*/UE4_RepLayout_Private::GetPerNetDriverState(RepChangelistState),
 		/*PushModelProperties=*/ LocalPushModelProperties,	
 		/*bValidateProperties=*/GbPushModelValidateProperties,
-		/*bIsNetworkProfilerActive=*/UE4_RepLayout_Private::IsNetworkProfilerEnabled()
+		/*bIsNetworkProfilerActive=*/UE4_RepLayout_Private::IsNetworkProfilerComparisonTrackingEnabled()
 	};
 
 	FComparePropertiesStackParams StackParams{
@@ -1540,7 +1549,10 @@ bool FRepLayout::CompareProperties(
 	
 		CompareParentProperties(SharedParams, StackParams);
 
-		NETWORK_PROFILER(GNetworkProfiler.TrackCompareProperties(Owner, FPlatformTime::Cycles() - ReplicateParentPropertiesStartTime, SharedParams.PropertiesCompared, SharedParams.PropertiesChanged, Parents, &FPropertyNameHelper::ConvertParentCmdToPropertyName););
+		if (SharedParams.bIsNetworkProfilerActive)
+		{
+			NETWORK_PROFILER(GNetworkProfiler.TrackCompareProperties(Owner, FPlatformTime::Cycles() - ReplicateParentPropertiesStartTime, SharedParams.PropertiesCompared, SharedParams.PropertiesChanged, Parents, &FPropertyNameHelper::ConvertParentCmdToPropertyName););
+		}
 	}
 
 	if (Changed.Num() == 0)
