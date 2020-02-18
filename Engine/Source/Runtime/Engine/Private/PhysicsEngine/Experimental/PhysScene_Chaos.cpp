@@ -1927,7 +1927,7 @@ int32 FPhysScene_ChaosInterface::DirtyElementCount(Chaos::ISpatialAccelerationCo
 		}
 		else if (const auto AABBTreeBV = SubStructure->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>>())
 		{
-			DirtyElements += AABBTree->NumDirtyElements();
+			DirtyElements += AABBTreeBV->NumDirtyElements();
 		}
 	}
 	return DirtyElements;
