@@ -32,3 +32,91 @@ bool USoundSubmixFactory::CanCreateNew() const
 {
 	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
 }
+
+// Soundfield Submix Factory: 
+
+USoundfieldSubmixFactory::USoundfieldSubmixFactory(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedClass = USoundfieldSubmix::StaticClass();
+	bCreateNew = true;
+	bEditorImport = false;
+	bEditAfterNew = true;
+}
+
+UObject* USoundfieldSubmixFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	USoundfieldSubmix* SoundSubmix = NewObject<USoundfieldSubmix>(InParent, Name, Flags);
+
+	class FAudioDeviceManager* AudioDeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
+	if (AudioDeviceManager)
+	{
+		AudioDeviceManager->InitSoundSubmixes();
+	}
+
+	return SoundSubmix;
+}
+
+bool USoundfieldSubmixFactory::CanCreateNew() const
+{
+	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+}
+
+// Endpoint Submix Factory:
+
+UEndpointSubmixFactory::UEndpointSubmixFactory(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedClass = UEndpointSubmix::StaticClass();
+	bCreateNew = true;
+	bEditorImport = false;
+	bEditAfterNew = true;
+}
+
+UObject* UEndpointSubmixFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	UEndpointSubmix* SoundSubmix = NewObject<UEndpointSubmix>(InParent, Name, Flags);
+
+	class FAudioDeviceManager* AudioDeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
+	if (AudioDeviceManager)
+	{
+		AudioDeviceManager->InitSoundSubmixes();
+	}
+
+	return SoundSubmix;
+}
+
+bool UEndpointSubmixFactory::CanCreateNew() const
+{
+	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+}
+
+
+// Soundfield Endpoint Submix Factory:
+
+USoundfieldEndpointSubmixFactory::USoundfieldEndpointSubmixFactory(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedClass = USoundfieldEndpointSubmix::StaticClass();
+	bCreateNew = true;
+	bEditorImport = false;
+	bEditAfterNew = true;
+}
+
+UObject* USoundfieldEndpointSubmixFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	USoundfieldEndpointSubmix* SoundSubmix = NewObject<USoundfieldEndpointSubmix>(InParent, Name, Flags);
+
+	class FAudioDeviceManager* AudioDeviceManager = GEngine ? GEngine->GetAudioDeviceManager() : nullptr;
+	if (AudioDeviceManager)
+	{
+		AudioDeviceManager->InitSoundSubmixes();
+	}
+
+	return SoundSubmix;
+}
+
+bool USoundfieldEndpointSubmixFactory::CanCreateNew() const
+{
+	return GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
+}

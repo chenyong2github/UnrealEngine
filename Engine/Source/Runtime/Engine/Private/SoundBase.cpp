@@ -135,7 +135,7 @@ USoundClass* USoundBase::GetSoundClass() const
 	return SoundClassObject;
 }
 
-USoundSubmix* USoundBase::GetSoundSubmix() const
+USoundSubmixBase* USoundBase::GetSoundSubmix() const
 {
 	return SoundSubmixObject;
 }

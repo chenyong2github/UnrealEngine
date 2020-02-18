@@ -4,6 +4,8 @@
 
 #include "AudioMixer.h"
 #include "SampleBuffer.h"
+#include "IAudioEndpoint.h"
+#include "ISoundfieldEndpoint.h"
 #include "Sound/SoundSubmix.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/SpectrumAnalyzer.h"
@@ -25,12 +27,9 @@ namespace Audio
 	struct FSubmixVoiceData
 	{
 		float SendLevel;
-		uint32 AmbisonicsEncoderId;
-		FAmbisonicsEncoderInputData CachedEncoderInputData;
 
 		FSubmixVoiceData()
 			: SendLevel(1.0f)
-			, AmbisonicsEncoderId(INDEX_NONE)
 		{
 		}
 	};
@@ -40,22 +39,40 @@ namespace Audio
 	struct FChildSubmixInfo
 	{
 		TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixPtr;
-		bool bNeedsAmbisonicsEncoding;
+
+		// If the child submix is not a soundfield submix, we may need to encode its audio output in ProcessAudio.
+		TUniquePtr<ISoundfieldEncoderStream> Encoder;
+
+		// If this child submix is a soundfield submix that we can read the output of, we may need to transcode it's audio output.
+		TUniquePtr<ISoundfieldTranscodeStream> Transcoder;
+
+		// This is filled by either the Encoder or the Transcoder, and passed to this submix' mixer.
+		TUniquePtr<ISoundfieldAudioPacket> IncomingPacketToTranscode;
 
 		FChildSubmixInfo()
-			: bNeedsAmbisonicsEncoding(true)
+		{}
+
+		// TMap doesn't compile using non-copyable types as value types, though you can build and use a TMap without using the copy constructor.
+		FChildSubmixInfo(const FChildSubmixInfo& InInfo)
+			: FChildSubmixInfo()
+		{
+			checkf(false, TEXT("FChildSubmixInfo is not copyable. If you are using FChildSubmixInfo, consider using Emplace or Add(FChildSubmixInfo&&)."));
+		}
+
+		FChildSubmixInfo(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr)
+			: SubmixPtr(SubmixWeakPtr)
 		{
 		}
 	};
 
-	class FMixerSubmix
+	class AUDIOMIXER_API FMixerSubmix
 	{
 	public:
 		FMixerSubmix(FMixerDevice* InMixerDevice);
 		virtual ~FMixerSubmix();
 
 		// Initialize the submix object with the USoundSubmix ptr. Sets up child and parent connects.
-		void Init(USoundSubmix* InSoundSubmix, bool bAllowReInit = true);
+		void Init(const USoundSubmixBase* InSoundSubmix, bool bAllowReInit = true);
 
 		// Returns the mixer submix Id
 		uint32 GetId() const { return Id; }
@@ -76,7 +93,7 @@ namespace Audio
 		void SetDynamicOutputVolume(float InVolume);
 
 		// Gets the submix channels channels
-		ESubmixChannelFormat GetSubmixChannels() const;
+		int32 GetSubmixChannels() const;
 
 		// Gets this submix's parent submix
 		TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> GetParentSubmix();
@@ -109,7 +126,12 @@ namespace Audio
 		void SetBackgroundMuted(bool bInMuted);
 
 		// Function which processes audio.
-		void ProcessAudio(const ESubmixChannelFormat ParentInputChannels, AlignedFloatBuffer& OutAudio);
+		void ProcessAudio(AlignedFloatBuffer& OutAudio);
+		void ProcessAudio(ISoundfieldAudioPacket& OutputAudio);
+
+		// This should be called if this submix doesn't send it's audio to a parent submix,
+		// but rather an external endpoint.
+		void ProcessAudioAndSendToEndpoint();
 
 		// Returns the device sample rate this submix is rendering to
 		int32 GetSampleRate() const;
@@ -123,8 +145,18 @@ namespace Audio
 		// Returns the submix effect at the given effect chain index
 		FSoundEffectSubmixPtr GetSubmixEffect(const int32 InIndex);
 
-		// updates settings, potentially creating or removing ambisonics streams based on
-		void OnAmbisonicsSettingsChanged(UAmbisonicsSubmixSettingsBase* AmbisonicsSettings);
+		// This must be called on the entire submix graph before calling SetupSoundfieldStreams.
+		void SetSoundfieldFactory(ISoundfieldFactory* InSoundfieldFactory);
+
+		// updates settings, potentially creating or removing ambisonics streams based on what types of submixes this submix is connected to.
+		void SetupSoundfieldStreams(const USoundfieldEncodingSettingsBase* SoundfieldSettings, TArray<USoundfieldEffectBase*>& Processors, ISoundfieldFactory* InSoundfieldFactory);
+		void TeardownSoundfieldStreams();
+
+		void SetupEndpoint(IAudioEndpointFactory* InFactory, const UAudioEndpointSettingsBase* InSettings);
+		void SetupEndpoint(ISoundfieldEndpointFactory* InFactory, const USoundfieldEndpointSettingsBase* InSettings);
+
+		void UpdateEndpointSettings(TUniquePtr<IAudioEndpointSettingsProxy>&& InSettings);
+		void UpdateEndpointSettings(TUniquePtr<ISoundfieldEndpointSettingsProxy>&& InSettings);
 
 		// This is called by the corresponding USoundSubmix when StartRecordingOutput is called.
 		AUDIOMIXER_API void OnStartRecordingOutput(float ExpectedDuration);
@@ -170,45 +202,57 @@ namespace Audio
 		// Broadcast the envelope value on the game thread
 		void BroadcastEnvelope();
 
+		// returns true if this submix is encoded to a soundfield.
+		bool IsSoundfieldSubmix() const;
+
+		// returns true if this submix sends it's audio to the default endpoint.
+		bool IsDefaultEndpointSubmix() const;
+
+		// Returns true if this submix sends its audio to an IAudioEndpoint.
+		bool IsExternalEndpointSubmix() const;
+
+		// returns true if this submix sends its audio to an ISoundfieldEndpoint.
+		bool IsSoundfieldEndpointSubmix() const;
+
+		// Get a unique key for this submix's format and settings.
+		// If another submix has an identical format and settings it will have an equivalent key.
+		FSoundfieldEncodingKey GetKeyForSubmixEncoding();
+
+		ISoundfieldFactory* GetSoundfieldFactory();
+
+		ISoundfieldEncodingSettingsProxy& GetSoundfieldSettings();
+
+		FAudioPluginInitializationParams GetInitializationParamsForSoundfieldStream();
+
+		FSoundfieldSpeakerPositionalData GetDefaultPositionalDataForAudioDevice();
+
 	protected:
 		// Initialize the submix internal 
 		void InitInternal();
 
 		// Down mix the given buffer to the desired down mix channel count
-		void FormatChangeBuffer(const ESubmixChannelFormat NewChannelType, AlignedFloatBuffer& InBuffer, AlignedFloatBuffer& OutNewBuffer);
+		static void DownmixBuffer(const int32 InChannels, const AlignedFloatBuffer& InBuffer, const int32 OutChannels, AlignedFloatBuffer& OutNewBuffer);
 
 		void MixBufferDownToMono(const AlignedFloatBuffer& InBuffer, int32 NumInputChannels, AlignedFloatBuffer& OutBuffer);
 
-		// Set up ambisonics encoder. Called when ambisonics settings are changed.
-		void SetUpAmbisonicsEncoder();
-
-		// Set up ambisonics decoder. Called when ambisonics settings are changed.
-		void SetUpAmbisonicsDecoder();
-
-		// Clean up ambisonics encoder.
-		void TearDownAmbisonicsEncoder();
-
-		// Clean up ambisonics decoder.
-		void TearDownAmbisonicsDecoder();
-
-		// Check if we need to encode for ambisonics for childen (TODO)
-		void UpdateAmbisonicsEncoderForChildren();
+		void SetupSoundfieldEncodersForChildren();
+		void SetupSoundfieldEncodingForChild(FChildSubmixInfo& InChild);
 
 		// Check to see if we need to decode from ambisonics for parent
-		void UpdateAmbisonicsDecoderForParent();
+		void SetupSoundfieldStreamForParent();
 
 		// This sets up the ambisonics positional data for speakers, based on what new format we need to convert to.
-		void SetUpAmbisonicsPositionalData();
+		void SetUpSoundfieldPositionalData(const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>& InParentSubmix);
 
-		// Encode a source and sum it into the AmbisonicsBuffer.
-		void EncodeAndMixInSource(AlignedFloatBuffer& InAudioData, FSubmixVoiceData& InVoiceInfo);
+		// Encode a source and sum it into the mixed soundfield.
+		void MixInSource(const ISoundfieldAudioPacket& InAudio, const ISoundfieldEncodingSettingsProxy& InSettings, ISoundfieldAudioPacket& PacketToSumTo);
 
-		// Encodes child submix into ambisonics (TODO)
-		void EncodeAndMixInChildSubmix(FChildSubmixInfo& Child);
+		// Calls ProcessAudio on the child submix, performs all neccessary conversions and mixes in it's resulting audio.
+		void MixInChildSubmix(FChildSubmixInfo& Child, ISoundfieldAudioPacket& PacketToSumTo);
 
-	public:
-		// Cached pointer to ambisonics settings.
-		UAmbisonicsSubmixSettingsBase* AmbisonicsSettings;
+		FName GetSoundfieldFormat() const;
+
+		TUniquePtr<ISoundfieldTranscodeStream> GetTranscoderForChildSubmix(const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>& InChildSubmix);
 
 	protected:
 
@@ -256,18 +300,127 @@ namespace Audio
 		AlignedFloatBuffer DownmixedBuffer;
 		AlignedFloatBuffer SourceInputBuffer;
 
-		ESubmixChannelFormat ChannelFormat;
 		int32 NumChannels;
 		int32 NumSamples;
 
-		// Cached ambisonics mixer
-		TAmbisonicsMixerPtr AmbisonicsMixer;
+		/**
+		 * Individual processor in our 
+		 */
+		struct FSoundfieldEffectProcessorData
+		{
+			TUniquePtr<ISoundfieldEffectSettingsProxy> Settings;
+			TUniquePtr<ISoundfieldEffectInstance> Processor;
 
-		// Encoder ID set up with Ambisonics Mixer. Set to INDEX_NONE if there is no encoder stream open.
-		uint32 SubmixAmbisonicsEncoderID;
+			FSoundfieldEffectProcessorData(ISoundfieldFactory* InFactory, ISoundfieldEncodingSettingsProxy& InSettings, USoundfieldEffectBase* InProcessorBase)
+			{
+				check(InFactory);
 
-		// Decoder ID set up with Ambisonics Mixer. Set to INDEX_NONE if there is no decoder stream open.
-		uint32 SubmixAmbisonicsDecoderID;
+				// As a sanity check, make sure if we've gotten to this point, this DSP processor supports this submix's format.
+				check(InProcessorBase->SupportsFormat(InFactory->GetSoundfieldFormatName()));
+
+				Processor = InProcessorBase->PrivateGetNewProcessor(InSettings);
+				
+				// If the processor doesn't have any settings, get the default settings for a processor of this type.
+				const USoundfieldEffectSettingsBase* ProcessorSettings = InProcessorBase->Settings;
+				if (!ProcessorSettings)
+				{
+					ProcessorSettings = InProcessorBase->PrivateGetDefaultSettings();
+				}
+
+				Settings = ProcessorSettings->PrivateGetProxy();
+			}
+		};
+
+		struct FSoundfieldStreams
+		{
+			ISoundfieldFactory* Factory;
+
+			// This encoder is used for the mixed down audio from all non-soundfield submixes plugged into
+			// this submix. Will not be set up if ISoundfieldFactory::ShouldEncodeAllStreamsIndependently 
+			// returns true.
+			TUniquePtr<ISoundfieldEncoderStream> DownmixedChildrenEncoder;
+			
+			// Encoder used if a normal submix outputs to this submix.
+			TUniquePtr<ISoundfieldDecoderStream> ParentDecoder;
+
+			// This is the positional data we are decoding 
+			FSoundfieldSpeakerPositionalData CachedPositionalData;
+
+			// Mixes all encoded child submix inputs.
+			TUniquePtr<ISoundfieldMixerStream> Mixer;
+
+			// This is the packet we mix all input sources and child submixes to.
+			TUniquePtr<ISoundfieldAudioPacket> MixedDownAudio;
+
+			// Current settings for this submix.
+			TUniquePtr<ISoundfieldEncodingSettingsProxy> Settings;
+
+			// All soundfield processors attached to this submix.  
+			TArray<FSoundfieldEffectProcessorData> EffectProcessors;
+
+			// This critical section is contended by the soundfield overload of ProcessAudio and SetupSoundfieldStreams.
+			FCriticalSection StreamsLock;
+
+			FSoundfieldStreams()
+				: Factory(nullptr)
+			{}
+
+			void Reset()
+			{
+				Factory = nullptr;
+				ParentDecoder.Reset();
+				Mixer.Reset();
+				Settings.Reset();
+			}
+		};
+
+		FSoundfieldStreams SoundfieldStreams;
+
+		struct FEndpointData
+		{
+			// For endpoint submixes,
+			// this is the primary method of pushing audio to the endpoint.
+			Audio::FPatchInput Input;
+
+			TUniquePtr<IAudioEndpoint> NonSoundfieldEndpoint;
+			TUniquePtr<ISoundfieldEndpoint> SoundfieldEndpoint;
+
+			// for non-soundfield endpoints, we use these buffers for processing.
+			AlignedFloatBuffer AudioBuffer;
+			AlignedFloatBuffer ResampledAudioBuffer;
+			AlignedFloatBuffer DownmixedResampledAudioBuffer;
+			AlignedFloatBuffer DownmixChannelMap;
+
+			// Number of channels and sample rate for the external endpoint.
+			int32 NumChannels;
+			float SampleRate;
+
+			// This is used if the endpoint has a different sample rate than our audio engine.
+			Audio::FResampler Resampler;
+			bool bShouldResample;
+
+			// for soundfield endpoints, this is the buffer we use to send audio to the endpoint.
+			TUniquePtr<ISoundfieldAudioPacket> AudioPacket;
+
+			FEndpointData()
+				: NumChannels(0)
+				, SampleRate(0.0f)
+				, bShouldResample(false)
+			{}
+
+			void Reset()
+			{
+				AudioBuffer.Reset();
+				ResampledAudioBuffer.Reset();
+				DownmixedResampledAudioBuffer.Reset();
+				DownmixChannelMap.Reset();
+				NonSoundfieldEndpoint.Reset();
+				SoundfieldEndpoint.Reset();
+			}
+		};
+
+		FEndpointData EndpointData;
+		
 
 		// The output volume of the submix set via the USoundSubmix property. Can be set in the editor.
 		float InitializedOutputVolume;
@@ -289,12 +442,6 @@ namespace Audio
 		
 		// This buffer is used to downmix the submix output to mono before submitting it to the SpectrumAnalyzer.
 		AlignedFloatBuffer MonoMixBuffer;
-
-		// This buffer is encoded into for each source, then summed into the ambisonics buffer.
-		AlignedFloatBuffer InputAmbisonicsBuffer;
-
-		// Cached positional data for Ambisonics decoder.
-		FAmbisonicsDecoderPositionalData CachedPositionalData;
 
 		// Submix command queue to shuffle commands from audio thread to audio render thread.
 		TQueue<TFunction<void()>> CommandQueue;
@@ -327,11 +474,8 @@ namespace Audio
 		FCriticalSection RecordingCriticalSection;
 
 		// Handle back to the owning USoundSubmix. Used when the device is shutdown to prematurely end a recording.
-		USoundSubmix* OwningSubmixObject;
+		const USoundSubmixBase* OwningSubmixObject;
 
 		friend class FMixerDevice;
 	};
-
-
-
 }

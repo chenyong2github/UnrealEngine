@@ -33,7 +33,10 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"AudioMixer",
 					"Landscape",
+					"SoundFieldRendering",
 					"LibOVRAudio",
+					"SignalProcessing",
+					"AudioExtensions"
 				}
 				);
 

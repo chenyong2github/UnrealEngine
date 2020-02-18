@@ -126,7 +126,7 @@ struct FSoundParseParameters
 	float AbsoluteAzimuth;
 
 	// The sound submix to use for the wave instance
-	USoundSubmix* SoundSubmix;
+	USoundSubmixBase* SoundSubmix;
 
 	// The submix sends to use
 	TArray<FSoundSubmixSendInfo> SoundSubmixSends;
@@ -633,7 +633,7 @@ public:
 	/**
 	* Get the sound submix to use for this sound instance
 	*/
-	USoundSubmix* GetSoundSubmix() const;
+	USoundSubmixBase* GetSoundSubmix() const;
 
 	/** Gets the sound submix sends to use for this sound instance. */
 	void GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) const;

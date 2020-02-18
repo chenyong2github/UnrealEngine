@@ -56,6 +56,8 @@ void UAudioMixerBlueprintLibrary::AddMasterSubmixEffect(const UObject* WorldCont
 
 		FSoundEffectSubmixInitData InitData;
 		InitData.SampleRate = MixerDevice->GetSampleRate();
+		InitData.DeviceID = MixerDevice->DeviceID;
+		InitData.PresetSettings = nullptr;
 
 		// Initialize and set the preset immediately
 		SoundEffectSubmix->Init(InitData);

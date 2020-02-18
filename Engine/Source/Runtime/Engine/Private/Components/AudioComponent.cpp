@@ -1296,7 +1296,7 @@ void UAudioComponent::AdjustAttenuation(const FSoundAttenuationSettings& InAtten
 	}
 }
 
-void UAudioComponent::SetSubmixSend(USoundSubmix* Submix, float SendLevel)
+void UAudioComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 {
 	if (FAudioDevice* AudioDevice = GetAudioDevice())
 	{

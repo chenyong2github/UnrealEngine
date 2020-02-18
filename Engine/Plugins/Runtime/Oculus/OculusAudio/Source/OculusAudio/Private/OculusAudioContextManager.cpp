@@ -10,67 +10,20 @@
 ovrAudioContext FOculusAudioContextManager::SerializationContext = nullptr;
 UActorComponent* FOculusAudioContextManager::SerializationParent = nullptr;
 
+TMap<const FAudioDevice*, ovrAudioContext> FOculusAudioContextManager::ContextMap;
+FCriticalSection FOculusAudioContextManager::ContextCritSection;
+
 FOculusAudioContextManager::FOculusAudioContextManager()
-	: Context(nullptr)
 {
 	// empty
 }
 
 FOculusAudioContextManager::~FOculusAudioContextManager()
 {
-	OVRA_CALL(ovrAudio_DestroyContext)(Context);
-	Context = nullptr;
-	SerializationContext = nullptr;
 }
 
 void FOculusAudioContextManager::OnListenerInitialize(FAudioDevice* AudioDevice, UWorld* ListenerWorld)
 {
-	// Inject the Context into the spatailizer (and reverb) if they're enabled
-	FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");
-	if (Plugin == nullptr)
-	{
-		return; // PAS is this needed?
-	}
-
-	if (SerializationContext != nullptr)
-	{
-#if 0
-		/* NOTE: this was meant to be some magic that would clean up the serialization
-		context so there is no stale state in PIE. This failed when there was no geometry
-		in the scene. Since the plugins are force to use one global context that seems
-		like a better option for the vanilla UE4 integraiton to do as well for consistency.
-		*/
-		// We must have created some geometry
-		check(SerializationParent != nullptr);
-		AActor* Actor = SerializationParent->GetOwner();
-		check(Actor != nullptr);
-		UWorld* SerializedWorld = Actor->GetWorld();
-		check(SerializedWorld == ListenerWorld);
-		Context = SerializationContext;
-		SerializationContext = nullptr;
-		SerializationParent = nullptr;
-#else
-		Context = SerializationContext;
-		SerializationContext = nullptr;
-#endif
-	}
-
-	FString OculusSpatializerPluginName = Plugin->GetSpatializationPluginFactory()->GetDisplayName();
-	FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
-	if (CurrentSpatializerPluginName.Equals(OculusSpatializerPluginName)) // we have a match!
-	{
-		OculusAudioSpatializationAudioMixer* Spatializer = 
-			static_cast<OculusAudioSpatializationAudioMixer*>(AudioDevice->SpatializationPluginInterface.Get());
-		Spatializer->SetContext(&Context);
-	}
-
-	FString OculusReverbPluginName = Plugin->GetReverbPluginFactory()->GetDisplayName();
-	FString CurrentReverbPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB);
-	if (CurrentReverbPluginName.Equals(OculusReverbPluginName))
-	{
-		OculusAudioReverb* Reverb = static_cast<OculusAudioReverb*>(AudioDevice->ReverbPluginInterface.Get());
-		Reverb->SetContext(&Context);
-	}
 }
 
 void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
@@ -84,7 +37,7 @@ void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
 	{
 		OculusAudioSpatializationAudioMixer* Spatializer =
 			static_cast<OculusAudioSpatializationAudioMixer*>(AudioDevice->SpatializationPluginInterface.Get());
-		Spatializer->SetContext(nullptr);
+		Spatializer->ClearContext();
 	}
 
 	FString OculusReverbPluginName = Plugin->GetReverbPluginFactory()->GetDisplayName();
@@ -92,8 +45,15 @@ void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
 	if (CurrentReverbPluginName.Equals(OculusReverbPluginName))
 	{
 		OculusAudioReverb* Reverb = static_cast<OculusAudioReverb*>(AudioDevice->ReverbPluginInterface.Get());
-		Reverb->SetContext(nullptr);
+		Reverb->ClearContext();
 	}
+
+	// FIXME:
+	// There's a possibility this will leak if a Oculus Binaural submix is created,
+	// but Oculus audio is not specified as the spatialization or reverb plugin.
+	// This is a niche use case, but could be solved by having the oculus soundfield explicitly destroy
+	// a context.
+	DestroyContextForAudioDevice(AudioDevice);
 }
 
 ovrAudioContext FOculusAudioContextManager::GetOrCreateSerializationContext(UActorComponent* Parent)
@@ -144,4 +104,52 @@ ovrAudioContext FOculusAudioContextManager::GetOrCreateSerializationContext(UAct
 	}
 
 	return SerializationContext;
+}
+
+ovrAudioContext FOculusAudioContextManager::GetContextForAudioDevice(const FAudioDevice* InAudioDevice)
+{
+	FScopeLock ScopeLock(&ContextCritSection);
+	ovrAudioContext* Context = ContextMap.Find(InAudioDevice);
+	if (Context)
+	{
+		return *Context;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+ovrAudioContext FOculusAudioContextManager::CreateContextForAudioDevice(FAudioDevice* InAudioDevice)
+{
+	ovrAudioContextConfiguration ContextConfig = { 0 };
+	ContextConfig.acc_BufferLength = InAudioDevice->GetBufferLength();
+	ContextConfig.acc_MaxNumSources = InAudioDevice->GetMaxSources();
+	ContextConfig.acc_SampleRate = InAudioDevice->GetSampleRate();
+	ContextConfig.acc_Size = sizeof(ovrAudioContextConfiguration);
+
+	ovrAudioContext NewContext = nullptr;
+	ovrResult Result = OVRA_CALL(ovrAudio_CreateContext)(&NewContext, &ContextConfig);
+
+	if(ensure(Result == ovrSuccess))
+	{
+		FScopeLock ScopeLock(&ContextCritSection);
+		return ContextMap.Add(InAudioDevice, NewContext);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+void FOculusAudioContextManager::DestroyContextForAudioDevice(const FAudioDevice* InAudioDevice)
+{
+	FScopeLock ScopeLock(&ContextCritSection);
+	ovrAudioContext* Context = ContextMap.Find(InAudioDevice);
+
+	if (Context)
+	{
+		OVRA_CALL(ovrAudio_DestroyContext)(*Context);
+		ContextMap.Remove(InAudioDevice);
+	}
 }

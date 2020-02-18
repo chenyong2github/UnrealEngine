@@ -6,6 +6,7 @@
 #include "OculusAudioDllManager.h"
 #include "OculusAudioSettings.h"
 #include "Containers/Ticker.h"
+#include "AudioMixerDevice.h"
 
 /************************************************************************/
 /* OculusAudioSpatializationAudioMixer									*/
@@ -18,9 +19,7 @@ public:
 	OculusAudioSpatializationAudioMixer();
 	~OculusAudioSpatializationAudioMixer();
 
-	void SetContext(ovrAudioContext* SharedContext);
 	void ClearContext();
-	ovrAudioContext* GetContext() { return Context; }
 
 	//~ Begin IAudioSpatialization 
 	virtual void Initialize(const FAudioPluginInitializationParams InitializationParams) override;
@@ -39,18 +38,25 @@ public:
 		return FVector(InVec.Y, InVec.Z, -InVec.X);
 	}
 
+	static FVector ToOVRVector(const Audio::FChannelPositionInfo& ChannelPositionInfo)
+	{
+		FVector OvrVector;
+		OvrVector.X = ChannelPositionInfo.Radius * FMath::Sin(ChannelPositionInfo.Azimuth) * FMath::Cos(ChannelPositionInfo.Elevation);
+		OvrVector.Y = ChannelPositionInfo.Radius * FMath::Sin(ChannelPositionInfo.Azimuth) * FMath::Sin(ChannelPositionInfo.Elevation);
+		OvrVector.Z = ChannelPositionInfo.Radius * FMath::Cos(ChannelPositionInfo.Azimuth);
+
+		return OvrVector;
+	}
+
 	static const int MIXER_CLASS_ID = 0x98765432;
 	const int ClassID = MIXER_CLASS_ID;
 private:
 
 	void ApplyOculusAudioSettings(const UOculusAudioSettings* Settings);
 
-	// Whether or not the OVR audio context is initialized. We defer initialization until the first audio callback.
-	bool bOvrContextInitialized;
-
 	TArray<FSpatializationParams> Params;
 
-	ovrAudioContext* Context;
+	ovrAudioContext Context;
 	FCriticalSection ContextLock;
 
 	FAudioPluginInitializationParams InitParams;

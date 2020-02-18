@@ -47,6 +47,6 @@ private:
 	bool IncludeChildren = true;
 
 	ovrAudioGeometry ovrGeometry;
-	ovrAudioContext* CachedContext;
+	ovrAudioContext CachedContext;
 	FTransform PreviousTransform;
 };

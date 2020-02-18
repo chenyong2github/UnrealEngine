@@ -7,7 +7,14 @@
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundNode.h"
+
+#if WITH_EDITOR
+#include "EdGraph/EdGraph.h"
+#endif
+
 #include "SoundCue.generated.h"
+
+
 
 class USoundCue;
 class USoundNode;

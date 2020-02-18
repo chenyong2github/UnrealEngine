@@ -1822,16 +1822,12 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	}
 
 	WaveInstance->bIsAmbisonics = bIsAmbisonics;
-	if (bIsAmbisonics)
-	{
-		UAudioSettings* Settings = GetMutableDefault<UAudioSettings>();
-		WaveInstance->SoundSubmix = Cast<USoundSubmix>(FSoftObjectPtr(Settings->AmbisonicSubmix).Get());
-	}
-	else if (ParseParams.SoundSubmix)
+
+	if (ParseParams.SoundSubmix)
 	{
 		WaveInstance->SoundSubmix = ParseParams.SoundSubmix;
 	}
-	else if (USoundSubmix* WaveSubmix = GetSoundSubmix())
+	else if (USoundSubmixBase* WaveSubmix = GetSoundSubmix())
 	{
 		WaveInstance->SoundSubmix = WaveSubmix;
 	}

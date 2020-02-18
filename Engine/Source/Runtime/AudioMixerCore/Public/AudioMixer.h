@@ -68,12 +68,7 @@ namespace EAudioMixerChannel
 		TopBackRight,
 		Unknown,
 		ChannelTypeCount,
-
-		// Alias Values
-		Ambisonics_W = FrontLeft,
-		Ambisonics_X = FrontRight,
-		Ambisonics_Y = FrontCenter,
-		Ambisonics_Z = LowFrequency,
+		DefaultChannel = FrontLeft
 	};
 
 	static const int32 MaxSupportedChannel = EAudioMixerChannel::TopCenter;
@@ -275,7 +270,7 @@ namespace Audio
 	};
 
 	/** Struct used to store render time analysis data. */
-	struct FAudioRenderTimeAnalysis
+	struct AUDIOMIXERCORE_API FAudioRenderTimeAnalysis
 	{
 		double AvgRenderTime;
 		double MaxRenderTime;
