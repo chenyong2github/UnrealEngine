@@ -12,7 +12,7 @@ class UNiagaraSystemSelectionViewModel;
 class FNiagaraEmitterHandleViewModel;
 class FAssetThumbnailPool;
 class FAssetThumbnail;
-struct FRendererPreviewData;
+class UNiagaraStackEntry;
 
 class SNiagaraOverviewStackNode : public SGraphNode
 {
@@ -35,7 +35,7 @@ private:
 	EVisibility GetEnabledCheckBoxVisibility() const;
 	ECheckBoxState GetEnabledCheckState() const;
 	void OnEnabledCheckStateChanged(ECheckBoxState InCheckState);
-	TSharedRef<SWidget> CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData* InData);
+	TSharedRef<SWidget> CreateThumbnailWidget(UNiagaraStackEntry* InData, TSharedPtr<SWidget> InWidget, TSharedPtr<SWidget> InTooltipWidget);
 	FReply OnClickedRenderingPreview(const FGeometry& InGeometry, const FPointerEvent& InEvent, class UNiagaraStackEntry* InEntry);
 	FText GetToggleIsolateToolTip() const;
 	FReply OnToggleIsolateButtonClicked();
@@ -66,7 +66,7 @@ private:
 	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 	/** Thumbnail widget containers */
 	TSharedPtr<SHorizontalBox> ThumbnailBar;
-	TArray<FRendererPreviewData*> PreviewData;
+	TArray<UNiagaraStackEntry*> PreviewStackEntries;
 	bool bIsHoveringThumbnail;
 	int32 CurrentIssueIndex;
 };

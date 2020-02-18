@@ -10,6 +10,8 @@
 #include "NiagaraMeshRendererProperties.generated.h"
 
 class FNiagaraEmitterInstance;
+class FAssetThumbnailPool;
+class SWidget;
 
 /** This enum decides how a mesh particle will orient its "facing" axis relative to camera. Must keep these in sync with NiagaraMeshVertexFactory.ush*/
 UENUM()
@@ -85,7 +87,8 @@ public:
 	virtual void FixMaterial(UMaterial* Material) override;
 	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
-
+	virtual	void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
+	virtual	void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	void OnMeshChanged();
 	void CheckMaterialUsage();
 #endif // WITH_EDITORONLY_DATA
