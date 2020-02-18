@@ -37,7 +37,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Minimum version of Mac OS X to actually run on, running on earlier versions will display the system minimum version error dialog and exit.
 		/// </summary>
-		public string MinMacOSVersion = "10.13.6";
+		public string MinMacOSVersion = "10.14.6";
 
 		/// <summary>
 		/// Directory for the developer binaries
