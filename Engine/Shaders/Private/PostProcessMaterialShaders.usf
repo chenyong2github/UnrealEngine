@@ -248,7 +248,8 @@ void MainPS_VideoOverlay(
 
 #else // FEATURE_LEVEL_ES3_1
 
-Texture2D<uint> MobileCustomStencilTexture;
+Texture2D MobileCustomStencilTexture;
+SamplerState MobileCustomStencilTextureSampler;
 
 int MobileStencilValueRef; // Use integer cause it has to be negative to make the less function to pass the test as always
 
@@ -312,7 +313,7 @@ void MainPS(
 	float ClipValue = 1.0f;
 
 #if MOBILE_STENCIL_COMPARE_FUNCTION != MOBILE_STENCIL_COMPARE_NEVER && MOBILE_STENCIL_COMPARE_FUNCTION != MOBILE_STENCIL_COMPARE_ALWAYS
-	int MobileStencilValue = MobileCustomStencilTexture.Load(int3(Input.Position.xy, 0));
+	int MobileStencilValue = floor(Texture2DSample(MobileCustomStencilTexture, MobileCustomStencilTextureSampler, InViewportUV).r*255.0f + 0.5f);
 #endif
 
 #if MOBILE_STENCIL_COMPARE_FUNCTION == MOBILE_STENCIL_COMPARE_LESS

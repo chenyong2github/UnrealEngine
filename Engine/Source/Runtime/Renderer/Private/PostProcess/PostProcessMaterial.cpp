@@ -437,6 +437,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(OutputViewport);
 	PostProcessMaterialParameters->MobileCustomStencilTexture = DepthStencilTexture;
+	PostProcessMaterialParameters->MobileCustomStencilTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PostProcessMaterialParameters->MobileStencilValueRef = MaterialStencilRef;
 	PostProcessMaterialParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
@@ -452,7 +453,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	}
 	else if (!DepthStencilTexture && bMobilePlatform && Material->IsStencilTestEnabled()) // we have to set a default texture for MobileStencilTexture and override the MobileStencilValueRef to make all function to pass the stencil test
 	{
-		PostProcessMaterialParameters->MobileCustomStencilTexture = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
+		PostProcessMaterialParameters->MobileCustomStencilTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 		
 		switch (Material->GetStencilCompare())
 		{
