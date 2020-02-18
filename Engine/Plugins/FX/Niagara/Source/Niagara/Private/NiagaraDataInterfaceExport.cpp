@@ -70,6 +70,12 @@ bool UNiagaraDataInterfaceExport::InitPerInstanceData(void* PerInstanceData, FNi
 	return true;
 }
 
+void UNiagaraDataInterfaceExport::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
+{
+	ExportInterface_InstanceData* InstData = (ExportInterface_InstanceData*)PerInstanceData;
+	InstData->~ExportInterface_InstanceData();
+}
+
 bool UNiagaraDataInterfaceExport::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
 	ExportInterface_InstanceData* PIData = (ExportInterface_InstanceData*)PerInstanceData;
