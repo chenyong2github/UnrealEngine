@@ -203,12 +203,35 @@ public:
 	static bool SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
 
 	/**
+	 * Compute convex collisions for a set of static meshes.
+	 * Any existing collisions will be removed from the static meshes.
+	 * This method replicates what is done when invoking menu entry "Collision > Auto Convex Collision" in the Mesh Editor.
+	 * @param	StaticMeshes			Set of Static mesh to add convex collision on.
+	 * @param	HullCount				Maximum number of convex pieces that will be created. Must be positive.
+	 * @param	MaxHullVerts			Maximum number of vertices allowed for any generated convex hull.
+	 * @param	HullPrecision			Number of voxels to use when generating collision. Must be positive.
+	 * @param	bApplyChanges			Indicates if changes must be apply or not.
+	 * @return A boolean indicating if the addition was successful or not.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static bool BulkSetConvexDecompositionCollisionsWithNotification(const TArray<UStaticMesh*>& StaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
+
+	/**
 	 * Same as SetConvexDecompositionCollisionsWithNotification but changes are automatically applied.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
 	static bool SetConvexDecompositionCollisions(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
 	{
 		return SetConvexDecompositionCollisionsWithNotification(StaticMesh, HullCount, MaxHullVerts, HullPrecision, true);
+	}
+
+	/**
+	 * Same as SetConvexDecompositionCollisionsWithNotification but changes are automatically applied.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static bool BulkSetConvexDecompositionCollisions(const TArray<UStaticMesh*>& StaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
+	{
+		return BulkSetConvexDecompositionCollisionsWithNotification(StaticMeshes, HullCount, MaxHullVerts, HullPrecision, true);
 	}
 
 	/**
