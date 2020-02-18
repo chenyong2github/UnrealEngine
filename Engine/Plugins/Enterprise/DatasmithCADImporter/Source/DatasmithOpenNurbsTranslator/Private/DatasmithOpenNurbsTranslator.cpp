@@ -3203,29 +3203,21 @@ void FDatasmithOpenNurbsTranslator::UnloadScene()
 
 bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)
 {
-	if ( TOptional< FMeshDescription > Mesh = Translator->GetMeshDescription( MeshElement ) )
+	if (TOptional< FMeshDescription > Mesh = Translator->GetMeshDescription(MeshElement))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
 #ifdef CAD_LIBRARY
-		// Store CoreTech additional data if provided
-		const TCHAR* CoretechFile = MeshElement->GetFile();
-		if (FPaths::FileExists(CoretechFile))
-		{
-			TArray<uint8> ByteArray;
-			if (FFileHelper::LoadFileToArray(ByteArray, CoretechFile))
-			{
-				UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
-				CoreTechData->SourceFile = CoretechFile;
-				CoreTechData->RawData = MoveTemp(ByteArray);
-				CoreTechData->SceneParameters.ModelCoordSys = uint8(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
-				CoreTechData->SceneParameters.ScaleFactor = Translator->GetScalingFactor();
-				CoreTechData->SceneParameters.MetricUnit = Translator->GetMetricUnit();
-				CoreTechData->LastTessellationOptions = OpenNurbsOptions;
-				OutMeshPayload.AdditionalData.Add(CoreTechData);
-			}
-		}
+		CADLibrary::FImportParameters ImportParameters;
+		ImportParameters.ModelCoordSys = CADLibrary::EModelCoordSystem::ZUp_RightHanded;
+		ImportParameters.MetricUnit = Translator->GetMetricUnit();
+		ImportParameters.ScaleFactor = Translator->GetScalingFactor();
+
+		CADLibrary::FMeshParameters MeshParameters;
+
+		DatasmithCoreTechParametricSurfaceData::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, OpenNurbsOptions, OutMeshPayload);
 #endif // CAD_LIBRARY
+
 	}
 
 	return OutMeshPayload.LodMeshes.Num() > 0;
