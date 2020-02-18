@@ -18,7 +18,7 @@
 	[
 		"UnrealFrontend",
 		"UnrealMultiUserServer",
-		"UnrealDisasterRecoveryService",
+		"UnrealRecoverySvc",
 		"UnrealLightmass",
 		"CrashReportClientEditor"
 	],
@@ -34,7 +34,7 @@
 			"WhitelistPrograms": [
 				"UnrealFrontend",
 				"UnrealMultiUserServer",
-				"UnrealDisasterRecoveryService",
+				"UnrealRecoverySvc",
 				"UnrealLightmass",
 				"CrashReportClientEditor"
 			]
