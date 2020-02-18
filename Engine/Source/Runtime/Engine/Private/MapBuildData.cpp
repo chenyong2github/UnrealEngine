@@ -705,6 +705,9 @@ void UMapBuildDataRegistry::InvalidateStaticLighting(UWorld* World, bool bRecrea
 		MarkPackageDirty();
 	}
 
+	// Clear all the atmosphere guids from the MapBuildData when starting a new build.
+	ClearSkyAtmosphereBuildData();
+
 	bSetupResourceClusters = false;
 }
 
