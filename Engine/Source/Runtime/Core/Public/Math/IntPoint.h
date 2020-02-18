@@ -6,6 +6,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
+#include "Serialization/StructuredArchive.h"
 #include "Templates/TypeHash.h"
 
 /**

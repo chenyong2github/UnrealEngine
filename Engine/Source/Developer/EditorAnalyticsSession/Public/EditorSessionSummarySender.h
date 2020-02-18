@@ -4,6 +4,7 @@
 
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
+#include "Misc/Optional.h"
 
 struct FEditorAnalyticsSession;
 class IAnalyticsProvider;
