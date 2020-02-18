@@ -112,3 +112,15 @@ private:
 	
 };
 
+// work around for the private nature of FVectorFieldResource
+struct ENGINE_API FVectorFieldTextureAccessor
+{
+	FVectorFieldTextureAccessor(UVectorField* InVectorField);
+	FVectorFieldTextureAccessor(const FVectorFieldTextureAccessor& rhs);
+	~FVectorFieldTextureAccessor();
+
+	FRHITexture* GetTexture() const;
+
+private:
+	TUniquePtr<struct FVectorFieldTextureAccessorImpl> Impl;
+};
