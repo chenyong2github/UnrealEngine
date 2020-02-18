@@ -194,7 +194,11 @@ namespace FNiagaraEditorUtilities
 	 */
 	const FNiagaraEmitterHandle* GetEmitterHandleForEmitter(UNiagaraSystem& System, UNiagaraEmitter& Emitter);
 
-	NIAGARAEDITOR_API FText FormatScriptAssetDescription(FText Description, FName Path);
+	NIAGARAEDITOR_API bool IsScriptAssetInLibrary(const FAssetData& ScriptAssetData);
+
+	NIAGARAEDITOR_API FText FormatScriptName(FName Name, bool bIsInLibrary);
+
+	NIAGARAEDITOR_API FText FormatScriptDescription(FText Description, FName Path, bool bIsInLibrary);
 
 	void ResetSystemsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel);
 
@@ -234,4 +238,6 @@ namespace FNiagaraEditorUtilities
 	void ToggleSelectedEmittersIsolated(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
 
 	void CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+
+	NIAGARAEDITOR_API void WarnWithToastAndLog(FText WarningMessage);
 };

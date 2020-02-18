@@ -399,6 +399,12 @@ public:
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	FText TemplateAssetDescription;
+
+	UPROPERTY()
+	TArray<UNiagaraScript*> ScratchPadScripts;
+
+	UPROPERTY()
+	TArray<UNiagaraScript*> ParentScratchPadScripts;
 	
 	/** Callback issued whenever a VM compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnEmitterCompiled& OnEmitterVMCompiled();

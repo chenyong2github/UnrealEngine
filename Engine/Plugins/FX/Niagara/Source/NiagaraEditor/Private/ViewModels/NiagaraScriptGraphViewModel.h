@@ -23,7 +23,7 @@ public:
 
 public:
 	/** Create a new view model with the supplied  display name. */
-	FNiagaraScriptGraphViewModel(FText InDisplayName);
+	FNiagaraScriptGraphViewModel(TAttribute<FText> InDisplayName);
 
 	~FNiagaraScriptGraphViewModel();
 
@@ -89,7 +89,7 @@ private:
 	TWeakObjectPtr<UNiagaraScriptSource> ScriptSource;
 
 	/** The display name for the script graph. */
-	FText DisplayName;
+	TAttribute<FText> DisplayName;
 
 	/** Commands for editing the graph. */
 	TSharedRef<FUICommandList> Commands;

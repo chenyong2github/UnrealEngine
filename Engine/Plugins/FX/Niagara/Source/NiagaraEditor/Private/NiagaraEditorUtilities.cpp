@@ -53,6 +53,9 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "UObject/TextProperty.h"
 #include "Editor/EditorEngine.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Styling/CoreStyle.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1400,11 +1403,42 @@ const FNiagaraEmitterHandle* FNiagaraEditorUtilities::GetEmitterHandleForEmitter
 		[&Emitter](const FNiagaraEmitterHandle& EmitterHandle) { return EmitterHandle.GetInstance() == &Emitter; });
 }
 
-FText FNiagaraEditorUtilities::FormatScriptAssetDescription(FText Description, FName Path)
+bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAssetData)
 {
+	bool bIsInLibrary;
+	bool bIsLibraryTagFound = ScriptAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExposeToLibrary), bIsInLibrary);
+	if (bIsLibraryTagFound == false)
+	{
+		if (ScriptAssetData.IsAssetLoaded())
+		{
+			UNiagaraScript* Script = static_cast<UNiagaraScript*>(ScriptAssetData.GetAsset());
+			if (Script != nullptr)
+			{
+				bIsInLibrary = Script->bExposeToLibrary;
+			}
+		}
+		else
+		{
+			bIsInLibrary = false;
+		}
+	}
+	return bIsInLibrary;
+}
+
+NIAGARAEDITOR_API FText FNiagaraEditorUtilities::FormatScriptName(FName Name, bool bIsInLibrary)
+{
+	return FText::FromString(FName::NameToDisplayString(Name.ToString(), false) + (bIsInLibrary ? TEXT("") : TEXT("*")));
+}
+
+FText FNiagaraEditorUtilities::FormatScriptDescription(FText Description, FName Path, bool bIsInLibrary)
+{
+	FText LibrarySuffix = bIsInLibrary
+		? LOCTEXT("LibrarySuffix", "\n* Script is not exposed to the library.")
+		: FText();
+
 	return Description.IsEmptyOrWhitespace()
-		? FText::Format(LOCTEXT("ScriptAssetDescriptionFormatPathOnly", "Path: {0}"), FText::FromName(Path))
-		: FText::Format(LOCTEXT("ScriptAssetDescriptionFormat", "Description: {1}\nPath: {0}"), FText::FromName(Path), Description);
+		? FText::Format(LOCTEXT("ScriptAssetDescriptionFormatPathOnly", "Path: {0}{1}"), FText::FromName(Path), LibrarySuffix)
+		: FText::Format(LOCTEXT("ScriptAssetDescriptionFormat", "Description: {1}\nPath: {0}{2}"), FText::FromName(Path), Description, LibrarySuffix);
 }
 
 void FNiagaraEditorUtilities::ResetSystemsThatReferenceSystemViewModel(const FNiagaraSystemViewModel& ReferencedSystemViewModel)
@@ -1920,6 +1954,17 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 	}
 
 	return false;
+}
+
+void FNiagaraEditorUtilities::WarnWithToastAndLog(FText WarningMessage)
+{
+	FNotificationInfo WarningNotification(WarningMessage);
+	WarningNotification.ExpireDuration = 5.0f;
+	WarningNotification.bFireAndForget = true;
+	WarningNotification.bUseLargeFont = false;
+	WarningNotification.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+	FSlateNotificationManager::Get().AddNotification(WarningNotification);
+	UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *WarningMessage.ToString());
 }
 
 #undef LOCTEXT_NAMESPACE

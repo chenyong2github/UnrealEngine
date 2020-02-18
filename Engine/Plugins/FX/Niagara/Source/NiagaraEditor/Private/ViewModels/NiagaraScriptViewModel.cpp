@@ -19,7 +19,7 @@
 
 template<> TMap<UNiagaraScript*, TArray<FNiagaraScriptViewModel*>> TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::ObjectsToViewModels{};
 
-FNiagaraScriptViewModel::FNiagaraScriptViewModel(FText DisplayName, ENiagaraParameterEditMode InParameterEditMode)
+FNiagaraScriptViewModel::FNiagaraScriptViewModel(TAttribute<FText> DisplayName, ENiagaraParameterEditMode InParameterEditMode)
 	: InputCollectionViewModel(MakeShareable(new FNiagaraScriptInputCollectionViewModel(DisplayName, InParameterEditMode)))
 	, OutputCollectionViewModel(MakeShareable(new FNiagaraScriptOutputCollectionViewModel(InParameterEditMode)))
 	, GraphViewModel(MakeShareable(new FNiagaraScriptGraphViewModel(DisplayName)))
@@ -120,6 +120,15 @@ FNiagaraScriptViewModel::~FNiagaraScriptViewModel()
 
 }
 
+FText FNiagaraScriptViewModel::GetDisplayName() const
+{
+	return GraphViewModel->GetDisplayName();
+}
+
+const TArray<TWeakObjectPtr<UNiagaraScript>>& FNiagaraScriptViewModel::GetScripts() const
+{
+	return Scripts;
+}
 
 void FNiagaraScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, TArray<UNiagaraScript*>& InScripts)
 {
@@ -288,7 +297,6 @@ UNiagaraScript* FNiagaraScriptViewModel::GetStandaloneScript()
 	}
 	return nullptr;
 }
-
 
 void FNiagaraScriptViewModel::UpdateCompileStatus(ENiagaraScriptCompileStatus InAggregateCompileStatus, const FString& InAggregateCompileErrorString,
 	const TArray<ENiagaraScriptCompileStatus>& InCompileStatuses, const TArray<FString>& InCompileErrors, const TArray<FString>& InCompilePaths,

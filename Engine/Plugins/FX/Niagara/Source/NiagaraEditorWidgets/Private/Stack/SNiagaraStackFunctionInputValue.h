@@ -106,6 +106,8 @@ private:
 
 	void CustomExpressionSelected();
 
+	void CreateScratchSelected();
+
 	void ParameterHandleSelected(FNiagaraParameterHandle Handle);
 
 	EVisibility GetResetButtonVisibility() const;

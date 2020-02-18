@@ -71,6 +71,7 @@ const FName FNiagaraSystemToolkit::PreviewSettingsTabId(TEXT("NiagaraSystemEdito
 const FName FNiagaraSystemToolkit::GeneratedCodeTabID(TEXT("NiagaraSystemEditor_GeneratedCode"));
 const FName FNiagaraSystemToolkit::MessageLogTabID(TEXT("NiagaraSystemEditor_MessageLog"));
 const FName FNiagaraSystemToolkit::SystemOverviewTabID(TEXT("NiagaraSystemEditor_SystemOverview"));
+const FName FNiagaraSystemToolkit::ScratchPadTabID(TEXT("NiagaraSystemEditor_ScratchPad"));
 
 static int32 GbLogNiagaraSystemChanges = 0;
 static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
@@ -148,6 +149,10 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 	InTabManager->RegisterTabSpawner(SystemOverviewTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemOverview))
 		.SetDisplayName(LOCTEXT("SystemOverviewTabName", "System Overview"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+
+	InTabManager->RegisterTabSpawner(ScratchPadTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_ScratchPad))
+		.SetDisplayName(LOCTEXT("ScratchPadTabName", "Scratch Pad"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
 void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -166,6 +171,7 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(PreviewSettingsTabId);
 	InTabManager->UnregisterTabSpawner(GeneratedCodeTabID);
 	InTabManager->UnregisterTabSpawner(SystemOverviewTabID);
+	InTabManager->UnregisterTabSpawner(ScratchPadTabID);
 }
 
 
@@ -305,11 +311,12 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetOnPinnedCurvesChanged().AddSP(this, &FNiagaraSystemToolkit::OnPinnedCurvesChanged);
+	SystemViewModel->OnRequestFocusTab().AddSP(this, &FNiagaraSystemToolkit::OnViewModelRequestFocusTab);
 
 	const float InTime = -0.02f;
 	const float OutTime = 3.2f;
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v20")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v22")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -350,6 +357,8 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.6f)
 							->AddTab(SystemOverviewTabID, ETabState::OpenedTab)
+							->AddTab(ScratchPadTabID, ETabState::OpenedTab)
+							->SetForegroundTab(SystemOverviewTabID)
 						)
 					)
 					->Split
@@ -639,11 +648,21 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_MessageLog(const FSpawnTabA
 
 TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemOverview(const FSpawnTabArgs& Args)
 {
-	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Label(LOCTEXT("SystemOverviewTabLabel", "System Overview"))
 		[
-			NiagaraEditorModule.GetWidgetProvider()->CreateSystemOverview(SystemViewModel.ToSharedRef())
+			FNiagaraEditorModule::Get().GetWidgetProvider()->CreateSystemOverview(SystemViewModel.ToSharedRef())
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_ScratchPad(const FSpawnTabArgs& Args)
+{
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("ScratchPadTabLabel", "Scratch Pad"))
+		[
+			FNiagaraEditorModule::Get().GetWidgetProvider()->CreateScriptScratchPad(*SystemViewModel->GetScriptScratchPadViewModel())
 		];
 
 	return SpawnedTab;
@@ -1422,6 +1441,11 @@ void FNiagaraSystemToolkit::RefreshParameters()
 void FNiagaraSystemToolkit::OnSystemSelectionChanged()
 {
 	RefreshParameters();
+}
+
+void FNiagaraSystemToolkit::OnViewModelRequestFocusTab(FName TabName)
+{
+	GetTabManager()->InvokeTab(TabName);
 }
 
 #undef LOCTEXT_NAMESPACE
