@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Containers/Array.h" // TIndexedContainerIterator
+#include "Containers/ArrayView.h"
 #include "Templates/IsPODType.h"
 #include "Templates/IsTriviallyDestructible.h"
 #include "Templates/MemoryOps.h"
@@ -165,14 +166,14 @@ public:
 		{
 			return;
 		}
-		SetCapacity(NewCapacity);
+		Reallocate(NewCapacity);
 	}
 
 	/** Set the capacity to the minimum power of two (or 0) greater than or equal to the current number of elements in the RingBuffer. */
 	void Trim()
 	{
 		SizeType NewCapacity = NormalizeCapacity(Num());
-		SetCapacity(NewCapacity);
+		Reallocate(NewCapacity);
 	}
 
 	/** Empty the RingBuffer, destructing any elements in the RingBuffer but not releasing the RingBuffer's storage. */
@@ -188,7 +189,7 @@ public:
 	{
 		Reset();
 		SizeType NewCapacity = NormalizeCapacity(Capacity);
-		SetCapacity(NewCapacity);
+		Reallocate(NewCapacity);
 	}
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The new element is move constructed from the argument. Returns the index of the added element. */
@@ -552,6 +553,23 @@ public:
 		return !(*this == Other);
 	}
 
+	/**
+	  * Shift all elements so that the front pointer's location in memory is less than the back pointer's. 
+	  * Returns a temporary ArrayView for the RingBuffer's elements; the returned ArrayView will be invalid after the next write operation on the RingBuffer.
+	  */
+	TArrayView<T> MakeContiguous()
+	{
+		StorageModuloType MaskedFront = Front & IndexMask;
+		const StorageModuloType MaskedAfterBack = AfterBack & IndexMask;
+		if ((MaskedFront > MaskedAfterBack) | // Non-empty, non-full RingBuffer, and back pointer wraps around to be before front
+			((MaskedFront == MaskedAfterBack) & (AfterBack != Front) & (MaskedFront != 0))) // Full, non-empty RingBuffer, and front is not at the beginning of the storage
+		{
+			Reallocate(GetCapacity());
+			MaskedFront = Front & IndexMask;
+		}
+		return TArrayView<T>(GetData() + MaskedFront, Num());
+	}
+
 private:
 	enum : uint32
 	{
@@ -560,7 +578,7 @@ private:
 	};
 
 	/** Set the capacity to the given value and move or copy all elements from the old storage into a new storage with the given capacity.  Assumes the capacity has already been normalized and is greater than or equal to the number of elements in the RingBuffer. */
-	void SetCapacity(SizeType NewCapacity)
+	void Reallocate(SizeType NewCapacity)
 	{
 		ElementType* SrcData = GetData();
 		const SizeType SrcCapacity = static_cast<SizeType>(GetCapacity());

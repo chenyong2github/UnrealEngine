@@ -819,7 +819,7 @@ public:
 			TestTrue(TEXT("Test Front<Capacity - Contract is true"), static_cast<uint32>(Q.Front) < static_cast<uint32>(Q.GetCapacity()));
 		}
 
-		// Test Is ValidIndex
+		// Test IsValidIndex
 		{
 			TRingBuffer<uint32> Q({ 0,1,2,3,4 });
 			for (int32 It = 0; It < Q.Num(); ++It)
@@ -830,6 +830,64 @@ public:
 			TestEqual(TEXT("IsValidIndex - Num()"), Q.IsValidIndex(Q.Num() + 1), false);
 			TestEqual(TEXT("IsValidIndex - Capacity"), Q.IsValidIndex(Q.GetCapacity()), false);
 			TestEqual(TEXT("IsValidIndex - Capacity + 1"), Q.IsValidIndex(Q.GetCapacity()+1), false);
+		}
+
+		// Test MakeContiguous
+		{
+			{
+				TRingBuffer<uint32> QEmpty;
+				TestEqual(TEXT("MakeContiguous - Empty zero capacity"), QEmpty.MakeContiguous().Num(), 0);
+				QEmpty.PushBack(1);
+				QEmpty.PopFront();
+				TestEqual(TEXT("MakeContiguous - Empty non-zero capacity"), QEmpty.MakeContiguous().Num(), 0);
+			}
+			{
+				TArrayView<uint32> View;
+				TRingBuffer<uint32> Q(8);
+				Q.PushFront(37);
+				View = Q.MakeContiguous();
+				TestTrue(TEXT("MakeContiguous - Front at end"), ArrayViewsEqual(View, TArrayView<const uint32>({ 37 })));
+			}
+			{
+				TArrayView<uint32> View;
+				TRingBuffer<uint32> Q(8);
+				for (TRingBuffer<uint32>::IndexType It = 0; It < 6; ++It)
+				{
+					Q.PushBack(It);
+				}
+				Q.PopFront();
+				TRingBuffer<uint32>::StorageModuloType SavedFront = Q.Front;
+				TestTrue(TEXT("MakeContiguous - Front in middle - setup"), SavedFront > 0);
+				View = Q.MakeContiguous();
+				TestTrue(TEXT("MakeContiguous - Front in middle - values"), ArrayViewsEqual(View, TArrayView<const uint32>({ 1,2,3,4,5 })));
+				TestTrue(TEXT("MakeContiguous - Front in middle - no reallocate"), Q.Front == SavedFront);
+			}
+			{
+				TArrayView<uint32> View;
+				TRingBuffer<uint32> Q(8);
+				for (TRingBuffer<uint32>::IndexType It = 1; It < 8; ++It)
+				{
+					Q.PushBack(It);
+				}
+				Q.PushFront(0);
+				TestTrue(TEXT("MakeContiguous - Full array front at end - setup"), (Q.Front & Q.IndexMask) == 7);
+				View = Q.MakeContiguous();
+				TestTrue(TEXT("MakeContiguous - Full array front at end - values"), ArrayViewsEqual(View, TArrayView<const uint32>({0,1,2,3,4,5,6,7 })));
+				TestTrue(TEXT("MakeContiguous - Full array front at end - reallocated"), Q.Front == 0);
+			}
+			{
+				TArrayView<uint32> View;
+				TRingBuffer<uint32> Q(8);
+				for (TRingBuffer<uint32>::IndexType It = 0; It < 8; ++It)
+				{
+					Q.PushBack(It);
+				}
+				uint32* SavedData = Q.AllocationData;
+				TestTrue(TEXT("MakeContiguous - Full array front at start - setup"), Q.Front == 0);
+				View = Q.MakeContiguous();
+				TestTrue(TEXT("MakeContiguous - Full array front at start - values"), ArrayViewsEqual(View, TArrayView<const uint32>({ 0,1,2,3,4,5,6,7 })));
+				TestTrue(TEXT("MakeContiguous - Full array front at start - no reallocate"), Q.AllocationData == SavedData);
+			}
 		}
 		return true;
 	}
@@ -932,6 +990,24 @@ public:
 				}
 			}
 		}
+	}
+
+	template <typename T, typename U>
+	static bool ArrayViewsEqual(const TArrayView<T>& A, const TArrayView<U>& B)
+	{
+		int32 Num = A.Num();
+		if (Num != B.Num())
+		{
+			return false;
+		}
+		for (int It = 0; It < Num; ++It)
+		{
+			if (A[It] != B[It])
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 };
 
