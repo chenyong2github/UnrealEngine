@@ -2835,16 +2835,16 @@ bool URigVMController::BreakAllLinks(const FString& InPinPath, bool bAsInput, bo
 	}
 	Pin = Pin->GetPinForLink();
 
+	if (!IsValidPinForGraph(Pin))
+	{
+		return false;
+	}
+
 	return BreakAllLinks(Pin, bAsInput, bUndo);
 }
 
 bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bUndo)
 {
-	if(!IsValidPinForGraph(Pin))
-	{
-		return false;
-	}
-
 	FRigVMBaseAction Action;
 	if (bUndo)
 	{
