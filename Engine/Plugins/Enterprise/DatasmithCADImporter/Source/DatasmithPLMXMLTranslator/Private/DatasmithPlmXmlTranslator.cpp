@@ -15,7 +15,8 @@ void FDatasmithPlmXmlTranslator::Initialize(FDatasmithTranslatorCapabilities& Ou
 	OutCapabilities.bParallelLoadStaticMeshSupported = true;
 
 	TArray<FFileFormatInfo>& Formats = OutCapabilities.SupportedFileFormats;
-    Formats.Emplace(TEXT("plmxml"), TEXT("PML(Product Lifecycle Management) XML"));
+    Formats.Emplace(TEXT("plmxml"), TEXT("PLMXML"));
+    Formats.Emplace(TEXT("xml"), TEXT("PLMXML"));
 }
 
 bool FDatasmithPlmXmlTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
