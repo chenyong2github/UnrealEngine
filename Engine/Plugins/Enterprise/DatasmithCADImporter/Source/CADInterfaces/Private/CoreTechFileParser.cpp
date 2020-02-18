@@ -20,24 +20,19 @@ namespace CADLibrary
 {
 
 namespace {
-	double Distance(CT_COORDINATE Point1, CT_COORDINATE Point2)
-	{
-		return sqrt((Point2.xyz[0] - Point1.xyz[0]) * (Point2.xyz[0] - Point1.xyz[0]) + (Point2.xyz[1] - Point1.xyz[1]) * (Point2.xyz[1] - Point1.xyz[1]) + (Point2.xyz[2] - Point1.xyz[2]) * (Point2.xyz[2] - Point1.xyz[2]));
-	}
 
-	template<typename UVType>
-	void ScaleUV(CT_OBJECT_ID FaceID, void* TexCoordArray, int32 VertexCount, UVType Scale)
+	void ScaleUV(CT_OBJECT_ID FaceID, TArray<FVector2D>& TexCoordArray, float Scale)
 	{
-		UVType VMin, VMax, UMin, UMax;
+		float VMin, VMax, UMin, UMax;
 		VMin = UMin = HUGE_VALF;
 		VMax = UMax = -HUGE_VALF;
-		UVType* UVSet = (UVType*) TexCoordArray;
-		for (int32 Index = 0, UVCoord = 0; Index < VertexCount; ++Index, UVCoord += 2)
+
+		for (const FVector2D& TexCoord : TexCoordArray)
 		{
-			UMin = FMath::Min(UVSet[UVCoord + 0], UMin);
-			UMax = FMath::Max(UVSet[UVCoord + 0], UMax);
-			VMin = FMath::Min(UVSet[UVCoord + 1], VMin);
-			VMax = FMath::Max(UVSet[UVCoord + 1], VMax);
+			UMin = FMath::Min(TexCoord[0], UMin);
+			UMax = FMath::Max(TexCoord[0], UMax);
+			VMin = FMath::Min(TexCoord[1], VMin);
+			VMax = FMath::Max(TexCoord[1], VMax);
 		}
 
 		double PuMin, PuMax, PvMin, PvMax;
@@ -57,9 +52,9 @@ namespace {
 		CT_OBJECT_TYPE SurfaceType;
 		CT_SURFACE_IO::AskType(SurfaceID, SurfaceType);
 
-		UVType DeltaU = (PuMax - PuMin) / (NbIsoCurves - 1);
-		UVType DeltaV = (PvMax - PvMin) / (NbIsoCurves - 1);
-		UVType U = PuMin, V = PvMin;
+		float DeltaU = (PuMax - PuMin) / (NbIsoCurves - 1);
+		float DeltaV = (PvMax - PvMin) / (NbIsoCurves - 1);
+		float U = PuMin, V = PvMin;
 
 		CT_COORDINATE NodeMatrix[121];
 
@@ -75,10 +70,10 @@ namespace {
 		}
 
 		// Compute length of 7 iso V line
-		UVType LengthU[NbIsoCurves];
-		UVType LengthUMin = HUGE_VAL;
-		UVType LengthUMax = 0;
-		UVType LengthUMed = 0;
+		float LengthU[NbIsoCurves];
+		float LengthUMin = HUGE_VAL;
+		float LengthUMax = 0;
+		float LengthUMed = 0;
 
 		for (int32 IndexJ = 0; IndexJ < NbIsoCurves; IndexJ++)
 		{
@@ -95,10 +90,10 @@ namespace {
 		LengthUMed = LengthUMed * 2 / 3 + LengthUMax / 3;
 
 		// Compute length of 7 iso U line
-		UVType LengthV[NbIsoCurves];
-		UVType LengthVMin = HUGE_VAL;
-		UVType LengthVMax = 0;
-		UVType LengthVMed = 0;
+		float LengthV[NbIsoCurves];
+		float LengthVMin = HUGE_VAL;
+		float LengthVMax = 0;
+		float LengthVMed = 0;
 
 		for (int32 IndexI = 0; IndexI < NbIsoCurves; IndexI++)
 		{
@@ -140,13 +135,13 @@ namespace {
 
 		// scale the UV map
 		// 0.1 define UV in cm and not in mm
-		UVType VScale = Scale * LengthVMed * 1 / (VMax - VMin) / 100;
-		UVType UScale = Scale * LengthUMed * 1 / (UMax - UMin) / 100;
+		float VScale = Scale * LengthVMed * 1 / (VMax - VMin) / 100;
+		float UScale = Scale * LengthUMed * 1 / (UMax - UMin) / 100;
 
-		for (int32 Index = 0, UVCoord = 0; Index < VertexCount; ++Index, UVCoord += 2)
+		for (FVector2D& TexCoord : TexCoordArray)
 		{
-			UVSet[UVCoord + 0] *= UScale;
-			UVSet[UVCoord + 1] *= VScale;
+			TexCoord[0] *= UScale;
+			TexCoord[1] *= VScale;
 		}
 	}
 }
@@ -183,6 +178,36 @@ uint32 GetGeomFileHash(const uint32 InSGHash, const FImportParameters& ImportPar
 	return FileHash;
 }
 
+template<typename ValueType>
+void FillArrayOfVector(int32 ElementCount, void* InCTValueArray, FVector* OutValueArray)
+{
+	ValueType* Values = (ValueType*)InCTValueArray;
+	for (int Indice = 0; Indice < ElementCount; ++Indice)
+	{
+		OutValueArray[Indice].Set((float)Values[Indice * 3], (float)Values[Indice * 3 + 1], (float)Values[Indice * 3 + 2]);
+	}
+}
+
+template<typename ValueType>
+void FillArrayOfVector2D(int32 ElementCount, void* InCTValueArray, FVector2D* OutValueArray)
+{
+	ValueType* Values = (ValueType*)InCTValueArray;
+	for (int Indice = 0; Indice < ElementCount; ++Indice)
+	{
+		OutValueArray[Indice].Set((float)Values[Indice * 2], (float)Values[Indice * 2 + 1]);
+	}
+}
+
+template<typename ValueType>
+void FillArrayOfInt(int32 ElementCount, void* InCTValueArray, int32* OutValueArray)
+{
+	ValueType* Values = (ValueType*)InCTValueArray;
+	for (int Indice = 0; Indice < ElementCount; ++Indice)
+	{
+		OutValueArray[Indice] = (int32)Values[Indice];
+	}
+}
+
 uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceTessellationSet, const FImportParameters& ImportParams)
 {
 	CT_IO_ERROR Error = IO_OK;
@@ -215,38 +240,81 @@ uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceT
 	}
 
 	FTessellationData& Tessellation = FaceTessellationSet.Emplace_GetRef();
-	if (ImportParams.bScaleUVMap && TexCoordArray != nullptr)
+	Tessellation.IndexArray.SetNum(IndexCount);
+
+	switch (IndexType)
 	{
+	case CT_TESS_UBYTE:
+		FillArrayOfInt<uint8>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+		break;
+	case CT_TESS_USHORT:
+		FillArrayOfInt<uint16>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+		break;
+	case CT_TESS_UINT:
+		FillArrayOfInt<uint32>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+		break;
+	}
+
+	Tessellation.VertexArray.SetNum(VertexCount);
+	switch (VertexType)
+	{
+	case CT_TESS_FLOAT:
+		FillArrayOfVector<float>(VertexCount, VertexArray, Tessellation.VertexArray.GetData());
+		break;
+	case CT_TESS_DOUBLE:
+		FillArrayOfVector<double>(VertexCount, VertexArray, Tessellation.VertexArray.GetData());
+		break;
+	}
+
+	Tessellation.NormalArray.SetNum(NormalCount);
+	switch (NormalType)
+	{
+	case CT_TESS_BYTE:
+		Tessellation.NormalArray.SetNumZeroed(NormalCount);
+		break;
+	case CT_TESS_SHORT:
+	{
+		int8* InCTValueArray = (int8*)NormalArray;
+		for (CT_UINT32 Indice = 0; Indice < NormalCount; ++Indice)
+		{
+			Tessellation.NormalArray[Indice].Set(((float)InCTValueArray[Indice]) / 255.f, ((float)InCTValueArray[Indice + 1]) / 255.f, ((float)InCTValueArray[Indice + 2]) / 255.f);
+		}
+		break;
+	}
+	case CT_TESS_FLOAT:
+		FillArrayOfVector<float>(NormalCount, NormalArray, Tessellation.NormalArray.GetData());
+		break;
+	}
+
+	if (TexCoordArray)
+	{
+		Tessellation.TexCoordArray.SetNum(VertexCount);
 		switch (TexCoordType)
 		{
+		case CT_TESS_SHORT:
+		{
+			int8* InCTValueArray = (int8*)TexCoordArray;
+			for (CT_UINT32 Indice = 0; Indice < VertexCount; ++Indice)
+			{
+				Tessellation.TexCoordArray[Indice].Set(((float)InCTValueArray[Indice]) / 255.f, ((float)InCTValueArray[Indice + 1]) / 255.f);
+			}
+			break;
+		}
 		case CT_TESS_FLOAT:
-			ScaleUV<float>(FaceID, TexCoordArray, VertexCount, (float) ImportParams.ScaleFactor);
+			FillArrayOfVector2D<float>(VertexCount, TexCoordArray, Tessellation.TexCoordArray.GetData());
 			break;
 		case CT_TESS_DOUBLE:
-			ScaleUV<double>(FaceID, TexCoordArray, VertexCount, ImportParams.ScaleFactor);
+			FillArrayOfVector2D<double>(VertexCount, TexCoordArray, Tessellation.TexCoordArray.GetData());
 			break;
 		}
 	}
 
-	Tessellation.VertexCount = VertexCount;
-	Tessellation.NormalCount = NormalCount;
-	Tessellation.IndexCount = IndexCount;
-	Tessellation.TexCoordCount = TexCoordArray ? VertexCount : 0;
-	Tessellation.SizeOfVertexType = GetSize(VertexType);
-	Tessellation.SizeOfTexCoordType = GetSize(TexCoordType);
-	Tessellation.SizeOfNormalType = GetSize(NormalType);
-	Tessellation.SizeOfIndexType = GetSize(IndexType);
-
-	Tessellation.VertexArray.Append((uint8*) VertexArray, 3 * Tessellation.VertexCount * Tessellation.SizeOfVertexType);
-	Tessellation.NormalArray.Append((uint8*)NormalArray, 3 * Tessellation.NormalCount * Tessellation.SizeOfNormalType);
-	Tessellation.IndexArray.Append((uint8*)IndexArray, Tessellation.IndexCount * Tessellation.SizeOfIndexType);
-
-	if (TexCoordArray)
+	if (ImportParams.bScaleUVMap && Tessellation.TexCoordArray.Num() != 0)
 	{
-		Tessellation.TexCoordArray.Append((uint8*)TexCoordArray, 2 * Tessellation.TexCoordCount * Tessellation.SizeOfTexCoordType);
+		ScaleUV(FaceID, Tessellation.TexCoordArray, (float) ImportParams.ScaleFactor);
 	}
 
-	return (uint32)Tessellation.IndexCount / 3;
+	return Tessellation.IndexArray.Num() / 3;
 }
 
 
