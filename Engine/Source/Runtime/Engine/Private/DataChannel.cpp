@@ -1464,7 +1464,7 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 	// Process the packet
 	while (!Bunch.AtEnd() && Connection != NULL && Connection->State != USOCK_Closed) // if the connection got closed, we don't care about the rest
 	{
-		uint8 MessageType;
+		uint8 MessageType = 0;
 		Bunch << MessageType;
 		if (Bunch.IsError())
 		{
