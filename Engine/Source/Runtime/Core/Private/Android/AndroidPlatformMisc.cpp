@@ -1220,13 +1220,16 @@ void FAndroidMisc::TriggerNonFatalCrashHandler(ECrashContextType InType, const F
 	}
 }
 
-void FAndroidMisc::TriggerCrashHandler(const TCHAR* InErrorMessage, const TMap<FString, FString>& AdditionalProperties)
+void FAndroidMisc::TriggerCrashHandler(const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack)
 {
 	FAndroidCrashContext CrashContext(ECrashContextType::Crash, InErrorMessage);
-	CrashContext.CaptureCrashInfo();
-	for (TMap<FString, FString>::TConstIterator Iter(AdditionalProperties); Iter; ++Iter)
+	if(OverrideCallstack)
 	{
-		CrashContext.AddAndroidCrashProperty(*Iter.Key(), *Iter.Value());
+		CrashContext.SetOverrideCallstack(OverrideCallstack);
+	}
+	else
+	{
+		CrashContext.CaptureCrashInfo();
 	}
 
 	if (GCrashHandlerPointer)
