@@ -59,7 +59,7 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 			const bool bIsGroupBoundary = Mesh.IsGroupBoundaryEdge(EdgeID);
 			const bool bIsMaterialBoundary = Attributes && Attributes->IsMaterialBoundaryEdge(EdgeID);
 			const bool bIsSeam = Attributes && Attributes->IsSeamEdge(EdgeID);
-			FVertexConstraint VtxConstraint{false, true};
+			FVertexConstraint VtxConstraint = FVertexConstraint::Unconstrained();
 			EEdgeRefineFlags EdgeFlags{};
 			auto ApplyBoundaryConstraint =
 				[&VtxConstraint, &EdgeFlags](uint8 BoundaryConstraint)
@@ -98,9 +98,19 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 				FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
 
 				ConstraintSetLock.Lock();
-				Constraints.SetOrUpdateEdgeConstraint(EdgeID, FEdgeConstraint{EdgeFlags});
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, VtxConstraint);
-				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, VtxConstraint);
+
+				Constraints.SetOrUpdateEdgeConstraint(EdgeID, FEdgeConstraint{ EdgeFlags });
+
+				// If any vertex constraints exist, we can only make them more restrictive!
+							
+				FVertexConstraint ConstraintA = VtxConstraint;
+				ConstraintA.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.A));
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, ConstraintA);
+
+				FVertexConstraint ConstraintB = VtxConstraint;
+				ConstraintB.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.B));
+				Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, ConstraintB);
+
 				ConstraintSetLock.Unlock();
 			}
 		}
