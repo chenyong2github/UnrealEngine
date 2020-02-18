@@ -2,7 +2,7 @@
 
 #include "Packets/DMXProtocolE131PDUPacket.h"
 #include "DMXProtocolTypes.h"
-#include "Serialization/DMXMemoryWriter.h"
+#include "Serialization/BufferArchive.h"
 
 #include "DMXProtocolMacros.h"
 
@@ -14,7 +14,7 @@ REGISTER_DMX_ARCHIVE(FDMXProtocolUDPE131DiscoveryLayerPacket);
 
 TSharedPtr<FBufferArchive> FDMXProtocolE131RootLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -37,7 +37,7 @@ void FDMXProtocolE131RootLayerPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolE131FramingLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -61,7 +61,7 @@ void FDMXProtocolE131FramingLayerPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolE131DMPLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -84,7 +84,7 @@ void FDMXProtocolE131DMPLayerPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolUDPE131FramingLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -102,7 +102,7 @@ void FDMXProtocolUDPE131FramingLayerPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolUDPE131DiscoveryLayerPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;

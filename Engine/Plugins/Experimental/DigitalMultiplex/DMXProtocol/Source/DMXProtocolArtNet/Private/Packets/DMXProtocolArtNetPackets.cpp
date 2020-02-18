@@ -2,8 +2,9 @@
 
 #include "Packets/DMXProtocolArtNetPackets.h"
 #include "DMXProtocolTypes.h"
-#include "Serialization/DMXMemoryWriter.h"
 #include "DMXProtocolMacros.h"
+
+#include "Serialization/BufferArchive.h"
 
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetDMXPacket);
 REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetPollPacket);
@@ -15,7 +16,7 @@ REGISTER_DMX_ARCHIVE(FDMXProtocolArtNetRDM);
 
 TSharedPtr<FBufferArchive> FDMXProtocolArtNetDMXPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -38,7 +39,7 @@ void FDMXProtocolArtNetDMXPacket::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolArtNetPollPacket::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -92,7 +93,7 @@ void FDMXProtocolArtNetPacketReply::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodRequest::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -121,7 +122,7 @@ void FDMXProtocolArtNetTodRequest::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodData::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -154,7 +155,7 @@ void FDMXProtocolArtNetTodData::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolArtNetTodControl::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
@@ -182,7 +183,7 @@ void FDMXProtocolArtNetTodControl::Serialize(FArchive & Ar)
 
 TSharedPtr<FBufferArchive> FDMXProtocolArtNetRDM::Pack()
 {
-	TSharedPtr<FDMXMemoryWriter> Writer = MakeShared<FDMXMemoryWriter>();
+	TSharedPtr<FBufferArchive> Writer = MakeShared<FBufferArchive>();
 	*Writer << *this;
 
 	return Writer;
