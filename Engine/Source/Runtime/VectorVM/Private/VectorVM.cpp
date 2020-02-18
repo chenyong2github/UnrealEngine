@@ -1504,7 +1504,6 @@ struct FScalarKernelUpdateID
 			{
 				//Add the ID to a thread local list of IDs to free which are actually added to the list safely at the end of this chunk's execution.
 				IDsToFree.Add(InstanceId);
-				IDTable[InstanceId] = INDEX_NONE;
 				//UE_LOG(LogVectorVM, Warning, TEXT("FreeingID: InstanceID:%d."), InstanceId);
 			}
 			else

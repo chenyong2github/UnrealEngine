@@ -236,14 +236,6 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 		{
 			//UE_LOG(LogNiagara, Warning, TEXT("Growing ID Table! OldSize:%d | NewSize:%d"), ExistingNumIDs, RequiredIDs);
 			int32 NewNumIds = RequiredIDs - ExistingNumIDs;
-#if 0
-			DestinationIDTable.SetNumUninitialized(RequiredIDs);
-#else
-			while (DestinationIDTable.Num() < RequiredIDs)
-			{
-				DestinationIDTable.Add(INDEX_NONE);
-			}
-#endif
 
 			//Free ID Table must always be at least as large as the data buffer + it's current size in the case all particles die this frame.
 			FreeIDsTable.AddUninitialized(NewNumIds);
@@ -293,8 +285,13 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 			RequiredIDs = ExistingNumIDs;
 		}
 
+		// We need to clear the ID to index table to -1 so we don't have stale entries for particles which died in the previous
+		// frame (when the results were written to another buffer). All the entries which are in use will be filled in by the script.
 		DestinationIDTable.SetNumUninitialized(RequiredIDs);
-		MaxUsedID = INDEX_NONE;//reset the max ID ready for it to be filled in during simulation.
+		FMemory::Memset(DestinationIDTable.GetData(), -1, RequiredIDs * DestinationIDTable.GetTypeSize());
+
+		//reset the max ID ready for it to be filled in during simulation.
+		MaxUsedID = INDEX_NONE;
 
 // 		UE_LOG(LogNiagara, Warning, TEXT("DataSetAllocate: NumInstances:%d | ID Table Size:%d | NumFreeIDs:%d | FreeTableSize:%d"), NumInstances, DestinationData->GetIDTable().Num(), NumFreeIDs, FreeIDsTable.Num());
 // 		UE_LOG(LogNiagara, Warning, TEXT("== FreeIDs %d =="), NumFreeIDs);
