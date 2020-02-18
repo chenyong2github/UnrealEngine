@@ -12,6 +12,7 @@
 #include "Containers/List.h"
 #include "Containers/ArrayView.h"
 #include "Serialization/SerializedPropertyScope.h"
+#include "Serialization/MemoryImage.h"
 #include "Templates/Casts.h"
 #include "Templates/Greater.h"
 #include "Templates/IsFloatingPoint.h"
@@ -2719,6 +2720,12 @@ public:
 // Describes a dynamic array.
 //
 
+using FFreezableScriptArray = TScriptArray<TMemoryImageAllocator<DEFAULT_ALIGNMENT>>;
+
+//@todo stever
+//static_assert(sizeof(FScriptArray) == sizeof(FFreezableScriptArray) && alignof(FScriptArray) == alignof(FFreezableScriptArray), "FScriptArray and FFreezableScriptArray are expected to be layout-compatible");
+
+
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
 typedef TProperty<FScriptArray, FProperty> FArrayProperty_Super;
 class FScriptArrayHelper;
@@ -2729,21 +2736,34 @@ class COREUOBJECT_API FArrayProperty : public FArrayProperty_Super
 
 	// Variables.
 	FProperty* Inner;
+	EArrayPropertyFlags ArrayFlags;
 
 public:
+	/** Type of the CPP property **/
+	enum
+	{
+		// These need to be the same as FFreezableScriptArray
+		CPPSize = sizeof(FScriptArray),
+		CPPAlignment = alignof(FScriptArray)
+	};
+
 	typedef FArrayProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	FArrayProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+	FArrayProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, EArrayPropertyFlags InArrayPropertyFlags=EArrayPropertyFlags::None)
 		: FArrayProperty_Super(InOwner, InName, InObjectFlags)
 		, Inner(nullptr)
 	{
+		ArrayFlags = InArrayPropertyFlags;
+		SetElementSize();
 	}
 
-	FArrayProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+	FArrayProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, EArrayPropertyFlags InArrayPropertyFlags)
 		: FArrayProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 		, Inner(nullptr)
 	{
+		ArrayFlags = InArrayPropertyFlags;
+		SetElementSize();
 	}
 
 	virtual ~FArrayProperty();
@@ -2777,6 +2797,23 @@ public:
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const override;
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
+	virtual void InitializeValueInternal(void* Dest) const override
+	{
+		if (EnumHasAnyFlags(ArrayFlags, EArrayPropertyFlags::UsesMemoryImageAllocator))
+		{
+			for (int32 i = 0; i < this->ArrayDim; ++i)
+			{
+				new ((uint8*)Dest + i * this->ElementSize) FScriptArray;
+			}
+		}
+		else
+		{
+			for (int32 i = 0; i < this->ArrayDim; ++i)
+			{
+				new ((uint8*)Dest + i * this->ElementSize) FFreezableScriptArray;
+			}
+		}
+	}
 	virtual void CopyValuesInternal( void* Dest, void const* Src, int32 Count  ) const override;
 	virtual void ClearValueInternal( void* Data ) const override;
 	virtual void DestroyValueInternal( void* Dest ) const override;
@@ -2787,6 +2824,12 @@ public:
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+
+	virtual int32 GetMinAlignment() const override
+	{
+		// This is the same as alignof(FFreezableScriptArray)
+		return alignof(FScriptArray);
+	}
 	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerTypeText, const FString& InInnerExtendedTypeText) const;
@@ -2796,7 +2839,18 @@ public:
 
 	/** Called by ImportTextItem, but can also be used by a non-ArrayProperty whose ArrayDim is > 1. ArrayHelper should be supplied by ArrayProperties and nullptr for fixed-size arrays. */
 	static const TCHAR* ImportTextInnerItem(const TCHAR* Buffer, FProperty* Inner, void* Data, int32 PortFlags, UObject* OwnerObject, FScriptArrayHelper* ArrayHelper = nullptr, FOutputDevice* ErrorText = (FOutputDevice*)GWarn);
+
+private:
+	FORCEINLINE void SetElementSize()
+	{
+		this->ElementSize = CPPSize;
+	}
 };
+
+using FFreezableScriptMap = TScriptMap<FMemoryImageSetAllocator>;
+
+//@todo stever
+//static_assert(sizeof(FScriptArray) == sizeof(FFreezableScriptArray) && alignof(FScriptArray) == alignof(FFreezableScriptArray), "FScriptArray and FFreezableScriptArray are expected to be layout-compatible");
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
 typedef TProperty<FScriptMap, FProperty> FMapProperty_Super;
@@ -2809,13 +2863,14 @@ class COREUOBJECT_API FMapProperty : public FMapProperty_Super
 	FProperty*       KeyProp;
 	FProperty*       ValueProp;
 	FScriptMapLayout MapLayout;
+	EMapPropertyFlags MapFlags;
 
 public:
 	typedef FMapProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
-	FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags);
+	FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, EMapPropertyFlags InMapFlags=EMapPropertyFlags::None);
+	FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, EMapPropertyFlags InMapFlags);
 
 #if WITH_EDITORONLY_DATA
 	explicit FMapProperty(UField* InField);
@@ -2930,19 +2985,30 @@ public:
  **/
 class FScriptArrayHelper
 {
+	enum EInternal { Internal };
+
+	template <typename CallableType>
+	auto WithScriptArray(CallableType&& Callable) const
+	{
+		if (!!(ArrayFlags & EArrayPropertyFlags::UsesMemoryImageAllocator))
+		{
+			return Callable(FreezableArray);
+		}
+		else
+		{
+			return Callable(HeapArray);
+		}
+	}
+
 public:
 	/**
 	 *	Constructor, brings together a property and an instance of the property located in memory
 	 *	@param	InProperty: the property associated with this memory
 	 *	@param	InArray: pointer to raw memory that corresponds to this array. This can be NULL, and sometimes is, but in that case almost all operations will crash.
 	**/
-	FORCEINLINE FScriptArrayHelper(const FArrayProperty* InProperty, const void *InArray)
-		: InnerProperty(InProperty->Inner)
-		, Array((FScriptArray*)InArray)  //@todo, we are casting away the const here
-		, ElementSize(InnerProperty->ElementSize)
+	FORCEINLINE FScriptArrayHelper(const FArrayProperty* InProperty, const void* InArray)
+		: FScriptArrayHelper(Internal, InProperty->Inner, InArray, InProperty->Inner->ElementSize, InProperty->ArrayFlags)
 	{
-		check(ElementSize > 0);
-		check(InnerProperty);
 	}
 
 	/**
@@ -2960,14 +3026,16 @@ public:
 	**/
 	FORCEINLINE int32 Num() const
 	{
-		checkSlow(Array->Num() >= 0); 
-		return Array->Num();
+		int32 Result = WithScriptArray([](auto* Array) { return Array->Num(); });
+		checkSlow(Result >= 0);
+		return Result;
 	}
 	/**
 	 *	Static version of Num() used when you don't need to bother to construct a FScriptArrayHelper. Returns the number of elements in the array.
 	 *	@param	Target: pointer to the raw memory associated with a FScriptArray
 	 *	@return The number of elements in the array.
 	**/
+	UE_DEPRECATED(4.25, "This shortcut is no longer valid - the Num() should be read from a proper array helper")
 	static FORCEINLINE int32 Num(const void *Target)
 	{
 		checkSlow(((const FScriptArray*)Target)->Num() >= 0); 
@@ -2986,7 +3054,7 @@ public:
 			return NULL;
 		}
 		checkSlow(IsValidIndex(Index)); 
-		return (uint8*)Array->GetData() + Index * ElementSize;
+		return (uint8*)WithScriptArray([](auto* Array) { return Array->GetData(); }) + Index * ElementSize;
 	}
 	/**
 	*	Empty the array, then add blank, constructed values to a given size.
@@ -3078,7 +3146,7 @@ public:
 	{
 		check(Count>0);
 		checkSlow(Num() >= 0);
-		const int32 OldNum = Array->Add(Count, ElementSize);
+		const int32 OldNum = WithScriptArray([this, Count](auto* Array) { return Array->Add(Count, ElementSize); });
 		return OldNum;
 	}
 	/**
@@ -3098,7 +3166,7 @@ public:
 	{
 		check(Count>0);
 		check(Index>=0 && Index <= Num());
-		Array->Insert(Index, Count, ElementSize);
+		WithScriptArray([this, Index, Count](auto* Array) { Array->Insert(Index, Count, ElementSize); });
 		ConstructItems(Index, Count);
 	}
 	/**
@@ -3115,7 +3183,7 @@ public:
 		}
 		if (OldNum || Slack)
 		{
-			Array->Empty(Slack, ElementSize);
+			WithScriptArray([this, Slack](auto* Array) { Array->Empty(Slack, ElementSize); });
 		}
 	}
 	/**
@@ -3128,7 +3196,7 @@ public:
 		check(Count>0);
 		check(Index>=0 && Index + Count <= Num());
 		DestructItems(Index, Count);
-		Array->Remove(Index, Count, ElementSize);
+		WithScriptArray([this, Index, Count](auto* Array) { Array->Remove(Index, Count, ElementSize); });
 	}
 
 	/**
@@ -3150,7 +3218,7 @@ public:
 	**/
 	void SwapValues(int32 A, int32 B)
 	{
-		Array->SwapMemory(A, B, ElementSize);
+		WithScriptArray([this, A, B](auto* Array) { Array->SwapMemory(A, B, ElementSize); });
 	}
 
 	/**
@@ -3160,9 +3228,8 @@ public:
 	**/
 	void MoveAssign(void* InOtherArray)
 	{
-		FScriptArray* OtherArray = (FScriptArray*)InOtherArray;
-		checkSlow(OtherArray);
-		Array->MoveAssign(*OtherArray, ElementSize);
+		checkSlow(InOtherArray);
+		WithScriptArray([this, InOtherArray](auto* Array) { Array->MoveAssign(*static_cast<decltype(Array)>(InOtherArray), ElementSize); });
 	}
 
 	/**
@@ -3171,26 +3238,41 @@ public:
 	**/
 	void CountBytes( FArchive& Ar  ) const
 	{
-		Array->CountBytes(Ar, ElementSize);
-	}	
+		WithScriptArray([this, &Ar](auto* Array) { Array->CountBytes(Ar, ElementSize); });
+	}
 
-	static FScriptArrayHelper CreateHelperFormInnerProperty(const FProperty* InInnerProperty, const void *InArray)
+	/**
+	 * Destroys the container object - THERE SHOULD BE NO MORE USE OF THIS HELPER AFTER THIS FUNCTION IS CALLED!
+	 */
+	void DestroyContainer_Unsafe()
 	{
-		check(InInnerProperty);
-		FScriptArrayHelper ScriptArrayHelper;
-		ScriptArrayHelper.InnerProperty = InInnerProperty;
-		ScriptArrayHelper.Array = (FScriptArray*)InArray;
-		ScriptArrayHelper.ElementSize = InInnerProperty->ElementSize;
-		return ScriptArrayHelper;
+		WithScriptArray([](auto* Array) { DestructItem(Array); });
+	}
+
+	static FScriptArrayHelper CreateHelperFormInnerProperty(const FProperty* InInnerProperty, const void *InArray, EArrayPropertyFlags InArrayFlags = EArrayPropertyFlags::None)
+	{
+		return FScriptArrayHelper(Internal, InInnerProperty, InArray, InInnerProperty->ElementSize, InArrayFlags);
 	}
 
 private:
+	FScriptArrayHelper(EInternal, const FProperty* InInnerProperty, const void* InArray, int32 InElementSize, EArrayPropertyFlags InArrayFlags)
+		: InnerProperty(InInnerProperty)
+		, ElementSize(InElementSize)
+		, ArrayFlags(InArrayFlags)
+	{
+		//@todo, we are casting away the const here
+		if (!!(InArrayFlags & EArrayPropertyFlags::UsesMemoryImageAllocator))
+		{
+			FreezableArray = (FFreezableScriptArray*)InArray;
+		}
+		else
+		{
+			HeapArray = (FScriptArray*)InArray;
+		}
 
-	FScriptArrayHelper()
-		: InnerProperty(nullptr)
-		, Array(nullptr)
-		, ElementSize(0)
-	{}
+		check(ElementSize > 0);
+		check(InnerProperty);
+	}
 
 	/**
 	 *	Internal function to call into the property system to construct / initialize elements.
@@ -3262,8 +3344,13 @@ private:
 	}
 
 	const FProperty* InnerProperty;
-	FScriptArray* Array;
+	union
+	{
+		FScriptArray* HeapArray;
+		FFreezableScriptArray* FreezableArray;
+	};
 	int32 ElementSize;
+	EArrayPropertyFlags ArrayFlags;
 };
 
 class FScriptArrayHelper_InContainer : public FScriptArrayHelper
@@ -3286,7 +3373,22 @@ public:
  */
 class FScriptMapHelper
 {
+	enum EInternal { Internal };
+
 	friend class FMapProperty;
+
+	template <typename CallableType>
+	auto WithScriptMap(CallableType&& Callable) const
+	{
+		if (!!(MapFlags & EMapPropertyFlags::UsesMemoryImageAllocator))
+		{
+			return Callable(FreezableMap);
+		}
+		else
+		{
+			return Callable(HeapMap);
+		}
+	}
 
 public:
 	/**
@@ -3296,12 +3398,8 @@ public:
 	 * @param  InMap       Pointer to raw memory that corresponds to this map. This can be NULL, and sometimes is, but in that case almost all operations will crash.
 	 */
 	FORCEINLINE FScriptMapHelper(const FMapProperty* InProperty, const void* InMap)
-		: KeyProp         (InProperty->KeyProp)
-		, ValueProp       (InProperty->ValueProp)
-		, Map             ((FScriptMap*)InMap)  //@todo, we are casting away the const here
-		, MapLayout(InProperty->MapLayout)
+		: FScriptMapHelper(Internal, InProperty->KeyProp, InProperty->ValueProp, InMap, InProperty->MapLayout, InProperty->MapFlags)
 	{
-		check(KeyProp && ValueProp);
 	}
 
 	/**
@@ -3313,7 +3411,7 @@ public:
 	 */
 	FORCEINLINE bool IsValidIndex(int32 Index) const
 	{
-		return Map->IsValidIndex(Index);
+		return WithScriptMap([Index](auto* Map) { return Map->IsValidIndex(Index); });
 	}
 
 	/**
@@ -3323,7 +3421,7 @@ public:
 	 */
 	FORCEINLINE int32 Num() const
 	{
-		int32 Result = Map->Num();
+		int32 Result = WithScriptMap([](auto* Map) { return Map->Num(); });
 		checkSlow(Result >= 0); 
 		return Result;
 	}
@@ -3335,9 +3433,12 @@ public:
 	 */
 	FORCEINLINE int32 GetMaxIndex() const
 	{
-		int32 Result = Map->GetMaxIndex();
-		checkSlow(Result >= Num());
-		return Result;
+		return WithScriptMap([](auto* Map)
+		{
+			int32 Result = Map->GetMaxIndex();
+			checkSlow(Result >= Map->Num());
+			return Result;
+		});
 	}
 
 	/**
@@ -3347,6 +3448,7 @@ public:
 	 *
 	 * @return The number of elements in the map.
 	 */
+	UE_DEPRECATED(4.25, "This shortcut is no longer valid - the Num() should be read from a proper map helper")
 	static FORCEINLINE int32 Num(const void* Target)
 	{
 		int32 Result = ((const FScriptMap*)Target)->Num();
@@ -3363,14 +3465,17 @@ public:
 	 */
 	FORCEINLINE uint8* GetPairPtr(int32 Index)
 	{
-		if (Num() == 0)
+		return WithScriptMap([this, Index](auto* Map) -> uint8*
 		{
-			checkSlow(!Index);
-			return nullptr;
-		}
+			if (Map->Num() == 0)
+			{
+				checkSlow(!Index);
+				return nullptr;
+			}
 
-		checkSlow(IsValidIndex(Index));
-		return (uint8*)Map->GetData(Index, MapLayout);
+			checkSlow(Map->IsValidIndex(Index));
+			return (uint8*)Map->GetData(Index, MapLayout);
+		});
 	}
 
 	/**
@@ -3384,14 +3489,17 @@ public:
 	 */
 	FORCEINLINE uint8* GetKeyPtr(int32 Index)
 	{
-		if (Num() == 0)
+		return WithScriptMap([this, Index](auto* Map) -> uint8*
 		{
-			checkSlow(!Index);
-			return nullptr;
-		}
+			if (Map->Num() == 0)
+			{
+				checkSlow(!Index);
+				return nullptr;
+			}
 		
-		checkSlow(IsValidIndex(Index));
-		return (uint8*)Map->GetData(Index, MapLayout);
+			checkSlow(Map->IsValidIndex(Index));
+			return (uint8*)Map->GetData(Index, MapLayout);
+		});
 	}
 
 	/**
@@ -3403,14 +3511,17 @@ public:
 	 */
 	FORCEINLINE uint8* GetValuePtr(int32 Index)
 	{
-		if (Num() == 0)
+		return WithScriptMap([this, Index](auto* Map) -> uint8*
 		{
-			checkSlow(!Index);
-			return nullptr;
-		}
+			if (Map->Num() == 0)
+			{
+				checkSlow(!Index);
+				return nullptr;
+			}
 		
-		checkSlow(IsValidIndex(Index));
-		return (uint8*)Map->GetData(Index, MapLayout) + MapLayout.ValueOffset;
+			checkSlow(Map->IsValidIndex(Index));
+			return (uint8*)Map->GetData(Index, MapLayout) + MapLayout.ValueOffset;
+		});
 	}
 
 	/**
@@ -3433,9 +3544,11 @@ public:
 	 */
 	void MoveAssign(void* InOtherMap)
 	{
-		FScriptMap* OtherMap = (FScriptMap*)InOtherMap;
-		checkSlow(OtherMap);
-		Map->MoveAssign(*OtherMap, MapLayout);
+		checkSlow(InOtherMap);
+		return WithScriptMap([this, InOtherMap](auto* Map)
+		{
+			Map->MoveAssign(*(decltype(Map))InOtherMap, MapLayout);
+		});
 	}
 
 	/**
@@ -3445,9 +3558,12 @@ public:
 	 */
 	FORCEINLINE int32 AddUninitializedValue()
 	{
-		checkSlow(Num() >= 0);
+		return WithScriptMap([this](auto* Map)
+		{
+			checkSlow(Map->Num() >= 0);
 
-		return Map->AddUninitialized(MapLayout);
+			return Map->AddUninitialized(MapLayout);
+		});
 	}
 
 	/**
@@ -3465,7 +3581,10 @@ public:
 		}
 		if (OldNum || Slack)
 		{
-			Map->Empty(Slack, MapLayout);
+			return WithScriptMap([this, Slack](auto* Map)
+			{
+				Map->Empty(Slack, MapLayout);
+			});
 		}
 	}
 
@@ -3477,12 +3596,15 @@ public:
 	 **/
 	int32 AddDefaultValue_Invalid_NeedsRehash()
 	{
-		checkSlow(Num() >= 0);
+		return WithScriptMap([this](auto* Map)
+		{
+			checkSlow(Map->Num() >= 0);
 
-		int32 Result = AddUninitializedValue();
-		ConstructItem(Result);
+			int32 Result = Map->AddUninitialized(MapLayout);
+			ConstructItem(Result);
 
-		return Result;
+			return Result;
+		});
 	}
 
 	/**
@@ -3512,17 +3634,20 @@ public:
 	 */
 	void RemoveAt(int32 Index, int32 Count = 1)
 	{
-		check(IsValidIndex(Index));
-
-		DestructItems(Index, Count);
-		for (; Count; ++Index)
+		return WithScriptMap([this, Index, Count](auto* Map)
 		{
-			if (IsValidIndex(Index))
+			check(Map->IsValidIndex(Index));
+
+			DestructItems(Index, Count);
+			for (int32 LocalCount = Count, LocalIndex = Index; LocalCount; ++LocalIndex)
 			{
-				Map->RemoveAt(Index, MapLayout);
-				--Count;
+				if (Map->IsValidIndex(LocalIndex))
+				{
+					Map->RemoveAt(LocalIndex, MapLayout);
+					--LocalCount;
+				}
 			}
-		}
+		});
 	}
 
 	/**
@@ -3538,24 +3663,28 @@ public:
 	 */
 	int32 FindInternalIndex(int32 LogicalIdx) const
 	{
-		if (LogicalIdx < 0 && LogicalIdx > Num())
+		return WithScriptMap([this, LogicalIdx](auto* Map) -> int32
 		{
-			return INDEX_NONE;
-		}
-
-		int32 MaxIndex = GetMaxIndex();
-		for (int32 Actual = 0; Actual < MaxIndex; ++Actual)
-		{
-			if (IsValidIndex(Actual))
+			int32 LocalLogicalIdx = LogicalIdx;
+			if (LocalLogicalIdx < 0 && LocalLogicalIdx > Map->Num())
 			{
-				if (LogicalIdx == 0)
-				{
-					return Actual;
-				}
-				--LogicalIdx;
+				return INDEX_NONE;
 			}
-		}
-		return INDEX_NONE;
+
+			int32 MaxIndex = Map->GetMaxIndex();
+			for (int32 Actual = 0; Actual < MaxIndex; ++Actual)
+			{
+				if (Map->IsValidIndex(Actual))
+				{
+					if (LocalLogicalIdx == 0)
+					{
+						return Actual;
+					}
+					--LocalLogicalIdx;
+				}
+			}
+			return INDEX_NONE;
+		});
 	}
 
 	/**
@@ -3568,39 +3697,42 @@ public:
 	 */
 	int32 FindMapIndexWithKey(const void* PairWithKeyToFind, int32 IndexHint = 0) const
 	{
-		int32 MapMax = GetMaxIndex();
-		if (MapMax == 0)
+		return WithScriptMap([this, PairWithKeyToFind, IndexHint](auto* Map) -> int32
 		{
-			return INDEX_NONE;
-		}
-
-		check(IndexHint >= 0 && IndexHint < MapMax);
-
-		FProperty* LocalKeyProp = this->KeyProp; // prevent aliasing in loop below
-
-		int32 Index = IndexHint;
-		for (;;)
-		{
-			if (IsValidIndex(Index))
-			{
-				const void* PairToSearch = GetPairPtrWithoutCheck(Index);
-				if (LocalKeyProp->Identical(PairWithKeyToFind, PairToSearch))
-				{
-					return Index;
-				}
-			}
-
-			++Index;
-			if (Index == MapMax)
-			{
-				Index = 0;
-			}
-
-			if (Index == IndexHint)
+			int32 MapMax = Map->GetMaxIndex();
+			if (MapMax == 0)
 			{
 				return INDEX_NONE;
 			}
-		}
+
+			check(IndexHint >= 0 && IndexHint < MapMax);
+
+			FProperty* LocalKeyProp = this->KeyProp; // prevent aliasing in loop below
+
+			int32 Index = IndexHint;
+			for (;;)
+			{
+				if (Map->IsValidIndex(Index))
+				{
+					const void* PairToSearch = Map->GetData(Index, MapLayout);
+					if (LocalKeyProp->Identical(PairWithKeyToFind, PairToSearch))
+					{
+						return Index;
+					}
+				}
+
+				++Index;
+				if (Index == MapMax)
+				{
+					Index = 0;
+				}
+
+				if (Index == IndexHint)
+				{
+					return INDEX_NONE;
+				}
+			}
+		});
 	}
 
 	/**
@@ -3621,13 +3753,15 @@ public:
 	/** Finds the associated pair from hash, rather than linearly searching */
 	uint8* FindMapPairPtrFromHash(const void* KeyPtr)
 	{
-		FProperty* LocalKeyPropForCapture = KeyProp;
-		int32 Index = Map->FindPairIndex(
-			KeyPtr,
-			MapLayout,
-			[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
-			[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); }
+		int32 Index = WithScriptMap([this, KeyPtr, LocalKeyPropForCapture = this->KeyProp](auto* Map)
+		{
+			return Map->FindPairIndex(
+				KeyPtr,
+				MapLayout,
+				[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
+				[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); }
 			);
+		});
 		uint8* Result = (Index >= 0) ? GetPairPtr(Index) : nullptr;
 		return Result;
 	}
@@ -3635,71 +3769,74 @@ public:
 	/** Finds the associated value from hash, rather than linearly searching */
 	uint8* FindValueFromHash(const void* KeyPtr)
 	{
-		FProperty* LocalKeyPropForCapture = KeyProp;
-		return Map->FindValue(
-			KeyPtr, 
-			MapLayout,
-			[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
-			[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); }
+		return WithScriptMap([this, KeyPtr, LocalKeyPropForCapture = this->KeyProp](auto* Map)
+		{
+			return Map->FindValue(
+				KeyPtr,
+				MapLayout,
+				[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
+				[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); }
 			);
+		});
 	}
 
 	/** Adds the (key, value) pair to the map, returning true if the element was added, or false if the element was already present and has been overwritten */
 	void AddPair(const void* KeyPtr, const void* ValuePtr)
 	{
-		FProperty* LocalKeyPropForCapture = KeyProp;
-		FProperty* LocalValuePropForCapture = ValueProp;
-		Map->Add(
-			KeyPtr,
-			ValuePtr,
-			MapLayout,
-			[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
-			[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); },
-			[LocalKeyPropForCapture, KeyPtr](void* NewElementKey)
-			{
-				if (LocalKeyPropForCapture->PropertyFlags & CPF_ZeroConstructor)
+		return WithScriptMap([this, KeyPtr, ValuePtr, LocalKeyPropForCapture = this->KeyProp, LocalValuePropForCapture = this->ValueProp](auto* Map)
+		{
+			Map->Add(
+				KeyPtr,
+				ValuePtr,
+				MapLayout,
+				[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
+				[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); },
+				[LocalKeyPropForCapture, KeyPtr](void* NewElementKey)
 				{
-					FMemory::Memzero(NewElementKey, LocalKeyPropForCapture->GetSize());
-				}
-				else
-				{
-					LocalKeyPropForCapture->InitializeValue(NewElementKey);
-				}
+					if (LocalKeyPropForCapture->PropertyFlags & CPF_ZeroConstructor)
+					{
+						FMemory::Memzero(NewElementKey, LocalKeyPropForCapture->GetSize());
+					}
+					else
+					{
+						LocalKeyPropForCapture->InitializeValue(NewElementKey);
+					}
 
-				LocalKeyPropForCapture->CopySingleValueToScriptVM(NewElementKey, KeyPtr);
-			},
-			[LocalValuePropForCapture, ValuePtr](void* NewElementValue)
-			{
-				if (LocalValuePropForCapture->PropertyFlags & CPF_ZeroConstructor)
+					LocalKeyPropForCapture->CopySingleValueToScriptVM(NewElementKey, KeyPtr);
+				},
+				[LocalValuePropForCapture, ValuePtr](void* NewElementValue)
 				{
-					FMemory::Memzero(NewElementValue, LocalValuePropForCapture->GetSize());
-				}
-				else
-				{
-					LocalValuePropForCapture->InitializeValue(NewElementValue);
-				}
+					if (LocalValuePropForCapture->PropertyFlags & CPF_ZeroConstructor)
+					{
+						FMemory::Memzero(NewElementValue, LocalValuePropForCapture->GetSize());
+					}
+					else
+					{
+						LocalValuePropForCapture->InitializeValue(NewElementValue);
+					}
 
-				LocalValuePropForCapture->CopySingleValueToScriptVM(NewElementValue, ValuePtr);
-			},
-			[LocalValuePropForCapture, ValuePtr](void* ExistingElementValue)
-			{
-				LocalValuePropForCapture->CopySingleValueToScriptVM(ExistingElementValue, ValuePtr);
-			},
-			[LocalKeyPropForCapture](void* ElementKey)
-			{
-				if (!(LocalKeyPropForCapture->PropertyFlags & (CPF_IsPlainOldData | CPF_NoDestructor)))
+					LocalValuePropForCapture->CopySingleValueToScriptVM(NewElementValue, ValuePtr);
+				},
+				[LocalValuePropForCapture, ValuePtr](void* ExistingElementValue)
 				{
-					LocalKeyPropForCapture->DestroyValue(ElementKey);
-				}
-			},
-			[LocalValuePropForCapture](void* ElementValue)
-			{
-				if (!(LocalValuePropForCapture->PropertyFlags & (CPF_IsPlainOldData | CPF_NoDestructor)))
+					LocalValuePropForCapture->CopySingleValueToScriptVM(ExistingElementValue, ValuePtr);
+				},
+				[LocalKeyPropForCapture](void* ElementKey)
 				{
-					LocalValuePropForCapture->DestroyValue(ElementValue);
+					if (!(LocalKeyPropForCapture->PropertyFlags & (CPF_IsPlainOldData | CPF_NoDestructor)))
+					{
+						LocalKeyPropForCapture->DestroyValue(ElementKey);
+					}
+				},
+				[LocalValuePropForCapture](void* ElementValue)
+				{
+					if (!(LocalValuePropForCapture->PropertyFlags & (CPF_IsPlainOldData | CPF_NoDestructor)))
+					{
+						LocalValuePropForCapture->DestroyValue(ElementValue);
+					}
 				}
-			}
-		);
+			);
+		});
 	}
 
 
@@ -3712,59 +3849,61 @@ public:
 	 **/
 	void* FindOrAdd(const void* KeyPtr)
 	{
-		FProperty* LocalKeyPropForCapture = KeyProp;
-		FProperty* LocalValuePropForCapture = ValueProp;
-		return Map->FindOrAdd(
-			KeyPtr,
-			MapLayout,
-			[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
-			[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); },
-			[LocalKeyPropForCapture, LocalValuePropForCapture, KeyPtr](void* NewElementKey, void* NewElementValue)
-			{
-				if (LocalKeyPropForCapture->PropertyFlags & CPF_ZeroConstructor)
+		return WithScriptMap([this, KeyPtr, LocalKeyPropForCapture = this->KeyProp, LocalValuePropForCapture = this->ValueProp](auto* Map)
+		{
+			return Map->FindOrAdd(
+				KeyPtr,
+				MapLayout,
+				[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
+				[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); },
+				[LocalKeyPropForCapture, LocalValuePropForCapture, KeyPtr](void* NewElementKey, void* NewElementValue)
 				{
-					FMemory::Memzero(NewElementKey, LocalKeyPropForCapture->GetSize());
-				}
-				else
-				{
-					LocalKeyPropForCapture->InitializeValue(NewElementKey);
-				}
+					if (LocalKeyPropForCapture->PropertyFlags & CPF_ZeroConstructor)
+					{
+						FMemory::Memzero(NewElementKey, LocalKeyPropForCapture->GetSize());
+					}
+					else
+					{
+						LocalKeyPropForCapture->InitializeValue(NewElementKey);
+					}
 
-				LocalKeyPropForCapture->CopySingleValue(NewElementKey, KeyPtr);
+					LocalKeyPropForCapture->CopySingleValue(NewElementKey, KeyPtr);
 
-				if (LocalValuePropForCapture->PropertyFlags & CPF_ZeroConstructor)
-				{
-					FMemory::Memzero(NewElementValue, LocalValuePropForCapture->GetSize());
+					if (LocalValuePropForCapture->PropertyFlags & CPF_ZeroConstructor)
+					{
+						FMemory::Memzero(NewElementValue, LocalValuePropForCapture->GetSize());
+					}
+					else
+					{
+						LocalValuePropForCapture->InitializeValue(NewElementValue);
+					}
 				}
-				else
-				{
-					LocalValuePropForCapture->InitializeValue(NewElementValue);
-				}
-			}
-		);
-
+			);
+		});
 	}
 
 
 	/** Removes the key and its associated value from the map */
 	bool RemovePair(const void* KeyPtr)
 	{
-		FProperty* LocalKeyPropForCapture = KeyProp;
-		if(uint8* Entry =  Map->FindValue(
-			KeyPtr, 
-			MapLayout,
-			[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
-			[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); }
+		return WithScriptMap([this, KeyPtr, LocalKeyPropForCapture = this->KeyProp](auto* Map)
+		{
+			if (uint8* Entry = Map->FindValue(
+				KeyPtr,
+				MapLayout,
+				[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
+				[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); }
 			))
-		{
-			int32 Idx = (int32)((Entry - (uint8*)Map->GetData(0, MapLayout)) / MapLayout.SetLayout.Size);
-			RemoveAt(Idx);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+			{
+				int32 Idx = (int32)((Entry - (uint8*)Map->GetData(0, MapLayout)) / MapLayout.SetLayout.Size);
+				RemoveAt(Idx);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		});
 	}
 
 	/**
@@ -3800,17 +3939,16 @@ public:
 		return false;
 	}
 
-	static FScriptMapHelper CreateHelperFormInnerProperties(FProperty* InKeyProperty, FProperty* InValProperty, const void *InMap)
+	static FScriptMapHelper CreateHelperFormInnerProperties(FProperty* InKeyProperty, FProperty* InValProperty, const void *InMap, EMapPropertyFlags InMapFlags = EMapPropertyFlags::None)
 	{
-		check(InKeyProperty && InValProperty);
-
-		FScriptMapHelper ScriptMapHelper;
-		ScriptMapHelper.KeyProp = InKeyProperty;
-		ScriptMapHelper.ValueProp = InValProperty;
-		ScriptMapHelper.Map = (FScriptMap*)InMap;
-		ScriptMapHelper.MapLayout = FScriptMap::GetScriptLayout(InKeyProperty->GetSize(), InKeyProperty->GetMinAlignment(), InValProperty->GetSize(), InValProperty->GetMinAlignment());
-
-		return ScriptMapHelper;
+		return FScriptMapHelper(
+			Internal,
+			InKeyProperty,
+			InValProperty,
+			InMap,
+			FScriptMap::GetScriptLayout(InKeyProperty->GetSize(), InKeyProperty->GetMinAlignment(), InValProperty->GetSize(), InValProperty->GetMinAlignment()),
+			InMapFlags
+		);
 	}
 
 	class FIterator
@@ -3848,12 +3986,26 @@ public:
 	}
 
 private:
-	FScriptMapHelper()
-		: KeyProp(nullptr)
-		, ValueProp(nullptr)
-		, Map(nullptr)
-		, MapLayout(FScriptMap::GetScriptLayout(0, 1, 0, 1))
-	{}
+	FORCEINLINE FScriptMapHelper(EInternal, FProperty* InKeyProp, FProperty* InValueProp, const void* InMap, const FScriptMapLayout& InMapLayout, EMapPropertyFlags InMapFlags)
+		: KeyProp  (InKeyProp)
+		, ValueProp(InValueProp)
+		, MapLayout(InMapLayout)
+		, MapFlags (InMapFlags)
+	{
+		check(InKeyProp && InValueProp);
+
+		//@todo, we are casting away the const here
+		if (!!(InMapFlags & EMapPropertyFlags::UsesMemoryImageAllocator))
+		{
+			FreezableMap = (FFreezableScriptMap*)InMap;
+		}
+		else
+		{
+			HeapMap = (FScriptMap*)InMap;
+		}
+
+		check(KeyProp && ValueProp);
+	}
 
 	/**
 	 * Internal function to call into the property system to construct / initialize elements.
@@ -3868,7 +4020,7 @@ private:
 		bool bZeroKey   = !!(KeyProp  ->PropertyFlags & CPF_ZeroConstructor);
 		bool bZeroValue = !!(ValueProp->PropertyFlags & CPF_ZeroConstructor);
 
-		uint8* Dest = GetPairPtrWithoutCheck(Index);
+		void* Dest = WithScriptMap([this, Index](auto* Map) { return Map->GetData(Index, MapLayout); });
 
 		if (bZeroKey || bZeroValue)
 		{
@@ -3906,7 +4058,7 @@ private:
 		if (bDestroyKeys || bDestroyValues)
 		{
 			uint32 Stride  = MapLayout.SetLayout.Size;
-			uint8* PairPtr = GetPairPtrWithoutCheck(Index);
+			uint8* PairPtr = WithScriptMap([this, Index](auto* Map) { return (uint8*)Map->GetData(Index, MapLayout); });
 			if (bDestroyKeys)
 			{
 				if (bDestroyValues)
@@ -3959,7 +4111,7 @@ private:
 	 */
 	FORCEINLINE uint8* GetPairPtrWithoutCheck(int32 Index)
 	{
-		return (uint8*)Map->GetData(Index, MapLayout);
+		return WithScriptMap([this, Index](auto* Map) { return (uint8*)Map->GetData(Index, MapLayout); });
 	}
 
 	/**
@@ -3975,10 +4127,15 @@ private:
 	}
 
 public:
-	FProperty*       KeyProp;
-	FProperty*       ValueProp;
-	FScriptMap*      Map;
-	FScriptMapLayout MapLayout;
+	FProperty*        KeyProp;
+	FProperty*        ValueProp;
+	union
+	{
+		FScriptMap*          HeapMap;
+		FFreezableScriptMap* FreezableMap;
+	};
+	FScriptMapLayout  MapLayout;
+	EMapPropertyFlags MapFlags;
 };
 
 class FScriptMapHelper_InContainer : public FScriptMapHelper

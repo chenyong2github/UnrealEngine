@@ -206,13 +206,13 @@ FScreenPassTexture AddLensFlaresPass(
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			SetShaderParameters(RHICmdList, *VertexShader, VertexShader->GetVertexShader(), VertexParameters);
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), PixelParameters);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VertexParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PixelParameters);
 
 			// Emit an instanced quad draw call on the order of the number of pixels on the screen.
 			RHICmdList.SetStreamSource(0, nullptr, 0);
@@ -283,7 +283,7 @@ FScreenPassTexture AddLensFlaresPass(
 		TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
 		TShaderMapRef<FLensFlareCompositePS> PixelShader(View.ShaderMap);
 
-		const FScreenPassPipelineState PipelineState(*VertexShader, *PixelShader, AdditiveBlendState);
+		const FScreenPassPipelineState PipelineState(VertexShader, PixelShader, AdditiveBlendState);
 
 		// This pass rasterizes the lens flare quad scaled and centered within the viewport.
 		GraphBuilder.AddPass(
@@ -296,7 +296,7 @@ FScreenPassTexture AddLensFlaresPass(
 
 			SetScreenPassPipelineState(RHICmdList, PipelineState);
 
-			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			DrawRectangle(
 				RHICmdList,

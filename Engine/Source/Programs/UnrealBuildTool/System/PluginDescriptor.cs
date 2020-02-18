@@ -434,17 +434,5 @@ namespace UnrealBuildTool
 		{
 			return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Length == 0 || SupportedTargetPlatforms.Contains(Platform);
 		}
-
-		/// <summary>
-		/// Combines the given target platforms with the current ones, if appropriate
-		/// </summary>
-		/// <param name="AdditionalSupportedTargetPlatforms"></param>
-		internal void MergeSupportedTargetPlatforms(UnrealTargetPlatform[] AdditionalSupportedTargetPlatforms)
-		{
-			if (SupportedTargetPlatforms != null && (SupportedTargetPlatforms.Length > 0) && AdditionalSupportedTargetPlatforms != null && AdditionalSupportedTargetPlatforms.Length > 0)
-			{
-				SupportedTargetPlatforms = SupportedTargetPlatforms.Union(AdditionalSupportedTargetPlatforms).ToArray();
-			}
-		}
 	}
 }

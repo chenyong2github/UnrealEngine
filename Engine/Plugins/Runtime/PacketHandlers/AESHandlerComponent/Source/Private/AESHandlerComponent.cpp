@@ -4,6 +4,10 @@
 
 IMPLEMENT_MODULE( FAESHandlerComponentModule, AESHandlerComponent )
 
+const int32 FAESHandlerComponent::KeySizeInBytes;
+const int32 FAESHandlerComponent::BlockSizeInBytes;
+
+
 TSharedPtr<HandlerComponent> FAESHandlerComponentModule::CreateComponentInstance(FString& Options)
 {
 	TSharedPtr<HandlerComponent> ReturnVal = NULL;

@@ -887,7 +887,8 @@ public:
 #endif // WITH_EDITOR
 
 	/** Checks whether sound has been categorised as streaming. */
-	bool IsStreaming(const FPlatformAudioCookOverrides* Overrides = nullptr) const;
+	bool IsStreaming(const TCHAR* PlatformName = nullptr) const;
+	bool IsStreaming(const FPlatformAudioCookOverrides& Overrides) const;
 
 	/** Checks whether sound has seekable streaming enabled. */
 	bool IsSeekableStreaming() const;

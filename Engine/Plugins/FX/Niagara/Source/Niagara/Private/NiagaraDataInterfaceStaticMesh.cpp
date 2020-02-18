@@ -73,8 +73,8 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources& Res, c
 	SectionRenderData = &Res;
 
 	const uint32 ValidSectionCount = ValidSection.Num();
-	const TArray<float>& Prob = SectionSamplerParam.GetProb();
-	const TArray<int32>& Alias = SectionSamplerParam.GetAlias();
+	const TArray<float, FMemoryImageAllocator>& Prob = SectionSamplerParam.GetProb();
+	const TArray<int32, FMemoryImageAllocator>& Alias = SectionSamplerParam.GetAlias();
 	check(ValidSectionCount == Prob.Num());
 	// Build data that will be uploaded to GPU later from the render thread.
 	// The array contains data used to select regions for uniform particle spawning on them, as well as section triangle ranges.
@@ -444,10 +444,12 @@ static void GetNiagaraDataInterfaceParametersName(FNDIStaticMeshParametersName& 
 
 struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_StaticMesh, NonVirtual);
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
 		FNDIStaticMeshParametersName ParamNames;
-		GetNiagaraDataInterfaceParametersName(ParamNames, ParamRef.ParameterInfo.DataInterfaceHLSLSymbol);
+		GetNiagaraDataInterfaceParametersName(ParamNames, ParameterInfo.DataInterfaceHLSLSymbol);
 
 		MeshIndexBuffer.Bind(ParameterMap, *ParamNames.MeshIndexBufferName);
 		MeshVertexBuffer.Bind(ParameterMap, *ParamNames.MeshVertexBufferName);
@@ -466,30 +468,11 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 		NumTexCoord.Bind(ParameterMap, *ParamNames.NumTexCoordName);
 	}
 
-	virtual void Serialize(FArchive& Ar)override
-	{
-		Ar << MeshIndexBuffer;
-		Ar << MeshVertexBuffer;
-		Ar << MeshTangentBuffer;
-		Ar << MeshTexCoordBuffer;
-		Ar << MeshColorBuffer;
-		Ar << SectionCount;
-		Ar << MeshSectionBuffer;
-		Ar << MeshTriangleBuffer;
-		Ar << InstanceTransform;
-		Ar << InstanceTransformInverseTransposed;
-		Ar << InstancePrevTransform;
-		Ar << InstanceInvDeltaTime;
-		Ar << InstanceWorldVelocity;
-		Ar << AreaWeightedSampling;
-		Ar << NumTexCoord;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		
 		{
 			FNiagaraDataInterfaceProxyStaticMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxyStaticMesh*>(Context.DataInterface);
@@ -568,25 +551,28 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 		}
 	}
 
-
 private:
-
-	FShaderResourceParameter MeshIndexBuffer;
-	FShaderResourceParameter MeshVertexBuffer;
-	FShaderResourceParameter MeshTangentBuffer;
-	FShaderResourceParameter MeshTexCoordBuffer;
-	FShaderResourceParameter MeshColorBuffer;
-	FShaderResourceParameter MeshSectionBuffer;
-	FShaderResourceParameter MeshTriangleBuffer;
-	FShaderParameter SectionCount;
-	FShaderParameter InstanceTransform;
-	FShaderParameter InstanceTransformInverseTransposed;
-	FShaderParameter InstancePrevTransform;
-	FShaderParameter InstanceInvDeltaTime;
-	FShaderParameter InstanceWorldVelocity;
-	FShaderParameter AreaWeightedSampling;
-	FShaderParameter NumTexCoord;
+	LAYOUT_FIELD(FShaderResourceParameter, MeshIndexBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshVertexBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTangentBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTexCoordBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshColorBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshSectionBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleBuffer);
+	LAYOUT_FIELD(FShaderParameter, SectionCount);
+	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
+	LAYOUT_FIELD(FShaderParameter, InstanceTransformInverseTransposed);
+	LAYOUT_FIELD(FShaderParameter, InstancePrevTransform);
+	LAYOUT_FIELD(FShaderParameter, InstanceInvDeltaTime);
+	LAYOUT_FIELD(FShaderParameter, InstanceWorldVelocity);
+	LAYOUT_FIELD(FShaderParameter, AreaWeightedSampling);
+	LAYOUT_FIELD(FShaderParameter, NumTexCoord);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_StaticMesh);
+
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceStaticMesh, FNiagaraDataInterfaceParametersCS_StaticMesh);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -2358,11 +2344,6 @@ void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void
 	DataToPass->DeltaSeconds = InstanceData->DeltaSeconds;
 	DataToPass->Transform = InstanceData->Transform;
 	DataToPass->PrevTransform = InstanceData->PrevTransform;
-}
-
-FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceStaticMesh::ConstructComputeParameters() const 
-{
-	return new FNiagaraDataInterfaceParametersCS_StaticMesh();
 }
 
 //////////////////////////////////////////////////////////////////////////

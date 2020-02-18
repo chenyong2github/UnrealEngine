@@ -368,15 +368,27 @@ namespace UnrealBuildTool
 			// add our uplugin file to the existing plugin to be used to search for modules later
 			Parent.ChildFiles.Add(Child.File);
 
+			// this should cause an error if it's invalid platform name
+			UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(PlatformName);
+
 			// merge the supported platforms
-			Parent.Descriptor.MergeSupportedTargetPlatforms(Child.Descriptor.SupportedTargetPlatforms);
+			if (Parent.Descriptor.SupportedTargetPlatforms != null)
+			{
+				List<UnrealTargetPlatform> SupportedTargetPlatforms = Parent.Descriptor.SupportedTargetPlatforms.ToList();
+				if (Child.Descriptor.SupportedTargetPlatforms != null && Child.Descriptor.SupportedTargetPlatforms.Length > 0)
+				{
+					SupportedTargetPlatforms = SupportedTargetPlatforms.Union(Child.Descriptor.SupportedTargetPlatforms).ToList();
+				}
+				else if (!Parent.Descriptor.SupportedTargetPlatforms.Contains(Platform))
+				{
+					SupportedTargetPlatforms.Add(Platform);
+				}
+				Parent.Descriptor.SupportedTargetPlatforms = SupportedTargetPlatforms.ToArray();
+			}
 
 			// make sure we are whitelisted for any modules we list, if the parent had a whitelist
 			if (Child.Descriptor.Modules != null)
 			{
-				// this should cause an error if it's invalid platform name
-				UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(PlatformName);
-
 				foreach (ModuleDescriptor ChildModule in Child.Descriptor.Modules)
 				{
 					ModuleDescriptor ParentModule = Parent.Descriptor.Modules.FirstOrDefault(x => x.Name.Equals(ChildModule.Name) && x.Type == ChildModule.Type);

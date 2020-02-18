@@ -1093,7 +1093,7 @@ bool FWaveInstance::IsSeekable() const
 
 bool FWaveInstance::IsStreaming() const
 {
-	return FPlatformProperties::SupportsAudioStreaming() && WaveData != nullptr && WaveData->IsStreaming();
+	return FPlatformProperties::SupportsAudioStreaming() && WaveData != nullptr && WaveData->IsStreaming(nullptr);
 }
 
 bool FWaveInstance::GetUseSpatialization() const

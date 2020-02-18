@@ -24,6 +24,7 @@
 #include "Algo/AllOf.h"
 #include "Algo/Find.h"
 #include "Algo/FindSortedStringCaseInsensitive.h"
+#include "Misc/ScopeExit.h"
 
 #include "Specifiers/CheckedMetadataSpecifiers.h"
 #include "Specifiers/FunctionSpecifiers.h"
@@ -1282,6 +1283,16 @@ namespace
 
 		Parser.RequireSymbol(TEXT(')'), ErrorMessageGetter);
 	}
+
+	static const TCHAR* GLayoutMacroNames[] = {
+		TEXT("LAYOUT_ARRAY"),
+		TEXT("LAYOUT_ARRAY_EDITORONLY"),
+		TEXT("LAYOUT_BITFIELD"),
+		TEXT("LAYOUT_BITFIELD_EDITORONLY"),
+		TEXT("LAYOUT_FIELD"),
+		TEXT("LAYOUT_FIELD_EDITORONLY"),
+		TEXT("LAYOUT_FIELD_INITIALIZED"),
+	};
 }
 
 /////////////////////////////////////////////////////
@@ -3565,7 +3576,8 @@ void FHeaderParser::GetVarType(
 	const FToken*                   OuterPropertyType,
 	EPropertyDeclarationStyle::Type PropertyDeclarationStyle,
 	EVariableCategory::Type         VariableCategory,
-	FIndexRange*                    ParsedVarIndexRange
+	FIndexRange*                    ParsedVarIndexRange,
+	ELayoutMacroType*               OutLayoutMacroType
 )
 {
 	UStruct* OwnerStruct = Scope->IsFileScope() ? nullptr : ((FStructScope*)Scope)->GetStruct();
@@ -4094,6 +4106,48 @@ void FHeaderParser::GetVarType(
 	bool bUnconsumedEnumKeyword   = false;
 	bool bUnconsumedConstKeyword  = false;
 
+	// Handle MemoryLayout.h macros
+	ELayoutMacroType LayoutMacroType     = ELayoutMacroType::None;
+	bool             bHasWrapperBrackets = false;
+	ON_SCOPE_EXIT
+	{
+		if (OutLayoutMacroType)
+		{
+			*OutLayoutMacroType = LayoutMacroType;
+			if (bHasWrapperBrackets)
+			{
+				RequireSymbol(TEXT(')'), GLayoutMacroNames[(int32)LayoutMacroType]);
+			}
+		}
+	};
+
+	if (OutLayoutMacroType)
+	{
+		*OutLayoutMacroType = ELayoutMacroType::None;
+
+		FToken LayoutToken;
+		if (GetToken(LayoutToken))
+		{
+			if (LayoutToken.TokenType == TOKEN_Identifier)
+			{
+				LayoutMacroType = (ELayoutMacroType)Algo::FindSortedStringCaseInsensitive(LayoutToken.Identifier, GLayoutMacroNames, UE_ARRAY_COUNT(GLayoutMacroNames));
+				if (LayoutMacroType != ELayoutMacroType::None)
+				{
+					RequireSymbol(TEXT('('), GLayoutMacroNames[(int32)LayoutMacroType]);
+					if (LayoutMacroType == ELayoutMacroType::ArrayEditorOnly || LayoutMacroType == ELayoutMacroType::FieldEditorOnly || LayoutMacroType == ELayoutMacroType::BitfieldEditorOnly)
+					{
+						Flags |= CPF_EditorOnly;
+					}
+					bHasWrapperBrackets = MatchSymbol(TEXT("("));
+				}
+				else
+				{
+					UngetToken(LayoutToken);
+				}
+			}
+		}
+	}
+
 	if (MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive))
 	{
 		//@TODO: UCREMOVAL: Should use this to set the new (currently non-existent) CPF_Const flag appropriately!
@@ -4149,22 +4203,22 @@ void FHeaderParser::GetVarType(
 	{
 		VarProperty = FPropertyBase(CPT_Int64);
 	}
-	else if ( VarType.Matches(TEXT("uint64"), ESearchCase::CaseSensitive) && IsBitfieldProperty() )
+	else if ( VarType.Matches(TEXT("uint64"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
 	{
 		// 64-bit bitfield (bool) type, treat it like 8 bit type
 		VarProperty = FPropertyBase(CPT_Bool8);
 	}
-	else if ( VarType.Matches(TEXT("uint32"), ESearchCase::CaseSensitive) && IsBitfieldProperty() )
+	else if ( VarType.Matches(TEXT("uint32"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
 	{
 		// 32-bit bitfield (bool) type, treat it like 8 bit type
 		VarProperty = FPropertyBase(CPT_Bool8);
 	}
-	else if ( VarType.Matches(TEXT("uint16"), ESearchCase::CaseSensitive) && IsBitfieldProperty() )
+	else if ( VarType.Matches(TEXT("uint16"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
 	{
 		// 16-bit bitfield (bool) type, treat it like 8 bit type.
 		VarProperty = FPropertyBase(CPT_Bool8);
 	}
-	else if ( VarType.Matches(TEXT("uint8"), ESearchCase::CaseSensitive) && IsBitfieldProperty() )
+	else if ( VarType.Matches(TEXT("uint8"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
 	{
 		// 8-bit bitfield (bool) type
 		VarProperty = FPropertyBase(CPT_Bool8);
@@ -4185,7 +4239,7 @@ void FHeaderParser::GetVarType(
 	}
 	else if ( VarType.Matches(TEXT("bool"), ESearchCase::CaseSensitive) )
 	{
-		if (IsBitfieldProperty())
+		if (IsBitfieldProperty(LayoutMacroType))
 		{
 			UE_LOG_ERROR_UHT(TEXT("bool bitfields are not supported."));
 		}
@@ -4263,10 +4317,54 @@ void FHeaderParser::GetVarType(
 			FToken AllocatorToken;
 			if (!GetToken(AllocatorToken, /*bNoConsts=*/ true, ESymbolParseOption::CloseTemplateBracket))
 			{
-				FError::Throwf(TEXT("Expected '>' but found '%s'"), CloseTemplateToken.Identifier);
+				FError::Throwf(TEXT("Unexpected end of file when parsing TArray allocator."));
 			}
 
-			FError::Throwf(TEXT("Found '%s' - explicit allocators are not supported in TArray properties."), AllocatorToken.Identifier);
+			if (AllocatorToken.TokenType != TOKEN_Identifier)
+			{
+				FError::Throwf(TEXT("Found '%s' - expected a '>' or ','."), AllocatorToken.Identifier);
+			}
+
+			if (FCString::Strcmp(AllocatorToken.Identifier, TEXT("FMemoryImageAllocator")) == 0)
+			{
+				if (EnumHasAnyFlags(Flags, CPF_Net))
+				{
+					FError::Throwf(TEXT("Replicated arrays with MemoryImageAllocators are not yet supported"));
+				}
+
+				RequireSymbol(TEXT('>'), TEXT("TArray template arguments"), ESymbolParseOption::CloseTemplateBracket);
+
+				VarProperty.AllocatorType = EAllocatorType::MemoryImage;
+			}
+			else if (FCString::Strcmp(AllocatorToken.Identifier, TEXT("TMemoryImageAllocator")) == 0)
+			{
+				if (EnumHasAnyFlags(Flags, CPF_Net))
+				{
+					FError::Throwf(TEXT("Replicated arrays with MemoryImageAllocators are not yet supported"));
+				}
+
+				RequireSymbol(TEXT('<'), TEXT("TMemoryImageAllocator template arguments"));
+
+				FToken SkipToken;
+				for (;;)
+				{
+					if (!GetToken(SkipToken, /*bNoConsts=*/ false, ESymbolParseOption::CloseTemplateBracket))
+					{
+						FError::Throwf(TEXT("Unexpected end of file when parsing TMemoryImageAllocator template arguments."));
+					}
+
+					if (SkipToken.TokenType == TOKEN_Symbol && FCString::Strcmp(SkipToken.Identifier, TEXT(">")) == 0)
+					{
+						RequireSymbol(TEXT('>'), TEXT("TArray template arguments"), ESymbolParseOption::CloseTemplateBracket);
+						VarProperty.AllocatorType = EAllocatorType::MemoryImage;
+						break;
+					}
+				}
+			}
+			else
+			{
+				FError::Throwf(TEXT("Found '%s' - explicit allocators are not supported in TArray properties."), AllocatorToken.Identifier);
+			}
 		}
 	}
 	else if ( VarType.Matches(TEXT("TMap"), ESearchCase::CaseSensitive) )
@@ -4329,10 +4427,29 @@ void FHeaderParser::GetVarType(
 			FToken AllocatorToken;
 			if (!GetToken(AllocatorToken, /*bNoConsts=*/ true, ESymbolParseOption::CloseTemplateBracket))
 			{
-				FError::Throwf(TEXT("Expected '>' but found '%s'"), CloseTemplateToken.Identifier);
+				FError::Throwf(TEXT("Unexpected end of file when parsing TArray allocator."));
 			}
 
-			FError::Throwf(TEXT("Found '%s' - explicit allocators are not supported in TMap properties."), AllocatorToken.Identifier);
+			if (AllocatorToken.TokenType != TOKEN_Identifier)
+			{
+				FError::Throwf(TEXT("Found '%s' - expected a '>' or ','."), AllocatorToken.Identifier);
+			}
+
+			if (FCString::Strcmp(AllocatorToken.Identifier, TEXT("FMemoryImageSetAllocator")) == 0)
+			{
+				if (EnumHasAnyFlags(Flags, CPF_Net))
+				{
+					FError::Throwf(TEXT("Replicated maps with MemoryImageSetAllocators are not yet supported"));
+				}
+
+				RequireSymbol(TEXT('>'), TEXT("TMap template arguments"), ESymbolParseOption::CloseTemplateBracket);
+
+				VarProperty.AllocatorType = EAllocatorType::MemoryImage;
+			}
+			else
+			{
+				FError::Throwf(TEXT("Found '%s' - explicit allocators are not supported in TMap properties."), AllocatorToken.Identifier);
+			}
 		}
 	}
 	else if ( VarType.Matches(TEXT("TSet"), ESearchCase::CaseSensitive) )
@@ -4385,7 +4502,7 @@ void FHeaderParser::GetVarType(
 			FError::Throwf(TEXT("Found '%s' - explicit KeyFuncs are not supported in TSet properties."), AllocatorToken.Identifier);
 		}
 	}
-	else if ( VarType.Matches(TEXT("FString"), ESearchCase::CaseSensitive) )
+	else if ( VarType.Matches(TEXT("FString"), ESearchCase::CaseSensitive) || VarType.Matches(TEXT("FMemoryImageString"), ESearchCase::CaseSensitive))
 	{
 		VarProperty = FPropertyBase(CPT_String);
 
@@ -5013,7 +5130,8 @@ FProperty* FHeaderParser::GetVarNameAndDim
 (
 	UStruct*                Scope,
 	FToken&                 VarProperty,
-	EVariableCategory::Type VariableCategory
+	EVariableCategory::Type VariableCategory,
+	ELayoutMacroType        LayoutMacroType
 )
 {
 	check(Scope);
@@ -5042,6 +5160,20 @@ FProperty* FHeaderParser::GetVarNameAndDim
 		if (!GetIdentifier(VarToken))
 		{
 			FError::Throwf(TEXT("Missing variable name") );
+		}
+
+		switch (LayoutMacroType)
+		{
+			case ELayoutMacroType::Array:
+			case ELayoutMacroType::ArrayEditorOnly:
+			case ELayoutMacroType::Bitfield:
+			case ELayoutMacroType::BitfieldEditorOnly:
+			case ELayoutMacroType::FieldInitialized:
+				RequireSymbol(TEXT(','), GLayoutMacroNames[(int32)LayoutMacroType]);
+				break;
+
+			default:
+				break;
 		}
 
 		VarProperty.TokenType = TOKEN_Identifier;
@@ -5133,7 +5265,7 @@ FProperty* FHeaderParser::GetVarNameAndDim
 
 	// Get optional dimension immediately after name.
 	FToken Dimensions;
-	if (MatchSymbol(TEXT('[')))
+	if ((LayoutMacroType == ELayoutMacroType::None && MatchSymbol(TEXT('['))) || LayoutMacroType == ELayoutMacroType::Array || LayoutMacroType == ELayoutMacroType::ArrayEditorOnly)
 	{
 		switch (VariableCategory)
 		{
@@ -5159,10 +5291,21 @@ FProperty* FHeaderParser::GetVarNameAndDim
 			FError::Throwf(TEXT("Bool arrays are not allowed") );
 		}
 
-		// Ignore how the actual array dimensions are actually defined - we'll calculate those with the compiler anyway.
-		if (!GetRawToken(Dimensions, TEXT(']')))
+		if (LayoutMacroType == ELayoutMacroType::None)
 		{
-			FError::Throwf(TEXT("%s %s: Missing ']'"), HintText, VarProperty.Identifier );
+			// Ignore how the actual array dimensions are actually defined - we'll calculate those with the compiler anyway.
+			if (!GetRawToken(Dimensions, TEXT(']')))
+			{
+				FError::Throwf(TEXT("%s %s: Missing ']'"), HintText, VarProperty.Identifier);
+			}
+		}
+		else
+		{
+			// Ignore how the actual array dimensions are actually defined - we'll calculate those with the compiler anyway.
+			if (!GetRawToken(Dimensions, TEXT(')')))
+			{
+				FError::Throwf(TEXT("%s %s: Missing ']'"), HintText, VarProperty.Identifier);
+			}
 		}
 
 		// Only static arrays are declared with [].  Dynamic arrays use TArray<> instead.
@@ -5232,7 +5375,10 @@ FProperty* FHeaderParser::GetVarNameAndDim
 			VarProperty.MetaData.Add(NAME_ArraySizeEnum, Enum->GetPathName());
 		}
 
-		MatchSymbol(TEXT(']'));
+		if (LayoutMacroType == ELayoutMacroType::None)
+		{
+			MatchSymbol(TEXT(']'));
+		}
 	}
 
 	// Try gathering metadata for member fields
@@ -5295,6 +5441,11 @@ FProperty* FHeaderParser::GetVarNameAndDim
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(Array->PropertyFlags, VarProperty.MetaData, InnerProp);
 
 		Result = Array;
+
+		if (VarProperty.AllocatorType == EAllocatorType::MemoryImage)
+		{
+			GPropertyUsesMemoryImageAllocator.Add(Array);
+		}
 	}
 	else if (VarProperty.ArrayType == EArrayType::Set)
 	{
@@ -5329,6 +5480,11 @@ FProperty* FHeaderParser::GetVarNameAndDim
 		PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(Map->PropertyFlags, VarProperty.MetaData,             ValueProp);
 
 		Result = Map;
+
+		if (VarProperty.AllocatorType == EAllocatorType::MemoryImage)
+		{
+			GPropertyUsesMemoryImageAllocator.Add(Map);
+		}
 	}
 	else
 	{
@@ -7690,8 +7846,13 @@ void FHeaderParser::ParseFieldMetaData(TMap<FName, FString>& MetaData, const TCH
 	}
 }
 
-bool FHeaderParser::IsBitfieldProperty()
+bool FHeaderParser::IsBitfieldProperty(ELayoutMacroType LayoutMacroType)
 {
+	if (LayoutMacroType == ELayoutMacroType::Bitfield || LayoutMacroType == ELayoutMacroType::BitfieldEditorOnly)
+	{
+		return true;
+	}
+
 	bool bIsBitfield = false;
 
 	// The current token is the property type (uin32, uint16, etc).
@@ -7773,7 +7934,8 @@ void FHeaderParser::CompileVariableDeclaration(FClasses& AllClasses, UStruct* St
 	// Get variable type.
 	FPropertyBase OriginalProperty(CPT_None);
 	FIndexRange TypeRange;
-	GetVarType( AllClasses, &FScope::GetTypeScope(Struct).Get(), OriginalProperty, DisallowFlags, /*OuterPropertyType=*/ NULL, EPropertyDeclarationStyle::UPROPERTY, EVariableCategory::Member, &TypeRange );
+	ELayoutMacroType LayoutMacroType = ELayoutMacroType::None;
+	GetVarType( AllClasses, &FScope::GetTypeScope(Struct).Get(), OriginalProperty, DisallowFlags, /*OuterPropertyType=*/ NULL, EPropertyDeclarationStyle::UPROPERTY, EVariableCategory::Member, &TypeRange, &LayoutMacroType);
 	OriginalProperty.PropertyFlags |= EdFlags;
 
 	FString* Category = OriginalProperty.MetaData.Find(NAME_Category);
@@ -7833,20 +7995,28 @@ void FHeaderParser::CompileVariableDeclaration(FClasses& AllClasses, UStruct* St
 		}
 	}
 
+	if (LayoutMacroType != ELayoutMacroType::None)
+	{
+		RequireSymbol(TEXT(','), GLayoutMacroNames[(int32)LayoutMacroType]);
+	}
+
 	// Process all variables of this type.
 	TArray<FProperty*> NewProperties;
-	do
+	for (;;)
 	{
 		FToken     Property    = OriginalProperty;
-		FProperty* NewProperty = GetVarNameAndDim(Struct, Property, EVariableCategory::Member);
+		FProperty* NewProperty = GetVarNameAndDim(Struct, Property, EVariableCategory::Member, LayoutMacroType);
 
 		// Optionally consume the :1 at the end of a bitfield boolean declaration
-		if (Property.IsBool() && MatchSymbol(TEXT(':')))
+		if (Property.IsBool())
 		{
-			int32 BitfieldSize = 0;
-			if (!GetConstInt(/*out*/ BitfieldSize) || (BitfieldSize != 1))
+			if (LayoutMacroType == ELayoutMacroType::Bitfield || LayoutMacroType == ELayoutMacroType::BitfieldEditorOnly || MatchSymbol(TEXT(':')))
 			{
-				FError::Throwf(TEXT("Bad or missing bitfield size for '%s', must be 1."), *NewProperty->GetName());
+				int32 BitfieldSize = 0;
+				if (!GetConstInt(/*out*/ BitfieldSize) || (BitfieldSize != 1))
+				{
+					FError::Throwf(TEXT("Bad or missing bitfield size for '%s', must be 1."), *NewProperty->GetName());
+				}
 			}
 		}
 
@@ -7898,10 +8068,36 @@ void FHeaderParser::CompileVariableDeclaration(FClasses& AllClasses, UStruct* St
 			}
 		}
 
-	} while( MatchSymbol(TEXT(',')) );
+		if (LayoutMacroType != ELayoutMacroType::None || !MatchSymbol(TEXT(',')))
+		{
+			break;
+		}
+	}
 
 	// Optional member initializer.
-	if (MatchSymbol(TEXT('=')))
+	if (LayoutMacroType == ELayoutMacroType::FieldInitialized)
+	{
+		// Skip past the specified member initializer; we make no attempt to parse it
+		FToken SkipToken;
+		int Nesting = 1;
+		while (GetToken(SkipToken))
+		{
+			if (SkipToken.Matches(TEXT('(')))
+			{
+				++Nesting;
+			}
+			else if (SkipToken.Matches(TEXT(')')))
+			{
+				--Nesting;
+				if (Nesting == 0)
+				{
+					UngetToken(SkipToken);
+					break;
+				}
+			}
+		}
+	}
+	else if (MatchSymbol(TEXT('=')))
 	{
 		// Skip past the specified member initializer; we make no attempt to parse it
 		FToken SkipToken;
@@ -7937,8 +8133,16 @@ void FHeaderParser::CompileVariableDeclaration(FClasses& AllClasses, UStruct* St
 		}
 	}
 
-	// Expect a semicolon.
-	RequireSymbol( TEXT(';'), TEXT("'variable declaration'") );
+	if (LayoutMacroType == ELayoutMacroType::None)
+	{
+		// Expect a semicolon.
+		RequireSymbol(TEXT(';'), TEXT("'variable declaration'"));
+	}
+	else
+	{
+		// Expect a close bracket.
+		RequireSymbol(TEXT(')'), GLayoutMacroNames[(int32)LayoutMacroType]);
+	}
 
 	// Skip redundant semi-colons
 	for (;;)

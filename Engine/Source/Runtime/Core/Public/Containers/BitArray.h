@@ -9,6 +9,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Serialization/Archive.h"
+#include "Serialization/MemoryImageWriter.h"
 #include "Math/UnrealMathUtility.h"
 
 template<typename Allocator > class TBitArray;
@@ -37,7 +38,8 @@ class TConstSetBitIterator;
 template<typename Allocator = FDefaultBitArrayAllocator,typename OtherAllocator = FDefaultBitArrayAllocator>
 class TConstDualSetBitIterator;
 
-class FScriptBitArray;
+template <typename AllocatorType, typename InDerivedType = void>
+class TScriptBitArray;
 
 
 /**
@@ -175,9 +177,12 @@ public:
 template<typename Allocator /*= FDefaultBitArrayAllocator*/>
 class TBitArray
 {
-	friend class FScriptBitArray;
+	template <typename, typename>
+	friend class TScriptBitArray;
 
 public:
+
+	typedef typename Allocator::template ForElementType<uint32> AllocatorType;
 
 	template<typename>
 	friend class TConstSetBitIterator;
@@ -949,8 +954,6 @@ public:
 	}
 
 private:
-	typedef typename Allocator::template ForElementType<uint32> AllocatorType;
-
 	AllocatorType AllocatorInstance;
 	int32         NumBits;
 	int32         MaxBits;
@@ -968,7 +971,44 @@ private:
 			FMemory::Memzero((uint32*)AllocatorInstance.GetAllocation() + PreviousNumDWORDs,(MaxDWORDs - PreviousNumDWORDs) * sizeof(uint32));
 		}
 	}
+
+	template<bool bFreezeMemoryImage, typename Dummy=void>
+	struct TSupportsFreezeMemoryImageHelper
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TBitArray&) { Writer.WriteBytes(TBitArray()); }
+	};
+
+	template<typename Dummy>
+	struct TSupportsFreezeMemoryImageHelper<true, Dummy>
+	{
+		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TBitArray& Object)
+		{
+			const int32 NumDWORDs = FMath::DivideAndRoundUp(Object.NumBits, NumBitsPerDWORD);
+			Object.AllocatorInstance.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<uint32>(), NumDWORDs);
+			Writer.WriteBytes(Object.NumBits);
+			Writer.WriteBytes(Object.NumBits);
+		}
+	};
+
+public:
+	void WriteMemoryImage(FMemoryImageWriter& Writer) const
+	{
+		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage;
+		checkf(!Writer.GetTargetLayoutParams().b32Bit, TEXT("TBitArray does not currently support freezing for 32bits"));
+		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
+	}
 };
+
+namespace Freeze
+{
+	template<typename Allocator>
+	void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const TBitArray<Allocator>& Object, const FTypeLayoutDesc&)
+	{
+		Object.WriteMemoryImage(Writer);
+	}
+}
+
+DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<typename Allocator>, TBitArray<Allocator>);
 
 template<typename Allocator>
 FORCEINLINE uint32 GetTypeHash(const TBitArray<Allocator>& BitArray)
@@ -1214,15 +1254,18 @@ private:
 
 // Untyped bit array type for accessing TBitArray data, like FScriptArray for TArray.
 // Must have the same memory representation as a TBitArray.
-class FScriptBitArray
+template <typename Allocator, typename InDerivedType>
+class TScriptBitArray
 {
+	using DerivedType = typename TChooseClass<TIsVoidType<InDerivedType>::Value, TScriptBitArray, InDerivedType>::Result;
+
 public:
 	/**
 	 * Minimal initialization constructor.
 	 * @param Value - The value to initial the bits to.
 	 * @param InNumBits - The initial number of bits in the array.
 	 */
-	FScriptBitArray()
+	TScriptBitArray()
 		: NumBits(0)
 		, MaxBits(0)
 	{
@@ -1245,7 +1288,7 @@ public:
 		return FConstBitReference(GetData()[Index / NumBitsPerDWORD], 1 << (Index & (NumBitsPerDWORD - 1)));
 	}
 
-	void MoveAssign(FScriptBitArray& Other)
+	void MoveAssign(DerivedType& Other)
 	{
 		checkSlow(this != &Other);
 		Empty(0);
@@ -1280,7 +1323,7 @@ public:
 	}
 
 private:
-	typedef FDefaultBitArrayAllocator::ForElementType<uint32> AllocatorType;
+	typedef typename Allocator::template ForElementType<uint32> AllocatorType;
 
 	AllocatorType AllocatorInstance;
 	int32         NumBits;
@@ -1289,22 +1332,22 @@ private:
 	// This function isn't intended to be called, just to be compiled to validate the correctness of the type.
 	static void CheckConstraints()
 	{
-		typedef FScriptBitArray ScriptType;
+		typedef TScriptBitArray ScriptType;
 		typedef TBitArray<>     RealType;
 
 		// Check that the class footprint is the same
-		static_assert(sizeof (ScriptType) == sizeof (RealType), "FScriptBitArray's size doesn't match TBitArray");
-		static_assert(alignof(ScriptType) == alignof(RealType), "FScriptBitArray's alignment doesn't match TBitArray");
+		static_assert(sizeof (ScriptType) == sizeof (RealType), "TScriptBitArray's size doesn't match TBitArray");
+		static_assert(alignof(ScriptType) == alignof(RealType), "TScriptBitArray's alignment doesn't match TBitArray");
 
 		// Check member sizes
-		static_assert(sizeof(DeclVal<ScriptType>().AllocatorInstance) == sizeof(DeclVal<RealType>().AllocatorInstance), "FScriptBitArray's AllocatorInstance member size does not match TBitArray's");
-		static_assert(sizeof(DeclVal<ScriptType>().NumBits)           == sizeof(DeclVal<RealType>().NumBits),           "FScriptBitArray's NumBits member size does not match TBitArray's");
-		static_assert(sizeof(DeclVal<ScriptType>().MaxBits)           == sizeof(DeclVal<RealType>().MaxBits),           "FScriptBitArray's MaxBits member size does not match TBitArray's");
+		static_assert(sizeof(DeclVal<ScriptType>().AllocatorInstance) == sizeof(DeclVal<RealType>().AllocatorInstance), "TScriptBitArray's AllocatorInstance member size does not match TBitArray's");
+		static_assert(sizeof(DeclVal<ScriptType>().NumBits)           == sizeof(DeclVal<RealType>().NumBits),           "TScriptBitArray's NumBits member size does not match TBitArray's");
+		static_assert(sizeof(DeclVal<ScriptType>().MaxBits)           == sizeof(DeclVal<RealType>().MaxBits),           "TScriptBitArray's MaxBits member size does not match TBitArray's");
 
 		// Check member offsets
-		static_assert(STRUCT_OFFSET(ScriptType, AllocatorInstance) == STRUCT_OFFSET(RealType, AllocatorInstance), "FScriptBitArray's AllocatorInstance member offset does not match TBitArray's");
-		static_assert(STRUCT_OFFSET(ScriptType, NumBits)           == STRUCT_OFFSET(RealType, NumBits),           "FScriptBitArray's NumBits member offset does not match TBitArray's");
-		static_assert(STRUCT_OFFSET(ScriptType, MaxBits)           == STRUCT_OFFSET(RealType, MaxBits),           "FScriptBitArray's MaxBits member offset does not match TBitArray's");
+		static_assert(STRUCT_OFFSET(ScriptType, AllocatorInstance) == STRUCT_OFFSET(RealType, AllocatorInstance), "TScriptBitArray's AllocatorInstance member offset does not match TBitArray's");
+		static_assert(STRUCT_OFFSET(ScriptType, NumBits)           == STRUCT_OFFSET(RealType, NumBits),           "TScriptBitArray's NumBits member offset does not match TBitArray's");
+		static_assert(STRUCT_OFFSET(ScriptType, MaxBits)           == STRUCT_OFFSET(RealType, MaxBits),           "TScriptBitArray's MaxBits member offset does not match TBitArray's");
 	}
 
 	FORCEINLINE uint32* GetData()
@@ -1355,12 +1398,20 @@ private:
 public:
 	// These should really be private, because they shouldn't be called, but there's a bunch of code
 	// that needs to be fixed first.
-	FScriptBitArray(const FScriptBitArray&) { check(false); }
-	void operator=(const FScriptBitArray&) { check(false); }
+	TScriptBitArray(const TScriptBitArray&) { check(false); }
+	void operator=(const TScriptBitArray&) { check(false); }
 };
 
-template <>
-struct TIsZeroConstructType<FScriptBitArray>
+template <typename AllocatorType, typename InDerivedType>
+struct TIsZeroConstructType<TScriptBitArray<AllocatorType, InDerivedType>>
 {
 	enum { Value = true };
+};
+
+class FScriptBitArray : public TScriptBitArray<FDefaultBitArrayAllocator, FScriptBitArray>
+{
+	using Super = TScriptBitArray<FDefaultBitArrayAllocator, FScriptBitArray>;
+
+public:
+	using Super::Super;
 };

@@ -166,7 +166,11 @@ extern bool PlatformOpenGLContextValid();
 	#define INITIATE_GL_FRAME_DUMP_EVERY_X_CALLS( a )
 #endif
 
-struct FRHICommandGLCommand final : public FRHICommand<FRHICommandGLCommand>
+struct FRHICommandGLCommandString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandGLCommand"); }
+};
+struct FRHICommandGLCommand final : public FRHICommand<FRHICommandGLCommand, FRHICommandGLCommandString>
 {
 	TFunction<void()> GLFunction;
 

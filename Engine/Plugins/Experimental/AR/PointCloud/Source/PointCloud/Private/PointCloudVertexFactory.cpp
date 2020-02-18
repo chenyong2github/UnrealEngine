@@ -17,20 +17,15 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPointCloudVertexFactoryParameters, "Po
 class FPointCloudVertexFactoryShaderParameters :
 	public FVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FPointCloudVertexFactoryShaderParameters, NonVirtual);
 public:
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		ColorMask.Bind(ParameterMap, TEXT("ColorMask"));
 		PointSize.Bind(ParameterMap, TEXT("PointSize"));
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << ColorMask;
-		Ar << PointSize;
-	}
-
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
 		const class FSceneView* View,
 		const class FMeshMaterialShader* Shader,
@@ -39,7 +34,7 @@ public:
 		const class FVertexFactory* InVertexFactory,
 		const struct FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{		
 		FPointCloudVertexFactory* VertexFactory = (FPointCloudVertexFactory*)InVertexFactory;
 
@@ -49,11 +44,9 @@ public:
 		ShaderBindings.Add(PointSize, VertexFactory->GetPointSize());
 	}
 
-	virtual uint32 GetSize() const override { return sizeof(*this); }
-
 private:
-	FShaderParameter ColorMask;
-	FShaderParameter PointSize;
+	LAYOUT_FIELD(FShaderParameter, ColorMask);
+	LAYOUT_FIELD(FShaderParameter, PointSize);
 };
 
 /**
@@ -128,15 +121,10 @@ void FPointCloudVertexFactory::ReleaseRHI()
 	FVertexFactory::ReleaseRHI();
 }
 
-bool FPointCloudVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FPointCloudVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
 	// We exclusively use manual fetch, so we need that supported
-	return RHISupportsManualVertexFetch(Platform);
-}
-
-FVertexFactoryShaderParameters* FPointCloudVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new FPointCloudVertexFactoryShaderParameters() : nullptr;
+	return RHISupportsManualVertexFetch(Parameters.Platform);
 }
 
 void FPointCloudVertexFactory::SetParameters(const FPointCloudVertexFactoryParameters& InUniformParameters, const uint32 InMask, const float InSize)
@@ -146,4 +134,5 @@ void FPointCloudVertexFactory::SetParameters(const FPointCloudVertexFactoryParam
 	PointSize = InSize;
 }
 
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FPointCloudVertexFactory, SF_Vertex, FPointCloudVertexFactoryShaderParameters);
 IMPLEMENT_VERTEX_FACTORY_TYPE(FPointCloudVertexFactory, "/Engine/Private/PointCloudVertexFactory.ush", true, false, false, false, false);

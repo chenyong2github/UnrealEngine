@@ -1008,27 +1008,27 @@ RENDERCORE_API FVertexDeclarationRHIRef& GetVertexDeclarationFVector2()
 	return GVector2VertexDeclaration.VertexDeclarationRHI;
 }
 
-RENDERCORE_API bool PlatformSupportsSimpleForwardShading(EShaderPlatform Platform)
+RENDERCORE_API bool PlatformSupportsSimpleForwardShading(const FStaticShaderPlatform Platform)
 {
 	static const auto SupportSimpleForwardShadingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportSimpleForwardShading"));
 	// Scalability feature only needed / used on PC
 	return IsPCPlatform(Platform) && SupportSimpleForwardShadingCVar->GetValueOnAnyThread() != 0;
 }
 
-RENDERCORE_API bool IsSimpleForwardShadingEnabled(EShaderPlatform Platform)
+RENDERCORE_API bool IsSimpleForwardShadingEnabled(const FStaticShaderPlatform Platform)
 {
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SimpleForwardShading"));
 	return CVar->GetValueOnAnyThread() != 0 && PlatformSupportsSimpleForwardShading(Platform);
 }
 
-RENDERCORE_API bool MobileSupportsGPUScene(EShaderPlatform Platform)
+RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform)
 {
 	// make it shader platform setting?
 	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));
 	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
 }
 
-RENDERCORE_API bool GPUSceneUseTexture2D(EShaderPlatform Platform)
+RENDERCORE_API bool GPUSceneUseTexture2D(const FStaticShaderPlatform Platform)
 {
 	if (IsMobilePlatform(Platform))
 	{
@@ -1045,7 +1045,7 @@ RENDERCORE_API bool GPUSceneUseTexture2D(EShaderPlatform Platform)
 	return false;
 }
 
-RENDERCORE_API bool MaskedInEarlyPass(EShaderPlatform Platform)
+RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform)
 {
 	static IConsoleVariable* CVarMobileEarlyZPassOnlyMaterialMasking = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"));
 	static IConsoleVariable* CVarEarlyZPassOnlyMaterialMasking = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPassOnlyMaterialMasking"));
@@ -1059,7 +1059,7 @@ RENDERCORE_API bool MaskedInEarlyPass(EShaderPlatform Platform)
 	}
 }
 
-RENDERCORE_API bool AllowPixelDepthOffset(EShaderPlatform Platform)
+RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform)
 {
 	if (IsMobilePlatform(Platform))
 	{
@@ -1284,7 +1284,7 @@ RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntP
 	OutBufferSize.Y = (InBufferSize.Y + DividableBy - 1) & Mask;
 }
 
-RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, const ITargetPlatform* TargetPlatform)
+RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel, const ITargetPlatform* TargetPlatform)
 {
 #if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING
 	if (GIsEditor == false)

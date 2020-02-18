@@ -18,8 +18,8 @@ class FPositionVertexData :
 	public TStaticMeshVertexData<FPositionVertex>
 {
 public:
-	FPositionVertexData( bool InNeedsCPUAccess=false )
-		: TStaticMeshVertexData<FPositionVertex>( InNeedsCPUAccess )
+	FPositionVertexData(bool InNeedsCPUAccess = false)
+		: TStaticMeshVertexData<FPositionVertex>(InNeedsCPUAccess)
 	{
 	}
 };
@@ -43,7 +43,7 @@ void FPositionVertexBuffer::CleanUp()
 	if (VertexData)
 	{
 		delete VertexData;
-		VertexData = NULL;
+		VertexData = nullptr;
 	}
 }
 

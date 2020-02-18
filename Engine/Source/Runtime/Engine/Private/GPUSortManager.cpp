@@ -107,9 +107,6 @@ public:
 	/** Initialization constructor. */
 	explicit FCopyUIntBufferCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	/** Serialization. */
-	virtual bool Serialize(FArchive& Ar) override;
-
 	/**
 	 * Set parameters.
 	 */
@@ -128,9 +125,9 @@ public:
 
 private:
 
-	FShaderParameter CopyParams;
-	FShaderResourceParameter SourceData;
-	FShaderResourceParameter DestData[COPYUINTCS_BUFFER_COUNT];
+	LAYOUT_FIELD(FShaderParameter, CopyParams);
+	LAYOUT_FIELD(FShaderResourceParameter, SourceData);
+	LAYOUT_ARRAY(FShaderResourceParameter, DestData, COPYUINTCS_BUFFER_COUNT);
 };
 
 //*****************************************************************************
@@ -147,17 +144,6 @@ FCopyUIntBufferCS::FCopyUIntBufferCS(const ShaderMetaType::CompiledShaderInitial
 	DestData[2].Bind(Initializer.ParameterMap, TEXT("DestData2"));
 }
 
-bool FCopyUIntBufferCS::Serialize(FArchive& Ar)
-{
-	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-	Ar << CopyParams;
-	Ar << SourceData;
-	Ar << DestData[0];
-	Ar << DestData[1];
-	Ar << DestData[2];
-	return bShaderHasOutdatedParameters;
-}
-
 void FCopyUIntBufferCS::SetParameters(
 	FRHICommandList& RHICmdList,
 	FRHIShaderResourceView* InSourceData,
@@ -168,7 +154,7 @@ void FCopyUIntBufferCS::SetParameters(
 {
 	static TGlobalResource<FGPUSortDummyUAV> NiagaraSortingDummyUAV[COPYUINTCS_BUFFER_COUNT];
 		
-	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	check(DestCount > 0 && DestCount <= COPYUINTCS_BUFFER_COUNT);
 
 	RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, SourceData.GetBaseIndex(), InSourceData);
@@ -192,7 +178,7 @@ void FCopyUIntBufferCS::SetParameters(
 
 void FCopyUIntBufferCS::UnbindBuffers(FRHICommandList& RHICmdList)
 {
-	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, SourceData, nullptr);
 	for (int32 Index = 0; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
 	{
@@ -207,7 +193,7 @@ void CopyUIntBufferToTargets(FRHICommandListImmediate& RHICmdList, ERHIFeatureLe
 	// No that resource transition must be made outside this call as we don't know how the content of those have been generated, and will be used.
 
 	TShaderMapRef<FCopyUIntBufferCS> CopyBufferCS(GetGlobalShaderMap(FeatureLevel));
-	RHICmdList.SetComputeShader(CopyBufferCS->GetComputeShader());
+	RHICmdList.SetComputeShader(CopyBufferCS.GetComputeShader());
 	
 	int32 Index0InPass = 0;
 	while (Index0InPass < NumTargets)
@@ -216,7 +202,7 @@ void CopyUIntBufferToTargets(FRHICommandListImmediate& RHICmdList, ERHIFeatureLe
 		const int32 NumElementsInPass = TargetSizes[Index0InPass + NumTargetsInPass - 1] - StartingOffset;
 
 		CopyBufferCS->SetParameters(RHICmdList, SourceSRV, TargetUAVs + Index0InPass, TargetSizes + Index0InPass, StartingOffset, NumTargetsInPass);
-		DispatchComputeShader(RHICmdList, *CopyBufferCS, FMath::DivideAndRoundUp(NumElementsInPass, COPYUINTCS_THREAD_COUNT), 1, 1);
+		DispatchComputeShader(RHICmdList, CopyBufferCS, FMath::DivideAndRoundUp(NumElementsInPass, COPYUINTCS_THREAD_COUNT), 1, 1);
 
 		StartingOffset += NumElementsInPass;
 		Index0InPass += COPYUINTCS_BUFFER_COUNT;

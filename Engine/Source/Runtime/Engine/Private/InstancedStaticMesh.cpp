@@ -30,6 +30,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #endif // WITH_EDITOR
 #include "MeshMaterialShader.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
@@ -43,6 +44,9 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
+
+
+IMPLEMENT_TYPE_LAYOUT(FInstancedStaticMeshVertexFactoryShaderParameters);
 
 
 const int32 InstancedStaticMeshMaxTexCoord = 8;
@@ -377,6 +381,8 @@ void FStaticMeshInstanceBuffer::InitRHI()
 	if (InstanceData->GetNumInstances() > 0)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FStaticMeshInstanceBuffer_InitRHI);
+		SCOPED_LOADTIMER(FStaticMeshInstanceBuffer_InitRHI);
+
 		LLM_SCOPE(ELLMTag::InstancedMesh);
 		auto AccessFlags = BUF_Static;
 		CreateVertexBuffer(InstanceData->GetOriginResourceArray(), AccessFlags | BUF_ShaderResource, 16, PF_A32B32G32R32F, InstanceOriginBuffer.VertexBufferRHI, InstanceOriginSRV);
@@ -592,10 +598,32 @@ void FStaticMeshInstanceData::Serialize(FArchive& Ar)
 /**
  * Should we cache the material's shadertype on this platform with this vertex factory? 
  */
-bool FInstancedStaticMeshVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool FInstancedStaticMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (Material->IsUsedWithInstancedStaticMeshes() || Material->IsSpecialEngineMaterial()) 
-			&& FLocalVertexFactory::ShouldCompilePermutation(Platform, Material, ShaderType);
+	return (Parameters.MaterialParameters.bIsUsedWithInstancedStaticMeshes || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
+			&& FLocalVertexFactory::ShouldCompilePermutation(Parameters);
+}
+
+void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
+	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Parameters.Platform))
+	{
+		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
+	}
+
+	OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
+	if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
+	{
+		OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES);
+	}
+	else
+	{
+		// On mobile dithered LOD transition has to be explicitly enabled in material and project settings
+		OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), Parameters.MaterialParameters.bIsDitheredLODTransition && ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES);
+	}
+
+	FLocalVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 }
 
 
@@ -617,6 +645,8 @@ void FInstancedStaticMeshVertexFactory::Copy(const FInstancedStaticMeshVertexFac
 
 void FInstancedStaticMeshVertexFactory::InitRHI()
 {
+	SCOPED_LOADTIMER(FInstancedStaticMeshVertexFactory_InitRHI);
+
 	check(HasValidFeatureLevel());
 
 #if !ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES // position(and normal) only shaders cannot work with dithered LOD
@@ -747,11 +777,7 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	}
 }
 
-
-FVertexFactoryShaderParameters* FInstancedStaticMeshVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new FInstancedStaticMeshVertexFactoryShaderParameters() : NULL;
-}
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_Vertex, FInstancedStaticMeshVertexFactoryShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false);
 
@@ -3196,14 +3222,14 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 				FinalCull *= MaxDrawDistanceScale;
 
 				InstancingViewZCompare.Z = FinalCull;
-				if (BatchElement.InstancedLODIndex < InstancingUserData->MeshRenderData->LODResources.Num() - 1)
+				if (int(BatchElement.InstancedLODIndex) < InstancingUserData->MeshRenderData->LODResources.Num() - 1)
 				{
 					float NextCut = ComputeBoundsDrawDistance(InstancingUserData->MeshRenderData->ScreenSize[BatchElement.InstancedLODIndex + 1].GetValueForFeatureLevel(FeatureLevel), SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
 					InstancingViewZCompare.Z = FMath::Min(NextCut, FinalCull);
 				}
 
 				InstancingViewZCompare.X = MIN_flt;
-				if (BatchElement.InstancedLODIndex > FirstLOD)
+				if (int(BatchElement.InstancedLODIndex) > FirstLOD)
 				{
 					float CurCut = ComputeBoundsDrawDistance(InstancingUserData->MeshRenderData->ScreenSize[BatchElement.InstancedLODIndex].GetValueForFeatureLevel(FeatureLevel), SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
 					if (CurCut < FinalCull)

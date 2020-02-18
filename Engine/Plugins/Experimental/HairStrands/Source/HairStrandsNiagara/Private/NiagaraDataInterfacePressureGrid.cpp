@@ -46,18 +46,6 @@ const FString UNiagaraDataInterfacePressureGrid::WorldInverseName(TEXT("WorldInv
 
 struct FNDIPressureGridParametersName
 {
-	FNDIPressureGridParametersName(const FString& Suffix)
-	{
-		GridCurrentBufferName = UNiagaraDataInterfacePressureGrid::GridCurrentBufferName + Suffix;
-		GridDestinationBufferName = UNiagaraDataInterfacePressureGrid::GridDestinationBufferName + Suffix;
-
-		GridSizeName = UNiagaraDataInterfacePressureGrid::GridSizeName + Suffix;
-		GridOriginName = UNiagaraDataInterfacePressureGrid::GridOriginName + Suffix;
-
-		WorldTransformName = UNiagaraDataInterfacePressureGrid::WorldTransformName + Suffix;
-		WorldInverseName = UNiagaraDataInterfacePressureGrid::WorldInverseName + Suffix;
-	}
-
 	FString GridCurrentBufferName;
 	FString GridDestinationBufferName;
 
@@ -67,6 +55,16 @@ struct FNDIPressureGridParametersName
 	FString WorldTransformName;
 	FString WorldInverseName;
 };
+
+static void GetNiagaraDataInterfaceParametersName(FNDIPressureGridParametersName& Names, const FString& Suffix)
+{
+	Names.GridCurrentBufferName = UNiagaraDataInterfacePressureGrid::GridCurrentBufferName + Suffix;
+	Names.GridDestinationBufferName = UNiagaraDataInterfacePressureGrid::GridDestinationBufferName + Suffix;
+	Names.GridSizeName = UNiagaraDataInterfacePressureGrid::GridSizeName + Suffix;
+	Names.GridOriginName = UNiagaraDataInterfacePressureGrid::GridOriginName + Suffix;
+	Names.WorldTransformName = UNiagaraDataInterfacePressureGrid::WorldTransformName + Suffix;
+	Names.WorldInverseName = UNiagaraDataInterfacePressureGrid::WorldInverseName + Suffix;
+}
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -152,9 +150,12 @@ bool FNDIPressureGridData::Init(UNiagaraDataInterfacePressureGrid* Interface, FN
 
 struct FNDIPressureGridParametersCS : public FNiagaraDataInterfaceParametersCS
 {
-	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
+	DECLARE_TYPE_LAYOUT(FNDIPressureGridParametersCS, NonVirtual);
+
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		FNDIPressureGridParametersName ParamNames(ParamRef.ParameterInfo.DataInterfaceHLSLSymbol);
+		FNDIPressureGridParametersName ParamNames;
+		GetNiagaraDataInterfaceParametersName(ParamNames, *ParameterInfo.DataInterfaceHLSLSymbol);
 
 		GridCurrentBuffer.Bind(ParameterMap, *ParamNames.GridCurrentBufferName);
 		GridDestinationBuffer.Bind(ParameterMap, *ParamNames.GridDestinationBufferName);
@@ -176,23 +177,11 @@ struct FNDIPressureGridParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << GridCurrentBuffer;
-		Ar << GridDestinationBuffer;
-
-		Ar << GridOrigin;
-		Ar << GridSize;
-
-		Ar << WorldTransform;
-		Ar << WorldInverse;
-	}
-
-	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FNDIPressureGridProxy* InterfaceProxy =
 			static_cast<FNDIPressureGridProxy*>(Context.DataInterface);
@@ -231,23 +220,27 @@ struct FNDIPressureGridParametersCS : public FNiagaraDataInterfaceParametersCS
 		}
 	}
 
-	virtual void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
+	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
-		SetUAVParameter(RHICmdList, Context.Shader->GetComputeShader(), GridDestinationBuffer, nullptr);
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+		SetUAVParameter(RHICmdList, ShaderRHI, GridDestinationBuffer, nullptr);
 	}
 
 private:
 
-	FShaderResourceParameter GridCurrentBuffer;
-	FShaderResourceParameter GridDestinationBuffer;
+	LAYOUT_FIELD(FShaderResourceParameter, GridCurrentBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, GridDestinationBuffer);
 
-	FShaderParameter GridSize;
-	FShaderParameter GridOrigin;
+	LAYOUT_FIELD(FShaderParameter, GridSize);
+	LAYOUT_FIELD(FShaderParameter, GridOrigin);
 
-	FShaderParameter WorldTransform;
-	FShaderParameter WorldInverse;
+	LAYOUT_FIELD(FShaderParameter, WorldTransform);
+	LAYOUT_FIELD(FShaderParameter, WorldInverse);
 };
 
+IMPLEMENT_TYPE_LAYOUT(FNDIPressureGridParametersCS);
+
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfacePressureGrid, FNDIPressureGridParametersCS);
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -726,7 +719,8 @@ void UNiagaraDataInterfacePressureGrid::UpdateGridTransform(FVectorVMContext& Co
 
 bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	FNDIPressureGridParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
+	FNDIPressureGridParametersName ParamNames;
+	GetNiagaraDataInterfaceParametersName(ParamNames, ParamInfo.DataInterfaceHLSLSymbol);
 
 	TMap<FString, FStringFormatArg> ArgsSample = {
 		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
@@ -878,12 +872,6 @@ void UNiagaraDataInterfacePressureGrid::ProvidePerInstanceDataForRenderThread(vo
 	RenderThreadData->GridSize = GameThreadData->GridSize;
 }
 
-FNiagaraDataInterfaceParametersCS*
-UNiagaraDataInterfacePressureGrid::ConstructComputeParameters() const
-{
-	return new FNDIPressureGridParametersCS();
-}
-
 //------------------------------------------------------------------------------------------------------------
 
 #define NIAGARA_HAIR_STRANDS_THREAD_COUNT 64
@@ -930,7 +918,7 @@ static void AddClearPressureGridPass(
 	Parameters->GridSize = GridSize;
 	Parameters->CopyPressure = CopyPressure;
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
 
@@ -938,7 +926,7 @@ static void AddClearPressureGridPass(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("ClearPressureGrid"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		FIntVector(DispatchCount, 1, 1));
 }

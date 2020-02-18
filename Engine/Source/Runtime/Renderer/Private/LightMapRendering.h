@@ -131,11 +131,11 @@ struct TLightMapPolicy
 		const bool bShouldCacheQuality = (LightmapQuality != ELightmapQuality::LQ_LIGHTMAP) || bProjectCanHaveLowQualityLightmaps;
 
 		// GetValueOnAnyThread() as it's possible that ShouldCache is called from rendering thread. That is to output some error message.
-		return (Parameters.Material->GetShadingModels().IsLit())
+		return (Parameters.MaterialParameters.ShadingModels.IsLit())
 			&& bShouldCacheQuality
 			&& Parameters.VertexFactoryType->SupportsStaticLighting()
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0)
-			&& (Parameters.Material->IsUsedWithStaticLighting() || Parameters.Material->IsSpecialEngineMaterial());
+			&& (Parameters.MaterialParameters.bIsUsedWithStaticLighting || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 	}
 
 	static bool RequiresSkylight()
@@ -167,7 +167,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material->GetShadingModels().IsLit() && Parameters.VertexFactoryType->SupportsStaticLighting();
+		return Parameters.MaterialParameters.ShadingModels.IsLit() && Parameters.VertexFactoryType->SupportsStaticLighting();
 	}
 };
 
@@ -182,6 +182,7 @@ public:
 
 	class VertexParametersType
 	{
+		DECLARE_INLINE_TYPE_LAYOUT(VertexParametersType, NonVirtual);
 	public:
 		void Bind(const FShaderParameterMap& ParameterMap) {}
 		void Serialize(FArchive& Ar) {}
@@ -189,6 +190,7 @@ public:
 
 	class PixelParametersType
 	{
+		DECLARE_INLINE_TYPE_LAYOUT(PixelParametersType, NonVirtual);
 	public:
 		void Bind(const FShaderParameterMap& ParameterMap)
 		{
@@ -200,13 +202,13 @@ public:
 			Ar << TranslucentSelfShadowBufferParameter;
 		}
 
-		FShaderUniformBufferParameter TranslucentSelfShadowBufferParameter;
+		LAYOUT_FIELD(FShaderUniformBufferParameter, TranslucentSelfShadowBufferParameter);
 	};
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.Material->GetShadingModels().IsLit() &&
-			IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) &&
+		return Parameters.MaterialParameters.ShadingModels.IsLit() &&
+			IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) &&
 			IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
@@ -253,7 +255,7 @@ struct FPrecomputedVolumetricLightmapLightingPolicy
 	{
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	
-		return Parameters.Material->GetShadingModels().IsLit() &&
+		return Parameters.MaterialParameters.ShadingModels.IsLit() &&
 			(!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 	}
 
@@ -272,8 +274,8 @@ struct FCachedVolumeIndirectLightingPolicy
 	{
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 
-		return Parameters.Material->GetShadingModels().IsLit()
-			&& !IsTranslucentBlendMode(Parameters.Material->GetBlendMode())
+		return Parameters.MaterialParameters.ShadingModels.IsLit()
+			&& !IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0)
 			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
@@ -299,7 +301,7 @@ struct FCachedPointIndirectLightingPolicy
 	{
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	
-		return Parameters.Material->GetShadingModels().IsLit()
+		return Parameters.MaterialParameters.ShadingModels.IsLit()
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 	}
 
@@ -368,7 +370,7 @@ struct FSimpleDirectionalLightLightingPolicy
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return PlatformSupportsSimpleForwardShading(Parameters.Platform)
-			&& Parameters.Material->GetShadingModels().IsLit();
+			&& Parameters.MaterialParameters.ShadingModels.IsLit();
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -490,7 +492,7 @@ public:
 	{
 		static auto* CVarMobileEnableStaticAndCSMShadowReceivers = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableStaticAndCSMShadowReceivers"));
 		const bool bMobileEnableStaticAndCSMShadowReceivers = CVarMobileEnableStaticAndCSMShadowReceivers->GetValueOnAnyThread() == 1;
-		return bMobileEnableStaticAndCSMShadowReceivers && (Parameters.Material->GetShadingModels().IsLit()) && Super::ShouldCompilePermutation(Parameters);
+		return bMobileEnableStaticAndCSMShadowReceivers && (Parameters.MaterialParameters.ShadingModels.IsLit()) && Super::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -515,7 +517,7 @@ struct FMobileDirectionalLightAndSHIndirectPolicy
 		static auto* CVarAllowStaticLighting = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = CVarAllowStaticLighting->GetValueOnAnyThread() != 0;
 
-		return bAllowStaticLighting && Parameters.Material->GetShadingModels().IsLit() && FCachedPointIndirectLightingPolicy::ShouldCompilePermutation(Parameters);
+		return bAllowStaticLighting && Parameters.MaterialParameters.ShadingModels.IsLit() && FCachedPointIndirectLightingPolicy::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -594,7 +596,7 @@ struct FMobileMovableDirectionalLightLightingPolicy
 		static auto* CVarMobileAllowMovableDirectionalLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowMovableDirectionalLights"));
 		const bool bMobileAllowMovableDirectionalLights = CVarMobileAllowMovableDirectionalLights->GetValueOnAnyThread() != 0;
 
-		return bMobileAllowMovableDirectionalLights && Parameters.Material->GetShadingModels().IsLit();
+		return bMobileAllowMovableDirectionalLights && Parameters.MaterialParameters.ShadingModels.IsLit();
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -616,7 +618,7 @@ struct FMobileMovableDirectionalLightCSMLightingPolicy
 		static auto* CVarMobileAllowMovableDirectionalLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowMovableDirectionalLights"));
 		const bool bMobileAllowMovableDirectionalLights = CVarMobileAllowMovableDirectionalLights->GetValueOnAnyThread() != 0;
 
-		return bMobileAllowMovableDirectionalLights && Parameters.Material->GetShadingModels().IsLit();
+		return bMobileAllowMovableDirectionalLights && Parameters.MaterialParameters.ShadingModels.IsLit();
 	}	
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -647,7 +649,7 @@ struct FMobileMovableDirectionalLightWithLightmapPolicy : public TLightMapPolicy
 		static auto* CVarAllowStaticLighting = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = (!CVarAllowStaticLighting || CVarAllowStaticLighting->GetValueOnAnyThread() != 0);
 
-		return bAllowStaticLighting && bMobileAllowMovableDirectionalLights && (Parameters.Material->GetShadingModels().IsLit()) && Super::ShouldCompilePermutation(Parameters);
+		return bAllowStaticLighting && bMobileAllowMovableDirectionalLights && (Parameters.MaterialParameters.ShadingModels.IsLit()) && Super::ShouldCompilePermutation(Parameters);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -711,6 +713,7 @@ enum ELightMapPolicyType
 
 class FUniformLightMapPolicyShaderParametersType
 {
+	DECLARE_TYPE_LAYOUT(FUniformLightMapPolicyShaderParametersType, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -726,9 +729,9 @@ public:
 		Ar << LightmapResourceCluster;
 	}
 
-	FShaderUniformBufferParameter PrecomputedLightingBufferParameter;
-	FShaderUniformBufferParameter IndirectLightingCacheParameter;
-	FShaderUniformBufferParameter LightmapResourceCluster;
+	LAYOUT_FIELD(FShaderUniformBufferParameter, PrecomputedLightingBufferParameter);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, IndirectLightingCacheParameter);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, LightmapResourceCluster);
 };
 
 class FUniformLightMapPolicy
@@ -979,6 +982,7 @@ public:
 
 	class PixelParametersType : public FUniformLightMapPolicyShaderParametersType, public FSelfShadowedTranslucencyPolicy::PixelParametersType
 	{
+		DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(PixelParametersType, NonVirtual, FUniformLightMapPolicyShaderParametersType, FSelfShadowedTranslucencyPolicy::PixelParametersType);
 	public:
 		void Bind(const FShaderParameterMap& ParameterMap)
 		{
@@ -997,8 +1001,8 @@ public:
 	{
 		static IConsoleVariable* AllowStaticLightingVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowStaticLighting"));
 
-		return Parameters.Material->GetShadingModels().IsLit()
-			&& IsTranslucentBlendMode(Parameters.Material->GetBlendMode())
+		return Parameters.MaterialParameters.ShadingModels.IsLit()
+			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0)
 			&& FSelfShadowedTranslucencyPolicy::ShouldCompilePermutation(Parameters);
 	}
@@ -1028,6 +1032,7 @@ public:
 
 	class PixelParametersType : public FUniformLightMapPolicyShaderParametersType, public FSelfShadowedTranslucencyPolicy::PixelParametersType
 	{
+		DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(PixelParametersType, NonVirtual, FUniformLightMapPolicyShaderParametersType, FSelfShadowedTranslucencyPolicy::PixelParametersType);
 	public:
 		void Bind(const FShaderParameterMap& ParameterMap)
 		{
@@ -1046,8 +1051,8 @@ public:
 	{
 		static IConsoleVariable* AllowStaticLightingVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowStaticLighting"));
 
-		return Parameters.Material->GetShadingModels().IsLit()
-			&& IsTranslucentBlendMode(Parameters.Material->GetBlendMode())
+		return Parameters.MaterialParameters.ShadingModels.IsLit()
+			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0)
 			&& FSelfShadowedTranslucencyPolicy::ShouldCompilePermutation(Parameters);
 	}

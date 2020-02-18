@@ -21,6 +21,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/RedirectCollector.h"
 #include "AssetRegistryModule.h"
+#include "Serialization/LargeMemoryReader.h"
 
 #if WITH_EDITOR
 #include "IDirectoryWatcher.h"
@@ -55,6 +56,9 @@ UAssetRegistry::UAssetRegistry(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
+
+#include "Misc/PreLoadFile.h"
+static FPreLoadFile GPreLoadAssetRegistry(TEXT("{PROJECT}AssetRegistry.bin"));
 
 UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -91,19 +95,29 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	else if (FPlatformProperties::RequiresCookedData())
 	{
 		// load the cooked data
-		FArrayReader SerializedAssetData;
+		int64 Size;
+		void* PreloadedData = GPreLoadAssetRegistry.TakeOwnershipOfLoadedData(&Size);
 
-		FString AssetRegistryFilename = (FPaths::ProjectDir() / TEXT("AssetRegistry.bin"));
-		if (SerializationOptions.bSerializeAssetRegistry && IFileManager::Get().FileExists(*AssetRegistryFilename) && FFileHelper::LoadFileToArray(SerializedAssetData, *AssetRegistryFilename))
+		if (SerializationOptions.bSerializeAssetRegistry)
 		{
-			// serialize the data with the memory reader (will convert FStrings to FNames, etc)
-			Serialize(SerializedAssetData);
+			if (PreloadedData != nullptr)
+			{
+				FLargeMemoryReader SerializedAssetData((uint8*)PreloadedData, Size, ELargeMemoryReaderFlags::TakeOwnership);
+				// serialize the data with the memory reader (will convert FStrings to FNames, etc)
+				Serialize(SerializedAssetData);
+			}
 		}
+		else
+		{
+			FMemory::Free(PreloadedData);
+		}
+
 		TArray<TSharedRef<IPlugin>> ContentPlugins = IPluginManager::Get().GetEnabledPluginsWithContent();
 		for (TSharedRef<IPlugin> ContentPlugin : ContentPlugins)
 		{
 			if (ContentPlugin->CanContainContent())
 			{
+				FArrayReader SerializedAssetData;
 				FString PluginAssetRegistry = ContentPlugin->GetBaseDir() / TEXT("AssetRegistry.bin");
 				if (IFileManager::Get().FileExists(*PluginAssetRegistry) && FFileHelper::LoadFileToArray(SerializedAssetData, *PluginAssetRegistry))
 				{

@@ -115,16 +115,16 @@ RHI_API const TCHAR* RHIVendorIdToString();
 RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId);
 
 // helper to return the shader language version for the given shader platform.
-RHI_API uint32 RHIGetShaderLanguageVersion(const EShaderPlatform Platform);
+RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform);
 
 // helper to check that the shader platform supports tessellation.
-RHI_API bool RHISupportsTessellation(const EShaderPlatform Platform);
+RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform);
 
 // helper to check that the shader platform supports writing to UAVs from pixel shaders.
-RHI_API bool RHISupportsPixelShaderUAVs(const EShaderPlatform Platform);
+RHI_API bool RHISupportsPixelShaderUAVs(const FStaticShaderPlatform Platform);
 
 // helper to check that the shader platform supports creating a UAV off an index buffer.
-RHI_API bool RHISupportsIndexBufferUAVs(const EShaderPlatform Platform);
+RHI_API bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform);
 
 // helper to check if a preview feature level has been requested.
 RHI_API bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT);
@@ -132,42 +132,42 @@ RHI_API bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLev
 // helper to check if preferred EPixelFormat is supported, return one if it is not
 RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat);
 
-inline bool RHISupportsInstancedStereo(const EShaderPlatform Platform)
+inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
 	// Only D3D SM5, PS4 and Metal SM5 supports Instanced Stereo
 	return Platform == EShaderPlatform::SP_PCD3D_SM5 || Platform == EShaderPlatform::SP_PS4 || Platform == EShaderPlatform::SP_METAL_SM5 || Platform == EShaderPlatform::SP_METAL_SM5_NOTESS
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsInstancedStereo;
+		|| FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
 }
 
-inline bool RHISupportsMultiView(const EShaderPlatform Platform)
+inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
 {
 	// Only PS4 and Metal SM5 from 10.13 onward supports Multi-View
 	return (Platform == EShaderPlatform::SP_PS4) || ((Platform == EShaderPlatform::SP_METAL_SM5 || Platform == SP_METAL_SM5_NOTESS))
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsMultiView;
+		|| FDataDrivenShaderPlatformInfo::GetSupportsMultiView(Platform);
 }
 
-inline bool RHISupportsMSAA(EShaderPlatform Platform)
+inline bool RHISupportsMSAA(const FStaticShaderPlatform Platform)
 {
 	return 
 		(
 		// @todo optimise MSAA for XboxOne, currently uses significant eRAM.
 		Platform != SP_XBOXONE_D3D12)
 		// @todo platplug: Maybe this should become bDisallowMSAA to default of 0 is a better default (since now MSAA is opt-out more than opt-in) 
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsMSAA;
+		|| FDataDrivenShaderPlatformInfo::GetSupportsMSAA(Platform);
 }
 
-inline bool RHISupportsBufferLoadTypeConversion(EShaderPlatform Platform)
+inline bool RHISupportsBufferLoadTypeConversion(const FStaticShaderPlatform Platform)
 {
 	return !IsMetalPlatform(Platform);
 }
 
 /** Whether the platform supports reading from volume textures (does not cover rendering to volume textures). */
-inline bool RHISupportsVolumeTextures(ERHIFeatureLevel::Type FeatureLevel)
+inline bool RHISupportsVolumeTextures(const FStaticFeatureLevel FeatureLevel)
 {
 	return FeatureLevel >= ERHIFeatureLevel::SM5;
 }
 
-inline bool RHISupportsVertexShaderLayer(const EShaderPlatform Platform)
+inline bool RHISupportsVertexShaderLayer(const FStaticShaderPlatform Platform)
 {
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsMetalPlatform(Platform) && IsPCPlatform(Platform);
 }
@@ -175,24 +175,24 @@ inline bool RHISupportsVertexShaderLayer(const EShaderPlatform Platform)
 /** Return true if and only if the GPU support rendering to volume textures (2D Array, 3D) is guaranteed supported for a target platform.
 	if PipelineVolumeTextureLUTSupportGuaranteedAtRuntime is true then it is guaranteed that GSupportsVolumeTextureRendering is true at runtime.
 */
-inline bool RHIVolumeTextureRenderingSupportGuaranteed(const EShaderPlatform Platform)
+inline bool RHIVolumeTextureRenderingSupportGuaranteed(const FStaticShaderPlatform Platform)
 {
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
 		&& (!IsMetalPlatform(Platform) || RHISupportsVertexShaderLayer(Platform)) // For Metal only shader platforms & versions that support vertex-shader-layer can render to volume textures - this is a compile/cook time check.
 		&& !IsOpenGLPlatform(Platform);		// Apparently, some OpenGL 3.3 cards support SM4 but can't render to volume textures
 }
 
-inline bool RHISupports4ComponentUAVReadWrite(EShaderPlatform Platform)
+inline bool RHISupports4ComponentUAVReadWrite(const FStaticShaderPlatform Platform)
 {
 	// Must match usf PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
 	// D3D11 does not support multi-component loads from a UAV: "error X3676: typed UAV loads are only allowed for single-component 32-bit element types"
 	return Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4 || IsMetalPlatform(Platform) 
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupports4ComponentUAVReadWrite;
+		|| FDataDrivenShaderPlatformInfo::GetSupports4ComponentUAVReadWrite(Platform);
 }
 
 /** Whether Manual Vertex Fetch is supported for the specified shader platform.
 	Shader Platform must not use the mobile renderer, and for Metal, the shader language must be at least 2. */
-inline bool RHISupportsManualVertexFetch(EShaderPlatform InShaderPlatform)
+inline bool RHISupportsManualVertexFetch(const FStaticShaderPlatform InShaderPlatform)
 {
 	return (!IsOpenGLPlatform(InShaderPlatform) || IsSwitchPlatform(InShaderPlatform)) && !IsMobilePlatform(InShaderPlatform);
 }
@@ -200,7 +200,7 @@ inline bool RHISupportsManualVertexFetch(EShaderPlatform InShaderPlatform)
 /** 
  * Returns true if SV_VertexID contains BaseVertexIndex passed to the draw call, false if shaders must manually construct an absolute VertexID.
  */
-inline bool RHISupportsAbsoluteVertexID(EShaderPlatform InShaderPlatform)
+inline bool RHISupportsAbsoluteVertexID(const EShaderPlatform InShaderPlatform)
 {
 	return IsVulkanPlatform(InShaderPlatform) || IsVulkanMobilePlatform(InShaderPlatform);
 }
@@ -208,27 +208,27 @@ inline bool RHISupportsAbsoluteVertexID(EShaderPlatform InShaderPlatform)
 /** Can this platform compile ray tracing shaders (regardless of project settings).
  *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
  **/
-inline RHI_API bool RHISupportsRayTracingShaders(EShaderPlatform Platform)
+inline RHI_API bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsRayTracing;
+	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
 }
 
 /** Can this platform compile shaders that use shader model 6.0 wave intrinsics.
  *  To use such shaders at runtime, also check GRHISupportsWaveOperations.
  **/
-inline RHI_API bool RHISupportsWaveOperations(EShaderPlatform Platform)
+inline RHI_API bool RHISupportsWaveOperations(const FStaticShaderPlatform Platform)
 {
 	// Currently SM6 shaders are treated as an extension of SM5.
 	return Platform == SP_PCD3D_SM5;
 }
 
 /** True if the given shader platform supports a render target write mask */
-inline bool RHISupportsRenderTargetWriteMask(EShaderPlatform Platform)
+inline bool RHISupportsRenderTargetWriteMask(const FStaticShaderPlatform Platform)
 {
 	return
 		Platform == SP_PS4 ||
 		Platform == SP_XBOXONE_D3D12 ||
-		FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsRenderTargetWriteMask;
+		FDataDrivenShaderPlatformInfo::GetSupportsRenderTargetWriteMask(Platform);
 }
 
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
@@ -600,7 +600,7 @@ extern RHI_API void GetFeatureLevelName(ERHIFeatureLevel::Type InFeatureLevel, F
 extern RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num];
 
 /** Get the shader platform associated with the supplied feature level on this machine */
-inline EShaderPlatform GetFeatureLevelShaderPlatform(ERHIFeatureLevel::Type InFeatureLevel)
+inline EShaderPlatform GetFeatureLevelShaderPlatform(const FStaticFeatureLevel InFeatureLevel)
 {
 	return GShaderPlatformForFeatureLevel[InFeatureLevel];
 }
@@ -1726,16 +1726,6 @@ extern RHI_API void RHIPostInit(const TArray<uint32>& InPixelFormatByteWidth);
 
 /** Shuts down the RHI. */
 extern RHI_API void RHIExit();
-
-
-// the following helper macros allow to safely convert shader types without much code clutter
-#define GETSAFERHISHADER_PIXEL(Shader) ((Shader) ? (Shader)->GetPixelShader() : nullptr)
-#define GETSAFERHISHADER_VERTEX(Shader) ((Shader) ? (Shader)->GetVertexShader() : nullptr)
-#define GETSAFERHISHADER_HULL(Shader) ((Shader) ? (Shader)->GetHullShader() : nullptr)
-#define GETSAFERHISHADER_DOMAIN(Shader) ((Shader) ? (Shader)->GetDomainShader() : nullptr)
-#define GETSAFERHISHADER_GEOMETRY(Shader) ((Shader) ? (Shader)->GetGeometryShader() : (FRHIGeometryShader*)FGeometryShaderRHIRef())
-#define GETSAFERHISHADER_COMPUTE(Shader) ((Shader) ? (Shader)->GetComputeShader() : nullptr)
-#define GETSAFERHISHADER_RAYTRACING(Shader) ((Shader) ? (Shader)->GetRayTracingShader() : (FRHIRayTracingShader*)FRayTracingShaderRHIRef())
 
 
 // Panic delegate is called when when a fatal condition is encountered within RHI function.

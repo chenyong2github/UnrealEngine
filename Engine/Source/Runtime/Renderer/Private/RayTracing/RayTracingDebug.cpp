@@ -58,7 +58,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FViewInfo& View
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
 	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDebugRGS>();
-	OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 }
 
 void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
@@ -131,7 +131,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 	}
 
 
-	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(FeatureLevel);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>();
 
@@ -161,7 +161,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 		FRayTracingShaderBindingsWriter GlobalResources;
 		SetShaderParameters(GlobalResources, RayGenShader, *RayGenParameters);
 
-		RHICmdList.RayTraceDispatch(Pipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, ViewRect.Size().X, ViewRect.Size().Y);
+		RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, ViewRect.Size().X, ViewRect.Size().Y);
 	});
 
 	GraphBuilder.Execute();

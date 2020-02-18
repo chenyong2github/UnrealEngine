@@ -1588,16 +1588,17 @@ class FSimpleScopeSecondsStat
 {
 public:
 
-	FSimpleScopeSecondsStat(TStatId InStatId)
+	FSimpleScopeSecondsStat(TStatId InStatId, double InScale=1.0)
 		: StartTime(FPlatformTime::Seconds())
 		, StatId(InStatId)
+		, Scale(InScale)
 	{
 
 	}
 
 	virtual ~FSimpleScopeSecondsStat()
 	{
-		double TotalTime = FPlatformTime::Seconds() - StartTime;
+		double TotalTime = (FPlatformTime::Seconds() - StartTime) * Scale;
 		FThreadStats::AddMessage(StatId.GetName(), EStatOperation::Add, TotalTime);
 	}
 
@@ -1605,6 +1606,7 @@ private:
 
 	double StartTime;
 	TStatId StatId;
+	double Scale;
 };
 
 /** Manages startup messages, usually to update the metadata. */
@@ -1916,6 +1918,9 @@ struct FStat_##StatName\
 #define SCOPE_SECONDS_ACCUMULATOR(Stat) \
 	FSimpleScopeSecondsStat SecondsAccum_##Stat(GET_STATID(Stat));
 
+#define SCOPE_MS_ACCUMULATOR(Stat) \
+	FSimpleScopeSecondsStat SecondsAccum_##Stat(GET_STATID(Stat), 1000.0);
+
 #define SET_CYCLE_COUNTER(Stat,Cycles) \
 {\
 	if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
@@ -2165,6 +2170,8 @@ DECLARE_STATS_GROUP(TEXT("Init Views"),STATGROUP_InitViews, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("Landscape"),STATGROUP_Landscape, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("Light Rendering"),STATGROUP_LightRendering, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("LoadTime"), STATGROUP_LoadTime, STATCAT_Advanced);
+DECLARE_STATS_GROUP(TEXT("LoadTimeClass"), STATGROUP_LoadTimeClass, STATCAT_Advanced);
+DECLARE_STATS_GROUP(TEXT("LoadTimeClassCount"), STATGROUP_LoadTimeClassCount, STATCAT_Advanced);
 DECLARE_STATS_GROUP_VERBOSE(TEXT("LoadTimeVerbose"), STATGROUP_LoadTimeVerbose, STATCAT_Advanced);
 DECLARE_STATS_GROUP_VERBOSE(TEXT("MathVerbose"), STATGROUP_MathVerbose, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("Media"),STATGROUP_Media, STATCAT_Advanced);

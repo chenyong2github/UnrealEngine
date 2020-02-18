@@ -18,34 +18,36 @@ void GetUniformMobileBasePassShaders(
 	const FMaterial& Material, 
 	FVertexFactoryType* VertexFactoryType, 
 	bool bEnableSkyLight,
-	TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>*& VertexShader,
-	TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*& PixelShader
+	TShaderRef<TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
+	TShaderRef<TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>>& PixelShader
 	)
 {
+	using FVertexShaderType = TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>;
+	using FPixelShaderType = TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>;
 	if (IsMobileHDR())
 	{
-		VertexShader = (TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>*)Material.GetShader<TMobileBasePassVS<TUniformLightMapPolicy<Policy>, HDR_LINEAR_64> >(VertexFactoryType);
+		VertexShader = TShaderRef<FVertexShaderType>::ReinterpretCast(Material.GetShader<TMobileBasePassVS<TUniformLightMapPolicy<Policy>, HDR_LINEAR_64> >(VertexFactoryType));
 
 		if (bEnableSkyLight)
 		{
-			PixelShader = (TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*)Material.GetShader< TMobileBasePassPS<TUniformLightMapPolicy<Policy>, HDR_LINEAR_64, true, NumMovablePointLights> >(VertexFactoryType);
+			PixelShader = TShaderRef<FPixelShaderType>::ReinterpretCast(Material.GetShader< TMobileBasePassPS<TUniformLightMapPolicy<Policy>, HDR_LINEAR_64, true, NumMovablePointLights> >(VertexFactoryType));
 		}
 		else
 		{
-			PixelShader = (TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*)Material.GetShader< TMobileBasePassPS<TUniformLightMapPolicy<Policy>, HDR_LINEAR_64, false, NumMovablePointLights> >(VertexFactoryType);
+			PixelShader = TShaderRef<FPixelShaderType>::ReinterpretCast(Material.GetShader< TMobileBasePassPS<TUniformLightMapPolicy<Policy>, HDR_LINEAR_64, false, NumMovablePointLights> >(VertexFactoryType));
 		}	
 	}
 	else
 	{
-		VertexShader = (TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>*)Material.GetShader<TMobileBasePassVS<TUniformLightMapPolicy<Policy>, LDR_GAMMA_32> >(VertexFactoryType);
+		VertexShader = TShaderRef<FVertexShaderType>::ReinterpretCast(Material.GetShader<TMobileBasePassVS<TUniformLightMapPolicy<Policy>, LDR_GAMMA_32> >(VertexFactoryType));
 
 		if (bEnableSkyLight)
 		{
-			PixelShader = (TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*)Material.GetShader< TMobileBasePassPS<TUniformLightMapPolicy<Policy>, LDR_GAMMA_32, true, NumMovablePointLights> >(VertexFactoryType);
+			PixelShader = TShaderRef<FPixelShaderType>::ReinterpretCast(Material.GetShader< TMobileBasePassPS<TUniformLightMapPolicy<Policy>, LDR_GAMMA_32, true, NumMovablePointLights> >(VertexFactoryType));
 		}
 		else
 		{
-			PixelShader = (TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*)Material.GetShader< TMobileBasePassPS<TUniformLightMapPolicy<Policy>, LDR_GAMMA_32, false, NumMovablePointLights> >(VertexFactoryType);
+			PixelShader = TShaderRef<FPixelShaderType>::ReinterpretCast(Material.GetShader< TMobileBasePassPS<TUniformLightMapPolicy<Policy>, LDR_GAMMA_32, false, NumMovablePointLights> >(VertexFactoryType));
 		}			
 	}
 }
@@ -56,8 +58,8 @@ void GetMobileBasePassShaders(
 	const FMaterial& Material, 
 	FVertexFactoryType* VertexFactoryType, 
 	bool bEnableSkyLight,
-	TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>*& VertexShader,
-	TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*& PixelShader
+	TShaderRef<TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
+	TShaderRef<TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>>& PixelShader
 	)
 {
 	switch (LightMapPolicyType)
@@ -106,8 +108,8 @@ void MobileBasePass::GetShaders(
 	const FMaterial& MaterialResource,
 	FVertexFactoryType* VertexFactoryType,
 	bool bEnableSkyLight, 
-	TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>*& VertexShader,
-	TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>*& PixelShader)
+	TShaderRef<TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
+	TShaderRef<TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>>& PixelShader)
 {
 	bool bIsLit = (MaterialResource.GetShadingModels().IsLit());
 	if (bIsLit && !UseSkylightPermutation(bEnableSkyLight, FReadOnlyCVARCache::Get().MobileSkyLightPermutation))	
@@ -662,8 +664,9 @@ void FMobileBasePassMeshProcessor::Process(
 		SortKey = GetBasePassStaticSortKey(BlendMode, bBackground);
 	}
 	
-	ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource);
-	ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, MaterialResource);
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+	ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource, OverrideSettings);
+	ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, MaterialResource, OverrideSettings);
 
 	TMobileBasePassShaderElementData<FUniformLightMapPolicy> ShaderElementData(LightMapElementData);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);

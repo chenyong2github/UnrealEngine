@@ -4400,7 +4400,7 @@ static USceneComponent* GetUnregisteredParent(UActorComponent* Component)
 	return ParentComponent;
 }
 
-bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
+bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegisterComponentContext* Context)
 {
 	if (NumComponentsToRegister == 0)
 	{
@@ -4430,7 +4430,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
 			// This should prevent unwanted components hanging around when undoing a copy/paste or duplication action.
 			RootComponent->Modify(false);
 
-			RootComponent->RegisterComponentWithWorld(World);
+			RootComponent->RegisterComponentWithWorld(World, Context);
 		}
 	}
 
@@ -4470,7 +4470,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister)
 			// This should prevent unwanted components hanging around when undoing a copy/paste or duplication action.
 			Component->Modify(false);
 
-			Component->RegisterComponentWithWorld(World);
+			Component->RegisterComponentWithWorld(World, Context);
 			NumRegisteredComponentsThisRun++;
 		}
 

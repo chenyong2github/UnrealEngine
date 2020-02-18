@@ -190,7 +190,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		if (Parameters.Material->GetMaterialDomain() == MD_PostProcess)
+		if (Parameters.MaterialParameters.MaterialDomain == MD_PostProcess)
 		{
 			const FPermutationDomain PermutationVector(Parameters.PermutationId);
 
@@ -211,33 +211,34 @@ public:
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
 
-		EBlendableLocation Location = EBlendableLocation(Parameters.Material->GetBlendableLocation());
+		EBlendableLocation Location = EBlendableLocation(Parameters.MaterialParameters.BlendableLocation);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Location == BL_AfterTonemapping || Location == BL_ReplacingTonemapper) ? 0 : 1);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		if (PermutationVector.Get<FMobileDimension>())
 		{
-			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
+			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.MaterialParameters.BlendableLocation != BL_AfterTonemapping) ? 1 : 0);
 		}
 	}
 
 protected:
 	template <typename TRHIShader>
-	void SetParameters(FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
+	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FPostProcessMaterialShader> & Shader, TRHIShader* ShaderRHI, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
 	{
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Proxy, *Proxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::All);
-		SetShaderParameters(RHICmdList, this, ShaderRHI, Parameters);
+		FMaterialShader* MaterialShader = Shader.GetShader();
+		MaterialShader->SetParameters(RHICmdList, ShaderRHI, Proxy, *Proxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::All);
+		SetShaderParameters(RHICmdList, Shader, ShaderRHI, Parameters);
 	}
 };
 
 class FPostProcessMaterialVS : public FPostProcessMaterialShader
 {
 public:
-	DECLARE_MATERIAL_SHADER(FPostProcessMaterialVS);
+	DECLARE_SHADER_TYPE(FPostProcessMaterialVS, Material);
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
+	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FPostProcessMaterialVS>& Shader, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
 	{
-		FPostProcessMaterialShader::SetParameters(RHICmdList, GetVertexShader(), View, Proxy, Parameters);
+		FPostProcessMaterialShader::SetParameters(RHICmdList, Shader, Shader.GetVertexShader(), View, Proxy, Parameters);
 	}
 
 	FPostProcessMaterialVS() = default;
@@ -249,11 +250,11 @@ public:
 class FPostProcessMaterialPS : public FPostProcessMaterialShader
 {
 public:
-	DECLARE_MATERIAL_SHADER(FPostProcessMaterialPS);
+	DECLARE_SHADER_TYPE(FPostProcessMaterialPS, Material);
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
+	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FPostProcessMaterialPS>& Shader, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
 	{
-		FPostProcessMaterialShader::SetParameters(RHICmdList, GetPixelShader(), View, Proxy, Parameters);
+		FPostProcessMaterialShader::SetParameters(RHICmdList, Shader, Shader.GetPixelShader(), View, Proxy, Parameters);
 	}
 
 	FPostProcessMaterialPS() = default;
@@ -262,8 +263,8 @@ public:
 	{}
 };
 
-IMPLEMENT_MATERIAL_SHADER(FPostProcessMaterialVS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainVS", SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER(FPostProcessMaterialPS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS", SF_Pixel);
+IMPLEMENT_SHADER_TYPE(,FPostProcessMaterialVS, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainVS"), SF_Vertex);
+IMPLEMENT_SHADER_TYPE(,FPostProcessMaterialPS, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS"), SF_Pixel);
 
 class FPostProcessMaterialVertexDeclaration : public FRenderResource
 {
@@ -320,7 +321,7 @@ static void AddCopyAndFlipTexturePass(FRDGBuilder& GraphBuilder, const FViewInfo
 	Parameters->InputSampler = TStaticSamplerState<>::GetRHI();
 	Parameters->RenderTargets[0] = FRenderTargetBinding(DestTexture, ERenderTargetLoadAction::ENoAction);
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DrawTexture"), View, OutputViewport, InputViewport, *PixelShader, Parameters, EScreenPassDrawFlags::FlipYAxis);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DrawTexture"), View, OutputViewport, InputViewport, PixelShader, Parameters, EScreenPassDrawFlags::FlipYAxis);
 }
 
 FScreenPassTexture AddPostProcessMaterialPass(
@@ -465,8 +466,8 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	FPostProcessMaterialShader::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FPostProcessMaterialShader::FMobileDimension>(bIsMobile);
 
-	FPostProcessMaterialVS* VertexShader = MaterialShaderMap->GetShader<FPostProcessMaterialVS>(PermutationVector);
-	FPostProcessMaterialPS* PixelShader = MaterialShaderMap->GetShader<FPostProcessMaterialPS>(PermutationVector);
+	TShaderRef<FPostProcessMaterialVS> VertexShader = MaterialShaderMap->GetShader<FPostProcessMaterialVS>(PermutationVector);
+	TShaderRef<FPostProcessMaterialPS> PixelShader = MaterialShaderMap->GetShader<FPostProcessMaterialPS>(PermutationVector);
 	ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 
 	const uint32 MaterialStencilRef = Material->GetStencilRefValue();
@@ -500,8 +501,8 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			ScreenPassFlags,
 			[&](FRHICommandListImmediate&)
 		{
-			VertexShader->SetParameters(RHICmdList, View, MaterialRenderProxy, *PostProcessMaterialParameters);
-			PixelShader->SetParameters(RHICmdList, View, MaterialRenderProxy, *PostProcessMaterialParameters);
+			FPostProcessMaterialVS::SetParameters(RHICmdList, VertexShader, View, MaterialRenderProxy, *PostProcessMaterialParameters);
+			FPostProcessMaterialPS::SetParameters(RHICmdList, PixelShader, View, MaterialRenderProxy, *PostProcessMaterialParameters);
 			RHICmdList.SetStencilRef(MaterialStencilRef);
 		});
 

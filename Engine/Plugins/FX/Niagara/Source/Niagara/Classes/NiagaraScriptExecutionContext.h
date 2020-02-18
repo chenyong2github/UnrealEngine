@@ -247,7 +247,7 @@ public:
 	//TArray<uint8, TAlignedHeapAllocator<16>> ParamData_RT;		// RT side copy of the parameter data
 	FNiagaraScriptExecutionParameterStore CombinedParamStore;
 #if DO_CHECK
-	TArray< FNiagaraDataInterfaceGPUParamInfo >  DIParamInfo;
+	TArray< FString >  DIClassNames;
 #endif
 
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;

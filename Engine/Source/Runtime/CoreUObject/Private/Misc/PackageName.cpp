@@ -25,6 +25,7 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/StringBuilder.h"
 #include "IO/IoDispatcher.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPackageName, Log, All);
 
@@ -912,6 +913,8 @@ bool FPackageName::FixPackageNameCase(FString& LongPackageName, const FStringVie
 
 bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid* Guid, FString* OutFilename, bool InAllowTextFormats)
 {
+	SCOPED_LOADTIMER(FPackageName_DoesPackageExist);
+
 	bool bFoundFile = false;
 
 	// Make sure passing filename as LongPackageName is supported.

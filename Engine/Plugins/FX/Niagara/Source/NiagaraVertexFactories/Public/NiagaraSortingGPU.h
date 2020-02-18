@@ -44,8 +44,6 @@ public:
 	/** Initialization constructor. */
 	explicit FNiagaraSortKeyGenCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	/** Serialization. */
-	virtual bool Serialize( FArchive& Ar ) override;
 
 	/**
 	 * Set output buffers for this shader.
@@ -64,17 +62,18 @@ public:
 
 private:
 
-	FShaderResourceParameter NiagaraParticleDataFloat;
-	FShaderParameter FloatDataStride;
-	FShaderResourceParameter GPUParticleCountBuffer;
-	FShaderParameter ParticleCountParams;
-	FShaderParameter SortParams;
-	FShaderParameter SortKeyParams;
-	FShaderParameter CameraPosition;
-	FShaderParameter CameraDirection;
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFloat)
+	LAYOUT_FIELD(FShaderParameter, FloatDataStride)
+	LAYOUT_FIELD(FShaderResourceParameter, GPUParticleCountBuffer)
+	LAYOUT_FIELD(FShaderParameter, ParticleCountParams)
+	LAYOUT_FIELD(FShaderParameter, SortParams)
+	LAYOUT_FIELD(FShaderParameter, SortKeyParams)
+	LAYOUT_FIELD(FShaderParameter, CameraPosition)
+	LAYOUT_FIELD(FShaderParameter, CameraDirection)
 
 	/** Output key buffer. */
-	FShaderResourceParameter OutKeys;
+	LAYOUT_FIELD(FShaderResourceParameter, OutKeys)
 	/** Output indices buffer. */
-	FShaderResourceParameter OutParticleIndices;
+	LAYOUT_FIELD(FShaderResourceParameter, OutParticleIndices)
 };
+

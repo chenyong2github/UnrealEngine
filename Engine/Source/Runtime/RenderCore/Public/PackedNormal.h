@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Serialization/MemoryLayout.h"
 
 /** A normal vector, quantized and packed into 32-bits. */
 struct FPackedNormal
@@ -50,6 +51,8 @@ struct FPackedNormal
 
 	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar, FPackedNormal& N);
 };
+
+DECLARE_INTRINSIC_TYPE_LAYOUT(FPackedNormal);
 
 class FDeprecatedSerializedPackedNormal
 {
@@ -284,6 +287,8 @@ struct FPackedRGBA16N
 
 	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar, FPackedRGBA16N& N);
 };
+
+DECLARE_INTRINSIC_TYPE_LAYOUT(FPackedRGBA16N);
 
 FORCEINLINE void FPackedRGBA16N::operator=(const FVector& InVector)
 {

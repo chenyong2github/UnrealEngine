@@ -92,9 +92,9 @@ void UMotionControllerComponent::BeginDestroy()
 	}
 }
 
-void UMotionControllerComponent::CreateRenderState_Concurrent()
+void UMotionControllerComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 	RenderThreadRelativeTransform = GetRelativeTransform();
 	RenderThreadComponentScale = GetComponentScale();
 }

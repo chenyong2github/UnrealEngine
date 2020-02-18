@@ -29,6 +29,8 @@
 #include "VisualizeTexture.h"
 #include "GpuDebugRendering.h"
 
+IMPLEMENT_TYPE_LAYOUT(FSceneTextureShaderParameters);
+
 static TAutoConsoleVariable<int32> CVarRSMResolution(
 	TEXT("r.LPV.RSMResolution"),
 	360,
@@ -243,7 +245,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, LightAccumulation(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightAccumulation))
 	, SceneColorSubPixel(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneColorSubPixel))
 	, DirectionalOcclusion(GRenderTargetPool.MakeSnapshot(SnapshotSource.DirectionalOcclusion))
-	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))
+	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))	
 	, SceneVelocity(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneVelocity))
 	, LightingChannels(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightingChannels))
 	, SceneAlphaCopy(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneAlphaCopy))
@@ -1503,7 +1505,7 @@ void FSceneRenderTargets::BeginRenderingPrePass(FRHICommandList& RHICmdList, boo
 		// Note, this is a reversed Z depth surface, so 0.0f is the far plane.
 		ERenderTargetActions StencilAction = bStencilClear ? ERenderTargetActions::Clear_Store : ERenderTargetActions::Load_Store;
 		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Clear_Store, StencilAction);
-		bSceneDepthCleared = true;
+		bSceneDepthCleared = true;	
 	}
 	else
 	{
@@ -1877,25 +1879,25 @@ void FSceneRenderTargets::ResolveDepthTexture(FRHICommandList& RHICmdList, const
 		{
 		case 2:
 			TextureIndex = ResolvePixelShader2X->UnresolvedSurface.GetBaseIndex();
-			ResolvePixelShader = GETSAFERHISHADER_PIXEL(*ResolvePixelShader2X);
+			ResolvePixelShader = ResolvePixelShader2X.GetPixelShader();
 			break;
 		case 4:
 			TextureIndex = ResolvePixelShader4X->UnresolvedSurface.GetBaseIndex();
-			ResolvePixelShader = GETSAFERHISHADER_PIXEL(*ResolvePixelShader4X);
+			ResolvePixelShader = ResolvePixelShader4X.GetPixelShader();
 			break;
 		case 8:
 			TextureIndex = ResolvePixelShader8X->UnresolvedSurface.GetBaseIndex();
-			ResolvePixelShader = GETSAFERHISHADER_PIXEL(*ResolvePixelShader8X);
+			ResolvePixelShader = ResolvePixelShader8X.GetPixelShader();
 			break;
 		default:
 			ensureMsgf(false, TEXT("Unsupported depth resolve for samples: %i.  Dynamic loop method isn't supported on all platforms.  Please add specific case."), SourceTexture->GetNumSamples());
 			TextureIndex = ResolvePixelShaderAny->UnresolvedSurface.GetBaseIndex();
-			ResolvePixelShader = GETSAFERHISHADER_PIXEL(*ResolvePixelShaderAny);
+			ResolvePixelShader = ResolvePixelShaderAny.GetPixelShader();
 			break;
 		}
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ResolveVertexShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader;
 		GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
@@ -2258,7 +2260,7 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 		if (SceneDepthZ && bHMDAllocatedDepthTarget)
 		{
 			const uint32 OldElementSize = SceneDepthZ->ComputeMemorySize();
-
+		
 			{
 				FSceneRenderTargetItem& Item = SceneDepthZ->GetRenderTargetItem();
 
@@ -2296,7 +2298,7 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 {
 	const bool bStereo = GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
 	IStereoRenderTargetManager* const StereoRenderTargetManager = bStereo ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
-	
+
 	FTexture2DRHIRef Texture;
 	FIntPoint TextureSize;
 
@@ -2405,7 +2407,7 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 			}
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ScreenSpaceAO, TEXT("ScreenSpaceAO"), true, ERenderTargetTransience::NonTransient);
 		}
-
+		
 		{
 			const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
@@ -2609,11 +2611,11 @@ void FSceneRenderTargets::ClearVolumeTextures(FRHICommandList& RHICmdList, ERHIF
 	TShaderMapRef<TOneColorPixelShaderMRT<NumRenderTargets> > PixelShader(ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GETSAFERHISHADER_GEOMETRY(*GeometryShader);
+	GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
 #endif
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);

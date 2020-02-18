@@ -130,7 +130,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingAmbientOcclusion(const FVie
 			PermutationVector.Set<FRayTracingAmbientOcclusionRGS::FEnableTwoSidedGeometryDim>(TwoSidedGeometryIndex != 0);
 			PermutationVector.Set<FRayTracingAmbientOcclusionRGS::FEnableMaterialsDim>(EnableMaterialsIndex != 0);
 			TShaderMapRef<FRayTracingAmbientOcclusionRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
-			OutRayGenShaders.Add(RayGenerationShader->GetRayTracingShader());
+			OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 		}
 	}
 }
@@ -180,7 +180,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	PermutationVector.Set<FRayTracingAmbientOcclusionRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingAmbientOcclusionEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
 	PermutationVector.Set<FRayTracingAmbientOcclusionRGS::FEnableMaterialsDim>(CVarRayTracingAmbientOcclusionEnableMaterials.GetValueOnRenderThread() != 0);
 	TShaderMapRef<FRayTracingAmbientOcclusionRGS> RayGenerationShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
-	ClearUnusedGraphResources(*RayGenerationShader, PassParameters);
+	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 	FIntPoint RayTracingResolution = View.ViewRect.Size();
 	GraphBuilder.AddPass(
@@ -190,7 +190,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 		[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
 	{
 		FRayTracingShaderBindingsWriter GlobalResources;
-		SetShaderParameters(GlobalResources, *RayGenerationShader, *PassParameters);
+		SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
 		// TODO: Provide material support for opacity mask
 		FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
@@ -199,10 +199,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 			// Declare default pipeline
 			FRayTracingPipelineStateInitializer Initializer;
 			Initializer.MaxPayloadSizeInBytes = 52; // sizeof(FPackedMaterialClosestHitPayload)
-			FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader->GetRayTracingShader() };
+			FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
 			Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-			FRHIRayTracingShader* HitGroupTable[] = { View.ShaderMap->GetShader<FOpaqueShadowHitGroup>()->GetRayTracingShader() };
+			FRHIRayTracingShader* HitGroupTable[] = { View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader() };
 			Initializer.SetHitGroupTable(HitGroupTable);
 			Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.
 
@@ -210,7 +210,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 		}
 
 		FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-		RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+		RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
 	});
 
 	int32 DenoiserMode = CVarUseAODenoiser.GetValueOnRenderThread();

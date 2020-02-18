@@ -9,7 +9,6 @@
 #include "EyeAdaptationCommon.ush"
 #include "TextureSampling.ush"
 
-
 //------------------------------------------------------- COMPILER CONFIG
 
 // Generate vector truncation warnings to errors.

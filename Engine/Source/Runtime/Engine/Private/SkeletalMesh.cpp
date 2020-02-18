@@ -5477,7 +5477,7 @@ FSkinnedMeshComponentRecreateRenderStateContext::~FSkinnedMeshComponentRecreateR
 
 		if (Component->IsRegistered() && !Component->IsRenderStateCreated())
 		{
-			Component->CreateRenderState_Concurrent();
+			Component->CreateRenderState_Concurrent(nullptr);
 		}
 	}
 }

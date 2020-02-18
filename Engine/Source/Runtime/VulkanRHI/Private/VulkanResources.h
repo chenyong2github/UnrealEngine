@@ -88,7 +88,7 @@ public:
 
 	void PurgeShaderModules();
 
-	void Setup(const TArray<uint8>& InShaderHeaderAndCode, uint64 InShaderKey);
+	void Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 InShaderKey);
 
 	VkShaderModule GetOrCreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
 	{
@@ -192,7 +192,7 @@ public:
 	~FVulkanShaderFactory();
 	
 	template <typename ShaderType> 
-	ShaderType* CreateShader(const TArray<uint8>& Code, FVulkanDevice* Device);
+	ShaderType* CreateShader(TArrayView<const uint8> Code, FVulkanDevice* Device);
 	
 	template <typename ShaderType> 
 	ShaderType* LookupShader(uint64 ShaderKey) const

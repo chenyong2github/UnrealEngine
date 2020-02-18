@@ -45,6 +45,7 @@
 #include "Engine/Texture2DArray.h"
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -1608,6 +1609,8 @@ FTexture2DResource::~FTexture2DResource()
  */
 void FTexture2DResource::InitRHI()
 {
+	SCOPED_LOADTIMER(FTexture2DResource_InitRHI);
+
 	FTexture2DScopedDebugInfo ScopedDebugInfo(Owner);
 	INC_DWORD_STAT_BY( STAT_TextureMemory, TextureSize );
 	INC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );

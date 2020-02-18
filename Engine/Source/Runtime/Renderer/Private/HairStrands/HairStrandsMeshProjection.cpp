@@ -41,7 +41,7 @@ IMPLEMENT_GLOBAL_SHADER(FMarkMeshSectionIdCS, "/Engine/Private/HairStrands/HairS
 
 static FRDGBufferRef AddMeshSectionId(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const FHairStrandsProjectionMeshData::LOD& MeshData)
 {
 	const int32 SectionCount = MeshData.Sections.Num();
@@ -66,7 +66,7 @@ static FRDGBufferRef AddMeshSectionId(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("HairStrandsMarkVertexSectionId"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			DispatchGroupCount);
 	}
@@ -115,7 +115,7 @@ IMPLEMENT_GLOBAL_SHADER(FMeshTransferCS, "/Engine/Private/HairStrands/HairStrand
 
 static void AddMeshTransferPass(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	bool bClear,
 	const FHairStrandsProjectionMeshData::Section& SourceSectionData,
 	const FHairStrandsProjectionMeshData::Section& TargetSectionData,
@@ -183,7 +183,7 @@ static void AddMeshTransferPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("HairStrandsTransferMesh"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			DispatchGroupCount);
 		bClear = false;
@@ -232,7 +232,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairMeshProjectionCS, "/Engine/Private/HairStrands/Hair
 
 static void AddHairStrandMeshProjectionPass(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const bool bClear,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
@@ -300,7 +300,7 @@ static void AddHairStrandMeshProjectionPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("HairStrandsMeshProjection"),
-			*ComputeShader,
+			ComputeShader,
 			Parameters,
 			DispatchGroupCount);
 	}
@@ -308,7 +308,7 @@ static void AddHairStrandMeshProjectionPass(
 
 void ProjectHairStrandsOntoMesh(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& ProjectionMeshData,
 	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData)
@@ -330,7 +330,7 @@ void ProjectHairStrandsOntoMesh(
 
 void TransferMesh(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData& SourceMeshData,
 	const FHairStrandsProjectionMeshData& TargetMeshData,
@@ -368,7 +368,7 @@ class FHairUpdateMeshTriangleCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaxRootCount)
-		
+
 		SHADER_PARAMETER(uint32, MeshSectionIndex)
 		SHADER_PARAMETER(uint32, MeshMaxIndexCount)
 		SHADER_PARAMETER(uint32, MeshMaxVertexCount)
@@ -393,7 +393,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairUpdateMeshTriangleCS, "/Engine/Private/HairStrands/
 
 static void AddHairStrandUpdateMeshTrianglesPass(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
@@ -447,14 +447,14 @@ static void AddHairStrandUpdateMeshTrianglesPass(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsTriangleMeshUpdate"),
-		*ComputeShader,
+		ComputeShader,
 		Parameters,
 		DispatchGroupCount);
 }
 
 void UpdateHairStrandsMeshTriangles(
 	FRDGBuilder& GraphBuilder,
-	TShaderMap<FGlobalShaderType>* ShaderMap,
+	FGlobalShaderMap* ShaderMap,
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,

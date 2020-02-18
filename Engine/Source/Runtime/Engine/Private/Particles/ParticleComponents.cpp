@@ -3925,7 +3925,7 @@ void UParticleSystemComponent::OnEndOfFrameUpdateDuringTick()
 	WaitForAsyncAndFinalize(STALL);
 }
 
-void UParticleSystemComponent::CreateRenderState_Concurrent()
+void UParticleSystemComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	LLM_SCOPE(ELLMTag::Particles);
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_CreateRenderState_Concurrent);
@@ -3954,7 +3954,7 @@ void UParticleSystemComponent::CreateRenderState_Concurrent()
 		}
 	}
 
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 
 	bJustRegistered = true;
 }

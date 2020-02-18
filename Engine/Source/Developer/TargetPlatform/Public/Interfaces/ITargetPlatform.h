@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Interfaces/ITargetDevice.h"
 
-
 namespace PlatformInfo
 {
 	// Forward declare type from DesktopPlatform rather than add an include dependency to everything using ITargetPlatform
@@ -460,13 +459,6 @@ public:
 	 * @return Name of the wave format.
 	 */
 	virtual FName GetWaveFormat( const class USoundWave* Wave ) const = 0;
-
-	/**
-	* Get the audio compression settings for this platform.
-	* 
-	* @return the compression overrides for this platform, or the default platform overrides.
-	*/
-	virtual const struct FPlatformAudioCookOverrides* GetAudioCompressionSettings() const = 0;
 
 	/**
 	* Gets all the formats which can be returned from GetWaveFormat

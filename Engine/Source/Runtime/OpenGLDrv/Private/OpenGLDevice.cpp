@@ -1390,7 +1390,7 @@ static void CheckVaryingLimit()
 
 		// Try to compile test shaders
 		GOpenGLShaderHackLastCompileSuccess = false;
-		FVertexShaderRHIRef VertexShaderRHI = RHICreateVertexShader(VertexShaderCode.GetReadAccess());
+		FVertexShaderRHIRef VertexShaderRHI = RHICreateVertexShader(VertexShaderCode.GetReadAccess(), FSHAHash());
 		FOpenGLVertexShader* OGLVertexShader = (FOpenGLVertexShader*)VertexShaderRHI.GetReference();
 
 		if (IsRunningRHIInSeparateThread())
@@ -1406,7 +1406,7 @@ static void CheckVaryingLimit()
 		}
 
 		GOpenGLShaderHackLastCompileSuccess = false;
-		FPixelShaderRHIRef PixelShaderRHI = RHICreatePixelShader(FragmentShaderCode.GetReadAccess());
+		FPixelShaderRHIRef PixelShaderRHI = RHICreatePixelShader(FragmentShaderCode.GetReadAccess(), FSHAHash());
 		FOpenGLPixelShader* OGLPixelShader = (FOpenGLPixelShader*)PixelShaderRHI.GetReference();
 
 		if (IsRunningRHIInSeparateThread())
@@ -1495,7 +1495,7 @@ static void CheckTextureCubeLodSupport()
 
 		// try to compile without any hacks
 		GOpenGLShaderHackLastCompileSuccess = false;
-		FPixelShaderRHIRef PixelShaderRHI = RHICreatePixelShader(Code);
+		FPixelShaderRHIRef PixelShaderRHI = RHICreatePixelShader(Code, FSHAHash());
 		FOpenGLPixelShader* OGLPixelShader = (FOpenGLPixelShader*)(PixelShaderRHI.GetReference());
 
 		if (IsRunningRHIInSeparateThread())
@@ -1518,7 +1518,7 @@ static void CheckTextureCubeLodSupport()
 		// try to compile without using precision for texture samplers
 		// Samsung Galaxy Express	Samsung Galaxy S3	Samsung Galaxy S3 mini	Samsung Galaxy Tab GT-P1000	Samsung Galaxy Tab 2
 		GOpenGLShaderHackLastCompileSuccess = false;
-		PixelShaderRHI = RHICreatePixelShader(Code);
+		PixelShaderRHI = RHICreatePixelShader(Code, FSHAHash());
 		OGLPixelShader = (FOpenGLPixelShader*)(PixelShaderRHI.GetReference());
 
 		if (IsRunningRHIInSeparateThread())
@@ -1540,7 +1540,7 @@ static void CheckTextureCubeLodSupport()
 
 		// third most likely Samsung Galaxy Tab GT-P1000
 		GOpenGLShaderHackLastCompileSuccess = false;
-		PixelShaderRHI = RHICreatePixelShader(Code);
+		PixelShaderRHI = RHICreatePixelShader(Code, FSHAHash());
 		OGLPixelShader = (FOpenGLPixelShader*)(PixelShaderRHI.GetReference());
 
 		if (IsRunningRHIInSeparateThread())
@@ -1561,7 +1561,7 @@ static void CheckTextureCubeLodSupport()
 
 		// try both hacks
 		GOpenGLShaderHackLastCompileSuccess = false;
-		PixelShaderRHI = RHICreatePixelShader(Code);
+		PixelShaderRHI = RHICreatePixelShader(Code, FSHAHash());
 		OGLPixelShader = (FOpenGLPixelShader*)(PixelShaderRHI.GetReference());
 		
 		if (IsRunningRHIInSeparateThread())
@@ -1617,7 +1617,7 @@ static void CheckRoundFunction()
 
 		// Try to compile test shaders
 		GOpenGLShaderHackLastCompileSuccess = false;
-		FVertexShaderRHIRef VertexShaderRHI = RHICreateVertexShader(VertexShaderCode.GetReadAccess());
+		FVertexShaderRHIRef VertexShaderRHI = RHICreateVertexShader(VertexShaderCode.GetReadAccess(), FSHAHash());
 		FOpenGLVertexShader* OGLVertexShader = (FOpenGLVertexShader*)VertexShaderRHI.GetReference();
 
 		if (IsRunningRHIInSeparateThread())
@@ -1747,14 +1747,7 @@ void FOpenGLDynamicRHI::Cleanup()
 		GPUProfilingData.Cleanup();
 
 		// Ask all initialized FRenderResources to release their RHI resources.
-		for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->ReleaseRHI();
-		}
-		for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-		{
-			ResourceIt->ReleaseDynamicRHI();
-		}
+		FRenderResource::ReleaseRHIForAllResources();
 	}
 
 	// Release dynamic vertex and index buffers.

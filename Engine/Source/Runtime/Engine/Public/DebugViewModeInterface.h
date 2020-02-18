@@ -47,8 +47,24 @@ public:
 
 	virtual ~FDebugViewModeInterface() {}
 
-	virtual FDebugViewModePS* GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const = 0;
+	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const = 0;
 	virtual void SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const;
+
+	virtual void GetDebugViewModeShaderBindings(
+		const FDebugViewModePS& Shader,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		EDebugViewShaderMode DebugViewMode,
+		const FVector& ViewOrigin,
+		int32 VisualizeLODIndex,
+		int32 VisualizeElementIndex,
+		int32 NumVSInstructions,
+		int32 NumPSInstructions,
+		int32 ViewModeParam,
+		FName ViewModeParamName,
+		FMeshDrawSingleShaderBindings& ShaderBindings
+	) const {}
 
 	/** The shader class name, used to filter out shaders that need to be compiled. */
 	const TCHAR* PixelShaderName;
@@ -73,6 +89,7 @@ public:
 	
 	/** Whether this material can be substituted by the default material. */
 	static bool AllowFallbackToDefaultMaterial(const FMaterial* InMaterial);
+	static bool AllowFallbackToDefaultMaterial(EMaterialTessellationMode TessellationMode, bool bHasVertexPositionOffsetConnected, bool bHasPixelDepthOffsetConnected);
 
 private:
 	

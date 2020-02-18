@@ -111,6 +111,7 @@ private:
 	struct FICUCachedFileData
 	{
 		FICUCachedFileData(const int64 FileSize);
+		FICUCachedFileData(void* ExistingBuffer);
 		FICUCachedFileData(FICUCachedFileData&& Source);
 		~FICUCachedFileData();
 

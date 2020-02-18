@@ -1314,7 +1314,8 @@ DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STA
 
 int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 {
-	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
+	SCOPED_BOOT_TIMING("FEngineLoop::PreInitPreStartupScreen");
 
 	// The GLog singleton is lazy initialised and by default will assume that
 	// its "master thread" is the one it was created on. This lazy initialisation
@@ -1667,6 +1668,15 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		IFileManager::Get().ProcessCommandLineOptions();
 	}
 
+#if WITH_COREUOBJECT
+	{
+		SCOPED_BOOT_TIMING("InitializeNewAsyncIO");
+		FPlatformFileManager::Get().InitializeNewAsyncIO();
+	}
+#endif
+
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::FileSystemReady);
+
 	if (GIsGameAgnosticExe)
 	{
 		// If we launched without a project file, but with a game name that is incomplete, warn about the improper use of a Game suffix
@@ -2004,9 +2014,13 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		FTaskGraphInterface::Get().AttachToThread(ENamedThreads::GameThread);
 	}
 
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::TaskGraphSystemReady);
+
 #if STATS
 	FThreadStats::StartThread();
 #endif
+
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StatSystemReady);
 
 	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats));
 
@@ -2162,13 +2176,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			return 1;
 		}
 	}
-
-#if WITH_COREUOBJECT
-	{
-		SCOPED_BOOT_TIMING("InitializeNewAsyncIO");
-		FPlatformFileManager::Get().InitializeNewAsyncIO();
-	}
-#endif
 
 	if (FPlatformProcess::SupportsMultithreading())
 	{
@@ -2601,6 +2608,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			InitializeShaderTypes();
 		}
 
+		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ShaderTypesReady);
+
 		SlowTask.EnterProgressFrame(30);
 
 		// Load the global shaders.
@@ -2703,9 +2712,11 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 					if (FPreLoadScreenManager::Get())
 					{
-						SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen - FPreLoadScreenManager::Get()->Initialize");
-						// initialize and present custom splash screen
-						FPreLoadScreenManager::Get()->Initialize(SlateRendererSharedRef.Get());
+						{
+							SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen - FPreLoadScreenManager::Get()->Initialize");
+							// initialize and present custom splash screen
+							FPreLoadScreenManager::Get()->Initialize(SlateRendererSharedRef.Get());
+						}
 
 						if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::CustomSplashScreen))
 						{
@@ -2749,6 +2760,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 {
+	SCOPED_BOOT_TIMING("FEngineLoop::PreInitPostStartupScreen");
+
 	if (IsEngineExitRequested())
 	{
 		return 0;
@@ -2779,6 +2792,8 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 #if !UE_SERVER// && !UE_EDITOR
 		if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
 		{
+			SCOPED_BOOT_TIMING("PreInitPostStartupScreen_StartupGraphics");
+
 			TSharedPtr<FSlateRenderer> SlateRenderer = PreInitContext.SlateRenderer;
 			TSharedRef<FSlateRenderer> SlateRendererSharedRef = SlateRenderer.ToSharedRef();
 			{
@@ -2976,8 +2991,14 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 		FEmbeddedCommunication::ForceTick(5);
 
+		// for any auto-registered functions that want to wait until main(), run them now
+		// @todo loadtime: this should have phases, so caller can decide when auto-register runs [use plugin phases probably?]
+		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::PreObjectSystemReady);
+
 		// Make sure all UObject classes are registered and default properties have been initialized
 		ProcessNewlyLoadedUObjects();
+
+		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ObjectSystemReady);
 
 		FEmbeddedCommunication::ForceTick(6);
 
@@ -4059,6 +4080,8 @@ int32 FEngineLoop::Init()
 		ActiveProfiler->Register();
 	}
 #endif		// UE_EXTERNAL_PROFILING_ENABLED
+
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::EndOfEngineInit);
 
 	return 0;
 }
@@ -5288,8 +5311,8 @@ bool FEngineLoop::AppInit( )
 
 #if PLATFORM_WINDOWS
 
-	// make sure that the log directory exists
-	IFileManager::Get().MakeDirectory( *FPaths::ProjectLogDir() );
+	// make sure that the log directory tree exists
+	IFileManager::Get().MakeDirectory( *FPaths::ProjectLogDir(), true );
 
 	// update the mini dump filename now that we have enough info to point it to the log folder even in installed builds
 	FCString::Strcpy(MiniDumpFilenameW, *IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*FString::Printf(TEXT("%sunreal-v%i-%s.dmp"), *FPaths::ProjectLogDir(), FEngineVersion::Current().GetChangelist(), *FDateTime::Now().ToString())));
@@ -5318,6 +5341,8 @@ bool FEngineLoop::AppInit( )
 		// init config system
 		FConfigCacheIni::InitializeConfigSystem();
 	}
+
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::IniSystemReady);
 
 	// Load "asap" plugin modules
 	IPluginManager&  PluginManager = IPluginManager::Get();

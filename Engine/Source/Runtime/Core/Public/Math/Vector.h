@@ -18,6 +18,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Math/IntVector.h"
 #include "Math/Axis.h"
+#include "Serialization/MemoryLayout.h"
 
 #if PLATFORM_VECTOR_CUBIC_INTERP_SSE
 #include "Math/UnrealMathSSE.h"
@@ -1021,6 +1022,9 @@ public:
 	 */
 	CORE_API bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 };
+template<> struct TCanBulkSerialize<FVector> { enum { Value = true }; };
+
+DECLARE_INTRINSIC_TYPE_LAYOUT(FVector);
 
 
 /* FVector inline functions

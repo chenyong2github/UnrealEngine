@@ -584,8 +584,6 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 	
 	if(PSO.Verify())
 	{
-		TArray<uint8> DummyCode;
-		
 		if(FPipelineCacheFileFormatPSO::DescriptorType::Graphics == PSO.Type)
 		{
 			FGraphicsPipelineStateInitializer GraphicsInitializer;
@@ -596,7 +594,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			FVertexShaderRHIRef VertexShader;
 			if (PSO.GraphicsDesc.VertexShader != FSHAHash())
 			{
-				VertexShader = FShaderCodeLibrary::CreateVertexShader(Platform, PSO.GraphicsDesc.VertexShader, DummyCode);
+				VertexShader = FShaderCodeLibrary::CreateVertexShader(Platform, PSO.GraphicsDesc.VertexShader);
 				GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
 			}
 
@@ -604,21 +602,21 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			FHullShaderRHIRef HullShader;
 			if (PSO.GraphicsDesc.HullShader != FSHAHash())
 			{
-				HullShader = FShaderCodeLibrary::CreateHullShader(Platform, PSO.GraphicsDesc.HullShader, DummyCode);
+				HullShader = FShaderCodeLibrary::CreateHullShader(Platform, PSO.GraphicsDesc.HullShader);
 				GraphicsInitializer.BoundShaderState.HullShaderRHI = HullShader;
 			}
 
 			FDomainShaderRHIRef DomainShader;
 			if (PSO.GraphicsDesc.DomainShader != FSHAHash())
 			{
-				DomainShader = FShaderCodeLibrary::CreateDomainShader(Platform, PSO.GraphicsDesc.DomainShader, DummyCode);
+				DomainShader = FShaderCodeLibrary::CreateDomainShader(Platform, PSO.GraphicsDesc.DomainShader);
 				GraphicsInitializer.BoundShaderState.DomainShaderRHI = DomainShader;
 			}
 	#endif
 			FPixelShaderRHIRef FragmentShader;
 			if (PSO.GraphicsDesc.FragmentShader != FSHAHash())
 			{
-				FragmentShader = FShaderCodeLibrary::CreatePixelShader(Platform, PSO.GraphicsDesc.FragmentShader, DummyCode);
+				FragmentShader = FShaderCodeLibrary::CreatePixelShader(Platform, PSO.GraphicsDesc.FragmentShader);
 				GraphicsInitializer.BoundShaderState.PixelShaderRHI = FragmentShader;
 			}
 
@@ -626,7 +624,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			FGeometryShaderRHIRef GeometryShader;
 			if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
 			{
-				GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader, DummyCode);
+				GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader);
 				GraphicsInitializer.BoundShaderState.GeometryShaderRHI = GeometryShader;
 			}
 	#endif
@@ -671,7 +669,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 		}
 		else if(FPipelineCacheFileFormatPSO::DescriptorType::Compute == PSO.Type)
 		{
-			FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(GMaxRHIShaderPlatform, PSO.ComputeDesc.ComputeShader, DummyCode);
+			FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(GMaxRHIShaderPlatform, PSO.ComputeDesc.ComputeShader);
 			if(ComputeInitializer.IsValid())
 			{
 				FComputePipelineState* ComputeResult = PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeInitializer);
@@ -699,16 +697,6 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
     }
 	
 	return bOk;
-}
-
-inline bool InternalRequestShaderCode(FSHAHash Shader, FShaderPipelineCacheArchive* ReadRequest, TSet<FSHAHash>& ShaderCodeRequests)
-{
-	const bool bResult = FShaderCodeLibrary::RequestShaderCode(Shader, ReadRequest);
-	if(bResult)
-	{
-		ShaderCodeRequests.Add(Shader);
-	}
-	return bResult;
 }
 
 void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCacheFileFormatPSORead*>& PipelineBatch)
@@ -791,31 +779,31 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
                 // If everything is OK then we can issue reads of the actual shader code
 				if (bOK && PSO.GraphicsDesc.VertexShader != FSHAHash())
 				{
-					bOK &= InternalRequestShaderCode(PSO.GraphicsDesc.VertexShader, AsyncJob.ReadRequests, AsyncJob.ShaderCodeReads);
+					bOK &= FShaderCodeLibrary::PreloadShader(PSO.GraphicsDesc.VertexShader, AsyncJob.ReadRequests);
                     UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to read VertexShader shader: %s"), *(PSO.GraphicsDesc.VertexShader.ToString()));
 				}
 		
 				if (bOK && PSO.GraphicsDesc.HullShader != EmptySHA)
 				{
-					bOK &= InternalRequestShaderCode(PSO.GraphicsDesc.HullShader, AsyncJob.ReadRequests, AsyncJob.ShaderCodeReads);
+					bOK &= FShaderCodeLibrary::PreloadShader(PSO.GraphicsDesc.HullShader, AsyncJob.ReadRequests);
                     UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to read HullShader shader: %s"), *(PSO.GraphicsDesc.HullShader.ToString()));
 				}
 		
 				if (bOK && PSO.GraphicsDesc.DomainShader != EmptySHA)
 				{
-					bOK &= InternalRequestShaderCode(PSO.GraphicsDesc.DomainShader, AsyncJob.ReadRequests, AsyncJob.ShaderCodeReads);
+					bOK &= FShaderCodeLibrary::PreloadShader(PSO.GraphicsDesc.DomainShader, AsyncJob.ReadRequests);
                     UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to read DomainShader shader: %s"), *(PSO.GraphicsDesc.DomainShader.ToString()));
 				}
 		
 				if (bOK && PSO.GraphicsDesc.FragmentShader != EmptySHA)
 				{
-					bOK &= InternalRequestShaderCode(PSO.GraphicsDesc.FragmentShader, AsyncJob.ReadRequests, AsyncJob.ShaderCodeReads);
+					bOK &= FShaderCodeLibrary::PreloadShader(PSO.GraphicsDesc.FragmentShader, AsyncJob.ReadRequests);
                     UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to read FragmentShader shader: %s"), *(PSO.GraphicsDesc.FragmentShader.ToString()));
 				}
 		
 				if (bOK && PSO.GraphicsDesc.GeometryShader != EmptySHA)
 				{
-					bOK &= InternalRequestShaderCode(PSO.GraphicsDesc.GeometryShader, AsyncJob.ReadRequests, AsyncJob.ShaderCodeReads);
+					bOK &= FShaderCodeLibrary::PreloadShader(PSO.GraphicsDesc.GeometryShader, AsyncJob.ReadRequests);
                     UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to read GeometryShader shader: %s"), *(PSO.GraphicsDesc.GeometryShader.ToString()));
 				}
 			}
@@ -824,7 +812,7 @@ void FShaderPipelineCache::PreparePipelineBatch(TDoubleLinkedList<FPipelineCache
 				if (PSO.ComputeDesc.ComputeShader != EmptySHA)
 				{
                     RequiredShaders.Add(PSO.ComputeDesc.ComputeShader);
-					bOK &= InternalRequestShaderCode(PSO.ComputeDesc.ComputeShader, AsyncJob.ReadRequests, AsyncJob.ShaderCodeReads);
+					bOK &= FShaderCodeLibrary::PreloadShader(PSO.ComputeDesc.ComputeShader, AsyncJob.ReadRequests);
                     UE_CLOG(!bOK, LogRHI, Verbose, TEXT("Failed to find ComputeShader shader: %s"), *(PSO.ComputeDesc.ComputeShader.ToString()));
 				}
 				else
@@ -927,29 +915,6 @@ void FShaderPipelineCache::PrecompilePipelineBatch()
 		Precompile(RHICmdList, GMaxRHIShaderPlatform, CompileTask.PSO);
 		CompiledHashes.Add(GetTypeHash(CompileTask.PSO));
 		
-		// Free our code references that were actually made
-		if(CompileTask.ShaderCodeReads.Num())
-		{
-			if(GRHILazyShaderCodeLoading && IsRunningRHIInSeparateThread())
-			{
-				TSet<FSHAHash> ShaderCodeReads = CompileTask.ShaderCodeReads;
-				RHICmdList.EnqueueLambda([ShaderCodeReads](FRHICommandListImmediate&)
-				{
-					for (const FSHAHash& DelHash : ShaderCodeReads)
-					{
-						FShaderCodeLibrary::ReleaseShaderCode(DelHash);
-					}
-				});
-			}
-			else
-			{
-				for (const FSHAHash& DelHash : CompileTask.ShaderCodeReads)
-				{
-					FShaderCodeLibrary::ReleaseShaderCode(DelHash);
-				}
-			}
-		}
-		
 		delete CompileTask.ReadRequests;
 		CompileTask.ReadRequests = nullptr;
 		
@@ -1022,12 +987,6 @@ void FShaderPipelineCache::PollShutdownItems()
 			check(ShutdownReadCompileTasks[i].ReadRequests);
 			if (ShutdownReadCompileTasks[i].ReadRequests->PollExternalReadDependencies())
 			{
-				// Free our code references that were actually made - maybe not all were
-				for (const FSHAHash& DelHash : ShutdownReadCompileTasks[i].ShaderCodeReads)
-				{
-					FShaderCodeLibrary::ReleaseShaderCode(DelHash);
-				}
-				
                 delete ShutdownReadCompileTasks[i].ReadRequests;
 				ShutdownReadCompileTasks[i].ReadRequests = nullptr;
 				

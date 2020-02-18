@@ -188,7 +188,7 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 		GraphBuilder,
 		View.ShaderMap,
 		RDG_EVENT_NAME("ComposeSeparateTranslucency %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
-		*PixelShader,
+		PixelShader,
 		PassParameters,
 		View.ViewRect);
 

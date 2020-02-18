@@ -43,6 +43,7 @@
 #include "UObject/LinkerLoad.h"
 #include "Misc/RedirectCollector.h"
 #include "UObject/GCScopeLock.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Serialization/ArchiveDescribeReference.h"
@@ -1241,6 +1242,8 @@ IMPLEMENT_FARCHIVE_SERIALIZER(UObject)
 
 void UObject::Serialize(FStructuredArchive::FRecord Record)
 {
+	SCOPED_LOADTIMER(UObject_Serialize);
+
 #if WITH_EDITOR
 	bool bReportSoftObjectPathRedirects = false;
 
@@ -2013,7 +2016,7 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 	{
 		TFieldIterator<FProperty> It1(Struct1);
 		TFieldIterator<FProperty> It2(Struct2);
-		for (;;)
+		for (;;++It1,++It2)
 		{
 			bool bAtEnd1 = !It1;
 			bool bAtEnd2 = !It2;

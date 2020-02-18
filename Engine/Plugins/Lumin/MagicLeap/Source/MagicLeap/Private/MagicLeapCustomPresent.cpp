@@ -234,8 +234,8 @@ void FMagicLeapCustomPresent::RenderToTextureSlice_RenderThread(FRHICommandListI
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
@@ -250,7 +250,7 @@ void FMagicLeapCustomPresent::RenderToTextureSlice_RenderThread(FRHICommandListI
 			UVandSize.Z, UVandSize.W,	// SizeU, SizeV
 			FIntPoint(vp_width, vp_height),
 			FIntPoint(1, 1),
-			*VertexShader,
+			VertexShader,
 			EDRF_Default);
 	}
 	RHICmdList.EndRenderPass();

@@ -19,3 +19,4 @@ TSet<FProperty*> GUnsizedProperties;
 TSet<UField*> GEditorOnlyDataTypes;
 TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
 TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;
+TSet<FProperty*> GPropertyUsesMemoryImageAllocator;

@@ -511,7 +511,8 @@ EPropertyDataValidationResult FPropertyNode::EnsureDataIsValid()
 				if( ArrayProperty && !bIgnoreAllMismatch)
 				{
 					//ensure that array structures have the proper number of children
-					int32 ArrayNum = FScriptArrayHelper::Num(Addr);
+					FScriptArrayHelper ArrayHelper(ArrayProperty, Addr);
+					int32 ArrayNum = ArrayHelper.Num();
 					//if first child
 					if (NumArrayChildren == -1)
 					{
@@ -541,7 +542,8 @@ EPropertyDataValidationResult FPropertyNode::EnsureDataIsValid()
 
 				if (MapProperty && !bIgnoreAllMismatch)
 				{
-					int32 MapNum = FScriptMapHelper::Num(Addr);
+					FScriptMapHelper MapHelper(MapProperty, Addr);
+					int32 MapNum = MapHelper.Num();
 
 					if (NumArrayChildren == -1)
 					{
@@ -1369,10 +1371,11 @@ private:
 
 		if ( ArrayProp != NULL )
 		{
-			FScriptArray* ArrayValuePtr = ArrayProp->GetPropertyValuePtr(PropertyValueAddress);
+			FScriptArrayHelper ArrayHelper(ArrayProp, PropertyValueAddress);
 
-			uint8* ArrayValue = (uint8*)ArrayValuePtr->GetData();
-			for ( int32 ArrayIndex = 0; ArrayIndex < ArrayValuePtr->Num(); ArrayIndex++ )
+			uint8* ArrayValue = (uint8*)ArrayHelper.GetRawPtr();
+			int32 ArraySize = ArrayHelper.Num();
+			for ( int32 ArrayIndex = 0; ArrayIndex < ArraySize; ArrayIndex++ )
 			{
 				ProcessProperty(ArrayProp->Inner, ArrayValue + ArrayIndex * ArrayProp->Inner->ElementSize);
 			}
@@ -1431,18 +1434,16 @@ private:
 
 		if (MapProp != NULL)
 		{
-			FScriptMap* MapValuePtr = MapProp->GetPropertyValuePtr(PropertyValueAddress);
+			FScriptMapHelper MapHelper(MapProp, PropertyValueAddress);
 
-			FScriptMapLayout MapLayout = MapValuePtr->GetScriptLayout(MapProp->KeyProp->ElementSize, MapProp->KeyProp->GetMinAlignment(), MapProp->ValueProp->ElementSize, MapProp->ValueProp->GetMinAlignment());
-			int32 ItemsLeft = MapValuePtr->Num();
-
+			int32 ItemsLeft = MapHelper.Num();
 			for (int32 Index = 0; ItemsLeft > 0; ++Index)
 			{
-				if (MapValuePtr->IsValidIndex(Index))
+				if (MapHelper.IsValidIndex(Index))
 				{
 					--ItemsLeft;
 
-					uint8* Data = (uint8*)MapValuePtr->GetData(Index, MapLayout);
+					uint8* Data = MapHelper.GetPairPtr(Index);
 
 					ProcessProperty(MapProp->KeyProp, MapProp->KeyProp->ContainerPtrToValuePtr<uint8>(Data));
 					ProcessProperty(MapProp->ValueProp, MapProp->ValueProp->ContainerPtrToValuePtr<uint8>(Data));
@@ -1617,7 +1618,8 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 			if (ValueTracker.GetPropertyDefaultBaseAddress() != nullptr)
 			{
 				// make sure we're not trying to compare against an element that doesn't exist
-				if (GetArrayIndex() >= FScriptArrayHelper::Num(ValueTracker.GetPropertyDefaultBaseAddress()))
+				FScriptArrayHelper ArrayHelper(OuterArrayProperty, ValueTracker.GetPropertyDefaultBaseAddress());
+				if (GetArrayIndex() >= ArrayHelper.Num())
 				{
 					bDiffersFromDefaultForObject = true;
 				}

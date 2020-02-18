@@ -223,8 +223,8 @@ struct FScreenPassPipelineState
 	FScreenPassPipelineState() = default;
 
 	FScreenPassPipelineState(
-		FShader* InVertexShader,
-		FShader* InPixelShader,
+		const TShaderRef<FShader>& InVertexShader,
+		const TShaderRef<FShader>& InPixelShader,
 		FRHIBlendState* InBlendState = FDefaultBlendState::GetRHI(),
 		FRHIDepthStencilState* InDepthStencilState = FDefaultDepthStencilState::GetRHI(),
 		FRHIVertexDeclaration* InVertexDeclaration = GFilterVertexDeclaration.VertexDeclarationRHI)
@@ -237,15 +237,15 @@ struct FScreenPassPipelineState
 
 	void Validate() const
 	{
-		check(VertexShader);
-		check(PixelShader);
+		check(VertexShader.IsValid());
+		check(PixelShader.IsValid());
 		check(BlendState);
 		check(DepthStencilState);
 		check(VertexDeclaration);
 	}
 
-	FShader* VertexShader = nullptr;
-	FShader* PixelShader = nullptr;
+	TShaderRef<FShader> VertexShader;
+	TShaderRef<FShader> PixelShader;
 	FRHIBlendState* BlendState = nullptr;
 	FRHIDepthStencilState* DepthStencilState = nullptr;
 	FRHIVertexDeclaration* VertexDeclaration = nullptr;
@@ -279,7 +279,7 @@ void DrawScreenPass(
 	const FViewInfo& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
-	TPixelShaderType* PixelShader,
+	const TShaderRef<TPixelShaderType>& PixelShader,
 	const typename TPixelShaderType::FParameters& PixelShaderParameters,
 	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
 {
@@ -290,11 +290,11 @@ void DrawScreenPass(
 		View,
 		OutputViewport,
 		InputViewport,
-		FScreenPassPipelineState(*ScreenPassVS, PixelShader),
+		FScreenPassPipelineState(ScreenPassVS, PixelShader),
 		Flags,
 		[&](FRHICommandListImmediate&)
 	{
-		SetShaderParameters(RHICmdList, PixelShader, PixelShader->GetPixelShader(), PixelShaderParameters);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PixelShaderParameters);
 	});
 }
 
@@ -368,11 +368,11 @@ void AddDrawScreenPass(
 	const FViewInfo& View,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
-	TPixelShaderType* PixelShader,
+	const TShaderRef<TPixelShaderType>& PixelShader,
 	typename TPixelShaderType::FParameters* PixelShaderParameters,
 	EScreenPassDrawFlags Flags = EScreenPassDrawFlags::None)
 {
-	check(PixelShader);
+	check(PixelShader.IsValid());
 	check(PixelShaderParameters);
 
 	ClearUnusedGraphResources(PixelShader, PixelShaderParameters);
@@ -414,7 +414,6 @@ void AddDrawScreenPass(
 		DrawScreenPass(RHICmdList, View, OutputViewport, InputViewport, PipelineState, Flags, SetupFunction);
 	});
 }
-
 /** Helper function which copies a region of an input texture to a region of the output texture,
  *  with support for format conversion. If formats match, the method falls back to a simple DMA
  *  (CopyTexture); otherwise, it rasterizes using a pixel shader. Use this method if the two

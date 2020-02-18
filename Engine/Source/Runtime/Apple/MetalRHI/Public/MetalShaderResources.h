@@ -399,41 +399,14 @@ inline FArchive& operator<<(FArchive& Ar, FMetalCodeHeader& Header)
     return Ar;
 }
 
-struct FMetalShadeEntry
-{
-	TArray<uint8> Data;
-	uint32 Index;
-	uint8 Type;
-
-	FMetalShadeEntry()
-	: Index(0)
-	, Type(0)
-	{
-
-	}
-
-	FMetalShadeEntry(TArray<uint8> InData, uint32 InIndex, uint8 InType)
-	: Data(InData)
-	, Index(InIndex)
-	, Type(InType)
-	{
-
-	}
-	
-	friend FArchive& operator<<(FArchive& Ar, FMetalShadeEntry& Header)
-	{
-		return Ar << Header.Data << Header.Index << Header.Type;
-	}
-};
-
-struct FMetalShaderMap
+struct FMetalShaderLibraryHeader
 {
 	FString Format;
-	uint32 Count;
-	TMap<FSHAHash, FMetalShadeEntry> HashMap;
+	uint32 NumLibraries;
+	uint32 NumShadersPerLibrary;
 	
-	friend FArchive& operator<<(FArchive& Ar, FMetalShaderMap& Header)
+	friend FArchive& operator<<(FArchive& Ar, FMetalShaderLibraryHeader& Header)
 	{
-		return Ar << Header.Format << Header.Count << Header.HashMap;
+		return Ar << Header.Format << Header.NumLibraries << Header.NumShadersPerLibrary;
 	}
 };

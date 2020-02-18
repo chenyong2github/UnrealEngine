@@ -89,14 +89,24 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 	virtual bool NeedsLoadForClient() const override { return true; };
 	//~ Begin UObject Interface
 
+#if WITH_EDITORONLY_DATA
 	ENGINE_API void RebuildLayerGraph(bool bReportErrors);
 	ENGINE_API void OverrideLayerGraph(const FMaterialLayersFunctions* OverrideLayers);
-	bool ValidateLayerConfiguration(FMaterialCompiler* Compiler, bool bReportErrors);
+#endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
+	bool ValidateLayerConfiguration(FMaterialCompiler* Compiler, bool bReportErrors);
+#endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
 	bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const;
 	void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const;
-	UMaterialFunctionInterface* GetParameterAssociatedFunction(const FMaterialParameterInfo& ParameterInfo) const;
+#endif
+
+	UMaterialFunctionInterface* GetParameterAssociatedFunction(const FHashedMaterialParameterInfo& ParameterInfo) const;
+#if 0
 	void GetParameterAssociatedFunctions(const FMaterialParameterInfo& ParameterInfo, TArray<UMaterialFunctionInterface*>& AssociatedFunctions) const;
+#endif
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -122,7 +132,7 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 	//~ End UMaterialExpression Interface
 	
 	/** Return whether this is the named parameter, and fill in its value */
-	bool IsNamedParameter(const FMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid) const;
+	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid) const;
 	
 	ENGINE_API virtual FGuid& GetParameterExpressionId() override
 	{

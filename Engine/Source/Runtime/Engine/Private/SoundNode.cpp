@@ -110,7 +110,7 @@ void USoundNode::PrimeChildWavePlayers(bool bRecurse)
 				if (WavePlayer != nullptr)
 				{
 					USoundWave* SoundWave = WavePlayer->GetSoundWave();
-					if (SoundWave && SoundWave->IsStreaming() && SoundWave->GetNumChunks() > 1)
+					if (SoundWave && SoundWave->IsStreaming(nullptr) && SoundWave->GetNumChunks() > 1)
 					{
 						IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(SoundWave, 1, [](EAudioChunkLoadResult) {});
 					}

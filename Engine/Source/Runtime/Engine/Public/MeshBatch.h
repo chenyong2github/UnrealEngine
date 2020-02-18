@@ -53,12 +53,6 @@ struct FMeshBatchElement
 	 */
 	const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource;
 
-	/** Assigned by renderer */
-	EPrimitiveIdMode PrimitiveIdMode : PrimID_NumBits + 1;
-
-	/** Assigned by renderer */
-	uint32 DynamicPrimitiveShaderDataIndex : 24;
-
 	const FIndexBuffer* IndexBuffer;
 
 	union 
@@ -70,6 +64,18 @@ struct FMeshBatchElement
 	};
 	const void* UserData;
 
+	// Meaning depends on the vertex factory, e.g. FGPUSkinPassthroughVertexFactory: element index in FGPUSkinCache::CachedElements
+	void* VertexFactoryUserData;
+
+	FRHIVertexBuffer* IndirectArgsBuffer;
+	uint32 IndirectArgsOffset;
+
+	/** Assigned by renderer */
+	EPrimitiveIdMode PrimitiveIdMode : PrimID_NumBits + 1;
+
+	/** Assigned by renderer */
+	uint32 DynamicPrimitiveShaderDataIndex : 24;
+
 	uint32 FirstIndex;
 	/** When 0, IndirectArgsBuffer will be used. */
 	uint32 NumPrimitives;
@@ -79,24 +85,20 @@ struct FMeshBatchElement
 	uint32 BaseVertexIndex;
 	uint32 MinVertexIndex;
 	uint32 MaxVertexIndex;
-	// Meaning depends on the vertex factory, e.g. FGPUSkinPassthroughVertexFactory: element index in FGPUSkinCache::CachedElements
-	void* VertexFactoryUserData;
 	int32 UserIndex;
 	float MinScreenSize;
 	float MaxScreenSize;
 
-	uint8 InstancedLODIndex : 4;
-	uint8 InstancedLODRange : 4;
-	uint8 bUserDataIsColorVertexBuffer : 1;
-	uint8 bIsSplineProxy : 1;
-	uint8 bIsInstanceRuns : 1;
+	uint32 InstancedLODIndex : 4;
+	uint32 InstancedLODRange : 4;
+	uint32 bUserDataIsColorVertexBuffer : 1;
+	uint32 bIsSplineProxy : 1;
+	uint32 bIsInstanceRuns : 1;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Conceptual element index used for debug viewmodes. */
-	int8 VisualizeElementIndex;
+	int32 VisualizeElementIndex : 8;
 #endif
-	FRHIVertexBuffer* IndirectArgsBuffer;
-	uint32 IndirectArgsOffset;
 
 	FORCEINLINE int32 GetNumPrimitives() const
 	{
@@ -118,14 +120,16 @@ struct FMeshBatchElement
 	FMeshBatchElement()
 	:	PrimitiveUniformBuffer(nullptr)
 	,	PrimitiveUniformBufferResource(nullptr)
-	,	PrimitiveIdMode(PrimID_FromPrimitiveSceneInfo)
-	,	DynamicPrimitiveShaderDataIndex(0)
 	,	IndexBuffer(nullptr)
 	,	InstanceRuns(nullptr)
 	,	UserData(nullptr)
+	,	VertexFactoryUserData(nullptr)
+	,	IndirectArgsBuffer(nullptr)
+	,	IndirectArgsOffset(0)
+	,	PrimitiveIdMode(PrimID_FromPrimitiveSceneInfo)
+	,	DynamicPrimitiveShaderDataIndex(0)
 	,	NumInstances(1)
 	,	BaseVertexIndex(0)
-	,	VertexFactoryUserData(nullptr)
 	,	UserIndex(-1)
 	,	MinScreenSize(0.0f)
 	,	MaxScreenSize(1.0f)
@@ -137,8 +141,6 @@ struct FMeshBatchElement
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	,	VisualizeElementIndex(INDEX_NONE)
 #endif
-	,	IndirectArgsBuffer(nullptr)
-	,	IndirectArgsOffset(0)
 	{
 	}
 };
@@ -151,12 +153,12 @@ FORCEINLINE bool IsCompatibleWithHairStrands(const FMaterial* Material, const ER
 		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
 }
 
-FORCEINLINE bool IsCompatibleWithHairStrands(const FMaterial* Material, const EShaderPlatform Platform)
+FORCEINLINE bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShaderParameters& Parameters)
 {
 	return
 		IsPCPlatform(Platform) && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5 &&
-		Material && Material->IsUsedWithHairStrands() && Material->GetShadingModels().HasShadingModel(MSM_Hair) &&
-		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
+		Parameters.bIsUsedWithHairStrands && Parameters.ShadingModels.HasShadingModel(MSM_Hair) &&
+		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked);
 }
 
 /**
@@ -166,20 +168,27 @@ struct FMeshBatch
 {
 	TArray<FMeshBatchElement,TInlineAllocator<1> > Elements;
 
+	/** Vertex factory for rendering, required. */
+	const FVertexFactory* VertexFactory;
+
+	/** Material proxy for rendering, required. */
+	const FMaterialRenderProxy* MaterialRenderProxy;
+
+	// can be NULL
+	const FLightCacheInterface* LCI;
+
+	/** The current hit proxy ID being rendered. */
+	FHitProxyId BatchHitProxyId;
+
+	/** This is the threshold that will be used to know if we should use this mesh batch or use one with no tessellation enabled */
+	float TessellationDisablingShadowMapMeshSize;
+
 	/* Mesh Id in a primitive. Used for stable sorting of draws belonging to the same primitive. **/
 	uint16 MeshIdInPrimitive;
 
 	/** LOD index of the mesh, used for fading LOD transitions. */
 	int8 LODIndex;
 	uint8 SegmentIndex;
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	/** Conceptual LOD index used for the LOD Coloration visualization. */
-	int8 VisualizeLODIndex;
-#endif
-
-	/** Conceptual HLOD index used for the HLOD Coloration visualization. */
-	int8 VisualizeHLODIndex;
 
 	uint32 ReverseCulling : 1;
 	uint32 bDisableBackfaceCulling : 1;
@@ -188,9 +197,6 @@ struct FMeshBatch
 	 * Pass feature relevance flags.  Allows a proxy to submit fast representations for passes which can take advantage of it, 
 	 * for example separate index buffer for depth-only rendering since vertices can be merged based on position and ignore UV differences.
 	 */
-#if RHI_RAYTRACING
-	uint32 CastRayTracedShadow : 1;	// Whether it casts ray traced shadow.
-#endif
 	uint32 CastShadow		: 1;	// Whether it can be used in shadow renderpasses.
 	uint32 bUseForMaterial	: 1;	// Whether it can be used in renderpasses requiring material outputs.
 	uint32 bUseForDepthPass : 1;	// Whether it can be used in depth pass.
@@ -231,17 +237,19 @@ struct FMeshBatch
 	/** What virtual texture material type this mesh batch should be rendered with. */
 	uint32 RuntimeVirtualTextureMaterialType : RuntimeVirtualTexture::MaterialType_NumBits;
 
-	// can be NULL
-	const FLightCacheInterface* LCI;
+#if RHI_RAYTRACING
+	uint32 CastRayTracedShadow : 1;	// Whether it casts ray traced shadow.
+#endif
 
-	/** Vertex factory for rendering, required. */
-	const FVertexFactory* VertexFactory;
+#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
+	/** Conceptual HLOD index used for the HLOD Coloration visualization. */
+	int8 VisualizeHLODIndex;
+#endif
 
-	/** Material proxy for rendering, required. */
-	const FMaterialRenderProxy* MaterialRenderProxy;
-
-	/** The current hit proxy ID being rendered. */
-	FHitProxyId BatchHitProxyId;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	/** Conceptual LOD index used for the LOD Coloration visualization. */
+	int8 VisualizeLODIndex;
+#endif
 
 	FORCEINLINE bool IsTranslucent(ERHIFeatureLevel::Type InFeatureLevel) const
 	{
@@ -306,18 +314,15 @@ struct FMeshBatch
 
 	/** Default constructor. */
 	FMeshBatch()
-	:	MeshIdInPrimitive(0)
+	:	VertexFactory(nullptr)
+	,	MaterialRenderProxy(nullptr)
+	,	LCI(nullptr)
+	,	TessellationDisablingShadowMapMeshSize(0.0f)
+	,	MeshIdInPrimitive(0)
 	,	LODIndex(INDEX_NONE)
 	,	SegmentIndex(0xFF)
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	,	VisualizeLODIndex(INDEX_NONE)
-#endif
-	,	VisualizeHLODIndex(INDEX_NONE)
 	,	ReverseCulling(false)
 	,	bDisableBackfaceCulling(false)
-#if RHI_RAYTRACING
-	,	CastRayTracedShadow(true)
-#endif
 	,	CastShadow(true)
 	,   bUseForMaterial(true)
 	,	bUseForDepthPass(true)
@@ -333,9 +338,15 @@ struct FMeshBatch
 	,	bDitheredLODTransition(false)
 	,	bRenderToVirtualTexture(false)
 	,	RuntimeVirtualTextureMaterialType(0)
-	,	LCI(NULL)
-	,	VertexFactory(NULL)
-	,	MaterialRenderProxy(NULL)
+#if RHI_RAYTRACING
+	,	CastRayTracedShadow(true)
+#endif
+#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
+	,	VisualizeHLODIndex(INDEX_NONE)
+#endif
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	,	VisualizeLODIndex(INDEX_NONE)
+#endif
 	{
 		// By default always add the first element.
 		new(Elements) FMeshBatchElement;

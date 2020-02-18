@@ -1102,8 +1102,8 @@ FString FEmitHelper::LiteralTerm(FEmitterLocalContext& EmitterContext, const FLi
 				UE_LOG(LogK2Compiler, Error, TEXT("FEmitHelper::LiteralTerm cannot parse array value \"%s\" error: %s class: %s"), *CustomValue, *ImportError, *GetPathNameSafe(EmitterContext.GetCurrentlyGeneratedClass()));
 			}
 
-			const int32 NumElements = ScriptArray.Num();
 			FScriptArrayHelper ScriptArrayHelper(ArrayProperty, &ScriptArray);
+			const int32 NumElements = ScriptArrayHelper.Num();
 
 			FLiteralTermParams InnerTermParams;
 			Schema->ConvertPropertyToPinType(ArrayProperty->Inner, InnerTermParams.Type);

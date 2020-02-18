@@ -163,16 +163,11 @@ TGlobalResource< FSpriteIndexBuffer<8> > GQuadIndexBuffer;
 
 class FPageTableUpdateVS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPageTableUpdateVS,Global);
-
+	DECLARE_INLINE_TYPE_LAYOUT(FPageTableUpdateVS, NonVirtual);
+protected:
 	FPageTableUpdateVS() {}
 	
 public:
-	FShaderParameter			PageTableSize;
-	FShaderParameter			FirstUpdate;
-	FShaderParameter			NumUpdates;
-	FShaderResourceParameter	UpdateBuffer;
-
 	FPageTableUpdateVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
@@ -188,21 +183,16 @@ public:
 			|| GetMaxSupportedFeatureLevel(Parameters.Platform) == ERHIFeatureLevel::ES3_1;
 	}
 
-	virtual bool Serialize( FArchive& Ar ) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PageTableSize;
-		Ar << FirstUpdate;
-		Ar << NumUpdates;
-		Ar << UpdateBuffer;
-		return bShaderHasOutdatedParameters;
-	}
+	LAYOUT_FIELD(FShaderParameter, PageTableSize);
+	LAYOUT_FIELD(FShaderParameter, FirstUpdate);
+	LAYOUT_FIELD(FShaderParameter, NumUpdates);
+	LAYOUT_FIELD(FShaderResourceParameter, UpdateBuffer);
 };
 
 class FPageTableUpdatePS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPageTableUpdatePS, Global);
-
+	DECLARE_INLINE_TYPE_LAYOUT(FPageTableUpdatePS, NonVirtual);
+protected:
 	FPageTableUpdatePS() {}
 
 public:
@@ -215,6 +205,9 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
 			|| GetMaxSupportedFeatureLevel(Parameters.Platform) == ERHIFeatureLevel::ES3_1;
 	}
+
+	
+	
 };
 
 template<bool Use16Bits>
@@ -402,7 +395,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 	SCOPED_DRAW_EVENT(RHICmdList, PageTableUpdate);
 
 	auto ShaderMap = GetGlobalShaderMap(GetFeatureLevel());
-	FPageTableUpdateVS* VertexShader = nullptr;
+	TShaderRef<FPageTableUpdateVS> VertexShader;
 	if (Description.PageTableFormat == EVTPageTableFormat::UInt16)
 	{
 		VertexShader = ShaderMap->GetShader< TPageTableUpdateVS<true> >();
@@ -411,7 +404,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 	{
 		VertexShader = ShaderMap->GetShader< TPageTableUpdateVS<false> >();
 	}
-	check(VertexShader);
+	check(VertexShader.IsValid());
 
 	uint32 FirstUpdate = 0;
 	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
@@ -431,7 +424,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 		default: check(false); break;
 		}
 
-		FPageTableUpdatePS* PixelShader = nullptr;
+		TShaderRef<FPageTableUpdatePS> PixelShader;
 		switch (TexturePixelFormat[TextureIndex])
 		{
 		case PF_R16_UINT: PixelShader = ShaderMap->GetShader< TPageTableUpdatePS<PF_R16_UINT> >(); break;
@@ -442,7 +435,7 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 		case PF_R32G32B32A32_UINT: PixelShader = ShaderMap->GetShader< TPageTableUpdatePS<PF_R32G32B32A32_UINT> >(); break;
 		default: checkNoEntry(); break;
 		}
-		check(PixelShader);
+		check(PixelShader.IsValid());
 
 		uint32 MipSize = PageTableSize;
 		for (uint32 Mip = 0; Mip < NumPageTableLevels; Mip++)
@@ -464,13 +457,13 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHIComma
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader->GetVertexShader();
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader->GetPixelShader();
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 				{
-					FRHIVertexShader* ShaderRHI = VertexShader->GetVertexShader();
+					FRHIVertexShader* ShaderRHI = VertexShader.GetVertexShader();
 					SetShaderValue(RHICmdList, ShaderRHI, VertexShader->PageTableSize, PageTableSize);
 					SetShaderValue(RHICmdList, ShaderRHI, VertexShader->FirstUpdate, FirstUpdate);
 					SetShaderValue(RHICmdList, ShaderRHI, VertexShader->NumUpdates, NumUpdates);

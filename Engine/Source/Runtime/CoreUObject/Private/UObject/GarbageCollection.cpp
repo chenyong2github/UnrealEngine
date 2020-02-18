@@ -2364,9 +2364,11 @@ void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 {
 	if (Inner->ContainsObjectReference(EncounteredStructProps))
 	{
+		bool bUsesFreezableAllocator = EnumHasAnyFlags(ArrayFlags, EArrayPropertyFlags::UsesMemoryImageAllocator);
+
 		if( Inner->IsA(FStructProperty::StaticClass()) )
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayStruct);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
 
 			OwnerClass.ReferenceTokenStream.EmitStride(Inner->ElementSize);
 			const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
@@ -2376,11 +2378,11 @@ void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 		}
 		else if( Inner->IsA(FObjectProperty::StaticClass()) )
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayObject);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayObjectFreezable : GCRT_ArrayObject);
 		}
 		else if( Inner->IsA(FInterfaceProperty::StaticClass()) )
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayStruct);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
 
 			OwnerClass.ReferenceTokenStream.EmitStride(Inner->ElementSize);
 			const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
@@ -2682,7 +2684,8 @@ void FGCReferenceTokenStream::Fixup(void (*AddReferencedObjectsPtr)(UObject*, cl
 		switch (Token.Type)
 		{
 		case GCRT_ArrayStruct:
-			{
+		case GCRT_ArrayStructFreezable:
+		{
 				// Skip stride and move to Skip Info
 				TokenIndex += 2;
 				const FGCSkipInfo SkipInfo = ReadSkipInfo(TokenIndex);
@@ -2754,6 +2757,7 @@ void FGCReferenceTokenStream::Fixup(void (*AddReferencedObjectsPtr)(UObject*, cl
 		case GCRT_None:
 		case GCRT_Object:		
 		case GCRT_ArrayObject:
+		case GCRT_ArrayObjectFreezable:
 		case GCRT_AddFieldPathReferencedObject:
 		case GCRT_ArrayAddFieldPathReferencedObject:
 		case GCRT_EndOfPointer:

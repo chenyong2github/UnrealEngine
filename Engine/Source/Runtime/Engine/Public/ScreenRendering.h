@@ -77,25 +77,17 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(),InTexture,InTextureSampler,Texture);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),InTexture,InTextureSampler,Texture);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(),InTexture,InTextureSampler,SamplerStateRHI,TextureRHI);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << InTexture;
-		Ar << InTextureSampler;
-		return bShaderHasOutdatedParameters;
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),InTexture,InTextureSampler,SamplerStateRHI,TextureRHI);
 	}
 
 private:
-	FShaderResourceParameter InTexture;
-	FShaderResourceParameter InTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
 };
 
 /**
@@ -118,25 +110,17 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(), InTexture, InTextureSampler, Texture);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, Texture);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
 	{
-		SetTextureParameter(RHICmdList, GetPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << InTexture;
-		Ar << InTextureSampler;
-		return bShaderHasOutdatedParameters;
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
 	}
 
 private:
-	FShaderResourceParameter InTexture;
-	FShaderResourceParameter InTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
 };
 
 class FScreenPS_OSE : public FGlobalShader
@@ -157,25 +141,17 @@ public:
 
     void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture)
     {
-        SetTextureParameter(RHICmdList, GetPixelShader(),InTexture,InTextureSampler,Texture);
+        SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),InTexture,InTextureSampler,Texture);
     }
 
     void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
     {
-        SetTextureParameter(RHICmdList, GetPixelShader(),InTexture,InTextureSampler,SamplerStateRHI,TextureRHI);
-    }
-
-    virtual bool Serialize(FArchive& Ar) override
-    {
-        bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-        Ar << InTexture;
-        Ar << InTextureSampler;
-        return bShaderHasOutdatedParameters;
+        SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),InTexture,InTextureSampler,SamplerStateRHI,TextureRHI);
     }
 
 private:
-    FShaderResourceParameter InTexture;
-    FShaderResourceParameter InTextureSampler;
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
 };
 
 /**
@@ -194,16 +170,9 @@ public:
 	}
 	FScreenVS() {}
 
-
 	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(), ViewUniformBuffer);
-	}
-
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		return FGlobalShader::Serialize(Ar);
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewUniformBuffer);
 	}
 };
 

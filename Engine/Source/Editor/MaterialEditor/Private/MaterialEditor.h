@@ -63,7 +63,7 @@ public:
 		FPlatformMisc::CreateGuid(Id);
 
 		check(InExpression->Material && InExpression->Material->Expressions.Contains(InExpression));
-		InExpression->Material->AppendReferencedTextures(ReferencedTextures);
+		ReferencedTextures = InExpression->Material->GetReferencedTextures();
 		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
 	}
 
@@ -93,9 +93,9 @@ public:
 	 */
 	virtual bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const override;
 
-	virtual const TArray<UObject*>& GetReferencedTextures() const override
+	virtual TArrayView<UObject* const> GetReferencedTextures() const override
 	{
-		return ReferencedTextures;
+		return MakeArrayView(ReferencedTextures);
 	}
 
 	////////////////
@@ -114,7 +114,7 @@ public:
 		}
 	}
 
-	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{
@@ -123,7 +123,7 @@ public:
 		return false;
 	}
 
-	virtual bool GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{
@@ -132,7 +132,7 @@ public:
 		return false;
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{
@@ -141,7 +141,7 @@ public:
 		return false;
 	}
 
-	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{

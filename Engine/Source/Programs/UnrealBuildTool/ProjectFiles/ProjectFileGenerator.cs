@@ -1319,11 +1319,15 @@ namespace UnrealBuildTool
 		/// Adds additional files from the platform extensions folder
 		protected virtual void AddPlatformExtensionFiles( ProjectFile EngineProject )
 		{
-			DirectoryReference PlatformExtensionsDirectory = UnrealBuildTool.ProjectPlatformExtensionsDirectory(EngineProject.ProjectFilePath);
+			// @todo: this will add the same files to the solution (like the UBT source files that also get added to UnrealBuildTool project).
+			// not sure of a good filtering method here
+			DirectoryReference PlatformExtensionsDirectory = UnrealBuildTool.EnginePlatformExtensionsDirectory;
 			if (DirectoryReference.Exists(PlatformExtensionsDirectory))
 			{
 				List<string> SubdirectoryNamesToExclude = new List<string>();
 				SubdirectoryNamesToExclude.Add("AutomationTool"); //automation files are added separately to the AutomationTool project
+				SubdirectoryNamesToExclude.Add("Binaries");
+				SubdirectoryNamesToExclude.Add("Content");
 
 				EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(PlatformExtensionsDirectory, SubdirectoryNamesToExclude), UnrealBuildTool.RootDirectory);
 			}

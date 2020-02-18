@@ -183,25 +183,30 @@ namespace UE4MapProperty_Private
 
 IMPLEMENT_FIELD(FMapProperty)
 
-FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, EMapPropertyFlags InMapFlags)
 	: FMapProperty_Super(InOwner, InName, InObjectFlags)
 {
 	// These are expected to be set post-construction by AddCppProperty
 	KeyProp = nullptr;
 	ValueProp = nullptr;
+
+	MapFlags = InMapFlags;
 }
 
-FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
-: FMapProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, EMapPropertyFlags InMapFlags)
+	: FMapProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 {
 	// These are expected to be set post-construction by AddCppProperty
 	KeyProp   = nullptr;
 	ValueProp = nullptr;
+
+	MapFlags = InMapFlags;
 }
 
 #if WITH_EDITORONLY_DATA
 FMapProperty::FMapProperty(UField* InField)
 	: FMapProperty_Super(InField)
+	, MapFlags(EMapPropertyFlags::None)
 {
 	UMapProperty* SourceProperty = CastChecked<UMapProperty>(InField);
 	MapLayout = SourceProperty->MapLayout;
@@ -1164,9 +1169,12 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 
 void FScriptMapHelper::Rehash()
 {
-	// Moved out-of-line to maybe fix a weird link error
-	Map->Rehash(MapLayout, [=](const void* Src) {
-		return KeyProp->GetValueTypeHash(Src);
+	WithScriptMap([this](auto* Map)
+	{
+		// Moved out-of-line to maybe fix a weird link error
+		Map->Rehash(MapLayout, [=](const void* Src) {
+			return KeyProp->GetValueTypeHash(Src);
+		});
 	});
 }
 

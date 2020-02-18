@@ -14,8 +14,9 @@
  * Base dynamic array.
  * An untyped data array; mirrors a TArray's members, but doesn't need an exact C++ type for its elements.
  **/
-class FScriptArray
-	: protected FHeapAllocator::ForAnyElementType
+template <typename AllocatorType>
+class TScriptArray
+	: protected AllocatorType::ForAnyElementType
 {
 public:
 
@@ -91,11 +92,11 @@ public:
 			ResizeTo(ArrayNum, NumBytesPerElement);
 		}
 	}
-	void MoveAssign(FScriptArray& Other, int32 NumBytesPerElement)
+	void MoveAssign(TScriptArray& Other, int32 NumBytesPerElement)
 	{
 		checkSlow(this != &Other);
 		Empty(0, NumBytesPerElement);
-		MoveToEmpty(Other);
+		this->MoveToEmpty(Other);
 		ArrayNum = Other.ArrayNum; Other.ArrayNum = 0;
 		ArrayMax = Other.ArrayMax; Other.ArrayMax = 0;
 	}
@@ -116,7 +117,7 @@ public:
 			NumBytesPerElement
 			);
 	}
-	FScriptArray()
+	TScriptArray()
 	:   ArrayNum( 0 )
 	,	ArrayMax( 0 )
 	{
@@ -163,7 +164,7 @@ public:
 
 protected:
 
-	FScriptArray( int32 InNum, int32 NumBytesPerElement  )
+	TScriptArray( int32 InNum, int32 NumBytesPerElement  )
 	:   ArrayNum( 0 )
 	,	ArrayMax( InNum )
 
@@ -211,9 +212,35 @@ protected:
 public:
 	// These should really be private, because they shouldn't be called, but there's a bunch of code
 	// that needs to be fixed first.
+	TScriptArray(const TScriptArray&) { check(false); }
+	void operator=(const TScriptArray&) { check(false); }
+};
+
+template<typename AllocatorType> struct TIsZeroConstructType<TScriptArray<AllocatorType>> { enum { Value = true }; };
+
+class FScriptArray : public TScriptArray<FHeapAllocator>
+{
+	using Super = TScriptArray<FHeapAllocator>;
+
+public:
+	FScriptArray() = default;
+
+	void MoveAssign(FScriptArray& Other, int32 NumBytesPerElement)
+	{
+		Super::MoveAssign(Other, NumBytesPerElement);
+	}
+
+protected:
+	FScriptArray(int32 InNum, int32 NumBytesPerElement)
+		: TScriptArray<FHeapAllocator>(InNum, NumBytesPerElement)
+	{
+	}
+
+public:
+	// These should really be private, because they shouldn't be called, but there's a bunch of code
+	// that needs to be fixed first.
 	FScriptArray(const FScriptArray&) { check(false); }
 	void operator=(const FScriptArray&) { check(false); }
 };
-
 
 template<> struct TIsZeroConstructType<FScriptArray> { enum { Value = true }; };

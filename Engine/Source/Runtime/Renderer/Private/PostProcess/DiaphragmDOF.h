@@ -115,7 +115,7 @@ struct FBokehModel
 
 
 /** Returns whether DOF is supported. */
-inline bool IsSupported(EShaderPlatform ShaderPlatform)
+inline bool IsSupported(const FStaticShaderPlatform ShaderPlatform)
 {
 	// Only compile diaphragm DOF on platform it has been tested to ensure this is not blocking anyone else.
 	return 
@@ -125,7 +125,7 @@ inline bool IsSupported(EShaderPlatform ShaderPlatform)
 		IsVulkanSM5Platform(ShaderPlatform) ||
 		IsMetalSM5Platform(ShaderPlatform) ||
 		ShaderPlatform == SP_SWITCH ||
-		FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bSupportsDiaphragmDOF;
+		FDataDrivenShaderPlatformInfo::GetSupportsDiaphragmDOF(ShaderPlatform);
 }
 
 

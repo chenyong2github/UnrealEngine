@@ -69,8 +69,9 @@ static FAutoConsoleVariableRef CVarShaderComplexityBaselineDeferredUnlitPS(
 IMPLEMENT_SHADER_TYPE(template<>,TComplexityAccumulatePS<false>,TEXT("/Engine/Private/ShaderComplexityAccumulatePixelShader.usf"),TEXT("Main"),SF_Pixel);
 IMPLEMENT_SHADER_TYPE(template<>,TComplexityAccumulatePS<true>,TEXT("/Engine/Private/QuadComplexityAccumulatePixelShader.usf"),TEXT("Main"),SF_Pixel);
 
-template <bool bQuadComplexity>
-void TComplexityAccumulatePS<bQuadComplexity>::GetDebugViewModeShaderBindings(
+
+void FComplexityAccumulateInterface::GetDebugViewModeShaderBindings(
+	const FDebugViewModePS& BaseShader,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT Material,
@@ -89,17 +90,20 @@ void TComplexityAccumulatePS<bQuadComplexity>::GetDebugViewModeShaderBindings(
 	// late value is for overdraw which can be problematic with a low precision float format, at some point the precision isn't there any more and it doesn't accumulate
 	if (DebugViewMode == DVSM_QuadComplexity)
 	{
-		ShaderBindings.Add(NormalizedComplexity, FVector4(NormalizedQuadComplexityValue));
+		const TComplexityAccumulatePS<true>& Shader = static_cast<const TComplexityAccumulatePS<true>&>(BaseShader);
+		ShaderBindings.Add(Shader.NormalizedComplexity, FVector4(NormalizedQuadComplexityValue));
+		ShaderBindings.Add(Shader.ShowQuadOverdraw, DebugViewMode != DVSM_ShaderComplexity ? 1 : 0);
 	}
 	else
 	{
+		const TComplexityAccumulatePS<false>& Shader = static_cast<const TComplexityAccumulatePS<false>&>(BaseShader);
 		const float NormalizeMul = 1.0f / GetMaxShaderComplexityCount(Material.GetFeatureLevel());
-		ShaderBindings.Add(NormalizedComplexity, FVector4(NumPSInstructions * NormalizeMul, NumVSInstructions * NormalizeMul, 1 / 32.0f));
+		ShaderBindings.Add(Shader.NormalizedComplexity, FVector4(NumPSInstructions * NormalizeMul, NumVSInstructions * NormalizeMul, 1 / 32.0f));
+		ShaderBindings.Add(Shader.ShowQuadOverdraw, DebugViewMode != DVSM_ShaderComplexity ? 1 : 0);
 	}
-	ShaderBindings.Add(ShowQuadOverdraw, DebugViewMode != DVSM_ShaderComplexity ? 1 : 0);
 }
 
-FDebugViewModePS* FComplexityAccumulateInterface::GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const
+TShaderRef<FDebugViewModePS> FComplexityAccumulateInterface::GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const
 {
 	if (bShowQuadComplexity)
 	{

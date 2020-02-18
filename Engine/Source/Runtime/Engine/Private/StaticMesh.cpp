@@ -89,6 +89,12 @@ DECLARE_MEMORY_STAT( TEXT( "StaticMesh Occluder Memory" ), STAT_StaticMeshOcclud
 
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh Total Memory" ), STAT_StaticMeshTotalMemory, STATGROUP_Memory );
 
+
+DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("UStaticMesh::Serialize"), STAT_StaticMesh_SerializeFull, STATGROUP_LoadTime);
+DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("UStaticMesh_SerializeParent"), STAT_StaticMesh_SerializeParent, STATGROUP_LoadTime);
+DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("UStaticMesh_RenderDataLoad"), STAT_StaticMesh_RenderData, STATGROUP_LoadTime);
+DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("UStaticMesh_RenderDataFixup"), STAT_StaticMesh_RenderDataFixup, STATGROUP_LoadTime);
+
 /** Package name, that if set will cause only static meshes in that package to be rebuilt based on SM version. */
 ENGINE_API FName GStaticMeshPackageNameToRebuild = NAME_None;
 
@@ -198,8 +204,8 @@ void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI()
 		for (uint32 i = 0; i < AllSectionCount; ++i)
 		{
 			FStaticMeshSectionAreaWeightedTriangleSampler& sampler = (*Samplers)[i];
-			const TArray<float>& ProbTris = sampler.GetProb();
-			const TArray<int32>& AliasTris = sampler.GetAlias();
+			const TArray<float, FMemoryImageAllocator>& ProbTris = sampler.GetProb();
+			const TArray<int32, FMemoryImageAllocator>& AliasTris = sampler.GetAlias();
 			const uint32 NumTriangle = sampler.GetNumEntries();
 
 			for (uint32 t = 0; t < NumTriangle; ++t)
@@ -601,6 +607,7 @@ void FStaticMeshLODResources::ClearAvailabilityInfo()
 	VertexBuffers.StaticMeshVertexBuffer.ClearMetaData();
 	VertexBuffers.PositionVertexBuffer.ClearMetaData();
 	VertexBuffers.ColorVertexBuffer.ClearMetaData();
+
 	delete AdditionalIndexBuffers;
 	AdditionalIndexBuffers = nullptr;
 }
@@ -1083,8 +1090,8 @@ FStaticMeshLODResources::FStaticMeshLODResources()
 
 FStaticMeshLODResources::~FStaticMeshLODResources()
 {
+	// DistanceFieldData.SafeDelete();
 	delete DistanceFieldData;
-	delete AdditionalIndexBuffers;
 }
 
 void FStaticMeshLODResources::ConditionalForce16BitIndexBuffer(EShaderPlatform MaxShaderPlatform, UStaticMesh* Parent)
@@ -1331,6 +1338,7 @@ FStaticMeshRenderData::FStaticMeshRenderData()
 	}
 }
 
+
 void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCooked)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Serialize);
@@ -1353,7 +1361,32 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 
 #endif // #if WITH_EDITORONLY_DATA
 
-	LODResources.Serialize(Ar, Owner);
+	if (Ar.IsLoading())
+	{
+		// Load array.
+		int32 NewNum;
+		Ar << NewNum;
+		LODResources.Empty(NewNum);
+		for (int32 Index = 0; Index < NewNum; Index++)
+		{
+			new (LODResources) FStaticMeshLODResources;
+		}
+		for (int32 Index = 0; Index < NewNum; Index++)
+		{
+			LODResources[Index].Serialize(Ar, Owner, Index);
+		}
+	}
+	else
+	{
+		// Save array.
+		int32 Num = LODResources.Num();
+		Ar << Num;
+		for (int32 Index = 0; Index < Num; Index++)
+		{
+			LODResources[Index].Serialize(Ar, Owner, Index);
+		}
+	}
+
 #if WITH_EDITOR
 	if (Ar.IsSaving())
 	{
@@ -1378,7 +1411,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 		LODVertexFactories.Empty(LODResources.Num());
 		for (int i = 0; i < LODResources.Num(); i++)
 		{
-			LODVertexFactories.Add(new FStaticMeshVertexFactories(GMaxRHIFeatureLevel));
+			new (LODVertexFactories) FStaticMeshVertexFactories(GMaxRHIFeatureLevel);
 		}
 	}
 
@@ -1544,10 +1577,12 @@ void FStaticMeshRenderData::ReleaseResources()
 void FStaticMeshRenderData::AllocateLODResources(int32 NumLODs)
 {
 	check(LODResources.Num() == 0);
+	LODResources.Reserve(NumLODs);
+	LODVertexFactories.Reserve(NumLODs);
 	while (LODResources.Num() < NumLODs)
 	{
-		LODResources.Add(new FStaticMeshLODResources);
-		LODVertexFactories.Add(new FStaticMeshVertexFactories(GMaxRHIFeatureLevel));
+		new (LODResources) FStaticMeshLODResources;
+		new (LODVertexFactories) FStaticMeshVertexFactories(GMaxRHIFeatureLevel);
 	}
 }
 
@@ -1750,7 +1785,7 @@ void FStaticMeshRenderData::SyncUVChannelData(const TArray<FStaticMaterial>& Obj
 
 	ENQUEUE_RENDER_COMMAND(SyncUVChannelData)([this, UpdateData = MoveTemp(UpdateData)](FRHICommandListImmediate& RHICmdList)
 	{
-		FMemory::Memswap(&UVChannelDataPerMaterial, UpdateData.Get(), sizeof(TArray<FMeshUVChannelInfo>));
+		FMemory::Memswap(&UVChannelDataPerMaterial, UpdateData.Get(), sizeof(UVChannelDataPerMaterial));
 	});
 }
 
@@ -2619,7 +2654,7 @@ void UStaticMesh::InitResources()
 	{
 		LinkStreaming();
 	}
-
+	
 #if	STATS
 	UStaticMesh* This = this;
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
@@ -2760,7 +2795,7 @@ int32 UStaticMesh::GetNumSections(int32 InLOD) const
 }
 
 #if WITH_EDITORONLY_DATA
-static float GetUVDensity(const TIndirectArray<FStaticMeshLODResources>& LODResources, int32 UVIndex)
+static float GetUVDensity(const TArrayView<FStaticMeshLODResources>& LODResources, int32 UVIndex)
 {
 	float WeightedUVDensity = 0;
 	float WeightSum = 0;
@@ -4427,7 +4462,12 @@ void UStaticMesh::Serialize(FArchive& Ar)
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::Serialize);
 
-	Super::Serialize(Ar);
+	SCOPE_MS_ACCUMULATOR(STAT_StaticMesh_SerializeFull);
+
+	{
+		SCOPE_MS_ACCUMULATOR(STAT_StaticMesh_SerializeParent);
+		Super::Serialize(Ar);
+	}
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
@@ -4547,18 +4587,18 @@ void UStaticMesh::Serialize(FArchive& Ar)
 	{	
 		if (Ar.IsLoading())
 		{
+			SCOPE_MS_ACCUMULATOR(STAT_StaticMesh_RenderData);
 			RenderData = MakeUnique<FStaticMeshRenderData>();
 			RenderData->Serialize(Ar, this, bCooked);
-			
+
 			FStaticMeshOccluderData::SerializeCooked(Ar, this);
 		}
-
 #if WITH_EDITOR
 		else if (Ar.IsSaving())
-		{
+		{		
 			FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, Ar.CookingTarget());
 			PlatformRenderData.Serialize(Ar, this, bCooked);
-			
+
 			FStaticMeshOccluderData::SerializeCooked(Ar, this);
 		}
 #endif
@@ -5107,7 +5147,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	TArray<uint32> IndexBuffer;
 	IndexBuffer.SetNumZeroed(NumTriangles * 3);
 
-	TArray<FStaticMeshSection>& Sections = LODResources.Sections;
+	FStaticMeshLODResources::FStaticMeshSectionArray& Sections = LODResources.Sections;
 
 	int32 SectionIndex = 0;
 	int32 IndexBufferIndex = 0;
@@ -5384,7 +5424,7 @@ int32 UStaticMesh::CalcNumOptionalMips() const
 	int32 NumOptionalLODs = 0;
 	if (RenderData)
 	{
-		const TIndirectArray<FStaticMeshLODResources>& LODResources = RenderData->LODResources;
+		const FStaticMeshLODResourcesArray& LODResources = RenderData->LODResources;
 		for (int32 Idx = 0; Idx < LODResources.Num(); ++Idx)
 		{
 			const FStaticMeshLODResources& Resource = LODResources[Idx];

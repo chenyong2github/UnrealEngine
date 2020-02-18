@@ -2203,6 +2203,23 @@ public partial class Project : CommandUtils
 						AdditionalArgs += " -fallbackOrderForNonUassetFiles";
 					}
 
+					ConfigHierarchy PlatformEngineConfig;
+                    if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))					
+					{
+						// if the runtime will want to reduce memory usage, we have to disable the pak index freezing
+						bool bUnloadPakEntries = false;
+						bool bShrinkPakEntries = false;
+						PlatformEngineConfig.GetBool("Pak", "UnloadPakEntryFilenamesIfPossible", out bUnloadPakEntries);
+						PlatformEngineConfig.GetBool("Pak", "ShrinkPakEntriesMemoryUsage", out bShrinkPakEntries);
+						if (bUnloadPakEntries || bShrinkPakEntries)
+						{
+							AdditionalArgs += " -allowForIndexUnload";
+						}
+					}
+
+					// pass the targetplatform so the index may be able to be frozen
+					AdditionalArgs += " -platform=" + SC.StageTargetPlatform.IniPlatformType;
+
 					Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile; 
 					if (ShouldCreateIoStoreContainerFiles(Params, SC))
 					{
@@ -2982,7 +2999,7 @@ public partial class Project : CommandUtils
 			return false;
 		}
 
-		return Params.IoStore;
+		return Params.IoStore && !Params.SkipIoStore;
 	}
 
 	private static bool ShouldCreatePak(ProjectParams Params, DeploymentContext SC)

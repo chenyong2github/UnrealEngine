@@ -115,6 +115,7 @@ static int32 ConeTraceObjectsThreadGroupSize = 64;
 
 class FTileIntersectionParameters
 {
+	DECLARE_TYPE_LAYOUT(FTileIntersectionParameters, NonVirtual);
 public:
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
@@ -201,12 +202,14 @@ public:
 	}
 
 private:
-	FShaderParameter TileListGroupSize;
 	
-	FRWShaderParameter NumCulledTilesArray;
-	FRWShaderParameter CulledTilesStartOffsetArray;
-	FRWShaderParameter CulledTileDataArray;
-	FRWShaderParameter ObjectTilesIndirectArguments;
+		LAYOUT_FIELD(FShaderParameter, TileListGroupSize)
+
+		LAYOUT_FIELD(FRWShaderParameter, NumCulledTilesArray)
+		LAYOUT_FIELD(FRWShaderParameter, CulledTilesStartOffsetArray)
+		LAYOUT_FIELD(FRWShaderParameter, CulledTileDataArray)
+		LAYOUT_FIELD(FRWShaderParameter, ObjectTilesIndirectArguments)
+	
 };
 
 class FAOScreenGridResources : public FRenderResource
@@ -287,6 +290,7 @@ inline float GetMaxAOViewDistance()
 
 class FAOParameters
 {
+	DECLARE_TYPE_LAYOUT(FAOParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -329,15 +333,18 @@ public:
 	}
 
 private:
-	FShaderParameter AOObjectMaxDistance;
-	FShaderParameter AOStepScale;
-	FShaderParameter AOStepExponentScale;
-	FShaderParameter AOMaxViewDistance;
-	FShaderParameter AOGlobalMaxOcclusionDistance;
+	
+		LAYOUT_FIELD(FShaderParameter, AOObjectMaxDistance)
+		LAYOUT_FIELD(FShaderParameter, AOStepScale)
+		LAYOUT_FIELD(FShaderParameter, AOStepExponentScale)
+		LAYOUT_FIELD(FShaderParameter, AOMaxViewDistance)
+		LAYOUT_FIELD(FShaderParameter, AOGlobalMaxOcclusionDistance)
+	
 };
 
 class FDFAOUpsampleParameters
 {
+	DECLARE_TYPE_LAYOUT(FDFAOUpsampleParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -379,11 +386,11 @@ public:
 	}
 
 private:
-	FShaderResourceParameter BentNormalAOTexture;
-	FShaderResourceParameter BentNormalAOSampler;
-	FShaderParameter AOBufferBilinearUVMax;
-	FShaderParameter DistanceFadeScale;
-	FShaderParameter AOMaxViewDistance;
+	LAYOUT_FIELD(FShaderResourceParameter, BentNormalAOTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, BentNormalAOSampler);
+	LAYOUT_FIELD(FShaderParameter, AOBufferBilinearUVMax);
+	LAYOUT_FIELD(FShaderParameter, DistanceFadeScale);
+	LAYOUT_FIELD(FShaderParameter, AOMaxViewDistance);
 };
 
 class FMaxSizedRWBuffers : public FRenderResource
@@ -475,6 +482,7 @@ public:
 
 class FScreenGridParameters
 {
+	DECLARE_TYPE_LAYOUT(FScreenGridParameters, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -516,11 +524,13 @@ public:
 	}
 
 private:
-	FShaderParameter BaseLevelTexelSize;
-	FShaderParameter JitterOffset;
-	FShaderParameter ScreenGridConeVisibilitySize;
-	FShaderResourceParameter DistanceFieldNormalTexture;
-	FShaderResourceParameter DistanceFieldNormalSampler;
+	
+		LAYOUT_FIELD(FShaderParameter, BaseLevelTexelSize)
+		LAYOUT_FIELD(FShaderParameter, JitterOffset)
+		LAYOUT_FIELD(FShaderParameter, ScreenGridConeVisibilitySize)
+		LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldNormalTexture)
+		LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldNormalSampler)
+	
 };
 
 extern void TrackGPUProgress(FRHICommandListImmediate& RHICmdList, uint32 DebugId);

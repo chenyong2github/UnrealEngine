@@ -17,6 +17,8 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogBulkDataRuntime, Log, All);
 
+IMPLEMENT_TYPE_LAYOUT(FBulkDataBase);
+
 // If set to 0 then the loose file fallback will be used even if the -ZenLoader command line flag is present.
 #define ENABLE_IO_DISPATCHER 1
 
@@ -131,7 +133,7 @@ namespace FileTokenSystem
 
 	FRWLock TokenLock;
 
-	FBulkDataBase::FileToken RegisterFileToken( const FName& PackageName, const FString& Filename, uint64 BulkDataOffsetInFile )
+	FileToken RegisterFileToken( const FName& PackageName, const FString& Filename, uint64 BulkDataOffsetInFile )
 	{
 		FWriteScopeLock LockForScope(TokenLock);
 
@@ -141,11 +143,11 @@ namespace FileTokenSystem
 		Data.PackageName = PackageName;
 		Data.BulkDataOffsetInFile = BulkDataOffsetInFile;
 
-		FBulkDataBase::FileToken FileToken  = TokenData.Add(Data);
+		FileToken FileToken  = TokenData.Add(Data);
 		return FileToken;
 	}
 
-	void UnregisterFileToken(FBulkDataBase::FileToken ID)
+	void UnregisterFileToken(FileToken ID)
 	{
 		if (ID != FBulkDataBase::InvalidToken)
 		{
@@ -158,7 +160,7 @@ namespace FileTokenSystem
 		}
 	}
 
-	FBulkDataBase::FileToken CopyFileToken(FBulkDataBase::FileToken ID)
+	FileToken CopyFileToken(FileToken ID)
 	{
 		if (ID != FBulkDataBase::InvalidToken)
 		{
@@ -182,7 +184,7 @@ namespace FileTokenSystem
 		}
 	}
 
-	Data GetFileData(FBulkDataBase::FileToken ID)
+	Data GetFileData(FileToken ID)
 	{
 		if (ID == FBulkDataBase::InvalidToken)
 		{
@@ -199,7 +201,7 @@ namespace FileTokenSystem
 		return Output;
 	}
 
-	FString GetFilename(FBulkDataBase::FileToken ID)
+	FString GetFilename(FileToken ID)
 	{
 		if (ID == FBulkDataBase::InvalidToken)
 		{
@@ -210,7 +212,7 @@ namespace FileTokenSystem
 		return StringTable.Resolve(TokenData[ID].PackageName);
 	}
 
-	uint64 GetBulkDataOffset(FBulkDataBase::FileToken ID)
+	uint64 GetBulkDataOffset(FileToken ID)
 	{
 		if (ID == FBulkDataBase::InvalidToken)
 		{
@@ -615,7 +617,7 @@ private:
 };
 
 FBulkDataBase::FBulkDataBase(FBulkDataBase&& Other)
-	: ChunkID(Other.ChunkID) // Copies the entire union
+	: Data(Other.Data) // Copies the entire union
 	, DataAllocation(Other.DataAllocation)
 	, BulkDataFlags(Other.BulkDataFlags)
 
@@ -624,7 +626,7 @@ FBulkDataBase::FBulkDataBase(FBulkDataBase&& Other)
 
 	if (!Other.IsUsingIODispatcher())
 	{
-		Other.Fallback.Token = InvalidToken; // Prevent the other object from unregistering the token
+		Other.Data.Fallback.Token = InvalidToken; // Prevent the other object from unregistering the token
 	}	
 }
 
@@ -637,7 +639,7 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 
 	RemoveBulkData();
 
-	Fallback.Token = FileTokenSystem::CopyFileToken(Other.Fallback.Token);
+	Data.Fallback.Token = FileTokenSystem::CopyFileToken(Other.Data.Fallback.Token);
 
 	// Copy token
 	BulkDataFlags = Other.BulkDataFlags;
@@ -652,7 +654,7 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 	else
 	{
 		const int64 BulkDataSize = GetBulkDataSize();
-		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Fallback.Token);
+		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
 		const FString MemoryMappedFilename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
 		MemoryMapBulkData(MemoryMappedFilename, FileData.BulkDataOffsetInFile, BulkDataSize);
 	}
@@ -669,7 +671,7 @@ FBulkDataBase::~FBulkDataBase()
 	FreeData();
 	if (!IsUsingIODispatcher())
 	{
-		FileTokenSystem::UnregisterFileToken(Fallback.Token);
+		FileTokenSystem::UnregisterFileToken(Data.Fallback.Token);
 	}	
 }
 
@@ -733,15 +735,15 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			const EIoChunkType Type = IsOptional() ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
 
 			const int64 BulkDataID = BulkDataSize > 0 ? BulkDataOffsetInFile : TNumericLimits<uint64>::Max();
-			ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, Type);
+			Data.ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataID, Type);
 
 			SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a filename
 		}
 		else
 		{
 			// Invalidate the Token and then set the BulkDataSize for fast retrieval
-			Fallback.Token = InvalidToken;
-			Fallback.BulkDataSize = BulkDataSize;
+			Data.Fallback.Token = InvalidToken;
+			Data.Fallback.BulkDataSize = BulkDataSize;
 		}
 
 		const FString* Filename = nullptr;
@@ -811,7 +813,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		// If we are not using the FIoDispatcher and we have a filename then we need to make sure we can retrieve it later!
 		if (bUseIoDispatcher == false && Filename != nullptr)
 		{
-			Fallback.Token = FileTokenSystem::RegisterFileToken(Package->FileName, *Filename, BulkDataOffsetInFile);
+			Data.Fallback.Token = FileTokenSystem::RegisterFileToken(Package->FileName, *Filename, BulkDataOffsetInFile);
 		}
 
 		if (bShouldForceLoad)
@@ -887,7 +889,7 @@ void* FBulkDataBase::Realloc(int64 SizeInBytes)
 									// future then this check is a reminder that we need to handle the IoDispatcher 
 									// vs fallback case.
 
-	Fallback.BulkDataSize = SizeInBytes;
+	Data.Fallback.BulkDataSize = SizeInBytes;
 
 	return GetDataBufferForWrite();
 }
@@ -992,12 +994,12 @@ int64 FBulkDataBase::GetBulkDataSize() const
 {
 	if (IsUsingIODispatcher())
 	{
-		TIoStatusOr<uint64> Result = IoDispatcher->GetSizeForChunk(ChunkID);
+		TIoStatusOr<uint64> Result = IoDispatcher->GetSizeForChunk(Data.ChunkID);
 		return Result.ValueOrDie(); // TODO: Consider logging errors instead of relying on ::ValueOrDie
 	}
 	else
 	{
-		return Fallback.BulkDataSize;
+		return Data.Fallback.BulkDataSize;
 	}	
 }
 
@@ -1009,8 +1011,20 @@ bool FBulkDataBase::CanLoadFromDisk() const
 		return true;
 	}
 
+	// If the IoDispatcher is enabled then technically inlined data cannot load
+	// from disk, but it should act as thought it can up until the point that it
+	// actually tries to load. At which point it will give a log error.
+	//
+	// This is a temp hack while we work out if we want to allow additional inline
+	// loading at runtime (and pay the memory increase in the ToC) or prevent it entirely.
+	// TODO: Resolve this!
+	if (IsInlined() && IsIoDispatcherEnabled())
+	{
+		return true;
+	}
+
 	// If this BulkData has a fallback token then it can find it's filepath and load from disk
-	if (Fallback.Token != InvalidToken)
+	if (Data.Fallback.Token != InvalidToken)
 	{
 		return true;
 	}
@@ -1023,14 +1037,14 @@ bool FBulkDataBase::DoesExist() const
 #if ALLOW_OPTIONAL_DATA
 	if (!IsUsingIODispatcher())
 	{
-		FString Filename = FileTokenSystem::GetFilename(Fallback.Token);
+		FString Filename = FileTokenSystem::GetFilename(Data.Fallback.Token);
 		Filename = ConvertFilenameFromFlags(Filename);
 
 		return IFileManager::Get().FileExists(*Filename);
 	}
 	else
 	{
-		return IoDispatcher->DoesChunkExist(ChunkID);
+		return IoDispatcher->DoesChunkExist(Data.ChunkID);
 	}
 #else
 	return false;
@@ -1096,7 +1110,7 @@ IAsyncReadFileHandle* FBulkDataBase::OpenAsyncReadHandle() const
 {
 	if (IsUsingIODispatcher())
 	{
-		return new FAsyncReadChunkIdHandle(ChunkID);
+		return new FAsyncReadChunkIdHandle(Data.ChunkID);
 	}
 	else
 	{
@@ -1115,7 +1129,7 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 {
 	if (IsUsingIODispatcher())
 	{
-		FBulkDataIoDispatcherRequest* IoRequest = new FBulkDataIoDispatcherRequest(ChunkID, OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);	
+		FBulkDataIoDispatcherRequest* IoRequest = new FBulkDataIoDispatcherRequest(Data.ChunkID, OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);
 		IoRequest->StartAsyncWork();
 
 		return IoRequest;
@@ -1123,7 +1137,7 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 	else
 	{
 		const int64 BulkDataSize = GetBulkDataSize();
-		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Fallback.Token);
+		FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
 
 		check(FileData.PackageHeaderFilename.IsEmpty() == false);
 		const FString Filename = ConvertFilenameFromFlags(FileData.PackageHeaderFilename);
@@ -1168,7 +1182,7 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkData
 		FBulkDataIoDispatcherRequest::ChunkIdArray ChunkIds;
 		for (const FBulkDataBase* BulkData : RangeArray)
 		{
-			ChunkIds.Push(BulkData->ChunkID);
+			ChunkIds.Push(BulkData->Data.ChunkID);
 		}
 
 		FBulkDataIoDispatcherRequest* IoRequest = new FBulkDataIoDispatcherRequest(ChunkIds, CompleteCallback);
@@ -1221,8 +1235,8 @@ void FBulkDataBase::RemoveBulkData()
 
 	if (!IsUsingIODispatcher())
 	{ 
-		FileTokenSystem::UnregisterFileToken(Fallback.Token);
-		Fallback.Token = InvalidToken;
+		FileTokenSystem::UnregisterFileToken(Data.Fallback.Token);
+		Data.Fallback.Token = InvalidToken;
 	}
 
 	BulkDataFlags = BULKDATA_None;
@@ -1284,7 +1298,7 @@ int64 FBulkDataBase::GetBulkDataOffsetInFile() const
 {
 	if (!IsUsingIODispatcher())
 	{
-		return FileTokenSystem::GetBulkDataOffset(Fallback.Token);
+		return FileTokenSystem::GetBulkDataOffset(Data.Fallback.Token);
 	}
 	else
 	{
@@ -1298,7 +1312,7 @@ FString FBulkDataBase::GetFilename() const
 {
 	if (!IsUsingIODispatcher())
 	{
-		FString Filename = FileTokenSystem::GetFilename(Fallback.Token);
+		FString Filename = FileTokenSystem::GetFilename(Data.Fallback.Token);
 		return ConvertFilenameFromFlags(Filename);
 	}
 	else
@@ -1385,7 +1399,7 @@ void FBulkDataBase::LoadDataAsynchronously(AsyncCallback&& Callback)
 void FBulkDataBase::InternalLoadFromFileSystem(void** DstBuffer)
 {
 	const int64 BulkDataSize = GetBulkDataSize();
-	FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Fallback.Token);
+	FileTokenSystem::Data FileData = FileTokenSystem::GetFileData(Data.Fallback.Token);
 
 	FString Filename;
 	int64 Offset = FileData.BulkDataOffsetInFile;
@@ -1434,7 +1448,7 @@ void FBulkDataBase::InternalLoadFromIoStore(void** DstBuffer)
 	Options.SetTargetVa(*DstBuffer);
 
 	FIoBatch NewBatch = GetIoDispatcher()->NewBatch();
-	FIoRequest Request = NewBatch.Read(ChunkID, Options);
+	FIoRequest Request = NewBatch.Read(Data.ChunkID, Options);
 
 	NewBatch.Issue();
 	NewBatch.Wait(); // Blocking wait until all requests in the batch are done
@@ -1461,7 +1475,7 @@ void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback
 		Callback(Result);
 	};
 
-	GetIoDispatcher()->ReadWithCallback(ChunkID, Options, MoveTemp(Callback));
+	GetIoDispatcher()->ReadWithCallback(Data.ChunkID, Options, MoveTemp(Callback));
 }
 
 void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutSizeOnDisk, int64& InOutOffsetInFile)
@@ -1486,7 +1500,7 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 			InOutSizeOnDisk = NewSizeOnDisk;
 			InOutOffsetInFile = NewOffset;
 
-			ChunkID = OptionalChunkId;
+			Data.ChunkID = OptionalChunkId;
 		}
 	}
 	else
@@ -1501,8 +1515,8 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 			InOutOffsetInFile = NewOffset;
 
 			// Note we do not override Filename with OptionalDataFilename as we are supposed to store the original!
-			Fallback.Token = InvalidToken;
-			Fallback.BulkDataSize = InOutSizeOnDisk;
+			Data.Fallback.Token = InvalidToken;
+			Data.Fallback.BulkDataSize = InOutSizeOnDisk;
 		}
 	}
 #endif
@@ -1645,7 +1659,7 @@ FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 	}
 }
 
-void FBulkDataBase::FBulkDataAllocation::Free(FBulkDataBase* Owner)
+void FBulkDataAllocation::Free(FBulkDataBase* Owner)
 {
 	if (!Owner->IsDataMemoryMapped())
 	{
@@ -1661,7 +1675,7 @@ void FBulkDataBase::FBulkDataAllocation::Free(FBulkDataBase* Owner)
 	}
 }
 
-void* FBulkDataBase::FBulkDataAllocation::AllocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes)
+void* FBulkDataAllocation::AllocateData(FBulkDataBase* Owner, SIZE_T SizeInBytes)
 {
 	checkf(Allocation == nullptr, TEXT("Trying to allocate a BulkData object without freeing it first!"));
 
@@ -1670,14 +1684,14 @@ void* FBulkDataBase::FBulkDataAllocation::AllocateData(FBulkDataBase* Owner, SIZ
 	return Allocation;
 }
 
-void FBulkDataBase::FBulkDataAllocation::SetData(FBulkDataBase* Owner, void* Buffer)
+void FBulkDataAllocation::SetData(FBulkDataBase* Owner, void* Buffer)
 {
 	checkf(Allocation == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
 
 	Allocation = Buffer;
 }
 
-void FBulkDataBase::FBulkDataAllocation::SetMemoryMappedData(FBulkDataBase* Owner, IMappedFileHandle* MappedHandle, IMappedFileRegion* MappedRegion)
+void FBulkDataAllocation::SetMemoryMappedData(FBulkDataBase* Owner, IMappedFileHandle* MappedHandle, IMappedFileRegion* MappedRegion)
 {
 	checkf(Allocation == nullptr, TEXT("Trying to assign a BulkData object without freeing it first!"));
 	FOwnedBulkDataPtr* Ptr = new FOwnedBulkDataPtr(MappedHandle, MappedRegion);
@@ -1687,7 +1701,7 @@ void FBulkDataBase::FBulkDataAllocation::SetMemoryMappedData(FBulkDataBase* Owne
 	Allocation = Ptr;
 }
 
-void* FBulkDataBase::FBulkDataAllocation::GetAllocationForWrite(const FBulkDataBase* Owner) const
+void* FBulkDataAllocation::GetAllocationForWrite(const FBulkDataBase* Owner) const
 {
 	if (!Owner->IsDataMemoryMapped())
 	{
@@ -1699,7 +1713,7 @@ void* FBulkDataBase::FBulkDataAllocation::GetAllocationForWrite(const FBulkDataB
 	}
 }
 
-const void* FBulkDataBase::FBulkDataAllocation::GetAllocationReadOnly(const FBulkDataBase* Owner) const
+const void* FBulkDataAllocation::GetAllocationReadOnly(const FBulkDataBase* Owner) const
 {
 	if (!Owner->IsDataMemoryMapped())
 	{
@@ -1716,7 +1730,7 @@ const void* FBulkDataBase::FBulkDataAllocation::GetAllocationReadOnly(const FBul
 	}
 }
 
-FOwnedBulkDataPtr* FBulkDataBase::FBulkDataAllocation::StealFileMapping(FBulkDataBase* Owner)
+FOwnedBulkDataPtr* FBulkDataAllocation::StealFileMapping(FBulkDataBase* Owner)
 {
 	FOwnedBulkDataPtr* Ptr;
 	if (!Owner->IsDataMemoryMapped())
@@ -1733,7 +1747,7 @@ FOwnedBulkDataPtr* FBulkDataBase::FBulkDataAllocation::StealFileMapping(FBulkDat
 	return Ptr;
 }
 	
-void FBulkDataBase::FBulkDataAllocation::Swap(FBulkDataBase* Owner, void** DstBuffer)
+void FBulkDataAllocation::Swap(FBulkDataBase* Owner, void** DstBuffer)
 {
 	if (!Owner->IsDataMemoryMapped())
 	{

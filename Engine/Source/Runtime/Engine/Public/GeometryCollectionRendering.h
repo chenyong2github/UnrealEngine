@@ -12,10 +12,11 @@
 
 class FGeometryCollectionVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParameters
 {
+	DECLARE_TYPE_LAYOUT(FGeometryCollectionVertexFactoryShaderParameters, NonVirtual);
 public:
 
 	// #note: We are reusing VertexFetch_InstanceTransformBuffer that was created for instanced static mesh 
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		FLocalVertexFactoryShaderParameters::Bind(ParameterMap);
 
@@ -24,7 +25,7 @@ public:
 		VertexFetch_InstanceBoneMapBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_InstanceBoneMapBuffer"));
 	}	
 
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -33,22 +34,14 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override;
-
-	void Serialize(FArchive& Ar) override
-	{
-		FLocalVertexFactoryShaderParameters::Serialize(Ar);
-		Ar << VertexFetch_InstanceTransformBufferParameter;
-		Ar << VertexFetch_InstancePrevTransformBufferParameter;
-		Ar << VertexFetch_InstanceBoneMapBufferParameter;
-	}
-
-	virtual uint32 GetSize() const override { return sizeof(*this); }
+		FVertexInputStreamArray& VertexStreams) const;
 
 private:
-	FShaderResourceParameter VertexFetch_InstanceTransformBufferParameter;
-	FShaderResourceParameter VertexFetch_InstancePrevTransformBufferParameter;
-	FShaderResourceParameter VertexFetch_InstanceBoneMapBufferParameter;
+	
+		LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstanceTransformBufferParameter)
+		LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstancePrevTransformBufferParameter)
+		LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstanceBoneMapBufferParameter)
+	
 };
 
 /**
@@ -74,37 +67,13 @@ public:
 	//
 	// Permutations are controlled by the material flag
 	//
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType) 
-	{
-		return (Material->IsUsedWithGeometryCollections() || Material->IsSpecialEngineMaterial())
-			&& FLocalVertexFactory::ShouldCompilePermutation(Platform, Material, ShaderType);
-	}
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	//
 	// Modify compile environment to enable instancing
 	// @param OutEnvironment - shader compile environment to modify
 	//
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
-		if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Platform))
-		{
-			OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
-		}
-
-		if (RHISupportsManualVertexFetch(Platform))
-		{
-			OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
-
-			OutEnvironment.SetDefine(TEXT("USE_INSTANCING_BONEMAP"), TEXT("1"));
-			OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), TEXT("0"));
-		}
-
-		// Geometry collections use a custom hit proxy per bone
-		OutEnvironment.SetDefine(TEXT("USE_PER_VERTEX_HITPROXY_ID"), 1);
-
-		FLocalVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
-	}
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	//
 	// Set the data on the vertex factory
@@ -136,11 +105,6 @@ public:
 	virtual void InitRHI() override
 	{
 		FLocalVertexFactory::InitRHI();
-	}
-
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-	{
-		return ShaderFrequency == SF_Vertex ? new FGeometryCollectionVertexFactoryShaderParameters() : NULL;
 	}
 
 	inline void SetInstanceTransformSRV(FRHIShaderResourceView* InstanceTransformSRV)

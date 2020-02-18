@@ -1096,7 +1096,7 @@ void UActorComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	}
 }
 
-void UActorComponent::RegisterComponentWithWorld(UWorld* InWorld)
+void UActorComponent::RegisterComponentWithWorld(UWorld* InWorld, FRegisterComponentContext* Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RegisterComponent);
 	FScopeCycleCounterUObject ComponentScope(this);
@@ -1157,7 +1157,7 @@ void UActorComponent::RegisterComponentWithWorld(UWorld* InWorld)
 
 	WorldPrivate = InWorld;
 
-	ExecuteRegisterEvents();
+	ExecuteRegisterEvents(Context);
 
 	// If not in a game world register ticks now, otherwise defer until BeginPlay. If no owner we won't trigger BeginPlay either so register now in that case as well.
 	if (!InWorld->IsGameWorld())
@@ -1320,7 +1320,7 @@ void UActorComponent::K2_DestroyComponent(UObject* Object)
 	}
 }
 
-void UActorComponent::CreateRenderState_Concurrent()
+void UActorComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	check(IsRegistered());
 	check(WorldPrivate->Scene);
@@ -1423,7 +1423,7 @@ void UActorComponent::DestroyPhysicsState()
 	}
 }
 
-void UActorComponent::ExecuteRegisterEvents()
+void UActorComponent::ExecuteRegisterEvents(FRegisterComponentContext* Context)
 {
 	if(!bRegistered)
 	{
@@ -1436,7 +1436,7 @@ void UActorComponent::ExecuteRegisterEvents()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ComponentCreateRenderState);
 		LLM_SCOPE(ELLMTag::SceneRender);
-		CreateRenderState_Concurrent();
+		CreateRenderState_Concurrent(Context);
 		checkf(bRenderStateCreated, TEXT("Failed to route CreateRenderState_Concurrent (%s)"), *GetFullName());
 	}
 
@@ -1486,7 +1486,7 @@ void UActorComponent::RecreateRenderState_Concurrent()
 
 	if(IsRegistered() && WorldPrivate->Scene)
 	{
-		CreateRenderState_Concurrent();
+		CreateRenderState_Concurrent(nullptr);
 		checkf(bRenderStateCreated, TEXT("Failed to route CreateRenderState_Concurrent (%s)"), *GetFullName());
 	}
 }

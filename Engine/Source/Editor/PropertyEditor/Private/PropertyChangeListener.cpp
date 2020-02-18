@@ -113,7 +113,8 @@ public:
 			if ( OuterArrayProperty != NULL )
 			{
 				// make sure we're not trying to compare against an element that doesn't exist
-				if ( PropertyNodeRef.GetArrayIndex() >= FScriptArrayHelper::Num( PropertyValueAddresses.BaseAddress ) )
+				FScriptArrayHelper ArrayHelper(OuterArrayProperty, PropertyValueAddresses.BaseAddress);
+				if ( PropertyNodeRef.GetArrayIndex() >= ArrayHelper.Num() )
 				{
 					bPropertyValid = false;
 				}

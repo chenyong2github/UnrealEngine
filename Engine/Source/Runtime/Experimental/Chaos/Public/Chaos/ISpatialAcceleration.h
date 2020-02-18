@@ -28,7 +28,7 @@ struct CHAOS_API FQueryFastData
 
 	const bool bParallel[3];
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#ifdef _MSC_VER
 	#pragma warning (push)
 	#pragma warning(disable:4723)
 #endif
@@ -45,7 +45,7 @@ struct CHAOS_API FQueryFastData
 		}
 	}
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#ifdef _MSC_VER
 	#pragma warning(pop)
 #endif
 

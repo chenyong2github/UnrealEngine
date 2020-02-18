@@ -456,6 +456,7 @@ namespace AutomationTool
 			bool? Package = null,
 			bool? Pak = null,
 			bool? IoStore = null,
+			bool? SkipIoStore = null,
 			bool? Prereqs = null,
 			string AppLocalDirectory = null,
 			bool? NoBootstrapExe = null,
@@ -629,6 +630,7 @@ namespace AutomationTool
 			this.PakAlignForMemoryMapping = GetParamValueIfNotSpecified(Command, PakAlignForMemoryMapping, this.PakAlignForMemoryMapping, "PakAlignForMemoryMapping");
 			this.Pak = GetParamValueIfNotSpecified(Command, Pak, this.Pak, "pak");
 			this.IoStore = GetParamValueIfNotSpecified(Command, IoStore, this.IoStore, "iostore");
+			this.SkipIoStore = GetParamValueIfNotSpecified(Command, IoStore, this.SkipIoStore, "skipiostore");
 			this.SkipPak = GetParamValueIfNotSpecified(Command, SkipPak, this.SkipPak, "skippak");
 			if (this.SkipPak)
 			{
@@ -1250,6 +1252,12 @@ namespace AutomationTool
 		/// </summary>
 		[Help("skippak", "use a pak file, but assume it is already built, implies pak")]
 		public bool SkipPak { private set; get; }
+
+		/// <summary>
+		/// Shared: true if we want to skip iostore, even if -iostore is specified
+		/// </summary>
+		[Help("skipiostore", "override the -iostore commandline option to not run it")]
+		public bool SkipIoStore { private set; get; }
 
 		/// <summary>
 		/// Shared: true if this build is staged, command line: -stage
@@ -2806,6 +2814,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("MapIniSectionsToCook={0}", MapIniSectionsToCook.ToString());
 				CommandUtils.LogLog("Pak={0}", Pak);
 				CommandUtils.LogLog("IoStore={0}", IoStore);
+				CommandUtils.LogLog("SkipIoStore={0}", SkipIoStore);
 				CommandUtils.LogLog("Package={0}", Package);
 				CommandUtils.LogLog("ForcePackageData={0}", ForcePackageData);
 				CommandUtils.LogLog("NullRHI={0}", NullRHI);

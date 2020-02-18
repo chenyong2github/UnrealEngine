@@ -1272,7 +1272,7 @@ public:
 
 	virtual void OnEndOfFrameUpdateDuringTick() override;
 protected:
-	virtual void CreateRenderState_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderTransform_Concurrent() override;
 	virtual void DestroyRenderState_Concurrent() override;
 	virtual void OnRegister() override;

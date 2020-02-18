@@ -307,6 +307,7 @@ float CalculateVerticalAlignmentOffset(
 /** Caches MIDs used by text render components to avoid excessive (re)allocation of MIDs when the SCS runs */
 class FTextRenderComponentMIDCache : public FGCObject
 {
+	FCriticalSection CriticalSection;
 public:
 	/** Array of MIDs for a particular material and font */
 	struct FMIDData
@@ -419,7 +420,7 @@ public:
 
 	FMIDDataRef GetMIDData(UMaterialInterface* InMaterial, UFont* InFont)
 	{
-		checkfSlow(IsInGameThread(), TEXT("FTextRenderComponentMIDCache::GetMIDData is only expected to be called from the game thread!"));
+		FScopeLock Lock(&CriticalSection);
 
 		check(InMaterial && InFont && InFont->FontCacheType == EFontCacheType::Offline);
 
@@ -440,6 +441,8 @@ public:
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
+		FScopeLock Lock(&CriticalSection);
+
 		for (auto& MIDDataPair : CachedMIDs)
 		{
 			const FMIDDataPtr& MIDData = MIDDataPair.Value;
@@ -519,6 +522,8 @@ private:
 
 	void PurgeUnreferencedMIDs()
 	{
+		FScopeLock Lock(&CriticalSection);
+
         QUICK_SCOPE_CYCLE_COUNTER(STAT_FTextRenderComponentMIDCache_PurgeUnreferencedMIDs);
 
 		checkfSlow(IsInGameThread(), TEXT("FTextRenderComponentMIDCache::PurgeUnreferencedMIDs is only expected to be called from the game thread!"));

@@ -52,7 +52,7 @@ FNiagaraSortKeyGenCS::FNiagaraSortKeyGenCS(const ShaderMetaType::CompiledShaderI
 	OutParticleIndices.Bind(Initializer.ParameterMap, TEXT("OutParticleIndices"));
 }
 
-bool FNiagaraSortKeyGenCS::Serialize(FArchive& Ar)
+/*bool FNiagaraSortKeyGenCS::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 	Ar << NiagaraParticleDataFloat;
@@ -66,18 +66,18 @@ bool FNiagaraSortKeyGenCS::Serialize(FArchive& Ar)
 	Ar << OutKeys;
 	Ar << OutParticleIndices;
 	return bShaderHasOutdatedParameters;
-}
+}*/
 
 void FNiagaraSortKeyGenCS::SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* OutKeysUAV, FRHIUnorderedAccessView* OutIndicesUAV)
 {
-	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, OutKeys, OutKeysUAV);
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, OutParticleIndices, OutIndicesUAV);
 }
 
 void FNiagaraSortKeyGenCS::SetParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSortInfo& SortInfo, uint32 EmitterKey, int32 OutputOffset, const FUintVector4& SortKeyParamsValue)
 {
-	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, NiagaraParticleDataFloat, SortInfo.ParticleDataFloatSRV);
 	SetShaderValue(RHICmdList, ComputeShaderRHI, FloatDataStride, SortInfo.FloatDataStride);
@@ -99,7 +99,7 @@ void FNiagaraSortKeyGenCS::SetParameters(FRHICommandList& RHICmdList, const FNia
 
 void FNiagaraSortKeyGenCS::UnbindBuffers(FRHICommandList& RHICmdList)
 {
-	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
+	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, NiagaraParticleDataFloat, nullptr);
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, GPUParticleCountBuffer, nullptr);
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, OutKeys, nullptr);

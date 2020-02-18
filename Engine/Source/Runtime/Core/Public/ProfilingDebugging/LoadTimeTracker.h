@@ -13,9 +13,14 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Trace/Config.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Stats/Stats.h"
 
 #ifndef ENABLE_LOADTIME_TRACKING
 	#define ENABLE_LOADTIME_TRACKING 0
+#endif
+
+#ifndef ENABLE_LOADTIME_TRACKING_WITH_STATS
+	#define ENABLE_LOADTIME_TRACKING_WITH_STATS 0
 #endif
 
 #define ENABLE_LOADTIME_RAW_TIMINGS 0
@@ -216,4 +221,12 @@ struct CORE_API FScopedLoadTimeAccumulatorTimer : public FScopedDurationTimer
 
 #define SCOPED_LOADTIMER(TimerName) TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TimerName, LoadTimeChannel)
 #define SCOPED_LOADTIMER_CNT(TimerName)
+#endif
+
+#if ENABLE_LOADTIME_TRACKING_WITH_STATS && STATS
+	#define SCOPED_ACCUM_LOADTIME_STAT(InstanceName) FSimpleScopeSecondsStat ScopeTimer(FDynamicStats::CreateStatIdDouble<FStatGroup_STATGROUP_LoadTimeClass>(InstanceName, true), 1000.0);
+	#define ACCUM_LOADTIMECOUNT_STAT(InstanceName) INC_DWORD_STAT_FNAME_BY(FDynamicStats::CreateStatIdInt64<FStatGroup_STATGROUP_LoadTimeClassCount>(InstanceName+TEXT("_Count"), true).GetName(), 1);
+#else
+	#define SCOPED_ACCUM_LOADTIME_STAT(...)
+	#define ACCUM_LOADTIMECOUNT_STAT(...)
 #endif

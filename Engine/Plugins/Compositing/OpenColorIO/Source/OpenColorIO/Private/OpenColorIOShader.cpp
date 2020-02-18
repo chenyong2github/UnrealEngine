@@ -15,6 +15,7 @@
 #include "Stats/StatsMisc.h"
 #include "UObject/UObjectGlobals.h"
 
+IMPLEMENT_TYPE_LAYOUT(FOpenColorIOShader);
 
 IMPLEMENT_SHADER_TYPE(, FOpenColorIOPixelShader, TEXT("/Plugin/OpenColorIO/Private/OpenColorIOShader.usf"), TEXT("MainPS"), SF_Pixel)
 
@@ -23,7 +24,7 @@ IMPLEMENT_SHADER_TYPE(, FOpenColorIOPixelShader, TEXT("/Plugin/OpenColorIO/Priva
 
 
 FOpenColorIOPixelShader::FOpenColorIOPixelShader(const FOpenColorIOShaderType::CompiledShaderInitializerType& Initializer)
-	: FShader(Initializer)
+	: FOpenColorIOShader(Initializer)
 	, DebugDescription(Initializer.DebugDescription)
 {
 	BindParams(Initializer.ParameterMap);
@@ -31,12 +32,12 @@ FOpenColorIOPixelShader::FOpenColorIOPixelShader(const FOpenColorIOShaderType::C
 
 void FOpenColorIOPixelShader::SetParameters(FRHICommandList& InRHICmdList, FTextureResource* InInputTexture)
 {
-	SetTextureParameter(InRHICmdList, GetPixelShader(), InputTexture, InputTextureSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InInputTexture->TextureRHI);
+	SetTextureParameter(InRHICmdList, InRHICmdList.GetBoundPixelShader(), InputTexture, InputTextureSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InInputTexture->TextureRHI);
 }
 
 void FOpenColorIOPixelShader::SetLUTParameter(FRHICommandList& InRHICmdList, FTextureResource* InLUT3dResource)
 {
-	SetTextureParameter(InRHICmdList, GetPixelShader(), OCIO3dTexture, OCIO3dTextureSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InLUT3dResource->TextureRHI);
+	SetTextureParameter(InRHICmdList, InRHICmdList.GetBoundPixelShader(), OCIO3dTexture, OCIO3dTextureSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InLUT3dResource->TextureRHI);
 }
 
 void FOpenColorIOPixelShader::BindParams(const FShaderParameterMap &ParameterMap)
@@ -46,25 +47,5 @@ void FOpenColorIOPixelShader::BindParams(const FShaderParameterMap &ParameterMap
 
 	OCIO3dTexture.Bind(ParameterMap, OpenColorIOShader::OCIOLut3dName);
 	OCIO3dTextureSampler.Bind(ParameterMap, TEXT("ociolut3d_0Sampler"));
-}
-
-bool FOpenColorIOPixelShader::Serialize(FArchive& Ar)
-{
-	const bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
-
-	Ar << InputTexture;	
-	Ar << InputTextureSampler;
-
-	Ar << OCIO3dTexture;
-	Ar << OCIO3dTextureSampler;
-
-	Ar << DebugDescription;
-
-	return bShaderHasOutdatedParameters;
-}
-
-uint32 FOpenColorIOPixelShader::GetAllocatedSize() const
-{
-	return FShader::GetAllocatedSize() + DebugDescription.GetAllocatedSize();
 }
 

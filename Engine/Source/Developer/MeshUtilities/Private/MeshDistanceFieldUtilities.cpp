@@ -681,7 +681,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 					int32 CompressedSize = TempCompressedMemory.Num() * TempCompressedMemory.GetTypeSize();
 
 					verify(FCompression::CompressMemory(
-						NAME_Zlib, 
+						NAME_LZ4, 
 						TempCompressedMemory.GetData(), 
 						CompressedSize, 
 						QuantizedDistanceFieldVolume.GetData(), 
@@ -775,7 +775,7 @@ void FMeshUtilities::DownSampleDistanceFieldVolumeData(FDistanceFieldVolumeData&
 	if (bDataIsCompressed)
 	{
 		UncompressedData.AddUninitialized(UncompressedSize);
-		verify(FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedSize, DistanceFieldData.CompressedDistanceFieldVolume.GetData(), DistanceFieldData.CompressedDistanceFieldVolume.Num()));
+		verify(FCompression::UncompressMemory(NAME_LZ4, UncompressedData.GetData(), UncompressedSize, DistanceFieldData.CompressedDistanceFieldVolume.GetData(), DistanceFieldData.CompressedDistanceFieldVolume.Num()));
 		SourceData = &UncompressedData;
 	}
 
@@ -864,7 +864,7 @@ void FMeshUtilities::DownSampleDistanceFieldVolumeData(FDistanceFieldVolumeData&
 		int32 CompressedSize = TempCompressedMemory.Num() * TempCompressedMemory.GetTypeSize();
 
 		verify(FCompression::CompressMemory(
-			NAME_Zlib,
+			NAME_LZ4,
 			TempCompressedMemory.GetData(),
 			CompressedSize,
 			DownSampledTexture.GetData(),

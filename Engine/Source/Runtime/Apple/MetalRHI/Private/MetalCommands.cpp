@@ -91,16 +91,16 @@ mtlpp::PrimitiveType TranslatePrimitiveType(uint32 PrimitiveType)
 static FORCEINLINE EMetalShaderStages GetShaderStage(FRHIGraphicsShader* ShaderRHI)
 {
 	EMetalShaderStages Stage = EMetalShaderStages::Num;
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:		Stage = EMetalShaderStages::Vertex; break;
+	case SF_Vertex:		Stage = EMetalShaderStages::Vertex; break;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case FRHIShader::EType::Hull:		Stage = EMetalShaderStages::Hull; break;
-	case FRHIShader::EType::Domain:		Stage = EMetalShaderStages::Domain; break;
+	case SF_Hull:		Stage = EMetalShaderStages::Hull; break;
+	case SF_Domain:		Stage = EMetalShaderStages::Domain; break;
 #endif
-	case FRHIShader::EType::Pixel:		Stage = EMetalShaderStages::Pixel; break;
+	case SF_Pixel:		Stage = EMetalShaderStages::Pixel; break;
 	default:
-		checkf(0, TEXT("FRHIShader Type %d is invalid or unsupported!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("FRHIShader Type %d is invalid or unsupported!"), (int32)ShaderRHI->GetFrequency());
 		NOT_SUPPORTED("RHIShaderStage");
 		break;
 	}
@@ -406,9 +406,9 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* Shad
 	TMap<uint32, TBitArray<>>* ArgumentBitmasks = nullptr;
 	TMap<uint32, mtlpp::ArgumentEncoder>* ArgumentEncoders = nullptr;
 	FMetalShaderBindings* Bindings = nullptr;
-	switch (ShaderRHI->GetType())
+	switch (ShaderRHI->GetFrequency())
 	{
-	case FRHIShader::EType::Vertex:
+	case SF_Vertex:
 	{
 		FMetalVertexShader* VertexShader = ResourceCast(static_cast<FRHIVertexShader*>(ShaderRHI));
 		ArgumentBitmasks = &VertexShader->ArgumentBitmasks;
@@ -418,7 +418,7 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* Shad
 	}
 		break;
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	case FRHIShader::EType::Hull:
+	case SF_Hull:
 	{
 		Stage = EMetalShaderStages::Hull;
 		FMetalHullShader* HullShader = ResourceCast(static_cast<FRHIHullShader*>(ShaderRHI));
@@ -427,7 +427,7 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* Shad
 		Bindings = &HullShader->Bindings;
 	}
 		break;
-	case FRHIShader::EType::Domain:
+	case SF_Domain:
 	{
 		Stage = EMetalShaderStages::Domain;
 		FMetalDomainShader* DomainShader = ResourceCast(static_cast<FRHIDomainShader*>(ShaderRHI));
@@ -437,7 +437,7 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* Shad
 	}
 		break;
 #endif
-	case FRHIShader::EType::Pixel:
+	case SF_Pixel:
 	{
 		Stage = EMetalShaderStages::Pixel;
 		FMetalPixelShader* PixelShader = ResourceCast(static_cast<FRHIPixelShader*>(ShaderRHI));
@@ -447,7 +447,7 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* Shad
 	}
 		break;
 	default:
-		checkf(0, TEXT("FRHIShader Type %d is invalid or unsupported!"), (int32)ShaderRHI->GetType());
+		checkf(0, TEXT("FRHIShader Type %d is invalid or unsupported!"), (int32)ShaderRHI->GetFrequency());
 		NOT_SUPPORTED("RHIShaderStage");
 		break;
 	}

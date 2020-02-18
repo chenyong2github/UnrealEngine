@@ -1845,8 +1845,8 @@ NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) con
 {
 	if (bGPUScript)
 	{
-		FNiagaraShader *Shader = ScriptResource.GetShaderGameThread();
-		if (Shader)
+		FNiagaraShaderRef Shader = ScriptResource.GetShaderGameThread();
+		if (Shader.IsValid())
 		{
 			return false;
 		}
@@ -1866,8 +1866,8 @@ NIAGARA_API bool UNiagaraScript::DidScriptCompilationSucceed(bool bGPUScript) co
 {
 	if (bGPUScript)
 	{
-		FNiagaraShader *Shader = ScriptResource.GetShaderGameThread();
-		if (Shader)
+		FNiagaraShaderRef Shader = ScriptResource.GetShaderGameThread();
+		if (Shader.IsValid())
 		{
 			return true;
 		}
@@ -1942,8 +1942,6 @@ void ProcessSerializedShaderMaps(UNiagaraScript* Owner, TArray<FNiagaraShaderScr
 
 	for (FNiagaraShaderScript& LoadedResource : LoadedResources)
 	{
-		LoadedResource.RegisterShaderMap();
-
 		FNiagaraShaderMap* LoadedShaderMap = LoadedResource.GetGameThreadShaderMap();
 		if (LoadedShaderMap && LoadedShaderMap->GetShaderPlatform() == GMaxRHIShaderPlatform)
 		{
@@ -1956,7 +1954,7 @@ void ProcessSerializedShaderMaps(UNiagaraScript* Owner, TArray<FNiagaraShaderScr
 			}
 
 			OutScriptResourcesLoaded[LoadedFeatureLevel]->SetShaderMap(LoadedShaderMap);
-			OutResourceForCurrentPlatform.SetDataInterfaceParamInfo(LoadedResource.GetShaderGameThread()->GetDIParameters());
+			OutResourceForCurrentPlatform.SetDataInterfaceParamInfo(Owner->GetVMExecutableData().DIParamInfo);
 
 			break;
 		}

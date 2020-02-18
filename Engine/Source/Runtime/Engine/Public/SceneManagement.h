@@ -1002,7 +1002,7 @@ public:
 	}
 };
 
-inline bool DoesPlatformSupportDistanceFields(EShaderPlatform Platform)
+inline bool DoesPlatformSupportDistanceFields(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_PCD3D_SM5
 		|| Platform == SP_PS4
@@ -1011,7 +1011,7 @@ inline bool DoesPlatformSupportDistanceFields(EShaderPlatform Platform)
 		|| IsVulkanSM5Platform(Platform)
 		|| Platform == SP_SWITCH
 		|| Platform == SP_SWITCH_FORWARD
-		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsDistanceFields;
+		|| FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(Platform);
 }
 
 inline bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform)

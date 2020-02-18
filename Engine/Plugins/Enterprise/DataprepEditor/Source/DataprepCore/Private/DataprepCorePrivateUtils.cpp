@@ -207,7 +207,7 @@ void DataprepCorePrivateUtils::ClearAssets(const TArray<TWeakObjectPtr<UObject>>
 		if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(ObjectPtr.Get()))
 		{
 			StaticMesh->PreEditChange( nullptr );
-			StaticMesh->RenderData.Reset();
+			StaticMesh->RenderData.Reset(nullptr);
 		}
 	}
 }

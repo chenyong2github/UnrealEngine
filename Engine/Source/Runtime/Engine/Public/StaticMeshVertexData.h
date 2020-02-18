@@ -11,8 +11,8 @@ template<typename VertexDataType>
 class TStaticMeshVertexData :
 	public FStaticMeshVertexDataInterface
 {
-	TResourceArray<VertexDataType, VERTEXBUFFER_ALIGNMENT> Data;
-
+	using FVertexResourceArray = TResourceArray<VertexDataType, VERTEXBUFFER_ALIGNMENT>;
+	FVertexResourceArray Data;
 public:
 
 	/**
@@ -96,7 +96,7 @@ public:
 	*/
 	void Serialize(FArchive& Ar, bool bForcePerElementSerialization = false) override
 	{
-		Data.TResourceArray<VertexDataType, VERTEXBUFFER_ALIGNMENT>::BulkSerialize(Ar, bForcePerElementSerialization);
+		Data.FVertexResourceArray::BulkSerialize(Ar, bForcePerElementSerialization);
 	}
 	/**
 	* Assignment. This is currently the only method which allows for 
@@ -136,5 +136,10 @@ public:
 	bool GetAllowCPUAccess() const override
 	{
 		return Data.GetAllowCPUAccess();
+	}
+
+	void OverrideFreezeSizeAndAlignment(int64& Size, int32& Alignment) const override
+	{
+		Size = sizeof(*this);
 	}
 };

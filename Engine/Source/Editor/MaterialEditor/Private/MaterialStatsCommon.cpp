@@ -237,7 +237,7 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 			return false;
 
 		default:
-			return FDataDrivenShaderPlatformInfo::GetInfo(ShaderPlatform).bNeedsOfflineCompiler;
+			return FDataDrivenShaderPlatformInfo::GetNeedsOfflineCompiler(ShaderPlatform);
 	}
 
 	return false;
@@ -626,8 +626,8 @@ void FMaterialStatsUtils::GetRepresentativeInstructionCounts(TArray<FShaderInstr
 				const FMeshMaterialShaderMap* MeshShaderMap = MaterialShaderMap->GetMeshShaderMap(FactoryType);
 				if (MeshShaderMap)
 				{
-					TMap<FName, FShader*> ShaderMap;
-					MeshShaderMap->GetShaderList(ShaderMap);
+					TMap<FHashedName, TShaderRef<FShader>> ShaderMap;
+					MeshShaderMap->GetShaderList(*MaterialShaderMap, ShaderMap);
 
 					auto& DescriptionArray = DescriptionPair.Value;
 
@@ -635,12 +635,12 @@ void FMaterialStatsUtils::GetRepresentativeInstructionCounts(TArray<FShaderInstr
 					{
 						const FRepresentativeShaderInfo& ShaderInfo = DescriptionArray[i];
 
-						FShader** ShaderEntry = ShaderMap.Find(ShaderInfo.ShaderName);
+						TShaderRef<FShader>* ShaderEntry = ShaderMap.Find(ShaderInfo.ShaderName);
 						if (ShaderEntry != nullptr)
 						{
-							FShaderType* ShaderType = (*ShaderEntry)->GetType();
+							FShaderType* ShaderType = (*ShaderEntry).GetType();
 							{
-								const int32 NumInstructions = MeshShaderMap->GetMaxNumInstructionsForShader(ShaderType);
+								const int32 NumInstructions = MeshShaderMap->GetMaxNumInstructionsForShader(*MaterialShaderMap, ShaderType);
 
 								FShaderInstructionsInfo Info;
 								Info.ShaderType = ShaderInfo.ShaderType;

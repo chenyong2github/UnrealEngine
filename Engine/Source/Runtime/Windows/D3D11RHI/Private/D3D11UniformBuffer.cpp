@@ -247,6 +247,7 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 		NewUniformBuffer = new FD3D11UniformBuffer(this, Layout, nullptr, FRingAllocation());
 	}
 
+	const TCHAR* LayoutName = *Layout.GetDebugName();
 	if (Layout.Resources.Num())
 	{
 		int32 NumResources = Layout.Resources.Num();
@@ -255,16 +256,18 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 
 		for (int32 i = 0; i < NumResources; ++i)
 		{
-			FRHIResource* Resource = *(FRHIResource**)((uint8*)Contents + Layout.Resources[i].MemberOffset);
+			const FRHIUniformBufferLayout::FResourceParameter& ResourceParam = Layout.Resources[i];
+			FRHIResource* Resource = *(FRHIResource**)((uint8*)Contents + ResourceParam.MemberOffset);
 
 			// Allow null SRV's in uniform buffers for feature levels that don't support SRV's in shaders
 			if (!(GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 
 				&& (Layout.Resources[i].MemberType == UBMT_SRV || Layout.Resources[i].MemberType == UBMT_UAV || Layout.Resources[i].MemberType == UBMT_RDG_TEXTURE_SRV || Layout.Resources[i].MemberType == UBMT_RDG_BUFFER_SRV))
 				&& Validation == EUniformBufferValidation::ValidateResources)
 			{
-				checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."), *Layout.GetDebugName().ToString(), i, Layout.Resources[i].MemberType);
+				checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."), *Layout.GetDebugName(), i, Layout.Resources[i].MemberType);
 			}
 			NewUniformBuffer->ResourceTable[i] = Resource;
+			int a = 0;
 		}
 	}
 
@@ -316,7 +319,7 @@ void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 				&& UniformBufferValidation == EUniformBufferValidation::ValidateResources)
 			{
 				checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."),
-					*Layout.GetDebugName().ToString(),
+					*Layout.GetDebugName(),
 					ResourceIndex,
 					Layout.Resources[ResourceIndex].MemberType);
 			}
@@ -342,7 +345,7 @@ void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 					&& UniformBufferValidation == EUniformBufferValidation::ValidateResources)
 				{
 					checkf(Resource, TEXT("Invalid resource entry creating uniform buffer, %s.Resources[%u], ResourceType 0x%x."),
-						*Layout.GetDebugName().ToString(),
+						*Layout.GetDebugName(),
 						ResourceIndex,
 						Layout.Resources[ResourceIndex].MemberType);
 				}

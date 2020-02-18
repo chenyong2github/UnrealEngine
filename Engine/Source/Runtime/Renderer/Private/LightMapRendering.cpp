@@ -12,6 +12,8 @@ LightMapRendering.cpp: Light map rendering implementations.
 #include "Runtime/Renderer/Private/VT/VirtualTextureSpace.h"
 #include "VT/VirtualTextureSpace.h"
 
+IMPLEMENT_TYPE_LAYOUT(FUniformLightMapPolicyShaderParametersType);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FIndirectLightingCacheUniformParameters, "IndirectLightingCache");
 
 const TCHAR* GLightmapDefineName[2] =

@@ -431,7 +431,7 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 				}
 			}
 
-			if (Parent->GetDescriptor().SupportedTargetPlatforms.Num() != 0 && Child->GetDescriptor().SupportedTargetPlatforms.Num() != 0)
+			if (Parent->GetDescriptor().SupportedTargetPlatforms.Num() != 0)
 			{
 				for (const FString& SupportedTargetPlatform : Child->GetDescriptor().SupportedTargetPlatforms)
 				{

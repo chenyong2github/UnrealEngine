@@ -8,6 +8,8 @@
 
 #include "BoundShaderStateCache.h"
 #include "MetalShaderResources.h"
+#include "ShaderCodeArchive.h"
+
 THIRD_PARTY_INCLUDES_START
 #include "mtlpp.hpp"
 THIRD_PARTY_INCLUDES_END
@@ -95,7 +97,7 @@ public:
 		Function = nil;
 	}
 	
-	void Init(const TArray<uint8>& InCode, FMetalCodeHeader& Header, mtlpp::Library InLibrary = nil);
+	void Init(TArrayView<const uint8> InCode, FMetalCodeHeader& Header, mtlpp::Library InLibrary = nil);
 
 	/** Destructor */
 	virtual ~TMetalBaseShader();
@@ -180,8 +182,8 @@ private:
 class FMetalVertexShader : public TMetalBaseShader<FRHIVertexShader, SF_Vertex>
 {
 public:
-	FMetalVertexShader(const TArray<uint8>& InCode);
-	FMetalVertexShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary);
+	FMetalVertexShader(TArrayView<const uint8> InCode);
+	FMetalVertexShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary);
 	
 	mtlpp::Function GetFunction();
 	
@@ -205,8 +207,8 @@ public:
 class FMetalPixelShader : public TMetalBaseShader<FRHIPixelShader, SF_Pixel>
 {
 public:
-	FMetalPixelShader(const TArray<uint8>& InCode);
-	FMetalPixelShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary);
+	FMetalPixelShader(TArrayView<const uint8> InCode);
+	FMetalPixelShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary);
 	
 	mtlpp::Function GetFunction();
 };
@@ -215,8 +217,8 @@ public:
 class FMetalHullShader : public TMetalBaseShader<FRHIHullShader, SF_Hull>
 {
 public:
-	FMetalHullShader(const TArray<uint8>& InCode);
-	FMetalHullShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary);
+	FMetalHullShader(TArrayView<const uint8> InCode);
+	FMetalHullShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary);
 	
 	mtlpp::Function GetFunction();
 	
@@ -240,8 +242,8 @@ public:
 class FMetalDomainShader : public TMetalBaseShader<FRHIDomainShader, SF_Domain>
 {
 public:
-	FMetalDomainShader(const TArray<uint8>& InCode);
-	FMetalDomainShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary);
+	FMetalDomainShader(TArrayView<const uint8> InCode);
+	FMetalDomainShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary);
 	
 	mtlpp::Function GetFunction();
 	
@@ -263,7 +265,7 @@ typedef TMetalBaseShader<FRHIGeometryShader, SF_Geometry> FMetalGeometryShader;
 class FMetalComputeShader : public TMetalBaseShader<FRHIComputeShader, SF_Compute>
 {
 public:
-	FMetalComputeShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary = nil);
+	FMetalComputeShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary = nil);
 	virtual ~FMetalComputeShader();
 	
 	FMetalShaderPipeline* GetPipeline();
@@ -1223,60 +1225,52 @@ private:
 class FMetalShaderLibrary final : public FRHIShaderLibrary
 {	
 public:
-	FMetalShaderLibrary(EShaderPlatform Platform, FString const& Name, TArray<mtlpp::Library> Library, FMetalShaderMap const& Map, const FString& InShaderLibraryFilename);
+	FMetalShaderLibrary(EShaderPlatform Platform,
+		FString const& Name,
+		const FString& InShaderLibraryFilename,
+		const FMetalShaderLibraryHeader& InHeader,
+		const FSerializedShaderArchive& InSerializedShaders,
+		const TArray<uint8>& InShaderCode,
+		const TArray<mtlpp::Library>& InLibrary);
 	virtual ~FMetalShaderLibrary();
 	
 	virtual bool IsNativeLibrary() const override final {return true;}
-		
-	class FMetalShaderLibraryIterator : public FRHIShaderLibrary::FShaderLibraryIterator
-	{
-	public:
-		FMetalShaderLibraryIterator(FMetalShaderLibrary* MetalShaderLibrary) : FShaderLibraryIterator(MetalShaderLibrary), IteratorImpl(MetalShaderLibrary->Map.HashMap.CreateIterator()) {}
-		
-		virtual bool IsValid() const final override
-		{
-			return !!IteratorImpl;
-		}
-		
-		virtual FShaderLibraryEntry operator*() const final override;
-		virtual FShaderLibraryIterator& operator++() final override
-		{
-			++IteratorImpl;
-			return *this;
-		}
-		
-	private:		
-		TMap<FSHAHash, FMetalShadeEntry>::TIterator IteratorImpl;
-	};
-	
-	virtual TRefCountPtr<FShaderLibraryIterator> CreateIterator(void) final override
-	{
-		return new FMetalShaderLibraryIterator(this);
-	}
-	
-	virtual bool ContainsEntry(const FSHAHash& Hash) final override;
-	virtual bool RequestEntry(const FSHAHash& Hash, FArchive* Ar) final override;
-	
-	virtual uint32 GetShaderCount(void) const final override { return Map.HashMap.Num(); }
-	
-private:
 
-	friend class FMetalDynamicRHI;
-	
-	FPixelShaderRHIRef CreatePixelShader(const FSHAHash& Hash);
-	FVertexShaderRHIRef CreateVertexShader(const FSHAHash& Hash);
-	FHullShaderRHIRef CreateHullShader(const FSHAHash& Hash);
-	FDomainShaderRHIRef CreateDomainShader(const FSHAHash& Hash);
-	FGeometryShaderRHIRef CreateGeometryShader(const FSHAHash& Hash);
-	FComputeShaderRHIRef CreateComputeShader(const FSHAHash& Hash);
+	virtual int32 GetNumShaders() const override { return SerializedShaders.ShaderEntries.Num(); }
+	virtual int32 GetNumShaderMaps() const override { return SerializedShaders.ShaderMapEntries.Num(); }
+	virtual int32 GetNumShadersForShaderMap(int32 ShaderMapIndex) const override { return SerializedShaders.ShaderMapEntries[ShaderMapIndex].NumShaders; }
+
+	virtual int32 GetShaderIndex(int32 ShaderMapIndex, int32 i) const override
+	{
+		const FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
+		return SerializedShaders.ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i];
+	}
+
+	virtual int32 FindShaderMapIndex(const FSHAHash& Hash) override
+	{
+		return SerializedShaders.FindShaderMap(Hash);
+	}
+
+	virtual int32 FindShaderIndex(const FSHAHash& Hash) override
+	{
+		return SerializedShaders.FindShader(Hash);
+	}
+
+	/** No preload support */
+	virtual FGraphEventRef PreloadShader(int32 ShaderIndex) override { return FGraphEventRef(); }
+	virtual FGraphEventRef PreloadShaderMap(int32 ShaderMapIndex) override { return FGraphEventRef(); }
+
+	virtual TRefCountPtr<FRHIShader> CreateShader(int32 Index) override;
 	
 private:
+	FString ShaderLibraryFilename;
 	TArray<mtlpp::Library> Library;
+	FMetalShaderLibraryHeader Header;
+	FSerializedShaderArchive SerializedShaders;
+	TArray<uint8> ShaderCode;
 #if !UE_BUILD_SHIPPING
 	class FMetalShaderDebugZipFile* DebugFile;
 #endif
-	FMetalShaderMap Map;
-	FString ShaderLibraryFilename;
 };
 
 template<class T>

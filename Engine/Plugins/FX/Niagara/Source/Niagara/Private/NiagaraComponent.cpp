@@ -127,8 +127,6 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		, PerfAsset(InComponent->GetAsset())
 #endif
 {
-	// In this case only, update the System renderers on the game thread.
-	check(IsInGameThread());
 	FNiagaraSystemInstance* SystemInst = InComponent->GetSystemInstance();
 	if (SystemInst)
 	{
@@ -1187,9 +1185,9 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	}
 }
 
-void UNiagaraComponent::CreateRenderState_Concurrent()
+void UNiagaraComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
-	Super::CreateRenderState_Concurrent();
+	Super::CreateRenderState_Concurrent(Context);
 	// The emitter instance may not tick again next frame so we send the dynamic data here so that the current state
 	// renders.  This can happen when while editing, or any time the age update mode is set to desired age.
 	SendRenderDynamicData_Concurrent();

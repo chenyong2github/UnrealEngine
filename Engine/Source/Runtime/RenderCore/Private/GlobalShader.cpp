@@ -9,6 +9,7 @@
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Serialization/NameAsStringProxyArchive.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
@@ -16,8 +17,12 @@
 #include "Misc/App.h"
 #include "StaticBoundShaderState.h"
 
+
 /** The global shader map. */
-TShaderMap<FGlobalShaderType>* GGlobalShaderMap[SP_NumPlatforms] = {};
+FGlobalShaderMap* GGlobalShaderMap[SP_NumPlatforms] = {};
+
+IMPLEMENT_TYPE_LAYOUT(FGlobalShader);
+IMPLEMENT_TYPE_LAYOUT(FGlobalShaderMapContent);
 
 IMPLEMENT_SHADER_TYPE(,FNULLPS,TEXT("/Engine/Private/NullPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
@@ -87,7 +92,7 @@ FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform)
 		FShaderType* ShaderType = ShaderTypes[TypeIndex];
 		FShaderTypeDependency Dependency(ShaderType, Platform);
 
-		const TCHAR* ShaderFilename = Dependency.ShaderType->GetShaderFilename();
+		const TCHAR* ShaderFilename = ShaderType->GetShaderFilename();
 
 		TArray<FShaderTypeDependency>& Dependencies = ShaderFilenameToDependenciesMap.FindOrAdd(ShaderFilename);
 
@@ -104,31 +109,51 @@ FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform)
 	}
 }
 
-void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies) const
+void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies, const ITargetPlatform* TargetPlatform) const
 {
 #if WITH_EDITOR
+
+	FPlatformTypeLayoutParameters LayoutParams;
+	if (TargetPlatform)
+	{
+		LayoutParams.InitializeForPlatform(TargetPlatform->IniPlatformName(), TargetPlatform->HasEditorOnlyData());
+	}
+	else
+	{
+		LayoutParams.InitializeForCurrent();
+	}
+
+	{
+		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FGlobalShaderMapContent>(), LayoutParams);
+		KeyString += TEXT("_");
+		KeyString += LayoutHash.ToString();
+		KeyString += TEXT("_");
+	}
+
 	TMap<const TCHAR*,FCachedUniformBufferDeclaration> ReferencedUniformBuffers;
 
 	for (int32 ShaderIndex = 0; ShaderIndex < Dependencies.Num(); ShaderIndex++)
 	{
 		const FShaderTypeDependency& ShaderTypeDependency = Dependencies[ShaderIndex];
+		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
 
 		KeyString += TEXT("_");
-		KeyString += ShaderTypeDependency.ShaderType->GetName();
+		KeyString += ShaderType->GetName();
 		KeyString += FString::Printf(TEXT("%i"), ShaderTypeDependency.PermutationId);
 
 		// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
 		KeyString += ShaderTypeDependency.SourceHash.ToString();
 
-		if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderTypeDependency.ShaderType->GetRootParametersMetadata())
+		if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
 		{
 			KeyString += FString::Printf(TEXT("%08x"), ParameterStructMetadata->GetLayoutHash());
 		}
 
 		// Add the serialization history to the key string so that we can detect changes to global shader serialization without a corresponding .usf change
-		ShaderTypeDependency.ShaderType->GetSerializationHistory().AppendKeyString(KeyString);
+		const FSHAHash LayoutHash = Freeze::HashLayout(ShaderType->GetLayout(), LayoutParams);
+		KeyString += LayoutHash.ToString();
 
-		const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& ReferencedUniformBufferStructsCache = ShaderTypeDependency.ShaderType->GetReferencedUniformBufferStructsCache();
+		const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& ReferencedUniformBufferStructsCache = ShaderType->GetReferencedUniformBufferStructsCache();
 
 		// Gather referenced uniform buffers
 		for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TConstIterator It(ReferencedUniformBufferStructsCache); It; ++It)
@@ -140,14 +165,15 @@ void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShade
 	for (int32 Index = 0; Index < ShaderPipelineTypeDependencies.Num(); ++Index)
 	{
 		const FShaderPipelineTypeDependency& Dependency = ShaderPipelineTypeDependencies[Index];
+		const FShaderPipelineType* ShaderPipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(Dependency.ShaderPipelineTypeName);
 
 		KeyString += TEXT("_");
-		KeyString += Dependency.ShaderPipelineType->GetName();
+		KeyString += ShaderPipelineType->GetName();
 
 		// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
 		KeyString += Dependency.StagesSourceHash.ToString();
 
-		for (const FShaderType* ShaderType : Dependency.ShaderPipelineType->GetStages())
+		for (const FShaderType* ShaderType : ShaderPipelineType->GetStages())
 		{
 			if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
 			{
@@ -184,6 +210,7 @@ FGlobalShader::FGlobalShader(const ShaderMetaType::CompiledShaderInitializerType
 
 void BackupGlobalShaderMap(FGlobalShaderBackupData& OutGlobalShaderBackup)
 {
+#if 0
 	for (int32 i = (int32)ERHIFeatureLevel::ES2; i < (int32)ERHIFeatureLevel::Num; ++i)
 	{
 		EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform((ERHIFeatureLevel::Type)i);
@@ -192,7 +219,7 @@ void BackupGlobalShaderMap(FGlobalShaderBackupData& OutGlobalShaderBackup)
 			TUniquePtr<TArray<uint8>> ShaderData = MakeUnique<TArray<uint8>>();
 			FMemoryWriter Ar(*ShaderData);
 			GGlobalShaderMap[ShaderPlatform]->SerializeInline(Ar, true, true, false, nullptr);
-			GGlobalShaderMap[ShaderPlatform]->RegisterSerializedShaders(false);
+			//GGlobalShaderMap[ShaderPlatform]->RegisterSerializedShaders(false);
 			GGlobalShaderMap[ShaderPlatform]->Empty();
 			OutGlobalShaderBackup.FeatureLevelShaderData[i] = MoveTemp(ShaderData);
 		}
@@ -203,10 +230,13 @@ void BackupGlobalShaderMap(FGlobalShaderBackupData& OutGlobalShaderBackup)
 	{
 		BeginUpdateResourceRHI(*It);
 	}
+#endif
+	check(0);
 }
 
 void RestoreGlobalShaderMap(const FGlobalShaderBackupData& GlobalShaderBackup)
 {
+#if 0
 	for (int32 i = (int32)ERHIFeatureLevel::ES2; i < (int32)ERHIFeatureLevel::Num; ++i)
 	{
 		EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform((ERHIFeatureLevel::Type)i);		
@@ -216,16 +246,202 @@ void RestoreGlobalShaderMap(const FGlobalShaderBackupData& GlobalShaderBackup)
 		{
 			FMemoryReader Ar(*GlobalShaderBackup.FeatureLevelShaderData[i]);
 			GGlobalShaderMap[ShaderPlatform]->SerializeInline(Ar, true, true, false, nullptr);
-			GGlobalShaderMap[ShaderPlatform]->RegisterSerializedShaders(false);
+			//GGlobalShaderMap[ShaderPlatform]->RegisterSerializedShaders(false);
 		}
 	}
+#endif
+	check(0);
 }
 
 
-TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(EShaderPlatform Platform)
+FGlobalShaderMap* GetGlobalShaderMap(EShaderPlatform Platform)
 {
 	// If the global shader map hasn't been created yet
 	check(GGlobalShaderMap[Platform]);
-
 	return GGlobalShaderMap[Platform];
+}
+
+FGlobalShaderMapSection* FGlobalShaderMapSection::CreateFromArchive(FArchive& Ar)
+{
+	FGlobalShaderMapSection* Section = new FGlobalShaderMapSection();
+	Section->Serialize(Ar);
+	return Section;
+}
+
+void FGlobalShaderMapSection::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar, true, false);
+}
+
+TShaderRef<FShader> FGlobalShaderMapSection::GetShader(FShaderType* ShaderType, int32 PermutationId) const
+{
+	return TShaderRef<FShader>(GetContent()->GetShader(ShaderType, PermutationId), *this);
+}
+
+FShaderPipelineRef FGlobalShaderMapSection::GetShaderPipeline(const FShaderPipelineType* PipelineType) const
+{
+	return FShaderPipelineRef(GetContent()->GetShaderPipeline(PipelineType), *this);
+}
+
+FGlobalShaderMap::FGlobalShaderMap(EShaderPlatform InPlatform)
+	: Platform(InPlatform)
+{
+}
+
+FGlobalShaderMap::~FGlobalShaderMap()
+{
+	for (const auto& It : SectionMap)
+	{
+		delete It.Value;
+	}
+}
+
+TShaderRef<FShader> FGlobalShaderMap::GetShader(FShaderType* ShaderType, int32 PermutationId) const
+{
+	const FHashedName HashedFilename(ShaderType->GetShaderFilename());
+	FGlobalShaderMapSection* const* Section = SectionMap.Find(HashedFilename);
+	return Section ? (*Section)->GetShader(ShaderType, PermutationId) : TShaderRef<FShader>();
+}
+
+FShaderPipelineRef FGlobalShaderMap::GetShaderPipeline(const FShaderPipelineType* ShaderPipelineType) const
+{
+	FGlobalShaderMapSection* const* Section = SectionMap.Find(ShaderPipelineType->GetHashedPrimaryShaderFilename());
+	return Section ? (*Section)->GetShaderPipeline(ShaderPipelineType) : FShaderPipelineRef();
+}
+
+void FGlobalShaderMap::BeginCreateAllShaders()
+{
+	for (const auto& It : SectionMap)
+	{
+		It.Value->GetResource()->BeginCreateAllShaders();
+	}
+}
+
+#if WITH_EDITOR
+void FGlobalShaderMap::GetOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const
+{
+	for (const auto& It : SectionMap)
+	{
+		It.Value->GetOutdatedTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
+	}
+}
+
+void FGlobalShaderMap::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform)
+{
+	FStableShaderKeyAndValue SaveKeyVal;
+	for (const auto& It : SectionMap)
+	{
+		It.Value->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+	}
+}
+
+#endif // WITH_EDITOR
+
+bool FGlobalShaderMap::IsEmpty() const
+{
+	for (const auto& It : SectionMap)
+	{
+		if (!It.Value->GetContent()->IsEmpty())
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+void FGlobalShaderMap::Empty()
+{
+	for (const auto& It : SectionMap)
+	{
+		It.Value->GetMutableContent()->Empty();
+	}
+}
+
+FShader* FGlobalShaderMap::FindOrAddShader(const FShaderType* ShaderType, FShader* Shader)
+{
+	const FHashedName HashedFilename(ShaderType->GetShaderFilename());
+	FGlobalShaderMapSection*& Section = SectionMap.FindOrAdd(HashedFilename);
+	if (!Section)
+	{
+		Section = new FGlobalShaderMapSection(Platform, HashedFilename);
+	}
+	return Section->GetMutableContent()->FindOrAddShader(Shader);
+}
+
+FShaderPipeline* FGlobalShaderMap::FindOrAddShaderPipeline(const FShaderPipelineType* ShaderPipelineType, FShaderPipeline* ShaderPipeline)
+{
+	FGlobalShaderMapSection*& Section = SectionMap.FindOrAdd(ShaderPipelineType->GetHashedPrimaryShaderFilename());
+	if (!Section)
+	{
+		Section = new FGlobalShaderMapSection(Platform, ShaderPipelineType->GetHashedPrimaryShaderFilename());
+	}
+	return Section->GetMutableContent()->FindOrAddShaderPipeline(ShaderPipeline);
+}
+
+void FGlobalShaderMap::RemoveShaderTypePermutaion(const FShaderType* Type, int32 PermutationId)
+{
+	const FHashedName HashedFilename(Type->GetShaderFilename());
+	FGlobalShaderMapSection** Section = SectionMap.Find(HashedFilename);
+	if (Section)
+	{
+		(*Section)->GetMutableContent()->RemoveShaderTypePermutaion(Type, PermutationId);
+	}
+}
+
+void FGlobalShaderMap::RemoveShaderPipelineType(const FShaderPipelineType* ShaderPipelineType)
+{
+	FGlobalShaderMapSection** Section = SectionMap.Find(ShaderPipelineType->GetHashedPrimaryShaderFilename());
+	if (Section)
+	{
+		(*Section)->GetMutableContent()->RemoveShaderPipelineType(ShaderPipelineType);
+	}
+}
+
+void FGlobalShaderMap::AddSection(FGlobalShaderMapSection* InSection)
+{
+	const FGlobalShaderMapContent* Content = InSection->GetContent();
+	const FHashedName& HashedFilename = Content->HashedSourceFilename;
+
+	SectionMap.Add(HashedFilename, InSection);
+}
+
+FGlobalShaderMapSection* FGlobalShaderMap::FindSection(const FHashedName& HashedShaderFilename)
+{
+	FGlobalShaderMapSection* const* Section = SectionMap.Find(HashedShaderFilename);
+	return Section ? *Section : nullptr;
+}
+
+FGlobalShaderMapSection* FGlobalShaderMap::FindOrAddSection(const FShaderType* ShaderType)
+{
+	const FHashedName HashedFilename(ShaderType->GetShaderFilename());
+	FGlobalShaderMapSection* Section = FindSection(HashedFilename);
+	if(!Section)
+	{
+		Section = new FGlobalShaderMapSection(Platform, HashedFilename);
+		AddSection(Section);
+	}
+	return Section;
+}
+
+void FGlobalShaderMap::SaveToGlobalArchive(FArchive& Ar)
+{
+	int32 NumSections = SectionMap.Num();
+	Ar << NumSections;
+
+	for (const auto& It : SectionMap)
+	{
+		It.Value->Serialize(Ar);
+	}
+}
+
+void FGlobalShaderMap::LoadFromGlobalArchive(FArchive& Ar)
+{
+	int32 NumSections = 0;
+	Ar << NumSections;
+
+	for (int32 i = 0; i < NumSections; ++i)
+	{
+		FGlobalShaderMapSection* Section = FGlobalShaderMapSection::CreateFromArchive(Ar);
+		AddSection(Section);
+	}
 }

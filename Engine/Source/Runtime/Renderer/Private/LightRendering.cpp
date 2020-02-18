@@ -30,6 +30,11 @@
 
 DECLARE_GPU_STAT(Lights);
 
+IMPLEMENT_TYPE_LAYOUT(FLightFunctionSharedParameters);
+IMPLEMENT_TYPE_LAYOUT(FStencilingGeometryShaderParameters);
+IMPLEMENT_TYPE_LAYOUT(FOnePassPointShadowProjectionShaderParameters);
+IMPLEMENT_TYPE_LAYOUT(FShadowProjectionShaderParameters);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct, "DeferredLightUniforms");
 
 extern int32 GUseTranslucentLightingVolumes;
@@ -228,7 +233,7 @@ enum class ELightSourceShape
 /** A pixel shader for rendering the light in a deferred pass. */
 class FDeferredLightPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FDeferredLightPS)
+	DECLARE_SHADER_TYPE(FDeferredLightPS, Global)
 
 	class FSourceShapeDim		: SHADER_PERMUTATION_ENUM_CLASS("LIGHT_SOURCE_SHAPE", ELightSourceShape);
 	class FSourceTextureDim		: SHADER_PERMUTATION_BOOL("USE_SOURCE_TEXTURE");
@@ -334,50 +339,16 @@ public:
 		IPooledRenderTarget* ScreenShadowMaskTexture, 
 		FRenderLightParams* RenderLightParams)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetParametersBase(RHICmdList, ShaderRHI, View, ScreenShadowMaskTexture, LightSceneInfo->Proxy->GetIESTextureResource(), RenderLightParams);
 		SetDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), LightSceneInfo, View);
 	}
 
 	void SetParametersSimpleLight(FRHICommandList& RHICmdList, const FSceneView& View, const FSimpleLightEntry& SimpleLight, const FSimpleLightPerViewEntry& SimpleLightPerViewData)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetParametersBase(RHICmdList, ShaderRHI, View, nullptr, nullptr, nullptr);
 		SetSimpleDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), SimpleLight, SimpleLightPerViewData, View);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << SceneTextureParameters;
-		Ar << LightAttenuationTexture;
-		Ar << LightAttenuationTextureSampler;
-		Ar << LTCMatTexture;
-		Ar << LTCMatSampler;
-		Ar << LTCAmpTexture;
-		Ar << LTCAmpSampler;
-		Ar << IESTexture;
-		Ar << IESTextureSampler;
-		Ar << LightingChannelsTexture;
-		Ar << LightingChannelsSampler;
-		Ar << TransmissionProfilesTexture;
-		Ar << TransmissionProfilesLinearSampler;
-
-		Ar << HairTransmittanceBuffer;
-		Ar << HairTransmittanceBufferMaxCount;
-
-		Ar << HairCategorizationTexture;
-		Ar << HairVisibilityNodeOffsetAndCount;
-		Ar << HairVisibilityNodeData;
-		Ar << ScreenShadowMaskSubPixelTexture;
-
-		Ar << HairLUTTexture;
-		Ar << HairLUTSampler;
-		Ar << HairComponents;
-		Ar << HairShadowMaskValid;
-		Ar << HairDualScatteringRoughnessOverride;
-
-		return bShaderHasOutdatedParameters;
 	}
 
 private:
@@ -583,33 +554,33 @@ private:
 		
 	}
 
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderResourceParameter LightAttenuationTexture;
-	FShaderResourceParameter LightAttenuationTextureSampler;
-	FShaderResourceParameter LTCMatTexture;
-	FShaderResourceParameter LTCMatSampler;
-	FShaderResourceParameter LTCAmpTexture;
-	FShaderResourceParameter LTCAmpSampler;
-	FShaderResourceParameter IESTexture;
-	FShaderResourceParameter IESTextureSampler;
-	FShaderResourceParameter LightingChannelsTexture;
-	FShaderResourceParameter LightingChannelsSampler;
-	FShaderResourceParameter TransmissionProfilesTexture;
-	FShaderResourceParameter TransmissionProfilesLinearSampler;
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	LAYOUT_FIELD(FShaderResourceParameter, LightAttenuationTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LightAttenuationTextureSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCMatTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCMatSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, IESTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, IESTextureSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, LightingChannelsTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, LightingChannelsSampler);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesLinearSampler);
 
-	FShaderParameter HairTransmittanceBufferMaxCount;
-	FShaderResourceParameter HairTransmittanceBuffer;
-	FShaderResourceParameter HairCategorizationTexture;
-	FShaderResourceParameter HairVisibilityNodeOffsetAndCount;
-	FShaderResourceParameter HairVisibilityNodeData;
-	FShaderResourceParameter ScreenShadowMaskSubPixelTexture;
+	LAYOUT_FIELD(FShaderParameter, HairTransmittanceBufferMaxCount);
+	LAYOUT_FIELD(FShaderResourceParameter, HairTransmittanceBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, HairCategorizationTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeOffsetAndCount);
+	LAYOUT_FIELD(FShaderResourceParameter, HairVisibilityNodeData);
+	LAYOUT_FIELD(FShaderResourceParameter, ScreenShadowMaskSubPixelTexture);
 
-	FShaderResourceParameter HairLUTTexture;
-	FShaderResourceParameter HairLUTSampler;
-	FShaderParameter HairComponents;
-	FShaderParameter HairShadowMaskValid;
-	FShaderParameter HairDualScatteringRoughnessOverride;
-	};
+	LAYOUT_FIELD(FShaderResourceParameter, HairLUTTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, HairLUTSampler);
+	LAYOUT_FIELD(FShaderParameter, HairComponents);
+	LAYOUT_FIELD(FShaderParameter, HairShadowMaskValid);
+	LAYOUT_FIELD(FShaderParameter, HairDualScatteringRoughnessOverride);
+};
 
 IMPLEMENT_GLOBAL_SHADER(FDeferredLightPS, "/Engine/Private/DeferredLightPixelShaders.usf", "DeferredLightPixelMain", SF_Pixel);
 
@@ -645,7 +616,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FLightSceneInfo* LightSceneInfo)
 	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI,View.ViewUniformBuffer);
 		const float HasValidChannelValue = LightSceneInfo->Proxy->GetPreviewShadowMapChannel() == INDEX_NONE ? 0.0f : 1.0f;
 		SetShaderValue(RHICmdList, ShaderRHI, HasValidChannel, HasValidChannelValue);
@@ -653,17 +624,9 @@ public:
 		SetDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), LightSceneInfo, View);
 	}
 
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << HasValidChannel;
-		Ar << SceneTextureParameters;
-		return bShaderHasOutdatedParameters;
-	}
-
 private:
-	FShaderParameter HasValidChannel;
-	FSceneTextureShaderParameters SceneTextureParameters;
+	LAYOUT_FIELD(FShaderParameter, HasValidChannel);
+	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 };
 
 IMPLEMENT_SHADER_TYPE(template<>, TDeferredLightOverlapPS<true>, TEXT("/Engine/Private/StationaryLightOverlapShaders.usf"), TEXT("OverlapRadialPixelMain"), SF_Pixel);
@@ -1961,7 +1924,7 @@ static void SetShaderTemplLightingSimple(
 	FRHICommandList& RHICmdList,
 	FGraphicsPipelineStateInitializer& GraphicsPSOInit,
 	const FViewInfo& View,
-	FShader* VertexShader,
+	const TShaderRef<FShader>& VertexShader,
 	const FSimpleLightEntry& SimpleLight,
 	const FSimpleLightPerViewEntry& SimpleLightPerViewData)
 {
@@ -1976,8 +1939,8 @@ static void SetShaderTemplLightingSimple(
 
 	TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 	PixelShader->SetParametersSimpleLight(RHICmdList, View, SimpleLight, SimpleLightPerViewData);
 }
@@ -2095,8 +2058,8 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 			{
 				TShaderMapRef<TDeferredLightOverlapPS<false> > PixelShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo);
 			}
@@ -2113,8 +2076,8 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, bHairRenderingEnabled ? &RenderLightParams : nullptr);
@@ -2131,7 +2094,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				View.ViewRect.Size(),
 				FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
-				*VertexShader,
+				VertexShader,
 				EDRF_UseTriangleOptimization);
 		}
 		else
@@ -2148,8 +2111,8 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 			{
 				TShaderMapRef<TDeferredLightOverlapPS<true> > PixelShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo);
@@ -2168,8 +2131,8 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, &RenderLightParams);
@@ -2245,12 +2208,12 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(FRHIComma
 			if (SimpleLight.Exponent == 0)
 			{
 				// inverse squared
-				SetShaderTemplLightingSimple<false, true, true>(RHICmdList, GraphicsPSOInit, View, *VertexShader, SimpleLight, SimpleLightPerViewData);
+				SetShaderTemplLightingSimple<false, true, true>(RHICmdList, GraphicsPSOInit, View, VertexShader, SimpleLight, SimpleLightPerViewData);
 			}
 			else
 			{
 				// light's exponent, not inverse squared
-				SetShaderTemplLightingSimple<false, true, false>(RHICmdList, GraphicsPSOInit, View, *VertexShader, SimpleLight, SimpleLightPerViewData);
+				SetShaderTemplLightingSimple<false, true, false>(RHICmdList, GraphicsPSOInit, View, VertexShader, SimpleLight, SimpleLightPerViewData);
 			}
 
 			VertexShader->SetSimpleLightParameters(RHICmdList, View, LightBounds);

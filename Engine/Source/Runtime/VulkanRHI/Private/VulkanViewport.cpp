@@ -1018,7 +1018,7 @@ void FVulkanDynamicRHI::RHITick(float DeltaTime)
 			if (bRequested)
 			{
 				//work around layering violation
-				TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader();
+				TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
 			}
 
 			VulkanDevice->GetImmediateContext().GetTempFrameAllocationBuffer().Reset();

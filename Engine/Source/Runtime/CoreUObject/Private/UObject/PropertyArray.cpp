@@ -20,6 +20,7 @@ IMPLEMENT_FIELD(FArrayProperty)
 #if WITH_EDITORONLY_DATA
 FArrayProperty::FArrayProperty(UField* InField)
 	: FArrayProperty_Super(InField)
+	, ArrayFlags(EArrayPropertyFlags::None)
 {
 	UArrayProperty* SourceProperty = CastChecked<UArrayProperty>(InField);
 	Inner = CastField<FProperty>(SourceProperty->Inner->GetAssociatedFField());
@@ -62,7 +63,9 @@ void FArrayProperty::LinkInternal(FArchive& Ar)
 	//}
 	//Ar.Preload(Inner);
 	Inner->Link(Ar);
-	Super::LinkInternal(Ar);
+
+	SetElementSize();
+	PropertyFlags |= CPF_HasGetValueTypeHash;
 }
 bool FArrayProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
@@ -628,7 +631,7 @@ void FArrayProperty::DestroyValueInternal( void* Dest ) const
 	ArrayHelper.EmptyValues();
 
 	//@todo UE4 potential double destroy later from this...would be ok for a script array, but still
-	((FScriptArray*)Dest)->~FScriptArray();
+	ArrayHelper.DestroyContainer_Unsafe();
 }
 bool FArrayProperty::PassCPPArgsByRef() const
 {

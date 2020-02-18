@@ -743,7 +743,7 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsse
 			// Create physics body instance.
 			FTransform BoneTransform = BoneTransformGetter(BoneIndex);
 
-			FBodyInstance::FInitBodySpawnParams SpawnParams(OwningComponent);
+			FInitBodySpawnParams SpawnParams(OwningComponent);
 
 			if(OwningComponent == nullptr)
 			{

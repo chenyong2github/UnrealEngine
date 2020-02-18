@@ -59,21 +59,21 @@ static FBoneMatricesUniformShaderParameters GBoneUniformStruct;
 	bSupportsPositionOnly, \
 	false, \
 	false, \
-	Construct##FactoryClass##ShaderParameters<BoneInfluenceType>, \
-	FactoryClass<BoneInfluenceType>::ShouldCompilePermutation, \
-	FactoryClass<BoneInfluenceType>::ModifyCompilationEnvironment, \
-	FactoryClass<BoneInfluenceType>::ValidateCompiledResult, \
-	FactoryClass<BoneInfluenceType>::SupportsTessellationShaders \
+	IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass<BoneInfluenceType>) \
 	); \
 	template <GPUSkinBoneInfluenceType BoneInfluenceType> inline FVertexFactoryType* FactoryClass<BoneInfluenceType>::GetType() const { return &StaticType; }
 
 
 #define IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(FactoryClass, ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly) \
-	template <GPUSkinBoneInfluenceType BoneInfluenceType> FVertexFactoryShaderParameters* Construct##FactoryClass##ShaderParameters(EShaderFrequency ShaderFrequency) { return FactoryClass<BoneInfluenceType>::ConstructShaderParameters(ShaderFrequency); } \
 	IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE_INTERNAL(FactoryClass, ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly) \
 	template class FactoryClass<DefaultBoneInfluence>;	\
 	template class FactoryClass<ExtraBoneInfluence>;	\
 	template class FactoryClass<UnlimitedBoneInfluence>;
+
+#define IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass, Frequency, ParameterType) \
+	IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass<DefaultBoneInfluence>, Frequency, ParameterType); \
+	IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass<ExtraBoneInfluence>, Frequency, ParameterType); \
+	IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FactoryClass<UnlimitedBoneInfluence>, Frequency, ParameterType)
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<int32> CVarVelocityTest(
@@ -365,26 +365,26 @@ TGPUSkinVertexFactory
 TGlobalResource<FBoneBufferPool> FGPUBaseSkinVertexFactory::BoneBufferPool;
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-bool TGPUSkinVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const FShaderType* ShaderType)
+bool TGPUSkinVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
 	bool bLimit2BoneInfluences = (CVarGPUSkinLimit2BoneInfluences.GetValueOnAnyThread() != 0);
 	
 	// Skip trying to use extra bone influences on < SM4 or when project uses 2 bones influence
-	if (BoneInfluenceType != DefaultBoneInfluence && (GetMaxSupportedFeatureLevel(Platform) < ERHIFeatureLevel::ES3_1 || bLimit2BoneInfluences))
+	if (BoneInfluenceType != DefaultBoneInfluence && (GetMaxSupportedFeatureLevel(Parameters.Platform) < ERHIFeatureLevel::ES3_1 || bLimit2BoneInfluences))
 	{
 		return false;
 	}
 
 	bool bUnlimitedBoneInfluences = (BoneInfluenceType == UnlimitedBoneInfluence && GUnlimitedBoneInfluences);
-	return ((Material->IsUsedWithSkeletalMesh() && (BoneInfluenceType != UnlimitedBoneInfluence || bUnlimitedBoneInfluences)) || Material->IsSpecialEngineMaterial());
+	return ((Parameters.MaterialParameters.bIsUsedWithSkeletalMesh && (BoneInfluenceType != UnlimitedBoneInfluence || bUnlimitedBoneInfluences)) || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment )
+void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 {
-	FVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
-	const int32 MaxGPUSkinBones = GetFeatureLevelMaxNumberOfBones(GetMaxSupportedFeatureLevel(Platform));
+	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	const int32 MaxGPUSkinBones = GetFeatureLevelMaxNumberOfBones(GetMaxSupportedFeatureLevel(Parameters.Platform));
 	OutEnvironment.SetDefine(TEXT("MAX_SHADER_BONES"), MaxGPUSkinBones);
 	const uint32 UseExtraBoneInfluences = (BoneInfluenceType == ExtraBoneInfluence);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_EXTRA_INFLUENCES"), UseExtraBoneInfluences);
@@ -392,7 +392,7 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(cons
 		bool bLimit2BoneInfluences = (CVarGPUSkinLimit2BoneInfluences.GetValueOnAnyThread() != 0);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_LIMIT_2BONE_INFLUENCES"), (bLimit2BoneInfluences ? 1 : 0));
 	}
-	OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_BONES_SRV_BUFFER"), SupportsBonesBufferSRV(Platform) ? 1 : 0);
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_BONES_SRV_BUFFER"), SupportsBonesBufferSRV(Parameters.Platform) ? 1 : 0);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), BoneInfluenceType == UnlimitedBoneInfluence ? 1 : 0);
 }
 
@@ -539,12 +539,13 @@ TGPUSkinVertexFactoryShaderParameters
 /** Shader parameters for use with TGPUSkinVertexFactory */
 class FGPUSkinVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FGPUSkinVertexFactoryShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
 	* @param	ParameterMap - mapping of named shader constants to indices
 	*/
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		PerBoneMotionBlur.Bind(ParameterMap,TEXT("PerBoneMotionBlur"));
 		BoneMatrices.Bind(ParameterMap,TEXT("BoneMatrices"));
@@ -552,20 +553,8 @@ public:
 		InputWeightIndexSize.Bind(ParameterMap, TEXT("InputWeightIndexSize"));
 		InputWeightStream.Bind(ParameterMap, TEXT("InputWeightStream"));
 	}
-	/**
-	* Serialize shader params to an archive
-	* @param	Ar - archive to serialize to
-	*/
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Ar << PerBoneMotionBlur;
-		Ar << BoneMatrices;
-		Ar << PreviousBoneMatrices;
-		Ar << InputWeightIndexSize;
-		Ar << InputWeightStream;
-	}
 
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -574,7 +563,7 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		const FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = ((const FGPUBaseSkinVertexFactory*)VertexFactory)->GetShaderData();
 
@@ -612,21 +601,16 @@ public:
 		}
 	}
 
-	virtual uint32 GetSize() const override { return sizeof(*this); }
-
 private:
-	FShaderParameter PerBoneMotionBlur;
-	FShaderResourceParameter BoneMatrices;
-	FShaderResourceParameter PreviousBoneMatrices;
-	FShaderParameter InputWeightIndexSize;
-	FShaderResourceParameter InputWeightStream;
+	LAYOUT_FIELD(FShaderParameter, PerBoneMotionBlur)
+	LAYOUT_FIELD(FShaderResourceParameter, BoneMatrices)
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousBoneMatrices)
+	LAYOUT_FIELD(FShaderParameter, InputWeightIndexSize);
+	LAYOUT_FIELD(FShaderResourceParameter, InputWeightStream);
+
 };
 
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-FVertexFactoryShaderParameters* TGPUSkinVertexFactory<BoneInfluenceType>::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return (ShaderFrequency == SF_Vertex) ? new FGPUSkinVertexFactoryShaderParameters() : NULL;
-}
+IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinVertexFactory, SF_Vertex, FGPUSkinVertexFactoryShaderParameters);
 
 /** bind gpu skin vertex factory to its shader file and its shader parameters */
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush", true, false, true, false, false);
@@ -638,29 +622,20 @@ TGPUSkinVertexFactoryShaderParameters
 /** Shader parameters for use with TGPUSkinVertexFactory */
 class FGPUSkinVertexPassthroughFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
 {
+	DECLARE_INLINE_TYPE_LAYOUT(FGPUSkinVertexPassthroughFactoryShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
 	* @param	ParameterMap - mapping of named shader constants to indices
 	*/
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		FLocalVertexFactoryShaderParametersBase::Bind(ParameterMap);
 		GPUSkinCachePositionBuffer.Bind(ParameterMap,TEXT("GPUSkinCachePositionBuffer"));
 		GPUSkinCachePreviousPositionBuffer.Bind(ParameterMap,TEXT("GPUSkinCachePreviousPositionBuffer"));
 	}
-	/**
-	* Serialize shader params to an archive
-	* @param	Ar - archive to serialize to
-	*/
-	virtual void Serialize(FArchive& Ar) override
-	{
-		FLocalVertexFactoryShaderParametersBase::Serialize(Ar);
-		Ar << GPUSkinCachePositionBuffer;
-		Ar << GPUSkinCachePreviousPositionBuffer;
-	}
 	
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -669,7 +644,7 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		check(VertexFactory->GetType() == &FGPUSkinPassthroughVertexFactory::StaticType);
 		FGPUSkinBatchElementUserData* BatchUserData = (FGPUSkinBatchElementUserData*)BatchElement.VertexFactoryUserData;
@@ -684,17 +659,17 @@ public:
 		FGPUSkinCache::GetShaderBindings(BatchUserData->Entry, BatchUserData->Section, Shader, (const FGPUSkinPassthroughVertexFactory*)VertexFactory, BatchElement.MinVertexIndex, GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, ShaderBindings, VertexStreams);
 	}
 
-	virtual uint32 GetSize() const override { return sizeof(*this); }
-
 private:
-	FShaderResourceParameter GPUSkinCachePositionBuffer;
-	FShaderResourceParameter GPUSkinCachePreviousPositionBuffer;
+	
+		LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePositionBuffer)
+		LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePreviousPositionBuffer)
+	
 };
 
 /*-----------------------------------------------------------------------------
 FGPUSkinPassthroughVertexFactory
 -----------------------------------------------------------------------------*/
-void FGPUSkinPassthroughVertexFactory::ModifyCompilationEnvironment( const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment )
+void FGPUSkinPassthroughVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 {
 	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
 	if (!ContainsManualVertexFetch)
@@ -702,14 +677,17 @@ void FGPUSkinPassthroughVertexFactory::ModifyCompilationEnvironment( const FVert
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
 	}
 
-	Super::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_PASS_THROUGH"),TEXT("1"));
 }
 
-bool FGPUSkinPassthroughVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const FShaderType* ShaderType)
+bool FGPUSkinPassthroughVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
 	// Passthrough is only valid on platforms with Compute Shader support AND for (skeletal meshes or default materials)
-	return IsGPUSkinCacheAvailable(Platform) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && Super::ShouldCompilePermutation(Platform, Material, ShaderType) && (Material->IsUsedWithSkeletalMesh() || Material->IsSpecialEngineMaterial());
+	return IsGPUSkinCacheAvailable(Parameters.Platform) &&
+		IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
+		Super::ShouldCompilePermutation(Parameters) &&
+		(Parameters.MaterialParameters.bIsUsedWithSkeletalMesh || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory, struct FRWBuffer* PositionRWBuffer, struct FRWBuffer* TangentRWBuffer)
@@ -781,15 +759,11 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 	checkf(PositionStreamIndex != -1, TEXT("Unable to find stream for RWBuffer Vertex buffer!"));
 }
 
-FVertexFactoryShaderParameters* FGPUSkinPassthroughVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_Vertex, FGPUSkinVertexPassthroughFactoryShaderParameters);
 #if RHI_RAYTRACING
-	return (ShaderFrequency == SF_Vertex || ShaderFrequency == SF_RayHitGroup || ShaderFrequency == SF_Compute) ? new FGPUSkinVertexPassthroughFactoryShaderParameters() : nullptr;
-#else // RHI_RAYTRACING
-	return (ShaderFrequency == SF_Vertex) ? new FGPUSkinVertexPassthroughFactoryShaderParameters() : nullptr;
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_RayHitGroup, FGPUSkinVertexPassthroughFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_Compute, FGPUSkinVertexPassthroughFactoryShaderParameters);
 #endif // RHI_RAYTRACING
-}
-
 IMPLEMENT_VERTEX_FACTORY_TYPE(FGPUSkinPassthroughVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, false, true, false, false);
 
 /*-----------------------------------------------------------------------------
@@ -801,17 +775,17 @@ TGPUSkinMorphVertexFactory
 * @param OutEnvironment - shader compile environment to modify
 */
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinMorphVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment( const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment )
+void TGPUSkinMorphVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment( const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 {
-	Super::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_BLEND"),TEXT("1"));
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-bool TGPUSkinMorphVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool TGPUSkinMorphVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (Material->IsUsedWithMorphTargets() || Material->IsSpecialEngineMaterial()) 
-		&& Super::ShouldCompilePermutation(Platform, Material, ShaderType);
+	return (Parameters.MaterialParameters.bIsUsedWithMorphTargets || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
+		&& Super::ShouldCompilePermutation(Parameters);
 }
 
 /**
@@ -844,11 +818,7 @@ void TGPUSkinMorphVertexFactory<BoneInfluenceType>::InitRHI()
 	FVertexFactory::InitDeclaration(Elements);
 }
 
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-FVertexFactoryShaderParameters* TGPUSkinMorphVertexFactory<BoneInfluenceType>::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new FGPUSkinVertexFactoryShaderParameters() : NULL;
-}
+IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinMorphVertexFactory, SF_Vertex, FGPUSkinVertexFactoryShaderParameters);
 
 /** bind morph target gpu skin vertex factory to its shader file and its shader parameters */
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinMorphVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush", true, false, true, false, false);
@@ -860,13 +830,14 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinMorphVertexFactory, "/Engine/P
 /** Shader parameters for use with TGPUSkinAPEXClothVertexFactory */
 class TGPUSkinAPEXClothVertexFactoryShaderParameters : public FGPUSkinVertexFactoryShaderParameters
 {
+	DECLARE_INLINE_TYPE_LAYOUT(TGPUSkinAPEXClothVertexFactoryShaderParameters, NonVirtual);
 public:
 
 	/**
 	* Bind shader constants by name
 	* @param	ParameterMap - mapping of named shader constants to indices
 	*/
-	virtual void Bind(const FShaderParameterMap& ParameterMap) override
+	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		FGPUSkinVertexFactoryShaderParameters::Bind(ParameterMap);
 		ClothSimulVertsPositionsNormalsParameter.Bind(ParameterMap,TEXT("ClothSimulVertsPositionsNormals"));
@@ -877,23 +848,8 @@ public:
 		GPUSkinApexClothParameter.Bind(ParameterMap, TEXT("GPUSkinApexCloth"));
 		GPUSkinApexClothStartIndexOffsetParameter.Bind(ParameterMap, TEXT("GPUSkinApexClothStartIndexOffset"));
 	}
-	/**
-	* Serialize shader params to an archive
-	* @param	Ar - archive to serialize to
-	*/
-	virtual void Serialize(FArchive& Ar) override
-	{ 
-		FGPUSkinVertexFactoryShaderParameters::Serialize(Ar);
-		Ar << ClothSimulVertsPositionsNormalsParameter;
-		Ar << PreviousClothSimulVertsPositionsNormalsParameter;
-		Ar << ClothLocalToWorldParameter;
-		Ar << PreviousClothLocalToWorldParameter;
-		Ar << ClothBlendWeightParameter;
-		Ar << GPUSkinApexClothParameter;
-		Ar << GPUSkinApexClothStartIndexOffsetParameter;
-	}
 	
-	virtual void GetElementShaderBindings(
+	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
@@ -902,7 +858,7 @@ public:
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const override
+		FVertexInputStreamArray& VertexStreams) const
 	{
 		// Call regular GPU skinning shader parameters
 		FGPUSkinVertexFactoryShaderParameters::GetElementShaderBindings(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams);
@@ -939,13 +895,15 @@ public:
 	}
 
 protected:
-	FShaderResourceParameter ClothSimulVertsPositionsNormalsParameter;
-	FShaderResourceParameter PreviousClothSimulVertsPositionsNormalsParameter;
-	FShaderParameter ClothLocalToWorldParameter;
-	FShaderParameter PreviousClothLocalToWorldParameter;
-	FShaderParameter ClothBlendWeightParameter;
-	FShaderResourceParameter GPUSkinApexClothParameter;
-	FShaderParameter GPUSkinApexClothStartIndexOffsetParameter;
+	
+		LAYOUT_FIELD(FShaderResourceParameter, ClothSimulVertsPositionsNormalsParameter)
+		LAYOUT_FIELD(FShaderResourceParameter, PreviousClothSimulVertsPositionsNormalsParameter)
+		LAYOUT_FIELD(FShaderParameter, ClothLocalToWorldParameter)
+		LAYOUT_FIELD(FShaderParameter, PreviousClothLocalToWorldParameter)
+		LAYOUT_FIELD(FShaderParameter, ClothBlendWeightParameter)
+		LAYOUT_FIELD(FShaderResourceParameter, GPUSkinApexClothParameter)
+		LAYOUT_FIELD(FShaderParameter, GPUSkinApexClothStartIndexOffsetParameter)
+	
 };
 
 /*-----------------------------------------------------------------------------
@@ -1045,18 +1003,18 @@ TGlobalResource<FClothBufferPool> FGPUBaseSkinAPEXClothVertexFactory::ClothSimul
 * @param OutEnvironment - shader compile environment to modify
 */
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment( const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment )
+void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment( const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 {
-	Super::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
+	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_APEX_CLOTH"),TEXT("1"));
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-bool TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
+bool TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5
-		&& (Material->IsUsedWithAPEXCloth() || Material->IsSpecialEngineMaterial()) 
-		&& Super::ShouldCompilePermutation(Platform, Material, ShaderType);
+	return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5
+		&& (Parameters.MaterialParameters.bIsUsedWithAPEXCloth || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
+		&& Super::ShouldCompilePermutation(Parameters);
 }
 
 /**
@@ -1095,14 +1053,10 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::InitRHI()
 	FVertexFactory::InitDeclaration(Elements);
 }
 
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-FVertexFactoryShaderParameters* TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new TGPUSkinAPEXClothVertexFactoryShaderParameters() : NULL;
-}
+IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinAPEXClothVertexFactory, SF_Vertex, TGPUSkinAPEXClothVertexFactoryShaderParameters);
 
 /** bind cloth gpu skin vertex factory to its shader file and its shader parameters */
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinAPEXClothVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush", true, false, true, false, false);
 
-
+#undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE
 #undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE

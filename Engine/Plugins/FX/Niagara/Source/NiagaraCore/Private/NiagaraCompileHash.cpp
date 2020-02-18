@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraCompileHash.h"
+#include "Misc/SecureHash.h"
 
 const uint32 FNiagaraCompileHash::HashSize = 20;
 
@@ -12,6 +13,25 @@ bool FNiagaraCompileHash::operator==(const FNiagaraCompileHash& Other) const
 bool FNiagaraCompileHash::operator!=(const FNiagaraCompileHash& Other) const
 {
 	return DataHash != Other.DataHash;
+}
+
+bool FNiagaraCompileHash::operator==(const FSHAHash& Other) const
+{
+	if (DataHash.Num() != HashSize)
+	{
+		return false;
+	}
+	return FMemory::Memcmp(DataHash.GetData(), Other.Hash, HashSize) == 0;
+}
+
+bool FNiagaraCompileHash::ToSHAHash(FSHAHash& OutHash) const
+{
+	if (DataHash.Num() == HashSize)
+	{
+		FMemory::Memcpy(OutHash.Hash, DataHash.GetData(), HashSize);
+		return true;
+	}
+	return false;
 }
 
 bool FNiagaraCompileHash::IsValid() const
