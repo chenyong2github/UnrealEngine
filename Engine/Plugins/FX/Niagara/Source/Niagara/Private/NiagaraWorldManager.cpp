@@ -146,6 +146,7 @@ FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
 		TickFunc.EndTickGroup = GNiagaraAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : (ETickingGroup)TickFunc.TickGroup;
 		TickFunc.bCanEverTick = true;
 		TickFunc.bStartWithTickEnabled = true;
+		TickFunc.bAllowTickOnDedicatedServer = false;
 		TickFunc.bHighPriority = true;
 		TickFunc.Owner = this;
 		TickFunc.RegisterTickFunction(InWorld->PersistentLevel);
