@@ -150,7 +150,22 @@ private:
 	bool IsVisible() const override;
 
 	/** Implementation of the SetViewModeVertexColor, used to apply the vertex color show flag. */
-	void SetViewModeVertexColorImplemetation(bool bValue);
+	void SetViewModeVertexColorImplementation(bool bValue);
+
+	/** Applies the vertex color show flag only. */
+	void SetViewModeVertexColorSubImplementation(bool bValue);
+
+	/** Callback for toggling the physical material mask show flag. */
+	void SetViewModePhysicalMaterialMasks();
+
+	/** Implementation of the SetViewModeVertexColor, used to apply the physical material mask show flag. */
+	void SetViewModePhysicalMaterialMasksImplementation(bool bValue);
+
+	/** Applies the physical material mask show flag only. */
+	void SetViewModePhysicalMaterialMasksSubImplementation(bool bValue);
+
+	/** Callback for checking the physical material mask show flag. */
+	bool IsInViewModePhysicalMaterialMasksChecked() const;
 
 	/** Callback for toggling the realtime preview flag. */
 	void SetRealtimePreview();
