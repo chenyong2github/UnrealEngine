@@ -186,10 +186,6 @@ void USoundNode::ReleaseRetainerOnChildWavePlayers(bool bRecurse)
 void USoundNode::BeginDestroy()
 {
 	Super::BeginDestroy();
-	if (bIsRetainingAudio)
-	{
-		ReleaseRetainerOnChildWavePlayers(true);
-	}
 }
 
 void USoundNode::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances )
