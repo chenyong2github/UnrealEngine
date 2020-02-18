@@ -73,3 +73,17 @@ private:
 
 	virtual void Serialize(FArchive& Ar) override;
 };
+
+class IDatasmithMeshElement;
+struct FDatasmithMeshElementPayload;
+
+namespace CADLibrary
+{
+	struct FImportParameters;
+	struct FMeshParameters;
+}
+
+namespace DatasmithCoreTechParametricSurfaceData
+{
+	void DATASMITHCORETECHPARAMETRICSURFACEDATA_API AddCoreTechSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters&, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload);
+}

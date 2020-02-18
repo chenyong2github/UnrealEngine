@@ -140,29 +140,7 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
-		// Store CoreTech additional data if provided
-		const TCHAR* CoretechFile = MeshElement->GetFile();
-		if (FPaths::FileExists(CoretechFile))
-		{
-			TArray<uint8> ByteArray;
-			if (FFileHelper::LoadFileToArray(ByteArray, CoretechFile))
-			{
-				UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
-				CoreTechData->SourceFile = CoretechFile;
-				CoreTechData->RawData = MoveTemp(ByteArray);
-				CoreTechData->SceneParameters.ModelCoordSys = uint8(ImportParameters.ModelCoordSys);
-				CoreTechData->SceneParameters.MetricUnit = ImportParameters.MetricUnit;
-				CoreTechData->SceneParameters.ScaleFactor = ImportParameters.ScaleFactor;
-
-				CoreTechData->MeshParameters.bNeedSwapOrientation = MeshParameters.bNeedSwapOrientation;
-				CoreTechData->MeshParameters.bIsSymmetric = MeshParameters.bIsSymmetric;
-				CoreTechData->MeshParameters.SymmetricNormal = MeshParameters.SymmetricNormal;
-				CoreTechData->MeshParameters.SymmetricOrigin = MeshParameters.SymmetricOrigin;
-
-				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
-				OutMeshPayload.AdditionalData.Add(CoreTechData);
-			}
-		}
+		DatasmithCoreTechParametricSurfaceData::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
 	}
 	return OutMeshPayload.LodMeshes.Num() > 0;
 }
