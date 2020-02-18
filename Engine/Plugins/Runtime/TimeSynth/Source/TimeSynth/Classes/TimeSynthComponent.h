@@ -758,6 +758,7 @@ private:
 	Audio::FDynamicsProcessor DynamicsProcessor;
 
 	FThreadSafeBool bHasActiveClips;
+	FThreadSafeBool bTimeSynthWasDisabled;
 
 	friend class FTimeSynthEventListener;
 };
