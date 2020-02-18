@@ -290,6 +290,16 @@ public:
 	const FCurveEditorTreeItem& GetTreeItem(FCurveEditorTreeItemID ItemID) const;
 
 	/**
+	 * Finds a tree item from its ID
+	 */
+	FCurveEditorTreeItem* FindTreeItem(FCurveEditorTreeItemID ItemID);
+
+	/**
+	 * Finds a tree item from its ID
+	 */
+	const FCurveEditorTreeItem* FindTreeItem(FCurveEditorTreeItemID ItemID) const;
+
+	/**
 	 * Get const access to the entire set of root tree items
 	 */
 	const TArray<FCurveEditorTreeItemID>& GetRootTreeItems() const;
