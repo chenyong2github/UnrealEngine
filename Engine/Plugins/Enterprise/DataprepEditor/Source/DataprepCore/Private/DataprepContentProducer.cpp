@@ -55,15 +55,27 @@ bool UDataprepContentProducer::Produce(const FDataprepProducerContext& InContext
 	TSet< UPackage* > PackagesToCheck;
 	for(int32 Index = LastAssetCount; Index < OutAssets.Num(); ++Index)
 	{
-		UObject* Asset = OutAssets[Index].Get();
+		if(UObject* Asset = OutAssets[Index].Get())
+		{
+			// Verify each asset is within its own package
+			FString PackageName = Asset->GetOutermost()->GetName();
+			FString AssetName = Asset->GetName();
+			if(AssetName != PackageName)
+			{
+				UPackage* NewPackage = NewObject<UPackage>( nullptr, *FPaths::Combine( PackageName, AssetName ), Asset->GetOutermost()->GetFlags() );
+				NewPackage->FullyLoad();
 
-		if( ULevelSequence* LevelSequence = Cast<ULevelSequence>(Asset) )
-		{
-			PackagesToCheck.Add( LevelSequence->GetOutermost() );
-		}
-		else if( ULevelVariantSets* ThisLevelVariantSets = Cast<ULevelVariantSets>(Asset) )
-		{
-			PackagesToCheck.Add( ThisLevelVariantSets->GetOutermost() );
+				Asset->Rename( nullptr, NewPackage, REN_NonTransactional | REN_DontCreateRedirectors );
+			}
+
+			if( ULevelSequence* LevelSequence = Cast<ULevelSequence>(Asset) )
+			{
+				PackagesToCheck.Add( LevelSequence->GetOutermost() );
+			}
+			else if( ULevelVariantSets* ThisLevelVariantSets = Cast<ULevelVariantSets>(Asset) )
+			{
+				PackagesToCheck.Add( ThisLevelVariantSets->GetOutermost() );
+			}
 		}
 	}
 
