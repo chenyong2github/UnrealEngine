@@ -6535,7 +6535,7 @@ void SerializeHoleRenderData(FMemoryArchive& Ar, FLandscapeHoleRenderData<INDEX_
 
 // Take the processed hole map and generate the hole render data.
 template <typename INDEX_TYPE>
-void BuildHoleRenderData(int32 InNumSubsections, int32 InSubsectionSizeVerts, TArray<uint8> const& InVisibilityData, TMap<uint64, int32>& InVertexMap, FLandscapeHoleRenderData<INDEX_TYPE>& OutHoleRenderData)
+void BuildHoleRenderData(int32 InNumSubsections, int32 InSubsectionSizeVerts, TArray<uint8> const& InVisibilityData, TArray<uint32>& InVertexToIndexMap, FLandscapeHoleRenderData<INDEX_TYPE>& OutHoleRenderData)
 {
 	const int32 SizeVerts = InNumSubsections * InSubsectionSizeVerts;
 	const int32 SubsectionSizeQuads = InSubsectionSizeVerts - 1;
@@ -6561,10 +6561,10 @@ void BuildHoleRenderData(int32 InNumSubsections, int32 InSubsectionSizeVerts, TA
 					const bool bIsHole = InVisibilityData[VertexIndex] < VisThreshold;
 					if (bIsHole)
 					{
-						INDEX_TYPE i00 = *(InVertexMap.Find(FLandscapeVertexRef(x0, y0, SubX, SubY).MakeKey()));
-						INDEX_TYPE i10 = *(InVertexMap.Find(FLandscapeVertexRef(x1, y0, SubX, SubY).MakeKey()));
-						INDEX_TYPE i11 = *(InVertexMap.Find(FLandscapeVertexRef(x1, y1, SubX, SubY).MakeKey()));
-						INDEX_TYPE i01 = *(InVertexMap.Find(FLandscapeVertexRef(x0, y1, SubX, SubY).MakeKey()));
+						INDEX_TYPE i00 = InVertexToIndexMap[FLandscapeVertexRef::GetVertexIndex(FLandscapeVertexRef(x0, y0, SubX, SubY), InNumSubsections, InSubsectionSizeVerts)];
+						INDEX_TYPE i10 = InVertexToIndexMap[FLandscapeVertexRef::GetVertexIndex(FLandscapeVertexRef(x1, y0, SubX, SubY), InNumSubsections, InSubsectionSizeVerts)];
+						INDEX_TYPE i11 = InVertexToIndexMap[FLandscapeVertexRef::GetVertexIndex(FLandscapeVertexRef(x1, y1, SubX, SubY), InNumSubsections, InSubsectionSizeVerts)];
+						INDEX_TYPE i01 = InVertexToIndexMap[FLandscapeVertexRef::GetVertexIndex(FLandscapeVertexRef(x0, y1, SubX, SubY), InNumSubsections, InSubsectionSizeVerts)];
 
 						OutHoleRenderData.HoleIndices.Add(i00);
 						OutHoleRenderData.HoleIndices.Add(i11);
@@ -6650,9 +6650,14 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 
 	// Layout index buffer to determine best vertex order.
 	// This vertex layout code is duplicated in FLandscapeSharedBuffers::CreateIndexBuffers() to create matching index buffers at runtime.
-	TMap<uint64, int32> VertexMap;
+	const int32 NumVertices = FMath::Square(SubsectionSizeVerts * NumSubsections);
+	
+	TArray<uint32> VertexToIndexMap;
+	VertexToIndexMap.AddUninitialized(NumVertices);
+	FMemory::Memset(VertexToIndexMap.GetData(), 0xFF, NumVertices * sizeof(uint32));
+	
 	TArray<FLandscapeVertexRef> VertexOrder;
-	VertexOrder.Empty(FMath::Square(SubsectionSizeVerts * NumSubsections));
+	VertexOrder.Empty(NumVertices);
 
 	for (int32 Mip = MaxLOD; Mip >= 0; Mip--)
 	{
@@ -6663,43 +6668,22 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 		{
 			for (int32 SubX = 0; SubX < NumSubsections; SubX++)
 			{
-				for (int32 y = 0; y < LodSubsectionSizeQuads; y++)
+				for (int32 Y = 0; Y < LodSubsectionSizeQuads; Y++)
 				{
-					for (int32 x = 0; x < LodSubsectionSizeQuads; x++)
+					for (int32 X = 0; X < LodSubsectionSizeQuads; X++)
 					{
-						int32 x0 = FMath::RoundToInt((float)x * MipRatio);
-						int32 y0 = FMath::RoundToInt((float)y * MipRatio);
-						int32 x1 = FMath::RoundToInt((float)(x + 1) * MipRatio);
-						int32 y1 = FMath::RoundToInt((float)(y + 1) * MipRatio);
+						for (int32 CornerId = 0; CornerId < 4; CornerId++)
+						{
+							const int32 CornerX = FMath::RoundToInt((float)(X + (CornerId & 1)) * MipRatio);
+							const int32 CornerY = FMath::RoundToInt((float)(Y + (CornerId >> 1)) * MipRatio);
+							const FLandscapeVertexRef VertexRef(CornerX, CornerY, SubX, SubY);
 
-						FLandscapeVertexRef V1(x0, y0, SubX, SubY);
-						FLandscapeVertexRef V2(x1, y0, SubX, SubY);
-						FLandscapeVertexRef V3(x1, y1, SubX, SubY);
-						FLandscapeVertexRef V4(x0, y1, SubX, SubY);
-
-						uint64 Key1 = V1.MakeKey();
-						if (VertexMap.Find(Key1) == nullptr)
-						{
-							VertexMap.Add(Key1, VertexOrder.Num());
-							VertexOrder.Add(V1);
-						}
-						uint64 Key2 = V2.MakeKey();
-						if (VertexMap.Find(Key2) == nullptr)
-						{
-							VertexMap.Add(Key2, VertexOrder.Num());
-							VertexOrder.Add(V2);
-						}
-						uint64 Key3 = V3.MakeKey();
-						if (VertexMap.Find(Key3) == nullptr)
-						{
-							VertexMap.Add(Key3, VertexOrder.Num());
-							VertexOrder.Add(V3);
-						}
-						uint64 Key4 = V4.MakeKey();
-						if (VertexMap.Find(Key4) == nullptr)
-						{
-							VertexMap.Add(Key4, VertexOrder.Num());
-							VertexOrder.Add(V4);
+							const int32 VertexIndex = FLandscapeVertexRef::GetVertexIndex(VertexRef, NumSubsections, SubsectionSizeVerts);
+							if (VertexToIndexMap[VertexIndex] == 0xFFFFFFFF)
+							{
+								VertexToIndexMap[VertexIndex] = VertexOrder.Num();
+								VertexOrder.Add(VertexRef);
+							}
 						}
 					}
 				}
@@ -6707,10 +6691,9 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 		}
 	}
 
-	if (VertexOrder.Num() != FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections)) 
+	if (VertexOrder.Num() != NumVertices)
 	{
-		UE_LOG(LogLandscape, Warning, TEXT("VertexOrder count of %d did not match expected size of %d"), 
-			VertexOrder.Num(), FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections));
+		UE_LOG(LogLandscape, Warning, TEXT("VertexOrder count of %d did not match expected size of %d"), VertexOrder.Num(), NumVertices);
 	}
 
 	// Build and serialize hole render data which includes a unique index buffer with the holes missing.
@@ -6723,16 +6706,16 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 		GetHoleBounds(SubsectionSizeVerts * NumSubsections, VisibilityData, HoleBounds);
 		BuildHoleVertexLods(SubsectionSizeVerts * NumSubsections, NumHoleLods, HoleBounds, HoleVertexLods);
 
-		if (VertexOrder.Num() <= UINT16_MAX)
+		if (NumVertices <= UINT16_MAX)
 		{
 			FLandscapeHoleRenderData<uint16> HoleRenderData;
-			BuildHoleRenderData(NumSubsections, SubsectionSizeVerts, VisibilityData, VertexMap, HoleRenderData);
+			BuildHoleRenderData(NumSubsections, SubsectionSizeVerts, VisibilityData, VertexToIndexMap, HoleRenderData);
 			SerializeHoleRenderData(PlatformAr, HoleRenderData);
 		}
 		else
 		{
 			FLandscapeHoleRenderData<uint32> HoleRenderData;
-			BuildHoleRenderData(NumSubsections, SubsectionSizeVerts, VisibilityData, VertexMap, HoleRenderData);
+			BuildHoleRenderData(NumSubsections, SubsectionSizeVerts, VisibilityData, VertexToIndexMap, HoleRenderData);
 			SerializeHoleRenderData(PlatformAr, HoleRenderData);
 		}
 	}
@@ -6744,7 +6727,7 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	MobileVertices.AddZeroed(NumMobileVertices);
 	FLandscapeMobileVertex* DstVert = MobileVertices.GetData();
 
-	for (int32 Idx = 0; Idx < VertexOrder.Num(); Idx++)
+	for (int32 Idx = 0; Idx < NumVertices; Idx++)
 	{
 		// Store XY position info
 		const int32 X = VertexOrder[Idx].X;
