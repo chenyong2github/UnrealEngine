@@ -14,10 +14,4 @@ class FDisplayClusterRenderSyncPolicyNvidiaDX12
 public:
 	FDisplayClusterRenderSyncPolicyNvidiaDX12();
 	virtual ~FDisplayClusterRenderSyncPolicyNvidiaDX12();
-
-public:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterRenderSyncPolicy
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool SynchronizeClusterRendering(int32& InOutSyncInterval) override;
 };

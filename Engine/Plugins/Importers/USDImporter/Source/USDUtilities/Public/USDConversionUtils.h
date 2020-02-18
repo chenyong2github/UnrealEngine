@@ -49,7 +49,7 @@ namespace UsdUtils
 	{
 		if (Stage->HasAuthoredMetadata(pxr::UsdGeomTokens->upAxis))
 		{
-			pxr::TfToken Axis;
+			pxr::TfToken Axis = pxr::UsdGeomTokens->z;
 			Stage->GetMetadata(pxr::UsdGeomTokens->upAxis, &Axis);
 			return Axis;
 		}
@@ -85,6 +85,7 @@ namespace UsdUtils
 	 * Stops going down the subtrees when it hits a schema type to exclude.
 	 */
 	USDUTILITIES_API TArray< TUsdStore< pxr::UsdPrim > > GetAllPrimsOfType( const pxr::UsdPrim& StartPrim, const pxr::TfType& SchemaType, const TArray< TUsdStore< pxr::TfType > >& ExcludeSchemaTypes = {} );
+	USDUTILITIES_API TArray< TUsdStore< pxr::UsdPrim > > GetAllPrimsOfType( const pxr::UsdPrim& StartPrim, const pxr::TfType& SchemaType, TFunction< bool( const pxr::UsdPrim& ) > PruneChildren, const TArray< TUsdStore< pxr::TfType > >& ExcludeSchemaTypes = {} );
 }
 
 #endif // #if USE_USD_SDK

@@ -28,17 +28,20 @@ public:
 	UMaterialInterface* Material;
 
 	/** Scale factor for generated UVs */
-	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale"))
+	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
 	float UVScale = 1.0;
 
 	/** If set, UV scales will be relative to world space so different objects created with the same UV scale should have the same average texel size */
-	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale Relative to World Space"))
+	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale Relative to World Space", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
 	bool bWorldSpaceUVScale = false;
 
 	/** Overlay wireframe on preview */
-	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "Show Wireframe"))
+	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "Show Wireframe", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
 	bool bWireframe = false;
 
+	// controls visibility of UV/etc properties
+	UPROPERTY()
+	bool bShowExtendedOptions = true;
 
 	//
 	// save/restore support
@@ -87,6 +90,12 @@ public:
 
 	void UpdateMaterials();
 	UMaterialInterface* GetActiveOverrideMaterial() const;
+
+	//
+	// save/restore support
+	//
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 

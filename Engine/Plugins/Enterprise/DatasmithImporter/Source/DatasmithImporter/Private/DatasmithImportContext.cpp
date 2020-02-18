@@ -143,14 +143,8 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 	, CurrentSceneActorIndex(0)
 	, ReferenceCollector(this)
 {
-	ImportOptions.Add(Options.Get());
+	AddOption(Options.Get(), bLoadConfig);
 	SetFileName(FileName);
-
-	if (bLoadConfig && Options.IsValid())
-	{
-		FString UserDatasmithOptionsFile = FPaths::Combine(FPlatformProcess::UserSettingsDir(), UserOptionPath);
-		Options->LoadConfig(nullptr, *UserDatasmithOptionsFile);
-	}
 
 	// Force the SceneHandling to be on current level by default.
 	// Note: This is done because this option was previously persisted and can get overwritten
@@ -159,9 +153,9 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 	if (SceneTranslator)
 	{
 		SceneTranslator->GetSceneImportOptions(AdditionalImportOptions);
-		for (const TStrongObjectPtr<UObject>& Option : AdditionalImportOptions)
+		for (const TStrongObjectPtr<UObject>& AdditionalImportOption : AdditionalImportOptions)
 		{
-			ImportOptions.Add(Option.Get());
+			AddOption(AdditionalImportOption.Get(), bLoadConfig);
 		}
 
 		// Temporarily give Rhino translator access to BaseOptions (JIRA UE-81278)
@@ -309,7 +303,7 @@ bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const 
 	// Initialize the filtered scene as a copy of the original scene. We will use it to then filter out items to import.
 	FilteredScene = FDatasmithSceneFactory::DuplicateScene(Scene.ToSharedRef());
 
-	SceneName = Scene->GetName();
+	SceneName = FDatasmithUtils::SanitizeObjectName(Scene->GetName());
 	bUserCancelled = false;
 
 	ObjectFlags = InFlags | RF_Transactional;

@@ -66,31 +66,7 @@ TSharedPtr<SWidget> FVariantManagerEnumPropertyNode::GetPropertyValueWidget()
 	}
 	if(!bAtLeastOneResolved)
 	{
-		UObject* ActorAsObj = FirstPropertyValue->GetParent()->GetObject();
-		FString ActorName;
-		if (AActor* Actor = Cast<AActor>(ActorAsObj))
-		{
-			ActorName = Actor->GetActorLabel();
-		}
-		else
-		{
-			ActorName = ActorAsObj->GetName();
-		}
-
-		return SNew(SBox)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
-		.Padding(FMargin(3.0f, 0.0f, 0.0f, 0.0f))
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("FailedToResolveText", "Failed to resolve!"))
-			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
-			.ColorAndOpacity(this, &FVariantManagerDisplayNode::GetDisplayNameColor)
-			.ToolTipText(FText::Format(
-				LOCTEXT("FailedToResolveTooltip", "Make sure actor '{0}' has a property with path '{1}'"),
-				FText::FromString(ActorName),
-				FText::FromString(FirstPropertyValue->GetFullDisplayString())))
-		];
+		return GetFailedToResolveWidget(FirstPropertyValue);
 	}
 
 	// If properties have different values, just give back a "Multiple Values" text block

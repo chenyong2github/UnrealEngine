@@ -7,6 +7,8 @@
 
 #include "Misc/ScopeLock.h"
 
+#include "Network/DisplayClusterMessage.h"
+
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"

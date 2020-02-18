@@ -10,7 +10,6 @@
 #include "Materials/Material.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
-#include "MeshDescriptionOperations.h"
 #include "MeshBuilder.h"
 #include "RawMesh.h"
 #include "MeshUtilities.h"
@@ -490,9 +489,9 @@ bool FMeshDescriptionTest::ConversionTest(FAutomationTestExecutionInfo& Executio
 				FMeshDescription ResultAssetMesh(*ReferenceAssetMesh);
 				//Convert MeshDescription to FRawMesh
 				FRawMesh RawMesh;
-				FMeshDescriptionOperations::ConvertToRawMesh(ResultAssetMesh, RawMesh, MaterialMap);
+				FStaticMeshOperations::ConvertToRawMesh(ResultAssetMesh, RawMesh, MaterialMap);
 				//Convert back the FRawmesh
-				FMeshDescriptionOperations::ConvertFromRawMesh(RawMesh, ResultAssetMesh, MaterialMapInverse);
+				FStaticMeshOperations::ConvertFromRawMesh(RawMesh, ResultAssetMesh, MaterialMapInverse);
 				if (!CompareMeshDescription(AssetName, ExecutionInfo, *ReferenceAssetMesh, ResultAssetMesh))
 				{
 					bAllSame = false;
@@ -514,9 +513,9 @@ bool FMeshDescriptionTest::ConversionTest(FAutomationTestExecutionInfo& Executio
 				//Create a temporary Mesh Description
 				FMeshDescription MeshDescription;
 				FStaticMeshAttributes(MeshDescription).Register();
-				FMeshDescriptionOperations::ConvertFromRawMesh(ResultRawMesh, MeshDescription, MaterialMapInverse);
+				FStaticMeshOperations::ConvertFromRawMesh(ResultRawMesh, MeshDescription, MaterialMapInverse);
 				//Convert back the FRawmesh
-				FMeshDescriptionOperations::ConvertToRawMesh(MeshDescription, ResultRawMesh, MaterialMap);
+				FStaticMeshOperations::ConvertToRawMesh(MeshDescription, ResultRawMesh, MaterialMap);
 				if (!CompareRawMesh(AssetName, ExecutionInfo, ReferenceRawMesh, ResultRawMesh))
 				{
 					bAllSame = false;

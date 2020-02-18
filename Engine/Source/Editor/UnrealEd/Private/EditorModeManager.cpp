@@ -671,6 +671,9 @@ void FEditorModeTools::DeactivateModeAtIndex(int32 InIndex)
 
 	Mode->Exit();
 
+	const bool bIsEnteringMode = false;
+	BroadcastEditorModeIDChanged(Mode->GetID(), bIsEnteringMode);
+
 	// Remove the toolbar widget
 	ActiveToolBarRows.RemoveAll(
 		[&Mode](FEdModeToolbarRow& Row)
@@ -692,6 +695,9 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 	UEdMode* Mode = ActiveScriptableModes[InIndex];
 
 	Mode->Exit();
+
+	const bool bIsEnteringMode = false;
+	BroadcastEditorModeIDChanged(Mode->GetID(), bIsEnteringMode);
 
 	// Remove the toolbar widget
 	ActiveToolBarRows.RemoveAll(
@@ -787,7 +793,11 @@ void FEditorModeTools::RebuildModeToolBar()
 			ModeToolbarBoxPinned->AddSlot()
 			.Padding(1.f)
 			[
-				PaletteSwitcher 
+				SNew(SBox)
+				.HeightOverride(45.f)
+				[
+					PaletteSwitcher 
+				]
 			];
 
 			ModeToolbarPaletteSwitcher = PaletteSwitcher;
@@ -930,8 +940,7 @@ TSharedRef<SDockTab> FEditorModeTools::MakeModeToolbarTab()
 		.ContentPadding(0.0f)
 		.Icon(FEditorStyle::GetBrush("ToolBar.Icon"))
 		[
-			SAssignNew(ModeToolbarBox, SVerticalBox)
-			
+			SAssignNew(ModeToolbarBox, SVerticalBox)	
 		];
 
 	ModeToolbarTab = ToolbarTabRef;
@@ -953,7 +962,7 @@ bool FEditorModeTools::ShouldShowModeToolbox() const
 	bool bHasVisibleModes = false;
 	for (const TSharedPtr<FEdMode>& Mode : ActiveModes)
 	{
-		if (Mode->GetModeInfo().bVisible)
+		if (Mode->GetModeInfo().bVisible && Mode->UsesToolkits())
 		{
 			bHasVisibleModes = true;
 			break;
@@ -964,7 +973,7 @@ bool FEditorModeTools::ShouldShowModeToolbox() const
 	{
 		for (const UEdMode* Mode : ActiveScriptableModes)
 		{
-			if (Mode->GetModeInfo().bVisible)
+			if (Mode->GetModeInfo().bVisible && Mode->UsesToolkits())
 			{
 				bHasVisibleModes = true;
 				break;
@@ -1058,6 +1067,9 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			// Enter the new mode
 			Mode->Enter();
 
+			const bool bIsEnteringMode = true;
+			BroadcastEditorModeIDChanged(Mode->GetID(), bIsEnteringMode);
+
 			// Ask the mode to build the toolbar.
 			TSharedPtr<FUICommandList> CommandList;
 			const TSharedPtr<FModeToolkit> Toolkit = Mode->GetToolkit();
@@ -1071,7 +1083,8 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				Toolkit->GetToolPaletteNames(PaletteNames);
 				for(auto Palette : PaletteNames)
 				{
-					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
+					const bool bUniform = true;
+					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false, bUniform);
 					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
@@ -1089,18 +1102,18 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 		else
 		{
 			// Recycle a mode or factory a new one
-			UEdMode* Mode = RecycledScriptableModes.FindRef(InID);
+			UEdMode* ScriptableMode = RecycledScriptableModes.FindRef(InID);
 
-			if (Mode)
+			if (ScriptableMode)
 			{
 				RecycledScriptableModes.Remove(InID);
 			}
 			else
 			{
-				Mode = FEditorModeRegistry::Get().CreateScriptableMode(InID, *this);
+				ScriptableMode = FEditorModeRegistry::Get().CreateScriptableMode(InID, *this);
 			}
 
-			if (!Mode)
+			if (!ScriptableMode)
 			{
 				UE_LOG(LogEditorModes, Log, TEXT("FEditorModeTools::ActivateMode : Couldn't find mode '%s'."), *InID.ToString());
 				// Just return and leave the mode list unmodified
@@ -1108,31 +1121,34 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			}
 
 			// Remove anything that isn't compatible with this mode
-			for (int32 ModeIndex = ActiveModes.Num() - 1; ModeIndex >= 0; --ModeIndex)
+			for (int32 ModeIndex = ActiveModes.Num() - 1; ModeIndex >= 0; ModeIndex--)
 			{
-				const bool bModesAreCompatible = Mode->IsCompatibleWith(ActiveModes[ModeIndex]->GetID()) || ActiveModes[ModeIndex]->IsCompatibleWith(Mode->GetID());
+				const bool bModesAreCompatible = ScriptableMode->IsCompatibleWith(ActiveModes[ModeIndex]->GetID()) || ActiveModes[ModeIndex]->IsCompatibleWith(ScriptableMode->GetID());
 				if (!bModesAreCompatible)
 				{
 					DeactivateModeAtIndex(ModeIndex);
 				}
 			}
 			// Remove anything that isn't compatible with this mode
-			for (int32 ModeIndex = ActiveScriptableModes.Num() - 1; ModeIndex >= 0; --ModeIndex)
+			for (int32 ModeIndex = ActiveScriptableModes.Num() - 1; ModeIndex >= 0; ModeIndex--)
 			{
-				const bool bModesAreCompatible = Mode->IsCompatibleWith(ActiveScriptableModes[ModeIndex]->GetID()) || ActiveScriptableModes[ModeIndex]->IsCompatibleWith(Mode->GetID());
+				const bool bModesAreCompatible = ScriptableMode->IsCompatibleWith(ActiveScriptableModes[ModeIndex]->GetID()) || ActiveScriptableModes[ModeIndex]->IsCompatibleWith(ScriptableMode->GetID());
 				if (!bModesAreCompatible)
 				{
 					DeactivateScriptableModeAtIndex(ModeIndex);
 				}
 			}
 
-			ActiveScriptableModes.Add(Mode);
+			ActiveScriptableModes.Add(ScriptableMode);
 			// Enter the new mode
-			Mode->Enter();
+			ScriptableMode->Enter();
+
+			const bool bIsEnteringMode = true;
+			BroadcastEditorModeIDChanged(ScriptableMode->GetID(), bIsEnteringMode);
 
 			// Ask the mode to build the toolbar.
 			TSharedPtr<FUICommandList> CommandList;
-			const TSharedPtr<FModeToolkit> Toolkit = Mode->GetToolkit();
+			const TSharedPtr<FModeToolkit> Toolkit = ScriptableMode->GetToolkit();
 			if (Toolkit.IsValid())
 			{
 				CommandList = Toolkit->GetToolkitCommands();
@@ -1143,10 +1159,10 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				Toolkit->GetToolPaletteNames(PaletteNames);
 				for(auto Palette : PaletteNames)
 				{
-					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
+					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
-					ActiveToolBarRows.Emplace(Mode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
+					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
 					PaletteCount++;
 				}
 

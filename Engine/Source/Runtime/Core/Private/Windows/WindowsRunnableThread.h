@@ -26,50 +26,6 @@ class FRunnableThreadWin
 	HANDLE Thread;
 
 	/**
-	 * Helper function to set thread names, visible by the debugger.
-	 * @param ThreadID		Thread ID for the thread who's name is going to be set
-	 * @param ThreadName	Name to set
-	 */
-	static void SetThreadName( uint32 ThreadID, LPCSTR ThreadName )
-	{
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		/**
-		 * Code setting the thread name for use in the debugger.
-		 *
-		 * http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
-		 */
-		const uint32 MS_VC_EXCEPTION=0x406D1388;
-
-		struct THREADNAME_INFO
-		{
-			uint32 dwType;		// Must be 0x1000.
-			LPCSTR szName;		// Pointer to name (in user addr space).
-			uint32 dwThreadID;	// Thread ID (-1=caller thread).
-			uint32 dwFlags;		// Reserved for future use, must be zero.
-		};
-
-		THREADNAME_INFO ThreadNameInfo;
-		ThreadNameInfo.dwType		= 0x1000;
-		ThreadNameInfo.szName		= ThreadName;
-		ThreadNameInfo.dwThreadID	= ThreadID;
-		ThreadNameInfo.dwFlags		= 0;
-
-		__try
-		{
-			RaiseException( MS_VC_EXCEPTION, 0, sizeof(ThreadNameInfo)/sizeof(ULONG_PTR), (ULONG_PTR*)&ThreadNameInfo );
-		}
-		__except( EXCEPTION_EXECUTE_HANDLER )
-		CA_SUPPRESS(6322)
-		{	
-		}
-#endif
-	}
-
-#if !PLATFORM_XBOXONE		
-	static void SetThreadDescription(HANDLE hThread, PCWSTR lpThreadDescription);
-#endif
-
-	/**
 	 * The thread entry point. Simply forwards the call on to the right
 	 * thread main function
 	 */
@@ -214,26 +170,12 @@ protected:
 		}
 		else
 		{
-#if !PLATFORM_XBOXONE		
-			// We try to use the SetThreadDescription API where possible since this
-			// enables thread names in crashdumps and ETW traces
-			SetThreadDescription(Thread, *ThreadName);
-#endif
-
 			FThreadManager::Get().AddThread(ThreadID, this);
 			ResumeThread(Thread);
 
-			// Let the thread start up, then set the name for debug purposes.
+			// Let the thread start up
 			ThreadInitSyncEvent->Wait(INFINITE);
-#if !PLATFORM_XBOXONE
-			SetThreadName( ThreadID, TCHAR_TO_ANSI( *ThreadName ) );
-#elif !UE_BUILD_SHIPPING
-			if (FPlatformMisc::IsDebuggerPresent())
-			{
-				SetThreadName( ThreadID, TCHAR_TO_ANSI( *ThreadName ) );
-			}
-			::SetThreadName( Thread, *ThreadName );
-#endif
+
 			SetThreadPriority(InThreadPri);
 		}
 

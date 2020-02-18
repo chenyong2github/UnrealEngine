@@ -6,6 +6,9 @@
 #include "FunctionCaller.generated.h"
 
 #define TARGET_PIN_NAME TEXT("Target")
+#define LEVEL_VARIANT_SETS_PIN_NAME TEXT("Level Variant Sets")
+#define VARIANT_SET_PIN_NAME TEXT("Variant Set")
+#define VARIANT_PIN_NAME TEXT("Variant")
 
 // This file is based on MovieSceneEvent.h
 

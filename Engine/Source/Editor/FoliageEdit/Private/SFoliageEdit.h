@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
+#pragma once 
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
@@ -46,7 +45,11 @@ public:
 	/** Get the error message for this editing mode */
 	FText GetFoliageEditorErrorText() const;
 
+	/** Modes Panel Header Information **/
 	void CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder);
+	FText GetActiveToolName() const;
+	FText GetActiveToolMessage() const;
+
 
 private:
 	/** Creates the toolbar. */
@@ -66,7 +69,12 @@ private:
 	/** Checks if the tool mode is Paint Bucket. */
 	bool IsPaintFillTool() const;
 
-	FText GetActiveToolName() const;
+	/** Checks if the tool mode is Erase */
+	bool IsEraseTool() const;
+
+	/** Checks if the tool mode is Place Single Instance */
+	bool IsPlaceTool() const;
+
 
 public:	// BRUSH SETTINGS
 	/** Sets the brush Radius for the brush. */

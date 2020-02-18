@@ -13,7 +13,12 @@ class FData;
 class FContourList final : public TDoubleLinkedList<FContour>
 {
 public:
-	FContourList(const FT_GlyphSlot Glyph, const TSharedPtr<FData> DataIn);
+	FContourList();
+
+	/**
+	 * Initialize Countours
+	 */
+	void Initialize();
 
 	/**
 	 * Create contour.
@@ -27,10 +32,4 @@ public:
 	void Remove(const FContour& Contour);
 
 	void Reset();
-
-private:
-	const TSharedPtr<FData> Data;
-
-
-	void Init();
 };

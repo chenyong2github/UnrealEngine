@@ -8,7 +8,6 @@
 #include "Editor.h"
 #include "IStaticMeshEditor.h"
 #include "StaticMeshAttributes.h"
-#include "MeshDescriptionOperations.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "RawMesh.h"

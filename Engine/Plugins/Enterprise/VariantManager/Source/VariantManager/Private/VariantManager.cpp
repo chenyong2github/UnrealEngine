@@ -2,34 +2,36 @@
 
 #include "VariantManager.h"
 
-#include "SVariantManager.h"
 #include "CapturableProperty.h"
-#include "CoreMinimal.h"
-#include "Editor.h"
-#include "K2Node_CallFunction.h"
-#include "K2Node_FunctionEntry.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "LevelVariantSets.h"
 #include "LevelVariantSetsFunctionDirector.h"
-#include "Variant.h"
-#include "VariantManagerNodeTree.h"
-#include "VariantSet.h"
-#include "VariantObjectBinding.h"
-#include "FunctionCaller.h"
-#include "PropertyPath.h"
 #include "PropertyValue.h"
-#include "PropertyValueMaterial.h"
 #include "PropertyValueColor.h"
+#include "PropertyValueMaterial.h"
 #include "PropertyValueOption.h"
-#include "HAL/UnrealMemory.h"
-#include "ObjectTools.h"
-#include "Dialogs/SCaptureDialog.h"
-#include "UObject/StrongObjectPtr.h"
+#include "PropertyValueSoftObject.h"
+#include "SVariantManager.h"
+#include "Variant.h"
 #include "VariantManagerLog.h"
+#include "VariantManagerNodeTree.h"
 #include "VariantManagerPropertyCapturer.h"
 #include "VariantManagerSelection.h"
 #include "VariantObjectBinding.h"
+#include "VariantObjectBinding.h"
+#include "VariantSet.h"
+
+#include "CoreMinimal.h"
+#include "Dialogs/SCaptureDialog.h"
+#include "Editor.h"
+#include "FunctionCaller.h"
+#include "HAL/UnrealMemory.h"
+#include "K2Node_CallFunction.h"
+#include "K2Node_FunctionEntry.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "ObjectTools.h"
+#include "PropertyPath.h"
+#include "UObject/StrongObjectPtr.h"
 
 DEFINE_LOG_CATEGORY(LogVariantManager);
 
@@ -119,7 +121,17 @@ UK2Node_FunctionEntry* FVariantManager::CreateDirectorFunction(ULevelVariantSets
 		FEdGraphPinType PinType;
 		PinType.PinCategory = PinClassType && PinClassType->IsChildOf(UInterface::StaticClass()) ? UEdGraphSchema_K2::PC_Interface : UEdGraphSchema_K2::PC_Object;
 		PinType.PinSubCategoryObject = PinClassType ? PinClassType : UObject::StaticClass();
-		EntryNode->CreateUserDefinedPin(FName(TARGET_PIN_NAME), PinType, EGPD_Output, true);
+		EntryNode->CreateUserDefinedPin(TARGET_PIN_NAME, PinType, EGPD_Output, true);
+
+		PinType.PinSubCategoryObject = ULevelVariantSets::StaticClass();
+		EntryNode->CreateUserDefinedPin(LEVEL_VARIANT_SETS_PIN_NAME, PinType, EGPD_Output, true);
+
+		PinType.PinSubCategoryObject = UVariantSet::StaticClass();
+		EntryNode->CreateUserDefinedPin(VARIANT_SET_PIN_NAME, PinType, EGPD_Output, true);
+
+		PinType.PinSubCategoryObject = UVariant::StaticClass();
+		EntryNode->CreateUserDefinedPin(VARIANT_PIN_NAME, PinType, EGPD_Output, true);
+
 		EntryNode->ReconstructNode();
 
 		return EntryNode;
@@ -509,14 +521,32 @@ TArray<UPropertyValue*> FVariantManager::CreatePropertyCaptures(const TArray<TSh
 			}
 			default: // Generic
 			{
-				NewPropVal = NewObject<UPropertyValue>(GetTransientPackage(), UPropertyValue::StaticClass(), NAME_None, RF_Public|RF_Transactional);
 				FProperty* LeafProp = PropAndDisplay->Prop.GetLeafMostProperty().Property.Get();
-				if (LeafProp)
+
+				if (LeafProp && LeafProp->GetClass()->IsChildOf(FSoftObjectProperty::StaticClass()))
 				{
+					NewPropVal = NewObject<UPropertyValueSoftObject>(GetTransientPackage(), UPropertyValueSoftObject::StaticClass(), NAME_None, RF_Public|RF_Transactional);
+					PropClass = FSoftObjectProperty::StaticClass();
+				}
+				else if (LeafProp)
+				{
+					NewPropVal = NewObject<UPropertyValue>(GetTransientPackage(), UPropertyValue::StaticClass(), NAME_None, RF_Public|RF_Transactional);
 					PropClass = LeafProp->GetClass();
+				}
+				else
+				{
+					UObject* BoundObject = Binding->GetObject();
+					FString ObjectName = BoundObject ? BoundObject->GetName() : TEXT("<invalid actor>");
+
+					UE_LOG(LogVariantManager, Error, TEXT("Failed to capture property with path '%s' for actor '%s'"), *PropAndDisplay->DisplayName, *ObjectName);
 				}
 				break;
 			}
+			}
+
+			if (!NewPropVal || !PropClass)
+			{
+				continue;
 			}
 
 			NewPropVal->Init(PropAndDisplay->ToCapturedPropSegmentArray(), PropClass, PropAndDisplay->DisplayName, PropAndDisplay->PropertySetterName, PropAndDisplay->CaptureType);
@@ -1033,7 +1063,7 @@ void FVariantManager::CaptureNewProperties(const TArray<UVariantObjectBinding*>&
 	}
 }
 
-void FVariantManager::GetCapturableProperties(const TArray<AActor*>& Actors, TArray<TSharedPtr<FCapturableProperty>>& OutProperties, FString TargetPropertyPath)
+void FVariantManager::GetCapturableProperties(const TArray<AActor*>& Actors, TArray<TSharedPtr<FCapturableProperty>>& OutProperties, FString TargetPropertyPath, bool bCaptureAllArrayIndices)
 {
 	TSet<UObject*> BoundObjects;
 	for (AActor* Actor : Actors)
@@ -1043,10 +1073,10 @@ void FVariantManager::GetCapturableProperties(const TArray<AActor*>& Actors, TAr
 
 	TArray<UObject*> BoundObjectsArr = BoundObjects.Array();
 
-	FVariantManagerPropertyCapturer::CaptureProperties(BoundObjectsArr, OutProperties, TargetPropertyPath);
+	FVariantManagerPropertyCapturer::CaptureProperties(BoundObjectsArr, OutProperties, TargetPropertyPath, bCaptureAllArrayIndices);
 }
 
-void FVariantManager::GetCapturableProperties(const TArray<UClass*>& Classes, TArray<TSharedPtr<FCapturableProperty>>& OutProperties, FString TargetPropertyPath)
+void FVariantManager::GetCapturableProperties(const TArray<UClass*>& Classes, TArray<TSharedPtr<FCapturableProperty>>& OutProperties, FString TargetPropertyPath, bool bCaptureAllArrayIndices)
 {
 	TSet<UObject*> BoundObjects;
 	for (UClass* Class : Classes)
@@ -1056,7 +1086,7 @@ void FVariantManager::GetCapturableProperties(const TArray<UClass*>& Classes, TA
 
 	TArray<UObject*> BoundObjectsArr = BoundObjects.Array();
 
-	FVariantManagerPropertyCapturer::CaptureProperties(BoundObjectsArr, OutProperties, TargetPropertyPath);
+	FVariantManagerPropertyCapturer::CaptureProperties(BoundObjectsArr, OutProperties, TargetPropertyPath, bCaptureAllArrayIndices);
 }
 
 TSharedPtr<SVariantManager> FVariantManager::GetVariantManagerWidget() const

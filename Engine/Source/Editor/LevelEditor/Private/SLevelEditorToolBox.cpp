@@ -16,6 +16,7 @@
 #include "Classes/EditorStyleSettings.h"
 #include "EdMode.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SExpandableArea.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
 
@@ -56,22 +57,19 @@ void SLevelEditorToolBox::Construct( const FArguments& InArgs, const TSharedRef<
 		[
 			SNew( SVerticalBox )
 
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(ModeToolHeader, SBorder)
+				.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
+			]
+
 			+ SVerticalBox::Slot()
 			[
 				SAssignNew(InlineContentHolder, SBorder)
 				.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 				.Padding(0.f)
 				.Visibility( this, &SLevelEditorToolBox::GetInlineContentHolderVisibility )
-			]
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign( HAlign_Center )
-			.Padding( 2.0f, 14.0f, 2.0f, 2.0f )
-			[
-				SNew( STextBlock )
-				.Text( LOCTEXT("NoToolSelected", "Select a tool to display its options.") )
-				.Visibility( this, &SLevelEditorToolBox::GetNoToolSelectedTextVisibility )
 			]
 		]
 	];
@@ -149,7 +147,6 @@ void SLevelEditorToolBox::UpdateModeLegacyToolBar()
 	for(const TSharedPtr<IToolkit>& HostedToolkitIt : HostedToolkits)
 	{
 		UpdateInlineContent(HostedToolkitIt, HostedToolkitIt->GetInlineContent());
-		break;
 	}
 }
 
@@ -165,13 +162,49 @@ EVisibility SLevelEditorToolBox::GetNoToolSelectedTextVisibility() const
 
 void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolkit, TSharedPtr<SWidget> InlineContent) 
 {
-	TabName = NSLOCTEXT("LevelEditor", "ToolsTabTitle", "Toolbox");
-	TabIcon = FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Modes");
-
 	if (Toolkit.IsValid())
 	{
-		TabName = Toolkit->GetEditorModeDisplayName();
-		TabIcon = Toolkit->GetEditorModeIcon().GetSmallIcon();
+		if(Toolkit->GetEditorMode() || Toolkit->GetScriptableEditorMode())
+		{
+			TabName = Toolkit->GetEditorModeDisplayName();
+			TabIcon = Toolkit->GetEditorModeIcon().GetSmallIcon();
+
+			TSharedPtr<FModeToolkit> ModeToolkit = StaticCastSharedPtr<FModeToolkit>(Toolkit);
+
+			ModeToolHeader->SetContent(
+				SNew(SExpandableArea)
+				.HeaderPadding(FMargin(2.0f))
+				.Padding(FMargin(10.f))
+				.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
+				.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
+				.BodyBorderBackgroundColor(FLinearColor::Transparent)
+				.AreaTitleFont(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
+				.Visibility_Lambda([ModeToolkit] { return ModeToolkit->GetActiveToolDisplayName().IsEmpty() && ModeToolkit->GetActiveToolMessage().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;  })
+				.BodyContent()
+				[
+					SNew(STextBlock)
+					.Text(ModeToolkit.Get(), &FModeToolkit::GetActiveToolMessage)
+					.Font(FEditorStyle::Get().GetFontStyle("EditorModesPanel.ToolDescriptionFont"))
+					.AutoWrapText(true)
+				]
+				.HeaderContent()
+				[
+					SNew(STextBlock)
+					.Text(ModeToolkit.Get(), &FModeToolkit::GetActiveToolDisplayName)
+					.Justification(ETextJustify::Center)
+					.Font(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
+				]
+			);
+		}
+
+	}
+	else
+	{
+
+		TabName = NSLOCTEXT("LevelEditor", "ToolsTabTitle", "Toolbox");
+		TabIcon = FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Modes");
+
+		ModeToolHeader->SetContent(SNullWidget::NullWidget);
 	}
 
 	TSharedPtr<SDockTab> ParentTabPinned = ParentTab.Pin();

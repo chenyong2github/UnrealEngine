@@ -53,6 +53,7 @@ void UFactory::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collec
 
 UObject* UFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
+	AdditionalImportedObjects.Empty();
 	UAssetImportTask* Task = AssetImportTask;
 	if (Task == nullptr)
 	{
@@ -62,7 +63,19 @@ UObject* UFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName I
 
 	if (ScriptFactoryCreateFile(Task))
 	{
-		return Task->Result;
+		if (Task->Result.Num() > 0)
+		{
+			return nullptr;
+		}
+		else
+		{
+			for (int32 ResultIndex = 1; ResultIndex < Task->Result.Num(); ++ResultIndex)
+			{
+				AdditionalImportedObjects.Add(Task->Result[ResultIndex]);
+			}
+
+			return Task->Result[0];
+		}
 	}
 
 	FString FileExtension = FPaths::GetExtension(Filename);
@@ -149,6 +162,7 @@ bool UFactory::FactoryCanImport( const FString& Filename )
 UObject* UFactory::ImportObject(UClass* InClass, UObject* InOuter, FName InName, EObjectFlags InFlags, const FString& Filename, const TCHAR* Parms, bool& OutCanceled)
 {
 	UObject* Result = nullptr;
+	AdditionalImportedObjects.Empty();
 	CurrentFilename = Filename;
 	
 

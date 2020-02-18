@@ -40,6 +40,8 @@ public class MeshModelingTools : ModuleRules
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",
+				"MeshDescription",
+                "StaticMeshDescription",
                 "MeshSolverUtilities",
 				"ModelingComponents",
 				"ModelingOperators",

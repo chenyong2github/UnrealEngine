@@ -12,7 +12,7 @@
 
 #include "DataprepFactories.generated.h"
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, BlueprintType)
 class UDataprepAssetFactory : public UFactory
 {
 	GENERATED_BODY()
@@ -26,7 +26,7 @@ public:
 	//~ Begin UFactory Interface	
 };
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, BlueprintType)
 class UDataprepAssetInstanceFactory : public UFactory
 {
 	GENERATED_BODY()
@@ -34,8 +34,11 @@ class UDataprepAssetInstanceFactory : public UFactory
 public:
 	UDataprepAssetInstanceFactory();
 
-	UPROPERTY()
-	class UDataprepAssetInterface* InitialParent;
+	/**
+	 * The parent of the of the instance to create
+	 */
+	UPROPERTY(EditAnywhere, Category="Settings")
+	class UDataprepAsset* Parent;
 
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;

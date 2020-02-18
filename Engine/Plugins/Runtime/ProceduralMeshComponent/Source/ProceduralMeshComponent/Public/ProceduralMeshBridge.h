@@ -21,6 +21,10 @@ public:
 
 	FMeshDescription* GetMesh() override;
 	void CommitMesh( const FCommitter& ) override;
+	virtual bool HasSameSourceData(const FPrimitiveComponentTarget& OtherTarget) const override
+	{
+		return OtherTarget.Component == Component;
+	}
 private:
 	TUniquePtr<FMeshDescription> MeshDescription;
 };

@@ -4282,6 +4282,11 @@ bool FSlateApplication::ProcessKeyUpEvent( const FKeyEvent& InKeyEvent )
 	return Reply.IsEventHandled();
 }
 
+void FSlateApplication::OnInputLanguageChanged()
+{
+	FInputKeyManager::Get().InitKeyMappings();
+}
+
 bool FSlateApplication::ProcessAnalogInputEvent(const FAnalogInputEvent& InAnalogInputEvent)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ProcessAnalogInput);

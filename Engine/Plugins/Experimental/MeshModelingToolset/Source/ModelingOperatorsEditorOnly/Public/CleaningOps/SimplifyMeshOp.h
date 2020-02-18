@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Util/ProgressCancel.h"
+#include "MeshConstraints.h"
 #include "ModelingOperators.h"
-
+#include "Util/ProgressCancel.h"
 
 #include "SimplifyMeshOp.generated.h"
 
@@ -15,7 +15,6 @@ struct FMeshDescription;
 template <class TriangleMeshType>
 class TMeshAABBTree3;
 typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3;
-
 
 UENUM()
 enum class ESimplifyTargetType : uint8
@@ -43,10 +42,6 @@ enum class ESimplifyType : uint8
 	UE4Standard = 2 UMETA(DisplayName = "UE4 Standard"),
 };
 
-
-
-
-
 class MODELINGOPERATORSEDITORONLY_API FSimplifyMeshOp : public FDynamicMeshOperator
 {
 public:
@@ -59,7 +54,8 @@ public:
 	ESimplifyType SimplifierType;
 	int TargetPercentage, TargetCount;
 	float TargetEdgeLength;
-	bool bDiscardAttributes, bReproject, bPreventNormalFlips;
+	bool bDiscardAttributes, bReproject, bPreventNormalFlips, bPreserveSharpEdges;
+	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
 
 	// stored for the UE4 Standard path
 	TSharedPtr<FMeshDescription> OriginalMeshDescription;

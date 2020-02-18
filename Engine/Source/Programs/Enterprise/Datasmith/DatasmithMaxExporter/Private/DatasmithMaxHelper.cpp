@@ -22,3 +22,20 @@ FScopedBitMapPtr::~FScopedBitMapPtr()
 		Map->DeleteThis();
 	}
 }
+
+void DatasmithMaxHelper::FilterInvertedScaleTransforms(const TArray<FTransform>& Transforms, TArray<FTransform>& OutNormal, TArray<FTransform>& OutInverted)
+{
+	for (const FTransform& CurrentTransform : Transforms)
+	{
+		FVector Scale(CurrentTransform.GetScale3D());
+
+		if ((Scale.X * Scale.Y * Scale.Z) < 0)
+		{
+			OutInverted.Emplace(CurrentTransform);
+		}
+		else
+		{
+			OutNormal.Emplace(CurrentTransform);
+		}
+	}
+}

@@ -23,6 +23,8 @@ UTakeMetaData::UTakeMetaData(const FObjectInitializer& ObjInit)
 {
 	TakeNumber = 1;
 	bIsLocked = false;
+	bFrameRateFromTimecode = true;
+	FrameRate = FApp::GetTimecodeFrameRate();
 }
 
 UTakeMetaData* UTakeMetaData::GetConfigInstance()
@@ -122,8 +124,12 @@ FFrameTime UTakeMetaData::GetDuration() const
 	return Duration;
 }
 
-FFrameRate UTakeMetaData::GetFrameRate() const
+FFrameRate UTakeMetaData::GetFrameRate() 
 {
+	if (bFrameRateFromTimecode)
+	{
+		FrameRate = FApp::GetTimecodeFrameRate();
+	}
 	return FrameRate;
 }
 
@@ -145,6 +151,11 @@ ULevel* UTakeMetaData::GetLevelOrigin() const
 FString UTakeMetaData::GetLevelPath() const
 {
 	return !LevelOrigin.IsNull() ? LevelOrigin.ToString() : FString();
+}
+
+bool UTakeMetaData::GetFrameRateFromTimecode() const
+{
+	return bFrameRateFromTimecode;
 }
 
 void UTakeMetaData::SetSlate(FString InSlate, bool bEmitChanged)
@@ -236,6 +247,15 @@ void UTakeMetaData::SetLevelOrigin(ULevel* InLevelOrigin)
 		LevelOrigin = InLevelOrigin; 
 	}
 }
+
+void UTakeMetaData::SetFrameRateFromTimecode(bool InFromTimecode)
+{
+	if (!bIsLocked)
+	{
+		bFrameRateFromTimecode = InFromTimecode;
+	}
+}
+
 
 void UTakeMetaData::ExtendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {

@@ -166,7 +166,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("DummyValidationError", "This is where a validation error might show up?"))
+					.Text(this, &SMoviePipelineConfigPanel::GetValidationWarningText)
 				]
 
 				// Cancel Changes
@@ -200,6 +200,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 					.ContentPadding(MoviePipeline::ButtonPadding)
 					.ButtonStyle(FMovieRenderPipelineStyle::Get(), "FlatButton.Success")
 					.OnClicked(this, &SMoviePipelineConfigPanel::OnConfirmChanges)
+					.IsEnabled(this, &SMoviePipelineConfigPanel::CanAcceptChanges)
 					.Content()
 					[
 						SNew(STextBlock)
@@ -245,6 +246,20 @@ FReply SMoviePipelineConfigPanel::OnConfirmChanges()
 	return FReply::Handled();
 }
 
+bool SMoviePipelineConfigPanel::CanAcceptChanges() const
+{
+	EMoviePipelineValidationState ValidationResult = EMoviePipelineValidationState::Valid;
+	for (const UMoviePipelineSetting* Setting : TransientPreset->GetUserSettings())
+	{
+		if ((int32)Setting->GetValidationState() > (int32)ValidationResult)
+		{
+			ValidationResult = Setting->GetValidationState();
+		}
+	}
+
+	return (int32)ValidationResult < (int32)EMoviePipelineValidationState::Errors;
+}
+
 FReply SMoviePipelineConfigPanel::OnCancelChanges()
 {
 	TSharedPtr<SWindow> OwningWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
@@ -254,6 +269,30 @@ FReply SMoviePipelineConfigPanel::OnCancelChanges()
 	}
 
 	return FReply::Handled();
+}
+
+FText SMoviePipelineConfigPanel::GetValidationWarningText() const
+{
+	EMoviePipelineValidationState ValidationResult = EMoviePipelineValidationState::Valid;
+	for (const UMoviePipelineSetting* Setting : TransientPreset->GetUserSettings())
+	{
+		int32 CurResult = (int32)ValidationResult;
+		int32 NewResult = (int32)Setting->GetValidationState();
+		if (NewResult > CurResult)
+		{
+			ValidationResult = Setting->GetValidationState();
+		}
+	}
+
+	switch (ValidationResult)
+	{
+	case EMoviePipelineValidationState::Errors:
+		return LOCTEXT("ValidationSettingError_Text", "One or more settings has a configuration error and must be resolved.");
+	case EMoviePipelineValidationState::Warnings:
+		return LOCTEXT("ValidationSettingWarning_Text", "One or more settings have validation warnings. This may produce undesired results.");
+	}
+
+	return FText();
 }
 
 UMoviePipelineConfigBase* SMoviePipelineConfigPanel::AllocateTransientPreset()
@@ -419,6 +458,10 @@ void SMoviePipelineConfigPanel::OnSaveAsPreset()
 	{
 		NewPreset->CopyFrom(TransientPreset);
 		NewPreset->MarkPackageDirty();
+		
+		// Make the Display Name match the preset name so when imported later they look like the asset.
+		NewPreset->DisplayName = NewAssetName;
+
 		FAssetRegistryModule::AssetCreated(NewPreset);
 
 		FEditorFileUtils::EPromptReturnCode PromptReturnCode = FEditorFileUtils::PromptForCheckoutAndSave({ NewPackage }, false, false);

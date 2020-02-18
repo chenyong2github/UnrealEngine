@@ -35,6 +35,7 @@ protected:
 	virtual void AddSceneNode(const FDisplayClusterConfigSceneNode& InCfgSNode)              override final;
 	virtual void AddGeneral(const FDisplayClusterConfigGeneral& InCfgGeneral)                override final;
 	virtual void AddRender(const FDisplayClusterConfigRender& InCfgRender)                   override final;
+	virtual void AddNvidia(const FDisplayClusterConfigNvidia& InCfgNvidia)                   override final;
 	virtual void AddStereo(const FDisplayClusterConfigStereo& InCfgStereo)                   override final;
 	virtual void AddDebug(const FDisplayClusterConfigDebug& InCfgDebug)                      override final;
 	virtual void AddNetwork(const FDisplayClusterConfigNetwork& InCfgNetwork)                override final;

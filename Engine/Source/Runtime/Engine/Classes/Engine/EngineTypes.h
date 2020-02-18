@@ -357,7 +357,8 @@ enum ESceneCaptureSource
 	SCS_DeviceDepth UMETA(DisplayName = "DeviceDepth in RGB"),
 	SCS_Normal UMETA(DisplayName="Normal in RGB (Deferred Renderer only)"),
 	SCS_BaseColor UMETA(DisplayName = "BaseColor in RGB (Deferred Renderer only)"),
-	SCS_FinalColorHDR UMETA(DisplayName = "Final Color (HDR) in Linear sRGB gamut")
+	SCS_FinalColorHDR UMETA(DisplayName = "Final Color (HDR) in Linear sRGB gamut"),
+	SCS_FinalToneCurveHDR UMETA(DisplayName = "Final Color (with tone curve) in Linear sRGB gamut")
 };
 
 /** Specifies how scene captures are composited into render buffers */
@@ -1538,7 +1539,7 @@ struct ENGINE_API FRotationConversionCache
 		{
 			return CachedRotator;
 		}
-		return InQuat.Rotator();
+		return InQuat.GetNormalized().Rotator();
 	}
 
 	/** Version of QuatToRotator when the Quat is known to already be normalized. */

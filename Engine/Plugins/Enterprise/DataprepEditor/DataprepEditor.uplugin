@@ -38,6 +38,10 @@
 	],
 	"Plugins": [
 		{
+			"Name": "DatasmithContent",
+			"Enabled": true
+		},
+		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
 		},

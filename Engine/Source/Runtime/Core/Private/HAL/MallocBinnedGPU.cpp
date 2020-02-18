@@ -425,7 +425,7 @@ struct FMallocBinnedGPU::Private
 					NodePool->SetCanary(FPoolInfoSmall::ECanary::SmallUnassigned, true, false);
 					Table.BlockOfBlockAllocationBits.FreeBit(OutBlockOfBlocksIndex);
 
-					uint64 AllocSize = Allocator.SmallPoolTables[InPoolIndex].PagesPlatformForBlockOfBlocks * Allocator.ArenaParams.AllocationGranularity;
+					uint64 AllocSize = static_cast<uint64>(Allocator.SmallPoolTables[InPoolIndex].PagesPlatformForBlockOfBlocks) * Allocator.ArenaParams.AllocationGranularity;
 
 					if (!bWasExhaused)
 					{

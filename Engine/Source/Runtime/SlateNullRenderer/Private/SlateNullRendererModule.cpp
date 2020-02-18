@@ -20,6 +20,9 @@ public:
 	virtual int32 GetNumAtlasPages() const override { return 0; }
 	virtual class FSlateShaderResource* GetAtlasPageResource(const int32 InIndex) const override { return nullptr; }
 	virtual bool IsAtlasPageResourceAlphaOnly(const int32 InIndex) const override { return false; }
+#if WITH_ATLAS_DEBUGGING
+	FAtlasSlotInfo GetAtlasSlotInfoAtPosition(FIntPoint InPosition, int32 AtlasIndex) const { return FAtlasSlotInfo(); }
+#endif
 
 	// FSlateShaderResourceManager interface
 	virtual FSlateShaderResourceProxy* GetShaderResource( const FSlateBrush& InBrush ) override { return nullptr; }

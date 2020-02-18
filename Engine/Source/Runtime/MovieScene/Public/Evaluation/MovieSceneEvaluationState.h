@@ -159,6 +159,13 @@ struct FMovieSceneEvaluationState
 	MOVIESCENE_API UMovieSceneSequence* FindSequence(FMovieSceneSequenceIDRef InSequenceID) const;
 
 	/**
+	 * Attempt to locate a sequence ID from a sequence
+	 *
+	 * @param InSequence		The sequence to look up
+	 */
+	MOVIESCENE_API FMovieSceneSequenceID FindSequenceId(UMovieSceneSequence* InSequence) const;
+
+	/**
 	 * Attempt deduce the posessable or spawnable that relates to the specified object
 	 * @note Will forcably resolve any out of date bindings in the entire sequence
 	 *

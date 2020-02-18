@@ -76,7 +76,7 @@ public:
 private:
 	FChildArranger(const SWrapBox& WrapBox, const FOnSlotArranged& OnSlotArranged);
 	void Arrange();
-	void FinalizeLine(const int32 IndexOfLastChildInCurrentLine);
+	void FinalizeLine(int32 IndexOfLastChildInCurrentLine);
 
 	const SWrapBox& WrapBox;
 	const FOnSlotArranged& OnSlotArranged;
@@ -194,12 +194,19 @@ void SWrapBox::FChildArranger::Arrange()
 	}
 }
 
-void SWrapBox::FChildArranger::FinalizeLine(const int32 IndexOfLastChildInCurrentLine)
+void SWrapBox::FChildArranger::FinalizeLine(int32 IndexOfLastChildInCurrentLine)
 {
 	// Iterate backwards through children in this line. Iterate backwards because the last uncollapsed child may wish to fill the remaining empty space of the line.
-	bool IsLastUncollapsedChild = true;
+	for (; IndexOfLastChildInCurrentLine >= IndexOfFirstChildInCurrentLine; --IndexOfLastChildInCurrentLine)
+	{
+		if (WrapBox.Slots[IndexOfLastChildInCurrentLine].GetWidget()->GetVisibility() != EVisibility::Collapsed)
+		{
+			break;
+		}
+	}
 
-	for (int32 ChildIndex = IndexOfLastChildInCurrentLine; ChildIndex >= IndexOfFirstChildInCurrentLine; --ChildIndex)
+	// Now iterate forward so tab navigation works properly
+	for (int32 ChildIndex = IndexOfFirstChildInCurrentLine; ChildIndex <= IndexOfLastChildInCurrentLine; ++ChildIndex)
 	{
 		const FSlot& Slot = WrapBox.Slots[ChildIndex];
 		const TSharedRef<SWidget>& Widget = Slot.GetWidget();
@@ -213,14 +220,17 @@ void SWrapBox::FChildArranger::FinalizeLine(const int32 IndexOfLastChildInCurren
 		FArrangementData& ArrangementData = OngoingArrangementDataMap[ChildIndex];
 
 		// Rule: The last uncollapsed child in a line may request to fill the remaining empty space in the line.
-		if (IsLastUncollapsedChild && Slot.bSlotFillEmptySpace)
+		if (ChildIndex == IndexOfLastChildInCurrentLine && Slot.bSlotFillEmptySpace)
 		{
 			ArrangementData.SlotSize.X = WrapBox.PreferredWidth.Get() - ArrangementData.SlotOffset.X;
 		}
+		
+		// All slots on this line should now match to the tallest element's height, which they can then use to do their alignment in OnSlotArranged below (eg. center within that)
+		// If we left their height as is, then their slots would just be whatever their child's desired height was, and so a vertical alignment of "center" would actually 
+		// leave the widget at the top of the line, since you couldn't calculate how much to offset by to actually reach the center of the "container"
+		ArrangementData.SlotSize.Y = MaximumHeightInCurrentLine;
 
 		OnSlotArranged(Slot, ArrangementData);
-
-		IsLastUncollapsedChild = false;
 	}
 
 	// Set initial state for new line.

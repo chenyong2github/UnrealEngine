@@ -672,6 +672,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		TSharedRef<SDockTab> DockTab = SNew( SDockTab )
 			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.Modes" ) )
 			.Label( NSLOCTEXT( "LevelEditor", "ToolsTabTitle", "Toolbox" ) )
+			.OnTabClosed(this, &SLevelEditor::OnToolboxTabClosed)
 			[
 				SNew( SBox )
 				.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("ToolsPanel"), TEXT("LevelEditorToolBox")))
@@ -994,6 +995,12 @@ void SLevelEditor::OnViewportTabClosed(TSharedRef<SDockTab> ClosedTab)
 		}
 	}
 }
+
+void SLevelEditor::OnToolboxTabClosed(TSharedRef<SDockTab> ClosedTab)
+{
+	GLevelEditorModeTools().ActivateDefaultMode();
+}
+
 
 void SLevelEditor::SaveViewportTabInfo(TSharedRef<const FLevelViewportTabContent> ViewportTabContent)
 {
@@ -1415,7 +1422,6 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 
 	// Find and disable any other 'visible' modes since we only ever allow one of those active at a time.
 	GLevelEditorModeTools().DeactivateOtherVisibleModes(ModeID);
-
 }
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )
@@ -1443,13 +1449,12 @@ void SLevelEditor::EditorModeCommandsChanged()
 
 void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, bool bIsEnteringMode)
 {
-	FEdMode* EdMode = GLevelEditorModeTools().GetActiveMode(ModeChangedID);
-	if (EdMode && EdMode->UsesToolkits() && EdMode->GetToolkit().IsValid())
+	if(bIsEnteringMode)
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-		if ((ModeChangedID == FBuiltinEditorModes::EM_Default || !GLevelEditorModeTools().ShouldShowModeToolbox()) && !GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+		if (!GLevelEditorModeTools().ShouldShowModeToolbox() && !GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 		{
 			TSharedPtr<SDockTab> ToolboxTab = LevelEditorTabManager->FindExistingLiveTab(LevelEditorTabIds::LevelEditorToolBox);
 			if (ToolboxTab.IsValid())
@@ -1463,6 +1468,7 @@ void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, boo
 		}
 	}
 }
+
 void SLevelEditor::RefreshEditorModeCommands()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );

@@ -590,14 +590,10 @@ void FEdMode::Enter()
 	bPendingDeletion = false;
 
 	FEditorDelegates::EditorModeIDEnter.Broadcast( GetID() );
-	const bool bIsEnteringMode = true;
-	Owner->BroadcastEditorModeIDChanged( GetID(), bIsEnteringMode );
 }
 
 void FEdMode::Exit()
 {
-	const bool bIsEnteringMode = false;
-	Owner->BroadcastEditorModeIDChanged( GetID(), bIsEnteringMode );
 	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
 }
 

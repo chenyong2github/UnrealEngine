@@ -65,6 +65,14 @@ public:
 	 */
 	void FindConnectedTriangles(TFunctionRef<bool(int)> IndexFilterFunc, TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
 
+	/**
+	 * Find all connected triangle components that contain one or more Seed Triangles and store in Components array.
+	 * Search only starts from Seed Triangles.
+	 * Triangle connectivity is based on edge connectivity, ie bowtie-vertices are not connections between triangles.
+	 * @param SeedTriangles list of start triangles, each component contains at least one of these triangles
+	 * @param TrisConnectedPredicate optional function that specifies whether two edge-connected triangles should be considered connected by the search
+	 */
+	void FindTrianglesConnectedToSeeds(const TArray<int>& SeedTriangles, TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
 
 
 	//
@@ -114,6 +122,7 @@ protected:
 	// Internal functions to calculate ROI
 	//
 	void FindTriComponents(FInterval1i ActiveRange, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TriConnectedPredicate);
+	void FindTriComponents(const TArray<int32>& SeedList, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TriConnectedPredicate);
 	void FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet);
 	void FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet, TFunctionRef<bool(int32, int32)> TriConnectedPredicate);
 	void RemoveFromActiveSet(const FComponent* Component, TArray<uint8>& ActiveSet);

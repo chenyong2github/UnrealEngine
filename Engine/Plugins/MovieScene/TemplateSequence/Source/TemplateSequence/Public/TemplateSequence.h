@@ -20,6 +20,9 @@ public:
 
 	void Initialize();
 
+	/** Gets the object binding that corresponds to the root spawnable that serves as the template. */
+	FGuid GetRootObjectBindingID() const;
+
 	//~ UMovieSceneSequence interface
 	virtual void BindPossessableObject(const FGuid& ObjectId, UObject& PossessedObject, UObject* Context) override;
 	virtual bool CanPossessObject(UObject& Object, UObject* InPlaybackContext) const override;

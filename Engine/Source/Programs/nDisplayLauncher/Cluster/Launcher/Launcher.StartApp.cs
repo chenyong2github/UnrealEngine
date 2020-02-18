@@ -69,6 +69,12 @@ namespace nDisplayLauncher.Cluster
 				commandCmd = string.Format("{0} {1}", commandCmd, ArgUseAllAvailableCores);
 			}
 
+			// Set custom GPU selection policy
+			if (Node.GPU != int.MinValue)
+			{
+				commandCmd = string.Format("{0} {1}={2}", commandCmd, ArgGpu, Node.GPU);
+			}
+
 			if (!Config.Windows.ContainsKey(Node.Window))
 			{
 				throw new Exception("Node {0} has no windows property specified");

@@ -265,8 +265,7 @@ public:
 	//~ End UObject Interface
 
 	//~ Begin TimecodeProvider Interface
-	virtual FTimecode GetTimecode() const override;
-	virtual FFrameRate GetFrameRate() const override;
+	FQualifiedFrameTime GetQualifiedFrameTime() const override;
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const override;
 	virtual bool Initialize(class UEngine* InEngine) override;
 	virtual void Shutdown(class UEngine* InEngine) override;
@@ -433,6 +432,9 @@ private:
 	/** Updates and caches the state of the sources. */
 	void UpdateSourceStates();
 	FFrameTime CalculateSyncTime();
+
+	FTimecode GetTimecodeInternal() const;
+	FFrameRate GetFrameRateInternal() const;
 
 	bool IsSynchronizing() const;
 	bool IsSynchronized() const;

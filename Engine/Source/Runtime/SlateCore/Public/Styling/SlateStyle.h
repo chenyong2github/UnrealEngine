@@ -36,6 +36,7 @@ public:
 
 	virtual const FName& GetStyleSetName() const override;
 	virtual void GetResources(TArray< const FSlateBrush* >& OutResources) const override;
+	virtual TArray<FName> GetEntriesUsingBrush(const FName BrushName) const override;
 	virtual void SetContentRoot(const FString& InContentRootDir);
 	virtual FString RootToContentDir(const ANSICHAR* RelativePath, const TCHAR* Extension);
 	virtual FString RootToContentDir(const WIDECHAR* RelativePath, const TCHAR* Extension);
@@ -53,11 +54,11 @@ public:
 	virtual FString RootToCoreContentDir(const WIDECHAR* RelativePath);
 	virtual FString RootToCoreContentDir(const FString& RelativePath);
 
-	virtual float GetFloat(const FName PropertyName, const ANSICHAR* Specifier = nullptr) const override;
-	virtual FVector2D GetVector(const FName PropertyName, const ANSICHAR* Specifier = nullptr) const override;
-	virtual const FLinearColor& GetColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr) const override;
-	virtual const FSlateColor GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr) const override;
-	virtual const FMargin& GetMargin(const FName PropertyName, const ANSICHAR* Specifier = nullptr) const override;
+	virtual float GetFloat(const FName PropertyName, const ANSICHAR* Specifier = nullptr, float DefaultValue = FStyleDefaults::GetFloat()) const override;
+	virtual FVector2D GetVector(const FName PropertyName, const ANSICHAR* Specifier = nullptr, FVector2D DefaultValue = FStyleDefaults::GetVector2D()) const override;
+	virtual const FLinearColor& GetColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FLinearColor& DefaultValue = FStyleDefaults::GetColor()) const override;
+	virtual const FSlateColor GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateColor& DefaultValue = FStyleDefaults::GetSlateColor()) const override;
+	virtual const FMargin& GetMargin(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FMargin& DefaultValue = FStyleDefaults::GetMargin()) const override;
 
 	virtual const FSlateBrush* GetBrush(const FName PropertyName, const ANSICHAR* Specifier = nullptr) const override;
 	virtual const FSlateBrush* GetOptionalBrush(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateBrush* const DefaultBrush = FStyleDefaults::GetNoBrush()) const override;

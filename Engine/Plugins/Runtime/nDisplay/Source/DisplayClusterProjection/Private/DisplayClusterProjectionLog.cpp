@@ -7,5 +7,6 @@ DEFINE_LOG_CATEGORY(LogDisplayClusterProjection);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionCamera);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionSimple);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionMPCDI);
+DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionMesh);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionEasyBlend);
 DEFINE_LOG_CATEGORY(LogDisplayClusterProjectionManual);

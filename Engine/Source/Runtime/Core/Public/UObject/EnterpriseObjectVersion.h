@@ -39,6 +39,9 @@ struct CORE_API FEnterpriseObjectVersion
 		// Splitting controller associated with a livelink component for each LiveLinkRole class hierarchy
 		LiveLinkControllerSplitPerRole,
 
+		// Change CoreTechParametricSurface serialization to be more efficient
+		CoreTechParametricSurfaceOptim,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

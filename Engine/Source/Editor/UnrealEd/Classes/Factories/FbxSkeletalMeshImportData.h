@@ -12,7 +12,7 @@ class USkeletalMesh;
 class FSkeletalMeshLODModel;
 struct FSkeletalMaterial;
 
-UENUM()
+UENUM(BlueprintType)
 enum EFBXImportContentType
 {
 	FBXICT_All UMETA(DisplayName = "Geometry and Skinning Weights.", ToolTip = "Import all fbx content: geometry, skinning and weights."),
@@ -24,7 +24,7 @@ enum EFBXImportContentType
 /**
  * Import data and options used when importing a static mesh from fbx
  */
-UCLASS(MinimalAPI)
+UCLASS(BlueprintType, MinimalAPI)
 class UFbxSkeletalMeshImportData : public UFbxMeshImportData
 {
 	GENERATED_UCLASS_BODY()

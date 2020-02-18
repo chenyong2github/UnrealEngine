@@ -18,6 +18,7 @@
 
 class UMeshVertexPaintingToolProperties;
 class UMeshColorPaintingToolProperties;
+class UMeshTexturePaintingToolProperties;
 class UMeshPaintModeSettings;
 class IMeshPaintComponentAdapter;
 class UMeshComponent;
@@ -36,6 +37,7 @@ public:
 	static UMeshVertexPaintingToolProperties* GetVertexToolProperties();
 	static UMeshColorPaintingToolProperties* GetColorToolProperties();
 	static UMeshWeightPaintingToolProperties* GetWeightToolProperties();
+	static UMeshTexturePaintingToolProperties* GetTextureToolProperties();
 	static UMeshPaintMode* GetMeshPaintMode();
 	virtual void Enter() override;
 	virtual void Exit() override;
@@ -88,6 +90,10 @@ protected:
 	void RemoveVertexColors();
 	void PropagateVertexColorsToLODs();
 	void UpdateCachedVertexDataSize();
+	void CycleMeshLODs(int32 Direction);
+	void CycleTextures(int32 Direction);
+	void CommitAllPaintedTextures();
+	int32 GetNumberOfPendingPaintChanges();
 
 protected:
 	UPROPERTY(Transient)

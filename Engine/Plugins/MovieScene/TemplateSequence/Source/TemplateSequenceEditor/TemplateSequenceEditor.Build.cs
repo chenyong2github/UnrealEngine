@@ -18,6 +18,7 @@ public class TemplateSequenceEditor : ModuleRules
 				"Kismet",
 				"MovieScene",
 				"MovieSceneTools",
+				"MovieSceneTracks",
 				"Sequencer",
 				"EditorStyle",
 				"Slate",

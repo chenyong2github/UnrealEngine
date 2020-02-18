@@ -17,8 +17,9 @@ UCLASS(MinimalAPI)
 class UTemplateSequenceTrack : public UMovieSceneSubTrack
 {
 public:
-
 	GENERATED_BODY()
+
+	UTemplateSequenceTrack(const FObjectInitializer& ObjectInitializer);
 
 	virtual UMovieSceneSection* AddNewTemplateSequenceSection(FFrameNumber KeyTime, UTemplateSequence* InSequence);
 

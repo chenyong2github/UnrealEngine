@@ -38,4 +38,8 @@ private:
 
 	/** Gets the title for the Window. Used to show progress in the title. */
 	FText GetWindowTitle(const int32 InConfigIndex, const int32 InNumConfigs) const;
+
+private:
+	bool bPreviousUseFixedTimeStep;
+	double PreviousFixedTimeStepDelta;
 };

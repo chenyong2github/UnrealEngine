@@ -45,6 +45,10 @@ public:
 
 	FFrameRate GetFrameRate() const;
 
+	void SetFrameRate(FFrameRate InFrameRate);
+
+	void SetFrameRateFromTimecode(bool  bInFromTimecode);
+
 	UTakeRecorderSources* GetSources() const;
 
 	void StartRecording() const;

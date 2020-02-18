@@ -30,13 +30,4 @@ DECLARE_LOG_CATEGORY_EXTERN(LogUdpMessaging, Log, All);
  * Defines the protocol version of the UDP message transport.
  * @note When changing the version, ensure to update the serialization/deserialization code in UdpSerializeMessageTask.cpp/UdpDeserializedMessage.cpp and the supported versions in FUdpMessageProcessor::Init().
  */
-#define UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION 13 
-
-/** Supported message serialization format */
-enum class EUdpMessageFormat : uint8
-{
-	None = 0,
-	Json,
-	TaggedProperty,
-	Cbor,
-};
+#define UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION 14

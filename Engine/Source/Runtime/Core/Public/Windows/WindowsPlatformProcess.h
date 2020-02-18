@@ -135,6 +135,7 @@ public:
 	static uint32 GetCurrentProcessId();
 	static uint32 GetCurrentCoreNumber();
 	static void SetThreadAffinityMask( uint64 AffinityMask );
+	static void SetThreadName( const TCHAR* ThreadName );
 	static const TCHAR* BaseDir();
 	static const TCHAR* UserDir();
 	static const TCHAR* UserTempDir();

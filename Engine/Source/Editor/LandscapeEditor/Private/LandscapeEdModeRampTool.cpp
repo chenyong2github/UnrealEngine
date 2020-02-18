@@ -120,6 +120,7 @@ public:
 
 	virtual const TCHAR* GetToolName() override { return TEXT("Ramp"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Ramp", "Ramp"); };
+	virtual FText GetDisplayMessage() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Ramp_Message", "Create a ramp between two specified points, adding falloffs according to the settings. Note that this tool cannot use any brushes."); };
 
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::None | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }
 	virtual bool SupportsMask() override { return false; }

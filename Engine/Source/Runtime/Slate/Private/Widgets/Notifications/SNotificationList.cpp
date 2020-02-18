@@ -105,6 +105,14 @@ public:
 		FadeAnimation.PlayReverse(this->AsShared());
 	}
 
+	virtual void Pulse(const FLinearColor& GlowColor)
+	{
+		DefaultGlowColor = GlowColor;
+		CompletionStateAnimation = FCurveSequence();
+		GlowCurve = CompletionStateAnimation.AddCurve(0.f, 0.75f);
+		CompletionStateAnimation.Play(this->AsShared());
+	}
+
 	/** Sets the ExpireDuration */
 	virtual void SetExpireDuration(float Duration) override
 	{
@@ -202,7 +210,7 @@ protected:
 		{
 		case CS_Success: return FLinearColor(0,1,0,GlowAlpha);
 		case CS_Fail: return FLinearColor(1,0,0,GlowAlpha);
-		default: return FLinearColor(1,1,1,GlowAlpha);
+		default: return DefaultGlowColor.CopyWithNewOpacity(GlowAlpha);
 		}
 	}
 
@@ -245,6 +253,9 @@ protected:
 
 	/** The duration before a fadeout for this element */
 	TAttribute< float > ExpireDuration;
+
+	/** The default glow color for pulse animation. */
+	FLinearColor DefaultGlowColor = FLinearColor(1.0f, 1.0f, 1.0f);
 
 	/** The text displayed in this element */
 	TSharedPtr<STextBlock> MyTextBlock;

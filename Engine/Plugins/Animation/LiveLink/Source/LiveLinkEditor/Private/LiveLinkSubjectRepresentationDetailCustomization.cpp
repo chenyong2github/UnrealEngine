@@ -61,7 +61,7 @@ void FLiveLinkSubjectRepresentationDetailCustomization::CustomizeChildren(TShare
 	}
 }
 
-FLiveLinkSubjectRepresentation FLiveLinkSubjectRepresentationDetailCustomization::GetValue() const
+SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole FLiveLinkSubjectRepresentationDetailCustomization::GetValue() const
 {
 	TArray<const void*> RawData;
 	StructPropertyHandle->AccessRawData(RawData);
@@ -70,23 +70,24 @@ FLiveLinkSubjectRepresentation FLiveLinkSubjectRepresentationDetailCustomization
 	{
 		if (RawPtr)
 		{
-			return *reinterpret_cast<const FLiveLinkSubjectRepresentation *>(RawPtr);
+			return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole(*reinterpret_cast<const FLiveLinkSubjectRepresentation *>(RawPtr));
 		}
 	}
 
-	return FLiveLinkSubjectRepresentation();
+	return SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole();
 }
 
-void FLiveLinkSubjectRepresentationDetailCustomization::SetValue(FLiveLinkSubjectRepresentation NewValue)
+void FLiveLinkSubjectRepresentationDetailCustomization::SetValue(SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue)
 {
 	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty());
 
 	TArray<void*> RawData;
 	StructPropertyHandle->AccessRawData(RawData);
 	FLiveLinkSubjectRepresentation* PreviousValue = reinterpret_cast<FLiveLinkSubjectRepresentation*>(RawData[0]);
+	FLiveLinkSubjectRepresentation NewSubRep = NewValue.ToSubjectRepresentation();
 
 	FString TextValue;
-	StructProperty->Struct->ExportText(TextValue, &NewValue, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+	StructProperty->Struct->ExportText(TextValue, &NewSubRep, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
 	ensure(StructPropertyHandle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
 }
 

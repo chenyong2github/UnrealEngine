@@ -237,6 +237,8 @@ void FConstrainedMeshDeformerTask::ExportResults(FDynamicMesh3& TargetMesh) cons
 		
 		TargetMesh.SetVertex(SrcVertexID, Position);
 	}
+
+	FMeshNormals::QuickRecomputeOverlayNormals(TargetMesh);
 }
 
 void FConstrainedMeshDeformerTask::ApplyAttenuation()
@@ -607,6 +609,7 @@ inline void FGroupTopologyLaplacianDeformer::Shutdown()
 
 UDeformMeshPolygonsTool::UDeformMeshPolygonsTool()
 {
+	SetToolDisplayName(LOCTEXT("DeformPolygroupsToolName", "Deform Polygroups"));
 }
 
 void UDeformMeshPolygonsTool::Setup()
@@ -691,9 +694,7 @@ void UDeformMeshPolygonsTool::Setup()
 
 	if (Topology.Groups.Num() < 2)
 	{
-		GetToolManager()->DisplayMessage(
-			LOCTEXT("NoGroupsWarning", "This object has no PolyGroups to deform. Use the PolyGroups Tool to create some."),
-			EToolMessageLevel::UserWarning);
+		GetToolManager()->DisplayMessage(LOCTEXT("NoGroupsWarning", "This object has a single PolyGroup. Use the PolyGroups or Select Tool to assign PolyGroups."), EToolMessageLevel::UserWarning);
 	}
 
 }
@@ -1126,7 +1127,7 @@ void UDeformMeshPolygonsTool::ComputeUpdate()
 				LaplacianDeformer.bVertexPositionsNeedSync = false;
 
 				//Re-sync mesh, and flag the spatial data struct & topology for re-evaluation
-				DynamicMeshComponent->FastNotifyPositionsUpdated();
+				DynamicMeshComponent->FastNotifyPositionsUpdated(true, false, false);
 
 				GetToolManager()->PostInvalidation();
 				bSpatialDirty = true;

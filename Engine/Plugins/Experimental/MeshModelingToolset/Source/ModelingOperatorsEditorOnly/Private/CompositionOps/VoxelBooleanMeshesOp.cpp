@@ -128,7 +128,7 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		FQEMSimplification Reducer(ResultMesh.Get());
 		FMeshConstraints constraints;
 		FMeshConstraintsUtil::ConstrainAllSeams(constraints, *ResultMesh, true, false);
-		Reducer.SetExternalConstraints(&constraints);
+		Reducer.SetExternalConstraints(MoveTemp(constraints));
 		Reducer.Progress = Progress;
 
 		const double MaxDisplacementSqr = 3. * VoxelSizeD * VoxelSizeD;

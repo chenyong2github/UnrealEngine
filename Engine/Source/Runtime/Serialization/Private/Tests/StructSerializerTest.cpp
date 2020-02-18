@@ -159,6 +159,17 @@ bool FStructSerializerTest::RunTest( const FString& Parameters )
 
 		StructSerializerTest::TestSerialization(*this, SerializerBackend, DeserializerBackend);
 	}
+	// cbor standard compliant endianness (big endian)
+	{
+		TArray<uint8> Buffer;
+		FMemoryReader Reader(Buffer);
+		FMemoryWriter Writer(Buffer);
+
+		FCborStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default | EStructSerializerBackendFlags::WriteCborStandardEndianness);
+		FCborStructDeserializerBackend DeserializerBackend(Reader, ECborEndianness::StandardCompliant);
+
+		StructSerializerTest::TestSerialization(*this, SerializerBackend, DeserializerBackend);
+	}
 
 	return true;
 }

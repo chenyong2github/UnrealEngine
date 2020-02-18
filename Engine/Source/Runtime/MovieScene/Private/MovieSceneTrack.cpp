@@ -90,6 +90,24 @@ void UMovieSceneTrack::UpdateEasing()
 		{
 			UMovieSceneSection* CurrentSection = RowSections[Index];
 
+			FMovieSceneSupportsEasingParams SupportsEasingParams(CurrentSection);
+			EMovieSceneTrackEasingSupportFlags EasingFlags = SupportsEasing(SupportsEasingParams);
+
+			// Auto-deactivate manual easing if we lost the ability to use it.
+			if (!EnumHasAllFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::ManualEaseIn))
+			{
+				CurrentSection->Easing.bManualEaseIn = false;
+			}
+			if (!EnumHasAllFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::ManualEaseOut))
+			{
+				CurrentSection->Easing.bManualEaseOut = false;
+			}
+
+			if (!EnumHasAllFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::AutomaticEasing))
+			{
+				continue;
+			}
+
 			// Check overlaps with exclusive ranges so that sections can butt up against each other
 			UMovieSceneTrack* OuterTrack = CurrentSection->GetTypedOuter<UMovieSceneTrack>();
 			int32 MaxEaseIn = 0;

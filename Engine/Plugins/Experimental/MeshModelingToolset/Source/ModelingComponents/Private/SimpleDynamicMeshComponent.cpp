@@ -89,7 +89,14 @@ void USimpleDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool b
 	if (bHaveModifiedTopology == false && Mesh.Get()->VertexCount() == MeshDescription->Vertices().Num())
 	{
 		FDynamicMeshToMeshDescription Converter(ConversionOptions);
-		Converter.Update(Mesh.Get(), *MeshDescription);
+		if (ConversionOptions.bUpdatePositions)
+		{
+			Converter.Update(Mesh.Get(), *MeshDescription, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateUVs);
+		}
+		else
+		{
+			Converter.UpdateAttributes(Mesh.Get(), *MeshDescription, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateUVs);
+		}
 	}
 	else
 	{
@@ -177,7 +184,7 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 			Proxy->PerTriangleColorFunc = nullptr;
 		}
 
-		Proxy->FastUpdateVertices(false, false, true);
+		Proxy->FastUpdateVertices(false, false, true, false);
 		//MarkRenderDynamicDataDirty();
 	}
 	else
@@ -188,11 +195,11 @@ void USimpleDynamicMeshComponent::FastNotifyColorsUpdated()
 
 
 
-void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated()
+void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated(bool bNormals, bool bColors, bool bUVs)
 {
 	if (GetCurrentSceneProxy() != nullptr)
 	{
-		GetCurrentSceneProxy()->FastUpdateVertices(true, false, false);
+		GetCurrentSceneProxy()->FastUpdateVertices(true, bNormals, bColors, bUVs);
 		//MarkRenderDynamicDataDirty();
 		MarkRenderTransformDirty();
 		LocalBounds = Mesh->GetCachedBounds();
@@ -202,9 +209,38 @@ void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated()
 	{
 		NotifyMeshUpdated();
 	}
-
 }
 
+
+void USimpleDynamicMeshComponent::FastNotifyUVsUpdated()
+{
+	if (GetCurrentSceneProxy() != nullptr)
+	{
+		GetCurrentSceneProxy()->FastUpdateVertices(false, false, false, true);
+		//MarkRenderDynamicDataDirty();
+		MarkRenderTransformDirty();
+		LocalBounds = Mesh->GetCachedBounds();
+		UpdateBounds();
+	}
+	else
+	{
+		NotifyMeshUpdated();
+	}
+}
+
+
+
+void USimpleDynamicMeshComponent::FastNotifySecondaryTrianglesChanged()
+{
+	if (GetCurrentSceneProxy() != nullptr)
+	{
+		GetCurrentSceneProxy()->FastUpdateAllIndexBuffers();
+	}
+	else
+	{
+		NotifyMeshUpdated();
+	}
+}
 
 
 

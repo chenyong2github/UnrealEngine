@@ -15,10 +15,10 @@ struct FPart final
 
 
 	/** Previous part. */
-	FPart* Prev;
+	FPartPtr Prev;
 
 	/** Next part. */
-	FPart* Next;
+	FPartPtr Next;
 
 
 	/** Position, is equal to position of last vertex in paths (in coordinate system of glyph). */
@@ -55,6 +55,9 @@ struct FPart final
 	/** List of pairs (edge, offset) for IntersectionFar. */
 	FAvailableExpandsFar AvailableExpandsFar;
 
+
+	float TangentsDotProduct() const;
+	float Length() const;
 
 	void ResetDoneExpand();
 	void ComputeTangentX();

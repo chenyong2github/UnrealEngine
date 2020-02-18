@@ -13,7 +13,7 @@ namespace FDeltaGenProcessorImpl
 	// Moves tracks of TrackTypes to new animations within each Timeline, all tied to the Dummy node's name
 	void MoveTracksToDummyAnimation(TSharedPtr<FDatasmithFBXSceneNode>& Dummy,
 									EDeltaGenTmlDataAnimationTrackType TrackTypes,
-									const FVector4& TransOffset,
+									const FVector& TransOffset,
 									TimelineToAnimations* FoundAnimations,
 									TMap<FDeltaGenTmlDataTimeline *, TArray<FDeltaGenTmlDataTimelineAnimation>> &NewAnimationsPerTimeline)
 	{
@@ -34,7 +34,7 @@ namespace FDeltaGenProcessorImpl
 				{
 					if (EnumHasAnyFlags(ThisTrack.Type, EDeltaGenTmlDataAnimationTrackType::Translation))
 					{
-						for (FVector4& Value : ThisTrack.Values)
+						for (FVector& Value : ThisTrack.Values)
 						{
 							Value += TransOffset;
 						}
@@ -89,7 +89,7 @@ namespace FDeltaGenProcessorImpl
 		Dummy->LocalTransform.SetTranslation(NodeLocation + RotPivot);
 		Dummy->LocalTransform.SetRotation(NodeRotation);
 
-		const FVector4 TransOffset = RotPivot + Node->RotationOffset + Node->ScalingOffset;
+		const FVector TransOffset = RotPivot + Node->RotationOffset + Node->ScalingOffset;
 
 		if (TimelineToAnimations* FoundAnimations = NodeNamesToAnimations.Find(Node->OriginalName))
 		{
@@ -136,7 +136,7 @@ namespace FDeltaGenProcessorImpl
 		Dummy->LocalTransform.SetTranslation(NodeLocation + ScalingPivot);
 		Dummy->LocalTransform.SetScale3D(NodeScaling);
 
-		const FVector4 TransOffset = ScalingPivot + Node->RotationOffset + Node->ScalingOffset;
+		const FVector TransOffset = ScalingPivot + Node->RotationOffset + Node->ScalingOffset;
 
 		if (TimelineToAnimations* FoundAnimations = NodeNamesToAnimations.Find(Node->OriginalName))
 		{

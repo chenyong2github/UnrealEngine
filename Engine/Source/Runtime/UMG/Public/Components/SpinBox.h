@@ -43,8 +43,20 @@ public:
 	UPROPERTY()
 	USlateWidgetStyleAsset* Style_DEPRECATED;
 
+	/** The minimum required fractional digits - default 1 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetMinFractionalDigits, BlueprintGetter = GetMinFractionalDigits, Category = "Slider", meta = (ClampMin = 0, UIMin = 0))
+	int32 MinFractionalDigits;
+
+	/** The maximume required fractional digits - default 6 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetMaxFractionalDigits, BlueprintGetter = GetMaxFractionalDigits, Category = "Slider", meta = (ClampMin = 0, UIMin = 0))
+	int32 MaxFractionalDigits;
+
+	/** Whether this spin box should use the delta snapping logic for typed values - default false */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetAlwaysUsesDeltaSnap, BlueprintGetter = GetAlwaysUsesDeltaSnap, Category = "Slider")
+	bool bAlwaysUsesDeltaSnap;
+
 	/** The amount by which to change the spin box value as the slider moves. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Slider")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetDelta, BlueprintGetter = GetDelta, Category = "Slider")
 	float Delta;
 
 	/** The exponent by which to increase the delta as the mouse moves. 1 is constant (never increases the delta). */
@@ -102,6 +114,38 @@ public:
 	void SetValue(float NewValue);
 
 public:
+
+	/** Get the current Min Fractional Digits for the spin box. */
+	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
+	int32 GetMinFractionalDigits() const;
+
+	/** Set the Min Fractional Digits for the spin box. */
+	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
+	void SetMinFractionalDigits(int32 NewValue);
+
+	/** Get the current Max Fractional Digits for the spin box. */
+	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
+	int32 GetMaxFractionalDigits() const;
+
+	/** Set the Max Fractional Digits for the spin box. */
+	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
+	void SetMaxFractionalDigits(int32 NewValue);
+
+	/** Get whether the spin box uses delta snap on type. */
+	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
+	bool GetAlwaysUsesDeltaSnap() const;
+
+	/** Set whether the spin box uses delta snap on type. */
+	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
+	void SetAlwaysUsesDeltaSnap(bool bNewValue);
+
+	/** Get the current delta for the spin box. */
+	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
+	float GetDelta() const;
+
+	/** Set the delta for the spin box. */
+	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
+	void SetDelta(float NewValue);
 
 	/** Get the current minimum value that can be manually set in the spin box. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")

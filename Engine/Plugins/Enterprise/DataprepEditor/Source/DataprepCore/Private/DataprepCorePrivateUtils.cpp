@@ -51,16 +51,17 @@ void DataprepCorePrivateUtils::GetActorsFromWorld(const UWorld* World, TArray<AA
 		{
 			for( AActor* Actor : Level->Actors )
 			{
-				const bool bIsValidActor = Actor &&
-					!Actor->IsPendingKill() &&
-					Actor->IsEditable() &&
-					!Actor->IsTemplate() &&
-					!FActorEditorUtils::IsABuilderBrush(Actor) &&
-					!Actor->IsA(AWorldSettings::StaticClass());
+				const bool bIsValidActor = Actor
+					&& !Actor->IsPendingKill()
+					&& Actor->IsEditable()
+					&& !Actor->IsTemplate()
+					&& !FActorEditorUtils::IsABuilderBrush( Actor )
+					&& !Actor->IsA( AWorldSettings::StaticClass() )
+					&& !Actor->HasAnyFlags( RF_Transient );
 
 				if( bIsValidActor )
 				{
-					OutActors.Add( Actor  );
+					OutActors.Add( Actor );
 				}
 			}
 		}

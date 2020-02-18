@@ -11,12 +11,11 @@
 #include "Misc/CommandLine.h"
 #include "Misc/DisplayClusterAppExit.h"
 #include "Misc/Parse.h"
-
-#include "Misc/DisplayClusterHelpers.h"
-
+#include "Misc/QualifiedFrameTime.h"
 #include "DisplayClusterBuildConfig.h"
 #include "DisplayClusterEnums.h"
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
@@ -111,7 +110,7 @@ EDisplayClusterOperationMode UDisplayClusterGameEngine::DetectOperationMode()
 		OpMode = EDisplayClusterOperationMode::Standalone;
 	}
 
-	UE_LOG(LogDisplayClusterEngine, Log, TEXT("Detected operation mode: %s"), *FDisplayClusterTypesConverter::ToString(OpMode));
+	UE_LOG(LogDisplayClusterEngine, Log, TEXT("Detected operation mode: %s"), *FDisplayClusterTypesConverter::template ToString(OpMode));
 
 	return OpMode;
 }
@@ -130,7 +129,7 @@ bool UDisplayClusterGameEngine::InitializeInternals()
 	FDisplayClusterConfigClusterNode LocalClusterNode;
 	if (DisplayClusterHelpers::config::GetLocalClusterNode(LocalClusterNode))
 	{
-		UE_LOG(LogDisplayClusterEngine, Log, TEXT("Configuring sound enabled: %s"), *FDisplayClusterTypesConverter::ToString(LocalClusterNode.SoundEnabled));
+		UE_LOG(LogDisplayClusterEngine, Log, TEXT("Configuring sound enabled: %s"), *FDisplayClusterTypesConverter::template ToString(LocalClusterNode.SoundEnabled));
 		bUseSound = LocalClusterNode.SoundEnabled;
 	}
 
@@ -195,8 +194,7 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Standalone)
 	{
-		FTimecode Timecode;
-		FFrameRate FrameRate;
+		TOptional<FQualifiedFrameTime> FrameTime;
 
 		//////////////////////////////////////////////////////////////////////////////////////////////
 		// Frame start barrier
@@ -212,9 +210,18 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 		UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("DisplayCluster delta seconds: %f"), DeltaSeconds);
 
 		// Sync timecode and framerate
-		NodeController->GetTimecode(Timecode, FrameRate);
-		FApp::SetTimecodeAndFrameRate(Timecode, FrameRate);
-		UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("DisplayCluster timecode: %s | %s"), *Timecode.ToString(), *FrameRate.ToPrettyText().ToString());
+		NodeController->GetFrameTime(FrameTime);
+
+		if (FrameTime.IsSet())
+		{
+			FApp::SetCurrentFrameTime(FrameTime.GetValue());
+			UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("DisplayCluster timecode: %s | %s"), *FTimecode::FromFrameNumber(FrameTime->Time.GetFrame(), FrameTime->Rate).ToString(), *FrameTime->Rate.ToPrettyText().ToString());
+		}
+		else
+		{
+			FApp::InvalidateCurrentFrameTime();
+			UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("DisplayCluster timecode: [Invalid]"));
+		}
 
 		// Perform PreTick for DisplayCluster module
 		UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("Perform PreTick()"));

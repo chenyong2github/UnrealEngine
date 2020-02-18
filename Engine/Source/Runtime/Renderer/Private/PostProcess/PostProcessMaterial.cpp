@@ -584,7 +584,7 @@ FPostProcessMaterialChain GetPostProcessMaterialChain(const FViewInfo& View, EBl
 
 		if (Material && Material->BlendableLocation == Location)
 		{
-			Nodes.Add(FPostProcessMaterialNode(Material, Location, Material->BlendablePriority));
+			Nodes.Add(FPostProcessMaterialNode(Material, Location, Material->BlendablePriority, Material->bIsBlendable));
 		}
 	}
 

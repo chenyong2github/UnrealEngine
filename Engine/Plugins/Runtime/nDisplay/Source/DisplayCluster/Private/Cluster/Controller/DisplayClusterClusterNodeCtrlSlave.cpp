@@ -49,9 +49,9 @@ void FDisplayClusterClusterNodeCtrlSlave::GetDeltaTime(float& DeltaSeconds)
 	ClusterSyncClient->GetDeltaTime(DeltaSeconds);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate)
+void FDisplayClusterClusterNodeCtrlSlave::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
 {
-	ClusterSyncClient->GetTimecode(Timecode, FrameRate);
+	ClusterSyncClient->GetFrameTime(FrameTime);
 }
 
 void FDisplayClusterClusterNodeCtrlSlave::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)

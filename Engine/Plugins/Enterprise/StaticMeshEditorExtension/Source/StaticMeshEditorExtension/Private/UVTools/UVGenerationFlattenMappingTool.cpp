@@ -16,7 +16,6 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Interfaces/IPluginManager.h"
 #include "IStaticMeshEditor.h"
-#include "MeshDescriptionOperations.h"
 #include "MeshEditorUtils.h"
 #include "MeshUtilitiesCommon.h"
 #include "Misc/ScopedSlowTask.h"

@@ -142,26 +142,37 @@ enum class EDeltaGenTmlDataAnimationTrackType : uint8
 };
 ENUM_CLASS_FLAGS(EDeltaGenTmlDataAnimationTrackType);
 
+enum class EDeltaGenAnimationInterpolation : uint8
+{
+	Unsupported = 0,
+	Constant = 1,
+	Linear = 2,
+	Cubic = 3,
+};
+
 struct FDeltaGenTmlDataAnimationTrack
 {
 	EDeltaGenTmlDataAnimationTrackType Type = EDeltaGenTmlDataAnimationTrackType::Unsupported;
+	EDeltaGenAnimationInterpolation ValueInterpolation = EDeltaGenAnimationInterpolation::Unsupported;
+	EDeltaGenAnimationInterpolation KeyInterpolation = EDeltaGenAnimationInterpolation::Unsupported;
 	TArray<float> Keys;
-	TArray<FVector4> Values;
-	bool Zeroed = false;
+	TArray<FVector> KeyControlPoints;
+	TArray<FVector> Values;
+	TArray<FVector> ValueControlPoints;
+	float DelayMs = 0.0f;
 };
 
 struct FDeltaGenTmlDataTimelineAnimation
 {
 	FName TargetNode;
 	TArray<FDeltaGenTmlDataAnimationTrack> Tracks;
+	float DelayMs = 0.0f;
 };
 
 struct FDeltaGenTmlDataTimeline : public FTableRowBase
 {
 	FString Name;
 	float Framerate;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=DeltaGen)
 	TArray<FDeltaGenTmlDataTimelineAnimation> Animations;
 };
 

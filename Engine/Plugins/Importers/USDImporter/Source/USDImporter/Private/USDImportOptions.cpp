@@ -24,6 +24,7 @@ void UUSDImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 UUSDSceneImportOptions::UUSDSceneImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	PurposesToImport = (int32) (EUsdPurpose::Default | EUsdPurpose::Proxy);
 	bFlattenHierarchy = true;
 	bImportMeshes = true;
 	PathForAssets.Path = TEXT("/Game");
@@ -44,7 +45,7 @@ bool UUSDSceneImportOptions::CanEditChange(const FProperty* InProperty) const
 	FName PropertyName = InProperty ? InProperty->GetFName() : NAME_None;
 
 	if (GET_MEMBER_NAME_CHECKED(UUSDImportOptions, MeshImportType) == PropertyName ||
-		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bApplyWorldTransformToGeometry) == PropertyName || 
+		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bApplyWorldTransformToGeometry) == PropertyName ||
 		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bGenerateUniquePathPerUSDPrim) == PropertyName)
 	{
 		bCanEdit &= bImportMeshes;
@@ -75,7 +76,7 @@ bool UUSDBatchImportOptions::CanEditChange(const FProperty* InProperty) const
 	FName PropertyName = InProperty ? InProperty->GetFName() : NAME_None;
 
 	if (GET_MEMBER_NAME_CHECKED(UUSDImportOptions, MeshImportType) == PropertyName ||
-		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bApplyWorldTransformToGeometry) == PropertyName || 
+		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bApplyWorldTransformToGeometry) == PropertyName ||
 		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bGenerateUniquePathPerUSDPrim) == PropertyName)
 	{
 		bCanEdit &= bImportMeshes;

@@ -6,6 +6,10 @@
 #include "ModelingToolsActions.h"
 #include "ModelingToolsManagerActions.h"
 #include "ModelingToolsEditorModeStyle.h"
+#include "ModelingToolsEditorModeSettings.h"
+
+#include "ISettingsModule.h"
+#include "ISettingsSection.h"
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeModule"
 
@@ -20,6 +24,7 @@ void FModelingToolsEditorModeModule::ShutdownModule()
 
 	FModelingToolActionCommands::UnregisterAllToolActions();
 	FModelingToolsManagerCommands::Unregister();
+	FModelingModeActionCommands::Unregister();
 
 	// Unregister slate style overrides
 	FModelingToolsEditorModeStyle::Shutdown();
@@ -44,6 +49,19 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 
 	FModelingToolActionCommands::RegisterAllToolActions();
 	FModelingToolsManagerCommands::Register();
+	FModelingModeActionCommands::Register();
+
+	// register settings
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule != nullptr)
+	{
+		ISettingsSectionPtr SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "ModelingMode",
+			LOCTEXT("ModelingModeSettingsName", "Modeling Mode"),
+			LOCTEXT("ModelingModeSettingsDescription", "Configure the Modeling Tools Editor Mode plugin"),
+			GetMutableDefault<UModelingToolsEditorModeSettings>()
+		);
+	}
+
 }
 
 #undef LOCTEXT_NAMESPACE

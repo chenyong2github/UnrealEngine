@@ -6,6 +6,8 @@
 #include "Textures/TextureAtlas.h"
 
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnReleaseFontResources, const class FSlateFontCache&);
+
 
 struct SLATECORE_API FSlateFontKey
 {

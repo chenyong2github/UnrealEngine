@@ -108,8 +108,23 @@ FFrameRate UTakeRecorderPanel::GetFrameRate() const
 	{
 		return FFrameRate();
 	}
-
 	return WeakTabContent.Pin()->GetFrameRate();
+}
+
+void UTakeRecorderPanel::SetFrameRate(FFrameRate InFrameRate)
+{
+	if (ValidateTabContent())
+	{
+		WeakTabContent.Pin()->SetFrameRate(InFrameRate);
+	}
+}
+
+void UTakeRecorderPanel::SetFrameRateFromTimecode(bool bInFromTimecode)
+{
+	if (!ValidateTabContent())
+	{
+		WeakTabContent.Pin()->SetFrameRateFromTimecode(bInFromTimecode);
+	}
 }
 
 UTakeRecorderSources* UTakeRecorderPanel::GetSources() const

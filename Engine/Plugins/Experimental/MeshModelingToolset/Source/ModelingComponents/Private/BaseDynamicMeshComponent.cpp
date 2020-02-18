@@ -53,6 +53,18 @@ void UBaseDynamicMeshComponent::ClearSecondaryRenderMaterial()
 
 
 
+void UBaseDynamicMeshComponent::SetSecondaryBuffersVisibility(bool bSecondaryVisibility)
+{
+	bDrawSecondaryBuffers = bSecondaryVisibility;
+}
+
+bool UBaseDynamicMeshComponent::GetSecondaryBuffersVisibility() const
+{
+	return bDrawSecondaryBuffers;
+}
+
+
+
 
 int32 UBaseDynamicMeshComponent::GetNumMaterials() const
 {

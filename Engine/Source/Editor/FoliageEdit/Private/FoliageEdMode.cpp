@@ -808,6 +808,7 @@ void FEdModeFoliage::HandleToolChanged()
 
 void FEdModeFoliage::ClearAllToolSelection()
 {
+	UISettings.SetEraseToolSelected(false);
 	UISettings.SetLassoSelectToolSelected(false);
 	UISettings.SetPaintToolSelected(false);
 	UISettings.SetReapplyToolSelected(false);
@@ -847,6 +848,23 @@ void FEdModeFoliage::OnSetPaintFill()
 {
 	ClearAllToolSelection();
 	UISettings.SetPaintBucketToolSelected(true);
+	HandleToolChanged();
+}
+
+void FEdModeFoliage::OnSetErase()
+{
+	ClearAllToolSelection();
+	UISettings.SetIsInSingleInstantiationMode(false);
+	UISettings.SetPaintToolSelected(true);
+	UISettings.SetEraseToolSelected(true);
+	HandleToolChanged();
+}
+
+void FEdModeFoliage::OnSetPlace()
+{
+	ClearAllToolSelection();
+	UISettings.SetPaintToolSelected(true);
+	UISettings.SetIsInSingleInstantiationMode(true);
 	HandleToolChanged();
 }
 
@@ -2830,7 +2848,7 @@ void FEdModeFoliage::ApplyBrush(FEditorViewportClient* ViewportClient)
 		}
 		else if (UISettings.GetPaintToolSelected())
 		{
-			if (IsModifierButtonPressed(ViewportClient))
+			if (UISettings.GetEraseToolSelected() || IsModifierButtonPressed(ViewportClient))
 			{
 				int32 DesiredInstanceCount = FMath::RoundToInt(BrushArea * Settings->Density * UISettings.GetUnpaintDensity() / (1000.f*1000.f));
 
@@ -3874,6 +3892,14 @@ bool FEdModeFoliage::InputKey(FEditorViewportClient* ViewportClient, FViewport* 
 		else if (Key == EKeys::I && Event == IE_Pressed)
 		{
 			UISettings.SetIsInQuickSingleInstantiationMode(true);
+		}
+		else if ((Key == EKeys::LeftShift || Key == EKeys::RightShift) && Event == IE_Released)
+		{
+			UISettings.SetIsInQuickEraseMode(false);
+		}
+		else if ((Key == EKeys::LeftShift || Key == EKeys::RightShift) && Event == IE_Pressed)
+		{
+			UISettings.SetIsInQuickEraseMode(true);
 		}
 	}
 

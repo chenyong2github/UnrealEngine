@@ -92,7 +92,7 @@ namespace DisplayClusterHelpers
 
 			for (int i = 0; i < InData.Num(); ++i)
 			{
-				ResultStr += FString::Printf(TEXT("%s%s"), *FDisplayClusterTypesConverter::ToString(InData[i]), *InSeparator);
+				ResultStr += FString::Printf(TEXT("%s%s"), *FDisplayClusterTypesConverter::template ToString(InData[i]), *InSeparator);
 			}
 
 			if (InSeparator.Len() > 0 && InData.Num() > 0)
@@ -144,7 +144,7 @@ namespace DisplayClusterHelpers
 
 			for (const auto& Pair : InData)
 			{
-				ResultStr = FString::Printf(TEXT("%s%s%s%s%s"), *ResultStr, *FDisplayClusterTypesConverter::ToString(Pair.Key), *InKeyValSeparator, *FDisplayClusterTypesConverter::ToString(Pair.Value), *InPairSeparator);
+				ResultStr = FString::Printf(TEXT("%s%s%s%s%s"), *ResultStr, *FDisplayClusterTypesConverter::template ToString(Pair.Key), *InKeyValSeparator, *FDisplayClusterTypesConverter::template ToString(Pair.Value), *InPairSeparator);
 			}
 
 			if (InPairSeparator.Len() > 0)
@@ -462,6 +462,17 @@ namespace DisplayClusterHelpers
 			if (ConfigMgr)
 			{
 				return ConfigMgr->GetFullPathToFile(LocalPath);
+			}
+
+			return LocalPath;
+		}
+
+		static FString GetNewFileFullPath(const FString& LocalPath)
+		{
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			if (ConfigMgr)
+			{
+				return ConfigMgr->GetFullPathToNewFile(LocalPath);
 			}
 
 			return LocalPath;

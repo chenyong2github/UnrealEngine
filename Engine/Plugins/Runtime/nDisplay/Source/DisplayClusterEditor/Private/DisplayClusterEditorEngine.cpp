@@ -50,15 +50,18 @@ void UDisplayClusterEditorEngine::PreExit()
 
 ADisplayClusterRootActor* UDisplayClusterEditorEngine::FindDisplayClusterRootActor(UWorld* InWorld)
 {
-	for (AActor* const Actor : InWorld->PersistentLevel->Actors)
+	if (InWorld && InWorld->PersistentLevel)
 	{
-		if (Actor && !Actor->IsPendingKill())
+		for (AActor* const Actor : InWorld->PersistentLevel->Actors)
 		{
-			ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
-			if (RootActor)
+			if (Actor && !Actor->IsPendingKill())
 			{
-				UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
-				return RootActor;
+				ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
+				if (RootActor)
+				{
+					UE_LOG(LogDisplayClusterEditorEngine, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
+					return RootActor;
+				}
 			}
 		}
 	}
@@ -76,14 +79,16 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 	{
 		// Find nDisplay root actor
 		ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(EditorWorldPreDup);
-		if (!RootActor)
+		if (!RootActor && EditorWorld)
 		{
 			// Also search inside streamed levels
 			const TArray<ULevelStreaming*>& StreamingLevels = EditorWorld->GetStreamingLevels();
 			for (ULevelStreaming* StreamingLevel : StreamingLevels)
 			{
-				switch (StreamingLevel->GetCurrentState())
+				if (StreamingLevel)
 				{
+					switch (StreamingLevel->GetCurrentState())
+					{
 					case ULevelStreaming::ECurrentState::LoadedVisible:
 					{
 						// Look for the actor in those sub-levels that have been loaded already
@@ -97,6 +102,7 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 
 					default:
 						break;
+					}
 				}
 			}
 		}
@@ -114,12 +120,24 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 				RequestEndPlayMap();
 				return;
 			}
-
-			DisplayClusterModule->StartScene(EditorWorldPreDup);
 		}
 	}
 
+	// Start PIE
 	Super::StartPlayInEditorSession(InRequestParams);
+
+	// Pass PIE world to nDisplay
+	if (bIsNDisplayPIE)
+	{
+		for (FWorldContext const& Context : GEngine->GetWorldContexts())
+		{
+			if (Context.WorldType == EWorldType::PIE && Context.World())
+			{
+				DisplayClusterModule->StartScene(Context.World());
+				break;
+			}
+		}
+	}
 }
 
 void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)

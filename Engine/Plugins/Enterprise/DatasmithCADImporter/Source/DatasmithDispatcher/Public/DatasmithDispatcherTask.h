@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "CoreTechFileParser.h"
+#include "CADData.h"
 
 namespace DatasmithDispatcher
 {
@@ -13,13 +14,13 @@ struct FTask
 {
 	FTask() = default;
 
-	FTask(const FString& InFile)
+	FTask(const CADLibrary::FFileDescription& InFile)
 	{
-		FileName = InFile;
+		FileDescription = InFile;
 		State = ETaskState::UnTreated;
 	}
 
-	FString FileName;
+	CADLibrary::FFileDescription FileDescription;
 	int32 Index = -1;
 	ETaskState State = ETaskState::Unknown;
 };

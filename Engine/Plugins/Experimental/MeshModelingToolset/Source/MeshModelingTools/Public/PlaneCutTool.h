@@ -51,9 +51,15 @@ class MESHMODELINGTOOLS_API UAcceptOutputProperties : public UInteractiveToolPro
 
 public:
 
-	/** If false, tool cannot 'split' any input mesh into multiple meshes, and will bake all results that came from one mesh into that mesh.  If true, the tool can generate additional assets when meshes are logically split into multiple parts. */
+	/** If true, meshes cut into multiple pieces will be saved as separate assets on 'accept'. */
 	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
-	bool bAllowLogicalMeshSplitsToExportAsNewMeshAssets = true;
+	bool bExportSeparatedPiecesAsNewMeshAssets = true;
+
+	//
+	// save/restore support
+	//
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -72,6 +78,10 @@ class MESHMODELINGTOOLS_API UPlaneCutToolProperties : public UInteractiveToolPro
 public:
 	UPlaneCutToolProperties();
 
+	/** Snap the cut plane to the world grid */
+	UPROPERTY(EditAnywhere, Category = Snapping)
+	bool bSnapToWorldGrid = false;
+
 	/** If true, both halves of the cut are computed */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bKeepBothHalves;
@@ -89,6 +99,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bFillSpans;
+
+	//
+	// save/restore support
+	//
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -113,7 +129,7 @@ public:
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UPlaneCutTool : public UMultiSelectionTool
+class MESHMODELINGTOOLS_API UPlaneCutTool : public UMultiSelectionTool, public IModifierToggleBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -129,6 +145,8 @@ public:
 	virtual void SetWorld(UWorld* World);
 	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
+	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
+
 	virtual void Tick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
@@ -141,6 +159,9 @@ public:
 #endif
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+
+	// IClickSequenceBehaviorTarget implementation
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 
 
 protected:
@@ -162,9 +183,9 @@ protected:
 	UPROPERTY()
 	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
 
-	/** Do the plane cut without exiting the tool, useful for doing a lot of cuts quickly */
-	UFUNCTION(CallInEditor, Category = Options, meta = (DisplayName = "Cut"))
-	void DoCut();
+	/** Cut with the current plane without exiting the tool */
+	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Cut"))
+	void Cut();
 
 protected:
 
@@ -180,6 +201,10 @@ protected:
 	IToolsContextAssetAPI* AssetAPI;
 
 	FViewCameraState CameraState;
+
+	// flags used to identify modifier keys/buttons
+	static const int IgnoreSnappingModifier = 1;
+	bool bIgnoreSnappingToggle = false;		// toggled by hotkey (shift)
 
 	UPROPERTY()
 	UTransformGizmo* PlaneTransformGizmo;

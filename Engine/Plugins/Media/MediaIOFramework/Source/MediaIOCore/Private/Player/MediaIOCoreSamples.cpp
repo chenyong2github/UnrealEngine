@@ -13,118 +13,123 @@
 
 bool FMediaIOCoreSamples::FetchAudio(TRange<FTimespan> TimeRange, TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe>& OutSample)
 {
-	TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe> Sample;
+	FScopeLock Lock(&AudioCriticalSection);
 
-	if (!AudioSampleQueue.Peek(Sample))
+	const int32 SampleCount = AudioSamples.Num();
+	if (SampleCount > 0)
 	{
-		return false;
+		TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe> Sample = AudioSamples[SampleCount - 1];
+		if (Sample.IsValid())
+		{
+			const FTimespan SampleTime = Sample->GetTime();
+
+			if (TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
+			{
+				AudioSamples.RemoveAt(SampleCount - 1);
+				OutSample = Sample;
+				return true;
+			}
+		}
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
-
-	if (!TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
-	{
-		return false;
-	}
-
-	AudioSampleQueue.Pop();
-	OutSample = Sample;
-
-	return true;
+	return false;
 }
 
 
 bool FMediaIOCoreSamples::FetchCaption(TRange<FTimespan> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample)
 {
-	TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe> Sample;
+	FScopeLock Lock(&CaptionCriticalSection);
 
-	if (!CaptionSampleQueue.Peek(Sample))
+	const int32 SampleCount = CaptionSamples.Num();
+	if (SampleCount > 0)
 	{
-		return false;
+		TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe> Sample = CaptionSamples[SampleCount - 1];
+		if (Sample.IsValid())
+		{
+			const FTimespan SampleTime = Sample->GetTime();
+
+			if (TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
+			{
+				CaptionSamples.RemoveAt(SampleCount - 1);
+				OutSample = Sample;
+				return true;
+			}
+		}
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
-
-	if (!TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
-	{
-		return false;
-	}
-
-	CaptionSampleQueue.Pop();
-	OutSample = Sample;
-
-	return true;
+	return false;
 }
 
 
 bool FMediaIOCoreSamples::FetchMetadata(TRange<FTimespan> TimeRange, TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>& OutSample)
 {
-	TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe> Sample;
+	FScopeLock Lock(&MetadataCriticalSection);
 
-	if (!MetadataSampleQueue.Peek(Sample))
+	const int32 SampleCount = MetadataSamples.Num();
+	if (SampleCount > 0)
 	{
-		return false;
+		TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe> Sample = MetadataSamples[SampleCount - 1];
+		if (Sample.IsValid())
+		{
+			const FTimespan SampleTime = Sample->GetTime();
+
+			if (TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
+			{
+				MetadataSamples.RemoveAt(SampleCount - 1);
+				OutSample = Sample;
+				return true;
+			}
+		}
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
-
-	if (!TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
-	{
-		return false;
-	}
-
-	MetadataSampleQueue.Pop();
-	OutSample = Sample;
-
-	return true;
+	return false;
 }
 
 
 bool FMediaIOCoreSamples::FetchSubtitle(TRange<FTimespan> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample)
 {
-	TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe> Sample;
+	FScopeLock Lock(&SubtitleCriticalSection);
 
-	if (!SubtitleSampleQueue.Peek(Sample))
+	const int32 SampleCount = SubtitleSamples.Num();
+	if (SampleCount > 0)
 	{
-		return false;
+		TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe> Sample = SubtitleSamples[SampleCount - 1];
+		if (Sample.IsValid())
+		{
+			const FTimespan SampleTime = Sample->GetTime();
+
+			if (TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
+			{
+				SubtitleSamples.RemoveAt(SampleCount - 1);
+				OutSample = Sample;
+				return true;
+			}
+		}
 	}
 
-	const FTimespan SampleTime = Sample->GetTime();
-
-	if (!TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
-	{
-		return false;
-	}
-
-	SubtitleSampleQueue.Pop();
-	OutSample = Sample;
-
-	return true;
+	return false;
 }
 
 
 bool FMediaIOCoreSamples::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample)
 {
-	TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+	FScopeLock Lock(&VideoCriticalSection);
 
-	if (!VideoSampleQueue.Peek(Sample))
+	const int32 SampleCount = VideoSamples.Num();
+	if (SampleCount > 0)
 	{
-		return false;
-	}
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample = VideoSamples[SampleCount - 1];
+		if (Sample.IsValid())
+		{
+			const FTimespan SampleTime = Sample->GetTime();
 
-	const FTimespan SampleTime = Sample->GetTime();
-
-	if (TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
-	{
-		VideoSampleQueue.Pop();
-		OutSample = Sample;
-		return true;
-	}
-
-	if (TimeRange.HasLowerBound() && SampleTime < TimeRange.GetLowerBoundValue())
-	{
-		VideoSampleQueue.Pop();
-		Sample.Reset();
+			if (TimeRange.Overlaps(TRange<FTimespan>(SampleTime, SampleTime + Sample->GetDuration())))
+			{
+				VideoSamples.RemoveAt(SampleCount - 1);
+				OutSample = Sample;
+				return true;
+			}
+		}
 	}
 
 	return false;
@@ -133,9 +138,28 @@ bool FMediaIOCoreSamples::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMe
 
 void FMediaIOCoreSamples::FlushSamples()
 {
-	AudioSampleQueue.RequestFlush();
-	CaptionSampleQueue.RequestFlush();
-	MetadataSampleQueue.RequestFlush();
-	SubtitleSampleQueue.RequestFlush();
-	VideoSampleQueue.RequestFlush();
+	{
+		FScopeLock Lock(&AudioCriticalSection); 
+		AudioSamples.Empty();
+	}
+
+	{
+		FScopeLock Lock(&CaptionCriticalSection);
+		CaptionSamples.Empty();
+	}
+
+	{
+		FScopeLock Lock(&MetadataCriticalSection);
+		MetadataSamples.Empty();
+	}
+
+	{
+		FScopeLock Lock(&SubtitleCriticalSection);
+		SubtitleSamples.Empty();
+	}
+
+	{
+		FScopeLock Lock(&VideoCriticalSection);
+		VideoSamples.Empty();
+	}
 }

@@ -8,6 +8,8 @@ using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Events;
+using Autodesk.Revit.DB.Mechanical;
+using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.DB.Visual;
 
@@ -37,7 +39,7 @@ namespace DatasmithRevitExporter
 		private FDatasmithFacadeLog DebugLog = null;
 
 		// Level of detail when tessellating faces (between -1 and 15).
-		private int LevelOfTessellation = 8;
+		public int LevelOfTessellation { get; set; } = 8;
 
 		// Stack of world Transforms for the Revit instances being processed.
 		private Stack<Transform> WorldTransformStack = new Stack<Transform>();
@@ -384,6 +386,7 @@ namespace DatasmithRevitExporter
 
 			// Retrieve the Datasmith mesh being processed.
 			FDatasmithFacadeMesh CurrentMesh = GetCurrentMesh();
+			Transform MeshPointsTransform = GetCurrentMeshPointsTransform();
 
 			// Retrieve the index of the current material and make the Datasmith mesh keep track of it.
 			int CurrentMaterialIndex = GetCurrentMaterialIndex();
@@ -391,9 +394,10 @@ namespace DatasmithRevitExporter
 			int initialVertexCount = CurrentMesh.GetVertexCount();
 
 			// Add the vertex points (in right-handed Z-up coordinates) to the Datasmith mesh.
-			foreach (XYZ point in InPolymeshNode.GetPoints())
+			foreach (XYZ Point in InPolymeshNode.GetPoints())
 			{
-				CurrentMesh.AddVertex((float) point.X, (float) point.Y, (float) point.Z);
+				XYZ FinalPoint = MeshPointsTransform != null ? MeshPointsTransform.OfPoint(Point) : Point;
+				CurrentMesh.AddVertex((float) FinalPoint.X, (float) FinalPoint.Y, (float) FinalPoint.Z);
 			}
 
 			// Add the vertex UV texture coordinates to the Datasmith mesh.
@@ -610,6 +614,11 @@ namespace DatasmithRevitExporter
 			return DocumentDataStack.Peek().GetCurrentMesh();
 		}
 
+		private Transform GetCurrentMeshPointsTransform()
+		{
+			return DocumentDataStack.Peek().GetCurrentMeshPointsTransform();
+		}
+
 		private int GetCurrentMaterialIndex()
 		{
 			return DocumentDataStack.Peek().GetCurrentMaterialIndex();
@@ -698,9 +707,10 @@ namespace DatasmithRevitExporter
 
 			public  Element                   CurrentElement;
 			private ElementType               CurrentElementType;
-			private Stack<FInstanceData>      InstanceDataStack = new Stack<FInstanceData>();
-			public  FDatasmithFacadeMesh      ElementMesh       = null;
-			public  FDatasmithFacadeActorMesh ElementActor      = null;
+			private Stack<FInstanceData>      InstanceDataStack		= new Stack<FInstanceData>();
+			public  FDatasmithFacadeMesh      ElementMesh			= null;
+			public  FDatasmithFacadeActorMesh ElementActor			= null;
+			public	Transform				  MeshPointsTransform	= null;
 
 			public FElementData(
 				Element   InElement,
@@ -710,7 +720,158 @@ namespace DatasmithRevitExporter
 				CurrentElement     = InElement;
 				CurrentElementType = InElement.Document.GetElement(InElement.GetTypeId()) as ElementType;
 
+				// If element has location, use it as a transform in order to have better pivot placement.
+				Transform PivotTransform = GetPivotTransform(CurrentElement);
+				if (PivotTransform != null)
+				{
+					if (!InWorldTransform.IsIdentity)
+					{
+						PivotTransform = PivotTransform * InWorldTransform;
+						InWorldTransform = PivotTransform;
+					}
+					else
+					{
+						InWorldTransform = PivotTransform;
+					}
+					
+					if (CurrentElement.GetType() == typeof(Wall) 
+						|| CurrentElement.GetType() == typeof(ModelText)
+						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve)))
+					{
+						MeshPointsTransform = PivotTransform.Inverse;
+					}
+				}
+
 				CreateMeshActor(InWorldTransform, out ElementMesh, out ElementActor);
+			}
+
+			// Compute orthonormal basis, given the X vector. 
+			static private void ComputeBasis(XYZ BasisX, ref XYZ BasisY, ref XYZ BasisZ)
+			{
+				BasisY = XYZ.BasisZ.CrossProduct(BasisX);
+				if (BasisY.GetLength() < 0.0001)
+				{
+					// BasisX is aligned with Z, use dot product to take direction in account
+					BasisY = BasisX.CrossProduct(BasisX.DotProduct(XYZ.BasisZ) * XYZ.BasisX).Normalize();
+					BasisZ = BasisX.CrossProduct(BasisY).Normalize();
+				}
+				else
+				{
+					BasisY = BasisY.Normalize();
+					BasisZ = BasisX.CrossProduct(BasisY).Normalize();
+				}
+			}
+
+			private Transform GetPivotTransform(Element InElement)
+			{
+				if (InElement.Location == null || (InElement as FamilyInstance) != null)
+				{
+					return null;
+				}
+
+				XYZ Translation = new XYZ();
+				XYZ BasisX = new XYZ();
+				XYZ BasisY = new XYZ();
+				XYZ BasisZ = new XYZ();
+
+				// Get pivot translation
+
+				if (InElement.Location.GetType() == typeof(LocationCurve))
+				{
+					LocationCurve CurveLocation = InElement.Location as LocationCurve;
+					Translation = CurveLocation.Curve.GetEndPoint(0);
+				}
+				else if (InElement.Location.GetType() == typeof(LocationPoint))
+				{
+					Translation = (InElement.Location as LocationPoint).Point;
+				}
+				else if (InElement.GetType() == typeof(Railing))
+				{
+					// Railings don't have valid location, so instead we need to get location from its path.
+					IList<Curve> Paths = (InElement as Railing).GetPath();
+					if (Paths.Count > 0)
+					{
+						Translation = Paths[0].GetEndPoint(0);
+					}
+				}
+				else
+				{
+					return null; // Cannot get valid translation
+				}
+
+				// Get pivot basis
+
+				if (InElement.GetType() == typeof(Wall))
+				{
+					BasisY = (InElement as Wall).Orientation.Normalize();
+					BasisX = BasisY.CrossProduct(XYZ.BasisZ).Normalize();
+					BasisZ = BasisX.CrossProduct(BasisY).Normalize();
+				}
+				else if (InElement.GetType() == typeof(Railing))
+				{
+					IList<Curve> Paths = (InElement as Railing).GetPath();
+					if (Paths.Count > 0)
+					{
+						Curve FirstPath = Paths[0];
+						if (FirstPath.GetType() == typeof(Line))
+						{
+							BasisX = (FirstPath as Line).Direction.Normalize();
+							ComputeBasis(BasisX, ref BasisY, ref BasisZ);
+						}
+						else if (FirstPath.GetType() == typeof(Arc) && FirstPath.IsBound)
+						{
+							Transform Derivatives = (FirstPath as Arc).ComputeDerivatives(0f, true);
+							BasisX = Derivatives.BasisX.Normalize();
+							BasisY = Derivatives.BasisY.Normalize();
+							BasisZ = Derivatives.BasisZ.Normalize();
+						}
+					}
+				}
+				else if (InElement.GetType() == typeof(ModelText))
+				{
+					// Model text has no direction information!
+					BasisX = XYZ.BasisX;
+					BasisY = XYZ.BasisY;
+					BasisZ = XYZ.BasisZ;
+				}
+				else if (InElement.GetType() == typeof(FlexDuct))
+				{
+					BasisX = (InElement as FlexDuct).StartTangent;
+					ComputeBasis(BasisX, ref BasisY, ref BasisZ);
+				}
+				else if (InElement.GetType() == typeof(FlexPipe))
+				{
+					BasisX = (InElement as FlexPipe).StartTangent;
+					ComputeBasis(BasisX, ref BasisY, ref BasisZ);
+				}
+				else if (InElement.Location.GetType() == typeof(LocationCurve))
+				{
+					LocationCurve CurveLocation = InElement.Location as LocationCurve;
+
+					if (CurveLocation.Curve.GetType() == typeof(Line))
+					{
+						BasisX = (CurveLocation.Curve as Line).Direction;
+						ComputeBasis(BasisX, ref BasisY, ref BasisZ);
+					}
+					else if (CurveLocation.Curve.IsBound)
+					{
+						Transform Derivatives = CurveLocation.Curve.ComputeDerivatives(0f, true);
+						BasisX = Derivatives.BasisX.Normalize();
+						BasisY = Derivatives.BasisY.Normalize();
+						BasisZ = Derivatives.BasisZ.Normalize();
+					}
+				}
+				else
+				{
+					return null; // Cannot get valid basis
+				}
+
+				Transform PivotTransform = Transform.CreateTranslation(Translation);
+				PivotTransform.BasisX = BasisX;
+				PivotTransform.BasisY = BasisY;
+				PivotTransform.BasisZ = BasisZ;
+
+				return PivotTransform;
 			}
 
 			public void PushInstance(
@@ -725,7 +886,7 @@ namespace DatasmithRevitExporter
 				CreateMeshActor(InWorldTransform, out InstanceData.InstanceMesh, out InstanceData.InstanceActor);
 
                 // The Datasmith instance actor is a component in the hierarchy.
-                //InstanceData.InstanceActor.SetIsComponent(true);
+                InstanceData.InstanceActor.SetIsComponent(true);
             }
 
             public FDatasmithFacadeMesh PopInstance()
@@ -1271,6 +1432,11 @@ namespace DatasmithRevitExporter
 			return ElementDataStack.Peek().GetCurrentMesh();
 		}
 
+		public Transform GetCurrentMeshPointsTransform()
+		{
+			return ElementDataStack.Peek().MeshPointsTransform;
+		}
+
 		public int GetCurrentMaterialIndex()
 		{
 			if (CollectedMaterialDataMap.ContainsKey(CurrentMaterialDataKey))
@@ -1422,6 +1588,14 @@ namespace DatasmithRevitExporter
 
 				if (BasePointLocation != null)
 				{
+					// Since BasePoint.Location is not a location point we cannot get a position from it; so we use a bounding box approach.
+					// Note that, as of Revit 2020, BasePoint has 2 new properties: Position for base point and SharedPosition for survey point.
+					BoundingBoxXYZ BasePointBoundingBox = BasePointLocation.get_BoundingBox(CurrentDocument.ActiveView);
+					if (BasePointBoundingBox == null)
+					{
+						continue;
+					}
+
 					// Create a new Datasmith placeholder actor for the base point.
 					string ActorName  = BasePointLocation.IsShared ? "SurveyPoint"  : "BasePoint";
 					string ActorLabel = BasePointLocation.IsShared ? "Survey Point" : "Base Point";
@@ -1434,9 +1608,8 @@ namespace DatasmithRevitExporter
 					BasePointActor.KeepActor();
 
 					// Set the world transform of the Datasmith placeholder actor.
-					// Since BasePoint.Location is not a location point we cannot get a position from it; so we use a bounding box approach.
-					// Note that, as of Revit 2020, BasePoint has 2 new properties: Position for base point and SharedPosition for survey point.
-					XYZ BasePointPosition = BasePointLocation.get_BoundingBox(CurrentDocument.ActiveView).Min;
+					XYZ BasePointPosition = BasePointBoundingBox.Min;
+
 					Transform TranslationMatrix = Transform.CreateTranslation(BasePointPosition);
 					FDocumentData.SetActorTransform(TranslationMatrix.Multiply(InWorldTransform), BasePointActor);
 

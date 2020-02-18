@@ -668,6 +668,17 @@ FReply SInteractiveCurveEditorView::OnMouseWheel(const FGeometry& MyGeometry, co
 	double    CurrentTime  = ViewSpace.ScreenToSeconds(MousePixel.X);
 	double    CurrentValue = ViewSpace.ScreenToValue(MousePixel.Y);
 
+	// If currently in a drag operation, allow it first chance at handling mouse wheel input
+	if (DragOperation.IsSet())
+	{
+		FVector2D InitialPosition = DragOperation->GetInitialPosition();
+		FReply Reply = DragOperation->DragImpl->MouseWheel(InitialPosition, MousePixel, MouseEvent);
+		if (Reply.IsEventHandled())
+		{
+			return Reply;
+		}
+	}
+
 	// Attempt to zoom around the current time if settings specify it and there is a valid time.
 	if (CurveEditor->GetSettings()->GetZoomPosition() == ECurveEditorZoomPosition::CurrentTime)
 	{

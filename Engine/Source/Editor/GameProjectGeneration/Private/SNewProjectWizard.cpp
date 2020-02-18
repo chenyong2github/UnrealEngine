@@ -1290,10 +1290,10 @@ void SNewProjectWizard::SetCurrentCategory(FName Category)
 {
 	FilteredTemplateList = Templates.FindRef(Category);
 
-	// Sort the template folders
+		// Sort the template folders
 	FilteredTemplateList.Sort([](const TSharedPtr<FTemplateItem>& A, const TSharedPtr<FTemplateItem>& B){
-		return A->SortKey < B->SortKey;
-	});
+			return A->SortKey < B->SortKey;
+		});
 
 	if (FilteredTemplateList.Num() > 0)
 	{
@@ -1613,15 +1613,16 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.NoStarterContent"),
 			LOCTEXT("NoStarterContent", "No Starter Content")));
 
-		// Only add the option to add starter content if its there to add!
 		FProjectInformation ProjectInfo = CreateProjectInfo();
-		bool bIsStarterAvailable = GameProjectUtils::IsStarterContentAvailableForProject(ProjectInfo);
 
-		StarterContentOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
-			1,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.IncludeStarterContent"),
-			LOCTEXT("IncludeStarterContent", "With Starter Content"),
-			bIsStarterAvailable));
+		// Only add the option to add starter content if its there to add!
+		if (GameProjectUtils::IsStarterContentAvailableForProject(ProjectInfo))
+		{
+			StarterContentOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
+				1,
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.IncludeStarterContent"),
+				LOCTEXT("IncludeStarterContent", "With Starter Content")));
+		}
 
 		TSharedRef<SWidget> Enum = SNew(SOverlay)
 			+ SOverlay::Slot()

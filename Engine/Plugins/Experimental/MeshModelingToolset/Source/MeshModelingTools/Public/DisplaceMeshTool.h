@@ -25,8 +25,19 @@ enum class EDisplaceMeshToolDisplaceType : uint8
 	/** Displace with N iterations */
 	RandomNoise UMETA(DisplayName = "Random Noise"),
 
+	/** Offset in the normal direction weighted by Perlin noise. 
+	    We use the following formula to compute the weighting for each vertex:
+			w = PerlinNoise3D(f * (X + r))
+		Where f is a frequency parameter, X is the vertex position, and r is a randomly-generated offset (using the Seed property).
+		Note the range of 3D Perlin noise is [-sqrt(3/4), sqrt(3/4)].
+	*/
+	PerlinNoise UMETA(DisplayName = "Perlin Noise"),
+
 	/** Displace with N iterations */
 	DisplacementMap UMETA(DisplayName = "Displacement Map"),
+
+	/** Move vertices in spatial sine wave pattern */
+	SineWave UMETA(DisplayName = "Sine Wave"),
 };
 
 /**
@@ -74,7 +85,7 @@ public:
 
 	/** Seed for randomization */
 	UPROPERTY(EditAnywhere, Category = Options,
-		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::RandomNoise"))
+		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::RandomNoise || DisplacementType == EDisplaceMeshToolDisplaceType::PerlinNoise"))
 	int RandomSeed;
 
 	/** Subdivision iterations for mesh */
@@ -86,6 +97,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options,
 		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::DisplacementMap"))
 	UTexture2D* DisplacementMap;
+
+	/** Displacement frequency */
+	UPROPERTY(EditAnywhere, Category = Options,
+		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::SineWave || DisplacementType == EDisplaceMeshToolDisplaceType::PerlinNoise", 
+				UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0"))
+	float DisplaceFrequency;
+
+	/** Displacement phase shift */
+	UPROPERTY(EditAnywhere, Category = Options,
+		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::SineWave", 
+				UIMin = "0.0", UIMax = "6.28318531", ClampMin = "0.0", ClampMax = "6.28318531"))
+	float DisplacePhaseShift;
 
 private:
 	void StartComputation();

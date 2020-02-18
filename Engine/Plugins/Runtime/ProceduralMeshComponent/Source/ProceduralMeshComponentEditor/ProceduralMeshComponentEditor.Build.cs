@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
                     "RHI",
                     "ProceduralMeshComponent",
                     "MeshDescription",
-                    "MeshDescriptionOperations",
 					"StaticMeshDescription",
                     "AssetTools",
                     "AssetRegistry"

@@ -6,9 +6,6 @@
 #include "Misc/FrameRate.h"
 #include "MoviePipelineOutputSetting.generated.h"
 
-// Forward Declares
-class AGameModeBase;
-
 UCLASS(Blueprintable)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineOutputSetting : public UMoviePipelineSetting
 {
@@ -22,7 +19,8 @@ public:
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
 	virtual bool IsValidOnMaster() const override { return true; }
-	virtual void GetFilenameFormatArguments(FFormatNamedArguments& OutArguments, const UMoviePipelineExecutorJob* InJob) const;
+	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
+	virtual bool CanBeDisabled() const override { return false; }
 public:
 	/** What directory should all of our output files be relative to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")
@@ -36,6 +34,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")
 	FIntPoint OutputResolution;
 	
+public:
 	/** Should we use the custom frame rate specified by OutputFrameRate? Otherwise defaults to Sequence frame rate. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")
 	bool bUseCustomFrameRate;
@@ -44,9 +43,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition=bUseCustomFrameRate), Category = "File Output")
 	FFrameRate OutputFrameRate;
 	
-	/** How many frames (in Display Rate) should we step at a time. Can be used to render every other frame for faster drafts. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")
-	FFrameNumber OutputFrameStep;
+	/** Render every Nth frame. ie: Setting this value to 2 renders every other frame. Game Thread is still evaluated on 'skipped' frames for accuracy between renders of different OutputFrameSteps. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(UIMin="1", MinValue="1"), Category = "File Output")
+	int32 OutputFrameStep;
+
+	/** Experimental way to interleave renders between multiple computers. If FrameStep is 5, and each render is offset by 0-4, they'll render a different subset of frames to add up to all. */
+	int32 DEBUG_OutputFrameStepOffset;
 	
 	/** If true, output containers should attempt to override any existing files with the same name. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")
@@ -59,9 +61,25 @@ public:
 	
 	/** Used when overriding the playback range. In Display Rate frames. If bUseCustomPlaybackRange is false range will come from Sequence. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition=bUseCustomPlaybackRange), Category = "File Output")
-	FFrameNumber CustomStartFrame;
+	int32 CustomStartFrame;
 	
 	/** Used when overriding the playback range. In Display Rate frames. If bUseCustomPlaybackRange is false range will come from Sequence. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition=bUseCustomPlaybackRange), Category = "File Output")
-	FFrameNumber CustomEndFrame;
+	int32 CustomEndFrame;
+
+public:
+	/** How many digits should all output frame numbers be padded to? MySequence_1.png -> MySequence_0001.png. Useful for software that struggles to recognize frame ranges when non-padded. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", MinValue = "1", UIMax = "5"), AdvancedDisplay, Category = "File Output")
+	int32 ZeroPadFrameNumbers;
+
+	/** 
+	* How many frames should we offset the output frame number by? This is useful when using handle frames on Sequences that start at frame 0,
+	* as the output would start in negative numbers. This can be used to offset by a fixed amount to ensure there's no negative numbers. 
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "File Output")
+	int32 FrameNumberOffset;
+	
+	/** If true the Filmic Tone Curve will not be applied. Disabling this will allow you to export linear data for EXRs. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "File Output")
+	bool bDisableToneCurve;
 };

@@ -44,7 +44,7 @@ bool FUdpMessageSegmenter::GetNextPendingSegment(TArray<uint8>& OutData, uint32&
 	{
 		OutSegment = It.GetIndex();
 
-		uint64 SegmentOffset = OutSegment * SegmentSize;
+		uint64 SegmentOffset = static_cast<uint64>(OutSegment) * SegmentSize;
 		uint64 ActualSegmentSize = MessageReader->TotalSize() - SegmentOffset;
 
 		if (ActualSegmentSize > SegmentSize)
@@ -77,7 +77,7 @@ bool FUdpMessageSegmenter::GetPendingSegment(uint32 InSegment, TArray<uint8>& Ou
 	// Max segment number for protocol 12 is INT32_MAX, if increased, this will need changing
 	if (InSegment < (uint32)PendingSegments.Num() && PendingSegments[InSegment])
 	{
-		uint64 SegmentOffset = InSegment * SegmentSize;
+		uint64 SegmentOffset = static_cast<uint64>(InSegment) * SegmentSize;
 		uint64 ActualSegmentSize = MessageReader->TotalSize() - SegmentOffset;
 
 		if (ActualSegmentSize > SegmentSize)

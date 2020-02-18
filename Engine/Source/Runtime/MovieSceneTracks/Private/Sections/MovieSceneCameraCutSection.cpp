@@ -4,6 +4,7 @@
 
 #include "MovieScene.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
+#include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Tracks/MovieSceneTransformTrack.h"
 #include "MovieScene.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
@@ -15,6 +16,17 @@
 
 /* UMovieSceneCameraCutSection interface
  *****************************************************************************/
+
+UMovieSceneCameraCutSection::UMovieSceneCameraCutSection(const FObjectInitializer& Init)
+	: Super(Init)
+{
+	EvalOptions.EnableAndSetCompletionMode
+		(GetLinkerCustomVersion(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::WhenFinishedDefaultsToProjectDefault ? 
+		 EMovieSceneCompletionMode::RestoreState : 
+		 EMovieSceneCompletionMode::ProjectDefault);
+
+	SetBlendType(EMovieSceneBlendType::Absolute);
+}
 
 FMovieSceneEvalTemplatePtr UMovieSceneCameraCutSection::GenerateTemplate() const
 {
@@ -103,3 +115,23 @@ UCameraComponent* UMovieSceneCameraCutSection::GetFirstCamera(IMovieScenePlayer&
 
 	return nullptr;
 }
+
+
+#if WITH_EDITOR
+
+void UMovieSceneCameraCutSection::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UMovieSceneCameraCutSection, SectionRange))
+	{
+		if (UMovieSceneCameraCutTrack* Track = GetTypedOuter<UMovieSceneCameraCutTrack>())
+		{
+			TArray<UMovieSceneSection*> Sections = Track->GetAllSections();
+			MovieSceneHelpers::FixupConsecutiveSections(Sections, *this, false, true, Track->bCanBlend);
+		}
+	}
+}
+
+#endif

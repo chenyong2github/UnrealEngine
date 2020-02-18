@@ -6,6 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SGraphPin.h"
+#include "SLiveLinkSubjectRepresentationPicker.h"
 
 #include "LiveLinkRole.h"
 
@@ -26,8 +27,8 @@ public:
 	//~ End SGraphPin Interface
 
 private:
-	FLiveLinkSubjectRepresentation GetValue() const;
-	void SetValue(FLiveLinkSubjectRepresentation NewValue);
+	SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole GetValue() const;
+	void SetValue(SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue);
 
 	FLiveLinkSubjectRepresentation SubjectRepresentation;
 };

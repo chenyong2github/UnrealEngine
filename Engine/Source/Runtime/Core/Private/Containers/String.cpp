@@ -1415,6 +1415,13 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 				// read in the unicode string
 				auto Passthru = StringMemoryPassthru<UCS2CHAR>(A.Data.GetData(), SaveNum, SaveNum);
 				Ar.Serialize(Passthru.Get(), SaveNum * sizeof(UCS2CHAR));
+				if (Ar.IsByteSwapping())
+				{
+					for (int32 CharIndex = 0; CharIndex < SaveNum; ++CharIndex)
+					{
+						Passthru.Get()[CharIndex] = ByteSwap(Passthru.Get()[CharIndex]);
+					}
+				}
 				// Ensure the string has a null terminator
 				Passthru.Get()[SaveNum-1] = '\0';
 				Passthru.Apply();
@@ -1429,7 +1436,7 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 				if(A.FindChar(0xffff, Index))
 				{
 					A[Index] = '\0';
-					A.TrimToNullTerminator();		
+					A.TrimToNullTerminator();
 				}
 			}
 			else
@@ -1464,7 +1471,19 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 
 			if (Num)
 			{
-				Ar.Serialize((void*)UTF16String.Get(), sizeof(UTF16CHAR) * Num);
+				if (!Ar.IsByteSwapping())
+				{
+					Ar.Serialize((void*)UTF16String.Get(), sizeof(UTF16CHAR) * Num);
+				}
+				else
+				{
+					TArray<UTF16CHAR> Swapped(UTF16String.Get(), Num);
+					for (int32 CharIndex = 0; CharIndex < Num; ++CharIndex)
+					{
+						Swapped[CharIndex] = ByteSwap(Swapped[CharIndex]);
+					}
+					Ar.Serialize((void*)Swapped.GetData(), sizeof(UTF16CHAR) * Num);
+				}
 			}
 		}
 		else

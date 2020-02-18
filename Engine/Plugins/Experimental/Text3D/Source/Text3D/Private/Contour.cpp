@@ -3,20 +3,18 @@
 
 #include "Contour.h"
 #include "Part.h"
-#include "Data.h"
 
 
-FContour::FContour(const TSharedPtr<FData> DataIn)
-	: Data(DataIn)
+FContour::FContour()
 {
-	ResetContour();
 }
 
 FContour::~FContour()
 {
-	for (const FPart* const Part : *this)
+	for (FPartPtr Part : *this)
 	{
-		delete Part;
+		Part->Prev.Reset();
+		Part->Next.Reset();
 	}
 }
 
@@ -30,80 +28,6 @@ int32 FContour::GetNext(const int32 Index) const
 	return (Index + 1) % Num();
 }
 
-bool FContour::HasIntersections() const
-{
-	return bHasIntersections;
-}
-
-void FContour::ResetContour()
-{
-	bHasIntersections = true;
-}
-
-void FContour::DisableIntersections()
-{
-	bHasIntersections = false;
-}
-
-// p_1 ~ Point->InitialPosition
-// p_2 ~ Point->Next->InitialPosition
-// e   ~ Expand
-// d   ~ Point->DoneExpand
-// t   ~ Point->TangentX
-// a = e - d
-// (b_i = p_i + n_i * a) is a position to which point will be expanded
-// (b_2 - b_1) has same direction as (t) if no intersection happened and opposite one if it did
-// if intersection happened, needed value can be received from (b_2 - b_1 = 0)
-void FContour::ComputeAvailableExpandNear(FPart* const Point)
-{
-	FPart* Next = Point->Next;
-
-	const FVector2D dp = Next->InitialPosition - Point->InitialPosition;
-	const FVector2D dn = Next->Normal - Point->Normal;
-
-	// ExpandTotal is used instead of Expand to compute AvailableExpandNear once for all segments, without recomputing them at every BevelLinear call.
-	const float Expand = Data->GetExpandTotal();
-
-	// (2 * Expand) is used to mark this intersection invalid ((Expand) is total needed expand)
-	Point->AvailableExpandNear = FVector2D::DotProduct(Point->TangentX, dp + dn * Expand) < 0 ? dp.Size() / dn.Size() - Point->DoneExpand : 2 * Expand;
-}
-
-void FContour::ComputeAvailableExpandsFarFrom(FPart* const Point)
-{
-	Point->AvailableExpandsFar.Empty();
-
-	// IntersectionFar requires at leat 1 part distance (between point and edge) if edge if further counterclockwise then point and at least 2 parts distance if further clockwise (because FPart is point and it's _next_ edge)
-	for (const FPart* Edge = Point->Next->Next; Edge != Point->Prev->Prev; Edge = Edge->Next)
-	{
-		ComputeAvailableExpandFar(Point, Edge);
-	}
-}
-
-void FContour::ComputeAvailableExpandsFarTo(const FPart* const Edge)
-{
-	// See comment in ComputeAvailableExpandsFarFrom
-	for (FPart* Point = Edge->Next->Next->Next; Point != Edge->Prev; Point = Point->Next)
-	{
-		Point->AvailableExpandsFar.Remove(Edge);
-		ComputeAvailableExpandFar(Point, Edge);
-	}
-}
-
-void FContour::RemoveRange(const FPart* const Start, const FPart* const End)
-{
-	const int32 StartIndex = Find(Start);
-	const int32 EndIndex = Find(End);
-
-	if (EndIndex < StartIndex)
-	{
-		RemoveAt(StartIndex, Num() - StartIndex);
-		RemoveAt(0, EndIndex);
-	}
-	else
-	{
-		RemoveAt(StartIndex, EndIndex - StartIndex);
-	}
-}
 
 // p_1 ~ Edge->Position
 // p_2 ~ Edge->Next->Position
@@ -124,15 +48,15 @@ void FContour::RemoveRange(const FPart* const Start, const FPart* const End)
 // if value is (<= 0), intersection will not happen
 // available expand for edge can be received from (e_2 + d_2 = e_3 + d_3)
 // check if intersection is _on_ expanded edge with cross products (previous operations guarantee only that it's on the line this edge belongs too, not enough to claim an intersection)
-void FContour::ComputeAvailableExpandFar(FPart* const Point, const FPart* const Edge)
+void FContour::ComputeAvailableExpandFar(const FPartPtr Point, const FPartConstPtr Edge)
 {
-	const FPart* const EdgeA = Edge;
-	const FPart* const EdgeB = Edge->Next;
+	const FPartConstPtr EdgeA = Edge;
+	const FPartConstPtr EdgeB = Edge->Next;
 
 	const FVector2D dp = EdgeA->TangentX;
 	const float dpXPointNormal = FVector2D::CrossProduct(dp, Point->Normal);
 
-	if (dpXPointNormal <= 0)
+	if (dpXPointNormal <= 0.f)
 	{
 		return;
 	}
@@ -140,7 +64,7 @@ void FContour::ComputeAvailableExpandFar(FPart* const Point, const FPart* const 
 	const float DoneExpandDiff = Point->DoneExpand - EdgeB->DoneExpand;
 	const float AvailableExpandPoint = FVector2D::CrossProduct(dp, (DoneExpandDiff * EdgeB->Normal - Point->Position + EdgeB->Position)) / (dpXPointNormal - FVector2D::CrossProduct(dp, EdgeB->Normal));
 
-	if (AvailableExpandPoint <= 0)
+	if (AvailableExpandPoint <= 0.f)
 	{
 		return;
 	}
@@ -148,12 +72,12 @@ void FContour::ComputeAvailableExpandFar(FPart* const Point, const FPart* const 
 	const float AvailableExpandEdgeB = DoneExpandDiff + AvailableExpandPoint;
 	const FVector2D PointExpanded = Point->Expanded(AvailableExpandPoint) - EdgeB->Position;
 
-	if (FVector2D::CrossProduct(PointExpanded, (EdgeB->Expanded(AvailableExpandEdgeB) - EdgeB->Position)) < 0)
+	if (FVector2D::CrossProduct(PointExpanded, (EdgeB->Expanded(AvailableExpandEdgeB) - EdgeB->Position)) < 0.f)
 	{
 		return;
 	}
 
-	if (FVector2D::CrossProduct(PointExpanded, (EdgeA->Expanded(EdgeB->DoneExpand + AvailableExpandEdgeB - EdgeA->DoneExpand) - EdgeB->Position)) > 0)
+	if (FVector2D::CrossProduct(PointExpanded, (EdgeA->Expanded(EdgeB->DoneExpand + AvailableExpandEdgeB - EdgeA->DoneExpand) - EdgeB->Position)) > 0.f)
 	{
 		return;
 	}

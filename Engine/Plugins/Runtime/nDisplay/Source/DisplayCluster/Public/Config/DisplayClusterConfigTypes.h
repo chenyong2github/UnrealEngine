@@ -190,6 +190,17 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigGeneral : public FDisplayClusterC
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct DISPLAYCLUSTER_API FDisplayClusterConfigRender : public FDisplayClusterConfigBase
 {
+	virtual FString ToString() const override;
+	virtual bool    DeserializeFromString(const FString& line) override;
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// NVIDIA configuration
+//////////////////////////////////////////////////////////////////////////////////////////////
+struct DISPLAYCLUSTER_API FDisplayClusterConfigNvidia : public FDisplayClusterConfigBase
+{
+	int32 SyncGroup   = 1;
+	int32 SyncBarrier = 1;
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;
@@ -200,7 +211,6 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigRender : public FDisplayClusterCo
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct DISPLAYCLUSTER_API FDisplayClusterConfigStereo : public FDisplayClusterConfigBase
 {
-
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;
 };

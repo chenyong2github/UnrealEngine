@@ -191,7 +191,7 @@ void FMagicLeapHandTracking::UpdateLiveLink()
 		FLiveLinkAnimationFrameData* LiveLinkRightFramePtr = LiveLinkRightFrame.Cast<FLiveLinkAnimationFrameData>();
 
 		LiveLinkLeftFramePtr->WorldTime = LiveLinkRightFramePtr->WorldTime = FPlatformTime::Seconds();
-		LiveLinkLeftFramePtr->MetaData.SceneTime = LiveLinkRightFramePtr->MetaData.SceneTime = FQualifiedFrameTime(FApp::GetTimecode(), FApp::GetTimecodeFrameRate());
+		LiveLinkLeftFramePtr->MetaData.SceneTime = LiveLinkRightFramePtr->MetaData.SceneTime = FApp::GetCurrentFrameTime().Get(FQualifiedFrameTime());
 
 		// Update the transforms for each subject from tracking data
 		UpdateLiveLinkTransforms(LiveLinkLeftFramePtr->Transforms, LeftHand);

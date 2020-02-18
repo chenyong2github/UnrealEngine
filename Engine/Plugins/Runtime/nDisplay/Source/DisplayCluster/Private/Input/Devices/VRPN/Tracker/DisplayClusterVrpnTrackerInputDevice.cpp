@@ -2,9 +2,8 @@
 
 #include "Input/Devices/VRPN/Tracker/DisplayClusterVrpnTrackerInputDevice.h"
 
-#include "Misc/DisplayClusterHelpers.h"
-
 #include "DisplayClusterBuildConfig.h"
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 

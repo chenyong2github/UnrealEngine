@@ -67,13 +67,18 @@ FFrameTime FSequencerTimeSliderController::ComputeScrubTimeFromMouse(const FGeom
 	double              MouseSeconds  = RangeToScreen.LocalXToInput( CursorPos.X );
 	FFrameTime          ScrubTime     = MouseSeconds * GetTickResolution();
 
-	if ( TimeSliderArgs.Settings->GetIsSnapEnabled() )
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+	if (!Sequencer.IsValid())
 	{
-		if (TimeSliderArgs.Settings->GetSnapPlayTimeToInterval())
+		return ScrubTime;
+	}
+	
+	if ( Sequencer->GetSequencerSettings()->GetIsSnapEnabled() )
+	{
+		if (Sequencer->GetSequencerSettings()->GetSnapPlayTimeToInterval())
 		{
 			// Set the style of the scrub handle
-			TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-			if (Sequencer.IsValid() && Sequencer->GetScrubStyle() == ESequencerScrubberStyle::FrameBlock)
+			if (Sequencer->GetScrubStyle() == ESequencerScrubberStyle::FrameBlock)
 			{
 				// Floor to the display frame
 				ScrubTime = ConvertFrameTime(ConvertFrameTime(ScrubTime, GetTickResolution(), GetDisplayRate()).FloorToFrame(), GetDisplayRate(), GetTickResolution());
@@ -85,14 +90,14 @@ FFrameTime FSequencerTimeSliderController::ComputeScrubTimeFromMouse(const FGeom
 			}
 		}
 
-		if (TimeSliderArgs.Settings->GetSnapPlayTimeToKeys())
+		if (Sequencer->GetSequencerSettings()->GetSnapPlayTimeToKeys())
 		{
 			// SnapTimeToNearestKey will return ScrubTime unmodified if there is no key within range.
 			ScrubTime = SnapTimeToNearestKey(RangeToScreen, CursorPos.X, ScrubTime);
 		}
 	}
 
-	if (TimeSliderArgs.Settings->ShouldKeepCursorInPlayRangeWhileScrubbing())
+	if (Sequencer->GetSequencerSettings()->ShouldKeepCursorInPlayRangeWhileScrubbing())
 	{
 		ScrubTime = MovieScene::ClampToDiscreteRange(ScrubTime, TimeSliderArgs.PlaybackRange.Get());
 	}
@@ -105,7 +110,13 @@ FFrameTime FSequencerTimeSliderController::ComputeFrameTimeFromMouse(const FGeom
 	FVector2D CursorPos  = Geometry.AbsoluteToLocal( ScreenSpacePosition );
 	double    MouseValue = RangeToScreen.LocalXToInput( CursorPos.X );
 
-	if (CheckSnapping && TimeSliderArgs.Settings->GetIsSnapEnabled())
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+	if (!Sequencer.IsValid())
+	{
+		return MouseValue * GetTickResolution();
+	}
+
+	if (CheckSnapping && Sequencer->GetSequencerSettings()->GetIsSnapEnabled())
 	{
 		FFrameNumber        SnappedFrameNumber = (MouseValue * GetDisplayRate()).FloorToFrame();
 		FQualifiedFrameTime RoundedPlayFrame   = FQualifiedFrameTime(SnappedFrameNumber, GetDisplayRate());
@@ -838,11 +849,13 @@ FReply FSequencerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, co
 			FFrameTime ScrubTime = MouseTime;
 			FVector2D CursorPos  = MouseEvent.GetScreenSpacePosition();
 
+			TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+
 			if (MouseDragType == DRAG_SCRUBBING_TIME)
 			{
 				ScrubTime = ComputeScrubTimeFromMouse(MyGeometry, CursorPos, RangeToScreen);
 			}
-			else if (TimeSliderArgs.Settings->GetSnapPlayTimeToKeys())
+			else if (Sequencer.IsValid() && Sequencer->GetSequencerSettings()->GetSnapPlayTimeToKeys())
 			{
 				ScrubTime = SnapTimeToNearestKey(RangeToScreen, CursorPos.X, ScrubTime);
 			}
@@ -1052,8 +1065,10 @@ FReply FSequencerTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, const
 	{
 		float MouseFractionX = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X / MyGeometry.GetLocalSize().X;
 
+		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+			
 		// If zooming on the current time, adjust mouse fractionX
-		if (TimeSliderArgs.Settings->GetZoomPosition() == ESequencerZoomPosition::SZP_CurrentTime)
+		if (Sequencer.IsValid() && Sequencer->GetSequencerSettings()->GetZoomPosition() == ESequencerZoomPosition::SZP_CurrentTime)
 		{
 			const double ScrubPosition = TimeSliderArgs.ScrubPosition.Get() / GetTickResolution();
 			if (GetViewRange().Contains(ScrubPosition))

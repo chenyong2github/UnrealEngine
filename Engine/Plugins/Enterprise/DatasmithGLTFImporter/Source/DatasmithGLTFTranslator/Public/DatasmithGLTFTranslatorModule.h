@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class IDatasmithGLTFTranslatorModule : public IModuleInterface
+class DATASMITHGLTFTRANSLATOR_API IDatasmithGLTFTranslatorModule : public IModuleInterface
 {
 public:
 	static const TCHAR* ModuleName;

@@ -1818,7 +1818,7 @@ void FD3D11DynamicRHI::UpdateTexture2D_RenderThread(
 	}
 	else
 	{
-		const SIZE_T SourceDataSize = SourcePitch * UpdateRegion.Height;
+		const SIZE_T SourceDataSize = static_cast<SIZE_T>(SourcePitch) * UpdateRegion.Height;
 		uint8* SourceDataCopy = (uint8*)FMemory::Malloc(SourceDataSize);
 		FMemory::Memcpy(SourceDataCopy, SourceData, SourceDataSize);
 		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourcePitch, SourceDataCopy]()
@@ -1892,7 +1892,7 @@ void FD3D11DynamicRHI::UpdateTexture3D_RenderThread(
 	}
 	else
 	{
-		const SIZE_T SourceDataSize = SourceDepthPitch * UpdateRegion.Depth;
+		const SIZE_T SourceDataSize = static_cast<SIZE_T>(SourceDepthPitch) * UpdateRegion.Depth;
 		uint8* SourceDataCopy = (uint8*)FMemory::Malloc(SourceDataSize);
 		FMemory::Memcpy(SourceDataCopy, SourceData, SourceDataSize);
 		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceDataCopy]()

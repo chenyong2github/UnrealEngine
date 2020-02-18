@@ -25,6 +25,9 @@ public:
 	//~ End IDatasmithTranslator interface
 
 private:
+	TStrongObjectPtr<UDatasmithGLTFImportOptions>& GetOrCreateGLTFImportOptions();
+
+private:
     TStrongObjectPtr<UDatasmithGLTFImportOptions> ImportOptions;
     TSharedPtr<class FDatasmithGLTFImporter> Importer;
 };

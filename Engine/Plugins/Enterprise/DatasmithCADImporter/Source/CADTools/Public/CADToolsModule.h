@@ -5,12 +5,11 @@
 
 #define CADTOOLS_MODULE_NAME TEXT("CADTools")
 
-class FCADToolsModule : public IModuleInterface
+class CADTOOLS_API FCADToolsModule : public IModuleInterface
 {
 public:
 	static FCADToolsModule& Get();
 	static bool IsAvailable();
 
-private:
-	virtual void StartupModule() override;
+	static uint32 GetCacheVersion();
 };

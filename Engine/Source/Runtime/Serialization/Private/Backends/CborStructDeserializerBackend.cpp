@@ -7,8 +7,8 @@
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
 
-FCborStructDeserializerBackend::FCborStructDeserializerBackend(FArchive& Archive)
-	: CborReader(&Archive)
+FCborStructDeserializerBackend::FCborStructDeserializerBackend(FArchive& Archive, ECborEndianness CborDataEndianness)
+	: CborReader(&Archive, CborDataEndianness)
 {}
 
 FCborStructDeserializerBackend::~FCborStructDeserializerBackend() = default;

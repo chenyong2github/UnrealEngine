@@ -22,6 +22,7 @@ public class VirtualCamera : ModuleRules
 				"MovieScene",
 				"RemoteSession",
 				"TimeManagement",
+				"UMG",
 				"VPUtilities",
 			}
 		);
@@ -29,6 +30,7 @@ public class VirtualCamera : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"MediaIOCore",
 				"Slate",
 			}
 		);

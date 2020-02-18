@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "MovieSceneCaptureDialogModule.h"
 #include "SequencerBindingProxy.h"
+#include "SequencerScriptingRange.h"
 #include "SequencerTools.generated.h"
 
 class UFbxExportOption;
@@ -14,6 +15,26 @@ class UAnimSequence;
 class UPoseAsset;
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnRenderMovieStopped, bool, bSuccess);
+
+USTRUCT(BlueprintType)
+struct FSequencerBoundObjects
+{
+	GENERATED_BODY()
+
+	FSequencerBoundObjects()
+	{}
+
+	FSequencerBoundObjects(FSequencerBindingProxy InBindingProxy, const TArray<UObject*>& InBoundObjects)
+		: BindingProxy(InBindingProxy)
+		, BoundObjects(InBoundObjects)
+	{}
+
+	UPROPERTY(BlueprintReadWrite, Category=Binding)
+	FSequencerBindingProxy BindingProxy;
+
+	UPROPERTY(BlueprintReadWrite, Category=Binding)
+	TArray<UObject*> BoundObjects;
+};
 
 /** 
  * This is a set of helper functions to access various parts of the Sequencer API via Python. Because Sequencer itself is not suitable for exposing, most functionality
@@ -48,6 +69,22 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Movie Rendering")
 	static void CancelMovieRender();
+
+public:
+
+	/*
+	 * Retrieve all objects currently bound to the specified binding identifiers. The sequence will be evaluated in lower bound of the specified range, 
+	 * which allows for retrieving spawnables in that period of time.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools")
+	static TArray<FSequencerBoundObjects> GetBoundObjects(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, const FSequencerScriptingRange& InRange);
+
+	/*
+	 * Get the object bindings for the requested object. The sequence will be evaluated in lower bound of the specified range, 
+	 * which allows for retrieving spawnables in that period of time.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools")
+	static TArray<FSequencerBoundObjects> GetObjectBindings(UWorld* InWorld, ULevelSequence* InSequence, const TArray<UObject*>& InObject, const FSequencerScriptingRange& InRange);
 
 public:
 	/*

@@ -2,44 +2,44 @@
 
 #pragma once
 
-#include "DatasmithCoreTechTranslator.h"
-#include "DatasmithImportOptions.h"
+#include "CoreMinimal.h"
+
+#include "DatasmithTranslator.h"
+#include "DatasmithOpenNurbsImportOptions.h"
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 
 class FOpenNurbsTranslatorImpl;
 
-class FDatasmithOpenNurbsTranslator : public FDatasmithCoreTechTranslator
+class FDatasmithOpenNurbsTranslator : public IDatasmithTranslator
 {
 public:
-	FDatasmithOpenNurbsTranslator();
+	virtual FName GetFName() const override { return "DatasmithOpenNurbsTranslator"; }
 
-	virtual FName GetFName() const override { return "DatasmithOpenNurbsTranslator"; };
+#ifndef USE_OPENNURBS
+	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override { OutCapabilities.bIsEnabled = false; }
+#else // USE_OPENNURBS
 
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
 
-	virtual bool IsSourceSupported(const FDatasmithSceneSource& Source) override;
-
 	virtual bool LoadScene(TSharedRef<IDatasmithScene> OutScene) override;
+
 	virtual void UnloadScene() override;
 
 	virtual bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload) override;
 
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
-protected:
-	virtual void InitCommonTessellationOptions(FDatasmithTessellationOptions& TessellationOptions) override
-	{
-		TessellationOptions.StitchingTechnique = EDatasmithCADStitchingTechnique::StitchingNone;
-	}
+	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
 private:
-
 	TSharedPtr<FOpenNurbsTranslatorImpl> Translator;
 
 	// Temporarily store this here for UE-81278 so that we can trigger the recreation of
 	// static meshes if we're reimporting with new materials that haven't been assigned yet
 	FDatasmithImportBaseOptions BaseOptions;
+
+	FDatasmithOpenNurbsOptions OpenNurbsOptions;
+#endif // USE_OPENNURBS
 };
 

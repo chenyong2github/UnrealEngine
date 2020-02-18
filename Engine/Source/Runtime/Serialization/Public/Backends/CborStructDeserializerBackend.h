@@ -17,10 +17,12 @@ public:
 	/**
 	 * Creates and initializes a new instance.
 	 * @param Archive The archive to deserialize from.
+	 * @param CborDataEndianness The CBOR data endianness stored in the archive.
+	 * @note For backward compatibility and performance, the implementation default to the the platform endianness rather than the CBOR standard one (big endian).
 	 */
-	FCborStructDeserializerBackend(FArchive& Archive);
-
+	FCborStructDeserializerBackend(FArchive& Archive, ECborEndianness CborDataEndianness = ECborEndianness::Platform);
 	virtual ~FCborStructDeserializerBackend();
+
 public:
 
 	// IStructDeserializerBackend interface

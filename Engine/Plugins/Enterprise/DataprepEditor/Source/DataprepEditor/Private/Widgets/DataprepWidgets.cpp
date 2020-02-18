@@ -98,6 +98,8 @@ namespace DataprepWidgetUtils
 	}
 }
 
+int32 SDataprepDetailsView::DesiredWidth = 400.f;
+
 void SDataprepCategoryWidget::ToggleExpansion()
 {
 	bIsExpanded = !bIsExpanded;

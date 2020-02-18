@@ -109,6 +109,7 @@ namespace ProxyLOD
 template <typename DstMeshType>
 void ProxyLOD::SDFVolumeToMesh(const openvdb::FloatGrid::ConstPtr SDFVolume, const double IsoValue, const double Adaptivity, DstMeshType& OutMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProxyLOD::SDFVolumeToMesh)
 
 	// we should be generating a new FMeshDescription.
 

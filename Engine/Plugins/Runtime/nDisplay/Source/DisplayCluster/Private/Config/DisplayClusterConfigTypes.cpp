@@ -2,9 +2,9 @@
 
 #include "Config/DisplayClusterConfigTypes.h"
 
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
-#include "Misc/DisplayClusterHelpers.h"
 
 #include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 
@@ -290,6 +290,25 @@ FString FDisplayClusterConfigRender::ToString() const
 
 bool FDisplayClusterConfigRender::DeserializeFromString(const FString& line)
 {
+	return FDisplayClusterConfigBase::DeserializeFromString(line);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterConfigNvidia
+//////////////////////////////////////////////////////////////////////////////////////////////
+FString FDisplayClusterConfigNvidia::ToString() const
+{
+	return FString::Printf(TEXT("[%s + %s=%d, %s=%d]"),
+		*FDisplayClusterConfigBase::ToString(),
+		DisplayClusterStrings::cfg::data::nvidia::SyncGroup,   SyncGroup,
+		DisplayClusterStrings::cfg::data::nvidia::SyncBarrier, SyncBarrier);
+}
+
+bool FDisplayClusterConfigNvidia::DeserializeFromString(const FString& line)
+{
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::nvidia::SyncGroup),   SyncGroup);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::nvidia::SyncBarrier), SyncBarrier);
 	return FDisplayClusterConfigBase::DeserializeFromString(line);
 }
 

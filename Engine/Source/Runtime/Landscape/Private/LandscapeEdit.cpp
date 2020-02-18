@@ -4464,9 +4464,8 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			{
 				ModifiedScale.X = FMath::Abs(OriginalScale.Y)*FMath::Sign(ModifiedScale.X);
 			}
-			else
+			else if (SubPropertyName == FName("X"))
 			{
-				// There's no "if name == X" here so that if we can't tell which has changed out of X and Y, we just use X
 				ModifiedScale.Y = FMath::Abs(OriginalScale.X)*FMath::Sign(ModifiedScale.Y);
 			}
 
@@ -4805,9 +4804,9 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			MaterialInstanceConstantMap.Empty();
 		}
 	}
-	else if (PropertyName == FName(TEXT("RelativeScale3D")) ||
-		PropertyName == FName(TEXT("RelativeLocation")) ||
-		PropertyName == FName(TEXT("RelativeRotation")))
+	else if (MemberPropertyName == FName(TEXT("RelativeScale3D")) ||
+			 MemberPropertyName == FName(TEXT("RelativeLocation")) ||
+			 MemberPropertyName == FName(TEXT("RelativeRotation")))
 	{
 		if (Info != nullptr)
 		{

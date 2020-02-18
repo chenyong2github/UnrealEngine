@@ -293,10 +293,10 @@ private:
 	static FString GetStarterContentName(const FProjectInformation& InProjectInfo);
 
 	/** Generates a new project without using a template project */
-	static bool GenerateProjectFromScratch(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog);
+	static TOptional<FGuid> GenerateProjectFromScratch(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog);
 
 	/** Generates a new project using a template project */
-	static bool CreateProjectFromTemplate(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog, TArray<FString>* OutCreatedFiles = nullptr);
+	static TOptional<FGuid> CreateProjectFromTemplate(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog, TArray<FString>* OutCreatedFiles = nullptr);
 
 	/** Sets the engine association for a new project. Handles foreign and non-foreign projects. */
 	static bool SetEngineAssociationForForeignProject(const FString& ProjectFileName, FText& OutFailReason);
@@ -330,7 +330,7 @@ private:
 	static bool CleanupIsEnabled();
 
 	/** Creates ini files for a new project. On failure, OutFailReason will be populated. */
-	static bool GenerateConfigFiles(const FProjectInformation& InProjectInfo, TArray<FString>& OutCreatedFiles, FText& OutFailReason);
+	static bool GenerateConfigFiles(const FProjectInformation& InProjectInfo, TArray<FString>& OutCreatedFiles, FText& OutFailReason, FGuid& OutProjectID);
 
 	/* Creates new ini files for a specific project's platform configurations. */
 	static bool GeneratePlatformConfigFiles(const FProjectInformation& InProjectInfo, FText& OutFailReason);

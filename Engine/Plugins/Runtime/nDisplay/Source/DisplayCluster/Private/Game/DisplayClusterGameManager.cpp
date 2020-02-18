@@ -4,7 +4,6 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
-#include "Misc/DisplayClusterHelpers.h"
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Config/IPDisplayClusterConfigManager.h"
 
@@ -17,6 +16,7 @@
 #include "DisplayClusterScreenComponent.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
@@ -259,15 +259,18 @@ TArray<UDisplayClusterSceneComponent*> FDisplayClusterGameManager::GetAllNodes()
 
 ADisplayClusterRootActor* FDisplayClusterGameManager::FindDisplayClusterRootActor(UWorld* InWorld)
 {
-	for (AActor* const Actor : InWorld->PersistentLevel->Actors)
+	if (InWorld && InWorld->PersistentLevel)
 	{
-		if (Actor && !Actor->IsPendingKill())
+		for (AActor* const Actor : InWorld->PersistentLevel->Actors)
 		{
-			ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
-			if (RootActor)
+			if (Actor && !Actor->IsPendingKill())
 			{
-				UE_LOG(LogDisplayClusterGame, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
-				return RootActor;
+				ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
+				if (RootActor)
+				{
+					UE_LOG(LogDisplayClusterGame, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
+					return RootActor;
+				}
 			}
 		}
 	}

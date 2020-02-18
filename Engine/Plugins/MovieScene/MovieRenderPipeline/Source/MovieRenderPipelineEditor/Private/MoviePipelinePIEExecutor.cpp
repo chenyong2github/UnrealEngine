@@ -61,6 +61,19 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 		Params.GameModeOverride = GameOverrides->GameModeOverride;
 	}
 
+	bPreviousUseFixedTimeStep = FApp::UseFixedTimeStep();
+	PreviousFixedTimeStepDelta = FApp::GetFixedDeltaTime();
+
+	// Force the engine into fixed timestep mode. It's going to get overriden on the first frame by the movie pipeline,
+	// and everything controlled by Sequencer will use the correct timestep for renders but non-controlled things (such
+	// as pawns) use an uncontrolled DT on the first frame which lowers determinism.
+	ULevelSequence* LevelSequence = CastChecked<ULevelSequence>(InJob->Sequence.TryLoad());
+	if (LevelSequence)
+	{
+		FApp::SetUseFixedTimeStep(true);
+		FApp::SetFixedDeltaTime(InJob->GetConfiguration()->GetEffectiveFrameRate(LevelSequence).AsInterval());
+	}
+
 	// Kick off an async request to start a play session. This won't happen until the next frame.
 	GEditor->RequestPlaySession(Params);
 
@@ -72,7 +85,6 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 {
 	// Immediately un-bind our delegate so that we don't catch all PIE startup requests in the future.
 	FEditorDelegates::PostPIEStarted.RemoveAll(this);
-
 
 	// Hack to find out the PIE world since it is not provided by the delegate.
 	UWorld* ExecutingWorld = nullptr;
@@ -86,6 +98,10 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	}
 	
 	check(ExecutingWorld);
+
+	// Only mark us as rendering once we've gotten the OnPIEStartupFinished call. If something were to interrupt PIE
+	// startup (such as non-compiled blueprints) the queue would get stuck thinking it's rendering when it's not.
+	bIsRendering = true;
 
 	// Allow the user to have overridden which Pipeline is actually run. This is an unlikely scenario but allows
 	// the user to create their own implementation while still re-using the rest of our UI and infrastructure.
@@ -126,6 +142,10 @@ void UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished(UMoviePipeline* InMov
 
 void UMoviePipelinePIEExecutor::OnPIEEnded(bool)
 {
+	// Restore the previous settings.
+	FApp::SetUseFixedTimeStep(bPreviousUseFixedTimeStep);
+	FApp::SetFixedDeltaTime(bPreviousUseFixedTimeStep);
+
 	// If the movie pipeline finishes naturally we unsubscribe from the EndPIE event.
 	// This means that if this gets called, the user has hit escape and wants to cancel.
 	if (ActiveMoviePipeline)

@@ -18,18 +18,25 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"DatasmithCore",
-					"DatasmithExporter",
 					"Engine",
 					"Json",
 					"MeshDescription",
-					"MeshDescriptionOperations",
-					"MessageLog",
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
 					"UEOpenExr",
                 }
 			);
+
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"DatasmithExporter",
+					}
+				);
+			}
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]

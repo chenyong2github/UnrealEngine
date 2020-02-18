@@ -199,7 +199,7 @@ void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(FRHIComman
 		SceneCaptureSource = SCS_SceneColorHDR;
 	}
 
-	if (SceneCaptureSource != SCS_FinalColorLDR && SceneCaptureSource != SCS_FinalColorHDR)
+	if (SceneCaptureSource != SCS_FinalColorLDR && SceneCaptureSource != SCS_FinalColorHDR && SceneCaptureSource != SCS_FinalToneCurveHDR)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, CaptureSceneComponent);
 
@@ -732,7 +732,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		}
 
 		const bool bUseSceneColorTexture = CaptureComponent->CaptureSource != SCS_FinalColorLDR &&
-			CaptureComponent->CaptureSource != SCS_FinalColorHDR;
+			CaptureComponent->CaptureSource != SCS_FinalColorHDR && CaptureComponent->CaptureSource != SCS_FinalToneCurveHDR;
 
 		FSceneRenderer* SceneRenderer = CreateSceneRendererForSceneCapture(
 			this, 

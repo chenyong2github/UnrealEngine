@@ -410,7 +410,7 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 
 	const bool bUseVolumeTextureLUT = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(View.GetShaderPlatform());
 
-	const bool bUseFloatOutput = ViewFamily.SceneCaptureSource == SCS_FinalColorHDR;
+	const bool bUseFloatOutput = ViewFamily.SceneCaptureSource == SCS_FinalColorHDR || ViewFamily.SceneCaptureSource == SCS_FinalToneCurveHDR;
 
 	// Attempt to register the persistent view LUT texture.
 	FRDGTextureRef OutputTexture = GraphBuilder.TryRegisterExternalTexture(

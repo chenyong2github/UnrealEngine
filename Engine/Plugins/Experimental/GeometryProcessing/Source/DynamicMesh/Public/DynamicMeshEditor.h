@@ -185,24 +185,37 @@ public:
 
 
 	/**
-	 * Pair of associated edge loops.
+	 * Pair of associated vertex and edge loops. Assumption is that loop sizes are the same and have a 1-1 correspondence.
+	 * OuterVertices may include unreferenced vertices, and OuterEdges may include InvalidID edges in that case.
 	 */
 	struct FLoopPairSet
 	{
-		FEdgeLoop LoopA;
-		FEdgeLoop LoopB;
+		TArray<int32> OuterVertices;
+		TArray<int32> OuterEdges;
+
+		TArray<int32> InnerVertices;
+		TArray<int32> InnerEdges;
+
+		/** If true, some OuterVertices are not referenced by any triangles, and the pair of OuterEdges that would touch that vertex are InvalidID */
+		bool bOuterIncludesIsolatedVertices;
 	};
 
 	/**
 	 * Finds boundary loops of connected components of a set of triangles, and duplicates the vertices
 	 * along the boundary, such that the triangles become disconnected.
-	 * Note: This can create a mesh with bowties if you pass in a subset of triangles that would have bowtie connectivity.
+	 * If the triangle set includes boundary vertices, they cannot be disconnected as they will become unreferenced.
+	 * The function returns false if boundary vertices are found, unless bHandleBoundaryVertices = true.
+	 * In that case, the boundary vertex is duplicated, and the original vertex is kept with the "Inner" loop.
+	 * The new unreferenced vertex is left on the "Outer" loop, and the attached edges do not exist so are set as InvalidID.
+	 * The FLoopPairSet.bOuterIncludesIsolatedVertices flag is set to true if boundary vertices are encountered.
+	 * Note: This function can create a mesh with bowties if you pass in a subset of triangles that would have bowtie connectivity.
 	 *		 (it is impossible to create the paired LoopSetOut with 1:1 vertex pairs without leaving in the bowties?)
 	 * @param Triangles set of triangles
 	 * @param LoopSetOut set of boundary loops. LoopA is original loop which remains with "outer" triangles, and LoopB is new boundary loop of triangle set
+	 * @param bHandleBoundaryVertices if true, boundary vertices are handled as described above, otherwise function aborts and returns false if a boundary vertex is encountered
 	 * @return true on success
 	 */
-	bool DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut);
+	bool DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut, bool bHandleBoundaryVertices);
 
 	/**
 	* Disconnects triangles (without constructing boundary loops) such that the input Triangles are not connected to any other triangles in the mesh
@@ -316,6 +329,19 @@ public:
 	 */
 	void SetTriangleNormals(const TArray<int>& Triangles, const FVector3f& Normal);
 
+	/**
+	 * Create and set new shared per-triangle normals for a list of triangles. 
+	 * Normal at each vertex is calculated based only on average of triangles in set
+	 * @param Triangles list of triangle IDs
+	 */
+	void SetTriangleNormals(const TArray<int>& Triangles);
+
+
+	/**
+	 * For a 'tube' of triangles connecting loops of corresponded vertices, set smooth normals such that corresponding vertices have corresponding normals
+	 */
+	void SetTubeNormals(const TArray<int>& Triangles, const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2);
+
 
 	//////////////////////////////////////////////////////////////////////////
 	// UV utility functions
@@ -342,8 +368,14 @@ public:
 	* @param UVTranslation UVs are translated after scaling
 	* @param UVLayerIndex which UV layer to operate on (must exist)
 	*/
-	void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
+	void SetTriangleUVsFromProjection(const TArray<int32>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), bool bShiftToOrigin = true, int32 UVLayerIndex = 0);
 
+
+	/**
+	 * For triangles connecting loops of corresponded vertices, set UVs in a cylindrical pattern so that the U coordinate starts at 0 for the first corresponded pair of vertices, and cycles around to 1
+	 * Assumes Triangles array stores indices of triangles in progressively filling the tube, starting with VertexIDs*[0].  (This is used to set the UVs correctly at the seam joining the start & end of the loop)
+	 */
+	void SetGeneralTubeUVs(const TArray<int>& Triangles, const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, const TArray<float>& UValues, const FVector3f& VDir, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
 
 	/**
 	 * Rescale UVs for the whole mesh, for the given UV attribute layer

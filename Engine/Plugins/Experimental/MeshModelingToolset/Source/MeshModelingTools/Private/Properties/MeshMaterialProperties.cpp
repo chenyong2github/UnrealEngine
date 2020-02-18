@@ -73,10 +73,23 @@ UMaterialInterface* UExistingMeshMaterialProperties::GetActiveOverrideMaterial()
 	return nullptr;
 }
 
+void UExistingMeshMaterialProperties::SaveProperties(UInteractiveTool* SaveFromTool)
+{
+	UExistingMeshMaterialProperties* PropertyCache = GetPropertyCache<UExistingMeshMaterialProperties>();
+	PropertyCache->MaterialMode = this->MaterialMode;
+	PropertyCache->CheckerDensity = this->CheckerDensity;
+	PropertyCache->OverrideMaterial = this->OverrideMaterial;
+	PropertyCache->CheckerMaterial = this->CheckerMaterial;
+}
 
-
-
-
+void UExistingMeshMaterialProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+{
+	UExistingMeshMaterialProperties* PropertyCache = GetPropertyCache<UExistingMeshMaterialProperties>();
+	this->MaterialMode = PropertyCache->MaterialMode;
+	this->CheckerDensity = PropertyCache->CheckerDensity;
+	this->OverrideMaterial = PropertyCache->OverrideMaterial;
+	this->CheckerMaterial = PropertyCache->CheckerMaterial;
+}
 
 void UMeshEditingViewProperties::SaveProperties(UInteractiveTool* SaveFromTool)
 {

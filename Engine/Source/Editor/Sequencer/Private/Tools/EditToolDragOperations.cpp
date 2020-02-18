@@ -1016,6 +1016,8 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 		}
 	}
 
+	TArray<TSharedRef<FSequencerTrackNode> > TrackNodes;
+
 	bool bRowIndexChanged = false;
 	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
 	{
@@ -1040,6 +1042,7 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 		}
 
 		TSharedRef<FSequencerTrackNode> TrackNode = SectionHandle->GetTrackNode();
+		TrackNodes.AddUnique(TrackNode);
 
 		int32 TargetRowIndex = Section->GetRowIndex();
 
@@ -1220,6 +1223,28 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 	if (bRowIndexChanged)
 	{
 		PrevMousePosY = LocalMousePos.Y;
+
+		// Expand track node if it wasn't already expanded. This ensures that multi row tracks will show multiple rows if regenerated
+		for (TSharedRef<FSequencerTrackNode> TrackNode : TrackNodes)
+		{
+			if (!TrackNode->IsExpanded())
+			{
+				TArray<TSharedRef<ISequencerSection> > TrackNodeSections = TrackNode->GetSections();
+				if (TrackNodeSections.Num() && TrackNodeSections[0]->GetSectionObject())
+				{
+					int32 SectionFirstRowIndex = TrackNodeSections[0]->GetSectionObject()->GetRowIndex();
+
+					for (TSharedRef<ISequencerSection> TrackNodeSection : TrackNodeSections)
+					{
+						if (TrackNodeSection->GetSectionObject() && SectionFirstRowIndex != TrackNodeSection->GetSectionObject()->GetRowIndex())
+						{
+							TrackNode->SetExpansionState(true);
+							break;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	return bRowIndexChanged;

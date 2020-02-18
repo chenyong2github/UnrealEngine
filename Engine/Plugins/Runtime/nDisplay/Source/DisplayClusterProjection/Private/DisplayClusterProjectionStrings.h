@@ -47,6 +47,12 @@ namespace DisplayClusterStrings
 					static constexpr auto AngleB      = TEXT("b");
 					static constexpr auto AngleBottom = TEXT("bottom");
 				}
+
+				namespace mesh
+				{
+					static constexpr auto FileID   = TEXT("@UESM");
+					static constexpr auto BufferID = TEXT("@@Buf");
+				}
 			}
 		}
 	}
@@ -56,6 +62,7 @@ namespace DisplayClusterStrings
 		static constexpr auto Camera    = TEXT("camera");
 		static constexpr auto Simple    = TEXT("simple");
 		static constexpr auto MPCDI     = TEXT("mpcdi");
+		static constexpr auto Mesh      = TEXT("mesh");
 		static constexpr auto EasyBlend = TEXT("easyblend");
 		static constexpr auto Manual    = TEXT("manual");
 	}

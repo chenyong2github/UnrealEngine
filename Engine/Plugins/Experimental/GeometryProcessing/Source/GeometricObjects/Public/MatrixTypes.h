@@ -386,6 +386,11 @@ struct TMatrix2
 		return TMatrix2<RealType>(cs, -sn, sn, cs);
 	}
 
+	static TMatrix2<RealType> RotationDeg(RealType AngleDeg)
+	{
+		return RotationRad(AngleDeg * TMathUtil<RealType>::DegToRad);
+	}
+
 	/**
 	 * Assumes we have a rotation matrix (uniform scale ok)
 	 */

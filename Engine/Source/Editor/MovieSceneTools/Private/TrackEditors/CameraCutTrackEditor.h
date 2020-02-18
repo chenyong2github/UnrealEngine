@@ -54,6 +54,7 @@ public:
 
 	virtual void BindCommands(TSharedRef<FUICommandList> SequencerCommandBindings) override;
 	virtual void BuildAddTrackMenu(FMenuBuilder& MenuBuilder) override;
+	virtual void BuildTrackContextMenu(FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track) override;
 	virtual TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
 	virtual void OnRelease() override;
@@ -93,6 +94,9 @@ private:
 
 	/** Called to create a new section for the specified binding ID. */
 	void CreateNewSectionFromBinding(FMovieSceneObjectBindingID InBindingID);
+
+	/** Called when toggling whether the track can blend camera cuts. */
+	void HandleToggleCanBlendExecute(UMovieSceneCameraCutTrack* CameraCutTrack);
 
 	/** Delegate for camera button lock state */
 	ECheckBoxState IsCameraLocked() const; 

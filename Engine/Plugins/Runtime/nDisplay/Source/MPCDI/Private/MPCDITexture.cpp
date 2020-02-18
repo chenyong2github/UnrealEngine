@@ -10,50 +10,41 @@
 #include "RHIUtilities.h"
 
 
-namespace
+class TextureData : public FResourceBulkDataInterface
 {
-	class TextureData : public FResourceBulkDataInterface
-	{
-	public:
-		TextureData(const void* InData, uint32_t InDataSize)
-			: Data(InData)
-			, DataSize(InDataSize)
-		{ 
-		}
+public:
+	TextureData(const void* InData, uint32_t InDataSize)
+		: Data(InData)
+		, DataSize(InDataSize)
+	{ }
 
-	public:
-		virtual const void* GetResourceBulkData() const
-		{ 
-			return Data; 
-		}
+public:
+	virtual const void* GetResourceBulkData() const
+	{ return Data; }
 
-		virtual uint32 GetResourceBulkDataSize() const
-		{ 
-			return DataSize; 
-		}
+	virtual uint32 GetResourceBulkDataSize() const
+	{ return DataSize; }
 
-		virtual void Discard()
-		{ 
-		}
+	virtual void Discard()
+	{ }
 
-	private:
-		const void* Data;
-		uint32_t    DataSize;
-	};
+private:
+	const void* Data;
+	uint32_t    DataSize;
+};
 
-	FTexture2DRHIRef CreateTexture2D(void* InData, int InWidth, int InHeight, EPixelFormat InPixelFormat)
-	{
-		const uint32 DataSize = CalculateImageBytes(InWidth, InHeight, 1, InPixelFormat);
-		TextureData BulkDataInterface(InData, DataSize);
-		FRHIResourceCreateInfo CreateInfo(&BulkDataInterface);
-		return RHICreateTexture2D(InWidth, InHeight, InPixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
-	}
+FTexture2DRHIRef CreateTexture2D(void* InData, int InWidth, int InHeight, EPixelFormat InPixelFormat)
+{
+	const uint32 DataSize = CalculateImageBytes(InWidth, InHeight, 1, InPixelFormat);
+	TextureData BulkDataInterface(InData, DataSize);
+	FRHIResourceCreateInfo CreateInfo(&BulkDataInterface);
+	return RHICreateTexture2D(InWidth, InHeight, InPixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
 }
 
 //---------------------------------------------
 // FMPCDITexture
 //---------------------------------------------
-void MPCDI::FMPCDITexture::ReleaseTextureData()
+void FMPCDITexture::ReleaseTextureData()
 {
 	if (Data != nullptr)
 	{
@@ -62,7 +53,7 @@ void MPCDI::FMPCDITexture::ReleaseTextureData()
 	}
 }
 
-void MPCDI::FMPCDITexture::InitRHI()
+void FMPCDITexture::InitRHI()
 {
 	FTexture2DRHIRef Texture2D = CreateTexture2D(Data, Width, Height, PixelFormat);
 	TextureRHI = Texture2D;

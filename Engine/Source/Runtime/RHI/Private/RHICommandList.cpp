@@ -2375,7 +2375,7 @@ FUpdateTexture3DData FDynamicRHI::BeginUpdateTexture3D_RenderThread(class FRHICo
 	const int32 RowPitch = UpdateRegion.Width * FormatSize;
 	const int32 DepthPitch = UpdateRegion.Width * UpdateRegion.Height * FormatSize;
 
-	SIZE_T MemorySize = DepthPitch * UpdateRegion.Depth;
+	SIZE_T MemorySize = static_cast<SIZE_T>(DepthPitch) * UpdateRegion.Depth;
 	uint8* Data = (uint8*)FMemory::Malloc(MemorySize);	
 
 	return FUpdateTexture3DData(Texture, MipIndex, UpdateRegion, RowPitch, DepthPitch, Data, MemorySize, GFrameNumberRenderThread);

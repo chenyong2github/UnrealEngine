@@ -119,6 +119,17 @@ public:
 		Scale3D = ScaleIn;
 	}
 
+	/**
+	 * @return inverse of this transform
+	 */
+	TTransform3<RealType> Inverse() const
+	{
+		TQuaternion<RealType> InvRotation = Rotation.Inverse();
+		FVector3<RealType> InvScale3D = GetSafeScaleReciprocal(Scale3D);
+		FVector3<RealType> InvTranslation = InvRotation * (InvScale3D * -Translation);
+		return TTransform3<RealType>(InvRotation, InvTranslation, InvScale3D);
+	}
+
 
 	/**
 	 * @return input point with QST transformation applied, ie QST(P) = Rotate(Scale*P) + Translate

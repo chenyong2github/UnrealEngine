@@ -133,6 +133,27 @@ public:
 	}
 
 	/**
+	 * @return nearest point on Mesh to P, or P if nearest point was not found
+	 */
+	static FVector3d FindNearestPoint_LinearSearch(const TriangleMeshType& Mesh, const FVector3d& P)
+	{
+		FVector3d NearestPoint = P;
+		double NearestSqr = TNumericLimits<double>::Max();
+		for (int TriIdx : Mesh.TriangleIndicesItr())
+		{
+			FDistPoint3Triangle3d Query = TriangleDistance(Mesh, TriIdx, P);
+			if (Query.GetSquared() < NearestSqr)
+			{
+				NearestSqr = Query.GetSquared();
+				NearestPoint = Query.ClosestTrianglePoint;
+			}
+		}
+		return NearestPoint;
+	}
+
+
+
+	/**
 	 * Compute distance from Point to triangle in Mesh, with minimal extra objects/etc
 	 */
 	static double TriDistanceSqr(const TriangleMeshType& Mesh, int TriIdx, const FVector3d& Point)

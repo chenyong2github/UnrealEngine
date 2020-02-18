@@ -69,7 +69,7 @@ struct FLiveLinkSourceBufferManagementSettings
 
 	/** When evaluating with timecode: how far back from current timecode should we read the buffer (in TimecodeFrameRate). */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	int32 TimecodeFrameOffset = 0;
+	float TimecodeFrameOffset = 0.f;
 
 	/** When evaluating with latest: how far back from latest frame should we read the buffer */
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -126,8 +126,8 @@ public:
 	TSubclassOf<ULiveLinkSourceFactory> Factory;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(VisibleAnywhere, Category = "Debug", meta=(ShowOnlyInnerProperties))
-	TArray<FLiveLinkSourceDebugInfo> SourceDebugInfos;
+	UPROPERTY()
+	TArray<FLiveLinkSourceDebugInfo> SourceDebugInfos_DEPRECATED;
 #endif
 
 	virtual void Serialize(FArchive& Ar) override;

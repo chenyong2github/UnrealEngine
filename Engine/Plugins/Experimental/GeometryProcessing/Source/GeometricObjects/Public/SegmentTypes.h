@@ -10,18 +10,20 @@
 
 
 /*
- * 2D Line Segmented stored as Center point, normalized Direction vector, and scalar Extent
+ * 2D Line Segment stored as Center point, normalized Direction vector, and scalar Extent
  */
 template<typename T>
 struct TSegment2
 {
 public:
 	/** Center point of segment */
-	FVector2<T> Center;
+	FVector2<T> Center = FVector2<T>::Zero();
 	/** normalized Direction vector of segment */
-	FVector2<T> Direction;
+	FVector2<T> Direction = FVector2<T>::UnitX();
 	/** Extent of segment, which is half the total length */
-	T Extent;
+	T Extent = (T)0;
+
+	TSegment2() = default;
 
 	/**
 	 * Construct a Segment from two Points
@@ -321,18 +323,20 @@ typedef TSegment2<double> FSegment2d;
 
 
 /*
- * 3D Line Segmented stored as Center point, normalized Direction vector, and scalar Extent
+ * 3D Line Segment stored as Center point, normalized Direction vector, and scalar Extent
  */
 template<typename T>
 struct TSegment3
 {
 public:
 	/** Center point of segment */
-	FVector3<T> Center;
+	FVector3<T> Center = FVector3<T>::Zero();
 	/** normalized Direction vector of segment */
-	FVector3<T> Direction;
+	FVector3<T> Direction = FVector3<T>::UnitX();
 	/** Extent of segment, which is half the total length */
-	T Extent;
+	T Extent = (T)0;
+
+	TSegment3() = default;
 
 	/**
 	 * Construct a Segment from two Points

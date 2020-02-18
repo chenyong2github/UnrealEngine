@@ -12,7 +12,7 @@ FCborStructSerializerBackend::FCborStructSerializerBackend(FArchive& InArchive)
 {}
 
 FCborStructSerializerBackend::FCborStructSerializerBackend(FArchive& InArchive, const EStructSerializerBackendFlags InFlags)
-	: CborWriter(&InArchive)
+	: CborWriter(&InArchive, EnumHasAnyFlags(InFlags, EStructSerializerBackendFlags::WriteCborStandardEndianness) ? ECborEndianness::StandardCompliant : ECborEndianness::Platform)
 	, Flags(InFlags)
 {}
 

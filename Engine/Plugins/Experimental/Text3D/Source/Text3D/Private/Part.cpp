@@ -12,14 +12,27 @@ FPart::FPart()
 {
 	Prev = nullptr;
 	Next = nullptr;
-	DoneExpand = 0.0f;
 	bSmooth = false;
 	AvailableExpandNear = 0.0f;
+	DoneExpand = 0.f;
+}
+
+float FPart::TangentsDotProduct() const
+{
+	check(Prev);
+	return FVector2D::DotProduct(-Prev->TangentX, TangentX);
+}
+
+float FPart::Length() const
+{
+	check(Next);
+
+	return (Next->Position - Position).Size();
 }
 
 void FPart::ResetDoneExpand()
 {
-	DoneExpand = 0;
+	DoneExpand = 0.f;
 }
 
 void FPart::ComputeTangentX()
@@ -32,23 +45,20 @@ bool FPart::ComputeNormal()
 {
 	check(Prev);
 
-	const FVector2D A = -Prev->TangentX;
-	const FVector2D C = TangentX;
-
-	Normal = A + C;
-
-	const float NormalLength2 = Normal.SizeSquared();
-
 	// Scale is needed to make ((p_(i+1) + k * n_(i+1)) - (p_i + k * n_i)) parallel to (p_(i+1) - p_i). Also (k) is distance between original edge and this edge after expansion with value (k).
-	const float OneMinusADotC = 1.0f - FVector2D::DotProduct(A, C);
+	const float OneMinusADotC = 1.0f - TangentsDotProduct();
 
 	if (FMath::IsNearlyZero(OneMinusADotC))
 	{
 		return false;
 	}
 
-	const float Scale = -FPlatformMath::Sqrt(2.0f / OneMinusADotC);
+	const FVector2D A = -Prev->TangentX;
+	const FVector2D C = TangentX;
 
+	Normal = A + C;
+	const float NormalLength2 = Normal.SizeSquared();
+	const float Scale = -FPlatformMath::Sqrt(2.0f / OneMinusADotC);
 
 	// If previous and next edge are nearly on one line
 	if (FMath::IsNearlyZero(NormalLength2, 0.0001f))
@@ -66,8 +76,7 @@ bool FPart::ComputeNormal()
 
 void FPart::ComputeSmooth()
 {
-	check(Prev);
-	bSmooth = FVector2D::DotProduct(-Prev->TangentX, TangentX) <= CosMaxAngleSides;
+	bSmooth = TangentsDotProduct() <= CosMaxAngleSides;
 }
 
 bool FPart::ComputeNormalAndSmooth()
@@ -93,13 +102,13 @@ void FPart::ComputeInitialPosition()
 
 void FPart::DecreaseExpandsFar(const float Delta)
 {
-	for (auto i = AvailableExpandsFar.CreateIterator(); i; ++i)
+	for (auto It = AvailableExpandsFar.CreateIterator(); It; ++It)
 	{
-		i->Value -= Delta;
+		It->Value -= Delta;
 
-		if (i->Value < 0)
+		if (It->Value < 0.f)
 		{
-			i.RemoveCurrent();
+			It.RemoveCurrent();
 		}
 	}
 }

@@ -28,6 +28,7 @@ class FPrimitiveDrawInterface;
 class FSceneView;
 struct FStaticMeshComponentLODInfo;
 class UMeshVertexPaintingToolProperties;
+class UBrushBaseProperties;
 
 enum class EMeshPaintDataColorViewMode : uint8;
 
@@ -120,9 +121,13 @@ struct FPerVertexPaintActionArgs
 DECLARE_DELEGATE_TwoParams(FPerVertexPaintAction, FPerVertexPaintActionArgs& /*Args*/, int32 /*VertexIndex*/);
 DECLARE_DELEGATE_ThreeParams(FPerTrianglePaintAction, IMeshPaintComponentAdapter* /*Adapter*/, int32 /*TriangleIndex*/, const int32[3] /*Vertex Indices*/);
 
+UCLASS()
 class MESHPAINTINGTOOLSET_API UMeshPaintingToolset : public UBlueprintFunctionLibrary
 {
+
+	GENERATED_BODY()
 public:
+	static bool HasPaintableMesh(UActorComponent* Component);
 	/** Removes vertex colors associated with the object */
 	static void RemoveInstanceVertexColors(UObject* Obj);
 
@@ -199,7 +204,7 @@ public:
 	static bool GetPerVertexPaintInfluencedVertices(FPerVertexPaintActionArgs& InArgs, TSet<int32>& InfluencedVertices);
 
 	/** Given the adapter, settings and view-information retrieves influences triangles and applies Action to them */
-	static bool ApplyPerTrianglePaintAction(IMeshPaintComponentAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UMeshVertexPaintingToolProperties* Settings, FPerTrianglePaintAction Action);
+	static bool ApplyPerTrianglePaintAction(IMeshPaintComponentAdapter* Adapter, const FVector& CameraPosition, const FVector& HitPosition, const UBrushBaseProperties* Settings, FPerTrianglePaintAction Action, bool bOnlyFrontFacingTriangles);
 
 	/** Applies vertex painting to InOutvertexColor according to the given parameters  */
 	static bool PaintVertex(const FVector& InVertexPosition, const FMeshPaintParameters& InParams, FColor& InOutVertexColor);
@@ -247,7 +252,7 @@ void UMeshPaintingToolset::ApplyBrushToVertex(const FVector& VertexPosition, con
 		const T OldValue = InOutValue;
 		InOutValue = FMath::LerpStable(OldValue, PaintValue, PaintStrength);
 	}	
-}
+};
 
 UCLASS()
 class MESHPAINTINGTOOLSET_API UMeshToolsContext : public UInteractiveToolsContext
@@ -269,7 +274,7 @@ public:
 
 	/** Map of geometry adapters for each selected mesh component */
 	TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> GetComponentToAdapterMap() const;
-	TSharedPtr<IMeshPaintComponentAdapter> GetAdapterForComponent(UMeshComponent* InComponent);
+	TSharedPtr<IMeshPaintComponentAdapter> GetAdapterForComponent(const UMeshComponent* InComponent);
 	void AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintComponentAdapter> InAdapter);
 
 	TArray<UMeshComponent*> GetSelectedMeshComponents() const;

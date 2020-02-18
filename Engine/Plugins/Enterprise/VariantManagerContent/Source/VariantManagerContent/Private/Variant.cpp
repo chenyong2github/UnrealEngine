@@ -3,11 +3,19 @@
 #include "Variant.h"
 
 #include "PropertyValue.h"
-#include "VariantSet.h"
-#include "VariantObjectBinding.h"
-#include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "VariantManagerContentLog.h"
 #include "VariantManagerObjectVersion.h"
+#include "VariantObjectBinding.h"
+#include "VariantSet.h"
+
+#include "CoreMinimal.h"
+#include "Engine/Texture2D.h"
+#include "GameFramework/Actor.h"
+#include "ImageUtils.h"
+
+#if WITH_EDITORONLY_DATA
+#include "ObjectTools.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "Variant"
 
@@ -235,6 +243,116 @@ bool UVariant::IsActive()
 	}
 
 	return true;
+}
+
+void UVariant::SetThumbnail(UTexture2D* NewThumbnail)
+{
+	if (NewThumbnail == Thumbnail)
+	{
+		return;
+	}
+
+	if (NewThumbnail != nullptr)
+	{
+		int32 OriginalWidth = NewThumbnail->PlatformData->SizeX;
+		int32 OriginalHeight = NewThumbnail->PlatformData->SizeY;
+		int32 TargetWidth = FMath::Min(OriginalWidth, VARIANT_THUMBNAIL_SIZE);
+		int32 TargetHeight = FMath::Min(OriginalHeight, VARIANT_THUMBNAIL_SIZE);
+
+		// We need to guarantee this UTexture2D is serialized with us but that we don't take ownership of it,
+		// and also that it is shown without compression, so we duplicate it here
+		if (TargetWidth != OriginalWidth || TargetHeight != OriginalHeight || NewThumbnail->GetOuter() != this)
+		{
+			const FColor* OriginalBytes = reinterpret_cast<const FColor*>(NewThumbnail->PlatformData->Mips[0].BulkData.LockReadOnly());
+			TArrayView<const FColor> OriginalColors(OriginalBytes, OriginalWidth * OriginalHeight);
+
+			TArray<FColor> TargetColors;
+			TargetColors.SetNumUninitialized(TargetWidth * TargetHeight);
+
+			if (TargetWidth != OriginalWidth || TargetHeight != OriginalHeight)
+			{
+				FImageUtils::ImageResize(OriginalWidth, OriginalHeight, OriginalColors, TargetWidth, TargetHeight, TargetColors, false);
+			}
+			else
+			{
+				TargetColors = TArray<FColor>(OriginalColors.GetData(), OriginalColors.GetTypeSize() * OriginalColors.Num());
+			}
+
+			NewThumbnail->PlatformData->Mips[0].BulkData.Unlock();
+
+			FCreateTexture2DParameters Params;
+			Params.bDeferCompression = true;
+			Params.CompressionSettings = TC_EditorIcon;
+
+			UTexture2D* ResizedThumbnail = FImageUtils::CreateTexture2D(TargetWidth, TargetHeight, TargetColors, this, FString(), RF_NoFlags, Params);
+			if (ResizedThumbnail)
+			{
+				NewThumbnail = ResizedThumbnail;
+			}
+			else
+			{
+				UE_LOG(LogVariantContent, Warning, TEXT("Failed to resize texture '%s' as a thumbnail for variant '%s'"), *NewThumbnail->GetName(), *GetDisplayText().ToString());
+				return;
+			}
+		}
+	}
+
+	Modify();
+
+	Thumbnail = NewThumbnail;
+}
+
+UTexture2D* UVariant::GetThumbnail()
+{
+#if WITH_EDITORONLY_DATA
+	if (Thumbnail == nullptr)
+	{
+		// Try to convert old thumbnails to a new thumbnail
+		FName VariantName = *GetFullName();
+		FThumbnailMap Map;
+		ThumbnailTools::ConditionallyLoadThumbnailsForObjects({ VariantName }, Map);
+
+		FObjectThumbnail* OldThumbnail = Map.Find(VariantName);
+		if (OldThumbnail && !OldThumbnail->IsEmpty())
+		{
+			const TArray<uint8>& OldBytes = OldThumbnail->GetUncompressedImageData();
+
+			TArray<FColor> OldColors;
+			OldColors.SetNumUninitialized(OldBytes.Num() / sizeof(FColor));
+			FMemory::Memcpy(OldColors.GetData(), OldBytes.GetData(), OldBytes.Num());
+
+			// Resize if needed
+			int32 Width = OldThumbnail->GetImageWidth();
+			int32 Height = OldThumbnail->GetImageHeight();
+			if (Width != VARIANT_THUMBNAIL_SIZE || Height != VARIANT_THUMBNAIL_SIZE)
+			{
+				TArray<FColor> ResizedColors;
+				ResizedColors.SetNum(VARIANT_THUMBNAIL_SIZE * VARIANT_THUMBNAIL_SIZE);
+
+				FImageUtils::ImageResize(Width, Height, OldColors, VARIANT_THUMBNAIL_SIZE, VARIANT_THUMBNAIL_SIZE, ResizedColors, false);
+
+				OldColors = MoveTemp(ResizedColors);
+			}
+
+			FCreateTexture2DParameters Params;
+			Params.bDeferCompression = true;
+
+			Thumbnail = FImageUtils::CreateTexture2D(VARIANT_THUMBNAIL_SIZE, VARIANT_THUMBNAIL_SIZE, OldColors, this, FString(), RF_NoFlags, Params);
+
+			UPackage* Package = GetOutermost();
+			if (Package)
+			{
+				// After this our thumbnail will be empty, and we won't get in here ever again for this variant
+				ThumbnailTools::CacheEmptyThumbnail(GetFullName(), GetOutermost());
+
+				// Updated the thumbnail in the package, so we need to notify that it changed
+				Package->MarkPackageDirty();
+			}
+		}
+	}
+#endif
+
+	return Thumbnail;
 }
 
 #undef LOCTEXT_NAMESPACE

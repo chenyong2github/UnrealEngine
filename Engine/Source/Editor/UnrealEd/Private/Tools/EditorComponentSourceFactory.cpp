@@ -65,6 +65,13 @@ void FStaticMeshComponentTarget::CommitMaterialSetUpdate(const FComponentMateria
 }
 
 
+bool FStaticMeshComponentTarget::HasSameSourceData(const FPrimitiveComponentTarget& OtherTarget) const
+{
+	const UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
+	const UStaticMesh* OtherStaticMesh = Cast<UStaticMeshComponent>(OtherTarget.Component)->GetStaticMesh();
+	return StaticMesh && StaticMesh == OtherStaticMesh;
+}
+
 void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 {
 	//bool bSaved = Component->Modify();

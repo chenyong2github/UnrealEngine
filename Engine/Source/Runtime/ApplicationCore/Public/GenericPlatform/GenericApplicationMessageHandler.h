@@ -292,6 +292,10 @@ public:
 		return false;
 	}
 
+	virtual void OnInputLanguageChanged()
+	{
+	}
+
 	virtual bool OnMouseDown( const TSharedPtr< FGenericWindow >& Window, const EMouseButtons::Type Button )
 	{
 		return false;

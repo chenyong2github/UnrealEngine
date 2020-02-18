@@ -19,7 +19,6 @@ public class MeshProcessingLibrary : ModuleRules
 				"InputCore",
 				"MainFrame",
 				"MeshDescription",
-				"MeshDescriptionOperations",
 				"Slate",
 				"SlateCore",
 				"StaticMeshDescription",
