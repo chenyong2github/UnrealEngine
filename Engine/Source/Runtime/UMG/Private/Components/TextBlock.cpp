@@ -10,11 +10,6 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Images/SImage.h"
 
-#if WITH_EDITOR
-#include "HAL/PlatformStackWalk.h"
-#include "UMGPrivate.h"
-#endif //if WITH_EDITOR
-
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
@@ -97,11 +92,6 @@ void UTextBlock::SetShadowOffset(FVector2D InShadowOffset)
 
 void UTextBlock::SetFont(FSlateFontInfo InFontInfo)
 {
-#if WITH_EDITOR
-	// @fixme Temporary logging to track NDC issue.
-	LogFontChange(InFontInfo);
-#endif //if WITH_EDITOR
-
 	Font = InFontInfo;
 	if (MyTextBlock.IsValid())
 	{
@@ -369,61 +359,6 @@ bool UTextBlock::CanEditChange(const FProperty* InProperty) const
 	}
 
 	return Super::CanEditChange(InProperty);
-}
-
-void UTextBlock::LogFontChange(const FSlateFontInfo& NewFont) const
-{
-	bool bFontChanged = false;
-	if (Font.FontObject != NewFont.FontObject)
-	{
-		bFontChanged = true;
-		UE_LOG(LogUMG, Display, TEXT("TEXT_STYLE_NDC: Changing font on TextBlock '%s' (0x%016x) in asset %s. From %s, to %s"),
-			*GetName(),
-			this,
-			*GetOutermost()->GetFName().ToString(),
-			(Font.FontObject ? *Font.FontObject->GetFullName() : TEXT("None")),
-			(NewFont.FontObject ? *NewFont.FontObject->GetFullName() : TEXT("None")));
-	}
-
-	if (Font.FontMaterial != NewFont.FontMaterial)
-	{
-		bFontChanged = true;
-		UE_LOG(LogUMG, Display, TEXT("TEXT_STYLE_NDC: Changing font material on TextBlock '%s' (0x%016x) in asset %s. From %s, to %s"),
-			*GetName(),
-			this,
-			*GetOutermost()->GetFName().ToString(),
-			(Font.FontMaterial ? *Font.FontMaterial->GetFullName() : TEXT("None")),
-			(NewFont.FontMaterial ? *NewFont.FontMaterial->GetFullName() : TEXT("None")));
-	}
-
-	if (Font.Size != NewFont.Size)
-	{
-		bFontChanged = true;
-		UE_LOG(LogUMG, Display, TEXT("TEXT_STYLE_NDC: Changing font size on TextBlock '%s' (0x%016x) in asset %s. From %d, to %d"),
-			*GetName(),
-			this,
-			*GetOutermost()->GetFName().ToString(),
-			Font.Size,
-			NewFont.Size);
-	}
-
-	if (bFontChanged)
-	{
-		LogCallstack(2);
-	}
-}
-
-void UTextBlock::LogCallstack(int32 IgnoreCount) const
-{
-	UE_LOG(LogUMG, Display, TEXT("TEXT_STYLE_NDC: Script callstack:"));
-	PrintScriptCallstack();
-
-	UE_LOG(LogUMG, Display, TEXT("TEXT_STYLE_NDC: Code callstack:"));
-	for (const FProgramCounterSymbolInfo& StackLine : FPlatformStackWalk::GetStack(IgnoreCount, 10))
-	{
-		UE_LOG(LogUMG, Display, TEXT("TEXT_STYLE_NDC:   %s"), ANSI_TO_TCHAR(StackLine.FunctionName));
-	}
-	UE_LOG(LogUMG, Display, TEXT("TEXT_STYLE_NDC:   ..."));
 }
 
 #endif //if WITH_EDITOR
