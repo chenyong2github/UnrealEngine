@@ -68,6 +68,13 @@ public:
 	 */
 	FVector2D GetDesiredSize() const;
 
+
+	/**
+	 * Get the TextLayout scale.
+	 */
+	float GetLayoutScale() const;
+
+
 	/**
 	 * Paint this layout, updating the internal cache as required
 	 */
