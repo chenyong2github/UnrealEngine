@@ -532,11 +532,19 @@ TSharedRef<SDockTab> FIntroTutorials::SpawnTutorialsBrowserTab(const FSpawnTabAr
 		.ToolTip(IDocumentation::Get()->CreateToolTip(Label, nullptr, "Shared/TutorialsBrowser", "Tab"));	
 
 	TSharedRef<STutorialsBrowser> TutorialsBrowser = SNew(STutorialsBrowser)
+		.ExternalCategories(ExternalCategories)
 		.OnLaunchTutorial(FOnLaunchTutorial::CreateRaw(this, &FIntroTutorials::LaunchTutorial));
 
 	NewTab->SetContent(TutorialsBrowser);
 
 	return NewTab;
 }
+
+void FIntroTutorials::RegisterCategory(FTutorialCategory NewCategory)
+{
+	ExternalCategories.Add(NewCategory);
+}
+
+
 
 #undef LOCTEXT_NAMESPACE

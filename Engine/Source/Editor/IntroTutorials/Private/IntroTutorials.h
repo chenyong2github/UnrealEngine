@@ -123,6 +123,7 @@ public:
 	virtual void CloseAllTutorialContent() override;
 	virtual TSharedRef<SWidget> CreateTutorialsWidget(FName InContext, TWeakPtr<SWindow> InContextWindow = nullptr) const override;
 	virtual TSharedPtr<SWidget> CreateTutorialsLoadingWidget(TWeakPtr<SWindow> InContextWindow = nullptr) const override;
+	virtual void RegisterCategory(FTutorialCategory NewCategory) override;
 	// End of IIntroTutorials interface
 private:
 	/** The tab id of the tutorial tab */
@@ -157,4 +158,7 @@ private:
 
 	/** The collection of registered class type actions. */
 	TArray<TSharedRef<IClassTypeActions>> RegisteredClassTypeActions;
+
+	/** Extra tutorial categories that have been defined externally */
+	TArray<FTutorialCategory> ExternalCategories;
 };
