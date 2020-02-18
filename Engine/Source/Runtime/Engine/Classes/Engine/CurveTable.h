@@ -237,7 +237,7 @@ struct ENGINE_API FCurveTableRowHandle
 	{ }
 
 	/** Pointer to table we want a row from */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CurveTableRowHandle)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CurveTableRowHandle, meta=(DisplayThumbnail="false"))
 	const class UCurveTable*	CurveTable;
 
 	/** Name of row in the table that we want */
