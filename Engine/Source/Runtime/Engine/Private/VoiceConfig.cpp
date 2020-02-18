@@ -281,9 +281,9 @@ bool UVOIPStatics::IsVOIPTalkerStillAlive(UVOIPTalker* InTalker)
 
 void UVOIPStatics::ResetPlayerVoiceTalker(APlayerState* InPlayerState)
 {
-	if (InPlayerState && InPlayerState->UniqueId.IsValid())
+	if (InPlayerState && InPlayerState->GetUniqueId().IsValid())
 	{
-		VoiceTalkerMap.Remove(InPlayerState->UniqueId);
+		VoiceTalkerMap.Remove(InPlayerState->GetUniqueId());
 	}
 }
 
@@ -331,10 +331,10 @@ void UVOIPTalker::RegisterWithPlayerState(APlayerState* OwningState)
 		UnregisterFromVoiceTalkerMap();
 	}
 
-	if (OwningState->UniqueId.IsValid())
+	if (OwningState->GetUniqueId().IsValid())
 	{
-		UVOIPStatics::SetVOIPTalkerForPlayer(OwningState->UniqueId, this);
-		PlayerId = OwningState->UniqueId;
+		UVOIPStatics::SetVOIPTalkerForPlayer(OwningState->GetUniqueId(), this);
+		PlayerId = OwningState->GetUniqueId();
 		bIsRegistered = true;
 	}
 }

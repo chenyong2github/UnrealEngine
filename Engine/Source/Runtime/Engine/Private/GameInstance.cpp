@@ -908,7 +908,7 @@ APlayerController* UGameInstance::GetPrimaryPlayerController() const
 	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		APlayerController* NextPlayer = Iterator->Get();
-		if (NextPlayer && NextPlayer->PlayerState && NextPlayer->PlayerState->UniqueId.IsValid() && NextPlayer->IsPrimaryPlayer())
+		if (NextPlayer && NextPlayer->PlayerState && NextPlayer->PlayerState->GetUniqueId().IsValid() && NextPlayer->IsPrimaryPlayer())
 		{
 			PrimaryController = NextPlayer;
 			break;

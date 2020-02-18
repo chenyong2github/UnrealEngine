@@ -4382,7 +4382,7 @@ APlayerController* UDemoNetDriver::CreateDemoPlayerController(UNetConnection* Co
 	// Tell the game that we're spectator and not a normal player
 	if (NewDemoController->PlayerState)
 	{
-		NewDemoController->PlayerState->bOnlySpectator = true;
+		NewDemoController->PlayerState->SetIsOnlyASpectator(true);
 	}
 
 	for (FActorIterator It(World); It; ++It)
