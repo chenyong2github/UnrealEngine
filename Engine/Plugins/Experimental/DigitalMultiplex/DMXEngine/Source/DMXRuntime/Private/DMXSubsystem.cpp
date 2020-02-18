@@ -214,7 +214,7 @@ void UDMXSubsystem::GetFixtureFunctions(const UDMXEntityFixturePatch* InFixtureP
 				}
 
 				uint32 IntVal = 0;
-				for (uint8 ByteIndex = 0; ByteIndex < Bytes.Num() && ByteIndex < 4; ++ByteIndex)
+				for (uint8 ByteIndex = 0; ByteIndex < Bytes.Num() && ByteIndex < DMX_MAX_FUNCTION_SIZE; ++ByteIndex)
 				{
 					IntVal += Bytes[ByteIndex] << (ByteIndex * 8);
 				}
@@ -312,7 +312,7 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, cons
 		ChannelValue = 0;
 
 		const int32 NumChannelsToRead = UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType);
-		for (int32 ChannelIndex = 0; ChannelIndex < NumChannelsToRead && ChannelIndex + Function.Channel < DMXData.Num() && ChannelIndex < 4; ++ChannelIndex)
+		for (int32 ChannelIndex = 0; ChannelIndex < NumChannelsToRead && ChannelIndex + Function.Channel < DMXData.Num() && ChannelIndex < DMX_MAX_FUNCTION_SIZE; ++ChannelIndex)
 		{
 			ChannelValue += DMXData[Function.Channel + ChannelIndex] << ChannelIndex * 8;
 		}

@@ -119,10 +119,12 @@ public:
 	TArray<FDMXFixtureMode> Modes;
 
 public:
+#if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = "Fixture Settings")
 	void SetModesFromDMXImport(UDMXImport* DMXImportAsset);
 
-	static void SetFunctionSize(FDMXFixtureMode& InMode, FDMXFixtureFunction& InFunction, uint8 Size);
+	static void SetFunctionSize(FDMXFixtureFunction& InFunction, uint8 Size);
+#endif // WITH_EDITOR
 
 	/** Gets the last channel occupied by the Function */
 	static uint8 GetFunctionLastChannel(const FDMXFixtureFunction& Function);

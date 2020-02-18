@@ -6,6 +6,7 @@
 #include "Library/DMXImport.h"
 #include "Library/DMXImportGDTF.h"
 
+#if WITH_EDITOR
 void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 {
 	if (DMXImportAsset == nullptr || !DMXImportAsset->IsValidLowLevelFast())
@@ -29,18 +30,57 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 			FDMXFixtureMode& Mode = Modes[Modes.Emplace()];
 			Mode.ModeName = AssetMode.Name.ToString();
 
+			// We'll keep the functions addresses from the GDTF file.
+			// For that we need to keep track of the latest occupied address after adding each function.
+			int32 LastOccupiedAddress = 0;
+
 			for (const FDMXImportGDTFDMXChannel& ModeChannel : AssetMode.DMXChannels)
 			{
 				FDMXFixtureFunction& Function = Mode.Functions[Mode.Functions.Emplace()];
 				Function.FunctionName = ModeChannel.LogicalChannel.ChannelFunction.Name.ToString();
-				SetFunctionSize(Mode, Function, ModeChannel.Offset.Num());
 				Function.DefaultValue = ModeChannel.Default.Value;
+
+				if (ModeChannel.Offset.Num() > 0)
+				{
+					// Compute number of used addresses in the function as the interval
+					// between the lowest and highest addresses (inclusive)
+					int32 AddressMin = DMX_MAX_ADDRESS;
+					int32 AddressMax = 0;
+					for (const int32& Address : ModeChannel.Offset)
+					{
+						AddressMin = FMath::Min(AddressMin, Address);
+						AddressMax = FMath::Max(AddressMax, Address);
+					}
+					const int32 NumUsedAddresses = FMath::Clamp(AddressMax - AddressMin + 1, 1, DMX_MAX_FUNCTION_SIZE);
+
+					SetFunctionSize(Function, NumUsedAddresses);
+
+					// AddressMin is the first address this function occupies. If it's not 1 after the
+					// latest occupied channel this function is offset, skipping some addresses.
+					if (AddressMin > LastOccupiedAddress + 1)
+					{
+						Function.ChannelOffset = AddressMin - LastOccupiedAddress - 1;
+					}
+
+					// Update occupied addresses
+					LastOccupiedAddress += Function.ChannelOffset + NumChannelsToOccupy(Function.DataType);
+				}
+				else
+				{
+					SetFunctionSize(Function, 1);
+
+					// Update occupied addresses
+					++LastOccupiedAddress;
+				}
 			}
+
+			// Compute mode channel span from functions' addresses and sizes
+			UpdateModeChannelProperties(Mode);
 		}
 	}
 }
 
-void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureMode& InMode, FDMXFixtureFunction& InFunction, uint8 Size)
+void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureFunction& InFunction, uint8 Size)
 {
 	//Get New Data Type
 	EDMXFixtureSignalFormat NewDataType;
@@ -62,13 +102,11 @@ void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureMode& InMode, FDMXFixture
 		break;
 	}
 
-#if WITH_EDITOR
-	//Update UI
 	InFunction.DataType = NewDataType;
-	UpdateModeChannelProperties(InMode);
 	ClampDefaultValue(InFunction);
-#endif // WITH_EDITOR
 }
+
+#endif // WITH_EDITOR
 
 uint8 UDMXEntityFixtureType::GetFunctionLastChannel(const FDMXFixtureFunction& Function)
 {
