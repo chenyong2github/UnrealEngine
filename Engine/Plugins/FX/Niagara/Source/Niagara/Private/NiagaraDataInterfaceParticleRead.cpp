@@ -309,7 +309,11 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		check(Proxy);
 
 		FNDIParticleRead_RenderThreadData* RTData = Proxy->GetRenderDataForSystem(Context.SystemInstance);
-		check(RTData);
+		if (!RTData)
+		{
+			SetErrorParams(RHICmdList, ComputeShader, false);
+			return;
+		}
 
 		if (RTData->SourceEmitterGPUContext == nullptr)
 		{
