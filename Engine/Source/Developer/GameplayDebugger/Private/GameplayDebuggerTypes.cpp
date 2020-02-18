@@ -8,8 +8,17 @@
 #include "DrawDebugHelpers.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
+#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY(LogGameplayDebug);
+
+namespace FGameplayDebuggerUtils
+{
+	bool IsAuthority(UWorld* World)
+	{
+		return (World == nullptr) || (World->GetNetMode() != NM_Client) || World->IsPlayingReplay();
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////
 // FGameplayDebuggerShape
