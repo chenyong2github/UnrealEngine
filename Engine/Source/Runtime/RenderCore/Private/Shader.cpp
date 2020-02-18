@@ -1662,18 +1662,13 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			VTTextures = (CVarMobileVirtualTexture->GetValueOnAnyThread() != 0);
 		}
-		
+
+		const bool VTSupported = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+
 		static const auto CVarVTFactor = IConsoleManager::Get().FindConsoleVariable(TEXT("r.vt.FeedbackFactor")); check(CVarVTFactor);
 		const int32 VTFeedbackFactor = CVarVTFactor->GetInt(); 
 
-
-		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-		check(TPM);
-		auto RunningTargetPlatform = TPM->GetRunningTargetPlatform();
-		check(RunningTargetPlatform);
-		const bool VTSupported = RunningTargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
-
-		auto tt = FString::Printf(TEXT("_VT-%d-%d-%d-%d"), VTLightmaps, VTTextures, VTFeedbackFactor, VTSupported);
+		auto tt = FString::Printf(TEXT("_VT-%d-%d-%d-%d"), VTLightmaps, VTTextures, VTSupported, VTFeedbackFactor);
  		KeyString += tt;
 	}
 
