@@ -249,8 +249,12 @@ namespace Chaos
 		const float GetSolverTime() const { return MTime; }
 
 		/**/
-		const float GetLastDt() const { return MLastDt; }
-		const float GetMaxDeltaTime() const { return MMaxDeltaTime; }
+		void SetMaxDeltaTime(const float InMaxDeltaTime) { MMaxDeltaTime = InMaxDeltaTime; }
+		float GetLastDt() const { return MLastDt; }
+		float GetMaxDeltaTime() const { return MMaxDeltaTime; }
+		float GetMinDeltaTime() const { return MMinDeltaTime; }
+		void SetMaxSubSteps(const int32 InMaxSubSteps) { MMaxSubSteps = InMaxSubSteps; }
+		int32 GetMaxSubSteps() const { return MMaxSubSteps; }
 
 		/**/
 		void SetGenerateCollisionData(bool bDoGenerate) { GetEventFilters()->SetGenerateCollisionEvents(bDoGenerate); }
@@ -345,8 +349,8 @@ namespace Chaos
 		float MTime;
 		float MLastDt;
 		float MMaxDeltaTime;
-		float TimeStepMultiplier;
-
+		float MMinDeltaTime;
+		int32 MMaxSubSteps;
 		bool bEnabled;
 		bool bHasFloor;
 		bool bIsFloorAnalytic;

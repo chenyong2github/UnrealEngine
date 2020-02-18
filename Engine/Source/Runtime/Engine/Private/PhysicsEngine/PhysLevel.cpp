@@ -157,7 +157,7 @@ void UWorld::SetupPhysicsTickFunctions(float DeltaSeconds)
 	FVector DefaultGravity( 0.f, 0.f, GetGravityZ() );
 
 	static const auto CVar_MaxPhysicsDeltaTime = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("p.MaxPhysicsDeltaTime"));
-	PhysScene->SetUpForFrame(&DefaultGravity, DeltaSeconds, UPhysicsSettings::Get()->MaxPhysicsDeltaTime);
+	PhysScene->SetUpForFrame(&DefaultGravity, DeltaSeconds, UPhysicsSettings::Get()->MaxPhysicsDeltaTime, UPhysicsSettings::Get()->MaxSubstepDeltaTime, UPhysicsSettings::Get()->MaxSubsteps);
 }
 
 void UWorld::StartPhysicsSim()

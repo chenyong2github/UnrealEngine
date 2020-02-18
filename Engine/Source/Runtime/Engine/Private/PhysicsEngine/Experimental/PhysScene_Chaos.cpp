@@ -1794,10 +1794,16 @@ void FPhysScene_ChaosInterface::ApplyWorldOffset(FVector InOffset)
 	check(InOffset.Size() == 0);
 }
 
-void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/)
+void FPhysScene_ChaosInterface::SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds /*= 0.0f*/, float InMaxPhysicsDeltaTime /*= 0.0f*/, float InMaxSubstepDeltaTime /*= 0.0f*/, int32 InMaxSubsteps)
 {
 	SetGravity(*NewGrav);
-	MDeltaTime = InDeltaSeconds < InMaxPhysicsDeltaTime ? InDeltaSeconds : InMaxPhysicsDeltaTime;
+	MDeltaTime = InMaxPhysicsDeltaTime > 0.f ? FMath::Min(InDeltaSeconds, InMaxPhysicsDeltaTime) : InDeltaSeconds;
+
+	if (Chaos::FPhysicsSolver* Solver = GetSolver())
+	{
+		Solver->SetMaxDeltaTime(InMaxSubstepDeltaTime);
+		Solver->SetMaxSubSteps(InMaxSubsteps);
+	}
 }
 
 void FPhysScene_ChaosInterface::StartFrame()
