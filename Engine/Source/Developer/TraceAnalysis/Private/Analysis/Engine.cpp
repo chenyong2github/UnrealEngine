@@ -487,6 +487,7 @@ FAnalysisEngine::~FAnalysisEngine()
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::Begin()
 {
+	// Call out to all registered analyzers to have them register event interest
 	struct : IAnalyzer::FInterfaceBuilder
 	{
 		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) override
@@ -542,6 +543,28 @@ void FAnalysisEngine::Begin()
 			Cursor = Routes.GetData() + i;
 			Cursor->Count = 1;
 		}
+	}
+
+	switch (ProtocolVersion)
+	{
+	case Protocol0::EProtocol::Id:
+	case Protocol1::EProtocol::Id:
+	case Protocol2::EProtocol::Id:
+		{
+			FDispatchBuilder Dispatch;
+			Dispatch.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
+			AddDispatch(Dispatch.Finalize());
+		}
+		break;
+
+	case Protocol3::EProtocol::Id:
+		{
+			FDispatchBuilder Dispatch;
+			Dispatch.SetUid(uint16(Protocol3::EKnownEventUids::NewEvent));
+			Dispatch.SetNoSync();
+			AddDispatch(Dispatch.Finalize());
+		}
+		break;
 	}
 }
 
@@ -838,33 +861,17 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 	//case 'T':	/* See the magic above */ break;
 	}
 
-	Begin();
-
 	ProtocolVersion = Header->ProtocolVersion;
 	switch (ProtocolVersion)
 	{
 	case Protocol0::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol0;
-		{
-			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
-			AddDispatch(Builder.Finalize());
-		}
 		break;
 
 	case Protocol1::EProtocol::Id:
 	case Protocol2::EProtocol::Id:
 	case Protocol3::EProtocol::Id:
 		ProtocolHandler = &FAnalysisEngine::OnDataProtocol2;
-		{
-			FDispatchBuilder Builder;
-			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
-			if (ProtocolVersion >= Protocol3::EProtocol::Id)
-			{
-				Builder.SetNoSync();
-			}
-			AddDispatch(Builder.Finalize());
-		}
 		break;
 
 	default:
@@ -890,6 +897,8 @@ bool FAnalysisEngine::OnData(FStreamReader& Reader)
 		{
 			return false;
 		}
+
+		Begin();
 	}
 
 	Transport->SetReader(Reader);
