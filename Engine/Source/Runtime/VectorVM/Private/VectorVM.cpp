@@ -1482,7 +1482,8 @@ struct FScalarKernelUpdateID
 		const TArrayView<FDataSetMeta> MetaTable = Context.DataSetMetaTable;
 
 		TArray<int32>&RESTRICT IDTable = *MetaTable[DataSetIndex].IDTable;
-		const int32 InstanceOffset = MetaTable[DataSetIndex].InstanceOffset + Context.StartInstance;
+		const int32 InstanceOffset = MetaTable[DataSetIndex].InstanceOffset;
+		const int32 AbsoluteStartInstance = InstanceOffset + Context.StartInstance;
 
 		const int32*RESTRICT IDRegister = (int32*)(Context.GetTempRegister(InstanceIDRegisterIndex));
 		const int32*RESTRICT IndexRegister = (int32*)(Context.GetTempRegister(InstanceIndexRegisterIndex));
@@ -1490,11 +1491,14 @@ struct FScalarKernelUpdateID
 		FDataSetThreadLocalTempData& DataSetTempData = Context.ThreadLocalTempData[DataSetIndex];
 
 		TArray<int32>&RESTRICT IDsToFree = DataSetTempData.IDsToFree;
-		check(IDTable.Num() >= InstanceOffset + Context.NumInstances);
+		check(IDTable.Num() >= AbsoluteStartInstance + Context.NumInstances);
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
 			int32 InstanceId = IDRegister[i];
-			int32 Index = IndexRegister[i];
+			// The index passed into this function is the same as that given to the OutputData*() functions (FScalarKernelWriteOutputIndexed kernel).
+			// That value is local to the execution step (update or spawn), so we must offset it by the start instance number for the step, just like
+			// GetOutputRegister() does.
+			int32 Index = IndexRegister[i] + InstanceOffset;
 
 			if (Index == INDEX_NONE)
 			{
