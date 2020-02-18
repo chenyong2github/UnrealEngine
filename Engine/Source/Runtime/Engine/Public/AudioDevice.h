@@ -503,7 +503,7 @@ public:
 	/**
 	 * Basic initialization of the platform agnostic layer of the audio system
 	 */
-	bool Init(int32 InMaxSources);
+	bool Init(Audio::FDeviceId InDeviceID, int32 InMaxSources);
 
 	/**
 	 * Tears down the audio device

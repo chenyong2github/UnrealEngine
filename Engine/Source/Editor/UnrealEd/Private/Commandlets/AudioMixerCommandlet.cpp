@@ -278,7 +278,7 @@ public:
 			FAudioQualitySettings QualitySettings = AudioDevice->GetQualityLevelSettings();
 
 			// Initialize the audio device
-			bSuccess = AudioDevice->Init(QualitySettings.MaxChannels);
+			bSuccess = AudioDevice->Init(AudioDevice.GetDeviceID(), QualitySettings.MaxChannels);
 
 			if (bSuccess)
 			{
@@ -348,7 +348,7 @@ public:
 			FAudioQualitySettings QualitySettings = AudioDevice->GetQualityLevelSettings();
 
 			// Initialize the audio device
-			bSuccess = AudioDevice->Init(QualitySettings.MaxChannels);
+			bSuccess = AudioDevice->Init(AudioDevice.GetDeviceID(), QualitySettings.MaxChannels);
 
 			// Wait a few seconds to give the editor a chance to load everything... you get hitches in the beginning otherwise
 			FPlatformProcess::Sleep(1);
@@ -432,7 +432,7 @@ public:
 			FAudioQualitySettings QualitySettings = AudioDevice->GetQualityLevelSettings();
 
 			// Initialize the audio device
-			bSuccess = AudioDevice->Init(QualitySettings.MaxChannels);
+			bSuccess = AudioDevice->Init(AudioDevice.GetDeviceID(), QualitySettings.MaxChannels);
 
 			// Wait a few seconds to give the editor a chance to load everything... you get hitches in the beginning otherwise
 			FPlatformProcess::Sleep(1);
@@ -513,7 +513,7 @@ public:
 			FAudioQualitySettings QualitySettings = AudioDevice->GetQualityLevelSettings();
 
 			// Initialize the audio device
-			bSuccess = AudioDevice->Init(QualitySettings.MaxChannels);
+			bSuccess = AudioDevice->Init(AudioDevice.GetDeviceID(), QualitySettings.MaxChannels);
 
 			// Wait a few seconds to give the editor a chance to load everything... you get hitches in the beginning otherwise
 			FPlatformProcess::Sleep(1);
