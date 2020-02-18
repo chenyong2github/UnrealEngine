@@ -329,7 +329,6 @@ void FInsightsManager::LoadTrace(uint32 InTraceId)
 		CurrentTraceId = InTraceId;
 		CurrentTraceFilename = TraceName;
 		bIsNetworkingProfilerAvailable = false;
-		SpawnAndActivateTabs();
 		OnSessionChanged();
 	}
 }
@@ -354,7 +353,6 @@ void FInsightsManager::LoadTraceFile(const FString& InTraceFilename)
 		CurrentTraceId = 0;
 		CurrentTraceFilename = InTraceFilename;
 		bIsNetworkingProfilerAvailable = false;
-		SpawnAndActivateTabs();
 		OnSessionChanged();
 	}
 }
