@@ -226,7 +226,6 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 
 		int32 RequiredIDs = FMath::Max(NumInstances, NumUsedIDs);
 		int32 ExistingNumIDs = CurrentIDTable.Num();
-		int32 NumNewIDs = RequiredIDs - ExistingNumIDs;
 
 		//////////////////////////////////////////////////////////////////////////
 		//TODO: We should replace this with a lock free list that uses just a single table with RequiredIDs elements.
@@ -247,13 +246,13 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 #endif
 
 			//Free ID Table must always be at least as large as the data buffer + it's current size in the case all particles die this frame.
-			FreeIDsTable.AddUninitialized(NumNewIDs);
+			FreeIDsTable.AddUninitialized(NewNumIds);
 
 			// The spawned IDs table must be as large as the free IDs table, in case we allocate all of them this tick.
 			SpawnedIDsTable.Reserve(FreeIDsTable.Num());
 
 			//Free table should always have enough room for these new IDs.
-			check(NumFreeIDs + NumNewIDs <= FreeIDsTable.Num());
+			check(NumFreeIDs + NewNumIds <= FreeIDsTable.Num());
 
 			//ID Table grows so add any new IDs to the free array. Add in reverse order to maintain a continuous increasing allocation when popping.
 			for (int32 NewFreeID = RequiredIDs - 1; NewFreeID >= ExistingNumIDs; --NewFreeID)
