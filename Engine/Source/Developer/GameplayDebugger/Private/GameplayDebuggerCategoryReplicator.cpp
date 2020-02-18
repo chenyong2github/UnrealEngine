@@ -790,15 +790,18 @@ void AGameplayDebuggerCategoryReplicator::SetDebugActor(AActor* Actor, bool bSel
 	}
 }
 
-void AGameplayDebuggerCategoryReplicator::SetCategoryEnabled(int32 CategoryId, bool bEnable)
+bool AGameplayDebuggerCategoryReplicator::SetCategoryEnabled(int32 CategoryId, bool bEnable)
 {
+	if (Categories.IsValidIndex(CategoryId) == false
+		|| Categories[CategoryId]->bIsEnabled == bEnable)
+	{
+		return false;
+	}
+
 	if (bHasAuthority)
 	{
-		if (Categories.IsValidIndex(CategoryId))
-		{
-			UE_VLOG_UELOG(this, LogGameplayDebugReplication, Log, TEXT("SetCategoryEnabled[%d]:%d (%s)"), CategoryId, bEnable ? 1 : 0, *Categories[CategoryId]->GetCategoryName().ToString());
-			Categories[CategoryId]->bIsEnabled = bEnable;
-		}
+		UE_VLOG_UELOG(this, LogGameplayDebugReplication, Log, TEXT("SetCategoryEnabled[%d]:%d (%s)"), CategoryId, bEnable ? 1 : 0, *Categories[CategoryId]->GetCategoryName().ToString());
+		Categories[CategoryId]->bIsEnabled = bEnable;
 	}
 	else
 	{
@@ -806,6 +809,8 @@ void AGameplayDebuggerCategoryReplicator::SetCategoryEnabled(int32 CategoryId, b
 	}
 
 	MarkComponentsRenderStateDirty();
+
+	return true;
 }
 
 void AGameplayDebuggerCategoryReplicator::SendCategoryInputEvent(int32 CategoryId, int32 HandlerId)

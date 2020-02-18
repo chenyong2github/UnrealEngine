@@ -683,8 +683,8 @@ void UGameplayDebuggerLocalController::ToggleSlotState(int32 SlotIdx)
 			const int32 CategoryId = SlotCategoryIds[SlotIdx][Idx];
 			CachedReplicator->SetCategoryEnabled(CategoryId, !bIsEnabled);
 		}
-
-		CachedReplicator->MarkComponentsRenderStateDirty();
+		// removed call to MarkComponentsRenderStateDirty since CachedReplicator->SetCategoryEnabled
+		// calls it already 
 	}
 }
 
@@ -879,6 +879,39 @@ private:
 		Controller->ToggleSlotState((Controller->ActiveRowIdx * NumSlotsPerRow)+SlotIdx);
 	}
 
+	static void EnableCategoryName(const TArray<FString>& Args, UWorld* InWorld)
+	{
+		UGameplayDebuggerLocalController* Controller = GetController(InWorld);
+		if (Controller == nullptr || Controller->CachedReplicator == nullptr)
+		{
+			UE_CLOG(Controller != nullptr && Controller->CachedReplicator == nullptr, 
+				LogConsoleResponse, Error, TEXT("Failed due to CachedReplicator being Null"));
+			return;
+		}
+
+		if (Args.Num() < 1)
+		{
+			UE_LOG(LogConsoleResponse, Error, TEXT("Missing category name parameter. Usage: gdt.EnableCategory <CategoryNamePattern> [Enable]"));
+			return;
+		}
+
+		bool bEnable = (Args.Num() == 1);
+		if (Args.Num() > 1)
+		{
+			LexFromString(bEnable, *Args[1]);
+		}
+
+		for (int32 CategoryIndex = 0; CategoryIndex < Controller->CachedReplicator->GetNumCategories(); ++CategoryIndex)
+		{
+			const TSharedRef<FGameplayDebuggerCategory> Category = Controller->CachedReplicator->GetCategory(CategoryIndex);
+			const FString CategoryName = Category->GetCategoryName().ToString();
+			if (CategoryName.Find(Args[0], ESearchCase::IgnoreCase) != INDEX_NONE)
+			{
+				Controller->CachedReplicator->SetCategoryEnabled(CategoryIndex, bEnable);
+			}
+		}
+	}
+
 	/** For legacy command: EnableGDT */
 	static FAutoConsoleCommandWithWorld EnableDebuggerCmd;
 
@@ -887,6 +920,7 @@ private:
 	static FAutoConsoleCommandWithWorld SelectPreviousRowCmd;
 	static FAutoConsoleCommandWithWorld SelectNextRowCmd;
 	static FAutoConsoleCommandWithWorldAndArgs ToggleCategoryCmd;
+	static FAutoConsoleCommandWithWorldAndArgs EnableCategoryNameCmd;
 };
 
 FAutoConsoleCommandWithWorld FGameplayDebuggerConsoleCommands::EnableDebuggerCmd(
@@ -917,4 +951,10 @@ FAutoConsoleCommandWithWorldAndArgs FGameplayDebuggerConsoleCommands::ToggleCate
 	TEXT("gdt.ToggleCategory"),
 	TEXT("Toggles specific category index"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGameplayDebuggerConsoleCommands::ToggleCategory)
+);
+
+FAutoConsoleCommandWithWorldAndArgs FGameplayDebuggerConsoleCommands::EnableCategoryNameCmd(
+	TEXT("gdt.EnableCategoryName"),
+	TEXT("Enables/disables categories matching given substring. Use: gdt.EnableCategoryName <CategoryNamePart> [Enable]"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGameplayDebuggerConsoleCommands::EnableCategoryName)
 );
