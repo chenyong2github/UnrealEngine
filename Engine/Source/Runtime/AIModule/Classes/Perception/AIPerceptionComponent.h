@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectKey.h"
 #include "Templates/SubclassOf.h"
 #include "Components/ActorComponent.h"
 #include "EngineDefines.h"
@@ -20,6 +21,29 @@ struct FVisualLogEntry;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPerceptionUpdatedDelegate, const TArray<AActor*>&, UpdatedActors);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FActorPerceptionUpdatedDelegate, AActor*, Actor, FAIStimulus, Stimulus);
+
+USTRUCT(BlueprintType, meta = (DisplayName = "Sensed Actor's Update Data"))
+struct FActorPerceptionUpdateInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Id of to the stimulus source */
+	UPROPERTY(BlueprintReadWrite, Category = "AI|Perception")
+	int32 TargetId;
+
+	/** Actor associated to the stimulus (can be null) */
+	UPROPERTY(BlueprintReadWrite, Category = "AI|Perception")
+	TWeakObjectPtr<AActor> Target;
+
+	/** Updated stimulus */
+	UPROPERTY(BlueprintReadWrite, Category = "AI|Perception")
+	FAIStimulus Stimulus;
+
+	FActorPerceptionUpdateInfo() = default;
+	FActorPerceptionUpdateInfo(const int32 TargetId, const TWeakObjectPtr<AActor>& Target, const FAIStimulus& Stimulus);
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FActorPerceptionInfoUpdatedDelegate, const FActorPerceptionUpdateInfo&, UpdateInfo);
 
 struct AIMODULE_API FActorPerceptionInfo
 {
@@ -186,10 +210,7 @@ class AIMODULE_API UAIPerceptionComponent : public UActorComponent
 	
 	static const int32 InitialStimuliToProcessArraySize;
 
-	/** The uint64 is the address of the Actor. As we are using the address raw as a key to the TMap there's potential the actor it 
-	 *  points to will be GCed in future (we aren't tagging PerceptualData UPROPERTY intentionally for optimization purposes).
-	 */
-	typedef TMap<uint64, FActorPerceptionInfo> TActorPerceptionContainer;
+	typedef TMap<TObjectKey<AActor>, FActorPerceptionInfo> TActorPerceptionContainer;
 	typedef TActorPerceptionContainer FActorPerceptionContainer;
 
 protected:
@@ -211,18 +232,12 @@ protected:
 
 private:
 	FPerceptionListenerID PerceptionListenerId;
-
-	/**@TODO there is a rare but possible issue here. Actors could be set to Endplay() and GCed between calls to RemoveDeadData, 
-	 * infact EndPlay and GC can occur in same frame. Either we need to take the hit and make PerceptualData a UPROPERTY or we need to come up
-	 * with a different indexing scheme. Currently we could add an new Actor (at the same address as a GCed one), if we then add a new 
-	 * PerceptualData record we could end up merging the new results with the GCed Actor's record instead of making a fresh one.
-	 */
 	FActorPerceptionContainer PerceptualData;
 		
 protected:	
 	struct FStimulusToProcess
 	{
-		AActor* Source;
+		TObjectKey<AActor> Source;
 		FAIStimulus Stimulus;
 
 		FStimulusToProcess(AActor* InSource, const FAIStimulus& InStimulus)
@@ -265,7 +280,7 @@ public:
 	FORCEINLINE FPerceptionListenerID GetListenerId() const { return PerceptionListenerId; }
 
 	FVector GetActorLocation(const AActor& Actor) const;
-	FORCEINLINE const FActorPerceptionInfo* GetActorInfo(const AActor& Actor) const { return PerceptualData.Find(reinterpret_cast<uint64>(&Actor)); }
+	FORCEINLINE const FActorPerceptionInfo* GetActorInfo(const AActor& Actor) const { return PerceptualData.Find(&Actor); }
 	FORCEINLINE FActorPerceptionContainer::TIterator GetPerceptualDataIterator() { return FActorPerceptionContainer::TIterator(PerceptualData); }
 	FORCEINLINE FActorPerceptionContainer::TConstIterator GetPerceptualDataConstIterator() const { return FActorPerceptionContainer::TConstIterator(PerceptualData); }
 
@@ -347,8 +362,33 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FPerceptionUpdatedDelegate OnPerceptionUpdated;
 
+	/**
+	 * Notifies all bound objects that perception info has been updated for a given target.
+	 * The notification is broadcasted for any received stimulus or on change of state
+	 * according to the stimulus configuration.
+	 * 
+	 * Note - This delegate will not be called if source actor is no longer valid 
+	 * by the time a stimulus gets processed. 
+	 * Use OnTargetPerceptionInfoUpdated providing a source id to handle those cases.
+	 *
+	 * @param	SourceActor	Actor associated to the stimulus (can not be null)
+	 * @param	Stimulus	Updated stimulus
+	 */
 	UPROPERTY(BlueprintAssignable)
 	FActorPerceptionUpdatedDelegate OnTargetPerceptionUpdated;
+
+	/**
+	 * Notifies all bound objects that perception info has been updated for a given target.
+	 * The notification is broadcasted for any received stimulus or on change of state
+	 * according to the stimulus configuration.
+	 *
+	 * Note - This delegate will be called even if source actor is no longer valid 
+	 * by the time a stimulus gets processed so it is better to use source id for bookkeeping.
+	 *
+	 * @param	UpdateInfo	Data structure providing information related to the updated perceptual data
+	 */
+	UPROPERTY(BlueprintAssignable)
+	FActorPerceptionInfoUpdatedDelegate OnTargetPerceptionInfoUpdated;
 
 protected:
 	UE_DEPRECATED(4.11, "Function has been renamed and made public. Please use UpdatePerceptionWhitelist instead")
