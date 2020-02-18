@@ -9,6 +9,7 @@
 #include "GlobalShader.h"
 #include "ShaderPermutation.h"
 #include "ShaderParameterUtils.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 //*****************************************************************************
 
