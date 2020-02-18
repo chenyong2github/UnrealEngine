@@ -666,6 +666,30 @@ void FAnalysisEngine::OnTiming(const FOnEventContext& Context)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnChannelAnnounceInternal(const FOnEventContext& Context)
+{
+	const ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
+	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnChannelToggleInternal(const FOnEventContext& Context)
+{
+	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
+	const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
+
+	for (IAnalyzer* Analyzer : Analyzers)
+	{
+		Analyzer->OnChannelToggle(ChannelId, bEnabled);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 template <typename ImplType>
 void FAnalysisEngine::ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl)
 {
@@ -1153,30 +1177,6 @@ int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollect
 		Collector.Push(AuxData);
 
 		Reader.Advance(BlockSize);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnChannelAnnounceInternal(const FOnEventContext& Context)
-{
-	const ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
-	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-
-	for (IAnalyzer* Analyzer : Analyzers)
-	{
-		Analyzer->OnChannelAnnounce(ChannelName, ChannelId);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::OnChannelToggleInternal(const FOnEventContext& Context)
-{
-	const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-	const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
-
-	for (IAnalyzer* Analyzer : Analyzers)
-	{
-		Analyzer->OnChannelToggle(ChannelId, bEnabled);
 	}
 }
 
