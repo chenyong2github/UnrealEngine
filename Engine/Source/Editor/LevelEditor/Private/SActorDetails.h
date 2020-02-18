@@ -19,7 +19,7 @@ class SBox;
 class SSCSEditor;
 class SSplitter;
 class UBlueprint;
-
+class FDetailsViewObjectFilter;
 
 /**
  * Wraps a details panel customized for viewing actors
