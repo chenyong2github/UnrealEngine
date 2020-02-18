@@ -2434,11 +2434,29 @@ public:
 	// Access static delegate for custom encryption
 	static FPakCustomEncryptionDelegate& GetPakCustomEncryptionDelegate();
 
+	struct FPakSigningFailureHandlerData
+	{
+		FCriticalSection Lock;
+		FPakChunkSignatureCheckFailedHandler ChunkSignatureCheckFailedDelegate;
+		FPakMasterSignatureTableCheckFailureHandler MasterSignatureTableCheckFailedDelegate;
+	};
+
 	// Access static delegate for handling a pak signature check failure
+	static FPakSigningFailureHandlerData& GetPakSigningFailureHandlerData();
+	
+	// Access static delegate for handling a pak signature check failure
+	UE_DEPRECATED(4.25, "GetPakChunkSignatureCheckFailedHandler is not thread safe, so please migrate to using GetPakSigningFailureHandlerData and locking the critical section around any use of the delegates")
 	static FPakChunkSignatureCheckFailedHandler& GetPakChunkSignatureCheckFailedHandler();
 
 	// Access static delegate for handling a pak signature check failure
+	UE_DEPRECATED(4.25, "GetPakMasterSignatureTableCheckFailureHandler is not thread safe, so please migrate to using GetPakSigningFailureHandlerData and locking the critical section around any use of the delegates")
 	static FPakMasterSignatureTableCheckFailureHandler& GetPakMasterSignatureTableCheckFailureHandler();
+
+	// Broadacast a signature check failure through any registered delegates in a thread safe way
+	static void BroadcastPakChunkSignatureCheckFailure(const FPakChunkSignatureCheckFailedData& InData);
+
+	// Broadacast a master signature table failure through any registered delegates in a thread safe way
+	static void BroadcastPakMasterSignatureTableCheckFailure(const FString& InFilename);
 
 	// Get a list of which files live in a given chunk
 	void GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList);
@@ -2558,7 +2576,7 @@ struct FPakSignatureFile
 			}
 		}
 
-		FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
+		FPakPlatformFile::BroadcastPakMasterSignatureTableCheckFailure(InFilename);
 		return false;
 	}
 
