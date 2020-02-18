@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
             }
             else if (Target.Platform == UnrealTargetPlatform.PS4)
             {
-                PrivateDependencyModuleNames.Add("AudioCapturePS4Voice");
+                PrivateDependencyModuleNames.Add("AudioCaptureSony");
             }
             else if (Target.Platform == UnrealTargetPlatform.IOS)
             {

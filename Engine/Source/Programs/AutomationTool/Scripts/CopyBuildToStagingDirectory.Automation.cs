@@ -665,18 +665,17 @@ public partial class Project : CommandUtils
 				// Stage platform extension config files
 				{
 					string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
+					StagePlatformExtensionConfigFiles(SC, PlatformExtensionName);
 
-					DirectoryReference PlatformEngineConfigDir = DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformExtensionName, "Config");
-					DirectoryReference PlatformProjectConfigDir = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformExtensionName, "Config");
-
-					if (DirectoryReference.Exists(PlatformEngineConfigDir))
+					// and any ini parents it has
+					DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(PlatformExtensionName);
+					if (Info != null && Info.IniParentChain != null)
 					{
-						StageConfigFiles(SC, PlatformEngineConfigDir, PlatformExtensionName);
-					}
-
-					if (DirectoryReference.Exists(PlatformProjectConfigDir))
-					{
-						StageConfigFiles(SC, PlatformProjectConfigDir, PlatformExtensionName);
+						// the IniParentChain
+						foreach (string ParentPlatform in Info.IniParentChain)
+						{
+							StagePlatformExtensionConfigFiles(SC, ParentPlatform);
+						}
 					}
 				}
 
@@ -1077,6 +1076,27 @@ public partial class Project : CommandUtils
 			{
 				CommandUtils.LogInformation("Excluding config file {0}", ConfigFile);
 			}
+		}
+	}
+
+	/// <summary>
+	/// Looks for a potential PlatformExtension config directory
+	/// </summary>
+	/// <param name="SC">The staging context</param>
+	/// <param name="PlatformName">The name of the platform/platform parent</param>
+	static void StagePlatformExtensionConfigFiles(DeploymentContext SC, string PlatformName)
+	{
+		DirectoryReference PlatformEngineConfigDir = DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformName, "Config");
+		DirectoryReference PlatformProjectConfigDir = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformName, "Config");
+
+		if (DirectoryReference.Exists(PlatformEngineConfigDir))
+		{
+			StageConfigFiles(SC, PlatformEngineConfigDir, PlatformName);
+
+		}
+		if (DirectoryReference.Exists(PlatformProjectConfigDir))
+		{
+			StageConfigFiles(SC, PlatformProjectConfigDir, PlatformName);
 		}
 	}
 
