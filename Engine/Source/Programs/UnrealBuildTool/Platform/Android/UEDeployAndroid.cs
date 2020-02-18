@@ -1221,6 +1221,9 @@ namespace UnrealBuildTool
 				SafeDeleteFile(FinalSTLSOName);
 				Directory.CreateDirectory(Path.GetDirectoryName(FinalSTLSOName));
 				File.Copy(SourceSTLSOName, FinalSTLSOName, true);
+
+				// make sure it's writable if the source was readonly (e.g. autosdks)
+				new FileInfo(FinalSTLSOName).IsReadOnly = false;
 			}
 		}
 
