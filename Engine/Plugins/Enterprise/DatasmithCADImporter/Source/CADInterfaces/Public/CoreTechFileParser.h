@@ -34,15 +34,6 @@ enum class ECoretechParsingResult
 	FileNotFound,
 };
 
-FORCEINLINE double FaceArea(const FVector& TriangleA, const FVector& TriangleB, const FVector& TriangleC)
-{
-	return ((TriangleB - TriangleA) ^ (TriangleC - TriangleA)).Size() * 0.5f;;
-};
-
-FORCEINLINE double Distance(const CT_COORDINATE& Point1, const CT_COORDINATE& Point2)
-{
-	return sqrt((Point2.xyz[0] - Point1.xyz[0]) * (Point2.xyz[0] - Point1.xyz[0]) + (Point2.xyz[1] - Point1.xyz[1]) * (Point2.xyz[1] - Point1.xyz[1]) + (Point2.xyz[2] - Point1.xyz[2]) * (Point2.xyz[2] - Point1.xyz[2]));
-};
 
 #ifdef CAD_INTERFACE
 
