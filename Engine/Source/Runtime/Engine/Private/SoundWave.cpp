@@ -537,7 +537,7 @@ bool USoundWave::HasCompressedData(FName Format, ITargetPlatform* TargetPlatform
 	else
 	{
 		// TargetPlatform is not available on consoles/mobile, so we have to grab it ourselves:
-		CompressionOverrides = CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides();
+		CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides();
 	}
 
 	if (CompressionOverrides)
