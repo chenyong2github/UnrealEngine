@@ -5241,7 +5241,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 							// Successfully spawned in game.
 							UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Succeeded: %s PlayerId: %s"),
 								*ChildConn->PlayerController->PlayerState->GetPlayerName(),
-								*ChildConn->PlayerController->PlayerState->UniqueId.ToDebugString());
+								*ChildConn->PlayerController->PlayerState->GetUniqueId().ToDebugString());
 						}
 					}
 				}
