@@ -550,9 +550,10 @@ namespace Chaos
 					Proxy->PushToPhysicsState(ProxyData);
 					delete ProxyData;
 				}
-				Solver->RemoveDirtyProxy(Proxy);
 
 				Proxy->ClearAccumulatedData();
+				Solver->RemoveDirtyProxy(Proxy);
+
 			}
 			else
 			{
@@ -594,8 +595,8 @@ namespace Chaos
 		Entry.Particle.Init(*Proxy->GetParticle());
 		Entry.Proxy = Proxy;
 
-		Solver->RemoveDirtyProxy(Proxy);
 		Proxy->ClearAccumulatedData();
+		Solver->RemoveDirtyProxy(Proxy);
 	}
 
 	void FPBDRigidsSolver::PushPhysicsStatePooled(IDispatcher* Dispatcher)
@@ -651,8 +652,8 @@ namespace Chaos
 			Dispatcher->EnqueueCommandImmediate(Cmd);
 		else
 			Cmd(nullptr);
-		Solver->RemoveDirtyProxy(Proxy);
 		Proxy->ClearAccumulatedData();
+		Solver->RemoveDirtyProxy(Proxy);
 	}
 
 	void PushPhysicsStateExec(FPBDRigidsSolver* Solver, FFieldSystemPhysicsProxy* Proxy, Chaos::IDispatcher* Dispatcher)
@@ -667,8 +668,8 @@ namespace Chaos
 			Dispatcher->EnqueueCommandImmediate(Cmd);
 		else
 			Cmd(nullptr);
-		Solver->RemoveDirtyProxy(Proxy);
 		Proxy->ClearAccumulatedData();
+		Solver->RemoveDirtyProxy(Proxy);
 	}
 
 	void FPBDRigidsSolver::PushPhysicsState(IDispatcher* Dispatcher)
