@@ -319,8 +319,12 @@ const TMap<FString, FString>& UDeviceProfile::GetConsolidatedCVars() const
 		{
 			FString CVarKey, CVarValue;
 			if (CurrentCVar.Split(TEXT("="), &CVarKey, &CVarValue))
-			{
-				InOutMap.Add(CVarKey, CVarValue);
+			{	
+				//Prevent parents from overwriting the values in child profiles.
+				if (InOutMap.Find(CVarKey) == nullptr)
+				{
+					InOutMap.Add(CVarKey, CVarValue);
+				}
 			}
 		}
 	};

@@ -959,10 +959,34 @@ FQualityLevels GetQualityLevelCounts()
 
 void LoadPlatformScalability(FString PlatformName)
 {
-	
-
 }
 
+#define LOCTEXT_NAMESPACE "Scalability"
+
+FText GetQualityLevelText(int32 QualityLevel, int32 NumLevels)
+{
+	//This matches logic in editor scalability settings UI. TODO: Unify.
+	const FText Names[5] = { LOCTEXT("QualityLowLabel", "Low"), LOCTEXT("QualityMediumLabel", "Medium"), LOCTEXT("QualityHighLabel", "High"), LOCTEXT("QualityEpicLabel", "Epic"), LOCTEXT("QualityCineLabel", "Cinematic") };
+
+	QualityLevel = FMath::Clamp(QualityLevel, 0, NumLevels - 1);
+	if (NumLevels == 5)
+	{
+		return Names[QualityLevel];
+	}
+	else
+	{
+		if (QualityLevel == NumLevels - 1)
+		{
+			return Names[4];
+		}
+		else
+		{
+			return FText::AsNumber(QualityLevel);
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE
 
 }
 

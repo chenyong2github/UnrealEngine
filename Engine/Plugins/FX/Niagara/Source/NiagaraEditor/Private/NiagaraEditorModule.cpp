@@ -118,6 +118,9 @@
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "DeviceProfiles/DeviceProfile.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -728,6 +731,8 @@ void FNiagaraEditorModule::StartupModule()
 	
 	// Any attempt to use GEditor right now will fail as it hasn't been initialized yet. Waiting for post engine init resolves that.
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FNiagaraEditorModule::OnPostEngineInit);
+
+	DeviceProfileManagerUpdatedHandle = UDeviceProfileManager::Get().OnManagerUpdated().AddRaw(this, &FNiagaraEditorModule::OnDeviceProfileManagerUpdated);
 	
 	// register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -771,7 +776,15 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraScriptVariableBinding",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptVariableBindingCustomization::MakeInstance)
 	);
-		
+
+	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraPlatformSet",
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraPlatformSetTypeCustomization::MakeInstance)
+	);
+
+// 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraSystemScalabilitySettingsArray",
+// 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraSystemScalabilitySettingsArrayTypeCustomization::MakeInstance)
+// 	);
+	
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraUserParameterBinding",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance)
 	);
@@ -986,6 +999,7 @@ void FNiagaraEditorModule::ShutdownModule()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
 	
 	if (GEditor)
 	{
@@ -1080,6 +1094,11 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	{
 		UE_LOG(LogNiagaraEditor, Warning, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
+}
+
+void FNiagaraEditorModule::OnDeviceProfileManagerUpdated()
+{
+	FNiagaraPlatformSet::InvalidateCachedData();
 }
 
 FNiagaraEditorModule& FNiagaraEditorModule::Get()

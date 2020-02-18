@@ -14,6 +14,10 @@
 #include "NiagaraStats.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Interfaces/ITargetPlatform.h"
+
+PRAGMA_DISABLE_INLINING
+PRAGMA_DISABLE_OPTIMIZATION
 
 #if WITH_EDITOR
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, EventHandlerScriptProps);
@@ -53,30 +57,13 @@ static FAutoConsoleVariableRef CVarEnableEmitterChangeIdMergeLogging(
 	ECVF_Default
 );
 
-float UNiagaraEmitter::GetSpawnCountScale(int EffectsQuality)
-{
-	if (bOverrideGlobalSpawnCountScale)
-	{
-		switch (EffectsQuality)
-		{
-		case 0: return GlobalSpawnCountScaleOverrides.Low;
-		case 1: return GlobalSpawnCountScaleOverrides.Medium;
-		case 2: return GlobalSpawnCountScaleOverrides.High;
-		case 3: return GlobalSpawnCountScaleOverrides.Epic;
-		case 4: return GlobalSpawnCountScaleOverrides.Cine;
-		}
-	}
-	
-	return INiagaraModule::GetGlobalSpawnCountScale(); // default to the global spawn scale when invalid effects quality
-}
-
 FNiagaraDetailsLevelScaleOverrides::FNiagaraDetailsLevelScaleOverrides()
 {
-	GConfig->GetFloat(TEXT("EffectsQuality@0"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Low, GScalabilityIni);
-	GConfig->GetFloat(TEXT("EffectsQuality@1"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Medium, GScalabilityIni);
-	GConfig->GetFloat(TEXT("EffectsQuality@2"), TEXT("fx.NiagaraGlobalSpawnCountScale"), High, GScalabilityIni);
-	GConfig->GetFloat(TEXT("EffectsQuality@3"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Epic, GScalabilityIni);
-	GConfig->GetFloat(TEXT("EffectsQuality@Cine"), TEXT("fx.NiagaraGlobalSpawnCountScale"), Cine, GScalabilityIni);
+	Low = 0.125f;
+	Medium = 0.25f;
+	High = 0.5f;
+	Epic = 1.0f;
+	Cine = 1.0f;
 }
 
 void FNiagaraEmitterScriptProperties::InitDataSetAccess()
@@ -128,12 +115,12 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 : Super(Initializer)
 , PreAllocationCount(0)
 , FixedBounds(FBox(FVector(-100), FVector(100)))
-, MinDetailLevel(0)
-, MaxDetailLevel(4)
+, MinDetailLevel_DEPRECATED(0)
+, MaxDetailLevel_DEPRECATED(4)
 , bInterpolatedSpawning(false)
 , bFixedBounds(false)
-, bUseMinDetailLevel(false)
-, bUseMaxDetailLevel(false)
+, bUseMinDetailLevel_DEPRECATED(false)
+, bUseMaxDetailLevel_DEPRECATED(false)
 , bRequiresPersistentIDs(false)
 , MaxDeltaTimePerTick(0.125)
 , DefaultShaderStageIndex(0)
@@ -168,6 +155,8 @@ void UNiagaraEmitter::PostInitProperties()
 
 	}
 	UniqueEmitterName = TEXT("Emitter");
+
+	ResolveScalabilitySettings();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -305,6 +294,55 @@ void UNiagaraEmitter::PostLoad()
 		if (ensureMsgf(ShaderStages[ShaderStageIndex] != nullptr && ShaderStages[ShaderStageIndex]->Script != nullptr, TEXT("Null shader stage, or shader stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), ShaderStageIndex) == false)
 		{
 			ShaderStages.RemoveAt(ShaderStageIndex);
+		}
+	}
+
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
+	{
+		int32 MinDetailLevel = bUseMaxDetailLevel_DEPRECATED ? MinDetailLevel_DEPRECATED : 0;
+		int32 MaxDetailLevel = bUseMaxDetailLevel_DEPRECATED ? MaxDetailLevel_DEPRECATED : 4;
+		int32 NewEQMask = 0;
+		//Currently all detail levels were direct mappings to effects quality so just transfer them over to the new mask in PlatformSet.
+		for (int32 EQ = MinDetailLevel; EQ <= MaxDetailLevel; ++EQ)
+		{
+			NewEQMask |= (1 << EQ);
+		}
+
+		Platforms = FNiagaraPlatformSet(NewEQMask);
+
+		//Transfer spawn rate scaling overrides
+		if (bOverrideGlobalSpawnCountScale_DEPRECATED)
+		{
+			FNiagaraEmitterScalabilityOverride& LowOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			LowOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(0));
+			LowOverride.bOverrideSpawnCountScale = true;
+			LowOverride.bScaleSpawnCount = true;
+			LowOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Low;
+
+			FNiagaraEmitterScalabilityOverride& MediumOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			MediumOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(1));
+			MediumOverride.bOverrideSpawnCountScale = true;
+			MediumOverride.bScaleSpawnCount = true;
+			MediumOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Medium;
+
+			FNiagaraEmitterScalabilityOverride& HighOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			HighOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(2));
+			HighOverride.bOverrideSpawnCountScale = true;
+			HighOverride.bScaleSpawnCount = true;
+			HighOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.High;
+
+			FNiagaraEmitterScalabilityOverride& EpicOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			EpicOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(3));
+			EpicOverride.bOverrideSpawnCountScale = true;
+			EpicOverride.bScaleSpawnCount = true;
+			EpicOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Epic;
+
+			FNiagaraEmitterScalabilityOverride& CineOverride = ScalabilityOverrides.Overrides.AddDefaulted_GetRef();
+			CineOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateEQMask(4));
+			CineOverride.bOverrideSpawnCountScale = true;
+			CineOverride.bScaleSpawnCount = true;
+			CineOverride.SpawnCountScale = GlobalSpawnCountScaleOverrides_DEPRECATED.Cine;
 		}
 	}
 
@@ -482,6 +520,8 @@ void UNiagaraEmitter::PostLoad()
 		}
 	}
 #endif
+
+	ResolveScalabilitySettings();
 }
 
 #if WITH_EDITOR
@@ -606,17 +646,8 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 		UNiagaraSystem::RequestCompileForEmitter(this);
 #endif
 	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bOverrideGlobalSpawnCountScale))
-	{
-		if (GraphSource != nullptr)
-		{
-			GraphSource->MarkNotSynchronized(TEXT("Emitter Override Global Spawn Count Scale changed."));
-		}
 
-#if WITH_EDITORONLY_DATA
-		UNiagaraSystem::RequestCompileForEmitter(this);
-#endif
-	}
+	ResolveScalabilitySettings();
 
 	ThumbnailImageOutOfDate = true;
 	UpdateChangeId(TEXT("PostEditChangeProperty"));
@@ -632,6 +663,12 @@ UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnPropertiesChanged()
 UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnRenderersChanged()
 {
 	return OnRenderersChangedDelegate;
+}
+
+bool UNiagaraEmitter::IsEnabledOnPlatform(const FString& PlatformName)
+{
+	bool bCanPrune = FNiagaraPlatformSet::ShouldPruneEmittersOnCook(PlatformName);
+	return bCanPrune && Platforms.IsEnabledForPlatform(PlatformName);
 }
 #endif
 
@@ -767,14 +804,9 @@ UNiagaraScript* UNiagaraEmitter::GetScript(ENiagaraScriptUsage Usage, FGuid Usag
 	return nullptr;
 }
 
-bool UNiagaraEmitter::IsAllowedByDetailLevel(int32 DetailLevel)const
+bool UNiagaraEmitter::IsAllowedByScalability()const
 {
-	if ((bUseMinDetailLevel && DetailLevel < MinDetailLevel) || (bUseMaxDetailLevel && DetailLevel > MaxDetailLevel))
-	{
-		return false;
-	}
-
-	return true;
+	return Platforms.IsActive();
 }
 
 bool UNiagaraEmitter::RequiresPersistantIDs()const
@@ -1444,6 +1476,36 @@ void UNiagaraEmitter::SetParent(UNiagaraEmitter& InParent)
 }
 #endif
 
+void UNiagaraEmitter::ResolveScalabilitySettings()
+{
+	CurrentScalabilitySettings.Clear();
+
+	if (UNiagaraSystem* Owner = GetTypedOuter<UNiagaraSystem>())
+	{
+		if(UNiagaraEffectType* ActualEffectType = Owner->GetEffectType())
+		{
+			CurrentScalabilitySettings = ActualEffectType->GetActiveEmitterScalabilitySettings();
+		}
+	}
+
+	for (FNiagaraEmitterScalabilityOverride& Override : ScalabilityOverrides.Overrides)
+	{
+		if (Override.Platforms.IsActive())
+		{
+			if (Override.bOverrideSpawnCountScale)
+			{
+				CurrentScalabilitySettings.bScaleSpawnCount = Override.bScaleSpawnCount;
+				CurrentScalabilitySettings.SpawnCountScale = Override.SpawnCountScale;
+			}
+		}
+	}
+}
+
+void UNiagaraEmitter::OnEffectsQualityChanged()
+{
+	ResolveScalabilitySettings();
+}
+
 void UNiagaraEmitter::InitFastPathAttributeNames()
 {
 	auto InitParameters = [](const FNiagaraParameters& Parameters, const FString& EmitterName, FNiagaraFastPathAttributeNames& FastPathParameterNames)
@@ -1474,3 +1536,6 @@ void UNiagaraEmitter::InitFastPathAttributeNames()
 	InitParameters(SpawnScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, SpawnFastPathAttributeNames);
 	InitParameters(UpdateScriptProps.Script->GetVMExecutableData().Parameters, UniqueEmitterName, UpdateFastPathAttributeNames);
 }
+
+PRAGMA_ENABLE_INLINING
+PRAGMA_ENABLE_OPTIMIZATION

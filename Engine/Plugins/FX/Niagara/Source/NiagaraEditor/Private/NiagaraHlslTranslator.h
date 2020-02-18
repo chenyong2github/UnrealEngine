@@ -82,7 +82,7 @@ struct FNiagaraTranslateResults
 class FNiagaraCompileRequestData : public FNiagaraCompileRequestDataBase
 {
 public:
-	FNiagaraCompileRequestData() : bUseRapidIterationParams(true), DetailLevelMask(FNiagaraCompileRequestDataBase::CookForAllDetailLevelMask)
+	FNiagaraCompileRequestData() : bUseRapidIterationParams(true)
 	{
 
 	}
@@ -109,9 +109,6 @@ public:
 		return EmitterData[Index];
 	}
 	void AddRapidIterationParameters(const FNiagaraParameterStore& InParamStore, FCompileConstantResolver InResolver);
-	virtual uint32 GetDetailLevelMask(void) const override {
-		return DetailLevelMask;
-	};
 	virtual bool GetUseRapidIterationParams() const override { return bUseRapidIterationParams; }
 
 	// If this is being held onto for any length of time, make sure to hold onto it in a gc-aware object. Right now in this information-passing struct,
@@ -126,7 +123,6 @@ public:
 	UNiagaraScriptSource* Source;
 	FString SourceName;
 	bool bUseRapidIterationParams = true;
-	uint32 DetailLevelMask = 0xFFFFFFFF;
 
 	UEnum* ENiagaraScriptCompileStatusEnum;
 	UEnum* ENiagaraScriptUsageEnum;

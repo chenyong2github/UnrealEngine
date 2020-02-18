@@ -1139,7 +1139,8 @@ void FNiagaraSystemSimulation::TickFastPath(FNiagaraSystemSimulationTickContext&
 
 			if (UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter())
 			{
-				EmitterMap.Emitter.SpawnCountScale = CachedEmitter->GetSpawnCountScale(Context.EffectsQuality);
+				const FNiagaraEmitterScalabilitySettings& ScalabilitySettings = CachedEmitter->GetScalabilitySettings();
+				EmitterMap.Emitter.SpawnCountScale = ScalabilitySettings.SpawnCountScale;
 			}
 		}
 	}

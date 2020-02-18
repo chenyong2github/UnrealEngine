@@ -136,10 +136,6 @@ public:
 	TArray<FString> AdditionalDefines;
 #endif
 
-	/** Bitfield of supported detail levels in this compile.*/
-	UPROPERTY()
-	uint32 DetailLevelMask;
-
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	UPROPERTY()
 	uint32 bUsesRapidIterationParams : 1;
@@ -176,7 +172,6 @@ public:
 	FNiagaraVMExecutableDataId()
 		: CompilerVersionID()
 		, ScriptUsageType(ENiagaraScriptUsage::Function)
-		, DetailLevelMask(0xFFFFFFFF)
 		, bUsesRapidIterationParams(true)
 		, bInterpolatedSpawn(false)
 		, bRequiresPersistentIDs(false)

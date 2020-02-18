@@ -99,8 +99,6 @@ public:
 
 	void Cleanup();
 
-	bool IsEnabledByDetailLevel() const;
-
 private:
 	/** Sets this view model to a different emitter. */
 	void SetEmitter(UNiagaraEmitter* InEmitter);
@@ -124,8 +122,8 @@ private:
 	/** The text format stats to only display particles count. */
 	static const FText StatsParticleCountFormat;
 
-	/** The text format stats to display when detail level mismatches. */
-	static const FText ParticleDisabledDueToDetailLevel;
+	/** The text format stats to display when an emitter is disabled due to scalability. */
+	static const FText ParticleDisabledDueToScalability;
 
 	/** The emitter object being displayed by the control .*/
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
