@@ -99,8 +99,8 @@ public:
 		ClientConfig->DefaultServerURL = DisasterRecoveryServerName;
 		ClientConfig->DefaultSessionName = DisasterRecoverySessionName;
 		ClientConfig->DefaultSaveSessionAs = DisasterRecoverySessionName;
-		//ClientConfig->ClientSettings.DiscoveryTimeoutSeconds = 0;
-		ClientConfig->EndpointSettings.RemoteEndpointTimeoutSeconds = 0;
+		//ClientConfig->ClientSettings.DiscoveryTimeoutSeconds = 0; // Setting this to zero prevents showing 'Server {serverName} lost." but will not detect when a server dies, growing the list of known server indefinitely.
+		ClientConfig->EndpointSettings.RemoteEndpointTimeoutSeconds = 4; // Non-zero -> Ensure the Endpoints are re-registered with Message Bus if Message Bus restarts or some errors trigger a 'auto-repair'.
 		ClientConfig->ClientSettings.ClientAuthenticationKey = DisasterRecoveryServerName; // The server adds its own server name to the list of authorized client keys, use that key to authorize this client on the server.
 
 		// Create and start the client.
