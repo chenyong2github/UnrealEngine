@@ -717,16 +717,14 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 		FVolumeGroupData* VolumeGroup = VolumeGroupData.Find(Id);
 		if (!VolumeGroup)
 		{
-			FVolumeGroupData NewData;
+			FVolumeGroupData NewData(InVolumeGroup->DefaultVolume);
 			NewData.Clips.Add(NewHandle);
-			VolumeGroupData.Add(Id, NewData);
+			VolumeGroup = &VolumeGroupData.Add(Id, NewData);
 		}
-		else
-		{
-			// Get the current volume group value and "scale" it into the volume scale
-			VolumeScale *= Audio::ConvertToLinear(VolumeGroup->CurrentVolumeDb);
-			VolumeGroup->Clips.Add(NewHandle);
-		}
+
+		// Get the current volume group value and "scale" it into the volume scale
+		VolumeScale *= Audio::ConvertToLinear(VolumeGroup->CurrentVolumeDb);
+		VolumeGroup->Clips.Add(NewHandle);
 	}
 
 	Audio::FSourceDecodeInit DecodeInit;
@@ -809,7 +807,7 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 		}
 		else
 		{
-			PlayingClipsPool_AudioRenderThread[FreeClipIndex] = NewClipInfo;
+			PlayingClipsPool_AudioRenderThread[FreeClipIndex] = NewClipInfo;	
 		}
 
 		// Add a mapping of the clip handle id to the free index
