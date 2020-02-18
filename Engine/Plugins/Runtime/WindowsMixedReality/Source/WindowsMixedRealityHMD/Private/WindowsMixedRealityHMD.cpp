@@ -124,6 +124,10 @@ namespace WindowsMixedReality
 #if WITH_WINDOWS_MIXED_REALITY
 			IHeadMountedDisplayModule::StartupModule();
 
+			// Set the shader directory even if we won't be able to load the interop so shader compliation does not fail.
+			FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir(), TEXT("Shaders"));
+			AddShaderSourceDirectoryMapping(TEXT("/Plugin/WindowsMixedReality"), PluginShaderDir);
+
 			HMD = LoadInteropLibrary();
 			if (!HMD)
 			{
@@ -137,8 +141,6 @@ namespace WindowsMixedReality
 			}	
 #endif // WANTS_INTEROP_LOGGING
 
-			FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir(), TEXT("Shaders"));
-			AddShaderSourceDirectoryMapping(TEXT("/Plugin/WindowsMixedReality"), PluginShaderDir);
 #else // WITH_WINDOWS_MIXED_REALITY
 			UE_LOG(LogWmrHmd, Error, TEXT("Windows Mixed Reality compiled with unsupported compiler.  Please recompile with Visual Studio 2017"));
 #endif // WITH_WINDOWS_MIXED_REALITY
