@@ -582,7 +582,8 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 		int64 TotalProcessedPoints = 0;
 
 		const int32 NumThreads = FMath::Min(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 1, (int32)(Count / MaxBatchSize) + 1);
-		TFuture<void>* ThreadResults = new TFuture<void>[NumThreads];
+		TArray<TFuture<void>>ThreadResults;
+		ThreadResults.Reserve( NumThreads );
 		const int64 NumPointsPerThread = Count / NumThreads + 1;
 
 		FCriticalSection ProgressCallbackLock;
@@ -591,8 +592,7 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 		for (int32 t = 0; t < NumThreads; t++)
 		{
 			const int32 ThreadID = t;
-
-			ThreadResults[ThreadID] = Async(EAsyncExecution::Thread, [this, ThreadID, DuplicateHandling, bRefreshPointsBounds, MaxBatchSize, NumPointsPerThread, RefreshStatusFrequency, &ProcessedPoints, &TotalProcessedPoints, InPoints, Count, &ProgressCallback, &ProgressCallbackLock, &bCanceled]
+			ThreadResults.Add(Async(EAsyncExecution::Thread, [this, ThreadID, DuplicateHandling, bRefreshPointsBounds, MaxBatchSize, NumPointsPerThread, RefreshStatusFrequency, &ProcessedPoints, &TotalProcessedPoints, InPoints, Count, &ProgressCallback, &ProgressCallbackLock, &bCanceled]
 				{
 					int64 Idx = ThreadID * NumPointsPerThread;
 					int64 MaxIdx = FMath::Min(Idx + NumPointsPerThread, Count);
@@ -624,14 +624,14 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 						Idx += BatchSize;
 						DataPointer += BatchSize;
 					}
-				});
+				}));
 		}
 
 		// Sync
-		for (int32 i = 0; i < NumThreads; i++) ThreadResults[i].Get();
-
-		// Cleanup
-		delete[] ThreadResults;
+		for (auto& ThreadResult : ThreadResults)
+		{
+			ThreadResult.Get();
+		}
 	}
 	else
 	{
@@ -1100,6 +1100,7 @@ bool ULidarPointCloudBlueprintLibrary::LineTraceMulti(UObject* WorldContextObjec
 	return Hits.Num() > 0;
 }
 
+template bool ULidarPointCloud::InsertPoints_NoLock<FLidarPointCloudPoint*>(FLidarPointCloudPoint*, const int64&, ELidarPointCloudDuplicateHandling, bool, FThreadSafeBool*, TFunction<void(float)>);
 template bool ULidarPointCloud::InsertPoints_NoLock<const FLidarPointCloudPoint*>(const FLidarPointCloudPoint*, const int64&, ELidarPointCloudDuplicateHandling, bool, FThreadSafeBool*, TFunction<void(float)>);
 template bool ULidarPointCloud::InsertPoints_NoLock<FLidarPointCloudPoint**>(FLidarPointCloudPoint**, const int64&, ELidarPointCloudDuplicateHandling, bool, FThreadSafeBool*, TFunction<void(float)>);
 template bool ULidarPointCloud::SetData<const FLidarPointCloudPoint*>(const FLidarPointCloudPoint*, const int64&, TFunction<void(float)>);
