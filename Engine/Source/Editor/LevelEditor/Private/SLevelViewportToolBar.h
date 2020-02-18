@@ -12,6 +12,8 @@
 class ACameraActor;
 class FExtender;
 class FMenuBuilder;
+class UToolMenu;
+struct FToolMenuSection;
 
 /**
  * A level viewport toolbar widget that is placed in a viewport
@@ -77,20 +79,23 @@ private:
 	/** @return Returns true if this viewport is the perspective viewport */
 	bool IsPerspectiveViewport() const;
 
-		/**
+	/**
 	 * Generates the toolbar device profile simulation menu content .
 	 *
 	 * @return The widget containing the options menu content.
 	 */
 	TSharedRef<SWidget> GenerateDevicePreviewMenu() const;
 
+	/** Fills device preview menu */
+	void FillDevicePreviewMenu(UToolMenu* Menu) const;
+
 	/**
 	 * Generates the sub  menu for different device profile previews.
 	 *
-	 * @param MenuBuilder - the parent menu.
+	 * @param Menu - The menu.
 	 * @param InDeviceProfiles - The array of device profiles.
 	 */
-	void MakeDevicePreviewSubMenu( FMenuBuilder& MenuBuilder, TArray< class UDeviceProfile* > Profiles );
+	void MakeDevicePreviewSubMenu(UToolMenu* Menu, TArray< class UDeviceProfile* > Profiles);
 
 	/**
 	 * Set the level profile, and save the selection to an .ini file.
@@ -106,6 +111,9 @@ private:
 	 */
 	TSharedRef<SWidget> GenerateOptionsMenu();
 
+	/** Fills options menu */
+	void FillOptionsMenu(UToolMenu* Menu);
+
 	/**
 	 * Generates the toolbar camera menu content 
 	 *
@@ -113,27 +121,45 @@ private:
 	 */
 	TSharedRef<SWidget> GenerateCameraMenu() const;
 
+	/** Fills camera menu */
+	void FillCameraMenu(UToolMenu* Menu) const;
+
 	/**
 	 * Generates menu entries for placed cameras (e.g CameraActors
 	 *
-	 * @param Builder	The menu builder to add menu entries to
+	 * @param Menu	The menu to add menu entries to
 	 * @param Cameras	The list of cameras to add
 	 */
-	void GeneratePlacedCameraMenuEntries( FMenuBuilder& Builder, TArray<ACameraActor*> Cameras ) const;
+	void GeneratePlacedCameraMenuEntries(UToolMenu* Menu, TArray<ACameraActor*> Cameras) const;
+
+	/**
+	 * Generates menu entries for placed cameras (e.g CameraActors
+	 *
+	 * @param Section	The menu section to add menu entries to
+	 * @param Cameras	The list of cameras to add
+	 */
+	void GeneratePlacedCameraMenuEntries(FToolMenuSection& Section, TArray<ACameraActor*> Cameras) const;
 
 	/**
 	 * Generates menu entries for changing the type of the viewport
 	 *
-	 * @param Builder	The menu builder to add menu entries to
+	 * @param Menu	The menu to add menu entries to
 	 */
-	void GenerateViewportTypeMenu( FMenuBuilder& Builder ) const;
+	void GenerateViewportTypeMenu(UToolMenu* Menu) const;
+
+	/**
+	 * Generates menu entries for changing the type of the viewport
+	 *
+	 * @param Section	The menu section to add menu entries to
+	 */
+	void GenerateViewportTypeMenu(FToolMenuSection& Section) const;
 
 	/**
 	 * Generates menu entries for spawning cameras at the current viewport
 	 *
-	 * @param Builder	The menu builder to add menu entries to
+	 * @param Menu	The menu to add menu entries to
 	 */
-	void GenerateCameraSpawnMenu(FMenuBuilder& Builder) const;
+	void GenerateCameraSpawnMenu(UToolMenu* Menu) const;
 
 	/**
 	 * Generates the toolbar view menu content 
@@ -148,6 +174,9 @@ private:
 	 * @return The widget containing the show menu content
 	 */
 	TSharedRef<SWidget> GenerateShowMenu() const;
+
+	/** Fills the toolbar show menu content */
+	void FillShowMenu(UToolMenu* Menu) const;
 
 	/**
 	 * Returns the initial visibility of the view mode options widget 
@@ -209,20 +238,20 @@ private:
 	/**
 	 * Generates the toolbar show layers menu content 
 	 *
-	 * @param MenuBuilder menu builder
+	 * @param Menu	The tool menu
 	 */
-	static void FillShowLayersMenu( class FMenuBuilder& MenuBuilder, TWeakPtr<class SLevelViewport> Viewport );
+	static void FillShowLayersMenu(UToolMenu* Menu, TWeakPtr<class SLevelViewport> Viewport );
 
 	/**
 	 * Generates 'show foliage types' menu content for a viewport
 	 *
-	 * @param MenuBuilder	menu builder
+	 * @param Menu	The tool menu
 	 * @param Viewport		target vieport
 	 */
-	static void FillShowFoliageTypesMenu(class FMenuBuilder& MenuBuilder, TWeakPtr<class SLevelViewport> Viewport);
+	static void FillShowFoliageTypesMenu(UToolMenu* Menu, TWeakPtr<class SLevelViewport> Viewport);
 
 	/** Generates the layout sub-menu content */
-	void GenerateViewportConfigsMenu(FMenuBuilder& MenuBuilder) const;
+	void GenerateViewportConfigsMenu(UToolMenu* Menu) const;
 
 	/** Gets the world we are editing */
 	TWeakObjectPtr<UWorld> GetWorld() const;
