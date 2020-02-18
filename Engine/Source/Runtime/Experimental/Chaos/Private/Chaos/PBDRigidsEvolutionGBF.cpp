@@ -21,6 +21,8 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 namespace Chaos
 {
 #if !UE_BUILD_SHIPPING
@@ -49,6 +51,12 @@ float BoundsThickness = 0;
 float BoundsThicknessVelocityMultiplier = 2.0f;
 FAutoConsoleVariableRef CVarBoundsThickness(TEXT("p.CollisionBoundsThickness"), BoundsThickness, TEXT("Collision inflation for speculative contact generation.[def:0.0]"));
 FAutoConsoleVariableRef CVarBoundsThicknessVelocityMultiplier(TEXT("p.CollisionBoundsVelocityInflation"), BoundsThicknessVelocityMultiplier, TEXT("Collision velocity inflation for speculatibe contact generation.[def:2.0]"));
+
+float HackCCD_EnableThreshold = 0.3f;
+FAutoConsoleVariableRef CVarHackCCDVelThreshold(TEXT("p.Chaos.CCD.EnableThreshold"), HackCCD_EnableThreshold, TEXT("If distance moved is greater than this times the minimum object dimension, use CCD"));
+
+float HackCCD_DepthThreshold = 0.05f;
+FAutoConsoleVariableRef CVarHackCCDDepthThreshold(TEXT("p.Chaos.CCD.DepthThreshold"), HackCCD_DepthThreshold, TEXT("When returning to TOI, leave this much contact depth (as a fraction of MinBounds)"));
 
 
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_Evolution_AdvanceOneTimeStep, STATGROUP_Chaos);
@@ -129,6 +137,116 @@ void TPBDRigidsEvolutionGBF<T, d>::Advance(const T Dt, const T MaxStepDt, const 
 	}
 }
 
+//
+//
+//
+// BEGIN TOI HACK STUFF
+//
+//
+//
+
+namespace Collisions
+{
+	extern bool GetTOIHack(const TPBDRigidParticleHandle<FReal, 3>* Particle0, const TGeometryParticleHandle<FReal, 3>* Particle1, FReal& OutTOI, FVec3& OutNormal, FReal& OutPhi);
+}
+
+void PostMoveToTOIHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle)
+{
+	// Update bounds, velocity etc
+	TPerParticlePBDUpdateFromDeltaPosition<FReal, 3> VelUpdateRule;
+	VelUpdateRule.Apply(Particle, Dt);
+}
+
+void MoveToTOIPairHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle1, const TGeometryParticleHandle<FReal, 3>* Particle2)
+{
+	FReal TOI = 0.0f;
+	FReal Phi = 0.0f;
+	FVec3 Normal = FVec3(0);
+	if (Collisions::GetTOIHack(Particle1, Particle2, TOI, Normal, Phi))
+	{
+		FReal Depth = -Phi;
+		FReal MinBounds = Particle1->Geometry()->BoundingBox().Extents().Min();
+		FReal MaxDepth = MinBounds * HackCCD_DepthThreshold;
+
+		//UE_LOG(LogChaos, Warning, TEXT("MoveTOIHAck: TOI %f; Depth %f"), TOI, Depth);
+
+		if ((Depth > MaxDepth) && (TOI > KINDA_SMALL_NUMBER) && (TOI < 1.0f))
+		{
+			// Move the particle to just after the TOI so we still have a collision to resolve but won't get tunneling
+			// The time after TOI we want is given by the ratio of max acceptable depth to depth at T = 1
+			FReal ExtraT = (1.0f - TOI) * MaxDepth / Depth;
+			FReal FinalT = TOI + ExtraT;
+			FVec3 FinalP = FVec3::Lerp(Particle1->X(), Particle1->P(), FinalT);
+
+			//UE_LOG(LogChaos, Warning, TEXT("MoveTOIHack: FinalTOI %f; Correction %f"), FinalT, (FinalP - Particle1->P()).Size());
+		
+			Particle1->SetP(FinalP);
+			PostMoveToTOIHack(Dt, Particle1);
+		}
+	}
+}
+
+
+void MoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* SpatialAcceleration)
+{
+	if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>>())
+	{
+		MoveToTOIHackImpl(Dt, Particle, AABBTree);
+	}
+	else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
+	{
+		MoveToTOIHackImpl(Dt, Particle, BV);
+	}
+	else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>>())
+	{
+		MoveToTOIHackImpl(Dt, Particle, AABBTreeBV);
+	}
+	else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
+	{
+		Collection->CallMoveToTOIHack(Dt, Particle);
+	}
+}
+
+bool RequiresCCDHack(FReal Dt, const TTransientPBDRigidParticleHandle<FReal, 3>& Particle)
+{
+	if (Particle.HasBounds() && (Particle.ObjectState() == EObjectStateType::Dynamic))
+	{
+		FReal Dist2 = Particle.V().SizeSquared() * Dt * Dt;
+		FReal MinBounds = Particle.Geometry()->BoundingBox().Extents().Min();
+		FReal MaxDepth = MinBounds * HackCCD_EnableThreshold;
+		if (Dist2 > MaxDepth * MaxDepth)
+		{
+			//UE_LOG(LogChaos, Warning, TEXT("MoveTOIHack: Enabled at DR = %f / %f"), FMath::Sqrt(Dist2), MaxDepth);
+
+			return true;
+		}
+	}
+	return false;
+}
+
+void CCDHack(const FReal Dt, TParticleView<TPBDRigidParticles<FReal, 3>>& ParticlesView, const ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* SpatialAcceleration)
+{
+	if (HackCCD_EnableThreshold > 0)
+	{
+		for (auto& Particle : ParticlesView)
+		{
+			if (RequiresCCDHack(Dt, Particle))
+			{
+				MoveToTOIHack(Dt, Particle, SpatialAcceleration);
+			}
+		}
+	}
+}
+
+//
+//
+//
+// END TOI HACK STUFF
+//
+//
+//
+
+
 template <typename T, int d>
 void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFraction)
 {
@@ -163,6 +281,9 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 	{
 		Base::ComputeIntermediateSpatialAcceleration();
 	}
+
+	CCDHack(Dt, Particles.GetActiveParticlesView(), InternalAcceleration.Get());
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_DetectCollisions);
 		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration.Get());
