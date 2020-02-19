@@ -1394,7 +1394,20 @@ void FAssetRenameManager::PerformAssetRename(TArray<FAssetRenameDataWithReferenc
 		// as it will just create a copy and any attempt to load it will result in crashes.
 		if (!RenameData.bOnlyFixSoftReferences && NewPackage && FPackageName::DoesPackageExist(NewPackage->GetName()))
 		{
-			SourceControlHelpers::BranchPackage(NewPackage, OldPackage);
+			if (ISourceControlModule::Get().IsEnabled())
+			{
+				ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+				const FString SourceFilename = USourceControlHelpers::PackageFilename(OldPackage);
+				FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceFilename, EStateCacheUsage::ForceUpdate);
+				if (SourceControlState.IsValid() && SourceControlState->IsSourceControlled())
+				{
+					// Do not attempt to branch if the old file was open for add
+					if (!SourceControlState->IsAdded())
+					{
+						SourceControlHelpers::BranchPackage(NewPackage, OldPackage);
+					}
+				}
+			}
 		}
 	}
 
