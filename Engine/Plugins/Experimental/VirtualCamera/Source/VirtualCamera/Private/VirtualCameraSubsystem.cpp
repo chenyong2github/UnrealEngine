@@ -3,6 +3,7 @@
 #include "VirtualCameraSubsystem.h"
 
 #include "LevelSequencePlaybackController.h"
+#include "UObject/Script.h"
 
 
 UVirtualCameraSubsystem::UVirtualCameraSubsystem()
@@ -22,6 +23,13 @@ bool UVirtualCameraSubsystem::StartStreaming()
 	{
 		bIsStreaming = ActiveCameraController->StartStreaming();
 	}
+
+	if (bIsStreaming)
+	{
+		FEditorScriptExecutionGuard ScriptGuard;
+		OnStreamStartedDelegate.Broadcast();
+	}
+
 	return bIsStreaming;
 }
 
@@ -36,6 +44,13 @@ bool UVirtualCameraSubsystem::StopStreaming()
 	{
 		bIsStreaming = !(ActiveCameraController->StopStreaming());
 	}
+
+	if (!bIsStreaming)
+	{
+		FEditorScriptExecutionGuard ScriptGuard;
+		OnStreamStoppedDelegate.Broadcast();
+	}
+
 	return bIsStreaming;
 }
 

@@ -2,12 +2,16 @@
 
 #pragma once
 
+#include "Delegates/DelegateCombinations.h"
 #include "IVirtualCameraController.h"
 #include "Subsystems/EngineSubsystem.h"
 
 #include "VirtualCameraSubsystem.generated.h"
 
-UCLASS()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStreamStarted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStreamStopped);
+
+UCLASS(BlueprintType, Category = "VirtualCamera", DisplayName = "VirtualCameraSubsystem")
 class VIRTUALCAMERA_API UVirtualCameraSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
@@ -33,6 +37,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "VirtualCamera")
 	ULevelSequencePlaybackController* SequencePlaybackController;
+
+	UPROPERTY(BlueprintAssignable, Category = "VirtualCamera | Streaming")
+	FOnStreamStarted OnStreamStartedDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "VirtualCamera | Streaming")
+	FOnStreamStopped OnStreamStoppedDelegate;
 
 private:
 
