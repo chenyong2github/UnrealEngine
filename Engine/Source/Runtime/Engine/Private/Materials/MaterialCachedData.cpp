@@ -344,6 +344,9 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const TArray<UMaterialE
 				bResult = false;
 			}
 
+			DefaultLayers = LayersExpression->DefaultLayers.Layers;
+			DefaultLayerBlends = LayersExpression->DefaultLayers.Blends;
+
 			LayersExpression->RebuildLayerGraph(false);
 		}
 	}

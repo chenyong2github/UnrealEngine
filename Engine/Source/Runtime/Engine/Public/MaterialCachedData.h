@@ -15,6 +15,7 @@ class UFont;
 class UMaterialExpression;
 class URuntimeVirtualTexture;
 class ULandscapeGrassType;
+class UMaterialFunctionInterface;
 
 /** Stores information about a function that this material references, used to know when the material needs to be recompiled. */
 USTRUCT()
@@ -28,7 +29,7 @@ struct FMaterialFunctionInfo
 
 	/** The function which this material has a dependency on. */
 	UPROPERTY()
-	class UMaterialFunctionInterface* Function = nullptr;
+	UMaterialFunctionInterface* Function = nullptr;
 };
 
 /** Stores information about a parameter collection that this material references, used to know when the material needs to be recompiled. */
@@ -184,6 +185,12 @@ struct FMaterialCachedExpressionData
 	/** Array of all parameter collections this material depends on. */
 	UPROPERTY()
 	TArray<FMaterialParameterCollectionInfo> ParameterCollectionInfos;
+
+	UPROPERTY()
+	TArray<UMaterialFunctionInterface*> DefaultLayers;
+
+	UPROPERTY()
+	TArray<UMaterialFunctionInterface*> DefaultLayerBlends;
 
 	UPROPERTY()
 	TArray<ULandscapeGrassType*> GrassTypes;
