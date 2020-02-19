@@ -138,10 +138,10 @@ struct FParameterVectorChannelEditorData
 			MetaData[3].bCanCollapseToTrack = false;
 		}
 
-		ExternalValues[0].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelX(InObject, Bindings, InControlRig, InName, NumChannels); };
-		ExternalValues[1].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelY(InObject, Bindings, InControlRig, InName, NumChannels); };
-		ExternalValues[2].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelZ(InObject, Bindings, InControlRig, InName, NumChannels); };
-		ExternalValues[3].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelW(InObject, Bindings,InControlRig, InName, NumChannels); };
+		ExternalValues[0].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelX(InObject, InControlRig, InName, NumChannels); };
+		ExternalValues[1].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelY(InObject, InControlRig, InName, NumChannels); };
+		ExternalValues[2].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelZ(InObject, InControlRig, InName, NumChannels); };
+		ExternalValues[3].OnGetExternalValue = [InControlRig, InName,NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelW(InObject, InControlRig, InName, NumChannels); };
 
 		ExternalValues[0].OnGetCurrentValueAndWeight = [InName, NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
 			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(InName, NumChannels, 0, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
@@ -154,7 +154,7 @@ struct FParameterVectorChannelEditorData
 
 	}
 
-	static FVector4 GetPropertyValue(UControlRig* ControlRig, FName ParameterName, UObject& InObject, FTrackInstancePropertyBindings& Bindings, int32 NumChannels)
+	static FVector4 GetPropertyValue(UControlRig* ControlRig, FName ParameterName, UObject& InObject,int32 NumChannels)
 	{
 		if (ControlRig)
 		{
@@ -181,21 +181,21 @@ struct FParameterVectorChannelEditorData
 		return FVector4();
 	}
 
-	static TOptional<float> ExtractChannelX(UObject& InObject, FTrackInstancePropertyBindings* Bindings, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
+	static TOptional<float> ExtractChannelX(UObject& InObject, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
 	{
-		return Bindings ? GetPropertyValue(ControlRig, ParameterName, InObject, *Bindings, NumChannels).X : TOptional<float>();
+		return GetPropertyValue(ControlRig, ParameterName, InObject, NumChannels).X;
 	}
-	static TOptional<float> ExtractChannelY(UObject& InObject, FTrackInstancePropertyBindings* Bindings, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
+	static TOptional<float> ExtractChannelY(UObject& InObject, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
 	{
-		return Bindings ? GetPropertyValue(ControlRig, ParameterName, InObject, *Bindings, NumChannels).Y : TOptional<float>();
+		return GetPropertyValue(ControlRig, ParameterName, InObject, NumChannels).Y;
 	}
-	static TOptional<float> ExtractChannelZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
+	static TOptional<float> ExtractChannelZ(UObject& InObject, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
 	{
-		return Bindings ? GetPropertyValue(ControlRig, ParameterName, InObject, *Bindings, NumChannels).Z : TOptional<float>();
+		return GetPropertyValue(ControlRig, ParameterName, InObject, NumChannels).Z;
 	}
-	static TOptional<float> ExtractChannelW(UObject& InObject, FTrackInstancePropertyBindings* Bindings, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
+	static TOptional<float> ExtractChannelW(UObject& InObject, UControlRig* ControlRig, FName ParameterName, int32 NumChannels)
 	{
-		return Bindings ? GetPropertyValue(ControlRig, ParameterName, InObject, *Bindings, NumChannels).W : TOptional<float>();
+		return GetPropertyValue(ControlRig, ParameterName, InObject, NumChannels).W;
 	}
 
 	static void GetChannelValueAndWeight(FName ParameterName, int32 NumChannels, int32 Index, UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
@@ -951,6 +951,11 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 			int32 ChannelIndex = 0;
 			for (const FRigControl& RigControl : SortedControls)
 			{
+
+				if (!RigControl.bAnimatable)
+				{
+					continue;
+				}
 #if WITH_EDITOR
 				switch (RigControl.ControlType)
 				{
